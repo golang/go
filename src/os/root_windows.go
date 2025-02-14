@@ -281,6 +281,10 @@ func chownat(parent syscall.Handle, name string, uid, gid int) error {
 	return syscall.EWINDOWS // matches syscall.Chown
 }
 
+func lchownat(parent syscall.Handle, name string, uid, gid int) error {
+	return syscall.EWINDOWS // matches syscall.Lchown
+}
+
 func mkdirat(dirfd syscall.Handle, name string, perm FileMode) error {
 	return windows.Mkdirat(dirfd, name, syscallMode(perm))
 }

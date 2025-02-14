@@ -116,6 +116,16 @@ func rootChown(r *Root, name string, uid, gid int) error {
 	return nil
 }
 
+func rootLchown(r *Root, name string, uid, gid int) error {
+	if err := checkPathEscapesLstat(r, name); err != nil {
+		return &PathError{Op: "lchownat", Path: name, Err: err}
+	}
+	if err := Lchown(joinPath(r.root.name, name), uid, gid); err != nil {
+		return &PathError{Op: "lchownat", Path: name, Err: underlyingError(err)}
+	}
+	return nil
+}
+
 func rootChtimes(r *Root, name string, atime time.Time, mtime time.Time) error {
 	if err := checkPathEscapes(r, name); err != nil {
 		return &PathError{Op: "chtimesat", Path: name, Err: err}

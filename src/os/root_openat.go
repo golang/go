@@ -88,6 +88,16 @@ func rootChown(r *Root, name string, uid, gid int) error {
 	return nil
 }
 
+func rootLchown(r *Root, name string, uid, gid int) error {
+	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
+		return struct{}{}, lchownat(parent, name, uid, gid)
+	})
+	if err != nil {
+		return &PathError{Op: "lchownat", Path: name, Err: err}
+	}
+	return err
+}
+
 func rootChtimes(r *Root, name string, atime time.Time, mtime time.Time) error {
 	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
 		return struct{}{}, chtimesat(parent, name, atime, mtime)

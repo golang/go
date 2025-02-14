@@ -1,3 +1,4 @@
 pkg os, method (*Root) Chmod(string, fs.FileMode) error #67002
 pkg os, method (*Root) Chown(string, int, int) error #67002
 pkg os, method (*Root) Chtimes(string, time.Time, time.Time) error #67002
+pkg os, method (*Root) Lchown(string, int, int) error #67002

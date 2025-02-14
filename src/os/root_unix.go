@@ -166,6 +166,12 @@ func chownat(parent int, name string, uid, gid int) error {
 	})
 }
 
+func lchownat(parent int, name string, uid, gid int) error {
+	return ignoringEINTR(func() error {
+		return unix.Fchownat(parent, name, uid, gid, unix.AT_SYMLINK_NOFOLLOW)
+	})
+}
+
 func chtimesat(parent int, name string, atime time.Time, mtime time.Time) error {
 	return afterResolvingSymlink(parent, name, func() error {
 		return ignoringEINTR(func() error {

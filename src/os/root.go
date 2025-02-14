@@ -159,6 +159,12 @@ func (r *Root) Chown(name string, uid, gid int) error {
 	return rootChown(r, name, uid, gid)
 }
 
+// Lchown changes the numeric uid and gid of the named file in the root.
+// See [Lchown] for more details.
+func (r *Root) Lchown(name string, uid, gid int) error {
+	return rootLchown(r, name, uid, gid)
+}
+
 // Chtimes changes the access and modification times of the named file in the root.
 // See [Chtimes] for more details.
 func (r *Root) Chtimes(name string, atime time.Time, mtime time.Time) error {
