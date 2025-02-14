@@ -902,7 +902,6 @@ func staticValue(n Node, forDevirt bool) Node {
 		if n1 == nil {
 			return n
 		}
-
 		n = n1
 	}
 }
