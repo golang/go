@@ -158,6 +158,42 @@ func TestPointerFinalizer(t *testing.T) {
 	}
 }
 
+func TestPointerCleanup(t *testing.T) {
+	bt := new(T)
+	wt := weak.Make(bt)
+	done := make(chan struct{}, 1)
+	runtime.AddCleanup(bt, func(_ bool) {
+		if wt.Value() != nil {
+			t.Errorf("weak pointer did not go nil before cleanup was executed")
+		}
+		done <- struct{}{}
+	}, true)
+
+	// Make sure the weak pointer stays around while bt is live.
+	runtime.GC()
+	if wt.Value() == nil {
+		t.Errorf("weak pointer went nil too soon")
+	}
+	runtime.KeepAlive(bt)
+
+	// bt is no longer referenced.
+	//
+	// Run one cycle to queue the cleanup.
+	runtime.GC()
+	if wt.Value() != nil {
+		t.Errorf("weak pointer did not go nil when cleanup was enqueued")
+	}
+
+	// Wait for the cleanup to run.
+	<-done
+
+	// The weak pointer should still be nil after the cleanup runs.
+	runtime.GC()
+	if wt.Value() != nil {
+		t.Errorf("weak pointer is non-nil even after cleanup: %v", wt)
+	}
+}
+
 func TestPointerSize(t *testing.T) {
 	var p weak.Pointer[T]
 	size := unsafe.Sizeof(p)
