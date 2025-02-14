@@ -81,7 +81,7 @@ func Fchownat(dirfd int, path string, uid, gid int, flags int) error {
 	if err != nil {
 		return err
 	}
-	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_fchmodat_trampoline),
+	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_fchownat_trampoline),
 		uintptr(dirfd),
 		uintptr(unsafe.Pointer(p)),
 		uintptr(uid),
