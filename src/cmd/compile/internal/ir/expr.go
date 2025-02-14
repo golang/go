@@ -840,6 +840,18 @@ func IsAddressable(n Node) bool {
 	return false
 }
 
+// StaticType is like StaticValue, but also follows ODOTTYPE and OCONVIFACE.
+func StaticType(n Node) *types.Type {
+	out := staticValue(n, true)
+
+	typ := out.Type()
+	if typ.IsInterface() {
+		return nil
+	}
+
+	return typ
+}
+
 // StaticValue analyzes n to find the earliest expression that always
 // evaluates to the same value as n, which might be from an enclosing
 // function.
@@ -855,10 +867,19 @@ func IsAddressable(n Node) bool {
 // calling StaticValue on the "int(y)" expression returns the outer
 // "g()" expression.
 func StaticValue(n Node) Node {
+	return staticValue(n, false)
+
+}
+
+func staticValue(n Node, forDevirt bool) Node {
 	for {
 		switch n1 := n.(type) {
 		case *ConvExpr:
 			if n1.Op() == OCONVNOP {
+				n = n1.X
+				continue
+			}
+			if forDevirt && n1.Op() == OCONVIFACE {
 				n = n1.X
 				continue
 			}
@@ -870,6 +891,11 @@ func StaticValue(n Node) Node {
 		case *ParenExpr:
 			n = n1.X
 			continue
+		case *TypeAssertExpr:
+			if forDevirt && n1.Op() == ODOTTYPE {
+				n = n1.X
+				continue
+			}
 		}
 
 		n1 := staticValue1(n)

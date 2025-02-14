@@ -40,14 +40,12 @@ func StaticCall(call *ir.CallExpr) {
 	}
 
 	sel := call.Fun.(*ir.SelectorExpr)
-	r := ir.StaticValue(sel.X)
-	if r.Op() != ir.OCONVIFACE {
+	typ := ir.StaticType(sel.X)
+	if typ == nil {
 		return
 	}
-	recv := r.(*ir.ConvExpr)
 
-	typ := recv.X.Type()
-	if typ.IsInterface() {
+	if !typecheck.Implements(typ, sel.X.Type()) {
 		return
 	}
 
