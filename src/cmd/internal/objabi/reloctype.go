@@ -131,6 +131,7 @@ const (
 	// inherently processor specific.
 
 	// Arm64.
+	R_AARCH64_CONDBR19
 
 	// Set a MOV[NZ] immediate field to bits [15:0] of the offset from the thread
 	// local base to the thread local variable defined by the referenced (thread
