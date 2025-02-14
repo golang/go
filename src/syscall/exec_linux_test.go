@@ -646,7 +646,7 @@ func testAmbientCaps(t *testing.T, userns bool) {
 
 	u, err := user.Lookup("nobody")
 	if err != nil {
-		t.Fatal(err)
+		t.Skip("skipping: the nobody user does not exist; see Issue 71644")
 	}
 	uid, err := strconv.ParseInt(u.Uid, 0, 32)
 	if err != nil {
