@@ -119,6 +119,14 @@ func t2() {
 		callA(a)    // ERROR "devirtualizing" "inlining call"
 		callIfA(a)  // ERROR "devirtualizing" "inlining call"
 	}
+
+	{
+		var a M = &Impl{} // ERROR "does not escape"
+		// Note the !ok condition, devirtualizing here is fine.
+		if v, ok := a.(M); !ok {
+			v.M() // ERROR "devirtualizing" "inlining call"
+		}
+	}
 }
 
 func newM() M { // ERROR "can inline"
