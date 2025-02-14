@@ -84,7 +84,7 @@ func rootChown(r *Root, name string, uid, gid int) error {
 	if err != nil {
 		return &PathError{Op: "chownat", Path: name, Err: err}
 	}
-	return err
+	return nil
 }
 
 func rootMkdir(r *Root, name string, perm FileMode) error {
