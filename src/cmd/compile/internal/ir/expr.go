@@ -840,26 +840,13 @@ func IsAddressable(n Node) bool {
 	return false
 }
 
-var Implements = func(t, iface *types.Type) bool {
-	panic("unreachable")
-}
-
-// StaticType is like StaticValue but for types.
+// StaticType is like StaticValue, but also follows ODOTTYPE and OCONVIFACE.
 func StaticType(n Node) *types.Type {
-	out, typs := staticValue(n, true)
+	out := staticValue(n, true)
 
 	typ := out.Type()
 	if typ.IsInterface() {
 		return nil
-	}
-
-	// Make sure that every type assertion that involves interfaes is satisfied.
-	for _, t := range typs {
-		if t.IsInterface() {
-			if !Implements(typ, t) {
-				return nil
-			}
-		}
 	}
 
 	return typ
@@ -880,16 +867,11 @@ func StaticType(n Node) *types.Type {
 // calling StaticValue on the "int(y)" expression returns the outer
 // "g()" expression.
 func StaticValue(n Node) Node {
-	v, t := staticValue(n, false)
-	if len(t) != 0 {
-		base.Fatalf("len(t) != 0; len(t) = %v", len(t))
-	}
-	return v
+	return staticValue(n, false)
 
 }
 
-func staticValue(n Node, forDevirt bool) (Node, []*types.Type) {
-	typeAssertTypes := []*types.Type{}
+func staticValue(n Node, forDevirt bool) Node {
 	for {
 		switch n1 := n.(type) {
 		case *ConvExpr:
@@ -898,7 +880,6 @@ func staticValue(n Node, forDevirt bool) (Node, []*types.Type) {
 				continue
 			}
 			if forDevirt && n1.Op() == OCONVIFACE {
-				typeAssertTypes = append(typeAssertTypes, n1.Type())
 				n = n1.X
 				continue
 			}
@@ -912,7 +893,6 @@ func staticValue(n Node, forDevirt bool) (Node, []*types.Type) {
 			continue
 		case *TypeAssertExpr:
 			if forDevirt && n1.Op() == ODOTTYPE {
-				typeAssertTypes = append(typeAssertTypes, n1.Type())
 				n = n1.X
 				continue
 			}
@@ -920,7 +900,7 @@ func staticValue(n Node, forDevirt bool) (Node, []*types.Type) {
 
 		n1 := staticValue1(n)
 		if n1 == nil {
-			return n, typeAssertTypes
+			return n
 		}
 		n = n1
 	}
