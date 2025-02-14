@@ -670,6 +670,14 @@ func TestBasics(t *testing.T) {
 	}
 }
 
+func TestClear(t *testing.T) {
+	jar := newTestJar()
+	for _, test := range basicsTests {
+		test.run(t, jar)
+		jar.Clear()
+	}
+}
+
 // updateAndDeleteTests contains jarTests which must be performed on the same
 // Jar.
 var updateAndDeleteTests = [...]jarTest{
