@@ -681,7 +681,7 @@ func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, error) {
 	}
 	zw.d.fillWindow(dict)
 	zw.dict = append(zw.dict, dict...) // duplicate dictionary for Reset method.
-	return zw, err
+	return zw, nil
 }
 
 type dictWriter struct {

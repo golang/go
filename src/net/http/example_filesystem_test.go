@@ -65,7 +65,7 @@ func (fsys dotFileHidingFileSystem) Open(name string) (http.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	return dotFileHidingFile{file}, err
+	return dotFileHidingFile{file}, nil
 }
 
 func ExampleFileServer_dotFileHiding() {
