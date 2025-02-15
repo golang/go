@@ -144,7 +144,54 @@ func callIfA(m M) { // ERROR "can inline" "leaking param"
 }
 
 //go:noinline
+func newImplNoInline() *Impl {
+	return &Impl{} // ERROR "escapes"
+}
+
+func t3() {
+	{
+		var a A = newImplNoInline()
+		if v, ok := a.(M); ok {
+			v.M() // ERROR "devirtualizing" "inlining call"
+		}
+	}
+	{
+		m := make(map[*Impl]struct{}) // ERROR "does not escape"
+		for v := range m {
+			var v A = v
+			if v, ok := v.(M); ok {
+				v.M() // ERROR "devirtualizing" "inlining call"
+			}
+		}
+	}
+	{
+		m := make(map[int]*Impl) // ERROR "does not escape"
+		for _, v := range m {
+			var v A = v
+			if v, ok := v.(M); ok {
+				v.M() // ERROR "devirtualizing" "inlining call"
+			}
+		}
+	}
+	{
+		m := make(map[int]*Impl) // ERROR "does not escape"
+		var v A = m[0]
+		if v, ok := v.(M); ok {
+			v.M() // ERROR "devirtualizing" "inlining call"
+		}
+	}
+	{
+		m := make(chan *Impl)
+		var v A = <-m
+		if v, ok := v.(M); ok {
+			v.M() // ERROR "devirtualizing" "inlining call"
+		}
+	}
+}
+
+//go:noinline
 func testInvalidAsserts() {
+	any(0).(interface{ A() }).A() // ERROR "escapes"
 	{
 		var a M = &Impl{} // ERROR "escapes"
 		a.(C).C()         // this will panic

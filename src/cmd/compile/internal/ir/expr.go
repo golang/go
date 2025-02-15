@@ -840,18 +840,6 @@ func IsAddressable(n Node) bool {
 	return false
 }
 
-// StaticType is like StaticValue, but also follows ODOTTYPE and OCONVIFACE.
-func StaticType(n Node) *types.Type {
-	out := staticValue(n, true)
-
-	typ := out.Type()
-	if typ.IsInterface() {
-		return nil
-	}
-
-	return typ
-}
-
 // StaticValue analyzes n to find the earliest expression that always
 // evaluates to the same value as n, which might be from an enclosing
 // function.
@@ -867,19 +855,10 @@ func StaticType(n Node) *types.Type {
 // calling StaticValue on the "int(y)" expression returns the outer
 // "g()" expression.
 func StaticValue(n Node) Node {
-	return staticValue(n, false)
-
-}
-
-func staticValue(n Node, forDevirt bool) Node {
 	for {
 		switch n1 := n.(type) {
 		case *ConvExpr:
 			if n1.Op() == OCONVNOP {
-				n = n1.X
-				continue
-			}
-			if forDevirt && n1.Op() == OCONVIFACE {
 				n = n1.X
 				continue
 			}
@@ -891,14 +870,9 @@ func staticValue(n Node, forDevirt bool) Node {
 		case *ParenExpr:
 			n = n1.X
 			continue
-		case *TypeAssertExpr:
-			if forDevirt {
-				n = n1.X
-				continue
-			}
 		}
 
-		n1 := staticValue1(n, forDevirt)
+		n1 := staticValue1(n)
 		if n1 == nil {
 			return n
 		}
@@ -906,7 +880,7 @@ func staticValue(n Node, forDevirt bool) Node {
 	}
 }
 
-func staticValue1(nn Node, forDevirt bool) Node {
+func staticValue1(nn Node) Node {
 	if nn.Op() != ONAME {
 		return nil
 	}
@@ -935,14 +909,6 @@ FindRHS:
 			}
 		}
 		base.Fatalf("%v missing from LHS of %v", n, defn)
-	case OAS2DOTTYPE:
-		if !forDevirt {
-			return nil
-		}
-		defn := defn.(*AssignListStmt)
-		if defn.Lhs[0] == n {
-			rhs = defn.Rhs[0]
-		}
 	default:
 		return nil
 	}

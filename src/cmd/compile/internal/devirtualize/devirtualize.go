@@ -40,11 +40,16 @@ func StaticCall(call *ir.CallExpr) {
 	}
 
 	sel := call.Fun.(*ir.SelectorExpr)
-	typ := ir.StaticType(sel.X)
+	typ := staticType(sel.X)
 	if typ == nil {
 		return
 	}
 
+	// Don't try to devirtualize calls that we statically know that would have failed at runtime.
+	// This can happen in such case: any(0).(interface {A()}).A(), this typechecks without
+	// any errors, but will cause a runtime panic. We statically know that int(0) does not
+	// implement that interface, thus we skip the devirtualization, as it is not possible
+	// to make a type assertion from interface{A()} to int (int does not implement interface{A()}).
 	if !typecheck.Implements(typ, sel.X.Type()) {
 		return
 	}
@@ -135,4 +140,86 @@ func StaticCall(call *ir.CallExpr) {
 
 	// Desugar OCALLMETH, if we created one (#57309).
 	typecheck.FixMethodCall(call)
+}
+
+func staticType(n ir.Node) *types.Type {
+	for {
+		switch n1 := n.(type) {
+		case *ir.ConvExpr:
+			if n1.Op() == ir.OCONVNOP || n1.Op() == ir.OCONVIFACE {
+				n = n1.X
+				continue
+			}
+		case *ir.InlinedCallExpr:
+			if n1.Op() == ir.OINLCALL {
+				n = n1.SingleResult()
+				continue
+			}
+		case *ir.ParenExpr:
+			n = n1.X
+			continue
+		case *ir.TypeAssertExpr:
+			n = n1.X
+			continue
+		}
+
+		n1 := staticValue(n)
+		if n1 == nil {
+			if n.Type().IsInterface() {
+				return nil
+			}
+			return n.Type()
+		}
+		n = n1
+	}
+}
+
+func staticValue(nn ir.Node) ir.Node {
+	if nn.Op() != ir.ONAME {
+		return nil
+	}
+
+	n := nn.(*ir.Name).Canonical()
+	if n.Class != ir.PAUTO {
+		return nil
+	}
+
+	defn := n.Defn
+	if defn == nil {
+		return nil
+	}
+
+	var rhs ir.Node
+FindRHS:
+	switch defn.Op() {
+	case ir.OAS:
+		defn := defn.(*ir.AssignStmt)
+		rhs = defn.Y
+	case ir.OAS2:
+		defn := defn.(*ir.AssignListStmt)
+		for i, lhs := range defn.Lhs {
+			if lhs == n {
+				rhs = defn.Rhs[i]
+				break FindRHS
+			}
+		}
+		base.Fatalf("%v missing from LHS of %v", n, defn)
+	case ir.OAS2DOTTYPE:
+		defn := defn.(*ir.AssignListStmt)
+		if defn.Lhs[0] == n {
+			rhs = defn.Rhs[0]
+		}
+	default:
+		return nil
+	}
+
+	if rhs == nil {
+		base.Fatalf("RHS is nil: %v", defn)
+	}
+
+	if ir.Reassigned(n) {
+		return nil
+	}
+
+	return rhs
 }
