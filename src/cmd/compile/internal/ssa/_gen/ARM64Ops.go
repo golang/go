@@ -388,7 +388,8 @@ func init() {
 		// arg1=mem
 		// Returns the tuple <x,y>.
 		{name: "LDP", argLength: 2, reg: gpload2, aux: "SymOff", asm: "LDP", typ: "(UInt64,UInt64)", faultOnNilArg0: true, symEffect: "Read"},       // T=int64 (gp reg destination)
-		{name: "LDPW", argLength: 2, reg: gpload2, aux: "SymOff", asm: "LDPW", typ: "(UInt32,UInt32)", faultOnNilArg0: true, symEffect: "Read"},     // T=int32 (gp reg destination) ??? extension
+		{name: "LDPW", argLength: 2, reg: gpload2, aux: "SymOff", asm: "LDPW", typ: "(UInt32,UInt32)", faultOnNilArg0: true, symEffect: "Read"},     // T=int32 (gp reg destination) unsigned extension
+		{name: "LDPSW", argLength: 2, reg: gpload2, aux: "SymOff", asm: "LDPSW", typ: "(Int32,Int32)", faultOnNilArg0: true, symEffect: "Read"},     // T=int32 (gp reg destination) signed extension
 		{name: "FLDPD", argLength: 2, reg: fpload2, aux: "SymOff", asm: "FLDPD", typ: "(Float64,Float64)", faultOnNilArg0: true, symEffect: "Read"}, // T=float64 (fp reg destination)
 		{name: "FLDPS", argLength: 2, reg: fpload2, aux: "SymOff", asm: "FLDPS", typ: "(Float32,Float32)", faultOnNilArg0: true, symEffect: "Read"}, // T=float32 (fp reg destination)
 

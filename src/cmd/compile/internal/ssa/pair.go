@@ -32,7 +32,10 @@ type pairableLoadInfo struct {
 // They must also take an offset in Aux/AuxInt.
 var pairableLoads = map[Op]pairableLoadInfo{
 	OpARM64MOVDload:  {8, OpARM64LDP},
-	OpARM64MOVWload:  {4, OpARM64LDPW},
+	OpARM64MOVWUload: {4, OpARM64LDPW},
+	OpARM64MOVWload:  {4, OpARM64LDPSW},
+	// TODO: conceivably we could pair a signed and unsigned load
+	// if we knew the upper bits of one of them weren't being used.
 	OpARM64FMOVDload: {8, OpARM64FLDPD},
 	OpARM64FMOVSload: {4, OpARM64FLDPS},
 }

@@ -982,6 +982,10 @@ func dwloadI64(p *struct{ a, b int64 }) int64 {
 	return p.a + p.b
 }
 func dwloadI32(p *struct{ a, b int32 }) int32 {
+	// arm64:"LDPSW\t"
+	return p.a + p.b
+}
+func dwloadU32(p *struct{ a, b uint32 }) uint32 {
 	// arm64:"LDPW\t"
 	return p.a + p.b
 }
