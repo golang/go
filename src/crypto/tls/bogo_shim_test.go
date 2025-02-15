@@ -82,10 +82,10 @@ var (
 
 	expectSessionMiss = flag.Bool("expect-session-miss", false, "")
 
-	_                       = flag.Bool("enable-early-data", false, "")
-	_                       = flag.Bool("on-resume-expect-accept-early-data", false, "")
-	_                       = flag.Bool("expect-ticket-supports-early-data", false, "")
-	onResumeShimWritesFirst = flag.Bool("on-resume-shim-writes-first", false, "")
+	_ = flag.Bool("enable-early-data", false, "")
+	_ = flag.Bool("on-resume-expect-accept-early-data", false, "")
+	_ = flag.Bool("expect-ticket-supports-early-data", false, "")
+	_ = flag.Bool("on-resume-shim-writes-first", false, "")
 
 	advertiseALPN        = flag.String("advertise-alpn", "", "")
 	expectALPN           = flag.String("expect-alpn", "", "")
@@ -324,7 +324,7 @@ func bogoShim() {
 				break
 			}
 		}
-		if err != nil && err != io.EOF {
+		if err != io.EOF {
 			retryErr, ok := err.(*ECHRejectionError)
 			if !ok {
 				log.Fatalf("unexpected error type returned: %v", err)
