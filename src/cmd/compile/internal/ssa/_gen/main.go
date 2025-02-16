@@ -426,7 +426,6 @@ func genOp() {
 			continue
 		}
 		fmt.Fprintf(w, "var registers%s = [...]Register {\n", a.name)
-		var gcRegN int
 		num := map[string]int8{}
 		for i, r := range a.regnames {
 			num[r] = int8(i)
@@ -443,14 +442,7 @@ func genOp() {
 			default:
 				objname = pkg + ".REG_" + r
 			}
-			// Assign a GC register map index to registers
-			// that may contain pointers.
-			gcRegIdx := -1
-			if a.gpregmask&(1<<uint(i)) != 0 {
-				gcRegIdx = gcRegN
-				gcRegN++
-			}
-			fmt.Fprintf(w, "  {%d, %s, %d, \"%s\"},\n", i, objname, gcRegIdx, r)
+			fmt.Fprintf(w, "  {%d, %s, \"%s\"},\n", i, objname, r)
 		}
 		parameterRegisterList := func(paramNamesString string) []int8 {
 			paramNamesString = strings.TrimSpace(paramNamesString)
@@ -477,10 +469,6 @@ func genOp() {
 		paramIntRegs := parameterRegisterList(a.ParamIntRegNames)
 		paramFloatRegs := parameterRegisterList(a.ParamFloatRegNames)
 
-		if gcRegN > 32 {
-			// Won't fit in a uint32 mask.
-			log.Fatalf("too many GC registers (%d > 32) on %s", gcRegN, a.name)
-		}
 		fmt.Fprintln(w, "}")
 		fmt.Fprintf(w, "var paramIntReg%s = %#v\n", a.name, paramIntRegs)
 		fmt.Fprintf(w, "var paramFloatReg%s = %#v\n", a.name, paramFloatRegs)
