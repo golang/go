@@ -1,7 +1,7 @@
 name: Go Telemetry Proposals
 description: Changes to the telemetry upload configuration
 title: "x/telemetry/config: proposal title"
-labels: ["Telemetry-Proposal"]
+labels: [Telemetry-Proposal]
 projects: ["golang/29"]
 body:
 - type: textarea
