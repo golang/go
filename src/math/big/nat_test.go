@@ -228,6 +228,7 @@ func benchmarkNatMul(b *testing.B, nwords int) {
 	y := rndNat(nwords)
 	var z nat
 	b.ResetTimer()
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		z.mul(x, y)
 	}
@@ -738,6 +739,7 @@ func benchmarkNatSqr(b *testing.B, nwords int) {
 	x := rndNat(nwords)
 	var z nat
 	b.ResetTimer()
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		z.sqr(x)
 	}
