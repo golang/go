@@ -10,7 +10,7 @@ import (
 )
 
 //go:noinline
-func foo() string { return "foo" }
+func foo() string { return "foofoofoofoofoofo" } // len == 17
 
 //go:noinline
 func empty() string { return "" }
@@ -23,8 +23,8 @@ func TestConcatBytes(t *testing.T) {
 		want []byte
 	}{
 		"two empty elements":                 {got: []byte(empty + empty), want: []byte{}},
-		"two nonempty elements":              {got: []byte(s + s), want: []byte("foofoo")},
-		"one empty and one nonempty element": {got: []byte(s + empty), want: []byte("foo")},
+		"two nonempty elements":              {got: []byte(s + s), want: append([]byte(foo()), foo()...)},
+		"one empty and one nonempty element": {got: []byte(s + empty), want: []byte(foo())},
 		"multiple empty elements":            {got: []byte(empty + empty + empty + empty + empty + empty), want: []byte{}},
 		"multiple nonempty elements":         {got: []byte("1" + "2" + "3" + "4" + "5" + "6"), want: []byte("123456")},
 	}
