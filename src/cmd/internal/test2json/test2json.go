@@ -29,7 +29,7 @@ const (
 
 // event is the JSON struct we emit.
 type event struct {
-	Time        *time.Time `json:",omitempty"`
+	Time        time.Time `json:",omitzero"`
 	Action      string
 	Package     string     `json:",omitempty"`
 	Test        string     `json:",omitempty"`
@@ -402,8 +402,7 @@ func (c *Converter) writeOutputEvent(out []byte) {
 func (c *Converter) writeEvent(e *event) {
 	e.Package = c.pkg
 	if c.mode&Timestamp != 0 {
-		t := time.Now()
-		e.Time = &t
+		e.Time = time.Now()
 	}
 	if e.Test == "" {
 		e.Test = c.testName
