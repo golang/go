@@ -56,6 +56,8 @@ var deBruijn64tab = [64]byte{
 }
 
 // TrailingZeros returns the number of trailing zero bits in x; the result is [UintSize] for x == 0.
+//
+// Use ^x to count trailing Ones instead of trailing zeros.
 func TrailingZeros(x uint) int {
 	if UintSize == 32 {
 		return TrailingZeros32(uint32(x))
