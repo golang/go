@@ -928,12 +928,12 @@ func TestRootConsistencyChmod(t *testing.T) {
 			}
 
 			var m1, m2 os.FileMode
-			err := chmod(path, 0o555)
+			_ = chmod(path, 0o555)
 			fi, err := lstat(path)
 			if err == nil {
 				m1 = fi.Mode()
 			}
-			err = chmod(path, 0o777)
+			_ = chmod(path, 0o777)
 			fi, err = lstat(path)
 			if err == nil {
 				m2 = fi.Mode()
