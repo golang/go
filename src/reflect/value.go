@@ -1510,6 +1510,58 @@ func valueInterface(v Value, safe bool) any {
 	return packEface(v)
 }
 
+// TypeAssert is semantically equivalent to:
+//
+//	v2, ok := v.Interface().(T)
+func TypeAssert[T any](v Value) (T, bool) {
+	if v.flag == 0 {
+		panic(&ValueError{"reflect.TypeAssert", Invalid})
+	}
+	if v.flag&flagRO != 0 {
+		// Do not allow access to unexported values via Interface,
+		// because they might be pointers that should not be
+		// writable or methods or function that should not be callable.
+		panic("reflect.TypeAssert: cannot return value obtained from unexported field or method")
+	}
+
+	if v.flag&flagMethod != 0 {
+		v = makeMethodValue("TypeAssert", v)
+	}
+
+	if abi.TypeFor[T]() != v.typ() {
+		// TypeAssert[T] should work the same way as v.Interface().(T), thus we need
+		// to handle following case properly: TypeAssert[any](ValueOf(1)).
+		// Note that we will not hit here is such case: TypeAssert[any](ValueOf(new(any)).Elem()).
+		if abi.TypeFor[T]().Kind() == abi.Interface {
+			v, ok := packEface(v).(T)
+			return v, ok
+		}
+
+		// Special case: match the element inside the interface.
+		// TypeAssert[int](ValueOf(newPtr(any(0))).Elem()
+		if v.kind() == Interface {
+			// Empty interface has one layout, all interfaces with
+			// methods have a second layout.
+			if v.NumMethod() == 0 {
+				v, ok := (*(*any)(v.ptr)).(T)
+				return v, ok
+			}
+			v, ok := any(*(*interface {
+				M()
+			})(v.ptr)).(T)
+			return v, ok
+		}
+
+		var zero T
+		return zero, false
+	}
+
+	if v.flag&flagIndir == 0 {
+		return *(*T)(unsafe.Pointer(&v.ptr)), true
+	}
+	return *(*T)(v.ptr), true
+}
+
 // InterfaceData returns a pair of unspecified uintptr values.
 // It panics if v's Kind is not Interface.
 //
