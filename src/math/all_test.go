@@ -1553,6 +1553,27 @@ var logSC = []float64{
 	NaN(),
 }
 
+var vflogBC = []float64{
+	SmallestNonzeroFloat64,
+	LargestSubnormalFloat64,
+	SmallestNormalFloat64,
+	MaxFloat64,
+	-SmallestNonzeroFloat64,
+	-LargestSubnormalFloat64,
+	-SmallestNormalFloat64,
+	-MaxFloat64,
+}
+var logBC = []float64{
+	-744.4400719213812,
+	-708.3964185322641,
+	-708.3964185322641,
+	709.782712893384,
+	NaN(),
+	NaN(),
+	NaN(),
+	NaN(),
+}
+
 var vflogbSC = []float64{
 	Inf(-1),
 	0,
@@ -2776,6 +2797,12 @@ func TestLog(t *testing.T) {
 	for i := 0; i < len(vflogSC); i++ {
 		if f := Log(vflogSC[i]); !alike(logSC[i], f) {
 			t.Errorf("Log(%g) = %g, want %g", vflogSC[i], f, logSC[i])
+		}
+	}
+
+	for i := 0; i < len(vflogBC); i++ {
+		if f := Log(vflogBC[i]); !alike(logBC[i], f) {
+			t.Errorf("Log(%g) = %g, want %g", vflogBC[i], f, logBC[i])
 		}
 	}
 }
