@@ -13519,6 +13519,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (Load <t1> p1 (Store {t2} p2 x _))
 	// cond: isSamePtr(p1, p2) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size()
 	// result: x
@@ -14103,12 +14104,11 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (Load <t> (OffPtr [off] (Addr {s} sb) ) _)
-	// cond: t.IsUintptr() && isFixedSym(s, off)
+	// match: (Load <typ.BytePtr> (OffPtr [off] (Addr {s} sb) ) _)
+	// cond: isFixedSym(s, off)
 	// result: (Addr {fixedSym(b.Func, s, off)} sb)
 	for {
-		t := v.Type
-		if v_0.Op != OpOffPtr {
+		if v.Type != typ.BytePtr || v_0.Op != OpOffPtr {
 			break
 		}
 		off := auxIntToInt64(v_0.AuxInt)
@@ -14118,7 +14118,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		}
 		s := auxToSym(v_0_0.Aux)
 		sb := v_0_0.Args[0]
-		if !(t.IsUintptr() && isFixedSym(s, off)) {
+		if !(isFixedSym(s, off)) {
 			break
 		}
 		v.reset(OpAddr)
@@ -14126,12 +14126,11 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		v.AddArg(sb)
 		return true
 	}
-	// match: (Load <t> (OffPtr [off] (Convert (Addr {s} sb) _) ) _)
-	// cond: t.IsUintptr() && isFixedSym(s, off)
+	// match: (Load <typ.BytePtr> (OffPtr [off] (Convert (Addr {s} sb) _) ) _)
+	// cond: isFixedSym(s, off)
 	// result: (Addr {fixedSym(b.Func, s, off)} sb)
 	for {
-		t := v.Type
-		if v_0.Op != OpOffPtr {
+		if v.Type != typ.BytePtr || v_0.Op != OpOffPtr {
 			break
 		}
 		off := auxIntToInt64(v_0.AuxInt)
@@ -14145,7 +14144,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		}
 		s := auxToSym(v_0_0_0.Aux)
 		sb := v_0_0_0.Args[0]
-		if !(t.IsUintptr() && isFixedSym(s, off)) {
+		if !(isFixedSym(s, off)) {
 			break
 		}
 		v.reset(OpAddr)
@@ -14153,12 +14152,11 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		v.AddArg(sb)
 		return true
 	}
-	// match: (Load <t> (OffPtr [off] (ITab (IMake (Addr {s} sb) _))) _)
-	// cond: t.IsUintptr() && isFixedSym(s, off)
+	// match: (Load <typ.BytePtr> (OffPtr [off] (ITab (IMake (Addr {s} sb) _))) _)
+	// cond: isFixedSym(s, off)
 	// result: (Addr {fixedSym(b.Func, s, off)} sb)
 	for {
-		t := v.Type
-		if v_0.Op != OpOffPtr {
+		if v.Type != typ.BytePtr || v_0.Op != OpOffPtr {
 			break
 		}
 		off := auxIntToInt64(v_0.AuxInt)
@@ -14176,7 +14174,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		}
 		s := auxToSym(v_0_0_0_0.Aux)
 		sb := v_0_0_0_0.Args[0]
-		if !(t.IsUintptr() && isFixedSym(s, off)) {
+		if !(isFixedSym(s, off)) {
 			break
 		}
 		v.reset(OpAddr)
@@ -14184,12 +14182,11 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		v.AddArg(sb)
 		return true
 	}
-	// match: (Load <t> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _)
-	// cond: t.IsUintptr() && isFixedSym(s, off)
+	// match: (Load <typ.BytePtr> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _)
+	// cond: isFixedSym(s, off)
 	// result: (Addr {fixedSym(b.Func, s, off)} sb)
 	for {
-		t := v.Type
-		if v_0.Op != OpOffPtr {
+		if v.Type != typ.BytePtr || v_0.Op != OpOffPtr {
 			break
 		}
 		off := auxIntToInt64(v_0.AuxInt)
@@ -14211,7 +14208,119 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		}
 		s := auxToSym(v_0_0_0_0_0.Aux)
 		sb := v_0_0_0_0_0.Args[0]
-		if !(t.IsUintptr() && isFixedSym(s, off)) {
+		if !(isFixedSym(s, off)) {
+			break
+		}
+		v.reset(OpAddr)
+		v.Aux = symToAux(fixedSym(b.Func, s, off))
+		v.AddArg(sb)
+		return true
+	}
+	// match: (Load <typ.Uintptr> (OffPtr [off] (Addr {s} sb) ) _)
+	// cond: isFixedSym(s, off)
+	// result: (Addr {fixedSym(b.Func, s, off)} sb)
+	for {
+		if v.Type != typ.Uintptr || v_0.Op != OpOffPtr {
+			break
+		}
+		off := auxIntToInt64(v_0.AuxInt)
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpAddr {
+			break
+		}
+		s := auxToSym(v_0_0.Aux)
+		sb := v_0_0.Args[0]
+		if !(isFixedSym(s, off)) {
+			break
+		}
+		v.reset(OpAddr)
+		v.Aux = symToAux(fixedSym(b.Func, s, off))
+		v.AddArg(sb)
+		return true
+	}
+	// match: (Load <typ.Uintptr> (OffPtr [off] (Convert (Addr {s} sb) _) ) _)
+	// cond: isFixedSym(s, off)
+	// result: (Addr {fixedSym(b.Func, s, off)} sb)
+	for {
+		if v.Type != typ.Uintptr || v_0.Op != OpOffPtr {
+			break
+		}
+		off := auxIntToInt64(v_0.AuxInt)
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpConvert {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpAddr {
+			break
+		}
+		s := auxToSym(v_0_0_0.Aux)
+		sb := v_0_0_0.Args[0]
+		if !(isFixedSym(s, off)) {
+			break
+		}
+		v.reset(OpAddr)
+		v.Aux = symToAux(fixedSym(b.Func, s, off))
+		v.AddArg(sb)
+		return true
+	}
+	// match: (Load <typ.Uintptr> (OffPtr [off] (ITab (IMake (Addr {s} sb) _))) _)
+	// cond: isFixedSym(s, off)
+	// result: (Addr {fixedSym(b.Func, s, off)} sb)
+	for {
+		if v.Type != typ.Uintptr || v_0.Op != OpOffPtr {
+			break
+		}
+		off := auxIntToInt64(v_0.AuxInt)
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpITab {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpIMake {
+			break
+		}
+		v_0_0_0_0 := v_0_0_0.Args[0]
+		if v_0_0_0_0.Op != OpAddr {
+			break
+		}
+		s := auxToSym(v_0_0_0_0.Aux)
+		sb := v_0_0_0_0.Args[0]
+		if !(isFixedSym(s, off)) {
+			break
+		}
+		v.reset(OpAddr)
+		v.Aux = symToAux(fixedSym(b.Func, s, off))
+		v.AddArg(sb)
+		return true
+	}
+	// match: (Load <typ.Uintptr> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _)
+	// cond: isFixedSym(s, off)
+	// result: (Addr {fixedSym(b.Func, s, off)} sb)
+	for {
+		if v.Type != typ.Uintptr || v_0.Op != OpOffPtr {
+			break
+		}
+		off := auxIntToInt64(v_0.AuxInt)
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpITab {
+			break
+		}
+		v_0_0_0 := v_0_0.Args[0]
+		if v_0_0_0.Op != OpIMake {
+			break
+		}
+		v_0_0_0_0 := v_0_0_0.Args[0]
+		if v_0_0_0_0.Op != OpConvert {
+			break
+		}
+		v_0_0_0_0_0 := v_0_0_0_0.Args[0]
+		if v_0_0_0_0_0.Op != OpAddr {
+			break
+		}
+		s := auxToSym(v_0_0_0_0_0.Aux)
+		sb := v_0_0_0_0_0.Args[0]
+		if !(isFixedSym(s, off)) {
 			break
 		}
 		v.reset(OpAddr)

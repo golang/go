@@ -2756,10 +2756,14 @@
 (RotateLeft(64|32|16|8) (RotateLeft(64|32|16|8) x c) d) && c.Type.Size() == 1 && d.Type.Size() == 1 => (RotateLeft(64|32|16|8) x (Add8  <c.Type> c d))
 
 // Loading constant values from dictionaries and itabs.
-(Load <t> (OffPtr [off]                       (Addr {s} sb)       ) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
-(Load <t> (OffPtr [off]              (Convert (Addr {s} sb) _)    ) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
-(Load <t> (OffPtr [off] (ITab (IMake          (Addr {s} sb)    _))) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
-(Load <t> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+(Load <typ.BytePtr> (OffPtr [off]                       (Addr {s} sb)       ) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+(Load <typ.BytePtr> (OffPtr [off]              (Convert (Addr {s} sb) _)    ) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+(Load <typ.BytePtr> (OffPtr [off] (ITab (IMake          (Addr {s} sb)    _))) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+(Load <typ.BytePtr> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+(Load <typ.Uintptr> (OffPtr [off]                       (Addr {s} sb)       ) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+(Load <typ.Uintptr> (OffPtr [off]              (Convert (Addr {s} sb) _)    ) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+(Load <typ.Uintptr> (OffPtr [off] (ITab (IMake          (Addr {s} sb)    _))) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+(Load <typ.Uintptr> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _)  && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
 
 // Loading constant values from runtime._type.hash.
 (Load <t> (OffPtr [off]                       (Addr {sym} _)       ) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
