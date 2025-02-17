@@ -5,9 +5,12 @@
 package escape
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"go/constant"
+	"go/token"
 )
 
 func isSliceSelfAssign(dst, src ir.Node) bool {
@@ -206,14 +209,28 @@ func HeapAllocReason(n ir.Node) string {
 
 	if n.Op() == ir.OMAKESLICE {
 		n := n.(*ir.MakeExpr)
-		r := n.Cap
-		if r == nil {
-			r = n.Len
+
+		r := &n.Cap
+		if n.Cap == nil {
+			r = &n.Len
 		}
-		if !ir.IsSmallIntConst(r) {
+
+		// Try to determine static values of make() calls, to avoid allocating them on the heap.
+		// We are doing this in escape analysis, so that it happens after inlining and devirtualization.
+		if s := ir.StaticValue(*r); s.Op() == ir.OLITERAL {
+			lit, ok := s.(*ir.BasicLit)
+			if !ok || lit.Val().Kind() != constant.Int {
+				base.Fatalf("unexpected BasicLit Kind")
+			}
+			if constant.Compare(lit.Val(), token.GEQ, constant.MakeInt64(0)) {
+				*r = lit
+			}
+		}
+
+		if !ir.IsSmallIntConst(*r) {
 			return "non-constant size"
 		}
-		if t := n.Type(); t.Elem().Size() != 0 && ir.Int64Val(r) > ir.MaxImplicitStackVarSize/t.Elem().Size() {
+		if t := n.Type(); t.Elem().Size() != 0 && ir.Int64Val(*r) > ir.MaxImplicitStackVarSize/t.Elem().Size() {
 			return "too large for stack"
 		}
 	}
