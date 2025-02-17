@@ -935,7 +935,7 @@ func TestRootConsistencyChmod(t *testing.T) {
 			if err == nil {
 				m1 = fi.Mode()
 			}
-			if err := chmod(path, 0o777); err != nil {
+			if err = chmod(path, 0o777); err != nil {
 				return "chmod 0o777", err
 			}
 			fi, err = lstat(path)
