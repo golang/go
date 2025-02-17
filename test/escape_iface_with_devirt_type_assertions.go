@@ -132,6 +132,12 @@ func typeAssertsWithOkReturn() {
 			v.M() // ERROR "devirtualizing" "inlining call"
 		}
 	}
+	{
+		var a A = newImplNoInline()
+		if v, ok := a.(M); ok {
+			v.M() // ERROR "devirtualizing" "inlining call"
+		}
+	}
 }
 
 func newM() M { // ERROR "can inline"
@@ -153,15 +159,6 @@ func newImplNoInline() *Impl {
 	return &Impl{} // ERROR "escapes"
 }
 
-func t3() {
-	{
-		var a A = newImplNoInline()
-		if v, ok := a.(M); ok {
-			v.M() // ERROR "devirtualizing" "inlining call"
-		}
-	}
-}
-
 //go:noinline
 func newImpl2ret2() (string, *Impl2) {
 	return "str", &Impl2{} // ERROR "escapes"
@@ -172,7 +169,7 @@ func newImpl2() *Impl2 {
 	return &Impl2{} // ERROR "escapes"
 }
 
-func t5() {
+func differentTypeAssign() {
 	{
 		var a A
 		a = &Impl{}  // ERROR "escapes"
@@ -222,120 +219,7 @@ func t5() {
 	}
 }
 
-var (
-	globalImpl    = &Impl{}
-	globalImpl2   = &Impl2{}
-	globalA     A = &Impl{}
-	globalM     M = &Impl{}
-)
-
-func t7() {
-	{
-		var a A = &Impl{} // ERROR "does not escape"
-		a = globalImpl
-		a.A() // ERROR "devirtualizing" "inlining call"
-	}
-	{
-		var a A = &Impl{} // ERROR "does not escape"
-		a = A(globalImpl)
-		a.A() // ERROR "devirtualizing" "inlining call"
-	}
-	{
-		var a A = &Impl{} // ERROR "does not escape"
-		a = M(globalImpl).(A)
-		a.A() // ERROR "devirtualizing" "inlining call"
-	}
-	{
-		var a A = &Impl{} // ERROR "escapes"
-		a = globalImpl2
-		a.A()
-	}
-	{
-		var a A = &Impl{} // ERROR "escapes"
-		a = globalA
-		a.A()
-	}
-	{
-		var a A = &Impl{} // ERROR "escapes"
-		a = globalM.(A)
-		a.A()
-	}
-	{
-		var a A = &Impl{}                    // ERROR "does not escape"
-		for _, v := range []*Impl{&Impl{}} { // ERROR "does not escape"
-			a = v
-		}
-
-		k, v := &Impl{}, &Impl{}                  // ERROR "escapes"
-		for k, v := range map[*Impl]*Impl{k: v} { // ERROR "does not escape"
-			a = k
-			a = v
-		}
-
-		a.A()     // ERROR "devirtualizing" "inlining call"
-		a.(A).A() // ERROR "devirtualizing""inlining call"
-		a.(M).M() // ERROR "devirtualizing""inlining call"
-
-		var m M = a.(M)
-		m.M()     // ERROR "devirtualizing""inlining call"
-		m.(A).A() // ERROR "devirtualizing""inlining call"
-	}
-	{
-		var a A = &Impl{}                   // ERROR "escapes"
-		var impl2 = &Impl2{}                // ERROR "escapes"
-		for _, v := range []*Impl2{impl2} { // ERROR "does not escape"
-			a = v
-		}
-		a.A()
-	}
-	{
-		var a A = &Impl{}                           // ERROR "escapes"
-		k, v := &Impl2{}, &Impl2{}                  // ERROR "escapes"
-		for k, _ := range map[*Impl2]*Impl2{k: v} { // ERROR "does not escape"
-			a = k
-		}
-		a.A()
-	}
-	{
-		var a A = &Impl{}                           // ERROR "escapes"
-		k, v := &Impl2{}, &Impl2{}                  // ERROR "escapes"
-		for _, v := range map[*Impl2]*Impl2{k: v} { // ERROR "does not escape"
-			a = v
-		}
-		a.A()
-	}
-}
-
-func t8() {
-	{
-		var a A = &Impl{} // ERROR "escapes"
-		a = a
-		a.A()
-	}
-	{
-		var a A = &Impl{} // ERROR "escapes"
-		var asAny any = a
-		asAny = asAny
-		asAny.(A).A()
-	}
-	{
-		var a A = &Impl{} // ERROR "escapes"
-		var asAny any = a
-		asAny = asAny
-		a = asAny.(A)
-		asAny = a
-		asAny.(A).A()
-		asAny.(M).M()
-	}
-	{
-		var a A = &Impl{} // ERROR "escapes"
-		var asAny A = a
-		a = asAny.(A)
-		a.A()
-	}
-}
-
-func t9() {
+func longDevirtTest() {
 	var a interface {
 		M
 		A
@@ -393,7 +277,7 @@ func t9() {
 	}
 }
 
-func t10() {
+func deferDevirt() {
 	var a A
 	defer func() { // ERROR "func literal does not escape" "can inline"
 		a = &Impl{} // ERROR "escapes"
@@ -402,7 +286,7 @@ func t10() {
 	a.A()       // ERROR "devirtualizing" "inlining call"
 }
 
-func t11() {
+func deferNoDevirt() {
 	var a A
 	defer func() { // ERROR "func literal does not escape" "can inline"
 		a = &Impl2{} // ERROR "escapes"
@@ -411,7 +295,7 @@ func t11() {
 	a.A()
 }
 
-func t12() {
+func closureDevirt() {
 	var a A
 	func() { // ERROR "func literal does not escape"
 		// defer so that it does not lnline.
@@ -422,7 +306,7 @@ func t12() {
 	a.A()       // ERROR "devirtualizing" "inlining call"
 }
 
-func t13() {
+func closureNoDevirt() {
 	var a A
 	func() { // ERROR "func literal does not escape"
 		// defer so that it does not lnline.
@@ -435,7 +319,7 @@ func t13() {
 
 var global = "1"
 
-func t14() {
+func closureDevirt2() {
 	var a A
 	a = &Impl{}   // ERROR "does not escape"
 	c := func() { // ERROR "can inline" "func literal does not escape"
@@ -450,7 +334,7 @@ func t14() {
 	c()
 }
 
-func t15() {
+func closureNoDevirt2() {
 	var a A
 	a = &Impl{}   // ERROR "escapes"
 	c := func() { // ERROR "can inline" "func literal does not escape"
@@ -465,13 +349,54 @@ func t15() {
 	c()
 }
 
-func mapsDevirt() {
+var (
+	globalImpl    = &Impl{}
+	globalImpl2   = &Impl2{}
+	globalA     A = &Impl{}
+	globalM     M = &Impl{}
+)
+
+func globals() {
 	{
-		m := make(map[int]*Impl) // ERROR "does not escape"
-		var v A = m[0]
-		v.A()     // ERROR "devirtualizing" "inlining call"
-		v.(M).M() // ERROR "devirtualizing" "inlining call"
+		var a A = &Impl{} // ERROR "does not escape"
+		a = globalImpl
+		a.A() // ERROR "devirtualizing" "inlining call"
 	}
+	{
+		var a A = &Impl{} // ERROR "does not escape"
+		a = A(globalImpl)
+		a.A() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		var a A = &Impl{} // ERROR "does not escape"
+		a = M(globalImpl).(A)
+		a.A() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		var a A = &Impl{} // ERROR "does not escape"
+		a = globalA.(*Impl)
+		a.A() // ERROR "devirtualizing" "inlining call"
+		a = globalM.(*Impl)
+		a.A() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		var a A = &Impl{} // ERROR "escapes"
+		a = globalImpl2
+		a.A()
+	}
+	{
+		var a A = &Impl{} // ERROR "escapes"
+		a = globalA
+		a.A()
+	}
+	{
+		var a A = &Impl{} // ERROR "escapes"
+		a = globalM.(A)
+		a.A()
+	}
+}
+
+func mapsDevirt() {
 	{
 		m := make(map[int]*Impl) // ERROR "does not escape"
 		var v A = m[0]
@@ -496,13 +421,6 @@ func mapsDevirt() {
 }
 
 func mapsNoDevirt() {
-	{
-		m := make(map[int]*Impl) // ERROR "does not escape"
-		var v A = m[0]
-		v.A()
-		v = &Impl2{} // ERROR "escapes"
-		v.(M).M()
-	}
 	{
 		m := make(map[int]*Impl) // ERROR "does not escape"
 		var v A = m[0]
@@ -800,6 +718,35 @@ func devirtWrapperType() {
 		// This is an OCONVNOP, so we have to be carefull, not to devirtualize it to Impl.A.
 		var a A = (implWrapper)(i) // ERROR "does not escape"
 		a.A()                      // ERROR "devirtualizing a.A to implWrapper" "inlining call"
+	}
+}
+
+func selfAssigns() {
+	{
+		var a A = &Impl{} // ERROR "escapes"
+		a = a
+		a.A()
+	}
+	{
+		var a A = &Impl{} // ERROR "escapes"
+		var asAny any = a
+		asAny = asAny
+		asAny.(A).A()
+	}
+	{
+		var a A = &Impl{} // ERROR "escapes"
+		var asAny any = a
+		asAny = asAny
+		a = asAny.(A)
+		asAny = a
+		asAny.(A).A()
+		asAny.(M).M()
+	}
+	{
+		var a A = &Impl{} // ERROR "escapes"
+		var asAny A = a
+		a = asAny.(A)
+		a.A()
 	}
 }
 
