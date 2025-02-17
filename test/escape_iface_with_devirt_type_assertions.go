@@ -218,6 +218,155 @@ func t3() {
 	}
 }
 
+func rangeDevirt() {
+	{
+		var v A
+		m := make(map[*Impl]struct{}) // ERROR "does not escape"
+		v = &Impl{}                   // ERROR "does not escape"
+		for v = range m {
+		}
+		v.A() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		var v A
+		m := make(map[*Impl]*Impl) // ERROR "does not escape"
+		v = &Impl{}                // ERROR "does not escape"
+		for v = range m {
+		}
+		v.A() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		var v A
+		m := make(map[*Impl]*Impl) // ERROR "does not escape"
+		v = &Impl{}                // ERROR "does not escape"
+		for _, v = range m {
+		}
+		v.A() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		var v A
+		m := make(chan *Impl)
+		v = &Impl{} // ERROR "does not escape"
+		for v = range m {
+		}
+		v.A() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		var v A
+		m := []*Impl{} // ERROR "does not escape"
+		v = &Impl{}    // ERROR "does not escape"
+		for _, v = range m {
+		}
+		v.A() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		var v A
+		v = &Impl{}     // ERROR "does not escape"
+		impl := &Impl{} // ERROR "does not escape"
+		i := 0
+		for v = impl; i < 10; i++ {
+		}
+		v.A() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		var v A
+		v = &Impl{}     // ERROR "does not escape"
+		impl := &Impl{} // ERROR "does not escape"
+		i := 0
+		for v = impl; i < 10; i++ {
+		}
+		v.A() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		var v A
+		m := [1]*Impl{&Impl{}} // ERROR "does not escape"
+		v = &Impl{}            // ERROR "does not escape"
+		for _, v = range m {
+		}
+		v.A() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		var v A
+		m := [1]*Impl{&Impl{}} // ERROR "does not escape"
+		v = &Impl{}            // ERROR "does not escape"
+		for _, v = range &m {
+		}
+		v.A() // ERROR "devirtualizing" "inlining call"
+	}
+}
+
+func rangeNoDevirt() {
+	{
+		var v A = &Impl2{}            // ERROR "escapes"
+		m := make(map[*Impl]struct{}) // ERROR "does not escape"
+		for v = range m {
+		}
+		v.A()
+	}
+	{
+		var v A = &Impl2{}         // ERROR "escapes"
+		m := make(map[*Impl]*Impl) // ERROR "does not escape"
+		for v = range m {
+		}
+		v.A()
+	}
+	{
+		var v A = &Impl2{}         // ERROR "escapes"
+		m := make(map[*Impl]*Impl) // ERROR "does not escape"
+		for _, v = range m {
+		}
+		v.A()
+	}
+	{
+		var v A = &Impl2{} // ERROR "escapes"
+		m := make(chan *Impl)
+		for v = range m {
+		}
+		v.A()
+	}
+	{
+		var v A = &Impl2{} // ERROR "escapes"
+		m := []*Impl{}     // ERROR "does not escape"
+		for _, v = range m {
+		}
+		v.A()
+	}
+	{
+		var v A
+		v = &Impl2{}    // ERROR "escapes"
+		impl := &Impl{} // ERROR "escapes"
+		i := 0
+		for v = impl; i < 10; i++ {
+		}
+		v.A()
+	}
+	{
+		var v A
+		v = &Impl2{}    // ERROR "escapes"
+		impl := &Impl{} // ERROR "escapes"
+		i := 0
+		for v = impl; i < 10; i++ {
+		}
+		v.A()
+	}
+	{
+		var v A
+		m := [1]*Impl{&Impl{}} // ERROR "escapes"
+		v = &Impl2{}           // ERROR "escapes"
+		for _, v = range m {
+		}
+		v.A()
+	}
+	{
+		var v A
+		m := [1]*Impl{&Impl{}} // ERROR "escapes"
+		v = &Impl2{}           // ERROR "escapes"
+		for _, v = range &m {
+		}
+		v.A()
+	}
+}
+
 //go:noinline
 func newImpl2ret2() (string, *Impl2) {
 	return "str", &Impl2{} // ERROR "escapes"
