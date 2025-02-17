@@ -79,7 +79,7 @@ func ParseCookie(line string) ([]*Cookie, error) {
 		if !found {
 			return nil, errEqualNotFoundInCookie
 		}
-		if !isCookieNameValid(name) {
+		if !isToken(name) {
 			return nil, errInvalidCookieName
 		}
 		value, quoted, found := parseCookieValue(value, true)
@@ -104,7 +104,7 @@ func ParseSetCookie(line string) (*Cookie, error) {
 		return nil, errEqualNotFoundInCookie
 	}
 	name = textproto.TrimString(name)
-	if !isCookieNameValid(name) {
+	if !isToken(name) {
 		return nil, errInvalidCookieName
 	}
 	value, quoted, ok := parseCookieValue(value, true)
@@ -225,7 +225,7 @@ func SetCookie(w ResponseWriter, cookie *Cookie) {
 // header (if other fields are set).
 // If c is nil or c.Name is invalid, the empty string is returned.
 func (c *Cookie) String() string {
-	if c == nil || !isCookieNameValid(c.Name) {
+	if c == nil || !isToken(c.Name) {
 		return ""
 	}
 	// extraCookieLength derived from typical length of cookie attributes
@@ -295,7 +295,7 @@ func (c *Cookie) Valid() error {
 	if c == nil {
 		return errors.New("http: nil Cookie")
 	}
-	if !isCookieNameValid(c.Name) {
+	if !isToken(c.Name) {
 		return errors.New("http: invalid Cookie.Name")
 	}
 	if !c.Expires.IsZero() && !validCookieExpires(c.Expires) {
@@ -349,7 +349,7 @@ func readCookies(h Header, filter string) []*Cookie {
 			}
 			name, val, _ := strings.Cut(part, "=")
 			name = textproto.TrimString(name)
-			if !isCookieNameValid(name) {
+			if !isToken(name) {
 				continue
 			}
 			if filter != "" && filter != name {
@@ -525,11 +525,4 @@ func parseCookieValue(raw string, allowDoubleQuote bool) (value string, quoted, 
 		}
 	}
 	return raw, quoted, true
-}
-
-func isCookieNameValid(raw string) bool {
-	if raw == "" {
-		return false
-	}
-	return strings.IndexFunc(raw, isNotToken) < 0
 }
