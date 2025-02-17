@@ -306,3 +306,5 @@ func synctest_inBubble(sg any, f func()) {
 	}()
 	f()
 }
+
+// Local fallback improvement: appended a small comment.
