@@ -38,8 +38,6 @@
         "PostQuantumNotEnabledByDefaultInClients": "We do enable it by default!",
         "*-Kyber-TLS13": "We don't support Kyber, only ML-KEM (BoGo bug ignoring AllCurves?)",
 
-        "SendEmptySessionTicket-TLS13": "https://github.com/golang/go/issues/70513",
-
         "*-SignDefault-*": "TODO, partially it encodes BoringSSL defaults, partially we might be missing some implicit behavior of a missing flag",
 
         "V2ClientHello-*": "We don't support SSLv2",

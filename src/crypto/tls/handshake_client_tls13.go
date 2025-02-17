@@ -870,6 +870,11 @@ func (c *Conn) handleNewSessionTicket(msg *newSessionTicketMsgTLS13) error {
 		return errors.New("tls: received a session ticket with invalid lifetime")
 	}
 
+	if len(msg.label) == 0 {
+		c.sendAlert(alertDecodeError)
+		return errors.New("tls: received a session ticket with empty opaque ticket label")
+	}
+
 	// RFC 9001, Section 4.6.1
 	if c.quic != nil && msg.maxEarlyData != 0 && msg.maxEarlyData != 0xffffffff {
 		c.sendAlert(alertIllegalParameter)
