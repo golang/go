@@ -315,6 +315,7 @@ func concreteType2(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
 			n := n.(*ir.AssignListStmt)
 			for _, p := range n.Lhs {
 				if isName(p) {
+					// TODO: the type can be a map? Same with recv (a chan?)
 					return handleType(n.Rhs[0].Type())
 				}
 			}
@@ -325,11 +326,38 @@ func concreteType2(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
 			}
 		case ir.ORANGE:
 			n := n.(*ir.RangeStmt)
-			if isName(n.Key) {
-				return handleNode(n.Key)
+			xTyp := n.X.Type()
+
+			// range over an array pointer
+			if xTyp.IsPtr() && xTyp.Elem().IsArray() {
+				xTyp = xTyp.Elem()
 			}
-			if isName(n.Value) {
-				return handleNode(n.Value)
+
+			if xTyp.IsArray() || xTyp.IsSlice() {
+				if isName(n.Key) {
+					// This is an index, int has no methods, so nothing
+					// to devirtualize.
+					typ = nil
+					return true
+				}
+				if isName(n.Value) {
+					return handleType(xTyp.Elem())
+				}
+			} else if xTyp.IsChan() {
+				if isName(n.Key) {
+					return handleType(xTyp.Elem())
+				}
+				base.Assertf(n.Value == nil, "n.Value != nil in range over chan")
+			} else if xTyp.IsMap() {
+				if isName(n.Key) {
+					return handleType(xTyp.Key())
+				}
+				if isName(n.Value) {
+					return handleType(xTyp.Elem())
+				}
+			} else {
+				typ = nil
+				return true
 			}
 		case ir.OCLOSURE:
 			n := n.(*ir.ClosureExpr)
