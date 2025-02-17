@@ -29,8 +29,10 @@ var (
 	nodeTRUNC  = constants.Get("O_TRUNC").Int()
 	nodeAPPEND = constants.Get("O_APPEND").Int()
 	nodeEXCL   = constants.Get("O_EXCL").Int()
-
-	// Windows didn't have O_DIRECTORY, so we assign it in init.
+	
+	// NodeJS on Windows does not support O_DIRECTORY, so we default
+	// to -1 and assign it in init if available.
+	// See https://nodejs.org/docs/latest/api/fs.html#file-open-constants.
 	nodeDIRECTORY = -1
 )
 
