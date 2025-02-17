@@ -160,34 +160,6 @@ func t3() {
 			v.M() // ERROR "devirtualizing" "inlining call"
 		}
 	}
-	{
-		m := make(map[*Impl]struct{}) // ERROR "does not escape"
-		for v := range m {
-			var v A = v
-			v.A() // ERROR "devirtualizing" "inlining call"
-			if v, ok := v.(M); ok {
-				v.M() // ERROR "devirtualizing" "inlining call"
-			}
-		}
-	}
-	{
-		m := make(map[int]*Impl) // ERROR "does not escape"
-		for _, v := range m {
-			var v A = v
-			v.A() // ERROR "devirtualizing" "inlining call"
-			if v, ok := v.(M); ok {
-				v.M() // ERROR "devirtualizing" "inlining call"
-			}
-		}
-	}
-	{
-		m := make(map[int]*Impl) // ERROR "does not escape"
-		var v A = m[0]
-		v.A() // ERROR "devirtualizing" "inlining call"
-		if v, ok := v.(M); ok {
-			v.M() // ERROR "devirtualizing" "inlining call"
-		}
-	}
 }
 
 //go:noinline
@@ -247,34 +219,6 @@ func t5() {
 		a = &Impl{} // ERROR "escapes"
 		_, a = newImpl2ret2()
 		a.A()
-	}
-	{
-		var a A
-		a = &Impl{}               // ERROR "escapes"
-		m := make(map[int]*Impl2) // ERROR "does not escape"
-		a = m[0]
-		a.A()
-	}
-}
-
-func t6() {
-	{
-		m := make(map[int]*Impl) // ERROR "does not escape"
-		var a A
-		a, _ = m[0]
-		if v, ok := a.(M); ok {
-			v.M() // ERROR "devirtualizing" "inlining call"
-		}
-	}
-	{
-		m := make(map[int]*Impl) // ERROR "does not escape"
-		var a A
-		var ok bool
-		if a, ok = m[0]; ok {
-			if v, ok := a.(M); ok {
-				v.M() // ERROR "devirtualizing" "inlining call"
-			}
-		}
 	}
 }
 
@@ -521,23 +465,68 @@ func t15() {
 	c()
 }
 
-type implWrapper Impl
-
-func (implWrapper) A() {} // ERROR "can inline"
-
-//go:noinline
-func devirtWrapperType() {
+func mapsDevirt() {
 	{
-		i := &Impl{} // ERROR "does not escape"
-		// This is an OCONVNOP, so we have to be carefull, not to devirtualize it to Impl.A.
-		var a A = (*implWrapper)(i)
-		a.A() // ERROR "devirtualizing a.A to \*implWrapper" "inlining call"
+		m := make(map[int]*Impl) // ERROR "does not escape"
+		var v A = m[0]
+		v.A()     // ERROR "devirtualizing" "inlining call"
+		v.(M).M() // ERROR "devirtualizing" "inlining call"
 	}
 	{
-		i := Impl{}
-		// This is an OCONVNOP, so we have to be carefull, not to devirtualize it to Impl.A.
-		var a A = (implWrapper)(i) // ERROR "does not escape"
-		a.A()                      // ERROR "devirtualizing a.A to implWrapper" "inlining call"
+		m := make(map[int]*Impl) // ERROR "does not escape"
+		var v A = m[0]
+		v.A()     // ERROR "devirtualizing" "inlining call"
+		v.(M).M() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		m := make(map[int]*Impl) // ERROR "does not escape"
+		var v A
+		var ok bool
+		if v, ok = m[0]; ok {
+			v.A() // ERROR "devirtualizing" "inlining call"
+		}
+		v.A() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		m := make(map[int]*Impl) // ERROR "does not escape"
+		var v A
+		v, _ = m[0]
+		v.A() // ERROR "devirtualizing" "inlining call"
+	}
+}
+
+func mapsNoDevirt() {
+	{
+		m := make(map[int]*Impl) // ERROR "does not escape"
+		var v A = m[0]
+		v.A()
+		v = &Impl2{} // ERROR "escapes"
+		v.(M).M()
+	}
+	{
+		m := make(map[int]*Impl) // ERROR "does not escape"
+		var v A = m[0]
+		v.A()
+		v = &Impl2{} // ERROR "escapes"
+		v.(M).M()
+	}
+	{
+		m := make(map[int]*Impl) // ERROR "does not escape"
+		var v A
+		var ok bool
+		if v, ok = m[0]; ok {
+			v.A()
+		}
+		v = &Impl2{} // ERROR "escapes"
+		v.A()
+	}
+	{
+		m := make(map[int]*Impl) // ERROR "does not escape"
+		var v A
+		v, _ = m[0]
+		v.A()
+		v = &Impl2{} // ERROR "escapes"
+		v.A()
 	}
 }
 
@@ -791,6 +780,26 @@ func rangeNoDevirt() {
 		for _, v = range &m {
 		}
 		v.A()
+	}
+}
+
+type implWrapper Impl
+
+func (implWrapper) A() {} // ERROR "can inline"
+
+//go:noinline
+func devirtWrapperType() {
+	{
+		i := &Impl{} // ERROR "does not escape"
+		// This is an OCONVNOP, so we have to be carefull, not to devirtualize it to Impl.A.
+		var a A = (*implWrapper)(i)
+		a.A() // ERROR "devirtualizing a.A to \*implWrapper" "inlining call"
+	}
+	{
+		i := Impl{}
+		// This is an OCONVNOP, so we have to be carefull, not to devirtualize it to Impl.A.
+		var a A = (implWrapper)(i) // ERROR "does not escape"
+		a.A()                      // ERROR "devirtualizing a.A to implWrapper" "inlining call"
 	}
 }
 
