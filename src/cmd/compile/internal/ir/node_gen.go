@@ -2202,13 +2202,13 @@ func (n *TailCallStmt) doChildrenWithHidden(do func(Node) bool) bool {
 func (n *TailCallStmt) editChildren(edit func(Node) Node) {
 	editNodes(n.init, edit)
 	if n.Call != nil {
-		n.Call = edit(n.Call).(*CallExpr)
+		n.Call = edit(n.Call)
 	}
 }
 func (n *TailCallStmt) editChildrenWithHidden(edit func(Node) Node) {
 	editNodes(n.init, edit)
 	if n.Call != nil {
-		n.Call = edit(n.Call).(*CallExpr)
+		n.Call = edit(n.Call)
 	}
 }
 

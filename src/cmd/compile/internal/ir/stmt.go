@@ -479,7 +479,7 @@ func NewSwitchStmt(pos src.XPos, tag Node, cases []*CaseClause) *SwitchStmt {
 // code generation to jump directly to another function entirely.
 type TailCallStmt struct {
 	miniStmt
-	Call *CallExpr // the underlying call
+	Call Node // the underlying call
 }
 
 func NewTailCallStmt(pos src.XPos, call *CallExpr) *TailCallStmt {
