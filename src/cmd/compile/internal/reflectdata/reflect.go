@@ -592,11 +592,21 @@ func TypePtrAt(pos src.XPos, t *types.Type) *ir.AddrExpr {
 // it may sometimes, but not always, be a type that can't implement the specified
 // interface.
 func ITabLsym(typ, iface *types.Type) *obj.LSym {
+	return itabLsym(typ, iface, true)
+}
+
+func itabLsym(typ, iface *types.Type, allowNonImplement bool) *obj.LSym {
 	s, existed := ir.Pkgs.Itab.LookupOK(typ.LinkString() + "," + iface.LinkString())
 	lsym := s.Linksym()
+	signatmu.Lock()
+	if lsym.Extra == nil {
+		ii := lsym.NewItabInfo()
+		ii.Type = typ
+	}
+	signatmu.Unlock()
 
 	if !existed {
-		writeITab(lsym, typ, iface, true)
+		writeITab(lsym, typ, iface, allowNonImplement)
 	}
 	return lsym
 }
@@ -605,13 +615,7 @@ func ITabLsym(typ, iface *types.Type) *obj.LSym {
 // *runtime.itab value for concrete type typ implementing interface
 // iface.
 func ITabAddrAt(pos src.XPos, typ, iface *types.Type) *ir.AddrExpr {
-	s, existed := ir.Pkgs.Itab.LookupOK(typ.LinkString() + "," + iface.LinkString())
-	lsym := s.Linksym()
-
-	if !existed {
-		writeITab(lsym, typ, iface, false)
-	}
-
+	lsym := itabLsym(typ, iface, false)
 	return typecheck.LinksymAddr(pos, lsym, types.Types[types.TUINT8])
 }
 

@@ -3894,23 +3894,23 @@ func injectglist(glist *gList) {
 	if glist.empty() {
 		return
 	}
-	trace := traceAcquire()
-	if trace.ok() {
-		for gp := glist.head.ptr(); gp != nil; gp = gp.schedlink.ptr() {
-			trace.GoUnpark(gp, 0)
-		}
-		traceRelease(trace)
-	}
 
 	// Mark all the goroutines as runnable before we put them
 	// on the run queues.
 	head := glist.head.ptr()
 	var tail *g
 	qsize := 0
+	trace := traceAcquire()
 	for gp := head; gp != nil; gp = gp.schedlink.ptr() {
 		tail = gp
 		qsize++
 		casgstatus(gp, _Gwaiting, _Grunnable)
+		if trace.ok() {
+			trace.GoUnpark(gp, 0)
+		}
+	}
+	if trace.ok() {
+		traceRelease(trace)
 	}
 
 	// Turn the gList into a gQueue.
@@ -4693,7 +4693,7 @@ func exitsyscall() {
 				trace.GoSysExit(lostP)
 				if lostP {
 					// We lost the P at some point, even though we got it back here.
-					// Trace that we're starting again, because there was a traceGoSysBlock
+					// Trace that we're starting again, because there was a tracev2.GoSysBlock
 					// call somewhere in exitsyscallfast (indicating that this goroutine
 					// had blocked) and we're about to start running again.
 					trace.GoStart()
@@ -4790,7 +4790,7 @@ func exitsyscallfast_reacquired(trace traceLocker) {
 	if gp.m.syscalltick != gp.m.p.ptr().syscalltick {
 		if trace.ok() {
 			// The p was retaken and then enter into syscall again (since gp.m.syscalltick has changed).
-			// traceGoSysBlock for this syscall was already emitted,
+			// tracev2.GoSysBlock for this syscall was already emitted,
 			// but here we effectively retake the p from the new syscall running on the same p.
 			systemstack(func() {
 				// We're stealing the P. It's treated

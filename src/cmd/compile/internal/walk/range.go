@@ -244,19 +244,24 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		// depends on layout of iterator struct.
 		// See cmd/compile/internal/reflectdata/reflect.go:MapIterType
 		var keysym, elemsym *types.Sym
+		var iterInit, iterNext string
 		if buildcfg.Experiment.SwissMap {
 			keysym = th.Field(0).Sym
 			elemsym = th.Field(1).Sym // ditto
+			iterInit = "mapIterStart"
+			iterNext = "mapIterNext"
 		} else {
 			keysym = th.Field(0).Sym
 			elemsym = th.Field(1).Sym // ditto
+			iterInit = "mapiterinit"
+			iterNext = "mapiternext"
 		}
 
-		fn := typecheck.LookupRuntime("mapiterinit", t.Key(), t.Elem(), th)
+		fn := typecheck.LookupRuntime(iterInit, t.Key(), t.Elem(), th)
 		init = append(init, mkcallstmt1(fn, reflectdata.RangeMapRType(base.Pos, nrange), ha, typecheck.NodAddr(hit)))
 		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym), typecheck.NodNil())
 
-		fn = typecheck.LookupRuntime("mapiternext", th)
+		fn = typecheck.LookupRuntime(iterNext, th)
 		nfor.Post = mkcallstmt1(fn, typecheck.NodAddr(hit))
 
 		key := ir.NewStarExpr(base.Pos, typecheck.ConvNop(ir.NewSelectorExpr(base.Pos, ir.ODOT, hit, keysym), types.NewPtr(t.Key())))
@@ -337,7 +342,10 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 
 		// if hv2 < utf8.RuneSelf
 		nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
-		nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, hv2, ir.NewInt(base.Pos, utf8.RuneSelf))
+
+		// On x86, hv2 <= 127 is shorter to encode than hv2 < 128
+		// Doesn't hurt other archs.
+		nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLE, hv2, ir.NewInt(base.Pos, utf8.RuneSelf-1))
 
 		// hv1++
 		nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, hv1, ir.NewBinaryExpr(base.Pos, ir.OADD, hv1, ir.NewInt(base.Pos, 1)))}

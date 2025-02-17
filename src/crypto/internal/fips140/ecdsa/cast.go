@@ -54,7 +54,8 @@ func testHash() []byte {
 func fipsPCT[P Point[P]](c *Curve[P], k *PrivateKey) error {
 	return fips140.PCT("ECDSA PCT", func() error {
 		hash := testHash()
-		sig, err := Sign(c, sha512.New, k, nil, hash)
+		drbg := newDRBG(sha512.New, k.d, bits2octets(P256(), hash), nil)
+		sig, err := sign(c, k, drbg, hash)
 		if err != nil {
 			return err
 		}

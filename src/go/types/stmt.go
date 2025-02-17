@@ -466,21 +466,9 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		if ch.mode == invalid || val.mode == invalid {
 			return
 		}
-		u := coreType(ch.typ)
-		if u == nil {
-			check.errorf(inNode(s, s.Arrow), InvalidSend, invalidOp+"cannot send to %s: no core type", &ch)
-			return
+		if elem := check.chanElem(inNode(s, s.Arrow), &ch, false); elem != nil {
+			check.assignment(&val, elem, "send")
 		}
-		uch, _ := u.(*Chan)
-		if uch == nil {
-			check.errorf(inNode(s, s.Arrow), InvalidSend, invalidOp+"cannot send to non-channel %s", &ch)
-			return
-		}
-		if uch.dir == RecvOnly {
-			check.errorf(inNode(s, s.Arrow), InvalidSend, invalidOp+"cannot send to receive-only channel %s", &ch)
-			return
-		}
-		check.assignment(&val, uch.elem, "send")
 
 	case *ast.IncDecStmt:
 		var op token.Token
@@ -1075,8 +1063,13 @@ func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, ca
 			return bad("func must be func(yield func(...) bool): argument is not func")
 		case cb.Params().Len() > 2:
 			return bad("func must be func(yield func(...) bool): yield func has too many parameters")
-		case cb.Results().Len() != 1 || !isBoolean(cb.Results().At(0).Type()):
-			return bad("func must be func(yield func(...) bool): yield func does not return bool")
+		case cb.Results().Len() != 1 || !Identical(cb.Results().At(0).Type(), universeBool):
+			// see go.dev/issues/71131, go.dev/issues/71164
+			if cb.Results().Len() == 1 && isBoolean(cb.Results().At(0).Type()) {
+				return bad("func must be func(yield func(...) bool): yield func returns user-defined boolean, not bool")
+			} else {
+				return bad("func must be func(yield func(...) bool): yield func does not return bool")
+			}
 		}
 		assert(cb.Recv() == nil)
 		// determine key and value types, if any

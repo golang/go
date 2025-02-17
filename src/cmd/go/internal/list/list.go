@@ -347,9 +347,7 @@ func init() {
 	CmdList.Run = runList // break init cycle
 	// Omit build -json because list has its own -json
 	work.AddBuildFlags(CmdList, work.OmitJSONFlag)
-	if cfg.Experiment != nil && cfg.Experiment.CoverageRedesign {
-		work.AddCoverFlags(CmdList, nil)
-	}
+	work.AddCoverFlags(CmdList, nil)
 	CmdList.Flag.Var(&listJsonFields, "json", "")
 }
 
@@ -728,7 +726,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		b.IsCmdList = true
 		b.NeedExport = *listExport
 		b.NeedCompiledGoFiles = *listCompiled
-		if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
+		if cfg.BuildCover {
 			load.PrepareForCoverageBuild(pkgs)
 		}
 		a := &work.Action{}

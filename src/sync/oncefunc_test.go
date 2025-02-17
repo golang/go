@@ -203,9 +203,7 @@ func TestOnceXGC(t *testing.T) {
 		t.Run(n, func(t *testing.T) {
 			buf := make([]byte, 1024)
 			var gc atomic.Bool
-			runtime.SetFinalizer(&buf[0], func(_ *byte) {
-				gc.Store(true)
-			})
+			runtime.AddCleanup(&buf[0], func(g *atomic.Bool) { g.Store(true) }, &gc)
 			f := fn(buf)
 			gcwaitfin()
 			if gc.Load() != false {

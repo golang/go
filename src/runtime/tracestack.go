@@ -9,15 +9,11 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/trace/tracev2"
 	"unsafe"
 )
 
 const (
-	// Maximum number of PCs in a single stack trace.
-	// Since events contain only stack id rather than whole stack trace,
-	// we can allow quite large values here.
-	traceStackSize = 128
-
 	// logicalStackSentinel is a sentinel value at pcBuf[0] signifying that
 	// pcBuf[1:] holds a logical stack requiring no further processing. Any other
 	// value at pcBuf[0] represents a skip value to apply to the physical stack in
@@ -36,7 +32,7 @@ const (
 // that this stack trace is being written out for, which needs to be synchronized with
 // generations moving forward. Prefer traceEventWriter.stack.
 func traceStack(skip int, gp *g, gen uintptr) uint64 {
-	var pcBuf [traceStackSize]uintptr
+	var pcBuf [tracev2.MaxFramesPerStack]uintptr
 
 	// Figure out gp and mp for the backtrace.
 	var mp *m
@@ -55,7 +51,7 @@ func traceStack(skip int, gp *g, gen uintptr) uint64 {
 			// are totally fine for taking a stack trace. They're captured
 			// correctly in goStatusToTraceGoStatus.
 			switch goStatusToTraceGoStatus(status, gp.waitreason) {
-			case traceGoRunning, traceGoSyscall:
+			case tracev2.GoRunning, tracev2.GoSyscall:
 				if getg() == gp || mp.curg == gp {
 					break
 				}
@@ -147,7 +143,7 @@ func (t *traceStackTable) put(pcs []uintptr) uint64 {
 // releases all memory and resets state. It must only be called once the caller
 // can guarantee that there are no more writers to the table.
 func (t *traceStackTable) dump(gen uintptr) {
-	stackBuf := make([]uintptr, traceStackSize)
+	stackBuf := make([]uintptr, tracev2.MaxFramesPerStack)
 	w := unsafeTraceWriter(gen, nil)
 	if root := (*traceMapNode)(t.tab.root.Load()); root != nil {
 		w = dumpStacksRec(root, w, stackBuf)
@@ -172,15 +168,15 @@ func dumpStacksRec(node *traceMapNode, w traceWriter, stackBuf []uintptr) traceW
 	// bound is pretty loose, but avoids counting
 	// lots of varint sizes.
 	//
-	// Add 1 because we might also write traceEvStacks.
+	// Add 1 because we might also write tracev2.EvStacks.
 	var flushed bool
 	w, flushed = w.ensure(1 + maxBytes)
 	if flushed {
-		w.byte(byte(traceEvStacks))
+		w.byte(byte(tracev2.EvStacks))
 	}
 
 	// Emit stack event.
-	w.byte(byte(traceEvStack))
+	w.byte(byte(tracev2.EvStack))
 	w.varint(uint64(node.id))
 	w.varint(uint64(len(frames)))
 	for _, frame := range frames {

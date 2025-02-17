@@ -5452,12 +5452,15 @@ func (s *state) referenceTypeBuiltin(n *ir.UnaryExpr, x *ssa.Value) *ssa.Value {
 	if n.X.Type().IsChan() && n.Op() == ir.OCAP {
 		s.Fatalf("cannot inline cap(chan)") // must use runtime.chancap now
 	}
+	if n.X.Type().IsMap() && n.Op() == ir.OCAP {
+		s.Fatalf("cannot inline cap(map)") // cap(map) does not exist
+	}
 	// if n == nil {
 	//   return 0
 	// } else {
-	//   // len
-	//   return *((*int)n)
-	//   // cap
+	//   // len, the actual loadType depends
+	//   return int(*((*loadType)n))
+	//   // cap (chan only, not used for now)
 	//   return *(((*int)n)+1)
 	// }
 	lenType := n.Type()
@@ -5485,7 +5488,9 @@ func (s *state) referenceTypeBuiltin(n *ir.UnaryExpr, x *ssa.Value) *ssa.Value {
 	case ir.OLEN:
 		if buildcfg.Experiment.SwissMap && n.X.Type().IsMap() {
 			// length is stored in the first word.
-			s.vars[n] = s.load(lenType, x)
+			loadType := reflectdata.SwissMapType().Field(0).Type // uint64
+			load := s.load(loadType, x)
+			s.vars[n] = s.conv(nil, load, loadType, lenType) // integer conversion doesn't need Node
 		} else {
 			// length is stored in the first word for map/chan
 			s.vars[n] = s.load(lenType, x)
@@ -6330,7 +6335,10 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 
 	e := f.Frontend().(*ssafn)
 
-	s.livenessMap, s.partLiveArgs = liveness.Compute(e.curfn, f, e.stkptrsize, pp)
+	gatherPrintInfo := f.PrintOrHtmlSSA || ssa.GenssaDump[f.Name]
+
+	var lv *liveness.Liveness
+	s.livenessMap, s.partLiveArgs, lv = liveness.Compute(e.curfn, f, e.stkptrsize, pp, gatherPrintInfo)
 	emitArgInfo(e, f, pp)
 	argLiveBlockMap, argLiveValueMap := liveness.ArgLiveness(e.curfn, f, pp)
 
@@ -6353,7 +6361,6 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 	var progToValue map[*obj.Prog]*ssa.Value
 	var progToBlock map[*obj.Prog]*ssa.Block
 	var valueToProgAfter []*obj.Prog // The first Prog following computation of a value v; v is visible at this point.
-	gatherPrintInfo := f.PrintOrHtmlSSA || ssa.GenssaDump[f.Name]
 	if gatherPrintInfo {
 		progToValue = make(map[*obj.Prog]*ssa.Value, f.NumValues())
 		progToBlock = make(map[*obj.Prog]*ssa.Block, f.NumBlocks())
@@ -6761,6 +6768,14 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		buf.WriteString("<code>")
 		buf.WriteString("<dl class=\"ssa-gen\">")
 		filename := ""
+
+		liveness := lv.Format(nil)
+		if liveness != "" {
+			buf.WriteString("<dt class=\"ssa-prog-src\"></dt><dd class=\"ssa-prog\">")
+			buf.WriteString(html.EscapeString("# " + liveness))
+			buf.WriteString("</dd>")
+		}
+
 		for p := s.pp.Text; p != nil; p = p.Link {
 			// Don't spam every line with the file name, which is often huge.
 			// Only print changes, and "unknown" is not a change.
@@ -6773,6 +6788,19 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 
 			buf.WriteString("<dt class=\"ssa-prog-src\">")
 			if v, ok := progToValue[p]; ok {
+
+				// Prefix calls with their liveness, if any
+				if p.As != obj.APCDATA {
+					if liveness := lv.Format(v); liveness != "" {
+						// Steal this line, and restart a line
+						buf.WriteString("</dt><dd class=\"ssa-prog\">")
+						buf.WriteString(html.EscapeString("# " + liveness))
+						buf.WriteString("</dd>")
+						// restarting a line
+						buf.WriteString("<dt class=\"ssa-prog-src\">")
+					}
+				}
+
 				buf.WriteString(v.HTML())
 			} else if b, ok := progToBlock[p]; ok {
 				buf.WriteString("<b>" + b.HTML() + "</b>")

@@ -10,7 +10,6 @@ import (
 	"crypto/internal/fips140/bigmod"
 	"crypto/internal/fips140/drbg"
 	"crypto/internal/fips140/nistec"
-	"crypto/internal/randutil"
 	"errors"
 	"io"
 	"sync"
@@ -22,7 +21,7 @@ import (
 
 type PrivateKey struct {
 	pub PublicKey
-	d   []byte // bigmod.(*Nat).Bytes output (fixed length)
+	d   []byte // bigmod.(*Nat).Bytes output (same length as the curve order)
 }
 
 func (priv *PrivateKey) Bytes() []byte {
@@ -187,20 +186,11 @@ func NewPublicKey[P Point[P]](c *Curve[P], Q []byte) (*PublicKey, error) {
 }
 
 // GenerateKey generates a new ECDSA private key pair for the specified curve.
-//
-// In FIPS mode, rand is ignored.
 func GenerateKey[P Point[P]](c *Curve[P], rand io.Reader) (*PrivateKey, error) {
 	fips140.RecordApproved()
 
 	k, Q, err := randomPoint(c, func(b []byte) error {
-		if fips140.Enabled {
-			drbg.Read(b)
-			return nil
-		} else {
-			randutil.MaybeReadByte(rand)
-			_, err := io.ReadFull(rand, b)
-			return err
-		}
+		return drbg.ReadWithReader(rand, b)
 	})
 	if err != nil {
 		return nil, err
@@ -272,7 +262,7 @@ func randomPoint[P Point[P]](c *Curve[P], generate func([]byte) error) (k *bigmo
 var testingOnlyRejectionSamplingLooped func()
 
 // Signature is an ECDSA signature, where r and s are represented as big-endian
-// fixed-length byte slices.
+// byte slices of the same length as the curve order.
 type Signature struct {
 	R, S []byte
 }
@@ -281,8 +271,6 @@ type Signature struct {
 // the hash function H) using the private key, priv. If the hash is longer than
 // the bit-length of the private key's curve order, the hash will be truncated
 // to that length.
-//
-// The signature is randomized. If FIPS mode is enabled, rand is ignored.
 func Sign[P Point[P], H fips140.Hash](c *Curve[P], h func() H, priv *PrivateKey, rand io.Reader, hash []byte) (*Signature, error) {
 	if priv.pub.curve != c.curve {
 		return nil, errors.New("ecdsa: private key does not match curve")
@@ -296,13 +284,8 @@ func Sign[P Point[P], H fips140.Hash](c *Curve[P], h func() H, priv *PrivateKey,
 	// advantage of closely resembling Deterministic ECDSA.
 
 	Z := make([]byte, len(priv.d))
-	if fips140.Enabled {
-		drbg.Read(Z)
-	} else {
-		randutil.MaybeReadByte(rand)
-		if _, err := io.ReadFull(rand, Z); err != nil {
-			return nil, err
-		}
+	if err := drbg.ReadWithReader(rand, Z); err != nil {
+		return nil, err
 	}
 
 	// See https://github.com/cfrg/draft-irtf-cfrg-det-sigs-with-noise/issues/6

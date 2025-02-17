@@ -5,6 +5,7 @@
 package testing
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -293,6 +294,8 @@ func (f *F) Fuzz(ff any) {
 			f.tstate.match.clearSubNames()
 		}
 
+		ctx, cancelCtx := context.WithCancel(f.ctx)
+
 		// Record the stack trace at the point of this call so that if the subtest
 		// function - which runs in a separate stack - is marked as a helper, we can
 		// continue walking the stack into the parent test.
@@ -300,13 +303,15 @@ func (f *F) Fuzz(ff any) {
 		n := runtime.Callers(2, pc[:])
 		t := &T{
 			common: common{
-				barrier: make(chan bool),
-				signal:  make(chan bool),
-				name:    testName,
-				parent:  &f.common,
-				level:   f.level + 1,
-				creator: pc[:n],
-				chatty:  f.chatty,
+				barrier:   make(chan bool),
+				signal:    make(chan bool),
+				name:      testName,
+				parent:    &f.common,
+				level:     f.level + 1,
+				creator:   pc[:n],
+				chatty:    f.chatty,
+				ctx:       ctx,
+				cancelCtx: cancelCtx,
 			},
 			tstate: f.tstate,
 		}
@@ -508,14 +513,17 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
 						continue
 					}
 				}
+				ctx, cancelCtx := context.WithCancel(context.Background())
 				f := &F{
 					common: common{
-						signal:  make(chan bool),
-						barrier: make(chan bool),
-						name:    testName,
-						parent:  &root,
-						level:   root.level + 1,
-						chatty:  root.chatty,
+						signal:    make(chan bool),
+						barrier:   make(chan bool),
+						name:      testName,
+						parent:    &root,
+						level:     root.level + 1,
+						chatty:    root.chatty,
+						ctx:       ctx,
+						cancelCtx: cancelCtx,
 					},
 					tstate: tstate,
 					fstate: fstate,
@@ -590,14 +598,17 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
 		return false
 	}
 
+	ctx, cancelCtx := context.WithCancel(context.Background())
 	f := &F{
 		common: common{
-			signal:  make(chan bool),
-			barrier: nil, // T.Parallel has no effect when fuzzing.
-			name:    testName,
-			parent:  &root,
-			level:   root.level + 1,
-			chatty:  root.chatty,
+			signal:    make(chan bool),
+			barrier:   nil, // T.Parallel has no effect when fuzzing.
+			name:      testName,
+			parent:    &root,
+			level:     root.level + 1,
+			chatty:    root.chatty,
+			ctx:       ctx,
+			cancelCtx: cancelCtx,
 		},
 		fstate: fstate,
 		tstate: tstate,

@@ -183,3 +183,17 @@ func interfaceConv(x IJ) I {
 	// arm64:`CALL\truntime.typeAssert`,`LDAR`,`MOVWU\t16\(R0\)`,`MOVD\t\(R.*\)\(R.*\)`
 	return x
 }
+
+// Make sure we can constant fold after inlining. See issue 71699.
+func stringSwitchInlineable(s string) {
+	switch s {
+	case "foo", "bar", "baz", "goo":
+	default:
+		println("no")
+	}
+}
+func stringSwitch() {
+	// amd64:-"CMP",-"CALL"
+	// arm64:-"CMP",-"CALL"
+	stringSwitchInlineable("foo")
+}

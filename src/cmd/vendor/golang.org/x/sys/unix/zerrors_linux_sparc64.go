@@ -119,6 +119,8 @@ const (
 	IN_CLOEXEC                       = 0x400000
 	IN_NONBLOCK                      = 0x4000
 	IOCTL_VM_SOCKETS_GET_LOCAL_CID   = 0x200007b9
+	IPV6_FLOWINFO_MASK               = 0xfffffff
+	IPV6_FLOWLABEL_MASK              = 0xfffff
 	ISIG                             = 0x1
 	IUCLC                            = 0x200
 	IXOFF                            = 0x1000
@@ -357,6 +359,7 @@ const (
 	SCM_TIMESTAMPING_OPT_STATS       = 0x38
 	SCM_TIMESTAMPING_PKTINFO         = 0x3c
 	SCM_TIMESTAMPNS                  = 0x21
+	SCM_TS_OPT_ID                    = 0x5a
 	SCM_TXTIME                       = 0x3f
 	SCM_WIFI_STATUS                  = 0x25
 	SECCOMP_IOCTL_NOTIF_ADDFD        = 0x80182103

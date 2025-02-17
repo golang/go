@@ -7,9 +7,8 @@
 package net
 
 import (
+	"internal/routebsd"
 	"syscall"
-
-	"golang.org/x/net/route"
 )
 
 // If the ifindex is zero, interfaceTable returns mappings of all
@@ -28,23 +27,18 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 	n = 0
 	for _, m := range msgs {
 		switch m := m.(type) {
-		case *route.InterfaceMessage:
+		case *routebsd.InterfaceMessage:
 			if ifindex != 0 && ifindex != m.Index {
 				continue
 			}
 			ift[n].Index = m.Index
 			ift[n].Name = m.Name
 			ift[n].Flags = linkFlags(m.Flags)
-			if sa, ok := m.Addrs[syscall.RTAX_IFP].(*route.LinkAddr); ok && len(sa.Addr) > 0 {
+			if sa, ok := m.Addrs[syscall.RTAX_IFP].(*routebsd.LinkAddr); ok && len(sa.Addr) > 0 {
 				ift[n].HardwareAddr = make([]byte, len(sa.Addr))
 				copy(ift[n].HardwareAddr, sa.Addr)
 			}
-			for _, sys := range m.Sys() {
-				if imx, ok := sys.(*route.InterfaceMetrics); ok {
-					ift[n].MTU = imx.MTU
-					break
-				}
-			}
+			ift[n].MTU = m.MTU()
 			n++
 			if ifindex == m.Index {
 				return ift[:n], nil
@@ -92,27 +86,35 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 	ifat := make([]Addr, 0, len(msgs))
 	for _, m := range msgs {
 		switch m := m.(type) {
-		case *route.InterfaceAddrMessage:
+		case *routebsd.InterfaceAddrMessage:
 			if index != 0 && index != m.Index {
 				continue
 			}
 			var mask IPMask
 			switch sa := m.Addrs[syscall.RTAX_NETMASK].(type) {
-			case *route.Inet4Addr:
-				mask = IPv4Mask(sa.IP[0], sa.IP[1], sa.IP[2], sa.IP[3])
-			case *route.Inet6Addr:
-				mask = make(IPMask, IPv6len)
-				copy(mask, sa.IP[:])
+			case *routebsd.InetAddr:
+				if sa.IP.Is4() {
+					a := sa.IP.As4()
+					mask = IPv4Mask(a[0], a[1], a[2], a[3])
+				} else if sa.IP.Is6() {
+					a := sa.IP.As16()
+					mask = make(IPMask, IPv6len)
+					copy(mask, a[:])
+				}
 			}
 			var ip IP
 			switch sa := m.Addrs[syscall.RTAX_IFA].(type) {
-			case *route.Inet4Addr:
-				ip = IPv4(sa.IP[0], sa.IP[1], sa.IP[2], sa.IP[3])
-			case *route.Inet6Addr:
-				ip = make(IP, IPv6len)
-				copy(ip, sa.IP[:])
+			case *routebsd.InetAddr:
+				if sa.IP.Is4() {
+					a := sa.IP.As4()
+					ip = IPv4(a[0], a[1], a[2], a[3])
+				} else if sa.IP.Is6() {
+					a := sa.IP.As16()
+					ip = make(IP, IPv6len)
+					copy(ip, a[:])
+				}
 			}
-			if ip != nil && mask != nil { // NetBSD may contain route.LinkAddr
+			if ip != nil && mask != nil { // NetBSD may contain routebsd.LinkAddr
 				ifat = append(ifat, &IPNet{IP: ip, Mask: mask})
 			}
 		}

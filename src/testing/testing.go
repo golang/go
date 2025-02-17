@@ -72,27 +72,24 @@
 // A sample benchmark function looks like this:
 //
 //	func BenchmarkRandInt(b *testing.B) {
-//	    for range b.N {
+//	    for b.Loop() {
 //	        rand.Int()
 //	    }
 //	}
 //
-// The benchmark function must run the target code b.N times.
-// It is called multiple times with b.N adjusted until the
-// benchmark function lasts long enough to be timed reliably.
 // The output
 //
 //	BenchmarkRandInt-8   	68453040	        17.8 ns/op
 //
-// means that the loop ran 68453040 times at a speed of 17.8 ns per loop.
+// means that the body of the loop ran 68453040 times at a speed of 17.8 ns per loop.
 //
-// If a benchmark needs some expensive setup before running, the timer
-// may be reset:
+// Only the body of the loop is timed, so benchmarks may do expensive
+// setup before calling b.Loop, which will not be counted toward the
+// benchmark measurement:
 //
 //	func BenchmarkBigLen(b *testing.B) {
 //	    big := NewBig()
-//	    b.ResetTimer()
-//	    for range b.N {
+//	    for b.Loop() {
 //	        big.Len()
 //	    }
 //	}
@@ -119,6 +116,37 @@
 // https://golang.org/x/perf/cmd.
 // In particular, https://golang.org/x/perf/cmd/benchstat performs
 // statistically robust A/B comparisons.
+//
+// # b.N-style benchmarks
+//
+// Prior to the introduction of [B.Loop], benchmarks were written in a
+// different style using B.N. For example:
+//
+//	func BenchmarkRandInt(b *testing.B) {
+//	    for range b.N {
+//	        rand.Int()
+//	    }
+//	}
+//
+// In this style of benchmark, the benchmark function must run
+// the target code b.N times. The benchmark function is called
+// multiple times with b.N adjusted until the benchmark function
+// lasts long enough to be timed reliably. This also means any setup
+// done before the loop may be run several times.
+//
+// If a benchmark needs some expensive setup before running, the timer
+// should be explicitly reset:
+//
+//	func BenchmarkBigLen(b *testing.B) {
+//	    big := NewBig()
+//	    b.ResetTimer()
+//	    for range b.N {
+//	        big.Len()
+//	    }
+//	}
+//
+// New benchmarks should prefer using [B.Loop], which is more robust
+// and more efficient.
 //
 // # Examples
 //
@@ -375,7 +403,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"internal/goexperiment"
 	"internal/race"
 	"io"
 	"math/rand"
@@ -396,6 +423,11 @@ import (
 )
 
 var initRan bool
+
+var (
+	parallelStart atomic.Int64 // number of parallel tests started
+	parallelStop  atomic.Int64 // number of parallel tests stopped
+)
 
 // Init registers testing flags. These flags are automatically registered by
 // the "go test" command before running test functions, so Init is only needed
@@ -672,10 +704,7 @@ func Testing() bool {
 // values are "set", "count", or "atomic". The return value will be
 // empty if test coverage is not enabled.
 func CoverMode() string {
-	if goexperiment.CoverageRedesign {
-		return cover2.mode
-	}
-	return cover.Mode
+	return cover.mode
 }
 
 // Verbose reports whether the -test.v flag is set.
@@ -1357,10 +1386,10 @@ func (c *common) Chdir(dir string) {
 }
 
 // Context returns a context that is canceled just before
-// [T.Cleanup]-registered functions are called.
+// Cleanup-registered functions are called.
 //
 // Cleanup functions can wait for any resources
-// that shut down on Context.Done before the test completes.
+// that shut down on Context.Done before the test or benchmark completes.
 func (c *common) Context() context.Context {
 	c.checkFuzzFn("Context")
 	return c.ctx
@@ -1512,13 +1541,14 @@ func (t *T) Parallel() {
 	if t.denyParallel {
 		panic(parallelConflict)
 	}
-	t.isParallel = true
 	if t.parent.barrier == nil {
 		// T.Parallel has no effect when fuzzing.
 		// Multiple processes may run in parallel, but only one input can run at a
 		// time per process so we can attribute crashes to specific inputs.
 		return
 	}
+
+	t.isParallel = true
 
 	// We don't want to include the time we spend waiting for serial tests
 	// in the test duration. Record the elapsed time thus far and reset the
@@ -1548,6 +1578,7 @@ func (t *T) Parallel() {
 	t.signal <- true   // Release calling test.
 	<-t.parent.barrier // Wait for the parent test to complete.
 	t.tstate.waitParallel()
+	parallelStart.Add(1)
 
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== CONT  %s\n", t.name)
@@ -1683,6 +1714,9 @@ func tRunner(t *T, fn func(t *T)) {
 				panic(err)
 			}
 			running.Delete(t.name)
+			if t.isParallel {
+				parallelStop.Add(1)
+			}
 			t.signal <- signal
 		}()
 
@@ -1993,7 +2027,7 @@ type testDeps interface {
 // It is not meant to be called directly and is not subject to the Go 1 compatibility document.
 // It may change signature from release to release.
 func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchmark, fuzzTargets []InternalFuzzTarget, examples []InternalExample) *M {
-	registerCover2(deps.InitRuntimeCoverage())
+	registerCover(deps.InitRuntimeCoverage())
 	Init()
 	return &M{
 		deps:        deps,
@@ -2477,7 +2511,7 @@ func (m *M) stopAlarm() {
 }
 
 func parseCpuList() {
-	for _, val := range strings.Split(*cpuListStr, ",") {
+	for val := range strings.SplitSeq(*cpuListStr, ",") {
 		val = strings.TrimSpace(val)
 		if val == "" {
 			continue

@@ -3,6 +3,7 @@
 package mlkem
 
 import (
+	"bytes"
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/drbg"
 	"crypto/internal/fips140/sha3"
@@ -31,6 +32,32 @@ func (dk *DecapsulationKey1024) Bytes() []byte {
 	copy(b[:], dk.d[:])
 	copy(b[32:], dk.z[:])
 	return b[:]
+}
+
+// TestingOnlyExpandedBytes1024 returns the decapsulation key as a byte slice
+// using the full expanded NIST encoding.
+//
+// This should only be used for ACVP testing. For all other purposes prefer
+// the Bytes method that returns the (much smaller) seed.
+func TestingOnlyExpandedBytes1024(dk *DecapsulationKey1024) []byte {
+	b := make([]byte, 0, decapsulationKeySize1024)
+
+	// ByteEncode₁₂(s)
+	for i := range dk.s {
+		b = polyByteEncode(b, dk.s[i])
+	}
+
+	// ByteEncode₁₂(t) || ρ
+	for i := range dk.t {
+		b = polyByteEncode(b, dk.t[i])
+	}
+	b = append(b, dk.ρ[:]...)
+
+	// H(ek) || z
+	b = append(b, dk.h[:]...)
+	b = append(b, dk.z[:]...)
+
+	return b
 }
 
 // EncapsulationKey returns the public encapsulation key necessary to produce
@@ -130,6 +157,53 @@ func newKeyFromSeed1024(dk *DecapsulationKey1024, seed []byte) (*DecapsulationKe
 	return dk, nil
 }
 
+// TestingOnlyNewDecapsulationKey1024 parses a decapsulation key from its expanded NIST format.
+//
+// Bytes() must not be called on the returned key, as it will not produce the
+// original seed.
+//
+// This function should only be used for ACVP testing. Prefer NewDecapsulationKey1024 for all
+// other purposes.
+func TestingOnlyNewDecapsulationKey1024(b []byte) (*DecapsulationKey1024, error) {
+	if len(b) != decapsulationKeySize1024 {
+		return nil, errors.New("mlkem: invalid NIST decapsulation key length")
+	}
+
+	dk := &DecapsulationKey1024{}
+	for i := range dk.s {
+		var err error
+		dk.s[i], err = polyByteDecode[nttElement](b[:encodingSize12])
+		if err != nil {
+			return nil, errors.New("mlkem: invalid secret key encoding")
+		}
+		b = b[encodingSize12:]
+	}
+
+	ek, err := NewEncapsulationKey1024(b[:EncapsulationKeySize1024])
+	if err != nil {
+		return nil, err
+	}
+	dk.ρ = ek.ρ
+	dk.h = ek.h
+	dk.encryptionKey1024 = ek.encryptionKey1024
+	b = b[EncapsulationKeySize1024:]
+
+	if !bytes.Equal(dk.h[:], b[:32]) {
+		return nil, errors.New("mlkem: inconsistent H(ek) in encoded bytes")
+	}
+	b = b[32:]
+
+	copy(dk.z[:], b)
+
+	// Generate a random d value for use in Bytes(). This is a safety mechanism
+	// that avoids returning a broken key vs a random key if this function is
+	// called in contravention of the TestingOnlyNewDecapsulationKey1024 function
+	// comment advising against it.
+	drbg.Read(dk.d[:])
+
+	return dk, nil
+}
+
 // kemKeyGen1024 generates a decapsulation key.
 //
 // It implements ML-KEM.KeyGen_internal according to FIPS 203, Algorithm 16, and
@@ -189,7 +263,7 @@ func kemKeyGen1024(dk *DecapsulationKey1024, d, z *[32]byte) {
 // the first operational use (if not exported before the first use)."
 func kemPCT1024(dk *DecapsulationKey1024) error {
 	ek := dk.EncapsulationKey()
-	c, K := ek.Encapsulate()
+	K, c := ek.Encapsulate()
 	K1, err := dk.Decapsulate(c)
 	if err != nil {
 		return err
@@ -204,13 +278,13 @@ func kemPCT1024(dk *DecapsulationKey1024) error {
 // encapsulation key, drawing random bytes from a DRBG.
 //
 // The shared key must be kept secret.
-func (ek *EncapsulationKey1024) Encapsulate() (ciphertext, sharedKey []byte) {
+func (ek *EncapsulationKey1024) Encapsulate() (sharedKey, ciphertext []byte) {
 	// The actual logic is in a separate function to outline this allocation.
 	var cc [CiphertextSize1024]byte
 	return ek.encapsulate(&cc)
 }
 
-func (ek *EncapsulationKey1024) encapsulate(cc *[CiphertextSize1024]byte) (ciphertext, sharedKey []byte) {
+func (ek *EncapsulationKey1024) encapsulate(cc *[CiphertextSize1024]byte) (sharedKey, ciphertext []byte) {
 	var m [messageSize]byte
 	drbg.Read(m[:])
 	// Note that the modulus check (step 2 of the encapsulation key check from
@@ -221,7 +295,7 @@ func (ek *EncapsulationKey1024) encapsulate(cc *[CiphertextSize1024]byte) (ciphe
 
 // EncapsulateInternal is a derandomized version of Encapsulate, exclusively for
 // use in tests.
-func (ek *EncapsulationKey1024) EncapsulateInternal(m *[32]byte) (ciphertext, sharedKey []byte) {
+func (ek *EncapsulationKey1024) EncapsulateInternal(m *[32]byte) (sharedKey, ciphertext []byte) {
 	cc := &[CiphertextSize1024]byte{}
 	return kemEncaps1024(cc, ek, m)
 }
@@ -229,14 +303,14 @@ func (ek *EncapsulationKey1024) EncapsulateInternal(m *[32]byte) (ciphertext, sh
 // kemEncaps1024 generates a shared key and an associated ciphertext.
 //
 // It implements ML-KEM.Encaps_internal according to FIPS 203, Algorithm 17.
-func kemEncaps1024(cc *[CiphertextSize1024]byte, ek *EncapsulationKey1024, m *[messageSize]byte) (c, K []byte) {
+func kemEncaps1024(cc *[CiphertextSize1024]byte, ek *EncapsulationKey1024, m *[messageSize]byte) (K, c []byte) {
 	g := sha3.New512()
 	g.Write(m[:])
 	g.Write(ek.h[:])
 	G := g.Sum(nil)
 	K, r := G[:SharedKeySize], G[SharedKeySize:]
 	c = pkeEncrypt1024(cc, &ek.encryptionKey1024, m, r)
-	return c, K
+	return K, c
 }
 
 // NewEncapsulationKey1024 parses an encapsulation key from its encoded form.

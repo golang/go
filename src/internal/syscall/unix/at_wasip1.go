@@ -101,6 +101,16 @@ func Mkdirat(dirfd int, path string, mode uint32) error {
 	))
 }
 
+func Fchmodat(dirfd int, path string, mode uint32, flags int) error {
+	// WASI preview 1 doesn't support changing file modes.
+	return syscall.ENOSYS
+}
+
+func Fchownat(dirfd int, path string, uid, gid int, flags int) error {
+	// WASI preview 1 doesn't support changing file ownership.
+	return syscall.ENOSYS
+}
+
 //go:wasmimport wasi_snapshot_preview1 path_create_directory
 //go:noescape
 func path_create_directory(fd int32, path *byte, pathLen size) syscall.Errno

@@ -14,3 +14,7 @@ TEXT ·libc_readlinkat_trampoline(SB),NOSPLIT,$0-0
         JMP	libc_readlinkat(SB)
 TEXT ·libc_mkdirat_trampoline(SB),NOSPLIT,$0-0
         JMP	libc_mkdirat(SB)
+TEXT ·libc_fchmodat_trampoline(SB),NOSPLIT,$0-0
+        JMP	libc_fchmodat(SB)
+TEXT ·libc_fchownat_trampoline(SB),NOSPLIT,$0-0
+        JMP	libc_fchownat(SB)

@@ -38,7 +38,9 @@ func init() {
 	Reader = &reader{}
 }
 
-type reader struct{}
+type reader struct {
+	drbg.DefaultReader
+}
 
 func (r *reader) Read(b []byte) (n int, err error) {
 	boring.Unreachable()

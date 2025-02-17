@@ -56,7 +56,7 @@ The tests are in:
 Tests are .go files annotated with `/* ERROR "msg" */` or `/* ERRORx "msg" */`
 comments (or the respective line comment form).
 For each such error comment, typechecking the respective file is expected to
-report an error at the position of the syntactic token _immediately preceeding_
+report an error at the position of the syntactic token _immediately preceding_
 the comment.
 For `ERROR`, the `"msg"` string must be a substring of the error message
 reported by the typechecker;

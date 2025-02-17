@@ -18,6 +18,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -280,12 +281,7 @@ func (t *tester) shouldRunTest(name string) bool {
 	if len(t.runNames) == 0 {
 		return true
 	}
-	for _, runName := range t.runNames {
-		if runName == name {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(t.runNames, name)
 }
 
 func (t *tester) maybeLogMetadata() error {
@@ -716,9 +712,9 @@ func (t *tester) registerTests() {
 	// Check that all crypto packages compile (and test correctly, in longmode) with fips.
 	if t.fipsSupported() {
 		// Test standard crypto packages with fips140=on.
-		t.registerTest("GODEBUG=fips140=on go test crypto/...", &goTest{
+		t.registerTest("GOFIPS140=latest go test crypto/...", &goTest{
 			variant: "gofips140",
-			env:     []string{"GODEBUG=fips140=on"},
+			env:     []string{"GOFIPS140=latest"},
 			pkg:     "crypto/...",
 		})
 
@@ -752,8 +748,8 @@ func (t *tester) registerTests() {
 			})
 	}
 
-	// GODEBUG=gcstoptheworld=2 tests. We only run these in long-test
-	// mode (with GO_TEST_SHORT=0) because this is just testing a
+	// GC debug mode tests. We only run these in long-test mode
+	// (with GO_TEST_SHORT=0) because this is just testing a
 	// non-critical debug setting.
 	if !t.compileOnly && !t.short {
 		t.registerTest("GODEBUG=gcstoptheworld=2 archive/zip",
@@ -763,6 +759,14 @@ func (t *tester) registerTests() {
 				short:   true,
 				env:     []string{"GODEBUG=gcstoptheworld=2"},
 				pkg:     "archive/zip",
+			})
+		t.registerTest("GODEBUG=gccheckmark=1 runtime",
+			&goTest{
+				variant: "runtime:gccheckmark",
+				timeout: 300 * time.Second,
+				short:   true,
+				env:     []string{"GODEBUG=gccheckmark=1"},
+				pkg:     "runtime",
 			})
 	}
 
@@ -876,16 +880,18 @@ func (t *tester) registerTests() {
 	}
 
 	if t.extLink() && !t.compileOnly {
-		t.registerTest("external linking, -buildmode=exe",
-			&goTest{
-				variant:   "exe_external",
-				timeout:   60 * time.Second,
-				buildmode: "exe",
-				ldflags:   "-linkmode=external",
-				env:       []string{"CGO_ENABLED=1"},
-				pkg:       "crypto/internal/fips140test",
-				runTests:  "TestFIPSCheck",
-			})
+		if goos != "android" { // Android does not support non-PIE linking
+			t.registerTest("external linking, -buildmode=exe",
+				&goTest{
+					variant:   "exe_external",
+					timeout:   60 * time.Second,
+					buildmode: "exe",
+					ldflags:   "-linkmode=external",
+					env:       []string{"CGO_ENABLED=1"},
+					pkg:       "crypto/internal/fips140test",
+					runTests:  "TestFIPSCheck",
+				})
+		}
 		if t.externalLinkPIE() && !disablePIE {
 			t.registerTest("external linking, -buildmode=pie",
 				&goTest{
@@ -1795,6 +1801,8 @@ func isEnvSet(evar string) bool {
 }
 
 func (t *tester) fipsSupported() bool {
+	// Keep this in sync with [crypto/internal/fips140.Supported].
+
 	// Use GOFIPS140 or GOEXPERIMENT=boringcrypto, but not both.
 	if strings.Contains(goexperiment, "boringcrypto") {
 		return false
@@ -1808,6 +1816,7 @@ func (t *tester) fipsSupported() bool {
 	case goarch == "wasm",
 		goos == "windows" && goarch == "386",
 		goos == "windows" && goarch == "arm",
+		goos == "openbsd",
 		goos == "aix":
 		return false
 	}

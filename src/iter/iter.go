@@ -28,7 +28,22 @@ or index-value pairs.
 Yield returns true if the iterator should continue with the next
 element in the sequence, false if it should stop.
 
-Iterator functions are most often called by a range loop, as in:
+For instance, [maps.Keys] returns an iterator that produces the sequence
+of keys of the map m, implemented as follows:
+
+	func Keys[Map ~map[K]V, K comparable, V any](m Map) iter.Seq[K] {
+		return func(yield func(K) bool) {
+			for k := range m {
+				if !yield(k) {
+					return
+				}
+			}
+		}
+	}
+
+Further examples can be found in [The Go Blog: Range Over Function Types].
+
+Iterator functions are most often called by a [range loop], as in:
 
 	func PrintAll[V any](seq iter.Seq[V]) {
 		for v := range seq {
@@ -187,6 +202,9 @@ And then a client could delete boring values from the tree using:
 			p.Delete()
 		}
 	}
+
+[The Go Blog: Range Over Function Types]: https://go.dev/blog/range-functions
+[range loop]: https://go.dev/ref/spec#For_range
 */
 package iter
 

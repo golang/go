@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package check implements the FIPS-140 load-time code+data verification.
+// Package check implements the FIPS 140 load-time code+data verification.
 // Every FIPS package providing cryptographic functionality except hmac and sha256
 // must import crypto/internal/fips140/check, so that the verification happens
 // before initialization of package global variables.
@@ -13,37 +13,18 @@
 package check
 
 import (
+	"crypto/internal/fips140"
 	"crypto/internal/fips140/hmac"
 	"crypto/internal/fips140/sha256"
 	"crypto/internal/fips140deps/byteorder"
 	"crypto/internal/fips140deps/godebug"
 	"io"
-	"runtime"
 	"unsafe"
 )
 
-// Enabled reports whether verification was enabled.
-// If Enabled returns true, then verification succeeded,
-// because if it failed the binary would have panicked at init time.
-func Enabled() bool {
-	return enabled
-}
-
-var enabled bool  // set when verification is enabled
-var Verified bool // set when verification succeeds, for testing
-
-// Supported reports whether the current GOOS/GOARCH is Supported at all.
-func Supported() bool {
-	// See cmd/internal/obj/fips.go's EnableFIPS for commentary.
-	switch {
-	case runtime.GOARCH == "wasm",
-		runtime.GOOS == "windows" && runtime.GOARCH == "386",
-		runtime.GOOS == "windows" && runtime.GOARCH == "arm",
-		runtime.GOOS == "aix":
-		return false
-	}
-	return true
-}
+// Verified is set when verification succeeded. It can be expected to always be
+// true when [fips140.Enabled] is true, or init would have panicked.
+var Verified bool
 
 // Linkinfo holds the go:fipsinfo symbol prepared by the linker.
 // See cmd/link/internal/ld/fips.go for details.
@@ -71,32 +52,12 @@ const fipsMagic = " Go fipsinfo \xff\x00"
 var zeroSum [32]byte
 
 func init() {
-	v := godebug.Value("#fips140")
-	enabled = v != "" && v != "off"
-	if !enabled {
+	if !fips140.Enabled {
 		return
 	}
 
-	if asanEnabled {
-		// ASAN disapproves of reading swaths of global memory below.
-		// One option would be to expose runtime.asanunpoison through
-		// crypto/internal/fips140deps and then call it to unpoison the range
-		// before reading it, but it is unclear whether that would then cause
-		// false negatives. For now, FIPS+ASAN doesn't need to work.
-		// If this is made to work, also re-enable the test in check_test.go
-		// and in cmd/dist/test.go.
-		panic("fips140: cannot verify in asan mode")
-	}
-
-	switch v {
-	case "on", "only", "debug":
-		// ok
-	default:
-		panic("fips140: unknown GODEBUG setting fips140=" + v)
-	}
-
-	if !Supported() {
-		panic("fips140: unavailable on " + runtime.GOOS + "-" + runtime.GOARCH)
+	if err := fips140.Supported(); err != nil {
+		panic("fips140: " + err.Error())
 	}
 
 	if Linkinfo.Magic[0] != 0xff || string(Linkinfo.Magic[1:]) != fipsMagic || Linkinfo.Sum == zeroSum {
@@ -132,7 +93,14 @@ func init() {
 		panic("fips140: verification mismatch")
 	}
 
-	if v == "debug" {
+	// "The temporary value(s) generated during the integrity test of the
+	// module’s software or firmware shall [05.10] be zeroised from the module
+	// upon completion of the integrity test"
+	clear(sum)
+	clear(nbuf[:])
+	h.Reset()
+
+	if godebug.Value("fips140") == "debug" {
 		println("fips140: verified code+data")
 	}
 

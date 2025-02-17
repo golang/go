@@ -22,10 +22,11 @@ type Data struct {
 }
 
 // Mmap maps the given file into memory.
-func Mmap(file string) (Data, error) {
+func Mmap(file string) (Data, bool, error) {
 	f, err := os.Open(file)
 	if err != nil {
-		return Data{}, err
+		return Data{}, false, err
 	}
-	return mmapFile(f)
+	data, err := mmapFile(f)
+	return data, true, err
 }

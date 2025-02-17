@@ -10,17 +10,19 @@ import (
 	"crypto"
 	"crypto/internal/boring"
 	"crypto/internal/cryptotest"
-	"crypto/internal/fips140"
 	"crypto/rand"
 	. "crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
 	"flag"
 	"fmt"
+	"io"
 	"math/big"
+	"os"
 	"strings"
 	"testing"
 )
@@ -102,11 +104,28 @@ func TestImpossibleKeyGeneration(t *testing.T) {
 	// This test ensures that trying to generate or validate toy RSA keys
 	// doesn't enter an infinite loop or panic.
 	t.Setenv("GODEBUG", "rsa1024min=0")
-	for i := 0; i < 128; i++ {
+	for i := 0; i < 32; i++ {
 		GenerateKey(rand.Reader, i)
 		GenerateMultiPrimeKey(rand.Reader, 3, i)
 		GenerateMultiPrimeKey(rand.Reader, 4, i)
 		GenerateMultiPrimeKey(rand.Reader, 5, i)
+	}
+}
+
+func TestTinyKeyGeneration(t *testing.T) {
+	// Toy-sized keys can randomly hit hard failures in GenerateKey.
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+	t.Setenv("GODEBUG", "rsa1024min=0")
+	for range 10000 {
+		k, err := GenerateKey(rand.Reader, 32)
+		if err != nil {
+			t.Fatalf("GenerateKey(32): %v", err)
+		}
+		if err := k.Validate(); err != nil {
+			t.Fatalf("Validate(32): %v", err)
+		}
 	}
 }
 
@@ -185,7 +204,7 @@ func TestEverything(t *testing.T) {
 	}
 
 	t.Setenv("GODEBUG", "rsa1024min=0")
-	min := 128
+	min := 32
 	max := 560 // any smaller than this and not all tests will run
 	if *allFlag {
 		max = 2048
@@ -679,19 +698,48 @@ func BenchmarkEncryptOAEP(b *testing.B) {
 }
 
 func BenchmarkSignPKCS1v15(b *testing.B) {
-	b.Run("2048", func(b *testing.B) {
-		hashed := sha256.Sum256([]byte("testing"))
-
-		var sink byte
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			s, err := SignPKCS1v15(rand.Reader, test2048Key, crypto.SHA256, hashed[:])
-			if err != nil {
-				b.Fatal(err)
-			}
-			sink ^= s[0]
-		}
+	b.Run("2048", func(b *testing.B) { benchmarkSignPKCS1v15(b, test2048Key) })
+	b.Run("2048/noprecomp/OnlyD", func(b *testing.B) {
+		benchmarkSignPKCS1v15(b, &PrivateKey{
+			PublicKey: test2048Key.PublicKey,
+			D:         test2048Key.D,
+		})
 	})
+	b.Run("2048/noprecomp/Primes", func(b *testing.B) {
+		benchmarkSignPKCS1v15(b, &PrivateKey{
+			PublicKey: test2048Key.PublicKey,
+			D:         test2048Key.D,
+			Primes:    test2048Key.Primes,
+		})
+	})
+	// This is different from "2048" because it's only the public precomputed
+	// values, and not the crypto/internal/fips140/rsa.PrivateKey.
+	b.Run("2048/noprecomp/AllValues", func(b *testing.B) {
+		benchmarkSignPKCS1v15(b, &PrivateKey{
+			PublicKey: test2048Key.PublicKey,
+			D:         test2048Key.D,
+			Primes:    test2048Key.Primes,
+			Precomputed: PrecomputedValues{
+				Dp:   test2048Key.Precomputed.Dp,
+				Dq:   test2048Key.Precomputed.Dq,
+				Qinv: test2048Key.Precomputed.Qinv,
+			},
+		})
+	})
+}
+
+func benchmarkSignPKCS1v15(b *testing.B, k *PrivateKey) {
+	hashed := sha256.Sum256([]byte("testing"))
+
+	var sink byte
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s, err := SignPKCS1v15(rand.Reader, k, crypto.SHA256, hashed[:])
+		if err != nil {
+			b.Fatal(err)
+		}
+		sink ^= s[0]
+	}
 }
 
 func BenchmarkVerifyPKCS1v15(b *testing.B) {
@@ -746,16 +794,6 @@ func BenchmarkVerifyPSS(b *testing.B) {
 	})
 }
 
-func BenchmarkGenerateKey(b *testing.B) {
-	b.Run("2048", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			if _, err := GenerateKey(rand.Reader, 2048); err != nil {
-				b.Fatal(err)
-			}
-		}
-	})
-}
-
 func BenchmarkParsePKCS8PrivateKey(b *testing.B) {
 	b.Run("2048", func(b *testing.B) {
 		p, _ := pem.Decode([]byte(test2048KeyPEM))
@@ -766,6 +804,58 @@ func BenchmarkParsePKCS8PrivateKey(b *testing.B) {
 			}
 		}
 	})
+}
+
+func BenchmarkGenerateKey(b *testing.B) {
+	b.Run("2048", func(b *testing.B) {
+		primes, err := os.ReadFile("testdata/keygen2048.txt")
+		if err != nil {
+			b.Fatal(err)
+		}
+		for b.Loop() {
+			r := &testPrimeReader{primes: string(primes)}
+			if _, err := GenerateKey(r, 2048); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
+
+// testPrimeReader feeds prime candidates from a text file,
+// one per line in hex, to GenerateKey.
+type testPrimeReader struct {
+	primes string
+}
+
+func (r *testPrimeReader) Read(p []byte) (n int, err error) {
+	// Neutralize randutil.MaybeReadByte.
+	//
+	// DO NOT COPY this. We *will* break you. We can do this because we're
+	// in the standard library, and can update this along with the
+	// GenerateKey implementation if necessary.
+	//
+	// You have been warned.
+	if len(p) == 1 {
+		return 1, nil
+	}
+
+	var line string
+	for line == "" || line[0] == '#' {
+		var ok bool
+		line, r.primes, ok = strings.Cut(r.primes, "\n")
+		if !ok {
+			return 0, io.EOF
+		}
+	}
+	b, err := hex.DecodeString(line)
+	if err != nil {
+		return 0, err
+	}
+	if len(p) != len(b) {
+		return 0, fmt.Errorf("unexpected read length: %d", len(p))
+	}
+	copy(p, b)
+	return len(p), nil
 }
 
 type testEncryptOAEPMessage struct {
@@ -782,9 +872,6 @@ type testEncryptOAEPStruct struct {
 }
 
 func TestEncryptOAEP(t *testing.T) {
-	if fips140.Enabled {
-		t.Skip("FIPS mode overrides the deterministic random source")
-	}
 	sha1 := sha1.New()
 	n := new(big.Int)
 	for i, test := range testEncryptOAEPData {

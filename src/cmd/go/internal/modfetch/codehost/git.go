@@ -649,7 +649,21 @@ func (r *gitRepo) statLocal(ctx context.Context, version, rev string) (*RevInfo,
 			}
 		}
 	}
-	sort.Strings(info.Tags)
+
+	// Git 2.47.1 does not send the tags during shallow clone anymore
+	// (perhaps the exact version that changed behavior is an earlier one),
+	// so we have to also add tags from the refs list we fetched with ls-remote.
+	if refs, err := r.loadRefs(ctx); err == nil {
+		for ref, h := range refs {
+			if h == hash {
+				if tag, found := strings.CutPrefix(ref, "refs/tags/"); found {
+					info.Tags = append(info.Tags, tag)
+				}
+			}
+		}
+	}
+	slices.Sort(info.Tags)
+	info.Tags = slices.Compact(info.Tags)
 
 	// Used hash as info.Version above.
 	// Use caller's suggested version if it appears in the tag list

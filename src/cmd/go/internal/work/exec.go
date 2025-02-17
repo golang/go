@@ -301,12 +301,16 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		// compiler changes we rebuild the package.
 		if ccID, _, err := b.gccToolID(ccExe[0], "c"); err == nil {
 			fmt.Fprintf(h, "CC ID=%q\n", ccID)
+		} else {
+			fmt.Fprintf(h, "CC ID ERROR=%q\n", err)
 		}
 		if len(p.CXXFiles)+len(p.SwigCXXFiles) > 0 {
 			cxxExe := b.cxxExe()
 			fmt.Fprintf(h, "CXX=%q %q\n", cxxExe, cxxflags)
 			if cxxID, _, err := b.gccToolID(cxxExe[0], "c++"); err == nil {
 				fmt.Fprintf(h, "CXX ID=%q\n", cxxID)
+			} else {
+				fmt.Fprintf(h, "CXX ID ERROR=%q\n", err)
 			}
 		}
 		if len(p.FFiles) > 0 {
@@ -314,6 +318,8 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 			fmt.Fprintf(h, "FC=%q %q\n", fcExe, fflags)
 			if fcID, _, err := b.gccToolID(fcExe[0], "f95"); err == nil {
 				fmt.Fprintf(h, "FC ID=%q\n", fcID)
+			} else {
+				fmt.Fprintf(h, "FC ID ERROR=%q\n", err)
 			}
 		}
 		// TODO(rsc): Should we include the SWIG version?
@@ -647,31 +653,18 @@ OverlayLoop:
 
 			var sourceFile string
 			var coverFile string
-			var key string
 			if base, found := strings.CutSuffix(file, ".cgo1.go"); found {
 				// cgo files have absolute paths
 				base = filepath.Base(base)
 				sourceFile = file
 				coverFile = objdir + base + ".cgo1.go"
-				key = base + ".go"
 			} else {
 				sourceFile = filepath.Join(p.Dir, file)
 				coverFile = objdir + file
-				key = file
 			}
 			coverFile = strings.TrimSuffix(coverFile, ".go") + ".cover.go"
-			if cfg.Experiment.CoverageRedesign {
-				infiles = append(infiles, sourceFile)
-				outfiles = append(outfiles, coverFile)
-			} else {
-				cover := p.Internal.CoverVars[key]
-				if cover == nil {
-					continue // Not covering this file.
-				}
-				if err := b.cover(a, coverFile, sourceFile, cover.Var); err != nil {
-					return err
-				}
-			}
+			infiles = append(infiles, sourceFile)
+			outfiles = append(outfiles, coverFile)
 			if i < len(gofiles) {
 				gofiles[i] = coverFile
 			} else {
@@ -679,36 +672,27 @@ OverlayLoop:
 			}
 		}
 
-		if cfg.Experiment.CoverageRedesign {
-			if len(infiles) != 0 {
-				// Coverage instrumentation creates new top level
-				// variables in the target package for things like
-				// meta-data containers, counter vars, etc. To avoid
-				// collisions with user variables, suffix the var name
-				// with 12 hex digits from the SHA-256 hash of the
-				// import path. Choice of 12 digits is historical/arbitrary,
-				// we just need enough of the hash to avoid accidents,
-				// as opposed to precluding determined attempts by
-				// users to break things.
-				sum := sha256.Sum256([]byte(a.Package.ImportPath))
-				coverVar := fmt.Sprintf("goCover_%x_", sum[:6])
-				mode := a.Package.Internal.Cover.Mode
-				if mode == "" {
-					panic("covermode should be set at this point")
-				}
-				if newoutfiles, err := b.cover2(a, infiles, outfiles, coverVar, mode); err != nil {
-					return err
-				} else {
-					outfiles = newoutfiles
-					gofiles = append([]string{newoutfiles[0]}, gofiles...)
-				}
+		if len(infiles) != 0 {
+			// Coverage instrumentation creates new top level
+			// variables in the target package for things like
+			// meta-data containers, counter vars, etc. To avoid
+			// collisions with user variables, suffix the var name
+			// with 12 hex digits from the SHA-256 hash of the
+			// import path. Choice of 12 digits is historical/arbitrary,
+			// we just need enough of the hash to avoid accidents,
+			// as opposed to precluding determined attempts by
+			// users to break things.
+			sum := sha256.Sum256([]byte(a.Package.ImportPath))
+			coverVar := fmt.Sprintf("goCover_%x_", sum[:6])
+			mode := a.Package.Internal.Cover.Mode
+			if mode == "" {
+				panic("covermode should be set at this point")
+			}
+			if newoutfiles, err := b.cover(a, infiles, outfiles, coverVar, mode); err != nil {
+				return err
 			} else {
-				// If there are no input files passed to cmd/cover,
-				// then we don't want to pass -covercfg when building
-				// the package with the compiler, so set covermode to
-				// the empty string so as to signal that we need to do
-				// that.
-				p.Internal.Cover.Mode = ""
+				outfiles = newoutfiles
+				gofiles = append([]string{newoutfiles[0]}, gofiles...)
 			}
 			if ba, ok := a.Actor.(*buildActor); ok && ba.covMetaFileName != "" {
 				b.cacheObjdirFile(a, cache.Default(), ba.covMetaFileName)
@@ -1374,6 +1358,7 @@ func (b *Builder) linkActionID(a *Action) cache.ActionID {
 	fmt.Fprintf(h, "buildmode %s goos %s goarch %s\n", cfg.BuildBuildmode, cfg.Goos, cfg.Goarch)
 	fmt.Fprintf(h, "import %q\n", p.ImportPath)
 	fmt.Fprintf(h, "omitdebug %v standard %v local %v prefix %q\n", p.Internal.OmitDebug, p.Standard, p.Internal.Local, p.Internal.LocalPrefix)
+	fmt.Fprintf(h, "defaultgodebug %q\n", p.DefaultGODEBUG)
 	if cfg.BuildTrimpath {
 		fmt.Fprintln(h, "trimpath")
 	}
@@ -1908,26 +1893,13 @@ func (b *Builder) installHeader(ctx context.Context, a *Action) error {
 
 // cover runs, in effect,
 //
-//	go tool cover -mode=b.coverMode -var="varName" -o dst.go src.go
-func (b *Builder) cover(a *Action, dst, src string, varName string) error {
-	return b.Shell(a).run(a.Objdir, "", nil,
-		cfg.BuildToolexec,
-		base.Tool("cover"),
-		"-mode", a.Package.Internal.Cover.Mode,
-		"-var", varName,
-		"-o", dst,
-		src)
-}
-
-// cover2 runs, in effect,
-//
 //	go tool cover -pkgcfg=<config file> -mode=b.coverMode -var="varName" -o <outfiles> <infiles>
 //
 // Return value is an updated output files list; in addition to the
 // regular outputs (instrumented source files) the cover tool also
 // writes a separate file (appearing first in the list of outputs)
 // that will contain coverage counters and meta-data.
-func (b *Builder) cover2(a *Action, infiles, outfiles []string, varName string, mode string) ([]string, error) {
+func (b *Builder) cover(a *Action, infiles, outfiles []string, varName string, mode string) ([]string, error) {
 	pkgcfg := a.Objdir + "pkgcfg.txt"
 	covoutputs := a.Objdir + "coveroutfiles.txt"
 	odir := filepath.Dir(outfiles[0])

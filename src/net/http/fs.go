@@ -854,7 +854,7 @@ func containsDotDot(v string) bool {
 	if !strings.Contains(v, "..") {
 		return false
 	}
-	for _, ent := range strings.FieldsFunc(v, isSlashRune) {
+	for ent := range strings.FieldsFuncSeq(v, isSlashRune) {
 		if ent == ".." {
 			return true
 		}
@@ -1014,7 +1014,7 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 	}
 	var ranges []httpRange
 	noOverlap := false
-	for _, ra := range strings.Split(s[len(b):], ",") {
+	for ra := range strings.SplitSeq(s[len(b):], ",") {
 		ra = textproto.TrimString(ra)
 		if ra == "" {
 			continue

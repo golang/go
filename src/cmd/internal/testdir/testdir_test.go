@@ -1489,7 +1489,7 @@ var (
 		"ppc64x":  {}, // A pseudo-arch representing both ppc64 and ppc64le
 		"s390x":   {},
 		"wasm":    {},
-		"riscv64": {"GORISCV64", "rva20u64", "rva22u64"},
+		"riscv64": {"GORISCV64", "rva20u64", "rva22u64", "rva23u64"},
 	}
 )
 

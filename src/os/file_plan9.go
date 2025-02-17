@@ -23,29 +23,23 @@ func fixLongPath(path string) string {
 
 // file is the real representation of *File.
 // The extra level of indirection ensures that no clients of os
-// can overwrite this data, which could cause the finalizer
+// can overwrite this data, which could cause the cleanup
 // to close the wrong file descriptor.
 type file struct {
 	fdmu       poll.FDMutex
-	fd         int
+	sysfd      int
 	name       string
 	dirinfo    atomic.Pointer[dirInfo] // nil unless directory being read
 	appendMode bool                    // whether file is opened for appending
+	cleanup    runtime.Cleanup         // cleanup closes the file when no longer referenced
 }
 
-// Fd returns the integer Plan 9 file descriptor referencing the open file.
-// If f is closed, the file descriptor becomes invalid.
-// If f is garbage collected, a finalizer may close the file descriptor,
-// making it invalid; see [runtime.SetFinalizer] for more information on when
-// a finalizer might be run. On Unix systems this will cause the [File.SetDeadline]
-// methods to stop working.
-//
-// As an alternative, see the f.SyscallConn method.
-func (f *File) Fd() uintptr {
+// fd is the Plan 9 implementation of Fd.
+func (f *File) fd() uintptr {
 	if f == nil {
 		return ^(uintptr(0))
 	}
-	return uintptr(f.fd)
+	return uintptr(f.sysfd)
 }
 
 // NewFile returns a new File with the given file descriptor and
@@ -56,8 +50,8 @@ func NewFile(fd uintptr, name string) *File {
 	if fdi < 0 {
 		return nil
 	}
-	f := &File{&file{fd: fdi, name: name}}
-	runtime.SetFinalizer(f.file, (*file).close)
+	f := &File{&file{sysfd: fdi, name: name}}
+	f.cleanup = runtime.AddCleanup(f, func(f *file) { f.close() }, f.file)
 	return f
 }
 
@@ -168,8 +162,9 @@ func (file *file) close() error {
 
 	err := file.decref()
 
-	// no need for a finalizer anymore
-	runtime.SetFinalizer(file, nil)
+	// There is no need for a cleanup at this point. File must be alive at the point
+	// where cleanup.stop is called.
+	file.cleanup.Stop()
 	return err
 }
 
@@ -178,7 +173,7 @@ func (file *file) close() error {
 // and writeUnlock methods.
 func (file *file) destroy() error {
 	var err error
-	if e := syscall.Close(file.fd); e != nil {
+	if e := syscall.Close(file.sysfd); e != nil {
 		err = &PathError{Op: "close", Path: file.name, Err: e}
 	}
 	return err
@@ -220,7 +215,7 @@ func (f *File) Truncate(size int64) error {
 	}
 	defer f.decref()
 
-	if err = syscall.Fwstat(f.fd, buf[:n]); err != nil {
+	if err = syscall.Fwstat(f.sysfd, buf[:n]); err != nil {
 		return &PathError{Op: "truncate", Path: f.name, Err: err}
 	}
 	return nil
@@ -252,7 +247,7 @@ func (f *File) chmod(mode FileMode) error {
 	}
 	defer f.decref()
 
-	if err = syscall.Fwstat(f.fd, buf[:n]); err != nil {
+	if err = syscall.Fwstat(f.sysfd, buf[:n]); err != nil {
 		return &PathError{Op: "chmod", Path: f.name, Err: err}
 	}
 	return nil
@@ -279,7 +274,7 @@ func (f *File) Sync() error {
 	}
 	defer f.decref()
 
-	if err = syscall.Fwstat(f.fd, buf[:n]); err != nil {
+	if err = syscall.Fwstat(f.sysfd, buf[:n]); err != nil {
 		return &PathError{Op: "sync", Path: f.name, Err: err}
 	}
 	return nil
@@ -292,7 +287,7 @@ func (f *File) read(b []byte) (n int, err error) {
 		return 0, err
 	}
 	defer f.readUnlock()
-	n, e := fixCount(syscall.Read(f.fd, b))
+	n, e := fixCount(syscall.Read(f.sysfd, b))
 	if n == 0 && len(b) > 0 && e == nil {
 		return 0, io.EOF
 	}
@@ -307,7 +302,7 @@ func (f *File) pread(b []byte, off int64) (n int, err error) {
 		return 0, err
 	}
 	defer f.readUnlock()
-	n, e := fixCount(syscall.Pread(f.fd, b, off))
+	n, e := fixCount(syscall.Pread(f.sysfd, b, off))
 	if n == 0 && len(b) > 0 && e == nil {
 		return 0, io.EOF
 	}
@@ -326,7 +321,7 @@ func (f *File) write(b []byte) (n int, err error) {
 	if len(b) == 0 {
 		return 0, nil
 	}
-	return fixCount(syscall.Write(f.fd, b))
+	return fixCount(syscall.Write(f.sysfd, b))
 }
 
 // pwrite writes len(b) bytes to the File starting at byte offset off.
@@ -341,7 +336,7 @@ func (f *File) pwrite(b []byte, off int64) (n int, err error) {
 	if len(b) == 0 {
 		return 0, nil
 	}
-	return fixCount(syscall.Pwrite(f.fd, b, off))
+	return fixCount(syscall.Pwrite(f.sysfd, b, off))
 }
 
 // seek sets the offset for the next Read or Write on file to offset, interpreted
@@ -356,7 +351,7 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
 	// Free cached dirinfo, so we allocate a new one if we
 	// access this file as a directory again. See #35767 and #37161.
 	f.dirinfo.Store(nil)
-	return syscall.Seek(f.fd, offset, whence)
+	return syscall.Seek(f.sysfd, offset, whence)
 }
 
 // Truncate changes the size of the named file.
@@ -553,7 +548,7 @@ func (f *File) Chdir() error {
 		return err
 	}
 	defer f.decref()
-	if e := syscall.Fchdir(f.fd); e != nil {
+	if e := syscall.Fchdir(f.sysfd); e != nil {
 		return &PathError{Op: "chdir", Path: f.name, Err: e}
 	}
 	return nil

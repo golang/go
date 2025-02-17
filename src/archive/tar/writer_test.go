@@ -1342,6 +1342,7 @@ func TestWriterAddFS(t *testing.T) {
 		"emptyfolder":          {Mode: 0o755 | os.ModeDir},
 		"file.go":              {Data: []byte("hello")},
 		"subfolder/another.go": {Data: []byte("world")},
+		"symlink.go":           {Mode: 0o777 | os.ModeSymlink, Data: []byte("file.go")},
 		// Notably missing here is the "subfolder" directory. This makes sure even
 		// if we don't have a subfolder directory listed.
 	}
@@ -1370,7 +1371,7 @@ func TestWriterAddFS(t *testing.T) {
 	for _, name := range names {
 		entriesLeft--
 
-		entryInfo, err := fsys.Stat(name)
+		entryInfo, err := fsys.Lstat(name)
 		if err != nil {
 			t.Fatalf("getting entry info error: %v", err)
 		}
@@ -1382,7 +1383,11 @@ func TestWriterAddFS(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if hdr.Name != name {
+		tmpName := name
+		if entryInfo.IsDir() {
+			tmpName += "/"
+		}
+		if hdr.Name != tmpName {
 			t.Errorf("test fs has filename %v; archive header has %v",
 				name, hdr.Name)
 		}
@@ -1392,18 +1397,23 @@ func TestWriterAddFS(t *testing.T) {
 				name, entryInfo.Mode(), hdr.FileInfo().Mode())
 		}
 
-		if entryInfo.IsDir() {
-			continue
-		}
-
-		data, err := io.ReadAll(tr)
-		if err != nil {
-			t.Fatal(err)
-		}
-		origdata := fsys[name].Data
-		if string(data) != string(origdata) {
-			t.Fatalf("test fs has file content %v; archive header has %v",
-				data, origdata)
+		switch entryInfo.Mode().Type() {
+		case fs.ModeDir:
+			// No additional checks necessary.
+		case fs.ModeSymlink:
+			origtarget := string(fsys[name].Data)
+			if hdr.Linkname != origtarget {
+				t.Fatalf("test fs has link content %s; archive header %v", origtarget, hdr.Linkname)
+			}
+		default:
+			data, err := io.ReadAll(tr)
+			if err != nil {
+				t.Fatal(err)
+			}
+			origdata := fsys[name].Data
+			if string(data) != string(origdata) {
+				t.Fatalf("test fs has file content %v; archive header has %v", origdata, data)
+			}
 		}
 	}
 	if entriesLeft > 0 {

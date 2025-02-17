@@ -38,8 +38,8 @@ type Cache interface {
 	// Get returns the cache entry for the provided ActionID.
 	// On miss, the error type should be of type *entryNotFoundError.
 	//
-	// After a success call to Get, OutputFile(Entry.OutputID) must
-	// exist on disk for until Close is called (at the end of the process).
+	// After a successful call to Get, OutputFile(Entry.OutputID) must
+	// exist on disk until Close is called (at the end of the process).
 	Get(ActionID) (Entry, error)
 
 	// Put adds an item to the cache.
@@ -50,14 +50,14 @@ type Cache interface {
 	// As a special case, if the ReadSeeker is of type noVerifyReadSeeker,
 	// the verification from GODEBUG=goverifycache=1 is skipped.
 	//
-	// After a success call to Get, OutputFile(Entry.OutputID) must
-	// exist on disk for until Close is called (at the end of the process).
+	// After a successful call to Put, OutputFile(OutputID) must
+	// exist on disk until Close is called (at the end of the process).
 	Put(ActionID, io.ReadSeeker) (_ OutputID, size int64, _ error)
 
 	// Close is called at the end of the go process. Implementations can do
 	// cache cleanup work at this phase, or wait for and report any errors from
-	// background cleanup work started earlier. Any cache trimming should in one
-	// process should not violate cause the invariants of this interface to be
+	// background cleanup work started earlier. Any cache trimming in one
+	// process should not cause the invariants of this interface to be
 	// violated in another process. Namely, a cache trim from one process should
 	// not delete an ObjectID from disk that was recently Get or Put from
 	// another process. As a rule of thumb, don't trim things used in the last
@@ -296,19 +296,19 @@ func GetBytes(c Cache, id ActionID) ([]byte, Entry, error) {
 // GetMmap looks up the action ID in the cache and returns
 // the corresponding output bytes.
 // GetMmap should only be used for data that can be expected to fit in memory.
-func GetMmap(c Cache, id ActionID) ([]byte, Entry, error) {
+func GetMmap(c Cache, id ActionID) ([]byte, Entry, bool, error) {
 	entry, err := c.Get(id)
 	if err != nil {
-		return nil, entry, err
+		return nil, entry, false, err
 	}
-	md, err := mmap.Mmap(c.OutputFile(entry.OutputID))
+	md, opened, err := mmap.Mmap(c.OutputFile(entry.OutputID))
 	if err != nil {
-		return nil, Entry{}, err
+		return nil, Entry{}, opened, err
 	}
 	if int64(len(md.Data)) != entry.Size {
-		return nil, Entry{}, &entryNotFoundError{Err: errors.New("file incomplete")}
+		return nil, Entry{}, true, &entryNotFoundError{Err: errors.New("file incomplete")}
 	}
-	return md.Data, entry, nil
+	return md.Data, entry, true, nil
 }
 
 // OutputFile returns the name of the cache file storing output with the given OutputID.

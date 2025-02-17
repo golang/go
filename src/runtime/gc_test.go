@@ -834,7 +834,11 @@ func TestWeakToStrongMarkTermination(t *testing.T) {
 		done <- struct{}{}
 	}()
 	go func() {
-		time.Sleep(100 * time.Millisecond)
+		// Usleep here instead of time.Sleep. time.Sleep
+		// can allocate, and if we get unlucky, then it
+		// can end up stuck in gcMarkDone with nothing to
+		// wake it.
+		runtime.Usleep(100000) // 100ms
 
 		// Let mark termination continue.
 		runtime.SetSpinInGCMarkDone(false)

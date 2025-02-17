@@ -9,7 +9,6 @@ package types_test
 import (
 	"fmt"
 	"go/ast"
-	"go/importer"
 	"go/parser"
 	"go/token"
 	"internal/testenv"
@@ -291,7 +290,7 @@ func TestIssue25627(t *testing.T) {
 	} {
 		f := mustParse(fset, prefix+src)
 
-		cfg := Config{Importer: importer.Default(), Error: func(err error) {}}
+		cfg := Config{Importer: defaultImporter(fset), Error: func(err error) {}}
 		info := &Info{Types: make(map[ast.Expr]TypeAndValue)}
 		_, err := cfg.Check(f.Name.Name, fset, []*ast.File{f}, info)
 		if err != nil {
@@ -595,7 +594,11 @@ var _ T = template /* ERRORx "cannot use.*text/template.* as T value" */.Templat
 	)
 
 	a := mustTypecheck(asrc, nil, nil)
-	imp := importHelper{pkg: a, fallback: importer.Default()}
+	imp := importHelper{
+		pkg: a,
+		// TODO(adonovan): use same FileSet as mustTypecheck.
+		fallback: defaultImporter(token.NewFileSet()),
+	}
 
 	withImporter := func(cfg *Config) {
 		cfg.Importer = imp

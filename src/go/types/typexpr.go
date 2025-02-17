@@ -322,10 +322,8 @@ func (check *Checker) typInternal(e0 ast.Expr, def *TypeName) (T Type) {
 		// report error if we encountered [...]
 
 	case *ast.Ellipsis:
-		// dots are handled explicitly where they are legal
-		// (array composite literals and parameter lists)
-		check.error(e, InvalidDotDotDot, "invalid use of '...'")
-		check.use(e.Elt)
+		// dots are handled explicitly where they are valid
+		check.error(e, InvalidSyntaxTree, "invalid use of ...")
 
 	case *ast.StructType:
 		typ := new(Struct)
@@ -419,11 +417,6 @@ func setDefType(def *TypeName, typ Type) {
 	if def != nil {
 		switch t := def.typ.(type) {
 		case *Alias:
-			// t.fromRHS should always be set, either to an invalid type
-			// in the beginning, or to typ in certain cyclic declarations.
-			if t.fromRHS != Typ[Invalid] && t.fromRHS != typ {
-				panic(sprintf(nil, nil, true, "t.fromRHS = %s, typ = %s\n", t.fromRHS, typ))
-			}
 			t.fromRHS = typ
 		case *Basic:
 			assert(t == Typ[Invalid])
@@ -471,9 +464,14 @@ func (check *Checker) instantiatedType(ix *indexedExpr, def *TypeName) (res Type
 	}
 
 	// create instance
-	// The instance is not generic anymore as it has type arguments, but it still
-	// satisfies the genericType interface because it has type parameters, too.
-	inst := check.instance(ix.Pos(), gtyp, targs, nil, check.context()).(genericType)
+	// The instance is not generic anymore as it has type arguments, but unless
+	// instantiation failed, it still satisfies the genericType interface because
+	// it has type parameters, too.
+	ityp := check.instance(ix.Pos(), gtyp, targs, nil, check.context())
+	inst, _ := ityp.(genericType)
+	if inst == nil {
+		return Typ[Invalid]
+	}
 
 	// For Named types, orig.tparams may not be set up, so we need to do expansion later.
 	check.later(func() {

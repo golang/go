@@ -395,3 +395,6 @@
 (I64Load32U [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+int64(off2)) => (I64Const [int64(read32(sym, off+int64(off2), config.ctxt.Arch.ByteOrder))])
 (I64Load16U [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+int64(off2)) => (I64Const [int64(read16(sym, off+int64(off2), config.ctxt.Arch.ByteOrder))])
 (I64Load8U [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+int64(off2)) => (I64Const [int64(read8(sym, off+int64(off2)))])
+(I64Load32S [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+int64(off2)) => (I64Const [int64(int32(read32(sym, off+int64(off2), config.ctxt.Arch.ByteOrder)))])
+(I64Load16S [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+int64(off2)) => (I64Const [int64(int16(read16(sym, off+int64(off2), config.ctxt.Arch.ByteOrder)))])
+(I64Load8S [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+int64(off2)) => (I64Const [int64(int8(read8(sym, off+int64(off2))))])

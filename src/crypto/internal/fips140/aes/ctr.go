@@ -5,6 +5,7 @@
 package aes
 
 import (
+	"crypto/internal/fips140"
 	"crypto/internal/fips140/alias"
 	"crypto/internal/fips140/subtle"
 	"crypto/internal/fips140deps/byteorder"
@@ -71,6 +72,7 @@ func (c *CTR) XORKeyStreamAt(dst, src []byte, offset uint64) {
 	if alias.InexactOverlap(dst, src) {
 		panic("crypto/aes: invalid buffer overlap")
 	}
+	fips140.RecordApproved()
 
 	ivlo, ivhi := add128(c.ivlo, c.ivhi, offset/BlockSize)
 
@@ -132,7 +134,7 @@ func ctrBlocks(b *Block, dst, src []byte, ivlo, ivhi uint64) {
 		byteorder.BEPutUint64(buf[i:], ivhi)
 		byteorder.BEPutUint64(buf[i+8:], ivlo)
 		ivlo, ivhi = add128(ivlo, ivhi, 1)
-		b.Encrypt(buf[i:], buf[i:])
+		encryptBlock(b, buf[i:], buf[i:])
 	}
 	// XOR into buf first, in case src and dst overlap (see above).
 	subtle.XORBytes(buf, src, buf)

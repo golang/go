@@ -322,8 +322,26 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 	if fips140only.Enabled && bits%2 == 1 {
 		return nil, errors.New("crypto/rsa: use of keys with odd size is not allowed in FIPS 140-only mode")
 	}
+	if fips140only.Enabled && !fips140only.ApprovedRandomReader(random) {
+		return nil, errors.New("crypto/rsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
+	}
 
 	k, err := rsa.GenerateKey(random, bits)
+	if bits < 256 && err != nil {
+		// Toy-sized keys have a non-negligible chance of hitting two hard
+		// failure cases: p == q and d <= 2^(nlen / 2).
+		//
+		// Since these are impossible to hit for real keys, we don't want to
+		// make the production code path more complex and harder to think about
+		// to handle them.
+		//
+		// Instead, just rerun the whole process a total of 8 times, which
+		// brings the chance of failure for 32-bit keys down to the same as for
+		// 256-bit keys.
+		for i := 1; i < 8 && err != nil; i++ {
+			k, err = rsa.GenerateKey(random, bits)
+		}
+	}
 	if err != nil {
 		return nil, err
 	}

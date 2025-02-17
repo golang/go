@@ -125,11 +125,6 @@ suggested Go toolchain, see https://go.dev/doc/toolchain.
 
 For more about specifying packages, see 'go help packages'.
 
-This text describes the behavior of get using modules to manage source
-code and dependencies. If instead the go command is running in GOPATH
-mode, the details of get's flags and effects change, as does 'go help get'.
-See 'go help gopath-get'.
-
 See also: go build, go install, go clean, go mod.
 	`,
 }

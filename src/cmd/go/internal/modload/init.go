@@ -452,23 +452,6 @@ func Init() {
 		os.Setenv("GIT_TERMINAL_PROMPT", "0")
 	}
 
-	// Disable any ssh connection pooling by Git.
-	// If a Git subprocess forks a child into the background to cache a new connection,
-	// that child keeps stdout/stderr open. After the Git subprocess exits,
-	// os/exec expects to be able to read from the stdout/stderr pipe
-	// until EOF to get all the data that the Git subprocess wrote before exiting.
-	// The EOF doesn't come until the child exits too, because the child
-	// is holding the write end of the pipe.
-	// This is unfortunate, but it has come up at least twice
-	// (see golang.org/issue/13453 and golang.org/issue/16104)
-	// and confuses users when it does.
-	// If the user has explicitly set GIT_SSH or GIT_SSH_COMMAND,
-	// assume they know what they are doing and don't step on it.
-	// But default to turning off ControlMaster.
-	if os.Getenv("GIT_SSH") == "" && os.Getenv("GIT_SSH_COMMAND") == "" {
-		os.Setenv("GIT_SSH_COMMAND", "ssh -o ControlMaster=no -o BatchMode=yes")
-	}
-
 	if os.Getenv("GCM_INTERACTIVE") == "" {
 		os.Setenv("GCM_INTERACTIVE", "never")
 	}

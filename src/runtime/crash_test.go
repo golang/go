@@ -32,8 +32,11 @@ const entrypointVar = "RUNTIME_TEST_ENTRYPOINT"
 
 func TestMain(m *testing.M) {
 	switch entrypoint := os.Getenv(entrypointVar); entrypoint {
-	case "crash":
-		crash()
+	case "panic":
+		crashViaPanic()
+		panic("unreachable")
+	case "trap":
+		crashViaTrap()
 		panic("unreachable")
 	default:
 		log.Fatalf("invalid %s: %q", entrypointVar, entrypoint)
@@ -351,6 +354,37 @@ panic: third panic
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
 
+}
+
+func TestReraisedPanic(t *testing.T) {
+	output := runTestProg(t, "testprog", "ReraisedPanic")
+	want := `panic: message [recovered, reraised]
+`
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+}
+
+func TestReraisedMiddlePanic(t *testing.T) {
+	output := runTestProg(t, "testprog", "ReraisedMiddlePanic")
+	want := `panic: inner [recovered]
+	panic: middle [recovered, reraised]
+	panic: outer
+`
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+}
+
+func TestReraisedPanicSandwich(t *testing.T) {
+	output := runTestProg(t, "testprog", "ReraisedPanicSandwich")
+	want := `panic: outer [recovered]
+	panic: inner [recovered]
+	panic: outer
+`
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
 }
 
 func TestGoexitCrash(t *testing.T) {
@@ -956,7 +990,8 @@ func TestCrashWhileTracing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not create trace.NewReader: %v", err)
 	}
-	var seen, seenSync bool
+	var seen bool
+	nSync := 0
 	i := 1
 loop:
 	for ; ; i++ {
@@ -971,7 +1006,7 @@ loop:
 		}
 		switch ev.Kind() {
 		case traceparse.EventSync:
-			seenSync = true
+			nSync = ev.Sync().N
 		case traceparse.EventLog:
 			v := ev.Log()
 			if v.Category == "xyzzy-cat" && v.Message == "xyzzy-msg" {
@@ -985,7 +1020,7 @@ loop:
 	if err := cmd.Wait(); err == nil {
 		t.Error("the process should have panicked")
 	}
-	if !seenSync {
+	if nSync <= 1 {
 		t.Errorf("expected at least one full generation to have been emitted before the trace was considered broken")
 	}
 	if !seen {

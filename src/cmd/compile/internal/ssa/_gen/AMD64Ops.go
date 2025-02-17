@@ -692,9 +692,15 @@ func init() {
 		// ROUNDSD instruction is only guaraneteed to be available if GOAMD64>=v2.
 		// For GOAMD64<v2, any use must be preceded by a successful check of runtime.x86HasSSE41.
 		{name: "ROUNDSD", argLength: 1, reg: fp11, aux: "Int8", asm: "ROUNDSD"},
+		// See why we need those in issue #71204
+		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
+		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
 
-		// VFMADD231SD only exists on platforms with the FMA3 instruction set.
-		// Any use must be preceded by a successful check of runtime.support_fma.
+		// VFMADD231Sx only exist on platforms with the FMA3 instruction set.
+		// Any use must be preceded by a successful check of runtime.x86HasFMA or a check of GOAMD64>=v3.
+		// x==S for float32, x==D for float64
+		// arg0 + arg1*arg2, with no intermediate rounding.
+		{name: "VFMADD231SS", argLength: 3, reg: fp31, resultInArg0: true, asm: "VFMADD231SS"},
 		{name: "VFMADD231SD", argLength: 3, reg: fp31, resultInArg0: true, asm: "VFMADD231SD"},
 
 		// Note that these operations don't exactly match the semantics of Go's
@@ -758,7 +764,7 @@ func init() {
 		{name: "MOVLQSX", argLength: 1, reg: gp11, asm: "MOVLQSX"}, // sign extend arg0 from int32 to int64
 		{name: "MOVLQZX", argLength: 1, reg: gp11, asm: "MOVL"},    // zero extend arg0 from int32 to int64
 
-		{name: "MOVLconst", reg: gp01, asm: "MOVL", typ: "UInt32", aux: "Int32", rematerializeable: true}, // 32 low bits of auxint
+		{name: "MOVLconst", reg: gp01, asm: "MOVL", typ: "UInt32", aux: "Int32", rematerializeable: true}, // 32 low bits of auxint (upper 32 are zeroed)
 		{name: "MOVQconst", reg: gp01, asm: "MOVQ", typ: "UInt64", aux: "Int64", rematerializeable: true}, // auxint
 
 		{name: "CVTTSD2SL", argLength: 1, reg: fpgp, asm: "CVTTSD2SL"}, // convert float64 to int32
@@ -1156,7 +1162,7 @@ func init() {
 		//
 		// output[i] = input.
 		{name: "PSHUFBbroadcast", argLength: 1, reg: fp11, resultInArg0: true, asm: "PSHUFB"}, // PSHUFB with mask zero, (GOAMD64=v1)
-		{name: "VPBROADCASTB", argLength: 1, reg: gpfp, asm: "VPBROADCASTB"}, // Broadcast input byte from gp (GOAMD64=v3)
+		{name: "VPBROADCASTB", argLength: 1, reg: gpfp, asm: "VPBROADCASTB"},                  // Broadcast input byte from gp (GOAMD64=v3)
 
 		// Byte negate/zero/preserve (GOAMD64=v2).
 		//
@@ -1180,7 +1186,7 @@ func init() {
 		// } else {
 		//   output[i] = 0
 		// }
-		{name: "PCMPEQB", argLength: 2, reg: fp21, resultInArg0: true, asm: "PCMPEQB"},
+		{name: "PCMPEQB", argLength: 2, reg: fp21, resultInArg0: true, asm: "PCMPEQB", commutative: true},
 
 		// Byte sign mask. Output is a bitmap of sign bits from each input byte.
 		//

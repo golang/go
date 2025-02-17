@@ -59,6 +59,32 @@ func TestParsePKCS1PrivateKey(t *testing.T) {
 	if _, err := ParsePKCS1PrivateKey(data); err == nil {
 		t.Errorf("parsing invalid private key did not result in an error")
 	}
+
+	// A partial key without CRT values should still parse.
+	b, _ := asn1.Marshal(struct {
+		Version int
+		N       *big.Int
+		E       int
+		D       *big.Int
+		P       *big.Int
+		Q       *big.Int
+	}{
+		N: priv.N,
+		E: priv.PublicKey.E,
+		D: priv.D,
+		P: priv.Primes[0],
+		Q: priv.Primes[1],
+	})
+	p2, err := ParsePKCS1PrivateKey(b)
+	if err != nil {
+		t.Fatalf("parsing partial private key resulted in an error: %v", err)
+	}
+	if !p2.Equal(priv) {
+		t.Errorf("partial private key did not match original key")
+	}
+	if p2.Precomputed.Dp == nil || p2.Precomputed.Dq == nil || p2.Precomputed.Qinv == nil {
+		t.Errorf("precomputed values not recomputed")
+	}
 }
 
 func TestPKCS1MismatchPublicKeyFormat(t *testing.T) {

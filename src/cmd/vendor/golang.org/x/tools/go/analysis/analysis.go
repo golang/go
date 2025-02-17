@@ -156,10 +156,17 @@ type Pass struct {
 
 	// AllPackageFacts returns a new slice containing all package
 	// facts of the analysis's FactTypes in unspecified order.
+	// See comments for AllObjectFacts.
 	AllPackageFacts func() []PackageFact
 
 	// AllObjectFacts returns a new slice containing all object
 	// facts of the analysis's FactTypes in unspecified order.
+	//
+	// The result includes all facts exported by packages
+	// whose symbols are referenced by the current package
+	// (by qualified identifiers or field/method selections).
+	// And it includes all facts exported from the current
+	// package by the current analysis pass.
 	AllObjectFacts func() []ObjectFact
 
 	/* Further fields may be added in future. */

@@ -247,10 +247,8 @@ func init() {
 
 	AddBuildFlags(CmdBuild, DefaultBuildFlags)
 	AddBuildFlags(CmdInstall, DefaultBuildFlags)
-	if cfg.Experiment != nil && cfg.Experiment.CoverageRedesign {
-		AddCoverFlags(CmdBuild, nil)
-		AddCoverFlags(CmdInstall, nil)
-	}
+	AddCoverFlags(CmdBuild, nil)
+	AddCoverFlags(CmdInstall, nil)
 }
 
 // Note that flags consulted by other parts of the code
@@ -361,26 +359,13 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.StringVar(&cfg.DebugTrace, "debug-trace", "", "")
 }
 
-// AddCoverFlags adds coverage-related flags to "cmd". If the
-// CoverageRedesign experiment is enabled, we add -cover{mode,pkg} to
-// the build command and only -coverprofile to the test command. If
-// the CoverageRedesign experiment is disabled, -cover* flags are
-// added only to the test command.
+// AddCoverFlags adds coverage-related flags to "cmd".
+// We add -cover{mode,pkg} to the build command and only
+// -coverprofile to the test command.
 func AddCoverFlags(cmd *base.Command, coverProfileFlag *string) {
-	addCover := false
-	if cfg.Experiment != nil && cfg.Experiment.CoverageRedesign {
-		// New coverage enabled: both build and test commands get
-		// coverage flags.
-		addCover = true
-	} else {
-		// New coverage disabled: only test command gets cover flags.
-		addCover = coverProfileFlag != nil
-	}
-	if addCover {
-		cmd.Flag.BoolVar(&cfg.BuildCover, "cover", false, "")
-		cmd.Flag.Var(coverFlag{(*coverModeFlag)(&cfg.BuildCoverMode)}, "covermode", "")
-		cmd.Flag.Var(coverFlag{commaListFlag{&cfg.BuildCoverPkg}}, "coverpkg", "")
-	}
+	cmd.Flag.BoolVar(&cfg.BuildCover, "cover", false, "")
+	cmd.Flag.Var(coverFlag{(*coverModeFlag)(&cfg.BuildCoverMode)}, "covermode", "")
+	cmd.Flag.Var(coverFlag{commaListFlag{&cfg.BuildCoverPkg}}, "coverpkg", "")
 	if coverProfileFlag != nil {
 		cmd.Flag.Var(coverFlag{V: stringFlag{coverProfileFlag}}, "coverprofile", "")
 	}
@@ -515,7 +500,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 		cfg.BuildO = ""
 	}
 
-	if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
+	if cfg.BuildCover {
 		load.PrepareForCoverageBuild(pkgs)
 	}
 
@@ -732,7 +717,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	load.CheckPackageErrors(pkgs)
 
-	if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
+	if cfg.BuildCover {
 		load.PrepareForCoverageBuild(pkgs)
 	}
 

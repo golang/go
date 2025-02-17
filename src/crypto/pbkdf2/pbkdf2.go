@@ -2,24 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-/*
-Package pbkdf2 implements the key derivation function PBKDF2 as defined in RFC
-2898 / PKCS #5 v2.0.
-
-A key derivation function is useful when encrypting data based on a password
-or any other not-fully-random data. It uses a pseudorandom function to derive
-a secure encryption key based on the password.
-
-While v2.0 of the standard defines only one pseudorandom function to use,
-HMAC-SHA1, the drafted v2.1 specification allows use of all five FIPS Approved
-Hash Functions SHA-1, SHA-224, SHA-256, SHA-384 and SHA-512 for HMAC. To
-choose, you can pass the `New` functions from the different SHA packages to
-pbkdf2.Key.
-*/
+// Package pbkdf2 implements the key derivation function PBKDF2 as defined in
+// RFC 8018 (PKCS #5 v2.1).
+//
+// A key derivation function is useful when encrypting data based on a password
+// or any other not-fully-random data. It uses a pseudorandom function to derive
+// a secure encryption key based on the password.
 package pbkdf2
 
 import (
 	"crypto/internal/fips140/pbkdf2"
+	"crypto/internal/fips140hash"
 	"crypto/internal/fips140only"
 	"errors"
 	"hash"
@@ -41,7 +34,11 @@ import (
 //
 // Using a higher iteration count will increase the cost of an exhaustive
 // search but will also make derivation proportionally slower.
+//
+// keyLength must be a positive integer between 1 and (2^32 - 1) * h.Size().
+// Setting keyLength to a value outside of this range will result in an error.
 func Key[Hash hash.Hash](h func() Hash, password string, salt []byte, iter, keyLength int) ([]byte, error) {
+	fh := fips140hash.UnwrapNew(h)
 	if fips140only.Enabled {
 		if keyLength < 112/8 {
 			return nil, errors.New("crypto/pbkdf2: use of keys shorter than 112 bits is not allowed in FIPS 140-only mode")
@@ -49,9 +46,9 @@ func Key[Hash hash.Hash](h func() Hash, password string, salt []byte, iter, keyL
 		if len(salt) < 128/8 {
 			return nil, errors.New("crypto/pbkdf2: use of salts shorter than 128 bits is not allowed in FIPS 140-only mode")
 		}
-		if !fips140only.ApprovedHash(h()) {
+		if !fips140only.ApprovedHash(fh()) {
 			return nil, errors.New("crypto/pbkdf2: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
 		}
 	}
-	return pbkdf2.Key(h, password, salt, iter, keyLength)
+	return pbkdf2.Key(fh, password, salt, iter, keyLength)
 }

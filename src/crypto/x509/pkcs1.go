@@ -72,7 +72,9 @@ func ParsePKCS1PrivateKey(der []byte) (*rsa.PrivateKey, error) {
 	}
 
 	if priv.N.Sign() <= 0 || priv.D.Sign() <= 0 || priv.P.Sign() <= 0 || priv.Q.Sign() <= 0 ||
-		priv.Dp.Sign() <= 0 || priv.Dq.Sign() <= 0 || priv.Qinv.Sign() <= 0 {
+		priv.Dp != nil && priv.Dp.Sign() <= 0 ||
+		priv.Dq != nil && priv.Dq.Sign() <= 0 ||
+		priv.Qinv != nil && priv.Qinv.Sign() <= 0 {
 		return nil, errors.New("x509: private key contains zero or negative value")
 	}
 

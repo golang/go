@@ -291,6 +291,10 @@ const (
 	// address.
 	R_RISCV_GOT_HI20
 
+	// R_RISCV_GOT_PCREL_ITYPE resolves a 32-bit PC-relative GOT entry
+	// address for an AUIPC + I-type instruction pair.
+	R_RISCV_GOT_PCREL_ITYPE
+
 	// R_RISCV_PCREL_HI20 resolves the high 20 bits of a 32-bit PC-relative
 	// address.
 	R_RISCV_PCREL_HI20

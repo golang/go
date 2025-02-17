@@ -28,7 +28,7 @@ func NewCMAC(b *aes.Block) *CMAC {
 }
 
 func (c *CMAC) deriveSubkeys() {
-	c.b.Encrypt(c.k1[:], c.k1[:])
+	aes.EncryptBlockInternal(&c.b, c.k1[:], c.k1[:])
 	msb := shiftLeft(&c.k1)
 	c.k1[len(c.k1)-1] ^= msb * 0b10000111
 
@@ -45,7 +45,7 @@ func (c *CMAC) MAC(m []byte) [aes.BlockSize]byte {
 		// Special-cased as a single empty partial final block.
 		x = c.k2
 		x[len(m)] ^= 0b10000000
-		c.b.Encrypt(x[:], x[:])
+		aes.EncryptBlockInternal(&c.b, x[:], x[:])
 		return x
 	}
 	for len(m) >= aes.BlockSize {
@@ -54,7 +54,7 @@ func (c *CMAC) MAC(m []byte) [aes.BlockSize]byte {
 			// Final complete block.
 			subtle.XORBytes(x[:], c.k1[:], x[:])
 		}
-		c.b.Encrypt(x[:], x[:])
+		aes.EncryptBlockInternal(&c.b, x[:], x[:])
 		m = m[aes.BlockSize:]
 	}
 	if len(m) > 0 {
@@ -62,7 +62,7 @@ func (c *CMAC) MAC(m []byte) [aes.BlockSize]byte {
 		subtle.XORBytes(x[:], m, x[:])
 		subtle.XORBytes(x[:], c.k2[:], x[:])
 		x[len(m)] ^= 0b10000000
-		c.b.Encrypt(x[:], x[:])
+		aes.EncryptBlockInternal(&c.b, x[:], x[:])
 	}
 	return x
 }

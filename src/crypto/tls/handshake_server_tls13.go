@@ -280,7 +280,7 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
 			c.sendAlert(alertIllegalParameter)
 			return errors.New("tls: invalid X25519MLKEM768 client key share")
 		}
-		ciphertext, mlkemSharedSecret := k.Encapsulate()
+		mlkemSharedSecret, ciphertext := k.Encapsulate()
 		// draft-kwiatkowski-tls-ecdhe-mlkem-02, Section 3.1.3: "For
 		// X25519MLKEM768, the shared secret is the concatenation of the ML-KEM
 		// shared secret and the X25519 shared secret. The shared secret is 64
@@ -949,12 +949,7 @@ func (hs *serverHandshakeStateTLS13) shouldSendSessionTickets() bool {
 	}
 
 	// Don't send tickets the client wouldn't use. See RFC 8446, Section 4.2.9.
-	for _, pskMode := range hs.clientHello.pskModes {
-		if pskMode == pskModeDHE {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(hs.clientHello.pskModes, pskModeDHE)
 }
 
 func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {

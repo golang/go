@@ -4,7 +4,6 @@
 # the "main" package is handled. See issue 57169 for details.
 
 [short] skip
-[!GOEXPERIMENT:coverageredesign] skip
 
 # Build this program with -cover and run to collect a profile.
 

@@ -67,8 +67,9 @@ func unhex(c byte) byte {
 		return c - 'a' + 10
 	case 'A' <= c && c <= 'F':
 		return c - 'A' + 10
+	default:
+		panic("invalid hex character")
 	}
-	return 0
 }
 
 type encoding int

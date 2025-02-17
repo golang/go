@@ -74,6 +74,7 @@ func FusedAdd32(x, y, z float32) float32 {
 	// arm64:"FMADDS"
 	// loong64:"FMADDF\t"
 	// riscv64:"FMADDS\t"
+	// amd64/v3:"VFMADD231SS\t"
 	return x*y + z
 }
 
@@ -98,6 +99,7 @@ func FusedAdd64(x, y, z float64) float64 {
 	// arm64:"FMADDD"
 	// loong64:"FMADDD\t"
 	// riscv64:"FMADDD\t"
+	// amd64/v3:"VFMADD231SD\t"
 	return x*y + z
 }
 

@@ -43,7 +43,7 @@ func testRoundTrip[E encapsulationKey, D decapsulationKey[E]](
 		t.Fatal(err)
 	}
 	ek := dk.EncapsulationKey()
-	c, Ke := ek.Encapsulate()
+	Ke, c := ek.Encapsulate()
 	Kd, err := dk.Decapsulate(c)
 	if err != nil {
 		t.Fatal(err)
@@ -66,7 +66,7 @@ func testRoundTrip[E encapsulationKey, D decapsulationKey[E]](
 	if !bytes.Equal(dk.Bytes(), dk1.Bytes()) {
 		t.Fail()
 	}
-	c1, Ke1 := ek1.Encapsulate()
+	Ke1, c1 := ek1.Encapsulate()
 	Kd1, err := dk1.Decapsulate(c1)
 	if err != nil {
 		t.Fatal(err)
@@ -86,7 +86,7 @@ func testRoundTrip[E encapsulationKey, D decapsulationKey[E]](
 		t.Fail()
 	}
 
-	c2, Ke2 := dk.EncapsulationKey().Encapsulate()
+	Ke2, c2 := dk.EncapsulationKey().Encapsulate()
 	if bytes.Equal(c, c2) {
 		t.Fail()
 	}
@@ -115,7 +115,7 @@ func testBadLengths[E encapsulationKey, D decapsulationKey[E]](
 	}
 	ek := dk.EncapsulationKey()
 	ekBytes := dk.EncapsulationKey().Bytes()
-	c, _ := ek.Encapsulate()
+	_, c := ek.Encapsulate()
 
 	for i := 0; i < len(dkBytes)-1; i++ {
 		if _, err := newDecapsulationKey(dkBytes[:i]); err == nil {
@@ -189,7 +189,7 @@ func TestAccumulated(t *testing.T) {
 		o.Write(ek.Bytes())
 
 		s.Read(msg[:])
-		ct, k := ek.key.EncapsulateInternal(&msg)
+		k, ct := ek.key.EncapsulateInternal(&msg)
 		o.Write(ct)
 		o.Write(k)
 
@@ -244,7 +244,7 @@ func BenchmarkEncaps(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		c, K := ek.key.EncapsulateInternal(&m)
+		K, c := ek.key.EncapsulateInternal(&m)
 		sink ^= c[0] ^ K[0]
 	}
 }
@@ -255,7 +255,7 @@ func BenchmarkDecaps(b *testing.B) {
 		b.Fatal(err)
 	}
 	ek := dk.EncapsulationKey()
-	c, _ := ek.Encapsulate()
+	_, c := ek.Encapsulate()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		K, _ := dk.Decapsulate(c)
@@ -270,7 +270,7 @@ func BenchmarkRoundTrip(b *testing.B) {
 	}
 	ek := dk.EncapsulationKey()
 	ekBytes := ek.Bytes()
-	c, _ := ek.Encapsulate()
+	_, c := ek.Encapsulate()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -296,7 +296,7 @@ func BenchmarkRoundTrip(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
-			cS, Ks := ek.Encapsulate()
+			Ks, cS := ek.Encapsulate()
 			if err != nil {
 				b.Fatal(err)
 			}

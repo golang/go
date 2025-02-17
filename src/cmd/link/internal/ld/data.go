@@ -55,17 +55,31 @@ import (
 )
 
 // isRuntimeDepPkg reports whether pkg is the runtime package or its dependency.
+// TODO: just compute from the runtime package, and remove this hardcoded list.
 func isRuntimeDepPkg(pkg string) bool {
 	switch pkg {
 	case "runtime",
-		"sync/atomic",          // runtime may call to sync/atomic, due to go:linkname
-		"internal/abi",         // used by reflectcall (and maybe more)
-		"internal/bytealg",     // for IndexByte
+		"sync/atomic",  // runtime may call to sync/atomic, due to go:linkname // TODO: this is not true?
+		"internal/abi", // used by reflectcall (and maybe more)
+		"internal/asan",
+		"internal/bytealg", // for IndexByte
+		"internal/byteorder",
 		"internal/chacha8rand", // for rand
-		"internal/cpu":         // for cpu features
+		"internal/coverage/rtcov",
+		"internal/cpu", // for cpu features
+		"internal/goarch",
+		"internal/godebugs",
+		"internal/goexperiment",
+		"internal/goos",
+		"internal/msan",
+		"internal/profilerecord",
+		"internal/race",
+		"internal/stringslite",
+		"unsafe":
 		return true
 	}
-	return strings.HasPrefix(pkg, "runtime/internal/") && !strings.HasSuffix(pkg, "_test")
+	return (strings.HasPrefix(pkg, "runtime/internal/") || strings.HasPrefix(pkg, "internal/runtime/")) &&
+		!strings.HasSuffix(pkg, "_test")
 }
 
 // Estimate the max size needed to hold any new trampolines created for this function. This
@@ -410,6 +424,9 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				// FIXME: It should be forbidden to have R_ADDR from a
 				// symbol which isn't in .data. However, as .text has the
 				// same address once loaded, this is possible.
+				// TODO: .text (including rodata) to .data relocation
+				// doesn't work correctly, so we should really disallow it.
+				// See also aixStaticDataBase in symtab.go and in runtime.
 				if ldr.SymSect(s).Seg == &Segdata {
 					Xcoffadddynrel(target, ldr, syms, s, r, ri)
 				}

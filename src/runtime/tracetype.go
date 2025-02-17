@@ -9,6 +9,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/trace/tracev2"
 	"unsafe"
 )
 
@@ -35,7 +36,7 @@ func (t *traceTypeTable) put(typ *abi.Type) uint64 {
 // releases all memory and resets state. It must only be called once the caller
 // can guarantee that there are no more writers to the table.
 func (t *traceTypeTable) dump(gen uintptr) {
-	w := unsafeTraceExpWriter(gen, nil, traceExperimentAllocFree)
+	w := unsafeTraceExpWriter(gen, nil, tracev2.AllocFree)
 	if root := (*traceMapNode)(t.tab.root.Load()); root != nil {
 		w = dumpTypesRec(root, w)
 	}

@@ -174,7 +174,7 @@ func (check *Checker) collectRecv(rparam *syntax.Field, scopePos syntax.Pos) (*V
 	} else {
 		// If there are type parameters, rbase must denote a generic base type.
 		// Important: rbase must be resolved before declaring any receiver type
-		// parameters (wich may have the same name, see below).
+		// parameters (which may have the same name, see below).
 		var baseType *Named // nil if not valid
 		var cause string
 		if t := check.genericType(rbase, &cause); isValid(t) {
@@ -344,7 +344,7 @@ func (check *Checker) collectParams(list []*syntax.Field, variadicOk bool) (name
 				if variadicOk && i == len(list)-1 {
 					variadic = true
 				} else {
-					check.softErrorf(t, MisplacedDotDotDot, "can only use ... with final parameter in list")
+					check.error(t, InvalidSyntaxTree, "invalid use of ...")
 					// ignore ... and continue
 				}
 			}

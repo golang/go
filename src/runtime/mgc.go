@@ -1056,13 +1056,22 @@ func gcMarkTermination(stw worldStop) {
 			// mark using checkmark bits, to check that we
 			// didn't forget to mark anything during the
 			// concurrent mark process.
+			//
+			// Turn off gcwaiting because that will force
+			// gcDrain to return early if this goroutine
+			// happens to have its preemption flag set.
+			// This is fine because the world is stopped.
+			// Restore it after we're done just to be safe.
+			sched.gcwaiting.Store(false)
 			startCheckmarks()
 			gcResetMarkState()
+			gcMarkRootPrepare()
 			gcw := &getg().m.p.ptr().gcw
 			gcDrain(gcw, 0)
 			wbBufFlush1(getg().m.p.ptr())
 			gcw.dispose()
 			endCheckmarks()
+			sched.gcwaiting.Store(true)
 		}
 
 		// marking is complete so we can turn the write barrier off
@@ -1544,7 +1553,7 @@ func gcBgMarkWorker(ready chan struct{}) {
 		// We'll releasem after this point and thus this P may run
 		// something else. We must clear the worker mode to avoid
 		// attributing the mode to a different (non-worker) G in
-		// traceGoStart.
+		// tracev2.GoStart.
 		pp.gcMarkWorkerMode = gcMarkWorkerNotWorker
 
 		// If this worker reached a background mark completion
@@ -1684,7 +1693,7 @@ func gcSweep(mode gcMode) bool {
 	mheap_.sweepgen += 2
 	sweep.active.reset()
 	mheap_.pagesSwept.Store(0)
-	mheap_.sweepArenas = mheap_.allArenas
+	mheap_.sweepArenas = mheap_.heapArenas
 	mheap_.reclaimIndex.Store(0)
 	mheap_.reclaimCredit.Store(0)
 	unlock(&mheap_.lock)
@@ -1747,7 +1756,7 @@ func gcResetMarkState() {
 	// Clear page marks. This is just 1MB per 64GB of heap, so the
 	// time here is pretty trivial.
 	lock(&mheap_.lock)
-	arenas := mheap_.allArenas
+	arenas := mheap_.heapArenas
 	unlock(&mheap_.lock)
 	for _, ai := range arenas {
 		ha := mheap_.arenas[ai.l1()][ai.l2()]

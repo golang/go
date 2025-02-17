@@ -10,6 +10,7 @@ import (
 	"fmt"
 	. "internal/types/errors"
 	"slices"
+	"sort"
 )
 
 // initOrder computes the Info.InitOrder for package variables.
@@ -139,7 +140,16 @@ func findPath(objMap map[Object]*declInfo, from, to Object, seen map[Object]bool
 	}
 	seen[from] = true
 
+	// sort deps for deterministic result
+	var deps []Object
 	for d := range objMap[from].deps {
+		deps = append(deps, d)
+	}
+	sort.Slice(deps, func(i, j int) bool {
+		return deps[i].order() < deps[j].order()
+	})
+
+	for _, d := range deps {
 		if d == to {
 			return []Object{d}
 		}

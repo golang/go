@@ -110,12 +110,20 @@ func sendFile(dstFD *FD, src int, offset *int64, size int64) (written int64, err
 			// Retry.
 		case syscall.ENOSYS, syscall.EOPNOTSUPP, syscall.EINVAL:
 			// ENOSYS indicates no kernel support for sendfile.
-			// EINVAL indicates a FD type which does not support sendfile.
+			// EINVAL indicates a FD type that does not support sendfile.
 			//
 			// On Linux, copy_file_range can return EOPNOTSUPP when copying
 			// to a NFS file (issue #40731); check for it here just in case.
 			return written, err, written > 0
 		default:
+			// We want to handle ENOTSUP like EOPNOTSUPP.
+			// It's a pain to put it as a switch case
+			// because on Linux systems ENOTSUP == EOPNOTSUPP,
+			// so the compiler complains about a duplicate case.
+			if err == syscall.ENOTSUP {
+				return written, err, written > 0
+			}
+
 			// Not a retryable error.
 			return written, err, true
 		}

@@ -6,9 +6,9 @@
 
 package runtime
 
-// Trace strings.
+import "internal/trace/tracev2"
 
-const maxTraceStringLen = 1024
+// Trace strings.
 
 // traceStringTable is map of string -> unique ID that also manages
 // writing strings out into the trace.
@@ -52,8 +52,8 @@ func (t *traceStringTable) emit(gen uintptr, s string) uint64 {
 //go:systemstack
 func (t *traceStringTable) writeString(gen uintptr, id uint64, s string) {
 	// Truncate the string if necessary.
-	if len(s) > maxTraceStringLen {
-		s = s[:maxTraceStringLen]
+	if len(s) > tracev2.MaxEventTrailerDataSize {
+		s = s[:tracev2.MaxEventTrailerDataSize]
 	}
 
 	lock(&t.lock)
@@ -61,14 +61,14 @@ func (t *traceStringTable) writeString(gen uintptr, id uint64, s string) {
 
 	// Ensure we have a place to write to.
 	var flushed bool
-	w, flushed = w.ensure(2 + 2*traceBytesPerNumber + len(s) /* traceEvStrings + traceEvString + ID + len + string data */)
+	w, flushed = w.ensure(2 + 2*traceBytesPerNumber + len(s) /* tracev2.EvStrings + tracev2.EvString + ID + len + string data */)
 	if flushed {
 		// Annotate the batch as containing strings.
-		w.byte(byte(traceEvStrings))
+		w.byte(byte(tracev2.EvStrings))
 	}
 
 	// Write out the string.
-	w.byte(byte(traceEvString))
+	w.byte(byte(tracev2.EvString))
 	w.varint(id)
 	w.varint(uint64(len(s)))
 	w.stringData(s)

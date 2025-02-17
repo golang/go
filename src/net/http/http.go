@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:generate bundle -o=h2_bundle.go -prefix=http2 -tags=!nethttpomithttp2 golang.org/x/net/http2
+//go:generate bundle -o=h2_bundle.go -prefix=http2 -tags=!nethttpomithttp2 -import=golang.org/x/net/internal/httpcommon=net/http/internal/httpcommon golang.org/x/net/http2
 
 package http
 
@@ -17,6 +17,7 @@ import (
 )
 
 // Protocols is a set of HTTP protocols.
+// The zero value is an empty set of protocols.
 //
 // The supported protocols are:
 //

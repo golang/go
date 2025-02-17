@@ -135,7 +135,9 @@ function stackViewer(stacks, nodes) {
     }
 
     // Update params to include src.
-    let v = pprofQuoteMeta(stacks.Sources[src].FullName);
+    // When `pprof` is invoked with `-lines`, FullName will be suffixed with `:<line>`,
+    // which we need to remove.
+    let v = pprofQuoteMeta(stacks.Sources[src].FullName.replace(/:[0-9]+$/, ''));
     if (param != 'f' && param != 'sf') { // old f,sf values are overwritten
       // Add new source to current parameter value.
       const old = params.get(param);

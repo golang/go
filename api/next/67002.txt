@@ -1,0 +1,2 @@
+pkg os, method (*Root) Chmod(string, fs.FileMode) error #67002
+pkg os, method (*Root) Chown(string, int, int) error #67002

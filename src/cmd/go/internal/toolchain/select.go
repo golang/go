@@ -169,7 +169,7 @@ func Select() {
 	}
 
 	gotoolchain = minToolchain
-	if (mode == "auto" || mode == "path") && !goInstallVersion() {
+	if (mode == "auto" || mode == "path") && !goInstallVersion(minVers) {
 		// Read go.mod to find new minimum and suggested toolchain.
 		file, goVers, toolchain := modGoToolchain()
 		gover.Startup.AutoFile = file
@@ -549,7 +549,7 @@ func modGoToolchain() (file, goVers, toolchain string) {
 
 // goInstallVersion reports whether the command line is go install m@v or go run m@v.
 // If so, Select must not read the go.mod or go.work file in "auto" or "path" mode.
-func goInstallVersion() bool {
+func goInstallVersion(minVers string) bool {
 	// Note: We assume there are no flags between 'go' and 'install' or 'run'.
 	// During testing there are some debugging flags that are accepted
 	// in that position, but in production go binaries there are not.
@@ -708,7 +708,11 @@ func goInstallVersion() bool {
 	if errors.Is(err, gover.ErrTooNew) {
 		// Run early switch, same one go install or go run would eventually do,
 		// if it understood all the command-line flags.
-		SwitchOrFatal(ctx, err)
+		var s Switcher
+		s.Error(err)
+		if s.TooNew != nil && gover.Compare(s.TooNew.GoVersion, minVers) > 0 {
+			SwitchOrFatal(ctx, err)
+		}
 	}
 
 	return true // pkg@version found

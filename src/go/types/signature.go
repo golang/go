@@ -38,6 +38,8 @@ type Signature struct {
 // must be of unnamed slice type.
 //
 // Deprecated: Use [NewSignatureType] instead which allows for type parameters.
+//
+//go:fix inline
 func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
 	return NewSignatureType(recv, nil, nil, params, results, variadic)
 }
@@ -195,7 +197,7 @@ func (check *Checker) collectRecv(rparam *ast.Field, scopePos token.Pos) (*Var, 
 	} else {
 		// If there are type parameters, rbase must denote a generic base type.
 		// Important: rbase must be resolved before declaring any receiver type
-		// parameters (wich may have the same name, see below).
+		// parameters (which may have the same name, see below).
 		var baseType *Named // nil if not valid
 		var cause string
 		if t := check.genericType(rbase, &cause); isValid(t) {
@@ -364,7 +366,7 @@ func (check *Checker) collectParams(list *ast.FieldList, variadicOk bool) (names
 			if variadicOk && i == len(list.List)-1 && len(field.Names) <= 1 {
 				variadic = true
 			} else {
-				check.softErrorf(t, MisplacedDotDotDot, "can only use ... with final parameter in list")
+				check.softErrorf(t, InvalidSyntaxTree, "invalid use of ...")
 				// ignore ... and continue
 			}
 		}

@@ -75,7 +75,7 @@ func MutatorUtilizationV2(events []Event, flags UtilFlags) [][]MutatorUtil {
 	states := make(map[GoID]GoState)
 	bgMark := make(map[GoID]bool)
 	procs := []procsCount{}
-	seenSync := false
+	nSync := 0
 
 	// Helpers.
 	handleSTW := func(r Range) bool {
@@ -97,13 +97,13 @@ func MutatorUtilizationV2(events []Event, flags UtilFlags) [][]MutatorUtil {
 		// Process the event.
 		switch ev.Kind() {
 		case EventSync:
-			seenSync = true
+			nSync = ev.Sync().N
 		case EventMetric:
 			m := ev.Metric()
 			if m.Name != "/sched/gomaxprocs:threads" {
 				break
 			}
-			gomaxprocs := int(m.Value.Uint64())
+			gomaxprocs := int(m.Value.ToUint64())
 			if len(ps) > gomaxprocs {
 				if flags&UtilPerProc != 0 {
 					// End each P's series.
@@ -135,9 +135,9 @@ func MutatorUtilizationV2(events []Event, flags UtilFlags) [][]MutatorUtil {
 
 		switch ev.Kind() {
 		case EventRangeActive:
-			if seenSync {
-				// If we've seen a sync, then we can be sure we're not finding out about
-				// something late; we have complete information after that point, and these
+			if nSync > 1 {
+				// If we've seen a full generation, then we can be sure we're not finding out
+				// about something late; we have complete information after that point, and these
 				// active events will just be redundant.
 				break
 			}

@@ -13,9 +13,9 @@ import (
 // Pointer is a weak pointer to a value of type T.
 //
 // Just like regular pointers, Pointer may reference any part of an
-// object, such as the field of a struct or an element of an array.
+// object, such as a field of a struct or an element of an array.
 // Objects that are only pointed to by weak pointers are not considered
-// reachable and once the object becomes unreachable [Pointer.Value]
+// reachable, and once the object becomes unreachable, [Pointer.Value]
 // may return nil.
 //
 // The primary use-cases for weak pointers are for implementing caches,
@@ -23,19 +23,19 @@ import (
 // the lifetimes of separate values (for example, through a map with weak
 // keys).
 //
-// Two Pointer values always compare equal if the pointers that they were
-// created from compare equal. This property is retained even after the
+// Two Pointer values always compare equal if the pointers from which they were
+// created compare equal. This property is retained even after the
 // object referenced by the pointer used to create a weak reference is
 // reclaimed.
-// If multiple weak pointers are made to different offsets within same object
+// If multiple weak pointers are made to different offsets within the same object
 // (for example, pointers to different fields of the same struct), those pointers
 // will not compare equal.
 // If a weak pointer is created from an object that becomes unreachable, but is
 // then resurrected due to a finalizer, that weak pointer will not compare equal
-// with weak pointers created after resurrection.
+// with weak pointers created after the resurrection.
 //
 // Calling [Make] with a nil pointer returns a weak pointer whose [Pointer.Value]
-// always returns nil. The zero value of a Pointer behaves as if it was created
+// always returns nil. The zero value of a Pointer behaves as if it were created
 // by passing nil to [Make] and compares equal with such pointers.
 //
 // [Pointer.Value] is not guaranteed to eventually return nil.
@@ -52,10 +52,13 @@ import (
 // nil, even after an object is no longer referenced, the runtime is allowed to
 // perform a space-saving optimization that batches objects together in a single
 // allocation slot. The weak pointer for an unreferenced object in such an
-// allocation may never be called if it always exists in the same batch as a
+// allocation may never become nil if it always exists in the same batch as a
 // referenced object. Typically, this batching only happens for tiny
 // (on the order of 16 bytes or less) and pointer-free objects.
 type Pointer[T any] struct {
+	// Mention T in the type definition to prevent conversions
+	// between Pointer types, like we do for sync/atomic.Pointer.
+	_ [0]*T
 	u unsafe.Pointer
 }
 
@@ -69,7 +72,7 @@ func Make[T any](ptr *T) Pointer[T] {
 		u = runtime_registerWeakPointer(unsafe.Pointer(ptr))
 	}
 	runtime.KeepAlive(ptr)
-	return Pointer[T]{u}
+	return Pointer[T]{u: u}
 }
 
 // Value returns the original pointer used to create the weak pointer.
@@ -78,6 +81,9 @@ func Make[T any](ptr *T) Pointer[T] {
 // If a weak pointer points to an object with a finalizer, then Value will
 // return nil as soon as the object's finalizer is queued for execution.
 func (p Pointer[T]) Value() *T {
+	if p.u == nil {
+		return nil
+	}
 	return (*T)(runtime_makeStrongFromWeak(p.u))
 }
 

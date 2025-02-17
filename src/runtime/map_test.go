@@ -674,10 +674,6 @@ func TestIgnoreBogusMapHint(t *testing.T) {
 var testNonEscapingMapVariable int = 8
 
 func TestNonEscapingMap(t *testing.T) {
-	if goexperiment.SwissMap {
-		t.Skip("TODO(go.dev/issue/54766): implement stack allocated maps")
-	}
-
 	n := testing.AllocsPerRun(1000, func() {
 		m := map[int]int{}
 		m[0] = 0

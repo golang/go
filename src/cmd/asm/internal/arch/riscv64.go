@@ -13,9 +13,8 @@ import (
 	"cmd/internal/obj/riscv"
 )
 
-// IsRISCV64AMO reports whether the op (as defined by a riscv.A*
-// constant) is one of the AMO instructions that requires special
-// handling.
+// IsRISCV64AMO reports whether op is an AMO instruction that requires
+// special handling.
 func IsRISCV64AMO(op obj.As) bool {
 	switch op {
 	case riscv.ASCW, riscv.ASCD, riscv.AAMOSWAPW, riscv.AAMOSWAPD, riscv.AAMOADDW, riscv.AAMOADDD,
@@ -25,4 +24,34 @@ func IsRISCV64AMO(op obj.As) bool {
 		return true
 	}
 	return false
+}
+
+// IsRISCV64VTypeI reports whether op is a vtype immediate instruction that
+// requires special handling.
+func IsRISCV64VTypeI(op obj.As) bool {
+	return op == riscv.AVSETVLI || op == riscv.AVSETIVLI
+}
+
+var riscv64SpecialOperand map[string]riscv.SpecialOperand
+
+// RISCV64SpecialOperand returns the internal representation of a special operand.
+func RISCV64SpecialOperand(name string) riscv.SpecialOperand {
+	if riscv64SpecialOperand == nil {
+		// Generate mapping when function is first called.
+		riscv64SpecialOperand = map[string]riscv.SpecialOperand{}
+		for opd := riscv.SPOP_BEGIN; opd < riscv.SPOP_END; opd++ {
+			riscv64SpecialOperand[opd.String()] = opd
+		}
+	}
+	if opd, ok := riscv64SpecialOperand[name]; ok {
+		return opd
+	}
+	return riscv.SPOP_END
+}
+
+// RISCV64ValidateVectorType reports whether the given configuration is a
+// valid vector type.
+func RISCV64ValidateVectorType(vsew, vlmul, vtail, vmask int64) error {
+	_, err := riscv.EncodeVectorType(vsew, vlmul, vtail, vmask)
+	return err
 }

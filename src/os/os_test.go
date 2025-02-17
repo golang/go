@@ -3725,13 +3725,9 @@ func TestCopyFSWithSymlinks(t *testing.T) {
 		t.Fatalf("Mkdir: %v", err)
 	}
 
-	// TODO(panjf2000): symlinks are currently not supported, and a specific error
-	// 			will be returned. Verify that error and skip the subsequent test,
-	//			revisit this once #49580 is closed.
-	if err := CopyFS(tmpDupDir, fsys); !errors.Is(err, ErrInvalid) {
-		t.Fatalf("got %v, want ErrInvalid", err)
+	if err := CopyFS(tmpDupDir, fsys); err != nil {
+		t.Fatalf("CopyFS: %v", err)
 	}
-	t.Skip("skip the subsequent test and wait for #49580")
 
 	forceMFTUpdateOnWindows(t, tmpDupDir)
 	tmpFsys := DirFS(tmpDupDir)

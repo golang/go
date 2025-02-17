@@ -8,7 +8,6 @@ package load
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -218,27 +217,26 @@ func (p *Package) IsTestOnly() bool {
 type PackageInternal struct {
 	// Unexported fields are not part of the public API.
 	Build             *build.Package
-	Imports           []*Package           // this package's direct imports
-	CompiledImports   []string             // additional Imports necessary when using CompiledGoFiles (all from standard library); 1:1 with the end of PackagePublic.Imports
-	RawImports        []string             // this package's original imports as they appear in the text of the program; 1:1 with the end of PackagePublic.Imports
-	ForceLibrary      bool                 // this package is a library (even if named "main")
-	CmdlineFiles      bool                 // package built from files listed on command line
-	CmdlinePkg        bool                 // package listed on command line
-	CmdlinePkgLiteral bool                 // package listed as literal on command line (not via wildcard)
-	Local             bool                 // imported via local path (./ or ../)
-	LocalPrefix       string               // interpret ./ and ../ imports relative to this prefix
-	ExeName           string               // desired name for temporary executable
-	FuzzInstrument    bool                 // package should be instrumented for fuzzing
-	Cover             CoverSetup           // coverage mode and other setup info of -cover is being applied to this package
-	CoverVars         map[string]*CoverVar // variables created by coverage analysis
-	OmitDebug         bool                 // tell linker not to write debug information
-	GobinSubdir       bool                 // install target would be subdir of GOBIN
-	BuildInfo         *debug.BuildInfo     // add this info to package main
-	TestmainGo        *[]byte              // content for _testmain.go
-	Embed             map[string][]string  // //go:embed comment mapping
-	OrigImportPath    string               // original import path before adding '_test' suffix
-	PGOProfile        string               // path to PGO profile
-	ForMain           string               // the main package if this package is built specifically for it
+	Imports           []*Package          // this package's direct imports
+	CompiledImports   []string            // additional Imports necessary when using CompiledGoFiles (all from standard library); 1:1 with the end of PackagePublic.Imports
+	RawImports        []string            // this package's original imports as they appear in the text of the program; 1:1 with the end of PackagePublic.Imports
+	ForceLibrary      bool                // this package is a library (even if named "main")
+	CmdlineFiles      bool                // package built from files listed on command line
+	CmdlinePkg        bool                // package listed on command line
+	CmdlinePkgLiteral bool                // package listed as literal on command line (not via wildcard)
+	Local             bool                // imported via local path (./ or ../)
+	LocalPrefix       string              // interpret ./ and ../ imports relative to this prefix
+	ExeName           string              // desired name for temporary executable
+	FuzzInstrument    bool                // package should be instrumented for fuzzing
+	Cover             CoverSetup          // coverage mode and other setup info of -cover is being applied to this package
+	OmitDebug         bool                // tell linker not to write debug information
+	GobinSubdir       bool                // install target would be subdir of GOBIN
+	BuildInfo         *debug.BuildInfo    // add this info to package main
+	TestmainGo        *[]byte             // content for _testmain.go
+	Embed             map[string][]string // //go:embed comment mapping
+	OrigImportPath    string              // original import path before adding '_test' suffix
+	PGOProfile        string              // path to PGO profile
+	ForMain           string              // the main package if this package is built specifically for it
 
 	Asmflags   []string // -asmflags for this package
 	Gcflags    []string // -gcflags for this package
@@ -370,12 +368,6 @@ func (p *Package) Resolve(imports []string) []string {
 	}
 	sort.Strings(all)
 	return all
-}
-
-// CoverVar holds the name of the generated coverage variables targeting the named file.
-type CoverVar struct {
-	File string // local file name
-	Var  string // name of count struct
 }
 
 // CoverSetup holds parameters related to coverage setup for a given package (covermode, etc).
@@ -2627,7 +2619,7 @@ func LinkerDeps(p *Package) ([]string, error) {
 		deps = append(deps, "runtime/asan")
 	}
 	// Building for coverage forces an import of runtime/coverage.
-	if cfg.BuildCover && cfg.Experiment.CoverageRedesign {
+	if cfg.BuildCover {
 		deps = append(deps, "runtime/coverage")
 	}
 
@@ -3068,7 +3060,15 @@ func setPGOProfilePath(pkgs []*Package) {
 // CheckPackageErrors prints errors encountered loading pkgs and their
 // dependencies, then exits with a non-zero status if any errors were found.
 func CheckPackageErrors(pkgs []*Package) {
-	var anyIncomplete bool
+	PackageErrors(pkgs, func(p *Package) {
+		DefaultPrinter().Errorf(p, "%v", p.Error)
+	})
+	base.ExitIfErrors()
+}
+
+// PackageErrors calls report for errors encountered loading pkgs and their dependencies.
+func PackageErrors(pkgs []*Package, report func(*Package)) {
+	var anyIncomplete, anyErrors bool
 	for _, pkg := range pkgs {
 		if pkg.Incomplete {
 			anyIncomplete = true
@@ -3078,11 +3078,14 @@ func CheckPackageErrors(pkgs []*Package) {
 		all := PackageList(pkgs)
 		for _, p := range all {
 			if p.Error != nil {
-				DefaultPrinter().Errorf(p, "%v", p.Error)
+				report(p)
+				anyErrors = true
 			}
 		}
 	}
-	base.ExitIfErrors()
+	if anyErrors {
+		return
+	}
 
 	// Check for duplicate loads of the same package.
 	// That should be impossible, but if it does happen then
@@ -3105,7 +3108,9 @@ func CheckPackageErrors(pkgs []*Package) {
 		}
 		seen[key] = true
 	}
-	base.ExitIfErrors()
+	if len(reported) > 0 {
+		base.ExitIfErrors()
+	}
 }
 
 // mainPackagesOnly filters out non-main packages matched only by arguments
@@ -3555,14 +3560,6 @@ func SelectCoverPackages(roots []*Package, match []func(*Package) bool, op strin
 		if cfg.BuildCoverMode == "atomic" {
 			EnsureImport(p, "sync/atomic")
 		}
-
-		// Generate covervars if using legacy coverage design.
-		if !cfg.Experiment.CoverageRedesign {
-			var coverFiles []string
-			coverFiles = append(coverFiles, p.GoFiles...)
-			coverFiles = append(coverFiles, p.CgoFiles...)
-			p.Internal.CoverVars = DeclareCoverVars(p, coverFiles...)
-		}
 	}
 
 	// Warn about -coverpkg arguments that are not actually used.
@@ -3573,43 +3570,4 @@ func SelectCoverPackages(roots []*Package, match []func(*Package) bool, op strin
 	}
 
 	return covered
-}
-
-// DeclareCoverVars attaches the required cover variables names
-// to the files, to be used when annotating the files. This
-// function only called when using legacy coverage test/build
-// (e.g. GOEXPERIMENT=coverageredesign is off).
-func DeclareCoverVars(p *Package, files ...string) map[string]*CoverVar {
-	coverVars := make(map[string]*CoverVar)
-	coverIndex := 0
-	// We create the cover counters as new top-level variables in the package.
-	// We need to avoid collisions with user variables (GoCover_0 is unlikely but still)
-	// and more importantly with dot imports of other covered packages,
-	// so we append 12 hex digits from the SHA-256 of the import path.
-	// The point is only to avoid accidents, not to defeat users determined to
-	// break things.
-	sum := sha256.Sum256([]byte(p.ImportPath))
-	h := fmt.Sprintf("%x", sum[:6])
-	for _, file := range files {
-		if base.IsTestFile(file) {
-			continue
-		}
-		// For a package that is "local" (imported via ./ import or command line, outside GOPATH),
-		// we record the full path to the file name.
-		// Otherwise we record the import path, then a forward slash, then the file name.
-		// This makes profiles within GOPATH file system-independent.
-		// These names appear in the cmd/cover HTML interface.
-		var longFile string
-		if p.Internal.Local {
-			longFile = filepath.Join(p.Dir, file)
-		} else {
-			longFile = pathpkg.Join(p.ImportPath, file)
-		}
-		coverVars[file] = &CoverVar{
-			File: longFile,
-			Var:  fmt.Sprintf("GoCover_%d_%x", coverIndex, h),
-		}
-		coverIndex++
-	}
-	return coverVars
 }

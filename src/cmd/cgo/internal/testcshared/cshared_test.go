@@ -906,7 +906,7 @@ func TestIssue68411(t *testing.T) {
 	}
 
 	var found int
-	for _, line := range bytes.Split(data, []byte("\n")) {
+	for line := range bytes.Lines(data) {
 		for _, fn := range funcs {
 			if bytes.Contains(line, []byte(fn.name)) {
 				found++

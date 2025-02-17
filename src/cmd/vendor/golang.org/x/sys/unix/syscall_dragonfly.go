@@ -246,6 +246,18 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 	return sendfile(outfd, infd, offset, count)
 }
 
+func Dup3(oldfd, newfd, flags int) error {
+	if oldfd == newfd || flags&^O_CLOEXEC != 0 {
+		return EINVAL
+	}
+	how := F_DUP2FD
+	if flags&O_CLOEXEC != 0 {
+		how = F_DUP2FD_CLOEXEC
+	}
+	_, err := fcntl(oldfd, how, newfd)
+	return err
+}
+
 /*
  * Exposed directly
  */

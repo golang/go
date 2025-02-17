@@ -27,12 +27,7 @@ type InterfaceSwitchCacheEntry struct {
 	Itab uintptr
 }
 
-const go122InterfaceSwitchCache = true
-
 func UseInterfaceSwitchCache(goarch string) bool {
-	if !go122InterfaceSwitchCache {
-		return false
-	}
 	// We need an atomic load instruction to make the cache multithreaded-safe.
 	// (AtomicLoadPtr needs to be implemented in cmd/compile/internal/ssa/_gen/ARCH.rules.)
 	switch goarch {

@@ -15,6 +15,7 @@ import (
 	"internal/itoa"
 	runtimesyscall "internal/runtime/syscall"
 	"runtime"
+	"slices"
 	"unsafe"
 )
 
@@ -134,12 +135,7 @@ func isGroupMember(gid int) bool {
 		return false
 	}
 
-	for _, g := range groups {
-		if g == gid {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(groups, gid)
 }
 
 func isCapDacOverrideSet() bool {

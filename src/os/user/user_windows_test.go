@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"slices"
 	"strconv"
 	"syscall"
 	"testing"
@@ -205,7 +206,7 @@ func TestGroupIdsTestUser(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%+v.GroupIds(): %v", user, err)
 	}
-	if !containsID(gids, user.Gid) {
+	if !slices.Contains(gids, user.Gid) {
 		t.Errorf("%+v.GroupIds() = %v; does not contain user GID %s", user, gids, user.Gid)
 	}
 }

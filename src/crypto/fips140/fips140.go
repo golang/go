@@ -10,7 +10,7 @@ import (
 	"internal/godebug"
 )
 
-var fips140GODEBUG = godebug.New("#fips140")
+var fips140GODEBUG = godebug.New("fips140")
 
 // Enabled reports whether the cryptography libraries are operating in FIPS
 // 140-3 mode.
@@ -26,7 +26,7 @@ func Enabled() bool {
 	if currentlyEnabled != fips140.Enabled {
 		panic("crypto/fips140: GODEBUG setting changed after program start")
 	}
-	if fips140.Enabled && !check.Enabled() {
+	if fips140.Enabled && !check.Verified {
 		panic("crypto/fips140: FIPS 140-3 mode enabled, but integrity check didn't pass")
 	}
 	return fips140.Enabled

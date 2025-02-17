@@ -334,6 +334,14 @@ func (o *orderState) mapKeyTemp(outerPos src.XPos, t *types.Type, n ir.Node) ir.
 // It would be nice to handle these generally, but because
 // []byte keys are not allowed in maps, the use of string(k)
 // comes up in important cases in practice. See issue 3512.
+//
+// Note that this code does not handle the case:
+//
+//      s := string(k)
+//      x = m[s]
+//
+// Cases like this are handled during SSA, search for slicebytetostring
+// in ../ssa/_gen/generic.rules.
 func mapKeyReplaceStrConv(n ir.Node) bool {
 	var replaced bool
 	switch n.Op() {

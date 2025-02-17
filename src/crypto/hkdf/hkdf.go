@@ -12,6 +12,7 @@ package hkdf
 
 import (
 	"crypto/internal/fips140/hkdf"
+	"crypto/internal/fips140hash"
 	"crypto/internal/fips140only"
 	"errors"
 	"hash"
@@ -24,10 +25,11 @@ import (
 // Expand invocations and different context values. Most common scenarios,
 // including the generation of multiple keys, should use [Key] instead.
 func Extract[H hash.Hash](h func() H, secret, salt []byte) ([]byte, error) {
-	if err := checkFIPS140Only(h, secret); err != nil {
+	fh := fips140hash.UnwrapNew(h)
+	if err := checkFIPS140Only(fh, secret); err != nil {
 		return nil, err
 	}
-	return hkdf.Extract(h, secret, salt), nil
+	return hkdf.Extract(fh, secret, salt), nil
 }
 
 // Expand derives a key from the given hash, key, and optional context info,
@@ -38,35 +40,37 @@ func Extract[H hash.Hash](h func() H, secret, salt []byte) ([]byte, error) {
 // random or pseudorandom cryptographically strong key. See RFC 5869, Section
 // 3.3. Most common scenarios will want to use [Key] instead.
 func Expand[H hash.Hash](h func() H, pseudorandomKey []byte, info string, keyLength int) ([]byte, error) {
-	if err := checkFIPS140Only(h, pseudorandomKey); err != nil {
+	fh := fips140hash.UnwrapNew(h)
+	if err := checkFIPS140Only(fh, pseudorandomKey); err != nil {
 		return nil, err
 	}
 
-	limit := h().Size() * 255
+	limit := fh().Size() * 255
 	if keyLength > limit {
 		return nil, errors.New("hkdf: requested key length too large")
 	}
 
-	return hkdf.Expand(h, pseudorandomKey, info, keyLength), nil
+	return hkdf.Expand(fh, pseudorandomKey, info, keyLength), nil
 }
 
 // Key derives a key from the given hash, secret, salt and context info,
 // returning a []byte of length keyLength that can be used as cryptographic key.
 // Salt and info can be nil.
 func Key[Hash hash.Hash](h func() Hash, secret, salt []byte, info string, keyLength int) ([]byte, error) {
-	if err := checkFIPS140Only(h, secret); err != nil {
+	fh := fips140hash.UnwrapNew(h)
+	if err := checkFIPS140Only(fh, secret); err != nil {
 		return nil, err
 	}
 
-	limit := h().Size() * 255
+	limit := fh().Size() * 255
 	if keyLength > limit {
 		return nil, errors.New("hkdf: requested key length too large")
 	}
 
-	return hkdf.Key(h, secret, salt, info, keyLength), nil
+	return hkdf.Key(fh, secret, salt, info, keyLength), nil
 }
 
-func checkFIPS140Only[H hash.Hash](h func() H, key []byte) error {
+func checkFIPS140Only[Hash hash.Hash](h func() Hash, key []byte) error {
 	if !fips140only.Enabled {
 		return nil
 	}

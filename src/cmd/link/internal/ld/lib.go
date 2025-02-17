@@ -1022,7 +1022,7 @@ func typeSymbolMangle(name string) string {
 		return name
 	}
 	if isType {
-		hb := hash.Sum20([]byte(name[5:]))
+		hb := hash.Sum32([]byte(name[5:]))
 		prefix := "type:"
 		if name[5] == '.' {
 			prefix = "type:."
@@ -1035,7 +1035,7 @@ func typeSymbolMangle(name string) string {
 	if j == -1 || j <= i {
 		j = len(name)
 	}
-	hb := hash.Sum20([]byte(name[i+1 : j]))
+	hb := hash.Sum32([]byte(name[i+1 : j]))
 	return name[:i+1] + base64.StdEncoding.EncodeToString(hb[:6]) + name[j:]
 }
 

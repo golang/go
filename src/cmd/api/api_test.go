@@ -57,7 +57,10 @@ func TestGolden(t *testing.T) {
 		// TODO(gri) remove extra pkg directory eventually
 		goldenFile := filepath.Join("testdata", "src", "pkg", fi.Name(), "golden.txt")
 		w := NewWalker(nil, "testdata/src/pkg")
-		pkg, _ := w.import_(fi.Name())
+		pkg, err := w.import_(fi.Name())
+		if err != nil {
+			t.Fatalf("import %s: %v", fi.Name(), err)
+		}
 		w.export(pkg)
 
 		if *updateGolden {
@@ -201,7 +204,13 @@ func BenchmarkAll(b *testing.B) {
 		for _, context := range contexts {
 			w := NewWalker(context, filepath.Join(testenv.GOROOT(b), "src"))
 			for _, name := range w.stdPackages {
-				pkg, _ := w.import_(name)
+				pkg, err := w.import_(name)
+				if _, nogo := err.(*build.NoGoError); nogo {
+					continue
+				}
+				if err != nil {
+					b.Fatalf("import %s (%s-%s): %v", name, context.GOOS, context.GOARCH, err)
+				}
 				w.export(pkg)
 			}
 			w.Features()
@@ -239,8 +248,7 @@ func TestIssue21181(t *testing.T) {
 		w := NewWalker(context, "testdata/src/issue21181")
 		pkg, err := w.import_("p")
 		if err != nil {
-			t.Fatalf("%s: (%s-%s) %s %v", err, context.GOOS, context.GOARCH,
-				pkg.Name(), w.imported)
+			t.Fatalf("import %s (%s-%s): %v", "p", context.GOOS, context.GOARCH, err)
 		}
 		w.export(pkg)
 	}

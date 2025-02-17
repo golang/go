@@ -4,6 +4,15 @@
 
 // Package tls partially implements TLS 1.2, as specified in RFC 5246,
 // and TLS 1.3, as specified in RFC 8446.
+//
+// # FIPS 140-3 mode
+//
+// When the program is in [FIPS 140-3 mode], this package behaves as if
+// only protocol versions, cipher suites, signature algorithms, and
+// key exchange algorithms approved by NIST SP 800-52r2 are implemented.
+// Others are silently ignored and not negotiated.
+//
+// [FIPS 140-3 mode]: https://go.dev/doc/security/fips140
 package tls
 
 // BUG(agl): The crypto/tls package only implements some countermeasures

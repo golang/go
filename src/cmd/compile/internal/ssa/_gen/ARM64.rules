@@ -1940,6 +1940,9 @@
 (MOVHUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
 (MOVWUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
 (MOVDload  [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(read64(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVBload  [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(int8(read8(sym, int64(off))))])
+(MOVHload  [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(int16(read16(sym, int64(off), config.ctxt.Arch.ByteOrder)))])
+(MOVWload  [off] {sym} (SB) _) && symIsRO(sym) => (MOVDconst [int64(int32(read32(sym, int64(off), config.ctxt.Arch.ByteOrder)))])
 
 // Prefetch instructions (aux is option: 0 - PLDL1KEEP; 1 - PLDL1STRM)
 (PrefetchCache addr mem)         => (PRFM [0] addr mem)

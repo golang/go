@@ -12,7 +12,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -71,9 +70,15 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
 		case "netrc":
 			lines, err := readNetrc()
 			if err != nil {
-				base.Fatalf("go: could not parse netrc (GOAUTH=%s): %v", cfg.GOAUTH, err)
+				cmdErrs = append(cmdErrs, fmt.Errorf("GOAUTH=%s: %v", command, err))
+				continue
 			}
-			for _, l := range lines {
+			// Process lines in reverse so that if the same machine is listed
+			// multiple times, we end up saving the earlier one
+			// (overwriting later ones). This matches the way the go command
+			// worked before GOAUTH.
+			for i := len(lines) - 1; i >= 0; i-- {
+				l := lines[i]
 				r := http.Request{Header: make(http.Header)}
 				r.SetBasicAuth(l.login, l.password)
 				storeCredential(l.machine, r.Header)
@@ -123,7 +128,8 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
 	// If no GOAUTH command provided a credential for the given url
 	// and an error occurred, log the error.
 	if cfg.BuildX && url != "" {
-		if ok := loadCredential(&http.Request{}, url); !ok && len(cmdErrs) > 0 {
+		req := &http.Request{Header: make(http.Header)}
+		if ok := loadCredential(req, url); !ok && len(cmdErrs) > 0 {
 			log.Printf("GOAUTH encountered errors for %s:", url)
 			for _, err := range cmdErrs {
 				log.Printf("  %v", err)
@@ -137,11 +143,13 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
 func loadCredential(req *http.Request, url string) bool {
 	currentPrefix := strings.TrimPrefix(url, "https://")
 	// Iteratively try prefixes, moving up the path hierarchy.
-	for currentPrefix != "/" && currentPrefix != "." && currentPrefix != "" {
+	for {
 		headers, ok := credentialCache.Load(currentPrefix)
 		if !ok {
-			// Move to the parent directory.
-			currentPrefix = path.Dir(currentPrefix)
+			currentPrefix, _, ok = strings.Cut(currentPrefix, "/")
+			if !ok {
+				return false
+			}
 			continue
 		}
 		for key, values := range headers.(http.Header) {
@@ -151,7 +159,6 @@ func loadCredential(req *http.Request, url string) bool {
 		}
 		return true
 	}
-	return false
 }
 
 // storeCredential caches or removes credentials (represented by HTTP headers)

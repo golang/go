@@ -11,8 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"internal/trace/event"
-	"internal/trace/event/go122"
+	"internal/trace/tracev2"
 	"internal/trace/version"
 )
 
@@ -313,26 +312,28 @@ type ExperimentalEvent struct {
 	// Name is the name of the event.
 	Name string
 
-	// ArgNames is the names of the event's arguments in order.
-	// This may refer to a globally shared slice. Copy before mutating.
-	ArgNames []string
+	// Experiment is the name of the experiment this event is a part of.
+	Experiment string
 
-	// Args contains the event's arguments.
-	Args []uint64
+	// Args lists the names of the event's arguments in order.
+	Args []string
 
-	// Data is additional unparsed data that is associated with the experimental event.
-	// Data is likely to be shared across many ExperimentalEvents, so callers that parse
-	// Data are encouraged to cache the parse result and look it up by the value of Data.
-	Data *ExperimentalData
+	// argValues contains the raw integer arguments which are interpreted
+	// by ArgValue using table.
+	table     *evTable
+	argValues []uint64
 }
 
-// ExperimentalData represents some raw and unparsed sidecar data present in the trace that is
-// associated with certain kinds of experimental events. For example, this data may contain
-// tables needed to interpret ExperimentalEvent arguments, or the ExperimentEvent could just be
-// a placeholder for a differently encoded event that's actually present in the experimental data.
-type ExperimentalData struct {
-	// Batches contain the actual experimental data, along with metadata about each batch.
-	Batches []ExperimentalBatch
+// ArgValue returns a typed Value for the i'th argument in the experimental event.
+func (e ExperimentalEvent) ArgValue(i int) Value {
+	if i < 0 || i >= len(e.Args) {
+		panic(fmt.Sprintf("experimental event argument index %d out of bounds [0, %d)", i, len(e.Args)))
+	}
+	if strings.HasSuffix(e.Args[i], "string") {
+		s := e.table.strings.mustGet(stringID(e.argValues[i]))
+		return stringValue(s)
+	}
+	return uint64Value(e.argValues[i])
 }
 
 // ExperimentalBatch represents a packet of unparsed data along with metadata about that packet.
@@ -353,7 +354,7 @@ type Event struct {
 
 // Kind returns the kind of event that this is.
 func (e Event) Kind() EventKind {
-	return go122Type2Kind[e.base.typ]
+	return tracev2Type2Kind[e.base.typ]
 }
 
 // Time returns the timestamp of the event.
@@ -405,10 +406,10 @@ func (e Event) Stack() Stack {
 	if e.base.typ == evSync {
 		return NoStack
 	}
-	if e.base.typ == go122.EvCPUSample {
+	if e.base.typ == tracev2.EvCPUSample {
 		return Stack{table: e.table, id: stackID(e.base.args[0])}
 	}
-	spec := go122.Specs()[e.base.typ]
+	spec := tracev2.Specs()[e.base.typ]
 	if len(spec.StackIDs) == 0 {
 		return NoStack
 	}
@@ -431,17 +432,17 @@ func (e Event) Metric() Metric {
 	}
 	var m Metric
 	switch e.base.typ {
-	case go122.EvProcsChange:
+	case tracev2.EvProcsChange:
 		m.Name = "/sched/gomaxprocs:threads"
-		m.Value = Value{kind: ValueUint64, scalar: e.base.args[0]}
-	case go122.EvHeapAlloc:
+		m.Value = uint64Value(e.base.args[0])
+	case tracev2.EvHeapAlloc:
 		m.Name = "/memory/classes/heap/objects:bytes"
-		m.Value = Value{kind: ValueUint64, scalar: e.base.args[0]}
-	case go122.EvHeapGoal:
+		m.Value = uint64Value(e.base.args[0])
+	case tracev2.EvHeapGoal:
 		m.Name = "/gc/heap/goal:bytes"
-		m.Value = Value{kind: ValueUint64, scalar: e.base.args[0]}
+		m.Value = uint64Value(e.base.args[0])
 	default:
-		panic(fmt.Sprintf("internal error: unexpected event type for Metric kind: %s", go122.EventString(e.base.typ)))
+		panic(fmt.Sprintf("internal error: unexpected wire-format event type for Metric kind: %d", e.base.typ))
 	}
 	return m
 }
@@ -453,8 +454,8 @@ func (e Event) Label() Label {
 	if e.Kind() != EventLabel {
 		panic("Label called on non-Label event")
 	}
-	if e.base.typ != go122.EvGoLabel {
-		panic(fmt.Sprintf("internal error: unexpected event type for Label kind: %s", go122.EventString(e.base.typ)))
+	if e.base.typ != tracev2.EvGoLabel {
+		panic(fmt.Sprintf("internal error: unexpected wire-format event type for Label kind: %d", e.base.typ))
 	}
 	return Label{
 		Label:    e.table.strings.mustGet(stringID(e.base.args[0])),
@@ -471,33 +472,33 @@ func (e Event) Range() Range {
 	}
 	var r Range
 	switch e.base.typ {
-	case go122.EvSTWBegin, go122.EvSTWEnd:
+	case tracev2.EvSTWBegin, tracev2.EvSTWEnd:
 		// N.B. ordering.advance smuggles in the STW reason as e.base.args[0]
-		// for go122.EvSTWEnd (it's already there for Begin).
+		// for tracev2.EvSTWEnd (it's already there for Begin).
 		r.Name = "stop-the-world (" + e.table.strings.mustGet(stringID(e.base.args[0])) + ")"
 		r.Scope = ResourceID{Kind: ResourceGoroutine, id: int64(e.Goroutine())}
-	case go122.EvGCBegin, go122.EvGCActive, go122.EvGCEnd:
+	case tracev2.EvGCBegin, tracev2.EvGCActive, tracev2.EvGCEnd:
 		r.Name = "GC concurrent mark phase"
 		r.Scope = ResourceID{Kind: ResourceNone}
-	case go122.EvGCSweepBegin, go122.EvGCSweepActive, go122.EvGCSweepEnd:
+	case tracev2.EvGCSweepBegin, tracev2.EvGCSweepActive, tracev2.EvGCSweepEnd:
 		r.Name = "GC incremental sweep"
 		r.Scope = ResourceID{Kind: ResourceProc}
-		if e.base.typ == go122.EvGCSweepActive {
+		if e.base.typ == tracev2.EvGCSweepActive {
 			r.Scope.id = int64(e.base.args[0])
 		} else {
 			r.Scope.id = int64(e.Proc())
 		}
 		r.Scope.id = int64(e.Proc())
-	case go122.EvGCMarkAssistBegin, go122.EvGCMarkAssistActive, go122.EvGCMarkAssistEnd:
+	case tracev2.EvGCMarkAssistBegin, tracev2.EvGCMarkAssistActive, tracev2.EvGCMarkAssistEnd:
 		r.Name = "GC mark assist"
 		r.Scope = ResourceID{Kind: ResourceGoroutine}
-		if e.base.typ == go122.EvGCMarkAssistActive {
+		if e.base.typ == tracev2.EvGCMarkAssistActive {
 			r.Scope.id = int64(e.base.args[0])
 		} else {
 			r.Scope.id = int64(e.Goroutine())
 		}
 	default:
-		panic(fmt.Sprintf("internal error: unexpected event type for Range kind: %s", go122.EventString(e.base.typ)))
+		panic(fmt.Sprintf("internal error: unexpected wire-event type for Range kind: %d", e.base.typ))
 	}
 	return r
 }
@@ -509,17 +510,17 @@ func (e Event) RangeAttributes() []RangeAttribute {
 	if e.Kind() != EventRangeEnd {
 		panic("Range called on non-Range event")
 	}
-	if e.base.typ != go122.EvGCSweepEnd {
+	if e.base.typ != tracev2.EvGCSweepEnd {
 		return nil
 	}
 	return []RangeAttribute{
 		{
 			Name:  "bytes swept",
-			Value: Value{kind: ValueUint64, scalar: e.base.args[0]},
+			Value: uint64Value(e.base.args[0]),
 		},
 		{
 			Name:  "bytes reclaimed",
-			Value: Value{kind: ValueUint64, scalar: e.base.args[1]},
+			Value: uint64Value(e.base.args[1]),
 		},
 	}
 }
@@ -534,14 +535,14 @@ func (e Event) Task() Task {
 	parentID := NoTask
 	var typ string
 	switch e.base.typ {
-	case go122.EvUserTaskBegin:
+	case tracev2.EvUserTaskBegin:
 		parentID = TaskID(e.base.args[1])
 		typ = e.table.strings.mustGet(stringID(e.base.args[2]))
-	case go122.EvUserTaskEnd:
+	case tracev2.EvUserTaskEnd:
 		parentID = TaskID(e.base.extra(version.Go122)[0])
 		typ = e.table.getExtraString(extraStringID(e.base.extra(version.Go122)[1]))
 	default:
-		panic(fmt.Sprintf("internal error: unexpected event type for Task kind: %s", go122.EventString(e.base.typ)))
+		panic(fmt.Sprintf("internal error: unexpected wire-format event type for Task kind: %d", e.base.typ))
 	}
 	return Task{
 		ID:     TaskID(e.base.args[0]),
@@ -557,8 +558,8 @@ func (e Event) Region() Region {
 	if kind := e.Kind(); kind != EventRegionBegin && kind != EventRegionEnd {
 		panic("Region called on non-Region event")
 	}
-	if e.base.typ != go122.EvUserRegionBegin && e.base.typ != go122.EvUserRegionEnd {
-		panic(fmt.Sprintf("internal error: unexpected event type for Region kind: %s", go122.EventString(e.base.typ)))
+	if e.base.typ != tracev2.EvUserRegionBegin && e.base.typ != tracev2.EvUserRegionEnd {
+		panic(fmt.Sprintf("internal error: unexpected wire-format event type for Region kind: %d", e.base.typ))
 	}
 	return Region{
 		Task: TaskID(e.base.args[0]),
@@ -573,8 +574,8 @@ func (e Event) Log() Log {
 	if e.Kind() != EventLog {
 		panic("Log called on non-Log event")
 	}
-	if e.base.typ != go122.EvUserLog {
-		panic(fmt.Sprintf("internal error: unexpected event type for Log kind: %s", go122.EventString(e.base.typ)))
+	if e.base.typ != tracev2.EvUserLog {
+		panic(fmt.Sprintf("internal error: unexpected wire-format event type for Log kind: %d", e.base.typ))
 	}
 	return Log{
 		Task:     TaskID(e.base.args[0]),
@@ -592,14 +593,14 @@ func (e Event) StateTransition() StateTransition {
 	}
 	var s StateTransition
 	switch e.base.typ {
-	case go122.EvProcStart:
+	case tracev2.EvProcStart:
 		s = procStateTransition(ProcID(e.base.args[0]), ProcIdle, ProcRunning)
-	case go122.EvProcStop:
+	case tracev2.EvProcStop:
 		s = procStateTransition(e.ctx.P, ProcRunning, ProcIdle)
-	case go122.EvProcSteal:
+	case tracev2.EvProcSteal:
 		// N.B. ordering.advance populates e.base.extra.
 		beforeState := ProcRunning
-		if go122.ProcStatus(e.base.extra(version.Go122)[0]) == go122.ProcSyscallAbandoned {
+		if tracev2.ProcStatus(e.base.extra(version.Go122)[0]) == tracev2.ProcSyscallAbandoned {
 			// We've lost information because this ProcSteal advanced on a
 			// SyscallAbandoned state. Treat the P as idle because ProcStatus
 			// treats SyscallAbandoned as Idle. Otherwise we'll have an invalid
@@ -607,55 +608,84 @@ func (e Event) StateTransition() StateTransition {
 			beforeState = ProcIdle
 		}
 		s = procStateTransition(ProcID(e.base.args[0]), beforeState, ProcIdle)
-	case go122.EvProcStatus:
+	case tracev2.EvProcStatus:
 		// N.B. ordering.advance populates e.base.extra.
-		s = procStateTransition(ProcID(e.base.args[0]), ProcState(e.base.extra(version.Go122)[0]), go122ProcStatus2ProcState[e.base.args[1]])
-	case go122.EvGoCreate, go122.EvGoCreateBlocked:
+		s = procStateTransition(ProcID(e.base.args[0]), ProcState(e.base.extra(version.Go122)[0]), tracev2ProcStatus2ProcState[e.base.args[1]])
+	case tracev2.EvGoCreate, tracev2.EvGoCreateBlocked:
 		status := GoRunnable
-		if e.base.typ == go122.EvGoCreateBlocked {
+		if e.base.typ == tracev2.EvGoCreateBlocked {
 			status = GoWaiting
 		}
 		s = goStateTransition(GoID(e.base.args[0]), GoNotExist, status)
 		s.Stack = Stack{table: e.table, id: stackID(e.base.args[1])}
-	case go122.EvGoCreateSyscall:
+	case tracev2.EvGoCreateSyscall:
 		s = goStateTransition(GoID(e.base.args[0]), GoNotExist, GoSyscall)
-	case go122.EvGoStart:
+	case tracev2.EvGoStart:
 		s = goStateTransition(GoID(e.base.args[0]), GoRunnable, GoRunning)
-	case go122.EvGoDestroy:
+	case tracev2.EvGoDestroy:
 		s = goStateTransition(e.ctx.G, GoRunning, GoNotExist)
 		s.Stack = e.Stack() // This event references the resource the event happened on.
-	case go122.EvGoDestroySyscall:
+	case tracev2.EvGoDestroySyscall:
 		s = goStateTransition(e.ctx.G, GoSyscall, GoNotExist)
-	case go122.EvGoStop:
+	case tracev2.EvGoStop:
 		s = goStateTransition(e.ctx.G, GoRunning, GoRunnable)
 		s.Reason = e.table.strings.mustGet(stringID(e.base.args[0]))
 		s.Stack = e.Stack() // This event references the resource the event happened on.
-	case go122.EvGoBlock:
+	case tracev2.EvGoBlock:
 		s = goStateTransition(e.ctx.G, GoRunning, GoWaiting)
 		s.Reason = e.table.strings.mustGet(stringID(e.base.args[0]))
 		s.Stack = e.Stack() // This event references the resource the event happened on.
-	case go122.EvGoUnblock, go122.EvGoSwitch, go122.EvGoSwitchDestroy:
+	case tracev2.EvGoUnblock, tracev2.EvGoSwitch, tracev2.EvGoSwitchDestroy:
 		// N.B. GoSwitch and GoSwitchDestroy both emit additional events, but
 		// the first thing they both do is unblock the goroutine they name,
 		// identically to an unblock event (even their arguments match).
 		s = goStateTransition(GoID(e.base.args[0]), GoWaiting, GoRunnable)
-	case go122.EvGoSyscallBegin:
+	case tracev2.EvGoSyscallBegin:
 		s = goStateTransition(e.ctx.G, GoRunning, GoSyscall)
 		s.Stack = e.Stack() // This event references the resource the event happened on.
-	case go122.EvGoSyscallEnd:
+	case tracev2.EvGoSyscallEnd:
 		s = goStateTransition(e.ctx.G, GoSyscall, GoRunning)
 		s.Stack = e.Stack() // This event references the resource the event happened on.
-	case go122.EvGoSyscallEndBlocked:
+	case tracev2.EvGoSyscallEndBlocked:
 		s = goStateTransition(e.ctx.G, GoSyscall, GoRunnable)
 		s.Stack = e.Stack() // This event references the resource the event happened on.
-	case go122.EvGoStatus, go122.EvGoStatusStack:
+	case tracev2.EvGoStatus, tracev2.EvGoStatusStack:
 		packedStatus := e.base.args[2]
 		from, to := packedStatus>>32, packedStatus&((1<<32)-1)
-		s = goStateTransition(GoID(e.base.args[0]), GoState(from), go122GoStatus2GoState[to])
+		s = goStateTransition(GoID(e.base.args[0]), GoState(from), tracev2GoStatus2GoState[to])
 	default:
-		panic(fmt.Sprintf("internal error: unexpected event type for StateTransition kind: %s", go122.EventString(e.base.typ)))
+		panic(fmt.Sprintf("internal error: unexpected wire-format event type for StateTransition kind: %d", e.base.typ))
 	}
 	return s
+}
+
+// Sync returns details that are relevant for the following events, up to but excluding the
+// next EventSync event.
+func (e Event) Sync() Sync {
+	if e.Kind() != EventSync {
+		panic("Sync called on non-Sync event")
+	}
+	var expBatches map[string][]ExperimentalBatch
+	if e.table != nil {
+		expBatches = make(map[string][]ExperimentalBatch)
+		for exp, batches := range e.table.expBatches {
+			expBatches[tracev2.Experiments()[exp]] = batches
+		}
+	}
+	return Sync{
+		N:                   int(e.base.args[0]),
+		ExperimentalBatches: expBatches,
+	}
+}
+
+// Sync contains details potentially relevant to all the following events, up to but excluding
+// the next EventSync event.
+type Sync struct {
+	// N indicates that this is the Nth sync event in the trace.
+	N int
+
+	// ExperimentalBatches contain all the unparsed batches of data for a given experiment.
+	ExperimentalBatches map[string][]ExperimentalBatch
 }
 
 // Experimental returns a view of the raw event for an experimental event.
@@ -665,84 +695,85 @@ func (e Event) Experimental() ExperimentalEvent {
 	if e.Kind() != EventExperimental {
 		panic("Experimental called on non-Experimental event")
 	}
-	spec := go122.Specs()[e.base.typ]
+	spec := tracev2.Specs()[e.base.typ]
 	argNames := spec.Args[1:] // Skip timestamp; already handled.
 	return ExperimentalEvent{
-		Name:     spec.Name,
-		ArgNames: argNames,
-		Args:     e.base.args[:len(argNames)],
-		Data:     e.table.expData[spec.Experiment],
+		Name:       spec.Name,
+		Experiment: tracev2.Experiments()[spec.Experiment],
+		Args:       argNames,
+		table:      e.table,
+		argValues:  e.base.args[:len(argNames)],
 	}
 }
 
-const evSync = ^event.Type(0)
+const evSync = ^tracev2.EventType(0)
 
-var go122Type2Kind = [...]EventKind{
-	go122.EvCPUSample:           EventStackSample,
-	go122.EvProcsChange:         EventMetric,
-	go122.EvProcStart:           EventStateTransition,
-	go122.EvProcStop:            EventStateTransition,
-	go122.EvProcSteal:           EventStateTransition,
-	go122.EvProcStatus:          EventStateTransition,
-	go122.EvGoCreate:            EventStateTransition,
-	go122.EvGoCreateSyscall:     EventStateTransition,
-	go122.EvGoStart:             EventStateTransition,
-	go122.EvGoDestroy:           EventStateTransition,
-	go122.EvGoDestroySyscall:    EventStateTransition,
-	go122.EvGoStop:              EventStateTransition,
-	go122.EvGoBlock:             EventStateTransition,
-	go122.EvGoUnblock:           EventStateTransition,
-	go122.EvGoSyscallBegin:      EventStateTransition,
-	go122.EvGoSyscallEnd:        EventStateTransition,
-	go122.EvGoSyscallEndBlocked: EventStateTransition,
-	go122.EvGoStatus:            EventStateTransition,
-	go122.EvSTWBegin:            EventRangeBegin,
-	go122.EvSTWEnd:              EventRangeEnd,
-	go122.EvGCActive:            EventRangeActive,
-	go122.EvGCBegin:             EventRangeBegin,
-	go122.EvGCEnd:               EventRangeEnd,
-	go122.EvGCSweepActive:       EventRangeActive,
-	go122.EvGCSweepBegin:        EventRangeBegin,
-	go122.EvGCSweepEnd:          EventRangeEnd,
-	go122.EvGCMarkAssistActive:  EventRangeActive,
-	go122.EvGCMarkAssistBegin:   EventRangeBegin,
-	go122.EvGCMarkAssistEnd:     EventRangeEnd,
-	go122.EvHeapAlloc:           EventMetric,
-	go122.EvHeapGoal:            EventMetric,
-	go122.EvGoLabel:             EventLabel,
-	go122.EvUserTaskBegin:       EventTaskBegin,
-	go122.EvUserTaskEnd:         EventTaskEnd,
-	go122.EvUserRegionBegin:     EventRegionBegin,
-	go122.EvUserRegionEnd:       EventRegionEnd,
-	go122.EvUserLog:             EventLog,
-	go122.EvGoSwitch:            EventStateTransition,
-	go122.EvGoSwitchDestroy:     EventStateTransition,
-	go122.EvGoCreateBlocked:     EventStateTransition,
-	go122.EvGoStatusStack:       EventStateTransition,
-	go122.EvSpan:                EventExperimental,
-	go122.EvSpanAlloc:           EventExperimental,
-	go122.EvSpanFree:            EventExperimental,
-	go122.EvHeapObject:          EventExperimental,
-	go122.EvHeapObjectAlloc:     EventExperimental,
-	go122.EvHeapObjectFree:      EventExperimental,
-	go122.EvGoroutineStack:      EventExperimental,
-	go122.EvGoroutineStackAlloc: EventExperimental,
-	go122.EvGoroutineStackFree:  EventExperimental,
-	evSync:                      EventSync,
+var tracev2Type2Kind = [...]EventKind{
+	tracev2.EvCPUSample:           EventStackSample,
+	tracev2.EvProcsChange:         EventMetric,
+	tracev2.EvProcStart:           EventStateTransition,
+	tracev2.EvProcStop:            EventStateTransition,
+	tracev2.EvProcSteal:           EventStateTransition,
+	tracev2.EvProcStatus:          EventStateTransition,
+	tracev2.EvGoCreate:            EventStateTransition,
+	tracev2.EvGoCreateSyscall:     EventStateTransition,
+	tracev2.EvGoStart:             EventStateTransition,
+	tracev2.EvGoDestroy:           EventStateTransition,
+	tracev2.EvGoDestroySyscall:    EventStateTransition,
+	tracev2.EvGoStop:              EventStateTransition,
+	tracev2.EvGoBlock:             EventStateTransition,
+	tracev2.EvGoUnblock:           EventStateTransition,
+	tracev2.EvGoSyscallBegin:      EventStateTransition,
+	tracev2.EvGoSyscallEnd:        EventStateTransition,
+	tracev2.EvGoSyscallEndBlocked: EventStateTransition,
+	tracev2.EvGoStatus:            EventStateTransition,
+	tracev2.EvSTWBegin:            EventRangeBegin,
+	tracev2.EvSTWEnd:              EventRangeEnd,
+	tracev2.EvGCActive:            EventRangeActive,
+	tracev2.EvGCBegin:             EventRangeBegin,
+	tracev2.EvGCEnd:               EventRangeEnd,
+	tracev2.EvGCSweepActive:       EventRangeActive,
+	tracev2.EvGCSweepBegin:        EventRangeBegin,
+	tracev2.EvGCSweepEnd:          EventRangeEnd,
+	tracev2.EvGCMarkAssistActive:  EventRangeActive,
+	tracev2.EvGCMarkAssistBegin:   EventRangeBegin,
+	tracev2.EvGCMarkAssistEnd:     EventRangeEnd,
+	tracev2.EvHeapAlloc:           EventMetric,
+	tracev2.EvHeapGoal:            EventMetric,
+	tracev2.EvGoLabel:             EventLabel,
+	tracev2.EvUserTaskBegin:       EventTaskBegin,
+	tracev2.EvUserTaskEnd:         EventTaskEnd,
+	tracev2.EvUserRegionBegin:     EventRegionBegin,
+	tracev2.EvUserRegionEnd:       EventRegionEnd,
+	tracev2.EvUserLog:             EventLog,
+	tracev2.EvGoSwitch:            EventStateTransition,
+	tracev2.EvGoSwitchDestroy:     EventStateTransition,
+	tracev2.EvGoCreateBlocked:     EventStateTransition,
+	tracev2.EvGoStatusStack:       EventStateTransition,
+	tracev2.EvSpan:                EventExperimental,
+	tracev2.EvSpanAlloc:           EventExperimental,
+	tracev2.EvSpanFree:            EventExperimental,
+	tracev2.EvHeapObject:          EventExperimental,
+	tracev2.EvHeapObjectAlloc:     EventExperimental,
+	tracev2.EvHeapObjectFree:      EventExperimental,
+	tracev2.EvGoroutineStack:      EventExperimental,
+	tracev2.EvGoroutineStackAlloc: EventExperimental,
+	tracev2.EvGoroutineStackFree:  EventExperimental,
+	evSync:                        EventSync,
 }
 
-var go122GoStatus2GoState = [...]GoState{
-	go122.GoRunnable: GoRunnable,
-	go122.GoRunning:  GoRunning,
-	go122.GoWaiting:  GoWaiting,
-	go122.GoSyscall:  GoSyscall,
+var tracev2GoStatus2GoState = [...]GoState{
+	tracev2.GoRunnable: GoRunnable,
+	tracev2.GoRunning:  GoRunning,
+	tracev2.GoWaiting:  GoWaiting,
+	tracev2.GoSyscall:  GoSyscall,
 }
 
-var go122ProcStatus2ProcState = [...]ProcState{
-	go122.ProcRunning:          ProcRunning,
-	go122.ProcIdle:             ProcIdle,
-	go122.ProcSyscall:          ProcRunning,
-	go122.ProcSyscallAbandoned: ProcIdle,
+var tracev2ProcStatus2ProcState = [...]ProcState{
+	tracev2.ProcRunning:          ProcRunning,
+	tracev2.ProcIdle:             ProcIdle,
+	tracev2.ProcSyscall:          ProcRunning,
+	tracev2.ProcSyscallAbandoned: ProcIdle,
 }
 
 // String returns the event as a human-readable string.
@@ -756,7 +787,7 @@ func (e Event) String() string {
 	switch kind := e.Kind(); kind {
 	case EventMetric:
 		m := e.Metric()
-		fmt.Fprintf(&sb, " Name=%q Value=%s", m.Name, valueAsString(m.Value))
+		fmt.Fprintf(&sb, " Name=%q Value=%s", m.Name, m.Value)
 	case EventLabel:
 		l := e.Label()
 		fmt.Fprintf(&sb, " Label=%q Resource=%s", l.Label, l.Resource)
@@ -769,7 +800,7 @@ func (e Event) String() string {
 				if i != 0 {
 					fmt.Fprintf(&sb, " ")
 				}
-				fmt.Fprintf(&sb, "%q=%s", attr.Name, valueAsString(attr.Value))
+				fmt.Fprintf(&sb, "%q=%s", attr.Name, attr.Value)
 			}
 			fmt.Fprintf(&sb, "]")
 		}
@@ -805,7 +836,14 @@ func (e Event) String() string {
 		}
 	case EventExperimental:
 		r := e.Experimental()
-		fmt.Fprintf(&sb, " Name=%s ArgNames=%v Args=%v", r.Name, r.ArgNames, r.Args)
+		fmt.Fprintf(&sb, " Name=%s Args=[", r.Name)
+		for i, arg := range r.Args {
+			if i != 0 {
+				fmt.Fprintf(&sb, ", ")
+			}
+			fmt.Fprintf(&sb, "%s=%s", arg, r.ArgValue(i).String())
+		}
+		fmt.Fprintf(&sb, "]")
 	}
 	if stk := e.Stack(); stk != NoStack {
 		fmt.Fprintln(&sb)
@@ -824,7 +862,7 @@ func (e Event) validateTableIDs() error {
 	if e.base.typ == evSync {
 		return nil
 	}
-	spec := go122.Specs()[e.base.typ]
+	spec := tracev2.Specs()[e.base.typ]
 
 	// Check stacks.
 	for _, i := range spec.StackIDs {
@@ -848,8 +886,8 @@ func (e Event) validateTableIDs() error {
 	return nil
 }
 
-func syncEvent(table *evTable, ts Time) Event {
-	return Event{
+func syncEvent(table *evTable, ts Time, n int) Event {
+	ev := Event{
 		table: table,
 		ctx: schedCtx{
 			G: NoGoroutine,
@@ -861,4 +899,6 @@ func syncEvent(table *evTable, ts Time) Event {
 			time: ts,
 		},
 	}
+	ev.base.args[0] = uint64(n)
+	return ev
 }

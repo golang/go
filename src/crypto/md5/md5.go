@@ -104,9 +104,6 @@ func consumeUint32(b []byte) ([]byte, uint32) {
 // [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
 // state of the hash.
 func New() hash.Hash {
-	if fips140only.Enabled {
-		panic("crypto/md5: use of MD5 is not allowed in FIPS 140-only mode")
-	}
 	d := new(digest)
 	d.Reset()
 	return d
@@ -117,6 +114,9 @@ func (d *digest) Size() int { return Size }
 func (d *digest) BlockSize() int { return BlockSize }
 
 func (d *digest) Write(p []byte) (nn int, err error) {
+	if fips140only.Enabled {
+		return 0, errors.New("crypto/md5: use of MD5 is not allowed in FIPS 140-only mode")
+	}
 	// Note that we currently call block or blockGeneric
 	// directly (guarded using haveAsm) because this allows
 	// escape analysis to see that p and d don't escape.
@@ -158,6 +158,10 @@ func (d *digest) Sum(in []byte) []byte {
 }
 
 func (d *digest) checkSum() [Size]byte {
+	if fips140only.Enabled {
+		panic("crypto/md5: use of MD5 is not allowed in FIPS 140-only mode")
+	}
+
 	// Append 0x80 to the end of the message and then append zeros
 	// until the length is a multiple of 56 bytes. Finally append
 	// 8 bytes representing the message length in bits.
@@ -184,9 +188,6 @@ func (d *digest) checkSum() [Size]byte {
 
 // Sum returns the MD5 checksum of the data.
 func Sum(data []byte) [Size]byte {
-	if fips140only.Enabled {
-		panic("crypto/md5: use of MD5 is not allowed in FIPS 140-only mode")
-	}
 	var d digest
 	d.Reset()
 	d.Write(data)

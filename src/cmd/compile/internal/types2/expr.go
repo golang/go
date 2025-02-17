@@ -148,26 +148,13 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 		return
 
 	case syntax.Recv:
-		u := coreType(x.typ)
-		if u == nil {
-			check.errorf(x, InvalidReceive, invalidOp+"cannot receive from %s (no core type)", x)
-			x.mode = invalid
+		if elem := check.chanElem(x, x, true); elem != nil {
+			x.mode = commaok
+			x.typ = elem
+			check.hasCallOrRecv = true
 			return
 		}
-		ch, _ := u.(*Chan)
-		if ch == nil {
-			check.errorf(x, InvalidReceive, invalidOp+"cannot receive from non-channel %s", x)
-			x.mode = invalid
-			return
-		}
-		if ch.dir == SendOnly {
-			check.errorf(x, InvalidReceive, invalidOp+"cannot receive from send-only channel %s", x)
-			x.mode = invalid
-			return
-		}
-		x.mode = commaok
-		x.typ = ch.elem
-		check.hasCallOrRecv = true
+		x.mode = invalid
 		return
 
 	case syntax.Tilde:
@@ -203,6 +190,62 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 
 	x.mode = value
 	// x.typ remains unchanged
+}
+
+// chanElem returns the channel element type of x for a receive from x (recv == true)
+// or send to x (recv == false) operation. If the operation is not valid, chanElem
+// reports an error and returns nil.
+func (check *Checker) chanElem(pos poser, x *operand, recv bool) Type {
+	var elem Type
+	var cause string
+	typeset(x.typ, func(t, u Type) bool {
+		if u == nil {
+			// Type set contains no explicit terms.
+			// It is either empty or contains all types (any)
+			cause = "no specific channel type"
+			return false
+		}
+		ch, _ := u.(*Chan)
+		if ch == nil {
+			cause = check.sprintf("non-channel %s", t)
+			return false
+		}
+		if recv && ch.dir == SendOnly {
+			cause = check.sprintf("send-only channel %s", t)
+			return false
+		}
+		if !recv && ch.dir == RecvOnly {
+			cause = check.sprintf("receive-only channel %s", t)
+			return false
+		}
+		if elem != nil && !Identical(elem, ch.elem) {
+			cause = check.sprintf("channels with different element types %s and %s", elem, ch.elem)
+			return false
+		}
+		elem = ch.elem
+		return true
+	})
+
+	if cause == "" {
+		return elem
+	}
+
+	if recv {
+		if isTypeParam(x.typ) {
+			check.errorf(pos, InvalidReceive, invalidOp+"cannot receive from %s: type set contains %s", x, cause)
+		} else {
+			// In this case, only the non-channel and send-only channel error are possible.
+			check.errorf(pos, InvalidReceive, invalidOp+"cannot receive from %s %s", cause, x)
+		}
+	} else {
+		if isTypeParam(x.typ) {
+			check.errorf(pos, InvalidSend, invalidOp+"cannot send to %s: type set contains %s", x, cause)
+		} else {
+			// In this case, only the non-channel and receive-only channel error are possible.
+			check.errorf(pos, InvalidSend, invalidOp+"cannot send to %s %s", cause, x)
+		}
+	}
+	return nil
 }
 
 func isShift(op syntax.Operator) bool {
@@ -1016,9 +1059,8 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		check.ident(x, e, nil, false)
 
 	case *syntax.DotsType:
-		// dots are handled explicitly where they are legal
-		// (array composite literals and parameter lists)
-		check.error(e, BadDotDotDotSyntax, "invalid use of '...'")
+		// dots are handled explicitly where they are valid
+		check.error(e, InvalidSyntaxTree, "invalid use of ...")
 		goto Error
 
 	case *syntax.BasicLit:

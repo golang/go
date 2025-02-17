@@ -21,10 +21,11 @@ type root struct {
 	// refs is incremented while an operation is using fd.
 	// closed is set when Close is called.
 	// fd is closed when closed is true and refs is 0.
-	mu     sync.Mutex
-	fd     sysfdType
-	refs   int  // number of active operations
-	closed bool // set when closed
+	mu      sync.Mutex
+	fd      sysfdType
+	refs    int             // number of active operations
+	closed  bool            // set when closed
+	cleanup runtime.Cleanup // cleanup closes the file when no longer referenced
 }
 
 func (r *root) Close() error {
@@ -34,7 +35,9 @@ func (r *root) Close() error {
 		syscall.Close(r.fd)
 	}
 	r.closed = true
-	runtime.SetFinalizer(r, nil) // no need for a finalizer any more
+	// There is no need for a cleanup at this point. Root must be alive at the point
+	// where cleanup.stop is called.
+	r.cleanup.Stop()
 	return nil
 }
 
@@ -64,6 +67,26 @@ func (r *root) Name() string {
 	return r.name
 }
 
+func rootChmod(r *Root, name string, mode FileMode) error {
+	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
+		return struct{}{}, chmodat(parent, name, mode)
+	})
+	if err != nil {
+		return &PathError{Op: "chmodat", Path: name, Err: err}
+	}
+	return nil
+}
+
+func rootChown(r *Root, name string, uid, gid int) error {
+	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
+		return struct{}{}, chownat(parent, name, uid, gid)
+	})
+	if err != nil {
+		return &PathError{Op: "chownat", Path: name, Err: err}
+	}
+	return nil
+}
+
 func rootMkdir(r *Root, name string, perm FileMode) error {
 	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
 		return struct{}{}, mkdirat(parent, name, perm)
@@ -71,7 +94,7 @@ func rootMkdir(r *Root, name string, perm FileMode) error {
 	if err != nil {
 		return &PathError{Op: "mkdirat", Path: name, Err: err}
 	}
-	return err
+	return nil
 }
 
 func rootRemove(r *Root, name string) error {
@@ -81,7 +104,7 @@ func rootRemove(r *Root, name string) error {
 	if err != nil {
 		return &PathError{Op: "removeat", Path: name, Err: err}
 	}
-	return err
+	return nil
 }
 
 // doInRoot performs an operation on a path in a Root.

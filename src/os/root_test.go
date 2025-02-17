@@ -389,6 +389,43 @@ func TestRootCreate(t *testing.T) {
 	}
 }
 
+func TestRootChmod(t *testing.T) {
+	if runtime.GOOS == "wasip1" {
+		t.Skip("Chmod not supported on " + runtime.GOOS)
+	}
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			if target != "" {
+				// Create a file with no read/write permissions,
+				// to ensure we can use Chmod on an inaccessible file.
+				if err := os.WriteFile(target, nil, 0o000); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if runtime.GOOS == "windows" {
+				// On Windows, Chmod("symlink") affects the link, not its target.
+				// See issue 71492.
+				fi, err := root.Lstat(test.open)
+				if err == nil && !fi.Mode().IsRegular() {
+					t.Skip("https://go.dev/issue/71492")
+				}
+			}
+			want := os.FileMode(0o666)
+			err := root.Chmod(test.open, want)
+			if errEndsTest(t, err, test.wantError, "root.Chmod(%q)", test.open) {
+				return
+			}
+			st, err := os.Stat(target)
+			if err != nil {
+				t.Fatalf("os.Stat(%q) = %v", target, err)
+			}
+			if got := st.Mode(); got != want {
+				t.Errorf("after root.Chmod(%q, %v): file mode = %v, want %v", test.open, want, got, want)
+			}
+		})
+	}
+}
+
 func TestRootMkdir(t *testing.T) {
 	for _, test := range rootTestCases {
 		test.run(t, func(t *testing.T, target string, root *os.Root) {
@@ -877,6 +914,35 @@ func TestRootConsistencyCreate(t *testing.T) {
 	}
 }
 
+func TestRootConsistencyChmod(t *testing.T) {
+	if runtime.GOOS == "wasip1" {
+		t.Skip("Chmod not supported on " + runtime.GOOS)
+	}
+	for _, test := range rootConsistencyTestCases {
+		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
+			chmod := os.Chmod
+			lstat := os.Lstat
+			if r != nil {
+				chmod = r.Chmod
+				lstat = r.Lstat
+			}
+
+			var m1, m2 os.FileMode
+			err := chmod(path, 0o555)
+			fi, err := lstat(path)
+			if err == nil {
+				m1 = fi.Mode()
+			}
+			err = chmod(path, 0o777)
+			fi, err = lstat(path)
+			if err == nil {
+				m2 = fi.Mode()
+			}
+			return fmt.Sprintf("%v %v", m1, m2), err
+		})
+	}
+}
+
 func TestRootConsistencyMkdir(t *testing.T) {
 	for _, test := range rootConsistencyTestCases {
 		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
@@ -1077,6 +1143,10 @@ func TestRootConcurrentClose(t *testing.T) {
 				first = false
 			}
 			f.Close()
+			if runtime.GOARCH == "wasm" {
+				// TODO(go.dev/issue/71134) can lead to goroutine starvation.
+				runtime.Gosched()
+			}
 		}
 	}()
 	if err := <-ch; err != nil {

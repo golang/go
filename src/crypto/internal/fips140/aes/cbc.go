@@ -5,6 +5,7 @@
 package aes
 
 import (
+	"crypto/internal/fips140"
 	"crypto/internal/fips140/alias"
 	"crypto/internal/fips140/subtle"
 )
@@ -32,6 +33,7 @@ func (c *CBCEncrypter) CryptBlocks(dst, src []byte) {
 	if alias.InexactOverlap(dst[:len(src)], src) {
 		panic("crypto/cipher: invalid buffer overlap")
 	}
+	fips140.RecordApproved()
 	if len(src) == 0 {
 		return
 	}
@@ -50,7 +52,7 @@ func cryptBlocksEncGeneric(b *Block, civ *[BlockSize]byte, dst, src []byte) {
 	for len(src) > 0 {
 		// Write the xor to dst, then encrypt in place.
 		subtle.XORBytes(dst[:BlockSize], src[:BlockSize], iv)
-		b.Encrypt(dst[:BlockSize], dst[:BlockSize])
+		encryptBlock(b, dst[:BlockSize], dst[:BlockSize])
 
 		// Move to the next block with this block as the next iv.
 		iv = dst[:BlockSize]
@@ -85,6 +87,7 @@ func (c *CBCDecrypter) CryptBlocks(dst, src []byte) {
 	if alias.InexactOverlap(dst[:len(src)], src) {
 		panic("crypto/cipher: invalid buffer overlap")
 	}
+	fips140.RecordApproved()
 	if len(src) == 0 {
 		return
 	}
@@ -111,7 +114,7 @@ func cryptBlocksDecGeneric(b *Block, civ *[BlockSize]byte, dst, src []byte) {
 	copy(civ[:], src[start:end])
 
 	for start >= 0 {
-		b.Decrypt(dst[start:end], src[start:end])
+		decryptBlock(b, dst[start:end], src[start:end])
 
 		if start > 0 {
 			subtle.XORBytes(dst[start:end], dst[start:end], src[prev:start])

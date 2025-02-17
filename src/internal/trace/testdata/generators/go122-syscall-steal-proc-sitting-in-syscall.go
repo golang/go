@@ -9,12 +9,13 @@ package main
 
 import (
 	"internal/trace"
-	"internal/trace/event/go122"
-	testgen "internal/trace/internal/testgen/go122"
+	"internal/trace/internal/testgen"
+	"internal/trace/tracev2"
+	"internal/trace/version"
 )
 
 func main() {
-	testgen.Main(gen)
+	testgen.Main(version.Go122, gen)
 }
 
 func gen(t *testgen.Trace) {
@@ -23,10 +24,10 @@ func gen(t *testgen.Trace) {
 	// Steal proc from a goroutine that's been blocked
 	// in a syscall the entire generation.
 	b0 := g.Batch(trace.ThreadID(0), 0)
-	b0.Event("ProcStatus", trace.ProcID(0), go122.ProcSyscallAbandoned)
+	b0.Event("ProcStatus", trace.ProcID(0), tracev2.ProcSyscallAbandoned)
 	b0.Event("ProcSteal", trace.ProcID(0), testgen.Seq(1), trace.ThreadID(1))
 
 	// Status event for a goroutine blocked in a syscall for the entire generation.
 	bz := g.Batch(trace.NoThread, 0)
-	bz.Event("GoStatus", trace.GoID(1), trace.ThreadID(1), go122.GoSyscall)
+	bz.Event("GoStatus", trace.GoID(1), trace.ThreadID(1), tracev2.GoSyscall)
 }

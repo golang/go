@@ -440,6 +440,23 @@ func parsedebugvars() {
 	debug.malloc = (debug.inittrace | debug.sbrk) != 0
 	debug.profstackdepth = min(debug.profstackdepth, maxProfStackDepth)
 
+	// Disable async preemption in checkmark mode. The following situation is
+	// problematic with checkmark mode:
+	//
+	// - The GC doesn't mark object A because it is truly dead.
+	// - The GC stops the world, asynchronously preempting G1 which has a reference
+	//   to A in its top stack frame
+	// - During the stop the world, we run the second checkmark GC. It marks the roots
+	//   and discovers A through G1.
+	// - Checkmark mode reports a failure since there's a discrepancy in mark metadata.
+	//
+	// We could disable just conservative scanning during the checkmark scan, which is
+	// safe but makes checkmark slightly less powerful, but that's a lot more invasive
+	// than just disabling async preemption altogether.
+	if debug.gccheckmark > 0 {
+		debug.asyncpreemptoff = 1
+	}
+
 	setTraceback(gogetenv("GOTRACEBACK"))
 	traceback_env = traceback_cache
 }

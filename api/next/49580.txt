@@ -1,0 +1,8 @@
+pkg io/fs, func Lstat(FS, string) (FileInfo, error) #49580
+pkg io/fs, func ReadLink(FS, string) (string, error) #49580
+pkg io/fs, type ReadLinkFS interface { Lstat, Open, ReadLink } #49580
+pkg io/fs, type ReadLinkFS interface, Lstat(string) (FileInfo, error) #49580
+pkg io/fs, type ReadLinkFS interface, Open(string) (File, error) #49580
+pkg io/fs, type ReadLinkFS interface, ReadLink(string) (string, error) #49580
+pkg testing/fstest, method (MapFS) Lstat(string) (fs.FileInfo, error) #49580
+pkg testing/fstest, method (MapFS) ReadLink(string) (string, error) #49580

@@ -19,10 +19,15 @@ import (
 	"testing"
 
 	. "go/types"
+	"runtime"
 )
 
 // nopos indicates an unknown position
 var nopos token.Pos
+
+func defaultImporter(fset *token.FileSet) Importer {
+	return importer.ForCompiler(fset, runtime.Compiler, nil)
+}
 
 func mustParse(fset *token.FileSet, src string) *ast.File {
 	f, err := parser.ParseFile(fset, pkgName(src), src, parser.ParseComments)
@@ -33,12 +38,13 @@ func mustParse(fset *token.FileSet, src string) *ast.File {
 }
 
 func typecheck(src string, conf *Config, info *Info) (*Package, error) {
+	// TODO(adonovan): plumb this from caller.
 	fset := token.NewFileSet()
 	f := mustParse(fset, src)
 	if conf == nil {
 		conf = &Config{
 			Error:    func(err error) {}, // collect all errors
-			Importer: importer.Default(),
+			Importer: defaultImporter(fset),
 		}
 	}
 	return conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
@@ -1128,7 +1134,7 @@ var (
 		Implicits: make(map[ast.Node]Object),
 	}
 	var conf Config
-	conf.Importer = importer.Default()
+	conf.Importer = defaultImporter(fset)
 	_, err := conf.Check("p", fset, []*ast.File{f}, &info)
 	if err != nil {
 		t.Fatal(err)

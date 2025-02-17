@@ -128,6 +128,11 @@ go test testcache -run=TestOSArgs -fullpath
 go test testcache -run=TestOSArgs -fullpath
 stdout '\(cached\)'
 
+# golang.org/issue/70692: that includes the `-skip` flag
+go test testcache -run=TestOdd -skip=TestOddFile
+! stdout '\(cached\)'
+go test testcache -run=TestOdd -skip=TestOddFile
+stdout '\(cached\)'
 
 # Executables within GOROOT and GOPATH should affect caching,
 # even if the test does not stat them explicitly.

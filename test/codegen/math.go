@@ -240,10 +240,11 @@ func nanGenerate64() float64 {
 
 	// amd64:"DIVSD"
 	z0 := zero / zero
-	// amd64:"MULSD"
+	// amd64/v1,amd64/v2:"MULSD"
 	z1 := zero * inf
 	// amd64:"SQRTSD"
 	z2 := math.Sqrt(negone)
+	// amd64/v3:"VFMADD231SD"
 	return z0 + z1 + z2
 }
 
@@ -254,7 +255,8 @@ func nanGenerate32() float32 {
 
 	// amd64:"DIVSS"
 	z0 := zero / zero
-	// amd64:"MULSS"
+	// amd64/v1,amd64/v2:"MULSS"
 	z1 := zero * inf
+	// amd64/v3:"VFMADD231SS"
 	return z0 + z1
 }

@@ -225,15 +225,13 @@ func TestIssue40999(t *testing.T) {
 	// add an initial entry to bias len(m.dirty) above the miss count.
 	m.Store(nil, struct{}{})
 
-	var finalized uint32
+	var cleanedUp uint32
 
-	// Set finalizers that count for collected keys. A non-zero count
+	// Add cleanups that count for collected keys. A non-zero count
 	// indicates that keys have not been leaked.
-	for atomic.LoadUint32(&finalized) == 0 {
+	for atomic.LoadUint32(&cleanedUp) == 0 {
 		p := new(int)
-		runtime.SetFinalizer(p, func(*int) {
-			atomic.AddUint32(&finalized, 1)
-		})
+		runtime.AddCleanup(p, func(c *uint32) { atomic.AddUint32(c, 1) }, &cleanedUp)
 		m.Store(p, struct{}{})
 		m.Delete(p)
 		runtime.GC()

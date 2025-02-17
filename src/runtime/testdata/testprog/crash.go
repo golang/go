@@ -19,6 +19,9 @@ func init() {
 	register("StringPanic", StringPanic)
 	register("NilPanic", NilPanic)
 	register("CircularPanic", CircularPanic)
+	register("ReraisedPanic", ReraisedPanic)
+	register("ReraisedMiddlePanic", ReraisedMiddlePanic)
+	register("ReraisedPanicSandwich", ReraisedPanicSandwich)
 }
 
 func test(name string) {
@@ -136,4 +139,53 @@ func (e exampleCircleEndError) Error() string {
 
 func CircularPanic() {
 	panic(exampleCircleStartError{})
+}
+
+func ReraisedPanic() {
+	defer func() {
+		panic(recover())
+	}()
+	panic("message")
+}
+
+func ReraisedMiddlePanic() {
+	defer func() {
+		recover()
+		panic("outer")
+	}()
+	func() {
+		defer func() {
+			panic(recover())
+		}()
+		func() {
+			defer func() {
+				recover()
+				panic("middle")
+			}()
+			panic("inner")
+		}()
+	}()
+}
+
+// Panic sandwich:
+//
+//	panic("outer") =>
+//	recovered, panic("inner") =>
+//	panic(recovered outer panic value)
+//
+// Exercises the edge case where we reraise a panic value,
+// but with another panic in the middle.
+func ReraisedPanicSandwich() {
+	var outer any
+	defer func() {
+		recover()
+		panic(outer)
+	}()
+	func() {
+		defer func() {
+			outer = recover()
+			panic("inner")
+		}()
+		panic("outer")
+	}()
 }

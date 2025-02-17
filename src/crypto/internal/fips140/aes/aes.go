@@ -94,6 +94,8 @@ func newBlockExpanded(c *blockExpanded, key []byte) {
 func (c *Block) BlockSize() int { return BlockSize }
 
 func (c *Block) Encrypt(dst, src []byte) {
+	// AES-ECB is not approved in FIPS 140-3 mode.
+	fips140.RecordNonApproved()
 	if len(src) < BlockSize {
 		panic("crypto/aes: input not full block")
 	}
@@ -103,11 +105,12 @@ func (c *Block) Encrypt(dst, src []byte) {
 	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/aes: invalid buffer overlap")
 	}
-	fips140.RecordApproved()
 	encryptBlock(c, dst, src)
 }
 
 func (c *Block) Decrypt(dst, src []byte) {
+	// AES-ECB is not approved in FIPS 140-3 mode.
+	fips140.RecordNonApproved()
 	if len(src) < BlockSize {
 		panic("crypto/aes: input not full block")
 	}
@@ -117,6 +120,12 @@ func (c *Block) Decrypt(dst, src []byte) {
 	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
 		panic("crypto/aes: invalid buffer overlap")
 	}
-	fips140.RecordApproved()
 	decryptBlock(c, dst, src)
+}
+
+// EncryptBlockInternal applies the AES encryption function to one block.
+//
+// It is an internal function meant only for the gcm package.
+func EncryptBlockInternal(c *Block, dst, src []byte) {
+	encryptBlock(c, dst, src)
 }

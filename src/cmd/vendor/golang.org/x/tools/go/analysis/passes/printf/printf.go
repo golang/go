@@ -5,7 +5,6 @@
 package printf
 
 import (
-	"bytes"
 	_ "embed"
 	"fmt"
 	"go/ast"
@@ -15,16 +14,17 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/fmtstr"
 	"golang.org/x/tools/internal/typeparams"
+	"golang.org/x/tools/internal/versions"
 )
 
 func init() {
@@ -108,12 +108,12 @@ func (f *isWrapper) String() string {
 	}
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	res := &Result{
 		funcs: make(map[*types.Func]Kind),
 	}
 	findPrintfLike(pass, res)
-	checkCall(pass)
+	checkCalls(pass)
 	return res, nil
 }
 
@@ -182,7 +182,7 @@ func maybePrintfWrapper(info *types.Info, decl ast.Decl) *printfWrapper {
 }
 
 // findPrintfLike scans the entire package to find printf-like functions.
-func findPrintfLike(pass *analysis.Pass, res *Result) (interface{}, error) {
+func findPrintfLike(pass *analysis.Pass, res *Result) (any, error) {
 	// Gather potential wrappers and call graph between them.
 	byObj := make(map[*types.Func]*printfWrapper)
 	var wrappers []*printfWrapper
@@ -409,20 +409,29 @@ func stringConstantExpr(pass *analysis.Pass, expr ast.Expr) (string, bool) {
 	return "", false
 }
 
-// checkCall triggers the print-specific checks if the call invokes a print function.
-func checkCall(pass *analysis.Pass) {
+// checkCalls triggers the print-specific checks for calls that invoke a print
+// function.
+func checkCalls(pass *analysis.Pass) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	nodeFilter := []ast.Node{
+		(*ast.File)(nil),
 		(*ast.CallExpr)(nil),
 	}
+
+	var fileVersion string // for selectively suppressing checks; "" if unknown.
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
-		call := n.(*ast.CallExpr)
-		fn, kind := printfNameAndKind(pass, call)
-		switch kind {
-		case KindPrintf, KindErrorf:
-			checkPrintf(pass, kind, call, fn)
-		case KindPrint:
-			checkPrint(pass, call, fn)
+		switch n := n.(type) {
+		case *ast.File:
+			fileVersion = versions.Lang(versions.FileVersion(pass.TypesInfo, n))
+
+		case *ast.CallExpr:
+			fn, kind := printfNameAndKind(pass, n)
+			switch kind {
+			case KindPrintf, KindErrorf:
+				checkPrintf(pass, fileVersion, kind, n, fn.FullName())
+			case KindPrint:
+				checkPrint(pass, n, fn.FullName())
+			}
 		}
 	})
 }
@@ -480,30 +489,12 @@ func isFormatter(typ types.Type) bool {
 	sig := fn.Type().(*types.Signature)
 	return sig.Params().Len() == 2 &&
 		sig.Results().Len() == 0 &&
-		analysisutil.IsNamedType(sig.Params().At(0).Type(), "fmt", "State") &&
+		analysisinternal.IsTypeNamed(sig.Params().At(0).Type(), "fmt", "State") &&
 		types.Identical(sig.Params().At(1).Type(), types.Typ[types.Rune])
 }
 
-// formatState holds the parsed representation of a printf directive such as "%3.*[4]d".
-// It is constructed by parsePrintfVerb.
-type formatState struct {
-	verb     rune   // the format verb: 'd' for "%d"
-	format   string // the full format directive from % through verb, "%.3d".
-	name     string // Printf, Sprintf etc.
-	flags    []byte // the list of # + etc.
-	argNums  []int  // the successive argument numbers that are consumed, adjusted to refer to actual arg in call
-	firstArg int    // Index of first argument after the format in the Printf call.
-	// Used only during parse.
-	pass         *analysis.Pass
-	call         *ast.CallExpr
-	argNum       int  // Which argument we're expecting to format now.
-	hasIndex     bool // Whether the argument is indexed.
-	indexPending bool // Whether we have an indexed argument that has not resolved.
-	nbytes       int  // number of bytes of the format string consumed.
-}
-
 // checkPrintf checks a call to a formatted print routine such as Printf.
-func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.Func) {
+func checkPrintf(pass *analysis.Pass, fileVersion string, kind Kind, call *ast.CallExpr, name string) {
 	idx := formatStringIndex(pass, call)
 	if idx < 0 || idx >= len(call.Args) {
 		return
@@ -517,12 +508,22 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
 		// non-constant format string and no arguments:
 		// if msg contains "%", misformatting occurs.
 		// Report the problem and suggest a fix: fmt.Printf("%s", msg).
-		if !suppressNonconstants && idx == len(call.Args)-1 {
+		//
+		// However, as described in golang/go#71485, this analysis can produce a
+		// significant number of diagnostics in existing code, and the bugs it
+		// finds are sometimes unlikely or inconsequential, and may not be worth
+		// fixing for some users. Gating on language version allows us to avoid
+		// breaking existing tests and CI scripts.
+		if !suppressNonconstants &&
+			idx == len(call.Args)-1 &&
+			fileVersion != "" && // fail open
+			versions.AtLeast(fileVersion, "go1.24") {
+
 			pass.Report(analysis.Diagnostic{
 				Pos: formatArg.Pos(),
 				End: formatArg.End(),
 				Message: fmt.Sprintf("non-constant format string in call to %s",
-					fn.FullName()),
+					name),
 				SuggestedFixes: []analysis.SuggestedFix{{
 					Message: `Insert "%s" format string`,
 					TextEdits: []analysis.TextEdit{{
@@ -539,49 +540,46 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
 	firstArg := idx + 1 // Arguments are immediately after format string.
 	if !strings.Contains(format, "%") {
 		if len(call.Args) > firstArg {
-			pass.Reportf(call.Lparen, "%s call has arguments but no formatting directives", fn.FullName())
+			pass.Reportf(call.Lparen, "%s call has arguments but no formatting directives", name)
 		}
 		return
 	}
-	// Hard part: check formats against args.
-	argNum := firstArg
-	maxArgNum := firstArg
+
+	// Pass the string constant value so
+	// fmt.Sprintf("%"+("s"), "hi", 3) can be reported as
+	// "fmt.Sprintf call needs 1 arg but has 2 args".
+	operations, err := fmtstr.Parse(format, idx)
+	if err != nil {
+		// All error messages are in predicate form ("call has a problem")
+		// so that they may be affixed into a subject ("log.Printf ").
+		pass.ReportRangef(call.Args[idx], "%s %s", name, err)
+		return
+	}
+
+	// index of the highest used index.
+	maxArgIndex := firstArg - 1
 	anyIndex := false
-	for i, w := 0, 0; i < len(format); i += w {
-		w = 1
-		if format[i] != '%' {
-			continue
-		}
-		state := parsePrintfVerb(pass, call, fn.FullName(), format[i:], firstArg, argNum)
-		if state == nil {
-			return
-		}
-		w = len(state.format)
-		if !okPrintfArg(pass, call, state) { // One error per format is enough.
-			return
-		}
-		if state.hasIndex {
+	// Check formats against args.
+	for _, operation := range operations {
+		if operation.Prec.Index != -1 ||
+			operation.Width.Index != -1 ||
+			operation.Verb.Index != -1 {
 			anyIndex = true
 		}
-		if state.verb == 'w' {
+		if !okPrintfArg(pass, call, &maxArgIndex, firstArg, name, operation) {
+			// One error per format is enough.
+			return
+		}
+		if operation.Verb.Verb == 'w' {
 			switch kind {
 			case KindNone, KindPrint, KindPrintf:
-				pass.Reportf(call.Pos(), "%s does not support error-wrapping directive %%w", state.name)
+				pass.Reportf(call.Pos(), "%s does not support error-wrapping directive %%w", name)
 				return
-			}
-		}
-		if len(state.argNums) > 0 {
-			// Continue with the next sequential argument.
-			argNum = state.argNums[len(state.argNums)-1] + 1
-		}
-		for _, n := range state.argNums {
-			if n >= maxArgNum {
-				maxArgNum = n + 1
 			}
 		}
 	}
 	// Dotdotdot is hard.
-	if call.Ellipsis.IsValid() && maxArgNum >= len(call.Args)-1 {
+	if call.Ellipsis.IsValid() && maxArgIndex >= len(call.Args)-2 {
 		return
 	}
 	// If any formats are indexed, extra arguments are ignored.
@@ -589,145 +587,11 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
 		return
 	}
 	// There should be no leftover arguments.
-	if maxArgNum != len(call.Args) {
-		expect := maxArgNum - firstArg
+	if maxArgIndex+1 < len(call.Args) {
+		expect := maxArgIndex + 1 - firstArg
 		numArgs := len(call.Args) - firstArg
-		pass.ReportRangef(call, "%s call needs %v but has %v", fn.FullName(), count(expect, "arg"), count(numArgs, "arg"))
+		pass.ReportRangef(call, "%s call needs %v but has %v", name, count(expect, "arg"), count(numArgs, "arg"))
 	}
-}
-
-// parseFlags accepts any printf flags.
-func (s *formatState) parseFlags() {
-	for s.nbytes < len(s.format) {
-		switch c := s.format[s.nbytes]; c {
-		case '#', '0', '+', '-', ' ':
-			s.flags = append(s.flags, c)
-			s.nbytes++
-		default:
-			return
-		}
-	}
-}
-
-// scanNum advances through a decimal number if present.
-func (s *formatState) scanNum() {
-	for ; s.nbytes < len(s.format); s.nbytes++ {
-		c := s.format[s.nbytes]
-		if c < '0' || '9' < c {
-			return
-		}
-	}
-}
-
-// parseIndex scans an index expression. It returns false if there is a syntax error.
-func (s *formatState) parseIndex() bool {
-	if s.nbytes == len(s.format) || s.format[s.nbytes] != '[' {
-		return true
-	}
-	// Argument index present.
-	s.nbytes++ // skip '['
-	start := s.nbytes
-	s.scanNum()
-	ok := true
-	if s.nbytes == len(s.format) || s.nbytes == start || s.format[s.nbytes] != ']' {
-		ok = false // syntax error is either missing "]" or invalid index.
-		s.nbytes = strings.Index(s.format[start:], "]")
-		if s.nbytes < 0 {
-			s.pass.ReportRangef(s.call, "%s format %s is missing closing ]", s.name, s.format)
-			return false
-		}
-		s.nbytes = s.nbytes + start
-	}
-	arg32, err := strconv.ParseInt(s.format[start:s.nbytes], 10, 32)
-	if err != nil || !ok || arg32 <= 0 || arg32 > int64(len(s.call.Args)-s.firstArg) {
-		s.pass.ReportRangef(s.call, "%s format has invalid argument index [%s]", s.name, s.format[start:s.nbytes])
-		return false
-	}
-	s.nbytes++ // skip ']'
-	arg := int(arg32)
-	arg += s.firstArg - 1 // We want to zero-index the actual arguments.
-	s.argNum = arg
-	s.hasIndex = true
-	s.indexPending = true
-	return true
-}
-
-// parseNum scans a width or precision (or *). It returns false if there's a bad index expression.
-func (s *formatState) parseNum() bool {
-	if s.nbytes < len(s.format) && s.format[s.nbytes] == '*' {
-		if s.indexPending { // Absorb it.
-			s.indexPending = false
-		}
-		s.nbytes++
-		s.argNums = append(s.argNums, s.argNum)
-		s.argNum++
-	} else {
-		s.scanNum()
-	}
-	return true
-}
-
-// parsePrecision scans for a precision. It returns false if there's a bad index expression.
-func (s *formatState) parsePrecision() bool {
-	// If there's a period, there may be a precision.
-	if s.nbytes < len(s.format) && s.format[s.nbytes] == '.' {
-		s.flags = append(s.flags, '.') // Treat precision as a flag.
-		s.nbytes++
-		if !s.parseIndex() {
-			return false
-		}
-		if !s.parseNum() {
-			return false
-		}
-	}
-	return true
-}
-
-// parsePrintfVerb looks the formatting directive that begins the format string
-// and returns a formatState that encodes what the directive wants, without looking
-// at the actual arguments present in the call. The result is nil if there is an error.
-func parsePrintfVerb(pass *analysis.Pass, call *ast.CallExpr, name, format string, firstArg, argNum int) *formatState {
-	state := &formatState{
-		format:   format,
-		name:     name,
-		flags:    make([]byte, 0, 5),
-		argNum:   argNum,
-		argNums:  make([]int, 0, 1),
-		nbytes:   1, // There's guaranteed to be a percent sign.
-		firstArg: firstArg,
-		pass:     pass,
-		call:     call,
-	}
-	// There may be flags.
-	state.parseFlags()
-	// There may be an index.
-	if !state.parseIndex() {
-		return nil
-	}
-	// There may be a width.
-	if !state.parseNum() {
-		return nil
-	}
-	// There may be a precision.
-	if !state.parsePrecision() {
-		return nil
-	}
-	// Now a verb, possibly prefixed by an index (which we may already have).
-	if !state.indexPending && !state.parseIndex() {
-		return nil
-	}
-	if state.nbytes == len(state.format) {
-		pass.ReportRangef(call.Fun, "%s format %s is missing verb at end of string", name, state.format)
-		return nil
-	}
-	verb, w := utf8.DecodeRuneInString(state.format[state.nbytes:])
-	state.verb = verb
-	state.nbytes += w
-	if verb != '%' {
-		state.argNums = append(state.argNums, state.argNum)
-	}
-	state.format = state.format[:state.nbytes]
-	return state
 }
 
 // printfArgType encodes the types of expressions a printf verb accepts. It is a bitmask.
@@ -790,79 +654,96 @@ var printVerbs = []printVerb{
 	{'X', sharpNumFlag, argRune | argInt | argString | argPointer | argFloat | argComplex},
 }
 
-// okPrintfArg compares the formatState to the arguments actually present,
-// reporting any discrepancies it can discern. If the final argument is ellipsissed,
-// there's little it can do for that.
-func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (ok bool) {
+// okPrintfArg compares the operation to the arguments actually present,
+// reporting any discrepancies it can discern, maxArgIndex was the index of the highest used index.
+// If the final argument is ellipsissed, there's little it can do for that.
+func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, maxArgIndex *int, firstArg int, name string, operation *fmtstr.Operation) (ok bool) {
+	verb := operation.Verb.Verb
 	var v printVerb
 	found := false
 	// Linear scan is fast enough for a small list.
 	for _, v = range printVerbs {
-		if v.verb == state.verb {
+		if v.verb == verb {
 			found = true
 			break
 		}
 	}
 
-	// Could current arg implement fmt.Formatter?
+	// Could verb's arg implement fmt.Formatter?
 	// Skip check for the %w verb, which requires an error.
 	formatter := false
-	if v.typ != argError && state.argNum < len(call.Args) {
-		if tv, ok := pass.TypesInfo.Types[call.Args[state.argNum]]; ok {
+	if v.typ != argError && operation.Verb.ArgIndex < len(call.Args) {
+		if tv, ok := pass.TypesInfo.Types[call.Args[operation.Verb.ArgIndex]]; ok {
 			formatter = isFormatter(tv.Type)
 		}
 	}
 
 	if !formatter {
 		if !found {
-			pass.ReportRangef(call, "%s format %s has unknown verb %c", state.name, state.format, state.verb)
+			pass.ReportRangef(call, "%s format %s has unknown verb %c", name, operation.Text, verb)
 			return false
 		}
-		for _, flag := range state.flags {
+		for _, flag := range operation.Flags {
 			// TODO: Disable complaint about '0' for Go 1.10. To be fixed properly in 1.11.
 			// See issues 23598 and 23605.
 			if flag == '0' {
 				continue
 			}
 			if !strings.ContainsRune(v.flags, rune(flag)) {
-				pass.ReportRangef(call, "%s format %s has unrecognized flag %c", state.name, state.format, flag)
+				pass.ReportRangef(call, "%s format %s has unrecognized flag %c", name, operation.Text, flag)
 				return false
 			}
 		}
 	}
-	// Verb is good. If len(state.argNums)>trueArgs, we have something like %.*s and all
-	// but the final arg must be an integer.
-	trueArgs := 1
-	if state.verb == '%' {
-		trueArgs = 0
+
+	var argIndexes []int
+	// First check for *.
+	if operation.Width.Dynamic != -1 {
+		argIndexes = append(argIndexes, operation.Width.Dynamic)
 	}
-	nargs := len(state.argNums)
-	for i := 0; i < nargs-trueArgs; i++ {
-		argNum := state.argNums[i]
-		if !argCanBeChecked(pass, call, i, state) {
+	if operation.Prec.Dynamic != -1 {
+		argIndexes = append(argIndexes, operation.Prec.Dynamic)
+	}
+	// If len(argIndexes)>0, we have something like %.*s and all
+	// indexes in argIndexes must be an integer.
+	for _, argIndex := range argIndexes {
+		if !argCanBeChecked(pass, call, argIndex, firstArg, operation, name) {
 			return
 		}
-		arg := call.Args[argNum]
+		arg := call.Args[argIndex]
 		if reason, ok := matchArgType(pass, argInt, arg); !ok {
 			details := ""
 			if reason != "" {
 				details = " (" + reason + ")"
 			}
-			pass.ReportRangef(call, "%s format %s uses non-int %s%s as argument of *", state.name, state.format, analysisutil.Format(pass.Fset, arg), details)
+			pass.ReportRangef(call, "%s format %s uses non-int %s%s as argument of *", name, operation.Text, analysisinternal.Format(pass.Fset, arg), details)
 			return false
 		}
 	}
 
-	if state.verb == '%' || formatter {
+	// Collect to update maxArgNum in one loop.
+	if operation.Verb.ArgIndex != -1 && verb != '%' {
+		argIndexes = append(argIndexes, operation.Verb.ArgIndex)
+	}
+	for _, index := range argIndexes {
+		*maxArgIndex = max(*maxArgIndex, index)
+	}
+
+	// Special case for '%', go will print "fmt.Printf("%10.2%%dhello", 4)"
+	// as "%4hello", discard any runes between the two '%'s, and treat the verb '%'
+	// as an ordinary rune, so early return to skip the type check.
+	if verb == '%' || formatter {
 		return true
 	}
-	argNum := state.argNums[len(state.argNums)-1]
-	if !argCanBeChecked(pass, call, len(state.argNums)-1, state) {
+
+	// Now check verb's type.
+	verbArgIndex := operation.Verb.ArgIndex
+	if !argCanBeChecked(pass, call, verbArgIndex, firstArg, operation, name) {
 		return false
 	}
-	arg := call.Args[argNum]
-	if isFunctionValue(pass, arg) && state.verb != 'p' && state.verb != 'T' {
-		pass.ReportRangef(call, "%s format %s arg %s is a func value, not called", state.name, state.format, analysisutil.Format(pass.Fset, arg))
+	arg := call.Args[verbArgIndex]
+	if isFunctionValue(pass, arg) && verb != 'p' && verb != 'T' {
+		pass.ReportRangef(call, "%s format %s arg %s is a func value, not called", name, operation.Text, analysisinternal.Format(pass.Fset, arg))
 		return false
 	}
 	if reason, ok := matchArgType(pass, v.typ, arg); !ok {
@@ -874,12 +755,12 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
 		if reason != "" {
 			details = " (" + reason + ")"
 		}
-		pass.ReportRangef(call, "%s format %s has arg %s of wrong type %s%s", state.name, state.format, analysisutil.Format(pass.Fset, arg), typeString, details)
+		pass.ReportRangef(call, "%s format %s has arg %s of wrong type %s%s", name, operation.Text, analysisinternal.Format(pass.Fset, arg), typeString, details)
 		return false
 	}
-	if v.typ&argString != 0 && v.verb != 'T' && !bytes.Contains(state.flags, []byte{'#'}) {
+	if v.typ&argString != 0 && v.verb != 'T' && !strings.Contains(operation.Flags, "#") {
 		if methodName, ok := recursiveStringer(pass, arg); ok {
-			pass.ReportRangef(call, "%s format %s with arg %s causes recursive %s method call", state.name, state.format, analysisutil.Format(pass.Fset, arg), methodName)
+			pass.ReportRangef(call, "%s format %s with arg %s causes recursive %s method call", name, operation.Text, analysisinternal.Format(pass.Fset, arg), methodName)
 			return false
 		}
 	}
@@ -963,25 +844,24 @@ func isFunctionValue(pass *analysis.Pass, e ast.Expr) bool {
 // argCanBeChecked reports whether the specified argument is statically present;
 // it may be beyond the list of arguments or in a terminal slice... argument, which
 // means we can't see it.
-func argCanBeChecked(pass *analysis.Pass, call *ast.CallExpr, formatArg int, state *formatState) bool {
-	argNum := state.argNums[formatArg]
-	if argNum <= 0 {
+func argCanBeChecked(pass *analysis.Pass, call *ast.CallExpr, argIndex, firstArg int, operation *fmtstr.Operation, name string) bool {
+	if argIndex <= 0 {
 		// Shouldn't happen, so catch it with prejudice.
-		panic("negative arg num")
+		panic("negative argIndex")
 	}
-	if argNum < len(call.Args)-1 {
+	if argIndex < len(call.Args)-1 {
 		return true // Always OK.
 	}
 	if call.Ellipsis.IsValid() {
 		return false // We just can't tell; there could be many more arguments.
 	}
-	if argNum < len(call.Args) {
+	if argIndex < len(call.Args) {
 		return true
 	}
 	// There are bad indexes in the format or there are fewer arguments than the format needs.
 	// This is the argument number relative to the format: Printf("%s", "hi") will give 1 for the "hi".
-	arg := argNum - state.firstArg + 1 // People think of arguments as 1-indexed.
-	pass.ReportRangef(call, "%s format %s reads arg #%d, but call has %v", state.name, state.format, arg, count(len(call.Args)-state.firstArg, "arg"))
+	arg := argIndex - firstArg + 1 // People think of arguments as 1-indexed.
+	pass.ReportRangef(call, "%s format %s reads arg #%d, but call has %v", name, operation.Text, arg, count(len(call.Args)-firstArg, "arg"))
 	return false
 }
 
@@ -998,7 +878,7 @@ const (
 )
 
 // checkPrint checks a call to an unformatted print routine such as Println.
-func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
+func checkPrint(pass *analysis.Pass, call *ast.CallExpr, name string) {
 	firstArg := 0
 	typ := pass.TypesInfo.Types[call.Fun].Type
 	if typ == nil {
@@ -1032,7 +912,7 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
 		if sel, ok := call.Args[0].(*ast.SelectorExpr); ok {
 			if x, ok := sel.X.(*ast.Ident); ok {
 				if x.Name == "os" && strings.HasPrefix(sel.Sel.Name, "Std") {
-					pass.ReportRangef(call, "%s does not take io.Writer but has first arg %s", fn.FullName(), analysisutil.Format(pass.Fset, call.Args[0]))
+					pass.ReportRangef(call, "%s does not take io.Writer but has first arg %s", name, analysisinternal.Format(pass.Fset, call.Args[0]))
 				}
 			}
 		}
@@ -1046,25 +926,25 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
 		if strings.Contains(s, "%") {
 			m := printFormatRE.FindStringSubmatch(s)
 			if m != nil {
-				pass.ReportRangef(call, "%s call has possible Printf formatting directive %s", fn.FullName(), m[0])
+				pass.ReportRangef(call, "%s call has possible Printf formatting directive %s", name, m[0])
 			}
 		}
 	}
-	if strings.HasSuffix(fn.Name(), "ln") {
+	if strings.HasSuffix(name, "ln") {
 		// The last item, if a string, should not have a newline.
 		arg = args[len(args)-1]
 		if s, ok := stringConstantExpr(pass, arg); ok {
 			if strings.HasSuffix(s, "\n") {
-				pass.ReportRangef(call, "%s arg list ends with redundant newline", fn.FullName())
+				pass.ReportRangef(call, "%s arg list ends with redundant newline", name)
 			}
 		}
 	}
 	for _, arg := range args {
 		if isFunctionValue(pass, arg) {
-			pass.ReportRangef(call, "%s arg %s is a func value, not called", fn.FullName(), analysisutil.Format(pass.Fset, arg))
+			pass.ReportRangef(call, "%s arg %s is a func value, not called", name, analysisinternal.Format(pass.Fset, arg))
 		}
 		if methodName, ok := recursiveStringer(pass, arg); ok {
-			pass.ReportRangef(call, "%s arg %s causes recursive call to %s method", fn.FullName(), analysisutil.Format(pass.Fset, arg), methodName)
+			pass.ReportRangef(call, "%s arg %s causes recursive call to %s method", name, analysisinternal.Format(pass.Fset, arg), methodName)
 		}
 	}
 }

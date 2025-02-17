@@ -103,7 +103,6 @@ import (
 	"io/fs"
 	"maps"
 	"os"
-	"path"
 	pathpkg "path"
 	"path/filepath"
 	"runtime"
@@ -717,7 +716,7 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
 			return "", false
 		}
 
-		return path.Join(m.Path, filepath.ToSlash(sub)), true
+		return pathpkg.Join(m.Path, filepath.ToSlash(sub)), true
 	}
 
 	if rs.pruning == pruned {

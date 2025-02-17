@@ -260,6 +260,7 @@ type echClientContext struct {
 	kdfID           uint16
 	aeadID          uint16
 	echRejected     bool
+	retryConfigs    []byte
 }
 
 func (c *Conn) clientHandshake(ctx context.Context) (err error) {
@@ -944,7 +945,7 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 }
 
 // checkALPN ensure that the server's choice of ALPN protocol is compatible with
-// the protocols that we advertised in the Client Hello.
+// the protocols that we advertised in the ClientHello.
 func checkALPN(clientProtos []string, serverProto string, quic bool) error {
 	if serverProto == "" {
 		if quic && len(clientProtos) > 0 {

@@ -301,6 +301,8 @@ const (
 )
 
 // Ptr is the old name for the [Pointer] kind.
+//
+//go:fix inline
 const Ptr = Pointer
 
 // uncommonType is present only for defined types or types with methods
@@ -1303,6 +1305,11 @@ func TypeOf(i any) Type {
 	return toType(abi.TypeOf(i))
 }
 
+// TypeFor returns the [Type] that represents the type argument T.
+func TypeFor[T any]() Type {
+	return toType(abi.TypeFor[T]())
+}
+
 // rtypeOf directly extracts the *rtype of the provided value.
 func rtypeOf(i any) *abi.Type {
 	return abi.TypeOf(i)
@@ -1318,6 +1325,8 @@ var ptrMap sync.Map // map[*rtype]*ptrType
 // The two functions behave identically.
 //
 // Deprecated: Superseded by [PointerTo].
+//
+//go:fix inline
 func PtrTo(t Type) Type { return PointerTo(t) }
 
 // PointerTo returns the pointer type with element t.
@@ -2849,13 +2858,4 @@ func addTypeBits(bv *bitVector, offset uintptr, t *abi.Type) {
 			addTypeBits(bv, offset+f.Offset, f.Typ)
 		}
 	}
-}
-
-// TypeFor returns the [Type] that represents the type argument T.
-func TypeFor[T any]() Type {
-	var v T
-	if t := TypeOf(v); t != nil {
-		return t // optimize for T being a non-interface kind
-	}
-	return TypeOf((*T)(nil)).Elem() // only for an interface kind
 }

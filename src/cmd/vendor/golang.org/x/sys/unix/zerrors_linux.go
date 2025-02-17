@@ -1245,6 +1245,7 @@ const (
 	FAN_REPORT_DFID_NAME                        = 0xc00
 	FAN_REPORT_DFID_NAME_TARGET                 = 0x1e00
 	FAN_REPORT_DIR_FID                          = 0x400
+	FAN_REPORT_FD_ERROR                         = 0x2000
 	FAN_REPORT_FID                              = 0x200
 	FAN_REPORT_NAME                             = 0x800
 	FAN_REPORT_PIDFD                            = 0x80
@@ -1330,8 +1331,10 @@ const (
 	FUSE_SUPER_MAGIC                            = 0x65735546
 	FUTEXFS_SUPER_MAGIC                         = 0xbad1dea
 	F_ADD_SEALS                                 = 0x409
+	F_CREATED_QUERY                             = 0x404
 	F_DUPFD                                     = 0x0
 	F_DUPFD_CLOEXEC                             = 0x406
+	F_DUPFD_QUERY                               = 0x403
 	F_EXLCK                                     = 0x4
 	F_GETFD                                     = 0x1
 	F_GETFL                                     = 0x3
@@ -1551,6 +1554,7 @@ const (
 	IPPROTO_ROUTING                             = 0x2b
 	IPPROTO_RSVP                                = 0x2e
 	IPPROTO_SCTP                                = 0x84
+	IPPROTO_SMC                                 = 0x100
 	IPPROTO_TCP                                 = 0x6
 	IPPROTO_TP                                  = 0x1d
 	IPPROTO_UDP                                 = 0x11
@@ -1623,6 +1627,8 @@ const (
 	IPV6_UNICAST_IF                             = 0x4c
 	IPV6_USER_FLOW                              = 0xe
 	IPV6_V6ONLY                                 = 0x1a
+	IPV6_VERSION                                = 0x60
+	IPV6_VERSION_MASK                           = 0xf0
 	IPV6_XFRM_POLICY                            = 0x23
 	IP_ADD_MEMBERSHIP                           = 0x23
 	IP_ADD_SOURCE_MEMBERSHIP                    = 0x27
@@ -1867,6 +1873,7 @@ const (
 	MADV_UNMERGEABLE                            = 0xd
 	MADV_WILLNEED                               = 0x3
 	MADV_WIPEONFORK                             = 0x12
+	MAP_DROPPABLE                               = 0x8
 	MAP_FILE                                    = 0x0
 	MAP_FIXED                                   = 0x10
 	MAP_FIXED_NOREPLACE                         = 0x100000
@@ -1967,6 +1974,7 @@ const (
 	MSG_PEEK                                    = 0x2
 	MSG_PROXY                                   = 0x10
 	MSG_RST                                     = 0x1000
+	MSG_SOCK_DEVMEM                             = 0x2000000
 	MSG_SYN                                     = 0x400
 	MSG_TRUNC                                   = 0x20
 	MSG_TRYHARD                                 = 0x4
@@ -2083,6 +2091,7 @@ const (
 	NFC_ATR_REQ_MAXSIZE                         = 0x40
 	NFC_ATR_RES_GB_MAXSIZE                      = 0x2f
 	NFC_ATR_RES_MAXSIZE                         = 0x40
+	NFC_ATS_MAXSIZE                             = 0x14
 	NFC_COMM_ACTIVE                             = 0x0
 	NFC_COMM_PASSIVE                            = 0x1
 	NFC_DEVICE_NAME_MAXSIZE                     = 0x8
@@ -2163,6 +2172,7 @@ const (
 	NFNL_SUBSYS_QUEUE                           = 0x3
 	NFNL_SUBSYS_ULOG                            = 0x4
 	NFS_SUPER_MAGIC                             = 0x6969
+	NFT_BITWISE_BOOL                            = 0x0
 	NFT_CHAIN_FLAGS                             = 0x7
 	NFT_CHAIN_MAXNAMELEN                        = 0x100
 	NFT_CT_MAX                                  = 0x17
@@ -2491,6 +2501,7 @@ const (
 	PR_GET_PDEATHSIG                            = 0x2
 	PR_GET_SECCOMP                              = 0x15
 	PR_GET_SECUREBITS                           = 0x1b
+	PR_GET_SHADOW_STACK_STATUS                  = 0x4a
 	PR_GET_SPECULATION_CTRL                     = 0x34
 	PR_GET_TAGGED_ADDR_CTRL                     = 0x38
 	PR_GET_THP_DISABLE                          = 0x2a
@@ -2499,6 +2510,7 @@ const (
 	PR_GET_TIMING                               = 0xd
 	PR_GET_TSC                                  = 0x19
 	PR_GET_UNALIGN                              = 0x5
+	PR_LOCK_SHADOW_STACK_STATUS                 = 0x4c
 	PR_MCE_KILL                                 = 0x21
 	PR_MCE_KILL_CLEAR                           = 0x0
 	PR_MCE_KILL_DEFAULT                         = 0x2
@@ -2525,6 +2537,8 @@ const (
 	PR_PAC_GET_ENABLED_KEYS                     = 0x3d
 	PR_PAC_RESET_KEYS                           = 0x36
 	PR_PAC_SET_ENABLED_KEYS                     = 0x3c
+	PR_PMLEN_MASK                               = 0x7f000000
+	PR_PMLEN_SHIFT                              = 0x18
 	PR_PPC_DEXCR_CTRL_CLEAR                     = 0x4
 	PR_PPC_DEXCR_CTRL_CLEAR_ONEXEC              = 0x10
 	PR_PPC_DEXCR_CTRL_EDITABLE                  = 0x1
@@ -2592,6 +2606,7 @@ const (
 	PR_SET_PTRACER                              = 0x59616d61
 	PR_SET_SECCOMP                              = 0x16
 	PR_SET_SECUREBITS                           = 0x1c
+	PR_SET_SHADOW_STACK_STATUS                  = 0x4b
 	PR_SET_SPECULATION_CTRL                     = 0x35
 	PR_SET_SYSCALL_USER_DISPATCH                = 0x3b
 	PR_SET_TAGGED_ADDR_CTRL                     = 0x37
@@ -2602,6 +2617,9 @@ const (
 	PR_SET_UNALIGN                              = 0x6
 	PR_SET_VMA                                  = 0x53564d41
 	PR_SET_VMA_ANON_NAME                        = 0x0
+	PR_SHADOW_STACK_ENABLE                      = 0x1
+	PR_SHADOW_STACK_PUSH                        = 0x4
+	PR_SHADOW_STACK_WRITE                       = 0x2
 	PR_SME_GET_VL                               = 0x40
 	PR_SME_SET_VL                               = 0x3f
 	PR_SME_SET_VL_ONEXEC                        = 0x40000
@@ -2911,7 +2929,6 @@ const (
 	RTM_NEWNEXTHOP                              = 0x68
 	RTM_NEWNEXTHOPBUCKET                        = 0x74
 	RTM_NEWNSID                                 = 0x58
-	RTM_NEWNVLAN                                = 0x70
 	RTM_NEWPREFIX                               = 0x34
 	RTM_NEWQDISC                                = 0x24
 	RTM_NEWROUTE                                = 0x18
@@ -2920,6 +2937,7 @@ const (
 	RTM_NEWTCLASS                               = 0x28
 	RTM_NEWTFILTER                              = 0x2c
 	RTM_NEWTUNNEL                               = 0x78
+	RTM_NEWVLAN                                 = 0x70
 	RTM_NR_FAMILIES                             = 0x1b
 	RTM_NR_MSGTYPES                             = 0x6c
 	RTM_SETDCB                                  = 0x4f

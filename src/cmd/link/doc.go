@@ -72,6 +72,8 @@ Flags:
 		system tools now assume the presence of the header.
 	-dumpdep
 		Dump symbol dependency graph.
+	-e
+		No limit on number of errors reported.
 	-extar ar
 		Set the external archive program (default "ar").
 		Used only for -buildmode=c-archive.
@@ -118,6 +120,7 @@ Flags:
 		Link with race detection libraries.
 	-s
 		Omit the symbol table and debug information.
+		Implies the -w flag, which can be negated with -w=0.
 	-tmpdir dir
 		Write temporary files to dir.
 		Temporary files are only used in external linking mode.

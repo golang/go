@@ -34,25 +34,12 @@
 
 @echo off
 
-:: Keep environment variables within this script
-:: unless invoked with --no-local.
-if x%1==x-no-local goto nolocal
-if x%2==x-no-local goto nolocal
-if x%3==x-no-local goto nolocal
-if x%4==x-no-local goto nolocal
-if x%1==x--no-local goto nolocal
-if x%2==x--no-local goto nolocal
-if x%3==x--no-local goto nolocal
-if x%4==x--no-local goto nolocal
 setlocal
-:nolocal
 
-set GOBUILDFAIL=0
-
-if exist make.bat goto ok
-echo Must run make.bat from Go src directory.
-goto fail
-:ok
+if not exist make.bat (
+	echo Must run make.bat from Go src directory.
+	exit /b 1
+)
 
 :: Clean old generated file that will cause problems in the build.
 del /F ".\pkg\runtime\runtime_defs.go" 2>NUL
@@ -91,7 +78,11 @@ if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\sdk\go%bootgo%" se
 if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
 
 :bootstrapset
-if not exist "%GOROOT_BOOTSTRAP%\bin\go.exe" goto bootstrapfail
+if not exist "%GOROOT_BOOTSTRAP%\bin\go.exe" (
+	echo ERROR: Cannot find %GOROOT_BOOTSTRAP%\bin\go.exe
+	echo Set GOROOT_BOOTSTRAP to a working Go tree ^>= Go %bootgo%.
+	exit /b 1
+)
 set GOROOT=%GOROOT_TEMP%
 set GOROOT_TEMP=
 
@@ -103,55 +94,26 @@ echo Building Go cmd/dist using %GOROOT_BOOTSTRAP%. (%GOROOT_BOOTSTRAP_VERSION%)
 if x%vflag==x-v echo cmd/dist
 set GOROOT=%GOROOT_BOOTSTRAP%
 set GOBIN=
-"%GOROOT_BOOTSTRAP%\bin\go.exe" build -o cmd\dist\dist.exe .\cmd\dist
+"%GOROOT_BOOTSTRAP%\bin\go.exe" build -o cmd\dist\dist.exe .\cmd\dist || exit /b 1
 endlocal
-if errorlevel 1 goto fail
-.\cmd\dist\dist.exe env -w -p >env.bat
-if errorlevel 1 goto fail
+.\cmd\dist\dist.exe env -w -p >env.bat || exit /b 1
 call .\env.bat
 del env.bat
 if x%vflag==x-v echo.
 
-if x%1==x-dist-tool goto copydist
-if x%2==x-dist-tool goto copydist
-if x%3==x-dist-tool goto copydist
-if x%4==x-dist-tool goto copydist
-if x%1==x--dist-tool goto copydist
-if x%2==x--dist-tool goto copydist
-if x%3==x--dist-tool goto copydist
-if x%4==x--dist-tool goto copydist
-
-set bootstrapflags=
-if x%1==x-no-clean set bootstrapflags=-no-clean
-if x%2==x-no-clean set bootstrapflags=-no-clean
-if x%3==x-no-clean set bootstrapflags=-no-clean
-if x%4==x-no-clean set bootstrapflags=-no-clean
-if x%1==x--no-clean set bootstrapflags=-no-clean
-if x%2==x--no-clean set bootstrapflags=-no-clean
-if x%3==x--no-clean set bootstrapflags=-no-clean
-if x%4==x--no-clean set bootstrapflags=-no-clean
-if x%1==x-no-banner set bootstrapflags=%bootstrapflags% -no-banner
-if x%2==x-no-banner set bootstrapflags=%bootstrapflags% -no-banner
-if x%3==x-no-banner set bootstrapflags=%bootstrapflags% -no-banner
-if x%4==x-no-banner set bootstrapflags=%bootstrapflags% -no-banner
-if x%1==x--no-banner set bootstrapflags=%bootstrapflags% -no-banner
-if x%2==x--no-banner set bootstrapflags=%bootstrapflags% -no-banner
-if x%3==x--no-banner set bootstrapflags=%bootstrapflags% -no-banner
-if x%4==x--no-banner set bootstrapflags=%bootstrapflags% -no-banner
-if x%1==x-distpack set bootstrapflags=%bootstrapflags% -distpack
-if x%2==x-distpack set bootstrapflags=%bootstrapflags% -distpack
-if x%3==x-distpack set bootstrapflags=%bootstrapflags% -distpack
-if x%4==x-distpack set bootstrapflags=%bootstrapflags% -distpack
-if x%1==x--distpack set bootstrapflags=%bootstrapflags% -distpack
-if x%2==x--distpack set bootstrapflags=%bootstrapflags% -distpack
-if x%3==x--distpack set bootstrapflags=%bootstrapflags% -distpack
-if x%4==x--distpack set bootstrapflags=%bootstrapflags% -distpack
+if x%1==x--dist-tool (
+	mkdir "%GOTOOLDIR%" 2>NUL
+	if not x%2==x (
+		copy cmd\dist\dist.exe "%2"
+	)
+	move cmd\dist\dist.exe "%GOTOOLDIR%\dist.exe"
+	goto :eof
+)
 
 :: Run dist bootstrap to complete make.bash.
 :: Bootstrap installs a proper cmd/dist, built with the new toolchain.
 :: Throw ours, built with the bootstrap toolchain, away after bootstrap.
-.\cmd\dist\dist.exe bootstrap -a %vflag% %bootstrapflags%
-if errorlevel 1 goto fail
+.\cmd\dist\dist.exe bootstrap -a %* || exit /b 1
 del .\cmd\dist\dist.exe
 goto :eof
 
@@ -161,11 +123,6 @@ goto :eof
 :: to avoid needing three copies in three different shell languages
 :: (make.bash, make.bat, make.rc).
 
-:copydist
-mkdir "%GOTOOLDIR%" 2>NUL
-copy cmd\dist\dist.exe "%GOTOOLDIR%\"
-goto :eof
-
 :nogoenv
 set GO111MODULE=off
 set GOENV=off
@@ -173,12 +130,3 @@ set GOOS=
 set GOARCH=
 set GOEXPERIMENT=
 set GOFLAGS=
-goto :eof
-
-:bootstrapfail
-echo ERROR: Cannot find %GOROOT_BOOTSTRAP%\bin\go.exe
-echo Set GOROOT_BOOTSTRAP to a working Go tree ^>= Go %bootgo%.
-
-:fail
-set GOBUILDFAIL=1
-if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%

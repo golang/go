@@ -58,6 +58,7 @@ var depsRules = `
 	  internal/platform,
 	  internal/profilerecord,
 	  internal/syslist,
+	  internal/trace/tracev2,
 	  internal/trace/traceviewer/format,
 	  log/internal,
 	  math/bits,
@@ -79,6 +80,7 @@ var depsRules = `
 	internal/goexperiment,
 	internal/goos,
 	internal/profilerecord,
+	internal/trace/tracev2,
 	math/bits,
 	structs
 	< internal/bytealg
@@ -244,17 +246,17 @@ var depsRules = `
 	# encodings
 	# core ones do not use fmt.
 	io, strconv, slices
-	< encoding;
+	< encoding, encoding/base32, encoding/base64;
 
 	encoding, reflect
-	< encoding/binary
-	< encoding/base32, encoding/base64;
+	< encoding/binary;
 
 	FMT, encoding < flag;
 
 	fmt !< encoding/base32, encoding/base64;
 
-	FMT, encoding/base32, encoding/base64, internal/saferio
+	FMT, encoding, encoding/base32, encoding/base64, encoding/binary,
+	internal/saferio
 	< encoding/ascii85, encoding/csv, encoding/gob, encoding/hex,
 	  encoding/json, encoding/pem, encoding/xml, mime;
 
@@ -388,11 +390,13 @@ var depsRules = `
 
 	os
 	< golang.org/x/net/dns/dnsmessage,
-	  golang.org/x/net/lif,
-	  golang.org/x/net/route;
+	  golang.org/x/net/lif;
 
 	internal/bytealg, internal/itoa, math/bits, slices, strconv, unique
 	< net/netip;
+
+	os, net/netip
+	< internal/routebsd;
 
 	# net is unavoidable when doing any networking,
 	# so large dependencies must be kept out.
@@ -401,10 +405,10 @@ var depsRules = `
 	CGO,
 	golang.org/x/net/dns/dnsmessage,
 	golang.org/x/net/lif,
-	golang.org/x/net/route,
 	internal/godebug,
 	internal/nettrace,
 	internal/poll,
+	internal/routebsd,
 	internal/singleflight,
 	net/netip,
 	os,
@@ -444,6 +448,10 @@ var depsRules = `
 	NET, log
 	< net/mail;
 
+	# FIPS is the FIPS 140 module.
+	# It must not depend on external crypto packages.
+	# See also fips140deps.AllowedInternalPackages.
+
 	io, math/rand/v2 < crypto/internal/randutil;
 
 	STR < crypto/internal/impl;
@@ -455,8 +463,6 @@ var depsRules = `
 	internal/cpu, internal/goarch < crypto/internal/fips140deps/cpu;
 	internal/godebug < crypto/internal/fips140deps/godebug;
 
-	# FIPS is the FIPS 140 module.
-	# It must not depend on external crypto packages.
 	STR, crypto/internal/impl,
 	crypto/internal/entropy,
 	crypto/internal/randutil,
@@ -491,63 +497,50 @@ var depsRules = `
 	< crypto/internal/fips140/rsa
 	< FIPS;
 
-	FIPS < crypto/internal/fips140/check/checktest;
+	FIPS, internal/godebug < crypto/fips140;
 
-	FIPS, sync/atomic < crypto/tls/internal/fips140tls;
-
-	FIPS, internal/godebug, hash < crypto/fips140, crypto/internal/fips140only;
-
-	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
-	sync/atomic < crypto/internal/boring/bcache, crypto/internal/boring/fips140tls;
-	crypto/internal/boring/sig, crypto/tls/internal/fips140tls < crypto/tls/fipsonly;
+	crypto, hash !< FIPS;
 
 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
-	FIPS, crypto/internal/fips140only,
+	# Mostly wrappers around the FIPS module.
+
+	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
+	sync/atomic < crypto/internal/boring/bcache;
+
+	FIPS, internal/godebug, hash, embed,
 	crypto/internal/boring/sig,
 	crypto/internal/boring/syso,
-	golang.org/x/sys/cpu,
-	hash, embed
+	crypto/internal/boring/bcache
+	< crypto/internal/fips140only
 	< crypto
 	< crypto/subtle
+	< crypto/sha3
+	< crypto/internal/fips140hash
 	< crypto/cipher
-	< crypto/sha3;
-
-	crypto/cipher,
-	crypto/internal/boring/bcache
 	< crypto/internal/boring
-	< crypto/boring;
-
-	crypto/boring
-	< crypto/aes, crypto/des, crypto/hmac, crypto/md5, crypto/rc4,
-	  crypto/sha1, crypto/sha256, crypto/sha512, crypto/hkdf;
-
-	crypto/boring, crypto/internal/fips140/edwards25519/field
-	< crypto/ecdh;
-
-	crypto/hmac < crypto/pbkdf2;
-
-	crypto/internal/fips140/mlkem < crypto/mlkem;
-
-	crypto/aes,
-	crypto/des,
-	crypto/ecdh,
-	crypto/hmac,
-	crypto/md5,
-	crypto/rc4,
-	crypto/sha1,
-	crypto/sha256,
-	crypto/sha512,
-	crypto/sha3,
-	crypto/hkdf
+	< crypto/boring
+	< crypto/aes,
+	  crypto/des,
+	  crypto/rc4,
+	  crypto/md5,
+	  crypto/sha1,
+	  crypto/sha256,
+	  crypto/sha512,
+	  crypto/hmac,
+	  crypto/hkdf,
+	  crypto/pbkdf2,
+	  crypto/ecdh,
+	  crypto/mlkem
 	< CRYPTO;
 
 	CGO, fmt, net !< CRYPTO;
 
-	# CRYPTO-MATH is core bignum-based crypto - no cgo, net; fmt now ok.
+	# CRYPTO-MATH is crypto that exposes math/big APIs - no cgo, net; fmt now ok.
+
 	CRYPTO, FMT, math/big
 	< crypto/internal/boring/bbig
 	< crypto/rand
-	< crypto/ed25519
+	< crypto/ed25519 # depends on crypto/rand.Reader
 	< encoding/asn1
 	< golang.org/x/crypto/cryptobyte/asn1
 	< golang.org/x/crypto/cryptobyte
@@ -558,23 +551,29 @@ var depsRules = `
 	CGO, net !< CRYPTO-MATH;
 
 	# TLS, Prince of Dependencies.
-	CRYPTO-MATH, NET, container/list, encoding/hex, encoding/pem
+
+	FIPS, sync/atomic < crypto/tls/internal/fips140tls;
+
+	crypto/internal/boring/sig, crypto/tls/internal/fips140tls < crypto/tls/fipsonly;
+
+	CRYPTO, golang.org/x/sys/cpu, encoding/binary, reflect
 	< golang.org/x/crypto/internal/alias
 	< golang.org/x/crypto/internal/subtle
 	< golang.org/x/crypto/chacha20
 	< golang.org/x/crypto/internal/poly1305
-	< golang.org/x/crypto/chacha20poly1305
+	< golang.org/x/crypto/chacha20poly1305;
+
+	CRYPTO-MATH, NET, container/list, encoding/hex, encoding/pem,
+	golang.org/x/crypto/chacha20poly1305, crypto/tls/internal/fips140tls
 	< crypto/internal/hpke
 	< crypto/x509/internal/macos
-	< crypto/x509/pkix;
-
-	crypto/tls/internal/fips140tls, crypto/x509/pkix
+	< crypto/x509/pkix
 	< crypto/x509
 	< crypto/tls;
 
 	# crypto-aware packages
 
-	DEBUG, go/build, go/types, text/scanner, crypto/md5
+	DEBUG, go/build, go/types, text/scanner, crypto/sha256
 	< internal/pkgbits, internal/exportdata
 	< go/internal/gcimporter, go/internal/gccgoimporter, go/internal/srcimporter
 	< go/importer;
@@ -615,6 +614,7 @@ var depsRules = `
 	net/http/httptrace,
 	mime/multipart,
 	log
+	< net/http/internal/httpcommon
 	< net/http;
 
 	# HTTP-aware packages
@@ -665,8 +665,9 @@ var depsRules = `
 	log/slog, testing
 	< testing/slogtest;
 
-	FMT, crypto/sha256, encoding/json, go/ast, go/parser, go/token,
-	internal/godebug, math/rand, encoding/hex, crypto/sha256
+	FMT, crypto/sha256, encoding/binary, encoding/json,
+	go/ast, go/parser, go/token,
+	internal/godebug, math/rand, encoding/hex
 	< internal/fuzz;
 
 	OS, flag, testing, internal/cfg, internal/platform, internal/goroot
@@ -696,30 +697,27 @@ var depsRules = `
 	CGO, FMT
 	< crypto/internal/sysrand/internal/seccomp;
 
+	FIPS
+	< crypto/internal/fips140/check/checktest;
+
 	# v2 execution trace parser.
-	FMT
-	< internal/trace/event;
-
-	internal/trace/event
-	< internal/trace/event/go122;
-
-	FMT, io, internal/trace/event/go122
+	FMT, io, internal/trace/tracev2
 	< internal/trace/version;
 
 	FMT, encoding/binary, internal/trace/version
 	< internal/trace/raw;
 
-	FMT, internal/trace/event, internal/trace/version, io, sort, encoding/binary
-	< internal/trace/internal/oldtrace;
+	FMT, internal/trace/version, io, sort, encoding/binary
+	< internal/trace/internal/tracev1;
 
-	FMT, encoding/binary, internal/trace/version, internal/trace/internal/oldtrace, container/heap, math/rand
+	FMT, encoding/binary, internal/trace/version, internal/trace/internal/tracev1, container/heap, math/rand
 	< internal/trace;
 
 	regexp, internal/trace, internal/trace/raw, internal/txtar
 	< internal/trace/testtrace;
 
 	regexp, internal/txtar, internal/trace, internal/trace/raw
-	< internal/trace/internal/testgen/go122;
+	< internal/trace/internal/testgen;
 
 	# cmd/trace dependencies.
 	FMT,

@@ -24,7 +24,7 @@ package cformat
 //			}
 //		}
 //		myformatter.EmitPercent(os.Stdout, nil, "", true, true)
-//		myformatter.EmitTextual(somefile)
+//		myformatter.EmitTextual(nil, somefile)
 //
 // These apis are linked into tests that are built with "-cover", and
 // called at the end of test execution to produce text output or
@@ -38,6 +38,7 @@ import (
 	"io"
 	"maps"
 	"slices"
+	"sort"
 	"strings"
 	"text/tabwriter"
 )
@@ -163,20 +164,31 @@ func (p *pstate) sortUnits(units []extcu) {
 	})
 }
 
-// EmitTextual writes the accumulated coverage data in the legacy
-// cmd/cover text format to the writer 'w'. We sort the data items by
+// EmitTextual writes the accumulated coverage data for 'pkgs' in the legacy
+// cmd/cover text format to the writer 'w'; if pkgs is empty, text output
+// is emitted for all packages recorded.  We sort the data items by
 // importpath, source file, and line number before emitting (this sorting
 // is not explicitly mandated by the format, but seems like a good idea
 // for repeatable/deterministic dumps).
-func (fm *Formatter) EmitTextual(w io.Writer) error {
+func (fm *Formatter) EmitTextual(pkgs []string, w io.Writer) error {
 	if fm.cm == coverage.CtrModeInvalid {
 		panic("internal error, counter mode unset")
+	}
+	if len(pkgs) == 0 {
+		pkgs = make([]string, 0, len(fm.pm))
+		for importpath := range fm.pm {
+			pkgs = append(pkgs, importpath)
+		}
 	}
 	if _, err := fmt.Fprintf(w, "mode: %s\n", fm.cm.String()); err != nil {
 		return err
 	}
-	for _, importpath := range slices.Sorted(maps.Keys(fm.pm)) {
+	sort.Strings(pkgs)
+	for _, importpath := range pkgs {
 		p := fm.pm[importpath]
+		if p == nil {
+			continue
+		}
 		units := make([]extcu, 0, len(p.unitTable))
 		for u := range p.unitTable {
 			units = append(units, u)
