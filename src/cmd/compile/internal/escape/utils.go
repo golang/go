@@ -210,38 +210,27 @@ func HeapAllocReason(n ir.Node) string {
 	if n.Op() == ir.OMAKESLICE {
 		n := n.(*ir.MakeExpr)
 
+		r := &n.Cap
+		if n.Cap == nil {
+			r = &n.Len
+		}
+
 		// Try to determine static values of make() calls, to avoid allocating them on the heap.
 		// We are doing this in escape analysis, so that it happens after inlining and devirtualization.
-		if n.Cap != nil {
-			if s := ir.StaticValue(n.Cap); s.Op() == ir.OLITERAL {
-				cap, ok := s.(*ir.BasicLit)
-				if !ok || cap.Val().Kind() != constant.Int {
-					base.Fatalf("unexpected BasicLit Kind")
-				}
-				if constant.Compare(cap.Val(), token.GEQ, constant.MakeInt64(0)) {
-					n.Cap = s
-				}
+		if s := ir.StaticValue(*r); s.Op() == ir.OLITERAL {
+			lit, ok := s.(*ir.BasicLit)
+			if !ok || lit.Val().Kind() != constant.Int {
+				base.Fatalf("unexpected BasicLit Kind")
 			}
-		} else if n.Len != nil {
-			if s := ir.StaticValue(n.Len); s.Op() == ir.OLITERAL {
-				len, ok := s.(*ir.BasicLit)
-				if !ok || len.Val().Kind() != constant.Int {
-					base.Fatalf("unexpected BasicLit Kind")
-				}
-				if constant.Compare(len.Val(), token.GEQ, constant.MakeInt64(0)) {
-					n.Len = s
-				}
+			if constant.Compare(lit.Val(), token.GEQ, constant.MakeInt64(0)) {
+				*r = lit
 			}
 		}
 
-		r := n.Cap
-		if r == nil {
-			r = n.Len
-		}
-		if !ir.IsSmallIntConst(r) {
+		if !ir.IsSmallIntConst(*r) {
 			return "non-constant size"
 		}
-		if t := n.Type(); t.Elem().Size() != 0 && ir.Int64Val(r) > ir.MaxImplicitStackVarSize/t.Elem().Size() {
+		if t := n.Type(); t.Elem().Size() != 0 && ir.Int64Val(*r) > ir.MaxImplicitStackVarSize/t.Elem().Size() {
 			return "too large for stack"
 		}
 	}
