@@ -28,7 +28,7 @@ type CImpl struct{}
 
 func (CImpl) C() {} // ERROR "can inline"
 
-func t() {
+func typeAsserts() {
 	var a M = &Impl{} // ERROR "&Impl{} does not escape"
 
 	a.(M).M()     // ERROR "devirtualizing a.\(M\).M" "inlining call"
@@ -69,7 +69,7 @@ func t() {
 	}
 }
 
-func t2() {
+func typeAssertsWithOkReturn() {
 	{
 		var a M = &Impl{} // ERROR "does not escape"
 		if v, ok := a.(M); ok {
@@ -188,34 +188,6 @@ func t3() {
 			v.M() // ERROR "devirtualizing" "inlining call"
 		}
 	}
-	{
-		m := make(chan *Impl)
-		var v A = <-m
-		v.A() // ERROR "devirtualizing" "inlining call"
-		if v, ok := v.(M); ok {
-			v.M() // ERROR "devirtualizing" "inlining call"
-		}
-	}
-	{
-		m := make(chan *Impl)
-		var v A
-		var ok bool
-		if v, ok = <-m; ok {
-			v.A()     // ERROR "devirtualizing" "inlining call"
-			v.(M).M() // ERROR "devirtualizing" "inlining call"
-		}
-		select {
-		case <-m:
-			v.A()     // ERROR "devirtualizing" "inlining call"
-			v.(M).M() // ERROR "devirtualizing" "inlining call"
-		case v = <-m:
-			v.A()     // ERROR "devirtualizing" "inlining call"
-			v.(M).M() // ERROR "devirtualizing" "inlining call"
-		case v, ok = <-m:
-			v.A()     // ERROR "devirtualizing" "inlining call"
-			v.(M).M() // ERROR "devirtualizing" "inlining call"
-		}
-	}
 }
 
 //go:noinline
@@ -283,13 +255,6 @@ func t5() {
 		a = m[0]
 		a.A()
 	}
-	{
-		var a A
-		a = &Impl{} // ERROR "escapes"
-		m := make(chan *Impl2)
-		a = <-m
-		a.A()
-	}
 }
 
 func t6() {
@@ -306,24 +271,6 @@ func t6() {
 		var a A
 		var ok bool
 		if a, ok = m[0]; ok {
-			if v, ok := a.(M); ok {
-				v.M() // ERROR "devirtualizing" "inlining call"
-			}
-		}
-	}
-	{
-		m := make(chan *Impl)
-		var a A
-		a, _ = <-m
-		if v, ok := a.(M); ok {
-			v.M() // ERROR "devirtualizing" "inlining call"
-		}
-	}
-	{
-		m := make(chan *Impl)
-		var a A
-		var ok bool
-		if a, ok = <-m; ok {
 			if v, ok := a.(M); ok {
 				v.M() // ERROR "devirtualizing" "inlining call"
 			}
@@ -591,6 +538,110 @@ func devirtWrapperType() {
 		// This is an OCONVNOP, so we have to be carefull, not to devirtualize it to Impl.A.
 		var a A = (implWrapper)(i) // ERROR "does not escape"
 		a.A()                      // ERROR "devirtualizing a.A to implWrapper" "inlining call"
+	}
+}
+
+func chanDevirt() {
+	{
+		m := make(chan *Impl)
+		var v A = <-m
+		v.A() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		m := make(chan *Impl)
+		var v A
+		v = <-m
+		v.A() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		m := make(chan *Impl)
+		var v A
+		v, _ = <-m
+		v.A() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		m := make(chan *Impl)
+		var v A
+		var ok bool
+		if v, ok = <-m; ok {
+			v.A() // ERROR "devirtualizing" "inlining call"
+		}
+		v.A() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		m := make(chan *Impl)
+		var v A
+		var ok bool
+		if v, ok = <-m; ok {
+			v.A() // ERROR "devirtualizing" "inlining call"
+		}
+		select {
+		case <-m:
+			v.A() // ERROR "devirtualizing" "inlining call"
+		case v = <-m:
+			v.A() // ERROR "devirtualizing" "inlining call"
+		case v, ok = <-m:
+			v.A() // ERROR "devirtualizing" "inlining call"
+		}
+	}
+}
+
+func chanNoDevirt() {
+	{
+		m := make(chan *Impl)
+		var v A = <-m
+		v = &Impl2{} // ERROR "escapes"
+		v.A()
+	}
+	{
+		m := make(chan *Impl)
+		var v A
+		v = <-m
+		v = &Impl2{} // ERROR "escapes"
+		v.A()
+	}
+	{
+		m := make(chan *Impl)
+		var v A
+		v, _ = <-m
+		v = &Impl2{} // ERROR "escapes"
+		v.A()
+	}
+	{
+		m := make(chan *Impl)
+		var v A
+		var ok bool
+		if v, ok = <-m; ok {
+			v.A()
+		}
+		v = &Impl2{} // ERROR "escapes"
+		v.A()
+	}
+	{
+		m := make(chan *Impl)
+		var v A = &Impl2{} // ERROR "escapes"
+		var ok bool
+		if v, ok = <-m; ok {
+			v.A()
+		}
+	}
+	{
+		m := make(chan *Impl)
+		var v A = &Impl2{} // ERROR "escapes"
+		select {
+		case v = <-m:
+			v.A()
+		}
+		v.A()
+	}
+	{
+		m := make(chan *Impl)
+		var v A = &Impl2{} // ERROR "escapes"
+		select {
+		case v, _ = <-m:
+			v.A()
+		}
+		v.A()
 	}
 }
 
