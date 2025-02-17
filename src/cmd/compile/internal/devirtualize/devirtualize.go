@@ -319,6 +319,10 @@ func concreteType2(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
 			for _, p := range n.Lhs {
 				if isName(p) {
 					// TODO: the type can be a map? Same with recv (a chan?)
+					// TODO: we do not reach here, fix
+					if base.Debug.Testing != 0 {
+						base.Warn("%v %v", n.Rhs[0].Type(), n.Rhs[0].Type().Kind())
+					}
 					return handleType(n.Rhs[0].Type())
 				}
 			}
