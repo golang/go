@@ -342,6 +342,9 @@ type inlineWrapperInterface interface {
 type inlineWrapper struct {
 }
 
+// TODO: test fails if this method inlines.
+//
+//go:noinline
 func (h inlineWrapper) dump(pcs []uintptr) {
 	dumpCallers(pcs)
 }

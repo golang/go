@@ -18,6 +18,8 @@ import (
 	"cmd/compile/internal/types"
 )
 
+const go125ImprovedConcreteTypeAnalysis = true
+
 // StaticCall devirtualizes the given call if possible when the concrete callee
 // is available statically.
 func StaticCall(call *ir.CallExpr) {
@@ -40,15 +42,31 @@ func StaticCall(call *ir.CallExpr) {
 	}
 
 	sel := call.Fun.(*ir.SelectorExpr)
-	r := ir.StaticValue(sel.X)
-	if r.Op() != ir.OCONVIFACE {
-		return
-	}
-	recv := r.(*ir.ConvExpr)
+	var typ *types.Type
+	if go125ImprovedConcreteTypeAnalysis {
+		typ = concreteType(sel.X)
+		if typ == nil {
+			return
+		}
 
-	typ := recv.X.Type()
-	if typ.IsInterface() {
-		return
+		// Don't try to devirtualize calls that we statically know that would have failed at runtime.
+		// This can happen in such case: any(0).(interface {A()}).A(), this typechecks without
+		// any errors, but will cause a runtime panic. We statically know that int(0) does not
+		// implement that interface, thus we skip the devirtualization, as it is not possible
+		// to make a type assertion from interface{A()} to int (int does not implement interface{A()}).
+		if !typecheck.Implements(typ, sel.X.Type()) {
+			return
+		}
+	} else {
+		r := ir.StaticValue(sel.X)
+		if r.Op() != ir.OCONVIFACE {
+			return
+		}
+		recv := r.(*ir.ConvExpr)
+		typ = recv.X.Type()
+		if typ.IsInterface() {
+			return
+		}
 	}
 
 	// If typ is a shape type, then it was a type argument originally
@@ -137,4 +155,191 @@ func StaticCall(call *ir.CallExpr) {
 
 	// Desugar OCALLMETH, if we created one (#57309).
 	typecheck.FixMethodCall(call)
+}
+
+func concreteType(n ir.Node) *types.Type {
+	return concreteType1(n, make(map[*ir.Name]*types.Type))
+}
+
+func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
+	for {
+		switch n1 := n.(type) {
+		case *ir.ConvExpr:
+			if n1.Op() == ir.OCONVNOP && types.Identical(n1.Type(), n1.X.Type()) {
+				n = n1.X
+				continue
+			}
+			if n1.Op() == ir.OCONVIFACE {
+				n = n1.X
+				continue
+			}
+		case *ir.InlinedCallExpr:
+			if n1.Op() == ir.OINLCALL {
+				n = n1.SingleResult()
+				continue
+			}
+		case *ir.ParenExpr:
+			n = n1.X
+			continue
+		case *ir.TypeAssertExpr:
+			n = n1.X
+			continue
+		case *ir.CallExpr:
+			if n1.Fun != nil {
+				results := n1.Fun.Type().Results()
+				if len(results) == 1 {
+					retTyp := results[0].Type
+					if !retTyp.IsInterface() {
+						return retTyp
+					}
+				}
+			}
+			return nil
+		}
+
+		if !n.Type().IsInterface() {
+			return n.Type()
+		}
+
+		return concreteType2(n, analyzed)
+	}
+}
+
+func concreteType2(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
+	if n.Op() != ir.ONAME {
+		return nil
+	}
+
+	name := n.(*ir.Name).Canonical()
+	if name.Class != ir.PAUTO {
+		return nil
+	}
+
+	if name.Op() != ir.ONAME {
+		base.Fatalf("reassigned %v", name)
+	}
+
+	if name.Addrtaken() {
+		return nil // conservatively assume it's reassigned with a different type indirectly
+	}
+
+	if typ, ok := analyzed[name]; ok {
+		return typ
+	}
+
+	// For now set the Type to nil, as we don't know it yet, we will update
+	// it at the end of this function, if we find a concrete type.
+	// This is not ideal, as in-process concreteType1 calls (that this function also
+	// executes) will get a nil (from the map lookup above), where we could determine the type.
+	analyzed[name] = nil
+
+	// isName reports whether n is a reference to name.
+	isName := func(x ir.Node) bool {
+		if x == nil {
+			return false
+		}
+		n, ok := ir.OuterValue(x).(*ir.Name)
+		return ok && n.Canonical() == name
+	}
+
+	var typ *types.Type
+
+	handleType := func(t *types.Type) bool {
+		if t == nil || t.IsInterface() {
+			typ = nil
+			return true
+		}
+
+		if typ == nil || types.Identical(typ, t) {
+			typ = t
+			return false
+		}
+
+		// Different type.
+		typ = nil
+		return true
+	}
+
+	handleNode := func(n ir.Node) bool {
+		if n == nil {
+			return false
+		}
+		return handleType(concreteType1(n, analyzed))
+	}
+
+	var do func(n ir.Node) bool
+	do = func(n ir.Node) bool {
+		switch n.Op() {
+		case ir.OAS:
+			n := n.(*ir.AssignStmt)
+			if isName(n.X) {
+				return handleNode(n.Y)
+			}
+		case ir.OAS2:
+			n := n.(*ir.AssignListStmt)
+			for i, p := range n.Lhs {
+				if isName(p) {
+					return handleNode(n.Rhs[i])
+				}
+			}
+		case ir.OAS2DOTTYPE:
+			n := n.(*ir.AssignListStmt)
+			for _, p := range n.Lhs {
+				if isName(p) {
+					return handleNode(n.Rhs[0])
+				}
+			}
+		case ir.OAS2FUNC:
+			n := n.(*ir.AssignListStmt)
+			for i, p := range n.Lhs {
+				if isName(p) {
+					rhs := n.Rhs[0]
+					for {
+						if r, ok := rhs.(*ir.ParenExpr); ok {
+							rhs = r.X
+							continue
+						}
+						break
+					}
+					if call, ok := rhs.(*ir.CallExpr); ok {
+						retTyp := call.Fun.Type().Results()[i].Type
+						if !retTyp.IsInterface() {
+							return handleType(retTyp)
+						}
+					}
+					typ = nil
+					return true
+				}
+			}
+		case ir.OAS2MAPR, ir.OAS2RECV, ir.OSELRECV2:
+			n := n.(*ir.AssignListStmt)
+			for _, p := range n.Lhs {
+				if isName(p) {
+					return handleType(n.Rhs[0].Type())
+				}
+			}
+		case ir.OADDR:
+			n := n.(*ir.AddrExpr)
+			if isName(n.X) {
+				base.FatalfAt(n.Pos(), "%v not marked addrtaken", name)
+			}
+		case ir.ORANGE:
+			n := n.(*ir.RangeStmt)
+			if isName(n.Key) {
+				return handleNode(n.Key)
+			}
+			if isName(n.Value) {
+				return handleNode(n.Value)
+			}
+		case ir.OCLOSURE:
+			n := n.(*ir.ClosureExpr)
+			if ir.Any(n.Func, do) {
+				return true
+			}
+		}
+		return false
+	}
+	ir.Any(name.Curfn, do)
+	analyzed[name] = typ
+	return typ
 }
