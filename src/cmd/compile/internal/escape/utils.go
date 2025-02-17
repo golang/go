@@ -222,19 +222,14 @@ func HeapAllocReason(n ir.Node) string {
 					n.Cap = s
 				}
 			}
-		}
-		if n.Len != nil {
+		} else if n.Len != nil {
 			if s := ir.StaticValue(n.Len); s.Op() == ir.OLITERAL {
 				len, ok := s.(*ir.BasicLit)
 				if !ok || len.Val().Kind() != constant.Int {
 					base.Fatalf("unexpected BasicLit Kind")
 				}
-
 				if constant.Compare(len.Val(), token.GEQ, constant.MakeInt64(0)) {
-					cap, ok := n.Cap.(*ir.BasicLit)
-					if n.Cap == nil || (ok && constant.Compare(cap.Val(), token.GEQ, len.Val())) {
-						n.Len = s
-					}
+					n.Len = s
 				}
 			}
 		}

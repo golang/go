@@ -14,44 +14,44 @@ var globalVarSize = 128
 func testSlices() {
 	{
 		size := 128
-		_ = make([]byte, size) // ERROR "does not escape"
+		_ = make([]byte, size) // ERROR "make\(\[\]byte, 128\) does not escape"
 	}
 
 	{
 		s := 128
 		size := s
-		_ = make([]byte, size) // ERROR "does not escape"
+		_ = make([]byte, size) // ERROR "make\(\[\]byte, 128\) does not escape"
 	}
 
 	{
 		size := 128
-		_ = make([]byte, 0, size) // ERROR "does not escape"
+		_ = make([]byte, size) // ERROR "make\(\[\]byte, 128\) does not escape"
 	}
 
 	{
 		s := 128
 		size := s
-		_ = make([]byte, 0, size) // ERROR "does not escape"
+		_ = make([]byte, size) // ERROR "make\(\[\]byte, 128\) does not escape"
 	}
 
 	{
 		s1 := 128
 		s2 := 256
-		_ = make([]byte, s2, s1) // ERROR "does not escape"
+		_ = make([]byte, s2, s1) // ERROR "make\(\[\]byte, s2, 128\) does not escape"
 	}
 
-	allocLen(256) // ERROR "does not escape" "inlining call"
-	allocCap(256) // ERROR "does not escape" "inlining call"
-	_ = newT(256) // ERROR "does not escape" "inlining call"
+	allocLen(256) // ERROR "make\(\[\]byte, 256\) does not escape" "inlining call"
+	allocCap(256) // ERROR "make\(\[\]byte, 0, 256\) does not escape" "inlining call"
+	_ = newT(256) // ERROR "make\(\[\]byte, 256\) does not escape" "inlining call"
 
 	{
 		size := globalConstSize
-		_ = make([]byte, size) // ERROR "does not escape"
+		_ = make([]byte, size) // ERROR "make\(\[\]byte, 128\) does not escape"
 	}
 
-	allocLen(globalConstSize) // ERROR "does not escape" "inlining call"
-	allocCap(globalConstSize) // ERROR "does not escape" "inlining call"
-	_ = newT(globalConstSize) // ERROR "does not escape" "inlining call"
+	allocLen(globalConstSize) // ERROR "make\(\[\]byte, 128\) does not escape" "inlining call"
+	allocCap(globalConstSize) // ERROR "make\(\[\]byte, 0, 128\) does not escape" "inlining call"
+	_ = newT(globalConstSize) // ERROR "make\(\[\]byte, 128\) does not escape" "inlining call"
 
 	{
 		c := 128
@@ -65,7 +65,8 @@ func testSlices() {
 	}
 
 	{
-		_ = make([]byte, globalVarSize) // ERROR "escapes to heap"
+		_ = make([]byte, globalVarSize)                  // ERROR "make\(\[\]byte, globalVarSize\) escapes to heap"
+		_ = make([]byte, globalVarSize, globalConstSize) // ERROR "make\(\[\]byte, globalVarSize, 128\) does not escape"
 	}
 }
 
