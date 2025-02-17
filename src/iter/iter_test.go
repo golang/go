@@ -26,7 +26,10 @@ func Example() {
 	}
 
 	// iterate over lines from test.txt
-	//   - the LineReader iterator is allocated on the stack
+	//	- first argument shows iterator allocated on the stack
+	//	- second argument shows providing data to iterator
+	//	- third argument shows receiving error from iterator
+	//	- —
 	//   - stack allocation is faster than heap allocation
 	//   - LineReader is on stack even if NewLineReader is in another module
 	//   - LineReader pointer receiver is more performant
@@ -56,7 +59,7 @@ type LineReader struct {
 func NewLineReader(fieldp *LineReader, filename string, errp *error) (lineReader *LineReader) {
 	if fieldp != nil {
 		lineReader = fieldp
-		osFile = nil
+		lineReader.osFile = nil
 	} else {
 		lineReader = &LineReader{}
 	}
@@ -83,7 +86,8 @@ func (r *LineReader) Lines(yield func(line string) (keepGoing bool)) {
 			return // iteration canceled by break or such
 		}
 	}
-	// reached end of file
+	err = scanner.Err()
+	// reached end of file or error
 }
 
 // LineReader.Lines is iter.Seq string
