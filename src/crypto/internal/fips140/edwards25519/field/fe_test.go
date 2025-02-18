@@ -489,30 +489,6 @@ func TestSqrtRatio(t *testing.T) {
 	}
 }
 
-func TestCarryPropagate(t *testing.T) {
-	asmLikeGeneric := func(a [5]uint64) bool {
-		t1 := &Element{a[0], a[1], a[2], a[3], a[4]}
-		t2 := &Element{a[0], a[1], a[2], a[3], a[4]}
-
-		t1.carryPropagate()
-		t2.carryPropagateGeneric()
-
-		if *t1 != *t2 {
-			t.Logf("got: %#v,\nexpected: %#v", t1, t2)
-		}
-
-		return *t1 == *t2 && isInBounds(t2)
-	}
-
-	if err := quick.Check(asmLikeGeneric, quickCheckConfig(1024)); err != nil {
-		t.Error(err)
-	}
-
-	if !asmLikeGeneric([5]uint64{0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff}) {
-		t.Errorf("failed for {0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff}")
-	}
-}
-
 func TestFeSquare(t *testing.T) {
 	asmLikeGeneric := func(a Element) bool {
 		t1 := a

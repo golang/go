@@ -91,11 +91,7 @@ func (v *Element) Add(a, b *Element) *Element {
 	v.l2 = a.l2 + b.l2
 	v.l3 = a.l3 + b.l3
 	v.l4 = a.l4 + b.l4
-	// Using the generic implementation here is actually faster than the
-	// assembly. Probably because the body of this function is so simple that
-	// the compiler can figure out better optimizations by inlining the carry
-	// propagation.
-	return v.carryPropagateGeneric()
+	return v.carryPropagate()
 }
 
 // Subtract sets v = a - b, and returns v.

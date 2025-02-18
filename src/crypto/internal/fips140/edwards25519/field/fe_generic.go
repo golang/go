@@ -166,16 +166,15 @@ func feMulGeneric(v, a, b *Element) {
 	c3 := shiftRightBy51(r3)
 	c4 := shiftRightBy51(r4)
 
-	rr0 := r0.lo&maskLow51Bits + mul19(c4)
-	rr1 := r1.lo&maskLow51Bits + c0
-	rr2 := r2.lo&maskLow51Bits + c1
-	rr3 := r3.lo&maskLow51Bits + c2
-	rr4 := r4.lo&maskLow51Bits + c3
+	v.l0 = r0.lo&maskLow51Bits + mul19(c4)
+	v.l1 = r1.lo&maskLow51Bits + c0
+	v.l2 = r2.lo&maskLow51Bits + c1
+	v.l3 = r3.lo&maskLow51Bits + c2
+	v.l4 = r4.lo&maskLow51Bits + c3
 
 	// Now all coefficients fit into 64-bit registers but are still too large to
 	// be passed around as an Element. We therefore do one last carry chain,
 	// where the carries will be small enough to fit in the wiggle room above 2⁵¹.
-	*v = Element{rr0, rr1, rr2, rr3, rr4}
 	v.carryPropagate()
 }
 
@@ -239,32 +238,26 @@ func feSquareGeneric(v, a *Element) {
 	c3 := shiftRightBy51(r3)
 	c4 := shiftRightBy51(r4)
 
-	rr0 := r0.lo&maskLow51Bits + mul19(c4)
-	rr1 := r1.lo&maskLow51Bits + c0
-	rr2 := r2.lo&maskLow51Bits + c1
-	rr3 := r3.lo&maskLow51Bits + c2
-	rr4 := r4.lo&maskLow51Bits + c3
+	v.l0 = r0.lo&maskLow51Bits + mul19(c4)
+	v.l1 = r1.lo&maskLow51Bits + c0
+	v.l2 = r2.lo&maskLow51Bits + c1
+	v.l3 = r3.lo&maskLow51Bits + c2
+	v.l4 = r4.lo&maskLow51Bits + c3
 
-	*v = Element{rr0, rr1, rr2, rr3, rr4}
 	v.carryPropagate()
 }
 
-// carryPropagateGeneric brings the limbs below 52 bits by applying the reduction
+// carryPropagate brings the limbs below 52 bits by applying the reduction
 // identity (a * 2²⁵⁵ + b = a * 19 + b) to the l4 carry.
-func (v *Element) carryPropagateGeneric() *Element {
-	c0 := v.l0 >> 51
-	c1 := v.l1 >> 51
-	c2 := v.l2 >> 51
-	c3 := v.l3 >> 51
-	c4 := v.l4 >> 51
-
-	// c4 is at most 64 - 51 = 13 bits, so c4*19 is at most 18 bits, and
+func (v *Element) carryPropagate() *Element {
+	// (l4>>51) is at most 64 - 51 = 13 bits, so (l4>>51)*19 is at most 18 bits, and
 	// the final l0 will be at most 52 bits. Similarly for the rest.
-	v.l0 = v.l0&maskLow51Bits + mul19(c4)
-	v.l1 = v.l1&maskLow51Bits + c0
-	v.l2 = v.l2&maskLow51Bits + c1
-	v.l3 = v.l3&maskLow51Bits + c2
-	v.l4 = v.l4&maskLow51Bits + c3
+	l0 := v.l0
+	v.l0 = v.l0&maskLow51Bits + mul19(v.l4>>51)
+	v.l4 = v.l4&maskLow51Bits + v.l3>>51
+	v.l3 = v.l3&maskLow51Bits + v.l2>>51
+	v.l2 = v.l2&maskLow51Bits + v.l1>>51
+	v.l1 = v.l1&maskLow51Bits + l0>>51
 
 	return v
 }
