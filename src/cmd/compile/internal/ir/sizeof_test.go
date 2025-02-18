@@ -22,6 +22,7 @@ func TestSizeof(t *testing.T) {
 	}{
 		{Func{}, 184, 312},
 		{Name{}, 96, 160},
+		{miniExpr{}, 32, 48},
 	}
 
 	for _, tt := range tests {
