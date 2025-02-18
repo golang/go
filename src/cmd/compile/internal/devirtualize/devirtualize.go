@@ -310,7 +310,7 @@ func analyzeAssignments(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Typ
 			return false
 		}
 
-		// Different type.
+		// different type
 		typ = nil
 		return true
 	}
