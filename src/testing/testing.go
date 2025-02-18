@@ -1009,6 +1009,10 @@ func (c *common) log(s string) {
 	if l := len(s); l > 0 && (string(s[l-1]) != "\n") {
 		s += "\n"
 	}
+	// Second and subsequent lines are indented 4 spaces. This is in addition to
+	// the indentation provided by outputWriter.
+	s = strings.Replace(s, "\n", "\n    ", -1)
+
 	cs := c.callSite(3) // callSite + log + public function
 	c.newOutputWriter(cs).Write([]byte(s))
 }
@@ -1053,12 +1057,12 @@ type outputWriter struct {
 // the call site if provided. It inserts indentation spaces for formatting. It
 // stores input for later if it is not terminated by a newline.
 func (o *outputWriter) Write(p []byte) (int, error) {
-	o.b = append(o.b, p...)
+	s := string(append(o.b, p...))
 
 	o.c.mu.Lock()
 	defer o.c.mu.Unlock()
 
-	lines := strings.Split(string(o.b), "\n")
+	lines := strings.Split(s, "\n")
 
 	for i, line := range lines {
 		l := len(lines)
@@ -1072,14 +1076,13 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 		}
 
 		buf := new(strings.Builder)
-		// The first line is indented 4 spaces. Subsequent lines are
-		// indented 8 spaces unless a line is the final one and
+		// All lines are indented 4 spaces unless a line is the final one and
 		// is empty.
 		if i == 0 {
 			buf.WriteString("    ")
 			buf.WriteString(o.cs)
 		} else if i < l-1 {
-			buf.WriteString("\n        ")
+			buf.WriteString("\n    ")
 		} else {
 			// The final line must be empty otherwise the loop would have
 			// terminated earlier.
