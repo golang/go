@@ -167,15 +167,16 @@ and test commands:
 		-modfile flag by trimming the ".mod" extension and appending ".sum".
 	-overlay file
 		read a JSON config file that provides an overlay for build operations.
-		The file is a JSON struct with a single field, named 'Replace', that
+		The file is a JSON object with a single field, named 'Replace', that
 		maps each disk file path (a string) to its backing file path, so that
 		a build will run as if the disk file path exists with the contents
 		given by the backing file paths, or as if the disk file path does not
 		exist if its backing file path is empty. Support for the -overlay flag
 		has some limitations: importantly, cgo files included from outside the
 		include path must be in the same directory as the Go package they are
-		included from, and overlays will not appear when binaries and tests are
-		run through go run and go test respectively.
+		included from, overlays will not appear when binaries and tests are
+		run through go run and go test respectively, and files beneath
+		GOMODCACHE may not be replaced.
 	-pgo file
 		specify the file path of a profile for profile-guided optimization (PGO).
 		When the special name "auto" is specified, for each main package in the
