@@ -261,7 +261,7 @@ func concreteType2(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
 	analyzed[name] = nil
 
 	if concreteTypeDebug {
-		base.WarnfAt(name.Pos(), "analyzing assignements to %v", name)
+		base.WarnfAt(name.Pos(), "analyzing assignments to %v", name)
 	}
 
 	// isName reports whether n is a reference to name.
@@ -303,7 +303,7 @@ func concreteType2(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
 			return false
 		}
 		if concreteTypeDebug {
-			base.WarnfAt(n.Pos(), "%v found assignement %v = %v, analyzing the RHS node", name, name, n)
+			base.WarnfAt(n.Pos(), "%v found assignment %v = %v, analyzing the RHS node", name, name, n)
 		}
 		return handleType(n.Pos(), concreteType1(n, analyzed))
 	}
