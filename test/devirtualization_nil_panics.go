@@ -48,14 +48,13 @@ func main() {
 	// variants have the panic at the same line.
 	shouldNilPanic(55, func() {
 		var v A
-		f := func() {
+		defer func() {
 			v = &Impl{}
-		}
+		}()
 		v. // A() is on a sepearate line
 			A()
-		f()
 	})
-	shouldNilPanic(65, func() {
+	shouldNilPanic(64, func() {
 		var v A
 		defer func() {
 			v = &Impl{}
