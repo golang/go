@@ -204,6 +204,7 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type) (typ *types.Typ
 
 		switch n1 := n.(type) {
 		case *ir.ConvExpr:
+			// OCONVNOP might change the type, thus check whether they are identical.
 			if n1.Op() == ir.OCONVNOP && types.Identical(n1.Type(), n1.X.Type()) {
 				n = n1.X
 				continue
