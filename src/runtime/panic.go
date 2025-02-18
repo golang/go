@@ -391,10 +391,16 @@ func deferrangefunc() any {
 		throw("defer on system stack")
 	}
 
+	fn := findfunc(getcallerpc())
+	if fn.deferreturn == 0 {
+		throw("no deferreturn")
+	}
+
 	d := newdefer()
 	d.link = gp._defer
 	gp._defer = d
-	d.pc = getcallerpc()
+
+	d.pc = fn.entry() + uintptr(fn.deferreturn)
 	// We must not be preempted between calling getcallersp and
 	// storing it to d.sp because getcallersp's result is a
 	// uintptr stack pointer.
@@ -1215,6 +1221,8 @@ func recovery(gp *g) {
 		// only gets us to the caller's fp.
 		gp.sched.bp = sp - goarch.PtrSize
 	}
+	// The value in ret is delivered IN A REGISTER, even if there is a
+	// stack ABI.
 	gp.sched.ret = 1
 	gogo(&gp.sched)
 }

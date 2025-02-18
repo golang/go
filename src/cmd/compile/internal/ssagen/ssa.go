@@ -5390,6 +5390,9 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 					callABI = s.f.ABI1
 				}
 			}
+			if fn := n.Fun.Sym().Name; n.Fun.Sym().Pkg == ir.Pkgs.Runtime && fn == "deferrangefunc" {
+				s.f.HasDeferRangeFunc = true
+			}
 			break
 		}
 		closure = s.expr(fn)
@@ -7513,10 +7516,13 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// nop (which will never execute) after the call.
 		Arch.Ginsnop(s.pp)
 	}
-	if openDeferInfo != nil {
+	if openDeferInfo != nil || f.HasDeferRangeFunc {
 		// When doing open-coded defers, generate a disconnected call to
 		// deferreturn and a return. This will be used to during panic
 		// recovery to unwind the stack and return back to the runtime.
+		//
+		// deferrangefunc needs to be sure that at least one of these exists;
+		// if all returns are dead-code eliminated, there might not be.
 		s.pp.NextLive = s.livenessMap.DeferReturn
 		p := s.pp.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
