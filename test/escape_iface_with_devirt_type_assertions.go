@@ -1,4 +1,4 @@
-// errorcheck -0 -m -d=testing=2
+// errorcheck -0 -m -d=testing=1
 
 // Copyright 2025 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -220,11 +220,55 @@ func differentTypeAssign() {
 }
 
 func assignWithTypeAssert() {
-	var i1 A = &Impl{}  // ERROR "does not escape"
-	var i2 A = &Impl2{} // ERROR "does not escape"
-	i1 = i2.(*Impl)     // this will panic
-	i1.A()              // ERROR "devirtualizing i1\.A to \*Impl" "inlining call"
-	i2.A()              // ERROR "devirtualizing i2\.A to \*Impl2" "inlining call"
+	{
+		var i1 A = &Impl{}  // ERROR "does not escape"
+		var i2 A = &Impl2{} // ERROR "does not escape"
+		i1 = i2.(*Impl)     // this will panic
+		i1.A()              // ERROR "devirtualizing i1\.A to \*Impl" "inlining call"
+		i2.A()              // ERROR "devirtualizing i2\.A to \*Impl2" "inlining call"
+	}
+	{
+		var i1 A = &Impl{}  // ERROR "does not escape"
+		var i2 A = &Impl2{} // ERROR "does not escape"
+		i1, _ = i2.(*Impl)  // i1 is going to be nil
+		i1.A()              // ERROR "devirtualizing i1\.A to \*Impl" "inlining call"
+		i2.A()              // ERROR "devirtualizing i2\.A to \*Impl2" "inlining call"
+	}
+}
+
+func nilIface() {
+	// TODO: these cases can be devirtualized.
+	{
+		var v A = &Impl{} // ERROR "escapes"
+		v = nil
+		v.A()
+	}
+	{
+		var v A = &Impl{} // ERROR "escapes"
+		v.A()
+		v = nil
+	}
+	{
+		var nilIface A
+		var v A = &Impl{} // ERROR "escapes"
+		v.A()
+		v = nilIface
+	}
+	{
+		var nilIface A
+		var v A = &Impl{} // ERROR "escapes"
+		v = nilIface
+		v.A()
+	}
+	{
+		var v A
+		v.A()       // ERROR "devirtualizing v\.A to \*Impl" "inlining call"
+		v = &Impl{} // ERROR "does not escape"
+	}
+	{
+		var v A
+		v.A()
+	}
 }
 
 func longDevirtTest() {
@@ -448,10 +492,31 @@ func mapsNoDevirt() {
 	}
 	{
 		m := make(map[int]*Impl) // ERROR "does not escape"
-		var v A
+		var v A = &Impl{}        // ERROR "escapes"
 		v, _ = m[0]
-		v.A()
 		v = &Impl2{} // ERROR "escapes"
+		v.A()
+	}
+
+	{
+		m := make(map[int]A) // ERROR "does not escape"
+		var v A = &Impl{}    // ERROR "escapes"
+		v = m[0]
+		v.A()
+	}
+	{
+		m := make(map[int]A) // ERROR "does not escape"
+		var v A = &Impl{}    // ERROR "escapes"
+		var ok bool
+		if v, ok = m[0]; ok {
+			v.A()
+		}
+		v.A()
+	}
+	{
+		m := make(map[int]A) // ERROR "does not escape"
+		var v A = &Impl{}    // ERROR "escapes"
+		v, _ = m[0]
 		v.A()
 	}
 }
@@ -552,6 +617,45 @@ func chanNoDevirt() {
 	{
 		m := make(chan *Impl)
 		var v A = &Impl2{} // ERROR "escapes"
+		select {
+		case v, _ = <-m:
+			v.A()
+		}
+		v.A()
+	}
+
+	{
+		m := make(chan A)
+		var v A = &Impl{} // ERROR "escapes"
+		v = <-m
+		v.A()
+	}
+	{
+		m := make(chan A)
+		var v A = &Impl{} // ERROR "escapes"
+		v, _ = <-m
+		v.A()
+	}
+	{
+		m := make(chan A)
+		var v A = &Impl{} // ERROR "escapes"
+		var ok bool
+		if v, ok = <-m; ok {
+			v.A()
+		}
+	}
+	{
+		m := make(chan A)
+		var v A = &Impl{} // ERROR "escapes"
+		select {
+		case v = <-m:
+			v.A()
+		}
+		v.A()
+	}
+	{
+		m := make(chan A)
+		var v A = &Impl{} // ERROR "escapes"
 		select {
 		case v, _ = <-m:
 			v.A()
@@ -703,6 +807,59 @@ func rangeNoDevirt() {
 		var v A
 		m := [1]*Impl{&Impl{}} // ERROR "escapes"
 		v = &Impl2{}           // ERROR "escapes"
+		for _, v = range &m {
+		}
+		v.A()
+	}
+
+	{
+		var v A = &Impl{}         // ERROR "escapes"
+		m := make(map[A]struct{}) // ERROR "does not escape"
+		for v = range m {
+		}
+		v.A()
+	}
+	{
+		var v A = &Impl{}  // ERROR "escapes"
+		m := make(map[A]A) // ERROR "does not escape"
+		for v = range m {
+		}
+		v.A()
+	}
+	{
+		var v A = &Impl{}  // ERROR "escapes"
+		m := make(map[A]A) // ERROR "does not escape"
+		for _, v = range m {
+		}
+		v.A()
+	}
+	{
+		var v A = &Impl{} // ERROR "escapes"
+		m := make(chan A)
+		for v = range m {
+		}
+		v.A()
+	}
+	{
+		var v A = &Impl{} // ERROR "escapes"
+		m := []A{}        // ERROR "does not escape"
+		for _, v = range m {
+		}
+		v.A()
+	}
+
+	{
+		var v A
+		m := [1]A{&Impl{}} // ERROR "escapes"
+		v = &Impl{}        // ERROR "escapes"
+		for _, v = range m {
+		}
+		v.A()
+	}
+	{
+		var v A
+		m := [1]A{&Impl{}} // ERROR "escapes"
+		v = &Impl{}        // ERROR "escapes"
 		for _, v = range &m {
 		}
 		v.A()

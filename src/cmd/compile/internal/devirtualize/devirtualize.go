@@ -16,6 +16,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 )
 
 const go125ImprovedConcreteTypeAnalysis = true
@@ -157,12 +158,33 @@ func StaticCall(call *ir.CallExpr) {
 	typecheck.FixMethodCall(call)
 }
 
-func concreteType(n ir.Node) *types.Type {
+const concreteTypeDebug = false
+
+// concreteType determines the concrete type of n, following OCONVIFACEs and type asserts.
+// Returns nil when the concrete type could not be determined, or when there are multiple
+// (different) types assigned to an interface.
+func concreteType(n ir.Node) (typ *types.Type) {
 	return concreteType1(n, make(map[*ir.Name]*types.Type))
 }
 
-func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
+func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type) (typ *types.Type) {
+	nn := n // copy for debug messages
+
+	if concreteTypeDebug {
+		defer func() {
+			if typ == nil {
+				base.WarnfAt(n.Pos(), "%v concrete type not found", nn)
+			} else {
+				base.WarnfAt(n.Pos(), "%v found concrete type %v", nn, typ)
+			}
+		}()
+	}
+
 	for {
+		if concreteTypeDebug {
+			base.WarnfAt(n.Pos(), "%v analyzing concrete type of %v", nn, n)
+		}
+
 		switch n1 := n.(type) {
 		case *ir.ConvExpr:
 			if n1.Op() == ir.OCONVNOP && types.Identical(n1.Type(), n1.X.Type()) {
@@ -184,7 +206,7 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
 		case *ir.TypeAssertExpr:
 			if !n.Type().IsInterface() {
 				// Asserting to a static type, take use of that as this will
-				// cause a runtime panic, if not satisfied at runtime.
+				// cause a runtime panic, if not satisfied.
 				return n.Type()
 			}
 			n = n1.X
@@ -238,6 +260,10 @@ func concreteType2(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
 	// executes) will get a nil (from the map lookup above), where we could determine the type.
 	analyzed[name] = nil
 
+	if concreteTypeDebug {
+		base.WarnfAt(name.Pos(), "analyzing assignements to %v", name)
+	}
+
 	// isName reports whether n is a reference to name.
 	isName := func(x ir.Node) bool {
 		if x == nil {
@@ -249,10 +275,17 @@ func concreteType2(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
 
 	var typ *types.Type
 
-	handleType := func(t *types.Type) bool {
+	handleType := func(pos src.XPos, t *types.Type) bool {
 		if t == nil || t.IsInterface() {
+			if concreteTypeDebug {
+				base.WarnfAt(pos, "%v assigned with a non concrete type", name)
+			}
 			typ = nil
 			return true
+		}
+
+		if concreteTypeDebug {
+			base.WarnfAt(pos, "%v assigned with a concrete type %v", name, t)
 		}
 
 		if typ == nil || types.Identical(typ, t) {
@@ -269,7 +302,10 @@ func concreteType2(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
 		if n == nil {
 			return false
 		}
-		return handleType(concreteType1(n, analyzed))
+		if concreteTypeDebug {
+			base.WarnfAt(n.Pos(), "%v found assignement %v = %v, analyzing the RHS node", name, name, n)
+		}
+		return handleType(n.Pos(), concreteType1(n, analyzed))
 	}
 
 	var do func(n ir.Node) bool
@@ -309,7 +345,7 @@ func concreteType2(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
 					if call, ok := rhs.(*ir.CallExpr); ok {
 						retTyp := call.Fun.Type().Results()[i].Type
 						if !retTyp.IsInterface() {
-							return handleType(retTyp)
+							return handleType(n.Pos(), retTyp)
 						}
 					}
 					typ = nil
@@ -320,12 +356,7 @@ func concreteType2(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
 			n := n.(*ir.AssignListStmt)
 			for _, p := range n.Lhs {
 				if isName(p) {
-					// TODO: the type can be a map? Same with recv (a chan?)
-					// TODO: we do not reach here, fix
-					if base.Debug.Testing != 0 {
-						base.Warn("%v %v", n.Rhs[0].Type(), n.Rhs[0].Type().Kind())
-					}
-					return handleType(n.Rhs[0].Type())
+					return handleType(n.Pos(), n.Rhs[0].Type())
 				}
 			}
 		case ir.OADDR:
@@ -344,27 +375,27 @@ func concreteType2(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
 
 			if xTyp.IsArray() || xTyp.IsSlice() {
 				if isName(n.Key) {
-					// This is an index, int has no methods, so nothing
-					// to devirtualize.
+					// This is an index, int has no methods, so nothing to devirtualize.
 					typ = nil
 					return true
 				}
 				if isName(n.Value) {
-					return handleType(xTyp.Elem())
+					return handleType(n.Pos(), xTyp.Elem())
 				}
 			} else if xTyp.IsChan() {
 				if isName(n.Key) {
-					return handleType(xTyp.Elem())
+					return handleType(n.Pos(), xTyp.Elem())
 				}
 				base.Assertf(n.Value == nil, "n.Value != nil in range over chan")
 			} else if xTyp.IsMap() {
 				if isName(n.Key) {
-					return handleType(xTyp.Key())
+					return handleType(n.Pos(), xTyp.Key())
 				}
 				if isName(n.Value) {
-					return handleType(xTyp.Elem())
+					return handleType(n.Pos(), xTyp.Elem())
 				}
 			} else {
+				// unknown type
 				typ = nil
 				return true
 			}
@@ -376,6 +407,7 @@ func concreteType2(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
 		}
 		return false
 	}
+
 	ir.Any(name.Curfn, do)
 	analyzed[name] = typ
 	return typ
