@@ -129,11 +129,12 @@ func StaticCall(call *ir.CallExpr) {
 		// 	v = &Impl{}
 		//
 		// Here in the devirtualizer, we determine the concrete type of v as beeing an *Impl, but
-		// in can still be a nil, but we have not detected that. It is not a huge problem as
-		// the v.(*Impl).A() call that we make here would also have failed, but with a different
-		// panic "A is nil, not *Impl", where previously we would have a nil panic.
+		// in can still be a nil interface, but we have not detected that. It is not a huge problem as
+		// the v.(*Impl) type assertion that we make here would also have failed, but with a different
+		// panic "A is nil, not *Impl", where previously we would get a nil panic.
 		// We fix this in the SSA, by introducing an additional nilcheck on the itab.
 		dt.Devirtualized = true
+		dt.SetPos(call.Pos()) // keep proper line numbers in the nil panic (for "v.\nA()")
 	}
 
 	x := typecheck.XDotMethod(sel.Pos(), dt, sel.Sel, true)
