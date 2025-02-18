@@ -119,6 +119,23 @@ func StaticCall(call *ir.CallExpr) {
 	}
 
 	dt := ir.NewTypeAssertExpr(sel.Pos(), sel.X, typ)
+
+	if go125ImprovedConcreteTypeAnalysis {
+		// Mark this type assertion as beeing added from the devirtualizer.
+		// It is necessary for cases like:
+		//
+		//	var v Iface
+		// 	v.A()
+		// 	v = &Impl{}
+		//
+		// Here in the devirtualizer, we determine the concrete type of v as beeing an *Impl, but
+		// in can still be a nil, which we have not detected, it is not a huge problem as
+		// the v.(*Impl).A() call that we make here would also have failed, but with a different
+		// panic "A is nil, not *Impl", where previously we would have a nil panic.
+		// We fix this in the SSA, by introducing an additional nilcheck on the itab.
+		dt.Devirtualized = true
+	}
+
 	x := typecheck.XDotMethod(sel.Pos(), dt, sel.Sel, true)
 	switch x.Op() {
 	case ir.ODOTMETH:
