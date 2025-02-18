@@ -14,19 +14,21 @@ import (
 	"unsafe"
 )
 
-// finblock is an array of finalizers to be executed. finblocks are
-// arranged in a linked list for the finalizer queue.
+const finBlockSize = 4 * 1024
+
+// finBlock is an block of finalizers/cleanups to be executed. finBlocks
+// are arranged in a linked list for the finalizer queue.
 //
-// finblock is allocated from non-GC'd memory, so any heap pointers
+// finBlock is allocated from non-GC'd memory, so any heap pointers
 // must be specially handled. GC currently assumes that the finalizer
 // queue does not grow during marking (but it can shrink).
-type finblock struct {
+type finBlock struct {
 	_       sys.NotInHeap
-	alllink *finblock
-	next    *finblock
+	alllink *finBlock
+	next    *finBlock
 	cnt     uint32
 	_       int32
-	fin     [(_FinBlockSize - 2*goarch.PtrSize - 2*4) / unsafe.Sizeof(finalizer{})]finalizer
+	fin     [(finBlockSize - 2*goarch.PtrSize - 2*4) / unsafe.Sizeof(finalizer{})]finalizer
 }
 
 var fingStatus atomic.Uint32
@@ -40,16 +42,15 @@ const (
 	fingWake
 )
 
-// This runs durring the GC sweep phase. Heap memory can't be allocated while sweep is running.
 var (
 	finlock    mutex     // protects the following variables
 	fing       *g        // goroutine that runs finalizers
-	finq       *finblock // list of finalizers that are to be executed
-	finc       *finblock // cache of free blocks
-	finptrmask [_FinBlockSize / goarch.PtrSize / 8]byte
+	finq       *finBlock // list of finalizers that are to be executed
+	finc       *finBlock // cache of free blocks
+	finptrmask [finBlockSize / goarch.PtrSize / 8]byte
 )
 
-var allfin *finblock // list of all blocks
+var allfin *finBlock // list of all blocks
 
 // NOTE: Layout known to queuefinalizer.
 type finalizer struct {
@@ -108,7 +109,7 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot
 	lock(&finlock)
 	if finq == nil || finq.cnt == uint32(len(finq.fin)) {
 		if finc == nil {
-			finc = (*finblock)(persistentalloc(_FinBlockSize, 0, &memstats.gcMiscSys))
+			finc = (*finBlock)(persistentalloc(finBlockSize, 0, &memstats.gcMiscSys))
 			finc.alllink = allfin
 			allfin = finc
 			if finptrmask[0] == 0 {

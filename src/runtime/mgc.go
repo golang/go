@@ -135,8 +135,7 @@ import (
 )
 
 const (
-	_DebugGC      = 0
-	_FinBlockSize = 4 * 1024
+	_DebugGC = 0
 
 	// concurrentSweep is a debug flag. Disabling this flag
 	// ensures all spans are swept while the world is stopped.
