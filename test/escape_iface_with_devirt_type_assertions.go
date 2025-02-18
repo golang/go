@@ -219,6 +219,14 @@ func differentTypeAssign() {
 	}
 }
 
+func assignWithTypeAssert() {
+	var i1 A = &Impl{}  // ERROR "does not escape"
+	var i2 A = &Impl2{} // ERROR "does not escape"
+	i1 = i2.(*Impl)     // this will panic
+	i1.A()              // ERROR "devirtualizing i1\.A to \*Impl" "inlining call"
+	i2.A()              // ERROR "devirtualizing i2\.A to \*Impl2" "inlining call"
+}
+
 func longDevirtTest() {
 	var a interface {
 		M
@@ -746,6 +754,27 @@ func selfAssigns() {
 		var a A = &Impl{} // ERROR "escapes"
 		var asAny A = a
 		a = asAny.(A)
+		a.A()
+	}
+}
+
+func addrTaken() {
+	{
+		var a A = &Impl{} // ERROR "escapes"
+		var ptrA = &a
+		a.A()
+		_ = ptrA
+	}
+	{
+		var a A = &Impl{} // ERROR "escapes"
+		var ptrA = &a
+		*ptrA = &Impl{} // ERROR "escapes"
+		a.A()
+	}
+	{
+		var a A = &Impl{} // ERROR "escapes"
+		var ptrA = &a
+		*ptrA = &Impl2{} // ERROR "escapes"
 		a.A()
 	}
 }
