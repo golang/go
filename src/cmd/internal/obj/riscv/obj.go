@@ -135,10 +135,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 
 	case AMOV:
 		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == obj.REG_NONE && int64(int32(p.From.Offset)) != p.From.Offset {
-			ctz := bits.TrailingZeros64(uint64(p.From.Offset))
-			val := p.From.Offset >> ctz
-			if int64(int32(val)) == val {
-				// It's ok. We can handle constants with many trailing zeros.
+			if isShiftConst(p.From.Offset) {
 				break
 			}
 			// Put >32-bit constants in memory and load them.
@@ -2223,6 +2220,24 @@ func encodingForAs(as obj.As) (*encoding, error) {
 	return &insData.enc, nil
 }
 
+// splitShiftConst attempts to split a constant into a signed 32 bit integer
+// and a corresponding left shift.
+func splitShiftConst(v int64) (imm int64, lsh int, ok bool) {
+	lsh = bits.TrailingZeros64(uint64(v))
+	c := v >> lsh
+	if int64(int32(c)) != c {
+		return 0, 0, false
+	}
+	return c, lsh, true
+}
+
+// isShiftConst indicates whether a constant can be represented as a signed
+// 32 bit integer that is left shifted.
+func isShiftConst(v int64) bool {
+	_, lsh, ok := splitShiftConst(v)
+	return ok && lsh > 0
+}
+
 type instruction struct {
 	p      *obj.Prog // Prog that instruction is for
 	as     obj.As    // Assembler opcode
@@ -2504,10 +2519,9 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 		// 	SLLI $63, X10, X10
 		var insSLLI *instruction
 		if err := immIFits(ins.imm, 32); err != nil {
-			ctz := bits.TrailingZeros64(uint64(ins.imm))
-			if err := immIFits(ins.imm>>ctz, 32); err == nil {
-				ins.imm = ins.imm >> ctz
-				insSLLI = &instruction{as: ASLLI, rd: ins.rd, rs1: ins.rd, imm: int64(ctz)}
+			if c, lsh, ok := splitShiftConst(ins.imm); ok {
+				ins.imm = c
+				insSLLI = &instruction{as: ASLLI, rd: ins.rd, rs1: ins.rd, imm: int64(lsh)}
 			}
 		}
 
