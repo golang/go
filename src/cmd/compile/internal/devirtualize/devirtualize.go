@@ -244,11 +244,11 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type) (typ *types.Typ
 			return n.Type()
 		}
 
-		return concreteType2(n, analyzed)
+		return analyzeAssignments(n, analyzed)
 	}
 }
 
-func concreteType2(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
+func analyzeAssignments(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
 	if n.Op() != ir.ONAME {
 		return nil
 	}
