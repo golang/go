@@ -23,14 +23,25 @@ var constants = jsFS.Get("constants")
 var uint8Array = js.Global().Get("Uint8Array")
 
 var (
-	nodeWRONLY    = constants.Get("O_WRONLY").Int()
-	nodeRDWR      = constants.Get("O_RDWR").Int()
-	nodeCREATE    = constants.Get("O_CREAT").Int()
-	nodeTRUNC     = constants.Get("O_TRUNC").Int()
-	nodeAPPEND    = constants.Get("O_APPEND").Int()
-	nodeEXCL      = constants.Get("O_EXCL").Int()
-	nodeDIRECTORY = constants.Get("O_DIRECTORY").Int()
+	nodeWRONLY = constants.Get("O_WRONLY").Int()
+	nodeRDWR   = constants.Get("O_RDWR").Int()
+	nodeCREATE = constants.Get("O_CREAT").Int()
+	nodeTRUNC  = constants.Get("O_TRUNC").Int()
+	nodeAPPEND = constants.Get("O_APPEND").Int()
+	nodeEXCL   = constants.Get("O_EXCL").Int()
+
+	// NodeJS on Windows does not support O_DIRECTORY, so we default
+	// to -1 and assign it in init if available.
+	// See https://nodejs.org/docs/latest/api/fs.html#file-open-constants.
+	nodeDIRECTORY = -1
 )
+
+func init() {
+	oDir := constants.Get("O_DIRECTORY")
+	if !oDir.IsUndefined() {
+		nodeDIRECTORY = oDir.Int()
+	}
+}
 
 type jsFile struct {
 	path    string
@@ -85,7 +96,11 @@ func Open(path string, openmode int, perm uint32) (int, error) {
 		return 0, errors.New("syscall.Open: O_SYNC is not supported by js/wasm")
 	}
 	if openmode&O_DIRECTORY != 0 {
-		flags |= nodeDIRECTORY
+		if nodeDIRECTORY != -1 {
+			flags |= nodeDIRECTORY
+		} else {
+			return 0, errors.New("syscall.Open: O_DIRECTORY is not supported on Windows")
+		}
 	}
 
 	jsFD, err := fsCall("open", path, flags, perm)
