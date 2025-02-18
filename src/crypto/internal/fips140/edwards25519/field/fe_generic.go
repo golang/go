@@ -12,15 +12,37 @@ type uint128 struct {
 	lo, hi uint64
 }
 
-// mul64 returns a * b.
-func mul64(a, b uint64) uint128 {
+// mul returns a * b.
+func mul(a, b uint64) uint128 {
 	hi, lo := bits.Mul64(a, b)
 	return uint128{lo, hi}
 }
 
-// addMul64 returns v + a * b.
-func addMul64(v uint128, a, b uint64) uint128 {
+// addMul returns v + a * b.
+func addMul(v uint128, a, b uint64) uint128 {
 	hi, lo := bits.Mul64(a, b)
+	lo, c := bits.Add64(lo, v.lo, 0)
+	hi, _ = bits.Add64(hi, v.hi, c)
+	return uint128{lo, hi}
+}
+
+// mul19 returns v * 19.
+func mul19(v uint64) uint64 {
+	// Using this approach seems to yield better optimizations than *19.
+	return v + (v+v<<3)<<1
+}
+
+// addMul19 returns v + 19 * a * b, where a and b are at most 52 bits.
+func addMul19(v uint128, a, b uint64) uint128 {
+	hi, lo := bits.Mul64(mul19(a), b)
+	lo, c := bits.Add64(lo, v.lo, 0)
+	hi, _ = bits.Add64(hi, v.hi, c)
+	return uint128{lo, hi}
+}
+
+// addMul38 returns v + 38 * a * b, where a and b are at most 52 bits.
+func addMul38(v uint128, a, b uint64) uint128 {
+	hi, lo := bits.Mul64(mul19(a), b*2)
 	lo, c := bits.Add64(lo, v.lo, 0)
 	hi, _ = bits.Add64(hi, v.hi, c)
 	return uint128{lo, hi}
@@ -76,45 +98,40 @@ func feMulGeneric(v, a, b *Element) {
 	//
 	// Finally we add up the columns into wide, overlapping limbs.
 
-	a1_19 := a1 * 19
-	a2_19 := a2 * 19
-	a3_19 := a3 * 19
-	a4_19 := a4 * 19
-
 	// r0 = a0×b0 + 19×(a1×b4 + a2×b3 + a3×b2 + a4×b1)
-	r0 := mul64(a0, b0)
-	r0 = addMul64(r0, a1_19, b4)
-	r0 = addMul64(r0, a2_19, b3)
-	r0 = addMul64(r0, a3_19, b2)
-	r0 = addMul64(r0, a4_19, b1)
+	r0 := mul(a0, b0)
+	r0 = addMul19(r0, a1, b4)
+	r0 = addMul19(r0, a2, b3)
+	r0 = addMul19(r0, a3, b2)
+	r0 = addMul19(r0, a4, b1)
 
 	// r1 = a0×b1 + a1×b0 + 19×(a2×b4 + a3×b3 + a4×b2)
-	r1 := mul64(a0, b1)
-	r1 = addMul64(r1, a1, b0)
-	r1 = addMul64(r1, a2_19, b4)
-	r1 = addMul64(r1, a3_19, b3)
-	r1 = addMul64(r1, a4_19, b2)
+	r1 := mul(a0, b1)
+	r1 = addMul(r1, a1, b0)
+	r1 = addMul19(r1, a2, b4)
+	r1 = addMul19(r1, a3, b3)
+	r1 = addMul19(r1, a4, b2)
 
 	// r2 = a0×b2 + a1×b1 + a2×b0 + 19×(a3×b4 + a4×b3)
-	r2 := mul64(a0, b2)
-	r2 = addMul64(r2, a1, b1)
-	r2 = addMul64(r2, a2, b0)
-	r2 = addMul64(r2, a3_19, b4)
-	r2 = addMul64(r2, a4_19, b3)
+	r2 := mul(a0, b2)
+	r2 = addMul(r2, a1, b1)
+	r2 = addMul(r2, a2, b0)
+	r2 = addMul19(r2, a3, b4)
+	r2 = addMul19(r2, a4, b3)
 
 	// r3 = a0×b3 + a1×b2 + a2×b1 + a3×b0 + 19×a4×b4
-	r3 := mul64(a0, b3)
-	r3 = addMul64(r3, a1, b2)
-	r3 = addMul64(r3, a2, b1)
-	r3 = addMul64(r3, a3, b0)
-	r3 = addMul64(r3, a4_19, b4)
+	r3 := mul(a0, b3)
+	r3 = addMul(r3, a1, b2)
+	r3 = addMul(r3, a2, b1)
+	r3 = addMul(r3, a3, b0)
+	r3 = addMul19(r3, a4, b4)
 
 	// r4 = a0×b4 + a1×b3 + a2×b2 + a3×b1 + a4×b0
-	r4 := mul64(a0, b4)
-	r4 = addMul64(r4, a1, b3)
-	r4 = addMul64(r4, a2, b2)
-	r4 = addMul64(r4, a3, b1)
-	r4 = addMul64(r4, a4, b0)
+	r4 := mul(a0, b4)
+	r4 = addMul(r4, a1, b3)
+	r4 = addMul(r4, a2, b2)
+	r4 = addMul(r4, a3, b1)
+	r4 = addMul(r4, a4, b0)
 
 	// After the multiplication, we need to reduce (carry) the five coefficients
 	// to obtain a result with limbs that are at most slightly larger than 2⁵¹,
@@ -149,7 +166,7 @@ func feMulGeneric(v, a, b *Element) {
 	c3 := shiftRightBy51(r3)
 	c4 := shiftRightBy51(r4)
 
-	rr0 := r0.lo&maskLow51Bits + c4*19
+	rr0 := r0.lo&maskLow51Bits + mul19(c4)
 	rr1 := r1.lo&maskLow51Bits + c0
 	rr2 := r2.lo&maskLow51Bits + c1
 	rr3 := r3.lo&maskLow51Bits + c2
@@ -190,44 +207,31 @@ func feSquareGeneric(v, a *Element) {
 	//            l0l4 19×l4l4 19×l3l4 19×l2l4 19×l1l4  =
 	//           --------------------------------------
 	//              r4      r3      r2      r1      r0
-	//
-	// With precomputed 2×, 19×, and 2×19× terms, we can compute each limb with
-	// only three Mul64 and four Add64, instead of five and eight.
-
-	l0_2 := l0 * 2
-	l1_2 := l1 * 2
-
-	l1_38 := l1 * 38
-	l2_38 := l2 * 38
-	l3_38 := l3 * 38
-
-	l3_19 := l3 * 19
-	l4_19 := l4 * 19
 
 	// r0 = l0×l0 + 19×(l1×l4 + l2×l3 + l3×l2 + l4×l1) = l0×l0 + 19×2×(l1×l4 + l2×l3)
-	r0 := mul64(l0, l0)
-	r0 = addMul64(r0, l1_38, l4)
-	r0 = addMul64(r0, l2_38, l3)
+	r0 := mul(l0, l0)
+	r0 = addMul38(r0, l1, l4)
+	r0 = addMul38(r0, l2, l3)
 
 	// r1 = l0×l1 + l1×l0 + 19×(l2×l4 + l3×l3 + l4×l2) = 2×l0×l1 + 19×2×l2×l4 + 19×l3×l3
-	r1 := mul64(l0_2, l1)
-	r1 = addMul64(r1, l2_38, l4)
-	r1 = addMul64(r1, l3_19, l3)
+	r1 := mul(l0*2, l1)
+	r1 = addMul38(r1, l2, l4)
+	r1 = addMul19(r1, l3, l3)
 
 	// r2 = l0×l2 + l1×l1 + l2×l0 + 19×(l3×l4 + l4×l3) = 2×l0×l2 + l1×l1 + 19×2×l3×l4
-	r2 := mul64(l0_2, l2)
-	r2 = addMul64(r2, l1, l1)
-	r2 = addMul64(r2, l3_38, l4)
+	r2 := mul(l0*2, l2)
+	r2 = addMul(r2, l1, l1)
+	r2 = addMul38(r2, l3, l4)
 
 	// r3 = l0×l3 + l1×l2 + l2×l1 + l3×l0 + 19×l4×l4 = 2×l0×l3 + 2×l1×l2 + 19×l4×l4
-	r3 := mul64(l0_2, l3)
-	r3 = addMul64(r3, l1_2, l2)
-	r3 = addMul64(r3, l4_19, l4)
+	r3 := mul(l0*2, l3)
+	r3 = addMul(r3, l1*2, l2)
+	r3 = addMul19(r3, l4, l4)
 
 	// r4 = l0×l4 + l1×l3 + l2×l2 + l3×l1 + l4×l0 = 2×l0×l4 + 2×l1×l3 + l2×l2
-	r4 := mul64(l0_2, l4)
-	r4 = addMul64(r4, l1_2, l3)
-	r4 = addMul64(r4, l2, l2)
+	r4 := mul(l0*2, l4)
+	r4 = addMul(r4, l1*2, l3)
+	r4 = addMul(r4, l2, l2)
 
 	c0 := shiftRightBy51(r0)
 	c1 := shiftRightBy51(r1)
@@ -235,7 +239,7 @@ func feSquareGeneric(v, a *Element) {
 	c3 := shiftRightBy51(r3)
 	c4 := shiftRightBy51(r4)
 
-	rr0 := r0.lo&maskLow51Bits + c4*19
+	rr0 := r0.lo&maskLow51Bits + mul19(c4)
 	rr1 := r1.lo&maskLow51Bits + c0
 	rr2 := r2.lo&maskLow51Bits + c1
 	rr3 := r3.lo&maskLow51Bits + c2
@@ -256,7 +260,7 @@ func (v *Element) carryPropagateGeneric() *Element {
 
 	// c4 is at most 64 - 51 = 13 bits, so c4*19 is at most 18 bits, and
 	// the final l0 will be at most 52 bits. Similarly for the rest.
-	v.l0 = v.l0&maskLow51Bits + c4*19
+	v.l0 = v.l0&maskLow51Bits + mul19(c4)
 	v.l1 = v.l1&maskLow51Bits + c0
 	v.l2 = v.l2&maskLow51Bits + c1
 	v.l3 = v.l3&maskLow51Bits + c2
