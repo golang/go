@@ -54,7 +54,7 @@ func StaticCall(call *ir.CallExpr) {
 		// This can happen in such case: any(0).(interface {A()}).A(), this typechecks without
 		// any errors, but will cause a runtime panic. We statically know that int(0) does not
 		// implement that interface, thus we skip the devirtualization, as it is not possible
-		// to make a type assertion from interface{A()} to int (int does not implement interface{A()}).
+		// to make an assertion: any(0).(interface{A()}).(int) (int does not implement interface{A()}).
 		if !typecheck.Implements(typ, sel.X.Type()) {
 			return
 		}
