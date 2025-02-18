@@ -5642,6 +5642,19 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 	if n.ITab != nil {
 		targetItab = s.expr(n.ITab)
 	}
+
+	// For devirualized calls, add a special nil check on the itab, see the
+	// devirtualize package for more info why it is needed.
+	if n.Devirtualized {
+		typs := s.f.Config.Types
+		iface = s.newValue2(
+			ssa.OpIMake,
+			iface.Type,
+			s.nilCheck(s.newValue1(ssa.OpITab, typs.BytePtr, iface)),
+			s.newValue1(ssa.OpIData, typs.BytePtr, iface),
+		)
+	}
+
 	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, nil, target, targetItab, commaok, n.Descriptor)
 }
 
