@@ -237,7 +237,7 @@ func assignWithTypeAssert() {
 }
 
 func nilIface() {
-	// TODO: these cases can be devirtualized.
+	// TODO: these cases can also be devirtualized.
 	{
 		var v A = &Impl{} // ERROR "escapes"
 		v = nil
