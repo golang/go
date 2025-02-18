@@ -183,7 +183,9 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
 			continue
 		case *ir.TypeAssertExpr:
 			if !n.Type().IsInterface() {
-				return n.Type() // asserting a static type
+				// Asserting to a static type, take use of that as this will
+				// cause a runtime panic, if not satisfied at runtime.
+				return n.Type()
 			}
 			n = n1.X
 			continue
