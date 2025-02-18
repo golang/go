@@ -166,16 +166,21 @@ func feMulGeneric(v, a, b *Element) {
 	c3 := shiftRightBy51(r3)
 	c4 := shiftRightBy51(r4)
 
-	v.l0 = r0.lo&maskLow51Bits + mul19(c4)
-	v.l1 = r1.lo&maskLow51Bits + c0
-	v.l2 = r2.lo&maskLow51Bits + c1
-	v.l3 = r3.lo&maskLow51Bits + c2
-	v.l4 = r4.lo&maskLow51Bits + c3
+	rr0 := r0.lo&maskLow51Bits + mul19(c4)
+	rr1 := r1.lo&maskLow51Bits + c0
+	rr2 := r2.lo&maskLow51Bits + c1
+	rr3 := r3.lo&maskLow51Bits + c2
+	rr4 := r4.lo&maskLow51Bits + c3
 
 	// Now all coefficients fit into 64-bit registers but are still too large to
 	// be passed around as an Element. We therefore do one last carry chain,
 	// where the carries will be small enough to fit in the wiggle room above 2⁵¹.
-	v.carryPropagate()
+
+	v.l0 = rr0&maskLow51Bits + mul19(rr4>>51)
+	v.l1 = rr1&maskLow51Bits + rr0>>51
+	v.l2 = rr2&maskLow51Bits + rr1>>51
+	v.l3 = rr3&maskLow51Bits + rr2>>51
+	v.l4 = rr4&maskLow51Bits + rr3>>51
 }
 
 func feSquareGeneric(v, a *Element) {
@@ -238,13 +243,17 @@ func feSquareGeneric(v, a *Element) {
 	c3 := shiftRightBy51(r3)
 	c4 := shiftRightBy51(r4)
 
-	v.l0 = r0.lo&maskLow51Bits + mul19(c4)
-	v.l1 = r1.lo&maskLow51Bits + c0
-	v.l2 = r2.lo&maskLow51Bits + c1
-	v.l3 = r3.lo&maskLow51Bits + c2
-	v.l4 = r4.lo&maskLow51Bits + c3
+	rr0 := r0.lo&maskLow51Bits + mul19(c4)
+	rr1 := r1.lo&maskLow51Bits + c0
+	rr2 := r2.lo&maskLow51Bits + c1
+	rr3 := r3.lo&maskLow51Bits + c2
+	rr4 := r4.lo&maskLow51Bits + c3
 
-	v.carryPropagate()
+	v.l0 = rr0&maskLow51Bits + mul19(rr4>>51)
+	v.l1 = rr1&maskLow51Bits + rr0>>51
+	v.l2 = rr2&maskLow51Bits + rr1>>51
+	v.l3 = rr3&maskLow51Bits + rr2>>51
+	v.l4 = rr4&maskLow51Bits + rr3>>51
 }
 
 // carryPropagate brings the limbs below 52 bits by applying the reduction
