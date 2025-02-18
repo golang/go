@@ -3848,3 +3848,14 @@ func TestRemoveReadOnlyFile(t *testing.T) {
 		}
 	})
 }
+
+func TestOpenFileDevNull(t *testing.T) {
+	// See https://go.dev/issue/71752.
+	t.Parallel()
+
+	f, err := OpenFile(DevNull, O_WRONLY|O_CREATE|O_TRUNC, 0o644)
+	if err != nil {
+		t.Fatalf("OpenFile(DevNull): %v", err)
+	}
+	f.Close()
+}
