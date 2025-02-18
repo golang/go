@@ -176,9 +176,6 @@ func StaticCall(call *ir.CallExpr) {
 
 const concreteTypeDebug = false
 
-// TODO: add run test that makes sure this work properly with the nil cases.
-// TODO: if there is a possibility of a nil, then do not devirtualize.
-
 // concreteType determines the concrete type of n, following OCONVIFACEs and type asserts.
 // Returns nil when the concrete type could not be determined, or when there are multiple
 // (different) types assigned to an interface.
