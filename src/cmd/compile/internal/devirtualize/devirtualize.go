@@ -118,8 +118,7 @@ func StaticCall(call *ir.CallExpr) {
 		return
 	}
 
-	dt := ir.NewTypeAssertExpr(sel.Pos(), sel.X, nil)
-	dt.SetType(typ)
+	dt := ir.NewTypeAssertExpr(sel.Pos(), sel.X, typ)
 	x := typecheck.XDotMethod(sel.Pos(), dt, sel.Sel, true)
 	switch x.Op() {
 	case ir.ODOTMETH:
@@ -159,6 +158,9 @@ func StaticCall(call *ir.CallExpr) {
 }
 
 const concreteTypeDebug = false
+
+// TODO: add run test that makes sure this work properly with the nil cases.
+// TODO: if there is a possibility of a nil, then do not devirtualize.
 
 // concreteType determines the concrete type of n, following OCONVIFACEs and type asserts.
 // Returns nil when the concrete type could not be determined, or when there are multiple
