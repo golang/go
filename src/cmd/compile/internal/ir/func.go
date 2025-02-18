@@ -627,3 +627,18 @@ func (fn *Func) DeclareParams(setNname bool) {
 	declareParams(params, PPARAM, "~p", 0)
 	declareParams(results, PPARAMOUT, "~r", len(params))
 }
+
+// ContainsClosure reports whether c is a closure contained within f.
+func ContainsClosure(f, c *Func) bool {
+	// Common cases.
+	if f == c || c.OClosure == nil {
+		return false
+	}
+
+	for p := c.ClosureParent; p != nil; p = p.ClosureParent {
+		if p == f {
+			return true
+		}
+	}
+	return false
+}
