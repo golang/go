@@ -235,7 +235,7 @@ func NewCallbackCDecl(fn any) uintptr {
 //sys	GetVersion() (ver uint32, err error)
 //sys	formatMessage(flags uint32, msgsrc uintptr, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) = FormatMessageW
 //sys	ExitProcess(exitcode uint32)
-//sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval==InvalidHandle] = CreateFileW
+//sys	createFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval == InvalidHandle || e1 == ERROR_ALREADY_EXISTS ] = CreateFileW
 //sys	readFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) = ReadFile
 //sys	writeFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) = WriteFile
 //sys	SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) [failretval==0xffffffff]
@@ -404,8 +404,8 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 		const _FILE_FLAG_WRITE_THROUGH = 0x80000000
 		attrs |= _FILE_FLAG_WRITE_THROUGH
 	}
-	h, err := CreateFile(namep, access, sharemode, sa, createmode, attrs, 0)
-	if err != nil {
+	h, err := createFile(namep, access, sharemode, sa, createmode, attrs, 0)
+	if h == InvalidHandle {
 		if err == ERROR_ACCESS_DENIED && (flag&O_WRONLY != 0 || flag&O_RDWR != 0) {
 			// We should return EISDIR when we are trying to open a directory with write access.
 			fa, e1 := GetFileAttributes(namep)
@@ -413,9 +413,11 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 				err = EISDIR
 			}
 		}
-		return InvalidHandle, err
+		return h, err
 	}
-	if flag&O_TRUNC == O_TRUNC {
+	// Ignore O_TRUNC if the file has just been created.
+	if flag&O_TRUNC == O_TRUNC &&
+		(createmode == OPEN_EXISTING || (createmode == OPEN_ALWAYS && err == ERROR_ALREADY_EXISTS)) {
 		err = Ftruncate(h, 0)
 		if err != nil {
 			CloseHandle(h)
@@ -1453,4 +1455,14 @@ func RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reser
 func GetStartupInfo(startupInfo *StartupInfo) error {
 	getStartupInfo(startupInfo)
 	return nil
+}
+
+func CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) {
+	handle, err = createFile(name, access, mode, sa, createmode, attrs, templatefile)
+	if handle != InvalidHandle {
+		// CreateFileW can return ERROR_ALREADY_EXISTS with a valid handle.
+		// We only want to return an error if the handle is invalid.
+		err = nil
+	}
+	return handle, err
 }

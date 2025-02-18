@@ -502,10 +502,10 @@ func CreateFileMapping(fhandle Handle, sa *SecurityAttributes, prot uint32, maxS
 	return
 }
 
-func CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) {
+func createFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) {
 	r0, _, e1 := Syscall9(procCreateFileW.Addr(), 7, uintptr(unsafe.Pointer(name)), uintptr(access), uintptr(mode), uintptr(unsafe.Pointer(sa)), uintptr(createmode), uintptr(attrs), uintptr(templatefile), 0, 0)
 	handle = Handle(r0)
-	if handle == InvalidHandle {
+	if handle == InvalidHandle || e1 == ERROR_ALREADY_EXISTS {
 		err = errnoErr(e1)
 	}
 	return
