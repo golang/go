@@ -138,6 +138,13 @@ func typeAssertsWithOkReturn() {
 			v.M() // ERROR "devirtualizing" "inlining call"
 		}
 	}
+	{
+		var impl2InA A = &Impl2{} // ERROR "does not escape"
+		var a A
+		a, _ = impl2InA.(*Impl)
+		// a now contains the zero value of *Impl
+		a.A() // ERROR "devirtualizing" "inlining call"
+	}
 }
 
 func newM() M { // ERROR "can inline"
