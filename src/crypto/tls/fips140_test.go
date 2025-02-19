@@ -7,6 +7,7 @@ package tls
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/internal/boring"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -109,8 +110,20 @@ func isFIPSCipherSuite(id uint16) bool {
 		TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 		TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
 		return true
-	default:
+	case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+		TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:
+		// Only for the native module.
+		return !boring.Enabled
+	}
+	switch {
+	case strings.Contains(name, "CHACHA20"):
 		return false
+	case strings.HasSuffix(name, "_SHA"): // SHA-1
+		return false
+	case strings.HasPrefix(name, "TLS_RSA"): // RSA kex
+		return false
+	default:
+		panic("unknown cipher suite: " + name)
 	}
 }
 
@@ -118,7 +131,10 @@ func isFIPSCurve(id CurveID) bool {
 	switch id {
 	case CurveP256, CurveP384, CurveP521:
 		return true
-	case X25519, X25519MLKEM768:
+	case X25519MLKEM768:
+		// Only for the native module.
+		return !boring.Enabled
+	case X25519:
 		return false
 	default:
 		panic("unknown curve: " + id.String())
@@ -146,7 +162,10 @@ func isFIPSSignatureScheme(alg SignatureScheme) bool {
 		PSSWithSHA384,
 		PSSWithSHA512:
 		return true
-	case Ed25519, PKCS1WithSHA1, ECDSAWithSHA1:
+	case Ed25519:
+		// Only for the native module.
+		return !boring.Enabled
+	case PKCS1WithSHA1, ECDSAWithSHA1:
 		return false
 	default:
 		panic("unknown signature scheme: " + alg.String())

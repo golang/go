@@ -7,10 +7,13 @@
 //
 // # FIPS 140-3 mode
 //
-// When the program is in [FIPS 140-3 mode], this package behaves as if
-// only protocol versions, cipher suites, signature algorithms, and
-// key exchange algorithms approved by NIST SP 800-52r2 are implemented.
-// Others are silently ignored and not negotiated.
+// When the program is in [FIPS 140-3 mode], this package behaves as if only
+// SP 800-140C and SP 800-140D approved protocol versions, cipher suites,
+// signature algorithms, certificate public key types and sizes, and key
+// exchange and derivation algorithms were implemented. Others are silently
+// ignored and not negotiated, or rejected. This set may depend on the
+// algorithms supported by the FIPS 140-3 Go Cryptographic Module selected with
+// GOFIPS140, and may change across Go versions.
 //
 // [FIPS 140-3 mode]: https://go.dev/doc/security/fips140
 package tls

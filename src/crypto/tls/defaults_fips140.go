@@ -2,24 +2,28 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build boringcrypto
+//go:build !boringcrypto
 
 package tls
 
 import (
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/x509"
 )
 
-// These Go+BoringCrypto policies mostly match BoringSSL's
-// ssl_compliance_policy_fips_202205, which is based on NIST SP 800-52r2.
-// https://cs.opensource.google/boringssl/boringssl/+/master:ssl/ssl_lib.cc;l=3289;drc=ea7a88fa
+// These FIPS 140-3 policies allow anything approved by SP 800-140C
+// and SP 800-140D, and tested as part of the Go Cryptographic Module.
 //
-// P-521 is allowed per https://go.dev/issue/71757.
+// Notably, not SHA-1, 3DES, RC4, ChaCha20Poly1305, RSA PKCS #1 v1.5 key
+// transport, or TLS 1.0—1.1 (because we don't test its KDF).
 //
-// They are applied when crypto/tls/fipsonly is imported with GOEXPERIMENT=boringcrypto.
+// These are not default lists, but filters to apply to the default or
+// configured lists. Missing items are treated as if they were not implemented.
+//
+// They are applied when the fips140 GODEBUG is "on" or "only".
 
 var (
 	allowedSupportedVersionsFIPS = []uint16{
@@ -27,19 +31,21 @@ var (
 		VersionTLS13,
 	}
 	allowedCurvePreferencesFIPS = []CurveID{
+		X25519MLKEM768,
 		CurveP256,
 		CurveP384,
 		CurveP521,
 	}
 	allowedSupportedSignatureAlgorithmsFIPS = []SignatureScheme{
 		PSSWithSHA256,
+		ECDSAWithP256AndSHA256,
+		Ed25519,
 		PSSWithSHA384,
 		PSSWithSHA512,
 		PKCS1WithSHA256,
-		ECDSAWithP256AndSHA256,
 		PKCS1WithSHA384,
-		ECDSAWithP384AndSHA384,
 		PKCS1WithSHA512,
+		ECDSAWithP384AndSHA384,
 		ECDSAWithP521AndSHA512,
 	}
 	allowedCipherSuitesFIPS = []uint16{
@@ -47,6 +53,8 @@ var (
 		TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 		TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 		TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+		TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+		TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
 	}
 	allowedCipherSuitesTLS13FIPS = []uint16{
 		TLS_AES_128_GCM_SHA256,
@@ -55,15 +63,14 @@ var (
 )
 
 func isCertificateAllowedFIPS(c *x509.Certificate) bool {
-	// The key must be RSA 2048, RSA 3072, RSA 4096,
-	// or ECDSA P-256, P-384, P-521.
 	switch k := c.PublicKey.(type) {
 	case *rsa.PublicKey:
-		size := k.N.BitLen()
-		return size == 2048 || size == 3072 || size == 4096
+		return k.N.BitLen() >= 2048
 	case *ecdsa.PublicKey:
 		return k.Curve == elliptic.P256() || k.Curve == elliptic.P384() || k.Curve == elliptic.P521()
+	case ed25519.PublicKey:
+		return true
+	default:
+		return false
 	}
-
-	return false
 }
