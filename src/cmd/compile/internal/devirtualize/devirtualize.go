@@ -121,8 +121,7 @@ func StaticCall(call *ir.CallExpr) {
 	dt := ir.NewTypeAssertExpr(sel.Pos(), sel.X, typ)
 
 	if go125ImprovedConcreteTypeAnalysis {
-		// Mark this type assertion as beeing added from the devirtualizer.
-		// It is necessary for cases like:
+		// Consider:
 		//
 		//	var v Iface
 		// 	v.A()
@@ -132,9 +131,9 @@ func StaticCall(call *ir.CallExpr) {
 		// in can still be a nil interface, but we have not detected that. It is not a huge problem as
 		// the v.(*Impl) type assertion that we make here would also have failed, but with a different
 		// panic "pkg.Iface is nil, not *pkg.Impl", where previously we would get a nil panic.
-		// We fix this in the SSA, by introducing an additional nilcheck on the itab.
-		dt.Devirtualized = true
-		dt.SetPos(call.Pos()) // keep proper line numbers in the nil panic (for "v.\nA()")
+		// We fix this, by introducing an additional nilcheck on the itab.
+		nilCheck := ir.NewUnaryExpr(call.Pos(), ir.OCHECKNIL, ir.NewUnaryExpr(call.Pos(), ir.OITAB, sel.X))
+		dt.PtrInit().Append(typecheck.Stmt(nilCheck))
 	}
 
 	x := typecheck.XDotMethod(sel.Pos(), dt, sel.Sel, true)
