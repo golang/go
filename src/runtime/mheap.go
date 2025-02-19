@@ -2625,7 +2625,7 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
 		// Cleanups, unlike finalizers, do not resurrect the objects
 		// they're attached to, so we only need to pass the cleanup
 		// function, not the object.
-		queuefinalizer(nil, sc.fn, 0, nil, nil)
+		gcCleanups.enqueue(sc.fn)
 		lock(&mheap_.speciallock)
 		mheap_.specialCleanupAlloc.free(unsafe.Pointer(sc))
 		unlock(&mheap_.speciallock)

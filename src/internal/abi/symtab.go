@@ -56,8 +56,9 @@ const (
 	FuncID_mstart
 	FuncID_panicwrap
 	FuncID_rt0_go
-	FuncID_runFinalizersAndCleanups
 	FuncID_runtime_main
+	FuncID_runFinalizers
+	FuncID_runCleanups
 	FuncID_sigpanic
 	FuncID_systemstack
 	FuncID_systemstack_switch

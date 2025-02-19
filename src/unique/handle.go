@@ -67,10 +67,3 @@ type uniqueMap[T comparable] struct {
 	*canonMap[T]
 	cloneSeq
 }
-
-// Implemented in runtime.
-//
-// Used only by tests.
-//
-//go:linkname runtime_blockUntilEmptyFinalizerQueue
-func runtime_blockUntilEmptyFinalizerQueue(timeout int64) bool

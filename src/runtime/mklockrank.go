@@ -51,6 +51,7 @@ NONE <
   sweepWaiters,
   assistQueue,
   strongFromWeakQueue,
+  cleanupQueue,
   sweep;
 
 # Test only
@@ -62,6 +63,7 @@ NONE < timerSend;
 NONE < allocmW, execW, cpuprof, pollCache, pollDesc, wakeableSleep;
 scavenge, sweep, testR, wakeableSleep, timerSend < hchan;
 assistQueue,
+  cleanupQueue,
   cpuprof,
   forcegc,
   hchan,

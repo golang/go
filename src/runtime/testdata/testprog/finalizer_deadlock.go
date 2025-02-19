@@ -15,18 +15,24 @@ import (
 var finalizerDeadlockMode = flag.String("finalizer-deadlock-mode", "panic", "Trigger mode of FinalizerDeadlock")
 
 func init() {
-	register("FinalizerDeadlock", FinalizerDeadlock)
+	register("FinalizerDeadlock", func() { FinalizerOrCleanupDeadlock(false) })
+	register("CleanupDeadlock", func() { FinalizerOrCleanupDeadlock(true) })
 }
 
-func FinalizerDeadlock() {
+func FinalizerOrCleanupDeadlock(useCleanup bool) {
 	flag.Parse()
 
 	started := make(chan struct{})
-	b := new([16]byte)
-	runtime.SetFinalizer(b, func(*[16]byte) {
+	fn := func() {
 		started <- struct{}{}
 		select {}
-	})
+	}
+	b := new([16]byte)
+	if useCleanup {
+		runtime.AddCleanup(b, func(struct{}) { fn() }, struct{}{})
+	} else {
+		runtime.SetFinalizer(b, func(*[16]byte) { fn() })
+	}
 	b = nil
 
 	runtime.GC()

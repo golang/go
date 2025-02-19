@@ -177,6 +177,8 @@ func (a *activeSweep) end(sl sweepLocker) {
 				live := gcController.heapLive.Load()
 				print("pacer: sweep done at heap size ", live>>20, "MB; allocated ", (live-mheap_.sweepHeapLiveBasis)>>20, "MB during sweep; swept ", mheap_.pagesSwept.Load(), " pages at ", mheap_.sweepPagesPerByte, " pages/byte\n")
 			}
+			// Now that sweeping is completely done, flush remaining cleanups.
+			gcCleanups.flush()
 			return
 		}
 	}

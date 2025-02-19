@@ -1323,11 +1323,12 @@ func goroutineProfileWithLabelsConcurrent(p []profilerecord.StackRecord, labels 
 	// with what we'd get from isSystemGoroutine, we need special handling for
 	// goroutines that can vary between user and system to ensure that the count
 	// doesn't change during the collection. So, check the finalizer goroutine
-	// in particular.
+	// and cleanup goroutines in particular.
 	n = int(gcount())
 	if fingStatus.Load()&fingRunningFinalizer != 0 {
 		n++
 	}
+	n += int(gcCleanups.running.Load())
 
 	if n > len(p) {
 		// There's not enough space in p to store the whole profile, so (per the
@@ -1358,15 +1359,6 @@ func goroutineProfileWithLabelsConcurrent(p []profilerecord.StackRecord, labels 
 	goroutineProfile.active = true
 	goroutineProfile.records = p
 	goroutineProfile.labels = labels
-	// The finalizer goroutine needs special handling because it can vary over
-	// time between being a user goroutine (eligible for this profile) and a
-	// system goroutine (to be excluded). Pick one before restarting the world.
-	if fing != nil {
-		fing.goroutineProfiled.Store(goroutineProfileSatisfied)
-		if readgstatus(fing) != _Gdead && !isSystemGoroutine(fing, false) {
-			doRecordGoroutineProfile(fing, pcbuf)
-		}
-	}
 	startTheWorld(stw)
 
 	// Visit each goroutine that existed as of the startTheWorld call above.
@@ -1439,9 +1431,8 @@ func tryRecordGoroutineProfile(gp1 *g, pcbuf []uintptr, yield func()) {
 		// so here we check _Gdead first.
 		return
 	}
-	if isSystemGoroutine(gp1, true) {
-		// System goroutines should not appear in the profile. (The finalizer
-		// goroutine is marked as "already profiled".)
+	if isSystemGoroutine(gp1, false) {
+		// System goroutines should not appear in the profile.
 		return
 	}
 

@@ -237,7 +237,7 @@ func TestOnceXGC(t *testing.T) {
 			var gc atomic.Bool
 			runtime.AddCleanup(&buf[0], func(g *atomic.Bool) { g.Store(true) }, &gc)
 			f := fn(buf)
-			gcwaitfin()
+			runCleanups()
 			if gc.Load() != false {
 				t.Fatal("wrapped function garbage collected too early")
 			}
@@ -245,7 +245,7 @@ func TestOnceXGC(t *testing.T) {
 				defer func() { recover() }()
 				f()
 			}()
-			gcwaitfin()
+			runCleanups()
 			if gc.Load() != true {
 				// Even if f is still alive, the function passed to Once(Func|Value|Values)
 				// is not kept alive after the first call to f.
@@ -259,14 +259,14 @@ func TestOnceXGC(t *testing.T) {
 	}
 }
 
-// gcwaitfin performs garbage collection and waits for all finalizers to run.
-func gcwaitfin() {
+// runCleanups performs garbage collection and waits for all cleanups to run.
+func runCleanups() {
 	runtime.GC()
-	runtime_blockUntilEmptyFinalizerQueue(math.MaxInt64)
+	runtime_blockUntilEmptyCleanupQueue(math.MaxInt64)
 }
 
-//go:linkname runtime_blockUntilEmptyFinalizerQueue runtime.blockUntilEmptyFinalizerQueue
-func runtime_blockUntilEmptyFinalizerQueue(int64) bool
+//go:linkname runtime_blockUntilEmptyCleanupQueue
+func runtime_blockUntilEmptyCleanupQueue(int64) bool
 
 var (
 	onceFunc = sync.OnceFunc(func() {})

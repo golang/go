@@ -1131,9 +1131,9 @@ func showfuncinfo(sf srcFunc, firstFrame bool, calleeID abi.FuncID) bool {
 		return false
 	}
 
-	// Always show runtime.runFinalizersAndCleanups as context that this
-	// goroutine is running finalizers, otherwise there is no obvious
-	// indicator.
+	// Always show runtime.runFinalizers and runtime.runCleanups as
+	// context that this goroutine is running finalizers or cleanups,
+	// otherwise there is no obvious indicator.
 	//
 	// TODO(prattmic): A more general approach would be to always show the
 	// outermost frame (besides runtime.goexit), even if it is a runtime.
@@ -1142,8 +1142,8 @@ func showfuncinfo(sf srcFunc, firstFrame bool, calleeID abi.FuncID) bool {
 	//
 	// Unfortunately, implementing this requires looking ahead at the next
 	// frame, which goes against traceback's incremental approach (see big
-	// coment in traceback1).
-	if sf.funcID == abi.FuncID_runFinalizersAndCleanups {
+	// comment in traceback1).
+	if sf.funcID == abi.FuncID_runFinalizers || sf.funcID == abi.FuncID_runCleanups {
 		return true
 	}
 
@@ -1352,7 +1352,7 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
 // in stack dumps and deadlock detector. This is any goroutine that
 // starts at a runtime.* entry point, except for runtime.main,
 // runtime.handleAsyncEvent (wasm only) and sometimes
-// runtime.runFinalizersAndCleanups.
+// runtime.runFinalizers/runtime.runCleanups.
 //
 // If fixed is true, any goroutine that can vary between user and
 // system (that is, the finalizer goroutine) is considered a user
@@ -1366,7 +1366,7 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
 	if f.funcID == abi.FuncID_runtime_main || f.funcID == abi.FuncID_corostart || f.funcID == abi.FuncID_handleAsyncEvent {
 		return false
 	}
-	if f.funcID == abi.FuncID_runFinalizersAndCleanups {
+	if f.funcID == abi.FuncID_runFinalizers {
 		// We include the finalizer goroutine if it's calling
 		// back into user code.
 		if fixed {
@@ -1375,6 +1375,16 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
 			return false
 		}
 		return fingStatus.Load()&fingRunningFinalizer == 0
+	}
+	if f.funcID == abi.FuncID_runCleanups {
+		// We include the cleanup goroutines if they're calling
+		// back into user code.
+		if fixed {
+			// This goroutine can vary. In fixed mode,
+			// always consider it a user goroutine.
+			return false
+		}
+		return !gp.runningCleanups.Load()
 	}
 	return stringslite.HasPrefix(funcname(f), "runtime.")
 }

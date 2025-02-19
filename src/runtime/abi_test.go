@@ -66,6 +66,9 @@ func TestFinalizerRegisterABI(t *testing.T) {
 	runtime.GC()
 	runtime.GC()
 
+	// Make sure the finalizer goroutine is running.
+	runtime.SetFinalizer(new(TintPointer), func(_ *TintPointer) {})
+
 	// fing will only pick the new IntRegArgs up if it's currently
 	// sleeping and wakes up, so wait for it to go to sleep.
 	success := false

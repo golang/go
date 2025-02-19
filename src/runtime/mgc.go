@@ -187,12 +187,18 @@ func gcinit() {
 	// Use the environment variable GOMEMLIMIT for the initial memoryLimit value.
 	gcController.init(readGOGC(), readGOMEMLIMIT())
 
+	// Set up the cleanup block ptr mask.
+	for i := range cleanupBlockPtrMask {
+		cleanupBlockPtrMask[i] = 0xff
+	}
+
 	work.startSema = 1
 	work.markDoneSema = 1
 	lockInit(&work.sweepWaiters.lock, lockRankSweepWaiters)
 	lockInit(&work.assistQueue.lock, lockRankAssistQueue)
 	lockInit(&work.strongFromWeak.lock, lockRankStrongFromWeakQueue)
 	lockInit(&work.wbufSpans.lock, lockRankWbufSpans)
+	lockInit(&gcCleanups.lock, lockRankCleanupQueue)
 }
 
 // gcenable is called after the bulk of the runtime initialization,

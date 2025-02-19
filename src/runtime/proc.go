@@ -3361,6 +3361,12 @@ top:
 			ready(gp, 0, true)
 		}
 	}
+
+	// Wake up one or more cleanup Gs.
+	if gcCleanups.needsWake() {
+		gcCleanups.wake()
+	}
+
 	if *cgo_yield != nil {
 		asmcgocall(*cgo_yield, nil)
 	}
@@ -5110,6 +5116,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 	newg.gopc = callerpc
 	newg.ancestors = saveAncestors(callergp)
 	newg.startpc = fn.fn
+	newg.runningCleanups.Store(false)
 	if isSystemGoroutine(newg, false) {
 		sched.ngsys.Add(1)
 	} else {

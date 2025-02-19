@@ -89,7 +89,7 @@ func drainCleanupQueue(t *testing.T) {
 	t.Helper()
 
 	runtime.GC() // Queue up the cleanups.
-	runtime_blockUntilEmptyFinalizerQueue(int64(5 * time.Second))
+	runtime_blockUntilEmptyCleanupQueue(int64(5 * time.Second))
 }
 
 func checkMapsFor[T comparable](t *testing.T, value T) {
@@ -176,3 +176,10 @@ func TestNestedHandle(t *testing.T) {
 	drainMaps[testNestedHandle](t)
 	checkMapsFor(t, n0)
 }
+
+// Implemented in runtime.
+//
+// Used only by tests.
+//
+//go:linkname runtime_blockUntilEmptyCleanupQueue
+func runtime_blockUntilEmptyCleanupQueue(timeout int64) bool

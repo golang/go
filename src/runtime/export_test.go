@@ -1798,6 +1798,10 @@ func BlockUntilEmptyFinalizerQueue(timeout int64) bool {
 	return blockUntilEmptyFinalizerQueue(timeout)
 }
 
+func BlockUntilEmptyCleanupQueue(timeout int64) bool {
+	return gcCleanups.blockUntilEmpty(timeout)
+}
+
 func FrameStartLine(f *Frame) int {
 	return f.startLine
 }

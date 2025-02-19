@@ -1577,8 +1577,8 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
 		return strings.Count(s, "\truntime/pprof.runtime_goroutineProfileWithLabels+")
 	}
 
-	includesFinalizer := func(s string) bool {
-		return strings.Contains(s, "runtime.runFinalizersAndCleanups")
+	includesFinalizerOrCleanup := func(s string) bool {
+		return strings.Contains(s, "runtime.runFinalizers") || strings.Contains(s, "runtime.runCleanups")
 	}
 
 	// Concurrent calls to the goroutine profiler should not trigger data races
@@ -1616,8 +1616,8 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
 		var w strings.Builder
 		goroutineProf.WriteTo(&w, 1)
 		prof := w.String()
-		if includesFinalizer(prof) {
-			t.Errorf("profile includes finalizer (but finalizer should be marked as system):\n%s", prof)
+		if includesFinalizerOrCleanup(prof) {
+			t.Errorf("profile includes finalizer or cleanup (but should be marked as system):\n%s", prof)
 		}
 	})
 
@@ -1648,7 +1648,7 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
 		var w strings.Builder
 		goroutineProf.WriteTo(&w, 1)
 		prof := w.String()
-		if !includesFinalizer(prof) {
+		if !includesFinalizerOrCleanup(prof) {
 			t.Errorf("profile does not include finalizer (and it should be marked as user):\n%s", prof)
 		}
 	})
@@ -2065,7 +2065,7 @@ func TestLabelSystemstack(t *testing.T) {
 					// which part of the function they are
 					// at.
 					mayBeLabeled = true
-				case "runtime.bgsweep", "runtime.bgscavenge", "runtime.forcegchelper", "runtime.gcBgMarkWorker", "runtime.runFinalizersAndCleanups", "runtime.sysmon":
+				case "runtime.bgsweep", "runtime.bgscavenge", "runtime.forcegchelper", "runtime.gcBgMarkWorker", "runtime.runFinalizers", "runtime.runCleanups", "runtime.sysmon":
 					// Runtime system goroutines or threads
 					// (such as those identified by
 					// runtime.isSystemGoroutine). These
