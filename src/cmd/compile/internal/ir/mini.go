@@ -28,10 +28,10 @@ import (
 // for more useful panic messages when invalid methods are called,
 // instead of implementing Op itself.
 type miniNode struct {
-	pos  src.XPos // 8 bytes
-	op   Op       // 1 byte
-	bits bitset8  // 1 byte
-	esc  uint16   // 2 bytes
+	pos  src.XPos
+	op   Op
+	bits bitset8
+	esc  uint16
 }
 
 // posOr returns pos if known, or else n.pos.
