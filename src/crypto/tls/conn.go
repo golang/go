@@ -724,6 +724,15 @@ func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
 			return c.in.setErrorLocked(io.EOF)
 		}
 		if c.vers == VersionTLS13 {
+			// TLS 1.3 removed warning-level alerts except for alertUserCanceled
+			// (RFC 8446, § 6.1). Since at least one major implementation
+			// (https://bugs.openjdk.org/browse/JDK-8323517) misuses this alert,
+			// many TLS stacks now ignore it outright when seen in a TLS 1.3
+			// handshake (e.g. BoringSSL, NSS, Rustls).
+			if alert(data[1]) == alertUserCanceled {
+				// Like TLS 1.2 alertLevelWarning alerts, we drop the record and retry.
+				return c.retryReadRecord(expectChangeCipherSpec)
+			}
 			return c.in.setErrorLocked(&net.OpError{Op: "remote error", Err: alert(data[1])})
 		}
 		switch data[0] {
