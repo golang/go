@@ -53,7 +53,7 @@
         "JustConfiguringKyberWorks": "we always send a X25519 key share with Kyber",
         "KyberKeyShareIncludedSecond": "we always send the Kyber key share first",
         "KyberKeyShareIncludedThird": "we always send the Kyber key share first",
-        "GREASE-Server-TLS13": "TODO ???",
+        "GREASE-Server-TLS13": "We don't send GREASE extensions",
         "GarbageCertificate*": "TODO ask davidben, alertDecode vs alertBadCertificate",
         "SendBogusAlertType": "sending wrong alert type",
         "EchoTLS13CompatibilitySessionID": "TODO reject compat session ID",
