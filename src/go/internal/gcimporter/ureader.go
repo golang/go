@@ -525,7 +525,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 				methods := make([]*types.Func, iface.NumExplicitMethods())
 				for i := range methods {
 					fn := iface.ExplicitMethod(i)
-					sig := fn.Type().(*types.Signature)
+					sig := fn.Signature()
 
 					recv := types.NewVar(fn.Pos(), fn.Pkg(), "", named)
 					methods[i] = types.NewFunc(fn.Pos(), fn.Pkg(), fn.Name(), types.NewSignature(recv, sig.Params(), sig.Results(), sig.Variadic()))

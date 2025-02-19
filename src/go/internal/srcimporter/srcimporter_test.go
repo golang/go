@@ -157,7 +157,7 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
 	// check explicitly declared methods
 	for i := 0; i < iface.NumExplicitMethods(); i++ {
 		m := iface.ExplicitMethod(i)
-		recv := m.Type().(*types.Signature).Recv()
+		recv := m.Signature().Recv()
 		if recv == nil {
 			t.Errorf("%s: missing receiver type", m)
 			continue
