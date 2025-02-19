@@ -242,13 +242,12 @@ func (a *object) cmp(b *object) int {
 type PkgName struct {
 	object
 	imported *Package
-	used     bool // set if the package was used
 }
 
 // NewPkgName returns a new PkgName object representing an imported package.
 // The remaining arguments set the attributes found with all Objects.
 func NewPkgName(pos syntax.Pos, pkg *Package, name string, imported *Package) *PkgName {
-	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, black, nopos}, imported, false}
+	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, black, nopos}, imported}
 }
 
 // Imported returns the package that was imported.
@@ -331,10 +330,10 @@ func (obj *TypeName) IsAlias() bool {
 // A Variable represents a declared variable (including function parameters and results, and struct fields).
 type Var struct {
 	object
+	origin   *Var // if non-nil, the Var from which this one was instantiated
 	embedded bool // if set, the variable is an embedded struct field, and name is the type name
 	isField  bool // var is struct field
-	used     bool // set if the variable was used
-	origin   *Var // if non-nil, the Var from which this one was instantiated
+	isParam  bool // var is a param, for backport of 'used' check to go1.24 (go.dev/issue/72826)
 }
 
 // NewVar returns a new variable.
@@ -345,7 +344,7 @@ func NewVar(pos syntax.Pos, pkg *Package, name string, typ Type) *Var {
 
 // NewParam returns a new variable representing a function parameter.
 func NewParam(pos syntax.Pos, pkg *Package, name string, typ Type) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, used: true} // parameters are always 'used'
+	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, isParam: true}
 }
 
 // NewField returns a new variable representing a struct field.

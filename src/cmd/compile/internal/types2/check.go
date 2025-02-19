@@ -162,6 +162,8 @@ type Checker struct {
 	dotImportMap  map[dotImportKey]*PkgName  // maps dot-imported objects to the package they were dot-imported through
 	brokenAliases map[*TypeName]bool         // set of aliases with broken (not yet determined) types
 	unionTypeSets map[*Union]*_TypeSet       // computed type sets for union types
+	usedVars      map[*Var]bool              // set of used variables
+	usedPkgNames  map[*PkgName]bool          // set of used package names
 	mono          monoGraph                  // graph for detecting non-monomorphizable instantiation loops
 
 	firstErr error                    // first error encountered
@@ -285,12 +287,14 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
 	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
 
 	return &Checker{
-		conf:   conf,
-		ctxt:   conf.Context,
-		pkg:    pkg,
-		Info:   info,
-		objMap: make(map[Object]*declInfo),
-		impMap: make(map[importKey]*Package),
+		conf:         conf,
+		ctxt:         conf.Context,
+		pkg:          pkg,
+		Info:         info,
+		objMap:       make(map[Object]*declInfo),
+		impMap:       make(map[importKey]*Package),
+		usedVars:     make(map[*Var]bool),
+		usedPkgNames: make(map[*PkgName]bool),
 	}
 }
 
@@ -298,6 +302,8 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
 // The provided files must all belong to the same package.
 func (check *Checker) initFiles(files []*syntax.File) {
 	// start with a clean slate (check.Files may be called multiple times)
+	// TODO(gri): what determines which fields are zeroed out here, vs at the end
+	// of checkFiles?
 	check.files = nil
 	check.imports = nil
 	check.dotImportMap = nil
@@ -482,8 +488,11 @@ func (check *Checker) checkFiles(files []*syntax.File) {
 	check.seenPkgMap = nil
 	check.brokenAliases = nil
 	check.unionTypeSets = nil
+	check.usedVars = nil
+	check.usedPkgNames = nil
 	check.ctxt = nil
 
+	// TODO(gri): shouldn't the cleanup above occur after the bailout?
 	// TODO(gri) There's more memory we should release at this point.
 }
 

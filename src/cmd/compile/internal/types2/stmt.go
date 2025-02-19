@@ -58,7 +58,7 @@ func (check *Checker) usage(scope *Scope) {
 	var unused []*Var
 	for name, elem := range scope.elems {
 		elem = resolve(name, elem)
-		if v, _ := elem.(*Var); v != nil && !v.used {
+		if v, _ := elem.(*Var); v != nil && !v.isParam && !check.usedVars[v] {
 			unused = append(unused, v)
 		}
 	}
@@ -824,10 +824,10 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 	if lhs != nil {
 		var used bool
 		for _, v := range lhsVars {
-			if v.used {
+			if check.usedVars[v] {
 				used = true
 			}
-			v.used = true // avoid usage error when checking entire function
+			check.usedVars[v] = true // avoid usage error when checking entire function
 		}
 		if !used {
 			check.softErrorf(lhs, UnusedVar, "%s declared and not used", lhs.Value)
@@ -934,7 +934,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 			if typ == nil || typ == Typ[Invalid] {
 				// typ == Typ[Invalid] can happen if allowVersion fails.
 				obj.typ = Typ[Invalid]
-				obj.used = true // don't complain about unused variable
+				check.usedVars[obj] = true // don't complain about unused variable
 				continue
 			}
 

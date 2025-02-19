@@ -55,7 +55,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 		// avoid "declared but not used" errors
 		// (don't use Checker.use - we don't want to evaluate too much)
 		if v, _ := obj.(*Var); v != nil && v.pkg == check.pkg /* see Checker.use1 */ {
-			v.used = true
+			check.usedVars[v] = true
 		}
 		return
 	}
@@ -83,7 +83,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 	// (This code is only needed for dot-imports. Without them,
 	// we only have to mark variables, see *Var case below).
 	if pkgName := check.dotImportMap[dotImportKey{scope, obj.Name()}]; pkgName != nil {
-		pkgName.used = true
+		check.usedPkgNames[pkgName] = true
 	}
 
 	switch obj := obj.(type) {
@@ -120,7 +120,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType 
 		// from other packages to avoid potential race conditions with
 		// dot-imported variables.
 		if obj.pkg == check.pkg {
-			obj.used = true
+			check.usedVars[obj] = true
 		}
 		check.addDeclDep(obj)
 		if !isValid(typ) {
