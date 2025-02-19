@@ -247,11 +247,6 @@ TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	JMP	runtime·memhash64Fallback<ABIInternal>(SB)
 
-// func return0()
-TEXT runtime·return0(SB), NOSPLIT, $0
-	MOV	$0, A0
-	RET
-
 // restore state from Gobuf; longjmp
 
 // func gogo(buf *gobuf)

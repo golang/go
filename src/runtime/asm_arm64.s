@@ -1263,10 +1263,6 @@ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	(R0), R0
 	UNDEF
 
-TEXT runtime·return0(SB), NOSPLIT, $0
-	MOVW	$0, R0
-	RET
-
 // The top-most function running on a goroutine
 // returns to goexit+PCQuantum.
 TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0

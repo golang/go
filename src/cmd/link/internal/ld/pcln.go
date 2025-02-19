@@ -143,8 +143,22 @@ func computeDeferReturn(ctxt *Link, deferReturnSym, s loader.Sym) uint32 {
 				// instruction).
 				deferreturn = uint32(r.Off())
 				switch target.Arch.Family {
-				case sys.AMD64, sys.I386:
+				case sys.I386:
 					deferreturn--
+					if ctxt.BuildMode == BuildModeShared || ctxt.linkShared || ctxt.BuildMode == BuildModePlugin {
+						// In this mode, we need to get the address from GOT,
+						// with two additional instructions like
+						//
+						// CALL    __x86.get_pc_thunk.bx(SB)       // 5 bytes
+						// LEAL    _GLOBAL_OFFSET_TABLE_<>(BX), BX // 6 bytes
+						//
+						// We need to back off to the get_pc_thunk call.
+						// (See progedit in cmd/internal/obj/x86/obj6.go)
+						deferreturn -= 11
+					}
+				case sys.AMD64:
+					deferreturn--
+
 				case sys.ARM, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64:
 					// no change
 				case sys.S390X:

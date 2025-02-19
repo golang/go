@@ -887,24 +887,11 @@ func blockAsm(b *ssa.Block) obj.As {
 func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	// Handle generic blocks first.
 	switch b.Kind {
-	case ssa.BlockPlain:
+	case ssa.BlockPlain, ssa.BlockDefer:
 		if b.Succs[0].Block() != next {
 			p := s.Prog(s390x.ABR)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
-		}
-		return
-	case ssa.BlockDefer:
-		// defer returns in R3:
-		// 0 if we should continue executing
-		// 1 if we should jump to deferreturn call
-		p := s.Br(s390x.ACIJ, b.Succs[1].Block())
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(s390x.NotEqual & s390x.NotUnordered) // unordered is not possible
-		p.Reg = s390x.REG_R3
-		p.AddRestSourceConst(0)
-		if b.Succs[0].Block() != next {
-			s.Br(s390x.ABR, b.Succs[0].Block())
 		}
 		return
 	case ssa.BlockExit, ssa.BlockRetJmp:

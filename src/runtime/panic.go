@@ -285,16 +285,6 @@ func deferproc(fn func()) {
 	// storing it to d.sp because GetCallerSP's result is a
 	// uintptr stack pointer.
 	d.sp = sys.GetCallerSP()
-
-	// deferproc returns 0 normally.
-	// a deferred func that stops a panic
-	// makes the deferproc return 1.
-	// the code the compiler generates always
-	// checks the return value and jumps to the
-	// end of the function if deferproc returns != 0.
-	return0()
-	// No code can go here - the C return register has
-	// been set and must not be clobbered.
 }
 
 var rangeDoneError = error(errorString("range function continued iteration after function for loop body returned false"))
@@ -391,15 +381,10 @@ func deferrangefunc() any {
 		throw("defer on system stack")
 	}
 
-	fn := findfunc(sys.GetCallerPC())
-	if fn.deferreturn == 0 {
-		throw("no deferreturn")
-	}
-
 	d := newdefer()
 	d.link = gp._defer
 	gp._defer = d
-	d.pc = fn.entry() + uintptr(fn.deferreturn)
+	d.pc = sys.GetCallerPC()
 	// We must not be preempted between calling GetCallerSP and
 	// storing it to d.sp because GetCallerSP's result is a
 	// uintptr stack pointer.
@@ -434,9 +419,6 @@ func deferprocat(fn func(), frame any) {
 			break
 		}
 	}
-
-	// Must be last - see deferproc above.
-	return0()
 }
 
 // deferconvert converts the rangefunc defer list of d0 into an ordinary list
@@ -484,6 +466,7 @@ func deferprocStack(d *_defer) {
 		// go code on the system stack can't defer
 		throw("defer on system stack")
 	}
+
 	// fn is already set.
 	// The other fields are junk on entry to deferprocStack and
 	// are initialized here.
@@ -506,10 +489,6 @@ func deferprocStack(d *_defer) {
 	*(*uintptr)(unsafe.Pointer(&d.link)) = uintptr(unsafe.Pointer(gp._defer))
 	*(*uintptr)(unsafe.Pointer(&d.head)) = 0
 	*(*uintptr)(unsafe.Pointer(&gp._defer)) = uintptr(unsafe.Pointer(d))
-
-	return0()
-	// No code can go here - the C return register has
-	// been set and must not be clobbered.
 }
 
 // Each P holds a pool for defers.
@@ -927,9 +906,6 @@ func (p *_panic) nextDefer() (func(), bool) {
 
 			fn := d.fn
 
-			// TODO(mdempsky): Instead of having each deferproc call have
-			// its own "deferreturn(); return" sequence, we should just make
-			// them reuse the one we emit for open-coded defers.
 			p.retpc = d.pc
 
 			// Unlink and free.
@@ -1159,6 +1135,15 @@ func recovery(gp *g) {
 	pc, sp, fp := p.retpc, uintptr(p.sp), uintptr(p.fp)
 	p0, saveOpenDeferState := p, p.deferBitsPtr != nil && *p.deferBitsPtr != 0
 
+	// The linker records the f-relative address of a call to deferreturn in f's funcInfo.
+	// Assuming a "normal" call to recover() inside one of f's deferred functions
+	// invoked for a panic, that is the desired PC for exiting f.
+	f := findfunc(pc)
+	if f.deferreturn == 0 {
+		throw("no deferreturn")
+	}
+	gotoPc := f.entry() + uintptr(f.deferreturn)
+
 	// Unwind the panic stack.
 	for ; p != nil && uintptr(p.startSP) < sp; p = p.link {
 		// Don't allow jumping past a pending Goexit.
@@ -1181,7 +1166,7 @@ func recovery(gp *g) {
 		// With how subtle defer handling is, this might not actually be
 		// worthwhile though.
 		if p.goexit {
-			pc, sp = p.startPC, uintptr(p.startSP)
+			gotoPc, sp = p.startPC, uintptr(p.startSP)
 			saveOpenDeferState = false // goexit is unwinding the stack anyway
 			break
 		}
@@ -1242,11 +1227,9 @@ func recovery(gp *g) {
 		throw("bad recovery")
 	}
 
-	// Make the deferproc for this d return again,
-	// this time returning 1. The calling function will
-	// jump to the standard return epilogue.
+	// branch directly to the deferreturn
 	gp.sched.sp = sp
-	gp.sched.pc = pc
+	gp.sched.pc = gotoPc
 	gp.sched.lr = 0
 	// Restore the bp on platforms that support frame pointers.
 	// N.B. It's fine to not set anything for platforms that don't
@@ -1263,9 +1246,6 @@ func recovery(gp *g) {
 		// only gets us to the caller's fp.
 		gp.sched.bp = sp - goarch.PtrSize
 	}
-	// The value in ret is delivered IN A REGISTER, even if there is a
-	// stack ABI.
-	gp.sched.ret = 1
 	gogo(&gp.sched)
 }
 

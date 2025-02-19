@@ -410,6 +410,8 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
 		// Don't support open-coded defers for 386 ONLY when using shared
 		// libraries, because there is extra code (added by rewriteToUseGot())
 		// preceding the deferreturn/ret code that we don't track correctly.
+		//
+		// TODO this restriction can be removed given adjusted offset in computeDeferReturn in cmd/link/internal/ld/pcln.go
 		s.hasOpenDefers = false
 	}
 	if s.hasOpenDefers && s.instrumentEnterExit {
@@ -2166,7 +2168,17 @@ func (s *state) exit() *ssa.Block {
 			}
 			s.openDeferExit()
 		} else {
+			// Shared deferreturn is assigned the "last" position in the function.
+			// The linker picks the first deferreturn call it sees, so this is
+			// the only sensible "shared" place.
+			// To not-share deferreturn, the protocol would need to be changed
+			// so that the call to deferproc-etc would receive the PC offset from
+			// the return PC, and the runtime would need to use that instead of
+			// the deferreturn retrieved from the pcln information.
+			// opendefers would remain a problem, however.
+			s.pushLine(s.curfn.Endlineno)
 			s.rtcall(ir.Syms.Deferreturn, true, nil)
+			s.popLine()
 		}
 	}
 
@@ -4411,6 +4423,8 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 		s.Fatalf("go/defer call with arguments: %v", n)
 	}
 
+	isCallDeferRangeFunc := false
+
 	switch n.Op() {
 	case ir.OCALLFUNC:
 		if (k == callNormal || k == callTail) && fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC {
@@ -4434,7 +4448,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 				}
 			}
 			if fn := n.Fun.Sym().Name; n.Fun.Sym().Pkg == ir.Pkgs.Runtime && fn == "deferrangefunc" {
-				s.f.HasDeferRangeFunc = true
+				isCallDeferRangeFunc = true
 			}
 			break
 		}
@@ -4596,17 +4610,20 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 	}
 
 	// Finish block for defers
-	if k == callDefer || k == callDeferStack {
+	if k == callDefer || k == callDeferStack || isCallDeferRangeFunc {
 		b := s.endBlock()
 		b.Kind = ssa.BlockDefer
 		b.SetControl(call)
 		bNext := s.f.NewBlock(ssa.BlockPlain)
 		b.AddEdgeTo(bNext)
-		// Add recover edge to exit code.
-		r := s.f.NewBlock(ssa.BlockPlain)
-		s.startBlock(r)
-		s.exit()
-		b.AddEdgeTo(r)
+		r := s.f.DeferReturn // Share a single deferreturn among all defers
+		if r == nil {
+			r = s.f.NewBlock(ssa.BlockPlain)
+			s.startBlock(r)
+			s.exit()
+			s.f.DeferReturn = r
+		}
+		b.AddEdgeTo(r) // Add recover edge to exit code.  This is a fake edge to keep the block live.
 		b.Likely = ssa.BranchLikely
 		s.startBlock(bNext)
 	}
@@ -6571,13 +6588,15 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// nop (which will never execute) after the call.
 		Arch.Ginsnop(s.pp)
 	}
-	if openDeferInfo != nil || f.HasDeferRangeFunc {
+	if openDeferInfo != nil {
 		// When doing open-coded defers, generate a disconnected call to
 		// deferreturn and a return. This will be used to during panic
 		// recovery to unwind the stack and return back to the runtime.
-		//
-		// deferrangefunc needs to be sure that at least one of these exists;
-		// if all returns are dead-code eliminated, there might not be.
+
+		// Note that this exit code doesn't work if a return parameter
+		// is heap-allocated, but open defers aren't enabled in that case.
+
+		// TODO either make this handle heap-allocated return parameters or reuse the other-defers general-purpose code path.
 		s.pp.NextLive = s.livenessMap.DeferReturn
 		p := s.pp.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM

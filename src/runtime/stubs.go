@@ -326,13 +326,6 @@ func morestack_noctxt()
 
 func rt0_go()
 
-// return0 is a stub used to return 0 from deferproc.
-// It is called at the very end of deferproc to signal
-// the calling Go function that it should not jump
-// to deferreturn.
-// in asm_*.s
-func return0()
-
 // in asm_*.s
 // not called directly; definitions here supply type information for traceback.
 // These must have the same signature (arg pointer map) as reflectcall.

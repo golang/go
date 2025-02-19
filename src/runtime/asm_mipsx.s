@@ -634,10 +634,6 @@ TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-12
 TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-12
 	JMP	runtime·memhash64Fallback(SB)
 
-TEXT runtime·return0(SB),NOSPLIT,$0
-	MOVW	$0, R1
-	RET
-
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.
 TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0

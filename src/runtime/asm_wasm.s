@@ -195,10 +195,6 @@ TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
 TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
 	JMP	runtime·memhash64Fallback(SB)
 
-TEXT runtime·return0(SB), NOSPLIT, $0-0
-	MOVD $0, RET0
-	RET
-
 TEXT runtime·asminit(SB), NOSPLIT, $0-0
 	// No per-thread init.
 	RET

@@ -846,10 +846,6 @@ TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-12
 TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-12
 	JMP	runtime·memhash64Fallback(SB)
 
-TEXT runtime·return0(SB),NOSPLIT,$0
-	MOVW	$0, R0
-	RET
-
 TEXT runtime·procyield(SB),NOSPLIT|NOFRAME,$0
 	MOVW	cycles+0(FP), R1
 	MOVW	$0, R0

@@ -41,12 +41,12 @@ type Func struct {
 	ABISelf        *abi.ABIConfig // ABI for function being compiled
 	ABIDefault     *abi.ABIConfig // ABI for rtcall and other no-parsed-signature/pragma functions.
 
-	scheduled         bool  // Values in Blocks are in final order
-	laidout           bool  // Blocks are ordered
-	NoSplit           bool  // true if function is marked as nosplit.  Used by schedule check pass.
-	dumpFileSeq       uint8 // the sequence numbers of dump file. (%s_%02d__%s.dump", funcname, dumpFileSeq, phaseName)
-	IsPgoHot          bool
-	HasDeferRangeFunc bool // if true, needs a deferreturn so deferrangefunc can use it for recover() return PC
+	scheduled   bool  // Values in Blocks are in final order
+	laidout     bool  // Blocks are ordered
+	NoSplit     bool  // true if function is marked as nosplit.  Used by schedule check pass.
+	dumpFileSeq uint8 // the sequence numbers of dump file. (%s_%02d__%s.dump", funcname, dumpFileSeq, phaseName)
+	IsPgoHot    bool
+	DeferReturn *Block // avoid creating more than one deferreturn if there's multiple calls to deferproc-etc.
 
 	// when register allocation is done, maps value ids to locations
 	RegAlloc []Location
