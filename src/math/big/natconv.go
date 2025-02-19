@@ -12,6 +12,7 @@ import (
 	"io"
 	"math"
 	"math/bits"
+	"slices"
 	"sync"
 )
 
@@ -106,7 +107,7 @@ var (
 // is set, only), and -count is the number of fractional digits found.
 // In this case, the actual value of the scanned number is res * b**count.
 func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count int, err error) {
-	// reject invalid bases
+	// Reject invalid bases.
 	baseOk := base == 0 ||
 		!fracOk && 2 <= base && base <= MaxBase ||
 		fracOk && (base == 2 || base == 8 || base == 10 || base == 16)
@@ -124,10 +125,10 @@ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count in
 	// one char look-ahead
 	ch, err := r.ReadByte()
 
-	// determine actual base
+	// Determine actual base.
 	b, prefix := base, 0
 	if base == 0 {
-		// actual base is 10 unless there's a base prefix
+		// Actual base is 10 unless there's a base prefix.
 		b = 10
 		if err == nil && ch == '0' {
 			prev = '0'
@@ -157,16 +158,32 @@ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count in
 		}
 	}
 
-	// convert string
-	// Algorithm: Collect digits in groups of at most n digits in di
-	// and then use mulAddWW for every such group to add them to the
-	// result.
+	// Convert string.
+	// Algorithm: Collect digits in groups of at most n digits in di.
+	// For bases that pack exactly into words (2, 4, 16), append di's
+	// directly to the int representation and then reverse at the end (bn==0 marks this case).
+	// For other bases, use mulAddWW for every such group to shift
+	// z up one group and add di to the result.
+	// With more cleverness we could also handle binary bases like 8 and 32
+	// (corresponding to 3-bit and 5-bit chunks) that don't pack nicely into
+	// words, but those are not too important.
 	z = z[:0]
 	b1 := Word(b)
-	bn, n := maxPow(b1) // at most n digits in base b1 fit into Word
-	di := Word(0)       // 0 <= di < b1**i < bn
-	i := 0              // 0 <= i < n
-	dp := -1            // position of decimal point
+	var bn Word // b1**n (or 0 for the special bit-packing cases b=2,4,16)
+	var n int   // max digits that fit into Word
+	switch b {
+	case 2: // 1 bit per digit
+		n = _W
+	case 4: // 2 bits per digit
+		n = _W / 2
+	case 16: // 4 bits per digit
+		n = _W / 4
+	default:
+		bn, n = maxPow(b1)
+	}
+	di := Word(0) // 0 <= di < b1**i < bn
+	i := 0        // 0 <= i < n
+	dp := -1      // position of decimal point
 	for err == nil {
 		if ch == '.' && fracOk {
 			fracOk = false
@@ -210,7 +227,11 @@ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count in
 
 			// if di is "full", add it to the result
 			if i == n {
-				z = z.mulAddWW(z, bn, di)
+				if bn == 0 {
+					z = append(z, di)
+				} else {
+					z = z.mulAddWW(z, bn, di)
+				}
 				di = 0
 				i = 0
 			}
@@ -238,11 +259,24 @@ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count in
 		err = errNoDigits // fall through; result will be 0
 	}
 
-	// add remaining digits to result
-	if i > 0 {
-		z = z.mulAddWW(z, pow(b1, i), di)
+	if bn == 0 {
+		if i > 0 {
+			// Add remaining digit chunk to result.
+			// Left-justify group's digits; will shift back down after reverse.
+			z = append(z, di*pow(b1, n-i))
+		}
+		slices.Reverse(z)
+		z = z.norm()
+		if i > 0 {
+			z = z.shr(z, uint(n-i)*uint(_W/n))
+		}
+	} else {
+		if i > 0 {
+			// Add remaining digit chunk to result.
+			z = z.mulAddWW(z, pow(b1, i), di)
+		}
 	}
-	res = z.norm()
+	res = z
 
 	// adjust count for fraction, if any
 	if dp >= 0 {
