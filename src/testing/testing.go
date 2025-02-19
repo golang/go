@@ -1003,8 +1003,9 @@ func (c *common) FailNow() {
 	runtime.Goexit()
 }
 
-// log generates the output. It is always at the same stack depth. It inserts
-// the final newline if necessary.
+// log generates the output. It is always at the same stack depth. log inserts
+// indentation and the final newline if necessary. It prefixes the string
+// with the file and line of the call site.
 func (c *common) log(s string) {
 	if l := len(s); l > 0 && (string(s[l-1]) != "\n") {
 		s += "\n"
@@ -1013,8 +1014,10 @@ func (c *common) log(s string) {
 	// the indentation provided by outputWriter.
 	s = strings.Replace(s, "\n", "\n    ", -1)
 
-	cs := c.callSite(3) // callSite + log + public function
-	c.newOutputWriter(cs).Write([]byte(s))
+	// Prefix with the call site. It is located by skipping 3 functions:
+	// callSite + log + public function
+	s = c.callSite(3) + s
+	c.newOutputWriter().Write([]byte(s))
 }
 
 // callSite retrieves and formats the file and line of the call site.
@@ -1041,20 +1044,18 @@ func (c *common) callSite(skip int) string {
 	return fmt.Sprintf("%s:%d: ", file, line)
 }
 
-// newOutputWriter initialises a new outputWriter with the provided call site.
-func (c *common) newOutputWriter(cs string) io.Writer {
-	return &outputWriter{c, nil, cs}
+// newOutputWriter initialises a new outputWriter.
+func (c *common) newOutputWriter() io.Writer {
+	return &outputWriter{c, nil}
 }
 
 // outputWriter buffers, formats and writes input.
 type outputWriter struct {
-	c  *common
-	b  []byte // Stores incomplete input between writes.
-	cs string // Call site.
+	c *common
+	b []byte // Stores incomplete input between writes.
 }
 
-// Write generates the output. It prefixes the string with the file and line of
-// the call site if provided. It inserts indentation spaces for formatting. It
+// Write generates the output. It inserts indentation spaces for formatting and
 // stores input for later if it is not terminated by a newline.
 func (o *outputWriter) Write(p []byte) (int, error) {
 	s := string(append(o.b, p...))
@@ -1076,17 +1077,14 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 		}
 
 		buf := new(strings.Builder)
-		// All lines are indented 4 spaces unless a line is the final one and
-		// is empty.
-		if i == 0 {
-			buf.WriteString("    ")
-			buf.WriteString(o.cs)
-		} else if i < l-1 {
-			buf.WriteString("\n    ")
-		} else {
-			// The final line must be empty otherwise the loop would have
-			// terminated earlier.
+		// Add back newlines.
+		if i != 0 {
 			buf.WriteString("\n")
+		}
+		// All lines are indented 4 spaces except the final one, which must be
+		// empty otherwise the loop would have terminated earlier.
+		if i != l-1 {
+			buf.WriteString("    ")
 		}
 		buf.WriteString(line)
 
