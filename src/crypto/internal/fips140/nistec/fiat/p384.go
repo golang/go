@@ -78,13 +78,8 @@ func (e *P384Element) SetBytes(v []byte) (*P384Element, error) {
 	// the encoding of -1 mod p, so p - 1, the highest canonical encoding.
 	var minusOneEncoding = new(P384Element).Sub(
 		new(P384Element), new(P384Element).One()).Bytes()
-	for i := range v {
-		if v[i] < minusOneEncoding[i] {
-			break
-		}
-		if v[i] > minusOneEncoding[i] {
-			return nil, errors.New("invalid P384Element encoding")
-		}
+	if subtle.ConstantTimeLessOrEqBytes(v, minusOneEncoding) == 0 {
+		return nil, errors.New("invalid P384Element encoding")
 	}
 
 	var in [p384ElementLen]byte
