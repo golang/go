@@ -30,8 +30,10 @@ import (
 // unreachable at the same time, their cleanups all become eligible to run
 // and can run in any order. This is true even if the objects form a cycle.
 //
-// A single goroutine runs all cleanup calls for a program, sequentially. If a
-// cleanup function must run for a long time, it should create a new goroutine.
+// Cleanups run concurrently with any user-created goroutines.
+// Cleanups may also run concurrently with one another (unlike finalizers).
+// If a cleanup function must run for a long time, it should create a new goroutine
+// to avoid blocking the execution of other cleanups.
 //
 // If ptr has both a cleanup and a finalizer, the cleanup will only run once
 // it has been finalized and becomes unreachable without an associated finalizer.
