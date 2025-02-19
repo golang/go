@@ -98,6 +98,8 @@ var (
 
 	verifyPeer = flag.Bool("verify-peer", false, "")
 	_          = flag.Bool("use-custom-verify-callback", false, "")
+
+	waitForDebugger = flag.Bool("wait-for-debugger", false, "")
 )
 
 type stringSlice []string
@@ -307,6 +309,12 @@ func bogoShim() {
 			if _, err := tlsConn.Write([]byte("hello")); err != nil {
 				log.Fatalf("write err: %s", err)
 			}
+		}
+
+		// If we were instructed to wait for a debugger, then send SIGSTOP to ourselves.
+		// When the debugger attaches it will continue the process.
+		if *waitForDebugger {
+			pauseProcess()
 		}
 
 		for {
