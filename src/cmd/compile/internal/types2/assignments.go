@@ -204,7 +204,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 			// dot-imported variables.
 			if w, _ := obj.(*Var); w != nil && w.pkg == check.pkg {
 				v = w
-				v_used = v.used
+				v_used = check.usedVars[v]
 			}
 		}
 	}
@@ -213,7 +213,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 	check.expr(nil, &x, lhs)
 
 	if v != nil {
-		v.used = v_used // restore v.used
+		check.usedVars[v] = v_used // restore v.used
 	}
 
 	if x.mode == invalid || !isValid(x.typ) {

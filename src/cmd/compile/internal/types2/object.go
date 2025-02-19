@@ -242,13 +242,12 @@ func (a *object) cmp(b *object) int {
 type PkgName struct {
 	object
 	imported *Package
-	used     bool // set if the package was used
 }
 
 // NewPkgName returns a new PkgName object representing an imported package.
 // The remaining arguments set the attributes found with all Objects.
 func NewPkgName(pos syntax.Pos, pkg *Package, name string, imported *Package) *PkgName {
-	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, black, nopos}, imported, false}
+	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, black, nopos}, imported}
 }
 
 // Imported returns the package that was imported.
@@ -331,10 +330,9 @@ func (obj *TypeName) IsAlias() bool {
 // A Variable represents a declared variable (including function parameters and results, and struct fields).
 type Var struct {
 	object
+	origin   *Var // if non-nil, the Var from which this one was instantiated
 	kind     VarKind
 	embedded bool // if set, the variable is an embedded struct field, and name is the type name
-	used     bool // set if the variable was used
-	origin   *Var // if non-nil, the Var from which this one was instantiated
 }
 
 // A VarKind discriminates the various kinds of variables.
@@ -403,9 +401,7 @@ func NewField(pos syntax.Pos, pkg *Package, name string, typ Type, embedded bool
 // newVar returns a new variable.
 // The arguments set the attributes found with all Objects.
 func newVar(kind VarKind, pos syntax.Pos, pkg *Package, name string, typ Type) *Var {
-	// Function parameters are always 'used'.
-	used := kind == RecvVar || kind == ParamVar || kind == ResultVar
-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, kind: kind, used: used}
+	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, kind: kind}
 }
 
 // Anonymous reports whether the variable is an embedded field.

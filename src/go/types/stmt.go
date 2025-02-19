@@ -56,10 +56,13 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 }
 
 func (check *Checker) usage(scope *Scope) {
+	needUse := func(kind VarKind) bool {
+		return !(kind == RecvVar || kind == ParamVar || kind == ResultVar)
+	}
 	var unused []*Var
 	for name, elem := range scope.elems {
 		elem = resolve(name, elem)
-		if v, _ := elem.(*Var); v != nil && !v.used {
+		if v, _ := elem.(*Var); v != nil && needUse(v.kind) && !check.usedVars[v] {
 			unused = append(unused, v)
 		}
 	}
@@ -765,13 +768,16 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		}
 
 		// If lhs exists, we must have at least one lhs variable that was used.
+		// (We can't use check.usage because that only looks at one scope; and
+		// we don't want to use the same variable for all scopes and change the
+		// variable type underfoot.)
 		if lhs != nil {
 			var used bool
 			for _, v := range lhsVars {
-				if v.used {
+				if check.usedVars[v] {
 					used = true
 				}
-				v.used = true // avoid usage error when checking entire function
+				check.usedVars[v] = true // avoid usage error when checking entire function
 			}
 			if !used {
 				check.softErrorf(lhs, UnusedVar, "%s declared and not used", lhs.Name)
@@ -939,7 +945,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 			if typ == nil || typ == Typ[Invalid] {
 				// typ == Typ[Invalid] can happen if allowVersion fails.
 				obj.typ = Typ[Invalid]
-				obj.used = true // don't complain about unused variable
+				check.usedVars[obj] = true // don't complain about unused variable
 				continue
 			}
 
