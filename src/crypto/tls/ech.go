@@ -53,19 +53,30 @@ type echConfig struct {
 	Extensions    []echExtension
 }
 
-var errMalformedECHConfig = errors.New("tls: malformed ECHConfigList")
+var errMalformedECHConfigList = errors.New("tls: malformed ECHConfigList")
+
+type echConfigErr struct {
+	field string
+}
+
+func (e *echConfigErr) Error() string {
+	if e.field == "" {
+		return "tls: malformed ECHConfig"
+	}
+	return fmt.Sprintf("tls: malformed ECHConfig, invalid %s field", e.field)
+}
 
 func parseECHConfig(enc []byte) (skip bool, ec echConfig, err error) {
 	s := cryptobyte.String(enc)
 	ec.raw = []byte(enc)
 	if !s.ReadUint16(&ec.Version) {
-		return false, echConfig{}, errMalformedECHConfig
+		return false, echConfig{}, &echConfigErr{"version"}
 	}
 	if !s.ReadUint16(&ec.Length) {
-		return false, echConfig{}, errMalformedECHConfig
+		return false, echConfig{}, &echConfigErr{"length"}
 	}
 	if len(ec.raw) < int(ec.Length)+4 {
-		return false, echConfig{}, errMalformedECHConfig
+		return false, echConfig{}, &echConfigErr{"length"}
 	}
 	ec.raw = ec.raw[:ec.Length+4]
 	if ec.Version != extensionEncryptedClientHello {
@@ -73,47 +84,47 @@ func parseECHConfig(enc []byte) (skip bool, ec echConfig, err error) {
 		return true, echConfig{}, nil
 	}
 	if !s.ReadUint8(&ec.ConfigID) {
-		return false, echConfig{}, errMalformedECHConfig
+		return false, echConfig{}, &echConfigErr{"config_id"}
 	}
 	if !s.ReadUint16(&ec.KemID) {
-		return false, echConfig{}, errMalformedECHConfig
+		return false, echConfig{}, &echConfigErr{"kem_id"}
 	}
 	if !readUint16LengthPrefixed(&s, &ec.PublicKey) {
-		return false, echConfig{}, errMalformedECHConfig
+		return false, echConfig{}, &echConfigErr{"public_key"}
 	}
 	var cipherSuites cryptobyte.String
 	if !s.ReadUint16LengthPrefixed(&cipherSuites) {
-		return false, echConfig{}, errMalformedECHConfig
+		return false, echConfig{}, &echConfigErr{"cipher_suites"}
 	}
 	for !cipherSuites.Empty() {
 		var c echCipher
 		if !cipherSuites.ReadUint16(&c.KDFID) {
-			return false, echConfig{}, errMalformedECHConfig
+			return false, echConfig{}, &echConfigErr{"cipher_suites kdf_id"}
 		}
 		if !cipherSuites.ReadUint16(&c.AEADID) {
-			return false, echConfig{}, errMalformedECHConfig
+			return false, echConfig{}, &echConfigErr{"cipher_suites aead_id"}
 		}
 		ec.SymmetricCipherSuite = append(ec.SymmetricCipherSuite, c)
 	}
 	if !s.ReadUint8(&ec.MaxNameLength) {
-		return false, echConfig{}, errMalformedECHConfig
+		return false, echConfig{}, &echConfigErr{"maximum_name_length"}
 	}
 	var publicName cryptobyte.String
 	if !s.ReadUint8LengthPrefixed(&publicName) {
-		return false, echConfig{}, errMalformedECHConfig
+		return false, echConfig{}, &echConfigErr{"public_name"}
 	}
 	ec.PublicName = publicName
 	var extensions cryptobyte.String
 	if !s.ReadUint16LengthPrefixed(&extensions) {
-		return false, echConfig{}, errMalformedECHConfig
+		return false, echConfig{}, &echConfigErr{"extensions"}
 	}
 	for !extensions.Empty() {
 		var e echExtension
 		if !extensions.ReadUint16(&e.Type) {
-			return false, echConfig{}, errMalformedECHConfig
+			return false, echConfig{}, &echConfigErr{"extensions type"}
 		}
 		if !extensions.ReadUint16LengthPrefixed((*cryptobyte.String)(&e.Data)) {
-			return false, echConfig{}, errMalformedECHConfig
+			return false, echConfig{}, &echConfigErr{"extensions data"}
 		}
 		ec.Extensions = append(ec.Extensions, e)
 	}
@@ -128,10 +139,10 @@ func parseECHConfigList(data []byte) ([]echConfig, error) {
 	s := cryptobyte.String(data)
 	var length uint16
 	if !s.ReadUint16(&length) {
-		return nil, errMalformedECHConfig
+		return nil, errMalformedECHConfigList
 	}
 	if length != uint16(len(data)-2) {
-		return nil, errMalformedECHConfig
+		return nil, errMalformedECHConfigList
 	}
 	var configs []echConfig
 	for len(s) > 0 {
