@@ -92,24 +92,37 @@ func isFIPSVersion(v uint16) bool {
 }
 
 func isFIPSCipherSuite(id uint16) bool {
+	name := CipherSuiteName(id)
+	if isTLS13CipherSuite(id) {
+		switch id {
+		case TLS_AES_128_GCM_SHA256, TLS_AES_256_GCM_SHA384:
+			return true
+		case TLS_CHACHA20_POLY1305_SHA256:
+			return false
+		default:
+			panic("unknown TLS 1.3 cipher suite: " + name)
+		}
+	}
 	switch id {
-	case TLS_AES_128_GCM_SHA256,
-		TLS_AES_256_GCM_SHA384,
-		TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+	case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 		TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 		TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 		TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 func isFIPSCurve(id CurveID) bool {
 	switch id {
 	case CurveP256, CurveP384, CurveP521:
 		return true
+	case X25519, X25519MLKEM768:
+		return false
+	default:
+		panic("unknown curve: " + id.String())
 	}
-	return false
 }
 
 func isECDSA(id uint16) bool {
@@ -123,8 +136,6 @@ func isECDSA(id uint16) bool {
 
 func isFIPSSignatureScheme(alg SignatureScheme) bool {
 	switch alg {
-	default:
-		return false
 	case PKCS1WithSHA256,
 		ECDSAWithP256AndSHA256,
 		PKCS1WithSHA384,
@@ -134,9 +145,12 @@ func isFIPSSignatureScheme(alg SignatureScheme) bool {
 		PSSWithSHA256,
 		PSSWithSHA384,
 		PSSWithSHA512:
-		// ok
+		return true
+	case Ed25519, PKCS1WithSHA1, ECDSAWithSHA1:
+		return false
+	default:
+		panic("unknown signature scheme: " + alg.String())
 	}
-	return true
 }
 
 func TestFIPSServerCipherSuites(t *testing.T) {
@@ -162,7 +176,7 @@ func TestFIPSServerCipherSuites(t *testing.T) {
 				keyShares:                    []keyShare{generateKeyShare(CurveP256)},
 				supportedPoints:              []uint8{pointFormatUncompressed},
 				supportedVersions:            []uint16{VersionTLS12},
-				supportedSignatureAlgorithms: defaultSupportedSignatureAlgorithmsFIPS,
+				supportedSignatureAlgorithms: allowedSupportedSignatureAlgorithmsFIPS,
 			}
 			if isTLS13CipherSuite(id) {
 				clientHello.supportedVersions = []uint16{VersionTLS13}
@@ -189,7 +203,7 @@ func TestFIPSServerCurves(t *testing.T) {
 	serverConfig.BuildNameToCertificate()
 
 	for _, curveid := range defaultCurvePreferences() {
-		t.Run(fmt.Sprintf("curve=%d", curveid), func(t *testing.T) {
+		t.Run(fmt.Sprintf("curve=%v", curveid), func(t *testing.T) {
 			clientConfig := testConfig.Clone()
 			clientConfig.CurvePreferences = []CurveID{curveid}
 
@@ -262,7 +276,7 @@ func TestFIPSServerSignatureAndHash(t *testing.T) {
 			runWithFIPSDisabled(t, func(t *testing.T) {
 				clientErr, serverErr := fipsHandshake(t, testConfig, serverConfig)
 				if clientErr != nil {
-					t.Fatalf("expected handshake with %#x to succeed; client error: %v; server error: %v", sigHash, clientErr, serverErr)
+					t.Fatalf("expected handshake with %v to succeed; client error: %v; server error: %v", sigHash, clientErr, serverErr)
 				}
 			})
 
@@ -271,11 +285,11 @@ func TestFIPSServerSignatureAndHash(t *testing.T) {
 				clientErr, _ := fipsHandshake(t, testConfig, serverConfig)
 				if isFIPSSignatureScheme(sigHash) {
 					if clientErr != nil {
-						t.Fatalf("expected handshake with %#x to succeed; err=%v", sigHash, clientErr)
+						t.Fatalf("expected handshake with %v to succeed; err=%v", sigHash, clientErr)
 					}
 				} else {
 					if clientErr == nil {
-						t.Fatalf("expected handshake with %#x to fail, but it succeeded", sigHash)
+						t.Fatalf("expected handshake with %v to fail, but it succeeded", sigHash)
 					}
 				}
 			})
@@ -323,12 +337,12 @@ func testFIPSClientHello(t *testing.T) {
 	}
 	for _, id := range hello.cipherSuites {
 		if !isFIPSCipherSuite(id) {
-			t.Errorf("client offered disallowed suite %#x", id)
+			t.Errorf("client offered disallowed suite %v", CipherSuiteName(id))
 		}
 	}
 	for _, id := range hello.supportedCurves {
 		if !isFIPSCurve(id) {
-			t.Errorf("client offered disallowed curve %d", id)
+			t.Errorf("client offered disallowed curve %v", id)
 		}
 	}
 	for _, sigHash := range hello.supportedSignatureAlgorithms {
@@ -600,7 +614,7 @@ func fipsCert(t *testing.T, name string, key interface{}, parent *fipsCertificat
 
 	fipsOK := mode&fipsCertFIPSOK != 0
 	runWithFIPSEnabled(t, func(t *testing.T) {
-		if fipsAllowCert(cert) != fipsOK {
+		if isCertificateAllowedFIPS(cert) != fipsOK {
 			t.Errorf("fipsAllowCert(cert with %s key) = %v, want %v", desc, !fipsOK, fipsOK)
 		}
 	})

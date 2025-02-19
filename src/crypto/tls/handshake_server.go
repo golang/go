@@ -373,21 +373,7 @@ func supportsECDHE(c *Config, version uint16, supportedCurves []CurveID, support
 func (hs *serverHandshakeState) pickCipherSuite() error {
 	c := hs.c
 
-	preferenceOrder := cipherSuitesPreferenceOrder
-	if !hasAESGCMHardwareSupport || !aesgcmPreferred(hs.clientHello.cipherSuites) {
-		preferenceOrder = cipherSuitesPreferenceOrderNoAES
-	}
-
-	configCipherSuites := c.config.cipherSuites()
-	preferenceList := make([]uint16, 0, len(configCipherSuites))
-	for _, suiteID := range preferenceOrder {
-		for _, id := range configCipherSuites {
-			if id == suiteID {
-				preferenceList = append(preferenceList, id)
-				break
-			}
-		}
-	}
+	preferenceList := c.config.cipherSuites(isAESGCMPreferred(hs.clientHello.cipherSuites))
 
 	hs.suite = selectCipherSuite(preferenceList, hs.clientHello.cipherSuites, hs.cipherSuiteOk)
 	if hs.suite == nil {
@@ -497,7 +483,7 @@ func (hs *serverHandshakeState) checkForResumption() error {
 
 	// Check that we also support the ciphersuite from the session.
 	suite := selectCipherSuite([]uint16{sessionState.cipherSuite},
-		c.config.cipherSuites(), hs.cipherSuiteOk)
+		c.config.supportedCipherSuites(), hs.cipherSuiteOk)
 	if suite == nil {
 		return nil
 	}

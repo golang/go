@@ -1106,20 +1106,28 @@ func (c *Config) time() time.Time {
 	return t()
 }
 
-func (c *Config) cipherSuites() []uint16 {
+func (c *Config) cipherSuites(aesGCMPreferred bool) []uint16 {
+	var cipherSuites []uint16
 	if c.CipherSuites == nil {
-		if fips140tls.Required() {
-			return defaultCipherSuitesFIPS
-		}
-		return defaultCipherSuites()
-	}
-	if fips140tls.Required() {
-		cipherSuites := slices.Clone(c.CipherSuites)
-		return slices.DeleteFunc(cipherSuites, func(id uint16) bool {
-			return !slices.Contains(defaultCipherSuitesFIPS, id)
+		cipherSuites = defaultCipherSuites(aesGCMPreferred)
+	} else {
+		cipherSuites = supportedCipherSuites(aesGCMPreferred)
+		cipherSuites = slices.DeleteFunc(cipherSuites, func(id uint16) bool {
+			return !slices.Contains(c.CipherSuites, id)
 		})
 	}
-	return c.CipherSuites
+	if fips140tls.Required() {
+		cipherSuites = slices.DeleteFunc(cipherSuites, func(id uint16) bool {
+			return !slices.Contains(allowedCipherSuitesFIPS, id)
+		})
+	}
+	return cipherSuites
+}
+
+// supportedCipherSuites returns the supported TLS 1.0–1.2 cipher suites in an
+// undefined order. For preference ordering, use [Config.cipherSuites].
+func (c *Config) supportedCipherSuites() []uint16 {
+	return c.cipherSuites(false)
 }
 
 var supportedVersions = []uint16{
@@ -1139,7 +1147,7 @@ var tls10server = godebug.New("tls10server")
 func (c *Config) supportedVersions(isClient bool) []uint16 {
 	versions := make([]uint16, 0, len(supportedVersions))
 	for _, v := range supportedVersions {
-		if fips140tls.Required() && !slices.Contains(defaultSupportedVersionsFIPS, v) {
+		if fips140tls.Required() && !slices.Contains(allowedSupportedVersionsFIPS, v) {
 			continue
 		}
 		if (c == nil || c.MinVersion == 0) && v < VersionTLS12 {
@@ -1184,11 +1192,11 @@ func supportedVersionsFromMax(maxVersion uint16) []uint16 {
 }
 
 func (c *Config) curvePreferences(version uint16) []CurveID {
-	var curvePreferences []CurveID
+	curvePreferences := defaultCurvePreferences()
 	if fips140tls.Required() {
-		curvePreferences = slices.Clone(defaultCurvePreferencesFIPS)
-	} else {
-		curvePreferences = defaultCurvePreferences()
+		curvePreferences = slices.DeleteFunc(curvePreferences, func(x CurveID) bool {
+			return !slices.Contains(allowedCurvePreferencesFIPS, x)
+		})
 	}
 	if c != nil && len(c.CurvePreferences) != 0 {
 		curvePreferences = slices.DeleteFunc(curvePreferences, func(x CurveID) bool {
@@ -1202,23 +1210,16 @@ func (c *Config) curvePreferences(version uint16) []CurveID {
 }
 
 func (c *Config) supportsCurve(version uint16, curve CurveID) bool {
-	for _, cc := range c.curvePreferences(version) {
-		if cc == curve {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(c.curvePreferences(version), curve)
 }
 
 // mutualVersion returns the protocol version to use given the advertised
 // versions of the peer. Priority is given to the peer preference order.
 func (c *Config) mutualVersion(isClient bool, peerVersions []uint16) (uint16, bool) {
 	supportedVersions := c.supportedVersions(isClient)
-	for _, peerVersion := range peerVersions {
-		for _, v := range supportedVersions {
-			if v == peerVersion {
-				return v, true
-			}
+	for _, v := range peerVersions {
+		if slices.Contains(supportedVersions, v) {
+			return v, true
 		}
 	}
 	return 0, false
@@ -1339,7 +1340,7 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
 		}
 		// Finally, there needs to be a mutual cipher suite that uses the static
 		// RSA key exchange instead of ECDHE.
-		rsaCipherSuite := selectCipherSuite(chi.CipherSuites, config.cipherSuites(), func(c *cipherSuite) bool {
+		rsaCipherSuite := selectCipherSuite(chi.CipherSuites, config.supportedCipherSuites(), func(c *cipherSuite) bool {
 			if c.flags&suiteECDHE != 0 {
 				return false
 			}
@@ -1416,7 +1417,7 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
 	// Make sure that there is a mutually supported cipher suite that works with
 	// this certificate. Cipher suite selection will then apply the logic in
 	// reverse to pick it. See also serverHandshakeState.cipherSuiteOk.
-	cipherSuite := selectCipherSuite(chi.CipherSuites, config.cipherSuites(), func(c *cipherSuite) bool {
+	cipherSuite := selectCipherSuite(chi.CipherSuites, config.supportedCipherSuites(), func(c *cipherSuite) bool {
 		if c.flags&suiteECDHE == 0 {
 			return false
 		}
@@ -1660,19 +1661,14 @@ func unexpectedMessageError(wanted, got any) error {
 
 // supportedSignatureAlgorithms returns the supported signature algorithms.
 func supportedSignatureAlgorithms() []SignatureScheme {
-	if !fips140tls.Required() {
-		return defaultSupportedSignatureAlgorithms
+	if fips140tls.Required() {
+		return allowedSupportedSignatureAlgorithmsFIPS
 	}
-	return defaultSupportedSignatureAlgorithmsFIPS
+	return defaultSupportedSignatureAlgorithms
 }
 
 func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlgorithms []SignatureScheme) bool {
-	for _, s := range supportedSignatureAlgorithms {
-		if s == sigAlg {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(supportedSignatureAlgorithms, sigAlg)
 }
 
 // CertificateVerificationError is returned when certificate verification fails during the handshake.
@@ -1721,24 +1717,10 @@ func fipsAllowChain(chain []*x509.Certificate) bool {
 	}
 
 	for _, cert := range chain {
-		if !fipsAllowCert(cert) {
+		if !isCertificateAllowedFIPS(cert) {
 			return false
 		}
 	}
 
 	return true
-}
-
-func fipsAllowCert(c *x509.Certificate) bool {
-	// The key must be RSA 2048, RSA 3072, RSA 4096,
-	// or ECDSA P-256, P-384, P-521.
-	switch k := c.PublicKey.(type) {
-	case *rsa.PublicKey:
-		size := k.N.BitLen()
-		return size == 2048 || size == 3072 || size == 4096
-	case *ecdsa.PublicKey:
-		return k.Curve == elliptic.P256() || k.Curve == elliptic.P384() || k.Curve == elliptic.P521()
-	}
-
-	return false
 }

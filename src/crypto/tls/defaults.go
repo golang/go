@@ -46,9 +46,17 @@ var defaultSupportedSignatureAlgorithms = []SignatureScheme{
 var tlsrsakex = godebug.New("tlsrsakex")
 var tls3des = godebug.New("tls3des")
 
-func defaultCipherSuites() []uint16 {
-	suites := slices.Clone(cipherSuitesPreferenceOrder)
-	return slices.DeleteFunc(suites, func(c uint16) bool {
+func supportedCipherSuites(aesGCMPreferred bool) []uint16 {
+	if aesGCMPreferred {
+		return slices.Clone(cipherSuitesPreferenceOrder)
+	} else {
+		return slices.Clone(cipherSuitesPreferenceOrderNoAES)
+	}
+}
+
+func defaultCipherSuites(aesGCMPreferred bool) []uint16 {
+	cipherSuites := supportedCipherSuites(aesGCMPreferred)
+	return slices.DeleteFunc(cipherSuites, func(c uint16) bool {
 		return disabledCipherSuites[c] ||
 			tlsrsakex.Value() != "1" && rsaKexCiphers[c] ||
 			tls3des.Value() != "1" && tdesCiphers[c]
@@ -87,48 +95,6 @@ var defaultCipherSuitesTLS13 = []uint16{
 //go:linkname defaultCipherSuitesTLS13NoAES
 var defaultCipherSuitesTLS13NoAES = []uint16{
 	TLS_CHACHA20_POLY1305_SHA256,
-	TLS_AES_128_GCM_SHA256,
-	TLS_AES_256_GCM_SHA384,
-}
-
-// The FIPS-only policies below match BoringSSL's
-// ssl_compliance_policy_fips_202205, which is based on NIST SP 800-52r2, with
-// minor changes per https://go.dev/issue/71757.
-// https://cs.opensource.google/boringssl/boringssl/+/master:ssl/ssl_lib.cc;l=3289;drc=ea7a88fa
-
-var defaultSupportedVersionsFIPS = []uint16{
-	VersionTLS12,
-	VersionTLS13,
-}
-
-// defaultCurvePreferencesFIPS are the FIPS-allowed curves,
-// in preference order (most preferable first).
-var defaultCurvePreferencesFIPS = []CurveID{CurveP256, CurveP384, CurveP521}
-
-// defaultSupportedSignatureAlgorithmsFIPS currently are a subset of
-// defaultSupportedSignatureAlgorithms without Ed25519 and SHA-1.
-var defaultSupportedSignatureAlgorithmsFIPS = []SignatureScheme{
-	PSSWithSHA256,
-	PSSWithSHA384,
-	PSSWithSHA512,
-	PKCS1WithSHA256,
-	ECDSAWithP256AndSHA256,
-	PKCS1WithSHA384,
-	ECDSAWithP384AndSHA384,
-	PKCS1WithSHA512,
-	ECDSAWithP521AndSHA512,
-}
-
-// defaultCipherSuitesFIPS are the FIPS-allowed cipher suites.
-var defaultCipherSuitesFIPS = []uint16{
-	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-	TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-}
-
-// defaultCipherSuitesTLS13FIPS are the FIPS-allowed cipher suites for TLS 1.3.
-var defaultCipherSuitesTLS13FIPS = []uint16{
 	TLS_AES_128_GCM_SHA256,
 	TLS_AES_256_GCM_SHA384,
 }

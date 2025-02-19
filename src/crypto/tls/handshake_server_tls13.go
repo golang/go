@@ -176,11 +176,11 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
 	hs.hello.compressionMethod = compressionNone
 
 	preferenceList := defaultCipherSuitesTLS13
-	if !hasAESGCMHardwareSupport || !aesgcmPreferred(hs.clientHello.cipherSuites) {
+	if !hasAESGCMHardwareSupport || !isAESGCMPreferred(hs.clientHello.cipherSuites) {
 		preferenceList = defaultCipherSuitesTLS13NoAES
 	}
 	if fips140tls.Required() {
-		preferenceList = defaultCipherSuitesTLS13FIPS
+		preferenceList = allowedCipherSuitesTLS13FIPS
 	}
 	for _, suiteID := range preferenceList {
 		hs.suite = mutualCipherSuiteTLS13(hs.clientHello.cipherSuites, suiteID)

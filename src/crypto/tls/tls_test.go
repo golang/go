@@ -1593,11 +1593,11 @@ func TestCipherSuites(t *testing.T) {
 		}
 
 		if cc.Insecure {
-			if slices.Contains(defaultCipherSuites(), c.id) {
+			if slices.Contains(defaultCipherSuites(false), c.id) {
 				t.Errorf("%#04x: insecure suite in default list", c.id)
 			}
 		} else {
-			if !slices.Contains(defaultCipherSuites(), c.id) {
+			if !slices.Contains(defaultCipherSuites(false), c.id) {
 				t.Errorf("%#04x: secure suite not in default list", c.id)
 			}
 		}

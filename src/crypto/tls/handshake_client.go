@@ -94,24 +94,12 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
 		hello.secureRenegotiation = c.clientFinished[:]
 	}
 
-	preferenceOrder := cipherSuitesPreferenceOrder
-	if !hasAESGCMHardwareSupport {
-		preferenceOrder = cipherSuitesPreferenceOrderNoAES
-	}
-	configCipherSuites := config.cipherSuites()
-	hello.cipherSuites = make([]uint16, 0, len(configCipherSuites))
-
-	for _, suiteId := range preferenceOrder {
-		suite := mutualCipherSuite(configCipherSuites, suiteId)
-		if suite == nil {
-			continue
-		}
-		// Don't advertise TLS 1.2-only cipher suites unless
-		// we're attempting TLS 1.2.
-		if maxVersion < VersionTLS12 && suite.flags&suiteTLS12 != 0 {
-			continue
-		}
-		hello.cipherSuites = append(hello.cipherSuites, suiteId)
+	hello.cipherSuites = config.cipherSuites(hasAESGCMHardwareSupport)
+	// Don't advertise TLS 1.2-only cipher suites unless we're attempting TLS 1.2.
+	if maxVersion < VersionTLS12 {
+		hello.cipherSuites = slices.DeleteFunc(hello.cipherSuites, func(id uint16) bool {
+			return cipherSuiteByID(id).flags&suiteTLS12 != 0
+		})
 	}
 
 	_, err := io.ReadFull(config.rand(), hello.random)
@@ -145,7 +133,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
 			hello.cipherSuites = nil
 		}
 		if fips140tls.Required() {
-			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13FIPS...)
+			hello.cipherSuites = append(hello.cipherSuites, allowedCipherSuitesTLS13FIPS...)
 		} else if hasAESGCMHardwareSupport {
 			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13...)
 		} else {

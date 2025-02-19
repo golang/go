@@ -2707,7 +2707,7 @@ func testTLS13OnlyClientHelloCipherSuite(t *testing.T, ciphers []uint16) {
 		GetConfigForClient: func(chi *ClientHelloInfo) (*Config, error) {
 			expectedCiphersuites := defaultCipherSuitesTLS13NoAES
 			if fips140tls.Required() {
-				expectedCiphersuites = defaultCipherSuitesTLS13FIPS
+				expectedCiphersuites = allowedCipherSuitesTLS13FIPS
 			}
 			if len(chi.CipherSuites) != len(expectedCiphersuites) {
 				t.Errorf("only TLS 1.3 suites should be advertised, got=%x", chi.CipherSuites)
