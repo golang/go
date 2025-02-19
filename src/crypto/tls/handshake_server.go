@@ -527,6 +527,10 @@ func (hs *serverHandshakeState) checkForResumption() error {
 		// weird downgrade in client capabilities.
 		return errors.New("tls: session supported extended_master_secret but client does not")
 	}
+	if !sessionState.extMasterSecret && fips140tls.Required() {
+		// FIPS 140-3 requires the use of Extended Master Secret.
+		return nil
+	}
 
 	c.peerCertificates = sessionState.peerCertificates
 	c.ocspResponse = sessionState.ocspResponse
@@ -713,6 +717,10 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		hs.masterSecret = extMasterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret,
 			hs.finishedHash.Sum())
 	} else {
+		if fips140tls.Required() {
+			c.sendAlert(alertHandshakeFailure)
+			return errors.New("tls: FIPS 140-3 requires the use of Extended Master Secret")
+		}
 		hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret,
 			hs.clientHello.random, hs.hello.random)
 	}
