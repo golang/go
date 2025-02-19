@@ -28,7 +28,6 @@ func Lines(s string) iter.Seq[string] {
 				return
 			}
 		}
-		return
 	}
 }
 

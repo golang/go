@@ -28,7 +28,6 @@ func Lines(s []byte) iter.Seq[[]byte] {
 				return
 			}
 		}
-		return
 	}
 }
 
