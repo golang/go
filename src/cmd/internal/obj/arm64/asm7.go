@@ -1953,7 +1953,7 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
 		return C_BITCON
 	}
 
-	if 0 <= v && v <= 0xffffff {
+	if isaddcon2(int64(v)) {
 		return C_ADDCON2
 	}
 	return C_LCON
@@ -2205,7 +2205,7 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 				return C_BITCON
 			}
 
-			if 0 <= v && v <= 0xffffff {
+			if isaddcon2(v) {
 				return C_ADDCON2
 			}
 
