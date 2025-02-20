@@ -1903,9 +1903,20 @@ func rclass(r int16) int {
 }
 
 // conclass classifies a constant.
-func conclass(v int64) int {
+func conclass(v int64, mode int) int {
+	// For constants used with instructions that produce 32 bit results, rewrite the
+	// high 32 bits to be a repetition of the low 32 bits, so that the BITCON test can
+	// be shared for both 32 bit and 64 bit inputs. A 32 bit operation will zero the
+	// high 32 bit of the destination register anyway.
 	vbitcon := uint64(v)
+	if mode == 32 {
+		vbitcon = uint64(v)<<32 | uint64(v)
+	}
+
 	vnotcon := ^v
+	if mode == 32 {
+		vnotcon = int64(uint32(vnotcon))
+	}
 
 	if v == 0 {
 		return C_ZCON
@@ -1957,63 +1968,11 @@ func conclass(v int64) int {
 	return C_VCON
 }
 
-// con32class reclassifies the constant of 32-bit instruction. Because the constant type is 32-bit,
-// but saved in Offset which type is int64, con32class treats it as uint32 type and reclassifies it.
+// con32class reclassifies the constant used with an instruction that produces
+// a 32 bit result. The constant is at most 32 bits but is saved in Offset as
+// a int64. con32class treats it as uint32 type and reclassifies it.
 func (c *ctxt7) con32class(a *obj.Addr) int {
-	v := uint32(a.Offset)
-	// For 32-bit instruction with constant, rewrite
-	// the high 32-bit to be a repetition of the low
-	// 32-bit, so that the BITCON test can be shared
-	// for both 32-bit and 64-bit. 32-bit ops will
-	// zero the high 32-bit of the destination register
-	// anyway.
-	vbitcon := uint64(v)<<32 | uint64(v)
-	if v == 0 {
-		return C_ZCON
-	}
-	if isaddcon(int64(v)) {
-		if v <= 0xFFF {
-			if isbitcon(vbitcon) {
-				return C_ABCON0
-			}
-			return C_ADDCON0
-		}
-		if isbitcon(vbitcon) {
-			return C_ABCON
-		}
-		if movcon(int64(v)) >= 0 {
-			return C_AMCON
-		}
-		if movcon(int64(^v)) >= 0 {
-			return C_AMCON
-		}
-		return C_ADDCON
-	}
-
-	t := movcon(int64(v))
-	if t >= 0 {
-		if isbitcon(vbitcon) {
-			return C_MBCON
-		}
-		return C_MOVCON
-	}
-
-	t = movcon(int64(^v))
-	if t >= 0 {
-		if isbitcon(vbitcon) {
-			return C_MBCON
-		}
-		return C_MOVCON
-	}
-
-	if isbitcon(vbitcon) {
-		return C_BITCON
-	}
-
-	if isaddcon2(int64(v)) {
-		return C_ADDCON2
-	}
-	return C_LCON
+	return conclass(int64(uint32(a.Offset)), 32)
 }
 
 // con64class reclassifies the constant of C_VCON and C_LCON class.
@@ -2219,7 +2178,7 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 			if a.Reg != 0 && a.Reg != REGZERO {
 				break
 			}
-			return conclass(c.instoffset)
+			return conclass(c.instoffset, 64)
 
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
 			if a.Sym == nil {
