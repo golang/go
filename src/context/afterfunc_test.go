@@ -20,9 +20,7 @@ type afterFuncContext struct {
 	err        error
 }
 
-func newAfterFuncContext() context.Context {
-	return &afterFuncContext{}
-}
+var _ context.Context = (*afterFuncContext)(nil)
 
 func (c *afterFuncContext) Deadline() (time.Time, bool) {
 	return time.Time{}, false
