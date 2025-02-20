@@ -1863,15 +1863,14 @@ func (c *ctxt7) offsetshift(p *obj.Prog, v int64, cls int) int64 {
 	return vs
 }
 
-/*
- * if v contains a single 16-bit value aligned
- * on a 16-bit field, and thus suitable for movk/movn,
- * return the field index 0 to 3; otherwise return -1.
- */
+// movcon checks if v contains a single 16 bit value that is aligned on
+// a 16 bit boundary, suitable for use with a movk/movn instruction. The
+// field offset in bits is returned (being a multiple 16), otherwise -1 is
+// returned indicating an unsuitable value.
 func movcon(v int64) int {
 	for s := 0; s < 64; s += 16 {
 		if (uint64(v) &^ (uint64(0xFFFF) << uint(s))) == 0 {
-			return s / 16
+			return s
 		}
 	}
 	return -1
@@ -4120,18 +4119,18 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			c.ctxt.Diag("zero shifts cannot be handled correctly: %v", p)
 		}
 		s := movcon(d)
-		if s < 0 || s >= 4 {
+		if s < 0 || s >= 64 {
 			c.ctxt.Diag("bad constant for MOVK: %#x\n%v", uint64(d), p)
 		}
-		if (o1&S64) == 0 && s >= 2 {
+		if (o1&S64) == 0 && s >= 32 {
 			c.ctxt.Diag("illegal bit position\n%v", p)
 		}
-		if ((uint64(d) >> uint(s*16)) >> 16) != 0 {
+		if ((uint64(d) >> uint(s)) >> 16) != 0 {
 			c.ctxt.Diag("requires uimm16\n%v", p)
 		}
 		rt := int(p.To.Reg)
 
-		o1 |= uint32((((d >> uint(s*16)) & 0xFFFF) << 5) | int64((uint32(s)&3)<<21) | int64(rt&31))
+		o1 |= uint32((((d >> uint(s)) & 0xFFFF) << 5) | int64((uint32(s>>4)&3)<<21) | int64(rt&31))
 
 	case 34: /* mov $lacon,R */
 		rt, r, rf := p.To.Reg, p.From.Reg, int16(REGTMP)
@@ -7423,32 +7422,32 @@ func (c *ctxt7) omovconst(as obj.As, p *obj.Prog, a *obj.Addr, rt int) (o1 uint3
 	if as == AMOVW {
 		d := uint32(a.Offset)
 		s := movcon(int64(d))
-		if s < 0 || 16*s >= 32 {
+		if s < 0 || s >= 32 {
 			d = ^d
 			s = movcon(int64(d))
-			if s < 0 || 16*s >= 32 {
+			if s < 0 || s >= 32 {
 				c.ctxt.Diag("impossible 32-bit move wide: %#x\n%v", uint32(a.Offset), p)
 			}
 			o1 = c.opirr(p, AMOVNW)
 		} else {
 			o1 = c.opirr(p, AMOVZW)
 		}
-		o1 |= MOVCONST(int64(d), s, rt)
+		o1 |= MOVCONST(int64(d), s>>4, rt)
 	}
 	if as == AMOVD {
 		d := a.Offset
 		s := movcon(d)
-		if s < 0 || 16*s >= 64 {
+		if s < 0 || s >= 64 {
 			d = ^d
 			s = movcon(d)
-			if s < 0 || 16*s >= 64 {
+			if s < 0 || s >= 64 {
 				c.ctxt.Diag("impossible 64-bit move wide: %#x\n%v", uint64(a.Offset), p)
 			}
 			o1 = c.opirr(p, AMOVN)
 		} else {
 			o1 = c.opirr(p, AMOVZ)
 		}
-		o1 |= MOVCONST(d, s, rt)
+		o1 |= MOVCONST(d, s>>4, rt)
 	}
 	return o1
 }
