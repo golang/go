@@ -215,7 +215,7 @@ func sigenable(sig uint32) {
 // at program startup or the last custom handler registered by cgo.
 // It is only called while holding the os/signal.handlers lock,
 // via os/signal.disableSignal and signal_disable.
-// Returns true if the signal is ignored after the change.
+// Reports whether the signal is ignored after the change.
 func sigdisable(sig uint32) bool {
 	if sig >= uint32(len(sigtable)) {
 		return false

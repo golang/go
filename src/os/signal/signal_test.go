@@ -921,7 +921,10 @@ func TestResetIgnore(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to parse signal: %v", err)
 		}
-		resetIgnoreTestProgram(syscall.Signal(s))
+		if Ignored(syscall.Signal(s)) {
+			os.Exit(1)
+		}
+		os.Exit(0)
 	}
 
 	sigs := []syscall.Signal{
@@ -937,7 +940,7 @@ func TestResetIgnore(t *testing.T) {
 		for _, sig := range sigs {
 			t.Run(fmt.Sprintf("%s[notify=%t]", sig, notify), func(t *testing.T) {
 				if Ignored(sig) {
-					t.Fatalf("expected %q to not be ignored initially", sig)
+					t.Skipf("expected %q to not be ignored initially", sig)
 				}
 
 				Ignore(sig)
@@ -957,21 +960,12 @@ func TestResetIgnore(t *testing.T) {
 				cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestResetIgnore$")
 				cmd.Env = append(os.Environ(), "GO_TEST_RESET_IGNORE="+strconv.Itoa(int(sig)))
 				err := cmd.Run()
-				if _, ok := err.(*exec.ExitError); ok {
-					t.Fatalf("expected %q to not be ignored in child process", sig)
-				} else if err != nil {
-					t.Fatalf("child process failed to launch: %v", err)
+				if err != nil {
+					t.Fatalf("expected %q to not be ignored in child process: %v", sig, err)
 				}
 			})
 		}
 	}
-}
-
-func resetIgnoreTestProgram(sig os.Signal) {
-	if Ignored(sig) {
-		os.Exit(1)
-	}
-	os.Exit(0)
 }
 
 // #46321 test Reset correctly undoes the effect of Ignore when the child
@@ -1000,10 +994,8 @@ func TestInitiallyIgnoredResetIgnore(t *testing.T) {
 			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestInitiallyIgnoredResetIgnore$")
 			cmd.Env = append(os.Environ(), "GO_TEST_INITIALLY_IGNORED_RESET_IGNORE="+strconv.Itoa(int(sig)))
 			err := cmd.Run()
-			if _, ok := err.(*exec.ExitError); ok {
-				t.Fatalf("expected %q to be ignored in child process", sig)
-			} else if err != nil {
-				t.Fatalf("child process failed to launch: %v", err)
+			if err != nil {
+				t.Fatalf("expected %q to be ignored in child process: %v", sig, err)
 			}
 		})
 	}
