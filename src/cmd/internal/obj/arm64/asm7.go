@@ -1902,6 +1902,61 @@ func rclass(r int16) int {
 	return C_GOK
 }
 
+// conclass classifies a constant.
+func conclass(v int64) int {
+	if v == 0 {
+		return C_ZCON
+	}
+	if isaddcon(v) {
+		if v <= 0xFFF {
+			if isbitcon(uint64(v)) {
+				return C_ABCON0
+			}
+			return C_ADDCON0
+		}
+		if isbitcon(uint64(v)) {
+			return C_ABCON
+		}
+		if movcon(v) >= 0 {
+			return C_AMCON
+		}
+		if movcon(^v) >= 0 {
+			return C_AMCON
+		}
+		return C_ADDCON
+	}
+
+	t := movcon(v)
+	if t >= 0 {
+		if isbitcon(uint64(v)) {
+			return C_MBCON
+		}
+		return C_MOVCON
+	}
+
+	t = movcon(^v)
+	if t >= 0 {
+		if isbitcon(uint64(v)) {
+			return C_MBCON
+		}
+		return C_MOVCON
+	}
+
+	if isbitcon(uint64(v)) {
+		return C_BITCON
+	}
+
+	if isaddcon2(v) {
+		return C_ADDCON2
+	}
+
+	if uint64(v) == uint64(uint32(v)) || v == int64(int32(v)) {
+		return C_LCON
+	}
+
+	return C_VCON
+}
+
 // con32class reclassifies the constant of 32-bit instruction. Because the constant type is 32-bit,
 // but saved in Offset which type is int64, con32class treats it as uint32 type and reclassifies it.
 func (c *ctxt7) con32class(a *obj.Addr) int {
@@ -2164,57 +2219,7 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 			if a.Reg != 0 && a.Reg != REGZERO {
 				break
 			}
-			v := c.instoffset
-			if v == 0 {
-				return C_ZCON
-			}
-			if isaddcon(v) {
-				if v <= 0xFFF {
-					if isbitcon(uint64(v)) {
-						return C_ABCON0
-					}
-					return C_ADDCON0
-				}
-				if isbitcon(uint64(v)) {
-					return C_ABCON
-				}
-				if movcon(v) >= 0 {
-					return C_AMCON
-				}
-				if movcon(^v) >= 0 {
-					return C_AMCON
-				}
-				return C_ADDCON
-			}
-
-			t := movcon(v)
-			if t >= 0 {
-				if isbitcon(uint64(v)) {
-					return C_MBCON
-				}
-				return C_MOVCON
-			}
-
-			t = movcon(^v)
-			if t >= 0 {
-				if isbitcon(uint64(v)) {
-					return C_MBCON
-				}
-				return C_MOVCON
-			}
-
-			if isbitcon(uint64(v)) {
-				return C_BITCON
-			}
-
-			if isaddcon2(v) {
-				return C_ADDCON2
-			}
-
-			if uint64(v) == uint64(uint32(v)) || v == int64(int32(v)) {
-				return C_LCON
-			}
-			return C_VCON
+			return conclass(c.instoffset)
 
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
 			if a.Sym == nil {
