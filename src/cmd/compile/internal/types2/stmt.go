@@ -859,8 +859,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 	// determine key/value types
 	var key, val Type
 	if x.mode != invalid {
-		// Ranging over a type parameter is permitted if it has a core type.
-		k, v, cause, ok := rangeKeyVal(x.typ, func(v goVersion) bool {
+		k, v, cause, ok := rangeKeyVal(check, x.typ, func(v goVersion) bool {
 			return check.allowVersion(v)
 		})
 		switch {
@@ -992,19 +991,23 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 }
 
 // rangeKeyVal returns the key and value type produced by a range clause
-// over an expression of type typ.
+// over an expression of type orig.
 // If allowVersion != nil, it is used to check the required language version.
 // If the range clause is not permitted, rangeKeyVal returns ok = false.
 // When ok = false, rangeKeyVal may also return a reason in cause.
-func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, cause string, ok bool) {
+// The check parameter is only used in case of an error; it may be nil.
+func rangeKeyVal(check *Checker, orig Type, allowVersion func(goVersion) bool) (key, val Type, cause string, ok bool) {
 	bad := func(cause string) (Type, Type, string, bool) {
 		return Typ[Invalid], Typ[Invalid], cause, false
 	}
 
-	orig := typ
-	switch typ := arrayPtrDeref(coreType(typ)).(type) {
-	case nil:
-		return bad("no core type")
+	var cause1 string
+	rtyp := sharedUnderOrChan(check, orig, &cause1)
+	if rtyp == nil {
+		return bad(cause1)
+	}
+
+	switch typ := arrayPtrDeref(rtyp).(type) {
 	case *Basic:
 		if isString(typ) {
 			return Typ[Int], universeRune, "", true // use 'rune' name
@@ -1022,9 +1025,7 @@ func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, ca
 	case *Map:
 		return typ.key, typ.elem, "", true
 	case *Chan:
-		if typ.dir == SendOnly {
-			return bad("receive from send-only channel")
-		}
+		assert(typ.dir != SendOnly)
 		return typ.elem, nil, "", true
 	case *Signature:
 		if !buildcfg.Experiment.RangeFunc && allowVersion != nil && !allowVersion(go1_23) {

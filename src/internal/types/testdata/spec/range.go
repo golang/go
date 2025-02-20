@@ -129,13 +129,23 @@ func test() {
 	}
 }
 
+func _[T any](x T) {
+	for range x /* ERROR "cannot range over x (variable of type T constrained by any): no specific type" */ {
+	}
+}
+
+func _[T interface{int; string}](x T) {
+	for range x /* ERROR "cannot range over x (variable of type T constrained by interface{int; string} with empty type set): no specific type" */ {
+	}
+}
+
 func _[T int | string](x T) {
-	for range x /* ERROR "cannot range over x (variable of type T constrained by int | string): no core type" */ {
+	for range x /* ERROR "cannot range over x (variable of type T constrained by int | string): int and string have different underlying types" */ {
 	}
 }
 
 func _[T int | int64](x T) {
-	for range x /* ERROR "cannot range over x (variable of type T constrained by int | int64): no core type" */ {
+	for range x /* ERROR "cannot range over x (variable of type T constrained by int | int64): int and int64 have different underlying types" */ {
 	}
 }
 

@@ -43,6 +43,57 @@ func typeset(t Type, yield func(t, u Type) bool) {
 	yield(t, under(t))
 }
 
+// If t is not a type parameter, sharedUnderOrChan returns the underlying type;
+// if that type is a channel type it must permit receive operations.
+// If t is a type parameter, sharedUnderOrChan returns the single underlying
+// type of all types in its type set if it exists, or, if the type set contains
+// only channel types permitting receive operations and with identical element
+// types, sharedUnderOrChan returns one of those channel types.
+// Otherwise the result is nil, and *cause reports the error if a non-nil cause
+// is provided.
+// The check parameter is only used if *cause reports an error; it may be nil.
+func sharedUnderOrChan(check *Checker, t Type, cause *string) Type {
+	var s, su Type
+	var sc *Chan
+
+	bad := func(s string) bool {
+		if cause != nil {
+			*cause = s
+		}
+		su = nil
+		return false
+	}
+
+	typeset(t, func(t, u Type) bool {
+		if u == nil {
+			return bad("no specific type")
+		}
+		c, _ := u.(*Chan)
+		if c != nil && c.dir == SendOnly {
+			return bad(check.sprintf("receive from send-only channel %s", t))
+		}
+		if su == nil {
+			s, su = t, u
+			sc = c // possibly nil
+			return true
+		}
+		// su != nil
+		if sc != nil && c != nil {
+			if !Identical(sc.elem, c.elem) {
+				return bad(check.sprintf("channels with different element types %s and %s", sc.elem, c.elem))
+			}
+			return true
+		}
+		// sc == nil
+		if !Identical(su, u) {
+			return bad(check.sprintf("%s and %s have different underlying types", s, t))
+		}
+		return true
+	})
+
+	return su
+}
+
 // If t is not a type parameter, coreType returns the underlying type.
 // If t is a type parameter, coreType returns the single underlying
 // type of all types in its type set if it exists, or nil otherwise. If the
