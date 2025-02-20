@@ -217,8 +217,8 @@ field by default.
 Go 1.24 enabled the post-quantum key exchange mechanism
 X25519MLKEM768 by default. The default can be reverted using the
 [`tlsmlkem` setting](/pkg/crypto/tls/#Config.CurvePreferences).
-This is can be useful when dealing with legacy TLS servers that do not handle large records correctly,
-causing a timeout during the handshake (bug known as [TLS post-quantum TL;DR fail](https://tldr.fail/)).
+This can be useful when dealing with buggy TLS servers that do not handle large records correctly,
+causing a timeout during the handshake (see [TLS post-quantum TL;DR fail](https://tldr.fail/)).
 Go 1.24 also removed X25519Kyber768Draft00 and the Go 1.23 `tlskyber` setting.
 
 Go 1.24 made [`ParsePKCS1PrivateKey`](/pkg/crypto/x509/#ParsePKCS1PrivateKey)
@@ -255,8 +255,8 @@ Previous versions default to `winreadlinkvolume=0`.
 Go 1.23 enabled the experimental post-quantum key exchange mechanism
 X25519Kyber768Draft00 by default. The default can be reverted using the
 [`tlskyber` setting](/pkg/crypto/tls/#Config.CurvePreferences).
-This is can be useful when dealing with legacy TLS servers that do not handle large records correctly,
-causing a timeout during the handshake (bug known as [TLS post-quantum TL;DR fail](https://tldr.fail/)).
+This can be useful when dealing with buggy TLS servers that do not handle large records correctly,
+causing a timeout during the handshake (see [TLS post-quantum TL;DR fail](https://tldr.fail/)).
 
 Go 1.23 changed the behavior of
 [crypto/x509.ParseCertificate](/pkg/crypto/x509/#ParseCertificate) to reject
