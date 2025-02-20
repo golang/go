@@ -11,12 +11,15 @@ import (
 	"internal/testenv"
 	"io"
 	"os"
+	"os/exec"
+	"os/signal"
 	"os/user"
 	"path/filepath"
 	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -24,6 +27,7 @@ import (
 
 func init() {
 	registerHelperCommand("pwd", cmdPwd)
+	registerHelperCommand("signaltest", cmdSignalTest)
 }
 
 func cmdPwd(...string) {
@@ -272,5 +276,57 @@ func TestExplicitPWD(t *testing.T) {
 				t.Errorf("want\n\t%s", tc.pwd)
 			}
 		})
+	}
+}
+
+// Issue 71828.
+func TestSIGCHLD(t *testing.T) {
+	cmd := helperCommand(t, "signaltest")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// cmdSignaltest is for TestSIGCHLD.
+// This runs in a separate process because the bug only happened
+// the first time that a child process was started.
+func cmdSignalTest(...string) {
+	chSig := make(chan os.Signal, 1)
+	signal.Notify(chSig, syscall.SIGCHLD)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		c := 0
+		for range chSig {
+			c++
+			fmt.Printf("SIGCHLD %d\n", c)
+			if c > 1 {
+				fmt.Println("too many SIGCHLD signals")
+				os.Exit(1)
+			}
+		}
+	}()
+	defer func() {
+		signal.Reset(syscall.SIGCHLD)
+		close(chSig)
+		wg.Wait()
+	}()
+
+	exe, err := os.Executable()
+	if err != nil {
+		fmt.Printf("os.Executable failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	cmd := exec.Command(exe, "hang", "200ms")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("failed to run child process: %v\n", err)
+		os.Exit(1)
 	}
 }

@@ -803,7 +803,7 @@ func os_checkClonePidfd() error {
 //
 //go:noinline
 func doCheckClonePidfd(pidfd *int32) (pid uintptr, errno Errno) {
-	flags := uintptr(CLONE_VFORK|CLONE_VM|CLONE_PIDFD|SIGCHLD)
+	flags := uintptr(CLONE_VFORK | CLONE_VM | CLONE_PIDFD)
 	if runtime.GOARCH == "s390x" {
 		// On Linux/s390, the first two arguments of clone(2) are swapped.
 		pid, errno = rawVforkSyscall(SYS_CLONE, 0, flags, uintptr(unsafe.Pointer(pidfd)))
