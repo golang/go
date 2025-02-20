@@ -552,8 +552,9 @@ func (ft *factsTable) newLimit(v *Value, newLim limit) bool {
 	}
 
 	if lim.unsat() {
+		r := !ft.unsat
 		ft.unsat = true
-		return true
+		return r
 	}
 
 	// Check for recursion. This normally happens because in unsatisfiable
