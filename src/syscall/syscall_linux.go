@@ -550,7 +550,8 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	if n > len(sa.raw.Path) {
 		return nil, 0, EINVAL
 	}
-	if n == len(sa.raw.Path) && name[0] != '@' {
+	isAbstract := n > 0 && (name[0] == '@' || name[0] == '\x00')
+	if n == len(sa.raw.Path) && !isAbstract {
 		return nil, 0, EINVAL
 	}
 	sa.raw.Family = AF_UNIX
@@ -562,8 +563,7 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	if n > 0 {
 		sl += _Socklen(n) + 1
 	}
-	if sa.raw.Path[0] == '@' || (sa.raw.Path[0] == 0 && sl > 3) {
-		// Check sl > 3 so we don't change unnamed socket behavior.
+	if isAbstract {
 		sa.raw.Path[0] = 0
 		// Don't count trailing NUL for abstract address.
 		sl--
