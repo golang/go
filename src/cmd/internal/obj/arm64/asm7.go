@@ -1904,45 +1904,45 @@ func rclass(r int16) int {
 
 // conclass classifies a constant.
 func conclass(v int64) int {
+	vbitcon := uint64(v)
+	vnotcon := ^v
+
 	if v == 0 {
 		return C_ZCON
 	}
 	if isaddcon(v) {
 		if v <= 0xFFF {
-			if isbitcon(uint64(v)) {
+			if isbitcon(vbitcon) {
 				return C_ABCON0
 			}
 			return C_ADDCON0
 		}
-		if isbitcon(uint64(v)) {
+		if isbitcon(vbitcon) {
 			return C_ABCON
 		}
 		if movcon(v) >= 0 {
 			return C_AMCON
 		}
-		if movcon(^v) >= 0 {
+		if movcon(vnotcon) >= 0 {
 			return C_AMCON
 		}
 		return C_ADDCON
 	}
 
-	t := movcon(v)
-	if t >= 0 {
-		if isbitcon(uint64(v)) {
+	if t := movcon(v); t >= 0 {
+		if isbitcon(vbitcon) {
+			return C_MBCON
+		}
+		return C_MOVCON
+	}
+	if t := movcon(vnotcon); t >= 0 {
+		if isbitcon(vbitcon) {
 			return C_MBCON
 		}
 		return C_MOVCON
 	}
 
-	t = movcon(^v)
-	if t >= 0 {
-		if isbitcon(uint64(v)) {
-			return C_MBCON
-		}
-		return C_MOVCON
-	}
-
-	if isbitcon(uint64(v)) {
+	if isbitcon(vbitcon) {
 		return C_BITCON
 	}
 
