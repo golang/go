@@ -49,7 +49,7 @@ func TestUnixAutobindClose(t *testing.T) {
 	ln.Close()
 }
 
-func TestUnixAbstractLongNameNullStart(t *testing.T) {
+func TestUnixAbstractLongNameNulStart(t *testing.T) {
 	// Create an abstract socket name that starts with a null byte ("\x00")
 	// whose length is the maximum of RawSockaddrUnix Path len
 	paddedAddr := make([]byte, len(syscall.RawSockaddrUnix{}.Path))
@@ -63,7 +63,7 @@ func TestUnixAbstractLongNameNullStart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Close()
+	c.Close()
 }
 
 func TestUnixgramLinuxAbstractLongName(t *testing.T) {

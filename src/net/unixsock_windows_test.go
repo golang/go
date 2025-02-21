@@ -70,7 +70,7 @@ func TestUnixConnLocalWindows(t *testing.T) {
 	}
 }
 
-func TestUnixAbstractLongNameNullStart(t *testing.T) {
+func TestUnixAbstractLongNameNulStart(t *testing.T) {
 	if !windows.SupportUnixSocket() {
 		t.Skip("unix test")
 	}
@@ -88,7 +88,7 @@ func TestUnixAbstractLongNameNullStart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Close()
+	c.Close()
 }
 
 func TestModeSocket(t *testing.T) {
