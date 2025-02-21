@@ -101,6 +101,29 @@ redo:
 	s.line, s.col = s.pos()
 	s.blank = s.line > startLine || startCol == colbase
 	s.start()
+
+	if isLetter(s.ch) {
+		s.nextch()
+		// accelerate common case (7bit ASCII)
+		for isLetter(s.ch) || isDecimal(s.ch) {
+			s.nextch()
+		}
+
+		// protocol case (ex. http:// or https://)
+		if s.ch == ':' {
+			s.nextch()
+			if s.ch == '/' {
+				s.nextch()
+				if s.ch == '/' {
+					s.nextch()
+					s.lineComment()
+					goto redo
+				}
+			}
+		}
+		s.rewind()
+	}
+
 	if isLetter(s.ch) || s.ch >= utf8.RuneSelf && s.atIdentChar(true) {
 		s.nextch()
 		s.ident()
