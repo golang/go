@@ -1,0 +1,36 @@
+# Install an rm command because some systems don't have it.
+env GOBIN=$WORK/tmp/bin
+go install rm.go
+[plan9] env path=$GOBIN${:}$path
+[!plan9] env PATH=$GOBIN${:}$PATH
+
+go generate ./...
+
+-- go.mod --
+module genclean
+
+go 1.16
+
+-- a.go --
+package genclean
+
+//go:generate rm b.go
+
+-- b.go --
+package genclean
+
+-- rm.go --
+// +build ignore
+
+package main
+
+import (
+	"log"
+	"os"
+)
+
+func main() {
+	if err := os.Remove(os.Args[1]); err != nil {
+		log.Fatal(err)
+	}
+}
