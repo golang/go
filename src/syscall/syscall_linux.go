@@ -554,7 +554,7 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	// '@' is also a valid way to specify abstract addresses.
 	isAbstract := n > 0 && (name[0] == '@' || name[0] == '\x00')
 
-	// Non-abstract addresses is NUL terminated.
+	// Non-abstract named addresses are NUL terminated.
 	// The length can't use the full capacity as we need to add NUL.
 	if n == len(sa.raw.Path) && !isAbstract {
 		return nil, 0, EINVAL
@@ -570,8 +570,8 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
 		// Abstract addresses are not NUL terminated.
 		// We rewrite '@' prefix to NUL here.
 		sa.raw.Path[0] = 0
-	} else {
-		// Add NUL for non-abstract addresses.
+	} else if n > 0 {
+		// Add NUL for non-abstract named addresses.
 		sl++
 	}
 
