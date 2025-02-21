@@ -24,8 +24,8 @@ func TestParseASN1String(t *testing.T) {
 		{
 			name:     "T61String",
 			tag:      cryptobyte_asn1.T61String,
-			value:    []byte{80, 81, 82},
-			expected: string("PQR"),
+			value:    []byte{0xbf, 0x61, 0x3f},
+			expected: string("¿a?"),
 		},
 		{
 			name:     "PrintableString",
@@ -61,6 +61,30 @@ func TestParseASN1String(t *testing.T) {
 			name:        "BMPString (invalid length)",
 			tag:         cryptobyte_asn1.Tag(asn1.TagBMPString),
 			value:       []byte{255},
+			expectedErr: "invalid BMPString",
+		},
+		{
+			name:        "BMPString (invalid surrogate)",
+			tag:         cryptobyte_asn1.Tag(asn1.TagBMPString),
+			value:       []byte{80, 81, 216, 1},
+			expectedErr: "invalid BMPString",
+		},
+		{
+			name:        "BMPString (invalid noncharacter 0xfdd1)",
+			tag:         cryptobyte_asn1.Tag(asn1.TagBMPString),
+			value:       []byte{80, 81, 253, 209},
+			expectedErr: "invalid BMPString",
+		},
+		{
+			name:        "BMPString (invalid noncharacter 0xffff)",
+			tag:         cryptobyte_asn1.Tag(asn1.TagBMPString),
+			value:       []byte{80, 81, 255, 255},
+			expectedErr: "invalid BMPString",
+		},
+		{
+			name:        "BMPString (invalid noncharacter 0xfffe)",
+			tag:         cryptobyte_asn1.Tag(asn1.TagBMPString),
+			value:       []byte{80, 81, 255, 254},
 			expectedErr: "invalid BMPString",
 		},
 		{

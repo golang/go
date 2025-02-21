@@ -506,6 +506,7 @@ var unmarshalTestData = []struct {
 	{[]byte{0x30, 0x05, 0x02, 0x03, 0x12, 0x34, 0x56}, &TestBigInt{big.NewInt(0x123456)}},
 	{[]byte{0x30, 0x0b, 0x31, 0x09, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02, 0x02, 0x01, 0x03}, &TestSet{Ints: []int{1, 2, 3}}},
 	{[]byte{0x12, 0x0b, '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ' '}, newString("0123456789 ")},
+	{[]byte{0x14, 0x03, 0xbf, 0x61, 0x3f}, newString("¿a?")},
 }
 
 func TestUnmarshal(t *testing.T) {
@@ -1126,34 +1127,43 @@ func TestTaggedRawValue(t *testing.T) {
 }
 
 var bmpStringTests = []struct {
+	name       string
 	decoded    string
 	encodedHex string
+	invalid    bool
 }{
-	{"", "0000"},
+	{"empty string", "", "0000", false},
 	// Example from https://tools.ietf.org/html/rfc7292#appendix-B.
-	{"Beavis", "0042006500610076006900730000"},
+	{"rfc7292 example", "Beavis", "0042006500610076006900730000", false},
 	// Some characters from the "Letterlike Symbols Unicode block".
-	{"\u2115 - Double-struck N", "21150020002d00200044006f00750062006c0065002d00730074007200750063006b0020004e0000"},
+	{"letterlike symbols", "\u2115 - Double-struck N", "21150020002d00200044006f00750062006c0065002d00730074007200750063006b0020004e0000", false},
+	{"invalid length", "", "ff", true},
+	{"invalid surrogate", "", "5051d801", true},
+	{"invalid noncharacter 0xfdd1", "", "5051fdd1", true},
+	{"invalid noncharacter 0xffff", "", "5051ffff", true},
+	{"invalid noncharacter 0xfffe", "", "5051fffe", true},
 }
 
 func TestBMPString(t *testing.T) {
-	for i, test := range bmpStringTests {
-		encoded, err := hex.DecodeString(test.encodedHex)
-		if err != nil {
-			t.Fatalf("#%d: failed to decode from hex string", i)
-		}
+	for _, test := range bmpStringTests {
+		t.Run(test.name, func(t *testing.T) {
+			encoded, err := hex.DecodeString(test.encodedHex)
+			if err != nil {
+				t.Fatalf("failed to decode from hex string: %s", err)
+			}
 
-		decoded, err := parseBMPString(encoded)
+			decoded, err := parseBMPString(encoded)
 
-		if err != nil {
-			t.Errorf("#%d: decoding output gave an error: %s", i, err)
-			continue
-		}
+			if err != nil && !test.invalid {
+				t.Errorf("parseBMPString failed: %s", err)
+			} else if test.invalid && err == nil {
+				t.Error("parseBMPString didn't fail as expected")
+			}
 
-		if decoded != test.decoded {
-			t.Errorf("#%d: decoding output resulted in %q, but it should have been %q", i, decoded, test.decoded)
-			continue
-		}
+			if decoded != test.decoded {
+				t.Errorf("parseBMPString(%q): got %q, want %q", encoded, decoded, test.decoded)
+			}
+		})
 	}
 }
 

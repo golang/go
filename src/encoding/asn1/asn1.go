@@ -463,7 +463,21 @@ func parseIA5String(bytes []byte) (ret string, err error) {
 // parseT61String parses an ASN.1 T61String (8-bit clean string) from the given
 // byte slice and returns it.
 func parseT61String(bytes []byte) (ret string, err error) {
-	return string(bytes), nil
+	// T.61 is a defunct ITU 8-bit character encoding which preceded Unicode.
+	// T.61 uses a code page layout that _almost_ exactly maps to the code
+	// page layout of the ISO 8859-1 (Latin-1) character encoding, with the
+	// exception that a number of characters in Latin-1 are not present
+	// in T.61.
+	//
+	// Instead of mapping which characters are present in Latin-1 but not T.61,
+	// we just treat these strings as being encoded using Latin-1. This matches
+	// what most of the world does, including BoringSSL.
+	buf := make([]byte, 0, len(bytes))
+	for _, v := range bytes {
+		// All the 1-byte UTF-8 runes map 1-1 with Latin-1.
+		buf = utf8.AppendRune(buf, rune(v))
+	}
+	return string(buf), nil
 }
 
 // UTF8String
@@ -482,8 +496,16 @@ func parseUTF8String(bytes []byte) (ret string, err error) {
 // parseBMPString parses an ASN.1 BMPString (Basic Multilingual Plane of
 // ISO/IEC/ITU 10646-1) from the given byte slice and returns it.
 func parseBMPString(bmpString []byte) (string, error) {
+	// BMPString uses the defunct UCS-2 16-bit character encoding, which
+	// covers the Basic Multilingual Plane (BMP). UTF-16 was an extension of
+	// UCS-2, containing all of the same code points, but also including
+	// multi-code point characters (by using surrogate code points). We can
+	// treat a UCS-2 encoded string as a UTF-16 encoded string, as long as
+	// we reject out the UTF-16 specific code points. This matches the
+	// BoringSSL behavior.
+
 	if len(bmpString)%2 != 0 {
-		return "", errors.New("pkcs12: odd-length BMP string")
+		return "", errors.New("invalid BMPString")
 	}
 
 	// Strip terminator if present.
@@ -493,7 +515,16 @@ func parseBMPString(bmpString []byte) (string, error) {
 
 	s := make([]uint16, 0, len(bmpString)/2)
 	for len(bmpString) > 0 {
-		s = append(s, uint16(bmpString[0])<<8+uint16(bmpString[1]))
+		point := uint16(bmpString[0])<<8 + uint16(bmpString[1])
+		// Reject UTF-16 code points that are permanently reserved
+		// noncharacters (0xfffe, 0xffff, and 0xfdd0-0xfdef) and surrogates
+		// (0xd800-0xdfff).
+		if point == 0xfffe || point == 0xffff ||
+			(point >= 0xfdd0 && point <= 0xfdef) ||
+			(point >= 0xd800 && point <= 0xdfff) {
+			return "", errors.New("invalid BMPString")
+		}
+		s = append(s, point)
 		bmpString = bmpString[2:]
 	}
 
