@@ -93,6 +93,9 @@ func (f flag) ro() flag {
 	return 0
 }
 
+// typ returns the *abi.Type stored in the Value. This method is fast,
+// but it doesn't always return the correct type for the Value.
+// See abiType and Type, which do return the correct type.
 func (v Value) typ() *abi.Type {
 	// Types are either static (for compiler-created types) or
 	// heap-allocated but always reachable (for reflection-created
@@ -2682,14 +2685,26 @@ func (v Value) Type() Type {
 	return v.typeSlow()
 }
 
+//go:noinline
 func (v Value) typeSlow() Type {
+	return toRType(v.abiTypeSlow())
+}
+
+func (v Value) abiType() *abi.Type {
+	if v.flag != 0 && v.flag&flagMethod == 0 {
+		return v.typ()
+	}
+	return v.abiTypeSlow()
+}
+
+func (v Value) abiTypeSlow() *abi.Type {
 	if v.flag == 0 {
 		panic(&ValueError{"reflect.Value.Type", Invalid})
 	}
 
 	typ := v.typ()
 	if v.flag&flagMethod == 0 {
-		return toRType(v.typ())
+		return v.typ()
 	}
 
 	// Method value.
@@ -2702,7 +2717,7 @@ func (v Value) typeSlow() Type {
 			panic("reflect: internal error: invalid method index")
 		}
 		m := &tt.Methods[i]
-		return toRType(typeOffFor(typ, m.Typ))
+		return typeOffFor(typ, m.Typ)
 	}
 	// Method on concrete type.
 	ms := typ.ExportedMethods()
@@ -2710,7 +2725,7 @@ func (v Value) typeSlow() Type {
 		panic("reflect: internal error: invalid method index")
 	}
 	m := ms[i]
-	return toRType(typeOffFor(typ, m.Mtyp))
+	return typeOffFor(typ, m.Mtyp)
 }
 
 // CanUint reports whether [Value.Uint] can be used without panicking.

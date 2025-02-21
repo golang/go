@@ -175,6 +175,18 @@ func TestValueSeq(t *testing.T) {
 				t.Fatalf("should loop four times")
 			}
 		}},
+		{"method", ValueOf(methodIter{}).Method(0), func(t *testing.T, s iter.Seq[Value]) {
+			i := int64(0)
+			for v := range s {
+				if v.Int() != i {
+					t.Fatalf("got %d, want %d", v.Int(), i)
+				}
+				i++
+			}
+			if i != 4 {
+				t.Fatalf("should loop four times")
+			}
+		}},
 	}
 	for _, tc := range tests {
 		seq := tc.val.Seq()
@@ -296,9 +308,48 @@ func TestValueSeq2(t *testing.T) {
 				t.Fatalf("should loop four times")
 			}
 		}},
+		{"method", ValueOf(methodIter2{}).Method(0), func(t *testing.T, s iter.Seq2[Value, Value]) {
+			i := int64(0)
+			for v1, v2 := range s {
+				if v1.Int() != i {
+					t.Fatalf("got %d, want %d", v1.Int(), i)
+				}
+				i++
+				if v2.Int() != i {
+					t.Fatalf("got %d, want %d", v2.Int(), i)
+				}
+			}
+			if i != 4 {
+				t.Fatalf("should loop four times")
+			}
+		}},
 	}
 	for _, tc := range tests {
 		seq := tc.val.Seq2()
 		tc.check(t, seq)
+	}
+}
+
+// methodIter is a type from which we can derive a method
+// value that is an iter.Seq.
+type methodIter struct{}
+
+func (methodIter) Seq(yield func(int) bool) {
+	for i := range 4 {
+		if !yield(i) {
+			return
+		}
+	}
+}
+
+// methodIter2 is a type from which we can derive a method
+// value that is an iter.Seq2.
+type methodIter2 struct{}
+
+func (methodIter2) Seq2(yield func(int, int) bool) {
+	for i := range 4 {
+		if !yield(i, i+1) {
+			return
+		}
 	}
 }
