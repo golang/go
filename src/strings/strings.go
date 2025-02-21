@@ -1294,3 +1294,10 @@ func CutPrefix(s, prefix string) (after string, found bool) {
 func CutSuffix(s, suffix string) (before string, found bool) {
 	return stringslite.CutSuffix(s, suffix)
 }
+
+// StringPointerFrom returns a string pointer for the given string constant.
+// This is specifically useful when we are writing test cases,
+// such as passing a string pointer to a struct field from a string constant.
+func StringPointerFrom(s string) *string {
+	return &s
+}
