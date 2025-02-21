@@ -1267,6 +1267,22 @@ TEXT runtime·return0(SB), NOSPLIT, $0
 	MOVW	$0, R0
 	RET
 
+// check that SP is in range [g->stack.lo, g->stack.hi)
+TEXT runtime·stackcheck(SB), NOSPLIT|NOFRAME, $0-0
+	MOVD	RSP, R0
+	MOVD	(g_stack+stack_hi)(g), R4
+	CMP		R0, R4
+	BLE	2(PC)
+	B	runtime·abort(SB)
+
+	// TODO(mauri870): why this check always fails? Is the stack pointer
+	// bellow stack_lo?
+	// MOVD	(g_stack+stack_lo)(g), R4
+	// CMP 	R0, R4
+	// BGE	2(PC)
+	// B	runtime·abort(SB)
+	RET
+
 // The top-most function running on a goroutine
 // returns to goexit+PCQuantum.
 TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
@@ -1647,3 +1663,4 @@ TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
 TEXT ·getfp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
 	MOVD R29, R0
 	RET
+
