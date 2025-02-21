@@ -75,6 +75,7 @@ type DebugFlags struct {
 	WrapGlobalMapDbg      int    `help:"debug trace output for global map init wrapping"`
 	WrapGlobalMapCtl      int    `help:"global map init wrap control (0 => default, 1 => off, 2 => stress mode, no size cutoff)"`
 	ZeroCopy              int    `help:"enable zero-copy string->[]byte conversions" concurrent:"ok"`
+	Testing               int    `help:"enable zero-copy string->[]byte conversions" concurrent:"ok"`
 
 	ConcurrentOk bool // true if only concurrentOk flags seen
 }

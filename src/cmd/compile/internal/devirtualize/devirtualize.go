@@ -174,12 +174,14 @@ func StaticCall(call *ir.CallExpr) {
 	typecheck.FixMethodCall(call)
 }
 
-const concreteTypeDebug = false
+// const concreteTypeDebug = false
+var concreteTypeDebug = false
 
 // concreteType determines the concrete type of n, following OCONVIFACEs and type asserts.
 // Returns nil when the concrete type could not be determined, or when there are multiple
 // (different) types assigned to an interface.
 func concreteType(n ir.Node) (typ *types.Type) {
+	concreteTypeDebug = base.Debug.Testing != 0
 	return concreteType1(n, make(map[*ir.Name]*types.Type))
 }
 
@@ -293,17 +295,17 @@ func analyzeAssignments(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Typ
 
 	var typ *types.Type
 
-	handleType := func(pos src.XPos, t *types.Type) bool {
+	handleType := func(dbgOp ir.Op, pos src.XPos, t *types.Type) bool {
 		if t == nil || t.IsInterface() {
 			if concreteTypeDebug {
-				base.WarnfAt(pos, "%v assigned with a non concrete type", name)
+				base.WarnfAt(pos, "%v assigned (%v) with a non concrete type", name, dbgOp)
 			}
 			typ = nil
 			return true
 		}
 
 		if concreteTypeDebug {
-			base.WarnfAt(pos, "%v assigned with a concrete type %v", name, t)
+			base.WarnfAt(pos, "%v assigned (%v) with a concrete type %v", name, dbgOp, t)
 		}
 
 		if typ == nil || types.Identical(typ, t) {
@@ -316,14 +318,14 @@ func analyzeAssignments(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Typ
 		return true
 	}
 
-	handleNode := func(n ir.Node) bool {
+	handleNode := func(dbgOp ir.Op, n ir.Node) bool {
 		if n == nil {
 			return false
 		}
 		if concreteTypeDebug {
-			base.WarnfAt(n.Pos(), "%v found assignment %v = %v, analyzing the RHS node", name, name, n)
+			base.WarnfAt(n.Pos(), "%v found assignment %v = %v (%v), analyzing the RHS node", name, name, n, dbgOp)
 		}
-		return handleType(n.Pos(), concreteType1(n, analyzed))
+		return handleType(dbgOp, n.Pos(), concreteType1(n, analyzed))
 	}
 
 	var do func(n ir.Node) bool
@@ -332,20 +334,20 @@ func analyzeAssignments(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Typ
 		case ir.OAS:
 			n := n.(*ir.AssignStmt)
 			if isName(n.X) {
-				return handleNode(n.Y)
+				return handleNode(ir.OAS, n.Y)
 			}
 		case ir.OAS2:
 			n := n.(*ir.AssignListStmt)
 			for i, p := range n.Lhs {
 				if isName(p) {
-					return handleNode(n.Rhs[i])
+					return handleNode(ir.OAS2, n.Rhs[i])
 				}
 			}
 		case ir.OAS2DOTTYPE:
 			n := n.(*ir.AssignListStmt)
 			for _, p := range n.Lhs {
 				if isName(p) {
-					return handleNode(n.Rhs[0])
+					return handleNode(ir.OAS2DOTTYPE, n.Rhs[0])
 				}
 			}
 		case ir.OAS2FUNC:
@@ -363,7 +365,7 @@ func analyzeAssignments(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Typ
 					if call, ok := rhs.(*ir.CallExpr); ok {
 						retTyp := call.Fun.Type().Results()[i].Type
 						if !retTyp.IsInterface() {
-							return handleType(n.Pos(), retTyp)
+							return handleType(ir.OAS2FUNC, n.Pos(), retTyp)
 						}
 					}
 					typ = nil
@@ -374,7 +376,7 @@ func analyzeAssignments(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Typ
 			n := n.(*ir.AssignListStmt)
 			for _, p := range n.Lhs {
 				if isName(p) {
-					return handleType(n.Pos(), n.Rhs[0].Type())
+					return handleType(n.Op(), n.Pos(), n.Rhs[0].Type())
 				}
 			}
 		case ir.OADDR:
@@ -398,24 +400,35 @@ func analyzeAssignments(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Typ
 					return true
 				}
 				if isName(n.Value) {
-					return handleType(n.Pos(), xTyp.Elem())
+					return handleType(ir.ORANGE, n.Pos(), xTyp.Elem())
 				}
 			} else if xTyp.IsChan() {
 				if isName(n.Key) {
-					return handleType(n.Pos(), xTyp.Elem())
+					return handleType(ir.ORANGE, n.Pos(), xTyp.Elem())
 				}
 				base.Assertf(n.Value == nil, "n.Value != nil in range over chan")
 			} else if xTyp.IsMap() {
 				if isName(n.Key) {
-					return handleType(n.Pos(), xTyp.Key())
+					return handleType(ir.ORANGE, n.Pos(), xTyp.Key())
 				}
 				if isName(n.Value) {
-					return handleType(n.Pos(), xTyp.Elem())
+					return handleType(ir.ORANGE, n.Pos(), xTyp.Elem())
 				}
 			} else {
+				// TODO: fatal? We are after range over func rewrite.
+				// TODO: range over int?
 				// unknown type
 				typ = nil
 				return true
+			}
+		case ir.OSWITCH:
+			n := n.(*ir.SwitchStmt)
+			if guard, ok := n.Tag.(*ir.TypeSwitchGuard); ok {
+				for _, v := range n.Cases {
+					if v.Var != nil && isName(v.Var) {
+						return handleNode(v.Op(), guard.X)
+					}
+				}
 			}
 		case ir.OCLOSURE:
 			n := n.(*ir.ClosureExpr)
