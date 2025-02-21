@@ -6,7 +6,7 @@
 
 // Test for issue 778: Map key values that are assignment
 // compatible with the map key type must be accepted according
-// to the spec: https://golang.org/doc/go_spec.html#Indexes .
+// to the spec: https://golang.org/doc/go_spec.html#Indexes.
 
 package main
 
