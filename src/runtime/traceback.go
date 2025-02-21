@@ -1261,6 +1261,10 @@ func goroutineheader(gp *g) {
 }
 
 func tracebackothers(me *g) {
+	tracebacksomeothers(me, func(*g) bool { return true })
+}
+
+func tracebacksomeothers(me *g, showf func(*g) bool) {
 	level, _, _ := gotraceback()
 
 	// Show the current goroutine first, if we haven't already.
@@ -1279,7 +1283,7 @@ func tracebackothers(me *g) {
 	// against concurrent creation of new Gs, but even with allglock we may
 	// miss Gs created after this loop.
 	forEachGRace(func(gp *g) {
-		if gp == me || gp == curgp || readgstatus(gp) == _Gdead || isSystemGoroutine(gp, false) && level < 2 {
+		if gp == me || gp == curgp || readgstatus(gp) == _Gdead || !showf(gp) || (isSystemGoroutine(gp, false) && level < 2) {
 			return
 		}
 		print("\n")

@@ -220,13 +220,21 @@ func synctestRun(f func()) {
 		raceacquireg(gp, gp.syncGroup.raceaddr())
 	}
 	if total != 1 {
-		panic("deadlock: all goroutines in bubble are blocked")
+		panic(synctestDeadlockError{sg})
 	}
 	if gp.timer != nil && gp.timer.isFake {
 		// Verify that we haven't marked this goroutine's sleep timer as fake.
 		// This could happen if something in Run were to call timeSleep.
 		throw("synctest root goroutine has a fake timer")
 	}
+}
+
+type synctestDeadlockError struct {
+	sg *synctestGroup
+}
+
+func (synctestDeadlockError) Error() string {
+	return "deadlock: all goroutines in bubble are blocked"
 }
 
 func synctestidle_c(gp *g, _ unsafe.Pointer) bool {
