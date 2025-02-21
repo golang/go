@@ -1287,6 +1287,18 @@ func CutPrefix(s, prefix string) (after string, found bool) {
 	return stringslite.CutPrefix(s, prefix)
 }
 
+// CutSpace slices s around the each instance of one or more consecutive white space
+// characters, as defined by unicode.IsSpace, returning the text before and after the
+// white space characters. The found result reports white space characters appears in s.
+// If no whitespace characters appear in s, CutSpace returns s, "", false.
+func CutSpace(s string) (before, after string, found bool) {
+	i := indexFunc(s, unicode.IsSpace, true)
+	if i == -1 {
+		return s, "", false
+	}
+	return s[:i], TrimLeftFunc(s[i:], unicode.IsSpace), true
+}
+
 // CutSuffix returns s without the provided ending suffix string
 // and reports whether it found the suffix.
 // If s doesn't end with suffix, CutSuffix returns s, false.

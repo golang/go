@@ -1918,6 +1918,30 @@ func TestCutPrefix(t *testing.T) {
 	}
 }
 
+var cutSpaceTests = []struct {
+	s             string
+	before, after string
+	found         bool
+}{
+	{"abc", "abc", "", false},
+	{" abc", "", "abc", true},
+	{"ab c", "ab", "c", true},
+	{"abc ", "abc", "", true},
+	{"abc   ", "abc", "", true},
+	{" abc   ", "", "abc   ", true},
+	{"a\u0085bc", "a", "bc", true},
+	{"a\t\n\v\f\r\u0085\u00A0bc", "a", "bc", true},
+	{"", "", "", false},
+}
+
+func TestCutSpace(t *testing.T) {
+	for _, tt := range cutSpaceTests {
+		if before, after, found := CutSpace([]byte(tt.s)); string(before) != tt.before || string(after) != tt.after || found != tt.found {
+			t.Errorf("Cut(%q) = %q, %q, %v, want %q, %q, %v", tt.s, before, after, found, tt.before, tt.after, tt.found)
+		}
+	}
+}
+
 var cutSuffixTests = []struct {
 	s, sep string
 	before string
