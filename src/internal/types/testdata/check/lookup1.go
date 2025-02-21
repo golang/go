@@ -71,3 +71,15 @@ func _() {
 	_ = x.Form // ERROR "x.Form undefined (type big.Float has no field or method Form, but does have unexported field form)"
 	_ = x.FOrm // ERROR "x.FOrm undefined (type big.Float has no field or method FOrm)"
 }
+
+func _[P any](x P) {
+	x /* ERROR "cannot call x (variable of type P constrained by any): no specific type" */ ()
+}
+
+func _[P int](x P) {
+	x /* ERROR "cannot call non-function x (variable of type P constrained by int)" */ ()
+}
+
+func _[P int | string](x P) {
+	x /* ERROR "cannot call x (variable of type P constrained by int | string): int and string have different underlying types" */ ()
+}

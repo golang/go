@@ -40,6 +40,38 @@ func typeset(t Type, yield func(t, u Type) bool) {
 	yield(t, under(t))
 }
 
+// If t is not a type parameter, sharedUnder returns the underlying type.
+// If t is a type parameter, sharedUnder returns the single underlying
+// type of all types in its type set if it exists.
+// Otherwise the result is nil, and *cause reports the error if a non-nil
+// cause is provided.
+// The check parameter is only used if *cause reports an error; it may be nil.
+func sharedUnder(check *Checker, t Type, cause *string) Type {
+	var s, su Type
+
+	bad := func(s string) bool {
+		if cause != nil {
+			*cause = s
+		}
+		su = nil
+		return false
+	}
+
+	typeset(t, func(t, u Type) bool {
+		if u == nil {
+			return bad("no specific type")
+		}
+		if su != nil && !Identical(su, u) {
+			return bad(check.sprintf("%s and %s have different underlying types", s, t))
+		}
+		// su == nil || Identical(su, u)
+		s, su = t, u
+		return true
+	})
+
+	return su
+}
+
 // If t is not a type parameter, sharedUnderOrChan returns the underlying type;
 // if that type is a channel type it must permit receive operations.
 // If t is a type parameter, sharedUnderOrChan returns the single underlying

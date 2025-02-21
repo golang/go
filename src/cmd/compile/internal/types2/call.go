@@ -242,10 +242,16 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 	// signature may be generic
 	cgocall := x.mode == cgofunc
 
-	// a type parameter may be "called" if all types have the same signature
-	sig, _ := coreType(x.typ).(*Signature)
+	// If the operand type is a type parameter, all types in its type set
+	// must have a shared underlying type, which must be a signature.
+	var cause string
+	sig, _ := sharedUnder(check, x.typ, &cause).(*Signature)
 	if sig == nil {
-		check.errorf(x, InvalidCall, invalidOp+"cannot call non-function %s", x)
+		if cause != "" {
+			check.errorf(x, InvalidCall, invalidOp+"cannot call %s: %s", x, cause)
+		} else {
+			check.errorf(x, InvalidCall, invalidOp+"cannot call non-function %s", x)
+		}
 		x.mode = invalid
 		x.expr = call
 		return statement
