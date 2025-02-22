@@ -414,18 +414,22 @@ func analyzeAssignments(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Typ
 				if isName(n.Value) {
 					return handleType(ir.ORANGE, n.Pos(), xTyp.Elem())
 				}
-			} else {
-				// TODO: fatal? We are after range over func rewrite.
-				// TODO: range over int?
-				// unknown type
+			} else if xTyp.IsInteger() || xTyp.IsString() {
+				// range over int/string, results have no methods, so nothing to devirtualize.
 				typ = nil
 				return true
+			} else {
+				base.Fatalf("range over unexpected type %v", n.X.Type())
 			}
 		case ir.OSWITCH:
 			n := n.(*ir.SwitchStmt)
 			if guard, ok := n.Tag.(*ir.TypeSwitchGuard); ok {
 				for _, v := range n.Cases {
-					if v.Var != nil && isName(v.Var) {
+					if v.Var == nil {
+						base.Assert(guard.Tag == nil)
+						continue
+					}
+					if isName(v.Var) {
 						return handleNode(v.Op(), guard.X)
 					}
 				}

@@ -176,6 +176,60 @@ func newImpl2() *Impl2 {
 	return &Impl2{} // ERROR "escapes"
 }
 
+func testTypeSwitch() {
+	{
+		var v A = &Impl{} // ERROR "does not escape"
+		switch v := v.(type) {
+		case A:
+			v.A() // ERROR "devirtualizing" "inlining call"
+		case M:
+			v.M() // ERROR "devirtualizing" "inlining call"
+		}
+	}
+	{
+		var v A = &Impl{} // ERROR "does not escape"
+		switch v := v.(type) {
+		case A:
+			v.A() // ERROR "devirtualizing" "inlining call"
+		case M:
+			v.M()       // ERROR "devirtualizing" "inlining call"
+			v = &Impl{} // ERROR "does not escape"
+			v.M()       // ERROR "devirtualizing" "inlining call"
+		}
+		v.(M).M() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		var v A = &Impl{} // ERROR "escapes"
+		switch v1 := v.(type) {
+		case A:
+			v1.A()
+		case M:
+			v1.M()
+			v = &Impl2{} // ERROR "escapes"
+		}
+	}
+	{
+		var v A = &Impl{} // ERROR "escapes"
+		switch v := v.(type) {
+		case A:
+			v.A() // ERROR "devirtualizing" "inlining call"
+		case M:
+			v.M() // ERROR "devirtualizing" "inlining call"
+		case C:
+			v.C()
+		}
+	}
+	{
+		var v A = &Impl{} // ERROR "does not escape"
+		switch v := v.(type) {
+		case M:
+			v.M() // ERROR "devirtualizing" "inlining call"
+		default:
+			panic("does not implement M") // ERROR "escapes"
+		}
+	}
+}
+
 func differentTypeAssign() {
 	{
 		var a A
@@ -406,6 +460,29 @@ func closureNoDevirt2() {
 	}
 	a.A()
 	c()
+}
+
+//go:noinline
+func testNamedReturn0() (v A) {
+	v = &Impl{} // ERROR "escapes"
+	v.A()
+	return
+}
+
+//go:noinline
+func testNamedReturn1() (v A) {
+	v = &Impl{} // ERROR "escapes"
+	v.A()
+	return &Impl{} // ERROR "escapes"
+}
+
+func testNamedReturns3() (v A) {
+	v = &Impl{}    // ERROR "escapes"
+	defer func() { // ERROR "can inline" "func literal does not escape"
+		v.A()
+	}()
+	v.A()
+	return &Impl2{} // ERROR "escapes"
 }
 
 var (
@@ -870,6 +947,50 @@ func rangeNoDevirt() {
 		for _, v = range &m {
 		}
 		v.A()
+	}
+}
+
+var globalInt = 1
+
+func testIfInit() {
+	{
+		var a A = &Impl{} // ERROR "does not escape"
+		var i = &Impl{}   // ERROR "does not escape"
+		if a = i; globalInt == 1 {
+			a.A() // ERROR "devirtualizing" "inlining call"
+		}
+		a.A()     // ERROR "devirtualizing" "inlining call"
+		a.(M).M() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		var a A = &Impl{} // ERROR "escapes"
+		var i2 = &Impl2{} // ERROR "escapes"
+		if a = i2; globalInt == 1 {
+			a.A()
+		}
+		a.A()
+	}
+}
+
+func testSwitchInit() {
+	{
+		var a A = &Impl{} // ERROR "does not escape"
+		var i = &Impl{}   // ERROR "does not escape"
+		switch a = i; globalInt {
+		case 12:
+			a.A() // ERROR "devirtualizing" "inlining call"
+		}
+		a.A()     // ERROR "devirtualizing" "inlining call"
+		a.(M).M() // ERROR "devirtualizing" "inlining call"
+	}
+	{
+		var a A = &Impl{} // ERROR "escapes"
+		var i2 = &Impl2{} // ERROR "escapes"
+		switch a = i2; globalInt {
+		case 12:
+			a.A()
+		}
+		a.A()
 	}
 }
 
