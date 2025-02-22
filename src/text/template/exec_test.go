@@ -72,11 +72,11 @@ type T struct {
 	Str fmt.Stringer
 	Err error
 	// Pointers
-	PI  *int
-	PS  *string
-	PSI *[]int
-	NIL *int
-	UPI unsafe.Pointer
+	PI       *int
+	PS       *string
+	PSI      *[]int
+	NIL      *int
+	UPI      unsafe.Pointer
 	EmptyUPI unsafe.Pointer
 	// Function (not method)
 	BinaryFunc             func(string, string) string
@@ -1508,8 +1508,8 @@ func TestBadFuncNames(t *testing.T) {
 func TestIsTrue(t *testing.T) {
 	var nil_ptr *int
 	var nil_chan chan int
-	tests := []struct{
-		v any
+	tests := []struct {
+		v    any
 		want bool
 	}{
 		{1, true},
@@ -1522,12 +1522,12 @@ func TestIsTrue(t *testing.T) {
 		{complex64(0.0), false},
 		{true, true},
 		{false, false},
-		{[2]int{1,2}, true},
+		{[2]int{1, 2}, true},
 		{[0]int{}, false},
 		{[]byte("abc"), true},
 		{[]byte(""), false},
-		{map[string] int {"a": 1, "b": 2}, true},
-		{map[string] int {}, false},
+		{map[string]int{"a": 1, "b": 2}, true},
+		{map[string]int{}, false},
 		{make(chan int), true},
 		{nil_chan, false},
 		{new(int), true},

@@ -802,7 +802,7 @@ func os_checkClonePidfd() error {
 
 	for {
 		const _P_PIDFD = 3
-		_, _, errno = Syscall6(SYS_WAITID, _P_PIDFD, uintptr(pidfd), 0, WEXITED | WCLONE, 0, 0)
+		_, _, errno = Syscall6(SYS_WAITID, _P_PIDFD, uintptr(pidfd), 0, WEXITED|WCLONE, 0, 0)
 		if errno != EINTR {
 			break
 		}
