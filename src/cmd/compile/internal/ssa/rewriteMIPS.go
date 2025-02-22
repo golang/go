@@ -113,9 +113,19 @@ func rewriteValueMIPS(v *Value) bool {
 		return rewriteValueMIPS_OpConstBool(v)
 	case OpConstNil:
 		return rewriteValueMIPS_OpConstNil(v)
+	case OpCtz16:
+		return rewriteValueMIPS_OpCtz16(v)
+	case OpCtz16NonZero:
+		v.Op = OpCtz32
+		return true
 	case OpCtz32:
 		return rewriteValueMIPS_OpCtz32(v)
 	case OpCtz32NonZero:
+		v.Op = OpCtz32
+		return true
+	case OpCtz8:
+		return rewriteValueMIPS_OpCtz8(v)
+	case OpCtz8NonZero:
 		v.Op = OpCtz32
 		return true
 	case OpCvt32Fto32:
@@ -929,6 +939,23 @@ func rewriteValueMIPS_OpConstNil(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueMIPS_OpCtz16(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Ctz16 x)
+	// result: (Ctz32 (Or32 <typ.UInt32> x (MOVWconst [1<<16])))
+	for {
+		x := v_0
+		v.reset(OpCtz32)
+		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMIPSMOVWconst, typ.UInt32)
+		v1.AuxInt = int32ToAuxInt(1 << 16)
+		v0.AddArg2(x, v1)
+		v.AddArg(v0)
+		return true
+	}
+}
 func rewriteValueMIPS_OpCtz32(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
@@ -951,6 +978,23 @@ func rewriteValueMIPS_OpCtz32(v *Value) bool {
 		v2.AddArg(v3)
 		v1.AddArg(v2)
 		v.AddArg2(v0, v1)
+		return true
+	}
+}
+func rewriteValueMIPS_OpCtz8(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Ctz8 x)
+	// result: (Ctz32 (Or32 <typ.UInt32> x (MOVWconst [1<<8])))
+	for {
+		x := v_0
+		v.reset(OpCtz32)
+		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, OpMIPSMOVWconst, typ.UInt32)
+		v1.AuxInt = int32ToAuxInt(1 << 8)
+		v0.AddArg2(x, v1)
+		v.AddArg(v0)
 		return true
 	}
 }

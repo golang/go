@@ -80,13 +80,13 @@
 (OffPtr [off] ptr) && is32Bit(off) => (ADDconst [int32(off)] ptr)
 (OffPtr [off] ptr) => (ADD (MOVDconst [off]) ptr)
 
-// TODO: optimize these cases?
-(Ctz64NonZero ...) => (Ctz64 ...)
-(Ctz32NonZero ...) => (Ctz32 ...)
+(Ctz(64|32|16|8)NonZero ...) => (Ctz64 ...)
 
 // Ctz(x) = 64 - findLeftmostOne((x-1)&^x)
 (Ctz64 <t> x) => (SUB (MOVDconst [64]) (FLOGR (AND <t> (SUBconst <t> [1] x) (NOT <t> x))))
 (Ctz32 <t> x) => (SUB (MOVDconst [64]) (FLOGR (MOVWZreg (ANDW <t> (SUBWconst <t> [1] x) (NOTW <t> x)))))
+(Ctz16 x) => (Ctz64 (Or64 <typ.UInt64> x (MOVDconst [1<<16])))
+(Ctz8  x) => (Ctz64 (Or64 <typ.UInt64> x (MOVDconst [1<<8])))
 
 (BitLen64 x) => (SUB (MOVDconst [64]) (FLOGR x))
 (BitLen(32|16|8) x) => (BitLen64 (ZeroExt(32|16|8)to64 x))

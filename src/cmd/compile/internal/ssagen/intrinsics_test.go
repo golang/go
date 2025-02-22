@@ -867,6 +867,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
 	{"ppc64", "internal/runtime/sys", "OnesCount64"}:                   struct{}{},
 	{"ppc64", "internal/runtime/sys", "Prefetch"}:                      struct{}{},
 	{"ppc64", "internal/runtime/sys", "PrefetchStreamed"}:              struct{}{},
+	{"ppc64", "internal/runtime/sys", "TrailingZeros8"}:                struct{}{},
 	{"ppc64", "internal/runtime/sys", "TrailingZeros32"}:               struct{}{},
 	{"ppc64", "internal/runtime/sys", "TrailingZeros64"}:               struct{}{},
 	{"ppc64", "math", "Abs"}:                                           struct{}{},
@@ -899,6 +900,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
 	{"ppc64", "math/bits", "RotateLeft64"}:                             struct{}{},
 	{"ppc64", "math/bits", "Sub"}:                                      struct{}{},
 	{"ppc64", "math/bits", "Sub64"}:                                    struct{}{},
+	{"ppc64", "math/bits", "TrailingZeros8"}:                           struct{}{},
 	{"ppc64", "math/bits", "TrailingZeros16"}:                          struct{}{},
 	{"ppc64", "math/bits", "TrailingZeros32"}:                          struct{}{},
 	{"ppc64", "math/bits", "TrailingZeros64"}:                          struct{}{},
@@ -988,6 +990,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
 	{"ppc64le", "internal/runtime/sys", "OnesCount64"}:                 struct{}{},
 	{"ppc64le", "internal/runtime/sys", "Prefetch"}:                    struct{}{},
 	{"ppc64le", "internal/runtime/sys", "PrefetchStreamed"}:            struct{}{},
+	{"ppc64le", "internal/runtime/sys", "TrailingZeros8"}:              struct{}{},
 	{"ppc64le", "internal/runtime/sys", "TrailingZeros32"}:             struct{}{},
 	{"ppc64le", "internal/runtime/sys", "TrailingZeros64"}:             struct{}{},
 	{"ppc64le", "math", "Abs"}:                                         struct{}{},
@@ -1020,6 +1023,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
 	{"ppc64le", "math/bits", "RotateLeft64"}:                           struct{}{},
 	{"ppc64le", "math/bits", "Sub"}:                                    struct{}{},
 	{"ppc64le", "math/bits", "Sub64"}:                                  struct{}{},
+	{"ppc64le", "math/bits", "TrailingZeros8"}:                         struct{}{},
 	{"ppc64le", "math/bits", "TrailingZeros16"}:                        struct{}{},
 	{"ppc64le", "math/bits", "TrailingZeros32"}:                        struct{}{},
 	{"ppc64le", "math/bits", "TrailingZeros64"}:                        struct{}{},
@@ -1340,7 +1344,7 @@ func TestIntrinsics(t *testing.T) {
 
 	for ik, _ := range wantIntrinsics {
 		if _, found := gotIntrinsics[ik]; !found {
-			t.Errorf("Want intrinsic %v %v.%v", ik.archName, ik.pkg, ik.fn)
+			t.Errorf("Want missing intrinsic %v %v.%v", ik.archName, ik.pkg, ik.fn)
 		}
 	}
 }

@@ -153,8 +153,10 @@
 (BitRev16 <t> x) => (REVB2H (BITREV4B <t> x))
 (BitRev32 ...) => (BITREVW ...)
 (BitRev64 ...) => (BITREVV ...)
-(Ctz(32|64)NonZero ...) => (Ctz(32|64) ...)
+(Ctz(64|32|16|8)NonZero ...) => (Ctz64 ...)
 (Ctz(32|64) ...) => (CTZ(W|V) ...)
+(Ctz16 x) => (CTZV (OR <typ.UInt64> x (MOVVconst [1<<16])))
+(Ctz8  x) => (CTZV (OR <typ.UInt64> x (MOVVconst [1<<8])))
 
 (PopCount64 <t> x) => (MOVVfpgp <t> (VPCNT64 <typ.Float64> (MOVVgpfp <typ.Float64> x)))
 (PopCount32 <t> x) => (MOVWfpgp <t> (VPCNT32 <typ.Float32> (MOVWgpfp <typ.Float32> x)))

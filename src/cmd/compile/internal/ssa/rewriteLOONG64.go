@@ -189,16 +189,26 @@ func rewriteValueLOONG64(v *Value) bool {
 	case OpCopysign:
 		v.Op = OpLOONG64FCOPYSGD
 		return true
+	case OpCtz16:
+		return rewriteValueLOONG64_OpCtz16(v)
+	case OpCtz16NonZero:
+		v.Op = OpCtz64
+		return true
 	case OpCtz32:
 		v.Op = OpLOONG64CTZW
 		return true
 	case OpCtz32NonZero:
-		v.Op = OpCtz32
+		v.Op = OpCtz64
 		return true
 	case OpCtz64:
 		v.Op = OpLOONG64CTZV
 		return true
 	case OpCtz64NonZero:
+		v.Op = OpCtz64
+		return true
+	case OpCtz8:
+		return rewriteValueLOONG64_OpCtz8(v)
+	case OpCtz8NonZero:
 		v.Op = OpCtz64
 		return true
 	case OpCvt32Fto32:
@@ -1239,6 +1249,40 @@ func rewriteValueLOONG64_OpConstNil(v *Value) bool {
 	for {
 		v.reset(OpLOONG64MOVVconst)
 		v.AuxInt = int64ToAuxInt(0)
+		return true
+	}
+}
+func rewriteValueLOONG64_OpCtz16(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Ctz16 x)
+	// result: (CTZV (OR <typ.UInt64> x (MOVVconst [1<<16])))
+	for {
+		x := v_0
+		v.reset(OpLOONG64CTZV)
+		v0 := b.NewValue0(v.Pos, OpLOONG64OR, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpLOONG64MOVVconst, typ.UInt64)
+		v1.AuxInt = int64ToAuxInt(1 << 16)
+		v0.AddArg2(x, v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueLOONG64_OpCtz8(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Ctz8 x)
+	// result: (CTZV (OR <typ.UInt64> x (MOVVconst [1<<8])))
+	for {
+		x := v_0
+		v.reset(OpLOONG64CTZV)
+		v0 := b.NewValue0(v.Pos, OpLOONG64OR, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpLOONG64MOVVconst, typ.UInt64)
+		v1.AuxInt = int64ToAuxInt(1 << 8)
+		v0.AddArg2(x, v1)
+		v.AddArg(v0)
 		return true
 	}
 }

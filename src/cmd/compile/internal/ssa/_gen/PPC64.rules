@@ -254,16 +254,17 @@
 (MOVDaddr {sym} [n] p:(ADD x y)) && sym == nil && n == 0 => p
 (MOVDaddr {sym} [n] ptr) && sym == nil && n == 0 && (ptr.Op == OpArgIntReg || ptr.Op == OpPhi) => ptr
 
-// TODO: optimize these cases?
-(Ctz32NonZero ...) => (Ctz32 ...)
-(Ctz64NonZero ...) => (Ctz64 ...)
+(Ctz(64|32|16|8)NonZero ...) => (Ctz64 ...)
 
-(Ctz64 x) && buildcfg.GOPPC64<=8 => (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
-(Ctz64 x) => (CNTTZD x)
-(Ctz32 x) && buildcfg.GOPPC64<=8 => (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
-(Ctz32 x) => (CNTTZW (MOVWZreg x))
-(Ctz16 x) => (POPCNTW (MOVHZreg (ANDN <typ.Int16> (ADDconst <typ.Int16> [-1] x) x)))
-(Ctz8 x)  => (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
+(Ctz64 x) && buildcfg.GOPPC64 <= 8 => (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
+(Ctz32 x) && buildcfg.GOPPC64 <= 8 => (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
+(Ctz16 x) && buildcfg.GOPPC64 <= 8 => (POPCNTW (MOVHZreg (ANDN <typ.Int16> (ADDconst <typ.Int16> [-1] x) x)))
+(Ctz8  x) && buildcfg.GOPPC64 <= 8 => (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
+
+(Ctz64 x) && buildcfg.GOPPC64 >= 9 => (CNTTZD x)
+(Ctz32 x) && buildcfg.GOPPC64 >= 9 => (CNTTZW (MOVWZreg x))
+(Ctz16 x) && buildcfg.GOPPC64 >= 9 => (CNTTZD (OR <typ.UInt64> x (MOVDconst [1<<16])))
+(Ctz8  x) && buildcfg.GOPPC64 >= 9 => (CNTTZD (OR <typ.UInt64> x (MOVDconst [1<<8])))
 
 (BitLen64 x) => (SUBFCconst [64] (CNTLZD <typ.Int> x))
 (BitLen32 x) => (SUBFCconst [32] (CNTLZW <typ.Int> x))

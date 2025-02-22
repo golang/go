@@ -139,14 +139,24 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpConstBool(v)
 	case OpConstNil:
 		return rewriteValueS390X_OpConstNil(v)
+	case OpCtz16:
+		return rewriteValueS390X_OpCtz16(v)
+	case OpCtz16NonZero:
+		v.Op = OpCtz64
+		return true
 	case OpCtz32:
 		return rewriteValueS390X_OpCtz32(v)
 	case OpCtz32NonZero:
-		v.Op = OpCtz32
+		v.Op = OpCtz64
 		return true
 	case OpCtz64:
 		return rewriteValueS390X_OpCtz64(v)
 	case OpCtz64NonZero:
+		v.Op = OpCtz64
+		return true
+	case OpCtz8:
+		return rewriteValueS390X_OpCtz8(v)
+	case OpCtz8NonZero:
 		v.Op = OpCtz64
 		return true
 	case OpCvt32Fto32:
@@ -1449,6 +1459,23 @@ func rewriteValueS390X_OpConstNil(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueS390X_OpCtz16(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Ctz16 x)
+	// result: (Ctz64 (Or64 <typ.UInt64> x (MOVDconst [1<<16])))
+	for {
+		x := v_0
+		v.reset(OpCtz64)
+		v0 := b.NewValue0(v.Pos, OpOr64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
+		v1.AuxInt = int64ToAuxInt(1 << 16)
+		v0.AddArg2(x, v1)
+		v.AddArg(v0)
+		return true
+	}
+}
 func rewriteValueS390X_OpCtz32(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1498,6 +1525,23 @@ func rewriteValueS390X_OpCtz64(v *Value) bool {
 		v2.AddArg2(v3, v4)
 		v1.AddArg(v2)
 		v.AddArg2(v0, v1)
+		return true
+	}
+}
+func rewriteValueS390X_OpCtz8(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Ctz8 x)
+	// result: (Ctz64 (Or64 <typ.UInt64> x (MOVDconst [1<<8])))
+	for {
+		x := v_0
+		v.reset(OpCtz64)
+		v0 := b.NewValue0(v.Pos, OpOr64, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
+		v1.AuxInt = int64ToAuxInt(1 << 8)
+		v0.AddArg2(x, v1)
+		v.AddArg(v0)
 		return true
 	}
 }

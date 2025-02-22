@@ -126,12 +126,13 @@
 (Sqrt ...) => (SQRTD ...)
 (Sqrt32 ...) => (SQRTF ...)
 
-// TODO: optimize this case?
-(Ctz32NonZero ...) => (Ctz32 ...)
+(Ctz(32|16|8)NonZero ...) => (Ctz32 ...)
 
 // count trailing zero
 // 32 - CLZ(x&-x - 1)
 (Ctz32 <t> x) => (SUB (MOVWconst [32]) (CLZ <t> (SUBconst <t> [1] (AND <t> x (NEG <t> x)))))
+(Ctz16 x) => (Ctz32 (Or32 <typ.UInt32> x (MOVWconst [1<<16])))
+(Ctz8  x) => (Ctz32 (Or32 <typ.UInt32> x (MOVWconst [1<<8])))
 
 // bit length
 (BitLen32 <t> x) => (SUB (MOVWconst [32]) (CLZ <t> x))
