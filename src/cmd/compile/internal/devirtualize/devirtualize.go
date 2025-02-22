@@ -379,11 +379,6 @@ func analyzeAssignments(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Typ
 					return handleType(n.Op(), n.Pos(), n.Rhs[0].Type())
 				}
 			}
-		case ir.OADDR:
-			n := n.(*ir.AddrExpr)
-			if isName(n.X) {
-				base.FatalfAt(n.Pos(), "%v not marked addrtaken", name)
-			}
 		case ir.ORANGE:
 			n := n.(*ir.RangeStmt)
 			xTyp := n.X.Type()
@@ -415,7 +410,7 @@ func analyzeAssignments(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Typ
 					return handleType(ir.ORANGE, n.Pos(), xTyp.Elem())
 				}
 			} else if xTyp.IsInteger() || xTyp.IsString() {
-				// range over int/string, results have no methods, so nothing to devirtualize.
+				// range over int/string, results do not have methods, so nothing to devirtualize.
 				typ = nil
 				return true
 			} else {
@@ -433,6 +428,11 @@ func analyzeAssignments(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Typ
 						return handleNode(v.Op(), guard.X)
 					}
 				}
+			}
+		case ir.OADDR:
+			n := n.(*ir.AddrExpr)
+			if isName(n.X) {
+				base.FatalfAt(n.Pos(), "%v not marked addrtaken", name)
 			}
 		case ir.OCLOSURE:
 			n := n.(*ir.ClosureExpr)
