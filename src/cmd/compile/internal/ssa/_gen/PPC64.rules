@@ -267,6 +267,7 @@
 
 (BitLen64 x) => (SUBFCconst [64] (CNTLZD <typ.Int> x))
 (BitLen32 x) => (SUBFCconst [32] (CNTLZW <typ.Int> x))
+(BitLen(16|8) x) => (BitLen64 (ZeroExt(16|8)to64 x))
 
 (PopCount64 ...) => (POPCNTD ...)
 (PopCount(32|16|8) x) => (POPCNT(W|W|B) (MOV(W|H|B)Zreg x))

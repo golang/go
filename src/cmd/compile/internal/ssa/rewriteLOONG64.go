@@ -129,10 +129,14 @@ func rewriteValueLOONG64(v *Value) bool {
 		return true
 	case OpAvg64u:
 		return rewriteValueLOONG64_OpAvg64u(v)
+	case OpBitLen16:
+		return rewriteValueLOONG64_OpBitLen16(v)
 	case OpBitLen32:
 		return rewriteValueLOONG64_OpBitLen32(v)
 	case OpBitLen64:
 		return rewriteValueLOONG64_OpBitLen64(v)
+	case OpBitLen8:
+		return rewriteValueLOONG64_OpBitLen8(v)
 	case OpBitRev16:
 		return rewriteValueLOONG64_OpBitRev16(v)
 	case OpBitRev32:
@@ -995,6 +999,21 @@ func rewriteValueLOONG64_OpAvg64u(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueLOONG64_OpBitLen16(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (BitLen16 x)
+	// result: (BitLen64 (ZeroExt16to64 x))
+	for {
+		x := v_0
+		v.reset(OpBitLen64)
+		v0 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
 func rewriteValueLOONG64_OpBitLen32(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1029,6 +1048,21 @@ func rewriteValueLOONG64_OpBitLen64(v *Value) bool {
 		v1 := b.NewValue0(v.Pos, OpLOONG64CLZV, t)
 		v1.AddArg(x)
 		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueLOONG64_OpBitLen8(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (BitLen8 x)
+	// result: (BitLen64 (ZeroExt8to64 x))
+	for {
+		x := v_0
+		v.reset(OpBitLen64)
+		v0 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}

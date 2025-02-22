@@ -329,6 +329,7 @@
 (Ctz(64|32|16|8)NonZero ...) => (I64Ctz ...)
 
 (BitLen64 x) => (I64Sub (I64Const [64]) (I64Clz x))
+(BitLen(32|16|8) x) => (BitLen64 (ZeroExt(32|16|8)to64 x))
 
 (PopCount64 ...) => (I64Popcnt ...)
 (PopCount32 x) => (I64Popcnt (ZeroExt32to64 x))

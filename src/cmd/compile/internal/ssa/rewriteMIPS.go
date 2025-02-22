@@ -82,8 +82,12 @@ func rewriteValueMIPS(v *Value) bool {
 		return true
 	case OpAvg32u:
 		return rewriteValueMIPS_OpAvg32u(v)
+	case OpBitLen16:
+		return rewriteValueMIPS_OpBitLen16(v)
 	case OpBitLen32:
 		return rewriteValueMIPS_OpBitLen32(v)
+	case OpBitLen8:
+		return rewriteValueMIPS_OpBitLen8(v)
 	case OpClosureCall:
 		v.Op = OpMIPSCALLclosure
 		return true
@@ -792,6 +796,21 @@ func rewriteValueMIPS_OpAvg32u(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueMIPS_OpBitLen16(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (BitLen16 x)
+	// result: (BitLen32 (ZeroExt16to32 x))
+	for {
+		x := v_0
+		v.reset(OpBitLen32)
+		v0 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
 func rewriteValueMIPS_OpBitLen32(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
@@ -807,6 +826,21 @@ func rewriteValueMIPS_OpBitLen32(v *Value) bool {
 		v1 := b.NewValue0(v.Pos, OpMIPSCLZ, t)
 		v1.AddArg(x)
 		v.AddArg2(v0, v1)
+		return true
+	}
+}
+func rewriteValueMIPS_OpBitLen8(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (BitLen8 x)
+	// result: (BitLen32 (ZeroExt8to32 x))
+	for {
+		x := v_0
+		v.reset(OpBitLen32)
+		v0 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.UInt32)
+		v0.AddArg(x)
+		v.AddArg(v0)
 		return true
 	}
 }

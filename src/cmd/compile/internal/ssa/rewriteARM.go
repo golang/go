@@ -466,8 +466,12 @@ func rewriteValueARM(v *Value) bool {
 		return true
 	case OpAvg32u:
 		return rewriteValueARM_OpAvg32u(v)
+	case OpBitLen16:
+		return rewriteValueARM_OpBitLen16(v)
 	case OpBitLen32:
 		return rewriteValueARM_OpBitLen32(v)
+	case OpBitLen8:
+		return rewriteValueARM_OpBitLen8(v)
 	case OpBswap32:
 		return rewriteValueARM_OpBswap32(v)
 	case OpClosureCall:
@@ -13070,6 +13074,21 @@ func rewriteValueARM_OpAvg32u(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueARM_OpBitLen16(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (BitLen16 x)
+	// result: (BitLen32 (ZeroExt16to32 x))
+	for {
+		x := v_0
+		v.reset(OpBitLen32)
+		v0 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
 func rewriteValueARM_OpBitLen32(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13081,6 +13100,21 @@ func rewriteValueARM_OpBitLen32(v *Value) bool {
 		v.reset(OpARMRSBconst)
 		v.AuxInt = int32ToAuxInt(32)
 		v0 := b.NewValue0(v.Pos, OpARMCLZ, t)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueARM_OpBitLen8(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (BitLen8 x)
+	// result: (BitLen32 (ZeroExt8to32 x))
+	for {
+		x := v_0
+		v.reset(OpBitLen32)
+		v0 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.UInt32)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true

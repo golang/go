@@ -80,6 +80,7 @@
 
 // bit length
 (BitLen32 <t> x) => (RSBconst [32] (CLZ <t> x))
+(BitLen(16|8) x) => (BitLen32 (ZeroExt(16|8)to32 x))
 
 // byte swap for ARMv5
 // let (a, b, c, d) be the bytes of x from high to low

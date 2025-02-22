@@ -135,6 +135,7 @@
 
 // bit length
 (BitLen32 <t> x) => (SUB (MOVWconst [32]) (CLZ <t> x))
+(BitLen(16|8) x) => (BitLen32 (ZeroExt(16|8)to32 x))
 
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB ...) => (AND ...)

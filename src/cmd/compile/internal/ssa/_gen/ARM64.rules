@@ -103,6 +103,7 @@
 
 (BitLen64 x) => (SUB (MOVDconst [64]) (CLZ <typ.Int> x))
 (BitLen32 x) => (SUB (MOVDconst [32]) (CLZW <typ.Int> x))
+(BitLen(16|8) x) => (BitLen64 (ZeroExt(16|8)to64 x))
 
 (Bswap64 ...) => (REV ...)
 (Bswap32 ...) => (REVW ...)
