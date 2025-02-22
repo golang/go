@@ -873,7 +873,7 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, int32, error) {
 	}
 	// Length is family + name (+ NUL if non-abstract).
 	// Family is of type uint16 (2 bytes).
-	sl := _Socklen(2 + n)
+	sl := int32(2 + n)
 	if isAbstract {
 		// Abstract addresses are not NUL terminated.
 		// We rewrite '@' prefix to NUL here.
