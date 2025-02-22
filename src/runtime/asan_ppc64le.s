@@ -58,6 +58,20 @@ TEXT	runtime·asanregisterglobals(SB),NOSPLIT|NOFRAME,$0-16
 	MOVD	$__asan_register_globals_go(SB), FARG
 	BR	asancall<>(SB)
 
+// func runtime·lsanregisterrootregion(addr unsafe.Pointer, n uintptr)
+TEXT	runtime·lsanregisterrootregion(SB),NOSPLIT|NOFRAME,$0-16
+	MOVD	addr+0(FP), RARG0
+	MOVD	n+8(FP), RARG1
+	// void __lsan_register_root_region_go(void *addr, uintptr_t n);
+	MOVD	$__lsan_register_root_region_go(SB), FARG
+	BR	asancall<>(SB)
+
+// func runtime·lsandoleakcheck()
+TEXT	runtime·lsandoleakcheck(SB), NOSPLIT|NOFRAME, $0-0
+	// void __lsan_do_leak_check_go(void);
+	MOVD	$__lsan_do_leak_check_go(SB), FARG
+	BR	asancall<>(SB)
+
 // Switches SP to g0 stack and calls (FARG). Arguments already set.
 TEXT	asancall<>(SB), NOSPLIT, $0-0
 	// LR saved in generated prologue

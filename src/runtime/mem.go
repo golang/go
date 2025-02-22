@@ -49,7 +49,15 @@ import "unsafe"
 func sysAlloc(n uintptr, sysStat *sysMemStat, vmaName string) unsafe.Pointer {
 	sysStat.add(int64(n))
 	gcController.mappedReady.Add(int64(n))
-	return sysAllocOS(n, vmaName)
+	p := sysAllocOS(n, vmaName)
+
+	// When using ASAN leak detection, we must tell ASAN about
+	// cases where we store pointers in mmapped memory.
+	if asanenabled {
+		lsanregisterrootregion(p, n)
+	}
+
+	return p
 }
 
 // sysUnused transitions a memory region from Ready to Prepared. It notifies the
@@ -143,7 +151,15 @@ func sysFault(v unsafe.Pointer, n uintptr) {
 // may use larger alignment, so the caller must be careful to realign the
 // memory obtained by sysReserve.
 func sysReserve(v unsafe.Pointer, n uintptr, vmaName string) unsafe.Pointer {
-	return sysReserveOS(v, n, vmaName)
+	p := sysReserveOS(v, n, vmaName)
+
+	// When using ASAN leak detection, we must tell ASAN about
+	// cases where we store pointers in mmapped memory.
+	if asanenabled {
+		lsanregisterrootregion(p, n)
+	}
+
+	return p
 }
 
 // sysMap transitions a memory region from Reserved to Prepared. It ensures the

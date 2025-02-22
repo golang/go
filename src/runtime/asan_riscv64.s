@@ -52,6 +52,20 @@ TEXT	runtime·asanregisterglobals(SB), NOSPLIT, $0-16
 	MOV	$__asan_register_globals_go(SB), X14
 	JMP	asancall<>(SB)
 
+// func runtime·lsanregisterrootregion(addr unsafe.Pointer, n uintptr)
+TEXT	runtime·lsanregisterrootregion(SB), NOSPLIT, $0-16
+	MOV	addr+0(FP), X10
+	MOV	n+8(FP), X11
+	// void __lsan_register_root_region_go(void *addr, uintptr_t n);
+	MOV	$__lsan_register_root_region_go(SB), X14
+	JMP	asancall<>(SB)
+
+// func runtime·lsandoleakcheck()
+TEXT	runtime·lsandoleakcheck(SB), NOSPLIT, $0-0
+	// void __lsan_do_leak_check_go(void);
+	MOV	$__lsan_do_leak_check_go(SB), X14
+	JMP	asancall<>(SB)
+
 // Switches SP to g0 stack and calls (X14). Arguments already set.
 TEXT	asancall<>(SB), NOSPLIT, $0-0
 	MOV	X2, X8		// callee-saved
