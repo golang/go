@@ -4,15 +4,24 @@
 
 package reflect
 
-import "iter"
+import (
+	"iter"
+)
 
 func rangeNum[T int8 | int16 | int32 | int64 | int |
 	uint8 | uint16 | uint32 | uint64 | uint |
-	uintptr, N int64 | uint64](v N) iter.Seq[Value] {
+	uintptr, N int64 | uint64](num N, t Type) iter.Seq[Value] {
 	return func(yield func(v Value) bool) {
+		convert := t.PkgPath() != ""
 		// cannot use range T(v) because no core type.
-		for i := T(0); i < T(v); i++ {
-			if !yield(ValueOf(i)) {
+		for i := T(0); i < T(num); i++ {
+			tmp := ValueOf(i)
+			// if the iteration value type is define by
+			// type T built-in type.
+			if convert {
+				tmp = tmp.Convert(t)
+			}
+			if !yield(tmp) {
 				return
 			}
 		}
@@ -35,29 +44,29 @@ func (v Value) Seq() iter.Seq[Value] {
 			v.Call([]Value{rf})
 		}
 	}
-	switch v.Kind() {
+	switch v.kind() {
 	case Int:
-		return rangeNum[int](v.Int())
+		return rangeNum[int](v.Int(), v.Type())
 	case Int8:
-		return rangeNum[int8](v.Int())
+		return rangeNum[int8](v.Int(), v.Type())
 	case Int16:
-		return rangeNum[int16](v.Int())
+		return rangeNum[int16](v.Int(), v.Type())
 	case Int32:
-		return rangeNum[int32](v.Int())
+		return rangeNum[int32](v.Int(), v.Type())
 	case Int64:
-		return rangeNum[int64](v.Int())
+		return rangeNum[int64](v.Int(), v.Type())
 	case Uint:
-		return rangeNum[uint](v.Uint())
+		return rangeNum[uint](v.Uint(), v.Type())
 	case Uint8:
-		return rangeNum[uint8](v.Uint())
+		return rangeNum[uint8](v.Uint(), v.Type())
 	case Uint16:
-		return rangeNum[uint16](v.Uint())
+		return rangeNum[uint16](v.Uint(), v.Type())
 	case Uint32:
-		return rangeNum[uint32](v.Uint())
+		return rangeNum[uint32](v.Uint(), v.Type())
 	case Uint64:
-		return rangeNum[uint64](v.Uint())
+		return rangeNum[uint64](v.Uint(), v.Type())
 	case Uintptr:
-		return rangeNum[uintptr](v.Uint())
+		return rangeNum[uintptr](v.Uint(), v.Type())
 	case Pointer:
 		if v.Elem().kind() != Array {
 			break
