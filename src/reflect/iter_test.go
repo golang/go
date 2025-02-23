@@ -7,9 +7,12 @@ package reflect_test
 import (
 	"iter"
 	"maps"
+	"reflect"
 	. "reflect"
 	"testing"
 )
+
+type N int8
 
 func TestValueSeq(t *testing.T) {
 	m := map[string]int{
@@ -187,6 +190,21 @@ func TestValueSeq(t *testing.T) {
 				t.Fatalf("should loop four times")
 			}
 		}},
+		{"type N int8", ValueOf(N(4)), func(t *testing.T, s iter.Seq[Value]) {
+			i := N(0)
+			for v := range s {
+				if v.Int() != int64(i) {
+					t.Fatalf("got %d, want %d", v.Int(), i)
+				}
+				i++
+				if v.Type() != reflect.TypeOf(i) {
+					t.Fatalf("got %s, want %s", v.Type(), reflect.TypeOf(i))
+				}
+			}
+			if i != 4 {
+				t.Fatalf("should loop four times")
+			}
+		}},
 	}
 	for _, tc := range tests {
 		seq := tc.val.Seq()
@@ -317,6 +335,42 @@ func TestValueSeq2(t *testing.T) {
 				i++
 				if v2.Int() != i {
 					t.Fatalf("got %d, want %d", v2.Int(), i)
+				}
+			}
+			if i != 4 {
+				t.Fatalf("should loop four times")
+			}
+		}},
+		{"[4]N", ValueOf([4]N{0, 1, 2, 3}), func(t *testing.T, s iter.Seq2[Value, Value]) {
+			i := N(0)
+			for v1, v2 := range s {
+				if v1.Int() != int64(i) {
+					t.Fatalf("got %d, want %d", v1.Int(), i)
+				}
+				if v2.Int() != int64(i) {
+					t.Fatalf("got %d, want %d", v2.Int(), i)
+				}
+				i++
+				if v2.Type() != reflect.TypeOf(i) {
+					t.Fatalf("got %s, want %s", v2.Type(), reflect.TypeOf(i))
+				}
+			}
+			if i != 4 {
+				t.Fatalf("should loop four times")
+			}
+		}},
+		{"[]N", ValueOf([]N{1, 2, 3, 4}), func(t *testing.T, s iter.Seq2[Value, Value]) {
+			i := N(0)
+			for v1, v2 := range s {
+				if v1.Int() != int64(i) {
+					t.Fatalf("got %d, want %d", v1.Int(), i)
+				}
+				i++
+				if v2.Int() != int64(i) {
+					t.Fatalf("got %d, want %d", v2.Int(), i)
+				}
+				if v2.Type() != reflect.TypeOf(i) {
+					t.Fatalf("got %s, want %s", v2.Type(), reflect.TypeOf(i))
 				}
 			}
 			if i != 4 {
