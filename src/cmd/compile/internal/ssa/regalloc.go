@@ -1670,6 +1670,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 				tmpReg = s.allocReg(m, &tmpVal)
 				s.nospill |= regMask(1) << tmpReg
+				s.tmpused |= regMask(1) << tmpReg
 			}
 
 			// Now that all args are in regs, we're ready to issue the value itself.
