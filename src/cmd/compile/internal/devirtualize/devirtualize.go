@@ -127,13 +127,13 @@ func StaticCall(call *ir.CallExpr) {
 		// 	v.A()
 		// 	v = &Impl{}
 		//
-		// Here in the devirtualizer, we determine the concrete type of v as beeing an *Impl, but
-		// in can still be a nil interface, but we have not detected that. It is not a huge problem as
-		// the v.(*Impl) type assertion that we make here would also have failed, but with a different
+		// Here in the devirtualizer, we determine the concrete type of v as beeing an *Impl,
+		// but in can still be a nil interface, we have not detected that. The v.(*Impl)
+		// type assertion that we make here would also have failed, but with a different
 		// panic "pkg.Iface is nil, not *pkg.Impl", where previously we would get a nil panic.
 		// We fix this, by introducing an additional nilcheck on the itab.
-		nilCheck := ir.NewUnaryExpr(call.Pos(), ir.OCHECKNIL, ir.NewUnaryExpr(call.Pos(), ir.OITAB, sel.X))
-		dt.PtrInit().Append(typecheck.Stmt(nilCheck))
+		dt.EmitItabNilCheck = true
+		dt.SetPos(call.Pos())
 	}
 
 	x := typecheck.XDotMethod(sel.Pos(), dt, sel.Sel, true)
@@ -174,14 +174,12 @@ func StaticCall(call *ir.CallExpr) {
 	typecheck.FixMethodCall(call)
 }
 
-// const concreteTypeDebug = false
-var concreteTypeDebug = false
+const concreteTypeDebug = false
 
 // concreteType determines the concrete type of n, following OCONVIFACEs and type asserts.
 // Returns nil when the concrete type could not be determined, or when there are multiple
 // (different) types assigned to an interface.
 func concreteType(n ir.Node) (typ *types.Type) {
-	concreteTypeDebug = base.Debug.Testing != 0
 	return concreteType1(n, make(map[*ir.Name]*types.Type))
 }
 
