@@ -218,6 +218,13 @@
 (RotateLeft32 ...) => (ROLW ...)
 (RotateLeft64 ...) => (ROL  ...)
 
+// Count trailing zeros (note that these will only be emitted for rva22u64 and above).
+(Ctz(64|32|16|8)NonZero ...) => (Ctz64 ...)
+(Ctz64 ...) => (CTZ  ...)
+(Ctz32 ...) => (CTZW ...)
+(Ctz16 x) => (CTZW (ORI <typ.UInt32> [1<<16] x))
+(Ctz8  x) => (CTZW (ORI <typ.UInt32> [1<<8]  x))
+
 (Less64  ...) => (SLT  ...)
 (Less32  x y) => (SLT  (SignExt32to64 x) (SignExt32to64 y))
 (Less16  x y) => (SLT  (SignExt16to64 x) (SignExt16to64 y))
