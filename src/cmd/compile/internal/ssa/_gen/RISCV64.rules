@@ -732,6 +732,7 @@
 
 // Double negation.
 (NEG (NEG x)) => x
+(NEG <t> s:(ADDI [val] (NEG x))) && s.Uses == 1 && is32Bit(-val) => (ADDI [-val] x)
 
 // Addition of zero or two constants.
 (ADDI [0] x) => x

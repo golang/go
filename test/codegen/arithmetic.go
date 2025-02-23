@@ -92,7 +92,7 @@ func SubFromConst(a int) int {
 
 func SubFromConstNeg(a int) int {
 	// ppc64x: `ADD\t[$]40,\sR[0-9]+,\sR`
-	// riscv64: "NEG","ADDI\t\\$-40","NEG"
+	// riscv64: "ADDI\t\\$40",-"NEG"
 	c := 40 - (-a)
 	return c
 }
