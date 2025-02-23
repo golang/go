@@ -225,6 +225,12 @@
 (Ctz16 x) => (CTZW (ORI <typ.UInt32> [1<<16] x))
 (Ctz8  x) => (CTZW (ORI <typ.UInt32> [1<<8]  x))
 
+// Bit length (note that these will only be emitted for rva22u64 and above).
+(BitLen64 <t> x) => (SUB (MOVDconst [64]) (CLZ  <t> x))
+(BitLen32 <t> x) => (SUB (MOVDconst [32]) (CLZW <t> x))
+(BitLen16 x) => (BitLen64 (ZeroExt16to64 x))
+(BitLen8  x) => (BitLen64 (ZeroExt8to64 x))
+
 (Less64  ...) => (SLT  ...)
 (Less32  x y) => (SLT  (SignExt32to64 x) (SignExt32to64 y))
 (Less16  x y) => (SLT  (SignExt16to64 x) (SignExt16to64 y))
