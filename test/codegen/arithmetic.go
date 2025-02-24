@@ -173,6 +173,12 @@ func AddAddSubSimplify(a, b, c int) int {
 	return r
 }
 
+func NegToInt32(a int) int {
+	// riscv64: "NEG","MOVW"
+	r := int(int32(-a))
+	return r
+}
+
 // -------------------- //
 //    Multiplication    //
 // -------------------- //
