@@ -1040,10 +1040,15 @@ func rangeKeyVal(check *Checker, orig Type, allowVersion func(goVersion) bool) (
 		}
 		assert(typ.Recv() == nil)
 		// check iterator argument type
-		cb, _ := coreType(typ.Params().At(0).Type()).(*Signature)
+		var cause2 string
+		cb, _ := sharedUnder(check, typ.Params().At(0).Type(), &cause2).(*Signature)
 		switch {
 		case cb == nil:
-			return bad("func must be func(yield func(...) bool): argument is not func")
+			if cause2 != "" {
+				return bad(check.sprintf("func must be func(yield func(...) bool): in yield type, %s", cause2))
+			} else {
+				return bad("func must be func(yield func(...) bool): argument is not func")
+			}
 		case cb.Params().Len() > 2:
 			return bad("func must be func(yield func(...) bool): yield func has too many parameters")
 		case cb.Results().Len() != 1 || !Identical(cb.Results().At(0).Type(), universeBool):

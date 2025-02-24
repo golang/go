@@ -164,6 +164,11 @@ func _[T ~func(func(int) bool)](x T) {
 	}
 }
 
+func _[T func() bool | func(int) bool]() {
+	for range func /* ERROR "func must be func(yield func(...) bool): in yield type, func() bool and func(int) bool have different underlying types" */ (T) {} {
+	}
+}
+
 // go.dev/issue/65236
 
 func seq0(func() bool) {}
