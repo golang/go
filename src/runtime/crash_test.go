@@ -901,7 +901,7 @@ func TestRuntimePanic(t *testing.T) {
 }
 
 func TestTracebackRuntimeFunction(t *testing.T) {
-	cmd := testenv.CleanCmdEnv(exec.Command(testenv.Executable(t), "-test.run=TestTracebackRuntimeFunction"))
+	cmd := testenv.CleanCmdEnv(exec.Command(testenv.Executable(t), "-test.run=^TestTracebackRuntimeFunction$"))
 	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_NPE_READMEMSTATS=1")
 	out, err := cmd.CombinedOutput()
 	t.Logf("%s", out)
@@ -913,7 +913,7 @@ func TestTracebackRuntimeFunction(t *testing.T) {
 }
 
 func TestTracebackRuntimeMethod(t *testing.T) {
-	cmd := testenv.CleanCmdEnv(exec.Command(testenv.Executable(t), "-test.run=TestTracebackRuntimeMethod"))
+	cmd := testenv.CleanCmdEnv(exec.Command(testenv.Executable(t), "-test.run=^TestTracebackRuntimeMethod$"))
 	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_NPE_FUNCMETHOD=1")
 	out, err := cmd.CombinedOutput()
 	t.Logf("%s", out)

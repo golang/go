@@ -100,7 +100,7 @@ func TestAcceptIgnoreSomeErrors(t *testing.T) {
 	defer ln.Close()
 
 	// Start child process that connects to our listener.
-	cmd := exec.Command(testenv.Executable(t), "-test.run=TestAcceptIgnoreSomeErrors")
+	cmd := exec.Command(testenv.Executable(t), "-test.run=^TestAcceptIgnoreSomeErrors$")
 	cmd.Env = append(os.Environ(), "GOTEST_DIAL_ADDR="+ln.Addr().String())
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

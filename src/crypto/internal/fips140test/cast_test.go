@@ -171,7 +171,7 @@ func TestCASTFailures(t *testing.T) {
 			}
 			t.Logf("CAST/PCT succeeded: %s", name)
 			t.Logf("Testing CAST/PCT failure...")
-			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=TestConditionals", "-test.v")
+			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestConditionals$", "-test.v")
 			cmd.Env = append(cmd.Env, fmt.Sprintf("GODEBUG=failfipscast=%s,fips140=on", name))
 			out, err := cmd.CombinedOutput()
 			t.Logf("%s", out)

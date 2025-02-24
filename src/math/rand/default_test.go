@@ -37,7 +37,7 @@ func TestDefaultRace(t *testing.T) {
 		i := i
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			t.Parallel()
-			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=TestDefaultRace")
+			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestDefaultRace$")
 			cmd = testenv.CleanCmdEnv(cmd)
 			cmd.Env = append(cmd.Env, fmt.Sprintf("GO_RAND_TEST_HELPER_CODE=%d", i/2))
 			if i%2 != 0 {

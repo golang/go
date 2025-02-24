@@ -83,7 +83,7 @@ func monitor() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	cmd := exec.Command(exe, "-test.run=ExampleSetCrashOutput_monitor")
+	cmd := exec.Command(exe, "-test.run=^ExampleSetCrashOutput_monitor$")
 	cmd.Env = append(os.Environ(), monitorVar+"=1")
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stderr
