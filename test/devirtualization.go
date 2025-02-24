@@ -1043,6 +1043,35 @@ func selfAssigns() {
 	}
 }
 
+func boolNoDevirt() {
+	{
+		m := make(map[int]*Impl) // ERROR "does not escape"
+		var v any = &Impl{}      // ERROR "escapes"
+		_, v = m[0]              // ERROR "escapes"
+		v.(A).A()
+	}
+	{
+		m := make(chan *Impl)
+		var v any = &Impl{} // ERROR "escapes"
+		select {
+		case _, v = <-m: // ERROR "escapes"
+		}
+		v.(A).A()
+	}
+	{
+		m := make(chan *Impl)
+		var v any = &Impl{} // ERROR "escapes"
+		_, v = <-m          // ERROR "escapes"
+		v.(A).A()
+	}
+	{
+		var a any = 4       // ERROR "does not escape"
+		var v any = &Impl{} // ERROR "escapes"
+		_, v = a.(int)      // ERROR "escapes"
+		v.(A).A()
+	}
+}
+
 func addrTaken() {
 	{
 		var a A = &Impl{} // ERROR "escapes"
