@@ -139,7 +139,7 @@ ran outer cleanup
 	}}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			cmd := exec.Command(os.Args[0], "-test.run=^TestPanicHelper$")
+			cmd := exec.Command(testenv.Executable(t), "-test.run=^TestPanicHelper$")
 			cmd.Args = append(cmd.Args, tc.flags...)
 			cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 			b, _ := cmd.CombinedOutput()
@@ -232,7 +232,7 @@ func TestMorePanic(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		cmd := exec.Command(os.Args[0], tc.flags...)
+		cmd := exec.Command(testenv.Executable(t), tc.flags...)
 		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 		b, _ := cmd.CombinedOutput()
 		got := string(b)

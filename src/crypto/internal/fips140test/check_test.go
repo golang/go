@@ -35,7 +35,7 @@ func TestIntegrityCheck(t *testing.T) {
 		t.Skipf("skipping: %v", err)
 	}
 
-	cmd := testenv.Command(t, os.Args[0], "-test.v", "-test.run=TestIntegrityCheck")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.v", "-test.run=TestIntegrityCheck")
 	cmd.Env = append(cmd.Environ(), "GODEBUG=fips140=on")
 	out, err := cmd.CombinedOutput()
 	if err != nil {

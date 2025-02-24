@@ -638,11 +638,10 @@ func TestSmhasherSeed(t *testing.T) {
 }
 
 func TestIssue66841(t *testing.T) {
-	testenv.MustHaveExec(t)
 	if *UseAeshash && os.Getenv("TEST_ISSUE_66841") == "" {
 		// We want to test the backup hash, so if we're running on a machine
 		// that uses aeshash, exec ourselves while turning aes off.
-		cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0], "-test.run=^TestIssue66841$"))
+		cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.Executable(t), "-test.run=^TestIssue66841$"))
 		cmd.Env = append(cmd.Env, "GODEBUG=cpu.aes=off", "TEST_ISSUE_66841=1")
 		out, err := cmd.CombinedOutput()
 		if err != nil {

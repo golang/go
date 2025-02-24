@@ -118,7 +118,7 @@ func TestStdPipe(t *testing.T) {
 	// all writes should fail with EPIPE and then exit 0.
 	for _, sig := range []bool{false, true} {
 		for dest := 1; dest < 4; dest++ {
-			cmd := testenv.Command(t, os.Args[0], "-test.run", "TestStdPipe")
+			cmd := testenv.Command(t, testenv.Executable(t), "-test.run", "TestStdPipe")
 			cmd.Stdout = w
 			cmd.Stderr = w
 			cmd.ExtraFiles = []*os.File{w}
@@ -145,7 +145,7 @@ func TestStdPipe(t *testing.T) {
 	}
 
 	// Test redirecting stdout but not stderr.  Issue 40076.
-	cmd := testenv.Command(t, os.Args[0], "-test.run", "TestStdPipe")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run", "TestStdPipe")
 	cmd.Stdout = w
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -263,7 +263,7 @@ func TestReadNonblockingFd(t *testing.T) {
 	}
 	defer r.Close()
 	defer w.Close()
-	cmd := testenv.Command(t, os.Args[0], "-test.run=^"+t.Name()+"$")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+t.Name()+"$")
 	cmd.Env = append(cmd.Environ(), "GO_WANT_READ_NONBLOCKING_FD=1")
 	cmd.Stdin = r
 	output, err := cmd.CombinedOutput()

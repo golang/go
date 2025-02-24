@@ -801,7 +801,7 @@ func TestRunningTests(t *testing.T) {
 
 	timeout := 10 * time.Millisecond
 	for {
-		cmd := testenv.Command(t, os.Args[0], "-test.run=^"+t.Name()+"$", "-test.timeout="+timeout.String(), "-test.parallel=4")
+		cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+t.Name()+"$", "-test.timeout="+timeout.String(), "-test.parallel=4")
 		cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 		out, err := cmd.CombinedOutput()
 		t.Logf("%v:\n%s", cmd, out)
@@ -860,7 +860,7 @@ func TestRunningTestsInCleanup(t *testing.T) {
 
 	timeout := 10 * time.Millisecond
 	for {
-		cmd := testenv.Command(t, os.Args[0], "-test.run=^"+t.Name()+"$", "-test.timeout="+timeout.String())
+		cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+t.Name()+"$", "-test.timeout="+timeout.String())
 		cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
 		out, err := cmd.CombinedOutput()
 		t.Logf("%v:\n%s", cmd, out)

@@ -889,8 +889,7 @@ func init() {
 }
 
 func TestRuntimePanic(t *testing.T) {
-	testenv.MustHaveExec(t)
-	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=^TestRuntimePanic$"))
+	cmd := testenv.CleanCmdEnv(exec.Command(testenv.Executable(t), "-test.run=^TestRuntimePanic$"))
 	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_PANIC=1")
 	out, err := cmd.CombinedOutput()
 	t.Logf("%s", out)
@@ -902,8 +901,7 @@ func TestRuntimePanic(t *testing.T) {
 }
 
 func TestTracebackRuntimeFunction(t *testing.T) {
-	testenv.MustHaveExec(t)
-	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestTracebackRuntimeFunction"))
+	cmd := testenv.CleanCmdEnv(exec.Command(testenv.Executable(t), "-test.run=TestTracebackRuntimeFunction"))
 	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_NPE_READMEMSTATS=1")
 	out, err := cmd.CombinedOutput()
 	t.Logf("%s", out)
@@ -915,8 +913,7 @@ func TestTracebackRuntimeFunction(t *testing.T) {
 }
 
 func TestTracebackRuntimeMethod(t *testing.T) {
-	testenv.MustHaveExec(t)
-	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestTracebackRuntimeMethod"))
+	cmd := testenv.CleanCmdEnv(exec.Command(testenv.Executable(t), "-test.run=TestTracebackRuntimeMethod"))
 	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_NPE_FUNCMETHOD=1")
 	out, err := cmd.CombinedOutput()
 	t.Logf("%s", out)
@@ -929,14 +926,12 @@ func TestTracebackRuntimeMethod(t *testing.T) {
 
 // Test that g0 stack overflows are handled gracefully.
 func TestG0StackOverflow(t *testing.T) {
-	testenv.MustHaveExec(t)
-
 	if runtime.GOOS == "ios" {
 		testenv.SkipFlaky(t, 62671)
 	}
 
 	if os.Getenv("TEST_G0_STACK_OVERFLOW") != "1" {
-		cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0], "-test.run=^TestG0StackOverflow$", "-test.v"))
+		cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.Executable(t), "-test.run=^TestG0StackOverflow$", "-test.v"))
 		cmd.Env = append(cmd.Env, "TEST_G0_STACK_OVERFLOW=1")
 		out, err := cmd.CombinedOutput()
 		t.Logf("output:\n%s", out)
@@ -977,7 +972,7 @@ func init() {
 func TestCrashWhileTracing(t *testing.T) {
 	testenv.MustHaveExec(t)
 
-	cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0]))
+	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.Executable(t)))
 	cmd.Env = append(cmd.Env, "TEST_CRASH_WHILE_TRACING=1")
 	stdOut, err := cmd.StdoutPipe()
 	var errOut bytes.Buffer

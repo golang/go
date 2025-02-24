@@ -168,7 +168,6 @@ func TestReadError(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
 	}
-	testenv.MustHaveExec(t)
 
 	// We run this test in a subprocess because it's expected to crash.
 	if os.Getenv("GO_TEST_READ_ERROR") == "1" {
@@ -181,7 +180,7 @@ func TestReadError(t *testing.T) {
 		return
 	}
 
-	cmd := testenv.Command(t, os.Args[0], "-test.run=TestReadError")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=TestReadError")
 	cmd.Env = append(os.Environ(), "GO_TEST_READ_ERROR=1")
 	out, err := cmd.CombinedOutput()
 	if err == nil {

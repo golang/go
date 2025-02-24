@@ -304,7 +304,7 @@ func TestDetectNohup(t *testing.T) {
 		// We have no intention of reading from c.
 		c := make(chan os.Signal, 1)
 		Notify(c, syscall.SIGHUP)
-		if out, err := testenv.Command(t, os.Args[0], "-test.run=^TestDetectNohup$", "-check_sighup_ignored").CombinedOutput(); err == nil {
+		if out, err := testenv.Command(t, testenv.Executable(t), "-test.run=^TestDetectNohup$", "-check_sighup_ignored").CombinedOutput(); err == nil {
 			t.Errorf("ran test with -check_sighup_ignored and it succeeded: expected failure.\nOutput:\n%s", out)
 		}
 		Stop(c)
@@ -316,7 +316,7 @@ func TestDetectNohup(t *testing.T) {
 		}
 		Ignore(syscall.SIGHUP)
 		os.Remove("nohup.out")
-		out, err := testenv.Command(t, "/usr/bin/nohup", os.Args[0], "-test.run=^TestDetectNohup$", "-check_sighup_ignored").CombinedOutput()
+		out, err := testenv.Command(t, "/usr/bin/nohup", testenv.Executable(t), "-test.run=^TestDetectNohup$", "-check_sighup_ignored").CombinedOutput()
 
 		data, _ := os.ReadFile("nohup.out")
 		os.Remove("nohup.out")
@@ -454,7 +454,7 @@ func TestNohup(t *testing.T) {
 				if subTimeout != 0 {
 					args = append(args, fmt.Sprintf("-test.timeout=%v", subTimeout))
 				}
-				out, err := testenv.Command(t, os.Args[0], args...).CombinedOutput()
+				out, err := testenv.Command(t, testenv.Executable(t), args...).CombinedOutput()
 
 				if err == nil {
 					t.Errorf("ran test with -send_uncaught_sighup=%d and it succeeded: expected failure.\nOutput:\n%s", i, out)
@@ -562,7 +562,7 @@ func TestAtomicStop(t *testing.T) {
 		if deadline, ok := t.Deadline(); ok {
 			timeout = time.Until(deadline).String()
 		}
-		cmd := testenv.Command(t, os.Args[0], "-test.run=^TestAtomicStop$", "-test.timeout="+timeout)
+		cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestAtomicStop$", "-test.timeout="+timeout)
 		cmd.Env = append(os.Environ(), "GO_TEST_ATOMIC_STOP=1")
 		out, err := cmd.CombinedOutput()
 		if err == nil {
@@ -765,7 +765,7 @@ func TestNotifyContextNotifications(t *testing.T) {
 			if subTimeout != 0 {
 				args = append(args, fmt.Sprintf("-test.timeout=%v", subTimeout))
 			}
-			out, err := testenv.Command(t, os.Args[0], args...).CombinedOutput()
+			out, err := testenv.Command(t, testenv.Executable(t), args...).CombinedOutput()
 			if err != nil {
 				t.Errorf("ran test with -check_notify_ctx_notification and it failed with %v.\nOutput:\n%s", err, out)
 			}

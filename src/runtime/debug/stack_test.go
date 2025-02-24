@@ -87,12 +87,7 @@ func TestStack(t *testing.T) {
 		// initial (not current) environment. Spawn a subprocess to determine the
 		// real baked-in GOROOT.
 		t.Logf("found GOROOT %q from environment; checking embedded GOROOT value", envGoroot)
-		testenv.MustHaveExec(t)
-		exe, err := os.Executable()
-		if err != nil {
-			t.Fatal(err)
-		}
-		cmd := exec.Command(exe)
+		cmd := exec.Command(testenv.Executable(t))
 		cmd.Env = append(os.Environ(), "GOROOT=", "GO_RUNTIME_DEBUG_TEST_ENTRYPOINT=dumpgoroot")
 		out, err := cmd.Output()
 		if err != nil {
@@ -137,18 +132,12 @@ func TestStack(t *testing.T) {
 }
 
 func TestSetCrashOutput(t *testing.T) {
-	testenv.MustHaveExec(t)
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	crashOutput := filepath.Join(t.TempDir(), "crash.out")
 
-	cmd := exec.Command(exe)
+	cmd := exec.Command(testenv.Executable(t))
 	cmd.Stderr = new(strings.Builder)
 	cmd.Env = append(os.Environ(), "GO_RUNTIME_DEBUG_TEST_ENTRYPOINT=setcrashoutput", "CRASHOUTPUT="+crashOutput)
-	err = cmd.Run()
+	err := cmd.Run()
 	stderr := fmt.Sprint(cmd.Stderr)
 	if err == nil {
 		t.Fatalf("child process succeeded unexpectedly (stderr: %s)", stderr)

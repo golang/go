@@ -163,7 +163,7 @@ func TestPanicSystemstack(t *testing.T) {
 	}
 
 	t.Parallel()
-	cmd := exec.Command(os.Args[0], "testPanicSystemstackInternal")
+	cmd := exec.Command(testenv.Executable(t), "testPanicSystemstackInternal")
 	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Dir = t.TempDir() // put any core file in tempdir
 	cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")

@@ -198,7 +198,7 @@ func TestLockNotDroppedByExecCommand(t *testing.T) {
 	// Some kinds of file locks are dropped when a duplicated or forked file
 	// descriptor is unlocked. Double-check that the approach used by os/exec does
 	// not accidentally drop locks.
-	cmd := testenv.Command(t, os.Args[0], "-test.run=^$")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^$")
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("exec failed: %v", err)
 	}

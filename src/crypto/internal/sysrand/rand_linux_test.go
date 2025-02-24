@@ -49,7 +49,7 @@ func TestNoGetrandom(t *testing.T) {
 			return
 		}
 
-		cmd := testenv.Command(t, os.Args[0], "-test.v")
+		cmd := testenv.Command(t, testenv.Executable(t), "-test.v")
 		cmd.Env = append(os.Environ(), "GO_GETRANDOM_DISABLED=1")
 		out, err := cmd.CombinedOutput()
 		if err != nil {

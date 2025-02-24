@@ -78,7 +78,7 @@ func TestPanicNilRace(t *testing.T) {
 		t.Skip("Skipping test intended for use with -race.")
 	}
 	if os.Getenv("GODEBUG") != "panicnil=1" {
-		cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0], "-test.run=^TestPanicNilRace$", "-test.v", "-test.parallel=2", "-test.count=1"))
+		cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.Executable(t), "-test.run=^TestPanicNilRace$", "-test.v", "-test.parallel=2", "-test.count=1"))
 		cmd.Env = append(cmd.Env, "GODEBUG=panicnil=1")
 		out, err := cmd.CombinedOutput()
 		t.Logf("output:\n%s", out)
