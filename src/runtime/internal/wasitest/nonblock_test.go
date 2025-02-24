@@ -10,6 +10,7 @@ package wasi_test
 import (
 	"bufio"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"math/rand"
 	"os"
@@ -41,6 +42,8 @@ func TestNonblock(t *testing.T) {
 		t.Skip("wasmer does not support non-blocking I/O")
 	}
 
+	testenv.MustHaveGoRun(t)
+
 	for _, mode := range []string{"os.OpenFile", "os.NewFile"} {
 		t.Run(mode, func(t *testing.T) {
 			args := []string{"run", "./testdata/nonblock.go", mode}
@@ -62,7 +65,7 @@ func TestNonblock(t *testing.T) {
 				fifos[len(fifos)-i-1] = &fifo{file, path}
 			}
 
-			subProcess := exec.Command("go", args...)
+			subProcess := exec.Command(testenv.GoToolPath(t), args...)
 
 			subProcess.Env = append(os.Environ(), "GOOS=wasip1", "GOARCH=wasm")
 

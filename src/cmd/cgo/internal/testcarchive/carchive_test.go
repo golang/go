@@ -218,7 +218,7 @@ func genHeader(t *testing.T, header, dir string) {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command("go", "tool", "cgo",
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "cgo",
 		"-objdir", objDir,
 		"-exportheader", header)
 	cmd.Args = append(cmd.Args, files...)
@@ -524,7 +524,7 @@ func TestEarlySignalHandler(t *testing.T) {
 		}()
 	}
 
-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo2.a", "./libgo2")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo2.a", "./libgo2")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
@@ -674,7 +674,7 @@ func buildSignalForwardingTest(t *testing.T) {
 	}
 
 	t.Log("go build -buildmode=c-archive -o libgo2.a ./libgo2")
-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo2.a", "./libgo2")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo2.a", "./libgo2")
 	out, err := cmd.CombinedOutput()
 	if len(out) > 0 {
 		t.Logf("%s", out)
@@ -801,7 +801,7 @@ func TestOsSignal(t *testing.T) {
 		}()
 	}
 
-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo3.a", "./libgo3")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo3.a", "./libgo3")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
@@ -843,7 +843,7 @@ func TestSigaltstack(t *testing.T) {
 		}()
 	}
 
-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo4.a", "./libgo4")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo4.a", "./libgo4")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
@@ -908,7 +908,7 @@ func TestExtar(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-ldflags=-extar="+filepath.Join(dir, "testar"), "-o", "libgo4.a", "./libgo4")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-ldflags=-extar="+filepath.Join(dir, "testar"), "-o", "libgo4.a", "./libgo4")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
@@ -955,7 +955,7 @@ func TestPIE(t *testing.T) {
 	// be running this test in a GOROOT owned by root.)
 	genHeader(t, "p.h", "./p")
 
-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "./libgo")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "./libgo")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
@@ -1042,7 +1042,7 @@ func TestSIGPROF(t *testing.T) {
 		}()
 	}
 
-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo6.a", "./libgo6")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo6.a", "./libgo6")
 	out, err := cmd.CombinedOutput()
 	t.Logf("%v\n%s", cmd.Args, out)
 	if err != nil {
@@ -1089,7 +1089,7 @@ func TestCompileWithoutShared(t *testing.T) {
 		}()
 	}
 
-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-gcflags=-shared=false", "-o", "libgo2.a", "./libgo2")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-gcflags=-shared=false", "-o", "libgo2.a", "./libgo2")
 	out, err := cmd.CombinedOutput()
 	t.Logf("%v\n%s", cmd.Args, out)
 	if err != nil {
@@ -1204,7 +1204,7 @@ func TestManyCalls(t *testing.T) {
 		}()
 	}
 
-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo7.a", "./libgo7")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo7.a", "./libgo7")
 	out, err := cmd.CombinedOutput()
 	t.Logf("%v\n%s", cmd.Args, out)
 	if err != nil {
@@ -1259,7 +1259,7 @@ func TestPreemption(t *testing.T) {
 		}()
 	}
 
-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo8.a", "./libgo8")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo8.a", "./libgo8")
 	out, err := cmd.CombinedOutput()
 	t.Logf("%v\n%s", cmd.Args, out)
 	if err != nil {
@@ -1309,7 +1309,7 @@ func TestDeepStack(t *testing.T) {
 		}()
 	}
 
-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo9.a", "./libgo9")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo9.a", "./libgo9")
 	out, err := cmd.CombinedOutput()
 	t.Logf("%v\n%s", cmd.Args, out)
 	if err != nil {
@@ -1372,7 +1372,7 @@ func BenchmarkCgoCallbackMainThread(b *testing.B) {
 		}()
 	}
 
-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo10.a", "./libgo10")
+	cmd := exec.Command(testenv.GoToolPath(b), "build", "-buildmode=c-archive", "-o", "libgo10.a", "./libgo10")
 	out, err := cmd.CombinedOutput()
 	b.Logf("%v\n%s", cmd.Args, out)
 	if err != nil {
@@ -1414,7 +1414,7 @@ func TestSharedObject(t *testing.T) {
 		}()
 	}
 
-	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo_s.a", "./libgo")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo_s.a", "./libgo")
 	out, err := cmd.CombinedOutput()
 	t.Logf("%v\n%s", cmd.Args, out)
 	if err != nil {

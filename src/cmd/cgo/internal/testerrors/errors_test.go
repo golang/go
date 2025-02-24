@@ -76,7 +76,7 @@ func expect(t *testing.T, errors []*regexp.Regexp, files ...string) {
 	for _, file := range files {
 		args = append(args, path(file))
 	}
-	cmd := exec.Command("go", args...)
+	cmd := exec.Command(testenv.GoToolPath(t), args...)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Errorf("expected cgo to fail but it succeeded")
@@ -105,7 +105,7 @@ func expect(t *testing.T, errors []*regexp.Regexp, files ...string) {
 func sizeofLongDouble(t *testing.T) int {
 	testenv.MustHaveGoRun(t)
 	testenv.MustHaveCGO(t)
-	cmd := exec.Command("go", "run", path("long_double_size.go"))
+	cmd := exec.Command(testenv.GoToolPath(t), "run", path("long_double_size.go"))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("%#q: %v:\n%s", strings.Join(cmd.Args, " "), err, out)
@@ -158,7 +158,7 @@ func TestToleratesOptimizationFlag(t *testing.T) {
 			testenv.MustHaveCGO(t)
 			t.Parallel()
 
-			cmd := exec.Command("go", "build", path("issue14669.go"))
+			cmd := exec.Command(testenv.GoToolPath(t), "build", path("issue14669.go"))
 			cmd.Env = append(os.Environ(), "CGO_CFLAGS="+cflags)
 			out, err := cmd.CombinedOutput()
 			if err != nil {
@@ -173,7 +173,7 @@ func TestMallocCrashesOnNil(t *testing.T) {
 	testenv.MustHaveGoRun(t)
 	t.Parallel()
 
-	cmd := exec.Command("go", "run", path("malloc.go"))
+	cmd := exec.Command(testenv.GoToolPath(t), "run", path("malloc.go"))
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Logf("%#q:\n%s", strings.Join(cmd.Args, " "), out)

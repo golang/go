@@ -407,7 +407,7 @@ func main() {
 		argv = append(argv, "-ldflags", "-extldflags=-Wl,--export-all-symbols")
 	}
 	argv = append(argv, "-o", objfile, srcfile)
-	out, err := exec.Command("go", argv...).CombinedOutput()
+	out, err := exec.Command(testenv.GoToolPath(t), argv...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("build failure: %s\n%s\n", err, string(out))
 	}

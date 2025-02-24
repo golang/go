@@ -243,7 +243,7 @@ func TestImportStdLib(t *testing.T) {
 
 	// Get list of packages in stdlib. Filter out test-only packages with {{if .GoFiles}} check.
 	var stderr bytes.Buffer
-	cmd := exec.Command("go", "list", "-f", "{{if .GoFiles}}{{.ImportPath}}{{end}}", "std")
+	cmd := exec.Command(testenv.GoToolPath(t), "list", "-f", "{{if .GoFiles}}{{.ImportPath}}{{end}}", "std")
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {

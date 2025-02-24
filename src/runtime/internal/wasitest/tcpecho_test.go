@@ -7,6 +7,7 @@ package wasi_test
 import (
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"math/rand"
 	"net"
 	"os"
@@ -19,6 +20,8 @@ func TestTCPEcho(t *testing.T) {
 	if target != "wasip1/wasm" {
 		t.Skip()
 	}
+
+	testenv.MustHaveGoRun(t)
 
 	// We're unable to use port 0 here (let the OS choose a spare port).
 	// Although the WASM runtime accepts port 0, and the WASM module listens
@@ -44,7 +47,7 @@ func TestTCPEcho(t *testing.T) {
 		port++
 	}
 
-	subProcess := exec.Command("go", "run", "./testdata/tcpecho.go")
+	subProcess := exec.Command(testenv.GoToolPath(t), "run", "./testdata/tcpecho.go")
 
 	subProcess.Env = append(os.Environ(), "GOOS=wasip1", "GOARCH=wasm")
 

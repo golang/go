@@ -75,7 +75,7 @@ func TestFortran(t *testing.T) {
 	// Finally, run the actual test.
 	t.Log("go", "run", "./testdata/testprog")
 	var stdout, stderr strings.Builder
-	cmd := exec.Command("go", "run", "./testdata/testprog")
+	cmd := exec.Command(testenv.GoToolPath(t), "run", "./testdata/testprog")
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()

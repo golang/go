@@ -51,7 +51,7 @@ func TestGoDefs(t *testing.T) {
 	}
 
 	for _, fp := range filePrefixes {
-		cmd := exec.Command("go", "tool", "cgo",
+		cmd := exec.Command(testenv.GoToolPath(t), "tool", "cgo",
 			"-godefs",
 			"-srcdir", testdata,
 			"-objdir", dir,
@@ -107,7 +107,7 @@ func TestGoDefs(t *testing.T) {
 	// instead of invoking 'go build' and the resulting binary separately, so that
 	// this test can pass on mobile builders, which do not copy artifacts back
 	// from remote invocations.
-	cmd := exec.Command("go", "run", ".")
+	cmd := exec.Command(testenv.GoToolPath(t), "run", ".")
 	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {

@@ -50,7 +50,7 @@ func TestTestRun(t *testing.T) {
 	testenv.MustHaveGoRun(t)
 	testenv.MustHaveCGO(t)
 
-	cmd := exec.Command("go", "run", "main.go")
+	cmd := exec.Command(testenv.GoToolPath(t), "run", "main.go")
 	got, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("%v: %s\n%s", cmd, err, got)

@@ -104,7 +104,7 @@ func testSO(t *testing.T, dir string) {
 		}
 	}
 
-	cmd = exec.Command("go", "build", "-o", "main.exe", "main.go")
+	cmd = exec.Command(testenv.GoToolPath(t), "build", "-o", "main.exe", "main.go")
 	cmd.Dir = modRoot
 	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
 	out, err = cmd.CombinedOutput()

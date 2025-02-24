@@ -609,7 +609,7 @@ func buildPtrTests(t *testing.T, gopath string, cgocheck2 bool) (exe string) {
 	if cgocheck2 {
 		exeName = "ptrtest2.exe"
 	}
-	cmd := exec.Command("go", "build", "-o", exeName)
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exeName)
 	cmd.Dir = src
 	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
 
