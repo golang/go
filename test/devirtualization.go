@@ -408,6 +408,7 @@ func deferNoDevirt() {
 	a.A()
 }
 
+//go:noinline
 func closureDevirt() {
 	var a A
 	func() { // ERROR "func literal does not escape"
@@ -419,6 +420,7 @@ func closureDevirt() {
 	a.A()       // ERROR "devirtualizing" "inlining call"
 }
 
+//go:noinline
 func closureNoDevirt() {
 	var a A
 	func() { // ERROR "func literal does not escape"
