@@ -18,10 +18,7 @@ var optimize = true // set to false to force slow-path conversions for testing
 // prefix of s and prefix, with the character case of s ignored.
 // The prefix argument must be all lower-case.
 func commonPrefixLenIgnoreCase(s, prefix string) int {
-	n := len(prefix)
-	if n > len(s) {
-		n = len(s)
-	}
+	n := min(len(prefix), len(s))
 	for i := 0; i < n; i++ {
 		c := s[i]
 		if 'A' <= c && c <= 'Z' {
