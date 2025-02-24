@@ -343,10 +343,23 @@ func analyzeAssignments(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Typ
 			}
 		case ir.OAS2DOTTYPE:
 			n := n.(*ir.AssignListStmt)
-			for _, p := range n.Lhs {
-				if isName(p) {
-					return handleNode(ir.OAS2DOTTYPE, n.Rhs[0])
-				}
+			if isName(n.Lhs[0]) {
+				return handleNode(ir.OAS2DOTTYPE, n.Rhs[0])
+			}
+			if isName(n.Lhs[1]) {
+				// boolean, nothing to devirtualize.
+				typ = nil
+				return true
+			}
+		case ir.OAS2MAPR, ir.OAS2RECV, ir.OSELRECV2:
+			n := n.(*ir.AssignListStmt)
+			if isName(n.Lhs[0]) {
+				return handleType(n.Op(), n.Pos(), n.Rhs[0].Type())
+			}
+			if isName(n.Lhs[1]) {
+				// boolean, nothing to devirtualize.
+				typ = nil
+				return true
 			}
 		case ir.OAS2FUNC:
 			n := n.(*ir.AssignListStmt)
@@ -366,13 +379,6 @@ func analyzeAssignments(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Typ
 					}
 					typ = nil
 					return true
-				}
-			}
-		case ir.OAS2MAPR, ir.OAS2RECV, ir.OSELRECV2:
-			n := n.(*ir.AssignListStmt)
-			for _, p := range n.Lhs {
-				if isName(p) {
-					return handleType(n.Op(), n.Pos(), n.Rhs[0].Type())
 				}
 			}
 		case ir.ORANGE:
