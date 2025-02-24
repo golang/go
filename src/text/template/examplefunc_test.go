@@ -11,10 +11,12 @@ import (
 	"text/template"
 )
 
-// This example demonstrates a custom function to process template text.
-// It installs the strings.Title function and uses it to
-// Make Title Text Look Good In Our Template's Output.
+// This example demonstrates some usages of func.
 func ExampleTemplate_func() {
+	// 1. a custom function to process template text.
+	// It installs the strings.Title function and uses it to
+	// Make Title Text Look Good In Our Template's Output.
+
 	// First we create a FuncMap with which to register the function.
 	funcMap := template.FuncMap{
 		// The name "title" is what the function will be called in the template text.
@@ -46,9 +48,29 @@ Output 2: {{printf "%q" . | title}}
 		log.Fatalf("execution: %s", err)
 	}
 
+	// 2 how to use "gt" with "if/else".
+	type book struct {
+		Stars float32
+		Name  string
+	}
+	tpl, err := template.New("book").Parse(`{{ if (gt .Stars 4.0) }}Output of gt: "{{.Name }}" is a great book.{{ else }} "{{.Name}}" is not so good.{{ end }}`)
+	if err != nil {
+		log.Fatalf("failed to parse template: %s", err)
+	}
+
+	b := &book{
+		Stars: 4.5,
+		Name:  "Good Night, Gopher",
+	}
+	err = tpl.Execute(os.Stdout, b)
+	if err != nil {
+		log.Fatalf("failed to execute template: %s", err)
+	}
+
 	// Output:
 	// Input: "the go programming language"
 	// Output 0: The Go Programming Language
 	// Output 1: "The Go Programming Language"
 	// Output 2: "The Go Programming Language"
+	// Output of gt: "Good Night, Gopher" is a great book.
 }
