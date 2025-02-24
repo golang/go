@@ -54,24 +54,24 @@ Output 2: {{printf "%q" . | title}}
 }
 
 // This example demonstrates how to use 'gt' with two parameters with 'if/else'.
-func ExampleTemplate_func_gt() {
-        type book struct {
-                Stars float32
-                Name string
-        }
-        tpl, err := template.New("book").Parse(`{{ if (gt .Stars 4.0) }}'{{.Name }}' is a great book.{{ else }} '{{.Name}}' is not so good.{{ end }}`)
-        if err != nil {
-                log.Fatalf("failed to parse template: %s", err)
-        }
+func ExampleTemplate_func() {
+	type book struct {
+		Stars float32
+		Name  string
+	}
+	tpl, err := template.New("book").Parse(`{{ if (gt .Stars 4.0) }}'{{.Name }}' is a great book.{{ else }} '{{.Name}}' is not so good.{{ end }}`)
+	if err != nil {
+		log.Fatalf("failed to parse template: %s", err)
+	}
 
-        b := &book{
-                Stars: 4.5,
-                Name: "Good Night, Gopher",
-        }
-        err = tpl.Execute(os.Stdout, b)
-        if err != nil {
-                log.Fatalf("failed to execute template: %s", err)
-        }
+	b := &book{
+		Stars: 4.5,
+		Name:  "Good Night, Gopher",
+	}
+	err = tpl.Execute(os.Stdout, b)
+	if err != nil {
+		log.Fatalf("failed to execute template: %s", err)
+	}
 	// Output:
 	// 'Good Night, Gopher' is a great book.
 }
