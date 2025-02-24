@@ -362,9 +362,7 @@ func analyzeAssignments(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Typ
 					}
 					if call, ok := rhs.(*ir.CallExpr); ok {
 						retTyp := call.Fun.Type().Results()[i].Type
-						if !retTyp.IsInterface() {
-							return handleType(ir.OAS2FUNC, n.Pos(), retTyp)
-						}
+						return handleType(ir.OAS2FUNC, n.Pos(), retTyp)
 					}
 					typ = nil
 					return true
