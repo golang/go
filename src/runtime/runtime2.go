@@ -312,7 +312,6 @@ type gobuf struct {
 	pc   uintptr
 	g    guintptr
 	ctxt unsafe.Pointer
-	ret  uintptr
 	lr   uintptr
 	bp   uintptr // for framepointer-enabled architectures
 }
@@ -528,8 +527,7 @@ const (
 type m struct {
 	g0      *g     // goroutine with scheduling stack
 	morebuf gobuf  // gobuf arg to morestack
-	divmod  uint32 // div/mod denominator for arm - known to liblink
-	_       uint32 // align next field to 8 bytes
+	divmod  uint32 // div/mod denominator for arm - known to liblink (cmd/internal/obj/arm/obj5.go)
 
 	// Fields not known to debuggers.
 	procid          uint64            // for debuggers, but offset not hard-coded

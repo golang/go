@@ -199,11 +199,9 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
 	MOVD	R0, RSP
 	MOVD	gobuf_bp(R5), R29
 	MOVD	gobuf_lr(R5), LR
-	MOVD	gobuf_ret(R5), R0
 	MOVD	gobuf_ctxt(R5), R26
 	MOVD	$0, gobuf_sp(R5)
 	MOVD	$0, gobuf_bp(R5)
-	MOVD	$0, gobuf_ret(R5)
 	MOVD	$0, gobuf_lr(R5)
 	MOVD	$0, gobuf_ctxt(R5)
 	CMP	ZR, ZR // set condition codes for == test, needed by stack split
@@ -985,7 +983,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	R0, (g_sched+gobuf_sp)(g)
 	MOVD	R29, (g_sched+gobuf_bp)(g)
 	MOVD	$0, (g_sched+gobuf_lr)(g)
-	MOVD	$0, (g_sched+gobuf_ret)(g)
 	// Assert ctxt is zero. See func save.
 	MOVD	(g_sched+gobuf_ctxt)(g), R0
 	CBZ	R0, 2(PC)

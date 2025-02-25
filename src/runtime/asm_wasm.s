@@ -51,11 +51,9 @@ TEXT runtime·gogo(SB), NOSPLIT, $0-8
 	I64Load gobuf_pc(R0)
 	I64Store $0
 
-	MOVD gobuf_ret(R0), RET0
 	MOVD gobuf_ctxt(R0), CTXT
 	// clear to help garbage collector
 	MOVD $0, gobuf_sp(R0)
-	MOVD $0, gobuf_ret(R0)
 	MOVD $0, gobuf_ctxt(R0)
 
 	I32Const $1

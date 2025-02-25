@@ -291,10 +291,8 @@ TEXT gogo<>(SB), NOSPLIT, $0
 	get_tls(CX)
 	MOVL	DX, g(CX)
 	MOVL	gobuf_sp(BX), SP	// restore SP
-	MOVL	gobuf_ret(BX), AX
 	MOVL	gobuf_ctxt(BX), DX
 	MOVL	$0, gobuf_sp(BX)	// clear to help garbage collector
-	MOVL	$0, gobuf_ret(BX)
 	MOVL	$0, gobuf_ctxt(BX)
 	MOVL	gobuf_pc(BX), BX
 	JMP	BX
@@ -625,7 +623,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
 	MOVL	AX, (g_sched+gobuf_sp)(BX)
 	MOVL	$runtime·systemstack_switch(SB), AX
 	MOVL	AX, (g_sched+gobuf_pc)(BX)
-	MOVL	$0, (g_sched+gobuf_ret)(BX)
 	// Assert ctxt is zero. See func save.
 	MOVL	(g_sched+gobuf_ctxt)(BX), AX
 	TESTL	AX, AX

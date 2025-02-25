@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
 		_32bit uintptr // size on 32bit platforms
 		_64bit uintptr // size on 64bit platforms
 	}{
-		{runtime.G{}, 280, 440},   // g, but exported for testing
+		{runtime.G{}, 276, 432},   // g, but exported for testing
 		{runtime.Sudog{}, 56, 88}, // sudog, but exported for testing
 	}
 

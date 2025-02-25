@@ -412,11 +412,9 @@ TEXT gogo<>(SB), NOSPLIT, $0
 	MOVQ	DX, g(CX)
 	MOVQ	DX, R14		// set the g register
 	MOVQ	gobuf_sp(BX), SP	// restore SP
-	MOVQ	gobuf_ret(BX), AX
 	MOVQ	gobuf_ctxt(BX), DX
 	MOVQ	gobuf_bp(BX), BP
 	MOVQ	$0, gobuf_sp(BX)	// clear to help garbage collector
-	MOVQ	$0, gobuf_ret(BX)
 	MOVQ	$0, gobuf_ctxt(BX)
 	MOVQ	$0, gobuf_bp(BX)
 	MOVQ	gobuf_pc(BX), BX
@@ -828,7 +826,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	MOVQ	R9, (g_sched+gobuf_pc)(R14)
 	LEAQ	8(SP), R9
 	MOVQ	R9, (g_sched+gobuf_sp)(R14)
-	MOVQ	$0, (g_sched+gobuf_ret)(R14)
 	MOVQ	BP, (g_sched+gobuf_bp)(R14)
 	// Assert ctxt is zero. See func save.
 	MOVQ	(g_sched+gobuf_ctxt)(R14), R9

@@ -4399,7 +4399,6 @@ func save(pc, sp, bp uintptr) {
 	gp.sched.pc = pc
 	gp.sched.sp = sp
 	gp.sched.lr = 0
-	gp.sched.ret = 0
 	gp.sched.bp = bp
 	// We need to ensure ctxt is zero, but can't have a write
 	// barrier here. However, it should always already be zero.

@@ -107,10 +107,8 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
 	MOVV	0(g), R2
 	MOVV	gobuf_sp(R3), R29
 	MOVV	gobuf_lr(R3), R31
-	MOVV	gobuf_ret(R3), R1
 	MOVV	gobuf_ctxt(R3), REGCTXT
 	MOVV	R0, gobuf_sp(R3)
-	MOVV	R0, gobuf_ret(R3)
 	MOVV	R0, gobuf_lr(R3)
 	MOVV	R0, gobuf_ctxt(R3)
 	MOVV	gobuf_pc(R3), R4
@@ -424,7 +422,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	MOVV	R1, (g_sched+gobuf_pc)(g)
 	MOVV	R29, (g_sched+gobuf_sp)(g)
 	MOVV	R0, (g_sched+gobuf_lr)(g)
-	MOVV	R0, (g_sched+gobuf_ret)(g)
 	// Assert ctxt is zero. See func save.
 	MOVV	(g_sched+gobuf_ctxt)(g), R1
 	BEQ	R1, 2(PC)

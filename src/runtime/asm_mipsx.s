@@ -106,10 +106,8 @@ TEXT gogo<>(SB),NOSPLIT|NOFRAME,$0
 	JAL	runtime·save_g(SB)
 	MOVW	gobuf_sp(R3), R29
 	MOVW	gobuf_lr(R3), R31
-	MOVW	gobuf_ret(R3), R1
 	MOVW	gobuf_ctxt(R3), REGCTXT
 	MOVW	R0, gobuf_sp(R3)
-	MOVW	R0, gobuf_ret(R3)
 	MOVW	R0, gobuf_lr(R3)
 	MOVW	R0, gobuf_ctxt(R3)
 	MOVW	gobuf_pc(R3), R4
@@ -422,7 +420,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R1, (g_sched+gobuf_pc)(g)
 	MOVW	R29, (g_sched+gobuf_sp)(g)
 	MOVW	R0, (g_sched+gobuf_lr)(g)
-	MOVW	R0, (g_sched+gobuf_ret)(g)
 	// Assert ctxt is zero. See func save.
 	MOVW	(g_sched+gobuf_ctxt)(g), R1
 	BEQ	R1, 2(PC)

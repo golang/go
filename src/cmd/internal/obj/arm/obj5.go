@@ -551,7 +551,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.From.Reg = q1.From.Reg
 			p.To.Type = obj.TYPE_MEM
 			p.To.Reg = REGTMP
-			p.To.Offset = 8 * 4 // offset of m.divmod
+			p.To.Offset = 7 * 4 // offset of m.divmod
 
 			/* MOV b, R8 */
 			p = obj.Appendp(p, newprog)

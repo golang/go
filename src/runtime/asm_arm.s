@@ -226,11 +226,9 @@ TEXT gogo<>(SB),NOSPLIT|NOFRAME,$0
 	BL	setg<>(SB)
 	MOVW	gobuf_sp(R1), R13	// restore SP==R13
 	MOVW	gobuf_lr(R1), LR
-	MOVW	gobuf_ret(R1), R0
 	MOVW	gobuf_ctxt(R1), R7
 	MOVW	$0, R11
 	MOVW	R11, gobuf_sp(R1)	// clear to help garbage collector
-	MOVW	R11, gobuf_ret(R1)
 	MOVW	R11, gobuf_lr(R1)
 	MOVW	R11, gobuf_ctxt(R1)
 	MOVW	gobuf_pc(R1), R11
@@ -550,7 +548,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R13, (g_sched+gobuf_sp)(g)
 	MOVW	$0, R11
 	MOVW	R11, (g_sched+gobuf_lr)(g)
-	MOVW	R11, (g_sched+gobuf_ret)(g)
 	// Assert ctxt is zero. See func save.
 	MOVW	(g_sched+gobuf_ctxt)(g), R11
 	TST	R11, R11
