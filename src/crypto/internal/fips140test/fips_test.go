@@ -240,6 +240,13 @@ func TestFIPS140(t *testing.T) {
 		fatalIfErr(t, err)
 	})
 
+	t.Run("RSA KeyGen w/ small key [NOT APPROVED]", func(t *testing.T) {
+		ensureServiceIndicatorFalse(t)
+		_, err := rsa.GenerateKey(rand.Reader, 512)
+		fatalIfErr(t, err)
+		t.Log("RSA key generated")
+	})
+
 	t.Run("KTS IFC OAEP", func(t *testing.T) {
 		ensureServiceIndicator(t)
 		c, err := rsa.EncryptOAEP(sha256.New(), sha256.New(), rand.Reader, rsaKey.PublicKey(), plaintextSHA256, nil)
@@ -419,6 +426,17 @@ func ensureServiceIndicator(t *testing.T) {
 			t.Logf("Service indicator is set")
 		} else {
 			t.Errorf("Service indicator is not set")
+		}
+	})
+}
+
+func ensureServiceIndicatorFalse(t *testing.T) {
+	fips140.ResetServiceIndicator()
+	t.Cleanup(func() {
+		if !fips140.ServiceIndicator() {
+			t.Logf("Service indicator is not set")
+		} else {
+			t.Errorf("Service indicator is set")
 		}
 	})
 }
