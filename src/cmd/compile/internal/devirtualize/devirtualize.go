@@ -184,8 +184,6 @@ func concreteType(n ir.Node) (typ *types.Type) {
 	})
 }
 
-// TODO: check CloneHash case (method returns a Hash that should be devirted).
-
 func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements func(*ir.Name) []valOrTyp) *types.Type {
 	for {
 		if !n.Type().IsInterface() {
