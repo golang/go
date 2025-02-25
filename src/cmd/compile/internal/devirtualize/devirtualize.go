@@ -16,10 +16,14 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 )
+
+// TODO: update tests to include full errors.
 
 // const go125ImprovedConcreteTypeAnalysis = true
 var go125ImprovedConcreteTypeAnalysis = false
+var debug = false
 
 // StaticCall devirtualizes the given call if possible when the concrete callee
 // is available statically.
@@ -134,6 +138,7 @@ func StaticCall(call *ir.CallExpr) {
 		if base.Flag.LowerM != 0 {
 			base.WarnfAt(call.Pos(), "partially devirtualizing %v to %v", sel, typ)
 		}
+		// TODO: with interleaved inlining and devirtualization we migth get here multiple times for the same call.
 		call.SetOp(ir.OCALLINTER)
 		call.Fun = x
 	default:
@@ -184,8 +189,22 @@ func concreteType(n ir.Node) (typ *types.Type) {
 	})
 }
 
-func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements func(*ir.Name) []valOrTyp) *types.Type {
+func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements func(*ir.Name) []valOrTyp) (out *types.Type) {
+	nn := n
+
+	if go125ImprovedConcreteTypeAnalysis {
+		defer func() {
+			if debug {
+				base.WarnfAt(nn.Pos(), "concreteType1(%v) -> %v", nn, out)
+			}
+		}()
+	}
+
 	for {
+		if debug {
+			base.WarnfAt(n.Pos(), "concreteType1(%v) current iteration node: %v", nn, n)
+		}
+
 		if !n.Type().IsInterface() {
 			if n, ok := n.(*ir.CallExpr); ok {
 				if n.Fun != nil {
@@ -215,6 +234,7 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements
 			}
 		case *ir.InlinedCallExpr:
 			if n1.Op() == ir.OINLCALL {
+				// TODO: single is fine?
 				n = n1.SingleResult()
 				continue
 			}
@@ -225,6 +245,7 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements
 			n = n1.X
 			continue
 		}
+
 		break
 	}
 
@@ -250,6 +271,10 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements
 		base.Fatalf("nil Func %v", name)
 	}
 
+	if debug {
+		base.WarnfAt(src.NoXPos, "concreteType1(%v) name: %v, analyzing assignements", nn, name)
+	}
+
 	if typ, ok := analyzed[name]; ok {
 		return typ
 	}
@@ -267,16 +292,29 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements
 
 	var typ *types.Type
 	if v := assignements[0]; v.typ != nil {
+		if debug {
+			base.WarnfAt(src.NoXPos, "concreteType1(%v) name: %v, assigned with concrete type %v", nn, name, v.typ)
+		}
 		typ = v.typ
 	} else if v.node != nil {
+		if debug {
+			base.WarnfAt(v.node.Pos(), "concreteType1(%v) name: %v, assigned with %v", nn, name, v.node)
+		}
 		typ = concreteType1(v.node, analyzed, getAssignements)
 	} else {
+		// TODO: tu
 		return nil
 	}
 
 	for _, v := range assignements[1:] {
 		t := v.typ
+		if t != nil && debug {
+			base.WarnfAt(src.NoXPos, "concreteType1(%v) name: %v, assigned with concrete type %v", nn, name, v.typ)
+		}
 		if v.node != nil {
+			if debug {
+				base.WarnfAt(v.node.Pos(), "concreteType1(%v) name: %v, assigned with %v", nn, name, v.node)
+			}
 			t = concreteType1(v.node, analyzed, getAssignements)
 		}
 		if t == nil || !types.Identical(typ, t) {
@@ -311,6 +349,21 @@ func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 		if n.Curfn != fun || !n.Type().IsInterface() {
 			return
 		}
+
+		// TODO: add test case that fails w/o this.
+		if value.typ != nil && value.typ.IsInterface() {
+			value.typ = nil
+		}
+
+		// TODO: explain
+		if ir.IsNil(value.node) {
+			return
+		}
+
+		if debug {
+			base.WarnfAt(src.NoXPos, "assign %v = {%v;%v}", n, value.typ, value.node)
+		}
+
 		out[n] = append(out[n], value)
 	}
 
@@ -357,8 +410,11 @@ func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 				if call, ok := rhs.(*ir.CallExpr); ok {
 					retTyp := call.Fun.Type().Results()[i].Type
 					assign(p, valOrTyp{typ: retTyp})
+				} else if call, ok := rhs.(*ir.InlinedCallExpr); ok {
+					assign(p, valOrTyp{node: call.Result(i)})
+				} else {
+					assign(p, valOrTyp{})
 				}
-				assign(p, valOrTyp{})
 			}
 		case ir.ORANGE:
 			n := n.(*ir.RangeStmt)

@@ -1154,7 +1154,7 @@ func cloneHash(h hash) (hash, bool) { // ERROR "can inline" "leaking param: h"
 	if h, ok := h.(hashWithClone); ok {
 		return h.Clone(), true
 	}
-	return nil, false
+	return &clonableHash{}, true
 }
 
 func devirtIfaceCallThatReturnsIface() {
