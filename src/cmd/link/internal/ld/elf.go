@@ -1690,11 +1690,11 @@ func (ctxt *Link) doelf() {
 		sb.SetType(sym.SRODATA)
 		ldr.SetAttrSpecial(s, true)
 		sb.SetReachable(true)
-		sb.SetSize(hash.Size20)
+		sb.SetSize(hash.Size32)
 		slices.SortFunc(ctxt.Library, func(a, b *sym.Library) int {
 			return strings.Compare(a.Pkg, b.Pkg)
 		})
-		h := hash.New20()
+		h := hash.New32()
 		for _, l := range ctxt.Library {
 			h.Write(l.Fingerprint[:])
 		}

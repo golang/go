@@ -1106,7 +1106,7 @@ func computeHash() uintptr {
 func subprocessHash(t *testing.T, env string) uintptr {
 	t.Helper()
 
-	cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0], "-test.run=^TestMemHashGlobalSeed$"))
+	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.Executable(t), "-test.run=^TestMemHashGlobalSeed$"))
 	cmd.Env = append(cmd.Env, "GO_TEST_SUBPROCESS_HASH=1")
 	if env != "" {
 		cmd.Env = append(cmd.Env, env)

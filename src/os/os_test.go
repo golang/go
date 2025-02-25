@@ -3725,13 +3725,9 @@ func TestCopyFSWithSymlinks(t *testing.T) {
 		t.Fatalf("Mkdir: %v", err)
 	}
 
-	// TODO(panjf2000): symlinks are currently not supported, and a specific error
-	// 			will be returned. Verify that error and skip the subsequent test,
-	//			revisit this once #49580 is closed.
-	if err := CopyFS(tmpDupDir, fsys); !errors.Is(err, ErrInvalid) {
-		t.Fatalf("got %v, want ErrInvalid", err)
+	if err := CopyFS(tmpDupDir, fsys); err != nil {
+		t.Fatalf("CopyFS: %v", err)
 	}
-	t.Skip("skip the subsequent test and wait for #49580")
 
 	forceMFTUpdateOnWindows(t, tmpDupDir)
 	tmpFsys := DirFS(tmpDupDir)
@@ -3847,4 +3843,15 @@ func TestRemoveReadOnlyFile(t *testing.T) {
 			t.Fatalf("Stat read-only file after removal: %v (want IsNotExist)", err)
 		}
 	})
+}
+
+func TestOpenFileDevNull(t *testing.T) {
+	// See https://go.dev/issue/71752.
+	t.Parallel()
+
+	f, err := OpenFile(DevNull, O_WRONLY|O_CREATE|O_TRUNC, 0o644)
+	if err != nil {
+		t.Fatalf("OpenFile(DevNull): %v", err)
+	}
+	f.Close()
 }

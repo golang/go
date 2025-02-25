@@ -4,9 +4,6 @@
 
 [short] skip
 
-# Skip if new coverage is turned off.
-[!GOEXPERIMENT:coverageredesign] skip
-
 go test -cover example
 
 -- go.mod --

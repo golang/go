@@ -1889,3 +1889,18 @@ func TestEvalSymlinksTooManyLinks(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 }
+
+func BenchmarkIsLocal(b *testing.B) {
+	tests := islocaltests
+	if runtime.GOOS == "windows" {
+		tests = append(tests, winislocaltests...)
+	}
+	if runtime.GOOS == "plan9" {
+		tests = append(tests, plan9islocaltests...)
+	}
+	for b.Loop() {
+		for _, test := range tests {
+			filepath.IsLocal(test.path)
+		}
+	}
+}

@@ -1358,7 +1358,7 @@ func (w *wantConn) tryDeliver(pc *persistConn, err error, idleAt time.Time) bool
 
 // cancel marks w as no longer wanting a result (for example, due to cancellation).
 // If a connection has been delivered already, cancel returns it with t.putOrCloseIdleConn.
-func (w *wantConn) cancel(t *Transport, err error) {
+func (w *wantConn) cancel(t *Transport) {
 	w.mu.Lock()
 	var pc *persistConn
 	if w.done {
@@ -1507,7 +1507,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (_ *persis
 	}
 	defer func() {
 		if err != nil {
-			w.cancel(t, err)
+			w.cancel(t)
 		}
 	}()
 

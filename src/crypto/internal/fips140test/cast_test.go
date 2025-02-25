@@ -13,6 +13,7 @@ import (
 	"io/fs"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -34,7 +35,35 @@ import (
 	_ "crypto/internal/fips140/tls13"
 )
 
-func findAllCASTs(t *testing.T) map[string]struct{} {
+var allCASTs = []string{
+	"AES-CBC",
+	"CTR_DRBG",
+	"CounterKDF",
+	"DetECDSA P-256 SHA2-512 sign",
+	"ECDH PCT",
+	"ECDSA P-256 SHA2-512 sign and verify",
+	"ECDSA PCT",
+	"Ed25519 sign and verify",
+	"Ed25519 sign and verify PCT",
+	"HKDF-SHA2-256",
+	"HMAC-SHA2-256",
+	"KAS-ECC-SSC P-256",
+	"ML-KEM PCT",
+	"ML-KEM PCT",
+	"ML-KEM PCT",
+	"ML-KEM PCT",
+	"ML-KEM-768",
+	"PBKDF2",
+	"RSA sign and verify PCT",
+	"RSASSA-PKCS-v1.5 2048-bit sign and verify",
+	"SHA2-256",
+	"SHA2-512",
+	"TLSv1.2-SHA2-256",
+	"TLSv1.3-SHA2-256",
+	"cSHAKE128",
+}
+
+func TestAllCASTs(t *testing.T) {
 	testenv.MustHaveSource(t)
 
 	// Ask "go list" for the location of the crypto/internal/fips140 tree, as it
@@ -48,7 +77,7 @@ func findAllCASTs(t *testing.T) map[string]struct{} {
 	t.Logf("FIPS module directory: %s", fipsDir)
 
 	// Find all invocations of fips140.CAST or fips140.PCT.
-	allCASTs := make(map[string]struct{})
+	var foundCASTs []string
 	castRe := regexp.MustCompile(`fips140\.(CAST|PCT)\("([^"]+)"`)
 	if err := fs.WalkDir(os.DirFS(fipsDir), ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -62,14 +91,17 @@ func findAllCASTs(t *testing.T) map[string]struct{} {
 			return err
 		}
 		for _, m := range castRe.FindAllSubmatch(data, -1) {
-			allCASTs[string(m[2])] = struct{}{}
+			foundCASTs = append(foundCASTs, string(m[2]))
 		}
 		return nil
 	}); err != nil {
 		t.Fatalf("WalkDir: %v", err)
 	}
 
-	return allCASTs
+	slices.Sort(foundCASTs)
+	if !slices.Equal(foundCASTs, allCASTs) {
+		t.Errorf("AllCASTs is out of date. Found CASTs: %#v", foundCASTs)
+	}
 }
 
 // TestConditionals causes the conditional CASTs and PCTs to be invoked.
@@ -127,28 +159,29 @@ UjmopwKBgAqB2KYYMUqAOvYcBnEfLDmyZv9BTVNHbR2lKkMYqv5LlvDaBxVfilE0
 }
 
 func TestCASTFailures(t *testing.T) {
+	moduleStatus(t)
 	testenv.MustHaveExec(t)
 
-	allCASTs := findAllCASTs(t)
-	if len(allCASTs) == 0 {
-		t.Fatal("no CASTs found")
-	}
-
-	for name := range allCASTs {
+	for _, name := range allCASTs {
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
+			// Don't parallelize if running in verbose mode, to produce a less
+			// confusing recoding for the validation lab.
+			if !testing.Verbose() {
+				t.Parallel()
+			}
+			t.Logf("CAST/PCT succeeded: %s", name)
+			t.Logf("Testing CAST/PCT failure...")
 			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=TestConditionals", "-test.v")
-			cmd = testenv.CleanCmdEnv(cmd)
 			cmd.Env = append(cmd.Env, fmt.Sprintf("GODEBUG=failfipscast=%s,fips140=on", name))
 			out, err := cmd.CombinedOutput()
+			t.Logf("%s", out)
 			if err == nil {
-				t.Error(err)
-			} else {
-				t.Logf("CAST/PCT %s failed and caused the program to exit or the test to fail", name)
-				t.Logf("%s", out)
+				t.Fatal("Test did not fail as expected")
 			}
 			if strings.Contains(string(out), "completed successfully") {
 				t.Errorf("CAST/PCT %s failure did not stop the program", name)
+			} else {
+				t.Logf("CAST/PCT %s failed as expected and caused the program to exit", name)
 			}
 		})
 	}

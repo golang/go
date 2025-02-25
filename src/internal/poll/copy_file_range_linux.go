@@ -67,10 +67,11 @@ func handleCopyFileRangeErr(err error, copied, written int64) (bool, error) {
 		return false, nil
 	case nil:
 		if copied == 0 {
-			// If we did not read any bytes at all,
-			// then this file may be in a file system
-			// where copy_file_range silently fails.
-			// https://lore.kernel.org/linux-fsdevel/20210126233840.GG4626@dread.disaster.area/T/#m05753578c7f7882f6e9ffe01f981bc223edef2b0
+			// Prior to Linux 5.19
+			// (https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=868f9f2f8e004bfe0d3935b1976f625b2924893b),
+			// copy_file_range can silently fail by reporting
+			// success and 0 bytes written. Assume such cases are
+			// failure and fallback to a different copy mechanism.
 			if written == 0 {
 				return false, nil
 			}

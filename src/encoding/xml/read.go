@@ -280,7 +280,7 @@ func (d *Decoder) unmarshalAttr(val reflect.Value, attr Attr) error {
 		}
 	}
 
-	if val.Type().Kind() == reflect.Slice && val.Type().Elem().Kind() != reflect.Uint8 {
+	if val.Kind() == reflect.Slice && val.Type().Elem().Kind() != reflect.Uint8 {
 		// Slice of element values.
 		// Grow slice.
 		n := val.Len()

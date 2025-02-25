@@ -15,7 +15,7 @@ import (
 
 // A miniNode is a minimal node implementation,
 // meant to be embedded as the first field in a larger node implementation,
-// at a cost of 8 bytes.
+// at a cost of 12 bytes.
 //
 // A miniNode is NOT a valid Node by itself: the embedding struct
 // must at the least provide:
@@ -28,8 +28,8 @@ import (
 // for more useful panic messages when invalid methods are called,
 // instead of implementing Op itself.
 type miniNode struct {
-	pos  src.XPos // uint32
-	op   Op       // uint8
+	pos  src.XPos
+	op   Op
 	bits bitset8
 	esc  uint16
 }

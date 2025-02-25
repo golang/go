@@ -27,7 +27,7 @@ default:
 # copy and edit the 'go run' command by hand to use a different branch.
 v%.zip:
 	git fetch origin master
-	go run ../../src/cmd/go/internal/fips140/mkzip.go -b master v$*
+	go run ../../src/cmd/go/internal/fips140/mkzip.go v$*
 
 # normally mkzip refuses to overwrite an existing zip file.
 # make v1.2.3.rm removes the zip file and and unpacked

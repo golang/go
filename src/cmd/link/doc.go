@@ -72,6 +72,8 @@ Flags:
 		system tools now assume the presence of the header.
 	-dumpdep
 		Dump symbol dependency graph.
+	-e
+		No limit on number of errors reported.
 	-extar ar
 		Set the external archive program (default "ar").
 		Used only for -buildmode=c-archive.

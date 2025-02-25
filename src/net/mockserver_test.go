@@ -548,7 +548,7 @@ func startTestSocketPeer(t testing.TB, conn Conn, op string, chunkSize, totalSiz
 		return nil, err
 	}
 
-	cmd := testenv.Command(t, os.Args[0])
+	cmd := testenv.Command(t, testenv.Executable(t))
 	cmd.Env = []string{
 		"GO_NET_TEST_TRANSFER=1",
 		"GO_NET_TEST_TRANSFER_OP=" + op,

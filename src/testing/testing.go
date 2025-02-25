@@ -403,7 +403,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"internal/goexperiment"
 	"internal/race"
 	"io"
 	"math/rand"
@@ -424,6 +423,11 @@ import (
 )
 
 var initRan bool
+
+var (
+	parallelStart atomic.Int64 // number of parallel tests started
+	parallelStop  atomic.Int64 // number of parallel tests stopped
+)
 
 // Init registers testing flags. These flags are automatically registered by
 // the "go test" command before running test functions, so Init is only needed
@@ -700,10 +704,7 @@ func Testing() bool {
 // values are "set", "count", or "atomic". The return value will be
 // empty if test coverage is not enabled.
 func CoverMode() string {
-	if goexperiment.CoverageRedesign {
-		return cover2.mode
-	}
-	return cover.Mode
+	return cover.mode
 }
 
 // Verbose reports whether the -test.v flag is set.
@@ -1540,13 +1541,14 @@ func (t *T) Parallel() {
 	if t.denyParallel {
 		panic(parallelConflict)
 	}
-	t.isParallel = true
 	if t.parent.barrier == nil {
 		// T.Parallel has no effect when fuzzing.
 		// Multiple processes may run in parallel, but only one input can run at a
 		// time per process so we can attribute crashes to specific inputs.
 		return
 	}
+
+	t.isParallel = true
 
 	// We don't want to include the time we spend waiting for serial tests
 	// in the test duration. Record the elapsed time thus far and reset the
@@ -1576,6 +1578,7 @@ func (t *T) Parallel() {
 	t.signal <- true   // Release calling test.
 	<-t.parent.barrier // Wait for the parent test to complete.
 	t.tstate.waitParallel()
+	parallelStart.Add(1)
 
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== CONT  %s\n", t.name)
@@ -1711,6 +1714,9 @@ func tRunner(t *T, fn func(t *T)) {
 				panic(err)
 			}
 			running.Delete(t.name)
+			if t.isParallel {
+				parallelStop.Add(1)
+			}
 			t.signal <- signal
 		}()
 
@@ -2021,7 +2027,7 @@ type testDeps interface {
 // It is not meant to be called directly and is not subject to the Go 1 compatibility document.
 // It may change signature from release to release.
 func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchmark, fuzzTargets []InternalFuzzTarget, examples []InternalExample) *M {
-	registerCover2(deps.InitRuntimeCoverage())
+	registerCover(deps.InitRuntimeCoverage())
 	Init()
 	return &M{
 		deps:        deps,
@@ -2505,7 +2511,7 @@ func (m *M) stopAlarm() {
 }
 
 func parseCpuList() {
-	for _, val := range strings.Split(*cpuListStr, ",") {
+	for val := range strings.SplitSeq(*cpuListStr, ",") {
 		val = strings.TrimSpace(val)
 		if val == "" {
 			continue

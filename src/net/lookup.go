@@ -9,6 +9,7 @@ import (
 	"errors"
 	"internal/nettrace"
 	"internal/singleflight"
+	"internal/stringslite"
 	"net/netip"
 	"sync"
 
@@ -535,9 +536,9 @@ func (r *Resolver) LookupSRV(ctx context.Context, service, proto, name string) (
 // LookupMX returns the DNS MX records for the given domain name sorted by preference.
 //
 // The returned mail server names are validated to be properly
-// formatted presentation-format domain names. If the response contains
-// invalid names, those records are filtered out and an error
-// will be returned alongside the remaining results, if any.
+// formatted presentation-format domain names, or numeric IP addresses.
+// If the response contains invalid names, those records are filtered out
+// and an error will be returned alongside the remaining results, if any.
 //
 // LookupMX uses [context.Background] internally; to specify the context, use
 // [Resolver.LookupMX].
@@ -548,9 +549,9 @@ func LookupMX(name string) ([]*MX, error) {
 // LookupMX returns the DNS MX records for the given domain name sorted by preference.
 //
 // The returned mail server names are validated to be properly
-// formatted presentation-format domain names. If the response contains
-// invalid names, those records are filtered out and an error
-// will be returned alongside the remaining results, if any.
+// formatted presentation-format domain names, or numeric IP addresses.
+// If the response contains invalid names, those records are filtered out
+// and an error will be returned alongside the remaining results, if any.
 func (r *Resolver) LookupMX(ctx context.Context, name string) ([]*MX, error) {
 	records, err := r.lookupMX(ctx, name)
 	if err != nil {
@@ -562,7 +563,12 @@ func (r *Resolver) LookupMX(ctx context.Context, name string) ([]*MX, error) {
 			continue
 		}
 		if !isDomainName(mx.Host) {
-			continue
+			// Check for IP address. In practice we observe
+			// these with a trailing dot, so strip that.
+			ip, err := netip.ParseAddr(stringslite.TrimSuffix(mx.Host, "."))
+			if err != nil || ip.Zone() != "" {
+				continue
+			}
 		}
 		filteredMX = append(filteredMX, mx)
 	}

@@ -602,7 +602,7 @@ func (z *Float) SetInt(x *Int) *Float {
 	// are many trailing 0's.
 	bits := uint32(x.BitLen())
 	if z.prec == 0 {
-		z.prec = umax32(bits, 64)
+		z.prec = max(bits, 64)
 	}
 	z.acc = Exact
 	z.neg = x.neg
@@ -628,7 +628,7 @@ func (z *Float) SetRat(x *Rat) *Float {
 	a.SetInt(x.Num())
 	b.SetInt(x.Denom())
 	if z.prec == 0 {
-		z.prec = umax32(a.prec, b.prec)
+		z.prec = max(a.prec, b.prec)
 	}
 	return z.Quo(&a, &b)
 }
@@ -1451,7 +1451,7 @@ func (z *Float) Add(x, y *Float) *Float {
 	}
 
 	if z.prec == 0 {
-		z.prec = umax32(x.prec, y.prec)
+		z.prec = max(x.prec, y.prec)
 	}
 
 	if x.form == finite && y.form == finite {
@@ -1525,7 +1525,7 @@ func (z *Float) Sub(x, y *Float) *Float {
 	}
 
 	if z.prec == 0 {
-		z.prec = umax32(x.prec, y.prec)
+		z.prec = max(x.prec, y.prec)
 	}
 
 	if x.form == finite && y.form == finite {
@@ -1592,7 +1592,7 @@ func (z *Float) Mul(x, y *Float) *Float {
 	}
 
 	if z.prec == 0 {
-		z.prec = umax32(x.prec, y.prec)
+		z.prec = max(x.prec, y.prec)
 	}
 
 	z.neg = x.neg != y.neg
@@ -1637,7 +1637,7 @@ func (z *Float) Quo(x, y *Float) *Float {
 	}
 
 	if z.prec == 0 {
-		z.prec = umax32(x.prec, y.prec)
+		z.prec = max(x.prec, y.prec)
 	}
 
 	z.neg = x.neg != y.neg
@@ -1723,11 +1723,4 @@ func (x *Float) ord() int {
 		m = -m
 	}
 	return m
-}
-
-func umax32(x, y uint32) uint32 {
-	if x > y {
-		return x
-	}
-	return y
 }

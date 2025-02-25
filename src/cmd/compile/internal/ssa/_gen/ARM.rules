@@ -1473,3 +1473,5 @@
 (MOVBUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVWconst [int32(read8(sym, int64(off)))])
 (MOVHUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVWconst [int32(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
 (MOVWload [off] {sym} (SB) _) && symIsRO(sym) => (MOVWconst [int32(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVBload [off] {sym} (SB) _) && symIsRO(sym) => (MOVWconst [int32(int8(read8(sym, int64(off))))])
+(MOVHload [off] {sym} (SB) _) && symIsRO(sym) => (MOVWconst [int32(int16(read16(sym, int64(off), config.ctxt.Arch.ByteOrder)))])

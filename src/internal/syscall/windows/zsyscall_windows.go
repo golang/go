@@ -96,6 +96,7 @@ var (
 	procNtOpenFile                        = modntdll.NewProc("NtOpenFile")
 	procNtSetInformationFile              = modntdll.NewProc("NtSetInformationFile")
 	procRtlGetVersion                     = modntdll.NewProc("RtlGetVersion")
+	procRtlIsDosDeviceName_U              = modntdll.NewProc("RtlIsDosDeviceName_U")
 	procRtlNtStatusToDosErrorNoTeb        = modntdll.NewProc("RtlNtStatusToDosErrorNoTeb")
 	procGetProcessMemoryInfo              = modpsapi.NewProc("GetProcessMemoryInfo")
 	procCreateEnvironmentBlock            = moduserenv.NewProc("CreateEnvironmentBlock")
@@ -497,6 +498,12 @@ func NtSetInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer
 
 func rtlGetVersion(info *_OSVERSIONINFOW) {
 	syscall.Syscall(procRtlGetVersion.Addr(), 1, uintptr(unsafe.Pointer(info)), 0, 0)
+	return
+}
+
+func RtlIsDosDeviceName_U(name *uint16) (ret uint32) {
+	r0, _, _ := syscall.Syscall(procRtlIsDosDeviceName_U.Addr(), 1, uintptr(unsafe.Pointer(name)), 0, 0)
+	ret = uint32(r0)
 	return
 }
 

@@ -363,6 +363,10 @@ start:
 	SLLIUW		$63, X17, X18			// 1b99f80b
 	SLLIUW		$1, X18, X19			// 9b191908
 
+	//
+	// "B" Extension for Bit Manipulation, Version 1.0.0
+	//
+
 	// 28.4.2: Basic Bit Manipulation (Zbb)
 	ANDN	X19, X20, X21				// b37a3a41 or 93caf9ffb37a5a01
 	ANDN	X19, X20				// 337a3a41 or 93cff9ff337afa01
@@ -419,6 +423,30 @@ start:
 	BSET	X8, X9, X10				// 33958428
 	BSET	$63, X9					// 9394f42b
 	BSETI	$1, X10, X11				// 93151528
+
+	//
+	// "V" Standard Extension for Vector Operations, Version 1.0
+	//
+
+	// 31.6: Configuration Setting Instructions
+	VSETVLI	X10, E8, M1, TU, MU, X12		// 57760500
+	VSETVLI	X10, E16, M1, TU, MU, X12		// 57768500
+	VSETVLI	X10, E32, M1, TU, MU, X12		// 57760501
+	VSETVLI	X10, E64, M1, TU, MU, X12		// 57768501
+	VSETVLI	X10, E32, M1, TU, MA, X12		// 57760509
+	VSETVLI	X10, E32, M1, TA, MA, X12		// 5776050d
+	VSETVLI	X10, E32, M2, TA, MA, X12		// 5776150d
+	VSETVLI	X10, E32, M4, TA, MA, X12		// 5776250d
+	VSETVLI	X10, E32, M8, TA, MA, X12		// 5776350d
+	VSETVLI	X10, E32, MF2, TA, MA, X12		// 5776550d
+	VSETVLI	X10, E32, MF4, TA, MA, X12		// 5776650d
+	VSETVLI	X10, E32, MF8, TA, MA, X12		// 5776750d
+	VSETVLI	X10, E32, M1, TA, MA, X12		// 5776050d
+	VSETVLI	$15, E32, M1, TA, MA, X12		// 57f607cd
+	VSETIVLI $0, E32, M1, TA, MA, X12		// 577600cd
+	VSETIVLI $15, E32, M1, TA, MA, X12		// 57f607cd
+	VSETIVLI $31, E32, M1, TA, MA, X12		// 57f60fcd
+	VSETVL	X10, X11, X12				// 57f6a580
 
 	//
 	// Privileged ISA
@@ -481,6 +509,9 @@ start:
 	MOVD	4(X5), F0				// 07b04200
 	MOVD	F0, 4(X5)				// 27b20200
 	MOVD	F0, F1					// d3000022
+
+	// Convert to load of symbol (AUIPC + FLD)
+	MOVD	$(709.78271289338397), F3		// 970f000087b10f00
 
 	// TLS load with local-exec (LUI + ADDIW + ADD of TP + load)
 	MOV	tls(SB), X5				// b70f00009b8f0f00b38f4f0083b20f00

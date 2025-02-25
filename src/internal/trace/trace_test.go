@@ -573,6 +573,11 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 	onBuilder := testenv.Builder() != ""
 	onOldBuilder := !strings.Contains(testenv.Builder(), "gotip") && !strings.Contains(testenv.Builder(), "go1")
 
+	if progName == "cgo-callback.go" && onBuilder && !onOldBuilder &&
+		runtime.GOOS == "freebsd" && runtime.GOARCH == "amd64" && race.Enabled {
+		t.Skip("test fails on freebsd-amd64-race in LUCI; see go.dev/issue/71556")
+	}
+
 	testPath := filepath.Join("./testdata/testprog", progName)
 	testName := progName
 	runTest := func(t *testing.T, stress bool, extraGODEBUG string) {

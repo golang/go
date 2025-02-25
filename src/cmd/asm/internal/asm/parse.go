@@ -21,6 +21,7 @@ import (
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm64"
+	"cmd/internal/obj/riscv"
 	"cmd/internal/obj/x86"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -398,16 +399,21 @@ func (p *Parser) operand(a *obj.Addr) {
 	tok := p.next()
 	name := tok.String()
 	if tok.ScanToken == scanner.Ident && !p.atStartOfRegister(name) {
+		// See if this is an architecture specific special operand.
 		switch p.arch.Family {
 		case sys.ARM64:
-			// arm64 special operands.
-			if opd := arch.GetARM64SpecialOperand(name); opd != arm64.SPOP_END {
+			if opd := arch.ARM64SpecialOperand(name); opd != arm64.SPOP_END {
 				a.Type = obj.TYPE_SPECIAL
 				a.Offset = int64(opd)
-				break
 			}
-			fallthrough
-		default:
+		case sys.RISCV64:
+			if opd := arch.RISCV64SpecialOperand(name); opd != riscv.SPOP_END {
+				a.Type = obj.TYPE_SPECIAL
+				a.Offset = int64(opd)
+			}
+		}
+
+		if a.Type != obj.TYPE_SPECIAL {
 			// We have a symbol. Parse $sym±offset(symkind)
 			p.symbolReference(a, p.qualifySymbol(name), prefix)
 		}

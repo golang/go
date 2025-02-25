@@ -13,12 +13,13 @@ package main
 
 import (
 	"internal/trace"
-	"internal/trace/event/go122"
-	testgen "internal/trace/internal/testgen/go122"
+	"internal/trace/internal/testgen"
+	"internal/trace/tracev2"
+	"internal/trace/version"
 )
 
 func main() {
-	testgen.Main(gen)
+	testgen.Main(version.Go122, gen)
 }
 
 func gen(t *testgen.Trace) {
@@ -26,7 +27,7 @@ func gen(t *testgen.Trace) {
 
 	// A goroutine gets created on a running P, then starts running.
 	b0 := g1.Batch(trace.ThreadID(0), 0)
-	b0.Event("ProcStatus", trace.ProcID(0), go122.ProcRunning)
+	b0.Event("ProcStatus", trace.ProcID(0), tracev2.ProcRunning)
 	b0.Event("GoCreate", trace.GoID(5), testgen.NoStack, testgen.NoStack)
 	b0.Event("GoStart", trace.GoID(5), testgen.Seq(1))
 	b0.Event("GoStop", "whatever", testgen.NoStack)

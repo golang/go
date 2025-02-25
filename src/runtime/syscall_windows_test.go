@@ -1043,7 +1043,7 @@ func TestNumCPU(t *testing.T) {
 	_GetProcessAffinityMask := kernel32.MustFindProc("GetProcessAffinityMask")
 	_SetProcessAffinityMask := kernel32.MustFindProc("SetProcessAffinityMask")
 
-	cmd := exec.Command(os.Args[0], "-test.run=TestNumCPU")
+	cmd := exec.Command(testenv.Executable(t), "-test.run=TestNumCPU")
 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	var buf strings.Builder
 	cmd.Stdout = &buf

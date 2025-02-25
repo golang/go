@@ -12,24 +12,24 @@ import (
 )
 
 var escapeTests = []struct {
-		Path    string
-		Escaped string
-	}{
-		{"foo/bar/v1", "foo/bar/v1"},
-		{"foo/bar/v.1", "foo/bar/v%2e1"},
-		{"f.o.o/b.a.r/v1", "f.o.o/b.a.r/v1"},
-		{"f.o.o/b.a.r/v.1", "f.o.o/b.a.r/v%2e1"},
-		{"f.o.o/b.a.r/v..1", "f.o.o/b.a.r/v%2e%2e1"},
-		{"f.o.o/b.a.r/v..1.", "f.o.o/b.a.r/v%2e%2e1%2e"},
-		{"f.o.o/b.a.r/v%1", "f.o.o/b.a.r/v%251"},
-		{"runtime", "runtime"},
-		{"sync/atomic", "sync/atomic"},
-		{"golang.org/x/tools/godoc", "golang.org/x/tools/godoc"},
-		{"foo.bar/baz.quux", "foo.bar/baz%2equux"},
-		{"", ""},
-		{"%foo%bar", "%25foo%25bar"},
-		{"\x01\x00\x7F☺", "%01%00%7f%e2%98%ba"},
-	}
+	Path    string
+	Escaped string
+}{
+	{"foo/bar/v1", "foo/bar/v1"},
+	{"foo/bar/v.1", "foo/bar/v%2e1"},
+	{"f.o.o/b.a.r/v1", "f.o.o/b.a.r/v1"},
+	{"f.o.o/b.a.r/v.1", "f.o.o/b.a.r/v%2e1"},
+	{"f.o.o/b.a.r/v..1", "f.o.o/b.a.r/v%2e%2e1"},
+	{"f.o.o/b.a.r/v..1.", "f.o.o/b.a.r/v%2e%2e1%2e"},
+	{"f.o.o/b.a.r/v%1", "f.o.o/b.a.r/v%251"},
+	{"runtime", "runtime"},
+	{"sync/atomic", "sync/atomic"},
+	{"golang.org/x/tools/godoc", "golang.org/x/tools/godoc"},
+	{"foo.bar/baz.quux", "foo.bar/baz%2equux"},
+	{"", ""},
+	{"%foo%bar", "%25foo%25bar"},
+	{"\x01\x00\x7F☺", "%01%00%7f%e2%98%ba"},
+}
 
 func TestPathToPrefix(t *testing.T) {
 	for _, tc := range escapeTests {

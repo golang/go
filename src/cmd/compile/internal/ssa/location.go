@@ -20,7 +20,6 @@ type Location interface {
 type Register struct {
 	num    int32 // dense numbering
 	objNum int16 // register number from cmd/internal/obj/$ARCH
-	gcNum  int16 // GC register map number (dense numbering of registers that can contain pointers)
 	name   string
 }
 
@@ -32,12 +31,6 @@ func (r *Register) String() string {
 // corresponds to this register.
 func (r *Register) ObjNum() int16 {
 	return r.objNum
-}
-
-// GCNum returns the runtime GC register index of r, or -1 if this
-// register can't contain pointers.
-func (r *Register) GCNum() int16 {
-	return r.gcNum
 }
 
 // A LocalSlot is a location in the stack frame, which identifies and stores

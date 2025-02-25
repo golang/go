@@ -49,7 +49,7 @@ func newRoot(name string) (*Root, error) {
 	if !fi.IsDir() {
 		return nil, errors.New("not a directory")
 	}
-	return &Root{root{name: name}}, nil
+	return &Root{&root{name: name}}, nil
 }
 
 func (r *root) Close() error {
@@ -93,6 +93,26 @@ func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
 		return nil, &PathError{Op: "statat", Path: name, Err: underlyingError(err)}
 	}
 	return fi, nil
+}
+
+func rootChmod(r *Root, name string, mode FileMode) error {
+	if err := checkPathEscapes(r, name); err != nil {
+		return &PathError{Op: "chmodat", Path: name, Err: err}
+	}
+	if err := Chmod(joinPath(r.root.name, name), mode); err != nil {
+		return &PathError{Op: "chmodat", Path: name, Err: underlyingError(err)}
+	}
+	return nil
+}
+
+func rootChown(r *Root, name string, uid, gid int) error {
+	if err := checkPathEscapes(r, name); err != nil {
+		return &PathError{Op: "chownat", Path: name, Err: err}
+	}
+	if err := Chown(joinPath(r.root.name, name), uid, gid); err != nil {
+		return &PathError{Op: "chownat", Path: name, Err: underlyingError(err)}
+	}
+	return nil
 }
 
 func rootMkdir(r *Root, name string, perm FileMode) error {

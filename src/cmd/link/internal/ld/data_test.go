@@ -90,3 +90,30 @@ func TestAddGotSym(t *testing.T) {
 		}
 	}
 }
+
+func TestWriteULebFixedLength(t *testing.T) {
+	flavs := []objabi.RelocType{
+		objabi.R_DWTXTADDR_U1,
+		objabi.R_DWTXTADDR_U2,
+		objabi.R_DWTXTADDR_U3,
+		objabi.R_DWTXTADDR_U4,
+	}
+	var clear, scratch [7]byte
+	tmp := scratch[:]
+	for i := range 5 {
+		for _, rt := range flavs {
+			scratch = clear
+			_, leb128len := rt.DwTxtAddrRelocParams()
+			_, n := objabi.FuncCountToDwTxtAddrFlavor(i)
+			if n > leb128len {
+				continue
+			}
+			err := writeUleb128FixedLength(tmp, uint64(i), leb128len)
+			if err != nil {
+				t.Errorf("unexpected err %v on val %d flav %s leb128len %d",
+					err, i, rt.String(), leb128len)
+				continue
+			}
+		}
+	}
+}

@@ -465,21 +465,9 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		if ch.mode == invalid || val.mode == invalid {
 			return
 		}
-		u := coreType(ch.typ)
-		if u == nil {
-			check.errorf(s, InvalidSend, invalidOp+"cannot send to %s: no core type", &ch)
-			return
+		if elem := check.chanElem(s, &ch, false); elem != nil {
+			check.assignment(&val, elem, "send")
 		}
-		uch, _ := u.(*Chan)
-		if uch == nil {
-			check.errorf(s, InvalidSend, invalidOp+"cannot send to non-channel %s", &ch)
-			return
-		}
-		if uch.dir == RecvOnly {
-			check.errorf(s, InvalidSend, invalidOp+"cannot send to receive-only channel %s", &ch)
-			return
-		}
-		check.assignment(&val, uch.elem, "send")
 
 	case *syntax.AssignStmt:
 		if s.Rhs == nil {
@@ -871,8 +859,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 	// determine key/value types
 	var key, val Type
 	if x.mode != invalid {
-		// Ranging over a type parameter is permitted if it has a core type.
-		k, v, cause, ok := rangeKeyVal(x.typ, func(v goVersion) bool {
+		k, v, cause, ok := rangeKeyVal(check, x.typ, func(v goVersion) bool {
 			return check.allowVersion(v)
 		})
 		switch {
@@ -1004,19 +991,23 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 }
 
 // rangeKeyVal returns the key and value type produced by a range clause
-// over an expression of type typ.
+// over an expression of type orig.
 // If allowVersion != nil, it is used to check the required language version.
 // If the range clause is not permitted, rangeKeyVal returns ok = false.
 // When ok = false, rangeKeyVal may also return a reason in cause.
-func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, cause string, ok bool) {
+// The check parameter is only used in case of an error; it may be nil.
+func rangeKeyVal(check *Checker, orig Type, allowVersion func(goVersion) bool) (key, val Type, cause string, ok bool) {
 	bad := func(cause string) (Type, Type, string, bool) {
 		return Typ[Invalid], Typ[Invalid], cause, false
 	}
 
-	orig := typ
-	switch typ := arrayPtrDeref(coreType(typ)).(type) {
-	case nil:
-		return bad("no core type")
+	var cause1 string
+	rtyp := sharedUnderOrChan(check, orig, &cause1)
+	if rtyp == nil {
+		return bad(cause1)
+	}
+
+	switch typ := arrayPtrDeref(rtyp).(type) {
 	case *Basic:
 		if isString(typ) {
 			return Typ[Int], universeRune, "", true // use 'rune' name
@@ -1034,9 +1025,7 @@ func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, ca
 	case *Map:
 		return typ.key, typ.elem, "", true
 	case *Chan:
-		if typ.dir == SendOnly {
-			return bad("receive from send-only channel")
-		}
+		assert(typ.dir != SendOnly)
 		return typ.elem, nil, "", true
 	case *Signature:
 		if !buildcfg.Experiment.RangeFunc && allowVersion != nil && !allowVersion(go1_23) {
@@ -1051,10 +1040,15 @@ func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, ca
 		}
 		assert(typ.Recv() == nil)
 		// check iterator argument type
-		cb, _ := coreType(typ.Params().At(0).Type()).(*Signature)
+		var cause2 string
+		cb, _ := sharedUnder(check, typ.Params().At(0).Type(), &cause2).(*Signature)
 		switch {
 		case cb == nil:
-			return bad("func must be func(yield func(...) bool): argument is not func")
+			if cause2 != "" {
+				return bad(check.sprintf("func must be func(yield func(...) bool): in yield type, %s", cause2))
+			} else {
+				return bad("func must be func(yield func(...) bool): argument is not func")
+			}
 		case cb.Params().Len() > 2:
 			return bad("func must be func(yield func(...) bool): yield func has too many parameters")
 		case cb.Results().Len() != 1 || !Identical(cb.Results().At(0).Type(), universeBool):

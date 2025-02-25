@@ -79,7 +79,7 @@ func (c *UnixConn) SyscallConn() (syscall.RawConn, error) {
 }
 
 // CloseRead shuts down the reading side of the Unix domain connection.
-// Most callers should just use Close.
+// Most callers should just use [UnixConn.Close].
 func (c *UnixConn) CloseRead() error {
 	if !c.ok() {
 		return syscall.EINVAL
@@ -91,7 +91,7 @@ func (c *UnixConn) CloseRead() error {
 }
 
 // CloseWrite shuts down the writing side of the Unix domain connection.
-// Most callers should just use Close.
+// Most callers should just use [UnixConn.Close].
 func (c *UnixConn) CloseWrite() error {
 	if !c.ok() {
 		return syscall.EINVAL
@@ -114,7 +114,7 @@ func (c *UnixConn) ReadFromUnix(b []byte) (int, *UnixAddr, error) {
 	return n, addr, err
 }
 
-// ReadFrom implements the [PacketConn] ReadFrom method.
+// ReadFrom implements the [PacketConn].ReadFrom method.
 func (c *UnixConn) ReadFrom(b []byte) (int, Addr, error) {
 	if !c.ok() {
 		return 0, nil, syscall.EINVAL
@@ -159,7 +159,7 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (int, error) {
 	return n, err
 }
 
-// WriteTo implements the [PacketConn] WriteTo method.
+// WriteTo implements the [PacketConn].WriteTo method.
 func (c *UnixConn) WriteTo(b []byte, addr Addr) (int, error) {
 	if !c.ok() {
 		return 0, syscall.EINVAL
@@ -196,7 +196,7 @@ func newUnixConn(fd *netFD) *UnixConn { return &UnixConn{conn{fd}} }
 
 // DialUnix acts like [Dial] for Unix networks.
 //
-// The network must be a Unix network name; see func Dial for details.
+// The network must be a Unix network name; see func [Dial] for details.
 //
 // If laddr is non-nil, it is used as the local address for the
 // connection.
@@ -229,7 +229,7 @@ func (ln *UnixListener) ok() bool { return ln != nil && ln.fd != nil }
 // SyscallConn returns a raw network connection.
 // This implements the [syscall.Conn] interface.
 //
-// The returned RawConn only supports calling Control. Read and
+// The returned [syscall.RawConn] only supports calling Control. Read and
 // Write return an error.
 func (l *UnixListener) SyscallConn() (syscall.RawConn, error) {
 	if !l.ok() {
@@ -277,7 +277,7 @@ func (l *UnixListener) Close() error {
 }
 
 // Addr returns the listener's network address.
-// The Addr returned is shared by all invocations of Addr, so
+// The [Addr] returned is shared by all invocations of Addr, so
 // do not modify it.
 func (l *UnixListener) Addr() Addr { return l.fd.laddr }
 
@@ -294,7 +294,7 @@ func (l *UnixListener) SetDeadline(t time.Time) error {
 // It is the caller's responsibility to close f when finished.
 // Closing l does not affect f, and closing f does not affect l.
 //
-// The returned os.File's file descriptor is different from the
+// The returned [os.File]'s file descriptor is different from the
 // connection's. Attempting to change properties of the original
 // using this duplicate may or may not have the desired effect.
 func (l *UnixListener) File() (f *os.File, err error) {

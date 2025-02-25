@@ -89,9 +89,9 @@ func gcMarkRootPrepare() {
 	//
 	// Break up the work into arenas, and further into chunks.
 	//
-	// Snapshot allArenas as markArenas. This snapshot is safe because allArenas
+	// Snapshot heapArenas as markArenas. This snapshot is safe because heapArenas
 	// is append-only.
-	mheap_.markArenas = mheap_.allArenas[:len(mheap_.allArenas):len(mheap_.allArenas)]
+	mheap_.markArenas = mheap_.heapArenas[:len(mheap_.heapArenas):len(mheap_.heapArenas)]
 	work.nSpanRoots = len(mheap_.markArenas) * (pagesPerArena / pagesPerSpanRoot)
 
 	// Scan stacks.
@@ -1614,13 +1614,13 @@ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintp
 		if arena.pageMarks[pageIdx]&pageMask == 0 {
 			atomic.Or8(&arena.pageMarks[pageIdx], pageMask)
 		}
+	}
 
-		// If this is a noscan object, fast-track it to black
-		// instead of greying it.
-		if span.spanclass.noscan() {
-			gcw.bytesMarked += uint64(span.elemsize)
-			return
-		}
+	// If this is a noscan object, fast-track it to black
+	// instead of greying it.
+	if span.spanclass.noscan() {
+		gcw.bytesMarked += uint64(span.elemsize)
+		return
 	}
 
 	// We're adding obj to P's local workbuf, so it's likely

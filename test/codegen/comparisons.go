@@ -730,6 +730,54 @@ func cmpToCmnLessThan(a, b, c, d int) int {
 	return c1 + c2 + c3 + c4
 }
 
+func less128Signed32(x int32) bool {
+	// amd64:`CMPL.*127`
+	// amd64:`SETLE`
+	return x < 128
+}
+
+func less128Signed64(x int64) bool {
+	// amd64:`CMPQ.*127`
+	// amd64:`SETLE`
+	return x < 128
+}
+
+func less128Unsigned32(x uint32) bool {
+	// amd64:`CMPL.*127`
+	// amd64:`SETLS`
+	return x < 128
+}
+
+func less128Unsigned64(x uint64) bool {
+	// amd64:`CMPQ.*127`
+	// amd64:`SETLS`
+	return x < 128
+}
+
+func ge128Unsigned32(x uint32) bool {
+	// amd64:`CMPL.*127`
+	// amd64:`SETHI`
+	return x >= 128
+}
+
+func ge128Unsigned64(x uint64) bool {
+	// amd64:`CMPQ.*127`
+	// amd64:`SETHI`
+	return x >= 128
+}
+
+func ge128Signed32(x int32) bool {
+	// amd64:`CMPL.*127`
+	// amd64:`SETGT`
+	return x >= 128
+}
+
+func ge128Signed64(x int64) bool {
+	// amd64:`CMPQ.*127`
+	// amd64:`SETGT`
+	return x >= 128
+}
+
 func cmpToCmnGreaterThanEqual(a, b, c, d int) int {
 	var c1, c2, c3, c4 int
 	// arm64:`CMN`,`CSET\tPL`,-`CMP`

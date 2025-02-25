@@ -50,26 +50,26 @@ func Init() {
 	// Note: this has to be called explicitly instead of being
 	// an init function so it runs after the types package has
 	// been properly initialized.
-	Type = fromReflect(reflect.TypeOf(abi.Type{}))
-	ArrayType = fromReflect(reflect.TypeOf(abi.ArrayType{}))
-	ChanType = fromReflect(reflect.TypeOf(abi.ChanType{}))
-	FuncType = fromReflect(reflect.TypeOf(abi.FuncType{}))
-	InterfaceType = fromReflect(reflect.TypeOf(abi.InterfaceType{}))
-	OldMapType = fromReflect(reflect.TypeOf(abi.OldMapType{}))
-	SwissMapType = fromReflect(reflect.TypeOf(abi.SwissMapType{}))
-	PtrType = fromReflect(reflect.TypeOf(abi.PtrType{}))
-	SliceType = fromReflect(reflect.TypeOf(abi.SliceType{}))
-	StructType = fromReflect(reflect.TypeOf(abi.StructType{}))
+	Type = FromReflect(reflect.TypeOf(abi.Type{}))
+	ArrayType = FromReflect(reflect.TypeOf(abi.ArrayType{}))
+	ChanType = FromReflect(reflect.TypeOf(abi.ChanType{}))
+	FuncType = FromReflect(reflect.TypeOf(abi.FuncType{}))
+	InterfaceType = FromReflect(reflect.TypeOf(abi.InterfaceType{}))
+	OldMapType = FromReflect(reflect.TypeOf(abi.OldMapType{}))
+	SwissMapType = FromReflect(reflect.TypeOf(abi.SwissMapType{}))
+	PtrType = FromReflect(reflect.TypeOf(abi.PtrType{}))
+	SliceType = FromReflect(reflect.TypeOf(abi.SliceType{}))
+	StructType = FromReflect(reflect.TypeOf(abi.StructType{}))
 
-	IMethod = fromReflect(reflect.TypeOf(abi.Imethod{}))
-	Method = fromReflect(reflect.TypeOf(abi.Method{}))
-	StructField = fromReflect(reflect.TypeOf(abi.StructField{}))
-	UncommonType = fromReflect(reflect.TypeOf(abi.UncommonType{}))
+	IMethod = FromReflect(reflect.TypeOf(abi.Imethod{}))
+	Method = FromReflect(reflect.TypeOf(abi.Method{}))
+	StructField = FromReflect(reflect.TypeOf(abi.StructField{}))
+	UncommonType = FromReflect(reflect.TypeOf(abi.UncommonType{}))
 
-	InterfaceSwitch = fromReflect(reflect.TypeOf(abi.InterfaceSwitch{}))
-	TypeAssert = fromReflect(reflect.TypeOf(abi.TypeAssert{}))
+	InterfaceSwitch = FromReflect(reflect.TypeOf(abi.InterfaceSwitch{}))
+	TypeAssert = FromReflect(reflect.TypeOf(abi.TypeAssert{}))
 
-	ITab = fromReflect(reflect.TypeOf(abi.ITab{}))
+	ITab = FromReflect(reflect.TypeOf(abi.ITab{}))
 
 	// Make sure abi functions are correct. These functions are used
 	// by the linker which doesn't have the ability to do type layout,
@@ -92,8 +92,8 @@ func Init() {
 	}
 }
 
-// fromReflect translates from a host type to the equivalent target type.
-func fromReflect(rt reflect.Type) *types.Type {
+// FromReflect translates from a host type to the equivalent target type.
+func FromReflect(rt reflect.Type) *types.Type {
 	t := reflectToType(rt)
 	types.CalcSize(t)
 	return t
@@ -108,6 +108,10 @@ func reflectToType(rt reflect.Type) *types.Type {
 		return types.Types[types.TBOOL]
 	case reflect.Int:
 		return types.Types[types.TINT]
+	case reflect.Int8:
+		return types.Types[types.TINT8]
+	case reflect.Int16:
+		return types.Types[types.TINT16]
 	case reflect.Int32:
 		return types.Types[types.TINT32]
 	case reflect.Uint8:
@@ -116,9 +120,15 @@ func reflectToType(rt reflect.Type) *types.Type {
 		return types.Types[types.TUINT16]
 	case reflect.Uint32:
 		return types.Types[types.TUINT32]
+	case reflect.Float32:
+		return types.Types[types.TFLOAT32]
+	case reflect.Float64:
+		return types.Types[types.TFLOAT64]
 	case reflect.Uintptr:
 		return types.Types[types.TUINTPTR]
-	case reflect.Ptr, reflect.Func, reflect.UnsafePointer:
+	case reflect.Ptr:
+		return types.NewPtr(reflectToType(rt.Elem()))
+	case reflect.Func, reflect.UnsafePointer:
 		// TODO: there's no mechanism to distinguish different pointer types,
 		// so we treat them all as unsafe.Pointer.
 		return types.Types[types.TUNSAFEPTR]
@@ -134,6 +144,12 @@ func reflectToType(rt reflect.Type) *types.Type {
 			fields[i] = &types.Field{Sym: &types.Sym{Name: f.Name}, Type: ft}
 		}
 		return types.NewStruct(fields)
+	case reflect.Chan:
+		return types.NewChan(reflectToType(rt.Elem()), types.ChanDir(rt.ChanDir()))
+	case reflect.String:
+		return types.Types[types.TSTRING]
+	case reflect.Complex128:
+		return types.Types[types.TCOMPLEX128]
 	default:
 		base.Fatalf("unhandled kind %s", rt.Kind())
 		return nil
@@ -155,7 +171,7 @@ func NewCursor(lsym *obj.LSym, off int64, t *types.Type) Cursor {
 
 // WritePtr writes a pointer "target" to the component at the location specified by c.
 func (c Cursor) WritePtr(target *obj.LSym) {
-	if c.typ.Kind() != types.TUNSAFEPTR {
+	if c.typ.Kind() != types.TUNSAFEPTR && c.typ.Kind() != types.TPTR {
 		base.Fatalf("can't write ptr, it has kind %s", c.typ.Kind())
 	}
 	if target == nil {

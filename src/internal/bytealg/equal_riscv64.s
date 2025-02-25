@@ -7,25 +7,23 @@
 
 #define	CTXT	S10
 
+// func memequal_varlen(a, b unsafe.Pointer) bool
+TEXT runtime·memequal_varlen<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-17
+	// X10 = a_base
+	// X11 = b_base
+	MOV	8(CTXT), X12    // compiler stores size at offset 8 in the closure
+	JMP	runtime·memequal<ABIInternal>(SB)
+
 // func memequal(a, b unsafe.Pointer, size uintptr) bool
 TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
 	// X10 = a_base
 	// X11 = b_base
 	// X12 = size
-	JMP	memequal<>(SB)
+	BNE	X10, X11, length_check
+	MOV	$0, X12
 
-// func memequal_varlen(a, b unsafe.Pointer) bool
-TEXT runtime·memequal_varlen<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-17
-	MOV	8(CTXT), X12    // compiler stores size at offset 8 in the closure
-	// X10 = a_base
-	// X11 = b_base
-	JMP	memequal<>(SB)
-
-// On entry X10 and X11 contain pointers, X12 contains length.
-// For non-regabi X13 contains address for return value.
-// For regabi return value in X10.
-TEXT memequal<>(SB),NOSPLIT|NOFRAME,$0
-	BEQ	X10, X11, eq
+length_check:
+	BEQZ	X12, done
 
 	MOV	$32, X23
 	BLT	X12, X23, loop4_check
@@ -44,7 +42,7 @@ align:
 	SUB	$1, X9
 	MOVBU	0(X10), X19
 	MOVBU	0(X11), X20
-	BNE	X19, X20, not_eq
+	BNE	X19, X20, done
 	ADD	$1, X10
 	ADD	$1, X11
 	BNEZ	X9, align
@@ -57,19 +55,19 @@ loop32:
 	MOV	0(X11), X20
 	MOV	8(X10), X21
 	MOV	8(X11), X22
-	BNE	X19, X20, not_eq
-	BNE	X21, X22, not_eq
+	BNE	X19, X20, done
+	BNE	X21, X22, done
 	MOV	16(X10), X14
 	MOV	16(X11), X15
 	MOV	24(X10), X16
 	MOV	24(X11), X17
-	BNE	X14, X15, not_eq
-	BNE	X16, X17, not_eq
+	BNE	X14, X15, done
+	BNE	X16, X17, done
 	ADD	$32, X10
 	ADD	$32, X11
 	SUB	$32, X12
 	BGE	X12, X9, loop32
-	BEQZ	X12, eq
+	BEQZ	X12, done
 
 loop16_check:
 	MOV	$16, X23
@@ -79,13 +77,13 @@ loop16:
 	MOV	0(X11), X20
 	MOV	8(X10), X21
 	MOV	8(X11), X22
-	BNE	X19, X20, not_eq
-	BNE	X21, X22, not_eq
+	BNE	X19, X20, done
+	BNE	X21, X22, done
 	ADD	$16, X10
 	ADD	$16, X11
 	SUB	$16, X12
 	BGE	X12, X23, loop16
-	BEQZ	X12, eq
+	BEQZ	X12, done
 
 loop4_check:
 	MOV	$4, X23
@@ -95,32 +93,30 @@ loop4:
 	MOVBU	0(X11), X20
 	MOVBU	1(X10), X21
 	MOVBU	1(X11), X22
-	BNE	X19, X20, not_eq
-	BNE	X21, X22, not_eq
+	BNE	X19, X20, done
+	BNE	X21, X22, done
 	MOVBU	2(X10), X14
 	MOVBU	2(X11), X15
 	MOVBU	3(X10), X16
 	MOVBU	3(X11), X17
-	BNE	X14, X15, not_eq
-	BNE	X16, X17, not_eq
+	BNE	X14, X15, done
+	BNE	X16, X17, done
 	ADD	$4, X10
 	ADD	$4, X11
 	SUB	$4, X12
 	BGE	X12, X23, loop4
 
 loop1:
-	BEQZ	X12, eq
+	BEQZ	X12, done
 	MOVBU	0(X10), X19
 	MOVBU	0(X11), X20
-	BNE	X19, X20, not_eq
+	BNE	X19, X20, done
 	ADD	$1, X10
 	ADD	$1, X11
 	SUB	$1, X12
 	JMP	loop1
 
-not_eq:
-	MOVB	ZERO, X10
-	RET
-eq:
-	MOV	$1, X10
+done:
+	// If X12 is zero then memory is equivalent.
+	SEQZ	X12, X10
 	RET

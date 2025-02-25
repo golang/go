@@ -6322,12 +6322,12 @@ func TestMapOfGCBigKey(t *testing.T) {
 	const n = 100
 	m := MakeMap(mt)
 	for i := 0; i < n; i++ {
-		kv := KV{int64(i), int64(i+1)}
+		kv := KV{int64(i), int64(i + 1)}
 		m.SetMapIndex(ValueOf(kv), ValueOf(kv))
 	}
 
 	for i := 0; i < n; i++ {
-		kv := KV{int64(i), int64(i+1)}
+		kv := KV{int64(i), int64(i + 1)}
 		elem := m.MapIndex(ValueOf(kv)).Interface().(KV)
 		if elem != kv {
 			t.Errorf("lost m[%v] = %v, want %v", kv, elem, kv)

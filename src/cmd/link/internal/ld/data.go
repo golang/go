@@ -448,6 +448,25 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				st.err.Errorf(s, "non-pc-relative relocation address for %s is too big: %#x (%#x + %#x)", ldr.SymName(rs), uint64(o), ldr.SymValue(rs), r.Add())
 				errorexit()
 			}
+		case objabi.R_DWTXTADDR_U1, objabi.R_DWTXTADDR_U2, objabi.R_DWTXTADDR_U3, objabi.R_DWTXTADDR_U4:
+			unit := ldr.SymUnit(rs)
+			if idx, ok := unit.Addrs[sym.LoaderSym(rs)]; ok {
+				o = int64(idx)
+			} else {
+				st.err.Errorf(s, "missing .debug_addr index relocation target %s", ldr.SymName(rs))
+			}
+
+			// For these relocations we write a ULEB128, but using a
+			// cooked/hacked recipe that ensures the result has a
+			// fixed length. That is, if we're writing a value of 1
+			// with length requirement 3, we'll actually emit three
+			// bytes, 0x81 0x80 0x0.
+			_, leb128len := rt.DwTxtAddrRelocParams()
+			if err := writeUleb128FixedLength(P[off:], uint64(o), leb128len); err != nil {
+				st.err.Errorf(s, "internal error: %v applying %s to DWARF sym with reloc target %s", err, rt.String(), ldr.SymName(rs))
+			}
+			continue
+
 		case objabi.R_DWARFSECREF:
 			if ldr.SymSect(rs) == nil {
 				st.err.Errorf(s, "missing DWARF section for relocation target %s", ldr.SymName(rs))
@@ -590,10 +609,6 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			nExtReloc++
 			continue
 
-		case objabi.R_DWARFFILEREF:
-			// We don't renumber files in dwarf.go:writelines anymore.
-			continue
-
 		case objabi.R_CONST:
 			o = r.Add()
 
@@ -734,7 +749,9 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loa
 
 	// These reloc types don't need external relocations.
 	case objabi.R_ADDROFF, objabi.R_METHODOFF, objabi.R_ADDRCUOFF,
-		objabi.R_SIZE, objabi.R_CONST, objabi.R_GOTOFF:
+		objabi.R_SIZE, objabi.R_CONST, objabi.R_GOTOFF,
+		objabi.R_DWTXTADDR_U1, objabi.R_DWTXTADDR_U2,
+		objabi.R_DWTXTADDR_U3, objabi.R_DWTXTADDR_U4:
 		return rr, false
 	}
 	return rr, true
@@ -3232,4 +3249,27 @@ func compressSyms(ctxt *Link, syms []loader.Sym) []byte {
 		return nil
 	}
 	return buf.Bytes()
+}
+
+// writeUleb128FixedLength writes out value v in LEB128 encoded
+// format, ensuring that the space written takes up length bytes. When
+// extra space is needed, we write initial bytes with just the
+// continuation bit set. For example, if val is 1 and length is 3,
+// we'll write 0x80 0x80 0x1 (first two bytes with zero val but
+// continuation bit set). NB: this function adapted from a similar
+// function in cmd/link/internal/wasm, they could be commoned up if
+// needed.
+func writeUleb128FixedLength(b []byte, v uint64, length int) error {
+	for i := 0; i < length; i++ {
+		c := uint8(v & 0x7f)
+		v >>= 7
+		if i < length-1 {
+			c |= 0x80
+		}
+		b[i] = c
+	}
+	if v != 0 {
+		return fmt.Errorf("writeUleb128FixedLength: length too small")
+	}
+	return nil
 }

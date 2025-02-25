@@ -628,3 +628,93 @@ func ExampleToUpperSpecial() {
 	// Original : ahoj vývojári golang
 	// ToUpper : AHOJ VÝVOJÁRİ GOLANG
 }
+
+func ExampleLines() {
+	text := []byte("Hello\nWorld\nGo Programming\n")
+	for line := range bytes.Lines(text) {
+		fmt.Printf("%q\n", line)
+	}
+
+	// Output:
+	// "Hello\n"
+	// "World\n"
+	// "Go Programming\n"
+}
+
+func ExampleSplitSeq() {
+	s := []byte("a,b,c,d")
+	for part := range bytes.SplitSeq(s, []byte(",")) {
+		fmt.Printf("%q\n", part)
+	}
+
+	// Output:
+	// "a"
+	// "b"
+	// "c"
+	// "d"
+}
+
+func ExampleSplitAfterSeq() {
+	s := []byte("a,b,c,d")
+	for part := range bytes.SplitAfterSeq(s, []byte(",")) {
+		fmt.Printf("%q\n", part)
+	}
+
+	// Output:
+	// "a,"
+	// "b,"
+	// "c,"
+	// "d"
+}
+
+func ExampleFieldsSeq() {
+	text := []byte("The quick brown fox")
+	fmt.Println("Split byte slice into fields:")
+	for word := range bytes.FieldsSeq(text) {
+		fmt.Printf("%q\n", word)
+	}
+
+	textWithSpaces := []byte("  lots   of   spaces  ")
+	fmt.Println("\nSplit byte slice with multiple spaces:")
+	for word := range bytes.FieldsSeq(textWithSpaces) {
+		fmt.Printf("%q\n", word)
+	}
+
+	// Output:
+	// Split byte slice into fields:
+	// "The"
+	// "quick"
+	// "brown"
+	// "fox"
+	//
+	// Split byte slice with multiple spaces:
+	// "lots"
+	// "of"
+	// "spaces"
+}
+
+func ExampleFieldsFuncSeq() {
+	text := []byte("The quick brown fox")
+	fmt.Println("Split on whitespace(similar to FieldsSeq):")
+	for word := range bytes.FieldsFuncSeq(text, unicode.IsSpace) {
+		fmt.Printf("%q\n", word)
+	}
+
+	mixedText := []byte("abc123def456ghi")
+	fmt.Println("\nSplit on digits:")
+	for word := range bytes.FieldsFuncSeq(mixedText, unicode.IsDigit) {
+		fmt.Printf("%q\n", word)
+	}
+
+	// Output:
+	// Split on whitespace(similar to FieldsSeq):
+	// "The"
+	// "quick"
+	// "brown"
+	// "fox"
+	//
+	// Split on digits:
+	// "abc"
+	// "def"
+	// "ghi"
+}

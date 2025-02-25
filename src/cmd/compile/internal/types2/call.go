@@ -26,12 +26,11 @@ import (
 //  2. If infer == false and inst provides all type arguments, funcInst
 //     instantiates the function x. The returned results are nil.
 //     If inst doesn't provide enough type arguments, funcInst returns the
-//     available arguments and the corresponding expression list; x remains
-//     unchanged.
+//     available arguments; x remains unchanged.
 //
 // If an error (other than a version error) occurs in any case, it is reported
 // and x.mode is set to invalid.
-func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *syntax.IndexExpr, infer bool) ([]Type, []syntax.Expr) {
+func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *syntax.IndexExpr, infer bool) []Type {
 	assert(T != nil || inst != nil)
 
 	var instErrPos poser
@@ -51,7 +50,7 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 		targs = check.typeList(xlist)
 		if targs == nil {
 			x.mode = invalid
-			return nil, nil
+			return nil
 		}
 		assert(len(targs) == len(xlist))
 	}
@@ -65,12 +64,12 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 		// Providing too many type arguments is always an error.
 		check.errorf(xlist[got-1], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
 		x.mode = invalid
-		return nil, nil
+		return nil
 	}
 
 	if got < want {
 		if !infer {
-			return targs, xlist
+			return targs
 		}
 
 		// If the uninstantiated or partially instantiated function x is used in
@@ -115,7 +114,7 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 				err.report()
 			}
 			x.mode = invalid
-			return nil, nil
+			return nil
 		}
 		got = len(targs)
 	}
@@ -126,7 +125,7 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 
 	x.typ = sig
 	x.mode = value
-	return nil, nil
+	return nil
 }
 
 func (check *Checker) instantiateSignature(pos syntax.Pos, expr syntax.Expr, typ *Signature, targs []Type, xlist []syntax.Expr) (res *Signature) {
@@ -243,10 +242,16 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 	// signature may be generic
 	cgocall := x.mode == cgofunc
 
-	// a type parameter may be "called" if all types have the same signature
-	sig, _ := coreType(x.typ).(*Signature)
+	// If the operand type is a type parameter, all types in its type set
+	// must have a shared underlying type, which must be a signature.
+	var cause string
+	sig, _ := sharedUnder(check, x.typ, &cause).(*Signature)
 	if sig == nil {
-		check.errorf(x, InvalidCall, invalidOp+"cannot call non-function %s", x)
+		if cause != "" {
+			check.errorf(x, InvalidCall, invalidOp+"cannot call %s: %s", x, cause)
+		} else {
+			check.errorf(x, InvalidCall, invalidOp+"cannot call non-function %s", x)
+		}
 		x.mode = invalid
 		x.expr = call
 		return statement
@@ -295,8 +300,8 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 	}
 
 	// evaluate arguments
-	args, atargs, atxlist := check.genericExprList(call.ArgList)
-	sig = check.arguments(call, sig, targs, xlist, args, atargs, atxlist)
+	args, atargs := check.genericExprList(call.ArgList)
+	sig = check.arguments(call, sig, targs, xlist, args, atargs)
 
 	if wasGeneric && sig.TypeParams().Len() == 0 {
 		// update the recorded type of call.Fun to its instantiated type
@@ -351,14 +356,12 @@ func (check *Checker) exprList(elist []syntax.Expr) (xlist []*operand) {
 // instantiated generic functions (where constraint information is insufficient to infer
 // the missing type arguments) for Go 1.21 and later.
 // For each non-generic or uninstantiated generic operand, the corresponding targsList and
-// xlistList elements do not exist (targsList and xlistList are nil) or the elements are nil.
-// For each partially instantiated generic function operand, the corresponding targsList and
-// xlistList elements are the operand's partial type arguments and type expression lists.
-func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand, targsList [][]Type, xlistList [][]syntax.Expr) {
+// elements do not exist (targsList is nil) or the elements are nil.
+// For each partially instantiated generic function operand, the corresponding
+// targsList elements are the operand's partial type arguments.
+func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand, targsList [][]Type) {
 	if debug {
 		defer func() {
-			// targsList and xlistList must have matching lengths
-			assert(len(targsList) == len(xlistList))
 			// type arguments must only exist for partially instantiated functions
 			for i, x := range resList {
 				if i < len(targsList) {
@@ -385,11 +388,10 @@ func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand, 
 		var x operand
 		if inst, _ := e.(*syntax.IndexExpr); inst != nil && check.indexExpr(&x, inst) {
 			// x is a generic function.
-			targs, xlist := check.funcInst(nil, x.Pos(), &x, inst, infer)
+			targs := check.funcInst(nil, x.Pos(), &x, inst, infer)
 			if targs != nil {
 				// x was not instantiated: collect the (partial) type arguments.
 				targsList = [][]Type{targs}
-				xlistList = [][]syntax.Expr{xlist}
 				// Update x.expr so that we can record the partially instantiated function.
 				x.expr = inst
 			} else {
@@ -417,16 +419,14 @@ func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand, 
 		// multiple values
 		resList = make([]*operand, n)
 		targsList = make([][]Type, n)
-		xlistList = make([][]syntax.Expr, n)
 		for i, e := range elist {
 			var x operand
 			if inst, _ := e.(*syntax.IndexExpr); inst != nil && check.indexExpr(&x, inst) {
 				// x is a generic function.
-				targs, xlist := check.funcInst(nil, x.Pos(), &x, inst, infer)
+				targs := check.funcInst(nil, x.Pos(), &x, inst, infer)
 				if targs != nil {
 					// x was not instantiated: collect the (partial) type arguments.
 					targsList[i] = targs
-					xlistList[i] = xlist
 					// Update x.expr so that we can record the partially instantiated function.
 					x.expr = inst
 				} else {
@@ -449,15 +449,14 @@ func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand, 
 // The function and its arguments may be generic, and possibly partially instantiated.
 // targs and xlist are the function's type arguments (and corresponding expressions).
 // args are the function arguments. If an argument args[i] is a partially instantiated
-// generic function, atargs[i] and atxlist[i] are the corresponding type arguments
-// (and corresponding expressions).
+// generic function, atargs[i] are the corresponding type arguments.
 // If the callee is variadic, arguments adjusts its signature to match the provided
 // arguments. The type parameters and arguments of the callee and all its arguments
 // are used together to infer any missing type arguments, and the callee and argument
 // functions are instantiated as necessary.
 // The result signature is the (possibly adjusted and instantiated) function signature.
 // If an error occurred, the result signature is the incoming sig.
-func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []Type, xlist []syntax.Expr, args []*operand, atargs [][]Type, atxlist [][]syntax.Expr) (rsig *Signature) {
+func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []Type, xlist []syntax.Expr, args []*operand, atargs [][]Type) (rsig *Signature) {
 	rsig = sig
 
 	// Function call argument/parameter count requirements

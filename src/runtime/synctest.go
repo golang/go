@@ -182,6 +182,8 @@ func synctestRun(f func()) {
 	sg.active++
 	for {
 		if raceenabled {
+			// Establish a happens-before relationship between a timer being created,
+			// and the timer running.
 			raceacquireg(gp, gp.syncGroup.raceaddr())
 		}
 		unlock(&sg.mu)
@@ -205,6 +207,11 @@ func synctestRun(f func()) {
 
 	total := sg.total
 	unlock(&sg.mu)
+	if raceenabled {
+		// Establish a happens-before relationship between bubbled goroutines exiting
+		// and Run returning.
+		raceacquireg(gp, gp.syncGroup.raceaddr())
+	}
 	if total != 1 {
 		panic("deadlock: all goroutines in bubble are blocked")
 	}

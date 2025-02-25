@@ -13,9 +13,9 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/analysisinternal"
 )
 
 const Doc = `report passing non-pointer or non-error values to errors.As
@@ -31,7 +31,7 @@ var Analyzer = &analysis.Analyzer{
 	Run:      run,
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	switch pass.Pkg.Path() {
 	case "errors", "errors_test":
 		// These packages know how to use their own APIs.
@@ -39,7 +39,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		return nil, nil
 	}
 
-	if !analysisutil.Imports(pass.Pkg, "errors") {
+	if !analysisinternal.Imports(pass.Pkg, "errors") {
 		return nil, nil // doesn't directly import errors
 	}
 
@@ -50,8 +50,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
 		call := n.(*ast.CallExpr)
-		fn := typeutil.StaticCallee(pass.TypesInfo, call)
-		if !analysisutil.IsFunctionNamed(fn, "errors", "As") {
+		obj := typeutil.Callee(pass.TypesInfo, call)
+		if !analysisinternal.IsFunctionNamed(obj, "errors", "As") {
 			return
 		}
 		if len(call.Args) < 2 {

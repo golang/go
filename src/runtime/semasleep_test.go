@@ -91,10 +91,31 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
 	// pthread_cond_timedwait_relative_np.
 	ticker := time.NewTicker(200 * time.Millisecond)
 	defer ticker.Stop()
+
+	checkDoneErr := func(err error) {
+		if err != nil {
+			t.Fatalf("The program returned but unfortunately with an error: %v", err)
+		}
+		if time.Since(beforeStart) < 1*time.Second {
+			// The program was supposed to sleep for a full (monotonic) second;
+			// it should not return before that has elapsed.
+			t.Fatalf("The program stopped too quickly.")
+		}
+	}
 	for {
 		select {
 		case now := <-ticker.C:
 			if now.Sub(ready) > timeout {
+				// If we got paused for a long time, for example if GODEBUG=gcstoptheworld=2,
+				// it could be that the subprocess did actually finish and not deadlock, we
+				// just got stuck as runnable or our wakeup was delayed. Double-check that
+				// we don't have anything from doneCh before declaring failure.
+				select {
+				case err := <-doneCh:
+					checkDoneErr(err)
+					return
+				default:
+				}
 				t.Error("Program failed to return on time and has to be killed, issue #27520 still exists")
 				// Send SIGQUIT to get a goroutine dump.
 				// Stop sending SIGIO so that the program can clean up and actually terminate.
@@ -107,14 +128,7 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
 			cmd.Process.Signal(syscall.SIGIO)
 
 		case err := <-doneCh:
-			if err != nil {
-				t.Fatalf("The program returned but unfortunately with an error: %v", err)
-			}
-			if time.Since(beforeStart) < 1*time.Second {
-				// The program was supposed to sleep for a full (monotonic) second;
-				// it should not return before that has elapsed.
-				t.Fatalf("The program stopped too quickly.")
-			}
+			checkDoneErr(err)
 			return
 		}
 	}

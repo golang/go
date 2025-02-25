@@ -38,6 +38,8 @@ type Signature struct {
 // must be of unnamed slice type.
 //
 // Deprecated: Use [NewSignatureType] instead which allows for type parameters.
+//
+//go:fix inline
 func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
 	return NewSignatureType(recv, nil, nil, params, results, variadic)
 }
@@ -364,7 +366,7 @@ func (check *Checker) collectParams(list *ast.FieldList, variadicOk bool) (names
 			if variadicOk && i == len(list.List)-1 && len(field.Names) <= 1 {
 				variadic = true
 			} else {
-				check.softErrorf(t, MisplacedDotDotDot, "can only use ... with final parameter in list")
+				check.softErrorf(t, InvalidSyntaxTree, "invalid use of ...")
 				// ignore ... and continue
 			}
 		}

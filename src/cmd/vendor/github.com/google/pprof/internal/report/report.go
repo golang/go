@@ -699,13 +699,17 @@ func printTags(w io.Writer, rpt *Report) error {
 	p := rpt.prof
 
 	o := rpt.options
-	formatTag := func(v int64, key string) string {
-		return measurement.ScaledLabel(v, key, o.OutputUnit)
+	formatTag := func(v int64, unit string) string {
+		return measurement.ScaledLabel(v, unit, o.OutputUnit)
 	}
 
-	// Hashtable to keep accumulate tags as key,value,count.
+	// Accumulate tags as key,value,count.
 	tagMap := make(map[string]map[string]int64)
+	// Note that we assume single value per tag per sample. Multiple values are
+	// encodable in the format but are discouraged.
+	tagTotalMap := make(map[string]int64)
 	for _, s := range p.Sample {
+		sampleValue := o.SampleValue(s.Value)
 		for key, vals := range s.Label {
 			for _, val := range vals {
 				valueMap, ok := tagMap[key]
@@ -713,7 +717,8 @@ func printTags(w io.Writer, rpt *Report) error {
 					valueMap = make(map[string]int64)
 					tagMap[key] = valueMap
 				}
-				valueMap[val] += o.SampleValue(s.Value)
+				valueMap[val] += sampleValue
+				tagTotalMap[key] += sampleValue
 			}
 		}
 		for key, vals := range s.NumLabel {
@@ -725,7 +730,8 @@ func printTags(w io.Writer, rpt *Report) error {
 					valueMap = make(map[string]int64)
 					tagMap[key] = valueMap
 				}
-				valueMap[val] += o.SampleValue(s.Value)
+				valueMap[val] += sampleValue
+				tagTotalMap[key] += sampleValue
 			}
 		}
 	}
@@ -736,22 +742,23 @@ func printTags(w io.Writer, rpt *Report) error {
 	}
 	tabw := tabwriter.NewWriter(w, 0, 0, 1, ' ', tabwriter.AlignRight)
 	for _, tagKey := range graph.SortTags(tagKeys, true) {
-		var total int64
 		key := tagKey.Name
 		tags := make([]*graph.Tag, 0, len(tagMap[key]))
 		for t, c := range tagMap[key] {
-			total += c
 			tags = append(tags, &graph.Tag{Name: t, Flat: c})
 		}
 
-		f, u := measurement.Scale(total, o.SampleUnit, o.OutputUnit)
-		fmt.Fprintf(tabw, "%s:\t Total %.1f%s\n", key, f, u)
+		tagTotal, profileTotal := tagTotalMap[key], rpt.Total()
+		if profileTotal > 0 {
+			fmt.Fprintf(tabw, "%s:\t Total %s of %s (%s)\n", key, rpt.formatValue(tagTotal), rpt.formatValue(profileTotal), measurement.Percentage(tagTotal, profileTotal))
+		} else {
+			fmt.Fprintf(tabw, "%s:\t Total %s of %s\n", key, rpt.formatValue(tagTotal), rpt.formatValue(profileTotal))
+		}
 		for _, t := range graph.SortTags(tags, true) {
-			f, u := measurement.Scale(t.FlatValue(), o.SampleUnit, o.OutputUnit)
-			if total > 0 {
-				fmt.Fprintf(tabw, " \t%.1f%s (%s):\t %s\n", f, u, measurement.Percentage(t.FlatValue(), total), t.Name)
+			if profileTotal > 0 {
+				fmt.Fprintf(tabw, " \t%s (%s):\t %s\n", rpt.formatValue(t.FlatValue()), measurement.Percentage(t.FlatValue(), profileTotal), t.Name)
 			} else {
-				fmt.Fprintf(tabw, " \t%.1f%s:\t %s\n", f, u, t.Name)
+				fmt.Fprintf(tabw, " \t%s:\t %s\n", rpt.formatValue(t.FlatValue()), t.Name)
 			}
 		}
 		fmt.Fprintln(tabw)

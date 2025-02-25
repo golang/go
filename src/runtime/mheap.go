@@ -9,6 +9,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/cpu"
 	"internal/goarch"
 	"internal/runtime/atomic"
@@ -108,9 +109,9 @@ type mheap struct {
 
 	// Page reclaimer state
 
-	// reclaimIndex is the page index in allArenas of next page to
+	// reclaimIndex is the page index in heapArenas of next page to
 	// reclaim. Specifically, it refers to page (i %
-	// pagesPerArena) of arena allArenas[i / pagesPerArena].
+	// pagesPerArena) of arena heapArenas[i / pagesPerArena].
 	//
 	// If this is >= 1<<63, the page reclaimer is done scanning
 	// the page marks.
@@ -165,22 +166,31 @@ type mheap struct {
 	// (the actual arenas). This is only used on 32-bit.
 	arena linearAlloc
 
-	// allArenas is the arenaIndex of every mapped arena. This can
-	// be used to iterate through the address space.
+	// heapArenas is the arenaIndex of every mapped arena mapped for the heap.
+	// This can be used to iterate through the heap address space.
 	//
 	// Access is protected by mheap_.lock. However, since this is
 	// append-only and old backing arrays are never freed, it is
 	// safe to acquire mheap_.lock, copy the slice header, and
 	// then release mheap_.lock.
-	allArenas []arenaIdx
+	heapArenas []arenaIdx
 
-	// sweepArenas is a snapshot of allArenas taken at the
+	// userArenaArenas is the arenaIndex of every mapped arena mapped for
+	// user arenas.
+	//
+	// Access is protected by mheap_.lock. However, since this is
+	// append-only and old backing arrays are never freed, it is
+	// safe to acquire mheap_.lock, copy the slice header, and
+	// then release mheap_.lock.
+	userArenaArenas []arenaIdx
+
+	// sweepArenas is a snapshot of heapArenas taken at the
 	// beginning of the sweep cycle. This can be read safely by
 	// simply blocking GC (by disabling preemption).
 	sweepArenas []arenaIdx
 
-	// markArenas is a snapshot of allArenas taken at the beginning
-	// of the mark cycle. Because allArenas is append-only, neither
+	// markArenas is a snapshot of heapArenas taken at the beginning
+	// of the mark cycle. Because heapArenas is append-only, neither
 	// this slice nor its contents will change during the mark, so
 	// it can be read safely.
 	markArenas []arenaIdx
@@ -236,6 +246,10 @@ type mheap struct {
 	// cleanupID is protected by mheap_.lock. It should only be incremented while holding
 	// the lock.
 	cleanupID uint64
+
+	_ cpu.CacheLinePad
+
+	immortalWeakHandles immortalWeakHandleMap
 
 	unused *specialfinalizer // never set, just here to force the specialfinalizer type into DWARF
 }
@@ -1494,7 +1508,7 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 		// Not enough room in the current arena. Allocate more
 		// arena space. This may not be contiguous with the
 		// current arena, so we have to request the full ask.
-		av, asize := h.sysAlloc(ask, &h.arenaHints, true)
+		av, asize := h.sysAlloc(ask, &h.arenaHints, &h.heapArenas)
 		if av == nil {
 			inUse := gcController.heapFree.load() + gcController.heapReleased.load() + gcController.heapInUse.load()
 			print("runtime: out of memory: cannot allocate ", ask, "-byte block (", inUse, " in use)\n")
@@ -2129,7 +2143,15 @@ func internal_weak_runtime_makeStrongFromWeak(u unsafe.Pointer) unsafe.Pointer {
 	// even if it's just some random span.
 	span := spanOfHeap(p)
 	if span == nil {
-		// The span probably got swept and released.
+		// If it's immortal, then just return the pointer.
+		//
+		// Stay non-preemptible so the GC can't see us convert this potentially
+		// completely bogus value to an unsafe.Pointer.
+		if isGoPointerWithoutSpan(unsafe.Pointer(p)) {
+			releasem(mp)
+			return unsafe.Pointer(p)
+		}
+		// It's heap-allocated, so the span probably just got swept and released.
 		releasem(mp)
 		return nil
 	}
@@ -2266,6 +2288,9 @@ func getOrAddWeakHandle(p unsafe.Pointer) *atomic.Uintptr {
 func getWeakHandle(p unsafe.Pointer) *atomic.Uintptr {
 	span := spanOfHeap(uintptr(p))
 	if span == nil {
+		if isGoPointerWithoutSpan(p) {
+			return mheap_.immortalWeakHandles.getOrAdd(uintptr(p))
+		}
 		throw("getWeakHandle on invalid pointer")
 	}
 
@@ -2292,6 +2317,80 @@ func getWeakHandle(p unsafe.Pointer) *atomic.Uintptr {
 	// that it cannot die while we're trying to do this.
 	KeepAlive(p)
 	return handle
+}
+
+type immortalWeakHandleMap struct {
+	root atomic.UnsafePointer // *immortalWeakHandle (can't use generics because it's notinheap)
+}
+
+// immortalWeakHandle is a lock-free append-only hash-trie.
+//
+// Key features:
+//   - 2-ary trie. Child nodes are indexed by the highest bit (remaining) of the hash of the address.
+//   - New nodes are placed at the first empty level encountered.
+//   - When the first child is added to a node, the existing value is not moved into a child.
+//     This means that we must check the value at each level, not just at the leaf.
+//   - No deletion or rebalancing.
+//   - Intentionally devolves into a linked list on hash collisions (the hash bits will all
+//     get shifted out during iteration, and new nodes will just be appended to the 0th child).
+type immortalWeakHandle struct {
+	_ sys.NotInHeap
+
+	children [2]atomic.UnsafePointer // *immortalObjectMapNode (can't use generics because it's notinheap)
+	ptr      uintptr                 // &ptr is the weak handle
+}
+
+// handle returns a canonical weak handle.
+func (h *immortalWeakHandle) handle() *atomic.Uintptr {
+	// N.B. Since we just need an *atomic.Uintptr that never changes, we can trivially
+	// reference ptr to save on some memory in immortalWeakHandle and avoid extra atomics
+	// in getOrAdd.
+	return (*atomic.Uintptr)(unsafe.Pointer(&h.ptr))
+}
+
+// getOrAdd introduces p, which must be a pointer to immortal memory (for example, a linker-allocated
+// object) and returns a weak handle. The weak handle will never become nil.
+func (tab *immortalWeakHandleMap) getOrAdd(p uintptr) *atomic.Uintptr {
+	var newNode *immortalWeakHandle
+	m := &tab.root
+	hash := memhash(abi.NoEscape(unsafe.Pointer(&p)), 0, goarch.PtrSize)
+	hashIter := hash
+	for {
+		n := (*immortalWeakHandle)(m.Load())
+		if n == nil {
+			// Try to insert a new map node. We may end up discarding
+			// this node if we fail to insert because it turns out the
+			// value is already in the map.
+			//
+			// The discard will only happen if two threads race on inserting
+			// the same value. Both might create nodes, but only one will
+			// succeed on insertion. If two threads race to insert two
+			// different values, then both nodes will *always* get inserted,
+			// because the equality checking below will always fail.
+			//
+			// Performance note: contention on insertion is likely to be
+			// higher for small maps, but since this data structure is
+			// append-only, either the map stays small because there isn't
+			// much activity, or the map gets big and races to insert on
+			// the same node are much less likely.
+			if newNode == nil {
+				newNode = (*immortalWeakHandle)(persistentalloc(unsafe.Sizeof(immortalWeakHandle{}), goarch.PtrSize, &memstats.gcMiscSys))
+				newNode.ptr = p
+			}
+			if m.CompareAndSwapNoWB(nil, unsafe.Pointer(newNode)) {
+				return newNode.handle()
+			}
+			// Reload n. Because pointers are only stored once,
+			// we must have lost the race, and therefore n is not nil
+			// anymore.
+			n = (*immortalWeakHandle)(m.Load())
+		}
+		if n.ptr == p {
+			return n.handle()
+		}
+		m = &n.children[hashIter>>(8*goarch.PtrSize-1)]
+		hashIter <<= 1
+	}
 }
 
 // The described object is being heap profiled.

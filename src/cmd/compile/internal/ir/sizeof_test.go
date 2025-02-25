@@ -21,7 +21,9 @@ func TestSizeof(t *testing.T) {
 		_64bit uintptr     // size on 64bit platforms
 	}{
 		{Func{}, 184, 312},
-		{Name{}, 96, 168},
+		{Name{}, 96, 160},
+		{miniExpr{}, 32, 48},
+		{miniNode{}, 12, 12},
 	}
 
 	for _, tt := range tests {

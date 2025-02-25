@@ -433,6 +433,32 @@ func TestWaitGroup(t *testing.T) {
 	})
 }
 
+func TestHappensBefore(t *testing.T) {
+	var v int
+	synctest.Run(func() {
+		go func() {
+			v++ // 1
+		}()
+		// Wait creates a happens-before relationship on the above goroutine exiting.
+		synctest.Wait()
+		go func() {
+			v++ // 2
+		}()
+	})
+	// Run exiting creates a happens-before relationship on goroutines started in the bubble.
+	synctest.Run(func() {
+		v++ // 3
+		// There is a happens-before relationship between the time.AfterFunc call,
+		// and the func running.
+		time.AfterFunc(0, func() {
+			v++ // 4
+		})
+	})
+	if got, want := v, 4; got != want {
+		t.Errorf("v = %v, want %v", got, want)
+	}
+}
+
 func wantPanic(t *testing.T, want string) {
 	if e := recover(); e != nil {
 		if got := fmt.Sprint(e); got != want {

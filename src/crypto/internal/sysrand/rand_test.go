@@ -105,7 +105,7 @@ func TestReadError(t *testing.T) {
 		return
 	}
 
-	cmd := testenv.Command(t, os.Args[0], "-test.run=TestReadError")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=TestReadError")
 	cmd.Env = append(os.Environ(), "GO_TEST_READ_ERROR=1")
 	out, err := cmd.CombinedOutput()
 	if err == nil {

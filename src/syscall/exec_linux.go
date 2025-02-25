@@ -779,7 +779,12 @@ func os_checkClonePidfd() error {
 		var err error
 		for {
 			var status WaitStatus
-			_, err = Wait4(int(pid), &status, 0, nil)
+			// WCLONE is an untyped constant that sets bit 31, so
+			// it cannot convert directly to int on 32-bit
+			// GOARCHes. We must convert through another type
+			// first.
+			flags := uint(WCLONE)
+			_, err = Wait4(int(pid), &status, int(flags), nil)
 			if err != EINTR {
 				break
 			}
@@ -797,7 +802,7 @@ func os_checkClonePidfd() error {
 
 	for {
 		const _P_PIDFD = 3
-		_, _, errno = Syscall6(SYS_WAITID, _P_PIDFD, uintptr(pidfd), 0, WEXITED, 0, 0)
+		_, _, errno = Syscall6(SYS_WAITID, _P_PIDFD, uintptr(pidfd), 0, WEXITED | WCLONE, 0, 0)
 		if errno != EINTR {
 			break
 		}
@@ -818,7 +823,7 @@ func os_checkClonePidfd() error {
 //
 //go:noinline
 func doCheckClonePidfd(pidfd *int32) (pid uintptr, errno Errno) {
-	flags := uintptr(CLONE_VFORK | CLONE_VM | CLONE_PIDFD | SIGCHLD)
+	flags := uintptr(CLONE_VFORK | CLONE_VM | CLONE_PIDFD)
 	if runtime.GOARCH == "s390x" {
 		// On Linux/s390, the first two arguments of clone(2) are swapped.
 		pid, errno = rawVforkSyscall(SYS_CLONE, 0, flags, uintptr(unsafe.Pointer(pidfd)))

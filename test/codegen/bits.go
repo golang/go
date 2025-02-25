@@ -120,6 +120,16 @@ func bitoff64(a, b uint64) (n uint64) {
 	return n
 }
 
+func clearLastBit(x int64, y int32) (int64, int32) {
+	// amd64:"ANDQ\t[$]-2"
+	a := (x >> 1) << 1
+
+	// amd64:"ANDL\t[$]-2"
+	b := (y >> 1) << 1
+
+	return a, b
+}
+
 func bitcompl64(a, b uint64) (n uint64) {
 	// amd64:"BTCQ"
 	n += b ^ (1 << (a & 63))

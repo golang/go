@@ -21,6 +21,8 @@ import (
 // to remove the file when no longer needed.
 //
 // Deprecated: As of Go 1.17, this function simply calls [os.CreateTemp].
+//
+//go:fix inline
 func TempFile(dir, pattern string) (f *os.File, err error) {
 	return os.CreateTemp(dir, pattern)
 }
@@ -36,6 +38,8 @@ func TempFile(dir, pattern string) (f *os.File, err error) {
 // to remove the directory when no longer needed.
 //
 // Deprecated: As of Go 1.17, this function simply calls [os.MkdirTemp].
+//
+//go:fix inline
 func TempDir(dir, pattern string) (name string, err error) {
 	return os.MkdirTemp(dir, pattern)
 }

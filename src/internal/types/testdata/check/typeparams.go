@@ -230,7 +230,7 @@ func _[
         for _, _ = range s1 {}
 
         var s2 S2
-        for range s2 /* ERRORx `cannot range over s2.*no core type` */ {}
+        for range s2 /* ERRORx `cannot range over s2.*\[\]int and \[10\]int have different underlying types` */ {}
 
         var a0 []int
         for range a0 {}
@@ -243,7 +243,7 @@ func _[
         for _, _ = range a1 {}
 
         var a2 A2
-        for range a2 /* ERRORx `cannot range over a2.*no core type` */ {}
+        for range a2 /* ERRORx `cannot range over a2.*\[10\]int and \[\]int have different underlying types` */ {}
 
         var p0 *[10]int
         for range p0 {}
@@ -256,7 +256,7 @@ func _[
         for _, _ = range p1 {}
 
         var p2 P2
-        for range p2 /* ERRORx `cannot range over p2.*no core type` */ {}
+        for range p2 /* ERRORx `cannot range over p2.*\*\[10\]int and \*\[\]int have different underlying types` */ {}
 
         var m0 map[string]int
         for range m0 {}
@@ -269,7 +269,7 @@ func _[
         for _, _ = range m1 {}
 
         var m2 M2
-        for range m2 /* ERRORx `cannot range over m2.*no core type` */ {}
+        for range m2 /* ERRORx `cannot range over m2.*map\[string\]int and map\[string\]string` */ {}
 }
 
 // type inference checks

@@ -54,13 +54,18 @@ func OpenInRoot(dir, name string) (*File, error) {
 //
 //   - When GOOS=windows, file names may not reference Windows reserved device names
 //     such as NUL and COM1.
+//   - On Unix, [Root.Chmod] and [Root.Chown] are vulnerable to a race condition.
+//     If the target of the operation is changed from a regular file to a symlink
+//     while the operation is in progress, the operation may be peformed on the link
+//     rather than the link target.
 //   - When GOOS=js, Root is vulnerable to TOCTOU (time-of-check-time-of-use)
 //     attacks in symlink validation, and cannot ensure that operations will not
 //     escape the root.
 //   - When GOOS=plan9 or GOOS=js, Root does not track directories across renames.
 //     On these platforms, a Root references a directory name, not a file descriptor.
+//   - WASI preview 1 (GOOS=wasip1) does not support [Root.Chmod].
 type Root struct {
-	root root
+	root *root
 }
 
 const (
@@ -71,6 +76,7 @@ const (
 )
 
 // OpenRoot opens the named directory.
+// It follows symbolic links in the directory name.
 // If there is an error, it will be of type *PathError.
 func OpenRoot(name string) (*Root, error) {
 	testlog.Open(name)
@@ -127,6 +133,12 @@ func (r *Root) OpenRoot(name string) (*Root, error) {
 	return openRootInRoot(r, name)
 }
 
+// Chmod changes the mode of the named file in the root to mode.
+// See [Chmod] for more details.
+func (r *Root) Chmod(name string, mode FileMode) error {
+	return rootChmod(r, name, mode)
+}
+
 // Mkdir creates a new directory in the root
 // with the specified name and permission bits (before umask).
 // See [Mkdir] for more details.
@@ -138,6 +150,12 @@ func (r *Root) Mkdir(name string, perm FileMode) error {
 		return &PathError{Op: "mkdirat", Path: name, Err: errors.New("unsupported file mode")}
 	}
 	return rootMkdir(r, name, perm)
+}
+
+// Chown changes the numeric uid and gid of the named file in the root.
+// See [Chown] for more details.
+func (r *Root) Chown(name string, uid, gid int) error {
+	return rootChown(r, name, uid, gid)
 }
 
 // Remove removes the named file or (empty) directory in the root.

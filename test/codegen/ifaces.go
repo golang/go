@@ -25,3 +25,39 @@ func ConvToM(x any) I {
 	// arm64:`CALL\truntime.typeAssert`,`LDAR`,`MOVWU`,`MOVD\t\(R.*\)\(R.*\)`
 	return x.(I)
 }
+
+func e1(x any, y *int) bool {
+	// amd64:-`.*faceeq`,`SETEQ`
+	// arm64:-`.*faceeq`,`CSET\tEQ`
+	return x == y
+}
+
+func e2(x any, y *int) bool {
+	// amd64:-`.*faceeq`,`SETEQ`
+	// arm64:-`.*faceeq`,`CSET\tEQ`
+	return y == x
+}
+
+type E *int
+
+func e3(x any, y E) bool {
+	// amd64:-`.*faceeq`,`SETEQ`
+	// arm64:-`.*faceeq`,`CSET\tEQ`
+	return x == y
+}
+
+type T int
+
+func (t *T) M() {}
+
+func i1(x I, y *T) bool {
+	// amd64:-`.*faceeq`,`SETEQ`
+	// arm64:-`.*faceeq`,`CSET\tEQ`
+	return x == y
+}
+
+func i2(x I, y *T) bool {
+	// amd64:-`.*faceeq`,`SETEQ`
+	// arm64:-`.*faceeq`,`CSET\tEQ`
+	return y == x
+}

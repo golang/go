@@ -20,7 +20,26 @@ import (
 // fakeLabelName matches the RISCV_FAKE_LABEL_NAME from binutils.
 const fakeLabelName = ".L0 "
 
-func gentext(ctxt *ld.Link, ldr *loader.Loader) {}
+func gentext(ctxt *ld.Link, ldr *loader.Loader) {
+	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
+	if initfunc == nil {
+		return
+	}
+
+	// Emit the following function:
+	//
+	// go.link.addmoduledatainit:
+	//      auipc a0, %pcrel_hi(local.moduledata)
+	//      addi  a0, %pcrel_lo(local.moduledata)
+	//      j     runtime.addmoduledata
+
+	sz := initfunc.AddSymRef(ctxt.Arch, ctxt.Moduledata, 0, objabi.R_RISCV_PCREL_ITYPE, 8)
+	initfunc.SetUint32(ctxt.Arch, sz-8, 0x00000517) // auipc a0, %pcrel_hi(local.moduledata)
+	initfunc.SetUint32(ctxt.Arch, sz-4, 0x00050513) // addi  a0, %pcrel_lo(local.moduledata)
+
+	sz = initfunc.AddSymRef(ctxt.Arch, addmoduledata, 0, objabi.R_RISCV_JAL, 4)
+	initfunc.SetUint32(ctxt.Arch, sz-4, 0x0000006f) // j runtime.addmoduledata
+}
 
 func findHI20Reloc(ldr *loader.Loader, s loader.Sym, val int64) *loader.Reloc {
 	outer := ldr.OuterSym(s)
@@ -170,8 +189,11 @@ func genSymsLate(ctxt *ld.Link, ldr *loader.Loader) {
 		relocs := ldr.Relocs(s)
 		for ri := 0; ri < relocs.Count(); ri++ {
 			r := relocs.At(ri)
-			if r.Type() != objabi.R_RISCV_CALL && r.Type() != objabi.R_RISCV_PCREL_ITYPE &&
-				r.Type() != objabi.R_RISCV_PCREL_STYPE && r.Type() != objabi.R_RISCV_TLS_IE {
+			if r.Type() != objabi.R_RISCV_CALL &&
+				r.Type() != objabi.R_RISCV_PCREL_ITYPE &&
+				r.Type() != objabi.R_RISCV_PCREL_STYPE &&
+				r.Type() != objabi.R_RISCV_TLS_IE &&
+				r.Type() != objabi.R_RISCV_GOT_PCREL_ITYPE {
 				continue
 			}
 			if r.Off() == 0 && ldr.SymType(s).IsText() {
@@ -233,7 +255,11 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		out.Write64(uint64(elf.R_RISCV_JAL) | uint64(elfsym)<<32)
 		out.Write64(uint64(r.Xadd))
 
-	case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE:
+	case objabi.R_RISCV_CALL,
+		objabi.R_RISCV_PCREL_ITYPE,
+		objabi.R_RISCV_PCREL_STYPE,
+		objabi.R_RISCV_TLS_IE,
+		objabi.R_RISCV_GOT_PCREL_ITYPE:
 		// Find the text symbol for the AUIPC instruction targeted
 		// by this relocation.
 		relocs := ldr.Relocs(s)
@@ -262,6 +288,8 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 			hiRel, loRel = elf.R_RISCV_PCREL_HI20, elf.R_RISCV_PCREL_LO12_S
 		case objabi.R_RISCV_TLS_IE:
 			hiRel, loRel = elf.R_RISCV_TLS_GOT_HI20, elf.R_RISCV_PCREL_LO12_I
+		case objabi.R_RISCV_GOT_PCREL_ITYPE:
+			hiRel, loRel = elf.R_RISCV_GOT_HI20, elf.R_RISCV_PCREL_LO12_I
 		}
 		out.Write64(uint64(sectoff))
 		out.Write64(uint64(hiRel) | uint64(elfsym)<<32)
@@ -426,7 +454,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		case objabi.R_RISCV_JAL, objabi.R_RISCV_JAL_TRAMP:
 			return val, 1, true
 
-		case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE:
+		case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE, objabi.R_RISCV_GOT_PCREL_ITYPE:
 			return val, 2, true
 		}
 
@@ -626,7 +654,7 @@ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sy
 	case objabi.R_RISCV_JAL, objabi.R_RISCV_JAL_TRAMP:
 		return ld.ExtrelocSimple(ldr, r), true
 
-	case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE:
+	case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE, objabi.R_RISCV_GOT_PCREL_ITYPE:
 		return ld.ExtrelocViaOuterSym(ldr, r, s), true
 	}
 	return loader.ExtReloc{}, false

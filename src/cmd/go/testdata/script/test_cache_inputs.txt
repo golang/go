@@ -128,6 +128,12 @@ go test testcache -run=TestOSArgs -fullpath
 go test testcache -run=TestOSArgs -fullpath
 stdout '\(cached\)'
 
+# golang.org/issue/70692: that includes the `-skip` flag
+go test testcache -run=TestOdd -skip=TestOddFile
+! stdout '\(cached\)'
+go test testcache -run=TestOdd -skip=TestOddFile
+stdout '\(cached\)'
+
 # Ensure that coverage profiles are being cached.
 go test testcache -run=TestCoverageCache -coverprofile=coverage.out
 go test testcache -run=TestCoverageCache -coverprofile=coverage.out

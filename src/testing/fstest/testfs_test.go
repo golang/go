@@ -28,6 +28,9 @@ func TestSymlink(t *testing.T) {
 	if err := os.Symlink(filepath.Join(tmp, "hello"), filepath.Join(tmp, "hello.link")); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.Symlink("hello", filepath.Join(tmp, "hello_rel.link")); err != nil {
+		t.Fatal(err)
+	}
 
 	if err := TestFS(tmpfs, "hello", "hello.link"); err != nil {
 		t.Fatal(err)

@@ -14,5 +14,5 @@ var (
 const StatusDone = statusDone
 
 func (p *Process) Status() processStatus {
-	return processStatus(p.state.Load() & processStatusMask)
+	return processStatus(p.state.Load())
 }

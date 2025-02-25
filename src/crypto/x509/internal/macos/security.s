@@ -9,10 +9,6 @@
 // The trampolines are ABIInternal as they are address-taken in
 // Go code.
 
-TEXT ·x509_SecTrustSettingsCopyCertificates_trampoline(SB),NOSPLIT,$0-0
-	JMP	x509_SecTrustSettingsCopyCertificates(SB)
-TEXT ·x509_SecTrustSettingsCopyTrustSettings_trampoline(SB),NOSPLIT,$0-0
-	JMP	x509_SecTrustSettingsCopyTrustSettings(SB)
 TEXT ·x509_SecTrustCreateWithCertificates_trampoline(SB),NOSPLIT,$0-0
 	JMP x509_SecTrustCreateWithCertificates(SB)
 TEXT ·x509_SecCertificateCreateWithData_trampoline(SB),NOSPLIT,$0-0
@@ -23,8 +19,6 @@ TEXT ·x509_SecTrustSetVerifyDate_trampoline(SB),NOSPLIT,$0-0
 	JMP x509_SecTrustSetVerifyDate(SB)
 TEXT ·x509_SecTrustEvaluate_trampoline(SB),NOSPLIT,$0-0
 	JMP x509_SecTrustEvaluate(SB)
-TEXT ·x509_SecTrustGetResult_trampoline(SB),NOSPLIT,$0-0
-	JMP x509_SecTrustGetResult(SB)
 TEXT ·x509_SecTrustEvaluateWithError_trampoline(SB),NOSPLIT,$0-0
 	JMP x509_SecTrustEvaluateWithError(SB)
 TEXT ·x509_SecTrustGetCertificateCount_trampoline(SB),NOSPLIT,$0-0

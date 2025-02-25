@@ -13,6 +13,23 @@ DATA no_lse_msg<>+0x00(SB)/64, $"This program can only run on ARM64 processors w
 GLOBL no_lse_msg<>(SB), RODATA, $64
 #endif
 
+// We know for sure that Linux and FreeBSD allow to read instruction set
+// attribute registers (while some others OSes, like OpenBSD and Darwin,
+// are not). Let's be conservative and allow code reading such registers
+// only when we sure this won't lead to sigill.
+#ifdef GOOS_linux
+#define ISA_REGS_READABLE
+#endif
+#ifdef GOOS_freebsd
+#define ISA_REGS_READABLE
+#endif
+
+#ifdef GOARM64_LSE
+#ifdef ISA_REGS_READABLE
+#define CHECK_GOARM64_LSE
+#endif
+#endif
+
 TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// SP = stack; R0 = argc; R1 = argv
 
@@ -83,8 +100,7 @@ nocgo:
 #endif
 
 	// Check that CPU we use for execution supports instructions targeted during compile-time.
-#ifdef GOARM64_LSE
-#ifndef GOOS_openbsd
+#ifdef CHECK_GOARM64_LSE
 	// Read the ID_AA64ISAR0_EL1 register
 	MRS	ID_AA64ISAR0_EL1, R0
 
@@ -94,7 +110,6 @@ nocgo:
 
 	// LSE support is indicated by a non-zero value
 	CBZ	R0, no_lse
-#endif
 #endif
 
 	MOVW	8(RSP), R0	// copy argc
@@ -115,10 +130,9 @@ nocgo:
 
 	// start this M
 	BL	runtime·mstart(SB)
-        RET
+	UNDEF
 
-#ifdef GOARM64_LSE
-#ifndef GOOS_openbsd
+#ifdef CHECK_GOARM64_LSE
 no_lse:
 	MOVD	$1, R0 // stderr
 	MOVD	R0, 8(RSP)
@@ -130,7 +144,6 @@ no_lse:
 	CALL	runtime·exit(SB)
 	CALL	runtime·abort(SB)
 	RET
-#endif
 #endif
 
 	// Prevent dead-code elimination of debugCallV2 and debugPinnerV1, which are

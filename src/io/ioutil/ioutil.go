@@ -24,6 +24,8 @@ import (
 // as an error to be reported.
 //
 // Deprecated: As of Go 1.16, this function simply calls [io.ReadAll].
+//
+//go:fix inline
 func ReadAll(r io.Reader) ([]byte, error) {
 	return io.ReadAll(r)
 }
@@ -34,6 +36,8 @@ func ReadAll(r io.Reader) ([]byte, error) {
 // to be reported.
 //
 // Deprecated: As of Go 1.16, this function simply calls [os.ReadFile].
+//
+//go:fix inline
 func ReadFile(filename string) ([]byte, error) {
 	return os.ReadFile(filename)
 }
@@ -43,6 +47,8 @@ func ReadFile(filename string) ([]byte, error) {
 // (before umask); otherwise WriteFile truncates it before writing, without changing permissions.
 //
 // Deprecated: As of Go 1.16, this function simply calls [os.WriteFile].
+//
+//go:fix inline
 func WriteFile(filename string, data []byte, perm fs.FileMode) error {
 	return os.WriteFile(filename, data, perm)
 }
@@ -87,6 +93,8 @@ func ReadDir(dirname string) ([]fs.FileInfo, error) {
 // the provided Reader r.
 //
 // Deprecated: As of Go 1.16, this function simply calls [io.NopCloser].
+//
+//go:fix inline
 func NopCloser(r io.Reader) io.ReadCloser {
 	return io.NopCloser(r)
 }

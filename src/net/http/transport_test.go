@@ -2034,7 +2034,7 @@ func (d *countingDialer) DialContext(ctx context.Context, network, address strin
 	d.total++
 	d.live++
 
-	runtime.SetFinalizer(counted, d.decrement)
+	runtime.AddCleanup(counted, func(dd *countingDialer) { dd.decrement(nil) }, d)
 	return counted, nil
 }
 
@@ -2106,7 +2106,7 @@ func (cc *contextCounter) Track(ctx context.Context) context.Context {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	cc.live++
-	runtime.SetFinalizer(counted, cc.decrement)
+	runtime.AddCleanup(counted, func(c *contextCounter) { cc.decrement(nil) }, cc)
 	return counted
 }
 

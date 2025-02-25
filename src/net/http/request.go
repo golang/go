@@ -1062,7 +1062,7 @@ func ReadRequest(b *bufio.Reader) (*Request, error) {
 	}
 
 	delete(req.Header, "Host")
-	return req, err
+	return req, nil
 }
 
 // readRequest should be an internal detail,

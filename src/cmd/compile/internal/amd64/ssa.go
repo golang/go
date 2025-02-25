@@ -202,7 +202,7 @@ func getgFromTLS(s *ssagen.State, r int16) {
 
 func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
-	case ssa.OpAMD64VFMADD231SD:
+	case ssa.OpAMD64VFMADD231SD, ssa.OpAMD64VFMADD231SS:
 		p := s.Prog(v.Op.Asm())
 		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[2].Reg()}
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
@@ -1170,6 +1170,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		case ssa.OpAMD64BSFL, ssa.OpAMD64BSRL, ssa.OpAMD64SQRTSD, ssa.OpAMD64SQRTSS:
 			p.To.Reg = v.Reg()
 		}
+	case ssa.OpAMD64LoweredRound32F, ssa.OpAMD64LoweredRound64F:
+		// input is already rounded
 	case ssa.OpAMD64ROUNDSD:
 		p := s.Prog(v.Op.Asm())
 		val := v.AuxInt

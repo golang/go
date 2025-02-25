@@ -124,12 +124,12 @@ func checkMapsFor[T comparable](t *testing.T, value T) {
 func TestMakeClonesStrings(t *testing.T) {
 	s := strings.Clone("abcdefghijklmnopqrstuvwxyz") // N.B. Must be big enough to not be tiny-allocated.
 	ran := make(chan bool)
-	runtime.SetFinalizer(unsafe.StringData(s), func(_ *byte) {
-		ran <- true
-	})
+	runtime.AddCleanup(unsafe.StringData(s), func(ch chan bool) {
+		ch <- true
+	}, ran)
 	h := Make(s)
 
-	// Clean up s (hopefully) and run the finalizer.
+	// Clean up s (hopefully) and run the cleanup.
 	runtime.GC()
 
 	select {

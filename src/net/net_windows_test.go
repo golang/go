@@ -100,7 +100,7 @@ func TestAcceptIgnoreSomeErrors(t *testing.T) {
 	defer ln.Close()
 
 	// Start child process that connects to our listener.
-	cmd := exec.Command(os.Args[0], "-test.run=TestAcceptIgnoreSomeErrors")
+	cmd := exec.Command(testenv.Executable(t), "-test.run=TestAcceptIgnoreSomeErrors")
 	cmd.Env = append(os.Environ(), "GOTEST_DIAL_ADDR="+ln.Addr().String())
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -240,8 +240,7 @@ func netshInterfaceIPShowInterface(ipver string, ifaces map[string]bool) error {
 	//Metric                             : 10
 	//...
 	var name string
-	lines := bytes.Split(out, []byte{'\r', '\n'})
-	for _, line := range lines {
+	for line := range bytes.SplitSeq(out, []byte{'\r', '\n'}) {
 		if bytes.HasPrefix(line, []byte("Interface ")) && bytes.HasSuffix(line, []byte(" Parameters")) {
 			f := line[len("Interface "):]
 			f = f[:len(f)-len(" Parameters")]
@@ -330,8 +329,7 @@ func netshInterfaceIPv4ShowAddress(name string, netshOutput []byte) []string {
 	addrs := make([]string, 0)
 	var addr, subnetprefix string
 	var processingOurInterface bool
-	lines := bytes.Split(netshOutput, []byte{'\r', '\n'})
-	for _, line := range lines {
+	for line := range bytes.SplitSeq(netshOutput, []byte{'\r', '\n'}) {
 		if !processingOurInterface {
 			if !bytes.HasPrefix(line, []byte("Configuration for interface")) {
 				continue
@@ -398,8 +396,7 @@ func netshInterfaceIPv6ShowAddress(name string, netshOutput []byte) []string {
 	// TODO: need to test ipv6 netmask too, but netsh does not outputs it
 	var addr string
 	addrs := make([]string, 0)
-	lines := bytes.Split(netshOutput, []byte{'\r', '\n'})
-	for _, line := range lines {
+	for line := range bytes.SplitSeq(netshOutput, []byte{'\r', '\n'}) {
 		if addr != "" {
 			if len(line) == 0 {
 				addr = ""
@@ -584,8 +581,7 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
 		want[cname] = addr
 		group = make(map[string]string)
 	}
-	lines := bytes.Split(out, []byte{'\r', '\n'})
-	for _, line := range lines {
+	for line := range bytes.SplitSeq(out, []byte{'\r', '\n'}) {
 		if len(line) == 0 {
 			processGroup()
 			continue

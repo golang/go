@@ -51,7 +51,7 @@ package goexperiment
 // tags, experiments use the strings.ToLower of their field name.
 //
 // For the baseline experimental configuration, see
-// objabi.experimentBaseline.
+// [internal/buildcfg.ParseGOEXPERIMENT].
 //
 // If you change this struct definition, run "go generate".
 type Flags struct {
@@ -82,10 +82,6 @@ type Flags struct {
 	// has been broken out to its own experiment that is disabled
 	// by default.
 	HeapMinimum512KiB bool
-
-	// CoverageRedesign enables the new compiler-based code coverage
-	// tooling.
-	CoverageRedesign bool
 
 	// Arenas causes the "arena" standard library package to be visible
 	// to the outside world.
@@ -128,4 +124,7 @@ type Flags struct {
 
 	// Synctest enables the testing/synctest package.
 	Synctest bool
+
+	// Dwarf5 enables DWARF version 5 debug info generation.
+	Dwarf5 bool
 }

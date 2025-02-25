@@ -6,6 +6,8 @@
 
 package runtime
 
+import "internal/trace/tracev2"
+
 // traceInitReadCPU initializes CPU profile -> tracer state for tracing.
 //
 // Returns a profBuf for reading from.
@@ -114,7 +116,7 @@ func traceStopReadCPU() {
 // Must not run on the system stack because profBuf.read performs race
 // operations.
 func traceReadCPU(gen uintptr) bool {
-	var pcBuf [traceStackSize]uintptr
+	var pcBuf [tracev2.MaxFramesPerStack]uintptr
 
 	data, tags, eof := trace.cpuLogRead[gen%2].read(profBufNonBlocking)
 	for len(data) > 0 {
@@ -169,17 +171,17 @@ func traceReadCPU(gen uintptr) bool {
 
 		// Ensure we have a place to write to.
 		var flushed bool
-		w, flushed = w.ensure(2 + 5*traceBytesPerNumber /* traceEvCPUSamples + traceEvCPUSample + timestamp + g + m + p + stack ID */)
+		w, flushed = w.ensure(2 + 5*traceBytesPerNumber /* tracev2.EvCPUSamples + tracev2.EvCPUSample + timestamp + g + m + p + stack ID */)
 		if flushed {
 			// Annotate the batch as containing strings.
-			w.byte(byte(traceEvCPUSamples))
+			w.byte(byte(tracev2.EvCPUSamples))
 		}
 
 		// Add the stack to the table.
 		stackID := trace.stackTab[gen%2].put(pcBuf[:nstk])
 
 		// Write out the CPU sample.
-		w.byte(byte(traceEvCPUSample))
+		w.byte(byte(tracev2.EvCPUSample))
 		w.varint(timestamp)
 		w.varint(mpid)
 		w.varint(ppid)

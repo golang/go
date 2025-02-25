@@ -8,22 +8,14 @@ import (
 	"fmt"
 	"internal/trace"
 	"internal/trace/traceviewer"
+	"slices"
 	"time"
 )
 
 // viewerFrames returns the frames of the stack of ev. The given frame slice is
 // used to store the frames to reduce allocations.
-func viewerFrames(stk trace.Stack) []*trace.Frame {
-	var frames []*trace.Frame
-	for f := range stk.Frames() {
-		frames = append(frames, &trace.Frame{
-			PC:   f.PC,
-			Fn:   f.Func,
-			File: f.File,
-			Line: int(f.Line),
-		})
-	}
-	return frames
+func viewerFrames(stk trace.Stack) []trace.StackFrame {
+	return slices.Collect(stk.Frames())
 }
 
 func viewerGState(state trace.GoState, inMarkAssist bool) traceviewer.GState {

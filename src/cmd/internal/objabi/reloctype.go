@@ -118,11 +118,6 @@ const (
 	// Target of relocation must be size 4 (in current implementation).
 	R_DWARFSECREF
 
-	// R_DWARFFILEREF resolves to an index into the DWARF .debug_line
-	// file table for the specified file symbol. Must be applied to an
-	// attribute of form DW_FORM_data4.
-	R_DWARFFILEREF
-
 	// Platform dependent relocations. Architectures with fixed width instructions
 	// have the inherent issue that a 32-bit (or 64-bit!) displacement cannot be
 	// stuffed into a 32-bit instruction, so an address needs to be spread across
@@ -291,6 +286,10 @@ const (
 	// address.
 	R_RISCV_GOT_HI20
 
+	// R_RISCV_GOT_PCREL_ITYPE resolves a 32-bit PC-relative GOT entry
+	// address for an AUIPC + I-type instruction pair.
+	R_RISCV_GOT_PCREL_ITYPE
+
 	// R_RISCV_PCREL_HI20 resolves the high 20 bits of a 32-bit PC-relative
 	// address.
 	R_RISCV_PCREL_HI20
@@ -392,6 +391,22 @@ const (
 	// just used in the linker to order the inittask records appropriately.
 	R_INITORDER
 
+	// The R_DWTXTADDR_* family of relocations are effectively
+	// references to the .debug_addr entry for a given TEXT symbol
+	// corresponding to a Go function. Given a R_DWTXTADDR_* reloc
+	// applied to dwarf section S at offset O against sym F, the linker
+	// locates the .debug_addr entry for F (within its package) and
+	// writes the index of that entry to section S at offset O, using
+	// ULEB encoding, writing a number of bytes controlled by the
+	// suffix (e.g. for R_DWTXTADDR_U2 we write two bytes). Note
+	// also that .debug_addr indices are not finalized until link time;
+	// when the compiler creates a R_DWTXTADDR_* relocation the
+	// index payload will be left as zero (to be filled in later).
+	R_DWTXTADDR_U1
+	R_DWTXTADDR_U2
+	R_DWTXTADDR_U3
+	R_DWTXTADDR_U4
+
 	// R_WEAK marks the relocation as a weak reference.
 	// A weak relocation does not make the symbol it refers to reachable,
 	// and is only honored by the linker if the symbol is in some other way
@@ -435,4 +450,52 @@ func (r RelocType) IsDirectJump() bool {
 // call or a direct jump.
 func (r RelocType) IsDirectCallOrJump() bool {
 	return r.IsDirectCall() || r.IsDirectJump()
+}
+
+// IsDwTxtAddr reports whether r is one of the several DWARF
+// .debug_addr section indirect relocations.
+func (r RelocType) IsDwTxtAddr() bool {
+	switch r {
+	case R_DWTXTADDR_U1, R_DWTXTADDR_U2, R_DWTXTADDR_U3, R_DWTXTADDR_U4:
+		return true
+	default:
+		return false
+	}
+}
+
+// FuncCountToDwTxtAddrFlavor returns the correct DWARF .debug_addr
+// section relocation to use when compiling a package with a total of
+// fncount functions, along with the size of the ULEB128-encoded blob
+// needed to store the the eventual .debug_addr index.
+func FuncCountToDwTxtAddrFlavor(fncount int) (RelocType, int) {
+	switch {
+	case fncount <= 127:
+		return R_DWTXTADDR_U1, 1
+	case fncount <= 16383:
+		return R_DWTXTADDR_U2, 2
+	case fncount <= 2097151:
+		return R_DWTXTADDR_U3, 3
+	case fncount <= 268435455:
+		return R_DWTXTADDR_U4, 4
+	default:
+		panic("package has more than 268435455 functions")
+	}
+}
+
+// DwTxtAddrRelocParams returns the maximum number of functions per
+// package supported for the DWARF .debug_addr relocation variant r,
+// along with the number of bytes it takes up in encoded form.
+func (r RelocType) DwTxtAddrRelocParams() (int, int) {
+	switch r {
+	case R_DWTXTADDR_U1:
+		return 0x7f, 1
+	case R_DWTXTADDR_U2:
+		return 0x3fff, 2
+	case R_DWTXTADDR_U3:
+		return 0x1fffff, 3
+	case R_DWTXTADDR_U4:
+		return 0xfffffff, 4
+	default:
+		panic("not a dwtxtaddr relocation")
+	}
 }

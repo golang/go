@@ -58,6 +58,16 @@ func rshConst64x64Overflow8(v int8) int64 {
 	return int64(v) >> 8
 }
 
+func lshConst32x1(v int32) int32 {
+	// amd64:"ADDL", -"SHLL"
+	return v << 1
+}
+
+func lshConst64x1(v int64) int64 {
+	// amd64:"ADDQ", -"SHLQ"
+	return v << 1
+}
+
 func lshConst32x64(v int32) int32 {
 	// ppc64x:"SLW"
 	// riscv64:"SLLI",-"AND",-"SLTIU", -"MOVW"
@@ -92,6 +102,26 @@ func rshConst64x32(v int64) int64 {
 	// ppc64x:"SRAD"
 	// riscv64:"SRAI\t",-"OR",-"SLTIU"
 	return v >> uint32(33)
+}
+
+func lshConst32x1Add(x int32) int32 {
+	// amd64:"SHLL\t[$]2"
+	return (x + x) << 1
+}
+
+func lshConst64x1Add(x int64) int64 {
+	// amd64:"SHLQ\t[$]2"
+	return (x + x) << 1
+}
+
+func lshConst32x2Add(x int32) int32 {
+	// amd64:"SHLL\t[$]3"
+	return (x + x) << 2
+}
+
+func lshConst64x2Add(x int64) int64 {
+	// amd64:"SHLQ\t[$]3"
+	return (x + x) << 2
 }
 
 // ------------------ //

@@ -28,7 +28,6 @@ func Lines(s []byte) iter.Seq[[]byte] {
 				return
 			}
 		}
-		return
 	}
 }
 
@@ -67,26 +66,26 @@ func splitSeq(s, sep []byte, sepSave int) iter.Seq[[]byte] {
 	}
 }
 
-// SplitSeq returns an iterator over all substrings of s separated by sep.
-// The iterator yields the same strings that would be returned by [Split](s, sep),
-// but without constructing the slice.
+// SplitSeq returns an iterator over all subslices of s separated by sep.
+// The iterator yields the same subslices that would be returned by [Split](s, sep),
+// but without constructing a new slice containing the subslices.
 // It returns a single-use iterator.
 func SplitSeq(s, sep []byte) iter.Seq[[]byte] {
 	return splitSeq(s, sep, 0)
 }
 
-// SplitAfterSeq returns an iterator over substrings of s split after each instance of sep.
-// The iterator yields the same strings that would be returned by [SplitAfter](s, sep),
-// but without constructing the slice.
+// SplitAfterSeq returns an iterator over subslices of s split after each instance of sep.
+// The iterator yields the same subslices that would be returned by [SplitAfter](s, sep),
+// but without constructing a new slice containing the subslices.
 // It returns a single-use iterator.
 func SplitAfterSeq(s, sep []byte) iter.Seq[[]byte] {
 	return splitSeq(s, sep, len(sep))
 }
 
-// FieldsSeq returns an iterator over substrings of s split around runs of
+// FieldsSeq returns an iterator over subslices of s split around runs of
 // whitespace characters, as defined by [unicode.IsSpace].
-// The iterator yields the same strings that would be returned by [Fields](s),
-// but without constructing the slice.
+// The iterator yields the same subslices that would be returned by [Fields](s),
+// but without constructing a new slice containing the subslices.
 func FieldsSeq(s []byte) iter.Seq[[]byte] {
 	return func(yield func([]byte) bool) {
 		start := -1
@@ -116,10 +115,10 @@ func FieldsSeq(s []byte) iter.Seq[[]byte] {
 	}
 }
 
-// FieldsFuncSeq returns an iterator over substrings of s split around runs of
+// FieldsFuncSeq returns an iterator over subslices of s split around runs of
 // Unicode code points satisfying f(c).
-// The iterator yields the same strings that would be returned by [FieldsFunc](s),
-// but without constructing the slice.
+// The iterator yields the same subslices that would be returned by [FieldsFunc](s),
+// but without constructing a new slice containing the subslices.
 func FieldsFuncSeq(s []byte, f func(rune) bool) iter.Seq[[]byte] {
 	return func(yield func([]byte) bool) {
 		start := -1

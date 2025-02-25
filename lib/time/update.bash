@@ -40,7 +40,12 @@ curl -sS -L -O https://www.iana.org/time-zones/repository/releases/tzdata$DATA.t
 tar xzf tzcode$CODE.tar.gz
 tar xzf tzdata$DATA.tar.gz
 
-if ! make CFLAGS=-DSTD_INSPIRED AWK=awk TZDIR=zoneinfo posix_only >make.out 2>&1; then
+# The PACKRATLIST and PACKRATDATA options are copied from Ubuntu:
+# https://git.launchpad.net/ubuntu/+source/tzdata/tree/debian/rules?h=debian/sid
+#
+# You can see the description of these make variables in the tzdata Makefile:
+# https://github.com/eggert/tz/blob/main/Makefile
+if ! make CFLAGS=-DSTD_INSPIRED AWK=awk TZDIR=zoneinfo PACKRATDATA=backzone PACKRATLIST=zone.tab posix_only >make.out 2>&1; then
 	cat make.out
 	exit 2
 fi

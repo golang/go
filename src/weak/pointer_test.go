@@ -6,10 +6,12 @@ package weak_test
 
 import (
 	"context"
+	"internal/goarch"
 	"runtime"
 	"sync"
 	"testing"
 	"time"
+	"unsafe"
 	"weak"
 )
 
@@ -18,6 +20,7 @@ type T struct {
 	// in a tiny block making the tests in this package flaky.
 	t *T
 	a int
+	b int
 }
 
 func TestPointer(t *testing.T) {
@@ -155,6 +158,14 @@ func TestPointerFinalizer(t *testing.T) {
 	}
 }
 
+func TestPointerSize(t *testing.T) {
+	var p weak.Pointer[T]
+	size := unsafe.Sizeof(p)
+	if size != goarch.PtrSize {
+		t.Errorf("weak.Pointer[T] size = %d, want %d", size, goarch.PtrSize)
+	}
+}
+
 // Regression test for issue 69210.
 //
 // Weak-to-strong conversions must shade the new strong pointer, otherwise
@@ -240,5 +251,43 @@ func TestIssue70739(t *testing.T) {
 	wx2 := weak.Make(&x[1<<16])
 	if wx1 != wx2 {
 		t.Fatal("failed to look up special and made duplicate weak handle; see issue #70739")
+	}
+}
+
+var immortal T
+
+func TestImmortalPointer(t *testing.T) {
+	w0 := weak.Make(&immortal)
+	if weak.Make(&immortal) != w0 {
+		t.Error("immortal weak pointers to the same pointer not equal")
+	}
+	w0a := weak.Make(&immortal.a)
+	w0b := weak.Make(&immortal.b)
+	if w0a == w0b {
+		t.Error("separate immortal pointers (same object) have the same pointer")
+	}
+	if got, want := w0.Value(), &immortal; got != want {
+		t.Errorf("immortal weak pointer to %p has unexpected Value %p", want, got)
+	}
+	if got, want := w0a.Value(), &immortal.a; got != want {
+		t.Errorf("immortal weak pointer to %p has unexpected Value %p", want, got)
+	}
+	if got, want := w0b.Value(), &immortal.b; got != want {
+		t.Errorf("immortal weak pointer to %p has unexpected Value %p", want, got)
+	}
+
+	// Run a couple of cycles.
+	runtime.GC()
+	runtime.GC()
+
+	// All immortal weak pointers should never get cleared.
+	if got, want := w0.Value(), &immortal; got != want {
+		t.Errorf("immortal weak pointer to %p has unexpected Value %p", want, got)
+	}
+	if got, want := w0a.Value(), &immortal.a; got != want {
+		t.Errorf("immortal weak pointer to %p has unexpected Value %p", want, got)
+	}
+	if got, want := w0b.Value(), &immortal.b; got != want {
+		t.Errorf("immortal weak pointer to %p has unexpected Value %p", want, got)
 	}
 }

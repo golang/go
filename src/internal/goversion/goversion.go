@@ -9,4 +9,4 @@ package goversion
 //
 // It should be updated at the start of each development cycle to be
 // the version of the next Go 1.x release. See go.dev/issue/40705.
-const Version = 24
+const Version = 25

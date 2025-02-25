@@ -462,5 +462,8 @@ func checkFragmentFile(fsys fs.FS, filename string) error {
 	}
 	defer f.Close()
 	data, err := io.ReadAll(f)
+	if err != nil {
+		return err
+	}
 	return CheckFragment(string(data))
 }

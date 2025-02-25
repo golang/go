@@ -14,8 +14,8 @@ env GOGC=off
 
 ! go test -v cleanup_failnow/panic_nocleanup_test.go
 ! stdout 'no tests to run'
-stdout '(?s)panic: die \[recovered\].*panic: die'
-! stdout '(?s)panic: die \[recovered\].*panic: die.*panic: die'
+stdout '(?s)panic: die \[recovered, reraised\]'
+! stdout '(?s)panic: die \[recovered, reraised\].*panic: die'
 
 ! go test -v cleanup_failnow/panic_withcleanup_test.go
 ! stdout 'no tests to run'

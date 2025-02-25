@@ -47,6 +47,7 @@ func convertNeqBool32(x uint32) bool {
 
 func convertEqBool32(x uint32) bool {
 	// ppc64x:"RLDICL",-"CMPW","XOR",-"ISEL"
+	// amd64:"ANDL","XORL",-"BTL",-"SETCC"
 	return x&1 == 0
 }
 
@@ -57,6 +58,7 @@ func convertNeqBool64(x uint64) bool {
 
 func convertEqBool64(x uint64) bool {
 	// ppc64x:"RLDICL","XOR",-"CMP",-"ISEL"
+	// amd64:"ANDL","XORL",-"BTL",-"SETCC"
 	return x&1 == 0
 }
 

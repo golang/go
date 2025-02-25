@@ -863,6 +863,12 @@ func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
 		}
 		return base, offset
 	}
+
+	// Run types-based analysis
+	if disjointTypes(p1.Type, p2.Type) {
+		return true
+	}
+
 	p1, off1 := baseAndOffset(p1)
 	p2, off2 := baseAndOffset(p2)
 	if isSamePtr(p1, p2) {
@@ -885,6 +891,39 @@ func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
 	case OpSP:
 		return p2.Op == OpAddr || p2.Op == OpLocalAddr || p2.Op == OpArg || p2.Op == OpArgIntReg || p2.Op == OpSP
 	}
+	return false
+}
+
+// disjointTypes reports whether a memory region pointed to by a pointer of type
+// t1 does not overlap with a memory region pointed to by a pointer of type t2 --
+// based on type aliasing rules.
+func disjointTypes(t1 *types.Type, t2 *types.Type) bool {
+	// Unsafe pointer can alias with anything.
+	if t1.IsUnsafePtr() || t2.IsUnsafePtr() {
+		return false
+	}
+
+	if !t1.IsPtr() || !t2.IsPtr() {
+		panic("disjointTypes: one of arguments is not a pointer")
+	}
+
+	t1 = t1.Elem()
+	t2 = t2.Elem()
+
+	// Not-in-heap types are not supported -- they are rare and non-important; also,
+	// type.HasPointers check doesn't work for them correctly.
+	if t1.NotInHeap() || t2.NotInHeap() {
+		return false
+	}
+
+	isPtrShaped := func(t *types.Type) bool { return int(t.Size()) == types.PtrSize && t.HasPointers() }
+
+	// Pointers and non-pointers are disjoint (https://pkg.go.dev/unsafe#Pointer).
+	if (isPtrShaped(t1) && !t2.HasPointers()) ||
+		(isPtrShaped(t2) && !t1.HasPointers()) {
+		return true
+	}
+
 	return false
 }
 
@@ -961,6 +1000,14 @@ func clobber(vv ...*Value) bool {
 		v.reset(OpInvalid)
 		// Note: leave v.Block intact.  The Block field is used after clobber.
 	}
+	return true
+}
+
+// resetCopy resets v to be a copy of arg.
+// Always returns true.
+func resetCopy(v *Value, arg *Value) bool {
+	v.reset(OpCopy)
+	v.AddArg(arg)
 	return true
 }
 
@@ -2423,4 +2470,87 @@ func rewriteStructStore(v *Value) *Value {
 	}
 
 	return mem
+}
+
+// isDirectType reports whether v represents a type
+// (a *runtime._type) whose value is stored directly in an
+// interface (i.e., is pointer or pointer-like).
+func isDirectType(v *Value) bool {
+	return isDirectType1(v)
+}
+
+// v is a type
+func isDirectType1(v *Value) bool {
+	switch v.Op {
+	case OpITab:
+		return isDirectType2(v.Args[0])
+	case OpAddr:
+		lsym := v.Aux.(*obj.LSym)
+		if lsym.Extra == nil {
+			return false
+		}
+		if ti, ok := (*lsym.Extra).(*obj.TypeInfo); ok {
+			return types.IsDirectIface(ti.Type.(*types.Type))
+		}
+	}
+	return false
+}
+
+// v is an empty interface
+func isDirectType2(v *Value) bool {
+	switch v.Op {
+	case OpIMake:
+		return isDirectType1(v.Args[0])
+	}
+	return false
+}
+
+// isDirectIface reports whether v represents an itab
+// (a *runtime._itab) for a type whose value is stored directly
+// in an interface (i.e., is pointer or pointer-like).
+func isDirectIface(v *Value) bool {
+	return isDirectIface1(v, 9)
+}
+
+// v is an itab
+func isDirectIface1(v *Value, depth int) bool {
+	if depth == 0 {
+		return false
+	}
+	switch v.Op {
+	case OpITab:
+		return isDirectIface2(v.Args[0], depth-1)
+	case OpAddr:
+		lsym := v.Aux.(*obj.LSym)
+		if lsym.Extra == nil {
+			return false
+		}
+		if ii, ok := (*lsym.Extra).(*obj.ItabInfo); ok {
+			return types.IsDirectIface(ii.Type.(*types.Type))
+		}
+	case OpConstNil:
+		// We can treat this as direct, because if the itab is
+		// nil, the data field must be nil also.
+		return true
+	}
+	return false
+}
+
+// v is an interface
+func isDirectIface2(v *Value, depth int) bool {
+	if depth == 0 {
+		return false
+	}
+	switch v.Op {
+	case OpIMake:
+		return isDirectIface1(v.Args[0], depth-1)
+	case OpPhi:
+		for _, a := range v.Args {
+			if !isDirectIface2(a, depth-1) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }

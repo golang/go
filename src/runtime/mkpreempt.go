@@ -370,7 +370,7 @@ func genARM64() {
 	p("MOVD -8(RSP), R29")          // restore frame pointer
 	p("MOVD (RSP), R27")            // load PC to REGTMP
 	p("ADD $%d, RSP", l.stack+16)   // pop frame (including the space pushed by sigctxt.pushCall)
-	p("JMP (R27)")
+	p("RET (R27)")
 }
 
 func genMIPS(_64bit bool) {

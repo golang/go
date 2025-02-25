@@ -42,6 +42,11 @@ func GNUSyntax(inst Inst) string {
 			}
 		}
 
+		if inst.Op == ANDI && inst.Args[2].(Simm).Imm == 255 {
+			op = "zext.b"
+			args = args[:len(args)-1]
+		}
+
 		if inst.Op == ADDIW && inst.Args[2].(Simm).Imm == 0 {
 			op = "sext.w"
 			args = args[:len(args)-1]

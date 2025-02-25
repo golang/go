@@ -111,7 +111,7 @@ func bitsetShiftOutLowest(b bitset) bitset {
 //
 //	  empty: 1 0 0 0 0 0 0 0
 //	deleted: 1 1 1 1 1 1 1 0
-//	   full: 0 h h h h h h h  // h represents the H1 hash bits
+//	   full: 0 h h h h h h h  // h represents the H2 hash bits
 //
 // TODO(prattmic): Consider inverting the top bit so that the zero value is empty.
 type ctrl uint8

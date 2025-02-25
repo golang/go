@@ -85,3 +85,11 @@
 (MOVWUreg x:(MOVBUreg _)) => (MOVDreg x)
 (MOVWUreg x:(MOVHUreg _)) => (MOVDreg x)
 (MOVWUreg x:(MOVWUreg _)) => (MOVDreg x)
+
+// if a register move has only 1 use, just use the same register without emitting instruction
+// MOVDnop doesn't emit instruction, only for ensuring the type.
+(MOVDreg x) && x.Uses == 1 => (MOVDnop x)
+
+// TODO: we should be able to get rid of MOVDnop all together.
+// But for now, this is enough to get rid of lots of them.
+(MOVDnop (MOVDconst [c])) => (MOVDconst [c])

@@ -522,51 +522,56 @@ func PrintEnv(w io.Writer, env []cfg.EnvVar, onlyChanged bool) {
 	}
 }
 
-func hasNonGraphic(s string) bool {
-	for _, c := range []byte(s) {
-		if c == '\r' || c == '\n' || (!unicode.IsGraphic(rune(c)) && !unicode.IsSpace(rune(c))) {
-			return true
-		}
+// isWindowsUnquotableRune reports whether r can't be quoted in a
+// Windows "set" command.
+// These runes will be replaced by the Unicode replacement character.
+func isWindowsUnquotableRune(r rune) bool {
+	if r == '\r' || r == '\n' {
+		return true
 	}
-	return false
+	return !unicode.IsGraphic(r) && !unicode.IsSpace(r)
+}
+
+func hasNonGraphic(s string) bool {
+	return strings.ContainsFunc(s, isWindowsUnquotableRune)
 }
 
 func shellQuote(s string) string {
-	var b bytes.Buffer
-	b.WriteByte('\'')
-	for _, x := range []byte(s) {
-		if x == '\'' {
+	var sb strings.Builder
+	sb.WriteByte('\'')
+	for _, r := range s {
+		if r == '\'' {
 			// Close the single quoted string, add an escaped single quote,
 			// and start another single quoted string.
-			b.WriteString(`'\''`)
+			sb.WriteString(`'\''`)
 		} else {
-			b.WriteByte(x)
+			sb.WriteRune(r)
 		}
 	}
-	b.WriteByte('\'')
-	return b.String()
+	sb.WriteByte('\'')
+	return sb.String()
 }
 
 func batchEscape(s string) string {
-	var b bytes.Buffer
-	for _, x := range []byte(s) {
-		if x == '\r' || x == '\n' || (!unicode.IsGraphic(rune(x)) && !unicode.IsSpace(rune(x))) {
-			b.WriteRune(unicode.ReplacementChar)
+	var sb strings.Builder
+	for _, r := range s {
+		if isWindowsUnquotableRune(r) {
+			sb.WriteRune(unicode.ReplacementChar)
 			continue
 		}
-		switch x {
+		switch r {
 		case '%':
-			b.WriteString("%%")
+			sb.WriteString("%%")
 		case '<', '>', '|', '&', '^':
 			// These are special characters that need to be escaped with ^. See
 			// https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/set_1.
-			b.WriteByte('^')
-			b.WriteByte(x)
+			sb.WriteByte('^')
+			sb.WriteRune(r)
 		default:
-			b.WriteByte(x)
+			sb.WriteRune(r)
 		}
 	}
-	return b.String()
+	return sb.String()
 }
 
 func printEnvAsJSON(env []cfg.EnvVar, onlyChanged bool) {

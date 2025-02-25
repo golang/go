@@ -4,7 +4,11 @@
 
 /*
 Package rpc provides access to the exported methods of an object across a
-network or other I/O connection.  A server registers an object, making it visible
+network or other I/O connection.
+
+The net/rpc package is frozen and is not accepting new features.
+
+A server registers an object, making it visible
 as a service with the name of the type of the object.  After registration, exported
 methods of the object will be accessible remotely.  A server may register multiple
 objects (services) of different types but it is an error to register multiple
@@ -121,8 +125,6 @@ or
 
 A server implementation will often provide a simple, type-safe wrapper for the
 client.
-
-The net/rpc package is frozen and is not accepting new features.
 */
 package rpc
 

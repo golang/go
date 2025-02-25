@@ -278,7 +278,7 @@ func (b *batch) outlives(l, other *location) bool {
 		//	var u int  // okay to stack allocate
 		//	fn := func() *int { return &u }()
 		//	*fn() = 42
-		if containsClosure(other.curfn, l.curfn) && !l.curfn.ClosureResultsLost() {
+		if ir.ContainsClosure(other.curfn, l.curfn) && !l.curfn.ClosureResultsLost() {
 			return false
 		}
 
@@ -304,24 +304,9 @@ func (b *batch) outlives(l, other *location) bool {
 	//	func() {
 	//		l = new(int) // must heap allocate: outlives call frame (if not inlined)
 	//	}()
-	if containsClosure(l.curfn, other.curfn) {
+	if ir.ContainsClosure(l.curfn, other.curfn) {
 		return true
 	}
 
-	return false
-}
-
-// containsClosure reports whether c is a closure contained within f.
-func containsClosure(f, c *ir.Func) bool {
-	// Common cases.
-	if f == c || c.OClosure == nil {
-		return false
-	}
-
-	for p := c.ClosureParent; p != nil; p = p.ClosureParent {
-		if p == f {
-			return true
-		}
-	}
 	return false
 }

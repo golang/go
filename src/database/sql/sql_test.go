@@ -1374,8 +1374,7 @@ func TestConnQuery(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -1402,8 +1401,7 @@ func TestConnRaw(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -1518,8 +1516,7 @@ func TestInvalidNilValues(t *testing.T) {
 			db := newTestDB(t, "people")
 			defer closeDB(t, db)
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			conn, err := db.Conn(ctx)
 			if err != nil {
 				t.Fatal(err)
@@ -1547,8 +1544,7 @@ func TestConnTx(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -2793,8 +2789,7 @@ func TestManyErrBadConn(t *testing.T) {
 	// Conn
 	db = manyErrBadConnSetup()
 	defer closeDB(t, db)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -2935,8 +2930,7 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 	}
 	defer func() { nowFunc = time.Now }()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	db := newTestDB(t, "magicquery")
 	defer closeDB(t, db)
@@ -3786,8 +3780,7 @@ func TestIssue20647(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	conn, err := db.Conn(ctx)
 	if err != nil {
@@ -4142,9 +4135,7 @@ func TestNamedValueChecker(t *testing.T) {
 	}
 	defer db.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+	ctx := t.Context()
 	_, err = db.ExecContext(ctx, "WIPE")
 	if err != nil {
 		t.Fatal("exec wipe", err)
@@ -4192,9 +4183,7 @@ func TestNamedValueCheckerSkip(t *testing.T) {
 	}
 	defer db.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+	ctx := t.Context()
 	_, err = db.ExecContext(ctx, "WIPE")
 	if err != nil {
 		t.Fatal("exec wipe", err)
@@ -4305,8 +4294,7 @@ func TestQueryExecContextOnly(t *testing.T) {
 	}
 	defer db.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	conn, err := db.Conn(ctx)
 	if err != nil {

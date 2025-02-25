@@ -391,10 +391,15 @@ func deferrangefunc() any {
 		throw("defer on system stack")
 	}
 
+	fn := findfunc(sys.GetCallerPC())
+	if fn.deferreturn == 0 {
+		throw("no deferreturn")
+	}
+
 	d := newdefer()
 	d.link = gp._defer
 	gp._defer = d
-	d.pc = sys.GetCallerPC()
+	d.pc = fn.entry() + uintptr(fn.deferreturn)
 	// We must not be preempted between calling GetCallerSP and
 	// storing it to d.sp because GetCallerSP's result is a
 	// uintptr stack pointer.
@@ -649,6 +654,13 @@ func preprintpanics(p *_panic) {
 		}
 	}()
 	for p != nil {
+		if p.link != nil && *efaceOf(&p.link.arg) == *efaceOf(&p.arg) {
+			// This panic contains the same value as the next one in the chain.
+			// Mark it as reraised. We will skip printing it twice in a row.
+			p.link.reraised = true
+			p = p.link
+			continue
+		}
 		switch v := p.arg.(type) {
 		case error:
 			p.arg = v.Error()
@@ -664,6 +676,9 @@ func preprintpanics(p *_panic) {
 func printpanics(p *_panic) {
 	if p.link != nil {
 		printpanics(p.link)
+		if p.link.reraised {
+			return
+		}
 		if !p.link.goexit {
 			print("\t")
 		}
@@ -673,7 +688,9 @@ func printpanics(p *_panic) {
 	}
 	print("panic: ")
 	printpanicval(p.arg)
-	if p.recovered {
+	if p.reraised {
+		print(" [recovered, reraised]")
+	} else if p.recovered {
 		print(" [recovered]")
 	}
 	print("\n")
@@ -1246,6 +1263,8 @@ func recovery(gp *g) {
 		// only gets us to the caller's fp.
 		gp.sched.bp = sp - goarch.PtrSize
 	}
+	// The value in ret is delivered IN A REGISTER, even if there is a
+	// stack ABI.
 	gp.sched.ret = 1
 	gogo(&gp.sched)
 }

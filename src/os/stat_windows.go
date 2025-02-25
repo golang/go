@@ -115,7 +115,7 @@ func statHandle(name string, h syscall.Handle) (FileInfo, error) {
 		return nil, err
 	}
 	fs.filetype = ft
-	return fs, err
+	return fs, nil
 }
 
 // statNolog implements Stat for Windows.

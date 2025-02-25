@@ -129,7 +129,7 @@ func TestTracebackSystem(t *testing.T) {
 		t.Skip("Can't read source code for this file on Android")
 	}
 
-	tests := []struct{
+	tests := []struct {
 		name string
 		want string
 	}{
@@ -326,7 +326,7 @@ func parseStackPCs(crash string) ([]uintptr, error) {
 				continue
 			}
 
-			pc = pc-parentSentinel+childSentinel
+			pc = pc - parentSentinel + childSentinel
 
 			// If the previous frame was sigpanic, then this frame
 			// was a trap (e.g., SIGSEGV).

@@ -82,7 +82,7 @@ func SVGProfileHandlerFunc(f ProfileFunc) http.HandlerFunc {
 }
 
 type ProfileRecord struct {
-	Stack []*trace.Frame
+	Stack []trace.StackFrame
 	Count uint64
 	Time  time.Duration
 }
@@ -103,16 +103,16 @@ func BuildProfile(prof []ProfileRecord) *profile.Profile {
 		for _, frame := range rec.Stack {
 			loc := locs[frame.PC]
 			if loc == nil {
-				fn := funcs[frame.File+frame.Fn]
+				fn := funcs[frame.File+frame.Func]
 				if fn == nil {
 					fn = &profile.Function{
 						ID:         uint64(len(p.Function) + 1),
-						Name:       frame.Fn,
-						SystemName: frame.Fn,
+						Name:       frame.Func,
+						SystemName: frame.Func,
 						Filename:   frame.File,
 					}
 					p.Function = append(p.Function, fn)
-					funcs[frame.File+frame.Fn] = fn
+					funcs[frame.File+frame.Func] = fn
 				}
 				loc = &profile.Location{
 					ID:      uint64(len(p.Location) + 1),

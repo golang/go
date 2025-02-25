@@ -877,6 +877,11 @@ func (in *input) parseLineBlock(start Position, token []string, lparen token) *L
 			in.Error(fmt.Sprintf("syntax error (unterminated block started at %s:%d:%d)", in.filename, x.Start.Line, x.Start.LineRune))
 		case ')':
 			rparen := in.lex()
+			// Don't preserve blank lines (denoted by a single empty comment, added above)
+			// at the end of the block.
+			if len(comments) == 1 && comments[0] == (Comment{}) {
+				comments = nil
+			}
 			x.RParen.Before = comments
 			x.RParen.Pos = rparen.pos
 			if !in.peek().isEOL() {

@@ -248,7 +248,7 @@ func (g *globalRangeGenerator) GlobalRange(ctx *traceContext, ev *trace.Event) {
 				Name:     r.Name,
 				Ts:       ctx.elapsed(ar.time),
 				Dur:      ev.Time().Sub(ar.time),
-				Resource: trace.GCP,
+				Resource: traceviewer.GCP,
 				Stack:    ctx.Stack(viewerFrames(ar.stack)),
 				EndStack: ctx.Stack(viewerFrames(ev.Stack())),
 			})
@@ -267,7 +267,7 @@ func (g *globalRangeGenerator) Finish(ctx *traceContext) {
 			Name:     name,
 			Ts:       ctx.elapsed(ar.time),
 			Dur:      ctx.endTime.Sub(ar.time),
-			Resource: trace.GCP,
+			Resource: traceviewer.GCP,
 			Stack:    ctx.Stack(viewerFrames(ar.stack)),
 		})
 	}
@@ -282,11 +282,11 @@ func (g *globalMetricGenerator) GlobalMetric(ctx *traceContext, ev *trace.Event)
 	m := ev.Metric()
 	switch m.Name {
 	case "/memory/classes/heap/objects:bytes":
-		ctx.HeapAlloc(ctx.elapsed(ev.Time()), m.Value.Uint64())
+		ctx.HeapAlloc(ctx.elapsed(ev.Time()), m.Value.ToUint64())
 	case "/gc/heap/goal:bytes":
-		ctx.HeapGoal(ctx.elapsed(ev.Time()), m.Value.Uint64())
+		ctx.HeapGoal(ctx.elapsed(ev.Time()), m.Value.ToUint64())
 	case "/sched/gomaxprocs:threads":
-		ctx.Gomaxprocs(m.Value.Uint64())
+		ctx.Gomaxprocs(m.Value.ToUint64())
 	}
 }
 

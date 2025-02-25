@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"unsafe"
 )
 
 var debug = flag.Bool("debug", false, "show the errors produced by the tests")
@@ -75,6 +76,8 @@ type T struct {
 	PS  *string
 	PSI *[]int
 	NIL *int
+	UPI unsafe.Pointer
+	EmptyUPI unsafe.Pointer
 	// Function (not method)
 	BinaryFunc             func(string, string) string
 	VariadicFunc           func(...string) string
@@ -166,6 +169,7 @@ var tVal = &T{
 	PI:                        newInt(23),
 	PS:                        newString("a string"),
 	PSI:                       newIntSlice(21, 22, 23),
+	UPI:                       newUnsafePointer(23),
 	BinaryFunc:                func(a, b string) string { return fmt.Sprintf("[%s=%s]", a, b) },
 	VariadicFunc:              func(s ...string) string { return fmt.Sprint("<", strings.Join(s, "+"), ">") },
 	VariadicFuncInt:           func(a int, s ...string) string { return fmt.Sprint(a, "=<", strings.Join(s, "+"), ">") },
@@ -190,6 +194,10 @@ var iVal I = tVal
 // Helpers for creation.
 func newInt(n int) *int {
 	return &n
+}
+
+func newUnsafePointer(n int) unsafe.Pointer {
+	return unsafe.Pointer(&n)
 }
 
 func newString(s string) *string {
@@ -443,6 +451,10 @@ var execTests = []execTest{
 	{"if 0.0", "{{if .FloatZero}}NON-ZERO{{else}}ZERO{{end}}", "ZERO", tVal, true},
 	{"if 1.5i", "{{if 1.5i}}NON-ZERO{{else}}ZERO{{end}}", "NON-ZERO", tVal, true},
 	{"if 0.0i", "{{if .ComplexZero}}NON-ZERO{{else}}ZERO{{end}}", "ZERO", tVal, true},
+	{"if nonNilPointer", "{{if .PI}}NON-ZERO{{else}}ZERO{{end}}", "NON-ZERO", tVal, true},
+	{"if nilPointer", "{{if .NIL}}NON-ZERO{{else}}ZERO{{end}}", "ZERO", tVal, true},
+	{"if UPI", "{{if .UPI}}NON-ZERO{{else}}ZERO{{end}}", "NON-ZERO", tVal, true},
+	{"if EmptyUPI", "{{if .EmptyUPI}}NON-ZERO{{else}}ZERO{{end}}", "ZERO", tVal, true},
 	{"if emptystring", "{{if ``}}NON-EMPTY{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
 	{"if string", "{{if `notempty`}}NON-EMPTY{{else}}EMPTY{{end}}", "NON-EMPTY", tVal, true},
 	{"if emptyslice", "{{if .SIEmpty}}NON-EMPTY{{else}}EMPTY{{end}}", "EMPTY", tVal, true},
@@ -1490,6 +1502,44 @@ func TestBadFuncNames(t *testing.T) {
 	}
 	for _, name := range names {
 		testBadFuncName(name, t)
+	}
+}
+
+func TestIsTrue(t *testing.T) {
+	var nil_ptr *int
+	var nil_chan chan int
+	tests := []struct{
+		v any
+		want bool
+	}{
+		{1, true},
+		{0, false},
+		{uint8(1), true},
+		{uint8(0), false},
+		{float64(1.0), true},
+		{float64(0.0), false},
+		{complex64(1.0), true},
+		{complex64(0.0), false},
+		{true, true},
+		{false, false},
+		{[2]int{1,2}, true},
+		{[0]int{}, false},
+		{[]byte("abc"), true},
+		{[]byte(""), false},
+		{map[string] int {"a": 1, "b": 2}, true},
+		{map[string] int {}, false},
+		{make(chan int), true},
+		{nil_chan, false},
+		{new(int), true},
+		{nil_ptr, false},
+		{unsafe.Pointer(new(int)), true},
+		{unsafe.Pointer(nil_ptr), false},
+	}
+	for _, test_case := range tests {
+		got, _ := IsTrue(test_case.v)
+		if got != test_case.want {
+			t.Fatalf("expect result %v, got %v", test_case.want, got)
+		}
 	}
 }
 

@@ -19,8 +19,8 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/analysisinternal"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -123,7 +123,7 @@ func checkLongShift(pass *analysis.Pass, node ast.Node, x, y ast.Expr) {
 		}
 	}
 	if amt >= minSize {
-		ident := analysisutil.Format(pass.Fset, x)
+		ident := analysisinternal.Format(pass.Fset, x)
 		qualifier := ""
 		if len(sizes) > 1 {
 			qualifier = "may be "

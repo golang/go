@@ -187,6 +187,7 @@ const (
 	DW_AT_elemental      = 0x66 // flag
 	DW_AT_pure           = 0x67 // flag
 	DW_AT_recursive      = 0x68 // flag
+	DW_AT_addr_base      = 0x73 // addrptr
 
 	DW_AT_lo_user = 0x2000 // ---
 	DW_AT_hi_user = 0x3fff // ---
@@ -219,9 +220,14 @@ const (
 	DW_FORM_sec_offset   = 0x17 // lineptr, loclistptr, macptr, rangelistptr
 	DW_FORM_exprloc      = 0x18 // exprloc
 	DW_FORM_flag_present = 0x19 // flag
-	DW_FORM_ref_sig8     = 0x20 // reference
+	// Dwarf5
+	DW_FORM_addrx = 0x1b
 	// Pseudo-form: expanded to data4 on IOS, udata elsewhere.
 	DW_FORM_udata_pseudo = 0x99
+	// Pseudo-form: expands to DW_FORM_addrx in DWARF5, DW_FORM_addr in DWARF4
+	DW_FORM_lo_pc_pseudo = 0x9a
+	// Pseudo-form: expands to DW_FORM_udata in DWARF5, DW_FORM_addr in DWARF4
+	DW_FORM_hi_pc_pseudo = 0x9b
 )
 
 // Table 24 (#operands, notes)
@@ -444,6 +450,30 @@ const (
 	DW_LNE_define_file  = 0x03
 	DW_LNE_lo_user      = 0x80
 	DW_LNE_hi_user      = 0xff
+)
+
+// Table 7.27 (DWARF version 5), containing the encodings for the
+// line number header entry formats.
+const (
+	DW_LNCT_path            = 0x01
+	DW_LNCT_directory_index = 0x02
+	DW_LNCT_timestamp       = 0x03
+	DW_LNCT_size            = 0x04
+	DW_LNCT_md5             = 0x05
+	DW_LNCT_lo_user         = 0x2000
+	DW_LNCT_hi_user         = 0x3fff
+)
+
+// Table 7.2 (DWARF version 5), dwarf unit type encodings.
+const (
+	DW_UT_compile       = 0x01
+	DW_UT_type          = 0x02
+	DW_UT_partial       = 0x03
+	DW_UT_skeleton      = 0x04
+	DW_UT_split_compile = 0x05
+	DW_UT_split_type    = 0x06
+	DW_UT_lo_user       = 0x80
+	DW_UT_hi_user       = 0xff
 )
 
 // Table 39

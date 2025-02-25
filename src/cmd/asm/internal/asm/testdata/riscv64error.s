@@ -46,4 +46,8 @@ TEXT errors(SB),$0
 	SRLI	$1, X5, F1			// ERROR "expected integer register in rd position but got non-integer register F1"
 	SRLI	$1, F1, X5			// ERROR "expected integer register in rs1 position but got non-integer register F1"
 	FNES	F1, (X5)			// ERROR "needs an integer register output"
+	VSETVLI	$32, E16, M1, TU, MU, X12	// ERROR "must be in range [0, 31] (5 bits)"
+	VSETVLI	$-1, E32, M2, TA, MA, X12	// ERROR "must be in range [0, 31] (5 bits)"
+	VSETIVLI X10, E32, M2, TA, MA, X12	// ERROR "expected immediate value"
+	VSETVL	X10, X11			// ERROR "expected integer register in rs1 position"
 	RET

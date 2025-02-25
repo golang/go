@@ -10,7 +10,7 @@ import (
 	"internal/godebug"
 )
 
-var fips140GODEBUG = godebug.New("#fips140")
+var fips140GODEBUG = godebug.New("fips140")
 
 // Enabled reports whether the cryptography libraries are operating in FIPS
 // 140-3 mode.

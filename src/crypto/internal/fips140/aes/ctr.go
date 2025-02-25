@@ -5,6 +5,7 @@
 package aes
 
 import (
+	"crypto/internal/fips140"
 	"crypto/internal/fips140/alias"
 	"crypto/internal/fips140/subtle"
 	"crypto/internal/fips140deps/byteorder"
@@ -71,6 +72,7 @@ func (c *CTR) XORKeyStreamAt(dst, src []byte, offset uint64) {
 	if alias.InexactOverlap(dst, src) {
 		panic("crypto/aes: invalid buffer overlap")
 	}
+	fips140.RecordApproved()
 
 	ivlo, ivhi := add128(c.ivlo, c.ivhi, offset/BlockSize)
 

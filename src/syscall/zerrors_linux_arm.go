@@ -1480,7 +1480,7 @@ var errors = [...]string{
 	113: "no route to host",
 	114: "operation already in progress",
 	115: "operation now in progress",
-	116: "stale NFS file handle",
+	116: "stale file handle",
 	117: "structure needs cleaning",
 	118: "not a XENIX named type file",
 	119: "no XENIX semaphores available",

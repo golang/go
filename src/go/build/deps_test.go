@@ -58,6 +58,7 @@ var depsRules = `
 	  internal/platform,
 	  internal/profilerecord,
 	  internal/syslist,
+	  internal/trace/tracev2,
 	  internal/trace/traceviewer/format,
 	  log/internal,
 	  math/bits,
@@ -79,6 +80,7 @@ var depsRules = `
 	internal/goexperiment,
 	internal/goos,
 	internal/profilerecord,
+	internal/trace/tracev2,
 	math/bits,
 	structs
 	< internal/bytealg
@@ -244,17 +246,17 @@ var depsRules = `
 	# encodings
 	# core ones do not use fmt.
 	io, strconv, slices
-	< encoding;
+	< encoding, encoding/base32, encoding/base64;
 
 	encoding, reflect
-	< encoding/binary
-	< encoding/base32, encoding/base64;
+	< encoding/binary;
 
 	FMT, encoding < flag;
 
 	fmt !< encoding/base32, encoding/base64;
 
-	FMT, encoding/base32, encoding/base64, internal/saferio
+	FMT, encoding, encoding/base32, encoding/base64, encoding/binary,
+	internal/saferio
 	< encoding/ascii85, encoding/csv, encoding/gob, encoding/hex,
 	  encoding/json, encoding/pem, encoding/xml, mime;
 
@@ -388,11 +390,13 @@ var depsRules = `
 
 	os
 	< golang.org/x/net/dns/dnsmessage,
-	  golang.org/x/net/lif,
-	  golang.org/x/net/route;
+	  golang.org/x/net/lif;
 
 	internal/bytealg, internal/itoa, math/bits, slices, strconv, unique
 	< net/netip;
+
+	os, net/netip
+	< internal/routebsd;
 
 	# net is unavoidable when doing any networking,
 	# so large dependencies must be kept out.
@@ -401,10 +405,10 @@ var depsRules = `
 	CGO,
 	golang.org/x/net/dns/dnsmessage,
 	golang.org/x/net/lif,
-	golang.org/x/net/route,
 	internal/godebug,
 	internal/nettrace,
 	internal/poll,
+	internal/routebsd,
 	internal/singleflight,
 	net/netip,
 	os,
@@ -610,6 +614,7 @@ var depsRules = `
 	net/http/httptrace,
 	mime/multipart,
 	log
+	< net/http/internal/httpcommon
 	< net/http;
 
 	# HTTP-aware packages
@@ -660,7 +665,8 @@ var depsRules = `
 	log/slog, testing
 	< testing/slogtest;
 
-	FMT, crypto/sha256, encoding/json, go/ast, go/parser, go/token,
+	FMT, crypto/sha256, encoding/binary, encoding/json,
+	go/ast, go/parser, go/token,
 	internal/godebug, math/rand, encoding/hex
 	< internal/fuzz;
 
@@ -695,29 +701,23 @@ var depsRules = `
 	< crypto/internal/fips140/check/checktest;
 
 	# v2 execution trace parser.
-	FMT
-	< internal/trace/event;
-
-	internal/trace/event
-	< internal/trace/event/go122;
-
-	FMT, io, internal/trace/event/go122
+	FMT, io, internal/trace/tracev2
 	< internal/trace/version;
 
 	FMT, encoding/binary, internal/trace/version
 	< internal/trace/raw;
 
-	FMT, internal/trace/event, internal/trace/version, io, sort, encoding/binary
-	< internal/trace/internal/oldtrace;
+	FMT, internal/trace/version, io, sort, encoding/binary
+	< internal/trace/internal/tracev1;
 
-	FMT, encoding/binary, internal/trace/version, internal/trace/internal/oldtrace, container/heap, math/rand
+	FMT, encoding/binary, internal/trace/version, internal/trace/internal/tracev1, container/heap, math/rand
 	< internal/trace;
 
 	regexp, internal/trace, internal/trace/raw, internal/txtar
 	< internal/trace/testtrace;
 
 	regexp, internal/txtar, internal/trace, internal/trace/raw
-	< internal/trace/internal/testgen/go122;
+	< internal/trace/internal/testgen;
 
 	# cmd/trace dependencies.
 	FMT,

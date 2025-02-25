@@ -870,7 +870,7 @@ type EncryptedClientHelloKey struct {
 	// must match the config provided to clients byte-for-byte. The config
 	// should only specify the DHKEM(X25519, HKDF-SHA256) KEM ID (0x0020), the
 	// HKDF-SHA256 KDF ID (0x0001), and a subset of the following AEAD IDs:
-	// AES-128-GCM (0x0000), AES-256-GCM (0x0001), ChaCha20Poly1305 (0x0002).
+	// AES-128-GCM (0x0001), AES-256-GCM (0x0002), ChaCha20Poly1305 (0x0003).
 	Config []byte
 	// PrivateKey should be a marshalled private key. Currently, we expect
 	// this to be the output of [ecdh.PrivateKey.Bytes].

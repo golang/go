@@ -541,6 +541,15 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
 	// traceback from goexit1 must hit code range of goexit
 	MOV	ZERO, ZERO	// NOP
 
+
+// This is called from .init_array and follows the platform, not the Go ABI.
+TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+	// Use X31 as it is a scratch register in both the Go ABI and psABI.
+	MOV	runtime·lastmoduledatap(SB), X31
+	MOV	X10, moduledata_next(X31)
+	MOV	X10, runtime·lastmoduledatap(SB)
+	RET
+
 // func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
 TEXT ·cgocallback(SB),NOSPLIT,$24-24

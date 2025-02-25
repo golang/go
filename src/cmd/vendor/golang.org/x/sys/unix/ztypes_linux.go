@@ -4747,7 +4747,7 @@ const (
 	NL80211_ATTR_MAC_HINT                                   = 0xc8
 	NL80211_ATTR_MAC_MASK                                   = 0xd7
 	NL80211_ATTR_MAX_AP_ASSOC_STA                           = 0xca
-	NL80211_ATTR_MAX                                        = 0x14c
+	NL80211_ATTR_MAX                                        = 0x14d
 	NL80211_ATTR_MAX_CRIT_PROT_DURATION                     = 0xb4
 	NL80211_ATTR_MAX_CSA_COUNTERS                           = 0xce
 	NL80211_ATTR_MAX_MATCH_SETS                             = 0x85
@@ -5519,7 +5519,7 @@ const (
 	NL80211_MNTR_FLAG_CONTROL                               = 0x3
 	NL80211_MNTR_FLAG_COOK_FRAMES                           = 0x5
 	NL80211_MNTR_FLAG_FCSFAIL                               = 0x1
-	NL80211_MNTR_FLAG_MAX                                   = 0x6
+	NL80211_MNTR_FLAG_MAX                                   = 0x7
 	NL80211_MNTR_FLAG_OTHER_BSS                             = 0x4
 	NL80211_MNTR_FLAG_PLCPFAIL                              = 0x2
 	NL80211_MPATH_FLAG_ACTIVE                               = 0x1
@@ -6174,3 +6174,5 @@ type SockDiagReq struct {
 	Family   uint8
 	Protocol uint8
 }
+
+const RTM_NEWNVLAN = 0x70

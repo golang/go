@@ -322,10 +322,8 @@ func (check *Checker) typInternal(e0 ast.Expr, def *TypeName) (T Type) {
 		// report error if we encountered [...]
 
 	case *ast.Ellipsis:
-		// dots are handled explicitly where they are legal
-		// (array composite literals and parameter lists)
-		check.error(e, InvalidDotDotDot, "invalid use of '...'")
-		check.use(e.Elt)
+		// dots are handled explicitly where they are valid
+		check.error(e, InvalidSyntaxTree, "invalid use of ...")
 
 	case *ast.StructType:
 		typ := new(Struct)

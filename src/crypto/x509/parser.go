@@ -1078,7 +1078,7 @@ func ParseCertificate(der []byte) (*Certificate, error) {
 	if len(der) != len(cert.Raw) {
 		return nil, errors.New("x509: trailing data")
 	}
-	return cert, err
+	return cert, nil
 }
 
 // ParseCertificates parses one or more certificates from the given ASN.1 DER

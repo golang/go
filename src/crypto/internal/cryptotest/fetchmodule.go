@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"internal/testenv"
 	"os"
+	"os/exec"
 	"testing"
 )
 
@@ -23,7 +24,11 @@ func FetchModule(t *testing.T, module, version string) string {
 	// instead. (For example, run.bash sets GOPATH=/nonexist-gopath.)
 	out, err := testenv.Command(t, goTool, "env", "GOMODCACHE").Output()
 	if err != nil {
-		t.Fatalf("%s env GOMODCACHE: %v\n%s", goTool, err, out)
+		t.Errorf("%s env GOMODCACHE: %v\n%s", goTool, err, out)
+		if ee, ok := err.(*exec.ExitError); ok {
+			t.Logf("%s", ee.Stderr)
+		}
+		t.FailNow()
 	}
 	modcacheOk := false
 	if gomodcache := string(bytes.TrimSpace(out)); gomodcache != "" {

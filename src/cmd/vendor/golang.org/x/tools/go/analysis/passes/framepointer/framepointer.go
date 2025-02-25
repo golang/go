@@ -10,6 +10,7 @@ import (
 	"go/build"
 	"regexp"
 	"strings"
+	"unicode"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
@@ -24,15 +25,97 @@ var Analyzer = &analysis.Analyzer{
 	Run:  run,
 }
 
-var (
-	re             = regexp.MustCompile
-	asmWriteBP     = re(`,\s*BP$`) // TODO: can have false positive, e.g. for TESTQ BP,BP. Seems unlikely.
-	asmMentionBP   = re(`\bBP\b`)
-	asmControlFlow = re(`^(J|RET)`)
-)
+// Per-architecture checks for instructions.
+// Assume comments, leading and trailing spaces are removed.
+type arch struct {
+	isFPWrite func(string) bool
+	isFPRead  func(string) bool
+	isBranch  func(string) bool
+}
+
+var re = regexp.MustCompile
+
+func hasAnyPrefix(s string, prefixes ...string) bool {
+	for _, p := range prefixes {
+		if strings.HasPrefix(s, p) {
+			return true
+		}
+	}
+	return false
+}
+
+var arches = map[string]arch{
+	"amd64": {
+		isFPWrite: re(`,\s*BP$`).MatchString, // TODO: can have false positive, e.g. for TESTQ BP,BP. Seems unlikely.
+		isFPRead:  re(`\bBP\b`).MatchString,
+		isBranch: func(s string) bool {
+			return hasAnyPrefix(s, "J", "RET")
+		},
+	},
+	"arm64": {
+		isFPWrite: func(s string) bool {
+			if i := strings.LastIndex(s, ","); i > 0 && strings.HasSuffix(s[i:], "R29") {
+				return true
+			}
+			if hasAnyPrefix(s, "LDP", "LDAXP", "LDXP", "CASP") {
+				// Instructions which write to a pair of registers, e.g.
+				//	LDP 8(R0), (R26, R29)
+				//	CASPD (R2, R3), (R2), (R26, R29)
+				lp := strings.LastIndex(s, "(")
+				rp := strings.LastIndex(s, ")")
+				if lp > -1 && lp < rp {
+					return strings.Contains(s[lp:rp], ",") && strings.Contains(s[lp:rp], "R29")
+				}
+			}
+			return false
+		},
+		isFPRead: re(`\bR29\b`).MatchString,
+		isBranch: func(s string) bool {
+			// Get just the instruction
+			if i := strings.IndexFunc(s, unicode.IsSpace); i > 0 {
+				s = s[:i]
+			}
+			return arm64Branch[s]
+		},
+	},
+}
+
+// arm64 has many control flow instructions.
+// ^(B|RET) isn't sufficient or correct (e.g. BIC, BFI aren't control flow.)
+// It's easier to explicitly enumerate them in a map than to write a regex.
+// Borrowed from Go tree, cmd/asm/internal/arch/arm64.go
+var arm64Branch = map[string]bool{
+	"B":     true,
+	"BL":    true,
+	"BEQ":   true,
+	"BNE":   true,
+	"BCS":   true,
+	"BHS":   true,
+	"BCC":   true,
+	"BLO":   true,
+	"BMI":   true,
+	"BPL":   true,
+	"BVS":   true,
+	"BVC":   true,
+	"BHI":   true,
+	"BLS":   true,
+	"BGE":   true,
+	"BLT":   true,
+	"BGT":   true,
+	"BLE":   true,
+	"CBZ":   true,
+	"CBZW":  true,
+	"CBNZ":  true,
+	"CBNZW": true,
+	"JMP":   true,
+	"TBNZ":  true,
+	"TBZ":   true,
+	"RET":   true,
+}
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	if build.Default.GOARCH != "amd64" { // TODO: arm64 also?
+	arch, ok := arches[build.Default.GOARCH]
+	if !ok {
 		return nil, nil
 	}
 	if build.Default.GOOS != "linux" && build.Default.GOOS != "darwin" {
@@ -63,6 +146,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				line = line[:i]
 			}
 			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
 
 			// We start checking code at a TEXT line for a frameless function.
 			if strings.HasPrefix(line, "TEXT") && strings.Contains(line, "(SB)") && strings.Contains(line, "$0") {
@@ -73,16 +159,12 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				continue
 			}
 
-			if asmWriteBP.MatchString(line) { // clobber of BP, function is not OK
+			if arch.isFPWrite(line) {
 				pass.Reportf(analysisutil.LineStart(tf, lineno), "frame pointer is clobbered before saving")
 				active = false
 				continue
 			}
-			if asmMentionBP.MatchString(line) { // any other use of BP might be a read, so function is OK
-				active = false
-				continue
-			}
-			if asmControlFlow.MatchString(line) { // give up after any branch instruction
+			if arch.isFPRead(line) || arch.isBranch(line) {
 				active = false
 				continue
 			}

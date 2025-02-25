@@ -189,17 +189,13 @@ func TestEnvironConsistency(t *testing.T) {
 		k := kv[:i]
 		v := kv[i+1:]
 		v2, ok := LookupEnv(k)
-		if ok && v == v2 {
-			t.Logf("LookupEnv(%q) = %q, %t", k, v2, ok)
-		} else {
+		if !ok || v != v2 {
 			t.Errorf("Environ contains %q, but LookupEnv(%q) = %q, %t", kv, k, v2, ok)
 		}
 
 		// Since k=v is already present in the environment,
 		// setting it should be a no-op.
-		if err := Setenv(k, v); err == nil {
-			t.Logf("Setenv(%q, %q)", k, v)
-		} else {
+		if err := Setenv(k, v); err != nil {
 			t.Errorf("Environ contains %q, but SetEnv(%q, %q) = %q", kv, k, v, err)
 		}
 	}

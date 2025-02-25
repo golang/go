@@ -46,6 +46,13 @@ With no arguments it prints the list of known tools.
 The -n flag causes tool to print the command that would be
 executed but not execute it.
 
+The -modfile=file.mod build flag causes tool to use an alternate file
+instead of the go.mod in the module root directory.
+
+Tool also provides the -C, -overlay, and -modcacherw build flags.
+
+For more about build flags, see 'go help build'.
+
 For more about each builtin tool command, see 'go doc cmd/<command>'.
 `,
 }

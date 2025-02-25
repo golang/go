@@ -13,7 +13,6 @@ import (
 	. "github.com/mmcloughlin/avo/build"
 	. "github.com/mmcloughlin/avo/operand"
 	. "github.com/mmcloughlin/avo/reg"
-	_ "golang.org/x/crypto/sha3"
 )
 
 //go:generate go run . -out ../sha3_amd64.s

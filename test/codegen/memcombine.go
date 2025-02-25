@@ -899,9 +899,11 @@ func store32le(p *struct{ a, b uint32 }, x uint64) {
 	p.b = uint32(x >> 32)
 }
 func store32be(p *struct{ a, b uint32 }, x uint64) {
+	// arm64:"STPW"
 	// ppc64:"MOVD",-"MOVW",-"SRD"
 	// s390x:"MOVD",-"MOVW",-"SRD"
 	p.a = uint32(x >> 32)
+	// arm64:-"STPW"
 	// ppc64:-"MOVW",-"SRD"
 	// s390x:-"MOVW",-"SRD"
 	p.b = uint32(x)
@@ -969,4 +971,110 @@ func issue70300Reverse(v uint64) (b [8]byte) {
 	b[1] = byte(v >> 8)
 	b[0] = byte(v)
 	return b
+}
+
+// --------------------------------- //
+//    Arm64 double-register loads    //
+// --------------------------------- //
+
+func dwloadI64(p *struct{ a, b int64 }) int64 {
+	// arm64:"LDP\t"
+	return p.a + p.b
+}
+func dwloadI32(p *struct{ a, b int32 }) int32 {
+	// arm64:"LDPSW\t"
+	return p.a + p.b
+}
+func dwloadU32(p *struct{ a, b uint32 }) uint32 {
+	// arm64:"LDPW\t"
+	return p.a + p.b
+}
+func dwloadF64(p *struct{ a, b float64 }) float64 {
+	// arm64:"FLDPD\t"
+	return p.a + p.b
+}
+func dwloadF32(p *struct{ a, b float32 }) float32 {
+	// arm64:"FLDPS\t"
+	return p.a + p.b
+}
+
+func dwloadBig(p *struct{ a, b, c, d, e, f int64 }) int64 {
+	// arm64:"LDP\t\\(", "LDP\t16", "LDP\t32"
+	return p.c + p.f + p.a + p.e + p.d + p.b
+}
+
+func dwloadArg(a [2]int64) int64 {
+	// arm64:"LDP\t"
+	return a[0] + a[1]
+}
+
+func dwloadResult1(p *string) string {
+	// arm64:"LDP\t\\(R0\\), \\(R0, R1\\)"
+	return *p
+}
+
+func dwloadResult2(p *[2]int64) (int64, int64) {
+	// arm64:"LDP\t\\(R0\\), \\(R1, R0\\)"
+	return p[1], p[0]
+}
+
+// ---------------------------------- //
+//    Arm64 double-register stores    //
+// ---------------------------------- //
+
+func dwstoreI64(p *struct{ a, b int64 }, x, y int64) {
+	// arm64:"STP\t"
+	p.a = x
+	p.b = y
+}
+func dwstoreI32(p *struct{ a, b int32 }, x, y int32) {
+	// arm64:"STPW\t"
+	p.a = x
+	p.b = y
+}
+func dwstoreF64(p *struct{ a, b float64 }, x, y float64) {
+	// arm64:"FSTPD\t"
+	p.a = x
+	p.b = y
+}
+func dwstoreF32(p *struct{ a, b float32 }, x, y float32) {
+	// arm64:"FSTPS\t"
+	p.a = x
+	p.b = y
+}
+
+func dwstoreBig(p *struct{ a, b, c, d, e, f int64 }, a, b, c, d, e, f int64) {
+	// This is not perfect. We merge b+a, then d+e, then c and f have no pair.
+	p.c = c
+	p.f = f
+	// arm64:`STP\s\(R[0-9]+, R[0-9]+\), \(R[0-9]+\)`
+	p.a = a
+	// arm64:`STP\s\(R[0-9]+, R[0-9]+\), 24\(R[0-9]+\)`
+	p.e = e
+	p.d = d
+	p.b = b
+}
+
+func dwstoreRet() [2]int {
+	// arm64:"STP\t"
+	return [2]int{5, 6}
+}
+
+func dwstoreLocal(i int) int64 {
+	var a [2]int64
+	a[0] = 5
+	// arm64:"STP\t"
+	a[1] = 6
+	return a[i]
+}
+
+func dwstoreOrder(p *struct {
+	a, b       int64
+	c, d, e, f bool
+}, a, b int64) {
+	// arm64:"STP\t"
+	p.a = a
+	p.c = true
+	p.e = true
+	p.b = b
 }

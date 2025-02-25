@@ -37,7 +37,7 @@ func lookupUser(username string) (*User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("user: lookup username %s: %v", username, err)
 	}
-	return buildUser(&pwd), err
+	return buildUser(&pwd), nil
 }
 
 func lookupUserId(uid string) (*User, error) {

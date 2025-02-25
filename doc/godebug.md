@@ -153,6 +153,17 @@ and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
 ### Go 1.24
 
+Go 1.24 added a new `fips140` setting that controls whether the Go
+Cryptographic Module operates in FIPS 140-3 mode.
+The possible values are:
+- "off": no special support for FIPS 140-3 mode. This is the default.
+- "on": the Go Cryptographic Module operates in FIPS 140-3 mode.
+- "only": like "on", but cryptographic algorithms not approved by
+  FIPS 140-3 return an error or panic.
+For more information, see [FIPS 140-3 Compliance](/doc/security/fips140).
+This setting is fixed at program startup time, and can't be modified
+by changing the `GODEBUG` environment variable after the program starts.
+
 Go 1.24 changed the global [`math/rand.Seed`](/pkg/math/rand/#Seed) to be a
 no-op. This behavior is controlled by the `randseednop` setting.
 For Go 1.24 it defaults to `randseednop=1`.
@@ -206,6 +217,8 @@ field by default.
 Go 1.24 enabled the post-quantum key exchange mechanism
 X25519MLKEM768 by default. The default can be reverted using the
 [`tlsmlkem` setting](/pkg/crypto/tls/#Config.CurvePreferences).
+This can be useful when dealing with buggy TLS servers that do not handle large records correctly,
+causing a timeout during the handshake (see [TLS post-quantum TL;DR fail](https://tldr.fail/)).
 Go 1.24 also removed X25519Kyber768Draft00 and the Go 1.23 `tlskyber` setting.
 
 Go 1.24 made [`ParsePKCS1PrivateKey`](/pkg/crypto/x509/#ParsePKCS1PrivateKey)
@@ -242,6 +255,8 @@ Previous versions default to `winreadlinkvolume=0`.
 Go 1.23 enabled the experimental post-quantum key exchange mechanism
 X25519Kyber768Draft00 by default. The default can be reverted using the
 [`tlskyber` setting](/pkg/crypto/tls/#Config.CurvePreferences).
+This can be useful when dealing with buggy TLS servers that do not handle large records correctly,
+causing a timeout during the handshake (see [TLS post-quantum TL;DR fail](https://tldr.fail/)).
 
 Go 1.23 changed the behavior of
 [crypto/x509.ParseCertificate](/pkg/crypto/x509/#ParseCertificate) to reject

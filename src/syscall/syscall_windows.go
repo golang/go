@@ -235,7 +235,7 @@ func NewCallbackCDecl(fn any) uintptr {
 //sys	GetVersion() (ver uint32, err error)
 //sys	formatMessage(flags uint32, msgsrc uintptr, msgid uint32, langid uint32, buf []uint16, args *byte) (n uint32, err error) = FormatMessageW
 //sys	ExitProcess(exitcode uint32)
-//sys	CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval==InvalidHandle] = CreateFileW
+//sys	createFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) [failretval == InvalidHandle || e1 == ERROR_ALREADY_EXISTS ] = CreateFileW
 //sys	readFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) = ReadFile
 //sys	writeFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error) = WriteFile
 //sys	SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) [failretval==0xffffffff]
@@ -404,8 +404,8 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 		const _FILE_FLAG_WRITE_THROUGH = 0x80000000
 		attrs |= _FILE_FLAG_WRITE_THROUGH
 	}
-	h, err := CreateFile(namep, access, sharemode, sa, createmode, attrs, 0)
-	if err != nil {
+	h, err := createFile(namep, access, sharemode, sa, createmode, attrs, 0)
+	if h == InvalidHandle {
 		if err == ERROR_ACCESS_DENIED && (flag&O_WRONLY != 0 || flag&O_RDWR != 0) {
 			// We should return EISDIR when we are trying to open a directory with write access.
 			fa, e1 := GetFileAttributes(namep)
@@ -413,9 +413,11 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 				err = EISDIR
 			}
 		}
-		return InvalidHandle, err
+		return h, err
 	}
-	if flag&O_TRUNC == O_TRUNC {
+	// Ignore O_TRUNC if the file has just been created.
+	if flag&O_TRUNC == O_TRUNC &&
+		(createmode == OPEN_EXISTING || (createmode == OPEN_ALWAYS && err == ERROR_ALREADY_EXISTS)) {
 		err = Ftruncate(h, 0)
 		if err != nil {
 			CloseHandle(h)
@@ -856,23 +858,29 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, int32, error) {
 	if n > len(sa.raw.Path) {
 		return nil, 0, EINVAL
 	}
-	if n == len(sa.raw.Path) && name[0] != '@' {
+	// Abstract addresses start with NUL.
+	// '@' is also a valid way to specify abstract addresses.
+	isAbstract := n > 0 && (name[0] == '@' || name[0] == '\x00')
+
+	// Non-abstract named addresses are NUL terminated.
+	// The length can't use the full capacity as we need to add NUL.
+	if n == len(sa.raw.Path) && !isAbstract {
 		return nil, 0, EINVAL
 	}
 	sa.raw.Family = AF_UNIX
 	for i := 0; i < n; i++ {
 		sa.raw.Path[i] = int8(name[i])
 	}
-	// length is family (uint16), name, NUL.
-	sl := int32(2)
-	if n > 0 {
-		sl += int32(n) + 1
-	}
-	if sa.raw.Path[0] == '@' || (sa.raw.Path[0] == 0 && sl > 3) {
-		// Check sl > 3 so we don't change unnamed socket behavior.
+	// Length is family + name (+ NUL if non-abstract).
+	// Family is of type uint16 (2 bytes).
+	sl := int32(2 + n)
+	if isAbstract {
+		// Abstract addresses are not NUL terminated.
+		// We rewrite '@' prefix to NUL here.
 		sa.raw.Path[0] = 0
-		// Don't count trailing NUL for abstract address.
-		sl--
+	} else if n > 0 {
+		// Add NUL for non-abstract named addresses.
+		sl++
 	}
 
 	return unsafe.Pointer(&sa.raw), sl, nil
@@ -1453,4 +1461,14 @@ func RegEnumKeyEx(key Handle, index uint32, name *uint16, nameLen *uint32, reser
 func GetStartupInfo(startupInfo *StartupInfo) error {
 	getStartupInfo(startupInfo)
 	return nil
+}
+
+func CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) {
+	handle, err = createFile(name, access, mode, sa, createmode, attrs, templatefile)
+	if handle != InvalidHandle {
+		// CreateFileW can return ERROR_ALREADY_EXISTS with a valid handle.
+		// We only want to return an error if the handle is invalid.
+		err = nil
+	}
+	return handle, err
 }

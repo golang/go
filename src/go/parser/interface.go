@@ -145,6 +145,11 @@ func ParseFile(fset *token.FileSet, filename string, src any, mode Mode) (f *ast
 // If the directory couldn't be read, a nil map and the respective error are
 // returned. If a parse error occurred, a non-nil but incomplete map and the
 // first error encountered are returned.
+//
+// Deprecated: ParseDir does not consider build tags when associating
+// files with packages. For precise information about the relationship
+// between packages and files, use golang.org/x/tools/go/packages,
+// which can also optionally parse and type-check the files too.
 func ParseDir(fset *token.FileSet, path string, filter func(fs.FileInfo) bool, mode Mode) (pkgs map[string]*ast.Package, first error) {
 	list, err := os.ReadDir(path)
 	if err != nil {
