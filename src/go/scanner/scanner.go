@@ -71,7 +71,17 @@ func (s *Scanner) next() {
 			// not ASCII
 			r, w = utf8.DecodeRune(s.src[s.rdOffset:])
 			if r == utf8.RuneError && w == 1 {
-				s.error(s.offset, "illegal UTF-8 encoding")
+				in := s.src[s.rdOffset:]
+				if s.offset == 0 &&
+					len(in) >= 2 &&
+					(in[0] == 0xFF && in[1] == 0xFE || in[0] == 0xFE && in[1] == 0xFF) {
+					// U+FEFF BOM at start of file, encoded as big- or little-endian
+					// UCS-2 (i.e. 2-byte UTF-16). Give specific error (go.dev/issue/71950).
+					s.error(s.offset, "illegal UTF-8 encoding (got UTF-16)")
+					s.rdOffset += len(in) // consume all input to avoid error cascade
+				} else {
+					s.error(s.offset, "illegal UTF-8 encoding")
+				}
 			} else if r == bom && s.offset > 0 {
 				s.error(s.offset, "illegal byte order mark")
 			}
