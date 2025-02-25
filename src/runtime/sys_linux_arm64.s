@@ -707,7 +707,7 @@ good:
 	// In child, set up new stack
 	MOVD	R10, g_m(R11)
 	MOVD	R11, g
-	//CALL	runtime·stackcheck(SB)
+	CALL	runtime·stackcheck(SB)
 
 nog:
 	// Call fn
