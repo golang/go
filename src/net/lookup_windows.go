@@ -77,7 +77,7 @@ func lookupProtocol(ctx context.Context, name string) (int, error) {
 		}
 		return r.proto, r.err
 	case <-ctx.Done():
-		return 0, mapErr(ctx.Err())
+		return 0, newDNSError(mapErr(ctx.Err()), name, "")
 	}
 }
 
@@ -110,11 +110,7 @@ func (r *Resolver) lookupIP(ctx context.Context, network, name string) ([]IPAddr
 
 	getaddr := func() ([]IPAddr, error) {
 		if err := acquireThread(ctx); err != nil {
-			return nil, &DNSError{
-				Name:      name,
-				Err:       mapErr(err).Error(),
-				IsTimeout: ctx.Err() == context.DeadlineExceeded,
-			}
+			return nil, newDNSError(mapErr(err), name, "")
 		}
 		defer releaseThread()
 		hints := syscall.AddrinfoW{
@@ -197,11 +193,7 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 
 	// TODO(bradfitz): finish ctx plumbing
 	if err := acquireThread(ctx); err != nil {
-		return 0, &DNSError{
-			Name:      network + "/" + service,
-			Err:       mapErr(err).Error(),
-			IsTimeout: ctx.Err() == context.DeadlineExceeded,
-		}
+		return 0, newDNSError(mapErr(err), network+"/"+service, "")
 	}
 	defer releaseThread()
 
@@ -265,11 +257,7 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error)
 
 	// TODO(bradfitz): finish ctx plumbing
 	if err := acquireThread(ctx); err != nil {
-		return "", &DNSError{
-			Name:      name,
-			Err:       mapErr(err).Error(),
-			IsTimeout: ctx.Err() == context.DeadlineExceeded,
-		}
+		return "", newDNSError(mapErr(err), name, "")
 	}
 	defer releaseThread()
 	var rec *syscall.DNSRecord
@@ -295,11 +283,7 @@ func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (
 	}
 	// TODO(bradfitz): finish ctx plumbing
 	if err := acquireThread(ctx); err != nil {
-		return "", nil, &DNSError{
-			Name:      name,
-			Err:       mapErr(err).Error(),
-			IsTimeout: ctx.Err() == context.DeadlineExceeded,
-		}
+		return "", nil, newDNSError(mapErr(err), name, "")
 	}
 	defer releaseThread()
 	var target string
@@ -330,11 +314,7 @@ func (r *Resolver) lookupMX(ctx context.Context, name string) ([]*MX, error) {
 	}
 	// TODO(bradfitz): finish ctx plumbing.
 	if err := acquireThread(ctx); err != nil {
-		return nil, &DNSError{
-			Name:      name,
-			Err:       mapErr(err).Error(),
-			IsTimeout: ctx.Err() == context.DeadlineExceeded,
-		}
+		return nil, newDNSError(mapErr(err), name, "")
 	}
 	defer releaseThread()
 	var rec *syscall.DNSRecord
@@ -359,11 +339,7 @@ func (r *Resolver) lookupNS(ctx context.Context, name string) ([]*NS, error) {
 	}
 	// TODO(bradfitz): finish ctx plumbing.
 	if err := acquireThread(ctx); err != nil {
-		return nil, &DNSError{
-			Name:      name,
-			Err:       mapErr(err).Error(),
-			IsTimeout: ctx.Err() == context.DeadlineExceeded,
-		}
+		return nil, newDNSError(mapErr(err), name, "")
 	}
 	defer releaseThread()
 	var rec *syscall.DNSRecord
@@ -387,11 +363,7 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
 	}
 	// TODO(bradfitz): finish ctx plumbing.
 	if err := acquireThread(ctx); err != nil {
-		return nil, &DNSError{
-			Name:      name,
-			Err:       mapErr(err).Error(),
-			IsTimeout: ctx.Err() == context.DeadlineExceeded,
-		}
+		return nil, newDNSError(mapErr(err), name, "")
 	}
 	defer releaseThread()
 	var rec *syscall.DNSRecord
@@ -420,11 +392,7 @@ func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error
 
 	// TODO(bradfitz): finish ctx plumbing.
 	if err := acquireThread(ctx); err != nil {
-		return nil, &DNSError{
-			Name:      addr,
-			Err:       mapErr(err).Error(),
-			IsTimeout: ctx.Err() == context.DeadlineExceeded,
-		}
+		return nil, newDNSError(mapErr(err), addr, "")
 	}
 	defer releaseThread()
 	arpa, err := reverseaddr(addr)
