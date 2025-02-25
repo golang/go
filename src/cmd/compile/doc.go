@@ -60,6 +60,11 @@ Flags:
 		Allow references to Go symbols in shared libraries (experimental).
 	-e
 		Remove the limit on the number of errors reported (default limit is 10).
+	-embedcfg file
+		Read go:embed configuration from file.
+		This is required if any //go:embed directives are used.
+		The file is a JSON file mapping patterns to lists of filenames
+		and filenames to full path names.
 	-goversion string
 		Specify required go tool version of the runtime.
 		Exits when the runtime go version does not match goversion.
