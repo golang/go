@@ -16,14 +16,16 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
-	"cmd/internal/src"
 )
 
-const go125ImprovedConcreteTypeAnalysis = true
+// const go125ImprovedConcreteTypeAnalysis = true
+var go125ImprovedConcreteTypeAnalysis = false
 
 // StaticCall devirtualizes the given call if possible when the concrete callee
 // is available statically.
 func StaticCall(call *ir.CallExpr) {
+	go125ImprovedConcreteTypeAnalysis = base.Debug.Testing != 0
+
 	// For promoted methods (including value-receiver methods promoted
 	// to pointer-receivers), the interface method wrapper may contain
 	// expressions that can panic (e.g., ODEREF, ODOTPTR,
@@ -119,23 +121,6 @@ func StaticCall(call *ir.CallExpr) {
 	}
 
 	dt := ir.NewTypeAssertExpr(sel.Pos(), sel.X, typ)
-
-	if go125ImprovedConcreteTypeAnalysis {
-		// Consider:
-		//
-		//	var v Iface
-		// 	v.A()
-		// 	v = &Impl{}
-		//
-		// Here in the devirtualizer, we determine the concrete type of v as beeing an *Impl,
-		// but in can still be a nil interface, we have not detected that. The v.(*Impl)
-		// type assertion that we make here would also have failed, but with a different
-		// panic "pkg.Iface is nil, not *pkg.Impl", where previously we would get a nil panic.
-		// We fix this, by introducing an additional nilcheck on the itab.
-		dt.EmitItabNilCheck = true
-		dt.SetPos(call.Pos())
-	}
-
 	x := typecheck.XDotMethod(sel.Pos(), dt, sel.Sel, true)
 	switch x.Op() {
 	case ir.ODOTMETH:
@@ -180,10 +165,30 @@ const concreteTypeDebug = false
 // Returns nil when the concrete type could not be determined, or when there are multiple
 // (different) types assigned to an interface.
 func concreteType(n ir.Node) (typ *types.Type) {
-	return concreteType1(n, make(map[*ir.Name]*types.Type))
+	var assignements map[*ir.Name][]valOrTyp
+	var baseFunc *ir.Func
+	return concreteType1(n, func(n *ir.Name) []valOrTyp {
+		if assignements == nil {
+			assignements = make(map[*ir.Name][]valOrTyp)
+			if n.Curfn == nil {
+				base.Fatalf("n.Curfn == nil: %v", n)
+			}
+			assignements = ifaceAssignments(n.Curfn)
+			baseFunc = n.Curfn
+		}
+		if !n.Type().IsInterface() {
+			base.Fatalf("node passed to getAssignements is not an interface: %v", n.Type())
+		}
+		if n.Curfn != baseFunc {
+			base.Fatalf("unexpected n.Curfn = %v; want = %v", n, baseFunc)
+		}
+		return assignements[n]
+	})
 }
 
-func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type) (typ *types.Type) {
+// TODO: check CloneHash case (method returns a Hash that should be devirted).
+
+func concreteType1(n ir.Node, getAssignements func(*ir.Name) []valOrTyp) (typ *types.Type) {
 	nn := n // copy for debug messages
 
 	if concreteTypeDebug {
@@ -201,9 +206,25 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type) (typ *types.Typ
 			base.WarnfAt(n.Pos(), "%v analyzing concrete type of %v", nn, n)
 		}
 
+		if !n.Type().IsInterface() {
+			if n, ok := n.(*ir.CallExpr); ok {
+				if n.Fun != nil {
+					results := n.Fun.Type().Results()
+					base.Assert(len(results) == 1)
+					retTyp := results[0].Type
+					if !retTyp.IsInterface() {
+						// TODO: isnt n.Type going to return that?
+						return retTyp
+					}
+				}
+			}
+			return n.Type()
+		}
+
 		switch n1 := n.(type) {
 		case *ir.ConvExpr:
 			// OCONVNOP might change the type, thus check whether they are identical.
+			// TODO: can this happen for iface?
 			if n1.Op() == ir.OCONVNOP && types.Identical(n1.Type(), n1.X.Type()) {
 				n = n1.X
 				continue
@@ -221,36 +242,12 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type) (typ *types.Typ
 			n = n1.X
 			continue
 		case *ir.TypeAssertExpr:
-			if !n.Type().IsInterface() {
-				// Asserting to a static type iface.(T), take use of that
-				// as this will either cause a runtime panic, or return the zero value
-				// of T (var v IfaceTyp; v, _ = iface.(T)).
-				return n.Type()
-			}
 			n = n1.X
 			continue
-		case *ir.CallExpr:
-			if n1.Fun != nil {
-				results := n1.Fun.Type().Results()
-				if len(results) == 1 {
-					retTyp := results[0].Type
-					if !retTyp.IsInterface() {
-						return retTyp
-					}
-				}
-			}
-			return nil
 		}
-
-		if !n.Type().IsInterface() {
-			return n.Type()
-		}
-
-		return analyzeAssignments(n, analyzed)
+		break
 	}
-}
 
-func analyzeAssignments(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Type {
 	if n.Op() != ir.ONAME {
 		return nil
 	}
@@ -268,118 +265,105 @@ func analyzeAssignments(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Typ
 		return nil // conservatively assume it's reassigned with a different type indirectly
 	}
 
-	if typ, ok := analyzed[name]; ok {
-		return typ
+	if name.Curfn == nil {
+		// TODO: think
+		base.Fatalf("nil Func %v", name)
 	}
 
-	// For now set the Type to nil, as we don't know it yet, we will update
-	// it at the end of this function, if we find a concrete type.
-	// This is not ideal, as in-process concreteType1 calls (that this function also
-	// executes) will get a nil (from the map lookup above), where we could determine the type.
-	analyzed[name] = nil
-
-	if concreteTypeDebug {
-		base.WarnfAt(name.Pos(), "analyzing assignments to %v", name)
+	assignements := getAssignements(name)
+	if len(assignements) == 0 {
+		return nil // call on a nil interface
 	}
 
-	// isName reports whether n is a reference to name.
-	isName := func(x ir.Node) bool {
-		if x == nil {
-			return false
-		}
-		n, ok := ir.OuterValue(x).(*ir.Name)
-		return ok && n.Canonical() == name
+	if v := assignements[0]; v.typ != nil {
+		typ = v.typ
+	} else if v.node != nil {
+		typ = concreteType1(v.node, getAssignements)
+	} else {
+		return nil
 	}
 
-	var typ *types.Type
-
-	handleType := func(dbgOp ir.Op, pos src.XPos, t *types.Type) bool {
-		if t == nil || t.IsInterface() {
-			if concreteTypeDebug {
-				base.WarnfAt(pos, "%v assigned (%v) with a non concrete type", name, dbgOp)
-			}
-			typ = nil
-			return true
+	for _, v := range assignements[1:] {
+		t := v.typ
+		if v.node != nil {
+			t = concreteType1(v.node, getAssignements)
 		}
-
-		if concreteTypeDebug {
-			base.WarnfAt(pos, "%v assigned (%v) with a concrete type %v", name, dbgOp, t)
+		if t == nil || !types.Identical(typ, t) {
+			return nil
 		}
-
-		if typ == nil || types.Identical(typ, t) {
-			typ = t
-			return false
-		}
-
-		// different type
-		typ = nil
-		return true
 	}
 
-	handleNode := func(dbgOp ir.Op, n ir.Node) bool {
-		if n == nil {
-			return false
+	return typ
+}
+
+type valOrTyp struct {
+	typ  *types.Type
+	node ir.Node
+}
+
+func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
+	out := make(map[*ir.Name][]valOrTyp)
+
+	assign := func(name ir.Node, value valOrTyp) {
+		if name == nil {
+			return
 		}
-		if concreteTypeDebug {
-			base.WarnfAt(n.Pos(), "%v found assignment %v = %v (%v), analyzing the RHS node", name, name, n, dbgOp)
+		n, ok := ir.OuterValue(name).(*ir.Name)
+		if !ok {
+			return
 		}
-		return handleType(dbgOp, n.Pos(), concreteType1(n, analyzed))
+		n = n.Canonical()
+		if n.Curfn != fun || !n.Type().IsInterface() {
+			return
+		}
+		out[n] = append(out[n], value)
 	}
 
-	var do func(n ir.Node) bool
-	do = func(n ir.Node) bool {
+	var do func(n ir.Node)
+	do = func(n ir.Node) {
 		switch n.Op() {
 		case ir.OAS:
 			n := n.(*ir.AssignStmt)
-			if isName(n.X) {
-				return handleNode(ir.OAS, n.Y)
+			if n.Y != nil {
+				assign(n.X, valOrTyp{node: n.Y})
 			}
 		case ir.OAS2:
 			n := n.(*ir.AssignListStmt)
 			for i, p := range n.Lhs {
-				if isName(p) {
-					return handleNode(ir.OAS2, n.Rhs[i])
+				if n.Rhs[i] != nil {
+					assign(p, valOrTyp{node: n.Rhs[i]})
 				}
 			}
 		case ir.OAS2DOTTYPE:
 			n := n.(*ir.AssignListStmt)
-			if isName(n.Lhs[0]) {
-				return handleNode(ir.OAS2DOTTYPE, n.Rhs[0])
+			if n.Rhs[0] == nil {
+				base.Fatalf("n.Rhs[0] == nil; n = %v", n)
 			}
-			if isName(n.Lhs[1]) {
-				// boolean, nothing to devirtualize.
-				typ = nil
-				return true
-			}
+			assign(n.Lhs[0], valOrTyp{node: n.Rhs[0]})
+			assign(n.Lhs[1], valOrTyp{}) // TODO: boolean
 		case ir.OAS2MAPR, ir.OAS2RECV, ir.OSELRECV2:
 			n := n.(*ir.AssignListStmt)
-			if isName(n.Lhs[0]) {
-				return handleType(n.Op(), n.Pos(), n.Rhs[0].Type())
+			if n.Rhs[0] == nil {
+				base.Fatalf("n.Rhs[0] == nil; n = %v", n)
 			}
-			if isName(n.Lhs[1]) {
-				// boolean, nothing to devirtualize.
-				typ = nil
-				return true
-			}
+			assign(n.Lhs[0], valOrTyp{typ: n.Rhs[0].Type()})
+			assign(n.Lhs[1], valOrTyp{}) // TODO: boolean
 		case ir.OAS2FUNC:
 			n := n.(*ir.AssignListStmt)
 			for i, p := range n.Lhs {
-				if isName(p) {
-					rhs := n.Rhs[0]
-					for {
-						if r, ok := rhs.(*ir.ParenExpr); ok {
-							rhs = r.X
-							continue
-						}
-						break
+				rhs := n.Rhs[0]
+				for {
+					if r, ok := rhs.(*ir.ParenExpr); ok {
+						rhs = r.X
+						continue
 					}
-					if call, ok := rhs.(*ir.CallExpr); ok {
-						retTyp := call.Fun.Type().Results()[i].Type
-						return handleType(ir.OAS2FUNC, n.Pos(), retTyp)
-					}
-					typ = nil
-					return true
+					break
 				}
+				if call, ok := rhs.(*ir.CallExpr); ok {
+					retTyp := call.Fun.Type().Results()[i].Type
+					assign(p, valOrTyp{typ: retTyp})
+				}
+				assign(p, valOrTyp{})
 			}
 		case ir.ORANGE:
 			n := n.(*ir.RangeStmt)
@@ -391,30 +375,18 @@ func analyzeAssignments(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Typ
 			}
 
 			if xTyp.IsArray() || xTyp.IsSlice() {
-				if isName(n.Key) {
-					// This is an index, int has no methods, so nothing to devirtualize.
-					typ = nil
-					return true
-				}
-				if isName(n.Value) {
-					return handleType(ir.ORANGE, n.Pos(), xTyp.Elem())
-				}
+				assign(n.Key, valOrTyp{}) // boolean
+				assign(n.Value, valOrTyp{typ: xTyp.Elem()})
 			} else if xTyp.IsChan() {
-				if isName(n.Key) {
-					return handleType(ir.ORANGE, n.Pos(), xTyp.Elem())
-				}
+				assign(n.Key, valOrTyp{typ: xTyp.Elem()})
 				base.Assertf(n.Value == nil, "n.Value != nil in range over chan")
 			} else if xTyp.IsMap() {
-				if isName(n.Key) {
-					return handleType(ir.ORANGE, n.Pos(), xTyp.Key())
-				}
-				if isName(n.Value) {
-					return handleType(ir.ORANGE, n.Pos(), xTyp.Elem())
-				}
+				assign(n.Key, valOrTyp{typ: xTyp.Key()})
+				assign(n.Value, valOrTyp{typ: xTyp.Elem()})
 			} else if xTyp.IsInteger() || xTyp.IsString() {
 				// range over int/string, results do not have methods, so nothing to devirtualize.
-				typ = nil
-				return true
+				assign(n.Key, valOrTyp{})
+				assign(n.Value, valOrTyp{})
 			} else {
 				base.Fatalf("range over unexpected type %v", n.X.Type())
 			}
@@ -426,26 +398,13 @@ func analyzeAssignments(n ir.Node, analyzed map[*ir.Name]*types.Type) *types.Typ
 						base.Assert(guard.Tag == nil)
 						continue
 					}
-					if isName(v.Var) {
-						return handleNode(v.Op(), guard.X)
-					}
+					assign(v.Var, valOrTyp{node: guard.X})
 				}
 			}
-		case ir.OADDR:
-			n := n.(*ir.AddrExpr)
-			if isName(n.X) {
-				base.FatalfAt(n.Pos(), "%v not marked addrtaken", name)
-			}
 		case ir.OCLOSURE:
-			n := n.(*ir.ClosureExpr)
-			if ir.Any(n.Func, do) {
-				return true
-			}
+			ir.Visit(n.(*ir.ClosureExpr).Func, do)
 		}
-		return false
 	}
-
-	ir.Any(name.Curfn, do)
-	analyzed[name] = typ
-	return typ
+	ir.Visit(fun, do)
+	return out
 }
