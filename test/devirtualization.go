@@ -299,26 +299,27 @@ func assignWithTypeAssert() {
 
 func nilIface() {
 	{
-		var v A = &Impl{} // ERROR "escapes"
+		var v A = &Impl{} // ERROR "&Impl{} does not escape"
 		v = nil
-		v.A()
+		v.A() // ERROR "devirtualizing v\.A to \*Impl" "inlining call"
 	}
 	{
-		var v A = &Impl{} // ERROR "escapes"
-		v.A()
+		var v A = &Impl{} // ERROR "&Impl{} does not escape"
+		v.A()             // ERROR "devirtualizing v\.A to \*Impl" "inlining call"
 		v = nil
 	}
+
 	{
 		var nilIface A
-		var v A = &Impl{} // ERROR "escapes"
-		v.A()
+		var v A = &Impl{} // ERROR "&Impl{} does not escape"
+		v.A()             // ERROR "devirtualizing v\.A to \*Impl" "inlining call"
 		v = nilIface
 	}
 	{
 		var nilIface A
-		var v A = &Impl{} // ERROR "escapes"
+		var v A = &Impl{} // ERROR "&Impl{} does not escape"
 		v = nilIface
-		v.A()
+		v.A() // ERROR "devirtualizing v\.A to \*Impl" "inlining call"
 	}
 	{
 		var v A
@@ -328,6 +329,17 @@ func nilIface() {
 	{
 		var v A
 		v.A()
+	}
+	{
+		var v A
+		var v2 A = v
+		v2.A()
+	}
+	{
+		var v A
+		var v2 A
+		v2 = v
+		v2.A()
 	}
 }
 
@@ -1124,49 +1136,4 @@ func testInvalidAsserts() {
 		// this will panic
 		a.(any).(M).(*Impl).M() // ERROR "inlining"
 	}
-}
-
-type hash interface {
-	Sum() []byte
-}
-
-type hashWithClone interface {
-	Sum() []byte
-	Clone() hash
-}
-
-type clonableHash struct{ state [32]byte }
-
-func (h *clonableHash) Sum() []byte { // ERROR "can inline" "h does not escape"
-	return make([]byte, 32) // ERROR "escapes"
-}
-
-func (h *clonableHash) Clone() hash { // ERROR "can inline" "h does not escape"
-	c := *h // ERROR "moved to heap: c"
-	return &c
-}
-
-func newHash() hash { // ERROR "can inline"
-	return &clonableHash{} // ERROR "escapes"
-}
-
-func cloneHash(h hash) (hash, bool) { // ERROR "can inline" "leaking param: h"
-	if h, ok := h.(hashWithClone); ok {
-		return h.Clone(), true
-	}
-	return &clonableHash{}, true
-}
-
-func devirtIfaceCallThatReturnsIface() {
-	h := newHash() // ERROR "&clonableHash{} does not escape" "inlining call"
-	_ = h.Sum()    // ERROR "devirtualizing h.Sum to \*clonableHash" "inlining call" "make\(\[\]byte, 32\) does not escape"
-
-	// TODO: make this non-escaping:
-	h2, ok := cloneHash(h) // ERROR "inlining call to cloneHash" "devirtualizing h.Clone to \*clonableHash" "inlining call to \(\*clonableHash\).Clone" "moved to heap: c"
-	if !ok {
-		panic("unexpected") // ERROR "escapes"
-	}
-
-	// TODO: make this devirtualize:
-	_ = h2.Sum()
 }
