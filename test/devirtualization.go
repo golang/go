@@ -1016,35 +1016,41 @@ func devirtWrapperType() {
 }
 
 func selfAssigns() {
-	//	{
-	//		var a A = &Impl{} // ERROR "escapes"
-	//		a = a
-	//		a.A()
-	//	}
-	//
-	//	{
-	//		var a A = &Impl{} // ERROR "escapes"
-	//		var asAny any = a
-	//		asAny = asAny
-	//		asAny.(A).A()
-	//	}
-	//
-	//	{
-	//		var a A = &Impl{} // ERROR "escapes"
-	//		var asAny any = a
-	//		asAny = asAny
-	//		a = asAny.(A)
-	//		asAny = a
-	//		asAny.(A).A()
-	//		asAny.(M).M()
-	//	}
-	//
-	//	{
-	//		var a A = &Impl{} // ERROR "escapes"
-	//		var asAny A = a
-	//		a = asAny.(A)
-	//		a.A()
-	//	}
+	{
+		var a A = &Impl{} // ERROR "escapes"
+		a = a
+		a.A()
+	}
+	{
+		var a A = &Impl{} // ERROR "escapes"
+		var asAny any = a
+		asAny = asAny
+		asAny.(A).A()
+	}
+	{
+		var a A = &Impl{} // ERROR "escapes"
+		var asAny any = a
+		a = asAny.(A)
+		asAny.(A).A()
+		a.(A).A()
+		b := a
+		b.(A).A()
+	}
+	{
+		var a A = &Impl{} // ERROR "escapes"
+		var asAny any = a
+		asAny = asAny
+		a = asAny.(A)
+		asAny = a
+		asAny.(A).A()
+		asAny.(M).M()
+	}
+	{
+		var a A = &Impl{} // ERROR "escapes"
+		var asAny A = a
+		a = asAny.(A)
+		a.A()
+	}
 }
 
 func boolNoDevirt() {
