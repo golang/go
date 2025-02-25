@@ -34,10 +34,11 @@ crosscall1:
 	fst.d	$f30, $r3, 136
 	fst.d	$f31, $r3, 144
 
-	move	$r18, $r4 // save R4
-	move	$r19, $r6
+	// r4 = *fn, r5 = *setg_gcc, r6 = *g
+	move	$r23, $r4	// save R4
+	move	$r4, $r6
 	jirl	$r1, $r5, 0	// call setg_gcc (clobbers R4)
-	jirl	$r1, $r18, 0	// call fn
+	jirl	$r1, $r23, 0	// call fn
 
 	ld.d	$r23, $r3, 8
 	ld.d	$r24, $r3, 16
