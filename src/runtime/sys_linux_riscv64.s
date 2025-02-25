@@ -488,6 +488,7 @@ good:
 	// In child, set up new stack
 	MOV	T0, g_m(T1)
 	MOV	T1, g
+	CALL	runtime·stackcheck(SB)	// fault if stack check is wrong
 
 nog:
 	// Call fn
