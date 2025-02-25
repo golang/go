@@ -159,15 +159,13 @@ func StaticCall(call *ir.CallExpr) {
 	typecheck.FixMethodCall(call)
 }
 
-const concreteTypeDebug = false
-
 // concreteType determines the concrete type of n, following OCONVIFACEs and type asserts.
 // Returns nil when the concrete type could not be determined, or when there are multiple
 // (different) types assigned to an interface.
 func concreteType(n ir.Node) (typ *types.Type) {
 	var assignements map[*ir.Name][]valOrTyp
 	var baseFunc *ir.Func
-	return concreteType1(n, func(n *ir.Name) []valOrTyp {
+	return concreteType1(n, make(map[*ir.Name]*types.Type), func(n *ir.Name) []valOrTyp {
 		if assignements == nil {
 			assignements = make(map[*ir.Name][]valOrTyp)
 			if n.Curfn == nil {
@@ -188,24 +186,8 @@ func concreteType(n ir.Node) (typ *types.Type) {
 
 // TODO: check CloneHash case (method returns a Hash that should be devirted).
 
-func concreteType1(n ir.Node, getAssignements func(*ir.Name) []valOrTyp) (typ *types.Type) {
-	nn := n // copy for debug messages
-
-	if concreteTypeDebug {
-		defer func() {
-			if typ == nil {
-				base.WarnfAt(n.Pos(), "%v concrete type not found", nn)
-			} else {
-				base.WarnfAt(n.Pos(), "%v found concrete type %v", nn, typ)
-			}
-		}()
-	}
-
+func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements func(*ir.Name) []valOrTyp) *types.Type {
 	for {
-		if concreteTypeDebug {
-			base.WarnfAt(n.Pos(), "%v analyzing concrete type of %v", nn, n)
-		}
-
 		if !n.Type().IsInterface() {
 			if n, ok := n.(*ir.CallExpr); ok {
 				if n.Fun != nil {
@@ -266,19 +248,30 @@ func concreteType1(n ir.Node, getAssignements func(*ir.Name) []valOrTyp) (typ *t
 	}
 
 	if name.Curfn == nil {
-		// TODO: think
+		// TODO: think, we should hit here with an iface global?
 		base.Fatalf("nil Func %v", name)
 	}
+
+	if typ, ok := analyzed[name]; ok {
+		return typ
+	}
+
+	// For now set the Type to nil, as we don't know it yet, we will update
+	// it at the end of this function, if we find a concrete type.
+	// This is not ideal, as in-process concreteType1 calls (that this function also
+	// executes) will get a nil (from the map lookup above), where we could determine the type.
+	analyzed[name] = nil
 
 	assignements := getAssignements(name)
 	if len(assignements) == 0 {
 		return nil // call on a nil interface
 	}
 
+	var typ *types.Type
 	if v := assignements[0]; v.typ != nil {
 		typ = v.typ
 	} else if v.node != nil {
-		typ = concreteType1(v.node, getAssignements)
+		typ = concreteType1(v.node, analyzed, getAssignements)
 	} else {
 		return nil
 	}
@@ -286,13 +279,14 @@ func concreteType1(n ir.Node, getAssignements func(*ir.Name) []valOrTyp) (typ *t
 	for _, v := range assignements[1:] {
 		t := v.typ
 		if v.node != nil {
-			t = concreteType1(v.node, getAssignements)
+			t = concreteType1(v.node, analyzed, getAssignements)
 		}
 		if t == nil || !types.Identical(typ, t) {
 			return nil
 		}
 	}
 
+	analyzed[name] = typ
 	return typ
 }
 
@@ -305,7 +299,7 @@ func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 	out := make(map[*ir.Name][]valOrTyp)
 
 	assign := func(name ir.Node, value valOrTyp) {
-		if name == nil {
+		if name == nil || name.Op() != ir.ONAME {
 			return
 		}
 		n, ok := ir.OuterValue(name).(*ir.Name)
@@ -313,6 +307,9 @@ func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 			return
 		}
 		n = n.Canonical()
+		if n.Op() != ir.ONAME {
+			base.Fatalf("reassigned %v", n)
+		}
 		if n.Curfn != fun || !n.Type().IsInterface() {
 			return
 		}
