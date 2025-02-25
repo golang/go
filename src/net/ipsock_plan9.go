@@ -10,6 +10,7 @@ import (
 	"internal/itoa"
 	"io/fs"
 	"os"
+	"strconv"
 	"syscall"
 )
 
@@ -128,6 +129,7 @@ func startPlan9(ctx context.Context, net string, addr Addr) (ctl *os.File, dest,
 
 	clone, dest, err := queryCS1(ctx, proto, ip, port)
 	if err != nil {
+		err = handlePlan9DNSError(err, net+":"+ip.String()+":"+strconv.Itoa(port))
 		return
 	}
 	f, err := os.OpenFile(clone, os.O_RDWR, 0)
