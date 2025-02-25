@@ -575,15 +575,41 @@ func runCleanups() {
 	for {
 		b := gcCleanups.dequeue()
 		if raceenabled {
+			// Approximately: adds a happens-before edge between the cleanup
+			// argument being mutated and the call to the cleanup below.
 			racefingo()
 		}
 
 		gcCleanups.beginRunningCleanups()
 		for i := 0; i < int(b.n); i++ {
 			fn := b.cleanups[i]
+
+			var racectx uintptr
+			if raceenabled {
+				// Enter a new race context so the race detector can catch
+				// potential races between cleanups, even if they execute on
+				// the same goroutine.
+				//
+				// Synchronize on fn. This would fail to find races on the
+				// closed-over values in fn (suppose fn is passed to multiple
+				// AddCleanup calls) if fn was not unique, but it is. Update
+				// the synchronization on fn if you intend to optimize it
+				// and store the cleanup function and cleanup argument on the
+				// queue directly.
+				racerelease(unsafe.Pointer(fn))
+				racectx = raceEnterNewCtx()
+				raceacquire(unsafe.Pointer(fn))
+			}
+
+			// Execute the next cleanup.
 			cleanup := *(*func())(unsafe.Pointer(&fn))
 			cleanup()
 			b.cleanups[i] = nil
+
+			if raceenabled {
+				// Restore the old context.
+				raceRestoreCtx(racectx)
+			}
 		}
 		gcCleanups.endRunningCleanups()
 
@@ -620,4 +646,54 @@ func unique_runtime_blockUntilEmptyCleanupQueue(timeout int64) bool {
 //go:linkname sync_test_runtime_blockUntilEmptyCleanupQueue sync_test.runtime_blockUntilEmptyCleanupQueue
 func sync_test_runtime_blockUntilEmptyCleanupQueue(timeout int64) bool {
 	return gcCleanups.blockUntilEmpty(timeout)
+}
+
+// raceEnterNewCtx creates a new racectx and switches the current
+// goroutine to it. Returns the old racectx.
+//
+// Must be running on a user goroutine. nosplit to match other race
+// instrumentation.
+//
+//go:nosplit
+func raceEnterNewCtx() uintptr {
+	// We use the existing ctx as the spawn context, but gp.gopc
+	// as the spawn PC to make the error output a little nicer
+	// (pointing to AddCleanup, where the goroutines are created).
+	//
+	// We also need to carefully indicate to the race detector
+	// that the goroutine stack will only be accessed by the new
+	// race context, to avoid false positives on stack locations.
+	// We do this by marking the stack as free in the first context
+	// and then re-marking it as allocated in the second. Crucially,
+	// there must be (1) no race operations and (2) no stack changes
+	// in between. (1) is easy to avoid because we're in the runtime
+	// so there's no implicit race instrumentation. To avoid (2) we
+	// defensively become non-preemptible so the GC can't stop us,
+	// and rely on the fact that racemalloc, racefreem, and racectx
+	// are nosplit.
+	mp := acquirem()
+	gp := getg()
+	ctx := getg().racectx
+	racefree(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
+	getg().racectx = racectxstart(gp.gopc, ctx)
+	racemalloc(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
+	releasem(mp)
+	return ctx
+}
+
+// raceRestoreCtx restores ctx on the goroutine. It is the inverse of
+// raceenternewctx and must be called with its result.
+//
+// Must be running on a user goroutine. nosplit to match other race
+// instrumentation.
+//
+//go:nosplit
+func raceRestoreCtx(ctx uintptr) {
+	mp := acquirem()
+	gp := getg()
+	racefree(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
+	racectxend(getg().racectx)
+	racemalloc(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
+	getg().racectx = ctx
+	releasem(mp)
 }

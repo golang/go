@@ -567,6 +567,13 @@ func racegoend() {
 }
 
 //go:nosplit
+func racectxstart(pc, spawnctx uintptr) uintptr {
+	var racectx uintptr
+	racecall(&__tsan_go_start, spawnctx, uintptr(unsafe.Pointer(&racectx)), pc, 0)
+	return racectx
+}
+
+//go:nosplit
 func racectxend(racectx uintptr) {
 	racecall(&__tsan_go_end, racectx, 0, 0, 0)
 }

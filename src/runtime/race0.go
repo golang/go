@@ -41,4 +41,5 @@ func racemalloc(p unsafe.Pointer, sz uintptr)                               { th
 func racefree(p unsafe.Pointer, sz uintptr)                                 { throw("race") }
 func racegostart(pc uintptr) uintptr                                        { throw("race"); return 0 }
 func racegoend()                                                            { throw("race") }
+func racectxstart(spawnctx, racectx uintptr) uintptr                        { throw("race"); return 0 }
 func racectxend(racectx uintptr)                                            { throw("race") }
