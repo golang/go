@@ -219,6 +219,17 @@ func TestOnceXGC(t *testing.T) {
 			f := sync.OnceValues(func() (any, any) { buf[0] = 1; return nil, nil })
 			return func() { f() }
 		},
+		"OnceFunc panic": func(buf []byte) func() {
+			return sync.OnceFunc(func() { buf[0] = 1; panic("test panic") })
+		},
+		"OnceValue panic": func(buf []byte) func() {
+			f := sync.OnceValue(func() any { buf[0] = 1; panic("test panic") })
+			return func() { f() }
+		},
+		"OnceValues panic": func(buf []byte) func() {
+			f := sync.OnceValues(func() (any, any) { buf[0] = 1; panic("test panic") })
+			return func() { f() }
+		},
 	}
 	for n, fn := range fns {
 		t.Run(n, func(t *testing.T) {
@@ -230,14 +241,20 @@ func TestOnceXGC(t *testing.T) {
 			if gc.Load() != false {
 				t.Fatal("wrapped function garbage collected too early")
 			}
-			f()
+			func() {
+				defer func() { recover() }()
+				f()
+			}()
 			gcwaitfin()
 			if gc.Load() != true {
 				// Even if f is still alive, the function passed to Once(Func|Value|Values)
 				// is not kept alive after the first call to f.
 				t.Fatal("wrapped function should be garbage collected, but still live")
 			}
-			f()
+			func() {
+				defer func() { recover() }()
+				f()
+			}()
 		})
 	}
 }
