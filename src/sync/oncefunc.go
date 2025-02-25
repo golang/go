@@ -21,6 +21,7 @@ func OnceFunc(f func()) func() {
 	return func() {
 		d.once.Do(func() {
 			defer func() {
+				d.f = nil // Do not keep f alive after invoking it.
 				d.p = recover()
 				if !d.valid {
 					// Re-panic immediately so on the first
@@ -30,7 +31,6 @@ func OnceFunc(f func()) func() {
 				}
 			}()
 			d.f()
-			d.f = nil      // Do not keep f alive after invoking it.
 			d.valid = true // Set only if f does not panic.
 		})
 		if !d.valid {
@@ -57,13 +57,13 @@ func OnceValue[T any](f func() T) func() T {
 	return func() T {
 		d.once.Do(func() {
 			defer func() {
+				d.f = nil
 				d.p = recover()
 				if !d.valid {
 					panic(d.p)
 				}
 			}()
 			d.result = d.f()
-			d.f = nil
 			d.valid = true
 		})
 		if !d.valid {
@@ -92,13 +92,13 @@ func OnceValues[T1, T2 any](f func() (T1, T2)) func() (T1, T2) {
 	return func() (T1, T2) {
 		d.once.Do(func() {
 			defer func() {
+				d.f = nil
 				d.p = recover()
 				if !d.valid {
 					panic(d.p)
 				}
 			}()
 			d.r1, d.r2 = d.f()
-			d.f = nil
 			d.valid = true
 		})
 		if !d.valid {
