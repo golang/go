@@ -64,4 +64,4 @@ func msanmove(dst, src unsafe.Pointer, sz uintptr)
 //go:cgo_import_static __msan_write_go
 //go:cgo_import_static __msan_malloc_go
 //go:cgo_import_static __msan_free_go
-//go:cgo_import_static __msan_memmove
+//go:cgo_import_static __msan_memmove_go

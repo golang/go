@@ -51,8 +51,8 @@ TEXT	runtime·msanmove(SB), NOSPLIT, $0-24
 	MOVD	dst+0(FP), RARG0
 	MOVD	src+8(FP), RARG1
 	MOVD	sz+16(FP), RARG2
-	// void __msan_memmove(void *dst, void *src, uintptr_t sz);
-	MOVD	$__msan_memmove(SB), FARG
+	// void __msan_memmove_go(void *dst, void *src, uintptr_t sz);
+	MOVD	$__msan_memmove_go(SB), FARG
 	JMP	msancall<>(SB)
 
 // Switches SP to g0 stack and calls (FARG). Arguments already set.
