@@ -76,7 +76,7 @@ func concatstring5(buf *tmpBuf, a0, a1, a2, a3, a4 string) string {
 // concatbytes implements a Go string concatenation x+y+z+... returning a slice
 // of bytes.
 // The operands are passed in the slice a.
-func concatbytes(a []string) []byte {
+func concatbytes(buf *tmpBuf, a []string) []byte {
 	l := 0
 	for _, x := range a {
 		n := len(x)
@@ -90,7 +90,13 @@ func concatbytes(a []string) []byte {
 		return []byte{}
 	}
 
-	b := rawbyteslice(l)
+	var b []byte
+	if buf != nil && l <= len(buf) {
+		*buf = tmpBuf{}
+		b = buf[:l]
+	} else {
+		b = rawbyteslice(l)
+	}
 	offset := 0
 	for _, x := range a {
 		copy(b[offset:], x)
@@ -100,20 +106,20 @@ func concatbytes(a []string) []byte {
 	return b
 }
 
-func concatbyte2(a0, a1 string) []byte {
-	return concatbytes([]string{a0, a1})
+func concatbyte2(buf *tmpBuf, a0, a1 string) []byte {
+	return concatbytes(buf, []string{a0, a1})
 }
 
-func concatbyte3(a0, a1, a2 string) []byte {
-	return concatbytes([]string{a0, a1, a2})
+func concatbyte3(buf *tmpBuf, a0, a1, a2 string) []byte {
+	return concatbytes(buf, []string{a0, a1, a2})
 }
 
-func concatbyte4(a0, a1, a2, a3 string) []byte {
-	return concatbytes([]string{a0, a1, a2, a3})
+func concatbyte4(buf *tmpBuf, a0, a1, a2, a3 string) []byte {
+	return concatbytes(buf, []string{a0, a1, a2, a3})
 }
 
-func concatbyte5(a0, a1, a2, a3, a4 string) []byte {
-	return concatbytes([]string{a0, a1, a2, a3, a4})
+func concatbyte5(buf *tmpBuf, a0, a1, a2, a3, a4 string) []byte {
+	return concatbytes(buf, []string{a0, a1, a2, a3, a4})
 }
 
 // slicebytetostring converts a byte slice to a string.

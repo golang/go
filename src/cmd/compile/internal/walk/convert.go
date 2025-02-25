@@ -272,7 +272,7 @@ func walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	s := n.X
 
 	if expr, ok := s.(*ir.AddStringExpr); ok {
-		return walkAddString(n.Type(), expr, init)
+		return walkAddString(expr, init, n)
 	}
 
 	if ir.IsConst(s, constant.String) {

@@ -273,7 +273,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		return walkNew(n, init)
 
 	case ir.OADDSTR:
-		return walkAddString(n.Type(), n.(*ir.AddStringExpr), init)
+		return walkAddString(n.(*ir.AddStringExpr), init, nil)
 
 	case ir.OAPPEND:
 		// order should make sure we only see OAS(node, OAPPEND), which we handle above.
@@ -464,11 +464,17 @@ func copyExpr(n ir.Node, t *types.Type, init *ir.Nodes) ir.Node {
 	return l
 }
 
-func walkAddString(typ *types.Type, n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
-	c := len(n.List)
-
+// walkAddString walks a string concatenation expression x.
+// If conv is non nil, x is the conv.X field.
+func walkAddString(x *ir.AddStringExpr, init *ir.Nodes, conv *ir.ConvExpr) ir.Node {
+	c := len(x.List)
 	if c < 2 {
 		base.Fatalf("walkAddString count %d too small", c)
+	}
+
+	typ := x.Type()
+	if conv != nil {
+		typ = conv.Type()
 	}
 
 	// list of string arguments
@@ -476,14 +482,14 @@ func walkAddString(typ *types.Type, n *ir.AddStringExpr, init *ir.Nodes) ir.Node
 
 	var fn, fnsmall, fnbig string
 
+	buf := typecheck.NodNil()
 	switch {
 	default:
-		base.FatalfAt(n.Pos(), "unexpected type: %v", typ)
+		base.FatalfAt(x.Pos(), "unexpected type: %v", typ)
 	case typ.IsString():
-		buf := typecheck.NodNil()
-		if n.Esc() == ir.EscNone {
+		if x.Esc() == ir.EscNone {
 			sz := int64(0)
-			for _, n1 := range n.List {
+			for _, n1 := range x.List {
 				if n1.Op() == ir.OLITERAL {
 					sz += int64(len(ir.StringVal(n1)))
 				}
@@ -499,6 +505,10 @@ func walkAddString(typ *types.Type, n *ir.AddStringExpr, init *ir.Nodes) ir.Node
 		args = []ir.Node{buf}
 		fnsmall, fnbig = "concatstring%d", "concatstrings"
 	case typ.IsSlice() && typ.Elem().IsKind(types.TUINT8): // Optimize []byte(str1+str2+...)
+		if conv != nil && conv.Esc() == ir.EscNone {
+			buf = stackBufAddr(tmpstringbufsize, types.Types[types.TUINT8])
+		}
+		args = []ir.Node{buf}
 		fnsmall, fnbig = "concatbyte%d", "concatbytes"
 	}
 
@@ -507,7 +517,7 @@ func walkAddString(typ *types.Type, n *ir.AddStringExpr, init *ir.Nodes) ir.Node
 		// note: order.expr knows this cutoff too.
 		fn = fmt.Sprintf(fnsmall, c)
 
-		for _, n2 := range n.List {
+		for _, n2 := range x.List {
 			args = append(args, typecheck.Conv(n2, types.Types[types.TSTRING]))
 		}
 	} else {
@@ -515,12 +525,12 @@ func walkAddString(typ *types.Type, n *ir.AddStringExpr, init *ir.Nodes) ir.Node
 		fn = fnbig
 		t := types.NewSlice(types.Types[types.TSTRING])
 
-		slargs := make([]ir.Node, len(n.List))
-		for i, n2 := range n.List {
+		slargs := make([]ir.Node, len(x.List))
+		for i, n2 := range x.List {
 			slargs[i] = typecheck.Conv(n2, types.Types[types.TSTRING])
 		}
 		slice := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, t, slargs)
-		slice.Prealloc = n.Prealloc
+		slice.Prealloc = x.Prealloc
 		args = append(args, slice)
 		slice.SetEsc(ir.EscNone)
 	}
