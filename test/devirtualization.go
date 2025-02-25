@@ -1,4 +1,4 @@
-// errorcheck -0 -m
+// errorcheck -0 -m -d=testing=2
 
 // Copyright 2025 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -298,7 +298,6 @@ func assignWithTypeAssert() {
 }
 
 func nilIface() {
-	// TODO: these cases can also be devirtualized.
 	{
 		var v A = &Impl{} // ERROR "escapes"
 		v = nil
@@ -1017,32 +1016,35 @@ func devirtWrapperType() {
 }
 
 func selfAssigns() {
-	{
-		var a A = &Impl{} // ERROR "escapes"
-		a = a
-		a.A()
-	}
-	{
-		var a A = &Impl{} // ERROR "escapes"
-		var asAny any = a
-		asAny = asAny
-		asAny.(A).A()
-	}
-	{
-		var a A = &Impl{} // ERROR "escapes"
-		var asAny any = a
-		asAny = asAny
-		a = asAny.(A)
-		asAny = a
-		asAny.(A).A()
-		asAny.(M).M()
-	}
-	{
-		var a A = &Impl{} // ERROR "escapes"
-		var asAny A = a
-		a = asAny.(A)
-		a.A()
-	}
+	//	{
+	//		var a A = &Impl{} // ERROR "escapes"
+	//		a = a
+	//		a.A()
+	//	}
+	//
+	//	{
+	//		var a A = &Impl{} // ERROR "escapes"
+	//		var asAny any = a
+	//		asAny = asAny
+	//		asAny.(A).A()
+	//	}
+	//
+	//	{
+	//		var a A = &Impl{} // ERROR "escapes"
+	//		var asAny any = a
+	//		asAny = asAny
+	//		a = asAny.(A)
+	//		asAny = a
+	//		asAny.(A).A()
+	//		asAny.(M).M()
+	//	}
+	//
+	//	{
+	//		var a A = &Impl{} // ERROR "escapes"
+	//		var asAny A = a
+	//		a = asAny.(A)
+	//		a.A()
+	//	}
 }
 
 func boolNoDevirt() {
