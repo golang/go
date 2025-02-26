@@ -546,6 +546,22 @@ var (
 
 func globals() {
 	{
+		// TODO: why no panic?
+		// .CurFunc is nil
+		globalA.A()
+		globalA.(M).M()
+		globalM.M()
+		globalM.(A).A()
+
+		var a = globalA
+		a.A()
+		a.(M).M()
+
+		var m = globalM
+		m.M()
+		m.(A).A()
+	}
+	{
 		var a A = &Impl{} // ERROR "does not escape"
 		a = globalImpl
 		a.A() // ERROR "devirtualizing" "inlining call"
