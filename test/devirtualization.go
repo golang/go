@@ -62,6 +62,13 @@ func typeAsserts() {
 	c.(A).A() // ERROR "devirtualizing" "inlining call"
 	c.(M).M() // ERROR "devirtualizing" "inlining call"
 
+	M(a).M()    // ERROR "devirtualizing" "inlining call"
+	M(M(a)).M() // ERROR "devirtualizing" "inlining call"
+
+	a2 := a.(A)
+	A(a2).A()    // ERROR "devirtualizing" "inlining call"
+	A(A(a2)).A() // ERROR "devirtualizing" "inlining call"
+
 	{
 		var a C = &CImpl{}   // ERROR "does not escape"
 		a.(any).(C).C()      // ERROR "devirtualizing" "inlining"
@@ -564,8 +571,6 @@ var (
 
 func globals() {
 	{
-		// TODO: why no panic?
-		// .CurFunc is nil
 		globalA.A()
 		globalA.(M).M()
 		globalM.M()
