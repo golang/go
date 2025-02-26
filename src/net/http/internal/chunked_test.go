@@ -280,6 +280,33 @@ func TestChunkReaderByteAtATime(t *testing.T) {
 	}
 }
 
+func TestChunkInvalidInputs(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		b    string
+	}{{
+		name: "bare LF in chunk size",
+		b:    "1\na\r\n0\r\n",
+	}, {
+		name: "extra LF in chunk size",
+		b:    "1\r\r\na\r\n0\r\n",
+	}, {
+		name: "bare LF in chunk data",
+		b:    "1\r\na\n0\r\n",
+	}, {
+		name: "bare LF in chunk extension",
+		b:    "1;\na\r\n0\r\n",
+	}} {
+		t.Run(test.name, func(t *testing.T) {
+			r := NewChunkedReader(strings.NewReader(test.b))
+			got, err := io.ReadAll(r)
+			if err == nil {
+				t.Fatalf("unexpectedly parsed invalid chunked data:\n%q", got)
+			}
+		})
+	}
+}
+
 type funcReader struct {
 	f   func(iteration int) ([]byte, error)
 	i   int

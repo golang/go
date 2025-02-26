@@ -7372,3 +7372,52 @@ func testServerTLSNextProtos(t *testing.T, mode testMode) {
 		t.Fatalf("after running test: original NextProtos slice = %v, want %v", nextProtos, wantNextProtos)
 	}
 }
+
+func TestInvalidChunkedBodies(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		b    string
+	}{{
+		name: "bare LF in chunk size",
+		b:    "1\na\r\n0\r\n\r\n",
+	}, {
+		name: "bare LF at body end",
+		b:    "1\r\na\r\n0\r\n\n",
+	}} {
+		t.Run(test.name, func(t *testing.T) {
+			reqc := make(chan error)
+			ts := newClientServerTest(t, http1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+				got, err := io.ReadAll(r.Body)
+				if err == nil {
+					t.Logf("read body: %q", got)
+				}
+				reqc <- err
+			})).ts
+
+			serverURL, err := url.Parse(ts.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			conn, err := net.Dial("tcp", serverURL.Host)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if _, err := conn.Write([]byte(
+				"POST / HTTP/1.1\r\n" +
+					"Host: localhost\r\n" +
+					"Transfer-Encoding: chunked\r\n" +
+					"Connection: close\r\n" +
+					"\r\n" +
+					test.b)); err != nil {
+				t.Fatal(err)
+			}
+			conn.(*net.TCPConn).CloseWrite()
+
+			if err := <-reqc; err == nil {
+				t.Errorf("server handler: io.ReadAll(r.Body) succeeded, want error")
+			}
+		})
+	}
+}
