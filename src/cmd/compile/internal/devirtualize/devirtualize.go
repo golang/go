@@ -27,7 +27,7 @@ var go125ImprovedConcreteTypeAnalysis = true
 // StaticCall devirtualizes the given call if possible when the concrete callee
 // is available statically.
 func StaticCall(call *ir.CallExpr) {
-	//go125ImprovedConcreteTypeAnalysis = base.Debug.Testing != 0
+	go125ImprovedConcreteTypeAnalysis = base.Debug.Testing != 0
 	//concreteTypeDebug = base.Debug.Testing != 0
 
 	// For promoted methods (including value-receiver methods promoted
@@ -404,7 +404,6 @@ func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 			return
 		}
 
-		// TODO: add test case that fails w/o this.
 		if value.typ != nil && value.typ.IsInterface() {
 			value.typ = nil
 		}

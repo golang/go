@@ -145,6 +145,14 @@ func typeAssertsWithOkReturn() {
 		// a now contains the zero value of *Impl
 		a.A() // ERROR "devirtualizing" "inlining call"
 	}
+	{
+		a := newANoInline()
+		a.A()
+	}
+	{
+		_, a := newANoInlineRet2()
+		a.A()
+	}
 }
 
 func newM() M { // ERROR "can inline"
@@ -174,6 +182,16 @@ func newImpl2ret2() (string, *Impl2) {
 //go:noinline
 func newImpl2() *Impl2 {
 	return &Impl2{} // ERROR "escapes"
+}
+
+//go:noinline
+func newANoInline() A {
+	return &Impl{} // ERROR "escapes"
+}
+
+//go:noinline
+func newANoInlineRet2() (string, A) {
+	return "", &Impl{} // ERROR "escapes"
 }
 
 func testTypeSwitch() {
