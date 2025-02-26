@@ -308,7 +308,6 @@ func nilIface() {
 		v.A()             // ERROR "devirtualizing v\.A to \*Impl" "inlining call"
 		v = nil
 	}
-
 	{
 		var nilIface A
 		var v A = &Impl{} // ERROR "&Impl{} does not escape"
@@ -325,6 +324,12 @@ func nilIface() {
 		var v A
 		v.A()       // ERROR "devirtualizing v\.A to \*Impl" "inlining call"
 		v = &Impl{} // ERROR "does not escape"
+	}
+	{
+		var v A
+		var v2 A = v
+		v2.A()       // ERROR "devirtualizing v2\.A to \*Impl" "inlining call"
+		v2 = &Impl{} // ERROR "does not escape"
 	}
 	{
 		var v A

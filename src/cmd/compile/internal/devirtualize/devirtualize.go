@@ -23,12 +23,12 @@ import (
 
 // const go125ImprovedConcreteTypeAnalysis = true
 var go125ImprovedConcreteTypeAnalysis = true
-var debug = false
 
 // StaticCall devirtualizes the given call if possible when the concrete callee
 // is available statically.
 func StaticCall(call *ir.CallExpr) {
-	go125ImprovedConcreteTypeAnalysis = base.Debug.Testing != 0
+	//go125ImprovedConcreteTypeAnalysis = base.Debug.Testing != 0
+	//concreteTypeDebug = base.Debug.Testing != 0
 
 	// For promoted methods (including value-receiver methods promoted
 	// to pointer-receivers), the interface method wrapper may contain
@@ -125,6 +125,23 @@ func StaticCall(call *ir.CallExpr) {
 	}
 
 	dt := ir.NewTypeAssertExpr(sel.Pos(), sel.X, typ)
+
+	if go125ImprovedConcreteTypeAnalysis {
+		// Consider:
+		//
+		//	var v Iface
+		// 	v.A()
+		// 	v = &Impl{}
+		//
+		// Here in the devirtualizer, we determine the concrete type of v as beeing an *Impl,
+		// but in can still be a nil interface, we have not detected that. The v.(*Impl)
+		// type assertion that we make here would also have failed, but with a different
+		// panic "pkg.Iface is nil, not *pkg.Impl", where previously we would get a nil panic.
+		// We fix this, by introducing an additional nilcheck on the itab.
+		dt.EmitItabNilCheck = true
+		dt.SetPos(call.Pos())
+	}
+
 	x := typecheck.XDotMethod(sel.Pos(), dt, sel.Sel, true)
 	switch x.Op() {
 	case ir.ODOTMETH:
@@ -164,6 +181,8 @@ func StaticCall(call *ir.CallExpr) {
 	typecheck.FixMethodCall(call)
 }
 
+var concreteTypeDebug = false
+
 // concreteType determines the concrete type of n, following OCONVIFACEs and type asserts.
 // Returns nil when the concrete type could not be determined, or when there are multiple
 // (different) types assigned to an interface.
@@ -180,10 +199,10 @@ func concreteType(n ir.Node) (typ *types.Type) {
 			baseFunc = n.Curfn
 		}
 		if !n.Type().IsInterface() {
-			base.Fatalf("node passed to getAssignements is not an interface: %v", n.Type())
+			base.Fatalf("name passed to getAssignements is not of an interface type: %v", n.Type())
 		}
 		if n.Curfn != baseFunc {
-			base.Fatalf("unexpected n.Curfn = %v; want = %v", n, baseFunc)
+			base.Fatalf("unexpected n.Curfn = %v; want = %v", n.Curfn, baseFunc)
 		}
 		return assignements[n]
 	})
@@ -201,14 +220,14 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements
 
 	if go125ImprovedConcreteTypeAnalysis {
 		defer func() {
-			if debug {
-				base.WarnfAt(nn.Pos(), "concreteType1(%v) -> %v", nn, out)
+			if concreteTypeDebug {
+				base.WarnfAt(nn.Pos(), "concreteType1(%v) -> (typ: %v; isNil: %v)", nn, out, isNil)
 			}
 		}()
 	}
 
 	for {
-		if debug {
+		if concreteTypeDebug {
 			base.WarnfAt(n.Pos(), "concreteType1(%v) current iteration node: %v", nn, n)
 		}
 
@@ -278,7 +297,7 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements
 		base.Fatalf("nil Func %v", name)
 	}
 
-	if debug {
+	if concreteTypeDebug {
 		base.WarnfAt(src.NoXPos, "concreteType1(%v) name: %v, analyzing assignements", nn, name)
 	}
 
@@ -294,8 +313,11 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements
 
 	assignements := getAssignements(name)
 	if len(assignements) == 0 {
-		// TODO: here comment
-		// TODO  in analyzed map we set this as nil (meaning unknown type). add tests.
+		// Variable either declared with zero value, or only assigned
+		// with nil (getAssignements does not return such assignements).
+		if concreteTypeDebug {
+			base.WarnfAt(src.NoXPos, "concreteType1(%v) name: %v assigned with only nil values", nn, name)
+		}
 		return nil, true
 	}
 
@@ -304,14 +326,22 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements
 		t := v.typ
 		if v.node != nil {
 			var isNil bool
+			if concreteTypeDebug {
+				base.WarnfAt(src.NoXPos, "concreteType1(%v) name: %v assigned with node %v", nn, name, v.node)
+			}
 			t, isNil = concreteType1(v.node, analyzed, getAssignements)
 			if isNil {
+				if concreteTypeDebug {
+					base.WarnfAt(src.NoXPos, "concreteType1(%v) name: %v assigned with nil", nn, name)
+				}
 				if t != nil {
 					base.Fatalf("t = %v; want = <nil>", t)
 				}
-				// TODO  if all are nil, then we return nil? Is that fine? add tests.
 				continue
 			}
+		}
+		if concreteTypeDebug {
+			base.WarnfAt(src.NoXPos, "concreteType1(%v) name: %v assigned with %v", nn, name, t)
 		}
 		if t == nil || (typ != nil && !types.Identical(typ, t)) {
 			return nil, false
@@ -319,11 +349,17 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements
 		typ = t
 	}
 
+	if typ == nil {
+		// Variable either declared with zero value, or only assigned with nil.
+		return nil, true
+	}
+
 	analyzed[name] = typ
 	return typ, false
 }
 
 type valOrTyp struct {
+	// TODO: improve comment
 	// either typ or node is populated, neither both, or
 	// both are nil (either interface was assigned
 	// or a basic type without methods (i.e. int))
@@ -331,6 +367,8 @@ type valOrTyp struct {
 	node ir.Node
 }
 
+// ifaceAssignments returns a map containg every assignement to variables
+// directly declared in the provieded func that are of interface types.
 func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 	out := make(map[*ir.Name][]valOrTyp)
 
@@ -364,10 +402,6 @@ func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 		// TODO: add test case that fails w/o this.
 		if value.typ != nil && value.typ.IsInterface() {
 			value.typ = nil
-		}
-
-		if debug {
-			base.WarnfAt(src.NoXPos, "assign %v = {%v;%v}", n, value.typ, value.node)
 		}
 
 		out[n] = append(out[n], value)
