@@ -65,7 +65,7 @@ func query(ctx context.Context, filename, query string, bufSize int) (addrs []st
 	case r := <-ch:
 		return r.addrs, r.err
 	case <-ctx.Done():
-		return nil, mapErr(err)
+		return nil, mapErr(ctx.Err())
 	}
 }
 
