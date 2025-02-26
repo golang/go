@@ -85,41 +85,61 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	switch id {
 	case _Append:
-		// append(s S, x ...T) S, where T is the element type of S
-		// spec: "The variadic function append appends zero or more values x to s of type
-		// S, which must be a slice type, and returns the resulting slice, also of type S.
-		// The values x are passed to a parameter of type ...T where T is the element type
+		// append(s S, x ...E) S, where E is the element type of S
+		// spec: "The variadic function append appends zero or more values x to a slice s
+		// of type S and returns the resulting slice, also of type S.
+		// The values x are passed to a parameter of type ...E where E is the element type
 		// of S and the respective parameter passing rules apply."
 		S := x.typ
-		var T Type
-		if s, _ := coreType(S).(*Slice); s != nil {
-			T = s.elem
-		} else {
-			var cause string
-			switch {
-			case x.isNil():
-				cause = "have untyped nil"
-			case isTypeParam(S):
-				if u := coreType(S); u != nil {
-					cause = check.sprintf("%s has core type %s", x, u)
+
+		// determine E
+		var E Type
+		typeset(S, func(_, u Type) bool {
+			s, _ := u.(*Slice)
+			if s == nil {
+				var cause string
+				if x.isNil() {
+					// Printing x in this case would just print "nil".
+					// Special case this so we can emphasize "untyped".
+					cause = "untyped nil"
 				} else {
-					cause = check.sprintf("%s has no core type", x)
+					cause = check.sprintf("%s", x)
 				}
-			default:
-				cause = check.sprintf("have %s", x)
+				check.errorf(x, InvalidAppend, "invalid append: first argument must be a slice; have %s", cause)
+				E = nil
+				return false
 			}
-			// don't use invalidArg prefix here as it would repeat "argument" in the error message
-			check.errorf(x, InvalidAppend, "first argument to append must be a slice; %s", cause)
+			if E == nil {
+				E = s.elem
+			} else if !Identical(E, s.elem) {
+				check.errorf(x, InvalidAppend, "invalid append: mismatched slice element types %s and %s in %s", E, s.elem, x)
+				E = nil
+				return false
+			}
+			return true
+		})
+		if E == nil {
 			return
 		}
 
 		// spec: "As a special case, append also accepts a first argument assignable
 		// to type []byte with a second argument of string type followed by ... .
-		// This form appends the bytes of the string.
+		// This form appends the bytes of the string."
 		if nargs == 2 && hasDots(call) {
 			if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
-				y := args[1]
-				if t := coreString(y.typ); t != nil && isString(t) {
+				y := args[1] // valid if != nil
+				typeset(y.typ, func(_, u Type) bool {
+					if s, _ := u.(*Slice); s != nil && Identical(s.elem, universeByte) {
+						return true
+					}
+					if isString(u) {
+						return true
+					}
+					y = nil
+					return false
+				})
+
+				if y != nil {
 					if check.recordTypes() {
 						sig := makeSig(S, S, y.typ)
 						sig.variadic = true
@@ -133,7 +153,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 		// check general case by creating custom signature
-		sig := makeSig(S, S, NewSlice(T)) // []T required for variadic signature
+		sig := makeSig(S, S, NewSlice(E)) // []E required for variadic signature
 		sig.variadic = true
 		check.arguments(call, sig, nil, nil, args, nil) // discard result (we know the result type)
 		// ok to continue even if check.arguments reported errors
