@@ -25,6 +25,10 @@ When either cgo or SWIG is used, go build will pass any .c, .m, .s, .S
 or .sx files to the C compiler, and any .cc, .cpp, .cxx files to the C++
 compiler. The CC or CXX environment variables may be set to determine
 the C or C++ compiler, respectively, to use.
+
+There must be at least one .go file containing a package statement in
+the C/C++ code directory while even there is a .swig file. Go needs that to
+tell what the package is.
 	`,
 }
 
