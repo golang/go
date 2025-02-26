@@ -2262,6 +2262,10 @@
 // compiler. The CC or CXX environment variables may be set to determine
 // the C or C++ compiler, respectively, to use.
 //
+// There must be at least one .go file containing a package statement in
+// the C/C++ code directory while even there is a .swig file. Go needs that to
+// tell what the package is.
+//
 // # Build and test caching
 //
 // The go command caches build outputs for reuse in future builds.
