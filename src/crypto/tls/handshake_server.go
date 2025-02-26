@@ -909,7 +909,7 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	var err error
 	for i, asn1Data := range certificates {
 		if certs[i], err = x509.ParseCertificate(asn1Data); err != nil {
-			c.sendAlert(alertBadCertificate)
+			c.sendAlert(alertDecodeError)
 			return errors.New("tls: failed to parse client certificate: " + err.Error())
 		}
 		if certs[i].PublicKeyAlgorithm == x509.RSA {
