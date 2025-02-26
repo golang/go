@@ -69,9 +69,8 @@ func ExampleTemplate_glob() {
 	// T0 invokes T1: (T1 invokes T2: (This is T2))
 }
 
-// This example demonstrates one way to share some templates
-// and use them in different contexts. In this variant we add multiple driver
-// templates by hand to an existing bundle of templates.
+// This example demonstrates how to use one group of driver
+// templates with distinct sets of helper templates.
 func ExampleTemplate_helpers() {
 	// Here we create a temporary directory and populate it with our sample
 	// template definition files; usually the template files would already
@@ -116,8 +115,9 @@ func ExampleTemplate_helpers() {
 	// Driver 2 calls T2: (This is T2)
 }
 
-// This example demonstrates how to use one group of driver
-// templates with distinct sets of helper templates.
+// This example demonstrates one way to share some templates
+// and use them in different contexts. In this variant we add multiple driver
+// templates by hand to an existing bundle of templates.
 func ExampleTemplate_share() {
 	// Here we create a temporary directory and populate it with our sample
 	// template definition files; usually the template files would already
