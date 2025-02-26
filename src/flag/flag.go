@@ -318,7 +318,7 @@ func (v textValue) Set(s string) error {
 	return v.p.UnmarshalText([]byte(s))
 }
 
-func (v textValue) Get() interface{} {
+func (v textValue) Get() any {
 	return v.p
 }
 
