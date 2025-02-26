@@ -21,15 +21,11 @@ import (
 
 // TODO: update tests to include full errors.
 
-// const go125ImprovedConcreteTypeAnalysis = true
-var go125ImprovedConcreteTypeAnalysis = true
+const go125ImprovedConcreteTypeAnalysis = true
 
 // StaticCall devirtualizes the given call if possible when the concrete callee
 // is available statically.
 func StaticCall(call *ir.CallExpr) {
-	go125ImprovedConcreteTypeAnalysis = base.Debug.Testing != 0
-	//concreteTypeDebug = base.Debug.Testing != 0
-
 	// For promoted methods (including value-receiver methods promoted
 	// to pointer-receivers), the interface method wrapper may contain
 	// expressions that can panic (e.g., ODEREF, ODOTPTR,
@@ -184,7 +180,7 @@ func StaticCall(call *ir.CallExpr) {
 	typecheck.FixMethodCall(call)
 }
 
-var concreteTypeDebug = false
+const concreteTypeDebug = false
 
 // concreteType determines the concrete type of n, following OCONVIFACEs and type asserts.
 // Returns nil when the concrete type could not be determined, or when there are multiple
@@ -220,11 +216,9 @@ func concreteType(n ir.Node) (typ *types.Type) {
 func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements func(*ir.Name) []valOrTyp) (out *types.Type, isNil bool) {
 	nn := n
 
-	if go125ImprovedConcreteTypeAnalysis {
+	if concreteTypeDebug {
 		defer func() {
-			if concreteTypeDebug {
-				base.WarnfAt(nn.Pos(), "concreteType1(%v) -> (typ: %v; isNil: %v)", nn, out, isNil)
-			}
+			base.WarnfAt(nn.Pos(), "concreteType1(%v) -> (typ: %v; isNil: %v)", nn, out, isNil)
 		}()
 	}
 
@@ -262,7 +256,6 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements
 			}
 		case *ir.InlinedCallExpr:
 			if n1.Op() == ir.OINLCALL {
-				// TODO: single is fine?
 				n = n1.SingleResult()
 				continue
 			}
@@ -290,13 +283,13 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements
 		base.Fatalf("reassigned %v", name)
 	}
 
-	if name.Addrtaken() {
-		return nil, false // conservatively assume it's reassigned with a different type indirectly
+	// name.Curfn must be set, as we checked name.Class != ir.PAUTO before.
+	if name.Curfn == nil {
+		base.Fatalf("name.Curfn = nil; want not nil")
 	}
 
-	if name.Curfn == nil {
-		// TODO: think, we should hit here with an iface global?
-		base.Fatalf("nil Func %v", name)
+	if name.Addrtaken() {
+		return nil, false // conservatively assume it's reassigned with a different type indirectly
 	}
 
 	if concreteTypeDebug {
