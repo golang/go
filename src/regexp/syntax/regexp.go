@@ -76,7 +76,7 @@ func (x *Regexp) Equal(y *Regexp) bool {
 		}
 
 	case OpLiteral, OpCharClass:
-		return slices.Equal(x.Rune, y.Rune)
+		return x.Flags&FoldCase == y.Flags&FoldCase && slices.Equal(x.Rune, y.Rune)
 
 	case OpAlternate, OpConcat:
 		return slices.EqualFunc(x.Sub, y.Sub, (*Regexp).Equal)
