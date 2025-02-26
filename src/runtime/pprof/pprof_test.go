@@ -342,15 +342,17 @@ type inlineWrapperInterface interface {
 type inlineWrapper struct {
 }
 
-// TODO: test fails if this method inlines.
-//
-//go:noinline
 func (h inlineWrapper) dump(pcs []uintptr) {
 	dumpCallers(pcs)
 }
 
 func inlinedWrapperCallerDump(pcs []uintptr) {
 	var h inlineWrapperInterface
+
+	// Take the address of h, such that h.dump() call (below)
+	// does not get devirtualized by the compiler.
+	_ = &h
+
 	h = &inlineWrapper{}
 	h.dump(pcs)
 }
