@@ -129,7 +129,7 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 		typ = hint
 		base = typ
 		// *T implies &T{}
-		if b, ok := deref(coreType(base)); ok {
+		if b, ok := deref(commonUnder(check, base, nil)); ok {
 			base = b
 		}
 		isElem = true
@@ -142,7 +142,7 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 		base = typ
 	}
 
-	switch utyp := coreType(base).(type) {
+	switch utyp := commonUnder(check, base, nil).(type) {
 	case *Struct:
 		// Prevent crash if the struct referred to is not yet set up.
 		// See analogous comment for *Array.
@@ -330,7 +330,7 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 			}
 			var cause string
 			if utyp == nil {
-				cause = " (no core type)"
+				cause = " (no common underlying type)"
 			}
 			check.errorf(e, InvalidLit, "invalid composite literal%s type %s%s", qualifier, typ, cause)
 			x.mode = invalid
