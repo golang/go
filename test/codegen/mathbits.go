@@ -372,7 +372,7 @@ func TrailingZeros(n uint) int {
 func TrailingZeros64(n uint64) int {
 	// amd64/v1,amd64/v2:"BSFQ","MOVL\t\\$64","CMOVQEQ"
 	// amd64/v3:"TZCNTQ"
-	// 386:"BSFL"
+	// 386:"BSFL","JNE"
 	// arm64:"RBIT","CLZ"
 	// loong64:"CTZV"
 	// s390x:"FLOGR"
