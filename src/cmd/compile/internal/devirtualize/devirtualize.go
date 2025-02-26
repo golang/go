@@ -180,10 +180,10 @@ func StaticCall(call *ir.CallExpr) {
 // Returns nil when the concrete type could not be determined, or when there are multiple
 // (different) types assigned to an interface.
 func concreteType(n ir.Node) (typ *types.Type) {
-	var assignements map[*ir.Name][]valOrTyp
+	var assignments map[*ir.Name][]valOrTyp
 	typ, isNil := concreteType1(n, make(map[*ir.Name]*types.Type), func(n *ir.Name) []valOrTyp {
-		if assignements == nil {
-			assignements = make(map[*ir.Name][]valOrTyp)
+		if assignments == nil {
+			assignments = make(map[*ir.Name][]valOrTyp)
 			if n.Curfn == nil {
 				base.Fatalf("n.Curfn == nil: %v", n)
 			}
@@ -191,12 +191,12 @@ func concreteType(n ir.Node) (typ *types.Type) {
 			for fun.ClosureParent != nil {
 				fun = fun.ClosureParent
 			}
-			assignements = ifaceAssignments(fun)
+			assignments = ifaceAssignments(fun)
 		}
 		if !n.Type().IsInterface() {
-			base.Fatalf("name passed to getAssignements is not of an interface type: %v", n.Type())
+			base.Fatalf("name passed to getAssignments is not of an interface type: %v", n.Type())
 		}
-		return assignements[n]
+		return assignments[n]
 	})
 	if isNil && typ != nil {
 		base.Fatalf("typ = %v; want = <nil>", typ)
@@ -207,7 +207,7 @@ func concreteType(n ir.Node) (typ *types.Type) {
 	return typ
 }
 
-func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements func(*ir.Name) []valOrTyp) (out *types.Type, isNil bool) {
+func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignments func(*ir.Name) []valOrTyp) (out *types.Type, isNil bool) {
 	for {
 		if !n.Type().IsInterface() {
 			return n.Type(), false
@@ -276,19 +276,19 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements
 	// executes) will get a nil (from the map lookup above), where we could determine the type.
 	analyzed[name] = nil
 
-	assignements := getAssignements(name)
-	if len(assignements) == 0 {
+	assignments := getAssignments(name)
+	if len(assignments) == 0 {
 		// Variable either declared with zero value, or only assigned
-		// with nil (getAssignements does not return such assignements).
+		// with nil (getAssignements does not return such assignments).
 		return nil, true
 	}
 
 	var typ *types.Type
-	for _, v := range assignements {
+	for _, v := range assignments {
 		t := v.typ
 		if v.node != nil {
 			var isNil bool
-			t, isNil = concreteType1(v.node, analyzed, getAssignements)
+			t, isNil = concreteType1(v.node, analyzed, getAssignments)
 			if isNil {
 				if t != nil {
 					base.Fatalf("t = %v; want = <nil>", t)
