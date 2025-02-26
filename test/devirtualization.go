@@ -571,11 +571,11 @@ func globals() {
 		globalM.M()
 		globalM.(A).A()
 
-		var a = globalA
+		a := globalA
 		a.A()
 		a.(M).M()
 
-		var m = globalM
+		m := globalM
 		m.M()
 		m.(A).A()
 	}
