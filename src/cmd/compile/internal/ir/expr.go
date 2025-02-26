@@ -682,7 +682,9 @@ type TypeAssertExpr struct {
 	// An internal/abi.TypeAssert descriptor to pass to the runtime.
 	Descriptor *obj.LSym
 
-	// Emit a nilcheck on the Itab of X.
+	// When set to true, then the ssagen package will emit a nilcheck on the itab, that
+	// will lead to a nil check panic in case the itab is nil at runtime.
+	// It must not be set for type asserts using the commaok form.
 	EmitItabNilCheck bool
 }
 
