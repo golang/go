@@ -75,8 +75,10 @@ x_cgo_sys_thread_create(void (*func)(void*), void* arg) {
 
 int
 _cgo_is_runtime_initialized() {
+	 int status;
+
 	 EnterCriticalSection(&runtime_init_cs);
-	 int status = runtime_init_done;
+	 status = runtime_init_done;
 	 LeaveCriticalSection(&runtime_init_cs);
 	 return status;
 }

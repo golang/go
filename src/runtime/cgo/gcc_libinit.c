@@ -39,10 +39,11 @@ void
 x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
 	pthread_attr_t attr;
 	pthread_t p;
+	int err;
 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	int err = _cgo_try_pthread_create(&p, &attr, func, arg);
+	err = _cgo_try_pthread_create(&p, &attr, func, arg);
 	if (err != 0) {
 		fprintf(stderr, "pthread_create failed: %s", strerror(err));
 		abort();
@@ -52,9 +53,11 @@ x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
 uintptr_t
 _cgo_wait_runtime_init_done(void) {
 	void (*pfn)(struct context_arg*);
+	int done;
+
 	pfn = __atomic_load_n(&cgo_context_function, __ATOMIC_CONSUME);
 
-	int done = 2;
+	done = 2;
 	if (__atomic_load_n(&runtime_init_done, __ATOMIC_CONSUME) != done) {
 		pthread_mutex_lock(&runtime_init_mu);
 		while (__atomic_load_n(&runtime_init_done, __ATOMIC_CONSUME) == 0) {
