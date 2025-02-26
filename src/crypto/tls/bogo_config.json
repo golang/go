@@ -55,7 +55,6 @@
         "KyberKeyShareIncludedThird": "we always send the Kyber key share first",
         "GREASE-Server-TLS13": "We don't send GREASE extensions",
         "SendBogusAlertType": "sending wrong alert type",
-        "EchoTLS13CompatibilitySessionID": "TODO reject compat session ID",
         "*Client-P-224*": "no P-224 support",
         "*Server-P-224*": "no P-224 support",
         "CurveID-Resume*": "unexposed curveID is not stored in the ticket yet",

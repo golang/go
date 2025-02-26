@@ -557,6 +557,19 @@ func (c *Conn) pickTLSVersion(serverHello *serverHelloMsg) error {
 func (hs *clientHandshakeState) handshake() error {
 	c := hs.c
 
+	// If we did not load a session (hs.session == nil), but we did set a
+	// session ID in the transmitted client hello (hs.hello.sessionId != nil),
+	// it means we tried to negotiate TLS 1.3 and sent a random session ID as a
+	// compatibility measure (see RFC 8446, Section 4.1.2).
+	//
+	// Since we're now handshaking for TLS 1.2, if the server echoed the
+	// transmitted ID back to us, we know mischief is afoot: the session ID
+	// was random and can't possibly be recognized by the server.
+	if hs.session == nil && hs.hello.sessionId != nil && bytes.Equal(hs.hello.sessionId, hs.serverHello.sessionId) {
+		c.sendAlert(alertIllegalParameter)
+		return errors.New("tls: server echoed TLS 1.3 compatibility session ID in TLS 1.2")
+	}
+
 	isResume, err := hs.processServerHello()
 	if err != nil {
 		return err
