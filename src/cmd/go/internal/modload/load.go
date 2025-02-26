@@ -377,6 +377,10 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 		},
 	})
 
+	if len(ld.requirements.rootModules) == 0 {
+		return matches, loadedPackages
+	}
+
 	// One last pass to finalize wildcards.
 	updateMatches(ld.requirements, ld)
 
