@@ -138,7 +138,9 @@ func StaticCall(call *ir.CallExpr) {
 		// type assertion that we make here would also have failed, but with a different
 		// panic "pkg.Iface is nil, not *pkg.Impl", where previously we would get a nil panic.
 		// We fix this, by introducing an additional nilcheck on the itab.
-		// Calling a method on an nil interface in most cases is a bug.
+		// Calling a method on an nil interface (in most cases) is a bug in a program, so it is fine
+		// to devirtualize and further (possibly) inline them, even though we would never reach
+		// the called function.
 		dt.EmitItabNilCheck = true
 		dt.SetPos(call.Pos())
 	}
@@ -360,11 +362,11 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements
 	return typ, false
 }
 
+// valOrTyp stores a node or a type that is assigned to a variable.
+// Neither both of these fields are populated. If both are nil, then
+// either an interface type was assigned or a basic type (i.e. int), which
+// we know that does not have any methods, thus not possible to devirtualize.
 type valOrTyp struct {
-	// TODO: improve comment
-	// either typ or node is populated, neither both, or
-	// both are nil (either interface was assigned
-	// or a basic type without methods (i.e. int))
 	typ  *types.Type
 	node ir.Node
 }
