@@ -84,24 +84,24 @@ func cloneHashWithBool3(h hashIface) (hashIface, bool) { // ERROR "can inline cl
 }
 
 func interleavedWithTypeAssertions() {
-	h1 := newHash() // ERROR "&hash{} does not escape$" "inlining call to newHash$"
-	_ = h1.Sum()    // ERROR "devirtualizing h1.Sum to \*hash$" "inlining call to \(\*hash\).Sum$" "make\(\[\]byte, 32\) does not escape$"
+	h1 := newHash() // ERROR "&hash{} does not escape$" "inlining call to newHash"
+	_ = h1.Sum()    // ERROR "devirtualizing h1.Sum to \*hash$" "inlining call to \(\*hash\).Sum" "make\(\[\]byte, 32\) does not escape$"
 
-	h2 := cloneHash1(h1) // ERROR "&hash{} does not escape$" "devirtualizing h.Clone to \*hash$" "inlining call to \(\*hash\).Clone$" "inlining call to cloneHash1$"
-	_ = h2.Sum()         // ERROR "devirtualizing h2.Sum to \*hash$" "inlining call to \(\*hash\).Sum$" "make\(\[\]byte, 32\) does not escape$"
+	h2 := cloneHash1(h1) // ERROR "&hash{} does not escape$" "devirtualizing h.Clone to \*hash$" "inlining call to \(\*hash\).Clone" "inlining call to cloneHash1"
+	_ = h2.Sum()         // ERROR "devirtualizing h2.Sum to \*hash$" "inlining call to \(\*hash\).Sum" "make\(\[\]byte, 32\) does not escape$"
 
-	h3 := cloneHash2(h1) // ERROR "devirtualizing h.Clone to \*hash$" "inlining call to \(\*hash\).Clone$" "inlining call to cloneHash2$"
-	_ = h3.Sum()         // ERROR "devirtualizing h3.Sum to \*hash$" "inlining call to \(\*hash\).Sum$" "make\(\[\]byte, 32\) does not escape$"
+	h3 := cloneHash2(h1) // ERROR "devirtualizing h.Clone to \*hash$" "inlining call to \(\*hash\).Clone" "inlining call to cloneHash2"
+	_ = h3.Sum()         // ERROR "devirtualizing h3.Sum to \*hash$" "inlining call to \(\*hash\).Sum" "make\(\[\]byte, 32\) does not escape$"
 
-	h4 := cloneHash3(h1) // ERROR "&hash2{} escapes to heap$" "devirtualizing h.Clone to \*hash$" "inlining call to \(\*hash\).Clone$" "inlining call to cloneHash3$" "moved to heap: c$"
+	h4 := cloneHash3(h1) // ERROR "&hash2{} escapes to heap$" "devirtualizing h.Clone to \*hash$" "inlining call to \(\*hash\).Clone" "inlining call to cloneHash3" "moved to heap: c$"
 	_ = h4.Sum()
 
-	h5, _ := cloneHashWithBool1(h1) // ERROR "&hash{} does not escape$" "devirtualizing h.Clone to \*hash$" "inlining call to \(\*hash\).Clone$" "inlining call to cloneHashWithBool1$"
-	_ = h5.Sum()                    // ERROR "devirtualizing h5.Sum to \*hash$" "inlining call to \(\*hash\).Sum$" "make\(\[\]byte, 32\) does not escape$"
+	h5, _ := cloneHashWithBool1(h1) // ERROR "&hash{} does not escape$" "devirtualizing h.Clone to \*hash$" "inlining call to \(\*hash\).Clone" "inlining call to cloneHashWithBool1"
+	_ = h5.Sum()                    // ERROR "devirtualizing h5.Sum to \*hash$" "inlining call to \(\*hash\).Sum" "make\(\[\]byte, 32\) does not escape$"
 
-	h6, _ := cloneHashWithBool2(h1) // ERROR "devirtualizing h.Clone to \*hash$" "inlining call to \(\*hash\).Clone$" "inlining call to cloneHashWithBool2$"
-	_ = h6.Sum()                    // ERROR "devirtualizing h6.Sum to \*hash$" "inlining call to \(\*hash\).Sum$" "make\(\[\]byte, 32\) does not escape$"
+	h6, _ := cloneHashWithBool2(h1) // ERROR "devirtualizing h.Clone to \*hash$" "inlining call to \(\*hash\).Clone" "inlining call to cloneHashWithBool2"
+	_ = h6.Sum()                    // ERROR "devirtualizing h6.Sum to \*hash$" "inlining call to \(\*hash\).Sum" "make\(\[\]byte, 32\) does not escape$"
 
-	h7, _ := cloneHashWithBool3(h1) // ERROR "&hash2{} escapes to heap$" "devirtualizing h.Clone to \*hash$" "inlining call to \(\*hash\).Clone$" "inlining call to cloneHashWithBool3$" "moved to heap: c$"
+	h7, _ := cloneHashWithBool3(h1) // ERROR "&hash2{} escapes to heap$" "devirtualizing h.Clone to \*hash$" "inlining call to \(\*hash\).Clone" "inlining call to cloneHashWithBool3" "moved to heap: c$"
 	_ = h7.Sum()
 }
