@@ -16,10 +16,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
-	"cmd/internal/src"
 )
-
-// TODO: update tests to include full errors.
 
 const go125ImprovedConcreteTypeAnalysis = true
 
@@ -154,7 +151,6 @@ func StaticCall(call *ir.CallExpr) {
 		if base.Flag.LowerM != 0 {
 			base.WarnfAt(call.Pos(), "partially devirtualizing %v to %v", sel, typ)
 		}
-		// TODO: with interleaved inlining and devirtualization we migth get here multiple times for the same call.
 		call.SetOp(ir.OCALLINTER)
 		call.Fun = x
 	default:
@@ -179,8 +175,6 @@ func StaticCall(call *ir.CallExpr) {
 	// Desugar OCALLMETH, if we created one (#57309).
 	typecheck.FixMethodCall(call)
 }
-
-const concreteTypeDebug = false
 
 // concreteType determines the concrete type of n, following OCONVIFACEs and type asserts.
 // Returns nil when the concrete type could not be determined, or when there are multiple
@@ -214,39 +208,19 @@ func concreteType(n ir.Node) (typ *types.Type) {
 }
 
 func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements func(*ir.Name) []valOrTyp) (out *types.Type, isNil bool) {
-	nn := n
-
-	if concreteTypeDebug {
-		defer func() {
-			base.WarnfAt(nn.Pos(), "concreteType1(%v) -> (typ: %v; isNil: %v)", nn, out, isNil)
-		}()
-	}
-
 	for {
-		if concreteTypeDebug {
-			base.WarnfAt(n.Pos(), "concreteType1(%v) current iteration node: %v", nn, n)
-		}
-
 		if !n.Type().IsInterface() {
-			if n, ok := n.(*ir.CallExpr); ok {
-				if n.Fun != nil {
-					results := n.Fun.Type().Results()
-					base.Assert(len(results) == 1)
-					retTyp := results[0].Type
-					if !retTyp.IsInterface() {
-						// TODO: isnt n.Type going to return that?
-						return retTyp, false
-					}
-				}
-			}
 			return n.Type(), false
 		}
 
 		switch n1 := n.(type) {
 		case *ir.ConvExpr:
-			// OCONVNOP might change the type, thus check whether they are identical.
-			// TODO: can this happen for iface?
-			if n1.Op() == ir.OCONVNOP && types.Identical(n1.Type(), n1.X.Type()) {
+			if n1.Op() == ir.OCONVNOP {
+				if !n1.Type().IsInterface() || !types.Identical(n1.Type(), n1.X.Type()) {
+					// As we check (directly before this switch) wheter n is an interface, thus we should only reach
+					// here for iface conversions where both operands are the same.
+					base.Fatalf("not identical/interface types found n1.Type = %v; n1.X.Type = %v", n1.Type(), n1.X.Type())
+				}
 				n = n1.X
 				continue
 			}
@@ -292,10 +266,6 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements
 		return nil, false // conservatively assume it's reassigned with a different type indirectly
 	}
 
-	if concreteTypeDebug {
-		base.WarnfAt(src.NoXPos, "concreteType1(%v) name: %v, analyzing assignements", nn, name)
-	}
-
 	if typ, ok := analyzed[name]; ok {
 		return typ, false
 	}
@@ -310,9 +280,6 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements
 	if len(assignements) == 0 {
 		// Variable either declared with zero value, or only assigned
 		// with nil (getAssignements does not return such assignements).
-		if concreteTypeDebug {
-			base.WarnfAt(src.NoXPos, "concreteType1(%v) name: %v assigned with only nil values", nn, name)
-		}
 		return nil, true
 	}
 
@@ -321,22 +288,13 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements
 		t := v.typ
 		if v.node != nil {
 			var isNil bool
-			if concreteTypeDebug {
-				base.WarnfAt(src.NoXPos, "concreteType1(%v) name: %v assigned with node %v", nn, name, v.node)
-			}
 			t, isNil = concreteType1(v.node, analyzed, getAssignements)
 			if isNil {
-				if concreteTypeDebug {
-					base.WarnfAt(src.NoXPos, "concreteType1(%v) name: %v assigned with nil", nn, name)
-				}
 				if t != nil {
 					base.Fatalf("t = %v; want = <nil>", t)
 				}
 				continue
 			}
-		}
-		if concreteTypeDebug {
-			base.WarnfAt(src.NoXPos, "concreteType1(%v) name: %v assigned with %v", nn, name, t)
 		}
 		if t == nil || (typ != nil && !types.Identical(typ, t)) {
 			return nil, false
@@ -375,7 +333,6 @@ func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 			return
 		}
 
-		// TODO: is this needed?
 		n, ok := ir.OuterValue(name).(*ir.Name)
 		if !ok {
 			return
@@ -450,7 +407,7 @@ func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 				} else if call, ok := rhs.(*ir.InlinedCallExpr); ok {
 					assign(p, valOrTyp{node: call.Result(i)})
 				} else {
-					// TODO: can we reach here? Fatal?
+					// TODO: can we reach here?
 					assign(p, valOrTyp{})
 				}
 			}
