@@ -138,6 +138,7 @@ func StaticCall(call *ir.CallExpr) {
 		// type assertion that we make here would also have failed, but with a different
 		// panic "pkg.Iface is nil, not *pkg.Impl", where previously we would get a nil panic.
 		// We fix this, by introducing an additional nilcheck on the itab.
+		// Calling a method on an nil interface in most cases is a bug.
 		dt.EmitItabNilCheck = true
 		dt.SetPos(call.Pos())
 	}
@@ -188,21 +189,20 @@ var concreteTypeDebug = false
 // (different) types assigned to an interface.
 func concreteType(n ir.Node) (typ *types.Type) {
 	var assignements map[*ir.Name][]valOrTyp
-	var baseFunc *ir.Func
 	typ, isNil := concreteType1(n, make(map[*ir.Name]*types.Type), func(n *ir.Name) []valOrTyp {
 		if assignements == nil {
 			assignements = make(map[*ir.Name][]valOrTyp)
 			if n.Curfn == nil {
 				base.Fatalf("n.Curfn == nil: %v", n)
 			}
-			assignements = ifaceAssignments(n.Curfn)
-			baseFunc = n.Curfn
+			fun := n.Curfn
+			for fun.ClosureParent != nil {
+				fun = fun.ClosureParent
+			}
+			assignements = ifaceAssignments(fun)
 		}
 		if !n.Type().IsInterface() {
 			base.Fatalf("name passed to getAssignements is not of an interface type: %v", n.Type())
-		}
-		if n.Curfn != baseFunc {
-			base.Fatalf("unexpected n.Curfn = %v; want = %v", n.Curfn, baseFunc)
 		}
 		return assignements[n]
 	})
@@ -351,6 +351,8 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements
 
 	if typ == nil {
 		// Variable either declared with zero value, or only assigned with nil.
+		// For now don't bother storing the information that we could have
+		// assigned nil in the analyzed map.
 		return nil, true
 	}
 
@@ -368,7 +370,7 @@ type valOrTyp struct {
 }
 
 // ifaceAssignments returns a map containg every assignement to variables
-// directly declared in the provieded func that are of interface types.
+// declared in the provieded func (and in closures) that are of interface types.
 func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 	out := make(map[*ir.Name][]valOrTyp)
 
@@ -388,9 +390,9 @@ func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 			base.Fatalf("reassigned %v", n)
 		}
 
-		// Do not track variables not declared directly in fun, and names that are not interfaces.
+		// Do not track variables that are not of interface types.
 		// For devirtualization they are unnecessary, we will not even look them up.
-		if n.Curfn != fun || !n.Type().IsInterface() {
+		if !n.Type().IsInterface() {
 			return
 		}
 
@@ -461,7 +463,7 @@ func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 			n := n.(*ir.RangeStmt)
 			xTyp := n.X.Type()
 
-			// range over an array pointer
+			// Range over an array pointer.
 			if xTyp.IsPtr() && xTyp.Elem().IsArray() {
 				xTyp = xTyp.Elem()
 			}
@@ -476,7 +478,7 @@ func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 				assign(n.Key, valOrTyp{typ: xTyp.Key()})
 				assign(n.Value, valOrTyp{typ: xTyp.Elem()})
 			} else if xTyp.IsInteger() || xTyp.IsString() {
-				// range over int/string, results do not have methods, so nothing to devirtualize.
+				// Range over int/string, results do not have methods, so nothing to devirtualize.
 				assign(n.Key, valOrTyp{})
 				assign(n.Value, valOrTyp{})
 			} else {

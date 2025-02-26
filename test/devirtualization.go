@@ -481,6 +481,40 @@ func closureNoDevirt2() {
 }
 
 //go:noinline
+func varDeclaredInClosureReferencesOuter() {
+	var a A = &Impl{} // ERROR "&Impl{} does not escape"
+	func() {          // ERROR "func literal does not escape"
+		// defer for noinline
+		defer func() {}() // ERROR "can inline" "func literal does not escape"
+		var v A = a
+		v.A() // ERROR "devirtualizing v.A to \*Impl" "inlining call to \(\*Impl\).A"
+	}()
+	func() { // ERROR "func literal does not escape"
+		// defer for noinline
+		defer func() {}() // ERROR "can inline" "func literal does not escape"
+		var v A = a
+		v = &Impl{} // ERROR "&Impl{} does not escape"
+		v.A()       // ERROR "devirtualizing v.A to \*Impl" "inlining call to \(\*Impl\).A"
+	}()
+
+	var b A = &Impl{} // ERROR "&Impl{} escapes to heap"
+	func() {          // ERROR "func literal does not escape"
+		// defer for noinline
+		defer func() {}() // ERROR "can inline" "func literal does not escape"
+		var v A = b
+		v = &Impl2{} // ERROR "&Impl2{} escapes to heap"
+		v.A()
+	}()
+	func() { // ERROR "func literal does not escape"
+		// defer for noinline
+		defer func() {}() // ERROR "can inline" "func literal does not escape"
+		var v A = b
+		v.A()
+		v = &Impl2{} // ERROR "&Impl2{} escapes to heap"
+	}()
+}
+
+//go:noinline
 func testNamedReturn0() (v A) {
 	v = &Impl{} // ERROR "escapes"
 	v.A()
