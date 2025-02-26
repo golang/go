@@ -6,6 +6,7 @@ package test
 
 import (
 	"crypto/sha256"
+	"internal/testenv"
 	"runtime"
 	"testing"
 )
@@ -15,6 +16,7 @@ func Verify(token, salt string) [32]byte {
 }
 
 func TestIssue71943(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
 	if n := testing.AllocsPerRun(10, func() {
 		runtime.KeepAlive(Verify("teststring", "test"))
 	}); n > 0 {
