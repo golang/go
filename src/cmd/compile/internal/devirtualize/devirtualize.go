@@ -354,7 +354,8 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements
 	if typ == nil {
 		// Variable either declared with zero value, or only assigned with nil.
 		// For now don't bother storing the information that we could have
-		// assigned nil in the analyzed map.
+		// assigned nil in the analyzed map, if we access the same name again we will
+		// get an result as if an unknown concrete type was assigned.
 		return nil, true
 	}
 
