@@ -363,7 +363,7 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignements
 }
 
 // valOrTyp stores a node or a type that is assigned to a variable.
-// Neither both of these fields are populated. If both are nil, then
+// Never both of these fields are populated. If both are nil, then
 // either an interface type was assigned or a basic type (i.e. int), which
 // we know that does not have any methods, thus not possible to devirtualize.
 type valOrTyp struct {
