@@ -296,6 +296,10 @@ func GetBytes(c Cache, id ActionID) ([]byte, Entry, error) {
 // GetMmap looks up the action ID in the cache and returns
 // the corresponding output bytes.
 // GetMmap should only be used for data that can be expected to fit in memory.
+// The boolean result indicates whether the file was opened.
+// If it is true, the caller should avoid attempting
+// to write to the file on Windows, because Windows locks
+// the open file, and writes to it will fail.
 func GetMmap(c Cache, id ActionID) ([]byte, Entry, bool, error) {
 	entry, err := c.Get(id)
 	if err != nil {
