@@ -5627,6 +5627,9 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 	}
 
 	if n.EmitItabNilCheck {
+		if commaok {
+			base.Fatalf("unexpected *ir.TypeAssertExpr with EmitItabNilCheck == true && commaok == true")
+		}
 		typs := s.f.Config.Types
 		iface = s.newValue2(
 			ssa.OpIMake,
