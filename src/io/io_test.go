@@ -277,7 +277,7 @@ func TestReadAtLeastWithDataAndEOF(t *testing.T) {
 
 func TestReadAtLeastWithDataAndError(t *testing.T) {
 	var rb dataAndErrorBuffer
-	rb.err = fmt.Errorf("fake error")
+	rb.err = errors.New("fake error")
 	testReadAtLeast(t, &rb)
 }
 
