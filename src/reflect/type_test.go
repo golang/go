@@ -133,6 +133,7 @@ func TestType_CanSeq(t *testing.T) {
 		{"map[int]int", reflect.TypeOf(make(map[int]int)), true},
 		{"string", reflect.TypeOf(""), true},
 		{"[]int", reflect.TypeOf([]int{}), true},
+		{"methodIter.Seq", reflect.ValueOf(methodIter{}).MethodByName("Seq").Type(), true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -158,6 +159,7 @@ func TestType_CanSeq2(t *testing.T) {
 		{"map[int]int", reflect.TypeOf(make(map[int]int)), true},
 		{"string", reflect.TypeOf(""), true},
 		{"[]int", reflect.TypeOf([]int{}), true},
+		{"methodIter2.Seq2", reflect.ValueOf(methodIter2{}).MethodByName("Seq2").Type(), true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
