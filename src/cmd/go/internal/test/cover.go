@@ -44,8 +44,8 @@ func initCoverProfile() {
 }
 
 // mergeCoverProfile merges file into the profile stored in testCoverProfile.
-// It prints any errors it encounters to ew.
-func mergeCoverProfile(ew io.Writer, file string) {
+// Errors encountered are logged and cause a non-zero exit status.
+func mergeCoverProfile(file string) {
 	if coverMerge.f == nil {
 		return
 	}
@@ -66,12 +66,13 @@ func mergeCoverProfile(ew io.Writer, file string) {
 		return
 	}
 	if err != nil || string(buf) != expect {
-		fmt.Fprintf(ew, "error: test wrote malformed coverage profile %s.\n", file)
+		base.Errorf("test wrote malformed coverage profile %s: header %q, expected %q: %v", file, string(buf), expect, err)
 		return
 	}
 	_, err = io.Copy(coverMerge.f, r)
 	if err != nil {
-		fmt.Fprintf(ew, "error: saving coverage profile: %v\n", err)
+		base.Errorf("saving coverage profile: %v", err)
+		return
 	}
 }
 
