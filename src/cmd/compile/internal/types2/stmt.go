@@ -1002,7 +1002,7 @@ func rangeKeyVal(check *Checker, orig Type, allowVersion func(goVersion) bool) (
 	}
 
 	var cause1 string
-	rtyp := sharedUnderOrChan(check, orig, &cause1)
+	rtyp := commonUnderOrChan(check, orig, &cause1)
 	if rtyp == nil {
 		return bad(cause1)
 	}
@@ -1041,7 +1041,7 @@ func rangeKeyVal(check *Checker, orig Type, allowVersion func(goVersion) bool) (
 		assert(typ.Recv() == nil)
 		// check iterator argument type
 		var cause2 string
-		cb, _ := sharedUnder(check, typ.Params().At(0).Type(), &cause2).(*Signature)
+		cb, _ := commonUnder(check, typ.Params().At(0).Type(), &cause2).(*Signature)
 		switch {
 		case cb == nil:
 			if cause2 != "" {

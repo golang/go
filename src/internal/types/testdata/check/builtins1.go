@@ -152,7 +152,9 @@ func _[
 
 	C1 ~chan int,
 	C2 ~chan int | ~chan string,
-	C3 chan int | myChan, // single underlying type
+	C3 chan int | myChan,     // single underlying type
+	C4 chan int | chan<- int, // channels may have different (non-conflicting) directions
+	C5 <-chan int | chan<- int,
 ]() {
 	type S0 []int
 	_ = make([]int, 10)
@@ -162,7 +164,7 @@ func _[
 	_ = make /* ERROR "expects 2 or 3 arguments" */ (S1)
 	_ = make(S1, 10, 20)
 	_ = make /* ERROR "expects 2 or 3 arguments" */ (S1, 10, 20, 30)
-	_ = make(S2 /* ERROR "cannot make S2: no core type" */ , 10)
+	_ = make(S2 /* ERROR "cannot make S2: no common underlying type" */ , 10)
 
 	type M0 map[string]int
 	_ = make(map[string]int)
@@ -170,7 +172,7 @@ func _[
 	_ = make(M1)
 	_ = make(M1, 10)
 	_ = make/* ERROR "expects 1 or 2 arguments" */(M1, 10, 20)
-	_ = make(M2 /* ERROR "cannot make M2: no core type" */ )
+	_ = make(M2 /* ERROR "cannot make M2: no common underlying type" */ )
 
 	type C0 chan int
 	_ = make(chan int)
@@ -178,8 +180,10 @@ func _[
 	_ = make(C1)
 	_ = make(C1, 10)
 	_ = make/* ERROR "expects 1 or 2 arguments" */(C1, 10, 20)
-	_ = make(C2 /* ERROR "cannot make C2: no core type" */ )
+	_ = make(C2 /* ERROR "cannot make C2: no common underlying type" */ )
 	_ = make(C3)
+	_ = make(C4)
+	_ = make(C5 /* ERROR "cannot make C5: no common underlying type" */ )
 }
 
 // max

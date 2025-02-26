@@ -245,9 +245,9 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	cgocall := x.mode == cgofunc
 
 	// If the operand type is a type parameter, all types in its type set
-	// must have a shared underlying type, which must be a signature.
+	// must have a common underlying type, which must be a signature.
 	var cause string
-	sig, _ := sharedUnder(check, x.typ, &cause).(*Signature)
+	sig, _ := commonUnder(check, x.typ, &cause).(*Signature)
 	if sig == nil {
 		if cause != "" {
 			check.errorf(x, InvalidCall, invalidOp+"cannot call %s: %s", x, cause)

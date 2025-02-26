@@ -43,13 +43,17 @@ func typeset(t Type, yield func(t, u Type) bool) {
 	yield(t, under(t))
 }
 
-// If t is not a type parameter, sharedUnder returns the underlying type.
-// If t is a type parameter, sharedUnder returns the single underlying
+// TODO(gri) commonUnder, commonUnderOrChan, and Checker.chanElem (expr.go)
+//           have a lot of similarities. Maybe we can find common ground
+//           between them and distill a better factorization.
+
+// If t is not a type parameter, commonUnder returns the underlying type.
+// If t is a type parameter, commonUnder returns the common underlying
 // type of all types in its type set if it exists.
 // Otherwise the result is nil, and *cause reports the error if a non-nil
 // cause is provided.
 // The check parameter is only used if *cause reports an error; it may be nil.
-func sharedUnder(check *Checker, t Type, cause *string) Type {
+func commonUnder(check *Checker, t Type, cause *string) Type {
 	var s, su Type
 
 	bad := func(s string) bool {
@@ -75,16 +79,16 @@ func sharedUnder(check *Checker, t Type, cause *string) Type {
 	return su
 }
 
-// If t is not a type parameter, sharedUnderOrChan returns the underlying type;
+// If t is not a type parameter, commonUnderOrChan returns the underlying type;
 // if that type is a channel type it must permit receive operations.
-// If t is a type parameter, sharedUnderOrChan returns the single underlying
+// If t is a type parameter, commonUnderOrChan returns the common underlying
 // type of all types in its type set if it exists, or, if the type set contains
 // only channel types permitting receive operations and with identical element
-// types, sharedUnderOrChan returns one of those channel types.
+// types, commonUnderOrChan returns one of those channel types.
 // Otherwise the result is nil, and *cause reports the error if a non-nil cause
 // is provided.
 // The check parameter is only used if *cause reports an error; it may be nil.
-func sharedUnderOrChan(check *Checker, t Type, cause *string) Type {
+func commonUnderOrChan(check *Checker, t Type, cause *string) Type {
 	var s, su Type
 	var sc *Chan
 

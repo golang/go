@@ -380,7 +380,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Copy:
 		// copy(x, y []T) int
-		dst, _ := coreType(x.typ).(*Slice)
+		dst, _ := commonUnder(check, x.typ, nil).(*Slice)
 
 		y := args[1]
 		src0 := coreString(y.typ)
@@ -523,7 +523,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		case *Map, *Chan:
 			min = 1
 		case nil:
-			check.errorf(arg0, InvalidMake, invalidArg+"cannot make %s: no core type", arg0)
+			check.errorf(arg0, InvalidMake, invalidArg+"cannot make %s: no common underlying type", arg0)
 			return
 		default:
 			check.errorf(arg0, InvalidMake, invalidArg+"cannot make %s; type must be slice, map, or channel", arg0)
@@ -821,7 +821,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// unsafe.Slice(ptr *T, len IntegerType) []T
 		check.verifyVersionf(call.Fun, go1_17, "unsafe.Slice")
 
-		ptr, _ := coreType(x.typ).(*Pointer)
+		ptr, _ := commonUnder(check, x.typ, nil).(*Pointer)
 		if ptr == nil {
 			check.errorf(x, InvalidUnsafeSlice, invalidArg+"%s is not a pointer", x)
 			return
@@ -842,7 +842,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// unsafe.SliceData(slice []T) *T
 		check.verifyVersionf(call.Fun, go1_20, "unsafe.SliceData")
 
-		slice, _ := coreType(x.typ).(*Slice)
+		slice, _ := commonUnder(check, x.typ, nil).(*Slice)
 		if slice == nil {
 			check.errorf(x, InvalidUnsafeSliceData, invalidArg+"%s is not a slice", x)
 			return
