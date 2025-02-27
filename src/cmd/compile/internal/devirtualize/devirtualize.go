@@ -22,7 +22,7 @@ const go125ImprovedConcreteTypeAnalysis = true
 
 // StaticCall devirtualizes the given call if possible when the concrete callee
 // is available statically.
-func StaticCall(call *ir.CallExpr) {
+func StaticCall(s *State, call *ir.CallExpr) {
 	// For promoted methods (including value-receiver methods promoted
 	// to pointer-receivers), the interface method wrapper may contain
 	// expressions that can panic (e.g., ODEREF, ODOTPTR,
@@ -44,7 +44,7 @@ func StaticCall(call *ir.CallExpr) {
 	sel := call.Fun.(*ir.SelectorExpr)
 	var typ *types.Type
 	if go125ImprovedConcreteTypeAnalysis {
-		typ = concreteType(sel.X)
+		typ = concreteType(s, sel.X)
 		if typ == nil {
 			return
 		}
@@ -176,27 +176,43 @@ func StaticCall(call *ir.CallExpr) {
 	typecheck.FixMethodCall(call)
 }
 
+const concreteTypeDebug = false
+
 // concreteType determines the concrete type of n, following OCONVIFACEs and type asserts.
 // Returns nil when the concrete type could not be determined, or when there are multiple
 // (different) types assigned to an interface.
-func concreteType(n ir.Node) (typ *types.Type) {
-	var assignments map[*ir.Name][]valOrTyp
+func concreteType(s *State, n ir.Node) (typ *types.Type) {
 	typ, isNil := concreteType1(n, make(map[*ir.Name]*types.Type), func(n *ir.Name) []valOrTyp {
-		if assignments == nil {
-			assignments = make(map[*ir.Name][]valOrTyp)
-			if n.Curfn == nil {
-				base.Fatalf("n.Curfn == nil: %v", n)
-			}
-			fun := n.Curfn
-			for fun.ClosureParent != nil {
-				fun = fun.ClosureParent
-			}
-			assignments = ifaceAssignments(fun)
+		if n.Curfn == nil {
+			base.Fatalf("n.Curfn == nil: %v", n)
 		}
 		if !n.Type().IsInterface() {
 			base.Fatalf("name passed to getAssignments is not of an interface type: %v", n.Type())
 		}
-		return assignments[n]
+
+		fun := n.Curfn
+		for fun.ClosureParent != nil {
+			fun = fun.ClosureParent
+		}
+
+		if s.ifaceAssignments == nil {
+			s.ifaceAssignments = make(map[*ir.Name][]valOrTyp)
+			s.ifaceCallExprAssigns = make(map[*ir.CallExpr][]ifaceAssignRef)
+
+			if concreteTypeDebug {
+				base.Warn("concreteType(): analyzing assignments in %v func", fun)
+			}
+
+			s.fun = fun
+			s.analyze(fun.Init())
+			s.analyze(fun.Body)
+		}
+
+		if s.fun != fun {
+			base.Fatalf("unexpected func = %v; want = %v", fun, s.fun)
+		}
+
+		return s.ifaceAssignments[n]
 	})
 	if isNil && typ != nil {
 		base.Fatalf("typ = %v; want = <nil>", typ)
@@ -209,14 +225,26 @@ func concreteType(n ir.Node) (typ *types.Type) {
 
 // concreteType1 analyzes the node n and returns its concrete type if it is statically known.
 // Otherwise, it returns a nil Type, indicating that a concrete type was not determined.
-// This can happen in cases where n is assigned an interface type and the concrete type
-// is not statically known (e.g., a non-inlined function call returning an interface type)
+// This can happen in cases where n is assigned an interface type and the concrete type of that
+// interface is not statically known (e.g. a non-inlined function call returning an interface type)
 // or when multiple distinct concrete types are assigned.
 //
 // If n is statically known to be nil, this function returns a nil Type with isNil == true.
 // However, if any concrete type is found, it is returned instead, even if n was assigned with nil.
 func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignments func(*ir.Name) []valOrTyp) (t *types.Type, isNil bool) {
+	nn := n // for debug messages
+
+	if concreteTypeDebug {
+		defer func() {
+			base.Warn("concreteType1(%v) -> (%v;%v)", nn, t, isNil)
+		}()
+	}
+
 	for {
+		if concreteTypeDebug {
+			base.Warn("concreteType1(%v): analyzing %v", nn, n)
+		}
+
 		if !n.Type().IsInterface() {
 			return n.Type(), false
 		}
@@ -248,7 +276,6 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignments 
 			n = n1.X
 			continue
 		}
-
 		break
 	}
 
@@ -283,6 +310,10 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignments 
 	// This is not ideal, as in-process concreteType1 calls (that this function also
 	// executes) will get a nil (from the map lookup above), where we could determine the type.
 	analyzed[name] = nil
+
+	if concreteTypeDebug {
+		base.Warn("concreteType1(%v): analyzing assignments to %v", nn, name)
+	}
 
 	assignments := getAssignments(name)
 	if len(assignments) == 0 {
@@ -322,35 +353,95 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignments 
 	return typ, false
 }
 
-// valOrTyp stores a node or a type that is assigned to a variable.
-// Never both of these fields are populated. If both are nil, then
-// either an interface type was assigned or a basic type (i.e. int), which
-// we know that does not have any methods, thus not possible to devirtualize.
+// valOrTyp stores either node or a type that is assigned to a variable.
+// Never both of these fields are populated.
+// If both are nil, then either an interface type was assigned (e.g. a non-inlined
+// function call returning an interface type, in such case we don't know the
+// concrete type) or a basic type (i.e. int), which we know that does not have any
+// methods, thus not possible to devirtualize.
 type valOrTyp struct {
 	typ  *types.Type
 	node ir.Node
 }
 
-// ifaceAssignments returns a map containg every assignment to variables
-// declared in the provided func (and in closures) that are of interface type.
-// It does not collect nil assignments (and thus zero val decls).
-func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
-	out := make(map[*ir.Name][]valOrTyp)
+// State holds precomputed state for use in (and filled by the first call to) [StaticCall].
+type State struct {
+	// ifaceAssignments stores all assignments to all interface variables, found in a func.
+	ifaceAssignments map[*ir.Name][]valOrTyp
 
-	assign := func(name ir.Node, value valOrTyp) {
-		if name == nil || name.Op() != ir.ONAME {
-			return
+	// ifaceCallExprAssigns stores every [*ir.CallExpr] found in a func, which has
+	// an interface result, that is assigned to a variable.
+	ifaceCallExprAssigns map[*ir.CallExpr][]ifaceAssignRef
+
+	fun *ir.Func
+}
+
+type ifaceAssignRef struct {
+	name           *ir.Name // ifaceAssignments[name]
+	valOrTypeIndex int      // ifaceAssignments[name][valOrTypeIndex]
+	returnIndex    int      // (*ir.CallExpr).Result(returnIndex)
+}
+
+// InlinedCall updates the [State] to take into account a newly inlined call.
+func (s *State) InlinedCall(origCall *ir.CallExpr, newInlinedCall *ir.InlinedCallExpr) {
+	if s.ifaceAssignments == nil {
+		// Full analyze has not been yet executed, so we can skip it for now.
+		// When no devirtualization happens in a function, it is unecessary to analyze it.
+		return
+	}
+
+	// Analyze assignments in the newly inlined function.
+	s.analyze(newInlinedCall.Init())
+	s.analyze(newInlinedCall.Body)
+
+	v, ok := s.ifaceCallExprAssigns[origCall]
+	if !ok {
+		return
+	}
+	delete(s.ifaceCallExprAssigns, origCall)
+
+	// Update assignments to reference the new ReturnVars of the inlined call.
+	for _, ni := range v {
+		vt := &s.ifaceAssignments[ni.name][ni.valOrTypeIndex]
+		if vt.node != nil || vt.typ != nil {
+			base.Fatalf("unexpected non-empty valOrTyp")
+		}
+		if concreteTypeDebug {
+			base.Warn(
+				"Invalidate(%v, %v): replacing interface node in (%v,%v) to %v (typ %v)",
+				origCall, newInlinedCall, ni.name, ni.valOrTypeIndex,
+				newInlinedCall.ReturnVars[ni.returnIndex],
+				newInlinedCall.ReturnVars[ni.returnIndex].Type(),
+			)
+		}
+		*vt = valOrTyp{node: newInlinedCall.ReturnVars[ni.returnIndex]}
+	}
+}
+
+// analyze analyzes every assignment to interface variables in nodes, updating [State].
+func (s *State) analyze(nodes ir.Nodes) {
+	assign := func(name ir.Node, value valOrTyp) (*ir.Name, int) {
+		if name == nil || name.Op() != ir.ONAME || ir.IsBlank(name) {
+			return nil, -1
 		}
 
 		n, ok := ir.OuterValue(name).(*ir.Name)
-		if !ok {
-			return
+		if !ok || n.Curfn == nil {
+			return nil, -1
+		}
+
+		fun := n.Curfn
+		for fun.ClosureParent != nil {
+			fun = fun.ClosureParent
+		}
+		if s.fun != fun {
+			base.Fatalf("unexpected func = %v; want = %v", fun, s.fun)
 		}
 
 		// Do not track variables that are not of interface types.
 		// For devirtualization they are unnecessary, we will not even look them up.
 		if !n.Type().IsInterface() {
-			return
+			return nil, -1
 		}
 
 		n = n.Canonical()
@@ -360,14 +451,19 @@ func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 
 		// n is assigned with nil, we can safely ignore them, see [StaticCall].
 		if ir.IsNil(value.node) {
-			return
+			return nil, -1
 		}
 
 		if value.typ != nil && value.typ.IsInterface() {
 			value.typ = nil
 		}
 
-		out[n] = append(out[n], value)
+		if concreteTypeDebug {
+			base.Warn("populateIfaceAssignments(): assignment found %v = (%v;%v)", name, value.typ, value.node)
+		}
+
+		s.ifaceAssignments[n] = append(s.ifaceAssignments[n], value)
+		return n, len(s.ifaceAssignments[n]) - 1
 	}
 
 	var do func(n ir.Node)
@@ -376,7 +472,23 @@ func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 		case ir.OAS:
 			n := n.(*ir.AssignStmt)
 			if n.Y != nil {
-				assign(n.X, valOrTyp{node: n.Y})
+				rhs := n.Y
+				for {
+					if r, ok := rhs.(*ir.ParenExpr); ok {
+						rhs = r.X
+						continue
+					}
+					break
+				}
+				if call, ok := rhs.(*ir.CallExpr); ok && call.Fun != nil {
+					retTyp := call.Fun.Type().Results()[0].Type
+					n, idx := assign(n.X, valOrTyp{typ: retTyp})
+					if n != nil && retTyp.IsInterface() {
+						s.ifaceCallExprAssigns[call] = append(s.ifaceCallExprAssigns[call], ifaceAssignRef{n, idx, 0})
+					}
+				} else {
+					assign(n.X, valOrTyp{node: rhs})
+				}
 			}
 		case ir.OAS2:
 			n := n.(*ir.AssignListStmt)
@@ -401,22 +513,29 @@ func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 			assign(n.Lhs[1], valOrTyp{}) // boolean does not have methods to devirtualize
 		case ir.OAS2FUNC:
 			n := n.(*ir.AssignListStmt)
-			for i, p := range n.Lhs {
-				rhs := n.Rhs[0]
-				for {
-					if r, ok := rhs.(*ir.ParenExpr); ok {
-						rhs = r.X
-						continue
-					}
-					break
+			rhs := n.Rhs[0]
+			for {
+				if r, ok := rhs.(*ir.ParenExpr); ok {
+					rhs = r.X
+					continue
 				}
-				if call, ok := rhs.(*ir.CallExpr); ok {
+				break
+			}
+			if call, ok := rhs.(*ir.CallExpr); ok {
+				for i, p := range n.Lhs {
 					retTyp := call.Fun.Type().Results()[i].Type
-					assign(p, valOrTyp{typ: retTyp})
-				} else if call, ok := rhs.(*ir.InlinedCallExpr); ok {
-					assign(p, valOrTyp{node: call.Result(i)})
-				} else {
-					// TODO: can we reach here?
+					n, idx := assign(p, valOrTyp{typ: retTyp})
+					if n != nil && retTyp.IsInterface() {
+						s.ifaceCallExprAssigns[call] = append(s.ifaceCallExprAssigns[call], ifaceAssignRef{n, idx, i})
+					}
+				}
+			} else if call, ok := rhs.(*ir.InlinedCallExpr); ok {
+				for i, p := range n.Lhs {
+					assign(p, valOrTyp{node: call.ReturnVars[i]})
+				}
+			} else {
+				// TODO: can we reach here?
+				for _, p := range n.Lhs {
 					assign(p, valOrTyp{})
 				}
 			}
@@ -462,6 +581,5 @@ func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 			ir.Visit(n.(*ir.ClosureExpr).Func, do)
 		}
 	}
-	ir.Visit(fun, do)
-	return out
+	ir.VisitList(nodes, do)
 }
