@@ -126,15 +126,15 @@ func StaticCall(call *ir.CallExpr) {
 		// 	v.A()
 		// 	v = &Impl{}
 		//
-		// Here in the devirtualizer, we determine the concrete type of v as beeing an *Impl,
-		// but in can still be a nil interface, we have not detected that. The v.(*Impl)
+		// Here in the devirtualizer, we determine the concrete type of v as being an *Impl,
+		// but it can still be a nil interface, we have not detected that. The v.(*Impl)
 		// type assertion that we make here would also have failed, but with a different
 		// panic "pkg.Iface is nil, not *pkg.Impl", where previously we would get a nil panic.
 		// We fix this, by introducing an additional nilcheck on the itab.
 		// Calling a method on an nil interface (in most cases) is a bug in a program, so it is fine
 		// to devirtualize and further (possibly) inline them, even though we would never reach
 		// the called function.
-		dt.EmitItabNilCheck = true
+		dt.UseNilPanic = true
 		dt.SetPos(call.Pos())
 	}
 
@@ -207,7 +207,15 @@ func concreteType(n ir.Node) (typ *types.Type) {
 	return typ
 }
 
-func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignments func(*ir.Name) []valOrTyp) (out *types.Type, isNil bool) {
+// concreteType1 analyzes the node n and returns its concrete type if it is statically known.
+// Otherwise, it returns a nil Type, indicating that a concrete type was not determined.
+// This can happen in cases where n is assigned an interface type and the concrete type
+// is not statically known (e.g., a non-inlined function call returning an interface type)
+// or when multiple distinct concrete types are assigned.
+//
+// If n is statically known to be nil, this function returns a nil Type with isNil == true.
+// However, if any concrete type is found, it is returned instead, even if n was assigned with nil.
+func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignments func(*ir.Name) []valOrTyp) (t *types.Type, isNil bool) {
 	for {
 		if !n.Type().IsInterface() {
 			return n.Type(), false
@@ -279,7 +287,7 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignments 
 	assignments := getAssignments(name)
 	if len(assignments) == 0 {
 		// Variable either declared with zero value, or only assigned
-		// with nil (getAssignements does not return such assignments).
+		// with nil (getAssignments does not return such assignments).
 		return nil, true
 	}
 
@@ -323,8 +331,9 @@ type valOrTyp struct {
 	node ir.Node
 }
 
-// ifaceAssignments returns a map containg every assignement to variables
-// declared in the provieded func (and in closures) that are of interface types.
+// ifaceAssignments returns a map containg every assignment to variables
+// declared in the provided func (and in closures) that are of interface type.
+// It does not collect nil assignments (and thus zero val decls).
 func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 	out := make(map[*ir.Name][]valOrTyp)
 
@@ -338,15 +347,15 @@ func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 			return
 		}
 
-		n = n.Canonical()
-		if n.Op() != ir.ONAME {
-			base.Fatalf("reassigned %v", n)
-		}
-
 		// Do not track variables that are not of interface types.
 		// For devirtualization they are unnecessary, we will not even look them up.
 		if !n.Type().IsInterface() {
 			return
+		}
+
+		n = n.Canonical()
+		if n.Op() != ir.ONAME {
+			base.Fatalf("reassigned %v", n)
 		}
 
 		// n is assigned with nil, we can safely ignore them, see [StaticCall].
@@ -434,6 +443,8 @@ func ifaceAssignments(fun *ir.Func) map[*ir.Name][]valOrTyp {
 				assign(n.Key, valOrTyp{})
 				assign(n.Value, valOrTyp{})
 			} else {
+				// We will not reach here in case of an range-over-func, as it is
+				// rewrtten to function calls in the noder package.
 				base.Fatalf("range over unexpected type %v", n.X.Type())
 			}
 		case ir.OSWITCH:

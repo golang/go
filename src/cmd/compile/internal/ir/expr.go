@@ -682,10 +682,10 @@ type TypeAssertExpr struct {
 	// An internal/abi.TypeAssert descriptor to pass to the runtime.
 	Descriptor *obj.LSym
 
-	// When set to true, then the ssagen package will emit a nilcheck on the itab, that
-	// will lead to a nil check panic in case the itab is nil at runtime.
+	// When set to true, if this assert would panic, then use a nil pointer panic
+	// instead of an interface conversion panic.
 	// It must not be set for type asserts using the commaok form.
-	EmitItabNilCheck bool
+	UseNilPanic bool
 }
 
 func NewTypeAssertExpr(pos src.XPos, x Node, typ *types.Type) *TypeAssertExpr {
