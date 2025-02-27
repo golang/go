@@ -386,19 +386,16 @@ func (n *InlinedCallExpr) SingleResult() Node {
 	if have := len(n.ReturnVars); have != 1 {
 		base.FatalfAt(n.Pos(), "inlined call has %v results, expected 1", have)
 	}
-	return n.Result(0)
-}
-
-func (n *InlinedCallExpr) Result(i int) Node {
-	if !n.Type().HasShape() && n.ReturnVars[i].Type().HasShape() {
+	// TODO: do we need to do that also?
+	if !n.Type().HasShape() && n.ReturnVars[0].Type().HasShape() {
 		// If the type of the call is not a shape, but the type of the return value
 		// is a shape, we need to do an implicit conversion, so the real type
 		// of n is maintained.
-		r := NewConvExpr(n.Pos(), OCONVNOP, n.Type(), n.ReturnVars[i])
+		r := NewConvExpr(n.Pos(), OCONVNOP, n.Type(), n.ReturnVars[0])
 		r.SetTypecheck(1)
 		return r
 	}
-	return n.ReturnVars[i]
+	return n.ReturnVars[0]
 }
 
 // A LogicalExpr is an expression X Op Y where Op is && or ||.
