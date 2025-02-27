@@ -271,6 +271,7 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 	// This may be a renegotiation handshake, in which case some fields
 	// need to be reset.
 	c.didResume = false
+	c.curveID = 0
 
 	hello, keyShareKeys, ech, err := c.makeClientHello()
 	if err != nil {
@@ -958,10 +959,11 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 	c.verifiedChains = hs.session.verifiedChains
 	c.ocspResponse = hs.session.ocspResponse
 	// Let the ServerHello SCTs override the session SCTs from the original
-	// connection, if any are provided
+	// connection, if any are provided.
 	if len(c.scts) == 0 && len(hs.session.scts) != 0 {
 		c.scts = hs.session.scts
 	}
+	c.curveID = hs.session.curveID
 
 	return true, nil
 }

@@ -1633,8 +1633,7 @@ func (c *Conn) connectionStateLocked() ConnectionState {
 	state.NegotiatedProtocol = c.clientProtocol
 	state.DidResume = c.didResume
 	state.testingOnlyDidHRR = c.didHRR
-	// c.curveID is not set on TLS 1.0–1.2 resumptions. Fix that before exposing it.
-	state.testingOnlyCurveID = c.curveID
+	state.CurveID = c.curveID
 	state.NegotiatedProtocolIsMutual = true
 	state.ServerName = c.serverName
 	state.CipherSuite = c.cipherSuite

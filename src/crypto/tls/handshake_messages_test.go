@@ -424,11 +424,13 @@ func (*SessionState) Generate(rand *rand.Rand, size int) reflect.Value {
 	if rand.Intn(10) > 5 && s.EarlyData {
 		s.alpnProtocol = string(randomBytes(rand.Intn(10), rand))
 	}
-	if s.isClient {
-		if isTLS13 {
+	if isTLS13 {
+		if s.isClient {
 			s.useBy = uint64(rand.Int63())
 			s.ageAdd = uint32(rand.Int63() & math.MaxUint32)
 		}
+	} else {
+		s.curveID = CurveID(rand.Intn(30000) + 1)
 	}
 	return reflect.ValueOf(s)
 }

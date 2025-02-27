@@ -44,20 +44,21 @@ type SessionState struct {
 	//           case 0: Empty;
 	//           case 1: opaque alpn<1..2^8-1>;
 	//       };
-	//       select (SessionState.type) {
-	//           case server: Empty;
-	//           case client: struct {
-	//               select (SessionState.version) {
-	//                   case VersionTLS10..VersionTLS12: Empty;
-	//                   case VersionTLS13: struct {
-	//                       uint64 use_by;
-	//                       uint32 age_add;
-	//                   };
+	//       select (SessionState.version) {
+	//           case VersionTLS10..VersionTLS12: uint16 curve_id;
+	//           case VersionTLS13: select (SessionState.type) {
+	//               case server: Empty;
+	//               case client: struct {
+	//                   uint64 use_by;
+	//                   uint32 age_add;
 	//               };
 	//           };
 	//       };
 	//   } SessionState;
 	//
+	// The format can be extended backwards-compatibly by adding new fields at
+	// the end. Otherwise, a new SessionStateType must be used, as different Go
+	// versions may share the same session ticket encryption key.
 
 	// Extra is ignored by crypto/tls, but is encoded by [SessionState.Bytes]
 	// and parsed by [ParseSessionState].
@@ -97,6 +98,9 @@ type SessionState struct {
 	useBy  uint64 // seconds since UNIX epoch
 	ageAdd uint32
 	ticket []byte
+
+	// TLS 1.0–1.2 only fields.
+	curveID CurveID
 }
 
 // Bytes encodes the session, including any private fields, so that it can be
@@ -161,11 +165,13 @@ func (s *SessionState) Bytes() ([]byte, error) {
 			b.AddBytes([]byte(s.alpnProtocol))
 		})
 	}
-	if s.isClient {
-		if s.version >= VersionTLS13 {
+	if s.version >= VersionTLS13 {
+		if s.isClient {
 			addUint64(&b, s.useBy)
 			b.AddUint32(s.ageAdd)
 		}
+	} else {
+		b.AddUint16(uint16(s.curveID))
 	}
 	return b.Bytes()
 }
@@ -187,7 +193,6 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 	var extra cryptobyte.String
 	if !s.ReadUint16(&ss.version) ||
 		!s.ReadUint8(&typ) ||
-		(typ != 1 && typ != 2) ||
 		!s.ReadUint16(&ss.cipherSuite) ||
 		!readUint64(&s, &ss.createdAt) ||
 		!readUint8LengthPrefixed(&s, &ss.secret) ||
@@ -204,6 +209,14 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 			return nil, errors.New("tls: invalid session encoding")
 		}
 		ss.Extra = append(ss.Extra, e)
+	}
+	switch typ {
+	case 1:
+		ss.isClient = false
+	case 2:
+		ss.isClient = true
+	default:
+		return nil, errors.New("tls: unknown session encoding")
 	}
 	switch extMasterSecret {
 	case 0:
@@ -228,6 +241,9 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 		}
 		ss.activeCertHandles = append(ss.activeCertHandles, c)
 		ss.peerCertificates = append(ss.peerCertificates, c.cert)
+	}
+	if ss.isClient && len(ss.peerCertificates) == 0 {
+		return nil, errors.New("tls: no server certificates in client session")
 	}
 	ss.ocspResponse = cert.OCSPStaple
 	ss.scts = cert.SignedCertificateTimestamps
@@ -266,24 +282,16 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 		}
 		ss.alpnProtocol = string(alpn)
 	}
-	if isClient := typ == 2; !isClient {
-		if !s.Empty() {
+	if ss.version >= VersionTLS13 {
+		if ss.isClient {
+			if !s.ReadUint64(&ss.useBy) || !s.ReadUint32(&ss.ageAdd) {
+				return nil, errors.New("tls: invalid session encoding")
+			}
+		}
+	} else {
+		if !s.ReadUint16((*uint16)(&ss.curveID)) {
 			return nil, errors.New("tls: invalid session encoding")
 		}
-		return ss, nil
-	}
-	ss.isClient = true
-	if len(ss.peerCertificates) == 0 {
-		return nil, errors.New("tls: no server certificates in client session")
-	}
-	if ss.version < VersionTLS13 {
-		if !s.Empty() {
-			return nil, errors.New("tls: invalid session encoding")
-		}
-		return ss, nil
-	}
-	if !s.ReadUint64(&ss.useBy) || !s.ReadUint32(&ss.ageAdd) || !s.Empty() {
-		return nil, errors.New("tls: invalid session encoding")
 	}
 	return ss, nil
 }
@@ -303,6 +311,7 @@ func (c *Conn) sessionState() *SessionState {
 		isClient:          c.isClient,
 		extMasterSecret:   c.extMasterSecret,
 		verifiedChains:    c.verifiedChains,
+		curveID:           c.curveID,
 	}
 }
 

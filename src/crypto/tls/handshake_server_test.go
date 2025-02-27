@@ -736,7 +736,7 @@ func (test *serverTest) run(t *testing.T, write bool) {
 		t.Fatalf("%s: mismatch on peer list length: %d (wanted) != %d (got)", test.name, len(test.expectedPeerCerts), len(peerCerts))
 	}
 
-	if test.validate != nil {
+	if test.validate != nil && !t.Failed() {
 		if err := test.validate(connState); err != nil {
 			t.Fatalf("validate callback returned error: %s", err)
 		}
