@@ -54,13 +54,13 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 			fmt.Printf("%v: function %v considered 'big'; reducing max cost of inlinees\n", ir.Line(fn), fn)
 		}
 
-		s := &inlClosureState{bigCaller: bigCaller, profile: profile, fn: fn, callSites: make(map[*ir.ParenExpr]bool), useCounts: calleeUseCounts, devirtState: &state}
+		s := &inlClosureState{bigCaller: bigCaller, profile: profile, fn: fn, callSites: make(map[*ir.ParenExpr]bool), useCounts: calleeUseCounts}
 		s.parenthesize()
 		inlState[fn] = s
 
 		// Do a first pass at counting call sites.
 		for i := range s.parens {
-			s.resolve(i)
+			s.resolve(&state, i)
 		}
 	}
 
@@ -104,11 +104,11 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 					for {
 						for i := l0; i < l1; i++ { // can't use "range parens" here
 							paren := s.parens[i]
-							if origCall, inlinedCall := s.edit(i); inlinedCall != nil {
+							if origCall, inlinedCall := s.edit(&state, i); inlinedCall != nil {
 								// Update AST and recursively mark nodes.
 								paren.X = inlinedCall
 								ir.EditChildren(inlinedCall, s.mark) // mark may append to parens
-								s.devirtState.InlinedCall(s.fn, origCall, inlinedCall)
+								state.InlinedCall(s.fn, origCall, inlinedCall)
 								done = false
 							}
 						}
@@ -117,7 +117,7 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 							break
 						}
 						for i := l0; i < l1; i++ {
-							s.resolve(i)
+							s.resolve(&state, i)
 						}
 
 					}
@@ -166,7 +166,7 @@ func DevirtualizeAndInlineFunc(fn *ir.Func, profile *pgoir.Profile) {
 			fmt.Printf("%v: function %v considered 'big'; reducing max cost of inlinees\n", ir.Line(fn), fn)
 		}
 
-		s := &inlClosureState{bigCaller: bigCaller, profile: profile, fn: fn, callSites: make(map[*ir.ParenExpr]bool), useCounts: make(map[*ir.Func]int), devirtState: new(devirtualize.State)}
+		s := &inlClosureState{bigCaller: bigCaller, profile: profile, fn: fn, callSites: make(map[*ir.ParenExpr]bool), useCounts: make(map[*ir.Func]int)}
 		s.parenthesize()
 		s.fixpoint()
 		s.unparenthesize()
@@ -179,9 +179,7 @@ type callSite struct {
 }
 
 type inlClosureState struct {
-	fn          *ir.Func
-	devirtState *devirtualize.State
-
+	fn        *ir.Func
 	profile   *pgoir.Profile
 	callSites map[*ir.ParenExpr]bool // callSites[p] == "p appears in parens" (do not append again)
 	resolved  []*ir.Func             // for each call in parens, the resolved target of the call
@@ -193,7 +191,7 @@ type inlClosureState struct {
 // resolve attempts to resolve a call to a potentially inlineable callee
 // and updates use counts on the callees.  Returns the call site count
 // for that callee.
-func (s *inlClosureState) resolve(i int) (*ir.Func, int) {
+func (s *inlClosureState) resolve(state *devirtualize.State, i int) (*ir.Func, int) {
 	p := s.parens[i]
 	if i < len(s.resolved) {
 		if callee := s.resolved[i]; callee != nil {
@@ -205,7 +203,7 @@ func (s *inlClosureState) resolve(i int) (*ir.Func, int) {
 	if !ok { // previously inlined
 		return nil, -1
 	}
-	devirtualize.StaticCall(s.devirtState, call)
+	devirtualize.StaticCall(state, call)
 	if callee := inline.InlineCallTarget(s.fn, call, s.profile); callee != nil {
 		for len(s.resolved) <= i {
 			s.resolved = append(s.resolved, nil)
@@ -218,7 +216,7 @@ func (s *inlClosureState) resolve(i int) (*ir.Func, int) {
 	return nil, 0
 }
 
-func (s *inlClosureState) edit(i int) (*ir.CallExpr, *ir.InlinedCallExpr) {
+func (s *inlClosureState) edit(state *devirtualize.State, i int) (*ir.CallExpr, *ir.InlinedCallExpr) {
 	n := s.parens[i].X
 	call, ok := n.(*ir.CallExpr)
 	if !ok {
@@ -227,7 +225,7 @@ func (s *inlClosureState) edit(i int) (*ir.CallExpr, *ir.InlinedCallExpr) {
 	// This is redundant with earlier calls to
 	// resolve, but because things can change it
 	// must be re-checked.
-	callee, count := s.resolve(i)
+	callee, count := s.resolve(state, i)
 	if count <= 0 {
 		return nil, nil
 	}
@@ -343,17 +341,18 @@ func (s *inlClosureState) unparenthesize() {
 // returns.
 func (s *inlClosureState) fixpoint() bool {
 	changed := false
+	var state devirtualize.State
 	ir.WithFunc(s.fn, func() {
 		done := false
 		for !done {
 			done = true
 			for i := 0; i < len(s.parens); i++ { // can't use "range parens" here
 				paren := s.parens[i]
-				if origCall, inlinedCall := s.edit(i); inlinedCall != nil {
+				if origCall, inlinedCall := s.edit(&state, i); inlinedCall != nil {
 					// Update AST and recursively mark nodes.
 					paren.X = inlinedCall
 					ir.EditChildren(inlinedCall, s.mark) // mark may append to parens
-					s.devirtState.InlinedCall(s.fn, origCall, inlinedCall)
+					state.InlinedCall(s.fn, origCall, inlinedCall)
 					done = false
 					changed = true
 				}
