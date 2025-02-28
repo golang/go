@@ -133,6 +133,11 @@ func typeAssertsWithOkReturn() {
 		callIfA(a)  // ERROR "devirtualizing v.A to \*Impl$" "inlining call to \(\*Impl\).A" "inlining call to callIfA"
 	}
 	{
+		_, a := newM2ret() // ERROR "&Impl{} does not escape$" "inlining call to newM2ret"
+		callA(a)           // ERROR "devirtualizing m.\(A\).A to \*Impl$" "inlining call to \(\*Impl\).A" "inlining call to callA"
+		callIfA(a)         // ERROR "devirtualizing v.A to \*Impl$" "inlining call to \(\*Impl\).A" "inlining call to callIfA"
+	}
+	{
 		var a M = &Impl{} // ERROR "&Impl{} does not escape$"
 		// Note the !ok condition, devirtualizing here is fine.
 		if v, ok := a.(M); !ok {
@@ -164,6 +169,10 @@ func typeAssertsWithOkReturn() {
 
 func newM() M { // ERROR "can inline newM$"
 	return &Impl{} // ERROR "&Impl{} escapes to heap$"
+}
+
+func newM2ret() (int, M) { // ERROR "can inline newM2ret$"
+	return -1, &Impl{} // ERROR "&Impl{} escapes to heap$"
 }
 
 func callA(m M) { // ERROR "can inline callA$" "leaking param: m$"
