@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/internal/cov/covcmd"
+	"cmd/internal/par"
 	"container/heap"
 	"context"
 	"debug/elf"
@@ -56,9 +57,10 @@ type Builder struct {
 	readySema chan bool
 	ready     actionQueue
 
-	id           sync.Mutex
-	toolIDCache  map[string]string // tool name -> tool ID
-	buildIDCache map[string]string // file name -> build ID
+	id             sync.Mutex
+	toolIDCache    par.Cache[string, string] // tool name -> tool ID
+	gccToolIDCache map[string]string         // tool name -> tool ID
+	buildIDCache   map[string]string         // file name -> build ID
 }
 
 // NOTE: Much of Action would not need to be exported if not for test.
@@ -268,7 +270,7 @@ func NewBuilder(workDir string) *Builder {
 	b := new(Builder)
 
 	b.actionCache = make(map[cacheKey]*Action)
-	b.toolIDCache = make(map[string]string)
+	b.gccToolIDCache = make(map[string]string)
 	b.buildIDCache = make(map[string]string)
 
 	printWorkDir := false
