@@ -191,31 +191,27 @@ func concreteType(s *State, n ir.Node) (typ *types.Type) {
 		}
 
 		fun := n.Curfn
-		for fun.ClosureParent != nil {
-			fun = fun.ClosureParent
+		if fun == nil {
+			base.Fatalf("n.Curfn = <nil>")
 		}
 
-		if s.funDecls == nil {
-			// TODO: do not split this per *ir.Func.
-			// Then we could add an additional map containing all funcs that were
-			// analyzed, and only analyze names (here) that are of *ir.Func that we do
-			// not have here.
-			s.funDecls = make(map[*ir.Func]funcDeclState)
-		}
-		if _, ok := s.funDecls[fun]; !ok {
+		// Check whether the variable is declared in a function that we had
+		// analyzed before, if not then analyze its assignments.
+		if _, ok := s.analyzedFuncs[fun]; !ok {
 			if concreteTypeDebug {
 				base.Warn("concreteType(): analyzing assignments in %v func", fun)
 			}
-			s.funDecls[fun] = funcDeclState{
-				ifaceAssignments:     make(map[*ir.Name][]valOrTyp),
-				ifaceCallExprAssigns: make(map[*ir.CallExpr][]ifaceAssignRef),
+			if s.analyzedFuncs == nil {
+				s.ifaceAssignments = make(map[*ir.Name][]valOrTyp)
+				s.ifaceCallExprAssigns = make(map[*ir.CallExpr][]ifaceAssignRef)
+				s.analyzedFuncs = make(map[*ir.Func]struct{})
 			}
-			s := s.funDecls[fun]
+			s.analyzedFuncs[fun] = struct{}{}
 			s.analyze(fun.Init())
 			s.analyze(fun.Body)
 		}
 
-		return s.funDecls[fun].ifaceAssignments[n]
+		return s.ifaceAssignments[n]
 	})
 	if isNil && typ != nil {
 		base.Fatalf("typ = %v; want = <nil>", typ)
@@ -367,18 +363,17 @@ type valOrTyp struct {
 	node ir.Node
 }
 
-// State holds precomputed state for use in (and filled by the first call to) [StaticCall].
+// State holds precomputed state for use in [StaticCall].
 type State struct {
-	funDecls map[*ir.Func]funcDeclState
-}
-
-type funcDeclState struct {
-	// ifaceAssignments stores all assignments to all interface variables, found in a func.
+	// ifaceAssignments stores all assignments to all interface variables.
 	ifaceAssignments map[*ir.Name][]valOrTyp
 
 	// ifaceCallExprAssigns stores every [*ir.CallExpr] found in a func, which has
 	// an interface result, that is assigned to a variable.
 	ifaceCallExprAssigns map[*ir.CallExpr][]ifaceAssignRef
+
+	// analyzedFuncs is a set of Funcs that were analyzed for iface assignments.
+	analyzedFuncs map[*ir.Func]struct{}
 }
 
 type ifaceAssignRef struct {
@@ -389,35 +384,31 @@ type ifaceAssignRef struct {
 
 // InlinedCall updates the [State] to take into account a newly inlined call.
 func (s *State) InlinedCall(fun *ir.Func, origCall *ir.CallExpr, newInlinedCall *ir.InlinedCallExpr) {
-	for fun.ClosureParent != nil {
-		fun = fun.ClosureParent
-	}
-	funcState, ok := s.funDecls[fun]
-	if !ok {
+	if _, ok := s.analyzedFuncs[fun]; !ok {
 		// Full analyze has not been yet executed for the provided function, so we can skip it for now.
 		// When no devirtualization happens in a function, it is unnecessary to analyze it.
 		return
 	}
 
 	// Analyze assignments in the newly inlined function.
-	funcState.analyze(newInlinedCall.Init())
-	funcState.analyze(newInlinedCall.Body)
+	s.analyze(newInlinedCall.Init())
+	s.analyze(newInlinedCall.Body)
 
-	v, ok := funcState.ifaceCallExprAssigns[origCall]
+	v, ok := s.ifaceCallExprAssigns[origCall]
 	if !ok {
 		return
 	}
-	delete(funcState.ifaceCallExprAssigns, origCall)
+	delete(s.ifaceCallExprAssigns, origCall)
 
 	// Update assignments to reference the new ReturnVars of the inlined call.
 	for _, ni := range v {
-		vt := &funcState.ifaceAssignments[ni.name][ni.valOrTypeIndex]
+		vt := &s.ifaceAssignments[ni.name][ni.valOrTypeIndex]
 		if vt.node != nil || vt.typ != nil {
 			base.Fatalf("unexpected non-empty valOrTyp")
 		}
 		if concreteTypeDebug {
 			base.Warn(
-				"Invalidate(%v, %v): replacing interface node in (%v,%v) to %v (typ %v)",
+				"InlinedCall(%v, %v): replacing interface node in (%v,%v) to %v (typ %v)",
 				origCall, newInlinedCall, ni.name, ni.valOrTypeIndex,
 				newInlinedCall.ReturnVars[ni.returnIndex],
 				newInlinedCall.ReturnVars[ni.returnIndex].Type(),
@@ -428,7 +419,7 @@ func (s *State) InlinedCall(fun *ir.Func, origCall *ir.CallExpr, newInlinedCall 
 }
 
 // analyze analyzes every assignment to interface variables in nodes, updating [State].
-func (s *funcDeclState) analyze(nodes ir.Nodes) {
+func (s *State) analyze(nodes ir.Nodes) {
 	assign := func(name ir.Node, value valOrTyp) (*ir.Name, int) {
 		if name == nil || name.Op() != ir.ONAME || ir.IsBlank(name) {
 			return nil, -1
@@ -579,7 +570,11 @@ func (s *funcDeclState) analyze(nodes ir.Nodes) {
 				}
 			}
 		case ir.OCLOSURE:
-			ir.Visit(n.(*ir.ClosureExpr).Func, do)
+			n := n.(*ir.ClosureExpr)
+			if _, ok := s.analyzedFuncs[n.Func]; !ok {
+				s.analyzedFuncs[n.Func] = struct{}{}
+				ir.Visit(n.Func, do)
+			}
 		}
 	}
 	ir.VisitList(nodes, do)
