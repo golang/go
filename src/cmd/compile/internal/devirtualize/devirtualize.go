@@ -368,8 +368,8 @@ type State struct {
 	// ifaceAssignments stores all assignments to all interface variables.
 	ifaceAssignments map[*ir.Name][]valOrTyp
 
-	// ifaceCallExprAssigns stores every [*ir.CallExpr] found in a func, which has
-	// an interface result, that is assigned to a variable.
+	// ifaceCallExprAssigns stores every [*ir.CallExpr], which has an interface
+	// result, that is assigned to a variable.
 	ifaceCallExprAssigns map[*ir.CallExpr][]ifaceAssignRef
 
 	// analyzedFuncs is a set of Funcs that were analyzed for iface assignments.
