@@ -518,6 +518,7 @@ func closureNoDevirt2() {
 func closureDevirt3() {
 	var a A = &Impl{} // ERROR "&Impl{} does not escape$"
 	func() {          // ERROR "func literal does not escape$"
+		// defer so that it does not lnline.
 		defer func() {}() // ERROR "can inline closureDevirt3.func1.1$" "func literal does not escape$"
 		a.A()             // ERROR "devirtualizing a.A to \*Impl$" "inlining call to \(\*Impl\).A"
 	}()
