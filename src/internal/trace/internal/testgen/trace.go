@@ -11,6 +11,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"internal/trace"
 	"internal/trace/raw"
@@ -55,6 +56,7 @@ type Trace struct {
 	events          []raw.Event
 	gens            []*Generation
 	validTimestamps bool
+	lastTs          Time
 
 	// Expectation state.
 	bad      bool
@@ -107,6 +109,7 @@ func (t *Trace) Generation(gen uint64) *Generation {
 		gen:     gen,
 		strings: make(map[string]uint64),
 		stacks:  make(map[stack]uint64),
+		sync:    sync{freq: 15625000},
 	}
 	t.gens = append(t.gens, g)
 	return g
@@ -178,6 +181,7 @@ type Generation struct {
 	batches []*Batch
 	strings map[string]uint64
 	stacks  map[stack]uint64
+	sync    sync
 
 	// Options applied when Trace.Generate is called.
 	ignoreStringBatchSizeLimit bool
@@ -188,14 +192,11 @@ type Generation struct {
 //
 // This is convenience function for generating correct batches.
 func (g *Generation) Batch(thread trace.ThreadID, time Time) *Batch {
-	if !g.trace.validTimestamps {
-		time = 0
-	}
 	b := &Batch{
-		gen:       g,
-		thread:    thread,
-		timestamp: time,
+		gen:    g,
+		thread: thread,
 	}
+	b.setTimestamp(time)
 	g.batches = append(g.batches, b)
 	return b
 }
@@ -238,20 +239,59 @@ func (g *Generation) Stack(stk []trace.StackFrame) uint64 {
 	return id
 }
 
+// Sync configures the sync batch for the generation. For go1.25 and later,
+// the time value is the timestamp of the EvClockSnapshot event. For earlier
+// version, the time value is the timestamp of the batch containing a lone
+// EvFrequency event.
+func (g *Generation) Sync(freq uint64, time Time, mono uint64, wall time.Time) {
+	if g.trace.ver < version.Go125 && (mono != 0 || !wall.IsZero()) {
+		panic(fmt.Sprintf("mono and wall args are not supported in go1.%d traces", g.trace.ver))
+	}
+	g.sync = sync{
+		freq:     freq,
+		time:     time,
+		mono:     mono,
+		walltime: wall,
+	}
+}
+
+type sync struct {
+	freq     uint64
+	time     Time
+	mono     uint64
+	walltime time.Time
+}
+
 // writeEventsTo emits event batches in the generation to tw.
 func (g *Generation) writeEventsTo(tw *raw.TextWriter) {
+	// go1.25+ sync batches are emitted at the start of the generation.
+	if g.trace.ver >= version.Go125 {
+		b := g.newStructuralBatch()
+		// Arrange for EvClockSnapshot's ts to be exactly g.sync.time.
+		b.setTimestamp(g.sync.time - 1)
+		b.RawEvent(tracev2.EvSync, nil)
+		b.RawEvent(tracev2.EvFrequency, nil, g.sync.freq)
+		sec := uint64(g.sync.walltime.Unix())
+		nsec := uint64(g.sync.walltime.Nanosecond())
+		b.Event("ClockSnapshot", g.sync.mono, sec, nsec)
+		b.writeEventsTo(tw)
+	}
+
 	// Write event batches for the generation.
 	for _, b := range g.batches {
 		b.writeEventsTo(tw)
 	}
 
-	// Write frequency.
-	b := g.newStructuralBatch()
-	b.RawEvent(tracev2.EvFrequency, nil, 15625000)
-	b.writeEventsTo(tw)
+	// Write lone EvFrequency sync batch for older traces.
+	if g.trace.ver < version.Go125 {
+		b := g.newStructuralBatch()
+		b.setTimestamp(g.sync.time)
+		b.RawEvent(tracev2.EvFrequency, nil, g.sync.freq)
+		b.writeEventsTo(tw)
+	}
 
 	// Write stacks.
-	b = g.newStructuralBatch()
+	b := g.newStructuralBatch()
 	b.RawEvent(tracev2.EvStacks, nil)
 	for stk, id := range g.stacks {
 		stk := stk.stk[:stk.len]
@@ -285,7 +325,9 @@ func (g *Generation) writeEventsTo(tw *raw.TextWriter) {
 }
 
 func (g *Generation) newStructuralBatch() *Batch {
-	return &Batch{gen: g, thread: trace.NoThread}
+	b := &Batch{gen: g, thread: trace.NoThread}
+	b.setTimestamp(g.trace.lastTs + 1)
+	return b
 }
 
 // Batch represents an event batch.
@@ -310,6 +352,7 @@ func (b *Batch) Event(name string, args ...any) {
 	if b.gen.trace.specs[ev].IsTimedEvent {
 		if b.gen.trace.validTimestamps {
 			uintArgs = []uint64{1}
+			b.gen.trace.lastTs += 1
 		} else {
 			uintArgs = []uint64{0}
 		}
@@ -333,7 +376,7 @@ func (b *Batch) uintArgFor(arg any, argSpec string) uint64 {
 	}
 	var u uint64
 	switch typStr {
-	case "value":
+	case "value", "mono", "sec", "nsec":
 		u = arg.(uint64)
 	case "stack":
 		u = b.gen.Stack(arg.([]trace.StackFrame))
@@ -389,6 +432,14 @@ func (b *Batch) writeEventsTo(tw *raw.TextWriter) {
 	})
 	for _, e := range b.events {
 		tw.WriteEvent(e)
+	}
+}
+
+// setTimestamp sets the timestamp for the batch.
+func (b *Batch) setTimestamp(t Time) {
+	if b.gen.trace.validTimestamps {
+		b.timestamp = t
+		b.gen.trace.lastTs = t
 	}
 }
 
