@@ -515,6 +515,32 @@ func closureNoDevirt2() {
 }
 
 //go:noinline
+func closureDevirt3() {
+	var a A = &Impl{} // ERROR "&Impl{} does not escape$"
+	func() {          // ERROR "func literal does not escape$"
+		defer func() {}() // ERROR "can inline closureDevirt3.func1.1$" "func literal does not escape$"
+		a.A()             // ERROR "devirtualizing a.A to \*Impl$" "inlining call to \(\*Impl\).A"
+	}()
+	func() { // ERROR "can inline closureDevirt3.func2$"
+		a.A() // ERROR "devirtualizing a.A to \*Impl$" "inlining call to \(\*Impl\).A"
+	}() // ERROR "inlining call to closureDevirt3.func2$" "devirtualizing a.A to \*Impl$" "inlining call to \(\*Impl\).A"
+}
+
+//go:noinline
+func closureNoDevirt3() {
+	var a A = &Impl{} // ERROR "&Impl{} escapes to heap$"
+	func() {          // ERROR "func literal does not escape$"
+		// defer so that it does not lnline.
+		defer func() {}() // ERROR "can inline closureNoDevirt3.func1.1$" "func literal does not escape$"
+		a.A()
+	}()
+	func() { // ERROR "can inline closureNoDevirt3.func2$"
+		a.A()
+	}() // ERROR "inlining call to closureNoDevirt3.func2$"
+	a = &Impl2{} // ERROR "&Impl2{} escapes to heap$"
+}
+
+//go:noinline
 func varDeclaredInClosureReferencesOuter() {
 	var a A = &Impl{} // ERROR "&Impl{} does not escape$"
 	func() {          // ERROR "func literal does not escape$"
