@@ -24,7 +24,7 @@ import (
 // [CanonicalHeaderKey].
 type Header map[string][]string
 
-const HeaderOrderKey = "Header-Order"
+const HeaderOrderKey = "re-header-order"
 
 // Add adds the key, value pair to the header.
 // It appends to any existing values associated with key.
