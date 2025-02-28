@@ -74,18 +74,32 @@ func traceClockUnitsPerSecond() uint64 {
 	return uint64(1.0 / float64(traceTimeDiv) * 1e9)
 }
 
-// traceFrequency writes a batch with a single EvFrequency event.
-//
-// freq is the number of trace clock units per second.
-func traceFrequency(gen uintptr) {
+func traceSyncBatch(gen uintptr, frequency uint64) {
 	w := unsafeTraceWriter(gen, nil)
 
 	// Ensure we have a place to write to.
-	w, _ = w.ensure(1 + traceBytesPerNumber /* tracev2.EvFrequency + frequency */)
+	w, _ = w.ensure(3 /* EvSync + EvFrequency + EvClockSnapshot */ + 5*traceBytesPerNumber /* frequency, timestamp, mono, sec, nsec */)
 
-	// Write out the string.
+	// Write out the sync batch event.
+	w.byte(byte(tracev2.EvSync))
+
+	// Write out the frequency event.
 	w.byte(byte(tracev2.EvFrequency))
-	w.varint(traceClockUnitsPerSecond())
+	w.varint(frequency)
+
+	// Write out the clock snapshot event.
+	sec, nsec, mono := time_now()
+	ts := traceClockNow()
+	if ts <= w.traceBuf.lastTime {
+		ts = w.traceBuf.lastTime + 1
+	}
+	tsDiff := uint64(ts - w.traceBuf.lastTime)
+	w.traceBuf.lastTime = ts
+	w.byte(byte(tracev2.EvClockSnapshot))
+	w.varint(tsDiff)
+	w.varint(uint64(mono))
+	w.varint(uint64(sec))
+	w.varint(uint64(nsec))
 
 	// Immediately flush the buffer.
 	systemstack(func() {

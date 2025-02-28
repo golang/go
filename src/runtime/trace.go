@@ -184,6 +184,10 @@ func StartTrace() error {
 	// Register some basic strings in the string tables.
 	traceRegisterLabelsAndReasons(firstGen)
 
+	// N.B. This may block for quite a while to get a frequency estimate. Do it
+	// here to minimize the time that the world is stopped.
+	frequency := traceClockUnitsPerSecond()
+
 	// Stop the world.
 	//
 	// The purpose of stopping the world is to make sure that no goroutine is in a
@@ -280,8 +284,9 @@ func StartTrace() error {
 	//
 	// N.B. This will also emit a status event for this goroutine.
 	tl := traceAcquire()
-	tl.Gomaxprocs(gomaxprocs)  // Get this as early in the trace as possible. See comment in traceAdvance.
-	tl.STWStart(stwStartTrace) // We didn't trace this above, so trace it now.
+	traceSyncBatch(firstGen, frequency) // Get this as early in the trace as possible. See comment in traceAdvance.
+	tl.Gomaxprocs(gomaxprocs)           // Get this as early in the trace as possible. See comment in traceAdvance.
+	tl.STWStart(stwStartTrace)          // We didn't trace this above, so trace it now.
 
 	// Record the fact that a GC is active, if applicable.
 	if gcphase == _GCmark || gcphase == _GCmarktermination {
@@ -339,12 +344,6 @@ func traceAdvance(stopTrace bool) {
 		semrelease(&traceAdvanceSema)
 		return
 	}
-
-	// Write an EvFrequency event for this generation.
-	//
-	// N.B. This may block for quite a while to get a good frequency estimate, so make sure we do
-	// this here and not e.g. on the trace reader.
-	traceFrequency(gen)
 
 	// Collect all the untraced Gs.
 	type untracedG struct {
@@ -410,6 +409,10 @@ func traceAdvance(stopTrace bool) {
 		traceRegisterLabelsAndReasons(traceNextGen(gen))
 	}
 
+	// N.B. This may block for quite a while to get a frequency estimate. Do it
+	// here to minimize the time that we prevent the world from stopping.
+	frequency := traceClockUnitsPerSecond()
+
 	// Now that we've done some of the heavy stuff, prevent the world from stopping.
 	// This is necessary to ensure the consistency of the STW events. If we're feeling
 	// adventurous we could lift this restriction and add a STWActive event, but the
@@ -441,14 +444,16 @@ func traceAdvance(stopTrace bool) {
 		trace.gen.Store(traceNextGen(gen))
 	}
 
-	// Emit a ProcsChange event so we have one on record for each generation.
-	// Let's emit it as soon as possible so that downstream tools can rely on the value
-	// being there fairly soon in a generation.
+	// Emit a sync batch which contains a ClockSnapshot. Also emit a ProcsChange
+	// event so we have one on record for each generation. Let's emit it as soon
+	// as possible so that downstream tools can rely on the value being there
+	// fairly soon in a generation.
 	//
 	// It's important that we do this before allowing stop-the-worlds again,
 	// because the procs count could change.
 	if !stopTrace {
 		tl := traceAcquire()
+		traceSyncBatch(tl.gen, frequency)
 		tl.Gomaxprocs(gomaxprocs)
 		traceRelease(tl)
 	}
@@ -820,7 +825,7 @@ func readTrace0() (buf []byte, park bool) {
 	if !trace.headerWritten {
 		trace.headerWritten = true
 		unlock(&trace.lock)
-		return []byte("go 1.23 trace\x00\x00\x00"), false
+		return []byte("go 1.25 trace\x00\x00\x00"), false
 	}
 
 	// Read the next buffer.

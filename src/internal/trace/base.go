@@ -41,7 +41,7 @@ func (e *baseEvent) extra(v version.Version) []uint64 {
 // evTable contains the per-generation data necessary to
 // interpret an individual event.
 type evTable struct {
-	freq    frequency
+	sync
 	strings dataTable[stringID, string]
 	stacks  dataTable[stackID, stack]
 	pcs     map[uint64]frame
