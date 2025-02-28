@@ -114,10 +114,7 @@ func (r *smallByteReader) Read(p []byte) (int, error) {
 		return 0, nil
 	}
 	r.n = r.n%3 + 1
-	n := r.n
-	if n > len(p) {
-		n = len(p)
-	}
+	n := min(r.n, len(p))
 	n, err := r.r.Read(p[0:n])
 	if err != nil && err != io.EOF {
 		err = fmt.Errorf("Read(%d bytes at offset %d): %v", n, r.off, err)
