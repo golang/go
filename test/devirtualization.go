@@ -524,7 +524,7 @@ func closureDevirt3() {
 	}()
 	func() { // ERROR "can inline closureDevirt3.func2$"
 		a.A() // ERROR "devirtualizing a.A to \*Impl$" "inlining call to \(\*Impl\).A"
-	}() // ERROR "inlining call to closureDevirt3.func2$" "devirtualizing a.A to \*Impl$" "inlining call to \(\*Impl\).A"
+	}() // ERROR "inlining call to closureDevirt3.func2" "devirtualizing a.A to \*Impl$" "inlining call to \(\*Impl\).A"
 }
 
 //go:noinline
@@ -537,7 +537,7 @@ func closureNoDevirt3() {
 	}()
 	func() { // ERROR "can inline closureNoDevirt3.func2$"
 		a.A()
-	}() // ERROR "inlining call to closureNoDevirt3.func2$"
+	}() // ERROR "inlining call to closureNoDevirt3.func2"
 	a = &Impl2{} // ERROR "&Impl2{} escapes to heap$"
 }
 
