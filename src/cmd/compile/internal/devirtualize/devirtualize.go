@@ -123,8 +123,8 @@ func StaticCall(s *State, call *ir.CallExpr) {
 		// Consider:
 		//
 		//	var v Iface
-		// 	v.A()
-		// 	v = &Impl{}
+		//	v.A()
+		//	v = &Impl{}
 		//
 		// Here in the devirtualizer, we determine the concrete type of v as being an *Impl,
 		// but it can still be a nil interface, we have not detected that. The v.(*Impl)
