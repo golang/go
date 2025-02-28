@@ -66,6 +66,7 @@ func NewTrace(ver version.Version) *Trace {
 	return &Trace{
 		names:           tracev2.EventNames(ver.Specs()),
 		specs:           ver.Specs(),
+		ver:             ver,
 		validTimestamps: true,
 	}
 }
@@ -115,7 +116,7 @@ func (t *Trace) Generation(gen uint64) *Generation {
 func (t *Trace) Generate() []byte {
 	// Trace file contents.
 	var buf bytes.Buffer
-	tw, err := raw.NewTextWriter(&buf, version.Go122)
+	tw, err := raw.NewTextWriter(&buf, t.ver)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -153,7 +154,7 @@ func (t *Trace) createEvent(ev tracev2.EventType, data []byte, args ...uint64) r
 		}
 	}
 	return raw.Event{
-		Version: version.Go122,
+		Version: t.ver,
 		Ev:      ev,
 		Args:    args,
 		Data:    data,
@@ -382,7 +383,7 @@ func (b *Batch) RawEvent(typ tracev2.EventType, data []byte, args ...uint64) {
 // writeEventsTo emits events in the batch, including the batch header, to tw.
 func (b *Batch) writeEventsTo(tw *raw.TextWriter) {
 	tw.WriteEvent(raw.Event{
-		Version: version.Go122,
+		Version: b.gen.trace.ver,
 		Ev:      tracev2.EvEventBatch,
 		Args:    []uint64{b.gen.gen, uint64(b.thread), uint64(b.timestamp), b.size},
 	})
