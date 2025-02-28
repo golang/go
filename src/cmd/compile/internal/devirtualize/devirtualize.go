@@ -196,14 +196,12 @@ func concreteType(s *State, n ir.Node) (typ *types.Type) {
 		}
 
 		if s.ifaceAssignments == nil {
-			s.ifaceAssignments = make(map[*ir.Name][]valOrTyp)
-			s.ifaceCallExprAssigns = make(map[*ir.CallExpr][]ifaceAssignRef)
-
 			if concreteTypeDebug {
 				base.Warn("concreteType(): analyzing assignments in %v func", fun)
 			}
-
 			s.fun = fun
+			s.ifaceAssignments = make(map[*ir.Name][]valOrTyp)
+			s.ifaceCallExprAssigns = make(map[*ir.CallExpr][]ifaceAssignRef)
 			s.analyze(fun.Init())
 			s.analyze(fun.Body)
 		}
@@ -253,7 +251,7 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignments 
 		case *ir.ConvExpr:
 			if n1.Op() == ir.OCONVNOP {
 				if !n1.Type().IsInterface() || !types.Identical(n1.Type(), n1.X.Type()) {
-					// As we check (directly before this switch) wheter n is an interface, thus we should only reach
+					// As we check (directly before this switch) whether n is an interface, thus we should only reach
 					// here for iface conversions where both operands are the same.
 					base.Fatalf("not identical/interface types found n1.Type = %v; n1.X.Type = %v", n1.Type(), n1.X.Type())
 				}
@@ -386,7 +384,7 @@ type ifaceAssignRef struct {
 func (s *State) InlinedCall(origCall *ir.CallExpr, newInlinedCall *ir.InlinedCallExpr) {
 	if s.ifaceAssignments == nil {
 		// Full analyze has not been yet executed, so we can skip it for now.
-		// When no devirtualization happens in a function, it is unecessary to analyze it.
+		// When no devirtualization happens in a function, it is unnecessary to analyze it.
 		return
 	}
 
