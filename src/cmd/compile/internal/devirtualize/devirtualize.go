@@ -195,22 +195,27 @@ func concreteType(s *State, n ir.Node) (typ *types.Type) {
 			fun = fun.ClosureParent
 		}
 
-		if s.ifaceAssignments == nil {
+		if s.funDecls == nil {
+			// TODO: do not split this per *ir.Func.
+			// Then we could add an additional map containing all funcs that were
+			// analyzed, and only analyze names (here) that are of *ir.Func that we do
+			// not have here.
+			s.funDecls = make(map[*ir.Func]funcDeclState)
+		}
+		if _, ok := s.funDecls[fun]; !ok {
 			if concreteTypeDebug {
 				base.Warn("concreteType(): analyzing assignments in %v func", fun)
 			}
-			s.fun = fun
-			s.ifaceAssignments = make(map[*ir.Name][]valOrTyp)
-			s.ifaceCallExprAssigns = make(map[*ir.CallExpr][]ifaceAssignRef)
+			s.funDecls[fun] = funcDeclState{
+				ifaceAssignments:     make(map[*ir.Name][]valOrTyp),
+				ifaceCallExprAssigns: make(map[*ir.CallExpr][]ifaceAssignRef),
+			}
+			s := s.funDecls[fun]
 			s.analyze(fun.Init())
 			s.analyze(fun.Body)
 		}
 
-		if s.fun != fun {
-			base.Fatalf("unexpected func = %v; want = %v", fun, s.fun)
-		}
-
-		return s.ifaceAssignments[n]
+		return s.funDecls[fun].ifaceAssignments[n]
 	})
 	if isNil && typ != nil {
 		base.Fatalf("typ = %v; want = <nil>", typ)
@@ -364,14 +369,16 @@ type valOrTyp struct {
 
 // State holds precomputed state for use in (and filled by the first call to) [StaticCall].
 type State struct {
+	funDecls map[*ir.Func]funcDeclState
+}
+
+type funcDeclState struct {
 	// ifaceAssignments stores all assignments to all interface variables, found in a func.
 	ifaceAssignments map[*ir.Name][]valOrTyp
 
 	// ifaceCallExprAssigns stores every [*ir.CallExpr] found in a func, which has
 	// an interface result, that is assigned to a variable.
 	ifaceCallExprAssigns map[*ir.CallExpr][]ifaceAssignRef
-
-	fun *ir.Func
 }
 
 type ifaceAssignRef struct {
@@ -381,26 +388,30 @@ type ifaceAssignRef struct {
 }
 
 // InlinedCall updates the [State] to take into account a newly inlined call.
-func (s *State) InlinedCall(origCall *ir.CallExpr, newInlinedCall *ir.InlinedCallExpr) {
-	if s.ifaceAssignments == nil {
-		// Full analyze has not been yet executed, so we can skip it for now.
+func (s *State) InlinedCall(fun *ir.Func, origCall *ir.CallExpr, newInlinedCall *ir.InlinedCallExpr) {
+	for fun.ClosureParent != nil {
+		fun = fun.ClosureParent
+	}
+	funcState, ok := s.funDecls[fun]
+	if !ok {
+		// Full analyze has not been yet executed for the provided function, so we can skip it for now.
 		// When no devirtualization happens in a function, it is unnecessary to analyze it.
 		return
 	}
 
 	// Analyze assignments in the newly inlined function.
-	s.analyze(newInlinedCall.Init())
-	s.analyze(newInlinedCall.Body)
+	funcState.analyze(newInlinedCall.Init())
+	funcState.analyze(newInlinedCall.Body)
 
-	v, ok := s.ifaceCallExprAssigns[origCall]
+	v, ok := funcState.ifaceCallExprAssigns[origCall]
 	if !ok {
 		return
 	}
-	delete(s.ifaceCallExprAssigns, origCall)
+	delete(funcState.ifaceCallExprAssigns, origCall)
 
 	// Update assignments to reference the new ReturnVars of the inlined call.
 	for _, ni := range v {
-		vt := &s.ifaceAssignments[ni.name][ni.valOrTypeIndex]
+		vt := &funcState.ifaceAssignments[ni.name][ni.valOrTypeIndex]
 		if vt.node != nil || vt.typ != nil {
 			base.Fatalf("unexpected non-empty valOrTyp")
 		}
@@ -417,7 +428,7 @@ func (s *State) InlinedCall(origCall *ir.CallExpr, newInlinedCall *ir.InlinedCal
 }
 
 // analyze analyzes every assignment to interface variables in nodes, updating [State].
-func (s *State) analyze(nodes ir.Nodes) {
+func (s *funcDeclState) analyze(nodes ir.Nodes) {
 	assign := func(name ir.Node, value valOrTyp) (*ir.Name, int) {
 		if name == nil || name.Op() != ir.ONAME || ir.IsBlank(name) {
 			return nil, -1
@@ -426,14 +437,6 @@ func (s *State) analyze(nodes ir.Nodes) {
 		n, ok := ir.OuterValue(name).(*ir.Name)
 		if !ok || n.Curfn == nil {
 			return nil, -1
-		}
-
-		fun := n.Curfn
-		for fun.ClosureParent != nil {
-			fun = fun.ClosureParent
-		}
-		if s.fun != fun {
-			base.Fatalf("unexpected func = %v; want = %v", fun, s.fun)
 		}
 
 		// Do not track variables that are not of interface types.
