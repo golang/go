@@ -114,7 +114,6 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
 						if l0 == l1 {
 							break
 						}
-
 						for i := l0; i < l1; i++ {
 							s.resolve(i)
 						}
