@@ -394,27 +394,27 @@ func (s *State) InlinedCall(fun *ir.Func, origCall *ir.CallExpr, newInlinedCall 
 	s.analyze(newInlinedCall.Init())
 	s.analyze(newInlinedCall.Body)
 
-	v, ok := s.ifaceCallExprAssigns[origCall]
+	refs, ok := s.ifaceCallExprAssigns[origCall]
 	if !ok {
 		return
 	}
 	delete(s.ifaceCallExprAssigns, origCall)
 
 	// Update assignments to reference the new ReturnVars of the inlined call.
-	for _, ni := range v {
-		vt := &s.ifaceAssignments[ni.name][ni.valOrTypeIndex]
+	for _, ref := range refs {
+		vt := &s.ifaceAssignments[ref.name][ref.valOrTypeIndex]
 		if vt.node != nil || vt.typ != nil {
 			base.Fatalf("unexpected non-empty valOrTyp")
 		}
 		if concreteTypeDebug {
 			base.Warn(
 				"InlinedCall(%v, %v): replacing interface node in (%v,%v) to %v (typ %v)",
-				origCall, newInlinedCall, ni.name, ni.valOrTypeIndex,
-				newInlinedCall.ReturnVars[ni.returnIndex],
-				newInlinedCall.ReturnVars[ni.returnIndex].Type(),
+				origCall, newInlinedCall, ref.name, ref.valOrTypeIndex,
+				newInlinedCall.ReturnVars[ref.returnIndex],
+				newInlinedCall.ReturnVars[ref.returnIndex].Type(),
 			)
 		}
-		*vt = valOrTyp{node: newInlinedCall.ReturnVars[ni.returnIndex]}
+		*vt = valOrTyp{node: newInlinedCall.ReturnVars[ref.returnIndex]}
 	}
 }
 
