@@ -126,6 +126,8 @@ func TestType_CanSeq(t *testing.T) {
 	}{
 		{"func(func(int) bool)", reflect.TypeOf(func(func(int) bool) {}), true},
 		{"func(func(int))", reflect.TypeOf(func(func(int)) {}), false},
+		{"methodIter.Seq", reflect.ValueOf(methodIter{}).MethodByName("Seq").Type(), true},
+		{"methodIter.NonSeq", reflect.ValueOf(methodIter{}).MethodByName("NonSeq").Type(), false},
 		{"int64", reflect.TypeOf(int64(1)), true},
 		{"uint64", reflect.TypeOf(uint64(1)), true},
 		{"*[4]int", reflect.TypeOf(&[4]int{}), true},
@@ -151,6 +153,8 @@ func TestType_CanSeq2(t *testing.T) {
 	}{
 		{"func(func(int, int) bool)", reflect.TypeOf(func(func(int, int) bool) {}), true},
 		{"func(func(int, int))", reflect.TypeOf(func(func(int, int)) {}), false},
+		{"methodIter2.Seq2", reflect.ValueOf(methodIter2{}).MethodByName("Seq2").Type(), true},
+		{"methodIter2.NonSeq2", reflect.ValueOf(methodIter2{}).MethodByName("NonSeq2").Type(), false},
 		{"int64", reflect.TypeOf(int64(1)), false},
 		{"uint64", reflect.TypeOf(uint64(1)), false},
 		{"*[4]int", reflect.TypeOf(&[4]int{}), true},

@@ -176,7 +176,7 @@ func TestValueSeq(t *testing.T) {
 				t.Fatalf("should loop four times")
 			}
 		}},
-		{"method", ValueOf(methodIter{}).Method(0), func(t *testing.T, s iter.Seq[Value]) {
+		{"method", ValueOf(methodIter{}).MethodByName("Seq"), func(t *testing.T, s iter.Seq[Value]) {
 			i := int64(0)
 			for v := range s {
 				if v.Int() != i {
@@ -323,7 +323,7 @@ func TestValueSeq2(t *testing.T) {
 				t.Fatalf("should loop four times")
 			}
 		}},
-		{"method", ValueOf(methodIter2{}).Method(0), func(t *testing.T, s iter.Seq2[Value, Value]) {
+		{"method", ValueOf(methodIter2{}).MethodByName("Seq2"), func(t *testing.T, s iter.Seq2[Value, Value]) {
 			i := int64(0)
 			for v1, v2 := range s {
 				if v1.Int() != i {
@@ -393,6 +393,9 @@ func (methodIter) Seq(yield func(int) bool) {
 	}
 }
 
+// For Type.CanSeq test.
+func (methodIter) NonSeq(yield func(int)) {}
+
 // methodIter2 is a type from which we can derive a method
 // value that is an iter.Seq2.
 type methodIter2 struct{}
@@ -404,3 +407,6 @@ func (methodIter2) Seq2(yield func(int, int) bool) {
 		}
 	}
 }
+
+// For Type.CanSeq2 test.
+func (methodIter2) NonSeq2(yield func(int, int)) {}
