@@ -85,6 +85,7 @@ TEXT ·LoadAcq64(SB),NOSPLIT|NOFRAME,$-8-16
 //		return 1;
 //	} else
 //		return 0;
+//  }
 TEXT ·Cas(SB), NOSPLIT, $0-17
 	MOVD	ptr+0(FP), R3
 	MOVWZ	old+8(FP), R4
@@ -203,6 +204,7 @@ TEXT ·Xaddint64(SB), NOSPLIT, $0-24
 //		return 1;
 //	} else
 //		return 0;
+//  }
 TEXT ·Casp1(SB), NOSPLIT, $0-25
 	BR ·Cas64(SB)
 
