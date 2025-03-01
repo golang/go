@@ -134,6 +134,46 @@ go test testcache -run=TestOdd -skip=TestOddFile
 go test testcache -run=TestOdd -skip=TestOddFile
 stdout '\(cached\)'
 
+# Ensure that coverage profiles are being cached.
+go test testcache -run=TestCoverageCache -coverprofile=coverage.out
+go test testcache -run=TestCoverageCache -coverprofile=coverage.out
+stdout '\(cached\)'
+exists coverage.out
+grep -q 'mode: set' coverage.out
+grep -q 'testcache/hello.go:' coverage.out
+
+# A new -coverprofile file should use the cached coverage profile contents.
+go test testcache -run=TestCoverageCache -coverprofile=coverage2.out
+stdout '\(cached\)'
+cmp coverage.out coverage2.out
+
+# Explicitly setting the default covermode should still use cache.
+go test testcache -run=TestCoverageCache -coverprofile=coverage_set.out -covermode=set
+stdout '\(cached\)'
+cmp coverage.out coverage_set.out
+
+# A new -covermode should not use the cached coverage profile.
+go test testcache -run=TestCoverageCache -coverprofile=coverage_atomic.out -covermode=atomic
+! stdout '\(cached\)'
+! cmp coverage.out coverage_atomic.out
+grep -q 'mode: atomic' coverage_atomic.out
+grep -q 'testcache/hello.go:' coverage_atomic.out
+
+# A new -coverpkg should not use the cached coverage profile.
+go test testcache -run=TestCoverageCache -coverprofile=coverage_pkg.out -coverpkg=all
+! stdout '\(cached\)'
+! cmp coverage.out coverage_pkg.out
+
+# Test that -v doesn't prevent caching.
+go test testcache -v -run=TestCoverageCache -coverprofile=coverage_v.out
+go test testcache -v -run=TestCoverageCache -coverprofile=coverage_v2.out
+stdout '\(cached\)'
+cmp coverage_v.out coverage_v2.out
+
+# Test that -count affects caching.
+go test testcache -run=TestCoverageCache -coverprofile=coverage_count.out -count=2
+! stdout '\(cached\)'
+
 # Executables within GOROOT and GOPATH should affect caching,
 # even if the test does not stat them explicitly.
 
@@ -164,6 +204,18 @@ This file is outside of GOPATH.
 -- testcache/script.sh --
 #!/bin/sh
 exit 0
+-- testcache/hello.go --
+package testcache
+
+import "fmt"
+
+func HelloWorld(name string) string {
+    if name == "" {
+        return "Hello, World!"
+    }
+    return fmt.Sprintf("Hello, %s!", name)
+}
+
 -- testcache/testcache_test.go --
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -265,6 +317,18 @@ func TestOSArgs(t *testing.T) {
 }
 
 func TestBenchtime(t *testing.T) {
+}
+
+func TestCoverageCache(t *testing.T) {
+    result := HelloWorld("")
+    if result != "Hello, World!" {
+        t.Errorf("Expected 'Hello, World!', got '%s'", result)
+    }
+
+    result = HelloWorld("Go")
+    if result != "Hello, Go!" {
+        t.Errorf("Expected 'Hello, Go!', got '%s'", result)
+    }
 }
 
 -- mkold.go --
