@@ -15,6 +15,7 @@
 //		return 1;
 //	} else
 //		return 0;
+//  }
 TEXT ·Cas(SB), NOSPLIT, $0-17
 	MOVV	ptr+0(FP), R1
 	MOVW	old+8(FP), R2
@@ -110,6 +111,7 @@ TEXT ·Xaddint64(SB), NOSPLIT, $0-24
 //		return 1;
 //	} else
 //		return 0;
+//  }
 TEXT ·Casp1(SB), NOSPLIT, $0-25
 	JMP ·Cas64(SB)
 

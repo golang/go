@@ -13,6 +13,7 @@
 //		return 1;
 //	}else
 //		return 0;
+//  }
 //
 // To implement ·cas in sys_$GOOS_arm.s
 // using the native instructions, use:
