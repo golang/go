@@ -1652,6 +1652,9 @@ func (v Value) IsZero() bool {
 		if v.flag&flagIndir == 0 {
 			return v.ptr == nil
 		}
+		if v.ptr == unsafe.Pointer(&zeroVal[0]) {
+			return true
+		}
 		typ := (*abi.ArrayType)(unsafe.Pointer(v.typ()))
 		// If the type is comparable, then compare directly with zero.
 		if typ.Equal != nil && typ.Size() <= abi.ZeroValSize {
@@ -1679,6 +1682,9 @@ func (v Value) IsZero() bool {
 	case Struct:
 		if v.flag&flagIndir == 0 {
 			return v.ptr == nil
+		}
+		if v.ptr == unsafe.Pointer(&zeroVal[0]) {
+			return true
 		}
 		typ := (*abi.StructType)(unsafe.Pointer(v.typ()))
 		// If the type is comparable, then compare directly with zero.
