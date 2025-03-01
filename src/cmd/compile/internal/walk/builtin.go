@@ -524,51 +524,100 @@ func walkMakeOldMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 
 // walkMakeSlice walks an OMAKESLICE node.
 func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
-	l := n.Len
-	r := n.Cap
-	if r == nil {
-		r = safeExpr(l, init)
-		l = r
+	len := n.Len
+	cap := n.Cap
+	len = safeExpr(len, init)
+	if cap != nil {
+		cap = safeExpr(cap, init)
+	} else {
+		cap = len
 	}
 	t := n.Type()
 	if t.Elem().NotInHeap() {
 		base.Errorf("%v can't be allocated in Go; it is incomplete (or unallocatable)", t.Elem())
 	}
+
+	tryStack := false
 	if n.Esc() == ir.EscNone {
 		if why := escape.HeapAllocReason(n); why != "" {
 			base.Fatalf("%v has EscNone, but %v", n, why)
 		}
-		// var arr [r]T
-		// n = arr[:l]
-		i := typecheck.IndexConst(r)
+		if ir.IsSmallIntConst(cap) {
+			// Constant backing array - allocate it and slice it.
+			cap := typecheck.IndexConst(cap)
+			// Note that len might not be constant. If it isn't, check for panics.
+			// cap is constrained to [0,2^31) or [0,2^63) depending on whether
+			// we're in 32-bit or 64-bit systems. So it's safe to do:
+			//
+			// if uint64(len) > cap {
+			//     if len < 0 { panicmakeslicelen() }
+			//     panicmakeslicecap()
+			// }
+			nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OGT, typecheck.Conv(len, types.Types[types.TUINT64]), ir.NewInt(base.Pos, cap)), nil, nil)
+			niflen := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLT, len, ir.NewInt(base.Pos, 0)), nil, nil)
+			niflen.Body = []ir.Node{mkcall("panicmakeslicelen", nil, init)}
+			nif.Body.Append(niflen, mkcall("panicmakeslicecap", nil, init))
+			init.Append(typecheck.Stmt(nif))
 
-		// cap is constrained to [0,2^31) or [0,2^63) depending on whether
-		// we're in 32-bit or 64-bit systems. So it's safe to do:
-		//
-		// if uint64(len) > cap {
-		//     if len < 0 { panicmakeslicelen() }
-		//     panicmakeslicecap()
-		// }
-		nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OGT, typecheck.Conv(l, types.Types[types.TUINT64]), ir.NewInt(base.Pos, i)), nil, nil)
-		niflen := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLT, l, ir.NewInt(base.Pos, 0)), nil, nil)
-		niflen.Body = []ir.Node{mkcall("panicmakeslicelen", nil, init)}
-		nif.Body.Append(niflen, mkcall("panicmakeslicecap", nil, init))
-		init.Append(typecheck.Stmt(nif))
-
-		t = types.NewArray(t.Elem(), i) // [r]T
-		var_ := typecheck.TempAt(base.Pos, ir.CurFunc, t)
-		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, nil))  // zero temp
-		r := ir.NewSliceExpr(base.Pos, ir.OSLICE, var_, nil, l, nil) // arr[:l]
-		// The conv is necessary in case n.Type is named.
-		return walkExpr(typecheck.Expr(typecheck.Conv(r, n.Type())), init)
+			// var arr [cap]E
+			// s = arr[:len]
+			t := types.NewArray(t.Elem(), cap) // [cap]E
+			arr := typecheck.TempAt(base.Pos, ir.CurFunc, t)
+			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, arr, nil))    // zero temp
+			s := ir.NewSliceExpr(base.Pos, ir.OSLICE, arr, nil, len, nil) // arr[:len]
+			// The conv is necessary in case n.Type is named.
+			return walkExpr(typecheck.Expr(typecheck.Conv(s, n.Type())), init)
+		}
+		if t.Elem().HasPointers() {
+			// TODO: remove this limitation (see ../escape/utils.go:HeapAllocReason).
+			base.Fatalf("%v can't have pointers", t.Elem())
+		}
+		tryStack = true
 	}
 
-	// n escapes; set up a call to makeslice.
+	// The final result is assigned to this variable.
+	slice := typecheck.TempAt(base.Pos, ir.CurFunc, n.Type()) // []E result (possibly named)
+
+	if tryStack {
+		// K := maxStackSize/sizeof(E)
+		// if cap <= K {
+		//     var arr [K]E
+		//     slice = arr[:len:cap]
+		// } else {
+		//     slice = makeslice(elemType, len, cap)
+		// }
+		const maxStackSize = 32
+		K := maxStackSize / t.Elem().Size() // rounds down
+		if K > 0 {                          // skip if elem size is too big.
+			nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLE, typecheck.Conv(cap, types.Types[types.TUINT64]), ir.NewInt(base.Pos, K)), nil, nil)
+
+			// cap is in bounds after the K check, but len might not be.
+			// (Note that the slicing below would generate a panic for
+			// the same bad cases, but we want makeslice panics, not
+			// regular slicing panics.)
+			lenCap := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OGT, typecheck.Conv(len, types.Types[types.TUINT64]), typecheck.Conv(cap, types.Types[types.TUINT64])), nil, nil)
+			lenZero := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLT, len, ir.NewInt(base.Pos, 0)), nil, nil)
+			lenZero.Body.Append(mkcall("panicmakeslicelen", nil, &lenZero.Body))
+			lenCap.Body.Append(lenZero)
+			lenCap.Body.Append(mkcall("panicmakeslicecap", nil, &lenCap.Body))
+			nif.Body.Append(lenCap)
+
+			t := types.NewArray(t.Elem(), K)                              // [K]E
+			arr := typecheck.TempAt(base.Pos, ir.CurFunc, t)              // var arr [K]E
+			nif.Body.Append(ir.NewAssignStmt(base.Pos, arr, nil))         // arr = {} (zero it)
+			s := ir.NewSliceExpr(base.Pos, ir.OSLICE, arr, nil, len, cap) // arr[:len:cap]
+			nif.Body.Append(ir.NewAssignStmt(base.Pos, slice, s))         // slice = arr[:len:cap]
+
+			appendWalkStmt(init, typecheck.Stmt(nif))
+
+			// Put makeslice call below in the else branch.
+			init = &nif.Else
+		}
+	}
+
+	// Set up a call to makeslice.
 	// When len and cap can fit into int, use makeslice instead of
 	// makeslice64, which is faster and shorter on 32 bit platforms.
-
-	len, cap := l, r
-
 	fnname := "makeslice64"
 	argtype := types.Types[types.TINT64]
 
@@ -585,8 +634,10 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	ptr.MarkNonNil()
 	len = typecheck.Conv(len, types.Types[types.TINT])
 	cap = typecheck.Conv(cap, types.Types[types.TINT])
-	sh := ir.NewSliceHeaderExpr(base.Pos, t, ptr, len, cap)
-	return walkExpr(typecheck.Expr(sh), init)
+	s := ir.NewSliceHeaderExpr(base.Pos, t, ptr, len, cap)
+	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, slice, s))
+
+	return slice
 }
 
 // walkMakeSliceCopy walks an OMAKESLICECOPY node.

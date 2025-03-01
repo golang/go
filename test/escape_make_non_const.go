@@ -65,7 +65,7 @@ func testSlices() {
 	}
 
 	{
-		_ = make([]byte, globalVarSize)                  // ERROR "make\(\[\]byte, globalVarSize\) escapes to heap"
+		_ = make([]byte, globalVarSize)                  // ERROR "make\(\[\]byte, globalVarSize\) does not escape"
 		_ = make([]byte, globalVarSize, globalConstSize) // ERROR "make\(\[\]byte, globalVarSize, 128\) does not escape"
 	}
 }
