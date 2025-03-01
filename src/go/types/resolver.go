@@ -6,6 +6,7 @@ package types
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/constant"
@@ -89,7 +90,7 @@ func validatedImportPath(path string) (string, error) {
 		return "", err
 	}
 	if s == "" {
-		return "", fmt.Errorf("empty string")
+		return "", errors.New("empty string")
 	}
 	const illegalChars = `!"#$%&'()*,:;<=>?[\]^{|}` + "`\uFFFD"
 	for _, r := range s {
@@ -157,7 +158,7 @@ func (check *Checker) importPackage(at positioner, path, dir string) *Package {
 		// ordinary import
 		var err error
 		if importer := check.conf.Importer; importer == nil {
-			err = fmt.Errorf("Config.Importer not installed")
+			err = errors.New("Config.Importer not installed")
 		} else if importerFrom, ok := importer.(ImporterFrom); ok {
 			imp, err = importerFrom.ImportFrom(path, dir, 0)
 			if imp == nil && err == nil {
