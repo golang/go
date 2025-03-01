@@ -6138,6 +6138,50 @@ func testServerHijackGetsBackgroundByte(t *testing.T, mode testMode) {
 	<-done
 }
 
+// Test that the bufio.Reader returned by Hijack yields the entire body.
+func TestServerHijackGetsFullBody(t *testing.T) {
+	run(t, testServerHijackGetsFullBody, []testMode{http1Mode})
+}
+func testServerHijackGetsFullBody(t *testing.T, mode testMode) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping test; see https://golang.org/issue/18657")
+	}
+	done := make(chan struct{})
+	needle := strings.Repeat("x", 100*1024) // assume: larger than net/http bufio size
+	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		defer close(done)
+
+		conn, buf, err := w.(Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer conn.Close()
+
+		got := make([]byte, len(needle))
+		n, err := io.ReadFull(buf.Reader, got)
+		if n != len(needle) || string(got) != needle || err != nil {
+			t.Errorf("Peek = %q, %v; want 'x'*4096, nil", got, err)
+		}
+	})).ts
+
+	cn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cn.Close()
+	buf := []byte("GET / HTTP/1.1\r\nHost: e.com\r\n\r\n")
+	buf = append(buf, []byte(needle)...)
+	if _, err := cn.Write(buf); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := cn.(*net.TCPConn).CloseWrite(); err != nil {
+		t.Fatal(err)
+	}
+	<-done
+}
+
 // Like TestServerHijackGetsBackgroundByte above but sending a
 // immediate 1MB of data to the server to fill up the server's 4KB
 // buffer.
@@ -6190,6 +6234,136 @@ func testServerHijackGetsBackgroundByte_big(t *testing.T, mode testMode) {
 	}
 
 	<-done
+}
+
+// BenchmarkServerHijackMemoryUsage measures the memory usage from holding on
+// to the conn/r+w buffer after hijacking and returning from the handler.
+func BenchmarkServerHijackMemoryUsage(b *testing.B) {
+	const connsPerRun = 333 // Use a high number of conns to filter out noise.
+	echo := []byte("echo 01234")
+
+	// Client mode
+	if url := os.Getenv("TEST_BENCH_SERVER_URL"); url != "" {
+		n, err := strconv.Atoi(os.Getenv("TEST_BENCH_CLIENT_N"))
+		if err != nil {
+			panic(err)
+		}
+		for i := 0; i < n; i++ {
+			clientBodies := make([]io.ReadWriteCloser, connsPerRun)
+			for j := 0; j < connsPerRun; j++ {
+				res, err := Get(url)
+				if err != nil {
+					log.Panicf("Get: %v", err)
+				}
+				clientBodies[j] = res.Body.(io.ReadWriteCloser)
+			}
+			for _, rwc := range clientBodies {
+				if _, err := rwc.Write(echo); err != nil {
+					log.Panicf("write: %v", err)
+				}
+			}
+			readBuf := bytes.Buffer{}
+			readBuf.Grow(bytes.MinRead)
+			for _, rwc := range clientBodies {
+				readBuf.Reset()
+				n, err := readBuf.ReadFrom(rwc)
+				if err != nil || n != int64(len(echo)) {
+					log.Panicf("read: want=4, got=%d, err=%v", n, err)
+				}
+				reply := readBuf.Bytes()
+				if !bytes.Equal(reply, echo) {
+					log.Panicf("echo: want=%q, got=%q", string(echo), string(reply))
+				}
+				rwc.Close()
+			}
+		}
+		os.Exit(0)
+		return
+	}
+
+	// Server mode
+	type waitingConn struct {
+		rwc   net.Conn
+		rwBuf *bufio.ReadWriter
+	}
+	waitingConns := make(chan waitingConn, connsPerRun)
+	handlerDone := make(chan struct{})
+	var start, before, after, finish runtime.MemStats
+
+	cst := newClientServerTest(b, http1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Connection", "Upgrade")
+		w.Header().Set("Upgrade", "someProto")
+		w.WriteHeader(StatusSwitchingProtocols)
+		rwc, rwBuf, err := w.(Hijacker).Hijack()
+		if err != nil {
+			b.Error(err)
+		}
+		waitingConns <- waitingConn{rwc, rwBuf}
+		handlerDone <- struct{}{}
+		// exit from handler, hold on to conn+buffer
+	}))
+
+	// Start client
+	cmd := testenv.Command(b, os.Args[0], "-test.run=^$", "-test.bench=^BenchmarkServerHijackMemoryUsage$")
+	cmd.Env = append([]string{
+		fmt.Sprintf("TEST_BENCH_CLIENT_N=%d", b.N),
+		fmt.Sprintf("TEST_BENCH_SERVER_URL=%s", cst.ts.URL),
+	}, os.Environ()...)
+	var outputBuf bytes.Buffer
+	outputBuf.Grow(4096)
+	cmd.Stdout = &outputBuf
+	cmd.Stderr = &outputBuf
+	if err := cmd.Start(); err != nil {
+		b.Fatal(err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	runtime.ReadMemStats(&start)
+	t0 := time.Now()
+
+	var retainedBytes int64
+	for i := 0; i < b.N; i++ {
+		runtime.GC()
+		runtime.ReadMemStats(&before)
+
+		// Accumulate connections
+		for j := 0; j < connsPerRun; j++ {
+			<-handlerDone
+		}
+
+		runtime.GC()
+		runtime.ReadMemStats(&after)
+		// Memory usage of the conns
+		retainedBytes += int64(after.Alloc) - int64(before.Alloc)
+
+		// Verify w+r
+		for j := 0; j < connsPerRun; j++ {
+			wc := <-waitingConns
+			got, err := wc.rwBuf.Peek(len(echo))
+			if err != nil {
+				b.Fatal(err)
+			} else if !bytes.Equal(got, echo) {
+				b.Fatalf("echo=%q got=%q", string(echo), string(got))
+			}
+			wc.rwBuf.Write(echo)
+			wc.rwBuf.Flush()
+			wc.rwc.Close()
+		}
+	}
+
+	runtime.ReadMemStats(&finish)
+	// Go the long way and report metrics per hijacked conn
+	ops := float64(connsPerRun * b.N)
+	b.ReportMetric(float64(time.Since(t0).Nanoseconds())/ops, "ns/op")
+	b.ReportMetric(float64(finish.TotalAlloc-start.TotalAlloc)/ops, "B/op")
+	b.ReportMetric(float64(finish.Mallocs-start.Mallocs)/ops, "allocs/op")
+	b.ReportMetric(float64(retainedBytes)/ops, "retained_B/op")
+
+	// Check client result
+	if err := cmd.Wait(); err != nil {
+		b.Fatalf("client: %v, with output: %s", err, outputBuf.String())
+	}
 }
 
 // Issue 18319: test that the Server validates the request method.
