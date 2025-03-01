@@ -391,3 +391,17 @@ func BenchmarkHash1K(b *testing.B) {
 func BenchmarkHash8K(b *testing.B) {
 	benchmarkSize(b, 8192)
 }
+
+func TestAllocatonsWithTypeAsserts(t *testing.T) {
+	cryptotest.SkipTestAllocations(t)
+	allocs := testing.AllocsPerRun(100, func() {
+		h := New()
+		h.Write([]byte{1, 2, 3})
+		marshaled, _ := h.(encoding.BinaryMarshaler).MarshalBinary()
+		marshaled, _ = h.(encoding.BinaryAppender).AppendBinary(marshaled[:0])
+		h.(encoding.BinaryUnmarshaler).UnmarshalBinary(marshaled)
+	})
+	if allocs != 0 {
+		t.Fatalf("allocs = %v; want = 0", allocs)
+	}
+}
