@@ -389,7 +389,7 @@ func (s *State) assignments(n *ir.Name) []valOrTyp {
 	}
 
 	if !n.Type().IsInterface() {
-		base.Fatalf("name passed to getAssignments is not of an interface type: %v", n.Type())
+		base.Fatalf("name passed to assignments is not of an interface type: %v", n.Type())
 	}
 
 	// Analyze assignments in func, if not analyzed before.
@@ -443,7 +443,7 @@ func (s *State) analyze(nodes ir.Nodes) {
 		}
 
 		if concreteTypeDebug {
-			base.Warn("populateIfaceAssignments(): assignment found %v = (%v;%v)", name, value.typ, value.node)
+			base.Warn("analyze(): assignment found %v = (%v;%v)", name, value.typ, value.node)
 		}
 
 		s.ifaceAssignments[n] = append(s.ifaceAssignments[n], value)
