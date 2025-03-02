@@ -182,37 +182,7 @@ const concreteTypeDebug = false
 // Returns nil when the concrete type could not be determined, or when there are multiple
 // (different) types assigned to an interface.
 func concreteType(s *State, n ir.Node) (typ *types.Type) {
-	typ, isNil := concreteType1(n, make(map[*ir.Name]*types.Type), func(n *ir.Name) []valOrTyp {
-		if n.Curfn == nil {
-			base.Fatalf("n.Curfn == nil: %v", n)
-		}
-		if !n.Type().IsInterface() {
-			base.Fatalf("name passed to getAssignments is not of an interface type: %v", n.Type())
-		}
-
-		fun := n.Curfn
-		if fun == nil {
-			base.Fatalf("n.Curfn = <nil>")
-		}
-
-		// Check whether the variable is declared in a function that we had
-		// analyzed before, if not then analyze its assignments.
-		if _, ok := s.analyzedFuncs[fun]; !ok {
-			if concreteTypeDebug {
-				base.Warn("concreteType(): analyzing assignments in %v func", fun)
-			}
-			if s.analyzedFuncs == nil {
-				s.ifaceAssignments = make(map[*ir.Name][]valOrTyp)
-				s.ifaceCallExprAssigns = make(map[*ir.CallExpr][]ifaceAssignRef)
-				s.analyzedFuncs = make(map[*ir.Func]struct{})
-			}
-			s.analyzedFuncs[fun] = struct{}{}
-			s.analyze(fun.Init())
-			s.analyze(fun.Body)
-		}
-
-		return s.ifaceAssignments[n]
-	})
+	typ, isNil := concreteType1(s, n, make(map[*ir.Name]*types.Type))
 	if isNil && typ != nil {
 		base.Fatalf("typ = %v; want = <nil>", typ)
 	}
@@ -230,7 +200,7 @@ func concreteType(s *State, n ir.Node) (typ *types.Type) {
 //
 // If n is statically known to be nil, this function returns a nil Type with isNil == true.
 // However, if any concrete type is found, it is returned instead, even if n was assigned with nil.
-func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignments func(*ir.Name) []valOrTyp) (t *types.Type, isNil bool) {
+func concreteType1(s *State, n ir.Node, analyzed map[*ir.Name]*types.Type) (t *types.Type, isNil bool) {
 	nn := n // for debug messages
 
 	if concreteTypeDebug {
@@ -314,19 +284,12 @@ func concreteType1(n ir.Node, analyzed map[*ir.Name]*types.Type, getAssignments 
 		base.Warn("concreteType1(%v): analyzing assignments to %v", nn, name)
 	}
 
-	assignments := getAssignments(name)
-	if len(assignments) == 0 {
-		// Variable either declared with zero value, or only assigned
-		// with nil (getAssignments does not return such assignments).
-		return nil, true
-	}
-
 	var typ *types.Type
-	for _, v := range assignments {
+	for _, v := range s.assignments(name) {
 		t := v.typ
 		if v.node != nil {
 			var isNil bool
-			t, isNil = concreteType1(v.node, analyzed, getAssignments)
+			t, isNil = concreteType1(s, v.node, analyzed)
 			if isNil {
 				if t != nil {
 					base.Fatalf("t = %v; want = <nil>", t)
@@ -416,6 +379,35 @@ func (s *State) InlinedCall(fun *ir.Func, origCall *ir.CallExpr, newInlinedCall 
 		}
 		*vt = valOrTyp{node: newInlinedCall.ReturnVars[ref.returnIndex]}
 	}
+}
+
+// assignments returns all assignments to n.
+func (s *State) assignments(n *ir.Name) []valOrTyp {
+	fun := n.Curfn
+	if fun == nil {
+		base.Fatalf("n.Curfn = <nil>")
+	}
+
+	if !n.Type().IsInterface() {
+		base.Fatalf("name passed to getAssignments is not of an interface type: %v", n.Type())
+	}
+
+	// Analyze assignments in func, if not analyzed before.
+	if _, ok := s.analyzedFuncs[fun]; !ok {
+		if concreteTypeDebug {
+			base.Warn("concreteType(): analyzing assignments in %v func", fun)
+		}
+		if s.analyzedFuncs == nil {
+			s.ifaceAssignments = make(map[*ir.Name][]valOrTyp)
+			s.ifaceCallExprAssigns = make(map[*ir.CallExpr][]ifaceAssignRef)
+			s.analyzedFuncs = make(map[*ir.Func]struct{})
+		}
+		s.analyzedFuncs[fun] = struct{}{}
+		s.analyze(fun.Init())
+		s.analyze(fun.Body)
+	}
+
+	return s.ifaceAssignments[n]
 }
 
 // analyze analyzes every assignment to interface variables in nodes, updating [State].
