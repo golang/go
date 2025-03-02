@@ -1129,13 +1129,13 @@ func (implWrapper) A() {} // ERROR "can inline implWrapper.A$"
 func devirtWrapperType() {
 	{
 		i := &Impl{} // ERROR "&Impl{} does not escape$"
-		// This is an OCONVNOP, so we have to be carefull, not to devirtualize it to Impl.A.
+		// This is an OCONVNOP, so we have to be careful, not to devirtualize it to Impl.A.
 		var a A = (*implWrapper)(i)
 		a.A() // ERROR "devirtualizing a.A to \*implWrapper$" "inlining call to implWrapper.A"
 	}
 	{
 		i := Impl{}
-		// This is an OCONVNOP, so we have to be carefull, not to devirtualize it to Impl.A.
+		// This is an OCONVNOP, so we have to be careful, not to devirtualize it to Impl.A.
 		var a A = (implWrapper)(i) // ERROR "implWrapper\(i\) does not escape$"
 		a.A()                      // ERROR "devirtualizing a.A to implWrapper$" "inlining call to implWrapper.A"
 	}
