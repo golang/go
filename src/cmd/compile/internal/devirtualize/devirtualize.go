@@ -182,7 +182,7 @@ const concreteTypeDebug = false
 // Returns nil when the concrete type could not be determined, or when there are multiple
 // (different) types assigned to an interface.
 func concreteType(s *State, n ir.Node) (typ *types.Type) {
-	typ, isNil := concreteType1(s, n, make(map[*ir.Name]*types.Type))
+	typ, isNil := concreteType1(s, n, make(map[*ir.Name]struct{}))
 	if isNil && typ != nil {
 		base.Fatalf("typ = %v; want = <nil>", typ)
 	}
@@ -200,7 +200,7 @@ func concreteType(s *State, n ir.Node) (typ *types.Type) {
 //
 // If n is statically known to be nil, this function returns a nil Type with isNil == true.
 // However, if any concrete type is found, it is returned instead, even if n was assigned with nil.
-func concreteType1(s *State, n ir.Node, analyzed map[*ir.Name]*types.Type) (t *types.Type, isNil bool) {
+func concreteType1(s *State, n ir.Node, seen map[*ir.Name]struct{}) (t *types.Type, isNil bool) {
 	nn := n // for debug messages
 
 	if concreteTypeDebug {
@@ -270,15 +270,13 @@ func concreteType1(s *State, n ir.Node, analyzed map[*ir.Name]*types.Type) (t *t
 		return nil, false // conservatively assume it's reassigned with a different type indirectly
 	}
 
-	if typ, ok := analyzed[name]; ok {
-		return typ, false
+	if _, ok := seen[name]; ok {
+		// Self assignment, treat is the same as a nil assignment.
+		// In case this is the only assignment then we are not going to devirtualize anything.
+		// In case there are other assignment, we still preserve the correct type.
+		return nil, true
 	}
-
-	// For now set the Type to nil, as we don't know it yet, we will update
-	// it at the end of this function, if we find a concrete type.
-	// This is not ideal, as in-process concreteType1 calls (that this function also
-	// executes) will get a nil (from the map lookup above), where we could determine the type.
-	analyzed[name] = nil
+	seen[name] = struct{}{}
 
 	if concreteTypeDebug {
 		base.Warn("concreteType1(%v): analyzing assignments to %v", nn, name)
@@ -289,7 +287,7 @@ func concreteType1(s *State, n ir.Node, analyzed map[*ir.Name]*types.Type) (t *t
 		t := v.typ
 		if v.node != nil {
 			var isNil bool
-			t, isNil = concreteType1(s, v.node, analyzed)
+			t, isNil = concreteType1(s, v.node, seen)
 			if isNil {
 				if t != nil {
 					base.Fatalf("t = %v; want = <nil>", t)
@@ -303,15 +301,13 @@ func concreteType1(s *State, n ir.Node, analyzed map[*ir.Name]*types.Type) (t *t
 		typ = t
 	}
 
+	delete(seen, name)
+
 	if typ == nil {
 		// Variable either declared with zero value, or only assigned with nil.
-		// For now don't bother storing the information that we could have
-		// assigned nil in the analyzed map, if we access the same name again we will
-		// get an result as if an unknown concrete type was assigned.
 		return nil, true
 	}
 
-	analyzed[name] = typ
 	return typ, false
 }
 
@@ -346,7 +342,7 @@ type ifaceAssignRef struct {
 }
 
 // InlinedCall updates the [State] to take into account a newly inlined call.
-func (s *State) InlinedCall(fun *ir.Func, origCall *ir.CallExpr, newInlinedCall *ir.InlinedCallExpr) {
+func (s *State) InlinedCall(fun *ir.Func, origCall *ir.CallExpr, inlinedCall *ir.InlinedCallExpr) {
 	if _, ok := s.analyzedFuncs[fun]; !ok {
 		// Full analyze has not been yet executed for the provided function, so we can skip it for now.
 		// When no devirtualization happens in a function, it is unnecessary to analyze it.
@@ -354,8 +350,8 @@ func (s *State) InlinedCall(fun *ir.Func, origCall *ir.CallExpr, newInlinedCall 
 	}
 
 	// Analyze assignments in the newly inlined function.
-	s.analyze(newInlinedCall.Init())
-	s.analyze(newInlinedCall.Body)
+	s.analyze(inlinedCall.Init())
+	s.analyze(inlinedCall.Body)
 
 	refs, ok := s.ifaceCallExprAssigns[origCall]
 	if !ok {
@@ -372,12 +368,12 @@ func (s *State) InlinedCall(fun *ir.Func, origCall *ir.CallExpr, newInlinedCall 
 		if concreteTypeDebug {
 			base.Warn(
 				"InlinedCall(%v, %v): replacing interface node in (%v,%v) to %v (typ %v)",
-				origCall, newInlinedCall, ref.name, ref.valOrTypeIndex,
-				newInlinedCall.ReturnVars[ref.returnIndex],
-				newInlinedCall.ReturnVars[ref.returnIndex].Type(),
+				origCall, inlinedCall, ref.name, ref.valOrTypeIndex,
+				inlinedCall.ReturnVars[ref.returnIndex],
+				inlinedCall.ReturnVars[ref.returnIndex].Type(),
 			)
 		}
-		*vt = valOrTyp{node: newInlinedCall.ReturnVars[ref.returnIndex]}
+		*vt = valOrTyp{node: inlinedCall.ReturnVars[ref.returnIndex]}
 	}
 }
 
