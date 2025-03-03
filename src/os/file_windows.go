@@ -44,11 +44,13 @@ func (file *File) fd() uintptr {
 // Unlike NewFile, it does not check that h is syscall.InvalidHandle.
 func newFile(h syscall.Handle, name string, kind string) *File {
 	if kind == "file" {
-		var m uint32
-		if syscall.GetConsoleMode(h, &m) == nil {
-			kind = "console"
-		}
-		if t, err := syscall.GetFileType(h); err == nil && t == syscall.FILE_TYPE_PIPE {
+		t, err := syscall.GetFileType(h)
+		if err != nil || t == syscall.FILE_TYPE_CHAR {
+			var m uint32
+			if syscall.GetConsoleMode(h, &m) == nil {
+				kind = "console"
+			}
+		} else if t == syscall.FILE_TYPE_PIPE {
 			kind = "pipe"
 		}
 	}
