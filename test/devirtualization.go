@@ -1143,39 +1143,50 @@ func devirtWrapperType() {
 
 func selfAssigns() {
 	{
-		var a A = &Impl{} // ERROR "&Impl{} escapes to heap$"
+		var a A = &Impl{} // ERROR "&Impl{} does not escape$"
 		a = a
-		a.A()
+		a.A() // ERROR "devirtualizing a.A to \*Impl$" "inlining call to \(\*Impl\).A"
 	}
 	{
-		var a A = &Impl{} // ERROR "&Impl{} escapes to heap$"
+		var a A = &Impl{} // ERROR "&Impl{} does not escape"
 		var asAny any = a
 		asAny = asAny
-		asAny.(A).A()
+		asAny.(A).A() // ERROR "devirtualizing asAny.\(A\).A to \*Impl$" "inlining call to \(\*Impl\).A"
 	}
 	{
-		var a A = &Impl{} // ERROR "&Impl{} escapes to heap$"
+		var a A = &Impl{} // ERROR "&Impl{} does not escape"
 		var asAny any = a
 		a = asAny.(A)
-		asAny.(A).A()
-		a.(A).A()
+		asAny.(A).A() // ERROR "devirtualizing asAny.\(A\).A to \*Impl$" "inlining call to \(\*Impl\).A"
+		a.(A).A()     // ERROR "devirtualizing a.\(A\).A to \*Impl$" "inlining call to \(\*Impl\).A"
 		b := a
-		b.(A).A()
+		b.(A).A() // ERROR "devirtualizing b.\(A\).A to \*Impl$" "inlining call to \(\*Impl\).A"
 	}
 	{
-		var a A = &Impl{} // ERROR "&Impl{} escapes to heap$"
+		var a A = &Impl{} // ERROR "&Impl{} does not escape"
 		var asAny any = a
 		asAny = asAny
 		a = asAny.(A)
 		asAny = a
-		asAny.(A).A()
-		asAny.(M).M()
+		asAny.(A).A() // ERROR "devirtualizing asAny.\(A\).A to \*Impl$" "inlining call to \(\*Impl\).A"
+		asAny.(M).M() // ERROR "devirtualizing asAny.\(M\).M to \*Impl$" "inlining call to \(\*Impl\).M"
 	}
 	{
-		var a A = &Impl{} // ERROR "&Impl{} escapes to heap$"
+		var a A = &Impl{} // ERROR "&Impl{} does not escape"
 		var asAny A = a
 		a = asAny.(A)
-		a.A()
+		a.A() // ERROR "devirtualizing a.A to \*Impl$" "inlining call to \(\*Impl\).A"
+	}
+	{
+		var a, b, c A
+		c = &Impl{} // ERROR "&Impl{} does not escape$"
+		a = c
+		c = b
+		b = c
+		a = b
+		b = a
+		c = a
+		a.A() // ERROR "devirtualizing a.A to \*Impl$" "inlining call to \(\*Impl\).A"
 	}
 }
 
