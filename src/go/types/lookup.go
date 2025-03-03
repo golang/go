@@ -76,7 +76,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, fo
 	// we are ok here because only fields are accepted as results.
 	const enableTParamFieldLookup = false // see go.dev/issue/51576
 	if enableTParamFieldLookup && obj == nil && isTypeParam(T) {
-		if t := commonUnder(nil, T, nil); t != nil {
+		if t, _ := commonUnder(T, nil); t != nil {
 			obj, index, indirect = lookupFieldOrMethodImpl(t, addressable, pkg, name, foldCase)
 			if _, ok := obj.(*Var); !ok {
 				obj, index, indirect = nil, nil, false // accept fields (variables) only

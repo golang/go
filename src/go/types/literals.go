@@ -133,7 +133,8 @@ func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
 		typ = hint
 		base = typ
 		// *T implies &T{}
-		if b, ok := deref(commonUnder(check, base, nil)); ok {
+		u, _ := commonUnder(base, nil)
+		if b, ok := deref(u); ok {
 			base = b
 		}
 		isElem = true
@@ -146,7 +147,7 @@ func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
 		base = typ
 	}
 
-	switch utyp := commonUnder(check, base, nil).(type) {
+	switch u, _ := commonUnder(base, nil); utyp := u.(type) {
 	case *Struct:
 		// Prevent crash if the struct referred to is not yet set up.
 		// See analogous comment for *Array.

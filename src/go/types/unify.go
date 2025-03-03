@@ -776,7 +776,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 			// If y is also an unbound type parameter, we will end
 			// up here again with x and y swapped, so we don't
 			// need to take care of that case separately.
-			if cx := coreType(x); cx != nil {
+			if cx, _ := commonUnder(x, nil); cx != nil {
 				if traceInference {
 					u.tracef("core %s ≡ %s", xorig, yorig)
 				}

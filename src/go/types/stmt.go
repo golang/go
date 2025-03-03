@@ -1025,10 +1025,15 @@ func rangeKeyVal(check *Checker, orig Type, allowVersion func(goVersion) bool) (
 		return Typ[Invalid], Typ[Invalid], cause, false
 	}
 
-	var cause1 string
-	rtyp := commonUnderOrChan(check, orig, &cause1)
+	rtyp, err := commonUnder(orig, func(t, u Type) *errorCause {
+		// A channel must permit receive operations.
+		if ch, _ := u.(*Chan); ch != nil && ch.dir == SendOnly {
+			return newErrorCause("receive from send-only channel %s", t)
+		}
+		return nil
+	})
 	if rtyp == nil {
-		return bad(cause1)
+		return bad(err.format(check))
 	}
 
 	switch typ := arrayPtrDeref(rtyp).(type) {
@@ -1064,12 +1069,12 @@ func rangeKeyVal(check *Checker, orig Type, allowVersion func(goVersion) bool) (
 		}
 		assert(typ.Recv() == nil)
 		// check iterator argument type
-		var cause2 string
-		cb, _ := commonUnder(check, typ.Params().At(0).Type(), &cause2).(*Signature)
+		u, err := commonUnder(typ.Params().At(0).Type(), nil)
+		cb, _ := u.(*Signature)
 		switch {
 		case cb == nil:
-			if cause2 != "" {
-				return bad(check.sprintf("func must be func(yield func(...) bool): in yield type, %s", cause2))
+			if err != nil {
+				return bad(check.sprintf("func must be func(yield func(...) bool): in yield type, %s", err.format(check)))
 			} else {
 				return bad("func must be func(yield func(...) bool): argument is not func")
 			}

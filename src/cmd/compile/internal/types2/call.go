@@ -244,11 +244,12 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 
 	// If the operand type is a type parameter, all types in its type set
 	// must have a common underlying type, which must be a signature.
-	var cause string
-	sig, _ := commonUnder(check, x.typ, &cause).(*Signature)
+	// TODO(gri) use commonUnder condition for better error message
+	u, err := commonUnder(x.typ, nil)
+	sig, _ := u.(*Signature)
 	if sig == nil {
-		if cause != "" {
-			check.errorf(x, InvalidCall, invalidOp+"cannot call %s: %s", x, cause)
+		if err != nil {
+			check.errorf(x, InvalidCall, invalidOp+"cannot call %s: %s", x, err.format(check))
 		} else {
 			check.errorf(x, InvalidCall, invalidOp+"cannot call non-function %s", x)
 		}

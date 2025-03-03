@@ -42,8 +42,6 @@ func isBasic(t Type, info BasicInfo) bool {
 // The allX predicates below report whether t is an X.
 // If t is a type parameter the result is true if isX is true
 // for all specified types of the type parameter's type set.
-// allX is an optimized version of isX(coreType(t)) (which
-// is the same as underIs(t, isX)).
 
 func allBoolean(t Type) bool         { return allBasic(t, IsBoolean) }
 func allInteger(t Type) bool         { return allBasic(t, IsInteger) }
@@ -56,7 +54,6 @@ func allNumericOrString(t Type) bool { return allBasic(t, IsNumeric|IsString) }
 // allBasic reports whether under(t) is a basic type with the specified info.
 // If t is a type parameter, the result is true if isBasic(t, info) is true
 // for all specific types of the type parameter's type set.
-// allBasic(t, info) is an optimized version of isBasic(coreType(t), info).
 func allBasic(t Type, info BasicInfo) bool {
 	if tpar, _ := Unalias(t).(*TypeParam); tpar != nil {
 		return tpar.is(func(t *term) bool { return t != nil && isBasic(t.typ, info) })

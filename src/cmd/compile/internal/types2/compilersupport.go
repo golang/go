@@ -26,7 +26,8 @@ func AsSignature(t Type) *Signature {
 // is the restricted channel type if the restrictions are always the same.
 // If typ is not a type parameter, CoreType returns the underlying type.
 func CoreType(t Type) Type {
-	return coreType(t)
+	u, _ := commonUnder(t, nil)
+	return u
 }
 
 // RangeKeyVal returns the key and value types for a range over typ.

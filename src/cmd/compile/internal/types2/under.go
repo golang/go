@@ -40,117 +40,94 @@ func typeset(t Type, yield func(t, u Type) bool) {
 	yield(t, under(t))
 }
 
-// TODO(gri) commonUnder, commonUnderOrChan, and Checker.chanElem (expr.go)
-//           have a lot of similarities. Maybe we can find common ground
-//           between them and distill a better factorization.
+// A errorCause describes an error cause.
+type errorCause struct {
+	format_ string
+	args    []any
+}
 
-// If t is not a type parameter, commonUnder returns the underlying type.
-// If t is a type parameter, commonUnder returns the common underlying
-// type of all types in its type set if it exists.
-// Otherwise the result is nil, and *cause reports the error if a non-nil
-// cause is provided.
-// The check parameter is only used if *cause reports an error; it may be nil.
-func commonUnder(check *Checker, t Type, cause *string) Type {
-	var s, su Type
+func newErrorCause(format string, args ...any) *errorCause {
+	return &errorCause{format, args}
+}
 
-	bad := func(s string) bool {
-		if cause != nil {
-			*cause = s
-		}
-		su = nil
+// format formats a cause as a string.
+// check may be nil.
+func (err *errorCause) format(check *Checker) string {
+	return check.sprintf(err.format_, err.args...)
+}
+
+// If t is a type parameter, cond is nil, and t's type set contains no channel types,
+// commonUnder returns the common underlying type of all types in t's type set if
+// it exists, or nil and an error cause otherwise.
+//
+// If t is a type parameter, cond is nil, and there are channel types, t's type set
+// must only contain channel types, they must all have the same element types,
+// channel directions must not conflict, and commonUnder returns one of the most
+// restricted channels. Otherwise, the function returns nil and an error cause.
+//
+// If cond != nil, each pair (t, u) of type and underlying type in t's type set
+// must satisfy the condition expressed by cond. If the result of cond is != nil,
+// commonUnder returns nil and the error cause reported by cond.
+// Note that cond is called before any other conditions are checked; specifically
+// cond may be called with (nil, nil) if the type set contains no specific types.
+//
+// If t is not a type parameter, commonUnder behaves as if t was a type parameter
+// with the single type t in its type set.
+func commonUnder(t Type, cond func(t, u Type) *errorCause) (Type, *errorCause) {
+	var ct, cu Type // type and respective common underlying type
+	var err *errorCause
+
+	bad := func(format string, args ...any) bool {
+		cu = nil
+		err = newErrorCause(format, args...)
 		return false
 	}
 
 	typeset(t, func(t, u Type) bool {
-		if u == nil {
-			return bad("no specific type")
-		}
-		if su != nil && !Identical(su, u) {
-			return bad(check.sprintf("%s and %s have different underlying types", s, t))
-		}
-		// su == nil || Identical(su, u)
-		s, su = t, u
-		return true
-	})
-
-	return su
-}
-
-// If t is not a type parameter, commonUnderOrChan returns the underlying type;
-// if that type is a channel type it must permit receive operations.
-// If t is a type parameter, commonUnderOrChan returns the common underlying
-// type of all types in its type set if it exists, or, if the type set contains
-// only channel types permitting receive operations and with identical element
-// types, commonUnderOrChan returns one of those channel types.
-// Otherwise the result is nil, and *cause reports the error if a non-nil cause
-// is provided.
-// The check parameter is only used if *cause reports an error; it may be nil.
-func commonUnderOrChan(check *Checker, t Type, cause *string) Type {
-	var s, su Type
-	var sc *Chan
-
-	bad := func(s string) bool {
-		if cause != nil {
-			*cause = s
-		}
-		su = nil
-		return false
-	}
-
-	typeset(t, func(t, u Type) bool {
-		if u == nil {
-			return bad("no specific type")
-		}
-		c, _ := u.(*Chan)
-		if c != nil && c.dir == SendOnly {
-			return bad(check.sprintf("receive from send-only channel %s", t))
-		}
-		if su == nil {
-			s, su = t, u
-			sc = c // possibly nil
-			return true
-		}
-		// su != nil
-		if sc != nil && c != nil {
-			if !Identical(sc.elem, c.elem) {
-				return bad(check.sprintf("channels with different element types %s and %s", sc.elem, c.elem))
-			}
-			return true
-		}
-		// sc == nil
-		if !Identical(su, u) {
-			return bad(check.sprintf("%s and %s have different underlying types", s, t))
-		}
-		return true
-	})
-
-	return su
-}
-
-// If t is not a type parameter, coreType returns the underlying type.
-// If t is a type parameter, coreType returns the single underlying
-// type of all types in its type set if it exists, or nil otherwise. If the
-// type set contains only unrestricted and restricted channel types (with
-// identical element types), the single underlying type is the restricted
-// channel type if the restrictions are always the same, or nil otherwise.
-func coreType(t Type) Type {
-	var su Type
-	typeset(t, func(_, u Type) bool {
-		if u == nil {
-			return false
-		}
-		if su != nil {
-			u = match(su, u)
-			if u == nil {
-				su = nil
+		if cond != nil {
+			if err = cond(t, u); err != nil {
+				cu = nil
 				return false
 			}
 		}
-		// su == nil || match(su, u) != nil
-		su = u
+
+		if u == nil {
+			return bad("no specific type")
+		}
+
+		// If this is the first type we're seeing, we're done.
+		if cu == nil {
+			ct, cu = t, u
+			return true
+		}
+
+		// If we've seen a channel before, and we have a channel now, they must be compatible.
+		if chu, _ := cu.(*Chan); chu != nil {
+			if ch, _ := u.(*Chan); ch != nil {
+				if !Identical(chu.elem, ch.elem) {
+					return bad("channels %s and %s have different element types", ct, t)
+				}
+				// If we have different channel directions, keep the restricted one
+				// and complain if they conflict.
+				if chu.dir == SendRecv {
+					ct, cu = t, u // switch to current, possibly restricted channel
+				} else if chu.dir != ch.dir {
+					return bad("channels %s and %s have conflicting directions", ct, t)
+
+				}
+				return true
+			}
+		}
+
+		// Otherwise, the current type must have the same underlying type as all previous types.
+		if !Identical(cu, u) {
+			return bad("%s and %s have different underlying types", ct, t)
+		}
+
 		return true
 	})
-	return su
+
+	return cu, err
 }
 
 // coreString is like coreType but also considers []byte

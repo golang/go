@@ -196,50 +196,38 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 // or send to x (recv == false) operation. If the operation is not valid, chanElem
 // reports an error and returns nil.
 func (check *Checker) chanElem(pos poser, x *operand, recv bool) Type {
-	var elem Type
-	var cause string
-	typeset(x.typ, func(t, u Type) bool {
+	u, err := commonUnder(x.typ, func(t, u Type) *errorCause {
 		if u == nil {
-			// Type set contains no explicit terms.
-			// It is either empty or contains all types (any)
-			cause = "no specific channel type"
-			return false
+			return newErrorCause("no specific channel type")
 		}
 		ch, _ := u.(*Chan)
 		if ch == nil {
-			cause = check.sprintf("non-channel %s", t)
-			return false
+			return newErrorCause("non-channel %s", t)
 		}
 		if recv && ch.dir == SendOnly {
-			cause = check.sprintf("send-only channel %s", t)
-			return false
+			return newErrorCause("send-only channel %s", t)
 		}
 		if !recv && ch.dir == RecvOnly {
-			cause = check.sprintf("receive-only channel %s", t)
-			return false
+			return newErrorCause("receive-only channel %s", t)
 		}
-		if elem != nil && !Identical(elem, ch.elem) {
-			cause = check.sprintf("channels with different element types %s and %s", elem, ch.elem)
-			return false
-		}
-		elem = ch.elem
-		return true
+		return nil
 	})
 
-	if cause == "" {
-		return elem
+	if u != nil {
+		return u.(*Chan).elem
 	}
 
+	cause := err.format(check)
 	if recv {
 		if isTypeParam(x.typ) {
-			check.errorf(pos, InvalidReceive, invalidOp+"cannot receive from %s: type set contains %s", x, cause)
+			check.errorf(pos, InvalidReceive, invalidOp+"cannot receive from %s: %s", x, cause)
 		} else {
 			// In this case, only the non-channel and send-only channel error are possible.
 			check.errorf(pos, InvalidReceive, invalidOp+"cannot receive from %s %s", cause, x)
 		}
 	} else {
 		if isTypeParam(x.typ) {
-			check.errorf(pos, InvalidSend, invalidOp+"cannot send to %s: type set contains %s", x, cause)
+			check.errorf(pos, InvalidSend, invalidOp+"cannot send to %s: %s", x, cause)
 		} else {
 			// In this case, only the non-channel and receive-only channel error are possible.
 			check.errorf(pos, InvalidSend, invalidOp+"cannot send to %s %s", cause, x)
