@@ -14,6 +14,7 @@
 //		return 1;
 //	}else
 //		return 0;
+//  }
 TEXT	·Cas(SB),NOSPLIT,$0
 	JMP	·armcas(SB)
 

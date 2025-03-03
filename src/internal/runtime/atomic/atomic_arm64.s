@@ -199,6 +199,7 @@ load_store_loop:
 //		return 1;
 //	} else
 //		return 0;
+//  }
 TEXT ·Cas(SB), NOSPLIT, $0-17
 	MOVD	ptr+0(FP), R0
 	MOVW	old+8(FP), R1

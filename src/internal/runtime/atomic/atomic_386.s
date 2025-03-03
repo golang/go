@@ -12,6 +12,7 @@
 //		return 1;
 //	}else
 //		return 0;
+//  }
 TEXT ·Cas(SB), NOSPLIT, $0-13
 	MOVL	ptr+0(FP), BX
 	MOVL	old+4(FP), AX

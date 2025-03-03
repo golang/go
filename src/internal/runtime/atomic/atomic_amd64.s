@@ -26,6 +26,7 @@ TEXT ·Loadint64(SB), NOSPLIT, $0-16
 //		return 1;
 //	} else
 //		return 0;
+//  }
 TEXT ·Cas(SB),NOSPLIT,$0-17
 	MOVQ	ptr+0(FP), BX
 	MOVL	old+8(FP), AX
@@ -59,6 +60,7 @@ TEXT ·Cas64(SB), NOSPLIT, $0-25
 //		return 1;
 //	} else
 //		return 0;
+//  }
 TEXT ·Casp1(SB), NOSPLIT, $0-25
 	MOVQ	ptr+0(FP), BX
 	MOVQ	old+8(FP), AX
