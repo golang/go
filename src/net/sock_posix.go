@@ -181,25 +181,10 @@ func (fd *netFD) listenStream(ctx context.Context, laddr sockaddr, backlog int, 
 func (fd *netFD) listenDatagram(ctx context.Context, laddr sockaddr, ctrlCtxFn func(context.Context, string, string, syscall.RawConn) error) error {
 	switch addr := laddr.(type) {
 	case *UDPAddr:
-		// We provide a socket that listens to a wildcard
-		// address with reusable UDP port when the given laddr
-		// is an appropriate UDP multicast address prefix.
-		// This makes it possible for a single UDP listener to
-		// join multiple different group addresses, for
-		// multiple UDP listeners that listen on the same UDP
-		// port to join the same group address.
 		if addr.IP != nil && addr.IP.IsMulticast() {
 			if err := setDefaultMulticastSockopts(fd.pfd.Sysfd); err != nil {
 				return err
 			}
-			addr := *addr
-			switch fd.family {
-			case syscall.AF_INET:
-				addr.IP = IPv4zero
-			case syscall.AF_INET6:
-				addr.IP = IPv6unspecified
-			}
-			laddr = &addr
 		}
 	}
 	var err error
