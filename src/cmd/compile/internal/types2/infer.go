@@ -265,7 +265,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 					}
 				case single && !core.tilde:
 					if traceInference {
-						u.tracef("-> set type parameter %s to constraint core type %s", tpar, core.typ)
+						u.tracef("-> set type parameter %s to constraint's common underlying type %s", tpar, core.typ)
 					}
 					// The corresponding type argument tx is unknown and the core term
 					// describes a single specific type and no tilde.

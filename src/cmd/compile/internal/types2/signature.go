@@ -45,7 +45,7 @@ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params
 		}
 		core := coreString(params.At(n - 1).typ)
 		if _, ok := core.(*Slice); !ok && !isString(core) {
-			panic(fmt.Sprintf("got %s, want variadic parameter with unnamed slice type or string as core type", core.String()))
+			panic(fmt.Sprintf("got %s, want variadic parameter with unnamed slice type or string as common underlying type", core.String()))
 		}
 	}
 	sig := &Signature{recv: recv, params: params, results: results, variadic: variadic}
