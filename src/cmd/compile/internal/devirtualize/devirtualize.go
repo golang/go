@@ -271,7 +271,7 @@ func concreteType1(s *State, n ir.Node, seen map[*ir.Name]struct{}) (t *types.Ty
 	}
 
 	if _, ok := seen[name]; ok {
-		// Self assignment, treat is the same as a nil assignment.
+		// Self assignment, treat it the same as a nil assignment.
 		// In case this is the only assignment then we are not going to devirtualize anything.
 		// In case there are other assignment, we still preserve the correct type.
 		return nil, true
