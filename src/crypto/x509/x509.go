@@ -1568,13 +1568,7 @@ func signingParamsForKey(key crypto.Signer, sigAlgo SignatureAlgorithm) (Signatu
 }
 
 func signTBS(tbs []byte, key crypto.Signer, sigAlg SignatureAlgorithm, rand io.Reader) ([]byte, error) {
-	signed := tbs
 	hashFunc := sigAlg.hashFunc()
-	if hashFunc != 0 {
-		h := hashFunc.New()
-		h.Write(signed)
-		signed = h.Sum(nil)
-	}
 
 	var signerOpts crypto.SignerOpts = hashFunc
 	if sigAlg.isRSAPSS() {
@@ -1584,7 +1578,7 @@ func signTBS(tbs []byte, key crypto.Signer, sigAlg SignatureAlgorithm, rand io.R
 		}
 	}
 
-	signature, err := key.Sign(rand, signed, signerOpts)
+	signature, err := crypto.SignMessage(key, rand, tbs, signerOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -1646,7 +1640,7 @@ var emptyASN1Subject = []byte{0x30, 0}
 //
 // The currently supported key types are *rsa.PublicKey, *ecdsa.PublicKey and
 // ed25519.PublicKey. pub must be a supported key type, and priv must be a
-// crypto.Signer with a supported public key.
+// crypto.Signer or crypto.MessageSigner with a supported public key.
 //
 // The AuthorityKeyId will be taken from the SubjectKeyId of parent, if any,
 // unless the resulting certificate is self-signed. Otherwise the value from
@@ -2031,10 +2025,10 @@ func parseCSRExtensions(rawAttributes []asn1.RawValue) ([]pkix.Extension, error)
 //   - Attributes (deprecated)
 //
 // priv is the private key to sign the CSR with, and the corresponding public
-// key will be included in the CSR. It must implement crypto.Signer and its
-// Public() method must return a *rsa.PublicKey or a *ecdsa.PublicKey or a
-// ed25519.PublicKey. (A *rsa.PrivateKey, *ecdsa.PrivateKey or
-// ed25519.PrivateKey satisfies this.)
+// key will be included in the CSR. It must implement crypto.Signer or
+// crypto.MessageSigner and its Public() method must return a *rsa.PublicKey or
+// a *ecdsa.PublicKey or a ed25519.PublicKey. (A *rsa.PrivateKey,
+// *ecdsa.PrivateKey or ed25519.PrivateKey satisfies this.)
 //
 // The returned slice is the certificate request in DER encoding.
 func CreateCertificateRequest(rand io.Reader, template *CertificateRequest, priv any) (csr []byte, err error) {
@@ -2376,8 +2370,9 @@ type tbsCertificateList struct {
 // CreateRevocationList creates a new X.509 v2 [Certificate] Revocation List,
 // according to RFC 5280, based on template.
 //
-// The CRL is signed by priv which should be the private key associated with
-// the public key in the issuer certificate.
+// The CRL is signed by priv which should be a crypto.Signer or
+// crypto.MessageSigner associated with the public key in the issuer
+// certificate.
 //
 // The issuer may not be nil, and the crlSign bit must be set in [KeyUsage] in
 // order to use it as a CRL issuer.
