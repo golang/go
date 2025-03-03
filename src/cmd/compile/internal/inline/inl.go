@@ -1040,6 +1040,28 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
 			return false, 0, false
 		}
 	}
+	do := func(fn *ir.Func) bool {
+		// Can't recursively inline a function if the function body contains
+		// a call to a function f, which the function f is one of the call arguments.
+		return ir.Any(fn, func(node ir.Node) bool {
+			if call, ok := node.(*ir.CallExpr); ok {
+				for _, arg := range call.Args {
+					if call.Fun == arg {
+						return true
+					}
+				}
+			}
+			return false
+		})
+	}
+	for _, fn := range []*ir.Func{callerfn, callee} {
+		if do(fn) {
+			if log && logopt.Enabled() {
+				logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to function: %s", ir.FuncName(fn)))
+			}
+			return false, 0, false
+		}
+	}
 
 	if base.Flag.Cfg.Instrumenting && types.IsNoInstrumentPkg(callee.Sym().Pkg) {
 		// Runtime package must not be instrumented.
