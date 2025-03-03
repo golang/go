@@ -828,9 +828,18 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	}
 
 	// Special case for time: UTCTime and GeneralizedTime both map to the
-	// Go type time.Time.
-	if universalTag == TagUTCTime && t.tag == TagGeneralizedTime && t.class == ClassUniversal {
-		universalTag = TagGeneralizedTime
+	// Go type time.Time. getUniversalType returns the tag for UTCTime when
+	// it sees a time.Time, so if we see a different time type on the wire,
+	// or the field is tagged with a different type, we change the universal
+	// type to match.
+	if universalTag == TagUTCTime {
+		if t.class == ClassUniversal {
+			if t.tag == TagGeneralizedTime {
+				universalTag = t.tag
+			}
+		} else if params.timeType != 0 {
+			universalTag = params.timeType
+		}
 	}
 
 	if params.set {
@@ -1102,6 +1111,13 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //	ia5     causes strings to be unmarshaled as ASN.1 IA5String values
 //	numeric causes strings to be unmarshaled as ASN.1 NumericString values
 //	utf8    causes strings to be unmarshaled as ASN.1 UTF8String values
+//
+// When decoding an ASN.1 value with an IMPLICIT tag into a time.Time field,
+// Unmarshal will default to a UTCTime, which doesn't support time zones or
+// fractional seconds. To force usage of GeneralizedTime, use the following
+// tag:
+//
+//	generalized causes time.Times to be unmarshaled as ASN.1 GeneralizedTime values
 //
 // If the type of the first field of a structure is RawContent then the raw
 // ASN1 contents of the struct will be stored in it.

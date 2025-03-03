@@ -1185,3 +1185,34 @@ func BenchmarkObjectIdentifierString(b *testing.B) {
 		_ = oidPublicKeyRSA.String()
 	}
 }
+
+func TestImplicitTypeRoundtrip(t *testing.T) {
+	type tagged struct {
+		IA5         string    `asn1:"tag:1,ia5"`
+		Printable   string    `asn1:"tag:2,printable"`
+		UTF8        string    `asn1:"tag:3,utf8"`
+		Numeric     string    `asn1:"tag:4,numeric"`
+		UTC         time.Time `asn1:"tag:5,utc"`
+		Generalized time.Time `asn1:"tag:6,generalized"`
+	}
+	a := tagged{
+		IA5:         "ia5",
+		Printable:   "printable",
+		UTF8:        "utf8",
+		Numeric:     "123 456",
+		UTC:         time.Now().UTC().Truncate(time.Second),
+		Generalized: time.Now().UTC().Truncate(time.Second),
+	}
+	enc, err := Marshal(a)
+	if err != nil {
+		t.Fatalf("Marshal failed: %s", err)
+	}
+	var b tagged
+	if _, err := Unmarshal(enc, &b); err != nil {
+		t.Fatalf("Unmarshal failed: %s", err)
+	}
+
+	if !reflect.DeepEqual(a, b) {
+		t.Fatalf("Unexpected diff after roundtripping struct\na: %#v\nb: %#v", a, b)
+	}
+}

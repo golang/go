@@ -725,6 +725,7 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 //	omitempty:   causes empty slices to be skipped
 //	printable:   causes strings to be marshaled as ASN.1, PrintableString values
 //	utf8:        causes strings to be marshaled as ASN.1, UTF8String values
+//	numeric:     causes strings to be marshaled as ASN.1, NumericString values
 //	utc:         causes time.Time to be marshaled as ASN.1, UTCTime values
 //	generalized: causes time.Time to be marshaled as ASN.1, GeneralizedTime values
 func Marshal(val any) ([]byte, error) {
