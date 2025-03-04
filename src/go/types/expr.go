@@ -610,11 +610,7 @@ func (check *Checker) incomparableCause(typ Type) string {
 		return compositeKind(typ) + " can only be compared to nil"
 	}
 	// see if we can extract a more specific error
-	var cause string
-	comparableType(typ, true, nil, func(format string, args ...interface{}) {
-		cause = check.sprintf(format, args...)
-	})
-	return cause
+	return comparableType(typ, true, nil).format(check)
 }
 
 // If e != nil, it must be the shift expression; it may be nil for non-constant shifts.

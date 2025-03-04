@@ -151,14 +151,15 @@ func isGeneric(t Type) bool {
 
 // Comparable reports whether values of type T are comparable.
 func Comparable(T Type) bool {
-	return comparableType(T, true, nil, nil)
+	return comparableType(T, true, nil) == nil
 }
 
+// If T is comparable, comparableType returns nil.
+// Otherwise it returns an error cause explaining why T is not comparable.
 // If dynamic is set, non-type parameter interfaces are always comparable.
-// If reportf != nil, it may be used to report why T is not comparable.
-func comparableType(T Type, dynamic bool, seen map[Type]bool, reportf func(string, ...interface{})) bool {
+func comparableType(T Type, dynamic bool, seen map[Type]bool) *errorCause {
 	if seen[T] {
-		return true
+		return nil
 	}
 	if seen == nil {
 		seen = make(map[Type]bool)
@@ -167,43 +168,43 @@ func comparableType(T Type, dynamic bool, seen map[Type]bool, reportf func(strin
 
 	switch t := under(T).(type) {
 	case *Basic:
-		// assume invalid types to be comparable
-		// to avoid follow-up errors
-		return t.kind != UntypedNil
+		// assume invalid types to be comparable to avoid follow-up errors
+		if t.kind == UntypedNil {
+			return newErrorCause("")
+		}
+
 	case *Pointer, *Chan:
-		return true
+		// always comparable
+
 	case *Struct:
 		for _, f := range t.fields {
-			if !comparableType(f.typ, dynamic, seen, nil) {
-				if reportf != nil {
-					reportf("struct containing %s cannot be compared", f.typ)
-				}
-				return false
+			if comparableType(f.typ, dynamic, seen) != nil {
+				return newErrorCause("struct containing %s cannot be compared", f.typ)
 			}
 		}
-		return true
+
 	case *Array:
-		if !comparableType(t.elem, dynamic, seen, nil) {
-			if reportf != nil {
-				reportf("%s cannot be compared", t)
-			}
-			return false
+		if comparableType(t.elem, dynamic, seen) != nil {
+			return newErrorCause("%s cannot be compared", T)
 		}
-		return true
+
 	case *Interface:
 		if dynamic && !isTypeParam(T) || t.typeSet().IsComparable(seen) {
-			return true
+			return nil
 		}
-		if reportf != nil {
-			if t.typeSet().IsEmpty() {
-				reportf("empty type set")
-			} else {
-				reportf("incomparable types in type set")
-			}
+		var cause string
+		if t.typeSet().IsEmpty() {
+			cause = "empty type set"
+		} else {
+			cause = "incomparable types in type set"
 		}
-		// fallthrough
+		return newErrorCause(cause)
+
+	default:
+		return newErrorCause("")
 	}
-	return false
+
+	return nil
 }
 
 // hasNil reports whether type t includes the nil value.

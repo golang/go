@@ -46,7 +46,12 @@ type errorCause struct {
 	args    []any
 }
 
+var emptyErrorCause errorCause
+
 func newErrorCause(format string, args ...any) *errorCause {
+	if format == "" {
+		return &emptyErrorCause
+	}
 	return &errorCause{format, args}
 }
 
