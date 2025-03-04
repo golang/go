@@ -6,7 +6,6 @@ package amd64
 
 import (
 	"fmt"
-	"internal/buildcfg"
 	"math"
 
 	"cmd/compile/internal/base"
@@ -1090,9 +1089,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpAMD64CALLstatic, ssa.OpAMD64CALLtail:
 		if s.ABI == obj.ABI0 && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABIInternal {
 			// zeroing X15 when entering ABIInternal from ABI0
-			if buildcfg.GOOS != "plan9" { // do not use SSE on Plan 9
-				opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
-			}
+			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
 			// set G register from TLS
 			getgFromTLS(s, x86.REG_R14)
 		}
@@ -1103,9 +1100,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		s.Call(v)
 		if s.ABI == obj.ABIInternal && v.Aux.(*ssa.AuxCall).Fn.ABI() == obj.ABI0 {
 			// zeroing X15 when entering ABIInternal from ABI0
-			if buildcfg.GOOS != "plan9" { // do not use SSE on Plan 9
-				opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
-			}
+			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
 			// set G register from TLS
 			getgFromTLS(s, x86.REG_R14)
 		}

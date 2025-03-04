@@ -1710,9 +1710,7 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 TEXT ·sigpanic0(SB),NOSPLIT,$0-0
 	get_tls(R14)
 	MOVQ	g(R14), R14
-#ifndef GOOS_plan9
 	XORPS	X15, X15
-#endif
 	JMP	·sigpanic<ABIInternal>(SB)
 
 // gcWriteBarrier informs the GC about heap pointer writes.

@@ -369,12 +369,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 	if buildcfg.GOOS == "plan9" {
 		// Don't use FMA on Plan 9
 		c.UseFMA = false
-
-		// Don't use Duff's device and SSE on Plan 9 AMD64.
-		if arch == "amd64" {
-			c.noDuffDevice = true
-			c.useSSE = false
-		}
 	}
 
 	if ctxt.Flag_shared {
