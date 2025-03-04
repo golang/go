@@ -8,7 +8,7 @@ golang.org/x/crypto/hkdf
 golang.org/x/crypto/internal/alias
 golang.org/x/crypto/internal/poly1305
 golang.org/x/crypto/sha3
-# golang.org/x/net v0.25.1-0.20240603202750-6249541f2a6c
+# golang.org/x/net v0.25.1-0.20250304182835-b70a9e3eaa27
 ## explicit; go 1.18
 golang.org/x/net/dns/dnsmessage
 golang.org/x/net/http/httpguts
