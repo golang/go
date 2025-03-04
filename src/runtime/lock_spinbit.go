@@ -90,7 +90,7 @@ type mWaitList struct {
 
 // lockVerifyMSize confirms that we can recreate the low bits of the M pointer.
 func lockVerifyMSize() {
-	size := roundupsize(unsafe.Sizeof(m{}), false) + mallocHeaderSize
+	size := roundupsize(unsafe.Sizeof(mPadded{}), false) + mallocHeaderSize
 	if size&mutexMMask != 0 {
 		print("M structure uses sizeclass ", size, "/", hex(size), " bytes; ",
 			"incompatible with mutex flag mask ", hex(mutexMMask), "\n")

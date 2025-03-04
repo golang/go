@@ -26,6 +26,7 @@ func ASanWrite(addr unsafe.Pointer, len int) {
 
 // Private interface for the runtime.
 const asanenabled = true
+const asanenabledBit = 1
 
 // asan{read,write} are nosplit because they may be called between
 // fork and exec, when the stack must not grow. See issue #50391.
