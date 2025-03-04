@@ -6175,25 +6175,25 @@ func (sc *http2serverConn) newStream(id, pusherID uint32, state http2streamState
 func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHeadersFrame) (*http2responseWriter, *Request, error) {
 	sc.serveG.check()
 
-	rp := http2requestParam{
-		method:    f.PseudoValue("method"),
-		scheme:    f.PseudoValue("scheme"),
-		authority: f.PseudoValue("authority"),
-		path:      f.PseudoValue("path"),
-		protocol:  f.PseudoValue("protocol"),
+	rp := httpcommon.ServerRequestParam{
+		Method:    f.PseudoValue("method"),
+		Scheme:    f.PseudoValue("scheme"),
+		Authority: f.PseudoValue("authority"),
+		Path:      f.PseudoValue("path"),
+		Protocol:  f.PseudoValue("protocol"),
 	}
 
 	// extended connect is disabled, so we should not see :protocol
-	if http2disableExtendedConnectProtocol && rp.protocol != "" {
+	if http2disableExtendedConnectProtocol && rp.Protocol != "" {
 		return nil, nil, sc.countError("bad_connect", http2streamError(f.StreamID, http2ErrCodeProtocol))
 	}
 
-	isConnect := rp.method == "CONNECT"
+	isConnect := rp.Method == "CONNECT"
 	if isConnect {
-		if rp.protocol == "" && (rp.path != "" || rp.scheme != "" || rp.authority == "") {
+		if rp.Protocol == "" && (rp.Path != "" || rp.Scheme != "" || rp.Authority == "") {
 			return nil, nil, sc.countError("bad_connect", http2streamError(f.StreamID, http2ErrCodeProtocol))
 		}
-	} else if rp.method == "" || rp.path == "" || (rp.scheme != "https" && rp.scheme != "http") {
+	} else if rp.Method == "" || rp.Path == "" || (rp.Scheme != "https" && rp.Scheme != "http") {
 		// See 8.1.2.6 Malformed Requests and Responses:
 		//
 		// Malformed requests or responses that are detected
@@ -6207,15 +6207,16 @@ func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHead
 		return nil, nil, sc.countError("bad_path_method", http2streamError(f.StreamID, http2ErrCodeProtocol))
 	}
 
-	rp.header = make(Header)
+	header := make(Header)
+	rp.Header = header
 	for _, hf := range f.RegularFields() {
-		rp.header.Add(sc.canonicalHeader(hf.Name), hf.Value)
+		header.Add(sc.canonicalHeader(hf.Name), hf.Value)
 	}
-	if rp.authority == "" {
-		rp.authority = rp.header.Get("Host")
+	if rp.Authority == "" {
+		rp.Authority = header.Get("Host")
 	}
-	if rp.protocol != "" {
-		rp.header.Set(":protocol", rp.protocol)
+	if rp.Protocol != "" {
+		header.Set(":protocol", rp.Protocol)
 	}
 
 	rw, req, err := sc.newWriterAndRequestNoBody(st, rp)
@@ -6224,7 +6225,7 @@ func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHead
 	}
 	bodyOpen := !f.StreamEnded()
 	if bodyOpen {
-		if vv, ok := rp.header["Content-Length"]; ok {
+		if vv, ok := rp.Header["Content-Length"]; ok {
 			if cl, err := strconv.ParseUint(vv[0], 10, 63); err == nil {
 				req.ContentLength = int64(cl)
 			} else {
@@ -6240,84 +6241,38 @@ func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHead
 	return rw, req, nil
 }
 
-type http2requestParam struct {
-	method                  string
-	scheme, authority, path string
-	protocol                string
-	header                  Header
-}
-
-func (sc *http2serverConn) newWriterAndRequestNoBody(st *http2stream, rp http2requestParam) (*http2responseWriter, *Request, error) {
+func (sc *http2serverConn) newWriterAndRequestNoBody(st *http2stream, rp httpcommon.ServerRequestParam) (*http2responseWriter, *Request, error) {
 	sc.serveG.check()
 
 	var tlsState *tls.ConnectionState // nil if not scheme https
-	if rp.scheme == "https" {
+	if rp.Scheme == "https" {
 		tlsState = sc.tlsState
 	}
 
-	needsContinue := httpguts.HeaderValuesContainsToken(rp.header["Expect"], "100-continue")
-	if needsContinue {
-		rp.header.Del("Expect")
-	}
-	// Merge Cookie headers into one "; "-delimited value.
-	if cookies := rp.header["Cookie"]; len(cookies) > 1 {
-		rp.header.Set("Cookie", strings.Join(cookies, "; "))
-	}
-
-	// Setup Trailers
-	var trailer Header
-	for _, v := range rp.header["Trailer"] {
-		for _, key := range strings.Split(v, ",") {
-			key = CanonicalHeaderKey(textproto.TrimString(key))
-			switch key {
-			case "Transfer-Encoding", "Trailer", "Content-Length":
-				// Bogus. (copy of http1 rules)
-				// Ignore.
-			default:
-				if trailer == nil {
-					trailer = make(Header)
-				}
-				trailer[key] = nil
-			}
-		}
-	}
-	delete(rp.header, "Trailer")
-
-	var url_ *url.URL
-	var requestURI string
-	if rp.method == "CONNECT" && rp.protocol == "" {
-		url_ = &url.URL{Host: rp.authority}
-		requestURI = rp.authority // mimic HTTP/1 server behavior
-	} else {
-		var err error
-		url_, err = url.ParseRequestURI(rp.path)
-		if err != nil {
-			return nil, nil, sc.countError("bad_path", http2streamError(st.id, http2ErrCodeProtocol))
-		}
-		requestURI = rp.path
+	res := httpcommon.NewServerRequest(rp)
+	if res.InvalidReason != "" {
+		return nil, nil, sc.countError(res.InvalidReason, http2streamError(st.id, http2ErrCodeProtocol))
 	}
 
 	body := &http2requestBody{
 		conn:          sc,
 		stream:        st,
-		needsContinue: needsContinue,
+		needsContinue: res.NeedsContinue,
 	}
-	req := &Request{
-		Method:     rp.method,
-		URL:        url_,
+	req := (&Request{
+		Method:     rp.Method,
+		URL:        res.URL,
 		RemoteAddr: sc.remoteAddrStr,
-		Header:     rp.header,
-		RequestURI: requestURI,
+		Header:     rp.Header,
+		RequestURI: res.RequestURI,
 		Proto:      "HTTP/2.0",
 		ProtoMajor: 2,
 		ProtoMinor: 0,
 		TLS:        tlsState,
-		Host:       rp.authority,
+		Host:       rp.Authority,
 		Body:       body,
-		Trailer:    trailer,
-	}
-	req = req.WithContext(st.ctx)
-
+		Trailer:    res.Trailer,
+	}).WithContext(st.ctx)
 	rw := sc.newResponseWriter(st, req)
 	return rw, req, nil
 }
@@ -7212,12 +7167,12 @@ func (sc *http2serverConn) startPush(msg *http2startPushRequest) {
 		// we start in "half closed (remote)" for simplicity.
 		// See further comments at the definition of stateHalfClosedRemote.
 		promised := sc.newStream(promisedID, msg.parent.id, http2stateHalfClosedRemote)
-		rw, req, err := sc.newWriterAndRequestNoBody(promised, http2requestParam{
-			method:    msg.method,
-			scheme:    msg.url.Scheme,
-			authority: msg.url.Host,
-			path:      msg.url.RequestURI(),
-			header:    http2cloneHeader(msg.header), // clone since handler runs concurrently with writing the PUSH_PROMISE
+		rw, req, err := sc.newWriterAndRequestNoBody(promised, httpcommon.ServerRequestParam{
+			Method:    msg.method,
+			Scheme:    msg.url.Scheme,
+			Authority: msg.url.Host,
+			Path:      msg.url.RequestURI(),
+			Header:    http2cloneHeader(msg.header), // clone since handler runs concurrently with writing the PUSH_PROMISE
 		})
 		if err != nil {
 			// Should not happen, since we've already validated msg.url.
@@ -9522,6 +9477,13 @@ func (rl *http2clientConnReadLoop) cleanup() {
 	}
 	cc.cond.Broadcast()
 	cc.mu.Unlock()
+
+	if !cc.seenSettings {
+		// If we have a pending request that wants extended CONNECT,
+		// let it continue and fail with the connection error.
+		cc.extendedConnectAllowed = true
+		close(cc.seenSettingsChan)
+	}
 }
 
 // countReadFrameError calls Transport.CountError with a string
@@ -9613,9 +9575,6 @@ func (rl *http2clientConnReadLoop) run() error {
 		if err != nil {
 			if http2VerboseLogs {
 				cc.vlogf("http2: Transport conn %p received error from processing frame %v: %v", cc, http2summarizeFrame(f), err)
-			}
-			if !cc.seenSettings {
-				close(cc.seenSettingsChan)
 			}
 			return err
 		}
