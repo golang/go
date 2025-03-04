@@ -152,9 +152,9 @@ func Comparable(T Type) bool {
 }
 
 // If T is comparable, comparableType returns nil.
-// Otherwise it returns an error cause explaining why T is not comparable.
+// Otherwise it returns a type error explaining why T is not comparable.
 // If dynamic is set, non-type parameter interfaces are always comparable.
-func comparableType(T Type, dynamic bool, seen map[Type]bool) *errorCause {
+func comparableType(T Type, dynamic bool, seen map[Type]bool) *typeError {
 	if seen[T] {
 		return nil
 	}
@@ -167,7 +167,7 @@ func comparableType(T Type, dynamic bool, seen map[Type]bool) *errorCause {
 	case *Basic:
 		// assume invalid types to be comparable to avoid follow-up errors
 		if t.kind == UntypedNil {
-			return newErrorCause("")
+			return typeErrorf("")
 		}
 
 	case *Pointer, *Chan:
@@ -176,13 +176,13 @@ func comparableType(T Type, dynamic bool, seen map[Type]bool) *errorCause {
 	case *Struct:
 		for _, f := range t.fields {
 			if comparableType(f.typ, dynamic, seen) != nil {
-				return newErrorCause("struct containing %s cannot be compared", f.typ)
+				return typeErrorf("struct containing %s cannot be compared", f.typ)
 			}
 		}
 
 	case *Array:
 		if comparableType(t.elem, dynamic, seen) != nil {
-			return newErrorCause("%s cannot be compared", T)
+			return typeErrorf("%s cannot be compared", T)
 		}
 
 	case *Interface:
@@ -195,10 +195,10 @@ func comparableType(T Type, dynamic bool, seen map[Type]bool) *errorCause {
 		} else {
 			cause = "incomparable types in type set"
 		}
-		return newErrorCause(cause)
+		return typeErrorf(cause)
 
 	default:
-		return newErrorCause("")
+		return typeErrorf("")
 	}
 
 	return nil

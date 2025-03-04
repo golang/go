@@ -196,19 +196,19 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 // or send to x (recv == false) operation. If the operation is not valid, chanElem
 // reports an error and returns nil.
 func (check *Checker) chanElem(pos poser, x *operand, recv bool) Type {
-	u, err := commonUnder(x.typ, func(t, u Type) *errorCause {
+	u, err := commonUnder(x.typ, func(t, u Type) *typeError {
 		if u == nil {
-			return newErrorCause("no specific channel type")
+			return typeErrorf("no specific channel type")
 		}
 		ch, _ := u.(*Chan)
 		if ch == nil {
-			return newErrorCause("non-channel %s", t)
+			return typeErrorf("non-channel %s", t)
 		}
 		if recv && ch.dir == SendOnly {
-			return newErrorCause("send-only channel %s", t)
+			return typeErrorf("send-only channel %s", t)
 		}
 		if !recv && ch.dir == RecvOnly {
-			return newErrorCause("receive-only channel %s", t)
+			return typeErrorf("receive-only channel %s", t)
 		}
 		return nil
 	})

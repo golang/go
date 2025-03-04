@@ -244,9 +244,9 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 
 	// If the operand type is a type parameter, all types in its type set
 	// must have a common underlying type, which must be a signature.
-	u, err := commonUnder(x.typ, func(t, u Type) *errorCause {
+	u, err := commonUnder(x.typ, func(t, u Type) *typeError {
 		if _, ok := u.(*Signature); u != nil && !ok {
-			return newErrorCause("%s is not a function", t)
+			return typeErrorf("%s is not a function", t)
 		}
 		return nil
 	})

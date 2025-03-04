@@ -43,51 +43,51 @@ func typeset(t Type, yield func(t, u Type) bool) {
 	yield(t, under(t))
 }
 
-// A errorCause describes an error cause.
-type errorCause struct {
+// A typeError describes a type error.
+type typeError struct {
 	format_ string
 	args    []any
 }
 
-var emptyErrorCause errorCause
+var emptyTypeError typeError
 
-func newErrorCause(format string, args ...any) *errorCause {
+func typeErrorf(format string, args ...any) *typeError {
 	if format == "" {
-		return &emptyErrorCause
+		return &emptyTypeError
 	}
-	return &errorCause{format, args}
+	return &typeError{format, args}
 }
 
-// format formats a cause as a string.
+// format formats a type error as a string.
 // check may be nil.
-func (err *errorCause) format(check *Checker) string {
+func (err *typeError) format(check *Checker) string {
 	return check.sprintf(err.format_, err.args...)
 }
 
 // If t is a type parameter, cond is nil, and t's type set contains no channel types,
 // commonUnder returns the common underlying type of all types in t's type set if
-// it exists, or nil and an error cause otherwise.
+// it exists, or nil and a type error otherwise.
 //
 // If t is a type parameter, cond is nil, and there are channel types, t's type set
 // must only contain channel types, they must all have the same element types,
 // channel directions must not conflict, and commonUnder returns one of the most
-// restricted channels. Otherwise, the function returns nil and an error cause.
+// restricted channels. Otherwise, the function returns nil and a type error.
 //
 // If cond != nil, each pair (t, u) of type and underlying type in t's type set
 // must satisfy the condition expressed by cond. If the result of cond is != nil,
-// commonUnder returns nil and the error cause reported by cond.
+// commonUnder returns nil and the type error reported by cond.
 // Note that cond is called before any other conditions are checked; specifically
 // cond may be called with (nil, nil) if the type set contains no specific types.
 //
 // If t is not a type parameter, commonUnder behaves as if t was a type parameter
 // with the single type t in its type set.
-func commonUnder(t Type, cond func(t, u Type) *errorCause) (Type, *errorCause) {
+func commonUnder(t Type, cond func(t, u Type) *typeError) (Type, *typeError) {
 	var ct, cu Type // type and respective common underlying type
-	var err *errorCause
+	var err *typeError
 
 	bad := func(format string, args ...any) bool {
 		cu = nil
-		err = newErrorCause(format, args...)
+		err = typeErrorf(format, args...)
 		return false
 	}
 

@@ -1004,10 +1004,10 @@ func rangeKeyVal(check *Checker, orig Type, allowVersion func(goVersion) bool) (
 		return Typ[Invalid], Typ[Invalid], cause, false
 	}
 
-	rtyp, err := commonUnder(orig, func(t, u Type) *errorCause {
+	rtyp, err := commonUnder(orig, func(t, u Type) *typeError {
 		// A channel must permit receive operations.
 		if ch, _ := u.(*Chan); ch != nil && ch.dir == SendOnly {
-			return newErrorCause("receive from send-only channel %s", t)
+			return typeErrorf("receive from send-only channel %s", t)
 		}
 		return nil
 	})
