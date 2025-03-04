@@ -10,6 +10,7 @@ import (
 	"internal/goarch"
 	"internal/goos"
 	"internal/runtime/atomic"
+	"internal/runtime/gc"
 	"internal/runtime/sys"
 	"unsafe"
 )
@@ -161,11 +162,11 @@ type stackpoolItem struct {
 // Global pool of large stack spans.
 var stackLarge struct {
 	lock mutex
-	free [heapAddrBits - pageShift]mSpanList // free lists by log_2(s.npages)
+	free [heapAddrBits - gc.PageShift]mSpanList // free lists by log_2(s.npages)
 }
 
 func stackinit() {
-	if _StackCacheSize&_PageMask != 0 {
+	if _StackCacheSize&pageMask != 0 {
 		throw("cache size must be a multiple of page size")
 	}
 	for i := range stackpool {
@@ -196,7 +197,7 @@ func stackpoolalloc(order uint8) gclinkptr {
 	lockWithRankMayAcquire(&mheap_.lock, lockRankMheap)
 	if s == nil {
 		// no free stacks. Allocate another span worth.
-		s = mheap_.allocManual(_StackCacheSize>>_PageShift, spanAllocStack)
+		s = mheap_.allocManual(_StackCacheSize>>gc.PageShift, spanAllocStack)
 		if s == nil {
 			throw("out of memory")
 		}
@@ -390,7 +391,7 @@ func stackalloc(n uint32) stack {
 		v = unsafe.Pointer(x)
 	} else {
 		var s *mspan
-		npage := uintptr(n) >> _PageShift
+		npage := uintptr(n) >> gc.PageShift
 		log2npage := stacklog2(npage)
 
 		// Try to get a stack from the large stack cache.

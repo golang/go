@@ -49,6 +49,7 @@ package runtime
 
 import (
 	"internal/runtime/atomic"
+	"internal/runtime/gc"
 	"unsafe"
 )
 
@@ -58,7 +59,7 @@ const (
 	pallocChunkPages    = 1 << logPallocChunkPages
 	pallocChunkBytes    = pallocChunkPages * pageSize
 	logPallocChunkPages = 9
-	logPallocChunkBytes = logPallocChunkPages + pageShift
+	logPallocChunkBytes = logPallocChunkPages + gc.PageShift
 
 	// The number of radix bits for each level.
 	//

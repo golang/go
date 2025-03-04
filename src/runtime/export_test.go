@@ -11,6 +11,7 @@ import (
 	"internal/goarch"
 	"internal/goos"
 	"internal/runtime/atomic"
+	"internal/runtime/gc"
 	"internal/runtime/sys"
 	"unsafe"
 )
@@ -363,7 +364,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 		slow.Mallocs = 0
 		slow.Frees = 0
 		slow.HeapReleased = 0
-		var bySize [_NumSizeClasses]struct {
+		var bySize [gc.NumSizeClasses]struct {
 			Mallocs, Frees uint64
 		}
 
@@ -391,11 +392,11 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 
 		// Collect per-sizeclass free stats.
 		var smallFree uint64
-		for i := 0; i < _NumSizeClasses; i++ {
+		for i := 0; i < gc.NumSizeClasses; i++ {
 			slow.Frees += m.smallFreeCount[i]
 			bySize[i].Frees += m.smallFreeCount[i]
 			bySize[i].Mallocs += m.smallFreeCount[i]
-			smallFree += m.smallFreeCount[i] * uint64(class_to_size[i])
+			smallFree += m.smallFreeCount[i] * uint64(gc.SizeClassToSize[i])
 		}
 		slow.Frees += m.tinyAllocCount + m.largeFreeCount
 		slow.Mallocs += slow.Frees

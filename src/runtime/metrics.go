@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"internal/godebugs"
+	"internal/runtime/gc"
 	"unsafe"
 )
 
@@ -62,12 +63,12 @@ func initMetrics() {
 		return
 	}
 
-	sizeClassBuckets = make([]float64, _NumSizeClasses, _NumSizeClasses+1)
+	sizeClassBuckets = make([]float64, gc.NumSizeClasses, gc.NumSizeClasses+1)
 	// Skip size class 0 which is a stand-in for large objects, but large
 	// objects are tracked separately (and they actually get placed in
 	// the last bucket, not the first).
 	sizeClassBuckets[0] = 1 // The smallest allocation is 1 byte in size.
-	for i := 1; i < _NumSizeClasses; i++ {
+	for i := 1; i < gc.NumSizeClasses; i++ {
 		// Size classes have an inclusive upper-bound
 		// and exclusive lower bound (e.g. 48-byte size class is
 		// (32, 48]) whereas we want and inclusive lower-bound
@@ -79,7 +80,7 @@ func initMetrics() {
 		// value up to 2^53 and size classes are relatively small
 		// (nowhere near 2^48 even) so this will give us exact
 		// boundaries.
-		sizeClassBuckets[i] = float64(class_to_size[i] + 1)
+		sizeClassBuckets[i] = float64(gc.SizeClassToSize[i] + 1)
 	}
 	sizeClassBuckets = append(sizeClassBuckets, float64Inf())
 
@@ -615,8 +616,8 @@ func (a *heapStatsAggregate) compute() {
 		nf := a.smallFreeCount[i]
 		a.totalAllocs += na
 		a.totalFrees += nf
-		a.totalAllocated += na * uint64(class_to_size[i])
-		a.totalFreed += nf * uint64(class_to_size[i])
+		a.totalAllocated += na * uint64(gc.SizeClassToSize[i])
+		a.totalFreed += nf * uint64(gc.SizeClassToSize[i])
 	}
 	a.inObjects = a.totalAllocated - a.totalFreed
 	a.numObjects = a.totalAllocs - a.totalFrees

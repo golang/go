@@ -517,7 +517,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 
 	trace := traceAcquire()
 	if trace.ok() {
-		trace.GCSweepSpan(s.npages * _PageSize)
+		trace.GCSweepSpan(s.npages * pageSize)
 		traceRelease(trace)
 	}
 
@@ -981,9 +981,9 @@ func gcPaceSweeper(trigger uint64) {
 		// concurrent sweep are less likely to leave pages
 		// unswept when GC starts.
 		heapDistance -= 1024 * 1024
-		if heapDistance < _PageSize {
+		if heapDistance < pageSize {
 			// Avoid setting the sweep ratio extremely high
-			heapDistance = _PageSize
+			heapDistance = pageSize
 		}
 		pagesSwept := mheap_.pagesSwept.Load()
 		pagesInUse := mheap_.pagesInUse.Load()

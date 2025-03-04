@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"internal/runtime/atomic"
+	"internal/runtime/gc"
 	"unsafe"
 )
 
@@ -397,23 +398,23 @@ func readmemstats_m(stats *MemStats) {
 	nFree := consStats.largeFreeCount
 
 	// Collect per-sizeclass stats.
-	var bySize [_NumSizeClasses]struct {
+	var bySize [gc.NumSizeClasses]struct {
 		Size    uint32
 		Mallocs uint64
 		Frees   uint64
 	}
 	for i := range bySize {
-		bySize[i].Size = uint32(class_to_size[i])
+		bySize[i].Size = uint32(gc.SizeClassToSize[i])
 
 		// Malloc stats.
 		a := consStats.smallAllocCount[i]
-		totalAlloc += a * uint64(class_to_size[i])
+		totalAlloc += a * uint64(gc.SizeClassToSize[i])
 		nMalloc += a
 		bySize[i].Mallocs = a
 
 		// Free stats.
 		f := consStats.smallFreeCount[i]
-		totalFree += f * uint64(class_to_size[i])
+		totalFree += f * uint64(gc.SizeClassToSize[i])
 		nFree += f
 		bySize[i].Frees = f
 	}
@@ -678,13 +679,13 @@ type heapStatsDelta struct {
 	//
 	// These are all uint64 because they're cumulative, and could quickly wrap
 	// around otherwise.
-	tinyAllocCount  uint64                  // number of tiny allocations
-	largeAlloc      uint64                  // bytes allocated for large objects
-	largeAllocCount uint64                  // number of large object allocations
-	smallAllocCount [_NumSizeClasses]uint64 // number of allocs for small objects
-	largeFree       uint64                  // bytes freed for large objects (>maxSmallSize)
-	largeFreeCount  uint64                  // number of frees for large objects (>maxSmallSize)
-	smallFreeCount  [_NumSizeClasses]uint64 // number of frees for small objects (<=maxSmallSize)
+	tinyAllocCount  uint64                    // number of tiny allocations
+	largeAlloc      uint64                    // bytes allocated for large objects
+	largeAllocCount uint64                    // number of large object allocations
+	smallAllocCount [gc.NumSizeClasses]uint64 // number of allocs for small objects
+	largeFree       uint64                    // bytes freed for large objects (>maxSmallSize)
+	largeFreeCount  uint64                    // number of frees for large objects (>maxSmallSize)
+	smallFreeCount  [gc.NumSizeClasses]uint64 // number of frees for small objects (<=maxSmallSize)
 
 	// NOTE: This struct must be a multiple of 8 bytes in size because it
 	// is stored in an array. If it's not, atomic accesses to the above

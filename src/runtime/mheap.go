@@ -13,6 +13,7 @@ import (
 	"internal/cpu"
 	"internal/goarch"
 	"internal/runtime/atomic"
+	"internal/runtime/gc"
 	"internal/runtime/sys"
 	"unsafe"
 )
@@ -514,7 +515,7 @@ func (s *mspan) base() uintptr {
 }
 
 func (s *mspan) layout() (size, n, total uintptr) {
-	total = s.npages << _PageShift
+	total = s.npages << gc.PageShift
 	size = s.elemsize
 	if size > 0 {
 		n = total / size
@@ -576,7 +577,7 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 type spanClass uint8
 
 const (
-	numSpanClasses = _NumSizeClasses << 1
+	numSpanClasses = gc.NumSizeClasses << 1
 	tinySpanClass  = spanClass(tinySizeClass<<1 | 1)
 )
 
@@ -1423,14 +1424,14 @@ func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base,
 			s.nelems = 1
 			s.divMul = 0
 		} else {
-			s.elemsize = uintptr(class_to_size[sizeclass])
+			s.elemsize = uintptr(gc.SizeClassToSize[sizeclass])
 			if !s.spanclass.noscan() && heapBitsInSpan(s.elemsize) {
 				// Reserve space for the pointer/scan bitmap at the end.
 				s.nelems = uint16((nbytes - (nbytes / goarch.PtrSize / 8)) / s.elemsize)
 			} else {
 				s.nelems = uint16(nbytes / s.elemsize)
 			}
-			s.divMul = class_to_divmagic[sizeclass]
+			s.divMul = gc.SizeClassToDivMagic[sizeclass]
 		}
 
 		// Initialize mark and allocation structures.
@@ -1589,13 +1590,13 @@ func (h *mheap) freeSpan(s *mspan) {
 		if msanenabled {
 			// Tell msan that this entire span is no longer in use.
 			base := unsafe.Pointer(s.base())
-			bytes := s.npages << _PageShift
+			bytes := s.npages << gc.PageShift
 			msanfree(base, bytes)
 		}
 		if asanenabled {
 			// Tell asan that this entire span is no longer in use.
 			base := unsafe.Pointer(s.base())
-			bytes := s.npages << _PageShift
+			bytes := s.npages << gc.PageShift
 			asanpoison(base, bytes)
 		}
 		h.freeSpanLocked(s, spanAllocHeap)

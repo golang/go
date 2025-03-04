@@ -289,29 +289,29 @@ func maxObjsPerSpan(classes []class) int {
 
 func printClasses(w io.Writer, classes []class) {
 	fmt.Fprintln(w, "const (")
-	fmt.Fprintf(w, "minHeapAlign = %d\n", minHeapAlign)
-	fmt.Fprintf(w, "_MaxSmallSize = %d\n", maxSmallSize)
-	fmt.Fprintf(w, "smallSizeDiv = %d\n", smallSizeDiv)
-	fmt.Fprintf(w, "smallSizeMax = %d\n", smallSizeMax)
-	fmt.Fprintf(w, "largeSizeDiv = %d\n", largeSizeDiv)
-	fmt.Fprintf(w, "_NumSizeClasses = %d\n", len(classes))
-	fmt.Fprintf(w, "_PageShift = %d\n", pageShift)
-	fmt.Fprintf(w, "maxObjsPerSpan = %d\n", maxObjsPerSpan(classes))
+	fmt.Fprintf(w, "MinHeapAlign = %d\n", minHeapAlign)
+	fmt.Fprintf(w, "MaxSmallSize = %d\n", maxSmallSize)
+	fmt.Fprintf(w, "SmallSizeDiv = %d\n", smallSizeDiv)
+	fmt.Fprintf(w, "SmallSizeMax = %d\n", smallSizeMax)
+	fmt.Fprintf(w, "LargeSizeDiv = %d\n", largeSizeDiv)
+	fmt.Fprintf(w, "NumSizeClasses = %d\n", len(classes))
+	fmt.Fprintf(w, "PageShift = %d\n", pageShift)
+	fmt.Fprintf(w, "MaxObjsPerSpan = %d\n", maxObjsPerSpan(classes))
 	fmt.Fprintln(w, ")")
 
-	fmt.Fprint(w, "var class_to_size = [_NumSizeClasses]uint16 {")
+	fmt.Fprint(w, "var SizeClassToSize = [NumSizeClasses]uint16 {")
 	for _, c := range classes {
 		fmt.Fprintf(w, "%d,", c.size)
 	}
 	fmt.Fprintln(w, "}")
 
-	fmt.Fprint(w, "var class_to_allocnpages = [_NumSizeClasses]uint8 {")
+	fmt.Fprint(w, "var SizeClassToNPages = [NumSizeClasses]uint8 {")
 	for _, c := range classes {
 		fmt.Fprintf(w, "%d,", c.npages)
 	}
 	fmt.Fprintln(w, "}")
 
-	fmt.Fprint(w, "var class_to_divmagic = [_NumSizeClasses]uint32 {")
+	fmt.Fprint(w, "var SizeClassToDivMagic = [NumSizeClasses]uint32 {")
 	for _, c := range classes {
 		if c.size == 0 {
 			fmt.Fprintf(w, "0,")
@@ -332,7 +332,7 @@ func printClasses(w io.Writer, classes []class) {
 			}
 		}
 	}
-	fmt.Fprint(w, "var size_to_class8 = [smallSizeMax/smallSizeDiv+1]uint8 {")
+	fmt.Fprint(w, "var SizeToSizeClass8 = [SmallSizeMax/SmallSizeDiv+1]uint8 {")
 	for _, v := range sc {
 		fmt.Fprintf(w, "%d,", v)
 	}
@@ -349,7 +349,7 @@ func printClasses(w io.Writer, classes []class) {
 			}
 		}
 	}
-	fmt.Fprint(w, "var size_to_class128 = [(_MaxSmallSize-smallSizeMax)/largeSizeDiv+1]uint8 {")
+	fmt.Fprint(w, "var SizeToSizeClass128 = [(MaxSmallSize-SmallSizeMax)/LargeSizeDiv+1]uint8 {")
 	for _, v := range sc {
 		fmt.Fprintf(w, "%d,", v)
 	}

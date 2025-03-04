@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/runtime/atomic"
+	"internal/runtime/gc"
 	"internal/runtime/sys"
 	"unsafe"
 )
@@ -218,18 +219,18 @@ func (c *mcache) refill(spc spanClass) {
 
 // allocLarge allocates a span for a large object.
 func (c *mcache) allocLarge(size uintptr, noscan bool) *mspan {
-	if size+_PageSize < size {
+	if size+pageSize < size {
 		throw("out of memory")
 	}
-	npages := size >> _PageShift
-	if size&_PageMask != 0 {
+	npages := size >> gc.PageShift
+	if size&pageMask != 0 {
 		npages++
 	}
 
 	// Deduct credit for this span allocation and sweep if
 	// necessary. mHeap_Alloc will also sweep npages, so this only
 	// pays the debt down to npage pages.
-	deductSweepCredit(npages*_PageSize, npages)
+	deductSweepCredit(npages*pageSize, npages)
 
 	spc := makeSpanClass(0, noscan)
 	s := mheap_.alloc(npages, spc)

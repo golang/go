@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/runtime/gc"
 	"internal/runtime/sys"
 	"internal/trace/tracev2"
 )
@@ -38,7 +39,7 @@ func traceSnapshotMemory(gen uintptr) {
 	// Emit info.
 	w.varint(uint64(trace.minPageHeapAddr))
 	w.varint(uint64(pageSize))
-	w.varint(uint64(minHeapAlign))
+	w.varint(uint64(gc.MinHeapAlign))
 	w.varint(uint64(fixedStack))
 
 	// Finish writing the batch.
@@ -129,7 +130,7 @@ func (tl traceLocker) HeapObjectFree(addr uintptr) {
 
 // traceHeapObjectID creates a trace ID for a heap object at address addr.
 func traceHeapObjectID(addr uintptr) traceArg {
-	return traceArg(uint64(addr)-trace.minPageHeapAddr) / minHeapAlign
+	return traceArg(uint64(addr)-trace.minPageHeapAddr) / gc.MinHeapAlign
 }
 
 // GoroutineStackExists records that a goroutine stack already exists at address base with the provided size.

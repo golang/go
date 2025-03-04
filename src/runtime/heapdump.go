@@ -14,6 +14,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/runtime/gc"
 	"unsafe"
 )
 
@@ -471,7 +472,7 @@ func dumproots() {
 
 // Bit vector of free marks.
 // Needs to be as big as the largest number of objects per span.
-var freemark [_PageSize / 8]bool
+var freemark [pageSize / 8]bool
 
 func dumpobjs() {
 	// To protect mheap_.allspans.
@@ -483,7 +484,7 @@ func dumpobjs() {
 		}
 		p := s.base()
 		size := s.elemsize
-		n := (s.npages << _PageShift) / size
+		n := (s.npages << gc.PageShift) / size
 		if n > uintptr(len(freemark)) {
 			throw("freemark array doesn't have enough entries")
 		}
