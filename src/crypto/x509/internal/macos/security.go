@@ -122,25 +122,6 @@ func SecTrustEvaluateWithError(trustObj CFRef) (int, error) {
 }
 func x509_SecTrustEvaluateWithError_trampoline()
 
-//go:cgo_import_dynamic x509_SecTrustGetCertificateCount SecTrustGetCertificateCount "/System/Library/Frameworks/Security.framework/Versions/A/Security"
-
-func SecTrustGetCertificateCount(trustObj CFRef) int {
-	ret := syscall(abi.FuncPCABI0(x509_SecTrustGetCertificateCount_trampoline), uintptr(trustObj), 0, 0, 0, 0, 0)
-	return int(ret)
-}
-func x509_SecTrustGetCertificateCount_trampoline()
-
-//go:cgo_import_dynamic x509_SecTrustGetCertificateAtIndex SecTrustGetCertificateAtIndex "/System/Library/Frameworks/Security.framework/Versions/A/Security"
-
-func SecTrustGetCertificateAtIndex(trustObj CFRef, i int) (CFRef, error) {
-	ret := syscall(abi.FuncPCABI0(x509_SecTrustGetCertificateAtIndex_trampoline), uintptr(trustObj), uintptr(i), 0, 0, 0, 0)
-	if ret == 0 {
-		return 0, OSStatus{"SecTrustGetCertificateAtIndex", int32(ret)}
-	}
-	return CFRef(ret), nil
-}
-func x509_SecTrustGetCertificateAtIndex_trampoline()
-
 //go:cgo_import_dynamic x509_SecCertificateCopyData SecCertificateCopyData "/System/Library/Frameworks/Security.framework/Versions/A/Security"
 
 func SecCertificateCopyData(cert CFRef) ([]byte, error) {
@@ -153,3 +134,14 @@ func SecCertificateCopyData(cert CFRef) ([]byte, error) {
 	return b, nil
 }
 func x509_SecCertificateCopyData_trampoline()
+
+//go:cgo_import_dynamic x509_SecTrustCopyCertificateChain SecTrustCopyCertificateChain "/System/Library/Frameworks/Security.framework/Versions/A/Security"
+
+func SecTrustCopyCertificateChain(trustObj CFRef) (CFRef, error) {
+	ret := syscall(abi.FuncPCABI0(x509_SecTrustCopyCertificateChain_trampoline), uintptr(trustObj), 0, 0, 0, 0, 0)
+	if ret == 0 {
+		return 0, OSStatus{"SecTrustCopyCertificateChain", int32(ret)}
+	}
+	return CFRef(ret), nil
+}
+func x509_SecTrustCopyCertificateChain_trampoline()
