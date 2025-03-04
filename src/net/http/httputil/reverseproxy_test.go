@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -1559,6 +1560,11 @@ func TestReverseProxyWebSocketHalfTCP(t *testing.T) {
 	//   either the read or write streams
 	// - that closing the write stream is propagated through the proxy and results in reading
 	//   EOF at the other end of the connection
+
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
 
 	mustRead := func(t *testing.T, conn *net.TCPConn, msg string) {
 		b := make([]byte, len(msg))
