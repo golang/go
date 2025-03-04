@@ -10,6 +10,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"internal/runtime/atomic"
+	"internal/runtime/gc"
 	"internal/runtime/sys"
 	"unsafe"
 )
@@ -467,7 +468,7 @@ func SetFinalizer(obj any, finalizer any) {
 
 	// Move base forward if we've got an allocation header.
 	if !span.spanclass.noscan() && !heapBitsInSpan(span.elemsize) && span.spanclass.sizeclass() != 0 {
-		base += mallocHeaderSize
+		base += gc.MallocHeaderSize
 	}
 
 	if uintptr(e.data) != base {

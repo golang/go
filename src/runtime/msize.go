@@ -15,10 +15,10 @@ import "internal/runtime/gc"
 // minus any inline space for metadata.
 func roundupsize(size uintptr, noscan bool) (reqSize uintptr) {
 	reqSize = size
-	if reqSize <= maxSmallSize-mallocHeaderSize {
+	if reqSize <= maxSmallSize-gc.MallocHeaderSize {
 		// Small object.
-		if !noscan && reqSize > minSizeForMallocHeader { // !noscan && !heapBitsInSpan(reqSize)
-			reqSize += mallocHeaderSize
+		if !noscan && reqSize > gc.MinSizeForMallocHeader { // !noscan && !heapBitsInSpan(reqSize)
+			reqSize += gc.MallocHeaderSize
 		}
 		// (reqSize - size) is either mallocHeaderSize or 0. We need to subtract mallocHeaderSize
 		// from the result if we have one, since mallocgc will add it back in.

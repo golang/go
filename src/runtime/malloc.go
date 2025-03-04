@@ -116,7 +116,11 @@ const (
 	maxSmallSize  = gc.MaxSmallSize
 	pageSize      = 1 << gc.PageShift
 	pageMask      = pageSize - 1
-	_PageSize     = pageSize // Unused. Left for viewcore.
+
+	// Unused. Left for viewcore.
+	_PageSize              = pageSize
+	minSizeForMallocHeader = gc.MinSizeForMallocHeader
+	mallocHeaderSize       = gc.MallocHeaderSize
 
 	// _64bit = 1 on 64-bit systems, 0 on 32-bit systems
 	_64bit = 1 << (^uintptr(0) >> 63) / 2
@@ -434,7 +438,7 @@ func mallocinit() {
 		if gc.SizeClassToNPages[i] > 1 {
 			sizeClassesUpToMinSizeForMallocHeaderAreOnePage = false
 		}
-		if minSizeForMallocHeader == uintptr(gc.SizeClassToSize[i]) {
+		if gc.MinSizeForMallocHeader == uintptr(gc.SizeClassToSize[i]) {
 			minSizeForMallocHeaderIsSizeClass = true
 			break
 		}
@@ -447,7 +451,7 @@ func mallocinit() {
 	}
 	// Check that the pointer bitmap for all small sizes without a malloc header
 	// fits in a word.
-	if minSizeForMallocHeader/goarch.PtrSize > 8*goarch.PtrSize {
+	if gc.MinSizeForMallocHeader/goarch.PtrSize > 8*goarch.PtrSize {
 		throw("max pointer/scan bitmap size for headerless objects is too large")
 	}
 
@@ -1042,7 +1046,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	// Actually do the allocation.
 	var x unsafe.Pointer
 	var elemsize uintptr
-	if size <= maxSmallSize-mallocHeaderSize {
+	if size <= maxSmallSize-gc.MallocHeaderSize {
 		if typ == nil || !typ.Pointers() {
 			if size < maxTinySize {
 				x, elemsize = mallocgcTiny(size, typ)
@@ -1074,8 +1078,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		// Poison the space between the end of the requested size of x
 		// and the end of the slot. Unpoison the requested allocation.
 		frag := elemsize - size
-		if typ != nil && typ.Pointers() && !heapBitsInSpan(elemsize) && size <= maxSmallSize-mallocHeaderSize {
-			frag -= mallocHeaderSize
+		if typ != nil && typ.Pointers() && !heapBitsInSpan(elemsize) && size <= maxSmallSize-gc.MallocHeaderSize {
+			frag -= gc.MallocHeaderSize
 		}
 		asanpoison(unsafe.Add(x, size-asanRZ), asanRZ)
 		asanunpoison(x, size-asanRZ)
@@ -1449,7 +1453,7 @@ func mallocgcSmallScanHeader(size uintptr, typ *_type) (unsafe.Pointer, uintptr)
 
 	checkGCTrigger := false
 	c := getMCache(mp)
-	size += mallocHeaderSize
+	size += gc.MallocHeaderSize
 	var sizeclass uint8
 	if size <= gc.SmallSizeMax-8 {
 		sizeclass = gc.SizeToSizeClass8[divRoundUp(size, gc.SmallSizeDiv)]
@@ -1468,8 +1472,8 @@ func mallocgcSmallScanHeader(size uintptr, typ *_type) (unsafe.Pointer, uintptr)
 		memclrNoHeapPointers(x, size)
 	}
 	header := (**_type)(x)
-	x = add(x, mallocHeaderSize)
-	c.scanAlloc += heapSetTypeSmallHeader(uintptr(x), size-mallocHeaderSize, typ, header, span)
+	x = add(x, gc.MallocHeaderSize)
+	c.scanAlloc += heapSetTypeSmallHeader(uintptr(x), size-gc.MallocHeaderSize, typ, header, span)
 
 	// Ensure that the stores above that initialize x to
 	// type-safe memory and set the heap bits occur before
