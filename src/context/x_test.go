@@ -8,6 +8,7 @@ import (
 	. "context"
 	"errors"
 	"fmt"
+	"internal/asan"
 	"math/rand"
 	"runtime"
 	"strings"
@@ -264,6 +265,9 @@ func TestValues(t *testing.T) {
 }
 
 func TestAllocs(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("test allocates more with -asan")
+	}
 	bg := Background()
 	for _, test := range []struct {
 		desc       string
