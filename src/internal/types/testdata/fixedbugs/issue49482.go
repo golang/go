@@ -13,7 +13,7 @@ const P = 2 // declare P to avoid noisy 'undefined' errors below.
 
 // The following parse as invalid array types due to parsing ambiguitiues.
 type _ [P *int /* ERROR "int (type) is not an expression" */ ]int
-type _ [P /* ERROR "non-function P" */ (*int)]int
+type _ [P /* ERROR "cannot call P (untyped int constant 2): untyped int is not a function" */ (*int)]int
 
 // Adding a trailing comma or an enclosing interface resolves the ambiguity.
 type _[P *int,] int

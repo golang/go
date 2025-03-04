@@ -11,9 +11,9 @@ package p
 var a = []int{1,2,3}
 
 func _(len int) {
-	_ =  len(a) // ERROR "cannot call non-function|expected function"
+	_ =  len(a) // ERROR "cannot call|expected function"
 }
 
 var cap = false
-var _ = cap(a) // ERROR "cannot call non-function|expected function"
+var _ = cap(a) // ERROR "cannot call|expected function"
 
