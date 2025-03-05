@@ -256,8 +256,6 @@ func TestCallDepth(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			// some of these calls uses os.Exit() to spawn a command and capture output
 			const envVar = "LOGTEST_CALL_DEPTH"
 			if os.Getenv(envVar) == "1" {
