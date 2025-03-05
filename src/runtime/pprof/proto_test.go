@@ -73,7 +73,10 @@ func TestConvertCPUProfileNoSamples(t *testing.T) {
 	checkProfile(t, p, 2000*1000, periodType, sampleType, nil, "")
 }
 
+//go:noinline
 func f1() { f1() }
+
+//go:noinline
 func f2() { f2() }
 
 // testPCs returns two PCs and two corresponding memory mappings

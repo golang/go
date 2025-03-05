@@ -170,19 +170,8 @@ func CanInlineFuncs(funcs []*ir.Func, profile *pgoir.Profile) {
 	}
 
 	ir.VisitFuncsBottomUp(funcs, func(funcs []*ir.Func, recursive bool) {
-		numfns := numNonClosures(funcs)
-
 		for _, fn := range funcs {
-			if !recursive || numfns > 1 {
-				// We allow inlining if there is no
-				// recursion, or the recursion cycle is
-				// across more than one function.
-				CanInline(fn, profile)
-			} else {
-				if base.Flag.LowerM > 1 && fn.OClosure == nil {
-					fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(fn), fn.Nname)
-				}
-			}
+			CanInline(fn, profile)
 			if inlheur.Enabled() {
 				analyzeFuncProps(fn, profile)
 			}
@@ -1018,68 +1007,6 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
 		if p.Line() == calleeInner.Line() && p.Col() == calleeInner.Col() && p.AbsFilename() == calleeInner.AbsFilename() {
 			if log && logopt.Enabled() {
 				logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to %s", ir.FuncName(callerfn)))
-			}
-			return false, 0, false
-		}
-	}
-
-	if callee == callerfn {
-		// Can't recursively inline a function into itself.
-		if log && logopt.Enabled() {
-			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to %s", ir.FuncName(callerfn)))
-		}
-		return false, 0, false
-	}
-
-	isClosureParent := func(closure, parent *ir.Func) bool {
-		for p := closure.ClosureParent; p != nil; p = p.ClosureParent {
-			if p == parent {
-				return true
-			}
-		}
-		return false
-	}
-	if isClosureParent(callerfn, callee) {
-		// Can't recursively inline a parent of the closure into itself.
-		if log && logopt.Enabled() {
-			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to closure parent: %s, %s", ir.FuncName(callerfn), ir.FuncName(callee)))
-		}
-		return false, 0, false
-	}
-	if isClosureParent(callee, callerfn) {
-		// Can't recursively inline a closure if there's a call to the parent in closure body.
-		if ir.Any(callee, func(node ir.Node) bool {
-			if call, ok := node.(*ir.CallExpr); ok {
-				if name, ok := call.Fun.(*ir.Name); ok && isClosureParent(callerfn, name.Func) {
-					return true
-				}
-			}
-			return false
-		}) {
-			if log && logopt.Enabled() {
-				logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to closure parent: %s, %s", ir.FuncName(callerfn), ir.FuncName(callee)))
-			}
-			return false, 0, false
-		}
-	}
-	do := func(fn *ir.Func) bool {
-		// Can't recursively inline a function if the function body contains
-		// a call to a function f, which the function f is one of the call arguments.
-		return ir.Any(fn, func(node ir.Node) bool {
-			if call, ok := node.(*ir.CallExpr); ok {
-				for _, arg := range call.Args {
-					if call.Fun == arg {
-						return true
-					}
-				}
-			}
-			return false
-		})
-	}
-	for _, fn := range []*ir.Func{callerfn, callee} {
-		if do(fn) {
-			if log && logopt.Enabled() {
-				logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to function: %s", ir.FuncName(fn)))
 			}
 			return false, 0, false
 		}

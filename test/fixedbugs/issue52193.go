@@ -11,14 +11,14 @@ package p
 
 func f() { // ERROR "can inline f"
 	var i interface{ m() } = T(0) // ERROR "T\(0\) does not escape"
-	i.m()                         // ERROR "devirtualizing i.m" "inlining call to T.m"
+	i.m()                         // ERROR "devirtualizing i.m" "inlining call to T.m" "inlining call to f" "T\(0\) does not escape"
 }
 
 type T int
 
 func (T) m() { // ERROR "can inline T.m"
 	if never {
-		f() // ERROR "inlining call to f" "devirtualizing i.m" "T\(0\) does not escape"
+		f() // ERROR "inlining call to f" "devirtualizing i.m" "T\(0\) does not escape" "inlining call to T.m"
 	}
 }
 
