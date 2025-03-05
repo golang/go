@@ -13,8 +13,8 @@ import (
 	"time"
 )
 
-// These constants are copied from the flate package, so that code that imports
-// "compress/gzip" does not also have to import "compress/flate".
+// These constants are copied from the [flate] package, so that code that imports
+// [compress/gzip] does not also have to import [compress/flate].
 const (
 	NoCompression      = flate.NoCompression
 	BestSpeed          = flate.BestSpeed
@@ -23,7 +23,7 @@ const (
 	HuffmanOnly        = flate.HuffmanOnly
 )
 
-// A Writer is an io.WriteCloser.
+// A Writer is an [io.WriteCloser].
 // Writes to a Writer are compressed and written to w.
 type Writer struct {
 	Header      // written at first call to Write, Flush, or Close
@@ -44,7 +44,7 @@ type Writer struct {
 // It is the caller's responsibility to call Close on the [Writer] when done.
 // Writes may be buffered and not flushed until Close.
 //
-// Callers that wish to set the fields in Writer.Header must do so before
+// Callers that wish to set the fields in Writer.[Header] must do so before
 // the first call to Write, Flush, or Close.
 func NewWriter(w io.Writer) *Writer {
 	z, _ := NewWriterLevel(w, DefaultCompression)

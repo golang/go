@@ -86,9 +86,9 @@ type Reader struct {
 // If r does not also implement [io.ByteReader],
 // the decompressor may read more data than necessary from r.
 //
-// It is the caller's responsibility to call Close on the [Reader] when done.
+// It is the caller's responsibility to call [Reader.Close] when done.
 //
-// The [Reader.Header] fields will be valid in the [Reader] returned.
+// The Reader.[Header] fields will be valid in the [Reader] returned.
 func NewReader(r io.Reader) (*Reader, error) {
 	z := new(Reader)
 	if err := z.Reset(r); err != nil {
