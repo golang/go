@@ -733,6 +733,27 @@ func testFileServerZeroByte(t *testing.T, mode testMode) {
 	}
 }
 
+func TestFileServerNullByte(t *testing.T) { run(t, testFileServerNullByte) }
+func testFileServerNullByte(t *testing.T, mode testMode) {
+	ts := newClientServerTest(t, mode, FileServer(Dir("testdata"))).ts
+
+	for _, path := range []string{
+		"/file%00",
+		"/%00",
+		"/file/qwe/%00",
+	} {
+		res, err := ts.Client().Get(ts.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if res.StatusCode != 404 {
+			t.Errorf("Get(%q): got status %v, want 404", path, res.StatusCode)
+		}
+
+	}
+}
+
 func TestFileServerNamesEscape(t *testing.T) { run(t, testFileServerNamesEscape) }
 func testFileServerNamesEscape(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, FileServer(Dir("testdata"))).ts
