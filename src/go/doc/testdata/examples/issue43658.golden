@@ -55,7 +55,6 @@ func main() {
 		fmt.Printf("Low:%.2v High:%.2v Score:%v Communities:%v Q=%.3v\n",
 			d.Low, d.High, d.Score, comm, community.Q(g, comm, d.Low))
 	}
-
 }
 
 // intset is an integer set.
@@ -141,7 +140,6 @@ func main() {
 		fmt.Printf("Low:%.2v High:%.2v Score:%v Communities:%v Q=%.3v\n",
 			d.Low, d.High, d.Score, comm, community.QMultiplex(g, comm, weights, []float64{d.Low}))
 	}
-
 }
 -- Profile_multiplex.Output --
 Low:0.1 High:0.72 Score:26 Communities:[[0] [1 7 9 12] [2 8 11] [3 4 5 10] [6]] Q=[24.7 1.97]

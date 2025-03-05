@@ -336,3 +336,61 @@ func mustParse(fset *token.FileSet, filename, src string) *ast.File {
 	}
 	return f
 }
+
+func TestExampleTrailingNewlines(t *testing.T) {
+	want := `package main
+
+import (
+	"fmt"
+)
+
+func main() {
+	fmt.Println("Hello, World")
+}
+`
+	inputs := []string{
+		// With newline
+		`package pkg_test
+
+import "fmt"
+
+func ExampleTest() {
+	fmt.Println("Hello, World")
+
+	// Output: Hello, World
+}`,
+		// Without newline
+		`package pkg_test
+
+import "fmt"
+
+func ExampleTest() {
+	fmt.Println("Hello, World")
+	// Output: Hello, World
+}`,
+		// Without output comment
+		`package pkg_test
+
+import "fmt"
+
+func ExampleTest() {
+	fmt.Println("Hello, World")
+}`,
+	}
+
+	fset := token.NewFileSet()
+	for _, in := range inputs {
+		f, err := parser.ParseFile(fset, "", in, parser.ParseComments)
+		if err != nil {
+			t.Log("parse file:", err)
+			t.Fatal(err)
+		}
+
+		ex := doc.Examples(f)[0]
+		got := formatFile(t, fset, ex.Play)
+		if got != want {
+			t.Errorf("%s mismatch:\n",
+				diff.Diff("want", []byte(want), "got", []byte(got)))
+		}
+	}
+}

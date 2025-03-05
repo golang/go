@@ -579,11 +579,18 @@ func stripOutputComment(body *ast.BlockStmt, comments []*ast.CommentGroup) (*ast
 		return body, comments
 	}
 
+	// Fix golang.org/issue/72098
+	//
+	// Removed 1 character before "}" remove trailing newline or places "}" in front of
+	// the last statement. It's ok because printer.linebreak() will add the necessary
+	// newline. Also to undo the addition made by BlockStmt.End(), 2 subtracted.
+	rbracePos := last.Pos() - 2
+
 	// Copy body and comments, as the originals may be used elsewhere.
 	newBody := &ast.BlockStmt{
 		Lbrace: body.Lbrace,
 		List:   body.List,
-		Rbrace: last.Pos(),
+		Rbrace: rbracePos,
 	}
 	newComments := make([]*ast.CommentGroup, len(comments)-1)
 	copy(newComments, comments[:i])
