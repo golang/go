@@ -88,6 +88,7 @@ func f5_int8(a [10]int) int {
 	return x
 }
 
+//go:noinline
 func f6(a []int) {
 	for i := range a { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
 		b := a[0:i] // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"

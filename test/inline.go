@@ -280,13 +280,13 @@ func ff(x int) { // ERROR "can inline ff"
 	if x < 0 {
 		return
 	}
-	gg(x - 1) // ERROR "inlining call to gg" "inlining call to hh"
+	gg(x - 1) // ERROR "inlining call to gg" "inlining call to hh" "inlining call to ff"
 }
 func gg(x int) { // ERROR "can inline gg"
-	hh(x - 1) // ERROR "inlining call to hh" "inlining call to ff"
+	hh(x - 1) // ERROR "inlining call to hh" "inlining call to ff" "inlining call to gg"
 }
 func hh(x int) { // ERROR "can inline hh"
-	ff(x - 1) // ERROR "inlining call to ff" "inlining call to gg"
+	ff(x - 1) // ERROR "inlining call to ff" "inlining call to gg" "inlining call to hh"
 }
 
 // Issue #14768 - make sure we can inline for loops.
@@ -332,9 +332,9 @@ func ii() { // ERROR "can inline ii"
 // Issue #42194 - make sure that functions evaluated in
 // go and defer statements can be inlined.
 func gd1(int) {
-	defer gd1(gd2()) // ERROR "inlining call to gd2"
+	defer gd1(gd2()) // ERROR "inlining call to gd2" "can inline gd1.deferwrap1"
 	defer gd3()()    // ERROR "inlining call to gd3"
-	go gd1(gd2())    // ERROR "inlining call to gd2"
+	go gd1(gd2())    // ERROR "inlining call to gd2" "can inline gd1.gowrap2"
 	go gd3()()       // ERROR "inlining call to gd3"
 }
 
