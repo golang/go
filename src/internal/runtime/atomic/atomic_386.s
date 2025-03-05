@@ -5,7 +5,7 @@
 #include "textflag.h"
 #include "funcdata.h"
 
-// func Cas(val *int32, old int32, new int32) bool
+// func Cas(val *int32, old, new int32) bool
 // Atomically:
 //	if *val == old {
 //		*val = new
@@ -64,7 +64,7 @@ TEXT ·Xaddint32(SB), NOSPLIT, $0-12
 TEXT ·Xaddint64(SB), NOSPLIT, $0-20
 	JMP	·Xadd64(SB)
 
-// func Cas64(val *uint64, old uint64, new uint64) bool
+// func Cas64(val *uint64, old, new uint64) bool
 // Atomically:
 //	if *val == old {
 //		*val = new
