@@ -274,8 +274,6 @@ func TestCallDepthConnection(t *testing.T) {
 
 	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			// inside spawned test executable
 			const envVar = "SLOGTEST_CALL_DEPTH_CONNECTION"
 			if os.Getenv(envVar) == "1" {
