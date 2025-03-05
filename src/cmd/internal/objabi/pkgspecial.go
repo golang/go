@@ -43,6 +43,9 @@ type PkgSpecial struct {
 }
 
 var runtimePkgs = []string{
+	// TODO(panjf2000): consider syncing the list inside the
+	// 	isAsyncSafePoint in preempt.go based on this list?
+
 	"runtime",
 
 	"internal/runtime/atomic",
