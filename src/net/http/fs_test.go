@@ -234,6 +234,31 @@ func TestServeFile_DotDot(t *testing.T) {
 	}
 }
 
+func TestServeFile_InvalidUnsafePath(t *testing.T) {
+	tests := []struct {
+		req        string
+		wantStatus int
+	}{
+		{"/testdata/file", 200},
+		{"/%00/file", 404},
+		{"/file%00", 404},
+		{"/%00", 404},
+	}
+	for _, tt := range tests {
+		req, err := ReadRequest(bufio.NewReader(strings.NewReader("GET " + tt.req + " HTTP/1.1\r\nHost: foo\r\n\r\n")))
+		if err != nil {
+			t.Errorf("bad request %q: %v", tt.req, err)
+			continue
+		}
+		rec := httptest.NewRecorder()
+		ServeFile(rec, req, "testdata/file")
+		if rec.Code != tt.wantStatus {
+			t.Logf("%v", rec.Result())
+			t.Errorf("for request %q, status = %d; want %d", tt.req, rec.Code, tt.wantStatus)
+		}
+	}
+}
+
 // Tests that this doesn't panic. (Issue 30165)
 func TestServeFileDirPanicEmptyPath(t *testing.T) {
 	rec := httptest.NewRecorder()
@@ -730,6 +755,27 @@ func testFileServerZeroByte(t *testing.T, mode testMode) {
 	}
 	if res.StatusCode == 200 {
 		t.Errorf("got status 200; want an error. Body is:\n%s", got.Bytes())
+	}
+}
+
+func TestFileServerNullByte(t *testing.T) { run(t, testFileServerNullByte) }
+func testFileServerNullByte(t *testing.T, mode testMode) {
+	ts := newClientServerTest(t, mode, FileServer(Dir("testdata"))).ts
+
+	for _, path := range []string{
+		"/file%00",
+		"/%00",
+		"/file/qwe/%00",
+	} {
+		res, err := ts.Client().Get(ts.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if res.StatusCode != 404 {
+			t.Errorf("Get(%q): got status %v, want 404", path, res.StatusCode)
+		}
+
 	}
 }
 
