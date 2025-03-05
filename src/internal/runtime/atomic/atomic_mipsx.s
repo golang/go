@@ -6,14 +6,14 @@
 
 #include "textflag.h"
 
-// bool Cas(int32 *val, int32 old, int32 new)
+// func Cas(val *int32, old, new int32) bool
 // Atomically:
-//	if(*val == old){
-//		*val = new;
-//		return 1;
+//	if *val == old {
+//		*val = new
+//		return true
 //	} else
-//		return 0;
-//  }
+//		return false
+//	}
 TEXT ·Cas(SB),NOSPLIT,$0-13
 	MOVW	ptr+0(FP), R1
 	MOVW	old+4(FP), R2

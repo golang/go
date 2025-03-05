@@ -7,14 +7,14 @@
 #include "textflag.h"
 
 // TODO(minux): this is only valid for ARMv6+
-// bool armcas(int32 *val, int32 old, int32 new)
+// func armcas(val *int32, old int32, new int32) bool
 // Atomically:
-//	if(*val == old){
-//		*val = new;
-//		return 1;
-//	}else
-//		return 0;
-//  }
+//	if *val == old {
+//		*val = new
+//		return true
+//	} else {
+//		return false
+//	}
 TEXT	·Cas(SB),NOSPLIT,$0
 	JMP	·armcas(SB)
 

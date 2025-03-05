@@ -5,14 +5,14 @@
 #include "go_asm.h"
 #include "textflag.h"
 
-// bool cas(uint32 *ptr, uint32 old, uint32 new)
+// func Cas(ptr *int32, old, new int32) bool
 // Atomically:
-//	if(*ptr == old){
-//		*ptr = new;
-//		return 1;
-//	} else
-//		return 0;
-//  }
+//	if *ptr == old {
+//		*ptr = new
+//		return true
+//	} else {
+//		return false
+//	}
 TEXT ·Cas(SB), NOSPLIT, $0-17
 	MOVV	ptr+0(FP), R4
 	MOVW	old+8(FP), R5
@@ -46,13 +46,13 @@ cas_fail1:
 	MOVV	$0, R4
 	JMP	-4(PC)
 
-// bool	cas64(uint64 *ptr, uint64 old, uint64 new)
+// func Cas64(ptr *uint64, old, new uint64) bool
 // Atomically:
-//	if(*ptr == old){
-//		*ptr = new;
-//		return 1;
+//	if *ptr == old {
+//		*ptr = new
+//		return true
 //	} else {
-//		return 0;
+//		return false
 //	}
 TEXT ·Cas64(SB), NOSPLIT, $0-25
 	MOVV	ptr+0(FP), R4
@@ -120,14 +120,14 @@ TEXT ·Xaddint32(SB),NOSPLIT,$0-20
 TEXT ·Xaddint64(SB), NOSPLIT, $0-24
 	JMP	·Xadd64(SB)
 
-// bool casp(void **val, void *old, void *new)
+// func Casp(val *unsafe.Pointer, old, new unsafe.Pointer) bool
 // Atomically:
-//	if(*val == old){
-//		*val = new;
-//		return 1;
-//	} else
-//		return 0;
-//  }
+//	if *val == old {
+//		*val = new
+//		return true
+//	} else {
+//		return false
+//	}
 TEXT ·Casp1(SB), NOSPLIT, $0-25
 	JMP	·Cas64(SB)
 
