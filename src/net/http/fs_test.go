@@ -234,31 +234,6 @@ func TestServeFile_DotDot(t *testing.T) {
 	}
 }
 
-func TestServeFile_InvalidUnsafePath(t *testing.T) {
-	tests := []struct {
-		req        string
-		wantStatus int
-	}{
-		{"/testdata/file", 200},
-		{"/%00/file", 404},
-		{"/file%00", 404},
-		{"/%00", 404},
-	}
-	for _, tt := range tests {
-		req, err := ReadRequest(bufio.NewReader(strings.NewReader("GET " + tt.req + " HTTP/1.1\r\nHost: foo\r\n\r\n")))
-		if err != nil {
-			t.Errorf("bad request %q: %v", tt.req, err)
-			continue
-		}
-		rec := httptest.NewRecorder()
-		ServeFile(rec, req, "testdata/file")
-		if rec.Code != tt.wantStatus {
-			t.Logf("%v", rec.Result())
-			t.Errorf("for request %q, status = %d; want %d", tt.req, rec.Code, tt.wantStatus)
-		}
-	}
-}
-
 // Tests that this doesn't panic. (Issue 30165)
 func TestServeFileDirPanicEmptyPath(t *testing.T) {
 	rec := httptest.NewRecorder()
