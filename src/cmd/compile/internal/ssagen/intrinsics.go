@@ -767,11 +767,6 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		sys.ARM64, sys.Loong64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("math", "FMA",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			if !s.config.UseFMA {
-				s.vars[n] = s.callResult(n, callNormal) // types.Types[TFLOAT64]
-				return s.variable(n, types.Types[types.TFLOAT64])
-			}
-
 			if cfg.goamd64 >= 3 {
 				return s.newValue3(ssa.OpFMA, types.Types[types.TFLOAT64], args[0], args[1], args[2])
 			}
@@ -804,10 +799,6 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		sys.AMD64)
 	addF("math", "FMA",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			if !s.config.UseFMA {
-				s.vars[n] = s.callResult(n, callNormal) // types.Types[TFLOAT64]
-				return s.variable(n, types.Types[types.TFLOAT64])
-			}
 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.ARMHasVFPv4, s.sb)
 			v := s.load(types.Types[types.TBOOL], addr)
 			b := s.endBlock()

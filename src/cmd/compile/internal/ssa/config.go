@@ -11,7 +11,6 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
-	"internal/buildcfg"
 )
 
 // A Config holds readonly compilation information.
@@ -48,7 +47,6 @@ type Config struct {
 	SoftFloat      bool      //
 	Race           bool      // race detector enabled
 	BigEndian      bool      //
-	UseFMA         bool      // Use hardware FMA operation
 	unalignedOK    bool      // Unaligned loads/stores are ok
 	haveBswap64    bool      // architecture implements Bswap64
 	haveBswap32    bool      // architecture implements Bswap32
@@ -354,7 +352,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 	}
 	c.ctxt = ctxt
 	c.optimize = optimize
-	c.UseFMA = true
 	c.SoftFloat = softfloat
 	if softfloat {
 		c.floatParamRegs = nil // no FP registers in softfloat mode
@@ -362,12 +359,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 
 	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.Arch.FixedFrameSize, 0)
 	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.Arch.FixedFrameSize, 1)
-
-	// On Plan 9, floating point operations are not allowed in note handler.
-	if buildcfg.GOOS == "plan9" {
-		// Don't use FMA on Plan 9
-		c.UseFMA = false
-	}
 
 	if ctxt.Flag_shared {
 		// LoweredWB is secretly a CALL and CALLs on 386 in
