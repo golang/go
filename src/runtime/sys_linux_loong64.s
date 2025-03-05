@@ -378,6 +378,16 @@ TEXT runtime·rt_sigaction<ABIInternal>(SB),NOSPLIT,$0
 	SYSCALL
 	RET
 
+// Call the function stored in _cgo_sigaction using the GCC calling convention.
+TEXT runtime·callCgoSigaction<ABIInternal>(SB),NOSPLIT,$0
+	// R4: sig, R5: new, R6: old
+	MOVV    _cgo_sigaction(SB), R7
+	SUBV    $16, R3 // reserve 16 bytes for sp-8 where fp may be saved.
+	JAL     (R7)
+	ADDV    $16, R3
+	MOVW    R4, R4
+	RET
+
 // func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
 TEXT runtime·sigfwd<ABIInternal>(SB),NOSPLIT,$0
 	// before:
