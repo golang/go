@@ -258,7 +258,7 @@ func TestCallDepth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			// some of these calls uses os.Exit() so spawn a command and capture output
+			// some of these calls uses os.Exit() to spawn a command and capture output
 			const envVar = "LOGTEST_CALL_DEPTH"
 			if os.Getenv(envVar) == "1" {
 				SetFlags(Lshortfile)
