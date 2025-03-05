@@ -507,7 +507,7 @@ func (z nat) rem(stk *stack, u, v nat) (r nat) {
 		z = nil
 	}
 	defer stk.restore(stk.save())
-	q := stk.nat(len(u) - (len(v) - 1))
+	q := stk.nat(max(1, len(u)-(len(v)-1)))
 	_, r = q.div(stk, z, u, v)
 	return r
 }
