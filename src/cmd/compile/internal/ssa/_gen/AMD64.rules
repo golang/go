@@ -262,10 +262,7 @@
 (Move [2] dst src mem) => (MOVWstore dst (MOVWload src mem) mem)
 (Move [4] dst src mem) => (MOVLstore dst (MOVLload src mem) mem)
 (Move [8] dst src mem) => (MOVQstore dst (MOVQload src mem) mem)
-(Move [16] dst src mem) && config.useSSE => (MOVOstore dst (MOVOload src mem) mem)
-(Move [16] dst src mem) && !config.useSSE =>
-	(MOVQstore [8] dst (MOVQload [8] src mem)
-		(MOVQstore dst (MOVQload src mem) mem))
+(Move [16] dst src mem) => (MOVOstore dst (MOVOload src mem) mem)
 
 (Move [32] dst src mem) =>
 	(Move [16]
@@ -273,13 +270,13 @@
 		(OffPtr <src.Type> src [16])
 		(Move [16] dst src mem))
 
-(Move [48] dst src mem) && config.useSSE =>
+(Move [48] dst src mem) =>
 	(Move [32]
 		(OffPtr <dst.Type> dst [16])
 		(OffPtr <src.Type> src [16])
 		(Move [16] dst src mem))
 
-(Move [64] dst src mem) && config.useSSE =>
+(Move [64] dst src mem) =>
 	(Move [32]
 		(OffPtr <dst.Type> dst [32])
 		(OffPtr <src.Type> src [32])
@@ -321,18 +318,11 @@
 		(OffPtr <src.Type> src [s%16])
 		(MOVQstore dst (MOVQload src mem) mem))
 (Move [s] dst src mem)
-	&& s > 16 && s%16 != 0 && s%16 > 8 && config.useSSE =>
+	&& s > 16 && s%16 != 0 && s%16 > 8 =>
 	(Move [s-s%16]
 		(OffPtr <dst.Type> dst [s%16])
 		(OffPtr <src.Type> src [s%16])
 		(MOVOstore dst (MOVOload src mem) mem))
-(Move [s] dst src mem)
-	&& s > 16 && s%16 != 0 && s%16 > 8 && !config.useSSE =>
-	(Move [s-s%16]
-		(OffPtr <dst.Type> dst [s%16])
-		(OffPtr <src.Type> src [s%16])
-		(MOVQstore [8] dst (MOVQload [8] src mem)
-			(MOVQstore dst (MOVQload src mem) mem)))
 
 // Medium copying uses a duff device.
 (Move [s] dst src mem)
@@ -364,60 +354,42 @@
 	(MOVLstoreconst [makeValAndOff(0,3)] destptr
 		(MOVLstoreconst [makeValAndOff(0,0)] destptr mem))
 
-// Strip off any fractional word zeroing.
-(Zero [s] destptr mem) && s%8 != 0 && s > 8 && !config.useSSE =>
-	(Zero [s-s%8] (OffPtr <destptr.Type> destptr [s%8])
-		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
-
 // Zero small numbers of words directly.
-(Zero [16] destptr mem) && !config.useSSE =>
-	(MOVQstoreconst [makeValAndOff(0,8)] destptr
-		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
-(Zero [24] destptr mem) && !config.useSSE =>
-	(MOVQstoreconst [makeValAndOff(0,16)] destptr
-		(MOVQstoreconst [makeValAndOff(0,8)] destptr
-			(MOVQstoreconst [makeValAndOff(0,0)] destptr mem)))
-(Zero [32] destptr mem) && !config.useSSE =>
-	(MOVQstoreconst [makeValAndOff(0,24)] destptr
-		(MOVQstoreconst [makeValAndOff(0,16)] destptr
-			(MOVQstoreconst [makeValAndOff(0,8)] destptr
-				(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))))
-
-(Zero [9] destptr mem) && config.useSSE =>
+(Zero [9] destptr mem) =>
 	(MOVBstoreconst [makeValAndOff(0,8)] destptr
 		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
 
-(Zero [10] destptr mem) && config.useSSE =>
+(Zero [10] destptr mem) =>
 	(MOVWstoreconst [makeValAndOff(0,8)] destptr
 		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
 
-(Zero [11] destptr mem) && config.useSSE =>
+(Zero [11] destptr mem) =>
 	(MOVLstoreconst [makeValAndOff(0,7)] destptr
 		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
 
-(Zero [12] destptr mem) && config.useSSE =>
+(Zero [12] destptr mem) =>
 	(MOVLstoreconst [makeValAndOff(0,8)] destptr
 		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
 
-(Zero [s] destptr mem) && s > 12 && s < 16 && config.useSSE =>
+(Zero [s] destptr mem) && s > 12 && s < 16 =>
 	(MOVQstoreconst [makeValAndOff(0,int32(s-8))] destptr
 		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
 
 // Adjust zeros to be a multiple of 16 bytes.
-(Zero [s] destptr mem) && s%16 != 0 && s > 16 && config.useSSE =>
+(Zero [s] destptr mem) && s%16 != 0 && s > 16 =>
 	(Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16])
 		(MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
 
-(Zero [16] destptr mem) && config.useSSE =>
+(Zero [16] destptr mem) =>
 	(MOVOstoreconst [makeValAndOff(0,0)] destptr mem)
-(Zero [32] destptr mem) && config.useSSE =>
+(Zero [32] destptr mem) =>
 	(MOVOstoreconst [makeValAndOff(0,16)] destptr
 		(MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
-(Zero [48] destptr mem) && config.useSSE =>
+(Zero [48] destptr mem) =>
 	(MOVOstoreconst [makeValAndOff(0,32)] destptr
 		(MOVOstoreconst [makeValAndOff(0,16)] destptr
 			(MOVOstoreconst [makeValAndOff(0,0)] destptr mem)))
-(Zero [64] destptr mem) && config.useSSE =>
+(Zero [64] destptr mem) =>
 	(MOVOstoreconst [makeValAndOff(0,48)] destptr
 		(MOVOstoreconst [makeValAndOff(0,32)] destptr
 			(MOVOstoreconst [makeValAndOff(0,16)] destptr
@@ -430,7 +402,7 @@
 
 // Large zeroing uses REP STOSQ.
 (Zero [s] destptr mem)
-	&& (s > 1024 || (config.noDuffDevice && s > 64 || !config.useSSE && s > 32))
+	&& (s > 1024 || (config.noDuffDevice && s > 64))
 	&& s%8 == 0 =>
 	(REPSTOSQ destptr (MOVQconst [s/8]) (MOVQconst [0]) mem)
 
@@ -1486,7 +1458,6 @@
 (LEAQ1 [0] x y) && v.Aux == nil => (ADDQ x y)
 
 (MOVQstoreconst [c] {s} p1 x:(MOVQstoreconst [a] {s} p0 mem))
-  && config.useSSE
   && x.Uses == 1
   && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off()))
   && a.Val() == 0
@@ -1495,7 +1466,6 @@
   && clobber(x)
   => (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p0 mem)
 (MOVQstoreconst [a] {s} p0 x:(MOVQstoreconst [c] {s} p1 mem))
-  && config.useSSE
   && x.Uses == 1
   && sequentialAddresses(p0, p1, int64(a.Off()+8-c.Off()))
   && a.Val() == 0

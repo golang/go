@@ -43,7 +43,6 @@ type Config struct {
 	ctxt           *obj.Link // Generic arch information
 	optimize       bool      // Do optimization
 	noDuffDevice   bool      // Don't use Duff's device
-	useSSE         bool      // Use SSE for non-float operations
 	useAvg         bool      // Use optimizations that need Avg* operations
 	useHmul        bool      // Use optimizations that need Hmul* operations
 	SoftFloat      bool      //
@@ -355,7 +354,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 	}
 	c.ctxt = ctxt
 	c.optimize = optimize
-	c.useSSE = true
 	c.UseFMA = true
 	c.SoftFloat = softfloat
 	if softfloat {
