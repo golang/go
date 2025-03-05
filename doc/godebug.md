@@ -109,7 +109,9 @@ Only the work module's `go.mod` is consulted for `godebug` directives.
 Any directives in required dependency modules are ignored.
 It is an error to list a `godebug` with an unrecognized setting.
 (Toolchains older than Go 1.23 reject all `godebug` lines, since they do not
-understand `godebug` at all.)
+understand `godebug` at all.) When a workspace is in use, `godebug`
+directives in `go.mod` files are ignored, and `go.work` will be consulted
+for `godebug` directives instead.
 
 The defaults from the `go` and `godebug` lines apply to all main
 packages that are built. For more fine-grained control,
