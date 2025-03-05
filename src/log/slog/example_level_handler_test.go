@@ -7,7 +7,6 @@ package slog_test
 import (
 	"context"
 	"log/slog"
-	"log/slog/internal/slogtest"
 	"os"
 )
 
@@ -63,7 +62,13 @@ func (h *LevelHandler) Handler() slog.Handler {
 // Another typical use would be to decrease the log level (to LevelDebug, say)
 // during a part of the program that was suspected of containing a bug.
 func ExampleHandler_levelHandler() {
-	th := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{ReplaceAttr: slogtest.RemoveTime})
+	removeTime := func(groups []string, a slog.Attr) slog.Attr {
+		if a.Key == slog.TimeKey && len(groups) == 0 {
+			return slog.Attr{}
+		}
+		return a
+	}
+	th := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{ReplaceAttr: removeTime})
 	logger := slog.New(NewLevelHandler(slog.LevelWarn, th))
 	logger.Info("not printed")
 	logger.Warn("printed")
