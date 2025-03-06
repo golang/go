@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -43,6 +44,59 @@ func TestPanicWithDirectlyPrintableCustomTypes(t *testing.T) {
 			if !strings.HasPrefix(output, tt.wantPanicPrefix) {
 				t.Fatalf("%q\nis not present in\n%s", tt.wantPanicPrefix, output)
 			}
+		})
+	}
+}
+
+func TestPanicNilErrorPrefix(t *testing.T) {
+	tests := []struct {
+		name      string
+		wantPanic string
+		fn        func()
+	}{
+		{
+			name: "panic(nil)",
+			fn: func() {
+				panic(nil)
+			},
+		},
+		{
+			name: "panic((any)(nil))",
+			fn: func() {
+				var foo any = nil
+				panic(foo)
+			},
+		},
+		{
+			name: "panic((error)(nil))",
+			fn: func() {
+				var err error
+				panic(err)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				r := recover()
+				if r == nil {
+					t.Fatal("expected a panic")
+				}
+
+				re, ok := r.(runtime.Error)
+				if !ok {
+					t.Fatalf("wrong panic type: got %T, want runtime.Error", r)
+				}
+				got := re.Error()
+				want := "runtime error: panic called with nil argument"
+				if !strings.Contains(got, want) {
+					t.Fatalf("got: %s, want: %s", got, want)
+				}
+			}()
+
+			tt.fn()
 		})
 	}
 }
