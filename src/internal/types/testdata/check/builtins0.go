@@ -260,9 +260,9 @@ func complex2() {
 func copy1() {
 	copy() // ERROR "not enough arguments"
 	copy("foo") // ERROR "not enough arguments"
-	copy([ /* ERROR "copy expects slice arguments" */ ...]int{}, []int{})
-	copy([ /* ERROR "copy expects slice arguments" */ ]int{}, [...]int{})
-	copy([ /* ERROR "different element types" */ ]int8{}, "foo")
+	copy([ /* ERROR "invalid copy: argument must be a slice; have [...]int{} (value of type [0]int)" */ ...]int{}, []int{})
+	copy([]int{}, [ /* ERROR "invalid copy: argument must be a slice; have [...]int{} (value of type [0]int)" */ ...]int{})
+	copy([ /* ERROR "invalid copy: arguments []int8{} (value of type []int8) and \"foo\" (untyped string constant) have different element types int8 and byte" */ ]int8{}, "foo")
 
 	// spec examples
 	var a = [...]int{0, 1, 2, 3, 4, 5, 6, 7}
@@ -275,9 +275,9 @@ func copy1() {
 
 	var t [][]int
 	copy(t, t)
-	copy(t /* ERROR "copy expects slice arguments" */ , nil)
-	copy(nil /* ERROR "copy expects slice arguments" */ , t)
-	copy(nil /* ERROR "copy expects slice arguments" */ , nil)
+	copy(t, nil /* ERROR "invalid copy: argument must be a slice; have untyped nil" */ )
+	copy(nil /* ERROR "invalid copy: argument must be a slice; have untyped nil" */ , t)
+	copy(nil /* ERROR "invalid copy: argument must be a slice; have untyped nil" */ , nil)
 	copy(t... /* ERROR "invalid use of ..." */ )
 }
 

@@ -83,7 +83,6 @@ func commonUnder(t Type, cond func(t, u Type) *typeError) (Type, *typeError) {
 	var err *typeError
 
 	bad := func(format string, args ...any) bool {
-		cu = nil
 		err = typeErrorf(format, args...)
 		return false
 	}
@@ -91,7 +90,6 @@ func commonUnder(t Type, cond func(t, u Type) *typeError) (Type, *typeError) {
 	typeset(t, func(t, u Type) bool {
 		if cond != nil {
 			if err = cond(t, u); err != nil {
-				cu = nil
 				return false
 			}
 		}
@@ -132,7 +130,10 @@ func commonUnder(t Type, cond func(t, u Type) *typeError) (Type, *typeError) {
 		return true
 	})
 
-	return cu, err
+	if err != nil {
+		return nil, err
+	}
+	return cu, nil
 }
 
 // coreString is like coreType but also considers []byte

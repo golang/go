@@ -62,13 +62,13 @@ func _[T C5[X], X any](ch T) {
 // copy
 
 func _[T any](x, y T) {
-	copy(x /* ERROR "copy expects slice arguments" */ , y)
+	copy(x /* ERROR "invalid copy: argument must be a slice; have x (variable of type T constrained by any)" */ , y)
 }
 
 func _[T ~[]byte](x, y T) {
 	copy(x, y)
 	copy(x, "foo")
-	copy("foo" /* ERROR "expects slice arguments" */ , y)
+	copy("foo" /* ERROR "argument must be a slice; have \"foo\" (untyped string constant)" */ , y)
 
 	var x2 []byte
 	copy(x2, y) // element types are identical
@@ -82,16 +82,17 @@ func _[T ~[]byte](x, y T) {
 
 func _[T ~[]E, E any](x T, y []E) {
 	copy(x, y)
-	copy(x /* ERROR "different element types" */ , "foo")
+	copy(x /* ERROR "arguments x (variable of type T constrained by ~[]E) and \"foo\" (untyped string constant) have different element types E and byte" */ , "foo")
 }
 
 func _[T ~string](x []byte, y T) {
 	copy(x, y)
-	copy(y /* ERROR "expects slice arguments" */ , x)
+	copy([ /* ERROR "arguments []int{} (value of type []int) and y (variable of type T constrained by ~string) have different element types int and byte" */ ]int{}, y)
+	copy(y /* ERROR "argument must be a slice; have y (variable of type T constrained by ~string)" */ , x)
 }
 
 func _[T ~[]byte|~string](x T, y []byte) {
-	copy(x /* ERROR "expects slice arguments" */ , y)
+	copy(x /* ERROR "argument must be a slice; have x (variable of type T constrained by ~[]byte | ~string)" */ , y)
 	copy(y, x)
 }
 
