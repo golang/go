@@ -59,6 +59,17 @@ var (
 	// anything in the net/http package. Callers should not
 	// compare errors against this variable.
 	ErrWriteAfterFlush = errors.New("unused")
+
+	// TODO: expose once proposal is accepted
+	// errConnectionClosed is used as a context Cause for contexts
+	// cancelled because the client closed their connection while
+	// a request was being handled.
+	errConnectionClosed = errors.New("connection closed by client")
+
+	// TODO: expose once proposal is accepted
+	// errRequestHandlerReturned is used as a context Cause for contexts
+	// cancelled because the request handler already returned.
+	errRequestHandlerReturned = errors.New("request handler returned")
 )
 
 // A Handler responds to an HTTP request.
@@ -257,7 +268,7 @@ type conn struct {
 	server *Server
 
 	// cancelCtx cancels the connection-level context.
-	cancelCtx context.CancelFunc
+	cancelCtx context.CancelCauseFunc
 
 	// rwc is the underlying network connection.
 	// This is never wrapped by other types and is the value given out
@@ -755,8 +766,11 @@ func (cr *connReader) hitReadLimit() bool        { return cr.remain <= 0 }
 // down its context.
 //
 // It may be called from multiple goroutines.
-func (cr *connReader) handleReadError(_ error) {
-	cr.conn.cancelCtx()
+func (cr *connReader) handleReadError(err error) {
+	if errors.Is(err, io.EOF) {
+		err = errConnectionClosed
+	}
+	cr.conn.cancelCtx(err)
 	cr.closeNotify()
 }
 
@@ -1982,9 +1996,9 @@ func (c *conn) serve(ctx context.Context) {
 
 	// HTTP/1.x from here on.
 
-	ctx, cancelCtx := context.WithCancel(ctx)
+	ctx, cancelCtx := context.WithCancelCause(ctx)
 	c.cancelCtx = cancelCtx
-	defer cancelCtx()
+	defer cancelCtx(errRequestHandlerReturned)
 
 	c.r = &connReader{conn: c}
 	c.bufr = newBufioReader(c.r)
@@ -4027,7 +4041,7 @@ func (w checkConnErrorWriter) Write(p []byte) (n int, err error) {
 	n, err = w.c.rwc.Write(p)
 	if err != nil && w.c.werr == nil {
 		w.c.werr = err
-		w.c.cancelCtx()
+		w.c.cancelCtx(err)
 	}
 	return
 }
