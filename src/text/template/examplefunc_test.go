@@ -96,3 +96,28 @@ func ExampleTemplate_funcs() {
 	// def
 	// def
 }
+
+// This example demonstrates how to use "if".
+func ExampleTemplate_if() {
+	type book struct {
+		Stars float32
+		Name  string
+	}
+
+	tpl, err := template.New("book").Parse(`{{ if (gt .Stars 4.0) }}"{{.Name }}" is a great book.{{ else }}"{{.Name}}" is not a great book.{{ end }}`)
+	if err != nil {
+		log.Fatalf("failed to parse template: %s", err)
+	}
+
+	b := &book{
+		Stars: 4.9,
+		Name:  "Good Night, Gopher",
+	}
+	err = tpl.Execute(os.Stdout, b)
+	if err != nil {
+		log.Fatalf("failed to execute template: %s", err)
+	}
+
+	// Output:
+	// "Good Night, Gopher" is a great book.
+}
