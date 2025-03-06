@@ -794,15 +794,18 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 	go spc.copyToBackend(errc)
 	go spc.copyFromBackend(errc)
 
-	// wait until both copy functions have sent on the error channel
+	// Wait until both copy functions have sent on the error channel,
+	// or until one fails.
 	err := <-errc
 	if err == nil {
 		err = <-errc
 	}
-	if err != nil {
+	if err != nil && err != errCopyDone {
 		p.getErrorHandler()(rw, req, fmt.Errorf("can't copy: %v", err))
 	}
 }
+
+var errCopyDone = errors.New("hijacked connection copy complete")
 
 // switchProtocolCopier exists so goroutines proxying data back and
 // forth have nice names in stacks.
@@ -822,7 +825,7 @@ func (c switchProtocolCopier) copyFromBackend(errc chan<- error) {
 		return
 	}
 
-	errc <- nil
+	errc <- errCopyDone
 }
 
 func (c switchProtocolCopier) copyToBackend(errc chan<- error) {
@@ -837,7 +840,7 @@ func (c switchProtocolCopier) copyToBackend(errc chan<- error) {
 		return
 	}
 
-	errc <- nil
+	errc <- errCopyDone
 }
 
 func cleanQueryParams(s string) string {
