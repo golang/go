@@ -831,6 +831,7 @@ func TestLogAfterComplete(t *T) {
 	tRunner(t1, func(t *T) {
 		t.Run("TestLateLog", func(t *T) {
 			go func() {
+				const l = "log after test"
 				defer close(c2)
 				defer func() {
 					p := recover()
@@ -843,14 +844,17 @@ func TestLogAfterComplete(t *T) {
 						c2 <- fmt.Sprintf("subtest panic with unexpected value %v", p)
 						return
 					}
-					const want = "Log in goroutine after TestLateLog has completed: log after test"
-					if !strings.Contains(s, want) {
-						c2 <- fmt.Sprintf("subtest panic %q does not contain %q", s, want)
+					const message = "Log in goroutine after TestLateLog has completed"
+					if !strings.Contains(s, message) {
+						c2 <- fmt.Sprintf("subtest panic %q does not contain %q", s, message)
+					}
+					if !strings.Contains(s, l) {
+						c2 <- fmt.Sprintf("subtest panic %q does not contain %q", s, l)
 					}
 				}()
 
 				<-c1
-				t.Log("log after test")
+				t.Log(l)
 			}()
 		})
 	})
@@ -987,5 +991,63 @@ func TestNestedCleanup(t *T) {
 	})
 	if ranCleanup != 3 {
 		t.Errorf("unexpected cleanup count: got %d want 3", ranCleanup)
+	}
+}
+
+func TestOutputWriter(t *T) {
+	tstate := newTestState(1, allMatcher())
+	buf := &strings.Builder{}
+	root := &T{
+		common: common{
+			signal:  make(chan bool),
+			barrier: make(chan bool),
+			name:    "",
+			w:       buf,
+		},
+		tstate: tstate,
+	}
+
+	f := func(t *T) {
+		t.Run("", func(t *T) {
+			w := outputWriter{&t.common, nil}
+			w.Write([]byte("a\n"))
+			w.Write([]byte("b\n"))
+			w.Write([]byte("a\nb\n"))
+			t.Fail()
+		})
+	}
+	root.Run("check output of outputWriter", f)
+	tstate.release()
+
+	if tstate.running != 0 || tstate.numWaiting != 0 {
+		t.Errorf("running and waiting non-zero: got %d and %d", tstate.running, tstate.numWaiting)
+	}
+	got := strings.TrimSpace(buf.String())
+	output := `
+--- FAIL: check output of outputWriter (0.00s)
+    --- FAIL: check output of outputWriter/#00 (0.00s)
+        a
+        b
+        a
+        b
+	`
+	want := strings.TrimSpace(output)
+	re := makeRegexp(want)
+	if ok, err := regexp.MatchString(re, got); !ok || err != nil {
+		t.Errorf("output:\ngot:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestOutputWriterBuffering(t *T) {
+	w := outputWriter{&t.common, nil}
+
+	w.Write([]byte("Hel"))
+	w.Write([]byte("lo\nWorld\nInput to log\n\n\nMore logging\nShouldn't be logged"))
+	w.Write([]byte("Also shouldn't be logged"))
+
+	bufContents := string(w.b)
+	expected := "Shouldn't be loggedAlso shouldn't be logged"
+	if bufContents != expected {
+		t.Errorf("unexpected buffer contents: got %q want %q", bufContents, expected)
 	}
 }
