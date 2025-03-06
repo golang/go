@@ -3199,6 +3199,7 @@ func TestRootDirFS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer r.Close()
 	testDirFS(t, r.FS())
 }
 

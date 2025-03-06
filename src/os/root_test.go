@@ -539,17 +539,19 @@ func TestRootOpenFileAsRoot(t *testing.T) {
 	if err := os.WriteFile(target, nil, 0o666); err != nil {
 		t.Fatal(err)
 	}
-	_, err := os.OpenRoot(target)
+	r, err := os.OpenRoot(target)
 	if err == nil {
+		r.Close()
 		t.Fatal("os.OpenRoot(file) succeeded; want failure")
 	}
-	r, err := os.OpenRoot(dir)
+	r, err = os.OpenRoot(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer r.Close()
-	_, err = r.OpenRoot("target")
+	rr, err := r.OpenRoot("target")
 	if err == nil {
+		rr.Close()
 		t.Fatal("Root.OpenRoot(file) succeeded; want failure")
 	}
 }
