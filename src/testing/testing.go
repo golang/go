@@ -1073,30 +1073,30 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 		if i == (l-1) && line != "" {
 			o.b = []byte(line)
 			if i > 0 {
-				o.writeLine("\n", p)
+				o.writeLine([]byte("\n"), p)
 			}
 			break
 		}
 
-		buf := new(strings.Builder)
+		var b []byte
 		// Add back newlines.
 		if i != 0 {
-			buf.WriteString("\n")
+			b = append(b, []byte("\n")...)
 		}
 		// All lines are indented 4 spaces except the final one, which must be
 		// empty otherwise the loop would have terminated earlier.
 		if i != l-1 {
-			buf.WriteString("    ")
+			b = append(b, []byte("    ")...)
 		}
-		buf.WriteString(line)
+		b = append(b, []byte(line)...)
 
-		o.writeLine(buf.String(), p)
+		o.writeLine(b, p)
 	}
 	return len(p), nil
 }
 
 // writeLine generates the output for a given line.
-func (o *outputWriter) writeLine(s string, p []byte) {
+func (o *outputWriter) writeLine(l []byte, p []byte) {
 	if o.c.done {
 		// This test has already finished. Try and log this message
 		// with our parent. If we don't have a parent, panic.
@@ -1104,22 +1104,23 @@ func (o *outputWriter) writeLine(s string, p []byte) {
 			parent.mu.Lock()
 			defer parent.mu.Unlock()
 			if !parent.done {
-				parent.output = append(parent.output, s...)
+				parent.output = append(parent.output, l...)
 				return
 			}
 		}
 		panic("Log in goroutine after " + o.c.name + " has completed: " + string(p))
 	} else {
 		if o.c.chatty != nil {
+			line := string(l)
 			if o.c.bench {
 				// Benchmarks don't print === CONT, so we should skip the test
 				// printer and just print straight to stdout.
-				fmt.Print(s)
+				fmt.Print(line)
 			} else {
-				o.c.chatty.Printf(o.c.name, "%s", s)
+				o.c.chatty.Printf(o.c.name, "%s", line)
 			}
 		} else {
-			o.c.output = append(o.c.output, s...)
+			o.c.output = append(o.c.output, l...)
 		}
 	}
 }
