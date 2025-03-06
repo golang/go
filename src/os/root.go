@@ -77,7 +77,7 @@ const (
 
 // OpenRoot opens the named directory.
 // It follows symbolic links in the directory name.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func OpenRoot(name string) (*Root, error) {
 	testlog.Open(name)
 	return openRootNolog(name)
@@ -127,7 +127,7 @@ func (r *Root) OpenFile(name string, flag int, perm FileMode) (*File, error) {
 }
 
 // OpenRoot opens the named directory in the root.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func (r *Root) OpenRoot(name string) (*Root, error) {
 	r.logOpen(name)
 	return openRootInRoot(r, name)

@@ -180,7 +180,7 @@ func (file *file) destroy() error {
 }
 
 // Stat returns the FileInfo structure describing file.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func (f *File) Stat() (FileInfo, error) {
 	if f == nil {
 		return nil, ErrInvalid
@@ -194,7 +194,7 @@ func (f *File) Stat() (FileInfo, error) {
 
 // Truncate changes the size of the file.
 // It does not change the I/O offset.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func (f *File) Truncate(size int64) error {
 	if f == nil {
 		return ErrInvalid
@@ -356,7 +356,7 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
 
 // Truncate changes the size of the named file.
 // If the file is a symbolic link, it changes the size of the link's target.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func Truncate(name string, size int64) error {
 	var d syscall.Dir
 
@@ -375,7 +375,7 @@ func Truncate(name string, size int64) error {
 }
 
 // Remove removes the named file or directory.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func Remove(name string) error {
 	if e := syscall.Remove(name); e != nil {
 		return &PathError{Op: "remove", Path: name, Err: e}
@@ -448,7 +448,7 @@ func chmod(name string, mode FileMode) error {
 //
 // The underlying filesystem may truncate or round the values to a
 // less precise time unit.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func Chtimes(name string, atime time.Time, mtime time.Time) error {
 	var d syscall.Dir
 
@@ -508,23 +508,23 @@ func readlink(name string) (string, error) {
 // Chown changes the numeric uid and gid of the named file.
 // If the file is a symbolic link, it changes the uid and gid of the link's target.
 // A uid or gid of -1 means to not change that value.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 //
-// On Windows or Plan 9, Chown always returns the syscall.EWINDOWS or
-// EPLAN9 error, wrapped in *PathError.
+// On Windows or Plan 9, Chown always returns the [syscall.EWINDOWS] or
+// [syscall.EPLAN9] error, wrapped in [*PathError].
 func Chown(name string, uid, gid int) error {
 	return &PathError{Op: "chown", Path: name, Err: syscall.EPLAN9}
 }
 
 // Lchown changes the numeric uid and gid of the named file.
 // If the file is a symbolic link, it changes the uid and gid of the link itself.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func Lchown(name string, uid, gid int) error {
 	return &PathError{Op: "lchown", Path: name, Err: syscall.EPLAN9}
 }
 
 // Chown changes the numeric uid and gid of the named file.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func (f *File) Chown(uid, gid int) error {
 	if f == nil {
 		return ErrInvalid
@@ -542,7 +542,7 @@ func tempDir() string {
 
 // Chdir changes the current working directory to the file,
 // which must be a directory.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func (f *File) Chdir() error {
 	if err := f.incref("chdir"); err != nil {
 		return err

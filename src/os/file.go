@@ -216,7 +216,7 @@ var errWriteAtInAppendMode = errors.New("os: invalid use of WriteAt on file open
 // It returns the number of bytes written and an error, if any.
 // WriteAt returns a non-nil error when n != len(b).
 //
-// If file was opened with the O_APPEND flag, WriteAt returns an error.
+// If file was opened with the [O_APPEND] flag, WriteAt returns an error.
 func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 	if err := f.checkValid("write"); err != nil {
 		return 0, err
@@ -280,7 +280,7 @@ func genericWriteTo(f *File, w io.Writer) (int64, error) {
 // according to whence: 0 means relative to the origin of the file, 1 means
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
-// The behavior of Seek on a file opened with O_APPEND is not specified.
+// The behavior of Seek on a file opened with [O_APPEND] is not specified.
 func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
 	if err := f.checkValid("seek"); err != nil {
 		return 0, err
@@ -304,7 +304,7 @@ func (f *File) WriteString(s string) (n int, err error) {
 
 // Mkdir creates a new directory with the specified name and permission
 // bits (before umask).
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func Mkdir(name string, perm FileMode) error {
 	longName := fixLongPath(name)
 	e := ignoringEINTR(func() error {
@@ -338,7 +338,7 @@ func setStickyBit(name string) error {
 }
 
 // Chdir changes the current working directory to the named directory.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func Chdir(dir string) error {
 	if e := syscall.Chdir(dir); e != nil {
 		testlog.Open(dir) // observe likely non-existent directory
@@ -365,8 +365,8 @@ func Chdir(dir string) error {
 
 // Open opens the named file for reading. If successful, methods on
 // the returned file can be used for reading; the associated file
-// descriptor has mode O_RDONLY.
-// If there is an error, it will be of type *PathError.
+// descriptor has mode [O_RDONLY].
+// If there is an error, it will be of type [*PathError].
 func Open(name string) (*File, error) {
 	return OpenFile(name, O_RDONLY, 0)
 }
@@ -374,20 +374,20 @@ func Open(name string) (*File, error) {
 // Create creates or truncates the named file. If the file already exists,
 // it is truncated. If the file does not exist, it is created with mode 0o666
 // (before umask). If successful, methods on the returned File can
-// be used for I/O; the associated file descriptor has mode O_RDWR.
+// be used for I/O; the associated file descriptor has mode [O_RDWR].
 // The directory containing the file must already exist.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func Create(name string) (*File, error) {
 	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
 }
 
 // OpenFile is the generalized open call; most users will use Open
 // or Create instead. It opens the named file with specified flag
-// (O_RDONLY etc.). If the file does not exist, and the O_CREATE flag
+// ([O_RDONLY] etc.). If the file does not exist, and the [O_CREATE] flag
 // is passed, it is created with mode perm (before umask);
 // the containing directory must exist. If successful,
 // methods on the returned File can be used for I/O.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	testlog.Open(name)
 	f, err := openFileNolog(name, flag, perm)
@@ -423,7 +423,7 @@ func Rename(oldpath, newpath string) error {
 }
 
 // Readlink returns the destination of the named symbolic link.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 //
 // If the link destination is relative, Readlink returns the relative path
 // without resolving it to an absolute one.
@@ -609,13 +609,13 @@ func UserHomeDir() (string, error) {
 
 // Chmod changes the mode of the named file to mode.
 // If the file is a symbolic link, it changes the mode of the link's target.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 //
 // A different subset of the mode bits are used, depending on the
 // operating system.
 //
-// On Unix, the mode's permission bits, ModeSetuid, ModeSetgid, and
-// ModeSticky are used.
+// On Unix, the mode's permission bits, [ModeSetuid], [ModeSetgid], and
+// [ModeSticky] are used.
 //
 // On Windows, only the 0o200 bit (owner writable) of mode is used; it
 // controls whether the file's read-only attribute is set or cleared.
@@ -623,12 +623,12 @@ func UserHomeDir() (string, error) {
 // and earlier, use a non-zero mode. Use mode 0o400 for a read-only
 // file and 0o600 for a readable+writable file.
 //
-// On Plan 9, the mode's permission bits, ModeAppend, ModeExclusive,
-// and ModeTemporary are used.
+// On Plan 9, the mode's permission bits, [ModeAppend], [ModeExclusive],
+// and [ModeTemporary] are used.
 func Chmod(name string, mode FileMode) error { return chmod(name, mode) }
 
 // Chmod changes the mode of the file to mode.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func (f *File) Chmod(mode FileMode) error { return f.chmod(mode) }
 
 // SetDeadline sets the read and write deadlines for a File.

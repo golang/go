@@ -101,7 +101,7 @@ func (f *File) chmod(mode FileMode) error {
 // If there is an error, it will be of type [*PathError].
 //
 // On Windows or Plan 9, Chown always returns the [syscall.EWINDOWS] or
-// EPLAN9 error, wrapped in *PathError.
+// [syscall.EPLAN9] error, wrapped in [*PathError].
 func Chown(name string, uid, gid int) error {
 	e := ignoringEINTR(func() error {
 		return syscall.Chown(name, uid, gid)
@@ -117,7 +117,7 @@ func Chown(name string, uid, gid int) error {
 // If there is an error, it will be of type [*PathError].
 //
 // On Windows, it always returns the [syscall.EWINDOWS] error, wrapped
-// in *PathError.
+// in [*PathError].
 func Lchown(name string, uid, gid int) error {
 	e := ignoringEINTR(func() error {
 		return syscall.Lchown(name, uid, gid)
@@ -132,7 +132,7 @@ func Lchown(name string, uid, gid int) error {
 // If there is an error, it will be of type [*PathError].
 //
 // On Windows, it always returns the [syscall.EWINDOWS] error, wrapped
-// in *PathError.
+// in [*PathError].
 func (f *File) Chown(uid, gid int) error {
 	if err := f.checkValid("chown"); err != nil {
 		return err
