@@ -277,9 +277,9 @@ func genericWriteTo(f *File, w io.Writer) (int64, error) {
 }
 
 // Seek sets the offset for the next Read or Write on file to offset, interpreted
-// according to whence: 0 means relative to the origin of the file, 1 means
-// relative to the current offset, and 2 means relative to the end.
-// It returns the new offset and an error, if any.
+// according to whence: [io.SeekStart] or 0 means relative to the origin of the file,
+// [io.SeekCurrent] or 1 means relative to the current offset, and [io.SeekEnd] or 2 means
+// relative to the end. It returns the new offset and an error, if any.
 // The behavior of Seek on a file opened with O_APPEND is not specified.
 func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
 	if err := f.checkValid("seek"); err != nil {
