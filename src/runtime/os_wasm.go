@@ -142,7 +142,7 @@ func getfp() uintptr { return 0 }
 
 func setProcessCPUProfiler(hz int32) {}
 func setThreadCPUProfiler(hz int32)  {}
-func sigdisable(uint32)              {}
+func sigdisable(uint32) bool         { return false }
 func sigenable(uint32)               {}
 func sigignore(uint32)               {}
 
