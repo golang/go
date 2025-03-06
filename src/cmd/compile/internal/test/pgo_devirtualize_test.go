@@ -23,7 +23,7 @@ const profFileName = "devirt.pprof"
 const preProfFileName = "devirt.pprof.node_map"
 
 // testPGODevirtualize tests that specific PGO devirtualize rewrites are performed.
-func testPGODevirtualize(t *testing.T, dir string, want []devirtualization, pgoProfileName string) {
+func testPGODevirtualize(t *testing.T, dir string, want, nowant []devirtualization, pgoProfileName string) {
 	testenv.MustHaveGoRun(t)
 	t.Parallel()
 
@@ -69,8 +69,10 @@ go 1.21
 	}
 
 	got := make(map[devirtualization]struct{})
+	gotNoHot := make(map[devirtualization]struct{})
 
 	devirtualizedLine := regexp.MustCompile(`(.*): PGO devirtualizing \w+ call .* to (.*)`)
+	noHotLine := regexp.MustCompile(`(.*): call .*: no hot callee`)
 
 	scanner := bufio.NewScanner(pr)
 	for scanner.Scan() {
@@ -78,15 +80,21 @@ go 1.21
 		t.Logf("child: %s", line)
 
 		m := devirtualizedLine.FindStringSubmatch(line)
-		if m == nil {
+		if m != nil {
+			d := devirtualization{
+				pos:    m[1],
+				callee: m[2],
+			}
+			got[d] = struct{}{}
 			continue
 		}
-
-		d := devirtualization{
-			pos:    m[1],
-			callee: m[2],
+		m = noHotLine.FindStringSubmatch(line)
+		if m != nil {
+			d := devirtualization{
+				pos: m[1],
+			}
+			gotNoHot[d] = struct{}{}
 		}
-		got[d] = struct{}{}
 	}
 	if err := cmd.Wait(); err != nil {
 		t.Fatalf("error running go test: %v", err)
@@ -103,6 +111,11 @@ go 1.21
 			continue
 		}
 		t.Errorf("devirtualization %v missing; got %v", w, got)
+	}
+	for _, nw := range nowant {
+		if _, ok := gotNoHot[nw]; !ok {
+			t.Errorf("unwanted devirtualization %v; got %v", nw, got)
+		}
 	}
 
 	// Run test with PGO to ensure the assertions are still true.
@@ -174,8 +187,18 @@ func TestPGODevirtualize(t *testing.T) {
 		//	callee: "mult.MultClosure.func1",
 		//},
 	}
+	nowant := []devirtualization{
+		// ExerciseIfaceZeroWeight
+		{
+			pos: "./devirt.go:256:29",
+		},
+		// ExerciseIndirCallZeroWeight
+		{
+			pos: "./devirt.go:282:37",
+		},
+	}
 
-	testPGODevirtualize(t, dir, want, profFileName)
+	testPGODevirtualize(t, dir, want, nowant, profFileName)
 }
 
 // TestPGOPreprocessDevirtualize tests that specific functions are devirtualized when PGO
@@ -237,8 +260,18 @@ func TestPGOPreprocessDevirtualize(t *testing.T) {
 		//	callee: "mult.MultClosure.func1",
 		//},
 	}
+	nowant := []devirtualization{
+		// ExerciseIfaceZeroWeight
+		{
+			pos: "./devirt.go:256:29",
+		},
+		// ExerciseIndirCallZeroWeight
+		{
+			pos: "./devirt.go:282:37",
+		},
+	}
 
-	testPGODevirtualize(t, dir, want, preProfFileName)
+	testPGODevirtualize(t, dir, want, nowant, preProfFileName)
 }
 
 // Regression test for https://go.dev/issue/65615. If a target function changes
@@ -303,8 +336,18 @@ func TestLookupFuncGeneric(t *testing.T) {
 		//	callee: "mult.MultClosure.func1",
 		//},
 	}
+	nowant := []devirtualization{
+		// ExerciseIfaceZeroWeight
+		{
+			pos: "./devirt.go:256:29",
+		},
+		// ExerciseIndirCallZeroWeight
+		{
+			pos: "./devirt.go:282:37",
+		},
+	}
 
-	testPGODevirtualize(t, dir, want, profFileName)
+	testPGODevirtualize(t, dir, want, nowant, profFileName)
 }
 
 var multFnRe = regexp.MustCompile(`func MultFn\(a, b int64\) int64`)

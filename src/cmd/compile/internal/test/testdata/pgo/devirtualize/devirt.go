@@ -250,3 +250,45 @@ func ExerciseFuncClosure(iter int, a1, a2 AddFunc, m1, m2 mult.MultFunc) int {
 	}
 	return val
 }
+
+//go:noinline
+func IfaceZeroWeight(a *Add, b Adder) bool {
+	return a.Add(1, 2) == b.Add(3, 4) // unwanted devirtualization
+}
+
+// ExerciseIfaceZeroWeight never calls IfaceZeroWeight, so the callee
+// is not expected to appear in the profile.
+//
+//go:noinline
+func ExerciseIfaceZeroWeight() {
+	if false {
+		a := &Add{}
+		b := &Sub{}
+		// Unreachable call
+		IfaceZeroWeight(a, b)
+	}
+}
+
+func DirectCall() bool {
+	return true
+}
+
+func IndirectCall() bool {
+	return false
+}
+
+//go:noinline
+func IndirCallZeroWeight(indirectCall func() bool) bool {
+	return DirectCall() && indirectCall() // unwanted devirtualization
+}
+
+// ExerciseIndirCallZeroWeight never calls IndirCallZeroWeight, so the
+// callee is not expected to appear in the profile.
+//
+//go:noinline
+func ExerciseIndirCallZeroWeight() {
+	if false {
+		// Unreachable call
+		IndirCallZeroWeight(IndirectCall)
+	}
+}

@@ -741,7 +741,7 @@ func findHotConcreteCallee(p *pgoir.Profile, caller *ir.Func, call *ir.CallExpr,
 		hottest = e
 	}
 
-	if hottest == nil {
+	if hottest == nil || hottest.Weight == 0 {
 		if base.Debug.PGODebug >= 2 {
 			fmt.Printf("%v: call %s:%d: no hot callee\n", ir.Line(call), callerName, callOffset)
 		}
