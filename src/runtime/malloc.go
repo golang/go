@@ -570,7 +570,7 @@ func mallocinit() {
 		// heap reservation.
 
 		const arenaMetaSize = (1 << arenaBits) * unsafe.Sizeof(heapArena{})
-		meta := uintptr(sysReserve(nil, arenaMetaSize))
+		meta := uintptr(sysReserve(nil, arenaMetaSize, "heap reservation"))
 		if meta != 0 {
 			mheap_.heapArenaAlloc.init(meta, arenaMetaSize, true)
 		}
@@ -607,7 +607,7 @@ func mallocinit() {
 			128 << 20,
 		}
 		for _, arenaSize := range arenaSizes {
-			a, size := sysReserveAligned(unsafe.Pointer(p), arenaSize, heapArenaBytes)
+			a, size := sysReserveAligned(unsafe.Pointer(p), arenaSize, heapArenaBytes, "heap reservation")
 			if a != nil {
 				mheap_.arena.init(uintptr(a), size, false)
 				p = mheap_.arena.end // For hint below
@@ -657,7 +657,7 @@ func (h *mheap) sysAlloc(n uintptr, hintList **arenaHint, arenaList *[]arenaIdx)
 		//
 		// Only do this if we're using the regular heap arena hints.
 		// This behavior is only for the heap.
-		v = h.arena.alloc(n, heapArenaBytes, &gcController.heapReleased)
+		v = h.arena.alloc(n, heapArenaBytes, &gcController.heapReleased, "heap")
 		if v != nil {
 			size = n
 			goto mapped
@@ -678,7 +678,7 @@ func (h *mheap) sysAlloc(n uintptr, hintList **arenaHint, arenaList *[]arenaIdx)
 			// Outside addressable heap. Can't use.
 			v = nil
 		} else {
-			v = sysReserve(unsafe.Pointer(p), n)
+			v = sysReserve(unsafe.Pointer(p), n, "heap reservation")
 		}
 		if p == uintptr(v) {
 			// Success. Update the hint.
@@ -714,7 +714,7 @@ func (h *mheap) sysAlloc(n uintptr, hintList **arenaHint, arenaList *[]arenaIdx)
 		// All of the hints failed, so we'll take any
 		// (sufficiently aligned) address the kernel will give
 		// us.
-		v, size = sysReserveAligned(nil, n, heapArenaBytes)
+		v, size = sysReserveAligned(nil, n, heapArenaBytes, "heap")
 		if v == nil {
 			return nil, 0
 		}
@@ -764,7 +764,7 @@ mapped:
 			// is paged in is too expensive. Trying to account for the whole region means
 			// that it will appear like an enormous memory overhead in statistics, even though
 			// it is not.
-			l2 = (*[1 << arenaL2Bits]*heapArena)(sysAllocOS(unsafe.Sizeof(*l2)))
+			l2 = (*[1 << arenaL2Bits]*heapArena)(sysAllocOS(unsafe.Sizeof(*l2), "heap index"))
 			if l2 == nil {
 				throw("out of memory allocating heap arena map")
 			}
@@ -780,7 +780,7 @@ mapped:
 			throw("arena already initialized")
 		}
 		var r *heapArena
-		r = (*heapArena)(h.heapArenaAlloc.alloc(unsafe.Sizeof(*r), goarch.PtrSize, &memstats.gcMiscSys))
+		r = (*heapArena)(h.heapArenaAlloc.alloc(unsafe.Sizeof(*r), goarch.PtrSize, &memstats.gcMiscSys, "heap metadata"))
 		if r == nil {
 			r = (*heapArena)(persistentalloc(unsafe.Sizeof(*r), goarch.PtrSize, &memstats.gcMiscSys))
 			if r == nil {
@@ -827,7 +827,7 @@ mapped:
 // sysReserveAligned is like sysReserve, but the returned pointer is
 // aligned to align bytes. It may reserve either n or n+align bytes,
 // so it returns the size that was reserved.
-func sysReserveAligned(v unsafe.Pointer, size, align uintptr) (unsafe.Pointer, uintptr) {
+func sysReserveAligned(v unsafe.Pointer, size, align uintptr, vmaName string) (unsafe.Pointer, uintptr) {
 	if isSbrkPlatform {
 		if v != nil {
 			throw("unexpected heap arena hint on sbrk platform")
@@ -839,7 +839,7 @@ func sysReserveAligned(v unsafe.Pointer, size, align uintptr) (unsafe.Pointer, u
 	// for a larger region and remove the parts we don't need.
 	retries := 0
 retry:
-	p := uintptr(sysReserve(v, size+align))
+	p := uintptr(sysReserve(v, size+align, vmaName))
 	switch {
 	case p == 0:
 		return nil, 0
@@ -852,7 +852,7 @@ retry:
 		// so we may have to try again.
 		sysFreeOS(unsafe.Pointer(p), size+align)
 		p = alignUp(p, align)
-		p2 := sysReserve(unsafe.Pointer(p), size)
+		p2 := sysReserve(unsafe.Pointer(p), size, vmaName)
 		if p != uintptr(p2) {
 			// Must have raced. Try again.
 			sysFreeOS(p2, size)
@@ -1933,7 +1933,7 @@ func persistentalloc1(size, align uintptr, sysStat *sysMemStat) *notInHeap {
 	}
 
 	if size >= maxBlock {
-		return (*notInHeap)(sysAlloc(size, sysStat))
+		return (*notInHeap)(sysAlloc(size, sysStat, "immortal metadata"))
 	}
 
 	mp := acquirem()
@@ -1946,7 +1946,7 @@ func persistentalloc1(size, align uintptr, sysStat *sysMemStat) *notInHeap {
 	}
 	persistent.off = alignUp(persistent.off, align)
 	if persistent.off+size > persistentChunkSize || persistent.base == nil {
-		persistent.base = (*notInHeap)(sysAlloc(persistentChunkSize, &memstats.other_sys))
+		persistent.base = (*notInHeap)(sysAlloc(persistentChunkSize, &memstats.other_sys, "immortal metadata"))
 		if persistent.base == nil {
 			if persistent == &globalAlloc.persistentAlloc {
 				unlock(&globalAlloc.mutex)
@@ -2020,7 +2020,7 @@ func (l *linearAlloc) init(base, size uintptr, mapMemory bool) {
 	l.mapMemory = mapMemory
 }
 
-func (l *linearAlloc) alloc(size, align uintptr, sysStat *sysMemStat) unsafe.Pointer {
+func (l *linearAlloc) alloc(size, align uintptr, sysStat *sysMemStat, vmaName string) unsafe.Pointer {
 	p := alignUp(l.next, align)
 	if p+size > l.end {
 		return nil
@@ -2030,7 +2030,7 @@ func (l *linearAlloc) alloc(size, align uintptr, sysStat *sysMemStat) unsafe.Poi
 		if l.mapMemory {
 			// Transition from Reserved to Prepared to Ready.
 			n := pEnd - l.mapped
-			sysMap(unsafe.Pointer(l.mapped), n, sysStat)
+			sysMap(unsafe.Pointer(l.mapped), n, sysStat, vmaName)
 			sysUsed(unsafe.Pointer(l.mapped), n, n)
 		}
 		l.mapped = pEnd

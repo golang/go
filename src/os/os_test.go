@@ -3855,3 +3855,99 @@ func TestOpenFileDevNull(t *testing.T) {
 	}
 	f.Close()
 }
+
+func TestReadFileContents(t *testing.T) {
+	type readStep struct {
+		bufSize int   // non-zero to check length of buf to Read
+		retN    int   // result of Read call
+		retErr  error // error result of Read call
+	}
+	errFoo := errors.New("foo")
+	tests := []struct {
+		name     string
+		statSize int64 // size of file to read, per stat (may be 0 for /proc files)
+		wantSize int   // wanted length of []byte from readFileContents
+		wantErr  error // wanted error from readFileContents
+		reads    []readStep
+	}{
+		{
+			name:     "big-file",
+			statSize: 2000,
+			wantSize: 2000,
+			reads: []readStep{
+				{bufSize: 2001, retN: 21, retErr: nil},
+				{bufSize: 1980, retN: 1979, retErr: io.EOF},
+			},
+		},
+		{
+			name:     "small-file",
+			statSize: 100,
+			wantSize: 100,
+			reads: []readStep{
+				{bufSize: 512, retN: 100, retErr: io.EOF},
+			},
+		},
+		{
+			name:     "returning-error",
+			statSize: 1000,
+			wantSize: 50,
+			wantErr:  errFoo,
+			reads: []readStep{
+				{bufSize: 1001, retN: 25, retErr: nil},
+				{retN: 25, retErr: errFoo},
+			},
+		},
+		{
+			name:     "proc-file",
+			statSize: 0,
+			wantSize: 1023,
+			reads: []readStep{
+				{bufSize: 512, retN: 512, retErr: nil},
+				{retN: 511, retErr: io.EOF},
+			},
+		},
+		{
+			name:     "plan9-iproute-file", // Issue 72080
+			statSize: 0,
+			wantSize: 1032,
+			reads: []readStep{
+				{bufSize: 512, retN: 511, retErr: nil},
+				{retN: 511, retErr: nil},
+				{retN: 10, retErr: io.EOF},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			remain := tt.reads
+			i := -1
+			got, err := ExportReadFileContents(tt.statSize, func(buf []byte) (int, error) {
+				i++
+				t.Logf("read[%d] with buf size %d", i, len(buf))
+				if len(remain) == 0 {
+					t.Fatalf("unexpected read of length %d after %d expected reads", len(buf), len(tt.reads))
+				}
+				if tt.statSize == 0 && len(buf) < 512 {
+					// Issue 72080: readFileContents should not do /proc reads with buffers
+					// smaller than 512.
+					t.Fatalf("read[%d] with buf size %d; want at least 512 for 0-sized file", i, len(buf))
+				}
+				step := remain[0]
+				remain = remain[1:]
+				if step.bufSize != 0 && len(buf) != step.bufSize {
+					t.Fatalf("read[%d] has buffer size %d; want %d", i, len(buf), step.bufSize)
+				}
+				return step.retN, step.retErr
+			})
+			if len(remain) > 0 {
+				t.Fatalf("expected %d reads, got %d", len(tt.reads), i+1)
+			}
+			if fmt.Sprint(err) != fmt.Sprint(tt.wantErr) {
+				t.Errorf("got error %v; want %v", err, tt.wantErr)
+			}
+			if len(got) != tt.wantSize {
+				t.Errorf("got size %d; want %d", len(got), tt.wantSize)
+			}
+		})
+	}
+}

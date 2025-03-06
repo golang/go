@@ -144,55 +144,42 @@ func contentID(buildID string) string {
 // build setups agree on details like $GOROOT and file name paths, but at least the
 // tool IDs do not make it impossible.)
 func (b *Builder) toolID(name string) string {
-	b.id.Lock()
-	id := b.toolIDCache[name]
-	b.id.Unlock()
+	return b.toolIDCache.Do(name, func() string {
+		path := base.Tool(name)
+		desc := "go tool " + name
 
-	if id != "" {
-		return id
-	}
-
-	path := base.Tool(name)
-	desc := "go tool " + name
-
-	// Special case: undocumented -vettool overrides usual vet,
-	// for testing vet or supplying an alternative analysis tool.
-	if name == "vet" && VetTool != "" {
-		path = VetTool
-		desc = VetTool
-	}
-
-	cmdline := str.StringList(cfg.BuildToolexec, path, "-V=full")
-	cmd := exec.Command(cmdline[0], cmdline[1:]...)
-	var stdout, stderr strings.Builder
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		if stderr.Len() > 0 {
-			os.Stderr.WriteString(stderr.String())
+		// Special case: undocumented -vettool overrides usual vet,
+		// for testing vet or supplying an alternative analysis tool.
+		if name == "vet" && VetTool != "" {
+			path = VetTool
+			desc = VetTool
 		}
-		base.Fatalf("go: error obtaining buildID for %s: %v", desc, err)
-	}
 
-	line := stdout.String()
-	f := strings.Fields(line)
-	if len(f) < 3 || f[0] != name && path != VetTool || f[1] != "version" || f[2] == "devel" && !strings.HasPrefix(f[len(f)-1], "buildID=") {
-		base.Fatalf("go: parsing buildID from %s -V=full: unexpected output:\n\t%s", desc, line)
-	}
-	if f[2] == "devel" {
-		// On the development branch, use the content ID part of the build ID.
-		id = contentID(f[len(f)-1])
-	} else {
+		cmdline := str.StringList(cfg.BuildToolexec, path, "-V=full")
+		cmd := exec.Command(cmdline[0], cmdline[1:]...)
+		var stdout, stderr strings.Builder
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			if stderr.Len() > 0 {
+				os.Stderr.WriteString(stderr.String())
+			}
+			base.Fatalf("go: error obtaining buildID for %s: %v", desc, err)
+		}
+
+		line := stdout.String()
+		f := strings.Fields(line)
+		if len(f) < 3 || f[0] != name && path != VetTool || f[1] != "version" || f[2] == "devel" && !strings.HasPrefix(f[len(f)-1], "buildID=") {
+			base.Fatalf("go: parsing buildID from %s -V=full: unexpected output:\n\t%s", desc, line)
+		}
+		if f[2] == "devel" {
+			// On the development branch, use the content ID part of the build ID.
+			return contentID(f[len(f)-1])
+		}
 		// For a release, the output is like: "compile version go1.9.1 X:framepointer".
 		// Use the whole line.
-		id = strings.TrimSpace(line)
-	}
-
-	b.id.Lock()
-	b.toolIDCache[name] = id
-	b.id.Unlock()
-
-	return id
+		return strings.TrimSpace(line)
+	})
 }
 
 // gccToolID returns the unique ID to use for a tool that is invoked
@@ -216,10 +203,11 @@ func (b *Builder) toolID(name string) string {
 // to detect changes in the underlying compiler. The returned exe can be empty,
 // which means to rely only on the id.
 func (b *Builder) gccToolID(name, language string) (id, exe string, err error) {
+	//TODO: Use par.Cache instead of a mutex and a map. See Builder.toolID.
 	key := name + "." + language
 	b.id.Lock()
-	id = b.toolIDCache[key]
-	exe = b.toolIDCache[key+".exe"]
+	id = b.gccToolIDCache[key]
+	exe = b.gccToolIDCache[key+".exe"]
 	b.id.Unlock()
 
 	if id != "" {
@@ -309,8 +297,8 @@ func (b *Builder) gccToolID(name, language string) (id, exe string, err error) {
 	}
 
 	b.id.Lock()
-	b.toolIDCache[key] = id
-	b.toolIDCache[key+".exe"] = exe
+	b.gccToolIDCache[key] = id
+	b.gccToolIDCache[key+".exe"] = exe
 	b.id.Unlock()
 
 	return id, exe, nil

@@ -56,10 +56,13 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 }
 
 func (check *Checker) usage(scope *Scope) {
+	needUse := func(kind VarKind) bool {
+		return !(kind == RecvVar || kind == ParamVar || kind == ResultVar)
+	}
 	var unused []*Var
 	for name, elem := range scope.elems {
 		elem = resolve(name, elem)
-		if v, _ := elem.(*Var); v != nil && !v.used {
+		if v, _ := elem.(*Var); v != nil && needUse(v.kind) && !check.usedVars[v] {
 			unused = append(unused, v)
 		}
 	}
@@ -752,7 +755,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			check.openScope(clause, "case")
 			// If lhs exists, declare a corresponding variable in the case-local scope.
 			if lhs != nil {
-				obj := NewVar(lhs.Pos(), check.pkg, lhs.Name, T)
+				obj := newVar(LocalVar, lhs.Pos(), check.pkg, lhs.Name, T)
 				check.declare(check.scope, nil, obj, clause.Colon)
 				check.recordImplicit(clause, obj)
 				// For the "declared and not used" error, all lhs variables act as
@@ -765,13 +768,16 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		}
 
 		// If lhs exists, we must have at least one lhs variable that was used.
+		// (We can't use check.usage because that only looks at one scope; and
+		// we don't want to use the same variable for all scopes and change the
+		// variable type underfoot.)
 		if lhs != nil {
 			var used bool
 			for _, v := range lhsVars {
-				if v.used {
+				if check.usedVars[v] {
 					used = true
 				}
-				v.used = true // avoid usage error when checking entire function
+				check.usedVars[v] = true // avoid usage error when checking entire function
 			}
 			if !used {
 				check.softErrorf(lhs, UnusedVar, "%s declared and not used", lhs.Name)
@@ -922,7 +928,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 			if ident, _ := lhs.(*identType); ident != nil {
 				// declare new variable
 				name := identName(ident)
-				obj = NewVar(ident.Pos(), check.pkg, name, nil)
+				obj = newVar(LocalVar, ident.Pos(), check.pkg, name, nil)
 				check.recordDef(ident, obj)
 				// _ variables don't count as new variables
 				if name != "_" {
@@ -930,7 +936,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 				}
 			} else {
 				check.errorf(lhs, InvalidSyntaxTree, "cannot declare %s", lhs)
-				obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
+				obj = newVar(LocalVar, lhs.Pos(), check.pkg, "_", nil) // dummy variable
 			}
 			assert(obj.typ == nil)
 
@@ -939,7 +945,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
 			if typ == nil || typ == Typ[Invalid] {
 				// typ == Typ[Invalid] can happen if allowVersion fails.
 				obj.typ = Typ[Invalid]
-				obj.used = true // don't complain about unused variable
+				check.usedVars[obj] = true // don't complain about unused variable
 				continue
 			}
 
@@ -1020,7 +1026,7 @@ func rangeKeyVal(check *Checker, orig Type, allowVersion func(goVersion) bool) (
 	}
 
 	var cause1 string
-	rtyp := sharedUnderOrChan(check, orig, &cause1)
+	rtyp := commonUnderOrChan(check, orig, &cause1)
 	if rtyp == nil {
 		return bad(cause1)
 	}
@@ -1059,7 +1065,7 @@ func rangeKeyVal(check *Checker, orig Type, allowVersion func(goVersion) bool) (
 		assert(typ.Recv() == nil)
 		// check iterator argument type
 		var cause2 string
-		cb, _ := sharedUnder(check, typ.Params().At(0).Type(), &cause2).(*Signature)
+		cb, _ := commonUnder(check, typ.Params().At(0).Type(), &cause2).(*Signature)
 		switch {
 		case cb == nil:
 			if cause2 != "" {

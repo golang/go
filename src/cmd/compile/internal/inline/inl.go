@@ -42,6 +42,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/pgo"
+	"cmd/internal/src"
 )
 
 // Inlining budget parameters, gathered in one place
@@ -974,6 +975,16 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller, closureCal
 	return true, 0, metric, hot
 }
 
+// parsePos returns all the inlining positions and the innermost position.
+func parsePos(pos src.XPos, posTmp []src.Pos) ([]src.Pos, src.Pos) {
+	ctxt := base.Ctxt
+	ctxt.AllPos(pos, func(p src.Pos) {
+		posTmp = append(posTmp, p)
+	})
+	l := len(posTmp) - 1
+	return posTmp[:l], posTmp[l]
+}
+
 // canInlineCallExpr returns true if the call n from caller to callee
 // can be inlined, plus the score computed for the call expr in question,
 // and whether the callee is hot according to PGO.
@@ -999,6 +1010,17 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
 				fmt.Sprintf("cost %d of %s exceeds max caller cost %d", callee.Inl.Cost, ir.PkgFuncName(callee), maxCost))
 		}
 		return false, 0, false
+	}
+
+	callees, calleeInner := parsePos(n.Pos(), make([]src.Pos, 0, 10))
+
+	for _, p := range callees {
+		if p.Line() == calleeInner.Line() && p.Col() == calleeInner.Col() && p.AbsFilename() == calleeInner.AbsFilename() {
+			if log && logopt.Enabled() {
+				logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to %s", ir.FuncName(callerfn)))
+			}
+			return false, 0, false
+		}
 	}
 
 	if callee == callerfn {
@@ -1029,6 +1051,28 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
 		}) {
 			if log && logopt.Enabled() {
 				logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to closure parent: %s, %s", ir.FuncName(callerfn), ir.FuncName(callee)))
+			}
+			return false, 0, false
+		}
+	}
+	do := func(fn *ir.Func) bool {
+		// Can't recursively inline a function if the function body contains
+		// a call to a function f, which the function f is one of the call arguments.
+		return ir.Any(fn, func(node ir.Node) bool {
+			if call, ok := node.(*ir.CallExpr); ok {
+				for _, arg := range call.Args {
+					if call.Fun == arg {
+						return true
+					}
+				}
+			}
+			return false
+		})
+	}
+	for _, fn := range []*ir.Func{callerfn, callee} {
+		if do(fn) {
+			if log && logopt.Enabled() {
+				logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to function: %s", ir.FuncName(fn)))
 			}
 			return false, 0, false
 		}

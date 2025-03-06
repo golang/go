@@ -1098,6 +1098,7 @@ func testErrno(t *testing.T) {
 func testMultipleAssign(t *testing.T) {
 	p := C.CString("234")
 	n, m := C.strtol(p, nil, 345), C.strtol(p, nil, 10)
+	defer C.free(unsafe.Pointer(p))
 	if runtime.GOOS == "openbsd" {
 		// Bug in OpenBSD strtol(3) - base > 36 succeeds.
 		if (n != 0 && n != 239089) || m != 234 {
@@ -1106,7 +1107,6 @@ func testMultipleAssign(t *testing.T) {
 	} else if n != 0 || m != 234 {
 		t.Fatal("Strtol x2: ", n, m)
 	}
-	C.free(unsafe.Pointer(p))
 }
 
 var (
@@ -1632,7 +1632,9 @@ func testNaming(t *testing.T) {
 
 func test6907(t *testing.T) {
 	want := "yarn"
-	if got := C.GoString(C.Issue6907CopyString(want)); got != want {
+	s := C.Issue6907CopyString(want)
+	defer C.free(unsafe.Pointer(s))
+	if got := C.GoString(s); got != want {
 		t.Errorf("C.GoString(C.Issue6907CopyString(%q)) == %q, want %q", want, got, want)
 	}
 }
@@ -1881,6 +1883,7 @@ func test17537(t *testing.T) {
 	}
 
 	p := (*C.char)(C.malloc(1))
+	defer C.free(unsafe.Pointer(p))
 	*p = 17
 	if got, want := C.F17537(&p), C.int(17); got != want {
 		t.Errorf("got %d, want %d", got, want)

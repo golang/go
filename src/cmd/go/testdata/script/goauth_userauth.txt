@@ -1,6 +1,8 @@
 # This test covers the HTTP authentication mechanism over GOAUTH by using a custom authenticator.
 # See golang.org/issue/26232
 
+[short] skip 'runs build to create authenticators'
+
 env GOPROXY=direct
 env GOSUMDB=off
 mkdir $WORK/bin

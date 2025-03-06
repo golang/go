@@ -536,7 +536,7 @@ func MapNextArenaHint() (start, end uintptr, ok bool) {
 	} else {
 		start, end = addr, addr+heapArenaBytes
 	}
-	got := sysReserve(unsafe.Pointer(addr), physPageSize)
+	got := sysReserve(unsafe.Pointer(addr), physPageSize, "")
 	ok = (addr == uintptr(got))
 	if !ok {
 		// We were unable to get the requested reservation.

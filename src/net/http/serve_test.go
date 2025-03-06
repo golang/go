@@ -13,6 +13,7 @@ import (
 	"compress/zlib"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -7333,5 +7334,73 @@ func TestInvalidChunkedBodies(t *testing.T) {
 				t.Errorf("server handler: io.ReadAll(r.Body) succeeded, want error")
 			}
 		})
+	}
+}
+
+// Issue #72100: Verify that we don't modify the caller's TLS.Config.NextProtos slice.
+func TestServerTLSNextProtos(t *testing.T) {
+	run(t, testServerTLSNextProtos, []testMode{https1Mode, http2Mode})
+}
+func testServerTLSNextProtos(t *testing.T, mode testMode) {
+	CondSkipHTTP2(t)
+
+	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	leafCert, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	certpool := x509.NewCertPool()
+	certpool.AddCert(leafCert)
+
+	protos := new(Protocols)
+	switch mode {
+	case https1Mode:
+		protos.SetHTTP1(true)
+	case http2Mode:
+		protos.SetHTTP2(true)
+	}
+
+	wantNextProtos := []string{"http/1.1", "h2", "other"}
+	nextProtos := slices.Clone(wantNextProtos)
+
+	// We don't use httptest here because it overrides the tls.Config.
+	srv := &Server{
+		TLSConfig: &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			NextProtos:   nextProtos,
+		},
+		Handler:   HandlerFunc(func(w ResponseWriter, req *Request) {}),
+		Protocols: protos,
+	}
+	tr := &Transport{
+		TLSClientConfig: &tls.Config{
+			RootCAs:    certpool,
+			NextProtos: nextProtos,
+		},
+		Protocols: protos,
+	}
+
+	listener := newLocalListener(t)
+	srvc := make(chan error, 1)
+	go func() {
+		srvc <- srv.ServeTLS(listener, "", "")
+	}()
+	t.Cleanup(func() {
+		srv.Close()
+		<-srvc
+	})
+
+	client := &Client{Transport: tr}
+	resp, err := client.Get("https://" + listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+
+	if !slices.Equal(nextProtos, wantNextProtos) {
+		t.Fatalf("after running test: original NextProtos slice = %v, want %v", nextProtos, wantNextProtos)
 	}
 }

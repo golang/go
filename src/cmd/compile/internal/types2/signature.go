@@ -45,7 +45,7 @@ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params
 		}
 		core := coreString(params.At(n - 1).typ)
 		if _, ok := core.(*Slice); !ok && !isString(core) {
-			panic(fmt.Sprintf("got %s, want variadic parameter with unnamed slice type or string as core type", core.String()))
+			panic(fmt.Sprintf("got %s, want variadic parameter with unnamed slice type or string as common underlying type", core.String()))
 		}
 	}
 	sig := &Signature{recv: recv, params: params, results: results, variadic: variadic}
@@ -117,8 +117,8 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
 	}
 
 	// collect ordinary and result parameters
-	pnames, params, variadic := check.collectParams(ftyp.ParamList, true)
-	rnames, results, _ := check.collectParams(ftyp.ResultList, false)
+	pnames, params, variadic := check.collectParams(ParamVar, ftyp.ParamList)
+	rnames, results, _ := check.collectParams(ResultVar, ftyp.ResultList)
 
 	// declare named receiver, ordinary, and result parameters
 	scopePos := syntax.EndPos(ftyp) // all parameter's scopes start after the signature
@@ -258,13 +258,13 @@ func (check *Checker) collectRecv(rparam *syntax.Field, scopePos syntax.Pos) (*V
 	var recv *Var
 	if rname := rparam.Name; rname != nil && rname.Value != "" {
 		// named receiver
-		recv = NewParam(rname.Pos(), check.pkg, rname.Value, recvType)
+		recv = newVar(RecvVar, rname.Pos(), check.pkg, rname.Value, recvType)
 		// In this case, the receiver is declared by the caller
 		// because it must be declared after any type parameters
 		// (otherwise it might shadow one of them).
 	} else {
 		// anonymous receiver
-		recv = NewParam(rparam.Pos(), check.pkg, "", recvType)
+		recv = newVar(RecvVar, rparam.Pos(), check.pkg, "", recvType)
 		check.recordImplicit(rparam, recv)
 	}
 
@@ -322,10 +322,11 @@ func (check *Checker) recordParenthesizedRecvTypes(expr syntax.Expr, typ Type) {
 	}
 }
 
-// collectParams collects (but does not declare) all parameters of list and returns
-// the list of parameter names, corresponding parameter variables, and whether the
-// parameter list is variadic. Anonymous parameters are recorded with nil names.
-func (check *Checker) collectParams(list []*syntax.Field, variadicOk bool) (names []*syntax.Name, params []*Var, variadic bool) {
+// collectParams collects (but does not declare) all parameter/result
+// variables of list and returns the list of names and corresponding
+// variables, and whether the (parameter) list is variadic.
+// Anonymous parameters are recorded with nil names.
+func (check *Checker) collectParams(kind VarKind, list []*syntax.Field) (names []*syntax.Name, params []*Var, variadic bool) {
 	if list == nil {
 		return
 	}
@@ -341,7 +342,7 @@ func (check *Checker) collectParams(list []*syntax.Field, variadicOk bool) (name
 			prev = ftype
 			if t, _ := ftype.(*syntax.DotsType); t != nil {
 				ftype = t.Elem
-				if variadicOk && i == len(list)-1 {
+				if kind == ParamVar && i == len(list)-1 {
 					variadic = true
 				} else {
 					check.error(t, InvalidSyntaxTree, "invalid use of ...")
@@ -359,14 +360,14 @@ func (check *Checker) collectParams(list []*syntax.Field, variadicOk bool) (name
 				check.error(field.Name, InvalidSyntaxTree, "anonymous parameter")
 				// ok to continue
 			}
-			par := NewParam(field.Name.Pos(), check.pkg, name, typ)
+			par := newVar(kind, field.Name.Pos(), check.pkg, name, typ)
 			// named parameter is declared by caller
 			names = append(names, field.Name)
 			params = append(params, par)
 			named = true
 		} else {
 			// anonymous parameter
-			par := NewParam(field.Pos(), check.pkg, "", typ)
+			par := newVar(kind, field.Pos(), check.pkg, "", typ)
 			check.recordImplicit(field, par)
 			names = append(names, nil)
 			params = append(params, par)

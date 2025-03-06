@@ -638,7 +638,7 @@ func TestIssue50646(t *testing.T) {
 func TestIssue55030(t *testing.T) {
 	// makeSig makes the signature func(typ...)
 	makeSig := func(typ Type) {
-		par := NewVar(nopos, nil, "", typ)
+		par := NewParam(nopos, nil, "", typ)
 		params := NewTuple(par)
 		NewSignatureType(nil, nil, nil, params, nil, true)
 	}

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"internal/asan"
 	"internal/platform"
 	"internal/syscall/unix"
 	"internal/testenv"
@@ -334,6 +335,10 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
 
 // Test for Issue 29789: unshare fails when uid/gid mapping is specified
 func TestUnshareUidGidMapping(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("test fails with ASAN beause the ASAN leak checker fails finding memory regions")
+	}
+
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		defer os.Exit(0)
 		if err := syscall.Chroot(os.TempDir()); err != nil {

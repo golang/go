@@ -312,7 +312,7 @@ func (rfs *rootFS) ReadFile(name string) ([]byte, error) {
 		return nil, err
 	}
 	defer f.Close()
-	return readFileContents(f)
+	return readFileContents(statOrZero(f), f.Read)
 }
 
 func (rfs *rootFS) Stat(name string) (FileInfo, error) {

@@ -909,7 +909,7 @@ func (check *Checker) declStmt(d ast.Decl) {
 
 			lhs0 := make([]*Var, len(d.spec.Names))
 			for i, name := range d.spec.Names {
-				lhs0[i] = NewVar(name.Pos(), pkg, name.Name, nil)
+				lhs0[i] = newVar(LocalVar, name.Pos(), pkg, name.Name, nil)
 			}
 
 			// initialize all variables

@@ -624,6 +624,7 @@ type m struct {
 	// not in the next-smallest (1792-byte) size class. That leaves the 11 low
 	// bits of muintptr values available for flags, as required for
 	// GOEXPERIMENT=spinbitmutex.
+	_ [goexperiment.SpinbitMutexInt * 64 * goarch.PtrSize / 8]byte
 	_ [goexperiment.SpinbitMutexInt * 700 * (2 - goarch.PtrSize/4)]byte
 }
 

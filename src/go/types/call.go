@@ -95,7 +95,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexed
 				}
 			}
 			gsig := NewSignatureType(nil, nil, nil, sig.params, sig.results, sig.variadic)
-			params = []*Var{NewVar(x.Pos(), check.pkg, "", gsig)}
+			params = []*Var{NewParam(x.Pos(), check.pkg, "", gsig)}
 			// The type of the argument operand is tsig, which is the type of the LHS in an assignment
 			// or the result type in a return statement. Create a pseudo-expression for that operand
 			// that makes sense when reported in error messages from infer, below.
@@ -245,9 +245,9 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	cgocall := x.mode == cgofunc
 
 	// If the operand type is a type parameter, all types in its type set
-	// must have a shared underlying type, which must be a signature.
+	// must have a common underlying type, which must be a signature.
 	var cause string
-	sig, _ := sharedUnder(check, x.typ, &cause).(*Signature)
+	sig, _ := commonUnder(check, x.typ, &cause).(*Signature)
 	if sig == nil {
 		if cause != "" {
 			check.errorf(x, InvalidCall, invalidOp+"cannot call %s: %s", x, cause)
@@ -688,7 +688,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 		if pname, _ := obj.(*PkgName); pname != nil {
 			assert(pname.pkg == check.pkg)
 			check.recordUse(ident, pname)
-			pname.used = true
+			check.usedPkgNames[pname] = true
 			pkg := pname.imported
 
 			var exp Object
@@ -878,7 +878,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
 				name = "_"
 			}
 		}
-		params = append([]*Var{NewVar(sig.recv.pos, sig.recv.pkg, name, x.typ)}, params...)
+		params = append([]*Var{NewParam(sig.recv.pos, sig.recv.pkg, name, x.typ)}, params...)
 		x.mode = value
 		x.typ = &Signature{
 			tparams:  sig.tparams,
@@ -1019,13 +1019,13 @@ func (check *Checker) use1(e ast.Expr, lhs bool) bool {
 				// dot-imported variables.
 				if w, _ := obj.(*Var); w != nil && w.pkg == check.pkg {
 					v = w
-					v_used = v.used
+					v_used = check.usedVars[v]
 				}
 			}
 		}
 		check.exprOrType(&x, n, true)
 		if v != nil {
-			v.used = v_used // restore v.used
+			check.usedVars[v] = v_used // restore v.used
 		}
 	default:
 		check.rawExpr(nil, &x, e, nil, true)

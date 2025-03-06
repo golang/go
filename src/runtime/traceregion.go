@@ -77,7 +77,7 @@ func (a *traceRegionAlloc) alloc(n uintptr) *notInHeap {
 	}
 
 	// Allocate a new block.
-	block = (*traceRegionAllocBlock)(sysAlloc(unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys))
+	block = (*traceRegionAllocBlock)(sysAlloc(unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys, "trace arena alloc"))
 	if block == nil {
 		throw("traceRegion: out of memory")
 	}

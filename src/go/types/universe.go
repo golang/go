@@ -122,8 +122,8 @@ func defPredeclaredTypes() {
 		typ := NewNamed(obj, nil, nil)
 
 		// error.Error() string
-		recv := NewVar(nopos, nil, "", typ)
-		res := NewVar(nopos, nil, "", Typ[String])
+		recv := newVar(RecvVar, nopos, nil, "", typ)
+		res := newVar(ResultVar, nopos, nil, "", Typ[String])
 		sig := NewSignatureType(recv, nil, nil, nil, NewTuple(res), false)
 		err := NewFunc(nopos, nil, "Error", sig)
 

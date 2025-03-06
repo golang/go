@@ -15,3 +15,5 @@ var ErrPatternHasSeparator = errPatternHasSeparator
 func init() {
 	checkWrapErr = true
 }
+
+var ExportReadFileContents = readFileContents

@@ -261,7 +261,7 @@ type conn struct {
 
 	// rwc is the underlying network connection.
 	// This is never wrapped by other types and is the value given out
-	// to CloseNotifier callers. It is usually of type *net.TCPConn or
+	// to [Hijacker] callers. It is usually of type *net.TCPConn or
 	// *tls.Conn.
 	rwc net.Conn
 
@@ -486,11 +486,12 @@ type response struct {
 	clenBuf   [10]byte
 	statusBuf [3]byte
 
+	// lazyCloseNotifyMu protects closeNotifyCh and closeNotifyTriggered.
+	lazyCloseNotifyMu sync.Mutex
 	// closeNotifyCh is the channel returned by CloseNotify.
-	// TODO(bradfitz): this is currently (for Go 1.8) always
-	// non-nil. Make this lazily-created again as it used to be?
-	closeNotifyCh  chan bool
-	didCloseNotify atomic.Bool // atomic (only false->true winner should send)
+	closeNotifyCh chan bool
+	// closeNotifyTriggered tracks prior closeNotify calls.
+	closeNotifyTriggered bool
 }
 
 func (c *response) SetReadDeadline(deadline time.Time) error {
@@ -761,9 +762,8 @@ func (cr *connReader) handleReadError(_ error) {
 
 // may be called from multiple goroutines.
 func (cr *connReader) closeNotify() {
-	res := cr.conn.curReq.Load()
-	if res != nil && !res.didCloseNotify.Swap(true) {
-		res.closeNotifyCh <- true
+	if res := cr.conn.curReq.Load(); res != nil {
+		res.closeNotify()
 	}
 }
 
@@ -1078,7 +1078,6 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 		reqBody:       req.Body,
 		handlerHeader: make(Header),
 		contentLength: -1,
-		closeNotifyCh: make(chan bool, 1),
 
 		// We populate these ahead of time so we're not
 		// reading from req.Header after their Handler starts
@@ -2007,6 +2006,9 @@ func (c *conn) serve(ctx context.Context) {
 			// If we read any bytes off the wire, we're active.
 			c.setState(c.rwc, StateActive, runHooks)
 		}
+		if c.server.shuttingDown() {
+			return
+		}
 		if err != nil {
 			const errorHeaders = "\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n"
 
@@ -2228,10 +2230,30 @@ func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 }
 
 func (w *response) CloseNotify() <-chan bool {
+	w.lazyCloseNotifyMu.Lock()
+	defer w.lazyCloseNotifyMu.Unlock()
 	if w.handlerDone.Load() {
 		panic("net/http: CloseNotify called after ServeHTTP finished")
 	}
+	if w.closeNotifyCh == nil {
+		w.closeNotifyCh = make(chan bool, 1)
+		if w.closeNotifyTriggered {
+			w.closeNotifyCh <- true // action prior closeNotify call
+		}
+	}
 	return w.closeNotifyCh
+}
+
+func (w *response) closeNotify() {
+	w.lazyCloseNotifyMu.Lock()
+	defer w.lazyCloseNotifyMu.Unlock()
+	if w.closeNotifyTriggered {
+		return // already triggered
+	}
+	w.closeNotifyTriggered = true
+	if w.closeNotifyCh != nil {
+		w.closeNotifyCh <- true
+	}
 }
 
 func registerOnHitEOF(rc io.ReadCloser, fn func()) {
@@ -3499,6 +3521,12 @@ func (s *Server) protocols() Protocols {
 // adjustNextProtos adds or removes "http/1.1" and "h2" entries from
 // a tls.Config.NextProtos list, according to the set of protocols in protos.
 func adjustNextProtos(nextProtos []string, protos Protocols) []string {
+	// Make a copy of NextProtos since it might be shared with some other tls.Config.
+	// (tls.Config.Clone doesn't do a deep copy.)
+	//
+	// We could avoid an allocation in the common case by checking to see if the slice
+	// is already in order, but this is just one small allocation per connection.
+	nextProtos = slices.Clone(nextProtos)
 	var have Protocols
 	nextProtos = slices.DeleteFunc(nextProtos, func(s string) bool {
 		switch s {

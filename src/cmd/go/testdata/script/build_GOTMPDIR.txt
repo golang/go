@@ -1,3 +1,5 @@
+[short] skip 'runs build'
+
 # Set GOCACHE to a clean directory to ensure that 'go build' has work to report.
 [!GOOS:windows] env GOCACHE=$WORK/gocache
 [GOOS:windows] env GOCACHE=$WORK\gocache

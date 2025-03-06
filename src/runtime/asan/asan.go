@@ -13,6 +13,7 @@ package asan
 #include <stdbool.h>
 #include <stdint.h>
 #include <sanitizer/asan_interface.h>
+#include <sanitizer/lsan_interface.h>
 
 void __asan_read_go(void *addr, uintptr_t sz, void *sp, void *pc) {
 	if (__asan_region_is_poisoned(addr, sz)) {
@@ -32,6 +33,14 @@ void __asan_unpoison_go(void *addr, uintptr_t sz) {
 
 void __asan_poison_go(void *addr, uintptr_t sz) {
 	__asan_poison_memory_region(addr, sz);
+}
+
+void __lsan_register_root_region_go(void *addr, uintptr_t sz) {
+	__lsan_register_root_region(addr, sz);
+}
+
+void __lsan_do_leak_check_go(void) {
+	__lsan_do_leak_check();
 }
 
 // Keep in sync with the definition in compiler-rt

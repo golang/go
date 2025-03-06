@@ -8,6 +8,7 @@ package runtime_test
 
 import (
 	"bytes"
+	"internal/asan"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -20,6 +21,10 @@ import (
 // TestUsingVDSO tests that we are actually using the VDSO to fetch
 // the time.
 func TestUsingVDSO(t *testing.T) {
+	if asan.Enabled {
+		t.Skip("test fails with ASAN beause the ASAN leak checker won't run under strace")
+	}
+
 	const calls = 100
 
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
