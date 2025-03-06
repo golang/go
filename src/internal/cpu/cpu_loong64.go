@@ -43,8 +43,8 @@ func doinit() {
 	cfg2 := get_cpucfg(2)
 
 	Loong64.HasCRC32 = cfgIsSet(cfg1, cpucfg1_CRC32)
-	Loong64.HasLAMCAS = cfgIsSet(cfg2, cpucfg2_LAM_BH)
-	Loong64.HasLAM_BH = cfgIsSet(cfg2, cpucfg2_LAMCAS)
+	Loong64.HasLAMCAS = cfgIsSet(cfg2, cpucfg2_LAMCAS)
+	Loong64.HasLAM_BH = cfgIsSet(cfg2, cpucfg2_LAM_BH)
 
 	osInit()
 }
