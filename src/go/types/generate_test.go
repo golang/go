@@ -171,6 +171,11 @@ var filemap = map[string]action{
 	"package.go":    nil,
 	"pointer.go":    nil,
 	"predicates.go": nil,
+	"range.go": func(f *ast.File) {
+		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
+		renameSelectorExprs(f, "syntax.Name->ast.Ident", "syntax.ForStmt->ast.RangeStmt", "ident.Value->ident.Name") // must happen before renaming identifiers
+		renameIdents(f, "syntax->ast", "poser->positioner")
+	},
 	"recording.go": func(f *ast.File) {
 		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
 		renameSelectorExprs(f, "syntax.Name->ast.Ident") // must happen before renaming identifiers
