@@ -804,6 +804,9 @@ func toValidName(name string) string {
 
 func (r *Reader) initFileList() {
 	r.fileListOnce.Do(func() {
+		// Preallocate the minimum size of the index.
+		// We may also synthesize additional directory entries.
+		r.fileList = make([]fileListEntry, 0, len(r.File))
 		// files and knownDirs map from a file/directory name
 		// to an index into the r.fileList entry that we are
 		// building. They are used to mark duplicate entries.
