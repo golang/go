@@ -27,6 +27,7 @@ func get_cpucfg(reg uint32) uint32
 func doinit() {
 	options = []option{
 		{Name: "lsx", Feature: &Loong64.HasLSX},
+		{Name: "lasx", Feature: &Loong64.HasLASX},
 		{Name: "crc32", Feature: &Loong64.HasCRC32},
 		{Name: "lamcas", Feature: &Loong64.HasLAMCAS},
 		{Name: "lam_bh", Feature: &Loong64.HasLAM_BH},

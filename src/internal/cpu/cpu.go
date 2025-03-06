@@ -83,6 +83,7 @@ var ARM64 struct {
 var Loong64 struct {
 	_         CacheLinePad
 	HasLSX    bool // support 128-bit vector extension
+	HasLASX   bool // support 256-bit vector extension
 	HasCRC32  bool // support CRC instruction
 	HasLAMCAS bool // support AMCAS[_DB].{B/H/W/D}
 	HasLAM_BH bool // support AM{SWAP/ADD}[_DB].{B/H} instruction
