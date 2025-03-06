@@ -118,7 +118,7 @@ func (r *Reader) readMSB() (uint16, error) {
 	return code, nil
 }
 
-// Read implements io.Reader, reading uncompressed bytes from its underlying [Reader].
+// Read implements io.Reader, reading uncompressed bytes from its underlying reader.
 func (r *Reader) Read(b []byte) (int, error) {
 	for {
 		if len(r.toRead) > 0 {
