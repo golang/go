@@ -36,6 +36,7 @@ import (
 	"crypto/internal/fips140/tls13"
 	"crypto/rand"
 	"encoding/hex"
+	"runtime/debug"
 	"strings"
 	"testing"
 )
@@ -60,6 +61,32 @@ func moduleStatus(t *testing.T) {
 		t.Log("FIPS 140-3 integrity self-check succeeded")
 	} else {
 		t.Log("FIPS 140-3 integrity self-check not succeeded")
+	}
+}
+
+func TestVersion(t *testing.T) {
+	bi, ok := debug.ReadBuildInfo()
+	if !ok {
+		t.Skip("no build info")
+	}
+	for _, setting := range bi.Settings {
+		if setting.Key != "GOFIPS140" {
+			continue
+		}
+		exp := setting.Value
+		if exp == "v1.0.0" {
+			// Unfortunately we enshrined the version of the first module as
+			// v1.0 before deciding to go for full versions.
+			exp = "v1.0"
+		}
+		if v := fips140.Version(); v != exp {
+			t.Errorf("Version is %q, expected %q", v, exp)
+		}
+		return
+	}
+	// Without GOFIPS140, the Version should be "latest".
+	if v := fips140.Version(); v != "latest" {
+		t.Errorf("Version is %q, expected latest", v)
 	}
 }
 

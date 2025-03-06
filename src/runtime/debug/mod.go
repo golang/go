@@ -81,6 +81,7 @@ type Module struct {
 //   - GOARCH: the architecture target
 //   - GOAMD64/GOARM/GO386/etc: the architecture feature level for GOARCH
 //   - GOOS: the operating system target
+//   - GOFIPS140: the frozen FIPS 140-3 module version, if any
 //   - vcs: the version control system for the source tree where the build ran
 //   - vcs.revision: the revision identifier for the current commit or checkout
 //   - vcs.time: the modification time associated with vcs.revision, in RFC3339 format
