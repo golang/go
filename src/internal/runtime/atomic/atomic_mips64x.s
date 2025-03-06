@@ -8,10 +8,10 @@
 
 #define SYNC	WORD $0xf
 
-// func cas(ptr *uint32, old, new uint32) bool
+// func cas(val *uint32, old, new uint32) bool
 // Atomically:
-//	if *ptr == old {
-//		*ptr = new
+//	if *val == old {
+//		*val = new
 //		return true
 //	} else {
 //		return false
@@ -35,10 +35,10 @@ cas_fail:
 	MOVV	$0, R1
 	JMP	-4(PC)
 
-// func	Cas64(ptr *uint64, old, new uint64) bool
+// func	Cas64(val *uint64, old, new uint64) bool
 // Atomically:
-//	if *ptr == old {
-//		*ptr = new
+//	if *val == old {
+//		*val = new
 //		return true
 //	} else {
 //		return false

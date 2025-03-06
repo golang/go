@@ -30,10 +30,10 @@
 
 #include "textflag.h"
 
-// func Cas(ptr *uint64, old, new uint64) bool
+// func Cas(val *uint64, old, new uint64) bool
 // Atomically:
-//	if *ptr == old {
-//		*ptr = new
+//	if *val == old {
+//		*val = new
 //		return true
 //	} else {
 //		return false

@@ -192,10 +192,10 @@ load_store_loop:
 	RET
 #endif
 
-// func Cas(ptr *uint32, old, new uint32) bool
+// func Cas(val *uint32, old, new uint32) bool
 // Atomically:
-//	if *ptr == old {
-//		*ptr = new
+//	if *val == old {
+//		*val = new
 //		return true
 //	} else {
 //		return false
@@ -227,10 +227,10 @@ ok:
 	RET
 #endif
 
-// func Cas64(ptr *uint64, old, new uint64) bool
+// func Cas64(val *uint64, old, new uint64) bool
 // Atomically:
-//	if *ptr == old {
-//		*ptr = new
+//	if *val == old {
+//		*val = new
 //		return true
 //	} else {
 //		return false

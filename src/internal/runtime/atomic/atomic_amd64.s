@@ -58,9 +58,8 @@ TEXT ·Cas64(SB), NOSPLIT, $0-25
 //	if *val == old {
 //		*val = new
 //		return true
-//	} else {
+//	} else
 //		return false
-//	}
 TEXT ·Casp1(SB), NOSPLIT, $0-25
 	MOVQ	ptr+0(FP), BX
 	MOVQ	old+8(FP), AX

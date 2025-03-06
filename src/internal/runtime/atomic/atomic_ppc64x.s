@@ -78,10 +78,10 @@ TEXT ·LoadAcq64(SB),NOSPLIT|NOFRAME,$-8-16
 	MOVD   R3, ret+8(FP)
 	RET
 
-// func Cas(ptr *int32, old, new int32) bool
+// func Cas(val *int32, old, new int32) bool
 // Atomically:
-//	if *ptr == old {
-//		*ptr = new
+//	if *val == old {
+//		*val = new
 //		return true
 //	} else {
 //		return false
@@ -106,10 +106,10 @@ cas_fail:
 	MOVB	R0, ret+16(FP)
 	RET
 
-// func	Cas64(ptr *uint64, old, new uint64) bool
+// func	Cas64(val *uint64, old, new uint64) bool
 // Atomically:
-//	if *ptr == old {
-//		*ptr = new
+//	if *val == old {
+//		*val = new
 //		return true
 //	} else {
 //		return false
