@@ -134,6 +134,8 @@ type Conn interface {
 
 	// Close closes the connection.
 	// Any blocked Read or Write operations will be unblocked and return errors.
+	// Close may or may not block until any buffered data is sent;
+	// for TCP connections see [*TCPConn.SetLinger].
 	Close() error
 
 	// LocalAddr returns the local network address, if known.
