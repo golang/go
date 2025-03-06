@@ -1039,7 +1039,7 @@ func TestOutputWriter(t *T) {
 }
 
 func TestOutputWriterBuffering(t *T) {
-	w := outputWriter{&t.common, nil}
+	w := outputWriter{c: &t.common}
 
 	w.Write([]byte("Hel"))
 	w.Write([]byte("lo\nWorld\nInput to log\n\n\nMore logging\nShouldn't be logged"))
