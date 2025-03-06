@@ -86,8 +86,15 @@ var optab = []Optab{
 	{AADDF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 2, 4, 0, 0},
 	{AADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 2, 4, 0, 0},
 	{ACMPEQF, C_FREG, C_FREG, C_NONE, C_FCCREG, C_NONE, 2, 4, 0, 0},
+
 	{AVSEQB, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
 	{AXVSEQB, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
+	{AVSEQB, C_S5CON, C_VREG, C_NONE, C_VREG, C_NONE, 22, 4, 0, 0},
+	{AXVSEQB, C_S5CON, C_XREG, C_NONE, C_XREG, C_NONE, 22, 4, 0, 0},
+	{AVANDV, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
+	{AXVANDV, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
+	{AVANDB, C_U8CON, C_VREG, C_NONE, C_VREG, C_NONE, 23, 4, 0, 0},
+	{AXVANDB, C_U8CON, C_XREG, C_NONE, C_XREG, C_NONE, 23, 4, 0, 0},
 
 	{AVADDB, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
 	{AVADDB, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
@@ -223,13 +230,13 @@ var optab = []Optab{
 	{AMOVW, C_EXTADDR, C_NONE, C_NONE, C_REG, C_NONE, 52, 8, 0, NOTUSETMP},
 	{AMOVV, C_EXTADDR, C_NONE, C_NONE, C_REG, C_NONE, 52, 8, 0, NOTUSETMP},
 
-	{AMOVW, C_LACON, C_NONE, C_NONE, C_REG, C_NONE, 26, 12, REGSP, 0},
-	{AMOVV, C_LACON, C_NONE, C_NONE, C_REG, C_NONE, 26, 12, REGSP, 0},
+	{AMOVW, C_LACON, C_NONE, C_NONE, C_REG, C_NONE, 27, 12, REGSP, 0},
+	{AMOVV, C_LACON, C_NONE, C_NONE, C_REG, C_NONE, 27, 12, REGSP, 0},
 	{AMOVW, C_12CON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, REGZERO, 0},
 	{AMOVV, C_12CON, C_NONE, C_NONE, C_REG, C_NONE, 3, 4, REGZERO, 0},
 
-	{AMOVW, C_32CON20_0, C_NONE, C_NONE, C_REG, C_NONE, 24, 4, 0, 0},
-	{AMOVV, C_32CON20_0, C_NONE, C_NONE, C_REG, C_NONE, 24, 4, 0, 0},
+	{AMOVW, C_32CON20_0, C_NONE, C_NONE, C_REG, C_NONE, 25, 4, 0, 0},
+	{AMOVV, C_32CON20_0, C_NONE, C_NONE, C_REG, C_NONE, 25, 4, 0, 0},
 	{AMOVW, C_32CON, C_NONE, C_NONE, C_REG, C_NONE, 19, 8, 0, NOTUSETMP},
 	{AMOVV, C_32CON, C_NONE, C_NONE, C_REG, C_NONE, 19, 8, 0, NOTUSETMP},
 	{AMOVV, C_DCON12_0, C_NONE, C_NONE, C_REG, C_NONE, 67, 4, 0, NOTUSETMP},
@@ -252,19 +259,19 @@ var optab = []Optab{
 	{AAND, C_S12CON, C_REG, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
 	{AAND, C_S12CON, C_NONE, C_NONE, C_REG, C_NONE, 10, 8, 0, 0},
 
-	{AADD, C_32CON20_0, C_REG, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
-	{AADD, C_32CON20_0, C_NONE, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
-	{AADDV, C_32CON20_0, C_REG, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
-	{AADDV, C_32CON20_0, C_NONE, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
-	{AAND, C_32CON20_0, C_REG, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
-	{AAND, C_32CON20_0, C_NONE, C_NONE, C_REG, C_NONE, 25, 8, 0, 0},
+	{AADD, C_32CON20_0, C_REG, C_NONE, C_REG, C_NONE, 26, 8, 0, 0},
+	{AADD, C_32CON20_0, C_NONE, C_NONE, C_REG, C_NONE, 26, 8, 0, 0},
+	{AADDV, C_32CON20_0, C_REG, C_NONE, C_REG, C_NONE, 26, 8, 0, 0},
+	{AADDV, C_32CON20_0, C_NONE, C_NONE, C_REG, C_NONE, 26, 8, 0, 0},
+	{AAND, C_32CON20_0, C_REG, C_NONE, C_REG, C_NONE, 26, 8, 0, 0},
+	{AAND, C_32CON20_0, C_NONE, C_NONE, C_REG, C_NONE, 26, 8, 0, 0},
 
-	{AADD, C_32CON, C_NONE, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
-	{AADDV, C_32CON, C_NONE, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
-	{AAND, C_32CON, C_NONE, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
-	{AADD, C_32CON, C_REG, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
-	{AADDV, C_32CON, C_REG, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
-	{AAND, C_32CON, C_REG, C_NONE, C_REG, C_NONE, 23, 12, 0, 0},
+	{AADD, C_32CON, C_NONE, C_NONE, C_REG, C_NONE, 24, 12, 0, 0},
+	{AADDV, C_32CON, C_NONE, C_NONE, C_REG, C_NONE, 24, 12, 0, 0},
+	{AAND, C_32CON, C_NONE, C_NONE, C_REG, C_NONE, 24, 12, 0, 0},
+	{AADD, C_32CON, C_REG, C_NONE, C_REG, C_NONE, 24, 12, 0, 0},
+	{AADDV, C_32CON, C_REG, C_NONE, C_REG, C_NONE, 24, 12, 0, 0},
+	{AAND, C_32CON, C_REG, C_NONE, C_REG, C_NONE, 24, 12, 0, 0},
 
 	{AADDV, C_DCON, C_NONE, C_NONE, C_REG, C_NONE, 60, 20, 0, 0},
 	{AADDV, C_DCON, C_REG, C_NONE, C_REG, C_NONE, 60, 20, 0, 0},
@@ -307,27 +314,27 @@ var optab = []Optab{
 	{AJMP, C_NONE, C_NONE, C_NONE, C_ZOREG, C_NONE, 18, 4, REGZERO, 0}, // jirl r0, rj, 0
 	{AJAL, C_NONE, C_NONE, C_NONE, C_ZOREG, C_NONE, 18, 4, REGLINK, 0}, // jirl r1, rj, 0
 
-	{AMOVF, C_SAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 27, 4, REGSP, 0},
-	{AMOVD, C_SAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 27, 4, REGSP, 0},
-	{AMOVF, C_SOREG, C_NONE, C_NONE, C_FREG, C_NONE, 27, 4, REGZERO, 0},
-	{AMOVD, C_SOREG, C_NONE, C_NONE, C_FREG, C_NONE, 27, 4, REGZERO, 0},
+	{AMOVF, C_SAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 28, 4, REGSP, 0},
+	{AMOVD, C_SAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 28, 4, REGSP, 0},
+	{AMOVF, C_SOREG, C_NONE, C_NONE, C_FREG, C_NONE, 28, 4, REGZERO, 0},
+	{AMOVD, C_SOREG, C_NONE, C_NONE, C_FREG, C_NONE, 28, 4, REGZERO, 0},
 
-	{AMOVF, C_LAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 27, 12, REGSP, 0},
-	{AMOVD, C_LAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 27, 12, REGSP, 0},
-	{AMOVF, C_LOREG, C_NONE, C_NONE, C_FREG, C_NONE, 27, 12, REGZERO, 0},
-	{AMOVD, C_LOREG, C_NONE, C_NONE, C_FREG, C_NONE, 27, 12, REGZERO, 0},
+	{AMOVF, C_LAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 28, 12, REGSP, 0},
+	{AMOVD, C_LAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 28, 12, REGSP, 0},
+	{AMOVF, C_LOREG, C_NONE, C_NONE, C_FREG, C_NONE, 28, 12, REGZERO, 0},
+	{AMOVD, C_LOREG, C_NONE, C_NONE, C_FREG, C_NONE, 28, 12, REGZERO, 0},
 	{AMOVF, C_ADDR, C_NONE, C_NONE, C_FREG, C_NONE, 51, 8, 0, 0},
 	{AMOVD, C_ADDR, C_NONE, C_NONE, C_FREG, C_NONE, 51, 8, 0, 0},
 
-	{AMOVF, C_FREG, C_NONE, C_NONE, C_SAUTO, C_NONE, 28, 4, REGSP, 0},
-	{AMOVD, C_FREG, C_NONE, C_NONE, C_SAUTO, C_NONE, 28, 4, REGSP, 0},
-	{AMOVF, C_FREG, C_NONE, C_NONE, C_SOREG, C_NONE, 28, 4, REGZERO, 0},
-	{AMOVD, C_FREG, C_NONE, C_NONE, C_SOREG, C_NONE, 28, 4, REGZERO, 0},
+	{AMOVF, C_FREG, C_NONE, C_NONE, C_SAUTO, C_NONE, 29, 4, REGSP, 0},
+	{AMOVD, C_FREG, C_NONE, C_NONE, C_SAUTO, C_NONE, 29, 4, REGSP, 0},
+	{AMOVF, C_FREG, C_NONE, C_NONE, C_SOREG, C_NONE, 29, 4, REGZERO, 0},
+	{AMOVD, C_FREG, C_NONE, C_NONE, C_SOREG, C_NONE, 29, 4, REGZERO, 0},
 
-	{AMOVF, C_FREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 28, 12, REGSP, 0},
-	{AMOVD, C_FREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 28, 12, REGSP, 0},
-	{AMOVF, C_FREG, C_NONE, C_NONE, C_LOREG, C_NONE, 28, 12, REGZERO, 0},
-	{AMOVD, C_FREG, C_NONE, C_NONE, C_LOREG, C_NONE, 28, 12, REGZERO, 0},
+	{AMOVF, C_FREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 29, 12, REGSP, 0},
+	{AMOVD, C_FREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 29, 12, REGSP, 0},
+	{AMOVF, C_FREG, C_NONE, C_NONE, C_LOREG, C_NONE, 29, 12, REGZERO, 0},
+	{AMOVD, C_FREG, C_NONE, C_NONE, C_LOREG, C_NONE, 29, 12, REGZERO, 0},
 	{AMOVF, C_FREG, C_NONE, C_NONE, C_ADDR, C_NONE, 50, 8, 0, 0},
 	{AMOVD, C_FREG, C_NONE, C_NONE, C_ADDR, C_NONE, 50, 8, 0, 0},
 
@@ -1535,6 +1542,7 @@ func buildop(ctxt *obj.Link) {
 				}
 				opset(i, r0)
 			}
+
 		case AVSEQB:
 			opset(AVSEQH, r0)
 			opset(AVSEQW, r0)
@@ -1560,6 +1568,30 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVILVHH, r0)
 			opset(AXVILVHW, r0)
 			opset(AXVILVHV, r0)
+
+		case AVANDB:
+			opset(AVORB, r0)
+			opset(AVXORB, r0)
+			opset(AVNORB, r0)
+
+		case AXVANDB:
+			opset(AXVORB, r0)
+			opset(AXVXORB, r0)
+			opset(AXVNORB, r0)
+
+		case AVANDV:
+			opset(AVORV, r0)
+			opset(AVXORV, r0)
+			opset(AVNORV, r0)
+			opset(AVANDNV, r0)
+			opset(AVORNV, r0)
+
+		case AXVANDV:
+			opset(AXVORV, r0)
+			opset(AXVXORV, r0)
+			opset(AXVNORV, r0)
+			opset(AXVANDNV, r0)
+			opset(AXVORNV, r0)
 
 		case AVPCNTB:
 			opset(AVPCNTH, r0)
@@ -1681,6 +1713,10 @@ func OP_12IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
 	return op | (i&0xFFF)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
 }
 
+func OP_8IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
+	return op | (i&0xFF)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
+}
+
 func OP_6IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
 	return op | (i&0x3F)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
 }
@@ -1769,12 +1805,10 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 4: // add $scon,[r1],r2
 		v := c.regoff(&p.From)
-
 		r := int(p.Reg)
 		if r == 0 {
 			r = int(p.To.Reg)
 		}
-
 		o1 = OP_12IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
 
 	case 5: // syscall
@@ -1981,7 +2015,25 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 21: // mov (Rbase)(Roff), Rdst
 		o1 = OP_RRR(c.oprrr(-p.As), uint32(p.From.Index), uint32(p.From.Reg), uint32(p.To.Reg))
 
-	case 23: // add $lcon,r1,r2
+	case 22: // add $si5,[r1],r2
+		v := c.regoff(&p.From)
+		r := int(p.Reg)
+		if r == 0 {
+			r = int(p.To.Reg)
+		}
+
+		o1 = OP_5IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
+
+	case 23: // add $ui8,[r1],r2
+		v := c.regoff(&p.From)
+		r := int(p.Reg)
+		if r == 0 {
+			r = int(p.To.Reg)
+		}
+
+		o1 = OP_8IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
+
+	case 24: // add $lcon,r1,r2
 		v := c.regoff(&p.From)
 		o1 = OP_IR(c.opir(ALU12IW), uint32(v>>12), uint32(REGTMP))
 		o2 = OP_12IRR(c.opirr(AOR), uint32(v), uint32(REGTMP), uint32(REGTMP))
@@ -1991,11 +2043,11 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o3 = OP_RRR(c.oprrr(p.As), uint32(REGTMP), uint32(r), uint32(p.To.Reg))
 
-	case 24: // mov $ucon,r
+	case 25: // mov $ucon,r
 		v := c.regoff(&p.From)
 		o1 = OP_IR(c.opir(ALU12IW), uint32(v>>12), uint32(p.To.Reg))
 
-	case 25: // add/and $ucon,[r1],r2
+	case 26: // add/and $ucon,[r1],r2
 		v := c.regoff(&p.From)
 		o1 = OP_IR(c.opir(ALU12IW), uint32(v>>12), uint32(REGTMP))
 		r := int(p.Reg)
@@ -2004,7 +2056,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o2 = OP_RRR(c.oprrr(p.As), uint32(REGTMP), uint32(r), uint32(p.To.Reg))
 
-	case 26: // mov $lsext/auto/oreg,r
+	case 27: // mov $lsext/auto/oreg,r
 		v := c.regoff(&p.From)
 		o1 = OP_IR(c.opir(ALU12IW), uint32(v>>12), uint32(REGTMP))
 		o2 = OP_12IRR(c.opirr(AOR), uint32(v), uint32(REGTMP), uint32(REGTMP))
@@ -2014,7 +2066,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o3 = OP_RRR(c.oprrr(add), uint32(REGTMP), uint32(r), uint32(p.To.Reg))
 
-	case 27: // mov [sl]ext/auto/oreg,fr
+	case 28: // mov [sl]ext/auto/oreg,fr
 		v := c.regoff(&p.From)
 		r := int(p.From.Reg)
 		if r == 0 {
@@ -2030,7 +2082,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o1 = OP_12IRR(c.opirr(-p.As), uint32(v), uint32(r), uint32(p.To.Reg))
 		}
 
-	case 28: // mov fr,[sl]ext/auto/oreg
+	case 29: // mov fr,[sl]ext/auto/oreg
 		v := c.regoff(&p.To)
 		r := int(p.To.Reg)
 		if r == 0 {
@@ -2774,6 +2826,30 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x0e003 << 15 // vseq.d
 	case AXVSEQV:
 		return 0x0e803 << 15 // xvseq.d
+	case AVANDV:
+		return 0x0E24C << 15 // vand.v
+	case AVORV:
+		return 0x0E24D << 15 // vor.v
+	case AVXORV:
+		return 0x0E24E << 15 // vxor.v
+	case AVNORV:
+		return 0x0E24F << 15 // vnor.v
+	case AVANDNV:
+		return 0x0E250 << 15 // vandn.v
+	case AVORNV:
+		return 0x0E251 << 15 // vorn.v
+	case AXVANDV:
+		return 0x0EA4C << 15 // xvand.v
+	case AXVORV:
+		return 0x0EA4D << 15 // xvor.v
+	case AXVXORV:
+		return 0x0EA4E << 15 // xvxor.v
+	case AXVNORV:
+		return 0x0EA4F << 15 // xvnor.v
+	case AXVANDNV:
+		return 0x0EA50 << 15 // xvandn.v
+	case AXVORNV:
+		return 0x0EA51 << 15 // xvorn.v
 	case AVSLLB:
 		return 0xe1d0 << 15 // vsll.b
 	case AVSLLH:
@@ -3237,6 +3313,38 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return 0x021 << 24
 	case ASCV:
 		return 0x023 << 24
+	case AVANDB:
+		return 0x1CF4 << 18 // vandi.b
+	case AVORB:
+		return 0x1CF5 << 18 // vori.b
+	case AVXORB:
+		return 0x1CF6 << 18 // xori.b
+	case AVNORB:
+		return 0x1CF7 << 18 // xnori.b
+	case AXVANDB:
+		return 0x1DF4 << 18 // xvandi.b
+	case AXVORB:
+		return 0x1DF5 << 18 // xvori.b
+	case AXVXORB:
+		return 0x1DF6 << 18 // xvxori.b
+	case AXVNORB:
+		return 0x1DF7 << 18 // xvnor.b
+	case AVSEQB:
+		return 0x0E500 << 15 //vseqi.b
+	case AVSEQH:
+		return 0x0E501 << 15 // vseqi.h
+	case AVSEQW:
+		return 0x0E502 << 15 //vseqi.w
+	case AVSEQV:
+		return 0x0E503 << 15 //vseqi.d
+	case AXVSEQB:
+		return 0x0ED00 << 15 //xvseqi.b
+	case AXVSEQH:
+		return 0x0ED01 << 15 // xvseqi.h
+	case AXVSEQW:
+		return 0x0ED02 << 15 // xvseqi.w
+	case AXVSEQV:
+		return 0x0ED03 << 15 // xvseqi.d
 	case AVROTRB:
 		return 0x1ca8<<18 | 0x1<<13 // vrotri.b
 	case AVROTRH:
