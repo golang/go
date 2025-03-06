@@ -425,9 +425,109 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$168
 
 	RET
 
-// func cgoSigtramp()
-TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+// Called from c-abi, R4: sig, R5: info, R6: cxt
+TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$168
+	// Save callee-save registers because it's a callback from c code.
+	SAVE_R22_TO_R31((4*8))
+	SAVE_F24_TO_F31((14*8))
+
+	// R4, R5 and R6 already contain sig, info and ctx, respectively.
+	CALL	runtime·sigprofNonGo<ABIInternal>(SB)
+
+	// Restore callee-save registers.
+	RESTORE_R22_TO_R31((4*8))
+	RESTORE_F24_TO_F31((14*8))
+	RET
+
+// Called from c-abi, R4: sig, R5: info, R6: cxt
+TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
+	// The stack unwinder, presumably written in C, may not be able to
+	// handle Go frame correctly. So, this function is NOFRAME, and we
+	// save/restore LR manually.
+	MOVV	R1, R12
+	// Save R30, g because they will be clobbered,
+	// we need to restore them before jump to sigtramp.
+	MOVV	R30, R13
+	MOVV	g, R14
+
+	// If no traceback function, do usual sigtramp.
+	MOVV	runtime·cgoTraceback(SB), R15
+	BEQ	R15, sigtramp
+
+	// If no traceback support function, which means that
+	// runtime/cgo was not linked in, do usual sigtramp.
+	MOVV	_cgo_callers(SB), R15
+	BEQ	R15, sigtramp
+
+	// Figure out if we are currently in a cgo call.
+	// If not, just do usual sigtramp.
+	CALL	runtime·load_g(SB)
+	BEQ	g, sigtrampnog // g == nil
+
+	MOVV	g_m(g), R15
+	BEQ	R15, sigtramp    // g.m == nil
+	MOVW	m_ncgo(R15), R16
+	BEQ	R16, sigtramp    // g.m.ncgo = 0
+	MOVV	m_curg(R15), R16
+	BEQ	R16, sigtramp    // g.m.curg == nil
+	MOVV	g_syscallsp(R16), R17
+	BEQ     R17, sigtramp    // g.m.curg.syscallsp == 0
+	MOVV	m_cgoCallers(R15), R8 // R8 is the fifth arg in C calling convention.
+	BEQ	R8, sigtramp    // g.m.cgoCallers == nil
+	MOVW	m_cgoCallersUse(R15), R16
+	BNE	R16, sigtramp    // g.m.cgoCallersUse != 0
+
+	// Jump to a function in runtime/cgo.
+	// That function, written in C, will call the user's traceback
+	// function with proper unwind info, and will then call back here.
+	// The first three arguments, and the fifth, are already in registers.
+	// Set the two remaining arguments now.
+	MOVV	runtime·cgoTraceback(SB), R7
+	MOVV	$runtime·sigtramp(SB), R9
+	MOVV	_cgo_callers(SB), R15
+	MOVV	R12, R1 // restore
+	MOVV	R13, R30
+	MOVV	R14, g
+	JMP	(R15)
+
+sigtramp:
+	MOVV	R12, R1 // restore
+	MOVV	R13, R30
+	MOVV	R14, g
 	JMP	runtime·sigtramp(SB)
+
+sigtrampnog:
+	// Signal arrived on a non-Go thread. If this is SIGPROF, get a
+	// stack trace.
+	MOVW    $27, R15 // 27 == SIGPROF
+	BNE     R4, R15, sigtramp
+
+	MOVV    $runtime·sigprofCallersUse(SB), R16
+	DBAR	$0x14
+cas_again:
+	MOVV    $1, R15
+	LL	(R16), R17
+	BNE	R17, fail
+	SC	R15, (R16)
+	BEQ	R15, cas_again
+	DBAR    $0x14
+
+	// Jump to the traceback function in runtime/cgo.
+	// It will call back to sigprofNonGo, which will ignore the
+	// arguments passed in registers.
+	// First three arguments to traceback function are in registers already.
+	MOVV	runtime·cgoTraceback(SB), R7
+	MOVV	$runtime·sigprofCallers(SB), R8
+	MOVV	$runtime·sigprofNonGoWrapper<>(SB), R9
+	MOVV	_cgo_callers(SB), R15
+	MOVV	R12, R1 // restore
+	MOVV	R13, R30
+	MOVV	R14, g
+	JMP	(R15)
+
+fail:
+	DBAR    $0x14
+	JMP     sigtramp
 
 // func sysMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (p unsafe.Pointer, err int)
 TEXT runtime·sysMmap<ABIInternal>(SB),NOSPLIT,$0
