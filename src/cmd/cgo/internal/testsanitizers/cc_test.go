@@ -361,10 +361,18 @@ func configure(sanitizer string) *config {
 		return c
 	}
 
+	sanitizerOpt := sanitizer
+	// For the leak detector, we use "go build -asan",
+	// which implies the address sanitizer.
+	// We may want to adjust this someday.
+	if sanitizer == "leak" {
+		sanitizerOpt = "address"
+	}
+
 	c := &config{
 		sanitizer: sanitizer,
-		cFlags:    []string{"-fsanitize=" + sanitizer},
-		ldFlags:   []string{"-fsanitize=" + sanitizer},
+		cFlags:    []string{"-fsanitize=" + sanitizerOpt},
+		ldFlags:   []string{"-fsanitize=" + sanitizerOpt},
 	}
 
 	if testing.Verbose() {
