@@ -95,12 +95,39 @@ func main() {
 
 	var zbuf2 bytes.Buffer
 	zw := zip.NewWriter(&zbuf2)
+	foundVersion := false
 	for _, f := range zr.File {
 		// golang.org/fips140@v1.2.3/dir/file.go ->
 		// golang.org/fips140@v1.2.3/fips140/v1.2.3/dir/file.go
 		if f.Name != "golang.org/fips140@"+version+"/LICENSE" {
 			f.Name = "golang.org/fips140@" + version + "/fips140/" + version +
 				strings.TrimPrefix(f.Name, "golang.org/fips140@"+version)
+		}
+		// Inject version in [crypto/internal/fips140.Version].
+		if f.Name == "golang.org/fips140@"+version+"/fips140/"+version+"/fips140.go" {
+			rf, err := f.Open()
+			if err != nil {
+				log.Fatal(err)
+			}
+			contents, err := io.ReadAll(rf)
+			if err != nil {
+				log.Fatal(err)
+			}
+			returnLine := `return "latest" //mkzip:version`
+			if !bytes.Contains(contents, []byte(returnLine)) {
+				log.Fatalf("did not find %q in fips140.go", returnLine)
+			}
+			newLine := `return "` + version + `"`
+			contents = bytes.ReplaceAll(contents, []byte(returnLine), []byte(newLine))
+			wf, err := zw.Create(f.Name)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if _, err := wf.Write(contents); err != nil {
+				log.Fatal(err)
+			}
+			foundVersion = true
+			continue
 		}
 		wf, err := zw.CreateRaw(&f.FileHeader)
 		if err != nil {
@@ -116,6 +143,9 @@ func main() {
 	}
 	if err := zw.Close(); err != nil {
 		log.Fatal(err)
+	}
+	if !foundVersion {
+		log.Fatal("did not find fips140.go file")
 	}
 
 	err = os.WriteFile(version+".zip", zbuf2.Bytes(), 0666)
