@@ -11,7 +11,7 @@
 //	if *val == old {
 //		*val = new
 //		return true
-//	} else
+//	} else {
 //		return false
 //	}
 //
