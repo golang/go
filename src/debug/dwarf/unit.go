@@ -17,10 +17,18 @@ type unit struct {
 	off    Offset // byte offset of data within the aggregate info
 	data   []byte
 	atable abbrevTable
+	*unit5 // info specific to DWARF 5 units
 	asize  int
 	vers   int
-	utype  uint8 // DWARF 5 unit type
 	is64   bool  // True for 64-bit DWARF format
+	utype  uint8 // DWARF 5 unit type
+}
+
+type unit5 struct {
+	addrBase       uint64
+	strOffsetsBase uint64
+	rngListsBase   uint64
+	locListsBase   uint64
 }
 
 // Implement the dataFormat interface.
@@ -35,6 +43,34 @@ func (u *unit) dwarf64() (bool, bool) {
 
 func (u *unit) addrsize() int {
 	return u.asize
+}
+
+func (u *unit) addrBase() uint64 {
+	if u.unit5 != nil {
+		return u.unit5.addrBase
+	}
+	return 0
+}
+
+func (u *unit) strOffsetsBase() uint64 {
+	if u.unit5 != nil {
+		return u.unit5.strOffsetsBase
+	}
+	return 0
+}
+
+func (u *unit) rngListsBase() uint64 {
+	if u.unit5 != nil {
+		return u.unit5.rngListsBase
+	}
+	return 0
+}
+
+func (u *unit) locListsBase() uint64 {
+	if u.unit5 != nil {
+		return u.unit5.locListsBase
+	}
+	return 0
 }
 
 func (d *Data) parseUnits() ([]unit, error) {
@@ -134,4 +170,31 @@ func (d *Data) offsetToUnit(off Offset) int {
 		return next - 1
 	}
 	return -1
+}
+
+func (d *Data) collectDwarf5BaseOffsets(u *unit) error {
+	if u.unit5 == nil {
+		panic("expected unit5 to be set up already")
+	}
+	b := makeBuf(d, u, "info", u.off, u.data)
+	cu := b.entry(nil, u)
+	if cu == nil {
+		// Unknown abbreviation table entry or some other fatal
+		// problem; bail early on the assumption that this will be
+		// detected at some later point.
+		return b.err
+	}
+	if iAddrBase, ok := cu.Val(AttrAddrBase).(int64); ok {
+		u.unit5.addrBase = uint64(iAddrBase)
+	}
+	if iStrOffsetsBase, ok := cu.Val(AttrStrOffsetsBase).(int64); ok {
+		u.unit5.strOffsetsBase = uint64(iStrOffsetsBase)
+	}
+	if iRngListsBase, ok := cu.Val(AttrRnglistsBase).(int64); ok {
+		u.unit5.rngListsBase = uint64(iRngListsBase)
+	}
+	if iLocListsBase, ok := cu.Val(AttrLoclistsBase).(int64); ok {
+		u.unit5.locListsBase = uint64(iLocListsBase)
+	}
+	return nil
 }
