@@ -786,7 +786,7 @@ func inlineCallCheck(callerfn *ir.Func, call *ir.CallExpr) (bool, bool) {
 	if call.Op() != ir.OCALLFUNC {
 		return false, false
 	}
-	if call.GoDefer || call.NoInline {
+	if call.GoDefer {
 		return false, false
 	}
 
