@@ -1815,13 +1815,6 @@ func nextSample() int64 {
 		// Sample immediately.
 		return 0
 	}
-	if GOOS == "plan9" {
-		// Plan 9 doesn't support floating point in note handler.
-		if gp := getg(); gp == gp.m.gsignal {
-			return nextSampleNoFP()
-		}
-	}
-
 	return int64(fastexprand(MemProfileRate))
 }
 
@@ -1853,20 +1846,6 @@ func fastexprand(mean int) int32 {
 	}
 	const minusLog2 = -0.6931471805599453 // -ln(2)
 	return int32(qlog*(minusLog2*float64(mean))) + 1
-}
-
-// nextSampleNoFP is similar to nextSample, but uses older,
-// simpler code to avoid floating point.
-func nextSampleNoFP() int64 {
-	// Set first allocation sample size.
-	rate := MemProfileRate
-	if rate > 0x3fffffff { // make 2*rate not overflow
-		rate = 0x3fffffff
-	}
-	if rate != 0 {
-		return int64(cheaprandn(uint32(2 * rate)))
-	}
-	return 0
 }
 
 type persistentAlloc struct {
