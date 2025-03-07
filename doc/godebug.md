@@ -153,6 +153,17 @@ for example,
 see the [runtime documentation](/pkg/runtime#hdr-Environment_Variables)
 and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
+### Go 1.25
+
+Go 1.25 added a new `decoratemappings` setting that controls whether the Go
+runtime annotates OS anonymous memory mappings with context about their
+purpose. These annotations appear in /proc/self/maps and /proc/self/smaps as
+"[anon: Go: ...]". This setting is only used on Linux. For Go 1.25, it defaults
+to `decoratemappings=1`, enabling annotations. Using `decoratemappings=0`
+reverts to the pre-Go 1.25 behavior. This setting is fixed at program startup
+time, and can't be modified by changing the `GODEBUG` environment variable
+after the program starts.
+
 ### Go 1.24
 
 Go 1.24 added a new `fips140` setting that controls whether the Go

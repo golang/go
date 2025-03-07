@@ -16,3 +16,11 @@ value would print:
 This program will now print:
 
     panic: PANIC [recovered, reraised]
+
+<!-- go.dev/issue/71546 -->
+
+On Linux systems with kernel support for anonymous VMA names
+(`CONFIG_ANON_VMA_NAME`), the Go runtime will annotate anonymous memory
+mappings with context about their purpose. e.g., `[anon: Go: heap]` for heap
+memory. This can be disabled with the [GODEBUG setting](/doc/godebug)
+`decoratemappings=0`.

@@ -16,7 +16,7 @@ var prSetVMAUnsupported atomic.Bool
 
 // setVMAName calls prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, start, len, name)
 func setVMAName(start unsafe.Pointer, length uintptr, name string) {
-	if unsupported := prSetVMAUnsupported.Load(); unsupported {
+	if debug.decoratemappings == 0 || prSetVMAUnsupported.Load() {
 		return
 	}
 
