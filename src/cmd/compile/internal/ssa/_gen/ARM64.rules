@@ -420,13 +420,12 @@
 // medium zeroing uses a duff device
 // 4, 16, and 64 are magic constants, see runtime/mkduff.go
 (Zero [s] ptr mem)
-	&& s%16 == 0 && s > 64 && s <= 16*64
-	&& !config.noDuffDevice =>
+	&& s%16 == 0 && s > 64 && s <= 16*64 =>
 	(DUFFZERO [4 * (64 - s/16)] ptr mem)
 
 // large zeroing uses a loop
 (Zero [s] ptr mem)
-	&& s%16 == 0 && (s > 16*64 || config.noDuffDevice) =>
+	&& s%16 == 0 && s > 16*64 =>
 	(LoweredZero
 		ptr
 		(ADDconst <ptr.Type> [s-16] ptr)
@@ -504,7 +503,7 @@
 // medium move uses a duff device
 (Move [s] dst src mem)
 	&& s > 64 && s <= 16*64 && s%16 == 0
-	&& !config.noDuffDevice && logLargeCopy(v, s) =>
+	&& logLargeCopy(v, s) =>
 	(DUFFCOPY [8 * (64 - s/16)] dst src mem)
 // 8 is the number of bytes to encode:
 //
@@ -515,7 +514,7 @@
 
 // large move uses a loop
 (Move [s] dst src mem)
-	&& s%16 == 0 && (s > 16*64 || config.noDuffDevice)
+	&& s%16 == 0 && s > 16*64
 	&& logLargeCopy(v, s) =>
 	(LoweredMove
 		dst

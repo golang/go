@@ -356,7 +356,7 @@
 // 8 and 128 are magic constants, see runtime/mkduff.go
 (Zero [s] {t} ptr mem)
 	&& s%8 == 0 && s <= 8*128
-	&& t.Alignment()%8 == 0 && !config.noDuffDevice =>
+	&& t.Alignment()%8 == 0 =>
 	(DUFFZERO [8 * (128 - s/8)] ptr mem)
 
 // Generic zeroing uses a loop
@@ -445,7 +445,7 @@
 // 16 and 128 are magic constants, see runtime/mkduff.go
 (Move [s] {t} dst src mem)
 	&& s%8 == 0 && s <= 8*128 && t.Alignment()%8 == 0
-	&& !config.noDuffDevice && logLargeCopy(v, s) =>
+	&& logLargeCopy(v, s) =>
 	(DUFFCOPY [16 * (128 - s/8)] dst src mem)
 
 // Generic move uses a loop

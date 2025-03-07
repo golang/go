@@ -41,7 +41,6 @@ type Config struct {
 	hasGReg        bool      // has hardware g register
 	ctxt           *obj.Link // Generic arch information
 	optimize       bool      // Do optimization
-	noDuffDevice   bool      // Don't use Duff's device
 	useAvg         bool      // Use optimizations that need Avg* operations
 	useHmul        bool      // Use optimizations that need Hmul* operations
 	SoftFloat      bool      //
@@ -295,7 +294,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.FPReg = framepointerRegS390X
 		c.LinkReg = linkRegS390X
 		c.hasGReg = true
-		c.noDuffDevice = true
 		c.BigEndian = true
 		c.unalignedOK = true
 		c.haveBswap64 = true
@@ -316,7 +314,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.FPReg = framepointerRegMIPS
 		c.LinkReg = linkRegMIPS
 		c.hasGReg = true
-		c.noDuffDevice = true
 	case "riscv64":
 		c.PtrSize = 8
 		c.RegSize = 8
@@ -344,7 +341,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.FPReg = framepointerRegWasm
 		c.LinkReg = linkRegWasm
 		c.hasGReg = true
-		c.noDuffDevice = true
 		c.useAvg = false
 		c.useHmul = false
 	default:

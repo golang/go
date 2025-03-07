@@ -7961,7 +7961,6 @@ func rewriteValueLOONG64_OpMove(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (Move [0] _ _ mem)
 	// result: mem
@@ -8311,14 +8310,14 @@ func rewriteValueLOONG64_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s%8 == 0 && s > 16 && s <= 8*128 && !config.noDuffDevice && logLargeCopy(v, s)
+	// cond: s%8 == 0 && s > 16 && s <= 8*128 && logLargeCopy(v, s)
 	// result: (DUFFCOPY [16 * (128 - s/8)] dst src mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s%8 == 0 && s > 16 && s <= 8*128 && !config.noDuffDevice && logLargeCopy(v, s)) {
+		if !(s%8 == 0 && s > 16 && s <= 8*128 && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpLOONG64DUFFCOPY)
@@ -9873,7 +9872,6 @@ func rewriteValueLOONG64_OpZero(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (Zero [0] _ mem)
 	// result: mem
@@ -10167,13 +10165,13 @@ func rewriteValueLOONG64_OpZero(v *Value) bool {
 		return true
 	}
 	// match: (Zero [s] ptr mem)
-	// cond: s%8 == 0 && s > 16 && s <= 8*128 && !config.noDuffDevice
+	// cond: s%8 == 0 && s > 16 && s <= 8*128
 	// result: (DUFFZERO [8 * (128 - s/8)] ptr mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		ptr := v_0
 		mem := v_1
-		if !(s%8 == 0 && s > 16 && s <= 8*128 && !config.noDuffDevice) {
+		if !(s%8 == 0 && s > 16 && s <= 8*128) {
 			break
 		}
 		v.reset(OpLOONG64DUFFZERO)

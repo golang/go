@@ -327,11 +327,11 @@
 // Medium copying uses a duff device.
 (Move [s] dst src mem)
 	&& s > 64 && s <= 16*64 && s%16 == 0
-	&& !config.noDuffDevice && logLargeCopy(v, s) =>
+	&& logLargeCopy(v, s) =>
 	(DUFFCOPY [s] dst src mem)
 
 // Large copying uses REP MOVSQ.
-(Move [s] dst src mem) && (s > 16*64 || config.noDuffDevice) && s%8 == 0 && logLargeCopy(v, s) =>
+(Move [s] dst src mem) && s > 16*64 && s%8 == 0 && logLargeCopy(v, s) =>
 	(REPMOVSQ dst src (MOVQconst [s/8]) mem)
 
 // Lowering Zero instructions
@@ -397,13 +397,12 @@
 
 // Medium zeroing uses a duff device.
 (Zero [s] destptr mem)
-	&& s > 64 && s <= 1024 && s%16 == 0 && !config.noDuffDevice =>
+	&& s > 64 && s <= 1024 && s%16 == 0 =>
 	(DUFFZERO [s] destptr mem)
 
 // Large zeroing uses REP STOSQ.
 (Zero [s] destptr mem)
-	&& (s > 1024 || (config.noDuffDevice && s > 64))
-	&& s%8 == 0 =>
+	&& s > 1024 && s%8 == 0 =>
 	(REPSTOSQ destptr (MOVQconst [s/8]) (MOVQconst [0]) mem)
 
 // Lowering constants

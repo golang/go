@@ -246,7 +246,7 @@
 // Medium copying uses a duff device.
 (Move [s] dst src mem)
 	&& s > 8 && s <= 4*128 && s%4 == 0
-	&& !config.noDuffDevice && logLargeCopy(v, s) =>
+	&& logLargeCopy(v, s) =>
 	(DUFFCOPY [10*(128-s/4)] dst src mem)
 // 10 and 128 are magic constants.  10 is the number of bytes to encode:
 //	MOVL	(SI), CX
@@ -256,7 +256,7 @@
 // and 128 is the number of such blocks. See src/runtime/duff_386.s:duffcopy.
 
 // Large copying uses REP MOVSL.
-(Move [s] dst src mem) && (s > 4*128 || config.noDuffDevice) && s%4 == 0 && logLargeCopy(v, s) =>
+(Move [s] dst src mem) && s > 4*128 && s%4 == 0 && logLargeCopy(v, s) =>
 	(REPMOVSL dst src (MOVLconst [int32(s/4)]) mem)
 
 // Lowering Zero instructions
@@ -299,8 +299,7 @@
 
 // Medium zeroing uses a duff device.
 (Zero [s] destptr mem)
-  && s > 16 && s <= 4*128 && s%4 == 0
-  && !config.noDuffDevice =>
+  && s > 16 && s <= 4*128 && s%4 == 0 =>
 	(DUFFZERO [1*(128-s/4)] destptr (MOVLconst [0]) mem)
 // 1 and 128 are magic constants.  1 is the number of bytes to encode STOSL.
 // 128 is the number of STOSL instructions in duffzero.
@@ -308,7 +307,7 @@
 
 // Large zeroing uses REP STOSQ.
 (Zero [s] destptr mem)
-  && (s > 4*128 || (config.noDuffDevice && s > 16))
+  && s > 4*128
   && s%4 == 0 =>
 	(REPSTOSL destptr (MOVLconst [int32(s/4)]) (MOVLconst [0]) mem)
 

@@ -341,8 +341,7 @@
 
 // medium zeroing uses a duff device
 (Zero [s] ptr mem)
-    && s%8 == 0 && s > 16 && s <= 8*128
-    && !config.noDuffDevice =>
+    && s%8 == 0 && s > 16 && s <= 8*128 =>
     (DUFFZERO [8 * (128 - s/8)] ptr mem)
 
 // large zeroing uses a loop
@@ -406,7 +405,7 @@
 // medium move uses a duff device
 (Move [s] dst src mem)
         && s%8 == 0 && s > 16 && s <= 8*128
-        && !config.noDuffDevice && logLargeCopy(v, s)  =>
+        && logLargeCopy(v, s)  =>
         (DUFFCOPY [16 * (128 - s/8)] dst src mem)
 // 16 and 128 are magic constants.  16 is the number of bytes to encode:
 //     MOVV    (R20), R30

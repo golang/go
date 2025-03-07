@@ -20588,7 +20588,6 @@ func rewriteValueARM64_OpMove(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (Move [0] _ _ mem)
 	// result: mem
@@ -21078,14 +21077,14 @@ func rewriteValueARM64_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s > 64 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice && logLargeCopy(v, s)
+	// cond: s > 64 && s <= 16*64 && s%16 == 0 && logLargeCopy(v, s)
 	// result: (DUFFCOPY [8 * (64 - s/16)] dst src mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s > 64 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice && logLargeCopy(v, s)) {
+		if !(s > 64 && s <= 16*64 && s%16 == 0 && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpARM64DUFFCOPY)
@@ -21094,14 +21093,14 @@ func rewriteValueARM64_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s%16 == 0 && (s > 16*64 || config.noDuffDevice) && logLargeCopy(v, s)
+	// cond: s%16 == 0 && s > 16*64 && logLargeCopy(v, s)
 	// result: (LoweredMove dst src (ADDconst <src.Type> src [s-16]) mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s%16 == 0 && (s > 16*64 || config.noDuffDevice) && logLargeCopy(v, s)) {
+		if !(s%16 == 0 && s > 16*64 && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpARM64LoweredMove)
@@ -23446,7 +23445,6 @@ func rewriteValueARM64_OpZero(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (Zero [0] _ mem)
 	// result: mem
@@ -23822,13 +23820,13 @@ func rewriteValueARM64_OpZero(v *Value) bool {
 		return true
 	}
 	// match: (Zero [s] ptr mem)
-	// cond: s%16 == 0 && s > 64 && s <= 16*64 && !config.noDuffDevice
+	// cond: s%16 == 0 && s > 64 && s <= 16*64
 	// result: (DUFFZERO [4 * (64 - s/16)] ptr mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		ptr := v_0
 		mem := v_1
-		if !(s%16 == 0 && s > 64 && s <= 16*64 && !config.noDuffDevice) {
+		if !(s%16 == 0 && s > 64 && s <= 16*64) {
 			break
 		}
 		v.reset(OpARM64DUFFZERO)
@@ -23837,13 +23835,13 @@ func rewriteValueARM64_OpZero(v *Value) bool {
 		return true
 	}
 	// match: (Zero [s] ptr mem)
-	// cond: s%16 == 0 && (s > 16*64 || config.noDuffDevice)
+	// cond: s%16 == 0 && s > 16*64
 	// result: (LoweredZero ptr (ADDconst <ptr.Type> [s-16] ptr) mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		ptr := v_0
 		mem := v_1
-		if !(s%16 == 0 && (s > 16*64 || config.noDuffDevice)) {
+		if !(s%16 == 0 && s > 16*64) {
 			break
 		}
 		v.reset(OpARM64LoweredZero)
