@@ -92,7 +92,7 @@ var allowAsmABIPkgs = []string{
 	"internal/bytealg",
 	"internal/chacha8rand",
 	"internal/runtime/syscall",
-	"runtime/internal/startlinetest",
+	"internal/runtime/startlinetest",
 }
 
 // LookupPkgSpecial returns special build properties for the given package path.

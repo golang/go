@@ -275,9 +275,6 @@ func TestHeapRuntimeFrames(t *testing.T) {
 		if strings.Contains(l, "internal/runtime/") {
 			t.Errorf("Sample got %s, want no runtime frames", l)
 		}
-		if strings.Contains(l, "runtime/internal/") {
-			t.Errorf("Sample got %s, want no runtime frames", l)
-		}
 		if strings.Contains(l, "mapassign") { // in case mapassign moves to a package not matching above paths.
 			t.Errorf("Sample got %s, want no mapassign frames", l)
 		}

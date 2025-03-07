@@ -418,7 +418,6 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 	u, uf := newInlineUnwinder(f, pc)
 	name := u.srcFunc(uf).name()
 	if stringslite.HasPrefix(name, "runtime.") ||
-		stringslite.HasPrefix(name, "runtime/internal/") ||
 		stringslite.HasPrefix(name, "internal/runtime/") ||
 		stringslite.HasPrefix(name, "reflect.") {
 		// For now we never async preempt the runtime or

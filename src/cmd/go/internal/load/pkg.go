@@ -3561,7 +3561,7 @@ func SelectCoverPackages(roots []*Package, match []func(*Package) bool, op strin
 		// $GOROOT/src/internal/coverage/pkid.go dealing with
 		// hard-coding of runtime package IDs.
 		cmode := cfg.BuildCoverMode
-		if cfg.BuildRace && p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal")) {
+		if cfg.BuildRace && p.Standard && p.ImportPath == "runtime" {
 			cmode = "regonly"
 		}
 

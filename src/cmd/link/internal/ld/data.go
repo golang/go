@@ -78,8 +78,7 @@ func isRuntimeDepPkg(pkg string) bool {
 		"unsafe":
 		return true
 	}
-	return (strings.HasPrefix(pkg, "runtime/internal/") || strings.HasPrefix(pkg, "internal/runtime/")) &&
-		!strings.HasSuffix(pkg, "_test")
+	return strings.HasPrefix(pkg, "internal/runtime/") && !strings.HasSuffix(pkg, "_test")
 }
 
 // Estimate the max size needed to hold any new trampolines created for this function. This

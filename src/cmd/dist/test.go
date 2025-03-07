@@ -926,7 +926,7 @@ func (t *tester) registerTests() {
 		t.registerTest("wasip1 host tests",
 			&goTest{
 				variant:   "host",
-				pkg:       "runtime/internal/wasitest",
+				pkg:       "internal/runtime/wasitest",
 				timeout:   1 * time.Minute,
 				runOnHost: true,
 			})
