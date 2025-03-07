@@ -6,10 +6,10 @@
 
 #include "textflag.h"
 
-// func Cas(val *int32, old, new int32) bool
+// func Cas(ptr *int32, old, new int32) bool
 // Atomically:
-//	if *val == old {
-//		*val = new
+//	if *ptr == old {
+//		*ptr = new
 //		return true
 //	} else {
 //		return false

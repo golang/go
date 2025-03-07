@@ -64,10 +64,10 @@ TEXT ·Xaddint32(SB), NOSPLIT, $0-12
 TEXT ·Xaddint64(SB), NOSPLIT, $0-20
 	JMP	·Xadd64(SB)
 
-// func Cas64(val *uint64, old, new uint64) bool
+// func Cas64(ptr *uint64, old, new uint64) bool
 // Atomically:
-//	if *val == old {
-//		*val = new
+//	if *ptr == old {
+//		*ptr = new
 //		return true
 //	} else {
 //		return false
@@ -87,10 +87,10 @@ TEXT ·Cas64(SB), NOSPLIT, $0-21
 	SETEQ	ret+20(FP)
 	RET
 
-// func Casp1(p *unsafe.Pointer, old, new unsafe.Pointer) bool
+// func Casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
 // Atomically:
-//	if *p == old {
-//		*p = new
+//	if *ptr == old {
+//		*ptr = new
 //		return true
 //	} else {
 //		return false

@@ -6,10 +6,10 @@
 #include "textflag.h"
 #include "funcdata.h"
 
-// func armcas(val *int32, old, new int32) bool
+// func armcas(ptr *int32, old, new int32) bool
 // Atomically:
-//	if *val == old {
-//		*val = new
+//	if *ptr == old {
+//		*ptr = new
 //		return true
 //	} else {
 //		return false

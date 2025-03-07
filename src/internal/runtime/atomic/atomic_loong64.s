@@ -120,10 +120,10 @@ TEXT ·Xaddint32(SB),NOSPLIT,$0-20
 TEXT ·Xaddint64(SB), NOSPLIT, $0-24
 	JMP	·Xadd64(SB)
 
-// func Casp(val *unsafe.Pointer, old, new unsafe.Pointer) bool
+// func Casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
 // Atomically:
-//	if *val == old {
-//		*val = new
+//	if *ptr == old {
+//		*ptr = new
 //		return true
 //	} else {
 //		return false
