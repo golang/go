@@ -20,7 +20,7 @@ import (
 // socket extensions with the net package using net.FileConn/net.FileListener.
 //
 // Note that the creation of net.Conn and net.Listener values for TCP sockets
-// has an end-to-end test in src/runtime/internal/wasitest, here we are only
+// has an end-to-end test in src/internal/runtime/wasitest, here we are only
 // verifying the code paths specific to UDP, and error handling for invalid use
 // of the functions.
 
