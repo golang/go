@@ -315,6 +315,13 @@ func (check *Checker) initFiles(files []*syntax.File) {
 	check.objPath = nil
 	check.cleaners = nil
 
+	// We must initialize usedVars and usedPkgNames both here and in NewChecker,
+	// because initFiles is not called in the CheckExpr or Eval codepaths, yet we
+	// want to free this memory at the end of Files ('used' predicates are
+	// only needed in the context of a given file).
+	check.usedVars = make(map[*Var]bool)
+	check.usedPkgNames = make(map[*PkgName]bool)
+
 	// determine package name and collect valid files
 	pkg := check.pkg
 	for _, file := range files {
