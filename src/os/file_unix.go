@@ -482,7 +482,7 @@ func newUnixDirent(parent, name string, typ FileMode) (DirEntry, error) {
 		name:   name,
 		typ:    typ,
 	}
-	if typ != ^FileMode(0) && !testingForceReadDirLstat {
+	if typ != ^FileMode(0) {
 		return ude, nil
 	}
 
