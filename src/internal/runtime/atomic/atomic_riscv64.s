@@ -32,12 +32,12 @@
 
 // func Cas(ptr *uint64, old, new uint64) bool
 // Atomically:
-//      if(*val == old){
-//              *val = new;
-//              return 1;
-//      } else {
-//              return 0;
-//      }
+//	if *ptr == old {
+//		*ptr = new
+//		return true
+//	} else {
+//		return false
+//	}
 TEXT ·Cas(SB), NOSPLIT, $0-17
 	MOV	ptr+0(FP), A0
 	MOVW	old+8(FP), A1
