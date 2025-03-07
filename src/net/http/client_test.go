@@ -834,8 +834,11 @@ func testClientInsecureTransport(t *testing.T, mode testMode) {
 	for _, insecure := range []bool{true, false} {
 		c.Transport.(*Transport).TLSClientConfig = &tls.Config{
 			InsecureSkipVerify: insecure,
+			NextProtos:         cst.tr.TLSClientConfig.NextProtos,
 		}
-		res, err := c.Get(ts.URL)
+		req, _ := NewRequest("GET", ts.URL, nil)
+		req.Header.Set("Connection", "close") // don't reuse this connection
+		res, err := c.Do(req)
 		if (err == nil) != insecure {
 			t.Errorf("insecure=%v: got unexpected err=%v", insecure, err)
 		}
