@@ -134,11 +134,11 @@ func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR "
 type myByte1 []byte
 type myByte2 []byte
 func _[T interface{ []byte | myByte1 | myByte2 }] (x T, i, j, k int) { var _ T = x[i:j:k] }
-func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x /* ERROR "no common underlying type" */ [i:j:k] }
+func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x /* ERROR "[]byte and []int have different underlying types" */ [i:j:k] }
 
 func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j] }
 func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR "3-index slice of string" */ ] }
-func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x /* ERROR "no common underlying type" */ [i:j] }
+func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x /* ERROR "[]byte and []int have different underlying types" */ [i:j] }
 
 // len/cap built-ins
 
