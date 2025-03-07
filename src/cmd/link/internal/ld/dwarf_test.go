@@ -5,7 +5,9 @@
 package ld
 
 import (
+	"bytes"
 	"debug/dwarf"
+	"debug/elf"
 	"debug/pe"
 	"fmt"
 	"internal/platform"
@@ -2040,5 +2042,111 @@ func TestConsistentGoKindAndRuntimeType(t *testing.T) {
 		t.Fatalf("something went wrong, 0 types checked")
 	} else {
 		t.Logf("%d types checked\n", typesChecked)
+	}
+}
+
+func TestIssue72053(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	mustHaveDWARF(t)
+
+	t.Parallel()
+
+	dir := t.TempDir()
+
+	const prog = `package main
+
+import (
+		"fmt"
+		"strings"
+)
+
+func main() {
+		u := Address{Addr: "127.0.0.1"}
+		fmt.Println(u) // line 10
+}
+
+type Address struct {
+		TLS  bool
+		Addr string
+}
+
+func (a Address) String() string {
+		sb := new(strings.Builder)
+		sb.WriteString(a.Addr)
+		return sb.String()
+}
+`
+
+	bf := gobuild(t, dir, prog, NoOpt)
+
+	defer bf.Close()
+
+	f, err := elf.Open(bf.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dwrf, err := f.DWARF()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rdr := dwrf.Reader()
+
+	found := false
+	for {
+		e, err := rdr.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if e == nil {
+			break
+		}
+
+		name, _ := e.Val(dwarf.AttrName).(string)
+
+		if e.Tag == dwarf.TagSubprogram && name == "main.Address.String" {
+			found = true
+			continue
+		}
+
+		if found && name == "a" {
+			loc := e.AttrField(dwarf.AttrLocation)
+			if loc != nil {
+				switch loc.Class {
+				case dwarf.ClassLocListPtr:
+					offset := loc.Val.(int64)
+					buf := make([]byte, 48)
+					s := f.Section(".debug_loc")
+					if s == nil {
+						t.Fatal("could not find debug_loc section")
+					}
+					d := s.Open()
+					d.Seek(offset, io.SeekStart)
+					d.Read(buf)
+
+					// DW_OP_reg0 DW_OP_piece 0x1 DW_OP_piece 0x7 DW_OP_reg3 DW_OP_piece 0x8 DW_OP_piece 0x7 DW_OP_reg2 DW_OP_piece 0x8
+					wrong := []byte{
+						0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+						0xa0, 0x2c, 0x49, 0x0, 0x0, 0x0, 0x0, 0x0,
+						0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+						0x1f, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+						0xd, 0x0, 0x50, 0x93, 0x1, 0x93, 0x7, 0x53,
+						0x93, 0x8, 0x93, 0x7, 0x52, 0x93, 0x8, 0x1f,
+					}
+
+					if bytes.Equal(buf, wrong) {
+						t.Fatal("unexpected DWARF sequence found")
+					}
+				}
+			} else {
+				t.Fatal("unable to find expected DWARF location list")
+			}
+			break
+		}
+	}
+	if !found {
+		t.Fatal("unable to find expected DWARF location list")
 	}
 }
