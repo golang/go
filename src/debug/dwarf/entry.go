@@ -407,7 +407,8 @@ type Offset uint32
 
 // Entry reads a single entry from buf, decoding
 // according to the given abbreviation table.
-func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry {
+func (b *buf) entry(cu *Entry, u *unit) *Entry {
+	atab, ubase, vers := u.atable, u.base, u.vers
 	off := b.off
 	id := uint32(b.uint())
 	if id == 0 {
@@ -884,7 +885,7 @@ func (r *Reader) Next() (*Entry, error) {
 		return nil, nil
 	}
 	u := &r.d.unit[r.unit]
-	e := r.b.entry(r.cu, u.atable, u.base, u.vers)
+	e := r.b.entry(r.cu, u)
 	if r.b.err != nil {
 		r.err = r.b.err
 		return nil, r.err
@@ -1091,7 +1092,7 @@ func (d *Data) baseAddressForEntry(e *Entry) (*Entry, uint64, error) {
 		}
 		u := &d.unit[i]
 		b := makeBuf(d, u, "info", u.off, u.data)
-		cu = b.entry(nil, u.atable, u.base, u.vers)
+		cu = b.entry(nil, u)
 		if b.err != nil {
 			return nil, 0, b.err
 		}
