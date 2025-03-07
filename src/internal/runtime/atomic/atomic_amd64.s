@@ -19,13 +19,14 @@ TEXT ·Loadint32(SB), NOSPLIT, $0-12
 TEXT ·Loadint64(SB), NOSPLIT, $0-16
 	JMP	·Load64(SB)
 
-// bool Cas(int32 *val, int32 old, int32 new)
+// func Cas(ptr *int32, old, new int32) bool
 // Atomically:
-//	if(*val == old){
-//		*val = new;
-//		return 1;
-//	} else
-//		return 0;
+//	if *ptr == old {
+//		*ptr = new
+//		return true
+//	} else {
+//		return false
+//	}
 TEXT ·Cas(SB),NOSPLIT,$0-17
 	MOVQ	ptr+0(FP), BX
 	MOVL	old+8(FP), AX
@@ -35,13 +36,13 @@ TEXT ·Cas(SB),NOSPLIT,$0-17
 	SETEQ	ret+16(FP)
 	RET
 
-// bool	·Cas64(uint64 *val, uint64 old, uint64 new)
+// func Cas64(ptr *uint64, old, new uint64) bool
 // Atomically:
-//	if(*val == old){
-//		*val = new;
-//		return 1;
+//	if *ptr == old {
+//		*ptr = new
+//		return true
 //	} else {
-//		return 0;
+//		return false
 //	}
 TEXT ·Cas64(SB), NOSPLIT, $0-25
 	MOVQ	ptr+0(FP), BX
@@ -52,13 +53,14 @@ TEXT ·Cas64(SB), NOSPLIT, $0-25
 	SETEQ	ret+24(FP)
 	RET
 
-// bool Casp1(void **val, void *old, void *new)
+// func Casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
 // Atomically:
-//	if(*val == old){
-//		*val = new;
-//		return 1;
-//	} else
-//		return 0;
+//	if *ptr == old {
+//		*ptr = new
+//		return true
+//	} else {
+//		return false
+// 	}
 TEXT ·Casp1(SB), NOSPLIT, $0-25
 	MOVQ	ptr+0(FP), BX
 	MOVQ	old+8(FP), AX
