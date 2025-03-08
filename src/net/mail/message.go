@@ -115,12 +115,7 @@ func readHeader(r *textproto.Reader) (map[string][]string, error) {
 
 // Layouts suitable for passing to time.Parse.
 // These are tried in order.
-var (
-	dateLayoutsBuildOnce sync.Once
-	dateLayouts          []string
-)
-
-func buildDateLayouts() {
+var dateLayouts = sync.OnceValue(func() []string {
 	// Generate layouts based on RFC 5322, section 3.3.
 
 	dows := [...]string{"", "Mon, "}   // day-of-week
@@ -130,23 +125,27 @@ func buildDateLayouts() {
 	// "-0700 (MST)" is not in RFC 5322, but is common.
 	zones := [...]string{"-0700", "MST", "UT"} // zone = (("+" / "-") 4DIGIT) / "UT" / "GMT" / ...
 
+	total := len(dows) * len(days) * len(years) * len(seconds) * len(zones)
+	layouts := make([]string, 0, total)
+
 	for _, dow := range dows {
 		for _, day := range days {
 			for _, year := range years {
 				for _, second := range seconds {
 					for _, zone := range zones {
 						s := dow + day + " Jan " + year + " 15:04" + second + " " + zone
-						dateLayouts = append(dateLayouts, s)
+						layouts = append(layouts, s)
 					}
 				}
 			}
 		}
 	}
-}
+
+	return layouts
+})
 
 // ParseDate parses an RFC 5322 date string.
 func ParseDate(date string) (time.Time, error) {
-	dateLayoutsBuildOnce.Do(buildDateLayouts)
 	// CR and LF must match and are tolerated anywhere in the date field.
 	date = strings.ReplaceAll(date, "\r\n", "")
 	if strings.Contains(date, "\r") {
@@ -184,7 +183,7 @@ func ParseDate(date string) (time.Time, error) {
 	if !p.skipCFWS() {
 		return time.Time{}, errors.New("mail: misformatted parenthetical comment")
 	}
-	for _, layout := range dateLayouts {
+	for _, layout := range dateLayouts() {
 		t, err := time.Parse(layout, date)
 		if err == nil {
 			return t, nil
