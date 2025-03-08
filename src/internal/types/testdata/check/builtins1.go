@@ -145,6 +145,9 @@ func _[T M4[K, V], K comparable, V any](m T) {
 type myChan chan int
 
 func _[
+	A1 ~[10]byte,
+	A2 ~[]byte | ~[10]byte,
+
 	S1 ~[]int,
 	S2 ~[]int | ~chan int,
 
@@ -157,6 +160,11 @@ func _[
 	C4 chan int | chan<- int, // channels may have different (non-conflicting) directions
 	C5 <-chan int | chan<- int,
 ]() {
+	type A0 [10]byte
+	_ = make([ /* ERROR "cannot make [10]byte: type must be slice, map, or channel" */ 10]byte)
+	_ = make(A1 /* ERROR "cannot make A1: type must be slice, map, or channel" */ )
+	_ = make(A2 /* ERROR "cannot make A2: type must be slice, map, or channel" */ )
+
 	type S0 []int
 	_ = make([]int, 10)
 	_ = make(S0, 10)
@@ -165,7 +173,7 @@ func _[
 	_ = make /* ERROR "expects 2 or 3 arguments" */ (S1)
 	_ = make(S1, 10, 20)
 	_ = make /* ERROR "expects 2 or 3 arguments" */ (S1, 10, 20, 30)
-	_ = make(S2 /* ERROR "cannot make S2: no common underlying type" */ , 10)
+	_ = make(S2 /* ERROR "cannot make S2: []int and chan int have different underlying types" */ , 10)
 
 	type M0 map[string]int
 	_ = make(map[string]int)
@@ -173,7 +181,7 @@ func _[
 	_ = make(M1)
 	_ = make(M1, 10)
 	_ = make/* ERROR "expects 1 or 2 arguments" */(M1, 10, 20)
-	_ = make(M2 /* ERROR "cannot make M2: no common underlying type" */ )
+	_ = make(M2 /* ERROR "cannot make M2: map[string]int and chan int have different underlying types" */ )
 
 	type C0 chan int
 	_ = make(chan int)
@@ -181,10 +189,10 @@ func _[
 	_ = make(C1)
 	_ = make(C1, 10)
 	_ = make/* ERROR "expects 1 or 2 arguments" */(C1, 10, 20)
-	_ = make(C2 /* ERROR "cannot make C2: no common underlying type" */ )
+	_ = make(C2 /* ERROR "cannot make C2: channels chan int and chan string have different element types" */ )
 	_ = make(C3)
 	_ = make(C4)
-	_ = make(C5 /* ERROR "cannot make C5: no common underlying type" */ )
+	_ = make(C5 /* ERROR "cannot make C5: channels <-chan int and chan<- int have conflicting directions" */ )
 }
 
 // max

@@ -521,18 +521,30 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
+		u, err := commonUnder(T, func(_, u Type) *typeError {
+			switch u.(type) {
+			case *Slice, *Map, *Chan:
+				return nil // ok
+			case nil:
+				return typeErrorf("no specific type")
+			default:
+				return typeErrorf("type must be slice, map, or channel")
+			}
+		})
+		if err != nil {
+			check.errorf(arg0, InvalidMake, invalidArg+"cannot make %s: %s", arg0, err.format(check))
+			return
+		}
+
 		var min int // minimum number of arguments
-		switch u, _ := commonUnder(T, nil); u.(type) {
+		switch u.(type) {
 		case *Slice:
 			min = 2
 		case *Map, *Chan:
 			min = 1
-		case nil:
-			check.errorf(arg0, InvalidMake, invalidArg+"cannot make %s: no common underlying type", arg0)
-			return
 		default:
-			check.errorf(arg0, InvalidMake, invalidArg+"cannot make %s; type must be slice, map, or channel", arg0)
-			return
+			// any other type was excluded above
+			panic("unreachable")
 		}
 		if nargs < min || min+1 < nargs {
 			check.errorf(call, WrongArgCount, invalidOp+"%v expects %d or %d arguments; found %d", call, min, min+1, nargs)
