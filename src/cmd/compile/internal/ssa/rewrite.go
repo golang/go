@@ -2554,3 +2554,9 @@ func isDirectIface2(v *Value, depth int) bool {
 	}
 	return false
 }
+
+func bitsAdd64(x, y, carry int64) (r struct{ sum, carry int64 }) {
+	s, c := bits.Add64(uint64(x), uint64(y), uint64(carry))
+	r.sum, r.carry = int64(s), int64(c)
+	return
+}

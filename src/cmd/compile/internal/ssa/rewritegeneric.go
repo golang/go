@@ -20,6 +20,8 @@ func rewriteValuegeneric(v *Value) bool {
 		return rewriteValuegeneric_OpAdd64(v)
 	case OpAdd64F:
 		return rewriteValuegeneric_OpAdd64F(v)
+	case OpAdd64carry:
+		return rewriteValuegeneric_OpAdd64carry(v)
 	case OpAdd8:
 		return rewriteValuegeneric_OpAdd8(v)
 	case OpAddPtr:
@@ -2370,6 +2372,44 @@ func rewriteValuegeneric_OpAdd64F(v *Value) bool {
 			}
 			v.reset(OpConst64F)
 			v.AuxInt = float64ToAuxInt(c + d)
+			return true
+		}
+		break
+	}
+	return false
+}
+func rewriteValuegeneric_OpAdd64carry(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Add64carry (Const64 <t> [x]) (Const64 [y]) (Const64 [c]))
+	// cond: c >= 0 && c <= 1
+	// result: (MakeTuple (Const64 <t> [bitsAdd64(x, y, c).sum]) (Const64 <t> [bitsAdd64(x, y, c).carry]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConst64 {
+				continue
+			}
+			t := v_0.Type
+			x := auxIntToInt64(v_0.AuxInt)
+			if v_1.Op != OpConst64 {
+				continue
+			}
+			y := auxIntToInt64(v_1.AuxInt)
+			if v_2.Op != OpConst64 {
+				continue
+			}
+			c := auxIntToInt64(v_2.AuxInt)
+			if !(c >= 0 && c <= 1) {
+				continue
+			}
+			v.reset(OpMakeTuple)
+			v0 := b.NewValue0(v.Pos, OpConst64, t)
+			v0.AuxInt = int64ToAuxInt(bitsAdd64(x, y, c).sum)
+			v1 := b.NewValue0(v.Pos, OpConst64, t)
+			v1.AuxInt = int64ToAuxInt(bitsAdd64(x, y, c).carry)
+			v.AddArg2(v0, v1)
 			return true
 		}
 		break
