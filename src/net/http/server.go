@@ -2362,6 +2362,8 @@ func StripPrefix(prefix string, h Handler) Handler {
 
 // Redirect replies to the request with a redirect to url,
 // which may be a path relative to the request path.
+// Any non-ASCII characters in url will be percent-encoded,
+// but existing percent encodings will not be changed.
 //
 // The provided code should be in the 3xx range and is usually
 // [StatusMovedPermanently], [StatusFound] or [StatusSeeOther].
