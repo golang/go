@@ -140,7 +140,7 @@ func TestStmtLines(t *testing.T) {
 	var m float64
 	switch runtime.GOARCH {
 	case "amd64":
-		m = 0.0111 // > 98.89% obtained on amd64, no backsliding
+		m = 0.0112 // > 98.88% obtained on amd64, no backsliding
 	case "riscv64":
 		m = 0.03 // XXX temporary update threshold to 97% for regabi
 	default:

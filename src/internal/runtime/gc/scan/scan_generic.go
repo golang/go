@@ -21,3 +21,6 @@ func HasFastScanSpanPacked() bool {
 func ScanSpanPacked(mem unsafe.Pointer, bufp *uintptr, objMarks *gc.ObjMask, sizeClass uintptr, ptrMask *gc.PtrMask) (count int32) {
 	return ScanSpanPackedGo(mem, bufp, objMarks, sizeClass, ptrMask)
 }
+func ScanSpanPackedAsm(mem unsafe.Pointer, bufp *uintptr, objMarks *gc.ObjMask, sizeClass uintptr, ptrMask *gc.PtrMask) (count int32) {
+	panic("not implemented")
+}

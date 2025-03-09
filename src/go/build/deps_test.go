@@ -88,6 +88,7 @@ var depsRules = `
 	internal/strconv,
 	internal/trace/tracev2,
 	math/bits,
+	simd,
 	structs
 	< internal/bytealg
 	< internal/stringslite
@@ -835,7 +836,8 @@ var depsRules = `
 	os,
 	reflect,
 	strings,
-	sync
+	sync,
+	regexp
 	< internal/runtime/gc/internal/gen;
 
 	regexp, internal/txtar, internal/trace, internal/trace/raw

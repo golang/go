@@ -23,7 +23,7 @@ func testExpand(t *testing.T, expF expandFunc) {
 
 		for i := range want {
 			if got[i] != want[i] {
-				t.Errorf("expansion differs from reference at bit %d", i*goarch.PtrSize)
+				t.Errorf("expansion differs from reference at bit %d, sizeClass=%d", i*goarch.PtrSize, sizeClass)
 				if goarch.PtrSize == 4 {
 					t.Logf("got:  %032b", got[i])
 					t.Logf("want: %032b", want[i])

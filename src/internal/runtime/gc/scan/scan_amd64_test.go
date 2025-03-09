@@ -11,6 +11,13 @@ import (
 	"testing"
 )
 
+func TestScanSpanPackedAVX512Asm(t *testing.T) {
+	if !scan.CanAVX512() {
+		t.Skip("no AVX512")
+	}
+	testScanSpanPacked(t, scan.ScanSpanPackedAVX512Asm)
+}
+
 func TestScanSpanPackedAVX512(t *testing.T) {
 	if !scan.CanAVX512() {
 		t.Skip("no AVX512")
