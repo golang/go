@@ -1645,13 +1645,13 @@ func initLimit(v *Value) limit {
 		lim = lim.signedMinMax(math.MinInt32, math.MaxInt32)
 
 	// math/bits intrinsics
-	case OpCtz64, OpBitLen64:
+	case OpCtz64, OpBitLen64, OpPopCount64:
 		lim = lim.unsignedMax(64)
-	case OpCtz32, OpBitLen32:
+	case OpCtz32, OpBitLen32, OpPopCount32:
 		lim = lim.unsignedMax(32)
-	case OpCtz16, OpBitLen16:
+	case OpCtz16, OpBitLen16, OpPopCount16:
 		lim = lim.unsignedMax(16)
-	case OpCtz8, OpBitLen8:
+	case OpCtz8, OpBitLen8, OpPopCount8:
 		lim = lim.unsignedMax(8)
 
 	// bool to uint8 conversion
