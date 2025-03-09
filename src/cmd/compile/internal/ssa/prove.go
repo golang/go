@@ -1882,6 +1882,89 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 		return ft.newLimit(v, lim)
 
 	case OpPhi:
+		{
+			// Work around for go.dev/issue/68857, look for min(x, y) and max(x, y).
+			b := v.Block
+			if len(b.Preds) != 2 {
+				goto notMinNorMax
+			}
+			// FIXME: this code searches for the following losange pattern
+			// because that what ssagen produce for min and max builtins:
+			// conditionBlock → (firstBlock, secondBlock) → v.Block
+			// there are three non losange equivalent constructions
+			// we could match for, but I didn't bother:
+			// conditionBlock → (v.Block, secondBlock → v.Block)
+			// conditionBlock → (firstBlock → v.Block, v.Block)
+			// conditionBlock → (v.Block, v.Block)
+			firstBlock, secondBlock := b.Preds[0].b, b.Preds[1].b
+			if firstBlock.Kind != BlockPlain || secondBlock.Kind != BlockPlain {
+				goto notMinNorMax
+			}
+			if len(firstBlock.Preds) != 1 || len(secondBlock.Preds) != 1 {
+				goto notMinNorMax
+			}
+			conditionBlock := firstBlock.Preds[0].b
+			if conditionBlock != secondBlock.Preds[0].b {
+				goto notMinNorMax
+			}
+			if conditionBlock.Kind != BlockIf {
+				goto notMinNorMax
+			}
+
+			less := conditionBlock.Controls[0]
+			var unsigned bool
+			switch less.Op {
+			case OpLess64U, OpLess32U, OpLess16U, OpLess8U,
+				OpLeq64U, OpLeq32U, OpLeq16U, OpLeq8U:
+				unsigned = true
+			case OpLess64, OpLess32, OpLess16, OpLess8,
+				OpLeq64, OpLeq32, OpLeq16, OpLeq8:
+			default:
+				goto notMinNorMax
+			}
+			small, big := less.Args[0], less.Args[1]
+			truev, falsev := v.Args[0], v.Args[1]
+			if conditionBlock.Succs[0].b == secondBlock {
+				truev, falsev = falsev, truev
+			}
+
+			bigl, smalll := ft.limits[big.ID], ft.limits[small.ID]
+			if truev == big {
+				if falsev == small {
+					// v := big if small <¿=? big else small
+					if unsigned {
+						maximum := max(bigl.umax, smalll.umax)
+						minimum := max(bigl.umin, smalll.umin)
+						return ft.unsignedMinMax(v, minimum, maximum)
+					} else {
+						maximum := max(bigl.max, smalll.max)
+						minimum := max(bigl.min, smalll.min)
+						return ft.signedMinMax(v, minimum, maximum)
+					}
+				} else {
+					goto notMinNorMax
+				}
+			} else if truev == small {
+				if falsev == big {
+					// v := small if small <¿=? big else big
+					if unsigned {
+						maximum := min(bigl.umax, smalll.umax)
+						minimum := min(bigl.umin, smalll.umin)
+						return ft.unsignedMinMax(v, minimum, maximum)
+					} else {
+						maximum := min(bigl.max, smalll.max)
+						minimum := min(bigl.min, smalll.min)
+						return ft.signedMinMax(v, minimum, maximum)
+					}
+				} else {
+					goto notMinNorMax
+				}
+			} else {
+				goto notMinNorMax
+			}
+		}
+	notMinNorMax:
+
 		// Compute the union of all the input phis.
 		// Often this will convey no information, because the block
 		// is not dominated by its predecessors and hence the

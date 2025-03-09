@@ -1691,6 +1691,317 @@ func phiMin(a, b []byte) {
 	_ = b[:y] // ERROR "Proved IsSliceInBounds"
 }
 
+func minPhiLeq[T uint | int](x, y T) (z T) {
+	if x <= y {
+		z = x
+	} else {
+		z = y
+	}
+	return z
+}
+func maxPhiLeq[T uint | int](x, y T) (z T) {
+	if y <= x {
+		z = x
+	} else {
+		z = y
+	}
+	return z
+}
+func mathBasedOnPhiLosangeMinUFirstLeq(x uint, ensureAllBranchesCouldHappen func() bool) uint {
+	const maxc = 0xf2a
+	const minc = 0xf0a
+	x = minPhiLeq(x, maxc)
+	x = maxPhiLeq(x, minc)
+
+	const k = 1
+	x += k
+
+	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64U$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64U$"
+		return 4242
+	}
+	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64U$"
+		return 424242
+	}
+	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64U$"
+		return 42424242
+	}
+	return x
+}
+func mathBasedOnPhiLosangeMinUSecondLeq(x uint, ensureAllBranchesCouldHappen func() bool) uint {
+	const maxc = 0xf2a
+	const minc = 0xf0a
+	x = maxPhiLeq(x, minc)
+	x = minPhiLeq(x, maxc)
+
+	const k = 1
+	x += k
+
+	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64U$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64U$"
+		return 4242
+	}
+	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64U$"
+		return 424242
+	}
+	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64U$"
+		return 42424242
+	}
+	return x
+}
+func mathBasedOnPhiLosangeMinFirstLeq(x int, ensureAllBranchesCouldHappen func() bool) int {
+	const maxc = 0xf2a
+	const minc = 0xf0a
+	x = minPhiLeq(x, maxc)
+	x = maxPhiLeq(x, minc)
+
+	const k = 1
+	x += k
+
+	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64$"
+		return 4242
+	}
+	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64$"
+		return 424242
+	}
+	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64$"
+		return 42424242
+	}
+	return x
+}
+func mathBasedOnPhiLosangeMinSecondLeq(x int, ensureAllBranchesCouldHappen func() bool) int {
+	const maxc = 0xf2a
+	const minc = 0xf0a
+	x = maxPhiLeq(x, minc)
+	x = minPhiLeq(x, maxc)
+
+	const k = 1
+	x += k
+
+	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64$"
+		return 4242
+	}
+	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64$"
+		return 424242
+	}
+	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64$"
+		return 42424242
+	}
+	return x
+}
+
+func minPhiLess[T uint | int](x, y T) (z T) {
+	if x < y {
+		z = x
+	} else {
+		z = y
+	}
+	return z
+}
+func maxPhiLess[T uint | int](x, y T) (z T) {
+	if y < x {
+		z = x
+	} else {
+		z = y
+	}
+	return z
+}
+func mathBasedOnPhiLosangeMinUFirstLess(x uint, ensureAllBranchesCouldHappen func() bool) uint {
+	const maxc = 0xf2a
+	const minc = 0xf0a
+	x = minPhiLess(x, maxc)
+	x = maxPhiLess(x, minc)
+
+	const k = 1
+	x += k
+
+	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64U$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64U$"
+		return 4242
+	}
+	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64U$"
+		return 424242
+	}
+	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64U$"
+		return 42424242
+	}
+	return x
+}
+func mathBasedOnPhiLosangeMinUSecondLess(x uint, ensureAllBranchesCouldHappen func() bool) uint {
+	const maxc = 0xf2a
+	const minc = 0xf0a
+	x = maxPhiLess(x, minc)
+	x = minPhiLess(x, maxc)
+
+	const k = 1
+	x += k
+
+	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64U$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64U$"
+		return 4242
+	}
+	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64U$"
+		return 424242
+	}
+	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64U$"
+		return 42424242
+	}
+	return x
+}
+func mathBasedOnPhiLosangeMinFirstLess(x int, ensureAllBranchesCouldHappen func() bool) int {
+	const maxc = 0xf2a
+	const minc = 0xf0a
+	x = minPhiLess(x, maxc)
+	x = maxPhiLess(x, minc)
+
+	const k = 1
+	x += k
+
+	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64$"
+		return 4242
+	}
+	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64$"
+		return 424242
+	}
+	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64$"
+		return 42424242
+	}
+	return x
+}
+func mathBasedOnPhiLosangeMinSecondLess(x int, ensureAllBranchesCouldHappen func() bool) int {
+	const maxc = 0xf2a
+	const minc = 0xf0a
+	x = maxPhiLess(x, minc)
+	x = minPhiLess(x, maxc)
+
+	const k = 1
+	x += k
+
+	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64$"
+		return 4242
+	}
+	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64$"
+		return 424242
+	}
+	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64$"
+		return 42424242
+	}
+	return x
+}
+
+func mathBasedOnPhiBuiltinMinUFirst(x uint, ensureAllBranchesCouldHappen func() bool) uint {
+	const maxc = 0xf2a
+	const minc = 0xf0a
+	x = min(x, maxc)
+	x = max(x, minc)
+
+	const k = 1
+	x += k
+
+	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64U$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64U$"
+		return 4242
+	}
+	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64U$"
+		return 424242
+	}
+	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64U$"
+		return 42424242
+	}
+	return x
+}
+func mathBasedOnPhiBuiltinMinUSecond(x uint, ensureAllBranchesCouldHappen func() bool) uint {
+	const maxc = 0xf2a
+	const minc = 0xf0a
+	x = max(x, minc)
+	x = min(x, maxc)
+
+	const k = 1
+	x += k
+
+	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64U$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64U$"
+		return 4242
+	}
+	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64U$"
+		return 424242
+	}
+	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64U$"
+		return 42424242
+	}
+	return x
+}
+func mathBasedOnPhiBuiltinMinFirst(x int, ensureAllBranchesCouldHappen func() bool) int {
+	const maxc = 0xf2a
+	const minc = 0xf0a
+	x = min(x, maxc)
+	x = max(x, minc)
+
+	const k = 1
+	x += k
+
+	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64$"
+		return 4242
+	}
+	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64$"
+		return 424242
+	}
+	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64$"
+		return 42424242
+	}
+	return x
+}
+func mathBasedOnPhiBuiltinMinSecond(x int, ensureAllBranchesCouldHappen func() bool) int {
+	const maxc = 0xf2a
+	const minc = 0xf0a
+	x = max(x, minc)
+	x = min(x, maxc)
+
+	const k = 1
+	x += k
+
+	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64$"
+		return 4242
+	}
+	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64$"
+		return 424242
+	}
+	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64$"
+		return 42424242
+	}
+	return x
+}
+
 func issue16833(a, b []byte) {
 	n := copy(a, b)
 	_ = a[n:] // ERROR "Proved IsSliceInBounds"
