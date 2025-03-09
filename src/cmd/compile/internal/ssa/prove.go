@@ -1732,6 +1732,14 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 			return ft.unsignedMax(v, uint64(bits.Len8(uint8(a.umax))-1))
 		}
 
+	case OpPopCount64, OpPopCount32, OpPopCount16, OpPopCount8:
+		a := ft.limits[v.Args[0].ID]
+		changingBitsCount := uint64(bits.Len64(a.umax ^ a.umin))
+		sharedLeadingMask := ^(uint64(1)<<changingBitsCount - 1)
+		fixedBits := a.umax & sharedLeadingMask
+		min := uint64(bits.OnesCount64(fixedBits))
+		return ft.unsignedMinMax(v, min, min+changingBitsCount)
+
 	case OpBitLen64:
 		a := ft.limits[v.Args[0].ID]
 		return ft.unsignedMinMax(v,

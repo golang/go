@@ -33,5 +33,28 @@ func onesCountsBounds(x uint64, ensureAllBranchesCouldHappen func() bool) int {
 	return z
 }
 
+func onesCountsTight(x uint64, ensureAllBranchesCouldHappen func() bool) int {
+	const maxv = 0xff0f
+	const minv = 0xff00
+	x = max(x, minv)
+	x = min(x, maxv)
+
+	z := bits.OnesCount64(x)
+
+	if ensureAllBranchesCouldHappen() && z > bits.OnesCount64(maxv) { // ERROR "Disproved Less64$"
+		return 42
+	}
+	if ensureAllBranchesCouldHappen() && z <= bits.OnesCount64(maxv) { // ERROR "Proved Leq64$"
+		return 4242
+	}
+	if ensureAllBranchesCouldHappen() && z < bits.OnesCount64(minv) { // ERROR "Disproved Less64$"
+		return 424242
+	}
+	if ensureAllBranchesCouldHappen() && z >= bits.OnesCount64(minv) { // ERROR "Proved Leq64$"
+		return 42424242
+	}
+	return z
+}
+
 func main() {
 }
