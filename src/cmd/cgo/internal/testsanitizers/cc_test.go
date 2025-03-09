@@ -266,7 +266,12 @@ func compilerSupportsLocation() bool {
 	}
 	switch compiler.name {
 	case "gcc":
-		return compiler.major >= 10
+		// TODO(72752): the asan runtime support library
+		// (libasan.so.6) shipped with GCC 10 has problems digesting
+		// version 5 DWARF produced by the Go toolchain. Disable
+		// location checking if gcc is not sufficiently up to date in
+		// this case.
+		return compiler.major > 10
 	case "clang":
 		// TODO(65606): The clang toolchain on the LUCI builders is not built against
 		// zlib, the ASAN runtime can't actually symbolize its own stack trace. Once
