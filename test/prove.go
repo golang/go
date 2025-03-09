@@ -1391,8 +1391,8 @@ func bitLen8(x uint8, ensureBothBranchesCouldHappen bool) int {
 }
 
 func xor64(a, b uint64, ensureBothBranchesCouldHappen bool) int {
-	a &= 0xff
-	b &= 0xfff
+	a = min(a, 0xff)
+	b = min(b, 0xfff)
 
 	z := a ^ b
 
@@ -1409,8 +1409,8 @@ func xor64(a, b uint64, ensureBothBranchesCouldHappen bool) int {
 }
 
 func or64(a, b uint64, ensureBothBranchesCouldHappen bool) int {
-	a &= 0xff
-	b &= 0xfff
+	a = min(a, 0xff)
+	b = min(b, 0xfff)
 
 	z := a | b
 
@@ -1427,8 +1427,8 @@ func or64(a, b uint64, ensureBothBranchesCouldHappen bool) int {
 }
 
 func mod64uWithSmallerDividendMax(a, b uint64, ensureBothBranchesCouldHappen bool) int {
-	a &= 0xff
-	b &= 0xfff
+	a = min(a, 0xff)
+	b = min(b, 0xfff)
 
 	z := bits.Len64(a % b) // see go.dev/issue/68857 for bits.Len64
 
@@ -1444,8 +1444,8 @@ func mod64uWithSmallerDividendMax(a, b uint64, ensureBothBranchesCouldHappen boo
 	return z
 }
 func mod64uWithSmallerDivisorMax(a, b uint64, ensureBothBranchesCouldHappen bool) int {
-	a &= 0xfff
-	b &= 0x10 // we need bits.Len64(b.umax) != bits.Len64(b.umax-1)
+	a = min(a, 0xfff)
+	b = min(b, 0x10) // we need bits.Len64(b.umax) != bits.Len64(b.umax-1)
 
 	z := bits.Len64(a % b) // see go.dev/issue/68857 for bits.Len64
 
@@ -1461,8 +1461,8 @@ func mod64uWithSmallerDivisorMax(a, b uint64, ensureBothBranchesCouldHappen bool
 	return z
 }
 func mod64uWithIdenticalMax(a, b uint64, ensureBothBranchesCouldHappen bool) int {
-	a &= 0x10
-	b &= 0x10 // we need bits.Len64(b.umax) != bits.Len64(b.umax-1)
+	a = min(a, 0x10)
+	b = min(b, 0x10) // we need bits.Len64(b.umax) != bits.Len64(b.umax-1)
 
 	z := bits.Len64(a % b) // see go.dev/issue/68857 for bits.Len64
 
@@ -1481,8 +1481,8 @@ func mod64sPositiveWithSmallerDividendMax(a, b int64, ensureBothBranchesCouldHap
 	if a < 0 || b < 0 {
 		return 42
 	}
-	a &= 0xff
-	b &= 0xfff
+	a = min(a, 0xff)
+	b = min(b, 0xfff)
 
 	z := a % b // ERROR "Proved Mod64 does not need fix-up$"
 
@@ -1501,8 +1501,8 @@ func mod64sPositiveWithSmallerDivisorMax(a, b int64, ensureBothBranchesCouldHapp
 	if a < 0 || b < 0 {
 		return 42
 	}
-	a &= 0xfff
-	b &= 0xff
+	a = min(a, 0xfff)
+	b = min(b, 0xff)
 
 	z := a % b // ERROR "Proved Mod64 does not need fix-up$"
 
@@ -1521,8 +1521,8 @@ func mod64sPositiveWithIdenticalMax(a, b int64, ensureBothBranchesCouldHappen bo
 	if a < 0 || b < 0 {
 		return 42
 	}
-	a &= 0xfff
-	b &= 0xfff
+	a = min(a, 0xfff)
+	b = min(b, 0xfff)
 
 	z := a % b // ERROR "Proved Mod64 does not need fix-up$"
 
@@ -1539,10 +1539,10 @@ func mod64sPositiveWithIdenticalMax(a, b int64, ensureBothBranchesCouldHappen bo
 }
 
 func div64u(a, b uint64, ensureAllBranchesCouldHappen func() bool) uint64 {
-	a &= 0xffff
-	a |= 0xfff
-	b &= 0xff
-	b |= 0xf
+	a = min(a, 0xffff)
+	a = max(a, 0xfff)
+	b = min(b, 0xff)
+	b = max(b, 0xf)
 
 	z := a / b // ERROR "Proved Neq64$"
 
@@ -1564,10 +1564,10 @@ func div64s(a, b int64, ensureAllBranchesCouldHappen func() bool) int64 {
 	if a < 0 || b < 0 {
 		return 42
 	}
-	a &= 0xffff
-	a |= 0xfff
-	b &= 0xff
-	b |= 0xf
+	a = min(a, 0xffff)
+	a = max(a, 0xfff)
+	b = min(b, 0xff)
+	b = max(b, 0xf)
 
 	z := a / b // ERROR "(Proved Div64 does not need fix-up|Proved Neq64)$"
 
@@ -1587,8 +1587,8 @@ func div64s(a, b int64, ensureAllBranchesCouldHappen func() bool) int64 {
 }
 
 func trunc64to16(a uint64, ensureAllBranchesCouldHappen func() bool) uint16 {
-	a &= 0xfff
-	a |= 0xff
+	a = min(a, 0xfff)
+	a = max(a, 0xff)
 
 	z := uint16(a)
 	if ensureAllBranchesCouldHappen() && z > 0xfff { // ERROR "Disproved Less16U$"
@@ -1607,8 +1607,8 @@ func trunc64to16(a uint64, ensureAllBranchesCouldHappen func() bool) uint16 {
 }
 
 func com64(a uint64, ensureAllBranchesCouldHappen func() bool) uint64 {
-	a &= 0xffff
-	a |= 0xff
+	a = min(a, 0xffff)
+	a = max(a, 0xff)
 
 	z := ^a
 
@@ -1629,8 +1629,8 @@ func com64(a uint64, ensureAllBranchesCouldHappen func() bool) uint64 {
 
 func neg64(a uint64, ensureAllBranchesCouldHappen func() bool) uint64 {
 	var lo, hi uint64 = 0xff, 0xfff
-	a &= hi
-	a |= lo
+	a = min(a, hi)
+	a = max(a, lo)
 
 	z := -a
 
@@ -1650,8 +1650,8 @@ func neg64(a uint64, ensureAllBranchesCouldHappen func() bool) uint64 {
 }
 func neg64mightOverflowDuringNeg(a uint64, ensureAllBranchesCouldHappen func() bool) uint64 {
 	var lo, hi uint64 = 0, 0xfff
-	a &= hi
-	a |= lo
+	a = min(a, hi)
+	a = max(a, lo)
 
 	z := -a
 
