@@ -298,6 +298,14 @@ func rewriteValuegeneric(v *Value) bool {
 		return rewriteValuegeneric_OpOrB(v)
 	case OpPhi:
 		return rewriteValuegeneric_OpPhi(v)
+	case OpPopCount16:
+		return rewriteValuegeneric_OpPopCount16(v)
+	case OpPopCount32:
+		return rewriteValuegeneric_OpPopCount32(v)
+	case OpPopCount64:
+		return rewriteValuegeneric_OpPopCount64(v)
+	case OpPopCount8:
+		return rewriteValuegeneric_OpPopCount8(v)
 	case OpPtrIndex:
 		return rewriteValuegeneric_OpPtrIndex(v)
 	case OpRotateLeft16:
@@ -24767,6 +24775,150 @@ func rewriteValuegeneric_OpPhi(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpPhi, t)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpPopCount16(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	config := b.Func.Config
+	// match: (PopCount16 (Const16 [c]))
+	// cond: config.PtrSize == 8
+	// result: (Const64 [int64(bits.OnesCount16(uint16(c)))])
+	for {
+		if v_0.Op != OpConst16 {
+			break
+		}
+		c := auxIntToInt16(v_0.AuxInt)
+		if !(config.PtrSize == 8) {
+			break
+		}
+		v.reset(OpConst64)
+		v.AuxInt = int64ToAuxInt(int64(bits.OnesCount16(uint16(c))))
+		return true
+	}
+	// match: (PopCount16 (Const16 [c]))
+	// cond: config.PtrSize == 4
+	// result: (Const32 [int32(bits.OnesCount16(uint16(c)))])
+	for {
+		if v_0.Op != OpConst16 {
+			break
+		}
+		c := auxIntToInt16(v_0.AuxInt)
+		if !(config.PtrSize == 4) {
+			break
+		}
+		v.reset(OpConst32)
+		v.AuxInt = int32ToAuxInt(int32(bits.OnesCount16(uint16(c))))
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpPopCount32(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	config := b.Func.Config
+	// match: (PopCount32 (Const32 [c]))
+	// cond: config.PtrSize == 8
+	// result: (Const64 [int64(bits.OnesCount32(uint32(c)))])
+	for {
+		if v_0.Op != OpConst32 {
+			break
+		}
+		c := auxIntToInt32(v_0.AuxInt)
+		if !(config.PtrSize == 8) {
+			break
+		}
+		v.reset(OpConst64)
+		v.AuxInt = int64ToAuxInt(int64(bits.OnesCount32(uint32(c))))
+		return true
+	}
+	// match: (PopCount32 (Const32 [c]))
+	// cond: config.PtrSize == 4
+	// result: (Const32 [int32(bits.OnesCount32(uint32(c)))])
+	for {
+		if v_0.Op != OpConst32 {
+			break
+		}
+		c := auxIntToInt32(v_0.AuxInt)
+		if !(config.PtrSize == 4) {
+			break
+		}
+		v.reset(OpConst32)
+		v.AuxInt = int32ToAuxInt(int32(bits.OnesCount32(uint32(c))))
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpPopCount64(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	config := b.Func.Config
+	// match: (PopCount64 (Const64 [c]))
+	// cond: config.PtrSize == 8
+	// result: (Const64 [int64(bits.OnesCount64(uint64(c)))])
+	for {
+		if v_0.Op != OpConst64 {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		if !(config.PtrSize == 8) {
+			break
+		}
+		v.reset(OpConst64)
+		v.AuxInt = int64ToAuxInt(int64(bits.OnesCount64(uint64(c))))
+		return true
+	}
+	// match: (PopCount64 (Const64 [c]))
+	// cond: config.PtrSize == 4
+	// result: (Const32 [int32(bits.OnesCount64(uint64(c)))])
+	for {
+		if v_0.Op != OpConst64 {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		if !(config.PtrSize == 4) {
+			break
+		}
+		v.reset(OpConst32)
+		v.AuxInt = int32ToAuxInt(int32(bits.OnesCount64(uint64(c))))
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpPopCount8(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	config := b.Func.Config
+	// match: (PopCount8 (Const8 [c]))
+	// cond: config.PtrSize == 8
+	// result: (Const64 [int64(bits.OnesCount8(uint8(c)))])
+	for {
+		if v_0.Op != OpConst8 {
+			break
+		}
+		c := auxIntToInt8(v_0.AuxInt)
+		if !(config.PtrSize == 8) {
+			break
+		}
+		v.reset(OpConst64)
+		v.AuxInt = int64ToAuxInt(int64(bits.OnesCount8(uint8(c))))
+		return true
+	}
+	// match: (PopCount8 (Const8 [c]))
+	// cond: config.PtrSize == 4
+	// result: (Const32 [int32(bits.OnesCount8(uint8(c)))])
+	for {
+		if v_0.Op != OpConst8 {
+			break
+		}
+		c := auxIntToInt8(v_0.AuxInt)
+		if !(config.PtrSize == 4) {
+			break
+		}
+		v.reset(OpConst32)
+		v.AuxInt = int32ToAuxInt(int32(bits.OnesCount8(uint8(c))))
 		return true
 	}
 	return false
