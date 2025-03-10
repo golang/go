@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"internal/obscuretestdata"
 	"io"
 	"io/fs"
@@ -1278,6 +1279,49 @@ func TestFSWalk(t *testing.T) {
 				t.Errorf("got %v want %v", files, test.want)
 			}
 		})
+	}
+}
+
+func TestFSWalkBadFile(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	zw := NewWriter(&buf)
+	hdr := &FileHeader{Name: "."}
+	hdr.SetMode(fs.ModeDir | 0o755)
+	w, err := zw.CreateHeader(hdr)
+	if err != nil {
+		t.Fatalf("create zip header: %v", err)
+	}
+	_, err = w.Write([]byte("some data"))
+	if err != nil {
+		t.Fatalf("write zip contents: %v", err)
+
+	}
+	err = zw.Close()
+	if err != nil {
+		t.Fatalf("close zip writer: %v", err)
+
+	}
+
+	zr, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		t.Fatalf("create zip reader: %v", err)
+
+	}
+	var count int
+	var errRepeat = errors.New("repeated call to path")
+	err = fs.WalkDir(zr, ".", func(p string, d fs.DirEntry, err error) error {
+		count++
+		if count > 2 { // once for directory read, once for the error
+			return errRepeat
+		}
+		return err
+	})
+	if err == nil {
+		t.Fatalf("expected error from invalid file name")
+	} else if errors.Is(err, errRepeat) {
+		t.Fatal(err)
 	}
 }
 

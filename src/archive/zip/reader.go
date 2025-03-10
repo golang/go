@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"hash"
 	"hash/crc32"
 	"internal/godebug"
@@ -988,6 +989,12 @@ func (d *openDir) ReadDir(count int) ([]fs.DirEntry, error) {
 		s, err := d.files[d.offset+i].stat()
 		if err != nil {
 			return nil, err
+		} else if s.Name() == "." || !fs.ValidPath(s.Name()) {
+			return nil, &fs.PathError{
+				Op:   "readdir",
+				Path: d.e.name,
+				Err:  fmt.Errorf("invalid file name: %v", d.files[d.offset+i].name),
+			}
 		}
 		list[i] = s
 	}
