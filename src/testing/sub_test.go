@@ -1009,7 +1009,7 @@ func TestOutputWriter(t *T) {
 
 	f := func(t *T) {
 		t.Run("", func(t *T) {
-			w := outputWriter{c: &t.common}
+			w := t.newOutputWriter()
 			w.Write([]byte("a\n"))
 			w.Write([]byte("b\n"))
 			w.Write([]byte("a\nb\n"))

@@ -1046,7 +1046,7 @@ func (c *common) callSite(skip int) string {
 	return fmt.Sprintf("%s:%d: ", file, line)
 }
 
-// newOutputWriter initialises a new outputWriter.
+// newOutputWriter initializes a new outputWriter.
 func (c *common) newOutputWriter() io.Writer {
 	return &outputWriter{c: c}
 }
@@ -1081,7 +1081,7 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 		var b []byte
 		// Add back newlines.
 		if i != 0 {
-			b = append(b, []byte("\n")...)
+			b = append(b, '\n')
 		}
 		// All lines are indented 4 spaces except the final one, which must be
 		// empty otherwise the loop would have terminated earlier.
@@ -1890,7 +1890,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
 		tstate: t.tstate,
 	}
 	t.w = indenter{&t.common}
-	t.o = &outputWriter{c: &t.common}
+	t.o = t.newOutputWriter()
 
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== RUN   %s\n", t.name)
