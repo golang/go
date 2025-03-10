@@ -995,59 +995,41 @@ func TestNestedCleanup(t *T) {
 }
 
 func TestOutputWriter(t *T) {
-	tstate := newTestState(1, allMatcher())
-	buf := &strings.Builder{}
-	root := &T{
-		common: common{
-			signal:  make(chan bool),
-			barrier: make(chan bool),
-			name:    "",
-			w:       buf,
-		},
-		tstate: tstate,
-	}
-
-	f := func(t *T) {
+	o := &outputWriter{c: &common{}}
+	testCases := []struct {
+		in  string
+		out string
+		buf string
+	}{{
+		in:  "a",
+		out: "",
+		buf: "a",
+	}, {
+		in:  "b",
+		out: "",
+		buf: "ab",
+	}, {
+		in:  "\n",
+		out: "    ab\n",
+		buf: "",
+	}, {
+		in:  "\nc",
+		out: "    ab\n    \n",
+		buf: "c",
+	}, {
+		in:  "d",
+		out: "    ab\n    \n",
+		buf: "cd",
+	}}
+	for _, tc := range testCases {
 		t.Run("", func(t *T) {
-			w := t.newOutputWriter()
-			w.Write([]byte("a\n"))
-			w.Write([]byte("b\n"))
-			w.Write([]byte("a\nb\n"))
-			t.Fail()
+			o.Write([]byte(tc.in))
+			if string(o.c.output) != tc.out {
+				t.Errorf("output:\ngot:\n%s\nwant:\n%s", o.c.output, tc.out)
+			}
+			if string(o.b) != tc.buf {
+				t.Errorf("buffer:\ngot:\n%s\nwant:\n%s", o.b, tc.buf)
+			}
 		})
-	}
-	root.Run("check output of outputWriter", f)
-	tstate.release()
-
-	if tstate.running != 0 || tstate.numWaiting != 0 {
-		t.Errorf("running and waiting non-zero: got %d and %d", tstate.running, tstate.numWaiting)
-	}
-	got := strings.TrimSpace(buf.String())
-	output := `
---- FAIL: check output of outputWriter (0.00s)
-    --- FAIL: check output of outputWriter/#00 (0.00s)
-        a
-        b
-        a
-        b
-	`
-	want := strings.TrimSpace(output)
-	re := makeRegexp(want)
-	if ok, err := regexp.MatchString(re, got); !ok || err != nil {
-		t.Errorf("output:\ngot:\n%s\nwant:\n%s", got, want)
-	}
-}
-
-func TestOutputWriterBuffering(t *T) {
-	w := outputWriter{c: &t.common}
-
-	w.Write([]byte("Hel"))
-	w.Write([]byte("lo\nWorld\nInput to log\n\n\nMore logging\nShouldn't be logged"))
-	w.Write([]byte("Also shouldn't be logged"))
-
-	bufContents := string(w.b)
-	expected := "Shouldn't be loggedAlso shouldn't be logged"
-	if bufContents != expected {
-		t.Errorf("unexpected buffer contents: got %q want %q", bufContents, expected)
 	}
 }
