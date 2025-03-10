@@ -1111,13 +1111,12 @@ func (o *outputWriter) writeLine(l []byte, p []byte) {
 		panic("Log in goroutine after " + o.c.name + " has completed: " + string(p))
 	} else {
 		if o.c.chatty != nil {
-			line := string(l)
 			if o.c.bench {
 				// Benchmarks don't print === CONT, so we should skip the test
 				// printer and just print straight to stdout.
-				fmt.Print(line)
+				fmt.Printf("%s", l)
 			} else {
-				o.c.chatty.Printf(o.c.name, "%s", line)
+				o.c.chatty.Printf(o.c.name, "%s", l)
 			}
 		} else {
 			o.c.output = append(o.c.output, l...)
