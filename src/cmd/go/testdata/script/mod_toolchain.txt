@@ -18,8 +18,11 @@ grep 'toolchain go1.22.1' go.mod
 
 go get go@1.22.3
 stderr '^go: upgraded go 1.10 => 1.22.3$'
-stderr '^go: upgraded toolchain go1.22.1 => go1.100.0$'
+! stderr '^go: upgraded toolchain$'
 grep 'go 1.22.3' go.mod
+
+go get toolchain@go1.100.0
+stderr '^go: added toolchain go1.100.0$'
 
 go get go@1.22.3 toolchain@1.22.3
 stderr '^go: removed toolchain go1.100.0$'
@@ -64,6 +67,10 @@ go get toolchain@none
 stderr '^go: removed toolchain go1.23.9'
 ! stderr ' go 1'
 grep 'go 1.23.5' go.mod
+
+go get toolchain@go1.23.0 go@1.22.0
+go get go@1.24.0
+! grep toolchain go.mod
 
 -- go.mod --
 module m

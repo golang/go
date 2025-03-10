@@ -34,7 +34,7 @@ env GOTOOLCHAIN=auto
 go work sync
 stderr '^go: m1_22_1'${/}'go.mod requires go >= 1.22.1; switching to go1.22.9$'
 grep '^go 1.22.1$' go.work
-grep '^toolchain go1.22.9$' go.work
+! grep toolchain go.work
 
 # work sync with newer modules should update go 1.22.1 -> 1.24rc1 and drop toolchain
 go work edit -use=./m1_24_rc0
@@ -42,4 +42,4 @@ go work sync
 stderr '^go: m1_24_rc0'${/}'go.mod requires go >= 1.24rc0; switching to go1.24rc1$'
 cat go.work
 grep '^go 1.24rc0$' go.work
-grep '^toolchain go1.24rc1$' go.work
+! grep toolchain go.work

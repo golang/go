@@ -1,5 +1,5 @@
 # This test verifies that 'go get' and 'go mod tidy' switch to a newer toolchain
-# if needed to process newly-reolved imports.
+# if needed to process newly-resolved imports.
 
 env TESTGO_VERSION=go1.21.0
 env TESTGO_VERSION_SWITCH=switch
@@ -46,7 +46,6 @@ go: trying upgrade to example.net/b@v0.1.0
 go: accepting indirect upgrade from go@1.20 to 1.22.0
 go: trying upgrade to example.net/c@v0.1.0
 go: upgraded go 1.20 => 1.22.0
-go: added toolchain go1.22.9
 go: added example.net/b v0.1.0
 go: added example.net/c v0.1.0
 go: added example.net/d v0.1.0
@@ -67,7 +66,6 @@ go: trying upgrade to example.net/c@v0.1.0
 go: trying upgrade to example.net/d@v0.2.0
 go: accepting indirect upgrade from go@1.22.0 to 1.23.0
 go: upgraded go 1.20 => 1.23.0
-go: added toolchain go1.23.9
 go: upgraded example.net/a v0.1.0 => v0.2.0
 go: added example.net/b v0.1.0
 go: added example.net/c v0.1.0
@@ -92,8 +90,6 @@ module example
 
 go 1.22.0
 
-toolchain go1.22.9
-
 require (
 	example.net/a v0.1.0
 	example.net/b v0.1.0
@@ -116,8 +112,6 @@ replace (
 module example
 
 go 1.23.0
-
-toolchain go1.23.9
 
 require (
 	example.net/a v0.2.0

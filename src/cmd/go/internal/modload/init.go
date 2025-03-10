@@ -745,34 +745,25 @@ func UpdateWorkGoVersion(wf *modfile.WorkFile, goVers string) (changed bool) {
 
 	wf.AddGoStmt(goVers)
 
-	// We wrote a new go line. For reproducibility,
-	// if the toolchain running right now is newer than the new toolchain line,
-	// update the toolchain line to record the newer toolchain.
-	// The user never sets the toolchain explicitly in a 'go work' command,
-	// so this is only happening as a result of a go or toolchain line found
-	// in a module.
-	// If the toolchain running right now is a dev toolchain (like "go1.21")
-	// writing 'toolchain go1.21' will not be useful, since that's not an actual
-	// toolchain you can download and run. In that case fall back to at least
-	// checking that the toolchain is new enough for the Go version.
-	toolchain := "go" + old
-	if wf.Toolchain != nil {
-		toolchain = wf.Toolchain.Name
-	}
-	if gover.IsLang(gover.Local()) {
-		toolchain = gover.ToolchainMax(toolchain, "go"+goVers)
-	} else {
-		toolchain = gover.ToolchainMax(toolchain, "go"+gover.Local())
+	if wf.Toolchain == nil {
+		return true
 	}
 
-	// Drop the toolchain line if it is implied by the go line
+	// Drop the toolchain line if it is implied by the go line,
+	// if its version is older than the version in the go line,
 	// or if it is asking for a toolchain older than Go 1.21,
 	// which will not understand the toolchain line.
-	if toolchain == "go"+goVers || gover.Compare(gover.FromToolchain(toolchain), gover.GoStrictVersion) < 0 {
+	// Previously, a toolchain line set to the local toolchain
+	// version was added so that future operations on the go file
+	// would use the same toolchain logic for reproducibility.
+	// This behavior seemed to cause user confusion without much
+	// benefit so it was removed. See #65847.
+	toolchain := wf.Toolchain.Name
+	toolVers := gover.FromToolchain(toolchain)
+	if toolchain == "go"+goVers || gover.Compare(toolVers, goVers) < 0 || gover.Compare(toolVers, gover.GoStrictVersion) < 0 {
 		wf.DropToolchainStmt()
-	} else {
-		wf.AddToolchainStmt(toolchain)
 	}
+
 	return true
 }
 
@@ -1833,22 +1824,7 @@ func UpdateGoModFromReqs(ctx context.Context, opts WriteOpts) (before, after []b
 		toolchain = "go" + goVersion
 	}
 
-	// For reproducibility, if we are writing a new go line,
-	// and we're not explicitly modifying the toolchain line with 'go get toolchain@something',
-	// and the go version is one that supports switching toolchains,
-	// and the toolchain running right now is newer than the current toolchain line,
-	// then update the toolchain line to record the newer toolchain.
-	//
-	// TODO(#57001): This condition feels too complicated. Can we simplify it?
-	// TODO(#57001): Add more tests for toolchain lines.
 	toolVers := gover.FromToolchain(toolchain)
-	if wroteGo && !opts.DropToolchain && !opts.ExplicitToolchain &&
-		gover.Compare(goVersion, gover.GoStrictVersion) >= 0 &&
-		(gover.Compare(gover.Local(), toolVers) > 0 && !gover.IsLang(gover.Local())) {
-		toolchain = "go" + gover.Local()
-		toolVers = gover.FromToolchain(toolchain)
-	}
-
 	if opts.DropToolchain || toolchain == "go"+goVersion || (gover.Compare(toolVers, gover.GoStrictVersion) < 0 && !opts.ExplicitToolchain) {
 		// go get toolchain@none or toolchain matches go line or isn't valid; drop it.
 		// TODO(#57001): 'go get' should reject explicit toolchains below GoStrictVersion.
