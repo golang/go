@@ -1060,37 +1060,19 @@ type outputWriter struct {
 // Write generates the output. It inserts indentation spaces for formatting and
 // stores input for later if it is not terminated by a newline.
 func (o *outputWriter) Write(p []byte) (int, error) {
-	s := string(append(o.b, p...))
+	s := append(o.b, p...)
 
 	o.c.mu.Lock()
 	defer o.c.mu.Unlock()
 
-	lines := strings.Split(s, "\n")
+	lines := bytes.SplitAfter(s, []byte("\n"))
+	if l := len(lines); l != 0 {
+		o.b = lines[l-1]
+		lines = lines[:l-1]
+	}
 
-	for i, line := range lines {
-		l := len(lines)
-		// If the last line is not empty, store it in the buffer.
-		if i == (l-1) && line != "" {
-			o.b = []byte(line)
-			if i > 0 {
-				o.writeLine([]byte("\n"), p)
-			}
-			break
-		}
-
-		var b []byte
-		// Add back newlines.
-		if i != 0 {
-			b = append(b, '\n')
-		}
-		// All lines are indented 4 spaces except the final one, which must be
-		// empty otherwise the loop would have terminated earlier.
-		if i != l-1 {
-			b = append(b, []byte("    ")...)
-		}
-		b = append(b, []byte(line)...)
-
-		o.writeLine(b, p)
+	for _, line := range lines {
+		o.writeLine(append([]byte("    "), line...), p)
 	}
 	return len(p), nil
 }
