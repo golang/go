@@ -1048,7 +1048,7 @@ func (c *common) callSite(skip int) string {
 
 // newOutputWriter initialises a new outputWriter.
 func (c *common) newOutputWriter() io.Writer {
-	return &outputWriter{c, nil}
+	return &outputWriter{c: c}
 }
 
 // outputWriter buffers, formats and writes input.
@@ -1891,7 +1891,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
 		tstate: t.tstate,
 	}
 	t.w = indenter{&t.common}
-	t.o = &outputWriter{&t.common, nil}
+	t.o = &outputWriter{c: &t.common}
 
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== RUN   %s\n", t.name)
