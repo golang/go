@@ -19,6 +19,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -2044,20 +2045,58 @@ func TestWriteAt(t *testing.T) {
 
 	f := newFile(t)
 
-	const data = "hello, world\n"
+	const data = "hello, world"
 	io.WriteString(f, data)
 
-	n, err := f.WriteAt([]byte("WORLD"), 7)
-	if err != nil || n != 5 {
+	n, err := f.WriteAt([]byte("WOR"), 7)
+	if err != nil || n != 3 {
 		t.Fatalf("WriteAt 7: %d, %v", n, err)
 	}
+	n, err = io.WriteString(f, "!") // test that WriteAt doesn't change the file offset
+	if err != nil || n != 1 {
+		t.Fatal(err)
+	}
 
-	b, err := ReadFile(f.Name())
+	got, err := ReadFile(f.Name())
 	if err != nil {
 		t.Fatalf("ReadFile %s: %v", f.Name(), err)
 	}
-	if string(b) != "hello, WORLD\n" {
-		t.Fatalf("after write: have %q want %q", string(b), "hello, WORLD\n")
+	want := "hello, WORld!"
+	if string(got) != want {
+		t.Fatalf("after write: have %q want %q", string(got), want)
+	}
+}
+
+func TestWriteAtConcurrent(t *testing.T) {
+	t.Parallel()
+
+	f := newFile(t)
+	io.WriteString(f, "0000000000")
+
+	var wg sync.WaitGroup
+	for i := range 10 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			n, err := f.WriteAt([]byte(strconv.Itoa(i)), int64(i))
+			if err != nil || n != 1 {
+				t.Errorf("WriteAt %d: %d, %v", i, n, err)
+			}
+			n, err = io.WriteString(f, "!") // test that WriteAt doesn't change the file offset
+			if err != nil || n != 1 {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+
+	got, err := ReadFile(f.Name())
+	if err != nil {
+		t.Fatalf("ReadFile %s: %v", f.Name(), err)
+	}
+	want := "0123456789!!!!!!!!!!"
+	if string(got) != want {
+		t.Fatalf("after write: have %q want %q", string(got), want)
 	}
 }
 
