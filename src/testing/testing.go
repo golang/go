@@ -1083,6 +1083,7 @@ func (c *common) logDepth(s string, depth int) {
 // and records the text in the error log. For tests, the text will be printed only if
 // the test fails or the -test.v flag is set. For benchmarks, the text is always
 // printed to avoid having performance depend on the value of the -test.v flag.
+// It is an error to call Log after a test or benchmark returns.
 func (c *common) Log(args ...any) {
 	c.checkFuzzFn("Log")
 	c.log(fmt.Sprintln(args...))
@@ -1093,6 +1094,7 @@ func (c *common) Log(args ...any) {
 // tests, the text will be printed only if the test fails or the -test.v flag is
 // set. For benchmarks, the text is always printed to avoid having performance
 // depend on the value of the -test.v flag.
+// It is an error to call Logf after a test or benchmark returns.
 func (c *common) Logf(format string, args ...any) {
 	c.checkFuzzFn("Logf")
 	c.log(fmt.Sprintf(format, args...))
