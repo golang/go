@@ -675,6 +675,7 @@ func (s *benchState) processBench(b *B) {
 					benchFunc: b.benchFunc,
 					benchTime: b.benchTime,
 				}
+				b.o = b.newOutputWriter()
 				b.run1()
 			}
 			r := b.doBench()
@@ -751,6 +752,7 @@ func (b *B) Run(name string, f func(b *B)) bool {
 		benchTime:  b.benchTime,
 		bstate:     b.bstate,
 	}
+	sub.o = sub.newOutputWriter()
 	if partial {
 		// Partial name match, like -bench=X/Y matching BenchmarkX.
 		// Only process sub-benchmarks, if any.
@@ -927,6 +929,7 @@ func Benchmark(f func(b *B)) BenchmarkResult {
 		benchFunc: f,
 		benchTime: benchTime,
 	}
+	b.o = b.newOutputWriter()
 	if b.run1() {
 		b.run()
 	}
