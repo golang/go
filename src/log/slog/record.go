@@ -211,11 +211,11 @@ func (s *Source) group() Value {
 	return GroupValue(as...)
 }
 
-// source returns a Source for the log event.
+// Source returns a Source for the log event.
 // If the Record was created without the necessary information,
 // or if the location is unavailable, it returns a non-nil *Source
 // with zero fields.
-func (r Record) source() *Source {
+func (r Record) Source() *Source {
 	fs := runtime.CallersFrames([]uintptr{r.PC})
 	f, _ := fs.Next()
 	return &Source{
