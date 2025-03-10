@@ -30274,6 +30274,25 @@ func rewriteValuegeneric_OpRsh8x8(v *Value) bool {
 }
 func rewriteValuegeneric_OpSelect0(v *Value) bool {
 	v_0 := v.Args[0]
+	// match: (Select0 a:(Add64carry x y (Const64 [0])))
+	// cond: a.Uses == 1
+	// result: (Add64 x y)
+	for {
+		a := v_0
+		if a.Op != OpAdd64carry {
+			break
+		}
+		_ = a.Args[2]
+		x := a.Args[0]
+		y := a.Args[1]
+		a_2 := a.Args[2]
+		if a_2.Op != OpConst64 || auxIntToInt64(a_2.AuxInt) != 0 || !(a.Uses == 1) {
+			break
+		}
+		v.reset(OpAdd64)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Select0 (MakeTuple x y))
 	// result: x
 	for {

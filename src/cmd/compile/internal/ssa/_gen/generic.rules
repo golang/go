@@ -629,6 +629,10 @@
 (Sub(64|32|16|8) (Com(64|32|16|8) x) (Neg(64|32|16|8) x)) => (Const(64|32|16|8) [-1])
 (Add(64|32|16|8) (Com(64|32|16|8) x)                  x)  => (Const(64|32|16|8) [-1])
 
+// Prove does not simplify this because x + y might overflow into carry,
+// however if no one care about the carry, let it overflow in a normal add.
+(Select0 a:(Add64carry x y (Const64 [0]))) && a.Uses == 1 => (Add64 x y)
+
 // Simplification when involving common integer
 // (t + x) - (t + y) == x - y
 // (t + x) - (y + t) == x - y
