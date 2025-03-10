@@ -1601,19 +1601,8 @@ func initLimit(v *Value) limit {
 	}
 
 	// Default limits based on type.
-	var lim limit
-	switch v.Type.Size() {
-	case 8:
-		lim = limit{min: math.MinInt64, max: math.MaxInt64, umin: 0, umax: math.MaxUint64}
-	case 4:
-		lim = limit{min: math.MinInt32, max: math.MaxInt32, umin: 0, umax: math.MaxUint32}
-	case 2:
-		lim = limit{min: math.MinInt16, max: math.MaxInt16, umin: 0, umax: math.MaxUint16}
-	case 1:
-		lim = limit{min: math.MinInt8, max: math.MaxInt8, umin: 0, umax: math.MaxUint8}
-	default:
-		panic("bad")
-	}
+	bitsize := v.Type.Size() * 8
+	lim := limit{min: -(1 << (bitsize - 1)), max: 1<<(bitsize-1) - 1, umin: 0, umax: 1<<bitsize - 1}
 
 	// Tighter limits on some opcodes.
 	switch v.Op {
@@ -1645,14 +1634,11 @@ func initLimit(v *Value) limit {
 		lim = lim.signedMinMax(math.MinInt32, math.MaxInt32)
 
 	// math/bits intrinsics
-	case OpCtz64, OpBitLen64, OpPopCount64:
-		lim = lim.unsignedMax(64)
-	case OpCtz32, OpBitLen32, OpPopCount32:
-		lim = lim.unsignedMax(32)
-	case OpCtz16, OpBitLen16, OpPopCount16:
-		lim = lim.unsignedMax(16)
-	case OpCtz8, OpBitLen8, OpPopCount8:
-		lim = lim.unsignedMax(8)
+	case OpCtz64, OpBitLen64, OpPopCount64,
+		OpCtz32, OpBitLen32, OpPopCount32,
+		OpCtz16, OpBitLen16, OpPopCount16,
+		OpCtz8, OpBitLen8, OpPopCount8:
+		lim = lim.unsignedMax(uint64(v.Args[0].Type.Size() * 8))
 
 	// bool to uint8 conversion
 	case OpCvtBoolToUint8:
@@ -1788,74 +1774,30 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 		return ft.newLimit(v, a.com(uint(v.Type.Size())*8))
 
 	// Arithmetic.
-	case OpAdd64:
+	case OpAdd64, OpAdd32, OpAdd16, OpAdd8:
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
-		return ft.newLimit(v, a.add(b, 64))
-	case OpAdd32:
+		return ft.newLimit(v, a.add(b, uint(v.Type.Size())*8))
+	case OpSub64, OpSub32, OpSub16, OpSub8:
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
-		return ft.newLimit(v, a.add(b, 32))
-	case OpAdd16:
-		a := ft.limits[v.Args[0].ID]
-		b := ft.limits[v.Args[1].ID]
-		return ft.newLimit(v, a.add(b, 16))
-	case OpAdd8:
-		a := ft.limits[v.Args[0].ID]
-		b := ft.limits[v.Args[1].ID]
-		return ft.newLimit(v, a.add(b, 8))
-	case OpSub64:
-		a := ft.limits[v.Args[0].ID]
-		b := ft.limits[v.Args[1].ID]
-		return ft.newLimit(v, a.sub(b, 64))
-	case OpSub32:
-		a := ft.limits[v.Args[0].ID]
-		b := ft.limits[v.Args[1].ID]
-		return ft.newLimit(v, a.sub(b, 32))
-	case OpSub16:
-		a := ft.limits[v.Args[0].ID]
-		b := ft.limits[v.Args[1].ID]
-		return ft.newLimit(v, a.sub(b, 16))
-	case OpSub8:
-		a := ft.limits[v.Args[0].ID]
-		b := ft.limits[v.Args[1].ID]
-		return ft.newLimit(v, a.sub(b, 8))
+		return ft.newLimit(v, a.sub(b, uint(v.Type.Size())*8))
 	case OpNeg64, OpNeg32, OpNeg16, OpNeg8:
 		a := ft.limits[v.Args[0].ID]
 		bitsize := uint(v.Type.Size()) * 8
 		return ft.newLimit(v, a.com(bitsize).add(limit{min: 1, max: 1, umin: 1, umax: 1}, bitsize))
-	case OpMul64:
+	case OpMul64, OpMul32, OpMul16, OpMul8:
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
-		return ft.newLimit(v, a.mul(b, 64))
-	case OpMul32:
+		return ft.newLimit(v, a.mul(b, uint(v.Type.Size())*8))
+	case OpLsh64x64, OpLsh64x32, OpLsh64x16, OpLsh64x8,
+		OpLsh32x64, OpLsh32x32, OpLsh32x16, OpLsh32x8,
+		OpLsh16x64, OpLsh16x32, OpLsh16x16, OpLsh16x8,
+		OpLsh8x64, OpLsh8x32, OpLsh8x16, OpLsh8x8:
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
-		return ft.newLimit(v, a.mul(b, 32))
-	case OpMul16:
-		a := ft.limits[v.Args[0].ID]
-		b := ft.limits[v.Args[1].ID]
-		return ft.newLimit(v, a.mul(b, 16))
-	case OpMul8:
-		a := ft.limits[v.Args[0].ID]
-		b := ft.limits[v.Args[1].ID]
-		return ft.newLimit(v, a.mul(b, 8))
-	case OpLsh64x64, OpLsh64x32, OpLsh64x16, OpLsh64x8:
-		a := ft.limits[v.Args[0].ID]
-		b := ft.limits[v.Args[1].ID]
-		return ft.newLimit(v, a.mul(b.exp2(64), 64))
-	case OpLsh32x64, OpLsh32x32, OpLsh32x16, OpLsh32x8:
-		a := ft.limits[v.Args[0].ID]
-		b := ft.limits[v.Args[1].ID]
-		return ft.newLimit(v, a.mul(b.exp2(32), 32))
-	case OpLsh16x64, OpLsh16x32, OpLsh16x16, OpLsh16x8:
-		a := ft.limits[v.Args[0].ID]
-		b := ft.limits[v.Args[1].ID]
-		return ft.newLimit(v, a.mul(b.exp2(16), 16))
-	case OpLsh8x64, OpLsh8x32, OpLsh8x16, OpLsh8x8:
-		a := ft.limits[v.Args[0].ID]
-		b := ft.limits[v.Args[1].ID]
-		return ft.newLimit(v, a.mul(b.exp2(8), 8))
+		bitsize := uint(v.Type.Size()) * 8
+		return ft.newLimit(v, a.mul(b.exp2(bitsize), bitsize))
 	case OpMod64, OpMod32, OpMod16, OpMod8:
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
