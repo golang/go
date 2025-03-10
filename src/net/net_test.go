@@ -508,6 +508,32 @@ func TestCloseUnblocksRead(t *testing.T) {
 	withTCPConnPair(t, client, server)
 }
 
+// Issue 72770: verify that a blocked UDP read is woken up by a Close.
+func TestCloseUnblocksReadUDP(t *testing.T) {
+	t.Parallel()
+	pc, err := ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.AfterFunc(250*time.Millisecond, func() {
+		t.Logf("closing conn...")
+		pc.Close()
+	})
+	timer := time.AfterFunc(time.Second*10, func() {
+		panic("timeout waiting for Close")
+	})
+	defer timer.Stop()
+
+	n, src, err := pc.(*UDPConn).ReadFromUDPAddrPort([]byte{})
+
+	// Check for n > 0. Checking err == nil alone isn't enough;
+	// on macOS, it returns (n=0, src=0.0.0.0:0, err=nil).
+	if n > 0 {
+		t.Fatalf("unexpected Read success from ReadFromUDPAddrPort; read %d bytes from %v, err=%v", n, src, err)
+	}
+	t.Logf("got expected UDP read error")
+}
+
 // Issue 24808: verify that ECONNRESET is not temporary for read.
 func TestNotTemporaryRead(t *testing.T) {
 	t.Parallel()
