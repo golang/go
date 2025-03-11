@@ -414,7 +414,7 @@ type Flag struct {
 	DefValue string // default value (as text); for usage message
 }
 
-// sortFlags returns the flags as a slice in lexicographical sorted order.
+// sortFlags returns the flags as an iterator in lexicographical sorted order.
 func sortFlags(flags map[string]*Flag) iter.Seq[*Flag] {
 	s := slices.SortedFunc(maps.Values(flags), func(a, b *Flag) int {
 		return strings.Compare(a.Name, b.Name)
