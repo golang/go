@@ -3327,6 +3327,7 @@ const (
 	OpCvt64Fto64U
 	OpSelect0
 	OpSelect1
+	OpMakeTuple
 	OpSelectN
 	OpSelectNAddr
 	OpMakeResult
@@ -42298,6 +42299,11 @@ var opcodeTable = [...]opInfo{
 		argLen:    1,
 		zeroWidth: true,
 		generic:   true,
+	},
+	{
+		name:    "MakeTuple",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:    "SelectN",
