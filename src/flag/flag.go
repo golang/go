@@ -87,6 +87,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
+	"maps"
 	"os"
 	"reflect"
 	"runtime"
@@ -413,17 +415,11 @@ type Flag struct {
 }
 
 // sortFlags returns the flags as a slice in lexicographical sorted order.
-func sortFlags(flags map[string]*Flag) []*Flag {
-	result := make([]*Flag, len(flags))
-	i := 0
-	for _, f := range flags {
-		result[i] = f
-		i++
-	}
-	slices.SortFunc(result, func(a, b *Flag) int {
+func sortFlags(flags map[string]*Flag) iter.Seq[*Flag] {
+	s := slices.SortedFunc(maps.Values(flags), func(a, b *Flag) int {
 		return strings.Compare(a.Name, b.Name)
 	})
-	return result
+	return slices.Values(s)
 }
 
 // Output returns the destination for usage and error messages. [os.Stderr] is returned if
@@ -454,7 +450,7 @@ func (f *FlagSet) SetOutput(output io.Writer) {
 // VisitAll visits the flags in lexicographical order, calling fn for each.
 // It visits all flags, even those not set.
 func (f *FlagSet) VisitAll(fn func(*Flag)) {
-	for _, flag := range sortFlags(f.formal) {
+	for flag := range sortFlags(f.formal) {
 		fn(flag)
 	}
 }
@@ -468,7 +464,7 @@ func VisitAll(fn func(*Flag)) {
 // Visit visits the flags in lexicographical order, calling fn for each.
 // It visits only those flags that have been set.
 func (f *FlagSet) Visit(fn func(*Flag)) {
-	for _, flag := range sortFlags(f.actual) {
+	for flag := range sortFlags(f.actual) {
 		fn(flag)
 	}
 }
