@@ -1267,6 +1267,7 @@ type namedBool bool
 
 func (namedBool) M() {} // ERROR "can inline namedBool.M$"
 
+//go:noinline
 func namedBoolTest() {
 	m := map[int]int{} // ERROR "map\[int\]int{} does not escape"
 	var ok namedBool
