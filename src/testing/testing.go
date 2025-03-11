@@ -1061,12 +1061,12 @@ type outputWriter struct {
 // Write generates the output. It inserts indentation spaces for formatting and
 // stores input for later if it is not terminated by a newline.
 func (o *outputWriter) Write(p []byte) (int, error) {
-	s := append(o.b, p...)
+	o.b = append(o.b, p...)
 
 	o.c.mu.Lock()
 	defer o.c.mu.Unlock()
 
-	lines := bytes.SplitAfter(s, []byte("\n"))
+	lines := bytes.SplitAfter(o.b, []byte("\n"))
 	if n := len(lines); n != 0 {
 		o.b = lines[n-1]
 		lines = lines[:n-1]
