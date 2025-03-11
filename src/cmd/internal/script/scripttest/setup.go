@@ -6,10 +6,13 @@
 package scripttest
 
 import (
+	"internal/testenv"
 	"io"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
+	"sync"
 	"testing"
 )
 
@@ -36,13 +39,17 @@ func SetupTestGoRoot(t *testing.T, tmpdir string, goroot string) string {
 	}
 
 	// Create various dirs in testgoroot.
-	toolsub := filepath.Join("tool", runtime.GOOS+"_"+runtime.GOARCH)
+	findToolOnce.Do(func() { findToolSub(t) })
+	if toolsub == "" {
+		t.Fatal("failed to find toolsub")
+	}
+
 	tomake := []string{
 		"bin",
 		"src",
 		"pkg",
 		filepath.Join("pkg", "include"),
-		filepath.Join("pkg", toolsub),
+		toolsub,
 	}
 	made := []string{}
 	tgr := filepath.Join(tmpdir, "testgoroot")
@@ -57,7 +64,7 @@ func SetupTestGoRoot(t *testing.T, tmpdir string, goroot string) string {
 	replicateDir(filepath.Join(goroot, "bin"), made[0])
 	replicateDir(filepath.Join(goroot, "src"), made[1])
 	replicateDir(filepath.Join(goroot, "pkg", "include"), made[3])
-	replicateDir(filepath.Join(goroot, "pkg", toolsub), made[4])
+	replicateDir(filepath.Join(goroot, toolsub), made[4])
 
 	return tgr
 }
@@ -66,7 +73,11 @@ func SetupTestGoRoot(t *testing.T, tmpdir string, goroot string) string {
 // an alternate executable newtoolpath within a test GOROOT directory
 // previously created by SetupTestGoRoot.
 func ReplaceGoToolInTestGoRoot(t *testing.T, testgoroot, toolname, newtoolpath string) {
-	toolsub := filepath.Join("pkg", "tool", runtime.GOOS+"_"+runtime.GOARCH)
+	findToolOnce.Do(func() { findToolSub(t) })
+	if toolsub == "" {
+		t.Fatal("failed to find toolsub")
+	}
+
 	exename := toolname
 	if runtime.GOOS == "windows" {
 		exename += ".exe"
@@ -76,6 +87,24 @@ func ReplaceGoToolInTestGoRoot(t *testing.T, testgoroot, toolname, newtoolpath s
 		t.Fatalf("removing %s: %v", toolpath, err)
 	}
 	linkOrCopy(t, newtoolpath, toolpath)
+}
+
+// toolsub is the tool subdirectory underneath GOROOT.
+var toolsub string
+
+// findToolOnce runs findToolSub only once.
+var findToolOnce sync.Once
+
+// findToolSub sets toolsub to the value used by the current go command.
+func findToolSub(t *testing.T) {
+	gocmd := testenv.Command(t, testenv.GoToolPath(t), "env", "GOHOSTARCH")
+	gocmd = testenv.CleanCmdEnv(gocmd)
+	goHostArchBytes, err := gocmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("%s failed: %v\n%s", gocmd, err, goHostArchBytes)
+	}
+	goHostArch := strings.TrimSpace(string(goHostArchBytes))
+	toolsub = filepath.Join("pkg", "tool", runtime.GOOS+"_"+goHostArch)
 }
 
 // linkOrCopy creates a link to src at dst, or if the symlink fails
