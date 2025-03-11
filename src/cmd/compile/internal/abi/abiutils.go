@@ -680,9 +680,9 @@ func (pa *ABIParamAssignment) ComputePadding(storage []uint64) []uint64 {
 		if idx < len(types)-1 {
 			noff := offsets[idx+1]
 			if noff != off {
-				p := uint64(noff - off)
-				padding[idx] = p
-				off += int64(p)
+				p := noff - off
+				padding[idx] = uint64(p)
+				off += p
 			}
 		}
 	}
