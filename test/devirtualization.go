@@ -1262,3 +1262,15 @@ func testInvalidAsserts() {
 		a.(any).(M).(*Impl).M() // ERROR "inlining call to \(\*Impl\).M"
 	}
 }
+
+type namedBool bool
+
+func (namedBool) M() {} // ERROR "can inline namedBool.M$"
+
+func namedBoolTest() {
+	m := map[int]int{} // ERROR "map\[int\]int{} does not escape"
+	var ok namedBool
+	_, ok = m[5]
+	var i M = ok // ERROR "ok does not escape"
+	i.M()        // ERROR "devirtualizing i.M to namedBool$" "inlining call to namedBool.M"
+}
