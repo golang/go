@@ -816,8 +816,15 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 	}
 	frames := runtime.CallersFrames(pc[:n])
 	var firstFrame, prevFrame, frame runtime.Frame
+	skipRange := false
 	for more := true; more; prevFrame = frame {
 		frame, more = frames.Next()
+		if skipRange {
+			// Skip the iterator function when a helper
+			// functions does a range over function.
+			skipRange = false
+			continue
+		}
 		if frame.Function == "runtime.gopanic" {
 			continue
 		}
@@ -861,7 +868,25 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 				c.helperNames[pcToName(pc)] = struct{}{}
 			}
 		}
-		if _, ok := c.helperNames[frame.Function]; !ok {
+
+		fnName := frame.Function
+		// Ignore trailing -rangeN used for iterator functions.
+		const rangeSuffix = "-range"
+		if suffixIdx := strings.LastIndex(fnName, rangeSuffix); suffixIdx > 0 {
+			ok := true
+			for i := suffixIdx + len(rangeSuffix); i < len(fnName); i++ {
+				if fnName[i] < '0' || fnName[i] > '9' {
+					ok = false
+					break
+				}
+			}
+			if ok {
+				fnName = fnName[:suffixIdx]
+				skipRange = true
+			}
+		}
+
+		if _, ok := c.helperNames[fnName]; !ok {
 			// Found a frame that wasn't inside a helper function.
 			return frame
 		}
