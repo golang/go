@@ -23,7 +23,8 @@ const (
 	Rdate         = `[0-9][0-9][0-9][0-9]/[0-9][0-9]/[0-9][0-9]`
 	Rtime         = `[0-9][0-9]:[0-9][0-9]:[0-9][0-9]`
 	Rmicroseconds = `\.[0-9][0-9][0-9][0-9][0-9][0-9]`
-	Rline         = `(63|65):` // must update if the calls to l.Printf / l.Print below move
+	Rmilliseconds = `\.[0-9][0-9][0-9]`
+	Rline         = `(70|72):` // must update if the calls to l.Printf / l.Print below move
 	Rlongfile     = `.*/[A-Za-z0-9_\-]+\.go:` + Rline
 	Rshortfile    = `[A-Za-z0-9_\-]+\.go:` + Rline
 )
@@ -43,6 +44,8 @@ var tests = []tester{
 	{Ltime | Lmsgprefix, "XXX", Rtime + " XXX"},
 	{Ltime | Lmicroseconds, "", Rtime + Rmicroseconds + " "},
 	{Lmicroseconds, "", Rtime + Rmicroseconds + " "}, // microsec implies time
+	{Ltime | Lmilliseconds, "", Rtime + Rmilliseconds + " "},
+	{Lmilliseconds, "", Rtime + Rmilliseconds + " "}, // millisec implies time
 	{Llongfile, "", Rlongfile + " "},
 	{Lshortfile, "", Rshortfile + " "},
 	{Llongfile | Lshortfile, "", Rshortfile + " "}, // shortfile overrides longfile
@@ -51,6 +54,10 @@ var tests = []tester{
 	{Ldate | Ltime | Lmicroseconds | Lshortfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rshortfile + " "},
 	{Ldate | Ltime | Lmicroseconds | Llongfile | Lmsgprefix, "XXX", Rdate + " " + Rtime + Rmicroseconds + " " + Rlongfile + " XXX"},
 	{Ldate | Ltime | Lmicroseconds | Lshortfile | Lmsgprefix, "XXX", Rdate + " " + Rtime + Rmicroseconds + " " + Rshortfile + " XXX"},
+	{Ldate | Ltime | Lmilliseconds | Llongfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmilliseconds + " " + Rlongfile + " "},
+	{Ldate | Ltime | Lmilliseconds | Lshortfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmilliseconds + " " + Rshortfile + " "},
+	{Ldate | Ltime | Lmilliseconds | Llongfile | Lmsgprefix, "XXX", Rdate + " " + Rtime + Rmilliseconds + " " + Rlongfile + " XXX"},
+	{Ldate | Ltime | Lmilliseconds | Lshortfile | Lmsgprefix, "XXX", Rdate + " " + Rtime + Rmilliseconds + " " + Rshortfile + " XXX"},
 }
 
 // Test using Println("hello", 23, "world") or using Printf("hello %d world", 23)
