@@ -1,14 +1,18 @@
-// run
+env GO111MODULE=on
 
-// Copyright 2025 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
+[!GOOS:linux] skip
+[short] skip
 
-// Disable mapping annotations, which only exists for Linux.
+# Programs with //go:debug decoratemappings=0 should never see annotations.
+# This ensures that the runtime has not overridden the default.
+go run .
 
-//go:debug decoratemappings=0
-//go:build linux
+-- go.mod --
+go 1.25
+module m
 
+-- main.go --
+//go:debug decoratemappings=1
 package main
 
 import (
