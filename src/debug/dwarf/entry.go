@@ -919,6 +919,7 @@ func (r *Reader) SeekPC(pc uint64) (*Entry, error) {
 		r.cu = nil
 		u := &r.d.unit[unit]
 		r.b = makeBuf(r.d, u, "info", u.off, u.data)
+		r.collectDwarf5BaseOffsets(u)
 		e, err := r.Next()
 		if err != nil {
 			return nil, err
