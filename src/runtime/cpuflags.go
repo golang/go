@@ -20,7 +20,8 @@ const (
 
 	offsetMIPS64XHasMSA = unsafe.Offsetof(cpu.MIPS64X.HasMSA)
 
-	offsetLOONG64HasLSX = unsafe.Offsetof(cpu.Loong64.HasLSX)
+	offsetLOONG64HasLSX  = unsafe.Offsetof(cpu.Loong64.HasLSX)
+	offsetLOONG64HasLASX = unsafe.Offsetof(cpu.Loong64.HasLASX)
 )
 
 var (
