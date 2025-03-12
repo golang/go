@@ -126,7 +126,7 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
 		// corresponding result parameter, then record
 		// that value flow for tagging the function
 		// later.
-		if l.isName(ir.PPARAM) {
+		if l.param {
 			if b.outlives(root, l) {
 				if !l.hasAttr(attrEscapes) && (logopt.Enabled() || base.Flag.LowerM >= 2) {
 					if base.Flag.LowerM >= 2 {
@@ -270,7 +270,7 @@ func (b *batch) outlives(l, other *location) bool {
 	// We don't know what callers do with returned values, so
 	// pessimistically we need to assume they flow to the heap and
 	// outlive everything too.
-	if l.isName(ir.PPARAMOUT) {
+	if l.paramOut {
 		// Exception: Closures can return locations allocated outside of
 		// them without forcing them to the heap, if we can statically
 		// identify all call sites. For example:

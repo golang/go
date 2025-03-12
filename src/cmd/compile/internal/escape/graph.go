@@ -75,6 +75,8 @@ type location struct {
 	captured   bool // has a closure captured this variable?
 	reassigned bool // has this variable been reassigned?
 	addrtaken  bool // has this variable's address been taken?
+	param      bool // is this variable a parameter (ONAME of class ir.PPARAM)?
+	paramOut   bool // is this variable an out parameter (ONAME of class ir.PPARAMOUT)?
 }
 
 type locAttr uint8
@@ -280,6 +282,11 @@ func (e *escape) newLoc(n ir.Node, persists bool) *location {
 		n:         n,
 		curfn:     e.curfn,
 		loopDepth: e.loopDepth,
+	}
+	if loc.isName(ir.PPARAM) {
+		loc.param = true
+	} else if loc.isName(ir.PPARAMOUT) {
+		loc.paramOut = true
 	}
 	if persists {
 		loc.attrs |= attrPersists
