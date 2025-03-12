@@ -363,9 +363,6 @@ var depsRules = `
 	FMT, internal/goexperiment
 	< internal/buildcfg;
 
-	container/heap, go/constant, go/parser, internal/buildcfg, internal/goversion, internal/types/errors
-	< go/types;
-
 	# The vast majority of standard library packages should not be resorting to regexp.
 	# go/types is a good chokepoint. It shouldn't use regexp, nor should anything
 	# that is low-enough level to be used by go/types.
@@ -614,6 +611,12 @@ var depsRules = `
 	< crypto/tls;
 
 	# crypto-aware packages
+
+	FMT, hash/maphash
+	< container/hash;
+
+	hash/maphash, container/heap, go/constant, go/parser, internal/buildcfg, internal/goversion, internal/types/errors
+	< go/types;
 
 	DEBUG, go/build, go/types, text/scanner, crypto/sha256
 	< internal/pkgbits, internal/exportdata
