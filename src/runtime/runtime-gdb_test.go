@@ -73,7 +73,9 @@ func checkGdbVersion(t *testing.T) {
 	if err1 != nil || err2 != nil {
 		t.Skipf("skipping: can't determine gdb version: %v, %v", err1, err2)
 	}
-	if major < 7 || (major == 7 && minor < 7) {
+	// The Go toolchain now generates DWARF 5 by default, which needs
+	// a GDB version of 10 or above.
+	if major < 10 {
 		t.Skipf("skipping: gdb version %d.%d too old", major, minor)
 	}
 	t.Logf("gdb version %d.%d", major, minor)
