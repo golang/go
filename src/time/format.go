@@ -891,7 +891,9 @@ func quote(s string) string {
 			if c == '"' || c == '\\' {
 				buf = append(buf, '\\')
 			}
-			buf = append(buf, string(c)...)
+			// Since c < runeSelf && c >= ' ' (i.e., 32 <= c < 128),
+			// `byte(c)` is used for better performance.
+			buf = append(buf, byte(c))
 		}
 	}
 	buf = append(buf, '"')
