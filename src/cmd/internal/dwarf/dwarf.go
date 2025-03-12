@@ -600,12 +600,8 @@ var abbrevs = []dwAbbrev{
 		DW_TAG_lexical_block,
 		DW_CHILDREN_yes,
 		[]dwAttrForm{
-			// Note: we can't take advantage of DW_FORM_addrx here,
-			// since there is no way (at least at the moment) to
-			// have an encoding for low_pc of the form "addrx + constant"
-			// in DWARF5. If we wanted to use addrx, we'd need to create
-			// a whole new entry in .debug_addr for the block start,
-			// which would kind of defeat the point.
+			// Note: unused if we are generating DWARF 5, we
+			// use the ranges form even if there is a singleton range.
 			{DW_AT_low_pc, DW_FORM_addr},
 			{DW_AT_high_pc, DW_FORM_addr},
 		},
@@ -1526,7 +1522,10 @@ func putscope(ctxt Context, s *FnState, scopes []Scope, curscope int32, fnabbrev
 			continue
 		}
 
-		if len(scope.Ranges) == 1 {
+		// For DWARF 5, we always use the ranges form of the abbrev, since
+		// it is more compact than using explicit hi/lo PC attrs.  See
+		// issue #72821 for more on why this makes sense.
+		if len(scope.Ranges) == 1 && !buildcfg.Experiment.Dwarf5 {
 			Uleb128put(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_SIMPLE)
 			putattr(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].Start, s.StartPC)
 			putattr(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].End, s.StartPC)
