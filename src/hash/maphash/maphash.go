@@ -3,9 +3,13 @@
 // license that can be found in the LICENSE file.
 
 // Package maphash provides hash functions on byte sequences and comparable values.
-// These hash functions are intended to be used to implement hash tables or
-// other data structures that need to map arbitrary strings or byte
-// sequences to a uniform distribution on unsigned 64-bit integers.
+// It also defines [Hasher], the interface between a hash function and a hash table.
+//
+// These hash functions are intended to be used to implement hash
+// tables, Bloom filters, and other data structures that need to map
+// arbitrary strings or byte sequences to a uniform distribution on
+// unsigned 64-bit integers.
+//
 // Each different instance of a hash table or data structure should use its own [Seed].
 //
 // The hash functions are not cryptographically secure.
