@@ -10,6 +10,7 @@ import (
 	"cmd/compile/internal/logopt"
 	"cmd/internal/src"
 	"fmt"
+	"math/bits"
 	"strings"
 )
 
@@ -24,28 +25,41 @@ func (b *batch) walkAll() {
 	// !persists->persists and !escapes->escapes, which can each
 	// happen at most once. So we take Θ(len(e.allLocs)) walks.
 
-	// LIFO queue, has enough room for e.allLocs and e.heapLoc.
-	todo := make([]*location, 0, len(b.allLocs)+1)
+	// Queue of locations to walk. Has enough room for b.allLocs
+	// plus b.heapLoc, b.mutatorLoc, b.calleeLoc.
+	todo := newQueue(len(b.allLocs) + 3)
+
 	enqueue := func(loc *location) {
-		if !loc.queued {
-			todo = append(todo, loc)
-			loc.queued = true
+		if !loc.queuedWalkAll {
+			loc.queuedWalkAll = true
+			if loc.hasAttr(attrEscapes) {
+				// Favor locations that escape to the heap,
+				// which in some cases allows attrEscape to
+				// propagate faster.
+				todo.pushFront(loc)
+			} else {
+				todo.pushBack(loc)
+			}
 		}
 	}
 
 	for _, loc := range b.allLocs {
-		enqueue(loc)
+		todo.pushFront(loc)
+		// TODO(thepudds): clean up setting queuedWalkAll.
+		loc.queuedWalkAll = true
 	}
-	enqueue(&b.mutatorLoc)
-	enqueue(&b.calleeLoc)
-	enqueue(&b.heapLoc)
+	todo.pushFront(&b.mutatorLoc)
+	todo.pushFront(&b.calleeLoc)
+	todo.pushFront(&b.heapLoc)
+
+	b.mutatorLoc.queuedWalkAll = true
+	b.calleeLoc.queuedWalkAll = true
+	b.heapLoc.queuedWalkAll = true
 
 	var walkgen uint32
-	for len(todo) > 0 {
-		root := todo[len(todo)-1]
-		todo = todo[:len(todo)-1]
-		root.queued = false
-
+	for todo.len() > 0 {
+		root := todo.popFront()
+		root.queuedWalkAll = false
 		walkgen++
 		b.walkOne(root, walkgen, enqueue)
 	}
@@ -77,10 +91,12 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
 		}
 	}
 
-	todo := []*location{root} // LIFO queue
-	for len(todo) > 0 {
-		l := todo[len(todo)-1]
-		todo = todo[:len(todo)-1]
+	todo := newQueue(1)
+	todo.pushFront(root)
+
+	for todo.len() > 0 {
+		l := todo.popFront()
+		l.queuedWalkOne = 0 // no longer queued for walkOne
 
 		derefs := l.derefs
 		var newAttrs locAttr
@@ -167,7 +183,14 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
 				edge.src.derefs = d
 				edge.src.dst = l
 				edge.src.dstEdgeIdx = i
-				todo = append(todo, edge.src)
+				// Check if already queued in todo.
+				if edge.src.queuedWalkOne != walkgen {
+					edge.src.queuedWalkOne = walkgen // Mark queued for this walkgen.
+
+					// Place at the back to possibly give time for
+					// other possible attribute changes to src.
+					todo.pushBack(edge.src)
+				}
 			}
 		}
 	}
@@ -310,3 +333,65 @@ func (b *batch) outlives(l, other *location) bool {
 
 	return false
 }
+
+// queue implements a queue of locations for use in WalkAll and WalkOne.
+// It supports pushing to front & back, and popping from front.
+// TODO(thepudds): does cmd/compile have a deque or similar somewhere?
+type queue struct {
+	locs  []*location
+	head  int // index of front element
+	tail  int // next back element
+	elems int
+}
+
+func newQueue(capacity int) *queue {
+	capacity = max(capacity, 2)
+	capacity = 1 << bits.Len64(uint64(capacity-1)) // round up to a power of 2
+	return &queue{locs: make([]*location, capacity)}
+}
+
+// pushFront adds an element to the front of the queue.
+func (q *queue) pushFront(loc *location) {
+	if q.elems == len(q.locs) {
+		q.grow()
+	}
+	q.head = q.wrap(q.head - 1)
+	q.locs[q.head] = loc
+	q.elems++
+}
+
+// pushBack adds an element to the back of the queue.
+func (q *queue) pushBack(loc *location) {
+	if q.elems == len(q.locs) {
+		q.grow()
+	}
+	q.locs[q.tail] = loc
+	q.tail = q.wrap(q.tail + 1)
+	q.elems++
+}
+
+// popFront removes the front of the queue.
+func (q *queue) popFront() *location {
+	if q.elems == 0 {
+		return nil
+	}
+	loc := q.locs[q.head]
+	q.head = q.wrap(q.head + 1)
+	q.elems--
+	return loc
+}
+
+// grow doubles the capacity.
+func (q *queue) grow() {
+	newLocs := make([]*location, len(q.locs)*2)
+	for i := range q.elems {
+		// Copy over our elements in order.
+		newLocs[i] = q.locs[q.wrap(q.head+i)]
+	}
+	q.locs = newLocs
+	q.head = 0
+	q.tail = q.elems
+}
+
+func (q *queue) len() int       { return q.elems }
+func (q *queue) wrap(i int) int { return i & (len(q.locs) - 1) }

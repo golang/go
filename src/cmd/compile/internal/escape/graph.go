@@ -62,9 +62,14 @@ type location struct {
 	dst        *location
 	dstEdgeIdx int
 
-	// queued is used by walkAll to track whether this location is
-	// in the walk queue.
-	queued bool
+	// queuedWalkAll is used by walkAll to track whether this location is
+	// in its work queue.
+	queuedWalkAll bool
+
+	// queuedWalkOne is used by walkOne to track whether this location is
+	// in its work queue. The value is the walkgen when this location was
+	// last queued for walkOne, or 0 if it's not currently queued.
+	queuedWalkOne uint32
 
 	// attrs is a bitset of location attributes.
 	attrs locAttr
@@ -288,6 +293,7 @@ func (e *escape) newLoc(n ir.Node, persists bool) *location {
 	} else if loc.isName(ir.PPARAMOUT) {
 		loc.paramOut = true
 	}
+
 	if persists {
 		loc.attrs |= attrPersists
 	}
