@@ -256,11 +256,7 @@ func (c *mcentral) grow() *mspan {
 	if s == nil {
 		return nil
 	}
-
-	// Use division by multiplication and shifts to quickly compute:
-	// n := (npages << gc.PageShift) / size
-	n := s.divideByElemSize(npages << gc.PageShift)
-	s.limit = s.base() + size*n
+	s.limit = s.base() + size*uintptr(s.nelems)
 	s.initHeapBits()
 	return s
 }

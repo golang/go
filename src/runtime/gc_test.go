@@ -875,3 +875,196 @@ func TestWeakToStrongMarkTermination(t *testing.T) {
 		t.Errorf("gcMarkDone restarted")
 	}
 }
+
+func TestMSpanQueue(t *testing.T) {
+	expectSize := func(t *testing.T, q *runtime.MSpanQueue, want int) {
+		t.Helper()
+		if got := q.Size(); got != want {
+			t.Errorf("expected size %d, got %d", want, got)
+		}
+	}
+	expectMSpan := func(t *testing.T, got, want *runtime.MSpan, op string) {
+		t.Helper()
+		if got != want {
+			t.Errorf("expected mspan %p from %s, got %p", want, op, got)
+		}
+	}
+	makeSpans := func(t *testing.T, n int) ([]*runtime.MSpan, func()) {
+		t.Helper()
+		spans := make([]*runtime.MSpan, 0, n)
+		for range cap(spans) {
+			spans = append(spans, runtime.AllocMSpan())
+		}
+		return spans, func() {
+			for i, s := range spans {
+				runtime.FreeMSpan(s)
+				spans[i] = nil
+			}
+		}
+	}
+	t.Run("Empty", func(t *testing.T) {
+		var q runtime.MSpanQueue
+		expectSize(t, &q, 0)
+		expectMSpan(t, q.Pop(), nil, "pop")
+	})
+	t.Run("PushPop", func(t *testing.T) {
+		s := runtime.AllocMSpan()
+		defer runtime.FreeMSpan(s)
+
+		var q runtime.MSpanQueue
+		q.Push(s)
+		expectSize(t, &q, 1)
+		expectMSpan(t, q.Pop(), s, "pop")
+		expectMSpan(t, q.Pop(), nil, "pop")
+	})
+	t.Run("PushPopPushPop", func(t *testing.T) {
+		s0 := runtime.AllocMSpan()
+		defer runtime.FreeMSpan(s0)
+		s1 := runtime.AllocMSpan()
+		defer runtime.FreeMSpan(s1)
+
+		var q runtime.MSpanQueue
+
+		// Push and pop s0.
+		q.Push(s0)
+		expectSize(t, &q, 1)
+		expectMSpan(t, q.Pop(), s0, "pop")
+		expectMSpan(t, q.Pop(), nil, "pop")
+
+		// Push and pop s1.
+		q.Push(s1)
+		expectSize(t, &q, 1)
+		expectMSpan(t, q.Pop(), s1, "pop")
+		expectMSpan(t, q.Pop(), nil, "pop")
+	})
+	t.Run("PushPushPopPop", func(t *testing.T) {
+		s0 := runtime.AllocMSpan()
+		defer runtime.FreeMSpan(s0)
+		s1 := runtime.AllocMSpan()
+		defer runtime.FreeMSpan(s1)
+
+		var q runtime.MSpanQueue
+		q.Push(s0)
+		expectSize(t, &q, 1)
+		q.Push(s1)
+		expectSize(t, &q, 2)
+		expectMSpan(t, q.Pop(), s0, "pop")
+		expectMSpan(t, q.Pop(), s1, "pop")
+		expectMSpan(t, q.Pop(), nil, "pop")
+	})
+	t.Run("EmptyTakeAll", func(t *testing.T) {
+		var q runtime.MSpanQueue
+		var p runtime.MSpanQueue
+		expectSize(t, &p, 0)
+		expectSize(t, &q, 0)
+		p.TakeAll(&q)
+		expectSize(t, &p, 0)
+		expectSize(t, &q, 0)
+		expectMSpan(t, q.Pop(), nil, "pop")
+		expectMSpan(t, p.Pop(), nil, "pop")
+	})
+	t.Run("Push4TakeAll", func(t *testing.T) {
+		spans, free := makeSpans(t, 4)
+		defer free()
+
+		var q runtime.MSpanQueue
+		for i, s := range spans {
+			expectSize(t, &q, i)
+			q.Push(s)
+			expectSize(t, &q, i+1)
+		}
+
+		var p runtime.MSpanQueue
+		p.TakeAll(&q)
+		expectSize(t, &p, 4)
+		for i := range p.Size() {
+			expectMSpan(t, p.Pop(), spans[i], "pop")
+		}
+		expectSize(t, &p, 0)
+		expectMSpan(t, q.Pop(), nil, "pop")
+		expectMSpan(t, p.Pop(), nil, "pop")
+	})
+	t.Run("Push4Pop3", func(t *testing.T) {
+		spans, free := makeSpans(t, 4)
+		defer free()
+
+		var q runtime.MSpanQueue
+		for i, s := range spans {
+			expectSize(t, &q, i)
+			q.Push(s)
+			expectSize(t, &q, i+1)
+		}
+		p := q.PopN(3)
+		expectSize(t, &p, 3)
+		expectSize(t, &q, 1)
+		for i := range p.Size() {
+			expectMSpan(t, p.Pop(), spans[i], "pop")
+		}
+		expectMSpan(t, q.Pop(), spans[len(spans)-1], "pop")
+		expectSize(t, &p, 0)
+		expectSize(t, &q, 0)
+		expectMSpan(t, q.Pop(), nil, "pop")
+		expectMSpan(t, p.Pop(), nil, "pop")
+	})
+	t.Run("Push4Pop0", func(t *testing.T) {
+		spans, free := makeSpans(t, 4)
+		defer free()
+
+		var q runtime.MSpanQueue
+		for i, s := range spans {
+			expectSize(t, &q, i)
+			q.Push(s)
+			expectSize(t, &q, i+1)
+		}
+		p := q.PopN(0)
+		expectSize(t, &p, 0)
+		expectSize(t, &q, 4)
+		for i := range q.Size() {
+			expectMSpan(t, q.Pop(), spans[i], "pop")
+		}
+		expectSize(t, &p, 0)
+		expectSize(t, &q, 0)
+		expectMSpan(t, q.Pop(), nil, "pop")
+		expectMSpan(t, p.Pop(), nil, "pop")
+	})
+	t.Run("Push4Pop4", func(t *testing.T) {
+		spans, free := makeSpans(t, 4)
+		defer free()
+
+		var q runtime.MSpanQueue
+		for i, s := range spans {
+			expectSize(t, &q, i)
+			q.Push(s)
+			expectSize(t, &q, i+1)
+		}
+		p := q.PopN(4)
+		expectSize(t, &p, 4)
+		expectSize(t, &q, 0)
+		for i := range p.Size() {
+			expectMSpan(t, p.Pop(), spans[i], "pop")
+		}
+		expectSize(t, &p, 0)
+		expectMSpan(t, q.Pop(), nil, "pop")
+		expectMSpan(t, p.Pop(), nil, "pop")
+	})
+	t.Run("Push4Pop5", func(t *testing.T) {
+		spans, free := makeSpans(t, 4)
+		defer free()
+
+		var q runtime.MSpanQueue
+		for i, s := range spans {
+			expectSize(t, &q, i)
+			q.Push(s)
+			expectSize(t, &q, i+1)
+		}
+		p := q.PopN(5)
+		expectSize(t, &p, 4)
+		expectSize(t, &q, 0)
+		for i := range p.Size() {
+			expectMSpan(t, p.Pop(), spans[i], "pop")
+		}
+		expectSize(t, &p, 0)
+		expectMSpan(t, q.Pop(), nil, "pop")
+		expectMSpan(t, p.Pop(), nil, "pop")
+	})
+}

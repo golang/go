@@ -1232,6 +1232,7 @@ func AllocMSpan() *MSpan {
 	systemstack(func() {
 		lock(&mheap_.lock)
 		s = (*mspan)(mheap_.spanalloc.alloc())
+		s.init(0, 0)
 		unlock(&mheap_.lock)
 	})
 	return (*MSpan)(s)
@@ -1253,6 +1254,30 @@ func MSpanCountAlloc(ms *MSpan, bits []byte) int {
 	result := s.countAlloc()
 	s.gcmarkBits = nil
 	return result
+}
+
+type MSpanQueue mSpanQueue
+
+func (q *MSpanQueue) Size() int {
+	return (*mSpanQueue)(q).n
+}
+
+func (q *MSpanQueue) Push(s *MSpan) {
+	(*mSpanQueue)(q).push((*mspan)(s))
+}
+
+func (q *MSpanQueue) Pop() *MSpan {
+	s := (*mSpanQueue)(q).pop()
+	return (*MSpan)(s)
+}
+
+func (q *MSpanQueue) TakeAll(p *MSpanQueue) {
+	(*mSpanQueue)(q).takeAll((*mSpanQueue)(p))
+}
+
+func (q *MSpanQueue) PopN(n int) MSpanQueue {
+	p := (*mSpanQueue)(q).popN(n)
+	return (MSpanQueue)(p)
 }
 
 const (

@@ -44,7 +44,17 @@ type mstats struct {
 	last_gc_nanotime uint64 // last gc (monotonic time)
 	lastHeapInUse    uint64 // heapInUse at mark termination of the previous GC
 
+	lastScanStats [gc.NumSizeClasses]sizeClassScanStats
+
 	enablegc bool
+}
+
+type sizeClassScanStats struct {
+	spansDenseScanned     uint64
+	spanObjsDenseScanned  uint64
+	spansSparseScanned    uint64
+	spanObjsSparseScanned uint64
+	sparseObjsScanned     uint64
 }
 
 var memstats mstats

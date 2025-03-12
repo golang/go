@@ -6,7 +6,9 @@ package runtime
 
 import (
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/runtime/atomic"
+	"internal/runtime/gc"
 	"internal/runtime/sys"
 	"unsafe"
 )
@@ -32,13 +34,37 @@ func init() {
 // Garbage collector work pool abstraction.
 //
 // This implements a producer/consumer model for pointers to grey
-// objects. A grey object is one that is marked and on a work
-// queue. A black object is marked and not on a work queue.
+// objects.
+//
+// For objects in workbufs, a grey object is one that is marked and
+// on a work queue. A black object is marked and not on a work queue.
+//
+// For objects in the span queue, a grey object is one that is marked
+// and has an unset scan bit. A black object is marked and has its scan
+// bit set. (Green Tea GC only.)
 //
 // Write barriers, root discovery, stack scanning, and object scanning
 // produce pointers to grey objects. Scanning consumes pointers to
 // grey objects, thus blackening them, and then scans them,
 // potentially producing new pointers to grey objects.
+//
+// Work queues must be prioritized in the following order wherever work
+// is processed.
+//
+// +----------------------------------------------------------+
+// | Priority | Work queue | Restrictions | Function          |
+// |----------------------------------------------------------|
+// | 1        | Workbufs   | P-local      | tryGetObjFast     |
+// | 2        | Span queue | P-local      | tryGetSpan(false) | [greenteagc]
+// | 3        | Workbufs   | None         | tryGetObj         |
+// | 4        | Span queue | None         | tryGetSpan(true)  | [greenteagc]
+// +----------------------------------------------------------+
+//
+// The rationale behind this ordering comes from two insights:
+// 1. It's always preferable to look for P-local work first to avoid hammering on
+//    global lists.
+// 2. It's always preferable to scan individual objects first to increase the
+//    likelihood that spans will accumulate more objects to scan.
 
 // A gcWork provides the interface to produce and consume work for the
 // garbage collector.
@@ -74,6 +100,14 @@ type gcWork struct {
 	// Invariant: Both wbuf1 and wbuf2 are nil or neither are.
 	wbuf1, wbuf2 *workbuf
 
+	// spanq is a queue of spans to process.
+	//
+	// Only used if goexperiment.GreenTeaGC.
+	spanq localSpanQueue
+
+	// ptrBuf is a temporary buffer used by span scanning.
+	ptrBuf *[pageSize / goarch.PtrSize]uintptr
+
 	// Bytes marked (blackened) on this gcWork. This is aggregated
 	// into work.bytesMarked by dispose.
 	bytesMarked uint64
@@ -88,6 +122,15 @@ type gcWork struct {
 	// termination check. Specifically, this indicates that this
 	// gcWork may have communicated work to another gcWork.
 	flushedWork bool
+
+	// mayNeedWorker is a hint that we may need to spin up a new
+	// worker, and that gcDrain* should call enlistWorker. This flag
+	// is set only if goexperiment.GreenTeaGC. If !goexperiment.GreenTeaGC,
+	// enlistWorker is called directly instead.
+	mayNeedWorker bool
+
+	// stats are scan stats broken down by size class.
+	stats [gc.NumSizeClasses]sizeClassScanStats
 }
 
 // Most of the methods of gcWork are go:nowritebarrierrec because the
@@ -106,11 +149,11 @@ func (w *gcWork) init() {
 	w.wbuf2 = wbuf2
 }
 
-// put enqueues a pointer for the garbage collector to trace.
+// putObj enqueues a pointer for the garbage collector to trace.
 // obj must point to the beginning of a heap object or an oblet.
 //
 //go:nowritebarrierrec
-func (w *gcWork) put(obj uintptr) {
+func (w *gcWork) putObj(obj uintptr) {
 	flushed := false
 	wbuf := w.wbuf1
 	// Record that this may acquire the wbufSpans or heap lock to
@@ -141,15 +184,19 @@ func (w *gcWork) put(obj uintptr) {
 	// the end of put so that w is in a consistent state, since
 	// enlistWorker may itself manipulate w.
 	if flushed && gcphase == _GCmark {
-		gcController.enlistWorker()
+		if goexperiment.GreenTeaGC {
+			w.mayNeedWorker = true
+		} else {
+			gcController.enlistWorker()
+		}
 	}
 }
 
-// putFast does a put and reports whether it can be done quickly
+// putObjFast does a put and reports whether it can be done quickly
 // otherwise it returns false and the caller needs to call put.
 //
 //go:nowritebarrierrec
-func (w *gcWork) putFast(obj uintptr) bool {
+func (w *gcWork) putObjFast(obj uintptr) bool {
 	wbuf := w.wbuf1
 	if wbuf == nil || wbuf.nobj == len(wbuf.obj) {
 		return false
@@ -160,11 +207,11 @@ func (w *gcWork) putFast(obj uintptr) bool {
 	return true
 }
 
-// putBatch performs a put on every pointer in obj. See put for
+// putObjBatch performs a put on every pointer in obj. See put for
 // constraints on these pointers.
 //
 //go:nowritebarrierrec
-func (w *gcWork) putBatch(obj []uintptr) {
+func (w *gcWork) putObjBatch(obj []uintptr) {
 	if len(obj) == 0 {
 		return
 	}
@@ -190,18 +237,22 @@ func (w *gcWork) putBatch(obj []uintptr) {
 	}
 
 	if flushed && gcphase == _GCmark {
-		gcController.enlistWorker()
+		if goexperiment.GreenTeaGC {
+			w.mayNeedWorker = true
+		} else {
+			gcController.enlistWorker()
+		}
 	}
 }
 
-// tryGet dequeues a pointer for the garbage collector to trace.
+// tryGetObj dequeues a pointer for the garbage collector to trace.
 //
 // If there are no pointers remaining in this gcWork or in the global
 // queue, tryGet returns 0.  Note that there may still be pointers in
 // other gcWork instances or other caches.
 //
 //go:nowritebarrierrec
-func (w *gcWork) tryGet() uintptr {
+func (w *gcWork) tryGetObj() uintptr {
 	wbuf := w.wbuf1
 	if wbuf == nil {
 		w.init()
@@ -226,12 +277,12 @@ func (w *gcWork) tryGet() uintptr {
 	return wbuf.obj[wbuf.nobj]
 }
 
-// tryGetFast dequeues a pointer for the garbage collector to trace
+// tryGetObjFast dequeues a pointer for the garbage collector to trace
 // if one is readily available. Otherwise it returns 0 and
 // the caller is expected to call tryGet().
 //
 //go:nowritebarrierrec
-func (w *gcWork) tryGetFast() uintptr {
+func (w *gcWork) tryGetObjFast() uintptr {
 	wbuf := w.wbuf1
 	if wbuf == nil || wbuf.nobj == 0 {
 		return 0
@@ -267,6 +318,9 @@ func (w *gcWork) dispose() {
 		}
 		w.wbuf2 = nil
 	}
+	if w.spanq.drain() {
+		w.flushedWork = true
+	}
 	if w.bytesMarked != 0 {
 		// dispose happens relatively infrequently. If this
 		// atomic becomes a problem, we should first try to
@@ -301,7 +355,11 @@ func (w *gcWork) balance() {
 	}
 	// We flushed a buffer to the full list, so wake a worker.
 	if gcphase == _GCmark {
-		gcController.enlistWorker()
+		if goexperiment.GreenTeaGC {
+			w.mayNeedWorker = true
+		} else {
+			gcController.enlistWorker()
+		}
 	}
 }
 
@@ -309,7 +367,7 @@ func (w *gcWork) balance() {
 //
 //go:nowritebarrierrec
 func (w *gcWork) empty() bool {
-	return w.wbuf1 == nil || (w.wbuf1.nobj == 0 && w.wbuf2.nobj == 0)
+	return (w.wbuf1 == nil || (w.wbuf1.nobj == 0 && w.wbuf2.nobj == 0)) && w.spanq.empty()
 }
 
 // Internally, the GC work pool is kept in arrays in work buffers.

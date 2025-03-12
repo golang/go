@@ -44,4 +44,7 @@ const (
 	// more complex check or possibly storing additional state to determine whether a
 	// span has malloc headers.
 	MinSizeForMallocHeader = goarch.PtrSize * ptrBits
+
+	// PageSize is the increment in which spans are managed.
+	PageSize = 1 << PageShift
 )

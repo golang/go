@@ -58,6 +58,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/runtime/atomic"
 	"internal/runtime/gc"
 	"internal/runtime/sys"
@@ -507,6 +508,9 @@ func (s *mspan) initHeapBits() {
 		b := s.heapBits()
 		clear(b)
 	}
+	if goexperiment.GreenTeaGC && gcUsesSpanInlineMarkBits(s.elemsize) {
+		s.initInlineMarkBits()
+	}
 }
 
 // heapBits returns the heap ptr/scalar bits stored at the end of the span for
@@ -539,20 +543,30 @@ func (span *mspan) heapBits() []uintptr {
 	// Nearly every span with heap bits is exactly one page in size. Arenas are the only exception.
 	if span.npages == 1 {
 		// This will be inlined and constant-folded down.
-		return heapBitsSlice(span.base(), pageSize)
+		return heapBitsSlice(span.base(), pageSize, span.elemsize)
 	}
-	return heapBitsSlice(span.base(), span.npages*pageSize)
+	return heapBitsSlice(span.base(), span.npages*pageSize, span.elemsize)
 }
 
 // Helper for constructing a slice for the span's heap bits.
 //
 //go:nosplit
-func heapBitsSlice(spanBase, spanSize uintptr) []uintptr {
-	bitmapSize := spanSize / goarch.PtrSize / 8
+func heapBitsSlice(spanBase, spanSize, elemsize uintptr) []uintptr {
+	base, bitmapSize := spanHeapBitsRange(spanBase, spanSize, elemsize)
 	elems := int(bitmapSize / goarch.PtrSize)
 	var sl notInHeapSlice
-	sl = notInHeapSlice{(*notInHeap)(unsafe.Pointer(spanBase + spanSize - bitmapSize)), elems, elems}
+	sl = notInHeapSlice{(*notInHeap)(unsafe.Pointer(base)), elems, elems}
 	return *(*[]uintptr)(unsafe.Pointer(&sl))
+}
+
+//go:nosplit
+func spanHeapBitsRange(spanBase, spanSize, elemsize uintptr) (base, size uintptr) {
+	size = spanSize / goarch.PtrSize / 8
+	base = spanBase + spanSize - size
+	if goexperiment.GreenTeaGC && gcUsesSpanInlineMarkBits(elemsize) {
+		base -= unsafe.Sizeof(spanInlineMarkBits{})
+	}
+	return
 }
 
 // heapBitsSmallForAddr loads the heap bits for the object stored at addr from span.heapBits.
@@ -562,9 +576,8 @@ func heapBitsSlice(spanBase, spanSize uintptr) []uintptr {
 //
 //go:nosplit
 func (span *mspan) heapBitsSmallForAddr(addr uintptr) uintptr {
-	spanSize := span.npages * pageSize
-	bitmapSize := spanSize / goarch.PtrSize / 8
-	hbits := (*byte)(unsafe.Pointer(span.base() + spanSize - bitmapSize))
+	hbitsBase, _ := spanHeapBitsRange(span.base(), span.npages*pageSize, span.elemsize)
+	hbits := (*byte)(unsafe.Pointer(hbitsBase))
 
 	// These objects are always small enough that their bitmaps
 	// fit in a single word, so just load the word or two we need.
@@ -630,7 +643,8 @@ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize
 
 	// Since we're never writing more than one uintptr's worth of bits, we're either going
 	// to do one or two writes.
-	dst := unsafe.Pointer(span.base() + pageSize - pageSize/goarch.PtrSize/8)
+	dstBase, _ := spanHeapBitsRange(span.base(), pageSize, span.elemsize)
+	dst := unsafe.Pointer(dstBase)
 	o := (x - span.base()) / goarch.PtrSize
 	i := o / ptrBits
 	j := o % ptrBits
@@ -1116,15 +1130,6 @@ func markBitsForAddr(p uintptr) markBits {
 	s := spanOf(p)
 	objIndex := s.objIndex(p)
 	return s.markBitsForIndex(objIndex)
-}
-
-func (s *mspan) markBitsForIndex(objIndex uintptr) markBits {
-	bytep, mask := s.gcmarkBits.bitp(objIndex)
-	return markBits{bytep, mask, objIndex}
-}
-
-func (s *mspan) markBitsForBase() markBits {
-	return markBits{&s.gcmarkBits.x, uint8(1), 0}
 }
 
 // isMarked reports whether mark bit m is set.
