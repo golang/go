@@ -92,7 +92,8 @@ var defaultCipherSuitesTLS13NoAES = []uint16{
 }
 
 // The FIPS-only policies below match BoringSSL's
-// ssl_compliance_policy_fips_202205, which is based on NIST SP 800-52r2.
+// ssl_compliance_policy_fips_202205, which is based on NIST SP 800-52r2, with
+// minor changes per https://go.dev/issue/71757.
 // https://cs.opensource.google/boringssl/boringssl/+/master:ssl/ssl_lib.cc;l=3289;drc=ea7a88fa
 
 var defaultSupportedVersionsFIPS = []uint16{
@@ -102,7 +103,7 @@ var defaultSupportedVersionsFIPS = []uint16{
 
 // defaultCurvePreferencesFIPS are the FIPS-allowed curves,
 // in preference order (most preferable first).
-var defaultCurvePreferencesFIPS = []CurveID{CurveP256, CurveP384}
+var defaultCurvePreferencesFIPS = []CurveID{CurveP256, CurveP384, CurveP521}
 
 // defaultSupportedSignatureAlgorithmsFIPS currently are a subset of
 // defaultSupportedSignatureAlgorithms without Ed25519 and SHA-1.
@@ -115,6 +116,7 @@ var defaultSupportedSignatureAlgorithmsFIPS = []SignatureScheme{
 	PKCS1WithSHA384,
 	ECDSAWithP384AndSHA384,
 	PKCS1WithSHA512,
+	ECDSAWithP521AndSHA512,
 }
 
 // defaultCipherSuitesFIPS are the FIPS-allowed cipher suites.
