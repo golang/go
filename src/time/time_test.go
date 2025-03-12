@@ -1497,6 +1497,20 @@ func BenchmarkNowUnixMicro(b *testing.B) {
 	}
 }
 
+func BenchmarkSince(b *testing.B) {
+	start := Now()
+	for b.Loop() {
+		u = int64(Since(start))
+	}
+}
+
+func BenchmarkUntil(b *testing.B) {
+	end := Now().Add(1 * Hour)
+	for b.Loop() {
+		u = int64(Until(end))
+	}
+}
+
 func BenchmarkFormat(b *testing.B) {
 	t := Unix(1265346057, 0)
 	for i := 0; i < b.N; i++ {

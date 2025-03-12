@@ -37,6 +37,27 @@ func TestNow(t *testing.T) {
 	})
 }
 
+// TestMonotonicClock exercises comparing times from within a bubble
+// with ones from outside the bubble.
+func TestMonotonicClock(t *testing.T) {
+	start := time.Now()
+	synctest.Run(func() {
+		time.Sleep(time.Until(start.Round(0)))
+		if got, want := time.Now().In(time.UTC), start.In(time.UTC); !got.Equal(want) {
+			t.Fatalf("time.Now() = %v, want %v", got, want)
+		}
+
+		wait := 1 * time.Second
+		time.Sleep(wait)
+		if got := time.Since(start); got != wait {
+			t.Fatalf("time.Since(start) = %v, want %v", got, wait)
+		}
+		if got := time.Now().Sub(start); got != wait {
+			t.Fatalf("time.Now().Sub(start) = %v, want %v", got, wait)
+		}
+	})
+}
+
 func TestRunEmpty(t *testing.T) {
 	synctest.Run(func() {
 	})

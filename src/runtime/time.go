@@ -18,7 +18,13 @@ func time_runtimeNow() (sec int64, nsec int32, mono int64) {
 	if sg := getg().syncGroup; sg != nil {
 		sec = sg.now / (1000 * 1000 * 1000)
 		nsec = int32(sg.now % (1000 * 1000 * 1000))
-		return sec, nsec, sg.now
+		// Don't return a monotonic time inside a synctest bubble.
+		// If we return a monotonic time based on the fake clock,
+		// arithmetic on times created inside/outside bubbles is confusing.
+		// If we return a monotonic time based on the real monotonic clock,
+		// arithmetic on times created in the same bubble is confusing.
+		// Simplest is to omit the monotonic time within a bubble.
+		return sec, nsec, 0
 	}
 	return time_now()
 }
@@ -30,6 +36,11 @@ func time_runtimeNano() int64 {
 		return gp.syncGroup.now
 	}
 	return nanotime()
+}
+
+//go:linkname time_runtimeIsBubbled time.runtimeIsBubbled
+func time_runtimeIsBubbled() bool {
+	return getg().syncGroup != nil
 }
 
 // A timer is a potentially repeating trigger for calling t.f(t.arg, t.seq).
