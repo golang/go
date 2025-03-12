@@ -7,6 +7,7 @@ package load
 
 import (
 	"bytes"
+	"cmd/internal/objabi"
 	"context"
 	"encoding/json"
 	"errors"
@@ -3561,7 +3562,7 @@ func SelectCoverPackages(roots []*Package, match []func(*Package) bool, op strin
 		// $GOROOT/src/internal/coverage/pkid.go dealing with
 		// hard-coding of runtime package IDs.
 		cmode := cfg.BuildCoverMode
-		if cfg.BuildRace && p.Standard && p.ImportPath == "runtime" {
+		if cfg.BuildRace && p.Standard && objabi.LookupPkgSpecial(p.ImportPath).Runtime {
 			cmode = "regonly"
 		}
 
