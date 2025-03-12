@@ -10,5 +10,11 @@ These new error reports may be disabled by setting
 `ASAN_OPTIONS=detect_leaks=0` in the environment when running the
 program.
 
+<!-- go.dev/issue/65847 -->
+
+When the go command updates the `go` line in a `go.mod` or `go.work` file,
+it [no longer](/ref/mod#go-mod-file-toolchain) adds a toolchain line
+specifying the command's current version.
+
 ### Cgo {#cgo}
 
