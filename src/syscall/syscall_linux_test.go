@@ -5,7 +5,6 @@
 package syscall_test
 
 import (
-	"context"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -734,9 +733,6 @@ func TestPrlimitFileLimit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	exe, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -759,7 +755,7 @@ func TestPrlimitFileLimit(t *testing.T) {
 	var output strings.Builder
 
 	const arg = "-test.run=^TestPrlimitFileLimit$"
-	cmd := testenv.CommandContext(t, ctx, exe, arg, "-test.v")
+	cmd := testenv.CommandContext(t, t.Context(), exe, arg, "-test.v")
 	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=prlimit1")
 	cmd.ExtraFiles = []*os.File{r1, w2}
@@ -846,16 +842,13 @@ func testPrlimitFileLimitHelper1(t *testing.T) {
 	// Start the grandchild, which should see the rlimit
 	// set by the prlimit called by the parent.
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	exe, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	const arg = "-test.run=^TestPrlimitFileLimit$"
-	cmd := testenv.CommandContext(t, ctx, exe, arg, "-test.v")
+	cmd := testenv.CommandContext(t, t.Context(), exe, arg, "-test.v")
 	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=prlimit2")
 	t.Logf("running %s %s", exe, arg)
