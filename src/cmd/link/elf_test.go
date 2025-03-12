@@ -357,16 +357,14 @@ func TestPIESize(t *testing.T) {
 		}
 	}
 
-	for _, external := range []bool{false, true} {
-		external := external
+	var linkmodes []string
+	if platform.InternalLinkPIESupported(runtime.GOOS, runtime.GOARCH) {
+		linkmodes = append(linkmodes, "internal")
+	}
+	linkmodes = append(linkmodes, "external")
 
-		name := "TestPieSize-"
-		if external {
-			name += "external"
-		} else {
-			name += "internal"
-		}
-		t.Run(name, func(t *testing.T) {
+	for _, linkmode := range linkmodes {
+		t.Run(fmt.Sprintf("TestPieSize-%v", linkmode), func(t *testing.T) {
 			t.Parallel()
 
 			dir := t.TempDir()
@@ -375,16 +373,11 @@ func TestPIESize(t *testing.T) {
 
 			binexe := filepath.Join(dir, "exe")
 			binpie := filepath.Join(dir, "pie")
-			if external {
-				binexe += "external"
-				binpie += "external"
-			}
+			binexe += linkmode
+			binpie += linkmode
 
 			build := func(bin, mode string) error {
-				cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", bin, "-buildmode="+mode)
-				if external {
-					cmd.Args = append(cmd.Args, "-ldflags=-linkmode=external")
-				}
+				cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", bin, "-buildmode="+mode, "-ldflags=-linkmode="+linkmode)
 				cmd.Args = append(cmd.Args, "pie.go")
 				cmd.Dir = dir
 				t.Logf("%v", cmd.Args)
