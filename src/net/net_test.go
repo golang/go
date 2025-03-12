@@ -11,6 +11,7 @@ import (
 	"net/internal/socktest"
 	"os"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 )
@@ -511,11 +512,25 @@ func TestCloseUnblocksRead(t *testing.T) {
 // Issue 72770: verify that a blocked UDP read is woken up by a Close.
 func TestCloseUnblocksReadUDP(t *testing.T) {
 	t.Parallel()
+	var (
+		mu   sync.Mutex
+		done bool
+	)
+	defer func() {
+		mu.Lock()
+		defer mu.Unlock()
+		done = true
+	}()
 	pc, err := ListenPacket("udp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
 	time.AfterFunc(250*time.Millisecond, func() {
+		mu.Lock()
+		defer mu.Unlock()
+		if done {
+			return
+		}
 		t.Logf("closing conn...")
 		pc.Close()
 	})
