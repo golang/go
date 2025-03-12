@@ -82,7 +82,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	// XCOFF format (as far as can be determined) doesn't seem to
 	// support the necessary section subtypes for DWARF-specific
 	// things like .debug_addr (needed for DWARF 5).
-	dwarf5Supported := (goos != "dwarwin" && goos != "ios" && goos != "aix")
+	dwarf5Supported := (goos != "darwin" && goos != "ios" && goos != "aix")
 
 	baseline := goexperiment.Flags{
 		RegabiWrappers:  regabiSupported,
