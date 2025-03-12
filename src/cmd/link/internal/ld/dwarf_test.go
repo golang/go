@@ -2046,8 +2046,8 @@ func TestConsistentGoKindAndRuntimeType(t *testing.T) {
 }
 
 func TestIssue72053(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("skipping test: requires ELF binary")
+	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+		t.Skip("skipping test: requires ELF binary and amd64 arch")
 	}
 
 	testenv.MustHaveGoBuild(t)
