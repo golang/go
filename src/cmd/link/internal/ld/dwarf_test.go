@@ -2046,6 +2046,10 @@ func TestConsistentGoKindAndRuntimeType(t *testing.T) {
 }
 
 func TestIssue72053(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("skipping test: requires ELF binary")
+	}
+
 	testenv.MustHaveGoBuild(t)
 
 	mustHaveDWARF(t)
