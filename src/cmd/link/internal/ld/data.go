@@ -55,30 +55,8 @@ import (
 )
 
 // isRuntimeDepPkg reports whether pkg is the runtime package or its dependency.
-// TODO: just compute from the runtime package, and remove this hardcoded list.
 func isRuntimeDepPkg(pkg string) bool {
-	switch pkg {
-	case "runtime",
-		"sync/atomic",  // runtime may call to sync/atomic, due to go:linkname // TODO: this is not true?
-		"internal/abi", // used by reflectcall (and maybe more)
-		"internal/asan",
-		"internal/bytealg", // for IndexByte
-		"internal/byteorder",
-		"internal/chacha8rand", // for rand
-		"internal/coverage/rtcov",
-		"internal/cpu", // for cpu features
-		"internal/goarch",
-		"internal/godebugs",
-		"internal/goexperiment",
-		"internal/goos",
-		"internal/msan",
-		"internal/profilerecord",
-		"internal/race",
-		"internal/stringslite",
-		"unsafe":
-		return true
-	}
-	return strings.HasPrefix(pkg, "internal/runtime/") && !strings.HasSuffix(pkg, "_test")
+	return objabi.LookupPkgSpecial(pkg).Runtime
 }
 
 // Estimate the max size needed to hold any new trampolines created for this function. This
