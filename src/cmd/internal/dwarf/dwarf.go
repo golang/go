@@ -1295,8 +1295,11 @@ func putInlinedFunc(ctxt Context, s *FnState, callIdx int) error {
 	ic := s.InlCalls.Calls[callIdx]
 	callee := ic.AbsFunSym
 
+	// For DWARF 5, we always use the ranges form of the abbrev, since
+	// it is more compact than using explicit hi/lo PC attrs.  See
+	// issue #72821 for more on why this makes sense.
 	abbrev := DW_ABRV_INLINED_SUBROUTINE_RANGES
-	if len(ic.Ranges) == 1 {
+	if len(ic.Ranges) == 1 && !buildcfg.Experiment.Dwarf5 {
 		abbrev = DW_ABRV_INLINED_SUBROUTINE
 	}
 	Uleb128put(ctxt, s.Info, int64(abbrev))
