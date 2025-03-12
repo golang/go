@@ -9,11 +9,12 @@ package godebugs
 
 // An Info describes a single known GODEBUG setting.
 type Info struct {
-	Name    string // name of the setting ("panicnil")
-	Package string // package that uses the setting ("runtime")
-	Changed int    // minor version when default changed, if any; 21 means Go 1.21
-	Old     string // value that restores behavior prior to Changed
-	Opaque  bool   // setting does not export information to runtime/metrics using [internal/godebug.Setting.IncNonDefault]
+	Name      string // name of the setting ("panicnil")
+	Package   string // package that uses the setting ("runtime")
+	Changed   int    // minor version when default changed, if any; 21 means Go 1.21
+	Old       string // value that restores behavior prior to Changed
+	Opaque    bool   // setting does not export information to runtime/metrics using [internal/godebug.Setting.IncNonDefault]
+	Immutable bool   // setting cannot be changed after program start
 }
 
 // All is the table of known settings, sorted by Name.
@@ -31,7 +32,7 @@ var All = []Info{
 	{Name: "decoratemappings", Package: "runtime", Opaque: true, Changed: 25, Old: "0"},
 	{Name: "embedfollowsymlinks", Package: "cmd/go"},
 	{Name: "execerrdot", Package: "os/exec"},
-	{Name: "fips140", Package: "crypto/fips140", Opaque: true},
+	{Name: "fips140", Package: "crypto/fips140", Opaque: true, Immutable: true},
 	{Name: "gocachehash", Package: "cmd/go"},
 	{Name: "gocachetest", Package: "cmd/go"},
 	{Name: "gocacheverify", Package: "cmd/go"},
