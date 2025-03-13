@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (darwin || linux || windows || freebsd || openbsd) && (amd64 || arm64)
+//go:build ((darwin || linux || windows || freebsd || openbsd) && (amd64 || arm64)) || loong64
 
 package fuzz
 

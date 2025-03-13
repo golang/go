@@ -72,7 +72,7 @@ func FuzzSupported(goos, goarch string) bool {
 // instrumentation. (FuzzInstrumented implies FuzzSupported.)
 func FuzzInstrumented(goos, goarch string) bool {
 	switch goarch {
-	case "amd64", "arm64":
+	case "amd64", "arm64", "loong64":
 		// TODO(#14565): support more architectures.
 		return FuzzSupported(goos, goarch)
 	default:
