@@ -844,7 +844,7 @@ type indenter struct {
 	c *common
 }
 
-var indent = []byte("    ")
+const indent = "    "
 
 func (w indenter) Write(b []byte) (n int, err error) {
 	n = len(b)
@@ -1014,7 +1014,7 @@ func (c *common) log(s string) {
 
 	// Second and subsequent lines are indented 4 spaces. This is in addition to
 	// the indentation provided by outputWriter.
-	s = strings.ReplaceAll(s, "\n", fmt.Sprintf("\n%s", indent))
+	s = strings.ReplaceAll(s, "\n", "\n"+indent)
 	s += "\n"
 
 	// Prefix with the call site. It is located by skipping 3 functions:
@@ -1073,7 +1073,7 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 	}
 
 	for _, line := range lines {
-		o.writeLine(append(indent, line...), p)
+		o.writeLine(append([]byte(indent), line...), p)
 	}
 	return len(p), nil
 }
