@@ -1009,8 +1009,8 @@ func (c *common) FailNow() {
 // indentation and the final newline if necessary. It prefixes the string
 // with the file and line of the call site.
 func (c *common) log(s string) {
-	if l := len(s); l > 0 && (string(s[l-1]) == "\n") {
-		s = s[:l-1]
+	if n := len(s); n > 0 && (string(s[n-1]) == "\n") {
+		s = s[:n-1]
 	}
 	// Second and subsequent lines are indented 4 spaces. This is in addition to
 	// the indentation provided by outputWriter.

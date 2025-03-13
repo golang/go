@@ -831,7 +831,7 @@ func TestLogAfterComplete(t *T) {
 	tRunner(t1, func(t *T) {
 		t.Run("TestLateLog", func(t *T) {
 			go func() {
-				const l = "log after test"
+				const afterTest = "log after test"
 				defer close(c2)
 				defer func() {
 					p := recover()
@@ -848,13 +848,13 @@ func TestLogAfterComplete(t *T) {
 					if !strings.Contains(s, message) {
 						c2 <- fmt.Sprintf("subtest panic %q does not contain %q", s, message)
 					}
-					if !strings.Contains(s, l) {
-						c2 <- fmt.Sprintf("subtest panic %q does not contain %q", s, l)
+					if !strings.Contains(s, afterTest) {
+						c2 <- fmt.Sprintf("subtest panic %q does not contain %q", s, afterTest)
 					}
 				}()
 
 				<-c1
-				t.Log(l)
+				t.Log(afterTest)
 			}()
 		})
 	})
