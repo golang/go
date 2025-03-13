@@ -620,36 +620,37 @@ func (i SectionIndex) GoString() string { return stringName(uint32(i), shnString
 type SectionType uint32
 
 const (
-	SHT_NULL           SectionType = 0          /* inactive */
-	SHT_PROGBITS       SectionType = 1          /* program defined information */
-	SHT_SYMTAB         SectionType = 2          /* symbol table section */
-	SHT_STRTAB         SectionType = 3          /* string table section */
-	SHT_RELA           SectionType = 4          /* relocation section with addends */
-	SHT_HASH           SectionType = 5          /* symbol hash table section */
-	SHT_DYNAMIC        SectionType = 6          /* dynamic section */
-	SHT_NOTE           SectionType = 7          /* note section */
-	SHT_NOBITS         SectionType = 8          /* no space section */
-	SHT_REL            SectionType = 9          /* relocation section - no addends */
-	SHT_SHLIB          SectionType = 10         /* reserved - purpose unknown */
-	SHT_DYNSYM         SectionType = 11         /* dynamic symbol table section */
-	SHT_INIT_ARRAY     SectionType = 14         /* Initialization function pointers. */
-	SHT_FINI_ARRAY     SectionType = 15         /* Termination function pointers. */
-	SHT_PREINIT_ARRAY  SectionType = 16         /* Pre-initialization function ptrs. */
-	SHT_GROUP          SectionType = 17         /* Section group. */
-	SHT_SYMTAB_SHNDX   SectionType = 18         /* Section indexes (see SHN_XINDEX). */
-	SHT_LOOS           SectionType = 0x60000000 /* First of OS specific semantics */
-	SHT_GNU_ATTRIBUTES SectionType = 0x6ffffff5 /* GNU object attributes */
-	SHT_GNU_HASH       SectionType = 0x6ffffff6 /* GNU hash table */
-	SHT_GNU_LIBLIST    SectionType = 0x6ffffff7 /* GNU prelink library list */
-	SHT_GNU_VERDEF     SectionType = 0x6ffffffd /* GNU version definition section */
-	SHT_GNU_VERNEED    SectionType = 0x6ffffffe /* GNU version needs section */
-	SHT_GNU_VERSYM     SectionType = 0x6fffffff /* GNU version symbol table */
-	SHT_HIOS           SectionType = 0x6fffffff /* Last of OS specific semantics */
-	SHT_LOPROC         SectionType = 0x70000000 /* reserved range for processor */
-	SHT_MIPS_ABIFLAGS  SectionType = 0x7000002a /* .MIPS.abiflags */
-	SHT_HIPROC         SectionType = 0x7fffffff /* specific section header types */
-	SHT_LOUSER         SectionType = 0x80000000 /* reserved range for application */
-	SHT_HIUSER         SectionType = 0xffffffff /* specific indexes */
+	SHT_NULL             SectionType = 0          /* inactive */
+	SHT_PROGBITS         SectionType = 1          /* program defined information */
+	SHT_SYMTAB           SectionType = 2          /* symbol table section */
+	SHT_STRTAB           SectionType = 3          /* string table section */
+	SHT_RELA             SectionType = 4          /* relocation section with addends */
+	SHT_HASH             SectionType = 5          /* symbol hash table section */
+	SHT_DYNAMIC          SectionType = 6          /* dynamic section */
+	SHT_NOTE             SectionType = 7          /* note section */
+	SHT_NOBITS           SectionType = 8          /* no space section */
+	SHT_REL              SectionType = 9          /* relocation section - no addends */
+	SHT_SHLIB            SectionType = 10         /* reserved - purpose unknown */
+	SHT_DYNSYM           SectionType = 11         /* dynamic symbol table section */
+	SHT_INIT_ARRAY       SectionType = 14         /* Initialization function pointers. */
+	SHT_FINI_ARRAY       SectionType = 15         /* Termination function pointers. */
+	SHT_PREINIT_ARRAY    SectionType = 16         /* Pre-initialization function ptrs. */
+	SHT_GROUP            SectionType = 17         /* Section group. */
+	SHT_SYMTAB_SHNDX     SectionType = 18         /* Section indexes (see SHN_XINDEX). */
+	SHT_LOOS             SectionType = 0x60000000 /* First of OS specific semantics */
+	SHT_GNU_ATTRIBUTES   SectionType = 0x6ffffff5 /* GNU object attributes */
+	SHT_GNU_HASH         SectionType = 0x6ffffff6 /* GNU hash table */
+	SHT_GNU_LIBLIST      SectionType = 0x6ffffff7 /* GNU prelink library list */
+	SHT_GNU_VERDEF       SectionType = 0x6ffffffd /* GNU version definition section */
+	SHT_GNU_VERNEED      SectionType = 0x6ffffffe /* GNU version needs section */
+	SHT_GNU_VERSYM       SectionType = 0x6fffffff /* GNU version symbol table */
+	SHT_HIOS             SectionType = 0x6fffffff /* Last of OS specific semantics */
+	SHT_LOPROC           SectionType = 0x70000000 /* reserved range for processor */
+	SHT_RISCV_ATTRIBUTES SectionType = 0x70000003 /* RISCV object attributes */
+	SHT_MIPS_ABIFLAGS    SectionType = 0x7000002a /* .MIPS.abiflags */
+	SHT_HIPROC           SectionType = 0x7fffffff /* specific section header types */
+	SHT_LOUSER           SectionType = 0x80000000 /* reserved range for application */
+	SHT_HIUSER           SectionType = 0xffffffff /* specific indexes */
 )
 
 var shtStrings = []intName{
@@ -678,6 +679,8 @@ var shtStrings = []intName{
 	{0x6ffffffe, "SHT_GNU_VERNEED"},
 	{0x6fffffff, "SHT_GNU_VERSYM"},
 	{0x70000000, "SHT_LOPROC"},
+	// We don't list the processor-dependent SectionType,
+	// as the values overlap.
 	{0x7000002a, "SHT_MIPS_ABIFLAGS"},
 	{0x7fffffff, "SHT_HIPROC"},
 	{0x80000000, "SHT_LOUSER"},
@@ -793,6 +796,8 @@ const (
 	PT_MIPS_RTPROC   ProgType = 0x70000001 /* Runtime procedures */
 	PT_MIPS_OPTIONS  ProgType = 0x70000002 /* Options */
 	PT_MIPS_ABIFLAGS ProgType = 0x70000003 /* ABI flags */
+
+	PT_RISCV_ATTRIBUTES ProgType = 0x70000003 /* RISC-V ELF attribute section. */
 
 	PT_S390_PGSTE ProgType = 0x70000000 /* 4k page table size */
 
