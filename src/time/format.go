@@ -891,7 +891,7 @@ func quote(s string) string {
 			if c == '"' || c == '\\' {
 				buf = append(buf, '\\')
 			}
-			buf = append(buf, string(c)...)
+			buf = append(buf, byte(c))
 		}
 	}
 	buf = append(buf, '"')
