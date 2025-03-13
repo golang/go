@@ -720,6 +720,10 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 				result = innerBytes
 			case TagBMPString:
 				result, err = parseBMPString(innerBytes)
+			case TagEnum:
+				parsedInt, err1 := parseInt32(innerBytes)
+				result = Enumerated(parsedInt)
+				err = err1
 			default:
 				// If we don't know how to handle the type, we just leave Value as nil.
 			}
