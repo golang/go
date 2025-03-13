@@ -43,6 +43,10 @@ func tighten(f *Func) {
 				// SelectN is typically, ultimately, a register.
 				continue
 			}
+			if opcodeTable[v.Op].nilCheck {
+				// Nil checks need to stay in their block. See issue 72860.
+				continue
+			}
 			// Count arguments which will need a register.
 			narg := 0
 			for _, a := range v.Args {
