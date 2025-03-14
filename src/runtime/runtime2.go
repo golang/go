@@ -580,7 +580,7 @@ type m struct {
 	printlock       int8
 	incgo           bool          // m is executing a cgo call
 	isextra         bool          // m is an extra m
-	isExtraInC      bool          // m is an extra m that is not executing Go code
+	isExtraInC      bool          // m is an extra m that does not have any Go frames
 	isExtraInSig    bool          // m is an extra m in a signal handler
 	freeWait        atomic.Uint32 // Whether it is safe to free g0 and delete m (one of freeMRef, freeMStack, freeMWait)
 	needextram      bool
