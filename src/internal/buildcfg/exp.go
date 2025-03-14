@@ -67,8 +67,6 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		regabiSupported = true
 	}
 
-	haveThreads := goarch != "wasm"
-
 	// Older versions (anything before V16) of dsymutil don't handle
 	// the .debug_rnglists section in DWARF5. See
 	// https://github.com/golang/go/issues/26379#issuecomment-2677068742
@@ -85,7 +83,6 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		RegabiArgs:      regabiSupported,
 		AliasTypeParams: true,
 		SwissMap:        true,
-		SpinbitMutex:    haveThreads,
 		SyncHashTrieMap: true,
 		Dwarf5:          dwarf5Supported,
 	}
