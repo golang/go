@@ -278,12 +278,13 @@ func walkLenCap(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 	// replace len(*[10]int) with 10.
 	// delayed until now to preserve side effects.
 	t := n.X.Type()
-
 	if t.IsPtr() {
 		t = t.Elem()
 	}
 	if t.IsArray() {
-		safeExpr(n.X, init)
+		// evaluate any side effects in n.X. See issue 72844.
+		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, ir.BlankNode, n.X))
+
 		con := ir.NewConstExpr(constant.MakeInt64(t.NumElem()), n)
 		con.SetTypecheck(1)
 		return con

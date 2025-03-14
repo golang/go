@@ -47,11 +47,11 @@ func testRange4() {
 }
 
 func main() {
-	//shouldPanic(testLen1)
+	shouldPanic(testLen1)
 	shouldNotPanic(testLen2)
 	shouldNotPanic(testLen3)
 	shouldNotPanic(testLen4)
-	//shouldPanic(testRange1)
+	shouldPanic(testRange1)
 	shouldNotPanic(testRange2)
 	shouldNotPanic(testRange3)
 	shouldNotPanic(testRange4)

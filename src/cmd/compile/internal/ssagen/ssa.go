@@ -3469,19 +3469,28 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 
 	case ir.OLEN, ir.OCAP:
 		n := n.(*ir.UnaryExpr)
+		// Note: all constant cases are handled by the frontend. If len or cap
+		// makes it here, we want the side effects of the argument. See issue 72844.
+		a := s.expr(n.X)
+		t := n.X.Type()
 		switch {
-		case n.X.Type().IsSlice():
+		case t.IsSlice():
 			op := ssa.OpSliceLen
 			if n.Op() == ir.OCAP {
 				op = ssa.OpSliceCap
 			}
-			return s.newValue1(op, types.Types[types.TINT], s.expr(n.X))
-		case n.X.Type().IsString(): // string; not reachable for OCAP
-			return s.newValue1(ssa.OpStringLen, types.Types[types.TINT], s.expr(n.X))
-		case n.X.Type().IsMap(), n.X.Type().IsChan():
-			return s.referenceTypeBuiltin(n, s.expr(n.X))
-		default: // array
-			return s.constInt(types.Types[types.TINT], n.X.Type().NumElem())
+			return s.newValue1(op, types.Types[types.TINT], a)
+		case t.IsString(): // string; not reachable for OCAP
+			return s.newValue1(ssa.OpStringLen, types.Types[types.TINT], a)
+		case t.IsMap(), t.IsChan():
+			return s.referenceTypeBuiltin(n, a)
+		case t.IsArray():
+			return s.constInt(types.Types[types.TINT], t.NumElem())
+		case t.IsPtr() && t.Elem().IsArray():
+			return s.constInt(types.Types[types.TINT], t.Elem().NumElem())
+		default:
+			s.Fatalf("bad type in len/cap: %v", t)
+			return nil
 		}
 
 	case ir.OSPTR:
