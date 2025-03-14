@@ -1071,13 +1071,13 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 	}
 
 	for _, line := range lines {
-		o.writeLine(append([]byte(indent), line...), p)
+		o.writeLine(append([]byte(indent), line...))
 	}
 	return len(p), nil
 }
 
 // writeLine generates the output for a given line.
-func (o *outputWriter) writeLine(l []byte, p []byte) {
+func (o *outputWriter) writeLine(b []byte) {
 	if o.c.done {
 		// This test has already finished. Try and log this message
 		// with our parent. If we don't have a parent, panic.
@@ -1085,22 +1085,22 @@ func (o *outputWriter) writeLine(l []byte, p []byte) {
 			parent.mu.Lock()
 			defer parent.mu.Unlock()
 			if !parent.done {
-				parent.output = append(parent.output, l...)
+				parent.output = append(parent.output, b...)
 				return
 			}
 		}
-		panic("Log in goroutine after " + o.c.name + " has completed: " + string(p))
+		panic("Log in goroutine after " + o.c.name + " has completed: " + string(b))
 	} else {
 		if o.c.chatty != nil {
 			if o.c.bench {
 				// Benchmarks don't print === CONT, so we should skip the test
 				// printer and just print straight to stdout.
-				fmt.Printf("%s", l)
+				fmt.Printf("%s", b)
 			} else {
-				o.c.chatty.Printf(o.c.name, "%s", l)
+				o.c.chatty.Printf(o.c.name, "%s", b)
 			}
 		} else {
-			o.c.output = append(o.c.output, l...)
+			o.c.output = append(o.c.output, b...)
 		}
 	}
 }
