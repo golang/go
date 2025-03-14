@@ -1485,6 +1485,52 @@ func TestReplace(t *testing.T) {
 	}
 }
 
+func FuzzReplace(f *testing.F) {
+	for _, tt := range ReplaceTests {
+		f.Add(tt.in, tt.old, tt.new, tt.n)
+	}
+	f.Fuzz(func(t *testing.T, in, old, new string, n int) {
+		differentImpl := func(in, old, new string, n int) string {
+			var out Builder
+			if n < 0 {
+				n = math.MaxInt
+			}
+			for i := 0; i < len(in); {
+				if n == 0 {
+					out.WriteString(in[i:])
+					break
+				}
+				if HasPrefix(in[i:], old) {
+					out.WriteString(new)
+					i += len(old)
+					n--
+					if len(old) != 0 {
+						continue
+					}
+					if i == len(in) {
+						break
+					}
+				}
+				if len(old) == 0 {
+					_, length := utf8.DecodeRuneInString(in[i:])
+					out.WriteString(in[i : i+length])
+					i += length
+				} else {
+					out.WriteByte(in[i])
+					i++
+				}
+			}
+			if len(old) == 0 && n != 0 {
+				out.WriteString(new)
+			}
+			return out.String()
+		}
+		if simple, replace := differentImpl(in, old, new, n), Replace(in, old, new, n); simple != replace {
+			t.Errorf("The two implementations do not match %q != %q for Replace(%q, %q, %q, %d)", simple, replace, in, old, new, n)
+		}
+	})
+}
+
 var TitleTests = []struct {
 	in, out string
 }{
