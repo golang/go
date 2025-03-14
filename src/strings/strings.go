@@ -1154,19 +1154,22 @@ func Replace(s, old, new string, n int) string {
 	var b Builder
 	b.Grow(len(s) + n*(len(new)-len(old)))
 	start := 0
-	for i := 0; i < n; i++ {
-		j := start
-		if len(old) == 0 {
-			if i > 0 {
-				_, wid := utf8.DecodeRuneInString(s[start:])
-				j += wid
-			}
-		} else {
-			j += Index(s[start:], old)
+	if len(old) > 0 {
+		for range n {
+			j := start + Index(s[start:], old)
+			b.WriteString(s[start:j])
+			b.WriteString(new)
+			start = j + len(old)
 		}
-		b.WriteString(s[start:j])
+	} else { // len(old) == 0
 		b.WriteString(new)
-		start = j + len(old)
+		for range n - 1 {
+			_, wid := utf8.DecodeRuneInString(s[start:])
+			j := start + wid
+			b.WriteString(s[start:j])
+			b.WriteString(new)
+			start = j
+		}
 	}
 	b.WriteString(s[start:])
 	return b.String()
