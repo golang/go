@@ -1046,9 +1046,9 @@ func (c *common) callSite(skip int) string {
 	return fmt.Sprintf("%s:%d: ", file, line)
 }
 
-// newOutputWriter initializes a new outputWriter.
-func (c *common) newOutputWriter() io.Writer {
-	return &outputWriter{c: c}
+// setOutputWriter initializes an outputWriter and sets it as a common field.
+func (c *common) setOutputWriter() {
+	c.o = &outputWriter{c: c}
 }
 
 // outputWriter buffers, formats and writes input.
@@ -1871,7 +1871,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
 		tstate: t.tstate,
 	}
 	t.w = indenter{&t.common}
-	t.o = t.newOutputWriter()
+	t.setOutputWriter()
 
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== RUN   %s\n", t.name)
