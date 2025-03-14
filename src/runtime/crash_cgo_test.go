@@ -72,6 +72,19 @@ func TestCgoCallbackGC(t *testing.T) {
 	}
 }
 
+func TestCgoCallbackPprof(t *testing.T) {
+	t.Parallel()
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("no pthreads on %s", runtime.GOOS)
+	}
+
+	got := runTestProg(t, "testprogcgo", "CgoCallbackPprof")
+	if want := "OK\n"; got != want {
+		t.Fatalf("expected %q, but got:\n%s", want, got)
+	}
+}
+
 func TestCgoExternalThreadPanic(t *testing.T) {
 	t.Parallel()
 	if runtime.GOOS == "plan9" {
