@@ -67,11 +67,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		regabiSupported = true
 	}
 
-	var haveXchg8 bool
-	switch goarch {
-	case "386", "amd64", "arm", "arm64", "ppc64le", "ppc64":
-		haveXchg8 = true
-	}
+	haveThreads := goarch != "wasm"
 
 	// Older versions (anything before V16) of dsymutil don't handle
 	// the .debug_rnglists section in DWARF5. See
@@ -89,7 +85,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		RegabiArgs:      regabiSupported,
 		AliasTypeParams: true,
 		SwissMap:        true,
-		SpinbitMutex:    haveXchg8,
+		SpinbitMutex:    haveThreads,
 		SyncHashTrieMap: true,
 		Dwarf5:          dwarf5Supported,
 	}
