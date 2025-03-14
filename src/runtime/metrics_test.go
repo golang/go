@@ -1020,8 +1020,8 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 		return metricGrowth, profileGrowth, p
 	}
 
-	testcase := func(strictTiming bool, acceptStacks [][]string, workers int, fn func() bool) func(t *testing.T) (metricGrowth, profileGrowth float64, n, value int64) {
-		return func(t *testing.T) (metricGrowth, profileGrowth float64, n, value int64) {
+	testcase := func(strictTiming bool, acceptStacks [][]string, workers int, fn func() bool) func(t *testing.T) (metricGrowth, profileGrowth float64, n, value int64, explain func()) {
+		return func(t *testing.T) (metricGrowth, profileGrowth float64, n, value int64, explain func()) {
 			metricGrowth, profileGrowth, p := measureDelta(t, func() {
 				var started, stopped sync.WaitGroup
 				started.Add(workers)
@@ -1113,7 +1113,9 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 				}
 			}
 
-			return metricGrowth, profileGrowth, n, value
+			return metricGrowth, profileGrowth, n, value, func() {
+				t.Logf("profile:\n%s", p)
+			}
 		}
 	}
 
@@ -1173,7 +1175,12 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			defer runtime.SetMutexProfileFraction(old)
 
 			needContention.Store(int64(len(mus) - 1))
-			metricGrowth, profileGrowth, n, _ := testcase(true, stks, workers, fn)(t)
+			metricGrowth, profileGrowth, n, _, explain := testcase(true, stks, workers, fn)(t)
+			defer func() {
+				if t.Failed() {
+					explain()
+				}
+			}()
 
 			t.Run("metric", func(t *testing.T) {
 				// The runtime/metrics view may be sampled at 1 per
@@ -1208,7 +1215,12 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 			defer runtime.SetMutexProfileFraction(old)
 
 			needContention.Store(int64(len(mus) - 1))
-			metricGrowth, profileGrowth, n, _ := testcase(true, stks, workers, fn)(t)
+			metricGrowth, profileGrowth, n, _, explain := testcase(true, stks, workers, fn)(t)
+			defer func() {
+				if t.Failed() {
+					explain()
+				}
+			}()
 
 			// With 100 trials and profile fraction of 2, we expect to capture
 			// 50 samples. Allow the test to pass if we get at least 20 samples;
