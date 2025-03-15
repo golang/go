@@ -28,6 +28,9 @@ HTML templates treat data values as plain text which should be encoded so they
 can be safely embedded in an HTML document. The escaping is contextual, so
 actions can appear within JavaScript, CSS, and URI contexts.
 
+Comments are stripped from output, except for those passed in via the
+[HTML], [CSS], and [JS] types for their respective contexts.
+
 The security model used by this package assumes that template authors are
 trusted, while Execute's data parameter is not. More details are
 provided below.
