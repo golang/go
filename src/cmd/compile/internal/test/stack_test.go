@@ -34,6 +34,18 @@ func TestStackAllocation(t *testing.T) {
 			},
 			elemSize: unsafe.Sizeof(int(0)),
 		},
+		{
+			f: func(n int) {
+				genericUse(make([]*byte, n))
+			},
+			elemSize: unsafe.Sizeof((*byte)(nil)),
+		},
+		{
+			f: func(n int) {
+				genericUse(make([]string, n))
+			},
+			elemSize: unsafe.Sizeof(""),
+		},
 	} {
 		max := maxStackSize / int(tc.elemSize)
 		if n := testing.AllocsPerRun(10, func() {

@@ -568,10 +568,6 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 			// The conv is necessary in case n.Type is named.
 			return walkExpr(typecheck.Expr(typecheck.Conv(s, n.Type())), init)
 		}
-		if t.Elem().HasPointers() {
-			// TODO: remove this limitation (see ../escape/utils.go:HeapAllocReason).
-			base.Fatalf("%v can't have pointers", t.Elem())
-		}
 		tryStack = true
 	}
 

@@ -233,28 +233,21 @@ func HeapAllocReason(n ir.Node) string {
 			return "zero-sized element"
 		}
 		if !ir.IsSmallIntConst(*r) {
-			if !elem.HasPointers() {
-				// For non-constant sizes, we do a hybrid approach:
-				//
-				// if cap <= K {
-				//     var backing [K]E
-				//     s = backing[:len:cap]
-				// } else {
-				//     s = makeslice(E, len, cap)
-				// }
-				//
-				// It costs a constant amount of stack space, but may
-				// avoid a heap allocation.
-				// Note that this only works for pointer-free element types,
-				// because we forbid heap->stack pointers.
-				// (TODO: To get around this limitation, maybe we could treat
-				// these "heap" objects as still in the stack, possibly as
-				// stack objects. We should be able to find them and walk them
-				// on a stack backtrace. Not sure if that would work.)
-				// Implementation is in ../walk/builtin.go:walkMakeSlice.
-				return ""
-			}
-			return "non-constant size"
+			// For non-constant sizes, we do a hybrid approach:
+			//
+			// if cap <= K {
+			//     var backing [K]E
+			//     s = backing[:len:cap]
+			// } else {
+			//     s = makeslice(E, len, cap)
+			// }
+			//
+			// It costs a constant amount of stack space, but may
+			// avoid a heap allocation.
+			// Note we have to be careful that assigning s[i] = v
+			// still escapes v, because we forbid heap->stack pointers.
+			// Implementation is in ../walk/builtin.go:walkMakeSlice.
+			return ""
 		}
 		if ir.Int64Val(*r) > ir.MaxImplicitStackVarSize/elem.Size() {
 			return "too large for stack"
