@@ -1,7 +1,7 @@
 name: Proposals
 description: New external API or other notable changes
 title: "proposal: import/path: proposal title"
-labels: ["Proposal"]
+labels: [Proposal]
 body:
   - type: markdown
     attributes:
@@ -9,7 +9,7 @@ body:
   - type: textarea
     id: proposal-details
     attributes:
-      label: "Proposal Details"
-      description: "Please provide the details of your proposal here."
+      label: Proposal Details
+      description: Please provide the details of your proposal here.
     validations:
       required: true
