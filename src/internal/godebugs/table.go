@@ -62,6 +62,7 @@ var All = []Info{
 	{Name: "tlsmaxrsasize", Package: "crypto/tls"},
 	{Name: "tlsmlkem", Package: "crypto/tls", Changed: 24, Old: "0", Opaque: true},
 	{Name: "tlsrsakex", Package: "crypto/tls", Changed: 22, Old: "1"},
+	{Name: "tlssha1", Package: "crypto/tls", Changed: 25, Old: "1"},
 	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
 	{Name: "updatemaxprocs", Package: "runtime", Changed: 25, Old: "0"},
 	{Name: "winreadlinkvolume", Package: "os", Changed: 23, Old: "0"},

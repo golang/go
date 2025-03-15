@@ -772,6 +772,10 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 			if err != nil {
 				return c.sendAlert(alertInternalError)
 			}
+			if sigHash == crypto.SHA1 {
+				tlssha1.Value() // ensure godebug is initialized
+				tlssha1.IncNonDefault()
+			}
 		} else {
 			sigType, sigHash, err = legacyTypeAndHashFromPublicKey(pub)
 			if err != nil {

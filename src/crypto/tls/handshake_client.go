@@ -828,6 +828,10 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 			}
 			certVerify.hasSignatureAlgorithm = true
 			certVerify.signatureAlgorithm = signatureAlgorithm
+			if sigHash == crypto.SHA1 {
+				tlssha1.Value() // ensure godebug is initialized
+				tlssha1.IncNonDefault()
+			}
 		} else {
 			sigType, sigHash, err = legacyTypeAndHashFromPublicKey(key.Public())
 			if err != nil {

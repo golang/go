@@ -180,6 +180,9 @@ runtime will periodically update GOMAXPROCS for new CPU affinity or cgroup
 limits. The default value `updatemaxprocs=1` will enable periodic updates.
 `updatemaxprocs=0` will disable periodic updates.
 
+Go 1.25 disabled SHA-1 signature algorithms in TLS 1.2 according to RFC 9155.
+The default can be reverted using the `tlssha1=1` setting.
+
 Go 1.25 corrected the semantics of contention reports for runtime-internal locks,
 and so removed the [`runtimecontentionstacks` setting](/pkg/runtime#hdr-Environment_Variable).
 

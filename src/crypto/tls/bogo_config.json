@@ -20,6 +20,8 @@
         "TLS-ECH-Client-Reject-NoChannelID-TLS13": "We don't support sending channel ID",
         "TLS-ECH-Client-Reject-NoChannelID-TLS12": "We don't support sending channel ID",
 
+        "ServerAuth-SHA1-Fallback*": "We don't ever support SHA-1 in TLS 1.2, so we fail if there are no signature_algorithms",
+
         "TLS-ECH-Client-GREASE-IgnoreHRRExtension": "We don't support ECH GREASE because we don't fallback to plaintext",
         "TLS-ECH-Client-NoSupportedConfigs-GREASE": "We don't support ECH GREASE because we don't fallback to plaintext",
         "TLS-ECH-Client-GREASEExtensions": "We don't support ECH GREASE because we don't fallback to plaintext",
