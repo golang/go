@@ -673,10 +673,9 @@ func (pa *ABIParamAssignment) ComputePadding(storage []uint64) []uint64 {
 		panic("internal error")
 	}
 	offsets, _ := appendParamOffsets([]int64{}, 0, pa.Type)
-	off := int64(0)
 	for idx, t := range types {
 		ts := t.Size()
-		off += int64(ts)
+		off := offsets[idx] + ts
 		if idx < len(types)-1 {
 			noff := offsets[idx+1]
 			if noff != off {
