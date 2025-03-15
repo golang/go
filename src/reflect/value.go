@@ -1799,6 +1799,9 @@ func copyVal(typ *abi.Type, fl flag, ptr unsafe.Pointer) Value {
 // The arguments to a Call on the returned function should not include
 // a receiver; the returned function will always use v as the receiver.
 // Method panics if i is out of range or if v is a nil interface value.
+//
+// Calling this method will force the linker to retain all exported methods in all packages.
+// This may make the executable binary larger but will not affect execution time.
 func (v Value) Method(i int) Value {
 	if v.typ() == nil {
 		panic(&ValueError{"reflect.Value.Method", Invalid})
@@ -1835,6 +1838,10 @@ func (v Value) NumMethod() int {
 // The arguments to a Call on the returned function should not include
 // a receiver; the returned function will always use v as the receiver.
 // It returns the zero Value if no method was found.
+//
+// Calling this method will cause the linker to retain all methods with this name in all packages.
+// If the linker can't determine the name, it will retain all exported methods.
+// This may make the executable binary larger but will not affect execution time.
 func (v Value) MethodByName(name string) Value {
 	if v.typ() == nil {
 		panic(&ValueError{"reflect.Value.MethodByName", Invalid})

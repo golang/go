@@ -59,6 +59,9 @@ type Type interface {
 	// method signature, without a receiver, and the Func field is nil.
 	//
 	// Methods are sorted in lexicographic order.
+	//
+	// Calling this method will force the linker to retain all exported methods in all packages.
+	// This may make the executable binary larger but will not affect execution time.
 	Method(int) Method
 
 	// MethodByName returns the method with that name in the type's
@@ -69,6 +72,10 @@ type Type interface {
 	//
 	// For an interface type, the returned Method's Type field gives the
 	// method signature, without a receiver, and the Func field is nil.
+	//
+	// Calling this method will cause the linker to retain all methods with this name in all packages.
+	// If the linker can't determine the name, it will retain all exported methods.
+	// This may make the executable binary larger but will not affect execution time.
 	MethodByName(string) (Method, bool)
 
 	// NumMethod returns the number of methods accessible using Method.
