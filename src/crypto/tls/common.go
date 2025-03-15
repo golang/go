@@ -1013,6 +1013,7 @@ func (c *Config) ticketKeys(configForClient *Config) []ticketKey {
 	if configForClient != nil {
 		configForClient.mutex.RLock()
 		if configForClient.SessionTicketsDisabled {
+			configForClient.mutex.RUnlock()
 			return nil
 		}
 		configForClient.initLegacySessionTicketKeyRLocked()
