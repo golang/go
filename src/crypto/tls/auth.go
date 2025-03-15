@@ -220,7 +220,7 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 
 	// Filter out any unsupported signature algorithms, for example due to
 	// FIPS 140-3 policy, or any downstream changes to defaults.go.
-	supportedAlgs := supportedSignatureAlgorithms()
+	supportedAlgs := supportedSignatureAlgorithms(version)
 	sigAlgs = slices.DeleteFunc(sigAlgs, func(sigAlg SignatureScheme) bool {
 		return !isSupportedSignatureAlgorithm(sigAlg, supportedAlgs)
 	})

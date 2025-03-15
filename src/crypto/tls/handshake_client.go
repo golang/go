@@ -66,7 +66,10 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
 	if len(supportedVersions) == 0 {
 		return nil, nil, nil, errors.New("tls: no supported versions satisfy MinVersion and MaxVersion")
 	}
-	maxVersion := config.maxSupportedVersion(roleClient)
+	// Since supportedVersions is sorted in descending order, the first element
+	// is the maximum version and the last element is the minimum version.
+	maxVersion := supportedVersions[0]
+	minVersion := supportedVersions[len(supportedVersions)-1]
 
 	hello := &clientHelloMsg{
 		vers:                         maxVersion,
@@ -120,18 +123,20 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
 	}
 
 	if maxVersion >= VersionTLS12 {
-		hello.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+		hello.supportedSignatureAlgorithms = supportedSignatureAlgorithms(minVersion)
+		hello.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithmsCert()
 	}
 	if testingOnlyForceClientHelloSignatureAlgorithms != nil {
 		hello.supportedSignatureAlgorithms = testingOnlyForceClientHelloSignatureAlgorithms
 	}
 
 	var keyShareKeys *keySharePrivateKeys
-	if hello.supportedVersions[0] == VersionTLS13 {
+	if maxVersion >= VersionTLS13 {
 		// Reset the list of ciphers when the client only supports TLS 1.3.
-		if len(hello.supportedVersions) == 1 {
+		if minVersion >= VersionTLS13 {
 			hello.cipherSuites = nil
 		}
+
 		if fips140tls.Required() {
 			hello.cipherSuites = append(hello.cipherSuites, allowedCipherSuitesTLS13FIPS...)
 		} else if hasAESGCMHardwareSupport {

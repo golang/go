@@ -675,7 +675,9 @@ func (hs *clientHandshakeStateTLS13) readServerCertificate() error {
 	}
 
 	// See RFC 8446, Section 4.4.3.
-	if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms()) {
+	// We don't use hs.hello.supportedSignatureAlgorithms because it might
+	// include PKCS#1 v1.5 and SHA-1 if the ClientHello also supported TLS 1.2.
+	if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms(c.vers)) {
 		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: certificate used with invalid signature algorithm")
 	}
@@ -684,8 +686,7 @@ func (hs *clientHandshakeStateTLS13) readServerCertificate() error {
 		return c.sendAlert(alertInternalError)
 	}
 	if sigType == signaturePKCS1v15 || sigHash == crypto.SHA1 {
-		c.sendAlert(alertIllegalParameter)
-		return errors.New("tls: certificate used with invalid signature algorithm")
+		return c.sendAlert(alertInternalError)
 	}
 	signed := signedMessage(sigHash, serverSignatureContext, hs.transcript)
 	if err := verifyHandshakeSignature(sigType, c.peerCertificates[0].PublicKey,

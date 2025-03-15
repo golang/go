@@ -195,7 +195,7 @@ func TestFIPSServerCipherSuites(t *testing.T) {
 				keyShares:                    []keyShare{generateKeyShare(CurveP256)},
 				supportedPoints:              []uint8{pointFormatUncompressed},
 				supportedVersions:            []uint16{VersionTLS12},
-				supportedSignatureAlgorithms: allowedSupportedSignatureAlgorithmsFIPS,
+				supportedSignatureAlgorithms: allowedSignatureAlgorithmsFIPS,
 			}
 			if isTLS13CipherSuite(id) {
 				clientHello.supportedVersions = []uint16{VersionTLS13}
@@ -265,7 +265,7 @@ func TestFIPSServerSignatureAndHash(t *testing.T) {
 		testingOnlyForceClientHelloSignatureAlgorithms = nil
 	}()
 
-	for _, sigHash := range defaultSupportedSignatureAlgorithms {
+	for _, sigHash := range defaultSupportedSignatureAlgorithms() {
 		t.Run(fmt.Sprintf("%v", sigHash), func(t *testing.T) {
 			serverConfig := testConfig.Clone()
 			serverConfig.Certificates = make([]Certificate, 1)
