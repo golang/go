@@ -522,6 +522,28 @@ func HasSuffix(s, suffix string) bool {
 	return stringslite.HasSuffix(s, suffix)
 }
 
+// HasAnyOfSuffixes returns true if the given string has any of the given suffixes.
+func HasAnyOfSuffixes(input string, suffixes ...string) bool {
+	for _, suffix := range suffixes {
+		if HasSuffix(input, suffix) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// HasAnyOfPrefixes returns true if the given string has any of the given prefixes.
+func HasAnyOfPrefixes(input string, prefixes ...string) bool {
+	for _, prefix := range prefixes {
+		if HasPrefix(input, prefix) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Map returns a copy of the string s with all its characters modified
 // according to the mapping function. If mapping returns a negative value, the character is
 // dropped from the string with no replacement.
