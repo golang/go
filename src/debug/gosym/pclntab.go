@@ -305,6 +305,9 @@ func (t *LineTable) go12Funcs() []Func {
 		}()
 	}
 
+	// The start line only exists in pclntab starting at version 1.20.
+	readStartLine := t.version >= ver120
+
 	ft := t.funcTab()
 	funcs := make([]Func, ft.Count())
 	syms := make([]Sym, len(funcs))
@@ -313,6 +316,9 @@ func (t *LineTable) go12Funcs() []Func {
 		f.Entry = ft.pc(i)
 		f.End = ft.pc(i + 1)
 		info := t.funcData(uint32(i))
+		if readStartLine {
+			f.StartLine = int(info.startLine())
+		}
 		f.LineTable = t
 		f.FrameSize = int(info.deferreturn())
 		syms[i] = Sym{
@@ -465,6 +471,7 @@ func (f funcData) deferreturn() uint32 { return f.field(3) }
 func (f funcData) pcfile() uint32      { return f.field(5) }
 func (f funcData) pcln() uint32        { return f.field(6) }
 func (f funcData) cuOffset() uint32    { return f.field(8) }
+func (f funcData) startLine() uint32   { return f.field(9) }
 
 // field returns the nth field of the _func struct.
 // It panics if n == 0 or n > 9; for n == 0, call f.entryPC.
