@@ -465,9 +465,73 @@ func (d *decoder) reconstructProgressiveImage() error {
 // to the image.
 func (d *decoder) reconstructBlock(b *block, bx, by, compIndex int) error {
 	qt := &d.quant[d.comp[compIndex].tq]
-	for zig := 0; zig < blockSize; zig++ {
-		b[unzig[zig]] *= qt[zig]
-	}
+
+	// This sequence exactly follows the indexes of the unzig mapping.
+	b[0] *= qt[0]
+	b[1] *= qt[1]
+	b[8] *= qt[2]
+	b[16] *= qt[3]
+	b[9] *= qt[4]
+	b[2] *= qt[5]
+	b[3] *= qt[6]
+	b[10] *= qt[7]
+	b[17] *= qt[8]
+	b[24] *= qt[9]
+	b[32] *= qt[10]
+	b[25] *= qt[11]
+	b[18] *= qt[12]
+	b[11] *= qt[13]
+	b[4] *= qt[14]
+	b[5] *= qt[15]
+	b[12] *= qt[16]
+	b[19] *= qt[17]
+	b[26] *= qt[18]
+	b[33] *= qt[19]
+	b[40] *= qt[20]
+	b[48] *= qt[21]
+	b[41] *= qt[22]
+	b[34] *= qt[23]
+	b[27] *= qt[24]
+	b[20] *= qt[25]
+	b[13] *= qt[26]
+	b[6] *= qt[27]
+	b[7] *= qt[28]
+	b[14] *= qt[29]
+	b[21] *= qt[30]
+	b[28] *= qt[31]
+	b[35] *= qt[32]
+	b[42] *= qt[33]
+	b[49] *= qt[34]
+	b[56] *= qt[35]
+	b[57] *= qt[36]
+	b[50] *= qt[37]
+	b[43] *= qt[38]
+	b[36] *= qt[39]
+	b[29] *= qt[40]
+	b[22] *= qt[41]
+	b[15] *= qt[42]
+	b[23] *= qt[43]
+	b[30] *= qt[44]
+	b[37] *= qt[45]
+	b[44] *= qt[46]
+	b[51] *= qt[47]
+	b[58] *= qt[48]
+	b[59] *= qt[49]
+	b[52] *= qt[50]
+	b[45] *= qt[51]
+	b[38] *= qt[52]
+	b[31] *= qt[53]
+	b[39] *= qt[54]
+	b[46] *= qt[55]
+	b[53] *= qt[56]
+	b[60] *= qt[57]
+	b[61] *= qt[58]
+	b[54] *= qt[59]
+	b[47] *= qt[60]
+	b[55] *= qt[61]
+	b[62] *= qt[62]
+	b[63] *= qt[63]
+
 	idct(b)
 	dst, stride := []byte(nil), 0
 	if d.nComp == 1 {
@@ -486,22 +550,82 @@ func (d *decoder) reconstructBlock(b *block, bx, by, compIndex int) error {
 			return UnsupportedError("too many components")
 		}
 	}
+
 	// Level shift by +128, clip to [0, 255], and write to dst.
-	for y := 0; y < 8; y++ {
-		y8 := y * 8
-		yStride := y * stride
-		for x := 0; x < 8; x++ {
-			c := b[y8+x]
-			if c < -128 {
-				c = 0
-			} else if c > 127 {
-				c = 255
-			} else {
-				c += 128
-			}
-			dst[yStride+x] = uint8(c)
+	writeDst := func(index int) {
+		c := (*b)[index] + 128
+		if c < 0 {
+			c = 0
+		} else if c > 255 {
+			c = 255
 		}
+		dst[(index/8)*stride+(index%8)] = uint8(c)
 	}
+	writeDst(0)
+	writeDst(1)
+	writeDst(2)
+	writeDst(3)
+	writeDst(4)
+	writeDst(5)
+	writeDst(6)
+	writeDst(7)
+	writeDst(8)
+	writeDst(9)
+	writeDst(10)
+	writeDst(11)
+	writeDst(12)
+	writeDst(13)
+	writeDst(14)
+	writeDst(15)
+	writeDst(16)
+	writeDst(17)
+	writeDst(18)
+	writeDst(19)
+	writeDst(20)
+	writeDst(21)
+	writeDst(22)
+	writeDst(23)
+	writeDst(24)
+	writeDst(25)
+	writeDst(26)
+	writeDst(27)
+	writeDst(28)
+	writeDst(29)
+	writeDst(30)
+	writeDst(31)
+	writeDst(32)
+	writeDst(33)
+	writeDst(34)
+	writeDst(35)
+	writeDst(36)
+	writeDst(37)
+	writeDst(38)
+	writeDst(39)
+	writeDst(40)
+	writeDst(41)
+	writeDst(42)
+	writeDst(43)
+	writeDst(44)
+	writeDst(45)
+	writeDst(46)
+	writeDst(47)
+	writeDst(48)
+	writeDst(49)
+	writeDst(50)
+	writeDst(51)
+	writeDst(52)
+	writeDst(53)
+	writeDst(54)
+	writeDst(55)
+	writeDst(56)
+	writeDst(57)
+	writeDst(58)
+	writeDst(59)
+	writeDst(60)
+	writeDst(61)
+	writeDst(62)
+	writeDst(63)
+
 	return nil
 }
 
