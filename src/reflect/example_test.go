@@ -1,7 +1,3 @@
-// Copyright 2012 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 package reflect_test
 
 import (
@@ -206,4 +202,32 @@ func ExampleValue_FieldByName() {
 	fmt.Println("Name:", s.FieldByName("firstName"))
 	// Output:
 	// Name: John
+}
+
+func ExampleMethodRetention() {
+	type MyStruct struct{}
+
+	func (MyStruct) MyMethod() {
+		fmt.Println("MyMethod called")
+	}
+
+	t := reflect.TypeOf(MyStruct{})
+	m, ok := t.MethodByName("MyMethod")
+	if ok {
+		fmt.Println("Method found:", m.Name)
+	} else {
+		fmt.Println("Method not found")
+	}
+
+	v := reflect.ValueOf(MyStruct{})
+	mv := v.MethodByName("MyMethod")
+	if mv.IsValid() {
+		fmt.Println("Method found:", mv.Type().Name())
+	} else {
+		fmt.Println("Method not found")
+	}
+
+	// Output:
+	// Method found: MyMethod
+	// Method found: MyMethod
 }
