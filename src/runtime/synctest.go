@@ -79,6 +79,8 @@ func (sg *synctestGroup) changegstatus(gp *g, oldval, newval uint32) {
 		} else {
 			sg.running--
 			if raceenabled && newval != _Gdead {
+				// Record that this goroutine parking happens before
+				// any subsequent Wait.
 				racereleasemergeg(gp, sg.raceaddr())
 			}
 		}
@@ -133,6 +135,11 @@ func (sg *synctestGroup) maybeWakeLocked() *g {
 	// Two wakes happening at the same time leads to very confusing failure modes,
 	// so we take steps to avoid it happening.
 	sg.active++
+	next := sg.timers.wakeTime()
+	if next > 0 && next <= sg.now {
+		// A timer is scheduled to fire. Wake the root goroutine to handle it.
+		return sg.root
+	}
 	if gp := sg.waiter; gp != nil {
 		// A goroutine is blocked in Wait. Wake it.
 		return gp
@@ -181,14 +188,14 @@ func synctestRun(f func()) {
 	lock(&sg.mu)
 	sg.active++
 	for {
-		if raceenabled {
-			// Establish a happens-before relationship between a timer being created,
-			// and the timer running.
-			raceacquireg(gp, gp.syncGroup.raceaddr())
-		}
 		unlock(&sg.mu)
 		systemstack(func() {
+			// Clear gp.m.curg while running timers,
+			// so timer goroutines inherit their child race context from g0.
+			curg := gp.m.curg
+			gp.m.curg = nil
 			gp.syncGroup.timers.check(gp.syncGroup.now)
+			gp.m.curg = curg
 		})
 		gopark(synctestidle_c, nil, waitReasonSynctestRun, traceBlockSynctest, 0)
 		lock(&sg.mu)
