@@ -10,6 +10,12 @@ These new error reports may be disabled by setting
 `ASAN_OPTIONS=detect_leaks=0` in the environment when running the
 program.
 
+<!-- go.dev/issue/71294 -->
+
+The new `work` package pattern matches all packages in the work (formerly called main)
+modules: either the single work module in module mode or the set of workspace modules
+in workspace mode.
+
 <!-- go.dev/issue/65847 -->
 
 When the go command updates the `go` line in a `go.mod` or `go.work` file,
