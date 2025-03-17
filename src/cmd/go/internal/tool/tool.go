@@ -44,7 +44,7 @@ may be defined in the go.mod of the current module.
 With no arguments it prints the list of known tools.
 
 The -n flag causes tool to print the command that would be
-executed but not execute it.
+executed but not execute it. (the path to the executable shown may not actually exist.)
 
 The -modfile=file.mod build flag causes tool to use an alternate file
 instead of the go.mod in the module root directory.
