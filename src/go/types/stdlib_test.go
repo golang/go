@@ -362,6 +362,7 @@ func TestStdKen(t *testing.T) {
 var excluded = map[string]bool{
 	"builtin":                       true,
 	"cmd/compile/internal/ssa/_gen": true,
+	"runtime/_mkmalloc":             true,
 }
 
 // printPackageMu synchronizes the printing of type-checked package files in
