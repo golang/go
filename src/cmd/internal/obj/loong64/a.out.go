@@ -950,6 +950,16 @@ const (
 	AXVFRSQRTF
 	AXVFRSQRTD
 
+	// LSX and LASX integer neg instructions
+	AVNEGB
+	AVNEGH
+	AVNEGW
+	AVNEGV
+	AXVNEGB
+	AXVNEGH
+	AXVNEGW
+	AXVNEGV
+
 	ALAST
 
 	// aliases

@@ -1106,6 +1106,9 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
 	{"riscv64", "internal/runtime/sys", "GetCallerPC"}:                 struct{}{},
 	{"riscv64", "internal/runtime/sys", "GetCallerSP"}:                 struct{}{},
 	{"riscv64", "internal/runtime/sys", "GetClosurePtr"}:               struct{}{},
+	{"riscv64", "internal/runtime/sys", "TrailingZeros32"}:             struct{}{},
+	{"riscv64", "internal/runtime/sys", "TrailingZeros64"}:             struct{}{},
+	{"riscv64", "internal/runtime/sys", "TrailingZeros8"}:              struct{}{},
 	{"riscv64", "math", "Abs"}:                                         struct{}{},
 	{"riscv64", "math", "Copysign"}:                                    struct{}{},
 	{"riscv64", "math", "FMA"}:                                         struct{}{},
@@ -1122,6 +1125,10 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
 	{"riscv64", "math/bits", "RotateLeft8"}:                            struct{}{},
 	{"riscv64", "math/bits", "Sub"}:                                    struct{}{},
 	{"riscv64", "math/bits", "Sub64"}:                                  struct{}{},
+	{"riscv64", "math/bits", "TrailingZeros16"}:                        struct{}{},
+	{"riscv64", "math/bits", "TrailingZeros32"}:                        struct{}{},
+	{"riscv64", "math/bits", "TrailingZeros64"}:                        struct{}{},
+	{"riscv64", "math/bits", "TrailingZeros8"}:                         struct{}{},
 	{"riscv64", "runtime", "KeepAlive"}:                                struct{}{},
 	{"riscv64", "runtime", "publicationBarrier"}:                       struct{}{},
 	{"riscv64", "runtime", "slicebytetostringtmp"}:                     struct{}{},
@@ -1308,7 +1315,8 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
 
 func TestIntrinsics(t *testing.T) {
 	cfg := &intrinsicBuildConfig{
-		goppc64: 10,
+		goppc64:   10,
+		goriscv64: 23,
 	}
 	initIntrinsics(cfg)
 

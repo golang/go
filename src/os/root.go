@@ -223,7 +223,7 @@ func splitPathInRoot(s string, prefix, suffix []string) (_ []string, err error) 
 		suffix = nil
 	}
 
-	parts := append([]string{}, prefix...)
+	parts := slices.Clone(prefix)
 	i, j := 0, 1
 	for {
 		if j < len(s) && !IsPathSeparator(s[j]) {

@@ -229,6 +229,8 @@ func init() {
 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},   // arg0 & arg1
 		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                    // ^arg0 & arg1
 		{name: "ANDI", argLength: 1, reg: gp11, asm: "ANDI", aux: "Int64"},      // arg0 & auxint
+		{name: "CTZ", argLength: 1, reg: gp11, asm: "CTZ"},                      // count trailing zeros
+		{name: "CTZW", argLength: 1, reg: gp11, asm: "CTZW"},                    // count trailing zeros of least significant word
 		{name: "NOT", argLength: 1, reg: gp11, asm: "NOT"},                      // ^arg0
 		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},     // arg0 | arg1
 		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                      // ^arg0 | arg1

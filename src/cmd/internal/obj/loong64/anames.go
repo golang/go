@@ -449,5 +449,13 @@ var Anames = []string{
 	"XVFRECIPD",
 	"XVFRSQRTF",
 	"XVFRSQRTD",
+	"VNEGB",
+	"VNEGH",
+	"VNEGW",
+	"VNEGV",
+	"XVNEGB",
+	"XVNEGH",
+	"XVNEGW",
+	"XVNEGV",
 	"LAST",
 }

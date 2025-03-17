@@ -136,6 +136,28 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpCopysign:
 		v.Op = OpRISCV64FSGNJD
 		return true
+	case OpCtz16:
+		return rewriteValueRISCV64_OpCtz16(v)
+	case OpCtz16NonZero:
+		v.Op = OpCtz64
+		return true
+	case OpCtz32:
+		v.Op = OpRISCV64CTZW
+		return true
+	case OpCtz32NonZero:
+		v.Op = OpCtz64
+		return true
+	case OpCtz64:
+		v.Op = OpRISCV64CTZ
+		return true
+	case OpCtz64NonZero:
+		v.Op = OpCtz64
+		return true
+	case OpCtz8:
+		return rewriteValueRISCV64_OpCtz8(v)
+	case OpCtz8NonZero:
+		v.Op = OpCtz64
+		return true
 	case OpCvt32Fto32:
 		v.Op = OpRISCV64FCVTWS
 		return true
@@ -990,6 +1012,38 @@ func rewriteValueRISCV64_OpConstNil(v *Value) bool {
 	for {
 		v.reset(OpRISCV64MOVDconst)
 		v.AuxInt = int64ToAuxInt(0)
+		return true
+	}
+}
+func rewriteValueRISCV64_OpCtz16(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Ctz16 x)
+	// result: (CTZW (ORI <typ.UInt32> [1<<16] x))
+	for {
+		x := v_0
+		v.reset(OpRISCV64CTZW)
+		v0 := b.NewValue0(v.Pos, OpRISCV64ORI, typ.UInt32)
+		v0.AuxInt = int64ToAuxInt(1 << 16)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueRISCV64_OpCtz8(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Ctz8 x)
+	// result: (CTZW (ORI <typ.UInt32> [1<<8] x))
+	for {
+		x := v_0
+		v.reset(OpRISCV64CTZW)
+		v0 := b.NewValue0(v.Pos, OpRISCV64ORI, typ.UInt32)
+		v0.AuxInt = int64ToAuxInt(1 << 8)
+		v0.AddArg(x)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -5644,6 +5698,17 @@ func rewriteValueRISCV64_OpRISCV64MOVWreg(v *Value) bool {
 		v.copyOf(x)
 		return true
 	}
+	// match: (MOVWreg (NEG x))
+	// result: (NEGW x)
+	for {
+		if v_0.Op != OpRISCV64NEG {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpRISCV64NEGW)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVWreg (MOVDconst [c]))
 	// result: (MOVDconst [int64(int32(c))])
 	for {
@@ -6103,6 +6168,28 @@ func rewriteValueRISCV64_OpRISCV64NEG(v *Value) bool {
 		}
 		x := v_0.Args[0]
 		v.copyOf(x)
+		return true
+	}
+	// match: (NEG <t> s:(ADDI [val] (NEG x)))
+	// cond: s.Uses == 1 && is32Bit(-val)
+	// result: (ADDI [-val] x)
+	for {
+		s := v_0
+		if s.Op != OpRISCV64ADDI {
+			break
+		}
+		val := auxIntToInt64(s.AuxInt)
+		s_0 := s.Args[0]
+		if s_0.Op != OpRISCV64NEG {
+			break
+		}
+		x := s_0.Args[0]
+		if !(s.Uses == 1 && is32Bit(-val)) {
+			break
+		}
+		v.reset(OpRISCV64ADDI)
+		v.AuxInt = int64ToAuxInt(-val)
+		v.AddArg(x)
 		return true
 	}
 	// match: (NEG (MOVDconst [x]))
