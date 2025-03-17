@@ -9,7 +9,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/ecdh"
-	"crypto/internal/fips140/hkdf"
+	"crypto/hkdf"
 	"crypto/rand"
 	"errors"
 	"internal/byteorder"
@@ -32,7 +32,11 @@ func (kdf *hkdfKDF) LabeledExtract(sid []byte, salt []byte, label string, inputK
 	labeledIKM = append(labeledIKM, sid...)
 	labeledIKM = append(labeledIKM, label...)
 	labeledIKM = append(labeledIKM, inputKey...)
-	return hkdf.Extract(kdf.hash.New, labeledIKM, salt)
+	prk, err := hkdf.Extract(kdf.hash.New, labeledIKM, salt)
+	if err != nil {
+		panic(err)
+	}
+	return prk
 }
 
 func (kdf *hkdfKDF) LabeledExpand(suiteID []byte, randomKey []byte, label string, info []byte, length uint16) []byte {
@@ -42,7 +46,11 @@ func (kdf *hkdfKDF) LabeledExpand(suiteID []byte, randomKey []byte, label string
 	labeledInfo = append(labeledInfo, suiteID...)
 	labeledInfo = append(labeledInfo, label...)
 	labeledInfo = append(labeledInfo, info...)
-	return hkdf.Expand(kdf.hash.New, randomKey, string(labeledInfo), int(length))
+	key, err := hkdf.Expand(kdf.hash.New, randomKey, string(labeledInfo), int(length))
+	if err != nil {
+		panic(err)
+	}
+	return key
 }
 
 // dhKEM implements the KEM specified in RFC 9180, Section 4.1.
