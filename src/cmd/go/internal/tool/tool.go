@@ -302,6 +302,7 @@ func buildAndRunModtool(ctx context.Context, tool string, args []string) {
 	p.Internal.OmitDebug = true
 	p.Internal.ExeName = p.DefaultExecName()
 
+	cfg.BuildN = toolN
 	a1 := b.LinkAction(work.ModeBuild, work.ModeBuild, p)
 	a1.CacheExecutable = true
 	a := &work.Action{Mode: "go tool", Actor: work.ActorFunc(runBuiltTool), Args: args, Deps: []*work.Action{a1}}
