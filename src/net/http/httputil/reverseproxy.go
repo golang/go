@@ -42,6 +42,8 @@ type ProxyRequest struct {
 // SetURL routes the outbound request to the scheme, host, and base path
 // provided in target. If the target's path is "/base" and the incoming
 // request was for "/dir", the target request will be for "/base/dir".
+// To route requests without joining the incoming path,
+// set r.Out.URL directly.
 //
 // SetURL rewrites the outbound Host header to match the target's host.
 // To preserve the inbound request's Host header (the default behavior
