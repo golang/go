@@ -82,6 +82,9 @@ func TestCgoCallbackPprof(t *testing.T) {
 	case "plan9", "windows":
 		t.Skipf("no pthreads on %s", runtime.GOOS)
 	}
+	if testenv.CPUProfilingBroken() {
+		t.Skip("skipping on platform with broken profiling")
+	}
 
 	got := runTestProg(t, "testprogcgo", "CgoCallbackPprof")
 	if want := "OK\n"; got != want {

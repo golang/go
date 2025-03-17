@@ -522,3 +522,26 @@ func ParallelOn64Bit(t *testing.T) {
 	}
 	t.Parallel()
 }
+
+// CPUProfilingBroken returns true if CPU profiling has known issues on this
+// platform.
+func CPUProfilingBroken() bool {
+	switch runtime.GOOS {
+	case "plan9":
+		// Profiling unimplemented.
+		return true
+	case "aix":
+		// See https://golang.org/issue/45170.
+		return true
+	case "ios", "dragonfly", "netbsd", "illumos", "solaris":
+		// See https://golang.org/issue/13841.
+		return true
+	case "openbsd":
+		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+			// See https://golang.org/issue/13841.
+			return true
+		}
+	}
+
+	return false
+}
