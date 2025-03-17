@@ -4250,6 +4250,10 @@ func testTransportIdleConnRacesRequest(t testing.TB, mode testMode) {
 	cst.li.onDial = func() {
 		<-dialc
 	}
+	closec := make(chan struct{})
+	cst.li.onClose = func(*fakeNetConn) {
+		<-closec
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	req1c := make(chan error)
 	go func() {
@@ -4279,10 +4283,6 @@ func testTransportIdleConnRacesRequest(t testing.TB, mode testMode) {
 	//
 	// First: Wait for IdleConnTimeout. The net.Conn.Close blocks.
 	synctest.Wait()
-	closec := make(chan struct{})
-	cst.li.conns[0].peer.onClose = func() {
-		<-closec
-	}
 	time.Sleep(timeout)
 	synctest.Wait()
 	// Make a request, which will use a new connection (since the existing one is closing).
