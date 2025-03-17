@@ -1677,11 +1677,19 @@ func buildop(ctxt *obj.Link) {
 			opset(AVORB, r0)
 			opset(AVXORB, r0)
 			opset(AVNORB, r0)
+			opset(AVSHUF4IB, r0)
+			opset(AVSHUF4IH, r0)
+			opset(AVSHUF4IW, r0)
+			opset(AVSHUF4IV, r0)
 
 		case AXVANDB:
 			opset(AXVORB, r0)
 			opset(AXVXORB, r0)
 			opset(AXVNORB, r0)
+			opset(AXVSHUF4IB, r0)
+			opset(AXVSHUF4IH, r0)
+			opset(AXVSHUF4IW, r0)
+			opset(AXVSHUF4IV, r0)
 
 		case AVANDV:
 			opset(AVORV, r0)
@@ -2153,6 +2161,12 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		r := int(p.Reg)
 		if r == 0 {
 			r = int(p.To.Reg)
+		}
+
+		// the operand range available for instructions VSHUF4IV and XVSHUF4IV is [0, 15]
+		if p.As == AVSHUF4IV || p.As == AXVSHUF4IV {
+			operand := uint32(v)
+			c.checkoperand(p, operand, 15)
 		}
 
 		o1 = OP_8IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
@@ -2693,6 +2707,13 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	out[2] = o3
 	out[3] = o4
 	out[4] = o5
+}
+
+// checkoperand checks if operand >= 0 && operand <= maxoperand
+func (c *ctxt0) checkoperand(p *obj.Prog, operand uint32, mask uint32) {
+	if (operand & ^mask) != 0 {
+		c.ctxt.Diag("operand out of range 0 to %d: %v", mask, p)
+	}
 }
 
 // checkindex checks if index >= 0 && index <= maxindex
@@ -3813,6 +3834,22 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return 0xed1a << 15 // xvsubi.wu
 	case AXVSUBVU:
 		return 0xed1b << 15 // xvsubi.du
+	case AVSHUF4IB:
+		return 0x1ce4 << 18 // vshuf4i.b
+	case AVSHUF4IH:
+		return 0x1ce5 << 18 // vshuf4i.h
+	case AVSHUF4IW:
+		return 0x1ce6 << 18 // vshuf4i.w
+	case AVSHUF4IV:
+		return 0x1ce7 << 18 // vshuf4i.d
+	case AXVSHUF4IB:
+		return 0x1de4 << 18 // xvshuf4i.b
+	case AXVSHUF4IH:
+		return 0x1de5 << 18 // xvshuf4i.h
+	case AXVSHUF4IW:
+		return 0x1de6 << 18 // xvshuf4i.w
+	case AXVSHUF4IV:
+		return 0x1de7 << 18 // xvshuf4i.d
 	}
 
 	if a < 0 {
