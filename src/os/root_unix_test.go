@@ -30,7 +30,7 @@ func TestRootChown(t *testing.T) {
 
 	groups, err := os.Getgroups()
 	if err != nil {
-		t.Fatalf("getgroups: %v", err)
+		t.Fatal(err)
 	}
 	groups = append(groups, os.Getgid())
 	for _, test := range rootTestCases {
@@ -66,7 +66,7 @@ func TestRootLchown(t *testing.T) {
 
 	groups, err := os.Getgroups()
 	if err != nil {
-		t.Fatalf("getgroups: %v", err)
+		t.Fatal(err)
 	}
 	groups = append(groups, os.Getgid())
 	for _, test := range rootTestCases {
@@ -97,7 +97,7 @@ func TestRootConsistencyChown(t *testing.T) {
 	}
 	groups, err := os.Getgroups()
 	if err != nil {
-		t.Fatalf("getgroups: %v", err)
+		t.Fatal(err)
 	}
 	var gid int
 	if len(groups) == 0 {
@@ -133,7 +133,7 @@ func TestRootConsistencyLchown(t *testing.T) {
 	}
 	groups, err := os.Getgroups()
 	if err != nil {
-		t.Fatalf("getgroups: %v", err)
+		t.Fatal(err)
 	}
 	var gid int
 	if len(groups) == 0 {
