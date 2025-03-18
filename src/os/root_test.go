@@ -664,6 +664,35 @@ func TestRootLstat(t *testing.T) {
 	}
 }
 
+func TestRootReadlink(t *testing.T) {
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			const content = "content"
+			wantError := test.wantError
+			if test.ltarget != "" {
+				// Readlink will read the final link, rather than following it.
+				wantError = false
+			} else {
+				// Readlink fails on non-link targets.
+				wantError = true
+			}
+
+			got, err := root.Readlink(test.open)
+			if errEndsTest(t, err, wantError, "root.Readlink(%q)", test.open) {
+				return
+			}
+
+			want, err := os.Readlink(filepath.Join(root.Name(), test.ltarget))
+			if err != nil {
+				t.Fatalf("os.Readlink(%q) = %v, want success", test.ltarget, err)
+			}
+			if got != want {
+				t.Errorf("root.Readlink(%q) = %q, want %q", test.open, got, want)
+			}
+		})
+	}
+}
+
 // A rootConsistencyTest is a test case comparing os.Root behavior with
 // the corresponding non-Root function.
 //
@@ -1059,6 +1088,18 @@ func TestRootConsistencyLstat(t *testing.T) {
 				return "", err
 			}
 			return fmt.Sprintf("name:%q size:%v mode:%v isdir:%v", fi.Name(), fi.Size(), fi.Mode(), fi.IsDir()), nil
+		})
+	}
+}
+
+func TestRootConsistencyReadlink(t *testing.T) {
+	for _, test := range rootConsistencyTestCases {
+		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
+			if r == nil {
+				return os.Readlink(path)
+			} else {
+				return r.Readlink(path)
+			}
 		})
 	}
 }

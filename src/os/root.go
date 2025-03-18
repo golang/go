@@ -193,6 +193,12 @@ func (r *Root) Lstat(name string) (FileInfo, error) {
 	return rootStat(r, name, true)
 }
 
+// Readlink returns the destination of the named symbolic link in the root.
+// See [Readlink] for more details.
+func (r *Root) Readlink(name string) (string, error) {
+	return rootReadlink(r, name)
+}
+
 func (r *Root) logOpen(name string) {
 	if log := testlog.Logger(); log != nil {
 		// This won't be right if r's name has changed since it was opened,

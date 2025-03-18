@@ -118,6 +118,16 @@ func rootMkdir(r *Root, name string, perm FileMode) error {
 	return nil
 }
 
+func rootReadlink(r *Root, name string) (string, error) {
+	target, err := doInRoot(r, name, func(parent sysfdType, name string) (string, error) {
+		return readlinkat(parent, name)
+	})
+	if err != nil {
+		return "", &PathError{Op: "readlinkat", Path: name, Err: err}
+	}
+	return target, nil
+}
+
 func rootRemove(r *Root, name string) error {
 	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
 		return struct{}{}, removeat(parent, name)

@@ -155,3 +155,14 @@ func rootRemove(r *Root, name string) error {
 	}
 	return nil
 }
+
+func rootReadlink(r *Root, name string) (string, error) {
+	if err := checkPathEscapesLstat(r, name); err != nil {
+		return "", &PathError{Op: "readlinkat", Path: name, Err: err}
+	}
+	name, err := Readlink(joinPath(r.root.name, name))
+	if err != nil {
+		return "", &PathError{Op: "readlinkat", Path: name, Err: underlyingError(err)}
+	}
+	return name, nil
+}

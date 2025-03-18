@@ -314,3 +314,12 @@ func chtimesat(dirfd syscall.Handle, name string, atime time.Time, mtime time.Ti
 	}
 	return syscall.SetFileTime(h, nil, &a, &w)
 }
+
+func readlinkat(dirfd syscall.Handle, name string) (string, error) {
+	fd, err := openat(dirfd, name, windows.O_OPEN_REPARSE, 0)
+	if err != nil {
+		return "", err
+	}
+	defer syscall.CloseHandle(fd)
+	return readReparseLinkHandle(fd)
+}
