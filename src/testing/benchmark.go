@@ -368,8 +368,8 @@ func (b *B) ReportMetric(n float64, unit string) {
 }
 
 func (b *B) stopOrScaleBLoop() bool {
-	timeElapsed := highPrecisionTimeSince(b.start)
-	if timeElapsed >= b.benchTime.d {
+	t := b.Elapsed()
+	if t >= b.benchTime.d {
 		// Stop the timer so we don't count cleanup time
 		b.StopTimer()
 		return false
@@ -377,7 +377,7 @@ func (b *B) stopOrScaleBLoop() bool {
 	// Loop scaling
 	goalns := b.benchTime.d.Nanoseconds()
 	prevIters := int64(b.N)
-	b.N = predictN(goalns, prevIters, timeElapsed.Nanoseconds(), prevIters)
+	b.N = predictN(goalns, prevIters, t.Nanoseconds(), prevIters)
 	b.loopN++
 	return true
 }

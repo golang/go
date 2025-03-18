@@ -7,7 +7,7 @@ package testing
 func TestBenchmarkBLoop(t *T) {
 	var initialStart highPrecisionTime
 	var firstStart highPrecisionTime
-	var lastStart highPrecisionTime
+	var scaledStart highPrecisionTime
 	var runningEnd bool
 	runs := 0
 	iters := 0
@@ -19,7 +19,9 @@ func TestBenchmarkBLoop(t *T) {
 			if iters == 0 {
 				firstStart = b.start
 			}
-			lastStart = b.start
+			if iters == 1 {
+				scaledStart = b.start
+			}
 			iters++
 		}
 		finalBN = b.N
@@ -45,8 +47,8 @@ func TestBenchmarkBLoop(t *T) {
 	if firstStart == initialStart {
 		t.Errorf("b.Loop did not reset the timer")
 	}
-	if lastStart != firstStart {
-		t.Errorf("timer was reset during iteration")
+	if scaledStart != firstStart {
+		t.Errorf("b.Loop stops and restarts the timer during iteration")
 	}
 	// Verify that it stopped the timer after the last loop.
 	if runningEnd {
