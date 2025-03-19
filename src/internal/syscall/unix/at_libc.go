@@ -35,7 +35,7 @@ func Unlinkat(dirfd int, path string, flags int) error {
 		return err
 	}
 
-	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procUnlinkat)), 3, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags), 0, 0, 0)
+	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procUnlinkat)), 4, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags), 0, 0, 0)
 	if errno != 0 {
 		return errno
 	}
@@ -134,7 +134,7 @@ func Fchownat(dirfd int, path string, uid, gid int, flags int) error {
 	if err != nil {
 		return err
 	}
-	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procFchownat)), 4,
+	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procFchownat)), 5,
 		uintptr(dirfd),
 		uintptr(unsafe.Pointer(p)),
 		uintptr(uid),
