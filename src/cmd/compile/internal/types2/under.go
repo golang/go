@@ -112,11 +112,13 @@ func commonUnder(t Type, cond func(t, u Type) *typeError) (Type, *typeError) {
 				}
 				// If we have different channel directions, keep the restricted one
 				// and complain if they conflict.
-				if chu.dir == SendRecv {
-					ct, cu = t, u // switch to current, possibly restricted channel
-				} else if chu.dir != ch.dir {
+				switch {
+				case chu.dir == ch.dir:
+					// nothing to do
+				case chu.dir == SendRecv:
+					ct, cu = t, u // switch to restricted channel
+				case ch.dir != SendRecv:
 					return bad("channels %s and %s have conflicting directions", ct, t)
-
 				}
 				return true
 			}
