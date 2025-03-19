@@ -2121,19 +2121,20 @@ func (a Address) String() string {
 				switch loc.Class {
 				case dwarf.ClassLocListPtr:
 					offset := loc.Val.(int64)
-					buf := make([]byte, 48)
+					buf := make([]byte, 32)
 					s := f.Section(".debug_loc")
 					if s == nil {
 						t.Fatal("could not find debug_loc section")
 					}
 					d := s.Open()
-					d.Seek(offset, io.SeekStart)
+					// Seek past the first 16 bytes which establishes the base address and
+					// can be brittle and unreliable in the test due to compiler changes or DWARF
+					// version used.
+					d.Seek(offset+16, io.SeekStart)
 					d.Read(buf)
 
 					// DW_OP_reg0 DW_OP_piece 0x1 DW_OP_piece 0x7 DW_OP_reg3 DW_OP_piece 0x8 DW_OP_reg2 DW_OP_piece 0x8
 					expected := []byte{
-						0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-						0xa0, 0x2c, 0x49, 0x00, 0x00, 0x00, 0x00, 0x00,
 						0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 						0x1f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 						0x0b, 0x00, 0x50, 0x93, 0x01, 0x93, 0x07, 0x53,
@@ -2141,7 +2142,7 @@ func (a Address) String() string {
 					}
 
 					if !bytes.Equal(buf, expected) {
-						t.Fatal("unexpected DWARF sequence found")
+						t.Fatalf("unexpected DWARF sequence found, expected:\n%#v\nfound:\n%#v\n", expected, buf)
 					}
 				}
 			} else {
