@@ -161,7 +161,7 @@ func srcsetFilterAndEscaper(args ...any) string {
 	for i := 0; i < len(s); i++ {
 		if s[i] == ',' {
 			filterSrcsetElement(s, written, i, &b)
-			b.WriteString(",")
+			b.WriteByte(',')
 			written = i + 1
 		}
 	}
@@ -211,6 +211,6 @@ func filterSrcsetElement(s string, left int, right int, b *strings.Builder) {
 			return
 		}
 	}
-	b.WriteString("#")
+	b.WriteByte('#')
 	b.WriteString(filterFailsafe)
 }
