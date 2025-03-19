@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "go_asm.h"
 #include "textflag.h"
 
 // See memmove Go doc for important implementation constraints.
@@ -65,12 +66,11 @@ TEXT runtime·memmove<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-24
 	BEQ	R4, R5, move_0
 	BEQ	R6, move_0
 
-	ADDV	R4, R6, R7 // to-end pointer
-	ADDV	R5, R6, R8 // from-end pointer
+	ADDV	R4, R6, R7	// to-end pointer
+	ADDV	R5, R6, R8	// from-end pointer
 
+// copy size <= 64 bytes, copy directly, not check aligned
 tail:
-	//copy size <= 64 bytes, copy directly, not check aligned
-
 	// < 2 bytes
 	SGTU	$2, R6, R9
 	BNE	R9, move_1
@@ -107,102 +107,12 @@ tail:
 	SGTU	$65, R6, R9
 	BNE	R9, move_33through64
 
-	// if (dst > src) && (dst < src + count), regarded as memory
-	// overlap, jump to backward
-	// else, jump to forward
-	BGEU	R5, R4, forward
-	ADDV	R5, R6, R10
-	BLTU	R4, R10, backward
+	// >= 65 bytes and < 256 bytes
+	SGTU	$256, R6, R9
+	BNE	R9, move_large
 
-forward:
-	AND	$7, R4, R9	// dst & 7
-	BEQ	R9, body
-head:
-	MOVV	$8, R10
-	SUBV	R9, R10		// head = 8 - (dst & 7)
-	MOVB	(R5), R11
-	SUBV	$1, R10
-	ADDV	$1, R5
-	MOVB	R11, (R4)
-	ADDV	$1, R4
-	BNE	R10, -5(PC)
-	ADDV	R9, R6
-	ADDV	$-8, R6		// newcount = count + (dst & 7) - 8
-	// if newcount < 65 bytes, use move_33through64 to copy is enough
-	SGTU	$65, R6, R9
-	BNE	R9, move_33through64
-
-body:
-	MOVV	(R5), R11
-	MOVV	8(R5), R12
-	MOVV	16(R5), R13
-	MOVV	24(R5), R14
-	MOVV	32(R5), R15
-	MOVV	40(R5), R16
-	MOVV	48(R5), R17
-	MOVV	56(R5), R18
-	MOVV	R11, (R4)
-	MOVV	R12, 8(R4)
-	MOVV	R13, 16(R4)
-	MOVV	R14, 24(R4)
-	MOVV	R15, 32(R4)
-	MOVV	R16, 40(R4)
-	MOVV	R17, 48(R4)
-	MOVV	R18, 56(R4)
-	ADDV	$-64, R6
-	ADDV	$64, R4
-	ADDV	$64, R5
-	SGTU	$64, R6, R9
-	// if the remaining part >= 64 bytes, jmp to body
-	BEQ	R9, body
-	// if the remaining part == 0 bytes, use move_0 to return
-	BEQ	R6, move_0
-	// if the remaining part in (0, 63] bytes, jmp to tail
-	JMP	tail
-
-// The backward copy algorithm is the same as the forward copy,
-// except for the direction.
-backward:
-	AND	$7, R7, R9	 // dstend & 7
-	BEQ	R9, b_body
-b_head:
-	MOVV	-8(R8), R11
-	SUBV	R9, R6		// newcount = count - (dstend & 7)
-	SUBV	R9, R8		// newsrcend = srcend - (dstend & 7)
-	MOVV	-8(R8), R12
- 	MOVV	R11, -8(R7)
-	SUBV	R9, R7		// newdstend = dstend - (dstend & 7)
- 	MOVV	R12, -8(R7)
-	SUBV	$8, R6
-	SUBV	$8, R7
-	SUBV	$8, R8
-	SGTU    $65, R6, R9
-	BNE     R9, move_33through64
-
-b_body:
-	MOVV	-8(R8), R11
-	MOVV	-16(R8), R12
-	MOVV	-24(R8), R13
-	MOVV	-32(R8), R14
-	MOVV	-40(R8), R15
-	MOVV	-48(R8), R16
-	MOVV	-56(R8), R17
-	MOVV	-64(R8), R18
-	MOVV	R11, -8(R7)
-	MOVV	R12, -16(R7)
-	MOVV	R13, -24(R7)
-	MOVV	R14, -32(R7)
-	MOVV	R15, -40(R7)
-	MOVV	R16, -48(R7)
-	MOVV	R17, -56(R7)
-	MOVV	R18, -64(R7)
-	ADDV	$-64, R6
-	ADDV	$-64, R7
-	ADDV	$-64, R8
-	SGTU	$64, R6, R9
-	BEQ	R9, b_body
-	BEQ	R6, move_0
-	JMP	tail
+	// >= 256
+	JMP	lasx_move_large
 
 move_0:
 	RET
@@ -268,4 +178,361 @@ move_33through64:
 	MOVV	R16, -24(R7)
 	MOVV	R17, -16(R7)
 	MOVV	R18, -8(R7)
+	RET
+
+move_large:
+	// if (dst > src) && (dst < (src + count))
+	//    regarded as memory overlap
+	//    jump to backward
+	// else
+	//    jump to forward
+	BGEU	R5, R4, forward
+	ADDV	R5, R6, R10
+	BLTU	R4, R10, backward
+forward:
+	AND	$7, R4, R9	// dst & 7
+	BEQ	R9, forward_move_64loop
+forward_unaligned:
+	MOVV	$8, R10
+	SUBV	R9, R10	// head = 8 - (dst & 7)
+	MOVV	(R5), R11
+	SUBV	R10, R6	// newcount = count - (8 - (dst & 7))
+	ADDV	R10, R5	// newsrc = src + (8 - (dst & 7))
+	MOVV	(R5), R12
+	MOVV	R11, (R4)
+	ADDV	R10, R4	// newdst = dst + (8 - (dst & 7))
+	MOVV	R12, (R4)
+	SUBV	$8, R6
+	ADDV	$8, R4
+	ADDV	$8, R5
+	SGTU	$65, R6, R9
+	BNE	R9, move_33through64
+forward_move_64loop:
+	SUBV	$64, R6
+	SGTU	$64, R6, R9
+	MOVV	(R5), R11
+	MOVV	8(R5), R12
+	MOVV	16(R5), R13
+	MOVV	24(R5), R14
+	MOVV	32(R5), R15
+	MOVV	40(R5), R16
+	MOVV	48(R5), R17
+	MOVV	56(R5), R18
+	MOVV	R11, (R4)
+	MOVV	R12, 8(R4)
+	MOVV	R13, 16(R4)
+	MOVV	R14, 24(R4)
+	MOVV	R15, 32(R4)
+	MOVV	R16, 40(R4)
+	MOVV	R17, 48(R4)
+	MOVV	R18, 56(R4)
+	ADDV	$64, R5
+	ADDV	$64, R4
+	BEQ	R9, forward_move_64loop
+	// 0 < remaining_length < 64
+	BNE	R6, tail
+	RET
+
+// The backward copy algorithm is the same as the forward
+// copy, except for the direction.
+backward:
+	AND	$7, R7, R9	// dstend & 7
+	BEQ	R9, backward_move_64loop
+backward_unaligned:
+	MOVV	-8(R8), R11
+	SUBV	R9, R6	// newcount = count - (dstend & 7)
+	SUBV	R9, R8	// newsrcend = srcend - (dstend & 7)
+	MOVV	-8(R8), R12
+	MOVV	R11, -8(R7)
+	SUBV	R9, R7	// newdstend = dstend - (dstend & 7)
+	MOVV	R12, -8(R7)
+	SUBV	$8, R6
+	SUBV	$8, R7
+	SUBV	$8, R8
+	SGTU    $65, R6, R9
+	BNE     R9, move_33through64
+backward_move_64loop:
+	SUBV	$64, R6
+	SGTU	$64, R6, R9
+	MOVV	-8(R8), R11
+	MOVV	-16(R8), R12
+	MOVV	-24(R8), R13
+	MOVV	-32(R8), R14
+	MOVV	-40(R8), R15
+	MOVV	-48(R8), R16
+	MOVV	-56(R8), R17
+	MOVV	-64(R8), R18
+	MOVV	R11, -8(R7)
+	MOVV	R12, -16(R7)
+	MOVV	R13, -24(R7)
+	MOVV	R14, -32(R7)
+	MOVV	R15, -40(R7)
+	MOVV	R16, -48(R7)
+	MOVV	R17, -56(R7)
+	MOVV	R18, -64(R7)
+	SUBV	$64, R7
+	SUBV	$64, R8
+	BEQ	R9, backward_move_64loop
+	// 0 < remaining_length < 64
+	BNE	R6, tail
+	RET
+
+// use simd 128 instructions to implement memmove
+// n >= 256 bytes, check 16-byte alignment
+lsx_move_large:
+	MOVBU	internal∕cpu·Loong64+const_offsetLOONG64HasLSX(SB), R9
+	BEQ	R9, move_large
+
+	// if (dst > src) && (dst < (src + count))
+	//    regarded as memory overlap
+	//    jump to lsx_backward
+	// else
+	//    jump to lsx_forward
+	BGEU	R5, R4, lsx_forward
+	ADDV	R5, R6, R10
+	BLTU	R4, R10, lsx_backward
+lsx_forward:
+	AND	$15, R4, R9	// dst & 15
+	BEQ	R9, lsx_forward_move_128
+lsx_forward_unaligned:
+	MOVV	$16, R10
+	SUBV	R9, R10	// head = 16 - (dst & 15)
+	VMOVQ	(R5), V0
+	SUBV	R10, R6	// newcount = count - (16 - (dst & 15))
+	ADDV	R10, R5	// newsrc = src + (16 - (dst & 15))
+	VMOVQ	(R5), V1
+	VMOVQ	V0, (R4)
+	ADDV	R10, R4	// newdst = dst + (16 - (dst & 15))
+	VMOVQ	V1, (R4)
+	SUBV	$16, R6
+	ADDV	$16, R4
+	ADDV	$16, R5
+lsx_forward_move_128:
+	SGTU	$128, R6, R9
+	BNE	R9, lsx_forward_move_32
+lsx_forward_move_128loop:
+	SUBV	$128, R6
+	SGTU	$128, R6, R9
+	VMOVQ	0(R5), V0
+	VMOVQ	16(R5), V1
+	VMOVQ	32(R5), V2
+	VMOVQ	48(R5), V3
+	VMOVQ	64(R5), V4
+	VMOVQ	80(R5), V5
+	VMOVQ	96(R5), V6
+	VMOVQ	112(R5), V7
+	VMOVQ	V0, 0(R4)
+	VMOVQ	V1, 16(R4)
+	VMOVQ	V2, 32(R4)
+	VMOVQ	V3, 48(R4)
+	VMOVQ	V4, 64(R4)
+	VMOVQ	V5, 80(R4)
+	VMOVQ	V6, 96(R4)
+	VMOVQ	V7, 112(R4)
+	ADDV	$128, R5
+	ADDV	$128, R4
+	BEQ	R9, lsx_forward_move_128loop
+lsx_forward_move_32:
+	SGTU	$32, R6, R9
+	BNE	R9, lsx_forward_move_tail
+lsx_forward_move_32loop:
+	SUBV	$32, R6
+	SGTU	$32, R6, R9
+	VMOVQ	0(R5), V0
+	VMOVQ	16(R5), V1
+	VMOVQ	V0, 0(R4)
+	VMOVQ	V1, 16(R4)
+	ADDV	$32, R5
+	ADDV	$32, R4
+	BEQ	R9, lsx_forward_move_32loop
+lsx_forward_move_tail:
+	// 0 < remaining_length < 64
+	BNE	R6, tail
+	RET
+
+lsx_backward:
+	AND	$15, R7, R9	// dstend & 15
+	BEQ	R9, lsx_backward_move_128
+lsx_backward_unaligned:
+	VMOVQ	-16(R8), V0
+	SUBV	R9, R6	// newcount = count - (dstend & 15)
+	SUBV	R9, R8	// newsrcend = srcend - (dstend & 15)
+	VMOVQ	-16(R8), V1
+	VMOVQ	V0, -16(R7)
+	SUBV	R9, R7	// newdstend = dstend - (dstend & 15)
+	VMOVQ	V1, -16(R7)
+	SUBV	$16, R6
+	SUBV	$16, R7
+	SUBV	$16, R8
+lsx_backward_move_128:
+	SGTU    $128, R6, R9
+	BNE     R9, lsx_backward_move_32
+lsx_backward_move_128loop:
+	SUBV	$128, R6
+	SGTU	$128, R6, R9
+	VMOVQ	-16(R8), V0
+	VMOVQ	-32(R8), V1
+	VMOVQ	-48(R8), V2
+	VMOVQ	-64(R8), V3
+	VMOVQ	-80(R8), V4
+	VMOVQ	-96(R8), V5
+	VMOVQ	-112(R8), V6
+	VMOVQ	-128(R8), V7
+	VMOVQ	V0, -16(R7)
+	VMOVQ	V1, -32(R7)
+	VMOVQ	V2, -48(R7)
+	VMOVQ	V3, -64(R7)
+	VMOVQ	V4, -80(R7)
+	VMOVQ	V5, -96(R7)
+	VMOVQ	V6, -112(R7)
+	VMOVQ	V7, -128(R7)
+	SUBV	$128, R8
+	SUBV	$128, R7
+	BEQ	R9, lsx_backward_move_128loop
+lsx_backward_move_32:
+	SGTU    $32, R6, R9
+	BNE     R9, lsx_backward_move_tail
+lsx_backward_move_32loop:
+	SUBV	$32, R6
+	SGTU	$32, R6, R9
+	VMOVQ	-16(R8), V0
+	VMOVQ	-32(R8), V1
+	VMOVQ	V0, -16(R7)
+	VMOVQ	V1, -32(R7)
+	SUBV	$32, R8
+	SUBV	$32, R7
+	BEQ	R9, lsx_backward_move_32loop
+lsx_backward_move_tail:
+	// 0 < remaining_length < 64
+	BNE	R6, tail
+	RET
+
+// use simd 256 instructions to implement memmove
+// n >= 256 bytes, check 32-byte alignment
+lasx_move_large:
+	MOVBU	internal∕cpu·Loong64+const_offsetLOONG64HasLASX(SB), R9
+	BEQ	R9, lsx_move_large
+
+	// if (dst > src) && (dst < (src + count))
+	//    regarded as memory overlap
+	//    jump to lasx_backward
+	// else
+	//    jump to lasx_forward
+	BGEU	R5, R4, lasx_forward
+	ADDV	R5, R6, R10
+	BLTU	R4, R10, lasx_backward
+lasx_forward:
+	AND	$31, R4, R9	// dst & 31
+	BEQ	R9, lasx_forward_move_256
+lasx_forward_unaligned:
+	MOVV	$32, R10
+	SUBV	R9, R10	// head = 32 - (dst & 31)
+	XVMOVQ	(R5), X0
+	SUBV	R10, R6	// newcount = count - (32 - (dst & 31))
+	ADDV	R10, R5	// newsrc = src + (32 - (dst & 31))
+	XVMOVQ	(R5), X1
+	XVMOVQ	X0, (R4)
+	ADDV	R10, R4	// newdst = dst + (32 - (dst & 31))
+	XVMOVQ	X1, (R4)
+	SUBV	$32, R6
+	ADDV	$32, R4
+	ADDV	$32, R5
+lasx_forward_move_256:
+	SGTU	$256, R6, R9
+	BNE	R9, lasx_forward_move_64
+lasx_forward_move_256loop:
+	SUBV	$256, R6
+	SGTU	$256, R6, R9
+	XVMOVQ	0(R5), X0
+	XVMOVQ	32(R5), X1
+	XVMOVQ	64(R5), X2
+	XVMOVQ	96(R5), X3
+	XVMOVQ	128(R5), X4
+	XVMOVQ	160(R5), X5
+	XVMOVQ	192(R5), X6
+	XVMOVQ	224(R5), X7
+	XVMOVQ	X0, 0(R4)
+	XVMOVQ	X1, 32(R4)
+	XVMOVQ	X2, 64(R4)
+	XVMOVQ	X3, 96(R4)
+	XVMOVQ	X4, 128(R4)
+	XVMOVQ	X5, 160(R4)
+	XVMOVQ	X6, 192(R4)
+	XVMOVQ	X7, 224(R4)
+	ADDV	$256, R5
+	ADDV	$256, R4
+	BEQ	R9, lasx_forward_move_256loop
+lasx_forward_move_64:
+	SGTU	$64, R6, R9
+	BNE	R9, lasx_forward_move_tail
+lasx_forward_move_64loop:
+	SUBV	$64, R6
+	SGTU	$64, R6, R9
+	XVMOVQ	(R5), X0
+	XVMOVQ	32(R5), X1
+	XVMOVQ	X0, (R4)
+	XVMOVQ	X1, 32(R4)
+	ADDV	$64, R5
+	ADDV	$64, R4
+	BEQ	R9, lasx_forward_move_64loop
+lasx_forward_move_tail:
+	// 0 < remaining_length < 64
+	BNE	R6, tail
+	RET
+
+lasx_backward:
+	AND	$31, R7, R9	// dstend & 31
+	BEQ	R9, lasx_backward_move_256
+lasx_backward_unaligned:
+	XVMOVQ	-32(R8), X0
+	SUBV	R9, R6	// newcount = count - (dstend & 31)
+	SUBV	R9, R8	// newsrcend = srcend - (dstend & 31)
+	XVMOVQ	-32(R8), X1
+	XVMOVQ	X0, -32(R7)
+	SUBV	R9, R7	// newdstend = dstend - (dstend & 31)
+	XVMOVQ	X1, -32(R7)
+	SUBV	$32, R6
+	SUBV	$32, R7
+	SUBV	$32, R8
+lasx_backward_move_256:
+	SGTU    $256, R6, R9
+	BNE     R9, lasx_backward_move_64
+lasx_backward_move_256loop:
+	SUBV	$256, R6
+	SGTU	$256, R6, R9
+	XVMOVQ	-32(R8), X0
+	XVMOVQ	-64(R8), X1
+	XVMOVQ	-96(R8), X2
+	XVMOVQ	-128(R8), X3
+	XVMOVQ	-160(R8), X4
+	XVMOVQ	-192(R8), X5
+	XVMOVQ	-224(R8), X6
+	XVMOVQ	-256(R8), X7
+	XVMOVQ	X0, -32(R7)
+	XVMOVQ	X1, -64(R7)
+	XVMOVQ	X2, -96(R7)
+	XVMOVQ	X3, -128(R7)
+	XVMOVQ	X4, -160(R7)
+	XVMOVQ	X5, -192(R7)
+	XVMOVQ	X6, -224(R7)
+	XVMOVQ	X7, -256(R7)
+	SUBV	$256, R8
+	SUBV	$256, R7
+	BEQ	R9, lasx_backward_move_256loop
+lasx_backward_move_64:
+	SGTU	$64, R6, R9
+	BNE     R9, lasx_backward_move_tail
+lasx_backward_move_64loop:
+	SUBV	$64, R6
+	SGTU	$64, R6, R9
+	XVMOVQ	-32(R8), X0
+	XVMOVQ	-64(R8), X1
+	XVMOVQ	X0, -32(R7)
+	XVMOVQ	X1, -64(R7)
+	SUBV	$64, R8
+	SUBV	$64, R7
+	BEQ	R9, lasx_backward_move_64loop
+lasx_backward_move_tail:
+	// 0 < remaining_length < 64
+	BNE	R6, tail
 	RET
