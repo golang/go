@@ -114,10 +114,17 @@ type B struct {
 	netBytes  uint64
 	// Extra metrics collected by ReportMetric.
 	extra map[string]float64
-	// For Loop() to be executed in benchFunc.
-	// Loop() has its own control logic that skips the loop scaling.
-	// See issue #61515.
-	loopN int
+
+	// loop tracks the state of B.Loop
+	loop struct {
+		// n is the target number of iterations. It gets bumped up as we go.
+		// When the benchmark loop is done, we commit this to b.N so users can
+		// do reporting based on it, but we avoid exposing it until then.
+		n int
+		// i is the current Loop iteration. It's strictly monotonically
+		// increasing toward n.
+		i int
+	}
 }
 
 // StartTimer starts timing a test. This function is called automatically
@@ -192,7 +199,8 @@ func (b *B) runN(n int) {
 	runtime.GC()
 	b.resetRaces()
 	b.N = n
-	b.loopN = 0
+	b.loop.n = 0
+	b.loop.i = 0
 	b.ctx = ctx
 	b.cancelCtx = cancelCtx
 
@@ -312,8 +320,8 @@ func (b *B) launch() {
 	}()
 
 	// b.Loop does its own ramp-up logic so we just need to run it once.
-	// If b.loopN is non zero, it means b.Loop has already run.
-	if b.loopN == 0 {
+	// If b.loop.n is non zero, it means b.Loop has already run.
+	if b.loop.n == 0 {
 		// Run the benchmark for at least the specified amount of time.
 		if b.benchTime.n > 0 {
 			// We already ran a single iteration in run1.
@@ -372,34 +380,40 @@ func (b *B) stopOrScaleBLoop() bool {
 	if t >= b.benchTime.d {
 		// Stop the timer so we don't count cleanup time
 		b.StopTimer()
+		// Commit iteration count
+		b.N = b.loop.n
 		return false
 	}
 	// Loop scaling
 	goalns := b.benchTime.d.Nanoseconds()
-	prevIters := int64(b.N)
-	b.N = predictN(goalns, prevIters, t.Nanoseconds(), prevIters)
-	b.loopN++
+	prevIters := int64(b.loop.n)
+	b.loop.n = predictN(goalns, prevIters, t.Nanoseconds(), prevIters)
+	b.loop.i++
 	return true
 }
 
 func (b *B) loopSlowPath() bool {
-	if b.loopN == 0 {
+	if b.loop.n == 0 {
 		// If it's the first call to b.Loop() in the benchmark function.
 		// Allows more precise measurement of benchmark loop cost counts.
-		// Also initialize b.N to 1 to kick start loop scaling.
-		b.N = 1
-		b.loopN = 1
+		// Also initialize target to 1 to kick start loop scaling.
+		b.loop.n = 1
+		// Within a b.Loop loop, we don't use b.N (to avoid confusion).
+		b.N = 0
+		b.loop.i++
 		b.ResetTimer()
 		return true
 	}
 	// Handles fixed iterations case
 	if b.benchTime.n > 0 {
-		if b.N < b.benchTime.n {
-			b.N = b.benchTime.n
-			b.loopN++
+		if b.loop.n < b.benchTime.n {
+			b.loop.n = b.benchTime.n
+			b.loop.i++
 			return true
 		}
 		b.StopTimer()
+		// Commit iteration count
+		b.N = b.loop.n
 		return false
 	}
 	// Handles fixed time case
@@ -440,8 +454,10 @@ func (b *B) loopSlowPath() bool {
 // whereas b.N-based benchmarks must run the benchmark function (and any
 // associated setup and cleanup) several times.
 func (b *B) Loop() bool {
-	if b.loopN != 0 && b.loopN < b.N {
-		b.loopN++
+	// On the first call, both i and n are 0, so we'll fall through to the slow
+	// path in that case, too.
+	if b.loop.i < b.loop.n {
+		b.loop.i++
 		return true
 	}
 	return b.loopSlowPath()
