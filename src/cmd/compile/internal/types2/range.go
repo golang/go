@@ -8,6 +8,7 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
+	"go/constant"
 	"internal/buildcfg"
 	. "internal/types/errors"
 )
@@ -23,7 +24,31 @@ import (
 func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, noNewVarPos poser, sKey, sValue, sExtra, rangeVar syntax.Expr, isDef bool) {
 	// check expression to iterate over
 	var x operand
+
+	// From the spec:
+	//   The range expression x is evaluated before beginning the loop,
+	//   with one exception: if at most one iteration variable is present
+	//   and x or len(x) is constant, the range expression is not evaluated.
+	// So we have to be careful not to evaluate the arg in the
+	// described situation.
+
+	check.hasCallOrRecv = false
 	check.expr(nil, &x, rangeVar)
+
+	if isTypes2 && x.mode != invalid && sValue == nil && !check.hasCallOrRecv {
+		if t, ok := arrayPtrDeref(under(x.typ)).(*Array); ok {
+			// Override type of rangeVar to be a constant
+			// (and thus side-effects will not be computed
+			// by the backend).
+			check.record(&operand{
+				mode: constant_,
+				expr: rangeVar,
+				typ:  Typ[Int],
+				val:  constant.MakeInt64(t.len),
+				id:   x.id,
+			})
+		}
+	}
 
 	// determine key/value types
 	var key, val Type

@@ -217,12 +217,12 @@ func nilcheckelim2(f *Func) {
 					f.Warnl(v.Pos, "removed nil check")
 				}
 				// For bug 33724, policy is that we might choose to bump an existing position
-				// off the faulting load/store in favor of the one from the nil check.
+				// off the faulting load in favor of the one from the nil check.
 
 				// Iteration order means that first nilcheck in the chain wins, others
 				// are bumped into the ordinary statement preservation algorithm.
 				u := b.Values[unnecessary.get(v.Args[0].ID)]
-				if !u.Pos.SameFileAndLine(v.Pos) {
+				if !u.Type.IsMemory() && !u.Pos.SameFileAndLine(v.Pos) {
 					if u.Pos.IsStmt() == src.PosIsStmt {
 						pendingLines.add(u.Pos)
 					}

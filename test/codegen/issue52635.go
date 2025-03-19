@@ -12,6 +12,7 @@ package codegen
 type T struct {
 	a *[10]int
 	b [10]int
+	s []int
 }
 
 func (t *T) f() {
@@ -37,5 +38,16 @@ func (t *T) f() {
 	// amd64:"DUFFZERO"
 	for i := range *t.a {
 		(*t.a)[i] = 0
+	}
+
+	// amd64:-".*runtime.memclrNoHeapPointers"
+	// amd64:"DUFFZERO"
+	for i := range t.b {
+		t.b[i] = 0
+	}
+
+	// amd64:".*runtime.memclrNoHeapPointers"
+	for i := range t.s {
+		t.s[i] = 0
 	}
 }

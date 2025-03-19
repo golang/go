@@ -5,6 +5,7 @@
 package walk
 
 import (
+	"go/constant"
 	"internal/buildcfg"
 	"unicode/utf8"
 
@@ -80,6 +81,10 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		base.Fatalf("walkRange")
 
 	case types.IsInt[k]:
+		if nn := arrayRangeClear(nrange, v1, v2, a); nn != nil {
+			base.Pos = lno
+			return nn
+		}
 		hv1 := typecheck.TempAt(base.Pos, ir.CurFunc, t)
 		hn := typecheck.TempAt(base.Pos, ir.CurFunc, t)
 
@@ -519,13 +524,33 @@ func arrayRangeClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 	}
 	lhs := stmt.X.(*ir.IndexExpr)
 	x := lhs.X
-	if a.Type().IsPtr() && a.Type().Elem().IsArray() {
-		if s, ok := x.(*ir.StarExpr); ok && s.Op() == ir.ODEREF {
-			x = s.X
+
+	// Get constant number of iterations for int and array cases.
+	n := int64(-1)
+	if ir.IsConst(a, constant.Int) {
+		n = ir.Int64Val(a)
+	} else if a.Type().IsArray() {
+		n = a.Type().NumElem()
+	} else if a.Type().IsPtr() && a.Type().Elem().IsArray() {
+		n = a.Type().Elem().NumElem()
+	}
+
+	if n >= 0 {
+		// Int/Array case.
+		if !x.Type().IsArray() {
+			return nil
+		}
+		if x.Type().NumElem() != n {
+			return nil
+		}
+	} else {
+		// Slice case.
+		if !ir.SameSafeExpr(x, a) {
+			return nil
 		}
 	}
 
-	if !ir.SameSafeExpr(x, a) || !ir.SameSafeExpr(lhs.Index, v1) {
+	if !ir.SameSafeExpr(lhs.Index, v1) {
 		return nil
 	}
 
@@ -533,7 +558,7 @@ func arrayRangeClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 		return nil
 	}
 
-	return arrayClear(stmt.Pos(), a, loop)
+	return arrayClear(stmt.Pos(), x, loop)
 }
 
 // arrayClear constructs a call to runtime.memclr for fast zeroing of slices and arrays.
