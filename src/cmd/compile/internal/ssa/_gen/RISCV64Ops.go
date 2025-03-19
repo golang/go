@@ -231,6 +231,8 @@ func init() {
 		{name: "ANDI", argLength: 1, reg: gp11, asm: "ANDI", aux: "Int64"},      // arg0 & auxint
 		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},                      // count leading zeros
 		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW"},                    // count leading zeros of least significant word
+		{name: "CPOP", argLength: 1, reg: gp11, asm: "CPOP"},                    // count set bits
+		{name: "CPOPW", argLength: 1, reg: gp11, asm: "CPOPW"},                  // count set bits in least significant word
 		{name: "CTZ", argLength: 1, reg: gp11, asm: "CTZ"},                      // count trailing zeros
 		{name: "CTZW", argLength: 1, reg: gp11, asm: "CTZW"},                    // count trailing zeros of least significant word
 		{name: "NOT", argLength: 1, reg: gp11, asm: "NOT"},                      // ^arg0

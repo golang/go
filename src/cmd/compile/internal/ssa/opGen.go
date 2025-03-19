@@ -2514,6 +2514,8 @@ const (
 	OpRISCV64ANDI
 	OpRISCV64CLZ
 	OpRISCV64CLZW
+	OpRISCV64CPOP
+	OpRISCV64CPOPW
 	OpRISCV64CTZ
 	OpRISCV64CTZW
 	OpRISCV64NOT
@@ -33878,6 +33880,32 @@ var opcodeTable = [...]opInfo{
 		name:   "CLZW",
 		argLen: 1,
 		asm:    riscv.ACLZW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:   "CPOP",
+		argLen: 1,
+		asm:    riscv.ACPOP,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:   "CPOPW",
+		argLen: 1,
+		asm:    riscv.ACPOPW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30

@@ -38,4 +38,6 @@ var (
 	loong64HasLAMCAS bool
 	loong64HasLAM_BH bool
 	loong64HasLSX    bool
+
+	riscv64HasZbb bool
 )

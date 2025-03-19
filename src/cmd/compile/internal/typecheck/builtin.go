@@ -242,6 +242,7 @@ var runtimeDecls = [...]struct {
 	{"loong64HasLAMCAS", varTag, 6},
 	{"loong64HasLAM_BH", varTag, 6},
 	{"loong64HasLSX", varTag, 6},
+	{"riscv64HasZbb", varTag, 6},
 	{"asanregisterglobals", funcTag, 130},
 }
 

@@ -294,5 +294,6 @@ var arm64HasATOMICS bool
 var loong64HasLAMCAS bool
 var loong64HasLAM_BH bool
 var loong64HasLSX bool
+var riscv64HasZbb bool
 
 func asanregisterglobals(unsafe.Pointer, uintptr)

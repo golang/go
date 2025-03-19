@@ -236,6 +236,12 @@
 (Bswap32 <t> x) => (SRLI [32] (REV8 <t> x))
 (Bswap16 <t> x) => (SRLI [48] (REV8 <t> x))
 
+// Population count (note that these will be emitted with guards for rva20u64).
+(PopCount64 ...) => (CPOP  ...)
+(PopCount32 ...) => (CPOPW ...)
+(PopCount16 x) => (CPOP (ZeroExt16to64 x))
+(PopCount8  x) => (CPOP (ZeroExt8to64  x))
+
 (Less64  ...) => (SLT  ...)
 (Less32  x y) => (SLT  (SignExt32to64 x) (SignExt32to64 y))
 (Less16  x y) => (SLT  (SignExt16to64 x) (SignExt16to64 y))

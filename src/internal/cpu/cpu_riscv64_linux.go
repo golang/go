@@ -50,6 +50,7 @@ const (
 	// Copied from golang.org/x/sys/unix/ztypes_linux_riscv64.go.
 	riscv_HWPROBE_KEY_IMA_EXT_0   = 0x4
 	riscv_HWPROBE_IMA_V           = 0x4
+	riscv_HWPROBE_EXT_ZBB         = 0x10
 	riscv_HWPROBE_KEY_CPUPERF_0   = 0x5
 	riscv_HWPROBE_MISALIGNED_FAST = 0x3
 	riscv_HWPROBE_MISALIGNED_MASK = 0x7
@@ -83,6 +84,7 @@ func osInit() {
 	if pairs[0].key != -1 {
 		v := uint(pairs[0].value)
 		RISCV64.HasV = isSet(v, riscv_HWPROBE_IMA_V)
+		RISCV64.HasZbb = isSet(v, riscv_HWPROBE_EXT_ZBB)
 	}
 	if pairs[1].key != -1 {
 		v := pairs[1].value & riscv_HWPROBE_MISALIGNED_MASK

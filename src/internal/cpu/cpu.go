@@ -145,6 +145,7 @@ var RISCV64 struct {
 	_                 CacheLinePad
 	HasFastMisaligned bool // Fast misaligned accesses
 	HasV              bool // Vector extension compatible with RVV 1.0
+	HasZbb            bool // Basic bit-manipulation extension
 	_                 CacheLinePad
 }
 

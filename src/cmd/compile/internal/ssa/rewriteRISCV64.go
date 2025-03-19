@@ -487,6 +487,16 @@ func rewriteValueRISCV64(v *Value) bool {
 		return true
 	case OpPanicBounds:
 		return rewriteValueRISCV64_OpPanicBounds(v)
+	case OpPopCount16:
+		return rewriteValueRISCV64_OpPopCount16(v)
+	case OpPopCount32:
+		v.Op = OpRISCV64CPOPW
+		return true
+	case OpPopCount64:
+		v.Op = OpRISCV64CPOP
+		return true
+	case OpPopCount8:
+		return rewriteValueRISCV64_OpPopCount8(v)
 	case OpPubBarrier:
 		v.Op = OpRISCV64LoweredPubBarrier
 		return true
@@ -3457,6 +3467,36 @@ func rewriteValueRISCV64_OpPanicBounds(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValueRISCV64_OpPopCount16(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (PopCount16 x)
+	// result: (CPOP (ZeroExt16to64 x))
+	for {
+		x := v_0
+		v.reset(OpRISCV64CPOP)
+		v0 := b.NewValue0(v.Pos, OpZeroExt16to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueRISCV64_OpPopCount8(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (PopCount8 x)
+	// result: (CPOP (ZeroExt8to64 x))
+	for {
+		x := v_0
+		v.reset(OpRISCV64CPOP)
+		v0 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
 }
 func rewriteValueRISCV64_OpRISCV64ADD(v *Value) bool {
 	v_1 := v.Args[1]

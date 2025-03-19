@@ -1129,12 +1129,49 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		}
 	}
 
+	makeOnesCountRISCV64 := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			if cfg.goriscv64 >= 22 {
+				return s.newValue1(op, types.Types[types.TINT], args[0])
+			}
+
+			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.RISCV64HasZbb, s.sb)
+			v := s.load(types.Types[types.TBOOL], addr)
+			b := s.endBlock()
+			b.Kind = ssa.BlockIf
+			b.SetControl(v)
+			bTrue := s.f.NewBlock(ssa.BlockPlain)
+			bFalse := s.f.NewBlock(ssa.BlockPlain)
+			bEnd := s.f.NewBlock(ssa.BlockPlain)
+			b.AddEdgeTo(bTrue)
+			b.AddEdgeTo(bFalse)
+			b.Likely = ssa.BranchLikely // Majority of RISC-V support Zbb.
+
+			// We have the intrinsic - use it directly.
+			s.startBlock(bTrue)
+			s.vars[n] = s.newValue1(op, types.Types[types.TINT], args[0])
+			s.endBlock().AddEdgeTo(bEnd)
+
+			// Call the pure Go version.
+			s.startBlock(bFalse)
+			s.vars[n] = s.callResult(n, callNormal) // types.Types[TINT]
+			s.endBlock().AddEdgeTo(bEnd)
+
+			// Merge results.
+			s.startBlock(bEnd)
+			return s.variable(n, types.Types[types.TINT])
+		}
+	}
+
 	addF("math/bits", "OnesCount64",
 		makeOnesCountAMD64(ssa.OpPopCount64),
 		sys.AMD64)
 	addF("math/bits", "OnesCount64",
 		makeOnesCountLoong64(ssa.OpPopCount64),
 		sys.Loong64)
+	addF("math/bits", "OnesCount64",
+		makeOnesCountRISCV64(ssa.OpPopCount64),
+		sys.RISCV64)
 	addF("math/bits", "OnesCount64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpPopCount64, types.Types[types.TINT], args[0])
@@ -1147,6 +1184,9 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		makeOnesCountLoong64(ssa.OpPopCount32),
 		sys.Loong64)
 	addF("math/bits", "OnesCount32",
+		makeOnesCountRISCV64(ssa.OpPopCount32),
+		sys.RISCV64)
+	addF("math/bits", "OnesCount32",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpPopCount32, types.Types[types.TINT], args[0])
 		},
@@ -1158,6 +1198,9 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		makeOnesCountLoong64(ssa.OpPopCount16),
 		sys.Loong64)
 	addF("math/bits", "OnesCount16",
+		makeOnesCountRISCV64(ssa.OpPopCount16),
+		sys.RISCV64)
+	addF("math/bits", "OnesCount16",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpPopCount16, types.Types[types.TINT], args[0])
 		},
@@ -1167,6 +1210,13 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			return s.newValue1(ssa.OpPopCount8, types.Types[types.TINT], args[0])
 		},
 		sys.S390X, sys.PPC64, sys.Wasm)
+
+	if cfg.goriscv64 >= 22 {
+		addF("math/bits", "OnesCount8",
+			makeOnesCountRISCV64(ssa.OpPopCount8),
+			sys.RISCV64)
+	}
+
 	alias("math/bits", "OnesCount", "math/bits", "OnesCount64", p8...)
 
 	addF("math/bits", "Mul64",
