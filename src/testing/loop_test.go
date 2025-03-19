@@ -11,6 +11,8 @@ func TestBenchmarkBLoop(t *T) {
 	var runningEnd bool
 	runs := 0
 	iters := 0
+	firstBN := 0
+	restBN := 0
 	finalBN := 0
 	bRet := Benchmark(func(b *B) {
 		initialStart = b.start
@@ -18,6 +20,9 @@ func TestBenchmarkBLoop(t *T) {
 		for b.Loop() {
 			if iters == 0 {
 				firstStart = b.start
+				firstBN = b.N
+			} else {
+				restBN = max(restBN, b.N)
 			}
 			if iters == 1 {
 				scaledStart = b.start
@@ -38,6 +43,13 @@ func TestBenchmarkBLoop(t *T) {
 	// Verify that b.N, bRet.N, and the b.Loop() iteration count match.
 	if finalBN != iters || bRet.N != iters {
 		t.Errorf("benchmark iterations mismatch: %d loop iterations, final b.N=%d, bRet.N=%d", iters, finalBN, bRet.N)
+	}
+	// Verify that b.N was 0 inside the loop
+	if firstBN != 0 {
+		t.Errorf("want b.N == 0 on first iteration, got %d", firstBN)
+	}
+	if restBN != 0 {
+		t.Errorf("want b.N == 0 on subsequent iterations, got %d", restBN)
 	}
 	// Make sure the benchmark ran for an appropriate amount of time.
 	if bRet.T < benchTime.d {
