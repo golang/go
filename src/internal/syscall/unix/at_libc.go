@@ -35,7 +35,11 @@ func Unlinkat(dirfd int, path string, flags int) error {
 		return err
 	}
 
-	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procUnlinkat)), 4, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags), 0, 0, 0)
+	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procUnlinkat)), 3,
+		uintptr(dirfd),
+		uintptr(unsafe.Pointer(p)),
+		uintptr(flags),
+		0, 0, 0)
 	if errno != 0 {
 		return errno
 	}
@@ -49,7 +53,12 @@ func Openat(dirfd int, path string, flags int, perm uint32) (int, error) {
 		return 0, err
 	}
 
-	fd, _, errno := syscall6(uintptr(unsafe.Pointer(&procOpenat)), 4, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags), uintptr(perm), 0, 0)
+	fd, _, errno := syscall6(uintptr(unsafe.Pointer(&procOpenat)), 4,
+		uintptr(dirfd),
+		uintptr(unsafe.Pointer(p)),
+		uintptr(flags),
+		uintptr(perm),
+		0, 0)
 	if errno != 0 {
 		return 0, errno
 	}
@@ -63,7 +72,12 @@ func Fstatat(dirfd int, path string, stat *syscall.Stat_t, flags int) error {
 		return err
 	}
 
-	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procFstatat)), 4, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
+	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procFstatat)), 4,
+		uintptr(dirfd),
+		uintptr(unsafe.Pointer(p)),
+		uintptr(unsafe.Pointer(stat)),
+		uintptr(flags),
+		0, 0)
 	if errno != 0 {
 		return errno
 	}
