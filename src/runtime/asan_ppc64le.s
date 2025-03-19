@@ -66,6 +66,14 @@ TEXT	runtime·lsanregisterrootregion(SB),NOSPLIT|NOFRAME,$0-16
 	MOVD	$__lsan_register_root_region_go(SB), FARG
 	BR	asancall<>(SB)
 
+// func runtime·lsanunregisterrootregion(addr unsafe.Pointer, n uintptr)
+TEXT	runtime·lsanunregisterrootregion(SB),NOSPLIT|NOFRAME,$0-16
+	MOVD	addr+0(FP), RARG0
+	MOVD	n+8(FP), RARG1
+	// void __lsan_unregister_root_region_go(void *addr, uintptr_t n);
+	MOVD	$__lsan_unregister_root_region_go(SB), FARG
+	BR	asancall<>(SB)
+
 // func runtime·lsandoleakcheck()
 TEXT	runtime·lsandoleakcheck(SB), NOSPLIT|NOFRAME, $0-0
 	// void __lsan_do_leak_check_go(void);

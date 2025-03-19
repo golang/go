@@ -39,6 +39,10 @@ void __lsan_register_root_region_go(void *addr, uintptr_t sz) {
 	__lsan_register_root_region(addr, sz);
 }
 
+void __lsan_unregister_root_region_go(void *addr, uintptr_t sz) {
+	__lsan_unregister_root_region(addr, sz);
+}
+
 void __lsan_do_leak_check_go(void) {
 	__lsan_do_leak_check();
 }

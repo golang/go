@@ -119,6 +119,13 @@ func sysHugePageCollapse(v unsafe.Pointer, n uintptr) {
 //
 //go:nosplit
 func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+	// When using ASAN leak detection, the memory being freed is
+	// known by the sanitizer. We need to unregister it so it's
+	// not accessed by it.
+	if asanenabled {
+		lsanunregisterrootregion(v, n)
+	}
+
 	sysStat.add(-int64(n))
 	gcController.mappedReady.Add(-int64(n))
 	sysFreeOS(v, n)

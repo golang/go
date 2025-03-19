@@ -60,6 +60,14 @@ TEXT	runtime·lsanregisterrootregion(SB), NOSPLIT, $0-16
 	MOV	$__lsan_register_root_region_go(SB), X14
 	JMP	asancall<>(SB)
 
+// func runtime·lsanunregisterrootregion(addr unsafe.Pointer, n uintptr)
+TEXT	runtime·lsanunregisterrootregion(SB), NOSPLIT, $0-16
+	MOV	addr+0(FP), X10
+	MOV	n+8(FP), X11
+	// void __lsan_unregister_root_region_go(void *addr, uintptr_t n);
+	MOV	$__lsan_unregister_root_region_go(SB), X14
+	JMP	asancall<>(SB)
+
 // func runtime·lsandoleakcheck()
 TEXT	runtime·lsandoleakcheck(SB), NOSPLIT, $0-0
 	// void __lsan_do_leak_check_go(void);

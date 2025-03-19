@@ -22,4 +22,5 @@ func asanunpoison(addr unsafe.Pointer, sz uintptr)        { throw("asan") }
 func asanpoison(addr unsafe.Pointer, sz uintptr)          { throw("asan") }
 func asanregisterglobals(addr unsafe.Pointer, sz uintptr) { throw("asan") }
 func lsanregisterrootregion(unsafe.Pointer, uintptr)      { throw("asan") }
+func lsanunregisterrootregion(unsafe.Pointer, uintptr)    { throw("asan") }
 func lsandoleakcheck()                                    { throw("asan") }
