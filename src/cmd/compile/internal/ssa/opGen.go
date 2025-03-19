@@ -2520,6 +2520,7 @@ const (
 	OpRISCV64OR
 	OpRISCV64ORN
 	OpRISCV64ORI
+	OpRISCV64REV8
 	OpRISCV64ROL
 	OpRISCV64ROLW
 	OpRISCV64ROR
@@ -33959,6 +33960,19 @@ var opcodeTable = [...]opInfo{
 		auxType: auxInt64,
 		argLen:  1,
 		asm:     riscv.AORI,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:   "REV8",
+		argLen: 1,
+		asm:    riscv.AREV8,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30

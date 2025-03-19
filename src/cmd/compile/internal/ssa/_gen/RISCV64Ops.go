@@ -237,6 +237,7 @@ func init() {
 		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},     // arg0 | arg1
 		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                      // ^arg0 | arg1
 		{name: "ORI", argLength: 1, reg: gp11, asm: "ORI", aux: "Int64"},        // arg0 | auxint
+		{name: "REV8", argLength: 1, reg: gp11, asm: "REV8"},                    // reverse bytes
 		{name: "ROL", argLength: 2, reg: gp21, asm: "ROL"},                      // rotate left arg0 by (arg1 & 63)
 		{name: "ROLW", argLength: 2, reg: gp21, asm: "ROLW"},                    // rotate left least significant word of arg0 by (arg1 & 31), sign extended
 		{name: "ROR", argLength: 2, reg: gp21, asm: "ROR"},                      // rotate right arg0 by (arg1 & 63)

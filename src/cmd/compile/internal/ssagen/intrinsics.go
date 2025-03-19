@@ -184,22 +184,44 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		},
 		all...)
 
-	brev_arch := []sys.ArchFamily{sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.Loong64, sys.S390X}
-	if cfg.goppc64 >= 10 {
-		// Use only on Power10 as the new byte reverse instructions that Power10 provide
-		// make it worthwhile as an intrinsic
-		brev_arch = append(brev_arch, sys.PPC64)
-	}
 	addF("internal/runtime/sys", "Bswap32",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBswap32, types.Types[types.TUINT32], args[0])
 		},
-		brev_arch...)
+		sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.Loong64, sys.S390X)
 	addF("internal/runtime/sys", "Bswap64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBswap64, types.Types[types.TUINT64], args[0])
 		},
-		brev_arch...)
+		sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.Loong64, sys.S390X)
+
+	if cfg.goppc64 >= 10 {
+		// Use only on Power10 as the new byte reverse instructions that Power10 provide
+		// make it worthwhile as an intrinsic
+		addF("internal/runtime/sys", "Bswap32",
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+				return s.newValue1(ssa.OpBswap32, types.Types[types.TUINT32], args[0])
+			},
+			sys.PPC64)
+		addF("internal/runtime/sys", "Bswap64",
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+				return s.newValue1(ssa.OpBswap64, types.Types[types.TUINT64], args[0])
+			},
+			sys.PPC64)
+	}
+
+	if cfg.goriscv64 >= 22 {
+		addF("internal/runtime/sys", "Bswap32",
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+				return s.newValue1(ssa.OpBswap32, types.Types[types.TUINT32], args[0])
+			},
+			sys.RISCV64)
+		addF("internal/runtime/sys", "Bswap64",
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+				return s.newValue1(ssa.OpBswap64, types.Types[types.TUINT64], args[0])
+			},
+			sys.RISCV64)
+	}
 
 	/****** Prefetch ******/
 	makePrefetchFunc := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
@@ -924,22 +946,29 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			sys.RISCV64)
 	}
 
+	// ReverseBytes inlines correctly, no need to intrinsify it.
 	alias("math/bits", "ReverseBytes64", "internal/runtime/sys", "Bswap64", all...)
 	alias("math/bits", "ReverseBytes32", "internal/runtime/sys", "Bswap32", all...)
+	// Nothing special is needed for targets where ReverseBytes16 lowers to a rotate
 	addF("math/bits", "ReverseBytes16",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBswap16, types.Types[types.TUINT16], args[0])
 		},
 		sys.Loong64)
-	// ReverseBytes inlines correctly, no need to intrinsify it.
-	// Nothing special is needed for targets where ReverseBytes16 lowers to a rotate
-	// On Power10, 16-bit rotate is not available so use BRH instruction
 	if cfg.goppc64 >= 10 {
+		// On Power10, 16-bit rotate is not available so use BRH instruction
 		addF("math/bits", "ReverseBytes16",
 			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				return s.newValue1(ssa.OpBswap16, types.Types[types.TUINT], args[0])
 			},
 			sys.PPC64)
+	}
+	if cfg.goriscv64 >= 22 {
+		addF("math/bits", "ReverseBytes16",
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+				return s.newValue1(ssa.OpBswap16, types.Types[types.TUINT16], args[0])
+			},
+			sys.RISCV64)
 	}
 
 	addF("math/bits", "Len64",

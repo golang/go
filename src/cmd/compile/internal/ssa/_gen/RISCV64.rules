@@ -231,6 +231,11 @@
 (BitLen16 x) => (BitLen64 (ZeroExt16to64 x))
 (BitLen8  x) => (BitLen64 (ZeroExt8to64 x))
 
+// Byte swap (note that these will only be emitted for rva22u64 and above).
+(Bswap64 ...) => (REV8 ...)
+(Bswap32 <t> x) => (SRLI [32] (REV8 <t> x))
+(Bswap16 <t> x) => (SRLI [48] (REV8 <t> x))
+
 (Less64  ...) => (SLT  ...)
 (Less32  x y) => (SLT  (SignExt32to64 x) (SignExt32to64 y))
 (Less16  x y) => (SLT  (SignExt16to64 x) (SignExt16to64 y))
