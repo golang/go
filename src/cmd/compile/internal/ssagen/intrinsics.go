@@ -1114,9 +1114,8 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			return s.newValue1(ssa.OpPopCount8, types.Types[types.TINT], args[0])
 		},
 		sys.S390X, sys.PPC64, sys.Wasm)
-	addF("math/bits", "OnesCount",
-		makeOnesCountAMD64(ssa.OpPopCount64),
-		sys.AMD64)
+	alias("math/bits", "OnesCount", "math/bits", "OnesCount64", p8...)
+
 	addF("math/bits", "Mul64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpMul64uhilo, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1])
