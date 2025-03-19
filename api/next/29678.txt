@@ -1,0 +1,4 @@
+pkg net, method (*HardwareAddr) UnmarshalText([]uint8) error #29678
+pkg net, method (HardwareAddr) MarshalText() ([]uint8, error) #29678
+pkg net, method (*IPMask) UnmarshalText([]uint8) error #29678
+pkg net, method (IPMask) MarshalText() ([]uint8, error) #29678

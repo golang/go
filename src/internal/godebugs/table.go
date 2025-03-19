@@ -55,6 +55,7 @@ var All = []Info{
 	{Name: "multipathtcp", Package: "net", Changed: 24, Old: "0"},
 	{Name: "netdns", Package: "net", Opaque: true},
 	{Name: "netedns0", Package: "net", Changed: 19, Old: "0"},
+	{Name: "netmarshal", Package: "net", Changed: 30, Old: "0"},
 	{Name: "panicnil", Package: "runtime", Changed: 21, Old: "1"},
 	{Name: "randautoseed", Package: "math/rand"},
 	{Name: "randseednop", Package: "math/rand", Changed: 24, Old: "0"},

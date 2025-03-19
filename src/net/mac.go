@@ -101,3 +101,39 @@ func ParseMAC(s string) (hw HardwareAddr, err error) {
 error:
 	return nil, &AddrError{Err: "invalid MAC address", Addr: s}
 }
+
+// MarshalText implements the [encoding.TextMarshaler] interface.
+// The encoding is the same as the one returned by [HardwareAddr.String].
+// This will be enabled in a future Go release; see issue #29678.
+func (a HardwareAddr) MarshalText() ([]byte, error) {
+	// For backward compatibility, marshal as plain []byte.
+	if netmarshalOld() {
+		return base64Encode(a), nil
+	}
+
+	return []byte(a.String()), nil
+}
+
+// UnmarshalText implements the [encoding.TextUnmarshaler] interface.
+// In older Go versions the JSON encoding of HardwareAddr was
+// that of a []byte. In order to support new Go programs reading JSON
+// encodings produced by old Go programs, we support the []byte encoding.
+func (a *HardwareAddr) UnmarshalText(text []byte) error {
+	hw, err := ParseMAC(string(text))
+	if err == nil {
+		*a = hw
+		return nil
+	}
+
+	// ParseMAC failed: try base64.
+
+	dst := make([]byte, len(text)/4*3)
+	n, ok := base64Decode(dst, text)
+	if ok {
+		*a = HardwareAddr(dst[:n])
+		return nil
+	}
+
+	// The base64 decode failed: return the ParseMAC error.
+	return err
+}

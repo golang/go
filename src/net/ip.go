@@ -14,6 +14,8 @@ package net
 
 import (
 	"internal/bytealg"
+	"internal/godebug"
+	"internal/goversion"
 	"internal/strconv"
 	"internal/stringslite"
 	"net/netip"
@@ -457,6 +459,73 @@ func (m IPMask) String() string {
 	return hexString(m)
 }
 
+var netmarshal = godebug.New("netmarshal")
+
+// netmarshalOld reports whether we are using the backward
+// compatible marshaling for IPMask, IPNet, and HardwareAddr.
+func netmarshalOld() bool {
+	switch netmarshal.Value() {
+	case "":
+		if goversion.Version < 30 {
+			return true
+		} else {
+			return false
+		}
+	case "0":
+		if goversion.Version >= 30 {
+			netmarshal.IncNonDefault()
+		}
+		return true
+	default:
+		if goversion.Version < 30 {
+			netmarshal.IncNonDefault()
+		}
+		return false
+	}
+}
+
+// MarshalText implements the [encoding.TextMarshaler] interface.
+// We marshal an IPMask as though it were an IP address.
+func (m IPMask) MarshalText() ([]byte, error) {
+	// For backward compatibility, marshal as plain []byte.
+	if netmarshalOld() {
+		return base64Encode(m), nil
+	}
+
+	// We don't use IP.MarshalText directly because
+	// we want to preserve the length.
+	addr, _ := netip.AddrFromSlice(m)
+	return addr.AppendTo(nil), nil
+}
+
+// UnmarshalText implements the [encoding.TextUnmarshaler] interface.
+// In older Go versions the JSON encoding of IPMask was
+// that of a []byte. In order to support new Go programs reading JSON
+// encodings produced by old Go programs, we support the []byte encoding.
+func (m *IPMask) UnmarshalText(text []byte) error {
+	var ip IP
+	err := ip.UnmarshalText(text)
+	if err == nil {
+		if bytealg.IndexByte(text, ':') < 0 {
+			ip = ip.To4()
+		}
+		*m = IPMask(ip)
+		return nil
+	}
+
+	// IP.Unmarshal failed; try base64.
+
+	dst := make([]byte, len(text)/4*3)
+	n, ok := base64Decode(dst, text)
+	if ok {
+		*m = IPMask(dst[:n])
+		return nil
+	}
+
+	// The base64 decode failed: return the IP.Unmarshal error.
+	return err
+}
+
 func networkNumberAndMask(n *IPNet) (ip IP, m IPMask) {
 	if ip = n.IP.To4(); ip == nil {
 		ip = n.IP
@@ -575,4 +644,119 @@ func copyIP(x IP) IP {
 	y := make(IP, len(x))
 	copy(y, x)
 	return y
+}
+
+// base64Coding is the standard base64 coding characters.
+const base64Coding = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+// base64Encode returns src encoded as base64,
+// assuming the standard encoding.
+// This is here so that the net package doesn't depend on encoding/base64.
+func base64Encode(src []byte) []byte {
+	dst := make([]byte, (len(src)+2)/3*4)
+
+	di, si := 0, 0
+	n := len(src) / 3 * 3
+	for si < n {
+		val := uint(src[si+0])<<16 | uint(src[si+1])<<8 | uint(src[si+2])
+
+		dst[di+0] = base64Coding[(val>>18)&0x3F]
+		dst[di+1] = base64Coding[(val>>12)&0x3F]
+		dst[di+2] = base64Coding[(val>>6)&0x3F]
+		dst[di+3] = base64Coding[val&0x3F]
+
+		si += 3
+		di += 4
+	}
+
+	remain := len(src) - si
+	if remain == 0 {
+		return dst
+	}
+
+	val := uint(src[si+0]) << 16
+	if remain == 2 {
+		val |= uint(src[si+1]) << 8
+	}
+
+	dst[di+0] = base64Coding[(val>>18)&0x3F]
+	dst[di+1] = base64Coding[(val>>12)&0x3F]
+
+	switch remain {
+	case 2:
+		dst[di+2] = base64Coding[(val>>6)&0x3F]
+		dst[di+3] = '='
+	case 1:
+		dst[di+2] = '='
+		dst[di+3] = '='
+	}
+
+	return dst
+}
+
+// base64Decode decodes base64 data from text into dst,
+// assuming the standard encoding.
+// It returns the number of bytes placed in dst,
+// and whether the decode was successful.
+// This is here so that the net package doesn't depend on encoding/base64.
+func base64Decode(dst, text []byte) (int, bool) {
+	n := 0
+	for len(text) > 0 {
+		var dbuf [4]byte
+		dlen := 4
+		for j := range dbuf {
+			if len(text) == 0 {
+				return 0, false
+			}
+			in := text[0]
+			text = text[1:]
+
+			// Check for padding at end of input.
+			if in == '=' {
+				switch j {
+				case 0, 1:
+					return 0, false
+				case 2:
+					// We expect one more padding character.
+					if len(text) != 1 || text[0] != '=' {
+						return 0, false
+					}
+					text = text[1:]
+				case 3:
+					if len(text) != 0 {
+						return 0, false
+					}
+				}
+
+				dlen = j
+				break
+			}
+
+			out := bytealg.IndexByteString(base64Coding, in)
+			if out < 0 {
+				return 0, false
+			}
+
+			dbuf[j] = byte(out)
+		}
+
+		// Convert 4 6-bit sources into 3 bytes.
+		val := uint32(dbuf[0])<<18 | uint32(dbuf[1])<<12 | uint32(dbuf[2])<<6 | uint32(dbuf[3])
+		dbuf[2], dbuf[1], dbuf[0] = byte(val>>0), byte(val>>8), byte(val>>16)
+		switch dlen {
+		case 4:
+			dst[2] = dbuf[2]
+			fallthrough
+		case 3:
+			dst[1] = dbuf[1]
+			fallthrough
+		case 2:
+			dst[0] = dbuf[0]
+		}
+
+		dst = dst[3:]
+		n += dlen - 1
+	}
+
+	return n, true
 }
