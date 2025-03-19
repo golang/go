@@ -17,6 +17,7 @@ func rawSyscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, e
 //go:cgo_import_dynamic libc_fchownat fchownat "libc.so"
 //go:cgo_import_dynamic libc_fstatat fstatat "libc.so"
 //go:cgo_import_dynamic libc_openat openat "libc.so"
+//go:cgo_import_dynamic libc_renameat renameat "libc.so"
 //go:cgo_import_dynamic libc_unlinkat unlinkat "libc.so"
 //go:cgo_import_dynamic libc_readlinkat readlinkat "libc.so"
 //go:cgo_import_dynamic libc_mkdirat mkdirat "libc.so"

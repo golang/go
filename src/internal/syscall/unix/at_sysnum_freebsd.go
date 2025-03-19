@@ -21,4 +21,5 @@ const (
 	mkdiratTrap        uintptr = syscall.SYS_MKDIRAT
 	fchmodatTrap       uintptr = syscall.SYS_FCHMODAT
 	fchownatTrap       uintptr = syscall.SYS_FCHOWNAT
+	renameatTrap       uintptr = syscall.SYS_RENAMEAT
 )

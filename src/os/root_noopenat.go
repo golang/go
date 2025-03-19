@@ -166,3 +166,17 @@ func rootReadlink(r *Root, name string) (string, error) {
 	}
 	return name, nil
 }
+
+func rootRename(r *Root, oldname, newname string) error {
+	if err := checkPathEscapesLstat(r, oldname); err != nil {
+		return &PathError{Op: "renameat", Path: oldname, Err: err}
+	}
+	if err := checkPathEscapesLstat(r, newname); err != nil {
+		return &PathError{Op: "renameat", Path: newname, Err: err}
+	}
+	err := Rename(joinPath(r.root.name, oldname), joinPath(r.root.name, newname))
+	if err != nil {
+		return &LinkError{"renameat", oldname, newname, underlyingError(err)}
+	}
+	return nil
+}

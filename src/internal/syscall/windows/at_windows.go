@@ -254,3 +254,77 @@ func Deleteat(dirfd syscall.Handle, name string) error {
 	}
 	return err
 }
+
+func Renameat(olddirfd syscall.Handle, oldpath string, newdirfd syscall.Handle, newpath string) error {
+	objAttrs := &OBJECT_ATTRIBUTES{}
+	if err := objAttrs.init(olddirfd, oldpath); err != nil {
+		return err
+	}
+	var h syscall.Handle
+	err := NtOpenFile(
+		&h,
+		SYNCHRONIZE|DELETE,
+		objAttrs,
+		&IO_STATUS_BLOCK{},
+		FILE_SHARE_DELETE|FILE_SHARE_READ|FILE_SHARE_WRITE,
+		FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT|FILE_SYNCHRONOUS_IO_NONALERT,
+	)
+	if err != nil {
+		return ntCreateFileError(err, 0)
+	}
+	defer syscall.CloseHandle(h)
+
+	renameInfoEx := FILE_RENAME_INFORMATION_EX{
+		Flags: FILE_RENAME_REPLACE_IF_EXISTS |
+			FILE_RENAME_POSIX_SEMANTICS,
+		RootDirectory: newdirfd,
+	}
+	p16, err := syscall.UTF16FromString(newpath)
+	if err != nil {
+		return err
+	}
+	if len(p16) > len(renameInfoEx.FileName) {
+		return syscall.EINVAL
+	}
+	copy(renameInfoEx.FileName[:], p16)
+	renameInfoEx.FileNameLength = uint32((len(p16) - 1) * 2)
+
+	const (
+		FileRenameInformation   = 10
+		FileRenameInformationEx = 65
+	)
+	err = NtSetInformationFile(
+		h,
+		&IO_STATUS_BLOCK{},
+		uintptr(unsafe.Pointer(&renameInfoEx)),
+		uint32(unsafe.Sizeof(FILE_RENAME_INFORMATION_EX{})),
+		FileRenameInformationEx,
+	)
+	if err == nil {
+		return nil
+	}
+
+	// If the prior rename failed, the filesystem might not support
+	// POSIX semantics (for example, FAT), or might not have implemented
+	// FILE_RENAME_INFORMATION_EX.
+	//
+	// Try again.
+	renameInfo := FILE_RENAME_INFORMATION{
+		ReplaceIfExists: true,
+		RootDirectory:   newdirfd,
+	}
+	copy(renameInfo.FileName[:], p16)
+	renameInfo.FileNameLength = renameInfoEx.FileNameLength
+
+	err = NtSetInformationFile(
+		h,
+		&IO_STATUS_BLOCK{},
+		uintptr(unsafe.Pointer(&renameInfo)),
+		uint32(unsafe.Sizeof(FILE_RENAME_INFORMATION{})),
+		FileRenameInformation,
+	)
+	if st, ok := err.(NTStatus); ok {
+		return st.Errno()
+	}
+	return err
+}

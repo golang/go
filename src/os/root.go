@@ -199,6 +199,13 @@ func (r *Root) Readlink(name string) (string, error) {
 	return rootReadlink(r, name)
 }
 
+// Rename renames (moves) oldname to newname.
+// Both paths are relative to the root.
+// See [Rename] for more details.
+func (r *Root) Rename(oldname, newname string) error {
+	return rootRename(r, oldname, newname)
+}
+
 func (r *Root) logOpen(name string) {
 	if log := testlog.Logger(); log != nil {
 		// This won't be right if r's name has changed since it was opened,

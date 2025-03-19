@@ -699,6 +699,91 @@ func TestRootReadlink(t *testing.T) {
 	}
 }
 
+// TestRootRenameFrom tests renaming the test case target to a known-good path.
+func TestRootRenameFrom(t *testing.T) {
+	want := []byte("target")
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			if target != "" {
+				if err := os.WriteFile(target, want, 0o666); err != nil {
+					t.Fatal(err)
+				}
+			}
+			wantError := test.wantError
+			var linkTarget string
+			if test.ltarget != "" {
+				// Rename will rename the link, not the file linked to.
+				wantError = false
+				var err error
+				linkTarget, err = root.Readlink(test.ltarget)
+				if err != nil {
+					t.Fatalf("root.Readlink(%q) = %v, want success", test.ltarget, err)
+				}
+			}
+
+			const dstPath = "destination"
+
+			// Plan 9 doesn't allow cross-directory renames.
+			if runtime.GOOS == "plan9" && strings.Contains(test.open, "/") {
+				wantError = true
+			}
+
+			err := root.Rename(test.open, dstPath)
+			if errEndsTest(t, err, wantError, "root.Rename(%q, %q)", test.open, dstPath) {
+				return
+			}
+
+			if test.ltarget != "" {
+				got, err := os.Readlink(filepath.Join(root.Name(), dstPath))
+				if err != nil || got != linkTarget {
+					t.Errorf("os.Readlink(%q) = %q, %v, want %q", dstPath, got, err, linkTarget)
+				}
+			} else {
+				got, err := os.ReadFile(filepath.Join(root.Name(), dstPath))
+				if err != nil || !bytes.Equal(got, want) {
+					t.Errorf(`os.ReadFile(%q): read content %q, %v; want %q`, dstPath, string(got), err, string(want))
+				}
+			}
+		})
+	}
+}
+
+// TestRootRenameTo tests renaming a known-good path to the test case target.
+func TestRootRenameTo(t *testing.T) {
+	want := []byte("target")
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			const srcPath = "source"
+			if err := os.WriteFile(filepath.Join(root.Name(), srcPath), want, 0o666); err != nil {
+				t.Fatal(err)
+			}
+
+			target = test.target
+			wantError := test.wantError
+			if test.ltarget != "" {
+				// Rename will overwrite the final link rather than follow it.
+				target = test.ltarget
+				wantError = false
+			}
+
+			// Plan 9 doesn't allow cross-directory renames.
+			if runtime.GOOS == "plan9" && strings.Contains(test.open, "/") {
+				wantError = true
+			}
+
+			err := root.Rename(srcPath, test.open)
+			if errEndsTest(t, err, wantError, "root.Rename(%q, %q)", srcPath, test.open) {
+				return
+			}
+
+			got, err := os.ReadFile(filepath.Join(root.Name(), target))
+			if err != nil || !bytes.Equal(got, want) {
+				t.Errorf(`os.ReadFile(%q): read content %q, %v; want %q`, target, string(got), err, string(want))
+			}
+		})
+	}
+}
+
 // A rootConsistencyTest is a test case comparing os.Root behavior with
 // the corresponding non-Root function.
 //
@@ -927,14 +1012,19 @@ func (test rootConsistencyTest) run(t *testing.T, f func(t *testing.T, path stri
 		}
 
 		if err1 != nil || err2 != nil {
-			e1, ok := err1.(*os.PathError)
-			if !ok {
-				t.Fatalf("with root, expected PathError; got: %v", err1)
+			underlyingError := func(how string, err error) error {
+				switch e := err1.(type) {
+				case *os.PathError:
+					return e.Err
+				case *os.LinkError:
+					return e.Err
+				default:
+					t.Fatalf("%v, expected PathError or LinkError; got: %v", how, err)
+				}
+				return nil
 			}
-			e2, ok := err2.(*os.PathError)
-			if !ok {
-				t.Fatalf("without root, expected PathError; got: %v", err1)
-			}
+			e1 := underlyingError("with root", err1)
+			e2 := underlyingError("without root", err1)
 			detailedErrorMismatch := false
 			if f := test.detailedErrorMismatch; f != nil {
 				detailedErrorMismatch = f(t)
@@ -943,9 +1033,9 @@ func (test rootConsistencyTest) run(t *testing.T, f func(t *testing.T, path stri
 				// Plan9 syscall errors aren't comparable.
 				detailedErrorMismatch = true
 			}
-			if !detailedErrorMismatch && e1.Err != e2.Err {
-				t.Errorf("with root:    err=%v", e1.Err)
-				t.Errorf("without root: err=%v", e2.Err)
+			if !detailedErrorMismatch && e1 != e2 {
+				t.Errorf("with root:    err=%v", e1)
+				t.Errorf("without root: err=%v", e2)
 				t.Errorf("want consistent results, got mismatch")
 			}
 		}
@@ -1105,6 +1195,64 @@ func TestRootConsistencyReadlink(t *testing.T) {
 				return os.Readlink(path)
 			} else {
 				return r.Readlink(path)
+			}
+		})
+	}
+}
+
+func TestRootConsistencyRename(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		// This test depends on moving files between directories.
+		t.Skip("Plan 9 does not support cross-directory renames")
+	}
+	// Run this test in two directions:
+	// Renaming the test path to a known-good path (from),
+	// and renaming a known-good path to the test path (to).
+	for _, name := range []string{"from", "to"} {
+		t.Run(name, func(t *testing.T) {
+			for _, test := range rootConsistencyTestCases {
+				if runtime.GOOS == "windows" {
+					// On Windows, Rename("/path/to/.", x) succeeds,
+					// because Windows cleans the path to just "/path/to".
+					// Root.Rename(".", x) fails as expected.
+					// Don't run this consistency test on Windows.
+					if test.open == "." || test.open == "./" {
+						continue
+					}
+				}
+
+				test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
+					rename := os.Rename
+					lstat := os.Lstat
+					if r != nil {
+						rename = r.Rename
+						lstat = r.Lstat
+					}
+
+					otherPath := "other"
+					if r == nil {
+						otherPath = filepath.Join(t.TempDir(), otherPath)
+					}
+
+					var srcPath, dstPath string
+					if name == "from" {
+						srcPath = path
+						dstPath = otherPath
+					} else {
+						srcPath = otherPath
+						dstPath = path
+					}
+
+					if err := rename(srcPath, dstPath); err != nil {
+						return "", err
+					}
+					fi, err := lstat(dstPath)
+					if err != nil {
+						t.Errorf("stat(%q) after successful copy: %v", dstPath, err)
+						return "stat error", err
+					}
+					return fmt.Sprintf("name:%q size:%v mode:%v isdir:%v", fi.Name(), fi.Size(), fi.Mode(), fi.IsDir()), nil
+				})
 			}
 		})
 	}
