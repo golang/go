@@ -449,7 +449,8 @@ func TestRootChtimes(t *testing.T) {
 				atime: time.Now(),
 				mtime: time.Time{},
 			}} {
-				if runtime.GOOS == "js" {
+				switch runtime.GOOS {
+				case "js", "plan9":
 					times.atime = times.atime.Truncate(1 * time.Second)
 					times.mtime = times.mtime.Truncate(1 * time.Second)
 				}
@@ -465,8 +466,10 @@ func TestRootChtimes(t *testing.T) {
 				if got := st.ModTime(); !times.mtime.IsZero() && !got.Equal(times.mtime) {
 					t.Errorf("after root.Chtimes(%q, %v, %v): got mtime=%v, want %v", test.open, times.atime, times.mtime, got, times.mtime)
 				}
-				if got := os.Atime(st); !times.atime.IsZero() && !got.Equal(times.atime) {
-					t.Errorf("after root.Chtimes(%q, %v, %v): got atime=%v, want %v", test.open, times.atime, times.mtime, got, times.atime)
+				if !hasNoatime() {
+					if got := os.Atime(st); !times.atime.IsZero() && !got.Equal(times.atime) {
+						t.Errorf("after root.Chtimes(%q, %v, %v): got atime=%v, want %v", test.open, times.atime, times.mtime, got, times.atime)
+					}
 				}
 			}
 		})

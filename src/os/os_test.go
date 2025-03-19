@@ -1345,6 +1345,9 @@ var hasNoatime = sync.OnceValue(func() bool {
 	// but the syscall is OS-specific and is not even wired into Go stdlib.
 	//
 	// Only used on NetBSD (which ignores explicit atime updates with noatime).
+	if runtime.GOOS != "netbsd" {
+		return false
+	}
 	mounts, _ := ReadFile("/proc/mounts")
 	return bytes.Contains(mounts, []byte("noatime"))
 })
