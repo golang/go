@@ -802,9 +802,6 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 	if err == nil {
 		err = <-errc
 	}
-	if err != nil && err != errCopyDone {
-		p.getErrorHandler()(rw, req, fmt.Errorf("can't copy: %v", err))
-	}
 }
 
 var errCopyDone = errors.New("hijacked connection copy complete")
