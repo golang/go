@@ -128,3 +128,29 @@ func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) error 
 	}
 	return nil
 }
+
+func libc_linkat_trampoline()
+
+//go:cgo_import_dynamic libc_linkat linkat "/usr/lib/libSystem.B.dylib"
+
+func Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flag int) error {
+	oldp, err := syscall.BytePtrFromString(oldpath)
+	if err != nil {
+		return err
+	}
+	newp, err := syscall.BytePtrFromString(newpath)
+	if err != nil {
+		return err
+	}
+	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_linkat_trampoline),
+		uintptr(olddirfd),
+		uintptr(unsafe.Pointer(oldp)),
+		uintptr(newdirfd),
+		uintptr(unsafe.Pointer(newp)),
+		uintptr(flag),
+		0)
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}

@@ -206,6 +206,18 @@ func (r *Root) Rename(oldname, newname string) error {
 	return rootRename(r, oldname, newname)
 }
 
+// Link creates newname as a hard link to the oldname file.
+// Both paths are relative to the root.
+// See [Link] for more details.
+//
+// If oldname is a symbolic link, Link creates new link to oldname and not its target.
+// This behavior may differ from that of [Link] on some platforms.
+//
+// When GOOS=js, Link returns an error if oldname is a symbolic link.
+func (r *Root) Link(oldname, newname string) error {
+	return rootLink(r, oldname, newname)
+}
+
 func (r *Root) logOpen(name string) {
 	if log := testlog.Logger(); log != nil {
 		// This won't be right if r's name has changed since it was opened,

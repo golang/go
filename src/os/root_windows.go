@@ -319,6 +319,10 @@ func renameat(oldfd syscall.Handle, oldname string, newfd syscall.Handle, newnam
 	return windows.Renameat(oldfd, oldname, newfd, newname)
 }
 
+func linkat(oldfd syscall.Handle, oldname string, newfd syscall.Handle, newname string) error {
+	return windows.Linkat(oldfd, oldname, newfd, newname)
+}
+
 func readlinkat(dirfd syscall.Handle, name string) (string, error) {
 	fd, err := openat(dirfd, name, windows.O_OPEN_REPARSE, 0)
 	if err != nil {

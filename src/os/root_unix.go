@@ -213,6 +213,10 @@ func renameat(oldfd int, oldname string, newfd int, newname string) error {
 	return unix.Renameat(oldfd, oldname, newfd, newname)
 }
 
+func linkat(oldfd int, oldname string, newfd int, newname string) error {
+	return unix.Linkat(oldfd, oldname, newfd, newname, 0)
+}
+
 // checkSymlink resolves the symlink name in parent,
 // and returns errSymlink with the link contents.
 //

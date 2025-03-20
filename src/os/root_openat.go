@@ -151,6 +151,19 @@ func rootRename(r *Root, oldname, newname string) error {
 	return err
 }
 
+func rootLink(r *Root, oldname, newname string) error {
+	_, err := doInRoot(r, oldname, func(oldparent sysfdType, oldname string) (struct{}, error) {
+		_, err := doInRoot(r, newname, func(newparent sysfdType, newname string) (struct{}, error) {
+			return struct{}{}, linkat(oldparent, oldname, newparent, newname)
+		})
+		return struct{}{}, err
+	})
+	if err != nil {
+		return &LinkError{"linkat", oldname, newname, err}
+	}
+	return err
+}
+
 // doInRoot performs an operation on a path in a Root.
 //
 // It opens the directory containing the final element of the path,

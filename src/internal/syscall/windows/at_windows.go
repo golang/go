@@ -328,3 +328,51 @@ func Renameat(olddirfd syscall.Handle, oldpath string, newdirfd syscall.Handle, 
 	}
 	return err
 }
+
+func Linkat(olddirfd syscall.Handle, oldpath string, newdirfd syscall.Handle, newpath string) error {
+	objAttrs := &OBJECT_ATTRIBUTES{}
+	if err := objAttrs.init(olddirfd, oldpath); err != nil {
+		return err
+	}
+	var h syscall.Handle
+	err := NtOpenFile(
+		&h,
+		SYNCHRONIZE|FILE_WRITE_ATTRIBUTES,
+		objAttrs,
+		&IO_STATUS_BLOCK{},
+		FILE_SHARE_DELETE|FILE_SHARE_READ|FILE_SHARE_WRITE,
+		FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT|FILE_SYNCHRONOUS_IO_NONALERT,
+	)
+	if err != nil {
+		return ntCreateFileError(err, 0)
+	}
+	defer syscall.CloseHandle(h)
+
+	linkInfo := FILE_LINK_INFORMATION{
+		RootDirectory: newdirfd,
+	}
+	p16, err := syscall.UTF16FromString(newpath)
+	if err != nil {
+		return err
+	}
+	if len(p16) > len(linkInfo.FileName) {
+		return syscall.EINVAL
+	}
+	copy(linkInfo.FileName[:], p16)
+	linkInfo.FileNameLength = uint32((len(p16) - 1) * 2)
+
+	const (
+		FileLinkInformation = 11
+	)
+	err = NtSetInformationFile(
+		h,
+		&IO_STATUS_BLOCK{},
+		uintptr(unsafe.Pointer(&linkInfo)),
+		uint32(unsafe.Sizeof(FILE_LINK_INFORMATION{})),
+		FileLinkInformation,
+	)
+	if st, ok := err.(NTStatus); ok {
+		return st.Errno()
+	}
+	return err
+}
