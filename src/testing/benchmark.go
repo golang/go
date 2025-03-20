@@ -391,11 +391,7 @@ func (b *B) ReportMetric(n float64, unit string) {
 func (b *B) stopOrScaleBLoop() bool {
 	t := b.Elapsed()
 	if t >= b.benchTime.d {
-		// Stop the timer so we don't count cleanup time
-		b.StopTimer()
-		// Commit iteration count
-		b.N = int(b.loop.n)
-		b.loop.done = true
+		// We've reached the target
 		return false
 	}
 	// Loop scaling
@@ -407,7 +403,6 @@ func (b *B) stopOrScaleBLoop() bool {
 		// in big trouble.
 		panic("loop iteration target overflow")
 	}
-	b.loop.i++
 	return true
 }
 
@@ -421,31 +416,48 @@ func (b *B) loopSlowPath() bool {
 	}
 
 	if b.loop.n == 0 {
-		// If it's the first call to b.Loop() in the benchmark function.
-		// Allows more precise measurement of benchmark loop cost counts.
-		// Also initialize target to 1 to kick start loop scaling.
-		b.loop.n = 1
+		// It's the first call to b.Loop() in the benchmark function.
+		if b.benchTime.n > 0 {
+			// Fixed iteration count.
+			b.loop.n = uint64(b.benchTime.n)
+		} else {
+			// Initialize target to 1 to kick start loop scaling.
+			b.loop.n = 1
+		}
 		// Within a b.Loop loop, we don't use b.N (to avoid confusion).
 		b.N = 0
-		b.loop.i++
 		b.ResetTimer()
+
+		// Start the next iteration.
+		b.loop.i++
 		return true
 	}
-	// Handles fixed iterations case
+
+	// Should we keep iterating?
+	var more bool
 	if b.benchTime.n > 0 {
-		if b.loop.n < uint64(b.benchTime.n) {
-			b.loop.n = uint64(b.benchTime.n)
-			b.loop.i++
-			return true
+		// The iteration count is fixed, so we should have run this many and now
+		// be done.
+		if b.loop.i != uint64(b.benchTime.n) {
+			// We shouldn't be able to reach the slow path in this case.
+			panic(fmt.Sprintf("iteration count %d < fixed target %d", b.loop.i, b.benchTime.n))
 		}
+		more = false
+	} else {
+		// Handle fixed time case
+		more = b.stopOrScaleBLoop()
+	}
+	if !more {
 		b.StopTimer()
 		// Commit iteration count
 		b.N = int(b.loop.n)
 		b.loop.done = true
 		return false
 	}
-	// Handles fixed time case
-	return b.stopOrScaleBLoop()
+
+	// Start the next iteration.
+	b.loop.i++
+	return true
 }
 
 // Loop returns true as long as the benchmark should continue running.
