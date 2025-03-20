@@ -427,6 +427,9 @@ func TestRootChmod(t *testing.T) {
 }
 
 func TestRootChtimes(t *testing.T) {
+	// Don't check atimes if the fs is mounted noatime,
+	// or on Plan 9 which does not permit changing atimes to arbitrary values.
+	checkAtimes := !hasNoatime() && runtime.GOOS != "plan9"
 	for _, test := range rootTestCases {
 		test.run(t, func(t *testing.T, target string, root *os.Root) {
 			if target != "" {
@@ -466,7 +469,7 @@ func TestRootChtimes(t *testing.T) {
 				if got := st.ModTime(); !times.mtime.IsZero() && !got.Equal(times.mtime) {
 					t.Errorf("after root.Chtimes(%q, %v, %v): got mtime=%v, want %v", test.open, times.atime, times.mtime, got, times.mtime)
 				}
-				if !hasNoatime() {
+				if checkAtimes {
 					if got := os.Atime(st); !times.atime.IsZero() && !got.Equal(times.atime) {
 						t.Errorf("after root.Chtimes(%q, %v, %v): got atime=%v, want %v", test.open, times.atime, times.mtime, got, times.atime)
 					}
