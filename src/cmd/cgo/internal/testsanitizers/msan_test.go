@@ -79,7 +79,7 @@ func TestMSAN(t *testing.T) {
 				if err != nil {
 					return
 				}
-				t.Fatalf("%#q exited without error; want MSAN failure\n%s", strings.Join(cmd.Args, " "), out)
+				t.Fatalf("%#q exited without error; want MSAN failure\n%s", cmd, out)
 			}
 			mustRun(t, cmd)
 		})

@@ -79,10 +79,10 @@ func goCmd(t *testing.T, args ...string) string {
 	if err != nil {
 		if t != nil {
 			t.Helper()
-			t.Fatalf("executing %q failed %v:\n%s\n%s", c, err, stderr, output)
+			t.Fatalf("executing %#q failed %v:\n%s\n%s", c, err, stderr, output)
 		} else {
 			// Panic instead of using log.Fatalf so that deferred cleanup may run in testMain.
-			log.Panicf("executing %q failed %v:\n%s\n%s", c, err, stderr, output)
+			log.Panicf("executing %#q failed %v:\n%s\n%s", c, err, stderr, output)
 		}
 	}
 	if testing.Verbose() && t != nil {

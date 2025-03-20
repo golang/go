@@ -108,7 +108,7 @@ func sizeofLongDouble(t *testing.T) int {
 	cmd := exec.Command(testenv.GoToolPath(t), "run", path("long_double_size.go"))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("%#q: %v:\n%s", strings.Join(cmd.Args, " "), err, out)
+		t.Fatalf("%#q: %v:\n%s", cmd, err, out)
 	}
 
 	i, err := strconv.Atoi(strings.TrimSpace(string(out)))
@@ -162,7 +162,7 @@ func TestToleratesOptimizationFlag(t *testing.T) {
 			cmd.Env = append(os.Environ(), "CGO_CFLAGS="+cflags)
 			out, err := cmd.CombinedOutput()
 			if err != nil {
-				t.Errorf("%#q: %v:\n%s", strings.Join(cmd.Args, " "), err, out)
+				t.Errorf("%#q: %v:\n%s", cmd, err, out)
 			}
 		})
 	}
@@ -176,7 +176,7 @@ func TestMallocCrashesOnNil(t *testing.T) {
 	cmd := exec.Command(testenv.GoToolPath(t), "run", path("malloc.go"))
 	out, err := cmd.CombinedOutput()
 	if err == nil {
-		t.Logf("%#q:\n%s", strings.Join(cmd.Args, " "), out)
+		t.Logf("%#q:\n%s", cmd, out)
 		t.Fatalf("succeeded unexpectedly")
 	}
 }

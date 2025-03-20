@@ -52,11 +52,11 @@ func testSO(t *testing.T, dir string) {
 	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
 	out, err := cmd.Output()
 	if err != nil {
-		t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
+		t.Fatalf("%#q: %v\n%s", cmd, err, cmd.Stderr)
 	}
 	lines := strings.Split(string(out), "\n")
 	if len(lines) != 3 || lines[2] != "" {
-		t.Fatalf("Unexpected output from %s:\n%s", strings.Join(cmd.Args, " "), lines)
+		t.Fatalf("Unexpected output from %q:\n%s", cmd, lines)
 	}
 
 	cc := lines[0]
@@ -90,9 +90,9 @@ func testSO(t *testing.T, dir string) {
 	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
+		t.Fatalf("%#q: %s\n%s", cmd, err, out)
 	}
-	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
+	t.Logf("%#q:\n%s", cmd, out)
 
 	if runtime.GOOS == "aix" {
 		// Shared object must be wrapped by an archive
@@ -100,7 +100,7 @@ func testSO(t *testing.T, dir string) {
 		cmd.Dir = modRoot
 		out, err = cmd.CombinedOutput()
 		if err != nil {
-			t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
+			t.Fatalf("%#q: %s\n%s", cmd, err, out)
 		}
 	}
 
@@ -109,9 +109,9 @@ func testSO(t *testing.T, dir string) {
 	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
+		t.Fatalf("%#q: %s\n%s", cmd, err, out)
 	}
-	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
+	t.Logf("%#q:\n%s", cmd, out)
 
 	cmd = exec.Command("./main.exe")
 	cmd.Dir = modRoot
@@ -131,7 +131,7 @@ func testSO(t *testing.T, dir string) {
 	}
 	out, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
+		t.Fatalf("%#q: %s\n%s", cmd, err, out)
 	}
-	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
+	t.Logf("%#q:\n%s", cmd, out)
 }

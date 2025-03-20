@@ -60,7 +60,7 @@ func TestGoDefs(t *testing.T) {
 
 		out, err := cmd.Output()
 		if err != nil {
-			t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
+			t.Fatalf("%#q: %v\n%s", cmd, err, cmd.Stderr)
 		}
 
 		fn := fp + "_defs.go"
@@ -111,6 +111,6 @@ func TestGoDefs(t *testing.T) {
 	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("%s [%s]: %v\n%s", strings.Join(cmd.Args, " "), dir, err, out)
+		t.Fatalf("%#q [%s]: %v\n%s", cmd, dir, err, out)
 	}
 }
