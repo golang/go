@@ -194,11 +194,11 @@ func Deleteat(dirfd syscall.Handle, name string) error {
 	var h syscall.Handle
 	err := NtOpenFile(
 		&h,
-		DELETE,
+		SYNCHRONIZE|DELETE,
 		objAttrs,
 		&IO_STATUS_BLOCK{},
 		FILE_SHARE_DELETE|FILE_SHARE_READ|FILE_SHARE_WRITE,
-		FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT,
+		FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT|FILE_SYNCHRONOUS_IO_NONALERT,
 	)
 	if err != nil {
 		return ntCreateFileError(err, 0)
