@@ -7,6 +7,7 @@ package bytes_test
 import (
 	. "bytes"
 	"fmt"
+	"internal/asan"
 	"internal/testenv"
 	"iter"
 	"math"
@@ -1786,9 +1787,20 @@ var ReplaceTests = []ReplaceTest{
 
 func TestReplace(t *testing.T) {
 	for _, tt := range ReplaceTests {
-		in := append([]byte(tt.in), "<spare>"...)
+		var (
+			in  = []byte(tt.in)
+			old = []byte(tt.old)
+			new = []byte(tt.new)
+		)
+		if !asan.Enabled {
+			allocs := testing.AllocsPerRun(10, func() { Replace(in, old, new, tt.n) })
+			if allocs > 1 {
+				t.Errorf("Replace(%q, %q, %q, %d) allocates %.2f objects", tt.in, tt.old, tt.new, tt.n, allocs)
+			}
+		}
+		in = append(in, "<spare>"...)
 		in = in[:len(tt.in)]
-		out := Replace(in, []byte(tt.old), []byte(tt.new), tt.n)
+		out := Replace(in, old, new, tt.n)
 		if s := string(out); s != tt.out {
 			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)
 		}
@@ -1796,7 +1808,7 @@ func TestReplace(t *testing.T) {
 			t.Errorf("Replace(%q, %q, %q, %d) didn't copy", tt.in, tt.old, tt.new, tt.n)
 		}
 		if tt.n == -1 {
-			out := ReplaceAll(in, []byte(tt.old), []byte(tt.new))
+			out := ReplaceAll(in, old, new)
 			if s := string(out); s != tt.out {
 				t.Errorf("ReplaceAll(%q, %q, %q) = %q, want %q", tt.in, tt.old, tt.new, s, tt.out)
 			}
@@ -1848,6 +1860,23 @@ func FuzzReplace(f *testing.F) {
 			t.Errorf("The two implementations do not match %q != %q for Replace(%q, %q, %q, %d)", simple, replace, in, old, new, n)
 		}
 	})
+}
+
+func BenchmarkReplace(b *testing.B) {
+	for _, tt := range ReplaceTests {
+		desc := fmt.Sprintf("%q %q %q %d", tt.in, tt.old, tt.new, tt.n)
+		var (
+			in  = []byte(tt.in)
+			old = []byte(tt.old)
+			new = []byte(tt.new)
+		)
+		b.Run(desc, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				Replace(in, old, new, tt.n)
+			}
+		})
+	}
 }
 
 type TitleTest struct {
