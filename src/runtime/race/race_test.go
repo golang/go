@@ -193,7 +193,7 @@ func runTests(t *testing.T) ([]byte, error) {
 	// A crash in the map concurrent access detector will cause other tests not to run.
 	// Perhaps we should run tests with concurrent map access separately to avoid this,
 	// but for the moment just skip the remaining tests.
-	if mapFatals == 0 {
+	if mapFatals != 0 {
 		return out, nil
 	}
 	if !bytes.Contains(out, []byte("ALL TESTS COMPLETE")) {
