@@ -4,6 +4,13 @@
 
 package testing
 
+import (
+	"bytes"
+	"strings"
+)
+
+// See also TestBenchmarkBLoop* in other files.
+
 func TestBenchmarkBLoop(t *T) {
 	var initialStart highPrecisionTime
 	var firstStart highPrecisionTime
@@ -68,4 +75,57 @@ func TestBenchmarkBLoop(t *T) {
 	}
 }
 
-// See also TestBenchmarkBLoop* in other files.
+func TestBenchmarkBLoopBreak(t *T) {
+	var bState *B
+	var bLog bytes.Buffer
+	bRet := Benchmark(func(b *B) {
+		// The Benchmark function provides no access to the failure state and
+		// discards the log, so capture the B and save its log.
+		bState = b
+		b.common.w = &bLog
+
+		for i := 0; b.Loop(); i++ {
+			if i == 2 {
+				break
+			}
+		}
+	})
+	if !bState.failed {
+		t.Errorf("benchmark should have failed")
+	}
+	const wantLog = "benchmark function returned without B.Loop"
+	if log := bLog.String(); !strings.Contains(log, wantLog) {
+		t.Errorf("missing error %q in output:\n%s", wantLog, log)
+	}
+	// A benchmark that exits early should not report its target iteration count
+	// because it's not meaningful.
+	if bRet.N != 0 {
+		t.Errorf("want N == 0, got %d", bRet.N)
+	}
+}
+
+func TestBenchmarkBLoopError(t *T) {
+	// Test that a benchmark that exits early because of an error doesn't *also*
+	// complain that the benchmark exited early.
+	var bState *B
+	var bLog bytes.Buffer
+	bRet := Benchmark(func(b *B) {
+		bState = b
+		b.common.w = &bLog
+
+		for i := 0; b.Loop(); i++ {
+			b.Error("error")
+			return
+		}
+	})
+	if !bState.failed {
+		t.Errorf("benchmark should have failed")
+	}
+	const noWantLog = "benchmark function returned without B.Loop"
+	if log := bLog.String(); strings.Contains(log, noWantLog) {
+		t.Errorf("unexpected error %q in output:\n%s", noWantLog, log)
+	}
+	if bRet.N != 0 {
+		t.Errorf("want N == 0, got %d", bRet.N)
+	}
+}

@@ -124,6 +124,8 @@ type B struct {
 		// i is the current Loop iteration. It's strictly monotonically
 		// increasing toward n.
 		i int
+
+		done bool // set when B.Loop return false
 	}
 }
 
@@ -201,6 +203,7 @@ func (b *B) runN(n int) {
 	b.N = n
 	b.loop.n = 0
 	b.loop.i = 0
+	b.loop.done = false
 	b.ctx = ctx
 	b.cancelCtx = cancelCtx
 
@@ -211,6 +214,10 @@ func (b *B) runN(n int) {
 	b.StopTimer()
 	b.previousN = n
 	b.previousDuration = b.duration
+
+	if b.loop.n > 0 && !b.loop.done && !b.failed {
+		b.Error("benchmark function returned without B.Loop() == false (break or return in loop?)")
+	}
 }
 
 // run1 runs the first iteration of benchFunc. It reports whether more
@@ -382,6 +389,7 @@ func (b *B) stopOrScaleBLoop() bool {
 		b.StopTimer()
 		// Commit iteration count
 		b.N = b.loop.n
+		b.loop.done = true
 		return false
 	}
 	// Loop scaling
@@ -414,6 +422,7 @@ func (b *B) loopSlowPath() bool {
 		b.StopTimer()
 		// Commit iteration count
 		b.N = b.loop.n
+		b.loop.done = true
 		return false
 	}
 	// Handles fixed time case
