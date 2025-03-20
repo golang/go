@@ -1804,6 +1804,52 @@ func TestReplace(t *testing.T) {
 	}
 }
 
+func FuzzReplace(f *testing.F) {
+	for _, tt := range ReplaceTests {
+		f.Add([]byte(tt.in), []byte(tt.old), []byte(tt.new), tt.n)
+	}
+	f.Fuzz(func(t *testing.T, in, old, new []byte, n int) {
+		differentImpl := func(in, old, new []byte, n int) []byte {
+			var out Buffer
+			if n < 0 {
+				n = math.MaxInt
+			}
+			for i := 0; i < len(in); {
+				if n == 0 {
+					out.Write(in[i:])
+					break
+				}
+				if HasPrefix(in[i:], old) {
+					out.Write(new)
+					i += len(old)
+					n--
+					if len(old) != 0 {
+						continue
+					}
+					if i == len(in) {
+						break
+					}
+				}
+				if len(old) == 0 {
+					_, length := utf8.DecodeRune(in[i:])
+					out.Write(in[i : i+length])
+					i += length
+				} else {
+					out.WriteByte(in[i])
+					i++
+				}
+			}
+			if len(old) == 0 && n != 0 {
+				out.Write(new)
+			}
+			return out.Bytes()
+		}
+		if simple, replace := differentImpl(in, old, new, n), Replace(in, old, new, n); !slices.Equal(simple, replace) {
+			t.Errorf("The two implementations do not match %q != %q for Replace(%q, %q, %q, %d)", simple, replace, in, old, new, n)
+		}
+	})
+}
+
 type TitleTest struct {
 	in, out string
 }
