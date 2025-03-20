@@ -129,3 +129,26 @@ func TestBenchmarkBLoopError(t *T) {
 		t.Errorf("want N == 0, got %d", bRet.N)
 	}
 }
+
+func TestBenchmarkBLoopStop(t *T) {
+	var bState *B
+	var bLog bytes.Buffer
+	bRet := Benchmark(func(b *B) {
+		bState = b
+		b.common.w = &bLog
+
+		for i := 0; b.Loop(); i++ {
+			b.StopTimer()
+		}
+	})
+	if !bState.failed {
+		t.Errorf("benchmark should have failed")
+	}
+	const wantLog = "B.Loop called with timer stopped"
+	if log := bLog.String(); !strings.Contains(log, wantLog) {
+		t.Errorf("missing error %q in output:\n%s", wantLog, log)
+	}
+	if bRet.N != 0 {
+		t.Errorf("want N == 0, got %d", bRet.N)
+	}
+}
