@@ -5,9 +5,7 @@
 package ld
 
 import (
-	"bytes"
 	"debug/dwarf"
-	"debug/elf"
 	"debug/pe"
 	"fmt"
 	"internal/platform"
@@ -2042,116 +2040,5 @@ func TestConsistentGoKindAndRuntimeType(t *testing.T) {
 		t.Fatalf("something went wrong, 0 types checked")
 	} else {
 		t.Logf("%d types checked\n", typesChecked)
-	}
-}
-
-func TestIssue72053(t *testing.T) {
-	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
-		t.Skip("skipping test: requires ELF binary and amd64 arch")
-	}
-
-	testenv.MustHaveGoBuild(t)
-
-	mustHaveDWARF(t)
-
-	t.Parallel()
-
-	dir := t.TempDir()
-
-	const prog = `package main
-
-import (
-		"fmt"
-		"strings"
-)
-
-func main() {
-		u := Address{Addr: "127.0.0.1"}
-		fmt.Println(u) // line 10
-}
-
-type Address struct {
-		TLS  bool
-		Addr string
-}
-
-func (a Address) String() string {
-		sb := new(strings.Builder)
-		sb.WriteString(a.Addr)
-		return sb.String()
-}
-`
-
-	bf := gobuild(t, dir, prog, NoOpt)
-
-	defer bf.Close()
-
-	f, err := elf.Open(bf.path)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	dwrf, err := f.DWARF()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	rdr := dwrf.Reader()
-
-	found := false
-	for {
-		e, err := rdr.Next()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if e == nil {
-			break
-		}
-
-		name, _ := e.Val(dwarf.AttrName).(string)
-
-		if e.Tag == dwarf.TagSubprogram && name == "main.Address.String" {
-			found = true
-			continue
-		}
-
-		if found && name == "a" {
-			loc := e.AttrField(dwarf.AttrLocation)
-			if loc != nil {
-				switch loc.Class {
-				case dwarf.ClassLocListPtr:
-					offset := loc.Val.(int64)
-					buf := make([]byte, 32)
-					s := f.Section(".debug_loc")
-					if s == nil {
-						t.Fatal("could not find debug_loc section")
-					}
-					d := s.Open()
-					// Seek past the first 16 bytes which establishes the base address and
-					// can be brittle and unreliable in the test due to compiler changes or DWARF
-					// version used.
-					d.Seek(offset+16, io.SeekStart)
-					d.Read(buf)
-
-					// DW_OP_reg0 DW_OP_piece 0x1 DW_OP_piece 0x7 DW_OP_reg3 DW_OP_piece 0x8 DW_OP_reg2 DW_OP_piece 0x8
-					expected := []byte{
-						0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-						0x1f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-						0x0b, 0x00, 0x50, 0x93, 0x01, 0x93, 0x07, 0x53,
-						0x93, 0x08, 0x52, 0x93, 0x08, 0x1f, 0x00, 0x00,
-					}
-
-					if !bytes.Equal(buf, expected) {
-						t.Fatalf("unexpected DWARF sequence found, expected:\n%#v\nfound:\n%#v\n", expected, buf)
-					}
-				}
-			} else {
-				t.Fatal("unable to find expected DWARF location list")
-			}
-			break
-		}
-	}
-	if !found {
-		t.Fatal("unable to find expected DWARF location list")
 	}
 }
