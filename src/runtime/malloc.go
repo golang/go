@@ -1544,12 +1544,13 @@ func mallocgcLarge(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uin
 	size = span.elemsize
 	x := unsafe.Pointer(span.base())
 
-	// Ensure that the stores above that initialize x to
-	// type-safe memory and set the heap bits occur before
-	// the caller can make x observable to the garbage
-	// collector. Otherwise, on weakly ordered machines,
-	// the garbage collector could follow a pointer to x,
-	// but see uninitialized memory or stale heap bits.
+	// Ensure that the store above that sets largeType to
+	// nil happens before the caller can make x observable
+	// to the garbage collector.
+	//
+	// Otherwise, on weakly ordered machines, the garbage
+	// collector could follow a pointer to x, but see a stale
+	// largeType value.
 	publicationBarrier()
 	// As x and the heap bits are initialized, update
 	// freeIndexForScan now so x is seen by the GC
@@ -1592,22 +1593,33 @@ func mallocgcLarge(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uin
 	}
 
 	// Objects can be zeroed late in a context where preemption can occur.
-	// If the object contains pointers, its pointer data must be cleared
-	// or otherwise indicate that the GC shouldn't scan it.
+	//
 	// x will keep the memory alive.
-	if noscan := typ == nil || !typ.Pointers(); !noscan || (needzero && span.needzero != 0) {
+	if needzero && span.needzero != 0 {
 		// N.B. size == fullSize always in this case.
 		memclrNoHeapPointersChunked(size, x) // This is a possible preemption point: see #47302
-
-		// Finish storing the type information for this case.
-		mp := acquirem()
-		if !noscan {
-			getMCache(mp).scanAlloc += heapSetTypeLarge(uintptr(x), size, typ, span)
-		}
-		// Publish the object with the now-zeroed memory.
-		publicationBarrier()
-		releasem(mp)
 	}
+
+	// Set the type and run the publication barrier while non-preemptible. We need to make
+	// sure that between heapSetTypeLarge and publicationBarrier we cannot get preempted,
+	// otherwise the GC could potentially observe non-zeroed memory but largeType set on weak
+	// memory architectures.
+	//
+	// The GC can also potentially observe non-zeroed memory if conservative scanning spuriously
+	// observes a partially-allocated object, see the freeIndexForScan update above. This case is
+	// handled by synchronization inside heapSetTypeLarge.
+	mp = acquirem()
+	if typ != nil && typ.Pointers() {
+		// Finish storing the type information, now that we're certain the memory is zeroed.
+		getMCache(mp).scanAlloc += heapSetTypeLarge(uintptr(x), size, typ, span)
+	}
+	// Publish the object again, now with zeroed memory and initialized type information.
+	//
+	// Even if we didn't update any type information, this is necessary to ensure that, for example,
+	// x written to a global without any synchronization still results in other goroutines observing
+	// zeroed memory.
+	publicationBarrier()
+	releasem(mp)
 	return x, size
 }
 
