@@ -4,6 +4,21 @@
 
 // Package build gathers information about Go packages.
 //
+// # Build Constraints
+//
+// A build constraint, also known as a build tag, is a condition under which a
+// file should be included in the package. Build constraints are given by a
+// line comment that begins
+//
+//	//go:build
+//
+// Build constraints may also be part of a file's name
+// (for example, source_windows.go will only be included if the target
+// operating system is windows).
+//
+// See 'go help buildconstraint'
+// (https://pkg.go.dev/cmd/go#hdr-Build_constraints) for details.
+//
 // # Go Path
 //
 // The Go path is a list of directory trees containing Go source code.
@@ -54,21 +69,6 @@
 //	        linux_amd64/
 //	            foo/
 //	                bar.a          (installed package object)
-//
-// # Build Constraints
-//
-// A build constraint, also known as a build tag, is a condition under which a
-// file should be included in the package. Build constraints are given by a
-// line comment that begins
-//
-//	//go:build
-//
-// Build constraints may also be part of a file's name
-// (for example, source_windows.go will only be included if the target
-// operating system is windows).
-//
-// See 'go help buildconstraint'
-// (https://golang.org/cmd/go/#hdr-Build_constraints) for details.
 //
 // # Binary-Only Packages
 //
