@@ -322,3 +322,32 @@ func (g *groupsReference) group(typ *abi.SwissMapType, i uint64) groupReference 
 		data: unsafe.Pointer(uintptr(g.data) + offset),
 	}
 }
+
+func cloneGroup(typ *abi.SwissMapType, newGroup, oldGroup groupReference) {
+	typedmemmove(typ.Group, newGroup.data, oldGroup.data)
+	if typ.IndirectKey() {
+		// Deep copy keys if indirect.
+		for i := uintptr(0); i < abi.SwissMapGroupSlots; i++ {
+			oldKey := *(*unsafe.Pointer)(oldGroup.key(typ, i))
+			if oldKey == nil {
+				continue
+			}
+			newKey := newobject(typ.Key)
+			typedmemmove(typ.Key, newKey, oldKey)
+			*(*unsafe.Pointer)(newGroup.key(typ, i)) = newKey
+		}
+	}
+	if typ.IndirectElem() {
+		// Deep copy elems if indirect.
+		for i := uintptr(0); i < abi.SwissMapGroupSlots; i++ {
+			oldElem := *(*unsafe.Pointer)(oldGroup.elem(typ, i))
+			if oldElem == nil {
+				continue
+			}
+			newElem := newobject(typ.Elem)
+			typedmemmove(typ.Elem, newElem, oldElem)
+			*(*unsafe.Pointer)(newGroup.elem(typ, i)) = newElem
+		}
+	}
+
+}

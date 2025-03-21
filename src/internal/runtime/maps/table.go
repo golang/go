@@ -1152,3 +1152,22 @@ func (s probeSeq) next() probeSeq {
 	s.offset = (s.offset + s.index) & s.mask
 	return s
 }
+
+func (t *table) clone(typ *abi.SwissMapType) *table {
+	// Shallow copy the table structure.
+	t2 := new(table)
+	*t2 = *t
+	t = t2
+
+	// We need to just deep copy the groups.data field.
+	oldGroups := t.groups
+	newGroups := newGroups(typ, oldGroups.lengthMask+1)
+	for i := uint64(0); i <= oldGroups.lengthMask; i++ {
+		oldGroup := oldGroups.group(typ, i)
+		newGroup := newGroups.group(typ, i)
+		cloneGroup(typ, newGroup, oldGroup)
+	}
+	t.groups = newGroups
+
+	return t
+}
