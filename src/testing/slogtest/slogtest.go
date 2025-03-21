@@ -172,7 +172,7 @@ var cases = []testCase{
 		},
 	},
 	{
-		name:        "with-group-record-nested",
+		name:        "nested-empty-group-record",
 		explanation: withSource("a Handler should not output nested groups if there are no attributes"),
 		f: func(l *slog.Logger) {
 			l.With("a", "b").WithGroup("G").With("c", "d").WithGroup("H").WithGroup("I").Info("msg")
