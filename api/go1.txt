@@ -4337,6 +4337,7 @@ pkg mime/multipart, method (*Writer) CreateFormFile(string, string) (io.Writer, 
 pkg mime/multipart, method (*Writer) CreatePart(textproto.MIMEHeader) (io.Writer, error)
 pkg mime/multipart, method (*Writer) FormDataContentType() string
 pkg mime/multipart, method (*Writer) WriteField(string, string) error
+pkg mime/multipart, method (*Writer) WriteFile(string, string, io.Reader) error
 pkg mime/multipart, type File interface { Close, Read, ReadAt, Seek }
 pkg mime/multipart, type File interface, Close() error
 pkg mime/multipart, type File interface, Read([]uint8) (int, error)
