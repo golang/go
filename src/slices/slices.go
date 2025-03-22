@@ -517,3 +517,44 @@ func Repeat[S ~[]E, E any](x S, count int) S {
 	}
 	return newslice
 }
+
+// PushBack adds an element to the end of a slice and returns the modified slice.
+func PushBack[S ~[]E, E any](s S, v E) S {
+	return append(s, v)
+}
+
+// PopBack removes the last element of a slice and returns the modified slice.
+// It panics if the slice is empty.
+func PopBack[S ~[]E, E any](s S) S {
+	if len(s) == 0 {
+		panic("cannot pop from empty slice")
+	}
+	return s[:len(s)-1]
+}
+
+// PopFront removes the first element of a slice and returns the modified slice.
+// It panics if the slice is empty.
+func PopFront[S ~[]E, E any](s S) S {
+	if len(s) == 0 {
+		panic("cannot pop from empty slice")
+	}
+	return s[1:]
+}
+
+// Front returns the first element of a slice without removing it.
+// It panics if the slice is empty.
+func Front[S ~[]E, E any](s S) E {
+	if len(s) == 0 {
+		panic("cannot get front of empty slice")
+	}
+	return s[0]
+}
+
+// Back returns the last element of a slice without removing it.
+// It panics if the slice is empty.
+func Back[S ~[]E, E any](s S) E {
+	if len(s) == 0 {
+		panic("cannot get back of empty slice")
+	}
+	return s[len(s)-1]
+}

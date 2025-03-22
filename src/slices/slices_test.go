@@ -1462,3 +1462,97 @@ func TestIssue68488(t *testing.T) {
 		t.Error("clone keeps alive s due to array overlap")
 	}
 }
+
+func TestPushBack(t *testing.T) {
+	s1 := []int{1, 2, 3}
+	s2 := PushBack(s1, 4)
+	if !Equal(s2, []int{1, 2, 3, 4}) {
+		t.Errorf("PushBack(%v, 4) = %v, want %v", s1, s2, []int{1, 2, 3, 4})
+	}
+
+	var empty []int
+	s3 := PushBack(empty, 1)
+	if !Equal(s3, []int{1}) {
+		t.Errorf("PushBack(%v, 1) = %v, want %v", empty, s3, []int{1})
+	}
+}
+
+func TestPopBack(t *testing.T) {
+	s1 := []int{1, 2, 3}
+	s2 := PopBack(s1)
+	if !Equal(s2, []int{1, 2}) {
+		t.Errorf("PopBack(%v) = %v, want %v", s1, s2, []int{1, 2})
+	}
+
+	// Test with a single element
+	s3 := []int{42}
+	s4 := PopBack(s3)
+	if len(s4) != 0 {
+		t.Errorf("PopBack(%v) = %v, want %v", s3, s4, []int{})
+	}
+
+	// Test panic with empty slice
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("PopBack(empty) did not panic")
+		}
+	}()
+	var empty []int
+	PopBack(empty)
+}
+
+func TestPopFront(t *testing.T) {
+	s1 := []int{1, 2, 3}
+	s2 := PopFront(s1)
+	if !Equal(s2, []int{2, 3}) {
+		t.Errorf("PopFront(%v) = %v, want %v", s1, s2, []int{2, 3})
+	}
+
+	// Test with a single element
+	s3 := []int{42}
+	s4 := PopFront(s3)
+	if len(s4) != 0 {
+		t.Errorf("PopFront(%v) = %v, want %v", s3, s4, []int{})
+	}
+
+	// Test panic with empty slice
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("PopFront(empty) did not panic")
+		}
+	}()
+	var empty []int
+	PopFront(empty)
+}
+
+func TestFront(t *testing.T) {
+	s1 := []int{1, 2, 3}
+	if v := Front(s1); v != 1 {
+		t.Errorf("Front(%v) = %v, want %v", s1, v, 1)
+	}
+
+	// Test panic with empty slice
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Front(empty) did not panic")
+		}
+	}()
+	var empty []int
+	Front(empty)
+}
+
+func TestBack(t *testing.T) {
+	s1 := []int{1, 2, 3}
+	if v := Back(s1); v != 3 {
+		t.Errorf("Back(%v) = %v, want %v", s1, v, 3)
+	}
+
+	// Test panic with empty slice
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Back(empty) did not panic")
+		}
+	}()
+	var empty []int
+	Back(empty)
+}
