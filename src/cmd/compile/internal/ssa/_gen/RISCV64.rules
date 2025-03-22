@@ -824,6 +824,24 @@
 (ADD (SLLI [2] x) y) && buildcfg.GORISCV64 >= 22 => (SH2ADD x y)
 (ADD (SLLI [3] x) y) && buildcfg.GORISCV64 >= 22 => (SH3ADD x y)
 
+// Mul on some constants
+(MUL x (MOVDconst [3])) && buildcfg.GORISCV64 >= 22 => (SH1ADD x x)
+(MUL x (MOVDconst [5])) && buildcfg.GORISCV64 >= 22 => (SH2ADD x x)
+(MUL x (MOVDconst [9])) && buildcfg.GORISCV64 >= 22 => (SH3ADD x x)
+
+(MUL <t> x (MOVDconst [11])) && buildcfg.GORISCV64 >= 22 => (SH1ADD (SH2ADD <t> x x) x)
+(MUL <t> x (MOVDconst [13])) && buildcfg.GORISCV64 >= 22 => (SH2ADD (SH1ADD <t> x x) x)
+(MUL <t> x (MOVDconst [19])) && buildcfg.GORISCV64 >= 22 => (SH1ADD (SH3ADD <t> x x) x)
+(MUL <t> x (MOVDconst [21])) && buildcfg.GORISCV64 >= 22 => (SH2ADD (SH2ADD <t> x x) x)
+(MUL <t> x (MOVDconst [25])) && buildcfg.GORISCV64 >= 22 => (SH3ADD (SH1ADD <t> x x) x)
+(MUL <t> x (MOVDconst [27])) && buildcfg.GORISCV64 >= 22 => (SH1ADD (SH3ADD <t> x x) (SH3ADD <t> x x))
+(MUL <t> x (MOVDconst [37])) && buildcfg.GORISCV64 >= 22 => (SH2ADD (SH3ADD <t> x x) x)
+(MUL <t> x (MOVDconst [41])) && buildcfg.GORISCV64 >= 22 => (SH3ADD (SH2ADD <t> x x) x)
+(MUL <t> x (MOVDconst [45])) && buildcfg.GORISCV64 >= 22 => (SH2ADD (SH3ADD <t> x x) (SH3ADD <t> x x))
+(MUL <t> x (MOVDconst [73])) && buildcfg.GORISCV64 >= 22 => (SH3ADD (SH3ADD <t> x x) x)
+(MUL <t> x (MOVDconst [81])) && buildcfg.GORISCV64 >= 22 => (SH3ADD (SH3ADD <t> x x) (SH3ADD <t> x x))
+
+
 // Integer minimum and maximum.
 (Min64  x y) && buildcfg.GORISCV64 >= 22 => (MIN  x y)
 (Max64  x y) && buildcfg.GORISCV64 >= 22 => (MAX  x y)
