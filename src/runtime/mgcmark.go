@@ -315,6 +315,10 @@ func markrootFreeGStacks() {
 		stackfree(gp.stack)
 		gp.stack.lo = 0
 		gp.stack.hi = 0
+		if valgrindenabled {
+			valgrindDeregisterStack(gp.valgrindStackID)
+			gp.valgrindStackID = 0
+		}
 	}
 
 	q := gQueue{list.head, tail.guintptr(), list.size}

@@ -754,6 +754,11 @@ func (h *mheap) sysAlloc(n uintptr, hintList **arenaHint, arenaList *[]arenaIdx)
 	}
 
 mapped:
+	if valgrindenabled {
+		valgrindCreateMempool(v)
+		valgrindMakeMemNoAccess(v, size)
+	}
+
 	// Create arena metadata.
 	for ri := arenaIndex(uintptr(v)); ri <= arenaIndex(uintptr(v)+size-1); ri++ {
 		l2 := h.arenas[ri.l1()]
@@ -1083,6 +1088,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		}
 		asanpoison(unsafe.Add(x, size-asanRZ), asanRZ)
 		asanunpoison(x, size-asanRZ)
+	}
+	if valgrindenabled {
+		valgrindMalloc(x, size-asanRZ)
 	}
 
 	// Adjust our GC assist debt to account for internal fragmentation.

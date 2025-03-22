@@ -1955,6 +1955,10 @@ func mexit(osStack bool) {
 	// Free the gsignal stack.
 	if mp.gsignal != nil {
 		stackfree(mp.gsignal.stack)
+		if valgrindenabled {
+			valgrindDeregisterStack(mp.gsignal.valgrindStackID)
+			mp.gsignal.valgrindStackID = 0
+		}
 		// On some platforms, when calling into VDSO (e.g. nanotime)
 		// we store our g on the gsignal stack, if there is one.
 		// Now the stack is freed, unlink it from the m, so we
@@ -2252,6 +2256,10 @@ func allocm(pp *p, fn func(), id int64) *m {
 				// startm.
 				systemstack(func() {
 					stackfree(freem.g0.stack)
+					if valgrindenabled {
+						valgrindDeregisterStack(freem.g0.valgrindStackID)
+						freem.g0.valgrindStackID = 0
+					}
 				})
 			}
 			freem = freem.freelink
@@ -5046,6 +5054,9 @@ func malg(stacksize int32) *g {
 		stacksize = round2(stackSystem + stacksize)
 		systemstack(func() {
 			newg.stack = stackalloc(uint32(stacksize))
+			if valgrindenabled {
+				newg.valgrindStackID = valgrindRegisterStack(unsafe.Pointer(newg.stack.lo), unsafe.Pointer(newg.stack.hi))
+			}
 		})
 		newg.stackguard0 = newg.stack.lo + stackGuard
 		newg.stackguard1 = ^uintptr(0)
@@ -5234,6 +5245,10 @@ func gfput(pp *p, gp *g) {
 		gp.stack.lo = 0
 		gp.stack.hi = 0
 		gp.stackguard0 = 0
+		if valgrindenabled {
+			valgrindDeregisterStack(gp.valgrindStackID)
+			gp.valgrindStackID = 0
+		}
 	}
 
 	pp.gFree.push(gp)
@@ -5291,12 +5306,19 @@ retry:
 			gp.stack.lo = 0
 			gp.stack.hi = 0
 			gp.stackguard0 = 0
+			if valgrindenabled {
+				valgrindDeregisterStack(gp.valgrindStackID)
+				gp.valgrindStackID = 0
+			}
 		})
 	}
 	if gp.stack.lo == 0 {
 		// Stack was deallocated in gfput or just above. Allocate a new one.
 		systemstack(func() {
 			gp.stack = stackalloc(startingStackSize)
+			if valgrindenabled {
+				gp.valgrindStackID = valgrindRegisterStack(unsafe.Pointer(gp.stack.lo), unsafe.Pointer(gp.stack.hi))
+			}
 		})
 		gp.stackguard0 = gp.stack.lo + stackGuard
 	} else {

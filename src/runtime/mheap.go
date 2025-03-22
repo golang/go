@@ -1388,6 +1388,10 @@ HaveSpan:
 	// Initialize the span.
 	h.initSpan(s, typ, spanclass, base, npages)
 
+	if valgrindenabled {
+		valgrindMempoolMalloc(unsafe.Pointer(arenaBase(arenaIndex(base))), unsafe.Pointer(base), npages*pageSize)
+	}
+
 	// Commit and account for any scavenged memory that the span now owns.
 	nbytes := npages * pageSize
 	if scav != 0 {
@@ -1643,6 +1647,10 @@ func (h *mheap) freeSpan(s *mspan) {
 			bytes := s.npages << gc.PageShift
 			asanpoison(base, bytes)
 		}
+		if valgrindenabled {
+			base := s.base()
+			valgrindMempoolFree(unsafe.Pointer(arenaBase(arenaIndex(base))), unsafe.Pointer(base))
+		}
 		h.freeSpanLocked(s, spanAllocHeap)
 		unlock(&h.lock)
 	})
@@ -1671,6 +1679,10 @@ func (h *mheap) freeManual(s *mspan, typ spanAllocType) {
 
 	s.needzero = 1
 	lock(&h.lock)
+	if valgrindenabled {
+		base := s.base()
+		valgrindMempoolFree(unsafe.Pointer(arenaBase(arenaIndex(base))), unsafe.Pointer(base))
+	}
 	h.freeSpanLocked(s, typ)
 	unlock(&h.lock)
 }

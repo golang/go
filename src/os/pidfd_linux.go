@@ -170,7 +170,10 @@ func checkPidfd() error {
 
 	// Check waitid(P_PIDFD) works.
 	err = ignoringEINTR(func() error {
-		return unix.Waitid(unix.P_PIDFD, int(fd), nil, syscall.WEXITED, nil)
+		var info unix.SiginfoChild
+		// We don't actually care about the info, but passing a nil pointer
+		// makes valgrind complain because 0x0 is unaddressable.
+		return unix.Waitid(unix.P_PIDFD, int(fd), &info, syscall.WEXITED, nil)
 	})
 	// Expect ECHILD from waitid since we're not our own parent.
 	if err != syscall.ECHILD {

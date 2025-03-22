@@ -641,6 +641,9 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 				if asanenabled && !s.isUserArenaChunk {
 					asanpoison(unsafe.Pointer(x), size)
 				}
+				if valgrindenabled && !s.isUserArenaChunk {
+					valgrindFree(unsafe.Pointer(x))
+				}
 			}
 			mbits.advance()
 			abits.advance()
