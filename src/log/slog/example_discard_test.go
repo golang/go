@@ -6,15 +6,20 @@ package slog_test
 
 import (
 	"log/slog"
-	"log/slog/internal/slogtest"
 	"os"
 )
 
 func Example_discardHandler() {
+	removeTime := func(groups []string, a slog.Attr) slog.Attr {
+		if a.Key == slog.TimeKey && len(groups) == 0 {
+			return slog.Attr{}
+		}
+		return a
+	}
 	// A slog.TextHandler can output log messages.
 	logger1 := slog.New(slog.NewTextHandler(
 		os.Stdout,
-		&slog.HandlerOptions{ReplaceAttr: slogtest.RemoveTime},
+		&slog.HandlerOptions{ReplaceAttr: removeTime},
 	))
 	logger1.Info("message 1")
 
