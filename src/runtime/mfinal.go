@@ -164,7 +164,7 @@ func wakefing() *g {
 func createfing() {
 	// start the finalizer goroutine exactly once
 	if fingStatus.Load() == fingUninitialized && fingStatus.CompareAndSwap(fingUninitialized, fingCreated) {
-		go runfinq()
+		go runFinalizersAndCleanups()
 	}
 }
 
@@ -177,7 +177,7 @@ func finalizercommit(gp *g, lock unsafe.Pointer) bool {
 }
 
 // This is the goroutine that runs all of the finalizers and cleanups.
-func runfinq() {
+func runFinalizersAndCleanups() {
 	var (
 		frame    unsafe.Pointer
 		framecap uintptr
@@ -243,7 +243,7 @@ func runfinq() {
 				// cleanups also have a nil fint. Cleanups should have been processed before
 				// reaching this point.
 				if f.fint == nil {
-					throw("missing type in runfinq")
+					throw("missing type in finalizer")
 				}
 				r := frame
 				if argRegs > 0 {
@@ -270,7 +270,7 @@ func runfinq() {
 						(*iface)(r).tab = assertE2I(ityp, (*eface)(r)._type)
 					}
 				default:
-					throw("bad kind in runfinq")
+					throw("bad type kind in finalizer")
 				}
 				fingStatus.Or(fingRunningFinalizer)
 				reflectcall(nil, unsafe.Pointer(f.fn), frame, uint32(framesz), uint32(framesz), uint32(framesz), &regs)

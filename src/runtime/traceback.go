@@ -1131,8 +1131,9 @@ func showfuncinfo(sf srcFunc, firstFrame bool, calleeID abi.FuncID) bool {
 		return false
 	}
 
-	// Always show runtime.runfinq as context that this goroutine is
-	// running finalizers, otherwise there is no obvious indicator.
+	// Always show runtime.runFinalizersAndCleanups as context that this
+	// goroutine is running finalizers, otherwise there is no obvious
+	// indicator.
 	//
 	// TODO(prattmic): A more general approach would be to always show the
 	// outermost frame (besides runtime.goexit), even if it is a runtime.
@@ -1142,7 +1143,7 @@ func showfuncinfo(sf srcFunc, firstFrame bool, calleeID abi.FuncID) bool {
 	// Unfortunately, implementing this requires looking ahead at the next
 	// frame, which goes against traceback's incremental approach (see big
 	// coment in traceback1).
-	if sf.funcID == abi.FuncID_runfinq {
+	if sf.funcID == abi.FuncID_runFinalizersAndCleanups {
 		return true
 	}
 
@@ -1346,7 +1347,8 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
 // isSystemGoroutine reports whether the goroutine g must be omitted
 // in stack dumps and deadlock detector. This is any goroutine that
 // starts at a runtime.* entry point, except for runtime.main,
-// runtime.handleAsyncEvent (wasm only) and sometimes runtime.runfinq.
+// runtime.handleAsyncEvent (wasm only) and sometimes
+// runtime.runFinalizersAndCleanups.
 //
 // If fixed is true, any goroutine that can vary between user and
 // system (that is, the finalizer goroutine) is considered a user
@@ -1360,7 +1362,7 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
 	if f.funcID == abi.FuncID_runtime_main || f.funcID == abi.FuncID_corostart || f.funcID == abi.FuncID_handleAsyncEvent {
 		return false
 	}
-	if f.funcID == abi.FuncID_runfinq {
+	if f.funcID == abi.FuncID_runFinalizersAndCleanups {
 		// We include the finalizer goroutine if it's calling
 		// back into user code.
 		if fixed {
