@@ -1131,6 +1131,21 @@ func showfuncinfo(sf srcFunc, firstFrame bool, calleeID abi.FuncID) bool {
 		return false
 	}
 
+	// Always show runtime.runfinq as context that this goroutine is
+	// running finalizers, otherwise there is no obvious indicator.
+	//
+	// TODO(prattmic): A more general approach would be to always show the
+	// outermost frame (besides runtime.goexit), even if it is a runtime.
+	// Hiding the outermost frame allows the apparent outermost frame to
+	// change across different traces, which seems impossible.
+	//
+	// Unfortunately, implementing this requires looking ahead at the next
+	// frame, which goes against traceback's incremental approach (see big
+	// coment in traceback1).
+	if sf.funcID == abi.FuncID_runfinq {
+		return true
+	}
+
 	name := sf.name()
 
 	// Special case: always show runtime.gopanic frame
