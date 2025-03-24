@@ -299,3 +299,10 @@ func FuzzUTF16FromString(f *testing.F) {
 		}
 	})
 }
+
+func BenchmarkErrnoString(b *testing.B) {
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = syscall.Errno(2).Error()
+	}
+}
