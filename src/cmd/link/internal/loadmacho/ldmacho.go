@@ -790,8 +790,6 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 
 			rAdd = 0 // clear rAdd for next iteration
 		}
-
-		sb.SortRelocs()
 	}
 
 	return textp, nil
