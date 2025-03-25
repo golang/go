@@ -923,43 +923,62 @@ func testHardLink(t *testing.T, root *Root) {
 }
 
 func TestSymlink(t *testing.T) {
+	testMaybeRooted(t, testSymlink)
+}
+func testSymlink(t *testing.T, root *Root) {
 	testenv.MustHaveSymlink(t)
-	t.Chdir(t.TempDir())
+
+	var (
+		create   = Create
+		open     = Open
+		symlink  = Symlink
+		stat     = Stat
+		lstat    = Lstat
+		readlink = Readlink
+	)
+	if root != nil {
+		create = root.Create
+		open = root.Open
+		symlink = root.Symlink
+		stat = root.Stat
+		lstat = root.Lstat
+		readlink = root.Readlink
+	}
 
 	from, to := "symlinktestfrom", "symlinktestto"
-	file, err := Create(to)
+	file, err := create(to)
 	if err != nil {
 		t.Fatalf("Create(%q) failed: %v", to, err)
 	}
 	if err = file.Close(); err != nil {
 		t.Errorf("Close(%q) failed: %v", to, err)
 	}
-	err = Symlink(to, from)
+	err = symlink(to, from)
 	if err != nil {
 		t.Fatalf("Symlink(%q, %q) failed: %v", to, from, err)
 	}
-	tostat, err := Lstat(to)
+	tostat, err := lstat(to)
 	if err != nil {
 		t.Fatalf("Lstat(%q) failed: %v", to, err)
 	}
 	if tostat.Mode()&ModeSymlink != 0 {
 		t.Fatalf("Lstat(%q).Mode()&ModeSymlink = %v, want 0", to, tostat.Mode()&ModeSymlink)
 	}
-	fromstat, err := Stat(from)
+	fromstat, err := stat(from)
 	if err != nil {
 		t.Fatalf("Stat(%q) failed: %v", from, err)
 	}
 	if !SameFile(tostat, fromstat) {
 		t.Errorf("Symlink(%q, %q) did not create symlink", to, from)
 	}
-	fromstat, err = Lstat(from)
+	fromstat, err = lstat(from)
 	if err != nil {
 		t.Fatalf("Lstat(%q) failed: %v", from, err)
 	}
 	if fromstat.Mode()&ModeSymlink == 0 {
 		t.Fatalf("Lstat(%q).Mode()&ModeSymlink = 0, want %v", from, ModeSymlink)
 	}
-	fromstat, err = Stat(from)
+	fromstat, err = stat(from)
 	if err != nil {
 		t.Fatalf("Stat(%q) failed: %v", from, err)
 	}
@@ -969,14 +988,14 @@ func TestSymlink(t *testing.T) {
 	if fromstat.Mode()&ModeSymlink != 0 {
 		t.Fatalf("Stat(%q).Mode()&ModeSymlink = %v, want 0", from, fromstat.Mode()&ModeSymlink)
 	}
-	s, err := Readlink(from)
+	s, err := readlink(from)
 	if err != nil {
 		t.Fatalf("Readlink(%q) failed: %v", from, err)
 	}
 	if s != to {
 		t.Fatalf("Readlink(%q) = %q, want %q", from, s, to)
 	}
-	file, err = Open(from)
+	file, err = open(from)
 	if err != nil {
 		t.Fatalf("Open(%q) failed: %v", from, err)
 	}

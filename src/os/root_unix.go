@@ -132,6 +132,16 @@ func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
 	return fi, nil
 }
 
+func rootSymlink(r *Root, oldname, newname string) error {
+	_, err := doInRoot(r, newname, func(parent sysfdType, name string) (struct{}, error) {
+		return struct{}{}, symlinkat(oldname, parent, name)
+	})
+	if err != nil {
+		return &LinkError{"symlinkat", oldname, newname, err}
+	}
+	return nil
+}
+
 // On systems which use fchmodat, fchownat, etc., we have a race condition:
 // When "name" is a symlink, Root.Chmod("name") should act on the target of that link.
 // However, fchmodat doesn't allow us to chmod a file only if it is not a symlink;
@@ -215,6 +225,10 @@ func renameat(oldfd int, oldname string, newfd int, newname string) error {
 
 func linkat(oldfd int, oldname string, newfd int, newname string) error {
 	return unix.Linkat(oldfd, oldname, newfd, newname, 0)
+}
+
+func symlinkat(oldname string, newfd int, newname string) error {
+	return unix.Symlinkat(oldname, newfd, newname)
 }
 
 // checkSymlink resolves the symlink name in parent,

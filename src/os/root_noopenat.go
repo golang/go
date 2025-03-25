@@ -198,3 +198,14 @@ func rootLink(r *Root, oldname, newname string) error {
 	}
 	return nil
 }
+
+func rootSymlink(r *Root, oldname, newname string) error {
+	if err := checkPathEscapesLstat(r, newname); err != nil {
+		return &PathError{Op: "symlinkat", Path: newname, Err: err}
+	}
+	err := Symlink(oldname, joinPath(r.root.name, newname))
+	if err != nil {
+		return &LinkError{"symlinkat", oldname, newname, underlyingError(err)}
+	}
+	return nil
+}

@@ -5,6 +5,8 @@
 package windows
 
 import (
+	"runtime"
+	"structs"
 	"syscall"
 	"unsafe"
 )
@@ -375,4 +377,177 @@ func Linkat(olddirfd syscall.Handle, oldpath string, newdirfd syscall.Handle, ne
 		return st.Errno()
 	}
 	return err
+}
+
+// SymlinkatFlags configure Symlinkat.
+//
+// Symbolic links have two properties: They may be directory or file links,
+// and they may be absolute or relative.
+//
+// The Windows API defines flags describing these properties
+// (SYMBOLIC_LINK_FLAG_DIRECTORY and SYMLINK_FLAG_RELATIVE),
+// but the flags are passed to different system calls and
+// do not have distinct values, so we define our own enumeration
+// that permits expressing both.
+type SymlinkatFlags uint
+
+const (
+	SYMLINKAT_DIRECTORY = SymlinkatFlags(1 << iota)
+	SYMLINKAT_RELATIVE
+)
+
+func Symlinkat(oldname string, newdirfd syscall.Handle, newname string, flags SymlinkatFlags) error {
+	// Temporarily acquire symlink-creating privileges if possible.
+	// This is the behavior of CreateSymbolicLinkW.
+	//
+	// (When passed the SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE flag,
+	// CreateSymbolicLinkW ignores errors in acquiring privileges, as we do here.)
+	return withPrivilege("SeCreateSymbolicLinkPrivilege", func() error {
+		return symlinkat(oldname, newdirfd, newname, flags)
+	})
+}
+
+func symlinkat(oldname string, newdirfd syscall.Handle, newname string, flags SymlinkatFlags) error {
+	oldnameu16, err := syscall.UTF16FromString(oldname)
+	if err != nil {
+		return err
+	}
+	oldnameu16 = oldnameu16[:len(oldnameu16)-1] // trim off terminal NUL
+
+	var options uint32
+	if flags&SYMLINKAT_DIRECTORY != 0 {
+		options |= FILE_DIRECTORY_FILE
+	} else {
+		options |= FILE_NON_DIRECTORY_FILE
+	}
+
+	objAttrs := &OBJECT_ATTRIBUTES{}
+	if err := objAttrs.init(newdirfd, newname); err != nil {
+		return err
+	}
+	var h syscall.Handle
+	err = NtCreateFile(
+		&h,
+		SYNCHRONIZE|FILE_WRITE_ATTRIBUTES|DELETE,
+		objAttrs,
+		&IO_STATUS_BLOCK{},
+		nil,
+		syscall.FILE_ATTRIBUTE_NORMAL,
+		0,
+		FILE_CREATE,
+		FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT|FILE_SYNCHRONOUS_IO_NONALERT|options,
+		0,
+		0,
+	)
+	if err != nil {
+		return ntCreateFileError(err, 0)
+	}
+	defer syscall.CloseHandle(h)
+
+	// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_reparse_data_buffer
+	type reparseDataBufferT struct {
+		_ structs.HostLayout
+
+		ReparseTag        uint32
+		ReparseDataLength uint16
+		Reserved          uint16
+
+		SubstituteNameOffset uint16
+		SubstituteNameLength uint16
+		PrintNameOffset      uint16
+		PrintNameLength      uint16
+		Flags                uint32
+	}
+
+	const (
+		headerSize = uint16(unsafe.Offsetof(reparseDataBufferT{}.SubstituteNameOffset))
+		bufferSize = uint16(unsafe.Sizeof(reparseDataBufferT{}))
+	)
+
+	// Data buffer containing a SymbolicLinkReparseBuffer followed by the link target.
+	rdbbuf := make([]byte, bufferSize+uint16(2*len(oldnameu16)))
+
+	rdb := (*reparseDataBufferT)(unsafe.Pointer(&rdbbuf[0]))
+	rdb.ReparseTag = syscall.IO_REPARSE_TAG_SYMLINK
+	rdb.ReparseDataLength = uint16(len(rdbbuf)) - uint16(headerSize)
+	rdb.SubstituteNameOffset = 0
+	rdb.SubstituteNameLength = uint16(2 * len(oldnameu16))
+	rdb.PrintNameOffset = 0
+	rdb.PrintNameLength = rdb.SubstituteNameLength
+	if flags&SYMLINKAT_RELATIVE != 0 {
+		rdb.Flags = SYMLINK_FLAG_RELATIVE
+	}
+
+	namebuf := rdbbuf[bufferSize:]
+	copy(namebuf, unsafe.String((*byte)(unsafe.Pointer(&oldnameu16[0])), 2*len(oldnameu16)))
+
+	err = syscall.DeviceIoControl(
+		h,
+		FSCTL_SET_REPARSE_POINT,
+		&rdbbuf[0],
+		uint32(len(rdbbuf)),
+		nil,
+		0,
+		nil,
+		nil)
+	if err != nil {
+		// Creating the symlink has failed, so try to remove the file.
+		const FileDispositionInformation = 13
+		NtSetInformationFile(
+			h,
+			&IO_STATUS_BLOCK{},
+			uintptr(unsafe.Pointer(&FILE_DISPOSITION_INFORMATION{
+				DeleteFile: true,
+			})),
+			uint32(unsafe.Sizeof(FILE_DISPOSITION_INFORMATION{})),
+			FileDispositionInformation,
+		)
+		return err
+	}
+
+	return nil
+}
+
+// withPrivilege temporariliy acquires the named privilege and runs f.
+// If the privilege cannot be acquired it runs f anyway,
+// which should fail with an appropriate error.
+func withPrivilege(privilege string, f func() error) error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	err := ImpersonateSelf(SecurityImpersonation)
+	if err != nil {
+		return f()
+	}
+	defer RevertToSelf()
+
+	curThread, err := GetCurrentThread()
+	if err != nil {
+		return f()
+	}
+	var token syscall.Token
+	err = OpenThreadToken(curThread, syscall.TOKEN_QUERY|TOKEN_ADJUST_PRIVILEGES, false, &token)
+	if err != nil {
+		return f()
+	}
+	defer syscall.CloseHandle(syscall.Handle(token))
+
+	privStr, err := syscall.UTF16PtrFromString(privilege)
+	if err != nil {
+		return f()
+	}
+	var tokenPriv TOKEN_PRIVILEGES
+	err = LookupPrivilegeValue(nil, privStr, &tokenPriv.Privileges[0].Luid)
+	if err != nil {
+		return f()
+	}
+
+	tokenPriv.PrivilegeCount = 1
+	tokenPriv.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED
+	err = AdjustTokenPrivileges(token, false, &tokenPriv, 0, nil, nil)
+	if err != nil {
+		return f()
+	}
+
+	return f()
 }

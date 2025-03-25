@@ -22,3 +22,5 @@ TEXT ·libc_renameat_trampoline(SB),NOSPLIT,$0-0
         JMP	libc_renameat(SB)
 TEXT ·libc_linkat_trampoline(SB),NOSPLIT,$0-0
         JMP	libc_linkat(SB)
+TEXT ·libc_symlinkat_trampoline(SB),NOSPLIT,$0-0
+        JMP	libc_symlinkat(SB)

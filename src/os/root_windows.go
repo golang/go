@@ -233,6 +233,52 @@ func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
 	return fi, nil
 }
 
+func rootSymlink(r *Root, oldname, newname string) error {
+	if oldname == "" {
+		return syscall.EINVAL
+	}
+
+	// CreateSymbolicLinkW converts volume-relative paths into absolute ones.
+	// Do the same.
+	if filepathlite.VolumeNameLen(oldname) > 0 && !filepathlite.IsAbs(oldname) {
+		p, err := syscall.FullPath(oldname)
+		if err == nil {
+			oldname = p
+		}
+	}
+
+	// If oldname can be resolved to a directory in the root, create a directory link.
+	// Otherwise, create a file link.
+	var flags windows.SymlinkatFlags
+	if filepathlite.VolumeNameLen(oldname) == 0 && !IsPathSeparator(oldname[0]) {
+		// oldname is a path relative to the directory containing newname.
+		// Prepend newname's directory to it to make a path relative to the root.
+		// For example, if oldname=old and newname=a\new, destPath=a\old.
+		destPath := oldname
+		if dir := dirname(newname); dir != "." {
+			destPath = dir + `\` + oldname
+		}
+		fi, err := r.Stat(destPath)
+		if err == nil && fi.IsDir() {
+			flags |= windows.SYMLINKAT_DIRECTORY
+		}
+	}
+
+	// Empirically, CreateSymbolicLinkW appears to set the relative flag iff
+	// the target does not contain a volume name.
+	if filepathlite.VolumeNameLen(oldname) == 0 {
+		flags |= windows.SYMLINKAT_RELATIVE
+	}
+
+	_, err := doInRoot(r, newname, func(parent sysfdType, name string) (struct{}, error) {
+		return struct{}{}, windows.Symlinkat(oldname, parent, name, flags)
+	})
+	if err != nil {
+		return &LinkError{"symlinkat", oldname, newname, err}
+	}
+	return nil
+}
+
 func chmodat(parent syscall.Handle, name string, mode FileMode) error {
 	// Currently, on Windows os.Chmod("symlink") will act on "symlink",
 	// not on any file it points to.

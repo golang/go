@@ -10,6 +10,7 @@ package unix
 //go:cgo_import_dynamic libc_linkat linkat "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_openat openat "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_renameat renameat "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_symlinkat symlinkat "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_unlinkat unlinkat "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_readlinkat readlinkat "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_mkdirat mkdirat "libc.a/shr_64.o"

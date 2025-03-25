@@ -218,6 +218,18 @@ func (r *Root) Link(oldname, newname string) error {
 	return rootLink(r, oldname, newname)
 }
 
+// Symlink creates newname as a symbolic link to oldname.
+// See [Symlink] for more details.
+//
+// Symlink does not validate oldname,
+// which may reference a location outside the root.
+//
+// On Windows, a directory link is created if oldname references
+// a directory within the root. Otherwise a file link is created.
+func (r *Root) Symlink(oldname, newname string) error {
+	return rootSymlink(r, oldname, newname)
+}
+
 func (r *Root) logOpen(name string) {
 	if log := testlog.Logger(); log != nil {
 		// This won't be right if r's name has changed since it was opened,

@@ -158,3 +158,22 @@ func Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flag int
 	}
 	return nil
 }
+
+func Symlinkat(oldpath string, newdirfd int, newpath string) error {
+	oldp, err := syscall.BytePtrFromString(oldpath)
+	if err != nil {
+		return err
+	}
+	newp, err := syscall.BytePtrFromString(newpath)
+	if err != nil {
+		return err
+	}
+	_, _, errno := syscall.Syscall(symlinkatTrap,
+		uintptr(unsafe.Pointer(oldp)),
+		uintptr(newdirfd),
+		uintptr(unsafe.Pointer(newp)))
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}
