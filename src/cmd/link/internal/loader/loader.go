@@ -432,16 +432,16 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
 		return i
 	}
 	// symbol already exists
+	// Fix for issue #47185 -- given two dupok or BSS symbols with
+	// different sizes, favor symbol with larger size. See also
+	// issue #46653 and #72032.
+	oldsz := l.SymSize(oldi)
+	sz := int64(r.Sym(li).Siz())
 	if osym.Dupok() {
 		if l.flags&FlagStrictDups != 0 {
 			l.checkdup(name, r, li, oldi)
 		}
-		// Fix for issue #47185 -- given two dupok symbols with
-		// different sizes, favor symbol with larger size. See
-		// also issue #46653.
-		szdup := l.SymSize(oldi)
-		sz := int64(r.Sym(li).Siz())
-		if szdup < sz {
+		if oldsz < sz {
 			// new symbol overwrites old symbol.
 			l.objSyms[oldi] = objSym{r.objidx, li}
 		}
@@ -452,11 +452,24 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
 	if oldsym.Dupok() {
 		return oldi
 	}
-	overwrite := r.DataSize(li) != 0
+	// If one is a DATA symbol (i.e. has content, DataSize != 0)
+	// and the other is BSS, the one with content wins.
+	// If both are BSS, the one with larger size wins.
+	// Specifically, the "overwrite" variable and the final result are
+	//
+	// new sym       old sym       overwrite
+	// ---------------------------------------------
+	// DATA          DATA          true  => ERROR
+	// DATA lg/eq    BSS  sm/eq    true  => new wins
+	// DATA small    BSS  large    true  => ERROR
+	// BSS  large    DATA small    true  => ERROR
+	// BSS  large    BSS  small    true  => new wins
+	// BSS  sm/eq    D/B  lg/eq    false => old wins
+	overwrite := r.DataSize(li) != 0 || oldsz < sz
 	if overwrite {
 		// new symbol overwrites old symbol.
 		oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type())]
-		if !(oldtyp.IsData() && oldr.DataSize(oldli) == 0) {
+		if !(oldtyp.IsData() && oldr.DataSize(oldli) == 0) || oldsz > sz {
 			log.Fatalf("duplicated definition of symbol %s, from %s and %s", name, r.unit.Lib.Pkg, oldr.unit.Lib.Pkg)
 		}
 		l.objSyms[oldi] = objSym{r.objidx, li}
