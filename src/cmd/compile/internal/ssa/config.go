@@ -283,6 +283,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.FPReg = framepointerRegLOONG64
 		c.LinkReg = linkRegLOONG64
 		c.hasGReg = true
+		c.unalignedOK = true
 	case "s390x":
 		c.PtrSize = 8
 		c.RegSize = 8

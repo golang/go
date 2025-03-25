@@ -19,7 +19,7 @@ func load_le64(b []byte) uint64 {
 	// amd64:`MOVQ\s\(.*\),`,-`MOV[BWL]\t[^$]`,-`OR`
 	// s390x:`MOVDBR\s\(.*\),`
 	// arm64:`MOVD\s\(R[0-9]+\),`,-`MOV[BHW]`
-	// loong64:`MOVBU\s\(R[0-9]+\),`
+	// loong64:`MOVV\s\(R[0-9]+\),`
 	// ppc64le:`MOVD\s`,-`MOV[BHW]Z`
 	// ppc64:`MOVDBR\s`,-`MOV[BHW]Z`
 	return binary.LittleEndian.Uint64(b)
@@ -29,7 +29,7 @@ func load_le64_idx(b []byte, idx int) uint64 {
 	// amd64:`MOVQ\s\(.*\)\(.*\*1\),`,-`MOV[BWL]\t[^$]`,-`OR`
 	// s390x:`MOVDBR\s\(.*\)\(.*\*1\),`
 	// arm64:`MOVD\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[BHW]`
-	// loong64:`MOVBU\s\(R[0-9]+\)\(R[0-9]+\),`
+	// loong64:`MOVV\s\(R[0-9]+\)\(R[0-9]+\),`
 	// ppc64le:`MOVD\s`,-`MOV[BHW]Z\s`
 	// ppc64:`MOVDBR\s`,-`MOV[BHW]Z\s`
 	return binary.LittleEndian.Uint64(b[idx:])
@@ -40,7 +40,7 @@ func load_le32(b []byte) uint32 {
 	// 386:`MOVL\s\(.*\),`,-`MOV[BW]`,-`OR`
 	// s390x:`MOVWBR\s\(.*\),`
 	// arm64:`MOVWU\s\(R[0-9]+\),`,-`MOV[BH]`
-	// loong64:`MOVBU\s\(R[0-9]+\),`
+	// loong64:`MOVWU\s\(R[0-9]+\),`
 	// ppc64le:`MOVWZ\s`,-`MOV[BH]Z\s`
 	// ppc64:`MOVWBR\s`,-`MOV[BH]Z\s`
 	return binary.LittleEndian.Uint32(b)
@@ -51,7 +51,7 @@ func load_le32_idx(b []byte, idx int) uint32 {
 	// 386:`MOVL\s\(.*\)\(.*\*1\),`,-`MOV[BW]`,-`OR`
 	// s390x:`MOVWBR\s\(.*\)\(.*\*1\),`
 	// arm64:`MOVWU\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[BH]`
-	// loong64:`MOVBU\s\(R[0-9]+\)\(R[0-9]+\),`
+	// loong64:`MOVWU\s\(R[0-9]+\)\(R[0-9]+\),`
 	// ppc64le:`MOVWZ\s`,-`MOV[BH]Z\s`
 	// ppc64:`MOVWBR\s`,-`MOV[BH]Z\s'
 	return binary.LittleEndian.Uint32(b[idx:])
@@ -61,7 +61,7 @@ func load_le16(b []byte) uint16 {
 	// amd64:`MOVWLZX\s\(.*\),`,-`MOVB`,-`OR`
 	// ppc64le:`MOVHZ\s`,-`MOVBZ`
 	// arm64:`MOVHU\s\(R[0-9]+\),`,-`MOVB`
-	// loong64:`MOVBU\s\(R[0-9]+\),`
+	// loong64:`MOVHU\s\(R[0-9]+\),`
 	// s390x:`MOVHBR\s\(.*\),`
 	// ppc64:`MOVHBR\s`,-`MOVBZ`
 	return binary.LittleEndian.Uint16(b)
@@ -72,7 +72,7 @@ func load_le16_idx(b []byte, idx int) uint16 {
 	// ppc64le:`MOVHZ\s`,-`MOVBZ`
 	// ppc64:`MOVHBR\s`,-`MOVBZ`
 	// arm64:`MOVHU\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOVB`
-	// loong64:`MOVBU\s\(R[0-9]+\)\(R[0-9]+\),`
+	// loong64:`MOVHU\s\(R[0-9]+\)\(R[0-9]+\),`
 	// s390x:`MOVHBR\s\(.*\)\(.*\*1\),`
 	return binary.LittleEndian.Uint16(b[idx:])
 }
