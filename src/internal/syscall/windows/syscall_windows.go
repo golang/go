@@ -504,6 +504,17 @@ func QueryPerformanceFrequency() int64 // Implemented in runtime package.
 
 //sys   GetModuleHandle(modulename *uint16) (handle syscall.Handle, err error) = kernel32.GetModuleHandleW
 
+const (
+	PIPE_ACCESS_INBOUND  = 0x00000001
+	PIPE_ACCESS_OUTBOUND = 0x00000002
+	PIPE_ACCESS_DUPLEX   = 0x00000003
+
+	PIPE_TYPE_BYTE = 0x00000000
+)
+
+//sys	GetOverlappedResult(handle syscall.Handle, overlapped *syscall.Overlapped, done *uint32, wait bool) (err error)
+//sys	CreateNamedPipe(name *uint16, flags uint32, pipeMode uint32, maxInstances uint32, outSize uint32, inSize uint32, defaultTimeout uint32, sa *syscall.SecurityAttributes) (handle syscall.Handle, err error)  [failretval==syscall.InvalidHandle] = CreateNamedPipeW
+
 // NTStatus corresponds with NTSTATUS, error values returned by ntdll.dll and
 // other native functions.
 type NTStatus uint32

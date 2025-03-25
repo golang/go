@@ -66,6 +66,7 @@ var (
 	procProcessPrng                       = modbcryptprimitives.NewProc("ProcessPrng")
 	procGetAdaptersAddresses              = modiphlpapi.NewProc("GetAdaptersAddresses")
 	procCreateEventW                      = modkernel32.NewProc("CreateEventW")
+	procCreateNamedPipeW                  = modkernel32.NewProc("CreateNamedPipeW")
 	procGetACP                            = modkernel32.NewProc("GetACP")
 	procGetComputerNameExW                = modkernel32.NewProc("GetComputerNameExW")
 	procGetConsoleCP                      = modkernel32.NewProc("GetConsoleCP")
@@ -74,6 +75,7 @@ var (
 	procGetFinalPathNameByHandleW         = modkernel32.NewProc("GetFinalPathNameByHandleW")
 	procGetModuleFileNameW                = modkernel32.NewProc("GetModuleFileNameW")
 	procGetModuleHandleW                  = modkernel32.NewProc("GetModuleHandleW")
+	procGetOverlappedResult               = modkernel32.NewProc("GetOverlappedResult")
 	procGetTempPath2W                     = modkernel32.NewProc("GetTempPath2W")
 	procGetVolumeInformationByHandleW     = modkernel32.NewProc("GetVolumeInformationByHandleW")
 	procGetVolumeNameForVolumeMountPointW = modkernel32.NewProc("GetVolumeNameForVolumeMountPointW")
@@ -266,6 +268,15 @@ func CreateEvent(eventAttrs *SecurityAttributes, manualReset uint32, initialStat
 	return
 }
 
+func CreateNamedPipe(name *uint16, flags uint32, pipeMode uint32, maxInstances uint32, outSize uint32, inSize uint32, defaultTimeout uint32, sa *SecurityAttributes) (handle syscall.Handle, err error) {
+	r0, _, e1 := syscall.Syscall9(procCreateNamedPipeW.Addr(), 8, uintptr(unsafe.Pointer(name)), uintptr(flags), uintptr(pipeMode), uintptr(maxInstances), uintptr(outSize), uintptr(inSize), uintptr(defaultTimeout), uintptr(unsafe.Pointer(sa)), 0)
+	handle = syscall.Handle(r0)
+	if handle == syscall.InvalidHandle {
+		err = errnoErr(e1)
+	}
+	return
+}
+
 func GetACP() (acp uint32) {
 	r0, _, _ := syscall.Syscall(procGetACP.Addr(), 0, 0, 0, 0)
 	acp = uint32(r0)
@@ -325,6 +336,18 @@ func GetModuleHandle(modulename *uint16) (handle syscall.Handle, err error) {
 	r0, _, e1 := syscall.Syscall(procGetModuleHandleW.Addr(), 1, uintptr(unsafe.Pointer(modulename)), 0, 0)
 	handle = syscall.Handle(r0)
 	if handle == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func GetOverlappedResult(handle syscall.Handle, overlapped *syscall.Overlapped, done *uint32, wait bool) (err error) {
+	var _p0 uint32
+	if wait {
+		_p0 = 1
+	}
+	r1, _, e1 := syscall.Syscall6(procGetOverlappedResult.Addr(), 4, uintptr(handle), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(done)), uintptr(_p0), 0, 0)
+	if r1 == 0 {
 		err = errnoErr(e1)
 	}
 	return
