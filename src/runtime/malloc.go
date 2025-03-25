@@ -1047,14 +1047,19 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	if size <= maxSmallSize-mallocHeaderSize {
 		if typ == nil || !typ.Pointers() {
 			if size < maxTinySize {
-				x, elemsize = mallocgcTiny(size, typ, needzero)
+				x, elemsize = mallocgcTiny(size, typ)
 			} else {
 				x, elemsize = mallocgcSmallNoscan(size, typ, needzero)
 			}
-		} else if heapBitsInSpan(size) {
-			x, elemsize = mallocgcSmallScanNoHeader(size, typ, needzero)
 		} else {
-			x, elemsize = mallocgcSmallScanHeader(size, typ, needzero)
+			if !needzero {
+				throw("objects with pointers must be zeroed")
+			}
+			if heapBitsInSpan(size) {
+				x, elemsize = mallocgcSmallScanNoHeader(size, typ)
+			} else {
+				x, elemsize = mallocgcSmallScanHeader(size, typ)
+			}
 		}
 	} else {
 		x, elemsize = mallocgcLarge(size, typ, needzero)
@@ -1092,7 +1097,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	return x
 }
 
-func mallocgcTiny(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr) {
+func mallocgcTiny(size uintptr, typ *_type) (unsafe.Pointer, uintptr) {
 	// Set mp.mallocing to keep from being preempted by GC.
 	mp := acquirem()
 	if doubleCheckMalloc {
@@ -1172,7 +1177,7 @@ func mallocgcTiny(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uint
 		v, span, checkGCTrigger = c.nextFree(tinySpanClass)
 	}
 	x := unsafe.Pointer(v)
-	(*[2]uint64)(x)[0] = 0
+	(*[2]uint64)(x)[0] = 0 // Always zero
 	(*[2]uint64)(x)[1] = 0
 	// See if we need to replace the existing tiny block with the new one
 	// based on amount of remaining free space.
@@ -1334,7 +1339,7 @@ func mallocgcSmallNoscan(size uintptr, typ *_type, needzero bool) (unsafe.Pointe
 	return x, size
 }
 
-func mallocgcSmallScanNoHeader(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr) {
+func mallocgcSmallScanNoHeader(size uintptr, typ *_type) (unsafe.Pointer, uintptr) {
 	// Set mp.mallocing to keep from being preempted by GC.
 	mp := acquirem()
 	if doubleCheckMalloc {
@@ -1363,7 +1368,7 @@ func mallocgcSmallScanNoHeader(size uintptr, typ *_type, needzero bool) (unsafe.
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
-	if needzero && span.needzero != 0 {
+	if span.needzero != 0 {
 		memclrNoHeapPointers(x, size)
 	}
 	if goarch.PtrSize == 8 && sizeclass == 1 {
@@ -1425,7 +1430,7 @@ func mallocgcSmallScanNoHeader(size uintptr, typ *_type, needzero bool) (unsafe.
 	return x, size
 }
 
-func mallocgcSmallScanHeader(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr) {
+func mallocgcSmallScanHeader(size uintptr, typ *_type) (unsafe.Pointer, uintptr) {
 	// Set mp.mallocing to keep from being preempted by GC.
 	mp := acquirem()
 	if doubleCheckMalloc {
@@ -1461,7 +1466,7 @@ func mallocgcSmallScanHeader(size uintptr, typ *_type, needzero bool) (unsafe.Po
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
-	if needzero && span.needzero != 0 {
+	if span.needzero != 0 {
 		memclrNoHeapPointers(x, size)
 	}
 	header := (**_type)(x)
