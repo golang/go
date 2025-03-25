@@ -19,6 +19,7 @@ import (
 	"strings"
 	"testing"
 
+	"cmd/internal/objfile"
 	"cmd/internal/sys"
 )
 
@@ -1457,5 +1458,55 @@ func TestCheckLinkname(t *testing.T) {
 				t.Errorf("build succeeded unexpectedly: %v:\n%s", err, out)
 			}
 		})
+	}
+}
+
+func TestLinknameBSS(t *testing.T) {
+	// Test that the linker chooses the right one as the definition
+	// for linknamed variables. See issue #72032.
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+
+	src := filepath.Join("testdata", "linkname", "sched.go")
+	exe := filepath.Join(tmpdir, "sched.exe")
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, src)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failed unexpectedly: %v:\n%s", err, out)
+	}
+
+	// Check the symbol size.
+	f, err := objfile.Open(exe)
+	if err != nil {
+		t.Fatalf("fail to open executable: %v", err)
+	}
+	defer f.Close()
+	syms, err := f.Symbols()
+	if err != nil {
+		t.Fatalf("fail to get symbols: %v", err)
+	}
+	found := false
+	for _, s := range syms {
+		if s.Name == "runtime.sched" || s.Name == "_runtime.sched" {
+			found = true
+			if s.Size < 100 {
+				// As of Go 1.25 (Mar 2025), runtime.sched has 6848 bytes on
+				// darwin/arm64. It should always be larger than 100 bytes on
+				// all platforms.
+				t.Errorf("runtime.sched symbol size too small: want > 100, got %d", s.Size)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("runtime.sched symbol not found")
+	}
+
+	// Executable should run.
+	cmd = testenv.Command(t, exe)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("executable failed to run: %v\n%s", err, out)
 	}
 }
