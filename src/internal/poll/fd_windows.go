@@ -27,7 +27,7 @@ var (
 // SetFileCompletionNotificationModes crashes on some systems (see
 // https://support.microsoft.com/kb/2568167 for details).
 
-var useSetFileCompletionNotificationModes bool // determines is SetFileCompletionNotificationModes is present and safe to use
+var socketCanUseSetFileCompletionNotificationModes bool // determines is SetFileCompletionNotificationModes is present and sockets can safely use it
 
 // checkSetFileCompletionNotificationModes verifies that
 // SetFileCompletionNotificationModes Windows API is present
@@ -50,7 +50,7 @@ func checkSetFileCompletionNotificationModes() {
 			return
 		}
 	}
-	useSetFileCompletionNotificationModes = true
+	socketCanUseSetFileCompletionNotificationModes = true
 }
 
 // InitWSA initiates the use of the Winsock DLL by the current process.
@@ -324,16 +324,12 @@ func (fd *FD) Init(net string, pollable bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if pollable && useSetFileCompletionNotificationModes {
-		// We do not use events, so we can skip them always.
-		flags := uint8(syscall.FILE_SKIP_SET_EVENT_ON_HANDLE)
-		switch net {
-		case "tcp", "tcp4", "tcp6",
-			"udp", "udp4", "udp6":
-			flags |= syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS
-		}
-		err := syscall.SetFileCompletionNotificationModes(fd.Sysfd, flags)
-		if err == nil && flags&syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS != 0 {
+	if pollable && (fd.kind != kindNet || socketCanUseSetFileCompletionNotificationModes) {
+		// Non-socket handles can use SetFileCompletionNotificationModes without problems.
+		err := syscall.SetFileCompletionNotificationModes(fd.Sysfd,
+			syscall.FILE_SKIP_SET_EVENT_ON_HANDLE|syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS,
+		)
+		if err == nil {
 			fd.skipSyncNotif = true
 		}
 	}
