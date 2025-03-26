@@ -237,15 +237,31 @@ func (h Header) writeSubset(w io.Writer, exclude map[string]bool, trace *httptra
 	var sorter *headerSorter
 	// Check if the HeaderOrder is defined.
 	if headerOrder, ok := h[HeaderOrderKey]; ok {
+		order_temp := make(map[string]int)
 		order := make(map[string]int)
-		orderStrings := strings.Split(strings.ToLower(string(headerOrder[0])), ",")
-		for i, v := range orderStrings {
-			order[v] = i
-		}
 		if exclude == nil {
 			exclude = make(map[string]bool)
 		}
 		exclude[HeaderOrderKey] = true
+
+		// list of 'ordered' headers with index
+		orderStrings := strings.Split(strings.ToLower(string(headerOrder[0])), ",")
+		for i, v := range orderStrings {
+			order_temp[v] = i
+		}
+
+		UnorderedIndex := 100
+		for k, _ := range h {
+			kl := strings.ToLower(k)
+			orderedIndex, exists := order_temp[kl]
+			if exists {
+				order[kl] = orderedIndex
+			} else {
+				order[kl] = UnorderedIndex
+				UnorderedIndex = UnorderedIndex + 1
+			}
+		}
+
 		kvs, sorter = h.sortedKeyValuesBy(order, exclude)
 	} else {
 		kvs, sorter = h.sortedKeyValues(exclude)

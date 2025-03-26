@@ -538,9 +538,23 @@ func readMIMEHeader(r *Reader, maxMemory, maxHeaders int64) (MIMEHeader, error) 
 		return m, ProtocolError("malformed MIME header initial line: " + string(line))
 	}
 
+	HeaderOrderTracker := ""
+
 	for {
 		kv, err := r.readContinuedLineSlice(maxMemory, mustHaveFieldNameColon)
 		if len(kv) == 0 {
+
+			// recored header order tracker
+			// this is successful part of reading the header for the request
+			hod := m["Re-Header-Order"]
+			if hod == nil && len(HeaderOrderTracker) > 0 {
+				var HeaderOrderTrackerAR []string
+
+				// header order is not provided from outside
+				// drop last symbol, as this is a comma ","
+				m["Re-Header-Order"] = append(HeaderOrderTrackerAR, HeaderOrderTracker[:len(HeaderOrderTracker)-1])
+			}
+
 			return m, err
 		}
 
@@ -584,6 +598,7 @@ func readMIMEHeader(r *Reader, maxMemory, maxHeaders int64) (MIMEHeader, error) 
 			vv, strs = strs[:1:1], strs[1:]
 			vv[0] = value
 			m[key] = vv
+			HeaderOrderTracker = HeaderOrderTracker + key + ","
 		} else {
 			m[key] = append(vv, value)
 		}
