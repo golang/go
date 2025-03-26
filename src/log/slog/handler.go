@@ -28,6 +28,8 @@ import (
 //
 // Users of the slog package should not invoke Handler methods directly.
 // They should use the methods of [Logger] instead.
+//
+// Before implementing your own handler, consult https://go.dev/s/slog-handler-guide.
 type Handler interface {
 	// Enabled reports whether the handler handles records at the given level.
 	// The handler ignores records whose level is lower.
