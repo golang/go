@@ -1771,7 +1771,7 @@ func (op opData) auxType() string {
 	case "String":
 		return "string"
 	case "Sym":
-		// Note: a Sym can be an *obj.LSym, a *gc.Node, or nil.
+		// Note: a Sym can be an *obj.LSym, a *ir.Name, or nil.
 		return "Sym"
 	case "SymOff":
 		return "Sym"

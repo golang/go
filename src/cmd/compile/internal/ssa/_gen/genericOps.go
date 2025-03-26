@@ -359,7 +359,7 @@ var genericOps = []opData{
 	// If the variable is a global, the base pointer will be SB and
 	// the Aux field will be a *obj.LSym.
 	// If the variable is a local, the base pointer will be SP and
-	// the Aux field will be a *gc.Node.
+	// the Aux field will be a *ir.Name
 	{name: "Addr", argLength: 1, aux: "Sym", symEffect: "Addr"},      // Address of a variable.  Arg0=SB.  Aux identifies the variable.
 	{name: "LocalAddr", argLength: 2, aux: "Sym", symEffect: "Addr"}, // Address of a variable.  Arg0=SP. Arg1=mem. Aux identifies the variable.
 
@@ -543,9 +543,9 @@ var genericOps = []opData{
 	// Unknown value. Used for Values whose values don't matter because they are dead code.
 	{name: "Unknown"},
 
-	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem", symEffect: "None", zeroWidth: true}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
+	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem", symEffect: "None", zeroWidth: true}, // aux is a *ir.Name of a variable that is about to be initialized.  arg0=mem, returns mem
 	// TODO: what's the difference between VarLive and KeepAlive?
-	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read", zeroWidth: true}, // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
+	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read", zeroWidth: true}, // aux is a *ir.Name of a variable that must be kept live.  arg0=mem, returns mem
 	{name: "KeepAlive", argLength: 2, typ: "Mem", zeroWidth: true},                  // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
 
 	// InlMark marks the start of an inlined function body. Its AuxInt field
