@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !plan9 && !windows
+//go:build !plan9
 
 package net
 
@@ -282,7 +282,7 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
 		}
 
 		switch runtime.GOOS {
-		case "android", "linux":
+		case "android", "linux", "windows":
 			if laddr == "" {
 				laddr = "@" // autobind feature
 			}
@@ -398,6 +398,9 @@ func TestUnixUnlink(t *testing.T) {
 
 	// FileListener should not.
 	t.Run("FileListener", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("skipping: FileListener not implemented on windows")
+		}
 		l := listen(t)
 		f, _ := l.File()
 		l1, _ := FileListener(f)
@@ -445,6 +448,9 @@ func TestUnixUnlink(t *testing.T) {
 	})
 
 	t.Run("FileListener/SetUnlinkOnClose(true)", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("skipping: FileListener not implemented on windows")
+		}
 		l := listen(t)
 		f, _ := l.File()
 		l1, _ := FileListener(f)
@@ -458,6 +464,9 @@ func TestUnixUnlink(t *testing.T) {
 	})
 
 	t.Run("FileListener/SetUnlinkOnClose(false)", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("skipping: FileListener not implemented on windows")
+		}
 		l := listen(t)
 		f, _ := l.File()
 		l1, _ := FileListener(f)
