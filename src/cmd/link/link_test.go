@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -701,7 +702,6 @@ func TestFuncAlign(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Build and run with old object file format.
 	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", "falign")
 	cmd.Dir = tmpdir
 	out, err := cmd.CombinedOutput()
@@ -716,6 +716,87 @@ func TestFuncAlign(t *testing.T) {
 	if string(out) != "PASS" {
 		t.Errorf("unexpected output: %s\n", out)
 	}
+}
+
+const testFuncAlignOptionSrc = `
+package main
+//go:noinline
+func foo() {
+}
+//go:noinline
+func bar() {
+}
+//go:noinline
+func baz() {
+}
+func main() {
+	foo()
+	bar()
+	baz()
+}
+`
+
+// TestFuncAlignOption verifies that the -funcalign option changes the function alignment
+func TestFuncAlignOption(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+
+	src := filepath.Join(tmpdir, "falign.go")
+	err := os.WriteFile(src, []byte(testFuncAlignOptionSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	alignTest := func(align uint64) {
+		exeName := "falign.exe"
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-funcalign="+strconv.FormatUint(align, 10), "-o", exeName, "falign.go")
+		cmd.Dir = tmpdir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("build failed: %v \n%s", err, out)
+		}
+		exe := filepath.Join(tmpdir, exeName)
+		cmd = testenv.Command(t, exe)
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("failed to run with err %v, output: %s", err, out)
+		}
+
+		// Check function alignment
+		f, err := objfile.Open(exe)
+		if err != nil {
+			t.Fatalf("failed to open file:%v\n", err)
+		}
+		defer f.Close()
+
+		fname := map[string]bool{"_main.foo": false,
+			"_main.bar": false,
+			"_main.baz": false}
+		syms, err := f.Symbols()
+		for _, s := range syms {
+			fn := s.Name
+			if _, ok := fname[fn]; !ok {
+				fn = "_" + s.Name
+				if _, ok := fname[fn]; !ok {
+					continue
+				}
+			}
+			if s.Addr%align != 0 {
+				t.Fatalf("unaligned function: %s %x. Expected alignment: %d\n", fn, s.Addr, align)
+			}
+			fname[fn] = true
+		}
+		for k, v := range fname {
+			if !v {
+				t.Fatalf("function %s not found\n", k)
+			}
+		}
+	}
+	alignTest(16)
+	alignTest(32)
 }
 
 const testTrampSrc = `
