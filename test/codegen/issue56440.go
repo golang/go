@@ -8,7 +8,7 @@
 // is constant. We check this by making sure that the constant length
 // is folded into a load offset.
 
-package p
+package codegen
 
 func f(x []int) int {
 	s := make([]int, 3)
