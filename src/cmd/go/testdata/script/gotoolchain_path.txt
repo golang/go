@@ -59,8 +59,8 @@ stderr 'running go1.50.0 from PATH'
 
 # NewerToolchain should find Go 1.50.0.
 env GOTOOLCHAIN=local
-go mod edit -toolchain=none -go=1.22
-grep 'go 1.22$' go.mod
+go mod edit -toolchain=none -go=1.21
+grep 'go 1.21$' go.mod
 ! grep toolchain go.mod
 env GOTOOLCHAIN=path
 ! go run rsc.io/fortune@v0.0.1

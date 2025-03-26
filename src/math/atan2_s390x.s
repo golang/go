@@ -244,16 +244,16 @@ L17:
 	WFDDB	V0, V2, V4
 	BYTE	$0x18	//lr	%r2,%r5
 	BYTE	$0x25
-	WORD	$0xB3130034	//lcdbr	%f3,%f4
+	LCDBR	F4, F3
 	BR	L3
 L23:
-	WORD	$0xB3130062	//lcdbr	%f6,%f2
+	LCDBR   F2, F6
 	BR	L4
 L22:
 	VLR	V20, V0
 	BR	L9
 L21:
-	WORD	$0xB3130022	//lcdbr	%f2,%f2
+	LCDBR   F2, F2
 	BR	L8
 L24:
 	VLR	V20, V4

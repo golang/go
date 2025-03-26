@@ -18,3 +18,7 @@ TEXT ·libc_fchmodat_trampoline(SB),NOSPLIT,$0-0
         JMP	libc_fchmodat(SB)
 TEXT ·libc_fchownat_trampoline(SB),NOSPLIT,$0-0
         JMP	libc_fchownat(SB)
+TEXT ·libc_renameat_trampoline(SB),NOSPLIT,$0-0
+        JMP	libc_renameat(SB)
+TEXT ·libc_linkat_trampoline(SB),NOSPLIT,$0-0
+        JMP	libc_linkat(SB)

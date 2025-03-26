@@ -20,6 +20,11 @@ go clean -cache
 ! go clean -cache .
 stderr 'go: clean -cache cannot be used with package arguments'
 
+# GOCACHE must be an absolute path.
+env GOCACHE=.
+! go clean -cache
+stderr 'go: GOCACHE is not an absolute path'
+
 -- main.go --
 package main
 

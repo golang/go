@@ -216,3 +216,33 @@ const (
 	FILE_DISPOSITION_ON_CLOSE                  = 0x00000008
 	FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE = 0x00000010
 )
+
+// Flags for FILE_RENAME_INFORMATION_EX.
+const (
+	FILE_RENAME_REPLACE_IF_EXISTS = 0x00000001
+	FILE_RENAME_POSIX_SEMANTICS   = 0x00000002
+)
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information
+type FILE_RENAME_INFORMATION struct {
+	ReplaceIfExists bool
+	RootDirectory   syscall.Handle
+	FileNameLength  uint32
+	FileName        [syscall.MAX_PATH]uint16
+}
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information
+type FILE_RENAME_INFORMATION_EX struct {
+	Flags          uint32
+	RootDirectory  syscall.Handle
+	FileNameLength uint32
+	FileName       [syscall.MAX_PATH]uint16
+}
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_link_information
+type FILE_LINK_INFORMATION struct {
+	ReplaceIfExists bool
+	RootDirectory   syscall.Handle
+	FileNameLength  uint32
+	FileName        [syscall.MAX_PATH]uint16
+}

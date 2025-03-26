@@ -53,11 +53,22 @@ func newFD(sysfd syscall.Handle, family, sotype int, net string) (*netFD, error)
 }
 
 func (fd *netFD) init() error {
-	errcall, err := fd.pfd.Init(fd.net, true)
-	if errcall != "" {
-		err = wrapSyscallError(errcall, err)
+	if err := fd.pfd.Init(fd.net, true); err != nil {
+		return err
 	}
-	return err
+	switch fd.net {
+	case "udp", "udp4", "udp6":
+		// Disable reporting of PORT_UNREACHABLE errors.
+		// See https://go.dev/issue/5834.
+		ret := uint32(0)
+		flag := uint32(0)
+		size := uint32(unsafe.Sizeof(flag))
+		err := syscall.WSAIoctl(fd.pfd.Sysfd, syscall.SIO_UDP_CONNRESET, (*byte)(unsafe.Pointer(&flag)), size, nil, 0, &ret, nil, 0)
+		if err != nil {
+			return wrapSyscallError("wsaioctl", err)
+		}
+	}
+	return nil
 }
 
 // Always returns nil for connected peer address result.

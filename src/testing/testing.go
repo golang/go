@@ -345,7 +345,6 @@
 //
 //	func TestGroupedParallel(t *testing.T) {
 //	    for _, tc := range tests {
-//	        tc := tc // capture range variable
 //	        t.Run(tc.Name, func(t *testing.T) {
 //	            t.Parallel()
 //	            ...
@@ -2044,6 +2043,9 @@ var testingTesting bool
 var realStderr *os.File
 
 // Run runs the tests. It returns an exit code to pass to os.Exit.
+// The exit code is zero when all tests pass, and non-zero for any kind
+// of failure. For machine readable test results, parse the output of
+// 'go test -json'.
 func (m *M) Run() (code int) {
 	defer func() {
 		code = m.exitCode

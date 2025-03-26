@@ -6,7 +6,6 @@ package runtime
 
 import (
 	"internal/abi"
-	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -247,18 +246,11 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
 	// sigpanic call to make it look like that. Instead, just
 	// overwrite the PC. (See issue #35773)
 	if r.ip() != 0 && r.ip() != abi.FuncPCABI0(asyncPreempt) {
-		sp := unsafe.Pointer(r.sp())
-		delta := uintptr(sys.StackAlign)
-		sp = add(sp, -delta)
-		r.set_sp(uintptr(sp))
-		if usesLR {
-			*((*uintptr)(sp)) = r.lr()
-			r.set_lr(r.ip())
-		} else {
-			*((*uintptr)(sp)) = r.ip()
-		}
+		r.pushCall(abi.FuncPCABI0(sigpanic0), r.ip())
+	} else {
+		// Not safe to push the call. Just clobber the frame.
+		r.set_ip(abi.FuncPCABI0(sigpanic0))
 	}
-	r.set_ip(abi.FuncPCABI0(sigpanic0))
 	return _EXCEPTION_CONTINUE_EXECUTION
 }
 

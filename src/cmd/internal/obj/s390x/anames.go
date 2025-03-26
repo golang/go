@@ -96,6 +96,7 @@ var Anames = []string{
 	"FNABS",
 	"FNEG",
 	"FNEGS",
+	"LCDBR",
 	"LEDBR",
 	"LDEBR",
 	"LPDFR",

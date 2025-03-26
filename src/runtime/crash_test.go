@@ -10,6 +10,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"internal/profile"
 	"internal/testenv"
 	traceparse "internal/trace"
 	"io"
@@ -1098,5 +1099,82 @@ func TestNetpollWaiters(t *testing.T) {
 	want := "OK\n"
 	if output != want {
 		t.Fatalf("output is not %q\n%s", want, output)
+	}
+}
+
+// The runtime.runFinalizersAndCleanups frame should appear in panics, even if
+// runtime frames are normally hidden (GOTRACEBACK=all).
+func TestFinalizerDeadlockPanic(t *testing.T) {
+	t.Parallel()
+	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GOTRACEBACK=all", "GO_TEST_FINALIZER_DEADLOCK=panic")
+
+	want := "runtime.runFinalizersAndCleanups()"
+	if !strings.Contains(output, want) {
+		t.Errorf("output does not contain %q:\n%s", want, output)
+	}
+}
+
+// The runtime.runFinalizersAndCleanups frame should appear in runtime.Stack,
+// even though runtime frames are normally hidden.
+func TestFinalizerDeadlockStack(t *testing.T) {
+	t.Parallel()
+	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GO_TEST_FINALIZER_DEADLOCK=stack")
+
+	want := "runtime.runFinalizersAndCleanups()"
+	if !strings.Contains(output, want) {
+		t.Errorf("output does not contain %q:\n%s", want, output)
+	}
+}
+
+// The runtime.runFinalizersAndCleanups frame should appear in goroutine
+// profiles.
+func TestFinalizerDeadlockPprofProto(t *testing.T) {
+	t.Parallel()
+	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GO_TEST_FINALIZER_DEADLOCK=pprof_proto")
+
+	p, err := profile.Parse(strings.NewReader(output))
+	if err != nil {
+		// Logging the binary proto data is not very nice, but it might
+		// be a text error message instead.
+		t.Logf("Output: %s", output)
+		t.Fatalf("Error parsing proto output: %v", err)
+	}
+
+	want := "runtime.runFinalizersAndCleanups"
+	for _, s := range p.Sample {
+		for _, loc := range s.Location {
+			for _, line := range loc.Line {
+				if line.Function.Name == want {
+					// Done!
+					return
+				}
+			}
+		}
+	}
+
+	t.Errorf("Profile does not contain %q:\n%s", want, p)
+}
+
+// The runtime.runFinalizersAndCleanups frame should appear in goroutine
+// profiles (debug=1).
+func TestFinalizerDeadlockPprofDebug1(t *testing.T) {
+	t.Parallel()
+	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GO_TEST_FINALIZER_DEADLOCK=pprof_debug1")
+
+	want := "runtime.runFinalizersAndCleanups+"
+	if !strings.Contains(output, want) {
+		t.Errorf("output does not contain %q:\n%s", want, output)
+	}
+}
+
+// The runtime.runFinalizersAndCleanups frame should appear in goroutine
+// profiles (debug=2).
+func TestFinalizerDeadlockPprofDebug2(t *testing.T) {
+	t.Parallel()
+	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GO_TEST_FINALIZER_DEADLOCK=pprof_debug2")
+
+	want := "runtime.runFinalizersAndCleanups()"
+	if !strings.Contains(output, want) {
+		t.Errorf("output does not contain %q:\n%s", want, output)
 	}
 }

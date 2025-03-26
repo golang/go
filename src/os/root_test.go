@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/fs"
 	"net"
@@ -427,6 +428,9 @@ func TestRootChmod(t *testing.T) {
 }
 
 func TestRootChtimes(t *testing.T) {
+	// Don't check atimes if the fs is mounted noatime,
+	// or on Plan 9 which does not permit changing atimes to arbitrary values.
+	checkAtimes := !hasNoatime() && runtime.GOOS != "plan9"
 	for _, test := range rootTestCases {
 		test.run(t, func(t *testing.T, target string, root *os.Root) {
 			if target != "" {
@@ -449,7 +453,8 @@ func TestRootChtimes(t *testing.T) {
 				atime: time.Now(),
 				mtime: time.Time{},
 			}} {
-				if runtime.GOOS == "js" {
+				switch runtime.GOOS {
+				case "js", "plan9":
 					times.atime = times.atime.Truncate(1 * time.Second)
 					times.mtime = times.mtime.Truncate(1 * time.Second)
 				}
@@ -465,8 +470,10 @@ func TestRootChtimes(t *testing.T) {
 				if got := st.ModTime(); !times.mtime.IsZero() && !got.Equal(times.mtime) {
 					t.Errorf("after root.Chtimes(%q, %v, %v): got mtime=%v, want %v", test.open, times.atime, times.mtime, got, times.mtime)
 				}
-				if got := os.Atime(st); !times.atime.IsZero() && !got.Equal(times.atime) {
-					t.Errorf("after root.Chtimes(%q, %v, %v): got atime=%v, want %v", test.open, times.atime, times.mtime, got, times.atime)
+				if checkAtimes {
+					if got := os.Atime(st); !times.atime.IsZero() && !got.Equal(times.atime) {
+						t.Errorf("after root.Chtimes(%q, %v, %v): got atime=%v, want %v", test.open, times.atime, times.mtime, got, times.atime)
+					}
 				}
 			}
 		})
@@ -688,6 +695,164 @@ func TestRootReadlink(t *testing.T) {
 			}
 			if got != want {
 				t.Errorf("root.Readlink(%q) = %q, want %q", test.open, got, want)
+			}
+		})
+	}
+}
+
+// TestRootRenameFrom tests renaming the test case target to a known-good path.
+func TestRootRenameFrom(t *testing.T) {
+	testRootMoveFrom(t, true)
+}
+
+// TestRootRenameFrom tests linking the test case target to a known-good path.
+func TestRootLinkFrom(t *testing.T) {
+	testenv.MustHaveLink(t)
+	testRootMoveFrom(t, false)
+}
+
+func testRootMoveFrom(t *testing.T, rename bool) {
+	want := []byte("target")
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			if target != "" {
+				if err := os.WriteFile(target, want, 0o666); err != nil {
+					t.Fatal(err)
+				}
+			}
+			wantError := test.wantError
+			var linkTarget string
+			if test.ltarget != "" {
+				// Rename will rename the link, not the file linked to.
+				wantError = false
+				var err error
+				linkTarget, err = root.Readlink(test.ltarget)
+				if err != nil {
+					t.Fatalf("root.Readlink(%q) = %v, want success", test.ltarget, err)
+				}
+
+				// When GOOS=js, creating a hard link to a symlink fails.
+				if !rename && runtime.GOOS == "js" {
+					wantError = true
+				}
+			}
+
+			const dstPath = "destination"
+
+			// Plan 9 doesn't allow cross-directory renames.
+			if runtime.GOOS == "plan9" && strings.Contains(test.open, "/") {
+				wantError = true
+			}
+
+			var op string
+			var err error
+			if rename {
+				op = "Rename"
+				err = root.Rename(test.open, dstPath)
+			} else {
+				op = "Link"
+				err = root.Link(test.open, dstPath)
+			}
+			if errEndsTest(t, err, wantError, "root.%v(%q, %q)", op, test.open, dstPath) {
+				return
+			}
+
+			origPath := target
+			if test.ltarget != "" {
+				origPath = filepath.Join(root.Name(), test.ltarget)
+			}
+			_, err = os.Lstat(origPath)
+			if rename {
+				if !errors.Is(err, os.ErrNotExist) {
+					t.Errorf("after renaming file, Lstat(%q) = %v, want ErrNotExist", origPath, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("after linking file, error accessing original: %v", err)
+				}
+			}
+
+			dstFullPath := filepath.Join(root.Name(), dstPath)
+			if test.ltarget != "" {
+				got, err := os.Readlink(dstFullPath)
+				if err != nil || got != linkTarget {
+					t.Errorf("os.Readlink(%q) = %q, %v, want %q", dstFullPath, got, err, linkTarget)
+				}
+			} else {
+				got, err := os.ReadFile(dstFullPath)
+				if err != nil || !bytes.Equal(got, want) {
+					t.Errorf(`os.ReadFile(%q): read content %q, %v; want %q`, dstFullPath, string(got), err, string(want))
+				}
+				st, err := os.Lstat(dstFullPath)
+				if err != nil || st.Mode()&fs.ModeSymlink != 0 {
+					t.Errorf(`os.Lstat(%q) = %v, %v; want non-symlink`, dstFullPath, st.Mode(), err)
+				}
+
+			}
+		})
+	}
+}
+
+// TestRootRenameTo tests renaming a known-good path to the test case target.
+func TestRootRenameTo(t *testing.T) {
+	testRootMoveTo(t, true)
+}
+
+// TestRootLinkTo tests renaming a known-good path to the test case target.
+func TestRootLinkTo(t *testing.T) {
+	testenv.MustHaveLink(t)
+	testRootMoveTo(t, true)
+}
+
+func testRootMoveTo(t *testing.T, rename bool) {
+	want := []byte("target")
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			const srcPath = "source"
+			if err := os.WriteFile(filepath.Join(root.Name(), srcPath), want, 0o666); err != nil {
+				t.Fatal(err)
+			}
+
+			target = test.target
+			wantError := test.wantError
+			if test.ltarget != "" {
+				// Rename will overwrite the final link rather than follow it.
+				target = test.ltarget
+				wantError = false
+			}
+
+			// Plan 9 doesn't allow cross-directory renames.
+			if runtime.GOOS == "plan9" && strings.Contains(test.open, "/") {
+				wantError = true
+			}
+
+			var err error
+			var op string
+			if rename {
+				op = "Rename"
+				err = root.Rename(srcPath, test.open)
+			} else {
+				op = "Link"
+				err = root.Link(srcPath, test.open)
+			}
+			if errEndsTest(t, err, wantError, "root.%v(%q, %q)", op, srcPath, test.open) {
+				return
+			}
+
+			_, err = os.Lstat(filepath.Join(root.Name(), srcPath))
+			if rename {
+				if !errors.Is(err, os.ErrNotExist) {
+					t.Errorf("after renaming file, Lstat(%q) = %v, want ErrNotExist", srcPath, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("after linking file, error accessing original: %v", err)
+				}
+			}
+
+			got, err := os.ReadFile(filepath.Join(root.Name(), target))
+			if err != nil || !bytes.Equal(got, want) {
+				t.Errorf(`os.ReadFile(%q): read content %q, %v; want %q`, target, string(got), err, string(want))
 			}
 		})
 	}
@@ -921,14 +1086,19 @@ func (test rootConsistencyTest) run(t *testing.T, f func(t *testing.T, path stri
 		}
 
 		if err1 != nil || err2 != nil {
-			e1, ok := err1.(*os.PathError)
-			if !ok {
-				t.Fatalf("with root, expected PathError; got: %v", err1)
+			underlyingError := func(how string, err error) error {
+				switch e := err1.(type) {
+				case *os.PathError:
+					return e.Err
+				case *os.LinkError:
+					return e.Err
+				default:
+					t.Fatalf("%v, expected PathError or LinkError; got: %v", how, err)
+				}
+				return nil
 			}
-			e2, ok := err2.(*os.PathError)
-			if !ok {
-				t.Fatalf("without root, expected PathError; got: %v", err1)
-			}
+			e1 := underlyingError("with root", err1)
+			e2 := underlyingError("without root", err1)
 			detailedErrorMismatch := false
 			if f := test.detailedErrorMismatch; f != nil {
 				detailedErrorMismatch = f(t)
@@ -937,9 +1107,9 @@ func (test rootConsistencyTest) run(t *testing.T, f func(t *testing.T, path stri
 				// Plan9 syscall errors aren't comparable.
 				detailedErrorMismatch = true
 			}
-			if !detailedErrorMismatch && e1.Err != e2.Err {
-				t.Errorf("with root:    err=%v", e1.Err)
-				t.Errorf("without root: err=%v", e2.Err)
+			if !detailedErrorMismatch && e1 != e2 {
+				t.Errorf("with root:    err=%v", e1)
+				t.Errorf("without root: err=%v", e2)
 				t.Errorf("want consistent results, got mismatch")
 			}
 		}
@@ -1099,6 +1269,96 @@ func TestRootConsistencyReadlink(t *testing.T) {
 				return os.Readlink(path)
 			} else {
 				return r.Readlink(path)
+			}
+		})
+	}
+}
+
+func TestRootConsistencyRename(t *testing.T) {
+	testRootConsistencyMove(t, true)
+}
+
+func TestRootConsistencyLink(t *testing.T) {
+	testenv.MustHaveLink(t)
+	testRootConsistencyMove(t, false)
+}
+
+func testRootConsistencyMove(t *testing.T, rename bool) {
+	if runtime.GOOS == "plan9" {
+		// This test depends on moving files between directories.
+		t.Skip("Plan 9 does not support cross-directory renames")
+	}
+	// Run this test in two directions:
+	// Renaming the test path to a known-good path (from),
+	// and renaming a known-good path to the test path (to).
+	for _, name := range []string{"from", "to"} {
+		t.Run(name, func(t *testing.T) {
+			for _, test := range rootConsistencyTestCases {
+				if runtime.GOOS == "windows" {
+					// On Windows, Rename("/path/to/.", x) succeeds,
+					// because Windows cleans the path to just "/path/to".
+					// Root.Rename(".", x) fails as expected.
+					// Don't run this consistency test on Windows.
+					if test.open == "." || test.open == "./" {
+						continue
+					}
+				}
+
+				test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
+					var move func(oldname, newname string) error
+					switch {
+					case rename && r == nil:
+						move = os.Rename
+					case rename && r != nil:
+						move = r.Rename
+					case !rename && r == nil:
+						move = os.Link
+					case !rename && r != nil:
+						move = r.Link
+					}
+					lstat := os.Lstat
+					if r != nil {
+						lstat = r.Lstat
+					}
+
+					otherPath := "other"
+					if r == nil {
+						otherPath = filepath.Join(t.TempDir(), otherPath)
+					}
+
+					var srcPath, dstPath string
+					if name == "from" {
+						srcPath = path
+						dstPath = otherPath
+					} else {
+						srcPath = otherPath
+						dstPath = path
+					}
+
+					if !rename {
+						// When the source is a symlink, Root.Link creates
+						// a hard link to the symlink.
+						// os.Link does whatever the link syscall does,
+						// which varies between operating systems and
+						// their versions.
+						// Skip running the consistency test when
+						// the source is a symlink.
+						fi, err := lstat(srcPath)
+						if err == nil && fi.Mode()&os.ModeSymlink != 0 {
+							return "", nil
+						}
+					}
+
+					if err := move(srcPath, dstPath); err != nil {
+						return "", err
+					}
+					fi, err := lstat(dstPath)
+					if err != nil {
+						t.Errorf("stat(%q) after successful copy: %v", dstPath, err)
+						return "stat error", err
+					}
+					return fmt.Sprintf("name:%q size:%v mode:%v isdir:%v", fi.Name(), fi.Size(), fi.Mode(), fi.IsDir()), nil
+				})
 			}
 		})
 	}
