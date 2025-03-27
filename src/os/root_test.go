@@ -1596,6 +1596,33 @@ func TestRootRaceRenameDir(t *testing.T) {
 	}
 }
 
+func TestRootSymlinkToRoot(t *testing.T) {
+	dir := makefs(t, []string{
+		"d/d => ..",
+	})
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	if err := root.Mkdir("d/d/new", 0777); err != nil {
+		t.Fatal(err)
+	}
+	f, err := root.Open("d/d")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	names, err := f.Readdirnames(-1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	slices.Sort(names)
+	if got, want := names, []string{"d", "new"}; !slices.Equal(got, want) {
+		t.Errorf("root contains: %q, want %q", got, want)
+	}
+}
+
 func TestOpenInRoot(t *testing.T) {
 	dir := makefs(t, []string{
 		"file",

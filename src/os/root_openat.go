@@ -226,6 +226,9 @@ func doInRoot[T any](r *Root, name string, f func(parent sysfdType, name string)
 				return ret, errPathEscapes
 			}
 			parts = slices.Delete(parts, i-count, end)
+			if len(parts) == 0 {
+				parts = []string{"."}
+			}
 			i = 0
 			if dirfd != rootfd {
 				syscall.Close(dirfd)
