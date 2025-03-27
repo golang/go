@@ -71,11 +71,11 @@ func TestASAN(t *testing.T) {
 						!strings.Contains(out, noSymbolizer) &&
 						compilerSupportsLocation() {
 
-						t.Errorf("%#q exited without expected location of the error\n%s; got failure\n%s", cmd, tc.errorLocation, out)
+						t.Errorf("%#q exited without expected location of the error\n%s; got failure\n%s", strings.Join(cmd.Args, " "), tc.errorLocation, out)
 					}
 					return
 				}
-				t.Fatalf("%#q exited without expected memory access error\n%s; got failure\n%s", cmd, tc.memoryAccessError, out)
+				t.Fatalf("%#q exited without expected memory access error\n%s; got failure\n%s", strings.Join(cmd.Args, " "), tc.memoryAccessError, out)
 			}
 			mustRun(t, cmd)
 		})

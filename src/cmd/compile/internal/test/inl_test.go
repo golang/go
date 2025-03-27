@@ -230,9 +230,6 @@ func TestIntendedInlining(t *testing.T) {
 			"(*Pointer[go.shape.int]).Store",
 			"(*Pointer[go.shape.int]).Swap",
 		},
-		"testing": {
-			"(*B).Loop",
-		},
 	}
 
 	if !goexperiment.SwissMap {

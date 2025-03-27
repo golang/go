@@ -155,10 +155,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 	sh := work.NewShell("", &load.TextPrinter{Writer: os.Stdout})
 
 	if cleanCache {
-		dir, _, err := cache.DefaultDir()
-		if err != nil {
-			base.Fatal(err)
-		}
+		dir, _ := cache.DefaultDir()
 		if dir != "off" {
 			// Remove the cache subdirectories but not the top cache directory.
 			// The top cache directory may have been created with special permissions
@@ -185,10 +182,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
 		// Instead of walking through the entire cache looking for test results,
 		// we write a file to the cache indicating that all test results from before
 		// right now are to be ignored.
-		dir, _, err := cache.DefaultDir()
-		if err != nil {
-			base.Fatal(err)
-		}
+		dir, _ := cache.DefaultDir()
 		if dir != "off" {
 			f, err := lockedfile.Edit(filepath.Join(dir, "testexpire.txt"))
 			if err == nil {

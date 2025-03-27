@@ -4,11 +4,6 @@
 
 package runtime
 
-import (
-	"internal/goarch"
-	"unsafe"
-)
-
 // NOTE(rsc): _CONTEXT_CONTROL is actually 0x200001 and should include PC, SP, and LR.
 // However, empirically, LR doesn't come along on Windows 10
 // unless you also set _CONTEXT_INTEGER (0x200002).
@@ -65,18 +60,6 @@ func (c *context) set_lr(x uintptr) { c.lrr = uint32(x) }
 
 // arm does not have frame pointer register.
 func (c *context) set_fp(x uintptr) {}
-
-func (c *context) pushCall(targetPC, resumePC uintptr) {
-	// Push LR. The injected call is responsible
-	// for restoring LR. gentraceback is aware of
-	// this extra slot. See sigctxt.pushCall in
-	// signal_arm.go.
-	sp := c.sp() - goarch.StackAlign
-	c.set_sp(sp)
-	*(*uint32)(unsafe.Pointer(sp)) = uint32(c.lr())
-	c.set_lr(resumePC)
-	c.set_ip(targetPC)
-}
 
 func prepareContextForSigResume(c *context) {
 	c.r0 = c.spr

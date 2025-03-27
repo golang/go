@@ -557,7 +557,7 @@ func PopulateABIInRegArgOps(f *Func) {
 	f.Entry.Values = append(newValues, f.Entry.Values...)
 }
 
-// BuildFuncDebug builds debug information for f, placing the results
+// BuildFuncDebug debug information for f, placing the results
 // in "rval". f must be fully processed, so that each Value is where it
 // will be when machine code is emitted.
 func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(LocalSlot) int32, rval *FuncDebug) {

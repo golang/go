@@ -127,7 +127,7 @@ func (sh *Shell) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) e
 	// Otherwise fall back to standard copy.
 
 	// If the source is in the build cache, we need to copy it.
-	dir, _, _ := cache.DefaultDir()
+	dir, _ := cache.DefaultDir()
 	if strings.HasPrefix(src, dir) {
 		return sh.CopyFile(dst, src, perm, force)
 	}

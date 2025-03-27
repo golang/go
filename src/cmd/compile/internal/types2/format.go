@@ -88,30 +88,11 @@ func (check *Checker) sprintf(format string, args ...any) string {
 }
 
 func (check *Checker) trace(pos syntax.Pos, format string, args ...any) {
-	// Use the width of line and pos values to align the ":" by adding padding before it.
-	// Cap padding at 5: 3 digits for the line, 2 digits for the column number, which is
-	// ok for most cases.
-	w := ndigits(pos.Line()) + ndigits(pos.Col())
-	pad := "     "[:max(5-w, 0)]
-	fmt.Printf("%s%s:  %s%s\n",
+	fmt.Printf("%s:\t%s%s\n",
 		pos,
-		pad,
 		strings.Repeat(".  ", check.indent),
 		sprintf(check.qualifier, true, format, args...),
 	)
-}
-
-// ndigits returns the number of decimal digits in x.
-// For x > 100, the result is always 3.
-func ndigits(x uint) int {
-	switch {
-	case x < 10:
-		return 1
-	case x < 100:
-		return 2
-	default:
-		return 3
-	}
 }
 
 // dump is only needed for debugging

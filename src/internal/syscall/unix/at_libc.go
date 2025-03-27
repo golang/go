@@ -18,8 +18,6 @@ import (
 //go:linkname procMkdirat libc_mkdirat
 //go:linkname procFchmodat libc_fchmodat
 //go:linkname procFchownat libc_fchownat
-//go:linkname procRenameat libc_renameat
-//go:linkname procLinkat libc_linkat
 
 var (
 	procFstatat,
@@ -28,9 +26,7 @@ var (
 	procReadlinkat,
 	procMkdirat,
 	procFchmodat,
-	procFchownat,
-	procRenameat,
-	procLinkat uintptr
+	procFchownat uintptr
 )
 
 func Unlinkat(dirfd int, path string, flags int) error {
@@ -158,50 +154,6 @@ func Fchownat(dirfd int, path string, uid, gid int, flags int) error {
 		uintptr(uid),
 		uintptr(gid),
 		uintptr(flags),
-		0)
-	if errno != 0 {
-		return errno
-	}
-	return nil
-}
-
-func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) error {
-	oldp, err := syscall.BytePtrFromString(oldpath)
-	if err != nil {
-		return err
-	}
-	newp, err := syscall.BytePtrFromString(newpath)
-	if err != nil {
-		return err
-	}
-	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procRenameat)), 4,
-		uintptr(olddirfd),
-		uintptr(unsafe.Pointer(oldp)),
-		uintptr(newdirfd),
-		uintptr(unsafe.Pointer(newp)),
-		0,
-		0)
-	if errno != 0 {
-		return errno
-	}
-	return nil
-}
-
-func Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flag int) error {
-	oldp, err := syscall.BytePtrFromString(oldpath)
-	if err != nil {
-		return err
-	}
-	newp, err := syscall.BytePtrFromString(newpath)
-	if err != nil {
-		return err
-	}
-	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procLinkat)), 5,
-		uintptr(olddirfd),
-		uintptr(unsafe.Pointer(oldp)),
-		uintptr(newdirfd),
-		uintptr(unsafe.Pointer(newp)),
-		uintptr(flag),
 		0)
 	if errno != 0 {
 		return errno

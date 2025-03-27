@@ -1098,7 +1098,7 @@ func (t *tester) dirCmd(dir string, cmdline ...interface{}) *exec.Cmd {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if vflag > 1 {
-		errprintf("%#q\n", cmd)
+		errprintf("%s\n", strings.Join(cmd.Args, " "))
 	}
 	return cmd
 }
@@ -1450,7 +1450,7 @@ func (t *tester) runPending(nextTest *distTest) {
 			}
 		}
 		if vflag > 1 {
-			errprintf("%#q\n", w.cmd)
+			errprintf("%s\n", strings.Join(w.cmd.Args, " "))
 		}
 		ended++
 		<-w.end

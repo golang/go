@@ -492,10 +492,10 @@ L9:
 	FMOVD	F2, F1
 	BR	L1
 L46:
-	LCDBR	F0, F4
+	WORD	$0xB3130040	//lcdbr	%f4,%f0
 	BR	L3
 L44:
-	LCDBR   F0, F3
+	WORD	$0xB3130030	//lcdbr	%f3,%f0
 	BR	L7
 L35:
 	FMOVD	F0, F1
@@ -590,7 +590,7 @@ L32:
 	FMOVD	8(R9), F4
 	BR	L17
 L50:
-	LCDBR   F2, F4
+	WORD	$0xB3130042	//lcdbr	%f4,%f2
 	BR	L14
 xIsOne:			// Pow(1, y) = 1 for any y
 yIsOne:			// Pow(x, 1) = x for any x

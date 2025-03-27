@@ -57,7 +57,7 @@ func OpenInRoot(dir, name string) (*File, error) {
 //     such as NUL and COM1.
 //   - On Unix, [Root.Chmod], [Root.Chown], and [Root.Chtimes] are vulnerable to a race condition.
 //     If the target of the operation is changed from a regular file to a symlink
-//     while the operation is in progress, the operation may be performed on the link
+//     while the operation is in progress, the operation may be peformed on the link
 //     rather than the link target.
 //   - When GOOS=js, Root is vulnerable to TOCTOU (time-of-check-time-of-use)
 //     attacks in symlink validation, and cannot ensure that operations will not
@@ -197,25 +197,6 @@ func (r *Root) Lstat(name string) (FileInfo, error) {
 // See [Readlink] for more details.
 func (r *Root) Readlink(name string) (string, error) {
 	return rootReadlink(r, name)
-}
-
-// Rename renames (moves) oldname to newname.
-// Both paths are relative to the root.
-// See [Rename] for more details.
-func (r *Root) Rename(oldname, newname string) error {
-	return rootRename(r, oldname, newname)
-}
-
-// Link creates newname as a hard link to the oldname file.
-// Both paths are relative to the root.
-// See [Link] for more details.
-//
-// If oldname is a symbolic link, Link creates new link to oldname and not its target.
-// This behavior may differ from that of [Link] on some platforms.
-//
-// When GOOS=js, Link returns an error if oldname is a symbolic link.
-func (r *Root) Link(oldname, newname string) error {
-	return rootLink(r, oldname, newname)
 }
 
 func (r *Root) logOpen(name string) {
@@ -361,7 +342,7 @@ func (rfs *rootFS) Stat(name string) (FileInfo, error) {
 	return r.Stat(name)
 }
 
-// isValidRootFSPath reports whether name is a valid filename to pass a Root.FS method.
+// isValidRootFSPath reprots whether name is a valid filename to pass a Root.FS method.
 func isValidRootFSPath(name string) bool {
 	if !fs.ValidPath(name) {
 		return false

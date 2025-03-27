@@ -850,49 +850,34 @@ func TestReaddirOfFile(t *testing.T) {
 }
 
 func TestHardLink(t *testing.T) {
-	testMaybeRooted(t, testHardLink)
-}
-func testHardLink(t *testing.T, root *Root) {
 	testenv.MustHaveLink(t)
-
-	var (
-		create = Create
-		link   = Link
-		stat   = Stat
-		op     = "link"
-	)
-	if root != nil {
-		create = root.Create
-		link = root.Link
-		stat = root.Stat
-		op = "linkat"
-	}
+	t.Chdir(t.TempDir())
 
 	from, to := "hardlinktestfrom", "hardlinktestto"
-	file, err := create(to)
+	file, err := Create(to)
 	if err != nil {
 		t.Fatalf("open %q failed: %v", to, err)
 	}
 	if err = file.Close(); err != nil {
 		t.Errorf("close %q failed: %v", to, err)
 	}
-	err = link(to, from)
+	err = Link(to, from)
 	if err != nil {
 		t.Fatalf("link %q, %q failed: %v", to, from, err)
 	}
 
 	none := "hardlinktestnone"
-	err = link(none, none)
+	err = Link(none, none)
 	// Check the returned error is well-formed.
 	if lerr, ok := err.(*LinkError); !ok || lerr.Error() == "" {
 		t.Errorf("link %q, %q failed to return a valid error", none, none)
 	}
 
-	tostat, err := stat(to)
+	tostat, err := Stat(to)
 	if err != nil {
 		t.Fatalf("stat %q failed: %v", to, err)
 	}
-	fromstat, err := stat(from)
+	fromstat, err := Stat(from)
 	if err != nil {
 		t.Fatalf("stat %q failed: %v", from, err)
 	}
@@ -900,11 +885,11 @@ func testHardLink(t *testing.T, root *Root) {
 		t.Errorf("link %q, %q did not create hard link", to, from)
 	}
 	// We should not be able to perform the same Link() a second time
-	err = link(to, from)
+	err = Link(to, from)
 	switch err := err.(type) {
 	case *LinkError:
-		if err.Op != op {
-			t.Errorf("Link(%q, %q) err.Op = %q; want %q", to, from, err.Op, op)
+		if err.Op != "link" {
+			t.Errorf("Link(%q, %q) err.Op = %q; want %q", to, from, err.Op, "link")
 		}
 		if err.Old != to {
 			t.Errorf("Link(%q, %q) err.Old = %q; want %q", to, from, err.Old, to)
@@ -1360,9 +1345,6 @@ var hasNoatime = sync.OnceValue(func() bool {
 	// but the syscall is OS-specific and is not even wired into Go stdlib.
 	//
 	// Only used on NetBSD (which ignores explicit atime updates with noatime).
-	if runtime.GOOS != "netbsd" {
-		return false
-	}
 	mounts, _ := ReadFile("/proc/mounts")
 	return bytes.Contains(mounts, []byte("noatime"))
 })

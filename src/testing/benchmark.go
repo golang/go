@@ -114,22 +114,10 @@ type B struct {
 	netBytes  uint64
 	// Extra metrics collected by ReportMetric.
 	extra map[string]float64
-
-	// loop tracks the state of B.Loop
-	loop struct {
-		// n is the target number of iterations. It gets bumped up as we go.
-		// When the benchmark loop is done, we commit this to b.N so users can
-		// do reporting based on it, but we avoid exposing it until then.
-		n uint64
-		// i is the current Loop iteration. It's strictly monotonically
-		// increasing toward n.
-		//
-		// The high bit is used to poison the Loop fast path and fall back to
-		// the slow path.
-		i uint64
-
-		done bool // set when B.Loop return false
-	}
+	// For Loop() to be executed in benchFunc.
+	// Loop() has its own control logic that skips the loop scaling.
+	// See issue #61515.
+	loopN int
 }
 
 // StartTimer starts timing a test. This function is called automatically
@@ -142,7 +130,6 @@ func (b *B) StartTimer() {
 		b.startBytes = memStats.TotalAlloc
 		b.start = highPrecisionTimeNow()
 		b.timerOn = true
-		b.loop.i &^= loopPoisonTimer
 	}
 }
 
@@ -155,8 +142,6 @@ func (b *B) StopTimer() {
 		b.netAllocs += memStats.Mallocs - b.startAllocs
 		b.netBytes += memStats.TotalAlloc - b.startBytes
 		b.timerOn = false
-		// If we hit B.Loop with the timer stopped, fail.
-		b.loop.i |= loopPoisonTimer
 	}
 }
 
@@ -207,9 +192,7 @@ func (b *B) runN(n int) {
 	runtime.GC()
 	b.resetRaces()
 	b.N = n
-	b.loop.n = 0
-	b.loop.i = 0
-	b.loop.done = false
+	b.loopN = 0
 	b.ctx = ctx
 	b.cancelCtx = cancelCtx
 
@@ -220,10 +203,6 @@ func (b *B) runN(n int) {
 	b.StopTimer()
 	b.previousN = n
 	b.previousDuration = b.duration
-
-	if b.loop.n > 0 && !b.loop.done && !b.failed {
-		b.Error("benchmark function returned without B.Loop() == false (break or return in loop?)")
-	}
 }
 
 // run1 runs the first iteration of benchFunc. It reports whether more
@@ -333,8 +312,8 @@ func (b *B) launch() {
 	}()
 
 	// b.Loop does its own ramp-up logic so we just need to run it once.
-	// If b.loop.n is non zero, it means b.Loop has already run.
-	if b.loop.n == 0 {
+	// If b.loopN is non zero, it means b.Loop has already run.
+	if b.loopN == 0 {
 		// Run the benchmark for at least the specified amount of time.
 		if b.benchTime.n > 0 {
 			// We already ran a single iteration in run1.
@@ -389,75 +368,42 @@ func (b *B) ReportMetric(n float64, unit string) {
 }
 
 func (b *B) stopOrScaleBLoop() bool {
-	t := b.Elapsed()
-	if t >= b.benchTime.d {
-		// We've reached the target
+	timeElapsed := highPrecisionTimeSince(b.start)
+	if timeElapsed >= b.benchTime.d {
+		// Stop the timer so we don't count cleanup time
+		b.StopTimer()
 		return false
 	}
 	// Loop scaling
 	goalns := b.benchTime.d.Nanoseconds()
-	prevIters := int64(b.loop.n)
-	b.loop.n = uint64(predictN(goalns, prevIters, t.Nanoseconds(), prevIters))
-	if b.loop.n&loopPoisonMask != 0 {
-		// The iteration count should never get this high, but if it did we'd be
-		// in big trouble.
-		panic("loop iteration target overflow")
-	}
+	prevIters := int64(b.N)
+	b.N = predictN(goalns, prevIters, timeElapsed.Nanoseconds(), prevIters)
+	b.loopN++
 	return true
 }
 
 func (b *B) loopSlowPath() bool {
-	// Consistency checks
-	if !b.timerOn {
-		b.Fatal("B.Loop called with timer stopped")
-	}
-	if b.loop.i&loopPoisonMask != 0 {
-		panic(fmt.Sprintf("unknown loop stop condition: %#x", b.loop.i))
-	}
-
-	if b.loop.n == 0 {
-		// It's the first call to b.Loop() in the benchmark function.
-		if b.benchTime.n > 0 {
-			// Fixed iteration count.
-			b.loop.n = uint64(b.benchTime.n)
-		} else {
-			// Initialize target to 1 to kick start loop scaling.
-			b.loop.n = 1
-		}
-		// Within a b.Loop loop, we don't use b.N (to avoid confusion).
-		b.N = 0
+	if b.loopN == 0 {
+		// If it's the first call to b.Loop() in the benchmark function.
+		// Allows more precise measurement of benchmark loop cost counts.
+		// Also initialize b.N to 1 to kick start loop scaling.
+		b.N = 1
+		b.loopN = 1
 		b.ResetTimer()
-
-		// Start the next iteration.
-		b.loop.i++
 		return true
 	}
-
-	// Should we keep iterating?
-	var more bool
+	// Handles fixed iterations case
 	if b.benchTime.n > 0 {
-		// The iteration count is fixed, so we should have run this many and now
-		// be done.
-		if b.loop.i != uint64(b.benchTime.n) {
-			// We shouldn't be able to reach the slow path in this case.
-			panic(fmt.Sprintf("iteration count %d < fixed target %d", b.loop.i, b.benchTime.n))
+		if b.N < b.benchTime.n {
+			b.N = b.benchTime.n
+			b.loopN++
+			return true
 		}
-		more = false
-	} else {
-		// Handle fixed time case
-		more = b.stopOrScaleBLoop()
-	}
-	if !more {
 		b.StopTimer()
-		// Commit iteration count
-		b.N = int(b.loop.n)
-		b.loop.done = true
 		return false
 	}
-
-	// Start the next iteration.
-	b.loop.i++
-	return true
+	// Handles fixed time case
+	return b.stopOrScaleBLoop()
 }
 
 // Loop returns true as long as the benchmark should continue running.
@@ -494,37 +440,12 @@ func (b *B) loopSlowPath() bool {
 // whereas b.N-based benchmarks must run the benchmark function (and any
 // associated setup and cleanup) several times.
 func (b *B) Loop() bool {
-	// This is written such that the fast path is as fast as possible and can be
-	// inlined.
-	//
-	// There are three cases where we'll fall out of the fast path:
-	//
-	// - On the first call, both i and n are 0.
-	//
-	// - If the loop reaches the n'th iteration, then i == n and we need
-	//   to figure out the new target iteration count or if we're done.
-	//
-	// - If the timer is stopped, it poisons the top bit of i so the slow
-	//   path can do consistency checks and fail.
-	if b.loop.i < b.loop.n {
-		b.loop.i++
+	if b.loopN != 0 && b.loopN < b.N {
+		b.loopN++
 		return true
 	}
 	return b.loopSlowPath()
 }
-
-// The loopPoison constants can be OR'd into B.loop.i to cause it to fall back
-// to the slow path.
-const (
-	loopPoisonTimer = uint64(1 << (63 - iota))
-	// If necessary, add more poison bits here.
-
-	// loopPoisonMask is the set of all loop poison bits. (iota-1) is the index
-	// of the bit we just set, from which we recreate that bit mask. We subtract
-	// 1 to set all of the bits below that bit, then complement the result to
-	// get the mask. Sorry, not sorry.
-	loopPoisonMask = ^uint64((1 << (63 - (iota - 1))) - 1)
-)
 
 // BenchmarkResult contains the results of a benchmark run.
 type BenchmarkResult struct {

@@ -1,4 +1,4 @@
-// errorcheck -0 -m
+// errorcheck -0 -m=2
 
 // Copyright 2024 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -15,7 +15,7 @@ func caninline(x int) int { // ERROR "can inline caninline"
 	return x
 }
 
-func test(b *testing.B) { // ERROR "leaking param: b"
+func cannotinline(b *testing.B) { // ERROR "b does not escape" "cannot inline cannotinline.*"
 	for i := 0; i < b.N; i++ {
 		caninline(1) // ERROR "inlining call to caninline"
 	}

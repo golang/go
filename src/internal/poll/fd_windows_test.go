@@ -121,7 +121,8 @@ func TestWSASocketConflict(t *testing.T) {
 		t.Fatal(err)
 	}
 	fd := poll.FD{Sysfd: s, IsStream: true, ZeroReadIsEOF: true}
-	if err = fd.Init("tcp", true); err != nil {
+	_, err = fd.Init("tcp", true)
+	if err != nil {
 		syscall.CloseHandle(s)
 		t.Fatal(err)
 	}

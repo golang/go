@@ -1192,22 +1192,19 @@ func Replace(s, old, new []byte, n int) []byte {
 	t := make([]byte, len(s)+n*(len(new)-len(old)))
 	w := 0
 	start := 0
-	if len(old) > 0 {
-		for range n {
-			j := start + Index(s[start:], old)
-			w += copy(t[w:], s[start:j])
-			w += copy(t[w:], new)
-			start = j + len(old)
+	for i := 0; i < n; i++ {
+		j := start
+		if len(old) == 0 {
+			if i > 0 {
+				_, wid := utf8.DecodeRune(s[start:])
+				j += wid
+			}
+		} else {
+			j += Index(s[start:], old)
 		}
-	} else { // len(old) == 0
+		w += copy(t[w:], s[start:j])
 		w += copy(t[w:], new)
-		for range n - 1 {
-			_, wid := utf8.DecodeRune(s[start:])
-			j := start + wid
-			w += copy(t[w:], s[start:j])
-			w += copy(t[w:], new)
-			start = j
-		}
+		start = j + len(old)
 	}
 	w += copy(t[w:], s[start:])
 	return t[0:w]

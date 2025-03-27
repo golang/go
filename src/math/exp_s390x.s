@@ -116,7 +116,7 @@ L16:
 	FMOVD	F0, ret+8(FP)
 	RET
 L20:
-	LCDBR	F0, F2
+	WORD	$0xB3130020	//lcdbr	%f2,%f0
 	BR	L2
 L6:
 	MOVD	$·expxaddexp<>+0(SB), R1
