@@ -111,43 +111,6 @@ func Fchownat(dirfd int, path string, uid, gid int, flags int) error {
 	return syscall.ENOSYS
 }
 
-//go:wasmimport wasi_snapshot_preview1 path_rename
-//go:noescape
-func path_rename(oldFd int32, oldPath *byte, oldPathLen size, newFd int32, newPath *byte, newPathLen size) syscall.Errno
-
-func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) error {
-	if oldpath == "" || newpath == "" {
-		return syscall.EINVAL
-	}
-	return errnoErr(path_rename(
-		int32(olddirfd),
-		unsafe.StringData(oldpath),
-		size(len(oldpath)),
-		int32(newdirfd),
-		unsafe.StringData(newpath),
-		size(len(newpath)),
-	))
-}
-
-//go:wasmimport wasi_snapshot_preview1 path_link
-//go:noescape
-func path_link(oldFd int32, oldFlags uint32, oldPath *byte, oldPathLen size, newFd int32, newPath *byte, newPathLen size) syscall.Errno
-
-func Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flag int) error {
-	if oldpath == "" || newpath == "" {
-		return syscall.EINVAL
-	}
-	return errnoErr(path_link(
-		int32(olddirfd),
-		0,
-		unsafe.StringData(oldpath),
-		size(len(oldpath)),
-		int32(newdirfd),
-		unsafe.StringData(newpath),
-		size(len(newpath)),
-	))
-}
-
 //go:wasmimport wasi_snapshot_preview1 path_create_directory
 //go:noescape
 func path_create_directory(fd int32, path *byte, pathLen size) syscall.Errno

@@ -1578,7 +1578,7 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
 	}
 
 	includesFinalizer := func(s string) bool {
-		return strings.Contains(s, "runtime.runFinalizersAndCleanups")
+		return strings.Contains(s, "runtime.runfinq")
 	}
 
 	// Concurrent calls to the goroutine profiler should not trigger data races
@@ -2065,7 +2065,7 @@ func TestLabelSystemstack(t *testing.T) {
 					// which part of the function they are
 					// at.
 					mayBeLabeled = true
-				case "runtime.bgsweep", "runtime.bgscavenge", "runtime.forcegchelper", "runtime.gcBgMarkWorker", "runtime.runFinalizersAndCleanups", "runtime.sysmon":
+				case "runtime.bgsweep", "runtime.bgscavenge", "runtime.forcegchelper", "runtime.gcBgMarkWorker", "runtime.runfinq", "runtime.sysmon":
 					// Runtime system goroutines or threads
 					// (such as those identified by
 					// runtime.isSystemGoroutine). These

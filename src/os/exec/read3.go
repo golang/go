@@ -20,6 +20,7 @@ import (
 	"os/exec"
 	"os/exec/internal/fdtest"
 	"runtime"
+	"strings"
 )
 
 func main() {
@@ -80,7 +81,7 @@ func main() {
 		cmd := exec.Command(ofcmd, args...)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%#q failed: %v\n", cmd, err)
+			fmt.Fprintf(os.Stderr, "%s failed: %v\n", strings.Join(cmd.Args, " "), err)
 		}
 		fmt.Printf("%s", out)
 		os.Exit(1)

@@ -632,7 +632,6 @@ var parseDepthTests = []struct {
 	{name: "go", format: "package main; func main() { «go func() { «» }()» }", parseMultiplier: 2, scope: true},                      // Parser nodes: GoStmt, FuncLit
 	{name: "defer", format: "package main; func main() { «defer func() { «» }()» }", parseMultiplier: 2, scope: true},                // Parser nodes: DeferStmt, FuncLit
 	{name: "select", format: "package main; func main() { «select { default: «» }» }", scope: true},
-	{name: "block", format: "package main; func main() { «{«»}» }", scope: true},
 }
 
 // split splits pre«mid»post into pre, mid, post.

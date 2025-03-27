@@ -102,13 +102,6 @@ func (r *ProxyRequest) SetXForwarded() {
 //
 // 1xx responses are forwarded to the client if the underlying
 // transport supports ClientTrace.Got1xxResponse.
-//
-// Hop-by-hop headers (see RFC 9110, section 7.6.1), including
-// Connection, Proxy-Connection, Keep-Alive, Proxy-Authenticate,
-// Proxy-Authorization, TE, Trailer, Transfer-Encoding, and Upgrade,
-// are removed from client requests and backend responses.
-// The Rewrite function may be used to add hop-by-hop headers to the request,
-// and the ModifyResponse function may be used to remove them from the response.
 type ReverseProxy struct {
 	// Rewrite must be a function which modifies
 	// the request into a new request to be sent
@@ -194,10 +187,6 @@ type ReverseProxy struct {
 	// returns a response at all, with any HTTP status code.
 	// If the backend is unreachable, the optional ErrorHandler is
 	// called without any call to ModifyResponse.
-	//
-	// Hop-by-hop headers are removed from the response before
-	// calling ModifyResponse. ModifyResponse may need to remove
-	// additional headers to fit its deployment model, such as Alt-Svc.
 	//
 	// If ModifyResponse returns an error, ErrorHandler is called
 	// with its error value. If ErrorHandler is nil, its default

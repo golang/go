@@ -194,10 +194,10 @@ func run(t *testing.T, bin string, args ...string) string {
 	out, err := cmd.Output()
 	if err != nil {
 		if t == nil {
-			log.Panicf("%#q: %v\n%s", cmd, err, cmd.Stderr)
+			log.Panicf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
 		} else {
 			t.Helper()
-			t.Fatalf("%#q: %v\n%s", cmd, err, cmd.Stderr)
+			t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
 		}
 	}
 
@@ -245,7 +245,7 @@ func TestIssue18676(t *testing.T) {
 	cmd := exec.CommandContext(ctx, "./issue18676.exe")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("%#q: %v\n%s", cmd, err, out)
+		t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, out)
 	}
 }
 

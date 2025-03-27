@@ -4,11 +4,6 @@
 
 package runtime
 
-import (
-	"internal/goarch"
-	"unsafe"
-)
-
 const _CONTEXT_CONTROL = 0x100001
 
 type m128a struct {
@@ -75,13 +70,6 @@ func (c *context) set_lr(x uintptr) {}
 func (c *context) set_ip(x uintptr) { c.rip = uint64(x) }
 func (c *context) set_sp(x uintptr) { c.rsp = uint64(x) }
 func (c *context) set_fp(x uintptr) { c.rbp = uint64(x) }
-
-func (c *context) pushCall(targetPC, resumePC uintptr) {
-	sp := c.sp() - goarch.StackAlign
-	*(*uintptr)(unsafe.Pointer(sp)) = resumePC
-	c.set_sp(sp)
-	c.set_ip(targetPC)
-}
 
 func prepareContextForSigResume(c *context) {
 	c.r8 = c.rsp

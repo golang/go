@@ -1080,13 +1080,7 @@ func (t *timer) unlockAndRun(now int64) {
 		// Note that we are running on a system stack,
 		// so there is no chance of getg().m being reassigned
 		// out from under us while this function executes.
-		gp := getg()
-		var tsLocal *timers
-		if t.ts == nil || t.ts.syncGroup == nil {
-			tsLocal = &gp.m.p.ptr().timers
-		} else {
-			tsLocal = &t.ts.syncGroup.timers
-		}
+		tsLocal := &getg().m.p.ptr().timers
 		if tsLocal.raceCtx == 0 {
 			tsLocal.raceCtx = racegostart(abi.FuncPCABIInternal((*timers).run) + sys.PCQuantum)
 		}
@@ -1138,11 +1132,7 @@ func (t *timer) unlockAndRun(now int64) {
 		if gp.racectx != 0 {
 			throw("unexpected racectx")
 		}
-		if ts == nil || ts.syncGroup == nil {
-			gp.racectx = gp.m.p.ptr().timers.raceCtx
-		} else {
-			gp.racectx = ts.syncGroup.timers.raceCtx
-		}
+		gp.racectx = gp.m.p.ptr().timers.raceCtx
 	}
 
 	if ts != nil {
@@ -1203,11 +1193,6 @@ func (t *timer) unlockAndRun(now int64) {
 	if ts != nil && ts.syncGroup != nil {
 		gp := getg()
 		ts.syncGroup.changegstatus(gp, _Grunning, _Gdead)
-		if raceenabled {
-			// Establish a happens-before between this timer event and
-			// the next synctest.Wait call.
-			racereleasemergeg(gp, ts.syncGroup.raceaddr())
-		}
 		gp.syncGroup = nil
 	}
 

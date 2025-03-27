@@ -306,7 +306,7 @@ var (
 	rsrcsyms    []loader.Sym
 	PESECTHEADR int32
 	PEFILEHEADR int32
-	pe64        bool
+	pe64        int
 	dr          *Dll
 
 	dexport []loader.Sym
@@ -541,12 +541,15 @@ func (f *peFile) addInitArray(ctxt *Link) *peSection {
 	// that this will need to grow in the future.
 	var size int
 	var alignment uint32
-	if pe64 {
-		size = 8
-		alignment = IMAGE_SCN_ALIGN_8BYTES
-	} else {
+	switch buildcfg.GOARCH {
+	default:
+		Exitf("peFile.addInitArray: unsupported GOARCH=%q\n", buildcfg.GOARCH)
+	case "386", "arm":
 		size = 4
 		alignment = IMAGE_SCN_ALIGN_4BYTES
+	case "amd64", "arm64":
+		size = 8
+		alignment = IMAGE_SCN_ALIGN_8BYTES
 	}
 	sect := f.addSection(".ctors", size, size)
 	sect.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | alignment
@@ -556,10 +559,11 @@ func (f *peFile) addInitArray(ctxt *Link) *peSection {
 
 	init_entry := ctxt.loader.Lookup(*flagEntrySymbol, 0)
 	addr := uint64(ctxt.loader.SymValue(init_entry)) - ctxt.loader.SymSect(init_entry).Vaddr
-	if pe64 {
-		ctxt.Out.Write64(addr)
-	} else {
+	switch buildcfg.GOARCH {
+	case "386", "arm":
 		ctxt.Out.Write32(uint32(addr))
+	case "amd64", "arm64":
+		ctxt.Out.Write64(addr)
 	}
 	return sect
 }
@@ -934,7 +938,7 @@ func (f *peFile) writeFileHeader(ctxt *Link) {
 			}
 		}
 	}
-	if pe64 {
+	if pe64 != 0 {
 		var oh64 pe.OptionalHeader64
 		fh.SizeOfOptionalHeader = uint16(binary.Size(&oh64))
 		fh.Characteristics |= pe.IMAGE_FILE_LARGE_ADDRESS_AWARE
@@ -955,7 +959,7 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	var oh pe.OptionalHeader32
 	var oh64 pe.OptionalHeader64
 
-	if pe64 {
+	if pe64 != 0 {
 		oh64.Magic = 0x20b // PE32+
 	} else {
 		oh.Magic = 0x10b // PE32
@@ -1076,13 +1080,13 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	oh64.NumberOfRvaAndSizes = 16
 	oh.NumberOfRvaAndSizes = 16
 
-	if pe64 {
+	if pe64 != 0 {
 		oh64.DataDirectory = f.dataDirectory
 	} else {
 		oh.DataDirectory = f.dataDirectory
 	}
 
-	if pe64 {
+	if pe64 != 0 {
 		binary.Write(ctxt.Out, binary.LittleEndian, &oh64)
 	} else {
 		binary.Write(ctxt.Out, binary.LittleEndian, &oh)
@@ -1096,7 +1100,7 @@ func Peinit(ctxt *Link) {
 
 	if ctxt.Arch.PtrSize == 8 {
 		// 64-bit architectures
-		pe64 = true
+		pe64 = 1
 		PEBASE = 1 << 32
 		if ctxt.Arch.Family == sys.AMD64 {
 			// TODO(rsc): For cgo we currently use 32-bit relocations
@@ -1312,14 +1316,14 @@ func addimports(ctxt *Link, datsect *peSection) {
 	for d := dr; d != nil; d = d.next {
 		d.thunkoff = uint64(ctxt.Out.Offset()) - n
 		for m := d.ms; m != nil; m = m.next {
-			if pe64 {
+			if pe64 != 0 {
 				ctxt.Out.Write64(m.off)
 			} else {
 				ctxt.Out.Write32(uint32(m.off))
 			}
 		}
 
-		if pe64 {
+		if pe64 != 0 {
 			ctxt.Out.Write64(0)
 		} else {
 			ctxt.Out.Write32(0)
@@ -1341,14 +1345,14 @@ func addimports(ctxt *Link, datsect *peSection) {
 	ctxt.Out.SeekSet(int64(uint64(datsect.pointerToRawData) + ftbase))
 	for d := dr; d != nil; d = d.next {
 		for m := d.ms; m != nil; m = m.next {
-			if pe64 {
+			if pe64 != 0 {
 				ctxt.Out.Write64(m.off)
 			} else {
 				ctxt.Out.Write32(uint32(m.off))
 			}
 		}
 
-		if pe64 {
+		if pe64 != 0 {
 			ctxt.Out.Write64(0)
 		} else {
 			ctxt.Out.Write32(0)

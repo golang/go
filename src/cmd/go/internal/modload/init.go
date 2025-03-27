@@ -610,7 +610,7 @@ func inWorkspaceMode() bool {
 	return workFilePath != ""
 }
 
-// HasModRoot reports whether a main module or main modules are present.
+// HasModRoot reports whether a main module is present.
 // HasModRoot may return false even if Enabled returns true: for example, 'get'
 // does not require a main module.
 func HasModRoot() bool {
@@ -646,34 +646,24 @@ func die() {
 	if cfg.Getenv("GO111MODULE") == "off" {
 		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
 	}
-	if !inWorkspaceMode() {
-		if dir, name := findAltConfig(base.Cwd()); dir != "" {
-			rel, err := filepath.Rel(base.Cwd(), dir)
-			if err != nil {
-				rel = dir
-			}
-			cdCmd := ""
-			if rel != "." {
-				cdCmd = fmt.Sprintf("cd %s && ", rel)
-			}
-			base.Fatalf("go: cannot find main module, but found %s in %s\n\tto create a module there, run:\n\t%sgo mod init", name, dir, cdCmd)
+	if inWorkspaceMode() {
+		base.Fatalf("go: no modules were found in the current workspace; see 'go help work'")
+	}
+	if dir, name := findAltConfig(base.Cwd()); dir != "" {
+		rel, err := filepath.Rel(base.Cwd(), dir)
+		if err != nil {
+			rel = dir
 		}
+		cdCmd := ""
+		if rel != "." {
+			cdCmd = fmt.Sprintf("cd %s && ", rel)
+		}
+		base.Fatalf("go: cannot find main module, but found %s in %s\n\tto create a module there, run:\n\t%sgo mod init", name, dir, cdCmd)
 	}
 	base.Fatal(ErrNoModRoot)
 }
 
-// noMainModulesError returns the appropriate error if there is no main module or
-// main modules depending on whether the go command is in workspace mode.
-type noMainModulesError struct{}
-
-func (e noMainModulesError) Error() string {
-	if inWorkspaceMode() {
-		return "no modules were found in the current workspace; see 'go help work'"
-	}
-	return "go.mod file not found in current directory or any parent directory; see 'go help modules'"
-}
-
-var ErrNoModRoot noMainModulesError
+var ErrNoModRoot = errors.New("go.mod file not found in current directory or any parent directory; see 'go help modules'")
 
 type goModDirtyError struct{}
 

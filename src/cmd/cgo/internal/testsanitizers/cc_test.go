@@ -494,7 +494,7 @@ func (c *config) checkCSanitizer() (skip bool, err error) {
 				bytes.Contains(out, []byte("unsupported"))) {
 			return true, errors.New(string(out))
 		}
-		return true, fmt.Errorf("%#q failed: %v\n%s", cmd, err, out)
+		return true, fmt.Errorf("%#q failed: %v\n%s", strings.Join(cmd.Args, " "), err, out)
 	}
 
 	if c.sanitizer == "fuzzer" {
@@ -504,10 +504,10 @@ func (c *config) checkCSanitizer() (skip bool, err error) {
 
 	if out, err := exec.Command(dst).CombinedOutput(); err != nil {
 		if os.IsNotExist(err) {
-			return true, fmt.Errorf("%#q failed to produce executable: %v", cmd, err)
+			return true, fmt.Errorf("%#q failed to produce executable: %v", strings.Join(cmd.Args, " "), err)
 		}
 		snippet, _, _ := bytes.Cut(out, []byte("\n"))
-		return true, fmt.Errorf("%#q generated broken executable: %v\n%s", cmd, err, snippet)
+		return true, fmt.Errorf("%#q generated broken executable: %v\n%s", strings.Join(cmd.Args, " "), err, snippet)
 	}
 
 	return false, nil
@@ -542,12 +542,13 @@ func (c *config) checkRuntime() (skip bool, err error) {
 		return false, err
 	}
 	cmd.Args = append(cmd.Args, "-dM", "-E", "../../../../runtime/cgo/libcgo.h")
+	cmdStr := strings.Join(cmd.Args, " ")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return false, fmt.Errorf("%#q exited with %v\n%s", cmd, err, out)
+		return false, fmt.Errorf("%#q exited with %v\n%s", cmdStr, err, out)
 	}
 	if !bytes.Contains(out, []byte("#define CGO_TSAN")) {
-		return true, fmt.Errorf("%#q did not define CGO_TSAN", cmd)
+		return true, fmt.Errorf("%#q did not define CGO_TSAN", cmdStr)
 	}
 	return false, nil
 }

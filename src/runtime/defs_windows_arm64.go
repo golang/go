@@ -4,11 +4,6 @@
 
 package runtime
 
-import (
-	"internal/goarch"
-	"unsafe"
-)
-
 // NOTE(rsc): _CONTEXT_CONTROL is actually 0x400001 and should include PC, SP, and LR.
 // However, empirically, LR doesn't come along on Windows 10
 // unless you also set _CONTEXT_INTEGER (0x400002).
@@ -46,18 +41,6 @@ func (c *context) set_ip(x uintptr) { c.pc = uint64(x) }
 func (c *context) set_sp(x uintptr) { c.xsp = uint64(x) }
 func (c *context) set_lr(x uintptr) { c.x[30] = uint64(x) }
 func (c *context) set_fp(x uintptr) { c.x[29] = uint64(x) }
-
-func (c *context) pushCall(targetPC, resumePC uintptr) {
-	// Push LR. The injected call is responsible
-	// for restoring LR. gentraceback is aware of
-	// this extra slot. See sigctxt.pushCall in
-	// signal_arm64.go.
-	sp := c.sp() - goarch.StackAlign
-	c.set_sp(sp)
-	*(*uint64)(unsafe.Pointer(sp)) = uint64(c.lr())
-	c.set_lr(resumePC)
-	c.set_ip(targetPC)
-}
 
 func prepareContextForSigResume(c *context) {
 	c.x[0] = c.xsp

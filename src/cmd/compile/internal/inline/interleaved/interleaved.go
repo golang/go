@@ -253,7 +253,7 @@ func (s *inlClosureState) mark(n ir.Node) ir.Node {
 
 	if isTestingBLoop(n) {
 		// No inlining nor devirtualization performed on b.Loop body
-		if base.Flag.LowerM > 0 {
+		if base.Flag.LowerM > 1 {
 			fmt.Printf("%v: skip inlining within testing.B.loop for %v\n", ir.Line(n), n)
 		}
 		// We still want to explore inlining opportunities in other parts of ForStmt.

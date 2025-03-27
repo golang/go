@@ -7,7 +7,6 @@ package strings_test
 import (
 	"bytes"
 	"fmt"
-	"internal/asan"
 	"io"
 	"iter"
 	"math"
@@ -1474,12 +1473,6 @@ var ReplaceTests = []struct {
 
 func TestReplace(t *testing.T) {
 	for _, tt := range ReplaceTests {
-		if !asan.Enabled { // See issue #72973.
-			allocs := testing.AllocsPerRun(10, func() { Replace(tt.in, tt.old, tt.new, tt.n) })
-			if allocs > 1 {
-				t.Errorf("Replace(%q, %q, %q, %d) allocates %.2f objects", tt.in, tt.old, tt.new, tt.n, allocs)
-			}
-		}
 		if s := Replace(tt.in, tt.old, tt.new, tt.n); s != tt.out {
 			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)
 		}
@@ -1536,18 +1529,6 @@ func FuzzReplace(f *testing.F) {
 			t.Errorf("The two implementations do not match %q != %q for Replace(%q, %q, %q, %d)", simple, replace, in, old, new, n)
 		}
 	})
-}
-
-func BenchmarkReplace(b *testing.B) {
-	for _, tt := range ReplaceTests {
-		desc := fmt.Sprintf("%q %q %q %d", tt.in, tt.old, tt.new, tt.n)
-		b.Run(desc, func(b *testing.B) {
-			b.ReportAllocs()
-			for b.Loop() {
-				Replace(tt.in, tt.old, tt.new, tt.n)
-			}
-		})
-	}
 }
 
 var TitleTests = []struct {

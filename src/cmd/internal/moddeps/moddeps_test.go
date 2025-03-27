@@ -62,7 +62,7 @@ func TestAllDependencies(t *testing.T) {
 				cmd.Stderr = new(strings.Builder)
 				_, err := cmd.Output()
 				if err != nil {
-					t.Errorf("%#q: %v\n%s", cmd, err, cmd.Stderr)
+					t.Errorf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
 					t.Logf("(Run 'go mod vendor' in %s to ensure that dependencies have been vendored.)", m.Dir)
 				}
 				return
@@ -76,10 +76,10 @@ func TestAllDependencies(t *testing.T) {
 			cmd.Stderr = new(strings.Builder)
 			out, err := cmd.Output()
 			if err != nil {
-				t.Fatalf("%#q: %v\n%s", cmd, err, cmd.Stderr)
+				t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
 			}
 			if strings.TrimSpace(string(out)) != m.Path {
-				t.Errorf("%#q reported active modules other than %s:\n%s", cmd, m.Path, out)
+				t.Errorf("'%s' reported active modules other than %s:\n%s", strings.Join(cmd.Args, " "), m.Path, out)
 				t.Logf("(Run 'go mod tidy' in %s to ensure that no extraneous dependencies were added, or 'go mod vendor' to copy in imported packages.)", m.Dir)
 			}
 		})

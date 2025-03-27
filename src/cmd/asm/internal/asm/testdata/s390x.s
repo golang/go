@@ -401,7 +401,6 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	FMADDS	F1, F2, F3             // b30e3012
 	FMSUB	F4, F5, F5             // b31f5045
 	FMSUBS	F6, F6, F7             // b30f7066
-	LCDBR	F0, F2                 // b3130020
 	LPDFR	F1, F2                 // b3700021
 	LNDFR	F3, F4                 // b3710043
 	CPSDR	F5, F6, F7             // b3725076
@@ -421,8 +420,8 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	KLMD	R2, R8                 // b93f0028
 	KIMD	R0, R4                 // b93e0004
 	KDSA	R0, R8                 // b93a0008
-	KMA	R2, R6, R4             // b9296024
-	KMCTR   R2, R6, R4             // b92d6024
+	KMA	R2, R6, R4              // b9296024
+	KMCTR   R2, R6, R4              // b92d6024
 
 	// vector add and sub instructions
 	VAB	V3, V4, V4              // e743400000f3
