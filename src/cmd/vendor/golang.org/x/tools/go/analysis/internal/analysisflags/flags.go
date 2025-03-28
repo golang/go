@@ -201,7 +201,7 @@ func addVersionFlag() {
 type versionFlag struct{}
 
 func (versionFlag) IsBoolFlag() bool { return true }
-func (versionFlag) Get() interface{} { return nil }
+func (versionFlag) Get() any         { return nil }
 func (versionFlag) String() string   { return "" }
 func (versionFlag) Set(s string) error {
 	if s != "full" {
@@ -252,7 +252,7 @@ const (
 
 // triState implements flag.Value, flag.Getter, and flag.boolFlag.
 // They work like boolean flags: we can say vet -printf as well as vet -printf=true
-func (ts *triState) Get() interface{} {
+func (ts *triState) Get() any {
 	return *ts == setTrue
 }
 
@@ -340,7 +340,7 @@ func PrintPlain(out io.Writer, fset *token.FileSet, contextLines int, diag analy
 
 // A JSONTree is a mapping from package ID to analysis name to result.
 // Each result is either a jsonError or a list of JSONDiagnostic.
-type JSONTree map[string]map[string]interface{}
+type JSONTree map[string]map[string]any
 
 // A TextEdit describes the replacement of a portion of a file.
 // Start and End are zero-based half-open indices into the original byte
@@ -383,7 +383,7 @@ type JSONRelatedInformation struct {
 // Add adds the result of analysis 'name' on package 'id'.
 // The result is either a list of diagnostics or an error.
 func (tree JSONTree) Add(fset *token.FileSet, id, name string, diags []analysis.Diagnostic, err error) {
-	var v interface{}
+	var v any
 	if err != nil {
 		type jsonError struct {
 			Err string `json:"error"`
@@ -429,7 +429,7 @@ func (tree JSONTree) Add(fset *token.FileSet, id, name string, diags []analysis.
 	if v != nil {
 		m, ok := tree[id]
 		if !ok {
-			m = make(map[string]interface{})
+			m = make(map[string]any)
 			tree[id] = m
 		}
 		m[name] = v

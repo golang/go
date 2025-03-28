@@ -113,7 +113,7 @@ var arm64Branch = map[string]bool{
 	"RET":   true,
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	arch, ok := arches[build.Default.GOARCH]
 	if !ok {
 		return nil, nil

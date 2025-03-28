@@ -924,9 +924,14 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, name string) {
 		// The % in "abc 0.0%" couldn't be a formatting directive.
 		s = strings.TrimSuffix(s, "%")
 		if strings.Contains(s, "%") {
-			m := printFormatRE.FindStringSubmatch(s)
-			if m != nil {
-				pass.ReportRangef(call, "%s call has possible Printf formatting directive %s", name, m[0])
+			for _, m := range printFormatRE.FindAllString(s, -1) {
+				// Allow %XX where XX are hex digits,
+				// as this is common in URLs.
+				if len(m) >= 3 && isHex(m[1]) && isHex(m[2]) {
+					continue
+				}
+				pass.ReportRangef(call, "%s call has possible Printf formatting directive %s", name, m)
+				break // report only the first one
 			}
 		}
 	}
@@ -992,3 +997,10 @@ func (ss stringSet) Set(flag string) error {
 //
 // Remove this after the 1.24 release.
 var suppressNonconstants bool
+
+// isHex reports whether b is a hex digit.
+func isHex(b byte) bool {
+	return '0' <= b && b <= '9' ||
+		'A' <= b && b <= 'F' ||
+		'a' <= b && b <= 'f'
+}

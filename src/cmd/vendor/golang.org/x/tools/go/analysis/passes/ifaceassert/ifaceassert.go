@@ -52,7 +52,7 @@ func assertableTo(free *typeparams.Free, v, t types.Type) *types.Func {
 	return nil
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	nodeFilter := []ast.Node{
 		(*ast.TypeAssertExpr)(nil),

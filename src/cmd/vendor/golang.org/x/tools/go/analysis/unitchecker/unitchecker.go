@@ -287,7 +287,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 	// Also build a map to hold working state and result.
 	type action struct {
 		once        sync.Once
-		result      interface{}
+		result      any
 		err         error
 		usesFacts   bool // (transitively uses)
 		diagnostics []analysis.Diagnostic
@@ -337,7 +337,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 
 			// The inputs to this analysis are the
 			// results of its prerequisites.
-			inputs := make(map[*analysis.Analyzer]interface{})
+			inputs := make(map[*analysis.Analyzer]any)
 			var failed []string
 			for _, req := range a.Requires {
 				reqact := exec(req)

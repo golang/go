@@ -6,7 +6,7 @@
 
 // Package stdlib provides a table of all exported symbols in the
 // standard library, along with the version at which they first
-// appeared.
+// appeared. It also provides the import graph of std packages.
 package stdlib
 
 import (

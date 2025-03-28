@@ -1,4 +1,4 @@
-// Copyright 2024 The Go Authors. All rights reserved.
+// Copyright 2025 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7119,6 +7119,7 @@ var PackageSymbols = map[string][]Symbol{
 		{"FormatFileInfo", Func, 21},
 		{"Glob", Func, 16},
 		{"GlobFS", Type, 16},
+		{"Lstat", Func, 25},
 		{"ModeAppend", Const, 16},
 		{"ModeCharDevice", Const, 16},
 		{"ModeDevice", Const, 16},
@@ -7143,6 +7144,8 @@ var PackageSymbols = map[string][]Symbol{
 		{"ReadDirFile", Type, 16},
 		{"ReadFile", Func, 16},
 		{"ReadFileFS", Type, 16},
+		{"ReadLink", Func, 25},
+		{"ReadLinkFS", Type, 25},
 		{"SkipAll", Var, 20},
 		{"SkipDir", Var, 16},
 		{"Stat", Func, 16},
@@ -9146,6 +9149,8 @@ var PackageSymbols = map[string][]Symbol{
 		{"(*ProcessState).SysUsage", Method, 0},
 		{"(*ProcessState).SystemTime", Method, 0},
 		{"(*ProcessState).UserTime", Method, 0},
+		{"(*Root).Chmod", Method, 25},
+		{"(*Root).Chown", Method, 25},
 		{"(*Root).Close", Method, 24},
 		{"(*Root).Create", Method, 24},
 		{"(*Root).FS", Method, 24},
@@ -16754,9 +16759,11 @@ var PackageSymbols = map[string][]Symbol{
 	},
 	"testing/fstest": {
 		{"(MapFS).Glob", Method, 16},
+		{"(MapFS).Lstat", Method, 25},
 		{"(MapFS).Open", Method, 16},
 		{"(MapFS).ReadDir", Method, 16},
 		{"(MapFS).ReadFile", Method, 16},
+		{"(MapFS).ReadLink", Method, 25},
 		{"(MapFS).Stat", Method, 16},
 		{"(MapFS).Sub", Method, 16},
 		{"MapFS", Type, 16},

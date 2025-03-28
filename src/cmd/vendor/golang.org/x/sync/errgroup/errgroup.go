@@ -46,7 +46,7 @@ func (g *Group) done() {
 // returns a non-nil error or the first time Wait returns, whichever occurs
 // first.
 func WithContext(ctx context.Context) (*Group, context.Context) {
-	ctx, cancel := withCancelCause(ctx)
+	ctx, cancel := context.WithCancelCause(ctx)
 	return &Group{cancel: cancel}, ctx
 }
 

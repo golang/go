@@ -40,7 +40,7 @@ var Analyzer = &analysis.Analyzer{
 	Run:  runDirective,
 }
 
-func runDirective(pass *analysis.Pass) (interface{}, error) {
+func runDirective(pass *analysis.Pass) (any, error) {
 	for _, f := range pass.Files {
 		checkGoFile(pass, f)
 	}

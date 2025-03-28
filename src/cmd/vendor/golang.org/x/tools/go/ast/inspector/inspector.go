@@ -10,6 +10,7 @@
 // builds a list of push/pop events and their node type. Subsequent
 // method calls that request a traversal scan this list, rather than walk
 // the AST, and perform type filtering using efficient bit sets.
+// This representation is sometimes called a "balanced parenthesis tree."
 //
 // Experiments suggest the inspector's traversals are about 2.5x faster
 // than ast.Inspect, but it may take around 5 traversals for this
@@ -50,6 +51,7 @@ type Inspector struct {
 //go:linkname events
 func events(in *Inspector) []event { return in.events }
 
+//go:linkname packEdgeKindAndIndex
 func packEdgeKindAndIndex(ek edge.Kind, index int) int32 {
 	return int32(uint32(index+1)<<7 | uint32(ek))
 }

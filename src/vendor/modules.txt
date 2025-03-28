@@ -15,8 +15,8 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/lif
 golang.org/x/net/nettest
-# golang.org/x/sys v0.30.0
-## explicit; go 1.18
+# golang.org/x/sys v0.31.0
+## explicit; go 1.23.0
 golang.org/x/sys/cpu
 # golang.org/x/text v0.22.0
 ## explicit; go 1.18

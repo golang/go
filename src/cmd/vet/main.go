@@ -44,6 +44,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unreachable"
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
+	_ "golang.org/x/tools/go/analysis/passes/waitgroup" // vendoring placeholder
 )
 
 func main() {
