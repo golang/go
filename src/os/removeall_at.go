@@ -44,7 +44,7 @@ func removeAll(path string) error {
 	}
 	defer parent.Close()
 
-	if err := removeAllFrom(parent, base); err != nil {
+	if err := removeAllFrom(sysfdType(parent.Fd()), base); err != nil {
 		if pathErr, ok := err.(*PathError); ok {
 			pathErr.Path = parentDir + string(PathSeparator) + pathErr.Path
 			err = pathErr
@@ -54,9 +54,7 @@ func removeAll(path string) error {
 	return nil
 }
 
-func removeAllFrom(parent *File, base string) error {
-	parentFd := sysfdType(parent.Fd())
-
+func removeAllFrom(parentFd sysfdType, base string) error {
 	// Simple case: if Unlink (aka remove) works, we're done.
 	err := removefileat(parentFd, base)
 	if err == nil || IsNotExist(err) {
@@ -109,7 +107,7 @@ func removeAllFrom(parent *File, base string) error {
 
 			respSize = len(names)
 			for _, name := range names {
-				err := removeAllFrom(file, name)
+				err := removeAllFrom(sysfdType(file.Fd()), name)
 				if err != nil {
 					if pathErr, ok := err.(*PathError); ok {
 						pathErr.Path = base + string(PathSeparator) + pathErr.Path

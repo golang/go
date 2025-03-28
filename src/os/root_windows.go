@@ -77,6 +77,9 @@ func rootCleanPath(s string, prefix, suffix []string) (string, error) {
 	return s, nil
 }
 
+// sysfdType is the native type of a file handle
+// (int on Unix, syscall.Handle on Windows),
+// permitting helper functions to be written portably.
 type sysfdType = syscall.Handle
 
 // openRootNolog is OpenRoot.

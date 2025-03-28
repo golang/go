@@ -14,6 +14,9 @@ import (
 	"time"
 )
 
+// sysfdType is the native type of a file handle
+// (int on Unix, syscall.Handle on Windows),
+// permitting helper functions to be written portably.
 type sysfdType = int
 
 // openRootNolog is OpenRoot.

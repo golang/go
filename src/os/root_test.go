@@ -630,6 +630,46 @@ func TestRootRemoveDirectory(t *testing.T) {
 	}
 }
 
+func TestRootRemoveAll(t *testing.T) {
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			wantError := test.wantError
+			if test.ltarget != "" {
+				// Remove doesn't follow symlinks in the final path component,
+				// so it will successfully remove ltarget.
+				wantError = false
+				target = filepath.Join(root.Name(), test.ltarget)
+			} else if target != "" {
+				if err := os.Mkdir(target, 0o777); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(target, "file"), nil, 0o666); err != nil {
+					t.Fatal(err)
+				}
+			}
+			targetExists := true
+			if _, err := root.Lstat(test.open); errors.Is(err, os.ErrNotExist) {
+				// If the target doesn't exist, RemoveAll succeeds rather
+				// than returning ErrNotExist.
+				targetExists = false
+				wantError = false
+			}
+
+			err := root.RemoveAll(test.open)
+			if errEndsTest(t, err, wantError, "root.RemoveAll(%q)", test.open) {
+				return
+			}
+			if !targetExists {
+				return
+			}
+			_, err = os.Lstat(target)
+			if !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf(`stat file removed with Root.Remove(%q): %v, want ErrNotExist`, test.open, err)
+			}
+		})
+	}
+}
+
 func TestRootOpenFileAsRoot(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "target")
@@ -958,6 +998,9 @@ type rootConsistencyTest struct {
 	// detailedErrorMismatch indicates that os.Root and the corresponding non-Root
 	// function return different errors for this test.
 	detailedErrorMismatch func(t *testing.T) bool
+
+	// check is called before the test starts, and may t.Skip if necessary.
+	check func(t *testing.T)
 }
 
 var rootConsistencyTestCases = []rootConsistencyTest{{
@@ -1115,6 +1158,16 @@ var rootConsistencyTestCases = []rootConsistencyTest{{
 		// and os.Open returns "The file cannot be accessed by the system.".
 		return runtime.GOOS == "windows"
 	},
+	check: func(t *testing.T) {
+		if runtime.GOOS == "windows" && strings.HasPrefix(t.Name(), "TestRootConsistencyRemoveAll/") {
+			// Root.RemoveAll notices that a/ is not a directory,
+			// and returns success.
+			// os.RemoveAll tries to open a/ and fails because
+			// it is not a regular file.
+			// The inconsistency here isn't worth fixing, so just skip this test.
+			t.Skip("known inconsistency on windows")
+		}
+	},
 }, {
 	name: "question mark",
 	open: "?",
@@ -1156,6 +1209,10 @@ func (test rootConsistencyTest) run(t *testing.T, f func(t *testing.T, path stri
 	}
 
 	t.Run(test.name, func(t *testing.T) {
+		if test.check != nil {
+			test.check(t)
+		}
+
 		dir1 := makefs(t, test.fs)
 		dir2 := makefs(t, test.fs)
 		if test.fsFunc != nil {
@@ -1315,6 +1372,23 @@ func TestRootConsistencyRemove(t *testing.T) {
 				err = os.Remove(path)
 			} else {
 				err = r.Remove(path)
+			}
+			return "", err
+		})
+	}
+}
+
+func TestRootConsistencyRemoveAll(t *testing.T) {
+	for _, test := range rootConsistencyTestCases {
+		if test.open == "." || test.open == "./" {
+			continue // can't remove the root itself
+		}
+		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
+			var err error
+			if r == nil {
+				err = os.RemoveAll(path)
+			} else {
+				err = r.RemoveAll(path)
 			}
 			return "", err
 		})
@@ -1757,5 +1831,23 @@ func TestOpenInRoot(t *testing.T) {
 			f.Close()
 			t.Fatalf("OpenInRoot(%q) = nil, want error", name)
 		}
+	}
+}
+
+func TestRootRemoveDot(t *testing.T) {
+	dir := t.TempDir()
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	if err := root.Remove("."); err == nil {
+		t.Errorf(`root.Remove(".") = %v, want error`, err)
+	}
+	if err := root.RemoveAll("."); err == nil {
+		t.Errorf(`root.RemoveAll(".") = %v, want error`, err)
+	}
+	if _, err := os.Stat(dir); err != nil {
+		t.Error(`root.Remove(All)?(".") removed the root`)
 	}
 }
