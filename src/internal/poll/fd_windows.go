@@ -434,6 +434,10 @@ func (fd *FD) Read(buf []byte) (int, error) {
 		return 0, err
 	}
 	defer fd.readUnlock()
+	if fd.isFile {
+		fd.l.Lock()
+		defer fd.l.Unlock()
+	}
 
 	if len(buf) > maxRW {
 		buf = buf[:maxRW]
@@ -441,36 +445,29 @@ func (fd *FD) Read(buf []byte) (int, error) {
 
 	var n int
 	var err error
-	if fd.isFile {
-		fd.l.Lock()
-		defer fd.l.Unlock()
-		switch fd.kind {
-		case kindConsole:
-			n, err = fd.readConsole(buf)
-		default:
-			o := &fd.rop
-			o.InitBuf(buf)
-			n, err = execIO(o, func(o *operation) error {
-				return syscall.ReadFile(o.fd.Sysfd, unsafe.Slice(o.buf.Buf, o.buf.Len), &o.qty, o.overlapped())
-			})
-			fd.addOffset(n)
-			if fd.kind == kindPipe && err != nil {
-				switch err {
-				case syscall.ERROR_BROKEN_PIPE:
-					// Returned by pipes when the other end is closed.
-					err = nil
-				case syscall.ERROR_OPERATION_ABORTED:
-					// Close uses CancelIoEx to interrupt concurrent I/O for pipes.
-					// If the fd is a pipe and the Read was interrupted by CancelIoEx,
-					// we assume it is interrupted by Close.
-					err = ErrFileClosing
-				}
+	switch fd.kind {
+	case kindConsole:
+		n, err = fd.readConsole(buf)
+	case kindFile, kindPipe:
+		o := &fd.rop
+		o.InitBuf(buf)
+		n, err = execIO(o, func(o *operation) error {
+			return syscall.ReadFile(o.fd.Sysfd, unsafe.Slice(o.buf.Buf, o.buf.Len), &o.qty, o.overlapped())
+		})
+		fd.addOffset(n)
+		if fd.kind == kindPipe && err != nil {
+			switch err {
+			case syscall.ERROR_BROKEN_PIPE:
+				// Returned by pipes when the other end is closed.
+				err = nil
+			case syscall.ERROR_OPERATION_ABORTED:
+				// Close uses CancelIoEx to interrupt concurrent I/O for pipes.
+				// If the fd is a pipe and the Read was interrupted by CancelIoEx,
+				// we assume it is interrupted by Close.
+				err = ErrFileClosing
 			}
 		}
-		if err != nil {
-			n = 0
-		}
-	} else {
+	case kindNet:
 		o := &fd.rop
 		o.InitBuf(buf)
 		n, err = execIO(o, func(o *operation) error {
@@ -701,36 +698,32 @@ func (fd *FD) Write(buf []byte) (int, error) {
 		defer fd.l.Unlock()
 	}
 
-	ntotal := 0
-	for len(buf) > 0 {
-		b := buf
-		if len(b) > maxRW {
-			b = b[:maxRW]
+	var ntotal int
+	for {
+		max := len(buf)
+		if max-ntotal > maxRW {
+			max = ntotal + maxRW
 		}
+		b := buf[ntotal:max]
 		var n int
 		var err error
-		if fd.isFile {
-			switch fd.kind {
-			case kindConsole:
-				n, err = fd.writeConsole(b)
-			default:
-				o := &fd.wop
-				o.InitBuf(b)
-				n, err = execIO(o, func(o *operation) error {
-					return syscall.WriteFile(o.fd.Sysfd, unsafe.Slice(o.buf.Buf, o.buf.Len), &o.qty, o.overlapped())
-				})
-				fd.addOffset(n)
-				if fd.kind == kindPipe && err == syscall.ERROR_OPERATION_ABORTED {
-					// Close uses CancelIoEx to interrupt concurrent I/O for pipes.
-					// If the fd is a pipe and the Write was interrupted by CancelIoEx,
-					// we assume it is interrupted by Close.
-					err = ErrFileClosing
-				}
+		switch fd.kind {
+		case kindConsole:
+			n, err = fd.writeConsole(b)
+		case kindPipe, kindFile:
+			o := &fd.wop
+			o.InitBuf(b)
+			n, err = execIO(o, func(o *operation) error {
+				return syscall.WriteFile(o.fd.Sysfd, unsafe.Slice(o.buf.Buf, o.buf.Len), &o.qty, o.overlapped())
+			})
+			fd.addOffset(n)
+			if fd.kind == kindPipe && err == syscall.ERROR_OPERATION_ABORTED {
+				// Close uses CancelIoEx to interrupt concurrent I/O for pipes.
+				// If the fd is a pipe and the Write was interrupted by CancelIoEx,
+				// we assume it is interrupted by Close.
+				err = ErrFileClosing
 			}
-			if err != nil {
-				n = 0
-			}
-		} else {
+		case kindNet:
 			if race.Enabled {
 				race.ReleaseMerge(unsafe.Pointer(&ioSync))
 			}
@@ -741,12 +734,13 @@ func (fd *FD) Write(buf []byte) (int, error) {
 			})
 		}
 		ntotal += n
-		if err != nil {
+		if ntotal == len(buf) || err != nil {
 			return ntotal, err
 		}
-		buf = buf[n:]
+		if n == 0 {
+			return ntotal, io.ErrUnexpectedEOF
+		}
 	}
-	return ntotal, nil
 }
 
 // writeConsole writes len(b) bytes to the console File.
@@ -814,26 +808,29 @@ func (fd *FD) Pwrite(buf []byte, off int64) (int, error) {
 	defer syscall.Seek(fd.Sysfd, curoffset, io.SeekStart)
 	defer fd.setOffset(curoffset)
 
-	ntotal := 0
-	for len(buf) > 0 {
-		b := buf
-		if len(b) > maxRW {
-			b = b[:maxRW]
+	var ntotal int
+	for {
+		max := len(buf)
+		if max-ntotal > maxRW {
+			max = ntotal + maxRW
 		}
+		b := buf[ntotal:max]
 		o := &fd.wop
 		o.InitBuf(b)
-		fd.setOffset(off)
+		fd.setOffset(off + int64(ntotal))
 		n, err := execIO(o, func(o *operation) error {
 			return syscall.WriteFile(o.fd.Sysfd, unsafe.Slice(o.buf.Buf, o.buf.Len), &o.qty, &o.o)
 		})
-		ntotal += int(n)
-		if err != nil {
+		if n > 0 {
+			ntotal += n
+		}
+		if ntotal == len(buf) || err != nil {
 			return ntotal, err
 		}
-		buf = buf[n:]
-		off += int64(n)
+		if n == 0 {
+			return ntotal, io.ErrUnexpectedEOF
+		}
 	}
-	return ntotal, nil
 }
 
 // Writev emulates the Unix writev system call.

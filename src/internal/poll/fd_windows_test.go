@@ -239,7 +239,7 @@ var currentProces = sync.OnceValue(func() string {
 
 var pipeCounter atomic.Uint64
 
-func newPipe(t testing.TB, overlapped bool) (string, *poll.FD) {
+func newPipe(t testing.TB, overlapped, message bool) (string, *poll.FD) {
 	name := `\\.\pipe\go-internal-poll-test-` + currentProces() + `-` + strconv.FormatUint(pipeCounter.Add(1), 10)
 	wname, err := syscall.UTF16PtrFromString(name)
 	if err != nil {
@@ -250,7 +250,11 @@ func newPipe(t testing.TB, overlapped bool) (string, *poll.FD) {
 	if overlapped {
 		flags |= syscall.FILE_FLAG_OVERLAPPED
 	}
-	h, err := windows.CreateNamedPipe(wname, uint32(flags), windows.PIPE_TYPE_BYTE, 1, 4096, 4096, 0, nil)
+	typ := windows.PIPE_TYPE_BYTE
+	if message {
+		typ = windows.PIPE_TYPE_MESSAGE
+	}
+	h, err := windows.CreateNamedPipe(wname, uint32(flags), uint32(typ), 1, 4096, 4096, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -358,22 +362,22 @@ func TestFile(t *testing.T) {
 
 func TestPipe(t *testing.T) {
 	t.Run("overlapped", func(t *testing.T) {
-		name, pipe := newPipe(t, true)
+		name, pipe := newPipe(t, true, false)
 		file := newFile(t, name, true)
 		testReadWrite(t, pipe, file)
 	})
 	t.Run("overlapped-write", func(t *testing.T) {
-		name, pipe := newPipe(t, true)
+		name, pipe := newPipe(t, true, false)
 		file := newFile(t, name, false)
 		testReadWrite(t, file, pipe)
 	})
 	t.Run("overlapped-read", func(t *testing.T) {
-		name, pipe := newPipe(t, false)
+		name, pipe := newPipe(t, false, false)
 		file := newFile(t, name, true)
 		testReadWrite(t, file, pipe)
 	})
 	t.Run("sync", func(t *testing.T) {
-		name, pipe := newPipe(t, false)
+		name, pipe := newPipe(t, false, false)
 		file := newFile(t, name, false)
 		testReadWrite(t, file, pipe)
 	})
@@ -395,6 +399,28 @@ func TestPipe(t *testing.T) {
 		fdw := newFD(t, w, "file", false)
 		testReadWrite(t, fdr, fdw)
 	})
+}
+
+func TestPipeWriteEOF(t *testing.T) {
+	name, pipe := newPipe(t, false, true)
+	file := newFile(t, name, false)
+	read := make(chan struct{}, 1)
+	go func() {
+		_, err := pipe.Write(nil)
+		read <- struct{}{}
+		if err != nil {
+			t.Error(err)
+		}
+	}()
+	<-read
+	var buf [10]byte
+	n, err := file.Read(buf[:])
+	if err != io.EOF {
+		t.Errorf("expected EOF, got %v", err)
+	}
+	if n != 0 {
+		t.Errorf("expected 0 bytes, got %d", n)
+	}
 }
 
 func BenchmarkReadOverlapped(b *testing.B) {

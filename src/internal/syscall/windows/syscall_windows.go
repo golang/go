@@ -509,7 +509,8 @@ const (
 	PIPE_ACCESS_OUTBOUND = 0x00000002
 	PIPE_ACCESS_DUPLEX   = 0x00000003
 
-	PIPE_TYPE_BYTE = 0x00000000
+	PIPE_TYPE_BYTE    = 0x00000000
+	PIPE_TYPE_MESSAGE = 0x00000004
 )
 
 //sys	GetOverlappedResult(handle syscall.Handle, overlapped *syscall.Overlapped, done *uint32, wait bool) (err error)
