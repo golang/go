@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"testing"
+	"time"
 	"unsafe"
 )
 
@@ -339,7 +340,9 @@ func testPreadPwrite(t *testing.T, fdr, fdw *poll.FD) {
 }
 
 func TestFile(t *testing.T) {
+	t.Parallel()
 	test := func(t *testing.T, r, w bool) {
+		t.Parallel()
 		name := filepath.Join(t.TempDir(), "foo")
 		rh := newFile(t, name, r)
 		wh := newFile(t, name, w)
@@ -361,27 +364,33 @@ func TestFile(t *testing.T) {
 }
 
 func TestPipe(t *testing.T) {
+	t.Parallel()
 	t.Run("overlapped", func(t *testing.T) {
+		t.Parallel()
 		name, pipe := newPipe(t, true, false)
 		file := newFile(t, name, true)
 		testReadWrite(t, pipe, file)
 	})
 	t.Run("overlapped-write", func(t *testing.T) {
+		t.Parallel()
 		name, pipe := newPipe(t, true, false)
 		file := newFile(t, name, false)
 		testReadWrite(t, file, pipe)
 	})
 	t.Run("overlapped-read", func(t *testing.T) {
+		t.Parallel()
 		name, pipe := newPipe(t, false, false)
 		file := newFile(t, name, true)
 		testReadWrite(t, file, pipe)
 	})
 	t.Run("sync", func(t *testing.T) {
+		t.Parallel()
 		name, pipe := newPipe(t, false, false)
 		file := newFile(t, name, false)
 		testReadWrite(t, file, pipe)
 	})
 	t.Run("anonymous", func(t *testing.T) {
+		t.Parallel()
 		var r, w syscall.Handle
 		if err := syscall.CreatePipe(&r, &w, nil, 0); err != nil {
 			t.Fatal(err)
@@ -402,6 +411,7 @@ func TestPipe(t *testing.T) {
 }
 
 func TestPipeWriteEOF(t *testing.T) {
+	t.Parallel()
 	name, pipe := newPipe(t, false, true)
 	file := newFile(t, name, false)
 	read := make(chan struct{}, 1)
@@ -420,6 +430,39 @@ func TestPipeWriteEOF(t *testing.T) {
 	}
 	if n != 0 {
 		t.Errorf("expected 0 bytes, got %d", n)
+	}
+}
+
+func TestPipeCanceled(t *testing.T) {
+	t.Parallel()
+	name, _ := newPipe(t, true, false)
+	file := newFile(t, name, true)
+	ch := make(chan struct{}, 1)
+	go func() {
+		for {
+			select {
+			case <-ch:
+				return
+			default:
+				syscall.CancelIo(syscall.Handle(file.Sysfd))
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
+	}()
+	// Try to cancel for max 1 second.
+	// Canceling is normally really fast, but it can take an
+	// arbitrary amount of time on busy systems.
+	// If it takes too long, we skip the test.
+	file.SetReadDeadline(time.Now().Add(1 * time.Second))
+	var tmp [1]byte
+	// Read will block until the cancel is complete.
+	_, err := file.Read(tmp[:])
+	ch <- struct{}{}
+	if err == poll.ErrDeadlineExceeded {
+		t.Skip("took too long to cancel")
+	}
+	if err != syscall.ERROR_OPERATION_ABORTED {
+		t.Errorf("expected ERROR_OPERATION_ABORTED, got %v", err)
 	}
 }
 

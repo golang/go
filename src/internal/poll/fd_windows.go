@@ -461,10 +461,12 @@ func (fd *FD) Read(buf []byte) (int, error) {
 				// Returned by pipes when the other end is closed.
 				err = nil
 			case syscall.ERROR_OPERATION_ABORTED:
-				// Close uses CancelIoEx to interrupt concurrent I/O for pipes.
-				// If the fd is a pipe and the Read was interrupted by CancelIoEx,
-				// we assume it is interrupted by Close.
-				err = ErrFileClosing
+				if fd.closing() {
+					// Close uses CancelIoEx to interrupt concurrent I/O for pipes.
+					// If the fd is a pipe and the Read was interrupted by CancelIoEx,
+					// we assume it is interrupted by Close.
+					err = ErrFileClosing
+				}
 			}
 		}
 	case kindNet:
@@ -717,7 +719,7 @@ func (fd *FD) Write(buf []byte) (int, error) {
 				return syscall.WriteFile(o.fd.Sysfd, unsafe.Slice(o.buf.Buf, o.buf.Len), &o.qty, o.overlapped())
 			})
 			fd.addOffset(n)
-			if fd.kind == kindPipe && err == syscall.ERROR_OPERATION_ABORTED {
+			if fd.kind == kindPipe && err == syscall.ERROR_OPERATION_ABORTED && fd.closing() {
 				// Close uses CancelIoEx to interrupt concurrent I/O for pipes.
 				// If the fd is a pipe and the Write was interrupted by CancelIoEx,
 				// we assume it is interrupted by Close.
