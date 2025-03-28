@@ -188,7 +188,7 @@ func Mkdirat(dirfd syscall.Handle, name string, mode uint32) error {
 	return nil
 }
 
-func Deleteat(dirfd syscall.Handle, name string) error {
+func Deleteat(dirfd syscall.Handle, name string, options uint32) error {
 	objAttrs := &OBJECT_ATTRIBUTES{}
 	if err := objAttrs.init(dirfd, name); err != nil {
 		return err
@@ -200,7 +200,7 @@ func Deleteat(dirfd syscall.Handle, name string) error {
 		objAttrs,
 		&IO_STATUS_BLOCK{},
 		FILE_SHARE_DELETE|FILE_SHARE_READ|FILE_SHARE_WRITE,
-		FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT|FILE_SYNCHRONOUS_IO_NONALERT,
+		FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT|FILE_SYNCHRONOUS_IO_NONALERT|options,
 	)
 	if err != nil {
 		return ntCreateFileError(err, 0)

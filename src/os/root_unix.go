@@ -219,6 +219,18 @@ func removeat(fd int, name string) error {
 	return e
 }
 
+func removefileat(fd int, name string) error {
+	return ignoringEINTR(func() error {
+		return unix.Unlinkat(fd, name, 0)
+	})
+}
+
+func removedirat(fd int, name string) error {
+	return ignoringEINTR(func() error {
+		return unix.Unlinkat(fd, name, unix.AT_REMOVEDIR)
+	})
+}
+
 func renameat(oldfd int, oldname string, newfd int, newname string) error {
 	return unix.Renameat(oldfd, oldname, newfd, newname)
 }

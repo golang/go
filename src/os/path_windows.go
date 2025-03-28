@@ -21,6 +21,16 @@ func IsPathSeparator(c uint8) bool {
 	return c == '\\' || c == '/'
 }
 
+// splitPath returns the base name and parent directory.
+func splitPath(path string) (string, string) {
+	dirname, basename := filepathlite.Split(path)
+	volnamelen := filepathlite.VolumeNameLen(dirname)
+	for len(dirname) > volnamelen && IsPathSeparator(dirname[len(dirname)-1]) {
+		dirname = dirname[:len(dirname)-1]
+	}
+	return dirname, basename
+}
+
 func dirname(path string) string {
 	vol := filepathlite.VolumeName(path)
 	i := len(path) - 1

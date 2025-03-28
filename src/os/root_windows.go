@@ -336,7 +336,15 @@ func mkdirat(dirfd syscall.Handle, name string, perm FileMode) error {
 }
 
 func removeat(dirfd syscall.Handle, name string) error {
-	return windows.Deleteat(dirfd, name)
+	return windows.Deleteat(dirfd, name, 0)
+}
+
+func removefileat(dirfd syscall.Handle, name string) error {
+	return windows.Deleteat(dirfd, name, windows.FILE_NON_DIRECTORY_FILE)
+}
+
+func removedirat(dirfd syscall.Handle, name string) error {
+	return windows.Deleteat(dirfd, name, windows.FILE_DIRECTORY_FILE)
 }
 
 func chtimesat(dirfd syscall.Handle, name string, atime time.Time, mtime time.Time) error {

@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix
+//go:build unix || wasip1 || windows
 
 package os
 
 import (
-	"internal/syscall/unix"
 	"io"
 	"syscall"
 )
@@ -56,11 +55,10 @@ func removeAll(path string) error {
 }
 
 func removeAllFrom(parent *File, base string) error {
-	parentFd := int(parent.Fd())
+	parentFd := sysfdType(parent.Fd())
+
 	// Simple case: if Unlink (aka remove) works, we're done.
-	err := ignoringEINTR(func() error {
-		return unix.Unlinkat(parentFd, base, 0)
-	})
+	err := removefileat(parentFd, base)
 	if err == nil || IsNotExist(err) {
 		return nil
 	}
@@ -82,13 +80,13 @@ func removeAllFrom(parent *File, base string) error {
 		const reqSize = 1024
 		var respSize int
 
-		// Open the directory to recurse into
+		// Open the directory to recurse into.
 		file, err := openDirAt(parentFd, base)
 		if err != nil {
 			if IsNotExist(err) {
 				return nil
 			}
-			if err == syscall.ENOTDIR || err == unix.NoFollowErrno {
+			if err == syscall.ENOTDIR || isErrNoFollow(err) {
 				// Not a directory; return the error from the unix.Unlinkat.
 				return &PathError{Op: "unlinkat", Path: base, Err: uErr}
 			}
@@ -144,9 +142,7 @@ func removeAllFrom(parent *File, base string) error {
 	}
 
 	// Remove the directory itself.
-	unlinkError := ignoringEINTR(func() error {
-		return unix.Unlinkat(parentFd, base, unix.AT_REMOVEDIR)
-	})
+	unlinkError := removedirat(parentFd, base)
 	if unlinkError == nil || IsNotExist(unlinkError) {
 		return nil
 	}
@@ -165,18 +161,10 @@ func removeAllFrom(parent *File, base string) error {
 // This acts like openFileNolog rather than OpenFile because
 // we are going to (try to) remove the file.
 // The contents of this file are not relevant for test caching.
-func openDirAt(dirfd int, name string) (*File, error) {
-	r, err := ignoringEINTR2(func() (int, error) {
-		return unix.Openat(dirfd, name, O_RDONLY|syscall.O_CLOEXEC|syscall.O_DIRECTORY|syscall.O_NOFOLLOW, 0)
-	})
+func openDirAt(dirfd sysfdType, name string) (*File, error) {
+	fd, err := rootOpenDir(dirfd, name)
 	if err != nil {
 		return nil, err
 	}
-
-	if !supportsCloseOnExec {
-		syscall.CloseOnExec(r)
-	}
-
-	// We use kindNoPoll because we know that this is a directory.
-	return newFile(r, name, kindNoPoll, false), nil
+	return newDirFile(fd, name)
 }
