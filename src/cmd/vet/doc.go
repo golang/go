@@ -59,6 +59,7 @@ To list the available checks, run "go tool vet help":
 	unreachable      check for unreachable code
 	unsafeptr        check for invalid conversions of uintptr to unsafe.Pointer
 	unusedresult     check for unused results of calls to some functions
+	waitgroup        check for misuses of sync.WaitGroup
 
 For details and flags of a particular check, such as printf, run "go tool vet help printf".
 

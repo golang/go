@@ -24,3 +24,12 @@ specifying the command's current version.
 
 ### Cgo {#cgo}
 
+### Vet {#vet}
+
+<!-- go.dev/issue/18022 -->
+
+The `go vet` command now includes the
+[waitgroup](https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/waitgroup)
+analyzer, which reports misplaced calls to [sync.WaitGroup.Add].
+
+

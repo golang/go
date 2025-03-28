@@ -77,4 +77,5 @@ var passAnalyzersToVet = map[string]bool{
 	"unreachable":      true,
 	"unsafeptr":        true,
 	"unusedresult":     true,
+	"waitgroup":        true,
 }
