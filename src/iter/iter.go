@@ -203,6 +203,23 @@ And then a client could delete boring values from the tree using:
 		}
 	}
 
+# Iterators with complex datasource
+
+Iterators encapsulating complex datasources offer value by separating
+the iterator consumer from data-retrieval concerns in terms of databases,
+networking and file systems. Intra-thread iteration over a function means
+additional freedom in designing the iterator for concurrency, synchronization
+and threading.
+
+There are four needs on such iterators, referring to the below example:
+ 1. Receive and maintain internal state: filename, errp, osFile
+ 2. Provide iteration values and determine end of iteration: [LineReader.Lines]
+ 3. Release resources upon end of iteration or panic: [LineReader.cleanup]
+ 4. Propagate error conditions outside the for statement: errp
+
+The below construct ensures faster stack allocation, as opposed to on the heap,
+and features potentially reusable iterator-state encapsulated in struct.
+
 [The Go Blog: Range Over Function Types]: https://go.dev/blog/range-functions
 [range loop]: https://go.dev/ref/spec#For_range
 */
