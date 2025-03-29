@@ -831,6 +831,7 @@ func TestLogAfterComplete(t *T) {
 	tRunner(t1, func(t *T) {
 		t.Run("TestLateLog", func(t *T) {
 			go func() {
+				const afterTest = "log after test"
 				defer close(c2)
 				defer func() {
 					p := recover()
@@ -843,14 +844,17 @@ func TestLogAfterComplete(t *T) {
 						c2 <- fmt.Sprintf("subtest panic with unexpected value %v", p)
 						return
 					}
-					const want = "Log in goroutine after TestLateLog has completed: log after test"
-					if !strings.Contains(s, want) {
-						c2 <- fmt.Sprintf("subtest panic %q does not contain %q", s, want)
+					const message = "Log in goroutine after TestLateLog has completed"
+					if !strings.Contains(s, message) {
+						c2 <- fmt.Sprintf("subtest panic %q does not contain %q", s, message)
+					}
+					if !strings.Contains(s, afterTest) {
+						c2 <- fmt.Sprintf("subtest panic %q does not contain %q", s, afterTest)
 					}
 				}()
 
 				<-c1
-				t.Log("log after test")
+				t.Log(afterTest)
 			}()
 		})
 	})
@@ -987,5 +991,45 @@ func TestNestedCleanup(t *T) {
 	})
 	if ranCleanup != 3 {
 		t.Errorf("unexpected cleanup count: got %d want 3", ranCleanup)
+	}
+}
+
+func TestOutputWriter(t *T) {
+	o := &outputWriter{c: &common{}}
+	testCases := []struct {
+		in  string
+		out string
+		buf string
+	}{{
+		in:  "a",
+		out: "",
+		buf: "a",
+	}, {
+		in:  "b",
+		out: "",
+		buf: "ab",
+	}, {
+		in:  "\n",
+		out: "    ab\n",
+		buf: "",
+	}, {
+		in:  "\nc",
+		out: "    ab\n    \n",
+		buf: "c",
+	}, {
+		in:  "d",
+		out: "    ab\n    \n",
+		buf: "cd",
+	}}
+	for _, tc := range testCases {
+		t.Run("", func(t *T) {
+			o.Write([]byte(tc.in))
+			if string(o.c.output) != tc.out {
+				t.Errorf("output:\ngot:\n%s\nwant:\n%s", o.c.output, tc.out)
+			}
+			if string(o.b) != tc.buf {
+				t.Errorf("buffer:\ngot:\n%s\nwant:\n%s", o.b, tc.buf)
+			}
+		})
 	}
 }
