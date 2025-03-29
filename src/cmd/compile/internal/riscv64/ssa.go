@@ -19,7 +19,7 @@ import (
 // ssaRegToReg maps ssa register numbers to obj register numbers.
 var ssaRegToReg = []int16{
 	riscv.REG_X0,
-	// X1 (LR): unused
+	// X1 (ra): unused
 	riscv.REG_X2,
 	riscv.REG_X3,
 	riscv.REG_X4,
