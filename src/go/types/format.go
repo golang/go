@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"strconv"
 	"strings"
 )
 
@@ -131,7 +130,7 @@ func (check *Checker) qualifier(pkg *Package) string {
 		}
 		// If the same package name was used by multiple packages, display the full path.
 		if len(check.pkgPathMap[pkg.name]) > 1 {
-			return strconv.Quote(pkg.path)
+			return pkg.path
 		}
 		return pkg.name
 	}
