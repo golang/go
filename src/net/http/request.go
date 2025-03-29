@@ -124,9 +124,8 @@ type Request struct {
 	// empty. (See RFC 7230, Section 5.3)
 	//
 	// For client requests, the URL's Host specifies the server to
-	// connect to, while the Request's Host field optionally
-	// specifies the Host header value to send in the HTTP
-	// request.
+	// connect to, while the Request's Host field  specifies the 
+	// Host header value to send in the HTTP request.
 	URL *url.URL
 
 	// The protocol version for incoming server requests.
@@ -598,7 +597,7 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 		}
 	}()
 
-	// Find the target host. Prefer the Host: header, but if that
+	// Find the target host. Prefer the Host field, but if that
 	// is not given, use the host from the request URL.
 	//
 	// Clean the host, in case it arrives with unexpected stuff in it.
