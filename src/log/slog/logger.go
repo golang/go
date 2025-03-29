@@ -238,6 +238,9 @@ func (l *Logger) ErrorContext(ctx context.Context, msg string, args ...any) {
 // It must always be called directly by an exported logging method
 // or function, because it uses a fixed call depth to obtain the pc.
 func (l *Logger) log(ctx context.Context, level Level, msg string, args ...any) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if !l.Enabled(ctx, level) {
 		return
 	}
@@ -250,14 +253,14 @@ func (l *Logger) log(ctx context.Context, level Level, msg string, args ...any) 
 	}
 	r := NewRecord(time.Now(), level, msg, pc)
 	r.Add(args...)
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	_ = l.Handler().Handle(ctx, r)
 }
 
 // logAttrs is like [Logger.log], but for methods that take ...Attr.
 func (l *Logger) logAttrs(ctx context.Context, level Level, msg string, attrs ...Attr) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if !l.Enabled(ctx, level) {
 		return
 	}
@@ -270,9 +273,6 @@ func (l *Logger) logAttrs(ctx context.Context, level Level, msg string, attrs ..
 	}
 	r := NewRecord(time.Now(), level, msg, pc)
 	r.AddAttrs(attrs...)
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	_ = l.Handler().Handle(ctx, r)
 }
 
