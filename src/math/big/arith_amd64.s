@@ -430,7 +430,7 @@ adx:
 	MOVQ y+48(FP), R8
 	MOVQ m+72(FP), DX
 	MOVQ $0, BX   // i = 0
-	MOVQ $0, CX   // carry
+	MOVQ a+80(FP), CX   // carry
 	CMPQ R11, $8
 	JAE  adx_loop_header
 	CMPQ BX, R11
@@ -446,7 +446,7 @@ adx_loop:
 	MULXQ (R8), SI, DI
 	ADCXQ CX,SI
 	ADOXQ (R10), SI
-	MOVQ  SI,(R10)
+	MOVQ  SI,(R14)
 
 	MULXQ 8(R8), AX, CX
 	ADCXQ DI, AX
@@ -505,7 +505,8 @@ adx_short:
 	MULXQ (R8)(BX*8), SI, DI
 	ADDQ CX, SI
 	ADCQ $0, DI
-	ADDQ SI, (R10)(BX*8)
+	ADDQ (R10)(BX*8), SI
+	MOVQ SI, (R14)(BX*8)
 	ADCQ $0, DI
 	MOVQ DI, CX
 	ADDQ $1, BX		// i++

@@ -2,76 +2,476 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This file defines tests of consistent behavior between assembly and Go versions of basic operators,
+// as well as tests of pure Go implementations.
+
 package big
 
 import (
 	"fmt"
 	"internal/testenv"
+	"iter"
 	"math/bits"
-	"math/rand"
+	"math/rand/v2"
+	"slices"
 	"strings"
 	"testing"
 )
 
 var isRaceBuilder = strings.HasSuffix(testenv.Builder(), "-race")
 
-type funVV func(z, x, y []Word) (c Word)
-type argVV struct {
-	z, x, y nat
-	c       Word
-}
+var words4 = []Word{0, 1, _M - 1, _M}
+var words2 = []Word{0, _M}
+var muls = []Word{0, 1, 2, 3, 4, 5, _M / 4, _M / 2, _M - 3, _M - 2, _M - 1, _M}
+var adds = []Word{0, 1, _M - 1, _M}
+var shifts = []uint{1, 2, 3, _W/4 - 1, _W / 4, _W/4 + 1, _W/2 - 1, _W / 2, _W/2 + 1, _W - 3, _W - 2, _W - 1}
 
-var sumVV = []argVV{
-	{},
-	{nat{0}, nat{0}, nat{0}, 0},
-	{nat{1}, nat{1}, nat{0}, 0},
-	{nat{0}, nat{_M}, nat{1}, 1},
-	{nat{80235}, nat{12345}, nat{67890}, 0},
-	{nat{_M - 1}, nat{_M}, nat{_M}, 1},
-	{nat{0, 0, 0, 0}, nat{_M, _M, _M, _M}, nat{1, 0, 0, 0}, 1},
-	{nat{0, 0, 0, _M}, nat{_M, _M, _M, _M - 1}, nat{1, 0, 0, 0}, 0},
-	{nat{0, 0, 0, 0}, nat{_M, 0, _M, 0}, nat{1, _M, 0, _M}, 1},
-}
+func TestAddVV(t *testing.T)      { testVV(t, "addVV", addVV, addVV_g) }
+func TestSubVV(t *testing.T)      { testVV(t, "subVV", subVV, subVV_g) }
+func TestAddVW(t *testing.T)      { testVW(t, "addVW", addVW, addVW_g, words4) }
+func TestSubVW(t *testing.T)      { testVW(t, "subVW", subVW, subVW_g, words4) }
+func TestLshVU(t *testing.T)      { testVU(t, "lshVU", lshVU, lshVU_g, shifts) }
+func TestRshVU(t *testing.T)      { testVU(t, "rshVU", rshVU, rshVU_g, shifts) }
+func TestMulAddVWW(t *testing.T)  { testVWW(t, "mulAddVWW", mulAddVWW, mulAddVWW_g, muls) }
+func TestAddMulVVWW(t *testing.T) { testVVWW(t, "addMulVVWW", addMulVVWW, addMulVVWW_g, muls, adds) }
 
-func testFunVV(t *testing.T, msg string, f funVV, a argVV) {
-	z := make(nat, len(a.z))
-	c := f(z, a.x, a.y)
-	for i, zi := range z {
-		if zi != a.z[i] {
-			t.Errorf("%s%+v\n\tgot z[%d] = %#x; want %#x", msg, a, i, zi, a.z[i])
-			break
+// Note: It would be nice to avoid all the duplication of these test variants,
+// but the only obvious way is to use reflection. These tests are already
+// pretty expensive, and hitting them with reflect call overhead would
+// reduce the amount of exhaustive testing it's reasonable to do, so instead
+// we put up with the duplication.
+
+func testVV(t *testing.T, name string, fn, ref func(z, x, y []Word) (c Word)) {
+	for size := range 100 {
+		xx := make([]Word, 1+size+1)
+		yy := make([]Word, 1+size+1)
+		zz := make([]Word, 1+size+1)
+		words := words4
+		if size > 5 {
+			words = words2
+		}
+		if size > 10 {
+			words = nil // random
+		}
+		for x := range nats(words, size) {
+			for y := range nats(words, size) {
+				wantZ := make([]Word, size)
+				wantC := ref(wantZ, x, y)
+
+				for _, inplace := range []bool{false, true} {
+					name := name
+					if inplace {
+						name = "in-place " + name
+					}
+					setSlice(xx, 1, x)
+					setSlice(yy, 2, y)
+					zz := zz
+					if inplace {
+						zz = xx
+					} else {
+						for i := range zz {
+							zz[i] = 0x9876
+						}
+					}
+					setSlice(zz, 3, nil)
+					c := fn(zz[1:1+size], xx[1:1+size], yy[1:1+size])
+					if !slices.Equal(zz[1:1+size], wantZ) || c != wantC {
+						t.Errorf("%s(%#x, %#x) = %#x, %#x, want %#x, %#x", name, x, y, zz[1:1+size], c, wantZ, wantC)
+					}
+					if !inplace {
+						checkSlice(t, name, "x", xx, 1, x)
+					}
+					checkSlice(t, name, "y", yy, 2, y)
+					checkSlice(t, name, "z", zz, 3, nil)
+					if t.Failed() {
+						t.FailNow()
+					}
+				}
+			}
 		}
 	}
-	if c != a.c {
-		t.Errorf("%s%+v\n\tgot c = %#x; want %#x", msg, a, c, a.c)
+}
+
+func testVV2(t *testing.T, name string, fn, ref func(z1, z2, x, y []Word) (c1, c2 Word)) {
+	for size := range 100 {
+		xx := make([]Word, 1+size+1)
+		yy := make([]Word, 1+size+1)
+		zz1 := make([]Word, 1+size+1)
+		zz2 := make([]Word, 1+size+1)
+		words := words4
+		if size > 5 {
+			words = words2
+		}
+		if size > 10 {
+			words = nil // random
+		}
+		for x := range nats(words, size) {
+			for y := range nats(words, size) {
+				wantZ1 := make([]Word, size)
+				wantZ2 := make([]Word, size)
+				wantC1, wantC2 := ref(wantZ1, wantZ2, x, y)
+
+				for _, inplace := range []bool{false, true} {
+					name := name
+					if inplace {
+						name = "in-place " + name
+					}
+					setSlice(xx, 1, x)
+					setSlice(yy, 2, y)
+					zz1 := zz1
+					zz2 := zz2
+					if inplace {
+						zz1 = xx
+						zz2 = yy
+					} else {
+						for i := range zz1 {
+							zz1[i] = 0x9876
+						}
+						for i := range zz2 {
+							zz2[i] = 0x8765
+						}
+					}
+					setSlice(zz1, 3, nil)
+					setSlice(zz2, 4, nil)
+					c1, c2 := fn(zz1[1:1+size], zz2[1:1+size], xx[1:1+size], yy[1:1+size])
+					if !slices.Equal(zz1[1:1+size], wantZ1) || !slices.Equal(zz2[1:1+size], wantZ2) || c1 != wantC1 || c2 != wantC2 {
+						t.Errorf("%s(%#x, %#x) = %#x, %#x, %#x, %#x, want %#x, %#x, %#x, %#x", name, x, y, zz1[1:1+size], zz2[1:1+size], c1, c2, wantZ1, wantZ2, wantC1, wantC2)
+					}
+					if !inplace {
+						checkSlice(t, name, "x", xx, 1, x)
+						checkSlice(t, name, "y", yy, 2, y)
+					}
+					checkSlice(t, name, "z1", zz1, 3, nil)
+					checkSlice(t, name, "z2", zz2, 4, nil)
+					if t.Failed() {
+						t.FailNow()
+					}
+				}
+			}
+		}
 	}
 }
 
-func TestFunVV(t *testing.T) {
-	for _, a := range sumVV {
-		arg := a
-		testFunVV(t, "addVV_g", addVV_g, arg)
-		testFunVV(t, "addVV", addVV, arg)
+func testVW(t *testing.T, name string, fn, ref func(z, x []Word, w Word) (c Word), ws []Word) {
+	const (
+		magic0 = 0x123450
+		magic1 = 0x543210
+	)
 
-		arg = argVV{a.z, a.y, a.x, a.c}
-		testFunVV(t, "addVV_g symmetric", addVV_g, arg)
-		testFunVV(t, "addVV symmetric", addVV, arg)
+	for size := range 100 {
+		xx := make([]Word, 1+size+1)
+		zz := make([]Word, 1+size+1)
+		words := words4
+		if size > 5 {
+			words = words2
+		}
+		if size > 10 {
+			words = nil // random
+		}
+		for x := range nats(words, size) {
+			for _, w := range ws {
+				wantZ := make([]Word, size)
+				wantC := ref(wantZ, x, w)
 
-		arg = argVV{a.x, a.z, a.y, a.c}
-		testFunVV(t, "subVV_g", subVV_g, arg)
-		testFunVV(t, "subVV", subVV, arg)
+				copy(xx[1:], x)
+				for _, inplace := range []bool{false, true} {
+					name := name
+					if inplace {
+						name = "in-place " + name
+					}
+					setSlice(xx, 1, x)
+					zz := zz
+					if inplace {
+						zz = xx
+					} else {
+						for i := range zz {
+							zz[i] = 0x9876
+						}
+					}
+					setSlice(zz, 2, nil)
+					c := fn(zz[1:1+size], xx[1:1+size], w)
+					if !slices.Equal(zz[1:1+size], wantZ) || c != wantC {
+						t.Errorf("%s(%#x, %#x) = %#x, %#x, want %#x, %#x", name, x, w, zz[1:1+size], c, wantZ, wantC)
+					}
+					if !inplace {
+						checkSlice(t, name, "x", xx, 1, x)
+					}
+					checkSlice(t, name, "z", zz, 2, nil)
+					if t.Failed() {
+						t.FailNow()
+					}
+				}
+			}
+		}
+	}
+}
 
-		arg = argVV{a.y, a.z, a.x, a.c}
-		testFunVV(t, "subVV_g symmetric", subVV_g, arg)
-		testFunVV(t, "subVV symmetric", subVV, arg)
+func testVU(t *testing.T, name string, fn, ref func(z, x []Word, y uint) (c Word), ys []uint) {
+	wys := make([]Word, len(ys))
+	for i, y := range ys {
+		wys[i] = Word(y)
+	}
+	testVW(t, name,
+		func(z, x []Word, y Word) Word { return fn(z, x, uint(y)) },
+		func(z, x []Word, y Word) Word { return ref(z, x, uint(y)) },
+		wys)
+}
+
+func testVWW(t *testing.T, name string, fn, ref func(z, x []Word, y, r Word) (c Word), ys []Word) {
+	const (
+		magic0 = 0x123450
+		magic1 = 0x543210
+	)
+
+	for size := range 100 {
+		xx := make([]Word, 1+size+1)
+		zz := make([]Word, 1+size+1)
+		words := words4
+		if size > 5 {
+			words = words2
+		}
+		if size > 10 {
+			words = nil // random
+		}
+		for x := range nats(words, size) {
+			for _, y := range ys {
+				for _, r := range ys {
+					wantZ := make([]Word, size)
+					wantC := ref(wantZ, x, y, r)
+
+					copy(xx[1:], x)
+					for _, inplace := range []bool{false, true} {
+						name := name
+						if inplace {
+							name = "in-place " + name
+						}
+						setSlice(xx, 1, x)
+						zz := zz
+						if inplace {
+							zz = xx
+						} else {
+							for i := range zz {
+								zz[i] = 0x9876
+							}
+						}
+						setSlice(zz, 2, nil)
+						c := fn(zz[1:1+size], xx[1:1+size], y, r)
+						if !slices.Equal(zz[1:1+size], wantZ) || c != wantC {
+							t.Errorf("%s(%#x, %#x, %#x) = %#x, %#x, want %#x, %#x", name, x, y, r, zz[1:1+size], c, wantZ, wantC)
+						}
+						if !inplace {
+							checkSlice(t, name, "x", xx, 1, x)
+						}
+						checkSlice(t, name, "z", zz, 2, nil)
+						if t.Failed() {
+							t.FailNow()
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func testVVU(t *testing.T, name string, fn, ref func(z, x, y []Word, s uint) (c Word), shifts []uint) {
+	for size := range 100 {
+		xx := make([]Word, 1+size+1)
+		yy := make([]Word, 1+size+1)
+		zz := make([]Word, 1+size+1)
+		words := words4
+		if size > 5 {
+			words = words2
+		}
+		if size > 10 {
+			words = nil // random
+		}
+		for x := range nats(words, size) {
+			for y := range nats(words, size) {
+				for _, s := range shifts {
+					wantZ := make([]Word, size)
+					wantC := ref(wantZ, x, y, s)
+
+					for _, inplace := range []bool{false, true} {
+						name := name
+						if inplace {
+							name = "in-place " + name
+						}
+						setSlice(xx, 1, x)
+						setSlice(yy, 2, y)
+						zz := zz
+						if inplace {
+							zz = xx
+						} else {
+							for i := range zz {
+								zz[i] = 0x9876
+							}
+						}
+						setSlice(zz, 3, nil)
+						c := fn(zz[1:1+size], xx[1:1+size], yy[1:1+size], s)
+						if !slices.Equal(zz[1:1+size], wantZ) || c != wantC {
+							t.Errorf("%s(%#x, %#x, %#x) = %#x, %#x, want %#x, %#x", name, x, y, s, zz[1:1+size], c, wantZ, wantC)
+						}
+						if !inplace {
+							checkSlice(t, name, "x", xx, 1, x)
+						}
+						checkSlice(t, name, "y", yy, 2, y)
+						checkSlice(t, name, "z", zz, 3, nil)
+						if t.Failed() {
+							t.FailNow()
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+func testVVWW(t *testing.T, name string, fn, ref func(z, x, y []Word, m, a Word) (c Word), ms, as []Word) {
+	for size := range 100 {
+		zz := make([]Word, 1+size+1)
+		xx := make([]Word, 1+size+1)
+		yy := make([]Word, 1+size+1)
+		words := words4
+		if size > 3 {
+			words = words2
+		}
+		if size > 7 {
+			words = nil // random
+		}
+		for x := range nats(words, size) {
+			for y := range nats(words, size) {
+				for _, m := range ms {
+					for _, a := range as {
+						wantZ := make([]Word, size)
+						wantC := ref(wantZ, x, y, m, a)
+
+						for _, inplace := range []bool{false, true} {
+							name := name
+							if inplace {
+								name = "in-place " + name
+							}
+							setSlice(xx, 1, x)
+							setSlice(yy, 2, y)
+							zz := zz
+							if inplace {
+								zz = xx
+							} else {
+								for i := range zz {
+									zz[i] = 0x9876
+								}
+							}
+							setSlice(zz, 3, nil)
+							c := fn(zz[1:1+size], xx[1:1+size], yy[1:1+size], m, a)
+							if !slices.Equal(zz[1:1+size], wantZ) || c != wantC {
+								t.Errorf("%s(%#x, %#x, %#x, %#x) = %#x, %#x, want %#x, %#x", name, x, y, m, a, zz[1:1+size], c, wantZ, wantC)
+							}
+							if !inplace {
+								checkSlice(t, name, "x", xx, 1, x)
+							}
+							checkSlice(t, name, "y", yy, 2, y)
+							checkSlice(t, name, "z", zz, 3, nil)
+							if t.Failed() {
+								t.FailNow()
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+const (
+	magic0 = 0x123450
+	magic1 = 0x543210
+)
+
+// setSlice sets x[1:len(x)-1] to orig, leaving magic values in x[0] and x[len(x)-1]
+// so that we can tell if routines accidentally write before or after the data.
+func setSlice(x []Word, id Word, orig []Word) {
+	x[0] = magic0 + id
+	copy(x[1:len(x)-1], orig)
+	x[len(x)-1] = magic1 + id
+}
+
+// checkSlice checks that the magic values left by setSlices are still there.
+// If orig != nil, it also checks that the actual data in x is unmodified since setSlice.
+func checkSlice(t *testing.T, name, val string, x []Word, id Word, orig []Word) {
+	if x[0] != magic0+id {
+		t.Errorf("%s smashed %s[-1]", name, val)
+	}
+	if x[len(x)-1] != magic1+id {
+		t.Errorf("%s smashed %s[len(%s)]", name, val, val)
+	}
+	if orig != nil && !slices.Equal(x[1:len(x)-1], orig) {
+		t.Errorf("%s smashed %s: have %d, want %d", name, val, x[1:len(x)-1], orig)
+	}
+}
+
+// nats returns a sequence of interesting nats of the given size:
+//
+//   - all 0
+//   - all ^0
+//   - all possible combinations of words
+//   - ten random values
+func nats(words []Word, size int) iter.Seq[[]Word] {
+	return func(yield func([]Word) bool) {
+		if size == 0 {
+			yield(nil)
+			return
+		}
+		w := make([]Word, size)
+
+		// all 0
+		for i := range w {
+			w[i] = 0
+		}
+		if !yield(w) {
+			return
+		}
+
+		// all ^0
+		for i := range w {
+			w[i] = _M
+		}
+		if !yield(w) {
+			return
+		}
+
+		// all possible combinations of words
+		var generate func(int) bool
+		generate = func(i int) bool {
+			if i >= len(w) {
+				return yield(w)
+			}
+			for _, w[i] = range words {
+				if !generate(i + 1) {
+					return false
+				}
+			}
+			return true
+		}
+		if !generate(0) {
+			return
+		}
+
+		// ten random values
+		for range 10 {
+			for i := range w {
+				w[i] = Word(rnd.Uint())
+			}
+			if !yield(w) {
+				return
+			}
+		}
 	}
 }
 
 // Always the same seed for reproducible results.
-var rnd = rand.New(rand.NewSource(0))
+var rnd = rand.New(rand.NewPCG(1, 2))
 
 func rndW() Word {
-	return Word(rnd.Int63()<<1 | rnd.Int63n(2))
+	return Word(rnd.Uint())
 }
 
 func rndV(n int) []Word {
@@ -82,149 +482,6 @@ func rndV(n int) []Word {
 	return v
 }
 
-var benchSizes = []int{1, 2, 3, 4, 5, 1e1, 1e2, 1e3, 1e4, 1e5}
-
-func BenchmarkAddVV(b *testing.B) {
-	for _, n := range benchSizes {
-		if isRaceBuilder && n > 1e3 {
-			continue
-		}
-		x := rndV(n)
-		y := rndV(n)
-		z := make([]Word, n)
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			b.SetBytes(int64(n * _W))
-			for i := 0; i < b.N; i++ {
-				addVV(z, x, y)
-			}
-		})
-	}
-}
-
-func BenchmarkSubVV(b *testing.B) {
-	for _, n := range benchSizes {
-		if isRaceBuilder && n > 1e3 {
-			continue
-		}
-		x := rndV(n)
-		y := rndV(n)
-		z := make([]Word, n)
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			b.SetBytes(int64(n * _W))
-			for i := 0; i < b.N; i++ {
-				subVV(z, x, y)
-			}
-		})
-	}
-}
-
-type funVW func(z, x []Word, y Word) (c Word)
-type argVW struct {
-	z, x nat
-	y    Word
-	c    Word
-}
-
-var sumVW = []argVW{
-	{},
-	{nil, nil, 2, 2},
-	{nat{0}, nat{0}, 0, 0},
-	{nat{1}, nat{0}, 1, 0},
-	{nat{1}, nat{1}, 0, 0},
-	{nat{0}, nat{_M}, 1, 1},
-	{nat{0, 0, 0, 0}, nat{_M, _M, _M, _M}, 1, 1},
-	{nat{585}, nat{314}, 271, 0},
-}
-
-var lshVWTests = []argVW{
-	{},
-	{nat{0}, nat{0}, 1, 0},
-	{nat{0}, nat{0}, 20, 0},
-
-	{nat{_M << 1 & _M}, nat{_M}, 1, 1},
-	{nat{_M << 20 & _M}, nat{_M}, 20, _M >> (_W - 20)},
-
-	{nat{_M << 1 & _M, _M, _M}, nat{_M, _M, _M}, 1, 1},
-	{nat{_M << 20 & _M, _M, _M}, nat{_M, _M, _M}, 20, _M >> (_W - 20)},
-}
-
-var rshVWTests = []argVW{
-	{},
-	{nat{0}, nat{0}, 1, 0},
-	{nat{0}, nat{0}, 20, 0},
-
-	{nat{_M >> 1}, nat{_M}, 1, _M << (_W - 1) & _M},
-	{nat{_M >> 20}, nat{_M}, 20, _M << (_W - 20) & _M},
-
-	{nat{_M, _M, _M >> 1}, nat{_M, _M, _M}, 1, _M << (_W - 1) & _M},
-	{nat{_M, _M, _M >> 20}, nat{_M, _M, _M}, 20, _M << (_W - 20) & _M},
-}
-
-func testFunVW(t *testing.T, msg string, f funVW, a argVW) {
-	z := make(nat, len(a.z))
-	c := f(z, a.x, a.y)
-	for i, zi := range z {
-		if zi != a.z[i] {
-			t.Errorf("%s%+v\n\tgot z[%d] = %#x; want %#x", msg, a, i, zi, a.z[i])
-			break
-		}
-	}
-	if c != a.c {
-		t.Errorf("%s%+v\n\tgot c = %#x; want %#x", msg, a, c, a.c)
-	}
-}
-
-func testFunVWext(t *testing.T, msg string, f funVW, f_g funVW, a argVW) {
-	// using the result of addVW_g/subVW_g as golden
-	z_g := make(nat, len(a.z))
-	c_g := f_g(z_g, a.x, a.y)
-	c := f(a.z, a.x, a.y)
-
-	for i, zi := range a.z {
-		if zi != z_g[i] {
-			t.Errorf("%s\n\tgot z[%d] = %#x; want %#x", msg, i, zi, z_g[i])
-			break
-		}
-	}
-	if c != c_g {
-		t.Errorf("%s\n\tgot c = %#x; want %#x", msg, c, c_g)
-	}
-}
-
-func makeFunVW(f func(z, x []Word, s uint) (c Word)) funVW {
-	return func(z, x []Word, s Word) (c Word) {
-		return f(z, x, uint(s))
-	}
-}
-
-func TestFunVW(t *testing.T) {
-	for _, a := range sumVW {
-		arg := a
-		testFunVW(t, "addVW_g", addVW_g, arg)
-		testFunVW(t, "addVW", addVW, arg)
-
-		arg = argVW{a.x, a.z, a.y, a.c}
-		testFunVW(t, "subVW_g", subVW_g, arg)
-		testFunVW(t, "subVW", subVW, arg)
-	}
-
-	lshVW_g := makeFunVW(lshVU_g)
-	lshVW := makeFunVW(lshVU)
-	for _, a := range lshVWTests {
-		arg := a
-		testFunVW(t, "lshVU_g", lshVW_g, arg)
-		testFunVW(t, "lshVU", lshVW, arg)
-	}
-
-	rshVW_g := makeFunVW(rshVU_g)
-	rshVW := makeFunVW(rshVU)
-	for _, a := range rshVWTests {
-		arg := a
-		testFunVW(t, "rshVU_g", rshVW_g, arg)
-		testFunVW(t, "rshVU", rshVW, arg)
-	}
-}
-
 // Construct a vector comprising the same word, usually '0' or 'maximum uint'
 func makeWordVec(e Word, n int) []Word {
 	v := make([]Word, n)
@@ -232,40 +489,6 @@ func makeWordVec(e Word, n int) []Word {
 		v[i] = e
 	}
 	return v
-}
-
-// Extended testing to addVW and subVW using various kinds of input data.
-// We utilize the results of addVW_g and subVW_g as golden reference to check
-// correctness.
-func TestFunVWExt(t *testing.T) {
-	// 32 is the current threshold that triggers an optimized version of
-	// calculation for large-sized vector, ensure we have sizes around it tested.
-	var vwSizes = []int{0, 1, 3, 4, 5, 8, 9, 23, 31, 32, 33, 34, 35, 36, 50, 120}
-	for _, n := range vwSizes {
-		// vector of random numbers, using the result of addVW_g/subVW_g as golden
-		x := rndV(n)
-		y := rndW()
-		z := make(nat, n)
-		arg := argVW{z, x, y, 0}
-		testFunVWext(t, "addVW, random inputs", addVW, addVW_g, arg)
-		testFunVWext(t, "subVW, random inputs", subVW, subVW_g, arg)
-
-		// vector of random numbers, but make 'x' and 'z' share storage
-		arg = argVW{x, x, y, 0}
-		testFunVWext(t, "addVW, random inputs, sharing storage", addVW, addVW_g, arg)
-		testFunVWext(t, "subVW, random inputs, sharing storage", subVW, subVW_g, arg)
-
-		// vector of maximum uint, to force carry flag set in each 'add'
-		y = ^Word(0)
-		x = makeWordVec(y, n)
-		arg = argVW{z, x, y, 0}
-		testFunVWext(t, "addVW, vector of max uint", addVW, addVW_g, arg)
-
-		// vector of '0', to force carry flag set in each 'sub'
-		x = makeWordVec(0, n)
-		arg = argVW{z, x, 1, 0}
-		testFunVWext(t, "subVW, vector of zero", subVW, subVW_g, arg)
-	}
 }
 
 type argVU struct {
@@ -381,76 +604,6 @@ func TestIssue42838(t *testing.T) {
 	}
 }
 
-func BenchmarkAddVW(b *testing.B) {
-	for _, n := range benchSizes {
-		if isRaceBuilder && n > 1e3 {
-			continue
-		}
-		x := rndV(n)
-		y := rndW()
-		z := make([]Word, n)
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			b.SetBytes(int64(n * _S))
-			for i := 0; i < b.N; i++ {
-				addVW(z, x, y)
-			}
-		})
-	}
-}
-
-// Benchmarking addVW using vector of maximum uint to force carry flag set
-func BenchmarkAddVWext(b *testing.B) {
-	for _, n := range benchSizes {
-		if isRaceBuilder && n > 1e3 {
-			continue
-		}
-		y := ^Word(0)
-		x := makeWordVec(y, n)
-		z := make([]Word, n)
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			b.SetBytes(int64(n * _S))
-			for i := 0; i < b.N; i++ {
-				addVW(z, x, y)
-			}
-		})
-	}
-}
-
-func BenchmarkSubVW(b *testing.B) {
-	for _, n := range benchSizes {
-		if isRaceBuilder && n > 1e3 {
-			continue
-		}
-		x := rndV(n)
-		y := rndW()
-		z := make([]Word, n)
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			b.SetBytes(int64(n * _S))
-			for i := 0; i < b.N; i++ {
-				subVW(z, x, y)
-			}
-		})
-	}
-}
-
-// Benchmarking subVW using vector of zero to force carry flag set
-func BenchmarkSubVWext(b *testing.B) {
-	for _, n := range benchSizes {
-		if isRaceBuilder && n > 1e3 {
-			continue
-		}
-		x := makeWordVec(0, n)
-		y := Word(1)
-		z := make([]Word, n)
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			b.SetBytes(int64(n * _S))
-			for i := 0; i < b.N; i++ {
-				subVW(z, x, y)
-			}
-		})
-	}
-}
-
 type funVWW func(z, x []Word, y, r Word) (c Word)
 type argVWW struct {
 	z, x nat
@@ -513,14 +666,10 @@ type argWVW struct {
 func testFunWVW(t *testing.T, msg string, f funWVW, a argWVW) {
 	z := make(nat, len(a.z))
 	r := f(z, a.xn, a.x, a.y)
-	for i, zi := range z {
-		if zi != a.z[i] {
-			t.Errorf("%s%+v\n\tgot z[%d] = %#x; want %#x", msg, a, i, zi, a.z[i])
-			break
-		}
-	}
-	if r != a.r {
-		t.Errorf("%s%+v\n\tgot r = %#x; want %#x", msg, a, r, a.r)
+	if !slices.Equal(z, a.z) || r != a.r {
+		t.Errorf("%s%+v\nhave %v, %v\nwant %v, %v", msg, a, z, r, a.z, a.r)
+	} else {
+		t.Logf("%s%+v\ngood %v, %v", msg, a, z, r)
 	}
 }
 
@@ -610,79 +759,188 @@ func TestDivWW(t *testing.T) {
 	}
 }
 
-func BenchmarkMulAddVWW(b *testing.B) {
+// benchSizes are the benchmark word sizes.
+var benchSizes = []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 32, 64, 100, 1000, 10_000, 100_000}
+
+// A benchFunc is a function to be benchmarked.
+// It takes one output buffer and two input buffers,
+// but it does not have to use any of them.
+type benchFunc func(z, x, y []Word)
+
+// bench runs benchmarks of fn for a variety of word sizes.
+// It adds the given suffix (for example "/impl=go") to the benchmark names it creates,
+// after a "/words=N" parameter. Putting words first makes it easier to run
+// all benchmarks with a specific word size
+// (go test -run=NONE '-bench=V/words=100$')
+// even if different benchmarks have different numbers of other parameters.
+func bench(b *testing.B, suffix string, fn benchFunc) {
 	for _, n := range benchSizes {
 		if isRaceBuilder && n > 1e3 {
 			continue
 		}
-		z := make([]Word, n)
-		x := rndV(n)
-		y := rndW()
-		r := rndW()
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			b.SetBytes(int64(n * _W))
-			for i := 0; i < b.N; i++ {
-				mulAddVWW(z, x, y, r)
+		var z, x, y []Word
+		b.Run(fmt.Sprintf("words=%d%s", n, suffix), func(b *testing.B) {
+			if z == nil {
+				z = make([]Word, n)
+				x = rndV(n)
+				y = rndV(n)
+			}
+			b.SetBytes(int64(n * _S))
+			for b.Loop() {
+				fn(z, x, y)
 			}
 		})
 	}
+}
+
+// Benchmark basic I/O and arithmetic processing speed,
+// to help estimate the upper bounds on other operations.
+
+func BenchmarkCopyVV(b *testing.B) { bench(b, "", benchVV(copyVV)) }
+
+func copyVV(z, x, y []Word) Word {
+	copy(z, x)
+	return 0
+}
+
+// Note: This benchmark consistently runs faster (even up to 2X faster on MB/s)
+// with words=10 and words=100 than larger amounts like words=1000 or words=10000.
+// The reason appears to that if you run 100-word addition loops repeatedly,
+// they are independent calculations, and the processor speculates/pipelines/whatever
+// to such a deep level that it can overlap the repeated loops.
+// In contrast, if you run 1000-word or 10000-word loops repeatedly,
+// the dependency chains are so long that the processor cannot overlap them.
+// If we change arithVV to take the starting value of s and pass in the result
+// from the previous arithVV, then even the 10-word or 100-loops become
+// a single long dependency chain and the 2X disappears. But since we are
+// using BenchmarkArithVV for a given word size to estimate the upper bound
+// of, say, BenchmarkAddVV for that same word size, we actually want the
+// dependency chain-length variation in BenchmarkArithVV too.
+// It's just mysterious to see until you understand what is causing it.
+
+func BenchmarkArithVV(b *testing.B) { bench(b, "", benchVV(arithVV)) }
+
+func arithVV(z, x, y []Word) Word {
+	var a, b, c, d, e, f, g, h, i, j Word
+	if len(z) >= 8 {
+		a, b, c, d, e, f, g, h, i, j = 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+	}
+	if len(z) < 10 {
+		// We don't really care about the speed here, but
+		// do something so that the small word counts aren't all the same.
+		s := Word(0)
+		for _, zi := range z {
+			s += zi
+		}
+		return s
+	}
+	s := Word(0)
+	for range len(z) / 10 {
+		s += a
+		s += b
+		s += c
+		s += d
+		s += e
+		s += f
+		s += g
+		s += h
+		s += i
+		s += j
+	}
+	return s
+}
+
+func BenchmarkAddVV(b *testing.B) {
+	bench(b, "/impl=asm", benchVV(addVV))
+	bench(b, "/impl=go", benchVV(addVV_g))
+}
+
+func BenchmarkSubVV(b *testing.B) {
+	bench(b, "/impl=asm", benchVV(subVV))
+	bench(b, "/impl=go", benchVV(subVV_g))
+}
+
+func benchVV(fn func(z, x, y []Word) Word) benchFunc {
+	return func(z, x, y []Word) { fn(z, x, y) }
+}
+
+func BenchmarkAddVW(b *testing.B) {
+	bench(b, "/impl=asm/data=random", benchVW(addVW, 123))
+	bench(b, "/impl=asm/data=carry", benchCarryVW(addVW, ^Word(0), 1))
+	bench(b, "/impl=asm/data=shortcut", benchShortVW(addVW, 123))
+	bench(b, "/impl=go/data=random", benchVW(addVW_g, 123))
+	bench(b, "/impl=go/data=carry", benchCarryVW(addVW_g, ^Word(0), 1))
+	bench(b, "/impl=go/data=shortcut", benchShortVW(addVW_g, 123))
+}
+
+func BenchmarkSubVW(b *testing.B) {
+	bench(b, "/impl=asm/data=random", benchVW(subVW, 123))
+	bench(b, "/impl=asm/data=carry", benchCarryVW(subVW, 0, 1))
+	bench(b, "/impl=asm/data=shortcut", benchShortVW(subVW, 123))
+	bench(b, "/impl=go/data=random", benchVW(subVW_g, 123))
+	bench(b, "/impl=go/data=carry", benchCarryVW(subVW_g, 0, 1))
+	bench(b, "/impl=go/data=shortcut", benchShortVW(subVW_g, 123))
+}
+
+func benchVW(fn func(z, x []Word, w Word) Word, w Word) benchFunc {
+	return func(z, x, y []Word) { fn(z, x, w) }
+}
+
+func benchCarryVW(fn func(z, x []Word, w Word) Word, xi, w Word) benchFunc {
+	return func(z, x, y []Word) {
+		// Fill x with xi the first time we are called with a given x.
+		// Otherwise x is random, so checking the first two elements is good enough.
+		// Assume this is the warmup, so we don't need to worry about it taking longer.
+		if x[0] != w || len(x) >= 2 && x[1] != w {
+			for i := range x {
+				x[i] = xi
+			}
+		}
+		fn(z, x, w)
+	}
+}
+
+func benchShortVW(fn func(z, x []Word, w Word) Word, w Word) benchFunc {
+	// Note: calling fn with x not z, to benchmark in-place overwriting.
+	return func(z, x, y []Word) { fn(x, x, w) }
+}
+
+func BenchmarkLshVU(b *testing.B) {
+	bench(b, "/impl=asm", benchVU(lshVU, 3))
+	bench(b, "/impl=go", benchVU(lshVU_g, 3))
+}
+
+func BenchmarkRshVU(b *testing.B) {
+	bench(b, "/impl=asm", benchVU(rshVU, 3))
+	bench(b, "/impl=go", benchVU(rshVU_g, 3))
+}
+
+func benchVU(fn func(z, x []Word, s uint) Word, s uint) benchFunc {
+	return func(z, x, y []Word) { fn(z, x, s) }
+}
+
+func BenchmarkMulAddVWW(b *testing.B) {
+	bench(b, "/impl=asm", benchVWW(mulAddVWW, 42, 100))
+	bench(b, "/impl=go", benchVWW(mulAddVWW_g, 42, 100))
+}
+
+func benchVWW(fn func(z, x []Word, w1, w2 Word) Word, w1, w2 Word) benchFunc {
+	return func(z, x, y []Word) { fn(z, x, w1, w2) }
 }
 
 func BenchmarkAddMulVVWW(b *testing.B) {
-	for _, n := range benchSizes {
-		if isRaceBuilder && n > 1e3 {
-			continue
-		}
-		z := make([]Word, n)
-		x := rndV(n)
-		y := rndV(n)
-		m := rndW()
-		a := rndW()
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			b.SetBytes(int64(n * _W))
-			for i := 0; i < b.N; i++ {
-				addMulVVWW(z, x, y, m, a)
-			}
-		})
-	}
-}
-func BenchmarkDivWVW(b *testing.B) {
-	for _, n := range benchSizes {
-		if isRaceBuilder && n > 1e3 {
-			continue
-		}
-		x := rndV(n)
-		y := rndW()
-		z := make([]Word, n)
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			b.SetBytes(int64(n * _W))
-			for i := 0; i < b.N; i++ {
-				divWVW(z, 0, x, y)
-			}
-		})
-	}
+	bench(b, "/impl=asm", benchVVWW(addMulVVWW, 42, 100))
+	bench(b, "/impl=go", benchVVWW(addMulVVWW_g, 42, 100))
 }
 
-func BenchmarkNonZeroShifts(b *testing.B) {
-	for _, n := range benchSizes {
-		if isRaceBuilder && n > 1e3 {
-			continue
-		}
-		x := rndV(n)
-		s := uint(rand.Int63n(_W-2)) + 1 // avoid 0 and over-large shifts
-		z := make([]Word, n)
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			b.SetBytes(int64(n * _W))
-			b.Run("rshVU", func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					_ = rshVU(z, x, s)
-				}
-			})
-			b.Run("lshVU", func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					_ = lshVU(z, x, s)
-				}
-			})
-		})
-	}
+func benchVVWW(fn func(z, x, y []Word, w1, w2 Word) Word, w1, w2 Word) benchFunc {
+	return func(z, x, y []Word) { fn(z, x, y, w1, w2) }
+}
+
+func BenchmarkDivWVW(b *testing.B) {
+	bench(b, "", benchWVW(divWVW, 100, 200))
+}
+
+func benchWVW(fn func(z []Word, w1 Word, x []Word, w2 Word) Word, w1, w2 Word) benchFunc {
+	return func(z, x, y []Word) { fn(z, w1, x, w2) }
 }

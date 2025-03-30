@@ -466,25 +466,25 @@ func TestShiftRight(t *testing.T) {
 func BenchmarkZeroShifts(b *testing.B) {
 	x := rndNat(800)
 
-	b.Run("Shl", func(b *testing.B) {
+	b.Run("Lsh", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			var z nat
 			z.lsh(x, 0)
 		}
 	})
-	b.Run("ShlSame", func(b *testing.B) {
+	b.Run("LshSame", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			x.lsh(x, 0)
 		}
 	})
 
-	b.Run("Shr", func(b *testing.B) {
+	b.Run("Rsh", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			var z nat
 			z.rsh(x, 0)
 		}
 	})
-	b.Run("ShrSame", func(b *testing.B) {
+	b.Run("RshSame", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			x.rsh(x, 0)
 		}
