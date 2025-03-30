@@ -95,6 +95,7 @@ func genLateLowerRules(arch arch) { genRulesSuffix(arch, "latelower") }
 
 func genRulesSuffix(arch arch, suff string) {
 	// Open input file.
+	var text io.Reader
 	text, err := os.Open(arch.name + suff + ".rules")
 	if err != nil {
 		if suff == "" {
@@ -103,6 +104,14 @@ func genRulesSuffix(arch arch, suff string) {
 		}
 		// Some architectures have bonus rules files that others don't share. That's fine.
 		return
+	}
+
+	// Check for file of SIMD rules to add
+	if suff == "" {
+		simdtext, err := os.Open("simd" + arch.name + ".rules")
+		if err == nil {
+			text = io.MultiReader(text, simdtext)
+		}
 	}
 
 	// oprules contains a list of rules for each block and opcode

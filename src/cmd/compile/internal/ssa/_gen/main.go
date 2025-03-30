@@ -32,6 +32,7 @@ type arch struct {
 	name               string
 	pkg                string // obj package to import for this arch.
 	genfile            string // source file containing opcode code generation.
+	genSIMDfile        string // source file containing opcode code generation for SIMD.
 	ops                []opData
 	blocks             []blockData
 	regnames           []string
@@ -525,6 +526,15 @@ func genOp() {
 		if err != nil {
 			log.Fatalf("can't read %s: %v", a.genfile, err)
 		}
+		// Append the file of simd operations, too
+		if a.genSIMDfile != "" {
+			simdSrc, err := os.ReadFile(a.genSIMDfile)
+			if err != nil {
+				log.Fatalf("can't read %s: %v", a.genSIMDfile, err)
+			}
+			src = append(src, simdSrc...)
+		}
+
 		seen := make(map[string]bool, len(a.ops))
 		for _, m := range rxOp.FindAllSubmatch(src, -1) {
 			seen[string(m[1])] = true

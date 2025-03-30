@@ -67,6 +67,8 @@ func storeByType(t *types.Type) obj.As {
 		case 8:
 			return x86.AMOVSD
 		}
+	} else if t.IsSIMD() {
+		return simdMov(width)
 	} else {
 		switch width {
 		case 1:
@@ -92,6 +94,8 @@ func moveByType(t *types.Type) obj.As {
 		// There is no xmm->xmm move with 1 byte opcode,
 		// so use movups, which has 2 byte opcode.
 		return x86.AMOVUPS
+	} else if t.IsSIMD() {
+		return simdMov(t.Size())
 	} else {
 		switch t.Size() {
 		case 1:
@@ -1038,6 +1042,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 		x := v.Args[0].Reg()
 		y := v.Reg()
+		if v.Type.IsSIMD() {
+			x = simdReg(v.Args[0])
+			y = simdReg(v)
+		}
 		if x != y {
 			opregreg(s, moveByType(v.Type), y, x)
 		}
@@ -1049,16 +1057,24 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(loadByType(v.Type))
 		ssagen.AddrAuto(&p.From, v.Args[0])
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg()
+		r := v.Reg()
+		if v.Type.IsSIMD() {
+			r = simdReg(v)
+		}
+		p.To.Reg = r
 
 	case ssa.OpStoreReg:
 		if v.Type.IsFlags() {
 			v.Fatalf("store flags not implemented: %v", v.LongString())
 			return
 		}
+		r := v.Args[0].Reg()
+		if v.Type.IsSIMD() {
+			r = simdReg(v.Args[0])
+		}
 		p := s.Prog(storeByType(v.Type))
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = v.Args[0].Reg()
+		p.From.Reg = r
 		ssagen.AddrAuto(&p.To, v)
 	case ssa.OpAMD64LoweredHasCPUFeature:
 		p := s.Prog(x86.AMOVBLZX)
@@ -1426,9 +1442,123 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Offset = int64(x)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+
+	// XXX SIMD
+	// XXX may change depending on how we handle aliased registers
+	case ssa.OpAMD64Zero128, ssa.OpAMD64Zero256, ssa.OpAMD64Zero512:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = simdReg(v)
+		p.AddRestSourceReg(simdReg(v))
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = simdReg(v)
+	case ssa.OpAMD64VPADDD4:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = simdReg(v.Args[0])
+		p.AddRestSourceReg(simdReg(v.Args[1]))
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = simdReg(v)
+	case ssa.OpAMD64VMOVDQUload128, ssa.OpAMD64VMOVDQUload256, ssa.OpAMD64VMOVDQUload512:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		ssagen.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = simdReg(v)
+	case ssa.OpAMD64VMOVDQUstore128, ssa.OpAMD64VMOVDQUstore256, ssa.OpAMD64VMOVDQUstore512:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = simdReg(v.Args[1])
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		ssagen.AddAux(&p.To, v)
+
+	case ssa.OpAMD64VPMOVMToVec8x16,
+		ssa.OpAMD64VPMOVMToVec8x32,
+		ssa.OpAMD64VPMOVMToVec8x64,
+		ssa.OpAMD64VPMOVMToVec16x8,
+		ssa.OpAMD64VPMOVMToVec16x16,
+		ssa.OpAMD64VPMOVMToVec16x32,
+		ssa.OpAMD64VPMOVMToVec32x4,
+		ssa.OpAMD64VPMOVMToVec32x8,
+		ssa.OpAMD64VPMOVMToVec32x16,
+		ssa.OpAMD64VPMOVMToVec64x2,
+		ssa.OpAMD64VPMOVMToVec64x4,
+		ssa.OpAMD64VPMOVMToVec64x8:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = simdReg(v)
+
+	case ssa.OpAMD64VPMOVVec8x16ToM,
+		ssa.OpAMD64VPMOVVec8x32ToM,
+		ssa.OpAMD64VPMOVVec8x64ToM,
+		ssa.OpAMD64VPMOVVec16x8ToM,
+		ssa.OpAMD64VPMOVVec16x16ToM,
+		ssa.OpAMD64VPMOVVec16x32ToM,
+		ssa.OpAMD64VPMOVVec32x4ToM,
+		ssa.OpAMD64VPMOVVec32x8ToM,
+		ssa.OpAMD64VPMOVVec32x16ToM,
+		ssa.OpAMD64VPMOVVec64x2ToM,
+		ssa.OpAMD64VPMOVVec64x4ToM,
+		ssa.OpAMD64VPMOVVec64x8ToM:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = simdReg(v.Args[0])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
 	default:
-		v.Fatalf("genValue not implemented: %s", v.LongString())
+		if !ssaGenSIMDValue(s, v) {
+			v.Fatalf("genValue not implemented: %s", v.LongString())
+		}
 	}
+}
+
+func simdGenUnary(s *ssagen.State, v *ssa.Value) {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[0])
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+}
+
+func simdGenBinary(s *ssagen.State, v *ssa.Value) {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[0])
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+}
+
+func simdGenUnaryImmUint8(s *ssagen.State, v *ssa.Value) {
+	p := s.Prog(v.Op.Asm())
+	imm := v.AuxInt
+	if imm < 0 || imm > 255 {
+		v.Fatalf("Invalid source selection immediate")
+	}
+	p.From.Offset = imm
+	p.From.Type = obj.TYPE_CONST
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+}
+
+func simdGenBinaryImmUint8(s *ssagen.State, v *ssa.Value) {
+	p := s.Prog(v.Op.Asm())
+	imm := v.AuxInt
+	if imm < 0 || imm > 255 {
+		v.Fatalf("Invalid source selection immediate")
+	}
+	p.From.Offset = imm
+	p.From.Type = obj.TYPE_CONST
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
 }
 
 var blockJump = [...]struct {
@@ -1531,4 +1661,31 @@ func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg in
 	p.To.Sym = n.Linksym()
 	p.Pos = p.Pos.WithNotStmt()
 	return p
+}
+
+// XXX maybe make this part of v.Reg?
+// On the other hand, it is architecture-specific.
+func simdReg(v *ssa.Value) int16 {
+	t := v.Type
+	if !t.IsSIMD() {
+		panic("simdReg: not a simd type")
+	}
+	switch t.Size() {
+	case 16:
+		return v.Reg()
+	case 32:
+		return v.Reg() + (x86.REG_Y0 - x86.REG_X0)
+	case 64:
+		return v.Reg() + (x86.REG_Z0 - x86.REG_X0)
+	}
+	panic("unreachable")
+}
+
+func simdMov(width int64) obj.As {
+	if width >= 64 {
+		return x86.AVMOVDQU64
+	} else if width >= 16 {
+		return x86.AVMOVDQU
+	}
+	return x86.AKMOVQ
 }

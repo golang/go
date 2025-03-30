@@ -662,6 +662,10 @@ var genericOps = []opData{
 	// Prefetch instruction
 	{name: "PrefetchCache", argLength: 2, hasSideEffects: true},         // Do prefetch arg0 to cache. arg0=addr, arg1=memory.
 	{name: "PrefetchCacheStreamed", argLength: 2, hasSideEffects: true}, // Do non-temporal or streamed prefetch arg0 to cache. arg0=addr, arg1=memory.
+
+	// XXX SIMD
+	{name: "Add32x4", argLength: 2}, // arg0 + arg1
+	{name: "ZeroSIMD", argLength: 0},
 }
 
 //     kind          controls          successors   implicit exit
@@ -689,6 +693,7 @@ var genericBlocks = []blockData{
 }
 
 func init() {
+	genericOps = append(genericOps, simdGenericOps()...)
 	archs = append(archs, arch{
 		name:    "generic",
 		ops:     genericOps,

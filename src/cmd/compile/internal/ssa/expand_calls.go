@@ -399,6 +399,9 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 		return mem
 
 	case types.TSTRUCT:
+		if at.IsSIMD() {
+			break // XXX
+		}
 		for i := 0; i < at.NumFields(); i++ {
 			et := at.Field(i).Type // might need to read offsets from the fields
 			e := b.NewValue1I(pos, OpStructSelect, et, int64(i), a)
@@ -547,6 +550,9 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 
 	case types.TSTRUCT:
 		// Assume ssagen/ssa.go (in buildssa) spills large aggregates so they won't appear here.
+		if at.IsSIMD() {
+			break // XXX
+		}
 		for i := 0; i < at.NumFields(); i++ {
 			et := at.Field(i).Type
 			e := x.rewriteSelectOrArg(pos, b, container, nil, m0, et, rc.next(et))
@@ -713,6 +719,9 @@ func (x *expandState) rewriteWideSelectToStores(pos src.XPos, b *Block, containe
 
 	case types.TSTRUCT:
 		// Assume ssagen/ssa.go (in buildssa) spills large aggregates so they won't appear here.
+		if at.IsSIMD() {
+			break // XXX
+		}
 		for i := 0; i < at.NumFields(); i++ {
 			et := at.Field(i).Type
 			m0 = x.rewriteWideSelectToStores(pos, b, container, m0, et, rc.next(et))
@@ -859,7 +868,7 @@ func (c *registerCursor) at(t *types.Type, i int) registerCursor {
 		rc.nextSlice += Abi1RO(i * w)
 		return rc
 	}
-	if t.IsStruct() {
+	if isStructNotSIMD(t) {
 		for j := 0; j < i; j++ {
 			rc.next(t.FieldType(j))
 		}
@@ -973,7 +982,7 @@ func (x *expandState) regOffset(t *types.Type, i int) Abi1RO {
 	if t.IsArray() {
 		return Abi1RO(i) * x.regWidth(t.Elem())
 	}
-	if t.IsStruct() {
+	if isStructNotSIMD(t) {
 		k := Abi1RO(0)
 		for j := 0; j < i; j++ {
 			k += x.regWidth(t.FieldType(j))

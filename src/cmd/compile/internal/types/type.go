@@ -201,8 +201,9 @@ type Type struct {
 
 	intRegs, floatRegs uint8 // registers needed for ABIInternal
 
-	flags bitset8
-	alg   AlgKind // valid if Align > 0
+	flags             bitset8
+	alg               AlgKind // valid if Align > 0
+	isSIMDTag, isSIMD bool    // tag is the marker type, isSIMD means has marker type
 
 	// size of prefix of object that contains all pointers. valid if Align > 0.
 	// Note that for pointers, this is always PtrSize even if the element type
@@ -605,6 +606,12 @@ func newSSA(name string) *Type {
 	return t
 }
 
+func newSIMD(name string) *Type {
+	t := newSSA(name)
+	t.isSIMD = true
+	return t
+}
+
 // NewMap returns a new map Type with key type k and element (aka value) type v.
 func NewMap(k, v *Type) *Type {
 	t := newType(TMAP)
@@ -995,10 +1002,7 @@ func (t *Type) ArgWidth() int64 {
 
 func (t *Type) Size() int64 {
 	if t.kind == TSSA {
-		if t == TypeInt128 {
-			return 16
-		}
-		return 0
+		return t.width
 	}
 	CalcSize(t)
 	return t.width
@@ -1626,12 +1630,26 @@ var (
 	TypeFlags     = newSSA("flags")
 	TypeVoid      = newSSA("void")
 	TypeInt128    = newSSA("int128")
+	TypeVec128    = newSIMD("vec128")
+	TypeVec256    = newSIMD("vec256")
+	TypeVec512    = newSIMD("vec512")
+	TypeMask      = newSSA("mask") // not a vector, not 100% sure what this should be.
 	TypeResultMem = newResults([]*Type{TypeMem})
 )
 
 func init() {
 	TypeInt128.width = 16
 	TypeInt128.align = 8
+
+	TypeVec128.width = 16
+	TypeVec128.align = 8
+	TypeVec256.width = 32
+	TypeVec256.align = 8
+	TypeVec512.width = 64
+	TypeVec512.align = 8
+
+	TypeMask.width = 8 // This will depend on the architecture; spilling will be "interesting".
+	TypeMask.align = 8
 }
 
 // NewNamed returns a new named type for the given type name. obj should be an
@@ -2017,3 +2035,7 @@ var SimType [NTYPE]Kind
 
 // Fake package for shape types (see typecheck.Shapify()).
 var ShapePkg = NewPkg("go.shape", "go.shape")
+
+func (t *Type) IsSIMD() bool {
+	return t.isSIMD
+}

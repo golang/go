@@ -1680,3 +1680,36 @@
 
 // If we don't use the flags any more, just use the standard op.
 (Select0 a:(ADD(Q|L)constflags [c] x)) && a.Uses == 1 => (ADD(Q|L)const [c] x)
+
+// XXX SIMD
+(Load <t> ptr mem) && t.Size() == 16 => (VMOVDQUload128 ptr mem)
+
+(Store {t} ptr val mem) && t.Size() == 16 => (VMOVDQUstore128 ptr val mem)
+
+(Load <t> ptr mem) && t.Size() == 32 => (VMOVDQUload256 ptr mem)
+
+(Store {t} ptr val mem) && t.Size() == 32 => (VMOVDQUstore256 ptr val mem)
+
+(Load <t> ptr mem) && t.Size() == 64 => (VMOVDQUload512 ptr mem)
+
+(Store {t} ptr val mem) && t.Size() == 64 => (VMOVDQUstore512 ptr val mem)
+
+(ZeroSIMD <t>) && t.Size() == 16 => (Zero128 <t>)
+(ZeroSIMD <t>) && t.Size() == 32 => (Zero256 <t>)
+(ZeroSIMD <t>) && t.Size() == 64 => (Zero512 <t>)
+
+(VPMOVVec8x16ToM (VPMOVMToVec8x16 x)) => x
+(VPMOVVec8x32ToM (VPMOVMToVec8x32 x)) => x
+(VPMOVVec8x64ToM (VPMOVMToVec8x64 x)) => x
+
+(VPMOVVec16x8ToM (VPMOVMToVec16x8 x)) => x
+(VPMOVVec16x16ToM (VPMOVMToVec16x16 x)) => x
+(VPMOVVec16x32ToM (VPMOVMToVec16x32 x)) => x
+
+(VPMOVVec32x4ToM (VPMOVMToVec32x4 x)) => x
+(VPMOVVec32x8ToM (VPMOVMToVec32x8 x)) => x
+(VPMOVVec32x16ToM (VPMOVMToVec32x16 x)) => x
+
+(VPMOVVec64x2ToM (VPMOVMToVec64x2 x)) => x
+(VPMOVVec64x4ToM (VPMOVMToVec64x4 x)) => x
+(VPMOVVec64x8ToM (VPMOVMToVec64x8 x)) => x

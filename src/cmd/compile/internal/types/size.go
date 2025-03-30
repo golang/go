@@ -10,6 +10,7 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/internal/src"
+	"internal/buildcfg"
 	"internal/types/errors"
 )
 
@@ -410,6 +411,10 @@ func CalcSize(t *Type) {
 		}
 		CalcStructSize(t)
 		w = t.width
+		if t.IsSIMD() { // XXX
+			t.intRegs = 0
+			t.floatRegs = 1
+		}
 
 	// make fake type to check later to
 	// trigger function argument computation.
@@ -452,6 +457,31 @@ func CalcSize(t *Type) {
 	ResumeCheckSize()
 }
 
+// simdify marks as type as "SIMD", either as a tag field,
+// or having the SIMD attribute.  The tag field is a marker
+// type used to identify a struct that is not really a struct.
+// A SIMD type is allocated to a vector register (on amd64,
+// xmm, ymm, or zmm).  The fields of a SIMD type are ignored
+// by the compiler except for the space that they reserve.
+func simdify(st *Type, isTag bool) {
+	st.align = 8
+	st.alg = AMEM
+	st.intRegs = 0
+	st.isSIMD = true
+	if isTag {
+		st.width = 0
+		st.isSIMDTag = true
+		st.floatRegs = 0
+	} else {
+		st.floatRegs = 1
+	}
+	// if st.Sym() != nil {
+	// 	base.Warn("Simdify %s, %v, %d", st.Sym().Name, isTag, st.width)
+	// } else {
+	// 	base.Warn("Simdify %v, %v, %d", st, isTag, st.width)
+	// }
+}
+
 // CalcStructSize calculates the size of t,
 // filling in t.width, t.align, t.intRegs, and t.floatRegs,
 // even if size calculation is otherwise disabled.
@@ -464,10 +494,27 @@ func CalcStructSize(t *Type) {
 		switch {
 		case sym.Name == "align64" && isAtomicStdPkg(sym.Pkg):
 			maxAlign = 8
+
+		case buildcfg.Experiment.SIMD && (sym.Pkg.Path == "internal/simd" || sym.Pkg.Path == "simd") && len(t.Fields()) >= 1:
+			// This gates the experiment -- without it, no user-visible types can be "simd".
+			// The SSA-visible SIMD types remain.
+			// TODO after simd has been moved to package simd, remove internal/simd.
+			switch sym.Name {
+			case "v128":
+				simdify(t, true)
+				return
+			case "v256":
+				simdify(t, true)
+				return
+			case "v512":
+				simdify(t, true)
+				return
+			}
 		}
 	}
 
 	fields := t.Fields()
+
 	size := calcStructOffset(t, fields, 0)
 
 	// For non-zero-sized structs which end in a zero-sized field, we
@@ -539,6 +586,11 @@ func CalcStructSize(t *Type) {
 			t.ptrBytes = f.Offset + size
 			break
 		}
+	}
+
+	if len(t.Fields()) >= 1 && t.Fields()[0].Type.isSIMDTag {
+		// this catches `type Foo simd.Whatever` -- Foo is also SIMD.
+		simdify(t, false)
 	}
 }
 
