@@ -1564,6 +1564,7 @@ func TestLinknameBSS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fail to open executable: %v", err)
 	}
+	defer f.Close()
 	syms, err := f.Symbols()
 	if err != nil {
 		t.Fatalf("fail to get symbols: %v", err)
