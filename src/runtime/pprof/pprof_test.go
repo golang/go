@@ -2558,15 +2558,7 @@ func TestProfilerStackDepth(t *testing.T) {
 }
 
 func hasPrefix(stk []string, prefix []string) bool {
-	if len(prefix) > len(stk) {
-		return false
-	}
-	for i := range prefix {
-		if stk[i] != prefix[i] {
-			return false
-		}
-	}
-	return true
+	return len(prefix) <= len(stk) && slices.Equal(stk[:len(prefix)], prefix)
 }
 
 // ensure that stack records are valid map keys (comparable)
