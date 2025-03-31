@@ -5,6 +5,7 @@
 package os_test
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"internal/godebug"
@@ -19,7 +20,10 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"unicode/utf16"
@@ -1561,5 +1565,125 @@ func TestReadDirNoFileID(t *testing.T) {
 	}
 	if !os.SameFile(f2, f2s) {
 		t.Errorf("SameFile(%v, %v) = false; want true", f2, f2s)
+	}
+}
+
+func TestReadWriteFileOverlapped(t *testing.T) {
+	// See https://go.dev/issue/15388.
+	t.Parallel()
+
+	name := filepath.Join(t.TempDir(), "test.txt")
+	wname, err := syscall.UTF16PtrFromString(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := syscall.CreateFile(wname, syscall.GENERIC_ALL, 0, nil, syscall.CREATE_NEW, syscall.FILE_ATTRIBUTE_NORMAL|syscall.FILE_FLAG_OVERLAPPED, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := os.NewFile(uintptr(h), name)
+	defer f.Close()
+
+	data := []byte("test")
+	n, err := f.Write(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != len(data) {
+		t.Fatalf("Write = %d; want %d", n, len(data))
+	}
+
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := io.ReadAll(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, data) {
+		t.Fatalf("Read = %q; want %q", got, data)
+	}
+}
+
+var currentProces = sync.OnceValue(func() string {
+	// Convert the process ID to a string.
+	return strconv.FormatUint(uint64(os.Getpid()), 10)
+})
+
+var pipeCounter atomic.Uint64
+
+func pipeName() string {
+	return `\\.\pipe\go-os-test-` + currentProces() + `-` + strconv.FormatUint(pipeCounter.Add(1), 10)
+}
+
+func createPipe(t *testing.T, name string, inherit bool) *os.File {
+	t.Helper()
+	wname, err := syscall.UTF16PtrFromString(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	flags := windows.PIPE_ACCESS_DUPLEX | syscall.FILE_FLAG_OVERLAPPED
+	typ := windows.PIPE_TYPE_BYTE
+	sa := &syscall.SecurityAttributes{
+		Length: uint32(unsafe.Sizeof(syscall.SecurityAttributes{})),
+	}
+	if inherit {
+		sa.InheritHandle = 1
+	}
+	rh, err := windows.CreateNamedPipe(wname, uint32(flags), uint32(typ), 1, 4096, 4096, 0, sa)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return os.NewFile(uintptr(rh), name)
+}
+
+func TestStdinOverlappedPipe(t *testing.T) {
+	// Test that we can read from a named pipe open with FILE_FLAG_OVERLAPPED.
+	// See https://go.dev/issue/15388.
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		var buf string
+		_, err := fmt.Scanln(&buf)
+		if err != nil {
+			fmt.Print(err)
+			os.Exit(1)
+		}
+		fmt.Println(buf)
+		os.Exit(0)
+	}
+
+	t.Parallel()
+	name := pipeName()
+
+	// Create the read handle inherited by the child process.
+	r := createPipe(t, name, true)
+	defer r.Close()
+
+	// Create a write handle.
+	w, err := os.OpenFile(name, os.O_WRONLY, 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer w.Close()
+
+	// Write some data to the pipe. The child process will read it.
+	want := []byte("test\n")
+	if _, err := w.Write(want); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a child process that will read from the pipe
+	// and write the data to stdout.
+	cmd := testenv.Command(t, testenv.Executable(t), fmt.Sprintf("-test.run=^%s$", t.Name()), "-test.v")
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
+	cmd.Stdin = r
+	got, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("running %q failed: %v\n%s", cmd, err, got)
+	}
+
+	if !bytes.Contains(got, want) {
+		t.Fatalf("output %q does not contain %q", got, want)
 	}
 }

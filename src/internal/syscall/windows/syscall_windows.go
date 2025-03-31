@@ -542,9 +542,19 @@ const (
 	STATUS_REPARSE_POINT_ENCOUNTERED NTStatus = 0xC000050B
 )
 
+const (
+	FileModeInformation = 16
+)
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_mode_information
+type FILE_MODE_INFORMATION struct {
+	Mode uint32
+}
+
 // NT Native APIs
 //sys   NtCreateFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, iosb *IO_STATUS_BLOCK, allocationSize *int64, attributes uint32, share uint32, disposition uint32, options uint32, eabuffer uintptr, ealength uint32) (ntstatus error) = ntdll.NtCreateFile
 //sys   NtOpenFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, iosb *IO_STATUS_BLOCK, share uint32, options uint32) (ntstatus error) = ntdll.NtOpenFile
 //sys   rtlNtStatusToDosErrorNoTeb(ntstatus NTStatus) (ret syscall.Errno) = ntdll.RtlNtStatusToDosErrorNoTeb
 //sys   NtSetInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer uintptr, inBufferLen uint32, class uint32) (ntstatus error) = ntdll.NtSetInformationFile
 //sys	RtlIsDosDeviceName_U(name *uint16) (ret uint32) = ntdll.RtlIsDosDeviceName_U
+//sys   NtQueryInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer uintptr, inBufferLen uint32, class uint32) (ntstatus error) = ntdll.NtQueryInformationFile

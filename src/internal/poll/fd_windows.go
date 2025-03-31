@@ -89,7 +89,7 @@ type operation struct {
 }
 
 func (o *operation) overlapped() *syscall.Overlapped {
-	if o.runtimeCtx == 0 {
+	if o.fd.isBlocking {
 		// Don't return the overlapped object if the file handle
 		// doesn't use overlapped I/O. It could be used, but
 		// that would then use the file pointer stored in the
@@ -162,9 +162,36 @@ func execIO(o *operation, submit func(o *operation) error) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	getOverlappedResult := func() (int, error) {
+		if fd.isFile {
+			err = windows.GetOverlappedResult(fd.Sysfd, &o.o, &o.qty, false)
+		} else {
+			err = windows.WSAGetOverlappedResult(fd.Sysfd, &o.o, &o.qty, false, &o.flags)
+		}
+		switch err {
+		case nil:
+			return int(o.qty), nil
+		case syscall.ERROR_HANDLE_EOF:
+			// EOF reached.
+			return int(o.qty), io.EOF
+		case syscall.ERROR_MORE_DATA, windows.WSAEMSGSIZE:
+			// More data available. Return back the size of received data.
+			return int(o.qty), err
+		default:
+			return 0, err
+		}
+	}
 	// Start IO.
 	err = submit(o)
 	if !fd.pd.pollable() {
+		if err == syscall.ERROR_IO_PENDING {
+			// The overlapped handle is not added to the runtime poller,
+			// the only way to wait for the IO to complete is block.
+			_, err = syscall.WaitForSingleObject(fd.Sysfd, syscall.INFINITE)
+			if err == nil {
+				return getOverlappedResult()
+			}
+		}
 		if err != nil {
 			return 0, err
 		}
@@ -187,20 +214,8 @@ func execIO(o *operation, submit func(o *operation) error) (int, error) {
 	// Wait for our request to complete.
 	err = fd.pd.wait(int(o.mode), fd.isFile)
 	if err == nil {
-		if fd.isFile {
-			err = windows.GetOverlappedResult(fd.Sysfd, &o.o, &o.qty, false)
-		} else {
-			err = windows.WSAGetOverlappedResult(fd.Sysfd, &o.o, &o.qty, false, &o.flags)
-		}
 		// All is good. Extract our IO results and return.
-		if err != nil {
-			// More data available. Return back the size of received data.
-			if err == syscall.ERROR_MORE_DATA || err == windows.WSAEMSGSIZE {
-				return int(o.qty), err
-			}
-			return 0, err
-		}
-		return int(o.qty), nil
+		return getOverlappedResult()
 	}
 	// IO is interrupted by "close" or "timeout"
 	netpollErr := err
@@ -219,21 +234,17 @@ func execIO(o *operation, submit func(o *operation) error) (int, error) {
 	}
 	// Wait for cancellation to complete.
 	fd.pd.waitCanceled(int(o.mode))
-	if fd.isFile {
-		err = windows.GetOverlappedResult(fd.Sysfd, &o.o, &o.qty, true)
-	} else {
-		err = windows.WSAGetOverlappedResult(fd.Sysfd, &o.o, &o.qty, false, &o.flags)
-	}
+	n, err := getOverlappedResult()
 	if err != nil {
 		if err == syscall.ERROR_OPERATION_ABORTED { // IO Canceled
 			err = netpollErr
 		}
-		return 0, err
+		return n, err
 	}
 	// We issued a cancellation request. But, it seems, IO operation succeeded
 	// before the cancellation request run. We need to treat the IO operation as
 	// succeeded (the bytes are actually sent/recv from network).
-	return int(o.qty), nil
+	return n, nil
 }
 
 // FD is a file descriptor. The net and os packages embed this type in
@@ -285,6 +296,9 @@ type FD struct {
 
 	// The kind of this file.
 	kind fileKind
+
+	// Whether FILE_FLAG_OVERLAPPED was not set when opening the file
+	isBlocking bool
 }
 
 // setOffset sets the offset fields of the overlapped object
@@ -364,11 +378,21 @@ func (fd *FD) Init(net string, pollable bool) error {
 		// If we could not add the handle to the runtime poller,
 		// assume the handle hasn't been opened for overlapped I/O.
 		err = fd.pd.init(fd)
+		pollable = err == nil
 	}
 	if logInitFD != nil {
 		logInitFD(net, fd, err)
 	}
-	if !pollable || err != nil {
+	if !pollable {
+		// Handle opened for overlapped I/O (aka non-blocking) that are not added
+		// to the runtime poller need special handling when reading and writing.
+		var info windows.FILE_MODE_INFORMATION
+		if err := windows.NtQueryInformationFile(fd.Sysfd, &windows.IO_STATUS_BLOCK{}, uintptr(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info)), windows.FileModeInformation); err == nil {
+			fd.isBlocking = info.Mode&(windows.FILE_SYNCHRONOUS_IO_ALERT|windows.FILE_SYNCHRONOUS_IO_NONALERT) != 0
+		} else {
+			// If we fail to get the file mode information, assume the file is blocking.
+			fd.isBlocking = true
+		}
 		return err
 	}
 	if fd.kind != kindNet || socketCanUseSetFileCompletionNotificationModes {
@@ -455,6 +479,9 @@ func (fd *FD) Read(buf []byte) (int, error) {
 			return syscall.ReadFile(o.fd.Sysfd, unsafe.Slice(o.buf.Buf, o.buf.Len), &o.qty, o.overlapped())
 		})
 		fd.addOffset(n)
+		if err == syscall.ERROR_HANDLE_EOF {
+			err = io.EOF
+		}
 		if fd.kind == kindPipe && err != nil {
 			switch err {
 			case syscall.ERROR_BROKEN_PIPE:
@@ -591,7 +618,6 @@ func (fd *FD) Pread(b []byte, off int64) (int, error) {
 		return syscall.ReadFile(o.fd.Sysfd, unsafe.Slice(o.buf.Buf, o.buf.Len), &o.qty, &o.o)
 	})
 	if err != nil {
-		n = 0
 		if err == syscall.ERROR_HANDLE_EOF {
 			err = io.EOF
 		}
