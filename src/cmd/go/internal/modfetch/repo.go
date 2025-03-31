@@ -222,15 +222,19 @@ func Lookup(ctx context.Context, proxy, path string) Repo {
 
 var lookupLocalCache par.Cache[string, Repo] // path, Repo
 
-// LookupLocal will only use local VCS information to fetch the Repo.
-func LookupLocal(ctx context.Context, path string) Repo {
+// LookupLocal returns a Repo that accesses local VCS information.
+//
+// codeRoot is the module path of the root module in the repository.
+// path is the module path of the module being looked up.
+// dir is the file system path of the repository containing the module.
+func LookupLocal(ctx context.Context, codeRoot string, path string, dir string) Repo {
 	if traceRepo {
 		defer logCall("LookupLocal(%q)", path)()
 	}
 
 	return lookupLocalCache.Do(path, func() Repo {
 		return newCachingRepo(ctx, path, func(ctx context.Context) (Repo, error) {
-			repoDir, vcsCmd, err := vcs.FromDir(path, "", true)
+			repoDir, vcsCmd, err := vcs.FromDir(dir, "", true)
 			if err != nil {
 				return nil, err
 			}
@@ -238,7 +242,7 @@ func LookupLocal(ctx context.Context, path string) Repo {
 			if err != nil {
 				return nil, err
 			}
-			r, err := newCodeRepo(code, repoDir, path)
+			r, err := newCodeRepo(code, codeRoot, path)
 			if err == nil && traceRepo {
 				r = newLoggingRepo(r)
 			}

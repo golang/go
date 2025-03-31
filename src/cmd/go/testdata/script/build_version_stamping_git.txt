@@ -34,14 +34,14 @@ exec git branch -m main
 # Use a 0.0.0 pseudo-version when no tags are present.
 go build
 go version -m example$GOEXE
-stdout '\s+mod\s+example\s+v0.0.0-20220719150700-b52f952448d2\s+'
+stdout '\s+mod\s+example\s+v0.0.0-20220719150700-e7537ba8fd6d\s+'
 rm example$GOEXE
 
 # Use a 0.0.0 pseudo-version if the current tag is not a valid semantic version.
 exec git tag 1.0.1
 go build
 go version -m example$GOEXE
-stdout '\s+mod\s+example\s+v0.0.0-20220719150700-b52f952448d2\s+'
+stdout '\s+mod\s+example\s+v0.0.0-20220719150700-e7537ba8fd6d\s+'
 rm example$GOEXE
 
 # Use the current tag which has a valid semantic version to stamp the version.
@@ -79,14 +79,14 @@ exec git commit -m 'commit 3'
 # Use a pseudo-version when current commit doesn't match a tagged version.
 go build
 go version -m example$GOEXE
-stdout '\s+mod\s+example\s+v1.0.3-0.20220719150702-deaeab06f7fe\s+'
+stdout '\s+mod\s+example\s+v1.0.3-0.20220719150702-b0226f18a7ae\s+'
 rm example$GOEXE
 
 # Use pseudo+dirty when uncommitted changes are present.
 mv README2 README3
 go build
 go version -m example$GOEXE
-stdout '\s+mod\s+example\s+v1.0.3-0.20220719150702-deaeab06f7fe\+dirty\s+'
+stdout '\s+mod\s+example\s+v1.0.3-0.20220719150702-b0226f18a7ae\+dirty\s+'
 rm example$GOEXE
 
 # Make sure we always use the previously tagged version to generate the pseudo-version at a untagged revision.
@@ -105,7 +105,7 @@ exec git tag v1.0.4
 exec git checkout ':/commit 4'
 go build
 go version -m example$GOEXE
-stdout '\s+mod\s+example\s+v1.0.3-0.20220719150703-2e239bf29c13\s+'
+stdout '\s+mod\s+example\s+v1.0.3-0.20220719150703-2ebc76937b49\s+'
 rm example$GOEXE
 
 # Create +incompatible module
@@ -121,6 +121,67 @@ go version -m example$GOEXE
 stdout '\s+mod\s+example\s+v2.0.0\+incompatible.dirty\s+'
 rm example$GOEXE
 
+# Make sure v2 works as expected.
+exec git checkout v1.0.4
+go mod edit -module example/v2
+exec git add .
+exec git commit -m 'commit 7'
+exec git tag v2.1.1
+go build
+go version -m example$GOEXE
+stdout '\s+mod\s+example/v2\s+v2.1.1\s+'
+rm example$GOEXE
+
+# v2+dirty
+mv README5 README6
+go build
+go version -m example$GOEXE
+stdout '\s+mod\s+example/v2\s+v2.1.1\+dirty\s+'
+rm example$GOEXE
+
+# v2+pseudo
+exec git add .
+exec git commit -m 'commit 8'
+go build
+go version -m example$GOEXE
+stdout '\s+mod\s+example/v2\s+v2.1.2-0.20220719150704-0ebeb94ecde2\s+'
+rm example$GOEXE
+
+# v2+pseudo+dirty
+mv README6 README7
+go build
+go version -m example$GOEXE
+stdout '\s+mod\s+example/v2\s+v2.1.2-0.20220719150704-0ebeb94ecde2\+dirty\s+'
+rm example$GOEXE
+
+# modules in subdirectories should be stamped with the correct tag
+exec git add .
+cd subdir
+exec git commit -m 'commit 9'
+go build
+go version -m subdir$GOEXE
+# missing tag creates a pseudo version with v2.0.0
+stdout '\s+mod\s+example/subdir/v2\s+v2.0.0-20220719150704-fbef6799938f\s+'
+rm subdir$GOEXE
+# tag with subdir
+exec git tag subdir/v2.1.0
+go build
+go version -m subdir$GOEXE
+stdout '\s+mod\s+example/subdir/v2\s+v2.1.0\s+'
+# v2+dirty
+mv ../README7 README8
+go build
+go version -m subdir$GOEXE
+stdout '\s+mod\s+example/subdir/v2\s+v2.1.0\+dirty\s+'
+rm subdir$GOEXE
+
+# modules in a subdirectory without a go.mod in the root should result in (devel)
+rm ../go.mod
+go build
+go version -m subdir$GOEXE
+stdout '\s+mod\s+example/subdir/v2\s+\(devel\)\s+'
+rm subdir$GOEXE
+
 -- $WORK/repo/go.mod --
 module example
 
@@ -132,6 +193,17 @@ func main() {
 }
 -- $WORK/copy/README --
 hello
+
+-- $WORK/repo/subdir/go.mod --
+module example/subdir/v2
+
+go 1.18
+
+-- $WORK/repo/subdir/main.go --
+package main
+
+func main() {
+}
 
 -- $WORK/home/gopher/.gitconfig --
 [user]
