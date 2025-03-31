@@ -374,22 +374,19 @@ func memcombineStores(f *Func) {
 				continue
 			}
 
-			for n := f.Config.RegSize / size; n > 1; n /= 2 {
-				if combineStores(v, n) {
-					continue
-				}
-			}
+			combineStores(v)
 		}
 	}
 }
 
-// Try to combine the n stores ending in root.
-// Returns true if successful.
-func combineStores(root *Value, n int64) bool {
+// combineStores tries to combine the stores ending in root.
+func combineStores(root *Value) {
 	// Helper functions.
+	maxRegSize := root.Block.Func.Config.RegSize
 	type StoreRecord struct {
 		store  *Value
 		offset int64
+		size   int64
 	}
 	getShiftBase := func(a []StoreRecord) *Value {
 		x := a[0].store.Args[1]
@@ -474,86 +471,122 @@ func combineStores(root *Value, n int64) bool {
 		return val.AuxInt
 	}
 
-	// Element size of the individual stores.
-	size := root.Aux.(*types.Type).Size()
-	if size*n > root.Block.Func.Config.RegSize {
-		return false
-	}
-
 	// Gather n stores to look at. Check easy conditions we require.
-	a := make([]StoreRecord, 0, 8)
+	allMergeable := make([]StoreRecord, 0, 8)
 	rbase, roff := splitPtr(root.Args[0])
 	if root.Block.Func.Config.arch == "S390X" {
 		// s390x can't handle unaligned accesses to global variables.
 		if rbase.ptr.Op == OpAddr {
-			return false
+			return
 		}
 	}
-	a = append(a, StoreRecord{root, roff})
-	for i, x := int64(1), root.Args[2]; i < n; i, x = i+1, x.Args[2] {
+	allMergeable = append(allMergeable, StoreRecord{root, roff, root.Aux.(*types.Type).Size()})
+	allMergeableSize := root.Aux.(*types.Type).Size()
+	// TODO: this loop strictly requires stores to chain together in memory.
+	// maybe we can break this constraint and match more patterns.
+	for i, x := 1, root.Args[2]; i < 8; i, x = i+1, x.Args[2] {
 		if x.Op != OpStore {
-			return false
+			break
 		}
 		if x.Block != root.Block {
-			return false
+			break
 		}
 		if x.Uses != 1 { // Note: root can have more than one use.
-			return false
+			break
 		}
-		if x.Aux.(*types.Type).Size() != size {
-			// TODO: the constant source and consecutive load source cases
-			// do not need all the stores to be the same size.
-			return false
+		xSize := x.Aux.(*types.Type).Size()
+		if xSize == 0 {
+			break
+		}
+		if xSize > maxRegSize-allMergeableSize {
+			break
 		}
 		base, off := splitPtr(x.Args[0])
 		if base != rbase {
-			return false
+			break
 		}
-		a = append(a, StoreRecord{x, off})
+		allMergeable = append(allMergeable, StoreRecord{x, off, xSize})
+		allMergeableSize += xSize
 	}
-	// Before we sort, grab the memory arg the result should have.
-	mem := a[n-1].store.Args[2]
-	// Also grab position of first store (last in array = first in memory order).
-	pos := a[n-1].store.Pos
-
-	// Sort stores in increasing address order.
-	slices.SortFunc(a, func(sr1, sr2 StoreRecord) int {
-		return cmp.Compare(sr1.offset, sr2.offset)
-	})
-
-	// Check that everything is written to sequential locations.
-	for i := int64(0); i < n; i++ {
-		if a[i].offset != a[0].offset+i*size {
-			return false
+	if len(allMergeable) <= 1 {
+		return
+	}
+	// Fit the combined total size to be one of the register size.
+	mergeableSet := map[int64][]StoreRecord{}
+	for i, size := 0, int64(0); i < len(allMergeable); i++ {
+		size += allMergeable[i].size
+		for _, bucketSize := range []int64{8, 4, 2} {
+			if size == bucketSize {
+				mergeableSet[size] = slices.Clone(allMergeable[:i+1])
+				break
+			}
 		}
 	}
-
+	var a []StoreRecord
+	var aTotalSize int64
+	var mem *Value
+	var pos src.XPos
+	// Pick the largest mergeable set.
+	for _, s := range []int64{8, 4, 2} {
+		candidate := mergeableSet[s]
+		// TODO: a refactoring might be more efficient:
+		// Find a bunch of stores that are all adjacent and then decide how big a chunk of
+		// those sequential stores to combine.
+		if len(candidate) >= 2 {
+			// Before we sort, grab the memory arg the result should have.
+			mem = candidate[len(candidate)-1].store.Args[2]
+			// Also grab position of first store (last in array = first in memory order).
+			pos = candidate[len(candidate)-1].store.Pos
+			// Sort stores in increasing address order.
+			slices.SortFunc(candidate, func(sr1, sr2 StoreRecord) int {
+				return cmp.Compare(sr1.offset, sr2.offset)
+			})
+			// Check that everything is written to sequential locations.
+			sequential := true
+			for i := 1; i < len(candidate); i++ {
+				if candidate[i].offset != candidate[i-1].offset+candidate[i-1].size {
+					sequential = false
+					break
+				}
+			}
+			if sequential {
+				a = candidate
+				aTotalSize = s
+				break
+			}
+		}
+	}
+	if len(a) <= 1 {
+		return
+	}
 	// Memory location we're going to write at (the lowest one).
 	ptr := a[0].store.Args[0]
 
 	// Check for constant stores
 	isConst := true
-	for i := int64(0); i < n; i++ {
+	for i := range a {
 		switch a[i].store.Args[1].Op {
 		case OpConst32, OpConst16, OpConst8, OpConstBool:
 		default:
 			isConst = false
+		}
+		if !isConst {
 			break
 		}
 	}
 	if isConst {
 		// Modify root to do all the stores.
 		var c int64
-		mask := int64(1)<<(8*size) - 1
-		for i := int64(0); i < n; i++ {
-			s := 8 * size * int64(i)
+		for i := range a {
+			mask := int64(1)<<(8*a[i].size) - 1
+			s := 8 * (a[i].offset - a[0].offset)
 			if root.Block.Func.Config.BigEndian {
-				s = 8*size*(n-1) - s
+				s = aTotalSize*8 - a[i].size - s
 			}
 			c |= (a[i].store.Args[1].AuxInt & mask) << s
 		}
 		var cv *Value
-		switch size * n {
+		switch aTotalSize {
 		case 2:
 			cv = root.Block.Func.ConstInt16(types.Types[types.TUINT16], int16(c))
 		case 4:
@@ -563,7 +596,7 @@ func combineStores(root *Value, n int64) bool {
 		}
 
 		// Move all the stores to the root.
-		for i := int64(0); i < n; i++ {
+		for i := range a {
 			v := a[i].store
 			if v == root {
 				v.Aux = cv.Type // widen store type
@@ -576,14 +609,14 @@ func combineStores(root *Value, n int64) bool {
 				v.Type = types.Types[types.TBOOL] // erase memory type
 			}
 		}
-		return true
+		return
 	}
 
 	// Check for consecutive loads as the source of the stores.
 	var loadMem *Value
 	var loadBase BaseAddress
 	var loadIdx int64
-	for i := int64(0); i < n; i++ {
+	for i := range a {
 		load := a[i].store.Args[1]
 		if load.Op != OpLoad {
 			loadMem = nil
@@ -622,7 +655,7 @@ func combineStores(root *Value, n int64) bool {
 	if loadMem != nil {
 		// Modify the first load to do a larger load instead.
 		load := a[0].store.Args[1]
-		switch size * n {
+		switch aTotalSize {
 		case 2:
 			load.Type = types.Types[types.TUINT16]
 		case 4:
@@ -632,7 +665,7 @@ func combineStores(root *Value, n int64) bool {
 		}
 
 		// Modify root to do the store.
-		for i := int64(0); i < n; i++ {
+		for i := range a {
 			v := a[i].store
 			if v == root {
 				v.Aux = load.Type // widen store type
@@ -645,45 +678,47 @@ func combineStores(root *Value, n int64) bool {
 				v.Type = types.Types[types.TBOOL] // erase memory type
 			}
 		}
-		return true
+		return
 	}
 
 	// Check that all the shift/trunc are of the same base value.
 	shiftBase := getShiftBase(a)
 	if shiftBase == nil {
-		return false
+		return
 	}
-	for i := int64(0); i < n; i++ {
+	for i := range a {
 		if !isShiftBase(a[i].store, shiftBase) {
-			return false
+			return
 		}
 	}
 
 	// Check for writes in little-endian or big-endian order.
 	isLittleEndian := true
 	shift0 := shift(a[0].store, shiftBase)
-	for i := int64(1); i < n; i++ {
-		if shift(a[i].store, shiftBase) != shift0+i*size*8 {
+	for i := 1; i < len(a); i++ {
+		if shift(a[i].store, shiftBase) != shift0+(a[i].offset-a[0].offset)*8 {
 			isLittleEndian = false
 			break
 		}
 	}
 	isBigEndian := true
-	for i := int64(1); i < n; i++ {
-		if shift(a[i].store, shiftBase) != shift0-i*size*8 {
+	shiftedSize := int64(0)
+	for i := 1; i < len(a); i++ {
+		shiftedSize += a[i].size
+		if shift(a[i].store, shiftBase) != shift0-shiftedSize*8 {
 			isBigEndian = false
 			break
 		}
 	}
 	if !isLittleEndian && !isBigEndian {
-		return false
+		return
 	}
 
 	// Check to see if we need byte swap before storing.
 	needSwap := isLittleEndian && root.Block.Func.Config.BigEndian ||
 		isBigEndian && !root.Block.Func.Config.BigEndian
-	if needSwap && (size != 1 || !root.Block.Func.Config.haveByteSwap(n)) {
-		return false
+	if needSwap && (int64(len(a)) != aTotalSize || !root.Block.Func.Config.haveByteSwap(aTotalSize)) {
+		return
 	}
 
 	// This is the commit point.
@@ -693,18 +728,19 @@ func combineStores(root *Value, n int64) bool {
 	if isLittleEndian && shift0 != 0 {
 		sv = rightShift(root.Block, root.Pos, sv, shift0)
 	}
-	if isBigEndian && shift0-(n-1)*size*8 != 0 {
-		sv = rightShift(root.Block, root.Pos, sv, shift0-(n-1)*size*8)
+	shiftedSize = int64(aTotalSize - a[0].size)
+	if isBigEndian && shift0-shiftedSize*8 != 0 {
+		sv = rightShift(root.Block, root.Pos, sv, shift0-shiftedSize*8)
 	}
-	if sv.Type.Size() > size*n {
-		sv = truncate(root.Block, root.Pos, sv, sv.Type.Size(), size*n)
+	if sv.Type.Size() > aTotalSize {
+		sv = truncate(root.Block, root.Pos, sv, sv.Type.Size(), aTotalSize)
 	}
 	if needSwap {
 		sv = byteSwap(root.Block, root.Pos, sv)
 	}
 
 	// Move all the stores to the root.
-	for i := int64(0); i < n; i++ {
+	for i := range a {
 		v := a[i].store
 		if v == root {
 			v.Aux = sv.Type // widen store type
@@ -717,7 +753,6 @@ func combineStores(root *Value, n int64) bool {
 			v.Type = types.Types[types.TBOOL] // erase memory type
 		}
 	}
-	return true
 }
 
 func sizeType(size int64) *types.Type {
