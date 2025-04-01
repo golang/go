@@ -144,7 +144,7 @@ type Sender struct {
 	*context
 }
 
-type Receipient struct {
+type Recipient struct {
 	*context
 }
 
@@ -259,7 +259,7 @@ func SetupSender(kemID, kdfID, aeadID uint16, pub *ecdh.PublicKey, info []byte) 
 	return encapsulatedKey, &Sender{context}, nil
 }
 
-func SetupReceipient(kemID, kdfID, aeadID uint16, priv *ecdh.PrivateKey, info, encPubEph []byte) (*Receipient, error) {
+func SetupRecipient(kemID, kdfID, aeadID uint16, priv *ecdh.PrivateKey, info, encPubEph []byte) (*Recipient, error) {
 	kem, err := newDHKem(kemID)
 	if err != nil {
 		return nil, err
@@ -274,7 +274,7 @@ func SetupReceipient(kemID, kdfID, aeadID uint16, priv *ecdh.PrivateKey, info, e
 		return nil, err
 	}
 
-	return &Receipient{context}, nil
+	return &Recipient{context}, nil
 }
 
 func (ctx *context) nextNonce() []byte {
@@ -300,7 +300,7 @@ func (s *Sender) Seal(aad, plaintext []byte) ([]byte, error) {
 	return ciphertext, nil
 }
 
-func (r *Receipient) Open(aad, ciphertext []byte) ([]byte, error) {
+func (r *Recipient) Open(aad, ciphertext []byte) ([]byte, error) {
 	plaintext, err := r.aead.Open(nil, r.nextNonce(), ciphertext, aad)
 	if err != nil {
 		return nil, err
