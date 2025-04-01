@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -15,7 +16,9 @@ type synctestGroup struct {
 	now     int64 // current fake time
 	root    *g    // caller of synctest.Run
 	waiter  *g    // caller of synctest.Wait
+	main    *g    // goroutine started by synctest.Run
 	waiting bool  // true if a goroutine is calling synctest.Wait
+	done    bool  // true if main has exited
 
 	// The group is active (not blocked) so long as running > 0 || active > 0.
 	//
@@ -60,6 +63,9 @@ func (sg *synctestGroup) changegstatus(gp *g, oldval, newval uint32) {
 	case _Gdead:
 		isRunning = false
 		totalDelta--
+		if gp == sg.main {
+			sg.done = true
+		}
 	case _Gwaiting:
 		if gp.waitreason.isIdleInSynctest() {
 			isRunning = false
@@ -167,24 +173,32 @@ func synctestRun(f func()) {
 	if gp.syncGroup != nil {
 		panic("synctest.Run called from within a synctest bubble")
 	}
-	gp.syncGroup = &synctestGroup{
+	sg := &synctestGroup{
 		total:   1,
 		running: 1,
 		root:    gp,
 	}
 	const synctestBaseTime = 946684800000000000 // midnight UTC 2000-01-01
-	gp.syncGroup.now = synctestBaseTime
-	gp.syncGroup.timers.syncGroup = gp.syncGroup
-	lockInit(&gp.syncGroup.mu, lockRankSynctest)
-	lockInit(&gp.syncGroup.timers.mu, lockRankTimers)
+	sg.now = synctestBaseTime
+	sg.timers.syncGroup = sg
+	lockInit(&sg.mu, lockRankSynctest)
+	lockInit(&sg.timers.mu, lockRankTimers)
+
+	gp.syncGroup = sg
 	defer func() {
 		gp.syncGroup = nil
 	}()
 
-	fv := *(**funcval)(unsafe.Pointer(&f))
-	newproc(fv)
+	// This is newproc, but also records the new g in sg.main.
+	pc := sys.GetCallerPC()
+	systemstack(func() {
+		fv := *(**funcval)(unsafe.Pointer(&f))
+		sg.main = newproc1(fv, gp, pc, false, waitReasonZero)
+		pp := getg().m.p.ptr()
+		runqput(pp, sg.main, true)
+		wakep()
+	})
 
-	sg := gp.syncGroup
 	lock(&sg.mu)
 	sg.active++
 	for {
@@ -208,6 +222,10 @@ func synctestRun(f func()) {
 		}
 		if next < sg.now {
 			throw("time went backwards")
+		}
+		if sg.done {
+			// Time stops once the bubble's main goroutine has exited.
+			break
 		}
 		sg.now = next
 	}

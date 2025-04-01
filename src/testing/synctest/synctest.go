@@ -28,7 +28,10 @@ import (
 // goroutines are blocked and return after the bubble's clock has
 // advanced. See [Wait] for the specific definition of blocked.
 //
-// If every goroutine is blocked and there are no timers scheduled,
+// Time stops advancing when f returns.
+//
+// If every goroutine is blocked and either
+// no timers are scheduled or f has returned,
 // Run panics.
 //
 // Channels, time.Timers, and time.Tickers created within the bubble

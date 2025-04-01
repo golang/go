@@ -191,6 +191,18 @@ func TestTimeAfter(t *testing.T) {
 	})
 }
 
+func TestTimerAfterBubbleExit(t *testing.T) {
+	run := false
+	synctest.Run(func() {
+		time.AfterFunc(1*time.Second, func() {
+			run = true
+		})
+	})
+	if run {
+		t.Errorf("timer ran before bubble exit")
+	}
+}
+
 func TestTimerFromOutsideBubble(t *testing.T) {
 	tm := time.NewTimer(10 * time.Millisecond)
 	synctest.Run(func() {
@@ -304,6 +316,18 @@ func TestDeadlockChild(t *testing.T) {
 	synctest.Run(func() {
 		go func() {
 			select {}
+		}()
+	})
+}
+
+func TestDeadlockTicker(t *testing.T) {
+	defer wantPanic(t, "deadlock: all goroutines in bubble are blocked")
+	synctest.Run(func() {
+		go func() {
+			for range time.Tick(1 * time.Second) {
+				t.Errorf("ticker unexpectedly ran")
+				return
+			}
 		}()
 	})
 }
