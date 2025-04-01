@@ -754,6 +754,31 @@ func ExampleTime_Sub() {
 	// difference = 12h0m0s
 }
 
+func ExampleTime_AppendBinary() {
+	t := time.Date(2025, 4, 1, 15, 30, 45, 123456789, time.UTC)
+
+	var buffer []byte
+	buffer, err := t.AppendBinary(buffer)
+	if err != nil {
+		panic(err)
+	}
+
+	var parseTime time.Time
+	err = parseTime.UnmarshalBinary(buffer[:])
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("t: %v\n", t)
+	fmt.Printf("parseTime: %v\n", parseTime)
+	fmt.Printf("equal: %v\n", parseTime.Equal(t))
+
+	// Output:
+	// t: 2025-04-01 15:30:45.123456789 +0000 UTC
+	// parseTime: 2025-04-01 15:30:45.123456789 +0000 UTC
+	// equal: true
+}
+
 func ExampleTime_AppendFormat() {
 	t := time.Date(2017, time.November, 4, 11, 0, 0, 0, time.UTC)
 	text := []byte("Time: ")
@@ -765,6 +790,21 @@ func ExampleTime_AppendFormat() {
 	// Time: 11:00AM
 }
 
+func ExampleTime_AppendText() {
+	t := time.Date(2025, 4, 1, 15, 30, 45, 123456789, time.UTC)
+
+	buffer := []byte("t: ")
+
+	buffer, err := t.AppendText(buffer)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("%s\n", buffer)
+
+	// Output:
+	// t: 2025-04-01T15:30:45.123456789Z
+}
 func ExampleFixedZone() {
 	loc := time.FixedZone("UTC-8", -8*60*60)
 	t := time.Date(2009, time.November, 10, 23, 0, 0, 0, loc)
