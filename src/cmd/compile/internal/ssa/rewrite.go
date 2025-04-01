@@ -246,6 +246,19 @@ func isPtr(t *types.Type) bool {
 	return t.IsPtrShaped()
 }
 
+func copyCompatibleType(t1, t2 *types.Type) bool {
+	if t1.Size() != t2.Size() {
+		return false
+	}
+	if t1.IsInteger() {
+		return t2.IsInteger()
+	}
+	if isPtr(t1) {
+		return isPtr(t2)
+	}
+	return t1.Compare(t2) == types.CMPeq
+}
+
 // mergeSym merges two symbolic offsets. There is no real merging of
 // offsets, we just pick the non-nil one.
 func mergeSym(x, y Sym) Sym {
@@ -822,7 +835,18 @@ func isSamePtr(p1, p2 *Value) bool {
 		return true
 	}
 	if p1.Op != p2.Op {
-		return false
+		for p1.Op == OpOffPtr && p1.AuxInt == 0 {
+			p1 = p1.Args[0]
+		}
+		for p2.Op == OpOffPtr && p2.AuxInt == 0 {
+			p2 = p2.Args[0]
+		}
+		if p1 == p2 {
+			return true
+		}
+		if p1.Op != p2.Op {
+			return false
+		}
 	}
 	switch p1.Op {
 	case OpOffPtr:

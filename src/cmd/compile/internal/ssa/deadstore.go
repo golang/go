@@ -55,7 +55,7 @@ func dse(f *Func) {
 					}
 					continue
 				}
-				if v.Op == OpInlMark {
+				if v.Op == OpInlMark || v.Op == OpConvert {
 					// Not really a use of the memory. See #67957.
 					continue
 				}
