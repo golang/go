@@ -121,6 +121,10 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
 	}
 
 	id := addCleanup(unsafe.Pointer(ptr), fv)
+	if debug.checkfinalizers != 0 {
+		cleanupFn := *(**funcval)(unsafe.Pointer(&cleanup))
+		setCleanupContext(unsafe.Pointer(ptr), abi.TypeFor[T](), sys.GetCallerPC(), cleanupFn.fn, id)
+	}
 	return Cleanup{
 		id:  id,
 		ptr: usptr,
@@ -146,7 +150,7 @@ func (c Cleanup) Stop() {
 	}
 
 	// The following block removes the Special record of type cleanup for the object c.ptr.
-	span := spanOfHeap(uintptr(unsafe.Pointer(c.ptr)))
+	span := spanOfHeap(c.ptr)
 	if span == nil {
 		return
 	}
@@ -156,7 +160,7 @@ func (c Cleanup) Stop() {
 	mp := acquirem()
 	span.ensureSwept()
 
-	offset := uintptr(unsafe.Pointer(c.ptr)) - span.base()
+	offset := c.ptr - span.base()
 
 	var found *special
 	lock(&span.speciallock)
@@ -197,6 +201,10 @@ func (c Cleanup) Stop() {
 	lock(&mheap_.speciallock)
 	mheap_.specialCleanupAlloc.free(unsafe.Pointer(found))
 	unlock(&mheap_.speciallock)
+
+	if debug.checkfinalizers != 0 {
+		clearCleanupContext(c.ptr, c.id)
+	}
 }
 
 const cleanupBlockSize = 512

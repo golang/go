@@ -6,6 +6,7 @@ package main
 
 import (
 	"runtime"
+	"runtime/debug"
 )
 
 func init() {
@@ -16,6 +17,8 @@ func init() {
 func DetectFinalizerAndCleanupLeaks() {
 	type T *int
 
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+
 	// Leak a cleanup.
 	cLeak := new(T)
 	runtime.AddCleanup(cLeak, func(x int) {
@@ -25,6 +28,11 @@ func DetectFinalizerAndCleanupLeaks() {
 	// Have a regular cleanup to make sure it doesn't trip the detector.
 	cNoLeak := new(T)
 	runtime.AddCleanup(cNoLeak, func(_ int) {}, int(0))
+
+	// Add a cleanup that only temporarily leaks cNoLeak.
+	runtime.AddCleanup(cNoLeak, func(x int) {
+		**cNoLeak = x
+	}, int(0)).Stop()
 
 	// Leak a finalizer.
 	fLeak := new(T)

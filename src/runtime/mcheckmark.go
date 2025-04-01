@@ -148,7 +148,14 @@ func runCheckmark(prepareRootSet func(*gcWork)) {
 func checkFinalizersAndCleanups() {
 	assertWorldStopped()
 
-	failed := false
+	type report struct {
+		ptr uintptr
+		sp  *special
+	}
+	var reports [25]report
+	var nreports int
+	var more bool
+
 	forEachSpecial(func(p uintptr, s *mspan, sp *special) bool {
 		// We only care about finalizers and cleanups.
 		if sp.kind != _KindSpecialFinalizer && sp.kind != _KindSpecialCleanup {
@@ -174,26 +181,65 @@ func checkFinalizersAndCleanups() {
 			return true
 		}
 		if atomic.Load8(bytep)&mask != 0 {
-			if !failed {
-				println("runtime: found possibly unreclaimable objects:")
+			if nreports >= len(reports) {
+				more = true
+				return false
 			}
-			failed = true
-			kind := "cleanup"
-			if sp.kind == _KindSpecialFinalizer {
-				kind = "finalizer"
-			}
-			print("\t0x", hex(p), " leaked due to a ", kind)
-			if sp.kind == _KindSpecialFinalizer {
-				spf := (*specialfinalizer)(unsafe.Pointer(sp))
-				print(" (", (rtype{spf.fint}).string(), ")\n")
-			} else {
-				println()
-			}
+			reports[nreports] = report{p, sp}
+			nreports++
 		}
 		return true
 	})
-	if failed {
-		throw("runtime: detected possible cleanup and/or finalizer leak")
+
+	if nreports > 0 {
+		lastPtr := uintptr(0)
+		for _, r := range reports[:nreports] {
+			var ctx *specialCheckFinalizer
+			var kind string
+			if r.sp.kind == _KindSpecialFinalizer {
+				kind = "finalizer"
+				ctx = getCleanupContext(r.ptr, 0)
+			} else {
+				kind = "cleanup"
+				ctx = getCleanupContext(r.ptr, ((*specialCleanup)(unsafe.Pointer(r.sp))).id)
+			}
+
+			// N.B. reports is sorted 'enough' that cleanups/finalizers on the same pointer will
+			// appear consecutively because the specials list is sorted.
+			if lastPtr != r.ptr {
+				if lastPtr != 0 {
+					println()
+				}
+				print("runtime: value of type ", toRType(ctx.ptrType).string(), " @ ", hex(r.ptr), " is reachable from cleanup or finalizer\n")
+				println("value reachable from function or argument at one of:")
+			}
+
+			funcInfo := findfunc(ctx.funcPC)
+			if funcInfo.valid() {
+				file, line := funcline(funcInfo, ctx.createPC)
+				print(funcname(funcInfo), " (", kind, ")\n")
+				print("\t", file, ":", line, "\n")
+			} else {
+				print("<bad pc ", hex(ctx.funcPC), ">\n")
+			}
+
+			print("created at: ")
+			createInfo := findfunc(ctx.createPC)
+			if createInfo.valid() {
+				file, line := funcline(createInfo, ctx.createPC)
+				print(funcname(createInfo), "\n")
+				print("\t", file, ":", line, "\n")
+			} else {
+				print("<bad pc ", hex(ctx.createPC), ">\n")
+			}
+
+			lastPtr = r.ptr
+		}
+		println()
+		if more {
+			println("runtime: too many errors")
+		}
+		throw("runtime: detected possible cleanup and/or finalizer leaks")
 	}
 }
 

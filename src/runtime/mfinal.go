@@ -472,6 +472,11 @@ func SetFinalizer(obj any, finalizer any) {
 		// switch to system stack and remove finalizer
 		systemstack(func() {
 			removefinalizer(e.data)
+
+			if debug.checkfinalizers != 0 {
+				clearFinalizerContext(uintptr(e.data))
+				KeepAlive(e.data)
+			}
 		})
 		return
 	}
@@ -519,9 +524,13 @@ okarg:
 	// make sure we have a finalizer goroutine
 	createfing()
 
+	callerpc := sys.GetCallerPC()
 	systemstack(func() {
 		if !addfinalizer(e.data, (*funcval)(f.data), nret, fint, ot) {
 			throw("runtime.SetFinalizer: finalizer already set")
+		}
+		if debug.checkfinalizers != 0 {
+			setFinalizerContext(e.data, ot.Elem, callerpc, (*funcval)(f.data).fn)
 		}
 	})
 }

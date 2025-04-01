@@ -1080,10 +1080,10 @@ func TestDetectFinalizerAndCleanupLeaks(t *testing.T) {
 	if len(sp) != 2 {
 		t.Fatalf("expected the runtime to throw, got:\n%s", got)
 	}
-	if strings.Count(sp[0], "finalizer") != 1 {
-		t.Fatalf("expected exactly one leaked finalizer, got:\n%s", got)
+	if strings.Count(sp[0], "is reachable from cleanup or finalizer") != 2 {
+		t.Fatalf("expected exactly two leaked cleanups and/or finalizers, got:\n%s", got)
 	}
-	if strings.Count(sp[0], "cleanup") != 1 {
-		t.Fatalf("expected exactly one leaked finalizer, got:\n%s", got)
+	if strings.Count(sp[0], "created at: main.DetectFinalizerAndCleanupLeaks") != 2 {
+		t.Fatalf("expected two symbolized locations, got:\n%s", got)
 	}
 }
