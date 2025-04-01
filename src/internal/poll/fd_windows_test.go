@@ -23,7 +23,7 @@ import (
 )
 
 type loggedFD struct {
-	Net string
+	Net int
 	FD  *poll.FD
 	Err error
 }
@@ -33,7 +33,7 @@ var (
 	loggedFDs map[syscall.Handle]*loggedFD
 )
 
-func logFD(net string, fd *poll.FD, err error) {
+func logFD(net int, fd *poll.FD, err error) {
 	logMu.Lock()
 	defer logMu.Unlock()
 
@@ -201,10 +201,6 @@ func newFD(t testing.TB, h syscall.Handle, kind string, overlapped, pollable boo
 	if overlapped && err != nil {
 		// Overlapped file handles should not error.
 		t.Fatal(err)
-	} else if !overlapped && pollable && err == nil {
-		// Non-overlapped file handles should return an error but still
-		// be usable as sync handles.
-		t.Fatal("expected error for non-overlapped file handle")
 	}
 	return &fd
 }
@@ -454,6 +450,24 @@ func TestPipeWriteEOF(t *testing.T) {
 	}
 }
 
+func TestPipeReadTimeout(t *testing.T) {
+	t.Parallel()
+	name := pipeName()
+	_ = newBytePipe(t, name, true, true)
+	file := newFile(t, name, true, true)
+
+	err := file.SetReadDeadline(time.Now().Add(time.Millisecond))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var buf [10]byte
+	_, err = file.Read(buf[:])
+	if err != poll.ErrDeadlineExceeded {
+		t.Errorf("expected deadline exceeded, got %v", err)
+	}
+}
+
 func TestPipeCanceled(t *testing.T) {
 	t.Parallel()
 	name := pipeName()
@@ -485,6 +499,26 @@ func TestPipeCanceled(t *testing.T) {
 	}
 	if err != syscall.ERROR_OPERATION_ABORTED {
 		t.Errorf("expected ERROR_OPERATION_ABORTED, got %v", err)
+	}
+}
+
+func TestPipeExternalIOCP(t *testing.T) {
+	// Test that a caller can associate an overlapped handle to an external IOCP
+	// even when the handle is also associated to a poll.FD. Also test that
+	// the FD can still perform I/O after the association.
+	t.Parallel()
+	name := pipeName()
+	pipe := newMessagePipe(t, name, true, true)
+	_ = newFile(t, name, true, true) // Just open a pipe client
+
+	_, err := windows.CreateIoCompletionPort(syscall.Handle(pipe.Sysfd), 0, 0, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = pipe.Write([]byte("hello"))
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

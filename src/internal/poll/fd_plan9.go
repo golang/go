@@ -36,6 +36,10 @@ type FD struct {
 	isFile bool
 }
 
+func (fd *FD) initIO() error {
+	return nil
+}
+
 // We need this to close out a file descriptor when it is unlocked,
 // but the real implementation has to live in the net package because
 // it uses os.File's.

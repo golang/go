@@ -66,6 +66,7 @@ var (
 	procProcessPrng                       = modbcryptprimitives.NewProc("ProcessPrng")
 	procGetAdaptersAddresses              = modiphlpapi.NewProc("GetAdaptersAddresses")
 	procCreateEventW                      = modkernel32.NewProc("CreateEventW")
+	procCreateIoCompletionPort            = modkernel32.NewProc("CreateIoCompletionPort")
 	procCreateNamedPipeW                  = modkernel32.NewProc("CreateNamedPipeW")
 	procGetACP                            = modkernel32.NewProc("GetACP")
 	procGetComputerNameExW                = modkernel32.NewProc("GetComputerNameExW")
@@ -262,6 +263,15 @@ func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapter
 
 func CreateEvent(eventAttrs *SecurityAttributes, manualReset uint32, initialState uint32, name *uint16) (handle syscall.Handle, err error) {
 	r0, _, e1 := syscall.Syscall6(procCreateEventW.Addr(), 4, uintptr(unsafe.Pointer(eventAttrs)), uintptr(manualReset), uintptr(initialState), uintptr(unsafe.Pointer(name)), 0, 0)
+	handle = syscall.Handle(r0)
+	if handle == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func CreateIoCompletionPort(filehandle syscall.Handle, cphandle syscall.Handle, key uintptr, threadcnt uint32) (handle syscall.Handle, err error) {
+	r0, _, e1 := syscall.Syscall6(procCreateIoCompletionPort.Addr(), 4, uintptr(filehandle), uintptr(cphandle), uintptr(key), uintptr(threadcnt), 0, 0)
 	handle = syscall.Handle(r0)
 	if handle == 0 {
 		err = errnoErr(e1)
