@@ -1710,6 +1710,15 @@ func findModulePath(dir string) (string, error) {
 				badPathErr = err
 				break
 			}
+			// Ensure the inferred path is valid.
+			if _, _, ok := module.SplitPathVersion(path); !ok {
+				if strings.HasPrefix(path, "gopkg.in/") {
+					badPathErr = errors.New("module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN")
+				} else {
+					badPathErr = errors.New("major version suffixes must be in the form of /vN and are only allowed for v2 or later")
+				}
+				break
+			}
 			return path, nil
 		}
 	}
@@ -1725,6 +1734,7 @@ func findModulePath(dir string) (string, error) {
 Example usage:
 	'go mod init example.com/m' to initialize a v0 or v1 module
 	'go mod init example.com/m/v2' to initialize a v2 module
+	'go mod init gopkg.in/m.v1' to initialize a gopkg.in module
 
 Run 'go help mod init' for more information.
 `
