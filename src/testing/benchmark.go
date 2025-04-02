@@ -477,12 +477,13 @@ func (b *B) loopSlowPath() bool {
 // toward the benchmark measurement. Likewise, when it returns false, it stops
 // the timer so cleanup code is not measured.
 //
-// The compiler never optimizes away calls to functions within the body of a
-// "for b.Loop() { ... }" loop. This prevents surprises that can otherwise occur
-// if the compiler determines that the result of a benchmarked function is
-// unused. The loop condition must be written in exactly as "b.Loop()", and this
-// only applies to calls syntactically between the curly braces of the loop.
-// Optimizations are performed as usual in any functions called by the loop.
+// Within the body of a "for b.Loop() { ... }" loop, arguments to and
+// results from function calls within the loop are kept alive, preventing
+// the compiler from fully optimizing away the loop body. Currently, this is
+// implemented by disabling inlining of functions called in a b.Loop loop.
+// This applies only to calls syntactically between the curly braces of the loop,
+// and the loop condition must be written exactly as "b.Loop()". Optimizations
+// are performed as usual in any functions called by the loop.
 //
 // After Loop returns false, b.N contains the total number of iterations that
 // ran, so the benchmark may use b.N to compute other average metrics.
