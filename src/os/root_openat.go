@@ -386,17 +386,17 @@ Loop:
 			// removing the elements eliminated by ".." components,
 			// and start over from the beginning.
 			restarts++
-			end := i + 1
-			for end < len(parts) && parts[end] == ".." {
-				end++
+			n := 1 // number of .. segments to remove
+			for i+n < len(parts) && parts[i+n] == ".." {
+				n++
 			}
-			count := end - i
-			if count > i {
+			switch {
+			case n > i:
 				return ret, errPathEscapes
-			}
-			parts = slices.Delete(parts, i-count, end)
-			if len(parts) == 0 {
+			case len(parts) == 2*n:
 				parts = []string{"."}
+			default:
+				parts = slices.Delete(parts, i-n, i+n)
 			}
 			i = 0
 			if dirfd != rootfd {
