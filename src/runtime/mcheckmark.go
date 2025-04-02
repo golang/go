@@ -177,6 +177,9 @@ func checkFinalizersAndCleanups() {
 		}
 
 		// Run a checkmark GC using this cleanup and/or finalizer as a root.
+		if debug.checkfinalizers > 1 {
+			print("Scan trace for cleanup/finalizer on ", hex(p), ":\n")
+		}
 		runCheckmark(func(gcw *gcWork) {
 			switch sp.kind {
 			case _KindSpecialFinalizer:
@@ -185,6 +188,9 @@ func checkFinalizersAndCleanups() {
 				gcScanCleanup((*specialCleanup)(unsafe.Pointer(sp)), gcw)
 			}
 		})
+		if debug.checkfinalizers > 1 {
+			println()
+		}
 
 		// Now check to see if the object the special is attached to was marked.
 		// The roots above do not directly mark p, so if it is marked, then p

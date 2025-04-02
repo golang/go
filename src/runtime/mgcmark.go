@@ -1665,6 +1665,9 @@ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintp
 			// Already marked.
 			return
 		}
+		if debug.checkfinalizers > 1 {
+			print("  mark ", hex(obj), " found at *(", hex(base), "+", hex(off), ")\n")
+		}
 	} else {
 		if debug.gccheckmark > 0 && span.isFree(objIndex) {
 			print("runtime: marking free object ", hex(obj), " found at *(", hex(base), "+", hex(off), ")\n")
