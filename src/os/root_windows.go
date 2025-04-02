@@ -131,7 +131,8 @@ func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File,
 	if err != nil {
 		return nil, &PathError{Op: "openat", Path: name, Err: err}
 	}
-	return newFile(fd, joinPath(root.Name(), name), "file"), nil
+	// openat always returns a non-blocking handle.
+	return newFile(fd, joinPath(root.Name(), name), "file", false), nil
 }
 
 func openat(dirfd syscall.Handle, name string, flag int, perm FileMode) (syscall.Handle, error) {

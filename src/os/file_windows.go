@@ -42,7 +42,8 @@ func (file *File) fd() uintptr {
 
 // newFile returns a new File with the given file handle and name.
 // Unlike NewFile, it does not check that h is syscall.InvalidHandle.
-func newFile(h syscall.Handle, name string, kind string) *File {
+// If nonBlocking is true, it tries to add the file to the runtime poller.
+func newFile(h syscall.Handle, name string, kind string, nonBlocking bool) *File {
 	if kind == "file" {
 		t, err := syscall.GetFileType(h)
 		if err != nil || t == syscall.FILE_TYPE_CHAR {
@@ -67,25 +68,23 @@ func newFile(h syscall.Handle, name string, kind string) *File {
 
 	// Ignore initialization errors.
 	// Assume any problems will show up in later I/O.
-	f.pfd.Init(kind, false)
-
+	f.pfd.Init(kind, nonBlocking)
 	return f
 }
 
 // newConsoleFile creates new File that will be used as console.
 func newConsoleFile(h syscall.Handle, name string) *File {
-	return newFile(h, name, "console")
+	return newFile(h, name, "console", false)
 }
 
-// NewFile returns a new File with the given file descriptor and
-// name. The returned value will be nil if fd is not a valid file
-// descriptor.
-func NewFile(fd uintptr, name string) *File {
+// newFileFromNewFile is called by [NewFile].
+func newFileFromNewFile(fd uintptr, name string) *File {
 	h := syscall.Handle(fd)
 	if h == syscall.InvalidHandle {
 		return nil
 	}
-	return newFile(h, name, "file")
+	nonBlocking, _ := windows.IsNonblock(syscall.Handle(fd))
+	return newFile(h, name, "file", nonBlocking)
 }
 
 func epipecheck(file *File, e error) {
@@ -105,7 +104,8 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	if err != nil {
 		return nil, &PathError{Op: "open", Path: name, Err: err}
 	}
-	return newFile(r, name, "file"), nil
+	// syscall.Open always returns a non-blocking handle.
+	return newFile(r, name, "file", false), nil
 }
 
 func openDirNolog(name string) (*File, error) {
@@ -219,7 +219,8 @@ func Pipe() (r *File, w *File, err error) {
 	if e != nil {
 		return nil, nil, NewSyscallError("pipe", e)
 	}
-	return newFile(p[0], "|0", "pipe"), newFile(p[1], "|1", "pipe"), nil
+	// syscall.Pipe always returns a non-blocking handle.
+	return newFile(p[0], "|0", "pipe", false), newFile(p[1], "|1", "pipe", false), nil
 }
 
 var useGetTempPath2 = sync.OnceValue(func() bool {

@@ -293,9 +293,8 @@ type FD struct {
 	isBlocking bool
 
 	// Initialization parameters.
-	initIOOnce   sync.Once
-	initIOErr    error // only used in the net package
-	initPollable bool  // value passed to [FD.Init]
+	initIOOnce sync.Once
+	initIOErr  error // only used in the net package
 }
 
 // setOffset sets the offset fields of the overlapped object
@@ -333,36 +332,30 @@ const (
 )
 
 func (fd *FD) initIO() error {
+	if fd.isBlocking {
+		return nil
+	}
 	fd.initIOOnce.Do(func() {
-		if fd.initPollable {
-			// The runtime poller will ignore I/O completion
-			// notifications not initiated by this package,
-			// so it is safe to add handles owned by the caller.
-			//
-			// If we could not add the handle to the runtime poller,
-			// assume the handle hasn't been opened for overlapped I/O.
-			fd.initIOErr = fd.pd.init(fd)
-			if fd.initIOErr != nil {
-				fd.initPollable = false
-			}
-		}
-		if !fd.initPollable {
-			// Handle opened for overlapped I/O (aka non-blocking) that are not added
-			// to the runtime poller need special handling when reading and writing.
-			// If we fail to get the file mode information, assume the file is blocking.
-			overlapped, _ := windows.IsNonblock(fd.Sysfd)
-			fd.isBlocking = !overlapped
+		// The runtime poller will ignore I/O completion
+		// notifications not initiated by this package,
+		// so it is safe to add handles owned by the caller.
+		fd.initIOErr = fd.pd.init(fd)
+		if fd.initIOErr != nil {
+			// This can happen if the handle is already associated
+			// with another IOCP or if the isBlocking flag is incorrect.
+			// In both cases, fallback to synchronous IO.
+			fd.isBlocking = true
 			fd.skipSyncNotif = true
-		} else {
-			fd.rop.runtimeCtx = fd.pd.runtimeCtx
-			fd.wop.runtimeCtx = fd.pd.runtimeCtx
-			if fd.kind != kindNet || socketCanUseSetFileCompletionNotificationModes {
-				// Non-socket handles can use SetFileCompletionNotificationModes without problems.
-				err := syscall.SetFileCompletionNotificationModes(fd.Sysfd,
-					syscall.FILE_SKIP_SET_EVENT_ON_HANDLE|syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS,
-				)
-				fd.skipSyncNotif = err == nil
-			}
+			return
+		}
+		fd.rop.runtimeCtx = fd.pd.runtimeCtx
+		fd.wop.runtimeCtx = fd.pd.runtimeCtx
+		if fd.kind != kindNet || socketCanUseSetFileCompletionNotificationModes {
+			// Non-socket handles can use SetFileCompletionNotificationModes without problems.
+			err := syscall.SetFileCompletionNotificationModes(fd.Sysfd,
+				syscall.FILE_SKIP_SET_EVENT_ON_HANDLE|syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS,
+			)
+			fd.skipSyncNotif = err == nil
 		}
 	})
 	return fd.initIOErr
@@ -373,6 +366,7 @@ func (fd *FD) initIO() error {
 // The net argument is a network name from the net package (e.g., "tcp"),
 // or "file" or "console" or "dir".
 // Set pollable to true if fd should be managed by runtime netpoll.
+// Pollable must be set to true for overlapped fds.
 func (fd *FD) Init(net string, pollable bool) error {
 	if initErr != nil {
 		return initErr
@@ -390,7 +384,8 @@ func (fd *FD) Init(net string, pollable bool) error {
 		fd.kind = kindNet
 	}
 	fd.isFile = fd.kind != kindNet
-	fd.initPollable = pollable
+	fd.isBlocking = !pollable
+	fd.skipSyncNotif = fd.isBlocking
 	fd.rop.mode = 'r'
 	fd.wop.mode = 'w'
 	fd.rop.fd = fd
