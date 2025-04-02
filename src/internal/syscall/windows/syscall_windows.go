@@ -511,6 +511,9 @@ const (
 
 	PIPE_TYPE_BYTE    = 0x00000000
 	PIPE_TYPE_MESSAGE = 0x00000004
+
+	PIPE_READMODE_BYTE    = 0x00000000
+	PIPE_READMODE_MESSAGE = 0x00000002
 )
 
 //sys	CreateIoCompletionPort(filehandle syscall.Handle, cphandle syscall.Handle, key uintptr, threadcnt uint32) (handle syscall.Handle, err error)

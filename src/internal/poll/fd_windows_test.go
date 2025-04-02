@@ -7,7 +7,6 @@ package poll_test
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"internal/poll"
 	"internal/syscall/windows"
 	"io"
@@ -22,57 +21,37 @@ import (
 	"unsafe"
 )
 
-type loggedFD struct {
-	Net int
-	FD  *poll.FD
-	Err error
-}
-
-var (
-	logMu     sync.Mutex
-	loggedFDs map[syscall.Handle]*loggedFD
-)
-
-func logFD(net int, fd *poll.FD, err error) {
-	logMu.Lock()
-	defer logMu.Unlock()
-
-	loggedFDs[fd.Sysfd] = &loggedFD{
-		Net: net,
-		FD:  fd,
-		Err: err,
-	}
-}
-
 func init() {
-	loggedFDs = make(map[syscall.Handle]*loggedFD)
-	*poll.LogInitFD = logFD
-
 	poll.InitWSA()
 }
 
-func findLoggedFD(h syscall.Handle) (lfd *loggedFD, found bool) {
-	logMu.Lock()
-	defer logMu.Unlock()
-
-	lfd, found = loggedFDs[h]
-	return lfd, found
-}
-
 // checkFileIsNotPartOfNetpoll verifies that f is not managed by netpoll.
-// It returns error, if check fails.
-func checkFileIsNotPartOfNetpoll(f *os.File) error {
-	lfd, found := findLoggedFD(syscall.Handle(f.Fd()))
-	if !found {
-		return fmt.Errorf("%v fd=%v: is not found in the log", f.Name(), f.Fd())
+func checkFileIsNotPartOfNetpoll(t *testing.T, f *os.File) {
+	t.Helper()
+	sc, err := f.SyscallConn()
+	if err != nil {
+		t.Fatal(err)
 	}
-	if lfd.FD.IsPartOfNetpoll() {
-		return fmt.Errorf("%v fd=%v: is part of netpoll, but should not be (logged: net=%v err=%v)", f.Name(), f.Fd(), lfd.Net, lfd.Err)
+	if err := sc.Control(func(fd uintptr) {
+		// Only try to associate the file with an IOCP if the handle is opened for overlapped I/O,
+		// else the association will always fail.
+		overlapped, err := windows.IsNonblock(syscall.Handle(fd))
+		if err != nil {
+			t.Fatalf("%v fd=%v: %v", f.Name(), fd, err)
+		}
+		if overlapped {
+			// If the file is part of netpoll, then associating it with another IOCP should fail.
+			if _, err := windows.CreateIoCompletionPort(syscall.Handle(fd), 0, 0, 1); err != nil {
+				t.Fatalf("%v fd=%v: is part of netpoll, but should not be: %v", f.Name(), fd, err)
+			}
+		}
+	}); err != nil {
+		t.Fatalf("%v fd=%v: is not initialized", f.Name(), f.Fd())
 	}
-	return nil
 }
 
 func TestFileFdsAreInitialised(t *testing.T) {
+	t.Parallel()
 	exe, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -83,15 +62,14 @@ func TestFileFdsAreInitialised(t *testing.T) {
 	}
 	defer f.Close()
 
-	err = checkFileIsNotPartOfNetpoll(f)
-	if err != nil {
-		t.Fatal(err)
-	}
+	checkFileIsNotPartOfNetpoll(t, f)
 }
 
 func TestSerialFdsAreInitialised(t *testing.T) {
+	t.Parallel()
 	for _, name := range []string{"COM1", "COM2", "COM3", "COM4"} {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			h, err := syscall.CreateFile(syscall.StringToUTF16Ptr(name),
 				syscall.GENERIC_READ|syscall.GENERIC_WRITE,
 				0,
@@ -113,15 +91,13 @@ func TestSerialFdsAreInitialised(t *testing.T) {
 			f := os.NewFile(uintptr(h), name)
 			defer f.Close()
 
-			err = checkFileIsNotPartOfNetpoll(f)
-			if err != nil {
-				t.Fatal(err)
-			}
+			checkFileIsNotPartOfNetpoll(t, f)
 		})
 	}
 }
 
 func TestWSASocketConflict(t *testing.T) {
+	t.Parallel()
 	s, err := windows.WSASocket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP, nil, 0, windows.WSA_FLAG_OVERLAPPED)
 	if err != nil {
 		t.Fatal(err)
@@ -200,8 +176,12 @@ func newFD(t testing.TB, h syscall.Handle, kind string, overlapped, pollable boo
 	err := fd.Init(kind, pollable)
 	if overlapped && err != nil {
 		// Overlapped file handles should not error.
+		fd.Close()
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		fd.Close()
+	})
 	return &fd
 }
 
@@ -221,13 +201,9 @@ func newFile(t testing.TB, name string, overlapped, pollable bool) *poll.FD {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		if err := syscall.CloseHandle(h); err != nil {
-			t.Fatal(err)
-		}
-	})
 	typ, err := syscall.GetFileType(h)
 	if err != nil {
+		syscall.CloseHandle(h)
 		t.Fatal(err)
 	}
 	kind := "file"
@@ -266,19 +242,14 @@ func newPipe(t testing.TB, name string, message, overlapped, pollable bool) *pol
 	if overlapped {
 		flags |= syscall.FILE_FLAG_OVERLAPPED
 	}
-	typ := windows.PIPE_TYPE_BYTE
+	typ := windows.PIPE_TYPE_BYTE | windows.PIPE_READMODE_BYTE
 	if message {
-		typ = windows.PIPE_TYPE_MESSAGE
+		typ = windows.PIPE_TYPE_MESSAGE | windows.PIPE_READMODE_MESSAGE
 	}
 	h, err := windows.CreateNamedPipe(wname, uint32(flags), uint32(typ), 1, 4096, 4096, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		if err := syscall.CloseHandle(h); err != nil {
-			t.Fatal(err)
-		}
-	})
 	return newFD(t, h, "pipe", overlapped, pollable)
 }
 
@@ -354,6 +325,29 @@ func testPreadPwrite(t *testing.T, fdr, fdw *poll.FD) {
 	close(write)
 }
 
+func testFileReadEOF(t *testing.T, f *poll.FD) {
+	end, err := f.Seek(0, io.SeekEnd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf [1]byte
+	n, err := f.Read(buf[:])
+	if err != nil && err != io.EOF {
+		t.Errorf("expected EOF, got %v", err)
+	}
+	if n != 0 {
+		t.Errorf("expected 0 bytes, got %d", n)
+	}
+
+	n, err = f.Pread(buf[:], end)
+	if err != nil && err != io.EOF {
+		t.Errorf("expected EOF, got %v", err)
+	}
+	if n != 0 {
+		t.Errorf("expected 0 bytes, got %d", n)
+	}
+}
+
 func TestFile(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -377,6 +371,7 @@ func TestFile(t *testing.T) {
 			wh := newFile(t, name, tt.overlappedWrite, tt.pollable)
 			testReadWrite(t, rh, wh)
 			testPreadPwrite(t, rh, wh)
+			testFileReadEOF(t, rh)
 		})
 	}
 }
@@ -426,20 +421,35 @@ func TestPipe(t *testing.T) {
 	})
 }
 
-func TestPipeWriteEOF(t *testing.T) {
+func TestPipeMessageReadEOF(t *testing.T) {
 	t.Parallel()
 	name := pipeName()
-	pipe := newMessagePipe(t, name, false, true)
-	file := newFile(t, name, false, true)
-	read := make(chan struct{}, 1)
-	go func() {
-		_, err := pipe.Write(nil)
-		read <- struct{}{}
-		if err != nil {
-			t.Error(err)
-		}
-	}()
-	<-read
+	pipe := newMessagePipe(t, name, true, true)
+	file := newFile(t, name, true, true)
+
+	_, err := pipe.Write(nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	var buf [10]byte
+	n, err := file.Read(buf[:])
+	if err != io.EOF {
+		t.Errorf("expected EOF, got %v", err)
+	}
+	if n != 0 {
+		t.Errorf("expected 0 bytes, got %d", n)
+	}
+}
+
+func TestPipeClosedEOF(t *testing.T) {
+	t.Parallel()
+	name := pipeName()
+	pipe := newBytePipe(t, name, true, false)
+	file := newFile(t, name, true, true)
+
+	pipe.Close()
+
 	var buf [10]byte
 	n, err := file.Read(buf[:])
 	if err != io.EOF {
