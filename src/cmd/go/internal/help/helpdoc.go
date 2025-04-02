@@ -1027,7 +1027,7 @@ command
 		BlankLine     = '\n' .
 
 	Example:
-		https://example.com/
+		https://example.com
 		https://example.net/api/
 
 		Authorization: Basic <token>
