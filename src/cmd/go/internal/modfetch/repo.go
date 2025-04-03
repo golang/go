@@ -110,9 +110,7 @@ type RevInfo struct {
 // introduced, if a path p resolves using the pre-module "go get" lookup
 // to the root of a source code repository without a go.mod file,
 // that repository is treated as if it had a go.mod in its root directory
-// declaring module path p. (The go.mod is further considered to
-// contain requirements corresponding to any legacy version
-// tracking format such as Gopkg.lock, vendor/vendor.conf, and so on.)
+// declaring module path p.
 //
 // The presentation so far ignores the fact that a source code repository
 // has many different versions of a file tree, and those versions may
