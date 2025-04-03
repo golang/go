@@ -522,7 +522,7 @@ func NtOpenFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, io
 	return
 }
 
-func NtQueryInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer uintptr, inBufferLen uint32, class uint32) (ntstatus error) {
+func NtQueryInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer unsafe.Pointer, inBufferLen uint32, class uint32) (ntstatus error) {
 	r0, _, _ := syscall.Syscall6(procNtQueryInformationFile.Addr(), 5, uintptr(handle), uintptr(unsafe.Pointer(iosb)), uintptr(inBuffer), uintptr(inBufferLen), uintptr(class), 0)
 	if r0 != 0 {
 		ntstatus = NTStatus(r0)

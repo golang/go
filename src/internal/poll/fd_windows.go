@@ -365,7 +365,7 @@ func (fd *FD) initIO() error {
 			// Handle opened for overlapped I/O (aka non-blocking) that are not added
 			// to the runtime poller need special handling when reading and writing.
 			var info windows.FILE_MODE_INFORMATION
-			if err := windows.NtQueryInformationFile(fd.Sysfd, &windows.IO_STATUS_BLOCK{}, uintptr(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info)), windows.FileModeInformation); err == nil {
+			if err := windows.NtQueryInformationFile(fd.Sysfd, &windows.IO_STATUS_BLOCK{}, unsafe.Pointer(&info), uint32(unsafe.Sizeof(info)), windows.FileModeInformation); err == nil {
 				fd.isBlocking = info.Mode&(windows.FILE_SYNCHRONOUS_IO_ALERT|windows.FILE_SYNCHRONOUS_IO_NONALERT) != 0
 			} else {
 				// If we fail to get the file mode information, assume the file is blocking.
