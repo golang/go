@@ -73,9 +73,16 @@ func vgetrandomGetState() uintptr {
 	return state
 }
 
-func vgetrandomPutState(state uintptr) {
+// Free vgetrandom state from the M (if any) prior to destroying the M.
+//
+// This may allocate, so it must have a P.
+func vgetrandomDestroy(mp *m) {
+	if mp.vgetrandomState == 0 {
+		return
+	}
+
 	lock(&vgetrandomAlloc.statesLock)
-	vgetrandomAlloc.states = append(vgetrandomAlloc.states, state)
+	vgetrandomAlloc.states = append(vgetrandomAlloc.states, mp.vgetrandomState)
 	unlock(&vgetrandomAlloc.statesLock)
 }
 
