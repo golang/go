@@ -98,6 +98,18 @@ func TestWaitGroupAlign(t *testing.T) {
 	x.wg.Wait()
 }
 
+func TestWaitGroupGo(t *testing.T) {
+	wg := &WaitGroup{}
+	var i int
+	wg.Go(func() {
+		i++
+	})
+	wg.Wait()
+	if i != 1 {
+		t.Fatalf("got %d, want 1", i)
+	}
+}
+
 func BenchmarkWaitGroupUncontended(b *testing.B) {
 	type PaddedWaitGroup struct {
 		WaitGroup
