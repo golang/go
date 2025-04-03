@@ -8,6 +8,22 @@ stdout '^example.com$'
 go list
 stdout '^example.com$'
 
+# Reset $GOPATH
+env GOPATH=$WORK/gopath
+
+# 'go mod init' should not create a go.mod file in v0 or v1 directory.
+cd $GOPATH/src/example.com/m/v0
+! go mod init
+stderr '(?s)^go: cannot determine module path for source directory(.*)example.com/m/v0 \(bad module path inferred from directory in GOPATH: major version suffixes must be in the form of /vN and are only allowed for v2 or later\)(.*)Example usage:(.*)''go mod init example.com/m'' to initialize a v0 or v1 module(.*)''go mod init example.com/m/v2'' to initialize a v2 module(.*)Run ''go help mod init'' for more information.$'
+
+cd $GOPATH/src/example.com/m/v1
+! go mod init
+stderr '(?s)^go: cannot determine module path for source directory(.*)example.com/m/v1 \(bad module path inferred from directory in GOPATH: major version suffixes must be in the form of /vN and are only allowed for v2 or later\)(.*)Example usage:(.*)''go mod init example.com/m'' to initialize a v0 or v1 module(.*)''go mod init example.com/m/v2'' to initialize a v2 module(.*)Run ''go help mod init'' for more information.$'
+
+cd $GOPATH/src/example.com/m/v2
+go mod init
+stderr '^go: creating new go.mod: module example.com/m/v2$'
+
 -- go.mod --
 module example.com
 
@@ -19,3 +35,10 @@ func main() {}
 
 -- $WORK/invalid-gopath
 This is a text file, not a directory.
+
+-- example.com/m/v0/main.go --
+package main
+-- example.com/m/v1/main.go --
+package main
+-- example.com/m/v2/main.go --
+package main
