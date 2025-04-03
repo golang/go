@@ -720,7 +720,14 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
 				exp = pkg.scope.Lookup(sel)
 				if exp == nil {
 					if !pkg.fake && isValidName(sel) {
-						check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", syntax.Expr(e))
+						// Try to give a better error message when selector matches an object name ignoring case.
+						exps := pkg.scope.lookupIgnoringCase(sel, true)
+						if len(exps) >= 1 {
+							// report just the first one
+							check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s (but have %s)", syntax.Expr(e), exps[0].Name())
+						} else {
+							check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", syntax.Expr(e))
+						}
 					}
 					goto Error
 				}
