@@ -879,6 +879,7 @@ func fmtDuration(d time.Duration) string {
 
 // TB is the interface common to [T], [B], and [F].
 type TB interface {
+	Attr(key, value string)
 	Cleanup(func())
 	Error(args ...any)
 	Errorf(format string, args ...any)
@@ -1489,6 +1490,31 @@ func (c *common) Chdir(dir string) {
 func (c *common) Context() context.Context {
 	c.checkFuzzFn("Context")
 	return c.ctx
+}
+
+// Attr emits a test attribute associated with this test.
+//
+// The key must not contain whitespace.
+// The value must not contain newlines or carriage returns.
+//
+// The meaning of different attribute keys is left up to
+// continuous integration systems and test frameworks.
+//
+// Test attributes are emitted immediately in the test log,
+// but they are intended to be treated as unordered.
+func (c *common) Attr(key, value string) {
+	if strings.ContainsFunc(key, unicode.IsSpace) {
+		c.Errorf("disallowed whitespace in attribute key %q", key)
+		return
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		c.Errorf("disallowed newline in attribute value %q", value)
+		return
+	}
+	if c.chatty == nil {
+		return
+	}
+	c.chatty.Updatef(c.name, "=== ATTR  %s %v %v\n", c.name, key, value)
 }
 
 // panicHandling controls the panic handling used by runCleanup.
