@@ -13,6 +13,6 @@ func vgetrandom(p []byte, flags uint32) (ret int, supported bool) {
 	return -1, false
 }
 
-func vgetrandomPutState(state uintptr) {}
+func vgetrandomDestroy(mp *m) {}
 
 func vgetrandomInit() {}
