@@ -11,40 +11,39 @@ import (
 )
 
 // A WaitGroup is a counting semaphore typically used to wait
-// for a group of goroutines to finish.
+// for a group of goroutines or tasks to finish.
 //
-// The main goroutine calls [WaitGroup.Add] to set (or increase) the number of
-// goroutines to wait for. Then each of the goroutines
-// runs and calls [WaitGroup.Done] when finished. At the same time,
-// [WaitGroup.Wait] can be used to block until all goroutines have finished.
-//
-// This is a typical pattern of WaitGroup usage to
-// synchronize 3 goroutines, each calling the function f:
+// Typically, a main goroutine will start tasks, each in a new
+// goroutine, by calling [WaitGroup.Go] and then wait for all tasks to
+// complete by calling [WaitGroup.Wait]. For example:
 //
 //	var wg sync.WaitGroup
-//	for range 3 {
-//	   wg.Add(1)
-//	   go func() {
-//	       defer wg.Done()
-//	       f()
-//	   }()
-//	}
+//	wg.Go(task1)
+//	wg.Go(task2)
 //	wg.Wait()
 //
-// For convenience, the [WaitGroup.Go] method simplifies this pattern to:
+// A WaitGroup may also be used for tracking tasks without using Go to
+// start new goroutines by using [WaitGroup.Add] and [WaitGroup.Done].
+//
+// The previous example can be rewritten using explicitly created
+// goroutines along with Add and Done:
 //
 //	var wg sync.WaitGroup
-//	for range 3 {
-//	   wg.Go(f)
-//	}
+//	wg.Add(1)
+//	go func() {
+//		defer wg.Done()
+//		task1()
+//	}()
+//	wg.Add(1)
+//	go func() {
+//		defer wg.Done()
+//		task2()
+//	}()
 //	wg.Wait()
+//
+// This pattern is common in code that predates [WaitGroup.Go].
 //
 // A WaitGroup must not be copied after first use.
-//
-// In the terminology of [the Go memory model], a call to [WaitGroup.Done]
-// “synchronizes before” the return of any Wait call that it unblocks.
-//
-// [the Go memory model]: https://go.dev/ref/mem
 type WaitGroup struct {
 	noCopy noCopy
 
@@ -52,9 +51,11 @@ type WaitGroup struct {
 	sema  uint32
 }
 
-// Add adds delta, which may be negative, to the [WaitGroup] counter.
+// Add adds delta, which may be negative, to the [WaitGroup] task counter.
 // If the counter becomes zero, all goroutines blocked on [WaitGroup.Wait] are released.
 // If the counter goes negative, Add panics.
+//
+// Callers should prefer [WaitGroup.Go].
 //
 // Note that calls with a positive delta that occur when the counter is zero
 // must happen before a Wait. Calls with a negative delta, or calls with a
@@ -107,12 +108,20 @@ func (wg *WaitGroup) Add(delta int) {
 	}
 }
 
-// Done decrements the [WaitGroup] counter by one.
+// Done decrements the [WaitGroup] task counter by one.
+// It is equivalent to Add(-1).
+//
+// Callers should prefer [WaitGroup.Go].
+//
+// In the terminology of [the Go memory model], a call to Done
+// "synchronizes before" the return of any Wait call that it unblocks.
+//
+// [the Go memory model]: https://go.dev/ref/mem
 func (wg *WaitGroup) Done() {
 	wg.Add(-1)
 }
 
-// Wait blocks until the [WaitGroup] counter is zero.
+// Wait blocks until the [WaitGroup] task counter is zero.
 func (wg *WaitGroup) Wait() {
 	if race.Enabled {
 		race.Disable()
@@ -151,7 +160,7 @@ func (wg *WaitGroup) Wait() {
 	}
 }
 
-// Go calls f in a new goroutine and adds that task to the WaitGroup.
+// Go calls f in a new goroutine and adds that task to the [WaitGroup].
 // When f returns, the task is removed from the WaitGroup.
 //
 // If the WaitGroup is empty, Go must happen before a [WaitGroup.Wait].
@@ -161,8 +170,10 @@ func (wg *WaitGroup) Wait() {
 // If a WaitGroup is reused to wait for several independent sets of tasks,
 // new Go calls must happen after all previous Wait calls have returned.
 //
-// In the terminology of [the Go memory model](https://go.dev/ref/mem),
-// the return from f "synchronizes before" the return of any Wait call that it unblocks.
+// In the terminology of [the Go memory model], the return from f
+// "synchronizes before" the return of any Wait call that it unblocks.
+//
+// [the Go memory model]: https://go.dev/ref/mem
 func (wg *WaitGroup) Go(f func()) {
 	wg.Add(1)
 	go func() {
