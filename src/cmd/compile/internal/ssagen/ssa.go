@@ -701,20 +701,42 @@ func (s *state) paramsToHeap() {
 	do(typ.Results())
 }
 
+// allocSizeAndAlign returns the size and alignment of t.
+// Normally just t.Size() and t.Alignment(), but there
+// is a special case to handle 64-bit atomics on 32-bit systems.
+func allocSizeAndAlign(t *types.Type) (int64, int64) {
+	size, align := t.Size(), t.Alignment()
+	if types.PtrSize == 4 && align == 4 && size >= 8 {
+		// For 64-bit atomics on 32-bit systems.
+		size = types.RoundUp(size, 8)
+		align = 8
+	}
+	return size, align
+}
+func allocSize(t *types.Type) int64 {
+	size, _ := allocSizeAndAlign(t)
+	return size
+}
+func allocAlign(t *types.Type) int64 {
+	_, align := allocSizeAndAlign(t)
+	return align
+}
+
 // newHeapaddr allocates heap memory for n and sets its heap address.
 func (s *state) newHeapaddr(n *ir.Name) {
-	if n.Type().HasPointers() || n.Type().Size() >= maxAggregatedHeapAllocation || n.Type().Size() == 0 {
+	size := allocSize(n.Type())
+	if n.Type().HasPointers() || size >= maxAggregatedHeapAllocation || size == 0 {
 		s.setHeapaddr(n.Pos(), n, s.newObject(n.Type(), nil))
 		return
 	}
 
 	// Do we have room together with our pending allocations?
 	// If not, flush all the current ones.
-	var size int64
+	var used int64
 	for _, v := range s.pendingHeapAllocations {
-		size += v.Type.Elem().Size()
+		used += allocSize(v.Type.Elem())
 	}
-	if size+n.Type().Size() > maxAggregatedHeapAllocation {
+	if used+size > maxAggregatedHeapAllocation {
 		s.flushPendingHeapAllocations()
 	}
 
@@ -757,16 +779,16 @@ func (s *state) flushPendingHeapAllocations() {
 	// This way we never have to worry about padding.
 	// (Stable not required; just cleaner to keep program order among equal alignments.)
 	slices.SortStableFunc(pending, func(x, y *ssa.Value) int {
-		return cmp.Compare(y.Type.Elem().Alignment(), x.Type.Elem().Alignment())
+		return cmp.Compare(allocAlign(y.Type.Elem()), allocAlign(x.Type.Elem()))
 	})
 
 	// Figure out how much data we need allocate.
 	var size int64
 	for _, v := range pending {
 		v.AuxInt = size // Adjust OffPtr to the right value while we are here.
-		size += v.Type.Elem().Size()
+		size += allocSize(v.Type.Elem())
 	}
-	align := pending[0].Type.Elem().Alignment()
+	align := allocAlign(pending[0].Type.Elem())
 	size = types.RoundUp(size, align)
 
 	// Convert newObject call to a mallocgc call.

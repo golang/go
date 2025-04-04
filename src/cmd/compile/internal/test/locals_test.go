@@ -4,7 +4,10 @@
 
 package test
 
-import "testing"
+import (
+	"sync/atomic"
+	"testing"
+)
 
 func locals() {
 	var x int64
@@ -51,6 +54,19 @@ func closure() func() {
 	}
 }
 
+//go:noinline
+func atomicFn() {
+	var x int32
+	var y int64
+	var z int16
+	var w int8
+	sink32 = &x
+	sink64 = &y
+	sink16 = &z
+	sink8 = &w
+	atomic.StoreInt64(&y, 7)
+}
+
 var sink64 *int64
 var sink32 *int32
 var sink16 *int16
@@ -67,6 +83,7 @@ func TestLocalAllocations(t *testing.T) {
 		{"args", func() { args(1, 2, 3, 4) }, 1},
 		{"half", func() { half(1, 2) }, 1},
 		{"closure", func() { _ = closure() }, 2},
+		{"atomic", atomicFn, 1},
 	} {
 		allocs := testing.AllocsPerRun(100, tst.f)
 		if allocs != float64(tst.want) {
