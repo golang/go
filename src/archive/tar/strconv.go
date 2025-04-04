@@ -213,15 +213,23 @@ func parsePAXTime(s string) (time.Time, error) {
 	}
 
 	// Parse the nanoseconds.
-	if strings.Trim(sn, "0123456789") != "" {
-		return time.Time{}, ErrHeader
+	nanoDigits := [maxNanoSecondDigits]byte{}
+	i := 0
+	for _, c := range sn {
+		if c < '0' || c > '9' {
+			return time.Time{}, ErrHeader
+		}
+		// Right truncate
+		if i < maxNanoSecondDigits {
+			nanoDigits[i] = byte(c)
+			i++
+		}
 	}
-	if len(sn) < maxNanoSecondDigits {
-		sn += strings.Repeat("0", maxNanoSecondDigits-len(sn)) // Right pad
-	} else {
-		sn = sn[:maxNanoSecondDigits] // Right truncate
+	// Right pad
+	for ; i < maxNanoSecondDigits; i++ {
+		nanoDigits[i] = '0'
 	}
-	nsecs, _ := strconv.ParseInt(sn, 10, 64) // Must succeed
+	nsecs, _ := strconv.ParseInt(string(nanoDigits[:]), 10, 64) // Must succeed after validation
 	if len(ss) > 0 && ss[0] == '-' {
 		return time.Unix(secs, -1*nsecs), nil // Negative correction
 	}
