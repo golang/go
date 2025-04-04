@@ -130,7 +130,7 @@ func getIntegrityLevelToken(wns string) (syscall.Token, error) {
 
 	err = windows.SetTokenInformation(token,
 		syscall.TokenIntegrityLevel,
-		uintptr(unsafe.Pointer(tml)),
+		unsafe.Pointer(tml),
 		tml.Size())
 	if err != nil {
 		token.Close()

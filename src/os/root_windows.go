@@ -167,7 +167,7 @@ func readReparseLinkAt(dirfd syscall.Handle, name string) (string, error) {
 		syscall.FILE_SHARE_READ|syscall.FILE_SHARE_WRITE|syscall.FILE_SHARE_DELETE,
 		windows.FILE_OPEN,
 		windows.FILE_SYNCHRONOUS_IO_NONALERT|windows.FILE_OPEN_REPARSE_POINT,
-		0,
+		nil,
 		0,
 	)
 	if err != nil {
