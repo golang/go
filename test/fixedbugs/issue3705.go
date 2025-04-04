@@ -6,4 +6,4 @@
 
 package p
 
-func init() // ERROR "missing function body|cannot declare init"
+func init() // ERROR "func init must have a body|cannot declare init"

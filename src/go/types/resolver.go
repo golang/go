@@ -425,10 +425,8 @@ func (check *Checker) collectObjects() {
 						// don't declare init functions in the package scope - they are invisible
 						obj.parent = pkg.scope
 						check.recordDef(d.decl.Name, obj)
-						// init functions must have a body
 						if d.decl.Body == nil {
-							// TODO(gri) make this error message consistent with the others above
-							check.softErrorf(obj, MissingInitBody, "missing function body")
+							check.softErrorf(obj, MissingInitBody, "func init must have a body")
 						}
 					} else {
 						check.declare(pkg.scope, d.decl.Name, obj, nopos)

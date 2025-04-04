@@ -43,7 +43,7 @@ type init /* ERROR "cannot declare init" */ struct{}
 var _, init /* ERROR "cannot declare init" */ int
 
 func init() {}
-func init /* ERROR "missing function body" */ ()
+func init /* ERROR "func init must have a body" */ ()
 
 func _() { const init = 0 }
 func _() { type init int }
