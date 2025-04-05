@@ -103,7 +103,7 @@ func stringPtr(s string) unsafe.Pointer {
 func runtime_mapaccess1_faststr(typ *abi.SwissMapType, m *Map, key string) unsafe.Pointer {
 	if race.Enabled && m != nil {
 		callerpc := sys.GetCallerPC()
-		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
+		pc := abi.FuncPCABIInternal(runtime_mapaccess1_faststr)
 		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
 	}
 
@@ -162,7 +162,7 @@ func runtime_mapaccess1_faststr(typ *abi.SwissMapType, m *Map, key string) unsaf
 func runtime_mapaccess2_faststr(typ *abi.SwissMapType, m *Map, key string) (unsafe.Pointer, bool) {
 	if race.Enabled && m != nil {
 		callerpc := sys.GetCallerPC()
-		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
+		pc := abi.FuncPCABIInternal(runtime_mapaccess2_faststr)
 		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
 	}
 
@@ -266,7 +266,7 @@ func runtime_mapassign_faststr(typ *abi.SwissMapType, m *Map, key string) unsafe
 	}
 	if race.Enabled {
 		callerpc := sys.GetCallerPC()
-		pc := abi.FuncPCABIInternal(runtime_mapassign)
+		pc := abi.FuncPCABIInternal(runtime_mapassign_faststr)
 		race.WritePC(unsafe.Pointer(m), callerpc, pc)
 	}
 	if m.writing != 0 {
@@ -396,7 +396,7 @@ outer:
 func runtime_mapdelete_faststr(typ *abi.SwissMapType, m *Map, key string) {
 	if race.Enabled {
 		callerpc := sys.GetCallerPC()
-		pc := abi.FuncPCABIInternal(runtime_mapassign)
+		pc := abi.FuncPCABIInternal(runtime_mapdelete_faststr)
 		race.WritePC(unsafe.Pointer(m), callerpc, pc)
 	}
 
