@@ -194,10 +194,11 @@ func mulAddVWW_g(z, x []Word, y, r Word) (c Word) {
 	return
 }
 
-func addMulVVW_g(z, x []Word, y Word) (c Word) {
+func addMulVVWW_g(z, x, y []Word, m, a Word) (c Word) {
+	c = a
 	// The comment near the top of this file discusses this for loop condition.
-	for i := 0; i < len(z) && i < len(x); i++ {
-		z1, z0 := mulAddWWW_g(x[i], y, z[i])
+	for i := 0; i < len(z) && i < len(x) && i < len(y); i++ {
+		z1, z0 := mulAddWWW_g(y[i], m, x[i])
 		lo, cc := bits.Add(uint(z0), uint(c), 0)
 		c, z[i] = Word(cc), Word(lo)
 		c += z1

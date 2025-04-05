@@ -83,9 +83,9 @@ func shrVU(z, x []Word, s uint) (c Word)
 //
 //go:linkname mulAddVWW
 //go:noescape
-func mulAddVWW(z, x []Word, y, r Word) (c Word)
+func mulAddVWW(z, x []Word, m, a Word) (c Word)
 
-// addMulVVW should be an internal detail,
+// addMulVVW should be an internal detail (and a stale one at that),
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/remyoudompheng/bigfft
@@ -94,5 +94,11 @@ func mulAddVWW(z, x []Word, y, r Word) (c Word)
 // See go.dev/issue/67401.
 //
 //go:linkname addMulVVW
+func addMulVVW(z, x []Word, y Word) (c Word) {
+	return addMulVVWW(z, z, x, y, 0)
+}
+
+// addMulVVWW sets z = x+y*m+a.
+//
 //go:noescape
-func addMulVVW(z, x []Word, y Word) (c Word)
+func addMulVVWW(z, x, y []Word, m, a Word) (c Word)

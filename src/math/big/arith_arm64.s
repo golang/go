@@ -425,13 +425,13 @@ len0:
 	RET
 
 
-// func mulAddVWW(z, x []Word, y, r Word) (c Word)
+// func mulAddVWW(z, x []Word, m, a Word) (c Word)
 TEXT ·mulAddVWW(SB),NOSPLIT,$0
 	MOVD	z+0(FP), R1
 	MOVD	z_len+8(FP), R0
 	MOVD	x+24(FP), R2
-	MOVD	y+48(FP), R3
-	MOVD	r+56(FP), R4
+	MOVD	m+48(FP), R3
+	MOVD	a+56(FP), R4
 	// c, z = x * y + r
 	TBZ	$0, R0, two
 	MOVD.P	8(R2), R5
@@ -483,33 +483,36 @@ done:
 	RET
 
 
-// func addMulVVW(z, x []Word, y Word) (c Word)
-TEXT ·addMulVVW(SB),NOSPLIT,$0
-	MOVD	z+0(FP), R1
+// func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
+TEXT ·addMulVVWW(SB),NOSPLIT,$0
+	MOVD	z+0(FP), R22
+	MOVD	x+24(FP), R1
 	MOVD	z_len+8(FP), R0
-	MOVD	x+24(FP), R2
-	MOVD	y+48(FP), R3
-	MOVD	$0, R4
+	MOVD	y+48(FP), R2
+	MOVD	m+72(FP), R3
+	MOVD	a+80(FP), R4
 
 	TBZ	$0, R0, two
 
 	MOVD.P	8(R2), R5
-	MOVD	(R1), R6
+	MOVD.P	8(R1), R6
 
 	MUL	R5, R3, R7
 	UMULH	R5, R3, R8
 
+	ADDS	R4, R7
+	ADC	$0, R8
 	ADDS	R7, R6
 	ADC	$0, R8, R4
 
-	MOVD.P	R6, 8(R1)
+	MOVD.P	R6, 8(R22)
 	SUB	$1, R0
 
 two:
 	TBZ	$1, R0, loop
 
 	LDP.P	16(R2), (R5, R10)
-	LDP	(R1), (R6, R11)
+	LDP.P	16(R1), (R6, R11)
 
 	MUL	R10, R3, R13
 	UMULH	R10, R3, R12
@@ -525,7 +528,7 @@ two:
 	ADCS	R8, R11
 	ADC	$0, R12, R4
 
-	STP.P	(R6, R11), 16(R1)
+	STP.P	(R6, R11), 16(R22)
 	SUB	$2, R0
 
 // The main loop of this code operates on a block of 4 words every iteration
@@ -538,12 +541,12 @@ loop:
 	LDP.P	16(R2), (R5, R6)
 	LDP.P	16(R2), (R7, R8)
 
-	LDP	(R1), (R9, R10)
+	LDP.P	16(R1), (R9, R10)
 	ADDS	R4, R9
 	MUL	R6, R3, R14
 	ADCS	R14, R10
 	MUL	R7, R3, R15
-	LDP	16(R1), (R11, R12)
+	LDP.P	16(R1), (R11, R12)
 	ADCS	R15, R11
 	MUL	R8, R3, R16
 	ADCS	R16, R12
@@ -555,18 +558,18 @@ loop:
 	UMULH	R5, R3, R17
 	ADCS	R17, R10
 	UMULH	R6, R3, R21
-	STP.P	(R9, R10), 16(R1)
+	STP.P	(R9, R10), 16(R22)
 	ADCS	R21, R11
 	UMULH	R7, R3, R19
 	ADCS	R19, R12
-	STP.P	(R11, R12), 16(R1)
+	STP.P	(R11, R12), 16(R22)
 	ADC	$0, R20, R4
 
 	SUB	$4, R0
 	B	loop
 
 done:
-	MOVD	R4, c+56(FP)
+	MOVD	R4, c+88(FP)
 	RET
 
 

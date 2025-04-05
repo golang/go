@@ -126,7 +126,7 @@ func basicSqr(stk *stack, z, x nat) {
 		// z collects the squares x[i] * x[i]
 		z[2*i+1], z[2*i] = mulWW(d, d)
 		// t collects the products x[i] * x[j] where j < i
-		t[2*i] = addMulVVW(t[i:2*i], x[0:i], d)
+		t[2*i] = addMulVVWW(t[i:2*i], t[i:2*i], x[0:i], d, 0)
 	}
 	t[2*n-1] = shlVU(t[1:2*n-1], t[1:2*n-1], 1) // double the j < i products
 	addVV(z, z, t)                              // combine the result
@@ -152,7 +152,7 @@ func basicMul(z, x, y nat) {
 	clear(z[0 : len(x)+len(y)]) // initialize z
 	for i, d := range y {
 		if d != 0 {
-			z[len(x)+i] = addMulVVW(z[i:i+len(x)], x, d)
+			z[len(x)+i] = addMulVVWW(z[i:i+len(x)], z[i:i+len(x)], x, d, 0)
 		}
 	}
 }

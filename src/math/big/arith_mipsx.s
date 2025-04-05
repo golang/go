@@ -30,6 +30,6 @@ TEXT ·shrVU(SB),NOSPLIT,$0
 TEXT ·mulAddVWW(SB),NOSPLIT,$0
 	JMP	·mulAddVWW_g(SB)
 
-TEXT ·addMulVVW(SB),NOSPLIT,$0
-	JMP	·addMulVVW_g(SB)
+TEXT ·addMulVVWW(SB),NOSPLIT,$0
+	JMP	·addMulVVWW_g(SB)
 

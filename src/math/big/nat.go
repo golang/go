@@ -197,9 +197,9 @@ func (z nat) montgomery(x, y, m nat, k Word, n int) nat {
 	var c Word
 	for i := 0; i < n; i++ {
 		d := y[i]
-		c2 := addMulVVW(z[i:n+i], x, d)
+		c2 := addMulVVWW(z[i:n+i], z[i:n+i], x, d, 0)
 		t := z[i] * k
-		c3 := addMulVVW(z[i:n+i], m, t)
+		c3 := addMulVVWW(z[i:n+i], z[i:n+i], m, t, 0)
 		cx := c + c2
 		cy := cx + c3
 		z[n+i] = cy
