@@ -482,6 +482,30 @@ func FuncCountToDwTxtAddrFlavor(fncount int) (RelocType, int) {
 	}
 }
 
+// DummyDwarfFunctionCountForAssembler returns a dummy value to be
+// used for "total number of functions in the package" for use in the
+// assembler (compiler does not call this function).
+//
+// Background/motivation: let's say we have a package P with some
+// assembly functions (in "a.s") and some Go functions (in
+// "b.go"). The compilation sequence used by the Go commmand will be:
+//
+// 1. run the assembler on a.s to generate a "symabis" file
+// 2. run the compiler on b.go passing it the symabis file and generating a "go_defs.h" asm header
+// 3. run the assembler on a.s passing it an include dir with the generated "go_defs.h" file
+//
+// When the compiler runs, it can easily determine the total function
+// count for the package (for use with FuncCountToDwTxtAddrFlavor
+// above) by counting defined Go funcs and looking at the symabis
+// file. With the assembler however there is no easy way for it to
+// figure out the total number of Go source funcs. To keep things
+// simple, we instead just use a dummy total function count while
+// running the assembler that will guarantee we pick a relocation
+// flavor that will work for any package size.
+func DummyDwarfFunctionCountForAssembler() int {
+	return 9999999
+}
+
 // DwTxtAddrRelocParams returns the maximum number of functions per
 // package supported for the DWARF .debug_addr relocation variant r,
 // along with the number of bytes it takes up in encoded form.

@@ -89,6 +89,7 @@ func (s *SymABIs) ReadSymABIs(file string) {
 			// Record for later.
 			if parts[0] == "def" {
 				s.defs[sym] = abi
+				base.Ctxt.DwTextCount++
 			} else {
 				s.refs[sym] |= obj.ABISetOf(abi)
 			}
