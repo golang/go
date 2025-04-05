@@ -854,7 +854,7 @@ func Post(url, contentType string, body io.Reader) (resp *Response, err error) {
 // To make a request with a specified context.Context, use [NewRequestWithContext]
 // and [Client.Do].
 //
-// See the Client.Do method documentation for details on how redirects
+// See the [Client.Do] method documentation for details on how redirects
 // are handled.
 func (c *Client) Post(url, contentType string, body io.Reader) (resp *Response, err error) {
 	req, err := NewRequest("POST", url, body)
@@ -894,7 +894,7 @@ func PostForm(url string, data url.Values) (resp *Response, err error) {
 // When err is nil, resp always contains a non-nil resp.Body.
 // Caller should close resp.Body when done reading from it.
 //
-// See the Client.Do method documentation for details on how redirects
+// See the [Client.Do] method documentation for details on how redirects
 // are handled.
 //
 // To make a request with a specified context.Context, use [NewRequestWithContext]
