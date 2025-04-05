@@ -173,8 +173,9 @@ func (s *scanner) eof() int {
 	return scanError
 }
 
-// pushParseState pushes a new parse state p onto the parse stack.
-// an error state is returned if maxNestingDepth was exceeded, otherwise successState is returned.
+// pushParseState pushes a new parse state newParseState onto the parse stack.
+// an error state is returned if maxNestingDepth was exceeded, otherwise
+// successState is returned.
 func (s *scanner) pushParseState(c byte, newParseState int, successState int) int {
 	s.parseState = append(s.parseState, newParseState)
 	if len(s.parseState) <= maxNestingDepth {
