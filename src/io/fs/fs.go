@@ -129,7 +129,7 @@ type ReadDirFile interface {
 	// At the end of a directory, the error is io.EOF.
 	// (ReadDir must return io.EOF itself, not an error wrapping io.EOF.)
 	//
-	// If n <= 0, ReadDir returns all the DirEntry values from the directory
+	// If n <= 0, ReadDir returns all remaining DirEntry values from the directory
 	// in a single slice. In this case, if ReadDir succeeds (reads all the way
 	// to the end of the directory), it returns the slice and a nil error.
 	// If it encounters an error before the end of the directory,
