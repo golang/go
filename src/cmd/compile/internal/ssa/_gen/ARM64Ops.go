@@ -138,17 +138,17 @@ func init() {
 	// Common individual register masks
 	var (
 		gp         = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30")
-		gpg        = gp | buildReg("g") | buildReg("ZERO")
-		gpsp       = gp | buildReg("SP") | buildReg("ZERO")
-		gpspg      = gpg | buildReg("SP") | buildReg("ZERO")
-		gpspsbg    = gpspg | buildReg("SB") | buildReg("ZERO")
+		gpg        = gp | buildReg("g")
+		gpsp       = gp | buildReg("SP")
+		gpspg      = gpg | buildReg("SP")
+		gpspsbg    = gpspg | buildReg("SB")
 		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
 		callerSave = gp | fp | buildReg("g") // runtime.setg (and anything calling it) may clobber g
 		r0         = buildReg("R0")
 		r1         = buildReg("R1")
 		r2         = buildReg("R2")
 		r3         = buildReg("R3")
-		rz         = buildReg("ZERO") // TODO: when 71651 is fixed, we might be able to remove uses of this
+		rz         = buildReg("ZERO")
 	)
 	// Common regInfo
 	var (
@@ -165,14 +165,14 @@ func init() {
 		gp2flags       = regInfo{inputs: []regMask{gpg, gpg}}
 		gp2flags1      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
 		gp2flags1flags = regInfo{inputs: []regMask{gp, gp, 0}, outputs: []regMask{gp, 0}}
-		gp2load        = regInfo{inputs: []regMask{gpspsbg &^ rz, gpg}, outputs: []regMask{gp}}
+		gp2load        = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
 		gp31           = regInfo{inputs: []regMask{gpg, gpg, gpg}, outputs: []regMask{gp}}
-		gpload         = regInfo{inputs: []regMask{gpspsbg &^ rz}, outputs: []regMask{gp}}
-		gpload2        = regInfo{inputs: []regMask{gpspsbg &^ rz}, outputs: []regMask{gpg, gpg}}
-		gpstore        = regInfo{inputs: []regMask{gpspsbg &^ rz, gpg}}
-		gpstore2       = regInfo{inputs: []regMask{gpspsbg &^ rz, gpg, gpg}}
-		gpxchg         = regInfo{inputs: []regMask{gpspsbg &^ rz, gpg}, outputs: []regMask{gp}}
-		gpcas          = regInfo{inputs: []regMask{gpspsbg &^ rz, gpg, gpg}, outputs: []regMask{gp}}
+		gpload         = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
+		gpload2        = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gpg, gpg}}
+		gpstore        = regInfo{inputs: []regMask{gpspsbg, gpg | rz}}
+		gpstore2       = regInfo{inputs: []regMask{gpspsbg, gpg | rz, gpg | rz}}
+		gpxchg         = regInfo{inputs: []regMask{gpspsbg, gpg | rz}, outputs: []regMask{gp}}
+		gpcas          = regInfo{inputs: []regMask{gpspsbg, gpg | rz, gpg | rz}, outputs: []regMask{gp}}
 		fp01           = regInfo{inputs: nil, outputs: []regMask{fp}}
 		fp11           = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
 		fpgp           = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
@@ -181,12 +181,12 @@ func init() {
 		fp31           = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
 		fp2flags       = regInfo{inputs: []regMask{fp, fp}}
 		fp1flags       = regInfo{inputs: []regMask{fp}}
-		fpload         = regInfo{inputs: []regMask{gpspsbg &^ rz}, outputs: []regMask{fp}}
-		fpload2        = regInfo{inputs: []regMask{gpspsbg &^ rz}, outputs: []regMask{fp, fp}}
-		fp2load        = regInfo{inputs: []regMask{gpspsbg &^ rz, gpg}, outputs: []regMask{fp}}
-		fpstore        = regInfo{inputs: []regMask{gpspsbg &^ rz, fp}}
-		fpstoreidx     = regInfo{inputs: []regMask{gpspsbg &^ rz, gpg, fp}}
-		fpstore2       = regInfo{inputs: []regMask{gpspsbg &^ rz, fp, fp}}
+		fpload         = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
+		fpload2        = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp, fp}}
+		fp2load        = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{fp}}
+		fpstore        = regInfo{inputs: []regMask{gpspsbg, fp}}
+		fpstoreidx     = regInfo{inputs: []regMask{gpspsbg, gpg, fp}}
+		fpstore2       = regInfo{inputs: []regMask{gpspsbg, fp, fp}}
 		readflags      = regInfo{inputs: nil, outputs: []regMask{gp}}
 		prefreg        = regInfo{inputs: []regMask{gpspsbg}}
 	)
@@ -516,7 +516,7 @@ func init() {
 		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 
 		// pseudo-ops
-		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg &^ rz}}, nilCheck: true, faultOnNilArg0: true}, // panic if arg0 is nil.  arg1=mem.
+		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}, nilCheck: true, faultOnNilArg0: true}, // panic if arg0 is nil.  arg1=mem.
 
 		{name: "Equal", argLength: 1, reg: readflags},            // bool, true flags encode x==y false otherwise.
 		{name: "NotEqual", argLength: 1, reg: readflags},         // bool, true flags encode x!=y false otherwise.
