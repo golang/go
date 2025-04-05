@@ -682,13 +682,13 @@ returnC:
 	MOVD R7, c+56(FP)
 	RET
 
-// func shlVU(z, x []Word, s uint) (c Word)
-TEXT ·shlVU(SB), NOSPLIT, $0
-	BR ·shlVU_g(SB)
+// func lshVU(z, x []Word, s uint) (c Word)
+TEXT ·lshVU(SB), NOSPLIT, $0
+	BR ·lshVU_g(SB)
 
-// func shrVU(z, x []Word, s uint) (c Word)
-TEXT ·shrVU(SB), NOSPLIT, $0
-	BR ·shrVU_g(SB)
+// func rshVU(z, x []Word, s uint) (c Word)
+TEXT ·rshVU(SB), NOSPLIT, $0
+	BR ·rshVU_g(SB)
 
 // CX = R4, r8 = r8, r9=r9, r10 = r2, r11 = r5, DX = r3, AX = r6, BX = R1, (R0 set to 0) + use R11 + use R7 for i
 // func mulAddVWW(z, x []Word, m, a Word) (c Word)

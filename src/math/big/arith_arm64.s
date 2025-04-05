@@ -251,19 +251,18 @@ copy_4:				// no carry flag, copy the rest
 	vwOneIterCopy(R0, done)
 	B	copy_4
 
-// func shlVU(z, x []Word, s uint) (c Word)
+// func lshVU(z, x []Word, s uint) (c Word)
 // This implementation handles the shift operation from the high word to the low word,
 // which may be an error for the case where the low word of x overlaps with the high
 // word of z. When calling this function directly, you need to pay attention to this
 // situation.
-TEXT ·shlVU(SB),NOSPLIT,$0
+TEXT ·lshVU(SB),NOSPLIT,$0
 	LDP	z+0(FP), (R0, R1)	// R0 = z.ptr, R1 = len(z)
 	MOVD	x+24(FP), R2
 	MOVD	s+48(FP), R3
 	ADD	R1<<3, R0	// R0 = &z[n]
 	ADD	R1<<3, R2	// R2 = &x[n]
 	CBZ	R1, len0
-	CBZ	R3, copy	// if the number of shift is 0, just copy x to z
 	MOVD	$64, R4
 	SUB	R3, R4
 	// handling the most significant element x[n-1]
@@ -313,36 +312,16 @@ done:
 	MOVD.W	R8, -8(R0)	// the first element x[0]
 	MOVD	R5, c+56(FP)	// the part moved out from x[n-1]
 	RET
-copy:
-	CMP	R0, R2
-	BEQ	len0
-	TBZ	$0, R1, ctwo
-	MOVD.W	-8(R2), R4
-	MOVD.W	R4, -8(R0)
-	SUB	$1, R1
-ctwo:
-	TBZ	$1, R1, cloop
-	LDP.W	-16(R2), (R4, R5)
-	STP.W	(R4, R5), -16(R0)
-	SUB	$2, R1
-cloop:
-	CBZ	R1, len0
-	LDP.W	-32(R2), (R4, R5)
-	LDP	16(R2), (R6, R7)
-	STP.W	(R4, R5), -32(R0)
-	STP	(R6, R7), 16(R0)
-	SUB	$4, R1
-	B	cloop
 len0:
 	MOVD	$0, c+56(FP)
 	RET
 
-// func shrVU(z, x []Word, s uint) (c Word)
+// func rshVU(z, x []Word, s uint) (c Word)
 // This implementation handles the shift operation from the low word to the high word,
 // which may be an error for the case where the high word of x overlaps with the low
 // word of z. When calling this function directly, you need to pay attention to this
 // situation.
-TEXT ·shrVU(SB),NOSPLIT,$0
+TEXT ·rshVU(SB),NOSPLIT,$0
 	MOVD	z+0(FP), R0
 	MOVD	z_len+8(FP), R1
 	MOVD	x+24(FP), R2
@@ -351,7 +330,6 @@ TEXT ·shrVU(SB),NOSPLIT,$0
 	MOVD	$64, R4
 	SUB	R3, R4
 	CBZ	R1, len0
-	CBZ	R3, copy	// if the number of shift is 0, just copy x to z
 
 	MOVD.P	8(R2), R20
 	LSR	R3, R20, R8
@@ -400,26 +378,6 @@ loop:
 done:
 	MOVD	R8, (R0)	// deal with the last element
 	RET
-copy:
-	CMP	R0, R2
-	BEQ	len0
-	TBZ	$0, R1, ctwo
-	MOVD.P	8(R2), R3
-	MOVD.P	R3, 8(R0)
-	SUB	$1, R1
-ctwo:
-	TBZ	$1, R1, cloop
-	LDP.P	16(R2), (R4, R5)
-	STP.P	(R4, R5), 16(R0)
-	SUB	$2, R1
-cloop:
-	CBZ	R1, len0
-	LDP.P	32(R2), (R4, R5)
-	LDP	-16(R2), (R6, R7)
-	STP.P	(R4, R5), 32(R0)
-	STP	(R6, R7), -16(R0)
-	SUB	$4, R1
-	B	cloop
 len0:
 	MOVD	$0, c+56(FP)
 	RET

@@ -188,9 +188,9 @@ func roundShortest(d *decimal, x *Float) {
 	s := mant.bitLen() - int(x.prec+1)
 	switch {
 	case s < 0:
-		mant = mant.shl(mant, uint(-s))
+		mant = mant.lsh(mant, uint(-s))
 	case s > 0:
-		mant = mant.shr(mant, uint(+s))
+		mant = mant.rsh(mant, uint(+s))
 	}
 	exp += s
 	// x = mant * 2**exp with lsb(mant) == 1/2 ulp of x.prec
@@ -329,9 +329,9 @@ func (x *Float) fmtB(buf []byte) []byte {
 	m := x.mant
 	switch w := uint32(len(x.mant)) * _W; {
 	case w < x.prec:
-		m = nat(nil).shl(m, uint(x.prec-w))
+		m = nat(nil).lsh(m, uint(x.prec-w))
 	case w > x.prec:
-		m = nat(nil).shr(m, uint(w-x.prec))
+		m = nat(nil).rsh(m, uint(w-x.prec))
 	}
 
 	buf = append(buf, m.utoa(10)...)
@@ -380,9 +380,9 @@ func (x *Float) fmtX(buf []byte, prec int) []byte {
 	m := x.mant
 	switch w := uint(len(x.mant)) * _W; {
 	case w < n:
-		m = nat(nil).shl(m, n-w)
+		m = nat(nil).lsh(m, n-w)
 	case w > n:
-		m = nat(nil).shr(m, w-n)
+		m = nat(nil).rsh(m, w-n)
 	}
 	exp64 := int64(x.exp) - 1 // avoid wrap-around
 

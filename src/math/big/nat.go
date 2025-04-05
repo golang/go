@@ -380,7 +380,7 @@ func same(x, y nat) bool {
 }
 
 // z = x << s
-func (z nat) shl(x nat, s uint) nat {
+func (z nat) lsh(x nat, s uint) nat {
 	if s == 0 {
 		if same(z, x) {
 			return z
@@ -398,14 +398,19 @@ func (z nat) shl(x nat, s uint) nat {
 
 	n := m + int(s/_W)
 	z = z.make(n + 1)
-	z[n] = shlVU(z[n-m:n], x, s%_W)
+	if s %= _W; s == 0 {
+		copy(z[n-m:n], x)
+		z[n] = 0
+	} else {
+		z[n] = lshVU(z[n-m:n], x, s)
+	}
 	clear(z[0 : n-m])
 
 	return z.norm()
 }
 
 // z = x >> s
-func (z nat) shr(x nat, s uint) nat {
+func (z nat) rsh(x nat, s uint) nat {
 	if s == 0 {
 		if same(z, x) {
 			return z
@@ -423,7 +428,11 @@ func (z nat) shr(x nat, s uint) nat {
 	// n > 0
 
 	z = z.make(n)
-	shrVU(z, x[m-n:], s%_W)
+	if s %= _W; s == 0 {
+		copy(z, x[m-n:])
+	} else {
+		rshVU(z, x[m-n:], s)
+	}
 
 	return z.norm()
 }
@@ -745,8 +754,8 @@ func (z nat) expNN(stk *stack, x, y, m nat, slow bool) nat {
 func (z nat) expNNMontgomeryEven(stk *stack, x, y, m nat) nat {
 	// Split m = m₁ × m₂ where m₁ = 2ⁿ
 	n := m.trailingZeroBits()
-	m1 := nat(nil).shl(natOne, n)
-	m2 := nat(nil).shr(m, n)
+	m1 := nat(nil).lsh(natOne, n)
+	m2 := nat(nil).rsh(m, n)
 
 	// We want z = x**y mod m.
 	// z₁ = x**y mod m1 = (x**y mod m) mod m1 = z mod m1
@@ -906,7 +915,7 @@ func (z nat) expNNMontgomery(stk *stack, x, y, m nat) nat {
 
 	// RR = 2**(2*_W*len(m)) mod m
 	RR := nat(nil).setWord(1)
-	zz := nat(nil).shl(RR, uint(2*numWords*_W))
+	zz := nat(nil).lsh(RR, uint(2*numWords*_W))
 	_, RR = nat(nil).div(stk, RR, zz, m)
 	if len(RR) < numWords {
 		zz = zz.make(numWords)
@@ -1053,11 +1062,11 @@ func (z nat) sqrt(stk *stack, x nat) nat {
 	var z1, z2 nat
 	z1 = z
 	z1 = z1.setUint64(1)
-	z1 = z1.shl(z1, uint(x.bitLen()+1)/2) // must be ≥ √x
+	z1 = z1.lsh(z1, uint(x.bitLen()+1)/2) // must be ≥ √x
 	for n := 0; ; n++ {
 		z2, _ = z2.div(stk, nil, x, z1)
 		z2 = z2.add(z2, z1)
-		z2 = z2.shr(z2, 1)
+		z2 = z2.rsh(z2, 1)
 		if z2.cmp(z1) >= 0 {
 			// z1 is answer.
 			// Figure out whether z1 or z2 is currently aliased to z by looking at loop count.

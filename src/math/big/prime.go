@@ -89,7 +89,7 @@ func (n nat) probablyPrimeMillerRabin(stk *stack, reps int, force2 bool) bool {
 	nm1 := nat(nil).sub(n, natOne)
 	// determine q, k such that nm1 = q << k
 	k := nm1.trailingZeroBits()
-	q := nat(nil).shr(nm1, k)
+	q := nat(nil).rsh(nm1, k)
 
 	nm3 := nat(nil).sub(nm1, natTwo)
 	rand := rand.New(rand.NewSource(int64(n[0])))
@@ -217,7 +217,7 @@ func (n nat) probablyPrimeLucas(stk *stack) bool {
 	// Arrange s = (n - Jacobi(Δ, n)) / 2^r = (n+1) / 2^r.
 	s := nat(nil).add(n, natOne)
 	r := int(s.trailingZeroBits())
-	s = s.shr(s, uint(r))
+	s = s.rsh(s, uint(r))
 	nm2 := nat(nil).sub(n, natTwo) // n-2
 
 	// We apply the "almost extra strong" test, which checks the above conditions
@@ -288,7 +288,7 @@ func (n nat) probablyPrimeLucas(stk *stack) bool {
 		// Since we are checking for U(k) == 0 it suffices to check 2 V(k+1) == P V(k) mod n,
 		// or P V(k) - 2 V(k+1) == 0 mod n.
 		t1 := t1.mul(stk, vk, natP)
-		t2 := t2.shl(vk1, 1)
+		t2 := t2.lsh(vk1, 1)
 		if t1.cmp(t2) < 0 {
 			t1, t2 = t2, t1
 		}

@@ -605,9 +605,15 @@ func (z nat) divLarge(stk *stack, u, uIn, vIn nat) (q, r nat) {
 	defer stk.restore(stk.save())
 	shift := nlz(vIn[n-1])
 	v := stk.nat(n)
-	shlVU(v, vIn, shift)
 	u = u.make(len(uIn) + 1)
-	u[len(uIn)] = shlVU(u[:len(uIn)], uIn, shift)
+	if shift == 0 {
+		copy(v, vIn)
+		copy(u[:len(uIn)], uIn)
+		u[len(uIn)] = 0
+	} else {
+		lshVU(v, vIn, shift)
+		u[len(uIn)] = lshVU(u[:len(uIn)], uIn, shift)
+	}
 
 	// The caller should not pass aliased z and u, since those are
 	// the two different outputs, but correct just in case.
@@ -626,7 +632,9 @@ func (z nat) divLarge(stk *stack, u, uIn, vIn nat) (q, r nat) {
 	q = q.norm()
 
 	// Undo scaling of remainder.
-	shrVU(u, u, shift)
+	if shift != 0 {
+		rshVU(u, u, shift)
+	}
 	r = u.norm()
 
 	return q, r
