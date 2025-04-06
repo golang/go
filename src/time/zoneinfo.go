@@ -593,7 +593,7 @@ func tzruleTime(year int, r rule, off int) int {
 			}
 			d += 7
 		}
-		d += int(daysBefore(Month(r.mon)))
+		d += daysBefore(Month(r.mon))
 		if isLeap(year) && r.mon > 2 {
 			d++
 		}
