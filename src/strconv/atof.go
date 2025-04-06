@@ -77,12 +77,12 @@ func (b *decimal) set(s string) (ok bool) {
 	if i >= len(s) {
 		return
 	}
-	switch {
-	case s[i] == '+':
+	switch s[i] {
+	case '+':
 		i++
-	case s[i] == '-':
+	case '-':
+		i++
 		b.neg = true
-		i++
 	}
 
 	// digits
@@ -135,9 +135,10 @@ func (b *decimal) set(s string) (ok bool) {
 			return
 		}
 		esign := 1
-		if s[i] == '+' {
+		switch s[i] {
+		case '+':
 			i++
-		} else if s[i] == '-' {
+		case '-':
 			i++
 			esign = -1
 		}
@@ -176,12 +177,12 @@ func readFloat(s string) (mantissa uint64, exp int, neg, trunc, hex bool, i int,
 	if i >= len(s) {
 		return
 	}
-	switch {
-	case s[i] == '+':
+	switch s[i] {
+	case '+':
 		i++
-	case s[i] == '-':
+	case '-':
+		i++
 		neg = true
-		i++
 	}
 
 	// digits
@@ -268,9 +269,10 @@ loop:
 			return
 		}
 		esign := 1
-		if s[i] == '+' {
+		switch s[i] {
+		case '+':
 			i++
-		} else if s[i] == '-' {
+		case '-':
 			i++
 			esign = -1
 		}
