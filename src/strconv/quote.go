@@ -500,7 +500,7 @@ func bsearch[S ~[]E, E ~uint16 | ~uint32](s S, v E) (int, bool) {
 	n := len(s)
 	i, j := 0, n
 	for i < j {
-		h := i + (j-i)>>1
+		h := int(uint(i+j) >> 1) // avoid overflow when computing h
 		if s[h] < v {
 			i = h + 1
 		} else {
