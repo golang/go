@@ -14,15 +14,19 @@ env GOPATH=$WORK/gopath
 # 'go mod init' should not create a go.mod file in v0 or v1 directory.
 cd $GOPATH/src/example.com/m/v0
 ! go mod init
-stderr '(?s)^go: cannot determine module path for source directory(.*)example.com/m/v0 \(bad module path inferred from directory in GOPATH: major version suffixes must be in the form of /vN and are only allowed for v2 or later\)(.*)Example usage:(.*)''go mod init example.com/m'' to initialize a v0 or v1 module(.*)''go mod init example.com/m/v2'' to initialize a v2 module(.*)Run ''go help mod init'' for more information.$'
+stderr '(?s)^go: cannot determine module path for source directory (.*v0) \(bad module path inferred from directory in GOPATH: major version suffixes must be in the form of /vN and are only allowed for v2 or later\)(.*)'
 
 cd $GOPATH/src/example.com/m/v1
 ! go mod init
-stderr '(?s)^go: cannot determine module path for source directory(.*)example.com/m/v1 \(bad module path inferred from directory in GOPATH: major version suffixes must be in the form of /vN and are only allowed for v2 or later\)(.*)Example usage:(.*)''go mod init example.com/m'' to initialize a v0 or v1 module(.*)''go mod init example.com/m/v2'' to initialize a v2 module(.*)Run ''go help mod init'' for more information.$'
+stderr '(?s)^go: cannot determine module path for source directory (.*v1) \(bad module path inferred from directory in GOPATH: major version suffixes must be in the form of /vN and are only allowed for v2 or later\)(.*)'
 
 cd $GOPATH/src/example.com/m/v2
 go mod init
 stderr '^go: creating new go.mod: module example.com/m/v2$'
+
+cd $GOPATH/src/gopkg.in/m
+! go mod init
+stderr '(?s)^go: cannot determine module path for source directory (.*m) \(bad module path inferred from directory in GOPATH: module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN\)(.*)'
 
 -- go.mod --
 module example.com
@@ -41,4 +45,6 @@ package main
 -- example.com/m/v1/main.go --
 package main
 -- example.com/m/v2/main.go --
+package main
+-- gopkg.in/m/main.go --
 package main
