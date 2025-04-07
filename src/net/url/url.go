@@ -1278,7 +1278,7 @@ func validUserinfo(s string) bool {
 		}
 		switch r {
 		case '-', '.', '_', ':', '~', '!', '$', '&', '\'',
-			'(', ')', '*', '+', ',', ';', '=', '%', '@':
+			'(', ')', '*', '+', ',', ';', '=', '%':
 			continue
 		default:
 			return false
