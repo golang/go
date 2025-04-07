@@ -24,11 +24,6 @@ type maptype = abi.SwissMapType
 //go:linkname maps_errNilAssign internal/runtime/maps.errNilAssign
 var maps_errNilAssign error = plainError("assignment to entry in nil map")
 
-//go:linkname maps_mapKeyError internal/runtime/maps.mapKeyError
-func maps_mapKeyError(t *abi.SwissMapType, p unsafe.Pointer) error {
-	return mapKeyError(t, p)
-}
-
 func makemap64(t *abi.SwissMapType, hint int64, m *maps.Map) *maps.Map {
 	if int64(int(hint)) != hint {
 		hint = 0

@@ -14,6 +14,11 @@ import (
 	"unsafe"
 )
 
+//go:linkname maps_typeString internal/runtime/maps.typeString
+func maps_typeString(typ *abi.Type) string {
+	return toRType(typ).string()
+}
+
 type nameOff = abi.NameOff
 type typeOff = abi.TypeOff
 type textOff = abi.TextOff

@@ -806,3 +806,89 @@ func (m *Map) Clone(typ *abi.SwissMapType) *Map {
 
 	return m
 }
+
+func OldMapKeyError(t *abi.OldMapType, p unsafe.Pointer) error {
+	if !t.HashMightPanic() {
+		return nil
+	}
+	return mapKeyError2(t.Key, p)
+}
+
+func mapKeyError(t *abi.SwissMapType, p unsafe.Pointer) error {
+	if !t.HashMightPanic() {
+		return nil
+	}
+	return mapKeyError2(t.Key, p)
+}
+
+func mapKeyError2(t *abi.Type, p unsafe.Pointer) error {
+	if t.TFlag&abi.TFlagRegularMemory != 0 {
+		return nil
+	}
+	switch t.Kind() {
+	case abi.Float32, abi.Float64, abi.Complex64, abi.Complex128, abi.String:
+		return nil
+	case abi.Interface:
+		i := (*abi.InterfaceType)(unsafe.Pointer(t))
+		var t *abi.Type
+		var pdata *unsafe.Pointer
+		if len(i.Methods) == 0 {
+			a := (*abi.EmptyInterface)(p)
+			t = a.Type
+			if t == nil {
+				return nil
+			}
+			pdata = &a.Data
+		} else {
+			a := (*abi.NonEmptyInterface)(p)
+			if a.ITab == nil {
+				return nil
+			}
+			t = a.ITab.Type
+			pdata = &a.Data
+		}
+
+		if t.Equal == nil {
+			return unhashableTypeError{t}
+		}
+
+		if t.Kind_&abi.KindDirectIface != 0 {
+			return mapKeyError2(t, unsafe.Pointer(pdata))
+		} else {
+			return mapKeyError2(t, *pdata)
+		}
+	case abi.Array:
+		a := (*abi.ArrayType)(unsafe.Pointer(t))
+		for i := uintptr(0); i < a.Len; i++ {
+			if err := mapKeyError2(a.Elem, unsafe.Pointer(uintptr(p)+i*a.Elem.Size_)); err != nil {
+				return err
+			}
+		}
+		return nil
+	case abi.Struct:
+		s := (*abi.StructType)(unsafe.Pointer(t))
+		for _, f := range s.Fields {
+			if f.Name.IsBlank() {
+				continue
+			}
+			if err := mapKeyError2(f.Typ, unsafe.Pointer(uintptr(p)+f.Offset)); err != nil {
+				return err
+			}
+		}
+		return nil
+	default:
+		// Should never happen, keep this case for robustness.
+		return unhashableTypeError{t}
+	}
+}
+
+type unhashableTypeError struct{ typ *abi.Type }
+
+func (unhashableTypeError) RuntimeError() {}
+
+func (e unhashableTypeError) Error() string { return "hash of unhashable type: " + typeString(e.typ) }
+
+// Pushed from runtime
+//
+//go:linkname typeString
+func typeString(typ *abi.Type) string

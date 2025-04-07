@@ -59,6 +59,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"internal/runtime/atomic"
+	"internal/runtime/maps"
 	"internal/runtime/math"
 	"internal/runtime/sys"
 	"unsafe"
@@ -426,7 +427,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 		asanread(key, t.Key.Size_)
 	}
 	if h == nil || h.count == 0 {
-		if err := mapKeyError(t, key); err != nil {
+		if err := maps.OldMapKeyError(t, key); err != nil {
 			panic(err) // see issue 23734
 		}
 		return unsafe.Pointer(&zeroVal[0])
@@ -496,7 +497,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 		asanread(key, t.Key.Size_)
 	}
 	if h == nil || h.count == 0 {
-		if err := mapKeyError(t, key); err != nil {
+		if err := maps.OldMapKeyError(t, key); err != nil {
 			panic(err) // see issue 23734
 		}
 		return unsafe.Pointer(&zeroVal[0]), false
@@ -757,7 +758,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 		asanread(key, t.Key.Size_)
 	}
 	if h == nil || h.count == 0 {
-		if err := mapKeyError(t, key); err != nil {
+		if err := maps.OldMapKeyError(t, key); err != nil {
 			panic(err) // see issue 23734
 		}
 		return

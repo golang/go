@@ -25,3 +25,9 @@ type EmptyInterface struct {
 	Type *Type
 	Data unsafe.Pointer
 }
+
+// EmptyInterface describes the layout of an interface that contains any methods.
+type NonEmptyInterface struct {
+	ITab *ITab
+	Data unsafe.Pointer
+}
