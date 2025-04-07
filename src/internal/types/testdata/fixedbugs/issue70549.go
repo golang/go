@@ -7,9 +7,9 @@ package p
 import "math"
 
 var (
-	_ = math.Sin
-	_ = math.SIn /* ERROR "undefined: math.SIn (but have Sin)" */
-	_ = math.sin /* ERROR "name sin not exported by package math" */
-	_ = math.Foo /* ERROR "undefined: math.Foo" */
-	_ = math.foo /* ERROR "undefined: math.foo" */
+	_ = math.Sqrt
+	_ = math.SQrt /* ERROR "undefined: math.SQrt (but have Sqrt)" */
+	_ = math.sqrt /* ERROR "name sqrt not exported by package math" */
+	_ = math.Foo  /* ERROR "undefined: math.Foo" */
+	_ = math.foo  /* ERROR "undefined: math.foo" */
 )
