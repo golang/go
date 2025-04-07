@@ -671,10 +671,7 @@ type p struct {
 	runnext guintptr
 
 	// Available G's (status == Gdead)
-	gFree struct {
-		gList
-		n int32
-	}
+	gFree gList
 
 	sudogcache []*sudog
 	sudogbuf   [128]*sudog
@@ -785,8 +782,7 @@ type schedt struct {
 	needspinning atomic.Uint32 // See "Delicate dance" comment in proc.go. Boolean. Must hold sched.lock to set to 1.
 
 	// Global runnable queue.
-	runq     gQueue
-	runqsize int32
+	runq gQueue
 
 	// disable controls selective disabling of the scheduler.
 	//
@@ -797,7 +793,6 @@ type schedt struct {
 		// user disables scheduling of user goroutines.
 		user     bool
 		runnable gQueue // pending runnable Gs
-		n        int32  // length of runnable
 	}
 
 	// Global cache of dead G's.
@@ -805,7 +800,6 @@ type schedt struct {
 		lock    mutex
 		stack   gList // Gs with stacks
 		noStack gList // Gs without stacks
-		n       int32
 	}
 
 	// Central cache of sudog structs.

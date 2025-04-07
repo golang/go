@@ -1512,9 +1512,9 @@ func gcBgMarkWorker(ready chan struct{}) {
 					// everything out of the run
 					// queue so it can run
 					// somewhere else.
-					if drainQ, n := runqdrain(pp); n > 0 {
+					if drainQ := runqdrain(pp); !drainQ.empty() {
 						lock(&sched.lock)
-						globrunqputbatch(&drainQ, int32(n))
+						globrunqputbatch(&drainQ)
 						unlock(&sched.lock)
 					}
 				}

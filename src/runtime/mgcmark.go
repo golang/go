@@ -301,15 +301,15 @@ func markrootFreeGStacks() {
 	}
 
 	// Free stacks.
-	q := gQueue{list.head, list.head}
+	var tail *g
 	for gp := list.head.ptr(); gp != nil; gp = gp.schedlink.ptr() {
+		tail = gp
 		stackfree(gp.stack)
 		gp.stack.lo = 0
 		gp.stack.hi = 0
-		// Manipulate the queue directly since the Gs are
-		// already all linked the right way.
-		q.tail.set(gp)
 	}
+
+	q := gQueue{list.head, tail.guintptr(), list.size}
 
 	// Put Gs back on the free list.
 	lock(&sched.gFree.lock)
