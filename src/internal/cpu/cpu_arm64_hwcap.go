@@ -67,9 +67,14 @@ func hwcapInit(os string) {
 		// d40 - NeoverseV1
 		// d49 - NeoverseN2
 		// d4f - NeoverseV2
-		if implementer == 'A' && (part_num == 0xd0c || part_num == 0xd40 ||
-			part_num == 0xd49 || part_num == 0xd4f) {
-			ARM64.IsNeoverse = true
+		// d8e - NeoverseN3
+		// d84 - NeoverseV3
+		// d83 - NeoverseV3ae
+		if implementer == 'A' {
+			switch part_num {
+			case 0xd0c, 0xd40, 0xd49, 0xd4f, 0xd8e, 0xd84, 0xd83:
+				ARM64.IsNeoverse = true
+			}
 		}
 	}
 }
