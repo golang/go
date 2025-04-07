@@ -175,9 +175,6 @@ func TestIntendedInlining(t *testing.T) {
 		},
 		"math/big": {
 			"bigEndianWord",
-			// The following functions require the math_big_pure_go build tag.
-			"addVW",
-			"subVW",
 		},
 		"math/rand": {
 			"(*rngSource).Int63",

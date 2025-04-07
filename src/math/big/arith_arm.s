@@ -58,66 +58,6 @@ E2:
 	RET
 
 
-// func addVW(z, x []Word, y Word) (c Word)
-TEXT ·addVW(SB),NOSPLIT,$0
-	MOVW	z+0(FP), R1
-	MOVW	z_len+4(FP), R4
-	MOVW	x+12(FP), R2
-	MOVW	y+24(FP), R3
-	ADD	R4<<2, R1, R4
-	TEQ	R1, R4
-	BNE L3a
-	MOVW	R3, c+28(FP)
-	RET
-L3a:
-	MOVW.P	4(R2), R5
-	ADD.S	R3, R5
-	MOVW.P	R5, 4(R1)
-	B	E3
-L3:
-	MOVW.P	4(R2), R5
-	ADC.S	$0, R5
-	MOVW.P	R5, 4(R1)
-E3:
-	TEQ	R1, R4
-	BNE	L3
-
-	MOVW	$0, R0
-	MOVW.CS	$1, R0
-	MOVW	R0, c+28(FP)
-	RET
-
-
-// func subVW(z, x []Word, y Word) (c Word)
-TEXT ·subVW(SB),NOSPLIT,$0
-	MOVW	z+0(FP), R1
-	MOVW	z_len+4(FP), R4
-	MOVW	x+12(FP), R2
-	MOVW	y+24(FP), R3
-	ADD	R4<<2, R1, R4
-	TEQ	R1, R4
-	BNE L4a
-	MOVW	R3, c+28(FP)
-	RET
-L4a:
-	MOVW.P	4(R2), R5
-	SUB.S	R3, R5
-	MOVW.P	R5, 4(R1)
-	B	E4
-L4:
-	MOVW.P	4(R2), R5
-	SBC.S	$0, R5
-	MOVW.P	R5, 4(R1)
-E4:
-	TEQ	R1, R4
-	BNE	L4
-
-	MOVW	$0, R0
-	MOVW.CC	$1, R0
-	MOVW	R0, c+28(FP)
-	RET
-
-
 // func lshVU(z, x []Word, s uint) (c Word)
 TEXT ·lshVU(SB),NOSPLIT,$0
 	MOVW	z_len+4(FP), R5

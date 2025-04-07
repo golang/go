@@ -60,51 +60,6 @@ E2:	CMPL BX, BP		// i < n
 	RET
 
 
-// func addVW(z, x []Word, y Word) (c Word)
-TEXT ·addVW(SB),NOSPLIT,$0
-	MOVL z+0(FP), DI
-	MOVL x+12(FP), SI
-	MOVL y+24(FP), AX	// c = y
-	MOVL z_len+4(FP), BP
-	MOVL $0, BX		// i = 0
-	JMP E3
-
-L3:	ADDL (SI)(BX*4), AX
-	MOVL AX, (DI)(BX*4)
-	SBBL AX, AX		// save CF
-	NEGL AX
-	ADDL $1, BX		// i++
-
-E3:	CMPL BX, BP		// i < n
-	JL L3
-
-	MOVL AX, c+28(FP)
-	RET
-
-
-// func subVW(z, x []Word, y Word) (c Word)
-TEXT ·subVW(SB),NOSPLIT,$0
-	MOVL z+0(FP), DI
-	MOVL x+12(FP), SI
-	MOVL y+24(FP), AX	// c = y
-	MOVL z_len+4(FP), BP
-	MOVL $0, BX		// i = 0
-	JMP E4
-
-L4:	MOVL (SI)(BX*4), DX
-	SUBL AX, DX
-	MOVL DX, (DI)(BX*4)
-	SBBL AX, AX		// save CF
-	NEGL AX
-	ADDL $1, BX		// i++
-
-E4:	CMPL BX, BP		// i < n
-	JL L4
-
-	MOVL AX, c+28(FP)
-	RET
-
-
 // func lshVU(z, x []Word, s uint) (c Word)
 TEXT ·lshVU(SB),NOSPLIT,$0
 	MOVL z_len+4(FP), BX	// i = z

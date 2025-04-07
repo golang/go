@@ -12,12 +12,6 @@ TEXT ·addVV(SB),NOSPLIT,$0
 TEXT ·subVV(SB),NOSPLIT,$0
 	JMP ·subVV_g(SB)
 
-TEXT ·addVW(SB),NOSPLIT,$0
-	JMP ·addVW_g(SB)
-
-TEXT ·subVW(SB),NOSPLIT,$0
-	JMP ·subVW_g(SB)
-
 TEXT ·lshVU(SB),NOSPLIT,$0
 	JMP ·lshVU_g(SB)
 

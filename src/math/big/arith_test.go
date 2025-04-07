@@ -28,8 +28,8 @@ var shifts = []uint{1, 2, 3, _W/4 - 1, _W / 4, _W/4 + 1, _W/2 - 1, _W / 2, _W/2 
 
 func TestAddVV(t *testing.T)      { testVV(t, "addVV", addVV, addVV_g) }
 func TestSubVV(t *testing.T)      { testVV(t, "subVV", subVV, subVV_g) }
-func TestAddVW(t *testing.T)      { testVW(t, "addVW", addVW, addVW_g, words4) }
-func TestSubVW(t *testing.T)      { testVW(t, "subVW", subVW, subVW_g, words4) }
+func TestAddVW(t *testing.T)      { testVW(t, "addVW", addVW, addVW_ref, words4) }
+func TestSubVW(t *testing.T)      { testVW(t, "subVW", subVW, subVW_ref, words4) }
 func TestLshVU(t *testing.T)      { testVU(t, "lshVU", lshVU, lshVU_g, shifts) }
 func TestRshVU(t *testing.T)      { testVU(t, "rshVU", rshVU, rshVU_g, shifts) }
 func TestMulAddVWW(t *testing.T)  { testVWW(t, "mulAddVWW", mulAddVWW, mulAddVWW_g, muls) }
@@ -865,21 +865,15 @@ func benchVV(fn func(z, x, y []Word) Word) benchFunc {
 }
 
 func BenchmarkAddVW(b *testing.B) {
-	bench(b, "/impl=asm/data=random", benchVW(addVW, 123))
-	bench(b, "/impl=asm/data=carry", benchCarryVW(addVW, ^Word(0), 1))
-	bench(b, "/impl=asm/data=shortcut", benchShortVW(addVW, 123))
-	bench(b, "/impl=go/data=random", benchVW(addVW_g, 123))
-	bench(b, "/impl=go/data=carry", benchCarryVW(addVW_g, ^Word(0), 1))
-	bench(b, "/impl=go/data=shortcut", benchShortVW(addVW_g, 123))
+	bench(b, "/data=random", benchVW(addVW, 123))
+	bench(b, "/data=carry", benchCarryVW(addVW, ^Word(0), 1))
+	bench(b, "/data=shortcut", benchShortVW(addVW, 123))
 }
 
 func BenchmarkSubVW(b *testing.B) {
-	bench(b, "/impl=asm/data=random", benchVW(subVW, 123))
-	bench(b, "/impl=asm/data=carry", benchCarryVW(subVW, 0, 1))
-	bench(b, "/impl=asm/data=shortcut", benchShortVW(subVW, 123))
-	bench(b, "/impl=go/data=random", benchVW(subVW_g, 123))
-	bench(b, "/impl=go/data=carry", benchCarryVW(subVW_g, 0, 1))
-	bench(b, "/impl=go/data=shortcut", benchShortVW(subVW_g, 123))
+	bench(b, "/data=random", benchVW(subVW, 123))
+	bench(b, "/data=carry", benchCarryVW(subVW, 0, 1))
+	bench(b, "/data=shortcut", benchShortVW(subVW, 123))
 }
 
 func benchVW(fn func(z, x []Word, w Word) Word, w Word) benchFunc {

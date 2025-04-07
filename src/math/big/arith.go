@@ -10,7 +10,10 @@
 
 package big
 
-import "math/bits"
+import (
+	"math/bits"
+	_ "unsafe" // for go:linkname
+)
 
 // A Word represents a single digit of a multi-precision unsigned integer.
 type Word uint
@@ -82,11 +85,50 @@ func subVV_g(z, x, y []Word) (c Word) {
 	return
 }
 
-// The resulting carry c is either 0 or 1.
-func addVW_g(z, x []Word, y Word) (c Word) {
+// addVW sets z = x + y, returning the final carry c.
+// The behavior is undefined if len(x) != len(z).
+// If len(z) == 0, c = y; otherwise, c is 0 or 1.
+//
+// addVW should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/remyoudompheng/bigfft
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname addVW
+func addVW(z, x []Word, y Word) (c Word) {
+	x = x[:len(z)]
+	if len(z) == 0 {
+		return y
+	}
+	zi, cc := bits.Add(uint(x[0]), uint(y), 0)
+	z[0] = Word(zi)
+	if cc == 0 {
+		if &z[0] != &x[0] {
+			copy(z[1:], x[1:])
+		}
+		return 0
+	}
+	for i := 1; i < len(z); i++ {
+		xi := x[i]
+		if xi != ^Word(0) {
+			z[i] = xi + 1
+			if &z[0] != &x[0] {
+				copy(z[i+1:], x[i+1:])
+			}
+			return 0
+		}
+		z[i] = 0
+	}
+	return 1
+}
+
+// addVW_ref is the reference implementation for addVW, used only for testing.
+func addVW_ref(z, x []Word, y Word) (c Word) {
 	c = y
-	// The comment near the top of this file discusses this for loop condition.
-	for i := 0; i < len(z) && i < len(x); i++ {
+	for i := range z {
 		zi, cc := bits.Add(uint(x[i]), uint(c), 0)
 		z[i] = Word(zi)
 		c = Word(cc)
@@ -94,53 +136,55 @@ func addVW_g(z, x []Word, y Word) (c Word) {
 	return
 }
 
-// addVWlarge is addVW, but intended for large z.
-// The only difference is that we check on every iteration
-// whether we are done with carries,
-// and if so, switch to a much faster copy instead.
-// This is only a good idea for large z,
-// because the overhead of the check and the function call
-// outweigh the benefits when z is small.
-func addVWlarge(z, x []Word, y Word) (c Word) {
-	c = y
-	// The comment near the top of this file discusses this for loop condition.
-	for i := 0; i < len(z) && i < len(x); i++ {
-		if c == 0 {
-			copy(z[i:], x[i:])
-			return
-		}
-		zi, cc := bits.Add(uint(x[i]), uint(c), 0)
-		z[i] = Word(zi)
-		c = Word(cc)
+// subVW sets z = x - y, returning the final carry c.
+// The behavior is undefined if len(x) != len(z).
+// If len(z) == 0, c = y; otherwise, c is 0 or 1.
+//
+// subVW should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/remyoudompheng/bigfft
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname subVW
+func subVW(z, x []Word, y Word) (c Word) {
+	x = x[:len(z)]
+	if len(z) == 0 {
+		return y
 	}
-	return
+	zi, cc := bits.Sub(uint(x[0]), uint(y), 0)
+	z[0] = Word(zi)
+	if cc == 0 {
+		if &z[0] != &x[0] {
+			copy(z[1:], x[1:])
+		}
+		return 0
+	}
+	for i := 1; i < len(z); i++ {
+		xi := x[i]
+		if xi != 0 {
+			z[i] = xi - 1
+			if &z[0] != &x[0] {
+				copy(z[i+1:], x[i+1:])
+			}
+			return 0
+		}
+		z[i] = ^Word(0)
+	}
+	return 1
 }
 
-func subVW_g(z, x []Word, y Word) (c Word) {
+// subVW_ref is the reference implementation for subVW, used only for testing.
+func subVW_ref(z, x []Word, y Word) (c Word) {
 	c = y
-	// The comment near the top of this file discusses this for loop condition.
-	for i := 0; i < len(z) && i < len(x); i++ {
+	for i := range z {
 		zi, cc := bits.Sub(uint(x[i]), uint(c), 0)
 		z[i] = Word(zi)
 		c = Word(cc)
 	}
-	return
-}
-
-// subVWlarge is to subVW as addVWlarge is to addVW.
-func subVWlarge(z, x []Word, y Word) (c Word) {
-	c = y
-	// The comment near the top of this file discusses this for loop condition.
-	for i := 0; i < len(z) && i < len(x); i++ {
-		if c == 0 {
-			copy(z[i:], x[i:])
-			return
-		}
-		zi, cc := bits.Sub(uint(x[i]), uint(c), 0)
-		z[i] = Word(zi)
-		c = Word(cc)
-	}
-	return
+	return c
 }
 
 func lshVU_g(z, x []Word, s uint) (c Word) {
