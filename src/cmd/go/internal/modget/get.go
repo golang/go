@@ -133,13 +133,13 @@ var HelpVCS = &base.Command{
 	UsageLine: "vcs",
 	Short:     "controlling version control with GOVCS",
 	Long: `
-The 'go get' command can run version control commands like git
+The go command can run version control commands like git
 to download imported code. This functionality is critical to the decentralized
 Go package ecosystem, in which code can be imported from any server,
 but it is also a potential security problem, if a malicious server finds a
 way to cause the invoked version control command to run unintended code.
 
-To balance the functionality and security concerns, the 'go get' command
+To balance the functionality and security concerns, the go command
 by default will only use git and hg to download code from public servers.
 But it will use any known version control system (bzr, fossil, git, hg, svn)
 to download code from private servers, defined as those hosting packages
@@ -151,8 +151,8 @@ authenticated environments and are not as well scrutinized as attack surfaces.
 
 The version control command restrictions only apply when using direct version
 control access to download code. When downloading modules from a proxy,
-'go get' uses the proxy protocol instead, which is always permitted.
-By default, the 'go get' command uses the Go module mirror (proxy.golang.org)
+the go command uses the proxy protocol instead, which is always permitted.
+By default, the go command uses the Go module mirror (proxy.golang.org)
 for public packages and only falls back to version control for private
 packages or when the mirror refuses to serve a public package (typically for
 legal reasons). Therefore, clients can still access public code served from

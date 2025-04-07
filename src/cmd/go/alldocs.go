@@ -267,12 +267,14 @@
 // prints the disassembly for fmt and all its dependencies.
 //
 // For more about specifying packages, see 'go help packages'.
-// For more about where packages and binaries are installed,
-// run 'go help gopath'.
+// For more about where binaries are installed, run 'go help gopath'.
 // For more about calling between Go and C/C++, run 'go help c'.
+// For more about project organization, run 'go help modules'.
 //
-// Note: Build adheres to certain conventions such as those described
-// by 'go help gopath'. Not all projects can follow these conventions,
+// Note: go build adheres to certain conventions for organizing projects:
+// it primarily supports go modules (see 'go help modules') while
+// also supporting an alternative GOPATH mode (see 'go help gopath').
+// Not all projects can follow these conventions,
 // however. Installations that have their own conventions or that use
 // a separate software build system may choose to use lower-level
 // invocations such as 'go tool compile' and 'go tool link' to avoid
@@ -2742,19 +2744,41 @@
 //
 // # GOPATH environment variable
 //
-// The Go path is used to resolve import statements.
-// It is implemented by and documented in the go/build package.
+// The GOPATH environment variable is used to change the default
+// location to store the module cache and installed binaries, if
+// not overridden by GOMODCACHE and GOBIN respectively.
 //
-// The GOPATH environment variable lists places to look for Go code.
-// On Unix, the value is a colon-separated string.
-// On Windows, the value is a semicolon-separated string.
-// On Plan 9, the value is a list.
-//
+// Most users don't need to explicitly set GOPATH.
 // If the environment variable is unset, GOPATH defaults
 // to a subdirectory named "go" in the user's home directory
 // ($HOME/go on Unix, %USERPROFILE%\go on Windows),
 // unless that directory holds a Go distribution.
 // Run "go env GOPATH" to see the current GOPATH.
+//
+// The module cache is stored in the directory specified by
+// GOPATH/pkg/mod. If GOMODCACHE is set, it will be used
+// as the directory to store the module cache instead.
+//
+// Executables installed using 'go install' are placed in the
+// directory specified by GOPATH/bin or, if GOBIN is set, by GOBIN.
+//
+// # GOPATH mode
+//
+// The GOPATH environment variable is also used by a legacy behavior of the
+// toolchain called GOPATH mode that allows some older projects, created before
+// modules were introduced in Go 1.11 and never updated to use modules,
+// to continue to build.
+//
+// GOPATH mode is enabled when modules are disabled, either when GO111MODULE=off,
+// or when GO111MODULE=auto, and the working directory is not in a module or workspace.
+//
+// In GOPATH mode, packages are located using the GOPATH environment variable,
+// which specifies a list of paths to search:
+// On Unix, the value is a colon-separated string.
+// On Windows, the value is a semicolon-separated string.
+// On Plan 9, the value is a list.
+// The first element of this list is used to set the default module cache and
+// binary install directory locations as described above.
 //
 // See https://golang.org/wiki/SettingGOPATH to set a custom GOPATH.
 //
@@ -2806,47 +2830,9 @@
 //
 // See https://golang.org/doc/code.html for an example.
 //
-// # GOPATH and Modules
+// # GOPATH mode vendor directories
 //
-// When using modules, GOPATH is no longer used for resolving imports.
-// However, it is still used to store downloaded source code (in GOPATH/pkg/mod)
-// and compiled commands (in GOPATH/bin).
-//
-// # Internal Directories
-//
-// Code in or below a directory named "internal" is importable only
-// by code in the directory tree rooted at the parent of "internal".
-// Here's an extended version of the directory layout above:
-//
-//	/home/user/go/
-//	    src/
-//	        crash/
-//	            bang/              (go code in package bang)
-//	                b.go
-//	        foo/                   (go code in package foo)
-//	            f.go
-//	            bar/               (go code in package bar)
-//	                x.go
-//	            internal/
-//	                baz/           (go code in package baz)
-//	                    z.go
-//	            quux/              (go code in package main)
-//	                y.go
-//
-// The code in z.go is imported as "foo/internal/baz", but that
-// import statement can only appear in source files in the subtree
-// rooted at foo. The source files foo/f.go, foo/bar/x.go, and
-// foo/quux/y.go can all import "foo/internal/baz", but the source file
-// crash/bang/b.go cannot.
-//
-// See https://golang.org/s/go14internal for details.
-//
-// # Vendor Directories
-//
-// Go 1.6 includes support for using local copies of external dependencies
-// to satisfy imports of those dependencies, often referred to as vendoring.
-//
-// Code below a directory named "vendor" is importable only
+// In GOPATH mode, code below a directory named "vendor" is importable only
 // by code in the directory tree rooted at the parent of "vendor",
 // and only using an import path that omits the prefix up to and
 // including the vendor element.
@@ -2876,22 +2862,18 @@
 // The same visibility rules apply as for internal, but the code
 // in z.go is imported as "baz", not as "foo/vendor/baz".
 //
-// Code in vendor directories deeper in the source tree shadows
+// Code in GOPATH mode vendor directories deeper in the source tree shadows
 // code in higher directories. Within the subtree rooted at foo, an import
 // of "crash/bang" resolves to "foo/vendor/crash/bang", not the
 // top-level "crash/bang".
 //
-// Code in vendor directories is not subject to import path
-// checking (see 'go help importpath').
+// Code in GOPATH mode vendor directories is not subject to
+// GOPATH mode import path checking (see 'go help importpath').
 //
-// When 'go get' checks out or updates a git repository, it now also
-// updates submodules.
+// See https://go.dev/s/go15vendor for details.
 //
-// Vendor directories do not affect the placement of new repositories
-// being checked out for the first time by 'go get': those are always
-// placed in the main GOPATH, never in a vendor subtree.
-//
-// See https://golang.org/s/go15vendor for details.
+// See https://go.dev/ref/mod#vendoring for details about vendoring in
+// module mode.
 //
 // # Module proxy protocol
 //
@@ -2907,40 +2889,45 @@
 //
 // An import path (see 'go help packages') denotes a package stored in the local
 // file system. In general, an import path denotes either a standard package (such
-// as "unicode/utf8") or a package found in one of the work spaces (For more
-// details see: 'go help gopath').
+// as "unicode/utf8") or a package found in a module (For more
+// details see: 'go help modules').
 //
-// # Relative import paths
+// # Internal Packages
 //
-// An import path beginning with ./ or ../ is called a relative path.
-// The toolchain supports relative import paths as a shortcut in two ways.
+// Code in or below a directory named "internal" is importable only
+// by code that shares the same import path above the internal directory.
+// Here's an example directory layout of a module example.com/m:
 //
-// First, a relative path can be used as a shorthand on the command line.
-// If you are working in the directory containing the code imported as
-// "unicode" and want to run the tests for "unicode/utf8", you can type
-// "go test ./utf8" instead of needing to specify the full path.
-// Similarly, in the reverse situation, "go test .." will test "unicode" from
-// the "unicode/utf8" directory. Relative patterns are also allowed, like
-// "go test ./..." to test all subdirectories. See 'go help packages' for details
-// on the pattern syntax.
+//	/home/user/modules/m/
+//	        go.mod                 (declares module example.com/m)
+//	        crash/
+//	            bang/              (go code in package bang)
+//	                b.go
+//	        foo/                   (go code in package foo)
+//	            f.go
+//	            bar/               (go code in package bar)
+//	                x.go
+//	            internal/
+//	                baz/           (go code in package baz)
+//	                    z.go
+//	            quux/              (go code in package quux)
+//	                y.go
 //
-// Second, if you are compiling a Go program not in a work space,
-// you can use a relative path in an import statement in that program
-// to refer to nearby code also not in a work space.
-// This makes it easy to experiment with small multipackage programs
-// outside of the usual work spaces, but such programs cannot be
-// installed with "go install" (there is no work space in which to install them),
-// so they are rebuilt from scratch each time they are built.
-// To avoid ambiguity, Go programs cannot use relative import paths
-// within a work space.
+// The code in z.go is imported as "example.com/m/foo/internal/baz", but that
+// import statement can only appear in packages with the import path prefix
+// "example.com/m/foo". The packages "example.com/m/foo", "example.com/m/foo/bar", and
+// "example.com/m/foo/quux" can all import "foo/internal/baz", but the package
+// "example.com/m/crash/bang" cannot.
 //
-// # Remote import paths
+// See https://golang.org/s/go14internal for details.
 //
-// Certain import paths also
-// describe how to obtain the source code for the package using
-// a revision control system.
+// # Fully-qualified import paths
 //
-// A few common code hosting sites have special syntax:
+// A fully-qualified import path for a package not belonging to the standard library
+// starts with the path of the module the package to which the package belongs. The module's path
+// specifies where to obtain the source code for the module.
+//
+// Import paths belonging to modules hosted on common code hosting sites have special syntax:
 //
 //	Bitbucket (Git, Mercurial)
 //
@@ -2966,7 +2953,7 @@
 //		import "hub.jazz.net/git/user/project"
 //		import "hub.jazz.net/git/user/project/sub/directory"
 //
-// For code hosted on other servers, import paths may either be qualified
+// For modules hosted on other servers, import paths may either be qualified
 // with the version control type, or the go tool can dynamically fetch
 // the import path over https/http and discover where the code resides
 // from a <meta> tag in the HTML.
@@ -3064,10 +3051,10 @@
 // tag and then download the code from the "foo/subdir" subdirectory within the Git repository
 // at https://code.org/r/p/exproj
 //
-// Downloaded packages are stored in the module cache.
+// Downloaded modules are stored in the module cache.
 // See https://golang.org/ref/mod#module-cache.
 //
-// When using modules, an additional variant of the go-import meta tag is
+// An additional variant of the go-import meta tag is
 // recognized and is preferred over those listing version control systems.
 // That variant uses "mod" as the vcs in the content value, as in:
 //
@@ -3077,32 +3064,6 @@
 // from the module proxy available at the URL https://code.org/moduleproxy.
 // See https://golang.org/ref/mod#goproxy-protocol for details about the
 // proxy protocol.
-//
-// # Import path checking
-//
-// When the custom import path feature described above redirects to a
-// known code hosting site, each of the resulting packages has two possible
-// import paths, using the custom domain or the known hosting site.
-//
-// A package statement is said to have an "import comment" if it is immediately
-// followed (before the next newline) by a comment of one of these two forms:
-//
-//	package math // import "path"
-//	package math /* import "path" */
-//
-// The go command will refuse to install a package with an import comment
-// unless it is being referred to by that import path. In this way, import comments
-// let package authors make sure the custom import path is used and not a
-// direct path to the underlying code hosting site.
-//
-// Import path checking is disabled for code found within vendor trees.
-// This makes it possible to copy code into alternate locations in vendor trees
-// without needing to update import comments.
-//
-// Import path checking is also disabled when using modules.
-// Import path comments are obsoleted by the go.mod file's module statement.
-//
-// See https://golang.org/s/go14customimport for details.
 //
 // # Modules, module versions, and more
 //
@@ -3151,21 +3112,34 @@
 // a . or .. element is interpreted as a file system path and
 // denotes the package in that directory.
 //
-// Otherwise, the import path P denotes the package found in
-// the directory DIR/src/P for some DIR listed in the GOPATH
-// environment variable (For more details see: 'go help gopath').
+// An import path beginning with ./ or ../ is called a relative path.
+// A relative path can be used as a shorthand on the command line.
+// If you are working in the directory containing the code imported as
+// "unicode" and want to run the tests for "unicode/utf8", you can type
+// "go test ./utf8" instead of needing to specify the full path.
+// Similarly, in the reverse situation, "go test .." will test "unicode" from
+// the "unicode/utf8" directory. Relative patterns are also allowed, like
+// "go test ./..." to test all subdirectories. See 'go help packages' for details
+// on the pattern syntax.
+//
+// Otherwise, the import path P denotes a package found in
+// one of the modules in the build list. The "build list" is the
+// list of module versions used for a build.
+// See https://go.dev/ref/mod#glos-build-list for more details.
 //
 // If no import paths are given, the action applies to the
 // package in the current directory.
 //
-// There are five reserved names for paths that should not be used
+// There are several reserved names for paths that should not be used
 // for packages to be built with the go tool:
 //
 // - "main" denotes the top-level package in a stand-alone executable.
 //
+// - "work" expands to all packages in the main module (or workspace modules).
+//
 // - "all" expands to all packages in the main module (or workspace modules) and
 // their dependencies, including dependencies needed by tests of any of those. In
-// GOPATH mode, "all" expands to all packages found in all the GOPATH trees.
+// the legacy GOPATH mode, "all" expands to all packages found in all the GOPATH trees.
 //
 // - "std" is like all but expands to just the packages in the standard
 // Go library.
@@ -3186,9 +3160,11 @@
 //
 // An import path is a pattern if it includes one or more "..." wildcards,
 // each of which can match any string, including the empty string and
-// strings containing slashes. Such a pattern expands to all package
-// directories found in the GOPATH trees with names matching the
-// patterns.
+// strings containing slashes. Such a pattern expands to all packages
+// found in directories matching the pattern, in the case of a
+// file system path pattern, or all packages found in any build list
+// module matching the pattern, otherwise. The "..." wildcard does not
+// cross module boundaries in the case of a file system path pattern.
 //
 // To make common patterns more convenient, there are two special cases.
 // First, /... at the end of the pattern can match an empty string,
@@ -3200,20 +3176,20 @@
 // Note, however, that a directory named vendor that itself contains code
 // is not a vendored package: cmd/vendor would be a command named vendor,
 // and the pattern cmd/... matches it.
-// See golang.org/s/go15vendor for more about vendoring.
+// See https://go.dev/ref/mod#vendoring for more about vendoring or
+// golang.org/s/go15vendor for vendoring in the legacy GOPATH mode.
 //
 // An import path can also name a package to be downloaded from
 // a remote repository. Run 'go help importpath' for details.
 //
 // Every package in a program must have a unique import path.
-// By convention, this is arranged by starting each path with a
-// unique prefix that belongs to you. For example, paths used
-// internally at Google all begin with 'google', and paths
-// denoting remote repositories begin with the path to the code,
-// such as 'github.com/user/repo'. Package patterns should include this prefix.
-// For instance, a package called 'http' residing under 'github.com/user/repo',
-// would be addressed with the fully-qualified pattern:
-// 'github.com/user/repo/http'.
+// Paths without a dot in the first path element are reserved
+// for the standard library, or in the case of 'example' and 'test',
+// are reserved for use in tutorials, examples, and test code.
+// In module mode, all import paths outside of the standard library
+// start with the module path. This means module paths should have
+// a dot in the first element, e.g., 'github.com/user/repo', or
+// 'example.com/project'.
 //
 // Packages in a program need not have unique package names,
 // but there are two reserved package names with special meaning.
@@ -3224,9 +3200,8 @@
 // are ignored by the go command.
 //
 // As a special case, if the package list is a list of .go files from a
-// single directory, the command is applied to a single synthesized
-// package made up of exactly those files, ignoring any build constraints
-// in those files and ignoring any other files in the directory.
+// single directory, the command is applied to a single synthesized package
+// named "command-line-arguments" made up of exactly those files.
 //
 // Directory and file names that begin with "." or "_" are ignored
 // by the go tool, as are directories named "testdata".
@@ -3632,13 +3607,13 @@
 //
 // # Controlling version control with GOVCS
 //
-// The 'go get' command can run version control commands like git
+// The go command can run version control commands like git
 // to download imported code. This functionality is critical to the decentralized
 // Go package ecosystem, in which code can be imported from any server,
 // but it is also a potential security problem, if a malicious server finds a
 // way to cause the invoked version control command to run unintended code.
 //
-// To balance the functionality and security concerns, the 'go get' command
+// To balance the functionality and security concerns, the go command
 // by default will only use git and hg to download code from public servers.
 // But it will use any known version control system (bzr, fossil, git, hg, svn)
 // to download code from private servers, defined as those hosting packages
@@ -3650,8 +3625,8 @@
 //
 // The version control command restrictions only apply when using direct version
 // control access to download code. When downloading modules from a proxy,
-// 'go get' uses the proxy protocol instead, which is always permitted.
-// By default, the 'go get' command uses the Go module mirror (proxy.golang.org)
+// the go command uses the proxy protocol instead, which is always permitted.
+// By default, the go command uses the Go module mirror (proxy.golang.org)
 // for public packages and only falls back to version control for private
 // packages or when the mirror refuses to serve a public package (typically for
 // legal reasons). Therefore, clients can still access public code served from
