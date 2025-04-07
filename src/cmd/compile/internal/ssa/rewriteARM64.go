@@ -6182,6 +6182,17 @@ func rewriteValueARM64_OpARM64GreaterEqualNoov(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (GreaterEqualNoov (FlagConstant [fc]))
+	// result: (MOVDconst [b2i(fc.geNoov())])
+	for {
+		if v_0.Op != OpARM64FlagConstant {
+			break
+		}
+		fc := auxIntToFlagConstant(v_0.AuxInt)
+		v.reset(OpARM64MOVDconst)
+		v.AuxInt = int64ToAuxInt(b2i(fc.geNoov()))
+		return true
+	}
 	// match: (GreaterEqualNoov (InvertFlags x))
 	// result: (CSINC [OpARM64NotEqual] (LessThanNoov <typ.Bool> x) (MOVDconst [0]) x)
 	for {
@@ -6918,6 +6929,17 @@ func rewriteValueARM64_OpARM64LessThanNoov(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (LessThanNoov (FlagConstant [fc]))
+	// result: (MOVDconst [b2i(fc.ltNoov())])
+	for {
+		if v_0.Op != OpARM64FlagConstant {
+			break
+		}
+		fc := auxIntToFlagConstant(v_0.AuxInt)
+		v.reset(OpARM64MOVDconst)
+		v.AuxInt = int64ToAuxInt(b2i(fc.ltNoov()))
+		return true
+	}
 	// match: (LessThanNoov (InvertFlags x))
 	// result: (CSEL0 [OpARM64NotEqual] (GreaterEqualNoov <typ.Bool> x) x)
 	for {

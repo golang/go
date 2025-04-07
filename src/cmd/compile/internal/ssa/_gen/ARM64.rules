@@ -1385,16 +1385,18 @@
 (CSNEG [cc] x y (InvertFlags cmp)) => (CSNEG [arm64Invert(cc)] x y cmp)
 
 // absorb flag constants into boolean values
-(Equal         (FlagConstant [fc])) => (MOVDconst [b2i(fc.eq())])
-(NotEqual      (FlagConstant [fc])) => (MOVDconst [b2i(fc.ne())])
-(LessThan      (FlagConstant [fc])) => (MOVDconst [b2i(fc.lt())])
-(LessThanU     (FlagConstant [fc])) => (MOVDconst [b2i(fc.ult())])
-(LessEqual     (FlagConstant [fc])) => (MOVDconst [b2i(fc.le())])
-(LessEqualU    (FlagConstant [fc])) => (MOVDconst [b2i(fc.ule())])
-(GreaterThan   (FlagConstant [fc])) => (MOVDconst [b2i(fc.gt())])
-(GreaterThanU  (FlagConstant [fc])) => (MOVDconst [b2i(fc.ugt())])
-(GreaterEqual  (FlagConstant [fc])) => (MOVDconst [b2i(fc.ge())])
-(GreaterEqualU (FlagConstant [fc])) => (MOVDconst [b2i(fc.uge())])
+(Equal             (FlagConstant [fc])) => (MOVDconst [b2i(fc.eq())])
+(NotEqual          (FlagConstant [fc])) => (MOVDconst [b2i(fc.ne())])
+(LessThan          (FlagConstant [fc])) => (MOVDconst [b2i(fc.lt())])
+(LessThanU         (FlagConstant [fc])) => (MOVDconst [b2i(fc.ult())])
+(LessEqual         (FlagConstant [fc])) => (MOVDconst [b2i(fc.le())])
+(LessEqualU        (FlagConstant [fc])) => (MOVDconst [b2i(fc.ule())])
+(GreaterThan       (FlagConstant [fc])) => (MOVDconst [b2i(fc.gt())])
+(GreaterThanU      (FlagConstant [fc])) => (MOVDconst [b2i(fc.ugt())])
+(GreaterEqual      (FlagConstant [fc])) => (MOVDconst [b2i(fc.ge())])
+(GreaterEqualU     (FlagConstant [fc])) => (MOVDconst [b2i(fc.uge())])
+(LessThanNoov      (FlagConstant [fc])) => (MOVDconst [b2i(fc.ltNoov())])
+(GreaterEqualNoov  (FlagConstant [fc])) => (MOVDconst [b2i(fc.geNoov())])
 
 // absorb InvertFlags into boolean values
 (Equal            (InvertFlags x)) => (Equal x)
