@@ -254,6 +254,9 @@ type Info struct {
 	//
 	// For an embedded field, Defs returns the field *Var it defines.
 	//
+	// In ill-typed code, such as a duplicate declaration of the
+	// same name, Defs may lack an entry for a declaring identifier.
+	//
 	// Invariant: Defs[id] == nil || Defs[id].Pos() == id.Pos()
 	Defs map[*ast.Ident]Object
 
