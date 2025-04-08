@@ -186,7 +186,7 @@ const (
 	IfOperStatusLowerLayerDown = 7
 )
 
-//sys	GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) = iphlpapi.GetAdaptersAddresses
+//sys	GetAdaptersAddresses(family uint32, flags uint32, reserved unsafe.Pointer, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) = iphlpapi.GetAdaptersAddresses
 //sys	GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
 //sys	MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) = MoveFileExW
 //sys	GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) = kernel32.GetModuleFileNameW
@@ -454,8 +454,14 @@ type FILE_FULL_DIR_INFO struct {
 //sys	GetVolumeInformationByHandle(file syscall.Handle, volumeNameBuffer *uint16, volumeNameSize uint32, volumeNameSerialNumber *uint32, maximumComponentLength *uint32, fileSystemFlags *uint32, fileSystemNameBuffer *uint16, fileSystemNameSize uint32) (err error) = GetVolumeInformationByHandleW
 //sys	GetVolumeNameForVolumeMountPoint(volumeMountPoint *uint16, volumeName *uint16, bufferlength uint32) (err error) = GetVolumeNameForVolumeMountPointW
 
-//sys	RtlLookupFunctionEntry(pc uintptr, baseAddress *uintptr, table *byte) (ret uintptr) = kernel32.RtlLookupFunctionEntry
-//sys	RtlVirtualUnwind(handlerType uint32, baseAddress uintptr, pc uintptr, entry uintptr, ctxt uintptr, data *uintptr, frame *uintptr, ctxptrs *byte) (ret uintptr) = kernel32.RtlVirtualUnwind
+type RUNTIME_FUNCTION struct {
+	BeginAddress uint32
+	EndAddress   uint32
+	UnwindData   uint32
+}
+
+//sys	RtlLookupFunctionEntry(pc uintptr, baseAddress *uintptr, table unsafe.Pointer) (ret *RUNTIME_FUNCTION) = kernel32.RtlLookupFunctionEntry
+//sys	RtlVirtualUnwind(handlerType uint32, baseAddress uintptr, pc uintptr, entry *RUNTIME_FUNCTION, ctxt unsafe.Pointer, data unsafe.Pointer, frame *uintptr, ctxptrs unsafe.Pointer) (ret uintptr) = kernel32.RtlVirtualUnwind
 
 type SERVICE_STATUS struct {
 	ServiceType             uint32
@@ -511,6 +517,9 @@ const (
 
 	PIPE_TYPE_BYTE    = 0x00000000
 	PIPE_TYPE_MESSAGE = 0x00000004
+
+	PIPE_READMODE_BYTE    = 0x00000000
+	PIPE_READMODE_MESSAGE = 0x00000002
 )
 
 //sys	CreateIoCompletionPort(filehandle syscall.Handle, cphandle syscall.Handle, key uintptr, threadcnt uint32) (handle syscall.Handle, err error)
@@ -553,9 +562,9 @@ type FILE_MODE_INFORMATION struct {
 }
 
 // NT Native APIs
-//sys   NtCreateFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, iosb *IO_STATUS_BLOCK, allocationSize *int64, attributes uint32, share uint32, disposition uint32, options uint32, eabuffer uintptr, ealength uint32) (ntstatus error) = ntdll.NtCreateFile
+//sys   NtCreateFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, iosb *IO_STATUS_BLOCK, allocationSize *int64, attributes uint32, share uint32, disposition uint32, options uint32, eabuffer unsafe.Pointer, ealength uint32) (ntstatus error) = ntdll.NtCreateFile
 //sys   NtOpenFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, iosb *IO_STATUS_BLOCK, share uint32, options uint32) (ntstatus error) = ntdll.NtOpenFile
 //sys   rtlNtStatusToDosErrorNoTeb(ntstatus NTStatus) (ret syscall.Errno) = ntdll.RtlNtStatusToDosErrorNoTeb
-//sys   NtSetInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer uintptr, inBufferLen uint32, class uint32) (ntstatus error) = ntdll.NtSetInformationFile
+//sys   NtSetInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer unsafe.Pointer, inBufferLen uint32, class uint32) (ntstatus error) = ntdll.NtSetInformationFile
 //sys	RtlIsDosDeviceName_U(name *uint16) (ret uint32) = ntdll.RtlIsDosDeviceName_U
-//sys   NtQueryInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer uintptr, inBufferLen uint32, class uint32) (ntstatus error) = ntdll.NtQueryInformationFile
+//sys   NtQueryInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer unsafe.Pointer, inBufferLen uint32, class uint32) (ntstatus error) = ntdll.NtQueryInformationFile

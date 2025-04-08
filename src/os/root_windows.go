@@ -131,7 +131,8 @@ func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File,
 	if err != nil {
 		return nil, &PathError{Op: "openat", Path: name, Err: err}
 	}
-	return newFile(fd, joinPath(root.Name(), name), "file"), nil
+	// openat always returns a non-blocking handle.
+	return newFile(fd, joinPath(root.Name(), name), "file", false), nil
 }
 
 func openat(dirfd syscall.Handle, name string, flag int, perm FileMode) (syscall.Handle, error) {
@@ -167,7 +168,7 @@ func readReparseLinkAt(dirfd syscall.Handle, name string) (string, error) {
 		syscall.FILE_SHARE_READ|syscall.FILE_SHARE_WRITE|syscall.FILE_SHARE_DELETE,
 		windows.FILE_OPEN,
 		windows.FILE_SYNCHRONOUS_IO_NONALERT|windows.FILE_OPEN_REPARSE_POINT,
-		0,
+		nil,
 		0,
 	)
 	if err != nil {

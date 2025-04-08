@@ -4,26 +4,26 @@
 
 #include "textflag.h"
 
-TEXT ·IndexByte(SB),NOSPLIT,$0-40
-	MOVD	b_base+0(FP), R0
-	MOVD	b_len+8(FP), R2
-	MOVBU	c+24(FP), R1
-	MOVD	$ret+32(FP), R8
-	B	indexbytebody<>(SB)
-
-TEXT ·IndexByteString(SB),NOSPLIT,$0-32
-	MOVD	s_base+0(FP), R0
-	MOVD	s_len+8(FP), R2
-	MOVBU	c+16(FP), R1
-	MOVD	$ret+24(FP), R8
-	B	indexbytebody<>(SB)
-
+// func IndexByte(b []byte, c byte) int
 // input:
-//   R0: data
-//   R1: byte to search
-//   R2: data len
-//   R8: address to put result
-TEXT indexbytebody<>(SB),NOSPLIT,$0
+//   R0: b ptr
+//   R1: b len
+//   R2: b cap (unused)
+//   R3: c byte to search
+// return
+//   R0: result
+TEXT ·IndexByte<ABIInternal>(SB),NOSPLIT,$0-40
+	MOVD	R3, R2
+	B	·IndexByteString<ABIInternal>(SB)
+
+// func IndexByteString(s string, c byte) int
+// input:
+//   R0: s ptr
+//   R1: s len
+//   R2: c byte to search
+// return
+//   R0: result
+TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT,$0-32
 	// Core algorithm:
 	// For each 32-byte chunk we calculate a 64-bit syndrome value,
 	// with two bits per byte. For each tuple, bit 0 is set if the
@@ -33,19 +33,19 @@ TEXT indexbytebody<>(SB),NOSPLIT,$0
 	// in the original string, counting trailing zeros allows to
 	// identify exactly which byte has matched.
 
-	CBZ	R2, fail
+	CBZ	R1, fail
 	MOVD	R0, R11
 	// Magic constant 0x40100401 allows us to identify
 	// which lane matches the requested byte.
 	// 0x40100401 = ((1<<0) + (4<<8) + (16<<16) + (64<<24))
 	// Different bytes have different bit masks (i.e: 1, 4, 16, 64)
 	MOVD	$0x40100401, R5
-	VMOV	R1, V0.B16
+	VMOV	R2, V0.B16
 	// Work with aligned 32-byte chunks
 	BIC	$0x1f, R0, R3
 	VMOV	R5, V5.S4
 	ANDS	$0x1f, R0, R9
-	AND	$0x1f, R2, R10
+	AND	$0x1f, R1, R10
 	BEQ	loop
 
 	// Input string is not 32-byte aligned. We calculate the
@@ -53,7 +53,7 @@ TEXT indexbytebody<>(SB),NOSPLIT,$0
 	// the first bytes and mask off the irrelevant part.
 	VLD1.P	(R3), [V1.B16, V2.B16]
 	SUB	$0x20, R9, R4
-	ADDS	R4, R2, R2
+	ADDS	R4, R1, R1
 	VCMEQ	V0.B16, V1.B16, V3.B16
 	VCMEQ	V0.B16, V2.B16, V4.B16
 	VAND	V5.B16, V3.B16, V3.B16
@@ -72,7 +72,7 @@ TEXT indexbytebody<>(SB),NOSPLIT,$0
 
 loop:
 	VLD1.P	(R3), [V1.B16, V2.B16]
-	SUBS	$0x20, R2, R2
+	SUBS	$0x20, R1, R1
 	VCMEQ	V0.B16, V1.B16, V3.B16
 	VCMEQ	V0.B16, V2.B16, V4.B16
 	// If we're out of data we finish regardless of the result
@@ -117,10 +117,8 @@ tail:
 	ADD	R6>>1, R3, R0
 	// Compute the offset result
 	SUB	R11, R0, R0
-	MOVD	R0, (R8)
 	RET
 
 fail:
 	MOVD	$-1, R0
-	MOVD	R0, (R8)
 	RET

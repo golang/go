@@ -13599,7 +13599,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (Load <t1> p1 (Store {t2} p2 x _))
-	// cond: isSamePtr(p1, p2) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size()
+	// cond: isSamePtr(p1, p2) && copyCompatibleType(t1, x.Type) && t1.Size() == t2.Size()
 	// result: x
 	for {
 		t1 := v.Type
@@ -13610,14 +13610,14 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		t2 := auxToType(v_1.Aux)
 		x := v_1.Args[1]
 		p2 := v_1.Args[0]
-		if !(isSamePtr(p1, p2) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size()) {
+		if !(isSamePtr(p1, p2) && copyCompatibleType(t1, x.Type) && t1.Size() == t2.Size()) {
 			break
 		}
 		v.copyOf(x)
 		return true
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 x _)))
-	// cond: isSamePtr(p1, p3) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size() && disjoint(p3, t3.Size(), p2, t2.Size())
+	// cond: isSamePtr(p1, p3) && copyCompatibleType(t1, x.Type) && t1.Size() == t3.Size() && disjoint(p3, t3.Size(), p2, t2.Size())
 	// result: x
 	for {
 		t1 := v.Type
@@ -13635,14 +13635,14 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		t3 := auxToType(v_1_2.Aux)
 		x := v_1_2.Args[1]
 		p3 := v_1_2.Args[0]
-		if !(isSamePtr(p1, p3) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size() && disjoint(p3, t3.Size(), p2, t2.Size())) {
+		if !(isSamePtr(p1, p3) && copyCompatibleType(t1, x.Type) && t1.Size() == t3.Size() && disjoint(p3, t3.Size(), p2, t2.Size())) {
 			break
 		}
 		v.copyOf(x)
 		return true
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 x _))))
-	// cond: isSamePtr(p1, p4) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size() && disjoint(p4, t4.Size(), p2, t2.Size()) && disjoint(p4, t4.Size(), p3, t3.Size())
+	// cond: isSamePtr(p1, p4) && copyCompatibleType(t1, x.Type) && t1.Size() == t4.Size() && disjoint(p4, t4.Size(), p2, t2.Size()) && disjoint(p4, t4.Size(), p3, t3.Size())
 	// result: x
 	for {
 		t1 := v.Type
@@ -13667,14 +13667,14 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		t4 := auxToType(v_1_2_2.Aux)
 		x := v_1_2_2.Args[1]
 		p4 := v_1_2_2.Args[0]
-		if !(isSamePtr(p1, p4) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size() && disjoint(p4, t4.Size(), p2, t2.Size()) && disjoint(p4, t4.Size(), p3, t3.Size())) {
+		if !(isSamePtr(p1, p4) && copyCompatibleType(t1, x.Type) && t1.Size() == t4.Size() && disjoint(p4, t4.Size(), p2, t2.Size()) && disjoint(p4, t4.Size(), p3, t3.Size())) {
 			break
 		}
 		v.copyOf(x)
 		return true
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Store {t5} p5 x _)))))
-	// cond: isSamePtr(p1, p5) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size() && disjoint(p5, t5.Size(), p2, t2.Size()) && disjoint(p5, t5.Size(), p3, t3.Size()) && disjoint(p5, t5.Size(), p4, t4.Size())
+	// cond: isSamePtr(p1, p5) && copyCompatibleType(t1, x.Type) && t1.Size() == t5.Size() && disjoint(p5, t5.Size(), p2, t2.Size()) && disjoint(p5, t5.Size(), p3, t3.Size()) && disjoint(p5, t5.Size(), p4, t4.Size())
 	// result: x
 	for {
 		t1 := v.Type
@@ -13706,7 +13706,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		t5 := auxToType(v_1_2_2_2.Aux)
 		x := v_1_2_2_2.Args[1]
 		p5 := v_1_2_2_2.Args[0]
-		if !(isSamePtr(p1, p5) && t1.Compare(x.Type) == types.CMPeq && t1.Size() == t2.Size() && disjoint(p5, t5.Size(), p2, t2.Size()) && disjoint(p5, t5.Size(), p3, t3.Size()) && disjoint(p5, t5.Size(), p4, t4.Size())) {
+		if !(isSamePtr(p1, p5) && copyCompatibleType(t1, x.Type) && t1.Size() == t5.Size() && disjoint(p5, t5.Size(), p2, t2.Size()) && disjoint(p5, t5.Size(), p3, t3.Size()) && disjoint(p5, t5.Size(), p4, t4.Size())) {
 			break
 		}
 		v.copyOf(x)

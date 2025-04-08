@@ -53,12 +53,12 @@ func TestSehLookupFunctionEntry(t *testing.T) {
 		var base uintptr
 		fn := windows.RtlLookupFunctionEntry(tt.pc, &base, nil)
 		if !tt.hasframe {
-			if fn != 0 {
+			if fn != nil {
 				t.Errorf("%s: unexpected frame", tt.name)
 			}
 			continue
 		}
-		if fn == 0 {
+		if fn == nil {
 			t.Errorf("%s: missing frame", tt.name)
 		}
 	}
@@ -75,12 +75,12 @@ func sehCallers() []uintptr {
 	var n int
 	for i := 0; i < len(pcs); i++ {
 		fn := windows.RtlLookupFunctionEntry(ctx.GetPC(), &base, nil)
-		if fn == 0 {
+		if fn == nil {
 			break
 		}
 		pcs[i] = ctx.GetPC()
 		n++
-		windows.RtlVirtualUnwind(0, base, ctx.GetPC(), fn, uintptr(unsafe.Pointer(ctx)), nil, &frame, nil)
+		windows.RtlVirtualUnwind(0, base, ctx.GetPC(), fn, unsafe.Pointer(ctx), nil, &frame, nil)
 	}
 	return pcs[:n]
 }

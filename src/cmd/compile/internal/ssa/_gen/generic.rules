@@ -736,26 +736,26 @@
 // Load of store of same address, with compatibly typed value and same size
 (Load <t1> p1 (Store {t2} p2 x _))
 	&& isSamePtr(p1, p2)
-	&& t1.Compare(x.Type) == types.CMPeq
+	&& copyCompatibleType(t1, x.Type)
 	&& t1.Size() == t2.Size()
 	=> x
 (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 x _)))
 	&& isSamePtr(p1, p3)
-	&& t1.Compare(x.Type) == types.CMPeq
-	&& t1.Size() == t2.Size()
+	&& copyCompatibleType(t1, x.Type)
+	&& t1.Size() == t3.Size()
 	&& disjoint(p3, t3.Size(), p2, t2.Size())
 	=> x
 (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 x _))))
 	&& isSamePtr(p1, p4)
-	&& t1.Compare(x.Type) == types.CMPeq
-	&& t1.Size() == t2.Size()
+	&& copyCompatibleType(t1, x.Type)
+	&& t1.Size() == t4.Size()
 	&& disjoint(p4, t4.Size(), p2, t2.Size())
 	&& disjoint(p4, t4.Size(), p3, t3.Size())
 	=> x
 (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Store {t5} p5 x _)))))
 	&& isSamePtr(p1, p5)
-	&& t1.Compare(x.Type) == types.CMPeq
-	&& t1.Size() == t2.Size()
+	&& copyCompatibleType(t1, x.Type)
+	&& t1.Size() == t5.Size()
 	&& disjoint(p5, t5.Size(), p2, t2.Size())
 	&& disjoint(p5, t5.Size(), p3, t3.Size())
 	&& disjoint(p5, t5.Size(), p4, t4.Size())

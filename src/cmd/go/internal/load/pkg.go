@@ -2577,7 +2577,16 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 		}
 		appendSetting("vcs.modified", strconv.FormatBool(st.Uncommitted))
 		// Determine the correct version of this module at the current revision and update the build metadata accordingly.
-		repo := modfetch.LookupLocal(ctx, repoDir)
+		rootModPath := goModPath(repoDir)
+		// If no root module is found, skip embedding VCS data since we cannot determine the module path of the root.
+		if rootModPath == "" {
+			goto omitVCS
+		}
+		codeRoot, _, ok := module.SplitPathVersion(rootModPath)
+		if !ok {
+			goto omitVCS
+		}
+		repo := modfetch.LookupLocal(ctx, codeRoot, p.Module.Path, repoDir)
 		revInfo, err := repo.Stat(ctx, st.Revision)
 		if err != nil {
 			goto omitVCS
@@ -2585,7 +2594,12 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 		vers := revInfo.Version
 		if vers != "" {
 			if st.Uncommitted {
-				vers += "+dirty"
+				// SemVer build metadata is dot-separated https://semver.org/#spec-item-10
+				if strings.HasSuffix(vers, "+incompatible") {
+					vers += ".dirty"
+				} else {
+					vers += "+dirty"
+				}
 			}
 			info.Main.Version = vers
 		}

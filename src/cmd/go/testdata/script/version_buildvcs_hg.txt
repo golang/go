@@ -41,20 +41,20 @@ go version -m $GOBIN/a$GOEXE
 stdout '^\tbuild\tvcs.revision=0000000000000000000000000000000000000000$'
 stdout '^\tbuild\tvcs.time=1970-01-01T00:00:00Z$'
 stdout '^\tbuild\tvcs.modified=true$'
-stdout '\s+mod\s+example.com/a\s+v0.0.0-19700101000000-000000000000\+dirty'
+stdout '\s+mod\s+example.com/a\s\(devel\)\s+'
 cd ..
 
 # Revision and commit time are tagged for repositories with commits.
-exec hg add a README
+exec hg add a README go.mod
 exec hg commit -m 'initial commit' --user test-user --date '2024-07-31T01:21:27+00:00'
-exec hg tag v1.2.3
+exec hg tag a/v1.2.3
 # Switch back to the tagged branch.
 # Tagging a commit causes a new commit to be created. (See https://repo.mercurial-scm.org/hg/help/revsets)
 exec hg update '.~1'
 cd a
 go install
 go version -m $GOBIN/a$GOEXE
-stdout '^\tbuild\tvcs.revision=71eaed52daeaafea83cb604f75b0a0336ef2c345$'
+stdout '^\tbuild\tvcs.revision=eae91df98b5dd3c4451accf64c683ddc3edff6a9$'
 stdout '^\tbuild\tvcs.time=2024-07-31T01:21:27Z$'
 stdout '^\tbuild\tvcs.modified=false$'
 stdout '\s+mod\s+example.com/a\s+v1.2.3\s+'
@@ -73,7 +73,7 @@ exec hg status
 stdout '^.+'
 go install
 go version -m $GOBIN/a$GOEXE
-stdout '^\tbuild\tvcs.revision=71eaed52daeaafea83cb604f75b0a0336ef2c345$'
+stdout '^\tbuild\tvcs.revision=eae91df98b5dd3c4451accf64c683ddc3edff6a9$'
 stdout '^\tbuild\tvcs.time=2024-07-31T01:21:27Z$'
 stdout '^\tbuild\tvcs.modified=false$'
 stdout '\s+mod\s+example.com/a\s+v1.2.3\s+'
@@ -112,6 +112,10 @@ exit 1
 -- repo/README --
 Far out in the uncharted backwaters of the unfashionable end of the western
 spiral arm of the Galaxy lies a small, unregarded yellow sun.
+-- repo/go.mod --
+module example.com
+
+go 1.18
 -- repo/a/go.mod --
 module example.com/a
 

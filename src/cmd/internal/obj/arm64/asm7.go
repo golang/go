@@ -1863,15 +1863,14 @@ func (c *ctxt7) offsetshift(p *obj.Prog, v int64, cls int) int64 {
 	return vs
 }
 
-/*
- * if v contains a single 16-bit value aligned
- * on a 16-bit field, and thus suitable for movk/movn,
- * return the field index 0 to 3; otherwise return -1.
- */
+// movcon checks if v contains a single 16 bit value that is aligned on
+// a 16 bit boundary, suitable for use with a movk/movn instruction. The
+// field offset in bits is returned (being a multiple 16), otherwise -1 is
+// returned indicating an unsuitable value.
 func movcon(v int64) int {
 	for s := 0; s < 64; s += 16 {
 		if (uint64(v) &^ (uint64(0xFFFF) << uint(s))) == 0 {
-			return s / 16
+			return s
 		}
 	}
 	return -1
@@ -1903,46 +1902,57 @@ func rclass(r int16) int {
 }
 
 // conclass classifies a constant.
-func conclass(v int64) int {
+func conclass(v int64, mode int) int {
+	// For constants used with instructions that produce 32 bit results, rewrite the
+	// high 32 bits to be a repetition of the low 32 bits, so that the BITCON test can
+	// be shared for both 32 bit and 64 bit inputs. A 32 bit operation will zero the
+	// high 32 bit of the destination register anyway.
+	vbitcon := uint64(v)
+	if mode == 32 {
+		vbitcon = uint64(v)<<32 | uint64(v)
+	}
+
+	vnotcon := ^v
+	if mode == 32 {
+		vnotcon = int64(uint32(vnotcon))
+	}
+
 	if v == 0 {
 		return C_ZCON
 	}
 	if isaddcon(v) {
 		if v <= 0xFFF {
-			if isbitcon(uint64(v)) {
+			if isbitcon(vbitcon) {
 				return C_ABCON0
 			}
 			return C_ADDCON0
 		}
-		if isbitcon(uint64(v)) {
+		if isbitcon(vbitcon) {
 			return C_ABCON
 		}
 		if movcon(v) >= 0 {
 			return C_AMCON
 		}
-		if movcon(^v) >= 0 {
+		if movcon(vnotcon) >= 0 {
 			return C_AMCON
 		}
 		return C_ADDCON
 	}
 
-	t := movcon(v)
-	if t >= 0 {
-		if isbitcon(uint64(v)) {
+	if t := movcon(v); t >= 0 {
+		if isbitcon(vbitcon) {
+			return C_MBCON
+		}
+		return C_MOVCON
+	}
+	if t := movcon(vnotcon); t >= 0 {
+		if isbitcon(vbitcon) {
 			return C_MBCON
 		}
 		return C_MOVCON
 	}
 
-	t = movcon(^v)
-	if t >= 0 {
-		if isbitcon(uint64(v)) {
-			return C_MBCON
-		}
-		return C_MOVCON
-	}
-
-	if isbitcon(uint64(v)) {
+	if isbitcon(vbitcon) {
 		return C_BITCON
 	}
 
@@ -1957,63 +1967,11 @@ func conclass(v int64) int {
 	return C_VCON
 }
 
-// con32class reclassifies the constant of 32-bit instruction. Because the constant type is 32-bit,
-// but saved in Offset which type is int64, con32class treats it as uint32 type and reclassifies it.
+// con32class reclassifies the constant used with an instruction that produces
+// a 32 bit result. The constant is at most 32 bits but is saved in Offset as
+// a int64. con32class treats it as uint32 type and reclassifies it.
 func (c *ctxt7) con32class(a *obj.Addr) int {
-	v := uint32(a.Offset)
-	// For 32-bit instruction with constant, rewrite
-	// the high 32-bit to be a repetition of the low
-	// 32-bit, so that the BITCON test can be shared
-	// for both 32-bit and 64-bit. 32-bit ops will
-	// zero the high 32-bit of the destination register
-	// anyway.
-	vbitcon := uint64(v)<<32 | uint64(v)
-	if v == 0 {
-		return C_ZCON
-	}
-	if isaddcon(int64(v)) {
-		if v <= 0xFFF {
-			if isbitcon(vbitcon) {
-				return C_ABCON0
-			}
-			return C_ADDCON0
-		}
-		if isbitcon(vbitcon) {
-			return C_ABCON
-		}
-		if movcon(int64(v)) >= 0 {
-			return C_AMCON
-		}
-		if movcon(int64(^v)) >= 0 {
-			return C_AMCON
-		}
-		return C_ADDCON
-	}
-
-	t := movcon(int64(v))
-	if t >= 0 {
-		if isbitcon(vbitcon) {
-			return C_MBCON
-		}
-		return C_MOVCON
-	}
-
-	t = movcon(int64(^v))
-	if t >= 0 {
-		if isbitcon(vbitcon) {
-			return C_MBCON
-		}
-		return C_MOVCON
-	}
-
-	if isbitcon(vbitcon) {
-		return C_BITCON
-	}
-
-	if isaddcon2(int64(v)) {
-		return C_ADDCON2
-	}
-	return C_LCON
+	return conclass(int64(uint32(a.Offset)), 32)
 }
 
 // con64class reclassifies the constant of C_VCON and C_LCON class.
@@ -2219,7 +2177,7 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 			if a.Reg != 0 && a.Reg != REGZERO {
 				break
 			}
-			return conclass(c.instoffset)
+			return conclass(c.instoffset, 64)
 
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
 			if a.Sym == nil {
@@ -4161,18 +4119,18 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			c.ctxt.Diag("zero shifts cannot be handled correctly: %v", p)
 		}
 		s := movcon(d)
-		if s < 0 || s >= 4 {
+		if s < 0 || s >= 64 {
 			c.ctxt.Diag("bad constant for MOVK: %#x\n%v", uint64(d), p)
 		}
-		if (o1&S64) == 0 && s >= 2 {
+		if (o1&S64) == 0 && s >= 32 {
 			c.ctxt.Diag("illegal bit position\n%v", p)
 		}
-		if ((uint64(d) >> uint(s*16)) >> 16) != 0 {
+		if ((uint64(d) >> uint(s)) >> 16) != 0 {
 			c.ctxt.Diag("requires uimm16\n%v", p)
 		}
 		rt := int(p.To.Reg)
 
-		o1 |= uint32((((d >> uint(s*16)) & 0xFFFF) << 5) | int64((uint32(s)&3)<<21) | int64(rt&31))
+		o1 |= uint32((((d >> uint(s)) & 0xFFFF) << 5) | int64((uint32(s>>4)&3)<<21) | int64(rt&31))
 
 	case 34: /* mov $lacon,R */
 		rt, r, rf := p.To.Reg, p.From.Reg, int16(REGTMP)
@@ -7464,32 +7422,32 @@ func (c *ctxt7) omovconst(as obj.As, p *obj.Prog, a *obj.Addr, rt int) (o1 uint3
 	if as == AMOVW {
 		d := uint32(a.Offset)
 		s := movcon(int64(d))
-		if s < 0 || 16*s >= 32 {
+		if s < 0 || s >= 32 {
 			d = ^d
 			s = movcon(int64(d))
-			if s < 0 || 16*s >= 32 {
+			if s < 0 || s >= 32 {
 				c.ctxt.Diag("impossible 32-bit move wide: %#x\n%v", uint32(a.Offset), p)
 			}
 			o1 = c.opirr(p, AMOVNW)
 		} else {
 			o1 = c.opirr(p, AMOVZW)
 		}
-		o1 |= MOVCONST(int64(d), s, rt)
+		o1 |= MOVCONST(int64(d), s>>4, rt)
 	}
 	if as == AMOVD {
 		d := a.Offset
 		s := movcon(d)
-		if s < 0 || 16*s >= 64 {
+		if s < 0 || s >= 64 {
 			d = ^d
 			s = movcon(d)
-			if s < 0 || 16*s >= 64 {
+			if s < 0 || s >= 64 {
 				c.ctxt.Diag("impossible 64-bit move wide: %#x\n%v", uint64(a.Offset), p)
 			}
 			o1 = c.opirr(p, AMOVN)
 		} else {
 			o1 = c.opirr(p, AMOVZ)
 		}
-		o1 |= MOVCONST(d, s, rt)
+		o1 |= MOVCONST(d, s>>4, rt)
 	}
 	return o1
 }

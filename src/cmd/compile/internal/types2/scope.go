@@ -83,6 +83,19 @@ func (s *Scope) Lookup(name string) Object {
 	return obj
 }
 
+// lookupIgnoringCase returns the objects in scope s whose names match
+// the given name ignoring case. If exported is set, only exported names
+// are returned.
+func (s *Scope) lookupIgnoringCase(name string, exported bool) []Object {
+	var matches []Object
+	for _, n := range s.Names() {
+		if (!exported || isExported(n)) && strings.EqualFold(n, name) {
+			matches = append(matches, s.Lookup(n))
+		}
+	}
+	return matches
+}
+
 // Insert attempts to insert an object obj into scope s.
 // If s already contains an alternative object alt with
 // the same name, Insert leaves s unchanged and returns alt.

@@ -878,7 +878,7 @@ func NewRequest(method, url string, body io.Reader) (*Request, error) {
 // For an outgoing client request, the context
 // controls the entire lifetime of a request and its response:
 // obtaining a connection, sending the request, and reading the
-// response headers and body. See the Request type's documentation for
+// response headers and body. See the [Request] type's documentation for
 // the difference between inbound and outbound request fields.
 //
 // If body is of type [*bytes.Buffer], [*bytes.Reader], or

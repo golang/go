@@ -1026,6 +1026,17 @@ func TestLockOSThreadTemplateThreadRace(t *testing.T) {
 	}
 }
 
+func TestLockOSThreadVgetrandom(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skipf("vgetrandom only relevant on Linux")
+	}
+	output := runTestProg(t, "testprog", "LockOSThreadVgetrandom")
+	want := "OK\n"
+	if output != want {
+		t.Errorf("want %q, got %q", want, output)
+	}
+}
+
 // fakeSyscall emulates a system call.
 //
 //go:nosplit

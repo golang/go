@@ -59,11 +59,11 @@ func SendFile(fd *FD, src syscall.Handle, n int64) (written int64, err error) {
 			chunkSize = n
 		}
 
-		o.qty = uint32(chunkSize)
 		o.o.Offset = uint32(curpos)
 		o.o.OffsetHigh = uint32(curpos >> 32)
 
 		nw, err := execIO(o, func(o *operation) error {
+			o.qty = uint32(chunkSize)
 			return syscall.TransmitFile(o.fd.Sysfd, o.handle, o.qty, 0, &o.o, nil, syscall.TF_WRITE_BEHIND)
 		})
 		if err != nil {

@@ -7,6 +7,7 @@ package ssagen
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"fmt"
 	"go/constant"
 	"html"
@@ -46,6 +47,11 @@ const ssaDumpFile = "ssa.html"
 
 // ssaDumpInlined holds all inlined functions when ssaDump contains a function name.
 var ssaDumpInlined []*ir.Func
+
+// Maximum size we will aggregate heap allocations of scalar locals.
+// Almost certainly can't hurt to be as big as the tiny allocator.
+// Might help to be a bit bigger.
+const maxAggregatedHeapAllocation = 16
 
 func DumpInline(fn *ir.Func) {
 	if ssaDump != "" && ssaDump == ir.FuncName(fn) {
@@ -122,6 +128,7 @@ func InitConfig() {
 	ir.Syms.Goschedguarded = typecheck.LookupRuntimeFunc("goschedguarded")
 	ir.Syms.Growslice = typecheck.LookupRuntimeFunc("growslice")
 	ir.Syms.InterfaceSwitch = typecheck.LookupRuntimeFunc("interfaceSwitch")
+	ir.Syms.MallocGC = typecheck.LookupRuntimeFunc("mallocgc")
 	ir.Syms.Memmove = typecheck.LookupRuntimeFunc("memmove")
 	ir.Syms.Msanread = typecheck.LookupRuntimeFunc("msanread")
 	ir.Syms.Msanwrite = typecheck.LookupRuntimeFunc("msanwrite")
@@ -694,9 +701,113 @@ func (s *state) paramsToHeap() {
 	do(typ.Results())
 }
 
+// allocSizeAndAlign returns the size and alignment of t.
+// Normally just t.Size() and t.Alignment(), but there
+// is a special case to handle 64-bit atomics on 32-bit systems.
+func allocSizeAndAlign(t *types.Type) (int64, int64) {
+	size, align := t.Size(), t.Alignment()
+	if types.PtrSize == 4 && align == 4 && size >= 8 {
+		// For 64-bit atomics on 32-bit systems.
+		size = types.RoundUp(size, 8)
+		align = 8
+	}
+	return size, align
+}
+func allocSize(t *types.Type) int64 {
+	size, _ := allocSizeAndAlign(t)
+	return size
+}
+func allocAlign(t *types.Type) int64 {
+	_, align := allocSizeAndAlign(t)
+	return align
+}
+
 // newHeapaddr allocates heap memory for n and sets its heap address.
 func (s *state) newHeapaddr(n *ir.Name) {
-	s.setHeapaddr(n.Pos(), n, s.newObject(n.Type(), nil))
+	size := allocSize(n.Type())
+	if n.Type().HasPointers() || size >= maxAggregatedHeapAllocation || size == 0 {
+		s.setHeapaddr(n.Pos(), n, s.newObject(n.Type(), nil))
+		return
+	}
+
+	// Do we have room together with our pending allocations?
+	// If not, flush all the current ones.
+	var used int64
+	for _, v := range s.pendingHeapAllocations {
+		used += allocSize(v.Type.Elem())
+	}
+	if used+size > maxAggregatedHeapAllocation {
+		s.flushPendingHeapAllocations()
+	}
+
+	var allocCall *ssa.Value // (SelectN [0] (call of runtime.newobject))
+	if len(s.pendingHeapAllocations) == 0 {
+		// Make an allocation, but the type being allocated is just
+		// the first pending object. We will come back and update it
+		// later if needed.
+		allocCall = s.newObject(n.Type(), nil)
+	} else {
+		allocCall = s.pendingHeapAllocations[0].Args[0]
+	}
+	// v is an offset to the shared allocation. Offsets are dummy 0s for now.
+	v := s.newValue1I(ssa.OpOffPtr, n.Type().PtrTo(), 0, allocCall)
+
+	// Add to list of pending allocations.
+	s.pendingHeapAllocations = append(s.pendingHeapAllocations, v)
+
+	// Finally, record for posterity.
+	s.setHeapaddr(n.Pos(), n, v)
+}
+
+func (s *state) flushPendingHeapAllocations() {
+	pending := s.pendingHeapAllocations
+	if len(pending) == 0 {
+		return // nothing to do
+	}
+	s.pendingHeapAllocations = nil // reset state
+	ptr := pending[0].Args[0]      // The SelectN [0] op
+	call := ptr.Args[0]            // The runtime.newobject call
+
+	if len(pending) == 1 {
+		// Just a single object, do a standard allocation.
+		v := pending[0]
+		v.Op = ssa.OpCopy // instead of OffPtr [0]
+		return
+	}
+
+	// Sort in decreasing alignment.
+	// This way we never have to worry about padding.
+	// (Stable not required; just cleaner to keep program order among equal alignments.)
+	slices.SortStableFunc(pending, func(x, y *ssa.Value) int {
+		return cmp.Compare(allocAlign(y.Type.Elem()), allocAlign(x.Type.Elem()))
+	})
+
+	// Figure out how much data we need allocate.
+	var size int64
+	for _, v := range pending {
+		v.AuxInt = size // Adjust OffPtr to the right value while we are here.
+		size += allocSize(v.Type.Elem())
+	}
+	align := allocAlign(pending[0].Type.Elem())
+	size = types.RoundUp(size, align)
+
+	// Convert newObject call to a mallocgc call.
+	args := []*ssa.Value{
+		s.constInt(types.Types[types.TUINTPTR], size),
+		s.constNil(call.Args[0].Type), // a nil *runtime._type
+		s.constBool(true),             // needZero TODO: false is ok?
+		call.Args[1],                  // memory
+	}
+	call.Aux = ssa.StaticAuxCall(ir.Syms.MallocGC, s.f.ABIDefault.ABIAnalyzeTypes(
+		[]*types.Type{args[0].Type, args[1].Type, args[2].Type},
+		[]*types.Type{types.Types[types.TUNSAFEPTR]},
+	))
+	call.AuxInt = 4 * s.config.PtrSize // arg+results size, uintptr/ptr/bool/ptr
+	call.SetArgs4(args[0], args[1], args[2], args[3])
+	// TODO: figure out how to pass alignment to runtime
+
+	call.Type = types.NewTuple(types.Types[types.TUNSAFEPTR], types.TypeMem)
+	ptr.Type = types.Types[types.TUNSAFEPTR]
 }
 
 // setHeapaddr allocates a new PAUTO variable to store ptr (which must be non-nil)
@@ -937,6 +1048,11 @@ type state struct {
 	lastDeferCount      int        // Number of defers encountered at that point
 
 	prevCall *ssa.Value // the previous call; use this to tie results to the call op.
+
+	// List of allocations in the current block that are still pending.
+	// They are all (OffPtr (Select0 (runtime call))) and have the correct types,
+	// but the offsets are not set yet, and the type of the runtime call is also not final.
+	pendingHeapAllocations []*ssa.Value
 }
 
 type funcLine struct {
@@ -1005,6 +1121,9 @@ func (s *state) endBlock() *ssa.Block {
 	if b == nil {
 		return nil
 	}
+
+	s.flushPendingHeapAllocations()
+
 	for len(s.defvars) <= int(b.ID) {
 		s.defvars = append(s.defvars, nil)
 	}

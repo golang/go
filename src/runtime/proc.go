@@ -1958,6 +1958,9 @@ func mexit(osStack bool) {
 		mp.gsignal = nil
 	}
 
+	// Free vgetrandom state.
+	vgetrandomDestroy(mp)
+
 	// Remove m from allm.
 	lock(&sched.lock)
 	for pprev := &allm; *pprev != nil; pprev = &(*pprev).alllink {

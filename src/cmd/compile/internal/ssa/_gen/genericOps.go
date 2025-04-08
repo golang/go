@@ -363,9 +363,9 @@ var genericOps = []opData{
 	{name: "Addr", argLength: 1, aux: "Sym", symEffect: "Addr"},      // Address of a variable.  Arg0=SB.  Aux identifies the variable.
 	{name: "LocalAddr", argLength: 2, aux: "Sym", symEffect: "Addr"}, // Address of a variable.  Arg0=SP. Arg1=mem. Aux identifies the variable.
 
-	{name: "SP", zeroWidth: true},                                       // stack pointer
-	{name: "SB", typ: "Uintptr", zeroWidth: true},                       // static base pointer (a.k.a. globals pointer)
-	{name: "Invalid"},                                                   // unused value
+	{name: "SP", zeroWidth: true, fixedReg: true},                 // stack pointer
+	{name: "SB", typ: "Uintptr", zeroWidth: true, fixedReg: true}, // static base pointer (a.k.a. globals pointer)
+	{name: "Invalid"}, // unused value
 	{name: "SPanchored", typ: "Uintptr", argLength: 2, zeroWidth: true}, // arg0 = SP, arg1 = mem. Result is identical to arg0, but cannot be scheduled before memory state arg1.
 
 	// Memory operations

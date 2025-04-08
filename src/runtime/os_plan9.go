@@ -218,8 +218,12 @@ func minit() {
 func unminit() {
 }
 
-// Called from exitm, but not from drop, to undo the effect of thread-owned
+// Called from mexit, but not from dropm, to undo the effect of thread-owned
 // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+//
+// This always runs without a P, so //go:nowritebarrierrec is required.
+//
+//go:nowritebarrierrec
 func mdestroy(mp *m) {
 }
 
@@ -591,19 +595,4 @@ func walltime() (sec int64, nsec int32) {
 	var t [1]uint64
 	readtime(&t[0], 1, 1)
 	return timesplit(frombe(t[0]))
-}
-
-// Do not remove or change the type signature.
-// See comment in timestub.go.
-//
-//go:linkname time_now time.now
-func time_now() (sec int64, nsec int32, mono int64) {
-	var t [4]uint64
-	if readtime(&t[0], 1, 4) == 4 {
-		mono = int64(frombe(t[3])) // new kernel, use monotonic time
-	} else {
-		mono = int64(frombe(t[0])) // old kernel, fall back to unix time
-	}
-	sec, nsec = timesplit(frombe(t[0]))
-	return
 }

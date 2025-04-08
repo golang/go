@@ -22,6 +22,8 @@ func rewriteValueARM64latelower(v *Value) bool {
 		return rewriteValueARM64latelower_OpARM64MOVBUreg(v)
 	case OpARM64MOVBreg:
 		return rewriteValueARM64latelower_OpARM64MOVBreg(v)
+	case OpARM64MOVDconst:
+		return rewriteValueARM64latelower_OpARM64MOVDconst(v)
 	case OpARM64MOVDnop:
 		return rewriteValueARM64latelower_OpARM64MOVDnop(v)
 	case OpARM64MOVDreg:
@@ -404,6 +406,18 @@ func rewriteValueARM64latelower_OpARM64MOVBreg(v *Value) bool {
 		}
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64latelower_OpARM64MOVDconst(v *Value) bool {
+	// match: (MOVDconst [0])
+	// result: (ZERO)
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 {
+			break
+		}
+		v.reset(OpARM64ZERO)
 		return true
 	}
 	return false

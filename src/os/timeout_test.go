@@ -282,10 +282,7 @@ func nextTimeout(actual time.Duration) (next time.Duration, ok bool) {
 	// duration by any significant margin. Try the next attempt with an arbitrary
 	// factor above that, so that our growth curve is at least exponential.
 	next = actual * 5 / 4
-	if next > maxDynamicTimeout {
-		return maxDynamicTimeout, true
-	}
-	return next, true
+	return min(next, maxDynamicTimeout), true
 }
 
 // There is a very similar copy of this in net/timeout_test.go.

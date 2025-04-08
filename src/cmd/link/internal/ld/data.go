@@ -2658,9 +2658,7 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 	}
 
 	align := ldr.SymAlign(s)
-	if align == 0 {
-		align = int32(Funcalign)
-	}
+	align = max(align, int32(Funcalign))
 	va = uint64(Rnd(int64(va), int64(align)))
 	if sect.Align < align {
 		sect.Align = align

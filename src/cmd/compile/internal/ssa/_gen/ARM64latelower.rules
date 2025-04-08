@@ -93,3 +93,6 @@
 // TODO: we should be able to get rid of MOVDnop all together.
 // But for now, this is enough to get rid of lots of them.
 (MOVDnop (MOVDconst [c])) => (MOVDconst [c])
+
+// use zero register
+(MOVDconst [0]) => (ZERO)

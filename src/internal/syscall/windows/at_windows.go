@@ -116,7 +116,7 @@ func Openat(dirfd syscall.Handle, name string, flag uint64, perm uint32) (_ sysc
 		FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
 		disposition,
 		FILE_SYNCHRONOUS_IO_NONALERT|FILE_OPEN_FOR_BACKUP_INTENT|options,
-		0,
+		nil,
 		0,
 	)
 	if err != nil {
@@ -178,7 +178,7 @@ func Mkdirat(dirfd syscall.Handle, name string, mode uint32) error {
 		syscall.FILE_SHARE_READ|syscall.FILE_SHARE_WRITE|syscall.FILE_SHARE_DELETE,
 		FILE_CREATE,
 		FILE_DIRECTORY_FILE,
-		0,
+		nil,
 		0,
 	)
 	if err != nil {
@@ -218,7 +218,7 @@ func Deleteat(dirfd syscall.Handle, name string, options uint32) error {
 	err = NtSetInformationFile(
 		h,
 		&IO_STATUS_BLOCK{},
-		uintptr(unsafe.Pointer(&FILE_DISPOSITION_INFORMATION_EX{
+		unsafe.Pointer(&FILE_DISPOSITION_INFORMATION_EX{
 			Flags: FILE_DISPOSITION_DELETE |
 				FILE_DISPOSITION_FORCE_IMAGE_SECTION_CHECK |
 				FILE_DISPOSITION_POSIX_SEMANTICS |
@@ -226,7 +226,7 @@ func Deleteat(dirfd syscall.Handle, name string, options uint32) error {
 				// behavior on Unix platforms of permitting deletion of
 				// read-only files.
 				FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE,
-		})),
+		}),
 		uint32(unsafe.Sizeof(FILE_DISPOSITION_INFORMATION_EX{})),
 		FileDispositionInformationEx,
 	)
@@ -245,9 +245,9 @@ func Deleteat(dirfd syscall.Handle, name string, options uint32) error {
 	err = NtSetInformationFile(
 		h,
 		&IO_STATUS_BLOCK{},
-		uintptr(unsafe.Pointer(&FILE_DISPOSITION_INFORMATION{
+		unsafe.Pointer(&FILE_DISPOSITION_INFORMATION{
 			DeleteFile: true,
-		})),
+		}),
 		uint32(unsafe.Sizeof(FILE_DISPOSITION_INFORMATION{})),
 		FileDispositionInformation,
 	)
@@ -298,7 +298,7 @@ func Renameat(olddirfd syscall.Handle, oldpath string, newdirfd syscall.Handle, 
 	err = NtSetInformationFile(
 		h,
 		&IO_STATUS_BLOCK{},
-		uintptr(unsafe.Pointer(&renameInfoEx)),
+		unsafe.Pointer(&renameInfoEx),
 		uint32(unsafe.Sizeof(FILE_RENAME_INFORMATION_EX{})),
 		FileRenameInformationEx,
 	)
@@ -321,7 +321,7 @@ func Renameat(olddirfd syscall.Handle, oldpath string, newdirfd syscall.Handle, 
 	err = NtSetInformationFile(
 		h,
 		&IO_STATUS_BLOCK{},
-		uintptr(unsafe.Pointer(&renameInfo)),
+		unsafe.Pointer(&renameInfo),
 		uint32(unsafe.Sizeof(FILE_RENAME_INFORMATION{})),
 		FileRenameInformation,
 	)
@@ -369,7 +369,7 @@ func Linkat(olddirfd syscall.Handle, oldpath string, newdirfd syscall.Handle, ne
 	err = NtSetInformationFile(
 		h,
 		&IO_STATUS_BLOCK{},
-		uintptr(unsafe.Pointer(&linkInfo)),
+		unsafe.Pointer(&linkInfo),
 		uint32(unsafe.Sizeof(FILE_LINK_INFORMATION{})),
 		FileLinkInformation,
 	)
@@ -436,7 +436,7 @@ func symlinkat(oldname string, newdirfd syscall.Handle, newname string, flags Sy
 		0,
 		FILE_CREATE,
 		FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT|FILE_SYNCHRONOUS_IO_NONALERT|options,
-		0,
+		nil,
 		0,
 	)
 	if err != nil {
@@ -496,9 +496,9 @@ func symlinkat(oldname string, newdirfd syscall.Handle, newname string, flags Sy
 		NtSetInformationFile(
 			h,
 			&IO_STATUS_BLOCK{},
-			uintptr(unsafe.Pointer(&FILE_DISPOSITION_INFORMATION{
+			unsafe.Pointer(&FILE_DISPOSITION_INFORMATION{
 				DeleteFile: true,
-			})),
+			}),
 			uint32(unsafe.Sizeof(FILE_DISPOSITION_INFORMATION{})),
 			FileDispositionInformation,
 		)
