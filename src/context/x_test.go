@@ -798,6 +798,45 @@ func TestCause(t *testing.T) {
 			err:   nil,
 			cause: nil,
 		},
+		{
+			name: "parent of custom context not canceled",
+			ctx: func() Context {
+				ctx, _ := WithCancelCause(Background())
+				ctx, cancel2 := newCustomContext(ctx)
+				cancel2()
+				return ctx
+			},
+			err:   Canceled,
+			cause: Canceled,
+		},
+		{
+			name: "parent of custom context is canceled before",
+			ctx: func() Context {
+				ctx, cancel1 := WithCancelCause(Background())
+				ctx, cancel2 := newCustomContext(ctx)
+				cancel1(parentCause)
+				cancel2()
+				return ctx
+			},
+			err:   Canceled,
+			cause: parentCause,
+		},
+		{
+			name: "parent of custom context is canceled after",
+			ctx: func() Context {
+				ctx, cancel1 := WithCancelCause(Background())
+				ctx, cancel2 := newCustomContext(ctx)
+				cancel2()
+				cancel1(parentCause)
+				return ctx
+			},
+			err: Canceled,
+			// This isn't really right: the child context was canceled before
+			// the parent context, and shouldn't inherit the parent's cause.
+			// However, since the child is a custom context, Cause has no way
+			// to tell which was canceled first and returns the parent's cause.
+			cause: parentCause,
+		},
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
@@ -1088,4 +1127,53 @@ func TestAfterFuncCalledAsynchronously(t *testing.T) {
 	case <-time.After(veryLongDuration):
 		t.Fatalf("AfterFunc not called after context is canceled")
 	}
+}
+
+// customContext is a custom Context implementation.
+type customContext struct {
+	parent Context
+
+	doneOnce sync.Once
+	donec    chan struct{}
+	err      error
+}
+
+func newCustomContext(parent Context) (Context, CancelFunc) {
+	c := &customContext{
+		parent: parent,
+		donec:  make(chan struct{}),
+	}
+	AfterFunc(parent, func() {
+		c.doneOnce.Do(func() {
+			c.err = parent.Err()
+			close(c.donec)
+		})
+	})
+	return c, func() {
+		c.doneOnce.Do(func() {
+			c.err = Canceled
+			close(c.donec)
+		})
+	}
+}
+
+func (c *customContext) Deadline() (time.Time, bool) {
+	return c.parent.Deadline()
+}
+
+func (c *customContext) Done() <-chan struct{} {
+	return c.donec
+}
+
+func (c *customContext) Err() error {
+	select {
+	case <-c.donec:
+		return c.err
+	default:
+		return nil
+	}
+}
+
+func (c *customContext) Value(key any) any {
+	return c.parent.Value(key)
 }

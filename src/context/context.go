@@ -288,11 +288,17 @@ func withCancel(parent Context) *cancelCtx {
 func Cause(c Context) error {
 	if cc, ok := c.Value(&cancelCtxKey).(*cancelCtx); ok {
 		cc.mu.Lock()
-		defer cc.mu.Unlock()
-		return cc.cause
+		cause := cc.cause
+		cc.mu.Unlock()
+		if cause != nil {
+			return cause
+		}
+		// Either this context is not canceled,
+		// or it is canceled and the cancellation happened in a
+		// custom context implementation rather than a *cancelCtx.
 	}
-	// There is no cancelCtxKey value, so we know that c is
-	// not a descendant of some Context created by WithCancelCause.
+	// There is no cancelCtxKey value with a cause, so we know that c is
+	// not a descendant of some canceled Context created by WithCancelCause.
 	// Therefore, there is no specific cause to return.
 	// If this is not one of the standard Context types,
 	// it might still have an error even though it won't have a cause.
