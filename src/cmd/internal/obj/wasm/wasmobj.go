@@ -1006,9 +1006,10 @@ func genWasmExportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
 	// In the unwinding case, we call wasm_pc_f_loop_export to handle stack switch and rewinding,
 	// until a normal return (non-unwinding) back to this function.
 	p = appendp(p, AIf)
-	p = appendp(p, AI32Const, retAddr)
-	p = appendp(p, AI32Const, constAddr(16))
-	p = appendp(p, AI32ShrU)
+	p = appendp(p, AI64Const, retAddr)
+	p = appendp(p, AI64Const, constAddr(16))
+	p = appendp(p, AI64ShrU)
+	p = appendp(p, AI32WrapI64)
 	p = appendp(p, ACall, obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: wasm_pc_f_loop_export})
 	p = appendp(p, AEnd)
 
