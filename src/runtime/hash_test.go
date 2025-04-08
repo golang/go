@@ -7,6 +7,7 @@ package runtime_test
 import (
 	"encoding/binary"
 	"fmt"
+	"internal/byteorder"
 	"internal/race"
 	"internal/testenv"
 	"math"
@@ -326,10 +327,7 @@ func genPerm(h *HashSet, b []byte, s []uint32, n int) {
 		return
 	}
 	for _, v := range s {
-		b[n] = byte(v)
-		b[n+1] = byte(v >> 8)
-		b[n+2] = byte(v >> 16)
-		b[n+3] = byte(v >> 24)
+		byteorder.LEPutUint32(b[n:], v)
 		genPerm(h, b, s, n+4)
 	}
 }
