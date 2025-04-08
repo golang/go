@@ -134,6 +134,7 @@ var (
 	procGetVersion                         = modkernel32.NewProc("GetVersion")
 	procInitializeProcThreadAttributeList  = modkernel32.NewProc("InitializeProcThreadAttributeList")
 	procLoadLibraryW                       = modkernel32.NewProc("LoadLibraryW")
+	procLocalAlloc                         = modkernel32.NewProc("LocalAlloc")
 	procLocalFree                          = modkernel32.NewProc("LocalFree")
 	procMapViewOfFile                      = modkernel32.NewProc("MapViewOfFile")
 	procMoveFileW                          = modkernel32.NewProc("MoveFileW")
@@ -929,7 +930,25 @@ func _LoadLibrary(libname *uint16) (handle Handle, err error) {
 	return
 }
 
+func localAlloc(flags uint32, length uint32) (ptr uintptr, err error) {
+	r0, _, e1 := Syscall(procLocalAlloc.Addr(), 2, uintptr(flags), uintptr(length), 0)
+	ptr = uintptr(r0)
+	if ptr == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
 func LocalFree(hmem Handle) (handle Handle, err error) {
+	r0, _, e1 := Syscall(procLocalFree.Addr(), 1, uintptr(hmem), 0, 0)
+	handle = Handle(r0)
+	if handle != 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func localFree(hmem Handle) (handle Handle, err error) {
 	r0, _, e1 := Syscall(procLocalFree.Addr(), 1, uintptr(hmem), 0, 0)
 	handle = Handle(r0)
 	if handle != 0 {

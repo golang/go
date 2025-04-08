@@ -287,6 +287,7 @@ func NewCallbackCDecl(fn any) uintptr {
 //sys	GetCommandLine() (cmd *uint16) = kernel32.GetCommandLineW
 //sys	CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, err error) [failretval==nil] = shell32.CommandLineToArgvW
 //sys	LocalFree(hmem Handle) (handle Handle, err error) [failretval!=0]
+//sys	localAlloc(flags uint32, length uint32) (ptr uintptr, err error) = kernel32.LocalAlloc
 //sys	SetHandleInformation(handle Handle, mask uint32, flags uint32) (err error)
 //sys	FlushFileBuffers(handle Handle) (err error)
 //sys	GetFullPathName(path *uint16, buflen uint32, buf *uint16, fname **uint16) (n uint32, err error) = kernel32.GetFullPathNameW
@@ -1409,10 +1410,8 @@ func PostQueuedCompletionStatus(cphandle Handle, qty uint32, key uint32, overlap
 	return postQueuedCompletionStatus(cphandle, qty, uintptr(key), overlapped)
 }
 
-// newProcThreadAttributeList allocates new PROC_THREAD_ATTRIBUTE_LIST, with
-// the requested maximum number of attributes, which must be cleaned up by
-// deleteProcThreadAttributeList.
-func newProcThreadAttributeList(maxAttrCount uint32) (*_PROC_THREAD_ATTRIBUTE_LIST, error) {
+// newProcThreadAttributeList allocates a new [procThreadAttributeListContainer], with the requested maximum number of attributes.
+func newProcThreadAttributeList(maxAttrCount uint32) (*procThreadAttributeListContainer, error) {
 	var size uintptr
 	err := initializeProcThreadAttributeList(nil, maxAttrCount, 0, &size)
 	if err != ERROR_INSUFFICIENT_BUFFER {
@@ -1421,13 +1420,38 @@ func newProcThreadAttributeList(maxAttrCount uint32) (*_PROC_THREAD_ATTRIBUTE_LI
 		}
 		return nil, err
 	}
-	// size is guaranteed to be ≥1 by initializeProcThreadAttributeList.
-	al := (*_PROC_THREAD_ATTRIBUTE_LIST)(unsafe.Pointer(&make([]byte, size)[0]))
-	err = initializeProcThreadAttributeList(al, maxAttrCount, 0, &size)
+	const LMEM_FIXED = 0
+	alloc, err := localAlloc(LMEM_FIXED, uint32(size))
 	if err != nil {
 		return nil, err
 	}
-	return al, nil
+	// size is guaranteed to be ≥1 by InitializeProcThreadAttributeList.
+	al := &procThreadAttributeListContainer{data: (*_PROC_THREAD_ATTRIBUTE_LIST)(unsafe.Pointer(alloc))}
+	err = initializeProcThreadAttributeList(al.data, maxAttrCount, 0, &size)
+	if err != nil {
+		return nil, err
+	}
+	al.pointers = make([]unsafe.Pointer, 0, maxAttrCount)
+	return al, err
+}
+
+// Update modifies the ProcThreadAttributeList using UpdateProcThreadAttribute.
+func (al *procThreadAttributeListContainer) update(attribute uintptr, value unsafe.Pointer, size uintptr) error {
+	al.pointers = append(al.pointers, value)
+	return updateProcThreadAttribute(al.data, 0, attribute, value, size, nil, nil)
+}
+
+// Delete frees ProcThreadAttributeList's resources.
+func (al *procThreadAttributeListContainer) delete() {
+	deleteProcThreadAttributeList(al.data)
+	LocalFree(Handle(unsafe.Pointer(al.data)))
+	al.data = nil
+	al.pointers = nil
+}
+
+// List returns the actual ProcThreadAttributeList to be passed to StartupInfoEx.
+func (al *procThreadAttributeListContainer) list() *_PROC_THREAD_ATTRIBUTE_LIST {
+	return al.data
 }
 
 // RegEnumKeyEx enumerates the subkeys of an open registry key.

@@ -332,12 +332,12 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 			defer DuplicateHandle(parentProcess, fd[i], 0, nil, 0, false, DUPLICATE_CLOSE_SOURCE)
 		}
 	}
-	si := new(_STARTUPINFOEXW)
-	si.ProcThreadAttributeList, err = newProcThreadAttributeList(2)
+	procAttrList, err := newProcThreadAttributeList(2)
 	if err != nil {
 		return 0, 0, err
 	}
-	defer deleteProcThreadAttributeList(si.ProcThreadAttributeList)
+	defer procAttrList.delete()
+	si := new(_STARTUPINFOEXW)
 	si.Cb = uint32(unsafe.Sizeof(*si))
 	si.Flags = STARTF_USESTDHANDLES
 	if sys.HideWindow {
@@ -345,7 +345,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 		si.ShowWindow = SW_HIDE
 	}
 	if sys.ParentProcess != 0 {
-		err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, unsafe.Pointer(&sys.ParentProcess), unsafe.Sizeof(sys.ParentProcess), nil, nil)
+		err = procAttrList.update(_PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, unsafe.Pointer(&sys.ParentProcess), unsafe.Sizeof(sys.ParentProcess))
 		if err != nil {
 			return 0, 0, err
 		}
@@ -371,7 +371,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 
 	// Do not accidentally inherit more than these handles.
 	if willInheritHandles {
-		err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_HANDLE_LIST, unsafe.Pointer(&fd[0]), uintptr(len(fd))*unsafe.Sizeof(fd[0]), nil, nil)
+		err = procAttrList.update(_PROC_THREAD_ATTRIBUTE_HANDLE_LIST, unsafe.Pointer(&fd[0]), uintptr(len(fd))*unsafe.Sizeof(fd[0]))
 		if err != nil {
 			return 0, 0, err
 		}
@@ -382,6 +382,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 		return 0, 0, err
 	}
 
+	si.ProcThreadAttributeList = procAttrList.list()
 	pi := new(ProcessInformation)
 	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT | _EXTENDED_STARTUPINFO_PRESENT
 	if sys.Token != 0 {
