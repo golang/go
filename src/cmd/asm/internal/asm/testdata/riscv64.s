@@ -2034,6 +2034,37 @@ start:
 	VCLMULHVX	X10, V2, V3			// d7612536
 	VCLMULHVX	X10, V2, V0, V3			// d7612534
 
+	// 32.2.4: Vector GCM/GMAC
+	VGHSHVV		V1, V2, V3			// f7a120b2
+	VGMULVV		V1, V2				// 77a118a2
+
+	// 32.2.5: NIST Suite: Vector AES Block Cipher
+	VAESEFVV	V1, V2				// 77a111a2
+	VAESEFVS	V1, V2				// 77a111a6
+	VAESEMVV	V1, V2				// 772111a2
+	VAESEMVS	V1, V2				// 772111a6
+	VAESDFVV	V1, V2				// 77a110a2
+	VAESDFVS	V1, V2				// 77a110a6
+	VAESDMVV	V1, V2				// 772110a2
+	VAESDMVS	V1, V2				// 772110a6
+	VAESKF1VI	$16, V2, V3			// f721288a
+	VAESKF2VI	$16, V2, V3			// f72128aa
+	VAESZVS		V1, V2				// 77a113a6
+
+	// 32.2.6: NIST Suite: Vector SHA-2 Secure Hash
+	VSHA2MSVV	V1, V2, V3			// f7a120b6
+	VSHA2CHVV	V1, V2, V3			// f7a120ba
+	VSHA2CLVV	V1, V2, V3			// f7a120be
+
+	// 32.2.7: ShangMi Suite: SM4 Block Cipher
+	VSM4KVI		$16, V2, V3			// f7212886
+	VSM4RVV		V1, V2				// 772118a2
+	VSM4RVS		V1, V2				// 772118a6
+
+	// 32.2.8: ShangMi Suite: SM3 Secure Hash
+	VSM3MEVV	V1, V2, V3			// f7a12082
+	VSM3CVI		$16, V2, V3			// f72128ae
+
 	//
 	// Privileged ISA
 	//

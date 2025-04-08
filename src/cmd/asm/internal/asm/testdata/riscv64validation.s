@@ -601,5 +601,13 @@ TEXT validation(SB),$0
 	VRORVI		$-1, V2, V4			// ERROR "unsigned immediate -1 must be in range [0, 31]"
 	VWSLLVI		$32, V2, V4			// ERROR "unsigned immediate 32 must be in range [0, 31]"
 	VWSLLVI		$-1, V2, V4			// ERROR "unsigned immediate -1 must be in range [0, 31]"
+	VAESKF1VI	$32, V2, V3			// ERROR "unsigned immediate 32 must be in range [0, 31]"
+	VAESKF1VI	$-1, V2, V3			// ERROR "unsigned immediate -1 must be in range [0, 31]"
+	VAESKF2VI	$32, V2, V3			// ERROR "unsigned immediate 32 must be in range [0, 31]"
+	VAESKF2VI	$-1, V2, V3			// ERROR "unsigned immediate -1 must be in range [0, 31]"
+	VSM4KVI		$32, V2, V3			// ERROR "unsigned immediate 32 must be in range [0, 31]"
+	VSM4KVI		$-1, V2, V3			// ERROR "unsigned immediate -1 must be in range [0, 31]"
+	VSM3CVI		$32, V2, V3			// ERROR "unsigned immediate 32 must be in range [0, 31]"
+	VSM3CVI		$-1, V2, V3			// ERROR "unsigned immediate -1 must be in range [0, 31]"
 
 	RET

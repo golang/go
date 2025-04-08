@@ -1476,6 +1476,37 @@ const (
 	AVCLMULHVV
 	AVCLMULHVX
 
+	// 33.2.4: Vector GCM/GMAC (Zvkg)
+	AVGHSHVV
+	AVGMULVV
+
+	// 33.2.5: NIST Suite: Vector AES Block Cipher (Zvkned)
+	AVAESEFVV
+	AVAESEFVS
+	AVAESEMVV
+	AVAESEMVS
+	AVAESDFVV
+	AVAESDFVS
+	AVAESDMVV
+	AVAESDMVS
+	AVAESKF1VI
+	AVAESKF2VI
+	AVAESZVS
+
+	// 33.2.6: NIST Suite: Vector SHA-2 Secure Hash (Zvknh[ab])
+	AVSHA2MSVV
+	AVSHA2CHVV
+	AVSHA2CLVV
+
+	// 33.2.7: ShangMi Suite: SM4 Block Cipher (Zvksed)
+	AVSM4KVI
+	AVSM4RVV
+	AVSM4RVS
+
+	// 33.2.8: ShangMi Suite: SM3 Secure Hash (Zvksh)
+	AVSM3MEVV
+	AVSM3CVI
+
 	//
 	// Privileged ISA (version 20260120)
 	//
