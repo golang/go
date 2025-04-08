@@ -183,7 +183,8 @@ func ParseFlags() {
 	Debug.InlStaticInit = 1
 	Debug.PGOInline = 1
 	Debug.PGODevirtualize = 2
-	Debug.SyncFrames = -1 // disable sync markers by default
+	Debug.SyncFrames = -1            // disable sync markers by default
+	Debug.VariableMakeThreshold = 32 // 32 byte default for stack allocated make results
 	Debug.ZeroCopy = 1
 	Debug.RangeFuncCheck = 1
 	Debug.MergeLocals = 1
@@ -269,6 +270,9 @@ func ParseFlags() {
 	}
 	if Debug.MergeLocalsHash != "" {
 		MergeLocalsHash = NewHashDebug("mergelocals", Debug.MergeLocalsHash, nil)
+	}
+	if Debug.VariableMakeHash != "" {
+		VariableMakeHash = NewHashDebug("variablemake", Debug.VariableMakeHash, nil)
 	}
 
 	if Flag.MSan && !platform.MSanSupported(buildcfg.GOOS, buildcfg.GOARCH) {

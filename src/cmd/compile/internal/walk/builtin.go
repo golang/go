@@ -568,7 +568,8 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 			// The conv is necessary in case n.Type is named.
 			return walkExpr(typecheck.Expr(typecheck.Conv(s, n.Type())), init)
 		}
-		tryStack = base.Flag.N == 0
+		// Check that this optimization is enabled in general and for this node.
+		tryStack = base.Flag.N == 0 && base.VariableMakeHash.MatchPos(n.Pos(), nil)
 	}
 
 	// The final result is assigned to this variable.
@@ -582,7 +583,7 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		// } else {
 		//     slice = makeslice(elemType, len, cap)
 		// }
-		const maxStackSize = 32
+		maxStackSize := int64(base.Debug.VariableMakeThreshold)
 		K := maxStackSize / t.Elem().Size() // rounds down
 		if K > 0 {                          // skip if elem size is too big.
 			nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLE, typecheck.Conv(cap, types.Types[types.TUINT64]), ir.NewInt(base.Pos, K)), nil, nil)
