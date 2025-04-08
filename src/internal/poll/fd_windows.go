@@ -336,6 +336,10 @@ func (fd *FD) initIO() error {
 		return nil
 	}
 	fd.initIOOnce.Do(func() {
+		if fd.closing() {
+			// Closing, nothing to do.
+			return
+		}
 		// The runtime poller will ignore I/O completion
 		// notifications not initiated by this package,
 		// so it is safe to add handles owned by the caller.
@@ -434,6 +438,12 @@ func (fd *FD) Close() error {
 	if !fd.fdmu.increfAndClose() {
 		return errClosing(fd.isFile)
 	}
+	// There is a potential race between a concurrent call to fd.initIO,
+	// which calls fd.pd.init, and the call to fd.pd.evict below.
+	// This is solved by calling fd.initIO ourselves, which will
+	// block until the concurrent fd.initIO has completed. Note
+	// that fd.initIO is no-op if first called from here.
+	fd.initIO()
 	if fd.kind == kindPipe {
 		syscall.CancelIoEx(fd.Sysfd, nil)
 	}
