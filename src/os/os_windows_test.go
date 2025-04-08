@@ -1834,7 +1834,6 @@ func TestFile(t *testing.T) {
 		{"overlapped-read", true, false},
 		{"overlapped-write", false, true},
 		{"sync", false, false},
-		{"sync-pollable", false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1872,13 +1871,11 @@ func TestNamedPipe(t *testing.T) {
 		name            string
 		overlappedRead  bool
 		overlappedWrite bool
-		pollable        bool
 	}{
-		{"overlapped", true, true, true},
-		{"overlapped-write", false, true, true},
-		{"overlapped-read", true, false, true},
-		{"sync", false, false, false},
-		{"sync-pollable", false, false, true},
+		{"overlapped", true, true},
+		{"overlapped-write", false, true},
+		{"overlapped-read", true, false},
+		{"sync", false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1966,19 +1963,15 @@ func TestPipeCanceled(t *testing.T) {
 					return
 				}
 				if err := sc.Control(func(fd uintptr) {
-					syscall.CancelIo(syscall.Handle(fd))
+					syscall.CancelIoEx(syscall.Handle(fd), nil)
 				}); err != nil {
 					t.Error(err)
+					return
 				}
 				time.Sleep(100 * time.Millisecond)
 			}
 		}
 	}()
-	// Try to cancel for max 1 second.
-	// Canceling is normally really fast, but it can take an
-	// arbitrary amount of time on busy systems.
-	// If it takes too long, we skip the test.
-	file.SetReadDeadline(time.Now().Add(1 * time.Second))
 	var tmp [1]byte
 	// Read will block until the cancel is complete.
 	_, err := file.Read(tmp[:])
