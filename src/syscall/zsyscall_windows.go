@@ -948,15 +948,6 @@ func LocalFree(hmem Handle) (handle Handle, err error) {
 	return
 }
 
-func localFree(hmem Handle) (handle Handle, err error) {
-	r0, _, e1 := Syscall(procLocalFree.Addr(), 1, uintptr(hmem), 0, 0)
-	handle = Handle(r0)
-	if handle != 0 {
-		err = errnoErr(e1)
-	}
-	return
-}
-
 func MapViewOfFile(handle Handle, access uint32, offsetHigh uint32, offsetLow uint32, length uintptr) (addr uintptr, err error) {
 	r0, _, e1 := Syscall6(procMapViewOfFile.Addr(), 5, uintptr(handle), uintptr(access), uintptr(offsetHigh), uintptr(offsetLow), uintptr(length), 0)
 	addr = uintptr(r0)
