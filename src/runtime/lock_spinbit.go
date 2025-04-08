@@ -143,7 +143,7 @@ func mutexPreferLowLatency(l *mutex) bool {
 }
 
 func mutexContended(l *mutex) bool {
-	return atomic.Loaduintptr(&l.key) > mutexLocked
+	return atomic.Loaduintptr(&l.key)&^mutexMMask != 0
 }
 
 func lock(l *mutex) {
