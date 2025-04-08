@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/byteorder"
 	"internal/runtime/atomic"
 	"internal/stringslite"
 	"unsafe"
@@ -574,8 +575,7 @@ func timesplit(u uint64) (sec int64, nsec int32)
 
 func frombe(u uint64) uint64 {
 	b := (*[8]byte)(unsafe.Pointer(&u))
-	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
-		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
+	return byteorder.BEUint64(b[:])
 }
 
 //go:nosplit
