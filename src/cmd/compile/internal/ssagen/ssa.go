@@ -317,7 +317,7 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
 	// optionally allows an ABI suffix specification in the GOSSAHASH, e.g. "(*Reader).Reset<0>" etc
 	if strings.Contains(ssaDump, name) { // in all the cases the function name is entirely contained within the GOSSAFUNC string.
 		nameOptABI := name
-		if strings.Contains(ssaDump, ",") { // ABI specification
+		if l := len(ssaDump); l > 1 && ssaDump[l-2] == ',' { // ABI specification
 			nameOptABI = ssa.FuncNameABI(name, abiSelf.Which())
 		} else if strings.HasSuffix(ssaDump, ">") { // if they use the linker syntax instead....
 			l := len(ssaDump)
