@@ -7,7 +7,16 @@
 // and must have minimal dependencies.
 package chacha8rand
 
-import "internal/byteorder"
+import (
+	"internal/byteorder"
+	"internal/cpu"
+	"unsafe"
+)
+
+// Offsets into internal/cpu records for use in assembly.
+const (
+	offsetLOONG64HasLSX = unsafe.Offsetof(cpu.Loong64.HasLSX)
+)
 
 const (
 	ctrInc = 4  // increment counter by 4 between block calls
