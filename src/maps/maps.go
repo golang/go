@@ -73,3 +73,23 @@ func DeleteFunc[M ~map[K]V, K comparable, V any](m M, del func(K, V) bool) {
 		}
 	}
 }
+
+// KeysSlice returns a new slice containing the keys of m.
+// The keys will be in an indeterminate order.
+func KeysSlice[M ~map[K]V, K comparable, V any](m M) []K {
+	r := make([]K, 0, len(m))
+	for k := range m {
+		r = append(r, k)
+	}
+	return r
+}
+
+// ValuesSlice returns a new slice containing the values of m.
+// The values will be in an indeterminate order.
+func ValuesSlice[M ~map[K]V, K comparable, V any](m M) []V {
+	r := make([]V, 0, len(m))
+	for _, v := range m {
+		r = append(r, v)
+	}
+	return r
+}

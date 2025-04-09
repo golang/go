@@ -191,3 +191,37 @@ func ExampleCollect() {
 	// Output:
 	// m1 is: map[0:zero 1:one 2:two 3:three]
 }
+
+func ExampleKeysSlice() {
+	m := map[string]int{
+		"one":   1,
+		"two":   2,
+		"three": 3,
+	}
+
+	// Get all keys as a slice
+	keys := maps.KeysSlice(m)
+
+	// Since map iteration is not ordered, we sort the keys for predictable output
+	slices.Sort(keys)
+	fmt.Println(keys)
+	// Output:
+	// [one three two]
+}
+
+func ExampleValuesSlice() {
+	m := map[int]string{
+		1: "one",
+		2: "two",
+		3: "three",
+	}
+
+	// Get all values as a slice
+	values := maps.ValuesSlice(m)
+
+	// Since map iteration is not ordered, we sort the values for predictable output
+	slices.Sort(values)
+	fmt.Println(values)
+	// Output:
+	// [one three two]
+}

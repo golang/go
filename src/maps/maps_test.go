@@ -240,3 +240,73 @@ func TestCloneLarge(t *testing.T) {
 		}
 	}
 }
+
+func TestKeysSlice(t *testing.T) {
+	testCases := []struct {
+		m    map[string]int
+		want []string
+	}{
+		{nil, nil},
+		{map[string]int{}, []string{}},
+		{map[string]int{"a": 1}, []string{"a"}},
+		{map[string]int{"a": 1, "b": 2, "c": 3}, []string{"a", "b", "c"}},
+	}
+
+	for _, tc := range testCases {
+		got := KeysSlice(tc.m)
+		if len(got) != len(tc.want) {
+			t.Errorf("KeysSlice(%v) = %v, want slice of length %d", tc.m, got, len(tc.want))
+			continue
+		}
+
+		// Keys are returned in indeterminate order, so we need to check for inclusion
+		want := make(map[string]bool)
+		for _, k := range tc.want {
+			want[k] = true
+		}
+		for _, k := range got {
+			if !want[k] {
+				t.Errorf("KeysSlice(%v) = %v, unexpected key %v", tc.m, got, k)
+			}
+			delete(want, k)
+		}
+		if len(want) > 0 {
+			t.Errorf("KeysSlice(%v) = %v, missing keys %v", tc.m, got, want)
+		}
+	}
+}
+
+func TestValuesSlice(t *testing.T) {
+	testCases := []struct {
+		m    map[string]int
+		want []int
+	}{
+		{nil, nil},
+		{map[string]int{}, []int{}},
+		{map[string]int{"a": 1}, []int{1}},
+		{map[string]int{"a": 1, "b": 2, "c": 3}, []int{1, 2, 3}},
+	}
+
+	for _, tc := range testCases {
+		got := ValuesSlice(tc.m)
+		if len(got) != len(tc.want) {
+			t.Errorf("ValuesSlice(%v) = %v, want slice of length %d", tc.m, got, len(tc.want))
+			continue
+		}
+
+		// Values are returned in indeterminate order, so we need to count occurrences
+		wantCounts := make(map[int]int)
+		for _, v := range tc.want {
+			wantCounts[v]++
+		}
+
+		gotCounts := make(map[int]int)
+		for _, v := range got {
+			gotCounts[v]++
+		}
+
+		if !Equal(gotCounts, wantCounts) {
+			t.Errorf("ValuesSlice(%v) = %v, want values %v", tc.m, got, tc.want)
+		}
+	}
+}
