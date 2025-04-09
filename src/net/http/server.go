@@ -735,9 +735,25 @@ func (cr *connReader) abortPendingRead() {
 	}
 	cr.aborted = true
 	cr.conn.rwc.SetReadDeadline(aLongTimeAgo)
-	for cr.inRead {
-		cr.cond.Wait()
-	}
+	done := make(chan struct{})
+	go func() {
+		for cr.inRead {
+			cr.cond.Wait()
+		}
+		close(done)
+	}()
+
+	func() {
+		for {
+			select {
+			case <-done:
+				return
+			case <-time.After(100*time.Millisecond):
+				cr.conn.rwc.SetReadDeadline(aLongTimeAgo)
+			}
+		}
+	}()
+
 	cr.conn.rwc.SetReadDeadline(time.Time{})
 }
 
