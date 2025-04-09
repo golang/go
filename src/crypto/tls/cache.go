@@ -43,15 +43,15 @@ var globalCertCache = new(certCache)
 
 // activeCert is a handle to a certificate held in the cache. Once there are
 // no alive activeCerts for a given certificate, the certificate is removed
-// from the cache by a finalizer.
+// from the cache by a cleanup.
 type activeCert struct {
 	cert *x509.Certificate
 }
 
 // active increments the number of references to the entry, wraps the
-// certificate in the entry in an activeCert, and sets the finalizer.
+// certificate in the entry in an activeCert, and sets the cleanup.
 //
-// Note that there is a race between active and the finalizer set on the
+// Note that there is a race between active and the cleanup set on the
 // returned activeCert, triggered if active is called after the ref count is
 // decremented such that refs may be > 0 when evict is called. We consider this
 // safe, since the caller holding an activeCert for an entry that is no longer
@@ -60,11 +60,11 @@ type activeCert struct {
 func (cc *certCache) active(e *cacheEntry) *activeCert {
 	e.refs.Add(1)
 	a := &activeCert{e.cert}
-	runtime.SetFinalizer(a, func(_ *activeCert) {
-		if e.refs.Add(-1) == 0 {
-			cc.evict(e)
+	runtime.AddCleanup(a, func(ce *cacheEntry) {
+		if ce.refs.Add(-1) == 0 {
+			cc.evict(ce)
 		}
-	})
+	}, e)
 	return a
 }
 
