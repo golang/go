@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build linux || (darwin && !ios) || dragonfly || freebsd || solaris || windows
+
 package net
 
 import (
@@ -12,8 +14,6 @@ import (
 
 const supportsSendfile = true
 
-// TODO: deduplicate this file with sendfile_linux.go and sendfile_unix_alt.go.
-
 // sendFile copies the contents of r to c using the sendfile
 // system call to minimize copies.
 //
@@ -22,8 +22,7 @@ const supportsSendfile = true
 //
 // if handled == false, sendFile performed no work.
 func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
-	var remain int64 = 0 // by default, copy until EOF.
-
+	var remain int64 = 0 // 0 writes the entire file
 	lr, ok := r.(*io.LimitedReader)
 	if ok {
 		remain, r = lr.N, lr.R
@@ -31,7 +30,6 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 			return 0, nil, true
 		}
 	}
-
 	// r might be an *os.File or an os.fileWithoutWriteTo.
 	// Type assert to an interface rather than *os.File directly to handle the latter case.
 	f, ok := r.(syscall.Conn)
@@ -46,7 +44,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
 
 	var werr error
 	err = sc.Read(func(fd uintptr) bool {
-		written, werr, handled = poll.SendFile(&c.pfd, syscall.Handle(fd), remain)
+		written, werr, handled = poll.SendFile(&c.pfd, fd, remain)
 		return true
 	})
 	if err == nil {

@@ -49,7 +49,7 @@ func expectSendfile(t *testing.T, wantConn Conn, f func()) {
 		gotFD      *poll.FD
 		gotErr     error
 	)
-	poll.TestHookDidSendFile = func(dstFD *poll.FD, src int, written int64, err error, handled bool) {
+	poll.TestHookDidSendFile = func(dstFD *poll.FD, src uintptr, written int64, err error, handled bool) {
 		if called {
 			t.Error("internal/poll.SendFile called multiple times, want one call")
 		}

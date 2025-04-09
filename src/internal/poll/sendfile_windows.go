@@ -10,7 +10,7 @@ import (
 )
 
 // SendFile wraps the TransmitFile call.
-func SendFile(fd *FD, src syscall.Handle, size int64) (written int64, err error, handled bool) {
+func SendFile(fd *FD, src uintptr, size int64) (written int64, err error, handled bool) {
 	defer func() {
 		TestHookDidSendFile(fd, 0, written, err, written > 0)
 	}()
@@ -18,7 +18,8 @@ func SendFile(fd *FD, src syscall.Handle, size int64) (written int64, err error,
 		// TransmitFile does not work with pipes
 		return 0, syscall.ESPIPE, false
 	}
-	if ft, _ := syscall.GetFileType(src); ft == syscall.FILE_TYPE_PIPE {
+	hsrc := syscall.Handle(src)
+	if ft, _ := syscall.GetFileType(hsrc); ft == syscall.FILE_TYPE_PIPE {
 		return 0, syscall.ESPIPE, false
 	}
 
@@ -29,11 +30,11 @@ func SendFile(fd *FD, src syscall.Handle, size int64) (written int64, err error,
 
 	// Get the file size so we don't read past the end of the file.
 	var fi syscall.ByHandleFileInformation
-	if err := syscall.GetFileInformationByHandle(src, &fi); err != nil {
+	if err := syscall.GetFileInformationByHandle(hsrc, &fi); err != nil {
 		return 0, err, false
 	}
 	fileSize := int64(fi.FileSizeHigh)<<32 + int64(fi.FileSizeLow)
-	startpos, err := syscall.Seek(src, 0, io.SeekCurrent)
+	startpos, err := syscall.Seek(hsrc, 0, io.SeekCurrent)
 	if err != nil {
 		return 0, err, false
 	}
@@ -49,7 +50,7 @@ func SendFile(fd *FD, src syscall.Handle, size int64) (written int64, err error,
 			// Some versions of Windows (Windows 10 1803) do not set
 			// file position after TransmitFile completes.
 			// So just use Seek to set file position.
-			_, serr := syscall.Seek(src, startpos+written, io.SeekStart)
+			_, serr := syscall.Seek(hsrc, startpos+written, io.SeekStart)
 			if err != nil {
 				err = serr
 			}
@@ -62,7 +63,7 @@ func SendFile(fd *FD, src syscall.Handle, size int64) (written int64, err error,
 	const maxChunkSizePerCall = int64(0x7fffffff - 1)
 
 	o := &fd.wop
-	o.handle = src
+	o.handle = hsrc
 	for size > 0 {
 		chunkSize := maxChunkSizePerCall
 		if chunkSize > size {
