@@ -126,7 +126,7 @@ func TestRFC9180Vectors(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			receipient, err := SetupReceipient(
+			recipient, err := SetupRecipient(
 				uint16(kemID),
 				uint16(kdfID),
 				uint16(aeadID),
@@ -138,7 +138,7 @@ func TestRFC9180Vectors(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			for _, ctx := range []*context{sender.context, receipient.context} {
+			for _, ctx := range []*context{sender.context, recipient.context} {
 				expectedSharedSecret := mustDecodeHex(t, setup["shared_secret"])
 				if !bytes.Equal(ctx.sharedSecret, expectedSharedSecret) {
 					t.Errorf("unexpected shared secret, got: %x, want %x", ctx.sharedSecret, expectedSharedSecret)
@@ -164,7 +164,7 @@ func TestRFC9180Vectors(t *testing.T) {
 						t.Fatal(err)
 					}
 					sender.seqNum = uint128{lo: uint64(seqNum)}
-					receipient.seqNum = uint128{lo: uint64(seqNum)}
+					recipient.seqNum = uint128{lo: uint64(seqNum)}
 					expectedNonce := mustDecodeHex(t, enc["nonce"])
 					computedNonce := sender.nextNonce()
 					if !bytes.Equal(computedNonce, expectedNonce) {
@@ -181,7 +181,7 @@ func TestRFC9180Vectors(t *testing.T) {
 					}
 
 					expectedPlaintext := mustDecodeHex(t, enc["pt"])
-					plaintext, err := receipient.Open(mustDecodeHex(t, enc["aad"]), mustDecodeHex(t, enc["ct"]))
+					plaintext, err := recipient.Open(mustDecodeHex(t, enc["aad"]), mustDecodeHex(t, enc["ct"]))
 					if err != nil {
 						t.Fatal(err)
 					}
