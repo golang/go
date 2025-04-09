@@ -388,52 +388,8 @@ func CalcSize(t *Type) {
 		if t.Elem() == nil {
 			break
 		}
-
-		CalcSize(t.Elem())
-		t.SetNotInHeap(t.Elem().NotInHeap())
-		if t.Elem().width != 0 {
-			cap := (uint64(MaxWidth) - 1) / uint64(t.Elem().width)
-			if uint64(t.NumElem()) > cap {
-				base.Errorf("type %L larger than address space", t)
-			}
-		}
-		w = t.NumElem() * t.Elem().width
-		t.align = t.Elem().align
-
-		// ABIInternal only allows "trivial" arrays (i.e., length 0 or 1)
-		// to be passed by register.
-		switch t.NumElem() {
-		case 0:
-			t.intRegs = 0
-			t.floatRegs = 0
-		case 1:
-			t.intRegs = t.Elem().intRegs
-			t.floatRegs = t.Elem().floatRegs
-		default:
-			t.intRegs = math.MaxUint8
-			t.floatRegs = math.MaxUint8
-		}
-		switch a := t.Elem().alg; a {
-		case AMEM, ANOEQ, ANOALG:
-			t.setAlg(a)
-		default:
-			switch t.NumElem() {
-			case 0:
-				// We checked above that the element type is comparable.
-				t.setAlg(AMEM)
-			case 1:
-				// Single-element array is same as its lone element.
-				t.setAlg(a)
-			default:
-				t.setAlg(ASPECIAL)
-			}
-		}
-		if t.NumElem() > 0 {
-			x := PtrDataSize(t.Elem())
-			if x > 0 {
-				t.ptrBytes = t.Elem().width*(t.NumElem()-1) + x
-			}
-		}
+		CalcArraySize(t)
+		w = t.width
 
 	case TSLICE:
 		if t.Elem() == nil {
@@ -582,6 +538,63 @@ func CalcStructSize(t *Type) {
 		if size := PtrDataSize(f.Type); size > 0 {
 			t.ptrBytes = f.Offset + size
 			break
+		}
+	}
+}
+
+// CalcArraySize calculates the size of t,
+// filling in t.width, t.align, t.alg, and t.ptrBytes,
+// even if size calculation is otherwise disabled.
+func CalcArraySize(t *Type) {
+	elem := t.Elem()
+	n := t.NumElem()
+	CalcSize(elem)
+	t.SetNotInHeap(elem.NotInHeap())
+	if elem.width != 0 {
+		cap := (uint64(MaxWidth) - 1) / uint64(elem.width)
+		if uint64(n) > cap {
+			base.Errorf("type %L larger than address space", t)
+		}
+	}
+
+	t.width = elem.width * n
+	t.align = elem.align
+	// ABIInternal only allows "trivial" arrays (i.e., length 0 or 1)
+	// to be passed by register.
+	switch n {
+	case 0:
+		t.intRegs = 0
+		t.floatRegs = 0
+	case 1:
+		t.intRegs = elem.intRegs
+		t.floatRegs = elem.floatRegs
+	default:
+		t.intRegs = math.MaxUint8
+		t.floatRegs = math.MaxUint8
+	}
+	t.alg = AMEM // default
+	if t.Noalg() {
+		t.setAlg(ANOALG)
+	}
+	switch a := elem.alg; a {
+	case AMEM, ANOEQ, ANOALG:
+		t.setAlg(a)
+	default:
+		switch n {
+		case 0:
+			// We checked above that the element type is comparable.
+			t.setAlg(AMEM)
+		case 1:
+			// Single-element array is same as its lone element.
+			t.setAlg(a)
+		default:
+			t.setAlg(ASPECIAL)
+		}
+	}
+	if n > 0 {
+		x := PtrDataSize(elem)
+		if x > 0 {
+			t.ptrBytes = elem.width*(n-1) + x
 		}
 	}
 }

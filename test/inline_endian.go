@@ -21,15 +21,15 @@ func endian(b []byte) uint64 { // ERROR "can inline endian" "b does not escape"
 }
 
 func appendLittleEndian(b []byte) []byte { // ERROR "can inline appendLittleEndian" "leaking param: b to result ~r0 level=0"
-	b = binary.LittleEndian.AppendUint64(b, 64) // ERROR "inlining call to binary.littleEndian.AppendUint64"
-	b = binary.LittleEndian.AppendUint32(b, 32) // ERROR "inlining call to binary.littleEndian.AppendUint32"
-	b = binary.LittleEndian.AppendUint16(b, 16) // ERROR "inlining call to binary.littleEndian.AppendUint16"
+	b = binary.LittleEndian.AppendUint64(b, 64) // ERROR "inlining call to binary.littleEndian.AppendUint64" "append escapes to heap"
+	b = binary.LittleEndian.AppendUint32(b, 32) // ERROR "inlining call to binary.littleEndian.AppendUint32" "append escapes to heap"
+	b = binary.LittleEndian.AppendUint16(b, 16) // ERROR "inlining call to binary.littleEndian.AppendUint16" "append escapes to heap"
 	return b
 }
 
 func appendBigEndian(b []byte) []byte { // ERROR "can inline appendBigEndian" "leaking param: b to result ~r0 level=0"
-	b = binary.BigEndian.AppendUint64(b, 64) // ERROR "inlining call to binary.bigEndian.AppendUint64"
-	b = binary.BigEndian.AppendUint32(b, 32) // ERROR "inlining call to binary.bigEndian.AppendUint32"
-	b = binary.BigEndian.AppendUint16(b, 16) // ERROR "inlining call to binary.bigEndian.AppendUint16"
+	b = binary.BigEndian.AppendUint64(b, 64) // ERROR "inlining call to binary.bigEndian.AppendUint64" "append escapes to heap"
+	b = binary.BigEndian.AppendUint32(b, 32) // ERROR "inlining call to binary.bigEndian.AppendUint32" "append escapes to heap"
+	b = binary.BigEndian.AppendUint16(b, 16) // ERROR "inlining call to binary.bigEndian.AppendUint16" "append escapes to heap"
 	return b
 }

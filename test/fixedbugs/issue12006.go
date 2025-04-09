@@ -17,14 +17,14 @@ func FooN(vals ...*int) (s int) { // ERROR "vals does not escape"
 
 // Append forces heap allocation and copies entries in vals to heap, therefore they escape to heap.
 func FooNx(x *int, vals ...*int) (s int) { // ERROR "leaking param: x" "leaking param content: vals"
-	vals = append(vals, x)
+	vals = append(vals, x) // ERROR "append does not escape"
 	return FooN(vals...)
 }
 
 var sink []*int
 
 func FooNy(x *int, vals ...*int) (s int) { // ERROR "leaking param: x" "leaking param: vals"
-	vals = append(vals, x)
+	vals = append(vals, x) // ERROR "append escapes to heap"
 	sink = vals
 	return FooN(vals...)
 }

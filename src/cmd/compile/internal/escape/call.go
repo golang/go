@@ -159,6 +159,14 @@ func (e *escape) call(ks []hole, call ir.Node) {
 		}
 		e.discard(call.RType)
 
+		// Model the new backing store that might be allocated by append.
+		// Its address flows to the result.
+		// Users of escape analysis can look at the escape information for OAPPEND
+		// and use that to decide where to allocate the backing store.
+		backingStore := e.spill(ks[0], call)
+		// As we have a boolean to prevent reuse, we can treat these allocations as outside any loops.
+		backingStore.dst.loopDepth = 0
+
 	case ir.OCOPY:
 		call := call.(*ir.BinaryExpr)
 		argument(e.mutatorHole(), call.X)

@@ -306,7 +306,11 @@ func (b *batch) finish(fns []*ir.Func) {
 				}
 			} else {
 				if base.Flag.LowerM != 0 && !goDeferWrapper {
-					base.WarnfAt(n.Pos(), "%v escapes to heap", n)
+					if n.Op() == ir.OAPPEND {
+						base.WarnfAt(n.Pos(), "append escapes to heap")
+					} else {
+						base.WarnfAt(n.Pos(), "%v escapes to heap", n)
+					}
 				}
 				if logopt.Enabled() {
 					var e_curfn *ir.Func // TODO(mdempsky): Fix.
@@ -316,7 +320,11 @@ func (b *batch) finish(fns []*ir.Func) {
 			n.SetEsc(ir.EscHeap)
 		} else {
 			if base.Flag.LowerM != 0 && n.Op() != ir.ONAME && !goDeferWrapper {
-				base.WarnfAt(n.Pos(), "%v does not escape", n)
+				if n.Op() == ir.OAPPEND {
+					base.WarnfAt(n.Pos(), "append does not escape")
+				} else {
+					base.WarnfAt(n.Pos(), "%v does not escape", n)
+				}
 			}
 			n.SetEsc(ir.EscNone)
 			if !loc.hasAttr(attrPersists) {

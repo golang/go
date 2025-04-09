@@ -1054,6 +1054,9 @@ type state struct {
 	// They are all (OffPtr (Select0 (runtime call))) and have the correct types,
 	// but the offsets are not set yet, and the type of the runtime call is also not final.
 	pendingHeapAllocations []*ssa.Value
+
+	// First argument of append calls that could be stack allocated.
+	appendTargets map[ir.Node]bool
 }
 
 type funcLine struct {
@@ -3735,6 +3738,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 
 	// Add number of new elements to length.
 	nargs := s.constInt(types.Types[types.TINT], int64(len(n.Args)-1))
+	oldLen := l
 	l = s.newValue2(s.ssaOp(ir.OADD, types.Types[types.TINT]), types.Types[types.TINT], l, nargs)
 
 	// Decide if we need to grow
@@ -3753,6 +3757,123 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	b.SetControl(cmp)
 	b.AddEdgeTo(grow)
 	b.AddEdgeTo(assign)
+
+	// If the result of the append does not escape, we can use
+	// a stack-allocated backing store if len is small enough.
+	// A stack-allocated backing store could be used at every
+	// append that qualifies, but we limit it in some cases to
+	// avoid wasted code and stack space.
+	// TODO: handle ... append case.
+	maxStackSize := int64(base.Debug.VariableMakeThreshold)
+	if !inplace && n.Esc() == ir.EscNone && et.Size() > 0 && et.Size() <= maxStackSize && base.Flag.N == 0 && base.VariableMakeHash.MatchPos(n.Pos(), nil) && !s.appendTargets[sn] {
+		// if l <= K {
+		//   if !used {
+		//     if oldLen == 0 {
+		//       var store [K]T
+		//       s = store[:l:K]
+		//       used = true
+		//     }
+		//   }
+		// }
+		// ... if we didn't use the stack backing store, call growslice ...
+		//
+		// oldLen==0 is not strictly necessary, but requiring it means
+		// we don't have to worry about copying existing elements.
+		// Allowing oldLen>0 would add complication. Worth it? I would guess not.
+		//
+		// TODO: instead of the used boolean, we could insist that this only applies
+		// to monotonic slices, those which once they have >0 entries never go back
+		// to 0 entries. Then oldLen==0 is enough.
+		//
+		// We also do this for append(x, ...) once for every x.
+		// It is ok to do it more often, but it is probably helpful only for
+		// the first instance. TODO: this could use more tuning. Using ir.Node
+		// as the key works for *ir.Name instances but probably nothing else.
+		if s.appendTargets == nil {
+			s.appendTargets = map[ir.Node]bool{}
+		}
+		s.appendTargets[sn] = true
+
+		K := maxStackSize / et.Size() // rounds down
+		KT := types.NewArray(et, K)
+		KT.SetNoalg(true)
+		types.CalcArraySize(KT)
+		// Align more than naturally for the type KT. See issue 73199.
+		align := types.NewArray(types.Types[types.TUINTPTR], 0)
+		types.CalcArraySize(align)
+		storeTyp := types.NewStruct([]*types.Field{
+			{Sym: types.BlankSym, Type: align},
+			{Sym: types.BlankSym, Type: KT},
+		})
+		storeTyp.SetNoalg(true)
+		types.CalcStructSize(storeTyp)
+
+		usedTestBlock := s.f.NewBlock(ssa.BlockPlain)
+		oldLenTestBlock := s.f.NewBlock(ssa.BlockPlain)
+		bodyBlock := s.f.NewBlock(ssa.BlockPlain)
+		growSlice := s.f.NewBlock(ssa.BlockPlain)
+
+		// Make "used" boolean.
+		tBool := types.Types[types.TBOOL]
+		used := typecheck.TempAt(n.Pos(), s.curfn, tBool)
+		s.defvars[s.f.Entry.ID][used] = s.constBool(false) // initialize this variable at fn entry
+
+		// Make backing store variable.
+		tInt := types.Types[types.TINT]
+		backingStore := typecheck.TempAt(n.Pos(), s.curfn, storeTyp)
+		backingStore.SetAddrtaken(true)
+
+		// if l <= K
+		s.startBlock(grow)
+		kTest := s.newValue2(s.ssaOp(ir.OLE, tInt), tBool, l, s.constInt(tInt, K))
+		b := s.endBlock()
+		b.Kind = ssa.BlockIf
+		b.SetControl(kTest)
+		b.AddEdgeTo(usedTestBlock)
+		b.AddEdgeTo(growSlice)
+		b.Likely = ssa.BranchLikely
+
+		// if !used
+		s.startBlock(usedTestBlock)
+		usedTest := s.newValue1(ssa.OpNot, tBool, s.expr(used))
+		b = s.endBlock()
+		b.Kind = ssa.BlockIf
+		b.SetControl(usedTest)
+		b.AddEdgeTo(oldLenTestBlock)
+		b.AddEdgeTo(growSlice)
+		b.Likely = ssa.BranchLikely
+
+		// if oldLen == 0
+		s.startBlock(oldLenTestBlock)
+		oldLenTest := s.newValue2(s.ssaOp(ir.OEQ, tInt), tBool, oldLen, s.constInt(tInt, 0))
+		b = s.endBlock()
+		b.Kind = ssa.BlockIf
+		b.SetControl(oldLenTest)
+		b.AddEdgeTo(bodyBlock)
+		b.AddEdgeTo(growSlice)
+		b.Likely = ssa.BranchLikely
+
+		// var store struct { _ [0]uintptr; arr [K]T }
+		s.startBlock(bodyBlock)
+		if et.HasPointers() {
+			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, backingStore, s.mem())
+		}
+		addr := s.addr(backingStore)
+		s.zero(storeTyp, addr)
+
+		// s = store.arr[:l:K]
+		s.vars[ptrVar] = addr
+		s.vars[lenVar] = l // nargs would also be ok because of the oldLen==0 test.
+		s.vars[capVar] = s.constInt(tInt, K)
+
+		// used = true
+		s.assign(used, s.constBool(true), false, 0)
+		b = s.endBlock()
+		b.AddEdgeTo(assign)
+
+		// New block to use for growslice call.
+		grow = growSlice
+	}
 
 	// Call growslice
 	s.startBlock(grow)
@@ -3816,7 +3937,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	}
 
 	// Write args into slice.
-	oldLen := s.newValue2(s.ssaOp(ir.OSUB, types.Types[types.TINT]), types.Types[types.TINT], l, nargs)
+	oldLen = s.newValue2(s.ssaOp(ir.OSUB, types.Types[types.TINT]), types.Types[types.TINT], l, nargs)
 	p2 := s.newValue2(ssa.OpPtrIndex, pt, p, oldLen)
 	for i, arg := range args {
 		addr := s.newValue2(ssa.OpPtrIndex, pt, p2, s.constInt(types.Types[types.TINT], int64(i)))
