@@ -10,78 +10,80 @@ import (
 )
 
 // SendFile wraps the TransmitFile call.
-func SendFile(fd *FD, src syscall.Handle, n int64) (written int64, err error) {
+func SendFile(fd *FD, src syscall.Handle, size int64) (written int64, err error, handled bool) {
 	defer func() {
 		TestHookDidSendFile(fd, 0, written, err, written > 0)
 	}()
 	if fd.kind == kindPipe {
 		// TransmitFile does not work with pipes
-		return 0, syscall.ESPIPE
+		return 0, syscall.ESPIPE, false
 	}
 	if ft, _ := syscall.GetFileType(src); ft == syscall.FILE_TYPE_PIPE {
-		return 0, syscall.ESPIPE
+		return 0, syscall.ESPIPE, false
 	}
 
 	if err := fd.writeLock(); err != nil {
-		return 0, err
+		return 0, err, false
 	}
 	defer fd.writeUnlock()
 
-	o := &fd.wop
-	o.handle = src
-
-	// TODO(brainman): skip calling syscall.Seek if OS allows it
-	curpos, err := syscall.Seek(o.handle, 0, io.SeekCurrent)
+	// Get the file size so we don't read past the end of the file.
+	var fi syscall.ByHandleFileInformation
+	if err := syscall.GetFileInformationByHandle(src, &fi); err != nil {
+		return 0, err, false
+	}
+	fileSize := int64(fi.FileSizeHigh)<<32 + int64(fi.FileSizeLow)
+	startpos, err := syscall.Seek(src, 0, io.SeekCurrent)
 	if err != nil {
-		return 0, err
+		return 0, err, false
+	}
+	maxSize := fileSize - startpos
+	if size <= 0 {
+		size = maxSize
+	} else {
+		size = min(size, maxSize)
 	}
 
-	if n <= 0 { // We don't know the size of the file so infer it.
-		// Find the number of bytes offset from curpos until the end of the file.
-		n, err = syscall.Seek(o.handle, -curpos, io.SeekEnd)
-		if err != nil {
-			return
+	defer func() {
+		if written > 0 {
+			// Some versions of Windows (Windows 10 1803) do not set
+			// file position after TransmitFile completes.
+			// So just use Seek to set file position.
+			_, serr := syscall.Seek(src, startpos+written, io.SeekStart)
+			if err != nil {
+				err = serr
+			}
 		}
-		// Now seek back to the original position.
-		if _, err = syscall.Seek(o.handle, curpos, io.SeekStart); err != nil {
-			return
-		}
-	}
+	}()
 
 	// TransmitFile can be invoked in one call with at most
 	// 2,147,483,646 bytes: the maximum value for a 32-bit integer minus 1.
 	// See https://docs.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile
 	const maxChunkSizePerCall = int64(0x7fffffff - 1)
 
-	for n > 0 {
+	o := &fd.wop
+	o.handle = src
+	for size > 0 {
 		chunkSize := maxChunkSizePerCall
-		if chunkSize > n {
-			chunkSize = n
+		if chunkSize > size {
+			chunkSize = size
 		}
 
-		o.o.Offset = uint32(curpos)
-		o.o.OffsetHigh = uint32(curpos >> 32)
+		off := startpos + written
+		o.o.Offset = uint32(off)
+		o.o.OffsetHigh = uint32(off >> 32)
 
-		nw, err := execIO(o, func(o *operation) error {
+		n, err := execIO(o, func(o *operation) error {
 			o.qty = uint32(chunkSize)
 			return syscall.TransmitFile(o.fd.Sysfd, o.handle, o.qty, 0, &o.o, nil, syscall.TF_WRITE_BEHIND)
 		})
 		if err != nil {
-			return written, err
+			return written, err, written > 0
 		}
 
-		curpos += int64(nw)
-
-		// Some versions of Windows (Windows 10 1803) do not set
-		// file position after TransmitFile completes.
-		// So just use Seek to set file position.
-		if _, err = syscall.Seek(o.handle, curpos, io.SeekStart); err != nil {
-			return written, err
-		}
-
-		n -= int64(nw)
-		written += int64(nw)
+		size -= int64(n)
+		written += int64(n)
 	}
 
-	return
+	return written, nil, written > 0
 }

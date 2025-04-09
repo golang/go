@@ -126,23 +126,16 @@ func testSendfile(t *testing.T, filePath, fileHash string, size, limit int64) {
 			// Return file data using io.Copy, which should use
 			// sendFile if available.
 			var sbytes int64
-			switch runtime.GOOS {
-			case "windows":
-				// Windows is not using sendfile for some reason:
-				// https://go.dev/issue/67042
-				sbytes, err = io.Copy(conn, f)
-			default:
-				expectSendfile(t, conn, func() {
-					if limit > 0 {
-						sbytes, err = io.CopyN(conn, f, limit)
-						if err == io.EOF && limit > size {
-							err = nil
-						}
-					} else {
-						sbytes, err = io.Copy(conn, f)
+			expectSendfile(t, conn, func() {
+				if limit > 0 {
+					sbytes, err = io.CopyN(conn, f, limit)
+					if err == io.EOF && limit > size {
+						err = nil
 					}
-				})
-			}
+				} else {
+					sbytes, err = io.Copy(conn, f)
+				}
+			})
 			if err != nil {
 				errc <- err
 				return

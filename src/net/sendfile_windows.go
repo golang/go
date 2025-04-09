@@ -7,43 +7,55 @@ package net
 import (
 	"internal/poll"
 	"io"
-	"os"
 	"syscall"
 )
 
 const supportsSendfile = true
 
-// sendFile copies the contents of r to c using the TransmitFile
+// TODO: deduplicate this file with sendfile_linux.go and sendfile_unix_alt.go.
+
+// sendFile copies the contents of r to c using the sendfile
 // system call to minimize copies.
 //
-// if handled == true, sendFile returns the number of bytes copied and any
-// non-EOF error.
+// if handled == true, sendFile returns the number (potentially zero) of bytes
+// copied and any non-EOF error.
 //
 // if handled == false, sendFile performed no work.
-func sendFile(fd *netFD, r io.Reader) (written int64, err error, handled bool) {
-	var n int64 = 0 // by default, copy until EOF.
+func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+	var remain int64 = 0 // by default, copy until EOF.
 
 	lr, ok := r.(*io.LimitedReader)
 	if ok {
-		n, r = lr.N, lr.R
-		if n <= 0 {
+		remain, r = lr.N, lr.R
+		if remain <= 0 {
 			return 0, nil, true
 		}
 	}
 
-	f, ok := r.(*os.File)
+	// r might be an *os.File or an os.fileWithoutWriteTo.
+	// Type assert to an interface rather than *os.File directly to handle the latter case.
+	f, ok := r.(syscall.Conn)
 	if !ok {
 		return 0, nil, false
 	}
 
-	written, err = poll.SendFile(&fd.pfd, syscall.Handle(f.Fd()), n)
+	sc, err := f.SyscallConn()
 	if err != nil {
-		err = wrapSyscallError("transmitfile", err)
+		return 0, nil, false
 	}
 
-	// If any byte was copied, regardless of any error
-	// encountered mid-way, handled must be set to true.
-	handled = written > 0
+	var werr error
+	err = sc.Read(func(fd uintptr) bool {
+		written, werr, handled = poll.SendFile(&c.pfd, syscall.Handle(fd), remain)
+		return true
+	})
+	if err == nil {
+		err = werr
+	}
 
-	return
+	if lr != nil {
+		lr.N = remain - written
+	}
+
+	return written, wrapSyscallError("sendfile", err), handled
 }
