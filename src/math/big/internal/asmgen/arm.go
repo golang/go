@@ -4,8 +4,6 @@
 
 package asmgen
 
-import "strings"
-
 var ArchARM = &Arch{
 	Name:          "arm",
 	WordBits:      32,
@@ -20,6 +18,7 @@ var ArchARM = &Arch{
 		// R15 is PC.
 		"R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R11", "R12",
 	},
+	regShift: true,
 
 	mov:  "MOVW",
 	add:  "ADD",
@@ -34,8 +33,6 @@ var ArchARM = &Arch{
 	and:  "AND",
 	or:   "ORR",
 	xor:  "EOR",
-	lshF: armLsh,
-	rshF: armRsh,
 
 	mulWideF: armMulWide,
 
@@ -48,14 +45,6 @@ var ArchARM = &Arch{
 	loadDecN:  armLoadDecN,
 	storeIncN: armStoreIncN,
 	storeDecN: armStoreDecN,
-}
-
-func armLsh(a *Asm, shift, src, dst Reg) {
-	a.Printf("\tMOVW %s<<%s, %s\n", src, strings.TrimPrefix(shift.String(), "$"), dst)
-}
-
-func armRsh(a *Asm, shift, src, dst Reg) {
-	a.Printf("\tMOVW %s>>%s, %s\n", src, strings.TrimPrefix(shift.String(), "$"), dst)
 }
 
 func armMulWide(a *Asm, src1, src2, dstlo, dsthi Reg) {

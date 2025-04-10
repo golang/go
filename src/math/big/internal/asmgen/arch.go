@@ -24,9 +24,14 @@ type Arch struct {
 	// Registers.
 	regs        []string // usable general registers, in allocation order
 	reg0        string   // dedicated zero register
-	regCarry    string   // dedicated carry register
-	regAltCarry string   // dedicated secondary carry register
+	regCarry    string   // dedicated carry register, for systems with no hardware carry bits
+	regAltCarry string   // dedicated secondary carry register, for systems with no hardware carry bits
 	regTmp      string   // dedicated temporary register
+
+	// regShift indicates that the architecture supports
+	// using REG1>>REG2 and REG1<<REG2 as the first source
+	// operand in an arithmetic instruction. (32-bit ARM does this.)
+	regShift bool
 
 	// setup is called to emit any per-architecture function prologue,
 	// immediately after the TEXT line has been emitted.
@@ -85,13 +90,6 @@ type Arch struct {
 	// They return a boolean indicating whether the operation was handled.
 	addF func(a *Asm, src1, src2, dst Reg, carry Carry) bool
 	subF func(a *Asm, src1, src2, dst Reg, carry Carry) bool
-
-	// lshF and rshF implement a.Lsh and a.Rsh
-	// on systems where the situation is more complicated than
-	// a simple instruction opcode.
-	// They must succeed.
-	lshF func(a *Asm, shift, src, dst Reg)
-	rshF func(a *Asm, shift, src, dst Reg)
 
 	// mulF and mulWideF implement Mul and MulWide.
 	// They call Fatalf if the operation is unsupported.

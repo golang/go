@@ -33,5 +33,9 @@ func generate(arch *Arch) (file string, data []byte) {
 	a := NewAsm(arch)
 	addOrSubVV(a, "addVV")
 	addOrSubVV(a, "subVV")
+	shiftVU(a, "lshVU")
+	shiftVU(a, "rshVU")
+	mulAddVWW(a)
+	addMulVVWW(a)
 	return file, a.out.Bytes()
 }

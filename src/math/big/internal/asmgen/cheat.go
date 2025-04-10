@@ -36,16 +36,19 @@ func loop(x int) int {
 	s := 0
 	for i := 1; i < x; i++ {
 		s += i
-		if s == 98 {
+		if s == 98 { // useful for jmpEqual
 			return 99
 		}
 		if s == 99 {
 			return 100
 		}
-		if s == 0 {
+		if s == 0 { // useful for jmpZero
 			return 101
 		}
-		s += 2
+		if s != 0 { // useful for jmpNonZero
+			s *= 3
+		}
+		s += 2 // keep last condition from being inverted
 	}
 	return s
 }

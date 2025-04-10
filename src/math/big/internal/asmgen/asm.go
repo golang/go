@@ -328,14 +328,28 @@ func (a *Asm) Neg(src, dst Reg) {
 	}
 }
 
+// HasRegShift reports whether the architecture can use shift expressions as operands.
+func (a *Asm) HasRegShift() bool {
+	return a.Arch.regShift
+}
+
+// LshReg returns a shift-expression operand src<<shift.
+// If a.HasRegShift() == false, LshReg panics.
+func (a *Asm) LshReg(shift, src Reg) Reg {
+	if !a.HasRegShift() {
+		a.Fatalf("no reg shift")
+	}
+	return Reg{fmt.Sprintf("%s<<%s", src, strings.TrimPrefix(shift.name, "$"))}
+}
+
 // Lsh emits dst = src << shift.
 // It may modify the carry flag.
 func (a *Asm) Lsh(shift, src, dst Reg) {
 	if need := a.hint(HintShiftCount); need != "" && shift.name != need && !shift.IsImm() {
 		a.Fatalf("shift count not in %s", need)
 	}
-	if a.Arch.lshF != nil {
-		a.Arch.lshF(a, shift, src, dst)
+	if a.HasRegShift() {
+		a.Mov(a.LshReg(shift, src), dst)
 		return
 	}
 	a.op3(a.Arch.lsh, shift, src, dst)
@@ -353,14 +367,23 @@ func (a *Asm) LshWide(shift, adj, src, dst Reg) {
 	a.op3(fmt.Sprintf("%s %s,", a.Arch.lshd, shift), adj, src, dst)
 }
 
+// RshReg returns a shift-expression operand src>>shift.
+// If a.HasRegShift() == false, RshReg panics.
+func (a *Asm) RshReg(shift, src Reg) Reg {
+	if !a.HasRegShift() {
+		a.Fatalf("no reg shift")
+	}
+	return Reg{fmt.Sprintf("%s>>%s", src, strings.TrimPrefix(shift.name, "$"))}
+}
+
 // Rsh emits dst = src >> shift.
 // It may modify the carry flag.
 func (a *Asm) Rsh(shift, src, dst Reg) {
 	if need := a.hint(HintShiftCount); need != "" && shift.name != need && !shift.IsImm() {
 		a.Fatalf("shift count not in %s", need)
 	}
-	if a.Arch.rshF != nil {
-		a.Arch.rshF(a, shift, src, dst)
+	if a.HasRegShift() {
+		a.Mov(a.RshReg(shift, src), dst)
 		return
 	}
 	a.op3(a.Arch.rsh, shift, src, dst)
