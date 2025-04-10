@@ -68,7 +68,7 @@ var InitWSA = sync.OnceFunc(func() {
 // operation contains superset of data necessary to perform all async IO.
 type operation struct {
 	// Used by IOCP interface, it must be first field
-	// of the struct, as our code rely on it.
+	// of the struct, as our code relies on it.
 	o syscall.Overlapped
 
 	// fields used by runtime.netpoll
@@ -86,6 +86,16 @@ type operation struct {
 	flags  uint32
 	qty    uint32
 	bufs   []syscall.WSABuf
+}
+
+func (o *operation) setEvent() {
+	h, err := windows.CreateEvent(nil, 0, 0, nil)
+	if err != nil {
+		// This shouldn't happen when all CreateEvent arguments are zero.
+		panic(err)
+	}
+	// Set the low bit so that the external IOCP doesn't receive the completion packet.
+	o.o.HEvent = h | 1
 }
 
 func (o *operation) overlapped() *syscall.Overlapped {
@@ -155,11 +165,15 @@ func (o *operation) InitMsg(p []byte, oob []byte) {
 
 // waitIO waits for the IO operation o to complete.
 func waitIO(o *operation) error {
+	if o.fd.isBlocking {
+		panic("can't wait on blocking operations")
+	}
 	fd := o.fd
 	if !fd.pd.pollable() {
 		// The overlapped handle is not added to the runtime poller,
-		// the only way to wait for the IO to complete is block.
-		_, err := syscall.WaitForSingleObject(fd.Sysfd, syscall.INFINITE)
+		// the only way to wait for the IO to complete is block until
+		// the overlapped event is signaled.
+		_, err := syscall.WaitForSingleObject(o.o.HEvent, syscall.INFINITE)
 		return err
 	}
 	// Wait for our request to complete.
@@ -202,11 +216,19 @@ func execIO(o *operation, submit func(o *operation) error) (int, error) {
 		return 0, err
 	}
 	// Start IO.
+	if !fd.isBlocking && o.o.HEvent == 0 && !fd.pd.pollable() {
+		// If the handle is opened for overlapped IO but we can't
+		// use the runtime poller, then we need to use an
+		// event to wait for the IO to complete.
+		o.setEvent()
+	}
 	o.qty = 0
 	o.flags = 0
 	err = submit(o)
 	var waitErr error
-	if err == syscall.ERROR_IO_PENDING || (err == nil && !o.fd.skipSyncNotif) {
+	// Blocking operations shouldn't return ERROR_IO_PENDING.
+	// Continue without waiting if that happens.
+	if !o.fd.isBlocking && (err == syscall.ERROR_IO_PENDING || (err == nil && !o.fd.skipSyncNotif)) {
 		// IO started asynchronously or completed synchronously but
 		// a sync notification is required. Wait for it to complete.
 		waitErr = waitIO(o)
@@ -345,11 +367,6 @@ func (fd *FD) initIO() error {
 		// so it is safe to add handles owned by the caller.
 		fd.initIOErr = fd.pd.init(fd)
 		if fd.initIOErr != nil {
-			// This can happen if the handle is already associated
-			// with another IOCP or if the isBlocking flag is incorrect.
-			// In both cases, fallback to synchronous IO.
-			fd.isBlocking = true
-			fd.skipSyncNotif = true
 			return
 		}
 		fd.rop.runtimeCtx = fd.pd.runtimeCtx
@@ -389,7 +406,6 @@ func (fd *FD) Init(net string, pollable bool) error {
 	}
 	fd.isFile = fd.kind != kindNet
 	fd.isBlocking = !pollable
-	fd.skipSyncNotif = fd.isBlocking
 	fd.rop.mode = 'r'
 	fd.wop.mode = 'w'
 	fd.rop.fd = fd

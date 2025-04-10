@@ -1984,31 +1984,93 @@ func TestPipeCanceled(t *testing.T) {
 	}
 }
 
-func TestPipeExternalIOCP(t *testing.T) {
+func iocpAssociateFile(f *os.File, iocp syscall.Handle) error {
+	sc, err := f.SyscallConn()
+	if err != nil {
+		return err
+	}
+	var syserr error
+	err = sc.Control(func(fd uintptr) {
+		if _, err = windows.CreateIoCompletionPort(syscall.Handle(fd), iocp, 0, 0); err != nil {
+			syserr = err
+		}
+	})
+	if err == nil {
+		err = syserr
+	}
+	return err
+}
+
+func TestFileAssociatedWithExternalIOCP(t *testing.T) {
 	// Test that a caller can associate an overlapped handle to an external IOCP
-	// even when the handle is also associated to a poll.FD. Also test that
-	// the FD can still perform I/O after the association.
+	// after the handle has been passed to os.NewFile.
+	// Also test that the File can perform I/O after it is associated with the
+	// external IOCP and that those operations do not post to the external IOCP.
 	t.Parallel()
 	name := pipeName()
 	pipe := newMessagePipe(t, name, true)
-	_ = newFileOverlapped(t, name, true) // Just open a pipe client
+	_ = newFileOverlapped(t, name, true) // just open a pipe client
 
-	sc, err := pipe.SyscallConn()
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if err := sc.Control(func(fd uintptr) {
-		_, err := windows.CreateIoCompletionPort(syscall.Handle(fd), 0, 0, 1)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}); err != nil {
-		t.Error(err)
-	}
+	// Use a file to exercise WriteAt.
+	file := newFileOverlapped(t, filepath.Join(t.TempDir(), "a"), true)
 
-	_, err = pipe.Write([]byte("hello"))
+	iocp, err := windows.CreateIoCompletionPort(syscall.InvalidHandle, 0, 0, 0)
 	if err != nil {
 		t.Fatal(err)
+	}
+	defer func() {
+		if iocp == syscall.InvalidHandle {
+			// Already closed at the end of the test.
+			return
+		}
+		if err := syscall.CloseHandle(iocp); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	ch := make(chan error, 1)
+	go func() {
+		var bytes, key uint32
+		var overlapped *syscall.Overlapped
+		err := syscall.GetQueuedCompletionStatus(syscall.Handle(iocp), &bytes, &key, &overlapped, syscall.INFINITE)
+		ch <- err
+	}()
+
+	if err := iocpAssociateFile(pipe, iocp); err != nil {
+		t.Fatal(err)
+	}
+	if err := iocpAssociateFile(file, iocp); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := pipe.Write([]byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := file.Write([]byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := file.WriteAt([]byte("hello"), 0); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait fot he goroutine to call GetQueuedCompletionStatus.
+	time.Sleep(100 * time.Millisecond)
+
+	// Trigger ERROR_ABANDONED_WAIT_0.
+	if err := syscall.CloseHandle(iocp); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for the completion to be posted to the IOCP.
+	err = <-ch
+	iocp = syscall.InvalidHandle
+	const ERROR_ABANDONED_WAIT_0 = syscall.Errno(735)
+	switch err {
+	case ERROR_ABANDONED_WAIT_0:
+		// This is what we expect.
+	case nil:
+		t.Error("unexpected queued completion")
+	default:
+		t.Error(err)
 	}
 }
