@@ -20,6 +20,9 @@ var nopos syntax.Pos
 // debugging/development support
 const debug = false // leave on during development
 
+// position tracing for panics during type checking
+const tracePos = false // TODO(markfreeman): check performance implications
+
 // _aliasAny changes the behavior of [Scope.Lookup] for "any" in the
 // [Universe] scope.
 //
@@ -178,7 +181,8 @@ type Checker struct {
 	environment
 
 	// debugging
-	indent int // indentation for tracing
+	posStack []syntax.Pos // stack of source positions seen; used for panic tracing
+	indent   int          // indentation for tracing
 }
 
 // addDeclDep adds the dependency edge (check.decl -> to) if check.decl exists
@@ -396,6 +400,16 @@ func versionMax(a, b goVersion) goVersion {
 	return b
 }
 
+// pushPos pushes pos onto the pos stack.
+func (check *Checker) pushPos(pos syntax.Pos) {
+	check.posStack = append(check.posStack, pos)
+}
+
+// popPos pops from the pos stack.
+func (check *Checker) popPos() {
+	check.posStack = check.posStack[:len(check.posStack)-1]
+}
+
 // A bailout panic is used for early termination.
 type bailout struct{}
 
@@ -405,6 +419,7 @@ func (check *Checker) handleBailout(err *error) {
 		// normal return or early exit
 		*err = check.firstErr
 	default:
+		// TODO(markfreeman): dump posStack if available
 		// re-panic
 		panic(p)
 	}

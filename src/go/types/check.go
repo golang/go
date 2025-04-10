@@ -23,6 +23,9 @@ var noposn = atPos(nopos)
 // debugging/development support
 const debug = false // leave on during development
 
+// position tracing for panics during type checking
+const tracePos = false // TODO(markfreeman): check performance implications
+
 // gotypesalias controls the use of Alias types.
 // As of Apr 16 2024 they are used by default.
 // To disable their use, set GODEBUG to gotypesalias=0.
@@ -198,7 +201,8 @@ type Checker struct {
 	environment
 
 	// debugging
-	indent int // indentation for tracing
+	posStack []positioner // stack of source positions seen; used for panic tracing
+	indent   int          // indentation for tracing
 }
 
 // addDeclDep adds the dependency edge (check.decl -> to) if check.decl exists
@@ -421,6 +425,16 @@ func versionMax(a, b goVersion) goVersion {
 	return a
 }
 
+// pushPos pushes pos onto the pos stack.
+func (check *Checker) pushPos(pos positioner) {
+	check.posStack = append(check.posStack, pos)
+}
+
+// popPos pops from the pos stack.
+func (check *Checker) popPos() {
+	check.posStack = check.posStack[:len(check.posStack)-1]
+}
+
 // A bailout panic is used for early termination.
 type bailout struct{}
 
@@ -430,6 +444,7 @@ func (check *Checker) handleBailout(err *error) {
 		// normal return or early exit
 		*err = check.firstErr
 	default:
+		// TODO(markfreeman): dump posStack if available
 		// re-panic
 		panic(p)
 	}
