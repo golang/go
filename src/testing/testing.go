@@ -1016,30 +1016,33 @@ func (c *common) log(s string) {
 	s = strings.ReplaceAll(s, "\n", "\n"+indent)
 	s += "\n"
 
+	// Select test nesting level for output.
+	n := c.nest()
 	// The test and all its parents are done and the log cannot be output.
-	if !c.canOutput() {
+	if n == nil {
 		panic("Log in goroutine after " + c.name + " has completed: " + s)
 	}
 
 	// Prefix with the call site. It is located by skipping 3 functions:
 	// callSite + log + public function
-	s = c.callSite(3) + s
-	c.o.Write([]byte(s))
+	s = n.callSite(3) + s
+	n.o.Write([]byte(s))
 }
 
-// canOutput checks if the test or one of its parents is incomplete.
-func (c *common) canOutput() bool {
+// nest selects the nesting level for test output. It returns the test if it is
+// incomplete. Otherwise, it finds its closest incomplete parent.
+func (c *common) nest() *common {
 	if !c.done {
-		return true
+		return c
 	}
 	for parent := c.parent; parent != nil; parent = parent.parent {
 		parent.mu.Lock()
 		defer parent.mu.Unlock()
 		if !parent.done {
-			return true
+			return parent
 		}
 	}
-	return false
+	return nil
 }
 
 // callSite retrieves and formats the file and line of the call site.
@@ -1099,17 +1102,7 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 // writeLine generates the output for a given line.
 func (o *outputWriter) writeLine(b []byte) {
 	if o.c.done {
-		// This test has already finished. Try and log this message
-		// with our parent. If we don't have a parent, panic.
-		for parent := o.c.parent; parent != nil; parent = parent.parent {
-			parent.mu.Lock()
-			defer parent.mu.Unlock()
-			if !parent.done {
-				parent.output = append(parent.output, b...)
-				return
-			}
-		}
-		panic("Log in goroutine after " + o.c.name + " has completed: " + string(bytes.TrimSpace(b)))
+		o.c.output = append(o.c.output, b...)
 	} else {
 		if o.c.chatty != nil {
 			if o.c.bench {
