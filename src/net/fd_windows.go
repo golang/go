@@ -67,6 +67,15 @@ func (fd *netFD) init() error {
 		if err != nil {
 			return wrapSyscallError("wsaioctl", err)
 		}
+		// Disable reporting of NET_UNREACHABLE errors.
+		// See https://go.dev/issue/68614.
+		ret = 0
+		flag = 0
+		size = uint32(unsafe.Sizeof(flag))
+		err = syscall.WSAIoctl(fd.pfd.Sysfd, windows.SIO_UDP_NETRESET, (*byte)(unsafe.Pointer(&flag)), size, nil, 0, &ret, nil, 0)
+		if err != nil {
+			return wrapSyscallError("wsaioctl", err)
+		}
 	}
 	return nil
 }
