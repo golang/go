@@ -6636,20 +6636,14 @@ func globrunqget() *g {
 
 // Try get a batch of G's from the global runnable queue.
 // sched.lock must be held.
-func globrunqgetbatch(max int32) (gp *g, q gQueue, qsize int32) {
+func globrunqgetbatch(n int32) (gp *g, q gQueue, qsize int32) {
 	assertLockHeld(&sched.lock)
 
 	if sched.runqsize == 0 {
 		return
 	}
 
-	n := sched.runqsize/gomaxprocs + 1
-	if n > sched.runqsize {
-		n = sched.runqsize
-	}
-	if n > max {
-		n = max
-	}
+	n = min(n, sched.runqsize, sched.runqsize/gomaxprocs+1)
 
 	sched.runqsize -= n
 
