@@ -1193,9 +1193,8 @@ func Parsed() bool {
 	return CommandLine.Parsed()
 }
 
-// CommandLine is the default set of command-line flags, parsed from [os.Args].
-// The top-level functions such as [BoolVar], [Arg], and so on are wrappers for the
-// methods of CommandLine.
+// CommandLine holds [FlagSet] for global flags. Its methods are exposed
+// as top-level functions such as [BoolVar], [Arg], and so on.
 var CommandLine *FlagSet
 
 func init() {
