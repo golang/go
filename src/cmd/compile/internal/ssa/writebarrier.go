@@ -593,10 +593,7 @@ func (f *Func) computeZeroMap(select1 []*Value) map[ID]ZeroRegion {
 					continue
 				}
 
-				nptr := v.Type.Elem().Size() / ptrSize
-				if nptr > 64 {
-					nptr = 64
-				}
+				nptr := min(64, v.Type.Elem().Size()/ptrSize)
 				zeroes[mem.ID] = ZeroRegion{base: v, mask: 1<<uint(nptr) - 1}
 			}
 		}
