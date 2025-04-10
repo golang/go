@@ -1016,10 +1016,30 @@ func (c *common) log(s string) {
 	s = strings.ReplaceAll(s, "\n", "\n"+indent)
 	s += "\n"
 
+	// The test and all its parents are done and the log cannot be output.
+	if !c.canOutput() {
+		panic("Log in goroutine after " + c.name + " has completed: " + s)
+	}
+
 	// Prefix with the call site. It is located by skipping 3 functions:
 	// callSite + log + public function
 	s = c.callSite(3) + s
 	c.o.Write([]byte(s))
+}
+
+// canOutput checks if the test or one of its parents is incomplete.
+func (c *common) canOutput() bool {
+	if !c.done {
+		return true
+	}
+	for parent := c.parent; parent != nil; parent = parent.parent {
+		parent.mu.Lock()
+		defer parent.mu.Unlock()
+		if !parent.done {
+			return true
+		}
+	}
+	return false
 }
 
 // callSite retrieves and formats the file and line of the call site.
@@ -1089,7 +1109,7 @@ func (o *outputWriter) writeLine(b []byte) {
 				return
 			}
 		}
-		panic("Log in goroutine after " + o.c.name + " has completed: " + string(b))
+		panic("Log in goroutine after " + o.c.name + " has completed: " + string(bytes.TrimSpace(b)))
 	} else {
 		if o.c.chatty != nil {
 			if o.c.bench {

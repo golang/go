@@ -831,7 +831,6 @@ func TestLogAfterComplete(t *T) {
 	tRunner(t1, func(t *T) {
 		t.Run("TestLateLog", func(t *T) {
 			go func() {
-				const afterTest = "log after test"
 				defer close(c2)
 				defer func() {
 					p := recover()
@@ -844,17 +843,14 @@ func TestLogAfterComplete(t *T) {
 						c2 <- fmt.Sprintf("subtest panic with unexpected value %v", p)
 						return
 					}
-					const message = "Log in goroutine after TestLateLog has completed"
-					if !strings.Contains(s, message) {
-						c2 <- fmt.Sprintf("subtest panic %q does not contain %q", s, message)
-					}
-					if !strings.Contains(s, afterTest) {
-						c2 <- fmt.Sprintf("subtest panic %q does not contain %q", s, afterTest)
+					const want = "Log in goroutine after TestLateLog has completed: log after test"
+					if !strings.Contains(s, want) {
+						c2 <- fmt.Sprintf("subtest panic %q does not contain %q", s, want)
 					}
 				}()
 
 				<-c1
-				t.Log(afterTest)
+				t.Log("log after test")
 			}()
 		})
 	})
