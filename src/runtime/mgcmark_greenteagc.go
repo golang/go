@@ -41,6 +41,7 @@ import (
 	"internal/goarch"
 	"internal/runtime/atomic"
 	"internal/runtime/gc"
+	"internal/runtime/gc/scan"
 	"internal/runtime/sys"
 	"unsafe"
 )
@@ -259,7 +260,7 @@ func gcUsesSpanInlineMarkBits(size uintptr) bool {
 	return heapBitsInSpan(size) && size >= 16
 }
 
-// tryQueueOnSpan tries to queue p on the span it points to, if it
+// tryDeferToSpanScan tries to queue p on the span it points to, if it
 // points to a small object span (gcUsesSpanQueue size).
 func tryDeferToSpanScan(p uintptr, gcw *gcWork) bool {
 	if useCheckmark {
@@ -608,8 +609,7 @@ func scanSpan(p objptr, gcw *gcWork) {
 		atomic.Or8(bytep, mask)
 		gcw.bytesMarked += uint64(elemsize)
 		if debug.gctrace > 1 {
-			gcw.stats[spanclass.sizeclass()].spansSparseScanned++
-			gcw.stats[spanclass.sizeclass()].spanObjsSparseScanned++
+			gcw.stats[spanclass.sizeclass()].sparseObjsScanned++
 		}
 		b := spanBase + uintptr(objIndex)*elemsize
 		scanObjectSmall(spanBase, b, elemsize, gcw)
@@ -631,11 +631,47 @@ func scanSpan(p objptr, gcw *gcWork) {
 		return
 	}
 	gcw.bytesMarked += uint64(objsMarked) * uint64(elemsize)
+
+	// Check if we have enough density to make a dartboard scan
+	// worthwhile. If not, just do what scanobject does, but
+	// localized to the span, using the dartboard.
+	if !scan.HasFastScanSpanPacked() || objsMarked < int(nelems/8) {
+		if debug.gctrace > 1 {
+			gcw.stats[spanclass.sizeclass()].spansSparseScanned++
+			gcw.stats[spanclass.sizeclass()].spanObjsSparseScanned += uint64(objsMarked)
+		}
+		scanObjectsSmall(spanBase, elemsize, nelems, gcw, &toScan)
+		return
+	}
+
+	// Scan the span.
+	//
+	// N.B. Use gcw.ptrBuf as the output buffer. This is a bit different
+	// from scanObjectsSmall, which puts addresses to dereference. ScanSpanPacked
+	// on the other hand, fills gcw.ptrBuf with already dereferenced pointers.
+	nptrs := scan.ScanSpanPacked(
+		unsafe.Pointer(spanBase),
+		&gcw.ptrBuf[0],
+		&toScan,
+		uintptr(spanclass.sizeclass()),
+		spanPtrMaskUnsafe(spanBase),
+	)
+	gcw.heapScanWork += int64(objsMarked) * int64(elemsize)
+
 	if debug.gctrace > 1 {
+		// Write down some statistics.
 		gcw.stats[spanclass.sizeclass()].spansDenseScanned++
 		gcw.stats[spanclass.sizeclass()].spanObjsDenseScanned += uint64(objsMarked)
 	}
-	scanObjectsSmall(spanBase, elemsize, nelems, gcw, &toScan)
+
+	// Process all the pointers we just got.
+	for _, p := range gcw.ptrBuf[:nptrs] {
+		if !tryDeferToSpanScan(p, gcw) {
+			if obj, span, objIndex := findObject(p, 0, 0); obj != 0 {
+				greyobject(obj, 0, 0, span, gcw, objIndex)
+			}
+		}
+	}
 }
 
 // spanSetScans sets any unset mark bits that have their mark bits set in the inline mark bits.
@@ -798,12 +834,27 @@ func heapBitsSmallForAddrInline(spanBase, addr, elemsize uintptr) uintptr {
 	return read
 }
 
+// spanPtrMaskUnsafe returns the pointer mask for a span with inline mark bits.
+//
+// The caller must ensure spanBase is the base of a span that:
+// - 1 page in size,
+// - Uses inline mark bits,
+// - Contains pointers.
+func spanPtrMaskUnsafe(spanBase uintptr) *gc.PtrMask {
+	base := spanBase + gc.PageSize - unsafe.Sizeof(gc.PtrMask{}) - unsafe.Sizeof(spanInlineMarkBits{})
+	return (*gc.PtrMask)(unsafe.Pointer(base))
+}
+
 type sizeClassScanStats struct {
-	spansDenseScanned     uint64
-	spanObjsDenseScanned  uint64
-	spansSparseScanned    uint64
-	spanObjsSparseScanned uint64
-	sparseObjsScanned     uint64
+	spansDenseScanned     uint64 // Spans scanned with ScanSpanPacked.
+	spanObjsDenseScanned  uint64 // Objects scanned with ScanSpanPacked.
+	spansSparseScanned    uint64 // Spans scanned with scanObjectsSmall.
+	spanObjsSparseScanned uint64 // Objects scanned with scanObjectsSmall.
+	sparseObjsScanned     uint64 // Objects scanned with scanobject or scanObjectSmall.
+	// Note: sparseObjsScanned is sufficient for both cases because
+	// a particular size class either uses scanobject or scanObjectSmall,
+	// not both. In the latter case, we also know that there was one
+	// object scanned per span, so no need for a span counter.
 }
 
 func dumpScanStats() {
