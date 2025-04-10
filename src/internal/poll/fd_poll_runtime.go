@@ -156,7 +156,6 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 	}
 	defer fd.decref()
 
-	fd.initIO()
 	if fd.pd.runtimeCtx == 0 {
 		return ErrNoDeadline
 	}

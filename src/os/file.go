@@ -714,8 +714,12 @@ func (f *File) SyscallConn() (syscall.RawConn, error) {
 // Do not close the returned descriptor; that could cause a later
 // close of f to close an unrelated descriptor.
 //
-// On Unix systems this will cause the [File.SetDeadline]
-// methods to stop working.
+// Fd's behavior differs on some platforms:
+//
+//   - On Unix and Windows, [File.SetDeadline] methods will stop working.
+//   - On Windows, the file descriptor will be disassociated from the
+//     Go runtime I/O completion port if there are no concurrent I/O
+//     operations on the file.
 //
 // For most uses prefer the f.SyscallConn method.
 func (f *File) Fd() uintptr {

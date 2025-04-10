@@ -32,6 +32,7 @@ func UTF16PtrToString(p *uint16) string {
 }
 
 const (
+	ERROR_INVALID_HANDLE         syscall.Errno = 6
 	ERROR_BAD_LENGTH             syscall.Errno = 24
 	ERROR_SHARING_VIOLATION      syscall.Errno = 32
 	ERROR_LOCK_VIOLATION         syscall.Errno = 33
@@ -39,6 +40,7 @@ const (
 	ERROR_CALL_NOT_IMPLEMENTED   syscall.Errno = 120
 	ERROR_INVALID_NAME           syscall.Errno = 123
 	ERROR_LOCK_FAILED            syscall.Errno = 167
+	ERROR_IO_INCOMPLETE          syscall.Errno = 996
 	ERROR_NO_TOKEN               syscall.Errno = 1008
 	ERROR_NO_UNICODE_TRANSLATION syscall.Errno = 1113
 	ERROR_CANT_ACCESS_FILE       syscall.Errno = 1920

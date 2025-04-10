@@ -37,6 +37,11 @@ func (file *File) fd() uintptr {
 	if file == nil {
 		return uintptr(syscall.InvalidHandle)
 	}
+	// Try to disassociate the file from the runtime poller.
+	// File.Fd doesn't return an error, so we don't have a way to
+	// report it. We just ignore it. It's up to the caller to call
+	// it when there are no concurrent IO operations.
+	_ = file.pfd.DisassociateIOCP()
 	return uintptr(file.pfd.Sysfd)
 }
 

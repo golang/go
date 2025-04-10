@@ -10,6 +10,7 @@ import (
 	"internal/syscall/windows"
 	"io"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"unicode/utf16"
 	"unicode/utf8"
@@ -98,6 +99,12 @@ func (o *operation) setEvent() {
 	o.o.HEvent = h | 1
 }
 
+func (o *operation) close() {
+	if o.o.HEvent != 0 {
+		syscall.CloseHandle(o.o.HEvent)
+	}
+}
+
 func (o *operation) overlapped() *syscall.Overlapped {
 	if o.fd.isBlocking {
 		// Don't return the overlapped object if the file handle
@@ -169,7 +176,7 @@ func waitIO(o *operation) error {
 		panic("can't wait on blocking operations")
 	}
 	fd := o.fd
-	if !fd.pd.pollable() {
+	if !fd.pollable() {
 		// The overlapped handle is not added to the runtime poller,
 		// the only way to wait for the IO to complete is block until
 		// the overlapped event is signaled.
@@ -190,7 +197,7 @@ func waitIO(o *operation) error {
 // cancelIO cancels the IO operation o and waits for it to complete.
 func cancelIO(o *operation) {
 	fd := o.fd
-	if !fd.pd.pollable() {
+	if !fd.pollable() {
 		return
 	}
 	// Cancel our request.
@@ -209,14 +216,13 @@ func cancelIO(o *operation) {
 // to avoid reusing the values from a previous call.
 func execIO(o *operation, submit func(o *operation) error) (int, error) {
 	fd := o.fd
-	fd.initIO()
 	// Notify runtime netpoll about starting IO.
 	err := fd.pd.prepare(int(o.mode), fd.isFile)
 	if err != nil {
 		return 0, err
 	}
 	// Start IO.
-	if !fd.isBlocking && o.o.HEvent == 0 && !fd.pd.pollable() {
+	if !fd.isBlocking && o.o.HEvent == 0 && !fd.pollable() {
 		// If the handle is opened for overlapped IO but we can't
 		// use the runtime poller, then we need to use an
 		// event to wait for the IO to complete.
@@ -244,10 +250,11 @@ func execIO(o *operation, submit func(o *operation) error) (int, error) {
 			err = windows.WSAGetOverlappedResult(fd.Sysfd, &o.o, &o.qty, false, &o.flags)
 		}
 	}
-	// ERROR_OPERATION_ABORTED may have been caused by us. In that case,
-	// map it to our own error. Don't do more than that, each submitted
-	// function may have its own meaning for each error.
-	if err == syscall.ERROR_OPERATION_ABORTED {
+	switch err {
+	case syscall.ERROR_OPERATION_ABORTED:
+		// ERROR_OPERATION_ABORTED may have been caused by us. In that case,
+		// map it to our own error. Don't do more than that, each submitted
+		// function may have its own meaning for each error.
 		if waitErr != nil {
 			// IO canceled by the poller while waiting for completion.
 			err = waitErr
@@ -256,6 +263,12 @@ func execIO(o *operation, submit func(o *operation) error) (int, error) {
 			// If the fd is a pipe and the Write was interrupted by CancelIoEx,
 			// we assume it is interrupted by Close.
 			err = errClosing(fd.isFile)
+		}
+	case windows.ERROR_IO_INCOMPLETE:
+		// waitIO couldn't wait for the IO to complete.
+		if waitErr != nil {
+			// The wait error will be more informative.
+			err = waitErr
 		}
 	}
 	return int(o.qty), err
@@ -314,9 +327,7 @@ type FD struct {
 	// Whether FILE_FLAG_OVERLAPPED was not set when opening the file.
 	isBlocking bool
 
-	// Initialization parameters.
-	initIOOnce sync.Once
-	initIOErr  error // only used in the net package
+	disassociated atomic.Bool
 }
 
 // setOffset sets the offset fields of the overlapped object
@@ -343,6 +354,12 @@ func (fd *FD) addOffset(off int) {
 	fd.setOffset(fd.offset + int64(off))
 }
 
+// pollable should be used instead of fd.pd.pollable(),
+// as it is aware of the disassociated state.
+func (fd *FD) pollable() bool {
+	return fd.pd.pollable() && !fd.disassociated.Load()
+}
+
 // fileKind describes the kind of file.
 type fileKind byte
 
@@ -352,35 +369,6 @@ const (
 	kindConsole
 	kindPipe
 )
-
-func (fd *FD) initIO() error {
-	if fd.isBlocking {
-		return nil
-	}
-	fd.initIOOnce.Do(func() {
-		if fd.closing() {
-			// Closing, nothing to do.
-			return
-		}
-		// The runtime poller will ignore I/O completion
-		// notifications not initiated by this package,
-		// so it is safe to add handles owned by the caller.
-		fd.initIOErr = fd.pd.init(fd)
-		if fd.initIOErr != nil {
-			return
-		}
-		fd.rop.runtimeCtx = fd.pd.runtimeCtx
-		fd.wop.runtimeCtx = fd.pd.runtimeCtx
-		if fd.kind != kindNet || socketCanUseSetFileCompletionNotificationModes {
-			// Non-socket handles can use SetFileCompletionNotificationModes without problems.
-			err := syscall.SetFileCompletionNotificationModes(fd.Sysfd,
-				syscall.FILE_SKIP_SET_EVENT_ON_HANDLE|syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS,
-			)
-			fd.skipSyncNotif = err == nil
-		}
-	})
-	return fd.initIOErr
-}
 
 // Init initializes the FD. The Sysfd field should already be set.
 // This can be called multiple times on a single FD.
@@ -411,20 +399,46 @@ func (fd *FD) Init(net string, pollable bool) error {
 	fd.rop.fd = fd
 	fd.wop.fd = fd
 
-	// A file handle (and its duplicated handles) can only be associated
-	// with one IOCP. A new association will fail if the handle is already
-	// associated. Defer the association until the first I/O operation so that
-	// overlapped handles passed in os.NewFile have a chance to be used
-	// with an external IOCP. This is common case, for example, when calling
-	// os.NewFile on a handle just to pass it to a exec.Command standard
-	// input/output/error. If the association fails, the I/O operations
-	// will be performed synchronously.
-	if fd.kind == kindNet {
-		// The net package is the only consumer that requires overlapped
-		// handles and that cares about handle IOCP association errors.
-		// We can should do the IOCP association here.
-		return fd.initIO()
+	// It is safe to add overlapped handles that also perform I/O
+	// outside of the runtime poller. The runtime poller will ignore
+	// I/O completion notifications not initiated by us.
+	err := fd.pd.init(fd)
+	if err != nil {
+		return err
 	}
+	fd.rop.runtimeCtx = fd.pd.runtimeCtx
+	fd.wop.runtimeCtx = fd.pd.runtimeCtx
+	if fd.kind != kindNet || socketCanUseSetFileCompletionNotificationModes {
+		// Non-socket handles can use SetFileCompletionNotificationModes without problems.
+		err := syscall.SetFileCompletionNotificationModes(fd.Sysfd,
+			syscall.FILE_SKIP_SET_EVENT_ON_HANDLE|syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS,
+		)
+		fd.skipSyncNotif = err == nil
+	}
+	return nil
+}
+
+// DisassociateIOCP disassociates the file handle from the IOCP.
+// The disassociate operation will not succeed if there is any
+// in-progress IO operation on the file handle.
+func (fd *FD) DisassociateIOCP() error {
+	if err := fd.incref(); err != nil {
+		return err
+	}
+	defer fd.decref()
+
+	if fd.isBlocking || !fd.pollable() {
+		// Nothing to disassociate.
+		return nil
+	}
+
+	info := windows.FILE_COMPLETION_INFORMATION{}
+	if err := windows.NtSetInformationFile(fd.Sysfd, &windows.IO_STATUS_BLOCK{}, unsafe.Pointer(&info), uint32(unsafe.Sizeof(info)), windows.FileReplaceCompletionInformation); err != nil {
+		return err
+	}
+	fd.disassociated.Store(true)
+	// Don't call fd.pd.close(), it would be too racy.
+	// There is no harm on leaving fd.pd open until Close is called.
 	return nil
 }
 
@@ -432,6 +446,8 @@ func (fd *FD) destroy() error {
 	if fd.Sysfd == syscall.InvalidHandle {
 		return syscall.EINVAL
 	}
+	fd.rop.close()
+	fd.wop.close()
 	// Poller may want to unregister fd in readiness notification mechanism,
 	// so this must be executed before fd.CloseFunc.
 	fd.pd.close()
@@ -454,12 +470,7 @@ func (fd *FD) Close() error {
 	if !fd.fdmu.increfAndClose() {
 		return errClosing(fd.isFile)
 	}
-	// There is a potential race between a concurrent call to fd.initIO,
-	// which calls fd.pd.init, and the call to fd.pd.evict below.
-	// This is solved by calling fd.initIO ourselves, which will
-	// block until the concurrent fd.initIO has completed. Note
-	// that fd.initIO is no-op if first called from here.
-	fd.initIO()
+
 	if fd.kind == kindPipe {
 		syscall.CancelIoEx(fd.Sysfd, nil)
 	}

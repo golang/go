@@ -248,3 +248,11 @@ type FILE_LINK_INFORMATION struct {
 	FileNameLength  uint32
 	FileName        [syscall.MAX_PATH]uint16
 }
+
+const FileReplaceCompletionInformation = 61
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_completion_information
+type FILE_COMPLETION_INFORMATION struct {
+	Port syscall.Handle
+	Key  uintptr
+}

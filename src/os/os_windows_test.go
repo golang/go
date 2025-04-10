@@ -1985,19 +1985,7 @@ func TestPipeCanceled(t *testing.T) {
 }
 
 func iocpAssociateFile(f *os.File, iocp syscall.Handle) error {
-	sc, err := f.SyscallConn()
-	if err != nil {
-		return err
-	}
-	var syserr error
-	err = sc.Control(func(fd uintptr) {
-		if _, err = windows.CreateIoCompletionPort(syscall.Handle(fd), iocp, 0, 0); err != nil {
-			syserr = err
-		}
-	})
-	if err == nil {
-		err = syserr
-	}
+	_, err := windows.CreateIoCompletionPort(syscall.Handle(f.Fd()), iocp, 0, 0)
 	return err
 }
 
@@ -2071,6 +2059,54 @@ func TestFileAssociatedWithExternalIOCP(t *testing.T) {
 	case nil:
 		t.Error("unexpected queued completion")
 	default:
+		t.Error(err)
+	}
+}
+
+func TestFileWriteFdRace(t *testing.T) {
+	t.Parallel()
+
+	f := newFileOverlapped(t, filepath.Join(t.TempDir(), "a"), true)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		n, err := f.Write([]byte("hi"))
+		if err != nil {
+			// We look at error strings as the
+			// expected errors are OS-specific.
+			switch {
+			case errors.Is(err, windows.ERROR_INVALID_HANDLE):
+				// Ignore an expected error.
+			default:
+				// Unexpected error.
+				t.Error(err)
+			}
+			return
+		}
+		if n != 2 {
+			t.Errorf("wrote %d bytes, expected 2", n)
+			return
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		f.Fd()
+	}()
+	wg.Wait()
+
+	iocp, err := windows.CreateIoCompletionPort(syscall.InvalidHandle, 0, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer syscall.CloseHandle(iocp)
+	if err := iocpAssociateFile(f, iocp); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := f.Write([]byte("hi")); err != nil {
 		t.Error(err)
 	}
 }
