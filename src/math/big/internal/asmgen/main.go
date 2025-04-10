@@ -15,9 +15,16 @@
 package asmgen
 
 var arches = []*Arch{
+	Arch386,
+	ArchAMD64,
 	ArchARM,
+	ArchARM64,
+	ArchLoong64,
 	ArchMIPS,
 	ArchMIPS64x,
+	ArchPPC64x,
+	ArchRISCV64,
+	ArchS390X,
 }
 
 // generate returns the file name and content of the generated assembly for the given architecture.
