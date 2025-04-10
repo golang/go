@@ -144,6 +144,8 @@ var optab = []Optab{
 	{AMOVD, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
 	{AVPCNTB, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 9, 4, 0, 0},
 	{AXVPCNTB, C_XREG, C_NONE, C_NONE, C_XREG, C_NONE, 9, 4, 0, 0},
+	{AVSETEQV, C_VREG, C_NONE, C_NONE, C_FCCREG, C_NONE, 9, 4, 0, 0},
+	{AXVSETEQV, C_XREG, C_NONE, C_NONE, C_FCCREG, C_NONE, 9, 4, 0, 0},
 
 	{AFMADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 37, 4, 0, 0},
 	{AFMADDF, C_FREG, C_FREG, C_FREG, C_FREG, C_NONE, 37, 4, 0, 0},
@@ -1812,6 +1814,29 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVSRLV, r0)
 			opset(AXVSRAV, r0)
 			opset(AXVROTRV, r0)
+
+		case AVSETEQV:
+			opset(AVSETNEV, r0)
+			opset(AVSETANYEQB, r0)
+			opset(AVSETANYEQH, r0)
+			opset(AVSETANYEQW, r0)
+			opset(AVSETANYEQV, r0)
+			opset(AVSETALLNEB, r0)
+			opset(AVSETALLNEH, r0)
+			opset(AVSETALLNEW, r0)
+			opset(AVSETALLNEV, r0)
+
+		case AXVSETEQV:
+			opset(AXVSETNEV, r0)
+			opset(AXVSETANYEQB, r0)
+			opset(AXVSETANYEQH, r0)
+			opset(AXVSETANYEQW, r0)
+			opset(AXVSETANYEQV, r0)
+			opset(AXVSETALLNEB, r0)
+			opset(AXVSETALLNEH, r0)
+			opset(AXVSETALLNEW, r0)
+			opset(AXVSETALLNEV, r0)
+
 		}
 	}
 }
@@ -3555,6 +3580,46 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
 		return 0x1da70e << 10 // xvneg.w
 	case AXVNEGV:
 		return 0x1da70f << 10 // xvneg.d
+	case AVSETEQV:
+		return 0x1ca726<<10 | 0x0<<3 // vseteqz.v
+	case AVSETNEV:
+		return 0x1ca727<<10 | 0x0<<3 // vsetnez.v
+	case AVSETANYEQB:
+		return 0x1ca728<<10 | 0x0<<3 // vsetanyeqz.b
+	case AVSETANYEQH:
+		return 0x1ca729<<10 | 0x0<<3 // vsetanyeqz.h
+	case AVSETANYEQW:
+		return 0x1ca72a<<10 | 0x0<<3 // vsetanyeqz.w
+	case AVSETANYEQV:
+		return 0x1ca72b<<10 | 0x0<<3 // vsetanyeqz.d
+	case AVSETALLNEB:
+		return 0x1ca72c<<10 | 0x0<<3 // vsetallnez.b
+	case AVSETALLNEH:
+		return 0x1ca72d<<10 | 0x0<<3 // vsetallnez.h
+	case AVSETALLNEW:
+		return 0x1ca72e<<10 | 0x0<<3 // vsetallnez.w
+	case AVSETALLNEV:
+		return 0x1ca72f<<10 | 0x0<<3 // vsetallnez.d
+	case AXVSETEQV:
+		return 0x1da726<<10 | 0x0<<3 // xvseteqz.v
+	case AXVSETNEV:
+		return 0x1da727<<10 | 0x0<<3 // xvsetnez.v
+	case AXVSETANYEQB:
+		return 0x1da728<<10 | 0x0<<3 // xvsetanyeqz.b
+	case AXVSETANYEQH:
+		return 0x1da729<<10 | 0x0<<3 // xvsetanyeqz.h
+	case AXVSETANYEQW:
+		return 0x1da72a<<10 | 0x0<<3 // xvsetanyeqz.w
+	case AXVSETANYEQV:
+		return 0x1da72b<<10 | 0x0<<3 // xvsetanyeqz.d
+	case AXVSETALLNEB:
+		return 0x1da72c<<10 | 0x0<<3 // xvsetallnez.b
+	case AXVSETALLNEH:
+		return 0x1da72d<<10 | 0x0<<3 // xvsetallnez.h
+	case AXVSETALLNEW:
+		return 0x1da72e<<10 | 0x0<<3 // xvsetallnez.w
+	case AXVSETALLNEV:
+		return 0x1da72f<<10 | 0x0<<3 // xvsetallnez.d
 	}
 
 	c.ctxt.Diag("bad rr opcode %v", a)
