@@ -640,17 +640,12 @@ func (f *Func) computeZeroMap(select1 []*Value) map[ID]ZeroRegion {
 					size += ptrSize - d
 				}
 				// Clip to the 64 words that we track.
-				min := off
-				max := off + size
-				if min < 0 {
-					min = 0
-				}
-				if max > 64*ptrSize {
-					max = 64 * ptrSize
-				}
+				minimum := max(off, 0)
+				maximum := min(off+size, 64*ptrSize)
+
 				// Clear bits for parts that we are writing (and hence
 				// will no longer necessarily be zero).
-				for i := min; i < max; i += ptrSize {
+				for i := minimum; i < maximum; i += ptrSize {
 					bit := i / ptrSize
 					z.mask &^= 1 << uint(bit)
 				}
