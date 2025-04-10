@@ -15,7 +15,6 @@ import (
 var generateFlag = flag.Bool("generate", false, "generate files")
 
 func Test(t *testing.T) {
-	t.Skip("assembly not yet installed")
 	for _, arch := range arches {
 		t.Run(arch.Name, func(t *testing.T) {
 			file, data := generate(arch)

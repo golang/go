@@ -4,6 +4,8 @@
 
 //go:build !math_big_pure_go
 
+//go:generate go test ./internal/asmgen -generate
+
 package big
 
 import _ "unsafe" // for linkname

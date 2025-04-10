@@ -8,11 +8,7 @@ package big
 
 import "internal/cpu"
 
-func addVV_check(z, x, y []Word) (c Word)
-func addVV_vec(z, x, y []Word) (c Word)
-func addVV_novec(z, x, y []Word) (c Word)
-func subVV_check(z, x, y []Word) (c Word)
-func subVV_vec(z, x, y []Word) (c Word)
-func subVV_novec(z, x, y []Word) (c Word)
-
 var hasVX = cpu.S390X.HasVX
+
+func addVVvec(z, x, y []Word) (c Word)
+func subVVvec(z, x, y []Word) (c Word)
