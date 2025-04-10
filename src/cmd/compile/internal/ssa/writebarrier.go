@@ -711,11 +711,6 @@ func wbcall(pos src.XPos, b *Block, fn *obj.LSym, sp, mem *Value, args ...*Value
 	return b.NewValue1I(pos, OpSelectN, types.TypeMem, 0, call)
 }
 
-// round to a multiple of r, r is a power of 2.
-func round(o int64, r int64) int64 {
-	return (o + r - 1) &^ (r - 1)
-}
-
 // IsStackAddr reports whether v is known to be an address of a stack slot.
 func IsStackAddr(v *Value) bool {
 	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy {
