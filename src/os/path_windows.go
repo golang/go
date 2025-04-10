@@ -23,11 +23,51 @@ func IsPathSeparator(c uint8) bool {
 
 // splitPath returns the base name and parent directory.
 func splitPath(path string) (string, string) {
-	dirname, basename := filepathlite.Split(path)
-	volnamelen := filepathlite.VolumeNameLen(dirname)
-	for len(dirname) > volnamelen && IsPathSeparator(dirname[len(dirname)-1]) {
-		dirname = dirname[:len(dirname)-1]
+	if path == "" {
+		return ".", "."
 	}
+
+	// The first prefixlen bytes are part of the parent directory.
+	// The prefix consists of the volume name (if any) and the first \ (if significant).
+	prefixlen := filepathlite.VolumeNameLen(path)
+	if len(path) > prefixlen && IsPathSeparator(path[prefixlen]) {
+		if prefixlen == 0 {
+			// This is a path relative to the current volume, like \foo.
+			// Include the initial \ in the prefix.
+			prefixlen = 1
+		} else if path[prefixlen-1] == ':' {
+			// This is an absolute path on a named drive, like c:\foo.
+			// Include the initial \ in the prefix.
+			prefixlen++
+		}
+	}
+
+	i := len(path) - 1
+
+	// Remove trailing slashes.
+	for i >= prefixlen && IsPathSeparator(path[i]) {
+		i--
+	}
+	path = path[:i+1]
+
+	// Find the last path separator. The basename is what follows.
+	for i >= prefixlen && !IsPathSeparator(path[i]) {
+		i--
+	}
+	basename := path[i+1:]
+	if basename == "" {
+		basename = "."
+	}
+
+	// Remove trailing slashes. The remainder is dirname.
+	for i >= prefixlen && IsPathSeparator(path[i]) {
+		i--
+	}
+	dirname := path[:i+1]
+	if dirname == "" {
+		dirname = "."
+	}
+
 	return dirname, basename
 }
 

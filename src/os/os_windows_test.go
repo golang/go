@@ -2074,3 +2074,39 @@ func TestFileAssociatedWithExternalIOCP(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestSplitPath(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct{ path, wantDir, wantBase string }{
+		{`a`, `.`, `a`},
+		{`a\`, `.`, `a`},
+		{`a\\`, `.`, `a`},
+		{`a\b`, `a`, `b`},
+		{`a\\b`, `a`, `b`},
+		{`a\b\`, `a`, `b`},
+		{`a\b\c`, `a\b`, `c`},
+		{`\a`, `\`, `a`},
+		{`\a\`, `\`, `a`},
+		{`\a\b`, `\a`, `b`},
+		{`\a\b\`, `\a`, `b`},
+		{`\a\b\c`, `\a\b`, `c`},
+		{`\\a`, `\\a`, `.`},
+		{`\\a\`, `\\a\`, `.`},
+		{`\\\a`, `\\\a`, `.`},
+		{`\\\a\`, `\\\a`, `.`},
+		{`\\a\b\c`, `\\a\b`, `c`},
+		{`c:`, `c:`, `.`},
+		{`c:\`, `c:\`, `.`},
+		{`c:\a`, `c:\`, `a`},
+		{`c:a`, `c:`, `a`},
+		{`c:a\b\`, `c:a`, `b`},
+		{`c:base`, `c:`, `base`},
+		{`a/b/c`, `a/b`, `c`},
+		{`a/b/c/`, `a/b`, `c`},
+		{`\\?\c:\a`, `\\?\c:\`, `a`},
+	} {
+		if dir, base := os.SplitPath(tt.path); dir != tt.wantDir || base != tt.wantBase {
+			t.Errorf("splitPath(%q) = %q, %q, want %q, %q", tt.path, dir, base, tt.wantDir, tt.wantBase)
+		}
+	}
+}

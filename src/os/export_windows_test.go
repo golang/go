@@ -11,4 +11,5 @@ var (
 	NewConsoleFile     = newConsoleFile
 	CommandLineToArgv  = commandLineToArgv
 	AllowReadDirFileID = &allowReadDirFileID
+	SplitPath          = splitPath
 )
