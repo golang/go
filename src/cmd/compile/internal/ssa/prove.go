@@ -133,62 +133,38 @@ func (l limit) String() string {
 }
 
 func (l limit) intersect(l2 limit) limit {
-	if l.min < l2.min {
-		l.min = l2.min
-	}
-	if l.umin < l2.umin {
-		l.umin = l2.umin
-	}
-	if l.max > l2.max {
-		l.max = l2.max
-	}
-	if l.umax > l2.umax {
-		l.umax = l2.umax
-	}
+	l.min = max(l.min, l2.min)
+	l.umin = max(l.umin, l2.umin)
+	l.max = min(l.max, l2.max)
+	l.umax = min(l.umax, l2.umax)
 	return l
 }
 
 func (l limit) signedMin(m int64) limit {
-	if l.min < m {
-		l.min = m
-	}
+	l.min = max(l.min, m)
 	return l
 }
 func (l limit) signedMax(m int64) limit {
-	if l.max > m {
-		l.max = m
-	}
+	l.max = min(l.max, m)
 	return l
 }
-func (l limit) signedMinMax(min, max int64) limit {
-	if l.min < min {
-		l.min = min
-	}
-	if l.max > max {
-		l.max = max
-	}
+func (l limit) signedMinMax(minimum, maximum int64) limit {
+	l.min = max(l.min, minimum)
+	l.max = min(l.max, maximum)
 	return l
 }
 
 func (l limit) unsignedMin(m uint64) limit {
-	if l.umin < m {
-		l.umin = m
-	}
+	l.umin = max(l.umin, m)
 	return l
 }
 func (l limit) unsignedMax(m uint64) limit {
-	if l.umax > m {
-		l.umax = m
-	}
+	l.umax = min(l.umax, m)
 	return l
 }
-func (l limit) unsignedMinMax(min, max uint64) limit {
-	if l.umin < min {
-		l.umin = min
-	}
-	if l.umax > max {
-		l.umax = max
-	}
+func (l limit) unsignedMinMax(minimum, maximum uint64) limit {
+	l.umin = max(l.umin, minimum)
+	l.umax = min(l.umax, maximum)
 	return l
 }
 
