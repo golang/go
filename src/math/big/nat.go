@@ -111,7 +111,7 @@ func (z nat) add(x, y nat) nat {
 	// m > 0
 
 	z = z.make(m + 1)
-	c := addVV(z[0:n], x, y)
+	c := addVV(z[:n], x[:n], y[:n])
 	if m > n {
 		c = addVW(z[n:m], x[n:], c)
 	}
@@ -137,7 +137,7 @@ func (z nat) sub(x, y nat) nat {
 	// m > 0
 
 	z = z.make(m)
-	c := subVV(z[0:n], x, y)
+	c := subVV(z[:n], x[:n], y[:n])
 	if m > n {
 		c = subVW(z[n:], x[n:], c)
 	}
@@ -232,7 +232,7 @@ func alias(x, y nat) bool {
 // slice, and we don't need to normalize z after each addition)
 func addTo(z, x nat) {
 	if n := len(x); n > 0 {
-		if c := addVV(z[:n], z, x); c != 0 {
+		if c := addVV(z[:n], z[:n], x[:n]); c != 0 {
 			if n < len(z) {
 				addVW(z[n:], z[n:], c)
 			}

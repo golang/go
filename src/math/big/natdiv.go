@@ -699,9 +699,9 @@ func (q nat) divBasic(stk *stack, u, v nat) {
 		// Subtract q̂·v from the current section of u.
 		// If it underflows, q̂·v > u, which we fix up
 		// by decrementing q̂ and adding v back.
-		c := subVV(u[j:j+qhl], u[j:], qhatv)
+		c := subVV(u[j:j+qhl], u[j:j+qhl], qhatv[:qhl])
 		if c != 0 {
-			c := addVV(u[j:j+n], u[j:], v)
+			c := addVV(u[j:j+n], u[j:j+n], v)
 			// If n == qhl, the carry from subVV and the carry from addVV
 			// cancel out and don't affect u[j+n].
 			if n < qhl {

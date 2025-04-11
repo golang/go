@@ -26,17 +26,13 @@ const (
 	_M = _B - 1        // digit mask
 )
 
-// Many of the loops in this file are of the form
-//   for i := 0; i < len(z) && i < len(x) && i < len(y); i++
-// i < len(z) is the real condition.
-// However, checking i < len(x) && i < len(y) as well is faster than
-// having the compiler do a bounds check in the body of the loop;
-// remarkably it is even faster than hoisting the bounds check
-// out of the loop, by doing something like
-//   _, _ = x[len(z)-1], y[len(z)-1]
-// There are other ways to hoist the bounds check out of the loop,
-// but the compiler's BCE isn't powerful enough for them (yet?).
-// See the discussion in CL 164966.
+// In these routines, it is the caller's responsibility to arrange for
+// x, y, and z to all have the same length. We check this and panic.
+// The assembly versions of these routines do not include that check.
+//
+// The check+panic also has the effect of teaching the compiler that
+// “i in range for z” implies “i in range for x and y”, eliminating all
+// bounds checks in loops from 0 to len(z) and vice versa.
 
 // ----------------------------------------------------------------------------
 // Elementary operations on words
@@ -65,8 +61,11 @@ func nlz(x Word) uint {
 
 // The resulting carry c is either 0 or 1.
 func addVV_g(z, x, y []Word) (c Word) {
-	// The comment near the top of this file discusses this for loop condition.
-	for i := 0; i < len(z) && i < len(x) && i < len(y); i++ {
+	if len(x) != len(z) || len(y) != len(z) {
+		panic("addVV len")
+	}
+
+	for i := range z {
 		zi, cc := bits.Add(uint(x[i]), uint(y[i]), uint(c))
 		z[i] = Word(zi)
 		c = Word(cc)
@@ -76,8 +75,11 @@ func addVV_g(z, x, y []Word) (c Word) {
 
 // The resulting carry c is either 0 or 1.
 func subVV_g(z, x, y []Word) (c Word) {
-	// The comment near the top of this file discusses this for loop condition.
-	for i := 0; i < len(z) && i < len(x) && i < len(y); i++ {
+	if len(x) != len(z) || len(y) != len(z) {
+		panic("subVV len")
+	}
+
+	for i := range z {
 		zi, cc := bits.Sub(uint(x[i]), uint(y[i]), uint(c))
 		z[i] = Word(zi)
 		c = Word(cc)
@@ -99,7 +101,10 @@ func subVV_g(z, x, y []Word) (c Word) {
 //
 //go:linkname addVW
 func addVW(z, x []Word, y Word) (c Word) {
-	x = x[:len(z)]
+	if len(x) != len(z) {
+		panic("addVW len")
+	}
+
 	if len(z) == 0 {
 		return y
 	}
@@ -150,7 +155,10 @@ func addVW_ref(z, x []Word, y Word) (c Word) {
 //
 //go:linkname subVW
 func subVW(z, x []Word, y Word) (c Word) {
-	x = x[:len(z)]
+	if len(x) != len(z) {
+		panic("subVW len")
+	}
+
 	if len(z) == 0 {
 		return y
 	}
@@ -188,6 +196,10 @@ func subVW_ref(z, x []Word, y Word) (c Word) {
 }
 
 func lshVU_g(z, x []Word, s uint) (c Word) {
+	if len(x) != len(z) {
+		panic("lshVU len")
+	}
+
 	if s == 0 {
 		copy(z, x)
 		return
@@ -207,16 +219,16 @@ func lshVU_g(z, x []Word, s uint) (c Word) {
 }
 
 func rshVU_g(z, x []Word, s uint) (c Word) {
+	if len(x) != len(z) {
+		panic("rshVU len")
+	}
+
 	if s == 0 {
 		copy(z, x)
 		return
 	}
 	if len(z) == 0 {
 		return
-	}
-	if len(x) != len(z) {
-		// This is an invariant guaranteed by the caller.
-		panic("len(x) != len(z)")
 	}
 	s &= _W - 1 // hint to the compiler that shifts by s don't need guard code
 	ŝ := _W - s
@@ -230,18 +242,23 @@ func rshVU_g(z, x []Word, s uint) (c Word) {
 }
 
 func mulAddVWW_g(z, x []Word, y, r Word) (c Word) {
+	if len(x) != len(z) {
+		panic("mulAddVWW len")
+	}
 	c = r
-	// The comment near the top of this file discusses this for loop condition.
-	for i := 0; i < len(z) && i < len(x); i++ {
+	for i := range z {
 		c, z[i] = mulAddWWW_g(x[i], y, c)
 	}
 	return
 }
 
 func addMulVVWW_g(z, x, y []Word, m, a Word) (c Word) {
+	if len(x) != len(z) || len(y) != len(z) {
+		panic("rshVU len")
+	}
+
 	c = a
-	// The comment near the top of this file discusses this for loop condition.
-	for i := 0; i < len(z) && i < len(x) && i < len(y); i++ {
+	for i := range z {
 		z1, z0 := mulAddWWW_g(y[i], m, x[i])
 		lo, cc := bits.Add(uint(z0), uint(c), 0)
 		c, z[i] = Word(cc), Word(lo)
