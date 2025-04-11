@@ -231,6 +231,37 @@ var urltests = []URLTest{
 		},
 		"http://user:password@google.com",
 	},
+	// unescaped @ in username should not confuse host
+	{
+		"http://j@ne:password@google.com",
+		&URL{
+			Scheme: "http",
+			User:   UserPassword("j@ne", "password"),
+			Host:   "google.com",
+		},
+		"http://j%40ne:password@google.com",
+	},
+	// unescaped @ in password should not confuse host
+	{
+		"http://jane:p@ssword@google.com",
+		&URL{
+			Scheme: "http",
+			User:   UserPassword("jane", "p@ssword"),
+			Host:   "google.com",
+		},
+		"http://jane:p%40ssword@google.com",
+	},
+	{
+		"http://j@ne:password@google.com/p@th?q=@go",
+		&URL{
+			Scheme:   "http",
+			User:     UserPassword("j@ne", "password"),
+			Host:     "google.com",
+			Path:     "/p@th",
+			RawQuery: "q=@go",
+		},
+		"http://j%40ne:password@google.com/p@th?q=@go",
+	},
 	{
 		"http://www.google.com/?q=go+language#foo",
 		&URL{
