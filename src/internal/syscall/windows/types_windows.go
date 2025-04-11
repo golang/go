@@ -14,6 +14,8 @@ const (
 	TCP_KEEPIDLE  = 0x03
 	TCP_KEEPCNT   = 0x10
 	TCP_KEEPINTVL = 0x11
+
+	SIO_UDP_NETRESET = syscall.IOC_IN | syscall.IOC_VENDOR | 15
 )
 
 const (
