@@ -1409,7 +1409,13 @@ func Clone(b []byte) []byte {
 	if b == nil {
 		return nil
 	}
-	return append([]byte{}, b...)
+
+	if len(b) == 0 {
+		return []byte{}
+	}
+
+	s := string(b)
+	return []byte(s)
 }
 
 // CutPrefix returns s without the provided leading prefix byte slice
