@@ -5,6 +5,8 @@
 // Represents JSON data structure using native Go types: booleans, floats,
 // strings, arrays, and maps.
 
+//go:build !goexperiment.jsonv2
+
 package json
 
 import (

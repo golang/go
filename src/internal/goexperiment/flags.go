@@ -127,4 +127,7 @@ type Flags struct {
 
 	// Dwarf5 enables DWARF version 5 debug info generation.
 	Dwarf5 bool
+
+	// JSONv2 enables the json/v2 package.
+	JSONv2 bool
 }
