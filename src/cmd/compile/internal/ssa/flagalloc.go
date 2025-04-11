@@ -53,11 +53,12 @@ func flagalloc(f *Func) {
 			}
 		}
 	}
+	visitOrder := layoutOrder(f)
 
 	// For blocks which have a flags control value, that's the only value
 	// we can leave in the flags register at the end of the block. (There
 	// is no place to put a flag regeneration instruction.)
-	for _, b := range f.Blocks {
+	for _, b := range visitOrder {
 		if b.Kind == BlockDefer {
 			// Defer blocks internally use/clobber the flags value.
 			end[b.ID] = nil
@@ -109,7 +110,7 @@ func flagalloc(f *Func) {
 	// Add flag spill and recomputation where they are needed.
 	var remove []*Value // values that should be checked for possible removal
 	var oldSched []*Value
-	for _, b := range f.Blocks {
+	for _, b := range visitOrder {
 		oldSched = append(oldSched[:0], b.Values...)
 		b.Values = b.Values[:0]
 		// The current live flag value (the pre-flagalloc copy).
@@ -188,7 +189,7 @@ func flagalloc(f *Func) {
 	}
 
 	// Save live flag state for later.
-	for _, b := range f.Blocks {
+	for _, b := range visitOrder {
 		b.FlagsLiveAtEnd = end[b.ID] != nil
 	}
 
@@ -223,7 +224,7 @@ func flagalloc(f *Func) {
 	}
 
 	// Process affected blocks, preserving value order.
-	for _, b := range f.Blocks {
+	for _, b := range visitOrder {
 		if !removeBlocks.contains(b.ID) {
 			continue
 		}
