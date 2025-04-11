@@ -1280,6 +1280,17 @@ func validUserinfo(s string) bool {
 		case '-', '.', '_', ':', '~', '!', '$', '&', '\'',
 			'(', ')', '*', '+', ',', ';', '=', '%':
 			continue
+		case '@':
+			// `RFC 3986 section 3.2.1` does not allow '@' in userinfo.
+			// It is a delimiter between userinfo and host.
+			// However, URLs are diverse, and in some cases,
+			// the userinfo may contain an '@' character,
+			// for example, in "http://username:p@ssword@google.com",
+			// the string "username:p@ssword" should be treated as valid userinfo.
+			// Ref:
+			//   https://go.dev/issue/3439
+			//   https://go.dev/issue/22655
+			continue
 		default:
 			return false
 		}
