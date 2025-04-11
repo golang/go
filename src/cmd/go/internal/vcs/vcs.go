@@ -1056,7 +1056,8 @@ func checkGOVCS(vcs *Cmd, root string) error {
 // RepoRoot describes the repository root for a tree of source code.
 type RepoRoot struct {
 	Repo     string // repository URL, including scheme
-	Root     string // import path corresponding to root of repo
+	Root     string // import path corresponding to the SubDir
+	SubDir   string // subdirectory within the repo (empty for root)
 	IsCustom bool   // defined by served <meta> tags (as opposed to hard-coded pattern)
 	VCS      *Cmd
 }
@@ -1368,6 +1369,7 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 	rr := &RepoRoot{
 		Repo:     repoURL,
 		Root:     mmi.Prefix,
+		SubDir:   mmi.SubDir,
 		IsCustom: true,
 		VCS:      vcs,
 	}
@@ -1457,9 +1459,9 @@ type fetchResult struct {
 }
 
 // metaImport represents the parsed <meta name="go-import"
-// content="prefix vcs reporoot" /> tags from HTML files.
+// content="prefix vcs reporoot subdir" /> tags from HTML files.
 type metaImport struct {
-	Prefix, VCS, RepoRoot string
+	Prefix, VCS, RepoRoot, SubDir string
 }
 
 // An ImportMismatchError is returned where metaImport/s are present

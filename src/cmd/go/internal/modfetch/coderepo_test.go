@@ -884,6 +884,16 @@ var latestTests = []struct {
 		path:    "swtch.com/testmod",
 		version: "v1.1.1",
 	},
+	{
+		vcs:     "git",
+		path:    "vcs-test.golang.org/go/gitreposubdir",
+		version: "v1.2.3",
+	},
+	{
+		vcs:     "git",
+		path:    "vcs-test.golang.org/go/gitreposubdirv2/v2",
+		version: "v2.0.0",
+	},
 }
 
 func TestLatest(t *testing.T) {
@@ -950,7 +960,7 @@ func TestNonCanonicalSemver(t *testing.T) {
 		},
 	}
 
-	cr, err := newCodeRepo(ch, root, root)
+	cr, err := newCodeRepo(ch, root, "", root)
 	if err != nil {
 		t.Fatal(err)
 	}

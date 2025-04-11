@@ -306,12 +306,12 @@ X9b:	MOVQ $0, c+56(FP)
 	RET
 
 
-// func mulAddVWW(z, x []Word, y, r Word) (c Word)
+// func mulAddVWW(z, x []Word, m, a Word) (c Word)
 TEXT ·mulAddVWW(SB),NOSPLIT,$0
 	MOVQ z+0(FP), R10
 	MOVQ x+24(FP), R8
-	MOVQ y+48(FP), R9
-	MOVQ r+56(FP), CX	// c = r
+	MOVQ m+48(FP), R9
+	MOVQ a+56(FP), CX	// c = a
 	MOVQ z_len+8(FP), R11
 	MOVQ $0, BX		// i = 0
 
@@ -366,16 +366,17 @@ E5:	CMPQ BX, R11		// i < n
 	RET
 
 
-// func addMulVVW(z, x []Word, y Word) (c Word)
-TEXT ·addMulVVW(SB),NOSPLIT,$0
+// func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
+TEXT ·addMulVVWW(SB),NOSPLIT,$0
 	CMPB ·support_adx(SB), $1
 	JEQ adx
-	MOVQ z+0(FP), R10
-	MOVQ x+24(FP), R8
-	MOVQ y+48(FP), R9
+	MOVQ z+0(FP), R14
+	MOVQ x+24(FP), R10
+	MOVQ y+48(FP), R8
+	MOVQ m+72(FP), R9
 	MOVQ z_len+8(FP), R11
 	MOVQ $0, BX		// i = 0
-	MOVQ $0, CX		// c = 0
+	MOVQ a+80(FP), CX		// c = 0
 	MOVQ R11, R12
 	ANDQ $-2, R12
 	CMPQ R11, $2
@@ -390,7 +391,7 @@ A6:
 	ADDQ CX, AX
 	ADCQ $0, DX
 	MOVQ DX, CX
-	MOVQ AX, (R10)(BX*8)
+	MOVQ AX, (R14)(BX*8)
 
 	MOVQ (8)(R8)(BX*8), AX
 	MULQ R9
@@ -399,7 +400,7 @@ A6:
 	ADDQ CX, AX
 	ADCQ $0, DX
 	MOVQ DX, CX
-	MOVQ AX, (8)(R10)(BX*8)
+	MOVQ AX, (8)(R14)(BX*8)
 
 	ADDQ $2, BX
 	CMPQ BX, R12
@@ -410,7 +411,8 @@ L6:	MOVQ (R8)(BX*8), AX
 	MULQ R9
 	ADDQ CX, AX
 	ADCQ $0, DX
-	ADDQ AX, (R10)(BX*8)
+	ADDQ (R10)(BX*8), AX
+	MOVQ AX, (R14)(BX*8)
 	ADCQ $0, DX
 	MOVQ DX, CX
 	ADDQ $1, BX		// i++
@@ -418,21 +420,22 @@ L6:	MOVQ (R8)(BX*8), AX
 E6:	CMPQ BX, R11		// i < n
 	JL L6
 
-	MOVQ CX, c+56(FP)
+	MOVQ CX, c+88(FP)
 	RET
 
 adx:
 	MOVQ z_len+8(FP), R11
-	MOVQ z+0(FP), R10
-	MOVQ x+24(FP), R8
-	MOVQ y+48(FP), DX
+	MOVQ z+0(FP), R14
+	MOVQ x+24(FP), R10
+	MOVQ y+48(FP), R8
+	MOVQ m+72(FP), DX
 	MOVQ $0, BX   // i = 0
 	MOVQ $0, CX   // carry
 	CMPQ R11, $8
 	JAE  adx_loop_header
 	CMPQ BX, R11
 	JL adx_short
-	MOVQ CX, c+56(FP)
+	MOVQ CX, c+88(FP)
 	RET
 
 adx_loop_header:
@@ -448,52 +451,54 @@ adx_loop:
 	MULXQ 8(R8), AX, CX
 	ADCXQ DI, AX
 	ADOXQ 8(R10), AX
-	MOVQ  AX, 8(R10)
+	MOVQ  AX, 8(R14)
 
 	MULXQ 16(R8), SI, DI
 	ADCXQ CX, SI
 	ADOXQ 16(R10), SI
-	MOVQ  SI, 16(R10)
+	MOVQ  SI, 16(R14)
 
 	MULXQ 24(R8), AX, CX
 	ADCXQ DI, AX
 	ADOXQ 24(R10), AX
-	MOVQ  AX, 24(R10)
+	MOVQ  AX, 24(R14)
 
 	MULXQ 32(R8), SI, DI
 	ADCXQ CX, SI
 	ADOXQ 32(R10), SI
-	MOVQ  SI, 32(R10)
+	MOVQ  SI, 32(R14)
 
 	MULXQ 40(R8), AX, CX
 	ADCXQ DI, AX
 	ADOXQ 40(R10), AX
-	MOVQ  AX, 40(R10)
+	MOVQ  AX, 40(R14)
 
 	MULXQ 48(R8), SI, DI
 	ADCXQ CX, SI
 	ADOXQ 48(R10), SI
-	MOVQ  SI, 48(R10)
+	MOVQ  SI, 48(R14)
 
 	MULXQ 56(R8), AX, CX
 	ADCXQ DI, AX
 	ADOXQ 56(R10), AX
-	MOVQ  AX, 56(R10)
+	MOVQ  AX, 56(R14)
 
 	ADCXQ R9, CX
 	ADOXQ R9, CX
 
 	ADDQ $64, R8
 	ADDQ $64, R10
+	ADDQ $64, R14
 	ADDQ $8, BX
 
 	CMPQ BX, R13
 	JL adx_loop
-	MOVQ z+0(FP), R10
-	MOVQ x+24(FP), R8
+	MOVQ z+0(FP), R14
+	MOVQ x+24(FP), R10
+	MOVQ y+48(FP), R8
 	CMPQ BX, R11
 	JL adx_short
-	MOVQ CX, c+56(FP)
+	MOVQ CX, c+88(FP)
 	RET
 
 adx_short:
@@ -508,7 +513,7 @@ adx_short:
 	CMPQ BX, R11
 	JL adx_short
 
-	MOVQ CX, c+56(FP)
+	MOVQ CX, c+88(FP)
 	RET
 
 

@@ -78,7 +78,7 @@ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
 	// https://docs.oracle.com/cd/E88353_01/html/E37843/sendfile-3c.html and
 	// https://illumos.org/man/3EXT/sendfile for more details.
 	rerr := sc.Read(func(fd uintptr) bool {
-		written, err, handled = poll.SendFile(&f.pfd, int(fd), remain)
+		written, err, handled = poll.SendFile(&f.pfd, fd, remain)
 		return true
 	})
 	if lr != nil {

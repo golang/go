@@ -28,7 +28,7 @@ func (f *File) writeTo(w io.Writer) (written int64, handled bool, err error) {
 	}
 
 	rerr := sc.Read(func(fd uintptr) (done bool) {
-		written, err, handled = poll.SendFile(pfd, int(fd), 0)
+		written, err, handled = poll.SendFile(pfd, fd, 0)
 		return true
 	})
 

@@ -691,12 +691,12 @@ TEXT ·shrVU(SB), NOSPLIT, $0
 	BR ·shrVU_g(SB)
 
 // CX = R4, r8 = r8, r9=r9, r10 = r2, r11 = r5, DX = r3, AX = r6, BX = R1, (R0 set to 0) + use R11 + use R7 for i
-// func mulAddVWW(z, x []Word, y, r Word) (c Word)
+// func mulAddVWW(z, x []Word, m, a Word) (c Word)
 TEXT ·mulAddVWW(SB), NOSPLIT, $0
 	MOVD z+0(FP), R2
 	MOVD x+24(FP), R8
-	MOVD y+48(FP), R9
-	MOVD r+56(FP), R4    // c = r
+	MOVD m+48(FP), R9
+	MOVD a+56(FP), R4    // c = a
 	MOVD z_len+8(FP), R5
 	MOVD $0, R1          // i = 0
 	MOVD $0, R7          // i*8 = 0
@@ -719,18 +719,19 @@ E5:
 	MOVD R4, c+64(FP)
 	RET
 
-// func addMulVVW(z, x []Word, y Word) (c Word)
+// func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
 // CX = R4, r8 = r8, r9=r9, r10 = r2, r11 = r5, AX = r11, DX = R6, r12=r12, BX = R1, (R0 set to 0) + use R11 + use R7 for i
-TEXT ·addMulVVW(SB), NOSPLIT, $0
-	MOVD z+0(FP), R2
-	MOVD x+24(FP), R8
-	MOVD y+48(FP), R9
+TEXT ·addMulVVWW(SB), NOSPLIT, $0
+	MOVD z+0(FP), R3
+	MOVD x+24(FP), R2
+	MOVD y+48(FP), R8
+	MOVD m+72(FP), R9
 	MOVD z_len+8(FP), R5
 
 	MOVD $0, R1 // i*8 = 0
 	MOVD $0, R7 // i = 0
 	MOVD $0, R0 // make sure it's zero
-	MOVD $0, R4 // c = 0
+	MOVD a+80(FP), R4 // c = 0
 
 	MOVD   R5, R12
 	AND    $-2, R12
@@ -746,7 +747,7 @@ A6:
 	ADDC   R4, R11
 	ADDE   R0, R6
 	MOVD   R6, R4
-	MOVD   R11, (R2)(R1*1)
+	MOVD   R11, (R3)(R1*1)
 
 	MOVD   (8)(R8)(R1*1), R6
 	MULHDU R9, R6
@@ -756,7 +757,7 @@ A6:
 	ADDC   R4, R11
 	ADDE   R0, R6
 	MOVD   R6, R4
-	MOVD   R11, (8)(R2)(R1*1)
+	MOVD   R11, (8)(R3)(R1*1)
 
 	ADD $16, R1 // i*8 + 8
 	ADD $2, R7  // i++
@@ -773,7 +774,7 @@ L6:
 	ADDC   R4, R11
 	ADDE   R0, R6
 	MOVD   R6, R4
-	MOVD   R11, (R2)(R1*1)
+	MOVD   R11, (R3)(R1*1)
 
 	ADD $8, R1 // i*8 + 8
 	ADD $1, R7 // i++
@@ -781,6 +782,6 @@ L6:
 E6:
 	CMPBLT R7, R5, L6 // i < n
 
-	MOVD R4, c+56(FP)
+	MOVD R4, c+88(FP)
 	RET
 

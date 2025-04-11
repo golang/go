@@ -18,15 +18,15 @@ var parseMetaGoImportsTests = []struct {
 	{
 		`<meta name="go-import" content="foo/bar git https://github.com/rsc/foo/bar">`,
 		IgnoreMod,
-		[]metaImport{{"foo/bar", "git", "https://github.com/rsc/foo/bar"}},
+		[]metaImport{{"foo/bar", "git", "https://github.com/rsc/foo/bar", ""}},
 	},
 	{
 		`<meta name="go-import" content="foo/bar git https://github.com/rsc/foo/bar">
 		<meta name="go-import" content="baz/quux git http://github.com/rsc/baz/quux">`,
 		IgnoreMod,
 		[]metaImport{
-			{"foo/bar", "git", "https://github.com/rsc/foo/bar"},
-			{"baz/quux", "git", "http://github.com/rsc/baz/quux"},
+			{"foo/bar", "git", "https://github.com/rsc/foo/bar", ""},
+			{"baz/quux", "git", "http://github.com/rsc/baz/quux", ""},
 		},
 	},
 	{
@@ -34,7 +34,7 @@ var parseMetaGoImportsTests = []struct {
 		<meta name="go-import" content="foo/bar mod http://github.com/rsc/baz/quux">`,
 		IgnoreMod,
 		[]metaImport{
-			{"foo/bar", "git", "https://github.com/rsc/foo/bar"},
+			{"foo/bar", "git", "https://github.com/rsc/foo/bar", ""},
 		},
 	},
 	{
@@ -42,7 +42,7 @@ var parseMetaGoImportsTests = []struct {
 		<meta name="go-import" content="foo/bar git https://github.com/rsc/foo/bar">`,
 		IgnoreMod,
 		[]metaImport{
-			{"foo/bar", "git", "https://github.com/rsc/foo/bar"},
+			{"foo/bar", "git", "https://github.com/rsc/foo/bar", ""},
 		},
 	},
 	{
@@ -50,7 +50,7 @@ var parseMetaGoImportsTests = []struct {
 		<meta name="go-import" content="foo/bar git https://github.com/rsc/foo/bar">`,
 		PreferMod,
 		[]metaImport{
-			{"foo/bar", "mod", "http://github.com/rsc/baz/quux"},
+			{"foo/bar", "mod", "http://github.com/rsc/baz/quux", ""},
 		},
 	},
 	{
@@ -58,31 +58,31 @@ var parseMetaGoImportsTests = []struct {
 		<meta name="go-import" content="foo/bar git https://github.com/rsc/foo/bar">
 		</head>`,
 		IgnoreMod,
-		[]metaImport{{"foo/bar", "git", "https://github.com/rsc/foo/bar"}},
+		[]metaImport{{"foo/bar", "git", "https://github.com/rsc/foo/bar", ""}},
 	},
 	{
 		`<meta name="go-import" content="foo/bar git https://github.com/rsc/foo/bar">
 		<body>`,
 		IgnoreMod,
-		[]metaImport{{"foo/bar", "git", "https://github.com/rsc/foo/bar"}},
+		[]metaImport{{"foo/bar", "git", "https://github.com/rsc/foo/bar", ""}},
 	},
 	{
 		`<!doctype html><meta name="go-import" content="foo/bar git https://github.com/rsc/foo/bar">`,
 		IgnoreMod,
-		[]metaImport{{"foo/bar", "git", "https://github.com/rsc/foo/bar"}},
+		[]metaImport{{"foo/bar", "git", "https://github.com/rsc/foo/bar", ""}},
 	},
 	{
 		// XML doesn't like <div style=position:relative>.
 		`<!doctype html><title>Page Not Found</title><meta name=go-import content="chitin.io/chitin git https://github.com/chitin-io/chitin"><div style=position:relative>DRAFT</div>`,
 		IgnoreMod,
-		[]metaImport{{"chitin.io/chitin", "git", "https://github.com/chitin-io/chitin"}},
+		[]metaImport{{"chitin.io/chitin", "git", "https://github.com/chitin-io/chitin", ""}},
 	},
 	{
 		`<meta name="go-import" content="myitcv.io git https://github.com/myitcv/x">
 	        <meta name="go-import" content="myitcv.io/blah2 mod https://raw.githubusercontent.com/myitcv/pubx/master">
 	        `,
 		IgnoreMod,
-		[]metaImport{{"myitcv.io", "git", "https://github.com/myitcv/x"}},
+		[]metaImport{{"myitcv.io", "git", "https://github.com/myitcv/x", ""}},
 	},
 	{
 		`<meta name="go-import" content="myitcv.io git https://github.com/myitcv/x">
@@ -90,9 +90,19 @@ var parseMetaGoImportsTests = []struct {
 	        `,
 		PreferMod,
 		[]metaImport{
-			{"myitcv.io/blah2", "mod", "https://raw.githubusercontent.com/myitcv/pubx/master"},
-			{"myitcv.io", "git", "https://github.com/myitcv/x"},
+			{"myitcv.io/blah2", "mod", "https://raw.githubusercontent.com/myitcv/pubx/master", ""},
+			{"myitcv.io", "git", "https://github.com/myitcv/x", ""},
 		},
+	},
+	{
+		`<meta name="go-import" content="foo/bar git https://github.com/rsc/foo/bar subdir">`,
+		IgnoreMod,
+		[]metaImport{{"foo/bar", "git", "https://github.com/rsc/foo/bar", "subdir"}},
+	},
+	{
+		`<meta name="go-import" content="foo/bar git https://github.com/rsc/foo/bar subdir/path">`,
+		IgnoreMod,
+		[]metaImport{{"foo/bar", "git", "https://github.com/rsc/foo/bar", "subdir/path"}},
 	},
 }
 

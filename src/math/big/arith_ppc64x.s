@@ -391,7 +391,7 @@ zeroshift:
 	CMPU    R11, R7, CR2    // < len?
 	BLT     CR2, backward   // there is overlap, copy backwards
 	MOVD    $0, R14
-	// shlVU processes backwards, but added a forward copy option 
+	// shlVU processes backwards, but added a forward copy option
 	// since its faster on POWER
 repeat:
 	MOVD    (R6)(R14), R15  // Copy 8 bytes at a time
@@ -458,7 +458,7 @@ loopback:
 	BLE     loopback
 	CMP     R8, R4          // Are we at the last element?
 	BEQ     loopexit
-scalar:	
+scalar:
 	ADD     $-1, R8, R10
 	SLD     $3, R10
 	MOVD    (R6)(R10),R11
@@ -496,12 +496,12 @@ done:
 	MOVD    R0, c+56(FP)
 	RET
 
-// func mulAddVWW(z, x []Word, y, r Word) (c Word)
+// func mulAddVWW(z, x []Word, m, a Word) (c Word)
 TEXT ·mulAddVWW(SB), NOSPLIT, $0
 	MOVD    z+0(FP), R10      // R10 = z[]
 	MOVD    x+24(FP), R8      // R8 = x[]
-	MOVD    y+48(FP), R9      // R9 = y
-	MOVD    r+56(FP), R4      // R4 = r = c
+	MOVD    m+48(FP), R9      // R9 = m
+	MOVD    a+56(FP), R4      // R4 = a = c
 	MOVD    z_len+8(FP), R11  // R11 = z_len
 
 	CMP     R11, $0
@@ -587,59 +587,61 @@ done:
 	MOVD    R4, c+64(FP)
 	RET
 
-// func addMulVVW(z, x []Word, y Word) (c Word)
-TEXT ·addMulVVW(SB), NOSPLIT, $0
-	MOVD	z+0(FP), R3	// R3 = z[]
-	MOVD	x+24(FP), R4	// R4 = x[]
-	MOVD	y+48(FP), R5	// R5 = y
+// func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
+TEXT ·addMulVVWW(SB), NOSPLIT, $0
+	MOVD	z+0(FP), R22	// R22 = z[]
+	MOVD	x+24(FP), R3	// R3 = x[]
+	MOVD	y+48(FP), R4	// R4 = y[]
+	MOVD	m+72(FP), R5	// R5 = m
 	MOVD	z_len+8(FP), R6	// R6 = z_len
 
 	CMP	R6, $4
-	MOVD	R0, R9		// R9 = c = 0
+	MOVD	a+80(FP), R9		// R9 = c = a
 	BLT	tail
 	SRD	$2, R6, R7
 	MOVD	R7, CTR		// Initialize loop counter
 	PCALIGN	$16
 
 loop:
-	MOVD	0(R4), R14	// x[i]
-	MOVD	8(R4), R16	// x[i+1]
-	MOVD	16(R4), R18	// x[i+2]
-	MOVD	24(R4), R20	// x[i+3]
-	MOVD	0(R3), R15	// z[i]
-	MOVD	8(R3), R17	// z[i+1]
-	MOVD	16(R3), R19	// z[i+2]
-	MOVD	24(R3), R21	// z[i+3]
-	MULLD	R5, R14, R10	// low x[i]*y
-	MULHDU	R5, R14, R11	// high x[i]*y
+	MOVD	0(R4), R14	// y[i]
+	MOVD	8(R4), R16	// y[i+1]
+	MOVD	16(R4), R18	// y[i+2]
+	MOVD	24(R4), R20	// y[i+3]
+	MOVD	0(R3), R15	// x[i]
+	MOVD	8(R3), R17	// x[i+1]
+	MOVD	16(R3), R19	// x[i+2]
+	MOVD	24(R3), R21	// x[i+3]
+	MULLD	R5, R14, R10	// low y[i]*m
+	MULHDU	R5, R14, R11	// high y[i]*m
 	ADDC	R15, R10
 	ADDZE	R11
 	ADDC	R9, R10
 	ADDZE	R11, R9
-	MULLD	R5, R16, R14	// low x[i+1]*y
-	MULHDU	R5, R16, R15	// high x[i+1]*y
+	MULLD	R5, R16, R14	// low y[i+1]*m
+	MULHDU	R5, R16, R15	// high y[i+1]*m
 	ADDC	R17, R14
 	ADDZE	R15
 	ADDC	R9, R14
 	ADDZE	R15, R9
-	MULLD	R5, R18, R16    // low x[i+2]*y
-	MULHDU	R5, R18, R17    // high x[i+2]*y
+	MULLD	R5, R18, R16    // low y[i+2]*m
+	MULHDU	R5, R18, R17    // high y[i+2]*m
 	ADDC	R19, R16
 	ADDZE	R17
 	ADDC	R9, R16
 	ADDZE	R17, R9
-	MULLD	R5, R20, R18    // low x[i+3]*y
-	MULHDU	R5, R20, R19    // high x[i+3]*y
+	MULLD	R5, R20, R18    // low y[i+3]*m
+	MULHDU	R5, R20, R19    // high y[i+3]*m
 	ADDC	R21, R18
 	ADDZE	R19
 	ADDC	R9, R18
 	ADDZE	R19, R9
-	MOVD	R10, 0(R3)	// z[i]
-	MOVD	R14, 8(R3)	// z[i+1]
-	MOVD	R16, 16(R3)	// z[i+2]
-	MOVD	R18, 24(R3)	// z[i+3]
+	MOVD	R10, 0(R22)	// z[i]
+	MOVD	R14, 8(R22)	// z[i+1]
+	MOVD	R16, 16(R22)	// z[i+2]
+	MOVD	R18, 24(R22)	// z[i+3]
 	ADD	$32, R3
 	ADD	$32, R4
+	ADD	$32, R22
 	BDNZ	loop
 
 	ANDCC	$3, R6
@@ -657,12 +659,13 @@ tailloop:
 	ADDZE	R11
 	ADDC	R9, R10
 	ADDZE	R11, R9
-	MOVD	R10, 0(R3)
+	MOVD	R10, 0(R22)
 	ADD	$8, R3
 	ADD	$8, R4
+	ADD	$8, R22
 	BDNZ	tailloop
 
 done:
-	MOVD	R9, c+56(FP)
+	MOVD	R9, c+88(FP)
 	RET
 

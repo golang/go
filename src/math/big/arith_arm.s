@@ -215,14 +215,14 @@ X6:
 	RET
 
 
-// func mulAddVWW(z, x []Word, y, r Word) (c Word)
+// func mulAddVWW(z, x []Word, m, a Word) (c Word)
 TEXT ·mulAddVWW(SB),NOSPLIT,$0
 	MOVW	$0, R0
 	MOVW	z+0(FP), R1
 	MOVW	z_len+4(FP), R5
 	MOVW	x+12(FP), R2
-	MOVW	y+24(FP), R3
-	MOVW	r+28(FP), R4
+	MOVW	m+24(FP), R3
+	MOVW	a+28(FP), R4
 	ADD	R5<<2, R1, R5
 	B E8
 
@@ -242,15 +242,16 @@ E8:
 	RET
 
 
-// func addMulVVW(z, x []Word, y Word) (c Word)
-TEXT ·addMulVVW(SB),NOSPLIT,$0
+// func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
+TEXT ·addMulVVWW(SB),NOSPLIT,$0
 	MOVW	$0, R0
-	MOVW	z+0(FP), R1
+	MOVW	z+0(FP), R9
+	MOVW	x+12(FP), R1
 	MOVW	z_len+4(FP), R5
-	MOVW	x+12(FP), R2
-	MOVW	y+24(FP), R3
+	MOVW	y+24(FP), R2
+	MOVW	m+36(FP), R3
 	ADD	R5<<2, R1, R5
-	MOVW	$0, R4
+	MOVW	a+40(FP), R4
 	B E9
 
 	// word loop
@@ -259,14 +260,14 @@ L9:
 	MULLU	R6, R3, (R7, R6)
 	ADD.S	R4, R6
 	ADC	R0, R7
-	MOVW	0(R1), R4
+	MOVW.P	4(R1), R4
 	ADD.S	R4, R6
 	ADC	R0, R7
-	MOVW.P	R6, 4(R1)
+	MOVW.P	R6, 4(R9)
 	MOVW	R7, R4
 E9:
 	TEQ	R1, R5
 	BNE	L9
 
-	MOVW	R4, c+28(FP)
+	MOVW	R4, c+44(FP)
 	RET

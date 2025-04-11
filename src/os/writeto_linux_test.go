@@ -111,10 +111,10 @@ func hookSendFile(t *testing.T) *sendFileHook {
 	t.Cleanup(func() {
 		poll.TestHookDidSendFile = orig
 	})
-	poll.TestHookDidSendFile = func(dstFD *poll.FD, src int, written int64, err error, handled bool) {
+	poll.TestHookDidSendFile = func(dstFD *poll.FD, src uintptr, written int64, err error, handled bool) {
 		h.called = true
 		h.dstfd = dstFD.Sysfd
-		h.srcfd = src
+		h.srcfd = int(src)
 		h.written = written
 		h.err = err
 		h.handled = handled

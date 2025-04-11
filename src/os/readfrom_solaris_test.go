@@ -48,10 +48,10 @@ func hookSendFileTB(tb testing.TB) *copyFileHook {
 	tb.Cleanup(func() {
 		poll.TestHookDidSendFile = orig
 	})
-	poll.TestHookDidSendFile = func(dstFD *poll.FD, src int, written int64, err error, handled bool) {
+	poll.TestHookDidSendFile = func(dstFD *poll.FD, src uintptr, written int64, err error, handled bool) {
 		hook.called = true
 		hook.dstfd = dstFD.Sysfd
-		hook.srcfd = src
+		hook.srcfd = int(src)
 		hook.written = written
 		hook.err = err
 		hook.handled = handled
