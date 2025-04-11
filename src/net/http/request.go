@@ -1018,7 +1018,7 @@ func parseBasicAuth(auth string) (username, password string, ok bool) {
 // The username may not contain a colon. Some protocols may impose
 // additional requirements on pre-escaping the username and
 // password. For instance, when used with OAuth2, both arguments must
-// be URL encoded first with [url.QueryEscape].
+// be URL encoded first with [url.QueryEscape] (rfc6749 section-2.3.1).
 func (r *Request) SetBasicAuth(username, password string) {
 	r.Header.Set("Authorization", "Basic "+basicAuth(username, password))
 }
