@@ -53,8 +53,10 @@ func TestReadGCStats(t *testing.T) {
 				t.Errorf("stats.Pause[%d] = %d, want %d", i, dt, mstats.PauseNs[off])
 			}
 			maximum = max(maximum, dt)
-			if minimum > dt || i == 0 {
+			if i == 0 {
 				minimum = dt
+			} else {
+				minimum = min(minimum, dt)
 			}
 			off = (off + len(mstats.PauseNs) - 1) % len(mstats.PauseNs)
 		}
