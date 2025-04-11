@@ -664,7 +664,7 @@ func (ft *factsTable) newLimit(v *Value, newLim limit) bool {
 				d |= unsigned
 			}
 			if !isTrue {
-				r ^= (lt | gt | eq)
+				r ^= lt | gt | eq
 			}
 			// TODO: v.Block is wrong?
 			addRestrictions(v.Block, ft, d, v.Args[0], v.Args[1], r)
@@ -697,7 +697,7 @@ func (ft *factsTable) newLimit(v *Value, newLim limit) bool {
 				// But in the signed domain, we can't express the ||
 				// condition, so check if a0 is non-negative instead,
 				// to be able to learn something.
-				r ^= (lt | gt | eq) // >= (index) or > (slice)
+				r ^= lt | gt | eq // >= (index) or > (slice)
 				if ft.isNonNegative(v.Args[0]) {
 					ft.update(v.Block, v.Args[0], v.Args[1], signed, r)
 				}
