@@ -664,7 +664,7 @@ func (ft *factsTable) newLimit(v *Value, newLim limit) bool {
 				d |= unsigned
 			}
 			if !isTrue {
-				r ^= (lt | gt | eq)
+				r ^= lt | gt | eq
 			}
 			// TODO: v.Block is wrong?
 			addRestrictions(v.Block, ft, d, v.Args[0], v.Args[1], r)
@@ -697,7 +697,7 @@ func (ft *factsTable) newLimit(v *Value, newLim limit) bool {
 				// But in the signed domain, we can't express the ||
 				// condition, so check if a0 is non-negative instead,
 				// to be able to learn something.
-				r ^= (lt | gt | eq) // >= (index) or > (slice)
+				r ^= lt | gt | eq // >= (index) or > (slice)
 				if ft.isNonNegative(v.Args[0]) {
 					ft.update(v.Block, v.Args[0], v.Args[1], signed, r)
 				}
@@ -1299,8 +1299,8 @@ func prove(f *Func) {
 		}
 
 		// try to rewrite to a downward counting loop checking against start if the
-		// loop body does not depends on ind or nxt and end is known before the loop.
-		// This reduce pressure on the register allocator because this do not need
+		// loop body does not depend on ind or nxt and end is known before the loop.
+		// This reduces pressure on the register allocator because this does not need
 		// to use end on each iteration anymore. We compare against the start constant instead.
 		// That means this code:
 		//
@@ -1332,7 +1332,7 @@ func prove(f *Func) {
 		//
 		//	exit_loop:
 		//
-		// this is better because it only require to keep ind then nxt alive while looping,
+		// this is better because it only requires to keep ind then nxt alive while looping,
 		// while the original form keeps ind then nxt and end alive
 		start, end := v.min, v.max
 		if v.flags&indVarCountDown != 0 {
@@ -1355,7 +1355,7 @@ func prove(f *Func) {
 
 		if end.Block == ind.Block {
 			// we can't rewrite loops where the condition depends on the loop body
-			// this simple check is forced to work because if this is true a Phi in ind.Block must exists
+			// this simple check is forced to work because if this is true a Phi in ind.Block must exist
 			continue
 		}
 
