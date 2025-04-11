@@ -18,7 +18,7 @@ const (
 	SYS_EVENTFD2      = 4325
 
 	EFD_NONBLOCK = 0x80
-	NONE         = -1
+	NOSYS        = -1
 )
 
 type EpollEvent struct {
