@@ -989,3 +989,43 @@ func TestNestedCleanup(t *T) {
 		t.Errorf("unexpected cleanup count: got %d want 3", ranCleanup)
 	}
 }
+
+func TestOutputWriter(t *T) {
+	o := &outputWriter{c: &common{}}
+	testCases := []struct {
+		in  string
+		out string
+		buf string
+	}{{
+		in:  "a",
+		out: "",
+		buf: "a",
+	}, {
+		in:  "b",
+		out: "",
+		buf: "ab",
+	}, {
+		in:  "\n",
+		out: "    ab\n",
+		buf: "",
+	}, {
+		in:  "\nc",
+		out: "    ab\n    \n",
+		buf: "c",
+	}, {
+		in:  "d",
+		out: "    ab\n    \n",
+		buf: "cd",
+	}}
+	for _, tc := range testCases {
+		t.Run("", func(t *T) {
+			o.Write([]byte(tc.in))
+			if string(o.c.output) != tc.out {
+				t.Errorf("output:\ngot:\n%s\nwant:\n%s", o.c.output, tc.out)
+			}
+			if string(o.b) != tc.buf {
+				t.Errorf("buffer:\ngot:\n%s\nwant:\n%s", o.b, tc.buf)
+			}
+		})
+	}
+}
