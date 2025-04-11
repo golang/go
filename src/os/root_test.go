@@ -457,6 +457,9 @@ func TestRootChtimes(t *testing.T) {
 				case "js", "plan9":
 					times.atime = times.atime.Truncate(1 * time.Second)
 					times.mtime = times.mtime.Truncate(1 * time.Second)
+				case "illumos":
+					times.atime = times.atime.Truncate(1 * time.Microsecond)
+					times.mtime = times.mtime.Truncate(1 * time.Microsecond)
 				}
 
 				err := root.Chtimes(test.open, times.atime, times.mtime)
