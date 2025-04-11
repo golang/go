@@ -136,32 +136,26 @@ var sumVW = []argVW{
 	{nat{585}, nat{314}, 271, 0},
 }
 
-var lshVW = []argVW{
+var lshVWTests = []argVW{
 	{},
-	{nat{0}, nat{0}, 0, 0},
 	{nat{0}, nat{0}, 1, 0},
 	{nat{0}, nat{0}, 20, 0},
 
-	{nat{_M}, nat{_M}, 0, 0},
 	{nat{_M << 1 & _M}, nat{_M}, 1, 1},
 	{nat{_M << 20 & _M}, nat{_M}, 20, _M >> (_W - 20)},
 
-	{nat{_M, _M, _M}, nat{_M, _M, _M}, 0, 0},
 	{nat{_M << 1 & _M, _M, _M}, nat{_M, _M, _M}, 1, 1},
 	{nat{_M << 20 & _M, _M, _M}, nat{_M, _M, _M}, 20, _M >> (_W - 20)},
 }
 
-var rshVW = []argVW{
+var rshVWTests = []argVW{
 	{},
-	{nat{0}, nat{0}, 0, 0},
 	{nat{0}, nat{0}, 1, 0},
 	{nat{0}, nat{0}, 20, 0},
 
-	{nat{_M}, nat{_M}, 0, 0},
 	{nat{_M >> 1}, nat{_M}, 1, _M << (_W - 1) & _M},
 	{nat{_M >> 20}, nat{_M}, 20, _M << (_W - 20) & _M},
 
-	{nat{_M, _M, _M}, nat{_M, _M, _M}, 0, 0},
 	{nat{_M, _M, _M >> 1}, nat{_M, _M, _M}, 1, _M << (_W - 1) & _M},
 	{nat{_M, _M, _M >> 20}, nat{_M, _M, _M}, 20, _M << (_W - 20) & _M},
 }
@@ -214,20 +208,20 @@ func TestFunVW(t *testing.T) {
 		testFunVW(t, "subVW", subVW, arg)
 	}
 
-	shlVW_g := makeFunVW(shlVU_g)
-	shlVW := makeFunVW(shlVU)
-	for _, a := range lshVW {
+	lshVW_g := makeFunVW(lshVU_g)
+	lshVW := makeFunVW(lshVU)
+	for _, a := range lshVWTests {
 		arg := a
-		testFunVW(t, "shlVU_g", shlVW_g, arg)
-		testFunVW(t, "shlVU", shlVW, arg)
+		testFunVW(t, "lshVU_g", lshVW_g, arg)
+		testFunVW(t, "lshVU", lshVW, arg)
 	}
 
-	shrVW_g := makeFunVW(shrVU_g)
-	shrVW := makeFunVW(shrVU)
-	for _, a := range rshVW {
+	rshVW_g := makeFunVW(rshVU_g)
+	rshVW := makeFunVW(rshVU)
+	for _, a := range rshVWTests {
 		arg := a
-		testFunVW(t, "shrVU_g", shrVW_g, arg)
-		testFunVW(t, "shrVU", shrVW, arg)
+		testFunVW(t, "rshVU_g", rshVW_g, arg)
+		testFunVW(t, "rshVU", rshVW, arg)
 	}
 }
 
@@ -285,56 +279,48 @@ type argVU struct {
 	m  string // message.
 }
 
-var argshlVUIn = []Word{1, 2, 4, 8, 16, 32, 64, 0, 0, 0}
-var argshlVUr0 = []Word{1, 2, 4, 8, 16, 32, 64}
-var argshlVUr1 = []Word{2, 4, 8, 16, 32, 64, 128}
-var argshlVUrWm1 = []Word{1 << (_W - 1), 0, 1, 2, 4, 8, 16}
+var arglshVUIn = []Word{1, 2, 4, 8, 16, 32, 64, 0, 0, 0}
+var arglshVUr0 = []Word{1, 2, 4, 8, 16, 32, 64}
+var arglshVUr1 = []Word{2, 4, 8, 16, 32, 64, 128}
+var arglshVUrWm1 = []Word{1 << (_W - 1), 0, 1, 2, 4, 8, 16}
 
-var argshlVU = []argVU{
-	// test cases for shlVU
-	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0}, 7, 0, 0, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "complete overlap of shlVU"},
-	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0}, 7, 0, 3, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "partial overlap by half of shlVU"},
-	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0, 0, 0, 0}, 7, 0, 6, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "partial overlap by 1 Word of shlVU"},
-	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0, 0, 0, 0, 0}, 7, 0, 7, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "no overlap of shlVU"},
-	// additional test cases with shift values of 0, 1 and (_W-1)
-	{argshlVUIn, 7, 0, 0, 0, argshlVUr0, 0, "complete overlap of shlVU and shift of 0"},
-	{argshlVUIn, 7, 0, 0, 1, argshlVUr1, 0, "complete overlap of shlVU and shift of 1"},
-	{argshlVUIn, 7, 0, 0, _W - 1, argshlVUrWm1, 32, "complete overlap of shlVU and shift of _W - 1"},
-	{argshlVUIn, 7, 0, 1, 0, argshlVUr0, 0, "partial overlap by 6 Words of shlVU and shift of 0"},
-	{argshlVUIn, 7, 0, 1, 1, argshlVUr1, 0, "partial overlap by 6 Words of shlVU and shift of 1"},
-	{argshlVUIn, 7, 0, 1, _W - 1, argshlVUrWm1, 32, "partial overlap by 6 Words of shlVU and shift of _W - 1"},
-	{argshlVUIn, 7, 0, 2, 0, argshlVUr0, 0, "partial overlap by 5 Words of shlVU and shift of 0"},
-	{argshlVUIn, 7, 0, 2, 1, argshlVUr1, 0, "partial overlap by 5 Words of shlVU and shift of 1"},
-	{argshlVUIn, 7, 0, 2, _W - 1, argshlVUrWm1, 32, "partial overlap by 5 Words of shlVU abd shift of _W - 1"},
-	{argshlVUIn, 7, 0, 3, 0, argshlVUr0, 0, "partial overlap by 4 Words of shlVU and shift of 0"},
-	{argshlVUIn, 7, 0, 3, 1, argshlVUr1, 0, "partial overlap by 4 Words of shlVU and shift of 1"},
-	{argshlVUIn, 7, 0, 3, _W - 1, argshlVUrWm1, 32, "partial overlap by 4 Words of shlVU and shift of _W - 1"},
+var arglshVU = []argVU{
+	// test cases for lshVU
+	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0}, 7, 0, 0, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "complete overlap of lshVU"},
+	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0}, 7, 0, 3, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "partial overlap by half of lshVU"},
+	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0, 0, 0, 0}, 7, 0, 6, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "partial overlap by 1 Word of lshVU"},
+	{[]Word{1, _M, _M, _M, _M, _M, 3 << (_W - 2), 0, 0, 0, 0, 0, 0, 0, 0}, 7, 0, 7, 1, []Word{2, _M - 1, _M, _M, _M, _M, 1<<(_W-1) + 1}, 1, "no overlap of lshVU"},
+	// additional test cases with shift values of 1 and (_W-1)
+	{arglshVUIn, 7, 0, 0, 1, arglshVUr1, 0, "complete overlap of lshVU and shift of 1"},
+	{arglshVUIn, 7, 0, 0, _W - 1, arglshVUrWm1, 32, "complete overlap of lshVU and shift of _W - 1"},
+	{arglshVUIn, 7, 0, 1, 1, arglshVUr1, 0, "partial overlap by 6 Words of lshVU and shift of 1"},
+	{arglshVUIn, 7, 0, 1, _W - 1, arglshVUrWm1, 32, "partial overlap by 6 Words of lshVU and shift of _W - 1"},
+	{arglshVUIn, 7, 0, 2, 1, arglshVUr1, 0, "partial overlap by 5 Words of lshVU and shift of 1"},
+	{arglshVUIn, 7, 0, 2, _W - 1, arglshVUrWm1, 32, "partial overlap by 5 Words of lshVU abd shift of _W - 1"},
+	{arglshVUIn, 7, 0, 3, 1, arglshVUr1, 0, "partial overlap by 4 Words of lshVU and shift of 1"},
+	{arglshVUIn, 7, 0, 3, _W - 1, arglshVUrWm1, 32, "partial overlap by 4 Words of lshVU and shift of _W - 1"},
 }
 
-var argshrVUIn = []Word{0, 0, 0, 1, 2, 4, 8, 16, 32, 64}
-var argshrVUr0 = []Word{1, 2, 4, 8, 16, 32, 64}
-var argshrVUr1 = []Word{0, 1, 2, 4, 8, 16, 32}
-var argshrVUrWm1 = []Word{4, 8, 16, 32, 64, 128, 0}
+var argrshVUIn = []Word{0, 0, 0, 1, 2, 4, 8, 16, 32, 64}
+var argrshVUr0 = []Word{1, 2, 4, 8, 16, 32, 64}
+var argrshVUr1 = []Word{0, 1, 2, 4, 8, 16, 32}
+var argrshVUrWm1 = []Word{4, 8, 16, 32, 64, 128, 0}
 
-var argshrVU = []argVU{
-	// test cases for shrVU
-	{[]Word{0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 1, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "complete overlap of shrVU"},
-	{[]Word{0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 4, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "partial overlap by half of shrVU"},
-	{[]Word{0, 0, 0, 0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 7, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "partial overlap by 1 Word of shrVU"},
-	{[]Word{0, 0, 0, 0, 0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 8, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "no overlap of shrVU"},
+var argrshVU = []argVU{
+	// test cases for rshVU
+	{[]Word{0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 1, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "complete overlap of rshVU"},
+	{[]Word{0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 4, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "partial overlap by half of rshVU"},
+	{[]Word{0, 0, 0, 0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 7, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "partial overlap by 1 Word of rshVU"},
+	{[]Word{0, 0, 0, 0, 0, 0, 0, 0, 3, _M, _M, _M, _M, _M, 1 << (_W - 1)}, 7, 8, 1, 1, []Word{1<<(_W-1) + 1, _M, _M, _M, _M, _M >> 1, 1 << (_W - 2)}, 1 << (_W - 1), "no overlap of rshVU"},
 	// additional test cases with shift values of 0, 1 and (_W-1)
-	{argshrVUIn, 7, 3, 3, 0, argshrVUr0, 0, "complete overlap of shrVU and shift of 0"},
-	{argshrVUIn, 7, 3, 3, 1, argshrVUr1, 1 << (_W - 1), "complete overlap of shrVU and shift of 1"},
-	{argshrVUIn, 7, 3, 3, _W - 1, argshrVUrWm1, 2, "complete overlap of shrVU and shift of _W - 1"},
-	{argshrVUIn, 7, 3, 2, 0, argshrVUr0, 0, "partial overlap by 6 Words of shrVU and shift of 0"},
-	{argshrVUIn, 7, 3, 2, 1, argshrVUr1, 1 << (_W - 1), "partial overlap by 6 Words of shrVU and shift of 1"},
-	{argshrVUIn, 7, 3, 2, _W - 1, argshrVUrWm1, 2, "partial overlap by 6 Words of shrVU and shift of _W - 1"},
-	{argshrVUIn, 7, 3, 1, 0, argshrVUr0, 0, "partial overlap by 5 Words of shrVU and shift of 0"},
-	{argshrVUIn, 7, 3, 1, 1, argshrVUr1, 1 << (_W - 1), "partial overlap by 5 Words of shrVU and shift of 1"},
-	{argshrVUIn, 7, 3, 1, _W - 1, argshrVUrWm1, 2, "partial overlap by 5 Words of shrVU and shift of _W - 1"},
-	{argshrVUIn, 7, 3, 0, 0, argshrVUr0, 0, "partial overlap by 4 Words of shrVU and shift of 0"},
-	{argshrVUIn, 7, 3, 0, 1, argshrVUr1, 1 << (_W - 1), "partial overlap by 4 Words of shrVU and shift of 1"},
-	{argshrVUIn, 7, 3, 0, _W - 1, argshrVUrWm1, 2, "partial overlap by 4 Words of shrVU and shift of _W - 1"},
+	{argrshVUIn, 7, 3, 3, 1, argrshVUr1, 1 << (_W - 1), "complete overlap of rshVU and shift of 1"},
+	{argrshVUIn, 7, 3, 3, _W - 1, argrshVUrWm1, 2, "complete overlap of rshVU and shift of _W - 1"},
+	{argrshVUIn, 7, 3, 2, 1, argrshVUr1, 1 << (_W - 1), "partial overlap by 6 Words of rshVU and shift of 1"},
+	{argrshVUIn, 7, 3, 2, _W - 1, argrshVUrWm1, 2, "partial overlap by 6 Words of rshVU and shift of _W - 1"},
+	{argrshVUIn, 7, 3, 1, 1, argrshVUr1, 1 << (_W - 1), "partial overlap by 5 Words of rshVU and shift of 1"},
+	{argrshVUIn, 7, 3, 1, _W - 1, argrshVUrWm1, 2, "partial overlap by 5 Words of rshVU and shift of _W - 1"},
+	{argrshVUIn, 7, 3, 0, 1, argrshVUr1, 1 << (_W - 1), "partial overlap by 4 Words of rshVU and shift of 1"},
+	{argrshVUIn, 7, 3, 0, _W - 1, argrshVUrWm1, 2, "partial overlap by 4 Words of rshVU and shift of _W - 1"},
 }
 
 func testShiftFunc(t *testing.T, f func(z, x []Word, s uint) Word, a argVU) {
@@ -346,24 +332,24 @@ func testShiftFunc(t *testing.T, f func(z, x []Word, s uint) Word, a argVU) {
 	c := f(z, x, a.s)
 	for i, zi := range z {
 		if zi != a.r[i] {
-			t.Errorf("d := %v, %s(d[%d:%d], d[%d:%d], %d)\n\tgot z[%d] = %#x; want %#x", a.d, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, i, zi, a.r[i])
+			t.Errorf("d := %v, %s (d[%d:%d], d[%d:%d], %d)\n\tgot z[%d] = %#x; want %#x", a.d, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, i, zi, a.r[i])
 			break
 		}
 	}
 	if c != a.c {
-		t.Errorf("d := %v, %s(d[%d:%d], d[%d:%d], %d)\n\tgot c = %#x; want %#x", a.d, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, c, a.c)
+		t.Errorf("d := %v, %s (d[%d:%d], d[%d:%d], %d)\n\tgot c = %#x; want %#x", a.d, a.m, a.zp, a.zp+a.l, a.xp, a.xp+a.l, a.s, c, a.c)
 	}
 }
 
 func TestShiftOverlap(t *testing.T) {
-	for _, a := range argshlVU {
+	for _, a := range arglshVU {
 		arg := a
-		testShiftFunc(t, shlVU, arg)
+		testShiftFunc(t, lshVU, arg)
 	}
 
-	for _, a := range argshrVU {
+	for _, a := range argrshVU {
 		arg := a
-		testShiftFunc(t, shrVU, arg)
+		testShiftFunc(t, rshVU, arg)
 	}
 }
 
@@ -374,11 +360,11 @@ func TestIssue31084(t *testing.T) {
 	// compute 10^n via 5^n << n.
 	const n = 165
 	p := nat(nil).expNN(stk, nat{5}, nat{n}, nil, false)
-	p = p.shl(p, n)
+	p = p.lsh(p, n)
 	got := string(p.utoa(10))
 	want := "1" + strings.Repeat("0", n)
 	if got != want {
-		t.Errorf("shl(%v, %v)\n\tgot  %s\n\twant %s", p, n, got, want)
+		t.Errorf("lsh(%v, %v)\n\tgot  %s\n\twant %s", p, n, got, want)
 	}
 }
 
@@ -387,11 +373,11 @@ const issue42838Value = "1593091911132452277028880397767711805591104555192618786
 func TestIssue42838(t *testing.T) {
 	const s = 192
 	z, _, _, _ := nat(nil).scan(strings.NewReader(issue42838Value), 0, false)
-	z = z.shl(z, s)
+	z = z.lsh(z, s)
 	got := string(z.utoa(10))
 	want := "1" + strings.Repeat("0", s)
 	if got != want {
-		t.Errorf("shl(%v, %v)\n\tgot  %s\n\twant %s", z, s, got, want)
+		t.Errorf("lsh(%v, %v)\n\tgot  %s\n\twant %s", z, s, got, want)
 	}
 }
 
@@ -687,14 +673,14 @@ func BenchmarkNonZeroShifts(b *testing.B) {
 		z := make([]Word, n)
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
 			b.SetBytes(int64(n * _W))
-			b.Run("shrVU", func(b *testing.B) {
+			b.Run("rshVU", func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
-					_ = shrVU(z, x, s)
+					_ = rshVU(z, x, s)
 				}
 			})
-			b.Run("shlVU", func(b *testing.B) {
+			b.Run("lshVU", func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
-					_ = shlVU(z, x, s)
+					_ = lshVU(z, x, s)
 				}
 			})
 		})

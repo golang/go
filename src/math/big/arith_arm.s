@@ -118,8 +118,8 @@ E4:
 	RET
 
 
-// func shlVU(z, x []Word, s uint) (c Word)
-TEXT ·shlVU(SB),NOSPLIT,$0
+// func lshVU(z, x []Word, s uint) (c Word)
+TEXT ·lshVU(SB),NOSPLIT,$0
 	MOVW	z_len+4(FP), R5
 	TEQ	$0, R5
 	BEQ	X7
@@ -129,8 +129,6 @@ TEXT ·shlVU(SB),NOSPLIT,$0
 	ADD	R5<<2, R2, R2
 	ADD	R5<<2, R1, R5
 	MOVW	s+24(FP), R3
-	TEQ	$0, R3	// shift 0 is special
-	BEQ	Y7
 	ADD	$4, R1	// stop one word early
 	MOVW	$32, R4
 	SUB	R3, R4
@@ -154,20 +152,15 @@ E7:
 	MOVW	R7, -4(R5)
 	RET
 
-Y7:	// copy loop, because shift 0 == shift 32
-	MOVW.W	-4(R2), R6
-	MOVW.W	R6, -4(R5)
-	TEQ	R1, R5
-	BNE Y7
-
 X7:
 	MOVW	$0, R1
 	MOVW	R1, c+28(FP)
 	RET
 
 
-// func shrVU(z, x []Word, s uint) (c Word)
-TEXT ·shrVU(SB),NOSPLIT,$0
+
+// func rshVU(z, x []Word, s uint) (c Word)
+TEXT ·rshVU(SB),NOSPLIT,$0
 	MOVW	z_len+4(FP), R5
 	TEQ	$0, R5
 	BEQ	X6
@@ -176,8 +169,6 @@ TEXT ·shrVU(SB),NOSPLIT,$0
 	MOVW	x+12(FP), R2
 	ADD	R5<<2, R1, R5
 	MOVW	s+24(FP), R3
-	TEQ	$0, R3	// shift 0 is special
-	BEQ Y6
 	SUB	$4, R5	// stop one word early
 	MOVW	$32, R4
 	SUB	R3, R4
@@ -203,17 +194,10 @@ E6:
 	MOVW	R7, 0(R1)
 	RET
 
-Y6:	// copy loop, because shift 0 == shift 32
-	MOVW.P	4(R2), R6
-	MOVW.P	R6, 4(R1)
-	TEQ R1, R5
-	BNE Y6
-
 X6:
 	MOVW	$0, R1
 	MOVW	R1, c+28(FP)
 	RET
-
 
 // func mulAddVWW(z, x []Word, m, a Word) (c Word)
 TEXT ·mulAddVWW(SB),NOSPLIT,$0

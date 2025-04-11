@@ -234,8 +234,8 @@ large:
 	JMP ·subVWlarge(SB)
 
 
-// func shlVU(z, x []Word, s uint) (c Word)
-TEXT ·shlVU(SB),NOSPLIT,$0
+// func lshVU(z, x []Word, s uint) (c Word)
+TEXT ·lshVU(SB),NOSPLIT,$0
 	MOVQ z_len+8(FP), BX	// i = z
 	SUBQ $1, BX		// i--
 	JL X8b			// i < 0	(n <= 0)
@@ -269,8 +269,8 @@ X8b:	MOVQ $0, c+56(FP)
 	RET
 
 
-// func shrVU(z, x []Word, s uint) (c Word)
-TEXT ·shrVU(SB),NOSPLIT,$0
+// func rshVU(z, x []Word, s uint) (c Word)
+TEXT ·rshVU(SB),NOSPLIT,$0
 	MOVQ z_len+8(FP), R11
 	SUBQ $1, R11		// n--
 	JL X9b			// n < 0	(n <= 0)

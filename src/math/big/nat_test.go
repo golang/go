@@ -430,7 +430,7 @@ var leftShiftTests = []shiftTest{
 func TestShiftLeft(t *testing.T) {
 	for i, test := range leftShiftTests {
 		var z nat
-		z = z.shl(test.in, test.shift)
+		z = z.lsh(test.in, test.shift)
 		for j, d := range test.out {
 			if j >= len(z) || z[j] != d {
 				t.Errorf("#%d: got: %v want: %v", i, z, test.out)
@@ -453,7 +453,7 @@ var rightShiftTests = []shiftTest{
 func TestShiftRight(t *testing.T) {
 	for i, test := range rightShiftTests {
 		var z nat
-		z = z.shr(test.in, test.shift)
+		z = z.rsh(test.in, test.shift)
 		for j, d := range test.out {
 			if j >= len(z) || z[j] != d {
 				t.Errorf("#%d: got: %v want: %v", i, z, test.out)
@@ -469,24 +469,24 @@ func BenchmarkZeroShifts(b *testing.B) {
 	b.Run("Shl", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			var z nat
-			z.shl(x, 0)
+			z.lsh(x, 0)
 		}
 	})
 	b.Run("ShlSame", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			x.shl(x, 0)
+			x.lsh(x, 0)
 		}
 	})
 
 	b.Run("Shr", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			var z nat
-			z.shr(x, 0)
+			z.rsh(x, 0)
 		}
 	})
 	b.Run("ShrSame", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			x.shr(x, 0)
+			x.rsh(x, 0)
 		}
 	})
 }

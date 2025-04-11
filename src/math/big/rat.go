@@ -112,9 +112,9 @@ func quotToFloat32(stk *stack, a, b nat) (f float32, exact bool) {
 	a2 = a2.set(a)
 	b2 = b2.set(b)
 	if shift := Msize2 - exp; shift > 0 {
-		a2 = a2.shl(a2, uint(shift))
+		a2 = a2.lsh(a2, uint(shift))
 	} else if shift < 0 {
-		b2 = b2.shl(b2, uint(-shift))
+		b2 = b2.lsh(b2, uint(-shift))
 	}
 
 	// 2. Compute quotient and remainder (q, r).  NB: due to the
@@ -210,9 +210,9 @@ func quotToFloat64(stk *stack, a, b nat) (f float64, exact bool) {
 	a2 = a2.set(a)
 	b2 = b2.set(b)
 	if shift := Msize2 - exp; shift > 0 {
-		a2 = a2.shl(a2, uint(shift))
+		a2 = a2.lsh(a2, uint(shift))
 	} else if shift < 0 {
-		b2 = b2.shl(b2, uint(-shift))
+		b2 = b2.lsh(b2, uint(-shift))
 	}
 
 	// 2. Compute quotient and remainder (q, r).  NB: due to the

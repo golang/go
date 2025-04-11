@@ -143,7 +143,7 @@ func subVWlarge(z, x []Word, y Word) (c Word) {
 	return
 }
 
-func shlVU_g(z, x []Word, s uint) (c Word) {
+func lshVU_g(z, x []Word, s uint) (c Word) {
 	if s == 0 {
 		copy(z, x)
 		return
@@ -162,7 +162,7 @@ func shlVU_g(z, x []Word, s uint) (c Word) {
 	return
 }
 
-func shrVU_g(z, x []Word, s uint) (c Word) {
+func rshVU_g(z, x []Word, s uint) (c Word) {
 	if s == 0 {
 		copy(z, x)
 		return

@@ -128,7 +128,7 @@ func basicSqr(stk *stack, z, x nat) {
 		// t collects the products x[i] * x[j] where j < i
 		t[2*i] = addMulVVWW(t[i:2*i], t[i:2*i], x[0:i], d, 0)
 	}
-	t[2*n-1] = shlVU(t[1:2*n-1], t[1:2*n-1], 1) // double the j < i products
+	t[2*n-1] = lshVU(t[1:2*n-1], t[1:2*n-1], 1) // double the j < i products
 	addVV(z, z, t)                              // combine the result
 }
 

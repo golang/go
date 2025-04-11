@@ -1097,7 +1097,7 @@ func (z *Int) ModSqrt(x, p *Int) *Int {
 
 // Lsh sets z = x << n and returns z.
 func (z *Int) Lsh(x *Int, n uint) *Int {
-	z.abs = z.abs.shl(x.abs, n)
+	z.abs = z.abs.lsh(x.abs, n)
 	z.neg = x.neg
 	return z
 }
@@ -1107,13 +1107,13 @@ func (z *Int) Rsh(x *Int, n uint) *Int {
 	if x.neg {
 		// (-x) >> s == ^(x-1) >> s == ^((x-1) >> s) == -(((x-1) >> s) + 1)
 		t := z.abs.sub(x.abs, natOne) // no underflow because |x| > 0
-		t = t.shr(t, n)
+		t = t.rsh(t, n)
 		z.abs = t.add(t, natOne)
 		z.neg = true // z cannot be zero if x is negative
 		return z
 	}
 
-	z.abs = z.abs.shr(x.abs, n)
+	z.abs = z.abs.rsh(x.abs, n)
 	z.neg = false
 	return z
 }

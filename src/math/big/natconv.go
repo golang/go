@@ -268,7 +268,7 @@ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count in
 		slices.Reverse(z)
 		z = z.norm()
 		if i > 0 {
-			z = z.shr(z, uint(n-i)*uint(_W/n))
+			z = z.rsh(z, uint(n-i)*uint(_W/n))
 		}
 	} else {
 		if i > 0 {

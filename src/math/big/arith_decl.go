@@ -58,7 +58,7 @@ func addVW(z, x []Word, y Word) (c Word)
 //go:noescape
 func subVW(z, x []Word, y Word) (c Word)
 
-// shlVU should be an internal detail,
+// shlVU should be an internal detail (and a stale one at that),
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/remyoudompheng/bigfft
@@ -67,11 +67,23 @@ func subVW(z, x []Word, y Word) (c Word)
 // See go.dev/issue/67401.
 //
 //go:linkname shlVU
-//go:noescape
-func shlVU(z, x []Word, s uint) (c Word)
+func shlVU(z, x []Word, s uint) (c Word) {
+	if s == 0 {
+		copy(z, x)
+		return 0
+	}
+	return lshVU(z, x, s)
+}
 
+// lshVU sets z = x<<s, returning the high bits c. 1 ≤ s ≤ _B-1.
+//
 //go:noescape
-func shrVU(z, x []Word, s uint) (c Word)
+func lshVU(z, x []Word, s uint) (c Word)
+
+// rshVU sets z = x>>s, returning the low bits c. 1 ≤ s ≤ _B-1.
+//
+//go:noescape
+func rshVU(z, x []Word, s uint) (c Word)
 
 // mulAddVWW should be an internal detail,
 // but widely used packages access it using linkname.

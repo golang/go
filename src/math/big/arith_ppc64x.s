@@ -339,15 +339,13 @@ done:
 	MOVD  R4, c+56(FP)
 	RET
 
-//func shlVU(z, x []Word, s uint) (c Word)
-TEXT ·shlVU(SB), NOSPLIT, $0
+//func lshVU(z, x []Word, s uint) (c Word)
+TEXT ·lshVU(SB), NOSPLIT, $0
 	MOVD    z+0(FP), R3
 	MOVD    x+24(FP), R6
 	MOVD    s+48(FP), R9
 	MOVD    z_len+8(FP), R4
 	MOVD    x_len+32(FP), R7
-	CMP     R9, $0          // s==0 copy(z,x)
-	BEQ     zeroshift
 	CMP     R4, $0          // len(z)==0 return
 	BEQ     done
 
@@ -378,51 +376,18 @@ loopexit:
 	MOVD    R4, 0(R3)       // z[0]=x[0]<<s
 	MOVD    R7, c+56(FP)    // store pre-computed x[len(z)-1]>>ŝ into c
 	RET
-
-zeroshift:
-	CMP     R6, $0          // x is null, nothing to copy
-	BEQ     done
-	CMP     R6, R3          // if x is same as z, nothing to copy
-	BEQ     done
-	CMP     R7, R4
-	ISEL    $0, R7, R4, R7  // Take the lower bound of lengths of x,z
-	SLD     $3, R7, R7
-	SUB     R6, R3, R11     // dest - src
-	CMPU    R11, R7, CR2    // < len?
-	BLT     CR2, backward   // there is overlap, copy backwards
-	MOVD    $0, R14
-	// shlVU processes backwards, but added a forward copy option
-	// since its faster on POWER
-repeat:
-	MOVD    (R6)(R14), R15  // Copy 8 bytes at a time
-	MOVD    R15, (R3)(R14)
-	ADD     $8, R14
-	CMP     R14, R7         // More 8 bytes left?
-	BLT     repeat
-	BR      done
-backward:
-	ADD     $-8,R7, R14
-repeatback:
-	MOVD    (R6)(R14), R15  // copy x into z backwards
-	MOVD    R15, (R3)(R14)  // copy 8 bytes at a time
-	SUB     $8, R14
-	CMP     R14, $-8        // More 8 bytes left?
-	BGT     repeatback
-
 done:
 	MOVD    R0, c+56(FP)    // c=0
 	RET
 
-//func shrVU(z, x []Word, s uint) (c Word)
-TEXT ·shrVU(SB), NOSPLIT, $0
+//func rshVU(z, x []Word, s uint) (c Word)
+TEXT ·rshVU(SB), NOSPLIT, $0
 	MOVD    z+0(FP), R3
 	MOVD    x+24(FP), R6
 	MOVD    s+48(FP), R9
 	MOVD    z_len+8(FP), R4
 	MOVD    x_len+32(FP), R7
 
-	CMP     R9, $0          // s==0, copy(z,x)
-	BEQ     zeroshift
 	CMP     R4, $0          // len(z)==0 return
 	BEQ     done
 	SUBC    R9, $64, R5     // ŝ=_W-s, we skip & by _W-1 as the caller ensures s < _W(64)
@@ -476,22 +441,6 @@ loopexit:
 	MOVD    R5, (R3)(R4)    // z[len(z)-1]=x[len(z)-1]>>s
 	MOVD    R7, c+56(FP)    // store pre-computed x[0]<<ŝ into c
 	RET
-
-zeroshift:
-	CMP     R6, $0          // x is null, nothing to copy
-	BEQ     done
-	CMP     R6, R3          // if x is same as z, nothing to copy
-	BEQ     done
-	CMP     R7, R4
-	ISEL    $0, R7, R4, R7  // Take the lower bounds of lengths of x, z
-	SLD     $3, R7, R7
-	MOVD    $0, R14
-repeat:
-	MOVD    (R6)(R14), R15  // copy 8 bytes at a time
-	MOVD    R15, (R3)(R14)  // shrVU processes bytes only forwards
-	ADD     $8, R14
-	CMP     R14, R7         // More 8 bytes left?
-	BLT     repeat
 done:
 	MOVD    R0, c+56(FP)
 	RET

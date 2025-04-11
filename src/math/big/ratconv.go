@@ -197,9 +197,9 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 		return nil, false // avoid excessively large exponents
 	}
 	if exp2 > 0 {
-		z.a.abs = z.a.abs.shl(z.a.abs, uint(exp2))
+		z.a.abs = z.a.abs.lsh(z.a.abs, uint(exp2))
 	} else if exp2 < 0 {
-		z.b.abs = z.b.abs.shl(z.b.abs, uint(-exp2))
+		z.b.abs = z.b.abs.lsh(z.b.abs, uint(-exp2))
 	}
 
 	z.a.neg = neg && len(z.a.abs) > 0 // 0 has no sign
@@ -421,7 +421,7 @@ func (x *Rat) FloatPrec() (n int, exact bool) {
 	// Do this first to reduce q as much as possible.
 	var q nat
 	p2 := d.trailingZeroBits()
-	q = q.shr(d, p2)
+	q = q.rsh(d, p2)
 
 	// Determine p5 by counting factors of 5.
 	// Build a table starting with an initial power of 5,

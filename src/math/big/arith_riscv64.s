@@ -293,11 +293,11 @@ done:
 	MOV	X29, c+56(FP)	// return b
 	RET
 
-TEXT ·shlVU(SB),NOSPLIT,$0
-	JMP ·shlVU_g(SB)
+TEXT ·lshVU(SB),NOSPLIT,$0
+	JMP ·lshVU_g(SB)
 
-TEXT ·shrVU(SB),NOSPLIT,$0
-	JMP ·shrVU_g(SB)
+TEXT ·rshVU(SB),NOSPLIT,$0
+	JMP ·rshVU_g(SB)
 
 TEXT ·mulAddVWW(SB),NOSPLIT,$0
 	MOV	x+24(FP), X5
