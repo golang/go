@@ -13,6 +13,7 @@ import (
 )
 
 const asanenabled = false
+const asanenabledBit = 0
 
 // Because asanenabled is false, none of these functions should be called.
 

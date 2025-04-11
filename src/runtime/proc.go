@@ -2256,7 +2256,7 @@ func allocm(pp *p, fn func(), id int64) *m {
 		unlock(&sched.lock)
 	}
 
-	mp := new(m)
+	mp := &new(mPadded).m
 	mp.mstartfn = fn
 	mcommoninit(mp, id)
 
