@@ -272,9 +272,7 @@ func readlinkat(fd int, name string) (string, error) {
 		if e != nil {
 			return "", e
 		}
-		if n < 0 {
-			n = 0
-		}
+		n = max(n, 0)
 		if n < len {
 			return string(b[0:n]), nil
 		}
