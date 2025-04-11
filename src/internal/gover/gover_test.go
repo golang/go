@@ -35,6 +35,10 @@ var compareTests = []testCase2[string, string, int]{
 	{"1.19rc1", "1.19.0", -1},
 	{"1.19alpha3", "1.19beta2", -1},
 	{"1.19beta2", "1.19rc1", -1},
+	{"1.9.2rc2", "1.9.2", -1},
+	{"1.9.2rc2", "1.9.2rc3", -1},
+	{"1.9.2beta2", "1.9.2rc3", -1},
+	{"1.9.2alpha1", "1.9.2beta2", -1},
 	{"1.1", "1.99999999999999998", -1},
 	{"1.99999999999999998", "1.99999999999999999", -1},
 }
@@ -53,6 +57,9 @@ var parseTests = []testCase1[string, Version]{
 	{"1.24", Version{"1", "24", "", "", ""}},
 	{"1.24rc3", Version{"1", "24", "", "rc", "3"}},
 	{"1.24.0", Version{"1", "24", "0", "", ""}},
+	{"1.9.2rc2", Version{"1", "9", "2", "rc", "2"}},
+	{"1.8.5rc4", Version{"1", "8", "5", "rc", "4"}},
+	{"1.8.2beta2", Version{"1", "8", "2", "beta", "2"}},
 	{"1.999testmod", Version{"1", "999", "", "testmod", ""}},
 	{"1.99999999999999999", Version{"1", "99999999999999999", "", "", ""}},
 }
@@ -64,6 +71,8 @@ var langTests = []testCase1[string, string]{
 	{"1.2.3", "1.2"},
 	{"1.2", "1.2"},
 	{"1", "1"},
+	{"1.9.2rc2", "1.9"},
+	{"1.8.5rc4", "1.8"},
 	{"1.999testmod", "1.999"},
 }
 
@@ -72,6 +81,8 @@ func TestIsLang(t *testing.T) { test1(t, isLangTests, "IsLang", IsLang) }
 var isLangTests = []testCase1[string, bool]{
 	{"1.2rc3", false},
 	{"1.2.3", false},
+	{"1.9.2rc2", false},
+	{"1.8.5rc5", false},
 	{"1.999testmod", false},
 	{"1.22", true},
 	{"1.21", true},
@@ -96,6 +107,10 @@ var isValidTests = []testCase1[string, bool]{
 	{"1.20.0", true},
 	{"1.20", true},
 	{"1.19", true},
+	{"1.8.5rc5", true},
+	{"1.9.2rc2", true},
+	{"1.9.2beta1", true},
+	{"1.9.2alpha", true},
 	{"1.3", true},
 	{"1.2", true},
 	{"1", true},
