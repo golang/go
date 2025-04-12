@@ -2423,3 +2423,29 @@ func TestClone(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkClone(b *testing.B) {
+	sizes := []struct {
+		name string
+		data []byte
+	}{
+		{"nil", nil},
+		{"0", []byte{}},
+		{"10", make([]byte, 10)},
+		{"20", make([]byte, 20)},
+		{"50", make([]byte, 50)},
+		{"100", make([]byte, 100)},
+		{"1000", make([]byte, 1000)},
+		{"1000000", make([]byte, 1_000_000)},
+	}
+
+	for _, size := range sizes {
+		b.Run(size.name, func(b *testing.B) {
+			var result []byte
+			for i := 0; i < b.N; i++ {
+				result = Clone(size.data)
+			}
+			_ = result
+		})
+	}
+}
