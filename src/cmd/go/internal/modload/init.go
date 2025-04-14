@@ -1075,13 +1075,16 @@ func CreateModFile(ctx context.Context, modPath string) {
 		base.Fatalf("go: %s already exists", modFilePath)
 	}
 
+	modPathError := modulePathError{reason: fmt.Sprintf("invalid module path %q", modPath)}
 	if modPath == "" {
-		var err error
-		modPath, err = findModulePath(modRoot)
+		inferredModPath, err := findModulePath(modRoot)
 		if err != nil {
 			base.Fatal(err)
 		}
-	} else if err := module.CheckImportPath(modPath); err != nil {
+		modPath = inferredModPath
+		modPathError.reason = fmt.Sprintf("invalid module path %q inferred from directory in GOPATH", inferredModPath)
+	}
+	if err := module.CheckImportPath(modPath); err != nil {
 		if pathErr, ok := err.(*module.InvalidPathError); ok {
 			pathErr.Kind = "module"
 			// Same as build.IsLocalPath()
@@ -1090,14 +1093,18 @@ func CreateModFile(ctx context.Context, modPath string) {
 				pathErr.Err = errors.New("is a local import path")
 			}
 		}
-		base.Fatal(err)
-	} else if _, _, ok := module.SplitPathVersion(modPath); !ok {
+		modPathError.message = err.Error()
+		base.Fatal(modPathError)
+	}
+	if _, _, ok := module.SplitPathVersion(modPath); !ok {
 		if strings.HasPrefix(modPath, "gopkg.in/") {
-			invalidMajorVersionMsg := fmt.Errorf("module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN:\n\tgo mod init %s", suggestGopkgIn(modPath))
-			base.Fatalf(`go: invalid module path "%v": %v`, modPath, invalidMajorVersionMsg)
+			modPathError.message = "module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN"
+			modPathError.suggestions = []string{fmt.Sprintf("go mod init %s", suggestGopkgIn(modPath))}
+		} else {
+			modPathError.message = "major version suffixes must be in the form of /vN and are only allowed for v2 or later"
+			modPathError.suggestions = []string{fmt.Sprintf("go mod init %s", suggestModulePath(modPath))}
 		}
-		invalidMajorVersionMsg := fmt.Errorf("major version suffixes must be in the form of /vN and are only allowed for v2 or later:\n\tgo mod init %s", suggestModulePath(modPath))
-		base.Fatalf(`go: invalid module path "%v": %v`, modPath, invalidMajorVersionMsg)
+		base.Fatal(modPathError)
 	}
 
 	fmt.Fprintf(os.Stderr, "go: creating new go.mod: module %s\n", modPath)
@@ -1138,6 +1145,36 @@ func CreateModFile(ctx context.Context, modPath string) {
 	if !empty {
 		fmt.Fprintf(os.Stderr, "go: to add module requirements and sums:\n\tgo mod tidy\n")
 	}
+}
+
+// modulePathError is an error that occurs when a module path is invalid.
+//
+//	 Format:
+//		go: <reason>: <message>
+//
+//		Example usage:
+//			<suggestions>
+//
+//		Run 'go help mod init' for more information.
+type modulePathError struct {
+	reason      string
+	message     string
+	suggestions []string
+}
+
+func (e modulePathError) Error() string {
+	buf := strings.Builder{}
+	buf.WriteString(fmt.Sprintf("%s: %s\n", e.reason, e.message))
+	if len(e.suggestions) > 0 {
+		buf.WriteString("\nExample usage:\n")
+		for _, suggestion := range e.suggestions {
+			buf.WriteString("\t")
+			buf.WriteString(suggestion)
+			buf.WriteString("\n")
+		}
+	}
+	buf.WriteString("\nRun 'go help mod init' for more information.\n")
+	return buf.String()
 }
 
 // fixVersion returns a modfile.VersionFixer implemented using the Query function.
@@ -1698,46 +1735,23 @@ func findModulePath(dir string) (string, error) {
 	}
 
 	// Look for path in GOPATH.
-	var badPathErr error
 	for _, gpdir := range filepath.SplitList(cfg.BuildContext.GOPATH) {
 		if gpdir == "" {
 			continue
 		}
 		if rel := search.InDir(dir, filepath.Join(gpdir, "src")); rel != "" && rel != "." {
-			path := filepath.ToSlash(rel)
-			// gorelease will alert users publishing their modules to fix their paths.
-			if err := module.CheckImportPath(path); err != nil {
-				badPathErr = err
-				break
-			}
-			// Ensure the inferred path is valid.
-			if _, _, ok := module.SplitPathVersion(path); !ok {
-				if strings.HasPrefix(path, "gopkg.in/") {
-					badPathErr = errors.New("module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN")
-				} else {
-					badPathErr = errors.New("major version suffixes must be in the form of /vN and are only allowed for v2 or later")
-				}
-				break
-			}
-			return path, nil
+			return filepath.ToSlash(rel), nil
 		}
 	}
 
-	reason := "outside GOPATH, module path must be specified"
-	if badPathErr != nil {
-		// return a different error message if the module was in GOPATH, but
-		// the module path determined above would be an invalid path.
-		reason = fmt.Sprintf("bad module path inferred from directory in GOPATH: %v", badPathErr)
+	return "", modulePathError{
+		reason:  "cannot determine module path for source directory",
+		message: "outside GOPATH, module path must be specified",
+		suggestions: []string{
+			"'go mod init example.com/m' to initialize a v0 or v1 module",
+			"'go mod init example.com/m/v2' to initialize a v2 module",
+		},
 	}
-	msg := `cannot determine module path for source directory %s (%s)
-
-Example usage:
-	'go mod init example.com/m' to initialize a v0 or v1 module
-	'go mod init example.com/m/v2' to initialize a v2 module
-
-Run 'go help mod init' for more information.
-`
-	return "", fmt.Errorf(msg, dir, reason)
 }
 
 var (
