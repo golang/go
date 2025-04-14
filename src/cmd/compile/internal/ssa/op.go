@@ -77,18 +77,18 @@ func (r *regInfo) String() string {
 	s += "INS:\n"
 	for _, i := range r.inputs {
 		mask := fmt.Sprintf("%64b", i.regs)
-		mask = strings.Replace(mask, "0", ".", -1)
+		mask = strings.ReplaceAll(mask, "0", ".")
 		s += fmt.Sprintf("%2d |%s|\n", i.idx, mask)
 	}
 	s += "OUTS:\n"
 	for _, i := range r.outputs {
 		mask := fmt.Sprintf("%64b", i.regs)
-		mask = strings.Replace(mask, "0", ".", -1)
+		mask = strings.ReplaceAll(mask, "0", ".")
 		s += fmt.Sprintf("%2d |%s|\n", i.idx, mask)
 	}
 	s += "CLOBBERS:\n"
 	mask := fmt.Sprintf("%64b", r.clobbers)
-	mask = strings.Replace(mask, "0", ".", -1)
+	mask = strings.ReplaceAll(mask, "0", ".")
 	s += fmt.Sprintf("   |%s|\n", mask)
 	return s
 }

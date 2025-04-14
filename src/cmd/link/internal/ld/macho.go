@@ -545,7 +545,7 @@ func machoadddynlib(lib string, linkmode LinkMode) {
 }
 
 func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) {
-	buf := "__" + strings.Replace(sect.Name[1:], ".", "_", -1)
+	buf := "__" + strings.ReplaceAll(sect.Name[1:], ".", "_")
 
 	msect := newMachoSect(mseg, buf, segname)
 
@@ -1039,7 +1039,7 @@ func machosymtab(ctxt *Link) {
 		symstr.AddUint8('_')
 
 		// replace "·" as ".", because DTrace cannot handle it.
-		name := strings.Replace(ldr.SymExtname(s), "·", ".", -1)
+		name := strings.ReplaceAll(ldr.SymExtname(s), "·", ".")
 
 		name = mangleABIName(ctxt, ldr, s, name)
 		symstr.Addstring(name)

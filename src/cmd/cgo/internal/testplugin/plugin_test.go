@@ -145,8 +145,8 @@ func goCmd(t *testing.T, op string, args ...string) string {
 
 // escape converts a string to something suitable for a shell command line.
 func escape(s string) string {
-	s = strings.Replace(s, "\\", "\\\\", -1)
-	s = strings.Replace(s, "'", "\\'", -1)
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "'", "\\'")
 	// Conservative guess at characters that will force quoting
 	if s == "" || strings.ContainsAny(s, "\\ ;#*&$~?!|[]()<>{}`") {
 		s = "'" + s + "'"
