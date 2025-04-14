@@ -61,7 +61,7 @@ func expandArgs(in []string) (out []string) {
 			if err != nil {
 				log.Fatal(err)
 			}
-			args := strings.Split(strings.TrimSpace(strings.Replace(string(slurp), "\r", "", -1)), "\n")
+			args := strings.Split(strings.TrimSpace(strings.ReplaceAll(string(slurp), "\r", "")), "\n")
 			for i, arg := range args {
 				args[i] = DecodeArg(arg)
 			}
@@ -299,7 +299,7 @@ func (f *DebugFlag) Set(debugstr string) error {
 			nl := fmt.Sprintf("\n\t%-*s\t", maxLen, "")
 			for _, name := range names {
 				help := f.tab[name].help
-				fmt.Printf("\t%-*s\t%s\n", maxLen, name, strings.Replace(help, "\n", nl, -1))
+				fmt.Printf("\t%-*s\t%s\n", maxLen, name, strings.ReplaceAll(help, "\n", nl))
 			}
 			if f.debugSSA != nil {
 				// ssa options have their own help

@@ -837,7 +837,7 @@ func splitDrive(path string) (drive, rest string) {
 	}
 	if len(path) > 3 && (path[0] == '\\' || path[0] == '/') && (path[1] == '\\' || path[1] == '/') {
 		// Normalize the path so we can search for just \ below.
-		npath := strings.Replace(path, "/", `\`, -1)
+		npath := strings.ReplaceAll(path, "/", `\`)
 		// Get the host part, which must be non-empty.
 		slash1 := strings.IndexByte(npath[2:], '\\') + 2
 		if slash1 > 2 {

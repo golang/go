@@ -2745,7 +2745,7 @@ func (reporter *ErrorReporter) Errorf(s Sym, format string, args ...interface{})
 	if s != 0 && reporter.ldr.SymName(s) != "" {
 		// Note: Replace is needed here because symbol names might have % in them,
 		// due to the use of LinkString for names of instantiating types.
-		format = strings.Replace(reporter.ldr.SymName(s), "%", "%%", -1) + ": " + format
+		format = strings.ReplaceAll(reporter.ldr.SymName(s), "%", "%%") + ": " + format
 	} else {
 		format = fmt.Sprintf("sym %d: %s", s, format)
 	}

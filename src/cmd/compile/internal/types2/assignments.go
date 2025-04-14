@@ -318,7 +318,7 @@ func (check *Checker) typesSummary(list []Type, variadic, hasDots bool) string {
 			} else {
 				// If we don't have a number, omit the "untyped" qualifier
 				// for compactness.
-				s = strings.Replace(t.(*Basic).name, "untyped ", "", -1)
+				s = strings.ReplaceAll(t.(*Basic).name, "untyped ", "")
 			}
 		default:
 			s = check.sprintf("%s", t)

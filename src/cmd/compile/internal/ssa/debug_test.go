@@ -694,7 +694,7 @@ func printVariableAndNormalize(v string, printer func(v string) string) string {
 	if dollar == -1 { // some not entirely expected response, whine and carry on.
 		if cr == -1 {
 			response = strings.TrimSpace(response) // discards trailing newline
-			response = strings.Replace(response, "\n", "<BR>", -1)
+			response = strings.ReplaceAll(response, "\n", "<BR>")
 			return "$ Malformed response " + response
 		}
 		response = strings.TrimSpace(response[:cr])
@@ -986,8 +986,8 @@ func asCommandLine(cwd string, cmd *exec.Cmd) string {
 
 // escape inserts escapes appropriate for use in a shell command line
 func escape(s string) string {
-	s = strings.Replace(s, "\\", "\\\\", -1)
-	s = strings.Replace(s, "'", "\\'", -1)
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "'", "\\'")
 	// Conservative guess at characters that will force quoting
 	if strings.ContainsAny(s, "\\ ;#*&$~?!|[]()<>{}`") {
 		s = " '" + s + "'"

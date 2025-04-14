@@ -237,7 +237,7 @@ func linkFile(runcmd runCmd, goname string, importcfg string, ldflags []string) 
 	if importcfg == "" {
 		importcfg = stdlibImportcfgFile()
 	}
-	pfile := strings.Replace(goname, ".go", ".o", -1)
+	pfile := strings.ReplaceAll(goname, ".go", ".o")
 	cmd := []string{goTool, "tool", "link", "-w", "-o", "a.exe", "-importcfg=" + importcfg}
 	if *linkshared {
 		cmd = append(cmd, "-linkshared", "-installsuffix=dynlink")
@@ -295,7 +295,7 @@ func (t test) goFileName() string {
 }
 
 func (t test) goDirName() string {
-	return filepath.Join(t.dir, strings.Replace(t.goFile, ".go", ".dir", -1))
+	return filepath.Join(t.dir, strings.ReplaceAll(t.goFile, ".go", ".dir"))
 }
 
 // goDirFiles returns .go files in dir.
@@ -1145,7 +1145,7 @@ func (t test) checkExpectedOutput(gotBytes []byte) error {
 	} else if err != nil {
 		return err
 	}
-	got = strings.Replace(got, "\r\n", "\n", -1)
+	got = strings.ReplaceAll(got, "\r\n", "\n")
 	if got != string(b) {
 		if err == nil {
 			return fmt.Errorf("output does not match expected in %s. Instead saw\n%s", filename, got)
@@ -1300,12 +1300,12 @@ func (test) updateErrors(out, file string) {
 		if err != nil || line < 0 || line >= len(lines) {
 			continue
 		}
-		msg = strings.Replace(msg, file, base, -1) // normalize file mentions in error itself
+		msg = strings.ReplaceAll(msg, file, base) // normalize file mentions in error itself
 		msg = strings.TrimLeft(msg, " \t")
 		for _, r := range []string{`\`, `*`, `+`, `?`, `[`, `]`, `(`, `)`} {
-			msg = strings.Replace(msg, r, `\`+r, -1)
+			msg = strings.ReplaceAll(msg, r, `\`+r)
 		}
-		msg = strings.Replace(msg, `"`, `.`, -1)
+		msg = strings.ReplaceAll(msg, `"`, `.`)
 		msg = tmpRe.ReplaceAllLiteralString(msg, `autotmp_[0-9]+`)
 		if errors[line] == nil {
 			errors[line] = make(map[string]bool)
