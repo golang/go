@@ -1777,9 +1777,11 @@ func FrameStartLine(f *Frame) int {
 
 // PersistentAlloc allocates some memory that lives outside the Go heap.
 // This memory will never be freed; use sparingly.
-func PersistentAlloc(n uintptr) unsafe.Pointer {
-	return persistentalloc(n, 0, &memstats.other_sys)
+func PersistentAlloc(n, align uintptr) unsafe.Pointer {
+	return persistentalloc(n, align, &memstats.other_sys)
 }
+
+const TagAlign = tagAlign
 
 // FPCallers works like Callers and uses frame pointer unwinding to populate
 // pcBuf with the return addresses of the physical frames on the stack.

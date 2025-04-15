@@ -1392,6 +1392,12 @@ type gcBgMarkWorkerNode struct {
 	// gcBgMarkWorker().
 	m muintptr
 }
+type gcBgMarkWorkerNodePadded struct {
+	gcBgMarkWorkerNode
+	pad [tagAlign - unsafe.Sizeof(gcBgMarkWorkerNode{}) - gcBgMarkWorkerNodeRedZoneSize]byte
+}
+
+const gcBgMarkWorkerNodeRedZoneSize = (16 << 2) * asanenabledBit // redZoneSize(512)
 
 func gcBgMarkWorker(ready chan struct{}) {
 	gp := getg()
@@ -1400,7 +1406,7 @@ func gcBgMarkWorker(ready chan struct{}) {
 	// the stack (see gopark). Prevent deadlock from recursively
 	// starting GC by disabling preemption.
 	gp.m.preemptoff = "GC worker init"
-	node := new(gcBgMarkWorkerNode)
+	node := &new(gcBgMarkWorkerNodePadded).gcBgMarkWorkerNode // TODO: technically not allowed in the heap. See comment in tagptr.go.
 	gp.m.preemptoff = ""
 
 	node.gp.set(gp)

@@ -56,7 +56,7 @@ const (
 	spanSetInitSpineCap = 256 // Enough for 1GB heap on 64-bit
 )
 
-type spanSetBlock struct {
+type spanSetBlockHeader struct {
 	// Free spanSetBlocks are managed via a lock-free stack.
 	lfnode
 
@@ -64,6 +64,15 @@ type spanSetBlock struct {
 	// this block. This number is used to help determine when a block
 	// may be safely recycled.
 	popped atomic.Uint32
+}
+
+type spanSetBlockHeader2 struct {
+	spanSetBlockHeader
+	pad [tagAlign - unsafe.Sizeof(spanSetBlockHeader{})]byte
+}
+
+type spanSetBlock struct {
+	spanSetBlockHeader2
 
 	// spans is the set of spans in this block.
 	spans [spanSetBlockEntries]atomicMSpanPointer
@@ -313,7 +322,7 @@ func (p *spanSetBlockAlloc) alloc() *spanSetBlock {
 	if s := (*spanSetBlock)(p.stack.pop()); s != nil {
 		return s
 	}
-	return (*spanSetBlock)(persistentalloc(unsafe.Sizeof(spanSetBlock{}), cpu.CacheLineSize, &memstats.gcMiscSys))
+	return (*spanSetBlock)(persistentalloc(unsafe.Sizeof(spanSetBlock{}), max(cpu.CacheLineSize, tagAlign), &memstats.gcMiscSys))
 }
 
 // free returns a spanSetBlock back to the pool.

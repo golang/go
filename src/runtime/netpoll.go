@@ -688,14 +688,18 @@ func netpollAdjustWaiters(delta int32) {
 func (c *pollCache) alloc() *pollDesc {
 	lock(&c.lock)
 	if c.first == nil {
-		const pdSize = unsafe.Sizeof(pollDesc{})
+		type pollDescPadded struct {
+			pollDesc
+			pad [tagAlign - unsafe.Sizeof(pollDesc{})]byte
+		}
+		const pdSize = unsafe.Sizeof(pollDescPadded{})
 		n := pollBlockSize / pdSize
 		if n == 0 {
 			n = 1
 		}
 		// Must be in non-GC memory because can be referenced
 		// only from epoll/kqueue internals.
-		mem := persistentalloc(n*pdSize, 0, &memstats.other_sys)
+		mem := persistentalloc(n*pdSize, tagAlign, &memstats.other_sys)
 		for i := uintptr(0); i < n; i++ {
 			pd := (*pollDesc)(add(mem, i*pdSize))
 			lockInit(&pd.lock, lockRankPollDesc)
