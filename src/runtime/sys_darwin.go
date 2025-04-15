@@ -70,12 +70,12 @@ func syscall6()
 //
 //go:linkname syscall_syscall9 syscall.syscall9
 //go:nosplit
-//go:cgo_unsafe_args
 func syscall_syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
+	args := struct{ fn, a1, a2, a3, a4, a5, a6, a7, a8, a9, r1, r2, err uintptr }{fn, a1, a2, a3, a4, a5, a6, a7, a8, a9, r1, r2, err}
 	entersyscall()
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall9)), unsafe.Pointer(&fn))
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall9)), unsafe.Pointer(&args))
 	exitsyscall()
-	return
+	return args.r1, args.r2, args.err
 }
 func syscall9()
 
