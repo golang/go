@@ -98,19 +98,19 @@ TEXT ·lshVU(SB),NOSPLIT,$0
 TEXT ·rshVU(SB),NOSPLIT,$0
 	JMP ·rshVU_g(SB)
 
-// func mulAddVWW(z, x []Word, y, r Word) (c Word)
+// func mulAddVWW(z, x []Word, m, a Word) (c Word)
 TEXT ·mulAddVWW(SB),NOSPLIT,$0
 	// input:
 	//   R4: z
 	//   R5: z_len
 	//   R7: x
-	//   R10: y
-	//   R11: r
+	//   R10: m
+	//   R11: a
 	MOVV	z+0(FP), R4
 	MOVV	z_len+8(FP), R5
 	MOVV	x+24(FP), R7
-	MOVV	y+48(FP), R10
-	MOVV	r+56(FP), R11
+	MOVV	m+48(FP), R10
+	MOVV	a+56(FP), R11
 	SLLV	$3, R5
 	MOVV	$0, R6
 loop:
