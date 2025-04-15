@@ -17,26 +17,26 @@ import (
 func TestScan(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	imports, testImports, err := ScanDir(filepath.Join(testenv.GOROOT(t), "src/encoding/json"), Tags())
+	imports, testImports, err := ScanDir(filepath.Join(testenv.GOROOT(t), "src/cmd/go/internal/imports/testdata/test"), Tags())
 	if err != nil {
 		t.Fatal(err)
 	}
-	foundBase64 := false
+	foundFmt := false
 	for _, p := range imports {
-		if p == "encoding/base64" {
-			foundBase64 = true
+		if p == "fmt" {
+			foundFmt = true // test package imports fmt directly
 		}
 		if p == "encoding/binary" {
 			// A dependency but not an import
-			t.Errorf("json reported as importing encoding/binary but does not")
+			t.Errorf("testdata/test reported as importing encoding/binary but does not")
 		}
 		if p == "net/http" {
 			// A test import but not an import
-			t.Errorf("json reported as importing net/http but does not")
+			t.Errorf("testdata/test reported as importing net/http but does not")
 		}
 	}
-	if !foundBase64 {
-		t.Errorf("json missing import encoding/base64 (%q)", imports)
+	if !foundFmt {
+		t.Errorf("testdata/test missing import fmt (%q)", imports)
 	}
 
 	foundHTTP := false
@@ -44,13 +44,13 @@ func TestScan(t *testing.T) {
 		if p == "net/http" {
 			foundHTTP = true
 		}
-		if p == "unicode/utf16" {
+		if p == "fmt" {
 			// A package import but not a test import
-			t.Errorf("json reported as test-importing unicode/utf16  but does not")
+			t.Errorf("testdata/test reported as test-importing fmt  but does not")
 		}
 	}
 	if !foundHTTP {
-		t.Errorf("json missing test import net/http (%q)", testImports)
+		t.Errorf("testdata/test missing test import net/http (%q)", testImports)
 	}
 }
 func TestScanDir(t *testing.T) {
