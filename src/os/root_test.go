@@ -188,6 +188,30 @@ var rootTestCases = []rootTest{{
 	target:  "target",
 	ltarget: "link",
 }, {
+	name: "symlink dotdot slash",
+	fs: []string{
+		"link => ../",
+	},
+	open:      "link",
+	ltarget:   "link",
+	wantError: true,
+}, {
+	name: "symlink ending in slash",
+	fs: []string{
+		"dir/",
+		"link => dir/",
+	},
+	open:   "link/target",
+	target: "dir/target",
+}, {
+	name: "symlink dotdot dotdot slash",
+	fs: []string{
+		"dir/link => ../../",
+	},
+	open:      "dir/link",
+	ltarget:   "dir/link",
+	wantError: true,
+}, {
 	name: "symlink chain",
 	fs: []string{
 		"link => a/b/c/target",
@@ -214,6 +238,16 @@ var rootTestCases = []rootTest{{
 	},
 	open:   "a/../a/b/../../a/b/../b/target",
 	target: "a/b/target",
+}, {
+	name:      "path with dotdot slash",
+	fs:        []string{},
+	open:      "../",
+	wantError: true,
+}, {
+	name:      "path with dotdot dotdot slash",
+	fs:        []string{},
+	open:      "a/../../",
+	wantError: true,
 }, {
 	name: "dotdot no symlink",
 	fs: []string{
@@ -744,6 +778,21 @@ func testRootMoveFrom(t *testing.T, rename bool) {
 				if !rename && runtime.GOOS == "js" {
 					wantError = true
 				}
+
+				// Windows allows creating a hard link to a file symlink,
+				// but not to a directory symlink.
+				//
+				// This uses os.Stat to check the link target, because this
+				// is easier than figuring out whether the link itself is a
+				// directory link. The link was created with os.Symlink,
+				// which creates directory links when the target is a directory,
+				// so this is good enough for a test.
+				if !rename && runtime.GOOS == "windows" {
+					st, err := os.Stat(filepath.Join(root.Name(), test.ltarget))
+					if err == nil && st.IsDir() {
+						wantError = true
+					}
+				}
 			}
 
 			const dstPath = "destination"
@@ -1019,6 +1068,20 @@ var rootConsistencyTestCases = []rootConsistencyTest{{
 		"b/target",
 	},
 	open: "a/../target",
+}, {
+	name: "symlink to dir ends in slash",
+	fs: []string{
+		"dir/",
+		"link => dir",
+	},
+	open: "link",
+}, {
+	name: "symlink to file ends in slash",
+	fs: []string{
+		"file",
+		"link => file/",
+	},
+	open: "link",
 }, {
 	name: "long file name",
 	open: strings.Repeat("a", 500),

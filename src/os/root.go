@@ -254,20 +254,20 @@ func (r *Root) logStat(name string) {
 //
 // "." components are removed, except in the last component.
 //
-// Path separators following the last component are preserved.
-func splitPathInRoot(s string, prefix, suffix []string) (_ []string, err error) {
+// Path separators following the last component are returned in suffixSep.
+func splitPathInRoot(s string, prefix, suffix []string) (_ []string, suffixSep string, err error) {
 	if len(s) == 0 {
-		return nil, errors.New("empty path")
+		return nil, "", errors.New("empty path")
 	}
 	if IsPathSeparator(s[0]) {
-		return nil, errPathEscapes
+		return nil, "", errPathEscapes
 	}
 
 	if runtime.GOOS == "windows" {
 		// Windows cleans paths before opening them.
 		s, err = rootCleanPath(s, prefix, suffix)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		prefix = nil
 		suffix = nil
@@ -283,13 +283,14 @@ func splitPathInRoot(s string, prefix, suffix []string) (_ []string, err error) 
 		}
 		parts = append(parts, s[i:j])
 		// Advance to the next component, or end of the path.
+		partEnd := j
 		for j < len(s) && IsPathSeparator(s[j]) {
 			j++
 		}
 		if j == len(s) {
 			// If this is the last path component,
 			// preserve any trailing path separators.
-			parts[len(parts)-1] = s[i:]
+			suffixSep = s[partEnd:]
 			break
 		}
 		if parts[len(parts)-1] == "." {
@@ -303,7 +304,7 @@ func splitPathInRoot(s string, prefix, suffix []string) (_ []string, err error) 
 		parts = parts[:len(parts)-1]
 	}
 	parts = append(parts, suffix...)
-	return parts, nil
+	return parts, suffixSep, nil
 }
 
 // FS returns a file system (an fs.FS) for the tree of files in the root.

@@ -178,7 +178,7 @@ func doInRoot[T any](r *Root, name string, f func(parent sysfdType, name string)
 	}
 	defer r.root.decref()
 
-	parts, err := splitPathInRoot(name, nil, nil)
+	parts, suffixSep, err := splitPathInRoot(name, nil, nil)
 	if err != nil {
 		return ret, err
 	}
@@ -242,7 +242,9 @@ func doInRoot[T any](r *Root, name string, f func(parent sysfdType, name string)
 			// Call f to decide what to do with it.
 			// If f returns errSymlink, this element is a symlink
 			// which should be followed.
-			ret, err = f(dirfd, parts[i])
+			// suffixSep contains any trailing separator characters
+			// which we rejoin to the final part at this time.
+			ret, err = f(dirfd, parts[i]+suffixSep)
 			if _, ok := err.(errSymlink); !ok {
 				return ret, err
 			}
@@ -264,9 +266,18 @@ func doInRoot[T any](r *Root, name string, f func(parent sysfdType, name string)
 			if symlinks > rootMaxSymlinks {
 				return ret, syscall.ELOOP
 			}
-			newparts, err := splitPathInRoot(string(e), parts[:i], parts[i+1:])
+			newparts, newSuffixSep, err := splitPathInRoot(string(e), parts[:i], parts[i+1:])
 			if err != nil {
 				return ret, err
+			}
+			if i == len(parts)-1 {
+				// suffixSep contains any trailing path separator characters
+				// in the link target.
+				// If we are replacing the remainder of the path, retain these.
+				// If we're replacing some intermediate component of the path,
+				// ignore them, since intermediate components must always be
+				// directories.
+				suffixSep = newSuffixSep
 			}
 			if len(newparts) < i || !slices.Equal(parts[:i], newparts[:i]) {
 				// Some component in the path which we have already traversed
