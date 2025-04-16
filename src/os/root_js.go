@@ -33,7 +33,7 @@ func checkPathEscapesInternal(r *Root, name string, lstat bool) error {
 	if r.root.closed.Load() {
 		return ErrClosed
 	}
-	parts, err := splitPathInRoot(name, nil, nil)
+	parts, suffixSep, err := splitPathInRoot(name, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -61,11 +61,15 @@ func checkPathEscapesInternal(r *Root, name string, lstat bool) error {
 			continue
 		}
 
-		if lstat && i == len(parts)-1 {
-			break
+		part := parts[i]
+		if i == len(parts)-1 {
+			if lstat {
+				break
+			}
+			part += suffixSep
 		}
 
-		next := joinPath(base, parts[i])
+		next := joinPath(base, part)
 		fi, err := Lstat(next)
 		if err != nil {
 			if IsNotExist(err) {
@@ -82,9 +86,18 @@ func checkPathEscapesInternal(r *Root, name string, lstat bool) error {
 			if symlinks > rootMaxSymlinks {
 				return errors.New("too many symlinks")
 			}
-			newparts, err := splitPathInRoot(link, parts[:i], parts[i+1:])
+			newparts, newSuffixSep, err := splitPathInRoot(link, parts[:i], parts[i+1:])
 			if err != nil {
 				return err
+			}
+			if i == len(parts) {
+				// suffixSep contains any trailing path separator characters
+				// in the link target.
+				// If we are replacing the remainder of the path, retain these.
+				// If we're replacing some intermediate component of the path,
+				// ignore them, since intermediate components must always be
+				// directories.
+				suffixSep = newSuffixSep
 			}
 			parts = newparts
 			continue

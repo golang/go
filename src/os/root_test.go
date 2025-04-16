@@ -187,6 +187,30 @@ var rootTestCases = []rootTest{{
 	target:  "target",
 	ltarget: "link",
 }, {
+	name: "symlink dotdot slash",
+	fs: []string{
+		"link => ../",
+	},
+	open:      "link",
+	ltarget:   "link",
+	wantError: true,
+}, {
+	name: "symlink ending in slash",
+	fs: []string{
+		"dir/",
+		"link => dir/",
+	},
+	open:   "link/target",
+	target: "dir/target",
+}, {
+	name: "symlink dotdot dotdot slash",
+	fs: []string{
+		"dir/link => ../../",
+	},
+	open:      "dir/link",
+	ltarget:   "dir/link",
+	wantError: true,
+}, {
 	name: "symlink chain",
 	fs: []string{
 		"link => a/b/c/target",
@@ -213,6 +237,16 @@ var rootTestCases = []rootTest{{
 	},
 	open:   "a/../a/b/../../a/b/../b/target",
 	target: "a/b/target",
+}, {
+	name:      "path with dotdot slash",
+	fs:        []string{},
+	open:      "../",
+	wantError: true,
+}, {
+	name:      "path with dotdot dotdot slash",
+	fs:        []string{},
+	open:      "a/../../",
+	wantError: true,
 }, {
 	name: "dotdot no symlink",
 	fs: []string{
