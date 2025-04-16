@@ -38,6 +38,18 @@ successfully in Go 1.25. If this change is affecting your code, the solution is 
 the non-nil error check earlier in your code, preferably immediately after
 the error-generating statement.
 
+<!-- CLs 653856, 657937, 663795, TBD 664299 -->
+
+The compiler can now allocate the backing store for slices on the
+stack in more situations, which improves performance. This change has
+the potential to amplify the effects of incorrect
+[unsafe.Pointer](/pkg/unsafe#Pointer) usage, see for example [issue
+73199](/issue/73199). In order to track down these problems, the
+[bisect tool](https://pkg.go.dev/golang.org/x/tools/cmd/bisect) can be
+used to find the allocation causing trouble using the
+`-compile=variablemake` flag. All such new stack allocations can also
+be turned off using `-gcflags=all=-d=variablemakehash=n`.
+
 ## Assembler {#assembler}
 
 ## Linker {#linker}
