@@ -600,11 +600,23 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 			lenCap.Body.Append(mkcall("panicmakeslicecap", nil, &lenCap.Body))
 			nif.Body.Append(lenCap)
 
-			t := types.NewArray(t.Elem(), K)                              // [K]E
-			arr := typecheck.TempAt(base.Pos, ir.CurFunc, t)              // var arr [K]E
-			nif.Body.Append(ir.NewAssignStmt(base.Pos, arr, nil))         // arr = {} (zero it)
-			s := ir.NewSliceExpr(base.Pos, ir.OSLICE, arr, nil, len, cap) // arr[:len:cap]
-			nif.Body.Append(ir.NewAssignStmt(base.Pos, slice, s))         // slice = arr[:len:cap]
+			t := types.NewArray(t.Elem(), K) // [K]E
+			// Wrap in a struct containing a [0]uintptr field to force
+			// pointer alignment. Some user code expects higher alignment
+			// than what is guaranteed by the element type, because that's
+			// the behavior they observed of mallocgc, and then relied upon.
+			// See issue 73199.
+			field := typecheck.Lookup("arr")
+			t = types.NewStruct([]*types.Field{
+				{Sym: types.BlankSym, Type: types.NewArray(types.Types[types.TUINTPTR], 0)},
+				{Sym: field, Type: t},
+			})
+			t.SetNoalg(true)
+			store := typecheck.TempAt(base.Pos, ir.CurFunc, t)            // var store struct{_ uintptr[0]; arr [K]E}
+			nif.Body.Append(ir.NewAssignStmt(base.Pos, store, nil))       // store = {} (zero it)
+			arr := ir.NewSelectorExpr(base.Pos, ir.ODOT, store, field)    // arr = store.arr
+			s := ir.NewSliceExpr(base.Pos, ir.OSLICE, arr, nil, len, cap) // store.arr[:len:cap]
+			nif.Body.Append(ir.NewAssignStmt(base.Pos, slice, s))         // slice = store.arr[:len:cap]
 
 			appendWalkStmt(init, typecheck.Stmt(nif))
 
