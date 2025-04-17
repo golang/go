@@ -2931,11 +2931,17 @@ func (pc *persistConn) closeLocked(err error) {
 	pc.mutateHeaderFunc = nil
 }
 
-var portMap = map[string]string{
-	"http":    "80",
-	"https":   "443",
-	"socks5":  "1080",
-	"socks5h": "1080",
+func schemePort(scheme string) string {
+	switch scheme {
+	case "http":
+		return "80"
+	case "https":
+		return "443"
+	case "socks5", "socks5h":
+		return "1080"
+	default:
+		return ""
+	}
 }
 
 func idnaASCIIFromURL(url *url.URL) string {
@@ -2950,7 +2956,7 @@ func idnaASCIIFromURL(url *url.URL) string {
 func canonicalAddr(url *url.URL) string {
 	port := url.Port()
 	if port == "" {
-		port = portMap[url.Scheme]
+		port = schemePort(url.Scheme)
 	}
 	return net.JoinHostPort(idnaASCIIFromURL(url), port)
 }
