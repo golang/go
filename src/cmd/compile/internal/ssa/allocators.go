@@ -31,9 +31,7 @@ func (c *Cache) allocValueSlice(n int) []*Value {
 	return s
 }
 func (c *Cache) freeValueSlice(s []*Value) {
-	for i := range s {
-		s[i] = nil
-	}
+	clear(s)
 	b := bits.Len(uint(cap(s)) - 1)
 	var sp *[]*Value
 	if len(c.hdrValueSlice) == 0 {
@@ -69,9 +67,7 @@ func (c *Cache) allocLimitSlice(n int) []limit {
 	return s
 }
 func (c *Cache) freeLimitSlice(s []limit) {
-	for i := range s {
-		s[i] = limit{}
-	}
+	clear(s)
 	b := bits.Len(uint(cap(s)) - 1)
 	var sp *[]limit
 	if len(c.hdrLimitSlice) == 0 {

@@ -196,7 +196,5 @@ func (bv BitVec) String() string {
 }
 
 func (bv BitVec) Clear() {
-	for i := range bv.B {
-		bv.B[i] = 0
-	}
+	clear(bv.B)
 }
