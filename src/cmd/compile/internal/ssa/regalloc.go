@@ -1301,9 +1301,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			dinfo = make([]dentry, l)
 		} else {
 			dinfo = dinfo[:l]
-			for i := range dinfo {
-				dinfo[i] = dentry{}
-			}
+			clear(dinfo)
 		}
 
 		// Load static desired register info at the end of the block.

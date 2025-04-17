@@ -1284,9 +1284,7 @@ func dgcptrmask(t *types.Type, write bool) *obj.LSym {
 // word offsets in t that hold pointers.
 // ptrmask is assumed to fit at least types.PtrDataSize(t)/PtrSize bits.
 func fillptrmask(t *types.Type, ptrmask []byte) {
-	for i := range ptrmask {
-		ptrmask[i] = 0
-	}
+	clear(ptrmask)
 	if !t.HasPointers() {
 		return
 	}

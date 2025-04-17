@@ -102,9 +102,7 @@ type stateAtPC struct {
 // reset fills state with the live variables from live.
 func (state *stateAtPC) reset(live abt.T) {
 	slots, registers := state.slots, state.registers
-	for i := range slots {
-		slots[i] = VarLoc{}
-	}
+	clear(slots)
 	for i := range registers {
 		registers[i] = registers[i][:0]
 	}
@@ -242,12 +240,7 @@ func (state *debugState) initializeCache(f *Func, numVars, numSlots int) {
 	if cap(state.blockDebug) < f.NumBlocks() {
 		state.blockDebug = make([]BlockDebug, f.NumBlocks())
 	} else {
-		// This local variable, and the ones like it below, enable compiler
-		// optimizations. Don't inline them.
-		b := state.blockDebug[:f.NumBlocks()]
-		for i := range b {
-			b[i] = BlockDebug{}
-		}
+		clear(state.blockDebug[:f.NumBlocks()])
 	}
 
 	// A list of slots per Value. Reuse the previous child slices.
@@ -285,10 +278,7 @@ func (state *debugState) initializeCache(f *Func, numVars, numSlots int) {
 	if cap(state.pendingSlotLocs) < numPieces {
 		state.pendingSlotLocs = make([]VarLoc, numPieces)
 	} else {
-		psl := state.pendingSlotLocs[:numPieces]
-		for i := range psl {
-			psl[i] = VarLoc{}
-		}
+		clear(state.pendingSlotLocs[:numPieces])
 	}
 	if cap(state.pendingEntries) < numVars {
 		state.pendingEntries = make([]pendingEntry, numVars)
@@ -307,9 +297,7 @@ func (state *debugState) initializeCache(f *Func, numVars, numSlots int) {
 		state.lists = make([][]byte, numVars)
 	} else {
 		state.lists = state.lists[:numVars]
-		for i := range state.lists {
-			state.lists[i] = nil
-		}
+		clear(state.lists)
 	}
 }
 
@@ -1191,9 +1179,7 @@ func (e *pendingEntry) clear() {
 	e.present = false
 	e.startBlock = 0
 	e.startValue = 0
-	for i := range e.pieces {
-		e.pieces[i] = VarLoc{}
-	}
+	clear(e.pieces)
 }
 
 // canMerge reports whether a new location description is a superset

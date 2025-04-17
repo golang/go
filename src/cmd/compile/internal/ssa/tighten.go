@@ -85,9 +85,7 @@ func tighten(f *Func) {
 		changed = false
 
 		// Reset target
-		for i := range target {
-			target[i] = nil
-		}
+		clear(target)
 
 		// Compute target locations (for moveable values only).
 		// target location = the least common ancestor of all uses in the dominator tree.

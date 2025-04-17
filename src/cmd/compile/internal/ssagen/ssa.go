@@ -6512,9 +6512,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			f.Cache.ValueToProgAfter = make([]*obj.Prog, f.NumValues())
 		}
 		valueToProgAfter = f.Cache.ValueToProgAfter[:f.NumValues()]
-		for i := range valueToProgAfter {
-			valueToProgAfter[i] = nil
-		}
+		clear(valueToProgAfter)
 	}
 
 	// If the very first instruction is not tagged as a statement,

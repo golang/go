@@ -109,10 +109,7 @@ func trim(f *Func) {
 	}
 	if n < len(f.Blocks) {
 		f.invalidateCFG()
-		tail := f.Blocks[n:]
-		for i := range tail {
-			tail[i] = nil
-		}
+		clear(f.Blocks[n:])
 		f.Blocks = f.Blocks[:n]
 	}
 }

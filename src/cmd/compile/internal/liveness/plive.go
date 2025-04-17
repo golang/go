@@ -1414,9 +1414,7 @@ func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs, retL
 	{
 		cache := f.Cache.Liveness.(*livenessFuncCache)
 		if cap(lv.be) < 2000 { // Threshold from ssa.Cache slices.
-			for i := range lv.be {
-				lv.be[i] = blockEffects{}
-			}
+			clear(lv.be)
 			cache.be = lv.be
 		}
 		if len(lv.livenessMap.Vals) < 2000 {
