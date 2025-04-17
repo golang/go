@@ -834,9 +834,7 @@ func (m *consistentHeapStats) unsafeRead(out *heapStatsDelta) {
 func (m *consistentHeapStats) unsafeClear() {
 	assertWorldStopped()
 
-	for i := range m.stats {
-		m.stats[i] = heapStatsDelta{}
-	}
+	clear(m.stats[:])
 }
 
 // read takes a globally consistent snapshot of m
