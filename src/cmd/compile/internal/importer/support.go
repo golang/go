@@ -8,6 +8,7 @@ package importer
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/types"
 	"cmd/compile/internal/types2"
 	"fmt"
 	"go/token"
@@ -22,8 +23,6 @@ func assert(p bool) {
 func errorf(format string, args ...interface{}) {
 	panic(fmt.Sprintf(format, args...))
 }
-
-const deltaNewFile = -64 // see cmd/compile/internal/gc/bexport.go
 
 // Synthesize a token.Pos
 type fakeFileSet struct {
@@ -67,13 +66,12 @@ var (
 )
 
 func chanDir(d int) types2.ChanDir {
-	// tag values must match the constants in cmd/compile/internal/gc/go.go
-	switch d {
-	case 1 /* Crecv */ :
+	switch types.ChanDir(d) {
+	case types.Crecv:
 		return types2.RecvOnly
-	case 2 /* Csend */ :
+	case types.Csend:
 		return types2.SendOnly
-	case 3 /* Cboth */ :
+	case types.Cboth:
 		return types2.SendRecv
 	default:
 		errorf("unexpected channel dir %d", d)
