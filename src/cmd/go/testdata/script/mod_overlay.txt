@@ -1,0 +1,254 @@
+# Test overlays that affect go.mod files
+
+# The go.mod file can exist only in the overlay.
+cd $WORK/gopath/src/no-go-mod
+go list -overlay overlay.json .
+stdout example.com/simple
+
+# Check content of overlaid go.mod is used.
+cd $WORK/gopath/src/overlay-go-mod
+go list -overlay overlay.json .
+stdout use.this/module/name
+
+# Check content of overlaid go.mod in a replacement module is used.
+# The go.mod in the replacement module is missing a requirement
+# that the overlay has, so it will fail to list without the overlay.
+cd $WORK/gopath/src/overlay-replaced-go-mod
+! go list -deps .
+go list -deps -overlay overlay.json .
+
+# Overlaid go.mod is not rewritten by 'go get'.
+cd $WORK/gopath/src/get-doesnt-add-dep
+cp $WORK/overlay/get_doesnt_add_dep_go_mod $WORK/want_go_mod
+! go get -overlay overlay.json .
+stderr '^go: updates to go.mod needed, but go.mod is part of the overlay specified with -overlay$'
+cmp $WORK/overlay/get_doesnt_add_dep_go_mod $WORK/want_go_mod
+
+# Content of overlaid go.sum is used.
+# The go.sum in the module directory has garbage values for its
+# hashes, but the overlaid file has the correct values. If
+# the correct go.sum is used with the overlay, 'go get .' should
+# not report a security error.
+cd $WORK/gopath/src/overlay-sum-used
+! go get .
+stderr 'SECURITY ERROR'
+! go mod verify
+stderr 'SECURITY ERROR'
+go get -overlay overlay.json .
+go mod verify -overlay overlay.json
+# Overlaid go.sum is not rewritten.
+# Copy an incomplete file to the overlay file, and expect an error
+# attempting to update the file
+cp incomplete-sum-file $WORK/overlay/overlay-sum-used-correct-sums
+! go get -overlay overlay.json .
+stderr '^go: updates to go.sum needed, but go.sum is part of the overlay specified with -overlay$'
+cmp incomplete-sum-file $WORK/overlay/overlay-sum-used-correct-sums
+! go mod tidy -overlay overlay.json
+stderr '^go: updates to go.sum needed, but go.sum is part of the overlay specified with -overlay$'
+cmp incomplete-sum-file $WORK/overlay/overlay-sum-used-correct-sums
+
+# -overlay works with -modfile.
+# There's an empty go.mod file in the directory, and the file alternate.mod is
+# overlaid to the true go.mod file, so the -modfile flag and the overlay
+# mechanism need to work together to determine the name of the module.
+cd $WORK/gopath/src/overlay-and-dash-modfile
+go list -modfile=alternate.mod -overlay overlay.json .
+stdout 'found.the/module'
+# Even with -modfile, overlaid files can't be opened for write.
+! go get -modfile=alternate.mod -overlay overlay.json rsc.io/quote
+stderr '^go: updates to go.mod needed, but go.mod is part of the overlay specified with -overlay$'
+
+# Carving out a module by adding an overlaid go.mod file
+cd $WORK/gopath/src/carve
+go list ./... # without an overlay, hasmod is carved out and nomod isn't
+stdout carve/nomod
+! stdout carve/hasmod
+go list -overlay overlay_carve_module.json ./... # The overlay carves out nomod, leaving nothing
+! stdout .
+stderr 'matched no packages'
+go list -overlay overlay_uncarve_module.json ./... # The overlay uncarves out hasmod
+stdout carve/nomod
+stdout carve/hasmod
+
+# Carving out a module by adding an overlaid go.mod file and using
+# -modfile to write to that file.
+cd $WORK/gopath/src/carve2/nomod
+go list -overlay overlay.json all
+! stdout ^carve2$
+stdout ^carve2/nomod$
+# Editing go.mod file fails because overlay is read only
+! go get -overlay overlay.json rsc.io/quote
+stderr '^go: updates to go.mod needed, but go.mod is part of the overlay specified with -overlay$'
+! grep rsc.io/quote $WORK/overlay/carve2-nomod-go.mod
+# Editing go.mod file succeeds because we use -modfile to redirect to same file
+go get -overlay overlay.json -modfile $WORK/overlay/carve2-nomod-go.mod rsc.io/quote
+grep rsc.io/quote $WORK/overlay/carve2-nomod-go.mod
+
+-- no-go-mod/file.go --
+package simple
+-- no-go-mod/overlay.json --
+{
+	"Replace": {
+		"go.mod": "../../../overlay/simple_go_mod"
+	}
+}
+-- $WORK/overlay/simple_go_mod --
+module example.com/simple
+-- overlay-go-mod/file.go --
+package name
+-- overlay-go-mod/go.mod --
+module dont.use/this/module/name
+-- overlay-go-mod/overlay.json --
+{
+	"Replace": {
+		"go.mod": "../../../overlay/use_this_go_mod"
+	}
+}
+-- $WORK/overlay/use_this_go_mod --
+module use.this/module/name
+-- overlay-replaced-go-mod/go.mod --
+module m
+
+go 1.15
+
+require replaced/mod v1.0.0
+replace replaced/mod v1.0.0 => ../replaced-mod
+replace dep/mod v1.0.0 => ../dep-mod
+-- overlay-replaced-go-mod/source.go --
+package m
+
+import "replaced/mod/foo"
+
+func main() {
+	foo.f()
+}
+-- overlay-replaced-go-mod/overlay.json --
+{
+	"Replace": {
+		"../replaced-mod/go.mod": "../../../overlay/replacement_module_go_mod"
+	}
+}
+-- replaced-mod/go.mod --
+module replaced/mod
+-- replaced-mod/foo/foo.go --
+package foo
+
+import "dep/mod/foo"
+
+func f() { foo.g() }
+-- dep-mod/go.mod --
+invalid
+-- dep-mod/foo/foo.go --
+package foo
+
+func g() { fmt.Println("hello") }
+-- $WORK/overlay/replacement_module_go_mod --
+module replaced/mod
+
+require dep/mod v1.0.0
+
+-- get-doesnt-add-dep/overlay.json --
+{
+	"Replace": {
+		"go.mod": "../../../overlay/get_doesnt_add_dep_go_mod"
+	}
+}
+-- get-doesnt-add-dep/p.go --
+package p
+
+import "dependency/mod"
+
+func f() { mod.G() }
+-- get-doesnt-add-dep-dependency/go.mod --
+module dependency/mod
+-- get-doesnt-add-dep-dependency/mod.go --
+package mod
+
+func G() {}
+-- $WORK/overlay/get_doesnt_add_dep_go_mod --
+module get.doesnt/add/dep
+
+replace dependency/mod v1.0.0 => ../get-doesnt-add-dep-dependency
+-- overlay-sum-used/go.mod --
+module overlay.sum/used
+
+require rsc.io/quote v1.5.0
+-- overlay-sum-used/p.go --
+package p
+
+import "rsc.io/quote"
+
+func f() string {
+	return quote.Hello()
+}
+-- overlay-sum-used/incomplete-sum-file --
+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw=
+rsc.io/quote v1.5.0 h1:6fJa6E+wGadANKkUMlZ0DhXFpoKlslOQDCo259XtdIE=
+rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII=
+-- overlay-sum-used/overlay.json --
+{
+	"Replace": {
+		"go.sum": "../../../overlay/overlay-sum-used-correct-sums"
+	}
+}
+-- overlay-sum-used/go.sum --
+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:garbage+hash
+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:garbage+hash
+rsc.io/quote v1.5.0 h1:garbage+hash
+rsc.io/quote v1.5.0/go.mod h1:garbage+hash
+rsc.io/sampler v1.3.0 h1:garbage+hash
+rsc.io/sampler v1.3.0/go.mod h1:garbage+hash
+-- $WORK/overlay/overlay-sum-used-correct-sums --
+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw=
+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+rsc.io/quote v1.5.0 h1:6fJa6E+wGadANKkUMlZ0DhXFpoKlslOQDCo259XtdIE=
+rsc.io/quote v1.5.0/go.mod h1:LzX7hefJvL54yjefDEDHNONDjII0t9xZLPXsUe+TKr0=
+rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII=
+rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
+-- overlay-and-dash-modfile/p.go --
+package module
+-- overlay-and-dash-modfile/go.mod --
+-- overlay-and-dash-modfile/overlay.json --
+{
+	"Replace": {
+		"alternate.mod": "../../../overlay/overlay-and-dash-modfile-alternate-mod"
+	}
+}
+-- $WORK/overlay/overlay-and-dash-modfile-alternate-mod --
+module found.the/module
+-- carve/go.mod --
+module carve
+-- carve/overlay_carve_module.json --
+{
+	"Replace": {
+		"nomod/go.mod": "../../../overlay/carve-nomod-go-mod"
+	}
+}
+-- carve/overlay_uncarve_module.json --
+{
+	"Replace": {
+		"hasmod/go.mod": ""
+	}
+}
+-- carve/hasmod/a.go --
+package hasmod
+-- carve/hasmod/go.mod --
+module carve/hasmod
+-- carve/nomod/b.go --
+package nomod
+-- $WORK/overlay/carve-nomod-go-mod --
+module carve/nomod
+-- carve2/go.mod --
+module carve2
+-- carve2/p.go --
+package p
+-- carve2/nomod/overlay.json --
+{
+	"Replace": {
+		"go.mod": "../../../../overlay/carve2-nomod-go.mod"
+	}
+}
+-- carve2/nomod/b.go --
+package nomod
+-- $WORK/overlay/carve2-nomod-go.mod --
+module carve2/nomod

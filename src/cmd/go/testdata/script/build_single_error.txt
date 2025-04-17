@@ -1,0 +1,18 @@
+# go test ./... with a bad package should report the error once (#44624).
+! go test ./...
+stderr -count=1 undefined
+
+-- go.mod --
+module example.com
+
+go 1.18
+-- a/a.go --
+package a
+
+import "example.com/b"
+-- b/b.go --
+package b
+
+var X = Y
+-- b/b_test.go --
+package b

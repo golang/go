@@ -1,0 +1,25 @@
+env GO111MODULE=off
+
+# Coverage analysis should use 'set' mode by default,
+# and should merge coverage profiles correctly.
+
+[short] skip
+[compiler:gccgo] skip # gccgo has no cover tool
+
+go test -short -cover encoding/binary errors -coverprofile=$WORK/cover.out
+! stderr '[^0-9]0\.0%'
+! stdout '[^0-9]0\.0%'
+
+grep -count=1 '^mode: set$' $WORK/cover.out
+grep 'errors\.go' $WORK/cover.out
+grep 'binary\.go' $WORK/cover.out
+
+[!race] stop
+
+go test -short -race -cover encoding/binary errors -coverprofile=$WORK/cover.out
+! stderr '[^0-9]0\.0%'
+! stdout '[^0-9]0\.0%'
+
+grep -count=1 '^mode: atomic$' $WORK/cover.out
+grep 'errors\.go' $WORK/cover.out
+grep 'binary\.go' $WORK/cover.out

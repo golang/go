@@ -1,0 +1,50 @@
+# This test checks that 'go test' prints a reasonable error when fuzzing is
+# enabled, and multiple package or multiple fuzz targets match.
+# TODO(#46312): support fuzzing multiple targets in multiple packages.
+
+[!fuzz] skip
+[short] skip
+env GOCACHE=$WORK/cache
+
+# With fuzzing disabled, multiple targets can be tested.
+go test ./...
+
+# With fuzzing enabled, at most one package may be tested,
+# even if only one package contains fuzz targets.
+! go test -fuzz=. ./...
+stderr '^cannot use -fuzz flag with multiple packages$'
+! go test -fuzz=. ./zero ./one
+stderr '^cannot use -fuzz flag with multiple packages$'
+go test -fuzz=. -fuzztime=1x ./one
+
+# With fuzzing enabled, at most one target in the same package may match.
+! go test -fuzz=. ./two
+stdout '^testing: will not fuzz, -fuzz matches more than one fuzz test: \[FuzzOne FuzzTwo\]$'
+go test -fuzz=FuzzTwo -fuzztime=1x ./two
+
+-- go.mod --
+module fuzz
+
+go 1.18
+-- zero/zero.go --
+package zero
+-- one/one_test.go --
+package one
+
+import "testing"
+
+func FuzzOne(f *testing.F) {
+  f.Fuzz(func(*testing.T, []byte) {})
+}
+-- two/two_test.go --
+package two
+
+import "testing"
+
+func FuzzOne(f *testing.F) {
+  f.Fuzz(func(*testing.T, []byte) {})
+}
+
+func FuzzTwo(f *testing.F) {
+  f.Fuzz(func(*testing.T, []byte) {})
+}

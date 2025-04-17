@@ -1,0 +1,7 @@
+=== RUN   TestWithColons
+=== RUN   TestWithColons/[::1]
+=== RUN   TestWithColons/127.0.0.1:0
+--- PASS: TestWithColons (0.00s)
+    --- PASS: TestWithColons/[::1] (0.00s)
+    --- PASS: TestWithColons/127.0.0.1:0 (0.00s)
+PASS

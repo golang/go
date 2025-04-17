@@ -1,0 +1,203 @@
+[!fuzz-instrumented] skip
+[short] skip
+env GOCACHE=$WORK/cache
+
+# Test that fuzzing a target with a failure in f.Add prints the crash
+# and doesn't write anything to testdata/fuzz
+! go test -fuzz=^FuzzWithAdd$ -run=^FuzzWithAdd$ -fuzztime=1x
+! stdout ^ok
+! stdout 'Failing input written to testdata[/\\]fuzz[/\\]FuzzWithAdd[/\\]'
+stdout FAIL
+
+# Test that fuzzing a target with a success in f.Add and a fuzztime of only
+# 1 does not produce a crash.
+go test -fuzz=FuzzWithGoodAdd -run=FuzzWithGoodAdd -fuzztime=1x
+stdout ok
+! stdout FAIL
+
+# Test that fuzzing a target with a failure in testdata/fuzz prints the crash
+# and doesn't write anything to testdata/fuzz
+! go test -fuzz=FuzzWithTestdata -run=FuzzWithTestdata -fuzztime=1x
+! stdout ^ok
+! stdout 'Failing input written to testdata[/\\]fuzz[/\\]FuzzWithTestdata[/\\]'
+stdout 'failure while testing seed corpus entry: FuzzWithTestdata/1'
+stdout FAIL
+
+# Test that fuzzing a target with no seed corpus or cache finds a crash, prints
+# it, and write it to testdata
+! go test -fuzz=FuzzWithNoCache -run=FuzzWithNoCache -fuzztime=1x
+! stdout ^ok
+stdout 'Failing input written to testdata[/\\]fuzz[/\\]FuzzWithNoCache[/\\]'
+stdout FAIL
+
+# Write a crashing input to the cache
+mkdir $GOCACHE/fuzz/example.com/x/FuzzWithCache
+cp cache-file $GOCACHE/fuzz/example.com/x/FuzzWithCache/1
+
+# Test that fuzzing a target with a failure in the cache prints the crash
+# and writes this as a "new" crash to testdata/fuzz
+! go test -fuzz=FuzzWithCache -run=FuzzWithCache -fuzztime=1x
+! stdout ^ok
+stdout 'Failing input written to testdata[/\\]fuzz[/\\]FuzzWithCache[/\\]'
+stdout FAIL
+
+# Write a crashing input to the cache
+mkdir $GOCACHE/fuzz/example.com/x/FuzzWithMinimizableCache
+cp cache-file-bytes $GOCACHE/fuzz/example.com/x/FuzzWithMinimizableCache/1
+
+# Test that fuzzing a target with a failure in the cache minimizes it and writes
+# the new crash to testdata/fuzz
+! go test -fuzz=FuzzWithMinimizableCache -run=FuzzWithMinimizableCache -fuzztime=10000x
+! stdout ^ok
+stdout 'gathering baseline coverage'
+stdout 'got the minimum size!'
+stdout 'contains a non-zero byte of length 10'
+stdout 'Failing input written to testdata[/\\]fuzz[/\\]FuzzWithMinimizableCache[/\\]'
+stdout FAIL
+# Make sure this crash didn't come from fuzzing
+# (the log line that states fuzzing began shouldn't have printed)
+! stdout 'execs'
+
+# Clear the fuzz cache and make sure it's gone
+go clean -fuzzcache
+! exists $GOCACHE/fuzz
+
+# The tests below should operate the exact same as the previous tests. If -fuzz
+# is enabled, then whatever target is going to be fuzzed shouldn't be run by
+# anything other than the workers.
+
+# Test that fuzzing a target (with -run=None set) with a failure in f.Add prints
+# the crash and doesn't write anything to testdata/fuzz -fuzztime=1x
+! go test -fuzz=^FuzzWithAdd$ -run=None
+! stdout ^ok
+! stdout 'Failing input written to testdata[/\\]fuzz[/\\]FuzzWithAdd[/\\]'
+stdout FAIL
+
+# Test that fuzzing a target (with -run=None set) with a success in f.Add and a
+# fuzztime of only 1 does not produce a crash.
+go test -fuzz=FuzzWithGoodAdd -run=None -fuzztime=1x
+stdout ok
+! stdout FAIL
+
+# Test that fuzzing a target (with -run=None set) with a failure in
+# testdata/fuzz prints the crash and doesn't write anything to testdata/fuzz
+! go test -fuzz=FuzzWithTestdata -run=None -fuzztime=1x
+! stdout ^ok
+! stdout 'Failing input written to testdata[/\\]fuzz[/\\]FuzzWithTestdata[/\\]'
+stdout FAIL
+
+# Write a crashing input to the cache
+mkdir $GOCACHE/fuzz/example.com/x/FuzzRunNoneWithCache
+cp cache-file $GOCACHE/fuzz/example.com/x/FuzzRunNoneWithCache/1
+
+# Test that fuzzing a target (with -run=None set) with a failure in the cache
+# prints the crash and writes this as a "new" crash to testdata/fuzz
+! go test -fuzz=FuzzRunNoneWithCache -run=None -fuzztime=1x
+! stdout ^ok
+stdout 'Failing input written to testdata[/\\]fuzz[/\\]FuzzRunNoneWithCache[/\\]'
+stdout FAIL
+
+# Clear the fuzz cache and make sure it's gone
+go clean -fuzzcache
+! exists $GOCACHE/fuzz
+
+# The tests below should operate the exact same way for the previous tests with
+# a seed corpus (namely, they should still fail). However, the binary is built
+# without instrumentation, so this should be a "testing only" run which executes
+# the seed corpus before attempting to fuzz.
+
+go test -c
+! exec ./x.test$GOEXE -test.fuzz=^FuzzWithAdd$ -test.run=^FuzzWithAdd$ -test.fuzztime=1x -test.fuzzcachedir=$WORK/cache
+! stdout ^ok
+! stdout 'Failing input written to testdata[/\\]fuzz[/\\]FuzzWithAdd[/\\]'
+stdout FAIL
+stderr warning
+
+go test -c
+! exec ./x.test$GOEXE -test.fuzz=FuzzWithTestdata -test.run=^FuzzWithTestdata$ -test.fuzztime=1x -test.fuzzcachedir=$WORK/cache
+! stdout ^ok
+! stdout 'Failing input written to testdata[/\\]fuzz[/\\]FuzzWithTestdata[/\\]'
+stdout FAIL
+stderr warning
+
+-- go.mod --
+module example.com/x
+
+go 1.16
+-- x_test.go --
+package x
+
+import "testing"
+
+func FuzzWithAdd(f *testing.F) {
+    f.Add(10)
+    f.Fuzz(func(t *testing.T, i int) {
+        if i == 10 {
+            t.Error("bad thing here")
+        }
+    })
+}
+
+func FuzzWithGoodAdd(f *testing.F) {
+    f.Add(10)
+    f.Fuzz(func(t *testing.T, i int) {
+        if i != 10 {
+            t.Error("bad thing here")
+        }
+    })
+}
+
+func FuzzWithTestdata(f *testing.F) {
+    f.Fuzz(func(t *testing.T, i int) {
+        if i == 10 {
+            t.Error("bad thing here")
+        }
+    })
+}
+
+func FuzzWithNoCache(f *testing.F) {
+    f.Fuzz(func(t *testing.T, i int) {
+        t.Error("bad thing here")
+    })
+}
+
+func FuzzWithCache(f *testing.F) {
+    f.Fuzz(func(t *testing.T, i int) {
+        if i == 10 {
+            t.Error("bad thing here")
+        }
+    })
+}
+
+func FuzzWithMinimizableCache(f *testing.F) {
+    f.Fuzz(func(t *testing.T, b []byte) {
+		if len(b) < 10 {
+			return
+		}
+		for _, n := range b {
+			if n != 0 {
+				if len(b) == 10 {
+					t.Log("got the minimum size!")
+				}
+				t.Fatalf("contains a non-zero byte of length %d", len(b))
+			}
+		}
+    })
+}
+
+func FuzzRunNoneWithCache(f *testing.F) {
+    f.Fuzz(func(t *testing.T, i int) {
+        if i == 10 {
+            t.Error("bad thing here")
+        }
+    })
+}
+-- testdata/fuzz/FuzzWithTestdata/1 --
+go test fuzz v1
+int(10)
+-- cache-file --
+go test fuzz v1
+int(10)
+-- cache-file-bytes --
+go test fuzz v1
+[]byte("11111111111111111111")

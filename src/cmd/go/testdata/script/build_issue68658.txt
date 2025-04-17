@@ -1,0 +1,31 @@
+# Test for issue #68658: In GOPATH mode, files with a //go:build fileVersion
+# earlier than go1.21 should downgrade to go1.21 and no further.
+
+[short] skip 'requires build'
+
+env GO111MODULE=off
+go build foo bar
+
+-- foo/main.go --
+//go:build go1.10
+
+package p
+
+import "fmt"
+
+func main() {
+	var x any  // any was added in Go 1.18
+	fmt.Println(x)
+}
+
+-- bar/main.go --
+//go:build go1.20
+
+package p
+
+import "fmt"
+
+func main() {
+    y := max(1, 2)  // max was added in Go 1.21
+    fmt.Println(y)
+}

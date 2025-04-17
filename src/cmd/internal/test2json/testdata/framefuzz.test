@@ -1,0 +1,56 @@
+=== RUN   TestAddrStringAllocs
+=== RUN   TestAddrStringAllocs/zero
+=== NAME  TestAddrStringAllocs
+=== RUN   TestAddrStringAllocs/ipv4
+=== NAME  TestAddrStringAllocs
+=== RUN   TestAddrStringAllocs/ipv6
+=== NAME  TestAddrStringAllocs
+=== RUN   TestAddrStringAllocs/ipv6+zone
+=== NAME  TestAddrStringAllocs
+=== RUN   TestAddrStringAllocs/ipv4-in-ipv6
+=== NAME  TestAddrStringAllocs
+=== RUN   TestAddrStringAllocs/ipv4-in-ipv6+zone
+=== NAME  TestAddrStringAllocs
+--- PASS: TestAddrStringAllocs (0.00s)
+    --- PASS: TestAddrStringAllocs/zero (0.00s)
+    --- PASS: TestAddrStringAllocs/ipv4 (0.00s)
+    --- PASS: TestAddrStringAllocs/ipv6 (0.00s)
+    --- PASS: TestAddrStringAllocs/ipv6+zone (0.00s)
+    --- PASS: TestAddrStringAllocs/ipv4-in-ipv6 (0.00s)
+    --- PASS: TestAddrStringAllocs/ipv4-in-ipv6+zone (0.00s)
+=== NAME
+=== RUN   TestPrefixString
+--- PASS: TestPrefixString (0.00s)
+=== NAME
+=== RUN   TestInvalidAddrPortString
+--- PASS: TestInvalidAddrPortString (0.00s)
+=== NAME
+=== RUN   TestAsSlice
+--- PASS: TestAsSlice (0.00s)
+=== NAME
+=== NAME  TestInlining
+    inlining_test.go:102: not in expected set, but also inlinable: "Addr.string4"
+    inlining_test.go:102: not in expected set, but also inlinable: "Prefix.isZero"
+    inlining_test.go:102: not in expected set, but also inlinable: "IPv4Unspecified"
+    inlining_test.go:102: not in expected set, but also inlinable: "joinHostPort"
+    inlining_test.go:102: not in expected set, but also inlinable: "Addr.MarshalBinary"
+    inlining_test.go:102: not in expected set, but also inlinable: "bePutUint64"
+    inlining_test.go:102: not in expected set, but also inlinable: "mask6"
+    inlining_test.go:102: not in expected set, but also inlinable: "AddrPort.isZero"
+    inlining_test.go:102: not in expected set, but also inlinable: "stringsLastIndexByte"
+    inlining_test.go:102: not in expected set, but also inlinable: "Addr.isZero"
+    inlining_test.go:102: not in expected set, but also inlinable: "bePutUint32"
+    inlining_test.go:102: not in expected set, but also inlinable: "leUint16"
+    inlining_test.go:102: not in expected set, but also inlinable: "Addr.string6"
+    inlining_test.go:102: not in expected set, but also inlinable: "beUint64"
+    inlining_test.go:102: not in expected set, but also inlinable: "appendHexPad"
+    inlining_test.go:102: not in expected set, but also inlinable: "lePutUint16"
+--- PASS: TestInlining (0.10s)
+=== RUN   FuzzParse
+fuzz: elapsed: 0s, gathering baseline coverage: 0/390 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 390/390 completed, now fuzzing with 16 workers
+fuzz: elapsed: 3s, execs: 438666 (146173/sec), new interesting: 12 (total: 402)
+fuzz: elapsed: 4s, execs: 558467 (147850/sec), new interesting: 15 (total: 405)
+--- PASS: FuzzParse (3.85s)
+=== NAME
+PASS

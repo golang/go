@@ -1,0 +1,1 @@
+pkg go/parser, func ParseDir //deprecated #71122

@@ -1,0 +1,52 @@
+[short] skip
+env GO111MODULE=off
+
+# test folder should work
+go test github.com/clsung/go-vendor-issue-14613
+
+# test with specified _test.go should work too
+cd $GOPATH/src
+go test github.com/clsung/go-vendor-issue-14613/vendor_test.go
+
+# test with imported and not used
+! go test github.com/clsung/go-vendor-issue-14613/vendor/mylibtesttest/myapp/myapp_test.go
+stderr 'imported and not used'
+
+-- $GOPATH/src/github.com/clsung/go-vendor-issue-14613/./vendor_test.go --
+package main
+
+import (
+	"testing"
+
+	"github.com/clsung/fake"
+)
+
+func TestVendor(t *testing.T) {
+	ret := fake.DoNothing()
+	expected := "Ok"
+	if expected != ret {
+		t.Errorf("fake returned %q, expected %q", ret, expected)
+	}
+}
+
+-- $GOPATH/src/github.com/clsung/go-vendor-issue-14613/./vendor/mylibtesttest/myapp/myapp_test.go --
+package myapp
+import (
+   "mylibtesttest/rds"
+)
+
+-- $GOPATH/src/github.com/clsung/go-vendor-issue-14613/./vendor/mylibtesttest/rds/rds.go --
+package rds
+
+-- $GOPATH/src/github.com/clsung/go-vendor-issue-14613/./vendor/github.com/clsung/fake/fake.go --
+package fake
+
+func DoNothing() string {
+	return "Ok"
+}
+
+-- $GOPATH/src/github.com/clsung/go-vendor-issue-14613/./m.go --
+package main
+
+func main() {}
+

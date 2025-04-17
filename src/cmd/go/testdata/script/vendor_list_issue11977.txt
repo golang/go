@@ -1,0 +1,87 @@
+env GO111MODULE=off
+
+go list -f '{{join .TestImports "\n"}}' github.com/rsc/go-get-issue-11864/t
+stdout 'go-get-issue-11864/vendor/vendor.org/p'
+
+go list -f '{{join .XTestImports "\n"}}' github.com/rsc/go-get-issue-11864/tx
+stdout 'go-get-issue-11864/vendor/vendor.org/p'
+
+go list -f '{{join .XTestImports "\n"}}' github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx2
+stdout 'go-get-issue-11864/vendor/vendor.org/tx2'
+
+go list -f '{{join .XTestImports "\n"}}' github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx3
+stdout 'go-get-issue-11864/vendor/vendor.org/tx3'
+
+-- $GOPATH/src/github.com/rsc/go-get-issue-11864/m.go --
+package g
+
+import _ "vendor.org/p"
+import _ "vendor.org/p1"
+
+func main() {}
+
+-- $GOPATH/src/github.com/rsc/go-get-issue-11864/t/t_test.go --
+package t
+
+import _ "vendor.org/p"
+import _ "vendor.org/p1"
+import "testing"
+
+func TestNop(t *testing.T) {}
+
+-- $GOPATH/src/github.com/rsc/go-get-issue-11864/t/t.go --
+package t
+
+-- $GOPATH/src/github.com/rsc/go-get-issue-11864/tx/tx_test.go --
+package tx_test
+
+import _ "vendor.org/p"
+import _ "vendor.org/p1"
+import "testing"
+
+func TestNop(t *testing.T) {}
+
+-- $GOPATH/src/github.com/rsc/go-get-issue-11864/tx/tx.go --
+package tx
+
+-- $GOPATH/src/github.com/rsc/go-get-issue-11864/vendor/vendor.org/p1/p1.go --
+package p1 // import "vendor.org/p1"
+
+-- $GOPATH/src/github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx3/tx3_test.go --
+package tx3_test
+
+import "vendor.org/tx3"
+import "testing"
+
+var Found = tx3.Exported
+
+func TestNop(t *testing.T) {}
+
+-- $GOPATH/src/github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx3/export_test.go --
+package tx3
+
+var Exported = true
+
+-- $GOPATH/src/github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx3/tx3.go --
+package tx3
+
+-- $GOPATH/src/github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx2/tx2_test.go --
+package tx2_test
+
+import . "vendor.org/tx2"
+import "testing"
+
+var Found = Exported
+
+func TestNop(t *testing.T) {}
+
+-- $GOPATH/src/github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx2/export_test.go --
+package tx2
+
+var Exported = true
+
+-- $GOPATH/src/github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx2/tx2.go --
+package tx2
+
+-- $GOPATH/src/github.com/rsc/go-get-issue-11864/vendor/vendor.org/p/p.go --
+package p

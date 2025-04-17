@@ -1,0 +1,18 @@
+# issue 53314
+[GOOS:windows] skip
+cd [pkg]
+go build
+
+-- [pkg]/go.mod --
+module m
+
+go 1.19
+-- [pkg]/x.go --
+package p
+
+import _ "embed"
+
+//go:embed t.txt
+var S string
+
+-- [pkg]//t.txt --

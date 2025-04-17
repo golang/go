@@ -1,0 +1,11 @@
+go list -m -u example.com/retract/noupgrade
+stdout '^example.com/retract/noupgrade v1.0.0 \(retracted\)$'
+
+-- go.mod --
+module use
+
+go 1.19
+
+require example.com/retract/noupgrade v1.0.0
+-- go.sum --
+example.com/retract/noupgrade v1.0.0/go.mod h1:q2/HnBejUQ83RcUo4stf2U++/Zr9R/Ky3BsodjKBkQ4=

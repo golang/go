@@ -1,0 +1,76 @@
+# NOTE: this test is skipped on Windows, since there's no concept of signals.
+# When a process terminates another process, it provides an exit code.
+[GOOS:windows] skip
+[!fuzz] skip
+[short] skip
+env GOCACHE=$WORK/cache
+
+# FuzzNonCrash sends itself a signal that does not appear to be a crash.
+# We should not save a crasher.
+! go test -fuzz=FuzzNonCrash
+! exists testdata
+! stdout unreachable
+! stderr unreachable
+stdout 'fuzzing process terminated by unexpected signal; no crash will be recorded: signal: terminated'
+
+# FuzzKill sends itself a signal that cannot be caught by the worker process
+# and does not appear to be a crash.
+# We should not save a crasher.
+! go test -fuzz=FuzzKill
+! exists testdata
+! stdout unreachable
+! stderr unreachable
+stdout 'fuzzing process terminated by unexpected signal; no crash will be recorded: signal: killed'
+
+# FuzzCrash sends itself a signal that looks like a crash.
+# We should save a crasher.
+! go test -fuzz=FuzzCrash
+exists testdata/fuzz/FuzzCrash
+stdout '^\s+fuzzing process hung or terminated unexpectedly: exit status'
+
+-- go.mod --
+module test
+
+go 1.17
+-- fuzz_posix_test.go --
+// +build darwin freebsd linux
+
+package fuzz
+
+import (
+	"syscall"
+	"testing"
+)
+
+func FuzzNonCrash(f *testing.F) {
+	f.Fuzz(func(*testing.T, bool) {
+		pid := syscall.Getpid()
+		if err := syscall.Kill(pid, syscall.SIGTERM); err != nil {
+			panic(err)
+		}
+		// signal may not be received immediately. Wait for it.
+		select{}
+	})
+}
+
+func FuzzKill(f *testing.F) {
+	f.Fuzz(func(*testing.T, bool) {
+		pid := syscall.Getpid()
+		if err := syscall.Kill(pid, syscall.SIGKILL); err != nil {
+			panic(err)
+		}
+		// signal may not be received immediately. Wait for it.
+		select{}
+	})
+}
+
+func FuzzCrash(f *testing.F) {
+	f.Fuzz(func(*testing.T, bool) {
+		pid := syscall.Getpid()
+		if err := syscall.Kill(pid, syscall.SIGILL); err != nil {
+			panic(err)
+		}
+		// signal may not be received immediately. Wait for it.
+		select{}
+	})
+}

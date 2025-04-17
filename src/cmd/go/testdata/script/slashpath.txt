@@ -1,0 +1,18 @@
+# .a files should use slash-separated paths even on windows
+# This is important for reproducing native builds with cross-compiled builds.
+go build -o x.a text/template
+! grep 'GOROOT\\' x.a
+! grep 'text\\template' x.a
+! grep 'c:\\' x.a
+
+# executables should use slash-separated paths even on windows
+# This is important for reproducing native builds with cross-compiled builds.
+go build -o hello.exe hello.go
+! grep 'GOROOT\\' hello.exe
+! grep '\\runtime' hello.exe
+! grep 'runtime\\' hello.exe
+! grep 'gofile..[A-Za-z]:\\' hello.exe
+
+-- hello.go --
+package main
+func main() { println("hello") }

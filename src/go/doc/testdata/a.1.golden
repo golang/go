@@ -1,0 +1,52 @@
+// comment 0  comment 1 
+PACKAGE a
+
+IMPORTPATH
+	testdata/a
+
+FILENAMES
+	testdata/a0.go
+	testdata/a1.go
+
+BUGS .Bugs is now deprecated, please use .Notes instead
+	bug0
+
+	bug1
+
+
+BUGS
+BUG(uid)	bug0
+
+BUG(uid)	bug1
+
+
+NOTES
+NOTE(uid)	
+
+NOTE(foo)	1 of 4 - this is the first line of note 1
+	- note 1 continues on this 2nd line
+	- note 1 continues on this 3rd line
+
+NOTE(foo)	2 of 4
+
+NOTE(bar)	3 of 4
+
+NOTE(bar)	4 of 4
+	- this is the last line of note 4
+
+NOTE(bam)	This note which contains a (parenthesized) subphrase
+	 must appear in its entirety.
+
+NOTE(xxx)	The ':' after the marker and uid is optional.
+
+
+SECBUGS
+SECBUG(uid)	sec hole 0
+	need to fix asap
+
+
+TODOS
+TODO(uid)	todo0
+
+TODO(uid)	todo1
+

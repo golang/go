@@ -1,0 +1,9 @@
+T 6
+int 7
+int32/int16 8
+struct{T,T} 1 2
+other 9
+T 7
+int32/int16 7
+T 10
+int 11

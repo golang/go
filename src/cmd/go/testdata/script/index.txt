@@ -1,0 +1,6 @@
+# Check that standard library packages are cached.
+go list -json math # refresh cache
+env GODEBUG=gofsystrace=1,gofsystracelog=fsys.log
+go list -json math
+! grep math/abs.go fsys.log
+grep 'openIndexPackage .*[\\/]math$' fsys.log

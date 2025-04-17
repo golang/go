@@ -1,0 +1,76 @@
+// Package generics contains the new syntax supporting generic ...
+PACKAGE generics
+
+IMPORTPATH
+	testdata/generics
+
+FILENAMES
+	testdata/generics.go
+
+FUNCTIONS
+	// AnotherFunc has an implicit constraint interface.  Neither type ...
+	func AnotherFunc[T ~struct{ f int }](_ struct{ f int })
+
+	// Func has an instantiated constraint. 
+	func Func[T Constraint[string, Type[int]]]()
+
+	// Single is not a factory function. 
+	func Single[T any]() *T
+
+	// Slice is not a factory function. 
+	func Slice[T any]() []T
+
+
+TYPES
+	// AFuncType demonstrates filtering of parameters and type ...
+	type AFuncType[T ~struct{ f int }] func(_ struct {
+		// contains filtered or unexported fields
+	})
+
+	// Constraint is a constraint interface with two type parameters. 
+	type Constraint[P, Q interface{ string | ~int | Type[int] }] interface {
+		~int | ~byte | Type[string]
+		M() P
+	}
+
+	// NewEmbeddings demonstrates how we filter the new embedded ...
+	type NewEmbeddings interface {
+		string	// should not be filtered
+	
+		struct {
+			// contains filtered or unexported fields
+		}
+		~struct {
+			// contains filtered or unexported fields
+		}
+		*struct {
+			// contains filtered or unexported fields
+		}
+		struct {
+			// contains filtered or unexported fields
+		} | ~struct {
+			// contains filtered or unexported fields
+		}
+		// contains filtered or unexported methods
+	}
+
+	// Parameterized types should be shown. 
+	type Type[P any] struct {
+		Field P
+	}
+
+	// Variables with an instantiated type should be shown. 
+	var X Type[int]
+
+	// Constructors for parameterized types should be shown. 
+	func Constructor[lowerCase any]() Type[lowerCase]
+
+	// MethodA uses a different name for its receiver type parameter. 
+	func (t Type[A]) MethodA(p A)
+
+	// MethodB has a blank receiver type parameter. 
+	func (t Type[_]) MethodB()
+
+	// MethodC has a lower-case receiver type parameter. 
+	func (t Type[c]) MethodC()
+

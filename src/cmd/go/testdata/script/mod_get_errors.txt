@@ -1,0 +1,57 @@
+cp go.mod go.mod.orig
+
+
+# 'go get' should fail, without updating go.mod, if the transitive dependencies
+# of the requested package (by default, the package in the current directory)
+# cannot be resolved.
+
+! go get
+stderr '^go: example.com/m imports\n\texample.com/badimport imports\n\texample.net/oops: cannot find module providing package example.net/oops$'
+cmp go.mod.orig go.mod
+
+cd importsyntax
+
+
+# A syntax error in a dependency prevents the compiler from needing that
+# dependency's imports, so 'go get' should not report an error when those
+# imports cannot be resolved: it has all of the dependencies that the compiler
+# needs, and the user did not request to run the compiler.
+
+go get
+cmp ../go.mod.syntax-d ../go.mod
+
+
+-- go.mod --
+module example.com/m
+
+go 1.16
+
+replace example.com/badimport v0.1.0 => ./badimport
+-- go.mod.syntax-d --
+module example.com/m
+
+go 1.16
+
+replace example.com/badimport v0.1.0 => ./badimport
+
+require example.com/badimport v0.1.0
+-- m.go --
+package m
+
+import _ "example.com/badimport"
+-- importsyntax/importsyntax.go --
+package importsyntax
+
+import _ "example.com/badimport/syntaxerror"
+-- badimport/go.mod --
+module example.com/badimport
+
+go 1.16
+-- badimport/badimport.go --
+package badimport
+
+import "example.net/oops"
+-- badimport/syntaxerror/syntaxerror.go --
+pack-age syntaxerror // sic
+
+import "example.net/oops"

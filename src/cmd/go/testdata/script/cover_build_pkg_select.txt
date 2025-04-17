@@ -1,0 +1,111 @@
+# This test checks more of the "go build -cover" functionality,
+# specifically which packages get selected when building.
+
+[short] skip
+
+#-------------------------------------------
+
+# Build for coverage.
+go build -mod=mod -o $WORK/modex.exe -cover mod.example/main
+
+# Save off old GOCOVERDIR setting
+env SAVEGOCOVERDIR=$GOCOVERDIR
+
+# Execute.
+mkdir $WORK/covdata
+env GOCOVERDIR=$WORK/covdata
+exec $WORK/modex.exe
+
+# Restore previous GOCOVERDIR setting
+env GOCOVERDIR=$SAVEGOCOVERDIR
+
+# Examine the result.
+go tool covdata percent -i=$WORK/covdata
+stdout 'coverage: 100.0% of statements'
+
+# By default we want to see packages resident in the module covered,
+# but not dependencies.
+go tool covdata textfmt -i=$WORK/covdata -o=$WORK/covdata/out.txt
+grep 'mode: set' $WORK/covdata/out.txt
+grep 'mod.example/main/main.go:' $WORK/covdata/out.txt
+grep 'mod.example/sub/sub.go:' $WORK/covdata/out.txt
+! grep 'rsc.io' $WORK/covdata/out.txt
+
+rm $WORK/covdata
+rm $WORK/modex.exe
+
+#-------------------------------------------
+
+# Repeat the build but with -coverpkg=all
+
+go build -mod=mod -coverpkg=all -o $WORK/modex.exe -cover mod.example/main
+
+# Execute.
+mkdir $WORK/covdata
+env GOCOVERDIR=$WORK/covdata
+exec $WORK/modex.exe
+
+# Restore previous GOCOVERDIR setting
+env GOCOVERDIR=$SAVEGOCOVERDIR
+
+# Examine the result.
+go tool covdata percent -i=$WORK/covdata
+stdout  'coverage:.*[1-9][0-9.]+%'
+
+# The whole enchilada.
+go tool covdata textfmt -i=$WORK/covdata -o=$WORK/covdata/out.txt
+grep 'mode: set' $WORK/covdata/out.txt
+grep 'mod.example/main/main.go:' $WORK/covdata/out.txt
+grep 'mod.example/sub/sub.go:' $WORK/covdata/out.txt
+grep 'rsc.io' $WORK/covdata/out.txt
+grep 'bufio/bufio.go:' $WORK/covdata/out.txt
+
+# Use the covdata tool to select a specific set of module paths
+mkdir $WORK/covdata2
+go tool covdata merge -pkg=rsc.io/quote -i=$WORK/covdata -o=$WORK/covdata2
+
+# Examine the result.
+go tool covdata percent -i=$WORK/covdata2
+stdout  'coverage:.*[1-9][0-9.]+%'
+
+# Check for expected packages + check that we don't see things from stdlib.
+go tool covdata textfmt -i=$WORK/covdata2 -o=$WORK/covdata2/out.txt
+grep 'mode: set' $WORK/covdata2/out.txt
+! grep 'mod.example/main/main.go:' $WORK/covdata2/out.txt
+! grep 'mod.example/sub/sub.go:' $WORK/covdata2/out.txt
+grep 'rsc.io' $WORK/covdata2/out.txt
+! grep 'bufio/bufio.go:' $WORK/covdata2/out.txt
+
+#-------------------------------------------
+# end of test cmds, start of harness and related files.
+
+-- go.mod --
+module mod.example
+
+go 1.20
+
+require rsc.io/quote/v3 v3.0.0
+
+-- main/main.go --
+package main
+
+import (
+	"fmt"
+	"mod.example/sub"
+
+	"rsc.io/quote"
+)
+
+func main() {
+	fmt.Println(quote.Go(), sub.F())
+}
+
+-- sub/sub.go --
+
+package sub
+
+func F() int {
+	return 42
+}
+
+

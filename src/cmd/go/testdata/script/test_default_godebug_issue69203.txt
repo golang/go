@@ -1,0 +1,28 @@
+# This is the case reported in issue #69203. Setting GO111MODULE
+# off sets the Go version used to determine default GODEBUG settings
+# to Go 1.20, flipping the httplaxcontentlength godebug's value to "1".
+# Doing so causes net/http.TestReadResponseErrors to fail.
+# Before CL 610875, the default GODEBUG was only sometimes used to generate the actionID
+# for a link: if the binary being linked was package main, the default GODEBUG would be
+# embedded in the build info, which is in turn used for the action id. But for a test
+# of a non-main package, there would be no build info set and the default godebug would not
+# be taken into account in the action id. So if the only difference between a test run was the
+# default GODEBUG setting, the cached test result would be used (even though the
+# binaries were different because they contained different default GODEBUG values).
+# Now we explicitly add the default GODEBUG to the action id, so the test binaries' link actions
+# have different actionIDs. That means that the cached test results (whose action ids
+# are based on the test binaries' action ids) should only be used when the default GODEBUG matches.
+
+[short] skip 'runs go test'
+
+# Baseline: ensure TestReadResponseErrors fails with GODEBUG httplaxcontentlength=1.
+env GO111MODULE=off
+! go test net/http -run=^TestReadResponseErrors$
+
+# Ensure that it passes without httplaxcontentlength=1.
+env GO111MODULE=on
+go test net/http -run=^TestReadResponseErrors$
+
+# Make sure that the previous cached pass isn't reused when setting httplaxcontentlength=1.
+env GO111MODULE=off
+! go test net/http -run=^TestReadResponseErrors$

@@ -1,0 +1,51 @@
+# Create basic modules and work space.
+env TESTGO_VERSION=go1.50
+mkdir m1_22_0
+go mod init -C m1_22_0
+go mod edit -C m1_22_0 -go=1.22.0 -toolchain=go1.99.0
+mkdir m1_22_1
+go mod init -C m1_22_1
+go mod edit -C m1_22_1 -go=1.22.1 -toolchain=go1.99.1
+mkdir m1_24_rc0
+go mod init -C m1_24_rc0
+go mod edit -C m1_24_rc0 -go=1.24rc0 -toolchain=go1.99.2
+
+go work init
+grep '^go 1.50$' go.work
+! grep toolchain go.work
+
+# work use with older modules should leave go 1.50 in the go.work.
+go work use ./m1_22_0
+grep '^go 1.50$' go.work
+! grep toolchain go.work
+
+# work use with newer modules should bump go and toolchain,
+# including updating to a newer toolchain as needed.
+env TESTGO_VERSION=go1.21
+env TESTGO_VERSION_SWITCH=switch
+rm go.work
+go work init
+env GOTOOLCHAIN=local
+! go work use ./m1_22_0
+stderr '^go: m1_22_0'${/}'go.mod requires go >= 1.22.0 \(running go 1.21; GOTOOLCHAIN=local\)$'
+env GOTOOLCHAIN=auto
+go work use ./m1_22_0
+stderr '^go: m1_22_0'${/}'go.mod requires go >= 1.22.0; switching to go1.22.9$'
+grep '^go 1.22.0$' go.work
+! grep toolchain go.work
+
+# work use with an even newer module should bump go again.
+go work use ./m1_22_1
+stderr '^go: m1_22_1'${/}'go.mod requires go >= 1.22.1; switching to go1.22.9$'
+grep '^go 1.22.1$' go.work
+! grep toolchain go.work
+
+# work use with an even newer module should bump go and toolchain again.
+env GOTOOLCHAIN=go1.22.9
+! go work use ./m1_24_rc0
+stderr '^go: m1_24_rc0'${/}'go.mod requires go >= 1.24rc0 \(running go 1.22.9; GOTOOLCHAIN=go1.22.9\)$'
+env GOTOOLCHAIN=auto
+go work use ./m1_24_rc0
+stderr '^go: m1_24_rc0'${/}'go.mod requires go >= 1.24rc0; switching to go1.24rc1$'
+grep '^go 1.24rc0$' go.work
+! grep 'toolchain' go.work

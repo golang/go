@@ -1,0 +1,18 @@
+[short] skip  # sleeps to make mtime cacheable
+
+go mod init example
+
+cd subdir
+go mod init example/subdir
+sleep 2s  # allow go.mod mtime to be cached
+
+go list -f '{{.Dir}}: {{.ImportPath}}' ./pkg
+stdout $PWD${/}pkg': example/subdir/pkg$'
+
+rm go.mod  # expose ../go.mod
+
+go list -f '{{.Dir}}: {{.ImportPath}}' ./pkg
+stdout $PWD${/}pkg': example/subdir/pkg$'
+
+-- subdir/pkg/pkg.go --
+package pkg

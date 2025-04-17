@@ -1,0 +1,193 @@
+
+# Testcase for #63356. In this bug we're doing a "go test -coverprofile"
+# run for a collection of packages, mostly independent (hence tests can
+# be done in parallel) and in the original bug, temp coverage profile
+# files were not being properly qualified and were colliding, resulting
+# in a corrupted final profile. Actual content of the packages doesn't
+# especially matter as long as we have a mix of packages with tests and
+# multiple packages without tests.
+
+[short] skip
+
+# Kick off test.
+go test -p=10 -vet=off -count=1 -coverprofile=cov.p ./...
+
+# Make sure resulting profile is digestible.
+go tool cover -func=cov.p
+
+# No extraneous extra files please.
+! exists _cover_.out
+
+-- a/a.go --
+package a
+
+func init() {
+	println("package 'a' init: launch the missiles!")
+}
+
+func AFunc() int {
+	return 42
+}
+-- a/a_test.go --
+package a
+
+import "testing"
+
+func TestA(t *testing.T) {
+	if AFunc() != 42 {
+		t.Fatalf("bad!")
+	}
+}
+-- aa/aa.go --
+package aa
+
+import "M/it"
+
+func AA(y int) int {
+	c := it.Conc{}
+	x := it.Callee(&c)
+	println(x, y)
+	return 0
+}
+-- aa/aa_test.go --
+package aa
+
+import "testing"
+
+func TestMumble(t *testing.T) {
+	AA(3)
+}
+-- b/b.go --
+package b
+
+func init() {
+	println("package 'b' init: release the kraken")
+}
+
+func BFunc() int {
+	return -42
+}
+-- b/b_test.go --
+package b
+
+import "testing"
+
+func TestB(t *testing.T) {
+	if BFunc() != -42 {
+		t.Fatalf("bad!")
+	}
+}
+-- deadstuff/deadstuff.go --
+package deadstuff
+
+func downStreamOfPanic(x int) {
+	panic("bad")
+	if x < 10 {
+		println("foo")
+	}
+}
+-- deadstuff/deadstuff_test.go --
+package deadstuff
+
+import "testing"
+
+func TestMumble(t *testing.T) {
+	defer func() {
+		if x := recover(); x != nil {
+			println("recovered")
+		}
+	}()
+	downStreamOfPanic(10)
+}
+-- go.mod --
+module M
+
+go 1.21
+-- it/it.go --
+package it
+
+type Ctr interface {
+	Count() int
+}
+
+type Conc struct {
+	X int
+}
+
+func (c *Conc) Count() int {
+	return c.X
+}
+
+func DoCall(c *Conc) {
+	c2 := Callee(c)
+	println(c2.Count())
+}
+
+func Callee(ii Ctr) Ctr {
+	q := ii.Count()
+	return &Conc{X: q}
+}
+-- main/main.go --
+package main
+
+import (
+	"M/a"
+	"M/b"
+)
+
+func MFunc() string {
+	return "42"
+}
+
+func M2Func() int {
+	return a.AFunc() + b.BFunc()
+}
+
+func init() {
+	println("package 'main' init")
+}
+
+func main() {
+	println(a.AFunc() + b.BFunc())
+}
+-- main/main_test.go --
+package main
+
+import "testing"
+
+func TestMain(t *testing.T) {
+	if MFunc() != "42" {
+		t.Fatalf("bad!")
+	}
+	if M2Func() != 0 {
+		t.Fatalf("also bad!")
+	}
+}
+-- n/n.go --
+package n
+
+type N int
+-- onlytest/mumble_test.go --
+package onlytest
+
+import "testing"
+
+func TestFoo(t *testing.T) {
+	t.Logf("Whee\n")
+}
+-- x/x.go --
+package x
+
+func XFunc() int {
+	return 2 * 2
+}
+-- xinternal/i.go --
+package i
+
+func I() int { return 32 }
+-- xinternal/q/q.go --
+package q
+
+func Q() int {
+	return 42
+}

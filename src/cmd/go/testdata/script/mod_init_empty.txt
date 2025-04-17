@@ -1,0 +1,21 @@
+env GO111MODULE=on
+
+env GOPATH=$WORK${/}invalid-gopath
+
+go list -m
+stdout '^example.com$'
+
+go list
+stdout '^example.com$'
+
+-- go.mod --
+module example.com
+
+go 1.13
+-- main.go --
+package main
+
+func main() {}
+
+-- $WORK/invalid-gopath
+This is a text file, not a directory.

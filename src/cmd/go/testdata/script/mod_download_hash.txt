@@ -1,0 +1,24 @@
+env GO111MODULE=on
+
+# Testing mod download with non semantic versions; turn off proxy.
+[!net:rsc.io] skip
+[!git] skip
+env GOPROXY=direct
+env GOSUMDB=off
+
+go mod download rsc.io/quote@a91498bed0a73d4bb9c1fb2597925f7883bc40a7
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-0.20180709162918-a91498bed0a7.info
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-0.20180709162918-a91498bed0a7.mod
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-0.20180709162918-a91498bed0a7.zip
+
+go mod download rsc.io/quote@master
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-0.20180709162918-a91498bed0a7.info
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-0.20180709162918-a91498bed0a7.mod
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-0.20180709162918-a91498bed0a7.zip
+
+
+-- go.mod --
+module m
+
+-- m.go --
+package m

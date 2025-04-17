@@ -1,0 +1,162 @@
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file contains rules to decompose builtin compound types
+// (complex,string,slice,interface) into their constituent
+// types.  These rules work together with the decomposeBuiltIn
+// pass which handles phis of these types.
+
+(Store {t} _ _ mem) && t.Size() == 0 => mem
+
+// complex ops
+(ComplexReal (ComplexMake real _  )) => real
+(ComplexImag (ComplexMake _ imag )) => imag
+
+(Load <t> ptr mem) && t.IsComplex() && t.Size() == 8 =>
+  (ComplexMake
+    (Load <typ.Float32> ptr mem)
+    (Load <typ.Float32>
+      (OffPtr <typ.Float32Ptr> [4] ptr)
+      mem)
+    )
+(Store {t} dst (ComplexMake real imag) mem) && t.Size() == 8 =>
+  (Store {typ.Float32}
+    (OffPtr <typ.Float32Ptr> [4] dst)
+    imag
+    (Store {typ.Float32} dst real mem))
+(Load <t> ptr mem) && t.IsComplex() && t.Size() == 16 =>
+  (ComplexMake
+    (Load <typ.Float64> ptr mem)
+    (Load <typ.Float64>
+      (OffPtr <typ.Float64Ptr> [8] ptr)
+      mem)
+    )
+(Store {t} dst (ComplexMake real imag) mem) && t.Size() == 16 =>
+  (Store {typ.Float64}
+    (OffPtr <typ.Float64Ptr> [8] dst)
+    imag
+    (Store {typ.Float64} dst real mem))
+
+// string ops
+(StringPtr (StringMake ptr _)) => ptr
+(StringLen (StringMake _ len)) => len
+
+(Load <t> ptr mem) && t.IsString() =>
+  (StringMake
+    (Load <typ.BytePtr> ptr mem)
+    (Load <typ.Int>
+      (OffPtr <typ.IntPtr> [config.PtrSize] ptr)
+      mem))
+(Store dst (StringMake ptr len) mem) =>
+  (Store {typ.Int}
+    (OffPtr <typ.IntPtr> [config.PtrSize] dst)
+    len
+    (Store {typ.BytePtr} dst ptr mem))
+
+// slice ops
+(SlicePtr (SliceMake ptr _ _ )) => ptr
+(SliceLen (SliceMake _ len _)) => len
+(SliceCap (SliceMake _ _ cap)) => cap
+(SlicePtrUnchecked (SliceMake ptr _ _ )) => ptr
+
+(Load <t> ptr mem) && t.IsSlice() =>
+  (SliceMake
+    (Load <t.Elem().PtrTo()> ptr mem)
+    (Load <typ.Int>
+      (OffPtr <typ.IntPtr> [config.PtrSize] ptr)
+      mem)
+    (Load <typ.Int>
+      (OffPtr <typ.IntPtr> [2*config.PtrSize] ptr)
+      mem))
+(Store {t} dst (SliceMake ptr len cap) mem) =>
+  (Store {typ.Int}
+    (OffPtr <typ.IntPtr> [2*config.PtrSize] dst)
+    cap
+    (Store {typ.Int}
+      (OffPtr <typ.IntPtr> [config.PtrSize] dst)
+      len
+      (Store {t.Elem().PtrTo()} dst ptr mem)))
+
+// interface ops
+(ITab (IMake itab _)) => itab
+(IData (IMake _ data)) => data
+
+(Load <t> ptr mem) && t.IsInterface() =>
+  (IMake
+    (Load <typ.Uintptr> ptr mem)
+    (Load <typ.BytePtr>
+      (OffPtr <typ.BytePtrPtr> [config.PtrSize] ptr)
+      mem))
+(Store dst (IMake itab data) mem) =>
+  (Store {typ.BytePtr}
+    (OffPtr <typ.BytePtrPtr> [config.PtrSize] dst)
+    data
+    (Store {typ.Uintptr} dst itab mem))
+
+// Helpers for expand calls
+// Some of these are copied from generic.rules
+
+(IMake _typ (StructMake val)) => (IMake _typ val)
+(StructSelect [0] (IData x)) => (IData x)
+
+(StructSelect [i] x:(StructMake ___)) => x.Args[i]
+
+// Special case coming from immediate interface rewriting
+// Typical case: (StructSelect [0] (IData (IMake typ dat)) rewrites to (StructSelect [0] dat)
+// but because the interface is immediate, the type of "IData" is a one-element struct containing
+// a pointer that is not the pointer type of dat (can be a *uint8).
+// More annoying case: (ArraySelect[0] (StructSelect[0] isAPtr))
+// There, result of the StructSelect is an Array (not a pointer) and
+// the pre-rewrite input to the ArraySelect is a struct, not a pointer.
+(StructSelect [0] x) && x.Type.IsPtrShaped()  => x
+(ArraySelect [0] x) && x.Type.IsPtrShaped()  => x
+
+// These, too.  Bits is bits.
+(ArrayMake1 x) && x.Type.IsPtrShaped() => x
+(StructMake x) && x.Type.IsPtrShaped() => x
+
+
+(Store _ (StructMake ___) _) => rewriteStructStore(v)
+
+(ArraySelect (ArrayMake1 x)) => x
+(ArraySelect [0] (IData x)) => (IData x)
+
+(Store dst (ArrayMake1 e) mem) => (Store {e.Type} dst e mem)
+
+// NOTE removed must-not-be-SSA condition.
+(ArraySelect [i] x:(Load <t> ptr mem)) =>
+  @x.Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.Elem().Size()*i] ptr) mem)
+
+(StringPtr x:(Load <t> ptr mem)) && t.IsString() => @x.Block (Load <typ.BytePtr> ptr mem)
+(StringLen x:(Load <t> ptr mem)) && t.IsString() => @x.Block (Load <typ.Int>
+      (OffPtr <typ.IntPtr> [config.PtrSize] ptr)
+      mem)
+
+// NOTE removed must-not-be-SSA condition.
+(StructSelect [i] x:(Load <t> ptr mem)) =>
+  @x.Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(int(i))] ptr) mem)
+
+(ITab x:(Load <t> ptr mem)) && t.IsInterface() => @x.Block (Load <typ.Uintptr> ptr mem)
+
+(IData x:(Load <t> ptr mem)) && t.IsInterface() => @x.Block (Load <typ.BytePtr>
+      (OffPtr <typ.BytePtrPtr> [config.PtrSize] ptr)
+      mem)
+
+(SlicePtr x:(Load <t> ptr mem)) && t.IsSlice() => @x.Block (Load <t.Elem().PtrTo()> ptr mem)
+(SliceLen x:(Load <t> ptr mem)) && t.IsSlice() => @x.Block (Load <typ.Int>
+      (OffPtr <typ.IntPtr> [config.PtrSize] ptr)
+      mem)
+(SliceCap x:(Load <t> ptr mem)) && t.IsSlice() => @x.Block (Load <typ.Int>
+      (OffPtr <typ.IntPtr> [2*config.PtrSize] ptr)
+      mem)
+
+(ComplexReal x:(Load <t> ptr mem)) && t.IsComplex() && t.Size() == 8 => @x.Block (Load <typ.Float32> ptr mem)
+(ComplexImag x:(Load <t> ptr mem)) && t.IsComplex() && t.Size() == 8 => @x.Block (Load <typ.Float32>
+      (OffPtr <typ.Float32Ptr> [4] ptr)
+      mem)
+
+(ComplexReal x:(Load <t> ptr mem)) && t.IsComplex() && t.Size() == 16 => @x.Block (Load <typ.Float64> ptr mem)
+(ComplexImag x:(Load <t> ptr mem)) && t.IsComplex() && t.Size() == 16 => @x.Block (Load <typ.Float64>
+      (OffPtr <typ.Float64Ptr> [8] ptr)
+      mem)

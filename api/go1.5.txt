@@ -1,0 +1,975 @@
+pkg archive/zip, method (*Writer) SetOffset(int64)
+pkg bufio, method (*Reader) Discard(int) (int, error)
+pkg bufio, method (ReadWriter) Discard(int) (int, error)
+pkg bytes, func LastIndexByte([]uint8, uint8) int
+pkg bytes, method (*Buffer) Cap() int
+pkg bytes, method (*Reader) Size() int64
+pkg crypto, const SHA512_224 = 14
+pkg crypto, const SHA512_224 Hash
+pkg crypto, const SHA512_256 = 15
+pkg crypto, const SHA512_256 Hash
+pkg crypto, type Decrypter interface { Decrypt, Public }
+pkg crypto, type Decrypter interface, Decrypt(io.Reader, []uint8, DecrypterOpts) ([]uint8, error)
+pkg crypto, type Decrypter interface, Public() PublicKey
+pkg crypto, type DecrypterOpts interface {}
+pkg crypto/cipher, func NewGCMWithNonceSize(Block, int) (AEAD, error)
+pkg crypto/elliptic, type CurveParams struct, Name string
+pkg crypto/rsa, method (*PrivateKey) Decrypt(io.Reader, []uint8, crypto.DecrypterOpts) ([]uint8, error)
+pkg crypto/rsa, type OAEPOptions struct
+pkg crypto/rsa, type OAEPOptions struct, Hash crypto.Hash
+pkg crypto/rsa, type OAEPOptions struct, Label []uint8
+pkg crypto/rsa, type PKCS1v15DecryptOptions struct
+pkg crypto/rsa, type PKCS1v15DecryptOptions struct, SessionKeyLen int
+pkg crypto/sha512, const Size224 = 28
+pkg crypto/sha512, const Size224 ideal-int
+pkg crypto/sha512, const Size256 = 32
+pkg crypto/sha512, const Size256 ideal-int
+pkg crypto/sha512, func New512_224() hash.Hash
+pkg crypto/sha512, func New512_256() hash.Hash
+pkg crypto/sha512, func Sum512_224([]uint8) [28]uint8
+pkg crypto/sha512, func Sum512_256([]uint8) [32]uint8
+pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 = 49196
+pkg crypto/tls, const TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 uint16
+pkg crypto/tls, const TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 = 49200
+pkg crypto/tls, const TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 uint16
+pkg crypto/tls, method (*Config) SetSessionTicketKeys([][32]uint8)
+pkg crypto/tls, type Certificate struct, SignedCertificateTimestamps [][]uint8
+pkg crypto/tls, type ConnectionState struct, OCSPResponse []uint8
+pkg crypto/tls, type ConnectionState struct, SignedCertificateTimestamps [][]uint8
+pkg crypto/x509, method (*CertificateRequest) CheckSignature() error
+pkg crypto/x509, type Certificate struct, UnhandledCriticalExtensions []asn1.ObjectIdentifier
+pkg crypto/x509/pkix, type Name struct, ExtraNames []AttributeTypeAndValue
+pkg database/sql, method (*DB) Stats() DBStats
+pkg database/sql, type DBStats struct
+pkg database/sql, type DBStats struct, OpenConnections int
+pkg debug/dwarf, const ClassAddress = 1
+pkg debug/dwarf, const ClassAddress Class
+pkg debug/dwarf, const ClassBlock = 2
+pkg debug/dwarf, const ClassBlock Class
+pkg debug/dwarf, const ClassConstant = 3
+pkg debug/dwarf, const ClassConstant Class
+pkg debug/dwarf, const ClassExprLoc = 4
+pkg debug/dwarf, const ClassExprLoc Class
+pkg debug/dwarf, const ClassFlag = 5
+pkg debug/dwarf, const ClassFlag Class
+pkg debug/dwarf, const ClassLinePtr = 6
+pkg debug/dwarf, const ClassLinePtr Class
+pkg debug/dwarf, const ClassLocListPtr = 7
+pkg debug/dwarf, const ClassLocListPtr Class
+pkg debug/dwarf, const ClassMacPtr = 8
+pkg debug/dwarf, const ClassMacPtr Class
+pkg debug/dwarf, const ClassRangeListPtr = 9
+pkg debug/dwarf, const ClassRangeListPtr Class
+pkg debug/dwarf, const ClassReference = 10
+pkg debug/dwarf, const ClassReference Class
+pkg debug/dwarf, const ClassReferenceAlt = 13
+pkg debug/dwarf, const ClassReferenceAlt Class
+pkg debug/dwarf, const ClassReferenceSig = 11
+pkg debug/dwarf, const ClassReferenceSig Class
+pkg debug/dwarf, const ClassString = 12
+pkg debug/dwarf, const ClassString Class
+pkg debug/dwarf, const ClassStringAlt = 14
+pkg debug/dwarf, const ClassStringAlt Class
+pkg debug/dwarf, method (*Data) LineReader(*Entry) (*LineReader, error)
+pkg debug/dwarf, method (*Entry) AttrField(Attr) *Field
+pkg debug/dwarf, method (*LineReader) Next(*LineEntry) error
+pkg debug/dwarf, method (*LineReader) Reset()
+pkg debug/dwarf, method (*LineReader) Seek(LineReaderPos)
+pkg debug/dwarf, method (*LineReader) SeekPC(uint64, *LineEntry) error
+pkg debug/dwarf, method (*LineReader) Tell() LineReaderPos
+pkg debug/dwarf, method (*Reader) AddressSize() int
+pkg debug/dwarf, method (Class) GoString() string
+pkg debug/dwarf, method (Class) String() string
+pkg debug/dwarf, type Class int
+pkg debug/dwarf, type Field struct, Class Class
+pkg debug/dwarf, type LineEntry struct
+pkg debug/dwarf, type LineEntry struct, Address uint64
+pkg debug/dwarf, type LineEntry struct, BasicBlock bool
+pkg debug/dwarf, type LineEntry struct, Column int
+pkg debug/dwarf, type LineEntry struct, Discriminator int
+pkg debug/dwarf, type LineEntry struct, EndSequence bool
+pkg debug/dwarf, type LineEntry struct, EpilogueBegin bool
+pkg debug/dwarf, type LineEntry struct, File *LineFile
+pkg debug/dwarf, type LineEntry struct, ISA int
+pkg debug/dwarf, type LineEntry struct, IsStmt bool
+pkg debug/dwarf, type LineEntry struct, Line int
+pkg debug/dwarf, type LineEntry struct, OpIndex int
+pkg debug/dwarf, type LineEntry struct, PrologueEnd bool
+pkg debug/dwarf, type LineFile struct
+pkg debug/dwarf, type LineFile struct, Length int
+pkg debug/dwarf, type LineFile struct, Mtime uint64
+pkg debug/dwarf, type LineFile struct, Name string
+pkg debug/dwarf, type LineReader struct
+pkg debug/dwarf, type LineReaderPos struct
+pkg debug/dwarf, var ErrUnknownPC error
+pkg debug/elf, const R_PPC64_ADDR14 = 7
+pkg debug/elf, const R_PPC64_ADDR14 R_PPC64
+pkg debug/elf, const R_PPC64_ADDR14_BRNTAKEN = 9
+pkg debug/elf, const R_PPC64_ADDR14_BRNTAKEN R_PPC64
+pkg debug/elf, const R_PPC64_ADDR14_BRTAKEN = 8
+pkg debug/elf, const R_PPC64_ADDR14_BRTAKEN R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16 = 3
+pkg debug/elf, const R_PPC64_ADDR16 R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16_DS = 56
+pkg debug/elf, const R_PPC64_ADDR16_DS R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16_HA = 6
+pkg debug/elf, const R_PPC64_ADDR16_HA R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16_HI = 5
+pkg debug/elf, const R_PPC64_ADDR16_HI R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16_HIGHER = 39
+pkg debug/elf, const R_PPC64_ADDR16_HIGHER R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16_HIGHERA = 40
+pkg debug/elf, const R_PPC64_ADDR16_HIGHERA R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16_HIGHEST = 41
+pkg debug/elf, const R_PPC64_ADDR16_HIGHEST R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16_HIGHESTA = 42
+pkg debug/elf, const R_PPC64_ADDR16_HIGHESTA R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16_LO = 4
+pkg debug/elf, const R_PPC64_ADDR16_LO R_PPC64
+pkg debug/elf, const R_PPC64_ADDR16_LO_DS = 57
+pkg debug/elf, const R_PPC64_ADDR16_LO_DS R_PPC64
+pkg debug/elf, const R_PPC64_ADDR24 = 2
+pkg debug/elf, const R_PPC64_ADDR24 R_PPC64
+pkg debug/elf, const R_PPC64_ADDR32 = 1
+pkg debug/elf, const R_PPC64_ADDR32 R_PPC64
+pkg debug/elf, const R_PPC64_ADDR64 = 38
+pkg debug/elf, const R_PPC64_ADDR64 R_PPC64
+pkg debug/elf, const R_PPC64_DTPMOD64 = 68
+pkg debug/elf, const R_PPC64_DTPMOD64 R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16 = 74
+pkg debug/elf, const R_PPC64_DTPREL16 R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_DS = 101
+pkg debug/elf, const R_PPC64_DTPREL16_DS R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_HA = 77
+pkg debug/elf, const R_PPC64_DTPREL16_HA R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_HI = 76
+pkg debug/elf, const R_PPC64_DTPREL16_HI R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_HIGHER = 103
+pkg debug/elf, const R_PPC64_DTPREL16_HIGHER R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_HIGHERA = 104
+pkg debug/elf, const R_PPC64_DTPREL16_HIGHERA R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_HIGHEST = 105
+pkg debug/elf, const R_PPC64_DTPREL16_HIGHEST R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_HIGHESTA = 106
+pkg debug/elf, const R_PPC64_DTPREL16_HIGHESTA R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_LO = 75
+pkg debug/elf, const R_PPC64_DTPREL16_LO R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL16_LO_DS = 102
+pkg debug/elf, const R_PPC64_DTPREL16_LO_DS R_PPC64
+pkg debug/elf, const R_PPC64_DTPREL64 = 78
+pkg debug/elf, const R_PPC64_DTPREL64 R_PPC64
+pkg debug/elf, const R_PPC64_GOT16 = 14
+pkg debug/elf, const R_PPC64_GOT16 R_PPC64
+pkg debug/elf, const R_PPC64_GOT16_DS = 58
+pkg debug/elf, const R_PPC64_GOT16_DS R_PPC64
+pkg debug/elf, const R_PPC64_GOT16_HA = 17
+pkg debug/elf, const R_PPC64_GOT16_HA R_PPC64
+pkg debug/elf, const R_PPC64_GOT16_HI = 16
+pkg debug/elf, const R_PPC64_GOT16_HI R_PPC64
+pkg debug/elf, const R_PPC64_GOT16_LO = 15
+pkg debug/elf, const R_PPC64_GOT16_LO R_PPC64
+pkg debug/elf, const R_PPC64_GOT16_LO_DS = 59
+pkg debug/elf, const R_PPC64_GOT16_LO_DS R_PPC64
+pkg debug/elf, const R_PPC64_GOT_DTPREL16_DS = 91
+pkg debug/elf, const R_PPC64_GOT_DTPREL16_DS R_PPC64
+pkg debug/elf, const R_PPC64_GOT_DTPREL16_HA = 94
+pkg debug/elf, const R_PPC64_GOT_DTPREL16_HA R_PPC64
+pkg debug/elf, const R_PPC64_GOT_DTPREL16_HI = 93
+pkg debug/elf, const R_PPC64_GOT_DTPREL16_HI R_PPC64
+pkg debug/elf, const R_PPC64_GOT_DTPREL16_LO_DS = 92
+pkg debug/elf, const R_PPC64_GOT_DTPREL16_LO_DS R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TLSGD16 = 79
+pkg debug/elf, const R_PPC64_GOT_TLSGD16 R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TLSGD16_HA = 82
+pkg debug/elf, const R_PPC64_GOT_TLSGD16_HA R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TLSGD16_HI = 81
+pkg debug/elf, const R_PPC64_GOT_TLSGD16_HI R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TLSGD16_LO = 80
+pkg debug/elf, const R_PPC64_GOT_TLSGD16_LO R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TLSLD16 = 83
+pkg debug/elf, const R_PPC64_GOT_TLSLD16 R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TLSLD16_HA = 86
+pkg debug/elf, const R_PPC64_GOT_TLSLD16_HA R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TLSLD16_HI = 85
+pkg debug/elf, const R_PPC64_GOT_TLSLD16_HI R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TLSLD16_LO = 84
+pkg debug/elf, const R_PPC64_GOT_TLSLD16_LO R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TPREL16_DS = 87
+pkg debug/elf, const R_PPC64_GOT_TPREL16_DS R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TPREL16_HA = 90
+pkg debug/elf, const R_PPC64_GOT_TPREL16_HA R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TPREL16_HI = 89
+pkg debug/elf, const R_PPC64_GOT_TPREL16_HI R_PPC64
+pkg debug/elf, const R_PPC64_GOT_TPREL16_LO_DS = 88
+pkg debug/elf, const R_PPC64_GOT_TPREL16_LO_DS R_PPC64
+pkg debug/elf, const R_PPC64_JMP_SLOT = 21
+pkg debug/elf, const R_PPC64_JMP_SLOT R_PPC64
+pkg debug/elf, const R_PPC64_NONE = 0
+pkg debug/elf, const R_PPC64_NONE R_PPC64
+pkg debug/elf, const R_PPC64_REL14 = 11
+pkg debug/elf, const R_PPC64_REL14 R_PPC64
+pkg debug/elf, const R_PPC64_REL14_BRNTAKEN = 13
+pkg debug/elf, const R_PPC64_REL14_BRNTAKEN R_PPC64
+pkg debug/elf, const R_PPC64_REL14_BRTAKEN = 12
+pkg debug/elf, const R_PPC64_REL14_BRTAKEN R_PPC64
+pkg debug/elf, const R_PPC64_REL16 = 249
+pkg debug/elf, const R_PPC64_REL16 R_PPC64
+pkg debug/elf, const R_PPC64_REL16_HA = 252
+pkg debug/elf, const R_PPC64_REL16_HA R_PPC64
+pkg debug/elf, const R_PPC64_REL16_HI = 251
+pkg debug/elf, const R_PPC64_REL16_HI R_PPC64
+pkg debug/elf, const R_PPC64_REL16_LO = 250
+pkg debug/elf, const R_PPC64_REL16_LO R_PPC64
+pkg debug/elf, const R_PPC64_REL24 = 10
+pkg debug/elf, const R_PPC64_REL24 R_PPC64
+pkg debug/elf, const R_PPC64_REL32 = 26
+pkg debug/elf, const R_PPC64_REL32 R_PPC64
+pkg debug/elf, const R_PPC64_REL64 = 44
+pkg debug/elf, const R_PPC64_REL64 R_PPC64
+pkg debug/elf, const R_PPC64_TLS = 67
+pkg debug/elf, const R_PPC64_TLS R_PPC64
+pkg debug/elf, const R_PPC64_TLSGD = 107
+pkg debug/elf, const R_PPC64_TLSGD R_PPC64
+pkg debug/elf, const R_PPC64_TLSLD = 108
+pkg debug/elf, const R_PPC64_TLSLD R_PPC64
+pkg debug/elf, const R_PPC64_TOC = 51
+pkg debug/elf, const R_PPC64_TOC R_PPC64
+pkg debug/elf, const R_PPC64_TOC16 = 47
+pkg debug/elf, const R_PPC64_TOC16 R_PPC64
+pkg debug/elf, const R_PPC64_TOC16_DS = 63
+pkg debug/elf, const R_PPC64_TOC16_DS R_PPC64
+pkg debug/elf, const R_PPC64_TOC16_HA = 50
+pkg debug/elf, const R_PPC64_TOC16_HA R_PPC64
+pkg debug/elf, const R_PPC64_TOC16_HI = 49
+pkg debug/elf, const R_PPC64_TOC16_HI R_PPC64
+pkg debug/elf, const R_PPC64_TOC16_LO = 48
+pkg debug/elf, const R_PPC64_TOC16_LO R_PPC64
+pkg debug/elf, const R_PPC64_TOC16_LO_DS = 64
+pkg debug/elf, const R_PPC64_TOC16_LO_DS R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16 = 69
+pkg debug/elf, const R_PPC64_TPREL16 R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_DS = 95
+pkg debug/elf, const R_PPC64_TPREL16_DS R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_HA = 72
+pkg debug/elf, const R_PPC64_TPREL16_HA R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_HI = 71
+pkg debug/elf, const R_PPC64_TPREL16_HI R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_HIGHER = 97
+pkg debug/elf, const R_PPC64_TPREL16_HIGHER R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_HIGHERA = 98
+pkg debug/elf, const R_PPC64_TPREL16_HIGHERA R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_HIGHEST = 99
+pkg debug/elf, const R_PPC64_TPREL16_HIGHEST R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_HIGHESTA = 100
+pkg debug/elf, const R_PPC64_TPREL16_HIGHESTA R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_LO = 70
+pkg debug/elf, const R_PPC64_TPREL16_LO R_PPC64
+pkg debug/elf, const R_PPC64_TPREL16_LO_DS = 96
+pkg debug/elf, const R_PPC64_TPREL16_LO_DS R_PPC64
+pkg debug/elf, const R_PPC64_TPREL64 = 73
+pkg debug/elf, const R_PPC64_TPREL64 R_PPC64
+pkg debug/elf, method (R_PPC64) GoString() string
+pkg debug/elf, method (R_PPC64) String() string
+pkg debug/elf, type R_PPC64 int
+pkg encoding/base64, const NoPadding = -1
+pkg encoding/base64, const NoPadding int32
+pkg encoding/base64, const StdPadding = 61
+pkg encoding/base64, const StdPadding int32
+pkg encoding/base64, method (Encoding) WithPadding(int32) *Encoding
+pkg encoding/base64, var RawStdEncoding *Encoding
+pkg encoding/base64, var RawURLEncoding *Encoding
+pkg encoding/json, method (*Decoder) More() bool
+pkg encoding/json, method (*Decoder) Token() (Token, error)
+pkg encoding/json, method (Delim) String() string
+pkg encoding/json, type Delim int32
+pkg encoding/json, type Token interface {}
+pkg encoding/json, type UnmarshalTypeError struct, Offset int64
+pkg flag, func UnquoteUsage(*Flag) (string, string)
+pkg go/ast, type EmptyStmt struct, Implicit bool
+pkg go/build, type Package struct, PkgTargetRoot string
+pkg go/constant, const Bool = 1
+pkg go/constant, const Bool Kind
+pkg go/constant, const Complex = 5
+pkg go/constant, const Complex Kind
+pkg go/constant, const Float = 4
+pkg go/constant, const Float Kind
+pkg go/constant, const Int = 3
+pkg go/constant, const Int Kind
+pkg go/constant, const String = 2
+pkg go/constant, const String Kind
+pkg go/constant, const Unknown = 0
+pkg go/constant, const Unknown Kind
+pkg go/constant, func BinaryOp(Value, token.Token, Value) Value
+pkg go/constant, func BitLen(Value) int
+pkg go/constant, func BoolVal(Value) bool
+pkg go/constant, func Bytes(Value) []uint8
+pkg go/constant, func Compare(Value, token.Token, Value) bool
+pkg go/constant, func Denom(Value) Value
+pkg go/constant, func Float32Val(Value) (float32, bool)
+pkg go/constant, func Float64Val(Value) (float64, bool)
+pkg go/constant, func Imag(Value) Value
+pkg go/constant, func Int64Val(Value) (int64, bool)
+pkg go/constant, func MakeBool(bool) Value
+pkg go/constant, func MakeFloat64(float64) Value
+pkg go/constant, func MakeFromBytes([]uint8) Value
+pkg go/constant, func MakeFromLiteral(string, token.Token, uint) Value
+pkg go/constant, func MakeImag(Value) Value
+pkg go/constant, func MakeInt64(int64) Value
+pkg go/constant, func MakeString(string) Value
+pkg go/constant, func MakeUint64(uint64) Value
+pkg go/constant, func MakeUnknown() Value
+pkg go/constant, func Num(Value) Value
+pkg go/constant, func Real(Value) Value
+pkg go/constant, func Shift(Value, token.Token, uint) Value
+pkg go/constant, func Sign(Value) int
+pkg go/constant, func StringVal(Value) string
+pkg go/constant, func Uint64Val(Value) (uint64, bool)
+pkg go/constant, func UnaryOp(token.Token, Value, uint) Value
+pkg go/constant, type Kind int
+pkg go/constant, type Value interface, Kind() Kind
+pkg go/constant, type Value interface, String() string
+pkg go/constant, type Value interface, unexported methods
+pkg go/importer, func Default() types.Importer
+pkg go/importer, func For(string, Lookup) types.Importer
+pkg go/importer, type Lookup func(string) (io.ReadCloser, error)
+pkg go/parser, func ParseExprFrom(*token.FileSet, string, interface{}, Mode) (ast.Expr, error)
+pkg go/types, const Bool = 1
+pkg go/types, const Bool BasicKind
+pkg go/types, const Byte = 8
+pkg go/types, const Byte BasicKind
+pkg go/types, const Complex128 = 16
+pkg go/types, const Complex128 BasicKind
+pkg go/types, const Complex64 = 15
+pkg go/types, const Complex64 BasicKind
+pkg go/types, const FieldVal = 0
+pkg go/types, const FieldVal SelectionKind
+pkg go/types, const Float32 = 13
+pkg go/types, const Float32 BasicKind
+pkg go/types, const Float64 = 14
+pkg go/types, const Float64 BasicKind
+pkg go/types, const Int = 2
+pkg go/types, const Int BasicKind
+pkg go/types, const Int16 = 4
+pkg go/types, const Int16 BasicKind
+pkg go/types, const Int32 = 5
+pkg go/types, const Int32 BasicKind
+pkg go/types, const Int64 = 6
+pkg go/types, const Int64 BasicKind
+pkg go/types, const Int8 = 3
+pkg go/types, const Int8 BasicKind
+pkg go/types, const Invalid = 0
+pkg go/types, const Invalid BasicKind
+pkg go/types, const IsBoolean = 1
+pkg go/types, const IsBoolean BasicInfo
+pkg go/types, const IsComplex = 16
+pkg go/types, const IsComplex BasicInfo
+pkg go/types, const IsConstType = 59
+pkg go/types, const IsConstType BasicInfo
+pkg go/types, const IsFloat = 8
+pkg go/types, const IsFloat BasicInfo
+pkg go/types, const IsInteger = 2
+pkg go/types, const IsInteger BasicInfo
+pkg go/types, const IsNumeric = 26
+pkg go/types, const IsNumeric BasicInfo
+pkg go/types, const IsOrdered = 42
+pkg go/types, const IsOrdered BasicInfo
+pkg go/types, const IsString = 32
+pkg go/types, const IsString BasicInfo
+pkg go/types, const IsUnsigned = 4
+pkg go/types, const IsUnsigned BasicInfo
+pkg go/types, const IsUntyped = 64
+pkg go/types, const IsUntyped BasicInfo
+pkg go/types, const MethodExpr = 2
+pkg go/types, const MethodExpr SelectionKind
+pkg go/types, const MethodVal = 1
+pkg go/types, const MethodVal SelectionKind
+pkg go/types, const RecvOnly = 2
+pkg go/types, const RecvOnly ChanDir
+pkg go/types, const Rune = 5
+pkg go/types, const Rune BasicKind
+pkg go/types, const SendOnly = 1
+pkg go/types, const SendOnly ChanDir
+pkg go/types, const SendRecv = 0
+pkg go/types, const SendRecv ChanDir
+pkg go/types, const String = 17
+pkg go/types, const String BasicKind
+pkg go/types, const Uint = 7
+pkg go/types, const Uint BasicKind
+pkg go/types, const Uint16 = 9
+pkg go/types, const Uint16 BasicKind
+pkg go/types, const Uint32 = 10
+pkg go/types, const Uint32 BasicKind
+pkg go/types, const Uint64 = 11
+pkg go/types, const Uint64 BasicKind
+pkg go/types, const Uint8 = 8
+pkg go/types, const Uint8 BasicKind
+pkg go/types, const Uintptr = 12
+pkg go/types, const Uintptr BasicKind
+pkg go/types, const UnsafePointer = 18
+pkg go/types, const UnsafePointer BasicKind
+pkg go/types, const UntypedBool = 19
+pkg go/types, const UntypedBool BasicKind
+pkg go/types, const UntypedComplex = 23
+pkg go/types, const UntypedComplex BasicKind
+pkg go/types, const UntypedFloat = 22
+pkg go/types, const UntypedFloat BasicKind
+pkg go/types, const UntypedInt = 20
+pkg go/types, const UntypedInt BasicKind
+pkg go/types, const UntypedNil = 25
+pkg go/types, const UntypedNil BasicKind
+pkg go/types, const UntypedRune = 21
+pkg go/types, const UntypedRune BasicKind
+pkg go/types, const UntypedString = 24
+pkg go/types, const UntypedString BasicKind
+pkg go/types, func AssertableTo(*Interface, Type) bool
+pkg go/types, func AssignableTo(Type, Type) bool
+pkg go/types, func Comparable(Type) bool
+pkg go/types, func ConvertibleTo(Type, Type) bool
+pkg go/types, func DefPredeclaredTestFuncs()
+pkg go/types, func Eval(*token.FileSet, *Package, token.Pos, string) (TypeAndValue, error)
+pkg go/types, func ExprString(ast.Expr) string
+pkg go/types, func Id(*Package, string) string
+pkg go/types, func Identical(Type, Type) bool
+pkg go/types, func Implements(Type, *Interface) bool
+pkg go/types, func IsInterface(Type) bool
+pkg go/types, func LookupFieldOrMethod(Type, bool, *Package, string) (Object, []int, bool)
+pkg go/types, func MissingMethod(Type, *Interface, bool) (*Func, bool)
+pkg go/types, func NewArray(Type, int64) *Array
+pkg go/types, func NewChan(ChanDir, Type) *Chan
+pkg go/types, func NewChecker(*Config, *token.FileSet, *Package, *Info) *Checker
+pkg go/types, func NewConst(token.Pos, *Package, string, Type, constant.Value) *Const
+pkg go/types, func NewField(token.Pos, *Package, string, Type, bool) *Var
+pkg go/types, func NewFunc(token.Pos, *Package, string, *Signature) *Func
+pkg go/types, func NewInterface([]*Func, []*Named) *Interface
+pkg go/types, func NewLabel(token.Pos, *Package, string) *Label
+pkg go/types, func NewMap(Type, Type) *Map
+pkg go/types, func NewMethodSet(Type) *MethodSet
+pkg go/types, func NewNamed(*TypeName, Type, []*Func) *Named
+pkg go/types, func NewPackage(string, string) *Package
+pkg go/types, func NewParam(token.Pos, *Package, string, Type) *Var
+pkg go/types, func NewPkgName(token.Pos, *Package, string, *Package) *PkgName
+pkg go/types, func NewPointer(Type) *Pointer
+pkg go/types, func NewScope(*Scope, token.Pos, token.Pos, string) *Scope
+pkg go/types, func NewSignature(*Var, *Tuple, *Tuple, bool) *Signature
+pkg go/types, func NewSlice(Type) *Slice
+pkg go/types, func NewStruct([]*Var, []string) *Struct
+pkg go/types, func NewTuple(...*Var) *Tuple
+pkg go/types, func NewTypeName(token.Pos, *Package, string, Type) *TypeName
+pkg go/types, func NewVar(token.Pos, *Package, string, Type) *Var
+pkg go/types, func ObjectString(Object, Qualifier) string
+pkg go/types, func RelativeTo(*Package) Qualifier
+pkg go/types, func SelectionString(*Selection, Qualifier) string
+pkg go/types, func TypeString(Type, Qualifier) string
+pkg go/types, func WriteExpr(*bytes.Buffer, ast.Expr)
+pkg go/types, func WriteSignature(*bytes.Buffer, *Signature, Qualifier)
+pkg go/types, func WriteType(*bytes.Buffer, Type, Qualifier)
+pkg go/types, method (*Array) Elem() Type
+pkg go/types, method (*Array) Len() int64
+pkg go/types, method (*Array) String() string
+pkg go/types, method (*Array) Underlying() Type
+pkg go/types, method (*Basic) Info() BasicInfo
+pkg go/types, method (*Basic) Kind() BasicKind
+pkg go/types, method (*Basic) Name() string
+pkg go/types, method (*Basic) String() string
+pkg go/types, method (*Basic) Underlying() Type
+pkg go/types, method (*Builtin) Exported() bool
+pkg go/types, method (*Builtin) Id() string
+pkg go/types, method (*Builtin) Name() string
+pkg go/types, method (*Builtin) Parent() *Scope
+pkg go/types, method (*Builtin) Pkg() *Package
+pkg go/types, method (*Builtin) Pos() token.Pos
+pkg go/types, method (*Builtin) String() string
+pkg go/types, method (*Builtin) Type() Type
+pkg go/types, method (*Chan) Dir() ChanDir
+pkg go/types, method (*Chan) Elem() Type
+pkg go/types, method (*Chan) String() string
+pkg go/types, method (*Chan) Underlying() Type
+pkg go/types, method (*Checker) Files([]*ast.File) error
+pkg go/types, method (*Config) Check(string, *token.FileSet, []*ast.File, *Info) (*Package, error)
+pkg go/types, method (*Const) Exported() bool
+pkg go/types, method (*Const) Id() string
+pkg go/types, method (*Const) Name() string
+pkg go/types, method (*Const) Parent() *Scope
+pkg go/types, method (*Const) Pkg() *Package
+pkg go/types, method (*Const) Pos() token.Pos
+pkg go/types, method (*Const) String() string
+pkg go/types, method (*Const) Type() Type
+pkg go/types, method (*Const) Val() constant.Value
+pkg go/types, method (*Func) Exported() bool
+pkg go/types, method (*Func) FullName() string
+pkg go/types, method (*Func) Id() string
+pkg go/types, method (*Func) Name() string
+pkg go/types, method (*Func) Parent() *Scope
+pkg go/types, method (*Func) Pkg() *Package
+pkg go/types, method (*Func) Pos() token.Pos
+pkg go/types, method (*Func) Scope() *Scope
+pkg go/types, method (*Func) String() string
+pkg go/types, method (*Func) Type() Type
+pkg go/types, method (*Info) ObjectOf(*ast.Ident) Object
+pkg go/types, method (*Info) TypeOf(ast.Expr) Type
+pkg go/types, method (*Initializer) String() string
+pkg go/types, method (*Interface) Complete() *Interface
+pkg go/types, method (*Interface) Embedded(int) *Named
+pkg go/types, method (*Interface) Empty() bool
+pkg go/types, method (*Interface) ExplicitMethod(int) *Func
+pkg go/types, method (*Interface) Method(int) *Func
+pkg go/types, method (*Interface) NumEmbeddeds() int
+pkg go/types, method (*Interface) NumExplicitMethods() int
+pkg go/types, method (*Interface) NumMethods() int
+pkg go/types, method (*Interface) String() string
+pkg go/types, method (*Interface) Underlying() Type
+pkg go/types, method (*Label) Exported() bool
+pkg go/types, method (*Label) Id() string
+pkg go/types, method (*Label) Name() string
+pkg go/types, method (*Label) Parent() *Scope
+pkg go/types, method (*Label) Pkg() *Package
+pkg go/types, method (*Label) Pos() token.Pos
+pkg go/types, method (*Label) String() string
+pkg go/types, method (*Label) Type() Type
+pkg go/types, method (*Map) Elem() Type
+pkg go/types, method (*Map) Key() Type
+pkg go/types, method (*Map) String() string
+pkg go/types, method (*Map) Underlying() Type
+pkg go/types, method (*MethodSet) At(int) *Selection
+pkg go/types, method (*MethodSet) Len() int
+pkg go/types, method (*MethodSet) Lookup(*Package, string) *Selection
+pkg go/types, method (*MethodSet) String() string
+pkg go/types, method (*Named) AddMethod(*Func)
+pkg go/types, method (*Named) Method(int) *Func
+pkg go/types, method (*Named) NumMethods() int
+pkg go/types, method (*Named) Obj() *TypeName
+pkg go/types, method (*Named) SetUnderlying(Type)
+pkg go/types, method (*Named) String() string
+pkg go/types, method (*Named) Underlying() Type
+pkg go/types, method (*Nil) Exported() bool
+pkg go/types, method (*Nil) Id() string
+pkg go/types, method (*Nil) Name() string
+pkg go/types, method (*Nil) Parent() *Scope
+pkg go/types, method (*Nil) Pkg() *Package
+pkg go/types, method (*Nil) Pos() token.Pos
+pkg go/types, method (*Nil) String() string
+pkg go/types, method (*Nil) Type() Type
+pkg go/types, method (*Package) Complete() bool
+pkg go/types, method (*Package) Imports() []*Package
+pkg go/types, method (*Package) MarkComplete()
+pkg go/types, method (*Package) Name() string
+pkg go/types, method (*Package) Path() string
+pkg go/types, method (*Package) Scope() *Scope
+pkg go/types, method (*Package) SetImports([]*Package)
+pkg go/types, method (*Package) String() string
+pkg go/types, method (*PkgName) Exported() bool
+pkg go/types, method (*PkgName) Id() string
+pkg go/types, method (*PkgName) Imported() *Package
+pkg go/types, method (*PkgName) Name() string
+pkg go/types, method (*PkgName) Parent() *Scope
+pkg go/types, method (*PkgName) Pkg() *Package
+pkg go/types, method (*PkgName) Pos() token.Pos
+pkg go/types, method (*PkgName) String() string
+pkg go/types, method (*PkgName) Type() Type
+pkg go/types, method (*Pointer) Elem() Type
+pkg go/types, method (*Pointer) String() string
+pkg go/types, method (*Pointer) Underlying() Type
+pkg go/types, method (*Scope) Child(int) *Scope
+pkg go/types, method (*Scope) Contains(token.Pos) bool
+pkg go/types, method (*Scope) End() token.Pos
+pkg go/types, method (*Scope) Innermost(token.Pos) *Scope
+pkg go/types, method (*Scope) Insert(Object) Object
+pkg go/types, method (*Scope) Len() int
+pkg go/types, method (*Scope) Lookup(string) Object
+pkg go/types, method (*Scope) LookupParent(string, token.Pos) (*Scope, Object)
+pkg go/types, method (*Scope) Names() []string
+pkg go/types, method (*Scope) NumChildren() int
+pkg go/types, method (*Scope) Parent() *Scope
+pkg go/types, method (*Scope) Pos() token.Pos
+pkg go/types, method (*Scope) String() string
+pkg go/types, method (*Scope) WriteTo(io.Writer, int, bool)
+pkg go/types, method (*Selection) Index() []int
+pkg go/types, method (*Selection) Indirect() bool
+pkg go/types, method (*Selection) Kind() SelectionKind
+pkg go/types, method (*Selection) Obj() Object
+pkg go/types, method (*Selection) Recv() Type
+pkg go/types, method (*Selection) String() string
+pkg go/types, method (*Selection) Type() Type
+pkg go/types, method (*Signature) Params() *Tuple
+pkg go/types, method (*Signature) Recv() *Var
+pkg go/types, method (*Signature) Results() *Tuple
+pkg go/types, method (*Signature) String() string
+pkg go/types, method (*Signature) Underlying() Type
+pkg go/types, method (*Signature) Variadic() bool
+pkg go/types, method (*Slice) Elem() Type
+pkg go/types, method (*Slice) String() string
+pkg go/types, method (*Slice) Underlying() Type
+pkg go/types, method (*StdSizes) Alignof(Type) int64
+pkg go/types, method (*StdSizes) Offsetsof([]*Var) []int64
+pkg go/types, method (*StdSizes) Sizeof(Type) int64
+pkg go/types, method (*Struct) Field(int) *Var
+pkg go/types, method (*Struct) NumFields() int
+pkg go/types, method (*Struct) String() string
+pkg go/types, method (*Struct) Tag(int) string
+pkg go/types, method (*Struct) Underlying() Type
+pkg go/types, method (*Tuple) At(int) *Var
+pkg go/types, method (*Tuple) Len() int
+pkg go/types, method (*Tuple) String() string
+pkg go/types, method (*Tuple) Underlying() Type
+pkg go/types, method (*TypeName) Exported() bool
+pkg go/types, method (*TypeName) Id() string
+pkg go/types, method (*TypeName) Name() string
+pkg go/types, method (*TypeName) Parent() *Scope
+pkg go/types, method (*TypeName) Pkg() *Package
+pkg go/types, method (*TypeName) Pos() token.Pos
+pkg go/types, method (*TypeName) String() string
+pkg go/types, method (*TypeName) Type() Type
+pkg go/types, method (*Var) Anonymous() bool
+pkg go/types, method (*Var) Exported() bool
+pkg go/types, method (*Var) Id() string
+pkg go/types, method (*Var) IsField() bool
+pkg go/types, method (*Var) Name() string
+pkg go/types, method (*Var) Parent() *Scope
+pkg go/types, method (*Var) Pkg() *Package
+pkg go/types, method (*Var) Pos() token.Pos
+pkg go/types, method (*Var) String() string
+pkg go/types, method (*Var) Type() Type
+pkg go/types, method (Checker) ObjectOf(*ast.Ident) Object
+pkg go/types, method (Checker) TypeOf(ast.Expr) Type
+pkg go/types, method (Error) Error() string
+pkg go/types, method (TypeAndValue) Addressable() bool
+pkg go/types, method (TypeAndValue) Assignable() bool
+pkg go/types, method (TypeAndValue) HasOk() bool
+pkg go/types, method (TypeAndValue) IsBuiltin() bool
+pkg go/types, method (TypeAndValue) IsNil() bool
+pkg go/types, method (TypeAndValue) IsType() bool
+pkg go/types, method (TypeAndValue) IsValue() bool
+pkg go/types, method (TypeAndValue) IsVoid() bool
+pkg go/types, type Array struct
+pkg go/types, type Basic struct
+pkg go/types, type BasicInfo int
+pkg go/types, type BasicKind int
+pkg go/types, type Builtin struct
+pkg go/types, type Chan struct
+pkg go/types, type ChanDir int
+pkg go/types, type Checker struct
+pkg go/types, type Checker struct, embedded *Info
+pkg go/types, type Config struct
+pkg go/types, type Config struct, DisableUnusedImportCheck bool
+pkg go/types, type Config struct, Error func(error)
+pkg go/types, type Config struct, FakeImportC bool
+pkg go/types, type Config struct, IgnoreFuncBodies bool
+pkg go/types, type Config struct, Importer Importer
+pkg go/types, type Config struct, Sizes Sizes
+pkg go/types, type Const struct
+pkg go/types, type Error struct
+pkg go/types, type Error struct, Fset *token.FileSet
+pkg go/types, type Error struct, Msg string
+pkg go/types, type Error struct, Pos token.Pos
+pkg go/types, type Error struct, Soft bool
+pkg go/types, type Func struct
+pkg go/types, type Importer interface { Import }
+pkg go/types, type Importer interface, Import(string) (*Package, error)
+pkg go/types, type Info struct
+pkg go/types, type Info struct, Defs map[*ast.Ident]Object
+pkg go/types, type Info struct, Implicits map[ast.Node]Object
+pkg go/types, type Info struct, InitOrder []*Initializer
+pkg go/types, type Info struct, Scopes map[ast.Node]*Scope
+pkg go/types, type Info struct, Selections map[*ast.SelectorExpr]*Selection
+pkg go/types, type Info struct, Types map[ast.Expr]TypeAndValue
+pkg go/types, type Info struct, Uses map[*ast.Ident]Object
+pkg go/types, type Initializer struct
+pkg go/types, type Initializer struct, Lhs []*Var
+pkg go/types, type Initializer struct, Rhs ast.Expr
+pkg go/types, type Interface struct
+pkg go/types, type Label struct
+pkg go/types, type Map struct
+pkg go/types, type MethodSet struct
+pkg go/types, type Named struct
+pkg go/types, type Nil struct
+pkg go/types, type Object interface, Exported() bool
+pkg go/types, type Object interface, Id() string
+pkg go/types, type Object interface, Name() string
+pkg go/types, type Object interface, Parent() *Scope
+pkg go/types, type Object interface, Pkg() *Package
+pkg go/types, type Object interface, Pos() token.Pos
+pkg go/types, type Object interface, String() string
+pkg go/types, type Object interface, Type() Type
+pkg go/types, type Object interface, unexported methods
+pkg go/types, type Package struct
+pkg go/types, type PkgName struct
+pkg go/types, type Pointer struct
+pkg go/types, type Qualifier func(*Package) string
+pkg go/types, type Scope struct
+pkg go/types, type Selection struct
+pkg go/types, type SelectionKind int
+pkg go/types, type Signature struct
+pkg go/types, type Sizes interface { Alignof, Offsetsof, Sizeof }
+pkg go/types, type Sizes interface, Alignof(Type) int64
+pkg go/types, type Sizes interface, Offsetsof([]*Var) []int64
+pkg go/types, type Sizes interface, Sizeof(Type) int64
+pkg go/types, type Slice struct
+pkg go/types, type StdSizes struct
+pkg go/types, type StdSizes struct, MaxAlign int64
+pkg go/types, type StdSizes struct, WordSize int64
+pkg go/types, type Struct struct
+pkg go/types, type Tuple struct
+pkg go/types, type Type interface { String, Underlying }
+pkg go/types, type Type interface, String() string
+pkg go/types, type Type interface, Underlying() Type
+pkg go/types, type TypeAndValue struct
+pkg go/types, type TypeAndValue struct, Type Type
+pkg go/types, type TypeAndValue struct, Value constant.Value
+pkg go/types, type TypeName struct
+pkg go/types, type Var struct
+pkg go/types, var Typ []*Basic
+pkg go/types, var Universe *Scope
+pkg go/types, var Unsafe *Package
+pkg html/template, method (*Template) Option(...string) *Template
+pkg image, const YCbCrSubsampleRatio410 = 5
+pkg image, const YCbCrSubsampleRatio410 YCbCrSubsampleRatio
+pkg image, const YCbCrSubsampleRatio411 = 4
+pkg image, const YCbCrSubsampleRatio411 YCbCrSubsampleRatio
+pkg image, func NewCMYK(Rectangle) *CMYK
+pkg image, method (*CMYK) At(int, int) color.Color
+pkg image, method (*CMYK) Bounds() Rectangle
+pkg image, method (*CMYK) CMYKAt(int, int) color.CMYK
+pkg image, method (*CMYK) ColorModel() color.Model
+pkg image, method (*CMYK) Opaque() bool
+pkg image, method (*CMYK) PixOffset(int, int) int
+pkg image, method (*CMYK) Set(int, int, color.Color)
+pkg image, method (*CMYK) SetCMYK(int, int, color.CMYK)
+pkg image, method (*CMYK) SubImage(Rectangle) Image
+pkg image, method (Rectangle) At(int, int) color.Color
+pkg image, method (Rectangle) Bounds() Rectangle
+pkg image, method (Rectangle) ColorModel() color.Model
+pkg image, type CMYK struct
+pkg image, type CMYK struct, Pix []uint8
+pkg image, type CMYK struct, Rect Rectangle
+pkg image, type CMYK struct, Stride int
+pkg image/color, func CMYKToRGB(uint8, uint8, uint8, uint8) (uint8, uint8, uint8)
+pkg image/color, func RGBToCMYK(uint8, uint8, uint8) (uint8, uint8, uint8, uint8)
+pkg image/color, method (CMYK) RGBA() (uint32, uint32, uint32, uint32)
+pkg image/color, type CMYK struct
+pkg image/color, type CMYK struct, C uint8
+pkg image/color, type CMYK struct, K uint8
+pkg image/color, type CMYK struct, M uint8
+pkg image/color, type CMYK struct, Y uint8
+pkg image/color, var CMYKModel Model
+pkg image/gif, const DisposalBackground = 2
+pkg image/gif, const DisposalBackground ideal-int
+pkg image/gif, const DisposalNone = 1
+pkg image/gif, const DisposalNone ideal-int
+pkg image/gif, const DisposalPrevious = 3
+pkg image/gif, const DisposalPrevious ideal-int
+pkg image/gif, type GIF struct, BackgroundIndex uint8
+pkg image/gif, type GIF struct, Config image.Config
+pkg image/gif, type GIF struct, Disposal []uint8
+pkg io, func CopyBuffer(Writer, Reader, []uint8) (int64, error)
+pkg log, const LUTC = 32
+pkg log, const LUTC ideal-int
+pkg log, func Output(int, string) error
+pkg log, method (*Logger) SetOutput(io.Writer)
+pkg math/big, const Above = 1
+pkg math/big, const Above Accuracy
+pkg math/big, const AwayFromZero = 3
+pkg math/big, const AwayFromZero RoundingMode
+pkg math/big, const Below = -1
+pkg math/big, const Below Accuracy
+pkg math/big, const Exact = 0
+pkg math/big, const Exact Accuracy
+pkg math/big, const MaxExp = 2147483647
+pkg math/big, const MaxExp ideal-int
+pkg math/big, const MaxPrec = 4294967295
+pkg math/big, const MaxPrec ideal-int
+pkg math/big, const MinExp = -2147483648
+pkg math/big, const MinExp ideal-int
+pkg math/big, const ToNearestAway = 1
+pkg math/big, const ToNearestAway RoundingMode
+pkg math/big, const ToNearestEven = 0
+pkg math/big, const ToNearestEven RoundingMode
+pkg math/big, const ToNegativeInf = 4
+pkg math/big, const ToNegativeInf RoundingMode
+pkg math/big, const ToPositiveInf = 5
+pkg math/big, const ToPositiveInf RoundingMode
+pkg math/big, const ToZero = 2
+pkg math/big, const ToZero RoundingMode
+pkg math/big, func Jacobi(*Int, *Int) int
+pkg math/big, func NewFloat(float64) *Float
+pkg math/big, func ParseFloat(string, int, uint, RoundingMode) (*Float, int, error)
+pkg math/big, method (*Float) Abs(*Float) *Float
+pkg math/big, method (*Float) Acc() Accuracy
+pkg math/big, method (*Float) Add(*Float, *Float) *Float
+pkg math/big, method (*Float) Append([]uint8, uint8, int) []uint8
+pkg math/big, method (*Float) Cmp(*Float) int
+pkg math/big, method (*Float) Copy(*Float) *Float
+pkg math/big, method (*Float) Float32() (float32, Accuracy)
+pkg math/big, method (*Float) Float64() (float64, Accuracy)
+pkg math/big, method (*Float) Format(fmt.State, int32)
+pkg math/big, method (*Float) Int(*Int) (*Int, Accuracy)
+pkg math/big, method (*Float) Int64() (int64, Accuracy)
+pkg math/big, method (*Float) IsInf() bool
+pkg math/big, method (*Float) IsInt() bool
+pkg math/big, method (*Float) MantExp(*Float) int
+pkg math/big, method (*Float) MinPrec() uint
+pkg math/big, method (*Float) Mode() RoundingMode
+pkg math/big, method (*Float) Mul(*Float, *Float) *Float
+pkg math/big, method (*Float) Neg(*Float) *Float
+pkg math/big, method (*Float) Parse(string, int) (*Float, int, error)
+pkg math/big, method (*Float) Prec() uint
+pkg math/big, method (*Float) Quo(*Float, *Float) *Float
+pkg math/big, method (*Float) Rat(*Rat) (*Rat, Accuracy)
+pkg math/big, method (*Float) Set(*Float) *Float
+pkg math/big, method (*Float) SetFloat64(float64) *Float
+pkg math/big, method (*Float) SetInf(bool) *Float
+pkg math/big, method (*Float) SetInt(*Int) *Float
+pkg math/big, method (*Float) SetInt64(int64) *Float
+pkg math/big, method (*Float) SetMantExp(*Float, int) *Float
+pkg math/big, method (*Float) SetMode(RoundingMode) *Float
+pkg math/big, method (*Float) SetPrec(uint) *Float
+pkg math/big, method (*Float) SetRat(*Rat) *Float
+pkg math/big, method (*Float) SetString(string) (*Float, bool)
+pkg math/big, method (*Float) SetUint64(uint64) *Float
+pkg math/big, method (*Float) Sign() int
+pkg math/big, method (*Float) Signbit() bool
+pkg math/big, method (*Float) String() string
+pkg math/big, method (*Float) Sub(*Float, *Float) *Float
+pkg math/big, method (*Float) Text(uint8, int) string
+pkg math/big, method (*Float) Uint64() (uint64, Accuracy)
+pkg math/big, method (*Int) ModSqrt(*Int, *Int) *Int
+pkg math/big, method (Accuracy) String() string
+pkg math/big, method (ErrNaN) Error() string
+pkg math/big, method (RoundingMode) String() string
+pkg math/big, type Accuracy int8
+pkg math/big, type ErrNaN struct
+pkg math/big, type Float struct
+pkg math/big, type RoundingMode uint8
+pkg mime, const BEncoding = 98
+pkg mime, const BEncoding WordEncoder
+pkg mime, const QEncoding = 113
+pkg mime, const QEncoding WordEncoder
+pkg mime, func ExtensionsByType(string) ([]string, error)
+pkg mime, method (*WordDecoder) Decode(string) (string, error)
+pkg mime, method (*WordDecoder) DecodeHeader(string) (string, error)
+pkg mime, method (WordEncoder) Encode(string, string) string
+pkg mime, type WordDecoder struct
+pkg mime, type WordDecoder struct, CharsetReader func(string, io.Reader) (io.Reader, error)
+pkg mime, type WordEncoder uint8
+pkg mime/quotedprintable, func NewReader(io.Reader) *Reader
+pkg mime/quotedprintable, func NewWriter(io.Writer) *Writer
+pkg mime/quotedprintable, method (*Reader) Read([]uint8) (int, error)
+pkg mime/quotedprintable, method (*Writer) Close() error
+pkg mime/quotedprintable, method (*Writer) Write([]uint8) (int, error)
+pkg mime/quotedprintable, type Reader struct
+pkg mime/quotedprintable, type Writer struct
+pkg mime/quotedprintable, type Writer struct, Binary bool
+pkg net, type Dialer struct, FallbackDelay time.Duration
+pkg net, type OpError struct, Source Addr
+pkg net/http, type Request struct, Cancel <-chan struct
+pkg net/http/fcgi, var ErrConnClosed error
+pkg net/http/fcgi, var ErrRequestAborted error
+pkg net/http/pprof, func Trace(http.ResponseWriter, *http.Request)
+pkg net/mail, method (*AddressParser) Parse(string) (*Address, error)
+pkg net/mail, method (*AddressParser) ParseList(string) ([]*Address, error)
+pkg net/mail, type AddressParser struct
+pkg net/mail, type AddressParser struct, WordDecoder *mime.WordDecoder
+pkg net/smtp, method (*Client) TLSConnectionState() (tls.ConnectionState, bool)
+pkg net/url, method (*URL) EscapedPath() string
+pkg net/url, type URL struct, RawPath string
+pkg os, func LookupEnv(string) (string, bool)
+pkg os/signal, func Ignore(...os.Signal)
+pkg os/signal, func Reset(...os.Signal)
+pkg reflect, func ArrayOf(int, Type) Type
+pkg reflect, func FuncOf([]Type, []Type, bool) Type
+pkg runtime, func ReadTrace() []uint8
+pkg runtime, func StartTrace() error
+pkg runtime, func StopTrace()
+pkg runtime, type MemStats struct, GCCPUFraction float64
+pkg runtime/trace, func Start(io.Writer) error
+pkg runtime/trace, func Stop()
+pkg strings, func Compare(string, string) int
+pkg strings, func LastIndexByte(string, uint8) int
+pkg strings, method (*Reader) Size() int64
+pkg syscall (darwin-386), type SysProcAttr struct, Ctty int
+pkg syscall (darwin-386), type SysProcAttr struct, Foreground bool
+pkg syscall (darwin-386), type SysProcAttr struct, Pgid int
+pkg syscall (darwin-386-cgo), type SysProcAttr struct, Ctty int
+pkg syscall (darwin-386-cgo), type SysProcAttr struct, Foreground bool
+pkg syscall (darwin-386-cgo), type SysProcAttr struct, Pgid int
+pkg syscall (darwin-amd64), type SysProcAttr struct, Ctty int
+pkg syscall (darwin-amd64), type SysProcAttr struct, Foreground bool
+pkg syscall (darwin-amd64), type SysProcAttr struct, Pgid int
+pkg syscall (darwin-amd64-cgo), type SysProcAttr struct, Ctty int
+pkg syscall (darwin-amd64-cgo), type SysProcAttr struct, Foreground bool
+pkg syscall (darwin-amd64-cgo), type SysProcAttr struct, Pgid int
+pkg syscall (freebsd-386), type SysProcAttr struct, Ctty int
+pkg syscall (freebsd-386), type SysProcAttr struct, Foreground bool
+pkg syscall (freebsd-386), type SysProcAttr struct, Pgid int
+pkg syscall (freebsd-386-cgo), type SysProcAttr struct, Ctty int
+pkg syscall (freebsd-386-cgo), type SysProcAttr struct, Foreground bool
+pkg syscall (freebsd-386-cgo), type SysProcAttr struct, Pgid int
+pkg syscall (freebsd-amd64), type SysProcAttr struct, Ctty int
+pkg syscall (freebsd-amd64), type SysProcAttr struct, Foreground bool
+pkg syscall (freebsd-amd64), type SysProcAttr struct, Pgid int
+pkg syscall (freebsd-amd64-cgo), type SysProcAttr struct, Ctty int
+pkg syscall (freebsd-amd64-cgo), type SysProcAttr struct, Foreground bool
+pkg syscall (freebsd-amd64-cgo), type SysProcAttr struct, Pgid int
+pkg syscall (freebsd-arm), type SysProcAttr struct, Ctty int
+pkg syscall (freebsd-arm), type SysProcAttr struct, Foreground bool
+pkg syscall (freebsd-arm), type SysProcAttr struct, Pgid int
+pkg syscall (freebsd-arm-cgo), type SysProcAttr struct, Ctty int
+pkg syscall (freebsd-arm-cgo), type SysProcAttr struct, Foreground bool
+pkg syscall (freebsd-arm-cgo), type SysProcAttr struct, Pgid int
+pkg syscall (linux-386), type SysProcAttr struct, Foreground bool
+pkg syscall (linux-386), type SysProcAttr struct, GidMappingsEnableSetgroups bool
+pkg syscall (linux-386), type SysProcAttr struct, Pgid int
+pkg syscall (linux-386-cgo), type SysProcAttr struct, Foreground bool
+pkg syscall (linux-386-cgo), type SysProcAttr struct, GidMappingsEnableSetgroups bool
+pkg syscall (linux-386-cgo), type SysProcAttr struct, Pgid int
+pkg syscall (linux-amd64), type SysProcAttr struct, Foreground bool
+pkg syscall (linux-amd64), type SysProcAttr struct, GidMappingsEnableSetgroups bool
+pkg syscall (linux-amd64), type SysProcAttr struct, Pgid int
+pkg syscall (linux-amd64-cgo), type SysProcAttr struct, Foreground bool
+pkg syscall (linux-amd64-cgo), type SysProcAttr struct, GidMappingsEnableSetgroups bool
+pkg syscall (linux-amd64-cgo), type SysProcAttr struct, Pgid int
+pkg syscall (linux-arm), type SysProcAttr struct, Foreground bool
+pkg syscall (linux-arm), type SysProcAttr struct, GidMappingsEnableSetgroups bool
+pkg syscall (linux-arm), type SysProcAttr struct, Pgid int
+pkg syscall (linux-arm-cgo), type SysProcAttr struct, Foreground bool
+pkg syscall (linux-arm-cgo), type SysProcAttr struct, GidMappingsEnableSetgroups bool
+pkg syscall (linux-arm-cgo), type SysProcAttr struct, Pgid int
+pkg syscall (netbsd-386), type SysProcAttr struct, Ctty int
+pkg syscall (netbsd-386), type SysProcAttr struct, Foreground bool
+pkg syscall (netbsd-386), type SysProcAttr struct, Pgid int
+pkg syscall (netbsd-386-cgo), type SysProcAttr struct, Ctty int
+pkg syscall (netbsd-386-cgo), type SysProcAttr struct, Foreground bool
+pkg syscall (netbsd-386-cgo), type SysProcAttr struct, Pgid int
+pkg syscall (netbsd-amd64), type SysProcAttr struct, Ctty int
+pkg syscall (netbsd-amd64), type SysProcAttr struct, Foreground bool
+pkg syscall (netbsd-amd64), type SysProcAttr struct, Pgid int
+pkg syscall (netbsd-amd64-cgo), type SysProcAttr struct, Ctty int
+pkg syscall (netbsd-amd64-cgo), type SysProcAttr struct, Foreground bool
+pkg syscall (netbsd-amd64-cgo), type SysProcAttr struct, Pgid int
+pkg syscall (netbsd-arm), type SysProcAttr struct, Ctty int
+pkg syscall (netbsd-arm), type SysProcAttr struct, Foreground bool
+pkg syscall (netbsd-arm), type SysProcAttr struct, Pgid int
+pkg syscall (netbsd-arm-cgo), type SysProcAttr struct, Ctty int
+pkg syscall (netbsd-arm-cgo), type SysProcAttr struct, Foreground bool
+pkg syscall (netbsd-arm-cgo), type SysProcAttr struct, Pgid int
+pkg syscall (openbsd-386), type SysProcAttr struct, Ctty int
+pkg syscall (openbsd-386), type SysProcAttr struct, Foreground bool
+pkg syscall (openbsd-386), type SysProcAttr struct, Pgid int
+pkg syscall (openbsd-386-cgo), type SysProcAttr struct, Ctty int
+pkg syscall (openbsd-386-cgo), type SysProcAttr struct, Foreground bool
+pkg syscall (openbsd-386-cgo), type SysProcAttr struct, Pgid int
+pkg syscall (openbsd-amd64), type SysProcAttr struct, Ctty int
+pkg syscall (openbsd-amd64), type SysProcAttr struct, Foreground bool
+pkg syscall (openbsd-amd64), type SysProcAttr struct, Pgid int
+pkg syscall (openbsd-amd64-cgo), type SysProcAttr struct, Ctty int
+pkg syscall (openbsd-amd64-cgo), type SysProcAttr struct, Foreground bool
+pkg syscall (openbsd-amd64-cgo), type SysProcAttr struct, Pgid int
+pkg text/template, method (*Template) DefinedTemplates() string
+pkg text/template, method (*Template) Option(...string) *Template
+pkg time, method (Time) AppendFormat([]uint8, string) []uint8
+pkg unicode, const Version = "8.0.0"
+pkg unicode, var Ahom *RangeTable
+pkg unicode, var Anatolian_Hieroglyphs *RangeTable
+pkg unicode, var Hatran *RangeTable
+pkg unicode, var Multani *RangeTable
+pkg unicode, var Old_Hungarian *RangeTable
+pkg unicode, var SignWriting *RangeTable

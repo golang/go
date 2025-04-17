@@ -1,0 +1,943 @@
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Lowering arithmetic
+(Add(Ptr|32|16|8) ...) => (ADDL ...)
+(Add(32|64)F ...) => (ADDS(S|D) ...)
+(Add32carry ...) => (ADDLcarry ...)
+(Add32withcarry ...) => (ADCL ...)
+
+(Sub(Ptr|32|16|8) ...) => (SUBL ...)
+(Sub(32|64)F ...) => (SUBS(S|D) ...)
+(Sub32carry ...) => (SUBLcarry ...)
+(Sub32withcarry ...) => (SBBL ...)
+
+(Mul(32|16|8) ...) => (MULL ...)
+(Mul(32|64)F ...) => (MULS(S|D) ...)
+(Mul32uhilo ...) => (MULLQU ...)
+
+(Select0 (Mul32uover x y)) => (Select0 <typ.UInt32> (MULLU x y))
+(Select1 (Mul32uover x y)) => (SETO (Select1 <types.TypeFlags> (MULLU x y)))
+
+(Avg32u ...) => (AVGLU ...)
+
+(Div(32|64)F ...) => (DIVS(S|D) ...)
+(Div(32|32u|16|16u) ...) => (DIV(L|LU|W|WU) ...)
+(Div8   x y) => (DIVW  (SignExt8to16 x) (SignExt8to16 y))
+(Div8u  x y) => (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y))
+
+(Hmul(32|32u) ...) => (HMUL(L|LU) ...)
+
+(Mod(32|32u|16|16u) ...) => (MOD(L|LU|W|WU) ...)
+(Mod8   x y) => (MODW  (SignExt8to16 x) (SignExt8to16 y))
+(Mod8u  x y) => (MODWU (ZeroExt8to16 x) (ZeroExt8to16 y))
+
+(And(32|16|8) ...) => (ANDL ...)
+(Or(32|16|8) ...) => (ORL ...)
+(Xor(32|16|8) ...) => (XORL ...)
+
+(Neg(32|16|8) ...) => (NEGL ...)
+(Neg32F x) => (PXOR x (MOVSSconst <typ.Float32> [float32(math.Copysign(0, -1))]))
+(Neg64F x) => (PXOR x (MOVSDconst <typ.Float64> [math.Copysign(0, -1)]))
+
+(Com(32|16|8) ...) => (NOTL ...)
+
+// Lowering boolean ops
+(AndB ...) => (ANDL ...)
+(OrB ...) => (ORL ...)
+(Not x) => (XORLconst [1] x)
+
+// Lowering pointer arithmetic
+(OffPtr [off] ptr) => (ADDLconst [int32(off)] ptr)
+
+(Bswap32 ...) => (BSWAPL ...)
+(Bswap16 x) => (ROLWconst [8] x)
+
+(Sqrt ...) => (SQRTSD ...)
+(Sqrt32 ...) => (SQRTSS ...)
+
+(Ctz8 x) => (BSFL (ORLconst <typ.UInt32> [0x100] x))
+(Ctz8NonZero ...) => (BSFL ...)
+(Ctz16 x) => (BSFL (ORLconst <typ.UInt32> [0x10000] x))
+(Ctz16NonZero ...) => (BSFL ...)
+(Ctz32 ...) => (LoweredCtz32 ...)
+(Ctz32NonZero ...) => (BSFL ...)
+(Ctz64On32 ...) => (LoweredCtz64 ...)
+
+// Lowering extension
+(SignExt8to16  ...) => (MOVBLSX ...)
+(SignExt8to32  ...) => (MOVBLSX ...)
+(SignExt16to32 ...) => (MOVWLSX ...)
+
+(ZeroExt8to16  ...) => (MOVBLZX ...)
+(ZeroExt8to32  ...) => (MOVBLZX ...)
+(ZeroExt16to32 ...) => (MOVWLZX ...)
+
+(Signmask x) => (SARLconst x [31])
+(Zeromask <t> x) => (XORLconst [-1] (SBBLcarrymask <t> (CMPLconst x [1])))
+(Slicemask <t> x) => (SARLconst (NEGL <t> x) [31])
+
+// Lowering truncation
+// Because we ignore high parts of registers, truncates are just copies.
+(Trunc16to8  ...) => (Copy ...)
+(Trunc32to8  ...) => (Copy ...)
+(Trunc32to16 ...) => (Copy ...)
+
+// Lowering float-int conversions
+(Cvt32to32F ...) => (CVTSL2SS ...)
+(Cvt32to64F ...) => (CVTSL2SD ...)
+
+(Cvt32Fto32 ...) => (CVTTSS2SL ...)
+(Cvt64Fto32 ...) => (CVTTSD2SL ...)
+
+(Cvt32Fto64F ...) => (CVTSS2SD ...)
+(Cvt64Fto32F ...) => (CVTSD2SS ...)
+
+(Round32F ...) => (Copy ...)
+(Round64F ...) => (Copy ...)
+
+(CvtBoolToUint8 ...) => (Copy ...)
+
+// Lowering shifts
+// Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
+//   result = (arg << shift) & (shift >= argbits ? 0 : 0xffffffffffffffff)
+(Lsh32x(32|16|8) <t> x y) && !shiftIsBounded(v) => (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [32])))
+(Lsh16x(32|16|8) <t> x y) && !shiftIsBounded(v) => (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [32])))
+(Lsh8x(32|16|8)  <t> x y) && !shiftIsBounded(v) => (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [32])))
+
+(Lsh32x(32|16|8) <t> x y) && shiftIsBounded(v) => (SHLL <t> x y)
+(Lsh16x(32|16|8) <t> x y) && shiftIsBounded(v) => (SHLL <t> x y)
+(Lsh8x(32|16|8)  <t> x y) && shiftIsBounded(v) => (SHLL <t> x y)
+
+(Rsh32Ux(32|16|8) <t> x y) && !shiftIsBounded(v) => (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [32])))
+(Rsh16Ux(32|16|8) <t> x y) && !shiftIsBounded(v) => (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [16])))
+(Rsh8Ux(32|16|8)  <t> x y) && !shiftIsBounded(v) => (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [8])))
+
+(Rsh32Ux(32|16|8) <t> x y) && shiftIsBounded(v) => (SHRL <t> x y)
+(Rsh16Ux(32|16|8) <t> x y) && shiftIsBounded(v) => (SHRW <t> x y)
+(Rsh8Ux(32|16|8)  <t> x y) && shiftIsBounded(v) => (SHRB <t> x y)
+
+// Signed right shift needs to return 0/-1 if shift amount is >= width of shifted value.
+// We implement this by setting the shift value to -1 (all ones) if the shift value is >= width.
+
+(Rsh32x(32|16|8) <t> x y) && !shiftIsBounded(v) => (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMP(L|W|B)const y [32])))))
+(Rsh16x(32|16|8) <t> x y) && !shiftIsBounded(v) => (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMP(L|W|B)const y [16])))))
+(Rsh8x(32|16|8) <t> x y)  && !shiftIsBounded(v) => (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMP(L|W|B)const y [8])))))
+
+(Rsh32x(32|16|8) <t> x y) && shiftIsBounded(v) => (SARL x y)
+(Rsh16x(32|16|8) <t> x y) && shiftIsBounded(v) => (SARW x y)
+(Rsh8x(32|16|8) <t> x y)  && shiftIsBounded(v) => (SARB x y)
+
+// constant shifts
+// generic opt rewrites all constant shifts to shift by Const64
+(Lsh32x64 x (Const64 [c])) && uint64(c) < 32 => (SHLLconst x [int32(c)])
+(Rsh32x64 x (Const64 [c])) && uint64(c) < 32 => (SARLconst x [int32(c)])
+(Rsh32Ux64 x (Const64 [c])) && uint64(c) < 32 => (SHRLconst x [int32(c)])
+(Lsh16x64 x (Const64 [c])) && uint64(c) < 16 => (SHLLconst x [int32(c)])
+(Rsh16x64 x (Const64 [c])) && uint64(c) < 16 => (SARWconst x [int16(c)])
+(Rsh16Ux64 x (Const64 [c])) && uint64(c) < 16 => (SHRWconst x [int16(c)])
+(Lsh8x64 x (Const64 [c])) && uint64(c) < 8 => (SHLLconst x [int32(c)])
+(Rsh8x64 x (Const64 [c])) && uint64(c) < 8 => (SARBconst x [int8(c)])
+(Rsh8Ux64 x (Const64 [c])) && uint64(c) < 8 => (SHRBconst x [int8(c)])
+
+// large constant shifts
+(Lsh32x64 _ (Const64 [c])) && uint64(c) >= 32 => (Const32 [0])
+(Rsh32Ux64 _ (Const64 [c])) && uint64(c) >= 32 => (Const32 [0])
+(Lsh16x64 _ (Const64 [c])) && uint64(c) >= 16 => (Const16 [0])
+(Rsh16Ux64 _ (Const64 [c])) && uint64(c) >= 16 => (Const16 [0])
+(Lsh8x64 _ (Const64 [c])) && uint64(c) >= 8 => (Const8 [0])
+(Rsh8Ux64 _ (Const64 [c])) && uint64(c) >= 8 => (Const8 [0])
+
+// large constant signed right shift, we leave the sign bit
+(Rsh32x64 x (Const64 [c])) && uint64(c) >= 32 => (SARLconst x [31])
+(Rsh16x64 x (Const64 [c])) && uint64(c) >= 16 => (SARWconst x [15])
+(Rsh8x64 x (Const64 [c])) && uint64(c) >= 8 => (SARBconst x [7])
+
+// rotates
+(RotateLeft32 ...) => (ROLL ...)
+(RotateLeft16 ...) => (ROLW ...)
+(RotateLeft8  ...) => (ROLB ...)
+// constant rotates
+(ROLL x (MOVLconst [c])) => (ROLLconst [c&31] x)
+(ROLW x (MOVLconst [c])) => (ROLWconst [int16(c&15)] x)
+(ROLB x (MOVLconst [c])) => (ROLBconst [int8(c&7)] x)
+
+// Lowering comparisons
+(Less32  x y) => (SETL (CMPL x y))
+(Less16  x y) => (SETL (CMPW x y))
+(Less8   x y) => (SETL (CMPB x y))
+(Less32U x y) => (SETB (CMPL x y))
+(Less16U x y) => (SETB (CMPW x y))
+(Less8U  x y) => (SETB (CMPB x y))
+// Use SETGF with reversed operands to dodge NaN case
+(Less64F x y) => (SETGF (UCOMISD y x))
+(Less32F x y) => (SETGF (UCOMISS y x))
+
+(Leq32  x y) => (SETLE (CMPL x y))
+(Leq16  x y) => (SETLE (CMPW x y))
+(Leq8   x y) => (SETLE (CMPB x y))
+(Leq32U x y) => (SETBE (CMPL x y))
+(Leq16U x y) => (SETBE (CMPW x y))
+(Leq8U  x y) => (SETBE (CMPB x y))
+// Use SETGEF with reversed operands to dodge NaN case
+(Leq64F x y) => (SETGEF (UCOMISD y x))
+(Leq32F x y) => (SETGEF (UCOMISS y x))
+
+(Eq32  x y) => (SETEQ (CMPL x y))
+(Eq16  x y) => (SETEQ (CMPW x y))
+(Eq8   x y) => (SETEQ (CMPB x y))
+(EqB   x y) => (SETEQ (CMPB x y))
+(EqPtr x y) => (SETEQ (CMPL x y))
+(Eq64F x y) => (SETEQF (UCOMISD x y))
+(Eq32F x y) => (SETEQF (UCOMISS x y))
+
+(Neq32  x y) => (SETNE (CMPL x y))
+(Neq16  x y) => (SETNE (CMPW x y))
+(Neq8   x y) => (SETNE (CMPB x y))
+(NeqB   x y) => (SETNE (CMPB x y))
+(NeqPtr x y) => (SETNE (CMPL x y))
+(Neq64F x y) => (SETNEF (UCOMISD x y))
+(Neq32F x y) => (SETNEF (UCOMISS x y))
+
+// Lowering loads
+(Load <t> ptr mem) && (is32BitInt(t) || isPtr(t)) => (MOVLload ptr mem)
+(Load <t> ptr mem) && is16BitInt(t) => (MOVWload ptr mem)
+(Load <t> ptr mem) && (t.IsBoolean() || is8BitInt(t)) => (MOVBload ptr mem)
+(Load <t> ptr mem) && is32BitFloat(t) => (MOVSSload ptr mem)
+(Load <t> ptr mem) && is64BitFloat(t) => (MOVSDload ptr mem)
+
+// Lowering stores
+(Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (MOVSDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (MOVSSstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVLstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 2 => (MOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
+
+// Lowering moves
+(Move [0] _ _ mem) => mem
+(Move [1] dst src mem) => (MOVBstore dst (MOVBload src mem) mem)
+(Move [2] dst src mem) => (MOVWstore dst (MOVWload src mem) mem)
+(Move [4] dst src mem) => (MOVLstore dst (MOVLload src mem) mem)
+(Move [3] dst src mem) =>
+	(MOVBstore [2] dst (MOVBload [2] src mem)
+		(MOVWstore dst (MOVWload src mem) mem))
+(Move [5] dst src mem) =>
+	(MOVBstore [4] dst (MOVBload [4] src mem)
+		(MOVLstore dst (MOVLload src mem) mem))
+(Move [6] dst src mem) =>
+	(MOVWstore [4] dst (MOVWload [4] src mem)
+		(MOVLstore dst (MOVLload src mem) mem))
+(Move [7] dst src mem) =>
+	(MOVLstore [3] dst (MOVLload [3] src mem)
+		(MOVLstore dst (MOVLload src mem) mem))
+(Move [8] dst src mem) =>
+	(MOVLstore [4] dst (MOVLload [4] src mem)
+		(MOVLstore dst (MOVLload src mem) mem))
+
+// Adjust moves to be a multiple of 4 bytes.
+(Move [s] dst src mem)
+	&& s > 8 && s%4 != 0 =>
+	(Move [s-s%4]
+		(ADDLconst <dst.Type> dst [int32(s%4)])
+		(ADDLconst <src.Type> src [int32(s%4)])
+		(MOVLstore dst (MOVLload src mem) mem))
+
+// Medium copying uses a duff device.
+(Move [s] dst src mem)
+	&& s > 8 && s <= 4*128 && s%4 == 0
+	&& logLargeCopy(v, s) =>
+	(DUFFCOPY [10*(128-s/4)] dst src mem)
+// 10 and 128 are magic constants.  10 is the number of bytes to encode:
+//	MOVL	(SI), CX
+//	ADDL	$4, SI
+//	MOVL	CX, (DI)
+//	ADDL	$4, DI
+// and 128 is the number of such blocks. See src/runtime/duff_386.s:duffcopy.
+
+// Large copying uses REP MOVSL.
+(Move [s] dst src mem) && s > 4*128 && s%4 == 0 && logLargeCopy(v, s) =>
+	(REPMOVSL dst src (MOVLconst [int32(s/4)]) mem)
+
+// Lowering Zero instructions
+(Zero [0] _ mem) => mem
+(Zero [1] destptr mem) => (MOVBstoreconst [0] destptr mem)
+(Zero [2] destptr mem) => (MOVWstoreconst [0] destptr mem)
+(Zero [4] destptr mem) => (MOVLstoreconst [0] destptr mem)
+
+(Zero [3] destptr mem) =>
+	(MOVBstoreconst [makeValAndOff(0,2)] destptr
+		(MOVWstoreconst [makeValAndOff(0,0)] destptr mem))
+(Zero [5] destptr mem) =>
+	(MOVBstoreconst [makeValAndOff(0,4)] destptr
+		(MOVLstoreconst [makeValAndOff(0,0)] destptr mem))
+(Zero [6] destptr mem) =>
+	(MOVWstoreconst [makeValAndOff(0,4)] destptr
+		(MOVLstoreconst [makeValAndOff(0,0)] destptr mem))
+(Zero [7] destptr mem) =>
+	(MOVLstoreconst [makeValAndOff(0,3)] destptr
+		(MOVLstoreconst [makeValAndOff(0,0)] destptr mem))
+
+// Strip off any fractional word zeroing.
+(Zero [s] destptr mem) && s%4 != 0 && s > 4 =>
+	(Zero [s-s%4] (ADDLconst destptr [int32(s%4)])
+		(MOVLstoreconst [0] destptr mem))
+
+// Zero small numbers of words directly.
+(Zero [8] destptr mem) =>
+	(MOVLstoreconst [makeValAndOff(0,4)] destptr
+		(MOVLstoreconst [makeValAndOff(0,0)] destptr mem))
+(Zero [12] destptr mem) =>
+	(MOVLstoreconst [makeValAndOff(0,8)] destptr
+		(MOVLstoreconst [makeValAndOff(0,4)] destptr
+			(MOVLstoreconst [makeValAndOff(0,0)] destptr mem)))
+(Zero [16] destptr mem) =>
+	(MOVLstoreconst [makeValAndOff(0,12)] destptr
+		(MOVLstoreconst [makeValAndOff(0,8)] destptr
+			(MOVLstoreconst [makeValAndOff(0,4)] destptr
+				(MOVLstoreconst [makeValAndOff(0,0)] destptr mem))))
+
+// Medium zeroing uses a duff device.
+(Zero [s] destptr mem)
+  && s > 16 && s <= 4*128 && s%4 == 0 =>
+	(DUFFZERO [1*(128-s/4)] destptr (MOVLconst [0]) mem)
+// 1 and 128 are magic constants.  1 is the number of bytes to encode STOSL.
+// 128 is the number of STOSL instructions in duffzero.
+// See src/runtime/duff_386.s:duffzero.
+
+// Large zeroing uses REP STOSQ.
+(Zero [s] destptr mem)
+  && s > 4*128
+  && s%4 == 0 =>
+	(REPSTOSL destptr (MOVLconst [int32(s/4)]) (MOVLconst [0]) mem)
+
+
+// Lowering constants
+(Const8   [c]) => (MOVLconst [int32(c)])
+(Const16  [c]) => (MOVLconst [int32(c)])
+(Const32  ...) => (MOVLconst ...)
+(Const(32|64)F ...) => (MOVS(S|D)const ...)
+(ConstNil) => (MOVLconst [0])
+(ConstBool [c]) => (MOVLconst [b2i32(c)])
+
+// Lowering calls
+(StaticCall ...) => (CALLstatic ...)
+(ClosureCall ...) => (CALLclosure ...)
+(InterCall ...) => (CALLinter ...)
+(TailCall ...) => (CALLtail ...)
+
+// Miscellaneous
+(IsNonNil p) => (SETNE (TESTL p p))
+(IsInBounds idx len) => (SETB (CMPL idx len))
+(IsSliceInBounds idx len) => (SETBE (CMPL idx len))
+(NilCheck ...) => (LoweredNilCheck ...)
+(GetG ...) => (LoweredGetG ...)
+(GetClosurePtr ...) => (LoweredGetClosurePtr ...)
+(GetCallerPC ...) => (LoweredGetCallerPC ...)
+(GetCallerSP ...) => (LoweredGetCallerSP ...)
+(Addr {sym} base) => (LEAL {sym} base)
+(LocalAddr <t> {sym} base mem) && t.Elem().HasPointers() => (LEAL {sym} (SPanchored base mem))
+(LocalAddr <t> {sym} base _)  && !t.Elem().HasPointers() => (LEAL {sym} base)
+
+// block rewrites
+(If (SETL  cmp) yes no) => (LT  cmp yes no)
+(If (SETLE cmp) yes no) => (LE  cmp yes no)
+(If (SETG  cmp) yes no) => (GT  cmp yes no)
+(If (SETGE cmp) yes no) => (GE  cmp yes no)
+(If (SETEQ cmp) yes no) => (EQ  cmp yes no)
+(If (SETNE cmp) yes no) => (NE  cmp yes no)
+(If (SETB  cmp) yes no) => (ULT cmp yes no)
+(If (SETBE cmp) yes no) => (ULE cmp yes no)
+(If (SETA  cmp) yes no) => (UGT cmp yes no)
+(If (SETAE cmp) yes no) => (UGE cmp yes no)
+(If (SETO  cmp) yes no) => (OS cmp yes no)
+
+// Special case for floating point - LF/LEF not generated
+(If (SETGF  cmp) yes no) => (UGT  cmp yes no)
+(If (SETGEF cmp) yes no) => (UGE  cmp yes no)
+(If (SETEQF cmp) yes no) => (EQF  cmp yes no)
+(If (SETNEF cmp) yes no) => (NEF  cmp yes no)
+
+(If cond yes no) => (NE (TESTB cond cond) yes no)
+
+// Write barrier.
+(WB ...) => (LoweredWB ...)
+
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
+(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
+
+(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 0 => (LoweredPanicExtendA [kind] hi lo y mem)
+(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 1 => (LoweredPanicExtendB [kind] hi lo y mem)
+(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 2 => (LoweredPanicExtendC [kind] hi lo y mem)
+
+// ***************************
+// Above: lowering rules
+// Below: optimizations
+// ***************************
+// TODO: Should the optimizations be a separate pass?
+
+// Fold boolean tests into blocks
+(NE (TESTB (SETL  cmp) (SETL  cmp)) yes no) => (LT  cmp yes no)
+(NE (TESTB (SETLE cmp) (SETLE cmp)) yes no) => (LE  cmp yes no)
+(NE (TESTB (SETG  cmp) (SETG  cmp)) yes no) => (GT  cmp yes no)
+(NE (TESTB (SETGE cmp) (SETGE cmp)) yes no) => (GE  cmp yes no)
+(NE (TESTB (SETEQ cmp) (SETEQ cmp)) yes no) => (EQ  cmp yes no)
+(NE (TESTB (SETNE cmp) (SETNE cmp)) yes no) => (NE  cmp yes no)
+(NE (TESTB (SETB  cmp) (SETB  cmp)) yes no) => (ULT cmp yes no)
+(NE (TESTB (SETBE cmp) (SETBE cmp)) yes no) => (ULE cmp yes no)
+(NE (TESTB (SETA  cmp) (SETA  cmp)) yes no) => (UGT cmp yes no)
+(NE (TESTB (SETAE cmp) (SETAE cmp)) yes no) => (UGE cmp yes no)
+(NE (TESTB (SETO cmp) (SETO cmp)) yes no) => (OS cmp yes no)
+
+// Special case for floating point - LF/LEF not generated
+(NE (TESTB (SETGF  cmp) (SETGF  cmp)) yes no) => (UGT  cmp yes no)
+(NE (TESTB (SETGEF cmp) (SETGEF cmp)) yes no) => (UGE  cmp yes no)
+(NE (TESTB (SETEQF cmp) (SETEQF cmp)) yes no) => (EQF  cmp yes no)
+(NE (TESTB (SETNEF cmp) (SETNEF cmp)) yes no) => (NEF  cmp yes no)
+
+// fold constants into instructions
+(ADDL x (MOVLconst <t> [c])) && !t.IsPtr() => (ADDLconst [c] x)
+(ADDLcarry x (MOVLconst [c])) => (ADDLconstcarry [c] x)
+(ADCL x (MOVLconst [c]) f) => (ADCLconst [c] x f)
+
+(SUBL x (MOVLconst [c])) => (SUBLconst x [c])
+(SUBL (MOVLconst [c]) x) => (NEGL (SUBLconst <v.Type> x [c]))
+(SUBLcarry x (MOVLconst [c])) => (SUBLconstcarry [c] x)
+(SBBL x (MOVLconst [c]) f) => (SBBLconst [c] x f)
+
+(MULL x (MOVLconst [c])) => (MULLconst [c] x)
+(ANDL x (MOVLconst [c])) => (ANDLconst [c] x)
+
+(ANDLconst [c] (ANDLconst [d] x)) => (ANDLconst [c & d] x)
+(XORLconst [c] (XORLconst [d] x)) => (XORLconst [c ^ d] x)
+(MULLconst [c] (MULLconst [d] x)) => (MULLconst [c * d] x)
+
+(ORL x (MOVLconst [c])) => (ORLconst [c] x)
+(XORL x (MOVLconst [c])) => (XORLconst [c] x)
+
+(SHLL x (MOVLconst [c])) => (SHLLconst [c&31] x)
+(SHRL x (MOVLconst [c])) => (SHRLconst [c&31] x)
+(SHRW x (MOVLconst [c])) && c&31 < 16 => (SHRWconst [int16(c&31)] x)
+(SHRW _ (MOVLconst [c])) && c&31 >= 16 => (MOVLconst [0])
+(SHRB x (MOVLconst [c])) && c&31 < 8 => (SHRBconst [int8(c&31)] x)
+(SHRB _ (MOVLconst [c])) && c&31 >= 8 => (MOVLconst [0])
+
+(SARL x (MOVLconst [c])) => (SARLconst [c&31] x)
+(SARW x (MOVLconst [c])) => (SARWconst [int16(min(int64(c&31),15))] x)
+(SARB x (MOVLconst [c])) => (SARBconst [int8(min(int64(c&31),7))] x)
+
+(SARL x (ANDLconst [31] y)) => (SARL x y)
+(SHLL x (ANDLconst [31] y)) => (SHLL x y)
+(SHRL x (ANDLconst [31] y)) => (SHRL x y)
+
+// Constant shift simplifications
+
+(SHLLconst x [0]) => x
+(SHRLconst x [0]) => x
+(SARLconst x [0]) => x
+
+(SHRWconst x [0]) => x
+(SARWconst x [0]) => x
+
+(SHRBconst x [0]) => x
+(SARBconst x [0]) => x
+
+(ROLLconst [0] x) => x
+(ROLWconst [0] x) => x
+(ROLBconst [0] x) => x
+
+// Note: the word and byte shifts keep the low 5 bits (not the low 4 or 3 bits)
+// because the x86 instructions are defined to use all 5 bits of the shift even
+// for the small shifts. I don't think we'll ever generate a weird shift (e.g.
+// (SHRW x (MOVLconst [24])), but just in case.
+
+(CMPL x (MOVLconst [c])) => (CMPLconst x [c])
+(CMPL (MOVLconst [c]) x) => (InvertFlags (CMPLconst x [c]))
+(CMPW x (MOVLconst [c])) => (CMPWconst x [int16(c)])
+(CMPW (MOVLconst [c]) x) => (InvertFlags (CMPWconst x [int16(c)]))
+(CMPB x (MOVLconst [c])) => (CMPBconst x [int8(c)])
+(CMPB (MOVLconst [c]) x) => (InvertFlags (CMPBconst x [int8(c)]))
+
+// Canonicalize the order of arguments to comparisons - helps with CSE.
+(CMP(L|W|B) x y) && canonLessThan(x,y) => (InvertFlags (CMP(L|W|B) y x))
+
+// strength reduction
+// Assumes that the following costs from https://gmplib.org/~tege/x86-timing.pdf:
+//    1 - addl, shll, leal, negl, subl
+//    3 - imull
+// This limits the rewrites to two instructions.
+// Note that negl always operates in-place,
+// which can require a register-register move
+// to preserve the original value,
+// so it must be used with care.
+(MULLconst [-9] x) => (NEGL (LEAL8 <v.Type> x x))
+(MULLconst [-5] x) => (NEGL (LEAL4 <v.Type> x x))
+(MULLconst [-3] x) => (NEGL (LEAL2 <v.Type> x x))
+(MULLconst [-1] x) => (NEGL x)
+(MULLconst [0] _) => (MOVLconst [0])
+(MULLconst [1] x) => x
+(MULLconst [3] x) => (LEAL2 x x)
+(MULLconst [5] x) => (LEAL4 x x)
+(MULLconst [7] x) => (LEAL2 x (LEAL2 <v.Type> x x))
+(MULLconst [9] x) => (LEAL8 x x)
+(MULLconst [11] x) => (LEAL2 x (LEAL4 <v.Type> x x))
+(MULLconst [13] x) => (LEAL4 x (LEAL2 <v.Type> x x))
+(MULLconst [19] x) => (LEAL2 x (LEAL8 <v.Type> x x))
+(MULLconst [21] x) => (LEAL4 x (LEAL4 <v.Type> x x))
+(MULLconst [25] x) => (LEAL8 x (LEAL2 <v.Type> x x))
+(MULLconst [27] x) => (LEAL8 (LEAL2 <v.Type> x x) (LEAL2 <v.Type> x x))
+(MULLconst [37] x) => (LEAL4 x (LEAL8 <v.Type> x x))
+(MULLconst [41] x) => (LEAL8 x (LEAL4 <v.Type> x x))
+(MULLconst [45] x) => (LEAL8 (LEAL4 <v.Type> x x) (LEAL4 <v.Type> x x))
+(MULLconst [73] x) => (LEAL8 x (LEAL8 <v.Type> x x))
+(MULLconst [81] x) => (LEAL8 (LEAL8 <v.Type> x x) (LEAL8 <v.Type> x x))
+
+(MULLconst [c] x) && isPowerOfTwo(c+1) && c >= 15 => (SUBL (SHLLconst <v.Type> [int32(log32(c+1))] x) x)
+(MULLconst [c] x) && isPowerOfTwo(c-1) && c >= 17 => (LEAL1 (SHLLconst <v.Type> [int32(log32(c-1))] x) x)
+(MULLconst [c] x) && isPowerOfTwo(c-2) && c >= 34 => (LEAL2 (SHLLconst <v.Type> [int32(log32(c-2))] x) x)
+(MULLconst [c] x) && isPowerOfTwo(c-4) && c >= 68 => (LEAL4 (SHLLconst <v.Type> [int32(log32(c-4))] x) x)
+(MULLconst [c] x) && isPowerOfTwo(c-8) && c >= 136 => (LEAL8 (SHLLconst <v.Type> [int32(log32(c-8))] x) x)
+(MULLconst [c] x) && c%3 == 0 && isPowerOfTwo(c/3) => (SHLLconst [int32(log32(c/3))] (LEAL2 <v.Type> x x))
+(MULLconst [c] x) && c%5 == 0 && isPowerOfTwo(c/5) => (SHLLconst [int32(log32(c/5))] (LEAL4 <v.Type> x x))
+(MULLconst [c] x) && c%9 == 0 && isPowerOfTwo(c/9) => (SHLLconst [int32(log32(c/9))] (LEAL8 <v.Type> x x))
+
+// combine add/shift into LEAL
+(ADDL x (SHLLconst [3] y)) => (LEAL8 x y)
+(ADDL x (SHLLconst [2] y)) => (LEAL4 x y)
+(ADDL x (SHLLconst [1] y)) => (LEAL2 x y)
+(ADDL x (ADDL y y)) => (LEAL2 x y)
+(ADDL x (ADDL x y)) => (LEAL2 y x)
+
+// combine ADDL/ADDLconst into LEAL1
+(ADDLconst [c] (ADDL x y)) => (LEAL1 [c] x y)
+(ADDL (ADDLconst [c] x) y) => (LEAL1 [c] x y)
+
+// fold ADDL into LEAL
+(ADDLconst [c] (LEAL [d] {s} x)) && is32Bit(int64(c)+int64(d)) => (LEAL [c+d] {s} x)
+(LEAL [c] {s} (ADDLconst [d] x)) && is32Bit(int64(c)+int64(d)) => (LEAL [c+d] {s} x)
+(ADDLconst [c] x:(SP)) => (LEAL [c] x) // so it is rematerializeable
+(LEAL [c] {s} (ADDL x y)) && x.Op != OpSB && y.Op != OpSB => (LEAL1 [c] {s} x y)
+(ADDL x (LEAL [c] {s} y)) && x.Op != OpSB && y.Op != OpSB => (LEAL1 [c] {s} x y)
+
+// fold ADDLconst into LEALx
+(ADDLconst [c] (LEAL1 [d] {s} x y)) && is32Bit(int64(c)+int64(d)) => (LEAL1 [c+d] {s} x y)
+(ADDLconst [c] (LEAL2 [d] {s} x y)) && is32Bit(int64(c)+int64(d)) => (LEAL2 [c+d] {s} x y)
+(ADDLconst [c] (LEAL4 [d] {s} x y)) && is32Bit(int64(c)+int64(d)) => (LEAL4 [c+d] {s} x y)
+(ADDLconst [c] (LEAL8 [d] {s} x y)) && is32Bit(int64(c)+int64(d)) => (LEAL8 [c+d] {s} x y)
+(LEAL1 [c] {s} (ADDLconst [d] x) y) && is32Bit(int64(c)+int64(d))   && x.Op != OpSB => (LEAL1 [c+d] {s} x y)
+(LEAL2 [c] {s} (ADDLconst [d] x) y) && is32Bit(int64(c)+int64(d))   && x.Op != OpSB => (LEAL2 [c+d] {s} x y)
+(LEAL2 [c] {s} x (ADDLconst [d] y)) && is32Bit(int64(c)+2*int64(d)) && y.Op != OpSB => (LEAL2 [c+2*d] {s} x y)
+(LEAL4 [c] {s} (ADDLconst [d] x) y) && is32Bit(int64(c)+int64(d))   && x.Op != OpSB => (LEAL4 [c+d] {s} x y)
+(LEAL4 [c] {s} x (ADDLconst [d] y)) && is32Bit(int64(c)+4*int64(d)) && y.Op != OpSB => (LEAL4 [c+4*d] {s} x y)
+(LEAL8 [c] {s} (ADDLconst [d] x) y) && is32Bit(int64(c)+int64(d))   && x.Op != OpSB => (LEAL8 [c+d] {s} x y)
+(LEAL8 [c] {s} x (ADDLconst [d] y)) && is32Bit(int64(c)+8*int64(d)) && y.Op != OpSB => (LEAL8 [c+8*d] {s} x y)
+
+// fold shifts into LEALx
+(LEAL1 [c] {s} x (SHLLconst [1] y)) => (LEAL2 [c] {s} x y)
+(LEAL1 [c] {s} x (SHLLconst [2] y)) => (LEAL4 [c] {s} x y)
+(LEAL1 [c] {s} x (SHLLconst [3] y)) => (LEAL8 [c] {s} x y)
+(LEAL2 [c] {s} x (SHLLconst [1] y)) => (LEAL4 [c] {s} x y)
+(LEAL2 [c] {s} x (SHLLconst [2] y)) => (LEAL8 [c] {s} x y)
+(LEAL4 [c] {s} x (SHLLconst [1] y)) => (LEAL8 [c] {s} x y)
+
+// reverse ordering of compare instruction
+(SETL (InvertFlags x)) => (SETG x)
+(SETG (InvertFlags x)) => (SETL x)
+(SETB (InvertFlags x)) => (SETA x)
+(SETA (InvertFlags x)) => (SETB x)
+(SETLE (InvertFlags x)) => (SETGE x)
+(SETGE (InvertFlags x)) => (SETLE x)
+(SETBE (InvertFlags x)) => (SETAE x)
+(SETAE (InvertFlags x)) => (SETBE x)
+(SETEQ (InvertFlags x)) => (SETEQ x)
+(SETNE (InvertFlags x)) => (SETNE x)
+
+// sign extended loads
+// Note: The combined instruction must end up in the same block
+// as the original load. If not, we end up making a value with
+// memory type live in two different blocks, which can lead to
+// multiple memory values alive simultaneously.
+// Make sure we don't combine these ops if the load has another use.
+// This prevents a single load from being split into multiple loads
+// which then might return different values.  See test/atomicload.go.
+(MOVBLSX x:(MOVBload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVBLSXload <v.Type> [off] {sym} ptr mem)
+(MOVBLZX x:(MOVBload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVBload <v.Type> [off] {sym} ptr mem)
+(MOVWLSX x:(MOVWload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVWLSXload <v.Type> [off] {sym} ptr mem)
+(MOVWLZX x:(MOVWload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVWload <v.Type> [off] {sym} ptr mem)
+
+// replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
+(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) => (MOVBLZX x)
+(MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) => (MOVWLZX x)
+(MOVLload [off] {sym} ptr (MOVLstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) => x
+(MOVBLSXload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) => (MOVBLSX x)
+(MOVWLSXload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) => (MOVWLSX x)
+
+// Fold extensions and ANDs together.
+(MOVBLZX (ANDLconst [c] x)) => (ANDLconst [c & 0xff] x)
+(MOVWLZX (ANDLconst [c] x)) => (ANDLconst [c & 0xffff] x)
+(MOVBLSX (ANDLconst [c] x)) && c & 0x80 == 0 => (ANDLconst [c & 0x7f] x)
+(MOVWLSX (ANDLconst [c] x)) && c & 0x8000 == 0 => (ANDLconst [c & 0x7fff] x)
+
+// Don't extend before storing
+(MOVWstore [off] {sym} ptr (MOVWL(S|Z)X x) mem) => (MOVWstore [off] {sym} ptr x mem)
+(MOVBstore [off] {sym} ptr (MOVBL(S|Z)X x) mem) => (MOVBstore [off] {sym} ptr x mem)
+
+// fold constants into memory operations
+// Note that this is not always a good idea because if not all the uses of
+// the ADDLconst get eliminated, we still have to compute the ADDLconst and we now
+// have potentially two live values (ptr and (ADDLconst [off] ptr)) instead of one.
+// Nevertheless, let's do it!
+(MOV(L|W|B|SS|SD)load  [off1] {sym} (ADDLconst [off2] ptr) mem) && is32Bit(int64(off1)+int64(off2)) =>
+    (MOV(L|W|B|SS|SD)load  [off1+off2] {sym} ptr mem)
+(MOV(L|W|B|SS|SD)store  [off1] {sym} (ADDLconst [off2] ptr) val mem) && is32Bit(int64(off1)+int64(off2)) =>
+    (MOV(L|W|B|SS|SD)store  [off1+off2] {sym} ptr val mem)
+
+((ADD|SUB|MUL|AND|OR|XOR)Lload [off1] {sym} val (ADDLconst [off2] base) mem) && is32Bit(int64(off1)+int64(off2)) =>
+	((ADD|SUB|MUL|AND|OR|XOR)Lload [off1+off2] {sym} val base mem)
+((ADD|SUB|MUL|DIV)SSload [off1] {sym} val (ADDLconst [off2] base) mem) && is32Bit(int64(off1)+int64(off2)) =>
+	((ADD|SUB|MUL|DIV)SSload [off1+off2] {sym} val base mem)
+((ADD|SUB|MUL|DIV)SDload [off1] {sym} val (ADDLconst [off2] base) mem) && is32Bit(int64(off1)+int64(off2)) =>
+	((ADD|SUB|MUL|DIV)SDload [off1+off2] {sym} val base mem)
+((ADD|SUB|AND|OR|XOR)Lmodify [off1] {sym} (ADDLconst [off2] base) val mem) && is32Bit(int64(off1)+int64(off2)) =>
+	((ADD|SUB|AND|OR|XOR)Lmodify [off1+off2] {sym} base val mem)
+((ADD|AND|OR|XOR)Lconstmodify [valoff1] {sym} (ADDLconst [off2] base) mem) && valoff1.canAdd32(off2) =>
+	((ADD|AND|OR|XOR)Lconstmodify [valoff1.addOffset32(off2)] {sym} base mem)
+
+// Fold constants into stores.
+(MOVLstore [off] {sym} ptr (MOVLconst [c]) mem) =>
+	(MOVLstoreconst [makeValAndOff(c,off)] {sym} ptr mem)
+(MOVWstore [off] {sym} ptr (MOVLconst [c]) mem) =>
+	(MOVWstoreconst [makeValAndOff(c,off)] {sym} ptr mem)
+(MOVBstore [off] {sym} ptr (MOVLconst [c]) mem) =>
+	(MOVBstoreconst [makeValAndOff(c,off)] {sym} ptr mem)
+
+// Fold address offsets into constant stores.
+(MOV(L|W|B)storeconst [sc] {s} (ADDLconst [off] ptr) mem) && sc.canAdd32(off) =>
+	(MOV(L|W|B)storeconst [sc.addOffset32(off)] {s} ptr mem)
+
+// We need to fold LEAL into the MOVx ops so that the live variable analysis knows
+// what variables are being read/written by the ops.
+// Note: we turn off this merging for operations on globals when building
+// position-independent code (when Flag_shared is set).
+// PIC needs a spare register to load the PC into.  Having the LEAL be
+// a separate instruction gives us that register.  Having the LEAL be
+// a separate instruction also allows it to be CSEd (which is good because
+// it compiles to a thunk call).
+(MOV(L|W|B|SS|SD|BLSX|WLSX)load  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2)
+  && (base.Op != OpSB || !config.ctxt.Flag_shared) =>
+        (MOV(L|W|B|SS|SD|BLSX|WLSX)load  [off1+off2] {mergeSym(sym1,sym2)} base mem)
+
+(MOV(L|W|B|SS|SD)store  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2)
+  && (base.Op != OpSB || !config.ctxt.Flag_shared) =>
+	(MOV(L|W|B|SS|SD)store  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+
+(MOV(L|W|B)storeconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && sc.canAdd32(off)
+  && (ptr.Op != OpSB || !config.ctxt.Flag_shared) =>
+	(MOV(L|W|B)storeconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
+
+((ADD|SUB|MUL|AND|OR|XOR)Lload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
+	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared) =>
+	((ADD|SUB|MUL|AND|OR|XOR)Lload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+((ADD|SUB|MUL|DIV)SSload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
+	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared) =>
+	((ADD|SUB|MUL|DIV)SSload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+((ADD|SUB|MUL|DIV)SDload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
+	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared) =>
+	((ADD|SUB|MUL|DIV)SDload [off1+off2] {mergeSym(sym1,sym2)} val base mem)
+((ADD|SUB|AND|OR|XOR)Lmodify [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
+	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared) =>
+	((ADD|SUB|AND|OR|XOR)Lmodify [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+((ADD|AND|OR|XOR)Lconstmodify [valoff1] {sym1} (LEAL [off2] {sym2} base) mem)
+	&& valoff1.canAdd32(off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !config.ctxt.Flag_shared) =>
+	((ADD|AND|OR|XOR)Lconstmodify [valoff1.addOffset32(off2)] {mergeSym(sym1,sym2)} base mem)
+
+// Merge load/store to op
+((ADD|AND|OR|XOR|SUB|MUL)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && clobber(l) => ((ADD|AND|OR|XOR|SUB|MUL)Lload x [off] {sym} ptr mem)
+((ADD|SUB|MUL|DIV)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && clobber(l) => ((ADD|SUB|MUL|DIV)SDload x [off] {sym} ptr mem)
+((ADD|SUB|MUL|DIV)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && clobber(l) => ((ADD|SUB|MUL|DIV)SSload x [off] {sym} ptr mem)
+(MOVLstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Lload x [off] {sym} ptr mem) mem) && y.Uses==1 && clobber(y) => ((ADD|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
+(MOVLstore {sym} [off] ptr y:((ADD|SUB|AND|OR|XOR)L l:(MOVLload [off] {sym} ptr mem) x) mem) && y.Uses==1 && l.Uses==1 && clobber(y, l) =>
+	((ADD|SUB|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
+(MOVLstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Lconst [c] l:(MOVLload [off] {sym} ptr mem)) mem)
+	&& y.Uses==1 && l.Uses==1 && clobber(y, l) =>
+	((ADD|AND|OR|XOR)Lconstmodify [makeValAndOff(c,off)] {sym} ptr mem)
+
+// fold LEALs together
+(LEAL [off1] {sym1} (LEAL [off2] {sym2} x)) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+      (LEAL [off1+off2] {mergeSym(sym1,sym2)} x)
+
+// LEAL into LEAL1
+(LEAL1 [off1] {sym1} (LEAL [off2] {sym2} x) y) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && x.Op != OpSB =>
+       (LEAL1 [off1+off2] {mergeSym(sym1,sym2)} x y)
+
+// LEAL1 into LEAL
+(LEAL [off1] {sym1} (LEAL1 [off2] {sym2} x y)) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+       (LEAL1 [off1+off2] {mergeSym(sym1,sym2)} x y)
+
+// LEAL into LEAL[248]
+(LEAL2 [off1] {sym1} (LEAL [off2] {sym2} x) y) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && x.Op != OpSB =>
+       (LEAL2 [off1+off2] {mergeSym(sym1,sym2)} x y)
+(LEAL4 [off1] {sym1} (LEAL [off2] {sym2} x) y) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && x.Op != OpSB =>
+       (LEAL4 [off1+off2] {mergeSym(sym1,sym2)} x y)
+(LEAL8 [off1] {sym1} (LEAL [off2] {sym2} x) y) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) && x.Op != OpSB =>
+       (LEAL8 [off1+off2] {mergeSym(sym1,sym2)} x y)
+
+// LEAL[248] into LEAL
+(LEAL [off1] {sym1} (LEAL2 [off2] {sym2} x y)) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+      (LEAL2 [off1+off2] {mergeSym(sym1,sym2)} x y)
+(LEAL [off1] {sym1} (LEAL4 [off2] {sym2} x y)) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+      (LEAL4 [off1+off2] {mergeSym(sym1,sym2)} x y)
+(LEAL [off1] {sym1} (LEAL8 [off2] {sym2} x y)) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+      (LEAL8 [off1+off2] {mergeSym(sym1,sym2)} x y)
+
+// LEAL[1248] into LEAL[1248]. Only some such merges are possible.
+(LEAL1 [off1] {sym1} x (LEAL1 [off2] {sym2} y y)) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+      (LEAL2 [off1+off2] {mergeSym(sym1, sym2)} x y)
+(LEAL1 [off1] {sym1} x (LEAL1 [off2] {sym2} x y)) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+      (LEAL2 [off1+off2] {mergeSym(sym1, sym2)} y x)
+(LEAL2 [off1] {sym} x (LEAL1 [off2] {nil} y y)) && is32Bit(int64(off1)+2*int64(off2)) =>
+      (LEAL4 [off1+2*off2] {sym} x y)
+(LEAL4 [off1] {sym} x (LEAL1 [off2] {nil} y y)) && is32Bit(int64(off1)+4*int64(off2)) =>
+      (LEAL8 [off1+4*off2] {sym} x y)
+
+// Absorb InvertFlags into branches.
+(LT (InvertFlags cmp) yes no) => (GT cmp yes no)
+(GT (InvertFlags cmp) yes no) => (LT cmp yes no)
+(LE (InvertFlags cmp) yes no) => (GE cmp yes no)
+(GE (InvertFlags cmp) yes no) => (LE cmp yes no)
+(ULT (InvertFlags cmp) yes no) => (UGT cmp yes no)
+(UGT (InvertFlags cmp) yes no) => (ULT cmp yes no)
+(ULE (InvertFlags cmp) yes no) => (UGE cmp yes no)
+(UGE (InvertFlags cmp) yes no) => (ULE cmp yes no)
+(EQ (InvertFlags cmp) yes no) => (EQ cmp yes no)
+(NE (InvertFlags cmp) yes no) => (NE cmp yes no)
+
+// Constant comparisons.
+(CMPLconst (MOVLconst [x]) [y]) && x==y                       => (FlagEQ)
+(CMPLconst (MOVLconst [x]) [y]) && x<y && uint32(x)<uint32(y) => (FlagLT_ULT)
+(CMPLconst (MOVLconst [x]) [y]) && x<y && uint32(x)>uint32(y) => (FlagLT_UGT)
+(CMPLconst (MOVLconst [x]) [y]) && x>y && uint32(x)<uint32(y) => (FlagGT_ULT)
+(CMPLconst (MOVLconst [x]) [y]) && x>y && uint32(x)>uint32(y) => (FlagGT_UGT)
+
+(CMPWconst (MOVLconst [x]) [y]) && int16(x)==y                       => (FlagEQ)
+(CMPWconst (MOVLconst [x]) [y]) && int16(x)<y && uint16(x)<uint16(y) => (FlagLT_ULT)
+(CMPWconst (MOVLconst [x]) [y]) && int16(x)<y && uint16(x)>uint16(y) => (FlagLT_UGT)
+(CMPWconst (MOVLconst [x]) [y]) && int16(x)>y && uint16(x)<uint16(y) => (FlagGT_ULT)
+(CMPWconst (MOVLconst [x]) [y]) && int16(x)>y && uint16(x)>uint16(y) => (FlagGT_UGT)
+
+(CMPBconst (MOVLconst [x]) [y]) && int8(x)==y                      => (FlagEQ)
+(CMPBconst (MOVLconst [x]) [y]) && int8(x)<y && uint8(x)<uint8(y) => (FlagLT_ULT)
+(CMPBconst (MOVLconst [x]) [y]) && int8(x)<y && uint8(x)>uint8(y) => (FlagLT_UGT)
+(CMPBconst (MOVLconst [x]) [y]) && int8(x)>y && uint8(x)<uint8(y) => (FlagGT_ULT)
+(CMPBconst (MOVLconst [x]) [y]) && int8(x)>y && uint8(x)>uint8(y) => (FlagGT_UGT)
+
+// Other known comparisons.
+(CMPLconst (SHRLconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 32 && (1<<uint64(32-c)) <= uint64(n) => (FlagLT_ULT)
+(CMPLconst (ANDLconst _ [m]) [n]) && 0 <= m && m < n => (FlagLT_ULT)
+(CMPWconst (ANDLconst _ [m]) [n]) && 0 <= int16(m) && int16(m) < n => (FlagLT_ULT)
+(CMPBconst (ANDLconst _ [m]) [n]) && 0 <= int8(m) && int8(m) < n => (FlagLT_ULT)
+// TODO: DIVxU also.
+
+// Absorb flag constants into SBB ops.
+(SBBLcarrymask (FlagEQ)) => (MOVLconst [0])
+(SBBLcarrymask (FlagLT_ULT)) => (MOVLconst [-1])
+(SBBLcarrymask (FlagLT_UGT)) => (MOVLconst [0])
+(SBBLcarrymask (FlagGT_ULT)) => (MOVLconst [-1])
+(SBBLcarrymask (FlagGT_UGT)) => (MOVLconst [0])
+
+// Absorb flag constants into branches.
+(EQ (FlagEQ) yes no) => (First yes no)
+(EQ (FlagLT_ULT) yes no) => (First no yes)
+(EQ (FlagLT_UGT) yes no) => (First no yes)
+(EQ (FlagGT_ULT) yes no) => (First no yes)
+(EQ (FlagGT_UGT) yes no) => (First no yes)
+
+(NE (FlagEQ) yes no) => (First no yes)
+(NE (FlagLT_ULT) yes no) => (First yes no)
+(NE (FlagLT_UGT) yes no) => (First yes no)
+(NE (FlagGT_ULT) yes no) => (First yes no)
+(NE (FlagGT_UGT) yes no) => (First yes no)
+
+(LT (FlagEQ) yes no) => (First no yes)
+(LT (FlagLT_ULT) yes no) => (First yes no)
+(LT (FlagLT_UGT) yes no) => (First yes no)
+(LT (FlagGT_ULT) yes no) => (First no yes)
+(LT (FlagGT_UGT) yes no) => (First no yes)
+
+(LE (FlagEQ) yes no) => (First yes no)
+(LE (FlagLT_ULT) yes no) => (First yes no)
+(LE (FlagLT_UGT) yes no) => (First yes no)
+(LE (FlagGT_ULT) yes no) => (First no yes)
+(LE (FlagGT_UGT) yes no) => (First no yes)
+
+(GT (FlagEQ) yes no) => (First no yes)
+(GT (FlagLT_ULT) yes no) => (First no yes)
+(GT (FlagLT_UGT) yes no) => (First no yes)
+(GT (FlagGT_ULT) yes no) => (First yes no)
+(GT (FlagGT_UGT) yes no) => (First yes no)
+
+(GE (FlagEQ) yes no) => (First yes no)
+(GE (FlagLT_ULT) yes no) => (First no yes)
+(GE (FlagLT_UGT) yes no) => (First no yes)
+(GE (FlagGT_ULT) yes no) => (First yes no)
+(GE (FlagGT_UGT) yes no) => (First yes no)
+
+(ULT (FlagEQ) yes no) => (First no yes)
+(ULT (FlagLT_ULT) yes no) => (First yes no)
+(ULT (FlagLT_UGT) yes no) => (First no yes)
+(ULT (FlagGT_ULT) yes no) => (First yes no)
+(ULT (FlagGT_UGT) yes no) => (First no yes)
+
+(ULE (FlagEQ) yes no) => (First yes no)
+(ULE (FlagLT_ULT) yes no) => (First yes no)
+(ULE (FlagLT_UGT) yes no) => (First no yes)
+(ULE (FlagGT_ULT) yes no) => (First yes no)
+(ULE (FlagGT_UGT) yes no) => (First no yes)
+
+(UGT (FlagEQ) yes no) => (First no yes)
+(UGT (FlagLT_ULT) yes no) => (First no yes)
+(UGT (FlagLT_UGT) yes no) => (First yes no)
+(UGT (FlagGT_ULT) yes no) => (First no yes)
+(UGT (FlagGT_UGT) yes no) => (First yes no)
+
+(UGE (FlagEQ) yes no) => (First yes no)
+(UGE (FlagLT_ULT) yes no) => (First no yes)
+(UGE (FlagLT_UGT) yes no) => (First yes no)
+(UGE (FlagGT_ULT) yes no) => (First no yes)
+(UGE (FlagGT_UGT) yes no) => (First yes no)
+
+// Absorb flag constants into SETxx ops.
+(SETEQ (FlagEQ)) => (MOVLconst [1])
+(SETEQ (FlagLT_ULT)) => (MOVLconst [0])
+(SETEQ (FlagLT_UGT)) => (MOVLconst [0])
+(SETEQ (FlagGT_ULT)) => (MOVLconst [0])
+(SETEQ (FlagGT_UGT)) => (MOVLconst [0])
+
+(SETNE (FlagEQ)) => (MOVLconst [0])
+(SETNE (FlagLT_ULT)) => (MOVLconst [1])
+(SETNE (FlagLT_UGT)) => (MOVLconst [1])
+(SETNE (FlagGT_ULT)) => (MOVLconst [1])
+(SETNE (FlagGT_UGT)) => (MOVLconst [1])
+
+(SETL (FlagEQ)) => (MOVLconst [0])
+(SETL (FlagLT_ULT)) => (MOVLconst [1])
+(SETL (FlagLT_UGT)) => (MOVLconst [1])
+(SETL (FlagGT_ULT)) => (MOVLconst [0])
+(SETL (FlagGT_UGT)) => (MOVLconst [0])
+
+(SETLE (FlagEQ)) => (MOVLconst [1])
+(SETLE (FlagLT_ULT)) => (MOVLconst [1])
+(SETLE (FlagLT_UGT)) => (MOVLconst [1])
+(SETLE (FlagGT_ULT)) => (MOVLconst [0])
+(SETLE (FlagGT_UGT)) => (MOVLconst [0])
+
+(SETG (FlagEQ)) => (MOVLconst [0])
+(SETG (FlagLT_ULT)) => (MOVLconst [0])
+(SETG (FlagLT_UGT)) => (MOVLconst [0])
+(SETG (FlagGT_ULT)) => (MOVLconst [1])
+(SETG (FlagGT_UGT)) => (MOVLconst [1])
+
+(SETGE (FlagEQ)) => (MOVLconst [1])
+(SETGE (FlagLT_ULT)) => (MOVLconst [0])
+(SETGE (FlagLT_UGT)) => (MOVLconst [0])
+(SETGE (FlagGT_ULT)) => (MOVLconst [1])
+(SETGE (FlagGT_UGT)) => (MOVLconst [1])
+
+(SETB (FlagEQ)) => (MOVLconst [0])
+(SETB (FlagLT_ULT)) => (MOVLconst [1])
+(SETB (FlagLT_UGT)) => (MOVLconst [0])
+(SETB (FlagGT_ULT)) => (MOVLconst [1])
+(SETB (FlagGT_UGT)) => (MOVLconst [0])
+
+(SETBE (FlagEQ)) => (MOVLconst [1])
+(SETBE (FlagLT_ULT)) => (MOVLconst [1])
+(SETBE (FlagLT_UGT)) => (MOVLconst [0])
+(SETBE (FlagGT_ULT)) => (MOVLconst [1])
+(SETBE (FlagGT_UGT)) => (MOVLconst [0])
+
+(SETA (FlagEQ)) => (MOVLconst [0])
+(SETA (FlagLT_ULT)) => (MOVLconst [0])
+(SETA (FlagLT_UGT)) => (MOVLconst [1])
+(SETA (FlagGT_ULT)) => (MOVLconst [0])
+(SETA (FlagGT_UGT)) => (MOVLconst [1])
+
+(SETAE (FlagEQ)) => (MOVLconst [1])
+(SETAE (FlagLT_ULT)) => (MOVLconst [0])
+(SETAE (FlagLT_UGT)) => (MOVLconst [1])
+(SETAE (FlagGT_ULT)) => (MOVLconst [0])
+(SETAE (FlagGT_UGT)) => (MOVLconst [1])
+
+// Remove redundant *const ops
+(ADDLconst [c] x) && c==0  => x
+(SUBLconst [c] x) && c==0  => x
+(ANDLconst [c] _) && c==0  => (MOVLconst [0])
+(ANDLconst [c] x) && c==-1 => x
+(ORLconst [c] x)  && c==0  => x
+(ORLconst [c] _)  && c==-1 => (MOVLconst [-1])
+(XORLconst [c] x) && c==0  => x
+// TODO: since we got rid of the W/B versions, we might miss
+// things like (ANDLconst [0x100] x) which were formerly
+// (ANDBconst [0] x).  Probably doesn't happen very often.
+// If we cared, we might do:
+//  (ANDLconst <t> [c] x) && t.Size()==1 && int8(x)==0 => (MOVLconst [0])
+
+// Convert constant subtracts to constant adds
+(SUBLconst [c] x) => (ADDLconst [-c] x)
+
+// generic constant folding
+// TODO: more of this
+(ADDLconst [c] (MOVLconst [d])) => (MOVLconst [c+d])
+(ADDLconst [c] (ADDLconst [d] x)) => (ADDLconst [c+d] x)
+(SARLconst [c] (MOVLconst [d])) => (MOVLconst [d>>uint64(c)])
+(SARWconst [c] (MOVLconst [d])) => (MOVLconst [d>>uint64(c)])
+(SARBconst [c] (MOVLconst [d])) => (MOVLconst [d>>uint64(c)])
+(NEGL (MOVLconst [c])) => (MOVLconst [-c])
+(MULLconst [c] (MOVLconst [d])) => (MOVLconst [c*d])
+(ANDLconst [c] (MOVLconst [d])) => (MOVLconst [c&d])
+(ORLconst [c] (MOVLconst [d])) => (MOVLconst [c|d])
+(XORLconst [c] (MOVLconst [d])) => (MOVLconst [c^d])
+(NOTL (MOVLconst [c])) => (MOVLconst [^c])
+
+// generic simplifications
+// TODO: more of this
+(ADDL x (NEGL y)) => (SUBL x y)
+(SUBL x x) => (MOVLconst [0])
+(ANDL x x) => x
+(ORL x x) => x
+(XORL x x) => (MOVLconst [0])
+
+// checking AND against 0.
+(CMP(L|W|B)const l:(ANDL x y) [0]) && l.Uses==1 => (TEST(L|W|B) x y)
+(CMPLconst l:(ANDLconst [c] x) [0]) && l.Uses==1 => (TESTLconst [c] x)
+(CMPWconst l:(ANDLconst [c] x) [0]) && l.Uses==1 => (TESTWconst [int16(c)] x)
+(CMPBconst l:(ANDLconst [c] x) [0]) && l.Uses==1 => (TESTBconst [int8(c)] x)
+
+// TEST %reg,%reg is shorter than CMP
+(CMP(L|W|B)const x [0]) => (TEST(L|W|B) x x)
+
+// Convert LEAL1 back to ADDL if we can
+(LEAL1 [0] {nil} x y) => (ADDL x y)
+
+// For PIC, break floating-point constant loading into two instructions so we have
+// a register to use for holding the address of the constant pool entry.
+(MOVSSconst [c]) && config.ctxt.Flag_shared => (MOVSSconst2 (MOVSSconst1 [c]))
+(MOVSDconst [c]) && config.ctxt.Flag_shared => (MOVSDconst2 (MOVSDconst1 [c]))
+
+(CMP(L|W|B) l:(MOV(L|W|B)load {sym} [off] ptr mem) x) && canMergeLoad(v, l) && clobber(l) => (CMP(L|W|B)load {sym} [off] ptr x mem)
+(CMP(L|W|B) x l:(MOV(L|W|B)load {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (InvertFlags (CMP(L|W|B)load {sym} [off] ptr x mem))
+
+(CMP(L|W|B)const l:(MOV(L|W|B)load {sym} [off] ptr mem) [c])
+	&& l.Uses == 1
+	&& clobber(l) =>
+  @l.Block (CMP(L|W|B)constload {sym} [makeValAndOff(int32(c),off)] ptr mem)
+
+(CMPLload {sym} [off] ptr (MOVLconst [c]) mem) => (CMPLconstload {sym} [makeValAndOff(c,off)] ptr mem)
+(CMPWload {sym} [off] ptr (MOVLconst [c]) mem) => (CMPWconstload {sym} [makeValAndOff(int32(int16(c)),off)] ptr mem)
+(CMPBload {sym} [off] ptr (MOVLconst [c]) mem) => (CMPBconstload {sym} [makeValAndOff(int32(int8(c)),off)] ptr mem)
+
+(MOVBload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read8(sym, int64(off)))])
+(MOVWload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVLload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVBLSXload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(int8(read8(sym, int64(off))))])
+(MOVWLSXload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(int16(read16(sym, int64(off), config.ctxt.Arch.ByteOrder)))])

@@ -1,0 +1,64 @@
+env GO111MODULE=off
+
+go list -e -f '{{.Incomplete}}' m/runbad1.go
+stdout true
+! go run m/runbad1.go
+stderr 'use of internal package m/x/internal not allowed'
+
+go list -e -f '{{.Incomplete}}' m/runbad2.go
+stdout true
+! go run m/runbad2.go
+stderr 'use of internal package m/x/internal/y not allowed'
+
+go list -e -f '{{.Incomplete}}' m/runok.go
+stdout false
+go run m/runok.go
+
+cd m
+env GO111MODULE=on
+
+go list -e -f '{{.Incomplete}}' runbad1.go
+stdout true
+! go run runbad1.go
+stderr 'use of internal package m/x/internal not allowed'
+
+go list -e -f '{{.Incomplete}}' runbad2.go
+stdout true
+! go run runbad2.go
+stderr 'use of internal package m/x/internal/y not allowed'
+
+go list -e -f '{{.Incomplete}}' runok.go
+stdout false
+go run runok.go
+
+
+-- m/go.mod --
+module m
+
+-- m/x/internal/internal.go --
+package internal
+
+-- m/x/internal/y/y.go --
+package y
+
+-- m/internal/internal.go --
+package internal
+
+-- m/internal/z/z.go --
+package z
+
+-- m/runbad1.go --
+package main
+import _ "m/x/internal"
+func main() {}
+
+-- m/runbad2.go --
+package main
+import _ "m/x/internal/y"
+func main() {}
+
+-- m/runok.go --
+package main
+import _ "m/internal"
+import _ "m/internal/z"
+func main() {}

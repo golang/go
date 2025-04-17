@@ -1,0 +1,47 @@
+[!fuzz] skip
+[short] skip
+env GOCACHE=$WORK/cache
+
+# Test fuzz.Context.
+go test -vet=off context_fuzz_test.go
+stdout ^ok
+! stdout FAIL
+
+go test -vet=off -fuzz=Fuzz -fuzztime=1x context_fuzz_test.go
+stdout ok
+! stdout FAIL
+
+-- context_fuzz_test.go --
+package context_fuzz
+
+import (
+	"context"
+	"errors"
+	"testing"
+)
+
+func Fuzz(f *testing.F) {
+	ctx := f.Context()
+	if err := ctx.Err(); err != nil {
+		f.Fatalf("expected non-canceled context, got %v", err)
+	}
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		innerCtx := t.Context()
+		if err := innerCtx.Err(); err != nil {
+			t.Fatalf("expected inner test to not inherit canceled context, got %v", err)
+		}
+
+		t.Cleanup(func() {
+			if !errors.Is(innerCtx.Err(), context.Canceled) {
+				t.Fatal("expected context of inner test to be canceled after its fuzz function finished")
+			}
+		})
+	})
+
+	f.Cleanup(func() {
+		if !errors.Is(ctx.Err(), context.Canceled) {
+			f.Fatal("expected context canceled before cleanup")
+		}
+	})
+}

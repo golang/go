@@ -1,0 +1,9 @@
+-- expect --
+FAILURE "expected a proc but didn't have one"
+-- trace --
+Trace Go1.22
+EventBatch gen=1 m=0 time=0 size=5
+Frequency freq=15625000
+EventBatch gen=1 m=0 time=0 size=5
+GoCreate dt=0 new_g=1 new_stack=0 stack=0
+EventBatch gen=2 m=0 time=0 size=50

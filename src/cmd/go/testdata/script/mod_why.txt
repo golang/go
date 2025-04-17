@@ -1,0 +1,130 @@
+env GO111MODULE=on
+[short] skip
+
+# Populate go.sum.
+go mod tidy
+cp go.mod go.mod.orig
+
+go list -test all
+stdout rsc.io/quote
+stdout golang.org/x/text/language
+
+# why a package?
+go mod why golang.org/x/text/language
+cmp stdout why-language.txt
+
+# why a module?
+go mod why -m golang.org...
+cmp stdout why-text-module.txt
+
+# why a package used only in tests?
+go mod why rsc.io/testonly
+cmp stdout why-testonly.txt
+
+# why a module used only in a test of a dependency?
+go mod why -m rsc.io/testonly
+cmp stdout why-testonly.txt
+
+# test package not needed
+go mod why golang.org/x/text/unused
+cmp stdout why-unused.txt
+
+# vendor doesn't use packages used only in tests.
+go mod why -vendor rsc.io/testonly
+cmp stdout why-vendor.txt
+
+# vendor doesn't use modules used only in tests.
+go mod why -vendor -m rsc.io/testonly
+cmp stdout why-vendor-module.txt
+
+# test multiple packages
+go mod why golang.org/x/text/language golang.org/x/text/unused
+cmp stdout why-both.txt
+
+# test multiple modules
+go mod why -m rsc.io/quote rsc.io/sampler
+cmp stdout why-both-module.txt
+
+# package in a module that isn't even in the module graph
+# (https://golang.org/issue/26977)
+go mod why rsc.io/fortune
+cmp stdout why-missing.txt
+
+# None of these command should have changed the go.mod file.
+cmp go.mod go.mod.orig
+
+-- go.mod --
+module mymodule
+require rsc.io/quote v1.5.2
+
+-- x/x.go --
+package x
+import _ "mymodule/z"
+
+-- y/y.go --
+package y
+
+-- y/y_test.go --
+package y
+import _ "rsc.io/quote"
+
+-- z/z.go --
+package z
+import _ "mymodule/y"
+
+
+-- why-language.txt --
+# golang.org/x/text/language
+mymodule/y
+mymodule/y.test
+rsc.io/quote
+rsc.io/sampler
+golang.org/x/text/language
+-- why-unused.txt --
+# golang.org/x/text/unused
+(main module does not need package golang.org/x/text/unused)
+-- why-text-module.txt --
+# golang.org/x/text
+mymodule/y
+mymodule/y.test
+rsc.io/quote
+rsc.io/sampler
+golang.org/x/text/language
+-- why-testonly.txt --
+# rsc.io/testonly
+mymodule/y
+mymodule/y.test
+rsc.io/quote
+rsc.io/sampler
+rsc.io/sampler.test
+rsc.io/testonly
+-- why-vendor.txt --
+# rsc.io/testonly
+(main module does not need to vendor package rsc.io/testonly)
+-- why-vendor-module.txt --
+# rsc.io/testonly
+(main module does not need to vendor module rsc.io/testonly)
+-- why-both.txt --
+# golang.org/x/text/language
+mymodule/y
+mymodule/y.test
+rsc.io/quote
+rsc.io/sampler
+golang.org/x/text/language
+
+# golang.org/x/text/unused
+(main module does not need package golang.org/x/text/unused)
+-- why-both-module.txt --
+# rsc.io/quote
+mymodule/y
+mymodule/y.test
+rsc.io/quote
+
+# rsc.io/sampler
+mymodule/y
+mymodule/y.test
+rsc.io/quote
+rsc.io/sampler
+-- why-missing.txt --
+# rsc.io/fortune
+(main module does not need package rsc.io/fortune)

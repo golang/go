@@ -1,0 +1,37 @@
+# Test that -benchtime 1x only runs a total of 1 loop iteration.
+# See golang.org/issue/32051.
+
+go test -run ^$ -bench . -benchtime 1x
+
+-- go.mod --
+module bench
+
+go 1.16
+-- x_test.go --
+package bench
+
+import (
+	"fmt"
+	"os"
+	"testing"
+)
+
+var called = false
+
+func TestMain(m *testing.M) {
+	m.Run()
+	if !called {
+		fmt.Println("benchmark never called")
+		os.Exit(1)
+	}
+}
+
+func Benchmark(b *testing.B) {
+	if b.N > 1 {
+		b.Fatalf("called with b.N=%d; want b.N=1 only", b.N)
+	}
+	if called {
+		b.Fatal("called twice")
+	}
+	called = true
+}

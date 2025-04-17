@@ -1,0 +1,117 @@
+env TESTGO_VERSION=go1.99
+
+! go list -f '{{.Module.GoVersion}}'
+stderr 'go: updates to go.mod needed'
+stderr 'go mod tidy'
+
+go mod tidy
+cat go.mod
+go list -f '{{.Module.GoVersion}}'
+stdout 1.22
+
+# Adding a@v1.0.01 should upgrade to Go 1.23rc1.
+cp go.mod go.mod1
+go get example.com/a@v1.0.1
+stderr '^go: upgraded go 1.22 => 1.23rc1\ngo: upgraded example.com/a v1.0.0 => v1.0.1\ngo: upgraded example.com/b v1.0.0 => v1.0.1$'
+go list -f '{{.Module.GoVersion}}'
+stdout 1.23rc1
+
+# Repeating the update with go@1.24.0 should use that Go version.
+cp go.mod1 go.mod
+go get example.com/a@v1.0.1 go@1.24.0
+go list -f '{{.Module.GoVersion}}'
+stdout 1.24.0
+
+# Go version-constrained updates should report the problems.
+cp go.mod1 go.mod
+! go get example.com/a@v1.0.2 go@1.24.2
+stderr '^go: example.com/a@v1.0.2 requires go@1.25, not go@1.24.2$'
+! go get example.com/a@v1.0.2 go@1.26.3
+stderr '^go: example.com/a@v1.0.2 indirectly requires go@1.27, not go@1.26.3$'
+go get example.com/a@v1.0.2 go@1.28rc1
+go list -f '{{.Module.GoVersion}}'
+stdout 1.28rc1
+go get go@1.24.2
+stderr '^go: downgraded go 1.28rc1 => 1.24.2$'
+stderr '^go: downgraded example.com/a v1.0.2 => v1.0.1$'
+stderr '^go: downgraded example.com/b v1.0.2 => v1.0.1$'
+go list -f '{{.Module.GoVersion}}'
+stdout 1.24.2
+
+-- go.mod --
+module m
+go 1.21
+
+require (
+	example.com/a v1.0.0
+	example.com/b v0.9.0
+)
+
+replace example.com/a v1.0.0 => ./a100
+replace example.com/a v1.0.1 => ./a101
+replace example.com/a v1.0.2 => ./a102
+replace example.com/b v1.0.1 => ./b101
+replace example.com/b v1.0.2 => ./b102
+replace example.com/b v1.0.0 => ./b100
+replace example.com/b v0.9.0 => ./b100
+
+-- x.go --
+package m
+
+import (
+	_ "example.com/a"
+	_ "example.com/b"
+)
+
+-- a100/go.mod --
+module example.com/a
+go 1.22
+
+require example.com/b v1.0.0
+
+-- a100/a.go --
+package a
+
+-- a101/go.mod --
+// this module is technically invalid, since the dep example.com/b has a newer go line than this module,
+// but we should still be able to handle it.
+module example.com/a
+go 1.22
+
+require example.com/b v1.0.1
+
+-- a101/a.go --
+package a
+
+-- a102/go.mod --
+// this module is technically invalid, since the dep example.com/b has a newer go line than this module,
+// but we should still be able to handle it.
+module example.com/a
+go 1.25
+
+require example.com/b v1.0.2
+
+-- a102/a.go --
+package a
+
+-- b100/go.mod --
+module example.com/b
+go 1.22
+
+-- b100/b.go --
+package b
+
+-- b101/go.mod --
+module example.com/b
+go 1.23rc1
+
+-- b101/b.go --
+package b
+
+-- b102/go.mod --
+module example.com/b
+go 1.27
+
+-- b102/b.go --
+package b
+

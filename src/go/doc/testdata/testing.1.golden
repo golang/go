@@ -1,0 +1,298 @@
+// Package testing provides support for automated testing of Go ...
+PACKAGE testing
+
+IMPORTPATH
+	testdata/testing
+
+IMPORTS
+	bytes
+	flag
+	fmt
+	io
+	os
+	runtime
+	runtime/pprof
+	strconv
+	strings
+	time
+
+FILENAMES
+	testdata/benchmark.go
+	testdata/example.go
+	testdata/testing.go
+
+VARIABLES
+	// 
+	var (
+		// The short flag requests that tests run more quickly, but its functionality
+		// is provided by test writers themselves. The testing package is just its
+		// home. The all.bash installation script sets it to make installation more
+		// efficient, but by default the flag is off so a plain "go test" will do a
+		// full test of the package.
+		short	= flag.Bool("test.short", false, "run smaller test suite to save time")
+	
+		// Report as tests are run; default is silent for success.
+		chatty		= flag.Bool("test.v", false, "verbose: print additional output")
+		match		= flag.String("test.run", "", "regular expression to select tests to run")
+		memProfile	= flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
+		memProfileRate	= flag.Int("test.memprofilerate", 0, "if >=0, sets runtime.MemProfileRate")
+		cpuProfile	= flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
+		timeout		= flag.Duration("test.timeout", 0, "if positive, sets an aggregate time limit for all tests")
+		cpuListStr	= flag.String("test.cpu", "", "comma-separated list of number of CPUs to use for each test")
+		parallel	= flag.Int("test.parallel", runtime.GOMAXPROCS(0), "maximum test parallelism")
+	
+		cpuList	[]int
+	)
+
+	// 
+	var benchTime = flag.Duration("test.benchtime", 1*time.Second, "approximate run time for each benchmark")
+
+	// 
+	var matchBenchmarks = flag.String("test.bench", "", "regular expression to select benchmarks to run")
+
+	// 
+	var timer *time.Timer
+
+
+FUNCTIONS
+	// An internal function but exported because it is cross-package; ...
+	func Main(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample)
+
+	// An internal function but exported because it is cross-package; ...
+	func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark)
+
+	// 
+	func RunExamples(examples []InternalExample) (ok bool)
+
+	// 
+	func RunTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ok bool)
+
+	// Short reports whether the -test.short flag is set. 
+	func Short() bool
+
+	// after runs after all testing. 
+	func after()
+
+	// alarm is called if the timeout expires. 
+	func alarm()
+
+	// before runs before all testing. 
+	func before()
+
+	// decorate inserts the final newline if needed and indentation ...
+	func decorate(s string, addFileLine bool) string
+
+	// 
+	func max(x, y int) int
+
+	// 
+	func min(x, y int) int
+
+	// 
+	func parseCpuList()
+
+	// roundDown10 rounds a number down to the nearest power of 10. 
+	func roundDown10(n int) int
+
+	// roundUp rounds x up to a number of the form [1eX, 2eX, 5eX]. 
+	func roundUp(n int) int
+
+	// startAlarm starts an alarm if requested. 
+	func startAlarm()
+
+	// stopAlarm turns off the alarm. 
+	func stopAlarm()
+
+	// 
+	func tRunner(t *T, test *InternalTest)
+
+
+TYPES
+	// B is a type passed to Benchmark functions to manage benchmark ...
+	type B struct {
+		common
+		N		int
+		benchmark	InternalBenchmark
+		bytes		int64
+		timerOn		bool
+		result		BenchmarkResult
+	}
+
+	// Error is equivalent to Log() followed by Fail(). 
+	func (c *B) Error(args ...any)
+
+	// Errorf is equivalent to Logf() followed by Fail(). 
+	func (c *B) Errorf(format string, args ...any)
+
+	// Fail marks the function as having failed but continues ...
+	func (c *B) Fail()
+
+	// FailNow marks the function as having failed and stops its ...
+	func (c *B) FailNow()
+
+	// Failed reports whether the function has failed. 
+	func (c *B) Failed() bool
+
+	// Fatal is equivalent to Log() followed by FailNow(). 
+	func (c *B) Fatal(args ...any)
+
+	// Fatalf is equivalent to Logf() followed by FailNow(). 
+	func (c *B) Fatalf(format string, args ...any)
+
+	// Log formats its arguments using default formatting, analogous ...
+	func (c *B) Log(args ...any)
+
+	// Logf formats its arguments according to the format, analogous ...
+	func (c *B) Logf(format string, args ...any)
+
+	// ResetTimer sets the elapsed benchmark time to zero. It does not ...
+	func (b *B) ResetTimer()
+
+	// SetBytes records the number of bytes processed in a single ...
+	func (b *B) SetBytes(n int64)
+
+	// StartTimer starts timing a test. This function is called ...
+	func (b *B) StartTimer()
+
+	// StopTimer stops timing a test. This can be used to pause the ...
+	func (b *B) StopTimer()
+
+	// launch launches the benchmark function. It gradually increases ...
+	func (b *B) launch()
+
+	// log generates the output. It's always at the same stack depth. 
+	func (c *B) log(s string)
+
+	// 
+	func (b *B) nsPerOp() int64
+
+	// run times the benchmark function in a separate goroutine. 
+	func (b *B) run() BenchmarkResult
+
+	// runN runs a single benchmark for the specified number of ...
+	func (b *B) runN(n int)
+
+	// trimOutput shortens the output from a benchmark, which can be ...
+	func (b *B) trimOutput()
+
+	// The results of a benchmark run. 
+	type BenchmarkResult struct {
+		N	int		// The number of iterations.
+		T	time.Duration	// The total time taken.
+		Bytes	int64		// Bytes processed in one iteration.
+	}
+
+	// Benchmark benchmarks a single function. Useful for creating ...
+	func Benchmark(f func(b *B)) BenchmarkResult
+
+	// 
+	func (r BenchmarkResult) NsPerOp() int64
+
+	// 
+	func (r BenchmarkResult) String() string
+
+	// 
+	func (r BenchmarkResult) mbPerSec() float64
+
+	// An internal type but exported because it is cross-package; part ...
+	type InternalBenchmark struct {
+		Name	string
+		F	func(b *B)
+	}
+
+	// 
+	type InternalExample struct {
+		Name	string
+		F	func()
+		Output	string
+	}
+
+	// An internal type but exported because it is cross-package; part ...
+	type InternalTest struct {
+		Name	string
+		F	func(*T)
+	}
+
+	// T is a type passed to Test functions to manage test state and ...
+	type T struct {
+		common
+		name		string		// Name of test.
+		startParallel	chan bool	// Parallel tests will wait on this.
+	}
+
+	// Error is equivalent to Log() followed by Fail(). 
+	func (c *T) Error(args ...any)
+
+	// Errorf is equivalent to Logf() followed by Fail(). 
+	func (c *T) Errorf(format string, args ...any)
+
+	// Fail marks the function as having failed but continues ...
+	func (c *T) Fail()
+
+	// FailNow marks the function as having failed and stops its ...
+	func (c *T) FailNow()
+
+	// Failed reports whether the function has failed. 
+	func (c *T) Failed() bool
+
+	// Fatal is equivalent to Log() followed by FailNow(). 
+	func (c *T) Fatal(args ...any)
+
+	// Fatalf is equivalent to Logf() followed by FailNow(). 
+	func (c *T) Fatalf(format string, args ...any)
+
+	// Log formats its arguments using default formatting, analogous ...
+	func (c *T) Log(args ...any)
+
+	// Logf formats its arguments according to the format, analogous ...
+	func (c *T) Logf(format string, args ...any)
+
+	// Parallel signals that this test is to be run in parallel with ...
+	func (t *T) Parallel()
+
+	// log generates the output. It's always at the same stack depth. 
+	func (c *T) log(s string)
+
+	// 
+	func (t *T) report()
+
+	// common holds the elements common between T and B and captures ...
+	type common struct {
+		output		[]byte		// Output generated by test or benchmark.
+		failed		bool		// Test or benchmark has failed.
+		start		time.Time	// Time test or benchmark started
+		duration	time.Duration
+		self		any		// To be sent on signal channel when done.
+		signal		chan any	// Output for serial tests.
+	}
+
+	// Error is equivalent to Log() followed by Fail(). 
+	func (c *common) Error(args ...any)
+
+	// Errorf is equivalent to Logf() followed by Fail(). 
+	func (c *common) Errorf(format string, args ...any)
+
+	// Fail marks the function as having failed but continues ...
+	func (c *common) Fail()
+
+	// FailNow marks the function as having failed and stops its ...
+	func (c *common) FailNow()
+
+	// Failed reports whether the function has failed. 
+	func (c *common) Failed() bool
+
+	// Fatal is equivalent to Log() followed by FailNow(). 
+	func (c *common) Fatal(args ...any)
+
+	// Fatalf is equivalent to Logf() followed by FailNow(). 
+	func (c *common) Fatalf(format string, args ...any)
+
+	// Log formats its arguments using default formatting, analogous ...
+	func (c *common) Log(args ...any)
+
+	// Logf formats its arguments according to the format, analogous ...
+	func (c *common) Logf(format string, args ...any)
+
+	// log generates the output. It's always at the same stack depth. 
+	func (c *common) log(s string)
+

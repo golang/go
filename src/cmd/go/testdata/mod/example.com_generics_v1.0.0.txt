@@ -1,0 +1,21 @@
+example.com/generics v1.0.0
+written by hand
+
+-- .mod --
+module example.com/generics
+
+go 1.18
+-- .info --
+{"Version":"v1.0.0"}
+-- go.mod --
+module example.com/generics
+
+go 1.18
+-- generics.go --
+package generics
+
+type Int interface {
+	~int
+}
+
+func Bar() {}

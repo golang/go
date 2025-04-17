@@ -1,0 +1,10 @@
+-- .mod --
+module example.com/retract
+
+go 1.15
+
+-- .info --
+{"Version":"v1.0.0-good"}
+
+-- retract.go --
+package retract

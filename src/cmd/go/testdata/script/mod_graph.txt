@@ -1,0 +1,15 @@
+env GO111MODULE=on
+
+go mod graph
+stdout '^m rsc.io/quote@v1.5.2$'
+stdout '^rsc.io/quote@v1.5.2 rsc.io/sampler@v1.3.0$'
+! stdout '^m rsc.io/sampler@v1.3.0$'
+! stderr 'get '$GOPROXY
+
+rm $GOPATH/pkg/mod/cache/download/rsc.io/quote
+go mod graph -x
+stderr 'get '$GOPROXY
+
+-- go.mod --
+module m
+require rsc.io/quote v1.5.2

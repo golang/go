@@ -1,0 +1,36 @@
+# Tests issue #18778
+[short] skip
+
+cd pkgs
+
+env GO111MODULE=off
+go build ./...
+! stdout .
+go test ./...
+stdout '^ok'
+go list ./...
+stdout 'pkgs$'
+stdout 'pkgs/a'
+
+-- pkgs/go.mod --
+module pkgs
+
+go 1.16
+-- pkgs/a.go --
+package x
+-- pkgs/a_test.go --
+package x_test
+
+import "testing"
+
+func TestX(t *testing.T) {
+}
+-- pkgs/a/a.go --
+package a
+-- pkgs/a/a_test.go --
+package a_test
+
+import "testing"
+
+func TestA(t *testing.T) {
+}

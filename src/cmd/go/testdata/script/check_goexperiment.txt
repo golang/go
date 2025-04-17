@@ -1,0 +1,10 @@
+# Test that [GOEXPERIMENT:x] is accepted.
+# Here fieldtrack is picked arbitrarily.
+
+[GOEXPERIMENT:nofieldtrack] env
+
+[GOEXPERIMENT:fieldtrack] env
+
+#[GOEXPERIMENT:crashme] env
+
+

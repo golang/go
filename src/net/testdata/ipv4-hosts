@@ -1,0 +1,8 @@
+# See https://tools.ietf.org/html/rfc1123.
+
+# internet address and host name
+127.0.0.1	localhost	# inline comment separated by tab
+127.0.0.2	localhost   # inline comment separated by space
+
+# internet address, host name and aliases
+127.0.0.3	localhost	localhost.localdomain

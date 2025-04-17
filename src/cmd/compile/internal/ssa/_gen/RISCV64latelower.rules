@@ -1,0 +1,25 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Combine bitwise operation and bitwise inversion.
+(AND x (NOT y)) => (ANDN x y)
+(OR  x (NOT y)) => (ORN  x y)
+(XOR x (NOT y)) => (XNOR x y)
+(NOT (XOR x y)) => (XNOR x y)
+
+// Fold constant shift with extension.
+(SRAI [c] (MOVBreg  x)) && c <   8 => (SRAI [56+c] (SLLI <typ.Int64> [56] x))
+(SRAI [c] (MOVHreg  x)) && c <  16 => (SRAI [48+c] (SLLI <typ.Int64> [48] x))
+(SRAI [c] (MOVWreg  x)) && c <  32 => (SRAI [32+c] (SLLI <typ.Int64> [32] x))
+(SRLI [c] (MOVBUreg x)) && c <   8 => (SRLI [56+c] (SLLI <typ.UInt64> [56] x))
+(SRLI [c] (MOVHUreg x)) && c <  16 => (SRLI [48+c] (SLLI <typ.UInt64> [48] x))
+(SRLI [c] (MOVWUreg x)) && c <  32 => (SRLI [32+c] (SLLI <typ.UInt64> [32] x))
+(SLLI [c] (MOVBUreg x)) && c <= 56 => (SRLI [56-c] (SLLI <typ.UInt64> [56] x))
+(SLLI [c] (MOVHUreg x)) && c <= 48 => (SRLI [48-c] (SLLI <typ.UInt64> [48] x))
+(SLLI [c] (MOVWUreg x)) && c <= 32 => (SRLI [32-c] (SLLI <typ.UInt64> [32] x))
+
+// Shift by zero.
+(SRAI [0] x) => x
+(SRLI [0] x) => x
+(SLLI [0] x) => x

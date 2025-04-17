@@ -1,0 +1,35 @@
+# Test that a directory with an .s file that has a comment that can't
+# be parsed isn't matched as a go directory. (This was happening because
+# non-go files with unparsable comments were being added to InvalidGoFiles
+# leading the package matching code to think there were Go files in the
+# directory.)
+
+cd bar
+go list ./...
+! stdout .
+cd ..
+
+[short] skip
+
+# Test that an unparsable .s file is completely ignored when its name
+# has build tags that cause it to be filtered out, but produces an error
+# when it is included
+
+env GOARCH=arm64
+env GOOS=linux
+go build ./baz
+
+env GOARCH=amd64
+env GOOS=linux
+! go build ./baz
+
+-- go.mod --
+module example.com/foo
+
+go 1.20
+-- bar/bar.s --
+;/
+-- baz/baz.go --
+package bar
+-- baz/baz_amd64.s --
+;/

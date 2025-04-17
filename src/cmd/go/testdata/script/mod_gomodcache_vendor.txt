@@ -1,0 +1,32 @@
+# This test verifies that GOMODCACHE does not affect whether checksums are embedded
+# with vendored files.
+# See issue #46400
+[short] skip 'builds and links a binary twice'
+go mod tidy
+go mod vendor
+
+go build -mod=vendor
+go version -m example$GOEXE
+cp stdout version-m.txt
+
+env GOMODCACHE=$WORK${/}modcache
+go build -mod=vendor
+go version -m example$GOEXE
+cmp stdout version-m.txt
+
+-- go.mod --
+module example
+go 1.22
+require rsc.io/sampler v1.3.0
+
+-- main.go --
+package main
+
+import (
+    "fmt"
+    "rsc.io/sampler"
+)
+
+func main() {
+    fmt.Println(sampler.Hello())
+}

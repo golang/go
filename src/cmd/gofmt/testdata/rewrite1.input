@@ -1,0 +1,14 @@
+//gofmt -r=Foo->Bar
+
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+type Foo int
+
+func main() {
+	var a Foo
+	println(a)
+}

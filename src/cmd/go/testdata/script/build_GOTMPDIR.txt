@@ -1,0 +1,52 @@
+[short] skip 'runs build'
+
+# Set GOCACHE to a clean directory to ensure that 'go build' has work to report.
+[!GOOS:windows] env GOCACHE=$WORK/gocache
+[GOOS:windows] env GOCACHE=$WORK\gocache
+
+# 'go build' should use GOTMPDIR if set.
+[!GOOS:windows] env GOTMPDIR=$WORK/my-favorite-tmpdir
+[GOOS:windows] env GOTMPDIR=$WORK\my-favorite-tmpdir
+mkdir $GOTMPDIR
+go build -x hello.go
+stderr ^WORK=.*my-favorite-tmpdir
+
+# Make GOTMPDIR a regular file. This prevents the creation of work directories,
+# so we can check that certain commands don't create them.
+# This simulates running on a full disk or a read-only volume.
+rm $GOTMPDIR
+cp hello.go $GOTMPDIR # any file will do
+
+# 'go build' should fail if GOTMPDIR is read-only.
+! go build -x .
+stderr '^go: creating work dir: \w+ '$GOTMPDIR
+
+# 'go list' should only fail if it needs to build something.
+go list -x .
+! stderr 'creating work dir'
+stdout m
+go list -m all
+stdout m
+! go list -x -export .
+stderr '^go: creating work dir: \w+ '$GOTMPDIR
+
+# 'go clean -cache' and 'go clean -modcache' should not fail.
+go clean -x -cache
+! stderr 'creating work dir'
+go clean -x -modcache
+! stderr 'creating work dir'
+
+# 'go env' should not fail for specific variables.
+# Without arguments, it needs to initialize a builder to load cgo flags, and
+# that uses a temporary directory.
+! go env
+stderr '^go: creating work dir: \w+ '$GOTMPDIR
+go env GOROOT
+
+-- go.mod --
+module m
+
+go 1.15
+-- hello.go --
+package main
+func main() { println("hello") }

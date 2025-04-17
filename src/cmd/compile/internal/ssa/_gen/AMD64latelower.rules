@@ -1,0 +1,13 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Prefer SARX/SHLX/SHRX instruction because it has less register restriction on the shift input.
+(SAR(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SARX(Q|L) x y)
+(SHL(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SHLX(Q|L) x y)
+(SHR(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SHRX(Q|L) x y)
+
+// See comments in ARM64latelower.rules for why these are here.
+(MOVLQZX x) && zeroUpper32Bits(x,3) => x
+(MOVWQZX x) && zeroUpper48Bits(x,3) => x
+(MOVBQZX x) && zeroUpper56Bits(x,3) => x

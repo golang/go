@@ -1,0 +1,8 @@
+-- input --
+[encoding/json.Marshal] is a doc link.
+
+[rot13.Marshal] is not.
+-- markdown --
+[encoding/json.Marshal](/encoding/json#Marshal) is a doc link.
+
+\[rot13.Marshal] is not.

@@ -1,0 +1,83 @@
+env TESTGO_VERSION=go1.100.0
+env TESTGO_VERSION_SWITCH=switch
+
+go get toolchain@go1.22.1
+stderr '^go: added toolchain go1.22.1$'
+! stderr '(added|removed|upgraded|downgraded) go'
+grep 'toolchain go1.22.1' go.mod
+
+go get toolchain@none
+stderr '^go: removed toolchain go1.22.1$'
+! stderr '(added|removed|upgraded|downgraded) go'
+! grep toolchain go.mod
+
+go get toolchain@go1.22.1
+stderr '^go: added toolchain go1.22.1$'
+! stderr '(added|removed|upgraded|downgraded) go'
+grep 'toolchain go1.22.1' go.mod
+
+go get go@1.22.3
+stderr '^go: upgraded go 1.10 => 1.22.3$'
+! stderr '^go: upgraded toolchain$'
+grep 'go 1.22.3' go.mod
+
+go get toolchain@go1.100.0
+stderr '^go: added toolchain go1.100.0$'
+
+go get go@1.22.3 toolchain@1.22.3
+stderr '^go: removed toolchain go1.100.0$'
+! grep toolchain go.mod
+
+go get go@1.22.1 toolchain@go1.22.3
+stderr '^go: downgraded go 1.22.3 => 1.22.1$'
+stderr '^go: added toolchain go1.22.3$'
+grep 'go 1.22.1' go.mod
+grep 'toolchain go1.22.3' go.mod
+
+go get go@1.22.3 toolchain@1.22.3
+stderr '^go: upgraded go 1.22.1 => 1.22.3$'
+stderr '^go: removed toolchain go1.22.3$'
+grep 'go 1.22.3' go.mod
+! grep toolchain go.mod
+
+go get toolchain@1.22.1
+stderr '^go: downgraded go 1.22.3 => 1.22.1$'
+! stderr toolchain # already gone, was not added
+grep 'go 1.22.1' go.mod
+! grep toolchain go.mod
+
+env TESTGO_VERSION=go1.22.1
+env GOTOOLCHAIN=local
+! go get go@1.22.3
+stderr 'go: updating go.mod requires go >= 1.22.3 \(running go 1.22.1; GOTOOLCHAIN=local\)$'
+
+env TESTGO_VERSION=go1.30
+go get toolchain@1.22.3
+grep 'toolchain go1.22.3' go.mod
+
+go get go@1.22.1
+grep 'go 1.22.1' go.mod
+go get m2@v1.0.0
+stderr '^go: upgraded go 1.22.1 => 1.23$'
+stderr '^go: added m2 v1.0.0$'
+grep 'go 1.23$' go.mod
+
+go get toolchain@go1.23.9 go@1.23.5
+go get toolchain@none
+stderr '^go: removed toolchain go1.23.9'
+! stderr ' go 1'
+grep 'go 1.23.5' go.mod
+
+go get toolchain@go1.23.0 go@1.22.0
+go get go@1.24.0
+! grep toolchain go.mod
+
+-- go.mod --
+module m
+go 1.10
+
+replace m2 v1.0.0 => ./m2
+
+-- m2/go.mod --
+module m2
+go 1.23

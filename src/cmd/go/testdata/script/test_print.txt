@@ -1,0 +1,27 @@
+[short] skip
+
+go test ./...
+stdout 'pkg1(.|\n)*pkg2'
+
+-- go.mod --
+module m
+
+-- pkg1/x_test.go --
+package pkg1
+
+import (
+	"testing"
+	"time"
+)
+
+func Test(t *testing.T) {
+	// This sleep makes it more likely that pkg2 will be ready before pkg1,
+	// which previously would have made this test fail, because pkg2 would
+	// be printed before pkg1.
+	// Now that there is proper ordering, the Sleep should not matter.
+	// In particular, the Sleep does not make the test pass and won't
+	// be a problem on slow builders.
+	time.Sleep(1*time.Second)
+}
+-- pkg2/x.go --
+package pkg2

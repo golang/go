@@ -1,0 +1,62 @@
+# Confirm our build list.
+cp go.sum.buildlist-only go.sum
+go list -m all
+stdout '^example.com/ambiguous/a v1.0.0$'
+stdout '^example.com/ambiguous/a/b v0.0.0-empty$'
+
+# If two modules could provide a package, but only one does,
+# 'go mod tidy' should retain sums for both zips.
+go mod tidy
+grep '^example.com/ambiguous/a v1.0.0 h1:' go.sum
+grep '^example.com/ambiguous/a/b v0.0.0-empty h1:' go.sum
+
+# 'go mod download' should also add sums.
+cp go.sum.buildlist-only go.sum
+go mod download example.com/ambiguous/a
+grep '^example.com/ambiguous/a v1.0.0 h1:' go.sum
+! grep '^example.com/ambiguous/a/b v0.0.0-empty h1:' go.sum
+go mod download example.com/ambiguous/a/b
+grep '^example.com/ambiguous/a/b v0.0.0-empty h1:' go.sum
+
+# If two modules could provide a package, and we're missing a sum for one,
+# we should see a missing sum error, even if we have a sum for a module that
+# provides the package.
+cp go.sum.a-only go.sum
+! go list example.com/ambiguous/a/b
+stderr '^missing go.sum entry needed to verify package example.com/ambiguous/a/b is provided by exactly one module; to add:\n\tgo mod download example.com/ambiguous/a/b$'
+! go list -deps .
+stderr '^use.go:3:8: missing go.sum entry needed to verify package example.com/ambiguous/a/b \(imported by m\) is provided by exactly one module; to add:\n\tgo get m$'
+
+cp go.sum.b-only go.sum
+! go list example.com/ambiguous/a/b
+stderr '^missing go.sum entry for module providing package example.com/ambiguous/a/b; to add:\n\tgo mod download example.com/ambiguous/a$'
+! go list -deps .
+stderr '^use.go:3:8: missing go.sum entry for module providing package example.com/ambiguous/a/b \(imported by m\); to add:\n\tgo get m$'
+
+cp go.sum.buildlist-only go.sum
+! go list example.com/ambiguous/a/b
+stderr '^missing go.sum entry for module providing package example.com/ambiguous/a/b; to add:\n\tgo mod download example.com/ambiguous/a example.com/ambiguous/a/b$'
+! go list -deps .
+stderr '^use.go:3:8: missing go.sum entry for module providing package example.com/ambiguous/a/b \(imported by m\); to add:\n\tgo get m$'
+
+-- go.mod --
+module m
+
+go 1.15
+
+require example.com/ambiguous/a v1.0.0
+-- go.sum.buildlist-only --
+example.com/ambiguous/a v1.0.0/go.mod h1:TrBl/3xTPFJ2gmMIYz53h2gkNtg0dokszEMuyS1QEb0=
+example.com/ambiguous/a/b v0.0.0-empty/go.mod h1:MajJq5jPEBnnXP+NTWIeXX7kwaPS1sbVEJdooTmsePQ=
+-- go.sum.a-only --
+example.com/ambiguous/a v1.0.0 h1:pGZhTXy6+titE2rNfwHwJykSjXDR4plO52PfZrBM0T8=
+example.com/ambiguous/a v1.0.0/go.mod h1:TrBl/3xTPFJ2gmMIYz53h2gkNtg0dokszEMuyS1QEb0=
+example.com/ambiguous/a/b v0.0.0-empty/go.mod h1:MajJq5jPEBnnXP+NTWIeXX7kwaPS1sbVEJdooTmsePQ=
+-- go.sum.b-only --
+example.com/ambiguous/a v1.0.0/go.mod h1:TrBl/3xTPFJ2gmMIYz53h2gkNtg0dokszEMuyS1QEb0=
+example.com/ambiguous/a/b v0.0.0-empty h1:xS29ReXXuhjT7jc79mo91h/PevaZ2oS9PciF1DucXtg=
+example.com/ambiguous/a/b v0.0.0-empty/go.mod h1:MajJq5jPEBnnXP+NTWIeXX7kwaPS1sbVEJdooTmsePQ=
+-- use.go --
+package use
+
+import _ "example.com/ambiguous/a/b"

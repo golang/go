@@ -1,0 +1,14 @@
+# The intent here is to verify that 'go test -n' works without crashing.
+# Any test will do.
+
+go test -n x_test.go
+
+-- x_test.go --
+package x_test
+
+import (
+	"testing"
+)
+
+func TestEmpty(t *testing.T) {
+}

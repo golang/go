@@ -1,0 +1,67 @@
+env GO111MODULE=off
+env GODEBUG=gocachetest=1
+
+[!compiler:gc] skip
+[short] skip # clears cache, rebuilds too much
+
+# Set up fresh GOCACHE.
+env GOCACHE=$WORK/gocache
+mkdir $GOCACHE
+
+# Building a trivial non-main package should run compiler the first time.
+go build -x -gcflags=-m lib.go
+stderr 'compile( |\.exe"?)'
+stderr 'lib.go:2.* can inline f'
+
+# ... but not the second, even though it still prints the compiler output.
+go build -x -gcflags=-m lib.go
+! stderr 'compile( |\.exe"?)'
+stderr 'lib.go:2.* can inline f'
+
+# Building a trivial main package should run the compiler and linker the first time.
+go build -x -gcflags=-m -ldflags='-v -w' main.go
+stderr 'compile( |\.exe"?)'
+stderr 'main.go:2.* can inline main' # from compiler
+stderr 'link(\.exe"?)? -'
+stderr '\d+ symbols' # from linker
+
+# ... but not the second, even though it still prints the compiler and linker output.
+go build -x -gcflags=-m -ldflags='-v -w' main.go
+! stderr 'compile( |\.exe"?)'
+stderr 'main.go:2.* can inline main' # from compiler
+! stderr 'link(\.exe"?)? -'
+stderr '\d+ symbols' # from linker
+
+# Running a test should run the compiler, linker, and the test the first time.
+go test -v -x -gcflags=-m -ldflags=-v p
+stderr 'compile( |\.exe"?)'
+stderr 'p_test.go:.*can inline Test' # from compile of p_test
+stderr 'testmain\.go:.*inlin' # from compile of testmain
+stderr 'link(\.exe"?)? -'
+stderr '\d+ symbols' # from linker
+stderr 'p\.test( |\.exe"?)'
+stdout 'TEST' # from test
+
+# ... but not the second, even though it still prints the compiler, linker, and test output.
+go test -v -x -gcflags=-m -ldflags=-v p
+! stderr 'compile( |\.exe"?)'
+stderr 'p_test.go:.*can inline Test' # from compile of p_test
+stderr 'testmain\.go:.*inlin' # from compile of testmain
+! stderr 'link(\.exe"?)? -'
+stderr '\d+ symbols' # from linker
+! stderr 'p\.test( |\.exe"?)'
+stdout 'TEST' # from test
+
+
+-- lib.go --
+package p
+func f(x *int) *int { return x }
+
+-- main.go --
+package main
+func main() {}
+
+-- p/p_test.go --
+package p
+import "testing"
+func Test(t *testing.T) {println("TEST")}

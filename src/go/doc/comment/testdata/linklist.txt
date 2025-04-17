@@ -1,0 +1,18 @@
+{"DocLinkBaseURL": "https://pkg.go.dev"}
+-- input --
+Did you know?
+
+  - [encoding/json.Marshal] is a doc link. So is [encoding/json.Unmarshal].
+-- text --
+Did you know?
+
+  - encoding/json.Marshal is a doc link. So is encoding/json.Unmarshal.
+-- markdown --
+Did you know?
+
+  - [encoding/json.Marshal](https://pkg.go.dev/encoding/json#Marshal) is a doc link. So is [encoding/json.Unmarshal](https://pkg.go.dev/encoding/json#Unmarshal).
+-- html --
+<p>Did you know?
+<ul>
+<li><a href="https://pkg.go.dev/encoding/json#Marshal">encoding/json.Marshal</a> is a doc link. So is <a href="https://pkg.go.dev/encoding/json#Unmarshal">encoding/json.Unmarshal</a>.
+</ul>

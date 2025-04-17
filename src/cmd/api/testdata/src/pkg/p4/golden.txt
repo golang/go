@@ -1,0 +1,6 @@
+pkg p4, func NewPair[$0 interface{ M }, $1 interface{ ~int }]($0, $1) Pair[$0, $1]
+pkg p4, method (Pair[$0, $1]) Second() $1
+pkg p4, method (Pair[$0, $1]) First() $0
+pkg p4, type Pair[$0 interface{ M }, $1 interface{ ~int }] struct
+pkg p4, func Clone[$0 interface{ ~[]$1 }, $1 interface{}]($0) $0
+pkg p4, func Clone //deprecated

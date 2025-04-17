@@ -1,0 +1,6 @@
+v2;
+package conversions;
+prefix go;
+package conversions go.conversions go.conversions;
+const Bits <type 1 "Units" <type -16>> = convert(<type 1>, "bits");
+type <type 1>;

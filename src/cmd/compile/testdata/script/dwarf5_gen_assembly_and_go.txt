@@ -1,0 +1,1345 @@
+
+# Regression test case for bug #72810. Uses a build with
+# Go source files and assembly source files.
+
+go build
+
+-- go.mod --
+module uses.asm
+
+go 1.25
+-- a.go --
+// Copyright 2025 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+package main
+
+func main() {
+	t0()
+	t1()
+	t2()
+	t3()
+	t4()
+	t5()
+	t6()
+	t7()
+	t8()
+	t9()
+	t10()
+	t11()
+	t12()
+	t13()
+	t14()
+	t15()
+	t16()
+	t17()
+	t18()
+	t19()
+	t20()
+	t21()
+	t22()
+	t23()
+	t24()
+	t25()
+	t26()
+	t27()
+	t28()
+	t29()
+	t30()
+	t31()
+	t32()
+	t33()
+	t34()
+	t35()
+	t36()
+	t37()
+	t38()
+	t39()
+	t40()
+	t41()
+	t42()
+	t43()
+	t44()
+	t45()
+	t46()
+	t47()
+	t48()
+	t49()
+	t50()
+	t51()
+	t52()
+	t53()
+	t54()
+	t55()
+	t56()
+	t57()
+	t58()
+	t59()
+	t60()
+	t61()
+	t62()
+	t63()
+	t64()
+	t65()
+	t66()
+	t67()
+	t68()
+	t69()
+	t70()
+	t71()
+	t72()
+	t73()
+	t74()
+	t75()
+	t76()
+	t77()
+	t78()
+	t79()
+	t80()
+	t81()
+	t82()
+	t83()
+	t84()
+	t85()
+	t86()
+	t87()
+	t88()
+	t89()
+	t90()
+	t91()
+	t92()
+	t93()
+	t94()
+	t95()
+	t96()
+	t97()
+	t98()
+	t99()
+	t100()
+	t101()
+	t102()
+	t103()
+	t104()
+	t105()
+	t106()
+	t107()
+	t108()
+	t109()
+	t110()
+	t111()
+	t112()
+	t113()
+	t114()
+	t115()
+	t116()
+	t117()
+	t118()
+	t119()
+	t120()
+	t121()
+	t122()
+	t123()
+	t124()
+	t125()
+	t126()
+	t127()
+	t128()
+	t129()
+	t130()
+	t131()
+	t132()
+	t133()
+	t134()
+	t135()
+	t136()
+	t137()
+	t138()
+	t139()
+	t140()
+	t141()
+	t142()
+	t143()
+	t144()
+	t145()
+	t146()
+	t147()
+	t148()
+	t149()
+	t150()
+	t151()
+	t152()
+	t153()
+	t154()
+	t155()
+	t156()
+	t157()
+	t158()
+	t159()
+	t160()
+	t161()
+	t162()
+	t163()
+	t164()
+	t165()
+	t166()
+	t167()
+	t168()
+	t169()
+	t170()
+	t171()
+	t172()
+	t173()
+	t174()
+	t175()
+	t176()
+	t177()
+	t178()
+	t179()
+	t180()
+	t181()
+	t182()
+	t183()
+	t184()
+	t185()
+	t186()
+	t187()
+	t188()
+	t189()
+	t190()
+	t191()
+	t192()
+	t193()
+	t194()
+	t195()
+	t196()
+	t197()
+	t198()
+	t199()
+	t200()
+	t201()
+	t202()
+	t203()
+	t204()
+	t205()
+	t206()
+	t207()
+	t208()
+	t209()
+	t210()
+	t211()
+	t212()
+	t213()
+	t214()
+	t215()
+	t216()
+	t217()
+	t218()
+	t219()
+	t220()
+	t221()
+	t222()
+	t223()
+	t224()
+	t225()
+	t226()
+	t227()
+	t228()
+	t229()
+	t230()
+	t231()
+	t232()
+	t233()
+	t234()
+	t235()
+	t236()
+	t237()
+	t238()
+	t239()
+	t240()
+	t241()
+	t242()
+	t243()
+	t244()
+	t245()
+	t246()
+	t247()
+	t248()
+	t249()
+	t250()
+	t251()
+	t252()
+	t253()
+	t254()
+}
+
+func t0()
+func t1()
+func t2()
+func t3()
+func t4()
+func t5()
+func t6()
+func t7()
+func t8()
+func t9()
+func t10()
+func t11()
+func t12()
+func t13()
+func t14()
+func t15()
+func t16()
+func t17()
+func t18()
+func t19()
+func t20()
+func t21()
+func t22()
+func t23()
+func t24()
+func t25()
+func t26()
+func t27()
+func t28()
+func t29()
+func t30()
+func t31()
+func t32()
+func t33()
+func t34()
+func t35()
+func t36()
+func t37()
+func t38()
+func t39()
+func t40()
+func t41()
+func t42()
+func t43()
+func t44()
+func t45()
+func t46()
+func t47()
+func t48()
+func t49()
+func t50()
+func t51()
+func t52()
+func t53()
+func t54()
+func t55()
+func t56()
+func t57()
+func t58()
+func t59()
+func t60()
+func t61()
+func t62()
+func t63()
+func t64()
+func t65()
+func t66()
+func t67()
+func t68()
+func t69()
+func t70()
+func t71()
+func t72()
+func t73()
+func t74()
+func t75()
+func t76()
+func t77()
+func t78()
+func t79()
+func t80()
+func t81()
+func t82()
+func t83()
+func t84()
+func t85()
+func t86()
+func t87()
+func t88()
+func t89()
+func t90()
+func t91()
+func t92()
+func t93()
+func t94()
+func t95()
+func t96()
+func t97()
+func t98()
+func t99()
+func t100()
+func t101()
+func t102()
+func t103()
+func t104()
+func t105()
+func t106()
+func t107()
+func t108()
+func t109()
+func t110()
+func t111()
+func t112()
+func t113()
+func t114()
+func t115()
+func t116()
+func t117()
+func t118()
+func t119()
+func t120()
+func t121()
+func t122()
+func t123()
+func t124()
+func t125()
+func t126()
+func t127()
+func t128()
+func t129()
+func t130()
+func t131()
+func t132()
+func t133()
+func t134()
+func t135()
+func t136()
+func t137()
+func t138()
+func t139()
+func t140()
+func t141()
+func t142()
+func t143()
+func t144()
+func t145()
+func t146()
+func t147()
+func t148()
+func t149()
+func t150()
+func t151()
+func t152()
+func t153()
+func t154()
+func t155()
+func t156()
+func t157()
+func t158()
+func t159()
+func t160()
+func t161()
+func t162()
+func t163()
+func t164()
+func t165()
+func t166()
+func t167()
+func t168()
+func t169()
+func t170()
+func t171()
+func t172()
+func t173()
+func t174()
+func t175()
+func t176()
+func t177()
+func t178()
+func t179()
+func t180()
+func t181()
+func t182()
+func t183()
+func t184()
+func t185()
+func t186()
+func t187()
+func t188()
+func t189()
+func t190()
+func t191()
+func t192()
+func t193()
+func t194()
+func t195()
+func t196()
+func t197()
+func t198()
+func t199()
+func t200()
+func t201()
+func t202()
+func t203()
+func t204()
+func t205()
+func t206()
+func t207()
+func t208()
+func t209()
+func t210()
+func t211()
+func t212()
+func t213()
+func t214()
+func t215()
+func t216()
+func t217()
+func t218()
+func t219()
+func t220()
+func t221()
+func t222()
+func t223()
+func t224()
+func t225()
+func t226()
+func t227()
+func t228()
+func t229()
+func t230()
+func t231()
+func t232()
+func t233()
+func t234()
+func t235()
+func t236()
+func t237()
+func t238()
+func t239()
+func t240()
+func t241()
+func t242()
+func t243()
+func t244()
+func t245()
+func t246()
+func t247()
+func t248()
+func t249()
+func t250()
+func t251()
+func t252()
+func t253()
+func t254()
+
+-- a.s --
+// Copyright 2025 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+TEXT ·t0(SB),0,$0
+	RET
+
+TEXT ·t1(SB),0,$0
+	RET
+
+TEXT ·t2(SB),0,$0
+	RET
+
+TEXT ·t3(SB),0,$0
+	RET
+
+TEXT ·t4(SB),0,$0
+	RET
+
+TEXT ·t5(SB),0,$0
+	RET
+
+TEXT ·t6(SB),0,$0
+	RET
+
+TEXT ·t7(SB),0,$0
+	RET
+
+TEXT ·t8(SB),0,$0
+	RET
+
+TEXT ·t9(SB),0,$0
+	RET
+
+TEXT ·t10(SB),0,$0
+	RET
+
+TEXT ·t11(SB),0,$0
+	RET
+
+TEXT ·t12(SB),0,$0
+	RET
+
+TEXT ·t13(SB),0,$0
+	RET
+
+TEXT ·t14(SB),0,$0
+	RET
+
+TEXT ·t15(SB),0,$0
+	RET
+
+TEXT ·t16(SB),0,$0
+	RET
+
+TEXT ·t17(SB),0,$0
+	RET
+
+TEXT ·t18(SB),0,$0
+	RET
+
+TEXT ·t19(SB),0,$0
+	RET
+
+TEXT ·t20(SB),0,$0
+	RET
+
+TEXT ·t21(SB),0,$0
+	RET
+
+TEXT ·t22(SB),0,$0
+	RET
+
+TEXT ·t23(SB),0,$0
+	RET
+
+TEXT ·t24(SB),0,$0
+	RET
+
+TEXT ·t25(SB),0,$0
+	RET
+
+TEXT ·t26(SB),0,$0
+	RET
+
+TEXT ·t27(SB),0,$0
+	RET
+
+TEXT ·t28(SB),0,$0
+	RET
+
+TEXT ·t29(SB),0,$0
+	RET
+
+TEXT ·t30(SB),0,$0
+	RET
+
+TEXT ·t31(SB),0,$0
+	RET
+
+TEXT ·t32(SB),0,$0
+	RET
+
+TEXT ·t33(SB),0,$0
+	RET
+
+TEXT ·t34(SB),0,$0
+	RET
+
+TEXT ·t35(SB),0,$0
+	RET
+
+TEXT ·t36(SB),0,$0
+	RET
+
+TEXT ·t37(SB),0,$0
+	RET
+
+TEXT ·t38(SB),0,$0
+	RET
+
+TEXT ·t39(SB),0,$0
+	RET
+
+TEXT ·t40(SB),0,$0
+	RET
+
+TEXT ·t41(SB),0,$0
+	RET
+
+TEXT ·t42(SB),0,$0
+	RET
+
+TEXT ·t43(SB),0,$0
+	RET
+
+TEXT ·t44(SB),0,$0
+	RET
+
+TEXT ·t45(SB),0,$0
+	RET
+
+TEXT ·t46(SB),0,$0
+	RET
+
+TEXT ·t47(SB),0,$0
+	RET
+
+TEXT ·t48(SB),0,$0
+	RET
+
+TEXT ·t49(SB),0,$0
+	RET
+
+TEXT ·t50(SB),0,$0
+	RET
+
+TEXT ·t51(SB),0,$0
+	RET
+
+TEXT ·t52(SB),0,$0
+	RET
+
+TEXT ·t53(SB),0,$0
+	RET
+
+TEXT ·t54(SB),0,$0
+	RET
+
+TEXT ·t55(SB),0,$0
+	RET
+
+TEXT ·t56(SB),0,$0
+	RET
+
+TEXT ·t57(SB),0,$0
+	RET
+
+TEXT ·t58(SB),0,$0
+	RET
+
+TEXT ·t59(SB),0,$0
+	RET
+
+TEXT ·t60(SB),0,$0
+	RET
+
+TEXT ·t61(SB),0,$0
+	RET
+
+TEXT ·t62(SB),0,$0
+	RET
+
+TEXT ·t63(SB),0,$0
+	RET
+
+TEXT ·t64(SB),0,$0
+	RET
+
+TEXT ·t65(SB),0,$0
+	RET
+
+TEXT ·t66(SB),0,$0
+	RET
+
+TEXT ·t67(SB),0,$0
+	RET
+
+TEXT ·t68(SB),0,$0
+	RET
+
+TEXT ·t69(SB),0,$0
+	RET
+
+TEXT ·t70(SB),0,$0
+	RET
+
+TEXT ·t71(SB),0,$0
+	RET
+
+TEXT ·t72(SB),0,$0
+	RET
+
+TEXT ·t73(SB),0,$0
+	RET
+
+TEXT ·t74(SB),0,$0
+	RET
+
+TEXT ·t75(SB),0,$0
+	RET
+
+TEXT ·t76(SB),0,$0
+	RET
+
+TEXT ·t77(SB),0,$0
+	RET
+
+TEXT ·t78(SB),0,$0
+	RET
+
+TEXT ·t79(SB),0,$0
+	RET
+
+TEXT ·t80(SB),0,$0
+	RET
+
+TEXT ·t81(SB),0,$0
+	RET
+
+TEXT ·t82(SB),0,$0
+	RET
+
+TEXT ·t83(SB),0,$0
+	RET
+
+TEXT ·t84(SB),0,$0
+	RET
+
+TEXT ·t85(SB),0,$0
+	RET
+
+TEXT ·t86(SB),0,$0
+	RET
+
+TEXT ·t87(SB),0,$0
+	RET
+
+TEXT ·t88(SB),0,$0
+	RET
+
+TEXT ·t89(SB),0,$0
+	RET
+
+TEXT ·t90(SB),0,$0
+	RET
+
+TEXT ·t91(SB),0,$0
+	RET
+
+TEXT ·t92(SB),0,$0
+	RET
+
+TEXT ·t93(SB),0,$0
+	RET
+
+TEXT ·t94(SB),0,$0
+	RET
+
+TEXT ·t95(SB),0,$0
+	RET
+
+TEXT ·t96(SB),0,$0
+	RET
+
+TEXT ·t97(SB),0,$0
+	RET
+
+TEXT ·t98(SB),0,$0
+	RET
+
+TEXT ·t99(SB),0,$0
+	RET
+
+TEXT ·t100(SB),0,$0
+	RET
+
+TEXT ·t101(SB),0,$0
+	RET
+
+TEXT ·t102(SB),0,$0
+	RET
+
+TEXT ·t103(SB),0,$0
+	RET
+
+TEXT ·t104(SB),0,$0
+	RET
+
+TEXT ·t105(SB),0,$0
+	RET
+
+TEXT ·t106(SB),0,$0
+	RET
+
+TEXT ·t107(SB),0,$0
+	RET
+
+TEXT ·t108(SB),0,$0
+	RET
+
+TEXT ·t109(SB),0,$0
+	RET
+
+TEXT ·t110(SB),0,$0
+	RET
+
+TEXT ·t111(SB),0,$0
+	RET
+
+TEXT ·t112(SB),0,$0
+	RET
+
+TEXT ·t113(SB),0,$0
+	RET
+
+TEXT ·t114(SB),0,$0
+	RET
+
+TEXT ·t115(SB),0,$0
+	RET
+
+TEXT ·t116(SB),0,$0
+	RET
+
+TEXT ·t117(SB),0,$0
+	RET
+
+TEXT ·t118(SB),0,$0
+	RET
+
+TEXT ·t119(SB),0,$0
+	RET
+
+TEXT ·t120(SB),0,$0
+	RET
+
+TEXT ·t121(SB),0,$0
+	RET
+
+TEXT ·t122(SB),0,$0
+	RET
+
+TEXT ·t123(SB),0,$0
+	RET
+
+TEXT ·t124(SB),0,$0
+	RET
+
+TEXT ·t125(SB),0,$0
+	RET
+
+TEXT ·t126(SB),0,$0
+	RET
+
+TEXT ·t127(SB),0,$0
+	RET
+
+TEXT ·t128(SB),0,$0
+	RET
+
+TEXT ·t129(SB),0,$0
+	RET
+
+TEXT ·t130(SB),0,$0
+	RET
+
+TEXT ·t131(SB),0,$0
+	RET
+
+TEXT ·t132(SB),0,$0
+	RET
+
+TEXT ·t133(SB),0,$0
+	RET
+
+TEXT ·t134(SB),0,$0
+	RET
+
+TEXT ·t135(SB),0,$0
+	RET
+
+TEXT ·t136(SB),0,$0
+	RET
+
+TEXT ·t137(SB),0,$0
+	RET
+
+TEXT ·t138(SB),0,$0
+	RET
+
+TEXT ·t139(SB),0,$0
+	RET
+
+TEXT ·t140(SB),0,$0
+	RET
+
+TEXT ·t141(SB),0,$0
+	RET
+
+TEXT ·t142(SB),0,$0
+	RET
+
+TEXT ·t143(SB),0,$0
+	RET
+
+TEXT ·t144(SB),0,$0
+	RET
+
+TEXT ·t145(SB),0,$0
+	RET
+
+TEXT ·t146(SB),0,$0
+	RET
+
+TEXT ·t147(SB),0,$0
+	RET
+
+TEXT ·t148(SB),0,$0
+	RET
+
+TEXT ·t149(SB),0,$0
+	RET
+
+TEXT ·t150(SB),0,$0
+	RET
+
+TEXT ·t151(SB),0,$0
+	RET
+
+TEXT ·t152(SB),0,$0
+	RET
+
+TEXT ·t153(SB),0,$0
+	RET
+
+TEXT ·t154(SB),0,$0
+	RET
+
+TEXT ·t155(SB),0,$0
+	RET
+
+TEXT ·t156(SB),0,$0
+	RET
+
+TEXT ·t157(SB),0,$0
+	RET
+
+TEXT ·t158(SB),0,$0
+	RET
+
+TEXT ·t159(SB),0,$0
+	RET
+
+TEXT ·t160(SB),0,$0
+	RET
+
+TEXT ·t161(SB),0,$0
+	RET
+
+TEXT ·t162(SB),0,$0
+	RET
+
+TEXT ·t163(SB),0,$0
+	RET
+
+TEXT ·t164(SB),0,$0
+	RET
+
+TEXT ·t165(SB),0,$0
+	RET
+
+TEXT ·t166(SB),0,$0
+	RET
+
+TEXT ·t167(SB),0,$0
+	RET
+
+TEXT ·t168(SB),0,$0
+	RET
+
+TEXT ·t169(SB),0,$0
+	RET
+
+TEXT ·t170(SB),0,$0
+	RET
+
+TEXT ·t171(SB),0,$0
+	RET
+
+TEXT ·t172(SB),0,$0
+	RET
+
+TEXT ·t173(SB),0,$0
+	RET
+
+TEXT ·t174(SB),0,$0
+	RET
+
+TEXT ·t175(SB),0,$0
+	RET
+
+TEXT ·t176(SB),0,$0
+	RET
+
+TEXT ·t177(SB),0,$0
+	RET
+
+TEXT ·t178(SB),0,$0
+	RET
+
+TEXT ·t179(SB),0,$0
+	RET
+
+TEXT ·t180(SB),0,$0
+	RET
+
+TEXT ·t181(SB),0,$0
+	RET
+
+TEXT ·t182(SB),0,$0
+	RET
+
+TEXT ·t183(SB),0,$0
+	RET
+
+TEXT ·t184(SB),0,$0
+	RET
+
+TEXT ·t185(SB),0,$0
+	RET
+
+TEXT ·t186(SB),0,$0
+	RET
+
+TEXT ·t187(SB),0,$0
+	RET
+
+TEXT ·t188(SB),0,$0
+	RET
+
+TEXT ·t189(SB),0,$0
+	RET
+
+TEXT ·t190(SB),0,$0
+	RET
+
+TEXT ·t191(SB),0,$0
+	RET
+
+TEXT ·t192(SB),0,$0
+	RET
+
+TEXT ·t193(SB),0,$0
+	RET
+
+TEXT ·t194(SB),0,$0
+	RET
+
+TEXT ·t195(SB),0,$0
+	RET
+
+TEXT ·t196(SB),0,$0
+	RET
+
+TEXT ·t197(SB),0,$0
+	RET
+
+TEXT ·t198(SB),0,$0
+	RET
+
+TEXT ·t199(SB),0,$0
+	RET
+
+TEXT ·t200(SB),0,$0
+	RET
+
+TEXT ·t201(SB),0,$0
+	RET
+
+TEXT ·t202(SB),0,$0
+	RET
+
+TEXT ·t203(SB),0,$0
+	RET
+
+TEXT ·t204(SB),0,$0
+	RET
+
+TEXT ·t205(SB),0,$0
+	RET
+
+TEXT ·t206(SB),0,$0
+	RET
+
+TEXT ·t207(SB),0,$0
+	RET
+
+TEXT ·t208(SB),0,$0
+	RET
+
+TEXT ·t209(SB),0,$0
+	RET
+
+TEXT ·t210(SB),0,$0
+	RET
+
+TEXT ·t211(SB),0,$0
+	RET
+
+TEXT ·t212(SB),0,$0
+	RET
+
+TEXT ·t213(SB),0,$0
+	RET
+
+TEXT ·t214(SB),0,$0
+	RET
+
+TEXT ·t215(SB),0,$0
+	RET
+
+TEXT ·t216(SB),0,$0
+	RET
+
+TEXT ·t217(SB),0,$0
+	RET
+
+TEXT ·t218(SB),0,$0
+	RET
+
+TEXT ·t219(SB),0,$0
+	RET
+
+TEXT ·t220(SB),0,$0
+	RET
+
+TEXT ·t221(SB),0,$0
+	RET
+
+TEXT ·t222(SB),0,$0
+	RET
+
+TEXT ·t223(SB),0,$0
+	RET
+
+TEXT ·t224(SB),0,$0
+	RET
+
+TEXT ·t225(SB),0,$0
+	RET
+
+TEXT ·t226(SB),0,$0
+	RET
+
+TEXT ·t227(SB),0,$0
+	RET
+
+TEXT ·t228(SB),0,$0
+	RET
+
+TEXT ·t229(SB),0,$0
+	RET
+
+TEXT ·t230(SB),0,$0
+	RET
+
+TEXT ·t231(SB),0,$0
+	RET
+
+TEXT ·t232(SB),0,$0
+	RET
+
+TEXT ·t233(SB),0,$0
+	RET
+
+TEXT ·t234(SB),0,$0
+	RET
+
+TEXT ·t235(SB),0,$0
+	RET
+
+TEXT ·t236(SB),0,$0
+	RET
+
+TEXT ·t237(SB),0,$0
+	RET
+
+TEXT ·t238(SB),0,$0
+	RET
+
+TEXT ·t239(SB),0,$0
+	RET
+
+TEXT ·t240(SB),0,$0
+	RET
+
+TEXT ·t241(SB),0,$0
+	RET
+
+TEXT ·t242(SB),0,$0
+	RET
+
+TEXT ·t243(SB),0,$0
+	RET
+
+TEXT ·t244(SB),0,$0
+	RET
+
+TEXT ·t245(SB),0,$0
+	RET
+
+TEXT ·t246(SB),0,$0
+	RET
+
+TEXT ·t247(SB),0,$0
+	RET
+
+TEXT ·t248(SB),0,$0
+	RET
+
+TEXT ·t249(SB),0,$0
+	RET
+
+TEXT ·t250(SB),0,$0
+	RET
+
+TEXT ·t251(SB),0,$0
+	RET
+
+TEXT ·t252(SB),0,$0
+	RET
+
+TEXT ·t253(SB),0,$0
+	RET
+
+TEXT ·t254(SB),0,$0
+	RET
+
+-- gen.sh --
+#!/bin/sh
+# Generator script (for posterity, in case we need to
+# recreate or modify).
+N=255
+function cophdr() {
+    local F=$1
+    cat > $F <<EOF
+// Copyright 2025 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+EOF
+}
+#
+# Go source
+#
+cophdr a.go
+echo "package main" >> a.go
+echo "func main() { " >> a.go
+I=0
+while [ $I -lt $N ]; do
+    echo "  t${I}()" >> a.go
+    I=`expr $I + 1`
+done
+echo "}" >> a.go
+go
+echo  >> a.go
+I=0
+while [ $I -lt $N ]; do
+    echo "func t${I}() " >> a.go
+    I=`expr $I + 1`
+done
+#SALT=`date '+%Y%M%d%h%m%s'`
+#echo "var foofoo = \"${SALT}\"" >> a.go
+gofmt -w a.go
+#
+# Assembly sources
+#
+cophdr a.s
+I=0
+while [ $I -lt $N ]; do
+    echo "TEXT ·t${I}(SB),0,\$0" >> a.s
+    echo "	RET" >> a.s
+    echo >> a.s
+    I=`expr $I + 1`
+done

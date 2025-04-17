@@ -1,0 +1,24 @@
+# go get should update the go line in go.work
+env TESTGO_VERSION=go1.21
+env TESTGO_VERSION_SWITCH=switch
+env GOTOOLCHAIN=auto
+cp go.mod.new go.mod
+cp go.work.new go.work
+go get rsc.io/needgo121 rsc.io/needgo122 rsc.io/needgo123 rsc.io/needall
+stderr '^go: rsc.io/needall@v0.0.1 requires go >= 1.23; switching to go1.23.9$'
+stderr '^go: added rsc.io/needall v0.0.1'
+grep 'go 1.23$' go.mod
+grep 'go 1.23$' go.work
+! grep toolchain go.mod
+! grep toolchain go.work
+
+-- go.mod.new --
+module m
+go 1.1
+
+-- p.go --
+package p
+
+-- go.work.new --
+go 1.18
+use .

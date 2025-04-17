@@ -1,0 +1,39 @@
+-- .Play --
+package main
+
+import (
+	"fmt"
+)
+
+func main() {
+	fmt.Println("hello")
+}
+-- Generic.Play --
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+type C1 interface {
+	string | int
+}
+
+type C2 interface {
+	M(time.Time)
+}
+
+type G[T C1] int
+
+func g[T C2](x T) {}
+
+type Tm int
+
+func (Tm) M(time.Time) {}
+
+func main() {
+	var x G[string]
+	g(Tm(3))
+	fmt.Println(x)
+}

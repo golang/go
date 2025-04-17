@@ -1,0 +1,299 @@
+-- expect --
+SUCCESS
+-- trace --
+Trace Go1.22
+EventBatch gen=1 m=18446744073709551615 time=28113086279559 size=5
+Frequency freq=15625000
+EventBatch gen=1 m=167930 time=28113086277797 size=41
+ProcStart dt=505 p=1 p_seq=1
+GoStart dt=303 g=7 g_seq=1
+HeapAlloc dt=646 heapalloc_value=1892352
+HeapAlloc dt=149 heapalloc_value=1900544
+GoBlock dt=146 reason_string=12 stack=24
+GoStart dt=14 g=6 g_seq=1
+HeapAlloc dt=16 heapalloc_value=1908736
+GoBlock dt=347 reason_string=12 stack=25
+EventBatch gen=1 m=167928 time=28113086279032 size=10
+ProcStart dt=451 p=2 p_seq=1
+GoStart dt=188 g=8 g_seq=1
+EventBatch gen=1 m=167926 time=28113086275999 size=324
+ProcStatus dt=295 p=0 pstatus=1
+GoStatus dt=5 g=1 m=167926 gstatus=2
+ProcsChange dt=405 procs_value=48 stack=1
+STWBegin dt=65 kind_string=21 stack=2
+HeapGoal dt=2 heapgoal_value=4194304
+ProcStatus dt=4 p=1 pstatus=2
+ProcStatus dt=1 p=2 pstatus=2
+ProcStatus dt=1 p=3 pstatus=2
+ProcStatus dt=1 p=4 pstatus=2
+ProcStatus dt=1 p=5 pstatus=2
+ProcStatus dt=1 p=6 pstatus=2
+ProcStatus dt=1 p=7 pstatus=2
+ProcStatus dt=1 p=8 pstatus=2
+ProcStatus dt=1 p=9 pstatus=2
+ProcStatus dt=1 p=10 pstatus=2
+ProcStatus dt=1 p=11 pstatus=2
+ProcStatus dt=1 p=12 pstatus=2
+ProcStatus dt=1 p=13 pstatus=2
+ProcStatus dt=1 p=14 pstatus=2
+ProcStatus dt=1 p=15 pstatus=2
+ProcStatus dt=1 p=16 pstatus=2
+ProcStatus dt=1 p=17 pstatus=2
+ProcStatus dt=1 p=18 pstatus=2
+ProcStatus dt=1 p=19 pstatus=2
+ProcStatus dt=1 p=20 pstatus=2
+ProcStatus dt=1 p=21 pstatus=2
+ProcStatus dt=1 p=22 pstatus=2
+ProcStatus dt=1 p=23 pstatus=2
+ProcStatus dt=1 p=24 pstatus=2
+ProcStatus dt=1 p=25 pstatus=2
+ProcStatus dt=1 p=26 pstatus=2
+ProcStatus dt=1 p=27 pstatus=2
+ProcStatus dt=1 p=28 pstatus=2
+ProcStatus dt=1 p=29 pstatus=2
+ProcStatus dt=1 p=30 pstatus=2
+ProcStatus dt=1 p=31 pstatus=2
+ProcStatus dt=1 p=32 pstatus=2
+ProcStatus dt=1 p=33 pstatus=2
+ProcStatus dt=1 p=34 pstatus=2
+ProcStatus dt=1 p=35 pstatus=2
+ProcStatus dt=1 p=36 pstatus=2
+ProcStatus dt=1 p=37 pstatus=2
+ProcStatus dt=1 p=38 pstatus=2
+ProcStatus dt=1 p=39 pstatus=2
+ProcStatus dt=1 p=40 pstatus=2
+ProcStatus dt=1 p=41 pstatus=2
+ProcStatus dt=1 p=42 pstatus=2
+ProcStatus dt=1 p=43 pstatus=2
+ProcStatus dt=1 p=44 pstatus=2
+ProcStatus dt=1 p=45 pstatus=2
+ProcStatus dt=1 p=46 pstatus=2
+ProcStatus dt=1 p=47 pstatus=2
+ProcsChange dt=1 procs_value=48 stack=3
+STWEnd dt=184
+GoCreate dt=252 new_g=6 new_stack=4 stack=5
+GoCreate dt=78 new_g=7 new_stack=6 stack=7
+GoCreate dt=73 new_g=8 new_stack=8 stack=9
+UserTaskBegin dt=71 task=1 parent_task=0 name_string=22 stack=10
+UserRegionBegin dt=535 task=1 name_string=23 stack=11
+HeapAlloc dt=26 heapalloc_value=1884160
+GoCreate dt=8 new_g=9 new_stack=12 stack=13
+GoBlock dt=249 reason_string=10 stack=14
+GoStart dt=8 g=9 g_seq=1
+UserRegionBegin dt=286 task=1 name_string=24 stack=15
+UserRegionBegin dt=244 task=1 name_string=25 stack=16
+UserRegionBegin dt=6 task=1 name_string=26 stack=17
+UserLog dt=6 task=1 key_string=27 value_string=28 stack=18
+UserRegionEnd dt=4 task=1 name_string=26 stack=19
+UserRegionEnd dt=315 task=1 name_string=25 stack=20
+UserTaskEnd dt=5 task=1 stack=21
+GoUnblock dt=11 g=1 g_seq=1 stack=22
+GoDestroy dt=6
+GoStart dt=10 g=1 g_seq=2
+UserRegionBegin dt=278 task=0 name_string=29 stack=23
+EventBatch gen=1 m=18446744073709551615 time=28113086280061 size=57
+GoStatus dt=318 g=2 m=18446744073709551615 gstatus=4
+GoStatus dt=3 g=3 m=18446744073709551615 gstatus=4
+GoStatus dt=1 g=4 m=18446744073709551615 gstatus=4
+GoStatus dt=1 g=5 m=18446744073709551615 gstatus=4
+EventBatch gen=1 m=18446744073709551615 time=28113086280852 size=488
+Stacks
+Stack id=17 nframes=3
+	pc=4816080 func=30 file=31 line=45
+	pc=4813660 func=32 file=33 line=141
+	pc=4815908 func=34 file=31 line=43
+Stack id=8 nframes=1
+	pc=4814528 func=35 file=36 line=128
+Stack id=9 nframes=2
+	pc=4814351 func=37 file=36 line=128
+	pc=4815228 func=38 file=31 line=27
+Stack id=24 nframes=3
+	pc=4217457 func=39 file=40 line=442
+	pc=4544973 func=41 file=42 line=918
+	pc=4544806 func=43 file=42 line=871
+Stack id=7 nframes=4
+	pc=4544740 func=44 file=42 line=868
+	pc=4538792 func=45 file=42 line=258
+	pc=4814277 func=37 file=36 line=125
+	pc=4815228 func=38 file=31 line=27
+Stack id=22 nframes=3
+	pc=4642148 func=46 file=47 line=81
+	pc=4816326 func=48 file=47 line=87
+	pc=4815941 func=34 file=31 line=50
+Stack id=11 nframes=1
+	pc=4815364 func=38 file=31 line=34
+Stack id=5 nframes=4
+	pc=4547349 func=49 file=50 line=42
+	pc=4538780 func=45 file=42 line=257
+	pc=4814277 func=37 file=36 line=125
+	pc=4815228 func=38 file=31 line=27
+Stack id=23 nframes=1
+	pc=4815568 func=38 file=31 line=54
+Stack id=3 nframes=4
+	pc=4421860 func=51 file=52 line=1360
+	pc=4538775 func=45 file=42 line=255
+	pc=4814277 func=37 file=36 line=125
+	pc=4815228 func=38 file=31 line=27
+Stack id=21 nframes=2
+	pc=4816228 func=53 file=33 line=80
+	pc=4815926 func=34 file=31 line=50
+Stack id=1 nframes=4
+	pc=4553515 func=54 file=55 line=255
+	pc=4538503 func=45 file=42 line=237
+	pc=4814277 func=37 file=36 line=125
+	pc=4815228 func=38 file=31 line=27
+Stack id=12 nframes=1
+	pc=4815680 func=34 file=31 line=37
+Stack id=6 nframes=1
+	pc=4544768 func=43 file=42 line=868
+Stack id=2 nframes=3
+	pc=4538523 func=45 file=42 line=238
+	pc=4814277 func=37 file=36 line=125
+	pc=4815228 func=38 file=31 line=27
+Stack id=13 nframes=1
+	pc=4815492 func=38 file=31 line=37
+Stack id=4 nframes=1
+	pc=4547456 func=56 file=50 line=42
+Stack id=14 nframes=2
+	pc=4642407 func=57 file=47 line=116
+	pc=4815502 func=38 file=31 line=51
+Stack id=18 nframes=5
+	pc=4816147 func=58 file=31 line=46
+	pc=4813660 func=32 file=33 line=141
+	pc=4816080 func=30 file=31 line=45
+	pc=4813660 func=32 file=33 line=141
+	pc=4815908 func=34 file=31 line=43
+Stack id=20 nframes=1
+	pc=4815908 func=34 file=31 line=43
+Stack id=25 nframes=3
+	pc=4217457 func=39 file=40 line=442
+	pc=4544973 func=41 file=42 line=918
+	pc=4547514 func=56 file=50 line=54
+Stack id=16 nframes=1
+	pc=4815908 func=34 file=31 line=43
+Stack id=15 nframes=1
+	pc=4815838 func=34 file=31 line=41
+Stack id=19 nframes=3
+	pc=4816080 func=30 file=31 line=45
+	pc=4813660 func=32 file=33 line=141
+	pc=4815908 func=34 file=31 line=43
+Stack id=10 nframes=1
+	pc=4815332 func=38 file=31 line=33
+EventBatch gen=1 m=18446744073709551615 time=28113086274600 size=1620
+Strings
+String id=1
+	data="Not worker"
+String id=2
+	data="GC (dedicated)"
+String id=3
+	data="GC (fractional)"
+String id=4
+	data="GC (idle)"
+String id=5
+	data="unspecified"
+String id=6
+	data="forever"
+String id=7
+	data="network"
+String id=8
+	data="select"
+String id=9
+	data="sync.(*Cond).Wait"
+String id=10
+	data="sync"
+String id=11
+	data="chan send"
+String id=12
+	data="chan receive"
+String id=13
+	data="GC mark assist wait for work"
+String id=14
+	data="GC background sweeper wait"
+String id=15
+	data="system goroutine wait"
+String id=16
+	data="preempted"
+String id=17
+	data="wait for debug call"
+String id=18
+	data="wait until GC ends"
+String id=19
+	data="sleep"
+String id=20
+	data="runtime.Gosched"
+String id=21
+	data="start trace"
+String id=22
+	data="task0"
+String id=23
+	data="task0 region"
+String id=24
+	data="unended region"
+String id=25
+	data="region0"
+String id=26
+	data="region1"
+String id=27
+	data="key0"
+String id=28
+	data="0123456789abcdef"
+String id=29
+	data="post-existing region"
+String id=30
+	data="main.main.func1.1"
+String id=31
+	data="/usr/local/google/home/mknyszek/work/go-1/src/internal/trace/v2/testdata/testprog/annotations.go"
+String id=32
+	data="runtime/trace.WithRegion"
+String id=33
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/trace/annotation.go"
+String id=34
+	data="main.main.func1"
+String id=35
+	data="runtime/trace.Start.func1"
+String id=36
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/trace/trace.go"
+String id=37
+	data="runtime/trace.Start"
+String id=38
+	data="main.main"
+String id=39
+	data="runtime.chanrecv1"
+String id=40
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/chan.go"
+String id=41
+	data="runtime.(*wakeableSleep).sleep"
+String id=42
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/trace2.go"
+String id=43
+	data="runtime.(*traceAdvancerState).start.func1"
+String id=44
+	data="runtime.(*traceAdvancerState).start"
+String id=45
+	data="runtime.StartTrace"
+String id=46
+	data="sync.(*WaitGroup).Add"
+String id=47
+	data="/usr/local/google/home/mknyszek/work/go-1/src/sync/waitgroup.go"
+String id=48
+	data="sync.(*WaitGroup).Done"
+String id=49
+	data="runtime.traceStartReadCPU"
+String id=50
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/trace2cpu.go"
+String id=51
+	data="runtime.startTheWorld"
+String id=52
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/proc.go"
+String id=53
+	data="runtime/trace.(*Task).End"
+String id=54
+	data="runtime.traceLocker.Gomaxprocs"
+String id=55
+	data="/usr/local/google/home/mknyszek/work/go-1/src/runtime/trace2runtime.go"
+String id=56
+	data="runtime.traceStartReadCPU.func1"
+String id=57
+	data="sync.(*WaitGroup).Wait"
+String id=58
+	data="main.main.func1.1.1"

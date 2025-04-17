@@ -1,0 +1,57 @@
+# Conflicting workspace module replaces can be overridden by a replace in the
+# go.work file.
+
+go list -m example.com/dep
+stdout 'example.com/dep v1.0.0 => ./dep3'
+
+-- go.work --
+use m
+use n
+replace example.com/dep => ./dep3
+-- m/go.mod --
+module example.com/m
+
+require example.com/dep v1.0.0
+replace example.com/dep => ./dep1
+-- m/m.go --
+package m
+
+import "example.com/dep"
+
+func F() {
+	dep.G()
+}
+-- n/go.mod --
+module example.com/n
+
+require example.com/dep v1.0.0
+replace example.com/dep => ./dep2
+-- n/n.go --
+package n
+
+import "example.com/dep"
+
+func F() {
+	dep.G()
+}
+-- dep1/go.mod --
+module example.com/dep
+-- dep1/dep.go --
+package dep
+
+func G() {
+}
+-- dep2/go.mod --
+module example.com/dep
+-- dep2/dep.go --
+package dep
+
+func G() {
+}
+-- dep3/go.mod --
+module example.com/dep
+-- dep3/dep.go --
+package dep
+
+func G() {
+}

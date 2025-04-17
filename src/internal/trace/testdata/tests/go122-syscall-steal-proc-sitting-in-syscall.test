@@ -1,0 +1,15 @@
+-- expect --
+SUCCESS
+-- trace --
+Trace Go1.22
+EventBatch gen=1 m=0 time=0 size=9
+ProcStatus dt=1 p=0 pstatus=4
+ProcSteal dt=1 p=0 p_seq=1 m=1
+EventBatch gen=1 m=18446744073709551615 time=0 size=5
+GoStatus dt=1 g=1 m=1 gstatus=3
+EventBatch gen=1 m=18446744073709551615 time=0 size=5
+Frequency freq=15625000
+EventBatch gen=1 m=18446744073709551615 time=0 size=1
+Stacks
+EventBatch gen=1 m=18446744073709551615 time=0 size=1
+Strings

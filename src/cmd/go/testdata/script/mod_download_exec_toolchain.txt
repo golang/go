@@ -1,0 +1,105 @@
+env TESTGO_VERSION=go1.21
+env TESTGO_VERSION_SWITCH=switch
+
+# First, test 'go mod download' outside of a module.
+#
+# There is no go.mod file into which we can record the selected toolchain,
+# so unfortunately these version switches won't be as reproducible as other
+# go commands, but that's still preferable to failing entirely or downloading
+# a module zip that we don't understand.
+
+# GOTOOLCHAIN=auto should run the newer toolchain
+env GOTOOLCHAIN=auto
+go mod download rsc.io/needgo121@latest rsc.io/needgo122@latest rsc.io/needgo123@latest rsc.io/needall@latest
+stderr '^go: rsc.io/needall@v0.0.1 requires go >= 1.23; switching to go1.23.9$'
+! stderr '\(running'
+
+# GOTOOLCHAIN=min+auto should run the newer toolchain
+env GOTOOLCHAIN=go1.21+auto
+go mod download rsc.io/needgo121@latest rsc.io/needgo122@latest rsc.io/needgo123@latest rsc.io/needall@latest
+stderr '^go: rsc.io/needall@v0.0.1 requires go >= 1.23; switching to go1.23.9$'
+! stderr '\(running'
+
+# GOTOOLCHAIN=go1.21 should NOT run the newer toolchain
+env GOTOOLCHAIN=go1.21
+! go mod download rsc.io/needgo121@latest rsc.io/needgo122@latest rsc.io/needgo123@latest rsc.io/needall@latest
+! stderr switching
+stderr 'rsc.io/needgo122@v0.0.1 requires go >= 1.22'
+stderr 'rsc.io/needgo123@v0.0.1 requires go >= 1.23'
+stderr 'rsc.io/needall@v0.0.1 requires go >= 1.23'
+stderr 'requires go >= 1.23'
+! stderr 'requires go >= 1.21' # that's us!
+
+
+# JSON output should be emitted exactly once,
+# and non-JSON output should go to stderr instead of stdout.
+env GOTOOLCHAIN=auto
+go mod download -json rsc.io/needgo121@latest rsc.io/needgo122@latest rsc.io/needgo123@latest rsc.io/needall@latest
+stderr '^go: rsc.io/needall@v0.0.1 requires go >= 1.23; switching to go1.23.9$'
+! stderr '\(running'
+stdout -count=1 '"Path": "rsc.io/needgo121",'
+stdout -count=1 '"Path": "rsc.io/needgo122",'
+stdout -count=1 '"Path": "rsc.io/needgo123",'
+stdout -count=1 '"Path": "rsc.io/needall",'
+
+# GOTOOLCHAIN=go1.21 should write the errors in the JSON Error fields, not to stderr.
+env GOTOOLCHAIN=go1.21
+! go mod download -json rsc.io/needgo121@latest rsc.io/needgo122@latest rsc.io/needgo123@latest rsc.io/needall@latest
+! stderr switching
+stdout -count=1 '"Error": "rsc.io/needgo122@v0.0.1 requires go .*= 1.22 \(running go 1.21; GOTOOLCHAIN=go1.21\)"'
+stdout -count=1 '"Error": "rsc.io/needgo123@v0.0.1 requires go .*= 1.23 \(running go 1.21; GOTOOLCHAIN=go1.21\)"'
+stdout -count=1 '"Error": "rsc.io/needall@v0.0.1 requires go .*= 1.23 \(running go 1.21; GOTOOLCHAIN=go1.21\)"'
+! stdout '"Error": "rsc.io/needgo121'  # We can handle this one.
+! stderr .
+
+
+# Within a module, 'go mod download' of explicit versions should upgrade if
+# needed to perform the download, but should not change the main module's
+# toolchain version (because the downloaded modules are still not required by
+# the main module).
+
+cd example
+cp go.mod go.mod.orig
+
+env GOTOOLCHAIN=auto
+go mod download rsc.io/needgo121@latest rsc.io/needgo122@latest rsc.io/needgo123@latest rsc.io/needall@latest
+stderr '^go: rsc.io/needall@v0.0.1 requires go >= 1.23; switching to go1.23.9$'
+! stderr '\(running'
+cmp go.mod go.mod.orig
+
+
+# However, 'go mod download' without arguments should fix up the
+# 'go' and 'toolchain' lines to be consistent with the existing
+# requirements in the module graph.
+
+go mod edit -require=rsc.io/needall@v0.0.1
+cp go.mod go.mod.121
+
+# If an upgrade is needed, GOTOOLCHAIN=go1.21 should cause
+# the command to fail without changing go.mod.
+
+env GOTOOLCHAIN=go1.21
+! go mod download
+stderr 'rsc.io/needall@v0.0.1 requires go >= 1.23'
+! stderr switching
+cmp go.mod go.mod.121
+
+# If an upgrade is needed, GOTOOLCHAIN=auto should perform
+# the upgrade and record the resulting toolchain version.
+
+env GOTOOLCHAIN=auto
+go mod download
+stderr '^go: module rsc.io/needall@v0.0.1 requires go >= 1.23; switching to go1.23.9$'
+cmp go.mod go.mod.final
+
+
+-- example/go.mod --
+module example
+
+go 1.21
+-- example/go.mod.final --
+module example
+
+go 1.23
+
+require rsc.io/needall v0.0.1

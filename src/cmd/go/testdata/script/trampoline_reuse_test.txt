@@ -1,0 +1,100 @@
+# Verify PPC64 does not reuse a trampoline which is too far away.
+# This tests an edge case where the direct call relocation addend should
+# be ignored when computing the distance from the direct call to the
+# already placed trampoline
+[short] skip
+[!GOARCH:ppc64] [!GOARCH:ppc64le] skip
+[GOOS:aix] skip
+
+# Note, this program does not run. Presumably, 'DWORD $0' is simpler to
+# assembly 2^26 or so times.
+#
+# We build something which should be laid out as such:
+#
+# bar.Bar
+# main.Func1
+# bar.Bar+400-tramp0
+# main.BigAsm
+# main.Func2
+# bar.Bar+400-tramp1
+#
+# bar.Bar needs to be placed far enough away to generate relocations
+# from main package calls. and main.Func1 and main.Func2 are placed
+# a bit more than the direct call limit apart, but not more than 0x400
+# bytes beyond it (to verify the reloc calc).
+
+go build
+
+-- go.mod --
+
+module foo
+
+go 1.19
+
+-- main.go --
+
+package main
+
+import "foo/bar"
+
+func Func1()
+
+func main() {
+        Func1()
+        bar.Bar2()
+}
+
+-- foo.s --
+
+TEXT main·Func1(SB),0,$0-0
+        CALL bar·Bar+0x400(SB)
+        CALL main·BigAsm(SB)
+// A trampoline will be placed here to bar.Bar
+
+// This creates a gap sufficiently large to prevent trampoline reuse
+#define NOP64 DWORD $0; DWORD $0; DWORD $0; DWORD $0; DWORD $0; DWORD $0; DWORD $0; DWORD $0;
+#define NOP256 NOP64 NOP64 NOP64 NOP64
+#define NOP2S10 NOP256 NOP256 NOP256 NOP256
+#define NOP2S12 NOP2S10 NOP2S10 NOP2S10 NOP2S10
+#define NOP2S14 NOP2S12 NOP2S12 NOP2S12 NOP2S12
+#define NOP2S16 NOP2S14 NOP2S14 NOP2S14 NOP2S14
+#define NOP2S18 NOP2S16 NOP2S16 NOP2S16 NOP2S16
+#define NOP2S20 NOP2S18 NOP2S18 NOP2S18 NOP2S18
+#define NOP2S22 NOP2S20 NOP2S20 NOP2S20 NOP2S20
+#define NOP2S24 NOP2S22 NOP2S22 NOP2S22 NOP2S22
+#define BIGNOP NOP2S24 NOP2S24
+TEXT main·BigAsm(SB),0,$0-0
+        // Fill to the direct call limit so Func2 must generate a new trampoline.
+        // As the implicit trampoline above is just barely unreachable.
+        BIGNOP
+        MOVD $main·Func2(SB), R3
+
+TEXT main·Func2(SB),0,$0-0
+        CALL bar·Bar+0x400(SB)
+// Another trampoline should be placed here.
+
+-- bar/bar.s --
+
+#define NOP64 DWORD $0; DWORD $0; DWORD $0; DWORD $0; DWORD $0; DWORD $0; DWORD $0; DWORD $0;
+#define NOP256 NOP64 NOP64 NOP64 NOP64
+#define NOP2S10 NOP256 NOP256 NOP256 NOP256
+#define NOP2S12 NOP2S10 NOP2S10 NOP2S10 NOP2S10
+#define NOP2S14 NOP2S12 NOP2S12 NOP2S12 NOP2S12
+#define NOP2S16 NOP2S14 NOP2S14 NOP2S14 NOP2S14
+#define NOP2S18 NOP2S16 NOP2S16 NOP2S16 NOP2S16
+#define NOP2S20 NOP2S18 NOP2S18 NOP2S18 NOP2S18
+#define NOP2S22 NOP2S20 NOP2S20 NOP2S20 NOP2S20
+#define NOP2S24 NOP2S22 NOP2S22 NOP2S22 NOP2S22
+#define BIGNOP NOP2S24 NOP2S24 NOP2S10
+// A very big not very interesting function.
+TEXT bar·Bar(SB),0,$0-0
+        BIGNOP
+
+-- bar/bar.go --
+
+package bar
+
+func Bar()
+
+func Bar2() {
+}

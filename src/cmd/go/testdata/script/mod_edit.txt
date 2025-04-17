@@ -1,0 +1,384 @@
+env GO111MODULE=on
+
+# Test that go mod edits and related mod flags work.
+# Also test that they can use a dummy name that isn't resolvable. golang.org/issue/24100
+
+# go mod init
+! go mod init
+stderr 'cannot determine module path'
+! exists go.mod
+
+go mod init x.x/y/z
+stderr 'creating new go.mod: module x.x/y/z'
+cmpenv go.mod $WORK/go.mod.init
+
+! go mod init
+cmpenv go.mod $WORK/go.mod.init
+
+# go mod edits
+go mod edit -droprequire=x.1 -require=x.1@v1.0.0 -require=x.2@v1.1.0 -droprequire=x.2 -exclude='x.1 @ v1.2.0' -exclude=x.1@v1.2.1 -exclude=x.1@v2.0.0+incompatible -replace=x.1@v1.3.0=y.1@v1.4.0 -replace='x.1@v1.4.0 = ../z' -retract=v1.6.0 -retract=[v1.1.0,v1.2.0] -retract=[v1.3.0,v1.4.0] -retract=v1.0.0
+cmpenv go.mod $WORK/go.mod.edit1
+go mod edit -droprequire=x.1 -dropexclude=x.1@v1.2.1 -dropexclude=x.1@v2.0.0+incompatible -dropreplace=x.1@v1.3.0 -require=x.3@v1.99.0 -dropretract=v1.0.0 -dropretract=[v1.1.0,v1.2.0]
+cmpenv go.mod $WORK/go.mod.edit2
+
+# -exclude and -retract reject invalid versions.
+! go mod edit -exclude=example.com/m@bad
+stderr '^go: -exclude=example.com/m@bad: version "bad" invalid: must be of the form v1.2.3$'
+! go mod edit -retract=bad
+stderr '^go: -retract=bad: version "bad" invalid: must be of the form v1.2.3$'
+
+! go mod edit -exclude=example.com/m@v2.0.0
+stderr '^go: -exclude=example.com/m@v2\.0\.0: version "v2\.0\.0" invalid: should be v2\.0\.0\+incompatible \(or module example\.com/m/v2\)$'
+
+! go mod edit -exclude=example.com/m/v2@v1.0.0
+stderr '^go: -exclude=example.com/m/v2@v1\.0\.0: version "v1\.0\.0" invalid: should be v2, not v1$'
+
+! go mod edit -exclude=gopkg.in/example.v1@v2.0.0
+stderr '^go: -exclude=gopkg\.in/example\.v1@v2\.0\.0: version "v2\.0\.0" invalid: should be v1, not v2$'
+
+cmpenv go.mod $WORK/go.mod.edit2
+
+# go mod edit -json
+go mod edit -json
+cmpenv stdout $WORK/go.mod.json
+
+# go mod edit -json (retractions with rationales)
+go mod edit -json $WORK/go.mod.retractrationale
+cmp stdout $WORK/go.mod.retractrationale.json
+
+# go mod edit -json (deprecation)
+go mod edit -json $WORK/go.mod.deprecation
+cmp stdout $WORK/go.mod.deprecation.json
+
+# go mod edit -json (empty mod file)
+go mod edit -json $WORK/go.mod.empty
+cmp stdout $WORK/go.mod.empty.json
+
+# go mod edit -replace
+go mod edit -replace=x.1@v1.3.0=y.1/v2@v2.3.5 -replace=x.1@v1.4.0=y.1/v2@v2.3.5
+cmpenv go.mod $WORK/go.mod.edit3
+go mod edit -replace=x.1=y.1/v2@v2.3.6
+cmpenv go.mod $WORK/go.mod.edit4
+go mod edit -dropreplace=x.1
+cmpenv go.mod $WORK/go.mod.edit5
+go mod edit -replace=x.1=../y.1/@v2
+cmpenv go.mod $WORK/go.mod.edit6
+! go mod edit -replace=x.1=y.1/@v2
+stderr '^go: -replace=x.1=y.1/@v2: invalid new path: malformed import path "y.1/": trailing slash$'
+
+# go mod edit -fmt
+cp $WORK/go.mod.badfmt go.mod
+go mod edit -fmt -print # -print should avoid writing file
+cmpenv stdout $WORK/go.mod.goodfmt
+cmp go.mod $WORK/go.mod.badfmt
+go mod edit -fmt # without -print, should write file (and nothing to stdout)
+! stdout .
+cmpenv go.mod $WORK/go.mod.goodfmt
+
+# go mod edit -module
+cd $WORK/m
+go mod init a.a/b/c
+go mod edit -module x.x/y/z
+cmpenv go.mod go.mod.edit
+
+# golang.org/issue/30513: don't require go-gettable module paths.
+cd $WORK/local
+go mod init foo
+go mod edit -module local-only -require=other-local@v1.0.0 -replace other-local@v1.0.0=./other
+cmpenv go.mod go.mod.edit
+
+# go mod edit -godebug
+cd $WORK/g
+cp go.mod.start go.mod
+go mod edit -godebug key=value
+cmpenv go.mod go.mod.edit
+go mod edit -dropgodebug key2
+cmpenv go.mod go.mod.edit
+go mod edit -dropgodebug key
+cmpenv go.mod go.mod.start
+
+# go mod edit -tool
+cd $WORK/h
+cp go.mod.start go.mod
+go mod edit -tool example.com/tool
+cmpenv go.mod go.mod.edit
+go mod edit -droptool example.com/tool2
+cmpenv go.mod go.mod.edit
+go mod edit -droptool example.com/tool
+cmpenv go.mod go.mod.start
+
+-- x.go --
+package x
+
+-- w/w.go --
+package w
+
+-- $WORK/go.mod.init --
+module x.x/y/z
+
+go $goversion
+-- $WORK/go.mod.edit1 --
+module x.x/y/z
+
+go $goversion
+
+require x.1 v1.0.0
+
+exclude (
+	x.1 v1.2.0
+	x.1 v1.2.1
+	x.1 v2.0.0+incompatible
+)
+
+replace (
+	x.1 v1.3.0 => y.1 v1.4.0
+	x.1 v1.4.0 => ../z
+)
+
+retract (
+	v1.6.0
+	[v1.3.0, v1.4.0]
+	[v1.1.0, v1.2.0]
+	v1.0.0
+)
+-- $WORK/go.mod.edit2 --
+module x.x/y/z
+
+go $goversion
+
+exclude x.1 v1.2.0
+
+replace x.1 v1.4.0 => ../z
+
+retract (
+	v1.6.0
+	[v1.3.0, v1.4.0]
+)
+
+require x.3 v1.99.0
+-- $WORK/go.mod.json --
+{
+	"Module": {
+		"Path": "x.x/y/z"
+	},
+	"Go": "$goversion",
+	"Require": [
+		{
+			"Path": "x.3",
+			"Version": "v1.99.0"
+		}
+	],
+	"Exclude": [
+		{
+			"Path": "x.1",
+			"Version": "v1.2.0"
+		}
+	],
+	"Replace": [
+		{
+			"Old": {
+				"Path": "x.1",
+				"Version": "v1.4.0"
+			},
+			"New": {
+				"Path": "../z"
+			}
+		}
+	],
+	"Retract": [
+		{
+			"Low": "v1.6.0",
+			"High": "v1.6.0"
+		},
+		{
+			"Low": "v1.3.0",
+			"High": "v1.4.0"
+		}
+	],
+	"Tool": null
+}
+-- $WORK/go.mod.edit3 --
+module x.x/y/z
+
+go $goversion
+
+exclude x.1 v1.2.0
+
+replace (
+	x.1 v1.3.0 => y.1/v2 v2.3.5
+	x.1 v1.4.0 => y.1/v2 v2.3.5
+)
+
+retract (
+	v1.6.0
+	[v1.3.0, v1.4.0]
+)
+
+require x.3 v1.99.0
+-- $WORK/go.mod.edit4 --
+module x.x/y/z
+
+go $goversion
+
+exclude x.1 v1.2.0
+
+replace x.1 => y.1/v2 v2.3.6
+
+retract (
+	v1.6.0
+	[v1.3.0, v1.4.0]
+)
+
+require x.3 v1.99.0
+-- $WORK/go.mod.edit5 --
+module x.x/y/z
+
+go $goversion
+
+exclude x.1 v1.2.0
+
+retract (
+	v1.6.0
+	[v1.3.0, v1.4.0]
+)
+
+require x.3 v1.99.0
+-- $WORK/go.mod.edit6 --
+module x.x/y/z
+
+go $goversion
+
+exclude x.1 v1.2.0
+
+retract (
+	v1.6.0
+	[v1.3.0, v1.4.0]
+)
+
+require x.3 v1.99.0
+
+replace x.1 => ../y.1/@v2
+-- $WORK/local/go.mod.edit --
+module local-only
+
+go $goversion
+
+require other-local v1.0.0
+
+replace other-local v1.0.0 => ./other
+-- $WORK/go.mod.badfmt --
+module     x.x/y/z
+
+go 1.10
+
+exclude x.1     v1.2.0
+
+replace x.1    =>   y.1/v2 v2.3.6
+
+require x.3   v1.99.0
+
+retract [  "v1.8.1" , "v1.8.2" ]
+-- $WORK/go.mod.goodfmt --
+module x.x/y/z
+
+go 1.10
+
+exclude x.1 v1.2.0
+
+replace x.1 => y.1/v2 v2.3.6
+
+require x.3 v1.99.0
+
+retract [v1.8.1, v1.8.2]
+-- $WORK/m/go.mod.edit --
+module x.x/y/z
+
+go $goversion
+-- $WORK/go.mod.retractrationale --
+module x.x/y/z
+
+go 1.15
+
+// a
+retract v1.0.0
+
+// b
+retract (
+  v1.0.1
+  v1.0.2 // c
+)
+-- $WORK/go.mod.retractrationale.json --
+{
+	"Module": {
+		"Path": "x.x/y/z"
+	},
+	"Go": "1.15",
+	"Require": null,
+	"Exclude": null,
+	"Replace": null,
+	"Retract": [
+		{
+			"Low": "v1.0.0",
+			"High": "v1.0.0",
+			"Rationale": "a"
+		},
+		{
+			"Low": "v1.0.1",
+			"High": "v1.0.1",
+			"Rationale": "b"
+		},
+		{
+			"Low": "v1.0.2",
+			"High": "v1.0.2",
+			"Rationale": "c"
+		}
+	],
+	"Tool": null
+}
+-- $WORK/go.mod.deprecation --
+// Deprecated: and the new one is not ready yet
+module m
+-- $WORK/go.mod.deprecation.json --
+{
+	"Module": {
+		"Path": "m",
+		"Deprecated": "and the new one is not ready yet"
+	},
+	"Require": null,
+	"Exclude": null,
+	"Replace": null,
+	"Retract": null,
+	"Tool": null
+}
+-- $WORK/go.mod.empty --
+-- $WORK/go.mod.empty.json --
+{
+	"Module": {
+		"Path": ""
+	},
+	"Require": null,
+	"Exclude": null,
+	"Replace": null,
+	"Retract": null,
+	"Tool": null
+}
+-- $WORK/g/go.mod.start --
+module g
+
+go 1.10
+-- $WORK/g/go.mod.edit --
+module g
+
+go 1.10
+
+godebug key=value
+-- $WORK/h/go.mod.start --
+module g
+
+go 1.24
+-- $WORK/h/go.mod.edit --
+module g
+
+go 1.24
+
+tool example.com/tool

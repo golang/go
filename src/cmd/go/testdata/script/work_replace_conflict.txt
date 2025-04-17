@@ -1,0 +1,53 @@
+# Conflicting replaces in workspace modules returns error that suggests
+# overriding it in the go.work file.
+
+! go list -m example.com/dep
+stderr 'go: conflicting replacements for example.com/dep@v1.0.0:\n\t'$PWD${/}'dep1\n\t'$PWD${/}'dep2\nuse "go work edit -replace example.com/dep@v1.0.0=\[override\]" to resolve'
+go work edit -replace example.com/dep@v1.0.0=./dep1
+go list -m example.com/dep
+stdout 'example.com/dep v1.0.0 => ./dep1'
+
+-- foo --
+-- go.work --
+use m
+use n
+-- m/go.mod --
+module example.com/m
+
+require example.com/dep v1.0.0
+replace example.com/dep v1.0.0 => ../dep1
+-- m/m.go --
+package m
+
+import "example.com/dep"
+
+func F() {
+	dep.G()
+}
+-- n/go.mod --
+module example.com/n
+
+require example.com/dep v1.0.0
+replace example.com/dep v1.0.0 => ../dep2
+-- n/n.go --
+package n
+
+import "example.com/dep"
+
+func F() {
+	dep.G()
+}
+-- dep1/go.mod --
+module example.com/dep
+-- dep1/dep.go --
+package dep
+
+func G() {
+}
+-- dep2/go.mod --
+module example.com/dep
+-- dep2/dep.go --
+package dep
+
+func G() {
+}

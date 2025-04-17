@@ -1,0 +1,24 @@
+-- .Play --
+package main
+
+import (
+	"bytes"
+	"io"
+)
+
+func getReader() io.Reader { return nil }
+
+func do(b bytes.Reader) {}
+
+func main() {
+	getReader()
+	do()
+}
+-- Ignored.Play --
+package main
+
+import ()
+
+func main() {
+}
+

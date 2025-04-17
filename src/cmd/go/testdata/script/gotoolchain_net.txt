@@ -1,0 +1,70 @@
+# This test only checks that basic network lookups work.
+# The full test of toolchain version selection is in gotoolchain.txt.
+
+# This test is sensitive to "new" Go experiments, so
+# update the environment to remove any existing GOEXPERIMENT
+# setting, see #62016 for more on this. 
+env GOEXPERIMENT=''
+
+env TESTGO_VERSION=go1.21actual
+
+# GOTOOLCHAIN from network, does not exist
+env GOTOOLCHAIN=go1.9999x
+! go version
+stderr 'go: download go1.9999x for .*: toolchain not available'
+
+# GOTOOLCHAIN from network
+[!exec:/bin/sh] stop 'the fake proxy serves shell scripts instead of binaries'
+env GOTOOLCHAIN=go1.999testmod
+go version
+stderr 'go: downloading go1.999testmod \(.*/.*\)'
+
+# GOTOOLCHAIN cached from network
+go version
+! stderr downloading
+stdout go1.999testmod
+
+# GOTOOLCHAIN with GOSUMDB enabled but at a bad URL should operate in cache and not try badurl
+env oldsumdb=$GOSUMDB
+env GOSUMDB=$oldsumdb' http://badurl'
+go version
+! stderr downloading
+stdout go1.999testmod
+
+# GOTOOLCHAIN with GOSUMB=off should fail, because it cannot access even the cached sumdb info
+# without the sumdb name.
+env GOSUMDB=off
+! go version
+stderr '^go: golang.org/toolchain@v0.0.1-go1.999testmod.[a-z0-9\-]*: verifying module: checksum database disabled by GOSUMDB=off$'
+
+# GOTOOLCHAIN with GOSUMDB enabled but at a bad URL should fail if cache is incomplete
+env GOSUMDB=$oldsumdb' http://badurl'
+rm $GOPATH/pkg/mod/cache/download/sumdb
+! go version
+! stderr downloading
+stderr 'panic: use of network' # test catches network access
+env GOSUMDB=$oldsumdb
+
+# Test a real GOTOOLCHAIN
+[short] skip
+[!net:golang.org] skip
+[!net:sum.golang.org] skip
+[!GOOS:darwin] [!GOOS:windows] [!GOOS:linux] skip
+[!GOARCH:amd64] [!GOARCH:arm64] skip
+
+env GOPROXY=
+[go-builder] env GOSUMDB=
+[!go-builder] env GOSUMDB=sum.golang.org  # Set explicitly in case GOROOT/go.env is modified.
+env GOTOOLCHAIN=go1.20.1
+
+	# Avoid resolving a "go1.20.1" from the user's real $PATH.
+	# That would not only cause the "downloading go1.20.1" message
+	# to be suppressed, but may spuriously fail:
+	# golang.org/dl/go1.20.1 expects to find its GOROOT in $HOME/sdk,
+	# but the script environment sets HOME=/no-home.
+env PATH=
+env path=
+
+go version
+stderr '^go: downloading go1.20.1 '
+stdout go1.20.1

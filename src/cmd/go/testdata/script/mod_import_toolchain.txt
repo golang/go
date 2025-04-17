@@ -1,0 +1,186 @@
+# This test verifies that 'go get' and 'go mod tidy' switch to a newer toolchain
+# if needed to process newly-resolved imports.
+
+env TESTGO_VERSION=go1.21.0
+env TESTGO_VERSION_SWITCH=switch
+
+cp go.mod go.mod.orig
+
+# tidy reports needing 1.22.0 for b1
+env GOTOOLCHAIN=local
+! go mod tidy
+stderr '^go: example imports\n\texample.net/b: module ./b1 requires go >= 1.22.0 \(running go 1.21.0; GOTOOLCHAIN=local\)$'
+env GOTOOLCHAIN=auto
+go mod tidy
+
+cmp stderr tidy-stderr.want
+cmp go.mod go.mod.tidy
+
+cp go.mod.orig go.mod
+env GOTOOLCHAIN=local
+! go get -v .
+stderr '^go: example.net/b@v0.1.0: module ./b1 requires go >= 1.22.0 \(running go 1.21.0; GOTOOLCHAIN=local\)$'
+env GOTOOLCHAIN=auto
+go get -v .
+cmp stderr get-v-stderr.want
+cmp go.mod go.mod.tidy
+
+cp go.mod.orig go.mod
+env GOTOOLCHAIN=local
+! go get -u -v .
+stderr '^go: example.net/a@v0.2.0: module ./a2 requires go >= 1.22.0 \(running go 1.21.0; GOTOOLCHAIN=local\)$'
+env GOTOOLCHAIN=auto
+go get -u -v .
+cmp stderr get-u-v-stderr.want
+cmp go.mod go.mod.upgraded
+
+-- tidy-stderr.want --
+go: found example.net/b in example.net/b v0.1.0
+go: module ./b1 requires go >= 1.22.0; switching to go1.22.9
+go: found example.net/b in example.net/b v0.1.0
+go: found example.net/c in example.net/c v0.1.0
+-- get-v-stderr.want --
+go: trying upgrade to example.net/b@v0.1.0
+go: module ./b1 requires go >= 1.22.0; switching to go1.22.9
+go: trying upgrade to example.net/b@v0.1.0
+go: accepting indirect upgrade from go@1.20 to 1.22.0
+go: trying upgrade to example.net/c@v0.1.0
+go: upgraded go 1.20 => 1.22.0
+go: added example.net/b v0.1.0
+go: added example.net/c v0.1.0
+go: added example.net/d v0.1.0
+-- get-u-v-stderr.want --
+go: trying upgrade to example.net/a@v0.2.0
+go: trying upgrade to example.net/b@v0.1.0
+go: module ./a2 requires go >= 1.22.0; switching to go1.22.9
+go: trying upgrade to example.net/a@v0.2.0
+go: trying upgrade to example.net/b@v0.1.0
+go: accepting indirect upgrade from go@1.20 to 1.22.0
+go: trying upgrade to example.net/c@v0.1.0
+go: trying upgrade to example.net/d@v0.2.0
+go: module ./d2 requires go >= 1.23.0; switching to go1.23.9
+go: trying upgrade to example.net/a@v0.2.0
+go: trying upgrade to example.net/b@v0.1.0
+go: accepting indirect upgrade from go@1.20 to 1.22.0
+go: trying upgrade to example.net/c@v0.1.0
+go: trying upgrade to example.net/d@v0.2.0
+go: accepting indirect upgrade from go@1.22.0 to 1.23.0
+go: upgraded go 1.20 => 1.23.0
+go: upgraded example.net/a v0.1.0 => v0.2.0
+go: added example.net/b v0.1.0
+go: added example.net/c v0.1.0
+go: added example.net/d v0.2.0
+-- go.mod --
+module example
+
+go 1.20
+
+require example.net/a v0.1.0
+
+replace (
+	example.net/a v0.1.0 => ./a1
+	example.net/a v0.2.0 => ./a2
+	example.net/b v0.1.0 => ./b1
+	example.net/c v0.1.0 => ./c1
+	example.net/d v0.1.0 => ./d1
+	example.net/d v0.2.0 => ./d2
+)
+-- go.mod.tidy --
+module example
+
+go 1.22.0
+
+require (
+	example.net/a v0.1.0
+	example.net/b v0.1.0
+)
+
+require (
+	example.net/c v0.1.0 // indirect
+	example.net/d v0.1.0 // indirect
+)
+
+replace (
+	example.net/a v0.1.0 => ./a1
+	example.net/a v0.2.0 => ./a2
+	example.net/b v0.1.0 => ./b1
+	example.net/c v0.1.0 => ./c1
+	example.net/d v0.1.0 => ./d1
+	example.net/d v0.2.0 => ./d2
+)
+-- go.mod.upgraded --
+module example
+
+go 1.23.0
+
+require (
+	example.net/a v0.2.0
+	example.net/b v0.1.0
+)
+
+require (
+	example.net/c v0.1.0 // indirect
+	example.net/d v0.2.0 // indirect
+)
+
+replace (
+	example.net/a v0.1.0 => ./a1
+	example.net/a v0.2.0 => ./a2
+	example.net/b v0.1.0 => ./b1
+	example.net/c v0.1.0 => ./c1
+	example.net/d v0.1.0 => ./d1
+	example.net/d v0.2.0 => ./d2
+)
+-- example.go --
+package example
+
+import (
+	_ "example.net/a"
+	_ "example.net/b"
+)
+-- a1/go.mod --
+module example.net/a
+
+go 1.20
+-- a1/a.go --
+package a
+-- a2/go.mod --
+module example.net/a
+
+go 1.22.0
+
+toolchain go1.23.0
+-- a2/a.go --
+package a
+-- b1/go.mod --
+module example.net/b
+
+go 1.22.0
+
+toolchain go1.23.0
+-- b1/b.go --
+package b
+
+import _ "example.net/c"  // Note: module b is intentionally untidy, as if due to a bad git merge
+-- c1/go.mod --
+module example.net/c
+
+go 1.22.0
+
+require example.net/d v0.1.0
+-- c1/c.go --
+package c
+
+import _ "example.net/d"
+-- d1/go.mod --
+module example.net/d
+
+go 1.22.0
+-- d1/d.go --
+package d
+-- d2/go.mod --
+module example.net/d
+
+go 1.23.0
+-- d2/d.go --
+package d

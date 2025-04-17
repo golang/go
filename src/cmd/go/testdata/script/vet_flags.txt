@@ -1,0 +1,93 @@
+[short] skip 'runs test'
+
+env GO111MODULE=on
+
+# Issue 35837: "go vet -<analyzer> <std package>" should use the requested
+# analyzers, not the default analyzers for 'go test'.
+go vet -n -buildtags=false runtime
+stderr '-buildtags=false'
+! stderr '-unsafeptr=false'
+
+# Issue 37030: "go vet <std package>" without other flags should disable the
+# unsafeptr check by default.
+go vet -n runtime
+stderr '-unsafeptr=false'
+! stderr '-unreachable=false'
+
+# However, it should be enabled if requested explicitly.
+go vet -n -unsafeptr runtime
+stderr '-unsafeptr'
+! stderr '-unsafeptr=false'
+
+# -unreachable is disabled during test but on during plain vet.
+go test -n runtime
+stderr '-unreachable=false'
+
+# A flag terminator should be allowed before the package list.
+go vet -n -- .
+
+[short] stop
+
+# Analyzer flags should be included from GOFLAGS, and should override
+# the defaults.
+go vet .
+env GOFLAGS='-tags=buggy'
+! go vet .
+stderr 'possible Printf formatting directive'
+
+# Enabling one analyzer in GOFLAGS should disable the rest implicitly...
+env GOFLAGS='-tags=buggy -unsafeptr'
+go vet .
+
+# ...but enabling one on the command line should not disable the analyzers
+# enabled via GOFLAGS.
+env GOFLAGS='-tags=buggy -printf'
+! go vet -unsafeptr
+stderr 'possible Printf formatting directive'
+
+# Analyzer flags don't exist unless we're running 'go vet',
+# and we shouldn't run the vet tool to discover them otherwise.
+# (Maybe someday we'll hard-code the analyzer flags for the default vet
+# tool to make this work, but not right now.)
+env GOFLAGS='-unsafeptr'
+! go list .
+stderr 'go: parsing \$GOFLAGS: unknown flag -unsafeptr'
+env GOFLAGS=
+
+# "go test" on a user package should by default enable an explicit list of analyzers.
+go test -n -run=none .
+stderr '[/\\]vet'$GOEXE'["]? .* -errorsas .* ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
+
+# An explicitly-empty -vet argument should imply the default analyzers.
+go test -n -vet= -run=none .
+stderr '[/\\]vet'$GOEXE'["]? .* -errorsas .* ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
+
+# "go test" on a standard package should by default disable an explicit list.
+go test -n -run=none encoding/binary
+stderr '[/\\]vet'$GOEXE'["]? -unsafeptr=false -unreachable=false ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
+
+go test -n -vet= -run=none encoding/binary
+stderr '[/\\]vet'$GOEXE'["]? -unsafeptr=false -unreachable=false ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
+
+# Both should allow users to override via the -vet flag.
+go test -n -vet=unreachable -run=none .
+stderr '[/\\]vet'$GOEXE'["]? -unreachable ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
+go test -n -vet=unreachable -run=none encoding/binary
+stderr '[/\\]vet'$GOEXE'["]? -unreachable ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
+
+-- go.mod --
+module example.com/x
+-- x.go --
+package x
+-- x_test.go --
+package x
+-- x_tagged.go --
+// +build buggy
+
+package x
+
+import "fmt"
+
+func init() {
+	fmt.Sprint("%s") // oops!
+}
