@@ -830,15 +830,15 @@ func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
 	if vers[6] != '.' {
 		return 0, 0, false
 	}
-	maj, err := strconv.ParseUint(vers[5:6], 10, 0)
+	maj, err := strconv.Atoi(vers[5:6])
 	if err != nil {
 		return 0, 0, false
 	}
-	min, err := strconv.ParseUint(vers[7:8], 10, 0)
+	min, err := strconv.Atoi(vers[7:8])
 	if err != nil {
 		return 0, 0, false
 	}
-	return int(maj), int(min), true
+	return maj, min, true
 }
 
 func validMethod(method string) bool {
