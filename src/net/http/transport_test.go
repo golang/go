@@ -7561,21 +7561,24 @@ func TestTransportServerProtocols(t *testing.T) {
 }
 
 func BenchmarkParseHTTPVersion(b *testing.B) {
-	cases := map[string]string{
-		"Valid_HTTP_1_0":  "HTTP/1.0",
-		"Valid_HTTP_1_1":  "HTTP/1.1",
-		"Valid_HTTP_2_0":  "HTTP/2.0",
-		"Valid_HTTP_9_9":  "HTTP/9.9",
-		"Invalid_Prefix":  "HTP/1.1",
-		"Invalid_Length":  "HTTP/12.3",
-		"Invalid_Minor":   "HTTP/1.A",
-		"Invalid_Numeric": "HTTP/X.Y",
+	cases := []struct {
+		name string
+		vers string
+	}{
+		{"Valid_HTTP_1_0", "HTTP/1.0"},
+		{"Valid_HTTP_1_1", "HTTP/1.1"},
+		{"Valid_HTTP_2_0", "HTTP/2.0"},
+		{"Valid_HTTP_9_9", "HTTP/9.9"},
+		{"Invalid_Prefix", "HTP/1.1"},
+		{"Invalid_Length", "HTTP/12.3"},
+		{"Invalid_Minor", "HTTP/1.A"},
+		{"Invalid_Numeric", "HTTP/X.Y"},
 	}
 
-	for name, vers := range cases {
-		b.Run(name, func(b *testing.B) {
+	for _, c := range cases {
+		b.Run(c.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				ParseHTTPVersion(vers)
+				ParseHTTPVersion(c.vers)
 			}
 		})
 	}
