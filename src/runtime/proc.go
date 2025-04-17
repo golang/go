@@ -5690,14 +5690,10 @@ func (pp *p) destroy() {
 		wbBufFlush1(pp)
 		pp.gcw.dispose()
 	}
-	for i := range pp.sudogbuf {
-		pp.sudogbuf[i] = nil
-	}
+	clear(pp.sudogbuf[:])
 	pp.sudogcache = pp.sudogbuf[:0]
 	pp.pinnerCache = nil
-	for j := range pp.deferpoolbuf {
-		pp.deferpoolbuf[j] = nil
-	}
+	clear(pp.deferpoolbuf[:])
 	pp.deferpool = pp.deferpoolbuf[:0]
 	systemstack(func() {
 		for i := 0; i < pp.mspancache.len; i++ {

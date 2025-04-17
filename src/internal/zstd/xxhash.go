@@ -41,9 +41,7 @@ func (xh *xxhash64) reset() {
 	xh.v[3] = xxhPrime64c1
 	xh.v[3] = -xh.v[3]
 
-	for i := range xh.buf {
-		xh.buf[i] = 0
-	}
+	clear(xh.buf[:])
 	xh.cnt = 0
 }
 
