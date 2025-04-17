@@ -113,6 +113,10 @@ const m2 = 0x0f0f0f0f0f0f0f0f // 00001111 ...
 const m3 = 0x00ff00ff00ff00ff // etc.
 const m4 = 0x0000ffff0000ffff
 
+const two32 = 1 << 32
+const mask32 = 1<<32 - 1
+const mask64 = 1<<64 - 1
+
 // OnesCount returns the number of one bits ("population count") in x.
 func OnesCount(x uint) int {
 	if UintSize == 32 {
@@ -157,10 +161,9 @@ func OnesCount64(x uint64) int {
 	// Per "Hacker's Delight", the first line can be simplified
 	// more, but it saves at best one instruction, so we leave
 	// it alone for clarity.
-	const m = 1<<64 - 1
-	x = x>>1&(m0&m) + x&(m0&m)
-	x = x>>2&(m1&m) + x&(m1&m)
-	x = (x>>4 + x) & (m2 & m)
+	x = x>>1&(m0&mask64) + x&(m0&mask64)
+	x = x>>2&(m1&mask64) + x&(m1&mask64)
+	x = (x>>4 + x) & (m2 & mask64)
 	x += x >> 8
 	x += x >> 16
 	x += x >> 32
@@ -242,19 +245,17 @@ func Reverse16(x uint16) uint16 {
 
 // Reverse32 returns the value of x with its bits in reversed order.
 func Reverse32(x uint32) uint32 {
-	const m = 1<<32 - 1
-	x = x>>1&(m0&m) | x&(m0&m)<<1
-	x = x>>2&(m1&m) | x&(m1&m)<<2
-	x = x>>4&(m2&m) | x&(m2&m)<<4
+	x = x>>1&(m0&mask32) | x&(m0&mask32)<<1
+	x = x>>2&(m1&mask32) | x&(m1&mask32)<<2
+	x = x>>4&(m2&mask32) | x&(m2&mask32)<<4
 	return ReverseBytes32(x)
 }
 
 // Reverse64 returns the value of x with its bits in reversed order.
 func Reverse64(x uint64) uint64 {
-	const m = 1<<64 - 1
-	x = x>>1&(m0&m) | x&(m0&m)<<1
-	x = x>>2&(m1&m) | x&(m1&m)<<2
-	x = x>>4&(m2&m) | x&(m2&m)<<4
+	x = x>>1&(m0&mask64) | x&(m0&mask64)<<1
+	x = x>>2&(m1&mask64) | x&(m1&mask64)<<2
+	x = x>>4&(m2&mask64) | x&(m2&mask64)<<4
 	return ReverseBytes64(x)
 }
 
@@ -281,8 +282,7 @@ func ReverseBytes16(x uint16) uint16 {
 //
 // This function's execution time does not depend on the inputs.
 func ReverseBytes32(x uint32) uint32 {
-	const m = 1<<32 - 1
-	x = x>>8&(m3&m) | x&(m3&m)<<8
+	x = x>>8&(m3&mask32) | x&(m3&mask32)<<8
 	return x>>16 | x<<16
 }
 
@@ -290,9 +290,8 @@ func ReverseBytes32(x uint32) uint32 {
 //
 // This function's execution time does not depend on the inputs.
 func ReverseBytes64(x uint64) uint64 {
-	const m = 1<<64 - 1
-	x = x>>8&(m3&m) | x&(m3&m)<<8
-	x = x>>16&(m4&m) | x&(m4&m)<<16
+	x = x>>8&(m3&mask64) | x&(m3&mask64)<<8
+	x = x>>16&(m4&mask64) | x&(m4&mask64)<<16
 	return x>>32 | x<<32
 }
 
@@ -468,7 +467,6 @@ func Mul32(x, y uint32) (hi, lo uint32) {
 //
 // This function's execution time does not depend on the inputs.
 func Mul64(x, y uint64) (hi, lo uint64) {
-	const mask32 = 1<<32 - 1
 	x0 := x & mask32
 	x1 := x >> 32
 	y0 := y & mask32
@@ -531,10 +529,6 @@ func Div64(hi, lo, y uint64) (quo, rem uint64) {
 	s := uint(LeadingZeros64(y))
 	y <<= s
 
-	const (
-		two32  = 1 << 32
-		mask32 = two32 - 1
-	)
 	yn1 := y >> 32
 	yn0 := y & mask32
 	un32 := hi<<s | lo>>(64-s)
