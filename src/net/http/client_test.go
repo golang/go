@@ -1962,6 +1962,61 @@ func testTransportBodyReadError(t *testing.T, mode testMode) {
 	}
 }
 
+// Make sure the retries copies the GetBody in the request.
+func TestRedirectGetBody(t *testing.T) { run(t, testRedirectGetBody) }
+
+func testRedirectGetBody(t *testing.T, mode testMode) {
+	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		b, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Error(err)
+		}
+		if err = r.Body.Close(); err != nil {
+			t.Error(err)
+		}
+		if s := string(b); s != "hello" {
+			t.Errorf("expected hello, got %s", s)
+		}
+		if r.URL.Path == "/first" {
+			Redirect(w, r, "/second", StatusTemporaryRedirect)
+			return
+		}
+		w.Write([]byte("world"))
+	})).ts
+	c := ts.Client()
+	c.Transport = &roundTripperGetBody{c.Transport, t}
+	req, err := NewRequest("POST", ts.URL+"/first", strings.NewReader("hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := c.Do(req.WithT(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = res.Body.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if s := string(b); s != "world" {
+		t.Fatalf("expected world, got %s", s)
+	}
+}
+
+type roundTripperGetBody struct {
+	Transport RoundTripper
+	t         *testing.T
+}
+
+func (r *roundTripperGetBody) RoundTrip(req *Request) (*Response, error) {
+	if req.GetBody == nil {
+		r.t.Error("missing Request.GetBody")
+	}
+	return r.Transport.RoundTrip(req)
+}
+
 type roundTripperWithoutCloseIdle struct{}
 
 func (roundTripperWithoutCloseIdle) RoundTrip(*Request) (*Response, error) { panic("unused") }
