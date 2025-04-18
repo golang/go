@@ -1,0 +1,4 @@
+pkg unicode, const Version = "15.1.0" #65141
+pkg unicode, var IDS_Unary_Operator *RangeTable #65141
+pkg unicode, var ID_Compat_Math_Continue *RangeTable #65141
+pkg unicode, var ID_Compat_Math_Start *RangeTable #65141

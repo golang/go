@@ -3,7 +3,7 @@
 package unicode
 
 // Version is the Unicode edition from which the tables are derived.
-const Version = "15.0.0"
+const Version = "15.1.0"
 
 // Categories is the set of Unicode category tables.
 var Categories = map[string]*RangeTable{
@@ -749,6 +749,7 @@ var _L = &RangeTable{
 		{0x2b740, 0x2b81d, 1},
 		{0x2b820, 0x2cea1, 1},
 		{0x2ceb0, 0x2ebe0, 1},
+		{0x2ebf0, 0x2ee5d, 1},
 		{0x2f800, 0x2fa1d, 1},
 		{0x30000, 0x3134a, 1},
 		{0x31350, 0x323af, 1},
@@ -1473,6 +1474,7 @@ var _Lo = &RangeTable{
 		{0x2b740, 0x2b81d, 1},
 		{0x2b820, 0x2cea1, 1},
 		{0x2ceb0, 0x2ebe0, 1},
+		{0x2ebf0, 0x2ee5d, 1},
 		{0x2f800, 0x2fa1d, 1},
 		{0x30000, 0x3134a, 1},
 		{0x31350, 0x323af, 1},
@@ -3307,7 +3309,7 @@ var _S = &RangeTable{
 		{0x2e80, 0x2e99, 1},
 		{0x2e9b, 0x2ef3, 1},
 		{0x2f00, 0x2fd5, 1},
-		{0x2ff0, 0x2ffb, 1},
+		{0x2ff0, 0x2fff, 1},
 		{0x3004, 0x3012, 14},
 		{0x3013, 0x3020, 13},
 		{0x3036, 0x3037, 1},
@@ -3316,7 +3318,8 @@ var _S = &RangeTable{
 		{0x3190, 0x3191, 1},
 		{0x3196, 0x319f, 1},
 		{0x31c0, 0x31e3, 1},
-		{0x3200, 0x321e, 1},
+		{0x31ef, 0x3200, 17},
+		{0x3201, 0x321e, 1},
 		{0x322a, 0x3247, 1},
 		{0x3250, 0x3260, 16},
 		{0x3261, 0x327f, 1},
@@ -3613,7 +3616,7 @@ var _So = &RangeTable{
 		{0x2e80, 0x2e99, 1},
 		{0x2e9b, 0x2ef3, 1},
 		{0x2f00, 0x2fd5, 1},
-		{0x2ff0, 0x2ffb, 1},
+		{0x2ff0, 0x2fff, 1},
 		{0x3004, 0x3012, 14},
 		{0x3013, 0x3020, 13},
 		{0x3036, 0x3037, 1},
@@ -3621,7 +3624,8 @@ var _So = &RangeTable{
 		{0x3190, 0x3191, 1},
 		{0x3196, 0x319f, 1},
 		{0x31c0, 0x31e3, 1},
-		{0x3200, 0x321e, 1},
+		{0x31ef, 0x3200, 17},
+		{0x3201, 0x321e, 1},
 		{0x322a, 0x3247, 1},
 		{0x3250, 0x3260, 16},
 		{0x3261, 0x327f, 1},
@@ -4264,8 +4268,7 @@ var _Common = &RangeTable{
 		{0x2b76, 0x2b95, 1},
 		{0x2b97, 0x2bff, 1},
 		{0x2e00, 0x2e5d, 1},
-		{0x2ff0, 0x2ffb, 1},
-		{0x3000, 0x3004, 1},
+		{0x2ff0, 0x3004, 1},
 		{0x3006, 0x3008, 2},
 		{0x3009, 0x3020, 1},
 		{0x3030, 0x3037, 1},
@@ -4275,7 +4278,8 @@ var _Common = &RangeTable{
 		{0x30fc, 0x3190, 148},
 		{0x3191, 0x319f, 1},
 		{0x31c0, 0x31e3, 1},
-		{0x3220, 0x325f, 1},
+		{0x31ef, 0x3220, 49},
+		{0x3221, 0x325f, 1},
 		{0x327f, 0x32cf, 1},
 		{0x32ff, 0x3358, 89},
 		{0x3359, 0x33ff, 1},
@@ -4720,6 +4724,7 @@ var _Han = &RangeTable{
 		{0x2b740, 0x2b81d, 1},
 		{0x2b820, 0x2cea1, 1},
 		{0x2ceb0, 0x2ebe0, 1},
+		{0x2ebf0, 0x2ee5d, 1},
 		{0x2f800, 0x2fa1d, 1},
 		{0x30000, 0x3134a, 1},
 		{0x31350, 0x323af, 1},
@@ -6007,6 +6012,9 @@ var Properties = map[string]*RangeTable{
 	"Hyphen":                             Hyphen,
 	"IDS_Binary_Operator":                IDS_Binary_Operator,
 	"IDS_Trinary_Operator":               IDS_Trinary_Operator,
+	"IDS_Unary_Operator":                 IDS_Unary_Operator,
+	"ID_Compat_Math_Continue":            ID_Compat_Math_Continue,
+	"ID_Compat_Math_Start":               ID_Compat_Math_Start,
 	"Ideographic":                        Ideographic,
 	"Join_Control":                       Join_Control,
 	"Logical_Order_Exception":            Logical_Order_Exception,
@@ -6314,13 +6322,53 @@ var _Hyphen = &RangeTable{
 var _IDS_Binary_Operator = &RangeTable{
 	R16: []Range16{
 		{0x2ff0, 0x2ff1, 1},
-		{0x2ff4, 0x2ffb, 1},
+		{0x2ff4, 0x2ffd, 1},
+		{0x31ef, 0x31ef, 1},
 	},
 }
 
 var _IDS_Trinary_Operator = &RangeTable{
 	R16: []Range16{
 		{0x2ff2, 0x2ff3, 1},
+	},
+}
+
+var _IDS_Unary_Operator = &RangeTable{
+	R16: []Range16{
+		{0x2ffe, 0x2fff, 1},
+	},
+}
+
+var _ID_Compat_Math_Continue = &RangeTable{
+	R16: []Range16{
+		{0x00b2, 0x00b3, 1},
+		{0x00b9, 0x2070, 8119},
+		{0x2074, 0x207e, 1},
+		{0x2080, 0x208e, 1},
+		{0x2202, 0x2207, 5},
+		{0x221e, 0x221e, 1},
+	},
+	R32: []Range32{
+		{0x1d6c1, 0x1d6db, 26},
+		{0x1d6fb, 0x1d715, 26},
+		{0x1d735, 0x1d74f, 26},
+		{0x1d76f, 0x1d789, 26},
+		{0x1d7a9, 0x1d7c3, 26},
+	},
+	LatinOffset: 1,
+}
+
+var _ID_Compat_Math_Start = &RangeTable{
+	R16: []Range16{
+		{0x2202, 0x2207, 5},
+		{0x221e, 0x221e, 1},
+	},
+	R32: []Range32{
+		{0x1d6c1, 0x1d6db, 26},
+		{0x1d6fb, 0x1d715, 26},
+		{0x1d735, 0x1d74f, 26},
+		{0x1d76f, 0x1d789, 26},
+		{0x1d7a9, 0x1d7c3, 26},
 	},
 }
 
@@ -6345,6 +6393,7 @@ var _Ideographic = &RangeTable{
 		{0x2b740, 0x2b81d, 1},
 		{0x2b820, 0x2cea1, 1},
 		{0x2ceb0, 0x2ebe0, 1},
+		{0x2ebf0, 0x2ee5d, 1},
 		{0x2f800, 0x2fa1d, 1},
 		{0x30000, 0x3134a, 1},
 		{0x31350, 0x323af, 1},
@@ -6673,7 +6722,9 @@ var _Other_ID_Continue = &RangeTable{
 	R16: []Range16{
 		{0x00b7, 0x0387, 720},
 		{0x1369, 0x1371, 1},
-		{0x19da, 0x19da, 1},
+		{0x19da, 0x200c, 1586},
+		{0x200d, 0x30fb, 4334},
+		{0xff65, 0xff65, 1},
 	},
 }
 
@@ -6952,7 +7003,8 @@ var _Sentence_Terminal = &RangeTable{
 		{0x104b, 0x1362, 791},
 		{0x1367, 0x1368, 1},
 		{0x166e, 0x1735, 199},
-		{0x1736, 0x1803, 205},
+		{0x1736, 0x17d4, 158},
+		{0x17d5, 0x1803, 46},
 		{0x1809, 0x1944, 315},
 		{0x1945, 0x1aa8, 355},
 		{0x1aa9, 0x1aab, 1},
@@ -7161,6 +7213,7 @@ var _Unified_Ideograph = &RangeTable{
 		{0x2b740, 0x2b81d, 1},
 		{0x2b820, 0x2cea1, 1},
 		{0x2ceb0, 0x2ebe0, 1},
+		{0x2ebf0, 0x2ee5d, 1},
 		{0x30000, 0x3134a, 1},
 		{0x31350, 0x323af, 1},
 	},
@@ -7202,6 +7255,9 @@ var (
 	Hyphen                             = _Hyphen                             // Hyphen is the set of Unicode characters with property Hyphen.
 	IDS_Binary_Operator                = _IDS_Binary_Operator                // IDS_Binary_Operator is the set of Unicode characters with property IDS_Binary_Operator.
 	IDS_Trinary_Operator               = _IDS_Trinary_Operator               // IDS_Trinary_Operator is the set of Unicode characters with property IDS_Trinary_Operator.
+	IDS_Unary_Operator                 = _IDS_Unary_Operator                 // IDS_Unary_Operator is the set of Unicode characters with property IDS_Unary_Operator.
+	ID_Compat_Math_Continue            = _ID_Compat_Math_Continue            // ID_Compat_Math_Continue is the set of Unicode characters with property ID_Compat_Math_Continue.
+	ID_Compat_Math_Start               = _ID_Compat_Math_Start               // ID_Compat_Math_Start is the set of Unicode characters with property ID_Compat_Math_Start.
 	Ideographic                        = _Ideographic                        // Ideographic is the set of Unicode characters with property Ideographic.
 	Join_Control                       = _Join_Control                       // Join_Control is the set of Unicode characters with property Join_Control.
 	Logical_Order_Exception            = _Logical_Order_Exception            // Logical_Order_Exception is the set of Unicode characters with property Logical_Order_Exception.
@@ -7977,6 +8033,7 @@ var caseOrbit = []foldPair{
 	{0x01F2, 0x01F3},
 	{0x01F3, 0x01F1},
 	{0x0345, 0x0399},
+	{0x0390, 0x1FD3},
 	{0x0392, 0x03B2},
 	{0x0395, 0x03B5},
 	{0x0398, 0x03B8},
@@ -7988,6 +8045,7 @@ var caseOrbit = []foldPair{
 	{0x03A3, 0x03C2},
 	{0x03A6, 0x03C6},
 	{0x03A9, 0x03C9},
+	{0x03B0, 0x1FE3},
 	{0x03B2, 0x03D0},
 	{0x03B5, 0x03F5},
 	{0x03B8, 0x03D1},
@@ -8036,11 +8094,15 @@ var caseOrbit = []foldPair{
 	{0x1E9B, 0x1E60},
 	{0x1E9E, 0x00DF},
 	{0x1FBE, 0x0345},
+	{0x1FD3, 0x0390},
+	{0x1FE3, 0x03B0},
 	{0x2126, 0x03A9},
 	{0x212A, 0x004B},
 	{0x212B, 0x00C5},
 	{0xA64A, 0xA64B},
 	{0xA64B, 0x1C88},
+	{0xFB05, 0xFB06},
+	{0xFB06, 0xFB05},
 }
 
 // FoldCategory maps a category name to a table of
@@ -8372,7 +8434,7 @@ var foldInherited = &RangeTable{
 	},
 }
 
-// Range entries: 3535 16-bit, 2031 32-bit, 5566 total.
-// Range bytes: 21210 16-bit, 24372 32-bit, 45582 total.
+// Range entries: 3550 16-bit, 2046 32-bit, 5596 total.
+// Range bytes: 21300 16-bit, 24552 32-bit, 45852 total.
 
-// Fold orbit bytes: 88 pairs, 352 bytes
+// Fold orbit bytes: 94 pairs, 376 bytes
