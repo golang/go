@@ -210,3 +210,58 @@ func TestTableGroupCount(t *testing.T) {
 		}
 	})
 }
+
+func TestTombstoneGrow(t *testing.T) {
+	tableSizes := []int{16, 32, 64, 128, 256}
+	for _, tableSize := range tableSizes {
+		for _, load := range []string{"low", "mid", "high"} {
+			capacity := tableSize * 7 / 8
+			var initialElems int
+			switch load {
+			case "low":
+				initialElems = capacity / 8
+			case "mid":
+				initialElems = capacity / 2
+			case "high":
+				initialElems = capacity
+			}
+			t.Run(fmt.Sprintf("tableSize=%d/elems=%d/load=%0.3f", tableSize, initialElems, float64(initialElems)/float64(tableSize)), func(t *testing.T) {
+				allocs := testing.AllocsPerRun(1, func() {
+					// Fill the map with elements.
+					m := make(map[int]int, capacity)
+					for i := range initialElems {
+						m[i] = i
+					}
+
+					// This is the heart of our test.
+					// Loop over the map repeatedly, deleting a key then adding a not-yet-seen key
+					// while keeping the map at a ~constant number of elements (+/-1).
+					nextKey := initialElems
+					for range 100000 {
+						for k := range m {
+							delete(m, k)
+							break
+						}
+						m[nextKey] = nextKey
+						nextKey++
+						if len(m) != initialElems {
+							t.Fatal("len(m) should remain constant")
+						}
+					}
+				})
+
+				// The make has 4 allocs (map, directory, table, groups).
+				// Each growth has 2 allocs (table, groups).
+				// We allow two growths if we start full, 1 otherwise.
+				// Fail (somewhat arbitrarily) if there are more than that.
+				allowed := float64(4 + 1*2)
+				if initialElems == capacity {
+					allowed += 2
+				}
+				if allocs > allowed {
+					t.Fatalf("got %v allocations, allowed %v", allocs, allowed)
+				}
+			})
+		}
+	}
+}
