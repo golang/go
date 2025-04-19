@@ -989,3 +989,75 @@ func TestNestedCleanup(t *T) {
 		t.Errorf("unexpected cleanup count: got %d want 3", ranCleanup)
 	}
 }
+
+func TestOutputWriter(t *T) {
+	o := &outputWriter{c: &common{}}
+	testCases := []struct {
+		in  string
+		out string
+		buf string
+	}{{
+		in:  "a",
+		out: "",
+		buf: "a",
+	}, {
+		in:  "b",
+		out: "",
+		buf: "ab",
+	}, {
+		in:  "\n",
+		out: "    ab\n",
+		buf: "",
+	}, {
+		in:  "\nc",
+		out: "    ab\n    \n",
+		buf: "c",
+	}, {
+		in:  "d",
+		out: "    ab\n    \n",
+		buf: "cd",
+	}}
+	for _, tc := range testCases {
+		o.Write([]byte(tc.in))
+		if string(o.c.output) != tc.out {
+			t.Errorf("output:\ngot:\n%s\nwant:\n%s", o.c.output, tc.out)
+		}
+		if string(o.b) != tc.buf {
+			t.Errorf("buffer:\ngot:\n%s\nwant:\n%s", o.b, tc.buf)
+		}
+	}
+}
+
+func TestOutputWriterFlushing(t *T) {
+	tstate := newTestState(1, allMatcher())
+	buf := &strings.Builder{}
+	root := &T{
+		common: common{
+			w: buf,
+		},
+		tstate: tstate,
+	}
+
+	f := func(t *T) {
+		t.Run("", func(t *T) {
+			t.o.Write([]byte("a\n"))
+			t.o.Write([]byte("b"))
+			t.Fail()
+		})
+	}
+	root.Run("check flushing of outputWriter", f)
+
+	got := strings.TrimSpace(buf.String())
+	output := `
+--- FAIL: check flushing of outputWriter (0.00s)
+    --- FAIL: check flushing of outputWriter/#00 (0.00s)
+        a
+        b
+	`
+
+	want := strings.TrimSpace(output)
+	re := makeRegexp(want)
+	if ok, err := regexp.MatchString(re, got); !ok || err != nil {
+		t.Errorf("output:\ngot:\n%s\nwant:\n%s", got, want)
+	}
+}
