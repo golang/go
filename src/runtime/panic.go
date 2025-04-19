@@ -1076,6 +1076,7 @@ func internal_sync_fatal(s string) {
 // See go.dev/issue/67401.
 //
 //go:linkname throw
+//go:wasmexport throw
 //go:nosplit
 func throw(s string) {
 	// Everything throw does should be recursively nosplit so it
