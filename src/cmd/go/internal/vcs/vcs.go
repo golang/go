@@ -498,6 +498,7 @@ var vcsSvn = &Cmd{
 	Scheme:     []string{"https", "http", "svn", "svn+ssh"},
 	PingCmd:    "info -- {scheme}://{repo}",
 	RemoteRepo: svnRemoteRepo,
+	Status:     svnStatus,
 }
 
 func svnRemoteRepo(vcsSvn *Cmd, rootDir string) (remoteRepo string, err error) {
@@ -528,6 +529,35 @@ func svnRemoteRepo(vcsSvn *Cmd, rootDir string) (remoteRepo string, err error) {
 	}
 	out = out[:i]
 	return strings.TrimSpace(out), nil
+}
+
+func svnStatus(vcsSvn *Cmd, rootDir string) (Status, error) {
+	out, err := vcsSvn.runOutputVerboseOnly(rootDir, "info --show-item last-changed-revision")
+	if err != nil {
+		return Status{}, err
+	}
+	rev := strings.TrimSpace(string(out))
+
+	out, err = vcsSvn.runOutputVerboseOnly(rootDir, "info --show-item last-changed-date")
+	if err != nil {
+		return Status{}, err
+	}
+	commitTime, err := time.Parse(time.RFC3339, strings.TrimSpace(string(out)))
+	if err != nil {
+		return Status{}, fmt.Errorf("unable to parse output of svn info: %v", err)
+	}
+
+	out, err = vcsSvn.runOutputVerboseOnly(rootDir, "status")
+	if err != nil {
+		return Status{}, err
+	}
+	uncommitted := len(out) > 0
+
+	return Status{
+		Revision:    rev,
+		CommitTime:  commitTime,
+		Uncommitted: uncommitted,
+	}, nil
 }
 
 // fossilRepoName is the name go get associates with a fossil repository. In the
