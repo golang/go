@@ -96,7 +96,9 @@ type mediaTypeTest struct {
 	p  map[string]string
 }
 
-func TestParseMediaType(t *testing.T) {
+var parseMediaTypeTests []mediaTypeTest
+
+func init() {
 	// Convenience map initializer
 	m := func(s ...string) map[string]string {
 		sm := make(map[string]string)
@@ -107,7 +109,7 @@ func TestParseMediaType(t *testing.T) {
 	}
 
 	nameFoo := map[string]string{"name": "foo"}
-	tests := []mediaTypeTest{
+	parseMediaTypeTests = []mediaTypeTest{
 		{`form-data; name="foo"`, "form-data", nameFoo},
 		{` form-data ; name=foo`, "form-data", nameFoo},
 		{`FORM-DATA;name="foo"`, "form-data", nameFoo},
@@ -412,7 +414,10 @@ func TestParseMediaType(t *testing.T) {
 		{`text; charset=utf-8; charset=utf-8; format=fixed`, "text", m("charset", "utf-8", "format", "fixed")},
 		{`text; charset=utf-8; format=flowed; charset=utf-8`, "text", m("charset", "utf-8", "format", "flowed")},
 	}
-	for _, test := range tests {
+}
+
+func TestParseMediaType(t *testing.T) {
+	for _, test := range parseMediaTypeTests {
 		mt, params, err := ParseMediaType(test.in)
 		if err != nil {
 			if test.t != "" {
@@ -434,6 +439,14 @@ func TestParseMediaType(t *testing.T) {
 				"expected: %#v\n"+
 				"     got: %#v",
 				test.in, test.p, params)
+		}
+	}
+}
+
+func BenchmarkParseMediaType(b *testing.B) {
+	for range b.N {
+		for _, test := range parseMediaTypeTests {
+			ParseMediaType(test.in)
 		}
 	}
 }
@@ -482,6 +495,14 @@ func TestParseMediaTypeBogus(t *testing.T) {
 		}
 		if err == ErrInvalidMediaParameter && mt != tt.mt {
 			t.Errorf("ParseMediaType(%q): in case of invalid parameters: expected type %q, got %q", tt.in, tt.mt, mt)
+		}
+	}
+}
+
+func BenchmarkParseMediaTypeBogus(b *testing.B) {
+	for range b.N {
+		for _, test := range badMediaTypeTests {
+			ParseMediaType(test.in)
 		}
 	}
 }

@@ -60,7 +60,7 @@ func FormatMediaType(t string, param map[string]string) string {
 				// attribute-char := <any (US-ASCII) CHAR except SPACE, CTLs, "*", "'", "%", or tspecials>
 				if ch <= ' ' || ch >= 0x7F ||
 					ch == '*' || ch == '\'' || ch == '%' ||
-					isTSpecial(rune(ch)) {
+					isTSpecial(ch) {
 
 					b.WriteString(value[offset:index])
 					offset = index + 1
@@ -250,23 +250,17 @@ func decode2231Enc(v string) (string, bool) {
 	return encv, true
 }
 
-func isNotTokenChar(r rune) bool {
-	return !isTokenChar(r)
-}
-
 // consumeToken consumes a token from the beginning of provided
 // string, per RFC 2045 section 5.1 (referenced from 2183), and return
 // the token consumed and the rest of the string. Returns ("", v) on
 // failure to consume at least one character.
 func consumeToken(v string) (token, rest string) {
-	notPos := strings.IndexFunc(v, isNotTokenChar)
-	if notPos == -1 {
-		return v, ""
+	for i := range len(v) {
+		if !isTokenChar(v[i]) {
+			return v[:i], v[i:]
+		}
 	}
-	if notPos == 0 {
-		return "", v
-	}
-	return v[0:notPos], v[notPos:]
+	return v, ""
 }
 
 // consumeValue consumes a "value" per RFC 2045, where a value is
@@ -299,7 +293,7 @@ func consumeValue(v string) (value, rest string) {
 		// and intended as a literal backslash. This makes Go servers deal better
 		// with MSIE without affecting the way they handle conforming MIME
 		// generators.
-		if r == '\\' && i+1 < len(v) && isTSpecial(rune(v[i+1])) {
+		if r == '\\' && i+1 < len(v) && isTSpecial(v[i+1]) {
 			buffer.WriteByte(v[i+1])
 			i++
 			continue
