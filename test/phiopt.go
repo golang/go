@@ -129,5 +129,27 @@ func f9(a, b int) bool {
 	return c
 }
 
+//go:noinline
+func f10and(a bool, b bool) bool {
+	var x bool
+	if a {
+		x = b
+	} else {
+		x = a
+	}
+	return x // ERROR "converted OpPhi to AndB$"
+}
+
+//go:noinline
+func f11or(a bool, b bool) bool {
+	var x bool
+	if a {
+		x = a
+	} else {
+		x = b
+	}
+	return x // ERROR "converted OpPhi to OrB$"
+}
+
 func main() {
 }

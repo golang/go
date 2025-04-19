@@ -62,6 +62,30 @@ func convertEqBool64(x uint64) bool {
 	return x&1 == 0
 }
 
+func phiAnd(a, b bool) bool {
+	var x bool
+	// amd64:-"TESTB"
+	if a {
+		x = b
+	} else {
+		x = a
+	}
+	// amd64:"ANDL"
+	return x
+}
+
+func phiOr(a, b bool) bool {
+	var x bool
+	// amd64:-"TESTB"
+	if a {
+		x = a
+	} else {
+		x = b
+	}
+	// amd64:"ORL"
+	return x
+}
+
 func TestSetEq64(x uint64, y uint64) bool {
 	// ppc64x/power10:"SETBC\tCR0EQ",-"ISEL"
 	// ppc64x/power9:"CMP","ISEL",-"SETBC\tCR0EQ"
