@@ -991,7 +991,7 @@ func TestNestedCleanup(t *T) {
 }
 
 func TestOutputWriter(t *T) {
-	o := &outputWriter{c: &common{}}
+	o := t.o
 	testCases := []struct {
 		in  string
 		out string
@@ -1029,35 +1029,88 @@ func TestOutputWriter(t *T) {
 }
 
 func TestOutputWriterFlushing(t *T) {
-	tstate := newTestState(1, allMatcher())
-	buf := &strings.Builder{}
-	root := &T{
-		common: common{
-			w: buf,
-		},
-		tstate: tstate,
-	}
-
-	f := func(t *T) {
-		t.Run("", func(t *T) {
-			t.o.Write([]byte("a\n"))
-			t.o.Write([]byte("b"))
-			t.Fail()
-		})
-	}
-	root.Run("check flushing of outputWriter", f)
-
-	got := strings.TrimSpace(buf.String())
-	output := `
---- FAIL: check flushing of outputWriter (0.00s)
-    --- FAIL: check flushing of outputWriter/#00 (0.00s)
+	testCases := []struct {
+		desc   string
+		chatty bool
+		json   bool
+		output string
+		f      func(*T)
+	}{{
+		desc: "buffered output gets flushed at test end",
+		output: `
+--- FAIL: buffered output gets flushed at test end (0.00s)
+    --- FAIL: buffered output gets flushed at test end/#00 (0.00s)
         a
-        b
-	`
+        b`,
+		f: func(t *T) {
+			t.Run("", func(t *T) {
+				t.o.Write([]byte("a\n"))
+				t.o.Write([]byte("b"))
+				t.Fail()
+			})
+		},
+	}, {
+		desc:   "with chatty",
+		chatty: true,
+		output: `
+=== RUN   with chatty
+=== RUN   with chatty/#00
+    a
+    b
+--- PASS: with chatty (0.00s)
+    --- PASS: with chatty/#00 (0.00s)`,
+		f: func(t *T) {
+			t.Run("", func(t *T) {
+				t.o.Write([]byte("a\n"))
+				t.o.Write([]byte("b"))
+			})
+		},
+	}, {
+		desc:   "with chatty and json",
+		chatty: true,
+		json:   true,
+		output: `
+^V=== RUN   with chatty and json
+^V=== RUN   with chatty and json/#00
+    a
+    b
+^V--- PASS: with chatty and json/#00 (0.00s)
+^V=== NAME  with chatty and json
+^V--- PASS: with chatty and json (0.00s)
+^V=== NAME
+`,
+		f: func(t *T) {
+			t.Run("", func(t *T) {
+				t.o.Write([]byte("a\n"))
+				t.o.Write([]byte("b"))
+			})
+		},
+	}}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *T) {
+			tstate := newTestState(1, allMatcher())
+			buf := &strings.Builder{}
+			root := &T{
+				common: common{
+					w: buf,
+				},
+				tstate: tstate,
+			}
 
-	want := strings.TrimSpace(output)
-	re := makeRegexp(want)
-	if ok, err := regexp.MatchString(re, got); !ok || err != nil {
-		t.Errorf("output:\ngot:\n%s\nwant:\n%s", got, want)
+			if tc.chatty {
+				root.chatty = newChattyPrinter(root.w)
+				root.chatty.json = tc.json
+			}
+
+			root.Run(tc.desc, tc.f)
+
+			got := strings.TrimSpace(buf.String())
+
+			want := strings.TrimSpace(tc.output)
+			re := makeRegexp(want)
+			if ok, err := regexp.MatchString(re, got); !ok || err != nil {
+				t.Errorf("output:\ngot:\n%s\nwant:\n%s", got, want)
+			}
+		})
 	}
 }
