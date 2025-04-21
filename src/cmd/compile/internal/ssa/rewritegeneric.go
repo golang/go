@@ -246,12 +246,16 @@ func rewriteValuegeneric(v *Value) bool {
 		return rewriteValuegeneric_OpMul32(v)
 	case OpMul32F:
 		return rewriteValuegeneric_OpMul32F(v)
+	case OpMul32uhilo:
+		return rewriteValuegeneric_OpMul32uhilo(v)
 	case OpMul32uover:
 		return rewriteValuegeneric_OpMul32uover(v)
 	case OpMul64:
 		return rewriteValuegeneric_OpMul64(v)
 	case OpMul64F:
 		return rewriteValuegeneric_OpMul64F(v)
+	case OpMul64uhilo:
+		return rewriteValuegeneric_OpMul64uhilo(v)
 	case OpMul64uover:
 		return rewriteValuegeneric_OpMul64uover(v)
 	case OpMul8:
@@ -18766,10 +18770,62 @@ func rewriteValuegeneric_OpMul32F(v *Value) bool {
 	}
 	return false
 }
+func rewriteValuegeneric_OpMul32uhilo(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Mul32uhilo (Const32 [c]) (Const32 [d]))
+	// result: (MakeTuple (Const32 <typ.UInt32> [bitsMulU32(c, d).hi]) (Const32 <typ.UInt32> [bitsMulU32(c,d).lo]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConst32 {
+				continue
+			}
+			c := auxIntToInt32(v_0.AuxInt)
+			if v_1.Op != OpConst32 {
+				continue
+			}
+			d := auxIntToInt32(v_1.AuxInt)
+			v.reset(OpMakeTuple)
+			v0 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+			v0.AuxInt = int32ToAuxInt(bitsMulU32(c, d).hi)
+			v1 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+			v1.AuxInt = int32ToAuxInt(bitsMulU32(c, d).lo)
+			v.AddArg2(v0, v1)
+			return true
+		}
+		break
+	}
+	return false
+}
 func rewriteValuegeneric_OpMul32uover(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Mul32uover (Const32 [c]) (Const32 [d]))
+	// result: (MakeTuple (Const32 <typ.UInt32> [bitsMulU32(c, d).lo]) (ConstBool <typ.Bool> [bitsMulU32(c,d).hi != 0]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConst32 {
+				continue
+			}
+			c := auxIntToInt32(v_0.AuxInt)
+			if v_1.Op != OpConst32 {
+				continue
+			}
+			d := auxIntToInt32(v_1.AuxInt)
+			v.reset(OpMakeTuple)
+			v0 := b.NewValue0(v.Pos, OpConst32, typ.UInt32)
+			v0.AuxInt = int32ToAuxInt(bitsMulU32(c, d).lo)
+			v1 := b.NewValue0(v.Pos, OpConstBool, typ.Bool)
+			v1.AuxInt = boolToAuxInt(bitsMulU32(c, d).hi != 0)
+			v.AddArg2(v0, v1)
+			return true
+		}
+		break
+	}
 	// match: (Mul32uover <t> (Const32 [1]) x)
 	// result: (MakeTuple x (ConstBool <t.FieldType(1)> [false]))
 	for {
@@ -19082,10 +19138,62 @@ func rewriteValuegeneric_OpMul64F(v *Value) bool {
 	}
 	return false
 }
+func rewriteValuegeneric_OpMul64uhilo(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Mul64uhilo (Const64 [c]) (Const64 [d]))
+	// result: (MakeTuple (Const64 <typ.UInt64> [bitsMulU64(c, d).hi]) (Const64 <typ.UInt64> [bitsMulU64(c,d).lo]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConst64 {
+				continue
+			}
+			c := auxIntToInt64(v_0.AuxInt)
+			if v_1.Op != OpConst64 {
+				continue
+			}
+			d := auxIntToInt64(v_1.AuxInt)
+			v.reset(OpMakeTuple)
+			v0 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+			v0.AuxInt = int64ToAuxInt(bitsMulU64(c, d).hi)
+			v1 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+			v1.AuxInt = int64ToAuxInt(bitsMulU64(c, d).lo)
+			v.AddArg2(v0, v1)
+			return true
+		}
+		break
+	}
+	return false
+}
 func rewriteValuegeneric_OpMul64uover(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Mul64uover (Const64 [c]) (Const64 [d]))
+	// result: (MakeTuple (Const64 <typ.UInt64> [bitsMulU64(c, d).lo]) (ConstBool <typ.Bool> [bitsMulU64(c,d).hi != 0]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConst64 {
+				continue
+			}
+			c := auxIntToInt64(v_0.AuxInt)
+			if v_1.Op != OpConst64 {
+				continue
+			}
+			d := auxIntToInt64(v_1.AuxInt)
+			v.reset(OpMakeTuple)
+			v0 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+			v0.AuxInt = int64ToAuxInt(bitsMulU64(c, d).lo)
+			v1 := b.NewValue0(v.Pos, OpConstBool, typ.Bool)
+			v1.AuxInt = boolToAuxInt(bitsMulU64(c, d).hi != 0)
+			v.AddArg2(v0, v1)
+			return true
+		}
+		break
+	}
 	// match: (Mul64uover <t> (Const64 [1]) x)
 	// result: (MakeTuple x (ConstBool <t.FieldType(1)> [false]))
 	for {

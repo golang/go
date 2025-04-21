@@ -139,6 +139,10 @@
 (Mul64  (Const64 [c])  (Const64 [d]))  => (Const64 [c*d])
 (Mul32F (Const32F [c]) (Const32F [d])) && c*d == c*d => (Const32F [c*d])
 (Mul64F (Const64F [c]) (Const64F [d])) && c*d == c*d => (Const64F [c*d])
+(Mul32uhilo (Const32 [c]) (Const32 [d])) => (MakeTuple (Const32 <typ.UInt32> [bitsMulU32(c, d).hi]) (Const32 <typ.UInt32> [bitsMulU32(c,d).lo]))
+(Mul64uhilo (Const64 [c]) (Const64 [d])) => (MakeTuple (Const64 <typ.UInt64> [bitsMulU64(c, d).hi]) (Const64 <typ.UInt64> [bitsMulU64(c,d).lo]))
+(Mul32uover (Const32 [c]) (Const32 [d])) => (MakeTuple (Const32 <typ.UInt32> [bitsMulU32(c, d).lo]) (ConstBool <typ.Bool> [bitsMulU32(c,d).hi != 0]))
+(Mul64uover (Const64 [c]) (Const64 [d])) => (MakeTuple (Const64 <typ.UInt64> [bitsMulU64(c, d).lo]) (ConstBool <typ.Bool> [bitsMulU64(c,d).hi != 0]))
 
 (And8   (Const8 [c])   (Const8 [d]))   => (Const8  [c&d])
 (And16  (Const16 [c])  (Const16 [d]))  => (Const16 [c&d])

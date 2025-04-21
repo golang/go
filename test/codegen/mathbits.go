@@ -6,7 +6,10 @@
 
 package codegen
 
-import "math/bits"
+import (
+	"math/bits"
+	"unsafe"
+)
 
 // ----------------------- //
 //    bits.LeadingZeros    //
@@ -955,6 +958,17 @@ func Mul64LoOnly(x, y uint64) uint64 {
 	// riscv64:"MUL\t",-"MULHU"
 	_, lo := bits.Mul64(x, y)
 	return lo
+}
+
+func Mul64Const() (uint64, uint64) {
+	// 7133701809754865664 == 99<<56
+	// arm64:"MOVD\t[$]7133701809754865664, R1", "MOVD\t[$]88, R0"
+	return bits.Mul64(99+88<<8, 1<<56)
+}
+
+func MulUintOverflow(p *uint64) []uint64 {
+	// arm64:"CMP\t[$]72"
+	return unsafe.Slice(p, 9)
 }
 
 // --------------- //

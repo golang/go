@@ -2584,3 +2584,14 @@ func bitsAdd64(x, y, carry int64) (r struct{ sum, carry int64 }) {
 	r.sum, r.carry = int64(s), int64(c)
 	return
 }
+
+func bitsMulU64(x, y int64) (r struct{ hi, lo int64 }) {
+	hi, lo := bits.Mul64(uint64(x), uint64(y))
+	r.hi, r.lo = int64(hi), int64(lo)
+	return
+}
+func bitsMulU32(x, y int32) (r struct{ hi, lo int32 }) {
+	hi, lo := bits.Mul32(uint32(x), uint32(y))
+	r.hi, r.lo = int32(hi), int32(lo)
+	return
+}
