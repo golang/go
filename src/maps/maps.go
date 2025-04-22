@@ -60,6 +60,9 @@ func Clone[M ~map[K]V, K comparable, V any](m M) M {
 // the value in dst will be overwritten by the value associated
 // with the key in src.
 func Copy[M1 ~map[K]V, M2 ~map[K]V, K comparable, V any](dst M1, src M2) {
+	if dst == nil {
+		dst = make(map[K]V)
+	}
 	for k, v := range src {
 		dst[k] = v
 	}

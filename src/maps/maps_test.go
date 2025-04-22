@@ -121,6 +121,15 @@ func TestCopy(t *testing.T) {
 	Copy(make(M1), make(M2))
 }
 
+func TestCopyNil(t *testing.T) {
+	var mnil map[string]int
+	mc := Copy(mnil, m1)
+	want := m1
+	if !Equal(mc, want) {
+		t.Errorf("Copy result = %v, want %v", mc, want)
+	}
+}
+
 func TestDeleteFunc(t *testing.T) {
 	mc := Clone(m1)
 	DeleteFunc(mc, func(int, int) bool { return false })
