@@ -756,10 +756,9 @@ type p struct {
 }
 
 type schedt struct {
-	goidgen    atomic.Uint64
-	lastpoll   atomic.Int64 // time of last network poll, 0 if currently polling
-	pollUntil  atomic.Int64 // time to which current poll is sleeping
-	pollingNet atomic.Int32 // 1 if some P doing non-blocking network poll
+	goidgen   atomic.Uint64
+	lastpoll  atomic.Int64 // time of last network poll, 0 if currently polling
+	pollUntil atomic.Int64 // time to which current poll is sleeping
 
 	lock mutex
 

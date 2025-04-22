@@ -3387,12 +3387,8 @@ top:
 	// blocked thread (e.g. it has already returned from netpoll, but does
 	// not set lastpoll yet), this thread will do blocking netpoll below
 	// anyway.
-	// We only poll from one thread at a time to avoid kernel contention
-	// on machines with many cores.
-	if netpollinited() && netpollAnyWaiters() && sched.lastpoll.Load() != 0 && sched.pollingNet.Swap(1) == 0 {
-		list, delta := netpoll(0)
-		sched.pollingNet.Store(0)
-		if !list.empty() { // non-blocking
+	if netpollinited() && netpollAnyWaiters() && sched.lastpoll.Load() != 0 {
+		if list, delta := netpoll(0); !list.empty() { // non-blocking
 			gp := list.pop()
 			injectglist(&list)
 			netpollAdjustWaiters(delta)
