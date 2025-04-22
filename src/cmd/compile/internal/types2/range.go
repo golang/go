@@ -37,6 +37,16 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 
 	if isTypes2 && x.mode != invalid && sValue == nil && !check.hasCallOrRecv {
 		if t, ok := arrayPtrDeref(under(x.typ)).(*Array); ok {
+			for {
+				// Put constant info on the thing inside parentheses.
+				// That's where (*../noder/writer).expr expects it.
+				// See issue 73476.
+				p, ok := rangeVar.(*syntax.ParenExpr)
+				if !ok {
+					break
+				}
+				rangeVar = p.X
+			}
 			// Override type of rangeVar to be a constant
 			// (and thus side-effects will not be computed
 			// by the backend).
