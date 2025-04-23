@@ -308,7 +308,8 @@ var optab = []Optab{
 	{ABEQ, C_REG, C_REG, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
 	{ABEQ, C_REG, C_NONE, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
 	{ABLEZ, C_REG, C_NONE, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
-	{ABFPT, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 6, 4, 0, NOTUSETMP},
+	{ABFPT, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
+	{ABFPT, C_FCCREG, C_NONE, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
 
 	{AJMP, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // b
 	{AJAL, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // bl
@@ -1985,7 +1986,9 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			width = 21
 			// FCC0 is the implicit source operand, now that we
 			// don't register-allocate from the FCC bank.
-			rj = REG_FCC0
+			if rj == 0 {
+				rj = REG_FCC0
+			}
 		case ABEQ, ABNE:
 			if rd == 0 || rd == REGZERO || rj == REGZERO {
 				// BEQZ/BNEZ can be encoded with 21-bit offsets.

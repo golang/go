@@ -6,12 +6,16 @@
 
 TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 lable1:
-	BFPT	1(PC)			// 00050048
-	BFPT	lable1	// BFPT 2	//1ffdff4b
+	BFPT	1(PC)				// 00050048
+	BFPT	lable1		// BFPT 2	// 1ffdff4b
+	BFPT	FCC0, lable1	// BFPT FCC0, 2	// 1ff9ff4b
+	BFPT	FCC7, lable1	// BFPT FCC7, 2	// fff5ff4b
 
 lable2:
-	BFPF	1(PC)			// 00040048
-	BFPF	lable2	// BFPF 4 	// 1ffcff4b
+	BFPF	1(PC)				// 00040048
+	BFPF	lable2		// BFPF 6 	// 1ffcff4b
+	BFPF	FCC0, lable2	// BFPF FCC0, 6	// 1ff8ff4b
+	BFPF	FCC7, lable2	// BFPF FCC7, 6	// fff4ff4b
 
 	// relocation in play so the assembled offset should be 0
 	JMP	foo(SB)			// 00000050
