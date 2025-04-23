@@ -2240,18 +2240,18 @@ func TestCallReturnsEmpty(t *testing.T) {
 	// Issue 21717: past-the-end pointer write in Call with
 	// nonzero-sized frame and zero-sized return value.
 	runtime.GC()
-	var finalized uint32
+	var cleanedUp atomic.Uint32
 	f := func() (emptyStruct, *[2]int64) {
-		i := new([2]int64) // big enough to not be tinyalloc'd, so finalizer always runs when i dies
-		runtime.SetFinalizer(i, func(*[2]int64) { atomic.StoreUint32(&finalized, 1) })
+		i := new([2]int64) // big enough to not be tinyalloc'd, so cleanup always runs when i dies
+		runtime.AddCleanup(i, func(cu *atomic.Uint32) { cu.Store(uint32(1)) }, &cleanedUp)
 		return emptyStruct{}, i
 	}
-	v := ValueOf(f).Call(nil)[0] // out[0] should not alias out[1]'s memory, so the finalizer should run.
+	v := ValueOf(f).Call(nil)[0] // out[0] should not alias out[1]'s memory, so the cleanup should run.
 	timeout := time.After(5 * time.Second)
-	for atomic.LoadUint32(&finalized) == 0 {
+	for cleanedUp.Load() == 0 {
 		select {
 		case <-timeout:
-			t.Fatal("finalizer did not run")
+			t.Fatal("cleanup did not run")
 		default:
 		}
 		runtime.Gosched()
