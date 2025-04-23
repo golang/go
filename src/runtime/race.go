@@ -455,7 +455,6 @@ func raceinit() (gctx, pctx uintptr) {
 
 	racecall(&__tsan_init, uintptr(unsafe.Pointer(&gctx)), uintptr(unsafe.Pointer(&pctx)), abi.FuncPCABI0(racecallbackthunk), 0)
 
-	// Round data segment to page boundaries, because it's used in mmap().
 	start := ^uintptr(0)
 	end := uintptr(0)
 	if start > firstmoduledata.noptrdata {
@@ -482,10 +481,13 @@ func raceinit() (gctx, pctx uintptr) {
 	if end < firstmoduledata.ebss {
 		end = firstmoduledata.ebss
 	}
-	size := alignUp(end-start, _PageSize)
-	racecall(&__tsan_map_shadow, start, size, 0, 0)
+	// Use exact bounds for boundary check in racecalladdr. See issue 73483.
 	racedatastart = start
-	racedataend = start + size
+	racedataend = end
+	// Round data segment to page boundaries for race detector (TODO: still needed?)
+	start = alignDown(start, _PageSize)
+	end = alignUp(end, _PageSize)
+	racecall(&__tsan_map_shadow, start, end-start, 0, 0)
 
 	return
 }

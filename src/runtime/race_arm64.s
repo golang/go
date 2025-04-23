@@ -163,7 +163,7 @@ data:
 	BLT	ret
 	MOVD	runtime·racedataend(SB), R10
 	CMP	R10, R1
-	BGT	ret
+	BGE	ret
 call:
 	JMP	racecall<>(SB)
 ret:

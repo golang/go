@@ -153,7 +153,7 @@ data:
 	BLT	ret
 	MOVD	runtime·racedataend(SB), R9
 	CMP	R4, R9
-	BGT	ret
+	BGE	ret
 call:
 	// Careful!! racecall will save LR on its
 	// stack, which is OK as long as racecalladdr
