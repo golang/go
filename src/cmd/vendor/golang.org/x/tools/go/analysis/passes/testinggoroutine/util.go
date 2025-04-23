@@ -7,8 +7,7 @@ package testinggoroutine
 import (
 	"go/ast"
 	"go/types"
-
-	"golang.org/x/tools/internal/typeparams"
+	"slices"
 )
 
 // AST and types utilities that not specific to testinggoroutines.
@@ -48,25 +47,7 @@ func isMethodNamed(f *types.Func, pkgPath string, names ...string) bool {
 	if f.Type().(*types.Signature).Recv() == nil {
 		return false
 	}
-	for _, n := range names {
-		if f.Name() == n {
-			return true
-		}
-	}
-	return false
-}
-
-func funcIdent(fun ast.Expr) *ast.Ident {
-	switch fun := ast.Unparen(fun).(type) {
-	case *ast.IndexExpr, *ast.IndexListExpr:
-		x, _, _, _ := typeparams.UnpackIndexExpr(fun) // necessary?
-		id, _ := x.(*ast.Ident)
-		return id
-	case *ast.Ident:
-		return fun
-	default:
-		return nil
-	}
+	return slices.Contains(names, f.Name())
 }
 
 // funcLitInScope returns a FuncLit that id is at least initially assigned to.

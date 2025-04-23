@@ -355,7 +355,7 @@ func lockPath(tpkg *types.Package, typ types.Type, seen map[types.Type]bool) typ
 	}
 
 	nfields := styp.NumFields()
-	for i := 0; i < nfields; i++ {
+	for i := range nfields {
 		ftyp := styp.Field(i).Type()
 		subpath := lockPath(tpkg, ftyp, seen)
 		if subpath != nil {

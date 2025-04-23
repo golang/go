@@ -17,6 +17,7 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 //go:embed doc.go
@@ -186,7 +187,7 @@ func goAsyncCall(info *types.Info, goStmt *ast.GoStmt, toDecl func(*types.Func) 
 	call := goStmt.Call
 
 	fun := ast.Unparen(call.Fun)
-	if id := funcIdent(fun); id != nil {
+	if id := typesinternal.UsedIdent(info, fun); id != nil {
 		if lit := funcLitInScope(id); lit != nil {
 			return &asyncCall{region: lit, async: goStmt, scope: nil, fun: fun}
 		}
@@ -217,7 +218,7 @@ func tRunAsyncCall(info *types.Info, call *ast.CallExpr) *asyncCall {
 		return &asyncCall{region: lit, async: call, scope: lit, fun: fun}
 	}
 
-	if id := funcIdent(fun); id != nil {
+	if id := typesinternal.UsedIdent(info, fun); id != nil {
 		if lit := funcLitInScope(id); lit != nil { // function lit in variable?
 			return &asyncCall{region: lit, async: call, scope: lit, fun: fun}
 		}

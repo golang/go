@@ -1794,6 +1794,11 @@ var http2fhBytes = sync.Pool{
 	},
 }
 
+func http2invalidHTTP1LookingFrameHeader() http2FrameHeader {
+	fh, _ := http2readFrameHeader(make([]byte, http2frameHeaderLen), strings.NewReader("HTTP/1.1 "))
+	return fh
+}
+
 // ReadFrameHeader reads 9 bytes from r and returns a FrameHeader.
 // Most users should use Framer.ReadFrame instead.
 func http2ReadFrameHeader(r io.Reader) (http2FrameHeader, error) {
@@ -2075,10 +2080,16 @@ func (fr *http2Framer) ReadFrame() (http2Frame, error) {
 		return nil, err
 	}
 	if fh.Length > fr.maxReadSize {
+		if fh == http2invalidHTTP1LookingFrameHeader() {
+			return nil, fmt.Errorf("http2: failed reading the frame payload: %w, note that the frame header looked like an HTTP/1.1 header", err)
+		}
 		return nil, http2ErrFrameTooLarge
 	}
 	payload := fr.getReadBuf(fh.Length)
 	if _, err := io.ReadFull(fr.r, payload); err != nil {
+		if fh == http2invalidHTTP1LookingFrameHeader() {
+			return nil, fmt.Errorf("http2: failed reading the frame payload: %w, note that the frame header looked like an HTTP/1.1 header", err)
+		}
 		return nil, err
 	}
 	f, err := http2typeFrameParser(fh.Type)(fr.frameCache, fh, fr.countError, payload)
@@ -5007,7 +5018,10 @@ func (sc *http2serverConn) serve(conf http2http2Config) {
 
 func (sc *http2serverConn) handlePingTimer(lastFrameReadTime time.Time) {
 	if sc.pingSent {
-		sc.vlogf("timeout waiting for PING response")
+		sc.logf("timeout waiting for PING response")
+		if f := sc.countErrorFunc; f != nil {
+			f("conn_close_lost_ping")
+		}
 		sc.conn.Close()
 		return
 	}

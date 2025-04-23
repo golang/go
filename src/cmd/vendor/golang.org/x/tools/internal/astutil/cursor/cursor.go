@@ -20,7 +20,6 @@ import (
 	"go/token"
 	"iter"
 	"reflect"
-	"slices"
 
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/internal/astutil/edge"
@@ -46,7 +45,7 @@ func Root(in *inspector.Inspector) Cursor {
 
 // At returns the cursor at the specified index in the traversal,
 // which must have been obtained from [Cursor.Index] on a Cursor
-// belonging to the same Inspector.
+// belonging to the same Inspector (see [Cursor.Inspector]).
 func At(in *inspector.Inspector, index int32) Cursor {
 	if index < 0 {
 		panic("negative index")
@@ -60,6 +59,9 @@ func At(in *inspector.Inspector, index int32) Cursor {
 	}
 	return Cursor{in, index}
 }
+
+// Inspector returns the cursor's Inspector.
+func (c Cursor) Inspector() *inspector.Inspector { return c.in }
 
 // Index returns the index of this cursor position within the package.
 //
@@ -142,10 +144,9 @@ func (c Cursor) Preorder(types ...ast.Node) iter.Seq[Cursor] {
 }
 
 // Inspect visits the nodes of the subtree represented by c in
-// depth-first order. It calls f(n, true) for each node n before it
+// depth-first order. It calls f(n) for each node n before it
 // visits n's children. If f returns true, Inspect invokes f
-// recursively for each of the non-nil children of the node, followed
-// by a call of f(n, false).
+// recursively for each of the non-nil children of the node.
 //
 // Each node is represented by a Cursor that allows access to the
 // Node, but may also be used to start a new traversal, or to obtain
@@ -155,7 +156,7 @@ func (c Cursor) Preorder(types ...ast.Node) iter.Seq[Cursor] {
 // The types argument, if non-empty, enables type-based filtering of
 // events. The function f if is called only for nodes whose type
 // matches an element of the types slice.
-func (c Cursor) Inspect(types []ast.Node, f func(c Cursor, push bool) (descend bool)) {
+func (c Cursor) Inspect(types []ast.Node, f func(c Cursor) (descend bool)) {
 	mask := maskOf(types)
 	events := c.events()
 	for i, limit := c.indices(); i < limit; {
@@ -163,44 +164,17 @@ func (c Cursor) Inspect(types []ast.Node, f func(c Cursor, push bool) (descend b
 		if ev.index > i {
 			// push
 			pop := ev.index
-			if ev.typ&mask != 0 && !f(Cursor{c.in, i}, true) {
-				i = pop + 1 // past the pop
+			if ev.typ&mask != 0 && !f(Cursor{c.in, i}) ||
+				events[pop].typ&mask == 0 {
+				// The user opted not to descend, or the
+				// subtree does not contain types:
+				// skip past the pop.
+				i = pop + 1
 				continue
-			}
-			if events[pop].typ&mask == 0 {
-				// Subtree does not contain types: skip to pop.
-				i = pop
-				continue
-			}
-		} else {
-			// pop
-			push := ev.index
-			if events[push].typ&mask != 0 {
-				f(Cursor{c.in, push}, false)
 			}
 		}
 		i++
 	}
-}
-
-// Stack returns the stack of enclosing nodes, outermost first:
-// from the [ast.File] down to the current cursor's node.
-//
-// To amortize allocation, it appends to the provided slice, which
-// must be empty.
-//
-// Stack must not be called on the Root node.
-func (c Cursor) Stack(stack []Cursor) []Cursor {
-	if len(stack) > 0 {
-		panic("stack is non-empty")
-	}
-	if c.index < 0 {
-		panic("Cursor.Stack called on Root node")
-	}
-
-	stack = slices.AppendSeq(stack, c.Enclosing())
-	slices.Reverse(stack)
-	return stack
 }
 
 // Enclosing returns an iterator over the nodes enclosing the current
@@ -453,7 +427,7 @@ func (c Cursor) FindNode(n ast.Node) (Cursor, bool) {
 
 	// TODO(adonovan): opt: should we assume Node.Pos is accurate
 	// and combine type-based filtering with position filtering
-	// like FindPos?
+	// like FindByPos?
 
 	mask := maskOf([]ast.Node{n})
 	events := c.events()
@@ -474,7 +448,7 @@ func (c Cursor) FindNode(n ast.Node) (Cursor, bool) {
 	return Cursor{}, false
 }
 
-// FindPos returns the cursor for the innermost node n in the tree
+// FindByPos returns the cursor for the innermost node n in the tree
 // rooted at c such that n.Pos() <= start && end <= n.End().
 // (For an *ast.File, it uses the bounds n.FileStart-n.FileEnd.)
 //
@@ -483,7 +457,7 @@ func (c Cursor) FindNode(n ast.Node) (Cursor, bool) {
 //
 // See also [astutil.PathEnclosingInterval], which
 // tolerates adjoining whitespace.
-func (c Cursor) FindPos(start, end token.Pos) (Cursor, bool) {
+func (c Cursor) FindByPos(start, end token.Pos) (Cursor, bool) {
 	if end < start {
 		panic("end < start")
 	}

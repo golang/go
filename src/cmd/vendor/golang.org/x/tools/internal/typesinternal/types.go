@@ -7,6 +7,7 @@
 package typesinternal
 
 import (
+	"go/ast"
 	"go/token"
 	"go/types"
 	"reflect"
@@ -126,4 +127,18 @@ func Origin(t NamedOrAlias) NamedOrAlias {
 // IsPackageLevel reports whether obj is a package-level symbol.
 func IsPackageLevel(obj types.Object) bool {
 	return obj.Pkg() != nil && obj.Parent() == obj.Pkg().Scope()
+}
+
+// NewTypesInfo returns a *types.Info with all maps populated.
+func NewTypesInfo() *types.Info {
+	return &types.Info{
+		Types:        map[ast.Expr]types.TypeAndValue{},
+		Instances:    map[*ast.Ident]types.Instance{},
+		Defs:         map[*ast.Ident]types.Object{},
+		Uses:         map[*ast.Ident]types.Object{},
+		Implicits:    map[ast.Node]types.Object{},
+		Selections:   map[*ast.SelectorExpr]*types.Selection{},
+		Scopes:       map[ast.Node]*types.Scope{},
+		FileVersions: map[*ast.File]string{},
+	}
 }

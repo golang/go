@@ -16,7 +16,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
-	"golang.org/x/tools/internal/typeparams"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 //go:embed doc.go
@@ -55,24 +55,8 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		// Only want identifiers or selector expressions.
-		var obj types.Object
-		switch v := e2.(type) {
-		case *ast.Ident:
-			obj = pass.TypesInfo.Uses[v]
-		case *ast.SelectorExpr:
-			obj = pass.TypesInfo.Uses[v.Sel]
-		case *ast.IndexExpr, *ast.IndexListExpr:
-			// Check generic functions such as "f[T1,T2]".
-			x, _, _, _ := typeparams.UnpackIndexExpr(v)
-			if id, ok := x.(*ast.Ident); ok {
-				obj = pass.TypesInfo.Uses[id]
-			}
-		default:
-			return
-		}
-
 		// Only want functions.
+		obj := pass.TypesInfo.Uses[typesinternal.UsedIdent(pass.TypesInfo, e2)]
 		if _, ok := obj.(*types.Func); !ok {
 			return
 		}

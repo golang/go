@@ -17,6 +17,7 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/cfg"
 	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/astutil"
 )
 
 //go:embed doc.go
@@ -83,30 +84,22 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
 	// {FuncDecl,FuncLit,CallExpr,SelectorExpr}.
 
 	// Find the set of cancel vars to analyze.
-	stack := make([]ast.Node, 0, 32)
-	ast.Inspect(node, func(n ast.Node) bool {
-		switch n.(type) {
-		case *ast.FuncLit:
-			if len(stack) > 0 {
-				return false // don't stray into nested functions
-			}
-		case nil:
-			stack = stack[:len(stack)-1] // pop
-			return true
+	astutil.PreorderStack(node, nil, func(n ast.Node, stack []ast.Node) bool {
+		if _, ok := n.(*ast.FuncLit); ok && len(stack) > 0 {
+			return false // don't stray into nested functions
 		}
-		stack = append(stack, n) // push
 
-		// Look for [{AssignStmt,ValueSpec} CallExpr SelectorExpr]:
+		// Look for n=SelectorExpr beneath stack=[{AssignStmt,ValueSpec} CallExpr]:
 		//
 		//   ctx, cancel    := context.WithCancel(...)
 		//   ctx, cancel     = context.WithCancel(...)
 		//   var ctx, cancel = context.WithCancel(...)
 		//
-		if !isContextWithCancel(pass.TypesInfo, n) || !isCall(stack[len(stack)-2]) {
+		if !isContextWithCancel(pass.TypesInfo, n) || !isCall(stack[len(stack)-1]) {
 			return true
 		}
 		var id *ast.Ident // id of cancel var
-		stmt := stack[len(stack)-3]
+		stmt := stack[len(stack)-2]
 		switch stmt := stmt.(type) {
 		case *ast.ValueSpec:
 			if len(stmt.Names) > 1 {

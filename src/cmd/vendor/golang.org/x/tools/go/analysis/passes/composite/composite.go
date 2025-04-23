@@ -115,7 +115,7 @@ func run(pass *analysis.Pass) (any, error) {
 					missingKeys = append(missingKeys, analysis.TextEdit{
 						Pos:     e.Pos(),
 						End:     e.Pos(),
-						NewText: []byte(fmt.Sprintf("%s: ", field.Name())),
+						NewText: fmt.Appendf(nil, "%s: ", field.Name()),
 					})
 				}
 			}
