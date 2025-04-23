@@ -55,6 +55,7 @@ var passAnalyzersToVet = map[string]bool{
 	"directive":        true,
 	"errorsas":         true,
 	"framepointer":     true,
+	"hostport":         true,
 	"httpresponse":     true,
 	"ifaceassert":      true,
 	"loopclosure":      true,

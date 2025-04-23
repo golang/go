@@ -26,10 +26,17 @@ specifying the command's current version.
 
 ### Vet {#vet}
 
+The `go vet` command includes new analyzers:
+
 <!-- go.dev/issue/18022 -->
 
-The `go vet` command now includes the
-[waitgroup](https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/waitgroup)
-analyzer, which reports misplaced calls to [sync.WaitGroup.Add].
+- [waitgroup](https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/waitgroup),
+  which reports misplaced calls to [sync.WaitGroup.Add]; and
 
+<!-- go.dev/issue/28308 -->
+
+- [hostport](https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/hostport),
+  which reports uses of `fmt.Sprintf("%s:%d", host, port)` to
+  construct addresses for [net.Dial], as these will not work with
+  IPv6; instead it suggests using [net.JoinHostPort].
 
