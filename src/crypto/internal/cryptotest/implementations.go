@@ -7,6 +7,7 @@ package cryptotest
 import (
 	"crypto/internal/boring"
 	"crypto/internal/impl"
+	"internal/goarch"
 	"internal/goos"
 	"internal/testenv"
 	"testing"
@@ -35,14 +36,13 @@ func TestAllImplementations(t *testing.T, pkg string, f func(t *testing.T)) {
 			t.Run(name, f)
 		} else {
 			t.Run(name, func(t *testing.T) {
-				// Report an error if we're on Linux CI (assumed to be the most
-				// consistent) and the builder can't test this implementation.
-				if testenv.Builder() != "" && goos.GOOS == "linux" {
+				// Report an error if we're on the most capable builder for the
+				// architecture and the builder can't test this implementation.
+				flagship := goos.GOOS == "linux" && goarch.GOARCH != "arm64" ||
+					goos.GOOS == "darwin" && goarch.GOARCH == "arm64"
+				if testenv.Builder() != "" && flagship {
 					if name == "SHA-NI" {
 						t.Skip("known issue, see golang.org/issue/69592")
-					}
-					if name == "Armv8.2" {
-						t.Skip("known issue, see golang.org/issue/69593")
 					}
 					t.Error("builder doesn't support CPU features needed to test this implementation")
 				} else {
