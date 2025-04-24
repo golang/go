@@ -49,6 +49,7 @@ var runtimePkgs = []string{
 	"runtime",
 
 	"internal/runtime/atomic",
+	"internal/runtime/cgroup",
 	"internal/runtime/exithook",
 	"internal/runtime/gc",
 	"internal/runtime/maps",

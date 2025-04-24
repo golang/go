@@ -98,6 +98,7 @@ var depsRules = `
 	< internal/runtime/math
 	< internal/runtime/maps
 	< internal/runtime/strconv
+	< internal/runtime/cgroup
 	< runtime
 	< sync/atomic
 	< internal/sync
