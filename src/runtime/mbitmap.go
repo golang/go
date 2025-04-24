@@ -219,8 +219,13 @@ func (tp typePointers) nextFast() (typePointers, uintptr) {
 	} else {
 		i = sys.TrailingZeros32(uint32(tp.mask))
 	}
-	// BTCQ
-	tp.mask ^= uintptr(1) << (i & (ptrBits - 1))
+	if GOARCH == "amd64" {
+		// BTCQ
+		tp.mask ^= uintptr(1) << (i & (ptrBits - 1))
+	} else {
+		// SUB, AND
+		tp.mask &= tp.mask - 1
+	}
 	// LEAQ (XX)(XX*8)
 	return tp, tp.addr + uintptr(i)*goarch.PtrSize
 }
