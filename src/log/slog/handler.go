@@ -299,7 +299,11 @@ func (h *commonHandler) handle(r Record) error {
 	}
 	// source
 	if h.opts.AddSource {
-		state.appendAttr(Any(SourceKey, r.Source()))
+		src := r.Source()
+		if src == nil {
+			src = &Source{}
+		}
+		state.appendAttr(Any(SourceKey, src))
 	}
 	key = MessageKey
 	msg := r.Message

@@ -547,7 +547,11 @@ func TestJSONAndTextHandlers(t *testing.T) {
 		},
 	} {
 		r := NewRecord(testTime, LevelInfo, "message", callerPC(2))
-		line := strconv.Itoa(r.Source().Line)
+		source := r.Source()
+		if source == nil {
+			t.Fatal("source is nil")
+		}
+		line := strconv.Itoa(source.Line)
 		r.AddAttrs(test.attrs...)
 		var buf bytes.Buffer
 		opts := HandlerOptions{ReplaceAttr: test.replace, AddSource: test.addSource}
@@ -631,6 +635,40 @@ func TestHandlerEnabled(t *testing.T) {
 		if got != test.want {
 			t.Errorf("%v: got %t, want %t", test.leveler, got, test.want)
 		}
+	}
+}
+
+func TestJSONAndTextHandlersWithUnavailableSource(t *testing.T) {
+	// Verify that a nil source does not cause a panic.
+	// and that the source is empty.
+	var buf bytes.Buffer
+	opts := &HandlerOptions{
+		ReplaceAttr: removeKeys(LevelKey),
+		AddSource:   true,
+	}
+
+	for _, test := range []struct {
+		name string
+		h    Handler
+		want string
+	}{
+		{"text", NewTextHandler(&buf, opts), "source=:0 msg=message"},
+		{"json", NewJSONHandler(&buf, opts), `{"msg":"message"}`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			buf.Reset()
+			r := NewRecord(time.Time{}, LevelInfo, "message", 0)
+			err := test.h.Handle(t.Context(), r)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			want := strings.TrimSpace(test.want)
+			got := strings.TrimSpace(buf.String())
+			if got != want {
+				t.Errorf("\ngot  %s\nwant %s", got, want)
+			}
+		})
 	}
 }
 

@@ -191,6 +191,9 @@ func TestCallDepth(t *testing.T) {
 		const wantFile = "logger_test.go"
 		wantLine := startLine + count*2
 		got := h.r.Source()
+		if got == nil {
+			t.Fatal("got nil source")
+		}
 		gotFile := filepath.Base(got.File)
 		if got.Function != wantFunc || gotFile != wantFile || got.Line != wantLine {
 			t.Errorf("got (%s, %s, %d), want (%s, %s, %d)",
