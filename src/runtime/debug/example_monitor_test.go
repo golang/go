@@ -84,7 +84,10 @@ func monitor() {
 		log.Fatal(err)
 	}
 	cmd := exec.Command(exe, "-test.run=^ExampleSetCrashOutput_monitor$")
-	cmd.Env = append(os.Environ(), monitorVar+"=1")
+	// Be selective in which variables we allow the child to inherit.
+	// Depending on the application, some may be necessary,
+	// while others (e.g. GOGC, GOMEMLIMIT) may be harmful; see #73490.
+	cmd.Env = []string{monitorVar + "=1"}
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stderr
 	pipe, err := cmd.StdinPipe()
