@@ -1490,7 +1490,9 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
 	switch c.arch {
 	case "amd64":
 		return sz <= 16 || (sz < 1024 && disjoint(dst, sz, src, sz))
-	case "386", "arm64":
+	case "arm64":
+		return sz <= 64 || (sz <= 1024 && disjoint(dst, sz, src, sz))
+	case "386":
 		return sz <= 8
 	case "s390x", "ppc64", "ppc64le":
 		return sz <= 8 || disjoint(dst, sz, src, sz)

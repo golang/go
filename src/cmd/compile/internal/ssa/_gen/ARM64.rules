@@ -472,26 +472,39 @@
 		(MOVDstore dst (MOVDload src mem) mem))
 (Move [16] dst src mem) =>
 	(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)
-(Move [32] dst src mem) =>
-	(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
+
+(Move [s] dst src mem) && s > 16 && s <= 24 =>
+	(MOVDstore [int32(s-8)] dst (MOVDload [int32(s-8)] src mem)
 		(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))
-(Move [48] dst src mem) =>
-	(STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem))
+(Move [s] dst src mem) && s > 24 && s <= 32 =>
+	(STP [int32(s-16)] dst (Select0 <typ.UInt64> (LDP [int32(s-16)] src mem)) (Select1 <typ.UInt64> (LDP [int32(s-16)] src mem))
+		(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))
+(Move [s] dst src mem) && s > 32 && s <= 40 =>
+	(MOVDstore [int32(s-8)] dst (MOVDload [int32(s-8)] src mem)
 		(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
 			(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)))
-(Move [64] dst src mem) =>
-	(STP [48] dst (Select0 <typ.UInt64> (LDP [48] src mem)) (Select1 <typ.UInt64> (LDP [48] src mem))
+(Move [s] dst src mem) && s > 40 && s <= 48 =>
+	(STP [int32(s-16)] dst (Select0 <typ.UInt64> (LDP [int32(s-16)] src mem)) (Select1 <typ.UInt64> (LDP [int32(s-16)] src mem))
+		(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
+			(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)))
+(Move [s] dst src mem) && s > 48 && s <= 56 =>
+	(MOVDstore [int32(s-8)] dst (MOVDload [int32(s-8)] src mem)
+		(STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem))
+			(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
+				(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))))
+(Move [s] dst src mem) && s > 56 && s <= 64 =>
+	(STP [int32(s-16)] dst (Select0 <typ.UInt64> (LDP [int32(s-16)] src mem)) (Select1 <typ.UInt64> (LDP [int32(s-16)] src mem))
 		(STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem))
 			(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
 				(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))))
 
 // strip off fractional word move
-(Move [s] dst src mem) && s%16 != 0 && s%16 <= 8 && s > 16 =>
+(Move [s] dst src mem) && s%16 != 0 && s%16 <= 8 && s > 64 =>
 	(Move [8]
 		(OffPtr <dst.Type> dst [s-8])
 		(OffPtr <src.Type> src [s-8])
 		(Move [s-s%16] dst src mem))
-(Move [s] dst src mem) && s%16 != 0 && s%16 > 8 && s > 16 =>
+(Move [s] dst src mem) && s%16 != 0 && s%16 > 8 && s > 64 =>
 	(Move [16]
 		(OffPtr <dst.Type> dst [s-16])
 		(OffPtr <src.Type> src [s-16])
