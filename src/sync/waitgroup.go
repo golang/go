@@ -163,6 +163,8 @@ func (wg *WaitGroup) Wait() {
 // Go calls f in a new goroutine and adds that task to the [WaitGroup].
 // When f returns, the task is removed from the WaitGroup.
 //
+// The function f must not panic.
+//
 // If the WaitGroup is empty, Go must happen before a [WaitGroup.Wait].
 // Typically, this simply means Go is called to start tasks before Wait is called.
 // If the WaitGroup is not empty, Go may happen at any time.
