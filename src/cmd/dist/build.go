@@ -274,7 +274,8 @@ func xinit() {
 	tooldir = pathf("%s/pkg/tool/%s_%s", goroot, gohostos, gohostarch)
 
 	goversion := findgoversion()
-	isRelease = strings.HasPrefix(goversion, "release.") || strings.HasPrefix(goversion, "go")
+	isRelease = (strings.HasPrefix(goversion, "release.") || strings.HasPrefix(goversion, "go")) &&
+		!strings.Contains(goversion, "devel")
 }
 
 // compilerEnv returns a map from "goos/goarch" to the
