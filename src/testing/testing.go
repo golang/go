@@ -1069,6 +1069,16 @@ func (c *common) callSite(skip int) string {
 	return fmt.Sprintf("%s:%d: ", file, line)
 }
 
+// // Output returns a Writer that writes to the same test output stream as TB.Log.
+// // The output is indented like TB.Log lines, but Output does not
+// // add source locations or newlines. The output is internally line
+// // buffered, and a call to TB.Log or the end of the test will implicitly
+// // flush the buffer, followed by a newline. After a test function returns,
+// // neither Output nor the Write method may be called.
+func (c *common) Output() io.Writer {
+	return c.o
+}
+
 // setOutputWriter initializes an outputWriter and sets it as a common field.
 func (c *common) setOutputWriter() {
 	c.o = &outputWriter{c: c}
