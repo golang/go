@@ -302,7 +302,7 @@ func (c *pollCache) free(pd *pollDesc) {
 	// Increment the fdseq field, so that any currently
 	// running netpoll calls will not mark pd as ready.
 	fdseq := pd.fdseq.Load()
-	fdseq = (fdseq + 1) & (1<<taggedPointerBits - 1)
+	fdseq = (fdseq + 1) & (1<<tagBits - 1)
 	pd.fdseq.Store(fdseq)
 
 	pd.publishInfo()

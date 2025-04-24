@@ -455,8 +455,8 @@ func mallocinit() {
 		throw("max pointer/scan bitmap size for headerless objects is too large")
 	}
 
-	if minTagBits > taggedPointerBits {
-		throw("taggedPointerBits too small")
+	if minTagBits > tagBits {
+		throw("tagBits too small")
 	}
 
 	// Initialize the heap.
