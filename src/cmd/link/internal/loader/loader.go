@@ -1719,14 +1719,6 @@ func (l *Loader) GetVarDwarfAuxSym(i Sym) Sym {
 // expected to have the actual content/payload) and then a set of
 // interior loader.Sym's that point into a portion of the container.
 func (l *Loader) AddInteriorSym(container Sym, interior Sym) {
-	// Container symbols are expected to have content/data.
-	// NB: this restriction may turn out to be too strict (it's possible
-	// to imagine a zero-sized container with an interior symbol pointing
-	// into it); it's ok to relax or remove it if we counter an
-	// oddball host object that triggers this.
-	if l.SymSize(container) == 0 && len(l.Data(container)) == 0 {
-		panic("unexpected empty container symbol")
-	}
 	// The interior symbols for a container are not expected to have
 	// content/data or relocations.
 	if len(l.Data(interior)) != 0 {
