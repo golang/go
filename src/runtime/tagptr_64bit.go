@@ -66,6 +66,9 @@ func (tp taggedPointer) pointer() unsafe.Pointer {
 		// val before unpacking.
 		return unsafe.Pointer(uintptr(int64(tp) >> tagBits << tagAlignBits))
 	}
+	if GOOS == "aix" {
+		return unsafe.Pointer(uintptr((tp >> tagBits << tagAlignBits) | 0xa<<56))
+	}
 	return unsafe.Pointer(uintptr(tp >> tagBits << tagAlignBits))
 }
 
