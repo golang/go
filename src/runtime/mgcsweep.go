@@ -313,6 +313,10 @@ func bgsweep(c chan int) {
 			// gosweepone returning ^0 above
 			// and the lock being acquired.
 			unlock(&sweep.lock)
+			// This goroutine must preempt when we have no work to do
+			// but isSweepDone returns false because of another existing sweeper.
+			// See issue #73499.
+			goschedIfBusy()
 			continue
 		}
 		sweep.parked = true
