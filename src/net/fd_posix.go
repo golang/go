@@ -26,6 +26,17 @@ type netFD struct {
 	raddr       Addr
 }
 
+func (fd *netFD) name() string {
+	var ls, rs string
+	if fd.laddr != nil {
+		ls = fd.laddr.String()
+	}
+	if fd.raddr != nil {
+		rs = fd.raddr.String()
+	}
+	return fd.net + ":" + ls + "->" + rs
+}
+
 func (fd *netFD) setAddr(laddr, raddr Addr) {
 	fd.laddr = laddr
 	fd.raddr = raddr

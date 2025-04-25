@@ -736,11 +736,6 @@ third:
 }
 
 func TestFileError(t *testing.T) {
-	switch runtime.GOOS {
-	case "windows":
-		t.Skipf("not supported on %s", runtime.GOOS)
-	}
-
 	f, err := os.CreateTemp("", "go-nettest")
 	if err != nil {
 		t.Fatal(err)

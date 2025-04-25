@@ -509,6 +509,10 @@ func packetTransceiver(c PacketConn, wb []byte, dst Addr, ch chan<- error) {
 func spawnTestSocketPair(t testing.TB, net string) (client, server Conn) {
 	t.Helper()
 
+	if !testableNetwork(net) {
+		t.Skipf("network %q not supported", net)
+	}
+
 	ln := newLocalListener(t, net)
 	defer ln.Close()
 	var cerr, serr error
@@ -536,13 +540,6 @@ func spawnTestSocketPair(t testing.TB, net string) (client, server Conn) {
 
 func startTestSocketPeer(t testing.TB, conn Conn, op string, chunkSize, totalSize int) (func(t testing.TB), error) {
 	t.Helper()
-
-	if runtime.GOOS == "windows" {
-		// TODO(panjf2000): Windows has not yet implemented FileConn,
-		//		remove this when it's implemented in https://go.dev/issues/9503.
-		t.Fatalf("startTestSocketPeer is not supported on %s", runtime.GOOS)
-	}
-
 	f, err := conn.(interface{ File() (*os.File, error) }).File()
 	if err != nil {
 		return nil, err
@@ -556,7 +553,14 @@ func startTestSocketPeer(t testing.TB, conn Conn, op string, chunkSize, totalSiz
 		"GO_NET_TEST_TRANSFER_TOTAL_SIZE=" + strconv.Itoa(totalSize),
 		"TMPDIR=" + os.Getenv("TMPDIR"),
 	}
-	cmd.ExtraFiles = append(cmd.ExtraFiles, f)
+	if runtime.GOOS == "windows" {
+		// Windows doesn't support ExtraFiles
+		fd := f.Fd()
+		cmd.Env = append(cmd.Env, "GO_NET_TEST_TRANSFER_FD="+strconv.FormatUint(uint64(fd), 10))
+		addCmdInheritedHandle(cmd, fd)
+	} else {
+		cmd.ExtraFiles = append(cmd.ExtraFiles, f)
+	}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -586,7 +590,17 @@ func init() {
 	}
 	defer os.Exit(0)
 
-	f := os.NewFile(uintptr(3), "splice-test-conn")
+	var fd uintptr
+	if runtime.GOOS == "windows" {
+		v, err := strconv.ParseUint(os.Getenv("GO_NET_TEST_TRANSFER_FD"), 10, 0)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fd = uintptr(v)
+	} else {
+		fd = uintptr(3)
+	}
+	f := os.NewFile(fd, "splice-test-conn")
 	defer f.Close()
 
 	conn, err := FileConn(f)

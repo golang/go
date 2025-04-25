@@ -106,6 +106,7 @@ var (
 	procCreateEnvironmentBlock            = moduserenv.NewProc("CreateEnvironmentBlock")
 	procDestroyEnvironmentBlock           = moduserenv.NewProc("DestroyEnvironmentBlock")
 	procGetProfilesDirectoryW             = moduserenv.NewProc("GetProfilesDirectoryW")
+	procWSADuplicateSocketW               = modws2_32.NewProc("WSADuplicateSocketW")
 	procWSAGetOverlappedResult            = modws2_32.NewProc("WSAGetOverlappedResult")
 	procWSASocketW                        = modws2_32.NewProc("WSASocketW")
 )
@@ -586,6 +587,14 @@ func DestroyEnvironmentBlock(block *uint16) (err error) {
 func GetProfilesDirectory(dir *uint16, dirLen *uint32) (err error) {
 	r1, _, e1 := syscall.Syscall(procGetProfilesDirectoryW.Addr(), 2, uintptr(unsafe.Pointer(dir)), uintptr(unsafe.Pointer(dirLen)), 0)
 	if r1 == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func WSADuplicateSocket(s syscall.Handle, processID uint32, info *syscall.WSAProtocolInfo) (err error) {
+	r1, _, e1 := syscall.Syscall(procWSADuplicateSocketW.Addr(), 3, uintptr(s), uintptr(processID), uintptr(unsafe.Pointer(info)))
+	if r1 != 0 {
 		err = errnoErr(e1)
 	}
 	return

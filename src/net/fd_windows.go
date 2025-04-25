@@ -233,9 +233,23 @@ func (fd *netFD) accept() (*netFD, error) {
 	return netfd, nil
 }
 
-// Unimplemented functions.
-
 func (fd *netFD) dup() (*os.File, error) {
-	// TODO: Implement this, perhaps using internal/poll.DupCloseOnExec.
-	return nil, syscall.EWINDOWS
+	// Disassociate the IOCP from the socket,
+	// it is not safe to share a duplicated handle
+	// that is associated with IOCP.
+	if err := fd.pfd.DisassociateIOCP(); err != nil {
+		return nil, err
+	}
+	var h syscall.Handle
+	var syserr error
+	err := fd.pfd.RawControl(func(fd uintptr) {
+		h, syserr = dupSocket(syscall.Handle(fd))
+	})
+	if err != nil {
+		err = syserr
+	}
+	if err != nil {
+		return nil, err
+	}
+	return os.NewFile(uintptr(h), fd.name()), nil
 }

@@ -5,21 +5,28 @@
 package net
 
 import (
+	"internal/syscall/windows"
 	"os"
 	"syscall"
 )
 
-func fileConn(f *os.File) (Conn, error) {
-	// TODO: Implement this
-	return nil, syscall.EWINDOWS
+const _SO_TYPE = windows.SO_TYPE
+
+func dupSocket(h syscall.Handle) (syscall.Handle, error) {
+	var info syscall.WSAProtocolInfo
+	err := windows.WSADuplicateSocket(h, uint32(syscall.Getpid()), &info)
+	if err != nil {
+		return 0, err
+	}
+	return windows.WSASocket(-1, -1, -1, &info, 0, windows.WSA_FLAG_OVERLAPPED|windows.WSA_FLAG_NO_HANDLE_INHERIT)
 }
 
-func fileListener(f *os.File) (Listener, error) {
-	// TODO: Implement this
-	return nil, syscall.EWINDOWS
-}
-
-func filePacketConn(f *os.File) (PacketConn, error) {
-	// TODO: Implement this
-	return nil, syscall.EWINDOWS
+func dupFileSocket(f *os.File) (syscall.Handle, error) {
+	// The resulting handle should not be associated to an IOCP, else the IO operations
+	// will block an OS thread, and that's not what net package users expect.
+	h, err := dupSocket(syscall.Handle(f.Fd()))
+	if err != nil {
+		return 0, err
+	}
+	return h, nil
 }

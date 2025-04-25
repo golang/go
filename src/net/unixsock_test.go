@@ -398,9 +398,6 @@ func TestUnixUnlink(t *testing.T) {
 
 	// FileListener should not.
 	t.Run("FileListener", func(t *testing.T) {
-		if runtime.GOOS == "windows" {
-			t.Skip("skipping: FileListener not implemented on windows")
-		}
 		l := listen(t)
 		f, _ := l.File()
 		l1, _ := FileListener(f)
@@ -448,9 +445,6 @@ func TestUnixUnlink(t *testing.T) {
 	})
 
 	t.Run("FileListener/SetUnlinkOnClose(true)", func(t *testing.T) {
-		if runtime.GOOS == "windows" {
-			t.Skip("skipping: FileListener not implemented on windows")
-		}
 		l := listen(t)
 		f, _ := l.File()
 		l1, _ := FileListener(f)
@@ -464,9 +458,6 @@ func TestUnixUnlink(t *testing.T) {
 	})
 
 	t.Run("FileListener/SetUnlinkOnClose(false)", func(t *testing.T) {
-		if runtime.GOOS == "windows" {
-			t.Skip("skipping: FileListener not implemented on windows")
-		}
 		l := listen(t)
 		f, _ := l.File()
 		l1, _ := FileListener(f)

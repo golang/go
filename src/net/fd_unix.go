@@ -41,17 +41,6 @@ func (fd *netFD) init() error {
 	return fd.pfd.Init(fd.net, true)
 }
 
-func (fd *netFD) name() string {
-	var ls, rs string
-	if fd.laddr != nil {
-		ls = fd.laddr.String()
-	}
-	if fd.raddr != nil {
-		rs = fd.raddr.String()
-	}
-	return fd.net + ":" + ls + "->" + rs
-}
-
 func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa syscall.Sockaddr, ret error) {
 	// Do not need to call fd.writeLock here,
 	// because fd is not yet accessible to user,

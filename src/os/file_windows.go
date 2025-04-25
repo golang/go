@@ -82,14 +82,49 @@ func newConsoleFile(h syscall.Handle, name string) *File {
 	return newFile(h, name, "console", false)
 }
 
+var wsaLoaded atomic.Bool
+
+// isWSALoaded returns true if the ws2_32.dll module is loaded.
+func isWSALoaded() bool {
+	// ws2_32.dll may be delay loaded, we can only short-circuit
+	// if we know it is loaded.
+	if wsaLoaded.Load() {
+		return true
+	}
+	var ws2_32_dll = [...]uint16{'w', 's', '2', '_', '3', '2', '.', 'd', 'l', 'l', 0}
+	_, err := windows.GetModuleHandle(unsafe.SliceData(ws2_32_dll[:]))
+	wsaLoaded.Store(err == nil)
+	return err == nil
+}
+
 // newFileFromNewFile is called by [NewFile].
 func newFileFromNewFile(fd uintptr, name string) *File {
 	h := syscall.Handle(fd)
 	if h == syscall.InvalidHandle {
 		return nil
 	}
+	kind := "file"
+	var sotype int
+	if t, err := syscall.GetFileType(h); err == nil && t == syscall.FILE_TYPE_PIPE {
+		kind = "pipe"
+		// Windows reports sockets as FILE_TYPE_PIPE.
+		// We need to call getsockopt and check the socket type to distinguish between sockets and pipes.
+		// If the call fails, we assume it's a pipe.
+		// Avoid calling getsockopt if the WSA module is not loaded, it is a heavy dependency
+		// and sockets can only be created using that module.
+		if isWSALoaded() {
+			if sotype, err = syscall.GetsockoptInt(h, syscall.SOL_SOCKET, windows.SO_TYPE); err == nil {
+				kind = "net"
+			}
+		}
+	}
 	nonBlocking, _ := windows.IsNonblock(syscall.Handle(fd))
-	return newFile(h, name, "file", nonBlocking)
+	f := newFile(h, name, kind, nonBlocking)
+	if kind == "net" {
+		f.pfd.IsStream = sotype == syscall.SOCK_STREAM
+		f.pfd.ZeroReadIsEOF = sotype != syscall.SOCK_DGRAM && sotype != syscall.SOCK_RAW
+	}
+	return f
 }
 
 func epipecheck(file *File, e error) {

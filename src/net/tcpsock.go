@@ -417,6 +417,9 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
 // The returned os.File's file descriptor is different from the
 // connection's. Attempting to change properties of the original
 // using this duplicate may or may not have the desired effect.
+//
+// On Windows, the returned os.File's file descriptor is not
+// usable on other processes.
 func (l *TCPListener) File() (f *os.File, err error) {
 	if !l.ok() {
 		return nil, syscall.EINVAL
