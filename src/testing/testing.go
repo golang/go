@@ -1016,10 +1016,9 @@ func (c *common) log(s string) {
 	s = strings.ReplaceAll(s, "\n", "\n"+indent)
 	s += "\n"
 
-	// Select test nesting level for output.
-	n := c.nest()
-	// The test and all its parents are done and the log cannot be output.
+	n := c.destination()
 	if n == nil {
+		// The test and all its parents are done. The log cannot be output.
 		panic("Log in goroutine after " + c.name + " has completed: " + s)
 	}
 
@@ -1029,9 +1028,9 @@ func (c *common) log(s string) {
 	n.o.Write([]byte(s))
 }
 
-// nest selects the nesting level for test output. It returns the test if it is
-// incomplete. Otherwise, it finds its closest incomplete parent.
-func (c *common) nest() *common {
+// destination selects the test to which output should be appended. It returns the
+// test if it is incomplete. Otherwise, it finds its closest incomplete parent.
+func (c *common) destination() *common {
 	if !c.done {
 		return c
 	}
@@ -1076,7 +1075,11 @@ func (c *common) callSite(skip int) string {
 // // flush the buffer, followed by a newline. After a test function returns,
 // // neither Output nor the Write method may be called.
 func (c *common) Output() io.Writer {
-	return c.o
+	n := c.destination()
+	if n == nil {
+		panic("Output called after " + c.name + " has completed")
+	}
+	return n.o
 }
 
 // setOutputWriter initializes an outputWriter and sets it as a common field.
