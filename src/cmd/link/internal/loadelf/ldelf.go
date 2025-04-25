@@ -609,7 +609,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 				continue
 			}
 
-			if strings.HasPrefix(elfsym.name, ".LASF") || strings.HasPrefix(elfsym.name, ".LLRL") || strings.HasPrefix(elfsym.name, ".LLST") {
+			if strings.HasPrefix(elfsym.name, ".LASF") || strings.HasPrefix(elfsym.name, ".LLRL") || strings.HasPrefix(elfsym.name, ".LLST") || strings.HasPrefix(elfsym.name, ".LVUS") {
 				// gcc on s390x and riscv64 does this.
 				continue
 			}
