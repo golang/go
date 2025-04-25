@@ -412,6 +412,9 @@ var optab = []Optab{
 
 	{AVMOVQ, C_ELEM, C_NONE, C_NONE, C_ARNG, C_NONE, 45, 4, 0, 0},
 
+	{APRELD, C_SOREG, C_NONE, C_U5CON, C_NONE, C_NONE, 46, 4, 0, 0},
+	{APRELDX, C_ROFF, C_NONE, C_U5CON, C_NONE, C_NONE, 47, 4, 0, 0},
+
 	{obj.APCALIGN, C_U12CON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
 	{obj.APCDATA, C_32CON, C_NONE, C_NONE, C_32CON, C_NONE, 0, 0, 0, 0},
 	{obj.APCDATA, C_DCON, C_NONE, C_NONE, C_DCON, C_NONE, 0, 0, 0, 0},
@@ -1486,6 +1489,8 @@ func buildop(ctxt *obj.Link) {
 			ANEGW,
 			ANEGV,
 			AWORD,
+			APRELD,
+			APRELDX,
 			obj.ANOP,
 			obj.ATEXT,
 			obj.AFUNCDATA,
@@ -1905,6 +1910,10 @@ func OP_16IR_5I(op uint32, i uint32, r2 uint32) uint32 {
 
 func OP_16IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
 	return op | (i&0xFFFF)<<10 | (r2&0x1F)<<5 | (r3&0x1F)<<0
+}
+
+func OP_12IR_5I(op uint32, i1 uint32, r2 uint32, i2 uint32) uint32 {
+	return op | (i1&0xFFF)<<10 | (r2&0x1F)<<5 | (i2&0x1F)<<0
 }
 
 func OP_12IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
@@ -2443,6 +2452,17 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		index := uint32(p.From.Index)
 		c.checkindex(p, index, m)
 		o1 = v | (index << 10) | (vj << 5) | vd
+
+	case 46:
+		// preld  offset(Rbase), hint
+		offs := c.regoff(&p.From)
+		hint := p.GetFrom3().Offset
+		o1 = OP_12IR_5I(c.opiir(p.As), uint32(offs), uint32(p.From.Reg), uint32(hint))
+
+	case 47:
+		// preldx (Rbase)(Roff), hint
+		hint := p.GetFrom3().Offset
+		o1 = OP_5IRR(c.opirr(p.As), uint32(p.From.Index), uint32(p.From.Reg), uint32(hint))
 
 	case 49:
 		if p.As == ANOOP {
@@ -3836,7 +3856,8 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return 0x12<<26 | 0x1<<8
 	case ABFPF:
 		return 0x12<<26 | 0x0<<8
-
+	case APRELDX:
+		return 0x07058 << 15 // preldx
 	case AMOVB,
 		AMOVBU:
 		return 0x0a4 << 22
@@ -4058,6 +4079,15 @@ func (c *ctxt0) opirir(a obj.As) uint32 {
 		return 0x3<<21 | 0x1<<15 // bstrpick.w
 	case ABSTRPICKV:
 		return 0x3 << 22 // bstrpick.d
+	}
+
+	return 0
+}
+
+func (c *ctxt0) opiir(a obj.As) uint32 {
+	switch a {
+	case APRELD:
+		return 0x0AB << 22 // preld
 	}
 
 	return 0

@@ -199,6 +199,8 @@ var Anames = []string{
 	"BSTRINSV",
 	"BSTRPICKW",
 	"BSTRPICKV",
+	"PRELD",
+	"PRELDX",
 	"CRCWBW",
 	"CRCWHW",
 	"CRCWWW",

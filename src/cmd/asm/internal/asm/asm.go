@@ -654,6 +654,12 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				prog.RegTo2 = a[1].Reg
 				break
 			}
+
+			if arch.IsLoong64PRELD(op) {
+				prog.From = a[0]
+				prog.AddRestSource(a[1])
+				break
+			}
 		}
 		prog.From = a[0]
 		prog.To = a[1]

@@ -663,6 +663,10 @@ const (
 	ABSTRPICKW
 	ABSTRPICKV
 
+	// 2.2.5.4. Prefetch Instructions
+	APRELD
+	APRELDX
+
 	// 2.2.9. CRC Check Instructions
 	ACRCWBW
 	ACRCWHW
