@@ -762,7 +762,7 @@ func (pr *pkgReader) objIdxMayFail(idx index, implicits, explicits []*types.Type
 		if hack {
 			if sym.Def != nil {
 				name = sym.Def.(*ir.Name)
-				assert(name.Type() == typ)
+				assert(types.IdenticalStrict(name.Type(), typ))
 				return name, nil
 			}
 			sym.Def = name
