@@ -113,7 +113,7 @@ func (versionFlag) Set(s string) error {
 	// build ID of the binary, so that if the compiler is changed and
 	// rebuilt, we notice and rebuild all packages.
 	if s == "full" {
-		if strings.HasPrefix(buildcfg.Version, "devel") {
+		if strings.Contains(buildcfg.Version, "devel") {
 			p += " buildID=" + buildID
 		}
 	}
