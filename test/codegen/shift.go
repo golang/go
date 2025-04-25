@@ -656,3 +656,12 @@ func rsh64to8(v int64) int8 {
 	}
 	return x
 }
+
+// We don't need to worry about shifting
+// more than the type size.
+// (There is still a negative shift test, but
+// no shift-too-big test.)
+func signedModShift(i int) int64 {
+	// arm64:-"CMP",-"CSEL"
+	return 1 << (i % 64)
+}
