@@ -121,7 +121,7 @@ func (pw *PkgEncoder) StringIdx(s string) RelIndex {
 // NewEncoder returns an Encoder for a new element within the given
 // section, and encodes the given SyncMarker as the start of the
 // element bitstream.
-func (pw *PkgEncoder) NewEncoder(k RelocKind, marker SyncMarker) Encoder {
+func (pw *PkgEncoder) NewEncoder(k SectionKind, marker SyncMarker) Encoder {
 	e := pw.NewEncoderRaw(k)
 	e.Sync(marker)
 	return e
@@ -131,7 +131,7 @@ func (pw *PkgEncoder) NewEncoder(k RelocKind, marker SyncMarker) Encoder {
 // section.
 //
 // Most callers should use NewEncoder instead.
-func (pw *PkgEncoder) NewEncoderRaw(k RelocKind) Encoder {
+func (pw *PkgEncoder) NewEncoderRaw(k SectionKind) Encoder {
 	idx := RelIndex(len(pw.elems[k]))
 	pw.elems[k] = append(pw.elems[k], "") // placeholder
 
@@ -153,7 +153,7 @@ type Encoder struct {
 
 	encodingRelocHeader bool
 
-	k   RelocKind
+	k   SectionKind
 	Idx RelIndex // index within relocation section
 }
 
@@ -210,8 +210,8 @@ func (w *Encoder) rawVarint(x int64) {
 	w.rawUvarint(ux)
 }
 
-func (w *Encoder) rawReloc(r RelocKind, idx RelIndex) int {
-	e := RelocEnt{r, idx}
+func (w *Encoder) rawReloc(k SectionKind, idx RelIndex) int {
+	e := RelocEnt{k, idx}
 	if w.RelocMap != nil {
 		if i, ok := w.RelocMap[e]; ok {
 			return int(i)
@@ -302,9 +302,9 @@ func (w *Encoder) Uint(x uint) { w.Uint64(uint64(x)) }
 // Note: Only the index is formally written into the element
 // bitstream, so bitstream decoders must know from context which
 // section an encoded relocation refers to.
-func (w *Encoder) Reloc(r RelocKind, idx RelIndex) {
+func (w *Encoder) Reloc(k SectionKind, idx RelIndex) {
 	w.Sync(SyncUseReloc)
-	w.Len(w.rawReloc(r, idx))
+	w.Len(w.rawReloc(k, idx))
 }
 
 // Code encodes and writes a Code value into the element bitstream.

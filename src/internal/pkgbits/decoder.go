@@ -109,7 +109,7 @@ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
 }
 
 // NumElems returns the number of elements in section k.
-func (pr *PkgDecoder) NumElems(k RelocKind) int {
+func (pr *PkgDecoder) NumElems(k SectionKind) int {
 	count := int(pr.elemEndsEnds[k])
 	if k > 0 {
 		count -= int(pr.elemEndsEnds[k-1])
@@ -131,7 +131,7 @@ func (pr *PkgDecoder) Fingerprint() [8]byte {
 
 // AbsIdx returns the absolute index for the given (section, index)
 // pair.
-func (pr *PkgDecoder) AbsIdx(k RelocKind, idx RelIndex) int {
+func (pr *PkgDecoder) AbsIdx(k SectionKind, idx RelIndex) int {
 	absIdx := int(idx)
 	if k > 0 {
 		absIdx += int(pr.elemEndsEnds[k-1])
@@ -144,7 +144,7 @@ func (pr *PkgDecoder) AbsIdx(k RelocKind, idx RelIndex) int {
 
 // DataIdx returns the raw element bitstream for the given (section,
 // index) pair.
-func (pr *PkgDecoder) DataIdx(k RelocKind, idx RelIndex) string {
+func (pr *PkgDecoder) DataIdx(k SectionKind, idx RelIndex) string {
 	absIdx := pr.AbsIdx(k, idx)
 
 	var start uint32
@@ -163,7 +163,7 @@ func (pr *PkgDecoder) StringIdx(idx RelIndex) string {
 
 // NewDecoder returns a Decoder for the given (section, index) pair,
 // and decodes the given SyncMarker from the element bitstream.
-func (pr *PkgDecoder) NewDecoder(k RelocKind, idx RelIndex, marker SyncMarker) Decoder {
+func (pr *PkgDecoder) NewDecoder(k SectionKind, idx RelIndex, marker SyncMarker) Decoder {
 	r := pr.NewDecoderRaw(k, idx)
 	r.Sync(marker)
 	return r
@@ -173,7 +173,7 @@ func (pr *PkgDecoder) NewDecoder(k RelocKind, idx RelIndex, marker SyncMarker) D
 // and decodes the given SyncMarker from the element bitstream.
 // If possible the Decoder should be RetireDecoder'd when it is no longer
 // needed, this will avoid heap allocations.
-func (pr *PkgDecoder) TempDecoder(k RelocKind, idx RelIndex, marker SyncMarker) Decoder {
+func (pr *PkgDecoder) TempDecoder(k SectionKind, idx RelIndex, marker SyncMarker) Decoder {
 	r := pr.TempDecoderRaw(k, idx)
 	r.Sync(marker)
 	return r
@@ -187,7 +187,7 @@ func (pr *PkgDecoder) RetireDecoder(d *Decoder) {
 // NewDecoderRaw returns a Decoder for the given (section, index) pair.
 //
 // Most callers should use NewDecoder instead.
-func (pr *PkgDecoder) NewDecoderRaw(k RelocKind, idx RelIndex) Decoder {
+func (pr *PkgDecoder) NewDecoderRaw(k SectionKind, idx RelIndex) Decoder {
 	r := Decoder{
 		common: pr,
 		k:      k,
@@ -199,13 +199,13 @@ func (pr *PkgDecoder) NewDecoderRaw(k RelocKind, idx RelIndex) Decoder {
 	r.Relocs = make([]RelocEnt, r.Len())
 	for i := range r.Relocs {
 		r.Sync(SyncReloc)
-		r.Relocs[i] = RelocEnt{RelocKind(r.Len()), RelIndex(r.Len())}
+		r.Relocs[i] = RelocEnt{SectionKind(r.Len()), RelIndex(r.Len())}
 	}
 
 	return r
 }
 
-func (pr *PkgDecoder) TempDecoderRaw(k RelocKind, idx RelIndex) Decoder {
+func (pr *PkgDecoder) TempDecoderRaw(k SectionKind, idx RelIndex) Decoder {
 	r := Decoder{
 		common: pr,
 		k:      k,
@@ -223,7 +223,7 @@ func (pr *PkgDecoder) TempDecoderRaw(k RelocKind, idx RelIndex) Decoder {
 	}
 	for i := range r.Relocs {
 		r.Sync(SyncReloc)
-		r.Relocs[i] = RelocEnt{RelocKind(r.Len()), RelIndex(r.Len())}
+		r.Relocs[i] = RelocEnt{SectionKind(r.Len()), RelIndex(r.Len())}
 	}
 
 	return r
@@ -237,7 +237,7 @@ type Decoder struct {
 	Relocs []RelocEnt
 	Data   strings.Reader
 
-	k   RelocKind
+	k   SectionKind
 	Idx RelIndex
 }
 
@@ -292,7 +292,7 @@ func (r *Decoder) rawVarint() int64 {
 	return x
 }
 
-func (r *Decoder) rawReloc(k RelocKind, idx int) RelIndex {
+func (r *Decoder) rawReloc(k SectionKind, idx int) RelIndex {
 	e := r.Relocs[idx]
 	assert(e.Kind == k)
 	return e.Idx
@@ -401,7 +401,7 @@ func (r *Decoder) Code(mark SyncMarker) int {
 
 // Reloc decodes a relocation of expected section k from the element
 // bitstream and returns an index to the referenced element.
-func (r *Decoder) Reloc(k RelocKind) RelIndex {
+func (r *Decoder) Reloc(k SectionKind) RelIndex {
 	r.Sync(SyncUseReloc)
 	return r.rawReloc(k, r.Len())
 }

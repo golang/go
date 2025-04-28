@@ -8,9 +8,10 @@ package pkgbits
 // unified export data. Any object given a dedicated section can be referred to
 // via a section / index pair (and thus dereferenced) in other sections.
 type RelocKind int32 // TODO(markfreeman): Replace with uint8.
+type SectionKind = RelocKind
 
 const (
-	RelocString RelocKind = iota
+	RelocString SectionKind = iota
 	RelocMeta
 	RelocPosBase
 	RelocPkg
@@ -36,7 +37,7 @@ type RelIndex = Index
 // table. All elements are preceded by a reference table which provides
 // locations for all dereferences that the element may use.
 type RelocEnt struct {
-	Kind RelocKind
+	Kind SectionKind
 	Idx  RelIndex
 }
 
