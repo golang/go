@@ -836,7 +836,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	}
 	call.Mark |= BRANCH
 
-	unspill := c.cursym.Func().UnspillRegisterArgs(pcdata, c.newprog)
+	unspill := c.cursym.Func().UnspillRegisterArgs(call, c.newprog)
 
 	// JMP start
 	jmp := obj.Appendp(unspill, c.newprog)
