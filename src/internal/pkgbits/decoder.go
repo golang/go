@@ -131,7 +131,7 @@ func (pr *PkgDecoder) Fingerprint() [8]byte {
 
 // AbsIdx returns the absolute index for the given (section, index)
 // pair.
-func (pr *PkgDecoder) AbsIdx(k RelocKind, idx Index) int {
+func (pr *PkgDecoder) AbsIdx(k RelocKind, idx RelIndex) int {
 	absIdx := int(idx)
 	if k > 0 {
 		absIdx += int(pr.elemEndsEnds[k-1])
@@ -144,7 +144,7 @@ func (pr *PkgDecoder) AbsIdx(k RelocKind, idx Index) int {
 
 // DataIdx returns the raw element bitstream for the given (section,
 // index) pair.
-func (pr *PkgDecoder) DataIdx(k RelocKind, idx Index) string {
+func (pr *PkgDecoder) DataIdx(k RelocKind, idx RelIndex) string {
 	absIdx := pr.AbsIdx(k, idx)
 
 	var start uint32
@@ -157,13 +157,13 @@ func (pr *PkgDecoder) DataIdx(k RelocKind, idx Index) string {
 }
 
 // StringIdx returns the string value for the given string index.
-func (pr *PkgDecoder) StringIdx(idx Index) string {
+func (pr *PkgDecoder) StringIdx(idx RelIndex) string {
 	return pr.DataIdx(RelocString, idx)
 }
 
 // NewDecoder returns a Decoder for the given (section, index) pair,
 // and decodes the given SyncMarker from the element bitstream.
-func (pr *PkgDecoder) NewDecoder(k RelocKind, idx Index, marker SyncMarker) Decoder {
+func (pr *PkgDecoder) NewDecoder(k RelocKind, idx RelIndex, marker SyncMarker) Decoder {
 	r := pr.NewDecoderRaw(k, idx)
 	r.Sync(marker)
 	return r
@@ -173,7 +173,7 @@ func (pr *PkgDecoder) NewDecoder(k RelocKind, idx Index, marker SyncMarker) Deco
 // and decodes the given SyncMarker from the element bitstream.
 // If possible the Decoder should be RetireDecoder'd when it is no longer
 // needed, this will avoid heap allocations.
-func (pr *PkgDecoder) TempDecoder(k RelocKind, idx Index, marker SyncMarker) Decoder {
+func (pr *PkgDecoder) TempDecoder(k RelocKind, idx RelIndex, marker SyncMarker) Decoder {
 	r := pr.TempDecoderRaw(k, idx)
 	r.Sync(marker)
 	return r
@@ -187,7 +187,7 @@ func (pr *PkgDecoder) RetireDecoder(d *Decoder) {
 // NewDecoderRaw returns a Decoder for the given (section, index) pair.
 //
 // Most callers should use NewDecoder instead.
-func (pr *PkgDecoder) NewDecoderRaw(k RelocKind, idx Index) Decoder {
+func (pr *PkgDecoder) NewDecoderRaw(k RelocKind, idx RelIndex) Decoder {
 	r := Decoder{
 		common: pr,
 		k:      k,
@@ -199,13 +199,13 @@ func (pr *PkgDecoder) NewDecoderRaw(k RelocKind, idx Index) Decoder {
 	r.Relocs = make([]RelocEnt, r.Len())
 	for i := range r.Relocs {
 		r.Sync(SyncReloc)
-		r.Relocs[i] = RelocEnt{RelocKind(r.Len()), Index(r.Len())}
+		r.Relocs[i] = RelocEnt{RelocKind(r.Len()), RelIndex(r.Len())}
 	}
 
 	return r
 }
 
-func (pr *PkgDecoder) TempDecoderRaw(k RelocKind, idx Index) Decoder {
+func (pr *PkgDecoder) TempDecoderRaw(k RelocKind, idx RelIndex) Decoder {
 	r := Decoder{
 		common: pr,
 		k:      k,
@@ -223,7 +223,7 @@ func (pr *PkgDecoder) TempDecoderRaw(k RelocKind, idx Index) Decoder {
 	}
 	for i := range r.Relocs {
 		r.Sync(SyncReloc)
-		r.Relocs[i] = RelocEnt{RelocKind(r.Len()), Index(r.Len())}
+		r.Relocs[i] = RelocEnt{RelocKind(r.Len()), RelIndex(r.Len())}
 	}
 
 	return r
@@ -238,7 +238,7 @@ type Decoder struct {
 	Data   strings.Reader
 
 	k   RelocKind
-	Idx Index
+	Idx RelIndex
 }
 
 func (r *Decoder) checkErr(err error) {
@@ -292,7 +292,7 @@ func (r *Decoder) rawVarint() int64 {
 	return x
 }
 
-func (r *Decoder) rawReloc(k RelocKind, idx int) Index {
+func (r *Decoder) rawReloc(k RelocKind, idx int) RelIndex {
 	e := r.Relocs[idx]
 	assert(e.Kind == k)
 	return e.Idx
@@ -401,7 +401,7 @@ func (r *Decoder) Code(mark SyncMarker) int {
 
 // Reloc decodes a relocation of expected section k from the element
 // bitstream and returns an index to the referenced element.
-func (r *Decoder) Reloc(k RelocKind) Index {
+func (r *Decoder) Reloc(k RelocKind) RelIndex {
 	r.Sync(SyncUseReloc)
 	return r.rawReloc(k, r.Len())
 }
@@ -478,7 +478,7 @@ func (r *Decoder) bigFloat() *big.Float {
 
 // PeekPkgPath returns the package path for the specified package
 // index.
-func (pr *PkgDecoder) PeekPkgPath(idx Index) string {
+func (pr *PkgDecoder) PeekPkgPath(idx RelIndex) string {
 	var path string
 	{
 		r := pr.TempDecoder(RelocPkg, idx, SyncPkgDef)
@@ -493,8 +493,8 @@ func (pr *PkgDecoder) PeekPkgPath(idx Index) string {
 
 // PeekObj returns the package path, object name, and CodeObj for the
 // specified object index.
-func (pr *PkgDecoder) PeekObj(idx Index) (string, string, CodeObj) {
-	var ridx Index
+func (pr *PkgDecoder) PeekObj(idx RelIndex) (string, string, CodeObj) {
+	var ridx RelIndex
 	var name string
 	var rcode int
 	{

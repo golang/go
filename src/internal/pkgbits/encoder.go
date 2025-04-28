@@ -27,7 +27,7 @@ type PkgEncoder struct {
 	// stringsIdx maps previously encoded strings to their index within
 	// the RelocString section, to allow deduplication. That is,
 	// elems[RelocString][stringsIdx[s]] == s (if present).
-	stringsIdx map[string]Index
+	stringsIdx map[string]RelIndex
 
 	// syncFrames is the number of frames to write at each sync
 	// marker. A negative value means sync markers are omitted.
@@ -47,7 +47,7 @@ func (pw *PkgEncoder) SyncMarkers() bool { return pw.syncFrames >= 0 }
 func NewPkgEncoder(version Version, syncFrames int) PkgEncoder {
 	return PkgEncoder{
 		version:    version,
-		stringsIdx: make(map[string]Index),
+		stringsIdx: make(map[string]RelIndex),
 		syncFrames: syncFrames,
 	}
 }
@@ -106,13 +106,13 @@ func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
 
 // StringIdx adds a string value to the strings section, if not
 // already present, and returns its index.
-func (pw *PkgEncoder) StringIdx(s string) Index {
+func (pw *PkgEncoder) StringIdx(s string) RelIndex {
 	if idx, ok := pw.stringsIdx[s]; ok {
 		assert(pw.elems[RelocString][idx] == s)
 		return idx
 	}
 
-	idx := Index(len(pw.elems[RelocString]))
+	idx := RelIndex(len(pw.elems[RelocString]))
 	pw.elems[RelocString] = append(pw.elems[RelocString], s)
 	pw.stringsIdx[s] = idx
 	return idx
@@ -132,7 +132,7 @@ func (pw *PkgEncoder) NewEncoder(k RelocKind, marker SyncMarker) Encoder {
 //
 // Most callers should use NewEncoder instead.
 func (pw *PkgEncoder) NewEncoderRaw(k RelocKind) Encoder {
-	idx := Index(len(pw.elems[k]))
+	idx := RelIndex(len(pw.elems[k]))
 	pw.elems[k] = append(pw.elems[k], "") // placeholder
 
 	return Encoder{
@@ -154,11 +154,11 @@ type Encoder struct {
 	encodingRelocHeader bool
 
 	k   RelocKind
-	Idx Index // index within relocation section
+	Idx RelIndex // index within relocation section
 }
 
-// Flush finalizes the element's bitstream and returns its Index.
-func (w *Encoder) Flush() Index {
+// Flush finalizes the element's bitstream and returns its [RelIndex].
+func (w *Encoder) Flush() RelIndex {
 	var sb strings.Builder
 
 	// Backup the data so we write the relocations at the front.
@@ -210,7 +210,7 @@ func (w *Encoder) rawVarint(x int64) {
 	w.rawUvarint(ux)
 }
 
-func (w *Encoder) rawReloc(r RelocKind, idx Index) int {
+func (w *Encoder) rawReloc(r RelocKind, idx RelIndex) int {
 	e := RelocEnt{r, idx}
 	if w.RelocMap != nil {
 		if i, ok := w.RelocMap[e]; ok {
@@ -302,7 +302,7 @@ func (w *Encoder) Uint(x uint) { w.Uint64(uint64(x)) }
 // Note: Only the index is formally written into the element
 // bitstream, so bitstream decoders must know from context which
 // section an encoded relocation refers to.
-func (w *Encoder) Reloc(r RelocKind, idx Index) {
+func (w *Encoder) Reloc(r RelocKind, idx RelIndex) {
 	w.Sync(SyncUseReloc)
 	w.Len(w.rawReloc(r, idx))
 }
@@ -325,7 +325,7 @@ func (w *Encoder) String(s string) {
 
 // StringRef writes a reference to the given index, which must be a
 // previously encoded string value.
-func (w *Encoder) StringRef(idx Index) {
+func (w *Encoder) StringRef(idx RelIndex) {
 	w.Sync(SyncString)
 	w.Reloc(RelocString, idx)
 }

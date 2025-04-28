@@ -28,16 +28,20 @@ const (
 // particular section.
 type Index int32
 
+// TODO(markfreeman): Make RelIndex its own named type once we point external
+// references from Index to RelIndex.
+type RelIndex = Index
+
 // A RelocEnt, or relocation entry, is an entry in an element's reference
 // table. All elements are preceded by a reference table which provides
 // locations for all dereferences that the element may use.
 type RelocEnt struct {
 	Kind RelocKind
-	Idx  Index
+	Idx  RelIndex
 }
 
 // Reserved indices within the [RelocMeta] section.
 const (
-	PublicRootIdx  Index = 0
-	PrivateRootIdx Index = 1
+	PublicRootIdx  RelIndex = 0
+	PrivateRootIdx RelIndex = 1
 )
