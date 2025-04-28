@@ -13,10 +13,12 @@ import (
 	"internal/platform"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -34,6 +36,7 @@ import (
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/go/internal/work"
+	"cmd/internal/par"
 	"cmd/internal/test2json"
 
 	"golang.org/x/mod/module"
@@ -2012,7 +2015,17 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 }
 
 var errBadTestInputs = errors.New("error parsing test inputs")
+var errFileNotInRoot = errors.New("file used as input is not in package root")
 var testlogMagic = []byte("# test log\n") // known to testing/internal/testdeps/deps.go
+
+// logOp is a test log operation like stat or getenv.
+type logOp struct {
+	op   string
+	name string
+}
+
+// testInputsQueue limits total concurrency for computeTestInputsID.
+var testInputsQueue = par.NewQueue(runtime.GOMAXPROCS(0))
 
 // computeTestInputsID computes the "test inputs ID"
 // (see comment in tryCacheWithID above) for the
@@ -2025,8 +2038,23 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
 	testlog = bytes.TrimPrefix(testlog, testlogMagic)
 	h := cache.NewHash("testInputs")
 	// The runtime always looks at GODEBUG, without telling us in the testlog.
-	fmt.Fprintf(h, "env GODEBUG %x\n", hashGetenv("GODEBUG"))
+	fmt.Fprintf(h, "getenv GODEBUG %x\n", hashGetenv("GODEBUG"))
 	pwd := a.Package.Dir
+
+	// We do two passes. First, we build up the list of test log ops and resolve those concurrently.
+	// Second, we compute our final hash combining all our operations in the original test log order.
+	// The error checking of the test log file is done on the first pass.
+	// Returning errors for file operations is delayed until the second pass (to keep error reporting deterministic).
+
+	// Gather our test log ops.
+	var logOps []logOp
+	var logOpCache par.ErrCache[logOp, cache.ActionID]
+	work := make(map[logOp]func())
+	add := func(op, name string, f func() (cache.ActionID, error)) {
+		logOp := logOp{op: op, name: name}
+		logOps = append(logOps, logOp)
+		work[logOp] = func() { logOpCache.Do(logOp, f) }
+	}
 	for _, line := range bytes.Split(testlog, []byte("\n")) {
 		if len(line) == 0 {
 			continue
@@ -2046,37 +2074,75 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
 			}
 			return cache.ActionID{}, errBadTestInputs
 		case "getenv":
-			fmt.Fprintf(h, "env %s %x\n", name, hashGetenv(name))
+			add(op, name, func() (cache.ActionID, error) {
+				return hashGetenv(name), nil
+			})
 		case "chdir":
 			pwd = name // always absolute
-			fmt.Fprintf(h, "chdir %s %x\n", name, hashStat(name))
+			add(op, name, func() (cache.ActionID, error) {
+				return hashStat(name), nil
+			})
 		case "stat":
 			if !filepath.IsAbs(name) {
 				name = filepath.Join(pwd, name)
 			}
-			if a.Package.Root == "" || search.InDir(name, a.Package.Root) == "" {
-				// Do not recheck files outside the module, GOPATH, or GOROOT root.
-				break
-			}
-			fmt.Fprintf(h, "stat %s %x\n", name, hashStat(name))
+			add(op, name, func() (cache.ActionID, error) {
+				if a.Package.Root == "" || search.InDir(name, a.Package.Root) == "" {
+					// Do not recheck files outside the module, GOPATH, or GOROOT root.
+					return cache.ActionID{}, errFileNotInRoot
+				}
+				return hashStat(name), nil
+			})
 		case "open":
 			if !filepath.IsAbs(name) {
 				name = filepath.Join(pwd, name)
 			}
-			if a.Package.Root == "" || search.InDir(name, a.Package.Root) == "" {
-				// Do not recheck files outside the module, GOPATH, or GOROOT root.
-				break
-			}
-			fh, err := hashOpen(name)
-			if err != nil {
-				if cache.DebugTest {
-					fmt.Fprintf(os.Stderr, "testcache: %s: input file %s: %s\n", a.Package.ImportPath, name, err)
+			add(op, name, func() (cache.ActionID, error) {
+				if a.Package.Root == "" || search.InDir(name, a.Package.Root) == "" {
+					// Do not recheck files outside the module, GOPATH, or GOROOT root.
+					return cache.ActionID{}, errFileNotInRoot
 				}
-				return cache.ActionID{}, err
-			}
-			fmt.Fprintf(h, "open %s %x\n", name, fh)
+				return hashOpen(name)
+			})
 		}
 	}
+
+	// Create chunks of work and do the operations.
+	// The chunks are randomized courtesy of the map.
+	chunkCount := 10 * runtime.GOMAXPROCS(0)                 // above GOMAXPROCS to help stragglers
+	chunkSize := max((len(work)+chunkCount-1)/chunkCount, 1) // round up, at least 1
+	var wg sync.WaitGroup
+	for chunk := range slices.Chunk(slices.Collect(maps.Values(work)), chunkSize) {
+		wg.Add(1)
+		testInputsQueue.Add(func() {
+			defer wg.Done()
+			for _, f := range chunk {
+				f()
+			}
+		})
+	}
+	wg.Wait()
+
+	// We have all the test log op results now.
+	// Next, combine them in the original order for the final hash.
+	for _, l := range logOps {
+		op, name := l.op, l.name
+		actionID, err := logOpCache.Get(logOp{op: op, name: name})
+		switch {
+		case errors.Is(err, par.ErrCacheEntryNotFound):
+			panic("failed to find expected test log cache result")
+		case errors.Is(err, errFileNotInRoot):
+			continue
+		case err != nil:
+			if cache.DebugTest {
+				fmt.Fprintf(os.Stderr, "testcache: %s: input file %s: %s\n", a.Package.ImportPath, name, err)
+			}
+			return cache.ActionID{}, err
+		}
+
+		fmt.Fprintf(h, "%s %s %x\n", op, name, actionID)
+	}
+
 	sum := h.Sum()
 	return sum, nil
 }
