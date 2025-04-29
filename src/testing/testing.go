@@ -1119,21 +1119,17 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 // writeLine generates the output for a given line.
 func (o *outputWriter) writeLine(b []byte) {
 	b = append(indent, b...)
-	if o.c.done {
-		o.c.output = append(o.c.output, b...)
-	} else {
-		if o.c.chatty != nil {
-			if o.c.bench {
-				// Benchmarks don't print === CONT, so we should skip the test
-				// printer and just print straight to stdout.
-				fmt.Printf("%s", b)
-			} else {
-				o.c.chatty.Printf(o.c.name, "%s", b)
-			}
+	if !o.c.done && (o.c.chatty != nil) {
+		if o.c.bench {
+			// Benchmarks don't print === CONT, so we should skip the test
+			// printer and just print straight to stdout.
+			fmt.Printf("%s", b)
 		} else {
-			o.c.output = append(o.c.output, b...)
+			o.c.chatty.Printf(o.c.name, "%s", b)
 		}
+		return
 	}
+	o.c.output = append(o.c.output, b...)
 }
 
 // flush outputs the contents of the buffer.
