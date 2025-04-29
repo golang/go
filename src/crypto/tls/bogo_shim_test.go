@@ -125,6 +125,12 @@ func bogoShim() {
 		return
 	}
 
+	// Test with both the default and insecure cipher suites.
+	var ciphersuites []uint16
+	for _, s := range append(CipherSuites(), InsecureCipherSuites()...) {
+		ciphersuites = append(ciphersuites, s.ID)
+	}
+
 	cfg := &Config{
 		ServerName: "test",
 
@@ -132,6 +138,8 @@ func bogoShim() {
 		MaxVersion: uint16(*maxVersion),
 
 		ClientSessionCache: NewLRUClientSessionCache(0),
+
+		CipherSuites: ciphersuites,
 
 		GetConfigForClient: func(chi *ClientHelloInfo) (*Config, error) {
 
