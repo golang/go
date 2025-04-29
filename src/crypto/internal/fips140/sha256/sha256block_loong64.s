@@ -56,7 +56,7 @@
 // W[i] = M[i]; for 0 <= i <= 15
 #define LOAD0(index) \
 	MOVW	(index*4)(R5), REGTMP4; \
-	WORD	$0x38e7; \	// REVB2W REGTMP4, REGTMP4 to big-endian
+	REVB2W	REGTMP4, REGTMP4; \
 	MOVW	REGTMP4, (index*4)(R3)
 
 // W[i] = SIGMA1(W[i-2]) + W[i-7] + SIGMA0(W[i-15]) + W[i-16]; for 16 <= i <= 63
@@ -87,38 +87,37 @@
 // T1 = h + BIGSIGMA1(e) + Ch(e, f, g) + K[i] + W[i]
 // BIGSIGMA1(x) = ROTR(6,x) XOR ROTR(11,x) XOR ROTR(25,x)
 // Ch(x, y, z) = (x AND y) XOR (NOT x AND z)
+//             = ((y XOR z) AND x) XOR z
 // Calculate T1 in REGTMP4
 #define SHA256T1(const, e, f, g, h) \
 	ADDV	$const, h; \
 	ADD	REGTMP4, h; \
-	ROTR	$6, e, REGTMP4; \
+	ROTR	$6, e, REGTMP5; \
 	ROTR	$11, e, REGTMP; \
 	ROTR	$25, e, REGTMP3; \
-	AND	f, e, REGTMP2; \
-	XOR	REGTMP, REGTMP4; \
-	MOVV	$0xffffffff, REGTMP; \
-	XOR	REGTMP4, REGTMP3; \
-	XOR	REGTMP, e, REGTMP5; \
+	XOR	f, g, REGTMP2; \
+	XOR	REGTMP, REGTMP5; \
+	AND	e, REGTMP2; \
+	XOR	REGTMP5, REGTMP3; \
+	XOR	g, REGTMP2; \
 	ADD	REGTMP3, h; \
-	AND	g, REGTMP5; \
-	XOR	REGTMP2, REGTMP5; \
-	ADD	h, REGTMP5, REGTMP4
+	ADD	h, REGTMP2, REGTMP4
 
 // T2 = BIGSIGMA0(a) + Maj(a, b, c)
 // BIGSIGMA0(x) = ROTR(2,x) XOR ROTR(13,x) XOR ROTR(22,x)
 // Maj(x, y, z) = (x AND y) XOR (x AND z) XOR (y AND z)
+//              = ((y XOR z) AND x) XOR (y AND z)
 // Calculate T2 in REGTMP1
 #define SHA256T2(a, b, c) \
 	ROTR	$2, a, REGTMP5; \
-	AND	b, c, REGTMP1; \
 	ROTR	$13, a, REGTMP3; \
-	AND	c, a, REGTMP; \
-	XOR	REGTMP3, REGTMP5; \
-	XOR	REGTMP, REGTMP1; \
 	ROTR	$22, a, REGTMP2; \
-	AND	a, b, REGTMP3; \
+	XOR	b, c, REGTMP; \
+	AND	b, c, REGTMP1; \
+	XOR	REGTMP3, REGTMP5; \
+	AND	REGTMP, a, REGTMP; \
 	XOR	REGTMP2, REGTMP5; \
-	XOR	REGTMP3, REGTMP1; \
+	XOR	REGTMP, REGTMP1; \
 	ADD	REGTMP5, REGTMP1
 
 // Calculate T1 and T2, then e = d + T1 and a = T1 + T2.
