@@ -1013,7 +1013,7 @@ func (c *common) log(s string) {
 
 	// Second and subsequent lines are indented 4 spaces. This is in addition to
 	// the indentation provided by outputWriter.
-	s = strings.ReplaceAll(s, "\n", fmt.Sprintf("%s\n", indent))
+	s = strings.ReplaceAll(s, "\n", fmt.Sprintf("\n%s", indent))
 	s += "\n"
 
 	n := c.destination()
