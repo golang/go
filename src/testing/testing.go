@@ -843,7 +843,7 @@ type indenter struct {
 	c *common
 }
 
-const indent = "    "
+var indent = []byte("    ")
 
 func (w indenter) Write(b []byte) (n int, err error) {
 	n = len(b)
@@ -1013,7 +1013,7 @@ func (c *common) log(s string) {
 
 	// Second and subsequent lines are indented 4 spaces. This is in addition to
 	// the indentation provided by outputWriter.
-	s = strings.ReplaceAll(s, "\n", "\n"+indent)
+	s = strings.ReplaceAll(s, "\n", fmt.Sprintf("%s\n", indent))
 	s += "\n"
 
 	n := c.destination()
@@ -1108,7 +1108,7 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 			line = bytes.Join([][]byte{o.partial, line}, []byte(""))
 			o.partial = o.partial[:0]
 		}
-		o.writeLine(append([]byte(indent), line...))
+		o.writeLine(line)
 	}
 	// Save partial line for next call.
 	o.partial = append(o.partial, lines[last]...)
@@ -1118,6 +1118,7 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 
 // writeLine generates the output for a given line.
 func (o *outputWriter) writeLine(b []byte) {
+	b = append(indent, b...)
 	if o.c.done {
 		o.c.output = append(o.c.output, b...)
 	} else {
