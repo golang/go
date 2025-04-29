@@ -4,7 +4,7 @@
 
 The compiler and linker in Go 1.25 now generate debug information
 using [DWARF version 5](https://dwarfstd.org/dwarf5std.html); the
-newer DWARF version reduces the space required for debuging
+newer DWARF version reduces the space required for debugging
 information in Go binaries.
 DWARF 5 generation is gated by the "dwarf5" GOEXPERIMENT; this
 functionality can be disabled (for now) using GOEXPERIMENT=nodwarf5.
@@ -35,7 +35,7 @@ the error. The main result of `os.Open` can be a nil pointer if the error result
 But because of [a compiler bug](/issue/72860), this program ran successfully under
 Go versions 1.21 through 1.24 (in violation of the Go spec). It will no longer run
 successfully in Go 1.25. If this change is affecting your code, the solution is to put
-the non-nil error check earlier in your code, preferrably immediately after
+the non-nil error check earlier in your code, preferably immediately after
 the error-generating statement.
 
 ## Assembler {#assembler}

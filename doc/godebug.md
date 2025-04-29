@@ -370,7 +370,7 @@ certificate policy OIDs with components larger than 31 bits. By default this
 field is only used during parsing, when it is populated with policy OIDs, but
 not used during marshaling. It can be used to marshal these larger OIDs, instead
 of the existing PolicyIdentifiers field, by using the
-[`x509usepolicies` setting.](/pkg/crypto/x509/#CreateCertificate).
+[`x509usepolicies` setting](/pkg/crypto/x509/#CreateCertificate).
 
 
 ### Go 1.21
