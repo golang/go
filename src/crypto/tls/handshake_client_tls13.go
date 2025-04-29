@@ -197,8 +197,8 @@ func (hs *clientHandshakeStateTLS13) checkServerHelloOrHRR() error {
 	}
 
 	if hs.serverHello.compressionMethod != compressionNone {
-		c.sendAlert(alertIllegalParameter)
-		return errors.New("tls: server selected unsupported compression format")
+		c.sendAlert(alertDecodeError)
+		return errors.New("tls: server sent non-zero legacy TLS compression method")
 	}
 
 	selectedSuite := mutualCipherSuiteTLS13(hs.hello.cipherSuites, hs.serverHello.cipherSuite)
