@@ -65,7 +65,6 @@
         "NoNullCompression-TLS12": "TODO: first pass, this should be fixed",
         "KeyUpdate-RequestACK": "TODO: first pass, this should be fixed",
         "TLS13-HRR-InvalidCompressionMethod": "TODO: first pass, this should be fixed",
-        "InvalidCompressionMethod": "TODO: first pass, this should be fixed",
         "TLS-TLS12-RSA_WITH_AES_128_GCM_SHA256-LargeRecord": "TODO: first pass, this should be fixed",
         "TLS-TLS1-RSA_WITH_AES_128_CBC_SHA-LargeRecord": "TODO: first pass, this should be fixed",
         "TLS-TLS11-RSA_WITH_AES_128_CBC_SHA-LargeRecord": "TODO: first pass, this should be fixed",

@@ -889,7 +889,7 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 	}
 
 	if hs.serverHello.compressionMethod != compressionNone {
-		c.sendAlert(alertUnexpectedMessage)
+		c.sendAlert(alertIllegalParameter)
 		return false, errors.New("tls: server selected unsupported compression format")
 	}
 
