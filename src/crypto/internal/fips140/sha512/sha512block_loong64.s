@@ -18,7 +18,7 @@
 // W[i] = M[i]; for 0 <= i <= 15
 #define LOAD0(index) \
 	MOVV	(index*8)(R5), REGTMP4; \
-	WORD	$0x3ce7; \	//REVBV	REGTMP4, REGTMP4
+	REVBV	REGTMP4, REGTMP4; \
 	MOVV	REGTMP4, (index*8)(R3)
 
 // W[i] = SIGMA1(W[i-2]) + W[i-7] + SIGMA0(W[i-15]) + W[i-16]; for 16 <= i <= 79
@@ -50,38 +50,37 @@
 //   T1 = h + BIGSIGMA1(e) + Ch(e, f, g) + K[i] + W[i]
 //     BIGSIGMA1(x) = ROTR(14,x) XOR ROTR(18,x) XOR ROTR(41,x)
 //     Ch(x, y, z) = (x AND y) XOR (NOT x AND z)
+//                 = ((y XOR z) AND x) XOR z
 // Calculate T1 in REGTMP4
 #define SHA512T1(const, e, f, g, h) \
 	ADDV	$const, h; \
 	ADDV	REGTMP4, h; \
-	ROTRV	$14, e, REGTMP4; \
+	ROTRV	$14, e, REGTMP5; \
 	ROTRV	$18, e, REGTMP; \
 	ROTRV	$41, e, REGTMP3; \
-	AND	f, e, REGTMP2; \
-	XOR	REGTMP, REGTMP4; \
-	MOVV	$0xffffffffffffffff, REGTMP; \
-	XOR	REGTMP4, REGTMP3; \
-	XOR	REGTMP, e, REGTMP5; \
+	XOR	f, g, REGTMP2; \
+	XOR	REGTMP, REGTMP5; \
+	AND	e, REGTMP2; \
+	XOR	REGTMP5, REGTMP3; \
+	XOR	g, REGTMP2; \
 	ADDV	REGTMP3, h; \
-	AND	g, REGTMP5; \
-	XOR	REGTMP2, REGTMP5; \
-	ADDV	h, REGTMP5, REGTMP4
+	ADDV	h, REGTMP2, REGTMP4
 
 // T2 = BIGSIGMA0(a) + Maj(a, b, c)
 // BIGSIGMA0(x) = ROTR(28,x) XOR ROTR(34,x) XOR ROTR(39,x)
 // Maj(x, y, z) = (x AND y) XOR (x AND z) XOR (y AND z)
+//              = ((y XOR z) AND x) XOR (y AND z)
 // Calculate T2 in REGTMP1
 #define SHA512T2(a, b, c) \
 	ROTRV	$28, a, REGTMP5; \
-	AND	b, c, REGTMP1; \
 	ROTRV	$34, a, REGTMP3; \
-	AND	c, a, REGTMP; \
-	XOR	REGTMP3, REGTMP5; \
-	XOR	REGTMP, REGTMP1; \
 	ROTRV	$39, a, REGTMP2; \
-	AND	a, b, REGTMP3; \
-	XOR	REGTMP3, REGTMP1; \
+	XOR	b, c, REGTMP; \
+	AND	b, c, REGTMP1; \
+	XOR	REGTMP3, REGTMP5; \
+	AND	REGTMP, a, REGTMP; \
 	XOR	REGTMP2, REGTMP5; \
+	XOR	REGTMP, REGTMP1; \
 	ADDV	REGTMP5, REGTMP1
 
 // Calculate T1 and T2, then e = d + T1 and a = T1 + T2.
