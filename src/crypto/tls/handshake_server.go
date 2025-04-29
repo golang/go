@@ -272,7 +272,11 @@ func (hs *serverHandshakeState) processClientHello() error {
 		hs.hello.scts = hs.cert.SignedCertificateTimestamps
 	}
 
-	hs.ecdheOk = supportsECDHE(c.config, c.vers, hs.clientHello.supportedCurves, hs.clientHello.supportedPoints)
+	hs.ecdheOk, err = supportsECDHE(c.config, c.vers, hs.clientHello.supportedCurves, hs.clientHello.supportedPoints)
+	if err != nil {
+		c.sendAlert(alertMissingExtension)
+		return err
+	}
 
 	if hs.ecdheOk && len(hs.clientHello.supportedPoints) > 0 {
 		// Although omitting the ec_point_formats extension is permitted, some
@@ -343,7 +347,7 @@ func negotiateALPN(serverProtos, clientProtos []string, quic bool) (string, erro
 
 // supportsECDHE returns whether ECDHE key exchanges can be used with this
 // pre-TLS 1.3 client.
-func supportsECDHE(c *Config, version uint16, supportedCurves []CurveID, supportedPoints []uint8) bool {
+func supportsECDHE(c *Config, version uint16, supportedCurves []CurveID, supportedPoints []uint8) (bool, error) {
 	supportsCurve := false
 	for _, curve := range supportedCurves {
 		if c.supportsCurve(version, curve) {
@@ -353,10 +357,12 @@ func supportsECDHE(c *Config, version uint16, supportedCurves []CurveID, support
 	}
 
 	supportsPointFormat := false
+	offeredNonCompressedFormat := false
 	for _, pointFormat := range supportedPoints {
 		if pointFormat == pointFormatUncompressed {
 			supportsPointFormat = true
-			break
+		} else {
+			offeredNonCompressedFormat = true
 		}
 	}
 	// Per RFC 8422, Section 5.1.2, if the Supported Point Formats extension is
@@ -365,9 +371,11 @@ func supportsECDHE(c *Config, version uint16, supportedCurves []CurveID, support
 	// the parser. See https://go.dev/issue/49126.
 	if len(supportedPoints) == 0 {
 		supportsPointFormat = true
+	} else if offeredNonCompressedFormat && !supportsPointFormat {
+		return false, errors.New("tls: client offered only incompatible point formats")
 	}
 
-	return supportsCurve && supportsPointFormat
+	return supportsCurve && supportsPointFormat, nil
 }
 
 func (hs *serverHandshakeState) pickCipherSuite() error {

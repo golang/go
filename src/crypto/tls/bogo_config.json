@@ -131,7 +131,6 @@
         "SendClientVersion-RSA": "TODO: first pass, this should be fixed",
         "NoCommonCurves": "TODO: first pass, this should be fixed",
         "PointFormat-EncryptedExtensions-TLS13": "TODO: first pass, this should be fixed",
-        "PointFormat-Client-MissingUncompressed": "TODO: first pass, this should be fixed",
         "TLS13-SendNoKEMModesWithPSK-Server": "TODO: first pass, this should be fixed",
         "TLS13-DuplicateTicketEarlyDataSupport": "TODO: first pass, this should be fixed",
         "Basic-Client-NoTicket-TLS-Sync": "TODO: first pass, this should be fixed",
