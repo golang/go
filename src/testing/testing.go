@@ -11,7 +11,7 @@
 // where Xxx does not start with a lowercase letter. The function name
 // serves to identify the test routine.
 //
-// Within these functions, use the Error, Fail or related methods to signal failure.
+// Within these functions, use [T.Error], [T.Fail] or related methods to signal failure.
 //
 // To write a new test suite, create a file that
 // contains the TestXxx functions as described here,
@@ -55,7 +55,7 @@
 //	    }
 //	}
 //
-// For more detail, run "go help test" and "go help testflag".
+// For more detail, run [go help test] and [go help testflag].
 //
 // # Benchmarks
 //
@@ -66,8 +66,7 @@
 // are considered benchmarks, and are executed by the "go test" command when
 // its -bench flag is provided. Benchmarks are run sequentially.
 //
-// For a description of the testing flags, see
-// https://golang.org/cmd/go/#hdr-Testing_flags.
+// For a description of the testing flags, see [go help testflag].
 //
 // A sample benchmark function looks like this:
 //
@@ -110,11 +109,11 @@
 //	}
 //
 // A detailed specification of the benchmark results format is given
-// in https://golang.org/design/14313-benchmark-format.
+// in https://go.dev/design/14313-benchmark-format.
 //
 // There are standard tools for working with benchmark results at
-// https://golang.org/x/perf/cmd.
-// In particular, https://golang.org/x/perf/cmd/benchstat performs
+// [golang.org/x/perf/cmd].
+// In particular, [golang.org/x/perf/cmd/benchstat] performs
 // statistically robust A/B comparisons.
 //
 // # b.N-style benchmarks
@@ -237,19 +236,19 @@
 //
 // A fuzz test maintains a seed corpus, or a set of inputs which are run by
 // default, and can seed input generation. Seed inputs may be registered by
-// calling (*F).Add or by storing files in the directory testdata/fuzz/<Name>
+// calling [F.Add] or by storing files in the directory testdata/fuzz/<Name>
 // (where <Name> is the name of the fuzz test) within the package containing
 // the fuzz test. Seed inputs are optional, but the fuzzing engine may find
 // bugs more efficiently when provided with a set of small seed inputs with good
 // code coverage. These seed inputs can also serve as regression tests for bugs
 // identified through fuzzing.
 //
-// The function passed to (*F).Fuzz within the fuzz test is considered the fuzz
-// target. A fuzz target must accept a *T parameter, followed by one or more
-// parameters for random inputs. The types of arguments passed to (*F).Add must
+// The function passed to [F.Fuzz] within the fuzz test is considered the fuzz
+// target. A fuzz target must accept a [*T] parameter, followed by one or more
+// parameters for random inputs. The types of arguments passed to [F.Add] must
 // be identical to the types of these parameters. The fuzz target may signal
-// that it's found a problem the same way tests do: by calling T.Fail (or any
-// method that calls it like T.Error or T.Fatal) or by panicking.
+// that it's found a problem the same way tests do: by calling [T.Fail] (or any
+// method that calls it like [T.Error] or [T.Fatal]) or by panicking.
 //
 // When fuzzing is enabled (by setting the -fuzz flag to a regular expression
 // that matches a specific fuzz test), the fuzz target is called with arguments
@@ -265,16 +264,16 @@
 // the fuzz cache directory within the build cache instead.
 //
 // When fuzzing is disabled, the fuzz target is called with the seed inputs
-// registered with F.Add and seed inputs from testdata/fuzz/<Name>. In this
+// registered with [F.Add] and seed inputs from testdata/fuzz/<Name>. In this
 // mode, the fuzz test acts much like a regular test, with subtests started
-// with F.Fuzz instead of T.Run.
+// with [F.Fuzz] instead of [T.Run].
 //
 // See https://go.dev/doc/fuzz for documentation about fuzzing.
 //
 // # Skipping
 //
 // Tests or benchmarks may be skipped at run time with a call to
-// the Skip method of *T or *B:
+// [T.Skip] or [B.Skip]:
 //
 //	func TestTimeConsuming(t *testing.T) {
 //	    if testing.Short() {
@@ -283,7 +282,7 @@
 //	    ...
 //	}
 //
-// The Skip method of *T can be used in a fuzz target if the input is invalid,
+// The [T.Skip] method can be used in a fuzz target if the input is invalid,
 // but should not be considered a failing input. For example:
 //
 //	func FuzzJSONMarshaling(f *testing.F) {
@@ -300,7 +299,7 @@
 //
 // # Subtests and Sub-benchmarks
 //
-// The Run methods of T and B allow defining subtests and sub-benchmarks,
+// The [T.Run] and [B.Run] methods allow defining subtests and sub-benchmarks,
 // without having to define separate functions for each. This enables uses
 // like table-driven benchmarks and creating hierarchical tests.
 // It also provides a way to share common setup and tear-down code:
@@ -377,12 +376,12 @@
 // then the generated test will call TestMain(m) instead of running the tests or benchmarks
 // directly. TestMain runs in the main goroutine and can do whatever setup
 // and teardown is necessary around a call to m.Run. m.Run will return an exit
-// code that may be passed to os.Exit. If TestMain returns, the test wrapper
-// will pass the result of m.Run to os.Exit itself.
+// code that may be passed to [os.Exit]. If TestMain returns, the test wrapper
+// will pass the result of m.Run to [os.Exit] itself.
 //
 // When TestMain is called, flag.Parse has not been run. If TestMain depends on
 // command-line flags, including those of the testing package, it should call
-// flag.Parse explicitly. Command line flags are always parsed by the time test
+// [flag.Parse] explicitly. Command line flags are always parsed by the time test
 // or benchmark functions run.
 //
 // A simple implementation of TestMain is:
@@ -394,6 +393,9 @@
 //
 // TestMain is a low-level primitive and should not be necessary for casual
 // testing needs, where ordinary test functions suffice.
+//
+// [go help test]: https://pkg.go.dev/cmd/go#hdr-Test_packages
+// [go help testflag]: https://pkg.go.dev/cmd/go#hdr-Testing_flags
 package testing
 
 import (
@@ -909,7 +911,7 @@ func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
 }
 
-// TB is the interface common to T, B, and F.
+// TB is the interface common to [T], [B], and [F].
 type TB interface {
 	Cleanup(func())
 	Error(args ...any)
@@ -944,11 +946,11 @@ var _ TB = (*B)(nil)
 // T is a type passed to Test functions to manage test state and support formatted test logs.
 //
 // A test ends when its Test function returns or calls any of the methods
-// FailNow, Fatal, Fatalf, SkipNow, Skip, or Skipf. Those methods, as well as
-// the Parallel method, must be called only from the goroutine running the
+// [T.FailNow], [T.Fatal], [T.Fatalf], [T.SkipNow], [T.Skip], or [T.Skipf]. Those methods, as well as
+// the [T.Parallel] method, must be called only from the goroutine running the
 // Test function.
 //
-// The other reporting methods, such as the variations of Log and Error,
+// The other reporting methods, such as the variations of [T.Log] and [T.Error],
 // may be called simultaneously from multiple goroutines.
 type T struct {
 	common
@@ -1005,7 +1007,7 @@ func (c *common) Failed() bool {
 }
 
 // FailNow marks the function as having failed and stops its execution
-// by calling runtime.Goexit (which then runs all deferred calls in the
+// by calling [runtime.Goexit] (which then runs all deferred calls in the
 // current goroutine).
 // Execution will continue at the next test or benchmark.
 // FailNow must be called from the goroutine running the
@@ -1078,7 +1080,7 @@ func (c *common) logDepth(s string, depth int) {
 	}
 }
 
-// Log formats its arguments using default formatting, analogous to Println,
+// Log formats its arguments using default formatting, analogous to [fmt.Println],
 // and records the text in the error log. For tests, the text will be printed only if
 // the test fails or the -test.v flag is set. For benchmarks, the text is always
 // printed to avoid having performance depend on the value of the -test.v flag.
@@ -1088,7 +1090,7 @@ func (c *common) Log(args ...any) {
 	c.log(fmt.Sprintln(args...))
 }
 
-// Logf formats its arguments according to the format, analogous to Printf, and
+// Logf formats its arguments according to the format, analogous to [fmt.Printf], and
 // records the text in the error log. A final newline is added if not provided. For
 // tests, the text will be printed only if the test fails or the -test.v flag is
 // set. For benchmarks, the text is always printed to avoid having performance
@@ -1221,7 +1223,7 @@ func (c *common) Cleanup(f func()) {
 // TempDir returns a temporary directory for the test to use.
 // The directory is automatically removed when the test and
 // all its subtests complete.
-// Each subsequent call to t.TempDir returns a unique directory;
+// Each subsequent call to TempDir returns a unique directory;
 // if the directory creation fails, TempDir terminates the test by calling Fatal.
 func (c *common) TempDir() string {
 	c.checkFuzzFn("TempDir")
@@ -1319,7 +1321,7 @@ func removeAll(path string) error {
 	}
 }
 
-// Setenv calls os.Setenv(key, value) and uses Cleanup to
+// Setenv calls [os.Setenv] and uses Cleanup to
 // restore the environment variable to its original value
 // after the test.
 //
@@ -1344,7 +1346,7 @@ func (c *common) Setenv(key, value string) {
 	}
 }
 
-// Chdir calls os.Chdir(dir) and uses Cleanup to restore the current
+// Chdir calls [os.Chdir] and uses Cleanup to restore the current
 // working directory to its original value after the test. On Unix, it
 // also sets PWD environment variable for the duration of the test.
 //
@@ -1390,7 +1392,7 @@ func (c *common) Chdir(dir string) {
 // Cleanup-registered functions are called.
 //
 // Cleanup functions can wait for any resources
-// that shut down on Context.Done before the test or benchmark completes.
+// that shut down on [context.Context.Done] before the test or benchmark completes.
 func (c *common) Context() context.Context {
 	c.checkFuzzFn("Context")
 	return c.ctx
@@ -1623,7 +1625,7 @@ func (t *T) Setenv(key, value string) {
 	t.common.Setenv(key, value)
 }
 
-// Chdir calls os.Chdir(dir) and uses Cleanup to restore the current
+// Chdir calls [os.Chdir] and uses Cleanup to restore the current
 // working directory to its original value after the test. On Unix, it
 // also sets PWD environment variable for the duration of the test.
 //
@@ -1979,7 +1981,7 @@ func (f matchStringOnly) InitRuntimeCoverage() (mode string, tearDown func(strin
 // It is no longer used by "go test" but preserved, as much as possible, for other
 // systems that simulate "go test" using Main, but Main sometimes cannot be updated as
 // new functionality is added to the testing package.
-// Systems simulating "go test" should be updated to use MainStart.
+// Systems simulating "go test" should be updated to use [MainStart].
 func Main(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) {
 	os.Exit(MainStart(matchStringOnly(matchString), tests, benchmarks, nil, examples).Run())
 }

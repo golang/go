@@ -15,7 +15,7 @@ import (
 // a warm-up. The average number of allocations over the specified number of
 // runs will then be measured and returned.
 //
-// AllocsPerRun sets GOMAXPROCS to 1 during its measurement and will restore
+// AllocsPerRun sets [runtime.GOMAXPROCS] to 1 during its measurement and will restore
 // it before returning.
 func AllocsPerRun(runs int, f func()) (avg float64) {
 	if parallelStart.Load() != parallelStop.Load() {

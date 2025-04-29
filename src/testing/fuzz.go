@@ -57,15 +57,15 @@ type InternalFuzzTarget struct {
 // find and report potential bugs in the code being tested.
 //
 // A fuzz test runs the seed corpus by default, which includes entries provided
-// by (*F).Add and entries in the testdata/fuzz/<FuzzTestName> directory. After
-// any necessary setup and calls to (*F).Add, the fuzz test must then call
-// (*F).Fuzz to provide the fuzz target. See the testing package documentation
+// by [F.Add] and entries in the testdata/fuzz/<FuzzTestName> directory. After
+// any necessary setup and calls to [F.Add], the fuzz test must then call
+// [F.Fuzz] to provide the fuzz target. See the testing package documentation
 // for an example, and see the [F.Fuzz] and [F.Add] method documentation for
 // details.
 //
-// *F methods can only be called before (*F).Fuzz. Once the test is
-// executing the fuzz target, only (*T) methods can be used. The only *F methods
-// that are allowed in the (*F).Fuzz function are (*F).Failed and (*F).Name.
+// *F methods can only be called before [F.Fuzz]. Once the test is
+// executing the fuzz target, only [*T] methods can be used. The only *F methods
+// that are allowed in the [F.Fuzz] function are [F.Failed] and [F.Name].
 type F struct {
 	common
 	fstate *fuzzState
@@ -185,7 +185,7 @@ var supportedTypes = map[reflect.Type]bool{
 // Fuzz runs the fuzz function, ff, for fuzz testing. If ff fails for a set of
 // arguments, those arguments will be added to the seed corpus.
 //
-// ff must be a function with no return value whose first argument is *T and
+// ff must be a function with no return value whose first argument is [*T] and
 // whose remaining arguments are the types to be fuzzed.
 // For example:
 //
@@ -195,9 +195,9 @@ var supportedTypes = map[reflect.Type]bool{
 // float64, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64.
 // More types may be supported in the future.
 //
-// ff must not call any *F methods, e.g. (*F).Log, (*F).Error, (*F).Skip. Use
-// the corresponding *T method instead. The only *F methods that are allowed in
-// the (*F).Fuzz function are (*F).Failed and (*F).Name.
+// ff must not call any [*F] methods, e.g. [F.Log], [F.Error], [F.Skip]. Use
+// the corresponding [*T] method instead. The only [*F] methods that are allowed in
+// the F.Fuzz function are [F.Failed] and [F.Name].
 //
 // This function should be fast and deterministic, and its behavior should not
 // depend on shared state. No mutable input arguments, or pointers to them,
@@ -207,7 +207,7 @@ var supportedTypes = map[reflect.Type]bool{
 //
 // When fuzzing, F.Fuzz does not return until a problem is found, time runs out
 // (set with -fuzztime), or the test process is interrupted by a signal. F.Fuzz
-// should be called exactly once, unless F.Skip or [F.Fail] is called beforehand.
+// should be called exactly once, unless [F.Skip] or [F.Fail] is called beforehand.
 func (f *F) Fuzz(ff any) {
 	if f.fuzzCalled {
 		panic("testing: F.Fuzz called more than once")
