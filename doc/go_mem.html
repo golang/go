@@ -941,7 +941,7 @@ For example, on essentially all CPUs, it is valid to rewrite
 
 <pre>
 n := 0
-for i := 0; i < m; i++ {
+for range m {
 	n += *shared
 }
 </pre>
@@ -951,7 +951,7 @@ into:
 <pre>
 n := 0
 local := *shared
-for i := 0; i < m; i++ {
+for range m {
 	n += local
 }
 </pre>
