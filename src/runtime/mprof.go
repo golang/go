@@ -732,11 +732,6 @@ func (prof *mLockProfile) captureStack() {
 	prof.haveStack = true
 
 	prof.stack[0] = logicalStackSentinel
-	if debug.runtimeContentionStacks.Load() == 0 {
-		prof.stack[1] = abi.FuncPCABIInternal(_LostContendedRuntimeLock) + sys.PCQuantum
-		prof.stack[2] = 0
-		return
-	}
 
 	var nstk int
 	gp := getg()

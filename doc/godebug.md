@@ -169,6 +169,9 @@ Go command will follow symlinks to regular files embedding files.
 The default value `embedfollowsymlinks=0` does not allow following
 symlinks. `embedfollowsymlinks=1` will allow following symlinks.
 
+Go 1.25 corrected the semantics of contention reports for runtime-internal locks,
+and so removed the [`runtimecontentionstacks` setting](/pkg/runtime#hdr-Environment_Variable).
+
 ### Go 1.24
 
 Go 1.24 added a new `fips140` setting that controls whether the Go
