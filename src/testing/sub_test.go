@@ -1022,8 +1022,8 @@ func TestOutputWriter(t *T) {
 		if string(o.c.output) != tc.out {
 			t.Errorf("output:\ngot:\n%s\nwant:\n%s", o.c.output, tc.out)
 		}
-		if string(o.b) != tc.buf {
-			t.Errorf("buffer:\ngot:\n%s\nwant:\n%s", o.b, tc.buf)
+		if string(o.partial) != tc.buf {
+			t.Errorf("buffer:\ngot:\n%s\nwant:\n%s", o.partial, tc.buf)
 		}
 	}
 }

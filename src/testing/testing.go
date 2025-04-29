@@ -1068,12 +1068,12 @@ func (c *common) callSite(skip int) string {
 	return fmt.Sprintf("%s:%d: ", file, line)
 }
 
-// // Output returns a Writer that writes to the same test output stream as TB.Log.
-// // The output is indented like TB.Log lines, but Output does not
-// // add source locations or newlines. The output is internally line
-// // buffered, and a call to TB.Log or the end of the test will implicitly
-// // flush the buffer, followed by a newline. After a test function returns,
-// // neither Output nor the Write method may be called.
+// Output returns a Writer that writes to the same test output stream as TB.Log.
+// The output is indented like TB.Log lines, but Output does not
+// add source locations or newlines. The output is internally line
+// buffered, and a call to TB.Log or the end of the test will implicitly
+// flush the buffer, followed by a newline. After a test function returns,
+// neither Output nor the Write method may be called.
 func (c *common) Output() io.Writer {
 	n := c.destination()
 	if n == nil {
@@ -1087,22 +1087,22 @@ func (c *common) setOutputWriter() {
 	c.o = &outputWriter{c: c}
 }
 
-// outputWriter buffers, formats and writes input.
+// outputWriter buffers, formats and writes log messages.
 type outputWriter struct {
-	c *common
-	b []byte // Stores incomplete input between writes.
+	c       *common
+	partial []byte // incomplete ('\n'-free) suffix of last Write
 }
 
-// Write generates the output. It inserts indentation spaces for formatting and
-// stores input for later if it is not terminated by a newline.
+// Write writes a log message to the test's output stream, properly formatted and
+// indented.
 func (o *outputWriter) Write(p []byte) (int, error) {
 	o.c.mu.Lock()
 	defer o.c.mu.Unlock()
 
-	o.b = append(o.b, p...)
-	lines := bytes.SplitAfter(o.b, []byte("\n"))
+	o.partial = append(o.partial, p...)
+	lines := bytes.SplitAfter(o.partial, []byte("\n"))
 	if n := len(lines); n != 0 {
-		o.b = lines[n-1]
+		o.partial = lines[n-1]
 		lines = lines[:n-1]
 	}
 
@@ -1133,7 +1133,7 @@ func (o *outputWriter) writeLine(b []byte) {
 
 // flush outputs the contents of the buffer.
 func (o *outputWriter) flush() {
-	if len(o.b) == 0 {
+	if len(o.partial) == 0 {
 		return
 	}
 	o.Write([]byte("\n"))
