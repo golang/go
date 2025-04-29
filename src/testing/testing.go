@@ -1099,16 +1099,20 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 	o.c.mu.Lock()
 	defer o.c.mu.Unlock()
 
-	o.partial = append(o.partial, p...)
-	lines := bytes.SplitAfter(o.partial, []byte("\n"))
-	if n := len(lines); n != 0 {
-		o.partial = lines[n-1]
-		lines = lines[:n-1]
-	}
-
-	for _, line := range lines {
+	// The last element is a partial line.
+	lines := bytes.SplitAfter(p, []byte("\n"))
+	last := len(lines) - 1 // Inv: 0 <= last
+	for i, line := range lines[:last] {
+		// Emit partial line from previous call.
+		if i == 0 && len(o.partial) > 0 {
+			line = bytes.Join([][]byte{o.partial, line}, []byte(""))
+			o.partial = o.partial[:0]
+		}
 		o.writeLine(append([]byte(indent), line...))
 	}
+	// Save partial line for next call.
+	o.partial = append(o.partial, lines[last]...)
+
 	return len(p), nil
 }
 
