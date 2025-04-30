@@ -276,7 +276,10 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 	B	runtime·abort(SB)
 
 switch:
-	// save our state in g->sched. Pretend to
+	// Switch stacks.
+	// The original frame pointer is stored in R29,
+	// which is useful for stack unwinding.
+	// Save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
 	BL	gosave_systemstack_switch<>(SB)
 
@@ -285,7 +288,6 @@ switch:
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R3
 	MOVD	R3, RSP
-	MOVD	(g_sched+gobuf_bp)(g), R29
 
 	// call target function
 	MOVD	0(R26), R3	// code pointer
