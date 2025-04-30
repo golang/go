@@ -1094,8 +1094,12 @@ type outputWriter struct {
 }
 
 // Write writes a log message to the test's output stream, properly formatted and
-// indented.
+// indented. It may not be called after a test function returns.
 func (o *outputWriter) Write(p []byte) (int, error) {
+	if o.c.destination() == nil {
+		panic("Write called after " + o.c.name + " has completed")
+	}
+
 	o.c.mu.Lock()
 	defer o.c.mu.Unlock()
 

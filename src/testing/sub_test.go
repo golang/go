@@ -1169,3 +1169,52 @@ func TestOutputAfterComplete(t *T) {
 		t.Error(s)
 	}
 }
+
+func TestWriteAfterComplete(t *T) {
+	tstate := newTestState(1, allMatcher())
+	var buf bytes.Buffer
+	t1 := &T{
+		common: common{
+			// Use a buffered channel so that tRunner can write
+			// to it although nothing is reading from it.
+			signal: make(chan bool, 1),
+			w:      &buf,
+		},
+		tstate: tstate,
+	}
+
+	c1 := make(chan bool)
+	c2 := make(chan string)
+	tRunner(t1, func(t *T) {
+		t.Run("TestLateWrite", func(t *T) {
+			o := t.Output()
+			go func() {
+				defer close(c2)
+				defer func() {
+					p := recover()
+					if p == nil {
+						c2 <- "subtest did not panic"
+						return
+					}
+					s, ok := p.(string)
+					if !ok {
+						c2 <- fmt.Sprintf("subtest panic with unexpected value %v", p)
+						return
+					}
+					const want = "Write called after TestLateWrite has completed"
+					if !strings.Contains(s, want) {
+						c2 <- fmt.Sprintf("subtest panic %q does not contain %q", s, want)
+					}
+				}()
+
+				<-c1
+				o.Write([]byte("write after test"))
+			}()
+		})
+	})
+	close(c1)
+
+	if s := <-c2; s != "" {
+		t.Error(s)
+	}
+}
