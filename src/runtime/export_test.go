@@ -554,6 +554,8 @@ type G = g
 
 type Sudog = sudog
 
+type XRegPerG = xRegPerG
+
 func Getg() *G {
 	return getg()
 }
