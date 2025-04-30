@@ -990,8 +990,12 @@ func TestNestedCleanup(t *T) {
 	}
 }
 
-func TestOutputWriter(t *T) {
-	o := t.o
+func TestOutput(t *T) {
+	o := t.Output()
+	if o != t.o {
+		t.Errorf("outputWriter:\ngot:\n%+v\nwant:\n%+v", o, t.o)
+	}
+
 	testCases := []struct {
 		in  string
 		out string
@@ -1019,16 +1023,16 @@ func TestOutputWriter(t *T) {
 	}}
 	for _, tc := range testCases {
 		o.Write([]byte(tc.in))
-		if string(o.c.output) != tc.out {
-			t.Errorf("output:\ngot:\n%s\nwant:\n%s", o.c.output, tc.out)
+		if string(t.output) != tc.out {
+			t.Errorf("output:\ngot:\n%s\nwant:\n%s", t.output, tc.out)
 		}
-		if string(o.partial) != tc.buf {
-			t.Errorf("buffer:\ngot:\n%s\nwant:\n%s", o.partial, tc.buf)
+		if string(t.o.partial) != tc.buf {
+			t.Errorf("buffer:\ngot:\n%s\nwant:\n%s", t.o.partial, tc.buf)
 		}
 	}
 }
 
-func TestOutputWriterFlushing(t *T) {
+func TestOutputFlushing(t *T) {
 	testCases := []struct {
 		desc   string
 		chatty bool
@@ -1044,8 +1048,9 @@ func TestOutputWriterFlushing(t *T) {
         b`,
 		f: func(t *T) {
 			t.Run("", func(t *T) {
-				t.o.Write([]byte("a\n"))
-				t.o.Write([]byte("b"))
+				o := t.Output()
+				o.Write([]byte("a\n"))
+				o.Write([]byte("b"))
 				t.Fail()
 			})
 		},
@@ -1061,8 +1066,9 @@ func TestOutputWriterFlushing(t *T) {
     --- PASS: with chatty/#00 (0.00s)`,
 		f: func(t *T) {
 			t.Run("", func(t *T) {
-				t.o.Write([]byte("a\n"))
-				t.o.Write([]byte("b"))
+				o := t.Output()
+				o.Write([]byte("a\n"))
+				o.Write([]byte("b"))
 			})
 		},
 	}, {
@@ -1081,8 +1087,9 @@ func TestOutputWriterFlushing(t *T) {
 `,
 		f: func(t *T) {
 			t.Run("", func(t *T) {
-				t.o.Write([]byte("a\n"))
-				t.o.Write([]byte("b"))
+				o := t.Output()
+				o.Write([]byte("a\n"))
+				o.Write([]byte("b"))
 			})
 		},
 	}}
