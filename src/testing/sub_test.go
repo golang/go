@@ -990,6 +990,8 @@ func TestNestedCleanup(t *T) {
 	}
 }
 
+// TestOutput checks that log messages are written,
+// formatted and buffered as expected.
 func TestOutput(t *T) {
 	o := t.Output()
 	if o != t.o {
@@ -1032,6 +1034,8 @@ func TestOutput(t *T) {
 	}
 }
 
+// TestOutputFlushing ensures that buffered log messages
+// are flushed at the end of a test.
 func TestOutputFlushing(t *T) {
 	testCases := []struct {
 		desc   string
@@ -1122,6 +1126,8 @@ func TestOutputFlushing(t *T) {
 	}
 }
 
+// TestOutputAfterComplete ensures that Output panics
+// if called after a test function returns.
 func TestOutputAfterComplete(t *T) {
 	tstate := newTestState(1, allMatcher())
 	var buf bytes.Buffer
@@ -1170,6 +1176,8 @@ func TestOutputAfterComplete(t *T) {
 	}
 }
 
+// TestWriteAfterComplete ensures that Write panics
+// if called on t.Output() of a finished test t.
 func TestWriteAfterComplete(t *T) {
 	tstate := newTestState(1, allMatcher())
 	var buf bytes.Buffer
