@@ -821,6 +821,8 @@ func (h *mheap) init() {
 	}
 
 	h.pages.init(&h.lock, &memstats.gcMiscSys, false)
+
+	xRegInitAlloc()
 }
 
 // reclaim sweeps and reclaims at least npage pages into the heap.
