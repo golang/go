@@ -840,7 +840,7 @@ func TestLogAfterComplete(t *T) {
 					}
 					s, ok := p.(string)
 					if !ok {
-						c2 <- fmt.Sprintf("subtest panic with unexpected value %v", p)
+						c2 <- fmt.Sprintf("subtest panic with unexpected value %v of type %T", p, p)
 						return
 					}
 					const want = "Log in goroutine after TestLateLog has completed: log after test"
@@ -1155,7 +1155,7 @@ func TestOutputAfterComplete(t *T) {
 					}
 					s, ok := p.(string)
 					if !ok {
-						c2 <- fmt.Sprintf("subtest panic with unexpected value %v", p)
+						c2 <- fmt.Sprintf("subtest panic with unexpected value %v of type %T", p, p)
 						return
 					}
 					const want = "Output called after TestLateOutput has completed"
@@ -1206,7 +1206,7 @@ func TestWriteAfterComplete(t *T) {
 					}
 					s, ok := p.(string)
 					if !ok {
-						c2 <- fmt.Sprintf("subtest panic with unexpected value %v", p)
+						c2 <- fmt.Sprintf("subtest panic with unexpected value %v of type %T", p, p)
 						return
 					}
 					const want = "Write called after TestLateWrite has completed"
