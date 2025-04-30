@@ -1109,7 +1109,7 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 	for i, line := range lines[:last] {
 		// Emit partial line from previous call.
 		if i == 0 && len(o.partial) > 0 {
-			line = bytes.Join([][]byte{o.partial, line}, []byte(""))
+			line = slices.Concat(o.partial, line)
 			o.partial = o.partial[:0]
 		}
 		o.writeLine(line)
