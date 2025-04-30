@@ -1055,8 +1055,8 @@ func (c *common) callSite(skip int) string {
 	if file != "" {
 		if *fullPath {
 			// If relative path, truncate file name at last file name separator.
-		} else if index := strings.LastIndexAny(file, string(os.PathSeparator)); index >= 0 {
-			file = file[index+1:]
+		} else {
+			file = filepath.Base(file)
 		}
 	} else {
 		file = "???"
