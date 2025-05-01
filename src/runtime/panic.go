@@ -1312,12 +1312,12 @@ func fatalpanic(msgs *_panic) {
 
 		// If this panic is the result of a synctest bubble deadlock,
 		// print stacks for the goroutines in the bubble.
-		var sg *synctestGroup
+		var bubble *synctestBubble
 		if de, ok := msgs.arg.(synctestDeadlockError); ok {
-			sg = de.sg
+			bubble = de.bubble
 		}
 
-		docrash = dopanic_m(gp, pc, sp, sg)
+		docrash = dopanic_m(gp, pc, sp, bubble)
 	})
 
 	if docrash {
@@ -1399,8 +1399,8 @@ var deadlock mutex
 
 // gp is the crashing g running on this M, but may be a user G, while getg() is
 // always g0.
-// If sg is non-nil, print the stacks for goroutines in this group as well.
-func dopanic_m(gp *g, pc, sp uintptr, sg *synctestGroup) bool {
+// If bubble is non-nil, print the stacks for goroutines in this group as well.
+func dopanic_m(gp *g, pc, sp uintptr, bubble *synctestBubble) bool {
 	if gp.sig != 0 {
 		signame := signame(gp.sig)
 		if signame != "" {
@@ -1428,11 +1428,11 @@ func dopanic_m(gp *g, pc, sp uintptr, sg *synctestGroup) bool {
 			if all {
 				didothers = true
 				tracebackothers(gp)
-			} else if sg != nil {
+			} else if bubble != nil {
 				// This panic is caused by a synctest bubble deadlock.
 				// Print stacks for goroutines in the deadlocked bubble.
 				tracebacksomeothers(gp, func(other *g) bool {
-					return sg == other.syncGroup
+					return bubble == other.bubble
 				})
 			}
 		}

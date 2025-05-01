@@ -1255,9 +1255,9 @@ func casgstatus(gp *g, oldval, newval uint32) {
 		}
 	}
 
-	if gp.syncGroup != nil {
+	if gp.bubble != nil {
 		systemstack(func() {
-			gp.syncGroup.changegstatus(gp, oldval, newval)
+			gp.bubble.changegstatus(gp, oldval, newval)
 		})
 	}
 
@@ -1354,10 +1354,10 @@ func casGToPreemptScan(gp *g, old, new uint32) {
 	acquireLockRankAndM(lockRankGscan)
 	for !gp.atomicstatus.CompareAndSwap(_Grunning, _Gscan|_Gpreempted) {
 	}
-	// We never notify gp.syncGroup that the goroutine state has moved
-	// from _Grunning to _Gpreempted. We call syncGroup.changegstatus
+	// We never notify gp.bubble that the goroutine state has moved
+	// from _Grunning to _Gpreempted. We call bubble.changegstatus
 	// after status changes happen, but doing so here would violate the
-	// ordering between the gscan and synctest locks. syncGroup doesn't
+	// ordering between the gscan and synctest locks. The bubble doesn't
 	// distinguish between _Grunning and _Gpreempted anyway, so not
 	// notifying it is fine.
 }
@@ -1373,8 +1373,8 @@ func casGFromPreempted(gp *g, old, new uint32) bool {
 	if !gp.atomicstatus.CompareAndSwap(_Gpreempted, _Gwaiting) {
 		return false
 	}
-	if sg := gp.syncGroup; sg != nil {
-		sg.changegstatus(gp, _Gpreempted, _Gwaiting)
+	if bubble := gp.bubble; bubble != nil {
+		bubble.changegstatus(gp, _Gpreempted, _Gwaiting)
 	}
 	return true
 }
@@ -4130,10 +4130,10 @@ func park_m(gp *g) {
 	// If g is in a synctest group, we don't want to let the group
 	// become idle until after the waitunlockf (if any) has confirmed
 	// that the park is happening.
-	// We need to record gp.syncGroup here, since waitunlockf can change it.
-	sg := gp.syncGroup
-	if sg != nil {
-		sg.incActive()
+	// We need to record gp.bubble here, since waitunlockf can change it.
+	bubble := gp.bubble
+	if bubble != nil {
+		bubble.incActive()
 	}
 
 	if trace.ok() {
@@ -4158,8 +4158,8 @@ func park_m(gp *g) {
 		if !ok {
 			trace := traceAcquire()
 			casgstatus(gp, _Gwaiting, _Grunnable)
-			if sg != nil {
-				sg.decActive()
+			if bubble != nil {
+				bubble.decActive()
 			}
 			if trace.ok() {
 				trace.GoUnpark(gp, 2)
@@ -4169,8 +4169,8 @@ func park_m(gp *g) {
 		}
 	}
 
-	if sg != nil {
-		sg.decActive()
+	if bubble != nil {
+		bubble.decActive()
 	}
 
 	schedule()
@@ -4326,8 +4326,8 @@ func goyield_m(gp *g) {
 // Finishes execution of the current goroutine.
 func goexit1() {
 	if raceenabled {
-		if gp := getg(); gp.syncGroup != nil {
-			racereleasemergeg(gp, gp.syncGroup.raceaddr())
+		if gp := getg(); gp.bubble != nil {
+			racereleasemergeg(gp, gp.bubble.raceaddr())
 		}
 		racegoend()
 	}
@@ -4367,7 +4367,7 @@ func gdestroy(gp *g) {
 	gp.param = nil
 	gp.labels = nil
 	gp.timer = nil
-	gp.syncGroup = nil
+	gp.bubble = nil
 
 	if gcBlackenEnabled != 0 && gp.gcAssistBytes > 0 {
 		// Flush assist credit to the global pool. This gives
@@ -5114,7 +5114,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 		sched.ngsys.Add(1)
 	} else {
 		// Only user goroutines inherit synctest groups and pprof labels.
-		newg.syncGroup = callergp.syncGroup
+		newg.bubble = callergp.bubble
 		if mp.curg != nil {
 			newg.labels = mp.curg.labels
 		}

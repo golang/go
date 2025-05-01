@@ -177,7 +177,7 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 		}
 
 		if cas.c.synctest {
-			if getg().syncGroup == nil {
+			if getg().bubble == nil {
 				panic(plainError("select on synctest channel from outside bubble"))
 			}
 		} else {
@@ -197,7 +197,7 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 	lockorder = lockorder[:norder]
 
 	waitReason := waitReasonSelect
-	if gp.syncGroup != nil && allSynctest {
+	if gp.bubble != nil && allSynctest {
 		// Every channel selected on is in a synctest bubble,
 		// so this goroutine will count as idle while selecting.
 		waitReason = waitReasonSynctestSelect

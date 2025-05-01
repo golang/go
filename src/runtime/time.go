@@ -15,9 +15,9 @@ import (
 
 //go:linkname time_runtimeNow time.runtimeNow
 func time_runtimeNow() (sec int64, nsec int32, mono int64) {
-	if sg := getg().syncGroup; sg != nil {
-		sec = sg.now / (1000 * 1000 * 1000)
-		nsec = int32(sg.now % (1000 * 1000 * 1000))
+	if bubble := getg().bubble; bubble != nil {
+		sec = bubble.now / (1000 * 1000 * 1000)
+		nsec = int32(bubble.now % (1000 * 1000 * 1000))
 		// Don't return a monotonic time inside a synctest bubble.
 		// If we return a monotonic time based on the fake clock,
 		// arithmetic on times created inside/outside bubbles is confusing.
@@ -32,15 +32,15 @@ func time_runtimeNow() (sec int64, nsec int32, mono int64) {
 //go:linkname time_runtimeNano time.runtimeNano
 func time_runtimeNano() int64 {
 	gp := getg()
-	if gp.syncGroup != nil {
-		return gp.syncGroup.now
+	if gp.bubble != nil {
+		return gp.bubble.now
 	}
 	return nanotime()
 }
 
 //go:linkname time_runtimeIsBubbled time.runtimeIsBubbled
 func time_runtimeIsBubbled() bool {
-	return getg().syncGroup != nil
+	return getg().bubble != nil
 }
 
 // A timer is a potentially repeating trigger for calling t.f(t.arg, t.seq).
@@ -157,7 +157,7 @@ type timers struct {
 	// If minWhenModified = 0, it means there are no timerModified timers in the heap.
 	minWhenModified atomic.Int64
 
-	syncGroup *synctestGroup
+	bubble *synctestBubble
 }
 
 type timerWhen struct {
@@ -323,14 +323,14 @@ func timeSleep(ns int64) {
 	if t == nil {
 		t = new(timer)
 		t.init(goroutineReady, gp)
-		if gp.syncGroup != nil {
+		if gp.bubble != nil {
 			t.isFake = true
 		}
 		gp.timer = t
 	}
 	var now int64
-	if sg := gp.syncGroup; sg != nil {
-		now = sg.now
+	if bubble := gp.bubble; bubble != nil {
+		now = bubble.now
 	} else {
 		now = nanotime()
 	}
@@ -340,7 +340,7 @@ func timeSleep(ns int64) {
 	}
 	gp.sleepWhen = when
 	if t.isFake {
-		// Call timer.reset in this goroutine, since it's the one in a syncGroup.
+		// Call timer.reset in this goroutine, since it's the one in a bubble.
 		// We don't need to worry about the timer function running before the goroutine
 		// is parked, because time won't advance until we park.
 		resetForSleep(gp, nil)
@@ -387,7 +387,7 @@ func newTimer(when, period int64, f func(arg any, seq uintptr, delay int64), arg
 			throw("invalid timer channel: no capacity")
 		}
 	}
-	if gr := getg().syncGroup; gr != nil {
+	if gr := getg().bubble; gr != nil {
 		t.isFake = true
 	}
 	t.modify(when, period, f, arg, 0)
@@ -400,7 +400,7 @@ func newTimer(when, period int64, f func(arg any, seq uintptr, delay int64), arg
 //
 //go:linkname stopTimer time.stopTimer
 func stopTimer(t *timeTimer) bool {
-	if t.isFake && getg().syncGroup == nil {
+	if t.isFake && getg().bubble == nil {
 		panic("stop of synctest timer from outside bubble")
 	}
 	return t.stop()
@@ -415,7 +415,7 @@ func resetTimer(t *timeTimer, when, period int64) bool {
 	if raceenabled {
 		racerelease(unsafe.Pointer(&t.timer))
 	}
-	if t.isFake && getg().syncGroup == nil {
+	if t.isFake && getg().bubble == nil {
 		panic("reset of synctest timer from outside bubble")
 	}
 	return t.reset(when, period)
@@ -681,11 +681,11 @@ func (t *timer) maybeAdd() {
 	mp := acquirem()
 	var ts *timers
 	if t.isFake {
-		sg := getg().syncGroup
-		if sg == nil {
+		bubble := getg().bubble
+		if bubble == nil {
 			throw("invalid timer: fake time but no syncgroup")
 		}
-		ts = &sg.timers
+		ts = &bubble.timers
 	} else {
 		ts = &mp.p.ptr().timers
 	}
@@ -1082,10 +1082,10 @@ func (t *timer) unlockAndRun(now int64) {
 		// out from under us while this function executes.
 		gp := getg()
 		var tsLocal *timers
-		if t.ts == nil || t.ts.syncGroup == nil {
+		if t.ts == nil || t.ts.bubble == nil {
 			tsLocal = &gp.m.p.ptr().timers
 		} else {
-			tsLocal = &t.ts.syncGroup.timers
+			tsLocal = &t.ts.bubble.timers
 		}
 		if tsLocal.raceCtx == 0 {
 			tsLocal.raceCtx = racegostart(abi.FuncPCABIInternal((*timers).run) + sys.PCQuantum)
@@ -1138,10 +1138,10 @@ func (t *timer) unlockAndRun(now int64) {
 		if gp.racectx != 0 {
 			throw("unexpected racectx")
 		}
-		if ts == nil || ts.syncGroup == nil {
+		if ts == nil || ts.bubble == nil {
 			gp.racectx = gp.m.p.ptr().timers.raceCtx
 		} else {
-			gp.racectx = ts.syncGroup.timers.raceCtx
+			gp.racectx = ts.bubble.timers.raceCtx
 		}
 	}
 
@@ -1149,14 +1149,14 @@ func (t *timer) unlockAndRun(now int64) {
 		ts.unlock()
 	}
 
-	if ts != nil && ts.syncGroup != nil {
+	if ts != nil && ts.bubble != nil {
 		// Temporarily use the timer's synctest group for the G running this timer.
 		gp := getg()
-		if gp.syncGroup != nil {
+		if gp.bubble != nil {
 			throw("unexpected syncgroup set")
 		}
-		gp.syncGroup = ts.syncGroup
-		ts.syncGroup.changegstatus(gp, _Gdead, _Grunning)
+		gp.bubble = ts.bubble
+		ts.bubble.changegstatus(gp, _Gdead, _Grunning)
 	}
 
 	if !async && t.isChan {
@@ -1200,15 +1200,15 @@ func (t *timer) unlockAndRun(now int64) {
 		unlock(&t.sendLock)
 	}
 
-	if ts != nil && ts.syncGroup != nil {
+	if ts != nil && ts.bubble != nil {
 		gp := getg()
-		ts.syncGroup.changegstatus(gp, _Grunning, _Gdead)
+		ts.bubble.changegstatus(gp, _Grunning, _Gdead)
 		if raceenabled {
 			// Establish a happens-before between this timer event and
 			// the next synctest.Wait call.
-			racereleasemergeg(gp, ts.syncGroup.raceaddr())
+			racereleasemergeg(gp, ts.bubble.raceaddr())
 		}
-		gp.syncGroup = nil
+		gp.bubble = nil
 	}
 
 	if ts != nil {
@@ -1398,16 +1398,16 @@ func badTimer() {
 func (t *timer) maybeRunChan() {
 	if t.isFake {
 		t.lock()
-		var timerGroup *synctestGroup
+		var timerBubble *synctestBubble
 		if t.ts != nil {
-			timerGroup = t.ts.syncGroup
+			timerBubble = t.ts.bubble
 		}
 		t.unlock()
-		sg := getg().syncGroup
-		if sg == nil {
+		bubble := getg().bubble
+		if bubble == nil {
 			panic(plainError("synctest timer accessed from outside bubble"))
 		}
-		if timerGroup != nil && sg != timerGroup {
+		if timerBubble != nil && bubble != timerBubble {
 			panic(plainError("timer moved between synctest bubbles"))
 		}
 		// No need to do anything here.

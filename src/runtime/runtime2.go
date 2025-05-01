@@ -487,8 +487,8 @@ type g struct {
 	// current in-progress goroutine profile
 	goroutineProfiled goroutineProfileStateHolder
 
-	coroarg   *coro // argument during coroutine transfers
-	syncGroup *synctestGroup
+	coroarg *coro // argument during coroutine transfers
+	bubble  *synctestBubble
 
 	// Per-G tracer state.
 	trace gTraceState

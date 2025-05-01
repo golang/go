@@ -646,14 +646,14 @@ func gcStart(trigger gcTrigger) {
 	releasem(mp)
 	mp = nil
 
-	if gp := getg(); gp.syncGroup != nil {
+	if gp := getg(); gp.bubble != nil {
 		// Disassociate the G from its synctest bubble while allocating.
 		// This is less elegant than incrementing the group's active count,
 		// but avoids any contamination between GC and synctest.
-		sg := gp.syncGroup
-		gp.syncGroup = nil
+		bubble := gp.bubble
+		gp.bubble = nil
 		defer func() {
-			gp.syncGroup = sg
+			gp.bubble = bubble
 		}()
 	}
 
