@@ -13,6 +13,7 @@ import (
 	"internal/godebugs"
 	"internal/lazyregexp"
 	"io"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
@@ -80,6 +81,36 @@ func EnterModule(ctx context.Context, enterModroot string) {
 
 	modRoots = []string{enterModroot}
 	LoadModFile(ctx)
+}
+
+// EnterWorkspace enters workspace mode from module mode, applying the updated requirements to the main
+// module to that module in the workspace. There should be no calls to any of the exported
+// functions of the modload package running concurrently with a call to EnterWorkspace as
+// EnterWorkspace will modify the global state they depend on in a non-thread-safe way.
+func EnterWorkspace(ctx context.Context) (exit func(), err error) {
+	// Find the identity of the main module that will be updated before we reset modload state.
+	mm := MainModules.mustGetSingleMainModule()
+	// Get the updated modfile we will use for that module.
+	_, _, updatedmodfile, err := UpdateGoModFromReqs(ctx, WriteOpts{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Reset the state to a clean state.
+	oldstate := setState(state{})
+	ForceUseModules = true
+
+	// Load in workspace mode.
+	InitWorkfile()
+	LoadModFile(ctx)
+
+	// Update the content of the previous main module, and recompute the requirements.
+	*MainModules.ModFile(mm) = *updatedmodfile
+	requirements = requirementsFromModFiles(ctx, MainModules.workFile, slices.Collect(maps.Values(MainModules.modFiles)), nil)
+
+	return func() {
+		setState(oldstate)
+	}, nil
 }
 
 // Variable set in InitWorkfile
@@ -395,15 +426,44 @@ func WorkFilePath() string {
 // Reset clears all the initialized, cached state about the use of modules,
 // so that we can start over.
 func Reset() {
-	initialized = false
-	ForceUseModules = false
-	RootMode = 0
-	modRoots = nil
-	cfg.ModulesEnabled = false
-	MainModules = nil
-	requirements = nil
-	workFilePath = ""
-	modfetch.Reset()
+	setState(state{})
+}
+
+func setState(s state) state {
+	oldState := state{
+		initialized:     initialized,
+		forceUseModules: ForceUseModules,
+		rootMode:        RootMode,
+		modRoots:        modRoots,
+		modulesEnabled:  cfg.ModulesEnabled,
+		mainModules:     MainModules,
+		requirements:    requirements,
+	}
+	initialized = s.initialized
+	ForceUseModules = s.forceUseModules
+	RootMode = s.rootMode
+	modRoots = s.modRoots
+	cfg.ModulesEnabled = s.modulesEnabled
+	MainModules = s.mainModules
+	requirements = s.requirements
+	workFilePath = s.workFilePath
+	// The modfetch package's global state is used to compute
+	// the go.sum file, so save and restore it along with the
+	// modload state.
+	oldState.modfetchState = modfetch.SetState(s.modfetchState)
+	return oldState
+}
+
+type state struct {
+	initialized     bool
+	forceUseModules bool
+	rootMode        Root
+	modRoots        []string
+	modulesEnabled  bool
+	mainModules     *MainModuleSet
+	requirements    *Requirements
+	workFilePath    string
+	modfetchState   modfetch.State
 }
 
 // Init determines whether module mode is enabled, locates the root of the
@@ -636,6 +696,9 @@ func ModFilePath() string {
 }
 
 func modFilePath(modRoot string) string {
+	// TODO(matloob): This seems incompatible with workspaces
+	// (unless the user's intention is to replace all workspace modules' modfiles?).
+	// Should we produce an error in workspace mode if cfg.ModFile is set?
 	if cfg.ModFile != "" {
 		return cfg.ModFile
 	}
@@ -689,7 +752,10 @@ func (goModDirtyError) Error() string {
 
 var errGoModDirty error = goModDirtyError{}
 
-func loadWorkFile(path string) (workFile *modfile.WorkFile, modRoots []string, err error) {
+// LoadWorkFile parses and checks the go.work file at the given path,
+// and returns the absolute paths of the workspace modules' modroots.
+// It does not modify the global state of the modload package.
+func LoadWorkFile(path string) (workFile *modfile.WorkFile, modRoots []string, err error) {
 	workDir := filepath.Dir(path)
 	wf, err := ReadWorkFile(path)
 	if err != nil {
@@ -838,7 +904,7 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error) 
 	var workFile *modfile.WorkFile
 	if inWorkspaceMode() {
 		var err error
-		workFile, modRoots, err = loadWorkFile(workFilePath)
+		workFile, modRoots, err = LoadWorkFile(workFilePath)
 		if err != nil {
 			return nil, err
 		}

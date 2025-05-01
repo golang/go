@@ -695,9 +695,16 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 		// If there are no modules in the workspace, we synthesize an empty
 		// command-line-arguments module, which rawGoModData cannot read a go.mod for.
 		return &modFileSummary{module: m}, nil
+	} else if m.Version == "" && inWorkspaceMode() && MainModules.Contains(m.Path) {
+		// When go get uses EnterWorkspace to check that the workspace loads properly,
+		// it will update the contents of the workspace module's modfile in memory. To use the updated
+		// contents of the modfile when doing the load, don't read from disk and instead
+		// recompute a summary using the updated contents of the modfile.
+		if mf := MainModules.ModFile(m); mf != nil {
+			return summaryFromModFile(m, MainModules.modFiles[m])
+		}
 	}
 	return rawGoModSummaryCache.Do(m, func() (*modFileSummary, error) {
-		summary := new(modFileSummary)
 		name, data, err := rawGoModData(m)
 		if err != nil {
 			return nil, err
@@ -706,54 +713,59 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 		if err != nil {
 			return nil, module.VersionError(m, fmt.Errorf("parsing %s: %v", base.ShortPath(name), err))
 		}
-		if f.Module != nil {
-			summary.module = f.Module.Mod
-			summary.deprecated = f.Module.Deprecated
-		}
-		if f.Go != nil {
-			rawGoVersion.LoadOrStore(m, f.Go.Version)
-			summary.goVersion = f.Go.Version
-			summary.pruning = pruningForGoVersion(f.Go.Version)
-		} else {
-			summary.pruning = unpruned
-		}
-		if f.Toolchain != nil {
-			summary.toolchain = f.Toolchain.Name
-		}
-		if f.Ignore != nil {
-			for _, i := range f.Ignore {
-				summary.ignore = append(summary.ignore, i.Path)
-			}
-		}
-		if len(f.Require) > 0 {
-			summary.require = make([]module.Version, 0, len(f.Require)+1)
-			for _, req := range f.Require {
-				summary.require = append(summary.require, req.Mod)
-			}
-		}
-
-		if len(f.Retract) > 0 {
-			summary.retract = make([]retraction, 0, len(f.Retract))
-			for _, ret := range f.Retract {
-				summary.retract = append(summary.retract, retraction{
-					VersionInterval: ret.VersionInterval,
-					Rationale:       ret.Rationale,
-				})
-			}
-		}
-
-		// This block must be kept at the end of the function because the summary may
-		// be used for reading retractions or deprecations even if a TooNewError is
-		// returned.
-		if summary.goVersion != "" && gover.Compare(summary.goVersion, gover.GoStrictVersion) >= 0 {
-			summary.require = append(summary.require, module.Version{Path: "go", Version: summary.goVersion})
-			if gover.Compare(summary.goVersion, gover.Local()) > 0 {
-				return summary, &gover.TooNewError{What: "module " + m.String(), GoVersion: summary.goVersion}
-			}
-		}
-
-		return summary, nil
+		return summaryFromModFile(m, f)
 	})
+}
+
+func summaryFromModFile(m module.Version, f *modfile.File) (*modFileSummary, error) {
+	summary := new(modFileSummary)
+	if f.Module != nil {
+		summary.module = f.Module.Mod
+		summary.deprecated = f.Module.Deprecated
+	}
+	if f.Go != nil {
+		rawGoVersion.LoadOrStore(m, f.Go.Version)
+		summary.goVersion = f.Go.Version
+		summary.pruning = pruningForGoVersion(f.Go.Version)
+	} else {
+		summary.pruning = unpruned
+	}
+	if f.Toolchain != nil {
+		summary.toolchain = f.Toolchain.Name
+	}
+	if f.Ignore != nil {
+		for _, i := range f.Ignore {
+			summary.ignore = append(summary.ignore, i.Path)
+		}
+	}
+	if len(f.Require) > 0 {
+		summary.require = make([]module.Version, 0, len(f.Require)+1)
+		for _, req := range f.Require {
+			summary.require = append(summary.require, req.Mod)
+		}
+	}
+
+	if len(f.Retract) > 0 {
+		summary.retract = make([]retraction, 0, len(f.Retract))
+		for _, ret := range f.Retract {
+			summary.retract = append(summary.retract, retraction{
+				VersionInterval: ret.VersionInterval,
+				Rationale:       ret.Rationale,
+			})
+		}
+	}
+
+	// This block must be kept at the end of the function because the summary may
+	// be used for reading retractions or deprecations even if a TooNewError is
+	// returned.
+	if summary.goVersion != "" && gover.Compare(summary.goVersion, gover.GoStrictVersion) >= 0 {
+		summary.require = append(summary.require, module.Version{Path: "go", Version: summary.goVersion})
+		if gover.Compare(summary.goVersion, gover.Local()) > 0 {
+			return summary, &gover.TooNewError{What: "module " + m.String(), GoVersion: summary.goVersion}
+		}
+	}
+
+	return summary, nil
 }
 
 var rawGoModSummaryCache par.ErrCache[module.Version, *modFileSummary]

@@ -184,7 +184,10 @@ type RevInfo struct {
 // To avoid version control access except when absolutely necessary,
 // Lookup does not attempt to connect to the repository itself.
 
-var lookupCache par.Cache[lookupCacheKey, Repo]
+// The Lookup cache is used cache the work done by Lookup.
+// It is important that the global functions of this package that access it do not
+// do so after they return.
+var lookupCache = new(par.Cache[lookupCacheKey, Repo])
 
 type lookupCacheKey struct {
 	proxy, path string
@@ -218,7 +221,7 @@ func Lookup(ctx context.Context, proxy, path string) Repo {
 	})
 }
 
-var lookupLocalCache par.Cache[string, Repo] // path, Repo
+var lookupLocalCache = new(par.Cache[string, Repo]) // path, Repo
 
 // LookupLocal returns a Repo that accesses local VCS information.
 //

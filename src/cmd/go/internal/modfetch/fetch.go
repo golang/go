@@ -35,7 +35,12 @@ import (
 	modzip "golang.org/x/mod/zip"
 )
 
-var downloadCache par.ErrCache[module.Version, string] // version → directory
+// The downloadCache is used to cache the operation of downloading a module to disk
+// (if it's not already downloaded) and getting the directory it was downloaded to.
+// It is important that downloadCache must not be accessed by any of the exported
+// functions of this package after they return, because it can be modified by the
+// non-thread-safe SetState function
+var downloadCache = new(par.ErrCache[module.Version, string]) // version → directory;
 
 var ErrToolchain = errors.New("internal error: invalid operation on toolchain module")
 
@@ -432,6 +437,10 @@ func RemoveAll(dir string) error {
 	return robustio.RemoveAll(dir)
 }
 
+// The GoSumFile, WorkspaceGoSumFiles, and goSum are global state that must not be
+// accessed by any of the exported functions of this package after they return, because
+// they can be modified by the non-thread-safe SetState function.
+
 var GoSumFile string             // path to go.sum; set by package modload
 var WorkspaceGoSumFiles []string // path to module go.sums in workspace; set by package modload
 
@@ -441,7 +450,11 @@ type modSum struct {
 }
 
 var goSum struct {
-	mu        sync.Mutex
+	mu sync.Mutex
+	sumState
+}
+
+type sumState struct {
 	m         map[module.Version][]string            // content of go.sum file
 	w         map[string]map[module.Version][]string // sum file in workspace -> content of that sum file
 	status    map[modSum]modSumStatus                // state of sums in m
@@ -453,26 +466,55 @@ type modSumStatus struct {
 	used, dirty bool
 }
 
+// State holds a snapshot of the global state of the modfetch package.
+type State struct {
+	goSumFile           string
+	workspaceGoSumFiles []string
+	lookupCache         *par.Cache[lookupCacheKey, Repo]
+	downloadCache       *par.ErrCache[module.Version, string]
+	sumState            sumState
+}
+
 // Reset resets globals in the modfetch package, so previous loads don't affect
 // contents of go.sum files.
 func Reset() {
-	GoSumFile = ""
-	WorkspaceGoSumFiles = nil
+	SetState(State{})
+}
 
+// SetState sets the global state of the modfetch package to the newState, and returns the previous
+// global state. newState should have been returned by SetState, or be an empty State.
+// There should be no concurrent calls to any of the exported functions of this package with
+// a call to SetState because it will modify the global state in a non-thread-safe way.
+func SetState(newState State) (oldState State) {
+	if newState.lookupCache == nil {
+		newState.lookupCache = new(par.Cache[lookupCacheKey, Repo])
+	}
+	if newState.downloadCache == nil {
+		newState.downloadCache = new(par.ErrCache[module.Version, string])
+	}
+
+	goSum.mu.Lock()
+	defer goSum.mu.Unlock()
+
+	oldState = State{
+		goSumFile:           GoSumFile,
+		workspaceGoSumFiles: WorkspaceGoSumFiles,
+		lookupCache:         lookupCache,
+		downloadCache:       downloadCache,
+		sumState:            goSum.sumState,
+	}
+
+	GoSumFile = newState.goSumFile
+	WorkspaceGoSumFiles = newState.workspaceGoSumFiles
 	// Uses of lookupCache and downloadCache both can call checkModSum,
 	// which in turn sets the used bit on goSum.status for modules.
-	// Reset them so used can be computed properly.
-	lookupCache = par.Cache[lookupCacheKey, Repo]{}
-	downloadCache = par.ErrCache[module.Version, string]{}
+	// Set (or reset) them so used can be computed properly.
+	lookupCache = newState.lookupCache
+	downloadCache = newState.downloadCache
+	// Set, or reset all fields on goSum. If being reset to empty, it will be initialized later.
+	goSum.sumState = newState.sumState
 
-	// Clear all fields on goSum. It will be initialized later
-	goSum.mu.Lock()
-	goSum.m = nil
-	goSum.w = nil
-	goSum.status = nil
-	goSum.overwrite = false
-	goSum.enabled = false
-	goSum.mu.Unlock()
+	return oldState
 }
 
 // initGoSum initializes the go.sum data.
