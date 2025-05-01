@@ -43,7 +43,7 @@ func Mkdirat(dirfd int, path string, mode uint32) error {
 	if err != nil {
 		return err
 	}
-	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_mkdirat_trampoline), uintptr(dirfd), uintptr(unsafe.Pointer(p)), 0, 0, 0, 0)
+	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_mkdirat_trampoline), uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(mode), 0, 0, 0)
 	if errno != 0 {
 		return errno
 	}

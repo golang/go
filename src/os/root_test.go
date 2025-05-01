@@ -507,6 +507,12 @@ func TestRootMkdir(t *testing.T) {
 			if !fi.IsDir() {
 				t.Fatalf(`stat file created with Root.Mkdir(%q): not a directory`, test.open)
 			}
+			if mode := fi.Mode(); mode&0o777 == 0 {
+				// Issue #73559: We're not going to worry about the exact
+				// mode bits (which will have been modified by umask),
+				// but there should be mode bits.
+				t.Fatalf(`stat file created with Root.Mkdir(%q): mode=%v, want non-zero`, test.open, mode)
+			}
 		})
 	}
 }
