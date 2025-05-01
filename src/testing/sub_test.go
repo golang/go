@@ -993,9 +993,15 @@ func TestNestedCleanup(t *T) {
 // TestOutput checks that log messages are written,
 // formatted and buffered as expected.
 func TestOutput(t *T) {
-	o := t.Output()
-	if o != t.o {
-		t.Errorf("outputWriter:\ngot:\n%+v\nwant:\n%+v", o, t.o)
+	tstate := newTestState(1, allMatcher())
+	root := &T{
+		tstate: tstate,
+	}
+	root.setOutputWriter()
+
+	o := root.Output()
+	if o != root.o {
+		t.Errorf("outputWriter:\ngot:\n%+v\nwant:\n%+v", o, root.o)
 	}
 
 	testCases := []struct {
@@ -1025,11 +1031,11 @@ func TestOutput(t *T) {
 	}}
 	for _, tc := range testCases {
 		o.Write([]byte(tc.in))
-		if string(t.output) != tc.out {
-			t.Errorf("output:\ngot:\n%s\nwant:\n%s", t.output, tc.out)
+		if string(root.output) != tc.out {
+			t.Errorf("output:\ngot:\n%s\nwant:\n%s", root.output, tc.out)
 		}
-		if string(t.o.partial) != tc.buf {
-			t.Errorf("buffer:\ngot:\n%s\nwant:\n%s", t.o.partial, tc.buf)
+		if string(root.o.partial) != tc.buf {
+			t.Errorf("buffer:\ngot:\n%s\nwant:\n%s", root.o.partial, tc.buf)
 		}
 	}
 }
