@@ -3773,8 +3773,13 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		ins.funct7 |= 1 // unmasked
 		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), REG_V0
 
-	case AVADCVVM, AVADCVXM, AVMADCVVM, AVMADCVXM, AVSBCVVM, AVSBCVXM, AVMSBCVVM, AVMSBCVXM, AVADCVIM, AVMADCVIM,
-		AVMERGEVVM, AVMERGEVXM, AVMERGEVIM, AVFMERGEVFM:
+	case AVADCVIM, AVADCVVM, AVADCVXM, AVSBCVVM, AVSBCVXM:
+		if ins.rd == REG_V0 {
+			p.Ctxt.Diag("%v: invalid destination register V0", p)
+		}
+		fallthrough
+
+	case AVMADCVVM, AVMADCVXM, AVMSBCVVM, AVMSBCVXM, AVMADCVIM, AVMERGEVVM, AVMERGEVXM, AVMERGEVIM, AVFMERGEVFM:
 		if ins.rs3 != REG_V0 {
 			p.Ctxt.Diag("%v: invalid vector mask register", p)
 		}
