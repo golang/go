@@ -304,3 +304,41 @@ func genMap(n int) map[string]any {
 	}
 	return x
 }
+
+var (
+	isSpaceRes bool
+
+	nonPrintable      = []byte{0x01, 0x08}
+	printableNonSpace = []byte{'a', 'z', '1', 'X'}
+	spaceChars        = []byte{' ', '\t', '\r', '\n'}
+)
+
+func BenchmarkIsSpace_NonPrintable(b *testing.B) {
+	var r bool
+	for i := 0; i < b.N; i++ {
+		for _, c := range nonPrintable {
+			r = isSpace(c)
+		}
+	}
+	isSpaceRes = r
+}
+
+func BenchmarkIsSpace_PrintableNonSpace(b *testing.B) {
+	var r bool
+	for i := 0; i < b.N; i++ {
+		for _, c := range printableNonSpace {
+			r = isSpace(c)
+		}
+	}
+	isSpaceRes = r
+}
+
+func BenchmarkIsSpace_SpaceChars(b *testing.B) {
+	var r bool
+	for i := 0; i < b.N; i++ {
+		for _, c := range spaceChars {
+			r = isSpace(c)
+		}
+	}
+	isSpaceRes = r
+}
