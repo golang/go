@@ -991,7 +991,8 @@ func TestNestedCleanup(t *T) {
 }
 
 // TestOutput checks that log messages are written,
-// formatted and buffered as expected.
+// formatted and buffered as expected by Output. It
+// checks both the chatty and non-chatty cases.
 func TestOutput(t *T) {
 	tstate := newTestState(1, allMatcher())
 	root := &T{
@@ -1003,6 +1004,19 @@ func TestOutput(t *T) {
 	if o != root.o {
 		t.Errorf("outputWriter:\ngot:\n%+v\nwant:\n%+v", o, root.o)
 	}
+
+	// Chatty case
+	tstateChatty := newTestState(1, allMatcher())
+	bufChatty := &strings.Builder{}
+	rootChatty := &T{
+		common: common{
+			w: bufChatty,
+		},
+		tstate: tstateChatty,
+	}
+	rootChatty.setOutputWriter()
+	rootChatty.chatty = newChattyPrinter(rootChatty.w)
+	oChatty := rootChatty.Output()
 
 	testCases := []struct {
 		in  string
@@ -1036,6 +1050,12 @@ func TestOutput(t *T) {
 		}
 		if string(root.o.partial) != tc.buf {
 			t.Errorf("buffer:\ngot:\n%s\nwant:\n%s", root.o.partial, tc.buf)
+		}
+
+		// Chatty case
+		oChatty.Write([]byte(tc.in))
+		if got := bufChatty.String(); got != tc.out {
+			t.Errorf("output:\ngot:\n%s\nwant:\n%s", got, tc.out)
 		}
 	}
 }
