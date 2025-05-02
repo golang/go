@@ -301,15 +301,23 @@ func TestIssue64958(t *testing.T) {
 	}()
 
 	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+	var wg sync.WaitGroup
 
 	for _, context := range contexts {
-		w := NewWalker(context, "testdata/src/issue64958")
-		pkg, err := w.importFrom("p", "", 0)
-		if err != nil {
-			t.Errorf("expected no error importing; got %T", err)
-		}
-		w.export(pkg)
+		wg.Add(1)
+		context := context
+		go func() {
+			defer wg.Done()
+			w := NewWalker(context, "testdata/src/issue64958")
+			pkg, err := w.importFrom("p", "", 0)
+			if err != nil {
+				t.Errorf("expected no error importing; got %T", err)
+			}
+			w.export(pkg)
+		}()
 	}
+	wg.Wait()
 }
 
 func TestCheck(t *testing.T) {
@@ -317,5 +325,6 @@ func TestCheck(t *testing.T) {
 		t.Skip("-check not specified")
 	}
 	testenv.MustHaveGoBuild(t)
+	t.Parallel()
 	Check(t)
 }
