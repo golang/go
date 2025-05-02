@@ -1143,6 +1143,25 @@ func TestOutputFlushing(t *T) {
 			<-ch
 			t.Errorf("error")
 		},
+	}, {
+		desc:   "output in finished sub test with chatty",
+		chatty: true,
+		output: `
+		--- FAIL: output in finished sub test with chatty (N.NNs)`,
+		f: func(t *T) {
+			ch := make(chan bool)
+			t.Run("sub", func(t2 *T) {
+				go func() {
+					<-ch
+					t2.Output().Write([]byte("message1\n"))
+					ch <- true
+				}()
+			})
+			t.Output().Write([]byte("message2\n"))
+			ch <- true
+			<-ch
+			t.Errorf("error")
+		},
 	}}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *T) {
