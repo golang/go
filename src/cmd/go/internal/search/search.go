@@ -419,9 +419,7 @@ func CleanPatterns(patterns []string) []string {
 		if filepath.IsAbs(p) {
 			p = filepath.Clean(p)
 		} else {
-			if filepath.Separator == '\\' {
-				p = strings.ReplaceAll(p, `\`, `/`)
-			}
+			p = strings.ReplaceAll(p, `\`, `/`)
 
 			// Put argument in canonical form, but preserve leading ./.
 			if strings.HasPrefix(p, "./") {
