@@ -586,7 +586,14 @@ func TestTRun(t *T) {
 		ok:     false,
 		chatty: true,
 		output: `
-		--- FAIL: output in finished sub test with chatty (N.NNs)`,
+=== RUN   output in finished sub test with chatty
+=== RUN   output in finished sub test with chatty/sub
+=== NAME  output in finished sub test with chatty
+    message2
+    message1
+    sub_test.go:NNN: error
+--- FAIL: output in finished sub test with chatty (N.NNs)
+    --- PASS: output in finished sub test with chatty/sub (N.NNs)`,
 		f: func(t *T) {
 			ch := make(chan bool)
 			t.Run("sub", func(t2 *T) {
