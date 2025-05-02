@@ -1122,6 +1122,27 @@ func TestOutputFlushing(t *T) {
 				o.Write([]byte("b"))
 			})
 		},
+	}, {
+		desc: "output in finished sub test outputs to parent",
+		output: `
+		--- FAIL: output in finished sub test outputs to parent (N.NNs)
+    message2
+    message1
+    sub_test.go:NNN: error`,
+		f: func(t *T) {
+			ch := make(chan bool)
+			t.Run("sub", func(t2 *T) {
+				go func() {
+					<-ch
+					t2.Output().Write([]byte("message1\n"))
+					ch <- true
+				}()
+			})
+			t.Output().Write([]byte("message2\n"))
+			ch <- true
+			<-ch
+			t.Errorf("error")
+		},
 	}}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *T) {
