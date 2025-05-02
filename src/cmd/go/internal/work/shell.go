@@ -178,7 +178,7 @@ func (sh *Shell) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) e
 	return sh.CopyFile(dst, src, perm, force)
 }
 
-// copyFile is like 'cp src dst'.
+// CopyFile is like 'cp src dst'.
 func (sh *Shell) CopyFile(dst, src string, perm fs.FileMode, force bool) error {
 	if cfg.BuildN || cfg.BuildX {
 		sh.ShowCmd("", "cp %s %s", src, dst)

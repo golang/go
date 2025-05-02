@@ -930,7 +930,7 @@ func collectDeps(p *load.Package) {
 	sort.Strings(p.Deps)
 }
 
-// collectDeps populates p.DepsErrors by iterating over p.Internal.Imports.
+// collectDepsErrors populates p.DepsErrors by iterating over p.Internal.Imports.
 // collectDepsErrors must be called on all of p's Imports before being called on p.
 func collectDepsErrors(p *load.Package) {
 	depsErrors := make(map[*load.PackageError]bool)
