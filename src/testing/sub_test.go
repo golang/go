@@ -581,6 +581,21 @@ func TestTRun(t *T) {
 			<-ch
 			t.Errorf("error")
 		},
+	}, {
+		desc: "no newline between buffered log and log",
+		ok:   false,
+		output: `
+--- FAIL: no newline between buffered log and log (0.00s)
+    --- FAIL: no newline between buffered log and log/#00 (0.00s)
+        buffered messagesub_test.go:NNN: log`,
+		f: func(t *T) {
+			t.Run("", func(t *T) {
+				o := t.Output()
+				o.Write([]byte("buffered message"))
+				t.Log("log")
+				t.Fail()
+			})
+		},
 	}}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *T) {
