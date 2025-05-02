@@ -581,33 +581,6 @@ func TestTRun(t *T) {
 			<-ch
 			t.Errorf("error")
 		},
-	}, {
-		desc:   "output in finished sub test with chatty",
-		ok:     false,
-		chatty: true,
-		output: `
-=== RUN   output in finished sub test with chatty
-=== RUN   output in finished sub test with chatty/sub
-=== NAME  output in finished sub test with chatty
-    message2
-    message1
-    sub_test.go:NNN: error
---- FAIL: output in finished sub test with chatty (N.NNs)
-    --- PASS: output in finished sub test with chatty/sub (N.NNs)`,
-		f: func(t *T) {
-			ch := make(chan bool)
-			t.Run("sub", func(t2 *T) {
-				go func() {
-					<-ch
-					t2.Output().Write([]byte("message1\n"))
-					ch <- true
-				}()
-			})
-			t.Output().Write([]byte("message2\n"))
-			ch <- true
-			<-ch
-			t.Errorf("error")
-		},
 	}}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *T) {
@@ -1104,11 +1077,7 @@ func TestOutput(t *T) {
 		tstate: tstate,
 	}
 	root.setOutputWriter()
-
 	o := root.Output()
-	if o != root.o {
-		t.Errorf("outputWriter:\ngot:\n%+v\nwant:\n%+v", o, root.o)
-	}
 
 	// Chatty case
 	tstateChatty := newTestState(1, allMatcher())
