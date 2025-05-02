@@ -1072,8 +1072,8 @@ func (c *common) callSite(skip int) string {
 // The output is indented like TB.Log lines, but Output does not
 // add source locations or newlines. The output is internally line
 // buffered, and a call to TB.Log or the end of the test will implicitly
-// flush the buffer, followed by a newline. After a test function returns,
-// neither Output nor the Write method may be called.
+// flush the buffer, followed by a newline. After a test function and all its
+// parents return, neither Output nor the Write method may be called.
 func (c *common) Output() io.Writer {
 	c.checkFuzzFn("Output")
 	n := c.destination()
@@ -1095,7 +1095,7 @@ type outputWriter struct {
 }
 
 // Write writes a log message to the test's output stream, properly formatted and
-// indented. It may not be called after a test function returns.
+// indented. It may not be called after a test function and all its parents return.
 func (o *outputWriter) Write(p []byte) (int, error) {
 	if o.c.destination() == nil {
 		panic("Write called after " + o.c.name + " has completed")
