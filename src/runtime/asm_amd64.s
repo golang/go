@@ -616,7 +616,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ	m_g0(BX), BX
 	MOVQ	BX, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(BX), SP
-	MOVQ	(g_sched+gobuf_bp)(BX), BP
+	MOVQ	$0, BP			// clear frame pointer, as caller may execute on another M
 	CALL	runtime·newstack(SB)
 	CALL	runtime·abort(SB)	// crash if newstack returns
 	RET

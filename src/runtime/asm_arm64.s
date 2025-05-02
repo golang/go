@@ -387,7 +387,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R0
 	MOVD	R0, RSP
-	MOVD	(g_sched+gobuf_bp)(g), R29
+	MOVD	$0, R29		// clear frame pointer, as caller may execute on another M
 	MOVD.W	$0, -16(RSP)	// create a call frame on g0 (saved LR; keep 16-aligned)
 	BL	runtime·newstack(SB)
 
