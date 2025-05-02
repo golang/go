@@ -1075,6 +1075,7 @@ func (c *common) callSite(skip int) string {
 // flush the buffer, followed by a newline. After a test function returns,
 // neither Output nor the Write method may be called.
 func (c *common) Output() io.Writer {
+	c.checkFuzzFn("Output")
 	n := c.destination()
 	if n == nil {
 		panic("Output called after " + c.name + " has completed")
