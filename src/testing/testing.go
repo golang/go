@@ -1801,7 +1801,7 @@ func tRunner(t *T, fn func(t *T)) {
 				root.duration += highPrecisionTimeSince(root.start)
 				d := root.duration
 				root.mu.Unlock()
-				// Output the outputWriter's buffer.
+				// Output buffered logs.
 				if t.o != nil {
 					t.o.flush()
 				}
@@ -1852,7 +1852,7 @@ func tRunner(t *T, fn func(t *T)) {
 			// test. See comment in Run method.
 			t.tstate.release()
 		}
-		// Output the outputWriter's buffer.
+		// Output buffered logs.
 		if t.o != nil {
 			t.o.flush()
 		}
