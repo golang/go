@@ -503,6 +503,104 @@ func TestTRun(t *T) {
 				t2.FailNow()
 			})
 		},
+	}, {
+		desc: "buffered output gets flushed at test end",
+		ok:   false,
+		output: `
+--- FAIL: buffered output gets flushed at test end (0.00s)
+    --- FAIL: buffered output gets flushed at test end/#00 (0.00s)
+        a
+        b`,
+		f: func(t *T) {
+			t.Run("", func(t *T) {
+				o := t.Output()
+				o.Write([]byte("a\n"))
+				o.Write([]byte("b"))
+				t.Fail()
+			})
+		},
+	}, {
+		desc:   "output with chatty",
+		ok:     true,
+		chatty: true,
+		output: `
+=== RUN   output with chatty
+=== RUN   output with chatty/#00
+    a
+    b
+--- PASS: output with chatty (0.00s)
+    --- PASS: output with chatty/#00 (0.00s)`,
+		f: func(t *T) {
+			t.Run("", func(t *T) {
+				o := t.Output()
+				o.Write([]byte("a\n"))
+				o.Write([]byte("b"))
+			})
+		},
+	}, {
+		desc:   "output with chatty and json",
+		ok:     true,
+		chatty: true,
+		json:   true,
+		output: `
+^V=== RUN   output with chatty and json
+^V=== RUN   output with chatty and json/#00
+    a
+    b
+^V--- PASS: output with chatty and json/#00 (0.00s)
+^V=== NAME  output with chatty and json
+^V--- PASS: output with chatty and json (0.00s)
+^V=== NAME
+`,
+		f: func(t *T) {
+			t.Run("", func(t *T) {
+				o := t.Output()
+				o.Write([]byte("a\n"))
+				o.Write([]byte("b"))
+			})
+		},
+	}, {
+		desc: "output in finished sub test outputs to parent",
+		ok:   false,
+		output: `
+		--- FAIL: output in finished sub test outputs to parent (N.NNs)
+    message2
+    message1
+    sub_test.go:NNN: error`,
+		f: func(t *T) {
+			ch := make(chan bool)
+			t.Run("sub", func(t2 *T) {
+				go func() {
+					<-ch
+					t2.Output().Write([]byte("message1\n"))
+					ch <- true
+				}()
+			})
+			t.Output().Write([]byte("message2\n"))
+			ch <- true
+			<-ch
+			t.Errorf("error")
+		},
+	}, {
+		desc:   "output in finished sub test with chatty",
+		ok:     false,
+		chatty: true,
+		output: `
+		--- FAIL: output in finished sub test with chatty (N.NNs)`,
+		f: func(t *T) {
+			ch := make(chan bool)
+			t.Run("sub", func(t2 *T) {
+				go func() {
+					<-ch
+					t2.Output().Write([]byte("message1\n"))
+					ch <- true
+				}()
+			})
+			t.Output().Write([]byte("message2\n"))
+			ch <- true
+			<-ch
+			t.Errorf("error")
+		},
 	}}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *T) {
@@ -1060,138 +1158,6 @@ func TestOutput(t *T) {
 	}
 }
 
-// TestOutputFlushing ensures that buffered log messages
-// are flushed at the end of a test.
-func TestOutputFlushing(t *T) {
-	testCases := []struct {
-		desc   string
-		chatty bool
-		json   bool
-		output string
-		f      func(*T)
-	}{{
-		desc: "buffered output gets flushed at test end",
-		output: `
---- FAIL: buffered output gets flushed at test end (0.00s)
-    --- FAIL: buffered output gets flushed at test end/#00 (0.00s)
-        a
-        b`,
-		f: func(t *T) {
-			t.Run("", func(t *T) {
-				o := t.Output()
-				o.Write([]byte("a\n"))
-				o.Write([]byte("b"))
-				t.Fail()
-			})
-		},
-	}, {
-		desc:   "with chatty",
-		chatty: true,
-		output: `
-=== RUN   with chatty
-=== RUN   with chatty/#00
-    a
-    b
---- PASS: with chatty (0.00s)
-    --- PASS: with chatty/#00 (0.00s)`,
-		f: func(t *T) {
-			t.Run("", func(t *T) {
-				o := t.Output()
-				o.Write([]byte("a\n"))
-				o.Write([]byte("b"))
-			})
-		},
-	}, {
-		desc:   "with chatty and json",
-		chatty: true,
-		json:   true,
-		output: `
-^V=== RUN   with chatty and json
-^V=== RUN   with chatty and json/#00
-    a
-    b
-^V--- PASS: with chatty and json/#00 (0.00s)
-^V=== NAME  with chatty and json
-^V--- PASS: with chatty and json (0.00s)
-^V=== NAME
-`,
-		f: func(t *T) {
-			t.Run("", func(t *T) {
-				o := t.Output()
-				o.Write([]byte("a\n"))
-				o.Write([]byte("b"))
-			})
-		},
-	}, {
-		desc: "output in finished sub test outputs to parent",
-		output: `
-		--- FAIL: output in finished sub test outputs to parent (N.NNs)
-    message2
-    message1
-    sub_test.go:NNN: error`,
-		f: func(t *T) {
-			ch := make(chan bool)
-			t.Run("sub", func(t2 *T) {
-				go func() {
-					<-ch
-					t2.Output().Write([]byte("message1\n"))
-					ch <- true
-				}()
-			})
-			t.Output().Write([]byte("message2\n"))
-			ch <- true
-			<-ch
-			t.Errorf("error")
-		},
-	}, {
-		desc:   "output in finished sub test with chatty",
-		chatty: true,
-		output: `
-		--- FAIL: output in finished sub test with chatty (N.NNs)`,
-		f: func(t *T) {
-			ch := make(chan bool)
-			t.Run("sub", func(t2 *T) {
-				go func() {
-					<-ch
-					t2.Output().Write([]byte("message1\n"))
-					ch <- true
-				}()
-			})
-			t.Output().Write([]byte("message2\n"))
-			ch <- true
-			<-ch
-			t.Errorf("error")
-		},
-	}}
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *T) {
-			tstate := newTestState(1, allMatcher())
-			buf := &strings.Builder{}
-			root := &T{
-				common: common{
-					w: buf,
-				},
-				tstate: tstate,
-			}
-
-			if tc.chatty {
-				root.chatty = newChattyPrinter(root.w)
-				root.chatty.json = tc.json
-			}
-
-			root.Run(tc.desc, tc.f)
-
-			got := strings.TrimSpace(buf.String())
-
-			want := strings.TrimSpace(tc.output)
-			re := makeRegexp(want)
-			if ok, err := regexp.MatchString(re, got); !ok || err != nil {
-				t.Errorf("output:\ngot:\n%s\nwant:\n%s", got, want)
-			}
-		})
-	}
-}
-
 // TestOutputAfterComplete ensures that Output panics
 // if called after a test function returns.
 func TestOutputAfterComplete(t *T) {
@@ -1242,9 +1208,9 @@ func TestOutputAfterComplete(t *T) {
 	}
 }
 
-// TestWriteAfterComplete ensures that Write panics
+// TestOutputWriteAfterComplete ensures that Write panics
 // if called on t.Output() of a finished test t.
-func TestWriteAfterComplete(t *T) {
+func TestOutputWriteAfterComplete(t *T) {
 	tstate := newTestState(1, allMatcher())
 	var buf bytes.Buffer
 	t1 := &T{
