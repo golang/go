@@ -1136,12 +1136,14 @@ func (o *outputWriter) writeLine(b []byte) {
 	o.c.output = append(o.c.output, b...)
 }
 
-// flush outputs the contents of the buffer.
+// flush outputs the contents of the buffer and the buffers of the parent tests.
 func (o *outputWriter) flush() {
-	if len(o.partial) == 0 {
-		return
+	for p := o.c; p != nil; p = p.parent {
+		if (p.o == nil) || (len(p.o.partial) == 0) {
+			continue
+		}
+		p.o.Write([]byte("\n"))
 	}
-	o.Write([]byte("\n"))
 }
 
 // Log formats its arguments using default formatting, analogous to Println,
