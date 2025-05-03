@@ -602,6 +602,14 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 					// See https://sourceware.org/bugzilla/show_bug.cgi?id=21809
 					continue
 				}
+
+				if arch.Family == sys.RISCV64 &&
+					(strings.HasPrefix(elfsym.name, "$d") || strings.HasPrefix(elfsym.name, "$x")) {
+					// Ignore RISC-V mapping symbols, which
+					// are similar to ARM64's case.
+					// See issue 73591.
+					continue
+				}
 			}
 
 			if strings.HasPrefix(elfsym.name, ".Linfo_string") {
