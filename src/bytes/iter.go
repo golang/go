@@ -32,25 +32,24 @@ func Lines(s []byte) iter.Seq[[]byte] {
 }
 
 // explodeSeq returns an iterator over the runes in s.
-func explodeSeq(s []byte) iter.Seq[[]byte] {
-	return func(yield func([]byte) bool) {
-		for len(s) > 0 {
-			_, size := utf8.DecodeRune(s)
-			if !yield(s[:size:size]) {
-				return
-			}
-			s = s[size:]
+func explodeSeq(s []byte, yield func([]byte) bool) {
+	for len(s) > 0 {
+		_, size := utf8.DecodeRune(s)
+		if !yield(s[:size:size]) {
+			return
 		}
+		s = s[size:]
 	}
 }
 
 // splitSeq is SplitSeq or SplitAfterSeq, configured by how many
 // bytes of sep to include in the results (none or all).
 func splitSeq(s, sep []byte, sepSave int) iter.Seq[[]byte] {
-	if len(sep) == 0 {
-		return explodeSeq(s)
-	}
 	return func(yield func([]byte) bool) {
+		if len(sep) == 0 {
+			explodeSeq(s, yield)
+			return
+		}
 		for {
 			i := Index(s, sep)
 			if i < 0 {
