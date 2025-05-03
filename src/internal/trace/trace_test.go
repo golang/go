@@ -12,6 +12,7 @@ import (
 	"internal/testenv"
 	"internal/trace"
 	"internal/trace/testtrace"
+	"internal/trace/version"
 	"io"
 	"os"
 	"path/filepath"
@@ -617,7 +618,7 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 		tb := traceBuf.Bytes()
 
 		// Test the trace and the parser.
-		testReader(t, bytes.NewReader(tb), testtrace.ExpectSuccess())
+		testReader(t, bytes.NewReader(tb), version.Current, testtrace.ExpectSuccess())
 
 		// Run some extra validation.
 		if !t.Failed() && extra != nil {

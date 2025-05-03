@@ -37,11 +37,11 @@ func TestReaderGolden(t *testing.T) {
 			t.Fatalf("failed to relativize testdata path: %v", err)
 		}
 		t.Run(testName, func(t *testing.T) {
-			tr, exp, err := testtrace.ParseFile(testPath)
+			tr, ver, exp, err := testtrace.ParseFile(testPath)
 			if err != nil {
 				t.Fatalf("failed to parse test file at %s: %v", testPath, err)
 			}
-			testReader(t, tr, exp)
+			testReader(t, tr, ver, exp)
 		})
 	}
 }
@@ -93,7 +93,7 @@ func FuzzReader(f *testing.F) {
 	})
 }
 
-func testReader(t *testing.T, tr io.Reader, exp *testtrace.Expectation) {
+func testReader(t *testing.T, tr io.Reader, ver version.Version, exp *testtrace.Expectation) {
 	r, err := trace.NewReader(tr)
 	if err != nil {
 		if err := exp.Check(err); err != nil {
@@ -102,6 +102,7 @@ func testReader(t *testing.T, tr io.Reader, exp *testtrace.Expectation) {
 		return
 	}
 	v := testtrace.NewValidator()
+	v.GoVersion = ver
 	for {
 		ev, err := r.ReadEvent()
 		if err == io.EOF {

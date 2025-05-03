@@ -8,20 +8,21 @@ import (
 	"errors"
 	"fmt"
 	"internal/trace"
+	"internal/trace/version"
 	"slices"
 	"strings"
 )
 
 // Validator is a type used for validating a stream of trace.Events.
 type Validator struct {
-	lastTs trace.Time
-	gs     map[trace.GoID]*goState
-	ps     map[trace.ProcID]*procState
-	ms     map[trace.ThreadID]*schedContext
-	ranges map[trace.ResourceID][]string
-	tasks  map[trace.TaskID]string
-	nSync  int
-	Go121  bool
+	lastTs    trace.Time
+	gs        map[trace.GoID]*goState
+	ps        map[trace.ProcID]*procState
+	ms        map[trace.ThreadID]*schedContext
+	ranges    map[trace.ResourceID][]string
+	tasks     map[trace.TaskID]string
+	lastSync  trace.Sync
+	GoVersion version.Version
 }
 
 type schedContext struct {
@@ -43,11 +44,12 @@ type procState struct {
 // NewValidator creates a new Validator.
 func NewValidator() *Validator {
 	return &Validator{
-		gs:     make(map[trace.GoID]*goState),
-		ps:     make(map[trace.ProcID]*procState),
-		ms:     make(map[trace.ThreadID]*schedContext),
-		ranges: make(map[trace.ResourceID][]string),
-		tasks:  make(map[trace.TaskID]string),
+		gs:        make(map[trace.GoID]*goState),
+		ps:        make(map[trace.ProcID]*procState),
+		ms:        make(map[trace.ThreadID]*schedContext),
+		ranges:    make(map[trace.ResourceID][]string),
+		tasks:     make(map[trace.TaskID]string),
+		GoVersion: version.Current,
 	}
 }
 
@@ -74,10 +76,38 @@ func (v *Validator) Event(ev trace.Event) error {
 	switch ev.Kind() {
 	case trace.EventSync:
 		s := ev.Sync()
-		if s.N != v.nSync+1 {
-			e.Errorf("sync count is not sequential: expected %d, got %d", v.nSync+1, s.N)
+		if s.N != v.lastSync.N+1 {
+			e.Errorf("sync count is not sequential: expected %d, got %d", v.lastSync.N+1, s.N)
 		}
-		v.nSync = s.N
+		// The trace reader currently emits synthetic sync events at the end of
+		// a trace. Those don't contain clock snapshots data, so we don't try
+		// to validate them.
+		//
+		// TODO(felixge): Drop the synthetic syncs as discussed in CL 653576.
+		if v.GoVersion >= version.Go125 && !(s.N > 1 && s.ClockSnapshot == nil) {
+			if s.ClockSnapshot == nil {
+				e.Errorf("sync %d has no clock snapshot", s.N)
+			}
+			if s.ClockSnapshot.Wall.IsZero() {
+				e.Errorf("sync %d has zero wall time", s.N)
+			}
+			if s.ClockSnapshot.Mono == 0 {
+				e.Errorf("sync %d has zero mono time", s.N)
+			}
+			if s.ClockSnapshot.Trace == 0 {
+				e.Errorf("sync %d has zero trace time", s.N)
+			}
+			if s.N >= 2 && !s.ClockSnapshot.Wall.After(v.lastSync.ClockSnapshot.Wall) {
+				e.Errorf("sync %d has non-increasing wall time: %v vs %v", s.N, s.ClockSnapshot.Wall, v.lastSync.ClockSnapshot.Wall)
+			}
+			if s.N >= 2 && !(s.ClockSnapshot.Mono > v.lastSync.ClockSnapshot.Mono) {
+				e.Errorf("sync %d has non-increasing mono time: %v vs %v", s.N, s.ClockSnapshot.Mono, v.lastSync.ClockSnapshot.Mono)
+			}
+			if s.N >= 2 && !(s.ClockSnapshot.Trace > v.lastSync.ClockSnapshot.Trace) {
+				e.Errorf("sync %d has non-increasing trace time: %v vs %v", s.N, s.ClockSnapshot.Trace, v.lastSync.ClockSnapshot.Trace)
+			}
+		}
+		v.lastSync = s
 	case trace.EventMetric:
 		m := ev.Metric()
 		if !strings.Contains(m.Name, ":") {
@@ -143,7 +173,7 @@ func (v *Validator) Event(ev trace.Event) error {
 			if new == trace.GoUndetermined {
 				e.Errorf("transition to undetermined state for goroutine %d", id)
 			}
-			if v.nSync > 1 && old == trace.GoUndetermined {
+			if v.lastSync.N > 1 && old == trace.GoUndetermined {
 				e.Errorf("undetermined goroutine %d after first global sync", id)
 			}
 			if new == trace.GoNotExist && v.hasAnyRange(trace.MakeResourceID(id)) {
@@ -196,7 +226,7 @@ func (v *Validator) Event(ev trace.Event) error {
 			if new == trace.ProcUndetermined {
 				e.Errorf("transition to undetermined state for proc %d", id)
 			}
-			if v.nSync > 1 && old == trace.ProcUndetermined {
+			if v.lastSync.N > 1 && old == trace.ProcUndetermined {
 				e.Errorf("undetermined proc %d after first global sync", id)
 			}
 			if new == trace.ProcNotExist && v.hasAnyRange(trace.MakeResourceID(id)) {
@@ -325,7 +355,7 @@ func (v *Validator) getOrCreateThread(e *errAccumulator, ev trace.Event, m trace
 		// Be lenient about GoUndetermined -> GoSyscall transitions if they
 		// originate from an old trace. These transitions lack thread
 		// information in trace formats older than 1.22.
-		if !v.Go121 {
+		if v.GoVersion >= version.Go122 {
 			return false
 		}
 		if ev.Kind() != trace.EventStateTransition {
