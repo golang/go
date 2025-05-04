@@ -1670,3 +1670,13 @@
 
 // Convert atomic logical operations to easier ones if we don't use the result.
 (Select1 a:(LoweredAtomic(And64|And32|Or64|Or32) ptr val mem)) && a.Uses == 1 && clobber(a) => ((ANDQ|ANDL|ORQ|ORL)lock ptr val mem)
+
+// If we are checking the results of an add, use the flags directly from the add.
+// Note that this only works for EQ/NE. ADD sets the CF/OF flags differently
+// than TEST sets them.
+// Note also that a.Args[0] here refers to the post-flagify'd value.
+((EQ|NE) t:(TESTQ a:(ADDQconst [c] x) a)) && t.Uses == 1 && flagify(a) => ((EQ|NE) (Select1 <types.TypeFlags> a.Args[0]))
+((EQ|NE) t:(TESTL a:(ADDLconst [c] x) a)) && t.Uses == 1 && flagify(a) => ((EQ|NE) (Select1 <types.TypeFlags> a.Args[0]))
+
+// If we don't use the flags any more, just use the standard op.
+(Select0 a:(ADD(Q|L)constflags [c] x)) && a.Uses == 1 => (ADD(Q|L)const [c] x)

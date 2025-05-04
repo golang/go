@@ -303,6 +303,11 @@ func init() {
 
 		// computes -arg0, flags set for 0-arg0.
 		{name: "NEGLflags", argLength: 1, reg: gp11flags, typ: "(UInt32,Flags)", asm: "NEGL", resultInArg0: true},
+		// compute arg0+auxint. flags set for arg0+auxint.
+		// NOTE: we pretend the CF/OF flags are undefined for these instructions,
+		// so we can use INC/DEC instead of ADDQconst if auxint is +/-1. (INC/DEC don't modify CF.)
+		{name: "ADDQconstflags", argLength: 1, reg: gp11flags, aux: "Int32", asm: "ADDQ", resultInArg0: true},
+		{name: "ADDLconstflags", argLength: 1, reg: gp11flags, aux: "Int32", asm: "ADDL", resultInArg0: true},
 
 		// The following 4 add opcodes return the low 64 bits of the sum in the first result and
 		// the carry (the 65th bit) in the carry flag.

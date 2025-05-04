@@ -1154,6 +1154,31 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
 
+	case ssa.OpAMD64ADDQconstflags, ssa.OpAMD64ADDLconstflags:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		// Note: the inc/dec instructions do not modify
+		// the carry flag like add$1 / sub$1 do.
+		// We currently never use the CF/OF flags from
+		// these instructions, so that is ok.
+		switch {
+		case p.As == x86.AADDQ && p.From.Offset == 1:
+			p.As = x86.AINCQ
+			p.From.Type = obj.TYPE_NONE
+		case p.As == x86.AADDQ && p.From.Offset == -1:
+			p.As = x86.ADECQ
+			p.From.Type = obj.TYPE_NONE
+		case p.As == x86.AADDL && p.From.Offset == 1:
+			p.As = x86.AINCL
+			p.From.Type = obj.TYPE_NONE
+		case p.As == x86.AADDL && p.From.Offset == -1:
+			p.As = x86.ADECL
+			p.From.Type = obj.TYPE_NONE
+		}
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+
 	case ssa.OpAMD64BSFQ, ssa.OpAMD64BSRQ, ssa.OpAMD64BSFL, ssa.OpAMD64BSRL, ssa.OpAMD64SQRTSD, ssa.OpAMD64SQRTSS:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG

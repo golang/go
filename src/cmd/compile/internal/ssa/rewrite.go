@@ -2619,3 +2619,22 @@ func bitsMulU32(x, y int32) (r struct{ hi, lo int32 }) {
 	r.hi, r.lo = int32(hi), int32(lo)
 	return
 }
+
+// flagify rewrites v which is (X ...) to (Select0 (Xflags ...)).
+func flagify(v *Value) bool {
+	var flagVersion Op
+	switch v.Op {
+	case OpAMD64ADDQconst:
+		flagVersion = OpAMD64ADDQconstflags
+	case OpAMD64ADDLconst:
+		flagVersion = OpAMD64ADDLconstflags
+	default:
+		base.Fatalf("can't flagify op %s", v.Op)
+	}
+	inner := v.copyInto(v.Block)
+	inner.Op = flagVersion
+	inner.Type = types.NewTuple(v.Type, types.TypeFlags)
+	v.reset(OpSelect0)
+	v.AddArg(inner)
+	return true
+}
