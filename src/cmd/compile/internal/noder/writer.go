@@ -367,7 +367,7 @@ func (dict *writerDict) itabIdx(typInfo, ifaceInfo typeInfo) int {
 	return idx
 }
 
-func (pw *pkgWriter) newWriter(k pkgbits.RelocKind, marker pkgbits.SyncMarker) *writer {
+func (pw *pkgWriter) newWriter(k pkgbits.SectionKind, marker pkgbits.SyncMarker) *writer {
 	return &writer{
 		Encoder: pw.NewEncoder(k, marker),
 		p:       pw,

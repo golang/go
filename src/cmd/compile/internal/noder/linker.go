@@ -58,7 +58,7 @@ func (l *linker) relocAll(pr *pkgReader, relocs []pkgbits.RelocEnt) []pkgbits.Re
 
 // relocIdx ensures a single element is copied into the output export
 // data file, and returns the corresponding index in the output.
-func (l *linker) relocIdx(pr *pkgReader, k pkgbits.RelocKind, idx index) index {
+func (l *linker) relocIdx(pr *pkgReader, k pkgbits.SectionKind, idx index) index {
 	assert(pr != nil)
 
 	absIdx := pr.AbsIdx(k, idx)
@@ -252,7 +252,7 @@ func (l *linker) exportBody(obj *ir.Name, local bool) {
 
 // relocCommon copies the specified element from pr into w,
 // recursively relocating any referenced elements as well.
-func (l *linker) relocCommon(pr *pkgReader, w *pkgbits.Encoder, k pkgbits.RelocKind, idx index) {
+func (l *linker) relocCommon(pr *pkgReader, w *pkgbits.Encoder, k pkgbits.SectionKind, idx index) {
 	r := pr.NewDecoderRaw(k, idx)
 	w.Relocs = l.relocAll(pr, r.Relocs)
 	io.Copy(&w.Data, &r.Data)

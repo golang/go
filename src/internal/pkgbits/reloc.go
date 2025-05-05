@@ -4,11 +4,10 @@
 
 package pkgbits
 
-// A RelocKind indicates a section, as well as the ordering of sections within
+// A SectionKind indicates a section, as well as the ordering of sections within
 // unified export data. Any object given a dedicated section can be referred to
 // via a section / index pair (and thus dereferenced) in other sections.
-type RelocKind int32 // TODO(markfreeman): Replace with uint8.
-type SectionKind = RelocKind
+type SectionKind int32 // TODO(markfreeman): Replace with uint8.
 
 const (
 	RelocString SectionKind = iota
