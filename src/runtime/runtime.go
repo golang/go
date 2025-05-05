@@ -151,6 +151,7 @@ func godebug_setNewIncNonDefault(newIncNonDefault func(string) func()) {
 	p := new(func(string) func())
 	*p = newIncNonDefault
 	godebugNewIncNonDefault.Store(p)
+	defaultGOMAXPROCSUpdateGODEBUG()
 }
 
 // A godebugInc provides access to internal/godebug's IncNonDefault function

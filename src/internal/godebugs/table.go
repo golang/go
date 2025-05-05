@@ -26,6 +26,7 @@ type Info struct {
 // (Otherwise the test in this package will fail.)
 var All = []Info{
 	{Name: "asynctimerchan", Package: "time", Changed: 23, Old: "1"},
+	{Name: "containermaxprocs", Package: "runtime", Changed: 25, Old: "0"},
 	{Name: "dataindependenttiming", Package: "crypto/subtle", Opaque: true},
 	{Name: "decoratemappings", Package: "runtime", Opaque: true, Changed: 25, Old: "0"},
 	{Name: "embedfollowsymlinks", Package: "cmd/go"},
@@ -61,6 +62,7 @@ var All = []Info{
 	{Name: "tlsmlkem", Package: "crypto/tls", Changed: 24, Old: "0", Opaque: true},
 	{Name: "tlsrsakex", Package: "crypto/tls", Changed: 22, Old: "1"},
 	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
+	{Name: "updatemaxprocs", Package: "runtime", Changed: 25, Old: "0"},
 	{Name: "winreadlinkvolume", Package: "os", Changed: 23, Old: "0"},
 	{Name: "winsymlink", Package: "os", Changed: 23, Old: "0"},
 	{Name: "x509keypairleaf", Package: "crypto/tls", Changed: 23, Old: "0"},

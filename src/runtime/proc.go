@@ -210,6 +210,7 @@ func main() {
 	}()
 
 	gcenable()
+	defaultGOMAXPROCSUpdateEnable() // don't STW before runtime initialized.
 
 	main_init_done = make(chan bool)
 	if iscgo {
@@ -897,12 +898,24 @@ func schedinit() {
 
 	// mcommoninit runs before parsedebugvars, so init profstacks again.
 	mProfStackInit(gp.m)
+	defaultGOMAXPROCSInit()
 
 	lock(&sched.lock)
 	sched.lastpoll.Store(nanotime())
-	procs := numCPUStartup
+	var procs int32
 	if n, ok := strconv.Atoi32(gogetenv("GOMAXPROCS")); ok && n > 0 {
 		procs = n
+		sched.customGOMAXPROCS = true
+	} else {
+		// Use numCPUStartup for initial GOMAXPROCS for two reasons:
+		//
+		// 1. We just computed it in osinit, recomputing is (minorly) wasteful.
+		//
+		// 2. More importantly, if debug.containermaxprocs == 0 &&
+		//    debug.updatemaxprocs == 0, we want to guarantee that
+		//    runtime.GOMAXPROCS(0) always equals runtime.NumCPU (which is
+		//    just numCPUStartup).
+		procs = defaultGOMAXPROCS(numCPUStartup)
 	}
 	if procresize(procs) != nil {
 		throw("unknown runnable goroutine during bootstrap")
@@ -1714,6 +1727,7 @@ func startTheWorldWithSema(now int64, w worldStop) int64 {
 	procs := gomaxprocs
 	if newprocs != 0 {
 		procs = newprocs
+		sched.customGOMAXPROCS = newprocsCustom
 		newprocs = 0
 	}
 	p1 := procresize(procs)
@@ -6146,6 +6160,7 @@ func sysmon() {
 	checkdead()
 	unlock(&sched.lock)
 
+	lastgomaxprocs := int64(0)
 	lasttrace := int64(0)
 	idle := 0 // how many cycles in succession we had not wokeup somebody
 	delay := uint32(0)
@@ -6258,6 +6273,11 @@ func sysmon() {
 			if next := timeSleepUntil(); next < now {
 				startm(nil, false, false)
 			}
+		}
+		// Check if we need to update GOMAXPROCS at most once per second.
+		if debug.updatemaxprocs != 0 && lastgomaxprocs+1e9 <= now {
+			sysmonUpdateGOMAXPROCS()
+			lastgomaxprocs = now
 		}
 		if scavenger.sysmonWake.Load() != 0 {
 			// Kick the scavenger awake if someone requested it.
@@ -6524,6 +6544,97 @@ func schedtrace(detailed bool) {
 		print("\n")
 	})
 	unlock(&sched.lock)
+}
+
+type updateGOMAXPROCSState struct {
+	lock mutex
+	g    *g
+	idle atomic.Bool
+
+	// Readable when idle == false, writable when idle == true.
+	procs int32 // new GOMAXPROCS value
+}
+
+var (
+	updateGOMAXPROCS updateGOMAXPROCSState
+
+	updatemaxprocs = &godebugInc{name: "updatemaxprocs"}
+)
+
+// Start GOMAXPROCS update helper goroutine.
+//
+// This is based on forcegchelper.
+func defaultGOMAXPROCSUpdateEnable() {
+	go updateGOMAXPROCSHelper()
+}
+
+func updateGOMAXPROCSHelper() {
+	updateGOMAXPROCS.g = getg()
+	lockInit(&updateGOMAXPROCS.lock, lockRankUpdateGOMAXPROCS)
+	for {
+		lock(&updateGOMAXPROCS.lock)
+		if updateGOMAXPROCS.idle.Load() {
+			throw("updateGOMAXPROCS: phase error")
+		}
+		updateGOMAXPROCS.idle.Store(true)
+		goparkunlock(&updateGOMAXPROCS.lock, waitReasonUpdateGOMAXPROCSIdle, traceBlockSystemGoroutine, 1)
+		// This goroutine is explicitly resumed by sysmon.
+
+		stw := stopTheWorldGC(stwGOMAXPROCS)
+
+		// Still OK to update?
+		lock(&sched.lock)
+		custom := sched.customGOMAXPROCS
+		unlock(&sched.lock)
+		if custom {
+			startTheWorldGC(stw)
+			return
+		}
+
+		// newprocs will be processed by startTheWorld
+		//
+		// TODO(prattmic): this could use a nicer API. Perhaps add it to the
+		// stw parameter?
+		newprocs = updateGOMAXPROCS.procs
+		newprocsCustom = false
+
+		startTheWorldGC(stw)
+
+		// We actually changed something.
+		updatemaxprocs.IncNonDefault()
+	}
+}
+
+func sysmonUpdateGOMAXPROCS() {
+	// No update if GOMAXPROCS was set manually.
+	lock(&sched.lock)
+	custom := sched.customGOMAXPROCS
+	curr := gomaxprocs
+	unlock(&sched.lock)
+	if custom {
+		return
+	}
+
+	// Don't hold sched.lock while we read the filesystem.
+	procs := defaultGOMAXPROCS(0)
+
+	if procs == curr {
+		// Nothing to do.
+		return
+	}
+
+	// Sysmon can't directly stop the world. Run the helper to do so on our
+	// behalf. If updateGOMAXPROCS.idle is false, then a previous update is
+	// still pending.
+	if updateGOMAXPROCS.idle.Load() {
+		lock(&updateGOMAXPROCS.lock)
+		updateGOMAXPROCS.procs = procs
+		updateGOMAXPROCS.idle.Store(false)
+		var list gList
+		list.push(updateGOMAXPROCS.g)
+		injectglist(&list)
+		unlock(&updateGOMAXPROCS.lock)
+	}
 }
 
 // schedEnableUser enables or disables the scheduling of user

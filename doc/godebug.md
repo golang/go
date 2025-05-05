@@ -169,6 +169,17 @@ Go command will follow symlinks to regular files embedding files.
 The default value `embedfollowsymlinks=0` does not allow following
 symlinks. `embedfollowsymlinks=1` will allow following symlinks.
 
+Go 1.25 added a new `containermaxprocs` setting that controls whether the Go
+runtime will consider cgroup CPU limits when setting the default GOMAXPROCS.
+The default value `containermaxprocs=1` will use cgroup limits in addition to
+the total logical CPU count and CPU affinity. `containermaxprocs=0` will
+disable consideration of cgroup limits. This setting only affects Linux.
+
+Go 1.25 added a new `updatemaxprocs` setting that controls whether the Go
+runtime will periodically update GOMAXPROCS for new CPU affinity or cgroup
+limits. The default value `updatemaxprocs=1` will enable periodic updates.
+`updatemaxprocs=0` will disable periodic updates.
+
 Go 1.25 corrected the semantics of contention reports for runtime-internal locks,
 and so removed the [`runtimecontentionstacks` setting](/pkg/runtime#hdr-Environment_Variable).
 

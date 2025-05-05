@@ -41,7 +41,7 @@ const ranks = `
 # Sysmon
 NONE
 < sysmon
-< scavenge, forcegc;
+< scavenge, forcegc, updateGOMAXPROCS;
 
 # Defer
 NONE < defer;
@@ -66,6 +66,7 @@ assistQueue,
   cleanupQueue,
   cpuprof,
   forcegc,
+  updateGOMAXPROCS,
   hchan,
   pollDesc, # pollDesc can interact with timers, which can lock sched.
   scavenge,

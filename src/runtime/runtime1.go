@@ -310,6 +310,7 @@ type dbgVar struct {
 var debug struct {
 	cgocheck                 int32
 	clobberfree              int32
+	containermaxprocs        int32
 	decoratemappings         int32
 	disablethp               int32
 	dontfreezetheworld       int32
@@ -325,6 +326,7 @@ var debug struct {
 	scheddetail              int32
 	schedtrace               int32
 	tracebackancestors       int32
+	updatemaxprocs           int32
 	asyncpreemptoff          int32
 	harddecommit             int32
 	adaptivestackstart       int32
@@ -370,6 +372,7 @@ var dbgvars = []*dbgVar{
 	{name: "asynctimerchan", atomic: &debug.asynctimerchan},
 	{name: "cgocheck", value: &debug.cgocheck},
 	{name: "clobberfree", value: &debug.clobberfree},
+	{name: "containermaxprocs", value: &debug.containermaxprocs, def: 1},
 	{name: "dataindependenttiming", value: &debug.dataindependenttiming},
 	{name: "decoratemappings", value: &debug.decoratemappings, def: 1},
 	{name: "disablethp", value: &debug.disablethp},
@@ -396,6 +399,7 @@ var dbgvars = []*dbgVar{
 	{name: "tracecheckstackownership", value: &debug.traceCheckStackOwnership},
 	{name: "tracebackancestors", value: &debug.tracebackancestors},
 	{name: "tracefpunwindoff", value: &debug.tracefpunwindoff},
+	{name: "updatemaxprocs", value: &debug.updatemaxprocs, def: 1},
 }
 
 func parsedebugvars() {

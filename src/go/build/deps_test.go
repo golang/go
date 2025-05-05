@@ -795,6 +795,8 @@ var depsRules = `
 	FMT, compress/gzip, embed, encoding/binary < encoding/json/internal/jsontest;
 	CGO, internal/syscall/unix < net/internal/cgotest;
 	FMT < math/big/internal/asmgen;
+
+	FMT, testing < internal/cgrouptest;
 `
 
 // listStdPkgs returns the same list of packages as "go list std".
