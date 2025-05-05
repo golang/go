@@ -717,6 +717,12 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R20
 
+	// Mark the stack bound check and morestack call async nonpreemptible.
+	// If we get preempted here, when resumed the preemption request is
+	// cleared, but we'll still call morestack, which will double the stack
+	// unnecessarily. See issue #35470.
+	p = c.ctxt.StartUnsafePoint(p, c.newprog)
+
 	var q *obj.Prog
 	if framesize <= abi.StackSmall {
 		// small stack: SP < stackguard
@@ -788,7 +794,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	p.To.Type = obj.TYPE_BRANCH
 	p.Mark |= BRANCH
 
-	end := p
+	end := c.ctxt.EndUnsafePoint(p, c.newprog, -1)
 
 	var last *obj.Prog
 	for last = c.cursym.Func().Text; last.Link != nil; last = last.Link {
@@ -802,6 +808,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	spfix.Spadj = -framesize
 
 	pcdata := c.ctxt.EmitEntryStackMap(c.cursym, spfix, c.newprog)
+	pcdata = c.ctxt.StartUnsafePoint(pcdata, c.newprog)
 
 	if q != nil {
 		q.To.SetTarget(pcdata)
@@ -836,7 +843,9 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	}
 	call.Mark |= BRANCH
 
-	unspill := c.cursym.Func().UnspillRegisterArgs(call, c.newprog)
+	// The instructions which unspill regs should be preemptible.
+	pcdata = c.ctxt.EndUnsafePoint(call, c.newprog, -1)
+	unspill := c.cursym.Func().UnspillRegisterArgs(pcdata, c.newprog)
 
 	// JMP start
 	jmp := obj.Appendp(unspill, c.newprog)

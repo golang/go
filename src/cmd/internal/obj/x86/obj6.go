@@ -1106,6 +1106,11 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 		}
 
+		// Mark the stack bound check and morestack call async nonpreemptible.
+		// If we get preempted here, when resumed the preemption request is
+		// cleared, but we'll still call morestack, which will double the stack
+		// unnecessarily. See issue #35470.
+		p = ctxt.StartUnsafePoint(p, newprog)
 	} else if framesize <= abi.StackBig {
 		// large stack: SP-framesize <= stackguard-StackSmall
 		//	LEAQ -xxx(SP), tmp
@@ -1130,6 +1135,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 		}
 
+		p = ctxt.StartUnsafePoint(p, newprog) // see the comment above
 	} else {
 		// Such a large stack we need to protect against underflow.
 		// The runtime guarantees SP > objabi.StackBig, but
@@ -1151,6 +1157,8 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p.From.Reg = REG_SP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = tmp
+
+		p = ctxt.StartUnsafePoint(p, newprog) // see the comment above
 
 		p = obj.Appendp(p, newprog)
 		p.As = sub
@@ -1181,6 +1189,8 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	jls.As = AJLS
 	jls.To.Type = obj.TYPE_BRANCH
 
+	end := ctxt.EndUnsafePoint(jls, newprog, -1)
+
 	var last *obj.Prog
 	for last = cursym.Func().Text; last.Link != nil; last = last.Link {
 	}
@@ -1192,8 +1202,9 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	spfix.As = obj.ANOP
 	spfix.Spadj = -framesize
 
-	spill := ctxt.EmitEntryStackMap(cursym, spfix, newprog)
-	pcdata := cursym.Func().SpillRegisterArgs(spill, newprog)
+	pcdata := ctxt.EmitEntryStackMap(cursym, spfix, newprog)
+	spill := ctxt.StartUnsafePoint(pcdata, newprog)
+	pcdata = cursym.Func().SpillRegisterArgs(spill, newprog)
 
 	call := obj.Appendp(pcdata, newprog)
 	call.Pos = cursym.Func().Text.Pos
@@ -1218,7 +1229,9 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		progedit(ctxt, callend.Link, newprog)
 	}
 
-	unspill := cursym.Func().UnspillRegisterArgs(callend, newprog)
+	// The instructions which unspill regs should be preemptible.
+	pcdata = ctxt.EndUnsafePoint(callend, newprog, -1)
+	unspill := cursym.Func().UnspillRegisterArgs(pcdata, newprog)
 
 	jmp := obj.Appendp(unspill, newprog)
 	jmp.As = obj.AJMP
@@ -1231,7 +1244,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		q1.To.SetTarget(spill)
 	}
 
-	return jls, rg
+	return end, rg
 }
 
 func isR15(r int16) bool {

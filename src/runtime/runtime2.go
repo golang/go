@@ -466,29 +466,22 @@ type g struct {
 	runnableTime  int64 // the amount of time spent runnable, cleared when running, only used when tracking
 	lockedm       muintptr
 	fipsIndicator uint8
-
-	// preemptRecent is set when a goroutine is preempted.  It is
-	// reset by code passing through the synchronous preemption
-	// path. It is used to avoid growing the stack when we were
-	// just preempting, see issue 35470.
-	preemptRecent bool
-
-	sig        uint32
-	writebuf   []byte
-	sigcode0   uintptr
-	sigcode1   uintptr
-	sigpc      uintptr
-	parentGoid uint64          // goid of goroutine that created this goroutine
-	gopc       uintptr         // pc of go statement that created this goroutine
-	ancestors  *[]ancestorInfo // ancestor information goroutine(s) that created this goroutine (only used if debug.tracebackancestors)
-	startpc    uintptr         // pc of goroutine function
-	racectx    uintptr
-	waiting    *sudog         // sudog structures this g is waiting on (that have a valid elem ptr); in lock order
-	cgoCtxt    []uintptr      // cgo traceback context
-	labels     unsafe.Pointer // profiler labels
-	timer      *timer         // cached timer for time.Sleep
-	sleepWhen  int64          // when to sleep until
-	selectDone atomic.Uint32  // are we participating in a select and did someone win the race?
+	sig           uint32
+	writebuf      []byte
+	sigcode0      uintptr
+	sigcode1      uintptr
+	sigpc         uintptr
+	parentGoid    uint64          // goid of goroutine that created this goroutine
+	gopc          uintptr         // pc of go statement that created this goroutine
+	ancestors     *[]ancestorInfo // ancestor information goroutine(s) that created this goroutine (only used if debug.tracebackancestors)
+	startpc       uintptr         // pc of goroutine function
+	racectx       uintptr
+	waiting       *sudog         // sudog structures this g is waiting on (that have a valid elem ptr); in lock order
+	cgoCtxt       []uintptr      // cgo traceback context
+	labels        unsafe.Pointer // profiler labels
+	timer         *timer         // cached timer for time.Sleep
+	sleepWhen     int64          // when to sleep until
+	selectDone    atomic.Uint32  // are we participating in a select and did someone win the race?
 
 	// goroutineProfiled indicates the status of this goroutine's stack for the
 	// current in-progress goroutine profile

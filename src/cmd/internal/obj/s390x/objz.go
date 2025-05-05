@@ -327,6 +327,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if !p.From.Sym.NoSplit() {
 				p, pPreempt, pCheck = c.stacksplitPre(p, autosize) // emit pre part of split check
 				pPre = p
+				p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
 				wasSplit = true //need post part of split
 			}
 
@@ -656,6 +657,12 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (pPre, pPreempt, pCh
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R3
 
+	// Mark the stack bound check and morestack call async nonpreemptible.
+	// If we get preempted here, when resumed the preemption request is
+	// cleared, but we'll still call morestack, which will double the stack
+	// unnecessarily. See issue #35470.
+	p = c.ctxt.StartUnsafePoint(p, c.newprog)
+
 	if framesize <= abi.StackSmall {
 		// small stack: SP < stackguard
 		//	CMPUBGE	stackguard, SP, label-of-call-to-morestack
@@ -736,6 +743,7 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre, pPreempt, pCheck *obj.Prog, fr
 	spfix.Spadj = -framesize
 
 	pcdata := c.ctxt.EmitEntryStackMap(c.cursym, spfix, c.newprog)
+	pcdata = c.ctxt.StartUnsafePoint(pcdata, c.newprog)
 
 	// MOVD	LR, R5
 	p = obj.Appendp(pcdata, c.newprog)
@@ -761,6 +769,8 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre, pPreempt, pCheck *obj.Prog, fr
 	} else {
 		p.To.Sym = c.ctxt.Lookup("runtime.morestack")
 	}
+
+	p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
 
 	// BR	pCheck
 	p = obj.Appendp(p, c.newprog)
