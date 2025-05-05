@@ -13,6 +13,7 @@ import (
 	"errors"
 	"hash"
 	"io"
+	"math/bits"
 	"sync"
 )
 
@@ -54,7 +55,7 @@ const (
 type Curve[P Point[P]] struct {
 	curve      curveID
 	newPoint   func() P
-	ordInverse func([]byte) ([]byte, error)
+	ordInverse func(*[4]uint64)
 	N          *bigmod.Modulus
 	nMinus2    []byte
 }
@@ -387,14 +388,11 @@ func signGeneric[P Point[P]](c *Curve[P], priv *PrivateKey, drbg *hmacDRBG, hash
 
 // inverse sets kInv to the inverse of k modulo the order of the curve.
 func inverse[P Point[P]](c *Curve[P], kInv, k *bigmod.Nat) {
-	if c.ordInverse != nil {
-		kBytes, err := c.ordInverse(k.Bytes(c.N))
-		// Some platforms don't implement ordInverse, and always return an error.
-		if err == nil {
-			_, err := kInv.SetBytes(kBytes, c.N)
-			if err != nil {
-				panic("ecdsa: internal error: ordInverse produced an invalid value")
-			}
+	if c.ordInverse != nil && bits.UintSize == 64 {
+		if kb := k.Bits(); len(kb) == 4 {
+			k64 := [4]uint64{uint64(kb[0]), uint64(kb[1]), uint64(kb[2]), uint64(kb[3])}
+			c.ordInverse(&k64)
+			kInv.SetBits([]uint{uint(k64[0]), uint(k64[1]), uint(k64[2]), uint(k64[3])})
 			return
 		}
 	}

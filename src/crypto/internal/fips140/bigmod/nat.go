@@ -142,6 +142,14 @@ func (x *Nat) Bits() []uint {
 	return x.limbs
 }
 
+// SetBits assigns x = y, where y is a slice of little-endian uint. x is resized
+// to the length of y.
+func (x *Nat) SetBits(y []uint) *Nat {
+	x.reset(len(y))
+	copy(x.limbs, y)
+	return x
+}
+
 // Bytes returns x as a zero-extended big-endian byte slice. The size of the
 // slice will match the size of m.
 //
