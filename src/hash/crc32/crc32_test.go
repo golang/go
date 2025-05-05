@@ -8,6 +8,7 @@ import (
 	"encoding"
 	"fmt"
 	"hash"
+	"internal/testhash"
 	"io"
 	"math/rand"
 	"testing"
@@ -21,6 +22,10 @@ func TestCastagnoliRace(t *testing.T) {
 	ieee := NewIEEE()
 	go MakeTable(Castagnoli)
 	ieee.Write([]byte("hello"))
+}
+
+func TestHashInterface(t *testing.T) {
+	testhash.TestHash(t, func() hash.Hash { return NewIEEE() })
 }
 
 type test struct {

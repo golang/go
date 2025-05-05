@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"hash"
 	"internal/asan"
+	"internal/testhash"
 	"math"
 	"reflect"
 	"strings"
@@ -454,6 +455,10 @@ func TestComparableAllocations(t *testing.T) {
 // Make sure a Hash implements the hash.Hash and hash.Hash64 interfaces.
 var _ hash.Hash = &Hash{}
 var _ hash.Hash64 = &Hash{}
+
+func TestHashInterface(t *testing.T) {
+	testhash.TestHash(t, func() hash.Hash { return new(Hash) })
+}
 
 func benchmarkSize(b *testing.B, size int) {
 	h := &Hash{}
