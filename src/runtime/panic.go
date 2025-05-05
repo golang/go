@@ -635,8 +635,8 @@ func preprintpanics(p *_panic) {
 	for p != nil {
 		if p.link != nil && *efaceOf(&p.link.arg) == *efaceOf(&p.arg) {
 			// This panic contains the same value as the next one in the chain.
-			// Mark it as reraised. We will skip printing it twice in a row.
-			p.link.reraised = true
+			// Mark it as repanicked. We will skip printing it twice in a row.
+			p.link.repanicked = true
 			p = p.link
 			continue
 		}
@@ -655,7 +655,7 @@ func preprintpanics(p *_panic) {
 func printpanics(p *_panic) {
 	if p.link != nil {
 		printpanics(p.link)
-		if p.link.reraised {
+		if p.link.repanicked {
 			return
 		}
 		if !p.link.goexit {
@@ -667,8 +667,8 @@ func printpanics(p *_panic) {
 	}
 	print("panic: ")
 	printpanicval(p.arg)
-	if p.reraised {
-		print(" [recovered, reraised]")
+	if p.repanicked {
+		print(" [recovered, repanicked]")
 	} else if p.recovered {
 		print(" [recovered]")
 	}

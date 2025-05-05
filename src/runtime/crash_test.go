@@ -357,19 +357,19 @@ panic: third panic
 
 }
 
-func TestReraisedPanic(t *testing.T) {
-	output := runTestProg(t, "testprog", "ReraisedPanic")
-	want := `panic: message [recovered, reraised]
+func TestRepanickedPanic(t *testing.T) {
+	output := runTestProg(t, "testprog", "RepanickedPanic")
+	want := `panic: message [recovered, repanicked]
 `
 	if !strings.HasPrefix(output, want) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
 }
 
-func TestReraisedMiddlePanic(t *testing.T) {
-	output := runTestProg(t, "testprog", "ReraisedMiddlePanic")
+func TestRepanickedMiddlePanic(t *testing.T) {
+	output := runTestProg(t, "testprog", "RepanickedMiddlePanic")
 	want := `panic: inner [recovered]
-	panic: middle [recovered, reraised]
+	panic: middle [recovered, repanicked]
 	panic: outer
 `
 	if !strings.HasPrefix(output, want) {
@@ -377,8 +377,8 @@ func TestReraisedMiddlePanic(t *testing.T) {
 	}
 }
 
-func TestReraisedPanicSandwich(t *testing.T) {
-	output := runTestProg(t, "testprog", "ReraisedPanicSandwich")
+func TestRepanickedPanicSandwich(t *testing.T) {
+	output := runTestProg(t, "testprog", "RepanickedPanicSandwich")
 	want := `panic: outer [recovered]
 	panic: inner [recovered]
 	panic: outer

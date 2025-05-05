@@ -1013,7 +1013,7 @@ type _panic struct {
 	slotsPtr     unsafe.Pointer
 
 	recovered   bool // whether this panic has been recovered
-	reraised    bool // whether this panic was reraised
+	repanicked  bool // whether this panic repanicked
 	goexit      bool
 	deferreturn bool
 }
