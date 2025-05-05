@@ -243,7 +243,7 @@ func emsaPSSVerify(mHash, em []byte, emBits, sLen int, hash hash.Hash) error {
 	h0 := hash.Sum(nil)
 
 	// 14. If H = H', output "consistent." Otherwise, output "inconsistent."
-	if !bytes.Equal(h0, h) { // TODO: constant time?
+	if !bytes.Equal(h0, h) {
 		return ErrVerification
 	}
 	return nil
