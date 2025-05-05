@@ -284,6 +284,25 @@ func TestIntendedInlining(t *testing.T) {
 		}
 	}
 
+	if runtime.GOARCH != "wasm" {
+		// mutex implementation for multi-threaded GOARCHes
+		want["runtime"] = append(want["runtime"],
+			// in the fast paths of lock2 and unlock2
+			"key8",
+			"(*mLockProfile).store",
+		)
+		if bits.UintSize == 64 {
+			// these use 64-bit arithmetic, which is hard to inline on 32-bit platforms
+			want["runtime"] = append(want["runtime"],
+				// in the fast paths of lock2 and unlock2
+				"mutexSampleContention",
+
+				// in a slow path of lock2, but within the critical section
+				"(*mLockProfile).end",
+			)
+		}
+	}
+
 	// Functions that must actually be inlined; they must have actual callers.
 	must := map[string]bool{
 		"compress/flate.byLiteral.Len":  true,
