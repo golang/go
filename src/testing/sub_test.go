@@ -582,12 +582,13 @@ func TestTRun(t *T) {
 			t.Errorf("error")
 		},
 	}, {
-		desc: "no newline between buffered log and log",
+		desc: "newline between buffered log and log",
 		ok:   false,
 		output: `
---- FAIL: no newline between buffered log and log (0.00s)
-    --- FAIL: no newline between buffered log and log/#00 (0.00s)
-        buffered messagesub_test.go:NNN: log`,
+--- FAIL: newline between buffered log and log (0.00s)
+    --- FAIL: newline between buffered log and log/#00 (0.00s)
+        buffered message
+        sub_test.go:NNN: log`,
 		f: func(t *T) {
 			t.Run("", func(t *T) {
 				o := t.Output()
