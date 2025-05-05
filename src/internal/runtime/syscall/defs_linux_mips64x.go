@@ -7,6 +7,7 @@
 package syscall
 
 const (
+	SYS_CLOSE         = 5003
 	SYS_MPROTECT      = 5010
 	SYS_FCNTL         = 5070
 	SYS_PRCTL         = 5153
@@ -15,8 +16,13 @@ const (
 	SYS_EPOLL_CREATE1 = 5285
 	SYS_EPOLL_PWAIT2  = 5441
 	SYS_EVENTFD2      = 5284
+	SYS_OPENAT        = 5247
+	SYS_PREAD64       = 5016
+	SYS_READ          = 5000
 
 	EFD_NONBLOCK = 0x80
+
+	O_LARGEFILE = 0x0
 )
 
 type EpollEvent struct {
