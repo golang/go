@@ -3012,3 +3012,39 @@ func TestPoliciesValid(t *testing.T) {
 		})
 	}
 }
+
+func TestInvalidPolicyWithAnyKeyUsage(t *testing.T) {
+	loadTestCert := func(t *testing.T, path string) *Certificate {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, _ := pem.Decode(b)
+		c, err := ParseCertificate(p.Bytes)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+
+	testOID3 := mustNewOIDFromInts([]uint64{1, 2, 840, 113554, 4, 1, 72585, 2, 3})
+	root, intermediate, leaf := loadTestCert(t, "testdata/policy_root.pem"), loadTestCert(t, "testdata/policy_intermediate_require.pem"), loadTestCert(t, "testdata/policy_leaf.pem")
+
+	expectedErr := "x509: no valid chains built: all candidate chains have invalid policies"
+
+	roots, intermediates := NewCertPool(), NewCertPool()
+	roots.AddCert(root)
+	intermediates.AddCert(intermediate)
+
+	_, err := leaf.Verify(VerifyOptions{
+		Roots:               roots,
+		Intermediates:       intermediates,
+		KeyUsages:           []ExtKeyUsage{ExtKeyUsageAny},
+		CertificatePolicies: []OID{testOID3},
+	})
+	if err == nil {
+		t.Fatal("unexpected success, invalid policy shouldn't be bypassed by passing VerifyOptions.KeyUsages with ExtKeyUsageAny")
+	} else if err.Error() != expectedErr {
+		t.Fatalf("unexpected error, got %q, want %q", err, expectedErr)
+	}
+}

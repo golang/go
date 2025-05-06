@@ -841,31 +841,45 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		}
 	}
 
-	if len(opts.KeyUsages) == 0 {
-		opts.KeyUsages = []ExtKeyUsage{ExtKeyUsageServerAuth}
-	}
-
-	for _, eku := range opts.KeyUsages {
-		if eku == ExtKeyUsageAny {
-			// If any key usage is acceptable, no need to check the chain for
-			// key usages.
-			return candidateChains, nil
-		}
-	}
-
 	chains = make([][]*Certificate, 0, len(candidateChains))
-	var incompatibleKeyUsageChains, invalidPoliciesChains int
+
+	var invalidPoliciesChains int
 	for _, candidate := range candidateChains {
-		if !checkChainForKeyUsage(candidate, opts.KeyUsages) {
-			incompatibleKeyUsageChains++
-			continue
-		}
 		if !policiesValid(candidate, opts) {
 			invalidPoliciesChains++
 			continue
 		}
 		chains = append(chains, candidate)
 	}
+
+	if len(chains) == 0 {
+		return nil, CertificateInvalidError{c, NoValidChains, "all candidate chains have invalid policies"}
+	}
+
+	for _, eku := range opts.KeyUsages {
+		if eku == ExtKeyUsageAny {
+			// If any key usage is acceptable, no need to check the chain for
+			// key usages.
+			return chains, nil
+		}
+	}
+
+	if len(opts.KeyUsages) == 0 {
+		opts.KeyUsages = []ExtKeyUsage{ExtKeyUsageServerAuth}
+	}
+
+	candidateChains = chains
+	chains = chains[:0]
+
+	var incompatibleKeyUsageChains int
+	for _, candidate := range candidateChains {
+		if !checkChainForKeyUsage(candidate, opts.KeyUsages) {
+			incompatibleKeyUsageChains++
+			continue
+		}
+		chains = append(chains, candidate)
+	}
+
 	if len(chains) == 0 {
 		var details []string
 		if incompatibleKeyUsageChains > 0 {
