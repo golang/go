@@ -1610,6 +1610,14 @@ func buildop(ctxt *obj.Link) {
 			opset(AVMULWODWHUH, r0)
 			opset(AVMULWODVWUW, r0)
 			opset(AVMULWODQVUV, r0)
+			opset(AVADDF, r0)
+			opset(AVADDD, r0)
+			opset(AVSUBF, r0)
+			opset(AVSUBD, r0)
+			opset(AVMULF, r0)
+			opset(AVMULD, r0)
+			opset(AVDIVF, r0)
+			opset(AVDIVD, r0)
 
 		case AXVSEQB:
 			opset(AXVSEQH, r0)
@@ -1675,6 +1683,14 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVMULWODWHUH, r0)
 			opset(AXVMULWODVWUW, r0)
 			opset(AXVMULWODQVUV, r0)
+			opset(AXVADDF, r0)
+			opset(AXVADDD, r0)
+			opset(AXVSUBF, r0)
+			opset(AXVSUBD, r0)
+			opset(AXVMULF, r0)
+			opset(AXVMULD, r0)
+			opset(AXVDIVF, r0)
+			opset(AXVDIVD, r0)
 
 		case AVANDB:
 			opset(AVORB, r0)
@@ -3387,6 +3403,38 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0xe912 << 15 // xvmuh.wu
 	case AXVMUHVU:
 		return 0xe913 << 15 // xvmuh.du
+	case AVADDF:
+		return 0xe261 << 15 // vfadd.s
+	case AVADDD:
+		return 0xe262 << 15 // vfadd.d
+	case AVSUBF:
+		return 0xe265 << 15 // vfsub.s
+	case AVSUBD:
+		return 0xe266 << 15 // vfsub.d
+	case AVMULF:
+		return 0xe271 << 15 // vfmul.s
+	case AVMULD:
+		return 0xe272 << 15 // vfmul.d
+	case AVDIVF:
+		return 0xe275 << 15 // vfdiv.s
+	case AVDIVD:
+		return 0xe276 << 15 // vfdiv.d
+	case AXVADDF:
+		return 0xea61 << 15 // xvfadd.s
+	case AXVADDD:
+		return 0xea62 << 15 // xvfadd.d
+	case AXVSUBF:
+		return 0xea65 << 15 // xvfsub.s
+	case AXVSUBD:
+		return 0xea66 << 15 // xvfsub.d
+	case AXVMULF:
+		return 0xea71 << 15 // xvfmul.s
+	case AXVMULD:
+		return 0xea72 << 15 // xvfmul.d
+	case AXVDIVF:
+		return 0xea75 << 15 // xvfdiv.s
+	case AXVDIVD:
+		return 0xea76 << 15 // xvfdiv.d
 	}
 
 	if a < 0 {
