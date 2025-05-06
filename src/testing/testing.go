@@ -1022,12 +1022,13 @@ func (c *common) log(s string) {
 		panic("Log in goroutine after " + c.name + " has completed: " + s)
 	}
 
-	// Output buffered logs.
-	n.o.flush()
-
 	// Prefix with the call site. It is located by skipping 3 functions:
 	// callSite + log + public function
 	s = n.callSite(3) + s
+	if len(n.o.partial) != 0 {
+		// Output buffered logs.
+		s = "\n" + s
+	}
 	n.o.Write([]byte(s))
 }
 
