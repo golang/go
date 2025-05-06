@@ -1748,6 +1748,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AVFRINTRMD, r0)
 			opset(AVFRINTF, r0)
 			opset(AVFRINTD, r0)
+			opset(AVFCLASSF, r0)
+			opset(AVFCLASSD, r0)
 
 		case AXVPCNTB:
 			opset(AXVPCNTH, r0)
@@ -1773,6 +1775,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVFRINTRMD, r0)
 			opset(AXVFRINTF, r0)
 			opset(AXVFRINTD, r0)
+			opset(AXVFCLASSF, r0)
+			opset(AXVFCLASSD, r0)
 
 		case AVADDB:
 			opset(AVADDH, r0)
@@ -3691,6 +3695,14 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
 		return 0x1da74d << 10 // xvfrint.s
 	case AXVFRINTD:
 		return 0x1da74e << 10 // xvfrint.d
+	case AVFCLASSF:
+		return 0x1ca735 << 10 // vfclass.s
+	case AVFCLASSD:
+		return 0x1ca736 << 10 // vfclass.d
+	case AXVFCLASSF:
+		return 0x1da735 << 10 // xvfclass.s
+	case AXVFCLASSD:
+		return 0x1da736 << 10 // xvfclass.d
 	case AVSETEQV:
 		return 0x1ca726<<10 | 0x0<<3 // vseteqz.v
 	case AVSETNEV:

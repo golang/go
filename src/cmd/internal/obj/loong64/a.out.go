@@ -967,6 +967,11 @@ const (
 	AXVDIVF
 	AXVDIVD
 
+	AVFCLASSF
+	AVFCLASSD
+	AXVFCLASSF
+	AXVFCLASSD
+
 	// LSX and LASX floating point conversion instructions
 	AVFRINTRNEF
 	AVFRINTRNED
