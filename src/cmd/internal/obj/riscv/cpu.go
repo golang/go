@@ -1297,9 +1297,9 @@ var specialOperands = map[SpecialOperand]struct {
 	SPOP_M2:  {encoding: 1, name: "M2"},
 	SPOP_M4:  {encoding: 2, name: "M4"},
 	SPOP_M8:  {encoding: 3, name: "M8"},
-	SPOP_MF2: {encoding: 5, name: "MF2"},
+	SPOP_MF8: {encoding: 5, name: "MF8"},
 	SPOP_MF4: {encoding: 6, name: "MF4"},
-	SPOP_MF8: {encoding: 7, name: "MF8"},
+	SPOP_MF2: {encoding: 7, name: "MF2"},
 
 	SPOP_E8:  {encoding: 0, name: "E8"},
 	SPOP_E16: {encoding: 1, name: "E16"},
