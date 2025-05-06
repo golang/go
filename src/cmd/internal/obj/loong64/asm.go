@@ -1722,6 +1722,16 @@ func buildop(ctxt *obj.Link) {
 			opset(AVNEGH, r0)
 			opset(AVNEGW, r0)
 			opset(AVNEGV, r0)
+			opset(AVFRINTRNEF, r0)
+			opset(AVFRINTRNED, r0)
+			opset(AVFRINTRZF, r0)
+			opset(AVFRINTRZD, r0)
+			opset(AVFRINTRPF, r0)
+			opset(AVFRINTRPD, r0)
+			opset(AVFRINTRMF, r0)
+			opset(AVFRINTRMD, r0)
+			opset(AVFRINTF, r0)
+			opset(AVFRINTD, r0)
 
 		case AXVPCNTB:
 			opset(AXVPCNTH, r0)
@@ -1737,6 +1747,16 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVNEGH, r0)
 			opset(AXVNEGW, r0)
 			opset(AXVNEGV, r0)
+			opset(AXVFRINTRNEF, r0)
+			opset(AXVFRINTRNED, r0)
+			opset(AXVFRINTRZF, r0)
+			opset(AXVFRINTRZD, r0)
+			opset(AXVFRINTRPF, r0)
+			opset(AXVFRINTRPD, r0)
+			opset(AXVFRINTRMF, r0)
+			opset(AXVFRINTRMD, r0)
+			opset(AXVFRINTF, r0)
+			opset(AXVFRINTD, r0)
 
 		case AVADDB:
 			opset(AVADDH, r0)
@@ -3583,6 +3603,46 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
 		return 0x1da70e << 10 // xvneg.w
 	case AXVNEGV:
 		return 0x1da70f << 10 // xvneg.d
+	case AVFRINTRNEF:
+		return 0x1ca75d << 10 // vfrintrne.s
+	case AVFRINTRNED:
+		return 0x1ca75e << 10 // vfrintrne.d
+	case AVFRINTRZF:
+		return 0x1ca759 << 10 // vfrintrz.s
+	case AVFRINTRZD:
+		return 0x1ca75a << 10 // vfrintrz.d
+	case AVFRINTRPF:
+		return 0x1ca755 << 10 // vfrintrp.s
+	case AVFRINTRPD:
+		return 0x1ca756 << 10 // vfrintrp.d
+	case AVFRINTRMF:
+		return 0x1ca751 << 10 // vfrintrm.s
+	case AVFRINTRMD:
+		return 0x1ca752 << 10 // vfrintrm.d
+	case AVFRINTF:
+		return 0x1ca74d << 10 // vfrint.s
+	case AVFRINTD:
+		return 0x1ca74e << 10 // vfrint.d
+	case AXVFRINTRNEF:
+		return 0x1da75d << 10 // xvfrintrne.s
+	case AXVFRINTRNED:
+		return 0x1da75e << 10 // xvfrintrne.d
+	case AXVFRINTRZF:
+		return 0x1da759 << 10 // xvfrintrz.s
+	case AXVFRINTRZD:
+		return 0x1da75a << 10 // xvfrintrz.d
+	case AXVFRINTRPF:
+		return 0x1da755 << 10 // xvfrintrp.s
+	case AXVFRINTRPD:
+		return 0x1da756 << 10 // xvfrintrp.d
+	case AXVFRINTRMF:
+		return 0x1da751 << 10 // xvfrintrm.s
+	case AXVFRINTRMD:
+		return 0x1da752 << 10 // xvfrintrm.d
+	case AXVFRINTF:
+		return 0x1da74d << 10 // xvfrint.s
+	case AXVFRINTD:
+		return 0x1da74e << 10 // xvfrint.d
 	case AVSETEQV:
 		return 0x1ca726<<10 | 0x0<<3 // vseteqz.v
 	case AVSETNEV:
