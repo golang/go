@@ -2227,11 +2227,19 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
 					rel := filepath.ToSlash(str.TrimFilePathPrefix(path, pkgdir))
 					name := d.Name()
 					if path != file && (isBadEmbedName(name) || ((name[0] == '.' || name[0] == '_') && !all)) {
-						// Ignore bad names, assuming they won't go into modules.
-						// Also avoid hidden files that user may not know about.
+						// Avoid hidden files that user may not know about.
 						// See golang.org/issue/42328.
 						if d.IsDir() {
 							return fs.SkipDir
+						}
+						// Ignore hidden files.
+						if name[0] == '.' || name[0] == '_' {
+							return nil
+						}
+						// Error on bad embed names.
+						// See golang.org/issue/54003.
+						if isBadEmbedName(name) {
+							return fmt.Errorf("cannot embed file %s: invalid name %s", rel, name)
 						}
 						return nil
 					}
