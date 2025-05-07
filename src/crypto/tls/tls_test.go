@@ -811,7 +811,7 @@ func TestWarningAlertFlood(t *testing.T) {
 }
 
 func TestCloneFuncFields(t *testing.T) {
-	const expectedCount = 9
+	const expectedCount = 10
 	called := 0
 
 	c1 := Config{
@@ -851,6 +851,10 @@ func TestCloneFuncFields(t *testing.T) {
 			called |= 1 << 8
 			return nil
 		},
+		GetEncryptedClientHelloKeys: func(*ClientHelloInfo) ([]EncryptedClientHelloKey, error) {
+			called |= 1 << 9
+			return nil, nil
+		},
 	}
 
 	c2 := c1.Clone()
@@ -864,6 +868,7 @@ func TestCloneFuncFields(t *testing.T) {
 	c2.UnwrapSession(nil, ConnectionState{})
 	c2.WrapSession(ConnectionState{}, nil)
 	c2.EncryptedClientHelloRejectionVerify(ConnectionState{})
+	c2.GetEncryptedClientHelloKeys(nil)
 
 	if called != (1<<expectedCount)-1 {
 		t.Fatalf("expected %d calls but saw calls %b", expectedCount, called)
@@ -882,7 +887,7 @@ func TestCloneNonFuncFields(t *testing.T) {
 		switch fn := typ.Field(i).Name; fn {
 		case "Rand":
 			f.Set(reflect.ValueOf(io.Reader(os.Stdin)))
-		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate", "VerifyConnection", "GetClientCertificate", "WrapSession", "UnwrapSession", "EncryptedClientHelloRejectionVerify":
+		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate", "VerifyConnection", "GetClientCertificate", "WrapSession", "UnwrapSession", "EncryptedClientHelloRejectionVerify", "GetEncryptedClientHelloKeys":
 			// DeepEqual can't compare functions. If you add a
 			// function field to this list, you must also change
 			// TestCloneFuncFields to ensure that the func field is
@@ -2301,26 +2306,44 @@ func TestECH(t *testing.T) {
 		{Config: echConfig, PrivateKey: echKey.Bytes(), SendAsRetry: true},
 	}
 
-	ss, cs, err := testHandshake(t, clientConfig, serverConfig)
+	check := func() {
+		ss, cs, err := testHandshake(t, clientConfig, serverConfig)
+		if err != nil {
+			t.Fatalf("unexpected failure: %s", err)
+		}
+		if !ss.ECHAccepted {
+			t.Fatal("server ConnectionState shows ECH not accepted")
+		}
+		if !cs.ECHAccepted {
+			t.Fatal("client ConnectionState shows ECH not accepted")
+		}
+		if cs.ServerName != "secret.example" || ss.ServerName != "secret.example" {
+			t.Fatalf("unexpected ConnectionState.ServerName, want %q, got server:%q, client: %q", "secret.example", ss.ServerName, cs.ServerName)
+		}
+		if len(cs.VerifiedChains) != 1 {
+			t.Fatal("unexpect number of certificate chains")
+		}
+		if len(cs.VerifiedChains[0]) != 1 {
+			t.Fatal("unexpect number of certificates")
+		}
+		if !cs.VerifiedChains[0][0].Equal(secretCert) {
+			t.Fatal("unexpected certificate")
+		}
+	}
+
+	check()
+
+	serverConfig.GetEncryptedClientHelloKeys = func(_ *ClientHelloInfo) ([]EncryptedClientHelloKey, error) {
+		return []EncryptedClientHelloKey{{Config: echConfig, PrivateKey: echKey.Bytes(), SendAsRetry: true}}, nil
+	}
+	randKey, err := ecdh.X25519().GenerateKey(rand.Reader)
 	if err != nil {
-		t.Fatalf("unexpected failure: %s", err)
+		t.Fatal(err)
 	}
-	if !ss.ECHAccepted {
-		t.Fatal("server ConnectionState shows ECH not accepted")
+	randConfig := marshalECHConfig(32, randKey.PublicKey().Bytes(), "random.example", 32)
+	serverConfig.EncryptedClientHelloKeys = []EncryptedClientHelloKey{
+		{Config: randConfig, PrivateKey: randKey.Bytes(), SendAsRetry: true},
 	}
-	if !cs.ECHAccepted {
-		t.Fatal("client ConnectionState shows ECH not accepted")
-	}
-	if cs.ServerName != "secret.example" || ss.ServerName != "secret.example" {
-		t.Fatalf("unexpected ConnectionState.ServerName, want %q, got server:%q, client: %q", "secret.example", ss.ServerName, cs.ServerName)
-	}
-	if len(cs.VerifiedChains) != 1 {
-		t.Fatal("unexpect number of certificate chains")
-	}
-	if len(cs.VerifiedChains[0]) != 1 {
-		t.Fatal("unexpect number of certificates")
-	}
-	if !cs.VerifiedChains[0][0].Equal(secretCert) {
-		t.Fatal("unexpected certificate")
-	}
+
+	check()
 }

@@ -837,6 +837,20 @@ type Config struct {
 	// when ECH is rejected, even if set, and InsecureSkipVerify is ignored.
 	EncryptedClientHelloRejectionVerify func(ConnectionState) error
 
+	// GetEncryptedClientHelloKeys, if not nil, is called when by a server when
+	// a client attempts ECH.
+	//
+	// If GetEncryptedClientHelloKeys is not nil, [EncryptedClientHelloKeys] is
+	// ignored.
+	//
+	// If GetEncryptedClientHelloKeys returns an error, the handshake will be
+	// aborted and the error will be returned. Otherwise,
+	// GetEncryptedClientHelloKeys must return a non-nil slice of
+	// [EncryptedClientHelloKey] that represents the acceptable ECH keys.
+	//
+	// For further details, see [EncryptedClientHelloKeys].
+	GetEncryptedClientHelloKeys func(*ClientHelloInfo) ([]EncryptedClientHelloKey, error)
+
 	// EncryptedClientHelloKeys are the ECH keys to use when a client
 	// attempts ECH.
 	//
@@ -846,6 +860,9 @@ type Config struct {
 	// If a client attempts ECH, but it is rejected by the server, the server
 	// will send a list of configs to retry based on the set of
 	// EncryptedClientHelloKeys which have the SendAsRetry field set.
+	//
+	// If GetEncryptedClientHelloKeys is non-nil, EncryptedClientHelloKeys is
+	// ignored.
 	//
 	// On the client side, this field is ignored. In order to configure ECH for
 	// clients, see the EncryptedClientHelloConfigList field.
@@ -935,6 +952,7 @@ func (c *Config) Clone() *Config {
 		GetCertificate:                      c.GetCertificate,
 		GetClientCertificate:                c.GetClientCertificate,
 		GetConfigForClient:                  c.GetConfigForClient,
+		GetEncryptedClientHelloKeys:         c.GetEncryptedClientHelloKeys,
 		VerifyPeerCertificate:               c.VerifyPeerCertificate,
 		VerifyConnection:                    c.VerifyConnection,
 		RootCAs:                             c.RootCAs,
