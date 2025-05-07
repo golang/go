@@ -41,12 +41,22 @@ func TestCertCache(t *testing.T) {
 
 	timeoutRefCheck := func(t *testing.T, key string, count int64) {
 		t.Helper()
-		c := time.After(4 * time.Second)
+
+		// Explicitly check every 1 ms up to the timeout instead of busy-looping.
+		//
+		// On single-threaded platforms like js/wasm a busy-loop might
+		// never call into the scheduler for the full timeout, meaning
+		// that if we arrive here and the cleanup hasn't already run,
+		// we'll simply loop until the timeout. Busy-loops put us at the
+		// mercy of the Go scheduler, making this test fragile on some
+		// platforms.
+		timeout := time.After(4 * time.Second)
+		check := time.After(1 * time.Millisecond)
 		for {
 			select {
-			case <-c:
+			case <-timeout:
 				t.Fatal("timed out waiting for expected ref count")
-			default:
+			case <-check:
 				e, ok := cc.Load(key)
 				if !ok && count != 0 {
 					t.Fatal("cache does not contain expected key")
