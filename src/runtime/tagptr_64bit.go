@@ -34,13 +34,16 @@ const (
 	// We use one bit to distinguish between the two ranges.
 	aixAddrBits = 57
 
+	// Later versions of FreeBSD enable amd64's la57 by default.
+	freebsdAmd64AddrBits = 57
+
 	// riscv64 SV57 mode gives 56 bits of userspace VA.
 	// tagged pointer code supports it,
 	// but broader support for SV57 mode is incomplete,
 	// and there may be other issues (see #54104).
 	riscv64AddrBits = 56
 
-	addrBits = goos.IsAix*aixAddrBits + goarch.IsRiscv64*riscv64AddrBits + (1-goos.IsAix)*(1-goarch.IsRiscv64)*defaultAddrBits
+	addrBits = goos.IsAix*aixAddrBits + goarch.IsRiscv64*riscv64AddrBits + goos.IsFreebsd*goarch.IsAmd64*freebsdAmd64AddrBits + (1-goos.IsAix)*(1-goarch.IsRiscv64)*(1-goos.IsFreebsd*goarch.IsAmd64)*defaultAddrBits
 
 	// In addition to the 16 bits (or other, depending on arch/os) taken from the top,
 	// we can take 9 from the bottom, because we require pointers to be well-aligned
