@@ -1035,6 +1035,9 @@ func (c *common) log(s string) {
 // destination selects the test to which output should be appended. It returns the
 // test if it is incomplete. Otherwise, it finds its closest incomplete parent.
 func (c *common) destination() *common {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	if !c.done {
 		return c
 	}
