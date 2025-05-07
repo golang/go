@@ -169,9 +169,10 @@ func (a *activeSweep) end(sl sweepLocker) {
 			throw("mismatched begin/end of activeSweep")
 		}
 		if a.state.CompareAndSwap(state, state-1) {
-			if state != sweepDrainedMask {
+			if state-1 != sweepDrainedMask {
 				return
 			}
+			// We're the last sweeper, and there's nothing left to sweep.
 			if debug.gcpacertrace > 0 {
 				live := gcController.heapLive.Load()
 				print("pacer: sweep done at heap size ", live>>20, "MB; allocated ", (live-mheap_.sweepHeapLiveBasis)>>20, "MB during sweep; swept ", mheap_.pagesSwept.Load(), " pages at ", mheap_.sweepPagesPerByte, " pages/byte\n")
