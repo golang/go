@@ -1088,7 +1088,7 @@ func (c *common) flushPartial() {
 // Output returns a Writer that writes to the same test output stream as TB.Log.
 // The output is indented like TB.Log lines, but Output does not
 // add source locations or newlines. The output is internally line
-// buffered, and a call to log or the end of the test will implicitly
+// buffered, and a call to TB.Log or the end of the test will implicitly
 // flush the buffer, followed by a newline. After a test function and all its
 // parents return, neither Output nor the Write method may be called.
 func (c *common) Output() io.Writer {
