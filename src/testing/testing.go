@@ -1025,10 +1025,14 @@ func (c *common) log(s string) {
 	// Prefix with the call site. It is located by skipping 3 functions:
 	// callSite + log + public function
 	s = n.callSite(3) + s
+
+	n.mu.Lock()
 	if len(n.o.partial) != 0 {
 		// Output buffered logs.
 		s = "\n" + s
 	}
+	n.mu.Unlock()
+
 	n.o.Write([]byte(s))
 }
 
