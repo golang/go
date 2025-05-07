@@ -1026,12 +1026,8 @@ func (c *common) log(s string) {
 	// callSite + log + public function
 	s = n.callSite(3) + s
 
-	n.mu.Lock()
-	if len(n.o.partial) != 0 {
-		// Output buffered logs.
-		s = "\n" + s
-	}
-	n.mu.Unlock()
+	// Output buffered logs.
+	n.flushPartial()
 
 	n.o.Write([]byte(s))
 }
@@ -1074,6 +1070,19 @@ func (c *common) callSite(skip int) string {
 	}
 
 	return fmt.Sprintf("%s:%d: ", file, line)
+}
+
+// flushPartial checks the buffer for partial logs and outputs them.
+func (c *common) flushPartial() {
+	partial := func() bool {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		return (c.o != nil) && (len(c.o.partial) > 0)
+	}
+
+	if partial() {
+		c.o.Write([]byte("\n"))
+	}
 }
 
 // Output returns a Writer that writes to the same test output stream as TB.Log.
@@ -1143,16 +1152,6 @@ func (o *outputWriter) writeLine(b []byte) {
 	}
 	o.c.output = append(o.c.output, indent...)
 	o.c.output = append(o.c.output, b...)
-}
-
-// flush outputs the contents of the buffer and the buffers of the parent tests.
-func (o *outputWriter) flush() {
-	for p := o.c; p != nil; p = p.parent {
-		if (p.o == nil) || (len(p.o.partial) == 0) {
-			continue
-		}
-		p.o.Write([]byte("\n"))
-	}
 }
 
 // Log formats its arguments using default formatting, analogous to Println,
@@ -1810,9 +1809,7 @@ func tRunner(t *T, fn func(t *T)) {
 				d := root.duration
 				root.mu.Unlock()
 				// Output buffered logs.
-				if t.o != nil {
-					t.o.flush()
-				}
+				root.flushPartial()
 				root.flushToParent(root.name, "--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
 				if r := root.parent.runCleanup(recoverAndReturnPanic); r != nil {
 					fmt.Fprintf(root.parent.w, "cleanup panicked with %v", r)
@@ -1861,8 +1858,8 @@ func tRunner(t *T, fn func(t *T)) {
 			t.tstate.release()
 		}
 		// Output buffered logs.
-		if t.o != nil {
-			t.o.flush()
+		for root := &t.common; root.parent != nil; root = root.parent {
+			root.flushPartial()
 		}
 		t.report() // Report after all subtests have finished.
 
