@@ -13,7 +13,7 @@ TEXT ·kimd(SB), NOFRAME|NOSPLIT, $0-40
 	LMG  src+16(FP), R2, R3 // R2=base, R3=len
 
 continue:
-	WORD $0xB93E0002 // KIMD --, R2
+	KIMD R0, R2
 	BVS  continue    // continue if interrupted
 	MOVD $0, R0      // reset R0 for pre-go1.8 compilers
 	RET
@@ -26,7 +26,7 @@ TEXT ·klmd(SB), NOFRAME|NOSPLIT, $0-64
 	LMG  src+40(FP), R4, R5 // R4=base, R5=len
 
 continue:
-	WORD $0xB93F0024 // KLMD R2, R4
+	KLMD R2, R4
 	BVS  continue    // continue if interrupted
 	MOVD $0, R0      // reset R0 for pre-go1.8 compilers
 	RET
