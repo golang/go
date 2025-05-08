@@ -404,7 +404,7 @@ useStackLock:
 			n++
 			next := node.mWaitList.next.ptr()
 			if next == nil {
-				cycles := endTicks - (head.mWaitList.startTicks+node.mWaitList.startTicks)/2
+				cycles := ((endTicks - head.mWaitList.startTicks) + (endTicks - node.mWaitList.startTicks)) / 2
 				node.mWaitList.startTicks = endTicks
 				head.mWaitList.startTicks = endTicks
 				getg().m.mLockProfile.recordUnlock(cycles * int64(n))
