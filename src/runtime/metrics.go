@@ -333,8 +333,7 @@ func initMetrics() {
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
 				out.scalar = uint64(in.heapStats.committed - in.heapStats.inHeap -
-					in.heapStats.inStacks - in.heapStats.inWorkBufs -
-					in.heapStats.inPtrScalarBits)
+					in.heapStats.inStacks - in.heapStats.inWorkBufs)
 			},
 		},
 		"/memory/classes/heap/objects:bytes": {
@@ -397,7 +396,7 @@ func initMetrics() {
 			deps: makeStatDepSet(heapStatsDep, sysStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(in.heapStats.inWorkBufs+in.heapStats.inPtrScalarBits) + in.sysStats.gcMiscSys
+				out.scalar = uint64(in.heapStats.inWorkBufs) + in.sysStats.gcMiscSys
 			},
 		},
 		"/memory/classes/os-stacks:bytes": {
