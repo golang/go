@@ -1837,12 +1837,12 @@ func fastexprand(mean int) int32 {
 		return 0
 	}
 
-	// Take a random sample of the exponential distribution exp(-mean*x).
-	// The probability distribution function is mean*exp(-mean*x), so the CDF is
-	// p = 1 - exp(-mean*x), so
-	// q = 1 - p == exp(-mean*x)
-	// log_e(q) = -mean*x
-	// -log_e(q)/mean = x
+	// Take a random sample of the exponential distribution exp(-x/mean).
+	// The probability distribution function is exp(-x/mean)/mean, so the CDF is
+	// p = 1 - exp(-x/mean), so
+	// q = 1 - p == exp(-x/mean)
+	// log_e(q) = -x/mean
+	// -log_e(q) * mean = x
 	// x = -log_e(q) * mean
 	// x = log_2(q) * (-log_e(2)) * mean    ; Using log_2 for efficiency
 	const randomBitCount = 26
