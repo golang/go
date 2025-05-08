@@ -169,7 +169,15 @@ func (c *Conn) readClientHello(ctx context.Context) (*clientHelloMsg, *echServer
 	c.ticketKeys = originalConfig.ticketKeys(configForClient)
 
 	clientVersions := clientHello.supportedVersions
-	if len(clientHello.supportedVersions) == 0 {
+	if clientHello.vers >= VersionTLS13 && len(clientVersions) == 0 {
+		// RFC 8446 4.2.1 indicates when the supported_versions extension is not sent,
+		// compatible servers MUST negotiate TLS 1.2 or earlier if supported, even
+		// if the client legacy version is TLS 1.3 or later.
+		//
+		// Since we reject empty extensionSupportedVersions in the client hello unmarshal
+		// finding the supportedVersions empty indicates the extension was not present.
+		clientVersions = supportedVersionsFromMax(VersionTLS12)
+	} else if len(clientVersions) == 0 {
 		clientVersions = supportedVersionsFromMax(clientHello.vers)
 	}
 	c.vers, ok = c.config.mutualVersion(roleServer, clientVersions)
