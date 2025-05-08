@@ -898,7 +898,7 @@ func (hs *serverHandshakeState) sendFinished(out []byte) error {
 }
 
 // processCertsFromClient takes a chain of client certificates either from a
-// Certificates message and verifies them.
+// certificateMsg message or a certificateMsgTLS13 message and verifies them.
 func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	certificates := certificate.Certificate
 	certs := make([]*x509.Certificate, len(certificates))
@@ -921,7 +921,7 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 		if c.vers == VersionTLS13 {
 			c.sendAlert(alertCertificateRequired)
 		} else {
-			c.sendAlert(alertBadCertificate)
+			c.sendAlert(alertHandshakeFailure)
 		}
 		return errors.New("tls: client didn't provide a certificate")
 	}
