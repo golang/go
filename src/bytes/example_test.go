@@ -245,9 +245,9 @@ func ExampleCut() {
 }
 
 func ExampleCutPrefix() {
-	show := func(s, sep string) {
-		after, found := bytes.CutPrefix([]byte(s), []byte(sep))
-		fmt.Printf("CutPrefix(%q, %q) = %q, %v\n", s, sep, after, found)
+	show := func(s, prefix string) {
+		after, found := bytes.CutPrefix([]byte(s), []byte(prefix))
+		fmt.Printf("CutPrefix(%q, %q) = %q, %v\n", s, prefix, after, found)
 	}
 	show("Gopher", "Go")
 	show("Gopher", "ph")
@@ -257,9 +257,9 @@ func ExampleCutPrefix() {
 }
 
 func ExampleCutSuffix() {
-	show := func(s, sep string) {
-		before, found := bytes.CutSuffix([]byte(s), []byte(sep))
-		fmt.Printf("CutSuffix(%q, %q) = %q, %v\n", s, sep, before, found)
+	show := func(s, suffix string) {
+		before, found := bytes.CutSuffix([]byte(s), []byte(suffix))
+		fmt.Printf("CutSuffix(%q, %q) = %q, %v\n", s, suffix, before, found)
 	}
 	show("Gopher", "Go")
 	show("Gopher", "er")
