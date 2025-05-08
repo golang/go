@@ -5,13 +5,19 @@
 package crypto_test
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"internal/testenv"
 	"io"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -86,5 +92,52 @@ UjmopwKBgAqB2KYYMUqAOvYcBnEfLDmyZv9BTVNHbR2lKkMYqv5LlvDaBxVfilE0
 	}
 	if err := rsa.VerifyPSS(&k.PublicKey, crypto.SHA256, digest, sig, nil); err != nil {
 		t.Errorf("VerifyPSS failed for MessageSigner signature: %s", err)
+	}
+}
+
+func TestDisallowedAssemblyInstructions(t *testing.T) {
+	// This test enforces the cryptography assembly policy rule that we do not
+	// use BYTE or WORD instructions, since these instructions can obscure what
+	// the assembly is actually doing. If we do not support specific
+	// instructions in the assembler, we should not be using them until we do.
+	//
+	// Instead of using the output of the 'go tool asm' tool, we take the simple
+	// approach and just search the text of .s files for usage of BYTE and WORD.
+	// We do this because the assembler itself will sometimes insert WORD
+	// instructions for things like function preambles etc.
+
+	boringSigPath := filepath.Join("internal", "boring", "sig")
+
+	matcher, err := regexp.Compile(`(^|;)\s(BYTE|WORD)\s`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := filepath.WalkDir(filepath.Join(testenv.GOROOT(t), "src/crypto"), func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".s") {
+			return nil
+		}
+		if strings.Contains(path, boringSigPath) {
+			return nil
+		}
+
+		f, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		i := 1
+		for line := range bytes.Lines(f) {
+			if matcher.Match(line) {
+				t.Errorf("%s:%d assembly contains BYTE or WORD instruction (%q)", path, i, string(line))
+			}
+			i++
+		}
+
+		return nil
+	}); err != nil {
+		t.Fatal(err)
 	}
 }
