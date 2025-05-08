@@ -22,7 +22,10 @@
 // as shorthands for vMAJOR.0.0 and vMAJOR.MINOR.0.
 package semver
 
-import "sort"
+import (
+	"slices"
+	"strings"
+)
 
 // parsed returns the parsed form of a semantic version string.
 type parsed struct {
@@ -154,19 +157,22 @@ func Max(v, w string) string {
 // ByVersion implements [sort.Interface] for sorting semantic version strings.
 type ByVersion []string
 
-func (vs ByVersion) Len() int      { return len(vs) }
-func (vs ByVersion) Swap(i, j int) { vs[i], vs[j] = vs[j], vs[i] }
-func (vs ByVersion) Less(i, j int) bool {
-	cmp := Compare(vs[i], vs[j])
-	if cmp != 0 {
-		return cmp < 0
-	}
-	return vs[i] < vs[j]
+func (vs ByVersion) Len() int           { return len(vs) }
+func (vs ByVersion) Swap(i, j int)      { vs[i], vs[j] = vs[j], vs[i] }
+func (vs ByVersion) Less(i, j int) bool { return compareVersion(vs[i], vs[j]) < 0 }
+
+// Sort sorts a list of semantic version strings using [Compare] and falls back
+// to use [strings.Compare] if both versions are considered equal.
+func Sort(list []string) {
+	slices.SortFunc(list, compareVersion)
 }
 
-// Sort sorts a list of semantic version strings using [ByVersion].
-func Sort(list []string) {
-	sort.Sort(ByVersion(list))
+func compareVersion(a, b string) int {
+	cmp := Compare(a, b)
+	if cmp != 0 {
+		return cmp
+	}
+	return strings.Compare(a, b)
 }
 
 func parse(v string) (p parsed, ok bool) {

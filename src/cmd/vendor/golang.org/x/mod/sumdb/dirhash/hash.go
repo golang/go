@@ -16,7 +16,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -36,7 +36,7 @@ type Hash func(files []string, open func(string) (io.ReadCloser, error)) (string
 //	sha256sum $(find . -type f | sort) | sha256sum
 //
 // More precisely, the hashed summary contains a single line for each file in the list,
-// ordered by sort.Strings applied to the file names, where each line consists of
+// ordered by [slices.Sort] applied to the file names, where each line consists of
 // the hexadecimal SHA-256 hash of the file content,
 // two spaces (U+0020), the file name, and a newline (U+000A).
 //
@@ -44,7 +44,7 @@ type Hash func(files []string, open func(string) (io.ReadCloser, error)) (string
 func Hash1(files []string, open func(string) (io.ReadCloser, error)) (string, error) {
 	h := sha256.New()
 	files = append([]string(nil), files...)
-	sort.Strings(files)
+	slices.Sort(files)
 	for _, file := range files {
 		if strings.Contains(file, "\n") {
 			return "", errors.New("dirhash: filenames with newlines are not supported")
