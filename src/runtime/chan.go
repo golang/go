@@ -415,6 +415,9 @@ func closechan(c *hchan) {
 	if c == nil {
 		panic(plainError("close of nil channel"))
 	}
+	if c.synctest && getg().bubble == nil {
+		panic(plainError("close of synctest channel from outside bubble"))
+	}
 
 	lock(&c.lock)
 	if c.closed != 0 {
