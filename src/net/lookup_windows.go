@@ -52,7 +52,7 @@ func lookupProtocol(ctx context.Context, name string) (int, error) {
 		proto int
 		err   error
 	}
-	ch := make(chan result) // unbuffered
+	ch := make(chan result, 1) // buffer so that next goroutine never blocks
 	go func() {
 		if err := acquireThread(ctx); err != nil {
 			ch <- result{err: mapErr(err)}
@@ -62,10 +62,7 @@ func lookupProtocol(ctx context.Context, name string) (int, error) {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
 		proto, err := getprotobyname(name)
-		select {
-		case ch <- result{proto: proto, err: err}:
-		case <-ctx.Done():
-		}
+		ch <- result{proto: proto, err: err}
 	}()
 	select {
 	case r := <-ch:
