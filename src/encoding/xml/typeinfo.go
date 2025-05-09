@@ -56,6 +56,13 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
 	}
 
 	tinfo := &typeInfo{}
+
+	type AnonymousFieldTypeArg struct {
+		typ reflect.Type
+		idx int
+	}
+	var AnonymousFieldTypeArgs []AnonymousFieldTypeArg
+
 	if typ.Kind() == reflect.Struct && typ != nameType {
 		n := typ.NumField()
 		for i := 0; i < n; i++ {
@@ -71,21 +78,12 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
 					t = t.Elem()
 				}
 				if t.Kind() == reflect.Struct {
-					inner, err := getTypeInfo(t)
-					if err != nil {
-						return nil, err
-					}
-					if tinfo.xmlname == nil {
-						tinfo.xmlname = inner.xmlname
-					}
-					for _, finfo := range inner.fields {
-						finfo.idx = append([]int{i}, finfo.idx...)
-						if err := addFieldInfo(typ, tinfo, &finfo); err != nil {
-							return nil, err
-						}
-					}
-					continue
+					AnonymousFieldTypeArgs = append(AnonymousFieldTypeArgs, AnonymousFieldTypeArg{
+						typ: t,
+						idx: i,
+					})
 				}
+				continue
 			}
 
 			finfo, err := structFieldInfo(typ, &f)
@@ -106,6 +104,22 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
 	}
 
 	ti, _ := tinfoMap.LoadOrStore(typ, tinfo)
+
+	for _, arg := range AnonymousFieldTypeArgs {
+		inner, err := getTypeInfo(arg.typ)
+		if err != nil {
+			return nil, err
+		}
+		if tinfo.xmlname == nil {
+			tinfo.xmlname = inner.xmlname
+		}
+		for _, finfo := range inner.fields {
+			finfo.idx = append([]int{arg.idx}, finfo.idx...)
+			if err := addFieldInfo(typ, tinfo, &finfo); err != nil {
+				return nil, err
+			}
+		}
+	}
 	return ti.(*typeInfo), nil
 }
 
