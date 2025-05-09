@@ -29,7 +29,7 @@
 
 #define LOAD1(index) \
 	MOVW	(index*4)(R5), REGTMP3; \
-	WORD	$0x3a73; \	// REVB2W REGTMP3, REGTMP3   to big-endian
+	REVB2W	REGTMP3, REGTMP3; \
 	MOVW	REGTMP3, (index*4)(R3)
 
 #define LOAD(index) \
