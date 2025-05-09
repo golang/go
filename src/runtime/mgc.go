@@ -1337,6 +1337,19 @@ func gcMarkTermination(stw worldStop) {
 		printunlock()
 	}
 
+	// Print finalizer/cleanup queue length. Like gctrace, do this before the next GC starts.
+	// The fact that the next GC might start is not that problematic here, but acts as a convenient
+	// lock on printing this information (so it cannot overlap with itself from the next GC cycle).
+	if debug.checkfinalizers > 0 {
+		fq, fe := finReadQueueStats()
+		fn := max(int64(fq)-int64(fe), 0)
+
+		cq, ce := gcCleanups.readQueueStats()
+		cn := max(int64(cq)-int64(ce), 0)
+
+		println("checkfinalizers: queue:", fn, "finalizers +", cn, "cleanups")
+	}
+
 	// Set any arena chunks that were deferred to fault.
 	lock(&userArenaState.lock)
 	faultList := userArenaState.fault

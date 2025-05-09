@@ -5743,6 +5743,8 @@ func (pp *p) destroy() {
 		pp.raceprocctx = 0
 	}
 	pp.gcAssistTime = 0
+	gcCleanups.queued += pp.cleanupsQueued
+	pp.cleanupsQueued = 0
 	pp.status = _Pdead
 }
 

@@ -732,7 +732,8 @@ type p struct {
 	timers timers
 
 	// Cleanups.
-	cleanups *cleanupBlock
+	cleanups       *cleanupBlock
+	cleanupsQueued uint64 // monotonic count of cleanups queued by this P
 
 	// maxStackScanDelta accumulates the amount of stack space held by
 	// live goroutines (i.e. those eligible for stack scanning).
