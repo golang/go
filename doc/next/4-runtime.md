@@ -24,3 +24,15 @@ On Linux systems with kernel support for anonymous VMA names
 mappings with context about their purpose. e.g., `[anon: Go: heap]` for heap
 memory. This can be disabled with the [GODEBUG setting](/doc/godebug)
 `decoratemappings=0`.
+
+<!-- go.dev/issue/73581 -->
+
+A new experimental garbage collector is now available as an experiment. The
+new design aims to improve the efficiency of garbage collection through better
+locality and CPU scalability in the mark algorithm. Benchmark result vary, but
+we expect somewhere between a 10—40% reduction in garbage collection overhead
+in real-world programs that heavily use the garbage collector.
+
+The new garbage collector may be enabled by setting `GOEXPERIMENT=greenteagc`
+at build time. See the [GitHub issue](/issue/73581) for more details on the design
+and instructions on how to report feedback.
