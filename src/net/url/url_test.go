@@ -54,6 +54,66 @@ var urltests = []URLTest{
 		},
 		"",
 	},
+	{
+		"http://www.google.com/foo<bar%2Fbaz.txt",
+		&URL{
+			Scheme:  "http",
+			Host:    "www.google.com",
+			Path:    "/foo<bar/baz.txt",
+			RawPath: "/foo<bar%2Fbaz.txt",
+		},
+		"http://www.google.com/foo%3Cbar%2Fbaz.txt",
+	},
+	{
+		"http://www.google.com/foo>bar%2Fbaz.txt",
+		&URL{
+			Scheme:  "http",
+			Host:    "www.google.com",
+			Path:    "/foo>bar/baz.txt",
+			RawPath: "/foo>bar%2Fbaz.txt",
+		},
+		"http://www.google.com/foo%3Ebar%2Fbaz.txt",
+	},
+	{
+		"http://www.google.com/foo{bar%2Fbaz.txt",
+		&URL{
+			Scheme:  "http",
+			Host:    "www.google.com",
+			Path:    "/foo{bar/baz.txt",
+			RawPath: "/foo{bar%2Fbaz.txt",
+		},
+		"http://www.google.com/foo%7Bbar%2Fbaz.txt",
+	},
+	{
+		"http://www.google.com/foo}bar%2Fbaz.txt",
+		&URL{
+			Scheme:  "http",
+			Host:    "www.google.com",
+			Path:    "/foo}bar/baz.txt",
+			RawPath: "/foo}bar%2Fbaz.txt",
+		},
+		"http://www.google.com/foo%7Dbar%2Fbaz.txt",
+	},
+	{
+		"http://www.google.com/foo bar%2Fbaz.txt",
+		&URL{
+			Scheme:  "http",
+			Host:    "www.google.com",
+			Path:    "/foo bar/baz.txt",
+			RawPath: "/foo bar%2Fbaz.txt",
+		},
+		"http://www.google.com/foo%20bar%2Fbaz.txt",
+	},
+	{
+		"http://www.google.com/foo\"bar%2Fbaz.txt",
+		&URL{
+			Scheme:  "http",
+			Host:    "www.google.com",
+			Path:    "/foo\"bar/baz.txt",
+			RawPath: "/foo\"bar%2Fbaz.txt",
+		},
+		"http://www.google.com/foo%22bar%2Fbaz.txt",
+	},
 	// fragment with hex escaping
 	{
 		"http://www.google.com/#file%20one%26two",
