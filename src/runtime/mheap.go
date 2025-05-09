@@ -218,6 +218,7 @@ type mheap struct {
 	specialfinalizeralloc      fixalloc // allocator for specialfinalizer*
 	specialCleanupAlloc        fixalloc // allocator for specialCleanup*
 	specialCheckFinalizerAlloc fixalloc // allocator for specialCheckFinalizer*
+	specialTinyBlockAlloc      fixalloc // allocator for specialTinyBlock*
 	specialprofilealloc        fixalloc // allocator for specialprofile*
 	specialReachableAlloc      fixalloc // allocator for specialReachable
 	specialPinCounterAlloc     fixalloc // allocator for specialPinCounter
@@ -793,6 +794,7 @@ func (h *mheap) init() {
 	h.specialfinalizeralloc.init(unsafe.Sizeof(specialfinalizer{}), nil, nil, &memstats.other_sys)
 	h.specialCleanupAlloc.init(unsafe.Sizeof(specialCleanup{}), nil, nil, &memstats.other_sys)
 	h.specialCheckFinalizerAlloc.init(unsafe.Sizeof(specialCheckFinalizer{}), nil, nil, &memstats.other_sys)
+	h.specialTinyBlockAlloc.init(unsafe.Sizeof(specialTinyBlock{}), nil, nil, &memstats.other_sys)
 	h.specialprofilealloc.init(unsafe.Sizeof(specialprofile{}), nil, nil, &memstats.other_sys)
 	h.specialReachableAlloc.init(unsafe.Sizeof(specialReachable{}), nil, nil, &memstats.other_sys)
 	h.specialPinCounterAlloc.init(unsafe.Sizeof(specialPinCounter{}), nil, nil, &memstats.other_sys)
@@ -1967,23 +1969,28 @@ func (q *mSpanQueue) popN(n int) mSpanQueue {
 }
 
 const (
+	// _KindSpecialTinyBlock indicates that a given allocation is a tiny block.
+	// Ordered before KindSpecialFinalizer and KindSpecialCleanup so that it
+	// always appears first in the specials list.
+	// Used only if debug.checkfinalizers != 0.
+	_KindSpecialTinyBlock = 1
 	// _KindSpecialFinalizer is for tracking finalizers.
-	_KindSpecialFinalizer = 1
+	_KindSpecialFinalizer = 2
 	// _KindSpecialWeakHandle is used for creating weak pointers.
-	_KindSpecialWeakHandle = 2
+	_KindSpecialWeakHandle = 3
 	// _KindSpecialProfile is for memory profiling.
-	_KindSpecialProfile = 3
+	_KindSpecialProfile = 4
 	// _KindSpecialReachable is a special used for tracking
 	// reachability during testing.
-	_KindSpecialReachable = 4
+	_KindSpecialReachable = 5
 	// _KindSpecialPinCounter is a special used for objects that are pinned
 	// multiple times
-	_KindSpecialPinCounter = 5
+	_KindSpecialPinCounter = 6
 	// _KindSpecialCleanup is for tracking cleanups.
-	_KindSpecialCleanup = 6
+	_KindSpecialCleanup = 7
 	// _KindSpecialCheckFinalizer adds additional context to a finalizer or cleanup.
 	// Used only if debug.checkfinalizers != 0.
-	_KindSpecialCheckFinalizer = 7
+	_KindSpecialCheckFinalizer = 8
 )
 
 type special struct {
@@ -2345,6 +2352,45 @@ func clearCleanupContext(ptr uintptr, cleanupID uint64) {
 	lock(&mheap_.speciallock)
 	mheap_.specialCheckFinalizerAlloc.free(unsafe.Pointer(found))
 	unlock(&mheap_.speciallock)
+}
+
+// Indicates that an allocation is a tiny block.
+// Used only if debug.checkfinalizers != 0.
+type specialTinyBlock struct {
+	_       sys.NotInHeap
+	special special
+}
+
+// setTinyBlockContext marks an allocation as a tiny block to diagnostics like
+// checkfinalizer.
+//
+// A tiny block is only marked if it actually contains more than one distinct
+// value, since we're using this for debugging.
+func setTinyBlockContext(ptr unsafe.Pointer) {
+	lock(&mheap_.speciallock)
+	s := (*specialTinyBlock)(mheap_.specialTinyBlockAlloc.alloc())
+	unlock(&mheap_.speciallock)
+	s.special.kind = _KindSpecialTinyBlock
+
+	mp := acquirem()
+	addspecial(ptr, &s.special, false)
+	releasem(mp)
+	KeepAlive(ptr)
+}
+
+// inTinyBlock returns whether ptr is in a tiny alloc block, at one point grouped
+// with other distinct values.
+func inTinyBlock(ptr uintptr) bool {
+	assertWorldStopped()
+
+	ptr = alignDown(ptr, maxTinySize)
+	span := spanOfHeap(ptr)
+	if span == nil {
+		return false
+	}
+	offset := ptr - span.base()
+	_, exists := span.specialFindSplicePoint(offset, _KindSpecialTinyBlock)
+	return exists
 }
 
 // The described object has a weak pointer.
@@ -2765,6 +2811,11 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
 		sc := (*specialCheckFinalizer)(unsafe.Pointer(s))
 		lock(&mheap_.speciallock)
 		mheap_.specialCheckFinalizerAlloc.free(unsafe.Pointer(sc))
+		unlock(&mheap_.speciallock)
+	case _KindSpecialTinyBlock:
+		st := (*specialTinyBlock)(unsafe.Pointer(s))
+		lock(&mheap_.speciallock)
+		mheap_.specialTinyBlockAlloc.free(unsafe.Pointer(st))
 		unlock(&mheap_.speciallock)
 	default:
 		throw("bad special kind")

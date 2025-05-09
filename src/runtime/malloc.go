@@ -1670,6 +1670,12 @@ func postMallocgcDebug(x unsafe.Pointer, elemsize uintptr, typ *_type) {
 			traceRelease(trace)
 		}
 	}
+
+	// N.B. elemsize == 0 indicates a tiny allocation, since no new slot was
+	// allocated to fulfill this call to mallocgc.
+	if debug.checkfinalizers != 0 && elemsize == 0 {
+		setTinyBlockContext(unsafe.Pointer(alignDown(uintptr(x), maxTinySize)))
+	}
 }
 
 // deductAssistCredit reduces the current G's assist credit

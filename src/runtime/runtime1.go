@@ -333,14 +333,14 @@ var debug struct {
 	traceCheckStackOwnership int32
 	profstackdepth           int32
 	dataindependenttiming    int32
-	checkfinalizers          int32
 
 	// debug.malloc is used as a combined debug check
 	// in the malloc function and should be set
 	// if any of the below debug options is != 0.
-	malloc    bool
-	inittrace int32
-	sbrk      int32
+	malloc          bool
+	inittrace       int32
+	sbrk            int32
+	checkfinalizers int32
 	// traceallocfree controls whether execution traces contain
 	// detailed trace data about memory allocation. This value
 	// affects debug.malloc only if it is != 0 and the execution
@@ -440,7 +440,7 @@ func parsedebugvars() {
 	// apply environment settings
 	parsegodebug(godebug, nil)
 
-	debug.malloc = (debug.inittrace | debug.sbrk) != 0
+	debug.malloc = (debug.inittrace | debug.sbrk | debug.checkfinalizers) != 0
 	debug.profstackdepth = min(debug.profstackdepth, maxProfStackDepth)
 
 	// Disable async preemption in checkmark mode. The following situation is

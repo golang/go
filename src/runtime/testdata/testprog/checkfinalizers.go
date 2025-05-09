@@ -13,6 +13,10 @@ func init() {
 	register("DetectFinalizerAndCleanupLeaks", DetectFinalizerAndCleanupLeaks)
 }
 
+type tiny uint8
+
+var tinySink *tiny
+
 // Intended to be run only with `GODEBUG=checkfinalizers=1`.
 func DetectFinalizerAndCleanupLeaks() {
 	type T *int
@@ -34,6 +38,15 @@ func DetectFinalizerAndCleanupLeaks() {
 		**cNoLeak = x
 	}, int(0)).Stop()
 
+	// Ensure we create an allocation into a tiny block that shares space among several values.
+	var ctLeak *tiny
+	for i := 0; i < 18; i++ {
+		tinySink = ctLeak
+		ctLeak = new(tiny)
+		*ctLeak = tiny(i)
+	}
+	runtime.AddCleanup(ctLeak, func(_ struct{}) {}, struct{}{})
+
 	// Leak a finalizer.
 	fLeak := new(T)
 	runtime.SetFinalizer(fLeak, func(_ *T) {
@@ -49,10 +62,4 @@ func DetectFinalizerAndCleanupLeaks() {
 	// runtime.GC here should crash.
 	runtime.GC()
 	println("OK")
-
-	// Keep everything alive.
-	runtime.KeepAlive(cLeak)
-	runtime.KeepAlive(cNoLeak)
-	runtime.KeepAlive(fLeak)
-	runtime.KeepAlive(fNoLeak)
 }

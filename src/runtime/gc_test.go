@@ -1076,14 +1076,22 @@ func TestMSpanQueue(t *testing.T) {
 
 func TestDetectFinalizerAndCleanupLeaks(t *testing.T) {
 	got := runTestProg(t, "testprog", "DetectFinalizerAndCleanupLeaks", "GODEBUG=checkfinalizers=1")
-	sp := strings.SplitN(got, "runtime: detected", 2)
+	sp := strings.SplitN(got, "detected possible issues with cleanups and/or finalizers", 2)
 	if len(sp) != 2 {
 		t.Fatalf("expected the runtime to throw, got:\n%s", got)
 	}
-	if strings.Count(sp[0], "is reachable from cleanup or finalizer") != 2 {
+	if strings.Count(sp[0], "is reachable from") != 2 {
 		t.Fatalf("expected exactly two leaked cleanups and/or finalizers, got:\n%s", got)
 	}
-	if strings.Count(sp[0], "created at: main.DetectFinalizerAndCleanupLeaks") != 2 {
-		t.Fatalf("expected two symbolized locations, got:\n%s", got)
+	// N.B. Disable in race mode and in asan mode. Both disable the tiny allocator.
+	wantSymbolizedLocations := 2
+	if !race.Enabled && !asan.Enabled {
+		if strings.Count(sp[0], "is in a tiny block") != 1 {
+			t.Fatalf("expected exactly one report for allocation in a tiny block, got:\n%s", got)
+		}
+		wantSymbolizedLocations++
+	}
+	if strings.Count(sp[0], "main.DetectFinalizerAndCleanupLeaks()") != wantSymbolizedLocations {
+		t.Fatalf("expected %d symbolized locations, got:\n%s", wantSymbolizedLocations, got)
 	}
 }
