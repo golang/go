@@ -12,11 +12,13 @@ const (
 	SYS_PRCTL         = 4192
 	SYS_EPOLL_CTL     = 4249
 	SYS_EPOLL_PWAIT   = 4313
+	SYS_EPOLL_WAIT    = -1
 	SYS_EPOLL_CREATE1 = 4326
 	SYS_EPOLL_PWAIT2  = 4441
 	SYS_EVENTFD2      = 4325
 
 	EFD_NONBLOCK = 0x80
+	NOSYS        = -1
 )
 
 type EpollEvent struct {
