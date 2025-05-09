@@ -168,8 +168,8 @@ func Notify(c chan<- os.Signal, sig ...os.Signal) {
 	}
 }
 
-// Reset undoes the effect of any prior calls to [Notify] for the provided
-// signals.
+// Reset undoes the effect of any prior calls to [Notify] or [Ignore] for the
+// provided signals.
 // If no signals are provided, all signal handlers will be reset.
 func Reset(sig ...os.Signal) {
 	cancel(sig, disableSignal)
