@@ -28,6 +28,11 @@ const Size = 16
 // The blocksize of MD5 in bytes.
 const BlockSize = 64
 
+// The maximum number of bytes that can be passed to block(). The limit exists
+// because implementations that rely on assembly routines are not preemptible.
+const maxAsmIters = 1024
+const maxAsmSize = BlockSize * maxAsmIters // 64KiB
+
 const (
 	init0 = 0x67452301
 	init1 = 0xEFCDAB89
@@ -138,6 +143,11 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 	if len(p) >= BlockSize {
 		n := len(p) &^ (BlockSize - 1)
 		if haveAsm {
+			for n > maxAsmSize {
+				block(d, p[:maxAsmSize])
+				p = p[maxAsmSize:]
+				n -= maxAsmSize
+			}
 			block(d, p[:n])
 		} else {
 			blockGeneric(d, p[:n])
