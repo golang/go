@@ -366,16 +366,16 @@ func TestExtraMethods(t *testing.T) {
 }
 
 var bench = New()
-var buf = make([]byte, 8192)
 
 func benchmarkSize(b *testing.B, size int) {
+	buf := make([]byte, size)
 	sum := make([]byte, bench.Size())
 	b.Run("New", func(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(int64(size))
 		for i := 0; i < b.N; i++ {
 			bench.Reset()
-			bench.Write(buf[:size])
+			bench.Write(buf)
 			bench.Sum(sum[:0])
 		}
 	})
@@ -383,14 +383,14 @@ func benchmarkSize(b *testing.B, size int) {
 		b.ReportAllocs()
 		b.SetBytes(int64(size))
 		for i := 0; i < b.N; i++ {
-			Sum224(buf[:size])
+			Sum224(buf)
 		}
 	})
 	b.Run("Sum256", func(b *testing.B) {
 		b.ReportAllocs()
 		b.SetBytes(int64(size))
 		for i := 0; i < b.N; i++ {
-			Sum256(buf[:size])
+			Sum256(buf)
 		}
 	})
 }
@@ -405,4 +405,12 @@ func BenchmarkHash1K(b *testing.B) {
 
 func BenchmarkHash8K(b *testing.B) {
 	benchmarkSize(b, 8192)
+}
+
+func BenchmarkHash256K(b *testing.B) {
+	benchmarkSize(b, 256*1024)
+}
+
+func BenchmarkHash1M(b *testing.B) {
+	benchmarkSize(b, 1024*1024)
 }
