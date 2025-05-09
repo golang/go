@@ -1255,7 +1255,11 @@ func goroutineheader(gp *g) {
 		print(", locked to thread")
 	}
 	if bubble := gp.bubble; bubble != nil {
-		print(", synctest bubble ", bubble.root.goid)
+		print(", synctest bubble ", bubble.root.goid, ", ")
+		if !gp.waitreason.isIdleInSynctest() {
+			print("not ")
+		}
+		print("durably blocked")
 	}
 	print("]:\n")
 }
