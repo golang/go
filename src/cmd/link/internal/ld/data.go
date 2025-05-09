@@ -894,10 +894,15 @@ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) error {
 				rel.AddUint8(0x90)
 				rel.AddUint8(0x90)
 			case sys.AMD64:
+				// The relocation symbol might be at an absolute offset
+				// higher than 32 bits, but the jump instruction can't
+				// encode more than 32 bit offsets. We use a jump
+				// relative to the instruction pointer to get around this
+				// limitation.
 				rel.AddUint8(0xff)
-				rel.AddUint8(0x24)
 				rel.AddUint8(0x25)
-				rel.AddAddrPlus4(ctxt.Arch, targ, 0)
+				rel.AddPCRelPlus(ctxt.Arch, targ, 0)
+				rel.AddUint8(0x90)
 				rel.AddUint8(0x90)
 			}
 		} else if tplt >= 0 {

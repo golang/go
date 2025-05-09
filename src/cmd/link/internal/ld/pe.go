@@ -1097,18 +1097,10 @@ func Peinit(ctxt *Link) {
 	if ctxt.Arch.PtrSize == 8 {
 		// 64-bit architectures
 		pe64 = true
-		PEBASE = 1 << 32
-		if ctxt.Arch.Family == sys.AMD64 {
-			// TODO(rsc): For cgo we currently use 32-bit relocations
-			// that fail when PEBASE is too large.
-			// We need to fix this, but for now, use a smaller PEBASE.
-			PEBASE = 1 << 22
-		}
 		var oh64 pe.OptionalHeader64
 		l = binary.Size(&oh64)
 	} else {
 		// 32-bit architectures
-		PEBASE = 1 << 22
 		var oh pe.OptionalHeader32
 		l = binary.Size(&oh)
 	}
@@ -1122,6 +1114,13 @@ func Peinit(ctxt *Link) {
 		PEFILEALIGN = 0
 		// We are creating an object file. The absolute address is irrelevant.
 		PEBASE = 0
+	} else {
+		// Use the same base image address as MSVC and LLVM.
+		if pe64 {
+			PEBASE = 0x140000000
+		} else {
+			PEBASE = 0x400000
+		}
 	}
 
 	var sh [16]pe.SectionHeader32
