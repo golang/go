@@ -142,7 +142,7 @@ func MkEnv() []cfg.EnvVar {
 	if work.GccgoBin != "" {
 		env = append(env, cfg.EnvVar{Name: "GCCGO", Value: work.GccgoBin, Changed: true})
 	} else {
-		env = append(env, cfg.EnvVar{Name: "GCCGO", Value: work.GccgoName})
+		env = append(env, cfg.EnvVar{Name: "GCCGO", Value: work.GccgoName, Changed: work.GccgoChanged})
 	}
 
 	goarch, val, changed := cfg.GetArchEnv()

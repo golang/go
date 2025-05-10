@@ -27,12 +27,16 @@ import (
 type gccgoToolchain struct{}
 
 var GccgoName, GccgoBin string
+var GccgoChanged bool
 var gccgoErr error
 
 func init() {
 	GccgoName = cfg.Getenv("GCCGO")
 	if GccgoName == "" {
 		GccgoName = "gccgo"
+	}
+	if GccgoName != "gccgo" {
+		GccgoChanged = true
 	}
 	GccgoBin, gccgoErr = pathcache.LookPath(GccgoName)
 }
