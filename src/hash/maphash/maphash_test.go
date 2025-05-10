@@ -254,12 +254,17 @@ func TestComparable(t *testing.T) {
 	}
 	testComparable(t, s1, s2)
 	testComparable(t, s1.s, s2.s)
+	c1 := make(chan struct{})
+	c2 := make(chan struct{})
+	testComparable(t, c1, c1)
+	testComparable(t, chan struct{}(nil))
 	testComparable(t, float32(0), negativeZero[float32]())
 	testComparable(t, float64(0), negativeZero[float64]())
 	testComparableNoEqual(t, math.NaN(), math.NaN())
 	testComparableNoEqual(t, [2]string{"a", ""}, [2]string{"", "a"})
 	testComparableNoEqual(t, struct{ a, b string }{"foo", ""}, struct{ a, b string }{"", "foo"})
 	testComparableNoEqual(t, struct{ a, b any }{int(0), struct{}{}}, struct{ a, b any }{struct{}{}, int(0)})
+	testComparableNoEqual(t, c1, c2)
 }
 
 func testComparableNoEqual[T comparable](t *testing.T, v1, v2 T) {
