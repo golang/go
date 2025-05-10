@@ -104,7 +104,6 @@ func TestPoolRelease(t *testing.T) {
 func testPool(t *testing.T, drain bool) {
 	var p Pool
 	const N = 100
-loop:
 	for try := 0; try < 3; try++ {
 		if try == 1 && testing.Short() {
 			break
@@ -119,16 +118,19 @@ loop:
 			for i := 0; i < N; i++ {
 				p.Get()
 			}
-		}
-		for i := 0; i < 5; i++ {
+		} else {
+			// Run an extra GC cycles to drop items from the pool.
 			runtime.GC()
-			time.Sleep(time.Duration(i*100+10) * time.Millisecond)
-			// 1 pointer can remain on stack or elsewhere
-			if cln1 = atomic.LoadUint32(&cln); cln1 >= N-1 {
-				continue loop
-			}
 		}
-		t.Fatalf("only %v out of %v resources are cleaned up on try %v", cln1, N, try)
+
+		// Run a GC and wait for all the cleanups to run.
+		runtime.GC()
+		runtime_blockUntilEmptyCleanupQueue(int64(5 * time.Second))
+
+		// 1 pointer can remain on stack or elsewhere
+		if cln1 = atomic.LoadUint32(&cln); cln1 < N-1 {
+			t.Fatalf("only %v out of %v resources are cleaned up on try %v", cln1, N, try)
+		}
 	}
 }
 
