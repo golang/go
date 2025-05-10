@@ -161,7 +161,7 @@ func appendT(h *Hash, v reflect.Value) {
 	case reflect.Bool:
 		h.WriteByte(btoi(v.Bool()))
 		return
-	case reflect.UnsafePointer, reflect.Pointer:
+	case reflect.UnsafePointer, reflect.Pointer, reflect.Chan:
 		var buf [8]byte
 		// because pointing to the abi.Escape call in comparableReady,
 		// So this is ok to hash pointer,
