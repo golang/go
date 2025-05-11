@@ -32,6 +32,7 @@ type Tree struct {
 	treeSet    map[string]*Tree
 	actionLine int // line of left delim starting action
 	rangeDepth int
+	parenDepth int // current depth of nested parenthesized expressions
 }
 
 // A mode value is a set of flags (or 0). Modes control parser behavior.
@@ -41,6 +42,10 @@ const (
 	ParseComments Mode = 1 << iota // parse comments and add them to AST
 	SkipFuncCheck                  // do not check that functions are defined
 )
+
+// maxExpressionParenDepth is the maximum depth of nested parenthesized expressions.
+// It is used to prevent stack overflows from deep finite recursion in the parser.
+const maxExpressionParenDepth = 10000
 
 // Copy returns a copy of the [Tree]. Any parsing state is discarded.
 func (t *Tree) Copy() *Tree {
@@ -223,6 +228,7 @@ func (t *Tree) startParse(funcs []map[string]any, lex *lexer, treeSet map[string
 	t.vars = []string{"$"}
 	t.funcs = funcs
 	t.treeSet = treeSet
+	t.parenDepth = 0
 	lex.options = lexOptions{
 		emitComment: t.Mode&ParseComments != 0,
 		breakOK:     !t.hasFunction("break"),
@@ -787,6 +793,11 @@ func (t *Tree) term() Node {
 		}
 		return number
 	case itemLeftParen:
+		if t.parenDepth >= maxExpressionParenDepth {
+			t.errorf("max expression depth exceeded")
+		}
+		t.parenDepth++
+		defer func() { t.parenDepth-- }()
 		return t.pipeline("parenthesized pipeline", itemRightParen)
 	case itemString, itemRawString:
 		s, err := strconv.Unquote(token.val)
