@@ -446,8 +446,7 @@ func printCountCycleProfile(w io.Writer, countName, cycleName string, records []
 		locs = b.appendLocsForStack(locs[:0], expandedStack[:n])
 		b.pbSample(values, locs, nil)
 	}
-	b.build()
-	return nil
+	return b.build()
 }
 
 // printCountProfile prints a countProfile at the specified debug level.
@@ -517,8 +516,7 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 		}
 		b.pbSample(values, locs, labels)
 	}
-	b.build()
-	return nil
+	return b.build()
 }
 
 // keysByCount sorts keys with higher counts first, breaking ties by key string order.
