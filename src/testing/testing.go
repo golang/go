@@ -1244,6 +1244,11 @@ func (c *common) TempDir() string {
 	if nonExistent {
 		c.Helper()
 
+		pattern := c.Name()
+		// Limit length of file names on disk.
+		// Invalid runes from slicing are dropped by strings.Map below.
+		pattern = pattern[:min(len(pattern), 64)]
+
 		// Drop unusual characters (such as path separators or
 		// characters interacting with globs) from the directory name to
 		// avoid surprising os.MkdirTemp behavior.
@@ -1263,7 +1268,7 @@ func (c *common) TempDir() string {
 			}
 			return -1
 		}
-		pattern := strings.Map(mapper, c.Name())
+		pattern = strings.Map(mapper, pattern)
 		c.tempDir, c.tempDirErr = os.MkdirTemp("", pattern)
 		if c.tempDirErr == nil {
 			c.Cleanup(func() {

@@ -89,6 +89,7 @@ func TestTempDir(t *testing.T) {
 	t.Run("test[]", testTempDir)
 	t.Run("test*", testTempDir)
 	t.Run("äöüéè", testTempDir)
+	t.Run(strings.Repeat("a", 300), testTempDir)
 }
 
 func testTempDir(t *testing.T) {
