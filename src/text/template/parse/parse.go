@@ -46,6 +46,7 @@ const (
 // maxExpressionParenDepth is the maximum depth of nested parenthesized expressions.
 // It is used to prevent stack overflows from deep finite recursion in the parser.
 const maxExpressionParenDepth = 10000
+const maxExpressionParenDepthWasm = 1000 // Lower limit for WASM environments
 
 // Copy returns a copy of the [Tree]. Any parsing state is discarded.
 func (t *Tree) Copy() *Tree {
@@ -793,7 +794,8 @@ func (t *Tree) term() Node {
 		}
 		return number
 	case itemLeftParen:
-		if t.parenDepth >= maxExpressionParenDepth {
+		if t.parenDepth >= maxExpressionParenDepth ||
+			runtime.GOARCH == "wasm" && t.parenDepth >= maxExpressionParenDepthWasm {
 			t.errorf("max expression depth exceeded")
 		}
 		t.parenDepth++

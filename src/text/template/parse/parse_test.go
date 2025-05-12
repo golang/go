@@ -7,6 +7,7 @@ package parse
 import (
 	"flag"
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -330,12 +331,12 @@ var parseTests = []parseTest{
 
 	// Parenthesis nesting depth tests
 	{"paren nesting normal", "{{( ( ( ( (1) ) ) ) )}}", noError, "{{(((((1)))))}}"},
-	{"paren nesting at limit", "{{" + buildNestedParenExpression(10000, "1") + "}}", noError, "{{" + buildNestedParenExpression(10000, "1") + "}}"},
-	{"paren nesting exceeds limit", "{{" + buildNestedParenExpression(10001, "1") + "}}", hasError, "template: test:1: max expression depth exceeded"},
+	{"paren nesting at limit", "{{" + buildNestedParenExpression(getMaxParenDepth(), "1") + "}}", noError, "{{" + buildNestedParenExpression(getMaxParenDepth(), "1") + "}}"},
+	{"paren nesting exceeds limit", "{{" + buildNestedParenExpression(getMaxParenDepth()+1, "1") + "}}", hasError, "template: test:1: max expression depth exceeded"},
 	{"paren nesting in pipeline", "{{ ( ( ( ( (1) ) ) ) ) | printf }}", noError, "{{(((((1))))) | printf}}"},
-	{"paren nesting in pipeline exceeds limit", "{{ " + buildNestedParenExpression(10001, "1") + " | printf }}", hasError, "template: test:1: max expression depth exceeded"},
+	{"paren nesting in pipeline exceeds limit", "{{ " + buildNestedParenExpression(getMaxParenDepth()+1, "1") + " | printf }}", hasError, "template: test:1: max expression depth exceeded"},
 	{"paren nesting with other constructs", "{{if " + buildNestedParenExpression(5, "true") + "}}YES{{end}}", noError, "{{if " + buildNestedParenExpression(5, "true") + "}}\"YES\"{{end}}"},
-	{"paren nesting with other constructs exceeds limit", "{{if " + buildNestedParenExpression(10001, "true") + "}}YES{{end}}", hasError, "template: test:1: max expression depth exceeded"},
+	{"paren nesting with other constructs exceeds limit", "{{if " + buildNestedParenExpression(getMaxParenDepth()+1, "true") + "}}YES{{end}}", hasError, "template: test:1: max expression depth exceeded"},
 }
 
 var builtins = map[string]any{
@@ -729,4 +730,13 @@ func BenchmarkListString(b *testing.B) {
 // buildNestedParenExpression is a helper for testing parenthesis depth.
 func buildNestedParenExpression(depth int, content string) string {
 	return strings.Repeat("(", depth) + content + strings.Repeat(")", depth)
+}
+
+// getMaxParenDepth returns the appropriate parenthesis nesting depth limit
+// based on the current architecture.
+func getMaxParenDepth() int {
+	if runtime.GOARCH == "wasm" {
+		return maxExpressionParenDepthWasm
+	}
+	return maxExpressionParenDepth
 }
