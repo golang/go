@@ -17,7 +17,7 @@ func TestRoundTrip(t *testing.T) {
 		pkgbits.V2,
 	} {
 		pw := pkgbits.NewPkgEncoder(version, -1)
-		w := pw.NewEncoder(pkgbits.RelocMeta, pkgbits.SyncPublic)
+		w := pw.NewEncoder(pkgbits.SectionMeta, pkgbits.SyncPublic)
 		w.Flush()
 
 		var b strings.Builder
@@ -25,7 +25,7 @@ func TestRoundTrip(t *testing.T) {
 		input := b.String()
 
 		pr := pkgbits.NewPkgDecoder("package_id", input)
-		r := pr.NewDecoder(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+		r := pr.NewDecoder(pkgbits.SectionMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
 
 		if r.Version() != w.Version() {
 			t.Errorf("Expected reader version %q to be the writer version %q", r.Version(), w.Version())

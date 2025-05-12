@@ -108,12 +108,12 @@ func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
 // already present, and returns its index.
 func (pw *PkgEncoder) StringIdx(s string) RelIndex {
 	if idx, ok := pw.stringsIdx[s]; ok {
-		assert(pw.elems[RelocString][idx] == s)
+		assert(pw.elems[SectionString][idx] == s)
 		return idx
 	}
 
-	idx := RelIndex(len(pw.elems[RelocString]))
-	pw.elems[RelocString] = append(pw.elems[RelocString], s)
+	idx := RelIndex(len(pw.elems[SectionString]))
+	pw.elems[SectionString] = append(pw.elems[SectionString], s)
 	pw.stringsIdx[s] = idx
 	return idx
 }
@@ -247,7 +247,7 @@ func (w *Encoder) Sync(m SyncMarker) {
 	w.rawUvarint(uint64(m))
 	w.rawUvarint(uint64(len(frames)))
 	for _, frame := range frames {
-		w.rawUvarint(uint64(w.rawReloc(RelocString, w.p.StringIdx(frame))))
+		w.rawUvarint(uint64(w.rawReloc(SectionString, w.p.StringIdx(frame))))
 	}
 }
 
@@ -327,7 +327,7 @@ func (w *Encoder) String(s string) {
 // previously encoded string value.
 func (w *Encoder) StringRef(idx RelIndex) {
 	w.Sync(SyncString)
-	w.Reloc(RelocString, idx)
+	w.Reloc(SectionString, idx)
 }
 
 // Strings encodes and writes a variable-length slice of strings into

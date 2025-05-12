@@ -57,13 +57,13 @@ func readUnifiedPackage(fset *token.FileSet, ctxt *types.Context, imports map[st
 		ctxt:    ctxt,
 		imports: imports,
 
-		posBases: make([]string, input.NumElems(pkgbits.RelocPosBase)),
-		pkgs:     make([]*types.Package, input.NumElems(pkgbits.RelocPkg)),
-		typs:     make([]types.Type, input.NumElems(pkgbits.RelocType)),
+		posBases: make([]string, input.NumElems(pkgbits.SectionPosBase)),
+		pkgs:     make([]*types.Package, input.NumElems(pkgbits.SectionPkg)),
+		typs:     make([]types.Type, input.NumElems(pkgbits.SectionType)),
 	}
 	defer pr.fake.setLines()
 
-	r := pr.newReader(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+	r := pr.newReader(pkgbits.SectionMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
 	pkg := r.pkg()
 	if r.Version().Has(pkgbits.HasInit) {
 		r.Bool()
@@ -76,7 +76,7 @@ func readUnifiedPackage(fset *token.FileSet, ctxt *types.Context, imports map[st
 		if r.Version().Has(pkgbits.DerivedFuncInstance) {
 			assert(!r.Bool())
 		}
-		r.p.objIdx(r.Reloc(pkgbits.RelocObj))
+		r.p.objIdx(r.Reloc(pkgbits.SectionObj))
 		assert(r.Len() == 0)
 	}
 
@@ -166,7 +166,7 @@ func (r *reader) pos() token.Pos {
 }
 
 func (r *reader) posBase() string {
-	return r.p.posBaseIdx(r.Reloc(pkgbits.RelocPosBase))
+	return r.p.posBaseIdx(r.Reloc(pkgbits.SectionPosBase))
 }
 
 func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) string {
@@ -176,7 +176,7 @@ func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) string {
 
 	var filename string
 	{
-		r := pr.tempReader(pkgbits.RelocPosBase, idx, pkgbits.SyncPosBase)
+		r := pr.tempReader(pkgbits.SectionPosBase, idx, pkgbits.SyncPosBase)
 
 		// Within types2, position bases have a lot more details (e.g.,
 		// keeping track of where //line directives appeared exactly).
@@ -206,7 +206,7 @@ func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) string {
 
 func (r *reader) pkg() *types.Package {
 	r.Sync(pkgbits.SyncPkg)
-	return r.p.pkgIdx(r.Reloc(pkgbits.RelocPkg))
+	return r.p.pkgIdx(r.Reloc(pkgbits.SectionPkg))
 }
 
 func (pr *pkgReader) pkgIdx(idx pkgbits.Index) *types.Package {
@@ -216,7 +216,7 @@ func (pr *pkgReader) pkgIdx(idx pkgbits.Index) *types.Package {
 		return pkg
 	}
 
-	pkg := pr.newReader(pkgbits.RelocPkg, idx, pkgbits.SyncPkgDef).doPkg()
+	pkg := pr.newReader(pkgbits.SectionPkg, idx, pkgbits.SyncPkgDef).doPkg()
 	pr.pkgs[idx] = pkg
 	return pkg
 }
@@ -255,7 +255,7 @@ func (r *reader) typInfo() typeInfo {
 	if r.Bool() {
 		return typeInfo{idx: pkgbits.Index(r.Len()), derived: true}
 	}
-	return typeInfo{idx: r.Reloc(pkgbits.RelocType), derived: false}
+	return typeInfo{idx: r.Reloc(pkgbits.SectionType), derived: false}
 }
 
 func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict) types.Type {
@@ -274,7 +274,7 @@ func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict) types.Type {
 
 	var typ types.Type
 	{
-		r := pr.tempReader(pkgbits.RelocType, idx, pkgbits.SyncTypeIdx)
+		r := pr.tempReader(pkgbits.SectionType, idx, pkgbits.SyncTypeIdx)
 		r.dict = dict
 
 		typ = r.doTyp()
@@ -438,7 +438,7 @@ func (r *reader) obj() (types.Object, []types.Type) {
 		assert(!r.Bool())
 	}
 
-	pkg, name := r.p.objIdx(r.Reloc(pkgbits.RelocObj))
+	pkg, name := r.p.objIdx(r.Reloc(pkgbits.SectionObj))
 	obj := pkgScope(pkg).Lookup(name)
 
 	targs := make([]types.Type, r.Len())
@@ -455,7 +455,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 	var objName string
 	var tag pkgbits.CodeObj
 	{
-		rname := pr.tempReader(pkgbits.RelocName, idx, pkgbits.SyncObject1)
+		rname := pr.tempReader(pkgbits.SectionName, idx, pkgbits.SyncObject1)
 
 		objPkg, objName = rname.qualifiedIdent()
 		assert(objName != "")
@@ -477,7 +477,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 	if objPkg.Scope().Lookup(objName) == nil {
 		dict := pr.objDictIdx(idx)
 
-		r := pr.newReader(pkgbits.RelocObj, idx, pkgbits.SyncObject1)
+		r := pr.newReader(pkgbits.SectionObj, idx, pkgbits.SyncObject1)
 		r.dict = dict
 
 		declare := func(obj types.Object) {
@@ -565,7 +565,7 @@ func (pr *pkgReader) objDictIdx(idx pkgbits.Index) *readerDict {
 	var dict readerDict
 
 	{
-		r := pr.tempReader(pkgbits.RelocObjDict, idx, pkgbits.SyncObject1)
+		r := pr.tempReader(pkgbits.SectionObjDict, idx, pkgbits.SyncObject1)
 		if implicits := r.Len(); implicits != 0 {
 			errorf("unexpected object with %v implicit type parameter(s)", implicits)
 		}
@@ -578,7 +578,7 @@ func (pr *pkgReader) objDictIdx(idx pkgbits.Index) *readerDict {
 		dict.derived = make([]derivedInfo, r.Len())
 		dict.derivedTypes = make([]types.Type, len(dict.derived))
 		for i := range dict.derived {
-			dict.derived[i] = derivedInfo{idx: r.Reloc(pkgbits.RelocType)}
+			dict.derived[i] = derivedInfo{idx: r.Reloc(pkgbits.SectionType)}
 			if r.Version().Has(pkgbits.DerivedInfoNeeded) {
 				assert(!r.Bool())
 			}

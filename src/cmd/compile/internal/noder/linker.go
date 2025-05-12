@@ -69,11 +69,11 @@ func (l *linker) relocIdx(pr *pkgReader, k pkgbits.SectionKind, idx index) index
 
 	var newidx index
 	switch k {
-	case pkgbits.RelocString:
+	case pkgbits.SectionString:
 		newidx = l.relocString(pr, idx)
-	case pkgbits.RelocPkg:
+	case pkgbits.SectionPkg:
 		newidx = l.relocPkg(pr, idx)
-	case pkgbits.RelocObj:
+	case pkgbits.SectionObj:
 		newidx = l.relocObj(pr, idx)
 
 	default:
@@ -113,8 +113,8 @@ func (l *linker) relocPkg(pr *pkgReader, idx index) index {
 		return newidx
 	}
 
-	r := pr.NewDecoder(pkgbits.RelocPkg, idx, pkgbits.SyncPkgDef)
-	w := l.pw.NewEncoder(pkgbits.RelocPkg, pkgbits.SyncPkgDef)
+	r := pr.NewDecoder(pkgbits.SectionPkg, idx, pkgbits.SyncPkgDef)
+	w := l.pw.NewEncoder(pkgbits.SectionPkg, pkgbits.SyncPkgDef)
 	l.pkgs[path] = w.Idx
 
 	// TODO(mdempsky): We end up leaving an empty string reference here
@@ -158,19 +158,19 @@ func (l *linker) relocObj(pr *pkgReader, idx index) index {
 		assert(tag2 != pkgbits.ObjStub)
 	}
 
-	w := l.pw.NewEncoderRaw(pkgbits.RelocObj)
-	wext := l.pw.NewEncoderRaw(pkgbits.RelocObjExt)
-	wname := l.pw.NewEncoderRaw(pkgbits.RelocName)
-	wdict := l.pw.NewEncoderRaw(pkgbits.RelocObjDict)
+	w := l.pw.NewEncoderRaw(pkgbits.SectionObj)
+	wext := l.pw.NewEncoderRaw(pkgbits.SectionObjExt)
+	wname := l.pw.NewEncoderRaw(pkgbits.SectionName)
+	wdict := l.pw.NewEncoderRaw(pkgbits.SectionObjDict)
 
 	l.decls[sym] = w.Idx
 	assert(wext.Idx == w.Idx)
 	assert(wname.Idx == w.Idx)
 	assert(wdict.Idx == w.Idx)
 
-	l.relocCommon(pr, &w, pkgbits.RelocObj, idx)
-	l.relocCommon(pr, &wname, pkgbits.RelocName, idx)
-	l.relocCommon(pr, &wdict, pkgbits.RelocObjDict, idx)
+	l.relocCommon(pr, &w, pkgbits.SectionObj, idx)
+	l.relocCommon(pr, &wname, pkgbits.SectionName, idx)
+	l.relocCommon(pr, &wdict, pkgbits.SectionObjDict, idx)
 
 	// Generic types and functions won't have definitions, and imported
 	// objects may not either.
@@ -189,7 +189,7 @@ func (l *linker) relocObj(pr *pkgReader, idx index) index {
 		}
 		wext.Flush()
 	} else {
-		l.relocCommon(pr, &wext, pkgbits.RelocObjExt, idx)
+		l.relocCommon(pr, &wext, pkgbits.SectionObjExt, idx)
 	}
 
 	// Check if we need to export the inline bodies for functions and
@@ -247,7 +247,7 @@ func (l *linker) exportBody(obj *ir.Name, local bool) {
 
 	pri, ok := bodyReaderFor(fn)
 	assert(ok)
-	l.bodies[sym] = l.relocIdx(pri.pr, pkgbits.RelocBody, pri.idx)
+	l.bodies[sym] = l.relocIdx(pri.pr, pkgbits.SectionBody, pri.idx)
 }
 
 // relocCommon copies the specified element from pr into w,

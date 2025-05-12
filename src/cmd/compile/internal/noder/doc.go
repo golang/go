@@ -20,17 +20,16 @@ The payload is a series of sections. Each section has a kind which determines
 its index in the series.
 
 SectionKind = Uint64 .
-TODO(markfreeman): Update when we rename RelocFoo to SectionFoo.
-Payload     = RelocString  // TODO(markfreeman) Define.
-              RelocMeta
-              RelocPosBase // TODO(markfreeman) Define.
-              RelocPkg     // TODO(markfreeman) Define.
-              RelocName    // TODO(markfreeman) Define.
-              RelocType    // TODO(markfreeman) Define.
-              RelocObj     // TODO(markfreeman) Define.
-              RelocObjExt  // TODO(markfreeman) Define.
-              RelocObjDict // TODO(markfreeman) Define.
-              RelocBody    // TODO(markfreeman) Define.
+Payload     = SectionString  // TODO(markfreeman) Define.
+              SectionMeta
+              SectionPosBase // TODO(markfreeman) Define.
+              SectionPkg     // TODO(markfreeman) Define.
+              SectionName    // TODO(markfreeman) Define.
+              SectionType    // TODO(markfreeman) Define.
+              SectionObj     // TODO(markfreeman) Define.
+              SectionObjExt  // TODO(markfreeman) Define.
+              SectionObjDict // TODO(markfreeman) Define.
+              SectionBody    // TODO(markfreeman) Define.
               .
 
 # Sections
@@ -45,22 +44,22 @@ RelIndex = Uint64 .
 The meta section provides fundamental information for a package. It contains
 exactly two elements — a public root and a private root.
 
-RelocMeta  = PublicRoot
-             PrivateRoot     // TODO(markfreeman): Define.
-             .
+SectionMeta = PublicRoot
+              PrivateRoot     // TODO(markfreeman): Define.
+              .
 
 The public root element identifies the package and provides references for all
 exported objects it contains.
 
-PublicRoot = Relocs
-             [ SyncPublic ] // TODO(markfreeman): Define.
-             PackageRef     // TODO(markfreeman): Define.
-             [ HasInit ]
-             ObjectRefCount // TODO(markfreeman): Define.
-             { ObjectRef }  // TODO(markfreeman): Define.
-             .
-HasInit    = Bool .         // Whether the package uses any initialization
-                            // functions.
+PublicRoot  = Relocs
+              [ SyncPublic ]  // TODO(markfreeman): Define.
+              PackageRef      // TODO(markfreeman): Define.
+              [ HasInit ]
+              ObjectRefCount  // TODO(markfreeman): Define.
+              { ObjectRef }   // TODO(markfreeman): Define.
+              .
+HasInit     = Bool .          // Whether the package uses any initialization
+                              // functions.
 
 # References
 A reference table precedes every element. Each entry in the table contains a

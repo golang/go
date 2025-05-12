@@ -158,7 +158,7 @@ func (pr *PkgDecoder) DataIdx(k SectionKind, idx RelIndex) string {
 
 // StringIdx returns the string value for the given string index.
 func (pr *PkgDecoder) StringIdx(idx RelIndex) string {
-	return pr.DataIdx(RelocString, idx)
+	return pr.DataIdx(SectionString, idx)
 }
 
 // NewDecoder returns a Decoder for the given (section, index) pair,
@@ -341,7 +341,7 @@ func (r *Decoder) Sync(mWant SyncMarker) {
 		fmt.Printf("\t[stack trace unavailable; recompile package %q with -d=syncframes]\n", r.common.pkgPath)
 	}
 	for _, pc := range writerPCs {
-		fmt.Printf("\t%s\n", r.common.StringIdx(r.rawReloc(RelocString, pc)))
+		fmt.Printf("\t%s\n", r.common.StringIdx(r.rawReloc(SectionString, pc)))
 	}
 
 	fmt.Printf("\nexpected %v, reading at:\n", mWant)
@@ -410,7 +410,7 @@ func (r *Decoder) Reloc(k SectionKind) RelIndex {
 // bitstream.
 func (r *Decoder) String() string {
 	r.Sync(SyncString)
-	return r.common.StringIdx(r.Reloc(RelocString))
+	return r.common.StringIdx(r.Reloc(SectionString))
 }
 
 // Strings decodes and returns a variable-length slice of strings from
@@ -481,7 +481,7 @@ func (r *Decoder) bigFloat() *big.Float {
 func (pr *PkgDecoder) PeekPkgPath(idx RelIndex) string {
 	var path string
 	{
-		r := pr.TempDecoder(RelocPkg, idx, SyncPkgDef)
+		r := pr.TempDecoder(SectionPkg, idx, SyncPkgDef)
 		path = r.String()
 		pr.RetireDecoder(&r)
 	}
@@ -498,10 +498,10 @@ func (pr *PkgDecoder) PeekObj(idx RelIndex) (string, string, CodeObj) {
 	var name string
 	var rcode int
 	{
-		r := pr.TempDecoder(RelocName, idx, SyncObject1)
+		r := pr.TempDecoder(SectionName, idx, SyncObject1)
 		r.Sync(SyncSym)
 		r.Sync(SyncPkg)
-		ridx = r.Reloc(RelocPkg)
+		ridx = r.Reloc(SectionPkg)
 		name = r.String()
 		rcode = r.Code(SyncCodeObj)
 		pr.RetireDecoder(&r)
