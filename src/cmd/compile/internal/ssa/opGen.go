@@ -1962,6 +1962,8 @@ const (
 	OpLOONG64LoweredPanicBoundsA
 	OpLOONG64LoweredPanicBoundsB
 	OpLOONG64LoweredPanicBoundsC
+	OpLOONG64PRELD
+	OpLOONG64PRELDX
 
 	OpMIPSADD
 	OpMIPSADDconst
@@ -26449,6 +26451,30 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 524288},  // R20
 				{1, 1048576}, // R21
+			},
+		},
+	},
+	{
+		name:           "PRELD",
+		auxType:        auxInt64,
+		argLen:         2,
+		hasSideEffects: true,
+		asm:            loong64.APRELD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073741820}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+			},
+		},
+	},
+	{
+		name:           "PRELDX",
+		auxType:        auxInt64,
+		argLen:         2,
+		hasSideEffects: true,
+		asm:            loong64.APRELDX,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073741820}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
 			},
 		},
 	},

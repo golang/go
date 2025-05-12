@@ -674,6 +674,10 @@ func rewriteValueLOONG64(v *Value) bool {
 		return rewriteValueLOONG64_OpPopCount32(v)
 	case OpPopCount64:
 		return rewriteValueLOONG64_OpPopCount64(v)
+	case OpPrefetchCache:
+		return rewriteValueLOONG64_OpPrefetchCache(v)
+	case OpPrefetchCacheStreamed:
+		return rewriteValueLOONG64_OpPrefetchCacheStreamed(v)
 	case OpPubBarrier:
 		v.Op = OpLOONG64LoweredPubBarrier
 		return true
@@ -9075,6 +9079,34 @@ func rewriteValueLOONG64_OpPopCount64(v *Value) bool {
 		v1.AddArg(x)
 		v0.AddArg(v1)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueLOONG64_OpPrefetchCache(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (PrefetchCache addr mem)
+	// result: (PRELD addr mem [0])
+	for {
+		addr := v_0
+		mem := v_1
+		v.reset(OpLOONG64PRELD)
+		v.AuxInt = int64ToAuxInt(0)
+		v.AddArg2(addr, mem)
+		return true
+	}
+}
+func rewriteValueLOONG64_OpPrefetchCacheStreamed(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (PrefetchCacheStreamed addr mem)
+	// result: (PRELDX addr mem [(((512 << 1) + (1 << 12)) << 5) + 2])
+	for {
+		addr := v_0
+		mem := v_1
+		v.reset(OpLOONG64PRELDX)
+		v.AuxInt = int64ToAuxInt((((512 << 1) + (1 << 12)) << 5) + 2)
+		v.AddArg2(addr, mem)
 		return true
 	}
 }

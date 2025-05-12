@@ -840,6 +840,22 @@
 
 (MOVBUreg (ANDconst [c] x)) => (ANDconst [c&0xff] x)
 
+// Prefetch instructions (hint specified using aux field)
+// For PRELD{,X} A value of hint indicates:
+//    hint=0 is defined as load prefetch to L1-cache
+//    hint=2 is defined as load prefetch to L3-cache
+// The PrefetchCacheStreamed implementation prefetches 512 bytes of data
+// into L3. The aux field are defined as follows:
+//    bit[4:0]:
+//       $hint parameter of PRELDX instruction
+//    bit[41:5]:
+//       $n parameter of PRELDX instruction, bit[0] of $n is the address
+//       sequence, bits[11:1] is the block size, bits[20:12] is the block
+//       num, bits[36:21] is the stride, for more details about $n, refer
+//       to src/cmd/internal/obj/loong64/doc.go
+(PrefetchCache addr mem)         => (PRELD  addr mem [0])
+(PrefetchCacheStreamed addr mem) => (PRELDX addr mem [(((512 << 1) + (1 << 12)) << 5) + 2])
+
 // constant comparisons
 (SGTconst [c] (MOVVconst [d])) && c>d => (MOVVconst [1])
 (SGTconst [c] (MOVVconst [d])) && c<=d => (MOVVconst [0])

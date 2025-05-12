@@ -418,6 +418,8 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
 	{"loong64", "internal/runtime/sys", "Len64"}:                       struct{}{},
 	{"loong64", "internal/runtime/sys", "Len8"}:                        struct{}{},
 	{"loong64", "internal/runtime/sys", "OnesCount64"}:                 struct{}{},
+	{"loong64", "internal/runtime/sys", "Prefetch"}:                    struct{}{},
+	{"loong64", "internal/runtime/sys", "PrefetchStreamed"}:            struct{}{},
 	{"loong64", "internal/runtime/sys", "TrailingZeros32"}:             struct{}{},
 	{"loong64", "internal/runtime/sys", "TrailingZeros64"}:             struct{}{},
 	{"loong64", "internal/runtime/sys", "TrailingZeros8"}:              struct{}{},
