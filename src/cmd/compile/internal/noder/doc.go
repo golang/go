@@ -20,7 +20,7 @@ The payload is a series of sections. Each section has a kind which determines
 its index in the series.
 
 SectionKind = Uint64 .
-Payload     = SectionString  // TODO(markfreeman) Define.
+Payload     = SectionString
               SectionMeta
               SectionPosBase // TODO(markfreeman) Define.
               SectionPkg     // TODO(markfreeman) Define.
@@ -39,6 +39,12 @@ accessed using an index relative to the start of the section.
 
 // TODO(markfreeman): Rename to SectionIndex.
 RelIndex = Uint64 .
+
+## String Section
+String values are stored as elements in the string section. Elements outside
+the string section access string values by reference.
+
+SectionString = { String } .
 
 ## Meta Section
 The meta section provides fundamental information for a package. It contains

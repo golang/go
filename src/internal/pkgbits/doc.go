@@ -16,51 +16,62 @@ zvarint = (* a zig-zag encoded signed variable-width integer *) .
 uvarint = (* an unsigned variable-width integer *) .
 
 # Strings
-Strings are not encoded directly. Rather, they are deduplicated during encoding
-and referenced where needed.
+A string is a series of bytes.
 
-String      = [ Sync ] StringRef .
-StringRef   = [ Sync ] Uint64 . // TODO(markfreeman): Document.
+// TODO(markfreeman): Does this need a marker?
+String    = { byte } .
 
-StringSlice = Uint64            // the number of strings in the slice
-              { String }
-              .
+Strings are typically not encoded directly. Rather, they are deduplicated
+during encoding and referenced where needed; this process is called interning.
 
-// TODO(markfreeman) It is awkward to discuss references (and by extension
-// strings and constants). We cannot explain how they resolve without mention
-// of foreign concepts. Ideally, references would be defined in familar terms —
-// perhaps using an index on the byte array.
+StringRef = [ Sync ] Ref[String] .
+
+Note that StringRef is *not* equivalent to Ref[String] due to the extra marker.
+
+# References
+References specify the location of a value. While the representation here is
+fixed, the interpretation of a reference is left to other packages.
+
+Ref[T] = [ Sync ] Uint64 . // points to a value of type T
+
+# Slices
+Slices are a convenience for encoding a series of values of the same type.
+
+// TODO(markfreeman): Does this need a marker?
+Slice[T] = Uint64 // the number of values in the slice
+           { T }  // the values
+           .
 
 # Constants
 Constants appear as defined via the package constant.
 
 Constant = [ Sync ]
-           Bool       // whether the constant is a complex number
-           Scalar     // the real part
-           [ Scalar ] // if complex, the imaginary part
+           Bool        // whether the constant is a complex number
+           Scalar      // the real part
+           [ Scalar ]  // if complex, the imaginary part
            .
 
 A scalar represents a value using one of several potential formats. The exact
 format and interpretation is distinguished by a code preceding the value.
 
 Scalar   = [ Sync ]
-           Uint64     // the code
+           Uint64      // the code indicating the type of Val
            Val
            .
 
 Val      = Bool
          | Int64
-         | String
-         | Term       // big integer
-         | Term Term  // big ratio, numerator / denominator
-         | BigBytes   // big float, precision 512
+         | StringRef
+         | Term        // big integer
+         | Term Term   // big ratio, numerator / denominator
+         | BigBytes    // big float, precision 512
            .
 
 Term     = BigBytes
-           Bool       // whether the term is negative
+           Bool        // whether the term is negative
            .
 
-BigBytes = String .   // bytes of a big value
+BigBytes = StringRef . // bytes of a big value
 
 # Markers
 Markers provide a mechanism for asserting that encoders and decoders are
