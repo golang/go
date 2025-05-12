@@ -1462,3 +1462,86 @@ func TestIssue68488(t *testing.T) {
 		t.Error("clone keeps alive s due to array overlap")
 	}
 }
+
+// This test asserts the behavior when the primary slice operand is nil.
+//
+// Some operations preserve the nilness of their operand while others
+// do not, but in all cases the behavior is documented.
+func TestNilness(t *testing.T) {
+	var (
+		emptySlice = []int{}
+		nilSlice   = []int(nil)
+		emptySeq   = func(yield func(int) bool) {}
+		truth      = func(int) bool { return true }
+		equal      = func(x, y int) bool { panic("unreachable") }
+	)
+
+	wantNil := func(slice []int, cond string) {
+		if slice != nil {
+			t.Errorf("%s != nil", cond)
+		}
+	}
+	wantNonNil := func(slice []int, cond string) {
+		if slice == nil {
+			t.Errorf("%s == nil", cond)
+		}
+	}
+
+	// The update functions
+	//    Insert, AppendSeq, Delete, DeleteFunc, Clone, Compact, CompactFunc
+	// preserve nilness, like s[i:j].
+	wantNil(AppendSeq(nilSlice, emptySeq), "AppendSeq(nil, empty)")
+	wantNonNil(AppendSeq(emptySlice, emptySeq), "AppendSeq(nil, empty)")
+
+	wantNil(Insert(nilSlice, 0), "Insert(nil, 0)")
+	wantNonNil(Insert(emptySlice, 0), "Insert(empty, 0)")
+
+	wantNil(Delete(nilSlice, 0, 0), "Delete(nil, 0, 0)")
+	wantNonNil(Delete(emptySlice, 0, 0), "Delete(empty, 0, 0)")
+	wantNonNil(Delete([]int{1}, 0, 1), "Delete([]int{1}, 0, 1)")
+
+	wantNil(DeleteFunc(nilSlice, truth), "DeleteFunc(nil, f)")
+	wantNonNil(DeleteFunc(emptySlice, truth), "DeleteFunc(empty, f)")
+	wantNonNil(DeleteFunc([]int{1}, truth), "DeleteFunc([]int{1}, truth)")
+
+	wantNil(Replace(nilSlice, 0, 0), "Replace(nil, 0, 0)")
+	wantNonNil(Replace(emptySlice, 0, 0), "Replace(empty, 0, 0)")
+	wantNonNil(Replace([]int{1}, 0, 1), "Replace([]int{1}, 0, 1)")
+
+	wantNil(Clone(nilSlice), "Clone(nil)")
+	wantNonNil(Clone(emptySlice), "Clone(empty)")
+
+	wantNil(Compact(nilSlice), "Compact(nil)")
+	wantNonNil(Compact(emptySlice), "Compact(empty)")
+
+	wantNil(CompactFunc(nilSlice, equal), "CompactFunc(nil)")
+	wantNonNil(CompactFunc(emptySlice, equal), "CompactFunc(empty)")
+
+	wantNil(Grow(nilSlice, 0), "Grow(nil, 0)")
+	wantNonNil(Grow(emptySlice, 0), "Grow(empty, 0)")
+
+	wantNil(Clip(nilSlice), "Clip(nil)")
+	wantNonNil(Clip(emptySlice), "Clip(empty)")
+	wantNonNil(Clip([]int{1}[:0:0]), "Clip([]int{1}[:0:0])")
+
+	// Concat returns nil iff the result is empty.
+	// This is an unfortunate irregularity.
+	wantNil(Concat(nilSlice, emptySlice, nilSlice, emptySlice), "Concat(nil, ...empty...)")
+	wantNil(Concat(emptySlice, emptySlice, nilSlice, emptySlice), "Concat(empty, ...empty...)")
+	wantNil(Concat[[]int](), "Concat()")
+
+	// Repeat never returns nil. Another irregularity.
+	wantNonNil(Repeat(nilSlice, 0), "Repeat(nil, 0)")
+	wantNonNil(Repeat(emptySlice, 0), "Repeat(empty, 0)")
+	wantNonNil(Repeat(nilSlice, 2), "Repeat(nil, 2)")
+	wantNonNil(Repeat(emptySlice, 2), "Repeat(empty, 2)")
+
+	// The collection functions
+	//     Collect, Sorted, SortedFunc, SortedStableFunc
+	// return nil given an empty sequence.
+	wantNil(Collect(emptySeq), "Collect(empty)")
+
+	wantNil(Sorted(emptySeq), "Sorted(empty)")
+	wantNil(SortedFunc(emptySeq, cmp.Compare), "SortedFunc(empty)")
+	wantNil(SortedStableFunc(emptySeq, cmp.Compare), "SortedStableFunc(empty)")
+}
