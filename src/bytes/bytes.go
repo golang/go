@@ -1228,7 +1228,7 @@ func ReplaceAll(s, old, new []byte) []byte {
 func EqualFold(s, t []byte) bool {
 	// ASCII fast path
 	i := 0
-	for ; i < len(s) && i < len(t); i++ {
+	for n := min(len(s), len(t)); i < n; i++ {
 		sr := s[i]
 		tr := t[i]
 		if sr|tr >= utf8.RuneSelf {
