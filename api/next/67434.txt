@@ -1,0 +1,2 @@
+pkg testing/synctest, func Test(*testing.T, func(*testing.T)) #67434
+pkg testing/synctest, func Wait() #67434

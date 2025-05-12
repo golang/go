@@ -421,6 +421,7 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+	_ "unsafe" // for linkname
 )
 
 var initRan bool
@@ -643,6 +644,7 @@ type common struct {
 	cleanupPc   []uintptr            // The stack trace at the point where Cleanup was called.
 	finished    bool                 // Test function has completed.
 	inFuzzFn    bool                 // Whether the fuzz target, if this is one, is running.
+	isSynctest  bool
 
 	chatty         *chattyPrinter // A copy of chattyPrinter, if the chatty flag is set.
 	bench          bool           // Whether the current test is a benchmark.
@@ -1632,6 +1634,9 @@ func (t *T) Parallel() {
 	if t.isParallel {
 		panic("testing: t.Parallel called multiple times")
 	}
+	if t.isSynctest {
+		panic("testing: t.Parallel called inside synctest bubble")
+	}
 	if t.denyParallel {
 		panic(parallelConflict)
 	}
@@ -1910,6 +1915,9 @@ func tRunner(t *T, fn func(t *T)) {
 // Run may be called simultaneously from multiple goroutines, but all such calls
 // must return before the outer test function for t returns.
 func (t *T) Run(name string, f func(t *T)) bool {
+	if t.isSynctest {
+		panic("testing: t.Run called inside synctest bubble")
+	}
 	if t.cleanupStarted.Load() {
 		panic("testing: t.Run called during t.Cleanup")
 	}
@@ -1975,11 +1983,55 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	return !t.failed
 }
 
+// testingSynctestTest runs f within a synctest bubble.
+// It is called by synctest.Test, from within an already-created bubble.
+//
+//go:linkname testingSynctestTest testing/synctest.testingSynctestTest
+func testingSynctestTest(t *T, f func(*T)) {
+	if t.cleanupStarted.Load() {
+		panic("testing: synctest.Run called during t.Cleanup")
+	}
+
+	var pc [maxStackLen]uintptr
+	n := runtime.Callers(2, pc[:])
+
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	t2 := &T{
+		common: common{
+			barrier:    make(chan bool),
+			signal:     make(chan bool, 1),
+			name:       t.name,
+			parent:     &t.common,
+			level:      t.level + 1,
+			creator:    pc[:n],
+			chatty:     t.chatty,
+			ctx:        ctx,
+			cancelCtx:  cancelCtx,
+			isSynctest: true,
+		},
+		tstate: t.tstate,
+	}
+	t2.setOutputWriter()
+
+	go tRunner(t2, f)
+	if !<-t2.signal {
+		// At this point, it is likely that FailNow was called on one of the
+		// parent tests by one of the subtests. Continue aborting up the chain.
+		runtime.Goexit()
+	}
+}
+
 // Deadline reports the time at which the test binary will have
 // exceeded the timeout specified by the -timeout flag.
 //
 // The ok result is false if the -timeout flag indicates “no timeout” (0).
 func (t *T) Deadline() (deadline time.Time, ok bool) {
+	if t.isSynctest {
+		// There's no point in returning a real-clock deadline to
+		// a test using a fake clock. We could return "no timeout",
+		// but panicking makes it easier for users to catch the error.
+		panic("testing: t.Deadline called inside synctest bubble")
+	}
 	deadline = t.tstate.deadline
 	return deadline, !deadline.IsZero()
 }
@@ -2300,6 +2352,9 @@ func (m *M) Run() (code int) {
 func (t *T) report() {
 	if t.parent == nil {
 		return
+	}
+	if t.isSynctest {
+		return // t.parent will handle reporting
 	}
 	dstr := fmtDuration(t.duration)
 	format := "--- %s: %s (%s)\n"
