@@ -114,6 +114,16 @@ func linkOrCopy(t *testing.T, src, dst string) {
 	if err == nil {
 		return
 	}
+	fi, err := os.Stat(src)
+	if err != nil {
+		t.Fatalf("copying %s to %s: %v", src, dst, err)
+	}
+	if fi.IsDir() {
+		if err := os.CopyFS(dst, os.DirFS(src)); err != nil {
+			t.Fatalf("copying %s to %s: %v", src, dst, err)
+		}
+		return
+	}
 	srcf, err := os.Open(src)
 	if err != nil {
 		t.Fatalf("copying %s to %s: %v", src, dst, err)
