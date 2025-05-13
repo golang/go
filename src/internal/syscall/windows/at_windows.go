@@ -94,6 +94,7 @@ func Openat(dirfd syscall.Handle, name string, flag uint64, perm uint32) (_ sysc
 	switch {
 	case flag&(syscall.O_CREAT|syscall.O_EXCL) == (syscall.O_CREAT | syscall.O_EXCL):
 		disposition = FILE_CREATE
+		options |= FILE_OPEN_REPARSE_POINT // don't follow symlinks
 	case flag&syscall.O_CREAT == syscall.O_CREAT:
 		disposition = FILE_OPEN_IF
 	default:

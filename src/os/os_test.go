@@ -2299,6 +2299,31 @@ func TestFilePermissions(t *testing.T) {
 
 }
 
+func TestOpenFileCreateExclDanglingSymlink(t *testing.T) {
+	testMaybeRooted(t, func(t *testing.T, r *Root) {
+		const link = "link"
+		if err := Symlink("does_not_exist", link); err != nil {
+			t.Fatal(err)
+		}
+		var f *File
+		var err error
+		if r == nil {
+			f, err = OpenFile(link, O_WRONLY|O_CREATE|O_EXCL, 0o666)
+		} else {
+			f, err = r.OpenFile(link, O_WRONLY|O_CREATE|O_EXCL, 0o666)
+		}
+		if err == nil {
+			f.Close()
+		}
+		if !errors.Is(err, ErrExist) {
+			t.Errorf("OpenFile of a dangling symlink with O_CREATE|O_EXCL = %v, want ErrExist", err)
+		}
+		if _, err := Stat(link); err == nil {
+			t.Errorf("OpenFile of a dangling symlink with O_CREATE|O_EXCL created a file")
+		}
+	})
+}
+
 // TestFileRDWRFlags tests the O_RDONLY, O_WRONLY, and O_RDWR flags.
 func TestFileRDWRFlags(t *testing.T) {
 	for _, test := range []struct {

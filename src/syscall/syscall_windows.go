@@ -403,15 +403,16 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 	//
 	// Instead, we ftruncate the file after opening when O_TRUNC is set.
 	var createmode uint32
+	var attrs uint32 = FILE_ATTRIBUTE_NORMAL
 	switch {
 	case flag&(O_CREAT|O_EXCL) == (O_CREAT | O_EXCL):
 		createmode = CREATE_NEW
+		attrs |= FILE_FLAG_OPEN_REPARSE_POINT // don't follow symlinks
 	case flag&O_CREAT == O_CREAT:
 		createmode = OPEN_ALWAYS
 	default:
 		createmode = OPEN_EXISTING
 	}
-	var attrs uint32 = FILE_ATTRIBUTE_NORMAL
 	if perm&S_IWRITE == 0 {
 		attrs = FILE_ATTRIBUTE_READONLY
 	}
