@@ -5,6 +5,7 @@
 package os
 
 import (
+	"errors"
 	"internal/filepathlite"
 	"internal/syscall/windows"
 	"syscall"
@@ -34,6 +35,9 @@ func stat(funcname, name string, followSurrogates bool) (FileInfo, error) {
 	// See https://golang.org/issues/19922#issuecomment-300031421 for details.
 	var fa syscall.Win32FileAttributeData
 	err = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
+	if errors.Is(err, ErrNotExist) {
+		return nil, &PathError{Op: "GetFileAttributesEx", Path: name, Err: err}
+	}
 	if err == nil && fa.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
 		// Not a surrogate for another named entity, because it isn't any kind of reparse point.
 		// The information we got from GetFileAttributesEx is good enough for now.

@@ -361,3 +361,18 @@ func TestClosedStat(t *testing.T) {
 		t.Errorf("error from Stat on closed file did not match ErrClosed: %q, type %T", err, err)
 	}
 }
+
+func TestStatNotExist(t *testing.T) {
+	t.Parallel()
+	name := filepath.Join(t.TempDir(), "notfound")
+	_, err := os.Stat(name)
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("os.Stat(%q) = %v; want fs.ErrNotExist", name, err)
+	}
+
+	name = filepath.Join(t.TempDir(), "notfounddir", "notfound")
+	_, err = os.Stat(name)
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("os.Stat(%q) = %v; want fs.ErrNotExist", name, err)
+	}
+}
