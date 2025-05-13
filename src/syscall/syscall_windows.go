@@ -406,6 +406,9 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 			}
 		}
 	}
+	if createmode == CREATE_NEW {
+		attrs |= FILE_FLAG_OPEN_REPARSE_POINT // don't follow symlinks
+	}
 	if createmode == OPEN_EXISTING && access == GENERIC_READ {
 		// Necessary for opening directory handles.
 		attrs |= FILE_FLAG_BACKUP_SEMANTICS

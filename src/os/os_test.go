@@ -2174,6 +2174,24 @@ func TestAppend(t *testing.T) {
 	}
 }
 
+func TestOpenFileCreateExclDanglingSymlink(t *testing.T) {
+	defer chtmpdir(t)()
+	const link = "link"
+	if err := Symlink("does_not_exist", link); err != nil {
+		t.Fatal(err)
+	}
+	f, err := OpenFile(link, O_WRONLY|O_CREATE|O_EXCL, 0o666)
+	if err == nil {
+		f.Close()
+	}
+	if !errors.Is(err, ErrExist) {
+		t.Errorf("OpenFile of a dangling symlink with O_CREATE|O_EXCL = %v, want ErrExist", err)
+	}
+	if _, err := Stat(link); err == nil {
+		t.Errorf("OpenFile of a dangling symlink with O_CREATE|O_EXCL created a file")
+	}
+}
+
 func TestStatDirWithTrailingSlash(t *testing.T) {
 	t.Parallel()
 
