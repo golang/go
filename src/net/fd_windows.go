@@ -233,6 +233,9 @@ func (fd *netFD) accept() (*netFD, error) {
 	return netfd, nil
 }
 
+// Defined in os package.
+func newWindowsFile(h syscall.Handle, name string) *os.File
+
 func (fd *netFD) dup() (*os.File, error) {
 	// Disassociate the IOCP from the socket,
 	// it is not safe to share a duplicated handle
@@ -251,5 +254,8 @@ func (fd *netFD) dup() (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	return os.NewFile(uintptr(h), fd.name()), nil
+	// All WSASocket calls must be match with a syscall.Closesocket call,
+	// but os.NewFile calls syscall.CloseHandle instead. We need to use
+	// a hidden function so that the returned file is aware of this fact.
+	return newWindowsFile(h, fd.name()), nil
 }

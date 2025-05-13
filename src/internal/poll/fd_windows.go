@@ -318,7 +318,7 @@ type FD struct {
 	// message based socket connection.
 	ZeroReadIsEOF bool
 
-	// Whether this is a file rather than a network socket.
+	// Whether the handle is owned by os.File.
 	isFile bool
 
 	// The kind of this file.
@@ -368,6 +368,7 @@ const (
 	kindFile
 	kindConsole
 	kindPipe
+	kindFileNet
 )
 
 // Init initializes the FD. The Sysfd field should already be set.
@@ -388,6 +389,8 @@ func (fd *FD) Init(net string, pollable bool) error {
 		fd.kind = kindConsole
 	case "pipe":
 		fd.kind = kindPipe
+	case "file+net":
+		fd.kind = kindFileNet
 	default:
 		// We don't actually care about the various network types.
 		fd.kind = kindNet
@@ -453,7 +456,7 @@ func (fd *FD) destroy() error {
 	fd.pd.close()
 	var err error
 	switch fd.kind {
-	case kindNet:
+	case kindNet, kindFileNet:
 		// The net package uses the CloseFunc variable for testing.
 		err = CloseFunc(fd.Sysfd)
 	default:
@@ -494,7 +497,7 @@ func (fd *FD) Read(buf []byte) (int, error) {
 		return 0, err
 	}
 	defer fd.readUnlock()
-	if fd.isFile {
+	if fd.kind == kindFile {
 		fd.l.Lock()
 		defer fd.l.Unlock()
 	}
@@ -747,7 +750,7 @@ func (fd *FD) Write(buf []byte) (int, error) {
 		return 0, err
 	}
 	defer fd.writeUnlock()
-	if fd.isFile {
+	if fd.kind == kindFile {
 		fd.l.Lock()
 		defer fd.l.Unlock()
 	}

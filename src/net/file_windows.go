@@ -22,9 +22,26 @@ func dupSocket(h syscall.Handle) (syscall.Handle, error) {
 }
 
 func dupFileSocket(f *os.File) (syscall.Handle, error) {
-	// The resulting handle should not be associated to an IOCP, else the IO operations
-	// will block an OS thread, and that's not what net package users expect.
-	h, err := dupSocket(syscall.Handle(f.Fd()))
+	// Call Fd to disassociate the IOCP from the handle,
+	// it is not safe to share a duplicated handle
+	// that is associated with IOCP.
+	// Don't use the returned fd, as it might be closed
+	// if f happens to be the last reference to the file.
+	f.Fd()
+
+	sc, err := f.SyscallConn()
+	if err != nil {
+		return 0, err
+	}
+
+	var h syscall.Handle
+	var syserr error
+	err = sc.Control(func(fd uintptr) {
+		h, syserr = dupSocket(syscall.Handle(fd))
+	})
+	if err != nil {
+		err = syserr
+	}
 	if err != nil {
 		return 0, err
 	}

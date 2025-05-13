@@ -92,6 +92,18 @@ func newFileFromNewFile(fd uintptr, name string) *File {
 	return newFile(h, name, "file", nonBlocking)
 }
 
+// net_newWindowsFile is a hidden entry point called by net.conn.File.
+// This is used so that the File.pfd.close method calls [syscall.Closesocket]
+// instead of [syscall.CloseHandle].
+//
+//go:linkname net_newWindowsFile net.newWindowsFile
+func net_newWindowsFile(h syscall.Handle, name string) *File {
+	if h == syscall.InvalidHandle {
+		panic("invalid FD")
+	}
+	return newFile(h, name, "file+net", true)
+}
+
 func epipecheck(file *File, e error) {
 }
 
