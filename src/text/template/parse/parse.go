@@ -32,7 +32,7 @@ type Tree struct {
 	treeSet    map[string]*Tree
 	actionLine int // line of left delim starting action
 	rangeDepth int
-	parenDepth int // current depth of nested parenthesized expressions
+	parenDepth int // depth of nested parenthesized expressions
 }
 
 // A mode value is a set of flags (or 0). Modes control parser behavior.
@@ -43,10 +43,19 @@ const (
 	SkipFuncCheck                  // do not check that functions are defined
 )
 
-// maxExpressionParenDepth is the maximum depth of nested parenthesized expressions.
-// It is used to prevent stack overflows from deep finite recursion in the parser.
-const maxExpressionParenDepth = 10000
-const maxExpressionParenDepthWasm = 1000 // Lower limit for WASM environments
+// maxExpressionParenDepth is the maximum depth permitted for nested
+// parenthesized expressions.
+var maxExpressionParenDepth int
+
+// init sets up the maximum expression parenthesis depth based on the architecture.
+// WebAssembly has a smaller stack size and is more prone to stack overflow.
+func init() {
+	if runtime.GOARCH == "wasm" {
+		maxExpressionParenDepth = 1000
+	} else {
+		maxExpressionParenDepth = 10000
+	}
+}
 
 // Copy returns a copy of the [Tree]. Any parsing state is discarded.
 func (t *Tree) Copy() *Tree {
@@ -794,8 +803,7 @@ func (t *Tree) term() Node {
 		}
 		return number
 	case itemLeftParen:
-		if t.parenDepth >= maxExpressionParenDepth ||
-			runtime.GOARCH == "wasm" && t.parenDepth >= maxExpressionParenDepthWasm {
+		if t.parenDepth >= maxExpressionParenDepth {
 			t.errorf("max expression depth exceeded")
 		}
 		t.parenDepth++

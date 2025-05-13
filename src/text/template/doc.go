@@ -16,7 +16,7 @@ by a period '.' and called "dot", to the value at the current location in the
 structure as execution proceeds.
 
 The security model used by this package assumes that template authors are
-trusted. text/template does not auto-escape output, so injecting code into
+trusted. The package does not auto-escape output, so injecting code into
 a template can lead to arbitrary code execution if the template is executed
 by an untrusted source.
 
