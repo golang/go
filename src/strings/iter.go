@@ -31,23 +31,18 @@ func Lines(s string) iter.Seq[string] {
 	}
 }
 
-// explodeSeq returns an iterator over the runes in s.
-func explodeSeq(s string, yield func(string) bool) {
-	for len(s) > 0 {
-		_, size := utf8.DecodeRuneInString(s)
-		if !yield(s[:size]) {
-			return
-		}
-		s = s[size:]
-	}
-}
-
 // splitSeq is SplitSeq or SplitAfterSeq, configured by how many
 // bytes of sep to include in the results (none or all).
 func splitSeq(s, sep string, sepSave int) iter.Seq[string] {
 	return func(yield func(string) bool) {
 		if len(sep) == 0 {
-			explodeSeq(s, yield)
+			for len(s) > 0 {
+				_, size := utf8.DecodeRuneInString(s)
+				if !yield(s[:size]) {
+					return
+				}
+				s = s[size:]
+			}
 			return
 		}
 		for {
