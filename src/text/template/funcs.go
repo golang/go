@@ -62,26 +62,13 @@ func builtins() FuncMap {
 	}
 }
 
-var builtinFuncsOnce struct {
-	sync.Once
-	v map[string]reflect.Value
-}
-
 // builtinFuncsOnce lazily computes & caches the builtinFuncs map.
-// TODO: revert this back to a global map once golang.org/issue/2559 is fixed.
-func builtinFuncs() map[string]reflect.Value {
-	builtinFuncsOnce.Do(func() {
-		builtinFuncsOnce.v = createValueFuncs(builtins())
-	})
-	return builtinFuncsOnce.v
-}
-
-// createValueFuncs turns a FuncMap into a map[string]reflect.Value
-func createValueFuncs(funcMap FuncMap) map[string]reflect.Value {
-	m := make(map[string]reflect.Value)
+var builtinFuncsOnce = sync.OnceValue(func() map[string]reflect.Value {
+	funcMap := builtins()
+	m := make(map[string]reflect.Value, len(funcMap))
 	addValueFuncs(m, funcMap)
 	return m
-}
+})
 
 // addValueFuncs adds to values the functions in funcs, converting them to reflect.Values.
 func addValueFuncs(out map[string]reflect.Value, in FuncMap) {
@@ -149,7 +136,7 @@ func findFunction(name string, tmpl *Template) (v reflect.Value, isBuiltin, ok b
 			return fn, false, true
 		}
 	}
-	if fn := builtinFuncs()[name]; fn.IsValid() {
+	if fn := builtinFuncsOnce()[name]; fn.IsValid() {
 		return fn, true, true
 	}
 	return reflect.Value{}, false, false
