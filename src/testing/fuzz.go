@@ -616,6 +616,7 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
 		tstate: tstate,
 	}
 	f.w = indenter{&f.common}
+	f.setOutputWriter()
 	if f.chatty != nil {
 		f.chatty.Updatef(f.name, "=== RUN   %s\n", f.name)
 	}
