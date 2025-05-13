@@ -320,7 +320,6 @@ func (f *F) Fuzz(ff any) {
 			t.parent.w = captureOut
 		}
 		t.w = indenter{&t.common}
-		t.setOutputWriter()
 		if t.chatty != nil {
 			t.chatty.Updatef(t.name, "=== RUN   %s\n", t.name)
 		}
@@ -530,7 +529,6 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
 					fstate: fstate,
 				}
 				f.w = indenter{&f.common}
-				f.setOutputWriter()
 				if f.chatty != nil {
 					f.chatty.Updatef(f.name, "=== RUN   %s\n", f.name)
 				}

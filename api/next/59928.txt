@@ -1,3 +1,0 @@
-pkg testing, method (*B) Output() io.Writer #59928
-pkg testing, method (*F) Output() io.Writer #59928
-pkg testing, method (*T) Output() io.Writer #59928

@@ -34,7 +34,6 @@ func TestPanic(t *testing.T) {
 		want: `
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
-    TestPanicHelper
 `,
 	}, {
 		desc:  "subtest panics",
@@ -42,10 +41,8 @@ func TestPanic(t *testing.T) {
 		want: `
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
-    TestPanicHelper
     --- FAIL: TestPanicHelper/1 (N.NNs)
         panic_test.go:NNN: TestPanicHelper/1
-        TestPanicHelper/1
 `,
 	}, {
 		desc:  "subtest panics with cleanup",
@@ -56,10 +53,8 @@ ran middle cleanup 1
 ran outer cleanup
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
-    TestPanicHelper
     --- FAIL: TestPanicHelper/1 (N.NNs)
         panic_test.go:NNN: TestPanicHelper/1
-        TestPanicHelper/1
 `,
 	}, {
 		desc:  "subtest panics with outer cleanup panic",
@@ -70,7 +65,6 @@ ran middle cleanup 1
 ran outer cleanup
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
-    TestPanicHelper
 `,
 	}, {
 		desc:  "subtest panics with middle cleanup panic",
@@ -81,10 +75,8 @@ ran middle cleanup 1
 ran outer cleanup
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
-    TestPanicHelper
     --- FAIL: TestPanicHelper/1 (N.NNs)
         panic_test.go:NNN: TestPanicHelper/1
-        TestPanicHelper/1
 `,
 	}, {
 		desc:  "subtest panics with inner cleanup panic",
@@ -95,10 +87,8 @@ ran middle cleanup 1
 ran outer cleanup
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
-    TestPanicHelper
     --- FAIL: TestPanicHelper/1 (N.NNs)
         panic_test.go:NNN: TestPanicHelper/1
-        TestPanicHelper/1
 `,
 	}, {
 		desc:  "parallel subtest panics with cleanup",
@@ -109,10 +99,8 @@ ran middle cleanup 1
 ran outer cleanup
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
-    TestPanicHelper
     --- FAIL: TestPanicHelper/1 (N.NNs)
         panic_test.go:NNN: TestPanicHelper/1
-        TestPanicHelper/1
 `,
 	}, {
 		desc:  "parallel subtest panics with outer cleanup panic",
@@ -123,7 +111,6 @@ ran middle cleanup 1
 ran outer cleanup
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
-    TestPanicHelper
 `,
 	}, {
 		desc:  "parallel subtest panics with middle cleanup panic",
@@ -134,10 +121,8 @@ ran middle cleanup 1
 ran outer cleanup
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
-    TestPanicHelper
     --- FAIL: TestPanicHelper/1 (N.NNs)
         panic_test.go:NNN: TestPanicHelper/1
-        TestPanicHelper/1
 `,
 	}, {
 		desc:  "parallel subtest panics with inner cleanup panic",
@@ -148,10 +133,8 @@ ran middle cleanup 1
 ran outer cleanup
 --- FAIL: TestPanicHelper (N.NNs)
     panic_test.go:NNN: TestPanicHelper
-    TestPanicHelper
     --- FAIL: TestPanicHelper/1 (N.NNs)
         panic_test.go:NNN: TestPanicHelper/1
-        TestPanicHelper/1
 `,
 	}}
 	for _, tc := range testCases {
@@ -182,7 +165,6 @@ func TestPanicHelper(t *testing.T) {
 		return
 	}
 	t.Log(t.Name())
-	t.Output().Write([]byte(t.Name()))
 	if t.Name() == *testPanicTest {
 		panic("panic")
 	}
@@ -213,7 +195,6 @@ func TestPanicHelper(t *testing.T) {
 				t.Parallel()
 			}
 			t.Log(t.Name())
-			t.Output().Write([]byte(t.Name()))
 			if chosen {
 				if *testPanicCleanup {
 					t.Cleanup(func() {
