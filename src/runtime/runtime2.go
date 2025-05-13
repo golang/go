@@ -1196,12 +1196,12 @@ var isIdleInSynctest = [len(waitReasonStrings)]bool{
 }
 
 var (
-	allm       *m
-	gomaxprocs int32
-	ncpu       int32
-	forcegc    forcegcstate
-	sched      schedt
-	newprocs   int32
+	allm          *m
+	gomaxprocs    int32
+	numCPUStartup int32
+	forcegc       forcegcstate
+	sched         schedt
+	newprocs      int32
 )
 
 var (

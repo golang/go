@@ -230,7 +230,7 @@ func mdestroy(mp *m) {
 
 var sysstat = []byte("/dev/sysstat\x00")
 
-func getproccount() int32 {
+func getCPUCount() int32 {
 	var buf [2048]byte
 	fd := open(&sysstat[0], _OREAD|_OCEXEC, 0)
 	if fd < 0 {
@@ -330,7 +330,7 @@ var (
 func osinit() {
 	physPageSize = getPageSize()
 	initBloc()
-	ncpu = getproccount()
+	numCPUStartup = getCPUCount()
 	getg().m.procid = getpid()
 
 	fd := open(&bintimeDev[0], _OREAD|_OCEXEC, 0)

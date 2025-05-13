@@ -727,10 +727,10 @@ func gcStart(trigger gcTrigger) {
 	systemstack(gcResetMarkState)
 
 	work.stwprocs, work.maxprocs = gomaxprocs, gomaxprocs
-	if work.stwprocs > ncpu {
-		// This is used to compute CPU time of the STW phases,
-		// so it can't be more than ncpu, even if GOMAXPROCS is.
-		work.stwprocs = ncpu
+	if work.stwprocs > numCPUStartup {
+		// This is used to compute CPU time of the STW phases, so it
+		// can't be more than the CPU count, even if GOMAXPROCS is.
+		work.stwprocs = numCPUStartup
 	}
 	work.heap0 = gcController.heapLive.Load()
 	work.pauseNS = 0

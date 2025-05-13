@@ -322,7 +322,7 @@ func monitorSuspendResume() {
 		uintptr(unsafe.Pointer(&params)), uintptr(unsafe.Pointer(&handle)))
 }
 
-func getproccount() int32 {
+func getCPUCount() int32 {
 	var mask, sysmask uintptr
 	ret := stdcall3(_GetProcessAffinityMask, currentProcess, uintptr(unsafe.Pointer(&mask)), uintptr(unsafe.Pointer(&sysmask)))
 	if ret != 0 {
@@ -486,7 +486,7 @@ func osinit() {
 	initSysDirectory()
 	initLongPathSupport()
 
-	ncpu = getproccount()
+	numCPUStartup = getCPUCount()
 
 	physPageSize = getPageSize()
 

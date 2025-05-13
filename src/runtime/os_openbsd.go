@@ -63,7 +63,7 @@ func internal_cpu_sysctlUint64(mib []uint32) (uint64, bool) {
 	return sysctlUint64(mib)
 }
 
-func getncpu() int32 {
+func getCPUCount() int32 {
 	// Try hw.ncpuonline first because hw.ncpu would report a number twice as
 	// high as the actual CPUs running on OpenBSD 6.4 with hyperthreading
 	// disabled (hw.smt=0). See https://golang.org/issue/30127
@@ -135,7 +135,7 @@ func semawakeup(mp *m) {
 }
 
 func osinit() {
-	ncpu = getncpu()
+	numCPUStartup = getCPUCount()
 	physPageSize = getPageSize()
 }
 

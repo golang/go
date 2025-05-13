@@ -137,7 +137,7 @@ func osinit() {
 	// before calling minit on m0.
 	asmcgocall(unsafe.Pointer(abi.FuncPCABI0(miniterrno)), unsafe.Pointer(&libc____errno))
 
-	ncpu = getncpu()
+	numCPUStartup = getCPUCount()
 	if physPageSize == 0 {
 		physPageSize = getPageSize()
 	}

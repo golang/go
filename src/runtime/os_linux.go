@@ -101,7 +101,7 @@ func futexwakeup(addr *uint32, cnt uint32) {
 	*(*int32)(unsafe.Pointer(uintptr(0x1006))) = 0x1006
 }
 
-func getproccount() int32 {
+func getCPUCount() int32 {
 	// This buffer is huge (8 kB) but we are on the system stack
 	// and there should be plenty of space (64 kB).
 	// Also this is a leaf, so we're not holding up the memory for long.
@@ -354,7 +354,7 @@ func getHugePageSize() uintptr {
 }
 
 func osinit() {
-	ncpu = getproccount()
+	numCPUStartup = getCPUCount()
 	physHugePageSize = getHugePageSize()
 	osArchInit()
 	vgetrandomInit()

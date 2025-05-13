@@ -14,8 +14,12 @@ func osinit() {
 	physPageSize = 64 * 1024
 	initBloc()
 	blocMax = uintptr(currentMemory()) * physPageSize // record the initial linear memory size
-	ncpu = 1
+	numCPUStartup = getCPUCount()
 	getg().m.procid = 2
+}
+
+func getCPUCount() int32 {
+	return 1
 }
 
 const _SIGSEGV = 0xb

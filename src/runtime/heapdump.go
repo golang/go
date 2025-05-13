@@ -536,7 +536,7 @@ func dumpparams() {
 	dumpint(uint64(arenaEnd))
 	dumpstr(goarch.GOARCH)
 	dumpstr(buildVersion)
-	dumpint(uint64(ncpu))
+	dumpint(uint64(numCPUStartup))
 }
 
 func itab_callback(tab *itab) {

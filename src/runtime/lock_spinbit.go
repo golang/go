@@ -175,7 +175,7 @@ func lock2(l *mutex) {
 	// On uniprocessors, no point spinning.
 	// On multiprocessors, spin for mutexActiveSpinCount attempts.
 	spin := 0
-	if ncpu > 1 {
+	if numCPUStartup > 1 {
 		spin = mutexActiveSpinCount
 	}
 

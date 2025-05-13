@@ -40,7 +40,7 @@ func GOMAXPROCS(n int) int {
 // at process startup. Changes to operating system CPU allocation after
 // process startup are not reflected.
 func NumCPU() int {
-	return int(ncpu)
+	return int(numCPUStartup)
 }
 
 // NumCgoCall returns the number of cgo calls made by the current process.

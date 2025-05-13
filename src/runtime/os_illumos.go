@@ -87,7 +87,7 @@ func getcpucap() uint64 {
 	return capval
 }
 
-func getncpu() int32 {
+func getCPUCount() int32 {
 	n := int32(sysconf(__SC_NPROCESSORS_ONLN))
 	if n < 1 {
 		return 1

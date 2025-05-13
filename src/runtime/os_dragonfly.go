@@ -78,7 +78,7 @@ const (
 
 var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
 
-func getncpu() int32 {
+func getCPUCount() int32 {
 	mib := [2]uint32{_CTL_HW, _HW_NCPU}
 	out := uint32(0)
 	nout := unsafe.Sizeof(out)
@@ -174,7 +174,7 @@ func newosproc(mp *m) {
 }
 
 func osinit() {
-	ncpu = getncpu()
+	numCPUStartup = getCPUCount()
 	if physPageSize == 0 {
 		physPageSize = getPageSize()
 	}

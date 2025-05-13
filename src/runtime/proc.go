@@ -900,7 +900,7 @@ func schedinit() {
 
 	lock(&sched.lock)
 	sched.lastpoll.Store(nanotime())
-	procs := ncpu
+	procs := numCPUStartup
 	if n, ok := strconv.Atoi32(gogetenv("GOMAXPROCS")); ok && n > 0 {
 		procs = n
 	}
@@ -7230,7 +7230,7 @@ func internal_sync_runtime_canSpin(i int) bool {
 	// GOMAXPROCS>1 and there is at least one other running P and local runq is empty.
 	// As opposed to runtime mutex we don't do passive spinning here,
 	// because there can be work on global runq or on other Ps.
-	if i >= active_spin || ncpu <= 1 || gomaxprocs <= sched.npidle.Load()+sched.nmspinning.Load()+1 {
+	if i >= active_spin || numCPUStartup <= 1 || gomaxprocs <= sched.npidle.Load()+sched.nmspinning.Load()+1 {
 		return false
 	}
 	if p := getg().m.p.ptr(); !runqempty(p) {
