@@ -1095,7 +1095,32 @@ func (s *mspan) nextFreeIndex() uint16 {
 // The caller must ensure s.state is mSpanInUse, and there must have
 // been no preemption points since ensuring this (which could allow a
 // GC transition, which would allow the state to change).
+//
+// Callers must ensure that the index passed here must not have been
+// produced from a pointer that came from 'thin air', as might happen
+// with conservative scanning.
 func (s *mspan) isFree(index uintptr) bool {
+	if index < uintptr(s.freeindex) {
+		return false
+	}
+	bytep, mask := s.allocBits.bitp(index)
+	return *bytep&mask == 0
+}
+
+// isFreeOrNewlyAllocated reports whether the index'th object in s is
+// either unallocated or has been allocated since the beginning of the
+// last mark phase.
+//
+// The caller must ensure s.state is mSpanInUse, and there must have
+// been no preemption points since ensuring this (which could allow a
+// GC transition, which would allow the state to change).
+//
+// Callers must ensure that the index passed here must not have been
+// produced from a pointer that came from 'thin air', as might happen
+// with conservative scanning, unless the GC is currently in the mark
+// phase. If the GC is currently in the mark phase, this function is
+// safe to call for out-of-thin-air pointers.
+func (s *mspan) isFreeOrNewlyAllocated(index uintptr) bool {
 	if index < uintptr(s.freeIndexForScan) {
 		return false
 	}

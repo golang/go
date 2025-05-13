@@ -1196,23 +1196,23 @@ func mallocgcTiny(size uintptr, typ *_type) (unsafe.Pointer, uintptr) {
 	// the garbage collector could follow a pointer to x,
 	// but see uninitialized memory or stale heap bits.
 	publicationBarrier()
-	// As x and the heap bits are initialized, update
-	// freeIndexForScan now so x is seen by the GC
-	// (including conservative scan) as an allocated object.
-	// While this pointer can't escape into user code as a
-	// _live_ pointer until we return, conservative scanning
-	// may find a dead pointer that happens to point into this
-	// object. Delaying this update until now ensures that
-	// conservative scanning considers this pointer dead until
-	// this point.
-	span.freeIndexForScan = span.freeindex
 
-	// Allocate black during GC.
-	// All slots hold nil so no scanning is needed.
-	// This may be racing with GC so do it atomically if there can be
-	// a race marking the bit.
 	if writeBarrier.enabled {
+		// Allocate black during GC.
+		// All slots hold nil so no scanning is needed.
+		// This may be racing with GC so do it atomically if there can be
+		// a race marking the bit.
 		gcmarknewobject(span, uintptr(x))
+	} else {
+		// Track the last free index before the mark phase. This field
+		// is only used by the garbage collector. During the mark phase
+		// this is used by the conservative scanner to filter out objects
+		// that are both free and recently-allocated. It's safe to do that
+		// because we allocate-black if the GC is enabled. The conservative
+		// scanner produces pointers out of thin air, so without additional
+		// synchronization it might otherwise observe a partially-initialized
+		// object, which could crash the program.
+		span.freeIndexForScan = span.freeindex
 	}
 
 	// Note cache c only valid while m acquired; see #47302
@@ -1298,23 +1298,23 @@ func mallocgcSmallNoscan(size uintptr, typ *_type, needzero bool) (unsafe.Pointe
 	// the garbage collector could follow a pointer to x,
 	// but see uninitialized memory or stale heap bits.
 	publicationBarrier()
-	// As x and the heap bits are initialized, update
-	// freeIndexForScan now so x is seen by the GC
-	// (including conservative scan) as an allocated object.
-	// While this pointer can't escape into user code as a
-	// _live_ pointer until we return, conservative scanning
-	// may find a dead pointer that happens to point into this
-	// object. Delaying this update until now ensures that
-	// conservative scanning considers this pointer dead until
-	// this point.
-	span.freeIndexForScan = span.freeindex
 
-	// Allocate black during GC.
-	// All slots hold nil so no scanning is needed.
-	// This may be racing with GC so do it atomically if there can be
-	// a race marking the bit.
 	if writeBarrier.enabled {
+		// Allocate black during GC.
+		// All slots hold nil so no scanning is needed.
+		// This may be racing with GC so do it atomically if there can be
+		// a race marking the bit.
 		gcmarknewobject(span, uintptr(x))
+	} else {
+		// Track the last free index before the mark phase. This field
+		// is only used by the garbage collector. During the mark phase
+		// this is used by the conservative scanner to filter out objects
+		// that are both free and recently-allocated. It's safe to do that
+		// because we allocate-black if the GC is enabled. The conservative
+		// scanner produces pointers out of thin air, so without additional
+		// synchronization it might otherwise observe a partially-initialized
+		// object, which could crash the program.
+		span.freeIndexForScan = span.freeindex
 	}
 
 	// Note cache c only valid while m acquired; see #47302
@@ -1389,23 +1389,23 @@ func mallocgcSmallScanNoHeader(size uintptr, typ *_type) (unsafe.Pointer, uintpt
 	// the garbage collector could follow a pointer to x,
 	// but see uninitialized memory or stale heap bits.
 	publicationBarrier()
-	// As x and the heap bits are initialized, update
-	// freeIndexForScan now so x is seen by the GC
-	// (including conservative scan) as an allocated object.
-	// While this pointer can't escape into user code as a
-	// _live_ pointer until we return, conservative scanning
-	// may find a dead pointer that happens to point into this
-	// object. Delaying this update until now ensures that
-	// conservative scanning considers this pointer dead until
-	// this point.
-	span.freeIndexForScan = span.freeindex
 
-	// Allocate black during GC.
-	// All slots hold nil so no scanning is needed.
-	// This may be racing with GC so do it atomically if there can be
-	// a race marking the bit.
 	if writeBarrier.enabled {
+		// Allocate black during GC.
+		// All slots hold nil so no scanning is needed.
+		// This may be racing with GC so do it atomically if there can be
+		// a race marking the bit.
 		gcmarknewobject(span, uintptr(x))
+	} else {
+		// Track the last free index before the mark phase. This field
+		// is only used by the garbage collector. During the mark phase
+		// this is used by the conservative scanner to filter out objects
+		// that are both free and recently-allocated. It's safe to do that
+		// because we allocate-black if the GC is enabled. The conservative
+		// scanner produces pointers out of thin air, so without additional
+		// synchronization it might otherwise observe a partially-initialized
+		// object, which could crash the program.
+		span.freeIndexForScan = span.freeindex
 	}
 
 	// Note cache c only valid while m acquired; see #47302
@@ -1482,23 +1482,23 @@ func mallocgcSmallScanHeader(size uintptr, typ *_type) (unsafe.Pointer, uintptr)
 	// the garbage collector could follow a pointer to x,
 	// but see uninitialized memory or stale heap bits.
 	publicationBarrier()
-	// As x and the heap bits are initialized, update
-	// freeIndexForScan now so x is seen by the GC
-	// (including conservative scan) as an allocated object.
-	// While this pointer can't escape into user code as a
-	// _live_ pointer until we return, conservative scanning
-	// may find a dead pointer that happens to point into this
-	// object. Delaying this update until now ensures that
-	// conservative scanning considers this pointer dead until
-	// this point.
-	span.freeIndexForScan = span.freeindex
 
-	// Allocate black during GC.
-	// All slots hold nil so no scanning is needed.
-	// This may be racing with GC so do it atomically if there can be
-	// a race marking the bit.
 	if writeBarrier.enabled {
+		// Allocate black during GC.
+		// All slots hold nil so no scanning is needed.
+		// This may be racing with GC so do it atomically if there can be
+		// a race marking the bit.
 		gcmarknewobject(span, uintptr(x))
+	} else {
+		// Track the last free index before the mark phase. This field
+		// is only used by the garbage collector. During the mark phase
+		// this is used by the conservative scanner to filter out objects
+		// that are both free and recently-allocated. It's safe to do that
+		// because we allocate-black if the GC is enabled. The conservative
+		// scanner produces pointers out of thin air, so without additional
+		// synchronization it might otherwise observe a partially-initialized
+		// object, which could crash the program.
+		span.freeIndexForScan = span.freeindex
 	}
 
 	// Note cache c only valid while m acquired; see #47302
@@ -1555,23 +1555,23 @@ func mallocgcLarge(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uin
 	// the garbage collector could follow a pointer to x,
 	// but see uninitialized memory or stale heap bits.
 	publicationBarrier()
-	// As x and the heap bits are initialized, update
-	// freeIndexForScan now so x is seen by the GC
-	// (including conservative scan) as an allocated object.
-	// While this pointer can't escape into user code as a
-	// _live_ pointer until we return, conservative scanning
-	// may find a dead pointer that happens to point into this
-	// object. Delaying this update until now ensures that
-	// conservative scanning considers this pointer dead until
-	// this point.
-	span.freeIndexForScan = span.freeindex
 
-	// Allocate black during GC.
-	// All slots hold nil so no scanning is needed.
-	// This may be racing with GC so do it atomically if there can be
-	// a race marking the bit.
 	if writeBarrier.enabled {
+		// Allocate black during GC.
+		// All slots hold nil so no scanning is needed.
+		// This may be racing with GC so do it atomically if there can be
+		// a race marking the bit.
 		gcmarknewobject(span, uintptr(x))
+	} else {
+		// Track the last free index before the mark phase. This field
+		// is only used by the garbage collector. During the mark phase
+		// this is used by the conservative scanner to filter out objects
+		// that are both free and recently-allocated. It's safe to do that
+		// because we allocate-black if the GC is enabled. The conservative
+		// scanner produces pointers out of thin air, so without additional
+		// synchronization it might otherwise observe a partially-initialized
+		// object, which could crash the program.
+		span.freeIndexForScan = span.freeindex
 	}
 
 	// Note cache c only valid while m acquired; see #47302

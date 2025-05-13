@@ -1555,7 +1555,7 @@ func scanConservative(b, n uintptr, ptrmask *uint8, gcw *gcWork, state *stackSca
 				return ' '
 			}
 			idx := span.objIndex(val)
-			if span.isFree(idx) {
+			if span.isFreeOrNewlyAllocated(idx) {
 				return ' '
 			}
 			return '*'
@@ -1608,8 +1608,11 @@ func scanConservative(b, n uintptr, ptrmask *uint8, gcw *gcWork, state *stackSca
 		}
 
 		// Check if val points to an allocated object.
+		//
+		// Ignore objects allocated during the mark phase, they've
+		// been allocated black.
 		idx := span.objIndex(val)
-		if span.isFree(idx) {
+		if span.isFreeOrNewlyAllocated(idx) {
 			continue
 		}
 
