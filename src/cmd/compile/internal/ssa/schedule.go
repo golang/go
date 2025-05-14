@@ -22,6 +22,7 @@ const (
 	ScoreMemory
 	ScoreReadFlags
 	ScoreDefault
+	ScoreInductionInc // an increment of an induction variable
 	ScoreFlags
 	ScoreControl // towards bottom of block
 )
@@ -185,14 +186,29 @@ func schedule(f *Func) {
 				// Note that this case is after the case above, so values
 				// which both read and generate flags are given ScoreReadFlags.
 				score[v.ID] = ScoreFlags
+			case (len(v.Args) == 1 &&
+				v.Args[0].Op == OpPhi &&
+				v.Args[0].Uses > 1 &&
+				len(b.Succs) == 1 &&
+				b.Succs[0].b == v.Args[0].Block &&
+				v.Args[0].Args[b.Succs[0].i] == v):
+				// This is a value computing v++ (or similar) in a loop.
+				// Try to schedule it later, so we issue all uses of v before the v++.
+				// If we don't, then we need an additional move.
+				// loop:
+				//     p = (PHI v ...)
+				//     ... ok other uses of p ...
+				//     v = (ADDQconst [1] p)
+				//     ... troublesome other uses of p ...
+				//     goto loop
+				// We want to allocate p and v to the same register so when we get to
+				// the end of the block we don't have to move v back to p's register.
+				// But we can only do that if v comes after all the other uses of p.
+				// Any "troublesome" use means we have to reg-reg move either p or v
+				// somewhere in the loop.
+				score[v.ID] = ScoreInductionInc
 			default:
 				score[v.ID] = ScoreDefault
-				// If we're reading flags, schedule earlier to keep flag lifetime short.
-				for _, a := range v.Args {
-					if a.isFlagOp() {
-						score[v.ID] = ScoreReadFlags
-					}
-				}
 			}
 		}
 		for _, c := range b.ControlValues() {
