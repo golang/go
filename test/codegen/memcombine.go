@@ -396,6 +396,15 @@ func load_op_no_merge(p, q *int) {
 	}
 }
 
+func load_op_in_loop(a []int) int {
+	r := 0
+	for _, x := range a {
+		// amd64:`ADDQ\t\([A-Z]+\)\([A-Z]+\*8\), [A-Z]+`
+		r += x
+	}
+	return r
+}
+
 // Make sure offsets are folded into loads and stores.
 func offsets_fold(_, a [20]byte) (b [20]byte) {
 	// arm64:`MOVD\tcommand-line-arguments\.a\+[0-9]+\(FP\), R[0-9]+`,`MOVD\tR[0-9]+, command-line-arguments\.b\+[0-9]+\(FP\)`

@@ -286,7 +286,18 @@ func canMergeLoadClobber(target, load, x *Value) bool {
 	// approximate x dying with:
 	//  1) target is x's only use.
 	//  2) target is not in a deeper loop than x.
-	if x.Uses != 1 {
+	switch {
+	case x.Uses == 2 && x.Op == OpPhi && len(x.Args) == 2 && (x.Args[0] == target || x.Args[1] == target) && target.Uses == 1:
+		// This is a simple detector to determine that x is probably
+		// not live after target. (It does not need to be perfect,
+		// regalloc will issue a reg-reg move to save it if we are wrong.)
+		// We have:
+		//   x = Phi(?, target)
+		//   target = Op(load, x)
+		// Because target has only one use as a Phi argument, we can schedule it
+		// very late. Hopefully, later than the other use of x. (The other use died
+		// between x and target, or exists on another branch entirely).
+	case x.Uses > 1:
 		return false
 	}
 	loopnest := x.Block.Func.loopnest()
