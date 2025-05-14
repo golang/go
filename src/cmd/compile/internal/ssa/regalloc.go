@@ -1899,6 +1899,10 @@ func (s *regAllocState) regalloc(f *Func) {
 			if s.f.Config.hasGReg && s.regs[s.GReg].v != nil {
 				s.freeReg(s.GReg) // Spill value in G register before any merge.
 			}
+			if s.blockOrder[b.ID] > s.blockOrder[b.Succs[0].b.ID] {
+				// No point if we've already regalloc'd the destination.
+				goto badloop
+			}
 			// For this to be worthwhile, the loop must have no calls in it.
 			top := b.Succs[0].b
 			loop := s.loopnest.b2l[top.ID]
