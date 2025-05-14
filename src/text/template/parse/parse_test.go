@@ -87,8 +87,8 @@ var numberTests = []numberTest{
 }
 
 func init() {
-	// Use a small depth limit for testing to avoid creating huge expressions.
-	maxExpressionParenDepth = 3
+	// Use a small stack limit for testing to avoid creating huge expressions.
+	maxStackDepth = 3
 }
 
 func TestNumberParse(t *testing.T) {
@@ -333,7 +333,7 @@ var parseTests = []parseTest{
 	// Missing pipeline in block
 	{"block definition", `{{block "foo"}}hello{{end}}`, hasError, ""},
 
-	// Parenthesis nesting depth tests
+	// Expression nested depth tests.
 	{"paren nesting normal", "{{ (( 1 )) }}", noError, "{{((1))}}"},
 	{"paren nesting at limit", "{{ ((( 1 ))) }}", noError, "{{(((1)))}}"},
 	{"paren nesting exceeds limit", "{{ (((( 1 )))) }}", hasError, "template: test:1: max expression depth exceeded"},

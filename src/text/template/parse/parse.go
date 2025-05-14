@@ -32,7 +32,7 @@ type Tree struct {
 	treeSet    map[string]*Tree
 	actionLine int // line of left delim starting action
 	rangeDepth int
-	parenDepth int // depth of nested parenthesized expressions
+	stackDepth int // depth of nested parenthesized expressions
 }
 
 // A mode value is a set of flags (or 0). Modes control parser behavior.
@@ -43,17 +43,14 @@ const (
 	SkipFuncCheck                  // do not check that functions are defined
 )
 
-// maxExpressionParenDepth is the maximum depth permitted for nested
+// maxStackDepth is the maximum depth permitted for nested
 // parenthesized expressions.
-var maxExpressionParenDepth int
+var maxStackDepth = 10000
 
-// init sets up the maximum expression parenthesis depth based on the architecture.
-// WebAssembly has a smaller stack size and is more prone to stack overflow.
+// init reduces maxStackDepth for WebAssembly due to its smaller stack size.
 func init() {
 	if runtime.GOARCH == "wasm" {
-		maxExpressionParenDepth = 1000
-	} else {
-		maxExpressionParenDepth = 10000
+		maxStackDepth = 1000
 	}
 }
 
@@ -238,7 +235,7 @@ func (t *Tree) startParse(funcs []map[string]any, lex *lexer, treeSet map[string
 	t.vars = []string{"$"}
 	t.funcs = funcs
 	t.treeSet = treeSet
-	t.parenDepth = 0
+	t.stackDepth = 0
 	lex.options = lexOptions{
 		emitComment: t.Mode&ParseComments != 0,
 		breakOK:     !t.hasFunction("break"),
@@ -803,11 +800,11 @@ func (t *Tree) term() Node {
 		}
 		return number
 	case itemLeftParen:
-		if t.parenDepth >= maxExpressionParenDepth {
+		if t.stackDepth >= maxStackDepth {
 			t.errorf("max expression depth exceeded")
 		}
-		t.parenDepth++
-		defer func() { t.parenDepth-- }()
+		t.stackDepth++
+		defer func() { t.stackDepth-- }()
 		return t.pipeline("parenthesized pipeline", itemRightParen)
 	case itemString, itemRawString:
 		s, err := strconv.Unquote(token.val)
