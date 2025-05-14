@@ -62,8 +62,8 @@ func builtins() FuncMap {
 	}
 }
 
-// builtinFuncsOnce lazily computes & caches the builtinFuncs map.
-var builtinFuncsOnce = sync.OnceValue(func() map[string]reflect.Value {
+// builtinFuncs lazily computes & caches the builtinFuncs map.
+var builtinFuncs = sync.OnceValue(func() map[string]reflect.Value {
 	funcMap := builtins()
 	m := make(map[string]reflect.Value, len(funcMap))
 	addValueFuncs(m, funcMap)
@@ -136,7 +136,7 @@ func findFunction(name string, tmpl *Template) (v reflect.Value, isBuiltin, ok b
 			return fn, false, true
 		}
 	}
-	if fn := builtinFuncsOnce()[name]; fn.IsValid() {
+	if fn := builtinFuncs()[name]; fn.IsValid() {
 		return fn, true, true
 	}
 	return reflect.Value{}, false, false
