@@ -1243,6 +1243,24 @@ func (t test) errorCheck(outStr string, wantAuto bool, fullshort ...string) (err
 	}
 
 	if len(out) > 0 {
+		// If a test uses -m and instantiates an imported generic function,
+		// the errors will include messages for the instantiated function
+		// with locations in the other package. Filter those out.
+		localOut := make([]string, 0, len(out))
+	outLoop:
+		for _, errLine := range out {
+			for j := 0; j < len(fullshort); j += 2 {
+				full, short := fullshort[j], fullshort[j+1]
+				if strings.HasPrefix(errLine, full+":") || strings.HasPrefix(errLine, short+":") {
+					localOut = append(localOut, errLine)
+					continue outLoop
+				}
+			}
+		}
+		out = localOut
+	}
+
+	if len(out) > 0 {
 		errs = append(errs, fmt.Errorf("Unmatched Errors:"))
 		for _, errLine := range out {
 			errs = append(errs, fmt.Errorf("%s", errLine))
