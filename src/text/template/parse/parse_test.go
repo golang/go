@@ -86,6 +86,11 @@ var numberTests = []numberTest{
 	{"0xef", true, true, true, false, 0xef, 0xef, 0xef, 0},
 }
 
+func init() {
+	// Use a small stack limit for testing to avoid creating huge expressions.
+	maxStackDepth = 3
+}
+
 func TestNumberParse(t *testing.T) {
 	for _, test := range numberTests {
 		// If fmt.Sscan thinks it's complex, it's complex. We can't trust the output
@@ -327,6 +332,15 @@ var parseTests = []parseTest{
 	{"empty pipeline", `{{printf "%d" ( ) }}`, hasError, ""},
 	// Missing pipeline in block
 	{"block definition", `{{block "foo"}}hello{{end}}`, hasError, ""},
+
+	// Expression nested depth tests.
+	{"paren nesting normal", "{{ (( 1 )) }}", noError, "{{((1))}}"},
+	{"paren nesting at limit", "{{ ((( 1 ))) }}", noError, "{{(((1)))}}"},
+	{"paren nesting exceeds limit", "{{ (((( 1 )))) }}", hasError, "template: test:1: max expression depth exceeded"},
+	{"paren nesting in pipeline", "{{ ((( 1 ))) | printf }}", noError, "{{(((1))) | printf}}"},
+	{"paren nesting in pipeline exceeds limit", "{{ (((( 1 )))) | printf }}", hasError, "template: test:1: max expression depth exceeded"},
+	{"paren nesting with other constructs", "{{ if ((( true ))) }}YES{{ end }}", noError, "{{if (((true)))}}\"YES\"{{end}}"},
+	{"paren nesting with other constructs exceeds limit", "{{ if (((( true )))) }}YES{{ end }}", hasError, "template: test:1: max expression depth exceeded"},
 }
 
 var builtins = map[string]any{

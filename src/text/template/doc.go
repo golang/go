@@ -15,6 +15,11 @@ Execution of the template walks the structure and sets the cursor, represented
 by a period '.' and called "dot", to the value at the current location in the
 structure as execution proceeds.
 
+The security model used by this package assumes that template authors are
+trusted. The package does not auto-escape output, so injecting code into
+a template can lead to arbitrary code execution if the template is executed
+by an untrusted source.
+
 The input text for a template is UTF-8-encoded text in any format.
 "Actions"--data evaluations or control structures--are delimited by
 "{{" and "}}"; all text outside actions is copied to the output unchanged.
