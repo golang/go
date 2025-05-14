@@ -1875,8 +1875,9 @@ func makeBenchInputHard() string {
 		"hello", "world",
 	}
 	x := make([]byte, 0, 1<<20)
+	r := rand.New(rand.NewSource(99))
 	for {
-		i := rand.Intn(len(tokens))
+		i := r.Intn(len(tokens))
 		if len(x)+len(tokens[i]) >= 1<<20 {
 			break
 		}
@@ -1964,8 +1965,9 @@ func BenchmarkCountByte(b *testing.B) {
 var makeFieldsInput = func() string {
 	x := make([]byte, 1<<20)
 	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
+	r := rand.New(rand.NewSource(99))
 	for i := range x {
-		switch rand.Intn(10) {
+		switch r.Intn(10) {
 		case 0:
 			x[i] = ' '
 		case 1:
@@ -1984,8 +1986,9 @@ var makeFieldsInput = func() string {
 var makeFieldsInputASCII = func() string {
 	x := make([]byte, 1<<20)
 	// Input is ~10% space, rest ASCII non-space.
+	r := rand.New(rand.NewSource(99))
 	for i := range x {
-		if rand.Intn(10) == 0 {
+		if r.Intn(10) == 0 {
 			x[i] = ' '
 		} else {
 			x[i] = 'x'
