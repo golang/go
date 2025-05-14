@@ -1117,12 +1117,18 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller, closur
 			// Not a standard call.
 			return
 		}
-		if n.Fun.Op() != ir.OCLOSURE {
-			// Not a direct closure call.
+
+		var nf = n.Fun
+		// Skips ir.OCONVNOPs, see issue #73716.
+		for nf.Op() == ir.OCONVNOP {
+			nf = nf.(*ir.ConvExpr).X
+		}
+		if nf.Op() != ir.OCLOSURE {
+			// Not a direct closure call or one with type conversion.
 			return
 		}
 
-		clo := n.Fun.(*ir.ClosureExpr)
+		clo := nf.(*ir.ClosureExpr)
 		if !clo.Func.IsClosure() {
 			// enqueueFunc will handle non closures anyways.
 			return
