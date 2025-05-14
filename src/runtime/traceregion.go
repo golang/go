@@ -59,37 +59,43 @@ func (a *traceRegionAlloc) alloc(n uintptr) *notInHeap {
 	}
 
 	// Try to install a new block.
-	lock(&a.lock)
+	var x *notInHeap
+	systemstack(func() {
+		// Acquire a.lock on the systemstack to avoid stack growth
+		// and accidentally entering the tracer again.
+		lock(&a.lock)
 
-	// Check block again under the lock. Someone may
-	// have gotten here first.
-	block = (*traceRegionAllocBlock)(a.current.Load())
-	if block != nil {
-		r := block.off.Add(n)
-		if r <= uintptr(len(block.data)) {
-			unlock(&a.lock)
-			return (*notInHeap)(unsafe.Pointer(&block.data[r-n]))
+		// Check block again under the lock. Someone may
+		// have gotten here first.
+		block = (*traceRegionAllocBlock)(a.current.Load())
+		if block != nil {
+			r := block.off.Add(n)
+			if r <= uintptr(len(block.data)) {
+				unlock(&a.lock)
+				x = (*notInHeap)(unsafe.Pointer(&block.data[r-n]))
+				return
+			}
+
+			// Add the existing block to the full list.
+			block.next = a.full
+			a.full = block
 		}
 
-		// Add the existing block to the full list.
-		block.next = a.full
-		a.full = block
-	}
+		// Allocate a new block.
+		block = (*traceRegionAllocBlock)(sysAlloc(unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys, "trace arena alloc"))
+		if block == nil {
+			throw("traceRegion: out of memory")
+		}
 
-	// Allocate a new block.
-	block = (*traceRegionAllocBlock)(sysAlloc(unsafe.Sizeof(traceRegionAllocBlock{}), &memstats.other_sys, "trace arena alloc"))
-	if block == nil {
-		throw("traceRegion: out of memory")
-	}
+		// Allocate space for our current request, so we always make
+		// progress.
+		block.off.Store(n)
+		x = (*notInHeap)(unsafe.Pointer(&block.data[0]))
 
-	// Allocate space for our current request, so we always make
-	// progress.
-	block.off.Store(n)
-	x := (*notInHeap)(unsafe.Pointer(&block.data[0]))
-
-	// Publish the new block.
-	a.current.Store(unsafe.Pointer(block))
-	unlock(&a.lock)
+		// Publish the new block.
+		a.current.Store(unsafe.Pointer(block))
+		unlock(&a.lock)
+	})
 	return x
 }
 

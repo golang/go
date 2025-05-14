@@ -1,0 +1,9 @@
+pkg runtime/trace, func NewFlightRecorder(FlightRecorderConfig) *FlightRecorder #63185
+pkg runtime/trace, method (*FlightRecorder) Enabled() bool #63185
+pkg runtime/trace, method (*FlightRecorder) Start() error #63185
+pkg runtime/trace, method (*FlightRecorder) Stop() #63185
+pkg runtime/trace, method (*FlightRecorder) WriteTo(io.Writer) (int64, error) #63185
+pkg runtime/trace, type FlightRecorder struct #63185
+pkg runtime/trace, type FlightRecorderConfig struct #63185
+pkg runtime/trace, type FlightRecorderConfig struct, MaxBytes uint64 #63185
+pkg runtime/trace, type FlightRecorderConfig struct, MinAge time.Duration #63185

@@ -98,25 +98,26 @@ func (v *Validator) Event(ev trace.Event) error {
 		if v.GoVersion >= version.Go125 && !(s.N > 1 && s.ClockSnapshot == nil) {
 			if s.ClockSnapshot == nil {
 				e.Errorf("sync %d has no clock snapshot", s.N)
-			}
-			if s.ClockSnapshot.Wall.IsZero() {
-				e.Errorf("sync %d has zero wall time", s.N)
-			}
-			if s.ClockSnapshot.Mono == 0 {
-				e.Errorf("sync %d has zero mono time", s.N)
-			}
-			if s.ClockSnapshot.Trace == 0 {
-				e.Errorf("sync %d has zero trace time", s.N)
-			}
-			if !v.skipClockSnapshotChecks {
-				if s.N >= 2 && !s.ClockSnapshot.Wall.After(v.lastSync.ClockSnapshot.Wall) {
-					e.Errorf("sync %d has non-increasing wall time: %v vs %v", s.N, s.ClockSnapshot.Wall, v.lastSync.ClockSnapshot.Wall)
+			} else {
+				if s.ClockSnapshot.Wall.IsZero() {
+					e.Errorf("sync %d has zero wall time", s.N)
 				}
-				if s.N >= 2 && !(s.ClockSnapshot.Mono > v.lastSync.ClockSnapshot.Mono) {
-					e.Errorf("sync %d has non-increasing mono time: %v vs %v", s.N, s.ClockSnapshot.Mono, v.lastSync.ClockSnapshot.Mono)
+				if s.ClockSnapshot.Mono == 0 {
+					e.Errorf("sync %d has zero mono time", s.N)
 				}
-				if s.N >= 2 && !(s.ClockSnapshot.Trace > v.lastSync.ClockSnapshot.Trace) {
-					e.Errorf("sync %d has non-increasing trace time: %v vs %v", s.N, s.ClockSnapshot.Trace, v.lastSync.ClockSnapshot.Trace)
+				if s.ClockSnapshot.Trace == 0 {
+					e.Errorf("sync %d has zero trace time", s.N)
+				}
+				if !v.skipClockSnapshotChecks {
+					if s.N >= 2 && !s.ClockSnapshot.Wall.After(v.lastSync.ClockSnapshot.Wall) {
+						e.Errorf("sync %d has non-increasing wall time: %v vs %v", s.N, s.ClockSnapshot.Wall, v.lastSync.ClockSnapshot.Wall)
+					}
+					if s.N >= 2 && !(s.ClockSnapshot.Mono > v.lastSync.ClockSnapshot.Mono) {
+						e.Errorf("sync %d has non-increasing mono time: %v vs %v", s.N, s.ClockSnapshot.Mono, v.lastSync.ClockSnapshot.Mono)
+					}
+					if s.N >= 2 && !(s.ClockSnapshot.Trace > v.lastSync.ClockSnapshot.Trace) {
+						e.Errorf("sync %d has non-increasing trace time: %v vs %v", s.N, s.ClockSnapshot.Trace, v.lastSync.ClockSnapshot.Trace)
+					}
 				}
 			}
 		}

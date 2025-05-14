@@ -21,6 +21,7 @@ package runtime
 
 import (
 	"internal/runtime/atomic"
+	"internal/trace/tracev2"
 	"unsafe"
 )
 
@@ -51,9 +52,10 @@ var trace struct {
 	// State for the trace reader goroutine.
 	//
 	// Protected by trace.lock.
-	readerGen     atomic.Uintptr // the generation the reader is currently reading for
-	flushedGen    atomic.Uintptr // the last completed generation
-	headerWritten bool           // whether ReadTrace has emitted trace header
+	readerGen              atomic.Uintptr // the generation the reader is currently reading for
+	flushedGen             atomic.Uintptr // the last completed generation
+	headerWritten          bool           // whether ReadTrace has emitted trace header
+	endOfGenerationWritten bool           // whether readTrace has emitted the end of the generation signal
 
 	// doneSema is used to synchronize the reader and traceAdvance. Specifically,
 	// it notifies traceAdvance that the reader is done with a generation.
@@ -753,8 +755,24 @@ func traceRegisterLabelsAndReasons(gen uintptr) {
 // returned data before calling ReadTrace again.
 // ReadTrace must be called from one goroutine at a time.
 func ReadTrace() []byte {
+	for {
+		buf := readTrace()
+
+		// Skip over the end-of-generation signal which must not appear
+		// in the final trace.
+		if len(buf) == 1 && tracev2.EventType(buf[0]) == tracev2.EvEndOfGeneration {
+			continue
+		}
+		return buf
+	}
+}
+
+// readTrace is the implementation of ReadTrace, except with an additional
+// in-band signal as to when the buffer is for a new generation.
+//
+//go:linkname readTrace runtime/trace.runtime_readTrace
+func readTrace() (buf []byte) {
 top:
-	var buf []byte
 	var park bool
 	systemstack(func() {
 		buf, park = readTrace0()
@@ -782,7 +800,6 @@ top:
 		}, nil, waitReasonTraceReaderBlocked, traceBlockSystemGoroutine, 2)
 		goto top
 	}
-
 	return buf
 }
 
@@ -849,6 +866,17 @@ func readTrace0() (buf []byte, park bool) {
 		// is waiting on the reader to finish flushing the last generation so that it
 		// can continue to advance.
 		if trace.flushedGen.Load() == gen {
+			// Write out the internal in-band end-of-generation signal.
+			if !trace.endOfGenerationWritten {
+				trace.endOfGenerationWritten = true
+				unlock(&trace.lock)
+				return []byte{byte(tracev2.EvEndOfGeneration)}, false
+			}
+
+			// Reset the flag.
+			trace.endOfGenerationWritten = false
+
+			// Handle shutdown.
 			if trace.shutdown.Load() {
 				unlock(&trace.lock)
 
@@ -868,6 +896,8 @@ func readTrace0() (buf []byte, park bool) {
 				// read. We're done.
 				return nil, false
 			}
+			// Handle advancing to the next generation.
+
 			// The previous gen has had all of its buffers flushed, and
 			// there's nothing else for us to read. Advance the generation
 			// we're reading from and try again.

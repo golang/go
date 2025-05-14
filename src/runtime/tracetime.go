@@ -64,6 +64,8 @@ func traceClockNow() traceTime {
 
 // traceClockUnitsPerSecond estimates the number of trace clock units per
 // second that elapse.
+//
+//go:linkname traceClockUnitsPerSecond runtime/trace.runtime_traceClockUnitsPerSecond
 func traceClockUnitsPerSecond() uint64 {
 	if osHasLowResClock {
 		// We're using cputicks as our clock, so we need a real estimate.

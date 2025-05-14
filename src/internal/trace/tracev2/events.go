@@ -87,6 +87,10 @@ const (
 	EvSync          // start of a sync batch [...EvFrequency|EvClockSnapshot]
 	EvClockSnapshot // snapshot of trace, mono and wall clocks [timestamp, mono, sec, nsec]
 
+	// Reserved internal in-band end-of-generation signal. Must never appear in the trace. Added in Go 1.25.
+	// This could be used as an explicit in-band end-of-generation signal in the future.
+	EvEndOfGeneration
+
 	NumEvents
 )
 
@@ -188,6 +192,9 @@ var specs = [...]EventSpec{
 	},
 	EvSync: {
 		Name: "Sync",
+	},
+	EvEndOfGeneration: {
+		Name: "EndOfGeneration",
 	},
 
 	// "Timed" Events.
