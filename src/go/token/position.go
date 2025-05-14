@@ -98,6 +98,9 @@ func (p Pos) IsValid() bool {
 
 // A File is a handle for a file belonging to a [FileSet].
 // A File has a name, size, and line offset table.
+//
+// Use [FileSet.AddFile] to create a File.
+// A File may belong to more than one FileSet; see [FileSet.AddExistingFiles].
 type File struct {
 	name string // file name as provided to AddFile
 	base int    // Pos value range for this file is [base...base+size]
@@ -487,6 +490,69 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
 	s.files = append(s.files, f)
 	s.last.Store(f)
 	return f
+}
+
+// AddExistingFiles adds the specified files to the
+// FileSet if they are not already present.
+// The caller must ensure that no pair of Files that
+// would appear in the resulting FileSet overlap.
+func (s *FileSet) AddExistingFiles(files ...*File) {
+	// This function cannot be implemented as:
+	//
+	//	for _, file := range files {
+	//		if prev := fset.File(token.Pos(file.Base())); prev != nil {
+	//			if prev != file {
+	//				panic("FileSet contains a different file at the same base")
+	//			}
+	//			continue
+	//		}
+	//		file2 := fset.AddFile(file.Name(), file.Base(), file.Size())
+	//		file2.SetLines(file.Lines())
+	//	}
+	//
+	// because all calls to AddFile must be in increasing order.
+	// AddExistingFilesFiles lets us augment an existing FileSet
+	// sequentially, so long as all sets of files have disjoint ranges.
+	// This approach also does not preserve line directives.
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	// Merge and sort.
+	newFiles := append(s.files, files...)
+	slices.SortFunc(newFiles, func(x, y *File) int {
+		return cmp.Compare(x.Base(), y.Base())
+	})
+
+	// Reject overlapping files.
+	// Discard adjacent identical files.
+	out := newFiles[:0]
+	for i, file := range newFiles {
+		if i > 0 {
+			prev := newFiles[i-1]
+			if file == prev {
+				continue
+			}
+			if prev.Base()+prev.Size()+1 > file.Base() {
+				panic(fmt.Sprintf("file %s (%d-%d) overlaps with file %s (%d-%d)",
+					prev.Name(), prev.Base(), prev.Base()+prev.Size(),
+					file.Name(), file.Base(), file.Base()+file.Size()))
+			}
+		}
+		out = append(out, file)
+	}
+	newFiles = out
+
+	s.files = newFiles
+
+	// Advance base.
+	if len(newFiles) > 0 {
+		last := newFiles[len(newFiles)-1]
+		newBase := last.Base() + last.Size() + 1
+		if s.base < newBase {
+			s.base = newBase
+		}
+	}
 }
 
 // RemoveFile removes a file from the [FileSet] so that subsequent
