@@ -5421,6 +5421,77 @@ func rewriteValueLOONG64_OpLOONG64MULV(v *Value) bool {
 }
 func rewriteValueLOONG64_OpLOONG64NEGV(v *Value) bool {
 	v_0 := v.Args[0]
+	b := v.Block
+	// match: (NEGV (SUBV x y))
+	// result: (SUBV y x)
+	for {
+		if v_0.Op != OpLOONG64SUBV {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpLOONG64SUBV)
+		v.AddArg2(y, x)
+		return true
+	}
+	// match: (NEGV <t> s:(ADDVconst [c] (SUBV x y)))
+	// cond: s.Uses == 1 && is12Bit(-c)
+	// result: (ADDVconst [-c] (SUBV <t> y x))
+	for {
+		t := v.Type
+		s := v_0
+		if s.Op != OpLOONG64ADDVconst {
+			break
+		}
+		c := auxIntToInt64(s.AuxInt)
+		s_0 := s.Args[0]
+		if s_0.Op != OpLOONG64SUBV {
+			break
+		}
+		y := s_0.Args[1]
+		x := s_0.Args[0]
+		if !(s.Uses == 1 && is12Bit(-c)) {
+			break
+		}
+		v.reset(OpLOONG64ADDVconst)
+		v.AuxInt = int64ToAuxInt(-c)
+		v0 := b.NewValue0(v.Pos, OpLOONG64SUBV, t)
+		v0.AddArg2(y, x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (NEGV (NEGV x))
+	// result: x
+	for {
+		if v_0.Op != OpLOONG64NEGV {
+			break
+		}
+		x := v_0.Args[0]
+		v.copyOf(x)
+		return true
+	}
+	// match: (NEGV <t> s:(ADDVconst [c] (NEGV x)))
+	// cond: s.Uses == 1 && is12Bit(-c)
+	// result: (ADDVconst [-c] x)
+	for {
+		s := v_0
+		if s.Op != OpLOONG64ADDVconst {
+			break
+		}
+		c := auxIntToInt64(s.AuxInt)
+		s_0 := s.Args[0]
+		if s_0.Op != OpLOONG64NEGV {
+			break
+		}
+		x := s_0.Args[0]
+		if !(s.Uses == 1 && is12Bit(-c)) {
+			break
+		}
+		v.reset(OpLOONG64ADDVconst)
+		v.AuxInt = int64ToAuxInt(-c)
+		v.AddArg(x)
+		return true
+	}
 	// match: (NEGV (MOVVconst [c]))
 	// result: (MOVVconst [-c])
 	for {
@@ -6759,6 +6830,18 @@ func rewriteValueLOONG64_OpLOONG64SUBV(v *Value) bool {
 		v.reset(OpLOONG64SUBVconst)
 		v.AuxInt = int64ToAuxInt(c)
 		v.AddArg(x)
+		return true
+	}
+	// match: (SUBV x (NEGV y))
+	// result: (ADDV x y)
+	for {
+		x := v_0
+		if v_1.Op != OpLOONG64NEGV {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpLOONG64ADDV)
+		v.AddArg2(x, y)
 		return true
 	}
 	// match: (SUBV x x)

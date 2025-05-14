@@ -524,6 +524,11 @@ func isU8Bit(n int64) bool {
 	return n == int64(uint8(n))
 }
 
+// is12Bit reports whether n can be represented as a signed 12 bit integer.
+func is12Bit(n int64) bool {
+	return -(1<<11) <= n && n < (1<<11)
+}
+
 // isU12Bit reports whether n can be represented as an unsigned 12 bit integer.
 func isU12Bit(n int64) bool {
 	return 0 <= n && n < (1<<12)

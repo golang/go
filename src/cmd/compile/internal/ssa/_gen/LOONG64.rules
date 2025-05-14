@@ -776,11 +776,21 @@
 
 // generic simplifications
 (ADDV x (NEGV y)) => (SUBV x y)
+(SUBV x (NEGV y)) => (ADDV x y)
 (SUBV x x) => (MOVVconst [0])
 (SUBV (MOVVconst [0]) x) => (NEGV x)
 (AND x x) => x
 (OR  x x) => x
 (XOR x x) => (MOVVconst [0])
+
+// Fold negation into subtraction.
+(NEGV (SUBV x y)) => (SUBV y x)
+(NEGV <t> s:(ADDVconst [c] (SUBV x y))) && s.Uses == 1 && is12Bit(-c) => (ADDVconst [-c] (SUBV <t> y x))
+
+// Double negation.
+(NEGV (NEGV x)) => x
+// Fold NEGV into ADDVconst. Take care to keep c in 12 bit range.
+(NEGV <t> s:(ADDVconst [c] (NEGV x))) && s.Uses == 1 && is12Bit(-c) => (ADDVconst [-c] x)
 
 // remove redundant *const ops
 (ADDVconst [0]  x) => x
