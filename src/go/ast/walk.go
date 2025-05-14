@@ -368,6 +368,11 @@ func (f inspector) Visit(node Node) Visitor {
 // f(node); node must not be nil. If f returns true, Inspect invokes f
 // recursively for each of the non-nil children of node, followed by a
 // call of f(nil).
+//
+// In many cases it may be more convenient to use [Preorder], which
+// returns an iterator over the sqeuence of nodes, or [PreorderStack],
+// which (like [Inspect]) provides control over descent into subtrees,
+// but additionally reports the stack of enclosing nodes.
 func Inspect(node Node, f func(Node) bool) {
 	Walk(inspector(f), node)
 }
@@ -376,7 +381,8 @@ func Inspect(node Node, f func(Node) bool) {
 // beneath (and including) the specified root, in depth-first
 // preorder.
 //
-// For greater control over the traversal of each subtree, use [Inspect].
+// For greater control over the traversal of each subtree, use
+// [Inspect] or [PreorderStack].
 func Preorder(root Node) iter.Seq[Node] {
 	return func(yield func(Node) bool) {
 		ok := true
@@ -387,5 +393,36 @@ func Preorder(root Node) iter.Seq[Node] {
 			}
 			return ok
 		})
+	}
+}
+
+// PreorderStack traverses the tree rooted at root,
+// calling f before visiting each node.
+//
+// Each call to f provides the current node and traversal stack,
+// consisting of the original value of stack appended with all nodes
+// from root to n, excluding n itself. (This design allows calls
+// to PreorderStack to be nested without double counting.)
+//
+// If f returns false, the traversal skips over that subtree. Unlike
+// [Inspect], no second call to f is made after visiting node n.
+// (In practice, the second call is nearly always used only to pop the
+// stack, and it is surprisingly tricky to do this correctly.)
+func PreorderStack(root Node, stack []Node, f func(n Node, stack []Node) bool) {
+	before := len(stack)
+	Inspect(root, func(n Node) bool {
+		if n != nil {
+			if !f(n, stack) {
+				// Do not push, as there will be no corresponding pop.
+				return false
+			}
+			stack = append(stack, n) // push
+		} else {
+			stack = stack[:len(stack)-1] // pop
+		}
+		return true
+	})
+	if len(stack) != before {
+		panic("push/pop mismatch")
 	}
 }
