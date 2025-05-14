@@ -11,6 +11,7 @@ import (
 	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/exithook"
+	"internal/runtime/strconv"
 	"internal/runtime/sys"
 	"internal/stringslite"
 	"unsafe"
@@ -900,7 +901,7 @@ func schedinit() {
 	lock(&sched.lock)
 	sched.lastpoll.Store(nanotime())
 	procs := ncpu
-	if n, ok := atoi32(gogetenv("GOMAXPROCS")); ok && n > 0 {
+	if n, ok := strconv.Atoi32(gogetenv("GOMAXPROCS")); ok && n > 0 {
 		procs = n
 	}
 	if procresize(procs) != nil {

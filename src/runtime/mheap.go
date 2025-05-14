@@ -1324,7 +1324,7 @@ HaveSpan:
 		// that we expect to page in.
 		inuse := gcController.mappedReady.Load()
 		// Be careful about overflow, especially with uintptrs. Even on 32-bit platforms
-		// someone can set a really big memory limit that isn't maxInt64.
+		// someone can set a really big memory limit that isn't math.MaxInt64.
 		if uint64(scav)+inuse > uint64(limit) {
 			bytesToScavenge = uintptr(uint64(scav) + inuse - uint64(limit))
 			forceScavenge = true

@@ -8,6 +8,8 @@ import (
 	"internal/abi"
 	"internal/bytealg"
 	"internal/goarch"
+	"internal/runtime/math"
+	"internal/runtime/strconv"
 	"internal/runtime/sys"
 	"unsafe"
 )
@@ -391,77 +393,6 @@ func gostringn(p *byte, l int) string {
 	return s
 }
 
-const (
-	maxUint64 = ^uint64(0)
-	maxInt64  = int64(maxUint64 >> 1)
-)
-
-// atoi64 parses an int64 from a string s.
-// The bool result reports whether s is a number
-// representable by a value of type int64.
-func atoi64(s string) (int64, bool) {
-	if s == "" {
-		return 0, false
-	}
-
-	neg := false
-	if s[0] == '-' {
-		neg = true
-		s = s[1:]
-	}
-
-	un := uint64(0)
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c < '0' || c > '9' {
-			return 0, false
-		}
-		if un > maxUint64/10 {
-			// overflow
-			return 0, false
-		}
-		un *= 10
-		un1 := un + uint64(c) - '0'
-		if un1 < un {
-			// overflow
-			return 0, false
-		}
-		un = un1
-	}
-
-	if !neg && un > uint64(maxInt64) {
-		return 0, false
-	}
-	if neg && un > uint64(maxInt64)+1 {
-		return 0, false
-	}
-
-	n := int64(un)
-	if neg {
-		n = -n
-	}
-
-	return n, true
-}
-
-// atoi is like atoi64 but for integers
-// that fit into an int.
-func atoi(s string) (int, bool) {
-	if n, ok := atoi64(s); n == int64(int(n)) {
-		return int(n), ok
-	}
-	return 0, false
-}
-
-// atoi32 is like atoi but for integers
-// that fit into an int32.
-func atoi32(s string) (int32, bool) {
-	if n, ok := atoi64(s); n == int64(int32(n)) {
-		return int32(n), ok
-	}
-	return 0, false
-}
-
 // parseByteCount parses a string that represents a count of bytes.
 //
 // s must match the following regular expression:
@@ -483,7 +414,7 @@ func parseByteCount(s string) (int64, bool) {
 	// Handle the easy non-suffix case.
 	last := s[len(s)-1]
 	if last >= '0' && last <= '9' {
-		n, ok := atoi64(s)
+		n, ok := strconv.Atoi64(s)
 		if !ok || n < 0 {
 			return 0, false
 		}
@@ -498,7 +429,7 @@ func parseByteCount(s string) (int64, bool) {
 	// The one before that must always be a digit or 'i'.
 	if c := s[len(s)-2]; c >= '0' && c <= '9' {
 		// Trivial 'B' suffix.
-		n, ok := atoi64(s[:len(s)-1])
+		n, ok := strconv.Atoi64(s[:len(s)-1])
 		if !ok || n < 0 {
 			return 0, false
 		}
@@ -529,17 +460,17 @@ func parseByteCount(s string) (int64, bool) {
 	for i := 0; i < power; i++ {
 		m *= 1024
 	}
-	n, ok := atoi64(s[:len(s)-3])
+	n, ok := strconv.Atoi64(s[:len(s)-3])
 	if !ok || n < 0 {
 		return 0, false
 	}
 	un := uint64(n)
-	if un > maxUint64/m {
+	if un > math.MaxUint64/m {
 		// Overflow.
 		return 0, false
 	}
 	un *= m
-	if un > uint64(maxInt64) {
+	if un > uint64(math.MaxInt64) {
 		// Overflow.
 		return 0, false
 	}

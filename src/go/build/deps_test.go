@@ -97,6 +97,7 @@ var depsRules = `
 	< internal/runtime/gc
 	< internal/runtime/math
 	< internal/runtime/maps
+	< internal/runtime/strconv
 	< runtime
 	< sync/atomic
 	< internal/sync

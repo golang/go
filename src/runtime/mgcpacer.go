@@ -8,6 +8,8 @@ import (
 	"internal/cpu"
 	"internal/goexperiment"
 	"internal/runtime/atomic"
+	"internal/runtime/math"
+	"internal/runtime/strconv"
 	_ "unsafe" // for go:linkname
 )
 
@@ -1311,7 +1313,7 @@ func readGOGC() int32 {
 	if p == "off" {
 		return -1
 	}
-	if n, ok := atoi32(p); ok {
+	if n, ok := strconv.Atoi32(p); ok {
 		return n
 	}
 	return 100
@@ -1355,7 +1357,7 @@ func setMemoryLimit(in int64) (out int64) {
 func readGOMEMLIMIT() int64 {
 	p := gogetenv("GOMEMLIMIT")
 	if p == "" || p == "off" {
-		return maxInt64
+		return math.MaxInt64
 	}
 	n, ok := parseByteCount(p)
 	if !ok {

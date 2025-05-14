@@ -630,7 +630,7 @@ func mallocinit() {
 	}
 	// Initialize the memory limit here because the allocator is going to look at it
 	// but we haven't called gcinit yet and we're definitely going to allocate memory before then.
-	gcController.memoryLimit.Store(maxInt64)
+	gcController.memoryLimit.Store(math.MaxInt64)
 }
 
 // sysAlloc allocates heap arena space for at least n bytes. The
@@ -1816,7 +1816,7 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 func nextSample() int64 {
 	if MemProfileRate == 0 {
 		// Basically never sample.
-		return maxInt64
+		return math.MaxInt64
 	}
 	if MemProfileRate == 1 {
 		// Sample immediately.

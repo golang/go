@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/goarch"
 	"internal/runtime/atomic"
+	"internal/runtime/strconv"
 	"internal/runtime/syscall"
 	"unsafe"
 )
@@ -341,7 +342,7 @@ func getHugePageSize() uintptr {
 		return 0
 	}
 	n-- // remove trailing newline
-	v, ok := atoi(slicebytetostringtmp((*byte)(ptr), int(n)))
+	v, ok := strconv.Atoi(slicebytetostringtmp((*byte)(ptr), int(n)))
 	if !ok || v < 0 {
 		v = 0
 	}

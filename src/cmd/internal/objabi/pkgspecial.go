@@ -53,6 +53,7 @@ var runtimePkgs = []string{
 	"internal/runtime/gc",
 	"internal/runtime/maps",
 	"internal/runtime/math",
+	"internal/runtime/strconv",
 	"internal/runtime/sys",
 	"internal/runtime/syscall",
 
