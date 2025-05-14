@@ -12,7 +12,7 @@ at 2018-04-17T15:43:22-04:00
 unquote ''
 cp stdout README
 git add README
-git commit -a -m 'empty README'
+git commit -m 'empty README'
 git branch -m main
 git tag v1.2.3
 
@@ -22,7 +22,7 @@ git checkout v2
 echo 'v2'
 cp stdout v2
 git add v2
-git commit -a -m 'v2'
+git commit -m 'v2'
 git tag v2.3
 git tag v2.0.1
 git branch v2.3.4
@@ -31,13 +31,13 @@ at 2018-04-17T16:00:19-04:00
 echo 'intermediate'
 cp stdout foo.txt
 git add foo.txt
-git commit -a -m 'intermediate'
+git commit -m 'intermediate'
 
 at 2018-04-17T16:00:32-04:00
 echo 'another'
 cp stdout another.txt
 git add another.txt
-git commit -a -m 'another'
+git commit -m 'another'
 git tag v2.0.2
 
 at 2018-04-17T16:16:52-04:00
@@ -48,22 +48,44 @@ mkdir v3/sub/dir
 echo 'v3/sub/dir/file'
 cp stdout v3/sub/dir/file.txt
 git add v3
-git commit -a -m 'add v3/sub/dir/file.txt'
+git commit -m 'add v3/sub/dir/file.txt'
 
 at 2018-04-17T22:23:00-04:00
 git checkout main
 git tag -a v1.2.4-annotated -m 'v1.2.4-annotated'
 
+git switch -c basic_module
+git add go.mod foobar.go
+git commit -m 'add go.mod & Foobar function'
+git tag v1.3.0
+git switch main
+
 git show-ref --tags --heads
 cmp stdout .git-refs
 
+-- go.mod --
+module vcs-test.golang.org/go/mod/gitrepo-sha256
+
+go 1.24.3
+
+-- foobar.go --
+
+package sha256repo
+
+// Foobar is the identity function
+func Foobar[T any](v T) T {
+	return v
+}
+
 -- .git-refs --
+a9157cad2aa6dc2f78aa31fced5887f04e758afa8703f04d0178702ebf04ee17 refs/heads/basic_module
 47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c refs/heads/main
 1401e4e1fdb4169b51d44a1ff62af63ccc708bf5c12d15051268b51bbb6cbd82 refs/heads/v2
 b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09 refs/heads/v2.3.4
 c2a5bbdbeb8b2c82e819a4af94ea59f7d67faeb6df7cb4907c3f0d70836a977b refs/heads/v3
 47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c refs/tags/v1.2.3
 f88263be2704531e0f664784b66c2f84dea6d0dc4231cf9c6be482af0400c607 refs/tags/v1.2.4-annotated
+a9157cad2aa6dc2f78aa31fced5887f04e758afa8703f04d0178702ebf04ee17 refs/tags/v1.3.0
 b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09 refs/tags/v2.0.1
 1401e4e1fdb4169b51d44a1ff62af63ccc708bf5c12d15051268b51bbb6cbd82 refs/tags/v2.0.2
 b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09 refs/tags/v2.3

@@ -1,0 +1,30 @@
+[short] skip
+[!git] skip
+
+env GOPRIVATE=vcs-test.golang.org
+
+go mod tidy
+stderr 'downloading vcs-test\.golang.org/go/mod/gitrepo-sha256 v1.3.0'
+
+go run .
+stdout '1234'
+
+-- main.go --
+package main
+
+import (
+	"fmt"
+
+	sha256repo "vcs-test.golang.org/go/mod/gitrepo-sha256"
+)
+
+func main() {
+	fmt.Println(sha256repo.Foobar(1234))
+}
+
+-- go.mod --
+module test
+
+go 1.24.3
+
+require vcs-test.golang.org/go/mod/gitrepo-sha256 v1.3.0

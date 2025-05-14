@@ -245,6 +245,7 @@ func TestTags(t *testing.T) {
 		{gitsha256repo, "", []Tag{
 			{"v1.2.3", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
 			{"v1.2.4-annotated", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
+			{"v1.3.0", "a9157cad2aa6dc2f78aa31fced5887f04e758afa8703f04d0178702ebf04ee17"},
 			{"v2.0.1", "b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09"},
 			{"v2.0.2", "1401e4e1fdb4169b51d44a1ff62af63ccc708bf5c12d15051268b51bbb6cbd82"},
 			{"v2.3", "b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09"},
@@ -252,6 +253,7 @@ func TestTags(t *testing.T) {
 		{gitsha256repo, "v", []Tag{
 			{"v1.2.3", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
 			{"v1.2.4-annotated", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
+			{"v1.3.0", "a9157cad2aa6dc2f78aa31fced5887f04e758afa8703f04d0178702ebf04ee17"},
 			{"v2.0.1", "b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09"},
 			{"v2.0.2", "1401e4e1fdb4169b51d44a1ff62af63ccc708bf5c12d15051268b51bbb6cbd82"},
 			{"v2.3", "b7550fd9d2129c724c39ae0536e8b2fae4364d8c82bb8b0880c9b71f67295d09"},
@@ -259,6 +261,7 @@ func TestTags(t *testing.T) {
 		{gitsha256repo, "v1", []Tag{
 			{"v1.2.3", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
 			{"v1.2.4-annotated", "47b8b51b2a2d9d5caa3d460096c4e01f05700ce3a9390deb54400bd508214c5c"},
+			{"v1.3.0", "a9157cad2aa6dc2f78aa31fced5887f04e758afa8703f04d0178702ebf04ee17"},
 		}},
 		{gitsha256repo, "2", []Tag{}},
 	} {
