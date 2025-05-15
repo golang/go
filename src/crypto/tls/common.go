@@ -1233,11 +1233,11 @@ func (c *Config) supportsCurve(version uint16, curve CurveID) bool {
 }
 
 // mutualVersion returns the protocol version to use given the advertised
-// versions of the peer. Priority is given to the peer preference order.
+// versions of the peer. The highest supported version is preferred.
 func (c *Config) mutualVersion(isClient bool, peerVersions []uint16) (uint16, bool) {
 	supportedVersions := c.supportedVersions(isClient)
-	for _, v := range peerVersions {
-		if slices.Contains(supportedVersions, v) {
+	for _, v := range supportedVersions {
+		if slices.Contains(peerVersions, v) {
 			return v, true
 		}
 	}
