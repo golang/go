@@ -1063,7 +1063,8 @@ func writeBlocks(ctxt *Link, out *OutBuf, sem chan int, ldr *loader.Loader, syms
 		}
 
 		// Start the block output operator.
-		if o, err := out.View(uint64(out.Offset() + written)); err == nil {
+		if ctxt.Out.isMmapped() {
+			o := out.View(uint64(out.Offset() + written))
 			sem <- 1
 			wg.Add(1)
 			go func(o *OutBuf, ldr *loader.Loader, syms []loader.Sym, addr, size int64, pad []byte) {
@@ -1142,15 +1143,16 @@ type writeFn func(*Link, *OutBuf, int64, int64)
 
 // writeParallel handles scheduling parallel execution of data write functions.
 func writeParallel(wg *sync.WaitGroup, fn writeFn, ctxt *Link, seek, vaddr, length uint64) {
-	if out, err := ctxt.Out.View(seek); err != nil {
-		ctxt.Out.SeekSet(int64(seek))
-		fn(ctxt, ctxt.Out, int64(vaddr), int64(length))
-	} else {
+	if ctxt.Out.isMmapped() {
+		out := ctxt.Out.View(seek)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			fn(ctxt, out, int64(vaddr), int64(length))
 		}()
+	} else {
+		ctxt.Out.SeekSet(int64(seek))
+		fn(ctxt, ctxt.Out, int64(vaddr), int64(length))
 	}
 }
 
