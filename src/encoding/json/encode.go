@@ -359,25 +359,22 @@ func typeEncoder(t reflect.Type) encoderFunc {
 	}
 
 	// To deal with recursive types, populate the map with an
-	// indirect func before we build it. This type waits on the
-	// real func (f) to be ready and then calls it. This indirect
-	// func is only used for recursive types.
-	var (
-		wg sync.WaitGroup
-		f  encoderFunc
-	)
-	wg.Add(1)
+	// indirect func before we build it. If the type is recursive,
+	// the second lookup for the type will return the indirect func.
+	//
+	// This indirect func is only used for recursive types,
+	// and briefly during racing calls to typeEncoder.
+	indirect := sync.OnceValue(func() encoderFunc {
+		return newTypeEncoder(t, true)
+	})
 	fi, loaded := encoderCache.LoadOrStore(t, encoderFunc(func(e *encodeState, v reflect.Value, opts encOpts) {
-		wg.Wait()
-		f(e, v, opts)
+		indirect()(e, v, opts)
 	}))
 	if loaded {
 		return fi.(encoderFunc)
 	}
 
-	// Compute the real encoder and replace the indirect func with it.
-	f = newTypeEncoder(t, true)
-	wg.Done()
+	f := indirect()
 	encoderCache.Store(t, f)
 	return f
 }
