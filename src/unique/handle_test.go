@@ -7,6 +7,11 @@ package unique
 import (
 	"fmt"
 	"internal/abi"
+	"internal/asan"
+	"internal/msan"
+	"internal/race"
+	"internal/testenv"
+	"math/rand/v2"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -183,3 +188,109 @@ func TestNestedHandle(t *testing.T) {
 //
 //go:linkname runtime_blockUntilEmptyCleanupQueue
 func runtime_blockUntilEmptyCleanupQueue(timeout int64) bool
+
+var (
+	randomNumber = rand.IntN(1000000) + 1000000
+	heapBytes    = newHeapBytes()
+	heapString   = newHeapString()
+
+	stringHandle Handle[string]
+	intHandle    Handle[int]
+	anyHandle    Handle[any]
+	pairHandle   Handle[[2]string]
+)
+
+func TestMakeAllocs(t *testing.T) {
+	errorf := t.Errorf
+	if race.Enabled || msan.Enabled || asan.Enabled || testenv.OptimizationOff() {
+		errorf = t.Logf
+	}
+
+	tests := []struct {
+		name   string
+		allocs int
+		f      func()
+	}{
+		{name: "create heap bytes", allocs: 1, f: func() {
+			heapBytes = newHeapBytes()
+		}},
+
+		{name: "create heap string", allocs: 2, f: func() {
+			heapString = newHeapString()
+		}},
+
+		{name: "static string", allocs: 0, f: func() {
+			stringHandle = Make("this string is statically allocated")
+		}},
+
+		{name: "heap string", allocs: 0, f: func() {
+			stringHandle = Make(heapString)
+		}},
+
+		{name: "stack string", allocs: 1, f: func() {
+			var b [16]byte
+			b[8] = 'a'
+			stringHandle = Make(string(b[:]))
+		}},
+
+		{name: "bytes", allocs: 1, f: func() {
+			stringHandle = Make(string(heapBytes))
+		}},
+
+		{name: "bytes truncated short", allocs: 1, f: func() {
+			stringHandle = Make(string(heapBytes[:16]))
+		}},
+
+		{name: "bytes truncated long", allocs: 1, f: func() {
+			stringHandle = Make(string(heapBytes[:40]))
+		}},
+
+		{name: "string to any", allocs: 1, f: func() {
+			anyHandle = Make[any](heapString)
+		}},
+
+		{name: "large number", allocs: 0, f: func() {
+			intHandle = Make(randomNumber)
+		}},
+
+		{name: "large number to any", allocs: 1, f: func() {
+			anyHandle = Make[any](randomNumber)
+		}},
+
+		{name: "pair", allocs: 0, f: func() {
+			pairHandle = Make([2]string{heapString, heapString})
+		}},
+
+		{name: "pair from stack", allocs: 2, f: func() {
+			var b [16]byte
+			b[8] = 'a'
+			pairHandle = Make([2]string{string(b[:]), string(b[:])})
+		}},
+
+		{name: "pair to any", allocs: 1, f: func() {
+			anyHandle = Make[any]([2]string{heapString, heapString})
+		}},
+	}
+
+	for _, tt := range tests {
+		allocs := testing.AllocsPerRun(100, tt.f)
+		if allocs != float64(tt.allocs) {
+			errorf("%s: got %v allocs, want %v", tt.name, allocs, tt.allocs)
+		}
+	}
+}
+
+//go:noinline
+func newHeapBytes() []byte {
+	const N = 100
+	b := make([]byte, N)
+	for i := range b {
+		b[i] = byte(i)
+	}
+	return b
+}
+
+//go:noinline
+func newHeapString() string {
+	return string(newHeapBytes())
+}
