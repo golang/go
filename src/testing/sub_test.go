@@ -280,7 +280,6 @@ func TestTRun(t *T) {
 					t.Run("c", func(t *T) {
 						t.Parallel()
 					})
-
 				})
 			})
 		},
@@ -305,7 +304,6 @@ func TestTRun(t *T) {
 									time.Sleep(time.Nanosecond)
 								})
 							}
-
 						})
 					}
 				})
@@ -841,7 +839,7 @@ func TestBenchmarkOutput(t *T) {
 }
 
 func TestBenchmarkStartsFrom1(t *T) {
-	var first = true
+	first := true
 	Benchmark(func(b *B) {
 		if first && b.N != 1 {
 			panic(fmt.Sprintf("Benchmark() first N=%v; want 1", b.N))
@@ -851,7 +849,7 @@ func TestBenchmarkStartsFrom1(t *T) {
 }
 
 func TestBenchmarkReadMemStatsBeforeFirstRun(t *T) {
-	var first = true
+	first := true
 	Benchmark(func(b *B) {
 		if first && (b.startAllocs == 0 || b.startBytes == 0) {
 			panic("ReadMemStats not called before first run")
@@ -1248,5 +1246,23 @@ func TestOutputWriteAfterComplete(t *T) {
 
 	if s := <-c2; s != "" {
 		t.Error(s)
+	}
+}
+
+// Verify that logging to an inactive top-level testing.T does not panic.
+// These tests can run in either order.
+
+func TestOutputEscape1(t *T) { testOutputEscape(t) }
+func TestOutputEscape2(t *T) { testOutputEscape(t) }
+
+var global *T
+
+func testOutputEscape(t *T) {
+	if global == nil {
+		// Store t in a global, to set up for the second execution.
+		global = t
+	} else {
+		// global is inactive here.
+		global.Log("hello")
 	}
 }

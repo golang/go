@@ -904,8 +904,10 @@ type TB interface {
 	private()
 }
 
-var _ TB = (*T)(nil)
-var _ TB = (*B)(nil)
+var (
+	_ TB = (*T)(nil)
+	_ TB = (*B)(nil)
+)
 
 // T is a type passed to Test functions to manage test state and support formatted test logs.
 //
@@ -1119,6 +1121,11 @@ type outputWriter struct {
 // Write writes a log message to the test's output stream, properly formatted and
 // indented. It may not be called after a test function and all its parents return.
 func (o *outputWriter) Write(p []byte) (int, error) {
+	// o can be nil if this is called from a top-level *TB that is no longer active.
+	// Just ignore the message in that case.
+	if o == nil || o.c == nil {
+		return 0, nil
+	}
 	if o.c.destination() == nil {
 		panic("Write called after " + o.c.name + " has completed")
 	}
@@ -1369,7 +1376,7 @@ func (c *common) TempDir() string {
 	}
 
 	dir := fmt.Sprintf("%s%c%03d", c.tempDir, os.PathSeparator, seq)
-	if err := os.Mkdir(dir, 0777); err != nil {
+	if err := os.Mkdir(dir, 0o777); err != nil {
 		c.Fatalf("TempDir: %v", err)
 	}
 	return dir
@@ -2132,8 +2139,10 @@ func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchma
 	}
 }
 
-var testingTesting bool
-var realStderr *os.File
+var (
+	testingTesting bool
+	realStderr     *os.File
+)
 
 // Run runs the tests. It returns an exit code to pass to os.Exit.
 // The exit code is zero when all tests pass, and non-zero for any kind
