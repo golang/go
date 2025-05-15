@@ -140,15 +140,17 @@ func (p Pointer) AppendToken(tok string) Pointer {
 // Tokens returns an iterator over the reference tokens in the JSON pointer,
 // starting from the first token until the last token (unless stopped early).
 func (p Pointer) Tokens() iter.Seq[string] {
-	return func(yield func(string) bool) {
-		for len(p) > 0 {
-			p = Pointer(strings.TrimPrefix(string(p), "/"))
-			i := min(uint(strings.IndexByte(string(p), '/')), uint(len(p)))
-			if !yield(unescapePointerToken(string(p)[:i])) {
-				return
-			}
-			p = p[i:]
+	return p.tokens
+}
+
+func (p Pointer) tokens(yield func(string) bool) {
+	for len(p) > 0 {
+		p = Pointer(strings.TrimPrefix(string(p), "/"))
+		i := min(uint(strings.IndexByte(string(p), '/')), uint(len(p)))
+		if !yield(unescapePointerToken(string(p)[:i])) {
+			return
 		}
+		p = p[i:]
 	}
 }
 
