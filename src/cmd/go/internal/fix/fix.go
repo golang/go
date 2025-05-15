@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"go/build"
 	"os"
+	"path/filepath"
 )
 
 var CmdFix = &base.Command{
@@ -80,6 +81,6 @@ func runFix(ctx context.Context, cmd *base.Command, args []string) {
 		if *fixes != "" {
 			fixArg = []string{"-r=" + *fixes}
 		}
-		base.Run(str.StringList(cfg.BuildToolexec, base.Tool("fix"), "-go="+goVersion, fixArg, files))
+		base.Run(str.StringList(cfg.BuildToolexec, filepath.Join(cfg.GOROOTbin, "go"), "tool", "fix", "-go="+goVersion, fixArg, files))
 	}
 }

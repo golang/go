@@ -9,6 +9,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"context"
+	"path/filepath"
 )
 
 var CmdDoc = &base.Command{
@@ -130,5 +131,5 @@ Flags:
 }
 
 func runDoc(ctx context.Context, cmd *base.Command, args []string) {
-	base.Run(cfg.BuildToolexec, base.Tool("doc"), args)
+	base.Run(cfg.BuildToolexec, filepath.Join(cfg.GOROOTbin, "go"), "tool", "doc", args)
 }

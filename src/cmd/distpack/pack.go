@@ -169,7 +169,8 @@ func main() {
 			}
 			// Inside pkg/tool/$GOOS_$GOARCH, discard helper tools, and tools not needed for builds.
 			switch strings.TrimSuffix(path.Base(name), ".exe") {
-			case "addr2line", "api", "buildid", "dist", "distpack", "metadata", "nm", "objdump", "pprof", "test2json", "trace":
+			case "addr2line", "api", "buildid", "covdata", "dist", "distpack", "doc", "fix",
+				"metadata", "nm", "objdump", "pprof", "test2json", "trace":
 				return false
 			}
 		}
