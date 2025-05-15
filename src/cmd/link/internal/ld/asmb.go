@@ -195,10 +195,7 @@ func relocSectFn(ctxt *Link, relocSect func(*Link, *OutBuf, *sym.Section, []load
 		fn = func(ctxt *Link, sect *sym.Section, syms []loader.Sym) {
 			wg.Add(1)
 			sem <- 1
-			out, err := ctxt.Out.View(sect.Reloff)
-			if err != nil {
-				panic(err)
-			}
+			out := ctxt.Out.View(sect.Reloff)
 			go func() {
 				relocSect(ctxt, out, sect, syms)
 				wg.Done()
