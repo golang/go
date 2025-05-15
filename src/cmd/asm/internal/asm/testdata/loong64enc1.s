@@ -1035,6 +1035,3 @@ lable2:
 	PRELD	(R4), $0		// 8000c02a
 	PRELD	-1(R4), $8		// 88fcff2a
 	PRELD	8(R4),  $31		// 9f20c02a
-	PRELDX	(R4)(R5), $0		// 80142c38
-	PRELDX	(R4)(R6), $8		// 88182c38
-	PRELDX	(R4)(R7), $31		// 9f1c2c38

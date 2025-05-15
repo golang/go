@@ -676,6 +676,11 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				prog.From = a[0]
 				prog.To = a[1]
 				prog.RegTo2 = a[2].Reg
+
+			case arch.IsLoong64PRELD(op):
+				prog.From = a[0]
+				prog.AddRestSourceArgs([]obj.Addr{a[1], a[2]})
+
 			default:
 				prog.From = a[0]
 				prog.Reg = p.getRegister(prog, op, &a[1])

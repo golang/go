@@ -226,5 +226,31 @@ Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate)
   - When using the AM*_.W[U]/D[U] instruction, registers rd and rj cannot be the same,
     otherwise an exception is triggered, and rd and rk cannot be the same, otherwise
     the execution result is uncertain.
+
+3. Prefetch instructions
+    Instruction format:
+      PRELD	offset(Rbase), $hint
+      PRELDX	offset(Rbase), $n, $hint
+
+    Mapping between Go and platform assembly:
+               Go assembly            |    platform assembly
+      PRELD  offset(Rbase), $hint     | preld hint, Rbase, offset
+      PRELDX offset(Rbase), $n, $hint | move rk, $x; preldx hint, Rbase, rk
+
+      note: $x is the value after $n and offset are reassembled
+
+    Definition of hint value:
+      0: load to L1
+      2: load to L3
+      8: store to L1
+
+      The meaning of the rest of values is not defined yet, and the processor executes it as NOP
+
+    Definition of $n in the PRELDX instruction:
+      bit[0]: address sequence, 0 indicating ascending and 1 indicating descending
+      bits[11:1]:  block size, the value range is [16, 1024], and it must be an integer multiple of 16
+      bits[20:12]: block num, the value range is [1, 256]
+      bits[36:21]: stride, the value range is [0, 0xffff]
 */
+
 package loong64
