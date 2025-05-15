@@ -370,8 +370,9 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 	if err != nil {
 		return InvalidHandle, err
 	}
+	accessFlags := flag & (O_RDONLY | O_WRONLY | O_RDWR)
 	var access uint32
-	switch flag & (O_RDONLY | O_WRONLY | O_RDWR) {
+	switch accessFlags {
 	case O_RDONLY:
 		access = GENERIC_READ
 	case O_WRONLY:
@@ -416,9 +417,15 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 	if perm&S_IWRITE == 0 {
 		attrs = FILE_ATTRIBUTE_READONLY
 	}
-	if flag&O_WRONLY == 0 && flag&O_RDWR == 0 {
-		// We might be opening or creating a directory.
-		// CreateFile requires FILE_FLAG_BACKUP_SEMANTICS
+	switch accessFlags {
+	case O_WRONLY, O_RDWR:
+		// Unix doesn't allow opening a directory with O_WRONLY
+		// or O_RDWR, so we don't set the flag in that case,
+		// which will make CreateFile fail with ERROR_ACCESS_DENIED.
+		// We will map that to EISDIR if the file is a directory.
+	default:
+		// We might be opening a directory for reading,
+		// and CreateFile requires FILE_FLAG_BACKUP_SEMANTICS
 		// to work with directories.
 		attrs |= FILE_FLAG_BACKUP_SEMANTICS
 	}
@@ -428,7 +435,7 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 	}
 	h, err := createFile(namep, access, sharemode, sa, createmode, attrs, 0)
 	if h == InvalidHandle {
-		if err == ERROR_ACCESS_DENIED && (flag&O_WRONLY != 0 || flag&O_RDWR != 0) {
+		if err == ERROR_ACCESS_DENIED && (attrs&FILE_FLAG_BACKUP_SEMANTICS == 0) {
 			// We should return EISDIR when we are trying to open a directory with write access.
 			fa, e1 := GetFileAttributes(namep)
 			if e1 == nil && fa&FILE_ATTRIBUTE_DIRECTORY != 0 {
