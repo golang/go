@@ -124,6 +124,7 @@ var dataSects []wasmDataSect
 
 func asmb(ctxt *ld.Link, ldr *loader.Loader) {
 	sections := []*sym.Section{
+		ldr.SymSect(ldr.Lookup("go:buildinfo", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.rodata", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.typelink", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.itablink", 0)),
@@ -131,7 +132,6 @@ func asmb(ctxt *ld.Link, ldr *loader.Loader) {
 		ldr.SymSect(ldr.Lookup("runtime.pclntab", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.noptrdata", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.data", 0)),
-		ldr.SymSect(ldr.Lookup("go:buildinfo", 0)),
 	}
 
 	dataSects = make([]wasmDataSect, len(sections))
