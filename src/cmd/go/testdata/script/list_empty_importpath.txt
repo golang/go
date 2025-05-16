@@ -1,0 +1,17 @@
+! go list all
+! stderr 'panic'
+stderr 'invalid import path'
+
+# go list produces a package for 'p' but not for ''
+go list -e all
+cmp stdout wantlist.txt
+-- wantlist.txt --
+example.com/e
+-- go.mod --
+module example.com/e
+
+go 1.25
+-- p.go --
+package p
+
+import ""

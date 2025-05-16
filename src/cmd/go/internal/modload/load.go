@@ -2009,6 +2009,13 @@ func (ld *loader) stdVendor(parentPath, path string) string {
 // starting with a list of the import paths for the packages in the main module.
 func (ld *loader) computePatternAll() (all []string) {
 	for _, pkg := range ld.pkgs {
+		if module.CheckImportPath(pkg.path) != nil {
+			// Don't add packages with invalid paths. This means that
+			// we don't try to load invalid imports of the main modules'
+			// packages. We will still report an errors invalid imports
+			// when we load the importing package.
+			continue
+		}
 		if pkg.flags.has(pkgInAll) && !pkg.isTest() {
 			all = append(all, pkg.path)
 		}
