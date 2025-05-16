@@ -4096,6 +4096,28 @@ func rewriteValueMIPS_OpMIPSMUL(v *Value) bool {
 }
 func rewriteValueMIPS_OpMIPSNEG(v *Value) bool {
 	v_0 := v.Args[0]
+	// match: (NEG (SUB x y))
+	// result: (SUB y x)
+	for {
+		if v_0.Op != OpMIPSSUB {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpMIPSSUB)
+		v.AddArg2(y, x)
+		return true
+	}
+	// match: (NEG (NEG x))
+	// result: x
+	for {
+		if v_0.Op != OpMIPSNEG {
+			break
+		}
+		x := v_0.Args[0]
+		v.copyOf(x)
+		return true
+	}
 	// match: (NEG (MOVWconst [c]))
 	// result: (MOVWconst [-c])
 	for {
@@ -4746,6 +4768,18 @@ func rewriteValueMIPS_OpMIPSSUB(v *Value) bool {
 		v.reset(OpMIPSSUBconst)
 		v.AuxInt = int32ToAuxInt(c)
 		v.AddArg(x)
+		return true
+	}
+	// match: (SUB x (NEG y))
+	// result: (ADD x y)
+	for {
+		x := v_0
+		if v_1.Op != OpMIPSNEG {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpMIPSADD)
+		v.AddArg2(x, y)
 		return true
 	}
 	// match: (SUB x x)
