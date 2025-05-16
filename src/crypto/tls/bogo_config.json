@@ -63,7 +63,6 @@
         "CheckLeafCurve": "TODO: first pass, this should be fixed",
         "DisabledCurve-HelloRetryRequest-TLS13": "TODO: first pass, this should be fixed",
         "SupportTicketsWithSessionID": "TODO: first pass, this should be fixed",
-        "NoNullCompression-TLS12": "TODO: first pass, this should be fixed",
         "KeyUpdate-RequestACK": "TODO: first pass, this should be fixed",
         "SupportedVersionSelection-TLS12": "TODO: first pass, this should be fixed",
         "DuplicateExtensionServer-TLS-TLS1": "TODO: first pass, this should be fixed",
