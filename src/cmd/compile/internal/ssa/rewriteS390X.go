@@ -11292,6 +11292,16 @@ func rewriteValueS390X_OpS390XNEG(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(-c)
 		return true
 	}
+	// match: (NEG (NEG x))
+	// result: x
+	for {
+		if v_0.Op != OpS390XNEG {
+			break
+		}
+		x := v_0.Args[0]
+		v.copyOf(x)
+		return true
+	}
 	// match: (NEG (ADDconst [c] (NEG x)))
 	// cond: c != -(1<<31)
 	// result: (ADDconst [-c] x)
@@ -13326,6 +13336,18 @@ func rewriteValueS390X_OpS390XSUB(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (SUB x (NEG y))
+	// result: (ADD x y)
+	for {
+		x := v_0
+		if v_1.Op != OpS390XNEG {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpS390XADD)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (SUB x x)
 	// result: (MOVDconst [0])
 	for {
@@ -13465,6 +13487,18 @@ func rewriteValueS390X_OpS390XSUBW(v *Value) bool {
 		v0.AuxInt = int32ToAuxInt(int32(c))
 		v0.AddArg(x)
 		v.AddArg(v0)
+		return true
+	}
+	// match: (SUBW x (NEGW y))
+	// result: (ADDW x y)
+	for {
+		x := v_0
+		if v_1.Op != OpS390XNEGW {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpS390XADDW)
+		v.AddArg2(x, y)
 		return true
 	}
 	// match: (SUBW x x)
