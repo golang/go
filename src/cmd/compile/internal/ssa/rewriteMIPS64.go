@@ -4673,6 +4673,28 @@ func rewriteValueMIPS64_OpMIPS64MOVWstorezero(v *Value) bool {
 }
 func rewriteValueMIPS64_OpMIPS64NEGV(v *Value) bool {
 	v_0 := v.Args[0]
+	// match: (NEGV (SUBV x y))
+	// result: (SUBV y x)
+	for {
+		if v_0.Op != OpMIPS64SUBV {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpMIPS64SUBV)
+		v.AddArg2(y, x)
+		return true
+	}
+	// match: (NEGV (NEGV x))
+	// result: x
+	for {
+		if v_0.Op != OpMIPS64NEGV {
+			break
+		}
+		x := v_0.Args[0]
+		v.copyOf(x)
+		return true
+	}
 	// match: (NEGV (MOVVconst [c]))
 	// result: (MOVVconst [-c])
 	for {
@@ -5317,6 +5339,18 @@ func rewriteValueMIPS64_OpMIPS64SUBV(v *Value) bool {
 		v.reset(OpMIPS64SUBVconst)
 		v.AuxInt = int64ToAuxInt(c)
 		v.AddArg(x)
+		return true
+	}
+	// match: (SUBV x (NEGV y))
+	// result: (ADDV x y)
+	for {
+		x := v_0
+		if v_1.Op != OpMIPS64NEGV {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpMIPS64ADDV)
+		v.AddArg2(x, y)
 		return true
 	}
 	// match: (SUBV x x)

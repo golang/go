@@ -719,11 +719,14 @@
 
 // generic simplifications
 (ADDV x (NEGV y)) => (SUBV x y)
+(SUBV x (NEGV y)) => (ADDV x y)
 (SUBV x x) => (MOVVconst [0])
 (SUBV (MOVVconst [0]) x) => (NEGV x)
 (AND x x) => x
 (OR  x x) => x
 (XOR x x) => (MOVVconst [0])
+(NEGV (SUBV x y)) => (SUBV y x)
+(NEGV (NEGV x)) => x
 
 // remove redundant *const ops
 (ADDVconst [0]  x) => x
