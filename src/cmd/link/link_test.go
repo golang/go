@@ -1673,3 +1673,44 @@ func TestLinknameBSS(t *testing.T) {
 		t.Errorf("executable failed to run: %v\n%s", err, out)
 	}
 }
+
+func TestWasmBuildinfo(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "hello.go")
+
+	err := os.WriteFile(src, []byte(`package main; func main() { println("hello") }`), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exe := filepath.Join(tmpdir, "hello.wasm")
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, src)
+
+	env := []string{"GOOS=js", "GOARCH=wasm"}
+	for _, v := range os.Environ() {
+		if strings.HasPrefix(v, "GOOS=") || strings.HasPrefix(v, "GOARCH=") {
+			continue
+		}
+		env = append(env, v)
+	}
+	cmd.Env = env
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failed: %v\n%s", err, out)
+	}
+
+	const magic = "\xff Go buildinf:"
+
+	data, err := os.ReadFile(exe)
+	if err != nil {
+		t.Fatalf("failed to read output file: %v", err)
+	}
+
+	if !bytes.Contains(data, []byte(magic)) {
+		t.Fatalf("output does not contain buildinfo magic: %q", out)
+	}
+}
