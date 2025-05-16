@@ -61,7 +61,6 @@
         "BadRSAClientKeyExchange-4": "crypto/tls doesn't check the version number in the premaster secret - see processClientKeyExchange comment",
         "BadRSAClientKeyExchange-5": "crypto/tls doesn't check the version number in the premaster secret - see processClientKeyExchange comment",
         "CheckLeafCurve": "TODO: first pass, this should be fixed",
-        "DisabledCurve-HelloRetryRequest-TLS13": "TODO: first pass, this should be fixed",
         "SupportTicketsWithSessionID": "TODO: first pass, this should be fixed",
         "KeyUpdate-RequestACK": "TODO: first pass, this should be fixed",
         "SupportedVersionSelection-TLS12": "TODO: first pass, this should be fixed",
