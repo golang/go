@@ -24,7 +24,7 @@ func FuzzReverse(f *testing.F) {
 		r1 := Reverse(s)
 		r2 := Reverse(r1)
 		if s != r2 {
-			t.Errorf("got %q want %q", r2, s)
+			t.Errorf("FUZZ FAILED: got %q want %q", r2, s)
 		}
 	})
 }

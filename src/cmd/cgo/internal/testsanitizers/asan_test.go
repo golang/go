@@ -135,6 +135,9 @@ func TestASANFuzz(t *testing.T) {
 	if bytes.Contains(out, []byte("AddressSanitizer")) {
 		t.Error(`output contains "AddressSanitizer", but should not`)
 	}
+	if !bytes.Contains(out, []byte("FUZZ FAILED")) {
+		t.Error(`fuzz test did not fail with a "FUZZ FAILED" sentinel error`)
+	}
 }
 
 func mustHaveASAN(t *testing.T) *config {
