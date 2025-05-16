@@ -167,11 +167,11 @@ func main() {
 			if !strings.HasPrefix(name, "pkg/tool/"+goosUnderGoarch+"/") {
 				return false
 			}
-			// Inside pkg/tool/$GOOS_$GOARCH, discard helper tools, and tools not needed for builds.
+			// Inside pkg/tool/$GOOS_$GOARCH, keep only tools needed for build actions.
 			switch strings.TrimSuffix(path.Base(name), ".exe") {
-			case "addr2line", "api", "buildid", "covdata", "dist", "distpack", "doc", "fix",
-				"metadata", "nm", "objdump", "pprof", "test2json", "trace":
+			default:
 				return false
+			case "asm", "cgo", "compile", "cover", "link", "pack", "preprofile", "vet":
 			}
 		}
 		return true
