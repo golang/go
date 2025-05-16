@@ -8,7 +8,7 @@
         "TLS-ECH-Client-Rejected-OverrideName-TLS12": "We won't attempt to negotiate 1.2 if ECH is enabled",
         "TLS-ECH-Client-Reject-TLS12-NoFalseStart": "We won't attempt to negotiate 1.2 if ECH is enabled",
         "TLS-ECH-Client-TLS12SessionTicket": "We won't attempt to negotiate 1.2 if ECH is enabled",
-        "TLS-ECH-Client-TLS12SessionID": "We won't attempt to negotiate 1.2 if ECH is enabled",
+        "TLS-ECH-Client-TLS12SessionID": "We won't attempt to negotiate 1.2 if ECH is enabled, and we don't support session ID resumption",
 
         "TLS-ECH-Client-Reject-ResumeInnerSession-TLS12": "We won't attempt to negotiate 1.2 if ECH is enabled (we could possibly test this if we had the ability to indicate not to send ECH on resumption?)",
 
@@ -61,7 +61,7 @@
         "BadRSAClientKeyExchange-4": "crypto/tls doesn't check the version number in the premaster secret - see processClientKeyExchange comment",
         "BadRSAClientKeyExchange-5": "crypto/tls doesn't check the version number in the premaster secret - see processClientKeyExchange comment",
         "CheckLeafCurve": "TODO: first pass, this should be fixed",
-        "SupportTicketsWithSessionID": "TODO: first pass, this should be fixed",
+        "SupportTicketsWithSessionID": "We don't support session ID resumption",
         "KeyUpdate-RequestACK": "TODO: first pass, this should be fixed",
         "SupportedVersionSelection-TLS12": "TODO: first pass, this should be fixed",
         "DuplicateExtensionServer-TLS-TLS1": "TODO: first pass, this should be fixed",
@@ -159,7 +159,7 @@
         "TrailingMessageData-TLS13-ClientCertificate-TLS": "TODO: first pass, this should be fixed",
         "TrailingMessageData-TLS13-ClientCertificateVerify-TLS": "TODO: first pass, this should be fixed",
         "TrailingMessageData-TLS13-ServerCertificate-TLS": "TODO: first pass, this should be fixed",
-        "ResumeTLS12SessionID-TLS13": "TODO: first pass, this should be fixed",
+        "ResumeTLS12SessionID-TLS13": "We don't support session ID resumption",
         "SkipEarlyData-TLS13": "TODO: first pass, this should be fixed",
         "DuplicateKeyShares-TLS13": "TODO: first pass, this should be fixed",
         "Server-TooLongSessionID-TLS13": "TODO: first pass, this should be fixed",
