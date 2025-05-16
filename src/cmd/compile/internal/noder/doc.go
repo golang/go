@@ -22,7 +22,7 @@ its index in the series.
 SectionKind = Uint64 .
 Payload     = SectionString
               SectionMeta
-              SectionPosBase // TODO(markfreeman) Define.
+              SectionPosBase
               SectionPkg     // TODO(markfreeman) Define.
               SectionName    // TODO(markfreeman) Define.
               SectionType    // TODO(markfreeman) Define.
@@ -66,6 +66,38 @@ PublicRoot  = Relocs
               .
 HasInit     = Bool .          // Whether the package uses any initialization
                               // functions.
+
+## PosBase Section
+This section provides position information. It is a series of PosBase
+elements.
+
+SectionPosBase = { PosBase } .
+
+A base is either a file base or line base (produced by a line
+directive). Every base has a position, line, and column; these are
+constant for file bases and hence not encoded.
+
+PosBase = Relocs
+          [ SyncPosBase ] // TODO(markfreeman): Define.
+          StringRef       // the (absolute) file name for the base
+          Bool            // true if it is a file base, else a line base
+          // The below is ommitted for file bases.
+          [ Pos
+            Uint64        // line
+            Uint64 ]      // column
+          .
+
+A source position Pos represents a file-absolute (line, column) pair
+and a PosBase indicating the position Pos is relative to. Positions
+without a PosBase have no line or column.
+
+Pos     = [ SyncPos ]      // TODO(markfreeman): Define.
+          Bool             // true if the position has a base
+          // The below is ommitted if the position has no base.
+          [ Ref[PosBase]
+            Uint64         // line
+            Uint64 ]       // column
+          .
 
 # References
 A reference table precedes every element. Each entry in the table contains a
