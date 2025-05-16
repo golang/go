@@ -82,18 +82,3 @@ func curveForCurveID(id CurveID) (ecdh.Curve, bool) {
 		return nil, false
 	}
 }
-
-func curveIDForCurve(curve ecdh.Curve) (CurveID, bool) {
-	switch curve {
-	case ecdh.X25519():
-		return X25519, true
-	case ecdh.P256():
-		return CurveP256, true
-	case ecdh.P384():
-		return CurveP384, true
-	case ecdh.P521():
-		return CurveP521, true
-	default:
-		return 0, false
-	}
-}
