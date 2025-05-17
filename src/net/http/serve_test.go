@@ -391,6 +391,19 @@ func TestServeMuxHandler(t *testing.T) {
 	}
 }
 
+// Issue 73688
+func TestServeMuxHandlerTrailingSlash(t *testing.T) {
+	setParallel(t)
+	mux := NewServeMux()
+	const original = "/{x}/"
+	mux.Handle(original, NotFoundHandler())
+	r, _ := NewRequest("POST", "/foo", nil)
+	_, p := mux.Handler(r)
+	if p != original {
+		t.Errorf("got %q, want %q", p, original)
+	}
+}
+
 // Issue 24297
 func TestServeMuxHandleFuncWithNilHandler(t *testing.T) {
 	setParallel(t)

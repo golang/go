@@ -2714,7 +2714,7 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *patte
 		var u *url.URL
 		n, matches, u = mux.matchOrRedirect(host, r.Method, path, r.URL)
 		if u != nil {
-			return RedirectHandler(u.String(), StatusMovedPermanently), u.Path, nil, nil
+			return RedirectHandler(u.String(), StatusMovedPermanently), n.pattern.String(), nil, nil
 		}
 		if path != escapedPath {
 			// Redirect to cleaned path.
@@ -2760,7 +2760,11 @@ func (mux *ServeMux) matchOrRedirect(host, method, path string, u *url.URL) (_ *
 		path += "/"
 		n2, _ := mux.tree.match(host, method, path)
 		if exactMatch(n2, path) {
-			return nil, nil, &url.URL{Path: cleanPath(u.Path) + "/", RawQuery: u.RawQuery}
+			// It is safe to return n2 here: it is used only in the second RedirectHandler case
+			// of findHandler, and that method returns before it does the "n == nil" check where
+			// the first return value matters. We return it here only to make the pattern available
+			// to findHandler.
+			return n2, nil, &url.URL{Path: cleanPath(u.Path) + "/", RawQuery: u.RawQuery}
 		}
 	}
 	return n, matches, nil
