@@ -8682,84 +8682,51 @@ func TestMapOfKeyPanic(t *testing.T) {
 	m.MapIndex(ValueOf(slice))
 }
 
-func testTypeAssert[T comparable](t *testing.T, val T) {
+func TestTypeAssert(t *testing.T) {
+	testTypeAssert(t, int(123456789), int(123456789), true)
+	testTypeAssert(t, int(-123456789), int(-123456789), true)
+	testTypeAssert(t, int32(123456789), int32(123456789), true)
+	testTypeAssert(t, int8(-123), int8(-123), true)
+	testTypeAssert(t, [2]int{1234, -5678}, [2]int{1234, -5678}, true)
+	testTypeAssert(t, "test value", "test value", true)
+
+	v := 123456789
+	testTypeAssert(t, &v, &v, true)
+
+	testTypeAssert(t, int(123), uint(0), false)
+
+	testTypeAssert[any](t, 1, 1, true)
+	testTypeAssert[fmt.Stringer](t, 1, nil, false)
+
+	vv := testTypeWithMethod{"test"}
+	testTypeAssert[any](t, vv, vv, true)
+	testTypeAssert[any](t, &vv, &vv, true)
+	testTypeAssert[fmt.Stringer](t, vv, vv, true)
+	testTypeAssert[fmt.Stringer](t, &vv, &vv, true)
+	testTypeAssert[interface{ A() }](t, vv, nil, false)
+	testTypeAssert[interface{ A() }](t, &vv, nil, false)
+
+	testTypeAssert(t, any(int(1)), int(1), true)
+	testTypeAssert(t, any(int(1)), byte(0), false)
+	testTypeAssert(t, fmt.Stringer(vv), vv, true)
+}
+
+func testTypeAssert[T comparable, V any](t *testing.T, val V, wantVal T, wantOk bool) {
 	t.Helper()
-	v, ok := TypeAssert[T](ValueOf(val))
-	if v != val || !ok {
-		t.Errorf("TypeAssert[%T](%v) = (%v, %v); want = (%v, true)", *new(T), val, v, ok, val)
+
+	v, ok := TypeAssert[T](ValueOf(&val).Elem())
+	if v != wantVal || ok != wantOk {
+		t.Errorf("TypeAssert[%v](%#v) = (%#v, %v); want = (%#v, %v)", TypeFor[T](), val, v, ok, wantVal, wantOk)
+	}
+
+	// Additionally make sure that TypeAssert[T](v) behaves in the same way as v.Interface().(T).
+	v2, ok2 := ValueOf(&val).Elem().Interface().(T)
+	if v != v2 || ok != ok2 {
+		t.Errorf("reflect.ValueOf(%#v).Interface().(%v) = (%#v, %v); want = (%#v, %v)", val, TypeFor[T](), v, ok, v2, ok2)
 	}
 }
 
-func testTypeAssertDifferentType[T, T2 comparable](t *testing.T, val T2) {
-	t.Helper()
-	if v, ok := TypeAssert[T](ValueOf(val)); ok {
-		t.Errorf("TypeAssert[%T](%v) = (%v, %v); want = (%v, false)", *new(T), val, v, ok, *new(T))
-	}
-}
-
-func newPtr[T any](t T) *T {
-	return &t
-}
-
-func TestTypeAssertConcreteTypes(t *testing.T) {
-	testTypeAssert(t, int(1111))
-	testTypeAssert(t, int(111111111))
-	testTypeAssert(t, int(-111111111))
-	testTypeAssert(t, int32(111111111))
-	testTypeAssert(t, int32(-111111111))
-	testTypeAssert(t, uint32(111111111))
-	testTypeAssert(t, [2]int{111111111, 22222222})
-	testTypeAssert(t, [2]int{-111111111, -22222222})
-	testTypeAssert(t, newPtr(1111))
-	testTypeAssert(t, newPtr(111111111))
-	testTypeAssert(t, newPtr(-111111111))
-	testTypeAssert(t, newPtr([2]int{-111111111, -22222222}))
-	testTypeAssert(t, [2]*int{newPtr(-111111111), newPtr(-22222222)})
-	testTypeAssert(t, newPtr(time.Now()))
-
-	testTypeAssertDifferentType[uint](t, int(111111111))
-	testTypeAssertDifferentType[uint](t, int(-111111111))
-}
-
-func TestTypeAssertInterfaceTypes(t *testing.T) {
-	v, ok := TypeAssert[any](ValueOf(1))
-	if v != any(1) || !ok {
-		t.Errorf("TypeAssert[any](1) = (%v, %v); want = (1, true)", v, ok)
-	}
-
-	v, ok = TypeAssert[fmt.Stringer](ValueOf(1))
-	if v != nil || ok {
-		t.Errorf("TypeAssert[fmt.Stringer](1) = (%v, %v); want = (1, false)", v, ok)
-	}
-
-	v, ok = TypeAssert[any](ValueOf(testTypeWithMethod{"test"}))
-	if v != any(testTypeWithMethod{"test"}) || !ok {
-		t.Errorf(`TypeAssert[any](testTypeWithMethod{"test"}) = (%v, %v); want = (testTypeWithMethod{"test"}, true)`, v, ok)
-	}
-
-	v, ok = TypeAssert[fmt.Stringer](ValueOf(testTypeWithMethod{"test"}))
-	if v != fmt.Stringer(testTypeWithMethod{"test"}) || !ok {
-		t.Errorf(`TypeAssert[fmt.Stringer](testTypeWithMethod{"test"}) = (%v, %v); want = (testTypeWithMethod{"test"}, true)`, v, ok)
-	}
-
-	val := &testTypeWithMethod{"test"}
-	v, ok = TypeAssert[fmt.Stringer](ValueOf(val))
-	if v != fmt.Stringer(val) || !ok {
-		t.Errorf(`TypeAssert[fmt.Stringer](&testTypeWithMethod{"test"}) = (%v, %v); want = (&testTypeWithMethod{"test"}, true)`, v, ok)
-	}
-
-	if v, ok := TypeAssert[int](ValueOf(newPtr(any(1))).Elem()); v != 1 || !ok {
-		t.Errorf(`TypeAssert[int](ValueOf(newPtr(any(1))).Elem()) = (%v, %v); want = (1, true)`, v, ok)
-	}
-
-	if v, ok := TypeAssert[testTypeWithMethod](ValueOf(newPtr(fmt.Stringer(testTypeWithMethod{"test"}))).Elem()); v.val != "test" || !ok {
-		t.Errorf(`TypeAssert[testTypeWithMethod](newPtr(fmt.Stringer(testTypeWithMethod{"test"}))) = (%v, %v); want = (testTypeWithMethod{"test"}, true)`, v, ok)
-	}
-}
-
-type testTypeWithMethod struct {
-	val string
-}
+type testTypeWithMethod struct{ val string }
 
 func (v testTypeWithMethod) String() string { return v.val }
 
@@ -8776,31 +8743,61 @@ func TestTypeAssertMethod(t *testing.T) {
 	}
 }
 
-func TestTypeAssertZeroValPanic(t *testing.T) {
-	defer func() { recover() }()
-	TypeAssert[int](Value{})
-	t.Fatalf("TypeAssert did not panic")
-}
-
-func TestTypeAssertReadOnlyPanic(t *testing.T) {
-	defer func() { recover() }()
-	TypeAssert[int](ValueOf(&testTypeWithMethod{}).FieldByName("val"))
-	t.Fatalf("TypeAssert did not panic")
+func TestTypeAssertPanic(t *testing.T) {
+	t.Run("zero val", func(t *testing.T) {
+		defer func() { recover() }()
+		TypeAssert[int](Value{})
+		t.Fatalf("TypeAssert did not panic")
+	})
+	t.Run("read only", func(t *testing.T) {
+		defer func() { recover() }()
+		TypeAssert[int](ValueOf(&testTypeWithMethod{}).FieldByName("val"))
+		t.Fatalf("TypeAssert did not panic")
+	})
 }
 
 func TestTypeAssertAllocs(t *testing.T) {
-	val := ValueOf(new(time.Time)).Elem()
-	allocs := testing.AllocsPerRun(100, func() {
-		TypeAssert[time.Time](val)
+	typeAssertAllocs[[128]int](t, ValueOf([128]int{}), 0)
+	typeAssertAllocs[any](t, ValueOf([128]int{}), 0)
+
+	val := 123
+	typeAssertAllocs[any](t, ValueOf(val), 0)
+	typeAssertAllocs[any](t, ValueOf(&val).Elem(), 1) // must allocate, so that Set() does not modify the returned inner iface value.
+	typeAssertAllocs[int](t, ValueOf(val), 0)
+	typeAssertAllocs[int](t, ValueOf(&val).Elem(), 0)
+
+	typeAssertAllocs[time.Time](t, ValueOf(new(time.Time)).Elem(), 0)
+	typeAssertAllocs[time.Time](t, ValueOf(*new(time.Time)), 0)
+}
+
+func typeAssertAllocs[T any](t *testing.T, val Value, wantAllocs int) {
+	t.Helper()
+	allocs := testing.AllocsPerRun(10, func() {
+		TypeAssert[T](val)
 	})
-	if allocs != 0 {
-		t.Errorf("unexpected amount of allocations = %v; want = 0", allocs)
+	if allocs != float64(wantAllocs) {
+		t.Errorf("TypeAssert[%v](%v) unexpected amount of allocations = %v; want = %v", TypeFor[T](), val.Type(), allocs, wantAllocs)
 	}
 }
 
-func BenchmarkTypeAssertTime(b *testing.B) {
-	val := ValueOf(time.Now())
-	for b.Loop() {
-		TypeAssert[time.Time](val)
-	}
+func BenchmarkTypeAssert(b *testing.B) {
+	benchmarkTypeAssert[int](b, ValueOf(int(1)))
+	benchmarkTypeAssert[byte](b, ValueOf(int(1)))
+
+	benchmarkTypeAssert[fmt.Stringer](b, ValueOf(testTypeWithMethod{}))
+	benchmarkTypeAssert[fmt.Stringer](b, ValueOf(&testTypeWithMethod{}))
+	benchmarkTypeAssert[any](b, ValueOf(int(1)))
+	benchmarkTypeAssert[any](b, ValueOf(testTypeWithMethod{}))
+
+	benchmarkTypeAssert[time.Time](b, ValueOf(*new(time.Time)))
+
+	benchmarkTypeAssert[func() string](b, ValueOf(time.Now()).MethodByName("String"))
+}
+
+func benchmarkTypeAssert[T any](b *testing.B, val Value) {
+	b.Run(fmt.Sprintf("TypeAssert[%v](%v)", TypeFor[T](), val.Type()), func(b *testing.B) {
+		for b.Loop() {
+			TypeAssert[T](val)
+		}
+	})
 }

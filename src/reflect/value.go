@@ -1219,15 +1219,7 @@ func (v Value) Elem() Value {
 	k := v.kind()
 	switch k {
 	case Interface:
-		var eface any
-		if v.typ().NumMethod() == 0 {
-			eface = *(*any)(v.ptr)
-		} else {
-			eface = (any)(*(*interface {
-				M()
-			})(v.ptr))
-		}
-		x := unpackEface(eface)
+		x := unpackEface(packIntoEmptyIface(v))
 		if x.flag != 0 {
 			x.flag |= v.flag.ro()
 		}
@@ -1500,14 +1492,7 @@ func valueInterface(v Value, safe bool) any {
 
 	if v.kind() == Interface {
 		// Special case: return the element inside the interface.
-		// Empty interface has one layout, all interfaces with
-		// methods have a second layout.
-		if v.NumMethod() == 0 {
-			return *(*any)(v.ptr)
-		}
-		return *(*interface {
-			M()
-		})(v.ptr)
+		return packIntoEmptyIface(v)
 	}
 
 	return packEface(v)
@@ -1521,7 +1506,7 @@ func TypeAssert[T any](v Value) (T, bool) {
 		panic(&ValueError{"reflect.TypeAssert", Invalid})
 	}
 	if v.flag&flagRO != 0 {
-		// Do not allow access to unexported values via Interface,
+		// Do not allow access to unexported values via TypeAssert,
 		// because they might be pointers that should not be
 		// writable or methods or function that should not be callable.
 		panic("reflect.TypeAssert: cannot return value obtained from unexported field or method")
@@ -1532,26 +1517,31 @@ func TypeAssert[T any](v Value) (T, bool) {
 	}
 
 	if abi.TypeFor[T]() != v.typ() {
-		// TypeAssert[T] should work the same way as v.Interface().(T), thus we need
-		// to handle following case properly: TypeAssert[any](ValueOf(1)).
-		// Note that we will not hit here is such case: TypeAssert[any](ValueOf(new(any)).Elem()).
+		// We can't just return false here:
+		//
+		//	var zero T
+		//	return zero, false
+		//
+		// since this function should work in the same manner as v.Interface().(T) does.
+		// Thus we have to handle two cases specially.
+
+		// T is an interface, v is a concrete type. For example:
+		//
+		// TypeAssert[any](ValueOf(1)) == ValueOf(1).Interface().(any)
+		// TypeAssert[error](ValueOf(&someError{})) == ValueOf(&someError{}).Interface().(error)
 		if abi.TypeFor[T]().Kind() == abi.Interface {
 			v, ok := packEface(v).(T)
 			return v, ok
 		}
 
-		// Special case: match the element inside the interface.
-		// TypeAssert[int](ValueOf(newPtr(any(0))).Elem()
+		// Return the element inside the interface.
+		// T is a concrete type, v is an interface. For example:
+		//
+		// var v any = int(1)
+		// val := ValueOf(&v).Elem()
+		// TypeAssert[int](val) == val.Interface().(int)
 		if v.kind() == Interface {
-			// Empty interface has one layout, all interfaces with
-			// methods have a second layout.
-			if v.NumMethod() == 0 {
-				v, ok := (*(*any)(v.ptr)).(T)
-				return v, ok
-			}
-			v, ok := any(*(*interface {
-				M()
-			})(v.ptr)).(T)
+			v, ok := packIntoEmptyIface(v).(T)
 			return v, ok
 		}
 
@@ -1563,6 +1553,20 @@ func TypeAssert[T any](v Value) (T, bool) {
 		return *(*T)(unsafe.Pointer(&v.ptr)), true
 	}
 	return *(*T)(v.ptr), true
+}
+
+// packIntoEmptyIface converts an interface Value into an empty interface.
+//
+// Precondition: v.kind() == Interface
+func packIntoEmptyIface(v Value) any {
+	// Empty interface has one layout, all interfaces with
+	// methods have a second layout.
+	if v.NumMethod() == 0 {
+		return *(*any)(v.ptr)
+	}
+	return *(*interface {
+		M()
+	})(v.ptr)
 }
 
 // InterfaceData returns a pair of unspecified uintptr values.
