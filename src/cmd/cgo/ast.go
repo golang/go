@@ -293,6 +293,7 @@ func (f *File) saveExport(x interface{}, context astContext) {
 			continue
 		}
 
+		name = strings.TrimSpace(name)
 		if name == "" {
 			error_(c.Pos(), "export missing name")
 		}
