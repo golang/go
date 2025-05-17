@@ -1179,7 +1179,7 @@ func (c *Conn) unmarshalHandshakeMessage(data []byte, transcript transcriptHash)
 	data = append([]byte(nil), data...)
 
 	if !m.unmarshal(data) {
-		return nil, c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
+		return nil, c.in.setErrorLocked(c.sendAlert(alertDecodeError))
 	}
 
 	if transcript != nil {

@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -308,11 +309,11 @@ func TestQUICPostHandshakeKeyUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := cli.conn.HandleData(QUICEncryptionLevelApplication, append([]byte{
-		byte(typeKeyUpdate),
-		byte(0), byte(0), byte(len(keyUpdateBytes)),
-	}, keyUpdateBytes...)); !errors.Is(err, alertUnexpectedMessage) {
-		t.Fatalf("key update request: got error %v, want alertUnexpectedMessage", err)
+	expectedErr := "unexpected key update message"
+	if err = cli.conn.HandleData(QUICEncryptionLevelApplication, keyUpdateBytes); err == nil {
+		t.Fatalf("key update request: expected error from post-handshake key update, got nil")
+	} else if !strings.Contains(err.Error(), expectedErr) {
+		t.Fatalf("key update request: got error %v, expected substring %q", err, expectedErr)
 	}
 }
 
