@@ -807,10 +807,10 @@ func (state *peLoaderState) preprocessSymbols() error {
 // "__imp_XYZ" but no XYZ can be found.
 func LookupBaseFromImport(s loader.Sym, ldr *loader.Loader, arch *sys.Arch) (loader.Sym, error) {
 	sname := ldr.SymName(s)
-	if !strings.HasPrefix(sname, "__imp_") {
+	basename, cut := strings.CutPrefix(sname, "__imp_")
+	if !cut {
 		return 0, nil
 	}
-	basename := sname[len("__imp_"):]
 	if arch.Family == sys.I386 && basename[0] == '_' {
 		basename = basename[1:] // _Name => Name
 	}

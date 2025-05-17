@@ -255,10 +255,10 @@ func bootstrapBuildTools() {
 
 	// Copy binaries into tool binary directory.
 	for _, name := range bootstrapDirs {
-		if !strings.HasPrefix(name, "cmd/") {
+		name, cut := strings.CutPrefix(name, "cmd/")
+		if !cut {
 			continue
 		}
-		name = name[len("cmd/"):]
 		if !strings.Contains(name, "/") {
 			copyfile(pathf("%s/%s%s", tooldir, name, exe), pathf("%s/bin/%s%s", workspace, name, exe), writeExec)
 		}

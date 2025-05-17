@@ -288,11 +288,11 @@ func (f *File) saveExport(x interface{}, context astContext) {
 		return
 	}
 	for _, c := range n.Doc.List {
-		if !strings.HasPrefix(c.Text, "//export ") {
+		name, cut := strings.CutPrefix(c.Text, "//export ")
+		if !cut {
 			continue
 		}
 
-		name := strings.TrimSpace(c.Text[9:])
 		if name == "" {
 			error_(c.Pos(), "export missing name")
 		}

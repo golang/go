@@ -1017,12 +1017,13 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 		return nil, nil // header not present
 	}
 	const b = "bytes="
-	if !strings.HasPrefix(s, b) {
+	s, cut := strings.CutPrefix(s, b)
+	if !cut {
 		return nil, errors.New("invalid range")
 	}
 	var ranges []httpRange
 	noOverlap := false
-	for ra := range strings.SplitSeq(s[len(b):], ",") {
+	for ra := range strings.SplitSeq(s, ",") {
 		ra = textproto.TrimString(ra)
 		if ra == "" {
 			continue

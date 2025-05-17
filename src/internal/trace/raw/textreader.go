@@ -37,10 +37,11 @@ func NewTextReader(r io.Reader) (*TextReader, error) {
 		return nil, fmt.Errorf("failed to parse header")
 	}
 	gover, line := readToken(line)
-	if !strings.HasPrefix(gover, "Go1.") {
+	ver, cut := strings.CutPrefix(gover, "Go1.")
+	if !cut {
 		return nil, fmt.Errorf("failed to parse header Go version")
 	}
-	rawv, err := strconv.ParseUint(gover[len("Go1."):], 10, 64)
+	rawv, err := strconv.ParseUint(ver, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse header Go version: %v", err)
 	}

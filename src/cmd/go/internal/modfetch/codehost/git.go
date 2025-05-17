@@ -290,10 +290,10 @@ func (r *gitRepo) Tags(ctx context.Context, prefix string) (*Tags, error) {
 		List: []Tag{},
 	}
 	for ref, hash := range refs {
-		if !strings.HasPrefix(ref, "refs/tags/") {
+		tag, cut := strings.CutPrefix(ref, "refs/tags/")
+		if !cut {
 			continue
 		}
-		tag := ref[len("refs/tags/"):]
 		if !strings.HasPrefix(tag, prefix) {
 			continue
 		}
@@ -721,19 +721,19 @@ func (r *gitRepo) RecentTag(ctx context.Context, rev, prefix string, allowed fun
 			line = strings.TrimSpace(line)
 			// git do support lstrip in for-each-ref format, but it was added in v2.13.0. Stripping here
 			// instead gives support for git v2.7.0.
-			if !strings.HasPrefix(line, "refs/tags/") {
+			line, cut := strings.CutPrefix(line, "refs/tags/")
+			if !cut {
 				continue
 			}
-			line = line[len("refs/tags/"):]
 
-			if !strings.HasPrefix(line, prefix) {
+			semtag, cut := strings.CutPrefix(line, prefix)
+			if !cut {
 				continue
 			}
 			if !allowed(line) {
 				continue
 			}
 
-			semtag := line[len(prefix):]
 			if semver.Compare(semtag, highest) > 0 {
 				highest = semtag
 			}

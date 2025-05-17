@@ -31,10 +31,10 @@ func GoModLookup(gomod []byte, key string) string {
 }
 
 func parseKey(line []byte, key string) (string, bool) {
-	if !strings.HasPrefix(string(line), key) {
+	s, cut := strings.CutPrefix(string(line), key)
+	if !cut {
 		return "", false
 	}
-	s := strings.TrimPrefix(string(line), key)
 	if len(s) == 0 || (s[0] != ' ' && s[0] != '\t') {
 		return "", false
 	}

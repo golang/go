@@ -178,12 +178,12 @@ func splitGoBuild(line string) (expr string, ok bool) {
 		return "", false
 	}
 
-	if !strings.HasPrefix(line, "//go:build") {
+	line, cut := strings.CutPrefix(line, "//go:build")
+	if !cut {
 		return "", false
 	}
 
 	line = strings.TrimSpace(line)
-	line = line[len("//go:build"):]
 
 	// If strings.TrimSpace finds more to trim after removing the //go:build prefix,
 	// it means that the prefix was followed by a space, making this a //go:build line
@@ -373,17 +373,17 @@ func splitPlusBuild(line string) (expr string, ok bool) {
 		return "", false
 	}
 
-	if !strings.HasPrefix(line, "//") {
+	line, cut := strings.CutPrefix(line, "//")
+	if !cut {
 		return "", false
 	}
-	line = line[len("//"):]
 	// Note the space is optional; "//+build" is recognized too.
 	line = strings.TrimSpace(line)
 
-	if !strings.HasPrefix(line, "+build") {
+	line, cut = strings.CutPrefix(line, "+build")
+	if !cut {
 		return "", false
 	}
-	line = line[len("+build"):]
 
 	// If strings.TrimSpace finds more to trim after removing the +build prefix,
 	// it means that the prefix was followed by a space, making this a +build line

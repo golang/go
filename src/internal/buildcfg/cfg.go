@@ -87,18 +87,27 @@ func gofips140() string {
 // isFIPSVersion reports whether v is a valid FIPS version,
 // of the form vX.Y.Z.
 func isFIPSVersion(v string) bool {
-	if !strings.HasPrefix(v, "v") {
+	v, cut := strings.CutPrefix(v, "v")
+	if !cut {
 		return false
 	}
-	v, ok := skipNum(v[len("v"):])
-	if !ok || !strings.HasPrefix(v, ".") {
+	v, ok := skipNum(v)
+	if !ok {
 		return false
 	}
-	v, ok = skipNum(v[len("."):])
-	if !ok || !strings.HasPrefix(v, ".") {
+	v, cut = strings.CutPrefix(v, ".")
+	if !cut {
 		return false
 	}
-	v, ok = skipNum(v[len("."):])
+	v, ok = skipNum(v)
+	if !ok {
+		return false
+	}
+	v, cut = strings.CutPrefix(v, ".")
+	if !cut {
+		return false
+	}
+	v, ok = skipNum(v)
 	return ok && v == ""
 }
 
