@@ -796,8 +796,8 @@ func toValidName(name string) string {
 
 	p = strings.TrimPrefix(p, "/")
 
-	for strings.HasPrefix(p, "../") {
-		p = p[len("../"):]
+	for cut := true; cut; {
+		p, cut = strings.CutPrefix(p, "../")
 	}
 
 	return p

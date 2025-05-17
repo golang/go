@@ -65,10 +65,10 @@ func indexModule(modroot string) ([]byte, error) {
 		if !d.IsDir() {
 			return nil
 		}
-		if !strings.HasPrefix(path, root) {
+		rel, cut := strings.CutPrefix(path, root)
+		if !cut {
 			panic(fmt.Errorf("path %v in walk doesn't have modroot %v as prefix", path, modroot))
 		}
-		rel := path[len(root):]
 		packages = append(packages, importRaw(modroot, rel))
 		return nil
 	})
