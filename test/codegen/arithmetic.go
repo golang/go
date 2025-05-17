@@ -91,6 +91,7 @@ func SubFromConst(a int) int {
 }
 
 func SubFromConstNeg(a int) int {
+	// arm64: "ADD\t\\$40"
 	// loong64: "ADDV[U]\t\\$40"
 	// mips: "ADD[U]\t\\$40"
 	// mips64: "ADDV[U]\t\\$40"
@@ -101,6 +102,7 @@ func SubFromConstNeg(a int) int {
 }
 
 func SubSubFromConst(a int) int {
+	// arm64: "ADD\t\\$20"
 	// loong64: "ADDV[U]\t\\$20"
 	// mips: "ADD[U]\t\\$20"
 	// mips64: "ADDV[U]\t\\$20"
@@ -118,6 +120,7 @@ func AddSubFromConst(a int) int {
 }
 
 func NegSubFromConst(a int) int {
+	// arm64: "SUB\t\\$20"
 	// loong64: "ADDV[U]\t\\$-20"
 	// mips: "ADD[U]\t\\$-20"
 	// mips64: "ADDV[U]\t\\$-20"
@@ -128,6 +131,7 @@ func NegSubFromConst(a int) int {
 }
 
 func NegAddFromConstNeg(a int) int {
+	// arm64: "SUB\t\\$40","NEG"
 	// loong64: "ADDV[U]\t\\$-40","SUBV"
 	// mips: "ADD[U]\t\\$-40","SUB"
 	// mips64: "ADDV[U]\t\\$-40","SUBV"
@@ -139,6 +143,7 @@ func NegAddFromConstNeg(a int) int {
 
 func SubSubNegSimplify(a, b int) int {
 	// amd64:"NEGQ"
+	// arm64:"NEG"
 	// loong64:"SUBV"
 	// mips:"SUB"
 	// mips64:"SUBV"
@@ -150,6 +155,7 @@ func SubSubNegSimplify(a, b int) int {
 
 func SubAddSimplify(a, b int) int {
 	// amd64:-"SUBQ",-"ADDQ"
+	// arm64:-"SUB",-"ADD"
 	// loong64:-"SUBV",-"ADDV"
 	// mips:-"SUB",-"ADD"
 	// mips64:-"SUBV",-"ADDV"
@@ -161,6 +167,7 @@ func SubAddSimplify(a, b int) int {
 
 func SubAddSimplify2(a, b, c int) (int, int, int, int, int, int) {
 	// amd64:-"ADDQ"
+	// arm64:-"ADD"
 	// mips:"SUB",-"ADD"
 	// mips64:"SUBV",-"ADDV"
 	// loong64:"SUBV",-"ADDV"
@@ -172,6 +179,7 @@ func SubAddSimplify2(a, b, c int) (int, int, int, int, int, int) {
 	// amd64:-"ADDQ"
 	r3 := (b + a) - (c + a)
 	// amd64:-"SUBQ"
+	// arm64:-"SUB"
 	// mips:"ADD",-"SUB"
 	// mips64:"ADDV",-"SUBV"
 	// loong64:"ADDV",-"SUBV"
@@ -183,6 +191,7 @@ func SubAddSimplify2(a, b, c int) (int, int, int, int, int, int) {
 
 func SubAddNegSimplify(a, b int) int {
 	// amd64:"NEGQ",-"ADDQ",-"SUBQ"
+	// arm64:"NEG",-"ADD",-"SUB"
 	// loong64:"SUBV",-"ADDV"
 	// mips:"SUB",-"ADD"
 	// mips64:"SUBV",-"ADDV"
@@ -194,6 +203,7 @@ func SubAddNegSimplify(a, b int) int {
 
 func AddAddSubSimplify(a, b, c int) int {
 	// amd64:-"SUBQ"
+	// arm64:"ADD",-"SUB"
 	// loong64:"ADDV",-"SUBV"
 	// mips:"ADD",-"SUB"
 	// mips64:"ADDV",-"SUBV"

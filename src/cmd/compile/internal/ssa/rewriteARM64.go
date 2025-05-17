@@ -12699,6 +12699,18 @@ func rewriteValueARM64_OpARM64NEG(v *Value) bool {
 		v.AddArg2(x, y)
 		return true
 	}
+	// match: (NEG (SUB x y))
+	// result: (SUB y x)
+	for {
+		if v_0.Op != OpARM64SUB {
+			break
+		}
+		y := v_0.Args[1]
+		x := v_0.Args[0]
+		v.reset(OpARM64SUB)
+		v.AddArg2(y, x)
+		return true
+	}
 	// match: (NEG (NEG x))
 	// result: x
 	for {
@@ -15202,6 +15214,18 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpARM64SUB, v.Type)
 		v0.AddArg2(a, m)
 		v.AddArg(v0)
+		return true
+	}
+	// match: (SUB x (NEG y))
+	// result: (ADD x y)
+	for {
+		x := v_0
+		if v_1.Op != OpARM64NEG {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpARM64ADD)
+		v.AddArg2(x, y)
 		return true
 	}
 	// match: (SUB x x)

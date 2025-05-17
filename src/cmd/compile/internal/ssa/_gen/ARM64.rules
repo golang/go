@@ -1198,6 +1198,7 @@
 
 // generic simplifications
 (ADD x (NEG y)) => (SUB x y)
+(SUB x (NEG y)) => (ADD x y)
 (SUB x x) => (MOVDconst [0])
 (AND x x) => x
 (OR  x x) => x
@@ -1209,6 +1210,7 @@
 (XOR x (MVN y)) => (EON x y)
 (OR  x (MVN y)) => (ORN x y)
 (MVN (XOR x y)) => (EON x y)
+(NEG (SUB x y)) => (SUB y x)
 (NEG (NEG x)) => x
 
 (CSEL [cc] (MOVDconst [-1]) (MOVDconst [0]) flag) => (CSETM [cc] flag)
