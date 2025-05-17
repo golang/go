@@ -743,6 +743,15 @@
 (ROL  x (NEG y)) => (ROR  x y)
 (ROLW x (NEG y)) => (RORW x y)
 
+// generic simplifications
+(ADD x (NEG y)) => (SUB x y)
+(SUB x (NEG y)) => (ADD x y)
+(SUB x x) => (MOVDconst [0])
+(AND x x) => x
+(OR  x x) => x
+(ORN x x) => (MOVDconst [-1])
+(XOR x x) => (MOVDconst [0])
+
 // Convert const subtraction into ADDI with negative immediate, where possible.
 (SUB x (MOVDconst [val])) && is32Bit(-val) => (ADDI [-val] x)
 (SUB <t> (MOVDconst [val]) y) && is32Bit(-val) => (NEG (ADDI <t> [-val] y))
