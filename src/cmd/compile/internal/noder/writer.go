@@ -2608,19 +2608,15 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
 		return c.withTParams(obj)
 
 	case *syntax.TypeDecl:
+		pw.checkPragmas(n.Pragma, 0, false)
+
 		obj := pw.info.Defs[n.Name].(*types2.TypeName)
 		d := typeDeclGen{TypeDecl: n, implicits: c.implicits}
 
-		if n.Alias {
-			pw.checkPragmas(n.Pragma, 0, false)
-		} else {
-			pw.checkPragmas(n.Pragma, 0, false)
-
-			// Assign a unique ID to function-scoped defined types.
-			if c.withinFunc {
-				*c.typegen++
-				d.gen = *c.typegen
-			}
+		// Assign a unique ID to function-scoped defined types.
+		if !n.Alias && c.withinFunc {
+			*c.typegen++
+			d.gen = *c.typegen
 		}
 
 		pw.typDecls[obj] = d
