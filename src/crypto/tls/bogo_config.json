@@ -72,7 +72,6 @@
         "TicketSessionIDLength-33-TLS-TLS11": "TODO: first pass, this should be fixed",
         "UnsolicitedServerNameAck-TLS-TLS12": "TODO: first pass, this should be fixed",
         "TicketSessionIDLength-33-TLS-TLS12": "TODO: first pass, this should be fixed",
-        "DuplicateExtensionClient-TLS-TLS13": "TODO: first pass, this should be fixed",
         "UnsolicitedServerNameAck-TLS-TLS13": "TODO: first pass, this should be fixed",
         "RenegotiationInfo-Forbidden-TLS13": "TODO: first pass, this should be fixed",
         "EMS-Forbidden-TLS13": "TODO: first pass, this should be fixed",
