@@ -36,7 +36,6 @@ import (
 	"cmd/internal/src"
 	"cmd/internal/sys"
 	"internal/abi"
-	"internal/buildcfg"
 	"log"
 	"math"
 )
@@ -472,6 +471,8 @@ func (c *ctxt7) rewriteToUseGot(p *obj.Prog) {
 	obj.Nopout(p)
 }
 
+const extrasize = 16 // space needed in the frame for LR+FP
+
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	if cursym.Func().Text == nil || cursym.Func().Text.Link == nil {
 		return
@@ -521,33 +522,26 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			c.autosize = int32(textstksiz)
 
 			if p.Mark&LEAF != 0 && c.autosize == 0 {
-				// A leaf function with no locals has no frame.
+				// A leaf function with no locals needs no frame.
 				p.From.Sym.Set(obj.AttrNoFrame, true)
 			}
 
 			if !p.From.Sym.NoFrame() {
 				// If there is a stack frame at all, it includes
-				// space to save the LR.
+				// space for the (now unused) word at [SP:SP+8].
 				c.autosize += 8
 			}
 
+			// Round up to a multiple of 16.
+			c.autosize += (-c.autosize) & 15
+
 			if c.autosize != 0 {
-				extrasize := int32(0)
-				if c.autosize%16 == 8 {
-					// Allocate extra 8 bytes on the frame top to save FP
-					extrasize = 8
-				} else if c.autosize&(16-1) == 0 {
-					// Allocate extra 16 bytes to save FP for the old frame whose size is 8 mod 16
-					extrasize = 16
-				} else {
-					c.ctxt.Diag("%v: unaligned frame size %d - must be 16 aligned", p, c.autosize-8)
-				}
+				// Allocate an extra 16 bytes at the top of the frame
+				// to save LR+FP.
 				c.autosize += extrasize
 				c.cursym.Func().Locals += extrasize
 
-				// low 32 bits for autosize
-				// high 32 bits for extrasize
-				p.To.Offset = int64(c.autosize) | int64(extrasize)<<32
+				p.To.Offset = int64(c.autosize)
 			} else {
 				// NOFRAME
 				p.To.Offset = 0
@@ -580,119 +574,71 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			var prologueEnd *obj.Prog
 
 			aoffset := c.autosize
-			if aoffset > 0xf0 {
-				// MOVD.W offset variant range is -0x100 to 0xf8, SP should be 16-byte aligned.
-				// so the maximum aoffset value is 0xf0.
-				aoffset = 0xf0
+			if aoffset < 16 {
+				log.Fatalf("aoffset too small %d", aoffset)
 			}
 
-			// Frame is non-empty. Make sure to save link register, even if
-			// it is a leaf function, so that traceback works.
 			q = p
-			if c.autosize > aoffset {
-				// Frame size is too large for a MOVD.W instruction. Store the frame pointer
-				// register and link register before decrementing SP, so if a signal comes
-				// during the execution of the function prologue, the traceback code will
-				// not see a half-updated stack frame.
 
-				// SUB $autosize, RSP, R20
-				q1 = obj.Appendp(q, c.newprog)
-				q1.Pos = p.Pos
-				q1.As = ASUB
-				q1.From.Type = obj.TYPE_CONST
-				q1.From.Offset = int64(c.autosize)
-				q1.Reg = REGSP
-				q1.To.Type = obj.TYPE_REG
-				q1.To.Reg = REG_R20
+			// Store return address and frame pointer at the top of the stack frame.
+			// STP.W (R29, R30), -16(SP)
+			q1 = obj.Appendp(q, c.newprog)
+			q1.Pos = p.Pos
+			q1.As = ASTP
+			q1.From.Type = obj.TYPE_REGREG
+			q1.From.Reg = REGFP
+			q1.From.Offset = REGLINK
+			q1.To.Type = obj.TYPE_MEM
+			q1.To.Reg = REG_RSP
+			q1.To.Offset = -16
+			q1.Scond = C_XPRE
 
-				prologueEnd = q1
+			prologueEnd = q1
 
-				// STP (R29, R30), -8(R20)
-				q1 = obj.Appendp(q1, c.newprog)
-				q1.Pos = p.Pos
-				q1.As = ASTP
-				q1.From.Type = obj.TYPE_REGREG
-				q1.From.Reg = REGFP
-				q1.From.Offset = REGLINK
-				q1.To.Type = obj.TYPE_MEM
-				q1.To.Reg = REG_R20
-				q1.To.Offset = -8
+			// Update frame pointer
+			q1 = obj.Appendp(q1, c.newprog)
+			q1.Pos = p.Pos
+			q1.As = AMOVD
+			q1.From.Type = obj.TYPE_REG
+			q1.From.Reg = REGSP
+			q1.To.Type = obj.TYPE_REG
+			q1.To.Reg = REGFP
 
-				// This is not async preemptible, as if we open a frame
-				// at the current SP, it will clobber the saved LR.
-				q1 = c.ctxt.StartUnsafePoint(q1, c.newprog)
-
-				// MOVD R20, RSP
-				q1 = obj.Appendp(q1, c.newprog)
-				q1.Pos = p.Pos
-				q1.As = AMOVD
-				q1.From.Type = obj.TYPE_REG
-				q1.From.Reg = REG_R20
-				q1.To.Type = obj.TYPE_REG
-				q1.To.Reg = REGSP
-				q1.Spadj = c.autosize
-
-				q1 = c.ctxt.EndUnsafePoint(q1, c.newprog, -1)
-
-				if buildcfg.GOOS == "ios" {
-					// iOS does not support SA_ONSTACK. We will run the signal handler
-					// on the G stack. If we write below SP, it may be clobbered by
-					// the signal handler. So we save FP and LR after decrementing SP.
-					// STP (R29, R30), -8(RSP)
+			// Allocate additional frame space.
+			adj := aoffset - 16
+			if adj > 0 {
+				// SUB $autosize-16, RSP
+				if adj < 1<<12 {
 					q1 = obj.Appendp(q1, c.newprog)
 					q1.Pos = p.Pos
-					q1.As = ASTP
-					q1.From.Type = obj.TYPE_REGREG
-					q1.From.Reg = REGFP
-					q1.From.Offset = REGLINK
-					q1.To.Type = obj.TYPE_MEM
+					q1.As = ASUB
+					q1.From.Type = obj.TYPE_CONST
+					q1.From.Offset = int64(adj)
+					q1.To.Type = obj.TYPE_REG
 					q1.To.Reg = REGSP
-					q1.To.Offset = -8
+				} else {
+					// Constant too big for atomic subtract.
+					// Materialize in tmp register first.
+					q1 = obj.Appendp(q1, c.newprog)
+					q1.Pos = p.Pos
+					q1.As = AMOVD
+					q1.From.Type = obj.TYPE_CONST
+					q1.From.Offset = int64(adj)
+					q1.To.Type = obj.TYPE_REG
+					q1.To.Reg = REGTMP
+
+					q1 = obj.Appendp(q1, c.newprog)
+					q1.Pos = p.Pos
+					q1.As = ASUB
+					q1.From.Type = obj.TYPE_REG
+					q1.From.Reg = REGTMP
+					q1.To.Type = obj.TYPE_REG
+					q1.To.Reg = REGSP
 				}
-			} else {
-				// small frame, update SP and save LR in a single MOVD.W instruction.
-				// So if a signal comes during the execution of the function prologue,
-				// the traceback code will not see a half-updated stack frame.
-				// Also, on Linux, in a cgo binary we may get a SIGSETXID signal
-				// early on before the signal stack is set, as glibc doesn't allow
-				// us to block SIGSETXID. So it is important that we don't write below
-				// the SP until the signal stack is set.
-				// Luckily, all the functions from thread entry to setting the signal
-				// stack have small frames.
-				q1 = obj.Appendp(q, c.newprog)
-				q1.As = AMOVD
-				q1.Pos = p.Pos
-				q1.From.Type = obj.TYPE_REG
-				q1.From.Reg = REGLINK
-				q1.To.Type = obj.TYPE_MEM
-				q1.Scond = C_XPRE
-				q1.To.Offset = int64(-aoffset)
-				q1.To.Reg = REGSP
-				q1.Spadj = aoffset
-
-				prologueEnd = q1
-
-				// Frame pointer.
-				q1 = obj.Appendp(q1, c.newprog)
-				q1.Pos = p.Pos
-				q1.As = AMOVD
-				q1.From.Type = obj.TYPE_REG
-				q1.From.Reg = REGFP
-				q1.To.Type = obj.TYPE_MEM
-				q1.To.Reg = REGSP
-				q1.To.Offset = -8
+				q1.Spadj = adj
 			}
 
 			prologueEnd.Pos = prologueEnd.Pos.WithXlogue(src.PosPrologueEnd)
-
-			q1 = obj.Appendp(q1, c.newprog)
-			q1.Pos = p.Pos
-			q1.As = ASUB
-			q1.From.Type = obj.TYPE_CONST
-			q1.From.Offset = 8
-			q1.Reg = REGSP
-			q1.To.Type = obj.TYPE_REG
-			q1.To.Reg = REGFP
 
 		case obj.ARET:
 			nocache(p)
@@ -707,105 +653,56 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 			p.To = obj.Addr{}
 			aoffset := c.autosize
-			if c.cursym.Func().Text.Mark&LEAF != 0 {
-				if aoffset != 0 {
-					// Restore frame pointer.
-					// ADD $framesize-8, RSP, R29
-					p.As = AADD
-					p.From.Type = obj.TYPE_CONST
-					p.From.Offset = int64(c.autosize) - 8
-					p.Reg = REGSP
-					p.To.Type = obj.TYPE_REG
-					p.To.Reg = REGFP
-
-					// Pop stack frame.
-					// ADD $framesize, RSP, RSP
-					p = obj.Appendp(p, c.newprog)
-					p.As = AADD
-					p.From.Type = obj.TYPE_CONST
-					p.From.Offset = int64(c.autosize)
-					p.To.Type = obj.TYPE_REG
-					p.To.Reg = REGSP
-					p.Spadj = -c.autosize
+			if aoffset > 0 {
+				if aoffset < 16 {
+					log.Fatalf("aoffset too small %d", aoffset)
 				}
-			} else if aoffset <= 0xF0 {
-				// small frame, restore LR and update SP in a single MOVD.P instruction.
-				// There is no correctness issue to use a single LDP for LR and FP,
-				// but the instructions are not pattern matched with the prologue's
-				// MOVD.W and MOVD, which may cause performance issue in
-				// store-forwarding.
+				adj := aoffset - 16
+				if adj > 0 {
+					if adj < 1<<12 {
+						// ADD $adj, RSP, RSP
+						p.As = AADD
+						p.From.Type = obj.TYPE_CONST
+						p.From.Offset = int64(adj)
+						p.To.Type = obj.TYPE_REG
+						p.To.Reg = REGSP
+					} else {
+						// Put frame size in a separate register and
+						// add it in with a single instruction,
+						// so we never have a partial frame during
+						// the epilog. See issue 73259.
 
-				// MOVD -8(RSP), R29
-				p.As = AMOVD
-				p.From.Type = obj.TYPE_MEM
-				p.From.Reg = REGSP
-				p.From.Offset = -8
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = REGFP
-				p = obj.Appendp(p, c.newprog)
+						// MOVD $adj, REGTMP
+						p.As = AMOVD
+						p.From.Type = obj.TYPE_CONST
+						p.From.Offset = int64(adj)
+						p.To.Type = obj.TYPE_REG
+						p.To.Reg = REGTMP
+						// ADD REGTMP, RSP, RSP
+						p = obj.Appendp(p, c.newprog)
+						p.As = AADD
+						p.From.Type = obj.TYPE_REG
+						p.From.Reg = REGTMP
+						p.To.Type = obj.TYPE_REG
+						p.To.Reg = REGSP
+					}
+					p.Spadj = -adj
+				}
 
-				// MOVD.P offset(RSP), R30
-				p.As = AMOVD
-				p.From.Type = obj.TYPE_MEM
-				p.Scond = C_XPOST
-				p.From.Offset = int64(aoffset)
-				p.From.Reg = REGSP
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = REGLINK
-				p.Spadj = -aoffset
-			} else {
-				// LDP -8(RSP), (R29, R30)
+				// Pop LR+FP.
+				// LDP.P 16(RSP), (R29, R30)
+				if p.As != obj.ARET {
+					p = obj.Appendp(p, c.newprog)
+				}
 				p.As = ALDP
 				p.From.Type = obj.TYPE_MEM
-				p.From.Offset = -8
 				p.From.Reg = REGSP
+				p.From.Offset = 16
+				p.Scond = C_XPOST
 				p.To.Type = obj.TYPE_REGREG
 				p.To.Reg = REGFP
 				p.To.Offset = REGLINK
-
-				if aoffset < 1<<12 {
-					// ADD $aoffset, RSP, RSP
-					q = newprog()
-					q.As = AADD
-					q.From.Type = obj.TYPE_CONST
-					q.From.Offset = int64(aoffset)
-					q.To.Type = obj.TYPE_REG
-					q.To.Reg = REGSP
-					q.Spadj = -aoffset
-					q.Pos = p.Pos
-					q.Link = p.Link
-					p.Link = q
-					p = q
-				} else {
-					// Put frame size in a separate register and
-					// add it in with a single instruction,
-					// so we never have a partial frame during
-					// the epilog. See issue 73259.
-
-					// MOVD $aoffset, REGTMP
-					q = newprog()
-					q.As = AMOVD
-					q.From.Type = obj.TYPE_CONST
-					q.From.Offset = int64(aoffset)
-					q.To.Type = obj.TYPE_REG
-					q.To.Reg = REGTMP
-					q.Pos = p.Pos
-					q.Link = p.Link
-					p.Link = q
-					p = q
-					// ADD REGTMP, RSP, RSP
-					q = newprog()
-					q.As = AADD
-					q.From.Type = obj.TYPE_REG
-					q.From.Reg = REGTMP
-					q.To.Type = obj.TYPE_REG
-					q.To.Reg = REGSP
-					q.Spadj = -aoffset
-					q.Pos = p.Pos
-					q.Link = p.Link
-					p.Link = q
-					p = q
-				}
+				p.Spadj = -16
 			}
 
 			// If enabled, this code emits 'MOV PC, R27' before every 'MOV LR, PC',
@@ -868,10 +765,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.From.Type = obj.TYPE_REG
 				p.From.Reg = REGLINK
 			} else {
-				/* MOVD (RSP), Rd */
+				/* MOVD framesize-8(RSP), Rd */
 				p.As = AMOVD
 				p.From.Type = obj.TYPE_MEM
 				p.From.Reg = REGSP
+				p.From.Offset = int64(c.autosize - 8)
 			}
 		}
 		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {
@@ -905,6 +803,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = int16(REG_LSL + r + (shift&7)<<5)
 			p.From.Offset = 0
+		}
+		if p.To.Type == obj.TYPE_MEM && p.To.Reg == REG_RSP && (p.Scond == C_XPRE || p.Scond == C_XPOST) {
+			p.Spadj += int32(-p.To.Offset)
+		}
+		if p.From.Type == obj.TYPE_MEM && p.From.Reg == REG_RSP && (p.Scond == C_XPRE || p.Scond == C_XPOST) {
+			p.Spadj += int32(-p.From.Offset)
 		}
 	}
 }

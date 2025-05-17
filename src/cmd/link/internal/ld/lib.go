@@ -263,6 +263,10 @@ type Arch struct {
 	// optional override for assignAddress
 	AssignAddress func(ldr *loader.Loader, sect *sym.Section, n int, s loader.Sym, va uint64, isTramp bool) (*sym.Section, int, uint64)
 
+	// Reports whether the return address is stored at the top (highest address)
+	// of the stack frame.
+	ReturnAddressAtTopOfFrame bool
+
 	// ELF specific information.
 	ELF ELFArch
 }

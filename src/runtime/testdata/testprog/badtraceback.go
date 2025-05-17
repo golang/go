@@ -41,6 +41,11 @@ func badLR2(arg int) {
 	if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" {
 		lrOff = 32 // FIXED_FRAME or sys.MinFrameSize
 	}
+	if runtime.GOARCH == "arm64" {
+		// skip 8 bytes at bottom of parent frame, then point
+		// to the 8 bytes of the saved PC at the top of the frame.
+		lrOff = 16
+	}
 	lrPtr := (*uintptr)(unsafe.Pointer(uintptr(unsafe.Pointer(&arg)) - lrOff))
 	*lrPtr = 0xbad
 
