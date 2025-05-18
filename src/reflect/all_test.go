@@ -8689,6 +8689,7 @@ func TestTypeAssert(t *testing.T) {
 	testTypeAssert(t, int8(-123), int8(-123), true)
 	testTypeAssert(t, [2]int{1234, -5678}, [2]int{1234, -5678}, true)
 	testTypeAssert(t, "test value", "test value", true)
+	testTypeAssert(t, any("test value"), any("test value"), true)
 
 	v := 123456789
 	testTypeAssert(t, &v, &v, true)
@@ -8705,6 +8706,13 @@ func TestTypeAssert(t *testing.T) {
 	testTypeAssert[fmt.Stringer](t, &vv, &vv, true)
 	testTypeAssert[interface{ A() }](t, vv, nil, false)
 	testTypeAssert[interface{ A() }](t, &vv, nil, false)
+	testTypeAssert(t, any(vv), any(vv), true)
+	testTypeAssert(t, fmt.Stringer(vv), fmt.Stringer(vv), true)
+
+	testTypeAssert(t, fmt.Stringer(vv), any(vv), true)
+	testTypeAssert(t, any(vv), fmt.Stringer(vv), true)
+	testTypeAssert(t, fmt.Stringer(vv), interface{ M() }(vv), true)
+	testTypeAssert(t, interface{ M() }(vv), fmt.Stringer(vv), true)
 
 	testTypeAssert(t, any(int(1)), int(1), true)
 	testTypeAssert(t, any(int(1)), byte(0), false)
@@ -8722,13 +8730,14 @@ func testTypeAssert[T comparable, V any](t *testing.T, val V, wantVal T, wantOk 
 	// Additionally make sure that TypeAssert[T](v) behaves in the same way as v.Interface().(T).
 	v2, ok2 := ValueOf(&val).Elem().Interface().(T)
 	if v != v2 || ok != ok2 {
-		t.Errorf("reflect.ValueOf(%#v).Interface().(%v) = (%#v, %v); want = (%#v, %v)", val, TypeFor[T](), v, ok, v2, ok2)
+		t.Errorf("reflect.ValueOf(%#v).Interface().(%v) = (%#v, %v); want = (%#v, %v)", val, TypeFor[T](), v2, ok2, v, ok)
 	}
 }
 
 type testTypeWithMethod struct{ val string }
 
 func (v testTypeWithMethod) String() string { return v.val }
+func (v testTypeWithMethod) M()             {}
 
 func TestTypeAssertMethod(t *testing.T) {
 	method := ValueOf(&testTypeWithMethod{val: "test value"}).MethodByName("String")

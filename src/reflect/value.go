@@ -1516,7 +1516,8 @@ func TypeAssert[T any](v Value) (T, bool) {
 		v = makeMethodValue("TypeAssert", v)
 	}
 
-	if abi.TypeFor[T]() != v.typ() {
+	typ := abi.TypeFor[T]()
+	if typ != v.typ() {
 		// We can't just return false here:
 		//
 		//	var zero T
@@ -1525,23 +1526,30 @@ func TypeAssert[T any](v Value) (T, bool) {
 		// since this function should work in the same manner as v.Interface().(T) does.
 		// Thus we have to handle two cases specially.
 
-		// T is an interface, v is a concrete type. For example:
-		//
-		// TypeAssert[any](ValueOf(1)) == ValueOf(1).Interface().(any)
-		// TypeAssert[error](ValueOf(&someError{})) == ValueOf(&someError{}).Interface().(error)
-		if abi.TypeFor[T]().Kind() == abi.Interface {
-			v, ok := packEface(v).(T)
-			return v, ok
-		}
-
 		// Return the element inside the interface.
-		// T is a concrete type, v is an interface. For example:
+		//
+		// T is a concrete type and v is an interface. For example:
 		//
 		// var v any = int(1)
 		// val := ValueOf(&v).Elem()
 		// TypeAssert[int](val) == val.Interface().(int)
+		//
+		// T is a interface and v is an interface, but the iface types are different. For example:
+		//
+		// var v any = &someError{}
+		// val := ValueOf(&v).Elem()
+		// TypeAssert[error](val) == val.Interface().(error)
 		if v.kind() == Interface {
 			v, ok := packIntoEmptyIface(v).(T)
+			return v, ok
+		}
+
+		// T is an interface, v is a concrete type. For example:
+		//
+		// TypeAssert[any](ValueOf(1)) == ValueOf(1).Interface().(any)
+		// TypeAssert[error](ValueOf(&someError{})) == ValueOf(&someError{}).Interface().(error)
+		if typ.Kind() == abi.Interface {
+			v, ok := packEface(v).(T)
 			return v, ok
 		}
 
