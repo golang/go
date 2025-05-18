@@ -2129,6 +2129,8 @@ var fmaC = []struct{ x, y, z, want float64 }{
 
 	// Issue #73757
 	{0x1p-1022, -0x1p-1022, 0, Copysign(0, -1)},
+	{Copysign(0, -1), 1, 0, 0},
+	{1, Copysign(0, -1), 0, 0},
 }
 
 var sqrt32 = []float32{
