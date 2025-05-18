@@ -4,9 +4,33 @@
 # https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
 # https://containers.dev/guide/dependabot
 
-version: 2
+version: 1
 updates:
  - package-ecosystem: "devcontainers"
-   directory: "/"
+   directory: home/.devcontainer
+   schedule:
+     interval: weekly
+ - package-ecosystem: "dockerfile"
+   directory: home/.devcontainer
+   schedule:
+     interval: weekly
+ - package-ecosystem: "dockerfile"
+   directory: home/.devcontainer
+   schedule:
+     interval: weekly
+ - package-ecosystem: "dockerfile"
+   directory: home/.devcontainer
+   schedule:
+     interval: weekly
+ - package-ecosystem: "dockerfile"
+   directory: home/.devcontainer
+   schedule:
+     interval: weekly
+ - package-ecosystem: "dockerfile"
+   directory: home/.devcontainer
+   schedule:
+     interval: weekly
+ - package-ecosystem: "dockerfile"
+   directory: home/.devcontainer
    schedule:
      interval: weekly
