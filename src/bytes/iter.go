@@ -76,7 +76,7 @@ func SplitAfterSeq(s, sep []byte) iter.Seq[[]byte] {
 	return splitSeq(s, sep, len(sep))
 }
 
-// FieldsSeq returns an iterator over subslices of s split around runs of
+// FieldsSeq returns an iterator over subslices of s split around runes of
 // whitespace characters, as defined by [unicode.IsSpace].
 // The iterator yields the same subslices that would be returned by [Fields](s),
 // but without constructing a new slice containing the subslices.
@@ -109,7 +109,7 @@ func FieldsSeq(s []byte) iter.Seq[[]byte] {
 	}
 }
 
-// FieldsFuncSeq returns an iterator over subslices of s split around runs of
+// FieldsFuncSeq returns an iterator over subslices of s split around runes of
 // Unicode code points satisfying f(c).
 // The iterator yields the same subslices that would be returned by [FieldsFunc](s),
 // but without constructing a new slice containing the subslices.
