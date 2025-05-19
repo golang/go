@@ -659,8 +659,8 @@ func TestSegv(t *testing.T) {
 	case "plan9", "windows":
 		t.Skipf("no signals on %s", runtime.GOOS)
 	}
-	if asan.Enabled || msan.Enabled {
-		t.Skip("skipping test on ASAN/MSAN: triggers SIGSEGV in sanitizer runtime")
+	if race.Enabled || asan.Enabled || msan.Enabled {
+		t.Skip("skipping test on race/ASAN/MSAN: triggers SIGSEGV in sanitizer runtime")
 	}
 
 	for _, test := range []string{"Segv", "SegvInCgo", "TgkillSegv", "TgkillSegvInCgo"} {
