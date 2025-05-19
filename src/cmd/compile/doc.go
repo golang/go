@@ -320,17 +320,19 @@ by ``importmodule'' and ``importname''. For example,
 
 causes g to refer to the WebAssembly function f from module a_module.
 
-	//go:wasmexport exportname
+	//go:wasmexport [exportname]
 
 The //go:wasmexport directive is wasm-only and must be followed by a
 function definition.
 It specifies that the function is exported to the wasm host as ``exportname''.
+If exportname is omitted, the function's own name will be used as the export name.
 For example,
-
 	//go:wasmexport h
 	func hWasm() { ... }
-
-make Go function hWasm available outside this WebAssembly module as h.
+makes Go function hWasm available outside this WebAssembly module as h.
+	//go:wasmexport
+	func hWasm() { ... }
+makes Go function hWasm available outside this WebAssembly module as hWasm.
 
 For both go:wasmimport and go:wasmexport,
 the types of parameters and return values to the Go function are translated to

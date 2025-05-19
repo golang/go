@@ -13,6 +13,9 @@ package p
 //go:wasmexport F
 func F() {} // OK
 
+//go:wasmexport
+func G() {} // OK
+
 type S int32
 
 //go:wasmexport M

@@ -1125,7 +1125,11 @@ func (w *writer) funcExt(obj *types2.Func) {
 			w.String("")
 		}
 		if we != nil {
-			w.String(we.Name)
+			if we.Name != "" {
+				w.String(we.Name)
+			} else {
+				w.String(decl.Name.Value)
+			}
 		} else {
 			w.String("")
 		}
