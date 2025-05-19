@@ -1899,3 +1899,23 @@ func TestRootRemoveDot(t *testing.T) {
 		t.Error(`root.Remove(All)?(".") removed the root`)
 	}
 }
+
+func TestRootWriteReadFile(t *testing.T) {
+	dir := t.TempDir()
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+
+	name := "filename"
+	want := []byte("file contents")
+	if err := root.WriteFile(name, want, 0o666); err != nil {
+		t.Fatalf("root.WriteFile(%q, %q, 0o666) = %v; want nil", name, want, err)
+	}
+
+	got, err := root.ReadFile(name)
+	if err != nil {
+		t.Fatalf("root.ReadFile(%q) = %q, %v; want %q, nil", name, got, err, want)
+	}
+}

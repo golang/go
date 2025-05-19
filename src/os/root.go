@@ -248,6 +248,31 @@ func (r *Root) Symlink(oldname, newname string) error {
 	return rootSymlink(r, oldname, newname)
 }
 
+// ReadFile reads the named file in the root and returns its contents.
+// See [ReadFile] for more details.
+func (r *Root) ReadFile(name string) ([]byte, error) {
+	f, err := r.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return readFileContents(statOrZero(f), f.Read)
+}
+
+// WriteFile writes data to the named file in the root, creating it if necessary.
+// See [WriteFile] for more details.
+func (r *Root) WriteFile(name string, data []byte, perm FileMode) error {
+	f, err := r.OpenFile(name, O_WRONLY|O_CREATE|O_TRUNC, perm)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(data)
+	if err1 := f.Close(); err == nil {
+		err = err1
+	}
+	return err
+}
+
 func (r *Root) logOpen(name string) {
 	if log := testlog.Logger(); log != nil {
 		// This won't be right if r's name has changed since it was opened,
