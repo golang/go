@@ -24,7 +24,7 @@ determines its index in the series.
     Payload     = SectionString
                   SectionMeta
                   SectionPosBase
-                  SectionPkg     // TODO(markfreeman) Define.
+                  SectionPkg
                   SectionName    // TODO(markfreeman) Define.
                   SectionType    // TODO(markfreeman) Define.
                   SectionObj     // TODO(markfreeman) Define.
@@ -61,7 +61,7 @@ for all exported objects it contains.
 
     PublicRoot  = Relocs
                   [ SyncPublic ] // TODO(markfreeman): Define.
-                  PackageRef     // TODO(markfreeman): Define.
+                  PkgRef
                   [ HasInit ]
                   ObjectRefCount // TODO(markfreeman): Define.
                   { ObjectRef }  // TODO(markfreeman): Define.
@@ -100,6 +100,41 @@ without a PosBase have no line or column.
                 Uint64         // line
                 Uint64 ]       // column
               .
+
+## Package Section
+The package section holds package information. It is a series of Pkg
+elements.
+
+    SectionPkg = { Pkg } .
+
+A Pkg element contains a (path, name) pair and a series of imported
+packages. The below package paths have special meaning.
+
+    +--------------+-----------------------------------+
+    | package path |             indicates             |
+    +--------------+-----------------------------------+
+    | ""           | the current package               |
+    | "builtin"    | the fake builtin package          |
+    | "unsafe"     | the compiler-known unsafe package |
+    +--------------+-----------------------------------+
+
+    Pkg        = Relocs
+                 [ SyncPkgDef ] // TODO(markfreeman): Define.
+                 StringRef      // path
+                 // The below is ommitted for the special package paths
+                 // "builtin" and "unsafe".
+                 [ StringRef    // name
+                   Imports ]
+                 .
+    Imports    = Uint64         // the number of declared imports
+                 { PkgRef }     // references to declared imports
+                 .
+
+Note, a PkgRef is *not* equivalent to Ref[Pkg] due to an extra marker.
+
+    PkgRef     = [ SyncPkg ]    // TODO(markfreeman): Define.
+                 Ref[Pkg]
+                 .
 
 # References
 A reference table precedes every element. Each entry in the table
