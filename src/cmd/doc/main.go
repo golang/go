@@ -126,6 +126,11 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 			return err
 		}
 	}
+	if serveHTTP {
+		// We want to run the logic below to determine a match for a symbol, method,
+		// or field, but not actually print the documentation to the output.
+		writer = io.Discard
+	}
 	var paths []string
 	var symbol, method string
 	// Loop until something is printed.
@@ -163,21 +168,25 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 			panic(e)
 		}()
 
-		if serveHTTP {
-			return doPkgsite(pkg, symbol, method)
-		}
+		var found bool
 		switch {
 		case symbol == "":
 			pkg.packageDoc() // The package exists, so we got some output.
-			return
+			found = true
 		case method == "":
 			if pkg.symbolDoc(symbol) {
-				return
+				found = true
 			}
 		case pkg.printMethodDoc(symbol, method):
-			return
+			found = true
 		case pkg.printFieldDoc(symbol, method):
-			return
+			found = true
+		}
+		if found {
+			if serveHTTP {
+				return doPkgsite(pkg, symbol, method)
+			}
+			return nil
 		}
 	}
 }
