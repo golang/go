@@ -29,8 +29,14 @@ func EpollWait(epfd int32, events []EpollEvent, maxev, waitms int32) (n int32, e
 	} else {
 		ev = unsafe.Pointer(&_zero)
 	}
-	r1, _, e := Syscall6(SYS_EPOLL_PWAIT, uintptr(epfd), uintptr(ev), uintptr(maxev), uintptr(waitms), 0, 0)
-	return int32(r1), e
+
+	if SYS_EPOLL_WAIT != NOSYS {
+		r1, _, e := Syscall6(SYS_EPOLL_WAIT, uintptr(epfd), uintptr(ev), uintptr(maxev), uintptr(waitms), 0, 0)
+		return int32(r1), e
+	} else {
+		r1, _, e := Syscall6(SYS_EPOLL_PWAIT, uintptr(epfd), uintptr(ev), uintptr(maxev), uintptr(waitms), 0, 0)
+		return int32(r1), e
+	}
 }
 
 func EpollCtl(epfd, op, fd int32, event *EpollEvent) (errno uintptr) {
