@@ -159,6 +159,8 @@ func ntCreateFileError(err error, flag uint64) error {
 		}
 	case STATUS_FILE_IS_A_DIRECTORY:
 		return syscall.EISDIR
+	case STATUS_OBJECT_NAME_COLLISION:
+		return syscall.EEXIST
 	}
 	return s.Errno()
 }

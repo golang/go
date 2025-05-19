@@ -145,12 +145,24 @@ func (r *Root) Chmod(name string, mode FileMode) error {
 // See [Mkdir] for more details.
 //
 // If perm contains bits other than the nine least-significant bits (0o777),
-// OpenFile returns an error.
+// Mkdir returns an error.
 func (r *Root) Mkdir(name string, perm FileMode) error {
 	if perm&0o777 != perm {
 		return &PathError{Op: "mkdirat", Path: name, Err: errors.New("unsupported file mode")}
 	}
 	return rootMkdir(r, name, perm)
+}
+
+// MkdirAll creates a new directory in the root, along with any necessary parents.
+// See [MkdirAll] for more details.
+//
+// If perm contains bits other than the nine least-significant bits (0o777),
+// MkdirAll returns an error.
+func (r *Root) MkdirAll(name string, perm FileMode) error {
+	if perm&0o777 != perm {
+		return &PathError{Op: "mkdirat", Path: name, Err: errors.New("unsupported file mode")}
+	}
+	return rootMkdirAll(r, name, perm)
 }
 
 // Chown changes the numeric uid and gid of the named file in the root.

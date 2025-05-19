@@ -551,6 +551,40 @@ func TestRootMkdir(t *testing.T) {
 	}
 }
 
+func TestRootMkdirAll(t *testing.T) {
+	for _, test := range rootTestCases {
+		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			wantError := test.wantError
+			if !wantError {
+				fi, err := os.Lstat(filepath.Join(root.Name(), test.open))
+				if err == nil && fi.Mode().Type() == fs.ModeSymlink {
+					// This case is trying to mkdir("some symlink"),
+					// which is an error.
+					wantError = true
+				}
+			}
+
+			err := root.Mkdir(test.open, 0o777)
+			if errEndsTest(t, err, wantError, "root.MkdirAll(%q)", test.open) {
+				return
+			}
+			fi, err := os.Lstat(target)
+			if err != nil {
+				t.Fatalf(`stat file created with Root.MkdirAll(%q): %v`, test.open, err)
+			}
+			if !fi.IsDir() {
+				t.Fatalf(`stat file created with Root.MkdirAll(%q): not a directory`, test.open)
+			}
+			if mode := fi.Mode(); mode&0o777 == 0 {
+				// Issue #73559: We're not going to worry about the exact
+				// mode bits (which will have been modified by umask),
+				// but there should be mode bits.
+				t.Fatalf(`stat file created with Root.MkdirAll(%q): mode=%v, want non-zero`, test.open, mode)
+			}
+		})
+	}
+}
+
 func TestRootOpenRoot(t *testing.T) {
 	for _, test := range rootTestCases {
 		test.run(t, func(t *testing.T, target string, root *os.Root) {
@@ -1115,7 +1149,7 @@ var rootConsistencyTestCases = []rootConsistencyTest{{
 	name: "symlink to dir ends in slash",
 	fs: []string{
 		"dir/",
-		"link => dir",
+		"link => dir/",
 	},
 	open: "link",
 }, {
@@ -1355,6 +1389,20 @@ func TestRootConsistencyMkdir(t *testing.T) {
 				err = os.Mkdir(path, 0o777)
 			} else {
 				err = r.Mkdir(path, 0o777)
+			}
+			return "", err
+		})
+	}
+}
+
+func TestRootConsistencyMkdirAll(t *testing.T) {
+	for _, test := range rootConsistencyTestCases {
+		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
+			var err error
+			if r == nil {
+				err = os.MkdirAll(path, 0o777)
+			} else {
+				err = r.MkdirAll(path, 0o777)
 			}
 			return "", err
 		})
