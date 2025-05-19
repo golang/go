@@ -208,7 +208,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 			modPrefix = mod.Path
 		}
 		if mi, err := modindex.GetModule(root); err == nil {
-			walkFromIndex(mi, modPrefix, isMatch, treeCanMatch, tags, have, addPkg)
+			walkFromIndex(mi, modPrefix, isMatch, treeCanMatch, tags, have, addPkg, ignorePatternsMap[root], root)
 			continue
 		} else if !errors.Is(err, modindex.ErrNotIndexed) {
 			m.AddError(err)
@@ -225,7 +225,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 // walkFromIndex matches packages in a module using the module index. modroot
 // is the module's root directory on disk, index is the modindex.Module for the
 // module, and importPathRoot is the module's path prefix.
-func walkFromIndex(index *modindex.Module, importPathRoot string, isMatch, treeCanMatch func(string) bool, tags, have map[string]bool, addPkg func(string)) {
+func walkFromIndex(index *modindex.Module, importPathRoot string, isMatch, treeCanMatch func(string) bool, tags, have map[string]bool, addPkg func(string), ignorePatterns *search.IgnorePatterns, modRoot string) {
 	index.Walk(func(reldir string) {
 		// Avoid .foo, _foo, and testdata subdirectory trees.
 		p := reldir
@@ -246,6 +246,14 @@ func walkFromIndex(index *modindex.Module, importPathRoot string, isMatch, treeC
 				break
 			}
 			p = rest
+		}
+
+		if ignorePatterns != nil && ignorePatterns.ShouldIgnore(reldir) {
+			if cfg.BuildX {
+				absPath := filepath.Join(modRoot, reldir)
+				fmt.Fprintf(os.Stderr, "# ignoring directory %s\n", absPath)
+			}
+			return
 		}
 
 		// Don't use GOROOT/src.
