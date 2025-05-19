@@ -170,6 +170,7 @@ there for definitions of the below productions.
     * Int64
     * Uint64
     * String
+    * Ref[T]
     * Sync
 */
 
