@@ -1235,6 +1235,8 @@
 // This flag is mainly for tools that understand Go version dependencies.
 // Users should prefer 'go get toolchain@version'.
 //
+// The -droptoolchain flag removes the toolchain directive from the go.mod file.
+//
 // The -exclude=path@version and -dropexclude=path@version flags
 // add and drop an exclusion for the given module path and version.
 // Note that -exclude=path@version is a no-op if that exclusion already exists.
@@ -1264,7 +1266,7 @@
 //
 // The -godebug, -dropgodebug, -require, -droprequire, -exclude, -dropexclude,
 // -replace, -dropreplace, -retract, -dropretract, -tool, -droptool, -ignore,
-// and -dropignore editing flags may be repeated, and the changes are applied
+// -dropignore, and -droptoolchain editing flags may be repeated, and the changes are applied
 // in the order given.
 //
 // The -print flag prints the final go.mod in its text format instead of
@@ -1806,7 +1808,7 @@
 // To view the current telemetry mode, run "go telemetry".
 // To disable telemetry uploading, but keep local data collection, run
 // "go telemetry local".
-// To enable both collection and uploading, run “go telemetry on”.
+// To enable both collection and uploading, run "go telemetry on".
 // To disable both collection and uploading, run "go telemetry off".
 //
 // The current telemetry mode is also available as the value of the

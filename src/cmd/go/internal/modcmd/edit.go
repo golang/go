@@ -66,6 +66,8 @@ The -toolchain=version flag sets the Go toolchain to use.
 This flag is mainly for tools that understand Go version dependencies.
 Users should prefer 'go get toolchain@version'.
 
+The -droptoolchain flag removes the toolchain directive from the go.mod file.
+
 The -exclude=path@version and -dropexclude=path@version flags
 add and drop an exclusion for the given module path and version.
 Note that -exclude=path@version is a no-op if that exclusion already exists.
@@ -95,7 +97,7 @@ for the given path.
 
 The -godebug, -dropgodebug, -require, -droprequire, -exclude, -dropexclude,
 -replace, -dropreplace, -retract, -dropretract, -tool, -droptool, -ignore,
-and -dropignore editing flags may be repeated, and the changes are applied
+-dropignore, and -droptoolchain editing flags may be repeated, and the changes are applied
 in the order given.
 
 The -print flag prints the final go.mod in its text format instead of
@@ -169,13 +171,14 @@ See https://golang.org/ref/mod#go-mod-edit for more about 'go mod edit'.
 }
 
 var (
-	editFmt       = cmdEdit.Flag.Bool("fmt", false, "")
-	editGo        = cmdEdit.Flag.String("go", "", "")
-	editToolchain = cmdEdit.Flag.String("toolchain", "", "")
-	editJSON      = cmdEdit.Flag.Bool("json", false, "")
-	editPrint     = cmdEdit.Flag.Bool("print", false, "")
-	editModule    = cmdEdit.Flag.String("module", "", "")
-	edits         []func(*modfile.File) // edits specified in flags
+	editFmt           = cmdEdit.Flag.Bool("fmt", false, "")
+	editGo            = cmdEdit.Flag.String("go", "", "")
+	editToolchain     = cmdEdit.Flag.String("toolchain", "", "")
+	editJSON          = cmdEdit.Flag.Bool("json", false, "")
+	editPrint         = cmdEdit.Flag.Bool("print", false, "")
+	editModule        = cmdEdit.Flag.String("module", "", "")
+	editDropToolchain = cmdEdit.Flag.Bool("droptoolchain", false, "drop the toolchain directive")
+	edits             []func(*modfile.File) // edits specified in flags
 )
 
 type flagFunc func(string)
@@ -213,6 +216,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 		*editJSON ||
 		*editPrint ||
 		*editFmt ||
+		*editDropToolchain ||
 		len(edits) > 0
 
 	if !anyFlags {
@@ -221,6 +225,10 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 
 	if *editJSON && *editPrint {
 		base.Fatalf("go: cannot use both -json and -print")
+	}
+
+	if *editToolchain != "" && *editDropToolchain {
+		base.Fatalf("go: -toolchain and -droptoolchain are mutually exclusive")
 	}
 
 	if len(args) > 1 {
@@ -277,6 +285,9 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 		if err := modFile.AddToolchainStmt(*editToolchain); err != nil {
 			base.Fatalf("go: internal error: %v", err)
 		}
+	}
+	if *editDropToolchain {
+		modFile.DropToolchainStmt()
 	}
 
 	if len(edits) > 0 {
