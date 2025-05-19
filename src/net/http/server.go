@@ -836,6 +836,7 @@ var copyBufPool = sync.Pool{New: func() any { return new([copyBufPoolSize]byte) 
 func getCopyBuf() []byte {
 	return copyBufPool.Get().(*[copyBufPoolSize]byte)[:]
 }
+
 func putCopyBuf(b []byte) {
 	if len(b) != copyBufPoolSize {
 		panic("trying to put back buffer of the wrong size in the copyBufPool")
@@ -2674,6 +2675,10 @@ func stripHostPort(h string) string {
 //
 // If there is no registered handler that applies to the request,
 // Handler returns a “page not found” handler and an empty pattern.
+//
+// Handler does not modify its argument. In particular, it does not
+// populate named path wildcards, so r.PathValue will always return
+// the empty string.
 func (mux *ServeMux) Handler(r *Request) (h Handler, pattern string) {
 	if use121 {
 		return mux.mux121.findHandler(r)
