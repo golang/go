@@ -335,6 +335,15 @@ func op_orn(x, y uint32) uint32 {
 	return x | ^y
 }
 
+func op_nor(x int64, a []int64) {
+	// loong64: "MOVV\t[$]0","NOR\tR"
+	a[0] = ^(0x1234 | x)
+	// loong64:"NOR",-"XOR"
+	a[1] = (-1) ^ x
+	// loong64: "MOVV\t[$]-55",-"OR",-"NOR"
+	a[2] = ^(0x12 | 0x34)
+}
+
 // check bitsets
 func bitSetPowerOf2Test(x int) bool {
 	// amd64:"BTL\t[$]3"
