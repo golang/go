@@ -229,6 +229,9 @@ func testCrashHandler(t *testing.T, cgo bool) {
 	}
 	var output string
 	if cgo {
+		if runtime.GOOS == "freebsd" && race.Enabled {
+			t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
+		}
 		output = runTestProg(t, "testprogcgo", "Crash")
 	} else {
 		output = runTestProg(t, "testprog", "Crash")
