@@ -44,7 +44,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -53,17 +52,13 @@ import (
 	"io"
 	"log"
 	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path"
 	"path/filepath"
 	"strings"
-	"time"
 
-	"cmd/internal/browser"
-	"cmd/internal/quoted"
 	"cmd/internal/telemetry/counter"
 )
 
@@ -203,36 +198,14 @@ func listUserPath(userPath string) (string, error) {
 }
 
 func doPkgsite(userPath string, pkg *Package, symbol, method string) error {
-	ctx := context.Background()
-
-	cmdline := "go run golang.org/x/pkgsite/cmd/pkgsite@latest -gorepo=" + buildCtx.GOROOT
-	words, err := quoted.Split(cmdline)
 	port, err := pickUnusedPort()
 	if err != nil {
 		return fmt.Errorf("failed to find port for documentation server: %v", err)
 	}
 	addr := fmt.Sprintf("localhost:%d", port)
-	words = append(words, fmt.Sprintf("-http=%s", addr))
-	cmd := exec.CommandContext(context.Background(), words[0], words[1:]...)
-	cmd.Stdout = os.Stderr
-	cmd.Stderr = os.Stderr
-	// Turn off the default signal handler for SIGINT (and SIGQUIT on Unix)
-	// and instead wait for the child process to handle the signal and
-	// exit before exiting ourselves.
-	signal.Ignore(signalsToIgnore...)
 
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("starting pkgsite: %v", err)
-	}
-
-	// Wait for pkgsite to became available.
-	if !waitAvailable(ctx, addr) {
-		cmd.Cancel()
-		cmd.Wait()
-		return errors.New("could not connect to local documentation server")
-	}
-
-	// Open web browser.
+	// Assemble url to open on the browser, to point to documentation of
+	// the requested object.
 	importPath := pkg.build.ImportPath
 	if importPath == "." {
 		// go/build couldn't determine the import path, probably
@@ -251,16 +224,33 @@ func doPkgsite(userPath string, pkg *Package, symbol, method string) error {
 	if object != "" {
 		path = path + "#" + object
 	}
-	if ok := browser.Open(path); !ok {
-		cmd.Cancel()
-		cmd.Wait()
-		return errors.New("failed to open browser")
+
+	// Turn off the default signal handler for SIGINT (and SIGQUIT on Unix)
+	// and instead wait for the child process to handle the signal and
+	// exit before exiting ourselves.
+	signal.Ignore(signalsToIgnore...)
+
+	const version = "v0.0.0-20250520201116-40659211760d"
+	cmd := exec.Command("go", "run", "golang.org/x/pkgsite/cmd/internal/doc@"+version,
+		"-gorepo", buildCtx.GOROOT,
+		"-http", addr,
+		"-open", path)
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			// Exit with the same exit status as pkgsite to avoid
+			// printing of "exit status" error messages.
+			// Any relevant messages have already been printed
+			// to stdout or stderr.
+			os.Exit(ee.ExitCode())
+		}
+		return err
 	}
 
-	// Wait for child to terminate. We expect the child process to receive signals from
-	// this terminal and terminate in a timely manner, so this process will terminate
-	// soon after.
-	return cmd.Wait()
+	return nil
 }
 
 // pickUnusedPort finds an unused port by trying to listen on port 0
@@ -277,24 +267,6 @@ func pickUnusedPort() (int, error) {
 		return 0, err
 	}
 	return port, nil
-}
-
-func waitAvailable(ctx context.Context, addr string) bool {
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-	for ctx.Err() == nil {
-		req, err := http.NewRequestWithContext(ctx, "HEAD", "http://"+addr, nil)
-		if err != nil {
-			log.Println(err)
-			return false
-		}
-		resp, err := http.DefaultClient.Do(req)
-		if err == nil {
-			resp.Body.Close()
-			return true
-		}
-	}
-	return false
 }
 
 // failMessage creates a nicely formatted error message when there is no result to show.
