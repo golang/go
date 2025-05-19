@@ -32,10 +32,10 @@ type Index int32
 // references from Index to RelIndex.
 type RelIndex = Index
 
-// A RelocEnt, or relocation entry, is an entry in an element's reference
-// table. All elements are preceded by a reference table which provides
-// locations for all dereferences that the element may use.
-type RelocEnt struct {
+// A RefTableEntry is an entry in an element's reference table. All
+// elements are preceded by a reference table which provides locations
+// for referenced elements.
+type RefTableEntry struct {
 	Kind SectionKind
 	Idx  RelIndex
 }

@@ -59,7 +59,7 @@ contains exactly two elements — a public root and a private root.
 The public root element identifies the package and provides references
 for all exported objects it contains.
 
-    PublicRoot  = Relocs
+    PublicRoot  = RefTable
                   [ Sync ]
                   PkgRef
                   [ HasInit ]
@@ -79,7 +79,7 @@ A base is either a file base or line base (produced by a line
 directive). Every base has a position, line, and column; these are
 constant for file bases and hence not encoded.
 
-    PosBase = Relocs
+    PosBase = RefTable
               [ Sync ]
               StringRef       // the (absolute) file name for the base
               Bool            // true if a file base, else a line base
@@ -118,7 +118,7 @@ packages. The below package paths have special meaning.
     | "unsafe"     | the compiler-known unsafe package |
     +--------------+-----------------------------------+
 
-    Pkg        = Relocs
+    Pkg        = RefTable
                  [ Sync ]
                  StringRef      // path
                  // The below is ommitted for the special package paths
@@ -138,21 +138,17 @@ Note, a PkgRef is *not* equivalent to Ref[Pkg] due to an extra marker.
 
 # References
 A reference table precedes every element. Each entry in the table
-contains a section / index pair denoting the location of the referenced
-element.
+contains a (section, index) pair denoting the location of the
+referenced element.
 
-    // TODO(markfreeman): Rename to RefTable.
-    Relocs   = [ Sync ]
-               RelocCount
-               { Reloc }
-               .
-    // TODO(markfreeman): Rename to RefTableEntryCount.
-    RelocCount = Uint64 .
-    // TODO(markfreeman): Rename to RefTableEntry.
-    Reloc    = [ Sync ]
-               SectionKind
-               RelIndex
-               .
+    RefTable      = [ Sync ]
+                    Uint64            // the number of table entries
+                    { RefTableEntry }
+                    .
+    RefTableEntry = [ Sync ]
+                    SectionKind
+                    RelIndex
+                    .
 
 Elements encode references to other elements as an index in the
 reference table — not the location of the referenced element directly.

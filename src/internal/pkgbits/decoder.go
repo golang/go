@@ -54,7 +54,7 @@ type PkgDecoder struct {
 	// (or 0, if K==0) and end at elemEndsEnds[K].
 	elemEndsEnds [numRelocs]uint32
 
-	scratchRelocEnt []RelocEnt
+	scratchRelocEnt []RefTableEntry
 }
 
 // PkgPath returns the package path for the package
@@ -196,10 +196,10 @@ func (pr *PkgDecoder) NewDecoderRaw(k SectionKind, idx RelIndex) Decoder {
 
 	r.Data.Reset(pr.DataIdx(k, idx))
 	r.Sync(SyncRelocs)
-	r.Relocs = make([]RelocEnt, r.Len())
+	r.Relocs = make([]RefTableEntry, r.Len())
 	for i := range r.Relocs {
 		r.Sync(SyncReloc)
-		r.Relocs[i] = RelocEnt{SectionKind(r.Len()), RelIndex(r.Len())}
+		r.Relocs[i] = RefTableEntry{SectionKind(r.Len()), RelIndex(r.Len())}
 	}
 
 	return r
@@ -219,11 +219,11 @@ func (pr *PkgDecoder) TempDecoderRaw(k SectionKind, idx RelIndex) Decoder {
 		r.Relocs = pr.scratchRelocEnt[:l]
 		pr.scratchRelocEnt = nil
 	} else {
-		r.Relocs = make([]RelocEnt, l)
+		r.Relocs = make([]RefTableEntry, l)
 	}
 	for i := range r.Relocs {
 		r.Sync(SyncReloc)
-		r.Relocs[i] = RelocEnt{SectionKind(r.Len()), RelIndex(r.Len())}
+		r.Relocs[i] = RefTableEntry{SectionKind(r.Len()), RelIndex(r.Len())}
 	}
 
 	return r
@@ -234,7 +234,7 @@ func (pr *PkgDecoder) TempDecoderRaw(k SectionKind, idx RelIndex) Decoder {
 type Decoder struct {
 	common *PkgDecoder
 
-	Relocs []RelocEnt
+	Relocs []RefTableEntry
 	Data   strings.Reader
 
 	k   SectionKind

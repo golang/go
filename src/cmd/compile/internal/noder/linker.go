@@ -47,8 +47,8 @@ type linker struct {
 // relocAll ensures that all elements specified by pr and relocs are
 // copied into the output export data file, and returns the
 // corresponding indices in the output.
-func (l *linker) relocAll(pr *pkgReader, relocs []pkgbits.RelocEnt) []pkgbits.RelocEnt {
-	res := make([]pkgbits.RelocEnt, len(relocs))
+func (l *linker) relocAll(pr *pkgReader, relocs []pkgbits.RefTableEntry) []pkgbits.RefTableEntry {
+	res := make([]pkgbits.RefTableEntry, len(relocs))
 	for i, rent := range relocs {
 		rent.Idx = l.relocIdx(pr, rent.Kind, rent.Idx)
 		res[i] = rent

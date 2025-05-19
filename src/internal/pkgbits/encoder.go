@@ -147,8 +147,8 @@ func (pw *PkgEncoder) NewEncoderRaw(k SectionKind) *Encoder {
 type Encoder struct {
 	p *PkgEncoder
 
-	Relocs   []RelocEnt
-	RelocMap map[RelocEnt]uint32
+	Relocs   []RefTableEntry
+	RelocMap map[RefTableEntry]uint32
 	Data     bytes.Buffer // accumulated element bitstream data
 
 	encodingRelocHeader bool
@@ -211,13 +211,13 @@ func (w *Encoder) rawVarint(x int64) {
 }
 
 func (w *Encoder) rawReloc(k SectionKind, idx RelIndex) int {
-	e := RelocEnt{k, idx}
+	e := RefTableEntry{k, idx}
 	if w.RelocMap != nil {
 		if i, ok := w.RelocMap[e]; ok {
 			return int(i)
 		}
 	} else {
-		w.RelocMap = make(map[RelocEnt]uint32)
+		w.RelocMap = make(map[RefTableEntry]uint32)
 	}
 
 	i := len(w.Relocs)
