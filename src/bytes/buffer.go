@@ -21,6 +21,12 @@ type Buffer struct {
 	buf      []byte // contents are the bytes buf[off : len(buf)]
 	off      int    // read at &buf[off], write at &buf[len(buf)]
 	lastRead readOp // last read operation, so that Unread* can work correctly.
+
+	// Copying and modifying a non-zero Buffer is prone to error,
+	// but we cannot employ the noCopy trick used by WaitGroup and Mutex,
+	// which causes vet's copylocks checker to report misuse, as vet
+	// cannot reliably distinguish the zero and non-zero cases.
+	// See #26462, #25907, #47276, #48398 for history.
 }
 
 // The readOp constants describe the last action performed on
