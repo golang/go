@@ -60,7 +60,7 @@ The public root element identifies the package and provides references
 for all exported objects it contains.
 
     PublicRoot  = Relocs
-                  [ SyncPublic ] // TODO(markfreeman): Define.
+                  [ Sync ]
                   PkgRef
                   [ HasInit ]
                   ObjectRefCount // TODO(markfreeman): Define.
@@ -80,7 +80,7 @@ directive). Every base has a position, line, and column; these are
 constant for file bases and hence not encoded.
 
     PosBase = Relocs
-              [ SyncPosBase ] // TODO(markfreeman): Define.
+              [ Sync ]
               StringRef       // the (absolute) file name for the base
               Bool            // true if a file base, else a line base
               // The below is ommitted for file bases.
@@ -93,7 +93,7 @@ A source position Pos represents a file-absolute (line, column) pair
 and a PosBase indicating the position Pos is relative to. Positions
 without a PosBase have no line or column.
 
-    Pos     = [ SyncPos ]      // TODO(markfreeman): Define.
+    Pos     = [ Sync ]
               Bool             // true if the position has a base
               // The below is ommitted if the position has no base.
               [ Ref[PosBase]
@@ -119,7 +119,7 @@ packages. The below package paths have special meaning.
     +--------------+-----------------------------------+
 
     Pkg        = Relocs
-                 [ SyncPkgDef ] // TODO(markfreeman): Define.
+                 [ Sync ]
                  StringRef      // path
                  // The below is ommitted for the special package paths
                  // "builtin" and "unsafe".
@@ -132,7 +132,7 @@ packages. The below package paths have special meaning.
 
 Note, a PkgRef is *not* equivalent to Ref[Pkg] due to an extra marker.
 
-    PkgRef     = [ SyncPkg ]    // TODO(markfreeman): Define.
+    PkgRef     = [ Sync ]
                  Ref[Pkg]
                  .
 
@@ -142,14 +142,14 @@ contains a section / index pair denoting the location of the referenced
 element.
 
     // TODO(markfreeman): Rename to RefTable.
-    Relocs   = [ SyncRelocs ]   // TODO(markfreeman): Define.
+    Relocs   = [ Sync ]
                RelocCount
                { Reloc }
                .
     // TODO(markfreeman): Rename to RefTableEntryCount.
     RelocCount = Uint64 .
     // TODO(markfreeman): Rename to RefTableEntry.
-    Reloc    = [ SyncReloc ]    // TODO(markfreeman): Define.
+    Reloc    = [ Sync ]
                SectionKind
                RelIndex
                .
@@ -158,7 +158,7 @@ Elements encode references to other elements as an index in the
 reference table — not the location of the referenced element directly.
 
     // TODO(markfreeman): Rename to RefUse.
-    UseReloc = [ SyncUseReloc ] // TODO(markfreeman): Define.
+    UseReloc = [ Sync ]
                RelIndex
                .
 
@@ -170,6 +170,7 @@ there for definitions of the below productions.
     * Int64
     * Uint64
     * String
+    * Sync
 */
 
 package noder
