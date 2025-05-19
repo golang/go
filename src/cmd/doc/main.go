@@ -184,14 +184,25 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 		}
 		if found {
 			if serveHTTP {
-				return doPkgsite(pkg, symbol, method)
+				return doPkgsite(userPath, pkg, symbol, method)
 			}
 			return nil
 		}
 	}
 }
 
-func doPkgsite(pkg *Package, symbol, method string) error {
+func listUserPath(userPath string) (string, error) {
+	var stdout, stderr strings.Builder
+	cmd := exec.Command("go", "list", userPath)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("go doc: go list %s: %v\n%s\n", userPath, err, stderr.String())
+	}
+	return strings.TrimSpace(stdout.String()), nil
+}
+
+func doPkgsite(userPath string, pkg *Package, symbol, method string) error {
 	ctx := context.Background()
 
 	cmdline := "go run golang.org/x/pkgsite/cmd/pkgsite@latest -gorepo=" + buildCtx.GOROOT
@@ -222,7 +233,17 @@ func doPkgsite(pkg *Package, symbol, method string) error {
 	}
 
 	// Open web browser.
-	path := path.Join("http://"+addr, pkg.build.ImportPath)
+	importPath := pkg.build.ImportPath
+	if importPath == "." {
+		// go/build couldn't determine the import path, probably
+		// because this was a relative path into a module. Use
+		// go list to get the import path.
+		importPath, err = listUserPath(userPath)
+		if err != nil {
+			return err
+		}
+	}
+	path := path.Join("http://"+addr, importPath)
 	object := symbol
 	if symbol != "" && method != "" {
 		object = symbol + "." + method
