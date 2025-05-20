@@ -288,17 +288,37 @@ func TestChannelMovedOutOfBubble(t *testing.T) {
 		wantPanic: "close of synctest channel from outside bubble",
 	}} {
 		t.Run(test.desc, func(t *testing.T) {
-			donec := make(chan struct{})
-			ch := make(chan chan struct{})
-			go func() {
-				defer close(donec)
-				defer wantPanic(t, test.wantPanic)
-				test.f(<-ch)
-			}()
-			synctest.Run(func() {
-				ch <- make(chan struct{})
+			// Bubbled channel accessed from outside any bubble.
+			t.Run("outside_bubble", func(t *testing.T) {
+				donec := make(chan struct{})
+				ch := make(chan chan struct{})
+				go func() {
+					defer close(donec)
+					defer wantPanic(t, test.wantPanic)
+					test.f(<-ch)
+				}()
+				synctest.Run(func() {
+					ch <- make(chan struct{})
+				})
+				<-donec
 			})
-			<-donec
+			// Bubbled channel accessed from a different bubble.
+			t.Run("different_bubble", func(t *testing.T) {
+				donec := make(chan struct{})
+				ch := make(chan chan struct{})
+				go func() {
+					defer close(donec)
+					c := <-ch
+					synctest.Run(func() {
+						defer wantPanic(t, test.wantPanic)
+						test.f(c)
+					})
+				}()
+				synctest.Run(func() {
+					ch <- make(chan struct{})
+				})
+				<-donec
+			})
 		})
 	}
 }

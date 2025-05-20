@@ -36,7 +36,6 @@ type hchan struct {
 	dataqsiz uint           // size of the circular queue
 	buf      unsafe.Pointer // points to an array of dataqsiz elements
 	elemsize uint16
-	synctest bool // true if created in a synctest bubble
 	closed   uint32
 	timer    *timer // timer feeding this chan
 	elemtype *_type // element type
@@ -44,6 +43,7 @@ type hchan struct {
 	recvx    uint   // receive index
 	recvq    waitq  // list of recv waiters
 	sendq    waitq  // list of send waiters
+	bubble   *synctestBubble
 
 	// lock protects all fields in hchan, as well as several
 	// fields in sudogs blocked on this channel.
@@ -113,8 +113,8 @@ func makechan(t *chantype, size int) *hchan {
 	c.elemsize = uint16(elem.Size_)
 	c.elemtype = elem
 	c.dataqsiz = uint(size)
-	if getg().bubble != nil {
-		c.synctest = true
+	if b := getg().bubble; b != nil {
+		c.bubble = b
 	}
 	lockInit(&c.lock, lockRankHchan)
 
@@ -190,7 +190,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 		racereadpc(c.raceaddr(), callerpc, abi.FuncPCABIInternal(chansend))
 	}
 
-	if c.synctest && getg().bubble == nil {
+	if c.bubble != nil && getg().bubble != c.bubble {
 		panic(plainError("send on synctest channel from outside bubble"))
 	}
 
@@ -277,7 +277,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	// stack shrinking.
 	gp.parkingOnChan.Store(true)
 	reason := waitReasonChanSend
-	if c.synctest {
+	if c.bubble != nil {
 		reason = waitReasonSynctestChanSend
 	}
 	gopark(chanparkcommit, unsafe.Pointer(&c.lock), reason, traceBlockChanSend, 2)
@@ -316,7 +316,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 // sg must already be dequeued from c.
 // ep must be non-nil and point to the heap or the caller's stack.
 func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
-	if c.synctest && sg.g.bubble != getg().bubble {
+	if c.bubble != nil && getg().bubble != c.bubble {
 		unlockf()
 		panic(plainError("send on synctest channel from outside bubble"))
 	}
@@ -415,7 +415,7 @@ func closechan(c *hchan) {
 	if c == nil {
 		panic(plainError("close of nil channel"))
 	}
-	if c.synctest && getg().bubble == nil {
+	if c.bubble != nil && getg().bubble != c.bubble {
 		panic(plainError("close of synctest channel from outside bubble"))
 	}
 
@@ -537,7 +537,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 		throw("unreachable")
 	}
 
-	if c.synctest && getg().bubble == nil {
+	if c.bubble != nil && getg().bubble != c.bubble {
 		panic(plainError("receive on synctest channel from outside bubble"))
 	}
 
@@ -661,7 +661,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 	// stack shrinking.
 	gp.parkingOnChan.Store(true)
 	reason := waitReasonChanReceive
-	if c.synctest {
+	if c.bubble != nil {
 		reason = waitReasonSynctestChanReceive
 	}
 	gopark(chanparkcommit, unsafe.Pointer(&c.lock), reason, traceBlockChanRecv, 2)
@@ -700,7 +700,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 // sg must already be dequeued from c.
 // A non-nil ep must point to the heap or the caller's stack.
 func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
-	if c.synctest && sg.g.bubble != getg().bubble {
+	if c.bubble != nil && getg().bubble != c.bubble {
 		unlockf()
 		panic(plainError("receive on synctest channel from outside bubble"))
 	}
