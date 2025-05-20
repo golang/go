@@ -505,8 +505,8 @@ func TestTRun(t *T) {
 		desc: "buffered output gets flushed at test end",
 		ok:   false,
 		output: `
---- FAIL: buffered output gets flushed at test end (0.00s)
-    --- FAIL: buffered output gets flushed at test end/#00 (0.00s)
+--- FAIL: buffered output gets flushed at test end (N.NNs)
+    --- FAIL: buffered output gets flushed at test end/#00 (N.NNs)
         a
         b`,
 		f: func(t *T) {
@@ -526,8 +526,8 @@ func TestTRun(t *T) {
 === RUN   output with chatty/#00
     a
     b
---- PASS: output with chatty (0.00s)
-    --- PASS: output with chatty/#00 (0.00s)`,
+--- PASS: output with chatty (N.NNs)
+    --- PASS: output with chatty/#00 (N.NNs)`,
 		f: func(t *T) {
 			t.Run("", func(t *T) {
 				o := t.Output()
@@ -545,9 +545,9 @@ func TestTRun(t *T) {
 ^V=== RUN   output with chatty and json/#00
     a
     b
-^V--- PASS: output with chatty and json/#00 (0.00s)
+^V--- PASS: output with chatty and json/#00 (N.NNs)
 ^V=== NAME  output with chatty and json
-^V--- PASS: output with chatty and json (0.00s)
+^V--- PASS: output with chatty and json (N.NNs)
 ^V=== NAME
 `,
 		f: func(t *T) {
@@ -583,8 +583,8 @@ func TestTRun(t *T) {
 		desc: "newline between buffered log and log",
 		ok:   false,
 		output: `
---- FAIL: newline between buffered log and log (0.00s)
-    --- FAIL: newline between buffered log and log/#00 (0.00s)
+--- FAIL: newline between buffered log and log (N.NNs)
+    --- FAIL: newline between buffered log and log/#00 (N.NNs)
         buffered message
         sub_test.go:NNN: log`,
 		f: func(t *T) {
