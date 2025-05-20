@@ -7,6 +7,7 @@ package main
 import (
 	"runtime"
 	"runtime/debug"
+	"unsafe"
 )
 
 func init() {
@@ -40,10 +41,16 @@ func DetectFinalizerAndCleanupLeaks() {
 
 	// Ensure we create an allocation into a tiny block that shares space among several values.
 	var ctLeak *tiny
-	for i := 0; i < 18; i++ {
+	for {
 		tinySink = ctLeak
 		ctLeak = new(tiny)
-		*ctLeak = tiny(i)
+		*ctLeak = tiny(55)
+		// Make sure the address is an odd value. This is sufficient to
+		// be certain that we're sharing a block with another value and
+		// trip the detector.
+		if uintptr(unsafe.Pointer(ctLeak))%2 != 0 {
+			break
+		}
 	}
 	runtime.AddCleanup(ctLeak, func(_ struct{}) {}, struct{}{})
 
