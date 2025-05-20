@@ -952,6 +952,7 @@ func (t *tester) registerTests() {
 					variant:   "cpu" + strconv.Itoa(i),
 					timeout:   300 * time.Second,
 					cpu:       strconv.Itoa(i),
+					gcflags:   gogcflags,
 					short:     true,
 					testFlags: []string{"-quick"},
 					// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
