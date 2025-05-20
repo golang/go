@@ -183,6 +183,9 @@ limits. The default value `updatemaxprocs=1` will enable periodic updates.
 Go 1.25 disabled SHA-1 signature algorithms in TLS 1.2 according to RFC 9155.
 The default can be reverted using the `tlssha1=1` setting.
 
+Go 1.25 switched to SHA-256 to fill in missing SubjectKeyId in
+crypto/x509.CreateCertificate. The setting `x509sha256skid=0` reverts to SHA-1.
+
 Go 1.25 corrected the semantics of contention reports for runtime-internal locks,
 and so removed the [`runtimecontentionstacks` setting](/pkg/runtime#hdr-Environment_Variable).
 

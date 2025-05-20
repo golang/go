@@ -384,6 +384,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the crypto/x509
 		package due to a non-default GODEBUG=x509rsacrt=... setting.
 
+	/godebug/non-default-behavior/x509sha256skid:events
+		The number of non-default behaviors executed by the crypto/x509
+		package due to a non-default GODEBUG=x509sha256skid=... setting.
+
 	/godebug/non-default-behavior/x509usefallbackroots:events
 		The number of non-default behaviors executed by the crypto/x509
 		package due to a non-default GODEBUG=x509usefallbackroots=...

@@ -29,6 +29,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/sha1"
+	"crypto/sha256"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
@@ -1728,12 +1729,22 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 
 	subjectKeyId := template.SubjectKeyId
 	if len(subjectKeyId) == 0 && template.IsCA {
-		// SubjectKeyId generated using method 1 in RFC 5280, Section 4.2.1.2:
-		//   (1) The keyIdentifier is composed of the 160-bit SHA-1 hash of the
-		//   value of the BIT STRING subjectPublicKey (excluding the tag,
-		//   length, and number of unused bits).
-		h := sha1.Sum(publicKeyBytes)
-		subjectKeyId = h[:]
+		if x509sha256skid.Value() == "0" {
+			x509sha256skid.IncNonDefault()
+			// SubjectKeyId generated using method 1 in RFC 5280, Section 4.2.1.2:
+			//   (1) The keyIdentifier is composed of the 160-bit SHA-1 hash of the
+			//   value of the BIT STRING subjectPublicKey (excluding the tag,
+			//   length, and number of unused bits).
+			h := sha1.Sum(publicKeyBytes)
+			subjectKeyId = h[:]
+		} else {
+			// SubjectKeyId generated using method 1 in RFC 7093, Section 2:
+			//    1) The keyIdentifier is composed of the leftmost 160-bits of the
+			//    SHA-256 hash of the value of the BIT STRING subjectPublicKey
+			//    (excluding the tag, length, and number of unused bits).
+			h := sha256.Sum256(publicKeyBytes)
+			subjectKeyId = h[:20]
+		}
 	}
 
 	// Check that the signer's public key matches the private key, if available.
@@ -1780,6 +1791,8 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		SignatureValue:     asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
 	})
 }
+
+var x509sha256skid = godebug.New("x509sha256skid")
 
 // pemCRLPrefix is the magic string that indicates that we have a PEM encoded
 // CRL.
