@@ -2545,6 +2545,16 @@ func gcWakeAllStrongFromWeak() {
 
 // Retrieves or creates a weak pointer handle for the object p.
 func getOrAddWeakHandle(p unsafe.Pointer) *atomic.Uintptr {
+	if debug.sbrk != 0 {
+		// debug.sbrk never frees memory, so it'll never go nil. However, we do still
+		// need a weak handle that's specific to p. Use the immortal weak handle map.
+		// Keep p alive across the call to getOrAdd defensively, though it doesn't
+		// really matter in this particular case.
+		handle := mheap_.immortalWeakHandles.getOrAdd(uintptr(p))
+		KeepAlive(p)
+		return handle
+	}
+
 	// First try to retrieve without allocating.
 	if handle := getWeakHandle(p); handle != nil {
 		// Keep p alive for the duration of the function to ensure
