@@ -6,6 +6,7 @@ package sync
 
 import (
 	"internal/race"
+	"internal/synctest"
 	"sync/atomic"
 	"unsafe"
 )
@@ -47,9 +48,16 @@ import (
 type WaitGroup struct {
 	noCopy noCopy
 
-	state atomic.Uint64 // high 32 bits are counter, low 32 bits are waiter count.
+	// Bits (high to low):
+	//   bits[0:32]  counter
+	//   bits[32]    flag: synctest bubble membership
+	//   bits[33:64] wait count
+	state atomic.Uint64
 	sema  uint32
 }
+
+// waitGroupBubbleFlag indicates that a WaitGroup is associated with a synctest bubble.
+const waitGroupBubbleFlag = 0x8000_0000
 
 // Add adds delta, which may be negative, to the [WaitGroup] task counter.
 // If the counter becomes zero, all goroutines blocked on [WaitGroup.Wait] are released.
@@ -75,9 +83,27 @@ func (wg *WaitGroup) Add(delta int) {
 		race.Disable()
 		defer race.Enable()
 	}
+	if synctest.IsInBubble() {
+		// If Add is called from within a bubble, then all Add calls must be made
+		// from the same bubble.
+		if !synctest.Associate(wg) {
+			// wg is already associated with a different bubble.
+			fatal("sync: WaitGroup.Add called from multiple synctest bubbles")
+		} else {
+			state := wg.state.Or(waitGroupBubbleFlag)
+			if state != 0 && state&waitGroupBubbleFlag == 0 {
+				// Add has been called from outside this bubble.
+				fatal("sync: WaitGroup.Add called from inside and outside synctest bubble")
+			}
+		}
+	}
 	state := wg.state.Add(uint64(delta) << 32)
+	if state&waitGroupBubbleFlag != 0 && !synctest.IsInBubble() {
+		// Add has been called from within a synctest bubble (and we aren't in one).
+		fatal("sync: WaitGroup.Add called from inside and outside synctest bubble")
+	}
 	v := int32(state >> 32)
-	w := uint32(state)
+	w := uint32(state & 0x7fffffff)
 	if race.Enabled && delta > 0 && v == int32(delta) {
 		// The first increment must be synchronized with Wait.
 		// Need to model this as a read, because there can be
@@ -89,6 +115,13 @@ func (wg *WaitGroup) Add(delta int) {
 	}
 	if w != 0 && delta > 0 && v == int32(delta) {
 		panic("sync: WaitGroup misuse: Add called concurrently with Wait")
+	}
+	if v == 0 && state&waitGroupBubbleFlag != 0 {
+		// Disassociate the WaitGroup from its bubble.
+		synctest.Disassociate(wg)
+		if w == 0 {
+			wg.state.Store(0)
+		}
 	}
 	if v > 0 || w == 0 {
 		return
@@ -147,7 +180,21 @@ func (wg *WaitGroup) Wait() {
 				// otherwise concurrent Waits will race with each other.
 				race.Write(unsafe.Pointer(&wg.sema))
 			}
-			runtime_SemacquireWaitGroup(&wg.sema)
+			synctestDurable := false
+			if state&waitGroupBubbleFlag != 0 && synctest.IsInBubble() {
+				if race.Enabled {
+					race.Enable()
+				}
+				if synctest.IsAssociated(wg) {
+					// Add was called within the current bubble,
+					// so this Wait is durably blocking.
+					synctestDurable = true
+				}
+				if race.Enabled {
+					race.Disable()
+				}
+			}
+			runtime_SemacquireWaitGroup(&wg.sema, synctestDurable)
 			if wg.state.Load() != 0 {
 				panic("sync: WaitGroup is reused before previous Wait has returned")
 			}

@@ -72,16 +72,27 @@
 //   - a blocking select statement where every case is a channel created
 //     within the bubble
 //   - [sync.Cond.Wait]
-//   - [sync.WaitGroup.Wait]
+//   - [sync.WaitGroup.Wait], when [sync.WaitGroup.Add] was called within the bubble
 //   - [time.Sleep]
 //
-// Locking a [sync.Mutex] or [sync.RWMutex] is not durably blocking.
+// Operations not in the above list are not durably blocking.
+// In particular, the following operations may block a goroutine,
+// but are not durably blocking because the goroutine can be unblocked
+// by an event occurring outside its bubble:
+//
+//   - locking a [sync.Mutex] or [sync.RWMutex]
+//   - blocking on I/O, such as reading from a network socket
+//   - system calls
 //
 // # Isolation
 //
 // A channel, [time.Timer], or [time.Ticker] created within a bubble
 // is associated with it. Operating on a bubbled channel, timer, or
 // ticker from outside the bubble panics.
+//
+// A [sync.WaitGroup] becomes associated with a bubble on the first
+// call to Add or Go. Once a WaitGroup is associated with a bubble,
+// calling Add or Go from outside that bubble panics.
 //
 // Cleanup functions and finalizers registered with
 // [runtime.AddCleanup] and [runtime.SetFinalizer]

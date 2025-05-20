@@ -7,11 +7,14 @@ package synctest_test
 import (
 	"fmt"
 	"internal/synctest"
+	"internal/testenv"
 	"iter"
+	"os"
 	"reflect"
 	"runtime"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -523,7 +526,7 @@ func TestReflectFuncOf(t *testing.T) {
 	})
 }
 
-func TestWaitGroup(t *testing.T) {
+func TestWaitGroupInBubble(t *testing.T) {
 	synctest.Run(func() {
 		var wg sync.WaitGroup
 		wg.Add(1)
@@ -537,6 +540,83 @@ func TestWaitGroup(t *testing.T) {
 		if got := time.Since(start); got != delay {
 			t.Fatalf("WaitGroup.Wait() took %v, want %v", got, delay)
 		}
+	})
+}
+
+func TestWaitGroupOutOfBubble(t *testing.T) {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	donec := make(chan struct{})
+	go synctest.Run(func() {
+		// Since wg.Add was called outside the bubble, Wait is not durably blocking
+		// and this waits until wg.Done is called below.
+		wg.Wait()
+		close(donec)
+	})
+	select {
+	case <-donec:
+		t.Fatalf("synctest.Run finished before WaitGroup.Done called")
+	case <-time.After(1 * time.Millisecond):
+	}
+	wg.Done()
+	<-donec
+}
+
+func TestWaitGroupMovedIntoBubble(t *testing.T) {
+	wantFatal(t, "fatal error: sync: WaitGroup.Add called from inside and outside synctest bubble", func() {
+		var wg sync.WaitGroup
+		wg.Add(1)
+		synctest.Run(func() {
+			wg.Add(1)
+		})
+	})
+}
+
+func TestWaitGroupMovedOutOfBubble(t *testing.T) {
+	wantFatal(t, "fatal error: sync: WaitGroup.Add called from inside and outside synctest bubble", func() {
+		var wg sync.WaitGroup
+		synctest.Run(func() {
+			wg.Add(1)
+		})
+		wg.Add(1)
+	})
+}
+
+func TestWaitGroupMovedBetweenBubblesWithNonZeroCount(t *testing.T) {
+	wantFatal(t, "fatal error: sync: WaitGroup.Add called from multiple synctest bubbles", func() {
+		var wg sync.WaitGroup
+		synctest.Run(func() {
+			wg.Add(1)
+		})
+		synctest.Run(func() {
+			wg.Add(1)
+		})
+	})
+}
+
+func TestWaitGroupMovedBetweenBubblesWithZeroCount(t *testing.T) {
+	var wg sync.WaitGroup
+	synctest.Run(func() {
+		wg.Add(1)
+		wg.Done()
+	})
+	synctest.Run(func() {
+		// Reusing the WaitGroup is safe, because its count is zero.
+		wg.Add(1)
+		wg.Done()
+	})
+}
+
+func TestWaitGroupMovedBetweenBubblesAfterWait(t *testing.T) {
+	var wg sync.WaitGroup
+	synctest.Run(func() {
+		wg.Go(func() {})
+		wg.Wait()
+	})
+	synctest.Run(func() {
+		// Reusing the WaitGroup is safe, because its count is zero.
+		wg.Go(func() {})
+		wg.Wait()
 	})
 }
 
@@ -645,5 +725,25 @@ func wantPanic(t *testing.T, want string) {
 		}
 	} else {
 		t.Errorf("got no panic, want one")
+	}
+}
+
+func wantFatal(t *testing.T, want string, f func()) {
+	t.Helper()
+
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		f()
+		return
+	}
+
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+t.Name()+"$")
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Errorf("expected test function to panic, but test returned successfully")
+	}
+	if !strings.Contains(string(out), want) {
+		t.Errorf("wanted test output contaiing %q; got %q", want, string(out))
 	}
 }

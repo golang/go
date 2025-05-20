@@ -1096,6 +1096,7 @@ const (
 	waitReasonSynctestChanReceive                     // "chan receive (synctest)"
 	waitReasonSynctestChanSend                        // "chan send (synctest)"
 	waitReasonSynctestSelect                          // "select (synctest)"
+	waitReasonSynctestWaitGroupWait                   // "sync.WaitGroup.Wait (synctest)"
 	waitReasonCleanupWait                             // "cleanup wait"
 )
 
@@ -1145,6 +1146,7 @@ var waitReasonStrings = [...]string{
 	waitReasonSynctestChanReceive:   "chan receive (synctest)",
 	waitReasonSynctestChanSend:      "chan send (synctest)",
 	waitReasonSynctestSelect:        "select (synctest)",
+	waitReasonSynctestWaitGroupWait: "sync.WaitGroup.Wait (synctest)",
 	waitReasonCleanupWait:           "cleanup wait",
 }
 
@@ -1190,18 +1192,18 @@ func (w waitReason) isIdleInSynctest() bool {
 
 // isIdleInSynctest indicates that a goroutine is considered idle by synctest.Wait.
 var isIdleInSynctest = [len(waitReasonStrings)]bool{
-	waitReasonChanReceiveNilChan:  true,
-	waitReasonChanSendNilChan:     true,
-	waitReasonSelectNoCases:       true,
-	waitReasonSleep:               true,
-	waitReasonSyncCondWait:        true,
-	waitReasonSyncWaitGroupWait:   true,
-	waitReasonCoroutine:           true,
-	waitReasonSynctestRun:         true,
-	waitReasonSynctestWait:        true,
-	waitReasonSynctestChanReceive: true,
-	waitReasonSynctestChanSend:    true,
-	waitReasonSynctestSelect:      true,
+	waitReasonChanReceiveNilChan:    true,
+	waitReasonChanSendNilChan:       true,
+	waitReasonSelectNoCases:         true,
+	waitReasonSleep:                 true,
+	waitReasonSyncCondWait:          true,
+	waitReasonSynctestWaitGroupWait: true,
+	waitReasonCoroutine:             true,
+	waitReasonSynctestRun:           true,
+	waitReasonSynctestWait:          true,
+	waitReasonSynctestChanReceive:   true,
+	waitReasonSynctestChanSend:      true,
+	waitReasonSynctestSelect:        true,
 }
 
 var (
