@@ -1015,7 +1015,6 @@ func (p *printer) print(args ...any) {
 					ch = '\f' // use formfeed since we dropped one before
 				}
 				p.writeByte(ch, n)
-				impliedSemi = false
 			}
 		}
 
