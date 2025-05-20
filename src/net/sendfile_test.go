@@ -31,11 +31,11 @@ const (
 // expectSendfile runs f, and verifies that internal/poll.SendFile successfully handles
 // a write to wantConn during f's execution.
 //
-// On platforms where supportsSendfile is false, expectSendfile runs f but does not
+// On platforms where supportsSendfile() is false, expectSendfile runs f but does not
 // expect a call to SendFile.
 func expectSendfile(t *testing.T, wantConn Conn, f func()) {
 	t.Helper()
-	if !supportsSendfile {
+	if !supportsSendfile() {
 		f()
 		return
 	}

@@ -539,7 +539,7 @@ func NtSetInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer
 	return
 }
 
-func rtlGetVersion(info *_OSVERSIONINFOW) {
+func rtlGetVersion(info *_OSVERSIONINFOEXW) {
 	syscall.Syscall(procRtlGetVersion.Addr(), 1, uintptr(unsafe.Pointer(info)), 0, 0)
 	return
 }

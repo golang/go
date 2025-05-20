@@ -256,3 +256,7 @@ type FILE_COMPLETION_INFORMATION struct {
 	Port syscall.Handle
 	Key  uintptr
 }
+
+// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-osversioninfoexa
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_osversioninfoexw
+const VER_NT_WORKSTATION = 0x0000001
