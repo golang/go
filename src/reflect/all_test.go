@@ -13,6 +13,8 @@ import (
 	"internal/asan"
 	"internal/goarch"
 	"internal/goexperiment"
+	"internal/msan"
+	"internal/race"
 	"internal/testenv"
 	"io"
 	"math"
@@ -8766,6 +8768,9 @@ func TestTypeAssertPanic(t *testing.T) {
 }
 
 func TestTypeAssertAllocs(t *testing.T) {
+	if race.Enabled || asan.Enabled || msan.Enabled {
+		t.Skip("instrumentation breaks this optimization")
+	}
 	typeAssertAllocs[[128]int](t, ValueOf([128]int{}), 0)
 	typeAssertAllocs[any](t, ValueOf([128]int{}), 0)
 
