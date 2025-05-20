@@ -436,6 +436,8 @@ func rewriteValueLOONG64(v *Value) bool {
 		return rewriteValueLOONG64_OpLOONG64NORconst(v)
 	case OpLOONG64OR:
 		return rewriteValueLOONG64_OpLOONG64OR(v)
+	case OpLOONG64ORN:
+		return rewriteValueLOONG64_OpLOONG64ORN(v)
 	case OpLOONG64ORconst:
 		return rewriteValueLOONG64_OpLOONG64ORconst(v)
 	case OpLOONG64REMV:
@@ -1925,6 +1927,21 @@ func rewriteValueLOONG64_OpLOONG64AND(v *Value) bool {
 		}
 		v.copyOf(x)
 		return true
+	}
+	// match: (AND x (NORconst [0] y))
+	// result: (ANDN x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpLOONG64NORconst || auxIntToInt64(v_1.AuxInt) != 0 {
+				continue
+			}
+			y := v_1.Args[0]
+			v.reset(OpLOONG64ANDN)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
 	}
 	return false
 }
@@ -5578,6 +5595,36 @@ func rewriteValueLOONG64_OpLOONG64OR(v *Value) bool {
 	for {
 		x := v_0
 		if x != v_1 {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (OR x (NORconst [0] y))
+	// result: (ORN x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpLOONG64NORconst || auxIntToInt64(v_1.AuxInt) != 0 {
+				continue
+			}
+			y := v_1.Args[0]
+			v.reset(OpLOONG64ORN)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
+	}
+	return false
+}
+func rewriteValueLOONG64_OpLOONG64ORN(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (ORN x (MOVVconst [-1]))
+	// result: x
+	for {
+		x := v_0
+		if v_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_1.AuxInt) != -1 {
 			break
 		}
 		v.copyOf(x)

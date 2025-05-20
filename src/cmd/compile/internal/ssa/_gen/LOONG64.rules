@@ -782,6 +782,9 @@
 (AND x x) => x
 (OR  x x) => x
 (XOR x x) => (MOVVconst [0])
+(ORN x (MOVVconst [-1])) => x
+(AND x (NORconst [0] y)) => (ANDN x y)
+(OR x (NORconst [0] y)) => (ORN x y)
 
 // Fold negation into subtraction.
 (NEGV (SUBV x y)) => (SUBV y x)
