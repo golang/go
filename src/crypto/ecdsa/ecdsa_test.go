@@ -546,6 +546,161 @@ func testRFC6979(t *testing.T, curve elliptic.Curve, D, X, Y, msg, r, s string) 
 	}
 }
 
+func TestParseAndBytesRoundTrip(t *testing.T) {
+	testAllCurves(t, testParseAndBytesRoundTrip)
+}
+
+func testParseAndBytesRoundTrip(t *testing.T, curve elliptic.Curve) {
+	if strings.HasSuffix(t.Name(), "/Generic") {
+		t.Skip("these methods don't support generic curves")
+	}
+	priv, _ := GenerateKey(curve, rand.Reader)
+
+	b, err := priv.PublicKey.Bytes()
+	if err != nil {
+		t.Fatalf("failed to serialize private key's public key: %v", err)
+	}
+	if b[0] != 4 {
+		t.Fatalf("public key bytes doesn't start with 0x04 (uncompressed format)")
+	}
+	p, err := ParseUncompressedPublicKey(curve, b)
+	if err != nil {
+		t.Fatalf("failed to parse private key's public key: %v", err)
+	}
+	if !priv.PublicKey.Equal(p) {
+		t.Errorf("parsed private key's public key doesn't match original")
+	}
+
+	bk, err := priv.Bytes()
+	if err != nil {
+		t.Fatalf("failed to serialize private key: %v", err)
+	}
+	k, err := ParseRawPrivateKey(curve, bk)
+	if err != nil {
+		t.Fatalf("failed to parse private key: %v", err)
+	}
+	if !priv.Equal(k) {
+		t.Errorf("parsed private key doesn't match original")
+	}
+
+	if curve != elliptic.P224() {
+		privECDH, err := priv.ECDH()
+		if err != nil {
+			t.Fatalf("failed to convert private key to ECDH: %v", err)
+		}
+
+		pp, err := privECDH.Curve().NewPublicKey(b)
+		if err != nil {
+			t.Fatalf("failed to parse with ECDH: %v", err)
+		}
+		if !privECDH.PublicKey().Equal(pp) {
+			t.Errorf("parsed ECDH public key doesn't match original")
+		}
+		if !bytes.Equal(b, pp.Bytes()) {
+			t.Errorf("encoded ECDH public key doesn't match Bytes")
+		}
+
+		kk, err := privECDH.Curve().NewPrivateKey(bk)
+		if err != nil {
+			t.Fatalf("failed to parse with ECDH: %v", err)
+		}
+		if !privECDH.Equal(kk) {
+			t.Errorf("parsed ECDH private key doesn't match original")
+		}
+		if !bytes.Equal(bk, kk.Bytes()) {
+			t.Errorf("encoded ECDH private key doesn't match Bytes")
+		}
+	}
+}
+
+func TestInvalidPublicKeys(t *testing.T) {
+	testAllCurves(t, testInvalidPublicKeys)
+}
+
+func testInvalidPublicKeys(t *testing.T, curve elliptic.Curve) {
+	t.Run("Infinity", func(t *testing.T) {
+		k := &PublicKey{Curve: curve, X: big.NewInt(0), Y: big.NewInt(0)}
+		if _, err := k.Bytes(); err == nil {
+			t.Errorf("PublicKey.Bytes accepted infinity")
+		}
+
+		b := []byte{0}
+		if _, err := ParseUncompressedPublicKey(curve, b); err == nil {
+			t.Errorf("ParseUncompressedPublicKey accepted infinity")
+		}
+		b = make([]byte, 1+2*(curve.Params().BitSize+7)/8)
+		b[0] = 4
+		if _, err := ParseUncompressedPublicKey(curve, b); err == nil {
+			t.Errorf("ParseUncompressedPublicKey accepted infinity")
+		}
+	})
+	t.Run("NotOnCurve", func(t *testing.T) {
+		k, _ := GenerateKey(curve, rand.Reader)
+		k.X = k.X.Add(k.X, big.NewInt(1))
+		if _, err := k.Bytes(); err == nil {
+			t.Errorf("PublicKey.Bytes accepted not on curve")
+		}
+
+		b := make([]byte, 1+2*(curve.Params().BitSize+7)/8)
+		b[0] = 4
+		k.X.FillBytes(b[1 : 1+len(b)/2])
+		k.Y.FillBytes(b[1+len(b)/2:])
+		if _, err := ParseUncompressedPublicKey(curve, b); err == nil {
+			t.Errorf("ParseUncompressedPublicKey accepted not on curve")
+		}
+	})
+	t.Run("Compressed", func(t *testing.T) {
+		k, _ := GenerateKey(curve, rand.Reader)
+		b := elliptic.MarshalCompressed(curve, k.X, k.Y)
+		if _, err := ParseUncompressedPublicKey(curve, b); err == nil {
+			t.Errorf("ParseUncompressedPublicKey accepted compressed key")
+		}
+	})
+}
+
+func TestInvalidPrivateKeys(t *testing.T) {
+	testAllCurves(t, testInvalidPrivateKeys)
+}
+
+func testInvalidPrivateKeys(t *testing.T, curve elliptic.Curve) {
+	t.Run("Zero", func(t *testing.T) {
+		k := &PrivateKey{PublicKey{curve, big.NewInt(0), big.NewInt(0)}, big.NewInt(0)}
+		if _, err := k.Bytes(); err == nil {
+			t.Errorf("PrivateKey.Bytes accepted zero key")
+		}
+
+		b := make([]byte, (curve.Params().BitSize+7)/8)
+		if _, err := ParseRawPrivateKey(curve, b); err == nil {
+			t.Errorf("ParseRawPrivateKey accepted zero key")
+		}
+	})
+	t.Run("Overflow", func(t *testing.T) {
+		d := new(big.Int).Add(curve.Params().N, big.NewInt(5))
+		x, y := curve.ScalarBaseMult(d.Bytes())
+		k := &PrivateKey{PublicKey{curve, x, y}, d}
+		if _, err := k.Bytes(); err == nil {
+			t.Errorf("PrivateKey.Bytes accepted overflow key")
+		}
+
+		b := make([]byte, (curve.Params().BitSize+7)/8)
+		k.D.FillBytes(b)
+		if _, err := ParseRawPrivateKey(curve, b); err == nil {
+			t.Errorf("ParseRawPrivateKey accepted overflow key")
+		}
+	})
+	t.Run("Length", func(t *testing.T) {
+		b := []byte{1, 2, 3}
+		if _, err := ParseRawPrivateKey(curve, b); err == nil {
+			t.Errorf("ParseRawPrivateKey accepted short key")
+		}
+
+		b = append(b, make([]byte, (curve.Params().BitSize+7)/8)...)
+		if _, err := ParseRawPrivateKey(curve, b); err == nil {
+			t.Errorf("ParseRawPrivateKey accepted long key")
+		}
+	})
+}
+
 func benchmarkAllCurves(b *testing.B, f func(*testing.B, elliptic.Curve)) {
 	tests := []struct {
 		name  string
