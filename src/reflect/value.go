@@ -1219,7 +1219,7 @@ func (v Value) Elem() Value {
 	k := v.kind()
 	switch k {
 	case Interface:
-		x := unpackEface(packIntoEmptyIface(v))
+		x := unpackEface(packIfaceValueIntoEmptyIface(v))
 		if x.flag != 0 {
 			x.flag |= v.flag.ro()
 		}
@@ -1492,7 +1492,7 @@ func valueInterface(v Value, safe bool) any {
 
 	if v.kind() == Interface {
 		// Special case: return the element inside the interface.
-		return packIntoEmptyIface(v)
+		return packIfaceValueIntoEmptyIface(v)
 	}
 
 	return packEface(v)
@@ -1540,7 +1540,7 @@ func TypeAssert[T any](v Value) (T, bool) {
 		// val := ValueOf(&v).Elem()
 		// TypeAssert[error](val) == val.Interface().(error)
 		if v.kind() == Interface {
-			v, ok := packIntoEmptyIface(v).(T)
+			v, ok := packIfaceValueIntoEmptyIface(v).(T)
 			return v, ok
 		}
 
@@ -1563,10 +1563,10 @@ func TypeAssert[T any](v Value) (T, bool) {
 	return *(*T)(v.ptr), true
 }
 
-// packIntoEmptyIface converts an interface Value into an empty interface.
+// packIfaceValueIntoEmptyIface converts an interface Value into an empty interface.
 //
 // Precondition: v.kind() == Interface
-func packIntoEmptyIface(v Value) any {
+func packIfaceValueIntoEmptyIface(v Value) any {
 	// Empty interface has one layout, all interfaces with
 	// methods have a second layout.
 	if v.NumMethod() == 0 {
