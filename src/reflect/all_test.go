@@ -8681,3 +8681,132 @@ func TestMapOfKeyPanic(t *testing.T) {
 	var slice []int
 	m.MapIndex(ValueOf(slice))
 }
+
+func TestTypeAssert(t *testing.T) {
+	testTypeAssert(t, int(123456789), int(123456789), true)
+	testTypeAssert(t, int(-123456789), int(-123456789), true)
+	testTypeAssert(t, int32(123456789), int32(123456789), true)
+	testTypeAssert(t, int8(-123), int8(-123), true)
+	testTypeAssert(t, [2]int{1234, -5678}, [2]int{1234, -5678}, true)
+	testTypeAssert(t, "test value", "test value", true)
+	testTypeAssert(t, any("test value"), any("test value"), true)
+
+	v := 123456789
+	testTypeAssert(t, &v, &v, true)
+
+	testTypeAssert(t, int(123), uint(0), false)
+
+	testTypeAssert[any](t, 1, 1, true)
+	testTypeAssert[fmt.Stringer](t, 1, nil, false)
+
+	vv := testTypeWithMethod{"test"}
+	testTypeAssert[any](t, vv, vv, true)
+	testTypeAssert[any](t, &vv, &vv, true)
+	testTypeAssert[fmt.Stringer](t, vv, vv, true)
+	testTypeAssert[fmt.Stringer](t, &vv, &vv, true)
+	testTypeAssert[interface{ A() }](t, vv, nil, false)
+	testTypeAssert[interface{ A() }](t, &vv, nil, false)
+	testTypeAssert(t, any(vv), any(vv), true)
+	testTypeAssert(t, fmt.Stringer(vv), fmt.Stringer(vv), true)
+
+	testTypeAssert(t, fmt.Stringer(vv), any(vv), true)
+	testTypeAssert(t, any(vv), fmt.Stringer(vv), true)
+	testTypeAssert(t, fmt.Stringer(vv), interface{ M() }(vv), true)
+	testTypeAssert(t, interface{ M() }(vv), fmt.Stringer(vv), true)
+
+	testTypeAssert(t, any(int(1)), int(1), true)
+	testTypeAssert(t, any(int(1)), byte(0), false)
+	testTypeAssert(t, fmt.Stringer(vv), vv, true)
+}
+
+func testTypeAssert[T comparable, V any](t *testing.T, val V, wantVal T, wantOk bool) {
+	t.Helper()
+
+	v, ok := TypeAssert[T](ValueOf(&val).Elem())
+	if v != wantVal || ok != wantOk {
+		t.Errorf("TypeAssert[%v](%#v) = (%#v, %v); want = (%#v, %v)", TypeFor[T](), val, v, ok, wantVal, wantOk)
+	}
+
+	// Additionally make sure that TypeAssert[T](v) behaves in the same way as v.Interface().(T).
+	v2, ok2 := ValueOf(&val).Elem().Interface().(T)
+	if v != v2 || ok != ok2 {
+		t.Errorf("reflect.ValueOf(%#v).Interface().(%v) = (%#v, %v); want = (%#v, %v)", val, TypeFor[T](), v2, ok2, v, ok)
+	}
+}
+
+type testTypeWithMethod struct{ val string }
+
+func (v testTypeWithMethod) String() string { return v.val }
+func (v testTypeWithMethod) M()             {}
+
+func TestTypeAssertMethod(t *testing.T) {
+	method := ValueOf(&testTypeWithMethod{val: "test value"}).MethodByName("String")
+	f, ok := TypeAssert[func() string](method)
+	if !ok {
+		t.Fatalf(`TypeAssert[func() string](method) = (,false); want = (,true)`)
+	}
+
+	out := f()
+	if out != "test value" {
+		t.Fatalf(`TypeAssert[func() string](method)() = %q; want "test value"`, out)
+	}
+}
+
+func TestTypeAssertPanic(t *testing.T) {
+	t.Run("zero val", func(t *testing.T) {
+		defer func() { recover() }()
+		TypeAssert[int](Value{})
+		t.Fatalf("TypeAssert did not panic")
+	})
+	t.Run("read only", func(t *testing.T) {
+		defer func() { recover() }()
+		TypeAssert[int](ValueOf(&testTypeWithMethod{}).FieldByName("val"))
+		t.Fatalf("TypeAssert did not panic")
+	})
+}
+
+func TestTypeAssertAllocs(t *testing.T) {
+	typeAssertAllocs[[128]int](t, ValueOf([128]int{}), 0)
+	typeAssertAllocs[any](t, ValueOf([128]int{}), 0)
+
+	val := 123
+	typeAssertAllocs[any](t, ValueOf(val), 0)
+	typeAssertAllocs[any](t, ValueOf(&val).Elem(), 1) // must allocate, so that Set() does not modify the returned inner iface value.
+	typeAssertAllocs[int](t, ValueOf(val), 0)
+	typeAssertAllocs[int](t, ValueOf(&val).Elem(), 0)
+
+	typeAssertAllocs[time.Time](t, ValueOf(new(time.Time)).Elem(), 0)
+	typeAssertAllocs[time.Time](t, ValueOf(*new(time.Time)), 0)
+}
+
+func typeAssertAllocs[T any](t *testing.T, val Value, wantAllocs int) {
+	t.Helper()
+	allocs := testing.AllocsPerRun(10, func() {
+		TypeAssert[T](val)
+	})
+	if allocs != float64(wantAllocs) {
+		t.Errorf("TypeAssert[%v](%v) unexpected amount of allocations = %v; want = %v", TypeFor[T](), val.Type(), allocs, wantAllocs)
+	}
+}
+
+func BenchmarkTypeAssert(b *testing.B) {
+	benchmarkTypeAssert[int](b, ValueOf(int(1)))
+	benchmarkTypeAssert[byte](b, ValueOf(int(1)))
+
+	benchmarkTypeAssert[fmt.Stringer](b, ValueOf(testTypeWithMethod{}))
+	benchmarkTypeAssert[fmt.Stringer](b, ValueOf(&testTypeWithMethod{}))
+	benchmarkTypeAssert[any](b, ValueOf(int(1)))
+	benchmarkTypeAssert[any](b, ValueOf(testTypeWithMethod{}))
+
+	benchmarkTypeAssert[time.Time](b, ValueOf(*new(time.Time)))
+
+	benchmarkTypeAssert[func() string](b, ValueOf(time.Now()).MethodByName("String"))
+}
+
+func benchmarkTypeAssert[T any](b *testing.B, val Value) {
+	b.Run(fmt.Sprintf("TypeAssert[%v](%v)", TypeFor[T](), val.Type()), func(b *testing.B) {
+		for b.Loop() {
+			TypeAssert[T](val)
+		}
+	})
+}
