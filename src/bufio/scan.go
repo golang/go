@@ -262,6 +262,10 @@ func (s *Scanner) setErr(err error) {
 
 // Buffer sets the initial buffer to use when scanning
 // and the maximum size of buffer that may be allocated during scanning.
+// The buffer is used internally by the Scanner and should not be used to provide
+// input data to the scanner. The scanner reads input data exclusively from the
+// io.Reader provided to [NewScanner].
+//
 // The maximum token size must be less than the larger of max and cap(buf).
 // If max <= cap(buf), [Scanner.Scan] will use this buffer only and do no allocation.
 //
@@ -269,6 +273,11 @@ func (s *Scanner) setErr(err error) {
 // maximum token size to [MaxScanTokenSize].
 //
 // Buffer panics if it is called after scanning has started.
+//
+// To provide initial data to the scanner, wrap the io.Reader passed to [NewScanner]
+// using [io.MultiReader]. For example:
+//   initial := bytes.NewReader([]byte("initial data\n"))
+//   scanner := bufio.NewScanner(io.MultiReader(initial, os.Stdin))
 func (s *Scanner) Buffer(buf []byte, max int) {
 	if s.scanCalled {
 		panic("Buffer called after Scan")
