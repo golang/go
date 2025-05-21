@@ -227,7 +227,7 @@ func TestMakeAllocs(t *testing.T) {
 			stringHandle = Make(heapString)
 		}},
 
-		{name: "stack string", allocs: 1, f: func() {
+		{name: "stack string", allocs: 0, f: func() {
 			var b [16]byte
 			b[8] = 'a'
 			stringHandle = Make(string(b[:]))
@@ -237,7 +237,7 @@ func TestMakeAllocs(t *testing.T) {
 			stringHandle = Make(string(heapBytes))
 		}},
 
-		{name: "bytes truncated short", allocs: 1, f: func() {
+		{name: "bytes truncated short", allocs: 0, f: func() {
 			stringHandle = Make(string(heapBytes[:16]))
 		}},
 
@@ -261,7 +261,7 @@ func TestMakeAllocs(t *testing.T) {
 			pairHandle = Make([2]string{heapString, heapString})
 		}},
 
-		{name: "pair from stack", allocs: 2, f: func() {
+		{name: "pair from stack", allocs: 0, f: func() {
 			var b [16]byte
 			b[8] = 'a'
 			pairHandle = Make([2]string{string(b[:]), string(b[:])})

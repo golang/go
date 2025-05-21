@@ -454,6 +454,11 @@ opSwitch:
 						// generate code.
 						cheap = true
 					}
+					if strings.HasPrefix(fn, "EscapeNonString[") {
+						// internal/abi.EscapeNonString[T] is a compiler intrinsic
+						// implemented in the escape analysis phase.
+						cheap = true
+					}
 				case "internal/runtime/sys":
 					switch fn {
 					case "GetCallerPC", "GetCallerSP":
@@ -470,12 +475,6 @@ opSwitch:
 						v.budget -= inlineExtraThrowCost
 						break opSwitch
 					case "panicrangestate":
-						cheap = true
-					}
-				case "hash/maphash":
-					if strings.HasPrefix(fn, "escapeForHash[") {
-						// hash/maphash.escapeForHash[T] is a compiler intrinsic
-						// implemented in the escape analysis phase.
 						cheap = true
 					}
 				}
@@ -801,10 +800,10 @@ func inlineCallCheck(callerfn *ir.Func, call *ir.CallExpr) (bool, bool) {
 		}
 	}
 
-	// hash/maphash.escapeForHash[T] is a compiler intrinsic implemented
+	// internal/abi.EscapeNonString[T] is a compiler intrinsic implemented
 	// in the escape analysis phase.
-	if fn := ir.StaticCalleeName(call.Fun); fn != nil && fn.Sym().Pkg.Path == "hash/maphash" &&
-		strings.HasPrefix(fn.Sym().Name, "escapeForHash[") {
+	if fn := ir.StaticCalleeName(call.Fun); fn != nil && fn.Sym().Pkg.Path == "internal/abi" &&
+		strings.HasPrefix(fn.Sym().Name, "EscapeNonString[") {
 		return false, true
 	}
 
