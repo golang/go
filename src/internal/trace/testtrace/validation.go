@@ -23,6 +23,9 @@ type Validator struct {
 	tasks     map[trace.TaskID]string
 	lastSync  trace.Sync
 	GoVersion version.Version
+
+	// Flags to modify validation behavior.
+	skipClockSnapshotChecks bool // Some platforms can't guarantee a monotonically increasing clock reading.
 }
 
 type schedContext struct {
@@ -51,6 +54,14 @@ func NewValidator() *Validator {
 		tasks:     make(map[trace.TaskID]string),
 		GoVersion: version.Current,
 	}
+}
+
+// SkipClockSnapshotChecks causes the validator to skip checks on the clock snapshots.
+//
+// Some platforms like Windows, with a small enough trace period, are unable to produce
+// monotonically increasing timestamps due to very coarse clock granularity.
+func (v *Validator) SkipClockSnapshotChecks() {
+	v.skipClockSnapshotChecks = true
 }
 
 // Event validates ev as the next event in a stream of trace.Events.
@@ -97,14 +108,16 @@ func (v *Validator) Event(ev trace.Event) error {
 			if s.ClockSnapshot.Trace == 0 {
 				e.Errorf("sync %d has zero trace time", s.N)
 			}
-			if s.N >= 2 && !s.ClockSnapshot.Wall.After(v.lastSync.ClockSnapshot.Wall) {
-				e.Errorf("sync %d has non-increasing wall time: %v vs %v", s.N, s.ClockSnapshot.Wall, v.lastSync.ClockSnapshot.Wall)
-			}
-			if s.N >= 2 && !(s.ClockSnapshot.Mono > v.lastSync.ClockSnapshot.Mono) {
-				e.Errorf("sync %d has non-increasing mono time: %v vs %v", s.N, s.ClockSnapshot.Mono, v.lastSync.ClockSnapshot.Mono)
-			}
-			if s.N >= 2 && !(s.ClockSnapshot.Trace > v.lastSync.ClockSnapshot.Trace) {
-				e.Errorf("sync %d has non-increasing trace time: %v vs %v", s.N, s.ClockSnapshot.Trace, v.lastSync.ClockSnapshot.Trace)
+			if !v.skipClockSnapshotChecks {
+				if s.N >= 2 && !s.ClockSnapshot.Wall.After(v.lastSync.ClockSnapshot.Wall) {
+					e.Errorf("sync %d has non-increasing wall time: %v vs %v", s.N, s.ClockSnapshot.Wall, v.lastSync.ClockSnapshot.Wall)
+				}
+				if s.N >= 2 && !(s.ClockSnapshot.Mono > v.lastSync.ClockSnapshot.Mono) {
+					e.Errorf("sync %d has non-increasing mono time: %v vs %v", s.N, s.ClockSnapshot.Mono, v.lastSync.ClockSnapshot.Mono)
+				}
+				if s.N >= 2 && !(s.ClockSnapshot.Trace > v.lastSync.ClockSnapshot.Trace) {
+					e.Errorf("sync %d has non-increasing trace time: %v vs %v", s.N, s.ClockSnapshot.Trace, v.lastSync.ClockSnapshot.Trace)
+				}
 			}
 		}
 		v.lastSync = s
