@@ -862,10 +862,10 @@ func schedinit() {
 	ticks.init() // run as early as possible
 	moduledataverify()
 	stackinit()
+	randinit() // must run before mallocinit, alginit, mcommoninit
 	mallocinit()
 	godebug := getGodebugEarly()
 	cpuinit(godebug) // must run before alginit
-	randinit()       // must run before alginit, mcommoninit
 	alginit()        // maps, hash, rand must not be used before this call
 	mcommoninit(gp.m, -1)
 	modulesinit()   // provides activeModules

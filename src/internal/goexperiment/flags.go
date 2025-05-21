@@ -129,4 +129,8 @@ type Flags struct {
 
 	// GreenTeaGC enables the Green Tea GC implementation.
 	GreenTeaGC bool
+
+	// RandomizedHeapBase enables heap base address randomization on 64-bit
+	// platforms.
+	RandomizedHeapBase64 bool
 }

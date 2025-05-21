@@ -9,6 +9,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/gc"
@@ -417,7 +418,8 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			slow.HeapReleased += uint64(pg) * pageSize
 		}
 		for _, p := range allp {
-			pg := sys.OnesCount64(p.pcache.scav)
+			// Only count scav bits for pages in the cache
+			pg := sys.OnesCount64(p.pcache.cache & p.pcache.scav)
 			slow.HeapReleased += uint64(pg) * pageSize
 		}
 
@@ -1120,12 +1122,16 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
 
 		// Lock so that we can safely access the bitmap.
 		lock(&mheap_.lock)
+
+		heapBase := mheap_.pages.inUse.ranges[0].base.addr()
+		secondArenaBase := arenaBase(arenaIndex(heapBase) + 1)
 	chunkLoop:
 		for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
 			chunk := mheap_.pages.tryChunkOf(i)
 			if chunk == nil {
 				continue
 			}
+			cb := chunkBase(i)
 			for j := 0; j < pallocChunkPages/64; j++ {
 				// Run over each 64-bit bitmap section and ensure
 				// scavenged is being cleared properly on allocation.
@@ -1135,12 +1141,20 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
 				want := chunk.scavenged[j] &^ chunk.pallocBits[j]
 				got := chunk.scavenged[j]
 				if want != got {
+					// When goexperiment.RandomizedHeapBase64 is set we use a
+					// series of padding pages to generate randomized heap base
+					// address which have both the alloc and scav bits set. If
+					// we see this for a chunk between the address of the heap
+					// base, and the address of the second arena continue.
+					if goexperiment.RandomizedHeapBase64 && (cb >= heapBase && cb < secondArenaBase) {
+						continue
+					}
 					ok = false
 					if n >= len(mismatches) {
 						break chunkLoop
 					}
 					mismatches[n] = BitsMismatch{
-						Base: chunkBase(i) + uintptr(j)*64*pageSize,
+						Base: cb + uintptr(j)*64*pageSize,
 						Got:  got,
 						Want: want,
 					}
