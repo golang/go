@@ -191,20 +191,28 @@ func GetExitStatus() int {
 // connected to the go command's own stdout and stderr.
 // If the command fails, Run reports the error using Errorf.
 func Run(cmdargs ...any) {
+	if err := RunErr(cmdargs...); err != nil {
+		Errorf("%v", err)
+	}
+}
+
+// Run runs the command, with stdout and stderr
+// connected to the go command's own stdout and stderr.
+// If the command fails, RunErr returns the error, which
+// may be an *exec.ExitError.
+func RunErr(cmdargs ...any) error {
 	cmdline := str.StringList(cmdargs...)
 	if cfg.BuildN || cfg.BuildX {
 		fmt.Printf("%s\n", strings.Join(cmdline, " "))
 		if cfg.BuildN {
-			return
+			return nil
 		}
 	}
 
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		Errorf("%v", err)
-	}
+	return cmd.Run()
 }
 
 // RunStdin is like run but connects Stdin. It retries if it encounters an ETXTBSY.
