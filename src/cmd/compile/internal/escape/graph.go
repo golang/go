@@ -212,7 +212,7 @@ func (b *batch) flow(k hole, src *location) {
 		if base.Flag.LowerM >= 2 || logopt.Enabled() {
 			pos := base.FmtPos(src.n.Pos())
 			if base.Flag.LowerM >= 2 {
-				fmt.Printf("%s: %v escapes to heap:\n", pos, src.n)
+				fmt.Printf("%s: %v escapes to heap in %v:\n", pos, src.n, ir.FuncName(src.curfn))
 			}
 			explanation := b.explainFlow(pos, dst, src, k.derefs, k.notes, []*logopt.LoggedOpt{})
 			if logopt.Enabled() {
