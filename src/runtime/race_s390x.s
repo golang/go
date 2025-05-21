@@ -412,13 +412,13 @@ TEXT	racecall<>(SB), NOSPLIT, $0-0
 	MOVD	g_m(g), R8			// R8 = thread.
 
 	// Switch to g0 stack if we aren't already on g0 or gsignal.
-	MOVD	m_gsignal(R8), R8
-	CMPBEQ	R8, g, call
+	MOVD	m_gsignal(R8), R9
+	CMPBEQ	R9, g, call
 
-	MOVD	m_g0(R8), R8
-	CMPBEQ	R8, g, call
+	MOVD	m_g0(R8), R9
+	CMPBEQ	R9, g, call
 
-	MOVD	(g_sched+gobuf_sp)(R8), R15	// Switch SP to g0.
+	MOVD	(g_sched+gobuf_sp)(R9), R15	// Switch SP to g0.
 
 call:	SUB	$160, R15			// Allocate C frame.
 	BL	R1				// Call C code.
