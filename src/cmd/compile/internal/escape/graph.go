@@ -139,35 +139,6 @@ func (l *location) leakTo(sink *location, derefs int) {
 	l.paramEsc.AddHeap(derefs)
 }
 
-// leakTo records that parameter l leaks to sink.
-func (b *batch) leakTo(l, sink *location, derefs int) {
-	if (logopt.Enabled() || base.Flag.LowerM >= 2) && !l.hasAttr(attrEscapes) {
-		if base.Flag.LowerM >= 2 {
-			fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", base.FmtPos(l.n.Pos()), l.n, b.explainLoc(sink), derefs)
-		}
-		explanation := b.explainPath(sink, l)
-		if logopt.Enabled() {
-			var e_curfn *ir.Func // TODO(mdempsky): Fix.
-			logopt.LogOpt(l.n.Pos(), "leak", "escape", ir.FuncName(e_curfn),
-				fmt.Sprintf("parameter %v leaks to %s with derefs=%d", l.n, b.explainLoc(sink), derefs), explanation)
-		}
-	}
-
-	// If sink is a result parameter that doesn't escape (#44614)
-	// and we can fit return bits into the escape analysis tag,
-	// then record as a result leak.
-	if !sink.hasAttr(attrEscapes) && sink.isName(ir.PPARAMOUT) && sink.curfn == l.curfn {
-		if ri := sink.resultIndex - 1; ri < numEscResults {
-			// Leak to result parameter.
-			l.paramEsc.AddResult(ri, derefs)
-			return
-		}
-	}
-
-	// Otherwise, record as heap leak.
-	l.paramEsc.AddHeap(derefs)
-}
-
 func (l *location) isName(c ir.Class) bool {
 	return l.n != nil && l.n.Op() == ir.ONAME && l.n.(*ir.Name).Class == c
 }
