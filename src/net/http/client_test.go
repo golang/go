@@ -1550,6 +1550,8 @@ func testClientStripHeadersOnRepeatedRedirect(t *testing.T, mode testMode) {
 		if r.Host+r.URL.Path != "a.example.com/" {
 			if h := r.Header.Get("Authorization"); h != "" {
 				t.Errorf("on request to %v%v, Authorization=%q, want no header", r.Host, r.URL.Path, h)
+			} else if h := r.Header.Get("Proxy-Authorization"); h != "" {
+				t.Errorf("on request to %v%v, Proxy-Authorization=%q, want no header", r.Host, r.URL.Path, h)
 			}
 		}
 		// Follow a chain of redirects from a to b and back to a.
@@ -1578,6 +1580,7 @@ func testClientStripHeadersOnRepeatedRedirect(t *testing.T, mode testMode) {
 	req, _ := NewRequest("GET", proto+"://a.example.com/", nil)
 	req.Header.Add("Cookie", "foo=bar")
 	req.Header.Add("Authorization", "secretpassword")
+	req.Header.Add("Proxy-Authorization", "secretpassword")
 	res, err := c.Do(req)
 	if err != nil {
 		t.Fatal(err)
