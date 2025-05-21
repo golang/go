@@ -195,7 +195,7 @@ func TestIssue33979(t *testing.T) {
 	testenv.MustHaveCGO(t)
 	// N.B. go build below explictly doesn't pass through
 	// -asan/-msan/-race, so we don't care about those.
-	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
+	testenv.MustInternalLink(t, testenv.SpecialBuildTypes{Cgo: true})
 
 	t.Parallel()
 
