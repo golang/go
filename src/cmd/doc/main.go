@@ -122,8 +122,21 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 		}
 	}
 	if serveHTTP {
-		// We want to run the logic below to determine a match for a symbol, method,
-		// or field, but not actually print the documentation to the output.
+		// Special case: if there are no arguments to go doc -http, allow
+		// there to be no package in the current directory. We'll still try
+		// to open the page for the documentation of the package in the current
+		// directory, but if one doesn't exist, fall back to opening the home page.
+		if len(flagSet.Args()) == 0 {
+			var path string
+			if importPath, err := runCmd("go", "list"); err == nil {
+				path = importPath
+			}
+			return doPkgsite(path)
+		}
+
+		// If args are provided, we need to figure out which page to open on the pkgsite
+		// instance. Run the logic below to determine a match for a symbol, method,
+		// or field, but don't actually print the documentation to the output.
 		writer = io.Discard
 	}
 	var paths []string
@@ -179,44 +192,41 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 		}
 		if found {
 			if serveHTTP {
-				return doPkgsite(userPath, pkg, symbol, method)
+				path, err := objectPath(userPath, pkg, symbol, method)
+				if err != nil {
+					return err
+				}
+				return doPkgsite(path)
 			}
 			return nil
 		}
 	}
 }
 
-func listUserPath(userPath string) (string, error) {
+func runCmd(cmdline ...string) (string, error) {
 	var stdout, stderr strings.Builder
-	cmd := exec.Command("go", "list", userPath)
+	cmd := exec.Command(cmdline[0], cmdline[1:]...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("go doc: go list %s: %v\n%s\n", userPath, err, stderr.String())
+		return "", fmt.Errorf("go doc: %s: %v\n%s\n", strings.Join(cmdline, " "), err, stderr.String())
 	}
 	return strings.TrimSpace(stdout.String()), nil
 }
 
-func doPkgsite(userPath string, pkg *Package, symbol, method string) error {
-	port, err := pickUnusedPort()
-	if err != nil {
-		return fmt.Errorf("failed to find port for documentation server: %v", err)
-	}
-	addr := fmt.Sprintf("localhost:%d", port)
-
-	// Assemble url to open on the browser, to point to documentation of
-	// the requested object.
-	importPath := pkg.build.ImportPath
-	if importPath == "." {
+func objectPath(userPath string, pkg *Package, symbol, method string) (string, error) {
+	var err error
+	path := pkg.build.ImportPath
+	if path == "." {
 		// go/build couldn't determine the import path, probably
 		// because this was a relative path into a module. Use
 		// go list to get the import path.
-		importPath, err = listUserPath(userPath)
+		path, err = runCmd("go", "list", userPath)
 		if err != nil {
-			return err
+			return "", err
 		}
 	}
-	path := path.Join("http://"+addr, importPath)
+
 	object := symbol
 	if symbol != "" && method != "" {
 		object = symbol + "." + method
@@ -224,6 +234,16 @@ func doPkgsite(userPath string, pkg *Package, symbol, method string) error {
 	if object != "" {
 		path = path + "#" + object
 	}
+	return path, nil
+}
+
+func doPkgsite(urlPath string) error {
+	port, err := pickUnusedPort()
+	if err != nil {
+		return fmt.Errorf("failed to find port for documentation server: %v", err)
+	}
+	addr := fmt.Sprintf("localhost:%d", port)
+	path := path.Join("http://"+addr, urlPath)
 
 	// Turn off the default signal handler for SIGINT (and SIGQUIT on Unix)
 	// and instead wait for the child process to handle the signal and
