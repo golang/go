@@ -408,6 +408,9 @@ func init() {
 		// Returns a pointer to a write barrier buffer in R25.
 		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ gpg) | buildReg("R31"), outputs: []regMask{buildReg("R25")}}, clobberFlags: true, aux: "Int64"},
 
+		// Do data barrier. arg0=memorys
+		{name: "LoweredPubBarrier", argLength: 1, asm: "SYNC", hasSideEffects: true},
+
 		// There are three of these functions so that they can have three different register inputs.
 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
 		// default registers to match so we don't need to copy registers around unnecessarily.

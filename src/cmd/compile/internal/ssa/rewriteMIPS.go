@@ -450,6 +450,9 @@ func rewriteValueMIPS(v *Value) bool {
 		return rewriteValueMIPS_OpPanicBounds(v)
 	case OpPanicExtend:
 		return rewriteValueMIPS_OpPanicExtend(v)
+	case OpPubBarrier:
+		v.Op = OpMIPSLoweredPubBarrier
+		return true
 	case OpRotateLeft16:
 		return rewriteValueMIPS_OpRotateLeft16(v)
 	case OpRotateLeft32:

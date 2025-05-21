@@ -2076,6 +2076,7 @@ const (
 	OpMIPSLoweredGetCallerSP
 	OpMIPSLoweredGetCallerPC
 	OpMIPSLoweredWB
+	OpMIPSLoweredPubBarrier
 	OpMIPSLoweredPanicBoundsA
 	OpMIPSLoweredPanicBoundsB
 	OpMIPSLoweredPanicBoundsC
@@ -27989,6 +27990,13 @@ var opcodeTable = [...]opInfo{
 				{0, 16777216}, // R25
 			},
 		},
+	},
+	{
+		name:           "LoweredPubBarrier",
+		argLen:         1,
+		hasSideEffects: true,
+		asm:            mips.ASYNC,
+		reg:            regInfo{},
 	},
 	{
 		name:    "LoweredPanicBoundsA",
