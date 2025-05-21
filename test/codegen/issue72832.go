@@ -35,7 +35,16 @@ type tile3 struct {
 
 func store_shifted(t *tile3, x uint32) {
 	// amd64:`MOVL`
+	// ppc64:`MOVHBR`
 	t.a = uint8(x)
 	t.b = uint8(x >> 8)
 	t.c = uint16(x >> 16)
+}
+
+func store_const(t *tile3) {
+	// 0x00030201
+	// amd64:`MOVL\s\$197121`
+	// 0x01020003
+	// ppc64:`MOVD\s\$16908291`
+	t.a, t.b, t.c = 1, 2, 3
 }

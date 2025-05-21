@@ -581,7 +581,7 @@ func combineStores(root *Value) {
 			mask := int64(1)<<(8*a[i].size) - 1
 			s := 8 * (a[i].offset - a[0].offset)
 			if root.Block.Func.Config.BigEndian {
-				s = aTotalSize*8 - a[i].size - s
+				s = (aTotalSize-a[i].size)*8 - s
 			}
 			c |= (a[i].store.Args[1].AuxInt & mask) << s
 		}
