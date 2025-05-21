@@ -56,8 +56,8 @@ func WindowsUpdateGOMAXPROCS() {
 }
 
 func WindowsDontUpdateGOMAXPROCS() {
-	ncpu := runtime.NumCPU()
+	procs := runtime.GOMAXPROCS(0)
 	setAffinity2()
-	mustNotChangeMaxProcs(ncpu)
+	mustNotChangeMaxProcs(procs)
 	println("OK")
 }
