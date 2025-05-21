@@ -122,16 +122,23 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 		}
 	}
 	if serveHTTP {
-		// Special case: if there are no arguments to go doc -http, allow
-		// there to be no package in the current directory. We'll still try
-		// to open the page for the documentation of the package in the current
-		// directory, but if one doesn't exist, fall back to opening the home page.
+		// Special case: if there are no arguments, try to go to an appropriate page
+		// depending on whether we're in a module or workspace. The pkgsite homepage
+		// is often not the most useful page.
 		if len(flagSet.Args()) == 0 {
-			var path string
-			if importPath, err := runCmd("go", "list"); err == nil {
-				path = importPath
+			mod, err := runCmd(append(os.Environ(), "GOWORK=off"), "go", "list", "-m")
+			if err == nil && mod != "" && mod != "command-line-arguments" {
+				// If there's a module, go to the module's doc page.
+				return doPkgsite(mod)
 			}
-			return doPkgsite(path)
+			gowork, err := runCmd(nil, "go", "env", "GOWORK")
+			if err == nil && gowork != "" {
+				// Outside a module, but in a workspace, go to the home page
+				// with links to each of the modules' pages.
+				return doPkgsite("")
+			}
+			// Outside a module or workspace, go to the documentation for the standard library.
+			return doPkgsite("std")
 		}
 
 		// If args are provided, we need to figure out which page to open on the pkgsite
@@ -203,9 +210,10 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 	}
 }
 
-func runCmd(cmdline ...string) (string, error) {
+func runCmd(env []string, cmdline ...string) (string, error) {
 	var stdout, stderr strings.Builder
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+	cmd.Env = env
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
@@ -221,7 +229,7 @@ func objectPath(userPath string, pkg *Package, symbol, method string) (string, e
 		// go/build couldn't determine the import path, probably
 		// because this was a relative path into a module. Use
 		// go list to get the import path.
-		path, err = runCmd("go", "list", userPath)
+		path, err = runCmd(nil, "go", "list", userPath)
 		if err != nil {
 			return "", err
 		}
