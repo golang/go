@@ -13,6 +13,7 @@
 package maphash
 
 import (
+	"hash"
 	"internal/byteorder"
 	"math"
 )
@@ -80,7 +81,7 @@ func String(seed Seed, s string) uint64 {
 //
 // The zero Hash is a valid Hash ready to use.
 // A zero Hash chooses a random seed for itself during
-// the first call to a Reset, Write, Seed, or Sum64 method.
+// the first call to a Reset, Write, Seed, Clone, or Sum64 method.
 // For control over the seed, use SetSeed.
 //
 // The computed hash values depend only on the initial seed and
@@ -280,6 +281,13 @@ func (h *Hash) Size() int { return 8 }
 
 // BlockSize returns h's block size.
 func (h *Hash) BlockSize() int { return len(h.buf) }
+
+// Clone implements [hash.Cloner].
+func (h *Hash) Clone() (hash.Cloner, error) {
+	h.initSeed()
+	r := *h
+	return &r, nil
+}
 
 // Comparable returns the hash of comparable value v with the given seed
 // such that Comparable(s, v1) == Comparable(s, v2) if v1 == v2.

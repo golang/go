@@ -12,6 +12,7 @@ import (
 	"crypto/internal/fips140/sha256"
 	"crypto/internal/fips140/sha3"
 	"crypto/internal/fips140/sha512"
+	"errors"
 	"hash"
 )
 
@@ -29,6 +30,7 @@ type marshalable interface {
 }
 
 type HMAC struct {
+	// opad and ipad may share underlying storage with HMAC clones.
 	opad, ipad   []byte
 	outer, inner hash.Hash
 
@@ -126,6 +128,30 @@ func (h *HMAC) Reset() {
 	h.ipad = imarshal
 	h.opad = omarshal
 	h.marshaled = true
+}
+
+// Clone implements [hash.Cloner] if the underlying hash does.
+// Otherwise, it returns [errors.ErrUnsupported].
+func (h *HMAC) Clone() (hash.Cloner, error) {
+	r := *h
+	ic, ok := h.inner.(hash.Cloner)
+	if !ok {
+		return nil, errors.ErrUnsupported
+	}
+	oc, ok := h.outer.(hash.Cloner)
+	if !ok {
+		return nil, errors.ErrUnsupported
+	}
+	var err error
+	r.inner, err = ic.Clone()
+	if err != nil {
+		return nil, errors.ErrUnsupported
+	}
+	r.outer, err = oc.Clone()
+	if err != nil {
+		return nil, errors.ErrUnsupported
+	}
+	return &r, nil
 }
 
 // New returns a new HMAC hash using the given [hash.Hash] type and key.

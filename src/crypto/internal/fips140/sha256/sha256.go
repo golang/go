@@ -10,6 +10,7 @@ import (
 	"crypto/internal/fips140"
 	"crypto/internal/fips140deps/byteorder"
 	"errors"
+	"hash"
 )
 
 // The size of a SHA-256 checksum in bytes.
@@ -113,6 +114,11 @@ func consumeUint64(b []byte) ([]byte, uint64) {
 
 func consumeUint32(b []byte) ([]byte, uint32) {
 	return b[4:], byteorder.BEUint32(b)
+}
+
+func (d *Digest) Clone() (hash.Cloner, error) {
+	r := *d
+	return &r, nil
 }
 
 func (d *Digest) Reset() {

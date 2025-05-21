@@ -42,13 +42,14 @@ var testShakes = map[string]struct {
 	"cSHAKE256": {NewCSHAKE256, "CSHAKE256", "CustomString"},
 }
 
-// decodeHex converts a hex-encoded string into a raw byte string.
-func decodeHex(s string) []byte {
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		panic(err)
-	}
-	return b
+func TestSHA3Hash(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "sha3", func(t *testing.T) {
+		for name, f := range testDigests {
+			t.Run(name, func(t *testing.T) {
+				cryptotest.TestHash(t, func() hash.Hash { return f() })
+			})
+		}
+	})
 }
 
 // TestUnalignedWrite tests that writing data in an arbitrary pattern with

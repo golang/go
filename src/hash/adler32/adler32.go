@@ -78,6 +78,11 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	return nil
 }
 
+func (d *digest) Clone() (hash.Cloner, error) {
+	r := *d
+	return &r, nil
+}
+
 // Add p to the running checksum d.
 func update(d digest, p []byte) digest {
 	s1, s2 := uint32(d&0xffff), uint32(d>>16)

@@ -5,6 +5,8 @@
 package cryptotest
 
 import (
+	"crypto/internal/boring"
+	"crypto/internal/fips140"
 	"hash"
 	"internal/testhash"
 	"io"
@@ -18,6 +20,10 @@ type MakeHash func() hash.Hash
 // TestHash performs a set of tests on hash.Hash implementations, checking the
 // documented requirements of Write, Sum, Reset, Size, and BlockSize.
 func TestHash(t *testing.T, mh MakeHash) {
+	if boring.Enabled || fips140.Version() == "v1.0" {
+		testhash.TestHashWithoutClone(t, testhash.MakeHash(mh))
+		return
+	}
 	testhash.TestHash(t, testhash.MakeHash(mh))
 }
 

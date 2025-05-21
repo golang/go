@@ -270,8 +270,15 @@ func TestMD5Hash(t *testing.T) {
 }
 
 func TestExtraMethods(t *testing.T) {
-	h := New()
+	h := maybeCloner(New())
 	cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+}
+
+func maybeCloner(h hash.Hash) any {
+	if c, ok := h.(hash.Cloner); ok {
+		return &c
+	}
+	return &h
 }
 
 var bench = New()

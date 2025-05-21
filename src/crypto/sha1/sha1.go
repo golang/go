@@ -93,6 +93,11 @@ func consumeUint32(b []byte) ([]byte, uint32) {
 	return b[4:], byteorder.BEUint32(b)
 }
 
+func (d *digest) Clone() (hash.Cloner, error) {
+	r := *d
+	return &r, nil
+}
+
 func (d *digest) Reset() {
 	d.h[0] = init0
 	d.h[1] = init1
