@@ -6,7 +6,10 @@
 
 package sha1
 
-import "internal/cpu"
+import (
+	"crypto/internal/impl"
+	"internal/cpu"
+)
 
 //go:noescape
 func blockAVX2(dig *digest, p []byte)
@@ -16,6 +19,11 @@ func blockSHANI(dig *digest, p []byte)
 
 var useAVX2 = cpu.X86.HasAVX && cpu.X86.HasAVX2 && cpu.X86.HasBMI1 && cpu.X86.HasBMI2
 var useSHANI = cpu.X86.HasAVX && cpu.X86.HasSHA && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3
+
+func init() {
+	impl.Register("sha1", "AVX2", &useAVX2)
+	impl.Register("sha1", "SHA-NI", &useSHANI)
+}
 
 func block(dig *digest, p []byte) {
 	if useSHANI {
