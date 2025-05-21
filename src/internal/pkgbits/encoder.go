@@ -72,14 +72,17 @@ func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
 		writeUint32(flags)
 	}
 
-	// Write elemEndsEnds.
+	// TODO(markfreeman): Also can use delta encoding to write section ends,
+	// but not as impactful.
 	var sum uint32
 	for _, elems := range &pw.elems {
 		sum += uint32(len(elems))
 		writeUint32(sum)
 	}
 
-	// Write elemEnds.
+	// TODO(markfreeman): Use delta encoding to store element ends and inflate
+	// back to this representation during decoding; the numbers will be much
+	// smaller.
 	sum = 0
 	for _, elems := range &pw.elems {
 		for _, elem := range elems {
