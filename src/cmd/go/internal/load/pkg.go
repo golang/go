@@ -3410,7 +3410,7 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args 
 	}
 	rootMod := qrs[0].Mod
 	deprecation, err := modload.CheckDeprecation(ctx, rootMod)
-	if err != nil {
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return nil, fmt.Errorf("%s: %w", args[0], err)
 	}
 	if deprecation != "" {
