@@ -7,6 +7,7 @@ package runtime_test
 import (
 	"fmt"
 	"internal/abi"
+	"internal/race"
 	"internal/syscall/windows/sysdll"
 	"internal/testenv"
 	"io"
@@ -668,6 +669,9 @@ func TestWERDialogue(t *testing.T) {
 }
 
 func TestWindowsStackMemory(t *testing.T) {
+	if race.Enabled {
+		t.Skip("skipping test: race mode uses more stack memory")
+	}
 	o := runTestProg(t, "testprog", "StackMemory")
 	stackUsage, err := strconv.Atoi(o)
 	if err != nil {
