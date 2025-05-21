@@ -7,9 +7,9 @@ package sha3_test
 import (
 	"bytes"
 	"crypto/internal/cryptotest"
-	"crypto/internal/fips140"
 	. "crypto/sha3"
 	"encoding/hex"
+	"hash"
 	"io"
 	"math/rand"
 	"strings"
@@ -450,7 +450,7 @@ func testMarshalUnmarshalSHAKE(t *testing.T, h *SHAKE) {
 }
 
 // benchmarkHash tests the speed to hash num buffers of buflen each.
-func benchmarkHash(b *testing.B, h fips140.Hash, size, num int) {
+func benchmarkHash(b *testing.B, h hash.Hash, size, num int) {
 	b.StopTimer()
 	h.Reset()
 	data := sequentialBytes(size)

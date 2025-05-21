@@ -472,6 +472,7 @@ var depsRules = `
 
 	# FIPS is the FIPS 140 module.
 	# It must not depend on external crypto packages.
+	# Package hash is ok as it's only the interface.
 	# See also fips140deps.AllowedInternalPackages.
 
 	io, math/rand/v2 < crypto/internal/randutil;
@@ -485,7 +486,8 @@ var depsRules = `
 	internal/cpu, internal/goarch < crypto/internal/fips140deps/cpu;
 	internal/godebug < crypto/internal/fips140deps/godebug;
 
-	STR, crypto/internal/impl,
+	STR, hash,
+	crypto/internal/impl,
 	crypto/internal/entropy,
 	crypto/internal/randutil,
 	crypto/internal/fips140deps/byteorder,
@@ -521,7 +523,7 @@ var depsRules = `
 
 	FIPS, internal/godebug < crypto/fips140;
 
-	crypto, hash !< FIPS;
+	crypto !< FIPS;
 
 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
 	# Mostly wrappers around the FIPS module.
@@ -529,7 +531,7 @@ var depsRules = `
 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
 	sync/atomic < crypto/internal/boring/bcache;
 
-	FIPS, internal/godebug, hash, embed,
+	FIPS, internal/godebug, embed,
 	crypto/internal/boring/sig,
 	crypto/internal/boring/syso,
 	crypto/internal/boring/bcache
