@@ -1432,6 +1432,9 @@ func TestCheckLinkname(t *testing.T) {
 		{"ok.go", true},
 		// push linkname is ok
 		{"push.go", true},
+		// using a linknamed variable to reference an assembly
+		// function in the same package is ok
+		{"textvar", true},
 		// pull linkname of blocked symbol is not ok
 		{"coro.go", false},
 		{"coro_var.go", false},
@@ -1447,7 +1450,7 @@ func TestCheckLinkname(t *testing.T) {
 		test := test
 		t.Run(test.src, func(t *testing.T) {
 			t.Parallel()
-			src := filepath.Join("testdata", "linkname", test.src)
+			src := "./testdata/linkname/" + test.src
 			exe := filepath.Join(tmpdir, test.src+".exe")
 			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, src)
 			out, err := cmd.CombinedOutput()
