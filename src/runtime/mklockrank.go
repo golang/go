@@ -99,7 +99,15 @@ NONE
 < reflectOffs;
 
 # Synctest
-hchan, root, timers, timer, notifyList, reflectOffs < synctest;
+hchan,
+  notifyList,
+  reflectOffs,
+  root,
+  strongFromWeakQueue,
+  sweepWaiters,
+  timer,
+  timers
+< synctest;
 
 # User arena state
 NONE < userArenaState;

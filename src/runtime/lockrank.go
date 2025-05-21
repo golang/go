@@ -204,7 +204,7 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
 	lockRankRoot:                {},
 	lockRankItab:                {},
 	lockRankReflectOffs:         {lockRankItab},
-	lockRankSynctest:            {lockRankSysmon, lockRankScavenge, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankRoot, lockRankItab, lockRankReflectOffs},
+	lockRankSynctest:            {lockRankSysmon, lockRankScavenge, lockRankSweepWaiters, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankRoot, lockRankItab, lockRankReflectOffs},
 	lockRankUserArenaState:      {},
 	lockRankTraceBuf:            {lockRankSysmon, lockRankScavenge},
 	lockRankTraceStrings:        {lockRankSysmon, lockRankScavenge, lockRankTraceBuf},
