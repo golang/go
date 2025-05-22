@@ -635,7 +635,7 @@ func notifyListNotifyAll(l *notifyList) {
 		s.next = nil
 		if s.g.bubble != nil && getg().bubble != s.g.bubble {
 			println("semaphore wake of synctest goroutine", s.g.goid, "from outside bubble")
-			panic("semaphore wake of synctest goroutine from outside bubble")
+			fatal("semaphore wake of synctest goroutine from outside bubble")
 		}
 		readyWithTime(s, 4)
 		s = next
@@ -692,7 +692,7 @@ func notifyListNotifyOne(l *notifyList) {
 			s.next = nil
 			if s.g.bubble != nil && getg().bubble != s.g.bubble {
 				println("semaphore wake of synctest goroutine", s.g.goid, "from outside bubble")
-				panic("semaphore wake of synctest goroutine from outside bubble")
+				fatal("semaphore wake of synctest goroutine from outside bubble")
 			}
 			readyWithTime(s, 4)
 			return

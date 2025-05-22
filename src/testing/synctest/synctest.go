@@ -92,7 +92,10 @@
 //
 // A [sync.WaitGroup] becomes associated with a bubble on the first
 // call to Add or Go. Once a WaitGroup is associated with a bubble,
-// calling Add or Go from outside that bubble panics.
+// calling Add or Go from outside that bubble is a fatal error.
+//
+// [sync.Cond.Wait] is durably blocking. Waking a goroutine in a bubble
+// blocked on Cond.Wait from outside the bubble is a fatal error.
 //
 // Cleanup functions and finalizers registered with
 // [runtime.AddCleanup] and [runtime.SetFinalizer]
