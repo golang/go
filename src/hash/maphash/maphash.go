@@ -15,8 +15,6 @@ package maphash
 import (
 	"hash"
 	"internal/abi"
-	"internal/byteorder"
-	"math"
 )
 
 // A Seed is a random value that selects the specific hash function
@@ -309,26 +307,4 @@ func WriteComparable[T comparable](h *Hash, x T) {
 		writeComparable(h, h.n)
 	}
 	writeComparable(h, x)
-}
-
-func (h *Hash) float64(f float64) {
-	if f == 0 {
-		h.WriteByte(0)
-		return
-	}
-	var buf [8]byte
-	if f != f {
-		byteorder.LEPutUint64(buf[:], randUint64())
-		h.Write(buf[:])
-		return
-	}
-	byteorder.LEPutUint64(buf[:], math.Float64bits(f))
-	h.Write(buf[:])
-}
-
-func btoi(b bool) byte {
-	if b {
-		return 1
-	}
-	return 0
 }
