@@ -259,18 +259,10 @@ func doPkgsite(urlPath string) error {
 	signal.Ignore(signalsToIgnore...)
 
 	const version = "v0.0.0-20250520201116-40659211760d"
-	docatversion := "golang.org/x/pkgsite/cmd/internal/doc@" + version
-	// First download the module and then try to run with GOPROXY=off to circumvent
-	// the deprecation check. This will allow the pkgsite command to run if it's
-	// in the module cache but there's no network.
-	if _, err := runCmd(nil, "go", "mod", "download", docatversion); err != nil {
-		return err
-	}
-	cmd := exec.Command("go", "run", docatversion,
+	cmd := exec.Command("go", "run", "golang.org/x/pkgsite/cmd/internal/doc@"+version,
 		"-gorepo", buildCtx.GOROOT,
 		"-http", addr,
 		"-open", path)
-	cmd.Env = append(os.Environ(), "GOPROXY=off")
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 
