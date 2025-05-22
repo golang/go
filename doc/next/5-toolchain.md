@@ -38,7 +38,7 @@ successfully in Go 1.25. If this change is affecting your code, the solution is 
 the non-nil error check earlier in your code, preferably immediately after
 the error-generating statement.
 
-<!-- CLs 653856, 657937, 663795, TBD 664299 -->
+<!-- CLs 653856, 657937, 663795, 664299 -->
 
 The compiler can now allocate the backing store for slices on the
 stack in more situations, which improves performance. This change has
