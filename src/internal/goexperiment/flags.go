@@ -129,4 +129,8 @@ type Flags struct {
 
 	// GreenTeaGC enables the Green Tea GC implementation.
 	GreenTeaGC bool
+
+	// SIMD enables the simd package and the compiler's handling
+	// of SIMD intrinsics.
+	SIMD bool
 }
