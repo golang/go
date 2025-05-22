@@ -1,0 +1,77 @@
+# Test that coverage works correctly with overlays
+
+env GO111MODULE=on
+
+mkdir covmod
+cd covmod
+
+-- go.mod --
+module example.com/covmod
+
+go 1.25
+
+-- a.go --
+package a
+
+func Hello() string { 
+    return "Hello: World"
+}
+
+func Helper() string {
+    return "helper"
+}
+
+-- a_test.go --
+package a
+
+import "testing"
+
+func TestHello(t *testing.T) {
+	got := Hello()
+	expected := "Hello: World"
+	if got != expected {
+		t.Fatalf("Hello() = %q, want %q", got, expected)
+	}
+}
+
+func TestHelper(t *testing.T) {
+	got := Helper()
+	expected := "helper"
+	if got != expected {
+		t.Fatalf("Helper() = %q, want %q", got, expected)
+	}
+}
+
+-- overlay/a.go --
+package a
+
+func Hello() string {
+    panic("overlay")
+}
+
+func Helper() string {
+    panic("overlay helper")
+}
+
+-- overlay.json --
+{"Replace": {"a.go": "overlay/a.go"}}
+
+exists overlay.json
+
+go mod tidy
+
+go test -v
+
+! exec sh -c '! go test -overlay=overlay.json -coverpkg=example.com/covmod 2>&1 | grep -q "panic: overlay"'
+
+! exec sh -c '! go test -overlay=overlay.json -run=TestHello -coverpkg=example.com/covmod 2>&1 | grep -q "panic: overlay"'
+
+! exec sh -c '! go test -overlay=overlay.json -run=TestHelper -coverpkg=example.com/covmod 2>&1 | grep -q "panic: overlay helper"'
+
+! go test -overlay=overlay.json -coverpkg=example.com/covmod -coverprofile=coverage.txt
+
+exists coverage.txt
+
+! grep -q 'overlay/a\.go' coverage.txt
+
+rm -f coverage.txt
