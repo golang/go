@@ -228,6 +228,7 @@ func Pow2Muls(n1, n2 int) (int, int) {
 	// 386:"SHLL\t[$]5",-"IMULL"
 	// arm:"SLL\t[$]5",-"MUL"
 	// arm64:"LSL\t[$]5",-"MUL"
+	// loong64:"SLLV\t[$]5",-"MULV"
 	// ppc64x:"SLD\t[$]5",-"MUL"
 	a := n1 * 32
 
@@ -235,6 +236,7 @@ func Pow2Muls(n1, n2 int) (int, int) {
 	// 386:"SHLL\t[$]6",-"IMULL"
 	// arm:"SLL\t[$]6",-"MUL"
 	// arm64:`NEG\sR[0-9]+<<6,\sR[0-9]+`,-`LSL`,-`MUL`
+	// loong64:"SLLV\t[$]6",-"MULV"
 	// ppc64x:"SLD\t[$]6","NEG\\sR[0-9]+,\\sR[0-9]+",-"MUL"
 	b := -64 * n2
 
@@ -255,11 +257,13 @@ func Mul_96(n int) int {
 	// 386:`SHLL\t[$]5`,`LEAL\t\(.*\)\(.*\*2\),`,-`IMULL`
 	// arm64:`LSL\t[$]5`,`ADD\sR[0-9]+<<1,\sR[0-9]+`,-`MUL`
 	// arm:`SLL\t[$]5`,`ADD\sR[0-9]+<<1,\sR[0-9]+`,-`MUL`
+	// loong64:"ADDVU","SLLV\t[$]5",-"MULV"
 	// s390x:`SLD\t[$]5`,`SLD\t[$]6`,-`MULLD`
 	return n * 96
 }
 
 func Mul_n120(n int) int {
+	// loong64:"SLLV\t[$]3","SLLV\t[$]7","SUBVU",-"MULV"
 	// s390x:`SLD\t[$]3`,`SLD\t[$]7`,-`MULLD`
 	return n * -120
 }

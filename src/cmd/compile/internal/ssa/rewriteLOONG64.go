@@ -5537,20 +5537,8 @@ func rewriteValueLOONG64_OpLOONG64MOVWstorezeroidx(v *Value) bool {
 func rewriteValueLOONG64_OpLOONG64MULV(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (MULV x (MOVVconst [-1]))
-	// result: (NEGV x)
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			if v_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_1.AuxInt) != -1 {
-				continue
-			}
-			v.reset(OpLOONG64NEGV)
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
+	b := v.Block
+	config := b.Func.Config
 	// match: (MULV _ (MOVVconst [0]))
 	// result: (MOVVconst [0])
 	for {
@@ -5578,8 +5566,8 @@ func rewriteValueLOONG64_OpLOONG64MULV(v *Value) bool {
 		break
 	}
 	// match: (MULV x (MOVVconst [c]))
-	// cond: isPowerOfTwo(c)
-	// result: (SLLVconst [log64(c)] x)
+	// cond: canMulStrengthReduce(config, c)
+	// result: {mulStrengthReduce(v, x, c)}
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -5587,12 +5575,10 @@ func rewriteValueLOONG64_OpLOONG64MULV(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt64(v_1.AuxInt)
-			if !(isPowerOfTwo(c)) {
+			if !(canMulStrengthReduce(config, c)) {
 				continue
 			}
-			v.reset(OpLOONG64SLLVconst)
-			v.AuxInt = int64ToAuxInt(log64(c))
-			v.AddArg(x)
+			v.copyOf(mulStrengthReduce(v, x, c))
 			return true
 		}
 		break
