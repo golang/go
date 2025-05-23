@@ -1,1 +1,1 @@
-pkg sync, method (*WaitGroup) Go(func()) #63769
+pkg sync, method (*WaitGroup) Go(func()) #63796
