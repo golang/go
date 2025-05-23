@@ -84,15 +84,15 @@ func BenchmarkFileSet_Position(b *testing.B) {
 }
 
 func BenchmarkFileSet_AddExistingFiles(b *testing.B) {
+	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+
 	// Create the "universe" of files.
 	fset := token.NewFileSet()
 	var files []*token.File
 	for range 25000 {
 		files = append(files, fset.AddFile("", -1, 10000))
 	}
-	rand.Shuffle(len(files), func(i, j int) {
-		files[i], files[j] = files[j], files[i]
-	})
+	token.Shuffle(rng, files)
 
 	// choose returns n random files.
 	choose := func(n int) []*token.File {
