@@ -49,8 +49,6 @@
         "ServerAuth-SHA1-Fallback*": "We don't support SHA-1 in TLS 1.2 (without tlssha1=1), so we fail if there are no signature_algorithms",
 
         "Agree-Digest-SHA256": "We select signature algorithms in peer preference order. We should consider changing this.",
-        "ECDSACurveMismatch-Verify-TLS13": "We don't enforce the curve when verifying. This is a bug. We need to fix this.",
-        "*-Verify-ECDSA_P224_SHA256-TLS13": "Side effect of the bug above. BoGo sends a P-256 sigAlg with a P-224 key, and we allow it.",
 
         "V2ClientHello-*": "We don't support SSLv2",
         "SendV2ClientHello*": "We don't support SSLv2",
