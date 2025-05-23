@@ -337,6 +337,7 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	r.performLocalQueries(ctx)
 	r.performPathQueries(ctx)
 	r.performToolQueries(ctx)
+	r.performWorkQueries(ctx)
 
 	for {
 		r.performWildcardQueries(ctx)
@@ -513,6 +514,7 @@ type resolver struct {
 	pathQueries       []*query // package path literal queries in original order
 	wildcardQueries   []*query // path wildcard queries in original order
 	patternAllQueries []*query // queries with the pattern "all"
+	workQueries       []*query // queries with the pattern "work"
 	toolQueries       []*query // queries with the pattern "tool"
 
 	// Indexed "none" queries. These are also included in the slices above;
@@ -578,6 +580,8 @@ func newResolver(ctx context.Context, queries []*query) *resolver {
 	for _, q := range queries {
 		if q.pattern == "all" {
 			r.patternAllQueries = append(r.patternAllQueries, q)
+		} else if q.pattern == "work" {
+			r.workQueries = append(r.workQueries, q)
 		} else if q.pattern == "tool" {
 			r.toolQueries = append(r.toolQueries, q)
 		} else if q.patternIsLocal {
@@ -1067,6 +1071,37 @@ func (r *resolver) performToolQueries(ctx context.Context) {
 				return pathSet{pkgMods: pkgMods, err: err}
 			})
 		}
+	}
+}
+
+// performWorkQueries populates the candidates for each query whose pattern is "work".
+// The candidate module to resolve the work pattern is exactly the single main module.
+func (r *resolver) performWorkQueries(ctx context.Context) {
+	for _, q := range r.workQueries {
+		q.pathOnce(q.pattern, func() pathSet {
+			// TODO(matloob): Maybe export MainModules.mustGetSingleMainModule and call that.
+			// There are a few other places outside the modload package where we expect
+			// a single main module.
+			if len(modload.MainModules.Versions()) != 1 {
+				panic("internal error: number of main modules is not exactly one in resolution phase of go get")
+			}
+			mainModule := modload.MainModules.Versions()[0]
+
+			// We know what the result is going to be, assuming the main module is not
+			// empty, (it's the main module itself) but first check to see that there
+			// are packages in the main module, so that if there aren't any, we can
+			// return the expected warning that the pattern matched no packages.
+			match := modload.MatchInModule(ctx, q.pattern, mainModule, imports.AnyTags())
+			if len(match.Errs) > 0 {
+				return pathSet{err: match.Errs[0]}
+			}
+			if len(match.Pkgs) == 0 {
+				search.WarnUnmatched([]*search.Match{match})
+				return pathSet{} // There are no packages in the main module, so the main module isn't needed to resolve them.
+			}
+
+			return pathSet{pkgMods: []module.Version{mainModule}}
+		})
 	}
 }
 
