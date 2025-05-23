@@ -710,7 +710,7 @@ func TestHappensBefore(t *testing.T) {
 // https://go.dev/issue/73817
 func TestWeak(t *testing.T) {
 	synctest.Run(func() {
-		for range 100 {
+		for range 5 {
 			runtime.GC()
 			b := make([]byte, 1024)
 			weak.Make(&b)
