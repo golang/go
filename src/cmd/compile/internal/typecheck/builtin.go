@@ -64,6 +64,7 @@ var runtimeDecls = [...]struct {
 	{"printcomplex128", funcTag, 27},
 	{"printcomplex64", funcTag, 29},
 	{"printstring", funcTag, 31},
+	{"printquoted", funcTag, 31},
 	{"printpointer", funcTag, 32},
 	{"printuintptr", funcTag, 33},
 	{"printiface", funcTag, 32},

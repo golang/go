@@ -547,8 +547,8 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 		var labels func()
 		if p.Label(idx) != nil {
 			labels = func() {
-				for _, lbl := range p.Label(idx).list {
-					b.pbLabel(tagSample_Label, lbl.key, lbl.value, 0)
+				for _, lbl := range p.Label(idx).Set.List {
+					b.pbLabel(tagSample_Label, lbl.Key, lbl.Value, 0)
 				}
 			}
 		}

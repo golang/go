@@ -168,6 +168,12 @@ allows malformed hostnames containing colons outside of a bracketed IPv6 address
 The default `urlstrictcolons=1` rejects URLs such as `http://localhost:1:2` or `http://::1/`.
 Colons are permitted as part of a bracketed IPv6 address, such as `http://[::1]/`.
 
+Go 1.26 added a new `tracebacklabels` setting that controls the inclusion of
+goroutine labels set through the the `runtime/pprof` package. Setting `tracebacklabels=1`
+includes these key/value pairs in the goroutine status header of runtime
+tracebacks and debug=2 runtime/pprof stack dumps. This format may change in the future.
+(see go.dev/issue/76349)
+
 ### Go 1.25
 
 Go 1.25 added a new `decoratemappings` setting that controls whether the Go

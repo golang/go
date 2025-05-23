@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"internal/abi"
 	"internal/profile"
+	"internal/runtime/pprof/label"
 	"internal/syscall/unix"
 	"internal/testenv"
 	"io"
@@ -1462,11 +1463,11 @@ func TestGoroutineCounts(t *testing.T) {
 	goroutineProf.WriteTo(&w, 1)
 	prof := w.String()
 
-	labels := labelMap{Labels("label", "value")}
+	labels := labelMap{label.NewSet(Labels("label", "value").list)}
 	labelStr := "\n# labels: " + labels.String()
-	selfLabel := labelMap{Labels("self-label", "self-value")}
+	selfLabel := labelMap{label.NewSet(Labels("self-label", "self-value").list)}
 	selfLabelStr := "\n# labels: " + selfLabel.String()
-	fingLabel := labelMap{Labels("fing-label", "fing-value")}
+	fingLabel := labelMap{label.NewSet(Labels("fing-label", "fing-value").list)}
 	fingLabelStr := "\n# labels: " + fingLabel.String()
 	orderedPrefix := []string{
 		"\n50 @ ",
