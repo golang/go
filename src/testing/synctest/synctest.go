@@ -273,13 +273,19 @@ import (
 //     associated with the bubble.
 //   - T.Run, T.Parallel, and T.Deadline must not be called.
 func Test(t *testing.T, f func(*testing.T)) {
+	var ok bool
 	synctest.Run(func() {
-		testingSynctestTest(t, f)
+		ok = testingSynctestTest(t, f)
 	})
+	if !ok {
+		// Fail the test outside the bubble,
+		// so test durations get set using real time.
+		t.FailNow()
+	}
 }
 
 //go:linkname testingSynctestTest testing/synctest.testingSynctestTest
-func testingSynctestTest(t *testing.T, f func(*testing.T))
+func testingSynctestTest(t *testing.T, f func(*testing.T)) bool
 
 // Wait blocks until every goroutine within the current bubble,
 // other than the current goroutine, is durably blocked.
