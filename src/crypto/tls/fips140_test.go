@@ -18,6 +18,7 @@ import (
 	"internal/testenv"
 	"math/big"
 	"net"
+	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -262,15 +263,19 @@ func fipsHandshake(t *testing.T, clientConfig, serverConfig *Config) (clientErr,
 
 func TestFIPSServerSignatureAndHash(t *testing.T) {
 	defer func() {
-		testingOnlyForceClientHelloSignatureAlgorithms = nil
+		testingOnlySupportedSignatureAlgorithms = nil
 	}()
+	defer func(godebug string) {
+		os.Setenv("GODEBUG", godebug)
+	}(os.Getenv("GODEBUG"))
+	os.Setenv("GODEBUG", "tlssha1=1")
 
 	for _, sigHash := range defaultSupportedSignatureAlgorithms() {
 		t.Run(fmt.Sprintf("%v", sigHash), func(t *testing.T) {
 			serverConfig := testConfig.Clone()
 			serverConfig.Certificates = make([]Certificate, 1)
 
-			testingOnlyForceClientHelloSignatureAlgorithms = []SignatureScheme{sigHash}
+			testingOnlySupportedSignatureAlgorithms = []SignatureScheme{sigHash}
 
 			sigType, _, _ := typeAndHashFromSignatureScheme(sigHash)
 			switch sigType {

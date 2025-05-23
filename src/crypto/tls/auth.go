@@ -149,20 +149,18 @@ func legacyTypeAndHashFromPublicKey(pub crypto.PublicKey) (sigType uint8, hash c
 var rsaSignatureSchemes = []struct {
 	scheme          SignatureScheme
 	minModulusBytes int
-	maxVersion      uint16
 }{
 	// RSA-PSS is used with PSSSaltLengthEqualsHash, and requires
 	//    emLen >= hLen + sLen + 2
-	{PSSWithSHA256, crypto.SHA256.Size()*2 + 2, VersionTLS13},
-	{PSSWithSHA384, crypto.SHA384.Size()*2 + 2, VersionTLS13},
-	{PSSWithSHA512, crypto.SHA512.Size()*2 + 2, VersionTLS13},
+	{PSSWithSHA256, crypto.SHA256.Size()*2 + 2},
+	{PSSWithSHA384, crypto.SHA384.Size()*2 + 2},
+	{PSSWithSHA512, crypto.SHA512.Size()*2 + 2},
 	// PKCS #1 v1.5 uses prefixes from hashPrefixes in crypto/rsa, and requires
 	//    emLen >= len(prefix) + hLen + 11
-	// TLS 1.3 dropped support for PKCS #1 v1.5 in favor of RSA-PSS.
-	{PKCS1WithSHA256, 19 + crypto.SHA256.Size() + 11, VersionTLS12},
-	{PKCS1WithSHA384, 19 + crypto.SHA384.Size() + 11, VersionTLS12},
-	{PKCS1WithSHA512, 19 + crypto.SHA512.Size() + 11, VersionTLS12},
-	{PKCS1WithSHA1, 15 + crypto.SHA1.Size() + 11, VersionTLS12},
+	{PKCS1WithSHA256, 19 + crypto.SHA256.Size() + 11},
+	{PKCS1WithSHA384, 19 + crypto.SHA384.Size() + 11},
+	{PKCS1WithSHA512, 19 + crypto.SHA512.Size() + 11},
+	{PKCS1WithSHA1, 15 + crypto.SHA1.Size() + 11},
 }
 
 // signatureSchemesForCertificate returns the list of supported SignatureSchemes
@@ -202,7 +200,7 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 		size := pub.Size()
 		sigAlgs = make([]SignatureScheme, 0, len(rsaSignatureSchemes))
 		for _, candidate := range rsaSignatureSchemes {
-			if size >= candidate.minModulusBytes && version <= candidate.maxVersion {
+			if size >= candidate.minModulusBytes {
 				sigAlgs = append(sigAlgs, candidate.scheme)
 			}
 		}
@@ -219,10 +217,9 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 	}
 
 	// Filter out any unsupported signature algorithms, for example due to
-	// FIPS 140-3 policy, tlssha1=0, or any downstream changes to defaults.go.
-	supportedAlgs := supportedSignatureAlgorithms(version)
+	// FIPS 140-3 policy, tlssha1=0, or protocol version.
 	sigAlgs = slices.DeleteFunc(sigAlgs, func(sigAlg SignatureScheme) bool {
-		return !isSupportedSignatureAlgorithm(sigAlg, supportedAlgs)
+		return isDisabledSignatureAlgorithm(version, sigAlg, false)
 	})
 
 	return sigAlgs
