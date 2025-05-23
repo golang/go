@@ -107,7 +107,7 @@ func traceTimeNow(freq frequency) eventTime {
 }
 
 //go:linkname runtime_traceClockNow runtime.traceClockNow
-func runtime_traceClockNow() int64
+func runtime_traceClockNow() uint64
 
 // frequency is nanoseconds per timestamp unit.
 type frequency float64
