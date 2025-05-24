@@ -24,11 +24,11 @@
 //		synctest.Test(t, func(t *testing.T) {
 //			start := time.Now() // always midnight UTC 2001-01-01
 //			go func() {
-//				time.Sleep(1 * time.Nanosecond)
-//				t.Log(time.Since(start)) // always logs "1ns"
+//				time.Sleep(1 * time.Second)
+//				t.Log(time.Since(start)) // always logs "1s"
 //			}()
-//			time.Sleep(2 * time.Nanosecond) // the goroutine above will run before this Sleep returns
-//			t.Log(time.Since(start))        // always logs "2ns"
+//			time.Sleep(2 * time.Second) // the goroutine above will run before this Sleep returns
+//			t.Log(time.Since(start))    // always logs "2s"
 //		})
 //	}
 //
