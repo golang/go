@@ -1929,8 +1929,10 @@ type connectionStater interface {
 	ConnectionState() tls.ConnectionState
 }
 
+type TLSErrorHandler func(rawData []byte, conn *tls.Conn, err error) string
+
 // Serve a new connection.
-func (c *conn) serve(ctx context.Context) {
+func (c *conn) serve(ctx context.Context, tlsErrorHandler ...TLSErrorHandler) {
 	if ra := c.rwc.RemoteAddr(); ra != nil {
 		c.remoteAddr = ra.String()
 	}
@@ -1968,14 +1970,36 @@ func (c *conn) serve(ctx context.Context) {
 			// If the handshake failed due to the client not speaking
 			// TLS, assume they're speaking plaintext HTTP and write a
 			// 400 response on the TLS conn's underlying net.Conn.
+			// yet
+			// now, if client sent an HTTP request to an HTTPS server, we will call the tlsErrorHandler with (rawData, tlsConn, err),
+			// and if the returned response is not empty, we will write the response to the client.
 			var reason string
 			if re, ok := err.(tls.RecordHeaderError); ok && re.Conn != nil && tlsRecordHeaderLooksLikeHTTP(re.RecordHeader) {
-				io.WriteString(re.Conn, "HTTP/1.0 400 Bad Request\r\n\r\nClient sent an HTTP request to an HTTPS server.\n")
-				re.Conn.Close()
-				reason = "client sent an HTTP request to an HTTPS server"
+				var response string = ""
+				if len(tlsErrorHandler) <= 0 || len(tlsErrorHandler) > 1 || tlsErrorHandler[0] == nil {
+					reason = "only one non-nil tlsErrorHandler is allowed"
+
+					io.WriteString(re.Conn, "HTTP/1.0 500 Internal Server Error\r\n\r\nOnly one non-nil tlsErrorHandler is allowed.\n")
+					re.Conn.Close()
+				} else {
+					response = tlsErrorHandler[0](re.RawData, tlsConn, err)
+
+					if response != "" {
+						io.WriteString(re.Conn, response)
+						re.Conn.Close()
+						c.server.logf("http: TLS handshake error from %s: handler handled the Client sent HTTP request to an HTTPS server error", c.rwc.RemoteAddr())
+						return
+					} else {
+						reason = "client sent an HTTP request to an HTTPS server"
+					}
+
+					io.WriteString(re.Conn, "HTTP/1.0 400 Bad Request\r\n\r\nClient sent an HTTP request to an HTTPS server.\n")
+					re.Conn.Close()
+				}
 			} else {
 				reason = err.Error()
 			}
+
 			c.server.logf("http: TLS handshake error from %s: %v", c.rwc.RemoteAddr(), reason)
 			return
 		}
@@ -2966,9 +2990,9 @@ func (mux *ServeMux) registerErr(patstr string, handler Handler) error {
 // Config.NextProtos.
 //
 // Serve always returns a non-nil error.
-func Serve(l net.Listener, handler Handler) error {
+func Serve(l net.Listener, handler Handler, tlsErrorHandler ...TLSErrorHandler) error {
 	srv := &Server{Handler: handler}
-	return srv.Serve(l)
+	return srv.Serve(l, tlsErrorHandler...)
 }
 
 // ServeTLS accepts incoming HTTPS connections on the listener l,
@@ -2983,9 +3007,9 @@ func Serve(l net.Listener, handler Handler) error {
 // of the server's certificate, any intermediates, and the CA's certificate.
 //
 // ServeTLS always returns a non-nil error.
-func ServeTLS(l net.Listener, handler Handler, certFile, keyFile string) error {
+func ServeTLS(l net.Listener, handler Handler, certFile, keyFile string, tlsErrorHandler ...TLSErrorHandler) error {
 	srv := &Server{Handler: handler}
-	return srv.ServeTLS(l, certFile, keyFile)
+	return srv.ServeTLS(l, certFile, keyFile, tlsErrorHandler...)
 }
 
 // A Server defines parameters for running an HTTP server.
@@ -3386,7 +3410,7 @@ func (s *Server) ListenAndServe() error {
 	if err != nil {
 		return err
 	}
-	return s.Serve(ln)
+	return s.Serve(ln, nil)
 }
 
 var testHookServerServe func(*Server, net.Listener) // used if non-nil
@@ -3430,7 +3454,7 @@ var ErrServerClosed = errors.New("http: Server closed")
 //
 // Serve always returns a non-nil error and closes l.
 // After [Server.Shutdown] or [Server.Close], the returned error is [ErrServerClosed].
-func (s *Server) Serve(l net.Listener) error {
+func (s *Server) Serve(l net.Listener, tlsErrorHandler ...TLSErrorHandler) error {
 	if fn := testHookServerServe; fn != nil {
 		fn(s, l) // call hook with unwrapped listener
 	}
@@ -3490,7 +3514,7 @@ func (s *Server) Serve(l net.Listener) error {
 		tempDelay = 0
 		c := s.newConn(rw)
 		c.setState(c.rwc, StateNew, runHooks) // before Serve can return
-		go c.serve(connCtx)
+		go c.serve(connCtx, tlsErrorHandler...)
 	}
 }
 
@@ -3508,7 +3532,7 @@ func (s *Server) Serve(l net.Listener) error {
 //
 // ServeTLS always returns a non-nil error. After [Server.Shutdown] or [Server.Close], the
 // returned error is [ErrServerClosed].
-func (s *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
+func (s *Server) ServeTLS(l net.Listener, certFile, keyFile string, tlsErrorHandler ...TLSErrorHandler) error {
 	// Setup HTTP/2 before s.Serve, to initialize s.TLSConfig
 	// before we clone it and create the TLS Listener.
 	if err := s.setupHTTP2_ServeTLS(); err != nil {
@@ -3529,7 +3553,7 @@ func (s *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
 	}
 
 	tlsListener := tls.NewListener(l, config)
-	return s.Serve(tlsListener)
+	return s.Serve(tlsListener, tlsErrorHandler...)
 }
 
 func (s *Server) protocols() Protocols {
@@ -3709,9 +3733,9 @@ func ListenAndServe(addr string, handler Handler) error {
 // matching private key for the server must be provided. If the certificate
 // is signed by a certificate authority, the certFile should be the concatenation
 // of the server's certificate, any intermediates, and the CA's certificate.
-func ListenAndServeTLS(addr, certFile, keyFile string, handler Handler) error {
+func ListenAndServeTLS(addr, certFile, keyFile string, handler Handler, tlsErrorHandler ...TLSErrorHandler) error {
 	server := &Server{Addr: addr, Handler: handler}
-	return server.ListenAndServeTLS(certFile, keyFile)
+	return server.ListenAndServeTLS(certFile, keyFile, tlsErrorHandler...)
 }
 
 // ListenAndServeTLS listens on the TCP network address s.Addr and
@@ -3729,7 +3753,7 @@ func ListenAndServeTLS(addr, certFile, keyFile string, handler Handler) error {
 //
 // ListenAndServeTLS always returns a non-nil error. After [Server.Shutdown] or
 // [Server.Close], the returned error is [ErrServerClosed].
-func (s *Server) ListenAndServeTLS(certFile, keyFile string) error {
+func (s *Server) ListenAndServeTLS(certFile, keyFile string, tlsErrorHandler ...TLSErrorHandler) error {
 	if s.shuttingDown() {
 		return ErrServerClosed
 	}
@@ -3745,7 +3769,7 @@ func (s *Server) ListenAndServeTLS(certFile, keyFile string) error {
 
 	defer ln.Close()
 
-	return s.ServeTLS(ln, certFile, keyFile)
+	return s.ServeTLS(ln, certFile, keyFile, tlsErrorHandler...)
 }
 
 // setupHTTP2_ServeTLS conditionally configures HTTP/2 on

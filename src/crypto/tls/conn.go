@@ -568,6 +568,8 @@ type RecordHeaderError struct {
 	// RecordHeader contains the five bytes of TLS record header that
 	// triggered the error.
 	RecordHeader [5]byte
+	// RawData contains the bytes client sent that triggered the error.
+	RawData []byte
 	// Conn provides the underlying net.Conn in the case that a client
 	// sent an initial handshake that didn't look like TLS.
 	// It is nil if there's already been a handshake or a TLS alert has
@@ -581,6 +583,12 @@ func (c *Conn) newRecordHeaderError(conn net.Conn, msg string) (err RecordHeader
 	err.Msg = msg
 	err.Conn = conn
 	copy(err.RecordHeader[:], c.rawInput.Bytes())
+
+	// export the raw data to convert to HTTP if client sent an plaintext HTTP request
+	raw := c.rawInput.Bytes()
+	err.RawData = make([]byte, len(raw))
+	copy(err.RawData, raw)
+
 	return err
 }
 

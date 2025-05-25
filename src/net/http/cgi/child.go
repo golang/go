@@ -142,7 +142,8 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
 // request, if any. If there's no current CGI environment
 // an error is returned. The provided handler may be nil to use
 // [http.DefaultServeMux].
-func Serve(handler http.Handler) error {
+func Serve(handler http.Handler, _ ...TLSErrorHandler) error {
+	// _ TLSErrorHandler not implemented
 	req, err := Request()
 	if err != nil {
 		return err
