@@ -352,8 +352,10 @@ func splitPathInRoot(s string, prefix, suffix []string) (_ []string, suffixSep s
 
 // FS returns a file system (an fs.FS) for the tree of files in the root.
 //
-// The result implements [io/fs.StatFS], [io/fs.ReadFileFS] and
-// [io/fs.ReadDirFS].
+// The result implements [io/fs.StatFS], [io/fs.ReadFileFS],
+// [io/fs.ReadDirFS], [io/fs.MkdirFS], [io/fs.OpenFileFS],
+// [io/fs.PropertiesFS], [io/fs.ReadDirFS], [io/fs.ReadFileFS],
+// [io/fs.ReadLinkFS], [io/fs.RemoveFS], [io/fs.StatFS] and [io/fs.SymlinkFS].
 func (r *Root) FS() fs.FS {
 	return (*rootFS)(r)
 }
@@ -370,6 +372,22 @@ func (rfs *rootFS) Open(name string) (fs.File, error) {
 		return nil, err
 	}
 	return f, nil
+}
+
+func (rfs *rootFS) OpenFile(name string, flag int, perm FileMode) (fs.WriterFile, error) {
+	r := (*Root)(rfs)
+	if !isValidRootFSPath(name) {
+		return nil, &PathError{Op: "open", Path: name, Err: ErrInvalid}
+	}
+	return r.OpenFile(name, flag, perm)
+}
+
+func (rfs *rootFS) Create(name string) (fs.File, error) {
+	r := (*Root)(rfs)
+	if !isValidRootFSPath(name) {
+		return nil, &PathError{Op: "create", Path: name, Err: ErrInvalid}
+	}
+	return r.Create(name)
 }
 
 func (rfs *rootFS) ReadDir(name string) ([]DirEntry, error) {
@@ -415,6 +433,108 @@ func (rfs *rootFS) Stat(name string) (FileInfo, error) {
 		return nil, &PathError{Op: "stat", Path: name, Err: ErrInvalid}
 	}
 	return r.Stat(name)
+}
+
+func (rfs *rootFS) Rename(oldname, newname string) error {
+	r := (*Root)(rfs)
+	if !(isValidRootFSPath(oldname)||isValidRootFSPath(newname)) {
+		return &LinkError{Op: "rename", Old: oldname, New: newname, Err: ErrInvalid}
+	}
+	return r.Rename(oldname, newname)
+}
+
+func (rfs *rootFS) Remove(name string) error {
+	r := (*Root)(rfs)
+	if !isValidRootFSPath(name) {
+		return &PathError{Op: "remove", Path: name, Err: ErrInvalid}
+	}
+	return r.Remove(name)
+}
+
+func (rfs *rootFS) RemoveAll(name string) error {
+	r := (*Root)(rfs)
+	if !isValidRootFSPath(name) {
+		return &PathError{Op: "remove", Path: name, Err: ErrInvalid}
+	}
+	return r.RemoveAll(name)
+}
+
+func (rfs *rootFS) Mkdir(name string, perm FileMode) error {
+	r := (*Root)(rfs)
+	if !isValidRootFSPath(name) {
+		return &PathError{Op: "mkdir", Path: name, Err: ErrInvalid}
+	}
+	return r.Mkdir(name, perm)
+}
+
+func (rfs *rootFS) MkdirAll(name string, perm FileMode) error {
+	r := (*Root)(rfs)
+	if !isValidRootFSPath(name) {
+		return &PathError{Op: "mkdir", Path: name, Err: ErrInvalid}
+	}
+	return r.MkdirAll(name, perm)
+}
+
+func (rfs *rootFS) Chmod(name string, mode FileMode) error {
+	r := (*Root)(rfs)
+	if !isValidRootFSPath(name) {
+		return &PathError{Op: "chmod", Path: name, Err: ErrInvalid}
+	}
+	return r.Chmod(name, mode)
+}
+
+func (rfs *rootFS) Chown(name string, uid int, gid int) error {
+	r := (*Root)(rfs)
+	if !isValidRootFSPath(name) {
+		return &PathError{Op: "chown", Path: name, Err: ErrInvalid}
+	}
+	return r.Chown(name, uid, gid)
+}
+
+func (rfs *rootFS) Chtimes(name string, atime time.Time, mtime time.Time) error {
+	r := (*Root)(rfs)
+	if !isValidRootFSPath(name) {
+		return &PathError{Op: "chtimes", Path: name, Err: ErrInvalid}
+	}
+	return r.Chtimes(name, atime, mtime)
+}
+
+func (rfs *rootFS) Link(oldname string, newname string) error {
+	r := (*Root)(rfs)
+	if !isValidRootFSPath(oldname) {
+		return &PathError{Op: "link", Path: oldname, Err: ErrInvalid}
+	}
+	if !isValidRootFSPath(newname) {
+		return &PathError{Op: "link", Path: newname, Err: ErrInvalid}
+	}
+	return r.Link(oldname, newname)
+}
+
+func (rfs *rootFS) Symlink(oldname string, newname string) error {
+	r := (*Root)(rfs)
+	if !isValidRootFSPath(oldname) {
+		return &PathError{Op: "symlink", Path: oldname, Err: ErrInvalid}
+	}
+	if !isValidRootFSPath(newname) {
+		return &PathError{Op: "symlink", Path: newname, Err: ErrInvalid}
+	}
+	return r.Symlink(oldname, newname)
+}
+
+func (rfs *rootFS) Lstat(name string) (FileInfo, error) {
+	r := (*Root)(rfs)
+	if !isValidRootFSPath(name) {
+		return nil, &PathError{Op: "lstat", Path: name, Err: ErrInvalid}
+	}
+	return r.Lstat(name)
+}
+
+func (rfs *rootFS) ReadLink(name string) (string, error) {
+	r := (*Root)(rfs)
+	if !isValidRootFSPath(name) {
+		return "", &PathError{Op: "readlink", Path: name, Err: ErrInvalid}
+	}
+	return r.Readlink(name)
 }
 
 // isValidRootFSPath reports whether name is a valid filename to pass a Root.FS method.

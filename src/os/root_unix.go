@@ -140,7 +140,7 @@ func rootSymlink(r *Root, oldname, newname string) error {
 		return struct{}{}, symlinkat(oldname, parent, name)
 	})
 	if err != nil {
-		return &LinkError{"symlinkat", oldname, newname, err}
+		return &LinkError{Op: "symlinkat", Old: oldname, New: newname, Err: err}
 	}
 	return nil
 }

@@ -227,7 +227,7 @@ func rootRename(r *Root, oldname, newname string) error {
 		return struct{}{}, err
 	})
 	if err != nil {
-		return &LinkError{"renameat", oldname, newname, err}
+		return &LinkError{Op: "renameat", Old: oldname, New: newname, Err: err}
 	}
 	return err
 }
@@ -240,7 +240,7 @@ func rootLink(r *Root, oldname, newname string) error {
 		return struct{}{}, err
 	})
 	if err != nil {
-		return &LinkError{"linkat", oldname, newname, err}
+		return &LinkError{Op: "linkat", Old: oldname, New: newname, Err: err}
 	}
 	return err
 }

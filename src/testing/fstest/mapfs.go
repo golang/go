@@ -5,6 +5,7 @@
 package fstest
 
 import (
+	"errors"
 	"io"
 	"io/fs"
 	"path"
@@ -40,9 +41,23 @@ type MapFile struct {
 	Sys     any         // fs.FileInfo.Sys
 }
 
-var _ fs.FS = MapFS(nil)
-var _ fs.ReadLinkFS = MapFS(nil)
-var _ fs.File = (*openMapFile)(nil)
+var (
+	_ fs.FS           = MapFS(nil)
+	_ fs.GlobFS       = MapFS(nil)
+	_ fs.MkdirFS      = MapFS(nil)
+	_ fs.OpenFileFS   = MapFS(nil)
+	_ fs.PropertiesFS = MapFS(nil)
+	_ fs.ReadDirFS    = MapFS(nil)
+	_ fs.ReadFileFS   = MapFS(nil)
+	_ fs.ReadLinkFS   = MapFS(nil)
+	_ fs.RemoveFS     = MapFS(nil)
+	_ fs.StatFS       = MapFS(nil)
+	_ fs.SubFS        = MapFS(nil)
+	_ fs.SymlinkFS    = MapFS(nil)
+
+	_ fs.File          = (*openMapFile)(nil)
+	_ fs.WriterFile    = (*openMapFile)(nil)
+)
 
 // Open opens the named file after following any symbolic links.
 func (fsys MapFS) Open(name string) (fs.File, error) {
@@ -57,7 +72,7 @@ func (fsys MapFS) Open(name string) (fs.File, error) {
 	file := fsys[realName]
 	if file != nil && file.Mode&fs.ModeDir == 0 {
 		// Ordinary file
-		return &openMapFile{name, mapFileInfo{path.Base(name), file}, 0}, nil
+		return &openMapFile{path: name, mapFileInfo: mapFileInfo{path.Base(name), file}, offset: 0, fsys: fsys, realNameInMap: realName, flag: fs.O_RDONLY}, nil
 	}
 
 	// Directory, possibly synthesized.
@@ -117,6 +132,53 @@ func (fsys MapFS) Open(name string) (fs.File, error) {
 		elem = name[strings.LastIndex(name, "/")+1:]
 	}
 	return &mapDir{name, mapFileInfo{elem, file}, list, 0}, nil
+}
+
+// OpenFile is the generalized open call; most users will use Open or Create instead.
+// It opens the named file with specified flag (O_RDONLY etc.).
+// If the file does not exist, and the O_CREATE flag is passed, it is created with mode perm (before umask).
+// MapFS's OpenFile follows symlinks.
+func (fsys MapFS) OpenFile(name string, flag int, perm fs.FileMode) (fs.WriterFile, error) {
+	if !fs.ValidPath(name) {
+		return nil, &fs.PathError{Op: "openfile", Path: name, Err: fs.ErrNotExist}
+	}
+
+	realName, ok := fsys.resolveSymlinks(name)
+	if !ok {
+		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
+	}
+
+	if flag&fs.O_CREATE != 0 && fsys[realName] == nil {
+		fsys[realName] = &MapFile{
+			Mode:    perm,
+			ModTime: time.Now(),
+		}
+	}
+
+	if flag&(fs.O_RDWR|fs.O_APPEND|fs.O_CREATE|fs.O_TRUNC) != 0 {
+		return &openMapFile{
+			path:          name,
+			offset:        0,
+			fsys:          fsys,
+			realNameInMap: realName,
+			flag:          flag,
+			mapFileInfo: mapFileInfo{
+				name: path.Base(name),
+				f:    fsys[realName],
+			},
+		}, nil
+	}
+
+	// Fallback to basic Open logic for O_RDONLY
+	file, err := fsys.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	return file.(fs.WriterFile), nil
+}
+
+func (fsys MapFS) Create(name string) (fs.WriterFile, error) {
+	return fsys.OpenFile(name, fs.O_CREATE|fs.O_TRUNC|fs.O_WRONLY, 0666)
 }
 
 func (fsys MapFS) resolveSymlinks(name string) (_ string, ok bool) {
@@ -241,6 +303,192 @@ func (fsys MapFS) Sub(dir string) (fs.FS, error) {
 	return fs.Sub(noSub{fsys}, dir)
 }
 
+// Chmod changes the mode of the named file to mode.
+// If the file is a symbolic link, it changes the mode of the link's target.
+func (fsys MapFS) Chmod(name string, mode fs.FileMode) error {
+	if !fs.ValidPath(name) {
+		return &fs.PathError{Op: "chmod", Path: name, Err: fs.ErrNotExist}
+	}
+	realName, ok := fsys.resolveSymlinks(name)
+	if !ok {
+		return &fs.PathError{Op: "chmod", Path: name, Err: fs.ErrNotExist}
+	}
+
+	entry := fsys[realName]
+	if entry == nil {
+		// Check if it's a synthesized directory that's not explicitly in the map
+		isDir := false
+		if realName == "." {
+			isDir = true
+		} else {
+			prefix := realName + "/"
+			for fname := range fsys {
+				if strings.HasPrefix(fname, prefix) {
+					isDir = true
+					break
+				}
+			}
+		}
+		if !isDir {
+			return &fs.PathError{Op: "chmod", Path: name, Err: fs.ErrNotExist}
+		}
+		// Cannot chmod a synthesized directory not in the map.
+		// For consistency, one might add it to the map first, or disallow.
+		// For now, let's say it needs to be in the map to be chmod-ed.
+		return &fs.PathError{Op: "chmod", Path: name, Err: fs.ErrNotExist}
+	}
+
+	entry.Mode = (entry.Mode &^ fs.ModePerm) | (mode & fs.ModePerm) // Keep type bits
+	entry.ModTime = time.Now()
+	return nil
+}
+
+// Chown changes the numeric uid and gid of the named file.
+// MapFS does not support ownership, so this returns fs.ErrPermission.
+func (fsys MapFS) Chown(name string, uid, gid int) error {
+	// To "succeed" silently:
+	// _, err := fsys.Stat(name) // Check existence
+	// return err
+	return &fs.PathError{Op: "chown", Path: name, Err: fs.ErrPermission}
+}
+
+// Chtimes changes the access and modification times of the named file.
+// MapFS only stores ModTime, so atime is ignored.
+// If the file is a symbolic link, it changes the times of the link's target.
+func (fsys MapFS) Chtimes(name string, atime time.Time, mtime time.Time) error {
+	if !fs.ValidPath(name) {
+		return &fs.PathError{Op: "chtimes", Path: name, Err: fs.ErrNotExist}
+	}
+	realName, ok := fsys.resolveSymlinks(name)
+	if !ok {
+		return &fs.PathError{Op: "chtimes", Path: name, Err: fs.ErrNotExist}
+	}
+
+	entry := fsys[realName]
+	if entry == nil {
+		// Similar to Chmod, check for synthesized directory
+		isDir := false
+		if realName == "." {
+			isDir = true
+		} else {
+			prefix := realName + "/"
+			for fname := range fsys {
+				if strings.HasPrefix(fname, prefix) {
+					isDir = true
+					break
+				}
+			}
+		}
+		if !isDir {
+			return &fs.PathError{Op: "chtimes", Path: name, Err: fs.ErrNotExist}
+		}
+		// Cannot chtimes a synthesized directory not in the map.
+		return &fs.PathError{Op: "chtimes", Path: name, Err: fs.ErrNotExist}
+	}
+
+	entry.ModTime = mtime
+	return nil
+}
+
+// Link creates newname as a hard link to the oldname file.
+// MapFS does not support hard links, so this returns fs.ErrPermission.
+func (fsys MapFS) Link(oldname, newname string) error {
+	return &fs.PathError{Op: "link", Path: newname, Err: fs.ErrPermission}
+}
+
+// Mkdir creates a new directory with the specified name and permission bits.
+func (fsys MapFS) Mkdir(name string, perm fs.FileMode) error {
+	if !fs.ValidPath(name) || name == "." {
+		return &fs.PathError{Op: "mkdir", Path: name, Err: fs.ErrInvalid}
+	}
+
+	dir := path.Dir(name)
+	base := path.Base(name)
+
+	resolvedDir, ok := fsys.resolveSymlinks(dir)
+	if !ok {
+		return &fs.PathError{Op: "mkdir", Path: name, Err: fs.ErrNotExist} // Parent path issue
+	}
+
+	parentEntry := fsys[resolvedDir]
+	if resolvedDir != "." && (parentEntry == nil || !parentEntry.Mode.IsDir()) {
+		// Check if parent is a synthesized directory
+		isSynthesizedDir := false
+		prefix := resolvedDir + "/"
+		for fname := range fsys {
+			if strings.HasPrefix(fname, prefix) {
+				isSynthesizedDir = true
+				break
+			}
+		}
+		if !isSynthesizedDir {
+			return &fs.PathError{Op: "mkdir", Path: name, Err: fs.ErrNotExist} // Parent does not exist or is not a dir
+		}
+	}
+
+	targetPath := path.Join(resolvedDir, base)
+	if _, err := fsys.lstat(targetPath); err == nil { // Use lstat to check direct existence
+		return &fs.PathError{Op: "mkdir", Path: name, Err: fs.ErrExist}
+	}
+
+	fsys[targetPath] = &MapFile{
+		Mode:    fs.ModeDir | (perm & fs.ModePerm),
+		ModTime: time.Now(),
+	}
+	return nil
+}
+
+// MkdirAll creates a directory named path,
+// along with any necessary parents, and returns nil,
+// or else returns an error. The permission bits perm (before umask)
+// are used for all directories that MkdirAll creates.
+// If path is already a directory, MkdirAll does nothing and returns nil.
+func (fsys MapFS) MkdirAll(name string, perm fs.FileMode) error {
+	// This is a simplified version. A full version would be more careful
+	// about existing non-directory paths.
+	if !fs.ValidPath(name) {
+		return &fs.PathError{Op: "mkdirall", Path: name, Err: fs.ErrInvalid}
+	}
+
+	currentPath := ""
+	parts := strings.Split(name, "/")
+	if name == "." {
+		return nil
+	}
+	if len(parts) == 0 {
+		return &fs.PathError{Op: "mkdirall", Path: name, Err: fs.ErrInvalid}
+	}
+
+	for i, part := range parts {
+		if part == "" && i == 0 { // Absolute path, root always exists conceptually
+			currentPath = "" // Keep it relative for MapFS keys unless MapFS handles absolute paths
+			continue
+		}
+		if currentPath == "" {
+			currentPath = part
+		} else {
+			currentPath = path.Join(currentPath, part)
+		}
+
+		fi, err := fsys.Lstat(currentPath) // Lstat to not follow last component if symlink
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) || (err.(*fs.PathError) != nil && errors.Is(err.(*fs.PathError).Err, fs.ErrNotExist)) {
+				errMkdir := fsys.Mkdir(currentPath, perm)
+				if errMkdir != nil {
+					// Mkdir might fail if a parent component was just created as a file by a concurrent op (not an issue for typical MapFS use)
+					// or if currentPath itself is invalid (e.g. ".." at root)
+					return &fs.PathError{Op: "mkdirall", Path: currentPath, Err: errMkdir}
+				}
+			} else {
+				return err // Other error from Lstat
+			}
+		} else if !fi.IsDir() {
+			return &fs.PathError{Op: "mkdirall", Path: currentPath, Err: fs.ErrExist} // Exists but not a directory
+		}
+	}
+	return nil
+}
+
 // A mapFileInfo implements fs.FileInfo and fs.DirEntry for a given map file.
 type mapFileInfo struct {
 	name string
@@ -262,9 +510,12 @@ func (i *mapFileInfo) String() string {
 
 // An openMapFile is a regular (non-directory) fs.File open for reading.
 type openMapFile struct {
-	path string
 	mapFileInfo
-	offset int64
+	path          string
+	offset        int64
+	fsys          MapFS  // Reference to parent MapFS for modifications
+	realNameInMap string // The actual key in the MapFS map
+	flag          int    // Open flags
 }
 
 func (f *openMapFile) Stat() (fs.FileInfo, error) { return &f.mapFileInfo, nil }
@@ -310,6 +561,93 @@ func (f *openMapFile) ReadAt(b []byte, offset int64) (int, error) {
 	return n, nil
 }
 
+// Write writes len(b) bytes to the File.
+// It returns the number of bytes written and an error, if any.
+// Write returns a non-nil error when n != len(b).
+func (f *openMapFile) Write(b []byte) (int, error) {
+	if f.flag&fs.O_WRONLY == 0 && f.flag&fs.O_RDWR == 0 {
+		return 0, &fs.PathError{Op: "write", Path: f.path, Err: fs.ErrPermission}
+	}
+
+	mapEntry := f.fsys[f.realNameInMap]
+	if mapEntry == nil { // Should not happen if open succeeded and file wasn't deleted externally
+		return 0, &fs.PathError{Op: "write", Path: f.path, Err: fs.ErrNotExist}
+	} else if mapEntry.Mode.IsDir() {
+		return 0, &fs.PathError{Op: "write", Path: f.path, Err: io.ErrUnexpectedEOF}
+	}
+
+	if f.flag&fs.O_APPEND != 0 {
+		f.offset = int64(len(mapEntry.Data))
+	}
+
+	if f.offset < 0 {
+		return 0, &fs.PathError{Op: "write", Path: f.path, Err: fs.ErrInvalid}
+	}
+
+	n := len(b)
+	endOffset := f.offset + int64(n)
+	if endOffset > int64(cap(mapEntry.Data)) {
+		newData := make([]byte, len(mapEntry.Data), endOffset)
+		copy(newData, mapEntry.Data)
+		mapEntry.Data = newData
+	}
+
+	if endOffset > int64(len(mapEntry.Data)) {
+		mapEntry.Data = mapEntry.Data[:endOffset]
+	}
+
+	copy(mapEntry.Data[f.offset:], b)
+	f.offset = endOffset
+	mapEntry.ModTime = time.Now()
+	// f.mapFileInfo.f is already pointing to mapEntry due to how it's constructed
+	// or should be if OpenFile is fully implemented.
+	// For safety, ensure the embedded FileInfo's file pointer is the live one.
+	f.mapFileInfo.f = mapEntry
+	return n, nil
+}
+
+// WriteAt writes len(b) bytes to the File starting at byte offset off.
+// It returns the number of bytes written and an error, if any.
+// WriteAt returns a non-nil error when n != len(b).
+func (f *openMapFile) WriteAt(b []byte, off int64) (int, error) {
+	if f.flag&fs.O_WRONLY == 0 && f.flag&fs.O_RDWR == 0 {
+		return 0, &fs.PathError{Op: "writeat", Path: f.path, Err: fs.ErrPermission}
+	}
+	if off < 0 {
+		return 0, &fs.PathError{Op: "writeat", Path: f.path, Err: fs.ErrInvalid}
+	}
+
+	mapEntry := f.fsys[f.realNameInMap]
+	if mapEntry == nil {
+		return 0, &fs.PathError{Op: "writeat", Path: f.path, Err: fs.ErrNotExist}
+	}
+	if mapEntry.Mode.IsDir() {
+		return 0, &fs.PathError{Op: "writeat", Path: f.path, Err: errors.New("is a directory")}
+	}
+
+	// Save current offset, write, then restore. WriteAt does not update current offset.
+	// However, the implementation here will modify the underlying data.
+	// For simplicity, we'll just use the provided offset 'off'.
+
+	n := len(b)
+	neededLen := off + int64(n)
+
+	// Similar slice growth logic as Write
+	if neededLen > int64(cap(mapEntry.Data)) {
+		// Simplified growth, production code might be more nuanced
+		newData := make([]byte, neededLen)
+		copy(newData, mapEntry.Data)
+		mapEntry.Data = newData
+	} else if neededLen > int64(len(mapEntry.Data)) {
+		mapEntry.Data = mapEntry.Data[:neededLen]
+	}
+
+	copy(mapEntry.Data[off:], b)
+	mapEntry.ModTime = time.Now()
+	f.mapFileInfo.f = mapEntry
+	return n, nil
+}
+
 // A mapDir is a directory fs.File (so also an fs.ReadDirFile) open for reading.
 type mapDir struct {
 	path string
@@ -338,4 +676,159 @@ func (d *mapDir) ReadDir(count int) ([]fs.DirEntry, error) {
 	}
 	d.offset += n
 	return list, nil
+}
+
+func (fsys MapFS) Rename(oldname, newname string) error {
+	if !fs.ValidPath(oldname) || !fs.ValidPath(newname) {
+		return &fs.LinkError{Op: "rename", Old: oldname, New: newname, Err: fs.ErrInvalid}
+	} else if oldname == "." || oldname == newname {
+		return nil
+	} else if _, exists := fsys[newname]; exists {
+		return &fs.LinkError{Op: "rename", Old: oldname, New: newname, Err: fs.ErrExist}
+	} else if _, exists := fsys[oldname]; !exists {
+		return &fs.LinkError{Op: "rename", Old: oldname, New: newname, Err: fs.ErrNotExist}
+	}
+
+	fsys[newname] = fsys[oldname]
+	delete(fsys, oldname)
+	return nil
+}
+
+// Remove removes the named file or (empty) directory.
+// If name is a symlink, Remove removes the symlink itself, not its target.
+func (fsys MapFS) Remove(name string) error {
+	if !fs.ValidPath(name) {
+		return &fs.PathError{Op: "remove", Path: name, Err: fs.ErrNotExist}
+	}
+	if name == "." {
+		return &fs.PathError{Op: "remove", Path: name, Err: fs.ErrInvalid} // Cannot remove root
+	}
+
+	// Determine the actual map key without following the final component if it's a symlink.
+	dir := path.Dir(name)
+	base := path.Base(name)
+	resolvedDir, ok := fsys.resolveSymlinks(dir)
+	if !ok {
+		return &fs.PathError{Op: "remove", Path: name, Err: fs.ErrNotExist} // Parent path issue
+	}
+	mapKey := path.Join(resolvedDir, base)
+
+	entry, exists := fsys[mapKey]
+	if !exists {
+		// Check if it's a synthesized directory that's not explicitly in the map but has children
+		isSynthesizedDirWithChildren := false
+		prefix := mapKey + "/"
+		for fname := range fsys {
+			if strings.HasPrefix(fname, prefix) {
+				isSynthesizedDirWithChildren = true
+				break
+			}
+		}
+		if isSynthesizedDirWithChildren { // Trying to remove a non-empty synthesized directory
+			return &fs.PathError{Op: "remove", Path: name, Err: errors.New("directory not empty")} // Or fs.ErrInvalid
+		}
+		return &fs.PathError{Op: "remove", Path: name, Err: fs.ErrNotExist}
+	}
+
+	if entry.Mode.IsDir() && entry.Mode.Type() != fs.ModeSymlink { // Is a directory, not a symlink to a directory
+		// Check if directory is empty
+		prefix := mapKey + "/"
+		if mapKey == "." { // Root directory special case
+			prefix = "" // Check all non-rooted paths
+		}
+		for k := range fsys {
+			if k != mapKey && ((mapKey == "." && strings.IndexByte(k, '/') == -1 && k != ".") || strings.HasPrefix(k, prefix)) {
+				return &fs.PathError{Op: "remove", Path: name, Err: errors.New("directory not empty")} // Or fs.ErrInvalid
+			}
+		}
+	}
+
+	delete(fsys, mapKey)
+	return nil
+}
+
+// RemoveAll removes path and any children it contains.
+// It removes everything it can but returns the first error it encounters.
+// If the path does not exist, RemoveAll returns nil (no error).
+// If path is a symlink, it removes the symlink.
+func (fsys MapFS) RemoveAll(name string) error {
+	if !fs.ValidPath(name) {
+		// fs.RemoveAll returns nil if path doesn't exist due to invalid chars.
+		// To be safe, let's error here or ensure lstat handles it.
+		return nil // Or &fs.PathError{Op: "removeall", Path: name, Err: fs.ErrInvalid}
+	}
+
+	dir := path.Dir(name)
+	base := path.Base(name)
+	resolvedDir, ok := fsys.resolveSymlinks(dir)
+	if !ok { // Parent path issue, implies 'name' effectively doesn't exist in a valid tree
+		return nil
+	}
+	mapKey := path.Join(resolvedDir, base)
+
+	if _, exists := fsys[mapKey]; !exists && mapKey != "." { // If not in map and not root, check if it's a prefix for others
+		// If it's not in map, it might be a prefix of other files.
+		// fs.RemoveAll would succeed if 'name' doesn't exist.
+	}
+
+	delete(fsys, mapKey) // Delete the entry itself if it exists
+
+	// Delete children if it was a directory or could have been a prefix
+	prefix := mapKey + "/"
+	if mapKey == "." { // Removing root means clearing the FS
+		for k := range fsys {
+			delete(fsys, k)
+		}
+		return nil
+	}
+
+	for k := range fsys {
+		if strings.HasPrefix(k, prefix) {
+			delete(fsys, k)
+		}
+	}
+	return nil
+}
+
+// Symlink creates newname as a symbolic link to oldname.
+func (fsys MapFS) Symlink(oldname, newname string) error {
+	if !fs.ValidPath(newname) {
+		return &fs.PathError{Op: "symlink", Path: newname, Err: fs.ErrInvalid}
+	}
+
+	dir := path.Dir(newname)
+	base := path.Base(newname)
+
+	resolvedDir, ok := fsys.resolveSymlinks(dir)
+	if !ok {
+		return &fs.PathError{Op: "symlink", Path: newname, Err: fs.ErrNotExist} // Parent path issue
+	}
+
+	parentEntry := fsys[resolvedDir]
+	if resolvedDir != "." && (parentEntry == nil || !parentEntry.Mode.IsDir()) {
+		// Check if parent is a synthesized directory
+		isSynthesizedDir := false
+		prefix := resolvedDir + "/"
+		for fname := range fsys {
+			if strings.HasPrefix(fname, prefix) {
+				isSynthesizedDir = true
+				break
+			}
+		}
+		if !isSynthesizedDir {
+			return &fs.PathError{Op: "symlink", Path: newname, Err: fs.ErrNotExist}
+		}
+	}
+
+	targetPath := path.Join(resolvedDir, base)
+	if _, err := fsys.lstat(targetPath); err == nil {
+		return &fs.PathError{Op: "symlink", Path: newname, Err: fs.ErrExist}
+	}
+
+	fsys[targetPath] = &MapFile{
+		Data:    []byte(oldname),
+		Mode:    fs.ModeSymlink | 0777, // Typical perms for symlink
+		ModTime: time.Now(),
+	}
+	return nil
 }

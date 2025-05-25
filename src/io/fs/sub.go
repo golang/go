@@ -7,6 +7,7 @@ package fs
 import (
 	"errors"
 	"path"
+	"time"
 )
 
 // A SubFS is a file system with a Sub method.
@@ -50,6 +51,13 @@ var _ ReadDirFS = (*subFS)(nil)
 var _ ReadFileFS = (*subFS)(nil)
 var _ ReadLinkFS = (*subFS)(nil)
 var _ GlobFS = (*subFS)(nil)
+var _ MkdirFS = (*subFS)(nil)
+var _ OpenFileFS = (*subFS)(nil)
+var _ PropertiesFS = (*subFS)(nil)
+var _ RemoveFS = (*subFS)(nil)
+var _ StatFS = (*subFS)(nil)
+var _ SubFS = (*subFS)(nil)
+var _ SymlinkFS = (*subFS)(nil)
 
 type subFS struct {
 	fsys FS
@@ -92,6 +100,32 @@ func (f *subFS) Open(name string) (File, error) {
 	}
 	file, err := f.fsys.Open(full)
 	return file, f.fixErr(err)
+}
+
+func (f *subFS) OpenFile(name string, flag int, perm FileMode) (WriterFile, error) {
+	full, err := f.fullName("openfile", name)
+	if err != nil {
+		return nil, err
+	}
+	file, err := OpenFile(f.fsys, full, flag, perm)
+	return file, f.fixErr(err)
+}
+
+func (f *subFS) Create(name string) (WriterFile, error) {
+	full, err := f.fullName("create", name)
+	if err != nil {
+		return nil, err
+	}
+	file, err := Create(f.fsys, full)
+	return file, f.fixErr(err)
+}
+
+func (f *subFS) Stat(name string) (FileInfo, error) {
+	full, err := f.fullName("read", name)
+	if err != nil {
+		return nil, err
+	}
+	return Stat(f.fsys, full)
 }
 
 func (f *subFS) ReadDir(name string) ([]DirEntry, error) {
@@ -166,4 +200,102 @@ func (f *subFS) Sub(dir string) (FS, error) {
 		return nil, err
 	}
 	return &subFS{f.fsys, full}, nil
+}
+
+func (f *subFS) Mkdir(name string, perm FileMode) error {
+	full, err := f.fullName("mkdir", name)
+	if err != nil {
+		return err
+	}
+	return f.fixErr(Mkdir(f.fsys, full, perm))
+}
+
+func (f *subFS) MkdirAll(name string, perm FileMode) error {
+	full, err := f.fullName("MkdirAll", name)
+	if err != nil {
+		return err
+	}
+	return f.fixErr(MkdirAll(f.fsys, full, perm))
+}
+
+func (f *subFS) Rename(oldname, newname string) error {
+	fullOld, err := f.fullName("rename", oldname)
+	if err != nil {
+		return err
+	}
+
+	fullNew, err := f.fullName("rename", newname)
+	if err != nil {
+		return err
+		}
+
+	return f.fixErr(Rename(f.fsys, fullOld, fullNew))
+}
+
+func (f *subFS) Chmod(name string, mode FileMode) error {
+	full, err := f.fullName("chmod", name)
+	if err != nil {
+		return err
+	}
+	return f.fixErr(Chmod(f.fsys, full, mode))
+}
+
+func (f *subFS) Chown(name string, uid, gid int) error {
+	full, err := f.fullName("chown", name)
+	if err != nil {
+		return err
+	}
+	return f.fixErr(Chown(f.fsys, full, uid, gid))
+}
+
+func (f *subFS) Chtimes(name string, atime time.Time, mtime time.Time) error {
+	full, err := f.fullName("chtimes", name)
+	if err != nil {
+		return err
+	}
+	return f.fixErr(Chtimes(f.fsys, full, atime, mtime))
+}
+
+func (f *subFS) Remove(name string) error {
+	full, err := f.fullName("remove", name)
+	if err != nil {
+		return err
+	}
+	return f.fixErr(Remove(f.fsys, full))
+}
+
+func (f *subFS) RemoveAll(name string) error {
+	full, err := f.fullName("RemoveAll", name)
+	if err != nil {
+		return err
+	}
+	return f.fixErr(RemoveAll(f.fsys, full))
+}
+
+func (f *subFS) Symlink(oldname, newname string) error {
+	fullOld, err := f.fullName("symlink", oldname)
+	if err != nil {
+		return err
+	}
+
+	fullNew, err := f.fullName("symlink", newname)
+	if err != nil {
+		return err
+	}
+
+	return f.fixErr(Symlink(f.fsys, fullOld, fullNew))
+}
+
+func (f *subFS) Link(oldname, newname string) error {
+	fullOld, err := f.fullName("link", oldname)
+	if err != nil {
+		return err
+	}
+
+	fullNew, err := f.fullName("link", newname)
+	if err != nil {
+		return err
+	}
+
+	return f.fixErr(Link(f.fsys, fullOld, fullNew))
 }

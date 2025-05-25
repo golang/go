@@ -100,20 +100,7 @@ const (
 
 // LinkError records an error during a link or symlink or rename
 // system call and the paths that caused it.
-type LinkError struct {
-	Op  string
-	Old string
-	New string
-	Err error
-}
-
-func (e *LinkError) Error() string {
-	return e.Op + " " + e.Old + " " + e.New + ": " + e.Err.Error()
-}
-
-func (e *LinkError) Unwrap() error {
-	return e.Err
-}
+type LinkError = fs.LinkError
 
 // NewFile returns a new [File] with the given file descriptor and name.
 // The returned value will be nil if fd is not a valid file descriptor.
@@ -751,6 +738,11 @@ var _ fs.StatFS = dirFS("")
 var _ fs.ReadFileFS = dirFS("")
 var _ fs.ReadDirFS = dirFS("")
 var _ fs.ReadLinkFS = dirFS("")
+var _ fs.OpenFileFS = dirFS("")
+var _ fs.SymlinkFS = dirFS("")
+var _ fs.MkdirFS = dirFS("")
+var _ fs.RemoveFS = dirFS("")
+var _ fs.PropertiesFS = dirFS("")
 
 type dirFS string
 
@@ -769,6 +761,39 @@ func (dir dirFS) Open(name string) (fs.File, error) {
 		return nil, err
 	}
 	return f, nil
+}
+
+func (dir dirFS) OpenFile(name string, flag int, perm FileMode) (fs.WriterFile, error) {
+	fullname, err := dir.join(name)
+	if err != nil {
+		return nil, &PathError{Op: "open", Path: name, Err: err}
+	}
+	f, err := OpenFile(fullname, flag, perm)
+	if err != nil {
+		// DirFS takes a string appropriate for GOOS,
+		// while the name argument here is always slash separated.
+		// dir.join will have mixed the two; undo that for
+		// error reporting.
+		err.(*PathError).Path = name
+		return nil, err
+	}
+	return f, nil
+}
+
+func (dir dirFS) Create(name string) (fs.WriterFile, error) {
+	fullname, err := dir.join(name)
+	if err != nil {
+		return nil, &PathError{Op: "open", Path: name, Err: err}
+	}
+	f, err := Create(fullname)
+	if err != nil {
+		if e, ok := err.(*PathError); ok {
+			// See comment in dirFS.Open.
+			e.Path = name
+		}
+		return nil, err
+	}
+	return f, err
 }
 
 // The ReadFile method calls the [ReadFile] function for the file
@@ -843,6 +868,133 @@ func (dir dirFS) ReadLink(name string) (string, error) {
 		return "", &PathError{Op: "readlink", Path: name, Err: err}
 	}
 	return Readlink(fullname)
+}
+
+func (dir dirFS) Symlink(oldname, newname string) error {
+	oldoldname, err := dir.join(oldname)
+	if err != nil {
+		return &LinkError{Op: "symlink", Err: err, Old: oldname, New: newname}
+	}
+	newnewname, err := dir.join(newname)
+	if err != nil {
+		return &LinkError{Op: "symlink", Err: err, Old: oldname, New: newname}
+	}
+
+	err = Symlink(oldoldname, newnewname)
+	if err != nil {
+		if e, ok := err.(*LinkError); ok {
+			e.Old = oldname
+			e.New = newname
+		}
+	}
+	return err
+}
+
+func (dir dirFS) Link(oldname, newname string) error {
+	oldoldname, err := dir.join(oldname)
+	if err != nil {
+		return &LinkError{Op: "link", Err: err, Old: oldname, New: newname}
+	}
+	newnewname, err := dir.join(newname)
+	if err != nil {
+		return &LinkError{Op: "link", Err: err, Old: oldname, New: newname}
+	}
+
+	err = Link(oldoldname, newnewname)
+	if err != nil {
+		if e, ok := err.(*LinkError); ok {
+			e.Old = oldname
+			e.New = newname
+		}
+	}
+	return err
+}
+
+func (dir dirFS) Mkdir(name string, perm FileMode) error {
+	fullname, err := dir.join(name)
+	if err != nil {
+		return &PathError{Op: "mkdir", Path: name, Err: err}
+	}
+	return Mkdir(fullname, perm)
+}
+
+func (dir dirFS) MkdirAll(name string, perm FileMode) error {
+	fullname, err := dir.join(name)
+	if err != nil {
+		return &PathError{Op: "mkdir", Path: name, Err: err}
+	}
+	return MkdirAll(fullname, perm)
+}
+
+func (dir dirFS) Remove(name string) error {
+	fullname, err := dir.join(name)
+	if err != nil {
+		return &PathError{Op: "remove", Path: name, Err: err}
+	}
+	return Remove(fullname)
+}
+
+func (dir dirFS) RemoveAll(name string) error {
+	fullname, err := dir.join(name)
+	if err != nil {
+		return &PathError{Op: "remove", Path: name, Err: err}
+	}
+	return RemoveAll(fullname)
+}
+
+func (dir dirFS) Rename(oldname, newname string) error {
+	joinoldname, err := dir.join(oldname)
+	if err != nil {
+		return &fs.LinkError{Op: "rename", Old: oldname, New: newname, Err: err}
+	}
+	joinnewname, err := dir.join(newname)
+	if err != nil {
+		return &fs.LinkError{Op: "rename", Old: oldname, New: newname, Err: err}
+	}
+
+	if err = Rename(joinoldname, joinnewname); err != nil {
+		if e, ok := err.(*fs.LinkError); ok {
+			e.Old = oldname
+			e.New = newname
+		}
+	}
+	return err
+}
+
+func (dir dirFS) Chmod(name string, mode FileMode) error {
+	full, err := dir.join(name)
+	if err != nil {
+		return err
+	}
+	err = Chmod(full, mode)
+	if err != nil {
+		err.(*PathError).Path = name
+	}
+	return err
+}
+
+func (dir dirFS) Chown(name string, uid, gid int) error {
+	full, err := dir.join(name)
+	if err != nil {
+		return err
+	}
+	err = Chown(full, uid, gid)
+	if err != nil {
+		err.(*PathError).Path = name
+	}
+	return err
+}
+
+func (dir dirFS) Chtimes(name string, atime time.Time, mtime time.Time) error {
+	full, err := dir.join(name)
+	if err != nil {
+		return err
+	}
+	err = Chtimes(full, atime, mtime)
+	if err != nil {
+		err.(*PathError).Path = name
+	}
+	return err
 }
 
 // join returns the path for name in dir.

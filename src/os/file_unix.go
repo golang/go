@@ -38,16 +38,16 @@ func rename(oldname, newname string) error {
 			if pe, ok := err.(*PathError); ok {
 				err = pe.Err
 			}
-			return &LinkError{"rename", oldname, newname, err}
+			return &LinkError{Op: "rename", Old: oldname, New: newname, Err: err}
 		} else if newname == oldname || !SameFile(fi, ofi) {
-			return &LinkError{"rename", oldname, newname, syscall.EEXIST}
+			return &LinkError{Op: "rename", Old: oldname, New: newname, Err: syscall.EEXIST}
 		}
 	}
 	err = ignoringEINTR(func() error {
 		return syscall.Rename(oldname, newname)
 	})
 	if err != nil {
-		return &LinkError{"rename", oldname, newname, err}
+		return &LinkError{Op: "rename", Old: oldname, New: newname, Err: err}
 	}
 	return nil
 }
@@ -408,7 +408,7 @@ func Link(oldname, newname string) error {
 		return syscall.Link(oldname, newname)
 	})
 	if e != nil {
-		return &LinkError{"link", oldname, newname, e}
+		return &LinkError{Op: "link", Old: oldname, New: newname, Err: e}
 	}
 	return nil
 }
@@ -422,7 +422,7 @@ func Symlink(oldname, newname string) error {
 		return syscall.Symlink(oldname, newname)
 	})
 	if e != nil {
-		return &LinkError{"symlink", oldname, newname, e}
+		return &LinkError{Op: "symlink", Old: oldname, New: newname, Err: e}
 	}
 	return nil
 }
