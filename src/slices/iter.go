@@ -88,9 +88,9 @@ func SortedStableFunc[E any](seq iter.Seq[E], cmp func(E, E) int) []E {
 // All but the last sub-slice will have size n.
 // All sub-slices are clipped to have no capacity beyond the length.
 // If s is empty, the sequence is empty: there is no empty slice in the sequence.
-// Chunk panics if n is less than 1.
+// Chunk panics if n is less than 1, unless n=0 and s is empty which is tolerated.
 func Chunk[Slice ~[]E, E any](s Slice, n int) iter.Seq[Slice] {
-	if n < 1 {
+	if n < 1 && (len(s) > 0 || n < 0) {
 		panic("cannot be less than 1")
 	}
 

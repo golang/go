@@ -259,15 +259,32 @@ func TestChunkPanics(t *testing.T) {
 		name string
 		x    []struct{}
 		n    int
+		p    bool
 	}{
 		{
 			name: "cannot be less than 1",
+			x:    make([]struct{}, 1),
+			n:    0,
+			p:    true,
+		},
+		{
+			name: "don't panic on an empty slice",
 			x:    make([]struct{}, 0),
 			n:    0,
+			p:    false,
+		},
+		{
+			name: "cannot be less than 0 on an empty slice",
+			x:    make([]struct{}, 0),
+			n:    -1,
+			p:    true,
 		},
 	} {
-		if !panics(func() { _ = Chunk(test.x, test.n) }) {
+		if test.p && !panics(func() { _ = Chunk(test.x, test.n) }) {
 			t.Errorf("Chunk %s: got no panic, want panic", test.name)
+		}
+		if !test.p && panics(func() { _ = Chunk(test.x, test.n) }) {
+			t.Errorf("Chunk %s: got panic, want no panic", test.name)
 		}
 	}
 }
