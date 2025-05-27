@@ -457,6 +457,13 @@ func (q *cleanupQueue) flush() {
 	// new cleanup goroutines.
 	var cb *cleanupBlock
 	for _, pp := range allp {
+		if pp == nil {
+			// This function is reachable via mallocgc in the
+			// middle of procresize, when allp has been resized,
+			// but the new Ps not allocated yet.
+			missing++
+			continue
+		}
 		b := pp.cleanups
 		if b == nil {
 			missing++
