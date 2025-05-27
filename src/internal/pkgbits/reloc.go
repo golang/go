@@ -28,20 +28,26 @@ const (
 // particular section.
 type Index int32
 
-// TODO(markfreeman): Make RelIndex its own named type once we point external
-// references from Index to RelIndex.
-type RelIndex = Index
+// An AbsElemIdx, or absolute element index, is an index into the elements
+// that is not relative to some other index.
+type AbsElemIdx = uint32
 
+// TODO(markfreeman): Make this its own type.
+// A RelElemIdx, or relative element index, is an index into the elements
+// relative to some other index, such as the start of a section.
+type RelElemIdx = Index
+
+// TODO(markfreeman): Isn't this strictly less efficient than an AbsElemIdx?
 // A RefTableEntry is an entry in an element's reference table. All
 // elements are preceded by a reference table which provides locations
 // for referenced elements.
 type RefTableEntry struct {
 	Kind SectionKind
-	Idx  RelIndex
+	Idx  RelElemIdx
 }
 
 // Reserved indices within the [SectionMeta] section.
 const (
-	PublicRootIdx  RelIndex = 0
-	PrivateRootIdx RelIndex = 1
+	PublicRootIdx  RelElemIdx = 0
+	PrivateRootIdx RelElemIdx = 1
 )

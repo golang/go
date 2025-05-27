@@ -18,7 +18,49 @@ type MakeHash func() hash.Hash
 // TestHash performs a set of tests on hash.Hash implementations, checking the
 // documented requirements of Write, Sum, Reset, Size, and BlockSize.
 func TestHash(t *testing.T, mh MakeHash) {
+	TestHashWithoutClone(t, mh)
 
+	// Test whether the results after cloning are consistent.
+	t.Run("Clone", func(t *testing.T) {
+		h, ok := mh().(hash.Cloner)
+		if !ok {
+			t.Fatalf("%T does not implement hash.Cloner", mh)
+		}
+		h3, err := h.Clone()
+		if err != nil {
+			t.Fatalf("Clone failed: %v", err)
+		}
+		prefix := []byte("tmp")
+		writeToHash(t, h, prefix)
+		h2, err := h.Clone()
+		if err != nil {
+			t.Fatalf("Clone failed: %v", err)
+		}
+		prefixSum := h.Sum(nil)
+		if !bytes.Equal(prefixSum, h2.Sum(nil)) {
+			t.Fatalf("%T Clone results are inconsistent", h)
+		}
+		suffix := []byte("tmp2")
+		writeToHash(t, h, suffix)
+		writeToHash(t, h3, append(prefix, suffix...))
+		compositeSum := h3.Sum(nil)
+		if !bytes.Equal(h.Sum(nil), compositeSum) {
+			t.Fatalf("%T Clone results are inconsistent", h)
+		}
+		if !bytes.Equal(h2.Sum(nil), prefixSum) {
+			t.Fatalf("%T Clone results are inconsistent", h)
+		}
+		writeToHash(t, h2, suffix)
+		if !bytes.Equal(h.Sum(nil), compositeSum) {
+			t.Fatalf("%T Clone results are inconsistent", h)
+		}
+		if !bytes.Equal(h2.Sum(nil), compositeSum) {
+			t.Fatalf("%T Clone results are inconsistent", h)
+		}
+	})
+}
+
+func TestHashWithoutClone(t *testing.T, mh MakeHash) {
 	// Test that Sum returns an appended digest matching output of Size
 	t.Run("SumAppend", func(t *testing.T) {
 		h := mh()

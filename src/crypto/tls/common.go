@@ -837,6 +837,20 @@ type Config struct {
 	// when ECH is rejected, even if set, and InsecureSkipVerify is ignored.
 	EncryptedClientHelloRejectionVerify func(ConnectionState) error
 
+	// GetEncryptedClientHelloKeys, if not nil, is called when by a server when
+	// a client attempts ECH.
+	//
+	// If GetEncryptedClientHelloKeys is not nil, [EncryptedClientHelloKeys] is
+	// ignored.
+	//
+	// If GetEncryptedClientHelloKeys returns an error, the handshake will be
+	// aborted and the error will be returned. Otherwise,
+	// GetEncryptedClientHelloKeys must return a non-nil slice of
+	// [EncryptedClientHelloKey] that represents the acceptable ECH keys.
+	//
+	// For further details, see [EncryptedClientHelloKeys].
+	GetEncryptedClientHelloKeys func(*ClientHelloInfo) ([]EncryptedClientHelloKey, error)
+
 	// EncryptedClientHelloKeys are the ECH keys to use when a client
 	// attempts ECH.
 	//
@@ -846,6 +860,9 @@ type Config struct {
 	// If a client attempts ECH, but it is rejected by the server, the server
 	// will send a list of configs to retry based on the set of
 	// EncryptedClientHelloKeys which have the SendAsRetry field set.
+	//
+	// If GetEncryptedClientHelloKeys is non-nil, EncryptedClientHelloKeys is
+	// ignored.
 	//
 	// On the client side, this field is ignored. In order to configure ECH for
 	// clients, see the EncryptedClientHelloConfigList field.
@@ -935,6 +952,7 @@ func (c *Config) Clone() *Config {
 		GetCertificate:                      c.GetCertificate,
 		GetClientCertificate:                c.GetClientCertificate,
 		GetConfigForClient:                  c.GetConfigForClient,
+		GetEncryptedClientHelloKeys:         c.GetEncryptedClientHelloKeys,
 		VerifyPeerCertificate:               c.VerifyPeerCertificate,
 		VerifyConnection:                    c.VerifyConnection,
 		RootCAs:                             c.RootCAs,
@@ -1145,6 +1163,8 @@ const roleServer = false
 
 var tls10server = godebug.New("tls10server")
 
+// supportedVersions returns the list of supported TLS versions, sorted from
+// highest to lowest (and hence also in preference order).
 func (c *Config) supportedVersions(isClient bool) []uint16 {
 	versions := make([]uint16, 0, len(supportedVersions))
 	for _, v := range supportedVersions {
@@ -1215,11 +1235,11 @@ func (c *Config) supportsCurve(version uint16, curve CurveID) bool {
 }
 
 // mutualVersion returns the protocol version to use given the advertised
-// versions of the peer. Priority is given to the peer preference order.
+// versions of the peer. The highest supported version is preferred.
 func (c *Config) mutualVersion(isClient bool, peerVersions []uint16) (uint16, bool) {
 	supportedVersions := c.supportedVersions(isClient)
-	for _, v := range peerVersions {
-		if slices.Contains(supportedVersions, v) {
+	for _, v := range supportedVersions {
+		if slices.Contains(peerVersions, v) {
 			return v, true
 		}
 	}
@@ -1664,12 +1684,35 @@ func unexpectedMessageError(wanted, got any) error {
 	return fmt.Errorf("tls: received unexpected handshake message of type %T when waiting for %T", got, wanted)
 }
 
-// supportedSignatureAlgorithms returns the supported signature algorithms.
-func supportedSignatureAlgorithms() []SignatureScheme {
+// supportedSignatureAlgorithms returns the supported signature algorithms for
+// the given minimum TLS version, to advertise in ClientHello and
+// CertificateRequest messages.
+func supportedSignatureAlgorithms(minVers uint16) []SignatureScheme {
+	sigAlgs := defaultSupportedSignatureAlgorithms()
 	if fips140tls.Required() {
-		return allowedSupportedSignatureAlgorithmsFIPS
+		sigAlgs = slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
+			return !slices.Contains(allowedSignatureAlgorithmsFIPS, s)
+		})
 	}
-	return defaultSupportedSignatureAlgorithms
+	if minVers > VersionTLS12 {
+		sigAlgs = slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
+			sigType, sigHash, _ := typeAndHashFromSignatureScheme(s)
+			return sigType == signaturePKCS1v15 || sigHash == crypto.SHA1
+		})
+	}
+	return sigAlgs
+}
+
+// supportedSignatureAlgorithmsCert returns the supported algorithms for
+// signatures in certificates.
+func supportedSignatureAlgorithmsCert() []SignatureScheme {
+	sigAlgs := defaultSupportedSignatureAlgorithmsCert()
+	if fips140tls.Required() {
+		sigAlgs = slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
+			return !slices.Contains(allowedSignatureAlgorithmsFIPS, s)
+		})
+	}
+	return sigAlgs
 }
 
 func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlgorithms []SignatureScheme) bool {

@@ -1,5 +1,6 @@
 ### New testing/synctest package
 
+<!-- go.dev/issue/67434, go.dev/issue/73567 -->
 The new [testing/synctest](/pkg/testing/synctest) package
 provides support for testing concurrent code.
 

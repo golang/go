@@ -83,6 +83,14 @@ const (
 	// Batch event for an experimental batch with a custom format. Added in Go 1.23.
 	EvExperimentalBatch // start of extra data [experiment ID, generation, M ID, timestamp, batch length, batch data...]
 
+	// Sync batch. Added in Go 1.25. Previously a lone EvFrequency event.
+	EvSync          // start of a sync batch [...EvFrequency|EvClockSnapshot]
+	EvClockSnapshot // snapshot of trace, mono and wall clocks [timestamp, mono, sec, nsec]
+
+	// Reserved internal in-band end-of-generation signal. Must never appear in the trace. Added in Go 1.25.
+	// This could be used as an explicit in-band end-of-generation signal in the future.
+	EvEndOfGeneration
+
 	NumEvents
 )
 
@@ -181,6 +189,12 @@ var specs = [...]EventSpec{
 		Name:    "ExperimentalBatch",
 		Args:    []string{"exp", "gen", "m", "time"},
 		HasData: true, // Easier to represent for raw readers.
+	},
+	EvSync: {
+		Name: "Sync",
+	},
+	EvEndOfGeneration: {
+		Name: "EndOfGeneration",
 	},
 
 	// "Timed" Events.
@@ -418,6 +432,11 @@ var specs = [...]EventSpec{
 		Args:         []string{"dt", "g", "m", "gstatus", "stack"},
 		IsTimedEvent: true,
 		StackIDs:     []int{4},
+	},
+	EvClockSnapshot: {
+		Name:         "ClockSnapshot",
+		Args:         []string{"dt", "mono", "sec", "nsec"},
+		IsTimedEvent: true,
 	},
 
 	// Experimental events.

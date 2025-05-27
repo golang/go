@@ -116,7 +116,7 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
 			if b.outlives(root, l) {
 				if !l.hasAttr(attrEscapes) && (logopt.Enabled() || base.Flag.LowerM >= 2) {
 					if base.Flag.LowerM >= 2 {
-						fmt.Printf("%s: %v escapes to heap:\n", base.FmtPos(l.n.Pos()), l.n)
+						fmt.Printf("%s: %v escapes to heap in %v:\n", base.FmtPos(l.n.Pos()), l.n, ir.FuncName(l.curfn))
 					}
 					explanation := b.explainPath(root, l)
 					if logopt.Enabled() {
@@ -146,7 +146,7 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
 			if b.outlives(root, l) {
 				if !l.hasAttr(attrEscapes) && (logopt.Enabled() || base.Flag.LowerM >= 2) {
 					if base.Flag.LowerM >= 2 {
-						fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", base.FmtPos(l.n.Pos()), l.n, b.explainLoc(root), derefs)
+						fmt.Printf("%s: parameter %v leaks to %s for %v with derefs=%d:\n", base.FmtPos(l.n.Pos()), l.n, b.explainLoc(root), ir.FuncName(l.curfn), derefs)
 					}
 					explanation := b.explainPath(root, l)
 					if logopt.Enabled() {
@@ -234,7 +234,7 @@ func (b *batch) explainFlow(pos string, dst, srcloc *location, derefs int, notes
 	}
 	print := base.Flag.LowerM >= 2
 
-	flow := fmt.Sprintf("   flow: %s = %s%v:", b.explainLoc(dst), ops, b.explainLoc(srcloc))
+	flow := fmt.Sprintf("   flow: %s ← %s%v:", b.explainLoc(dst), ops, b.explainLoc(srcloc))
 	if print {
 		fmt.Printf("%s:%s\n", pos, flow)
 	}

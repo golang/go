@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 )
 
 // A keyAgreement implements the client and server side of a TLS 1.0–1.2 key
@@ -214,6 +215,10 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 		if err != nil {
 			return nil, err
 		}
+		if sigHash == crypto.SHA1 {
+			tlssha1.Value() // ensure godebug is initialized
+			tlssha1.IncNonDefault()
+		}
 	} else {
 		sigType, sigHash, err = legacyTypeAndHashFromPublicKey(priv.Public())
 		if err != nil {
@@ -293,6 +298,10 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 		return errServerKeyExchange
 	}
 
+	if !slices.Contains(clientHello.supportedCurves, curveID) {
+		return errors.New("tls: server selected unoffered curve")
+	}
+
 	if _, ok := curveForCurveID(curveID); !ok {
 		return errors.New("tls: server selected unsupported curve")
 	}
@@ -333,6 +342,10 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 		sigType, sigHash, err = typeAndHashFromSignatureScheme(signatureAlgorithm)
 		if err != nil {
 			return err
+		}
+		if sigHash == crypto.SHA1 {
+			tlssha1.Value() // ensure godebug is initialized
+			tlssha1.IncNonDefault()
 		}
 	} else {
 		sigType, sigHash, err = legacyTypeAndHashFromPublicKey(cert.PublicKey)

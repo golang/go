@@ -975,6 +975,53 @@ func TestContext(t *testing.T) {
 	})
 }
 
+// TestAttrExample is used by TestAttrSet,
+// and also serves as a convenient test to run that sets an attribute.
+func TestAttrExample(t *testing.T) {
+	t.Attr("key", "value")
+}
+
+func TestAttrSet(t *testing.T) {
+	out := string(runTest(t, "TestAttrExample"))
+
+	want := "=== ATTR  TestAttrExample key value\n"
+	if !strings.Contains(out, want) {
+		t.Errorf("expected output containing %q, got:\n%q", want, out)
+	}
+}
+
+func TestAttrInvalid(t *testing.T) {
+	tests := []struct {
+		key   string
+		value string
+	}{
+		{"k ey", "value"},
+		{"k\tey", "value"},
+		{"k\rey", "value"},
+		{"k\ney", "value"},
+		{"key", "val\rue"},
+		{"key", "val\nue"},
+	}
+
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		for i, test := range tests {
+			t.Run(fmt.Sprint(i), func(t *testing.T) {
+				t.Attr(test.key, test.value)
+			})
+		}
+		return
+	}
+
+	out := string(runTest(t, "TestAttrInvalid"))
+
+	for i := range tests {
+		want := fmt.Sprintf("--- FAIL: TestAttrInvalid/%v ", i)
+		if !strings.Contains(out, want) {
+			t.Errorf("expected output containing %q, got:\n%q", want, out)
+		}
+	}
+}
+
 func TestBenchmarkBLoopIterationCorrect(t *testing.T) {
 	out := runTest(t, "BenchmarkBLoopPrint")
 	c := bytes.Count(out, []byte("Printing from BenchmarkBLoopPrint"))

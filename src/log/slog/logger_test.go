@@ -349,7 +349,7 @@ func TestAlloc(t *testing.T) {
 	t.Run("2 pairs", func(t *testing.T) {
 		s := "abc"
 		i := 2000
-		wantAllocs(t, 2, func() {
+		wantAllocs(t, 0, func() {
 			dl.Info("hello",
 				"n", i,
 				"s", s,
@@ -360,7 +360,7 @@ func TestAlloc(t *testing.T) {
 		l := New(DiscardHandler)
 		s := "abc"
 		i := 2000
-		wantAllocs(t, 2, func() {
+		wantAllocs(t, 0, func() {
 			l.Log(ctx, LevelInfo, "hello",
 				"n", i,
 				"s", s,
@@ -384,7 +384,7 @@ func TestAlloc(t *testing.T) {
 		s := "abc"
 		i := 2000
 		d := time.Second
-		wantAllocs(t, 10, func() {
+		wantAllocs(t, 1, func() {
 			dl.Info("hello",
 				"n", i, "s", s, "d", d,
 				"n", i, "s", s, "d", d,

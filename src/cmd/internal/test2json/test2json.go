@@ -36,6 +36,8 @@ type event struct {
 	Elapsed     *float64   `json:",omitempty"`
 	Output      *textBytes `json:",omitempty"`
 	FailedBuild string     `json:",omitempty"`
+	Key         string     `json:",omitempty"`
+	Value       string     `json:",omitempty"`
 }
 
 // textBytes is a hack to get JSON to emit a []byte as a string
@@ -177,6 +179,7 @@ var (
 		[]byte("=== PASS  "),
 		[]byte("=== FAIL  "),
 		[]byte("=== SKIP  "),
+		[]byte("=== ATTR  "),
 	}
 
 	reports = [][]byte{
@@ -332,6 +335,11 @@ func (c *Converter) handleInputLine(line []byte) {
 		c.report = append(c.report, e)
 		c.output.write(origLine)
 		return
+	}
+	if action == "attr" {
+		var rest string
+		name, rest, _ = strings.Cut(name, " ")
+		e.Key, e.Value, _ = strings.Cut(rest, " ")
 	}
 	// === update.
 	// Finish any pending PASS/FAIL reports.

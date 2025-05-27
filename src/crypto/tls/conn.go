@@ -54,9 +54,6 @@ type Conn struct {
 	ocspResponse     []byte   // stapled OCSP response
 	scts             [][]byte // signed certificate timestamps from server
 	peerCertificates []*x509.Certificate
-	// activeCertHandles contains the cache handles to certificates in
-	// peerCertificates that are used to track active references.
-	activeCertHandles []*activeCert
 	// verifiedChains contains the certificate chains that we built, as
 	// opposed to the ones presented by the server.
 	verifiedChains [][]*x509.Certificate
@@ -1182,7 +1179,7 @@ func (c *Conn) unmarshalHandshakeMessage(data []byte, transcript transcriptHash)
 	data = append([]byte(nil), data...)
 
 	if !m.unmarshal(data) {
-		return nil, c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
+		return nil, c.in.setErrorLocked(c.sendAlert(alertDecodeError))
 	}
 
 	if transcript != nil {

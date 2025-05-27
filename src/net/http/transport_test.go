@@ -4230,7 +4230,7 @@ func TestTransportIdleConnRacesRequest(t *testing.T) {
 	// block the connection closing.
 	runSynctest(t, testTransportIdleConnRacesRequest, []testMode{http1Mode, http2UnencryptedMode})
 }
-func testTransportIdleConnRacesRequest(t testing.TB, mode testMode) {
+func testTransportIdleConnRacesRequest(t *testing.T, mode testMode) {
 	if mode == http2UnencryptedMode {
 		t.Skip("remove skip when #70515 is fixed")
 	}
@@ -4305,7 +4305,7 @@ func testTransportIdleConnRacesRequest(t testing.TB, mode testMode) {
 func TestTransportRemovesConnsAfterIdle(t *testing.T) {
 	runSynctest(t, testTransportRemovesConnsAfterIdle)
 }
-func testTransportRemovesConnsAfterIdle(t testing.TB, mode testMode) {
+func testTransportRemovesConnsAfterIdle(t *testing.T, mode testMode) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
@@ -4351,7 +4351,7 @@ func testTransportRemovesConnsAfterIdle(t testing.TB, mode testMode) {
 func TestTransportRemovesConnsAfterBroken(t *testing.T) {
 	runSynctest(t, testTransportRemovesConnsAfterBroken)
 }
-func testTransportRemovesConnsAfterBroken(t testing.TB, mode testMode) {
+func testTransportRemovesConnsAfterBroken(t *testing.T, mode testMode) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}

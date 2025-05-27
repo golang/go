@@ -22,6 +22,7 @@ import _ "unsafe" // for linkname
 var HWCap uint
 
 // HWCAP bits. These are exposed by Linux.
+// See arch/arm64/include/uapi/asm/hwcap.h.
 const (
 	hwcap_AES     = 1 << 3
 	hwcap_PMULL   = 1 << 4
@@ -30,18 +31,21 @@ const (
 	hwcap_CRC32   = 1 << 7
 	hwcap_ATOMICS = 1 << 8
 	hwcap_CPUID   = 1 << 11
+	hwcap_SHA3    = 1 << 17
 	hwcap_SHA512  = 1 << 21
 	hwcap_DIT     = 1 << 24
 )
 
 func hwcapInit(os string) {
 	// HWCap was populated by the runtime from the auxiliary vector.
+	// See https://docs.kernel.org/arch/arm64/elf_hwcaps.html.
 	// Use HWCap information since reading aarch64 system registers
 	// is not supported in user space on older linux kernels.
 	ARM64.HasAES = isSet(HWCap, hwcap_AES)
 	ARM64.HasPMULL = isSet(HWCap, hwcap_PMULL)
 	ARM64.HasSHA1 = isSet(HWCap, hwcap_SHA1)
 	ARM64.HasSHA2 = isSet(HWCap, hwcap_SHA2)
+	ARM64.HasSHA3 = isSet(HWCap, hwcap_SHA3)
 	ARM64.HasCRC32 = isSet(HWCap, hwcap_CRC32)
 	ARM64.HasCPUID = isSet(HWCap, hwcap_CPUID)
 	ARM64.HasSHA512 = isSet(HWCap, hwcap_SHA512)

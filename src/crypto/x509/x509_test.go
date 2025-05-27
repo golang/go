@@ -4238,3 +4238,28 @@ func TestMessageSigner(t *testing.T) {
 		t.Fatalf("CheckSignatureFrom failed: %s", err)
 	}
 }
+
+func TestCreateCertificateNegativeMaxPathLength(t *testing.T) {
+	template := Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "TEST"},
+		NotBefore:             time.Unix(1000, 0),
+		NotAfter:              time.Unix(100000, 0),
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+
+		// CreateCertificate treats -1 in the same way as: MaxPathLen == 0 && MaxPathLenZero == false.
+		MaxPathLen: -1,
+	}
+
+	_, err := CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
+	if err != nil {
+		t.Fatalf("CreateCertificate() unexpected error: %v", err)
+	}
+
+	template.MaxPathLen = -2
+	_, err = CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
+	if err == nil || err.Error() != "x509: invalid MaxPathLen, must be greater or equal to -1" {
+		t.Fatalf(`CreateCertificate() = %v; want = "x509: invalid MaxPathLen, must be greater or equal to -1"`, err)
+	}
+}

@@ -578,7 +578,7 @@ func marshalEncryptedClientHelloConfigList(configs []EncryptedClientHelloKey) ([
 	return builder.Bytes()
 }
 
-func (c *Conn) processECHClientHello(outer *clientHelloMsg) (*clientHelloMsg, *echServerContext, error) {
+func (c *Conn) processECHClientHello(outer *clientHelloMsg, echKeys []EncryptedClientHelloKey) (*clientHelloMsg, *echServerContext, error) {
 	echType, echCiphersuite, configID, encap, payload, err := parseECHExt(outer.encryptedClientHello)
 	if err != nil {
 		if errors.Is(err, errInvalidECHExt) {
@@ -594,11 +594,11 @@ func (c *Conn) processECHClientHello(outer *clientHelloMsg) (*clientHelloMsg, *e
 		return outer, &echServerContext{inner: true}, nil
 	}
 
-	if len(c.config.EncryptedClientHelloKeys) == 0 {
+	if len(echKeys) == 0 {
 		return outer, nil, nil
 	}
 
-	for _, echKey := range c.config.EncryptedClientHelloKeys {
+	for _, echKey := range echKeys {
 		skip, config, err := parseECHConfig(echKey.Config)
 		if err != nil || skip {
 			c.sendAlert(alertInternalError)

@@ -20,9 +20,6 @@ func init() {
 }
 
 //go:noescape
-func blockAMD64(dig *Digest, p []byte)
-
-//go:noescape
 func blockAVX2(dig *Digest, p []byte)
 
 //go:noescape
@@ -34,6 +31,6 @@ func block(dig *Digest, p []byte) {
 	} else if useAVX2 {
 		blockAVX2(dig, p)
 	} else {
-		blockAMD64(dig, p)
+		blockGeneric(dig, p)
 	}
 }

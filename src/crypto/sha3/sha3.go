@@ -166,6 +166,12 @@ func (s *SHA3) UnmarshalBinary(data []byte) error {
 	return s.s.UnmarshalBinary(data)
 }
 
+// Clone implements [hash.Cloner].
+func (d *SHA3) Clone() (hash.Cloner, error) {
+	r := *d
+	return &r, nil
+}
+
 // SHAKE is an instance of a SHAKE extendable output function.
 type SHAKE struct {
 	s sha3.SHAKE

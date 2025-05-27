@@ -754,6 +754,11 @@ func (h *mheap) sysAlloc(n uintptr, hintList **arenaHint, arenaList *[]arenaIdx)
 	}
 
 mapped:
+	if valgrindenabled {
+		valgrindCreateMempool(v)
+		valgrindMakeMemNoAccess(v, size)
+	}
+
 	// Create arena metadata.
 	for ri := arenaIndex(uintptr(v)); ri <= arenaIndex(uintptr(v)+size-1); ri++ {
 		l2 := h.arenas[ri.l1()]
@@ -1083,6 +1088,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		}
 		asanpoison(unsafe.Add(x, size-asanRZ), asanRZ)
 		asanunpoison(x, size-asanRZ)
+	}
+	if valgrindenabled {
+		valgrindMalloc(x, size-asanRZ)
 	}
 
 	// Adjust our GC assist debt to account for internal fragmentation.
@@ -1672,7 +1680,10 @@ func postMallocgcDebug(x unsafe.Pointer, elemsize uintptr, typ *_type) {
 	}
 
 	// N.B. elemsize == 0 indicates a tiny allocation, since no new slot was
-	// allocated to fulfill this call to mallocgc.
+	// allocated to fulfill this call to mallocgc. This means checkfinalizer
+	// will only flag an error if there is actually any risk. If an allocation
+	// has the tiny block to itself, it will not get flagged, because we won't
+	// mark the block as a tiny block.
 	if debug.checkfinalizers != 0 && elemsize == 0 {
 		setTinyBlockContext(unsafe.Pointer(alignDown(uintptr(x), maxTinySize)))
 	}

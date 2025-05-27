@@ -2832,3 +2832,14 @@
   && clobber(sbts)
   && clobber(key)
 => (StaticLECall {f} [argsize] typ_ map_ (StringMake <typ.String> ptr len) mem)
+
+// Similarly to map lookups, also handle unique.Make for strings, which unique.Make will clone.
+(StaticLECall {f} [argsize] dict_ key:(SelectN [0] sbts:(StaticLECall {g} _ ptr len mem)) m:(SelectN [1] sbts))
+  && isSameCall(f, "unique.Make[go.shape.string]")
+  && isSameCall(g, "runtime.slicebytetostring")
+  && key.Uses == 1
+  && sbts.Uses == 2
+  && resetCopy(m, mem)
+  && clobber(sbts)
+  && clobber(key)
+=> (StaticLECall {f} [argsize] dict_ (StringMake <typ.String> ptr len) mem)

@@ -594,8 +594,8 @@ func walkCall(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 
 	if n.Op() == ir.OCALLFUNC {
 		fn := ir.StaticCalleeName(n.Fun)
-		if fn != nil && fn.Sym().Pkg.Path == "hash/maphash" && strings.HasPrefix(fn.Sym().Name, "escapeForHash[") {
-			// hash/maphash.escapeForHash[T] is a compiler intrinsic
+		if fn != nil && fn.Sym().Pkg.Path == "internal/abi" && strings.HasPrefix(fn.Sym().Name, "EscapeNonString[") {
+			// internal/abi.EscapeNonString[T] is a compiler intrinsic
 			// for the escape analysis to escape its argument based on
 			// the type. The call itself is no-op. Just walk the
 			// argument.

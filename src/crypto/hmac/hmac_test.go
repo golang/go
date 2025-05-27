@@ -632,6 +632,18 @@ func TestHMACHash(t *testing.T) {
 	}
 }
 
+func TestExtraMethods(t *testing.T) {
+	h := New(sha256.New, []byte("key"))
+	cryptotest.NoExtraMethods(t, maybeCloner(h))
+}
+
+func maybeCloner(h hash.Hash) any {
+	if c, ok := h.(hash.Cloner); ok {
+		return &c
+	}
+	return &h
+}
+
 func BenchmarkHMACSHA256_1K(b *testing.B) {
 	key := make([]byte, 32)
 	buf := make([]byte, 1024)

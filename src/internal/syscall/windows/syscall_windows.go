@@ -548,6 +548,7 @@ func (s NTStatus) Error() string {
 // At the moment, we only need a couple, so just put them here manually.
 // If this list starts getting long, we should consider generating the full set.
 const (
+	STATUS_OBJECT_NAME_COLLISION     NTStatus = 0xC0000035
 	STATUS_FILE_IS_A_DIRECTORY       NTStatus = 0xC00000BA
 	STATUS_DIRECTORY_NOT_EMPTY       NTStatus = 0xC0000101
 	STATUS_NOT_A_DIRECTORY           NTStatus = 0xC0000103

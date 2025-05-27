@@ -59,6 +59,7 @@ type symsStruct struct {
 	Udiv             *obj.LSym
 	WriteBarrier     *obj.LSym
 	Zerobase         *obj.LSym
+	ZeroVal          *obj.LSym
 	ARM64HasATOMICS  *obj.LSym
 	ARMHasVFPv4      *obj.LSym
 	Loong64HasLAMCAS *obj.LSym

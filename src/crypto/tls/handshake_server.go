@@ -149,7 +149,15 @@ func (c *Conn) readClientHello(ctx context.Context) (*clientHelloMsg, *echServer
 	// the contents of the client hello, since we may swap it out completely.
 	var ech *echServerContext
 	if len(clientHello.encryptedClientHello) != 0 {
-		clientHello, ech, err = c.processECHClientHello(clientHello)
+		echKeys := c.config.EncryptedClientHelloKeys
+		if c.config.GetEncryptedClientHelloKeys != nil {
+			echKeys, err = c.config.GetEncryptedClientHelloKeys(clientHelloInfo(ctx, c, clientHello))
+			if err != nil {
+				c.sendAlert(alertInternalError)
+				return nil, nil, err
+			}
+		}
+		clientHello, ech, err = c.processECHClientHello(clientHello, echKeys)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -225,7 +233,7 @@ func (hs *serverHandshakeState) processClientHello() error {
 	}
 
 	if !foundCompression {
-		c.sendAlert(alertHandshakeFailure)
+		c.sendAlert(alertIllegalParameter)
 		return errors.New("tls: client does not support uncompressed connections")
 	}
 
@@ -642,7 +650,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		}
 		if c.vers >= VersionTLS12 {
 			certReq.hasSignatureAlgorithm = true
-			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms(c.vers)
 		}
 
 		// An empty list of certificateAuthorities signals to
@@ -763,6 +771,10 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 			sigType, sigHash, err = typeAndHashFromSignatureScheme(certVerify.signatureAlgorithm)
 			if err != nil {
 				return c.sendAlert(alertInternalError)
+			}
+			if sigHash == crypto.SHA1 {
+				tlssha1.Value() // ensure godebug is initialized
+				tlssha1.IncNonDefault()
 			}
 		} else {
 			sigType, sigHash, err = legacyTypeAndHashFromPublicKey(pub)

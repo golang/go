@@ -1,0 +1,9 @@
+pkg crypto/sha3, method (*SHA3) Clone() (hash.Cloner, error) #69521
+pkg hash, type Cloner interface { BlockSize, Clone, Reset, Size, Sum, Write } #69521
+pkg hash, type Cloner interface, BlockSize() int #69521
+pkg hash, type Cloner interface, Clone() (Cloner, error) #69521
+pkg hash, type Cloner interface, Reset() #69521
+pkg hash, type Cloner interface, Size() int #69521
+pkg hash, type Cloner interface, Sum([]uint8) []uint8 #69521
+pkg hash, type Cloner interface, Write([]uint8) (int, error) #69521
+pkg hash/maphash, method (*Hash) Clone() (hash.Cloner, error) #69521

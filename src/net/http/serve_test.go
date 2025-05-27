@@ -5855,7 +5855,7 @@ func testServerShutdown(t *testing.T, mode testMode) {
 }
 
 func TestServerShutdownStateNew(t *testing.T) { runSynctest(t, testServerShutdownStateNew) }
-func testServerShutdownStateNew(t testing.TB, mode testMode) {
+func testServerShutdownStateNew(t *testing.T, mode testMode) {
 	if testing.Short() {
 		t.Skip("test takes 5-6 seconds; skipping in short mode")
 	}

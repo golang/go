@@ -854,6 +854,9 @@ func TestTimePprof(t *testing.T) {
 	case "aix", "darwin", "illumos", "openbsd", "solaris":
 		t.Skipf("skipping on %s because nanotime calls libc", runtime.GOOS)
 	}
+	if race.Enabled || asan.Enabled || msan.Enabled {
+		t.Skip("skipping on sanitizers because the sanitizer runtime is external code")
+	}
 
 	// Pass GOTRACEBACK for issue #41120 to try to get more
 	// information on timeout.

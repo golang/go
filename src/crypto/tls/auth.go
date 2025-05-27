@@ -219,8 +219,8 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 	}
 
 	// Filter out any unsupported signature algorithms, for example due to
-	// FIPS 140-3 policy, or any downstream changes to defaults.go.
-	supportedAlgs := supportedSignatureAlgorithms()
+	// FIPS 140-3 policy, tlssha1=0, or any downstream changes to defaults.go.
+	supportedAlgs := supportedSignatureAlgorithms(version)
 	sigAlgs = slices.DeleteFunc(sigAlgs, func(sigAlg SignatureScheme) bool {
 		return !isSupportedSignatureAlgorithm(sigAlg, supportedAlgs)
 	})
@@ -239,6 +239,11 @@ func selectSignatureScheme(vers uint16, c *Certificate, peerAlgs []SignatureSche
 	if len(peerAlgs) == 0 && vers == VersionTLS12 {
 		// For TLS 1.2, if the client didn't send signature_algorithms then we
 		// can assume that it supports SHA1. See RFC 5246, Section 7.4.1.4.1.
+		// RFC 9155 made signature_algorithms mandatory in TLS 1.2, and we gated
+		// it behind the tlssha1 GODEBUG setting.
+		if tlssha1.Value() != "1" {
+			return 0, errors.New("tls: missing signature_algorithms from TLS 1.2 peer")
+		}
 		peerAlgs = []SignatureScheme{PKCS1WithSHA1, ECDSAWithSHA1}
 	}
 	// Pick signature scheme in the peer's preference order, as our

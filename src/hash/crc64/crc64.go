@@ -133,6 +133,11 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	return nil
 }
 
+func (d *digest) Clone() (hash.Cloner, error) {
+	r := *d
+	return &r, nil
+}
+
 func update(crc uint64, tab *Table, p []byte) uint64 {
 	buildSlicing8TablesOnce()
 	crc = ^crc

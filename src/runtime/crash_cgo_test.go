@@ -597,6 +597,9 @@ func TestWindowsStackMemoryCgo(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("skipping windows specific test")
 	}
+	if race.Enabled {
+		t.Skip("skipping test: race mode uses more stack memory")
+	}
 	testenv.SkipFlaky(t, 22575)
 	o := runTestProg(t, "testprogcgo", "StackMemory")
 	stackUsage, err := strconv.Atoi(o)

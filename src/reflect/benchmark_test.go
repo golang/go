@@ -9,6 +9,7 @@ import (
 	. "reflect"
 	"strconv"
 	"testing"
+	"time"
 )
 
 var sourceAll = struct {
@@ -191,6 +192,57 @@ func BenchmarkSetZero(b *testing.B) {
 		b.Run(name+"/NewZero", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				value.Set(Zero(value.Type()))
+			}
+		})
+	}
+}
+
+// BenchmarkZero overlaps some with BenchmarkSetZero,
+// but the inputs are set up differently to exercise
+// different optimizations.
+func BenchmarkZero(b *testing.B) {
+	type bm struct {
+		name    string
+		zero    Value
+		nonZero Value
+		size    int
+	}
+	type Small struct {
+		A    int64
+		B, C bool
+	}
+	type Big struct {
+		A    int64
+		B, C bool
+		D    [1008]byte
+	}
+	entry := func(name string, zero any, nonZero any) bm {
+		return bm{name, ValueOf(zero), ValueOf(nonZero).Elem(), int(TypeOf(zero).Size())}
+	}
+	nonZeroTime := func() *time.Time { t := time.Now(); return &t }
+
+	bms := []bm{
+		entry("ByteArray", [16]byte{}, &[16]byte{1}),
+		entry("ByteArray", [64]byte{}, &[64]byte{1}),
+		entry("ByteArray", [1024]byte{}, &[1024]byte{1}),
+		entry("BigStruct", Big{}, &Big{A: 1}),
+		entry("SmallStruct", Small{}, &Small{A: 1}),
+		entry("SmallStructArray", [4]Small{}, &[4]Small{0: {A: 1}}),
+		entry("SmallStructArray", [64]Small{}, &[64]Small{0: {A: 1}}),
+		entry("Time", time.Time{}, nonZeroTime()),
+	}
+
+	for _, bm := range bms {
+		b.Run(fmt.Sprintf("IsZero/%s/size=%d", bm.name, bm.size), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bm.zero.IsZero()
+			}
+		})
+	}
+	for _, bm := range bms {
+		b.Run(fmt.Sprintf("SetZero/%s/size=%d", bm.name, bm.size), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				bm.nonZero.Set(bm.zero)
 			}
 		})
 	}

@@ -211,6 +211,13 @@ func stackpoolalloc(order uint8) gclinkptr {
 		s.elemsize = fixedStack << order
 		for i := uintptr(0); i < _StackCacheSize; i += s.elemsize {
 			x := gclinkptr(s.base() + i)
+			if valgrindenabled {
+				// The address of x.ptr() becomes the base of stacks. We need to
+				// mark it allocated here and in stackfree and stackpoolfree, and free'd in
+				// stackalloc in order to avoid overlapping allocations and
+				// uninitialized memory errors in valgrind.
+				valgrindMalloc(unsafe.Pointer(x.ptr()), unsafe.Sizeof(x.ptr()))
+			}
 			x.ptr().next = s.manualFreeList
 			s.manualFreeList = x
 		}
@@ -388,6 +395,12 @@ func stackalloc(n uint32) stack {
 			c.stackcache[order].list = x.ptr().next
 			c.stackcache[order].size -= uintptr(n)
 		}
+		if valgrindenabled {
+			// We're about to allocate the stack region starting at x.ptr().
+			// To prevent valgrind from complaining about overlapping allocations,
+			// we need to mark the (previously allocated) memory as free'd.
+			valgrindFree(unsafe.Pointer(x.ptr()))
+		}
 		v = unsafe.Pointer(x)
 	} else {
 		var s *mspan
@@ -431,6 +444,9 @@ func stackalloc(n uint32) stack {
 	}
 	if asanenabled {
 		asanunpoison(v, uintptr(n))
+	}
+	if valgrindenabled {
+		valgrindMalloc(v, uintptr(n))
 	}
 	if stackDebug >= 1 {
 		print("  allocated ", v, "\n")
@@ -479,6 +495,9 @@ func stackfree(stk stack) {
 	if asanenabled {
 		asanpoison(v, n)
 	}
+	if valgrindenabled {
+		valgrindFree(v)
+	}
 	if n < fixedStack<<_NumStackOrders && n < _StackCacheSize {
 		order := uint8(0)
 		n2 := n
@@ -489,12 +508,23 @@ func stackfree(stk stack) {
 		x := gclinkptr(v)
 		if stackNoCache != 0 || gp.m.p == 0 || gp.m.preemptoff != "" {
 			lock(&stackpool[order].item.mu)
+			if valgrindenabled {
+				// x.ptr() is the head of the list of free stacks, and will be used
+				// when allocating a new stack, so it has to be marked allocated.
+				valgrindMalloc(unsafe.Pointer(x.ptr()), unsafe.Sizeof(x.ptr()))
+			}
 			stackpoolfree(x, order)
 			unlock(&stackpool[order].item.mu)
 		} else {
 			c := gp.m.p.ptr().mcache
 			if c.stackcache[order].size >= _StackCacheSize {
 				stackcacherelease(c, order)
+			}
+			if valgrindenabled {
+				// x.ptr() is the head of the list of free stacks, and will
+				// be used when allocating a new stack, so it has to be
+				// marked allocated.
+				valgrindMalloc(unsafe.Pointer(x.ptr()), unsafe.Sizeof(x.ptr()))
 			}
 			x.ptr().next = c.stackcache[order].list
 			c.stackcache[order].list = x
@@ -582,6 +612,16 @@ func adjustpointer(adjinfo *adjustinfo, vpp unsafe.Pointer) {
 	p := *pp
 	if stackDebug >= 4 {
 		print("        ", pp, ":", hex(p), "\n")
+	}
+	if valgrindenabled {
+		// p is a pointer on a stack, it is inherently initialized, as
+		// everything on the stack is, but valgrind for _some unknown reason_
+		// sometimes thinks it's uninitialized, and flags operations on p below
+		// as uninitialized. We just initialize it if valgrind thinks its
+		// uninitialized.
+		//
+		// See go.dev/issues/73801.
+		valgrindMakeMemDefined(unsafe.Pointer(&p), unsafe.Sizeof(&p))
 	}
 	if adjinfo.old.lo <= p && p < adjinfo.old.hi {
 		*pp = p + adjinfo.delta
@@ -934,6 +974,14 @@ func copystack(gp *g, newsize uintptr) {
 	var u unwinder
 	for u.init(gp, 0); u.valid(); u.next() {
 		adjustframe(&u.frame, &adjinfo)
+	}
+
+	if valgrindenabled {
+		if gp.valgrindStackID == 0 {
+			gp.valgrindStackID = valgrindRegisterStack(unsafe.Pointer(new.lo), unsafe.Pointer(new.hi))
+		} else {
+			valgrindChangeStack(gp.valgrindStackID, unsafe.Pointer(new.lo), unsafe.Pointer(new.hi))
+		}
 	}
 
 	// free old stack

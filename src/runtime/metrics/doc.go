@@ -234,6 +234,11 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the time package
 		due to a non-default GODEBUG=asynctimerchan=... setting.
 
+	/godebug/non-default-behavior/containermaxprocs:events
+		The number of non-default behaviors executed by the runtime
+		package due to a non-default GODEBUG=containermaxprocs=...
+		setting.
+
 	/godebug/non-default-behavior/embedfollowsymlinks:events
 		The number of non-default behaviors executed by the cmd/go
 		package due to a non-default GODEBUG=embedfollowsymlinks=...
@@ -345,9 +350,17 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the crypto/tls
 		package due to a non-default GODEBUG=tlsrsakex=... setting.
 
+	/godebug/non-default-behavior/tlssha1:events
+		The number of non-default behaviors executed by the crypto/tls
+		package due to a non-default GODEBUG=tlssha1=... setting.
+
 	/godebug/non-default-behavior/tlsunsafeekm:events
 		The number of non-default behaviors executed by the crypto/tls
 		package due to a non-default GODEBUG=tlsunsafeekm=... setting.
+
+	/godebug/non-default-behavior/updatemaxprocs:events
+		The number of non-default behaviors executed by the runtime
+		package due to a non-default GODEBUG=updatemaxprocs=... setting.
 
 	/godebug/non-default-behavior/winreadlinkvolume:events
 		The number of non-default behaviors executed by the os package
@@ -370,6 +383,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 	/godebug/non-default-behavior/x509rsacrt:events
 		The number of non-default behaviors executed by the crypto/x509
 		package due to a non-default GODEBUG=x509rsacrt=... setting.
+
+	/godebug/non-default-behavior/x509sha256skid:events
+		The number of non-default behaviors executed by the crypto/x509
+		package due to a non-default GODEBUG=x509sha256skid=... setting.
 
 	/godebug/non-default-behavior/x509usefallbackroots:events
 		The number of non-default behaviors executed by the crypto/x509

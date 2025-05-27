@@ -21,6 +21,7 @@ package runtime
 
 import (
 	"internal/runtime/atomic"
+	"internal/trace/tracev2"
 	"unsafe"
 )
 
@@ -51,9 +52,10 @@ var trace struct {
 	// State for the trace reader goroutine.
 	//
 	// Protected by trace.lock.
-	readerGen     atomic.Uintptr // the generation the reader is currently reading for
-	flushedGen    atomic.Uintptr // the last completed generation
-	headerWritten bool           // whether ReadTrace has emitted trace header
+	readerGen              atomic.Uintptr // the generation the reader is currently reading for
+	flushedGen             atomic.Uintptr // the last completed generation
+	headerWritten          bool           // whether ReadTrace has emitted trace header
+	endOfGenerationWritten bool           // whether readTrace has emitted the end of the generation signal
 
 	// doneSema is used to synchronize the reader and traceAdvance. Specifically,
 	// it notifies traceAdvance that the reader is done with a generation.
@@ -184,6 +186,10 @@ func StartTrace() error {
 	// Register some basic strings in the string tables.
 	traceRegisterLabelsAndReasons(firstGen)
 
+	// N.B. This may block for quite a while to get a frequency estimate. Do it
+	// here to minimize the time that the world is stopped.
+	frequency := traceClockUnitsPerSecond()
+
 	// Stop the world.
 	//
 	// The purpose of stopping the world is to make sure that no goroutine is in a
@@ -280,8 +286,9 @@ func StartTrace() error {
 	//
 	// N.B. This will also emit a status event for this goroutine.
 	tl := traceAcquire()
-	tl.Gomaxprocs(gomaxprocs)  // Get this as early in the trace as possible. See comment in traceAdvance.
-	tl.STWStart(stwStartTrace) // We didn't trace this above, so trace it now.
+	traceSyncBatch(firstGen, frequency) // Get this as early in the trace as possible. See comment in traceAdvance.
+	tl.Gomaxprocs(gomaxprocs)           // Get this as early in the trace as possible. See comment in traceAdvance.
+	tl.STWStart(stwStartTrace)          // We didn't trace this above, so trace it now.
 
 	// Record the fact that a GC is active, if applicable.
 	if gcphase == _GCmark || gcphase == _GCmarktermination {
@@ -339,12 +346,6 @@ func traceAdvance(stopTrace bool) {
 		semrelease(&traceAdvanceSema)
 		return
 	}
-
-	// Write an EvFrequency event for this generation.
-	//
-	// N.B. This may block for quite a while to get a good frequency estimate, so make sure we do
-	// this here and not e.g. on the trace reader.
-	traceFrequency(gen)
 
 	// Collect all the untraced Gs.
 	type untracedG struct {
@@ -410,6 +411,10 @@ func traceAdvance(stopTrace bool) {
 		traceRegisterLabelsAndReasons(traceNextGen(gen))
 	}
 
+	// N.B. This may block for quite a while to get a frequency estimate. Do it
+	// here to minimize the time that we prevent the world from stopping.
+	frequency := traceClockUnitsPerSecond()
+
 	// Now that we've done some of the heavy stuff, prevent the world from stopping.
 	// This is necessary to ensure the consistency of the STW events. If we're feeling
 	// adventurous we could lift this restriction and add a STWActive event, but the
@@ -441,14 +446,16 @@ func traceAdvance(stopTrace bool) {
 		trace.gen.Store(traceNextGen(gen))
 	}
 
-	// Emit a ProcsChange event so we have one on record for each generation.
-	// Let's emit it as soon as possible so that downstream tools can rely on the value
-	// being there fairly soon in a generation.
+	// Emit a sync batch which contains a ClockSnapshot. Also emit a ProcsChange
+	// event so we have one on record for each generation. Let's emit it as soon
+	// as possible so that downstream tools can rely on the value being there
+	// fairly soon in a generation.
 	//
 	// It's important that we do this before allowing stop-the-worlds again,
 	// because the procs count could change.
 	if !stopTrace {
 		tl := traceAcquire()
+		traceSyncBatch(tl.gen, frequency)
 		tl.Gomaxprocs(gomaxprocs)
 		traceRelease(tl)
 	}
@@ -748,8 +755,24 @@ func traceRegisterLabelsAndReasons(gen uintptr) {
 // returned data before calling ReadTrace again.
 // ReadTrace must be called from one goroutine at a time.
 func ReadTrace() []byte {
+	for {
+		buf := readTrace()
+
+		// Skip over the end-of-generation signal which must not appear
+		// in the final trace.
+		if len(buf) == 1 && tracev2.EventType(buf[0]) == tracev2.EvEndOfGeneration {
+			continue
+		}
+		return buf
+	}
+}
+
+// readTrace is the implementation of ReadTrace, except with an additional
+// in-band signal as to when the buffer is for a new generation.
+//
+//go:linkname readTrace runtime/trace.runtime_readTrace
+func readTrace() (buf []byte) {
 top:
-	var buf []byte
 	var park bool
 	systemstack(func() {
 		buf, park = readTrace0()
@@ -777,7 +800,6 @@ top:
 		}, nil, waitReasonTraceReaderBlocked, traceBlockSystemGoroutine, 2)
 		goto top
 	}
-
 	return buf
 }
 
@@ -820,7 +842,7 @@ func readTrace0() (buf []byte, park bool) {
 	if !trace.headerWritten {
 		trace.headerWritten = true
 		unlock(&trace.lock)
-		return []byte("go 1.23 trace\x00\x00\x00"), false
+		return []byte("go 1.25 trace\x00\x00\x00"), false
 	}
 
 	// Read the next buffer.
@@ -844,6 +866,17 @@ func readTrace0() (buf []byte, park bool) {
 		// is waiting on the reader to finish flushing the last generation so that it
 		// can continue to advance.
 		if trace.flushedGen.Load() == gen {
+			// Write out the internal in-band end-of-generation signal.
+			if !trace.endOfGenerationWritten {
+				trace.endOfGenerationWritten = true
+				unlock(&trace.lock)
+				return []byte{byte(tracev2.EvEndOfGeneration)}, false
+			}
+
+			// Reset the flag.
+			trace.endOfGenerationWritten = false
+
+			// Handle shutdown.
 			if trace.shutdown.Load() {
 				unlock(&trace.lock)
 
@@ -863,6 +896,8 @@ func readTrace0() (buf []byte, park bool) {
 				// read. We're done.
 				return nil, false
 			}
+			// Handle advancing to the next generation.
+
 			// The previous gen has had all of its buffers flushed, and
 			// there's nothing else for us to read. Advance the generation
 			// we're reading from and try again.

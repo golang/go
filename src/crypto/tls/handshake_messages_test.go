@@ -72,10 +72,6 @@ func TestMarshalUnmarshal(t *testing.T) {
 					break
 				}
 
-				if m, ok := m.(*SessionState); ok {
-					m.activeCertHandles = nil
-				}
-
 				if ch, ok := m.(*clientHelloMsg); ok {
 					// extensions is special cased, as it is only populated by the
 					// server-side of a handshake and is not expected to roundtrip
@@ -183,10 +179,10 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		}
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms(VersionTLS12)
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms()
+		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms(VersionTLS12)
 	}
 	for i := 0; i < rand.Intn(5); i++ {
 		m.alpnProtocols = append(m.alpnProtocols, randomString(rand.Intn(20)+1, rand))
@@ -477,10 +473,10 @@ func (*certificateRequestMsgTLS13) Generate(rand *rand.Rand, size int) reflect.V
 		m.scts = true
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms(VersionTLS12)
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms()
+		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms(VersionTLS12)
 	}
 	if rand.Intn(10) > 5 {
 		m.certificateAuthorities = make([][]byte, 3)

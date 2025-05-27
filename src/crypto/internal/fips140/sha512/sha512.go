@@ -10,6 +10,7 @@ import (
 	"crypto/internal/fips140"
 	"crypto/internal/fips140deps/byteorder"
 	"errors"
+	"hash"
 )
 
 const (
@@ -192,6 +193,11 @@ func (d *Digest) UnmarshalBinary(b []byte) error {
 
 func consumeUint64(b []byte) ([]byte, uint64) {
 	return b[8:], byteorder.BEUint64(b)
+}
+
+func (d *Digest) Clone() (hash.Cloner, error) {
+	r := *d
+	return &r, nil
 }
 
 // New returns a new Digest computing the SHA-512 hash.

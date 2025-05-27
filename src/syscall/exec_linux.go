@@ -800,9 +800,34 @@ func os_checkClonePidfd() error {
 	// pidfd.
 	defer Close(int(pidfd))
 
+	// TODO(roland): this is necessary to prevent valgrind from complaining
+	// about passing 0x0 to waitid, which is doesn't like. This is clearly not
+	// ideal. The structures are copied (mostly) verbatim from syscall/unix,
+	// which we obviously cannot import because of an import loop.
+
+	const is64bit = ^uint(0) >> 63 // 0 for 32-bit hosts, 1 for 64-bit ones.
+	type sigInfo struct {
+		Signo int32
+		_     struct {
+			Errno int32
+			Code  int32
+		} // Two int32 fields, swapped on MIPS.
+		_ [is64bit]int32 // Extra padding for 64-bit hosts only.
+
+		// End of common part. Beginning of signal-specific part.
+
+		Pid    int32
+		Uid    uint32
+		Status int32
+
+		// Pad to 128 bytes.
+		_ [128 - (6+is64bit)*4]byte
+	}
+
 	for {
 		const _P_PIDFD = 3
-		_, _, errno = Syscall6(SYS_WAITID, _P_PIDFD, uintptr(pidfd), 0, WEXITED|WCLONE, 0, 0)
+		var info sigInfo
+		_, _, errno = Syscall6(SYS_WAITID, _P_PIDFD, uintptr(pidfd), uintptr(unsafe.Pointer(&info)), WEXITED|WCLONE, 0, 0)
 		if errno != EINTR {
 			break
 		}

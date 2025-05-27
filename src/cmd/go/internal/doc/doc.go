@@ -9,6 +9,9 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"context"
+	"errors"
+	"os"
+	"os/exec"
 	"path/filepath"
 )
 
@@ -131,5 +134,13 @@ Flags:
 }
 
 func runDoc(ctx context.Context, cmd *base.Command, args []string) {
-	base.Run(cfg.BuildToolexec, filepath.Join(cfg.GOROOTbin, "go"), "tool", "doc", args)
+	base.StartSigHandlers()
+	err := base.RunErr(cfg.BuildToolexec, filepath.Join(cfg.GOROOTbin, "go"), "tool", "doc", args)
+	if err != nil {
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			os.Exit(ee.ExitCode())
+		}
+		base.Error(err)
+	}
 }

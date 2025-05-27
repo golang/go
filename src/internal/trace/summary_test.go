@@ -264,7 +264,7 @@ func basicGoroutineSummaryChecks(t *testing.T, summary *trace.GoroutineSummary) 
 }
 
 func summarizeTraceTest(t *testing.T, testPath string) *trace.Summary {
-	trc, _, err := testtrace.ParseFile(testPath)
+	trc, _, _, err := testtrace.ParseFile(testPath)
 	if err != nil {
 		t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
 	}
@@ -388,7 +388,7 @@ func basicGoroutineExecStatsChecks(t *testing.T, stats *trace.GoroutineExecStats
 
 func TestRelatedGoroutinesV2Trace(t *testing.T) {
 	testPath := "testdata/tests/go122-gc-stress.test"
-	trc, _, err := testtrace.ParseFile(testPath)
+	trc, _, _, err := testtrace.ParseFile(testPath)
 	if err != nil {
 		t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
 	}

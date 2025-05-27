@@ -950,6 +950,9 @@ func freeUserArenaChunk(s *mspan, x unsafe.Pointer) {
 	if asanenabled {
 		asanpoison(unsafe.Pointer(s.base()), s.elemsize)
 	}
+	if valgrindenabled {
+		valgrindFree(unsafe.Pointer(s.base()))
+	}
 
 	// Make ourselves non-preemptible as we manipulate state and statistics.
 	//

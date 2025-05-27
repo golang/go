@@ -1,0 +1,4 @@
+pkg testing, method (*B) Attr(string, string) #43936
+pkg testing, method (*F) Attr(string, string) #43936
+pkg testing, method (*T) Attr(string, string) #43936
+pkg testing, type TB interface, Attr(string, string) #43936

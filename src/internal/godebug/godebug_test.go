@@ -162,3 +162,32 @@ func TestBisectTestCase(t *testing.T) {
 		}
 	}
 }
+
+func TestImmutable(t *testing.T) {
+	defer func(godebug string) {
+		os.Setenv("GODEBUG", godebug)
+	}(os.Getenv("GODEBUG"))
+
+	setting := New("fips140")
+	value := setting.Value()
+
+	os.Setenv("GODEBUG", "fips140=off")
+	if setting.Value() != value {
+		t.Errorf("Value() changed after setting GODEBUG=fips140=off")
+	}
+
+	os.Setenv("GODEBUG", "fips140=on")
+	if setting.Value() != value {
+		t.Errorf("Value() changed after setting GODEBUG=fips140=on")
+	}
+
+	os.Setenv("GODEBUG", "fips140=")
+	if setting.Value() != value {
+		t.Errorf("Value() changed after setting GODEBUG=fips140=")
+	}
+
+	os.Setenv("GODEBUG", "")
+	if setting.Value() != value {
+		t.Errorf("Value() changed after setting GODEBUG=")
+	}
+}

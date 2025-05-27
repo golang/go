@@ -70,6 +70,7 @@ var ARM64 struct {
 	HasSHA1    bool
 	HasSHA2    bool
 	HasSHA512  bool
+	HasSHA3    bool
 	HasCRC32   bool
 	HasATOMICS bool
 	HasCPUID   bool

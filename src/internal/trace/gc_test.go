@@ -118,7 +118,7 @@ func TestMMUTrace(t *testing.T) {
 	}
 	t.Run("V2", func(t *testing.T) {
 		testPath := "testdata/tests/go122-gc-stress.test"
-		r, _, err := testtrace.ParseFile(testPath)
+		r, _, _, err := testtrace.ParseFile(testPath)
 		if err != nil {
 			t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
 		}

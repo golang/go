@@ -8,7 +8,9 @@ package os
 
 import (
 	"errors"
+	"internal/stringslite"
 	"sync/atomic"
+	"syscall"
 	"time"
 )
 
@@ -146,12 +148,52 @@ func rootMkdir(r *Root, name string, perm FileMode) error {
 	return nil
 }
 
+func rootMkdirAll(r *Root, name string, perm FileMode) error {
+	// We only check for errPathEscapes here.
+	// For errors such as ENOTDIR (a non-directory file appeared somewhere along the path),
+	// we let MkdirAll generate the error.
+	// MkdirAll will return a PathError referencing the exact location of the error,
+	// and we want to preserve that property.
+	if err := checkPathEscapes(r, name); err == errPathEscapes {
+		return &PathError{Op: "mkdirat", Path: name, Err: err}
+	}
+	prefix := r.root.name + string(PathSeparator)
+	if err := MkdirAll(prefix+name, perm); err != nil {
+		if pe, ok := err.(*PathError); ok {
+			pe.Op = "mkdirat"
+			pe.Path = stringslite.TrimPrefix(pe.Path, prefix)
+			return pe
+		}
+		return &PathError{Op: "mkdirat", Path: name, Err: underlyingError(err)}
+	}
+	return nil
+}
+
 func rootRemove(r *Root, name string) error {
 	if err := checkPathEscapesLstat(r, name); err != nil {
 		return &PathError{Op: "removeat", Path: name, Err: err}
 	}
 	if err := Remove(joinPath(r.root.name, name)); err != nil {
 		return &PathError{Op: "removeat", Path: name, Err: underlyingError(err)}
+	}
+	return nil
+}
+
+func rootRemoveAll(r *Root, name string) error {
+	if endsWithDot(name) {
+		// Consistency with os.RemoveAll: Return EINVAL when trying to remove .
+		return &PathError{Op: "RemoveAll", Path: name, Err: syscall.EINVAL}
+	}
+	if err := checkPathEscapesLstat(r, name); err != nil {
+		if err == syscall.ENOTDIR {
+			// Some intermediate path component is not a directory.
+			// RemoveAll treats this as success (since the target doesn't exist).
+			return nil
+		}
+		return &PathError{Op: "RemoveAll", Path: name, Err: err}
+	}
+	if err := RemoveAll(joinPath(r.root.name, name)); err != nil {
+		return &PathError{Op: "RemoveAll", Path: name, Err: underlyingError(err)}
 	}
 	return nil
 }

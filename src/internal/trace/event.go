@@ -665,17 +665,22 @@ func (e Event) Sync() Sync {
 	if e.Kind() != EventSync {
 		panic("Sync called on non-Sync event")
 	}
-	var expBatches map[string][]ExperimentalBatch
+	s := Sync{N: int(e.base.args[0])}
 	if e.table != nil {
-		expBatches = make(map[string][]ExperimentalBatch)
+		expBatches := make(map[string][]ExperimentalBatch)
 		for exp, batches := range e.table.expBatches {
 			expBatches[tracev2.Experiments()[exp]] = batches
 		}
+		s.ExperimentalBatches = expBatches
+		if e.table.hasClockSnapshot {
+			s.ClockSnapshot = &ClockSnapshot{
+				Trace: e.table.freq.mul(e.table.snapTime),
+				Wall:  e.table.snapWall,
+				Mono:  e.table.snapMono,
+			}
+		}
 	}
-	return Sync{
-		N:                   int(e.base.args[0]),
-		ExperimentalBatches: expBatches,
-	}
+	return s
 }
 
 // Sync contains details potentially relevant to all the following events, up to but excluding
@@ -684,8 +689,28 @@ type Sync struct {
 	// N indicates that this is the Nth sync event in the trace.
 	N int
 
+	// ClockSnapshot is a snapshot of different clocks taken in close in time
+	// that can be used to correlate trace events with data captured by other
+	// tools. May be nil for older trace versions.
+	ClockSnapshot *ClockSnapshot
+
 	// ExperimentalBatches contain all the unparsed batches of data for a given experiment.
 	ExperimentalBatches map[string][]ExperimentalBatch
+}
+
+// ClockSnapshot represents a near-simultaneous clock reading of several
+// different system clocks. The snapshot can be used as a reference to convert
+// timestamps to different clocks, which is helpful for correlating timestamps
+// with data captured by other tools.
+type ClockSnapshot struct {
+	// Trace is a snapshot of the trace clock.
+	Trace Time
+
+	// Wall is a snapshot of the system's wall clock.
+	Wall time.Time
+
+	// Mono is a snapshot of the system's monotonic clock.
+	Mono uint64
 }
 
 // Experimental returns a view of the raw event for an experimental event.
@@ -844,6 +869,16 @@ func (e Event) String() string {
 			fmt.Fprintf(&sb, "%s=%s", arg, r.ArgValue(i).String())
 		}
 		fmt.Fprintf(&sb, "]")
+	case EventSync:
+		s := e.Sync()
+		fmt.Fprintf(&sb, " N=%d", s.N)
+		if s.ClockSnapshot != nil {
+			fmt.Fprintf(&sb, " Trace=%d Mono=%d Wall=%s",
+				s.ClockSnapshot.Trace,
+				s.ClockSnapshot.Mono,
+				s.ClockSnapshot.Wall.Format(time.RFC3339),
+			)
+		}
 	}
 	if stk := e.Stack(); stk != NoStack {
 		fmt.Fprintln(&sb)

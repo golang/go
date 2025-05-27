@@ -8,6 +8,7 @@ import (
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/hmac"
 	"errors"
+	"hash"
 )
 
 // divRoundUp divides x+y-1 by y, rounding up if the result is not whole.
@@ -19,7 +20,7 @@ func divRoundUp(x, y int) int {
 	return int((int64(x) + int64(y) - 1) / int64(y))
 }
 
-func Key[Hash fips140.Hash](h func() Hash, password string, salt []byte, iter, keyLength int) ([]byte, error) {
+func Key[Hash hash.Hash](h func() Hash, password string, salt []byte, iter, keyLength int) ([]byte, error) {
 	setServiceIndicator(salt, keyLength)
 
 	if keyLength <= 0 {

@@ -335,23 +335,34 @@ func f20() {
 	ch <- byteptr()
 }
 
-func f21() {
+func f21(x, y string) { // ERROR "live at entry to f21: x y"
 	// key temporary for mapaccess using array literal key.
 	var z *byte
 	if b {
-		z = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+		z = m2[[2]string{x, y}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
 	}
 	z = m2[[2]string{"x", "y"}]
 	z = m2[[2]string{"x", "y"}]
 	printbytepointer(z)
 }
 
-func f23() {
+func f21b() {
+	// key temporary for mapaccess using array literal key.
+	var z *byte
+	if b {
+		z = m2[[2]string{"x", "y"}]
+	}
+	z = m2[[2]string{"x", "y"}]
+	z = m2[[2]string{"x", "y"}]
+	printbytepointer(z)
+}
+
+func f23(x, y string) { // ERROR "live at entry to f23: x y"
 	// key temporary for two-result map access using array literal key.
 	var z *byte
 	var ok bool
 	if b {
-		z, ok = m2[[2]string{"x", "y"}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+		z, ok = m2[[2]string{x, y}] // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
 	}
 	z, ok = m2[[2]string{"x", "y"}]
 	z, ok = m2[[2]string{"x", "y"}]
@@ -359,11 +370,34 @@ func f23() {
 	print(ok)
 }
 
-func f24() {
+func f23b() {
+	// key temporary for two-result map access using array literal key.
+	var z *byte
+	var ok bool
+	if b {
+		z, ok = m2[[2]string{"x", "y"}]
+	}
+	z, ok = m2[[2]string{"x", "y"}]
+	z, ok = m2[[2]string{"x", "y"}]
+	printbytepointer(z)
+	print(ok)
+}
+
+func f24(x, y string) { // ERROR "live at entry to f24: x y"
+	// key temporary for map access using array lit3ral key.
+	// value temporary too.
+	if b {
+		m2[[2]string{x, y}] = nil // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+	}
+	m2[[2]string{"x", "y"}] = nil
+	m2[[2]string{"x", "y"}] = nil
+}
+
+func f24b() {
 	// key temporary for map access using array literal key.
 	// value temporary too.
 	if b {
-		m2[[2]string{"x", "y"}] = nil // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
+		m2[[2]string{"x", "y"}] = nil
 	}
 	m2[[2]string{"x", "y"}] = nil
 	m2[[2]string{"x", "y"}] = nil

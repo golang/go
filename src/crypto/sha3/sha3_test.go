@@ -7,9 +7,9 @@ package sha3_test
 import (
 	"bytes"
 	"crypto/internal/cryptotest"
-	"crypto/internal/fips140"
 	. "crypto/sha3"
 	"encoding/hex"
+	"hash"
 	"io"
 	"math/rand"
 	"strings"
@@ -42,13 +42,14 @@ var testShakes = map[string]struct {
 	"cSHAKE256": {NewCSHAKE256, "CSHAKE256", "CustomString"},
 }
 
-// decodeHex converts a hex-encoded string into a raw byte string.
-func decodeHex(s string) []byte {
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		panic(err)
-	}
-	return b
+func TestSHA3Hash(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "sha3", func(t *testing.T) {
+		for name, f := range testDigests {
+			t.Run(name, func(t *testing.T) {
+				cryptotest.TestHash(t, func() hash.Hash { return f() })
+			})
+		}
+	})
 }
 
 // TestUnalignedWrite tests that writing data in an arbitrary pattern with
@@ -450,7 +451,7 @@ func testMarshalUnmarshalSHAKE(t *testing.T, h *SHAKE) {
 }
 
 // benchmarkHash tests the speed to hash num buffers of buflen each.
-func benchmarkHash(b *testing.B, h fips140.Hash, size, num int) {
+func benchmarkHash(b *testing.B, h hash.Hash, size, num int) {
 	b.StopTimer()
 	h.Reset()
 	data := sequentialBytes(size)

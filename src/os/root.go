@@ -145,12 +145,24 @@ func (r *Root) Chmod(name string, mode FileMode) error {
 // See [Mkdir] for more details.
 //
 // If perm contains bits other than the nine least-significant bits (0o777),
-// OpenFile returns an error.
+// Mkdir returns an error.
 func (r *Root) Mkdir(name string, perm FileMode) error {
 	if perm&0o777 != perm {
 		return &PathError{Op: "mkdirat", Path: name, Err: errors.New("unsupported file mode")}
 	}
 	return rootMkdir(r, name, perm)
+}
+
+// MkdirAll creates a new directory in the root, along with any necessary parents.
+// See [MkdirAll] for more details.
+//
+// If perm contains bits other than the nine least-significant bits (0o777),
+// MkdirAll returns an error.
+func (r *Root) MkdirAll(name string, perm FileMode) error {
+	if perm&0o777 != perm {
+		return &PathError{Op: "mkdirat", Path: name, Err: errors.New("unsupported file mode")}
+	}
+	return rootMkdirAll(r, name, perm)
 }
 
 // Chown changes the numeric uid and gid of the named file in the root.
@@ -175,6 +187,12 @@ func (r *Root) Chtimes(name string, atime time.Time, mtime time.Time) error {
 // See [Remove] for more details.
 func (r *Root) Remove(name string) error {
 	return rootRemove(r, name)
+}
+
+// RemoveAll removes the named file or directory and any children that it contains.
+// See [RemoveAll] for more details.
+func (r *Root) RemoveAll(name string) error {
+	return rootRemoveAll(r, name)
 }
 
 // Stat returns a [FileInfo] describing the named file in the root.
@@ -228,6 +246,31 @@ func (r *Root) Link(oldname, newname string) error {
 // a directory within the root. Otherwise a file link is created.
 func (r *Root) Symlink(oldname, newname string) error {
 	return rootSymlink(r, oldname, newname)
+}
+
+// ReadFile reads the named file in the root and returns its contents.
+// See [ReadFile] for more details.
+func (r *Root) ReadFile(name string) ([]byte, error) {
+	f, err := r.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return readFileContents(statOrZero(f), f.Read)
+}
+
+// WriteFile writes data to the named file in the root, creating it if necessary.
+// See [WriteFile] for more details.
+func (r *Root) WriteFile(name string, data []byte, perm FileMode) error {
+	f, err := r.OpenFile(name, O_WRONLY|O_CREATE|O_TRUNC, perm)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(data)
+	if err1 := f.Close(); err == nil {
+		err = err1
+	}
+	return err
 }
 
 func (r *Root) logOpen(name string) {

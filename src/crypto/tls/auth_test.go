@@ -7,6 +7,7 @@ package tls
 import (
 	"crypto"
 	"crypto/tls/internal/fips140tls"
+	"os"
 	"testing"
 )
 
@@ -33,35 +34,41 @@ func TestSignatureSelection(t *testing.T) {
 		cert        *Certificate
 		peerSigAlgs []SignatureScheme
 		tlsVersion  uint16
+		godebug     string
 
 		expectedSigAlg  SignatureScheme
 		expectedSigType uint8
 		expectedHash    crypto.Hash
 	}{
-		{rsaCert, []SignatureScheme{PKCS1WithSHA1, PKCS1WithSHA256}, VersionTLS12, PKCS1WithSHA1, signaturePKCS1v15, crypto.SHA1},
-		{rsaCert, []SignatureScheme{PKCS1WithSHA512, PKCS1WithSHA1}, VersionTLS12, PKCS1WithSHA512, signaturePKCS1v15, crypto.SHA512},
-		{rsaCert, []SignatureScheme{PSSWithSHA256, PKCS1WithSHA256}, VersionTLS12, PSSWithSHA256, signatureRSAPSS, crypto.SHA256},
-		{pkcs1Cert, []SignatureScheme{PSSWithSHA256, PKCS1WithSHA256}, VersionTLS12, PKCS1WithSHA256, signaturePKCS1v15, crypto.SHA256},
-		{rsaCert, []SignatureScheme{PSSWithSHA384, PKCS1WithSHA1}, VersionTLS13, PSSWithSHA384, signatureRSAPSS, crypto.SHA384},
-		{ecdsaCert, []SignatureScheme{ECDSAWithSHA1}, VersionTLS12, ECDSAWithSHA1, signatureECDSA, crypto.SHA1},
-		{ecdsaCert, []SignatureScheme{ECDSAWithP256AndSHA256}, VersionTLS12, ECDSAWithP256AndSHA256, signatureECDSA, crypto.SHA256},
-		{ecdsaCert, []SignatureScheme{ECDSAWithP256AndSHA256}, VersionTLS13, ECDSAWithP256AndSHA256, signatureECDSA, crypto.SHA256},
-		{ed25519Cert, []SignatureScheme{Ed25519}, VersionTLS12, Ed25519, signatureEd25519, directSigning},
-		{ed25519Cert, []SignatureScheme{Ed25519}, VersionTLS13, Ed25519, signatureEd25519, directSigning},
+		{rsaCert, []SignatureScheme{PKCS1WithSHA1, PKCS1WithSHA256}, VersionTLS12, "", PKCS1WithSHA256, signaturePKCS1v15, crypto.SHA256},
+		{rsaCert, []SignatureScheme{PKCS1WithSHA1, PKCS1WithSHA256}, VersionTLS12, "tlssha1=1", PKCS1WithSHA1, signaturePKCS1v15, crypto.SHA1},
+		{rsaCert, []SignatureScheme{PKCS1WithSHA512, PKCS1WithSHA1}, VersionTLS12, "", PKCS1WithSHA512, signaturePKCS1v15, crypto.SHA512},
+		{rsaCert, []SignatureScheme{PSSWithSHA256, PKCS1WithSHA256}, VersionTLS12, "", PSSWithSHA256, signatureRSAPSS, crypto.SHA256},
+		{pkcs1Cert, []SignatureScheme{PSSWithSHA256, PKCS1WithSHA256}, VersionTLS12, "", PKCS1WithSHA256, signaturePKCS1v15, crypto.SHA256},
+		{rsaCert, []SignatureScheme{PSSWithSHA384, PKCS1WithSHA1}, VersionTLS13, "", PSSWithSHA384, signatureRSAPSS, crypto.SHA384},
+		{rsaCert, []SignatureScheme{PKCS1WithSHA1, PSSWithSHA384}, VersionTLS13, "", PSSWithSHA384, signatureRSAPSS, crypto.SHA384},
+		{ecdsaCert, []SignatureScheme{ECDSAWithSHA1, ECDSAWithP256AndSHA256}, VersionTLS12, "", ECDSAWithP256AndSHA256, signatureECDSA, crypto.SHA256},
+		{ecdsaCert, []SignatureScheme{ECDSAWithSHA1}, VersionTLS12, "tlssha1=1", ECDSAWithSHA1, signatureECDSA, crypto.SHA1},
+		{ecdsaCert, []SignatureScheme{ECDSAWithP256AndSHA256}, VersionTLS12, "", ECDSAWithP256AndSHA256, signatureECDSA, crypto.SHA256},
+		{ecdsaCert, []SignatureScheme{ECDSAWithP256AndSHA256}, VersionTLS13, "", ECDSAWithP256AndSHA256, signatureECDSA, crypto.SHA256},
+		{ed25519Cert, []SignatureScheme{Ed25519}, VersionTLS12, "", Ed25519, signatureEd25519, directSigning},
+		{ed25519Cert, []SignatureScheme{Ed25519}, VersionTLS13, "", Ed25519, signatureEd25519, directSigning},
 
 		// TLS 1.2 without signature_algorithms extension
-		{rsaCert, nil, VersionTLS12, PKCS1WithSHA1, signaturePKCS1v15, crypto.SHA1},
-		{ecdsaCert, nil, VersionTLS12, ECDSAWithSHA1, signatureECDSA, crypto.SHA1},
+		{rsaCert, nil, VersionTLS12, "tlssha1=1", PKCS1WithSHA1, signaturePKCS1v15, crypto.SHA1},
+		{ecdsaCert, nil, VersionTLS12, "tlssha1=1", ECDSAWithSHA1, signatureECDSA, crypto.SHA1},
 
 		// TLS 1.2 does not restrict the ECDSA curve (our ecdsaCert is P-256)
-		{ecdsaCert, []SignatureScheme{ECDSAWithP384AndSHA384}, VersionTLS12, ECDSAWithP384AndSHA384, signatureECDSA, crypto.SHA384},
+		{ecdsaCert, []SignatureScheme{ECDSAWithP384AndSHA384}, VersionTLS12, "", ECDSAWithP384AndSHA384, signatureECDSA, crypto.SHA384},
 	}
 
 	for testNo, test := range tests {
-		if fips140tls.Required() && (test.expectedHash == crypto.SHA1 || test.expectedSigAlg == Ed25519) {
+		if fips140tls.Required() && test.expectedHash == crypto.SHA1 {
 			t.Logf("skipping test[%d] - not compatible with TLS FIPS mode", testNo)
 			continue
 		}
+		savedGODEBUG := os.Getenv("GODEBUG")
+		os.Setenv("GODEBUG", savedGODEBUG+","+test.godebug)
 
 		sigAlg, err := selectSignatureScheme(test.tlsVersion, test.cert, test.peerSigAlgs)
 		if err != nil {
@@ -80,6 +87,8 @@ func TestSignatureSelection(t *testing.T) {
 		if test.expectedHash != hashFunc {
 			t.Errorf("test[%d]: expected hash function %#x, got %#x", testNo, test.expectedHash, hashFunc)
 		}
+
+		os.Setenv("GODEBUG", savedGODEBUG)
 	}
 
 	brokenCert := &Certificate{
@@ -116,6 +125,11 @@ func TestSignatureSelection(t *testing.T) {
 		{ecdsaCert, []SignatureScheme{ECDSAWithSHA1}, VersionTLS13},
 		// The key can be too small for the hash.
 		{rsaCert, []SignatureScheme{PSSWithSHA512}, VersionTLS12},
+		// SHA-1 requires tlssha1=1
+		{rsaCert, []SignatureScheme{PKCS1WithSHA1}, VersionTLS12},
+		{ecdsaCert, []SignatureScheme{ECDSAWithSHA1}, VersionTLS12},
+		{rsaCert, nil, VersionTLS12},
+		{ecdsaCert, nil, VersionTLS12},
 	}
 
 	for testNo, test := range badTests {
@@ -159,7 +173,7 @@ func TestLegacyTypeAndHash(t *testing.T) {
 // TestSupportedSignatureAlgorithms checks that all supportedSignatureAlgorithms
 // have valid type and hash information.
 func TestSupportedSignatureAlgorithms(t *testing.T) {
-	for _, sigAlg := range supportedSignatureAlgorithms() {
+	for _, sigAlg := range supportedSignatureAlgorithms(VersionTLS12) {
 		sigType, hash, err := typeAndHashFromSignatureScheme(sigAlg)
 		if err != nil {
 			t.Errorf("%v: unexpected error: %v", sigAlg, err)

@@ -6,6 +6,8 @@ package escape
 
 import (
 	"fmt"
+	"go/constant"
+	"go/token"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -86,8 +88,9 @@ import (
 // A batch holds escape analysis state that's shared across an entire
 // batch of functions being analyzed at once.
 type batch struct {
-	allLocs  []*location
-	closures []closure
+	allLocs         []*location
+	closures        []closure
+	reassignOracles map[*ir.Func]*ir.ReassignOracle
 
 	heapLoc    location
 	mutatorLoc location
@@ -129,6 +132,7 @@ func Batch(fns []*ir.Func, recursive bool) {
 	b.heapLoc.attrs = attrEscapes | attrPersists | attrMutates | attrCalls
 	b.mutatorLoc.attrs = attrMutates
 	b.calleeLoc.attrs = attrCalls
+	b.reassignOracles = make(map[*ir.Func]*ir.ReassignOracle)
 
 	// Construct data-flow graph from syntax trees.
 	for _, fn := range fns {
@@ -154,6 +158,11 @@ func Batch(fns []*ir.Func, recursive bool) {
 	b.closures = nil
 
 	for _, loc := range b.allLocs {
+		// Try to replace some non-constant expressions with literals.
+		b.rewriteWithLiterals(loc.n, loc.curfn)
+
+		// Check if the node must be heap allocated for certain reasons
+		// such as OMAKESLICE for a large slice.
 		if why := HeapAllocReason(loc.n); why != "" {
 			b.flow(b.heapHole().addr(loc.n, why), loc)
 		}
@@ -514,4 +523,102 @@ func (b *batch) reportLeaks(pos src.XPos, name string, esc leaks, sig *types.Typ
 	if !warned {
 		base.WarnfAt(pos, "%v does not escape, mutate, or call", name)
 	}
+}
+
+// rewriteWithLiterals attempts to replace certain non-constant expressions
+// within n with a literal if possible.
+func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
+	if n == nil || fn == nil {
+		return
+	}
+	if n.Op() != ir.OMAKESLICE && n.Op() != ir.OCONVIFACE {
+		return
+	}
+	if base.Flag.Cfg.CoverageInfo != nil {
+		// Avoid altering coverage results.
+		return
+	}
+
+	// Look up a cached ReassignOracle for the function, lazily computing one if needed.
+	ro := b.reassignOracle(fn)
+	if ro == nil {
+		base.Fatalf("no ReassignOracle for function %v with closure parent %v", fn, fn.ClosureParent)
+	}
+
+	switch n.Op() {
+	case ir.OMAKESLICE:
+		// Check if we can replace a non-constant argument to make with
+		// a literal to allow for this slice to be stack allocated if otherwise allowed.
+		n := n.(*ir.MakeExpr)
+
+		r := &n.Cap
+		if n.Cap == nil {
+			r = &n.Len
+		}
+
+		if s := ro.StaticValue(*r); s.Op() == ir.OLITERAL {
+			lit, ok := s.(*ir.BasicLit)
+			if !ok || lit.Val().Kind() != constant.Int {
+				base.Fatalf("unexpected BasicLit Kind")
+			}
+			if constant.Compare(lit.Val(), token.GEQ, constant.MakeInt64(0)) {
+				*r = lit
+			}
+		}
+	case ir.OCONVIFACE:
+		// Check if we can replace a non-constant expression in an interface conversion with
+		// a literal to avoid heap allocating the underlying interface value.
+		conv := n.(*ir.ConvExpr)
+		if conv.X.Op() != ir.OLITERAL && !conv.X.Type().IsInterface() {
+			v := ro.StaticValue(conv.X)
+			if v != nil && v.Op() == ir.OLITERAL && ir.ValidTypeForConst(conv.X.Type(), v.Val()) {
+				if base.Debug.EscapeDebug >= 3 {
+					base.WarnfAt(n.Pos(), "rewriting OCONVIFACE value from %v (%v) to %v (%v)", conv.X, conv.X.Type(), v, v.Type())
+				}
+				v := v.(*ir.BasicLit)
+				conv.X = ir.NewBasicLit(conv.X.Pos(), conv.X.Type(), v.Val())
+				typecheck.Expr(conv)
+			}
+		}
+	}
+}
+
+// reassignOracle returns an initialized *ir.ReassignOracle for fn.
+// If fn is a closure, it returns the ReassignOracle for the ultimate parent.
+//
+// A new ReassignOracle is initialized lazily if needed, and the result
+// is cached to reduce duplicative work of preparing a ReassignOracle.
+func (b *batch) reassignOracle(fn *ir.Func) *ir.ReassignOracle {
+	if ro, ok := b.reassignOracles[fn]; ok {
+		return ro // Hit.
+	}
+
+	// For closures, we want the ultimate parent's ReassignOracle,
+	// so walk up the parent chain, if any.
+	f := fn
+	for f.ClosureParent != nil && !f.ClosureParent.IsPackageInit() {
+		f = f.ClosureParent
+	}
+
+	if f != fn {
+		// We found a parent.
+		ro := b.reassignOracles[f]
+		if ro != nil {
+			// Hit, via a parent. Before returning, store this ro for the original fn as well.
+			b.reassignOracles[fn] = ro
+			return ro
+		}
+	}
+
+	// Miss. We did not find a ReassignOracle for fn or a parent, so lazily create one.
+	ro := &ir.ReassignOracle{}
+	ro.Init(f)
+
+	// Cache the answer for the original fn.
+	b.reassignOracles[fn] = ro
+	if f != fn {
+		// Cache for the parent as well.
+		b.reassignOracles[f] = ro
+	}
+	return ro
 }

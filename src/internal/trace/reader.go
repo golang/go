@@ -54,7 +54,7 @@ func NewReader(r io.Reader) (*Reader, error) {
 		return &Reader{
 			v1Events: convertV1Trace(tr),
 		}, nil
-	case version.Go122, version.Go123:
+	case version.Go122, version.Go123, version.Go125:
 		return &Reader{
 			version: v,
 			r:       br,
@@ -158,7 +158,7 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 			return syncEvent(nil, r.lastTs, r.syncs), nil
 		}
 		// Read the next generation.
-		r.gen, r.spill, r.spillErr = readGeneration(r.r, r.spill)
+		r.gen, r.spill, r.spillErr = readGeneration(r.r, r.spill, r.version)
 		if r.gen == nil {
 			r.spillErrSync = true
 			r.syncs++
@@ -183,11 +183,8 @@ func (r *Reader) ReadEvent() (e Event, err error) {
 			r.frontier = heapInsert(r.frontier, bc)
 		}
 		r.syncs++
-		if r.lastTs == 0 {
-			r.lastTs = r.gen.freq.mul(r.gen.minTs)
-		}
 		// Always emit a sync event at the beginning of the generation.
-		return syncEvent(r.gen.evTable, r.lastTs, r.syncs), nil
+		return syncEvent(r.gen.evTable, r.gen.freq.mul(r.gen.minTs), r.syncs), nil
 	}
 	tryAdvance := func(i int) (bool, error) {
 		bc := r.frontier[i]

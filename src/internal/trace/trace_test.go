@@ -12,6 +12,7 @@ import (
 	"internal/testenv"
 	"internal/trace"
 	"internal/trace/testtrace"
+	"internal/trace/version"
 	"io"
 	"os"
 	"path/filepath"
@@ -617,7 +618,16 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 		tb := traceBuf.Bytes()
 
 		// Test the trace and the parser.
-		testReader(t, bytes.NewReader(tb), testtrace.ExpectSuccess())
+		v := testtrace.NewValidator()
+		v.GoVersion = version.Current
+		if runtime.GOOS == "windows" && stress {
+			// Under stress mode we're constantly advancing trace generations.
+			// Windows' clock granularity is too coarse to guarantee monotonic
+			// timestamps for monotonic and wall clock time in this case, so
+			// skip the checks.
+			v.SkipClockSnapshotChecks()
+		}
+		testReader(t, bytes.NewReader(tb), v, testtrace.ExpectSuccess())
 
 		// Run some extra validation.
 		if !t.Failed() && extra != nil {

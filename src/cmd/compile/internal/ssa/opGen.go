@@ -1810,6 +1810,8 @@ const (
 	OpLOONG64XORconst
 	OpLOONG64NOR
 	OpLOONG64NORconst
+	OpLOONG64ANDN
+	OpLOONG64ORN
 	OpLOONG64FMADDF
 	OpLOONG64FMADDD
 	OpLOONG64FMSUBF
@@ -2074,6 +2076,7 @@ const (
 	OpMIPSLoweredGetCallerSP
 	OpMIPSLoweredGetCallerPC
 	OpMIPSLoweredWB
+	OpMIPSLoweredPubBarrier
 	OpMIPSLoweredPanicBoundsA
 	OpMIPSLoweredPanicBoundsB
 	OpMIPSLoweredPanicBoundsC
@@ -2205,6 +2208,7 @@ const (
 	OpMIPS64LoweredGetCallerSP
 	OpMIPS64LoweredGetCallerPC
 	OpMIPS64LoweredWB
+	OpMIPS64LoweredPubBarrier
 	OpMIPS64LoweredPanicBoundsA
 	OpMIPS64LoweredPanicBoundsB
 	OpMIPS64LoweredPanicBoundsC
@@ -24380,6 +24384,34 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "ANDN",
+		argLen: 2,
+		asm:    loong64.AANDN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+				{1, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+			},
+			outputs: []outputInfo{
+				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+			},
+		},
+	},
+	{
+		name:   "ORN",
+		argLen: 2,
+		asm:    loong64.AORN,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+				{1, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+			},
+			outputs: []outputInfo{
+				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+			},
+		},
+	},
+	{
 		name:        "FMADDF",
 		argLen:      3,
 		commutative: true,
@@ -27960,6 +27992,13 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:           "LoweredPubBarrier",
+		argLen:         1,
+		hasSideEffects: true,
+		asm:            mips.ASYNC,
+		reg:            regInfo{},
+	},
+	{
 		name:    "LoweredPanicBoundsA",
 		auxType: auxInt64,
 		argLen:  3,
@@ -29724,6 +29763,13 @@ var opcodeTable = [...]opInfo{
 				{0, 16777216}, // R25
 			},
 		},
+	},
+	{
+		name:           "LoweredPubBarrier",
+		argLen:         1,
+		hasSideEffects: true,
+		asm:            mips.ASYNC,
+		reg:            regInfo{},
 	},
 	{
 		name:    "LoweredPanicBoundsA",

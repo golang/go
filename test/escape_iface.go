@@ -228,8 +228,8 @@ func dotTypeEscape2() { // #13805, #15796
 		j := 0
 		var v int
 		var ok bool
-		var x interface{} = i // ERROR "i does not escape"
-		var y interface{} = j // ERROR "j does not escape"
+		var x interface{} = i // ERROR "0 does not escape"
+		var y interface{} = j // ERROR "0 does not escape"
 
 		*(&v) = x.(int)
 		*(&v), *(&ok) = y.(int)
@@ -238,8 +238,8 @@ func dotTypeEscape2() { // #13805, #15796
 		i := 0
 		j := 0
 		var ok bool
-		var x interface{} = i // ERROR "i does not escape"
-		var y interface{} = j // ERROR "j does not escape"
+		var x interface{} = i // ERROR "0 does not escape"
+		var y interface{} = j // ERROR "0 does not escape"
 
 		sink = x.(int)         // ERROR "x.\(int\) escapes to heap"
 		sink, *(&ok) = y.(int) // ERROR "autotmp_.* escapes to heap"

@@ -1,0 +1,4 @@
+pkg crypto/ecdsa, func ParseRawPrivateKey(elliptic.Curve, []uint8) (*PrivateKey, error) #63963
+pkg crypto/ecdsa, func ParseUncompressedPublicKey(elliptic.Curve, []uint8) (*PublicKey, error) #63963
+pkg crypto/ecdsa, method (*PrivateKey) Bytes() ([]uint8, error) #63963
+pkg crypto/ecdsa, method (*PublicKey) Bytes() ([]uint8, error) #63963

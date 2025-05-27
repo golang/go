@@ -12,6 +12,8 @@ import (
 	"crypto/internal/fips140/sha256"
 	"crypto/internal/fips140/sha3"
 	"crypto/internal/fips140/sha512"
+	"errors"
+	"hash"
 )
 
 // key is zero padded to the block size of the hash function
@@ -28,8 +30,9 @@ type marshalable interface {
 }
 
 type HMAC struct {
+	// opad and ipad may share underlying storage with HMAC clones.
 	opad, ipad   []byte
-	outer, inner fips140.Hash
+	outer, inner hash.Hash
 
 	// If marshaled is true, then opad and ipad do not contain a padded
 	// copy of the key, but rather the marshaled state of outer/inner after
@@ -127,8 +130,32 @@ func (h *HMAC) Reset() {
 	h.marshaled = true
 }
 
-// New returns a new HMAC hash using the given [fips140.Hash] type and key.
-func New[H fips140.Hash](h func() H, key []byte) *HMAC {
+// Clone implements [hash.Cloner] if the underlying hash does.
+// Otherwise, it returns [errors.ErrUnsupported].
+func (h *HMAC) Clone() (hash.Cloner, error) {
+	r := *h
+	ic, ok := h.inner.(hash.Cloner)
+	if !ok {
+		return nil, errors.ErrUnsupported
+	}
+	oc, ok := h.outer.(hash.Cloner)
+	if !ok {
+		return nil, errors.ErrUnsupported
+	}
+	var err error
+	r.inner, err = ic.Clone()
+	if err != nil {
+		return nil, errors.ErrUnsupported
+	}
+	r.outer, err = oc.Clone()
+	if err != nil {
+		return nil, errors.ErrUnsupported
+	}
+	return &r, nil
+}
+
+// New returns a new HMAC hash using the given [hash.Hash] type and key.
+func New[H hash.Hash](h func() H, key []byte) *HMAC {
 	hm := &HMAC{keyLen: len(key)}
 	hm.outer = h()
 	hm.inner = h()

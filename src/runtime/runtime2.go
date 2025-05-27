@@ -504,6 +504,10 @@ type g struct {
 	// and check for debt in the malloc hot path. The assist ratio
 	// determines how this corresponds to scan work debt.
 	gcAssistBytes int64
+
+	// valgrindStackID is used to track what memory is used for stacks when a program is
+	// built with the "valgrind" build tag, otherwise it is unused.
+	valgrindStackID uintptr
 }
 
 // gTrackingPeriod is the number of transitions out of _Grunning between
@@ -836,6 +840,8 @@ type schedt struct {
 	procresizetime int64 // nanotime() of last change to gomaxprocs
 	totaltime      int64 // ∫gomaxprocs dt up to procresizetime
 
+	customGOMAXPROCS bool // GOMAXPROCS was manually set from the environment or runtime.GOMAXPROCS
+
 	// sysmonlock protects sysmon's actions on the runtime.
 	//
 	// Acquire and hold this mutex to block sysmon from interacting
@@ -1063,6 +1069,7 @@ const (
 	waitReasonChanSend                                // "chan send"
 	waitReasonFinalizerWait                           // "finalizer wait"
 	waitReasonForceGCIdle                             // "force gc (idle)"
+	waitReasonUpdateGOMAXPROCSIdle                    // "GOMAXPROCS updater (idle)"
 	waitReasonSemacquire                              // "semacquire"
 	waitReasonSleep                                   // "sleep"
 	waitReasonSyncCondWait                            // "sync.Cond.Wait"
@@ -1111,6 +1118,7 @@ var waitReasonStrings = [...]string{
 	waitReasonChanSend:              "chan send",
 	waitReasonFinalizerWait:         "finalizer wait",
 	waitReasonForceGCIdle:           "force gc (idle)",
+	waitReasonUpdateGOMAXPROCSIdle:  "GOMAXPROCS updater (idle)",
 	waitReasonSemacquire:            "semacquire",
 	waitReasonSleep:                 "sleep",
 	waitReasonSyncCondWait:          "sync.Cond.Wait",
@@ -1197,12 +1205,13 @@ var isIdleInSynctest = [len(waitReasonStrings)]bool{
 }
 
 var (
-	allm          *m
-	gomaxprocs    int32
-	numCPUStartup int32
-	forcegc       forcegcstate
-	sched         schedt
-	newprocs      int32
+	allm           *m
+	gomaxprocs     int32
+	numCPUStartup  int32
+	forcegc        forcegcstate
+	sched          schedt
+	newprocs       int32
+	newprocsCustom bool // newprocs value is manually set via runtime.GOMAXPROCS.
 )
 
 var (

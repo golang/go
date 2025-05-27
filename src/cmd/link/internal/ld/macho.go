@@ -430,8 +430,10 @@ func (ctxt *Link) domacho() {
 				// This must be fairly recent for Apple signing (go.dev/issue/30488).
 				// Having too old a version here was also implicated in some problems
 				// calling into macOS libraries (go.dev/issue/56784).
-				// In general this can be the most recent supported macOS version.
-				version = 11<<16 | 0<<8 | 0<<0 // 11.0.0
+				// CL 460476 noted that in general this can be the most recent supported
+				// macOS version, but we haven't tested if going higher than Go's oldest
+				// supported macOS version could cause new problems.
+				version = 12<<16 | 0<<8 | 0<<0 // 12.0.0
 			}
 			ml := newMachoLoad(ctxt.Arch, imacho.LC_BUILD_VERSION, 4)
 			ml.data[0] = uint32(machoPlatform)

@@ -1056,6 +1056,11 @@ func internal_sync_fatal(s string) {
 	fatal(s)
 }
 
+//go:linkname cgroup_throw internal/runtime/cgroup.throw
+func cgroup_throw(s string) {
+	throw(s)
+}
+
 // throw triggers a fatal error that dumps a stack trace and exits.
 //
 // throw should be used for runtime-internal fatal errors where Go itself,

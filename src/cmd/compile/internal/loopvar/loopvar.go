@@ -305,6 +305,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 						as := ir.NewAssignStmt(x.Pos(), z, tz)
 						as.Def = true
 						as.SetTypecheck(1)
+						z.Defn = as
 						preBody.Append(as)
 						dclFixups[z] = as
 

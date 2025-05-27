@@ -14,6 +14,9 @@ import (
 	"time"
 )
 
+// sysfdType is the native type of a file handle
+// (int on Unix, syscall.Handle on Windows),
+// permitting helper functions to be written portably.
 type sysfdType = int
 
 // openRootNolog is OpenRoot.
@@ -59,7 +62,7 @@ func newRoot(fd int, name string) (*Root, error) {
 
 // openRootInRoot is Root.OpenRoot.
 func openRootInRoot(r *Root, name string) (*Root, error) {
-	fd, err := doInRoot(r, name, func(parent int, name string) (fd int, err error) {
+	fd, err := doInRoot(r, name, nil, func(parent int, name string) (fd int, err error) {
 		ignoringEINTR(func() error {
 			fd, err = unix.Openat(parent, name, syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0)
 			if isNoFollowErr(err) {
@@ -77,7 +80,7 @@ func openRootInRoot(r *Root, name string) (*Root, error) {
 
 // rootOpenFileNolog is Root.OpenFile.
 func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File, error) {
-	fd, err := doInRoot(root, name, func(parent int, name string) (fd int, err error) {
+	fd, err := doInRoot(root, name, nil, func(parent int, name string) (fd int, err error) {
 		ignoringEINTR(func() error {
 			fd, err = unix.Openat(parent, name, syscall.O_NOFOLLOW|syscall.O_CLOEXEC|flag, uint32(perm))
 			if isNoFollowErr(err) || err == syscall.ENOTDIR {
@@ -115,7 +118,7 @@ func rootOpenDir(parent int, name string) (int, error) {
 }
 
 func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
-	fi, err := doInRoot(r, name, func(parent sysfdType, n string) (FileInfo, error) {
+	fi, err := doInRoot(r, name, nil, func(parent sysfdType, n string) (FileInfo, error) {
 		var fs fileStat
 		if err := unix.Fstatat(parent, n, &fs.sys, unix.AT_SYMLINK_NOFOLLOW); err != nil {
 			return nil, err
@@ -133,7 +136,7 @@ func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
 }
 
 func rootSymlink(r *Root, oldname, newname string) error {
-	_, err := doInRoot(r, newname, func(parent sysfdType, name string) (struct{}, error) {
+	_, err := doInRoot(r, newname, nil, func(parent sysfdType, name string) (struct{}, error) {
 		return struct{}{}, symlinkat(oldname, parent, name)
 	})
 	if err != nil {
@@ -241,6 +244,15 @@ func linkat(oldfd int, oldname string, newfd int, newname string) error {
 
 func symlinkat(oldname string, newfd int, newname string) error {
 	return unix.Symlinkat(oldname, newfd, newname)
+}
+
+func modeAt(parent int, name string) (FileMode, error) {
+	var fs fileStat
+	if err := unix.Fstatat(parent, name, &fs.sys, unix.AT_SYMLINK_NOFOLLOW); err != nil {
+		return 0, err
+	}
+	fillFileStatFromSys(&fs, name)
+	return fs.mode, nil
 }
 
 // checkSymlink resolves the symlink name in parent,

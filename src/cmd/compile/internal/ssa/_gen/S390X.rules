@@ -1188,6 +1188,8 @@
 // TODO: more of this
 (ADD x (NEG y)) => (SUB x y)
 (ADDW x (NEGW y)) => (SUBW x y)
+(SUB x (NEG y)) => (ADD x y)
+(SUBW x (NEGW y)) => (ADDW x y)
 (SUB x x) => (MOVDconst [0])
 (SUBW x x) => (MOVDconst [0])
 (AND x x) => x
@@ -1196,6 +1198,7 @@
 (ORW x x) => x
 (XOR x x) => (MOVDconst [0])
 (XORW x x) => (MOVDconst [0])
+(NEG (NEG x)) => x
 (NEG (ADDconst [c] (NEG x))) && c != -(1<<31) => (ADDconst [-c] x)
 (MOVBZreg (ANDWconst [m] x)) => (MOVWZreg (ANDWconst <typ.UInt32> [int32( uint8(m))] x))
 (MOVHZreg (ANDWconst [m] x)) => (MOVWZreg (ANDWconst <typ.UInt32> [int32(uint16(m))] x))

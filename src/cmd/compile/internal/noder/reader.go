@@ -49,6 +49,9 @@ type pkgReader struct {
 	// but bitwise inverted so we can detect if we're missing the entry
 	// or not.
 	newindex []index
+
+	// indicates whether the data is reading during reshaping.
+	reshaping bool
 }
 
 func newPkgReader(pr pkgbits.PkgDecoder) *pkgReader {
@@ -115,6 +118,10 @@ type reader struct {
 	// function, and most of the compiler still relies on field.Nname to
 	// find parameters/results.
 	funarghack bool
+
+	// reshaping is used during reading exprReshape code, preventing
+	// the reader from shapifying the re-shaped type.
+	reshaping bool
 
 	// methodSym is the name of method's name, if reading a method.
 	// It's nil if reading a normal function or closure body.
@@ -762,7 +769,7 @@ func (pr *pkgReader) objIdxMayFail(idx index, implicits, explicits []*types.Type
 		if hack {
 			if sym.Def != nil {
 				name = sym.Def.(*ir.Name)
-				assert(name.Type() == typ)
+				assert(types.IdenticalStrict(name.Type(), typ))
 				return name, nil
 			}
 			sym.Def = name
@@ -1007,7 +1014,7 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx index, implicits, explicits 
 	// arguments.
 	for i, targ := range dict.targs {
 		basic := r.Bool()
-		if dict.shaped {
+		if dict.shaped && !pr.reshaping {
 			dict.targs[i] = shapify(targ, basic)
 		}
 	}
@@ -2445,7 +2452,10 @@ func (r *reader) expr() (res ir.Node) {
 
 	case exprReshape:
 		typ := r.typ()
+		old := r.reshaping
+		r.reshaping = true
 		x := r.expr()
+		r.reshaping = old
 
 		if types.IdenticalStrict(x.Type(), typ) {
 			return x
@@ -2568,7 +2578,10 @@ func (r *reader) funcInst(pos src.XPos) (wrapperFn, baseFn, dictPtr ir.Node) {
 		info := r.dict.subdicts[idx]
 		explicits := r.p.typListIdx(info.explicits, r.dict)
 
+		old := r.p.reshaping
+		r.p.reshaping = r.reshaping
 		baseFn = r.p.objIdx(info.idx, implicits, explicits, true).(*ir.Name)
+		r.p.reshaping = old
 
 		// TODO(mdempsky): Is there a more robust way to get the
 		// dictionary pointer type here?

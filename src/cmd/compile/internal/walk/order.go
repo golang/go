@@ -7,6 +7,7 @@ package walk
 import (
 	"fmt"
 	"go/constant"
+	"internal/abi"
 	"internal/buildcfg"
 
 	"cmd/compile/internal/base"
@@ -226,7 +227,8 @@ func (o *orderState) addrTemp(n ir.Node) ir.Node {
 	// for the implicit conversion of "foo" to any, and we can't handle
 	// the relocations in that temp.
 	if n.Op() == ir.ONIL || (n.Op() == ir.OLITERAL && !base.Ctxt.IsFIPS()) {
-		// TODO: expand this to all static composite literal nodes?
+		// This is a basic literal or nil that we can store
+		// directly in the read-only data section.
 		n = typecheck.DefaultLit(n, nil)
 		types.CalcSize(n.Type())
 		vstat := readonlystaticname(n.Type())
@@ -237,6 +239,28 @@ func (o *orderState) addrTemp(n ir.Node) ir.Node {
 		}
 		vstat = typecheck.Expr(vstat).(*ir.Name)
 		return vstat
+	}
+
+	// Check now for a composite literal to possibly store in the read-only data section.
+	v := staticValue(n)
+	if v == nil {
+		v = n
+	}
+	if (v.Op() == ir.OSTRUCTLIT || v.Op() == ir.OARRAYLIT) && !base.Ctxt.IsFIPS() {
+		if ir.IsZero(v) && 0 < v.Type().Size() && v.Type().Size() <= abi.ZeroValSize {
+			// This zero value can be represented by the read-only zeroVal.
+			zeroVal := ir.NewLinksymExpr(v.Pos(), ir.Syms.ZeroVal, v.Type())
+			vstat := typecheck.Expr(zeroVal).(*ir.LinksymOffsetExpr)
+			return vstat
+		}
+		if isStaticCompositeLiteral(v) {
+			// v can be directly represented in the read-only data section.
+			lit := v.(*ir.CompLitExpr)
+			vstat := readonlystaticname(lit.Type())
+			fixedlit(inInitFunction, initKindStatic, lit, vstat, nil) // nil init
+			vstat = typecheck.Expr(vstat).(*ir.Name)
+			return vstat
+		}
 	}
 
 	// Prevent taking the address of an SSA-able local variable (#63332).
@@ -337,8 +361,8 @@ func (o *orderState) mapKeyTemp(outerPos src.XPos, t *types.Type, n ir.Node) ir.
 //
 // Note that this code does not handle the case:
 //
-//      s := string(k)
-//      x = m[s]
+//	s := string(k)
+//	x = m[s]
 //
 // Cases like this are handled during SSA, search for slicebytetostring
 // in ../ssa/_gen/generic.rules.
