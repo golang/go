@@ -383,7 +383,7 @@ func resetForSleep(gp *g, _ unsafe.Pointer) bool {
 // The runtime state is inaccessible to package time.
 type timeTimer struct {
 	c    unsafe.Pointer // <-chan time.Time
-	init bool
+	self *timeTimer // pointer to self, used by time to detect bad initialization
 	timer
 }
 
@@ -410,7 +410,7 @@ func newTimer(when, period int64, f func(arg any, seq uintptr, delay int64), arg
 		t.isFake = true
 	}
 	t.modify(when, period, f, arg, 0)
-	t.init = true
+	t.self = t
 	return t
 }
 

@@ -59,8 +59,17 @@ func resetTimer(t *Timer, when, period int64) bool
 // unless the Timer was created by [AfterFunc].
 // A Timer must be created with [NewTimer] or AfterFunc.
 type Timer struct {
-	C         <-chan Time
-	initTimer bool
+	C    <-chan Time
+	self *Timer
+}
+
+// Timer must be allocated from the runtime and not copied.
+func (t *Timer) checkValid(meth string) {
+	if t.self == nil {
+		panic("time: " + meth + " called on uninitialized Timer")
+	} else if t.self != t {
+		panic("time: " + meth + " called on copied Timer")
+	}
 }
 
 // Stop prevents the [Timer] from firing.
@@ -83,9 +92,7 @@ type Timer struct {
 // <-t.C if Stop returned false to drain a potential stale value.
 // See the [NewTimer] documentation for more details.
 func (t *Timer) Stop() bool {
-	if !t.initTimer {
-		panic("time: Stop called on uninitialized Timer")
-	}
+	t.checkValid("Stop")
 	return stopTimer(t)
 }
 
@@ -136,9 +143,7 @@ func NewTimer(d Duration) *Timer {
 // and explicitly drain the timer first.
 // See the [NewTimer] documentation for more details.
 func (t *Timer) Reset(d Duration) bool {
-	if !t.initTimer {
-		panic("time: Reset called on uninitialized Timer")
-	}
+	t.checkValid("Reset")
 	w := when(d)
 	return resetTimer(t, w, 0)
 }

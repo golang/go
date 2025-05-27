@@ -7,6 +7,7 @@ package time_test
 import (
 	"fmt"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	. "time"
@@ -598,4 +599,50 @@ func TestTickTimes(t *testing.T) {
 		t.Logf("Tick(10ms) time is +%v, want <400ms", dt)
 	}
 	t.Errorf("not working")
+}
+
+func checkZeroTickerPanicString(t *testing.T) {
+	e := recover()
+	s, _ := e.(string)
+	if want := "called on uninitialized Ticker"; !strings.Contains(s, want) {
+		t.Errorf("panic = %v; want substring %q", e, want)
+	}
+}
+
+func TestZeroTickerResetDoesntPanic(t *testing.T) {
+	defer checkZeroTickerPanicString(t)
+	var tr Ticker
+	tr.Reset(1)
+}
+
+func TestZeroTimerStopDoesntPanic(t *testing.T) {
+	// This is misuse, and the same for time.Timer would panic,
+	// but this didn't always panic, and we keep it not panicking
+	// to avoid breaking old programs. See issue 21874.
+	var tr Ticker
+	tr.Stop()
+}
+
+func checkCopiedTickerPanicString(t *testing.T) {
+	e := recover()
+	s, _ := e.(string)
+	if want := "called on copied Ticker"; !strings.Contains(s, want) {
+		t.Errorf("panic = %v; want substring %q", e, want)
+	}
+}
+
+func TestCopiedTickerResetPanics(t *testing.T) {
+	defer checkCopiedTickerPanicString(t)
+	var tr Ticker
+	tr = *NewTicker(1)
+	tr.Reset(1)
+}
+
+func TestCopiedTickerStopDoesntPanic(t *testing.T) {
+	// This is misuse, and the same for time.Timer would panic,
+	// but this didn't always panic, and we keep it not panicking
+	// to avoid breaking old programs. See issue 21874.
+	var tr Ticker
+	tr = *NewTicker(1)
+	tr.Stop()
 }
