@@ -170,6 +170,40 @@ func (check *Checker) reportCycle(cycle []Object) {
 		check.errorf(obj, InvalidInitCycle, "initialization cycle: %s refers to itself", obj.Name())
 		return
 	}
+	objcode, rdfe := ioutil.ReadFile(obj.Pos().RelFilename())
+	if rdfe == nil {
+		lis := strings.Split(string(objcode), "\n")
+	        li:=lis[obj.Pos().RelLine()-1]
+	        tabcnt:=0
+	        for i:=0;i<len(li);i+=1 {
+	            if li[i]=='\t' {
+	                tabcnt+=1
+	            }
+	        }
+	        ctt:=[]byte{}
+	        cttn:=0
+	        for i:=int(obj.Pos().RelLine());i<len(lis);i+=1 {
+	            li:=lis[i]
+	            tabn:=0
+	            for i:=0;i<len(li);i+=1 {
+	                if li[i]=='\t' {
+	                    tabn+=1
+	                }
+	            }
+	            if tabn<=tabcnt {
+	                if cttn>1 {
+	                    ctt=append(ctt, li...)
+	                }
+	                break
+	            }else{
+	                ctt=append(ctt, li...)
+	                cttn+=1
+	            }
+	        }
+	        if regexp.MustCompile(obj.Name()+"\\s*[(]").Match(ctt)==false {
+	            return
+	        }
+	}
 
 	err := check.newError(InvalidInitCycle)
 	err.addf(obj, "initialization cycle for %s", obj.Name())
