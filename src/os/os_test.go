@@ -2309,9 +2309,9 @@ func TestOpenFileCreateExclDanglingSymlink(t *testing.T) {
 		var f *File
 		var err error
 		if r == nil {
-			f, err = OpenFile(link, O_WRONLY|O_CREATE|O_EXCL, 0o666)
+			f, err = OpenFile(link, O_WRONLY|O_CREATE|O_EXCL, 0o444)
 		} else {
-			f, err = r.OpenFile(link, O_WRONLY|O_CREATE|O_EXCL, 0o666)
+			f, err = r.OpenFile(link, O_WRONLY|O_CREATE|O_EXCL, 0o444)
 		}
 		if err == nil {
 			f.Close()
