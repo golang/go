@@ -22,37 +22,56 @@ func TestSuccess(t *testing.T) {
 }
 
 func TestFatal(t *testing.T) {
-	runTest(t, func() {
+	runTest(t, nil, func() {
 		synctest.Test(t, func(t *testing.T) {
 			t.Fatal("fatal")
 		})
-	}, `^=== RUN   TestFatal
+	}, `^--- FAIL: TestFatal.*
     synctest_test.go:.* fatal
---- FAIL: TestFatal.*
 FAIL
 $`)
 }
 
 func TestError(t *testing.T) {
-	runTest(t, func() {
+	runTest(t, nil, func() {
 		synctest.Test(t, func(t *testing.T) {
 			t.Error("error")
 		})
-	}, `^=== RUN   TestError
+	}, `^--- FAIL: TestError.*
     synctest_test.go:.* error
---- FAIL: TestError.*
+FAIL
+$`)
+}
+
+func TestVerboseError(t *testing.T) {
+	runTest(t, []string{"-test.v"}, func() {
+		synctest.Test(t, func(t *testing.T) {
+			t.Error("error")
+		})
+	}, `^=== RUN   TestVerboseError
+    synctest_test.go:.* error
+--- FAIL: TestVerboseError.*
 FAIL
 $`)
 }
 
 func TestSkip(t *testing.T) {
-	runTest(t, func() {
+	runTest(t, nil, func() {
 		synctest.Test(t, func(t *testing.T) {
 			t.Skip("skip")
 		})
-	}, `^=== RUN   TestSkip
+	}, `^PASS
+$`)
+}
+
+func TestVerboseSkip(t *testing.T) {
+	runTest(t, []string{"-test.v"}, func() {
+		synctest.Test(t, func(t *testing.T) {
+			t.Skip("skip")
+		})
+	}, `^=== RUN   TestVerboseSkip
     synctest_test.go:.* skip
---- PASS: TestSkip.*
+--- PASS: TestVerboseSkip.*
 PASS
 $`)
 }
@@ -131,7 +150,7 @@ func wantPanic(t *testing.T, want string) {
 	}
 }
 
-func runTest(t *testing.T, f func(), pattern string) {
+func runTest(t *testing.T, args []string, f func(), pattern string) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		f()
 		return
@@ -139,7 +158,8 @@ func runTest(t *testing.T, f func(), pattern string) {
 	t.Helper()
 	re := regexp.MustCompile(pattern)
 	testenv.MustHaveExec(t)
-	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+t.Name()+"$", "-test.v", "-test.count=1")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+regexp.QuoteMeta(t.Name())+"$", "-test.count=1")
+	cmd.Args = append(cmd.Args, args...)
 	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
 	out, _ := cmd.CombinedOutput()

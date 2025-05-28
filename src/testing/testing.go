@@ -1045,7 +1045,7 @@ func (c *common) destination() *common {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if !c.done {
+	if !c.done && !c.isSynctest {
 		return c
 	}
 	for parent := c.parent; parent != nil; parent = parent.parent {
@@ -2037,7 +2037,6 @@ func testingSynctestTest(t *T, f func(*T)) {
 		},
 		tstate: t.tstate,
 	}
-	t2.setOutputWriter()
 
 	go tRunner(t2, f)
 	if !<-t2.signal {
