@@ -6546,7 +6546,7 @@ func schedtrace(detailed bool) {
 	unlock(&sched.lock)
 }
 
-type updateGOMAXPROCSState struct {
+type updateMaxProcsGState struct {
 	lock mutex
 	g    *g
 	idle atomic.Bool
@@ -6556,28 +6556,30 @@ type updateGOMAXPROCSState struct {
 }
 
 var (
-	updateGOMAXPROCS updateGOMAXPROCSState
-
+	// GOMAXPROCS update godebug metric. Incremented if automatic
+	// GOMAXPROCS updates actually change the value of GOMAXPROCS.
 	updatemaxprocs = &godebugInc{name: "updatemaxprocs"}
+
+	updateMaxProcsG updateMaxProcsGState
 )
 
 // Start GOMAXPROCS update helper goroutine.
 //
 // This is based on forcegchelper.
 func defaultGOMAXPROCSUpdateEnable() {
-	go updateGOMAXPROCSHelper()
+	go updateMaxProcsGoroutine()
 }
 
-func updateGOMAXPROCSHelper() {
-	updateGOMAXPROCS.g = getg()
-	lockInit(&updateGOMAXPROCS.lock, lockRankUpdateGOMAXPROCS)
+func updateMaxProcsGoroutine() {
+	updateMaxProcsG.g = getg()
+	lockInit(&updateMaxProcsG.lock, lockRankUpdateMaxProcsG)
 	for {
-		lock(&updateGOMAXPROCS.lock)
-		if updateGOMAXPROCS.idle.Load() {
-			throw("updateGOMAXPROCS: phase error")
+		lock(&updateMaxProcsG.lock)
+		if updateMaxProcsG.idle.Load() {
+			throw("updateMaxProcsGoroutine: phase error")
 		}
-		updateGOMAXPROCS.idle.Store(true)
-		goparkunlock(&updateGOMAXPROCS.lock, waitReasonUpdateGOMAXPROCSIdle, traceBlockSystemGoroutine, 1)
+		updateMaxProcsG.idle.Store(true)
+		goparkunlock(&updateMaxProcsG.lock, waitReasonUpdateGOMAXPROCSIdle, traceBlockSystemGoroutine, 1)
 		// This goroutine is explicitly resumed by sysmon.
 
 		stw := stopTheWorldGC(stwGOMAXPROCS)
@@ -6595,7 +6597,7 @@ func updateGOMAXPROCSHelper() {
 		//
 		// TODO(prattmic): this could use a nicer API. Perhaps add it to the
 		// stw parameter?
-		newprocs = updateGOMAXPROCS.procs
+		newprocs = updateMaxProcsG.procs
 		newprocsCustom = false
 
 		startTheWorldGC(stw)
@@ -6626,14 +6628,14 @@ func sysmonUpdateGOMAXPROCS() {
 	// Sysmon can't directly stop the world. Run the helper to do so on our
 	// behalf. If updateGOMAXPROCS.idle is false, then a previous update is
 	// still pending.
-	if updateGOMAXPROCS.idle.Load() {
-		lock(&updateGOMAXPROCS.lock)
-		updateGOMAXPROCS.procs = procs
-		updateGOMAXPROCS.idle.Store(false)
+	if updateMaxProcsG.idle.Load() {
+		lock(&updateMaxProcsG.lock)
+		updateMaxProcsG.procs = procs
+		updateMaxProcsG.idle.Store(false)
 		var list gList
-		list.push(updateGOMAXPROCS.g)
+		list.push(updateMaxProcsG.g)
 		injectglist(&list)
-		unlock(&updateGOMAXPROCS.lock)
+		unlock(&updateMaxProcsG.lock)
 	}
 }
 
