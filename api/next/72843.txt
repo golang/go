@@ -1,4 +1,0 @@
-pkg debug/elf, const PT_RISCV_ATTRIBUTES = 1879048195 #72843
-pkg debug/elf, const PT_RISCV_ATTRIBUTES ProgType #72843
-pkg debug/elf, const SHT_RISCV_ATTRIBUTES = 1879048195 #72843
-pkg debug/elf, const SHT_RISCV_ATTRIBUTES SectionType #72843

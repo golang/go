@@ -1,1 +1,0 @@
-pkg reflect, func TypeAssert[$0 interface{}](Value) ($0, bool) #62121

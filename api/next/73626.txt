@@ -1,7 +1,0 @@
-pkg net/http, func NewCrossOriginProtection() *CrossOriginProtection #73626
-pkg net/http, method (*CrossOriginProtection) AddInsecureBypassPattern(string) #73626
-pkg net/http, method (*CrossOriginProtection) AddTrustedOrigin(string) error #73626
-pkg net/http, method (*CrossOriginProtection) Check(*Request) error #73626
-pkg net/http, method (*CrossOriginProtection) Handler(Handler) Handler #73626
-pkg net/http, method (*CrossOriginProtection) SetDenyHandler(Handler) #73626
-pkg net/http, type CrossOriginProtection struct #73626

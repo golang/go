@@ -1,5 +1,0 @@
-pkg hash, type XOF interface { BlockSize, Read, Reset, Write } #69518
-pkg hash, type XOF interface, BlockSize() int #69518
-pkg hash, type XOF interface, Read([]uint8) (int, error) #69518
-pkg hash, type XOF interface, Reset() #69518
-pkg hash, type XOF interface, Write([]uint8) (int, error) #69518

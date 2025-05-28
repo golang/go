@@ -1,7 +1,0 @@
-pkg go/ast, const FilterFuncDuplicates //deprecated #73088
-pkg go/ast, const FilterImportDuplicates //deprecated #73088
-pkg go/ast, const FilterUnassociatedComments //deprecated #73088
-pkg go/ast, func FilterPackage //deprecated #73088
-pkg go/ast, func MergePackageFiles //deprecated #73088
-pkg go/ast, func PackageExports //deprecated #73088
-pkg go/ast, type MergeMode //deprecated #73088
