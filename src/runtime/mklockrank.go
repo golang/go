@@ -41,7 +41,7 @@ const ranks = `
 # Sysmon
 NONE
 < sysmon
-< scavenge, forcegc, updateMaxProcsG;
+< scavenge, forcegc, computeMaxProcs, updateMaxProcsG;
 
 # Defer
 NONE < defer;
@@ -64,6 +64,7 @@ NONE < allocmW, execW, cpuprof, pollCache, pollDesc, wakeableSleep;
 scavenge, sweep, testR, wakeableSleep, timerSend < hchan;
 assistQueue,
   cleanupQueue,
+  computeMaxProcs,
   cpuprof,
   forcegc,
   updateMaxProcsG,

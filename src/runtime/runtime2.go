@@ -1213,7 +1213,6 @@ var (
 	forcegc        forcegcstate
 	sched          schedt
 	newprocs       int32
-	newprocsCustom bool // newprocs value is manually set via runtime.GOMAXPROCS.
 )
 
 var (
