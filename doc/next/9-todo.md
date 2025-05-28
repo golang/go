@@ -1,6 +1,10 @@
 <!--
 Output from relnote todo that was generated and reviewed on 2025-05-23, plus summary info from bug/CL: -->
 
+### TODO
+
+**Please turn these into proper release notes**
+
 <!-- TODO: CL 420114 has a RELNOTE comment without a suggested text (from RELNOTE comment in https://go.dev/cl/420114) -->
 all: implement plugin build mode for riscv64
 

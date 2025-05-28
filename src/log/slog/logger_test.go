@@ -315,7 +315,7 @@ func TestCallDepthConnection(t *testing.T) {
 			got := string(firstLine)
 
 			want := fmt.Sprintf(
-				`source=:0 msg="logger_test.go:%d: %s"`,
+				`msg="logger_test.go:%d: %s"`,
 				line+i, tt.name,
 			)
 			if got != want {

@@ -8,6 +8,7 @@ import (
 	"internal/synctest"
 	"runtime"
 	"runtime/metrics"
+	"sync/atomic"
 )
 
 // This program ensures system goroutines (GC workers, finalizer goroutine)
@@ -27,11 +28,24 @@ func numGCCycles() uint64 {
 }
 
 func main() {
+	// Channels created by a finalizer and cleanup func registered within the bubble.
+	var (
+		finalizerCh atomic.Pointer[chan struct{}]
+		cleanupCh   atomic.Pointer[chan struct{}]
+	)
 	synctest.Run(func() {
-		// Start the finalizer goroutine.
-		p := new(int)
-		runtime.SetFinalizer(p, func(*int) {})
-
+		// Start the finalizer and cleanup goroutines.
+		{
+			p := new(int)
+			runtime.SetFinalizer(p, func(*int) {
+				ch := make(chan struct{})
+				finalizerCh.Store(&ch)
+			})
+			runtime.AddCleanup(p, func(struct{}) {
+				ch := make(chan struct{})
+				cleanupCh.Store(&ch)
+			}, struct{}{})
+		}
 		startingCycles := numGCCycles()
 		ch1 := make(chan *int)
 		ch2 := make(chan *int)
@@ -55,13 +69,18 @@ func main() {
 
 			// If we've improperly put a GC goroutine into the synctest group,
 			// this Wait is going to hang.
-			synctest.Wait()
+			//synctest.Wait()
 
 			// End the test after a couple of GC cycles have passed.
-			if numGCCycles()-startingCycles > 1 {
+			if numGCCycles()-startingCycles > 1 && finalizerCh.Load() != nil && cleanupCh.Load() != nil {
 				break
 			}
 		}
 	})
+	// Close the channels created by the finalizer and cleanup func.
+	// If the funcs improperly ran inside the bubble, these channels are bubbled
+	// and trying to close them will panic.
+	close(*finalizerCh.Load())
+	close(*cleanupCh.Load())
 	println("success")
 }

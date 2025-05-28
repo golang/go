@@ -155,6 +155,14 @@ func (t *traceMultiplexer) startLocked() error {
 	t.subscribersMu.Unlock()
 
 	go func() {
+		header := runtime_readTrace()
+		if traceStartWriter != nil {
+			traceStartWriter.Write(header)
+		}
+		if flightRecorder != nil {
+			flightRecorder.Write(header)
+		}
+
 		for {
 			data := runtime_readTrace()
 			if data == nil {
@@ -167,9 +175,18 @@ func (t *traceMultiplexer) startLocked() error {
 
 				// Pick up any changes.
 				t.subscribersMu.Lock()
+				frIsNew := flightRecorder != t.flightRecorder && t.flightRecorder != nil
+				trIsNew := traceStartWriter != t.traceStartWriter && t.traceStartWriter != nil
 				flightRecorder = t.flightRecorder
 				traceStartWriter = t.traceStartWriter
 				t.subscribersMu.Unlock()
+
+				if trIsNew {
+					traceStartWriter.Write(header)
+				}
+				if frIsNew {
+					flightRecorder.Write(header)
+				}
 			} else {
 				if traceStartWriter != nil {
 					traceStartWriter.Write(data)

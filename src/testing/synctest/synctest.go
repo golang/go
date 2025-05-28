@@ -83,6 +83,10 @@
 // is associated with it. Operating on a bubbled channel, timer, or
 // ticker from outside the bubble panics.
 //
+// Cleanup functions and finalizers registered with
+// [runtime.AddCleanup] and [runtime.SetFinalizer]
+// run outside of any bubble.
+//
 // # Example: Context.AfterFunc
 //
 // This example demonstrates testing the [context.AfterFunc] function.

@@ -20,6 +20,13 @@ go get ./...
 cmp go.mod go.mod.want
 cmp go.sum go.sum.want
 
+# Test go get with an incomplete module using a "work" query.
+cp go.mod.orig go.mod
+rm go.sum
+go get work
+cmp go.mod go.mod.want
+cmp go.sum go.sum.want
+
 # Test go get with an incomplete module using a path query that can be resolved.
 cp go.mod.orig go.mod
 rm go.sum

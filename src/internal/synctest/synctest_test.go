@@ -9,11 +9,13 @@ import (
 	"internal/synctest"
 	"iter"
 	"reflect"
+	"runtime"
 	"slices"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
+	"weak"
 )
 
 func TestNow(t *testing.T) {
@@ -623,6 +625,17 @@ func TestHappensBefore(t *testing.T) {
 	if got, want := v2, 10; got != want {
 		t.Errorf("v2 = %v, want %v", got, want)
 	}
+}
+
+// https://go.dev/issue/73817
+func TestWeak(t *testing.T) {
+	synctest.Run(func() {
+		for range 100 {
+			runtime.GC()
+			b := make([]byte, 1024)
+			weak.Make(&b)
+		}
+	})
 }
 
 func wantPanic(t *testing.T, want string) {

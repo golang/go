@@ -398,22 +398,7 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 	if flag&O_CLOEXEC == 0 {
 		sa = makeInheritSa()
 	}
-	// We don't use CREATE_ALWAYS, because when opening a file with
-	// FILE_ATTRIBUTE_READONLY these will replace an existing file
-	// with a new, read-only one. See https://go.dev/issue/38225.
-	//
-	// Instead, we ftruncate the file after opening when O_TRUNC is set.
-	var createmode uint32
 	var attrs uint32 = FILE_ATTRIBUTE_NORMAL
-	switch {
-	case flag&(O_CREAT|O_EXCL) == (O_CREAT | O_EXCL):
-		createmode = CREATE_NEW
-		attrs |= FILE_FLAG_OPEN_REPARSE_POINT // don't follow symlinks
-	case flag&O_CREAT == O_CREAT:
-		createmode = OPEN_ALWAYS
-	default:
-		createmode = OPEN_EXISTING
-	}
 	if perm&S_IWRITE == 0 {
 		attrs = FILE_ATTRIBUTE_READONLY
 	}
@@ -432,6 +417,21 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
 	if flag&O_SYNC != 0 {
 		const _FILE_FLAG_WRITE_THROUGH = 0x80000000
 		attrs |= _FILE_FLAG_WRITE_THROUGH
+	}
+	// We don't use CREATE_ALWAYS, because when opening a file with
+	// FILE_ATTRIBUTE_READONLY these will replace an existing file
+	// with a new, read-only one. See https://go.dev/issue/38225.
+	//
+	// Instead, we ftruncate the file after opening when O_TRUNC is set.
+	var createmode uint32
+	switch {
+	case flag&(O_CREAT|O_EXCL) == (O_CREAT | O_EXCL):
+		createmode = CREATE_NEW
+		attrs |= FILE_FLAG_OPEN_REPARSE_POINT // don't follow symlinks
+	case flag&O_CREAT == O_CREAT:
+		createmode = OPEN_ALWAYS
+	default:
+		createmode = OPEN_EXISTING
 	}
 	h, err := createFile(namep, access, sharemode, sa, createmode, attrs, 0)
 	if h == InvalidHandle {
