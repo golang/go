@@ -2,7 +2,7 @@
 
 package main
 
-func simdAMD64Ops(fp11, fp21, fp2m1, fp2m1fp1, fp2m1m1 regInfo) []opData {
+func simdAMD64Ops(fp11, fp21, fp2m1, fp1m1fp1, fp2m1fp1, fp2m1m1 regInfo) []opData {
 	return []opData{
 		//		{name: "VPADDB", argLength: 2, reg: fp21, asm: "VPADDB", commutative: true},
 		//      etc, generated
