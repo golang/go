@@ -6567,6 +6567,22 @@ var (
 //
 // This is based on forcegchelper.
 func defaultGOMAXPROCSUpdateEnable() {
+	if debug.updatemaxprocs == 0 {
+		// Unconditionally increment the metric when updates are disabled.
+		//
+		// It would be more descriptive if we did a dry run of the
+		// complete update, determining the appropriate value of
+		// GOMAXPROCS and the bailing out and just incrementing the
+		// metric if a change would occur.
+		//
+		// Not only is that a lot of ongoing work for a disabled
+		// feature, but some users need to be able to completely
+		// disable the update system calls (such as sandboxes).
+		// Currently, updatemaxprocs=0 serves that purpose.
+		updatemaxprocs.IncNonDefault()
+		return
+	}
+
 	go updateMaxProcsGoroutine()
 }
 
@@ -6601,9 +6617,6 @@ func updateMaxProcsGoroutine() {
 		newprocsCustom = false
 
 		startTheWorldGC(stw)
-
-		// We actually changed something.
-		updatemaxprocs.IncNonDefault()
 	}
 }
 
