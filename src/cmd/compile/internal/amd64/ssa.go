@@ -1671,6 +1671,8 @@ func simdReg(v *ssa.Value) int16 {
 		panic("simdReg: not a simd type")
 	}
 	switch t.Size() {
+	case 8:
+		return v.Reg() // K registers
 	case 16:
 		return v.Reg()
 	case 32:

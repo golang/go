@@ -1633,7 +1633,7 @@ var (
 	TypeVec128    = newSIMD("vec128")
 	TypeVec256    = newSIMD("vec256")
 	TypeVec512    = newSIMD("vec512")
-	TypeMask      = newSSA("mask") // not a vector, not 100% sure what this should be.
+	TypeMask      = newSIMD("mask") // not a vector, not 100% sure what this should be.
 	TypeResultMem = newResults([]*Type{TypeMem})
 )
 
