@@ -554,8 +554,8 @@ func init() {
 				inputs:   []regMask{buildReg("R20")},
 				clobbers: buildReg("R16 R17 R20 R30"),
 			},
-			faultOnNilArg0: true,
-			unsafePoint:    true, // FP maintenance around DUFFZERO can be clobbered by interrupts
+			//faultOnNilArg0: true, // Note: removed for 73748. TODO: reenable at some point
+			unsafePoint: true, // FP maintenance around DUFFZERO can be clobbered by interrupts
 		},
 
 		// large zeroing
@@ -595,9 +595,9 @@ func init() {
 				inputs:   []regMask{buildReg("R21"), buildReg("R20")},
 				clobbers: buildReg("R16 R17 R20 R21 R26 R30"),
 			},
-			faultOnNilArg0: true,
-			faultOnNilArg1: true,
-			unsafePoint:    true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
+			//faultOnNilArg0: true, // Note: removed for 73748. TODO: reenable at some point
+			//faultOnNilArg1: true,
+			unsafePoint: true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
 		},
 
 		// large move
