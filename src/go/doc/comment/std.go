@@ -35,6 +35,7 @@ var stdPkgs = []string{
 	"reflect",
 	"regexp",
 	"runtime",
+	"simd",
 	"slices",
 	"sort",
 	"strconv",

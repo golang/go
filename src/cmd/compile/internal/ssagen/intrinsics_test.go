@@ -7,6 +7,7 @@ package ssagen
 import (
 	"flag"
 	"fmt"
+	"internal/buildcfg"
 	"slices"
 	"strings"
 	"testing"
@@ -15,6 +16,7 @@ import (
 )
 
 var updateIntrinsics = flag.Bool("update", false, "Print an updated intrinsics table")
+var simd = flag.Bool("simd", buildcfg.Experiment.SIMD, "Also check SIMD intrinsics; defaults to GOEXPERIMENT==simd")
 
 type testIntrinsicKey struct {
 	archName string
@@ -1375,13 +1377,13 @@ func TestIntrinsics(t *testing.T) {
 		gotIntrinsics[testIntrinsicKey{ik.arch.Name, ik.pkg, ik.fn}] = struct{}{}
 	}
 	for ik, _ := range gotIntrinsics {
-		if _, found := wantIntrinsics[ik]; !found {
+		if _, found := wantIntrinsics[ik]; !found && (ik.pkg != "simd" || *simd) {
 			t.Errorf("Got unwanted intrinsic %v %v.%v", ik.archName, ik.pkg, ik.fn)
 		}
 	}
 
 	for ik, _ := range wantIntrinsics {
-		if _, found := gotIntrinsics[ik]; !found {
+		if _, found := gotIntrinsics[ik]; !found && (ik.pkg != "simd" || *simd) {
 			t.Errorf("Want missing intrinsic %v %v.%v", ik.archName, ik.pkg, ik.fn)
 		}
 	}

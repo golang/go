@@ -5,6 +5,7 @@
 package comment
 
 import (
+	"internal/buildcfg"
 	"internal/diff"
 	"internal/testenv"
 	"slices"
@@ -23,6 +24,10 @@ func TestStd(t *testing.T) {
 		if !strings.Contains(pkg, "/") {
 			list = append(list, pkg)
 		}
+	}
+	// TODO remove this when simd is the default, for now fake its existence
+	if !buildcfg.Experiment.SIMD {
+		list = append(list, "simd")
 	}
 	slices.Sort(list)
 
