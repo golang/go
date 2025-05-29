@@ -27,7 +27,7 @@ determines its index in the series.
                   SectionPkg
                   SectionName
                   SectionType    // TODO(markfreeman) Define.
-                  SectionObj     // TODO(markfreeman) Define.
+                  SectionObj
                   SectionObjExt  // TODO(markfreeman) Define.
                   SectionObjDict // TODO(markfreeman) Define.
                   SectionBody    // TODO(markfreeman) Define.
@@ -158,6 +158,23 @@ for objects.
                   [ Sync ]
                   Uint64    // the object's type (e.g. Var, Func, etc.)
                   .
+
+### Definition Section
+The definition section holds definitions for objects defined by the
+target package; it does not contain definitions for imported objects.
+
+    SectionObj = { ObjectDef } .
+
+Object definitions can be one of several formats. To determine the
+correct format, the name section must be referenced for the object's
+type.
+
+    ObjectDef = ObjectDefConst     // TODO(markfreeman) Define.
+              | ObjectDefFunc      // TODO(markfreeman) Define.
+              | ObjectDefAlias     // TODO(markfreeman) Define.
+              | ObjectDefNamedType // TODO(markfreeman) Define.
+              | ObjectDefVar       // TODO(markfreeman) Define.
+                .
 
 # References
 A reference table precedes every element. Each entry in the table
