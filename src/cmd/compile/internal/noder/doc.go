@@ -25,7 +25,7 @@ determines its index in the series.
                   SectionMeta
                   SectionPosBase
                   SectionPkg
-                  SectionName    // TODO(markfreeman) Define.
+                  SectionName
                   SectionType    // TODO(markfreeman) Define.
                   SectionObj     // TODO(markfreeman) Define.
                   SectionObjExt  // TODO(markfreeman) Define.
@@ -35,9 +35,11 @@ determines its index in the series.
 
 # Sections
 A section is a series of elements of a type determined by the section's
-kind. Go constructs are mapped onto (potentially multiple) elements.
-Elements are accessed using an index relative to the start of the
-section.
+kind. Go constructs are mapped onto one or more elements with possibly
+different types; in that case, the elements are in different sections.
+
+Elements are accessed using an element index relative to the start of
+the section.
 
     RelElemIdx = Uint64 .
 
@@ -134,6 +136,28 @@ Note, a PkgRef is *not* equivalent to Ref[Pkg] due to an extra marker.
     PkgRef     = [ Sync ]
                  Ref[Pkg]
                  .
+
+## Object Sections
+Information about an object (e.g. variable, function, type name, etc.)
+is split into multiple elements in different sections. Those elements
+have the same section-relative element index.
+
+### Name Section
+The name section holds a series of names.
+
+    SectionName = { Name } .
+
+Names are elements holding qualified identifiers and type information
+for objects.
+
+    Name        = RefTable
+                  [ Sync ]
+                  [ Sync ]
+                  PkgRef    // the object's package
+                  StringRef // the object's package-local name
+                  [ Sync ]
+                  Uint64    // the object's type (e.g. Var, Func, etc.)
+                  .
 
 # References
 A reference table precedes every element. Each entry in the table
