@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 	"weak"
@@ -216,6 +217,65 @@ func TestTimerFromOutsideBubble(t *testing.T) {
 	if tm.Stop() {
 		t.Errorf("synctest.Run unexpectedly returned before timer fired")
 	}
+}
+
+// TestTimerNondeterminism verifies that timers firing at the same instant
+// don't always fire in exactly the same order.
+func TestTimerNondeterminism(t *testing.T) {
+	synctest.Run(func() {
+		const iterations = 1000
+		var seen1, seen2 bool
+		for range iterations {
+			tm1 := time.NewTimer(0)
+			tm2 := time.NewTimer(0)
+			select {
+			case <-tm1.C:
+				seen1 = true
+			case <-tm2.C:
+				seen2 = true
+			}
+			if seen1 && seen2 {
+				return
+			}
+			synctest.Wait()
+		}
+		t.Errorf("after %v iterations, seen timer1:%v, timer2:%v; want both", iterations, seen1, seen2)
+	})
+}
+
+// TestSleepNondeterminism verifies that goroutines sleeping to the same instant
+// don't always schedule in exactly the same order.
+func TestSleepNondeterminism(t *testing.T) {
+	synctest.Run(func() {
+		const iterations = 1000
+		var seen1, seen2 bool
+		for range iterations {
+			var first atomic.Int32
+			go func() {
+				time.Sleep(1)
+				first.CompareAndSwap(0, 1)
+			}()
+			go func() {
+				time.Sleep(1)
+				first.CompareAndSwap(0, 2)
+			}()
+			time.Sleep(1)
+			synctest.Wait()
+			switch v := first.Load(); v {
+			case 1:
+				seen1 = true
+			case 2:
+				seen2 = true
+			default:
+				t.Fatalf("first = %v, want 1 or 2", v)
+			}
+			if seen1 && seen2 {
+				return
+			}
+			synctest.Wait()
+		}
+		t.Errorf("after %v iterations, seen goroutine 1:%v, 2:%v; want both", iterations, seen1, seen2)
+	})
 }
 
 func TestChannelFromOutsideBubble(t *testing.T) {

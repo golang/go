@@ -62,6 +62,7 @@ type timer struct {
 	isFake bool         // timer is using fake time; immutable; can be read without lock
 
 	blocked uint32 // number of goroutines blocked on timer's channel
+	rand    uint32 // randomizes order of timers at same instant; only set when isFake
 
 	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
 	// each time calling f(arg, seq, delay) in the timer goroutine, so f must be
@@ -163,6 +164,21 @@ type timers struct {
 type timerWhen struct {
 	timer *timer
 	when  int64
+}
+
+// less reports whether tw is less than other.
+func (tw timerWhen) less(other timerWhen) bool {
+	switch {
+	case tw.when < other.when:
+		return true
+	case tw.when > other.when:
+		return false
+	default:
+		// When timers wake at the same time, use a per-timer random value to order them.
+		// We only set the random value for timers using fake time, since there's
+		// no practical way to schedule real-time timers for the same instant.
+		return tw.timer.rand < other.timer.rand
+	}
 }
 
 func (ts *timers) lock() {
@@ -696,6 +712,12 @@ func (t *timer) maybeAdd() {
 	when := int64(0)
 	wake := false
 	if t.needsAdd() {
+		if t.isFake {
+			// Re-randomize timer order.
+			// We could do this for all timers, but unbubbled timers are highly
+			// unlikely to have the same when.
+			t.rand = cheaprand()
+		}
 		t.state |= timerHeaped
 		when = t.when
 		wakeTime := ts.wakeTime()
@@ -1234,7 +1256,7 @@ func (ts *timers) verify() {
 
 		// The heap is timerHeapN-ary. See siftupTimer and siftdownTimer.
 		p := int(uint(i-1) / timerHeapN)
-		if tw.when < ts.heap[p].when {
+		if tw.less(ts.heap[p]) {
 			print("bad timer heap at ", i, ": ", p, ": ", ts.heap[p].when, ", ", i, ": ", tw.when, "\n")
 			throw("bad timer heap")
 		}
@@ -1312,13 +1334,12 @@ func (ts *timers) siftUp(i int) {
 		badTimer()
 	}
 	tw := heap[i]
-	when := tw.when
-	if when <= 0 {
+	if tw.when <= 0 {
 		badTimer()
 	}
 	for i > 0 {
 		p := int(uint(i-1) / timerHeapN) // parent
-		if when >= heap[p].when {
+		if !tw.less(heap[p]) {
 			break
 		}
 		heap[i] = heap[p]
@@ -1341,8 +1362,7 @@ func (ts *timers) siftDown(i int) {
 		return
 	}
 	tw := heap[i]
-	when := tw.when
-	if when <= 0 {
+	if tw.when <= 0 {
 		badTimer()
 	}
 	for {
@@ -1350,11 +1370,11 @@ func (ts *timers) siftDown(i int) {
 		if leftChild >= n {
 			break
 		}
-		w := when
+		w := tw
 		c := -1
 		for j, tw := range heap[leftChild:min(leftChild+timerHeapN, n)] {
-			if tw.when < w {
-				w = tw.when
+			if tw.less(w) {
+				w = tw
 				c = leftChild + j
 			}
 		}
