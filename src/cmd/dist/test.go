@@ -939,7 +939,9 @@ func (t *tester) registerTests() {
 	// which is darwin,linux,windows/amd64 and darwin/arm64.
 	//
 	// The same logic applies to the release notes that correspond to each api/next file.
-	if goos == "darwin" || ((goos == "linux" || goos == "windows") && goarch == "amd64") {
+	//
+	// TODO: remove the exclusion of goexperiment simd right before dev.simd branch is merged to master.
+	if goos == "darwin" || ((goos == "linux" || goos == "windows") && (goarch == "amd64" && !strings.Contains(goexperiment, "simd"))) {
 		t.registerTest("API release note check", &goTest{variant: "check", pkg: "cmd/relnote", testFlags: []string{"-check"}})
 		t.registerTest("API check", &goTest{variant: "check", pkg: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
 	}
