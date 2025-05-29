@@ -336,7 +336,8 @@ func (c *child) cleanUp() {
 // to reply to them.
 // If l is nil, Serve accepts connections from os.Stdin.
 // If handler is nil, [http.DefaultServeMux] is used.
-func Serve(l net.Listener, handler http.Handler, tlsErrorHandler ...TLSErrorHandler) error {
+func Serve(l net.Listener, handler http.Handler, _ ...http.TLSErrorHandler) error {
+	// _ TLSErrorHandler not supported
 	if l == nil {
 		var err error
 		l, err = net.FileListener(os.Stdin)
@@ -354,7 +355,7 @@ func Serve(l net.Listener, handler http.Handler, tlsErrorHandler ...TLSErrorHand
 			return err
 		}
 		c := newChild(rw, handler)
-		go c.serve(tlsErrorHandler...)
+		go c.serve()
 	}
 }
 

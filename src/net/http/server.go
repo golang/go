@@ -1929,7 +1929,7 @@ type connectionStater interface {
 	ConnectionState() tls.ConnectionState
 }
 
-type TLSErrorHandler func(rawData []byte, conn *tls.Conn, err error) string
+type TLSErrorHandler func(tlsErr tls.RecordHeaderError, err error) string
 
 // Serve a new connection.
 func (c *conn) serve(ctx context.Context, tlsErrorHandler ...TLSErrorHandler) {
@@ -1982,7 +1982,7 @@ func (c *conn) serve(ctx context.Context, tlsErrorHandler ...TLSErrorHandler) {
 					io.WriteString(re.Conn, "HTTP/1.0 500 Internal Server Error\r\n\r\nOnly one non-nil tlsErrorHandler is allowed.\n")
 					re.Conn.Close()
 				} else {
-					response = tlsErrorHandler[0](re.RawData, tlsConn, err)
+					response = tlsErrorHandler[0](re, err)
 
 					if response != "" {
 						io.WriteString(re.Conn, response)
