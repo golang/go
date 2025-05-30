@@ -1833,21 +1833,33 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSRLB, r0)
 			opset(AVSRAB, r0)
 			opset(AVROTRB, r0)
+			opset(AVBITCLRB, r0)
+			opset(AVBITSETB, r0)
+			opset(AVBITREVB, r0)
 
 		case AXVSLLB:
 			opset(AXVSRLB, r0)
 			opset(AXVSRAB, r0)
 			opset(AXVROTRB, r0)
+			opset(AXVBITCLRB, r0)
+			opset(AXVBITSETB, r0)
+			opset(AXVBITREVB, r0)
 
 		case AVSLLH:
 			opset(AVSRLH, r0)
 			opset(AVSRAH, r0)
 			opset(AVROTRH, r0)
+			opset(AVBITCLRH, r0)
+			opset(AVBITSETH, r0)
+			opset(AVBITREVH, r0)
 
 		case AXVSLLH:
 			opset(AXVSRLH, r0)
 			opset(AXVSRAH, r0)
 			opset(AXVROTRH, r0)
+			opset(AXVBITCLRH, r0)
+			opset(AXVBITSETH, r0)
+			opset(AXVBITREVH, r0)
 
 		case AVSLLW:
 			opset(AVSRLW, r0)
@@ -1861,6 +1873,9 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSUBHU, r0)
 			opset(AVSUBWU, r0)
 			opset(AVSUBVU, r0)
+			opset(AVBITCLRW, r0)
+			opset(AVBITSETW, r0)
+			opset(AVBITREVW, r0)
 
 		case AXVSLLW:
 			opset(AXVSRLW, r0)
@@ -1874,16 +1889,25 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVSUBHU, r0)
 			opset(AXVSUBWU, r0)
 			opset(AXVSUBVU, r0)
+			opset(AXVBITCLRW, r0)
+			opset(AXVBITSETW, r0)
+			opset(AXVBITREVW, r0)
 
 		case AVSLLV:
 			opset(AVSRLV, r0)
 			opset(AVSRAV, r0)
 			opset(AVROTRV, r0)
+			opset(AVBITCLRV, r0)
+			opset(AVBITSETV, r0)
+			opset(AVBITREVV, r0)
 
 		case AXVSLLV:
 			opset(AXVSRLV, r0)
 			opset(AXVSRAV, r0)
 			opset(AXVROTRV, r0)
+			opset(AXVBITCLRV, r0)
+			opset(AXVBITSETV, r0)
+			opset(AXVBITREVV, r0)
 
 		case AVSETEQV:
 			opset(AVSETNEV, r0)
@@ -3518,6 +3542,54 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0xea75 << 15 // xvfdiv.s
 	case AXVDIVD:
 		return 0xea76 << 15 // xvfdiv.d
+	case AVBITCLRB:
+		return 0xe218 << 15 // vbitclr.b
+	case AVBITCLRH:
+		return 0xe219 << 15 // vbitclr.h
+	case AVBITCLRW:
+		return 0xe21a << 15 // vbitclr.w
+	case AVBITCLRV:
+		return 0xe21b << 15 // vbitclr.d
+	case AVBITSETB:
+		return 0xe21c << 15 // vbitset.b
+	case AVBITSETH:
+		return 0xe21d << 15 // vbitset.h
+	case AVBITSETW:
+		return 0xe21e << 15 // vbitset.w
+	case AVBITSETV:
+		return 0xe21f << 15 // vbitset.d
+	case AVBITREVB:
+		return 0xe220 << 15 // vbitrev.b
+	case AVBITREVH:
+		return 0xe221 << 15 // vbitrev.h
+	case AVBITREVW:
+		return 0xe222 << 15 // vbitrev.w
+	case AVBITREVV:
+		return 0xe223 << 15 // vbitrev.d
+	case AXVBITCLRB:
+		return 0xea18 << 15 // xvbitclr.b
+	case AXVBITCLRH:
+		return 0xea19 << 15 // xvbitclr.h
+	case AXVBITCLRW:
+		return 0xea1a << 15 // xvbitclr.w
+	case AXVBITCLRV:
+		return 0xea1b << 15 // xvbitclr.d
+	case AXVBITSETB:
+		return 0xea1c << 15 // xvbitset.b
+	case AXVBITSETH:
+		return 0xea1d << 15 // xvbitset.h
+	case AXVBITSETW:
+		return 0xea1e << 15 // xvbitset.w
+	case AXVBITSETV:
+		return 0xea1f << 15 // xvbitset.d
+	case AXVBITREVB:
+		return 0xea20 << 15 // xvbitrev.b
+	case AXVBITREVH:
+		return 0xea21 << 15 // xvbitrev.h
+	case AXVBITREVW:
+		return 0xea22 << 15 // xvbitrev.w
+	case AXVBITREVV:
+		return 0xea23 << 15 // xvbitrev.d
 	}
 
 	if a < 0 {
@@ -4118,6 +4190,54 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return 0x1de6 << 18 // xvshuf4i.w
 	case AXVSHUF4IV:
 		return 0x1de7 << 18 // xvshuf4i.d
+	case AVBITCLRB:
+		return 0x1CC4<<18 | 0x1<<13 // vbitclri.b
+	case AVBITCLRH:
+		return 0x1CC4<<18 | 0x1<<14 // vbitclri.h
+	case AVBITCLRW:
+		return 0x1CC4<<18 | 0x1<<15 // vbitclri.w
+	case AVBITCLRV:
+		return 0x1CC4<<18 | 0x1<<16 // vbitclri.d
+	case AVBITSETB:
+		return 0x1CC5<<18 | 0x1<<13 // vbitseti.b
+	case AVBITSETH:
+		return 0x1CC5<<18 | 0x1<<14 // vbitseti.h
+	case AVBITSETW:
+		return 0x1CC5<<18 | 0x1<<15 // vbitseti.w
+	case AVBITSETV:
+		return 0x1CC5<<18 | 0x1<<16 // vbitseti.d
+	case AVBITREVB:
+		return 0x1CC6<<18 | 0x1<<13 // vbitrevi.b
+	case AVBITREVH:
+		return 0x1CC6<<18 | 0x1<<14 // vbitrevi.h
+	case AVBITREVW:
+		return 0x1CC6<<18 | 0x1<<15 // vbitrevi.w
+	case AVBITREVV:
+		return 0x1CC6<<18 | 0x1<<16 // vbitrevi.d
+	case AXVBITCLRB:
+		return 0x1DC4<<18 | 0x1<<13 // xvbitclri.b
+	case AXVBITCLRH:
+		return 0x1DC4<<18 | 0x1<<14 // xvbitclri.h
+	case AXVBITCLRW:
+		return 0x1DC4<<18 | 0x1<<15 // xvbitclri.w
+	case AXVBITCLRV:
+		return 0x1DC4<<18 | 0x1<<16 // xvbitclri.d
+	case AXVBITSETB:
+		return 0x1DC5<<18 | 0x1<<13 // xvbitseti.b
+	case AXVBITSETH:
+		return 0x1DC5<<18 | 0x1<<14 // xvbitseti.h
+	case AXVBITSETW:
+		return 0x1DC5<<18 | 0x1<<15 // xvbitseti.w
+	case AXVBITSETV:
+		return 0x1DC5<<18 | 0x1<<16 // xvbitseti.d
+	case AXVBITREVB:
+		return 0x1DC6<<18 | 0x1<<13 // xvbitrevi.b
+	case AXVBITREVH:
+		return 0x1DC6<<18 | 0x1<<14 // xvbitrevi.h
+	case AXVBITREVW:
+		return 0x1DC6<<18 | 0x1<<15 // xvbitrevi.w
+	case AXVBITREVV:
+		return 0x1DC6<<18 | 0x1<<16 // xvbitrevi.d
 	}
 
 	if a < 0 {
