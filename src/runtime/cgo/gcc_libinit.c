@@ -32,8 +32,14 @@ static void pthread_key_destructor(void* g);
 uintptr_t x_cgo_pthread_key_created;
 void (*x_crosscall2_ptr)(void (*fn)(void *), void *, int, size_t);
 
+// The traceback function, used when tracing C calls.
+static void (*cgo_traceback_function)(struct cgoTracebackArg*);
+
 // The context function, used when tracing back C calls into Go.
-static void (*cgo_context_function)(struct context_arg*);
+static void (*cgo_context_function)(struct cgoContextArg*);
+
+// The symbolizer function, used when symbolizing C frames.
+static void (*cgo_symbolizer_function)(struct cgoSymbolizerArg*);
 
 void
 x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
@@ -52,7 +58,7 @@ x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
 
 uintptr_t
 _cgo_wait_runtime_init_done(void) {
-	void (*pfn)(struct context_arg*);
+	void (*pfn)(struct cgoContextArg*);
 	int done;
 
 	pfn = __atomic_load_n(&cgo_context_function, __ATOMIC_CONSUME);
@@ -70,7 +76,6 @@ _cgo_wait_runtime_init_done(void) {
 			x_cgo_pthread_key_created = 1;
 		}
 
-
 		// TODO(iant): For the case of a new C thread calling into Go, such
 		// as when using -buildmode=c-archive, we know that Go runtime
 		// initialization is complete but we do not know that all Go init
@@ -87,7 +92,7 @@ _cgo_wait_runtime_init_done(void) {
 	}
 
 	if (pfn != nil) {
-		struct context_arg arg;
+		struct cgoContextArg arg;
 
 		arg.Context = 0;
 		(*pfn)(&arg);
@@ -138,15 +143,69 @@ x_cgo_notify_runtime_init_done(void* dummy __attribute__ ((unused))) {
 	pthread_mutex_unlock(&runtime_init_mu);
 }
 
-// Sets the context function to call to record the traceback context
-// when calling a Go function from C code. Called from runtime.SetCgoTraceback.
-void x_cgo_set_context_function(void (*context)(struct context_arg*)) {
-	__atomic_store_n(&cgo_context_function, context, __ATOMIC_RELEASE);
+// Sets the traceback, context, and symbolizer functions. Called from
+// runtime.SetCgoTraceback.
+void x_cgo_set_traceback_functions(struct cgoSetTracebackFunctionsArg* arg) {
+	__atomic_store_n(&cgo_traceback_function, arg->Traceback, __ATOMIC_RELEASE);
+	__atomic_store_n(&cgo_context_function, arg->Context, __ATOMIC_RELEASE);
+	__atomic_store_n(&cgo_symbolizer_function, arg->Symbolizer, __ATOMIC_RELEASE);
 }
 
-// Gets the context function.
-void (*(_cgo_get_context_function(void)))(struct context_arg*) {
+// Gets the traceback function to call to trace C calls.
+void (*(_cgo_get_traceback_function(void)))(struct cgoTracebackArg*) {
+	return __atomic_load_n(&cgo_traceback_function, __ATOMIC_CONSUME);
+}
+
+// Call the traceback function registered with x_cgo_set_traceback_functions.
+//
+// The traceback function is an arbitrary user C function which may be built
+// with TSAN, and thus must be wrapped with TSAN acquire/release calls. For
+// normal cgo calls, cmd/cgo automatically inserts TSAN acquire/release calls.
+// Since the traceback, context, and symbolizer functions are registered at
+// startup and called via the runtime, they do not get automatic TSAN
+// acquire/release calls.
+//
+// The only purpose of this wrapper is to perform TSAN acquire/release.
+// Alternatively, if the runtime arranged to safely call TSAN acquire/release,
+// it could perform the call directly.
+void x_cgo_call_traceback_function(struct cgoTracebackArg* arg) {
+	void (*pfn)(struct cgoTracebackArg*);
+
+	pfn = _cgo_get_traceback_function();
+	if (pfn == nil) {
+		return;
+	}
+
+	_cgo_tsan_acquire();
+	(*pfn)(arg);
+	_cgo_tsan_release();
+}
+
+// Gets the context function to call to record the traceback context
+// when calling a Go function from C code.
+void (*(_cgo_get_context_function(void)))(struct cgoContextArg*) {
 	return __atomic_load_n(&cgo_context_function, __ATOMIC_CONSUME);
+}
+
+// Gets the symbolizer function to call to symbolize C frames.
+void (*(_cgo_get_symbolizer_function(void)))(struct cgoSymbolizerArg*) {
+	return __atomic_load_n(&cgo_symbolizer_function, __ATOMIC_CONSUME);
+}
+
+// Call the symbolizer function registered with x_cgo_set_traceback_functions.
+//
+// See comment on x_cgo_call_traceback_function.
+void x_cgo_call_symbolizer_function(struct cgoSymbolizerArg* arg) {
+	void (*pfn)(struct cgoSymbolizerArg*);
+
+	pfn = _cgo_get_symbolizer_function();
+	if (pfn == nil) {
+		return;
+	}
+
+	_cgo_tsan_acquire();
+	(*pfn)(arg);
+	_cgo_tsan_release();
 }
 
 // _cgo_try_pthread_create retries pthread_create if it fails with
