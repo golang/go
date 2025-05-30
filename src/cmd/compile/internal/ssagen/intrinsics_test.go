@@ -7,7 +7,6 @@ package ssagen
 import (
 	"flag"
 	"fmt"
-	"internal/buildcfg"
 	"slices"
 	"strings"
 	"testing"
@@ -17,9 +16,8 @@ import (
 
 var updateIntrinsics = flag.Bool("update", false, "Print an updated intrinsics table")
 
-// TODO turn on always.  Current setting insures that simd intrinsics do not leak past experiment,
-// but also avoids fail+rubber-stamp-update friction while SIMD is under active development.
-var simd = flag.Bool("simd", !buildcfg.Experiment.SIMD, "Also check SIMD intrinsics; default to GOEXPERIMENT = NO simd")
+// TODO turn on after SIMD is stable.  The time burned keeping this test happy during SIMD development has already well exceeded any plausible benefit.
+var simd = flag.Bool("simd", false, "Also check SIMD intrinsics; for now, it is noisy and not helpful")
 
 type testIntrinsicKey struct {
 	archName string
