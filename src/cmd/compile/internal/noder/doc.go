@@ -49,6 +49,9 @@ outside the string section access string values by reference.
 
     SectionString = { String } .
 
+Note that despite being an element, a string does not begin with a
+reference table.
+
 ## Meta Section
 The meta section provides fundamental information for a package. It
 contains exactly two elements — a public root and a private root.
