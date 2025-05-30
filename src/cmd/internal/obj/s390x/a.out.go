@@ -444,6 +444,7 @@ const (
 	// storage-and-storage
 	AMVC
 	AMVCIN
+	AMVCLE
 	ACLC
 	AXC
 	AOC
