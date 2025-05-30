@@ -171,7 +171,7 @@ func main() {
 			switch strings.TrimSuffix(path.Base(name), ".exe") {
 			default:
 				return false
-			case "asm", "cgo", "compile", "cover", "link", "pack", "preprofile", "vet":
+			case "asm", "cgo", "compile", "cover", "link", "preprofile", "vet":
 			}
 		}
 		return true
