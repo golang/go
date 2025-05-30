@@ -16,7 +16,10 @@ import (
 )
 
 var updateIntrinsics = flag.Bool("update", false, "Print an updated intrinsics table")
-var simd = flag.Bool("simd", buildcfg.Experiment.SIMD, "Also check SIMD intrinsics; defaults to GOEXPERIMENT==simd")
+
+// TODO turn on always.  Current setting insures that simd intrinsics do not leak past experiment,
+// but also avoids fail+rubber-stamp-update friction while SIMD is under active development.
+var simd = flag.Bool("simd", !buildcfg.Experiment.SIMD, "Also check SIMD intrinsics; default to GOEXPERIMENT = NO simd")
 
 type testIntrinsicKey struct {
 	archName string
