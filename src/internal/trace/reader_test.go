@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -108,6 +109,10 @@ func testReader(t *testing.T, tr io.Reader, v *testtrace.Validator, exp *testtra
 		ev, err := r.ReadEvent()
 		if err == io.EOF {
 			break
+		}
+		v.GoVersion = r.GoVersion()
+		if runtime.GOOS == "windows" || runtime.GOARCH == "wasm" {
+			v.SkipClockSnapshotChecks()
 		}
 		if err != nil {
 			if err := exp.Check(err); err != nil {
