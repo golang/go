@@ -51,14 +51,20 @@ type context struct {
 	extendedregisters [512]uint8
 }
 
+//go:nosplit
 func (c *context) ip() uintptr { return uintptr(c.eip) }
+//go:nosplit
 func (c *context) sp() uintptr { return uintptr(c.esp) }
 
 // 386 does not have link register, so this returns 0.
+//go:nosplit
 func (c *context) lr() uintptr      { return 0 }
+//go:nosplit
 func (c *context) set_lr(x uintptr) {}
 
+//go:nosplit
 func (c *context) set_ip(x uintptr) { c.eip = uint32(x) }
+//go:nosplit
 func (c *context) set_sp(x uintptr) { c.esp = uint32(x) }
 
 // 386 does not have frame pointer register.
