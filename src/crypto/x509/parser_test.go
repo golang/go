@@ -6,6 +6,7 @@ package x509
 
 import (
 	"encoding/asn1"
+	"encoding/base64"
 	"encoding/pem"
 	"os"
 	"testing"
@@ -249,5 +250,22 @@ d5l1tRhScKu2NBgm74nYmJxJYgvuTA38wGhRrGU=
 		if err == nil || err.Error() != "x509: invalid basic constraints" {
 			t.Errorf(`ParseCertificate() = %v; want = "x509: invalid basic constraints"`, err)
 		}
+	}
+}
+
+func TestUnsortedSETInRDN(t *testing.T) {
+	// This certificate has an unsorted SET in its RDN
+	certB64 := "MIIFFDCCAvygAwIBAgIUb6hhfTZ9YpBB9FUvC1IUFrL3KAgwDQYJKoZIhvcNAQELBQAwUjELMAkGA1UEBhMCQ04xCzAJBgNVBAgMAkJKMQ0wCwYDVQQKDARKZWZlMRUwEwYDVQQDDAxKZWZlIFJvb3QgQ0ExEDAOBgNVBAcTB0JlaWppbmcwHhcNMjUwNTE2MjEwMjE2WhcNMjYwNTE2MjEwMjE2WjBSMQswCQYDVQQGEwJDTjELMAkGA1UECAwCQkoxDTALBgNVBAoMBEplZmUxFTATBgNVBAMMDEplZmUgUm9vdCBDQTEQMA4GA1UEBxMHQmVpamluZzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAONdnqNcvwTNTKLCJMQzfBW8CjfMRxZI96NU+AYvvwTaSlEXxGY93KD1HsrqXRb4lUhxXVSdbdGGtCwF20zKSoJmcikMW21+9dW6hxkDJVp/E2BKgb1nBJj7d0FgVZyEcjgX2xbHcUdvBJg5IB13MPxcfRfGdHJ8vbA3NFJGdxJgqGb1XQHuU5ql3UGK0UMYHoLAA8ZeUZ7RgdCXAyM2XxF5lXDfzn5/DrlcFbMCLtA4JpbU87QnTIZxWQQ0LLz+FJ/M6sqkTL+CsOWRKXH6TPcyXLCrjuDa7pM/8vVkCX/oeyqwMvYEYV/q+JPHQ34UdhX1g7/OXZh+nGcgV4USOQECAwEAAaOCAQEwgf4wHQYDVR0OBBYEFA2Dg0Oa1UgW3qF3Q6cvq6fvp5wlMIHBBgNVHSMEgbkwgbaAFA2Dg0Oa1UgW3qF3Q6cvq6fvp5wloYGApH4wfDELMAkGA1UEBhMCVVMxEzARBgNVBAgMCkNhbGlmb3JuaWExFjAUBgNVBAcMDVNhbiBGcmFuY2lzY28xDTALBgNVBAoMBEplZmUxGDAWBgNVBAMMD3d3dy5leGFtcGxlLmNvbTEXMBUGCSqGSIb3DQEJARYIQUBCLkMuRE2CFG+oYX02fWKQQfRVLwtSFBay9ygIMAwGA1UdEwQFMAMBAf8wCwYDVR0PBAQDAgEGMBEGCWCGSAGG+EIBAQQEAwIBBjANBgkqhkiG9w0BAQsFAAOCAQEAZkWrFDnDN7aJYxgaLbTxvPQiUEw56GZfYaEH/gHSfkUiWvW8/Ub6Gp0rb/UEwu/9pPvs6QnwqLwBHkBpZX6lF1f5ltBbNzPdFVgQN1GdvETofyqQOo3hRbZ3vfEP7Yro7qXWFmwJwM1lMgTWuPpwxeGOqKR0o8C0dEssPJePAJRQHQHyldQ5Ie96KgLqRjxqx/7A4EQyZ3j3kWGnEY+QiHEEH9SgJ/iVkFuQf479VdMVLgcP9eEF+eKczcHINIGLvYL/9XYxKmfKLIKcZTYpxHdXJRIGLQ27IbXdKeZG0l9+ztLNCkG5fqCDZosfYvN0CIIpkQDQxnPnV4MVOXUhZBVW5Q=="
+
+	der, err := base64.StdEncoding.DecodeString(certB64)
+	if err != nil {
+		t.Fatalf("Failed to decode certificate: %v", err)
+	}
+
+	_, err = ParseCertificate(der)
+	if err == nil {
+		t.Errorf("Expected ParseCertificate to fail due to unsorted SET values in RDN, but it succeeded")
+	} else if err.Error() != "x509: malformed certificate" {
+		t.Errorf("Expected error 'x509: malformed certificate', got: %v", err)
 	}
 }

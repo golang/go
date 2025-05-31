@@ -150,14 +150,31 @@ func parseName(raw cryptobyte.String) (*pkix.RDNSequence, error) {
 	for !raw.Empty() {
 		var rdnSet pkix.RelativeDistinguishedNameSET
 		var set cryptobyte.String
-		if !raw.ReadASN1(&set, cryptobyte_asn1.SET) {
+		var rawSet cryptobyte.String
+
+		if !raw.ReadASN1Element(&rawSet, cryptobyte_asn1.SET) {
 			return nil, errors.New("x509: invalid RDNSequence")
 		}
+
+		if !rawSet.ReadASN1(&set, cryptobyte_asn1.SET) {
+			return nil, errors.New("x509: invalid RDNSequence")
+		}
+
+		var rawAttrs []cryptobyte.String
+
 		for !set.Empty() {
 			var atav cryptobyte.String
-			if !set.ReadASN1(&atav, cryptobyte_asn1.SEQUENCE) {
+			var rawAttr cryptobyte.String
+
+			if !set.ReadASN1Element(&rawAttr, cryptobyte_asn1.SEQUENCE) {
 				return nil, errors.New("x509: invalid RDNSequence: invalid attribute")
 			}
+			rawAttrs = append(rawAttrs, rawAttr)
+
+			if !rawAttr.ReadASN1(&atav, cryptobyte_asn1.SEQUENCE) {
+				return nil, errors.New("x509: invalid RDNSequence: invalid attribute")
+			}
+
 			var attr pkix.AttributeTypeAndValue
 			if !atav.ReadASN1ObjectIdentifier(&attr.Type) {
 				return nil, errors.New("x509: invalid RDNSequence: invalid attribute type")
@@ -173,6 +190,18 @@ func parseName(raw cryptobyte.String) (*pkix.RDNSequence, error) {
 				return nil, fmt.Errorf("x509: invalid RDNSequence: invalid attribute value: %s", err)
 			}
 			rdnSet = append(rdnSet, attr)
+		}
+
+		// Verify that the SET values are sorted according to DER encoding rules
+		// as required by X.690 section 11.6
+		if len(rawAttrs) > 1 {
+			for i := 1; i < len(rawAttrs); i++ {
+				// Compare each attribute with the previous one
+				// In DER, they must be in ascending order when compared as octet strings
+				if bytes.Compare(rawAttrs[i-1], rawAttrs[i]) > 0 {
+					return nil, errors.New("x509: invalid RDNSequence: SET values not in ascending order")
+				}
+			}
 		}
 
 		rdnSeq = append(rdnSeq, rdnSet)
