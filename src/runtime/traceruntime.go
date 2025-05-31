@@ -574,7 +574,9 @@ func (tl traceLocker) HeapAlloc(live uint64) {
 // HeapGoal reads the current heap goal and emits a HeapGoal event.
 func (tl traceLocker) HeapGoal() {
 	heapGoal := gcController.heapGoal()
-	if heapGoal == ^uint64(0) {
+	// The heapGoal calculations will result in strange numbers if the GC if off. See go.dev/issue/63864.
+	// Check gcPercent before using the heapGoal in the trace.
+	if heapGoal == ^uint64(0) || gcController.gcPercent.Load() < 0 {
 		// Heap-based triggering is disabled.
 		heapGoal = 0
 	}

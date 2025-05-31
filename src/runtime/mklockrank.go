@@ -41,7 +41,7 @@ const ranks = `
 # Sysmon
 NONE
 < sysmon
-< scavenge, forcegc, updateGOMAXPROCS;
+< scavenge, forcegc, computeMaxProcs, updateMaxProcsG;
 
 # Defer
 NONE < defer;
@@ -57,6 +57,9 @@ NONE <
 # Test only
 NONE < testR, testW;
 
+# vgetrandom
+NONE < vgetrandom;
+
 NONE < timerSend;
 
 # Scheduler, timers, netpoll
@@ -64,9 +67,10 @@ NONE < allocmW, execW, cpuprof, pollCache, pollDesc, wakeableSleep;
 scavenge, sweep, testR, wakeableSleep, timerSend < hchan;
 assistQueue,
   cleanupQueue,
+  computeMaxProcs,
   cpuprof,
   forcegc,
-  updateGOMAXPROCS,
+  updateMaxProcsG,
   hchan,
   pollDesc, # pollDesc can interact with timers, which can lock sched.
   scavenge,
@@ -134,7 +138,8 @@ allg,
   reflectOffs,
   timer,
   traceStrings,
-  userArenaState
+  userArenaState,
+  vgetrandom
 # Above MALLOC are things that can allocate memory.
 < MALLOC
 # Below MALLOC is the malloc implementation.

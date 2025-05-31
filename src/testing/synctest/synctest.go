@@ -72,16 +72,30 @@
 //   - a blocking select statement where every case is a channel created
 //     within the bubble
 //   - [sync.Cond.Wait]
-//   - [sync.WaitGroup.Wait]
+//   - [sync.WaitGroup.Wait], when [sync.WaitGroup.Add] was called within the bubble
 //   - [time.Sleep]
 //
-// Locking a [sync.Mutex] or [sync.RWMutex] is not durably blocking.
+// Operations not in the above list are not durably blocking.
+// In particular, the following operations may block a goroutine,
+// but are not durably blocking because the goroutine can be unblocked
+// by an event occurring outside its bubble:
+//
+//   - locking a [sync.Mutex] or [sync.RWMutex]
+//   - blocking on I/O, such as reading from a network socket
+//   - system calls
 //
 // # Isolation
 //
 // A channel, [time.Timer], or [time.Ticker] created within a bubble
 // is associated with it. Operating on a bubbled channel, timer, or
 // ticker from outside the bubble panics.
+//
+// A [sync.WaitGroup] becomes associated with a bubble on the first
+// call to Add or Go. Once a WaitGroup is associated with a bubble,
+// calling Add or Go from outside that bubble is a fatal error.
+//
+// [sync.Cond.Wait] is durably blocking. Waking a goroutine in a bubble
+// blocked on Cond.Wait from outside the bubble is a fatal error.
 //
 // Cleanup functions and finalizers registered with
 // [runtime.AddCleanup] and [runtime.SetFinalizer]
@@ -259,13 +273,19 @@ import (
 //     associated with the bubble.
 //   - T.Run, T.Parallel, and T.Deadline must not be called.
 func Test(t *testing.T, f func(*testing.T)) {
+	var ok bool
 	synctest.Run(func() {
-		testingSynctestTest(t, f)
+		ok = testingSynctestTest(t, f)
 	})
+	if !ok {
+		// Fail the test outside the bubble,
+		// so test durations get set using real time.
+		t.FailNow()
+	}
 }
 
 //go:linkname testingSynctestTest testing/synctest.testingSynctestTest
-func testingSynctestTest(t *testing.T, f func(*testing.T))
+func testingSynctestTest(t *testing.T, f func(*testing.T)) bool
 
 // Wait blocks until every goroutine within the current bubble,
 // other than the current goroutine, is durably blocked.

@@ -1,2 +1,0 @@
-pkg os, method (*Root) ReadFile(string) ([]uint8, error) #73126
-pkg os, method (*Root) WriteFile(string, []uint8, fs.FileMode) error #73126

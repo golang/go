@@ -39,8 +39,7 @@ kind. Go constructs are mapped onto (potentially multiple) elements.
 Elements are accessed using an index relative to the start of the
 section.
 
-    // TODO(markfreeman): Rename to SectionIndex.
-    RelIndex = Uint64 .
+    RelElemIdx = Uint64 .
 
 ## String Section
 String values are stored as elements in the string section. Elements
@@ -147,7 +146,7 @@ referenced element.
                     .
     RefTableEntry = [ Sync ]
                     SectionKind
-                    RelIndex
+                    RelElemIdx
                     .
 
 Elements encode references to other elements as an index in the
@@ -155,7 +154,7 @@ reference table — not the location of the referenced element directly.
 
     // TODO(markfreeman): Rename to RefUse.
     UseReloc = [ Sync ]
-               RelIndex
+               RelElemIdx
                .
 
 # Primitives

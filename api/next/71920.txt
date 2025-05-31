@@ -1,1 +1,0 @@
-pkg crypto/tls, type Config struct, GetEncryptedClientHelloKeys func(*ClientHelloInfo) ([]EncryptedClientHelloKey, error) #71920

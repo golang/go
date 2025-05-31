@@ -835,6 +835,7 @@ func schedinit() {
 	lockInit(&reflectOffs.lock, lockRankReflectOffs)
 	lockInit(&finlock, lockRankFin)
 	lockInit(&cpuprof.lock, lockRankCpuprof)
+	lockInit(&computeMaxProcsLock, lockRankComputeMaxProcs)
 	allocmLock.init(lockRankAllocmR, lockRankAllocmRInternal, lockRankAllocmW)
 	execLock.init(lockRankExecR, lockRankExecRInternal, lockRankExecW)
 	traceLockInit()
@@ -1727,7 +1728,6 @@ func startTheWorldWithSema(now int64, w worldStop) int64 {
 	procs := gomaxprocs
 	if newprocs != 0 {
 		procs = newprocs
-		sched.customGOMAXPROCS = newprocsCustom
 		newprocs = 0
 	}
 	p1 := procresize(procs)
@@ -6546,7 +6546,7 @@ func schedtrace(detailed bool) {
 	unlock(&sched.lock)
 }
 
-type updateGOMAXPROCSState struct {
+type updateMaxProcsGState struct {
 	lock mutex
 	g    *g
 	idle atomic.Bool
@@ -6556,28 +6556,97 @@ type updateGOMAXPROCSState struct {
 }
 
 var (
-	updateGOMAXPROCS updateGOMAXPROCSState
-
+	// GOMAXPROCS update godebug metric. Incremented if automatic
+	// GOMAXPROCS updates actually change the value of GOMAXPROCS.
 	updatemaxprocs = &godebugInc{name: "updatemaxprocs"}
+
+	// Synchronization and state between updateMaxProcsGoroutine and
+	// sysmon.
+	updateMaxProcsG updateMaxProcsGState
+
+	// Synchronization between GOMAXPROCS and sysmon.
+	//
+	// Setting GOMAXPROCS via a call to GOMAXPROCS disables automatic
+	// GOMAXPROCS updates.
+	//
+	// We want to make two guarantees to callers of GOMAXPROCS. After
+	// GOMAXPROCS returns:
+	//
+	// 1. The runtime will not make any automatic changes to GOMAXPROCS.
+	//
+	// 2. The runtime will not perform any of the system calls used to
+	//    determine the appropriate value of GOMAXPROCS (i.e., it won't
+	//    call defaultGOMAXPROCS).
+	//
+	// (1) is the baseline guarantee that everyone needs. The GOMAXPROCS
+	// API isn't useful to anyone if automatic updates may occur after it
+	// returns. This is easily achieved by double-checking the state under
+	// STW before committing an automatic GOMAXPROCS update.
+	//
+	// (2) doesn't matter to most users, as it is isn't observable as long
+	// as (1) holds. However, it can be important to users sandboxing Go.
+	// They want disable these system calls and need some way to know when
+	// they are guaranteed the calls will stop.
+	//
+	// This would be simple to achieve if we simply called
+	// defaultGOMAXPROCS under STW in updateMaxProcsGoroutine below.
+	// However, we would like to avoid scheduling this goroutine every
+	// second when it will almost never do anything. Instead, sysmon calls
+	// defaultGOMAXPROCS to decide whether to schedule
+	// updateMaxProcsGoroutine. Thus we need to synchronize between sysmon
+	// and GOMAXPROCS calls.
+	//
+	// GOMAXPROCS can't hold a runtime mutex across STW. It could hold a
+	// semaphore, but sysmon cannot take semaphores. Instead, we have a
+	// more complex scheme:
+	//
+	// * sysmon holds computeMaxProcsLock while calling defaultGOMAXPROCS.
+	// * sysmon skips the current update if sched.customGOMAXPROCS is
+	//   set.
+	// * GOMAXPROCS sets sched.customGOMAXPROCS once it is committed to
+	//   changing GOMAXPROCS.
+	// * GOMAXPROCS takes computeMaxProcsLock to wait for outstanding
+	//   defaultGOMAXPROCS calls to complete.
+	//
+	// N.B. computeMaxProcsLock could simply be sched.lock, but we want to
+	// avoid holding that lock during the potentially slow
+	// defaultGOMAXPROCS.
+	computeMaxProcsLock mutex
 )
 
 // Start GOMAXPROCS update helper goroutine.
 //
 // This is based on forcegchelper.
 func defaultGOMAXPROCSUpdateEnable() {
-	go updateGOMAXPROCSHelper()
+	if debug.updatemaxprocs == 0 {
+		// Unconditionally increment the metric when updates are disabled.
+		//
+		// It would be more descriptive if we did a dry run of the
+		// complete update, determining the appropriate value of
+		// GOMAXPROCS and the bailing out and just incrementing the
+		// metric if a change would occur.
+		//
+		// Not only is that a lot of ongoing work for a disabled
+		// feature, but some users need to be able to completely
+		// disable the update system calls (such as sandboxes).
+		// Currently, updatemaxprocs=0 serves that purpose.
+		updatemaxprocs.IncNonDefault()
+		return
+	}
+
+	go updateMaxProcsGoroutine()
 }
 
-func updateGOMAXPROCSHelper() {
-	updateGOMAXPROCS.g = getg()
-	lockInit(&updateGOMAXPROCS.lock, lockRankUpdateGOMAXPROCS)
+func updateMaxProcsGoroutine() {
+	updateMaxProcsG.g = getg()
+	lockInit(&updateMaxProcsG.lock, lockRankUpdateMaxProcsG)
 	for {
-		lock(&updateGOMAXPROCS.lock)
-		if updateGOMAXPROCS.idle.Load() {
-			throw("updateGOMAXPROCS: phase error")
+		lock(&updateMaxProcsG.lock)
+		if updateMaxProcsG.idle.Load() {
+			throw("updateMaxProcsGoroutine: phase error")
 		}
-		updateGOMAXPROCS.idle.Store(true)
-		goparkunlock(&updateGOMAXPROCS.lock, waitReasonUpdateGOMAXPROCSIdle, traceBlockSystemGoroutine, 1)
+		updateMaxProcsG.idle.Store(true)
+		goparkunlock(&updateMaxProcsG.lock, waitReasonUpdateGOMAXPROCSIdle, traceBlockSystemGoroutine, 1)
 		// This goroutine is explicitly resumed by sysmon.
 
 		stw := stopTheWorldGC(stwGOMAXPROCS)
@@ -6595,29 +6664,32 @@ func updateGOMAXPROCSHelper() {
 		//
 		// TODO(prattmic): this could use a nicer API. Perhaps add it to the
 		// stw parameter?
-		newprocs = updateGOMAXPROCS.procs
-		newprocsCustom = false
+		newprocs = updateMaxProcsG.procs
+		lock(&sched.lock)
+		sched.customGOMAXPROCS = false
+		unlock(&sched.lock)
 
 		startTheWorldGC(stw)
-
-		// We actually changed something.
-		updatemaxprocs.IncNonDefault()
 	}
 }
 
 func sysmonUpdateGOMAXPROCS() {
+	// Synchronize with GOMAXPROCS. See comment on computeMaxProcsLock.
+	lock(&computeMaxProcsLock)
+
 	// No update if GOMAXPROCS was set manually.
 	lock(&sched.lock)
 	custom := sched.customGOMAXPROCS
 	curr := gomaxprocs
 	unlock(&sched.lock)
 	if custom {
+		unlock(&computeMaxProcsLock)
 		return
 	}
 
 	// Don't hold sched.lock while we read the filesystem.
 	procs := defaultGOMAXPROCS(0)
-
+	unlock(&computeMaxProcsLock)
 	if procs == curr {
 		// Nothing to do.
 		return
@@ -6626,14 +6698,14 @@ func sysmonUpdateGOMAXPROCS() {
 	// Sysmon can't directly stop the world. Run the helper to do so on our
 	// behalf. If updateGOMAXPROCS.idle is false, then a previous update is
 	// still pending.
-	if updateGOMAXPROCS.idle.Load() {
-		lock(&updateGOMAXPROCS.lock)
-		updateGOMAXPROCS.procs = procs
-		updateGOMAXPROCS.idle.Store(false)
+	if updateMaxProcsG.idle.Load() {
+		lock(&updateMaxProcsG.lock)
+		updateMaxProcsG.procs = procs
+		updateMaxProcsG.idle.Store(false)
 		var list gList
-		list.push(updateGOMAXPROCS.g)
+		list.push(updateMaxProcsG.g)
 		injectglist(&list)
-		unlock(&updateGOMAXPROCS.lock)
+		unlock(&updateMaxProcsG.lock)
 	}
 }
 

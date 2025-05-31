@@ -40,7 +40,7 @@ func vgetrandomInit() {
 	vgetrandomAlloc.mmapProt = int32(params.MmapProt)
 	vgetrandomAlloc.mmapFlags = int32(params.MmapFlags)
 
-	lockInit(&vgetrandomAlloc.statesLock, lockRankLeafRank)
+	lockInit(&vgetrandomAlloc.statesLock, lockRankVgetrandom)
 }
 
 func vgetrandomGetState() uintptr {

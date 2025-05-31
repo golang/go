@@ -66,6 +66,8 @@ var zipRules = []testRule{
 	{name: "go/pkg/tool/*/compile", goos: "darwin"},
 	{name: "go/pkg/tool/*/compile", goos: "windows", exclude: true},
 	{name: "go/pkg/tool/*/compile.exe", goos: "windows"},
+	{name: "go/pkg/tool/*/pack", exclude: true},
+	{name: "go/pkg/tool/*/pack.exe", exclude: true},
 }
 
 var modRules = []testRule{
@@ -100,6 +102,8 @@ var modRules = []testRule{
 	{name: "golang.org/toolchain@*/pkg/tool/*/compile", goos: "darwin"},
 	{name: "golang.org/toolchain@*/pkg/tool/*/compile", goos: "windows", exclude: true},
 	{name: "golang.org/toolchain@*/pkg/tool/*/compile.exe", goos: "windows"},
+	{name: "golang.org/toolchain@*/pkg/tool/*/pack", exclude: true},
+	{name: "golang.org/toolchain@*/pkg/tool/*/pack.exe", exclude: true},
 
 	// go.mod are renamed to _go.mod.
 	{name: "**/go.mod", exclude: true},
