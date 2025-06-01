@@ -27,6 +27,10 @@ const InfoPrefix = "go:info."
 // entries that contain constants.
 const ConstInfoPrefix = "go:constinfo."
 
+// ConstStringInfoPrefix is the prefix for all symbols containing
+// DWARF info entries that referred by string constants.
+const ConstStringInfoPrefix = "string$const."
+
 // CUInfoPrefix is the prefix for symbols containing information to
 // populate the DWARF compilation unit info entries.
 const CUInfoPrefix = "go:cuinfo."
@@ -336,6 +340,7 @@ const (
 	DW_ABRV_INLINED_SUBROUTINE_RANGES
 	DW_ABRV_VARIABLE
 	DW_ABRV_INT_CONSTANT
+	DW_ABRV_STRING_CONSTANT
 	DW_ABRV_LEXICAL_BLOCK_RANGES
 	DW_ABRV_LEXICAL_BLOCK_SIMPLE
 	DW_ABRV_STRUCTFIELD
@@ -354,6 +359,7 @@ const (
 	DW_ABRV_BARE_PTRTYPE // only for void*, no DW_AT_type attr to please gdb 6.
 	DW_ABRV_SLICETYPE
 	DW_ABRV_STRINGTYPE
+	DW_ABRV_CONSTANT_STRINGTYPE
 	DW_ABRV_STRUCTTYPE
 	DW_ABRV_TYPEDECL
 	DW_ABRV_DICT_INDEX
@@ -575,7 +581,7 @@ var abbrevs = []dwAbbrev{
 		},
 	},
 
-	/* INT CONSTANT */
+	/* INT_CONSTANT */
 	{
 		DW_TAG_constant,
 		DW_CHILDREN_no,
@@ -583,6 +589,17 @@ var abbrevs = []dwAbbrev{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_type, DW_FORM_ref_addr},
 			{DW_AT_const_value, DW_FORM_sdata},
+		},
+	},
+
+	/* STRING_CONSTANT */
+	{
+		DW_TAG_constant,
+		DW_CHILDREN_no,
+		[]dwAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_type, DW_FORM_ref_addr},
+			{DW_AT_const_value, DW_FORM_block1},
 		},
 	},
 
@@ -804,6 +821,16 @@ var abbrevs = []dwAbbrev{
 			{DW_AT_byte_size, DW_FORM_udata},
 			{DW_AT_go_kind, DW_FORM_data1},
 			{DW_AT_go_runtime_type, DW_FORM_addr},
+		},
+	},
+
+	/* CONSTANT_STRINGTYPE */
+	{
+		DW_TAG_string_type,
+		DW_CHILDREN_no,
+		[]dwAttrForm{
+			{DW_AT_name, DW_FORM_string},
+			{DW_AT_byte_size, DW_FORM_udata},
 		},
 	},
 
@@ -1029,6 +1056,14 @@ func PutIntConst(ctxt Context, info, typ Sym, name string, val int64) {
 	putattr(ctxt, info, DW_ABRV_INT_CONSTANT, DW_FORM_string, DW_CLS_STRING, int64(len(name)), name)
 	putattr(ctxt, info, DW_ABRV_INT_CONSTANT, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, typ)
 	putattr(ctxt, info, DW_ABRV_INT_CONSTANT, DW_FORM_sdata, DW_CLS_CONSTANT, val, nil)
+}
+
+// PutStringConst writes a DIE for a string constant
+func PutStringConst(ctxt Context, info, typ Sym, name string, val string) {
+	Uleb128put(ctxt, info, DW_ABRV_STRING_CONSTANT)
+	putattr(ctxt, info, DW_ABRV_STRING_CONSTANT, DW_FORM_string, DW_CLS_STRING, int64(len(name)), name)
+	putattr(ctxt, info, DW_ABRV_STRING_CONSTANT, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, typ)
+	putattr(ctxt, info, DW_ABRV_STRING_CONSTANT, DW_FORM_block1, DW_CLS_BLOCK, int64(len(val)), []byte(val))
 }
 
 // PutGlobal writes a DIE for a global variable.

@@ -29,6 +29,7 @@ import (
 	"path"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -1183,6 +1184,18 @@ func getCompilationDir() string {
 	return "."
 }
 
+func (d *dwctxt) genConstStringType(name string) {
+	if d.find(name) != 0 {
+		return
+	}
+	size, err := strconv.Atoi(name[len(dwarf.ConstStringInfoPrefix):])
+	if err != nil {
+		log.Fatalf("error: invalid constant string size %q: %v", name, err)
+	}
+	die := d.newdie(&dwtypes, dwarf.DW_ABRV_CONSTANT_STRINGTYPE, name)
+	newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(size), 0)
+}
+
 func (d *dwctxt) importInfoSymbol(dsym loader.Sym) {
 	d.ldr.SetAttrReachable(dsym, true)
 	d.ldr.SetAttrNotInSymbolTable(dsym, true)
@@ -1207,6 +1220,15 @@ func (d *dwctxt) importInfoSymbol(dsym loader.Sym) {
 		// symbol name here?
 		sn := d.ldr.SymName(rsym)
 		tn := sn[len(dwarf.InfoPrefix):]
+
+		// If the symbol is a constant string type, we generate it
+		// These types do not exist in go,
+		// but can tell gdb how to interpret the corresponding values
+		if strings.HasPrefix(tn, dwarf.ConstStringInfoPrefix) {
+			d.genConstStringType(tn)
+			continue
+		}
+
 		ts := d.ldr.Lookup("type:"+tn, 0)
 		d.defgotype(ts)
 	}

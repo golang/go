@@ -176,22 +176,31 @@ func dumpGlobalConst(n *ir.Name) {
 		return
 	}
 	// only export integer constants for now
-	if !t.IsInteger() {
+	if !t.IsInteger() && !t.IsString() {
 		return
 	}
 	v := n.Val()
 	if t.IsUntyped() {
-		// Export untyped integers as int (if they fit).
-		t = types.Types[types.TINT]
-		if ir.ConstOverflow(v, t) {
-			return
+		if t.IsInteger() {
+			// Export untyped integers as int (if they fit).
+			t = types.Types[types.TINT]
+			if ir.ConstOverflow(v, t) {
+				return
+			}
+		} else {
+			t = types.Types[types.TSTRING]
 		}
 	} else {
 		// If the type of the constant is an instantiated generic, we need to emit
 		// that type so the linker knows about it. See issue 51245.
 		_ = reflectdata.TypeLinksym(t)
 	}
-	base.Ctxt.DwarfIntConst(n.Sym().Name, types.TypeSymName(t), ir.IntVal(t, v))
+
+	if t.IsInteger() {
+		base.Ctxt.DwarfIntConst(n.Sym().Name, types.TypeSymName(t), ir.IntVal(t, v))
+	} else if t.IsString() {
+		base.Ctxt.DwarfStringConst(n.Sym().Name, ir.StringVal(n))
+	}
 }
 
 // addGCLocals adds gcargs, gclocals, gcregs, and stack object symbols to Ctxt.Data.

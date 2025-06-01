@@ -12,6 +12,7 @@ import (
 	"cmd/internal/src"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -393,18 +394,38 @@ func (ctxt *Link) populateDWARF(curfn Func, s *LSym) {
 	ctxt.generateDebugLinesSymbol(s, lines)
 }
 
-// DwarfIntConst creates a link symbol for an integer constant with the
-// given name, type and value.
-func (ctxt *Link) DwarfIntConst(name, typename string, val int64) {
+// ensureConstInfoSym ensures that the DWARF constant info symbol exists
+func (ctxt *Link) ensureConstInfoSym() *LSym {
 	myimportpath := ctxt.Pkgpath
 	if myimportpath == "" {
-		return
+		return nil
 	}
 	s := ctxt.LookupInit(dwarf.ConstInfoPrefix+myimportpath, func(s *LSym) {
 		s.Type = objabi.SDWARFCONST
 		ctxt.Data = append(ctxt.Data, s)
 	})
-	dwarf.PutIntConst(dwCtxt{ctxt}, s, ctxt.Lookup(dwarf.InfoPrefix+typename), myimportpath+"."+name, val)
+	return s
+}
+
+// DwarfIntConst creates a link symbol for an integer constant with the
+// given name, type and value.
+func (ctxt *Link) DwarfIntConst(name, typename string, val int64) {
+	s := ctxt.ensureConstInfoSym()
+	if s == nil {
+		return
+	}
+	dwarf.PutIntConst(dwCtxt{ctxt}, s, ctxt.Lookup(dwarf.InfoPrefix+typename), ctxt.Pkgpath+"."+name, val)
+}
+
+// DwarfStringConst creates a link symbol for a string constant with the
+// given name and value.
+func (ctxt *Link) DwarfStringConst(name, value string) {
+	s := ctxt.ensureConstInfoSym()
+	if s == nil {
+		return
+	}
+	typSym := ctxt.Lookup(dwarf.InfoPrefix + dwarf.ConstStringInfoPrefix + strconv.Itoa(len(value)))
+	dwarf.PutStringConst(dwCtxt{ctxt}, s, typSym, ctxt.Pkgpath+"."+name, value)
 }
 
 // DwarfGlobal creates a link symbol containing a DWARF entry for
