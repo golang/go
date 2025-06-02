@@ -226,8 +226,8 @@ func TestTimerNondeterminism(t *testing.T) {
 		const iterations = 1000
 		var seen1, seen2 bool
 		for range iterations {
-			tm1 := time.NewTimer(0)
-			tm2 := time.NewTimer(0)
+			tm1 := time.NewTimer(1)
+			tm2 := time.NewTimer(1)
 			select {
 			case <-tm1.C:
 				seen1 = true
@@ -275,6 +275,57 @@ func TestSleepNondeterminism(t *testing.T) {
 			synctest.Wait()
 		}
 		t.Errorf("after %v iterations, seen goroutine 1:%v, 2:%v; want both", iterations, seen1, seen2)
+	})
+}
+
+// TestTimerRunsImmediately verifies that a 0-duration timer sends on its channel
+// without waiting for the bubble to block.
+func TestTimerRunsImmediately(t *testing.T) {
+	synctest.Run(func() {
+		start := time.Now()
+		tm := time.NewTimer(0)
+		select {
+		case got := <-tm.C:
+			if !got.Equal(start) {
+				t.Errorf("<-tm.C = %v, want %v", got, start)
+			}
+		default:
+			t.Errorf("0-duration timer channel is not readable; want it to be")
+		}
+	})
+}
+
+// TestTimerRunsLater verifies that reading from a timer's channel receives the
+// timer fired, even when that time is in reading from a timer's channel receives the
+// time the timer fired, even when that time is in the past.
+func TestTimerRanInPast(t *testing.T) {
+	synctest.Run(func() {
+		delay := 1 * time.Second
+		want := time.Now().Add(delay)
+		tm := time.NewTimer(delay)
+		time.Sleep(2 * delay)
+		select {
+		case got := <-tm.C:
+			if !got.Equal(want) {
+				t.Errorf("<-tm.C = %v, want %v", got, want)
+			}
+		default:
+			t.Errorf("0-duration timer channel is not readable; want it to be")
+		}
+	})
+}
+
+// TestAfterFuncRunsImmediately verifies that a 0-duration AfterFunc is scheduled
+// without waiting for the bubble to block.
+func TestAfterFuncRunsImmediately(t *testing.T) {
+	synctest.Run(func() {
+		var b atomic.Bool
+		time.AfterFunc(0, func() {
+			b.Store(true)
+		})
+		for !b.Load() {
+			runtime.Gosched()
+		}
 	})
 }
 
