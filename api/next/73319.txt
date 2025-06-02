@@ -1,1 +1,0 @@
-pkg go/ast, func PreorderStack(Node, []Node, func(Node, []Node) bool) #73319

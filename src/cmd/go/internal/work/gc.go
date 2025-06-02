@@ -482,7 +482,7 @@ func (gcToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) er
 	p := a.Package
 	sh := b.Shell(a)
 	if cfg.BuildN || cfg.BuildX {
-		cmdline := str.StringList(base.Tool("pack"), "r", absAfile, absOfiles)
+		cmdline := str.StringList("go", "tool", "pack", "r", absAfile, absOfiles)
 		sh.ShowCmd(p.Dir, "%s # internal", joinUnambiguously(cmdline))
 	}
 	if cfg.BuildN {

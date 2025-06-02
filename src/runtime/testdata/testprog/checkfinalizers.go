@@ -5,6 +5,8 @@
 package main
 
 import (
+	"internal/asan"
+	"internal/race"
 	"runtime"
 	"runtime/debug"
 	"unsafe"
@@ -39,20 +41,25 @@ func DetectFinalizerAndCleanupLeaks() {
 		**cNoLeak = x
 	}, int(0)).Stop()
 
-	// Ensure we create an allocation into a tiny block that shares space among several values.
-	var ctLeak *tiny
-	for {
-		tinySink = ctLeak
-		ctLeak = new(tiny)
-		*ctLeak = tiny(55)
-		// Make sure the address is an odd value. This is sufficient to
-		// be certain that we're sharing a block with another value and
-		// trip the detector.
-		if uintptr(unsafe.Pointer(ctLeak))%2 != 0 {
-			break
+	if !asan.Enabled && !race.Enabled {
+		// Ensure we create an allocation into a tiny block that shares space among several values.
+		//
+		// Don't do this with ASAN and in race mode, where the tiny allocator is disabled.
+		// We might just loop forever here in that case.
+		var ctLeak *tiny
+		for {
+			tinySink = ctLeak
+			ctLeak = new(tiny)
+			*ctLeak = tiny(55)
+			// Make sure the address is an odd value. This is sufficient to
+			// be certain that we're sharing a block with another value and
+			// trip the detector.
+			if uintptr(unsafe.Pointer(ctLeak))%2 != 0 {
+				break
+			}
 		}
+		runtime.AddCleanup(ctLeak, func(_ struct{}) {}, struct{}{})
 	}
-	runtime.AddCleanup(ctLeak, func(_ struct{}) {}, struct{}{})
 
 	// Leak a finalizer.
 	fLeak := new(T)

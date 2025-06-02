@@ -223,6 +223,7 @@ type mheap struct {
 	specialReachableAlloc      fixalloc // allocator for specialReachable
 	specialPinCounterAlloc     fixalloc // allocator for specialPinCounter
 	specialWeakHandleAlloc     fixalloc // allocator for specialWeakHandle
+	specialBubbleAlloc         fixalloc // allocator for specialBubble
 	speciallock                mutex    // lock for special record allocators.
 	arenaHintAlloc             fixalloc // allocator for arenaHints
 
@@ -799,6 +800,7 @@ func (h *mheap) init() {
 	h.specialReachableAlloc.init(unsafe.Sizeof(specialReachable{}), nil, nil, &memstats.other_sys)
 	h.specialPinCounterAlloc.init(unsafe.Sizeof(specialPinCounter{}), nil, nil, &memstats.other_sys)
 	h.specialWeakHandleAlloc.init(unsafe.Sizeof(specialWeakHandle{}), nil, nil, &memstats.gcMiscSys)
+	h.specialBubbleAlloc.init(unsafe.Sizeof(specialBubble{}), nil, nil, &memstats.other_sys)
 	h.arenaHintAlloc.init(unsafe.Sizeof(arenaHint{}), nil, nil, &memstats.other_sys)
 
 	// Don't zero mspan allocations. Background sweeping can
@@ -2003,6 +2005,8 @@ const (
 	// _KindSpecialCheckFinalizer adds additional context to a finalizer or cleanup.
 	// Used only if debug.checkfinalizers != 0.
 	_KindSpecialCheckFinalizer = 8
+	// _KindSpecialBubble is used to associate objects with synctest bubbles.
+	_KindSpecialBubble = 9
 )
 
 type special struct {
@@ -2838,6 +2842,11 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
 		st := (*specialTinyBlock)(unsafe.Pointer(s))
 		lock(&mheap_.speciallock)
 		mheap_.specialTinyBlockAlloc.free(unsafe.Pointer(st))
+		unlock(&mheap_.speciallock)
+	case _KindSpecialBubble:
+		st := (*specialBubble)(unsafe.Pointer(s))
+		lock(&mheap_.speciallock)
+		mheap_.specialBubbleAlloc.free(unsafe.Pointer(st))
 		unlock(&mheap_.speciallock)
 	default:
 		throw("bad special kind")

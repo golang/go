@@ -916,8 +916,8 @@ func init() {
 				inputs:   []regMask{buildReg("DI")},
 				clobbers: buildReg("DI"),
 			},
-			faultOnNilArg0: true,
-			unsafePoint:    true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
+			//faultOnNilArg0: true, // Note: removed for 73748. TODO: reenable at some point
+			unsafePoint: true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
 		},
 
 		// arg0 = address of memory to zero
@@ -954,10 +954,10 @@ func init() {
 				inputs:   []regMask{buildReg("DI"), buildReg("SI")},
 				clobbers: buildReg("DI SI X0"), // uses X0 as a temporary
 			},
-			clobberFlags:   true,
-			faultOnNilArg0: true,
-			faultOnNilArg1: true,
-			unsafePoint:    true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
+			clobberFlags: true,
+			//faultOnNilArg0: true, // Note: removed for 73748. TODO: reenable at some point
+			//faultOnNilArg1: true,
+			unsafePoint: true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
 		},
 
 		// arg0 = destination pointer

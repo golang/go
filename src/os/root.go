@@ -352,8 +352,8 @@ func splitPathInRoot(s string, prefix, suffix []string) (_ []string, suffixSep s
 
 // FS returns a file system (an fs.FS) for the tree of files in the root.
 //
-// The result implements [io/fs.StatFS], [io/fs.ReadFileFS] and
-// [io/fs.ReadDirFS].
+// The result implements [io/fs.StatFS], [io/fs.ReadFileFS],
+// [io/fs.ReadDirFS], and [io/fs.ReadLinkFS].
 func (r *Root) FS() fs.FS {
 	return (*rootFS)(r)
 }
@@ -409,12 +409,28 @@ func (rfs *rootFS) ReadFile(name string) ([]byte, error) {
 	return readFileContents(statOrZero(f), f.Read)
 }
 
+func (rfs *rootFS) ReadLink(name string) (string, error) {
+	r := (*Root)(rfs)
+	if !isValidRootFSPath(name) {
+		return "", &PathError{Op: "readlink", Path: name, Err: ErrInvalid}
+	}
+	return r.Readlink(name)
+}
+
 func (rfs *rootFS) Stat(name string) (FileInfo, error) {
 	r := (*Root)(rfs)
 	if !isValidRootFSPath(name) {
 		return nil, &PathError{Op: "stat", Path: name, Err: ErrInvalid}
 	}
 	return r.Stat(name)
+}
+
+func (rfs *rootFS) Lstat(name string) (FileInfo, error) {
+	r := (*Root)(rfs)
+	if !isValidRootFSPath(name) {
+		return nil, &PathError{Op: "lstat", Path: name, Err: ErrInvalid}
+	}
+	return r.Lstat(name)
 }
 
 // isValidRootFSPath reports whether name is a valid filename to pass a Root.FS method.

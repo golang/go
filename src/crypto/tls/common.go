@@ -309,6 +309,10 @@ type ConnectionState struct {
 
 	// testingOnlyDidHRR is true if a HelloRetryRequest was sent/received.
 	testingOnlyDidHRR bool
+
+	// testingOnlyPeerSignatureAlgorithm is the signature algorithm used by the
+	// peer to sign the handshake. It is not set for resumed connections.
+	testingOnlyPeerSignatureAlgorithm SignatureScheme
 }
 
 // ExportKeyingMaterial returns length bytes of exported key material in a new
@@ -1684,35 +1688,62 @@ func unexpectedMessageError(wanted, got any) error {
 	return fmt.Errorf("tls: received unexpected handshake message of type %T when waiting for %T", got, wanted)
 }
 
+var testingOnlySupportedSignatureAlgorithms []SignatureScheme
+
 // supportedSignatureAlgorithms returns the supported signature algorithms for
 // the given minimum TLS version, to advertise in ClientHello and
 // CertificateRequest messages.
 func supportedSignatureAlgorithms(minVers uint16) []SignatureScheme {
 	sigAlgs := defaultSupportedSignatureAlgorithms()
-	if fips140tls.Required() {
-		sigAlgs = slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
-			return !slices.Contains(allowedSignatureAlgorithmsFIPS, s)
-		})
+	if testingOnlySupportedSignatureAlgorithms != nil {
+		sigAlgs = slices.Clone(testingOnlySupportedSignatureAlgorithms)
 	}
-	if minVers > VersionTLS12 {
-		sigAlgs = slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
-			sigType, sigHash, _ := typeAndHashFromSignatureScheme(s)
-			return sigType == signaturePKCS1v15 || sigHash == crypto.SHA1
-		})
+	return slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
+		return isDisabledSignatureAlgorithm(minVers, s, false)
+	})
+}
+
+var tlssha1 = godebug.New("tlssha1")
+
+func isDisabledSignatureAlgorithm(version uint16, s SignatureScheme, isCert bool) bool {
+	if fips140tls.Required() && !slices.Contains(allowedSignatureAlgorithmsFIPS, s) {
+		return true
 	}
-	return sigAlgs
+
+	// For the _cert extension we include all algorithms, including SHA-1 and
+	// PKCS#1 v1.5, because it's more likely that something on our side will be
+	// willing to accept a *-with-SHA1 certificate (e.g. with a custom
+	// VerifyConnection or by a direct match with the CertPool), than that the
+	// peer would have a better certificate but is just choosing not to send it.
+	// crypto/x509 will refuse to verify important SHA-1 signatures anyway.
+	if isCert {
+		return false
+	}
+
+	// TLS 1.3 removed support for PKCS#1 v1.5 and SHA-1 signatures,
+	// and Go 1.25 removed support for SHA-1 signatures in TLS 1.2.
+	if version > VersionTLS12 {
+		sigType, sigHash, _ := typeAndHashFromSignatureScheme(s)
+		if sigType == signaturePKCS1v15 || sigHash == crypto.SHA1 {
+			return true
+		}
+	} else if tlssha1.Value() != "1" {
+		_, sigHash, _ := typeAndHashFromSignatureScheme(s)
+		if sigHash == crypto.SHA1 {
+			return true
+		}
+	}
+
+	return false
 }
 
 // supportedSignatureAlgorithmsCert returns the supported algorithms for
 // signatures in certificates.
 func supportedSignatureAlgorithmsCert() []SignatureScheme {
-	sigAlgs := defaultSupportedSignatureAlgorithmsCert()
-	if fips140tls.Required() {
-		sigAlgs = slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
-			return !slices.Contains(allowedSignatureAlgorithmsFIPS, s)
-		})
-	}
-	return sigAlgs
+	sigAlgs := defaultSupportedSignatureAlgorithms()
+	return slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
+		return isDisabledSignatureAlgorithm(0, s, true)
+	})
 }
 
 func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlgorithms []SignatureScheme) bool {

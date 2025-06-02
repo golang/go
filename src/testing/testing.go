@@ -900,6 +900,7 @@ type TB interface {
 	Skipped() bool
 	TempDir() string
 	Context() context.Context
+	Output() io.Writer
 
 	// A private method to prevent users implementing the
 	// interface and so future additions to it will not
@@ -1045,7 +1046,7 @@ func (c *common) destination() *common {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if !c.done {
+	if !c.done && !c.isSynctest {
 		return c
 	}
 	for parent := c.parent; parent != nil; parent = parent.parent {
@@ -1851,7 +1852,8 @@ func tRunner(t *T, fn func(t *T)) {
 				t.Logf("cleanup panicked with %v", r)
 			}
 			// Flush the output log up to the root before dying.
-			for root := &t.common; root.parent != nil; root = root.parent {
+			// Skip this if this *T is a synctest bubble, because we're not a subtest.
+			for root := &t.common; !root.isSynctest && root.parent != nil; root = root.parent {
 				root.mu.Lock()
 				root.duration += highPrecisionTimeSince(root.start)
 				d := root.duration
@@ -2013,7 +2015,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
 // It is called by synctest.Test, from within an already-created bubble.
 //
 //go:linkname testingSynctestTest testing/synctest.testingSynctestTest
-func testingSynctestTest(t *T, f func(*T)) {
+func testingSynctestTest(t *T, f func(*T)) (ok bool) {
 	if t.cleanupStarted.Load() {
 		panic("testing: synctest.Run called during t.Cleanup")
 	}
@@ -2037,7 +2039,6 @@ func testingSynctestTest(t *T, f func(*T)) {
 		},
 		tstate: t.tstate,
 	}
-	t2.setOutputWriter()
 
 	go tRunner(t2, f)
 	if !<-t2.signal {
@@ -2045,6 +2046,7 @@ func testingSynctestTest(t *T, f func(*T)) {
 		// parent tests by one of the subtests. Continue aborting up the chain.
 		runtime.Goexit()
 	}
+	return !t2.failed
 }
 
 // Deadline reports the time at which the test binary will have

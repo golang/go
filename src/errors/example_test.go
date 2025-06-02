@@ -66,11 +66,13 @@ func ExampleJoin() {
 	if errors.Is(err, err2) {
 		fmt.Println("err is err2")
 	}
+	fmt.Println(err.(interface{ Unwrap() []error }).Unwrap())
 	// Output:
 	// err1
 	// err2
 	// err is err1
 	// err is err2
+	// [err1 err2]
 }
 
 func ExampleIs() {

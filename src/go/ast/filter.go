@@ -34,6 +34,9 @@ func FileExports(src *File) bool {
 //
 // PackageExports reports whether there are exported declarations;
 // it returns false otherwise.
+//
+// Deprecated: use the type checker [go/types] instead of [Package];
+// see [Object]. Alternatively, use [FileExports].
 func PackageExports(pkg *Package) bool {
 	return filterPackage(pkg, exportFilter, true)
 }
@@ -276,6 +279,9 @@ func filterFile(src *File, f Filter, export bool) bool {
 //
 // FilterPackage reports whether there are any top-level declarations
 // left after filtering.
+//
+// Deprecated: use the type checker [go/types] instead of [Package];
+// see [Object]. Alternatively, use [FilterFile].
 func FilterPackage(pkg *Package, f Filter) bool {
 	return filterPackage(pkg, f, false)
 }
@@ -294,8 +300,13 @@ func filterPackage(pkg *Package, f Filter, export bool) bool {
 // Merging of package files
 
 // The MergeMode flags control the behavior of [MergePackageFiles].
+//
+// Deprecated: use the type checker [go/types] instead of [Package];
+// see [Object].
 type MergeMode uint
 
+// Deprecated: use the type checker [go/types] instead of [Package];
+// see [Object].
 const (
 	// If set, duplicate function declarations are excluded.
 	FilterFuncDuplicates MergeMode = 1 << iota
@@ -332,6 +343,9 @@ var separator = &Comment{token.NoPos, "//"}
 
 // MergePackageFiles creates a file AST by merging the ASTs of the
 // files belonging to a package. The mode flags control merging behavior.
+//
+// Deprecated: this function is poorly specified and has unfixable
+// bugs; also [Package] is deprecated.
 func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 	// Count the number of package docs, comments and declarations across
 	// all package files. Also, compute sorted list of filenames, so that

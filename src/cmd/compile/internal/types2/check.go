@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"go/constant"
 	. "internal/types/errors"
+	"os"
 	"sync/atomic"
 )
 
@@ -419,7 +420,24 @@ func (check *Checker) handleBailout(err *error) {
 		// normal return or early exit
 		*err = check.firstErr
 	default:
-		// TODO(markfreeman): dump posStack if available
+		if len(check.posStack) > 0 {
+			doPrint := func(ps []syntax.Pos) {
+				for i := len(ps) - 1; i >= 0; i-- {
+					fmt.Fprintf(os.Stderr, "\t%v\n", ps[i])
+				}
+			}
+
+			fmt.Fprintln(os.Stderr, "The following panic happened checking types near:")
+			if len(check.posStack) <= 10 {
+				doPrint(check.posStack)
+			} else {
+				// if it's long, truncate the middle; it's least likely to help
+				doPrint(check.posStack[len(check.posStack)-5:])
+				fmt.Fprintln(os.Stderr, "\t...")
+				doPrint(check.posStack[:5])
+			}
+		}
+
 		// re-panic
 		panic(p)
 	}

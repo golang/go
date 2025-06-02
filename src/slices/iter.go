@@ -46,6 +46,7 @@ func Values[Slice ~[]E, E any](s Slice) iter.Seq[E] {
 
 // AppendSeq appends the values from seq to the slice and
 // returns the extended slice.
+// If seq is empty, the result preserves the nilness of s.
 func AppendSeq[Slice ~[]E, E any](s Slice, seq iter.Seq[E]) Slice {
 	for v := range seq {
 		s = append(s, v)
@@ -54,12 +55,14 @@ func AppendSeq[Slice ~[]E, E any](s Slice, seq iter.Seq[E]) Slice {
 }
 
 // Collect collects values from seq into a new slice and returns it.
+// If seq is empty, the result is nil.
 func Collect[E any](seq iter.Seq[E]) []E {
 	return AppendSeq([]E(nil), seq)
 }
 
 // Sorted collects values from seq into a new slice, sorts the slice,
 // and returns it.
+// If seq is empty, the result is nil.
 func Sorted[E cmp.Ordered](seq iter.Seq[E]) []E {
 	s := Collect(seq)
 	Sort(s)
@@ -68,6 +71,7 @@ func Sorted[E cmp.Ordered](seq iter.Seq[E]) []E {
 
 // SortedFunc collects values from seq into a new slice, sorts the slice
 // using the comparison function, and returns it.
+// If seq is empty, the result is nil.
 func SortedFunc[E any](seq iter.Seq[E], cmp func(E, E) int) []E {
 	s := Collect(seq)
 	SortFunc(s, cmp)
@@ -78,6 +82,7 @@ func SortedFunc[E any](seq iter.Seq[E], cmp func(E, E) int) []E {
 // It then sorts the slice while keeping the original order of equal elements,
 // using the comparison function to compare elements.
 // It returns the new slice.
+// If seq is empty, the result is nil.
 func SortedStableFunc[E any](seq iter.Seq[E], cmp func(E, E) int) []E {
 	s := Collect(seq)
 	SortStableFunc(s, cmp)

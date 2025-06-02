@@ -170,7 +170,7 @@ func TestFlightRecorderLog(t *testing.T) {
 	}
 }
 
-func TestFlightRecorderOneGeneration(t *testing.T) {
+func TestFlightRecorderGenerationCount(t *testing.T) {
 	test := func(t *testing.T, fr *trace.FlightRecorder) {
 		tr := testFlightRecorder(t, fr, func(snapshot func()) {
 			// Sleep to let a few generations pass.
@@ -184,7 +184,7 @@ func TestFlightRecorderOneGeneration(t *testing.T) {
 			t.Fatalf("unexpected error creating trace reader: %v", err)
 		}
 
-		// Make sure there are exactly two Sync events: at the start and end.
+		// Make sure there are Sync events: at the start and end.
 		var syncs []int
 		evs := 0
 		for {
@@ -200,13 +200,18 @@ func TestFlightRecorderOneGeneration(t *testing.T) {
 			}
 			evs++
 		}
-		if ends := []int{0, evs - 1}; !slices.Equal(syncs, ends) {
-			t.Errorf("expected two sync events (one at each end of the trace), found %d at %d instead of %d",
-				len(syncs), syncs[:min(len(syncs), 5)], ends)
+		const wantMaxSyncs = 3
+		if len(syncs) > wantMaxSyncs {
+			t.Errorf("expected at most %d sync events, found %d at %d",
+				wantMaxSyncs, len(syncs), syncs)
+		}
+		ends := []int{syncs[0], syncs[len(syncs)-1]}
+		if wantEnds := []int{0, evs - 1}; !slices.Equal(wantEnds, ends) {
+			t.Errorf("expected a sync event at each end of the trace, found sync events at %d instead of %d",
+				ends, wantEnds)
 		}
 	}
-	t.Run("SetMinAge", func(t *testing.T) {
-		t.Skip("issue 63185: flaky test")
+	t.Run("MinAge", func(t *testing.T) {
 		fr := trace.NewFlightRecorder(trace.FlightRecorderConfig{MinAge: time.Millisecond})
 		test(t, fr)
 	})

@@ -1,0 +1,111 @@
+pkg crypto, func SignMessage(Signer, io.Reader, []uint8, SignerOpts) ([]uint8, error) #63405
+pkg crypto, type MessageSigner interface { Public, Sign, SignMessage } #63405
+pkg crypto, type MessageSigner interface, Public() PublicKey #63405
+pkg crypto, type MessageSigner interface, Sign(io.Reader, []uint8, SignerOpts) ([]uint8, error) #63405
+pkg crypto, type MessageSigner interface, SignMessage(io.Reader, []uint8, SignerOpts) ([]uint8, error) #63405
+pkg crypto/ecdsa, func ParseRawPrivateKey(elliptic.Curve, []uint8) (*PrivateKey, error) #63963
+pkg crypto/ecdsa, func ParseUncompressedPublicKey(elliptic.Curve, []uint8) (*PublicKey, error) #63963
+pkg crypto/ecdsa, method (*PrivateKey) Bytes() ([]uint8, error) #63963
+pkg crypto/ecdsa, method (*PublicKey) Bytes() ([]uint8, error) #63963
+pkg crypto/sha3, method (*SHA3) Clone() (hash.Cloner, error) #69521
+pkg crypto/tls, type Config struct, GetEncryptedClientHelloKeys func(*ClientHelloInfo) ([]EncryptedClientHelloKey, error) #71920
+pkg crypto/tls, type ConnectionState struct, CurveID CurveID #67516
+pkg debug/elf, const PT_RISCV_ATTRIBUTES = 1879048195 #72843
+pkg debug/elf, const PT_RISCV_ATTRIBUTES ProgType #72843
+pkg debug/elf, const SHT_RISCV_ATTRIBUTES = 1879048195 #72843
+pkg debug/elf, const SHT_RISCV_ATTRIBUTES SectionType #72843
+pkg go/ast, const FilterFuncDuplicates //deprecated #73088
+pkg go/ast, const FilterImportDuplicates //deprecated #73088
+pkg go/ast, const FilterUnassociatedComments //deprecated #73088
+pkg go/ast, func FilterPackage //deprecated #73088
+pkg go/ast, func MergePackageFiles //deprecated #73088
+pkg go/ast, func PackageExports //deprecated #73088
+pkg go/ast, func PreorderStack(Node, []Node, func(Node, []Node) bool) #73319
+pkg go/ast, type MergeMode //deprecated #73088
+pkg go/parser, func ParseDir //deprecated #71122
+pkg go/token, method (*FileSet) AddExistingFiles(...*File) #73205
+pkg go/types, const FieldVar = 6 #70250
+pkg go/types, const FieldVar VarKind #70250
+pkg go/types, const LocalVar = 2 #70250
+pkg go/types, const LocalVar VarKind #70250
+pkg go/types, const PackageVar = 1 #70250
+pkg go/types, const PackageVar VarKind #70250
+pkg go/types, const ParamVar = 4 #70250
+pkg go/types, const ParamVar VarKind #70250
+pkg go/types, const RecvVar = 3 #70250
+pkg go/types, const RecvVar VarKind #70250
+pkg go/types, const ResultVar = 5 #70250
+pkg go/types, const ResultVar VarKind #70250
+pkg go/types, func LookupSelection(Type, bool, *Package, string) (Selection, bool) #70737
+pkg go/types, method (*Var) Kind() VarKind #70250
+pkg go/types, method (*Var) SetKind(VarKind) #70250
+pkg go/types, method (VarKind) String() string #70250
+pkg go/types, type VarKind uint8 #70250
+pkg hash, type Cloner interface { BlockSize, Clone, Reset, Size, Sum, Write } #69521
+pkg hash, type Cloner interface, BlockSize() int #69521
+pkg hash, type Cloner interface, Clone() (Cloner, error) #69521
+pkg hash, type Cloner interface, Reset() #69521
+pkg hash, type Cloner interface, Size() int #69521
+pkg hash, type Cloner interface, Sum([]uint8) []uint8 #69521
+pkg hash, type Cloner interface, Write([]uint8) (int, error) #69521
+pkg hash, type XOF interface { BlockSize, Read, Reset, Write } #69518
+pkg hash, type XOF interface, BlockSize() int #69518
+pkg hash, type XOF interface, Read([]uint8) (int, error) #69518
+pkg hash, type XOF interface, Reset() #69518
+pkg hash, type XOF interface, Write([]uint8) (int, error) #69518
+pkg hash/maphash, method (*Hash) Clone() (hash.Cloner, error) #69521
+pkg io/fs, func Lstat(FS, string) (FileInfo, error) #49580
+pkg io/fs, func ReadLink(FS, string) (string, error) #49580
+pkg io/fs, type ReadLinkFS interface { Lstat, Open, ReadLink } #49580
+pkg io/fs, type ReadLinkFS interface, Lstat(string) (FileInfo, error) #49580
+pkg io/fs, type ReadLinkFS interface, Open(string) (File, error) #49580
+pkg io/fs, type ReadLinkFS interface, ReadLink(string) (string, error) #49580
+pkg log/slog, func GroupAttrs(string, ...Attr) Attr #66365
+pkg log/slog, method (Record) Source() *Source #70280
+pkg mime/multipart, func FileContentDisposition(string, string) string #46771
+pkg net/http, func NewCrossOriginProtection() *CrossOriginProtection #73626
+pkg net/http, method (*CrossOriginProtection) AddInsecureBypassPattern(string) #73626
+pkg net/http, method (*CrossOriginProtection) AddTrustedOrigin(string) error #73626
+pkg net/http, method (*CrossOriginProtection) Check(*Request) error #73626
+pkg net/http, method (*CrossOriginProtection) Handler(Handler) Handler #73626
+pkg net/http, method (*CrossOriginProtection) SetDenyHandler(Handler) #73626
+pkg net/http, type CrossOriginProtection struct #73626
+pkg os, method (*Root) Chmod(string, fs.FileMode) error #67002
+pkg os, method (*Root) Chown(string, int, int) error #67002
+pkg os, method (*Root) Chtimes(string, time.Time, time.Time) error #67002
+pkg os, method (*Root) Lchown(string, int, int) error #67002
+pkg os, method (*Root) Link(string, string) error #67002
+pkg os, method (*Root) MkdirAll(string, fs.FileMode) error #67002
+pkg os, method (*Root) ReadFile(string) ([]uint8, error) #73126
+pkg os, method (*Root) Readlink(string) (string, error) #67002
+pkg os, method (*Root) RemoveAll(string) error #67002
+pkg os, method (*Root) Rename(string, string) error #67002
+pkg os, method (*Root) Symlink(string, string) error #67002
+pkg os, method (*Root) WriteFile(string, []uint8, fs.FileMode) error #73126
+pkg reflect, func TypeAssert[$0 interface{}](Value) ($0, bool) #62121
+pkg runtime, func SetDefaultGOMAXPROCS() #73193
+pkg runtime/trace, func NewFlightRecorder(FlightRecorderConfig) *FlightRecorder #63185
+pkg runtime/trace, method (*FlightRecorder) Enabled() bool #63185
+pkg runtime/trace, method (*FlightRecorder) Start() error #63185
+pkg runtime/trace, method (*FlightRecorder) Stop() #63185
+pkg runtime/trace, method (*FlightRecorder) WriteTo(io.Writer) (int64, error) #63185
+pkg runtime/trace, type FlightRecorder struct #63185
+pkg runtime/trace, type FlightRecorderConfig struct #63185
+pkg runtime/trace, type FlightRecorderConfig struct, MaxBytes uint64 #63185
+pkg runtime/trace, type FlightRecorderConfig struct, MinAge time.Duration #63185
+pkg sync, method (*WaitGroup) Go(func()) #63796
+pkg testing, method (*B) Attr(string, string) #43936
+pkg testing, method (*B) Output() io.Writer #59928
+pkg testing, method (*F) Attr(string, string) #43936
+pkg testing, method (*F) Output() io.Writer #59928
+pkg testing, method (*T) Attr(string, string) #43936
+pkg testing, method (*T) Output() io.Writer #59928
+pkg testing, type TB interface, Attr(string, string) #43936
+pkg testing, type TB interface, Output() io.Writer #59928
+pkg testing/fstest, method (MapFS) Lstat(string) (fs.FileInfo, error) #49580
+pkg testing/fstest, method (MapFS) ReadLink(string) (string, error) #49580
+pkg testing/synctest, func Test(*testing.T, func(*testing.T)) #67434
+pkg testing/synctest, func Wait() #67434
+pkg unicode, var CategoryAliases map[string]string #70780
+pkg unicode, var Cn *RangeTable #70780
+pkg unicode, var LC *RangeTable #70780

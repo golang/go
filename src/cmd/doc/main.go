@@ -258,19 +258,22 @@ func doPkgsite(urlPath string) error {
 	// exit before exiting ourselves.
 	signal.Ignore(signalsToIgnore...)
 
-	const version = "v0.0.0-20250520201116-40659211760d"
-	docatversion := "golang.org/x/pkgsite/cmd/internal/doc@" + version
-	// First download the module and then try to run with GOPROXY=off to circumvent
-	// the deprecation check. This will allow the pkgsite command to run if it's
-	// in the module cache but there's no network.
-	if _, err := runCmd(nil, "go", "mod", "download", docatversion); err != nil {
-		return err
+	// Prepend the local download cache to GOPROXY to get around deprecation checks.
+	env := os.Environ()
+	vars, err := runCmd(nil, "go", "env", "GOPROXY", "GOMODCACHE")
+	fields := strings.Fields(vars)
+	if err == nil && len(fields) == 2 {
+		goproxy, gomodcache := fields[0], fields[1]
+		goproxy = "file://" + filepath.Join(gomodcache, "cache", "download") + "," + goproxy
+		env = append(env, "GOPROXY="+goproxy)
 	}
-	cmd := exec.Command("go", "run", docatversion,
+
+	const version = "v0.0.0-20250520201116-40659211760d"
+	cmd := exec.Command("go", "run", "golang.org/x/pkgsite/cmd/internal/doc@"+version,
 		"-gorepo", buildCtx.GOROOT,
 		"-http", addr,
 		"-open", path)
-	cmd.Env = append(os.Environ(), "GOPROXY=off")
+	cmd.Env = env
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 

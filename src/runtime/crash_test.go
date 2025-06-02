@@ -1228,3 +1228,20 @@ func TestFinalizerOrCleanupDeadlock(t *testing.T) {
 		})
 	}
 }
+
+func TestSynctestCondSignalFromNoBubble(t *testing.T) {
+	for _, test := range []string{
+		"SynctestCond/signal/no_bubble",
+		"SynctestCond/broadcast/no_bubble",
+		"SynctestCond/signal/other_bubble",
+		"SynctestCond/broadcast/other_bubble",
+	} {
+		t.Run(test, func(t *testing.T) {
+			output := runTestProg(t, "testprog", test)
+			want := "fatal error: semaphore wake of synctest goroutine from outside bubble"
+			if !strings.Contains(output, want) {
+				t.Fatalf("output:\n%s\n\nwant output containing: %s", output, want)
+			}
+		})
+	}
+}

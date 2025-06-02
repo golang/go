@@ -8,7 +8,7 @@
 package synctest
 
 import (
-	_ "unsafe" // for go:linkname
+	"unsafe"
 )
 
 //go:linkname Run
@@ -16,6 +16,36 @@ func Run(f func())
 
 //go:linkname Wait
 func Wait()
+
+// IsInBubble reports whether the current goroutine is in a bubble.
+//
+//go:linkname IsInBubble
+func IsInBubble() bool
+
+// Associate associates p with the current bubble.
+// It returns false if p has an existing association with a different bubble.
+func Associate[T any](p *T) (ok bool) {
+	return associate(unsafe.Pointer(p))
+}
+
+//go:linkname associate
+func associate(p unsafe.Pointer) bool
+
+// Disassociate disassociates p from any bubble.
+func Disassociate[T any](p *T) {
+	disassociate(unsafe.Pointer(p))
+}
+
+//go:linkname disassociate
+func disassociate(b unsafe.Pointer)
+
+// IsAssociated reports whether p is associated with the current bubble.
+func IsAssociated[T any](p *T) bool {
+	return isAssociated(unsafe.Pointer(p))
+}
+
+//go:linkname isAssociated
+func isAssociated(p unsafe.Pointer) bool
 
 //go:linkname acquire
 func acquire() any

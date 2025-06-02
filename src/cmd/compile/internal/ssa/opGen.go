@@ -13910,11 +13910,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "DUFFZERO",
-		auxType:        auxInt64,
-		argLen:         2,
-		faultOnNilArg0: true,
-		unsafePoint:    true,
+		name:        "DUFFZERO",
+		auxType:     auxInt64,
+		argLen:      2,
+		unsafePoint: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128}, // DI
@@ -13984,13 +13983,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "DUFFCOPY",
-		auxType:        auxInt64,
-		argLen:         3,
-		clobberFlags:   true,
-		faultOnNilArg0: true,
-		faultOnNilArg1: true,
-		unsafePoint:    true,
+		name:         "DUFFCOPY",
+		auxType:      auxInt64,
+		argLen:       3,
+		clobberFlags: true,
+		unsafePoint:  true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128}, // DI
@@ -23522,11 +23519,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "DUFFZERO",
-		auxType:        auxInt64,
-		argLen:         2,
-		faultOnNilArg0: true,
-		unsafePoint:    true,
+		name:        "DUFFZERO",
+		auxType:     auxInt64,
+		argLen:      2,
+		unsafePoint: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 524288}, // R20
@@ -23548,12 +23544,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "DUFFCOPY",
-		auxType:        auxInt64,
-		argLen:         3,
-		faultOnNilArg0: true,
-		faultOnNilArg1: true,
-		unsafePoint:    true,
+		name:        "DUFFCOPY",
+		auxType:     auxInt64,
+		argLen:      3,
+		unsafePoint: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1048576}, // R21

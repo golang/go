@@ -105,6 +105,7 @@ var depsRules = `
 	< sync/atomic
 	< internal/sync
 	< weak
+	< internal/synctest
 	< sync
 	< internal/bisect
 	< internal/godebug
@@ -137,9 +138,6 @@ var depsRules = `
 	< path;
 
 	unicode !< path;
-
-	RUNTIME
-	< internal/synctest;
 
 	# SYSCALL is RUNTIME plus the packages necessary for basic system calls.
 	RUNTIME, unicode/utf8, unicode/utf16, internal/synctest
