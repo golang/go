@@ -390,8 +390,9 @@ func (t *tree) deleteSwap(pos **node) {
 	t.rebalanceUp(unbalanced)
 }
 
-// deleteMin updates *zpos to the minimum (leftmost) element
-// in that subtree.
+// deleteMin updates the subtree rooted at *zpos to delete its minimum
+// (leftmost) element, which may be *zpos itself. It returns the
+// deleted node.
 func (t *tree) deleteMin(zpos **node) (z *node) {
 	for (*zpos).left != nil {
 		zpos = &(*zpos).left
