@@ -889,15 +889,30 @@ func init() {
 		// auxint = # of bytes to zero
 		// returns mem
 		{
-			name:      "DUFFZERO",
+			name:      "LoweredZero",
 			aux:       "Int64",
 			argLength: 2,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("DI")},
-				clobbers: buildReg("DI"),
+				inputs: []regMask{gp},
 			},
-			//faultOnNilArg0: true, // Note: removed for 73748. TODO: reenable at some point
-			unsafePoint: true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
+			faultOnNilArg0: true,
+		},
+
+		// arg0 = pointer to start of memory to zero
+		// arg1 = mem
+		// auxint = # of bytes to zero
+		// returns mem
+		{
+			name:      "LoweredZeroLoop",
+			aux:       "Int64",
+			argLength: 2,
+			reg: regInfo{
+				inputs:       []regMask{gp},
+				clobbersArg0: true,
+			},
+			clobberFlags:   true,
+			faultOnNilArg0: true,
+			needIntTemp:    true,
 		},
 
 		// arg0 = address of memory to zero

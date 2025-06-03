@@ -1007,26 +1007,103 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssagen.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpAMD64DUFFZERO:
+
+	case ssa.OpAMD64LoweredZero:
 		if s.ABI != obj.ABIInternal {
 			// zero X15 manually
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
 		}
-		off := duffStart(v.AuxInt)
-		adj := duffAdj(v.AuxInt)
-		var p *obj.Prog
-		if adj != 0 {
-			p = s.Prog(x86.ALEAQ)
-			p.From.Type = obj.TYPE_MEM
-			p.From.Offset = adj
-			p.From.Reg = x86.REG_DI
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = x86.REG_DI
+		ptrReg := v.Args[0].Reg()
+		n := v.AuxInt
+		if n < 16 {
+			v.Fatalf("Zero too small %d", n)
 		}
-		p = s.Prog(obj.ADUFFZERO)
-		p.To.Type = obj.TYPE_ADDR
-		p.To.Sym = ir.Syms.Duffzero
-		p.To.Offset = off
+		zero16 := func(off int64) {
+			zero16(s, ptrReg, off)
+		}
+
+		// Generate zeroing instructions.
+		var off int64
+		for n >= 16 {
+			zero16(off)
+			off += 16
+			n -= 16
+		}
+		if n != 0 {
+			// use partially overlapped write.
+			// TODO: n <= 8, use smaller write?
+			zero16(off + n - 16)
+		}
+
+	case ssa.OpAMD64LoweredZeroLoop:
+		if s.ABI != obj.ABIInternal {
+			// zero X15 manually
+			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+		}
+		ptrReg := v.Args[0].Reg()
+		countReg := v.RegTmp()
+		n := v.AuxInt
+		loopSize := int64(64)
+		if n < 3*loopSize {
+			// - a loop count of 0 won't work.
+			// - a loop count of 1 is useless.
+			// - a loop count of 2 is a code size ~tie
+			//     4 instructions to implement the loop
+			//     4 instructions in the loop body
+			//   vs
+			//     8 instructions in the straightline code
+			//   Might as well use straightline code.
+			v.Fatalf("ZeroLoop size too small %d", n)
+		}
+		zero16 := func(off int64) {
+			zero16(s, ptrReg, off)
+		}
+
+		// Put iteration count in a register.
+		//   MOVL    $n, countReg
+		p := s.Prog(x86.AMOVL)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = n / loopSize
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = countReg
+		cntInit := p
+
+		// Zero loopSize bytes starting at ptrReg.
+		for i := range loopSize / 16 {
+			zero16(i * 16)
+		}
+		//   ADDQ    $loopSize, ptrReg
+		p = s.Prog(x86.AADDQ)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = loopSize
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = ptrReg
+		//   DECL    countReg
+		p = s.Prog(x86.ADECL)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = countReg
+		// Jump to first instruction in loop if we're not done yet.
+		//   JNE     head
+		p = s.Prog(x86.AJNE)
+		p.To.Type = obj.TYPE_BRANCH
+		p.To.SetTarget(cntInit.Link)
+
+		// Multiples of the loop size are now done.
+		n %= loopSize
+
+		// Write any fractional portion.
+		var off int64
+		for n >= 16 {
+			zero16(off)
+			off += 16
+			n -= 16
+		}
+		if n != 0 {
+			// Use partially-overlapping write.
+			// TODO: n <= 8, use smaller write?
+			zero16(off + n - 16)
+		}
+
 	case ssa.OpAMD64DUFFCOPY:
 		p := s.Prog(obj.ADUFFCOPY)
 		p.To.Type = obj.TYPE_ADDR
@@ -1620,4 +1697,15 @@ func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg in
 	p.To.Sym = n.Linksym()
 	p.Pos = p.Pos.WithNotStmt()
 	return p
+}
+
+// zero 16 bytes at reg+off.
+func zero16(s *ssagen.State, reg int16, off int64) {
+	//   MOVUPS  X15, off(ptrReg)
+	p := s.Prog(x86.AMOVUPS)
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = x86.REG_X15
+	p.To.Type = obj.TYPE_MEM
+	p.To.Reg = reg
+	p.To.Offset = off
 }

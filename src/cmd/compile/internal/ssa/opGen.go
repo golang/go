@@ -1051,7 +1051,8 @@ const (
 	OpAMD64MOVLstoreconstidx4
 	OpAMD64MOVQstoreconstidx1
 	OpAMD64MOVQstoreconstidx8
-	OpAMD64DUFFZERO
+	OpAMD64LoweredZero
+	OpAMD64LoweredZeroLoop
 	OpAMD64REPSTOSQ
 	OpAMD64CALLstatic
 	OpAMD64CALLtail
@@ -13873,15 +13874,28 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "DUFFZERO",
-		auxType:     auxInt64,
-		argLen:      2,
-		unsafePoint: true,
+		name:           "LoweredZero",
+		auxType:        auxInt64,
+		argLen:         2,
+		faultOnNilArg0: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 128}, // DI
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
-			clobbers: 128, // DI
+		},
+	},
+	{
+		name:           "LoweredZeroLoop",
+		auxType:        auxInt64,
+		argLen:         2,
+		clobberFlags:   true,
+		needIntTemp:    true,
+		faultOnNilArg0: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			clobbersArg0: true,
 		},
 	},
 	{
