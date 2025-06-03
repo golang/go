@@ -1921,7 +1921,7 @@ func (s *state) stmt(n ir.Node) {
 
 	case ir.OTAILCALL:
 		n := n.(*ir.TailCallStmt)
-		s.callResult(n.Call.(*ir.CallExpr), callTail)
+		s.callResult(n.Call, callTail)
 		call := s.mem()
 		b := s.endBlock()
 		b.Kind = ssa.BlockRetJmp // could use BlockExit. BlockRetJmp is mostly for clarity.

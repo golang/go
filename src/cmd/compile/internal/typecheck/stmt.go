@@ -137,7 +137,7 @@ assignOK:
 	if cr > len(rhs) {
 		stmt := stmt.(*ir.AssignListStmt)
 		stmt.SetOp(ir.OAS2FUNC)
-		r := rhs[0]
+		r := rhs[0].(*ir.CallExpr)
 		rtyp := r.Type()
 
 		mismatched := false
