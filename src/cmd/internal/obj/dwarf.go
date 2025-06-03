@@ -419,12 +419,12 @@ func (ctxt *Link) DwarfIntConst(name, typename string, val int64) {
 
 // DwarfStringConst creates a link symbol for a string constant with the
 // given name and value.
-func (ctxt *Link) DwarfStringConst(name, value string) {
+func (ctxt *Link) DwarfStringConst(name, typename, value string) {
 	s := ctxt.ensureConstInfoSym()
 	if s == nil {
 		return
 	}
-	typSym := ctxt.Lookup(dwarf.InfoPrefix + dwarf.ConstStringInfoPrefix + strconv.Itoa(len(value)))
+	typSym := ctxt.Lookup(dwarf.InfoPrefix + dwarf.ConstStringInfoPrefix + typename + "." + strconv.Itoa(len(value)))
 	dwarf.PutStringConst(dwCtxt{ctxt}, s, typSym, ctxt.Pkgpath+"."+name, value)
 }
 

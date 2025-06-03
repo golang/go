@@ -1188,12 +1188,16 @@ func (d *dwctxt) genConstStringType(name string) {
 	if d.find(name) != 0 {
 		return
 	}
-	size, err := strconv.Atoi(name[len(dwarf.ConstStringInfoPrefix):])
+	i := strings.LastIndex(name, ".")
+	if i < 0 {
+		log.Fatalf("error: invalid constant string type name %q", name)
+	}
+	size, err := strconv.ParseInt(name[i+1:], 10, 64)
 	if err != nil {
-		log.Fatalf("error: invalid constant string size %q: %v", name, err)
+		log.Fatalf("error: invalid constant string type name %q: %v", name, err)
 	}
 	die := d.newdie(&dwtypes, dwarf.DW_ABRV_CONSTANT_STRINGTYPE, name)
-	newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(size), 0)
+	newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, size, 0)
 }
 
 func (d *dwctxt) importInfoSymbol(dsym loader.Sym) {

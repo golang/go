@@ -199,7 +199,7 @@ func dumpGlobalConst(n *ir.Name) {
 	if t.IsInteger() {
 		base.Ctxt.DwarfIntConst(n.Sym().Name, types.TypeSymName(t), ir.IntVal(t, v))
 	} else if t.IsString() {
-		base.Ctxt.DwarfStringConst(n.Sym().Name, ir.StringVal(n))
+		base.Ctxt.DwarfStringConst(n.Sym().Name, types.TypeSymName(t), ir.StringVal(n))
 	}
 }
 

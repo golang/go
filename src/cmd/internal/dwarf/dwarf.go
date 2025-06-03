@@ -28,8 +28,8 @@ const InfoPrefix = "go:info."
 const ConstInfoPrefix = "go:constinfo."
 
 // ConstStringInfoPrefix is the prefix for all symbols containing
-// DWARF info entries that referred by string constants.
-const ConstStringInfoPrefix = "string$const."
+// DWARF info entries that are referred by string constants.
+const ConstStringInfoPrefix = "$const."
 
 // CUInfoPrefix is the prefix for symbols containing information to
 // populate the DWARF compilation unit info entries.
