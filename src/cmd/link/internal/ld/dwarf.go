@@ -286,11 +286,14 @@ func (d *dwctxt) newdie(parent *dwarf.DWDie, abbrev int, name string) *dwarf.DWD
 	die.Link = parent.Child
 	parent.Child = die
 
-	newattr(die, dwarf.DW_AT_name, dwarf.DW_CLS_STRING, int64(len(name)), name)
-
 	// Sanity check: all DIEs created in the linker should be named.
 	if name == "" {
 		panic("nameless DWARF DIE")
+	}
+
+	// for constant string types, we emit the nams later since it didn't use symbol name as DW_AT_name
+	if abbrev != dwarf.DW_ABRV_CONSTANT_STRINGTYPE {
+		newattr(die, dwarf.DW_AT_name, dwarf.DW_CLS_STRING, int64(len(name)), name)
 	}
 
 	var st sym.SymKind
@@ -1196,7 +1199,9 @@ func (d *dwctxt) genConstStringType(name string) {
 	if err != nil {
 		log.Fatalf("error: invalid constant string type name %q: %v", name, err)
 	}
+	atname := name[len(dwarf.ConstStringInfoPrefix):i]
 	die := d.newdie(&dwtypes, dwarf.DW_ABRV_CONSTANT_STRINGTYPE, name)
+	newattr(die, dwarf.DW_AT_name, dwarf.DW_CLS_STRING, int64(len(atname)), atname)
 	newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, size, 0)
 }
 
