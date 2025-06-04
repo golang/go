@@ -31,6 +31,7 @@ const (
 	removeDeadValues                 = true
 
 	repZeroThreshold = 1408 // size beyond which we use REP STOS for zeroing
+	repMoveThreshold = 1408 // size beyond which we use REP MOVS for copying
 )
 
 // deadcode indicates whether rewrite should try to remove any values that become dead.
