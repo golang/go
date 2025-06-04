@@ -409,12 +409,6 @@ type factsTable struct {
 	limits       []limit     // indexed by value ID
 	limitStack   []limitFact // previous entries
 	recurseCheck []bool      // recursion detector for limit propagation
-
-	// For each slice s, a map from s to a len(s)/cap(s) value (if any)
-	// TODO: check if there are cases that matter where we have
-	// more than one len(s) for a slice. We could keep a list if necessary.
-	lens map[ID]*Value
-	caps map[ID]*Value
 }
 
 // checkpointBound is an invalid value used for checkpointing
@@ -666,6 +660,11 @@ func (ft *factsTable) newLimit(v *Value, newLim limit) bool {
 			}
 			if !isTrue {
 				r ^= lt | gt | eq
+			} else if d == unsigned && (r == lt || r == lt|eq) && ft.isNonNegative(v.Args[1]) {
+				// Since every representation of a non-negative signed number is the same
+				// as in the unsigned domain, we can transfer x <= y to the signed domain,
+				// but only for the true branch.
+				d |= signed
 			}
 			// TODO: v.Block is wrong?
 			addRestrictions(v.Block, ft, d, v.Args[0], v.Args[1], r)
@@ -730,7 +729,7 @@ func (ft *factsTable) addOrdering(v, w *Value, d domain, r relation) {
 // restricting it to r.
 func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 	if parent.Func.pass.debug > 2 {
-		parent.Func.Warnl(parent.Pos, "parent=%s, update %s %s %s", parent, v, w, r)
+		parent.Func.Warnl(parent.Pos, "parent=%s, update %s %s %s %s", parent, d, v, w, r)
 	}
 	// No need to do anything else if we already found unsat.
 	if ft.unsat {
@@ -940,32 +939,6 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 	// Derived facts below here are only about numbers.
 	if d != signed && d != unsigned {
 		return
-	}
-
-	// Additional facts we know given the relationship between len and cap.
-	//
-	// TODO: Since prove now derives transitive relations, it
-	// should be sufficient to learn that len(w) <= cap(w) at the
-	// beginning of prove where we look for all len/cap ops.
-	if v.Op == OpSliceLen && r&lt == 0 && ft.caps[v.Args[0].ID] != nil {
-		// len(s) > w implies cap(s) > w
-		// len(s) >= w implies cap(s) >= w
-		// len(s) == w implies cap(s) >= w
-		ft.update(parent, ft.caps[v.Args[0].ID], w, d, r|gt)
-	}
-	if w.Op == OpSliceLen && r&gt == 0 && ft.caps[w.Args[0].ID] != nil {
-		// same, length on the RHS.
-		ft.update(parent, v, ft.caps[w.Args[0].ID], d, r|lt)
-	}
-	if v.Op == OpSliceCap && r&gt == 0 && ft.lens[v.Args[0].ID] != nil {
-		// cap(s) < w implies len(s) < w
-		// cap(s) <= w implies len(s) <= w
-		// cap(s) == w implies len(s) <= w
-		ft.update(parent, ft.lens[v.Args[0].ID], w, d, r|lt)
-	}
-	if w.Op == OpSliceCap && r&lt == 0 && ft.lens[w.Args[0].ID] != nil {
-		// same, capacity on the RHS.
-		ft.update(parent, v, ft.lens[w.Args[0].ID], d, r|gt)
 	}
 
 	// Process fence-post implications.
@@ -1421,6 +1394,8 @@ func prove(f *Func) {
 	ft := newFactsTable(f)
 	ft.checkpoint()
 
+	var lens map[ID]*Value
+	var caps map[ID]*Value
 	// Find length and capacity ops.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
@@ -1431,26 +1406,39 @@ func prove(f *Func) {
 			}
 			switch v.Op {
 			case OpSliceLen:
-				if ft.lens == nil {
-					ft.lens = map[ID]*Value{}
+				if lens == nil {
+					lens = map[ID]*Value{}
 				}
 				// Set all len Values for the same slice as equal in the poset.
 				// The poset handles transitive relations, so Values related to
 				// any OpSliceLen for this slice will be correctly related to others.
-				if l, ok := ft.lens[v.Args[0].ID]; ok {
+				//
+				// Since we know that lens/caps are non-negative, their relation
+				// can be added in both the signed and unsigned domain.
+				if l, ok := lens[v.Args[0].ID]; ok {
 					ft.update(b, v, l, signed, eq)
+					ft.update(b, v, l, unsigned, eq)
 				} else {
-					ft.lens[v.Args[0].ID] = v
+					lens[v.Args[0].ID] = v
+				}
+				if c, ok := caps[v.Args[0].ID]; ok {
+					ft.update(b, v, c, signed, lt|eq)
+					ft.update(b, v, c, unsigned, lt|eq)
 				}
 			case OpSliceCap:
-				if ft.caps == nil {
-					ft.caps = map[ID]*Value{}
+				if caps == nil {
+					caps = map[ID]*Value{}
 				}
 				// Same as case OpSliceLen above, but for slice cap.
-				if c, ok := ft.caps[v.Args[0].ID]; ok {
+				if c, ok := caps[v.Args[0].ID]; ok {
 					ft.update(b, v, c, signed, eq)
+					ft.update(b, v, c, unsigned, eq)
 				} else {
-					ft.caps[v.Args[0].ID] = v
+					caps[v.Args[0].ID] = v
+				}
+				if l, ok := lens[v.Args[0].ID]; ok {
+					ft.update(b, v, l, signed, gt|eq)
+					ft.update(b, v, l, unsigned, gt|eq)
 				}
 			}
 		}
@@ -2260,6 +2248,9 @@ func addLocalFacts(ft *factsTable, b *Block) {
 			OpRsh32Ux64, OpRsh32Ux32, OpRsh32Ux16, OpRsh32Ux8,
 			OpRsh64Ux64, OpRsh64Ux32, OpRsh64Ux16, OpRsh64Ux8:
 			ft.update(b, v, v.Args[0], unsigned, lt|eq)
+			if ft.isNonNegative(v.Args[0]) {
+				ft.update(b, v, v.Args[0], signed, lt|eq)
+			}
 		case OpMod64u, OpMod32u, OpMod16u, OpMod8u:
 			ft.update(b, v, v.Args[0], unsigned, lt|eq)
 			// Note: we have to be careful that this doesn't imply
