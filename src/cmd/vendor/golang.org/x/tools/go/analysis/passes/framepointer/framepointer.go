@@ -28,9 +28,9 @@ var Analyzer = &analysis.Analyzer{
 // Per-architecture checks for instructions.
 // Assume comments, leading and trailing spaces are removed.
 type arch struct {
-	isFPWrite func(string) bool
-	isFPRead  func(string) bool
-	isBranch  func(string) bool
+	isFPWrite             func(string) bool
+	isFPRead              func(string) bool
+	isUnconditionalBranch func(string) bool
 }
 
 var re = regexp.MustCompile
@@ -48,8 +48,8 @@ var arches = map[string]arch{
 	"amd64": {
 		isFPWrite: re(`,\s*BP$`).MatchString, // TODO: can have false positive, e.g. for TESTQ BP,BP. Seems unlikely.
 		isFPRead:  re(`\bBP\b`).MatchString,
-		isBranch: func(s string) bool {
-			return hasAnyPrefix(s, "J", "RET")
+		isUnconditionalBranch: func(s string) bool {
+			return hasAnyPrefix(s, "JMP", "RET")
 		},
 	},
 	"arm64": {
@@ -70,47 +70,14 @@ var arches = map[string]arch{
 			return false
 		},
 		isFPRead: re(`\bR29\b`).MatchString,
-		isBranch: func(s string) bool {
+		isUnconditionalBranch: func(s string) bool {
 			// Get just the instruction
 			if i := strings.IndexFunc(s, unicode.IsSpace); i > 0 {
 				s = s[:i]
 			}
-			return arm64Branch[s]
+			return s == "B" || s == "JMP" || s == "RET"
 		},
 	},
-}
-
-// arm64 has many control flow instructions.
-// ^(B|RET) isn't sufficient or correct (e.g. BIC, BFI aren't control flow.)
-// It's easier to explicitly enumerate them in a map than to write a regex.
-// Borrowed from Go tree, cmd/asm/internal/arch/arm64.go
-var arm64Branch = map[string]bool{
-	"B":     true,
-	"BL":    true,
-	"BEQ":   true,
-	"BNE":   true,
-	"BCS":   true,
-	"BHS":   true,
-	"BCC":   true,
-	"BLO":   true,
-	"BMI":   true,
-	"BPL":   true,
-	"BVS":   true,
-	"BVC":   true,
-	"BHI":   true,
-	"BLS":   true,
-	"BGE":   true,
-	"BLT":   true,
-	"BGT":   true,
-	"BLE":   true,
-	"CBZ":   true,
-	"CBZW":  true,
-	"CBNZ":  true,
-	"CBNZW": true,
-	"JMP":   true,
-	"TBNZ":  true,
-	"TBZ":   true,
-	"RET":   true,
 }
 
 func run(pass *analysis.Pass) (any, error) {
@@ -164,7 +131,7 @@ func run(pass *analysis.Pass) (any, error) {
 				active = false
 				continue
 			}
-			if arch.isFPRead(line) || arch.isBranch(line) {
+			if arch.isFPRead(line) || arch.isUnconditionalBranch(line) {
 				active = false
 				continue
 			}

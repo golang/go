@@ -22,7 +22,6 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/inspector"
-	"golang.org/x/tools/internal/astutil/cursor"
 	"golang.org/x/tools/internal/typesinternal"
 )
 
@@ -526,7 +525,7 @@ func CanImport(from, to string) bool {
 func DeleteStmt(fset *token.FileSet, astFile *ast.File, stmt ast.Stmt, report func(string, ...any)) []analysis.TextEdit {
 	// TODO: pass in the cursor to a ast.Stmt. callers should provide the Cursor
 	insp := inspector.New([]*ast.File{astFile})
-	root := cursor.Root(insp)
+	root := insp.Root()
 	cstmt, ok := root.FindNode(stmt)
 	if !ok {
 		report("%s not found in file", stmt.Pos())
@@ -620,8 +619,8 @@ Outer:
 	// otherwise remove the line
 	edit := analysis.TextEdit{Pos: stmt.Pos(), End: stmt.End()}
 	if from.IsValid() || to.IsValid() {
-		// remove just the statment.
-		// we can't tell if there is a ; or whitespace right after the statment
+		// remove just the statement.
+		// we can't tell if there is a ; or whitespace right after the statement
 		// ideally we'd like to remove the former and leave the latter
 		// (if gofmt has run, there likely won't be a ;)
 		// In type switches we know there's a semicolon somewhere after the statement,
@@ -671,3 +670,14 @@ func IsStdPackage(path string) bool {
 	}
 	return !strings.Contains(path[:slash], ".") && path != "testdata"
 }
+
+// Range returns an [analysis.Range] for the specified start and end positions.
+func Range(pos, end token.Pos) analysis.Range {
+	return tokenRange{pos, end}
+}
+
+// tokenRange is an implementation of the [analysis.Range] interface.
+type tokenRange struct{ StartPos, EndPos token.Pos }
+
+func (r tokenRange) Pos() token.Pos { return r.StartPos }
+func (r tokenRange) End() token.Pos { return r.EndPos }

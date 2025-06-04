@@ -1608,7 +1608,7 @@ const (
 	http2FrameContinuation http2FrameType = 0x9
 )
 
-var http2frameName = map[http2FrameType]string{
+var http2frameNames = [...]string{
 	http2FrameData:         "DATA",
 	http2FrameHeaders:      "HEADERS",
 	http2FramePriority:     "PRIORITY",
@@ -1622,10 +1622,10 @@ var http2frameName = map[http2FrameType]string{
 }
 
 func (t http2FrameType) String() string {
-	if s, ok := http2frameName[t]; ok {
-		return s
+	if int(t) < len(http2frameNames) {
+		return http2frameNames[t]
 	}
-	return fmt.Sprintf("UNKNOWN_FRAME_TYPE_%d", uint8(t))
+	return fmt.Sprintf("UNKNOWN_FRAME_TYPE_%d", t)
 }
 
 // Flags is a bitmask of HTTP/2 flags.
@@ -1693,7 +1693,7 @@ var http2flagName = map[http2FrameType]map[http2Flags]string{
 // might be 0).
 type http2frameParser func(fc *http2frameCache, fh http2FrameHeader, countError func(string), payload []byte) (http2Frame, error)
 
-var http2frameParsers = map[http2FrameType]http2frameParser{
+var http2frameParsers = [...]http2frameParser{
 	http2FrameData:         http2parseDataFrame,
 	http2FrameHeaders:      http2parseHeadersFrame,
 	http2FramePriority:     http2parsePriorityFrame,
@@ -1707,8 +1707,8 @@ var http2frameParsers = map[http2FrameType]http2frameParser{
 }
 
 func http2typeFrameParser(t http2FrameType) http2frameParser {
-	if f := http2frameParsers[t]; f != nil {
-		return f
+	if int(t) < len(http2frameParsers) {
+		return http2frameParsers[t]
 	}
 	return http2parseUnknownFrame
 }
@@ -2081,7 +2081,7 @@ func (fr *http2Framer) ReadFrame() (http2Frame, error) {
 	}
 	if fh.Length > fr.maxReadSize {
 		if fh == http2invalidHTTP1LookingFrameHeader() {
-			return nil, fmt.Errorf("http2: failed reading the frame payload: %w, note that the frame header looked like an HTTP/1.1 header", err)
+			return nil, fmt.Errorf("http2: failed reading the frame payload: %w, note that the frame header looked like an HTTP/1.1 header", http2ErrFrameTooLarge)
 		}
 		return nil, http2ErrFrameTooLarge
 	}

@@ -341,12 +341,14 @@ func IntelSyntax(inst Inst, pc uint64, symname SymLookup) string {
 func intelArg(inst *Inst, pc uint64, symname SymLookup, arg Arg) string {
 	switch a := arg.(type) {
 	case Imm:
-		if s, base := symname(uint64(a)); s != "" {
-			suffix := ""
-			if uint64(a) != base {
-				suffix = fmt.Sprintf("%+d", uint64(a)-base)
+		if (inst.Op == MOV || inst.Op == PUSH) && inst.DataSize == 32 { // See comment in plan9x.go.
+			if s, base := symname(uint64(a)); s != "" {
+				suffix := ""
+				if uint64(a) != base {
+					suffix = fmt.Sprintf("%+d", uint64(a)-base)
+				}
+				return fmt.Sprintf("$%s%s", s, suffix)
 			}
-			return fmt.Sprintf("$%s%s", s, suffix)
 		}
 		if inst.Mode == 32 {
 			return fmt.Sprintf("%#x", uint32(a))

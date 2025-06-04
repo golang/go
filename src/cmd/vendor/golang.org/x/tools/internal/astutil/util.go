@@ -71,6 +71,8 @@ func PosInStringLiteral(lit *ast.BasicLit, offset int) (token.Pos, error) {
 // In practice, the second call is nearly always used only to pop the
 // stack, and it is surprisingly tricky to do this correctly; see
 // https://go.dev/issue/73319.
+//
+// TODO(adonovan): replace with [ast.PreorderStack] when go1.25 is assured.
 func PreorderStack(root ast.Node, stack []ast.Node, f func(n ast.Node, stack []ast.Node) bool) {
 	before := len(stack)
 	ast.Inspect(root, func(n ast.Node) bool {

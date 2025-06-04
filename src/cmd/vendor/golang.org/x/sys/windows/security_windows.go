@@ -1303,7 +1303,10 @@ func (selfRelativeSD *SECURITY_DESCRIPTOR) ToAbsolute() (absoluteSD *SECURITY_DE
 		return nil, err
 	}
 	if absoluteSDSize > 0 {
-		absoluteSD = (*SECURITY_DESCRIPTOR)(unsafe.Pointer(&make([]byte, absoluteSDSize)[0]))
+		absoluteSD = new(SECURITY_DESCRIPTOR)
+		if unsafe.Sizeof(*absoluteSD) < uintptr(absoluteSDSize) {
+			panic("sizeof(SECURITY_DESCRIPTOR) too small")
+		}
 	}
 	var (
 		dacl  *ACL
@@ -1312,19 +1315,55 @@ func (selfRelativeSD *SECURITY_DESCRIPTOR) ToAbsolute() (absoluteSD *SECURITY_DE
 		group *SID
 	)
 	if daclSize > 0 {
-		dacl = (*ACL)(unsafe.Pointer(&make([]byte, daclSize)[0]))
+		dacl = (*ACL)(unsafe.Pointer(unsafe.SliceData(make([]byte, daclSize))))
 	}
 	if saclSize > 0 {
-		sacl = (*ACL)(unsafe.Pointer(&make([]byte, saclSize)[0]))
+		sacl = (*ACL)(unsafe.Pointer(unsafe.SliceData(make([]byte, saclSize))))
 	}
 	if ownerSize > 0 {
-		owner = (*SID)(unsafe.Pointer(&make([]byte, ownerSize)[0]))
+		owner = (*SID)(unsafe.Pointer(unsafe.SliceData(make([]byte, ownerSize))))
 	}
 	if groupSize > 0 {
-		group = (*SID)(unsafe.Pointer(&make([]byte, groupSize)[0]))
+		group = (*SID)(unsafe.Pointer(unsafe.SliceData(make([]byte, groupSize))))
 	}
+	// We call into Windows via makeAbsoluteSD, which sets up
+	// pointers within absoluteSD that point to other chunks of memory
+	// we pass into makeAbsoluteSD, and that happens outside the view of the GC.
+	// We therefore take some care here to then verify the pointers are as we expect
+	// and set them explicitly in view of the GC. See https://go.dev/issue/73199.
+	// TODO: consider weak pointers once Go 1.24 is appropriate. See suggestion in https://go.dev/cl/663575.
 	err = makeAbsoluteSD(selfRelativeSD, absoluteSD, &absoluteSDSize,
 		dacl, &daclSize, sacl, &saclSize, owner, &ownerSize, group, &groupSize)
+	if err != nil {
+		// Don't return absoluteSD, which might be partially initialized.
+		return nil, err
+	}
+	// Before using any fields, verify absoluteSD is in the format we expect according to Windows.
+	// See https://learn.microsoft.com/en-us/windows/win32/secauthz/absolute-and-self-relative-security-descriptors
+	absControl, _, err := absoluteSD.Control()
+	if err != nil {
+		panic("absoluteSD: " + err.Error())
+	}
+	if absControl&SE_SELF_RELATIVE != 0 {
+		panic("absoluteSD not in absolute format")
+	}
+	if absoluteSD.dacl != dacl {
+		panic("dacl pointer mismatch")
+	}
+	if absoluteSD.sacl != sacl {
+		panic("sacl pointer mismatch")
+	}
+	if absoluteSD.owner != owner {
+		panic("owner pointer mismatch")
+	}
+	if absoluteSD.group != group {
+		panic("group pointer mismatch")
+	}
+	absoluteSD.dacl = dacl
+	absoluteSD.sacl = sacl
+	absoluteSD.owner = owner
+	absoluteSD.group = group
+
 	return
 }
 

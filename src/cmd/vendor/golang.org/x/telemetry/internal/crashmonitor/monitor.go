@@ -21,20 +21,13 @@ import (
 	"golang.org/x/telemetry/internal/counter"
 )
 
-// Supported reports whether the runtime supports [runtime/debug.SetCrashOutput].
-//
-// TODO(adonovan): eliminate once go1.23+ is assured.
-func Supported() bool { return setCrashOutput != nil }
-
-var setCrashOutput func(*os.File) error // = runtime/debug.SetCrashOutput on go1.23+
-
 // Parent sets up the parent side of the crashmonitor. It requires
 // exclusive use of a writable pipe connected to the child process's stdin.
 func Parent(pipe *os.File) {
 	writeSentinel(pipe)
 	// Ensure that we get pc=0x%x values in the traceback.
 	debug.SetTraceback("system")
-	setCrashOutput(pipe)
+	debug.SetCrashOutput(pipe, debug.CrashOptions{}) // ignore error
 }
 
 // Child runs the part of the crashmonitor that runs in the child process.
@@ -284,7 +277,7 @@ func parseStackPCs(crash string) ([]uintptr, error) {
 				continue
 			}
 
-			pc = pc-parentSentinel+childSentinel
+			pc = pc - parentSentinel + childSentinel
 
 			// If the previous frame was sigpanic, then this frame
 			// was a trap (e.g., SIGSEGV).

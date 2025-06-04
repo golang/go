@@ -5,6 +5,7 @@
 package telemetry
 
 import (
+	"go/version"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -26,9 +27,7 @@ func IsToolchainProgram(progPath string) bool {
 // special characters.
 func ProgramInfo(info *debug.BuildInfo) (goVers, progPath, progVers string) {
 	goVers = info.GoVersion
-	// TODO(matloob): Use go/version.IsValid instead of checking for X: once the telemetry
-	// module can be upgraded to require Go 1.22.
-	if strings.Contains(goVers, "devel") || strings.Contains(goVers, "-") || strings.Contains(goVers, "X:") {
+	if strings.Contains(goVers, "devel") || strings.Contains(goVers, "-") || !version.IsValid(goVers) {
 		goVers = "devel"
 	}
 

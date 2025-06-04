@@ -12,6 +12,8 @@ package errgroup
 import (
 	"context"
 	"fmt"
+	"runtime"
+	"runtime/debug"
 	"sync"
 )
 
@@ -31,6 +33,10 @@ type Group struct {
 
 	errOnce sync.Once
 	err     error
+
+	mu         sync.Mutex
+	panicValue any  // = PanicError | PanicValue; non-nil if some Group.Go goroutine panicked.
+	abnormal   bool // some Group.Go goroutine terminated abnormally (panic or goexit).
 }
 
 func (g *Group) done() {
@@ -50,33 +56,78 @@ func WithContext(ctx context.Context) (*Group, context.Context) {
 	return &Group{cancel: cancel}, ctx
 }
 
-// Wait blocks until all function calls from the Go method have returned, then
-// returns the first non-nil error (if any) from them.
+// Wait blocks until all function calls from the Go method have returned
+// normally, then returns the first non-nil error (if any) from them.
+//
+// If any of the calls panics, Wait panics with a [PanicValue];
+// and if any of them calls [runtime.Goexit], Wait calls runtime.Goexit.
 func (g *Group) Wait() error {
 	g.wg.Wait()
 	if g.cancel != nil {
 		g.cancel(g.err)
 	}
+	if g.panicValue != nil {
+		panic(g.panicValue)
+	}
+	if g.abnormal {
+		runtime.Goexit()
+	}
 	return g.err
 }
 
 // Go calls the given function in a new goroutine.
+//
 // The first call to Go must happen before a Wait.
 // It blocks until the new goroutine can be added without the number of
-// active goroutines in the group exceeding the configured limit.
+// goroutines in the group exceeding the configured limit.
 //
-// The first call to return a non-nil error cancels the group's context, if the
-// group was created by calling WithContext. The error will be returned by Wait.
+// The first goroutine in the group that returns a non-nil error, panics, or
+// invokes [runtime.Goexit] will cancel the associated Context, if any.
 func (g *Group) Go(f func() error) {
 	if g.sem != nil {
 		g.sem <- token{}
 	}
 
+	g.add(f)
+}
+
+func (g *Group) add(f func() error) {
 	g.wg.Add(1)
 	go func() {
 		defer g.done()
+		normalReturn := false
+		defer func() {
+			if normalReturn {
+				return
+			}
+			v := recover()
+			g.mu.Lock()
+			defer g.mu.Unlock()
+			if !g.abnormal {
+				if g.cancel != nil {
+					g.cancel(g.err)
+				}
+				g.abnormal = true
+			}
+			if v != nil && g.panicValue == nil {
+				switch v := v.(type) {
+				case error:
+					g.panicValue = PanicError{
+						Recovered: v,
+						Stack:     debug.Stack(),
+					}
+				default:
+					g.panicValue = PanicValue{
+						Recovered: v,
+						Stack:     debug.Stack(),
+					}
+				}
+			}
+		}()
 
-		if err := f(); err != nil {
+		err := f()
+		normalReturn = true
+		if err != nil {
 			g.errOnce.Do(func() {
 				g.err = err
 				if g.cancel != nil {
@@ -101,19 +152,7 @@ func (g *Group) TryGo(f func() error) bool {
 		}
 	}
 
-	g.wg.Add(1)
-	go func() {
-		defer g.done()
-
-		if err := f(); err != nil {
-			g.errOnce.Do(func() {
-				g.err = err
-				if g.cancel != nil {
-					g.cancel(g.err)
-				}
-			})
-		}
-	}()
+	g.add(f)
 	return true
 }
 
@@ -134,4 +173,35 @@ func (g *Group) SetLimit(n int) {
 		panic(fmt.Errorf("errgroup: modify limit while %v goroutines in the group are still active", len(g.sem)))
 	}
 	g.sem = make(chan token, n)
+}
+
+// PanicError wraps an error recovered from an unhandled panic
+// when calling a function passed to Go or TryGo.
+type PanicError struct {
+	Recovered error
+	Stack     []byte // result of call to [debug.Stack]
+}
+
+func (p PanicError) Error() string {
+	if len(p.Stack) > 0 {
+		return fmt.Sprintf("recovered from errgroup.Group: %v\n%s", p.Recovered, p.Stack)
+	}
+	return fmt.Sprintf("recovered from errgroup.Group: %v", p.Recovered)
+}
+
+func (p PanicError) Unwrap() error { return p.Recovered }
+
+// PanicValue wraps a value that does not implement the error interface,
+// recovered from an unhandled panic when calling a function passed to Go or
+// TryGo.
+type PanicValue struct {
+	Recovered any
+	Stack     []byte // result of call to [debug.Stack]
+}
+
+func (p PanicValue) String() string {
+	if len(p.Stack) > 0 {
+		return fmt.Sprintf("recovered from errgroup.Group: %v\n%s", p.Recovered, p.Stack)
+	}
+	return fmt.Sprintf("recovered from errgroup.Group: %v", p.Recovered)
 }
