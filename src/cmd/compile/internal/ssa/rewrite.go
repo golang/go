@@ -1470,6 +1470,11 @@ func GetPPC64Shiftme(auxint int64) int64 {
 // operation.  Masks can also extend from the msb and wrap to
 // the lsb too.  That is, the valid masks are 32 bit strings
 // of the form: 0..01..10..0 or 1..10..01..1 or 1...1
+//
+// Note: This ignores the upper 32 bits of the input. When a
+// zero extended result is desired (e.g a 64 bit result), the
+// user must verify the upper 32 bits are 0 and the mask is
+// contiguous (that is, non-wrapping).
 func isPPC64WordRotateMask(v64 int64) bool {
 	// Isolate rightmost 1 (if none 0) and add.
 	v := uint32(v64)
@@ -1478,6 +1483,16 @@ func isPPC64WordRotateMask(v64 int64) bool {
 	vn := ^v
 	vpn := (vn & -vn) + vn
 	return (v&vp == 0 || vn&vpn == 0) && v != 0
+}
+
+// Test if this mask is a valid, contiguous bitmask which can be
+// represented by a RLWNM mask and also clears the upper 32 bits
+// of the register.
+func isPPC64WordRotateMaskNonWrapping(v64 int64) bool {
+	// Isolate rightmost 1 (if none 0) and add.
+	v := uint32(v64)
+	vp := (v & -v) + v
+	return (v&vp == 0) && v != 0 && uint64(uint32(v64)) == uint64(v64)
 }
 
 // Compress mask and shift into single value of the form
@@ -1589,7 +1604,7 @@ func mergePPC64AndSrdi(m, s int64) int64 {
 	if rv&uint64(mask) != 0 {
 		return 0
 	}
-	if !isPPC64WordRotateMask(mask) {
+	if !isPPC64WordRotateMaskNonWrapping(mask) {
 		return 0
 	}
 	return encodePPC64RotateMask((32-s)&31, mask, 32)
@@ -1604,7 +1619,7 @@ func mergePPC64AndSldi(m, s int64) int64 {
 	if rv&uint64(mask) != 0 {
 		return 0
 	}
-	if !isPPC64WordRotateMask(mask) {
+	if !isPPC64WordRotateMaskNonWrapping(mask) {
 		return 0
 	}
 	return encodePPC64RotateMask(s&31, mask, 32)

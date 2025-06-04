@@ -468,6 +468,16 @@ func checkMergedShifts64(a [256]uint32, b [256]uint64, c [256]byte, v uint64) {
 	b[1] = b[(v>>20)&0xFF]
 	// ppc64x: "RLWNM", -"SLD"
 	b[2] = b[((uint64((uint32(v) >> 21)) & 0x3f) << 4)]
+	// ppc64x: -"RLWNM"
+	b[3] = (b[3] << 24) & 0xFFFFFF000000
+	// ppc64x: "RLWNM\t[$]24, R[0-9]+, [$]0, [$]7,"
+	b[4] = (b[4] << 24) & 0xFF000000
+	// ppc64x: "RLWNM\t[$]24, R[0-9]+, [$]0, [$]7,"
+	b[5] = (b[5] << 24) & 0xFF00000F
+	// ppc64x: -"RLWNM"
+	b[6] = (b[6] << 0) & 0xFF00000F
+	// ppc64x: "RLWNM\t[$]4, R[0-9]+, [$]28, [$]31,"
+	b[7] = (b[7] >> 28) & 0xF
 	// ppc64x: "RLWNM\t[$]11, R[0-9]+, [$]10, [$]15"
 	c[0] = c[((v>>5)&0x3F)<<16]
 	// ppc64x: "ANDCC\t[$]8064,"
