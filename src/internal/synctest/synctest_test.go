@@ -488,7 +488,7 @@ func TestDeadlockRoot(t *testing.T) {
 }
 
 func TestDeadlockChild(t *testing.T) {
-	defer wantPanic(t, "deadlock: all goroutines in bubble are blocked")
+	defer wantPanic(t, "deadlock: main bubble goroutine has exited but blocked goroutines remain")
 	synctest.Run(func() {
 		go func() {
 			select {}
@@ -497,7 +497,7 @@ func TestDeadlockChild(t *testing.T) {
 }
 
 func TestDeadlockTicker(t *testing.T) {
-	defer wantPanic(t, "deadlock: all goroutines in bubble are blocked")
+	defer wantPanic(t, "deadlock: main bubble goroutine has exited but blocked goroutines remain")
 	synctest.Run(func() {
 		go func() {
 			for range time.Tick(1 * time.Second) {
