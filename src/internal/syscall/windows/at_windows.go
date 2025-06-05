@@ -192,6 +192,11 @@ func Mkdirat(dirfd syscall.Handle, name string, mode uint32) error {
 }
 
 func Deleteat(dirfd syscall.Handle, name string, options uint32) error {
+	if name == "." {
+		// NtOpenFile's documentation isn't explicit about what happens when deleting ".".
+		// Make this an error consistent with that of POSIX.
+		return syscall.EINVAL
+	}
 	objAttrs := &OBJECT_ATTRIBUTES{}
 	if err := objAttrs.init(dirfd, name); err != nil {
 		return err

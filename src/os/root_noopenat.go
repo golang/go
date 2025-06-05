@@ -8,6 +8,7 @@ package os
 
 import (
 	"errors"
+	"internal/filepathlite"
 	"internal/stringslite"
 	"sync/atomic"
 	"syscall"
@@ -172,6 +173,12 @@ func rootMkdirAll(r *Root, name string, perm FileMode) error {
 func rootRemove(r *Root, name string) error {
 	if err := checkPathEscapesLstat(r, name); err != nil {
 		return &PathError{Op: "removeat", Path: name, Err: err}
+	}
+	if endsWithDot(name) {
+		// We don't want to permit removing the root itself, so check for that.
+		if filepathlite.Clean(name) == "." {
+			return &PathError{Op: "removeat", Path: name, Err: errPathEscapes}
+		}
 	}
 	if err := Remove(joinPath(r.root.name, name)); err != nil {
 		return &PathError{Op: "removeat", Path: name, Err: underlyingError(err)}
