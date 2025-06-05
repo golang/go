@@ -191,9 +191,12 @@ func dumpGlobalConst(n *ir.Name) {
 			t = types.Types[types.TSTRING]
 		}
 	} else {
-		// If the type of the constant is an instantiated generic, we need to emit
-		// that type so the linker knows about it. See issue 51245.
-		_ = reflectdata.TypeLinksym(t)
+		if t.IsInteger() {
+			// If the type of the constant is an instantiated generic, we need to emit
+			// that type so the linker knows about it. See issue 51245.
+			_ = reflectdata.TypeLinksym(t)
+		}
+		// For const string, type:string isn't the real type.
 	}
 
 	if t.IsInteger() {
