@@ -1050,33 +1050,118 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Offset = int64(condCode)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpARM64DUFFZERO:
-		// runtime.duffzero expects start address in R20
-		p := s.Prog(obj.ADUFFZERO)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = ir.Syms.Duffzero
-		p.To.Offset = v.AuxInt
 	case ssa.OpARM64LoweredZero:
-		// STP.P	(ZR,ZR), 16(R16)
-		// CMP	Rarg1, R16
-		// BLE	-2(PC)
-		// arg1 is the address of the last 16-byte unit to zero
-		p := s.Prog(arm64.ASTP)
-		p.Scond = arm64.C_XPOST
-		p.From.Type = obj.TYPE_REGREG
-		p.From.Reg = arm64.REGZERO
-		p.From.Offset = int64(arm64.REGZERO)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = arm64.REG_R16
-		p.To.Offset = 16
-		p2 := s.Prog(arm64.ACMP)
-		p2.From.Type = obj.TYPE_REG
-		p2.From.Reg = v.Args[1].Reg()
-		p2.Reg = arm64.REG_R16
-		p3 := s.Prog(arm64.ABLE)
-		p3.To.Type = obj.TYPE_BRANCH
-		p3.To.SetTarget(p)
+		ptrReg := v.Args[0].Reg()
+		n := v.AuxInt
+		if n < 16 {
+			v.Fatalf("Zero too small %d", n)
+		}
+
+		// Generate zeroing instructions.
+		var off int64
+		for n >= 16 {
+			//  STP     (ZR, ZR), off(ptrReg)
+			zero16(s, ptrReg, off, false)
+			off += 16
+			n -= 16
+		}
+		// Write any fractional portion.
+		// An overlapping 16-byte write can't be used here
+		// because STP's offsets must be a multiple of 8.
+		if n > 8 {
+			//  MOVD    ZR, off(ptrReg)
+			zero8(s, ptrReg, off)
+			off += 8
+			n -= 8
+		}
+		if n != 0 {
+			//  MOVD    ZR, off+n-8(ptrReg)
+			// TODO: for n<=4 we could use a smaller write.
+			zero8(s, ptrReg, off+n-8)
+		}
+	case ssa.OpARM64LoweredZeroLoop:
+		ptrReg := v.Args[0].Reg()
+		countReg := v.RegTmp()
+		n := v.AuxInt
+		loopSize := int64(64)
+		if n < 3*loopSize {
+			// - a loop count of 0 won't work.
+			// - a loop count of 1 is useless.
+			// - a loop count of 2 is a code size ~tie
+			//     3 instructions to implement the loop
+			//     4 instructions in the loop body
+			//   vs
+			//     8 instructions in the straightline code
+			//   Might as well use straightline code.
+			v.Fatalf("ZeroLoop size too small %d", n)
+		}
+
+		// Put iteration count in a register.
+		//   MOVD    $n, countReg
+		p := s.Prog(arm64.AMOVD)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = n / loopSize
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = countReg
+		cntInit := p
+
+		// Zero loopSize bytes starting at ptrReg.
+		// Increment ptrReg by loopSize as a side effect.
+		for range loopSize / 16 {
+			//  STP.P   (ZR, ZR), 16(ptrReg)
+			zero16(s, ptrReg, 0, true)
+			// TODO: should we use the postincrement form,
+			// or use a separate += 64 instruction?
+			// postincrement saves an instruction, but maybe
+			// it requires more integer units to do the +=16s.
+		}
+		// Decrement loop count.
+		//   SUB     $1, countReg
+		p = s.Prog(arm64.ASUB)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 1
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = countReg
+		// Jump to loop header if we're not done yet.
+		//   CBNZ    head
+		p = s.Prog(arm64.ACBNZ)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = countReg
+		p.To.Type = obj.TYPE_BRANCH
+		p.To.SetTarget(cntInit.Link)
+
+		// Multiples of the loop size are now done.
+		n %= loopSize
+
+		// Write any fractional portion.
+		var off int64
+		for n >= 16 {
+			//  STP     (ZR, ZR), off(ptrReg)
+			zero16(s, ptrReg, off, false)
+			off += 16
+			n -= 16
+		}
+		if n > 8 {
+			// Note: an overlapping 16-byte write can't be used
+			// here because STP's offsets must be a multiple of 8.
+			//  MOVD    ZR, off(ptrReg)
+			zero8(s, ptrReg, off)
+			off += 8
+			n -= 8
+		}
+		if n != 0 {
+			//  MOVD    ZR, off+n-8(ptrReg)
+			// TODO: for n<=4 we could use a smaller write.
+			zero8(s, ptrReg, off+n-8)
+		}
+		// TODO: maybe we should use the count register to instead
+		// hold an end pointer and compare against that?
+		//   ADD $n, ptrReg, endReg
+		// then
+		//   CMP ptrReg, endReg
+		//   BNE loop
+		// There's a past-the-end pointer here, any problem with that?
+
 	case ssa.OpARM64DUFFCOPY:
 		p := s.Prog(obj.ADUFFCOPY)
 		p.To.Type = obj.TYPE_MEM
@@ -1481,4 +1566,36 @@ func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg in
 	p.To.Sym = n.Linksym()
 	p.Pos = p.Pos.WithNotStmt()
 	return p
+}
+
+// zero16 zeroes 16 bytes at reg+off.
+// If postInc is true, increment reg by 16.
+func zero16(s *ssagen.State, reg int16, off int64, postInc bool) {
+	//   STP     (ZR, ZR), off(reg)
+	p := s.Prog(arm64.ASTP)
+	p.From.Type = obj.TYPE_REGREG
+	p.From.Reg = arm64.REGZERO
+	p.From.Offset = int64(arm64.REGZERO)
+	p.To.Type = obj.TYPE_MEM
+	p.To.Reg = reg
+	p.To.Offset = off
+	if postInc {
+		if off != 0 {
+			panic("can't postinc with non-zero offset")
+		}
+		//   STP.P  (ZR, ZR), 16(reg)
+		p.Scond = arm64.C_XPOST
+		p.To.Offset = 16
+	}
+}
+
+// zero8 zeroes 8 bytes at reg+off.
+func zero8(s *ssagen.State, reg int16, off int64) {
+	//   MOVD     ZR, off(reg)
+	p := s.Prog(arm64.AMOVD)
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = arm64.REGZERO
+	p.To.Type = obj.TYPE_MEM
+	p.To.Reg = reg
+	p.To.Offset = off
 }

@@ -1718,8 +1718,8 @@ const (
 	OpARM64NotGreaterEqualF
 	OpARM64LessThanNoov
 	OpARM64GreaterEqualNoov
-	OpARM64DUFFZERO
 	OpARM64LoweredZero
+	OpARM64LoweredZeroLoop
 	OpARM64DUFFCOPY
 	OpARM64LoweredMove
 	OpARM64LoweredGetClosurePtr
@@ -23069,28 +23069,27 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "DUFFZERO",
-		auxType:     auxInt64,
-		argLen:      2,
-		unsafePoint: true,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 524288}, // R20
-			},
-			clobbers: 269156352, // R16 R17 R20 R30
-		},
-	},
-	{
 		name:           "LoweredZero",
-		argLen:         3,
-		clobberFlags:   true,
+		auxType:        auxInt64,
+		argLen:         2,
 		faultOnNilArg0: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 65536},     // R16
-				{1, 335544319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+				{0, 335544319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
 			},
-			clobbers: 65536, // R16
+		},
+	},
+	{
+		name:           "LoweredZeroLoop",
+		auxType:        auxInt64,
+		argLen:         2,
+		needIntTemp:    true,
+		faultOnNilArg0: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 335544319}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+			clobbersArg0: true,
 		},
 	},
 	{
