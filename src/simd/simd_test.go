@@ -163,3 +163,66 @@ func TestSub(t *testing.T) {
 		}
 	}
 }
+
+// checkInt8Slices ensures that b and a are equal, to the end of b.
+// also serves to use the slices, to prevent accidental optimization.
+func checkInt8Slices(t *testing.T, a, b []int8) {
+	for i := range b {
+		if a[i] != b[i] {
+			t.Errorf("a and b differ at index %d, a=%d, b=%d", i, a[i], b[i])
+		}
+	}
+}
+
+func TestSlicesInt8(t *testing.T) {
+	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	v := simd.LoadInt8x32Slice(a)
+	b := make([]int8, 32, 32)
+	v.StoreSlice(b)
+	checkInt8Slices(t, a, b)
+}
+
+func TestSlicesInt8TooShortLoad(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("Saw EXPECTED panic %v", r)
+		} else {
+			t.Errorf("Did not see expected panic")
+		}
+	}()
+	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31} // TOO SHORT, should panic
+	v := simd.LoadInt8x32Slice(a)
+	b := make([]int8, 32, 32)
+	v.StoreSlice(b)
+	checkInt8Slices(t, a, b)
+}
+
+func TestSlicesInt8TooShortStore(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("Saw EXPECTED panic %v", r)
+		} else {
+			t.Errorf("Did not see expected panic")
+		}
+	}()
+	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	v := simd.LoadInt8x32Slice(a)
+	b := make([]int8, 31) // TOO SHORT, should panic
+	v.StoreSlice(b)
+	checkInt8Slices(t, a, b)
+}
+
+func TestSlicesFloat64(t *testing.T) {
+	a := []float64{1, 2, 3, 4, 5, 6, 7, 8} // too long, should be fine
+	v := simd.LoadFloat64x4Slice(a)
+	b := make([]float64, 4, 4)
+	v.StoreSlice(b)
+	for i := range b {
+		if a[i] != b[i] {
+			t.Errorf("a and b differ at index %d, a=%f, b=%f", i, a[i], b[i])
+		}
+	}
+}

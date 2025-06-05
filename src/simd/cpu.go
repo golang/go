@@ -4,7 +4,7 @@
 
 //go:build goexperiment.simd
 
-// the build condition == if the experiment is not on, cmd/api TestCheck will see this and complain
+// The build condition == if the experiment is not on, cmd/api TestCheck will see this and complain
 // see also go/doc/comment, where "simd" is inserted to the package list of the experiment is not on.
 
 package simd
