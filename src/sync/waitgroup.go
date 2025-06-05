@@ -83,13 +83,17 @@ func (wg *WaitGroup) Add(delta int) {
 		race.Disable()
 		defer race.Enable()
 	}
+	bubbled := false
 	if synctest.IsInBubble() {
 		// If Add is called from within a bubble, then all Add calls must be made
 		// from the same bubble.
-		if !synctest.Associate(wg) {
+		switch synctest.Associate(wg) {
+		case synctest.Unbubbled:
+		case synctest.OtherBubble:
 			// wg is already associated with a different bubble.
 			fatal("sync: WaitGroup.Add called from multiple synctest bubbles")
-		} else {
+		case synctest.CurrentBubble:
+			bubbled = true
 			state := wg.state.Or(waitGroupBubbleFlag)
 			if state != 0 && state&waitGroupBubbleFlag == 0 {
 				// Add has been called from outside this bubble.
@@ -98,7 +102,7 @@ func (wg *WaitGroup) Add(delta int) {
 		}
 	}
 	state := wg.state.Add(uint64(delta) << 32)
-	if state&waitGroupBubbleFlag != 0 && !synctest.IsInBubble() {
+	if state&waitGroupBubbleFlag != 0 && !bubbled {
 		// Add has been called from within a synctest bubble (and we aren't in one).
 		fatal("sync: WaitGroup.Add called from inside and outside synctest bubble")
 	}
@@ -116,7 +120,7 @@ func (wg *WaitGroup) Add(delta int) {
 	if w != 0 && delta > 0 && v == int32(delta) {
 		panic("sync: WaitGroup misuse: Add called concurrently with Wait")
 	}
-	if v == 0 && state&waitGroupBubbleFlag != 0 {
+	if v == 0 && bubbled {
 		// Disassociate the WaitGroup from its bubble.
 		synctest.Disassociate(wg)
 		if w == 0 {

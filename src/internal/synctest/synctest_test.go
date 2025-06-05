@@ -731,6 +731,34 @@ func TestWaitGroupMovedBetweenBubblesAfterWait(t *testing.T) {
 	})
 }
 
+var testWaitGroupLinkerAllocatedWG sync.WaitGroup
+
+func TestWaitGroupLinkerAllocated(t *testing.T) {
+	synctest.Run(func() {
+		// This WaitGroup is probably linker-allocated and has no span,
+		// so we won't be able to add a special to it associating it with
+		// this bubble.
+		//
+		// Operations on it may not be durably blocking,
+		// but they shouldn't fail.
+		testWaitGroupLinkerAllocatedWG.Go(func() {})
+		testWaitGroupLinkerAllocatedWG.Wait()
+	})
+}
+
+var testWaitGroupHeapAllocatedWG = new(sync.WaitGroup)
+
+func TestWaitGroupHeapAllocated(t *testing.T) {
+	synctest.Run(func() {
+		// This package-scoped WaitGroup var should have been heap-allocated,
+		// so we can associate it with a bubble.
+		testWaitGroupHeapAllocatedWG.Add(1)
+		go testWaitGroupHeapAllocatedWG.Wait()
+		synctest.Wait()
+		testWaitGroupHeapAllocatedWG.Done()
+	})
+}
+
 func TestHappensBefore(t *testing.T) {
 	// Use two parallel goroutines accessing different vars to ensure that
 	// we correctly account for multiple goroutines in the bubble.
