@@ -185,7 +185,6 @@ func synctestRun(f func()) {
 	}
 	const synctestBaseTime = 946684800000000000 // midnight UTC 2000-01-01
 	bubble.now = synctestBaseTime
-	bubble.timers.bubble = bubble
 	lockInit(&bubble.mu, lockRankSynctest)
 	lockInit(&bubble.timers.mu, lockRankTimers)
 
@@ -213,7 +212,7 @@ func synctestRun(f func()) {
 			// so timer goroutines inherit their child race context from g0.
 			curg := gp.m.curg
 			gp.m.curg = nil
-			gp.bubble.timers.check(gp.bubble.now)
+			gp.bubble.timers.check(bubble.now, bubble)
 			gp.m.curg = curg
 		})
 		gopark(synctestidle_c, nil, waitReasonSynctestRun, traceBlockSynctest, 0)

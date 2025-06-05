@@ -85,7 +85,7 @@ func BenchmarkSlicesIsSorted(b *testing.B) {
 		b.StopTimer()
 		ints := makeSortedInts(N)
 		b.StartTimer()
-		slices.IsSorted(ints)
+		_ = slices.IsSorted(ints)
 	}
 }
 

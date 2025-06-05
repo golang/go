@@ -6,6 +6,8 @@
 
 package runtime
 
+import "internal/runtime/gc"
+
 func (s *mspan) markBitsForIndex(objIndex uintptr) markBits {
 	bytep, mask := s.gcmarkBits.bitp(objIndex)
 	return markBits{bytep, mask, objIndex}
@@ -77,4 +79,34 @@ func (w *gcWork) tryGetSpan(steal bool) objptr {
 
 func scanSpan(p objptr, gcw *gcWork) {
 	throw("unimplemented")
+}
+
+type sizeClassScanStats struct {
+	sparseObjsScanned uint64
+}
+
+func dumpScanStats() {
+	var sparseObjsScanned uint64
+	for _, stats := range memstats.lastScanStats {
+		sparseObjsScanned += stats.sparseObjsScanned
+	}
+	print("scan: total ", sparseObjsScanned, " objs\n")
+	for i, stats := range memstats.lastScanStats {
+		if stats == (sizeClassScanStats{}) {
+			continue
+		}
+		if i == 0 {
+			print("scan: class L ")
+		} else {
+			print("scan: class ", gc.SizeClassToSize[i], "B ")
+		}
+		print(stats.sparseObjsScanned, " objs\n")
+	}
+}
+
+func (w *gcWork) flushScanStats(dst *[gc.NumSizeClasses]sizeClassScanStats) {
+	for i := range w.stats {
+		dst[i].sparseObjsScanned += w.stats[i].sparseObjsScanned
+	}
+	clear(w.stats[:])
 }

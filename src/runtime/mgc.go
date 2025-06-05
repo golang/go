@@ -131,6 +131,7 @@ package runtime
 import (
 	"internal/cpu"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/runtime/atomic"
 	"internal/runtime/gc"
 	"unsafe"
@@ -717,7 +718,7 @@ func gcStart(trigger gcTrigger) {
 			throw("p mcache not flushed")
 		}
 		// Initialize ptrBuf if necessary.
-		if p.gcw.ptrBuf == nil {
+		if goexperiment.GreenTeaGC && p.gcw.ptrBuf == nil {
 			p.gcw.ptrBuf = (*[gc.PageSize / goarch.PtrSize]uintptr)(persistentalloc(gc.PageSize, goarch.PtrSize, &memstats.gcMiscSys))
 		}
 	}
@@ -1233,14 +1234,7 @@ func gcMarkTermination(stw worldStop) {
 			})
 		}
 		if debug.gctrace > 1 {
-			for i := range pp.gcw.stats {
-				memstats.lastScanStats[i].spansDenseScanned += pp.gcw.stats[i].spansDenseScanned
-				memstats.lastScanStats[i].spanObjsDenseScanned += pp.gcw.stats[i].spanObjsDenseScanned
-				memstats.lastScanStats[i].spansSparseScanned += pp.gcw.stats[i].spansSparseScanned
-				memstats.lastScanStats[i].spanObjsSparseScanned += pp.gcw.stats[i].spanObjsSparseScanned
-				memstats.lastScanStats[i].sparseObjsScanned += pp.gcw.stats[i].sparseObjsScanned
-			}
-			clear(pp.gcw.stats[:])
+			pp.gcw.flushScanStats(&memstats.lastScanStats)
 		}
 		pp.pinnerCache = nil
 	})
@@ -1301,38 +1295,7 @@ func gcMarkTermination(stw worldStop) {
 		print("\n")
 
 		if debug.gctrace > 1 {
-			var (
-				spansDenseScanned     uint64
-				spanObjsDenseScanned  uint64
-				spansSparseScanned    uint64
-				spanObjsSparseScanned uint64
-				sparseObjsScanned     uint64
-			)
-			for _, stats := range memstats.lastScanStats {
-				spansDenseScanned += stats.spansDenseScanned
-				spanObjsDenseScanned += stats.spanObjsDenseScanned
-				spansSparseScanned += stats.spansSparseScanned
-				spanObjsSparseScanned += stats.spanObjsSparseScanned
-				sparseObjsScanned += stats.sparseObjsScanned
-			}
-			totalObjs := sparseObjsScanned + spanObjsSparseScanned + spanObjsDenseScanned
-			totalSpans := spansSparseScanned + spansDenseScanned
-			print("scan: total ", sparseObjsScanned, "+", spanObjsSparseScanned, "+", spanObjsDenseScanned, "=", totalObjs, " objs")
-			print(", ", spansSparseScanned, "+", spansDenseScanned, "=", totalSpans, " spans\n")
-			for i, stats := range memstats.lastScanStats {
-				if stats == (sizeClassScanStats{}) {
-					continue
-				}
-				totalObjs := stats.sparseObjsScanned + stats.spanObjsSparseScanned + stats.spanObjsDenseScanned
-				totalSpans := stats.spansSparseScanned + stats.spansDenseScanned
-				if i == 0 {
-					print("scan: class L ")
-				} else {
-					print("scan: class ", gc.SizeClassToSize[i], "B ")
-				}
-				print(stats.sparseObjsScanned, "+", stats.spanObjsSparseScanned, "+", stats.spanObjsDenseScanned, "=", totalObjs, " objs")
-				print(", ", stats.spansSparseScanned, "+", stats.spansDenseScanned, "=", totalSpans, " spans\n")
-			}
+			dumpScanStats()
 		}
 		printunlock()
 	}

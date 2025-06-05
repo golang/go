@@ -900,6 +900,7 @@ type TB interface {
 	Skipped() bool
 	TempDir() string
 	Context() context.Context
+	Output() io.Writer
 
 	// A private method to prevent users implementing the
 	// interface and so future additions to it will not

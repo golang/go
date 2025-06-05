@@ -497,7 +497,7 @@ func empty(c *hchan) bool {
 	// c.timer is also immutable (it is set after make(chan) but before any channel operations).
 	// All timer channels have dataqsiz > 0.
 	if c.timer != nil {
-		c.timer.maybeRunChan()
+		c.timer.maybeRunChan(c)
 	}
 	return atomic.Loaduint(&c.qcount) == 0
 }
@@ -542,7 +542,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 	}
 
 	if c.timer != nil {
-		c.timer.maybeRunChan()
+		c.timer.maybeRunChan(c)
 	}
 
 	// Fast path: check for failed non-blocking operation without acquiring the lock.
@@ -821,7 +821,7 @@ func chanlen(c *hchan) int {
 	}
 	async := debug.asynctimerchan.Load() != 0
 	if c.timer != nil && async {
-		c.timer.maybeRunChan()
+		c.timer.maybeRunChan(c)
 	}
 	if c.timer != nil && !async {
 		// timer channels have a buffered implementation

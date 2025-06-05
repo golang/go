@@ -763,3 +763,57 @@ func heapBitsSmallForAddrInline(spanBase, addr, elemsize uintptr) uintptr {
 	}
 	return read
 }
+
+type sizeClassScanStats struct {
+	spansDenseScanned     uint64
+	spanObjsDenseScanned  uint64
+	spansSparseScanned    uint64
+	spanObjsSparseScanned uint64
+	sparseObjsScanned     uint64
+}
+
+func dumpScanStats() {
+	var (
+		spansDenseScanned     uint64
+		spanObjsDenseScanned  uint64
+		spansSparseScanned    uint64
+		spanObjsSparseScanned uint64
+		sparseObjsScanned     uint64
+	)
+	for _, stats := range memstats.lastScanStats {
+		spansDenseScanned += stats.spansDenseScanned
+		spanObjsDenseScanned += stats.spanObjsDenseScanned
+		spansSparseScanned += stats.spansSparseScanned
+		spanObjsSparseScanned += stats.spanObjsSparseScanned
+		sparseObjsScanned += stats.sparseObjsScanned
+	}
+	totalObjs := sparseObjsScanned + spanObjsSparseScanned + spanObjsDenseScanned
+	totalSpans := spansSparseScanned + spansDenseScanned
+	print("scan: total ", sparseObjsScanned, "+", spanObjsSparseScanned, "+", spanObjsDenseScanned, "=", totalObjs, " objs")
+	print(", ", spansSparseScanned, "+", spansDenseScanned, "=", totalSpans, " spans\n")
+	for i, stats := range memstats.lastScanStats {
+		if stats == (sizeClassScanStats{}) {
+			continue
+		}
+		totalObjs := stats.sparseObjsScanned + stats.spanObjsSparseScanned + stats.spanObjsDenseScanned
+		totalSpans := stats.spansSparseScanned + stats.spansDenseScanned
+		if i == 0 {
+			print("scan: class L ")
+		} else {
+			print("scan: class ", gc.SizeClassToSize[i], "B ")
+		}
+		print(stats.sparseObjsScanned, "+", stats.spanObjsSparseScanned, "+", stats.spanObjsDenseScanned, "=", totalObjs, " objs")
+		print(", ", stats.spansSparseScanned, "+", stats.spansDenseScanned, "=", totalSpans, " spans\n")
+	}
+}
+
+func (w *gcWork) flushScanStats(dst *[gc.NumSizeClasses]sizeClassScanStats) {
+	for i := range w.stats {
+		dst[i].spansDenseScanned += w.stats[i].spansDenseScanned
+		dst[i].spanObjsDenseScanned += w.stats[i].spanObjsDenseScanned
+		dst[i].spansSparseScanned += w.stats[i].spansSparseScanned
+		dst[i].spanObjsSparseScanned += w.stats[i].spanObjsSparseScanned
+		dst[i].sparseObjsScanned += w.stats[i].sparseObjsScanned
+	}
+	clear(w.stats[:])
+}

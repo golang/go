@@ -49,14 +49,6 @@ type mstats struct {
 	enablegc bool
 }
 
-type sizeClassScanStats struct {
-	spansDenseScanned     uint64
-	spanObjsDenseScanned  uint64
-	spansSparseScanned    uint64
-	spanObjsSparseScanned uint64
-	sparseObjsScanned     uint64
-}
-
 var memstats mstats
 
 // A MemStats records statistics about the memory allocator.
