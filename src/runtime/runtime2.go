@@ -1093,10 +1093,10 @@ const (
 	waitReasonGCWeakToStrongWait                      // "GC weak to strong wait"
 	waitReasonSynctestRun                             // "synctest.Run"
 	waitReasonSynctestWait                            // "synctest.Wait"
-	waitReasonSynctestChanReceive                     // "chan receive (synctest)"
-	waitReasonSynctestChanSend                        // "chan send (synctest)"
-	waitReasonSynctestSelect                          // "select (synctest)"
-	waitReasonSynctestWaitGroupWait                   // "sync.WaitGroup.Wait (synctest)"
+	waitReasonSynctestChanReceive                     // "chan receive (durable)"
+	waitReasonSynctestChanSend                        // "chan send (durable)"
+	waitReasonSynctestSelect                          // "select (durable)"
+	waitReasonSynctestWaitGroupWait                   // "sync.WaitGroup.Wait (durable)"
 	waitReasonCleanupWait                             // "cleanup wait"
 )
 
@@ -1143,10 +1143,10 @@ var waitReasonStrings = [...]string{
 	waitReasonGCWeakToStrongWait:    "GC weak to strong wait",
 	waitReasonSynctestRun:           "synctest.Run",
 	waitReasonSynctestWait:          "synctest.Wait",
-	waitReasonSynctestChanReceive:   "chan receive (synctest)",
-	waitReasonSynctestChanSend:      "chan send (synctest)",
-	waitReasonSynctestSelect:        "select (synctest)",
-	waitReasonSynctestWaitGroupWait: "sync.WaitGroup.Wait (synctest)",
+	waitReasonSynctestChanReceive:   "chan receive (durable)",
+	waitReasonSynctestChanSend:      "chan send (durable)",
+	waitReasonSynctestSelect:        "select (durable)",
+	waitReasonSynctestWaitGroupWait: "sync.WaitGroup.Wait (durable)",
 	waitReasonCleanupWait:           "cleanup wait",
 }
 
@@ -1207,12 +1207,12 @@ var isIdleInSynctest = [len(waitReasonStrings)]bool{
 }
 
 var (
-	allm           *m
-	gomaxprocs     int32
-	numCPUStartup  int32
-	forcegc        forcegcstate
-	sched          schedt
-	newprocs       int32
+	allm          *m
+	gomaxprocs    int32
+	numCPUStartup int32
+	forcegc       forcegcstate
+	sched         schedt
+	newprocs      int32
 )
 
 var (
