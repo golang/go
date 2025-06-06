@@ -218,6 +218,10 @@ type VerifyOptions struct {
 	// field implies any valid policy is acceptable.
 	CertificatePolicies []OID
 
+	// UnknownAlgorithmVerifier specifies a callback to use to verify
+	// a signature with an unknown AlgorithmIdentifier.
+	UnknownAlgorithmVerifier func(alg pkix.AlgorithmIdentifier, signed, signature, pk []byte) error
+
 	// The following policy fields are unexported, because we do not expect
 	// users to actually need to use them, but are useful for testing the
 	// policy validation code.
@@ -975,7 +979,7 @@ func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, o
 			return
 		}
 
-		if err := c.CheckSignatureFrom(candidate.cert); err != nil {
+		if err := c.checkSignatureFrom(candidate.cert, opts); err != nil {
 			if hintErr == nil {
 				hintErr = err
 				hintCert = candidate.cert

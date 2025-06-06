@@ -1038,11 +1038,14 @@ func parseCertificate(der []byte) (*Certificate, error) {
 	if !spki.ReadASN1BitString(&spk) {
 		return nil, errors.New("x509: malformed subjectPublicKey")
 	}
-	if cert.PublicKeyAlgorithm != UnknownPublicKeyAlgorithm {
-		cert.PublicKey, err = parsePublicKey(&publicKeyInfo{
-			Algorithm: pkAI,
-			PublicKey: spk,
-		})
+	pki := &publicKeyInfo{
+		Algorithm: pkAI,
+		PublicKey: spk,
+	}
+	if cert.PublicKeyAlgorithm == UnknownPublicKeyAlgorithm {
+		cert.PublicKey = pki
+	} else {
+		cert.PublicKey, err = parsePublicKey(pki)
 		if err != nil {
 			return nil, err
 		}
