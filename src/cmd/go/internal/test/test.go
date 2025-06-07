@@ -861,7 +861,10 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	if cfg.BuildCoverPkg != nil {
 		match := make([]func(*load.Package) bool, len(cfg.BuildCoverPkg))
 		for i := range cfg.BuildCoverPkg {
-			match[i] = load.MatchPackage(cfg.BuildCoverPkg[i], base.Cwd())
+			match[i] = func(p *load.Package) bool {
+				cwd := base.Cwd()
+				return load.MatchPackage(cfg.BuildCoverPkg[i], cwd)(p) && !isUnderSpecial(cwd, p.Dir)
+			}
 		}
 
 		// Select for coverage all dependencies matching the -coverpkg
@@ -2210,4 +2213,37 @@ func testBinaryName(p *load.Package) string {
 	}
 
 	return elem + ".test"
+}
+
+// isUnderSpecial checks whether dir is contained within a 'special' directory under 'cwd'.
+// A directory is special if it beings with "." or "_" , or is called "testdata"
+func isUnderSpecial(cwd string, dir string) bool {
+	rel, err := filepath.Rel(cwd, dir)
+	if err != nil {
+		return false
+	}
+
+	hasAnyPrefix := func(dir string, prefixes ...string) bool {
+		for _, prefix := range prefixes {
+			if strings.HasPrefix(dir, prefix) {
+				return true
+			}
+		}
+		return false
+	}
+
+	sep := string(filepath.Separator)
+	if rel == "." || hasAnyPrefix(rel, ".."+sep) {
+		// Not a special directory under 'cwd', so can return immediately
+		return false
+	}
+
+	// Otherwise avoid special directories "testdata" or beginning with ".", "_".
+	pathComponents := strings.Split(rel, sep)
+	for _, elem := range pathComponents {
+		if hasAnyPrefix(elem, ".", "_") || elem == "testdata" {
+			return true
+		}
+	}
+	return false
 }
