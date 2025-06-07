@@ -418,6 +418,15 @@ func SliceWithSubtractBound(a []int, b int) []int {
 }
 
 // --------------------------------------- //
+//   ARM64 folding for slice masks         //
+// --------------------------------------- //
+
+func SliceAndIndex(a []int, b int) int {
+	// arm64:"AND\tR[0-9]+->63","ADD\tR[0-9]+<<3"
+	return a[b:][b]
+}
+
+// --------------------------------------- //
 //   Code generation for unsafe.Slice      //
 // --------------------------------------- //
 

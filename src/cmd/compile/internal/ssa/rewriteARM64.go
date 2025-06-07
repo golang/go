@@ -1592,6 +1592,66 @@ func rewriteValueARM64_OpARM64ADD(v *Value) bool {
 		}
 		break
 	}
+	// match: (ADD x0 x1:(ANDshiftRA x2:(SLLconst [sl] y) z [63]))
+	// cond: x1.Uses == 1 && x2.Uses == 1
+	// result: (ADDshiftLL x0 (ANDshiftRA <y.Type> y z [63]) [sl])
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x0 := v_0
+			x1 := v_1
+			if x1.Op != OpARM64ANDshiftRA || auxIntToInt64(x1.AuxInt) != 63 {
+				continue
+			}
+			z := x1.Args[1]
+			x2 := x1.Args[0]
+			if x2.Op != OpARM64SLLconst {
+				continue
+			}
+			sl := auxIntToInt64(x2.AuxInt)
+			y := x2.Args[0]
+			if !(x1.Uses == 1 && x2.Uses == 1) {
+				continue
+			}
+			v.reset(OpARM64ADDshiftLL)
+			v.AuxInt = int64ToAuxInt(sl)
+			v0 := b.NewValue0(v.Pos, OpARM64ANDshiftRA, y.Type)
+			v0.AuxInt = int64ToAuxInt(63)
+			v0.AddArg2(y, z)
+			v.AddArg2(x0, v0)
+			return true
+		}
+		break
+	}
+	// match: (ADD x0 x1:(ANDshiftLL x2:(SRAconst [63] z) y [sl]))
+	// cond: x1.Uses == 1 && x2.Uses == 1
+	// result: (ADDshiftLL x0 (ANDshiftRA <y.Type> y z [63]) [sl])
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x0 := v_0
+			x1 := v_1
+			if x1.Op != OpARM64ANDshiftLL {
+				continue
+			}
+			sl := auxIntToInt64(x1.AuxInt)
+			y := x1.Args[1]
+			x2 := x1.Args[0]
+			if x2.Op != OpARM64SRAconst || auxIntToInt64(x2.AuxInt) != 63 {
+				continue
+			}
+			z := x2.Args[0]
+			if !(x1.Uses == 1 && x2.Uses == 1) {
+				continue
+			}
+			v.reset(OpARM64ADDshiftLL)
+			v.AuxInt = int64ToAuxInt(sl)
+			v0 := b.NewValue0(v.Pos, OpARM64ANDshiftRA, y.Type)
+			v0.AuxInt = int64ToAuxInt(63)
+			v0.AddArg2(y, z)
+			v.AddArg2(x0, v0)
+			return true
+		}
+		break
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64ADDSflags(v *Value) bool {
