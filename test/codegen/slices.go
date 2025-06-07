@@ -429,3 +429,21 @@ func Slice0(p *struct{}, i int) []struct{} {
 	// amd64:-"MULQ"
 	return unsafe.Slice(p, i)
 }
+
+// --------------------------------------- //
+//   Code generation for slice bounds      //
+//   checking comparison                   //
+// --------------------------------------- //
+
+func SlicePut(a []byte, c uint8) []byte {
+	// arm64:`CBZ\tR1`
+	a[0] = c
+	// arm64:`CMP\t\$1, R1`
+	a = a[1:]
+	a[0] = c
+	// arm64:`CMP\t\$2, R1`
+	a = a[1:]
+	a[0] = c
+	a = a[1:]
+	return a
+}

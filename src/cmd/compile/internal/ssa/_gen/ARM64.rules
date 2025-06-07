@@ -683,6 +683,14 @@
 ((EQ|NE) (CMPconst  [0] x) yes no) => ((Z|NZ)   x yes no)
 ((EQ|NE) (CMPWconst [0] x) yes no) => ((ZW|NZW) x yes no)
 
+((ULE|UGT) (CMPconst  [0] x)) => ((EQ|NE) (CMPconst  [0] x))
+((ULE|UGT) (CMPWconst [0] x)) => ((EQ|NE) (CMPWconst [0] x))
+
+((Z|NZ)   sub:(SUB        x y)) && sub.Uses == 1 => ((EQ|NE) (CMP                x y))
+((ZW|NZW) sub:(SUB        x y)) && sub.Uses == 1 => ((EQ|NE) (CMPW               x y))
+((Z|NZ)   sub:(SUBconst [c] y)) && sub.Uses == 1 => ((EQ|NE) (CMPconst         [c] y))
+((ZW|NZW) sub:(SUBconst [c] y)) && sub.Uses == 1 => ((EQ|NE) (CMPWconst [int32(c)] y))
+
 ((EQ|NE|LT|LE|GT|GE) (CMPconst  [0] z:(MADD a x y))  yes no) && z.Uses==1 => ((EQ|NE|LTnoov|LEnoov|GTnoov|GEnoov) (CMN  a (MUL  <x.Type> x y)) yes no)
 ((EQ|NE|LT|LE|GT|GE) (CMPconst  [0] z:(MSUB a x y))  yes no) && z.Uses==1 => ((EQ|NE|LTnoov|LEnoov|GTnoov|GEnoov) (CMP  a (MUL  <x.Type> x y)) yes no)
 ((EQ|NE|LT|LE|GT|GE) (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 => ((EQ|NE|LTnoov|LEnoov|GTnoov|GEnoov) (CMNW a (MULW <x.Type> x y)) yes no)
