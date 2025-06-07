@@ -6760,10 +6760,10 @@ const http2TrailerPrefix = "Trailer:"
 // fields to be trailers.
 func (rws *http2responseWriterState) promoteUndeclaredTrailers() {
 	for k, vv := range rws.handlerHeader {
-		if !strings.HasPrefix(k, http2TrailerPrefix) {
+		trailerKey, cut := strings.CutPrefix(k, http2TrailerPrefix)
+		if !cut {
 			continue
 		}
-		trailerKey := strings.TrimPrefix(k, http2TrailerPrefix)
 		rws.declareTrailer(trailerKey)
 		rws.handlerHeader[CanonicalHeaderKey(trailerKey)] = vv
 	}
