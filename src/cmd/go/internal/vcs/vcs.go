@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"internal/lazyregexp"
 	"internal/singleflight"
 	"io/fs"
@@ -839,11 +840,13 @@ type vcsPath struct {
 	schemelessRepo bool                                // if true, the repo pattern lacks a scheme
 }
 
+var allowmultiplevcs = godebug.New("allowmultiplevcs")
+
 // FromDir inspects dir and its parents to determine the
 // version control system and code repository to use.
 // If no repository is found, FromDir returns an error
 // equivalent to os.ErrNotExist.
-func FromDir(dir, srcRoot string, allowNesting bool) (repoDir string, vcsCmd *Cmd, err error) {
+func FromDir(dir, srcRoot string) (repoDir string, vcsCmd *Cmd, err error) {
 	// Clean and double-check that dir is in (a subdirectory of) srcRoot.
 	dir = filepath.Clean(dir)
 	if srcRoot != "" {
@@ -857,21 +860,28 @@ func FromDir(dir, srcRoot string, allowNesting bool) (repoDir string, vcsCmd *Cm
 	for len(dir) > len(srcRoot) {
 		for _, vcs := range vcsList {
 			if isVCSRoot(dir, vcs.RootNames) {
-				// Record first VCS we find.
-				// If allowNesting is false (as it is in GOPATH), keep looking for
-				// repositories in parent directories and report an error if one is
-				// found to mitigate VCS injection attacks.
 				if vcsCmd == nil {
+					// Record first VCS we find.
 					vcsCmd = vcs
 					repoDir = dir
-					if allowNesting {
+					if allowmultiplevcs.Value() == "1" {
+						allowmultiplevcs.IncNonDefault()
 						return repoDir, vcsCmd, nil
 					}
+					// If allowmultiplevcs is not set, keep looking for
+					// repositories in current and parent directories and report
+					// an error if one is found to mitigate VCS injection
+					// attacks.
 					continue
 				}
-				// Otherwise, we have one VCS inside a different VCS.
-				return "", nil, fmt.Errorf("directory %q uses %s, but parent %q uses %s",
-					repoDir, vcsCmd.Cmd, dir, vcs.Cmd)
+				if vcsCmd == vcsGit && vcs == vcsGit {
+					// Nested Git is allowed, as this is how things like
+					// submodules work. Git explicitly protects against
+					// injection against itself.
+					continue
+				}
+				return "", nil, fmt.Errorf("multiple VCS detected: %s in %q, and %s in %q",
+					vcsCmd.Cmd, repoDir, vcs.Cmd, dir)
 			}
 		}
 

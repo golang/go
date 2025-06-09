@@ -46,7 +46,8 @@ func TestAll(t *testing.T) {
 		if info.Old != "" && info.Changed == 0 {
 			t.Errorf("Name=%s has Old, missing Changed", info.Name)
 		}
-		if !strings.Contains(doc, "`"+info.Name+"`") {
+		if !strings.Contains(doc, "`"+info.Name+"`") &&
+			!strings.Contains(doc, "`"+info.Name+"=") {
 			t.Errorf("Name=%s not documented in doc/godebug.md", info.Name)
 		}
 		if !info.Opaque && !incs[info.Name] {

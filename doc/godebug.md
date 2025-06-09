@@ -224,6 +224,10 @@ use and validate the CRT parameters in the encoded private key. This behavior
 can be controlled with the `x509rsacrt` setting. Using `x509rsacrt=0` restores
 the Go 1.23 behavior.
 
+Go 1.24.5 disabled build information stamping when multiple VCS are detected due
+to concerns around VCS injection attacks. This behavior can be renabled with the
+setting `allowmultiplevcs=1`.
+
 ### Go 1.23
 
 Go 1.23 changed the channels created by package time to be unbuffered

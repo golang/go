@@ -230,7 +230,7 @@ func LookupLocal(ctx context.Context, path string) Repo {
 
 	return lookupLocalCache.Do(path, func() Repo {
 		return newCachingRepo(ctx, path, func(ctx context.Context) (Repo, error) {
-			repoDir, vcsCmd, err := vcs.FromDir(path, "", true)
+			repoDir, vcsCmd, err := vcs.FromDir(path, "")
 			if err != nil {
 				return nil, err
 			}
