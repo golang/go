@@ -1014,7 +1014,25 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx index, implicits, explicits 
 	// arguments.
 	for i, targ := range dict.targs {
 		basic := r.Bool()
-		if dict.shaped && !pr.reshaping {
+		isPointerShape := basic && targ.IsPtr() && !targ.Elem().NotInHeap()
+		// We should not do shapify during the reshaping process, see #71184.
+		// However, this only matters for shapify a pointer type, which will
+		// lose the original underlying type.
+		//
+		// Example with a pointer type:
+		//
+		// - First, shapifying *[]T -> *uint8
+		// - During the reshaping process, *uint8 is shapified to *go.shape.uint8
+		// - This ends up with a different type with the original *[]T
+		//
+		// For a non-pointer type:
+		//
+		// - int -> go.shape.int
+		// - go.shape.int -> go.shape.int
+		//
+		// We always end up with the identical type.
+		canShapify := !pr.reshaping || !isPointerShape
+		if dict.shaped && canShapify {
 			dict.targs[i] = shapify(targ, basic)
 		}
 	}
