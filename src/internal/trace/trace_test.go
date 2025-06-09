@@ -600,6 +600,10 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 			godebug += "," + extraGODEBUG
 		}
 		cmd.Env = append(cmd.Env, "GODEBUG="+godebug)
+		if _, ok := os.LookupEnv("GOTRACEBACK"); !ok {
+			// Unless overriden, set GOTRACEBACK=crash.
+			cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")
+		}
 
 		// Capture stdout and stderr.
 		//
