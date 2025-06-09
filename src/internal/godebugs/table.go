@@ -25,6 +25,7 @@ type Info struct {
 // Note: After adding entries to this table, update the list in doc/godebug.md as well.
 // (Otherwise the test in this package will fail.)
 var All = []Info{
+	{Name: "allowmultiplevcs", Package: "cmd/go"},
 	{Name: "asynctimerchan", Package: "time", Changed: 23, Old: "1"},
 	{Name: "execerrdot", Package: "os/exec"},
 	{Name: "gocachehash", Package: "cmd/go"},

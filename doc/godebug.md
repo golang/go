@@ -209,6 +209,10 @@ when serving an error. This behavior is controlled by
 the [`httpservecontentkeepheaders` setting](/pkg/net/http#ServeContent).
 Using `httpservecontentkeepheaders=1` restores the pre-Go 1.23 behavior.
 
+Go 1.23.11 disabled build information stamping when multiple VCS are detected due
+to concerns around VCS injection attacks. This behavior can be renabled with the
+setting `allowmultiplevcs=1`.
+
 ### Go 1.22
 
 Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size
