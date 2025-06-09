@@ -261,11 +261,13 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
 			s.ticket = 1
 		}
 		readyWithTime(s, 5+skipframes)
-		if s.ticket == 1 && getg().m.locks == 0 {
+		if s.ticket == 1 && getg().m.locks == 0 && getg() != getg().m.g0 {
 			// Direct G handoff
+			//
 			// readyWithTime has added the waiter G as runnext in the
 			// current P; we now call the scheduler so that we start running
 			// the waiter G immediately.
+			//
 			// Note that waiter inherits our time slice: this is desirable
 			// to avoid having a highly contended semaphore hog the P
 			// indefinitely. goyield is like Gosched, but it emits a
@@ -275,9 +277,12 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
 			// the non-starving case it is possible for a different waiter
 			// to acquire the semaphore while we are yielding/scheduling,
 			// and this would be wasteful. We wait instead to enter starving
-			// regime, and then we start to do direct handoffs of ticket and
-			// P.
+			// regime, and then we start to do direct handoffs of ticket and P.
+			//
 			// See issue 33747 for discussion.
+			//
+			// We don't handoff directly if we're holding locks or on the
+			// system stack, since it's not safe to enter the scheduler.
 			goyield()
 		}
 	}
