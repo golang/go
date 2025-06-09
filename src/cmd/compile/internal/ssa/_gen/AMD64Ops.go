@@ -188,6 +188,7 @@ func init() {
 		fp1m1fp1 = regInfo{inputs: []regMask{fp, mask}, outputs: fponly}
 		fp2m1fp1 = regInfo{inputs: []regMask{fp, fp, mask}, outputs: fponly}
 		fp2m1m1  = regInfo{inputs: []regMask{fp, fp, mask}, outputs: maskonly}
+		fp3fp1   = regInfo{inputs: []regMask{fp, fp, fp}, outputs: fponly}
 
 		prefreg = regInfo{inputs: []regMask{gpspsbg}}
 	)
@@ -1298,7 +1299,7 @@ func init() {
 		pkg:                "cmd/internal/obj/x86",
 		genfile:            "../../amd64/ssa.go",
 		genSIMDfile:        "../../amd64/simdssa.go",
-		ops:                append(AMD64ops, simdAMD64Ops(fp11, fp21, fp2m1, fp1m1fp1, fp2m1fp1, fp2m1m1)...), // AMD64ops,
+		ops:                append(AMD64ops, simdAMD64Ops(fp11, fp21, fp2m1, fp1m1fp1, fp2m1fp1, fp2m1m1, fp3fp1)...), // AMD64ops,
 		blocks:             AMD64blocks,
 		regnames:           regNamesAMD64,
 		ParamIntRegNames:   "AX BX CX DI SI R8 R9 R10 R11",
