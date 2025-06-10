@@ -2029,3 +2029,36 @@ func (head *ListHeadManual) Pop() unsafe.Pointer {
 func (head *ListHeadManual) Remove(p unsafe.Pointer) {
 	head.l.remove(p)
 }
+
+func Hexdumper(base uintptr, wordBytes int, mark func(addr uintptr, start func()), data ...[]byte) string {
+	buf := make([]byte, 0, 2048)
+	getg().writebuf = buf
+	h := hexdumper{addr: base, addrBytes: 4, wordBytes: uint8(wordBytes)}
+	if mark != nil {
+		h.mark = func(addr uintptr, m hexdumpMarker) {
+			mark(addr, m.start)
+		}
+	}
+	for _, d := range data {
+		h.write(d)
+	}
+	h.close()
+	n := len(getg().writebuf)
+	getg().writebuf = nil
+	if n == cap(buf) {
+		panic("Hexdumper buf too small")
+	}
+	return string(buf[:n])
+}
+
+func HexdumpWords(p, bytes uintptr) string {
+	buf := make([]byte, 0, 2048)
+	getg().writebuf = buf
+	hexdumpWords(p, bytes, nil)
+	n := len(getg().writebuf)
+	getg().writebuf = nil
+	if n == cap(buf) {
+		panic("HexdumpWords buf too small")
+	}
+	return string(buf[:n])
+}

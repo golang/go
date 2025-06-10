@@ -1524,29 +1524,32 @@ func scanConservative(b, n uintptr, ptrmask *uint8, gcw *gcWork, state *stackSca
 	if debugScanConservative {
 		printlock()
 		print("conservatively scanning [", hex(b), ",", hex(b+n), ")\n")
-		hexdumpWords(b, b+n, func(p uintptr) byte {
+		hexdumpWords(b, n, func(p uintptr, m hexdumpMarker) {
 			if ptrmask != nil {
 				word := (p - b) / goarch.PtrSize
 				bits := *addb(ptrmask, word/8)
 				if (bits>>(word%8))&1 == 0 {
-					return '$'
+					return
 				}
 			}
 
 			val := *(*uintptr)(unsafe.Pointer(p))
 			if state != nil && state.stack.lo <= val && val < state.stack.hi {
-				return '@'
+				m.start()
+				println("ptr to stack")
+				return
 			}
 
 			span := spanOfHeap(val)
 			if span == nil {
-				return ' '
+				return
 			}
 			idx := span.objIndex(val)
 			if span.isFreeOrNewlyAllocated(idx) {
-				return ' '
+				return
 			}
-			return '*'
+			m.start()
+			println("ptr to heap")
 		})
 		printunlock()
 	}

@@ -1366,16 +1366,19 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
 
 	// Print the hex dump.
 	print("stack: frame={sp:", hex(frame.sp), ", fp:", hex(frame.fp), "} stack=[", hex(stk.lo), ",", hex(stk.hi), ")\n")
-	hexdumpWords(lo, hi, func(p uintptr) byte {
-		switch p {
-		case frame.fp:
-			return '>'
-		case frame.sp:
-			return '<'
-		case bad:
-			return '!'
+	hexdumpWords(lo, hi-lo, func(p uintptr, m hexdumpMarker) {
+		if p == frame.fp {
+			m.start()
+			println("FP")
 		}
-		return 0
+		if p == frame.sp {
+			m.start()
+			println("SP")
+		}
+		if p == bad {
+			m.start()
+			println("bad")
+		}
 	})
 }
 
