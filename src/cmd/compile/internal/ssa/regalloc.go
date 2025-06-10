@@ -2735,7 +2735,7 @@ func (s *regAllocState) computeLive() {
 	// out to all of them.
 	po := f.postorder()
 	s.loopnest = f.loopnest()
-	s.loopnest.calculateDepths()
+	s.loopnest.computeUnavoidableCalls()
 	for {
 		changed := false
 
@@ -3041,4 +3041,73 @@ func (d *desiredState) merge(x *desiredState) {
 	for _, e := range x.entries {
 		d.addList(e.ID, e.regs)
 	}
+}
+
+// computeUnavoidableCalls computes the containsUnavoidableCall fields in the loop nest.
+func (loopnest *loopnest) computeUnavoidableCalls() {
+	f := loopnest.f
+
+	hasCall := f.Cache.allocBoolSlice(f.NumBlocks())
+	defer f.Cache.freeBoolSlice(hasCall)
+	for _, b := range f.Blocks {
+		if b.containsCall() {
+			hasCall[b.ID] = true
+		}
+	}
+	found := f.Cache.allocSparseSet(f.NumBlocks())
+	defer f.Cache.freeSparseSet(found)
+	// Run dfs to find path through the loop that avoids all calls.
+	// Such path either escapes the loop or returns back to the header.
+	// It isn't enough to have exit not dominated by any call, for example:
+	// ... some loop
+	// call1    call2
+	//   \       /
+	//     block
+	// ...
+	// block is not dominated by any single call, but we don't have call-free path to it.
+loopLoop:
+	for _, l := range loopnest.loops {
+		found.clear()
+		tovisit := make([]*Block, 0, 8)
+		tovisit = append(tovisit, l.header)
+		for len(tovisit) > 0 {
+			cur := tovisit[len(tovisit)-1]
+			tovisit = tovisit[:len(tovisit)-1]
+			if hasCall[cur.ID] {
+				continue
+			}
+			for _, s := range cur.Succs {
+				nb := s.Block()
+				if nb == l.header {
+					// Found a call-free path around the loop.
+					continue loopLoop
+				}
+				if found.contains(nb.ID) {
+					// Already found via another path.
+					continue
+				}
+				nl := loopnest.b2l[nb.ID]
+				if nl == nil || (nl.depth <= l.depth && nl != l) {
+					// Left the loop.
+					continue
+				}
+				tovisit = append(tovisit, nb)
+				found.add(nb.ID)
+			}
+		}
+		// No call-free path was found.
+		l.containsUnavoidableCall = true
+	}
+}
+
+func (b *Block) containsCall() bool {
+	if b.Kind == BlockDefer {
+		return true
+	}
+	for _, v := range b.Values {
+		if opcodeTable[v.Op].call {
+			return true
+		}
+	}
+	return false
 }
