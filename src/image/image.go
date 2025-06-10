@@ -34,7 +34,9 @@
 // regardless of whether the image is itself malformed or not. A call to
 // [DecodeConfig] which returns a header which does not match the image returned
 // by [Decode] may be considered a security issue, and should be reported per the
-// [Go Security Policy](https://go.dev/security/policy).
+// [Go Security Policy].
+//
+// [Go Security Policy]: https://go.dev/security/policy
 package image
 
 import (
