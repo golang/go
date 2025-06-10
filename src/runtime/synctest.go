@@ -185,7 +185,6 @@ func synctestRun(f func()) {
 	}
 	const synctestBaseTime = 946684800000000000 // midnight UTC 2000-01-01
 	bubble.now = synctestBaseTime
-	bubble.timers.bubble = bubble
 	lockInit(&bubble.mu, lockRankSynctest)
 	lockInit(&bubble.timers.mu, lockRankTimers)
 
@@ -213,7 +212,7 @@ func synctestRun(f func()) {
 			// so timer goroutines inherit their child race context from g0.
 			curg := gp.m.curg
 			gp.m.curg = nil
-			gp.bubble.timers.check(gp.bubble.now)
+			gp.bubble.timers.check(bubble.now, bubble)
 			gp.m.curg = curg
 		})
 		gopark(synctestidle_c, nil, waitReasonSynctestRun, traceBlockSynctest, 0)
@@ -243,7 +242,13 @@ func synctestRun(f func()) {
 		raceacquireg(gp, gp.bubble.raceaddr())
 	}
 	if total != 1 {
-		panic(synctestDeadlockError{bubble})
+		var reason string
+		if bubble.done {
+			reason = "deadlock: main bubble goroutine has exited but blocked goroutines remain"
+		} else {
+			reason = "deadlock: all goroutines in bubble are blocked"
+		}
+		panic(synctestDeadlockError{reason: reason, bubble: bubble})
 	}
 	if gp.timer != nil && gp.timer.isFake {
 		// Verify that we haven't marked this goroutine's sleep timer as fake.
@@ -253,11 +258,12 @@ func synctestRun(f func()) {
 }
 
 type synctestDeadlockError struct {
+	reason string
 	bubble *synctestBubble
 }
 
-func (synctestDeadlockError) Error() string {
-	return "deadlock: all goroutines in bubble are blocked"
+func (e synctestDeadlockError) Error() string {
+	return e.reason
 }
 
 func synctestidle_c(gp *g, _ unsafe.Pointer) bool {

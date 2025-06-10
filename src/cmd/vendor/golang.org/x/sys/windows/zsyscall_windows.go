@@ -511,6 +511,7 @@ var (
 	procFreeAddrInfoW                                        = modws2_32.NewProc("FreeAddrInfoW")
 	procGetAddrInfoW                                         = modws2_32.NewProc("GetAddrInfoW")
 	procWSACleanup                                           = modws2_32.NewProc("WSACleanup")
+	procWSADuplicateSocketW                                  = modws2_32.NewProc("WSADuplicateSocketW")
 	procWSAEnumProtocolsW                                    = modws2_32.NewProc("WSAEnumProtocolsW")
 	procWSAGetOverlappedResult                               = modws2_32.NewProc("WSAGetOverlappedResult")
 	procWSAIoctl                                             = modws2_32.NewProc("WSAIoctl")
@@ -4386,6 +4387,14 @@ func GetAddrInfoW(nodename *uint16, servicename *uint16, hints *AddrinfoW, resul
 func WSACleanup() (err error) {
 	r1, _, e1 := syscall.Syscall(procWSACleanup.Addr(), 0, 0, 0, 0)
 	if r1 == socket_error {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func WSADuplicateSocket(s Handle, processID uint32, info *WSAProtocolInfo) (err error) {
+	r1, _, e1 := syscall.Syscall(procWSADuplicateSocketW.Addr(), 3, uintptr(s), uintptr(processID), uintptr(unsafe.Pointer(info)))
+	if r1 != 0 {
 		err = errnoErr(e1)
 	}
 	return

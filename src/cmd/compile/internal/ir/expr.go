@@ -191,6 +191,7 @@ type CallExpr struct {
 	KeepAlive []*Name // vars to be kept alive until call returns
 	IsDDD     bool
 	GoDefer   bool // whether this call is part of a go or defer statement
+	NoInline  bool // whether this call must not be inlined
 }
 
 func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {

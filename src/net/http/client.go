@@ -806,7 +806,8 @@ func (c *Client) makeHeadersCopier(ireq *Request) func(req *Request, stripSensit
 		for k, vv := range ireqhdr {
 			sensitive := false
 			switch CanonicalHeaderKey(k) {
-			case "Authorization", "Www-Authenticate", "Cookie", "Cookie2":
+			case "Authorization", "Www-Authenticate", "Cookie", "Cookie2",
+				"Proxy-Authorization", "Proxy-Authenticate":
 				sensitive = true
 			}
 			if !(sensitive && stripSensitiveHeaders) {

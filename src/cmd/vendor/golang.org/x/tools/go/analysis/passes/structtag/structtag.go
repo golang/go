@@ -107,7 +107,7 @@ func checkCanonicalFieldTag(pass *analysis.Pass, field *types.Var, tag string, s
 
 	// Embedded struct. Nothing to do for now, but that
 	// may change, depending on what happens with issue 7363.
-	// TODO(adonovan): investigate, now that that issue is fixed.
+	// TODO(adonovan): investigate, now that issue is fixed.
 	if field.Anonymous() {
 		return
 	}

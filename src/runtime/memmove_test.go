@@ -1123,3 +1123,102 @@ func BenchmarkMemclrKnownSize512KiB(b *testing.B) {
 
 	memclrSink = x[:]
 }
+
+func BenchmarkMemmoveKnownSize112(b *testing.B) {
+	type T struct {
+		x [112]int8
+	}
+	p := &T{}
+	q := &T{}
+
+	b.SetBytes(int64(unsafe.Sizeof(T{})))
+	for i := 0; i < b.N; i++ {
+		*p = *q
+	}
+
+	memclrSink = p.x[:]
+}
+func BenchmarkMemmoveKnownSize128(b *testing.B) {
+	type T struct {
+		x [128]int8
+	}
+	p := &T{}
+	q := &T{}
+
+	b.SetBytes(int64(unsafe.Sizeof(T{})))
+	for i := 0; i < b.N; i++ {
+		*p = *q
+	}
+
+	memclrSink = p.x[:]
+}
+func BenchmarkMemmoveKnownSize192(b *testing.B) {
+	type T struct {
+		x [192]int8
+	}
+	p := &T{}
+	q := &T{}
+
+	b.SetBytes(int64(unsafe.Sizeof(T{})))
+	for i := 0; i < b.N; i++ {
+		*p = *q
+	}
+
+	memclrSink = p.x[:]
+}
+func BenchmarkMemmoveKnownSize248(b *testing.B) {
+	type T struct {
+		x [248]int8
+	}
+	p := &T{}
+	q := &T{}
+
+	b.SetBytes(int64(unsafe.Sizeof(T{})))
+	for i := 0; i < b.N; i++ {
+		*p = *q
+	}
+
+	memclrSink = p.x[:]
+}
+func BenchmarkMemmoveKnownSize256(b *testing.B) {
+	type T struct {
+		x [256]int8
+	}
+	p := &T{}
+	q := &T{}
+
+	b.SetBytes(int64(unsafe.Sizeof(T{})))
+	for i := 0; i < b.N; i++ {
+		*p = *q
+	}
+
+	memclrSink = p.x[:]
+}
+func BenchmarkMemmoveKnownSize512(b *testing.B) {
+	type T struct {
+		x [512]int8
+	}
+	p := &T{}
+	q := &T{}
+
+	b.SetBytes(int64(unsafe.Sizeof(T{})))
+	for i := 0; i < b.N; i++ {
+		*p = *q
+	}
+
+	memclrSink = p.x[:]
+}
+func BenchmarkMemmoveKnownSize1024(b *testing.B) {
+	type T struct {
+		x [1024]int8
+	}
+	p := &T{}
+	q := &T{}
+
+	b.SetBytes(int64(unsafe.Sizeof(T{})))
+	for i := 0; i < b.N; i++ {
+		*p = *q
+	}
+
+	memclrSink = p.x[:]
+}

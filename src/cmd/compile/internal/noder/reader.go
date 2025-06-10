@@ -1014,7 +1014,25 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx index, implicits, explicits 
 	// arguments.
 	for i, targ := range dict.targs {
 		basic := r.Bool()
-		if dict.shaped && !pr.reshaping {
+		isPointerShape := basic && targ.IsPtr() && !targ.Elem().NotInHeap()
+		// We should not do shapify during the reshaping process, see #71184.
+		// However, this only matters for shapify a pointer type, which will
+		// lose the original underlying type.
+		//
+		// Example with a pointer type:
+		//
+		// - First, shapifying *[]T -> *uint8
+		// - During the reshaping process, *uint8 is shapified to *go.shape.uint8
+		// - This ends up with a different type with the original *[]T
+		//
+		// For a non-pointer type:
+		//
+		// - int -> go.shape.int
+		// - go.shape.int -> go.shape.int
+		//
+		// We always end up with the identical type.
+		canShapify := !pr.reshaping || !isPointerShape
+		if dict.shaped && canShapify {
 			dict.targs[i] = shapify(targ, basic)
 		}
 	}
@@ -3996,11 +4014,12 @@ func addTailCall(pos src.XPos, fn *ir.Func, recv ir.Node, method *types.Field) {
 
 	if recv.Type() != nil && recv.Type().IsPtr() && method.Type.Recv().Type.IsPtr() &&
 		method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) &&
+		!unifiedHaveInlineBody(ir.MethodExprName(dot).Func) &&
 		!(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
 		if base.Debug.TailCall != 0 {
 			base.WarnfAt(fn.Nname.Type().Recv().Type.Elem().Pos(), "tail call emitted for the method %v wrapper", method.Nname)
 		}
-		// Prefer OTAILCALL to reduce code size (the called method can be inlined).
+		// Prefer OTAILCALL to reduce code size (except the case when the called method can be inlined).
 		fn.Body.Append(ir.NewTailCallStmt(pos, call))
 		return
 	}

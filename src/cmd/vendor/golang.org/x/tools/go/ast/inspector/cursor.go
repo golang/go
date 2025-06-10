@@ -1,18 +1,8 @@
-// Copyright 2024 The Go Authors. All rights reserved.
+// Copyright 2025 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build go1.23
-
-// Package cursor augments [inspector.Inspector] with [Cursor]
-// functionality allowing more flexibility and control during
-// inspection.
-//
-// This package is a temporary private extension of inspector until
-// proposal #70859 is accepted, and which point it will be moved into
-// the inspector package, and [Root] will become a method of
-// Inspector.
-package cursor
+package inspector
 
 import (
 	"fmt"
@@ -21,17 +11,29 @@ import (
 	"iter"
 	"reflect"
 
-	"golang.org/x/tools/go/ast/inspector"
-	"golang.org/x/tools/internal/astutil/edge"
+	"golang.org/x/tools/go/ast/edge"
 )
 
 // A Cursor represents an [ast.Node]. It is immutable.
 //
 // Two Cursors compare equal if they represent the same node.
 //
-// Call [Root] to obtain a valid cursor.
+// Call [Inspector.Root] to obtain a valid cursor for the virtual root
+// node of the traversal.
+//
+// Use the following methods to navigate efficiently around the tree:
+//   - for ancestors, use [Cursor.Parent] and [Cursor.Enclosing];
+//   - for children, use [Cursor.Child], [Cursor.Children],
+//     [Cursor.FirstChild], and [Cursor.LastChild];
+//   - for siblings, use [Cursor.PrevSibling] and [Cursor.NextSibling];
+//   - for descendants, use [Cursor.FindByPos], [Cursor.FindNode],
+//     [Cursor.Inspect], and [Cursor.Preorder].
+//
+// Use the [Cursor.ChildAt] and [Cursor.ParentEdge] methods for
+// information about the edges in a tree: which field (and slice
+// element) of the parent node holds the child.
 type Cursor struct {
-	in    *inspector.Inspector
+	in    *Inspector
 	index int32 // index of push node; -1 for virtual root node
 }
 
@@ -39,29 +41,28 @@ type Cursor struct {
 // whose children are the files provided to [New].
 //
 // Its [Cursor.Node] and [Cursor.Stack] methods return nil.
-func Root(in *inspector.Inspector) Cursor {
+func (in *Inspector) Root() Cursor {
 	return Cursor{in, -1}
 }
 
 // At returns the cursor at the specified index in the traversal,
 // which must have been obtained from [Cursor.Index] on a Cursor
 // belonging to the same Inspector (see [Cursor.Inspector]).
-func At(in *inspector.Inspector, index int32) Cursor {
+func (in *Inspector) At(index int32) Cursor {
 	if index < 0 {
 		panic("negative index")
 	}
-	events := events(in)
-	if int(index) >= len(events) {
+	if int(index) >= len(in.events) {
 		panic("index out of range for this inspector")
 	}
-	if events[index].index < index {
+	if in.events[index].index < index {
 		panic("invalid index") // (a push, not a pop)
 	}
 	return Cursor{in, index}
 }
 
 // Inspector returns the cursor's Inspector.
-func (c Cursor) Inspector() *inspector.Inspector { return c.in }
+func (c Cursor) Inspector() *Inspector { return c.in }
 
 // Index returns the index of this cursor position within the package.
 //
@@ -83,7 +84,7 @@ func (c Cursor) Node() ast.Node {
 	if c.index < 0 {
 		return nil
 	}
-	return c.events()[c.index].node
+	return c.in.events[c.index].node
 }
 
 // String returns information about the cursor's node, if any.
@@ -100,9 +101,9 @@ func (c Cursor) String() string {
 // indices return the [start, end) half-open interval of event indices.
 func (c Cursor) indices() (int32, int32) {
 	if c.index < 0 {
-		return 0, int32(len(c.events())) // root: all events
+		return 0, int32(len(c.in.events)) // root: all events
 	} else {
-		return c.index, c.events()[c.index].index + 1 // just one subtree
+		return c.index, c.in.events[c.index].index + 1 // just one subtree
 	}
 }
 
@@ -123,7 +124,7 @@ func (c Cursor) Preorder(types ...ast.Node) iter.Seq[Cursor] {
 	mask := maskOf(types)
 
 	return func(yield func(Cursor) bool) {
-		events := c.events()
+		events := c.in.events
 
 		for i, limit := c.indices(); i < limit; {
 			ev := events[i]
@@ -158,7 +159,7 @@ func (c Cursor) Preorder(types ...ast.Node) iter.Seq[Cursor] {
 // matches an element of the types slice.
 func (c Cursor) Inspect(types []ast.Node, f func(c Cursor) (descend bool)) {
 	mask := maskOf(types)
-	events := c.events()
+	events := c.in.events
 	for i, limit := c.indices(); i < limit; {
 		ev := events[i]
 		if ev.index > i {
@@ -193,7 +194,7 @@ func (c Cursor) Enclosing(types ...ast.Node) iter.Seq[Cursor] {
 	mask := maskOf(types)
 
 	return func(yield func(Cursor) bool) {
-		events := c.events()
+		events := c.in.events
 		for i := c.index; i >= 0; i = events[i].parent {
 			if events[i].typ&mask != 0 && !yield(Cursor{c.in, i}) {
 				break
@@ -210,7 +211,7 @@ func (c Cursor) Parent() Cursor {
 		panic("Cursor.Parent called on Root node")
 	}
 
-	return Cursor{c.in, c.events()[c.index].parent}
+	return Cursor{c.in, c.in.events[c.index].parent}
 }
 
 // ParentEdge returns the identity of the field in the parent node
@@ -227,7 +228,7 @@ func (c Cursor) ParentEdge() (edge.Kind, int) {
 	if c.index < 0 {
 		panic("Cursor.ParentEdge called on Root node")
 	}
-	events := c.events()
+	events := c.in.events
 	pop := events[c.index].index
 	return unpackEdgeKindAndIndex(events[pop].parent)
 }
@@ -244,7 +245,7 @@ func (c Cursor) ChildAt(k edge.Kind, idx int) Cursor {
 	target := packEdgeKindAndIndex(k, idx)
 
 	// Unfortunately there's no shortcut to looping.
-	events := c.events()
+	events := c.in.events
 	i := c.index + 1
 	for {
 		pop := events[i].index
@@ -277,7 +278,7 @@ func (c Cursor) Child(n ast.Node) Cursor {
 
 	} else {
 		// optimized implementation
-		events := c.events()
+		events := c.in.events
 		for i := c.index + 1; events[i].index > i; i = events[i].index + 1 {
 			if events[i].node == n {
 				return Cursor{c.in, i}
@@ -300,7 +301,7 @@ func (c Cursor) NextSibling() (Cursor, bool) {
 		panic("Cursor.NextSibling called on Root node")
 	}
 
-	events := c.events()
+	events := c.in.events
 	i := events[c.index].index + 1 // after corresponding pop
 	if i < int32(len(events)) {
 		if events[i].index > i { // push?
@@ -323,7 +324,7 @@ func (c Cursor) PrevSibling() (Cursor, bool) {
 		panic("Cursor.PrevSibling called on Root node")
 	}
 
-	events := c.events()
+	events := c.in.events
 	i := c.index - 1
 	if i >= 0 {
 		if j := events[i].index; j < i { // pop?
@@ -336,7 +337,7 @@ func (c Cursor) PrevSibling() (Cursor, bool) {
 // FirstChild returns the first direct child of the current node,
 // or zero if it has no children.
 func (c Cursor) FirstChild() (Cursor, bool) {
-	events := c.events()
+	events := c.in.events
 	i := c.index + 1                                   // i=0 if c is root
 	if i < int32(len(events)) && events[i].index > i { // push?
 		return Cursor{c.in, i}, true
@@ -347,7 +348,7 @@ func (c Cursor) FirstChild() (Cursor, bool) {
 // LastChild returns the last direct child of the current node,
 // or zero if it has no children.
 func (c Cursor) LastChild() (Cursor, bool) {
-	events := c.events()
+	events := c.in.events
 	if c.index < 0 { // root?
 		if len(events) > 0 {
 			// return push of final event (a pop)
@@ -377,11 +378,11 @@ func (c Cursor) LastChild() (Cursor, bool) {
 // of expressions and statements. Other nodes that have "uncontained"
 // list fields include:
 //
-// - [ast.ValueSpec] (Names, Values)
-// - [ast.CompositeLit] (Type, Elts)
-// - [ast.IndexListExpr] (X, Indices)
-// - [ast.CallExpr] (Fun, Args)
-// - [ast.AssignStmt] (Lhs, Rhs)
+//   - [ast.ValueSpec] (Names, Values)
+//   - [ast.CompositeLit] (Type, Elts)
+//   - [ast.IndexListExpr] (X, Indices)
+//   - [ast.CallExpr] (Fun, Args)
+//   - [ast.AssignStmt] (Lhs, Rhs)
 //
 // So, do not assume that the previous sibling of an ast.Stmt is also
 // an ast.Stmt, or if it is, that they are executed sequentially,
@@ -406,7 +407,7 @@ func (c Cursor) Contains(c2 Cursor) bool {
 	if c.in != c2.in {
 		panic("different inspectors")
 	}
-	events := c.events()
+	events := c.in.events
 	return c.index <= c2.index && events[c2.index].index <= events[c.index].index
 }
 
@@ -430,7 +431,7 @@ func (c Cursor) FindNode(n ast.Node) (Cursor, bool) {
 	// like FindByPos?
 
 	mask := maskOf([]ast.Node{n})
-	events := c.events()
+	events := c.in.events
 
 	for i, limit := c.indices(); i < limit; i++ {
 		ev := events[i]
@@ -461,7 +462,7 @@ func (c Cursor) FindByPos(start, end token.Pos) (Cursor, bool) {
 	if end < start {
 		panic("end < start")
 	}
-	events := c.events()
+	events := c.in.events
 
 	// This algorithm could be implemented using c.Inspect,
 	// but it is about 2.5x slower.

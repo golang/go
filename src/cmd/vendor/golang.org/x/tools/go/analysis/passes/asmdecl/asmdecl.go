@@ -57,7 +57,7 @@ type asmArch struct {
 	// include the first integer register and first floating-point register. Accessing
 	// any of them counts as writing to result.
 	retRegs []string
-	// writeResult is a list of instructions that will change result register implicity.
+	// writeResult is a list of instructions that will change result register implicitly.
 	writeResult []string
 	// calculated during initialization
 	sizes    types.Sizes

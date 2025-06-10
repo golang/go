@@ -461,8 +461,13 @@ TEXT	racecall<>(SB), NOSPLIT|NOFRAME, $0-0
 	// Switch to g0 stack.
 	MOVV	R3, R23	// callee-saved, preserved across the CALL
 	MOVV	R1, R24	// callee-saved, preserved across the CALL
+
+	// Switch to g0 stack if we aren't already on g0 or gsignal.
+	MOVV	m_gsignal(R12), R13
+	BEQ	R13, g, call
+
 	MOVV	m_g0(R12), R13
-	BEQ	R13, g, call	// already on g0
+	BEQ	R13, g, call
 	MOVV	(g_sched+gobuf_sp)(R13), R3
 call:
 	JAL	(RCALL)

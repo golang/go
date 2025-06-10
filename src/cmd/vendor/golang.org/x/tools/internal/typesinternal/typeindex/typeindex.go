@@ -4,7 +4,7 @@
 
 // Package typeindex provides an [Index] of type information for a
 // package, allowing efficient lookup of, say, whether a given symbol
-// is referenced and, if so, where from; or of the [cursor.Cursor] for
+// is referenced and, if so, where from; or of the [inspector.Cursor] for
 // the declaration of a particular [types.Object] symbol.
 package typeindex
 
@@ -14,10 +14,9 @@ import (
 	"go/types"
 	"iter"
 
+	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
-	"golang.org/x/tools/internal/astutil/cursor"
-	"golang.org/x/tools/internal/astutil/edge"
 	"golang.org/x/tools/internal/typesinternal"
 )
 
@@ -30,7 +29,7 @@ func New(inspect *inspector.Inspector, pkg *types.Package, info *types.Info) *In
 		inspect:  inspect,
 		info:     info,
 		packages: make(map[string]*types.Package),
-		def:      make(map[types.Object]cursor.Cursor),
+		def:      make(map[types.Object]inspector.Cursor),
 		uses:     make(map[types.Object]*uses),
 	}
 
@@ -40,7 +39,7 @@ func New(inspect *inspector.Inspector, pkg *types.Package, info *types.Info) *In
 		}
 	}
 
-	for cur := range cursor.Root(inspect).Preorder((*ast.ImportSpec)(nil), (*ast.Ident)(nil)) {
+	for cur := range inspect.Root().Preorder((*ast.ImportSpec)(nil), (*ast.Ident)(nil)) {
 		switch n := cur.Node().(type) {
 		case *ast.ImportSpec:
 			// Index direct imports, including blank ones.
@@ -83,9 +82,9 @@ func New(inspect *inspector.Inspector, pkg *types.Package, info *types.Info) *In
 type Index struct {
 	inspect  *inspector.Inspector
 	info     *types.Info
-	packages map[string]*types.Package      // packages of all symbols referenced from this package
-	def      map[types.Object]cursor.Cursor // Cursor of *ast.Ident that defines the Object
-	uses     map[types.Object]*uses         // Cursors of *ast.Idents that use the Object
+	packages map[string]*types.Package         // packages of all symbols referenced from this package
+	def      map[types.Object]inspector.Cursor // Cursor of *ast.Ident that defines the Object
+	uses     map[types.Object]*uses            // Cursors of *ast.Idents that use the Object
 }
 
 // A uses holds the list of Cursors of Idents that use a given symbol.
@@ -107,14 +106,14 @@ type uses struct {
 
 // Uses returns the sequence of Cursors of [*ast.Ident]s in this package
 // that refer to obj. If obj is nil, the sequence is empty.
-func (ix *Index) Uses(obj types.Object) iter.Seq[cursor.Cursor] {
-	return func(yield func(cursor.Cursor) bool) {
+func (ix *Index) Uses(obj types.Object) iter.Seq[inspector.Cursor] {
+	return func(yield func(inspector.Cursor) bool) {
 		if uses := ix.uses[obj]; uses != nil {
 			var last int32
 			for code := uses.code; len(code) > 0; {
 				delta, n := binary.Uvarint(code)
 				last += int32(delta)
-				if !yield(cursor.At(ix.inspect, last)) {
+				if !yield(ix.inspect.At(last)) {
 					return
 				}
 				code = code[n:]
@@ -140,7 +139,7 @@ func (ix *Index) Used(objs ...types.Object) bool {
 
 // Def returns the Cursor of the [*ast.Ident] in this package
 // that declares the specified object, if any.
-func (ix *Index) Def(obj types.Object) (cursor.Cursor, bool) {
+func (ix *Index) Def(obj types.Object) (inspector.Cursor, bool) {
 	cur, ok := ix.def[obj]
 	return cur, ok
 }
@@ -176,8 +175,8 @@ func (ix *Index) Selection(path, typename, name string) types.Object {
 // Calls returns the sequence of cursors for *ast.CallExpr nodes that
 // call the specified callee, as defined by [typeutil.Callee].
 // If callee is nil, the sequence is empty.
-func (ix *Index) Calls(callee types.Object) iter.Seq[cursor.Cursor] {
-	return func(yield func(cursor.Cursor) bool) {
+func (ix *Index) Calls(callee types.Object) iter.Seq[inspector.Cursor] {
+	return func(yield func(inspector.Cursor) bool) {
 		for cur := range ix.Uses(callee) {
 			ek, _ := cur.ParentEdge()
 

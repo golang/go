@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package doc
 
 import (
 	"bytes"
@@ -90,7 +90,7 @@ type test struct {
 	no   []string // Regular expressions that should not match.
 }
 
-const p = "cmd/doc/testdata"
+const p = "cmd/internal/doc/testdata"
 
 var tests = []test{
 	// Sanity check.
@@ -105,7 +105,7 @@ var tests = []test{
 	{
 		"package clause",
 		[]string{p},
-		[]string{`package pkg.*cmd/doc/testdata`},
+		[]string{`package pkg.*cmd/internal/doc/testdata`},
 		nil,
 	},
 

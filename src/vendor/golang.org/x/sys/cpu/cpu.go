@@ -232,6 +232,17 @@ var RISCV64 struct {
 	HasZba            bool // Address generation instructions extension
 	HasZbb            bool // Basic bit-manipulation extension
 	HasZbs            bool // Single-bit instructions extension
+	HasZvbb           bool // Vector Basic Bit-manipulation
+	HasZvbc           bool // Vector Carryless Multiplication
+	HasZvkb           bool // Vector Cryptography Bit-manipulation
+	HasZvkt           bool // Vector Data-Independent Execution Latency
+	HasZvkg           bool // Vector GCM/GMAC
+	HasZvkn           bool // NIST Algorithm Suite (AES/SHA256/SHA512)
+	HasZvknc          bool // NIST Algorithm Suite with carryless multiply
+	HasZvkng          bool // NIST Algorithm Suite with GCM
+	HasZvks           bool // ShangMi Algorithm Suite
+	HasZvksc          bool // ShangMi Algorithm Suite with carryless multiplication
+	HasZvksg          bool // ShangMi Algorithm Suite with GCM
 	_                 CacheLinePad
 }
 

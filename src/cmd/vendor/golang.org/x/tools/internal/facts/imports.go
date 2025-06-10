@@ -52,7 +52,7 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 			// nop
 		case typesinternal.NamedOrAlias: // *types.{Named,Alias}
 			// Add the type arguments if this is an instance.
-			if targs := typesinternal.TypeArgs(T); targs.Len() > 0 {
+			if targs := T.TypeArgs(); targs.Len() > 0 {
 				for i := 0; i < targs.Len(); i++ {
 					addType(targs.At(i))
 				}
@@ -69,7 +69,7 @@ func importMap(imports []*types.Package) map[string]*types.Package {
 
 				// common aspects
 				addObj(T.Obj())
-				if tparams := typesinternal.TypeParams(T); tparams.Len() > 0 {
+				if tparams := T.TypeParams(); tparams.Len() > 0 {
 					for i := 0; i < tparams.Len(); i++ {
 						addType(tparams.At(i))
 					}

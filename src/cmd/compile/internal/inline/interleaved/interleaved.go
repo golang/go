@@ -279,7 +279,12 @@ func (s *inlClosureState) mark(n ir.Node) ir.Node {
 
 	ok := match(n)
 
-	ir.EditChildren(n, s.mark)
+	// can't wrap TailCall's child into ParenExpr
+	if t, ok := n.(*ir.TailCallStmt); ok {
+		ir.EditChildren(t.Call, s.mark)
+	} else {
+		ir.EditChildren(n, s.mark)
+	}
 
 	if ok {
 		if p == nil {
@@ -317,23 +322,6 @@ func (s *inlClosureState) unparenthesize() {
 			n = paren.X
 		}
 		ir.EditChildren(n, unparen)
-		// special case for tail calls: if the tail call was inlined, transform
-		// the tail call to a return stmt if the inlined function was not void,
-		// otherwise replace it with the inlined expression followed by a return.
-		if tail, ok := n.(*ir.TailCallStmt); ok {
-			if inl, done := tail.Call.(*ir.InlinedCallExpr); done {
-				if len(inl.ReturnVars) != 0 {
-					ret := ir.NewReturnStmt(tail.Pos(), []ir.Node{inl})
-					if len(inl.ReturnVars) > 1 {
-						typecheck.RewriteMultiValueCall(ret, inl)
-					}
-					n = ret
-				} else {
-					ret := ir.NewReturnStmt(tail.Pos(), nil)
-					n = ir.NewBlockStmt(tail.Pos(), []ir.Node{inl, ret})
-				}
-			}
-		}
 		return n
 	}
 	ir.EditChildren(s.fn, unparen)
@@ -370,9 +358,11 @@ func (s *inlClosureState) fixpoint() bool {
 }
 
 func match(n ir.Node) bool {
-	switch n.(type) {
+	switch n := n.(type) {
 	case *ir.CallExpr:
 		return true
+	case *ir.TailCallStmt:
+		n.Call.NoInline = true // can't inline yet
 	}
 	return false
 }

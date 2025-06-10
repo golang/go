@@ -58,6 +58,15 @@ const (
 	riscv_HWPROBE_EXT_ZBA         = 0x8
 	riscv_HWPROBE_EXT_ZBB         = 0x10
 	riscv_HWPROBE_EXT_ZBS         = 0x20
+	riscv_HWPROBE_EXT_ZVBB        = 0x20000
+	riscv_HWPROBE_EXT_ZVBC        = 0x40000
+	riscv_HWPROBE_EXT_ZVKB        = 0x80000
+	riscv_HWPROBE_EXT_ZVKG        = 0x100000
+	riscv_HWPROBE_EXT_ZVKNED      = 0x200000
+	riscv_HWPROBE_EXT_ZVKNHB      = 0x800000
+	riscv_HWPROBE_EXT_ZVKSED      = 0x1000000
+	riscv_HWPROBE_EXT_ZVKSH       = 0x2000000
+	riscv_HWPROBE_EXT_ZVKT        = 0x4000000
 	riscv_HWPROBE_KEY_CPUPERF_0   = 0x5
 	riscv_HWPROBE_MISALIGNED_FAST = 0x3
 	riscv_HWPROBE_MISALIGNED_MASK = 0x7
@@ -99,6 +108,20 @@ func doinit() {
 			RISCV64.HasZba = isSet(v, riscv_HWPROBE_EXT_ZBA)
 			RISCV64.HasZbb = isSet(v, riscv_HWPROBE_EXT_ZBB)
 			RISCV64.HasZbs = isSet(v, riscv_HWPROBE_EXT_ZBS)
+			RISCV64.HasZvbb = isSet(v, riscv_HWPROBE_EXT_ZVBB)
+			RISCV64.HasZvbc = isSet(v, riscv_HWPROBE_EXT_ZVBC)
+			RISCV64.HasZvkb = isSet(v, riscv_HWPROBE_EXT_ZVKB)
+			RISCV64.HasZvkg = isSet(v, riscv_HWPROBE_EXT_ZVKG)
+			RISCV64.HasZvkt = isSet(v, riscv_HWPROBE_EXT_ZVKT)
+			// Cryptography shorthand extensions
+			RISCV64.HasZvkn = isSet(v, riscv_HWPROBE_EXT_ZVKNED) &&
+				isSet(v, riscv_HWPROBE_EXT_ZVKNHB) && RISCV64.HasZvkb && RISCV64.HasZvkt
+			RISCV64.HasZvknc = RISCV64.HasZvkn && RISCV64.HasZvbc
+			RISCV64.HasZvkng = RISCV64.HasZvkn && RISCV64.HasZvkg
+			RISCV64.HasZvks = isSet(v, riscv_HWPROBE_EXT_ZVKSED) &&
+				isSet(v, riscv_HWPROBE_EXT_ZVKSH) && RISCV64.HasZvkb && RISCV64.HasZvkt
+			RISCV64.HasZvksc = RISCV64.HasZvks && RISCV64.HasZvbc
+			RISCV64.HasZvksg = RISCV64.HasZvks && RISCV64.HasZvkg
 		}
 		if pairs[1].key != -1 {
 			v := pairs[1].value & riscv_HWPROBE_MISALIGNED_MASK

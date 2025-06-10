@@ -2,45 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Doc (usually run as go doc) accepts zero, one or two arguments.
-//
-// Zero arguments:
-//
-//	go doc
-//
-// Show the documentation for the package in the current directory.
-//
-// One argument:
-//
-//	go doc <pkg>
-//	go doc <sym>[.<methodOrField>]
-//	go doc [<pkg>.]<sym>[.<methodOrField>]
-//	go doc [<pkg>.][<sym>.]<methodOrField>
-//
-// The first item in this list that succeeds is the one whose documentation
-// is printed. If there is a symbol but no package, the package in the current
-// directory is chosen. However, if the argument begins with a capital
-// letter it is always assumed to be a symbol in the current directory.
-//
-// Two arguments:
-//
-//	go doc <pkg> <sym>[.<methodOrField>]
-//
-// Show the documentation for the package, symbol, and method or field. The
-// first argument must be a full package path. This is similar to the
-// command-line usage for the godoc command.
-//
-// For commands, unless the -cmd flag is present "go doc command"
-// shows only the package-level docs for the package.
-//
-// The -src flag causes doc to print the full source code for the symbol, such
-// as the body of a struct, function or method.
-//
-// The -all flag causes doc to print all documentation for the package and
-// all its visible symbols. The argument must identify a package.
-//
-// For complete documentation, run "go help doc".
-package main
+// Package doc provides the implementation of the "go doc" subcommand and cmd/doc.
+package doc
 
 import (
 	"bytes"
@@ -74,7 +37,7 @@ var (
 )
 
 // usage is a replacement usage function for the flags package.
-func usage() {
+func usage(flagSet *flag.FlagSet) {
 	fmt.Fprintf(os.Stderr, "Usage of [go] doc:\n")
 	fmt.Fprintf(os.Stderr, "\tgo doc\n")
 	fmt.Fprintf(os.Stderr, "\tgo doc <pkg>\n")
@@ -85,16 +48,17 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "For more information run\n")
 	fmt.Fprintf(os.Stderr, "\tgo help doc\n\n")
 	fmt.Fprintf(os.Stderr, "Flags:\n")
-	flag.PrintDefaults()
+	flagSet.PrintDefaults()
 	os.Exit(2)
 }
 
-func main() {
+// Main is the entry point, invoked both by go doc and cmd/doc.
+func Main(args []string) {
 	log.SetFlags(0)
 	log.SetPrefix("doc: ")
-	counter.Open()
 	dirsInit()
-	err := do(os.Stdout, flag.CommandLine, os.Args[1:])
+	var flagSet flag.FlagSet
+	err := do(os.Stdout, &flagSet, args)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -102,7 +66,7 @@ func main() {
 
 // do is the workhorse, broken out of main to make testing easier.
 func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
-	flagSet.Usage = usage
+	flagSet.Usage = func() { usage(flagSet) }
 	unexported = false
 	matchCase = false
 	flagSet.StringVar(&chdir, "C", "", "change to `dir` before running command")
@@ -114,7 +78,6 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 	flagSet.BoolVar(&short, "short", false, "one-line representation for each symbol")
 	flagSet.BoolVar(&serveHTTP, "http", false, "serve HTML docs over HTTP")
 	flagSet.Parse(args)
-	counter.Inc("doc/invocations")
 	counter.CountFlags("doc/flag:", *flag.CommandLine)
 	if chdir != "" {
 		if err := os.Chdir(chdir); err != nil {
@@ -151,7 +114,7 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 	// Loop until something is printed.
 	dirs.Reset()
 	for i := 0; ; i++ {
-		buildPackage, userPath, sym, more := parseArgs(flagSet.Args())
+		buildPackage, userPath, sym, more := parseArgs(flagSet, flagSet.Args())
 		if i > 0 && !more { // Ignore the "more" bit on the first iteration.
 			return failMessage(paths, symbol, method)
 		}
@@ -165,7 +128,7 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 			unexported = true
 		}
 
-		symbol, method = parseSymbol(sym)
+		symbol, method = parseSymbol(flagSet, sym)
 		pkg := parsePackage(writer, buildPackage, userPath)
 		paths = append(paths, pkg.prettyPath())
 
@@ -268,7 +231,7 @@ func doPkgsite(urlPath string) error {
 		env = append(env, "GOPROXY="+goproxy)
 	}
 
-	const version = "v0.0.0-20250520201116-40659211760d"
+	const version = "v0.0.0-20250608123103-82c52f1754cd"
 	cmd := exec.Command("go", "run", "golang.org/x/pkgsite/cmd/internal/doc@"+version,
 		"-gorepo", buildCtx.GOROOT,
 		"-http", addr,
@@ -338,7 +301,7 @@ func failMessage(paths []string, symbol, method string) error {
 // and there may be more matches. For example, if the argument
 // is rand.Float64, we must scan both crypto/rand and math/rand
 // to find the symbol, and the first call will return crypto/rand, true.
-func parseArgs(args []string) (pkg *build.Package, path, symbol string, more bool) {
+func parseArgs(flagSet *flag.FlagSet, args []string) (pkg *build.Package, path, symbol string, more bool) {
 	wd, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
@@ -356,7 +319,7 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
 	}
 	switch len(args) {
 	default:
-		usage()
+		usage(flagSet)
 	case 1:
 		// Done below.
 	case 2:
@@ -499,7 +462,7 @@ func importDir(dir string) *build.Package {
 // parseSymbol breaks str apart into a symbol and method.
 // Both may be missing or the method may be missing.
 // If present, each must be a valid Go identifier.
-func parseSymbol(str string) (symbol, method string) {
+func parseSymbol(flagSet *flag.FlagSet, str string) (symbol, method string) {
 	if str == "" {
 		return
 	}
@@ -510,7 +473,7 @@ func parseSymbol(str string) (symbol, method string) {
 		method = elem[1]
 	default:
 		log.Printf("too many periods in symbol specification")
-		usage()
+		usage(flagSet)
 	}
 	symbol = elem[0]
 	return

@@ -1,0 +1,125 @@
+go build main.go
+! stdout .
+! stderr .
+
+-- main.go --
+
+package main
+
+import (
+	"p/b"
+)
+
+func main() {
+	f()
+}
+
+func f() {
+	typ := indexedPageType{newIndexedType(nil)}
+	page := newPage(typ.indexedType)
+	page.Data()
+}
+
+func newPage(typ *indexedType) Page {
+	values := typ.NewValues(nil, nil)
+	return &indexedPage{
+		typ:         typ,
+		values:      values.Int32(),
+		columnIndex: ^0,
+	}
+}
+
+type Type interface {
+	NewPage(columnIndex, numValues int, data b.Values) Page
+	NewValues(values []byte, offsets []uint32) b.Values
+}
+
+type Page interface {
+	Type() Type
+	Data() b.Values
+}
+
+type indexedPage struct {
+	typ         *indexedType
+	values      []int32
+	columnIndex int16
+}
+
+func (page *indexedPage) Type() Type { return indexedPageType{page.typ} }
+
+func (page *indexedPage) Data() b.Values { return b.Int32Values(page.values) }
+
+type indexedType struct {
+	Type
+}
+
+func newIndexedType(typ Type) *indexedType {
+	return &indexedType{Type: typ}
+}
+
+type indexedPageType struct{ *indexedType }
+
+func (t indexedPageType) NewValues(values []byte, _ []uint32) b.Values {
+	return b.Int32ValuesFromBytes(values)
+}
+
+-- go.mod --
+module p
+
+go 1.24
+
+-- internal/a/a.go --
+package a
+
+import "unsafe"
+
+type slice struct {
+	ptr unsafe.Pointer
+	len int
+	cap int
+}
+
+func Slice[To, From any](data []From) []To {
+	// This function could use unsafe.Slice but it would drop the capacity
+	// information, so instead we implement the type conversion.
+	var zf From
+	var zt To
+	var s = slice{
+		ptr: unsafe.Pointer(unsafe.SliceData(data)),
+		len: int((uintptr(len(data)) * unsafe.Sizeof(zf)) / unsafe.Sizeof(zt)),
+		cap: int((uintptr(cap(data)) * unsafe.Sizeof(zf)) / unsafe.Sizeof(zt)),
+	}
+	return *(*[]To)(unsafe.Pointer(&s))
+}
+
+-- b/b.go --
+package b
+
+import "p/internal/a"
+
+type Kind int32
+
+const Int32 Kind = iota + 2
+
+type Values struct {
+	kind    Kind
+	size    int32
+	data    []byte
+	offsets []uint32
+}
+
+func (v *Values) Int32() []int32 {
+	return a.Slice[int32](v.data)
+}
+
+func makeValues[T any](kind Kind, values []T) Values {
+	return Values{kind: kind, data: a.Slice[byte](values)}
+}
+
+func Int32Values(values []int32) Values {
+	return makeValues(Int32, values)
+}
+
+func Int32ValuesFromBytes(values []byte) Values {
+	return Values{kind: Int32, data: values}
+}

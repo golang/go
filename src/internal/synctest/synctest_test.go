@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 	"weak"
@@ -218,6 +219,116 @@ func TestTimerFromOutsideBubble(t *testing.T) {
 	}
 }
 
+// TestTimerNondeterminism verifies that timers firing at the same instant
+// don't always fire in exactly the same order.
+func TestTimerNondeterminism(t *testing.T) {
+	synctest.Run(func() {
+		const iterations = 1000
+		var seen1, seen2 bool
+		for range iterations {
+			tm1 := time.NewTimer(1)
+			tm2 := time.NewTimer(1)
+			select {
+			case <-tm1.C:
+				seen1 = true
+			case <-tm2.C:
+				seen2 = true
+			}
+			if seen1 && seen2 {
+				return
+			}
+			synctest.Wait()
+		}
+		t.Errorf("after %v iterations, seen timer1:%v, timer2:%v; want both", iterations, seen1, seen2)
+	})
+}
+
+// TestSleepNondeterminism verifies that goroutines sleeping to the same instant
+// don't always schedule in exactly the same order.
+func TestSleepNondeterminism(t *testing.T) {
+	synctest.Run(func() {
+		const iterations = 1000
+		var seen1, seen2 bool
+		for range iterations {
+			var first atomic.Int32
+			go func() {
+				time.Sleep(1)
+				first.CompareAndSwap(0, 1)
+			}()
+			go func() {
+				time.Sleep(1)
+				first.CompareAndSwap(0, 2)
+			}()
+			time.Sleep(1)
+			synctest.Wait()
+			switch v := first.Load(); v {
+			case 1:
+				seen1 = true
+			case 2:
+				seen2 = true
+			default:
+				t.Fatalf("first = %v, want 1 or 2", v)
+			}
+			if seen1 && seen2 {
+				return
+			}
+			synctest.Wait()
+		}
+		t.Errorf("after %v iterations, seen goroutine 1:%v, 2:%v; want both", iterations, seen1, seen2)
+	})
+}
+
+// TestTimerRunsImmediately verifies that a 0-duration timer sends on its channel
+// without waiting for the bubble to block.
+func TestTimerRunsImmediately(t *testing.T) {
+	synctest.Run(func() {
+		start := time.Now()
+		tm := time.NewTimer(0)
+		select {
+		case got := <-tm.C:
+			if !got.Equal(start) {
+				t.Errorf("<-tm.C = %v, want %v", got, start)
+			}
+		default:
+			t.Errorf("0-duration timer channel is not readable; want it to be")
+		}
+	})
+}
+
+// TestTimerRunsLater verifies that reading from a timer's channel receives the
+// timer fired, even when that time is in reading from a timer's channel receives the
+// time the timer fired, even when that time is in the past.
+func TestTimerRanInPast(t *testing.T) {
+	synctest.Run(func() {
+		delay := 1 * time.Second
+		want := time.Now().Add(delay)
+		tm := time.NewTimer(delay)
+		time.Sleep(2 * delay)
+		select {
+		case got := <-tm.C:
+			if !got.Equal(want) {
+				t.Errorf("<-tm.C = %v, want %v", got, want)
+			}
+		default:
+			t.Errorf("0-duration timer channel is not readable; want it to be")
+		}
+	})
+}
+
+// TestAfterFuncRunsImmediately verifies that a 0-duration AfterFunc is scheduled
+// without waiting for the bubble to block.
+func TestAfterFuncRunsImmediately(t *testing.T) {
+	synctest.Run(func() {
+		var b atomic.Bool
+		time.AfterFunc(0, func() {
+			b.Store(true)
+		})
+		for !b.Load() {
+			runtime.Gosched()
+		}
+	})
+}
+
 func TestChannelFromOutsideBubble(t *testing.T) {
 	choutside := make(chan struct{})
 	for _, test := range []struct {
@@ -377,7 +488,7 @@ func TestDeadlockRoot(t *testing.T) {
 }
 
 func TestDeadlockChild(t *testing.T) {
-	defer wantPanic(t, "deadlock: all goroutines in bubble are blocked")
+	defer wantPanic(t, "deadlock: main bubble goroutine has exited but blocked goroutines remain")
 	synctest.Run(func() {
 		go func() {
 			select {}
@@ -386,7 +497,7 @@ func TestDeadlockChild(t *testing.T) {
 }
 
 func TestDeadlockTicker(t *testing.T) {
-	defer wantPanic(t, "deadlock: all goroutines in bubble are blocked")
+	defer wantPanic(t, "deadlock: main bubble goroutine has exited but blocked goroutines remain")
 	synctest.Run(func() {
 		go func() {
 			for range time.Tick(1 * time.Second) {

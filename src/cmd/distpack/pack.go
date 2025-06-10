@@ -171,6 +171,7 @@ func main() {
 			switch strings.TrimSuffix(path.Base(name), ".exe") {
 			default:
 				return false
+			// Keep in sync with toolsIncludedInDistpack in cmd/dist/build.go.
 			case "asm", "cgo", "compile", "cover", "link", "preprofile", "vet":
 			}
 		}
@@ -179,6 +180,7 @@ func main() {
 
 	// Add go and gofmt to bin, using cross-compiled binaries
 	// if this is a cross-compiled distribution.
+	// Keep in sync with binExesIncludedInDistpack in cmd/dist/build.go.
 	binExes := []string{
 		"go",
 		"gofmt",
