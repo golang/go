@@ -1390,7 +1390,21 @@ func toolenv() []string {
 	return env
 }
 
-var toolchain = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/link", "cmd/preprofile"}
+var (
+	toolchain = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/link", "cmd/preprofile"}
+
+	// Keep in sync with binExes in cmd/distpack/pack.go.
+	binExesIncludedInDistpack = []string{"cmd/go", "cmd/gofmt"}
+
+	// Keep in sync with the filter in cmd/distpack/pack.go.
+	toolsIncludedInDistpack = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/cover", "cmd/link", "cmd/preprofile", "cmd/vet"}
+
+	// We could install all tools in "cmd", but is unnecessary because we will
+	// remove them in distpack, so instead install the tools that will actually
+	// be included in distpack, which is a superset of toolchain. Not installing
+	// the tools will help us test what happens when the tools aren't present.
+	toolsToInstall = slices.Concat(binExesIncludedInDistpack, toolsIncludedInDistpack)
+)
 
 // The bootstrap command runs a build from scratch,
 // stopping at having installed the go_bootstrap command.
@@ -1455,11 +1469,6 @@ func cmdbootstrap() {
 	// over the build process, we'll set this back to the original
 	// GOEXPERIMENT.
 	os.Setenv("GOEXPERIMENT", "none")
-
-	if debug {
-		// cmd/buildid is used in debug mode.
-		toolchain = append(toolchain, "cmd/buildid")
-	}
 
 	if isdir(pathf("%s/src/pkg", goroot)) {
 		fatalf("\n\n"+
@@ -1588,18 +1597,6 @@ func cmdbootstrap() {
 	} else {
 		os.Setenv("GOCACHE", oldgocache)
 	}
-
-	// Keep in sync with binExes in cmd/distpack/pack.go.
-	binExesIncludedInDistpack := []string{"cmd/go", "cmd/gofmt"}
-
-	// Keep in sync with the filter in cmd/distpack/pack.go.
-	toolsIncludedInDistpack := []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/cover", "cmd/link", "cmd/preprofile", "cmd/vet"}
-
-	// We could install all tools in "cmd", but is unnecessary because we will
-	// remove them in distpack, so instead install the tools that will actually
-	// be included in distpack, which is a superset of toolchain. Not installing
-	// the tools will help us test what happens when the tools aren't present.
-	toolsToInstall := slices.Concat(binExesIncludedInDistpack, toolsIncludedInDistpack)
 
 	if goos == oldgoos && goarch == oldgoarch {
 		// Common case - not setting up for cross-compilation.

@@ -178,7 +178,7 @@ func (t *tester) run() {
 			// otherwise relevant to the actual set of packages under test.
 			goInstall(toolenv(), gorootBinGo, toolchain...)
 			goInstall(toolenv(), gorootBinGo, toolchain...)
-			goInstall(toolenv(), gorootBinGo, "cmd")
+			goInstall(toolenv(), gorootBinGo, toolsToInstall...)
 		}
 	}
 
