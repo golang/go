@@ -9,6 +9,11 @@
 // primitive data types such as booleans, strings, and numbers,
 // in addition to structured data types such as objects and arrays.
 //
+// This package (encoding/json/v2) is experimental,
+// and not subject to the Go 1 compatibility promise.
+// It only exists when building with the GOEXPERIMENT=jsonv2 environment variable set.
+// Most users should use [encoding/json].
+//
 // [Marshal] and [Unmarshal] encode and decode Go values
 // to/from JSON text contained within a []byte.
 // [MarshalWrite] and [UnmarshalRead] operate on JSON text

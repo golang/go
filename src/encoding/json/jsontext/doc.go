@@ -10,6 +10,11 @@
 // primitive data types such as booleans, strings, and numbers,
 // in addition to structured data types such as objects and arrays.
 //
+// This package (encoding/json/jsontxt) is experimental,
+// and not subject to the Go 1 compatibility promise.
+// It only exists when building with the GOEXPERIMENT=jsonv2 environment variable set.
+// Most users should use [encoding/json].
+//
 // The [Encoder] and [Decoder] types are used to encode or decode
 // a stream of JSON tokens or values.
 //
