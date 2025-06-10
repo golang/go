@@ -155,7 +155,7 @@ func genAllocators() {
 		panic(err)
 	}
 
-	if err := os.WriteFile("../allocators.go", b, 0666); err != nil {
+	if err := os.WriteFile(outFile("allocators.go"), b, 0666); err != nil {
 		log.Fatalf("can't write output: %v\n", err)
 	}
 }

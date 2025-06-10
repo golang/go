@@ -331,7 +331,7 @@ func genRulesSuffix(arch arch, suff string) {
 	file = astutil.Apply(file, pre, post).(*ast.File)
 
 	// Write the well-formatted source to file
-	f, err := os.Create("../rewrite" + arch.name + suff + ".go")
+	f, err := os.Create(outFile("rewrite" + arch.name + suff + ".go"))
 	if err != nil {
 		log.Fatalf("can't write output: %v", err)
 	}

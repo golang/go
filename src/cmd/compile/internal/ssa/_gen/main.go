@@ -114,6 +114,7 @@ var archs []arch
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
 var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
 var tracefile = flag.String("trace", "", "write trace to `file`")
+var outDir = flag.String("outdir", "..", "directory in which to write generated files")
 
 func main() {
 	flag.Parse()
@@ -143,6 +144,13 @@ func main() {
 			log.Fatalf("failed to start trace: %v", err)
 		}
 		defer trace.Stop()
+	}
+
+	if *outDir != ".." {
+		err := os.MkdirAll(*outDir, 0755)
+		if err != nil {
+			log.Fatalf("failed to create output directory: %v", err)
+		}
 	}
 
 	slices.SortFunc(archs, func(a, b arch) int {
@@ -192,6 +200,10 @@ func main() {
 			log.Fatal("could not write memory profile: ", err)
 		}
 	}
+}
+
+func outFile(file string) string {
+	return *outDir + "/" + file
 }
 
 func genOp() {
@@ -501,7 +513,7 @@ func genOp() {
 		panic(err)
 	}
 
-	if err := os.WriteFile("../opGen.go", b, 0666); err != nil {
+	if err := os.WriteFile(outFile("opGen.go"), b, 0666); err != nil {
 		log.Fatalf("can't write output: %v\n", err)
 	}
 
