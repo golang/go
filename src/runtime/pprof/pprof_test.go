@@ -1808,6 +1808,45 @@ func TestGoroutineProfileCoro(t *testing.T) {
 	goroutineProf.WriteTo(io.Discard, 1)
 }
 
+// This test tries to provoke a situation wherein the finalizer goroutine is
+// erroneously inspected by the goroutine profiler in such a way that could
+// cause a crash. See go.dev/issue/74090.
+func TestGoroutineProfileIssue74090(t *testing.T) {
+	testenv.MustHaveParallelism(t)
+
+	goroutineProf := Lookup("goroutine")
+
+	// T is a pointer type so it won't be allocated by the tiny
+	// allocator, which can lead to its finalizer not being called
+	// during this test.
+	type T *byte
+	for range 10 {
+		// We use finalizers for this test because finalizers transition between
+		// system and user goroutine on each call, since there's substantially
+		// more work to do to set up a finalizer call. Cleanups, on the other hand,
+		// transition once for a whole batch, and so are less likely to trigger
+		// the failure. Under stress testing conditions this test fails approximately
+		// 5 times every 1000 executions on a 64 core machine without the appropriate
+		// fix, which is not ideal but if this test crashes at all, it's a clear
+		// signal that something is broken.
+		var objs []*T
+		for range 10000 {
+			obj := new(T)
+			runtime.SetFinalizer(obj, func(_ interface{}) {})
+			objs = append(objs, obj)
+		}
+		objs = nil
+
+		// Queue up all the finalizers.
+		runtime.GC()
+
+		// Try to run a goroutine profile concurrently with finalizer execution
+		// to trigger the bug.
+		var w strings.Builder
+		goroutineProf.WriteTo(&w, 1)
+	}
+}
+
 func BenchmarkGoroutine(b *testing.B) {
 	withIdle := func(n int, fn func(b *testing.B)) func(b *testing.B) {
 		return func(b *testing.B) {

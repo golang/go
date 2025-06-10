@@ -1503,11 +1503,6 @@ func tryRecordGoroutineProfile(gp1 *g, pcbuf []uintptr, yield func()) {
 		// so here we check _Gdead first.
 		return
 	}
-	if isSystemGoroutine(gp1, true) {
-		// System goroutines should not appear in the profile. (The finalizer
-		// goroutine is marked as "already profiled".)
-		return
-	}
 
 	for {
 		prev := gp1.goroutineProfiled.Load()
@@ -1545,6 +1540,17 @@ func tryRecordGoroutineProfile(gp1 *g, pcbuf []uintptr, yield func()) {
 // stack), or from the scheduler in preparation to execute gp1 (running on the
 // system stack).
 func doRecordGoroutineProfile(gp1 *g, pcbuf []uintptr) {
+	if isSystemGoroutine(gp1, false) {
+		// System goroutines should not appear in the profile.
+		// Check this here and not in tryRecordGoroutineProfile because isSystemGoroutine
+		// may change on a goroutine while it is executing, so while the scheduler might
+		// see a system goroutine, goroutineProfileWithLabelsConcurrent might not, and
+		// this inconsistency could cause invariants to be violated, such as trying to
+		// record the stack of a running goroutine below. In short, we still want system
+		// goroutines to participate in the same state machine on gp1.goroutineProfiled as
+		// everything else, we just don't record the stack in the profile.
+		return
+	}
 	if readgstatus(gp1) == _Grunning {
 		print("doRecordGoroutineProfile gp1=", gp1.goid, "\n")
 		throw("cannot read stack of running goroutine")
