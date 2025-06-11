@@ -582,13 +582,30 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 	testPath := filepath.Join("./testdata/testprog", progName)
 	testName := progName
 	runTest := func(t *testing.T, stress bool, extraGODEBUG string) {
-		// Run the program and capture the trace, which is always written to stdout.
-		cmd := testenv.Command(t, testenv.GoToolPath(t), "run")
-		if race.Enabled {
-			cmd.Args = append(cmd.Args, "-race")
+		// Build the program.
+		binFile, err := os.CreateTemp("", progName)
+		if err != nil {
+			t.Fatalf("failed to create temporary output file: %v", err)
 		}
-		cmd.Args = append(cmd.Args, testPath)
-		cmd.Env = append(os.Environ(), "GOEXPERIMENT=rangefunc")
+		bin := binFile.Name()
+		binFile.Close()
+		t.Cleanup(func() {
+			os.Remove(bin)
+		})
+		buildCmd := testenv.CommandContext(t, t.Context(), testenv.GoToolPath(t), "build", "-o", bin)
+		if race.Enabled {
+			buildCmd.Args = append(buildCmd.Args, "-race")
+		}
+		buildCmd.Args = append(buildCmd.Args, testPath)
+		buildCmd.Env = append(os.Environ(), "GOEXPERIMENT=rangefunc")
+		buildOutput, err := buildCmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("failed to build %s: %v: output:\n%s", testPath, err, buildOutput)
+		}
+
+		// Run the program and capture the trace, which is always written to stdout.
+		cmd := testenv.CommandContext(t, t.Context(), bin)
+
 		// Add a stack ownership check. This is cheap enough for testing.
 		godebug := "tracecheckstackownership=1"
 		if stress {
