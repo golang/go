@@ -182,14 +182,14 @@ func init() {
 		fpstore    = regInfo{inputs: []regMask{gpspsb, fp, 0}}
 		fpstoreidx = regInfo{inputs: []regMask{gpspsb, gpsp, fp, 0}}
 
-		fp1m1    = regInfo{inputs: fponly, outputs: maskonly}
-		m1fp1    = regInfo{inputs: maskonly, outputs: fponly}
-		fp2m1    = regInfo{inputs: []regMask{fp, fp}, outputs: maskonly}
-		fp1m1fp1 = regInfo{inputs: []regMask{fp, mask}, outputs: fponly}
-		fp2m1fp1 = regInfo{inputs: []regMask{fp, fp, mask}, outputs: fponly}
-		fp2m1m1  = regInfo{inputs: []regMask{fp, fp, mask}, outputs: maskonly}
+		fp1k1    = regInfo{inputs: fponly, outputs: maskonly}
+		k1fp1    = regInfo{inputs: maskonly, outputs: fponly}
+		fp2k1    = regInfo{inputs: []regMask{fp, fp}, outputs: maskonly}
+		fp1k1fp1 = regInfo{inputs: []regMask{fp, mask}, outputs: fponly}
+		fp2k1fp1 = regInfo{inputs: []regMask{fp, fp, mask}, outputs: fponly}
+		fp2k1k1  = regInfo{inputs: []regMask{fp, fp, mask}, outputs: maskonly}
 		fp3fp1   = regInfo{inputs: []regMask{fp, fp, fp}, outputs: fponly}
-		fp3m1fp1 = regInfo{inputs: []regMask{fp, fp, fp, mask}, outputs: fponly}
+		fp3k1fp1 = regInfo{inputs: []regMask{fp, fp, fp, mask}, outputs: fponly}
 
 		prefreg = regInfo{inputs: []regMask{gpspsbg}}
 	)
@@ -1233,37 +1233,37 @@ func init() {
 		{name: "VMOVDQUload512", argLength: 2, reg: fpload, asm: "VMOVDQU64", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},    // load from arg0+auxint+aux, arg1 = mem
 		{name: "VMOVDQUstore512", argLength: 3, reg: fpstore, asm: "VMOVDQU64", aux: "SymOff", faultOnNilArg0: true, symEffect: "Write"}, // store, *(arg0+auxint+aux) = arg1, arg2 = mem
 
-		{name: "VPMOVMToVec8x16", argLength: 1, reg: m1fp1, asm: "VPMOVM2B"},
-		{name: "VPMOVMToVec8x32", argLength: 1, reg: m1fp1, asm: "VPMOVM2B"},
-		{name: "VPMOVMToVec8x64", argLength: 1, reg: m1fp1, asm: "VPMOVM2B"},
+		{name: "VPMOVMToVec8x16", argLength: 1, reg: k1fp1, asm: "VPMOVM2B"},
+		{name: "VPMOVMToVec8x32", argLength: 1, reg: k1fp1, asm: "VPMOVM2B"},
+		{name: "VPMOVMToVec8x64", argLength: 1, reg: k1fp1, asm: "VPMOVM2B"},
 
-		{name: "VPMOVMToVec16x8", argLength: 1, reg: m1fp1, asm: "VPMOVM2W"},
-		{name: "VPMOVMToVec16x16", argLength: 1, reg: m1fp1, asm: "VPMOVM2W"},
-		{name: "VPMOVMToVec16x32", argLength: 1, reg: m1fp1, asm: "VPMOVM2W"},
+		{name: "VPMOVMToVec16x8", argLength: 1, reg: k1fp1, asm: "VPMOVM2W"},
+		{name: "VPMOVMToVec16x16", argLength: 1, reg: k1fp1, asm: "VPMOVM2W"},
+		{name: "VPMOVMToVec16x32", argLength: 1, reg: k1fp1, asm: "VPMOVM2W"},
 
-		{name: "VPMOVMToVec32x4", argLength: 1, reg: m1fp1, asm: "VPMOVM2D"},
-		{name: "VPMOVMToVec32x8", argLength: 1, reg: m1fp1, asm: "VPMOVM2D"},
-		{name: "VPMOVMToVec32x16", argLength: 1, reg: m1fp1, asm: "VPMOVM2D"},
+		{name: "VPMOVMToVec32x4", argLength: 1, reg: k1fp1, asm: "VPMOVM2D"},
+		{name: "VPMOVMToVec32x8", argLength: 1, reg: k1fp1, asm: "VPMOVM2D"},
+		{name: "VPMOVMToVec32x16", argLength: 1, reg: k1fp1, asm: "VPMOVM2D"},
 
-		{name: "VPMOVMToVec64x2", argLength: 1, reg: m1fp1, asm: "VPMOVM2Q"},
-		{name: "VPMOVMToVec64x4", argLength: 1, reg: m1fp1, asm: "VPMOVM2Q"},
-		{name: "VPMOVMToVec64x8", argLength: 1, reg: m1fp1, asm: "VPMOVM2Q"},
+		{name: "VPMOVMToVec64x2", argLength: 1, reg: k1fp1, asm: "VPMOVM2Q"},
+		{name: "VPMOVMToVec64x4", argLength: 1, reg: k1fp1, asm: "VPMOVM2Q"},
+		{name: "VPMOVMToVec64x8", argLength: 1, reg: k1fp1, asm: "VPMOVM2Q"},
 
-		{name: "VPMOVVec8x16ToM", argLength: 1, reg: fp1m1, asm: "VPMOVB2M"},
-		{name: "VPMOVVec8x32ToM", argLength: 1, reg: fp1m1, asm: "VPMOVB2M"},
-		{name: "VPMOVVec8x64ToM", argLength: 1, reg: fp1m1, asm: "VPMOVB2M"},
+		{name: "VPMOVVec8x16ToM", argLength: 1, reg: fp1k1, asm: "VPMOVB2M"},
+		{name: "VPMOVVec8x32ToM", argLength: 1, reg: fp1k1, asm: "VPMOVB2M"},
+		{name: "VPMOVVec8x64ToM", argLength: 1, reg: fp1k1, asm: "VPMOVB2M"},
 
-		{name: "VPMOVVec16x8ToM", argLength: 1, reg: fp1m1, asm: "VPMOVW2M"},
-		{name: "VPMOVVec16x16ToM", argLength: 1, reg: fp1m1, asm: "VPMOVW2M"},
-		{name: "VPMOVVec16x32ToM", argLength: 1, reg: fp1m1, asm: "VPMOVW2M"},
+		{name: "VPMOVVec16x8ToM", argLength: 1, reg: fp1k1, asm: "VPMOVW2M"},
+		{name: "VPMOVVec16x16ToM", argLength: 1, reg: fp1k1, asm: "VPMOVW2M"},
+		{name: "VPMOVVec16x32ToM", argLength: 1, reg: fp1k1, asm: "VPMOVW2M"},
 
-		{name: "VPMOVVec32x4ToM", argLength: 1, reg: fp1m1, asm: "VPMOVD2M"},
-		{name: "VPMOVVec32x8ToM", argLength: 1, reg: fp1m1, asm: "VPMOVD2M"},
-		{name: "VPMOVVec32x16ToM", argLength: 1, reg: fp1m1, asm: "VPMOVD2M"},
+		{name: "VPMOVVec32x4ToM", argLength: 1, reg: fp1k1, asm: "VPMOVD2M"},
+		{name: "VPMOVVec32x8ToM", argLength: 1, reg: fp1k1, asm: "VPMOVD2M"},
+		{name: "VPMOVVec32x16ToM", argLength: 1, reg: fp1k1, asm: "VPMOVD2M"},
 
-		{name: "VPMOVVec64x2ToM", argLength: 1, reg: fp1m1, asm: "VPMOVQ2M"},
-		{name: "VPMOVVec64x4ToM", argLength: 1, reg: fp1m1, asm: "VPMOVQ2M"},
-		{name: "VPMOVVec64x8ToM", argLength: 1, reg: fp1m1, asm: "VPMOVQ2M"},
+		{name: "VPMOVVec64x2ToM", argLength: 1, reg: fp1k1, asm: "VPMOVQ2M"},
+		{name: "VPMOVVec64x4ToM", argLength: 1, reg: fp1k1, asm: "VPMOVQ2M"},
+		{name: "VPMOVVec64x8ToM", argLength: 1, reg: fp1k1, asm: "VPMOVQ2M"},
 
 		{name: "Zero128", argLength: 0, reg: fp01, asm: "VPXOR"},
 		{name: "Zero256", argLength: 0, reg: fp01, asm: "VPXOR"},
@@ -1300,7 +1300,7 @@ func init() {
 		pkg:                "cmd/internal/obj/x86",
 		genfile:            "../../amd64/ssa.go",
 		genSIMDfile:        "../../amd64/simdssa.go",
-		ops:                append(AMD64ops, simdAMD64Ops(fp11, fp21, fp2m1, fp1m1fp1, fp2m1fp1, fp2m1m1, fp3fp1, fp3m1fp1)...), // AMD64ops,
+		ops:                append(AMD64ops, simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp3fp1, fp3k1fp1)...), // AMD64ops,
 		blocks:             AMD64blocks,
 		regnames:           regNamesAMD64,
 		ParamIntRegNames:   "AX BX CX DI SI R8 R9 R10 R11",

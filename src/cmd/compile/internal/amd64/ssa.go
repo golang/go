@@ -1517,24 +1517,70 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	}
 }
 
-func simdGenUnary(s *ssagen.State, v *ssa.Value) {
+// Example instruction: VRSQRTPS X1, X1
+func simdFp11(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = simdReg(v.Args[0])
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = simdReg(v)
+	return p
 }
 
-func simdGenBinary(s *ssagen.State, v *ssa.Value) {
+// Example instruction: VPSUBD X1, X2, X3
+func simdFp21(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	// Vector registers operands follows a right-to-left order.
+	// e.g. VPSUBD X1, X2, X3 means X3 = X2 - X1.
+	p.From.Reg = simdReg(v.Args[1])
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPCMPEQW Z26, Z30, K4
+func simdFp2k1(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	// simdReg handles mask and vector registers altogether
+	return simdFp21(s, v)
+}
+
+// Example instruction: VPMINUQ X21, X3, K3, X31
+func simdFp2k1fp1(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[1])
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	// These "simd*" series of functions assumes:
+	// Any "K" register that serves as the write-mask
+	// or "predicate" for "predicated AVX512 instructions"
+	// sits right at the end of the operand list.
+	// TODO: verify this assumption.
+	p.AddRestSourceReg(simdReg(v.Args[2]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPCMPEQW Z26, Z30, K1, K4
+func simdFp2k1k1(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	return simdFp2k1fp1(s, v)
+}
+
+// Example instruction: VPOPCNTB X14, K4, X16
+func simdFp1k1fp1(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = simdReg(v.Args[0])
 	p.AddRestSourceReg(simdReg(v.Args[1]))
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = simdReg(v)
+	return p
 }
 
-func simdGenUnaryImmUint8(s *ssagen.State, v *ssa.Value) {
+// Example instruction: VROUNDPD $7, X2, X2
+func simdFp11Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	imm := v.AuxInt
 	if imm < 0 || imm > 255 {
@@ -1545,9 +1591,11 @@ func simdGenUnaryImmUint8(s *ssagen.State, v *ssa.Value) {
 	p.AddRestSourceReg(simdReg(v.Args[0]))
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = simdReg(v)
+	return p
 }
 
-func simdGenBinaryImmUint8(s *ssagen.State, v *ssa.Value) {
+// Example instruction: VREDUCEPD $126, X1, K3, X31
+func simdFp1k1fp1Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	imm := v.AuxInt
 	if imm < 0 || imm > 255 {
@@ -1559,6 +1607,93 @@ func simdGenBinaryImmUint8(s *ssagen.State, v *ssa.Value) {
 	p.AddRestSourceReg(simdReg(v.Args[1]))
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VCMPPS $7, X2, X9, X2
+func simdFp21Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	imm := v.AuxInt
+	if imm < 0 || imm > 255 {
+		v.Fatalf("Invalid source selection immediate")
+	}
+	p.From.Offset = imm
+	p.From.Type = obj.TYPE_CONST
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VPCMPD $1, Z1, Z2, K1
+func simdFp2k1Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	return simdFp21Imm8(s, v)
+}
+
+// Example instruction: VPCMPD $1, Z1, Z2, K2, K1
+func simdFp2k1k1Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	imm := v.AuxInt
+	if imm < 0 || imm > 255 {
+		v.Fatalf("Invalid source selection immediate")
+	}
+	p.From.Offset = imm
+	p.From.Type = obj.TYPE_CONST
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.AddRestSourceReg(simdReg(v.Args[2]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VFMADD213PD Z2, Z1, Z0
+func simdFp31ResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[2])
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Example instruction: VFMADD213PD Z2, Z1, K1, Z0
+func simdFp3k1fp1ResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[2])
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.AddRestSourceReg(simdReg(v.Args[3]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Currently unused
+func simdFp31(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[2])
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// Currently unused
+func simdFp3k1fp1(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[2])
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.AddRestSourceReg(simdReg(v.Args[3]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
 }
 
 var blockJump = [...]struct {
