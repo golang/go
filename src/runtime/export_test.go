@@ -1911,3 +1911,9 @@ func (b BitCursor) Write(data *byte, cnt uintptr) {
 func (b BitCursor) Offset(cnt uintptr) BitCursor {
 	return BitCursor{b: b.b.offset(cnt)}
 }
+
+const (
+	BubbleAssocUnbubbled     = bubbleAssocUnbubbled
+	BubbleAssocCurrentBubble = bubbleAssocCurrentBubble
+	BubbleAssocOtherBubble   = bubbleAssocOtherBubble
+)

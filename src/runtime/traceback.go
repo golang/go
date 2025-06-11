@@ -1248,6 +1248,13 @@ func goroutineheader(gp *g) {
 	if isScan {
 		print(" (scan)")
 	}
+	if bubble := gp.bubble; bubble != nil &&
+		gp.waitreason.isIdleInSynctest() &&
+		!stringslite.HasSuffix(status, "(durable)") {
+		// If this isn't a status where the name includes a (durable)
+		// suffix to distinguish it from the non-durable form, add it here.
+		print(" (durable)")
+	}
 	if waitfor >= 1 {
 		print(", ", waitfor, " minutes")
 	}
@@ -1255,11 +1262,7 @@ func goroutineheader(gp *g) {
 		print(", locked to thread")
 	}
 	if bubble := gp.bubble; bubble != nil {
-		print(", synctest bubble ", bubble.root.goid, ", ")
-		if !gp.waitreason.isIdleInSynctest() {
-			print("not ")
-		}
-		print("durably blocked")
+		print(", synctest bubble ", bubble.id)
 	}
 	print("]:\n")
 }

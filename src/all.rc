@@ -13,4 +13,4 @@ if(! test -f make.rc){
 . ./make.rc --no-banner $*
 bind -b $GOROOT/bin /bin
 ./run.rc --no-rebuild
-$GOTOOLDIR/dist banner  # print build info
+../bin/go tool dist banner # print build info

@@ -93,6 +93,11 @@
 // A [sync.WaitGroup] becomes associated with a bubble on the first
 // call to Add or Go. Once a WaitGroup is associated with a bubble,
 // calling Add or Go from outside that bubble is a fatal error.
+// (As a technical limitation, a WaitGroup defined as a package
+// variable, such as "var wg sync.WaitGroup", cannot be associated
+// with a bubble and operations on it may not be durably blocking.
+// This limitation does not apply to a *WaitGroup stored in a
+// package variable, such as "var wg = new(sync.WaitGroup)".)
 //
 // [sync.Cond.Wait] is durably blocking. Waking a goroutine in a bubble
 // blocked on Cond.Wait from outside the bubble is a fatal error.

@@ -488,7 +488,7 @@ func TestDeadlockRoot(t *testing.T) {
 }
 
 func TestDeadlockChild(t *testing.T) {
-	defer wantPanic(t, "deadlock: all goroutines in bubble are blocked")
+	defer wantPanic(t, "deadlock: main bubble goroutine has exited but blocked goroutines remain")
 	synctest.Run(func() {
 		go func() {
 			select {}
@@ -497,7 +497,7 @@ func TestDeadlockChild(t *testing.T) {
 }
 
 func TestDeadlockTicker(t *testing.T) {
-	defer wantPanic(t, "deadlock: all goroutines in bubble are blocked")
+	defer wantPanic(t, "deadlock: main bubble goroutine has exited but blocked goroutines remain")
 	synctest.Run(func() {
 		go func() {
 			for range time.Tick(1 * time.Second) {
@@ -728,6 +728,34 @@ func TestWaitGroupMovedBetweenBubblesAfterWait(t *testing.T) {
 		// Reusing the WaitGroup is safe, because its count is zero.
 		wg.Go(func() {})
 		wg.Wait()
+	})
+}
+
+var testWaitGroupLinkerAllocatedWG sync.WaitGroup
+
+func TestWaitGroupLinkerAllocated(t *testing.T) {
+	synctest.Run(func() {
+		// This WaitGroup is probably linker-allocated and has no span,
+		// so we won't be able to add a special to it associating it with
+		// this bubble.
+		//
+		// Operations on it may not be durably blocking,
+		// but they shouldn't fail.
+		testWaitGroupLinkerAllocatedWG.Go(func() {})
+		testWaitGroupLinkerAllocatedWG.Wait()
+	})
+}
+
+var testWaitGroupHeapAllocatedWG = new(sync.WaitGroup)
+
+func TestWaitGroupHeapAllocated(t *testing.T) {
+	synctest.Run(func() {
+		// This package-scoped WaitGroup var should have been heap-allocated,
+		// so we can associate it with a bubble.
+		testWaitGroupHeapAllocatedWG.Add(1)
+		go testWaitGroupHeapAllocatedWG.Wait()
+		synctest.Wait()
+		testWaitGroupHeapAllocatedWG.Done()
 	})
 }
 
