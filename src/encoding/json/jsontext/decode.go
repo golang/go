@@ -103,6 +103,7 @@ type decodeBuffer struct {
 	peekPos int   // non-zero if valid offset into buf for start of next token
 	peekErr error // implies peekPos is -1
 
+	bufAlias  bool   // true if buf aliases rd
 	buf       []byte // may alias rd if it is a bytes.Buffer
 	prevStart int
 	prevEnd   int
@@ -138,7 +139,14 @@ func (d *Decoder) Reset(r io.Reader, opts ...Options) {
 	case d.s.Flags.Get(jsonflags.WithinArshalCall):
 		panic("jsontext: cannot reset Decoder passed to json.UnmarshalerFrom")
 	}
-	d.s.reset(nil, r, opts...)
+	// If the decoder was previously aliasing a bytes.Buffer,
+	// invalidate the alias to avoid writing into the bytes.Buffer's
+	// internal buffer.
+	if d.s.bufAlias {
+		d.s.buf = nil
+		d.s.bufAlias = false
+	}
+	d.s.reset(d.s.buf[:0], r, opts...)
 }
 
 func (d *decoderState) reset(b []byte, r io.Reader, opts ...Options) {
@@ -179,6 +187,7 @@ func (d *decoderState) fetch() error {
 		case bb.Len() == 0:
 			return io.ErrUnexpectedEOF
 		case len(d.buf) == 0:
+			d.bufAlias = true
 			d.buf = bb.Next(bb.Len()) // "read" all data in the buffer
 			return nil
 		default:
