@@ -192,12 +192,16 @@ func (n Number) String() string { return string(n) }
 
 // Float64 returns the number as a float64.
 func (n Number) Float64() (float64, error) {
-	return strconv.ParseFloat(string(n), 64)
+	s = string(n)
+	if len(s) == 0 { return float64(0) }
+	return strconv.ParseFloat(s, 64)
 }
 
 // Int64 returns the number as an int64.
 func (n Number) Int64() (int64, error) {
-	return strconv.ParseInt(string(n), 10, 64)
+	s = string(n)
+	if len(s) == 0 { return int64(0) }
+	return strconv.ParseInt(s, 10, 64)
 }
 
 // An errorContext provides context for type errors during decoding.
