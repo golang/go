@@ -3,20 +3,28 @@
 package runtime
 
 type xRegs struct {
-	X0  [16]byte
-	X1  [16]byte
-	X2  [16]byte
-	X3  [16]byte
-	X4  [16]byte
-	X5  [16]byte
-	X6  [16]byte
-	X7  [16]byte
-	X8  [16]byte
-	X9  [16]byte
-	X10 [16]byte
-	X11 [16]byte
-	X12 [16]byte
-	X13 [16]byte
-	X14 [16]byte
-	X15 [16]byte
+	Z0  [64]byte
+	Z1  [64]byte
+	Z2  [64]byte
+	Z3  [64]byte
+	Z4  [64]byte
+	Z5  [64]byte
+	Z6  [64]byte
+	Z7  [64]byte
+	Z8  [64]byte
+	Z9  [64]byte
+	Z10 [64]byte
+	Z11 [64]byte
+	Z12 [64]byte
+	Z13 [64]byte
+	Z14 [64]byte
+	Z15 [64]byte
+	K0  uint64
+	K1  uint64
+	K2  uint64
+	K3  uint64
+	K4  uint64
+	K5  uint64
+	K6  uint64
+	K7  uint64
 }

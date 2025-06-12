@@ -285,7 +285,7 @@ func gen386(g *gen) {
 func genAMD64(g *gen) {
 	const xReg = "AX" // *xRegState
 
-	p := g.p
+	p, label := g.p, g.label
 
 	// Assign stack offsets.
 	var l = layout{sp: "SP"}
@@ -297,15 +297,33 @@ func genAMD64(g *gen) {
 			l.add("MOVQ", reg, 8)
 		}
 	}
-	lXRegs := layout{sp: xReg} // Non-GP registers
-	for _, reg := range regNamesAMD64 {
-		if strings.HasPrefix(reg, "X") {
-			lXRegs.add("MOVUPS", reg, 16)
+	// Create layouts for X, Y, and Z registers.
+	const (
+		numXRegs = 16
+		numZRegs = 16 // TODO: If we start using upper registers, change to 32
+		numKRegs = 8
+	)
+	lZRegs := layout{sp: xReg} // Non-GP registers
+	lXRegs, lYRegs := lZRegs, lZRegs
+	for i := range numZRegs {
+		lZRegs.add("VMOVDQU64", fmt.Sprintf("Z%d", i), 512/8)
+		if i < numXRegs {
+			// Use SSE-only instructions for X registers.
+			lXRegs.add("MOVUPS", fmt.Sprintf("X%d", i), 128/8)
+			lYRegs.add("VMOVDQU", fmt.Sprintf("Y%d", i), 256/8)
 		}
 	}
-	writeXRegs(g.goarch, &lXRegs)
-
-	// TODO: MXCSR register?
+	for i := range numKRegs {
+		lZRegs.add("KMOVQ", fmt.Sprintf("K%d", i), 8)
+	}
+	// The Z layout is the most general, so we line up the others with that one.
+	// We don't have to do this, but it results in a nice Go type. If we split
+	// this into multiple types, we probably should stop doing this.
+	for i := range lXRegs.regs {
+		lXRegs.regs[i].pos = lZRegs.regs[i].pos
+		lYRegs.regs[i].pos = lZRegs.regs[i].pos
+	}
+	writeXRegs(g.goarch, &lZRegs)
 
 	p("PUSHQ BP")
 	p("MOVQ SP, BP")
@@ -333,16 +351,56 @@ func genAMD64(g *gen) {
 	p("MOVQ g_m(R14), %s", xReg)
 	p("MOVQ m_p(%s), %s", xReg, xReg)
 	p("LEAQ (p_xRegs+xRegPerP_scratch)(%s), %s", xReg, xReg)
-	lXRegs.save(g)
 
+	// Which registers do we need to save?
+	p("#ifdef GOEXPERIMENT_simd")
+	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1")
+	p("JE saveAVX512")
+	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1")
+	p("JE saveAVX2")
+	p("#endif")
+
+	// No features. Assume only SSE.
+	label("saveSSE:")
+	lXRegs.save(g)
+	p("JMP preempt")
+
+	label("saveAVX2:")
+	lYRegs.save(g)
+	p("JMP preempt")
+
+	label("saveAVX512:")
+	lZRegs.save(g)
+	p("JMP preempt")
+
+	label("preempt:")
 	p("CALL ·asyncPreempt2(SB)")
 
 	p("// Restore non-GPs from *p.xRegs.cache")
 	p("MOVQ g_m(R14), %s", xReg)
 	p("MOVQ m_p(%s), %s", xReg, xReg)
 	p("MOVQ (p_xRegs+xRegPerP_cache)(%s), %s", xReg, xReg)
-	lXRegs.restore(g)
 
+	p("#ifdef GOEXPERIMENT_simd")
+	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1")
+	p("JE restoreAVX512")
+	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1")
+	p("JE restoreAVX2")
+	p("#endif")
+
+	label("restoreSSE:")
+	lXRegs.restore(g)
+	p("JMP restoreGPs")
+
+	label("restoreAVX2:")
+	lYRegs.restore(g)
+	p("JMP restoreGPs")
+
+	label("restoreAVX512:")
+	lZRegs.restore(g)
+	p("JMP restoreGPs")
+
+	label("restoreGPs:")
 	p("// Restore GPs")
 	l.restore(g)
 	p("ADJSP $%d", -l.stack)
