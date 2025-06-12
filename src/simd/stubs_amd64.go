@@ -19,8 +19,20 @@ func (x Float32x4) ApproximateReciprocal() Float32x4
 // Asm: VRSQRTPS, CPU Feature: AVX
 func (x Float32x4) ApproximateReciprocalOfSqrt() Float32x4
 
+// Asm: VROUNDPS, CPU Feature: AVX
+func (x Float32x4) Ceil() Float32x4
+
+// Asm: VROUNDPS, CPU Feature: AVX
+func (x Float32x4) Floor() Float32x4
+
+// Asm: VROUNDPS, CPU Feature: AVX
+func (x Float32x4) Round() Float32x4
+
 // Asm: VSQRTPS, CPU Feature: AVX
 func (x Float32x4) Sqrt() Float32x4
+
+// Asm: VROUNDPS, CPU Feature: AVX
+func (x Float32x4) Trunc() Float32x4
 
 // Asm: VRCP14PS, CPU Feature: AVX512EVEX
 func (x Float32x8) ApproximateReciprocal() Float32x8
@@ -28,8 +40,20 @@ func (x Float32x8) ApproximateReciprocal() Float32x8
 // Asm: VRSQRTPS, CPU Feature: AVX
 func (x Float32x8) ApproximateReciprocalOfSqrt() Float32x8
 
+// Asm: VROUNDPS, CPU Feature: AVX
+func (x Float32x8) Ceil() Float32x8
+
+// Asm: VROUNDPS, CPU Feature: AVX
+func (x Float32x8) Floor() Float32x8
+
+// Asm: VROUNDPS, CPU Feature: AVX
+func (x Float32x8) Round() Float32x8
+
 // Asm: VSQRTPS, CPU Feature: AVX
 func (x Float32x8) Sqrt() Float32x8
+
+// Asm: VROUNDPS, CPU Feature: AVX
+func (x Float32x8) Trunc() Float32x8
 
 // Asm: VRCP14PD, CPU Feature: AVX512EVEX
 func (x Float64x2) ApproximateReciprocal() Float64x2
@@ -37,8 +61,20 @@ func (x Float64x2) ApproximateReciprocal() Float64x2
 // Asm: VRSQRT14PD, CPU Feature: AVX512EVEX
 func (x Float64x2) ApproximateReciprocalOfSqrt() Float64x2
 
+// Asm: VROUNDPD, CPU Feature: AVX
+func (x Float64x2) Ceil() Float64x2
+
+// Asm: VROUNDPD, CPU Feature: AVX
+func (x Float64x2) Floor() Float64x2
+
+// Asm: VROUNDPD, CPU Feature: AVX
+func (x Float64x2) Round() Float64x2
+
 // Asm: VSQRTPD, CPU Feature: AVX
 func (x Float64x2) Sqrt() Float64x2
+
+// Asm: VROUNDPD, CPU Feature: AVX
+func (x Float64x2) Trunc() Float64x2
 
 // Asm: VRCP14PD, CPU Feature: AVX512EVEX
 func (x Float64x4) ApproximateReciprocal() Float64x4
@@ -46,8 +82,20 @@ func (x Float64x4) ApproximateReciprocal() Float64x4
 // Asm: VRSQRT14PD, CPU Feature: AVX512EVEX
 func (x Float64x4) ApproximateReciprocalOfSqrt() Float64x4
 
+// Asm: VROUNDPD, CPU Feature: AVX
+func (x Float64x4) Ceil() Float64x4
+
+// Asm: VROUNDPD, CPU Feature: AVX
+func (x Float64x4) Floor() Float64x4
+
+// Asm: VROUNDPD, CPU Feature: AVX
+func (x Float64x4) Round() Float64x4
+
 // Asm: VSQRTPD, CPU Feature: AVX
 func (x Float64x4) Sqrt() Float64x4
+
+// Asm: VROUNDPD, CPU Feature: AVX
+func (x Float64x4) Trunc() Float64x4
 
 // Asm: VRCP14PD, CPU Feature: AVX512EVEX
 func (x Float64x8) ApproximateReciprocal() Float64x8
@@ -246,6 +294,9 @@ func (x Float32x16) Xor(y Float32x16) Float32x16
 // Asm: VADDPS, CPU Feature: AVX
 func (x Float32x4) Add(y Float32x4) Float32x4
 
+// Asm: VADDSUBPS, CPU Feature: AVX
+func (x Float32x4) AddSub(y Float32x4) Float32x4
+
 // Asm: VANDPS, CPU Feature: AVX
 func (x Float32x4) And(y Float32x4) Float32x4
 
@@ -332,6 +383,9 @@ func (x Float32x4) Xor(y Float32x4) Float32x4
 
 // Asm: VADDPS, CPU Feature: AVX
 func (x Float32x8) Add(y Float32x8) Float32x8
+
+// Asm: VADDSUBPS, CPU Feature: AVX
+func (x Float32x8) AddSub(y Float32x8) Float32x8
 
 // Asm: VANDPS, CPU Feature: AVX
 func (x Float32x8) And(y Float32x8) Float32x8
@@ -420,6 +474,9 @@ func (x Float32x8) Xor(y Float32x8) Float32x8
 // Asm: VADDPD, CPU Feature: AVX
 func (x Float64x2) Add(y Float64x2) Float64x2
 
+// Asm: VADDSUBPD, CPU Feature: AVX
+func (x Float64x2) AddSub(y Float64x2) Float64x2
+
 // Asm: VANDPD, CPU Feature: AVX
 func (x Float64x2) And(y Float64x2) Float64x2
 
@@ -506,6 +563,9 @@ func (x Float64x2) Xor(y Float64x2) Float64x2
 
 // Asm: VADDPD, CPU Feature: AVX
 func (x Float64x4) Add(y Float64x4) Float64x4
+
+// Asm: VADDSUBPD, CPU Feature: AVX
+func (x Float64x4) AddSub(y Float64x4) Float64x4
 
 // Asm: VANDPD, CPU Feature: AVX
 func (x Float64x4) And(y Float64x4) Float64x4
@@ -4111,6 +4171,582 @@ func (x Uint8x64) MaskedSaturatedSub(y Uint8x64, z Mask8x64) Uint8x64
 
 // Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedSub(y Uint8x64, z Mask8x64) Uint8x64
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) CeilSuppressExceptionWithPrecision(imm8 uint8) Float32x16
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) CeilSuppressExceptionWithPrecision(imm8 uint8) Float32x4
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) CeilSuppressExceptionWithPrecision(imm8 uint8) Float32x8
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) CeilSuppressExceptionWithPrecision(imm8 uint8) Float64x2
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) CeilSuppressExceptionWithPrecision(imm8 uint8) Float64x4
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) CeilSuppressExceptionWithPrecision(imm8 uint8) Float64x8
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) CeilWithPrecision(imm8 uint8) Float32x16
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) CeilWithPrecision(imm8 uint8) Float32x4
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) CeilWithPrecision(imm8 uint8) Float32x8
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) CeilWithPrecision(imm8 uint8) Float64x2
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) CeilWithPrecision(imm8 uint8) Float64x4
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) CeilWithPrecision(imm8 uint8) Float64x8
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) DiffWithCeilSuppressExceptionWithPrecision(imm8 uint8) Float32x16
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) DiffWithCeilSuppressExceptionWithPrecision(imm8 uint8) Float32x4
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) DiffWithCeilSuppressExceptionWithPrecision(imm8 uint8) Float32x8
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) DiffWithCeilSuppressExceptionWithPrecision(imm8 uint8) Float64x2
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) DiffWithCeilSuppressExceptionWithPrecision(imm8 uint8) Float64x4
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) DiffWithCeilSuppressExceptionWithPrecision(imm8 uint8) Float64x8
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) DiffWithCeilWithPrecision(imm8 uint8) Float32x16
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) DiffWithCeilWithPrecision(imm8 uint8) Float32x4
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) DiffWithCeilWithPrecision(imm8 uint8) Float32x8
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) DiffWithCeilWithPrecision(imm8 uint8) Float64x2
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) DiffWithCeilWithPrecision(imm8 uint8) Float64x4
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) DiffWithCeilWithPrecision(imm8 uint8) Float64x8
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) DiffWithFloorSuppressExceptionWithPrecision(imm8 uint8) Float32x16
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) DiffWithFloorSuppressExceptionWithPrecision(imm8 uint8) Float32x4
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) DiffWithFloorSuppressExceptionWithPrecision(imm8 uint8) Float32x8
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) DiffWithFloorSuppressExceptionWithPrecision(imm8 uint8) Float64x2
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) DiffWithFloorSuppressExceptionWithPrecision(imm8 uint8) Float64x4
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) DiffWithFloorSuppressExceptionWithPrecision(imm8 uint8) Float64x8
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) DiffWithFloorWithPrecision(imm8 uint8) Float32x16
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) DiffWithFloorWithPrecision(imm8 uint8) Float32x4
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) DiffWithFloorWithPrecision(imm8 uint8) Float32x8
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) DiffWithFloorWithPrecision(imm8 uint8) Float64x2
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) DiffWithFloorWithPrecision(imm8 uint8) Float64x4
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) DiffWithFloorWithPrecision(imm8 uint8) Float64x8
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) DiffWithRoundSuppressExceptionWithPrecision(imm8 uint8) Float32x16
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) DiffWithRoundSuppressExceptionWithPrecision(imm8 uint8) Float32x4
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) DiffWithRoundSuppressExceptionWithPrecision(imm8 uint8) Float32x8
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) DiffWithRoundSuppressExceptionWithPrecision(imm8 uint8) Float64x2
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) DiffWithRoundSuppressExceptionWithPrecision(imm8 uint8) Float64x4
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) DiffWithRoundSuppressExceptionWithPrecision(imm8 uint8) Float64x8
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) DiffWithRoundWithPrecision(imm8 uint8) Float32x16
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) DiffWithRoundWithPrecision(imm8 uint8) Float32x4
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) DiffWithRoundWithPrecision(imm8 uint8) Float32x8
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) DiffWithRoundWithPrecision(imm8 uint8) Float64x2
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) DiffWithRoundWithPrecision(imm8 uint8) Float64x4
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) DiffWithRoundWithPrecision(imm8 uint8) Float64x8
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) DiffWithTruncSuppressExceptionWithPrecision(imm8 uint8) Float32x16
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) DiffWithTruncSuppressExceptionWithPrecision(imm8 uint8) Float32x4
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) DiffWithTruncSuppressExceptionWithPrecision(imm8 uint8) Float32x8
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) DiffWithTruncSuppressExceptionWithPrecision(imm8 uint8) Float64x2
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) DiffWithTruncSuppressExceptionWithPrecision(imm8 uint8) Float64x4
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) DiffWithTruncSuppressExceptionWithPrecision(imm8 uint8) Float64x8
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) DiffWithTruncWithPrecision(imm8 uint8) Float32x16
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) DiffWithTruncWithPrecision(imm8 uint8) Float32x4
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) DiffWithTruncWithPrecision(imm8 uint8) Float32x8
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) DiffWithTruncWithPrecision(imm8 uint8) Float64x2
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) DiffWithTruncWithPrecision(imm8 uint8) Float64x4
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) DiffWithTruncWithPrecision(imm8 uint8) Float64x8
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) FloorSuppressExceptionWithPrecision(imm8 uint8) Float32x16
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) FloorSuppressExceptionWithPrecision(imm8 uint8) Float32x4
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) FloorSuppressExceptionWithPrecision(imm8 uint8) Float32x8
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) FloorSuppressExceptionWithPrecision(imm8 uint8) Float64x2
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) FloorSuppressExceptionWithPrecision(imm8 uint8) Float64x4
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) FloorSuppressExceptionWithPrecision(imm8 uint8) Float64x8
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) FloorWithPrecision(imm8 uint8) Float32x16
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) FloorWithPrecision(imm8 uint8) Float32x4
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) FloorWithPrecision(imm8 uint8) Float32x8
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) FloorWithPrecision(imm8 uint8) Float64x2
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) FloorWithPrecision(imm8 uint8) Float64x4
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) FloorWithPrecision(imm8 uint8) Float64x8
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) RoundSuppressExceptionWithPrecision(imm8 uint8) Float32x16
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) RoundSuppressExceptionWithPrecision(imm8 uint8) Float32x4
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) RoundSuppressExceptionWithPrecision(imm8 uint8) Float32x8
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) RoundSuppressExceptionWithPrecision(imm8 uint8) Float64x2
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) RoundSuppressExceptionWithPrecision(imm8 uint8) Float64x4
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) RoundSuppressExceptionWithPrecision(imm8 uint8) Float64x8
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) RoundWithPrecision(imm8 uint8) Float32x16
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) RoundWithPrecision(imm8 uint8) Float32x4
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) RoundWithPrecision(imm8 uint8) Float32x8
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) RoundWithPrecision(imm8 uint8) Float64x2
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) RoundWithPrecision(imm8 uint8) Float64x4
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) RoundWithPrecision(imm8 uint8) Float64x8
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) TruncSuppressExceptionWithPrecision(imm8 uint8) Float32x16
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) TruncSuppressExceptionWithPrecision(imm8 uint8) Float32x4
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) TruncSuppressExceptionWithPrecision(imm8 uint8) Float32x8
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) TruncSuppressExceptionWithPrecision(imm8 uint8) Float64x2
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) TruncSuppressExceptionWithPrecision(imm8 uint8) Float64x4
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) TruncSuppressExceptionWithPrecision(imm8 uint8) Float64x8
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) TruncWithPrecision(imm8 uint8) Float32x16
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) TruncWithPrecision(imm8 uint8) Float32x4
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) TruncWithPrecision(imm8 uint8) Float32x8
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) TruncWithPrecision(imm8 uint8) Float64x2
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) TruncWithPrecision(imm8 uint8) Float64x4
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) TruncWithPrecision(imm8 uint8) Float64x8
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) MaskedCeilSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) MaskedCeilSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) MaskedCeilSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) MaskedCeilSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) MaskedCeilSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) MaskedCeilSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) MaskedCeilWithPrecision(imm uint8, y Mask32x16) Float32x16
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) MaskedCeilWithPrecision(imm uint8, y Mask32x4) Float32x4
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) MaskedCeilWithPrecision(imm uint8, y Mask32x8) Float32x8
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) MaskedCeilWithPrecision(imm uint8, y Mask64x2) Float64x2
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) MaskedCeilWithPrecision(imm uint8, y Mask64x4) Float64x4
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) MaskedCeilWithPrecision(imm uint8, y Mask64x8) Float64x8
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) MaskedDiffWithCeilSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) MaskedDiffWithCeilSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) MaskedDiffWithCeilSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) MaskedDiffWithCeilSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) MaskedDiffWithCeilSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) MaskedDiffWithCeilSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) MaskedDiffWithCeilWithPrecision(imm uint8, y Mask32x16) Float32x16
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) MaskedDiffWithCeilWithPrecision(imm uint8, y Mask32x4) Float32x4
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) MaskedDiffWithCeilWithPrecision(imm uint8, y Mask32x8) Float32x8
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) MaskedDiffWithCeilWithPrecision(imm uint8, y Mask64x2) Float64x2
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) MaskedDiffWithCeilWithPrecision(imm uint8, y Mask64x4) Float64x4
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) MaskedDiffWithCeilWithPrecision(imm uint8, y Mask64x8) Float64x8
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) MaskedDiffWithFloorSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) MaskedDiffWithFloorSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) MaskedDiffWithFloorSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) MaskedDiffWithFloorSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) MaskedDiffWithFloorSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) MaskedDiffWithFloorSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) MaskedDiffWithFloorWithPrecision(imm uint8, y Mask32x16) Float32x16
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) MaskedDiffWithFloorWithPrecision(imm uint8, y Mask32x4) Float32x4
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) MaskedDiffWithFloorWithPrecision(imm uint8, y Mask32x8) Float32x8
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) MaskedDiffWithFloorWithPrecision(imm uint8, y Mask64x2) Float64x2
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) MaskedDiffWithFloorWithPrecision(imm uint8, y Mask64x4) Float64x4
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) MaskedDiffWithFloorWithPrecision(imm uint8, y Mask64x8) Float64x8
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) MaskedDiffWithRoundSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) MaskedDiffWithRoundSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) MaskedDiffWithRoundSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) MaskedDiffWithRoundSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) MaskedDiffWithRoundSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) MaskedDiffWithRoundSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) MaskedDiffWithRoundWithPrecision(imm uint8, y Mask32x16) Float32x16
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) MaskedDiffWithRoundWithPrecision(imm uint8, y Mask32x4) Float32x4
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) MaskedDiffWithRoundWithPrecision(imm uint8, y Mask32x8) Float32x8
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) MaskedDiffWithRoundWithPrecision(imm uint8, y Mask64x2) Float64x2
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) MaskedDiffWithRoundWithPrecision(imm uint8, y Mask64x4) Float64x4
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) MaskedDiffWithRoundWithPrecision(imm uint8, y Mask64x8) Float64x8
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) MaskedDiffWithTruncSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) MaskedDiffWithTruncSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) MaskedDiffWithTruncSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) MaskedDiffWithTruncSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) MaskedDiffWithTruncSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) MaskedDiffWithTruncSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) MaskedDiffWithTruncWithPrecision(imm uint8, y Mask32x16) Float32x16
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) MaskedDiffWithTruncWithPrecision(imm uint8, y Mask32x4) Float32x4
+
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) MaskedDiffWithTruncWithPrecision(imm uint8, y Mask32x8) Float32x8
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) MaskedDiffWithTruncWithPrecision(imm uint8, y Mask64x2) Float64x2
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) MaskedDiffWithTruncWithPrecision(imm uint8, y Mask64x4) Float64x4
+
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) MaskedDiffWithTruncWithPrecision(imm uint8, y Mask64x8) Float64x8
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) MaskedFloorSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) MaskedFloorSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) MaskedFloorSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) MaskedFloorSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) MaskedFloorSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) MaskedFloorSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) MaskedFloorWithPrecision(imm uint8, y Mask32x16) Float32x16
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) MaskedFloorWithPrecision(imm uint8, y Mask32x4) Float32x4
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) MaskedFloorWithPrecision(imm uint8, y Mask32x8) Float32x8
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) MaskedFloorWithPrecision(imm uint8, y Mask64x2) Float64x2
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) MaskedFloorWithPrecision(imm uint8, y Mask64x4) Float64x4
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) MaskedFloorWithPrecision(imm uint8, y Mask64x8) Float64x8
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) MaskedRoundSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) MaskedRoundSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) MaskedRoundSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) MaskedRoundSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) MaskedRoundSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) MaskedRoundSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) MaskedRoundWithPrecision(imm uint8, y Mask32x16) Float32x16
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) MaskedRoundWithPrecision(imm uint8, y Mask32x4) Float32x4
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) MaskedRoundWithPrecision(imm uint8, y Mask32x8) Float32x8
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) MaskedRoundWithPrecision(imm uint8, y Mask64x2) Float64x2
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) MaskedRoundWithPrecision(imm uint8, y Mask64x4) Float64x4
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) MaskedRoundWithPrecision(imm uint8, y Mask64x8) Float64x8
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) MaskedTruncSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) MaskedTruncSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) MaskedTruncSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) MaskedTruncSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) MaskedTruncSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) MaskedTruncSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) MaskedTruncWithPrecision(imm uint8, y Mask32x16) Float32x16
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x4) MaskedTruncWithPrecision(imm uint8, y Mask32x4) Float32x4
+
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x8) MaskedTruncWithPrecision(imm uint8, y Mask32x8) Float32x8
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x2) MaskedTruncWithPrecision(imm uint8, y Mask64x2) Float64x2
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x4) MaskedTruncWithPrecision(imm uint8, y Mask64x4) Float64x4
+
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) MaskedTruncWithPrecision(imm uint8, y Mask64x8) Float64x8
 
 // Float64x8 converts from Float32x16 to Float64x8
 func (from Float32x16) AsFloat64x8() (to Float64x8)

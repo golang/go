@@ -1223,6 +1223,7 @@ const (
 	OpAMD64VSQRTPS512
 	OpAMD64VXORPS512
 	OpAMD64VADDPS128
+	OpAMD64VADDSUBPS128
 	OpAMD64VANDPS128
 	OpAMD64VANDNPS128
 	OpAMD64VRCP14PS128
@@ -1251,6 +1252,7 @@ const (
 	OpAMD64VSQRTPS128
 	OpAMD64VXORPS128
 	OpAMD64VADDPS256
+	OpAMD64VADDSUBPS256
 	OpAMD64VANDPS256
 	OpAMD64VANDNPS256
 	OpAMD64VRCP14PS256
@@ -1279,6 +1281,7 @@ const (
 	OpAMD64VSQRTPS256
 	OpAMD64VXORPS256
 	OpAMD64VADDPD128
+	OpAMD64VADDSUBPD128
 	OpAMD64VANDPD128
 	OpAMD64VANDNPD128
 	OpAMD64VRCP14PD128
@@ -1307,6 +1310,7 @@ const (
 	OpAMD64VSQRTPD128
 	OpAMD64VXORPD128
 	OpAMD64VADDPD256
+	OpAMD64VADDSUBPD256
 	OpAMD64VANDPD256
 	OpAMD64VANDNPD256
 	OpAMD64VRCP14PD256
@@ -1736,17 +1740,45 @@ const (
 	OpAMD64VPMINUBMasked512
 	OpAMD64VPMAXUB512
 	OpAMD64VPMINUB512
+	OpAMD64VRNDSCALEPS512
+	OpAMD64VREDUCEPS512
 	OpAMD64VCMPPS512
+	OpAMD64VRNDSCALEPSMasked512
+	OpAMD64VREDUCEPSMasked512
 	OpAMD64VCMPPSMasked512
+	OpAMD64VROUNDPS128
+	OpAMD64VRNDSCALEPS128
+	OpAMD64VREDUCEPS128
 	OpAMD64VCMPPS128
+	OpAMD64VRNDSCALEPSMasked128
+	OpAMD64VREDUCEPSMasked128
 	OpAMD64VCMPPSMasked128
+	OpAMD64VROUNDPS256
+	OpAMD64VRNDSCALEPS256
+	OpAMD64VREDUCEPS256
 	OpAMD64VCMPPS256
+	OpAMD64VRNDSCALEPSMasked256
+	OpAMD64VREDUCEPSMasked256
 	OpAMD64VCMPPSMasked256
+	OpAMD64VROUNDPD128
+	OpAMD64VRNDSCALEPD128
+	OpAMD64VREDUCEPD128
 	OpAMD64VCMPPD128
+	OpAMD64VRNDSCALEPDMasked128
+	OpAMD64VREDUCEPDMasked128
 	OpAMD64VCMPPDMasked128
+	OpAMD64VROUNDPD256
+	OpAMD64VRNDSCALEPD256
+	OpAMD64VREDUCEPD256
 	OpAMD64VCMPPD256
+	OpAMD64VRNDSCALEPDMasked256
+	OpAMD64VREDUCEPDMasked256
 	OpAMD64VCMPPDMasked256
+	OpAMD64VRNDSCALEPD512
+	OpAMD64VREDUCEPD512
 	OpAMD64VCMPPD512
+	OpAMD64VRNDSCALEPDMasked512
+	OpAMD64VREDUCEPDMasked512
 	OpAMD64VCMPPDMasked512
 	OpAMD64VPCMPW256
 	OpAMD64VPCMPWMasked256
@@ -4065,12 +4097,15 @@ const (
 	OpSubFloat32x16
 	OpXorFloat32x16
 	OpAddFloat32x4
+	OpAddSubFloat32x4
 	OpAndFloat32x4
 	OpAndNotFloat32x4
 	OpApproximateReciprocalFloat32x4
 	OpApproximateReciprocalOfSqrtFloat32x4
+	OpCeilFloat32x4
 	OpDivFloat32x4
 	OpEqualFloat32x4
+	OpFloorFloat32x4
 	OpGreaterFloat32x4
 	OpGreaterEqualFloat32x4
 	OpIsNanFloat32x4
@@ -4105,16 +4140,21 @@ const (
 	OpOrFloat32x4
 	OpPairwiseAddFloat32x4
 	OpPairwiseSubFloat32x4
+	OpRoundFloat32x4
 	OpSqrtFloat32x4
 	OpSubFloat32x4
+	OpTruncFloat32x4
 	OpXorFloat32x4
 	OpAddFloat32x8
+	OpAddSubFloat32x8
 	OpAndFloat32x8
 	OpAndNotFloat32x8
 	OpApproximateReciprocalFloat32x8
 	OpApproximateReciprocalOfSqrtFloat32x8
+	OpCeilFloat32x8
 	OpDivFloat32x8
 	OpEqualFloat32x8
+	OpFloorFloat32x8
 	OpGreaterFloat32x8
 	OpGreaterEqualFloat32x8
 	OpIsNanFloat32x8
@@ -4149,16 +4189,21 @@ const (
 	OpOrFloat32x8
 	OpPairwiseAddFloat32x8
 	OpPairwiseSubFloat32x8
+	OpRoundFloat32x8
 	OpSqrtFloat32x8
 	OpSubFloat32x8
+	OpTruncFloat32x8
 	OpXorFloat32x8
 	OpAddFloat64x2
+	OpAddSubFloat64x2
 	OpAndFloat64x2
 	OpAndNotFloat64x2
 	OpApproximateReciprocalFloat64x2
 	OpApproximateReciprocalOfSqrtFloat64x2
+	OpCeilFloat64x2
 	OpDivFloat64x2
 	OpEqualFloat64x2
+	OpFloorFloat64x2
 	OpGreaterFloat64x2
 	OpGreaterEqualFloat64x2
 	OpIsNanFloat64x2
@@ -4193,16 +4238,21 @@ const (
 	OpOrFloat64x2
 	OpPairwiseAddFloat64x2
 	OpPairwiseSubFloat64x2
+	OpRoundFloat64x2
 	OpSqrtFloat64x2
 	OpSubFloat64x2
+	OpTruncFloat64x2
 	OpXorFloat64x2
 	OpAddFloat64x4
+	OpAddSubFloat64x4
 	OpAndFloat64x4
 	OpAndNotFloat64x4
 	OpApproximateReciprocalFloat64x4
 	OpApproximateReciprocalOfSqrtFloat64x4
+	OpCeilFloat64x4
 	OpDivFloat64x4
 	OpEqualFloat64x4
+	OpFloorFloat64x4
 	OpGreaterFloat64x4
 	OpGreaterEqualFloat64x4
 	OpIsNanFloat64x4
@@ -4237,8 +4287,10 @@ const (
 	OpOrFloat64x4
 	OpPairwiseAddFloat64x4
 	OpPairwiseSubFloat64x4
+	OpRoundFloat64x4
 	OpSqrtFloat64x4
 	OpSubFloat64x4
+	OpTruncFloat64x4
 	OpXorFloat64x4
 	OpAddFloat64x8
 	OpAndFloat64x8
@@ -5094,6 +5146,198 @@ const (
 	OpSaturatedAddUint8x64
 	OpSaturatedSubUint8x64
 	OpSubUint8x64
+	OpCeilSuppressExceptionWithPrecisionFloat32x16
+	OpCeilWithPrecisionFloat32x16
+	OpDiffWithCeilSuppressExceptionWithPrecisionFloat32x16
+	OpDiffWithCeilWithPrecisionFloat32x16
+	OpDiffWithFloorSuppressExceptionWithPrecisionFloat32x16
+	OpDiffWithFloorWithPrecisionFloat32x16
+	OpDiffWithRoundSuppressExceptionWithPrecisionFloat32x16
+	OpDiffWithRoundWithPrecisionFloat32x16
+	OpDiffWithTruncSuppressExceptionWithPrecisionFloat32x16
+	OpDiffWithTruncWithPrecisionFloat32x16
+	OpFloorSuppressExceptionWithPrecisionFloat32x16
+	OpFloorWithPrecisionFloat32x16
+	OpMaskedCeilSuppressExceptionWithPrecisionFloat32x16
+	OpMaskedCeilWithPrecisionFloat32x16
+	OpMaskedDiffWithCeilSuppressExceptionWithPrecisionFloat32x16
+	OpMaskedDiffWithCeilWithPrecisionFloat32x16
+	OpMaskedDiffWithFloorSuppressExceptionWithPrecisionFloat32x16
+	OpMaskedDiffWithFloorWithPrecisionFloat32x16
+	OpMaskedDiffWithRoundSuppressExceptionWithPrecisionFloat32x16
+	OpMaskedDiffWithRoundWithPrecisionFloat32x16
+	OpMaskedDiffWithTruncSuppressExceptionWithPrecisionFloat32x16
+	OpMaskedDiffWithTruncWithPrecisionFloat32x16
+	OpMaskedFloorSuppressExceptionWithPrecisionFloat32x16
+	OpMaskedFloorWithPrecisionFloat32x16
+	OpMaskedRoundSuppressExceptionWithPrecisionFloat32x16
+	OpMaskedRoundWithPrecisionFloat32x16
+	OpMaskedTruncSuppressExceptionWithPrecisionFloat32x16
+	OpMaskedTruncWithPrecisionFloat32x16
+	OpRoundSuppressExceptionWithPrecisionFloat32x16
+	OpRoundWithPrecisionFloat32x16
+	OpTruncSuppressExceptionWithPrecisionFloat32x16
+	OpTruncWithPrecisionFloat32x16
+	OpCeilSuppressExceptionWithPrecisionFloat32x4
+	OpCeilWithPrecisionFloat32x4
+	OpDiffWithCeilSuppressExceptionWithPrecisionFloat32x4
+	OpDiffWithCeilWithPrecisionFloat32x4
+	OpDiffWithFloorSuppressExceptionWithPrecisionFloat32x4
+	OpDiffWithFloorWithPrecisionFloat32x4
+	OpDiffWithRoundSuppressExceptionWithPrecisionFloat32x4
+	OpDiffWithRoundWithPrecisionFloat32x4
+	OpDiffWithTruncSuppressExceptionWithPrecisionFloat32x4
+	OpDiffWithTruncWithPrecisionFloat32x4
+	OpFloorSuppressExceptionWithPrecisionFloat32x4
+	OpFloorWithPrecisionFloat32x4
+	OpMaskedCeilSuppressExceptionWithPrecisionFloat32x4
+	OpMaskedCeilWithPrecisionFloat32x4
+	OpMaskedDiffWithCeilSuppressExceptionWithPrecisionFloat32x4
+	OpMaskedDiffWithCeilWithPrecisionFloat32x4
+	OpMaskedDiffWithFloorSuppressExceptionWithPrecisionFloat32x4
+	OpMaskedDiffWithFloorWithPrecisionFloat32x4
+	OpMaskedDiffWithRoundSuppressExceptionWithPrecisionFloat32x4
+	OpMaskedDiffWithRoundWithPrecisionFloat32x4
+	OpMaskedDiffWithTruncSuppressExceptionWithPrecisionFloat32x4
+	OpMaskedDiffWithTruncWithPrecisionFloat32x4
+	OpMaskedFloorSuppressExceptionWithPrecisionFloat32x4
+	OpMaskedFloorWithPrecisionFloat32x4
+	OpMaskedRoundSuppressExceptionWithPrecisionFloat32x4
+	OpMaskedRoundWithPrecisionFloat32x4
+	OpMaskedTruncSuppressExceptionWithPrecisionFloat32x4
+	OpMaskedTruncWithPrecisionFloat32x4
+	OpRoundSuppressExceptionWithPrecisionFloat32x4
+	OpRoundWithPrecisionFloat32x4
+	OpTruncSuppressExceptionWithPrecisionFloat32x4
+	OpTruncWithPrecisionFloat32x4
+	OpCeilSuppressExceptionWithPrecisionFloat32x8
+	OpCeilWithPrecisionFloat32x8
+	OpDiffWithCeilSuppressExceptionWithPrecisionFloat32x8
+	OpDiffWithCeilWithPrecisionFloat32x8
+	OpDiffWithFloorSuppressExceptionWithPrecisionFloat32x8
+	OpDiffWithFloorWithPrecisionFloat32x8
+	OpDiffWithRoundSuppressExceptionWithPrecisionFloat32x8
+	OpDiffWithRoundWithPrecisionFloat32x8
+	OpDiffWithTruncSuppressExceptionWithPrecisionFloat32x8
+	OpDiffWithTruncWithPrecisionFloat32x8
+	OpFloorSuppressExceptionWithPrecisionFloat32x8
+	OpFloorWithPrecisionFloat32x8
+	OpMaskedCeilSuppressExceptionWithPrecisionFloat32x8
+	OpMaskedCeilWithPrecisionFloat32x8
+	OpMaskedDiffWithCeilSuppressExceptionWithPrecisionFloat32x8
+	OpMaskedDiffWithCeilWithPrecisionFloat32x8
+	OpMaskedDiffWithFloorSuppressExceptionWithPrecisionFloat32x8
+	OpMaskedDiffWithFloorWithPrecisionFloat32x8
+	OpMaskedDiffWithRoundSuppressExceptionWithPrecisionFloat32x8
+	OpMaskedDiffWithRoundWithPrecisionFloat32x8
+	OpMaskedDiffWithTruncSuppressExceptionWithPrecisionFloat32x8
+	OpMaskedDiffWithTruncWithPrecisionFloat32x8
+	OpMaskedFloorSuppressExceptionWithPrecisionFloat32x8
+	OpMaskedFloorWithPrecisionFloat32x8
+	OpMaskedRoundSuppressExceptionWithPrecisionFloat32x8
+	OpMaskedRoundWithPrecisionFloat32x8
+	OpMaskedTruncSuppressExceptionWithPrecisionFloat32x8
+	OpMaskedTruncWithPrecisionFloat32x8
+	OpRoundSuppressExceptionWithPrecisionFloat32x8
+	OpRoundWithPrecisionFloat32x8
+	OpTruncSuppressExceptionWithPrecisionFloat32x8
+	OpTruncWithPrecisionFloat32x8
+	OpCeilSuppressExceptionWithPrecisionFloat64x2
+	OpCeilWithPrecisionFloat64x2
+	OpDiffWithCeilSuppressExceptionWithPrecisionFloat64x2
+	OpDiffWithCeilWithPrecisionFloat64x2
+	OpDiffWithFloorSuppressExceptionWithPrecisionFloat64x2
+	OpDiffWithFloorWithPrecisionFloat64x2
+	OpDiffWithRoundSuppressExceptionWithPrecisionFloat64x2
+	OpDiffWithRoundWithPrecisionFloat64x2
+	OpDiffWithTruncSuppressExceptionWithPrecisionFloat64x2
+	OpDiffWithTruncWithPrecisionFloat64x2
+	OpFloorSuppressExceptionWithPrecisionFloat64x2
+	OpFloorWithPrecisionFloat64x2
+	OpMaskedCeilSuppressExceptionWithPrecisionFloat64x2
+	OpMaskedCeilWithPrecisionFloat64x2
+	OpMaskedDiffWithCeilSuppressExceptionWithPrecisionFloat64x2
+	OpMaskedDiffWithCeilWithPrecisionFloat64x2
+	OpMaskedDiffWithFloorSuppressExceptionWithPrecisionFloat64x2
+	OpMaskedDiffWithFloorWithPrecisionFloat64x2
+	OpMaskedDiffWithRoundSuppressExceptionWithPrecisionFloat64x2
+	OpMaskedDiffWithRoundWithPrecisionFloat64x2
+	OpMaskedDiffWithTruncSuppressExceptionWithPrecisionFloat64x2
+	OpMaskedDiffWithTruncWithPrecisionFloat64x2
+	OpMaskedFloorSuppressExceptionWithPrecisionFloat64x2
+	OpMaskedFloorWithPrecisionFloat64x2
+	OpMaskedRoundSuppressExceptionWithPrecisionFloat64x2
+	OpMaskedRoundWithPrecisionFloat64x2
+	OpMaskedTruncSuppressExceptionWithPrecisionFloat64x2
+	OpMaskedTruncWithPrecisionFloat64x2
+	OpRoundSuppressExceptionWithPrecisionFloat64x2
+	OpRoundWithPrecisionFloat64x2
+	OpTruncSuppressExceptionWithPrecisionFloat64x2
+	OpTruncWithPrecisionFloat64x2
+	OpCeilSuppressExceptionWithPrecisionFloat64x4
+	OpCeilWithPrecisionFloat64x4
+	OpDiffWithCeilSuppressExceptionWithPrecisionFloat64x4
+	OpDiffWithCeilWithPrecisionFloat64x4
+	OpDiffWithFloorSuppressExceptionWithPrecisionFloat64x4
+	OpDiffWithFloorWithPrecisionFloat64x4
+	OpDiffWithRoundSuppressExceptionWithPrecisionFloat64x4
+	OpDiffWithRoundWithPrecisionFloat64x4
+	OpDiffWithTruncSuppressExceptionWithPrecisionFloat64x4
+	OpDiffWithTruncWithPrecisionFloat64x4
+	OpFloorSuppressExceptionWithPrecisionFloat64x4
+	OpFloorWithPrecisionFloat64x4
+	OpMaskedCeilSuppressExceptionWithPrecisionFloat64x4
+	OpMaskedCeilWithPrecisionFloat64x4
+	OpMaskedDiffWithCeilSuppressExceptionWithPrecisionFloat64x4
+	OpMaskedDiffWithCeilWithPrecisionFloat64x4
+	OpMaskedDiffWithFloorSuppressExceptionWithPrecisionFloat64x4
+	OpMaskedDiffWithFloorWithPrecisionFloat64x4
+	OpMaskedDiffWithRoundSuppressExceptionWithPrecisionFloat64x4
+	OpMaskedDiffWithRoundWithPrecisionFloat64x4
+	OpMaskedDiffWithTruncSuppressExceptionWithPrecisionFloat64x4
+	OpMaskedDiffWithTruncWithPrecisionFloat64x4
+	OpMaskedFloorSuppressExceptionWithPrecisionFloat64x4
+	OpMaskedFloorWithPrecisionFloat64x4
+	OpMaskedRoundSuppressExceptionWithPrecisionFloat64x4
+	OpMaskedRoundWithPrecisionFloat64x4
+	OpMaskedTruncSuppressExceptionWithPrecisionFloat64x4
+	OpMaskedTruncWithPrecisionFloat64x4
+	OpRoundSuppressExceptionWithPrecisionFloat64x4
+	OpRoundWithPrecisionFloat64x4
+	OpTruncSuppressExceptionWithPrecisionFloat64x4
+	OpTruncWithPrecisionFloat64x4
+	OpCeilSuppressExceptionWithPrecisionFloat64x8
+	OpCeilWithPrecisionFloat64x8
+	OpDiffWithCeilSuppressExceptionWithPrecisionFloat64x8
+	OpDiffWithCeilWithPrecisionFloat64x8
+	OpDiffWithFloorSuppressExceptionWithPrecisionFloat64x8
+	OpDiffWithFloorWithPrecisionFloat64x8
+	OpDiffWithRoundSuppressExceptionWithPrecisionFloat64x8
+	OpDiffWithRoundWithPrecisionFloat64x8
+	OpDiffWithTruncSuppressExceptionWithPrecisionFloat64x8
+	OpDiffWithTruncWithPrecisionFloat64x8
+	OpFloorSuppressExceptionWithPrecisionFloat64x8
+	OpFloorWithPrecisionFloat64x8
+	OpMaskedCeilSuppressExceptionWithPrecisionFloat64x8
+	OpMaskedCeilWithPrecisionFloat64x8
+	OpMaskedDiffWithCeilSuppressExceptionWithPrecisionFloat64x8
+	OpMaskedDiffWithCeilWithPrecisionFloat64x8
+	OpMaskedDiffWithFloorSuppressExceptionWithPrecisionFloat64x8
+	OpMaskedDiffWithFloorWithPrecisionFloat64x8
+	OpMaskedDiffWithRoundSuppressExceptionWithPrecisionFloat64x8
+	OpMaskedDiffWithRoundWithPrecisionFloat64x8
+	OpMaskedDiffWithTruncSuppressExceptionWithPrecisionFloat64x8
+	OpMaskedDiffWithTruncWithPrecisionFloat64x8
+	OpMaskedFloorSuppressExceptionWithPrecisionFloat64x8
+	OpMaskedFloorWithPrecisionFloat64x8
+	OpMaskedRoundSuppressExceptionWithPrecisionFloat64x8
+	OpMaskedRoundWithPrecisionFloat64x8
+	OpMaskedTruncSuppressExceptionWithPrecisionFloat64x8
+	OpMaskedTruncWithPrecisionFloat64x8
+	OpRoundSuppressExceptionWithPrecisionFloat64x8
+	OpRoundWithPrecisionFloat64x8
+	OpTruncSuppressExceptionWithPrecisionFloat64x8
+	OpTruncWithPrecisionFloat64x8
 )
 
 var opcodeTable = [...]opInfo{
@@ -18092,6 +18336,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VADDSUBPS128",
+		argLen: 2,
+		asm:    x86.AVADDSUBPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VANDPS128",
 		argLen:      2,
 		commutative: true,
@@ -18496,6 +18754,20 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVADDPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VADDSUBPS256",
+		argLen: 2,
+		asm:    x86.AVADDSUBPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -18922,6 +19194,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VADDSUBPD128",
+		argLen: 2,
+		asm:    x86.AVADDSUBPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VANDPD128",
 		argLen:      2,
 		commutative: true,
@@ -19326,6 +19612,20 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVADDPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VADDSUBPD256",
+		argLen: 2,
+		asm:    x86.AVADDSUBPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25773,6 +26073,34 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "VRNDSCALEPS512",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVRNDSCALEPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VREDUCEPS512",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVREDUCEPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VCMPPS512",
 		auxType:     auxInt8,
 		argLen:      2,
@@ -25785,6 +26113,36 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VRNDSCALEPSMasked512",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVRNDSCALEPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VREDUCEPSMasked512",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVREDUCEPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -25806,6 +26164,48 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "VROUNDPS128",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVROUNDPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VRNDSCALEPS128",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVRNDSCALEPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VREDUCEPS128",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVREDUCEPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VCMPPS128",
 		auxType:     auxInt8,
 		argLen:      2,
@@ -25815,6 +26215,36 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VRNDSCALEPSMasked128",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVRNDSCALEPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VREDUCEPSMasked128",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVREDUCEPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25839,6 +26269,48 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "VROUNDPS256",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVROUNDPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VRNDSCALEPS256",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVRNDSCALEPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VREDUCEPS256",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVREDUCEPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VCMPPS256",
 		auxType:     auxInt8,
 		argLen:      2,
@@ -25848,6 +26320,36 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VRNDSCALEPSMasked256",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVRNDSCALEPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VREDUCEPSMasked256",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVREDUCEPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25872,6 +26374,48 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "VROUNDPD128",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVROUNDPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VRNDSCALEPD128",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVRNDSCALEPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VREDUCEPD128",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVREDUCEPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VCMPPD128",
 		auxType:     auxInt8,
 		argLen:      2,
@@ -25881,6 +26425,36 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VRNDSCALEPDMasked128",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVRNDSCALEPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VREDUCEPDMasked128",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVREDUCEPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25905,6 +26479,48 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "VROUNDPD256",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVROUNDPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VRNDSCALEPD256",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVRNDSCALEPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VREDUCEPD256",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVREDUCEPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VCMPPD256",
 		auxType:     auxInt8,
 		argLen:      2,
@@ -25914,6 +26530,36 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VRNDSCALEPDMasked256",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVRNDSCALEPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VREDUCEPDMasked256",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVREDUCEPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25938,6 +26584,34 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "VRNDSCALEPD512",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVRNDSCALEPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VREDUCEPD512",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVREDUCEPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VCMPPD512",
 		auxType:     auxInt8,
 		argLen:      2,
@@ -25950,6 +26624,36 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VRNDSCALEPDMasked512",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVRNDSCALEPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VREDUCEPDMasked512",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVREDUCEPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -54129,6 +54833,11 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:    "AddSubFloat32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:        "AndFloat32x4",
 		argLen:      2,
 		commutative: true,
@@ -54151,6 +54860,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "CeilFloat32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "DivFloat32x4",
 		argLen:  2,
 		generic: true,
@@ -54160,6 +54874,11 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "FloorFloat32x4",
+		argLen:  1,
+		generic: true,
 	},
 	{
 		name:    "GreaterFloat32x4",
@@ -54349,6 +55068,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "RoundFloat32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "SqrtFloat32x4",
 		argLen:  1,
 		generic: true,
@@ -54356,6 +55080,11 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SubFloat32x4",
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "TruncFloat32x4",
+		argLen:  1,
 		generic: true,
 	},
 	{
@@ -54369,6 +55098,11 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "AddSubFloat32x8",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "AndFloat32x8",
@@ -54393,6 +55127,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "CeilFloat32x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "DivFloat32x8",
 		argLen:  2,
 		generic: true,
@@ -54402,6 +55141,11 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "FloorFloat32x8",
+		argLen:  1,
+		generic: true,
 	},
 	{
 		name:    "GreaterFloat32x8",
@@ -54591,6 +55335,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "RoundFloat32x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "SqrtFloat32x8",
 		argLen:  1,
 		generic: true,
@@ -54598,6 +55347,11 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SubFloat32x8",
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "TruncFloat32x8",
+		argLen:  1,
 		generic: true,
 	},
 	{
@@ -54611,6 +55365,11 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "AddSubFloat64x2",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "AndFloat64x2",
@@ -54635,6 +55394,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "CeilFloat64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "DivFloat64x2",
 		argLen:  2,
 		generic: true,
@@ -54644,6 +55408,11 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "FloorFloat64x2",
+		argLen:  1,
+		generic: true,
 	},
 	{
 		name:    "GreaterFloat64x2",
@@ -54833,6 +55602,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "RoundFloat64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "SqrtFloat64x2",
 		argLen:  1,
 		generic: true,
@@ -54840,6 +55614,11 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SubFloat64x2",
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "TruncFloat64x2",
+		argLen:  1,
 		generic: true,
 	},
 	{
@@ -54853,6 +55632,11 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "AddSubFloat64x4",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "AndFloat64x4",
@@ -54877,6 +55661,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "CeilFloat64x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "DivFloat64x4",
 		argLen:  2,
 		generic: true,
@@ -54886,6 +55675,11 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "FloorFloat64x4",
+		argLen:  1,
+		generic: true,
 	},
 	{
 		name:    "GreaterFloat64x4",
@@ -55075,6 +55869,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "RoundFloat64x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "SqrtFloat64x4",
 		argLen:  1,
 		generic: true,
@@ -55082,6 +55881,11 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SubFloat64x4",
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "TruncFloat64x4",
+		argLen:  1,
 		generic: true,
 	},
 	{
@@ -59830,6 +60634,1158 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SubUint8x64",
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "CeilSuppressExceptionWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CeilWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithCeilSuppressExceptionWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithCeilWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithFloorSuppressExceptionWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithFloorWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithRoundSuppressExceptionWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithRoundWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithTruncSuppressExceptionWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithTruncWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "FloorSuppressExceptionWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "FloorWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "MaskedCeilSuppressExceptionWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedCeilWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithCeilSuppressExceptionWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithCeilWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithFloorSuppressExceptionWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithFloorWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithRoundSuppressExceptionWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithRoundWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithTruncSuppressExceptionWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithTruncWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedFloorSuppressExceptionWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedFloorWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedRoundSuppressExceptionWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedRoundWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedTruncSuppressExceptionWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedTruncWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "RoundSuppressExceptionWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "RoundWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "TruncSuppressExceptionWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "TruncWithPrecisionFloat32x16",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CeilSuppressExceptionWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CeilWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithCeilSuppressExceptionWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithCeilWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithFloorSuppressExceptionWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithFloorWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithRoundSuppressExceptionWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithRoundWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithTruncSuppressExceptionWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithTruncWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "FloorSuppressExceptionWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "FloorWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "MaskedCeilSuppressExceptionWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedCeilWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithCeilSuppressExceptionWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithCeilWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithFloorSuppressExceptionWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithFloorWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithRoundSuppressExceptionWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithRoundWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithTruncSuppressExceptionWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithTruncWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedFloorSuppressExceptionWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedFloorWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedRoundSuppressExceptionWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedRoundWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedTruncSuppressExceptionWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedTruncWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "RoundSuppressExceptionWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "RoundWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "TruncSuppressExceptionWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "TruncWithPrecisionFloat32x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CeilSuppressExceptionWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CeilWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithCeilSuppressExceptionWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithCeilWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithFloorSuppressExceptionWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithFloorWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithRoundSuppressExceptionWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithRoundWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithTruncSuppressExceptionWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithTruncWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "FloorSuppressExceptionWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "FloorWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "MaskedCeilSuppressExceptionWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedCeilWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithCeilSuppressExceptionWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithCeilWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithFloorSuppressExceptionWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithFloorWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithRoundSuppressExceptionWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithRoundWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithTruncSuppressExceptionWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithTruncWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedFloorSuppressExceptionWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedFloorWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedRoundSuppressExceptionWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedRoundWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedTruncSuppressExceptionWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedTruncWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "RoundSuppressExceptionWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "RoundWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "TruncSuppressExceptionWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "TruncWithPrecisionFloat32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CeilSuppressExceptionWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CeilWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithCeilSuppressExceptionWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithCeilWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithFloorSuppressExceptionWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithFloorWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithRoundSuppressExceptionWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithRoundWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithTruncSuppressExceptionWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithTruncWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "FloorSuppressExceptionWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "FloorWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "MaskedCeilSuppressExceptionWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedCeilWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithCeilSuppressExceptionWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithCeilWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithFloorSuppressExceptionWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithFloorWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithRoundSuppressExceptionWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithRoundWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithTruncSuppressExceptionWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithTruncWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedFloorSuppressExceptionWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedFloorWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedRoundSuppressExceptionWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedRoundWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedTruncSuppressExceptionWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedTruncWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "RoundSuppressExceptionWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "RoundWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "TruncSuppressExceptionWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "TruncWithPrecisionFloat64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CeilSuppressExceptionWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CeilWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithCeilSuppressExceptionWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithCeilWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithFloorSuppressExceptionWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithFloorWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithRoundSuppressExceptionWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithRoundWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithTruncSuppressExceptionWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithTruncWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "FloorSuppressExceptionWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "FloorWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "MaskedCeilSuppressExceptionWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedCeilWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithCeilSuppressExceptionWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithCeilWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithFloorSuppressExceptionWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithFloorWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithRoundSuppressExceptionWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithRoundWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithTruncSuppressExceptionWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithTruncWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedFloorSuppressExceptionWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedFloorWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedRoundSuppressExceptionWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedRoundWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedTruncSuppressExceptionWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedTruncWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "RoundSuppressExceptionWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "RoundWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "TruncSuppressExceptionWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "TruncWithPrecisionFloat64x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CeilSuppressExceptionWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CeilWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithCeilSuppressExceptionWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithCeilWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithFloorSuppressExceptionWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithFloorWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithRoundSuppressExceptionWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithRoundWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithTruncSuppressExceptionWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "DiffWithTruncWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "FloorSuppressExceptionWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "FloorWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "MaskedCeilSuppressExceptionWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedCeilWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithCeilSuppressExceptionWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithCeilWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithFloorSuppressExceptionWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithFloorWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithRoundSuppressExceptionWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithRoundWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithTruncSuppressExceptionWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedDiffWithTruncWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedFloorSuppressExceptionWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedFloorWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedRoundSuppressExceptionWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedRoundWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedTruncSuppressExceptionWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedTruncWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "RoundSuppressExceptionWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "RoundWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "TruncSuppressExceptionWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "TruncWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  1,
 		generic: true,
 	},
 }
