@@ -1202,12 +1202,48 @@ const (
 	OpAMD64VRCP14PS512
 	OpAMD64VRSQRT14PS512
 	OpAMD64VDIVPS512
+	OpAMD64VFMADD132PS512
+	OpAMD64VFMADD213PS512
+	OpAMD64VFMADD231PS512
+	OpAMD64VFMADDSUB132PS512
+	OpAMD64VFMADDSUB213PS512
+	OpAMD64VFMADDSUB231PS512
+	OpAMD64VFMSUB132PS512
+	OpAMD64VFMSUB213PS512
+	OpAMD64VFMSUB231PS512
+	OpAMD64VFMSUBADD132PS512
+	OpAMD64VFMSUBADD213PS512
+	OpAMD64VFMSUBADD231PS512
+	OpAMD64VFNMADD132PS512
+	OpAMD64VFNMADD213PS512
+	OpAMD64VFNMADD231PS512
+	OpAMD64VFNMSUB132PS512
+	OpAMD64VFNMSUB213PS512
+	OpAMD64VFNMSUB231PS512
 	OpAMD64VADDPSMasked512
 	OpAMD64VANDPSMasked512
 	OpAMD64VANDNPSMasked512
 	OpAMD64VRCP14PSMasked512
 	OpAMD64VRSQRT14PSMasked512
 	OpAMD64VDIVPSMasked512
+	OpAMD64VFMADD132PSMasked512
+	OpAMD64VFMADD213PSMasked512
+	OpAMD64VFMADD231PSMasked512
+	OpAMD64VFMADDSUB132PSMasked512
+	OpAMD64VFMADDSUB213PSMasked512
+	OpAMD64VFMADDSUB231PSMasked512
+	OpAMD64VFMSUB132PSMasked512
+	OpAMD64VFMSUB213PSMasked512
+	OpAMD64VFMSUB231PSMasked512
+	OpAMD64VFMSUBADD132PSMasked512
+	OpAMD64VFMSUBADD213PSMasked512
+	OpAMD64VFMSUBADD231PSMasked512
+	OpAMD64VFNMADD132PSMasked512
+	OpAMD64VFNMADD213PSMasked512
+	OpAMD64VFNMADD231PSMasked512
+	OpAMD64VFNMSUB132PSMasked512
+	OpAMD64VFNMSUB213PSMasked512
+	OpAMD64VFNMSUB231PSMasked512
 	OpAMD64VMAXPSMasked512
 	OpAMD64VMINPSMasked512
 	OpAMD64VMULPSMasked512
@@ -1229,12 +1265,48 @@ const (
 	OpAMD64VRCP14PS128
 	OpAMD64VRSQRTPS128
 	OpAMD64VDIVPS128
+	OpAMD64VFMADD132PS128
+	OpAMD64VFMADD213PS128
+	OpAMD64VFMADD231PS128
+	OpAMD64VFMADDSUB132PS128
+	OpAMD64VFMADDSUB213PS128
+	OpAMD64VFMADDSUB231PS128
+	OpAMD64VFMSUB132PS128
+	OpAMD64VFMSUB213PS128
+	OpAMD64VFMSUB231PS128
+	OpAMD64VFMSUBADD132PS128
+	OpAMD64VFMSUBADD213PS128
+	OpAMD64VFMSUBADD231PS128
+	OpAMD64VFNMADD132PS128
+	OpAMD64VFNMADD213PS128
+	OpAMD64VFNMADD231PS128
+	OpAMD64VFNMSUB132PS128
+	OpAMD64VFNMSUB213PS128
+	OpAMD64VFNMSUB231PS128
 	OpAMD64VADDPSMasked128
 	OpAMD64VANDPSMasked128
 	OpAMD64VANDNPSMasked128
 	OpAMD64VRCP14PSMasked128
 	OpAMD64VRSQRT14PSMasked128
 	OpAMD64VDIVPSMasked128
+	OpAMD64VFMADD132PSMasked128
+	OpAMD64VFMADD213PSMasked128
+	OpAMD64VFMADD231PSMasked128
+	OpAMD64VFMADDSUB132PSMasked128
+	OpAMD64VFMADDSUB213PSMasked128
+	OpAMD64VFMADDSUB231PSMasked128
+	OpAMD64VFMSUB132PSMasked128
+	OpAMD64VFMSUB213PSMasked128
+	OpAMD64VFMSUB231PSMasked128
+	OpAMD64VFMSUBADD132PSMasked128
+	OpAMD64VFMSUBADD213PSMasked128
+	OpAMD64VFMSUBADD231PSMasked128
+	OpAMD64VFNMADD132PSMasked128
+	OpAMD64VFNMADD213PSMasked128
+	OpAMD64VFNMADD231PSMasked128
+	OpAMD64VFNMSUB132PSMasked128
+	OpAMD64VFNMSUB213PSMasked128
+	OpAMD64VFNMSUB231PSMasked128
 	OpAMD64VMAXPSMasked128
 	OpAMD64VMINPSMasked128
 	OpAMD64VMULPSMasked128
@@ -1258,12 +1330,48 @@ const (
 	OpAMD64VRCP14PS256
 	OpAMD64VRSQRTPS256
 	OpAMD64VDIVPS256
+	OpAMD64VFMADD132PS256
+	OpAMD64VFMADD213PS256
+	OpAMD64VFMADD231PS256
+	OpAMD64VFMADDSUB132PS256
+	OpAMD64VFMADDSUB213PS256
+	OpAMD64VFMADDSUB231PS256
+	OpAMD64VFMSUB132PS256
+	OpAMD64VFMSUB213PS256
+	OpAMD64VFMSUB231PS256
+	OpAMD64VFMSUBADD132PS256
+	OpAMD64VFMSUBADD213PS256
+	OpAMD64VFMSUBADD231PS256
+	OpAMD64VFNMADD132PS256
+	OpAMD64VFNMADD213PS256
+	OpAMD64VFNMADD231PS256
+	OpAMD64VFNMSUB132PS256
+	OpAMD64VFNMSUB213PS256
+	OpAMD64VFNMSUB231PS256
 	OpAMD64VADDPSMasked256
 	OpAMD64VANDPSMasked256
 	OpAMD64VANDNPSMasked256
 	OpAMD64VRCP14PSMasked256
 	OpAMD64VRSQRT14PSMasked256
 	OpAMD64VDIVPSMasked256
+	OpAMD64VFMADD132PSMasked256
+	OpAMD64VFMADD213PSMasked256
+	OpAMD64VFMADD231PSMasked256
+	OpAMD64VFMADDSUB132PSMasked256
+	OpAMD64VFMADDSUB213PSMasked256
+	OpAMD64VFMADDSUB231PSMasked256
+	OpAMD64VFMSUB132PSMasked256
+	OpAMD64VFMSUB213PSMasked256
+	OpAMD64VFMSUB231PSMasked256
+	OpAMD64VFMSUBADD132PSMasked256
+	OpAMD64VFMSUBADD213PSMasked256
+	OpAMD64VFMSUBADD231PSMasked256
+	OpAMD64VFNMADD132PSMasked256
+	OpAMD64VFNMADD213PSMasked256
+	OpAMD64VFNMADD231PSMasked256
+	OpAMD64VFNMSUB132PSMasked256
+	OpAMD64VFNMSUB213PSMasked256
+	OpAMD64VFNMSUB231PSMasked256
 	OpAMD64VMAXPSMasked256
 	OpAMD64VMINPSMasked256
 	OpAMD64VMULPSMasked256
@@ -1287,12 +1395,48 @@ const (
 	OpAMD64VRCP14PD128
 	OpAMD64VRSQRT14PD128
 	OpAMD64VDIVPD128
+	OpAMD64VFMADD132PD128
+	OpAMD64VFMADD213PD128
+	OpAMD64VFMADD231PD128
+	OpAMD64VFMADDSUB132PD128
+	OpAMD64VFMADDSUB213PD128
+	OpAMD64VFMADDSUB231PD128
+	OpAMD64VFMSUB132PD128
+	OpAMD64VFMSUB213PD128
+	OpAMD64VFMSUB231PD128
+	OpAMD64VFMSUBADD132PD128
+	OpAMD64VFMSUBADD213PD128
+	OpAMD64VFMSUBADD231PD128
+	OpAMD64VFNMADD132PD128
+	OpAMD64VFNMADD213PD128
+	OpAMD64VFNMADD231PD128
+	OpAMD64VFNMSUB132PD128
+	OpAMD64VFNMSUB213PD128
+	OpAMD64VFNMSUB231PD128
 	OpAMD64VADDPDMasked128
 	OpAMD64VANDPDMasked128
 	OpAMD64VANDNPDMasked128
 	OpAMD64VRCP14PDMasked128
 	OpAMD64VRSQRT14PDMasked128
 	OpAMD64VDIVPDMasked128
+	OpAMD64VFMADD132PDMasked128
+	OpAMD64VFMADD213PDMasked128
+	OpAMD64VFMADD231PDMasked128
+	OpAMD64VFMADDSUB132PDMasked128
+	OpAMD64VFMADDSUB213PDMasked128
+	OpAMD64VFMADDSUB231PDMasked128
+	OpAMD64VFMSUB132PDMasked128
+	OpAMD64VFMSUB213PDMasked128
+	OpAMD64VFMSUB231PDMasked128
+	OpAMD64VFMSUBADD132PDMasked128
+	OpAMD64VFMSUBADD213PDMasked128
+	OpAMD64VFMSUBADD231PDMasked128
+	OpAMD64VFNMADD132PDMasked128
+	OpAMD64VFNMADD213PDMasked128
+	OpAMD64VFNMADD231PDMasked128
+	OpAMD64VFNMSUB132PDMasked128
+	OpAMD64VFNMSUB213PDMasked128
+	OpAMD64VFNMSUB231PDMasked128
 	OpAMD64VMAXPDMasked128
 	OpAMD64VMINPDMasked128
 	OpAMD64VMULPDMasked128
@@ -1316,12 +1460,48 @@ const (
 	OpAMD64VRCP14PD256
 	OpAMD64VRSQRT14PD256
 	OpAMD64VDIVPD256
+	OpAMD64VFMADD132PD256
+	OpAMD64VFMADD213PD256
+	OpAMD64VFMADD231PD256
+	OpAMD64VFMADDSUB132PD256
+	OpAMD64VFMADDSUB213PD256
+	OpAMD64VFMADDSUB231PD256
+	OpAMD64VFMSUB132PD256
+	OpAMD64VFMSUB213PD256
+	OpAMD64VFMSUB231PD256
+	OpAMD64VFMSUBADD132PD256
+	OpAMD64VFMSUBADD213PD256
+	OpAMD64VFMSUBADD231PD256
+	OpAMD64VFNMADD132PD256
+	OpAMD64VFNMADD213PD256
+	OpAMD64VFNMADD231PD256
+	OpAMD64VFNMSUB132PD256
+	OpAMD64VFNMSUB213PD256
+	OpAMD64VFNMSUB231PD256
 	OpAMD64VADDPDMasked256
 	OpAMD64VANDPDMasked256
 	OpAMD64VANDNPDMasked256
 	OpAMD64VRCP14PDMasked256
 	OpAMD64VRSQRT14PDMasked256
 	OpAMD64VDIVPDMasked256
+	OpAMD64VFMADD132PDMasked256
+	OpAMD64VFMADD213PDMasked256
+	OpAMD64VFMADD231PDMasked256
+	OpAMD64VFMADDSUB132PDMasked256
+	OpAMD64VFMADDSUB213PDMasked256
+	OpAMD64VFMADDSUB231PDMasked256
+	OpAMD64VFMSUB132PDMasked256
+	OpAMD64VFMSUB213PDMasked256
+	OpAMD64VFMSUB231PDMasked256
+	OpAMD64VFMSUBADD132PDMasked256
+	OpAMD64VFMSUBADD213PDMasked256
+	OpAMD64VFMSUBADD231PDMasked256
+	OpAMD64VFNMADD132PDMasked256
+	OpAMD64VFNMADD213PDMasked256
+	OpAMD64VFNMADD231PDMasked256
+	OpAMD64VFNMSUB132PDMasked256
+	OpAMD64VFNMSUB213PDMasked256
+	OpAMD64VFNMSUB231PDMasked256
 	OpAMD64VMAXPDMasked256
 	OpAMD64VMINPDMasked256
 	OpAMD64VMULPDMasked256
@@ -1344,12 +1524,48 @@ const (
 	OpAMD64VRCP14PD512
 	OpAMD64VRSQRT14PD512
 	OpAMD64VDIVPD512
+	OpAMD64VFMADD132PD512
+	OpAMD64VFMADD213PD512
+	OpAMD64VFMADD231PD512
+	OpAMD64VFMADDSUB132PD512
+	OpAMD64VFMADDSUB213PD512
+	OpAMD64VFMADDSUB231PD512
+	OpAMD64VFMSUB132PD512
+	OpAMD64VFMSUB213PD512
+	OpAMD64VFMSUB231PD512
+	OpAMD64VFMSUBADD132PD512
+	OpAMD64VFMSUBADD213PD512
+	OpAMD64VFMSUBADD231PD512
+	OpAMD64VFNMADD132PD512
+	OpAMD64VFNMADD213PD512
+	OpAMD64VFNMADD231PD512
+	OpAMD64VFNMSUB132PD512
+	OpAMD64VFNMSUB213PD512
+	OpAMD64VFNMSUB231PD512
 	OpAMD64VADDPDMasked512
 	OpAMD64VANDPDMasked512
 	OpAMD64VANDNPDMasked512
 	OpAMD64VRCP14PDMasked512
 	OpAMD64VRSQRT14PDMasked512
 	OpAMD64VDIVPDMasked512
+	OpAMD64VFMADD132PDMasked512
+	OpAMD64VFMADD213PDMasked512
+	OpAMD64VFMADD231PDMasked512
+	OpAMD64VFMADDSUB132PDMasked512
+	OpAMD64VFMADDSUB213PDMasked512
+	OpAMD64VFMADDSUB231PDMasked512
+	OpAMD64VFMSUB132PDMasked512
+	OpAMD64VFMSUB213PDMasked512
+	OpAMD64VFMSUB231PDMasked512
+	OpAMD64VFMSUBADD132PDMasked512
+	OpAMD64VFMSUBADD213PDMasked512
+	OpAMD64VFMSUBADD231PDMasked512
+	OpAMD64VFNMADD132PDMasked512
+	OpAMD64VFNMADD213PDMasked512
+	OpAMD64VFNMADD231PDMasked512
+	OpAMD64VFNMSUB132PDMasked512
+	OpAMD64VFNMSUB213PDMasked512
+	OpAMD64VFNMSUB231PDMasked512
 	OpAMD64VMAXPDMasked512
 	OpAMD64VMINPDMasked512
 	OpAMD64VMULPDMasked512
@@ -4098,6 +4314,24 @@ const (
 	OpApproximateReciprocalOfSqrtFloat32x16
 	OpDivFloat32x16
 	OpEqualFloat32x16
+	OpFusedMultiplyAdd132Float32x16
+	OpFusedMultiplyAdd213Float32x16
+	OpFusedMultiplyAdd231Float32x16
+	OpFusedMultiplyAddSub132Float32x16
+	OpFusedMultiplyAddSub213Float32x16
+	OpFusedMultiplyAddSub231Float32x16
+	OpFusedMultiplySub132Float32x16
+	OpFusedMultiplySub213Float32x16
+	OpFusedMultiplySub231Float32x16
+	OpFusedMultiplySubAdd132Float32x16
+	OpFusedMultiplySubAdd213Float32x16
+	OpFusedMultiplySubAdd231Float32x16
+	OpFusedNegativeMultiplyAdd132Float32x16
+	OpFusedNegativeMultiplyAdd213Float32x16
+	OpFusedNegativeMultiplyAdd231Float32x16
+	OpFusedNegativeMultiplySub132Float32x16
+	OpFusedNegativeMultiplySub213Float32x16
+	OpFusedNegativeMultiplySub231Float32x16
 	OpGreaterFloat32x16
 	OpGreaterEqualFloat32x16
 	OpIsNanFloat32x16
@@ -4110,6 +4344,24 @@ const (
 	OpMaskedApproximateReciprocalOfSqrtFloat32x16
 	OpMaskedDivFloat32x16
 	OpMaskedEqualFloat32x16
+	OpMaskedFusedMultiplyAdd132Float32x16
+	OpMaskedFusedMultiplyAdd213Float32x16
+	OpMaskedFusedMultiplyAdd231Float32x16
+	OpMaskedFusedMultiplyAddSub132Float32x16
+	OpMaskedFusedMultiplyAddSub213Float32x16
+	OpMaskedFusedMultiplyAddSub231Float32x16
+	OpMaskedFusedMultiplySub132Float32x16
+	OpMaskedFusedMultiplySub213Float32x16
+	OpMaskedFusedMultiplySub231Float32x16
+	OpMaskedFusedMultiplySubAdd132Float32x16
+	OpMaskedFusedMultiplySubAdd213Float32x16
+	OpMaskedFusedMultiplySubAdd231Float32x16
+	OpMaskedFusedNegativeMultiplyAdd132Float32x16
+	OpMaskedFusedNegativeMultiplyAdd213Float32x16
+	OpMaskedFusedNegativeMultiplyAdd231Float32x16
+	OpMaskedFusedNegativeMultiplySub132Float32x16
+	OpMaskedFusedNegativeMultiplySub213Float32x16
+	OpMaskedFusedNegativeMultiplySub231Float32x16
 	OpMaskedGreaterFloat32x16
 	OpMaskedGreaterEqualFloat32x16
 	OpMaskedIsNanFloat32x16
@@ -4143,6 +4395,24 @@ const (
 	OpDivFloat32x4
 	OpEqualFloat32x4
 	OpFloorFloat32x4
+	OpFusedMultiplyAdd132Float32x4
+	OpFusedMultiplyAdd213Float32x4
+	OpFusedMultiplyAdd231Float32x4
+	OpFusedMultiplyAddSub132Float32x4
+	OpFusedMultiplyAddSub213Float32x4
+	OpFusedMultiplyAddSub231Float32x4
+	OpFusedMultiplySub132Float32x4
+	OpFusedMultiplySub213Float32x4
+	OpFusedMultiplySub231Float32x4
+	OpFusedMultiplySubAdd132Float32x4
+	OpFusedMultiplySubAdd213Float32x4
+	OpFusedMultiplySubAdd231Float32x4
+	OpFusedNegativeMultiplyAdd132Float32x4
+	OpFusedNegativeMultiplyAdd213Float32x4
+	OpFusedNegativeMultiplyAdd231Float32x4
+	OpFusedNegativeMultiplySub132Float32x4
+	OpFusedNegativeMultiplySub213Float32x4
+	OpFusedNegativeMultiplySub231Float32x4
 	OpGreaterFloat32x4
 	OpGreaterEqualFloat32x4
 	OpIsNanFloat32x4
@@ -4155,6 +4425,24 @@ const (
 	OpMaskedApproximateReciprocalOfSqrtFloat32x4
 	OpMaskedDivFloat32x4
 	OpMaskedEqualFloat32x4
+	OpMaskedFusedMultiplyAdd132Float32x4
+	OpMaskedFusedMultiplyAdd213Float32x4
+	OpMaskedFusedMultiplyAdd231Float32x4
+	OpMaskedFusedMultiplyAddSub132Float32x4
+	OpMaskedFusedMultiplyAddSub213Float32x4
+	OpMaskedFusedMultiplyAddSub231Float32x4
+	OpMaskedFusedMultiplySub132Float32x4
+	OpMaskedFusedMultiplySub213Float32x4
+	OpMaskedFusedMultiplySub231Float32x4
+	OpMaskedFusedMultiplySubAdd132Float32x4
+	OpMaskedFusedMultiplySubAdd213Float32x4
+	OpMaskedFusedMultiplySubAdd231Float32x4
+	OpMaskedFusedNegativeMultiplyAdd132Float32x4
+	OpMaskedFusedNegativeMultiplyAdd213Float32x4
+	OpMaskedFusedNegativeMultiplyAdd231Float32x4
+	OpMaskedFusedNegativeMultiplySub132Float32x4
+	OpMaskedFusedNegativeMultiplySub213Float32x4
+	OpMaskedFusedNegativeMultiplySub231Float32x4
 	OpMaskedGreaterFloat32x4
 	OpMaskedGreaterEqualFloat32x4
 	OpMaskedIsNanFloat32x4
@@ -4192,6 +4480,24 @@ const (
 	OpDivFloat32x8
 	OpEqualFloat32x8
 	OpFloorFloat32x8
+	OpFusedMultiplyAdd132Float32x8
+	OpFusedMultiplyAdd213Float32x8
+	OpFusedMultiplyAdd231Float32x8
+	OpFusedMultiplyAddSub132Float32x8
+	OpFusedMultiplyAddSub213Float32x8
+	OpFusedMultiplyAddSub231Float32x8
+	OpFusedMultiplySub132Float32x8
+	OpFusedMultiplySub213Float32x8
+	OpFusedMultiplySub231Float32x8
+	OpFusedMultiplySubAdd132Float32x8
+	OpFusedMultiplySubAdd213Float32x8
+	OpFusedMultiplySubAdd231Float32x8
+	OpFusedNegativeMultiplyAdd132Float32x8
+	OpFusedNegativeMultiplyAdd213Float32x8
+	OpFusedNegativeMultiplyAdd231Float32x8
+	OpFusedNegativeMultiplySub132Float32x8
+	OpFusedNegativeMultiplySub213Float32x8
+	OpFusedNegativeMultiplySub231Float32x8
 	OpGreaterFloat32x8
 	OpGreaterEqualFloat32x8
 	OpIsNanFloat32x8
@@ -4204,6 +4510,24 @@ const (
 	OpMaskedApproximateReciprocalOfSqrtFloat32x8
 	OpMaskedDivFloat32x8
 	OpMaskedEqualFloat32x8
+	OpMaskedFusedMultiplyAdd132Float32x8
+	OpMaskedFusedMultiplyAdd213Float32x8
+	OpMaskedFusedMultiplyAdd231Float32x8
+	OpMaskedFusedMultiplyAddSub132Float32x8
+	OpMaskedFusedMultiplyAddSub213Float32x8
+	OpMaskedFusedMultiplyAddSub231Float32x8
+	OpMaskedFusedMultiplySub132Float32x8
+	OpMaskedFusedMultiplySub213Float32x8
+	OpMaskedFusedMultiplySub231Float32x8
+	OpMaskedFusedMultiplySubAdd132Float32x8
+	OpMaskedFusedMultiplySubAdd213Float32x8
+	OpMaskedFusedMultiplySubAdd231Float32x8
+	OpMaskedFusedNegativeMultiplyAdd132Float32x8
+	OpMaskedFusedNegativeMultiplyAdd213Float32x8
+	OpMaskedFusedNegativeMultiplyAdd231Float32x8
+	OpMaskedFusedNegativeMultiplySub132Float32x8
+	OpMaskedFusedNegativeMultiplySub213Float32x8
+	OpMaskedFusedNegativeMultiplySub231Float32x8
 	OpMaskedGreaterFloat32x8
 	OpMaskedGreaterEqualFloat32x8
 	OpMaskedIsNanFloat32x8
@@ -4242,6 +4566,24 @@ const (
 	OpDotProdBroadcastFloat64x2
 	OpEqualFloat64x2
 	OpFloorFloat64x2
+	OpFusedMultiplyAdd132Float64x2
+	OpFusedMultiplyAdd213Float64x2
+	OpFusedMultiplyAdd231Float64x2
+	OpFusedMultiplyAddSub132Float64x2
+	OpFusedMultiplyAddSub213Float64x2
+	OpFusedMultiplyAddSub231Float64x2
+	OpFusedMultiplySub132Float64x2
+	OpFusedMultiplySub213Float64x2
+	OpFusedMultiplySub231Float64x2
+	OpFusedMultiplySubAdd132Float64x2
+	OpFusedMultiplySubAdd213Float64x2
+	OpFusedMultiplySubAdd231Float64x2
+	OpFusedNegativeMultiplyAdd132Float64x2
+	OpFusedNegativeMultiplyAdd213Float64x2
+	OpFusedNegativeMultiplyAdd231Float64x2
+	OpFusedNegativeMultiplySub132Float64x2
+	OpFusedNegativeMultiplySub213Float64x2
+	OpFusedNegativeMultiplySub231Float64x2
 	OpGreaterFloat64x2
 	OpGreaterEqualFloat64x2
 	OpIsNanFloat64x2
@@ -4254,6 +4596,24 @@ const (
 	OpMaskedApproximateReciprocalOfSqrtFloat64x2
 	OpMaskedDivFloat64x2
 	OpMaskedEqualFloat64x2
+	OpMaskedFusedMultiplyAdd132Float64x2
+	OpMaskedFusedMultiplyAdd213Float64x2
+	OpMaskedFusedMultiplyAdd231Float64x2
+	OpMaskedFusedMultiplyAddSub132Float64x2
+	OpMaskedFusedMultiplyAddSub213Float64x2
+	OpMaskedFusedMultiplyAddSub231Float64x2
+	OpMaskedFusedMultiplySub132Float64x2
+	OpMaskedFusedMultiplySub213Float64x2
+	OpMaskedFusedMultiplySub231Float64x2
+	OpMaskedFusedMultiplySubAdd132Float64x2
+	OpMaskedFusedMultiplySubAdd213Float64x2
+	OpMaskedFusedMultiplySubAdd231Float64x2
+	OpMaskedFusedNegativeMultiplyAdd132Float64x2
+	OpMaskedFusedNegativeMultiplyAdd213Float64x2
+	OpMaskedFusedNegativeMultiplyAdd231Float64x2
+	OpMaskedFusedNegativeMultiplySub132Float64x2
+	OpMaskedFusedNegativeMultiplySub213Float64x2
+	OpMaskedFusedNegativeMultiplySub231Float64x2
 	OpMaskedGreaterFloat64x2
 	OpMaskedGreaterEqualFloat64x2
 	OpMaskedIsNanFloat64x2
@@ -4291,6 +4651,24 @@ const (
 	OpDivFloat64x4
 	OpEqualFloat64x4
 	OpFloorFloat64x4
+	OpFusedMultiplyAdd132Float64x4
+	OpFusedMultiplyAdd213Float64x4
+	OpFusedMultiplyAdd231Float64x4
+	OpFusedMultiplyAddSub132Float64x4
+	OpFusedMultiplyAddSub213Float64x4
+	OpFusedMultiplyAddSub231Float64x4
+	OpFusedMultiplySub132Float64x4
+	OpFusedMultiplySub213Float64x4
+	OpFusedMultiplySub231Float64x4
+	OpFusedMultiplySubAdd132Float64x4
+	OpFusedMultiplySubAdd213Float64x4
+	OpFusedMultiplySubAdd231Float64x4
+	OpFusedNegativeMultiplyAdd132Float64x4
+	OpFusedNegativeMultiplyAdd213Float64x4
+	OpFusedNegativeMultiplyAdd231Float64x4
+	OpFusedNegativeMultiplySub132Float64x4
+	OpFusedNegativeMultiplySub213Float64x4
+	OpFusedNegativeMultiplySub231Float64x4
 	OpGreaterFloat64x4
 	OpGreaterEqualFloat64x4
 	OpIsNanFloat64x4
@@ -4303,6 +4681,24 @@ const (
 	OpMaskedApproximateReciprocalOfSqrtFloat64x4
 	OpMaskedDivFloat64x4
 	OpMaskedEqualFloat64x4
+	OpMaskedFusedMultiplyAdd132Float64x4
+	OpMaskedFusedMultiplyAdd213Float64x4
+	OpMaskedFusedMultiplyAdd231Float64x4
+	OpMaskedFusedMultiplyAddSub132Float64x4
+	OpMaskedFusedMultiplyAddSub213Float64x4
+	OpMaskedFusedMultiplyAddSub231Float64x4
+	OpMaskedFusedMultiplySub132Float64x4
+	OpMaskedFusedMultiplySub213Float64x4
+	OpMaskedFusedMultiplySub231Float64x4
+	OpMaskedFusedMultiplySubAdd132Float64x4
+	OpMaskedFusedMultiplySubAdd213Float64x4
+	OpMaskedFusedMultiplySubAdd231Float64x4
+	OpMaskedFusedNegativeMultiplyAdd132Float64x4
+	OpMaskedFusedNegativeMultiplyAdd213Float64x4
+	OpMaskedFusedNegativeMultiplyAdd231Float64x4
+	OpMaskedFusedNegativeMultiplySub132Float64x4
+	OpMaskedFusedNegativeMultiplySub213Float64x4
+	OpMaskedFusedNegativeMultiplySub231Float64x4
 	OpMaskedGreaterFloat64x4
 	OpMaskedGreaterEqualFloat64x4
 	OpMaskedIsNanFloat64x4
@@ -4337,6 +4733,24 @@ const (
 	OpApproximateReciprocalOfSqrtFloat64x8
 	OpDivFloat64x8
 	OpEqualFloat64x8
+	OpFusedMultiplyAdd132Float64x8
+	OpFusedMultiplyAdd213Float64x8
+	OpFusedMultiplyAdd231Float64x8
+	OpFusedMultiplyAddSub132Float64x8
+	OpFusedMultiplyAddSub213Float64x8
+	OpFusedMultiplyAddSub231Float64x8
+	OpFusedMultiplySub132Float64x8
+	OpFusedMultiplySub213Float64x8
+	OpFusedMultiplySub231Float64x8
+	OpFusedMultiplySubAdd132Float64x8
+	OpFusedMultiplySubAdd213Float64x8
+	OpFusedMultiplySubAdd231Float64x8
+	OpFusedNegativeMultiplyAdd132Float64x8
+	OpFusedNegativeMultiplyAdd213Float64x8
+	OpFusedNegativeMultiplyAdd231Float64x8
+	OpFusedNegativeMultiplySub132Float64x8
+	OpFusedNegativeMultiplySub213Float64x8
+	OpFusedNegativeMultiplySub231Float64x8
 	OpGreaterFloat64x8
 	OpGreaterEqualFloat64x8
 	OpIsNanFloat64x8
@@ -4349,6 +4763,24 @@ const (
 	OpMaskedApproximateReciprocalOfSqrtFloat64x8
 	OpMaskedDivFloat64x8
 	OpMaskedEqualFloat64x8
+	OpMaskedFusedMultiplyAdd132Float64x8
+	OpMaskedFusedMultiplyAdd213Float64x8
+	OpMaskedFusedMultiplyAdd231Float64x8
+	OpMaskedFusedMultiplyAddSub132Float64x8
+	OpMaskedFusedMultiplyAddSub213Float64x8
+	OpMaskedFusedMultiplyAddSub231Float64x8
+	OpMaskedFusedMultiplySub132Float64x8
+	OpMaskedFusedMultiplySub213Float64x8
+	OpMaskedFusedMultiplySub231Float64x8
+	OpMaskedFusedMultiplySubAdd132Float64x8
+	OpMaskedFusedMultiplySubAdd213Float64x8
+	OpMaskedFusedMultiplySubAdd231Float64x8
+	OpMaskedFusedNegativeMultiplyAdd132Float64x8
+	OpMaskedFusedNegativeMultiplyAdd213Float64x8
+	OpMaskedFusedNegativeMultiplyAdd231Float64x8
+	OpMaskedFusedNegativeMultiplySub132Float64x8
+	OpMaskedFusedNegativeMultiplySub213Float64x8
+	OpMaskedFusedNegativeMultiplySub231Float64x8
 	OpMaskedGreaterFloat64x8
 	OpMaskedGreaterEqualFloat64x8
 	OpMaskedIsNanFloat64x8
@@ -18107,6 +18539,294 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:         "VFMADD132PS512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADD132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD213PS512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADD213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD231PS512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADD231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB132PS512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB213PS512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB231PS512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB132PS512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB213PS512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB231PS512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD132PS512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD213PS512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD231PS512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD132PS512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD213PS512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD231PS512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB132PS512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB213PS512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB231PS512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VADDPSMasked512",
 		argLen:      3,
 		commutative: true,
@@ -18191,6 +18911,312 @@ var opcodeTable = [...]opInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD132PSMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADD132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD213PSMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADD213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD231PSMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADD231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB132PSMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB213PSMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB231PSMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB132PSMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB213PSMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB231PSMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD132PSMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD213PSMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD231PSMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD132PSMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD213PSMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD231PSMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB132PSMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB213PSMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB231PSMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -18508,6 +19534,294 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:         "VFMADD132PS128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADD132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD213PS128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADD213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD231PS128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADD231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB132PS128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB213PS128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB231PS128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB132PS128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB213PS128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB231PS128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD132PS128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD213PS128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD231PS128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD132PS128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD213PS128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD231PS128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB132PS128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB213PS128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB231PS128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VADDPSMasked128",
 		argLen:      3,
 		commutative: true,
@@ -18592,6 +19906,312 @@ var opcodeTable = [...]opInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD132PSMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADD132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD213PSMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADD213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD231PSMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADD231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB132PSMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB213PSMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB231PSMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB132PSMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB213PSMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB231PSMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD132PSMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD213PSMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD231PSMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD132PSMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD213PSMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD231PSMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB132PSMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB213PSMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB231PSMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -18937,6 +20557,294 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:         "VFMADD132PS256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADD132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD213PS256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADD213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD231PS256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADD231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB132PS256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB213PS256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB231PS256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB132PS256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB213PS256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB231PS256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD132PS256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD213PS256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD231PS256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD132PS256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD213PS256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD231PS256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB132PS256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB213PS256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB231PS256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VADDPSMasked256",
 		argLen:      3,
 		commutative: true,
@@ -19021,6 +20929,312 @@ var opcodeTable = [...]opInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD132PSMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADD132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD213PSMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADD213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD231PSMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADD231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB132PSMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB213PSMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB231PSMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB132PSMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB213PSMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB231PSMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD132PSMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD213PSMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD231PSMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD132PSMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD213PSMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD231PSMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB132PSMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB132PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB213PSMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB213PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB231PSMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB231PS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -19366,6 +21580,294 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:         "VFMADD132PD128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADD132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD213PD128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADD213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD231PD128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADD231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB132PD128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB213PD128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB231PD128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB132PD128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB213PD128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB231PD128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD132PD128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD213PD128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD231PD128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD132PD128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD213PD128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD231PD128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB132PD128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB213PD128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB231PD128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VADDPDMasked128",
 		argLen:      3,
 		commutative: true,
@@ -19450,6 +21952,312 @@ var opcodeTable = [...]opInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD132PDMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADD132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD213PDMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADD213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD231PDMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADD231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB132PDMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB213PDMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB231PDMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB132PDMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB213PDMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB231PDMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD132PDMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD213PDMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD231PDMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD132PDMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD213PDMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD231PDMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB132PDMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB213PDMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB231PDMasked128",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -19795,6 +22603,294 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:         "VFMADD132PD256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADD132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD213PD256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADD213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD231PD256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADD231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB132PD256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB213PD256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB231PD256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB132PD256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB213PD256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB231PD256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD132PD256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD213PD256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD231PD256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD132PD256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD213PD256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD231PD256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB132PD256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB213PD256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB231PD256",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VADDPDMasked256",
 		argLen:      3,
 		commutative: true,
@@ -19879,6 +22975,312 @@ var opcodeTable = [...]opInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD132PDMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADD132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD213PDMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADD213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD231PDMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADD231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB132PDMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB213PDMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB231PDMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB132PDMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB213PDMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB231PDMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD132PDMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD213PDMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD231PDMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD132PDMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD213PDMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD231PDMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB132PDMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB213PDMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB231PDMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -20210,6 +23612,294 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:         "VFMADD132PD512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADD132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD213PD512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADD213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD231PD512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADD231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB132PD512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB213PD512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB231PD512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB132PD512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB213PD512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB231PD512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD132PD512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD213PD512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD231PD512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD132PD512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD213PD512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD231PD512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB132PD512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB213PD512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB231PD512",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VADDPDMasked512",
 		argLen:      3,
 		commutative: true,
@@ -20294,6 +23984,312 @@ var opcodeTable = [...]opInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD132PDMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADD132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD213PDMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADD213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADD231PDMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADD231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB132PDMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB213PDMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMADDSUB231PDMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMADDSUB231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB132PDMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB213PDMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUB231PDMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUB231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD132PDMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD213PDMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFMSUBADD231PDMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFMSUBADD231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD132PDMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD213PDMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMADD231PDMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMADD231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB132PDMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB132PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB213PDMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB213PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VFNMSUB231PDMasked512",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVFNMSUB231PD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{3, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -55308,6 +59304,96 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:    "FusedMultiplyAdd132Float32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAdd213Float32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAdd231Float32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAddSub132Float32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAddSub213Float32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAddSub231Float32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySub132Float32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySub213Float32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySub231Float32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySubAdd132Float32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySubAdd213Float32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySubAdd231Float32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplyAdd132Float32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplyAdd213Float32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplyAdd231Float32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplySub132Float32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplySub213Float32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplySub231Float32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "GreaterFloat32x16",
 		argLen:  2,
 		generic: true,
@@ -55371,6 +59457,96 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAdd132Float32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAdd213Float32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAdd231Float32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAddSub132Float32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAddSub213Float32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAddSub231Float32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySub132Float32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySub213Float32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySub231Float32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySubAdd132Float32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySubAdd213Float32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySubAdd231Float32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplyAdd132Float32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplyAdd213Float32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplyAdd231Float32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplySub132Float32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplySub213Float32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplySub231Float32x16",
+		argLen:  4,
+		generic: true,
 	},
 	{
 		name:    "MaskedGreaterFloat32x16",
@@ -55555,6 +59731,96 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "FusedMultiplyAdd132Float32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAdd213Float32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAdd231Float32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAddSub132Float32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAddSub213Float32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAddSub231Float32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySub132Float32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySub213Float32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySub231Float32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySubAdd132Float32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySubAdd213Float32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySubAdd231Float32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplyAdd132Float32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplyAdd213Float32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplyAdd231Float32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplySub132Float32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplySub213Float32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplySub231Float32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "GreaterFloat32x4",
 		argLen:  2,
 		generic: true,
@@ -55618,6 +59884,96 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAdd132Float32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAdd213Float32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAdd231Float32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAddSub132Float32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAddSub213Float32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAddSub231Float32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySub132Float32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySub213Float32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySub231Float32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySubAdd132Float32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySubAdd213Float32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySubAdd231Float32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplyAdd132Float32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplyAdd213Float32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplyAdd231Float32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplySub132Float32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplySub213Float32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplySub231Float32x4",
+		argLen:  4,
+		generic: true,
 	},
 	{
 		name:    "MaskedGreaterFloat32x4",
@@ -55822,6 +60178,96 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "FusedMultiplyAdd132Float32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAdd213Float32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAdd231Float32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAddSub132Float32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAddSub213Float32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAddSub231Float32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySub132Float32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySub213Float32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySub231Float32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySubAdd132Float32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySubAdd213Float32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySubAdd231Float32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplyAdd132Float32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplyAdd213Float32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplyAdd231Float32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplySub132Float32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplySub213Float32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplySub231Float32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "GreaterFloat32x8",
 		argLen:  2,
 		generic: true,
@@ -55885,6 +60331,96 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAdd132Float32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAdd213Float32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAdd231Float32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAddSub132Float32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAddSub213Float32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAddSub231Float32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySub132Float32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySub213Float32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySub231Float32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySubAdd132Float32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySubAdd213Float32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySubAdd231Float32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplyAdd132Float32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplyAdd213Float32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplyAdd231Float32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplySub132Float32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplySub213Float32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplySub231Float32x8",
+		argLen:  4,
+		generic: true,
 	},
 	{
 		name:    "MaskedGreaterFloat32x8",
@@ -56095,6 +60631,96 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "FusedMultiplyAdd132Float64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAdd213Float64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAdd231Float64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAddSub132Float64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAddSub213Float64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAddSub231Float64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySub132Float64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySub213Float64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySub231Float64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySubAdd132Float64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySubAdd213Float64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySubAdd231Float64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplyAdd132Float64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplyAdd213Float64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplyAdd231Float64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplySub132Float64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplySub213Float64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplySub231Float64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "GreaterFloat64x2",
 		argLen:  2,
 		generic: true,
@@ -56158,6 +60784,96 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAdd132Float64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAdd213Float64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAdd231Float64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAddSub132Float64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAddSub213Float64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAddSub231Float64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySub132Float64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySub213Float64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySub231Float64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySubAdd132Float64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySubAdd213Float64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySubAdd231Float64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplyAdd132Float64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplyAdd213Float64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplyAdd231Float64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplySub132Float64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplySub213Float64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplySub231Float64x2",
+		argLen:  4,
+		generic: true,
 	},
 	{
 		name:    "MaskedGreaterFloat64x2",
@@ -56362,6 +61078,96 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "FusedMultiplyAdd132Float64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAdd213Float64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAdd231Float64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAddSub132Float64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAddSub213Float64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAddSub231Float64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySub132Float64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySub213Float64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySub231Float64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySubAdd132Float64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySubAdd213Float64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySubAdd231Float64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplyAdd132Float64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplyAdd213Float64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplyAdd231Float64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplySub132Float64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplySub213Float64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplySub231Float64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "GreaterFloat64x4",
 		argLen:  2,
 		generic: true,
@@ -56425,6 +61231,96 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAdd132Float64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAdd213Float64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAdd231Float64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAddSub132Float64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAddSub213Float64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAddSub231Float64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySub132Float64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySub213Float64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySub231Float64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySubAdd132Float64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySubAdd213Float64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySubAdd231Float64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplyAdd132Float64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplyAdd213Float64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplyAdd231Float64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplySub132Float64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplySub213Float64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplySub231Float64x4",
+		argLen:  4,
+		generic: true,
 	},
 	{
 		name:    "MaskedGreaterFloat64x4",
@@ -56614,6 +61510,96 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:    "FusedMultiplyAdd132Float64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAdd213Float64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAdd231Float64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAddSub132Float64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAddSub213Float64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplyAddSub231Float64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySub132Float64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySub213Float64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySub231Float64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySubAdd132Float64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySubAdd213Float64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedMultiplySubAdd231Float64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplyAdd132Float64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplyAdd213Float64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplyAdd231Float64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplySub132Float64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplySub213Float64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "FusedNegativeMultiplySub231Float64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "GreaterFloat64x8",
 		argLen:  2,
 		generic: true,
@@ -56677,6 +61663,96 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAdd132Float64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAdd213Float64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAdd231Float64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAddSub132Float64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAddSub213Float64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplyAddSub231Float64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySub132Float64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySub213Float64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySub231Float64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySubAdd132Float64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySubAdd213Float64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedMultiplySubAdd231Float64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplyAdd132Float64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplyAdd213Float64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplyAdd231Float64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplySub132Float64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplySub213Float64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MaskedFusedNegativeMultiplySub231Float64x8",
+		argLen:  4,
+		generic: true,
 	},
 	{
 		name:    "MaskedGreaterFloat64x8",
