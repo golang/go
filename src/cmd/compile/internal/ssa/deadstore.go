@@ -156,9 +156,7 @@ func dse(f *Func) {
 
 // A shadowRange encodes a set of byte offsets [lo():hi()] from
 // a given pointer that will be written to later in the block.
-// A zero shadowRange encodes an empty shadowed range (and so
-// does a -1 shadowRange, which is what sparsemap.get returns
-// on a failed lookup).
+// A zero shadowRange encodes an empty shadowed range.
 type shadowRange int32
 
 func (sr shadowRange) lo() int64 {

@@ -68,7 +68,11 @@ func (s *biasedSparseMap) get(x uint) int32 {
 	if int(x) >= s.cap() {
 		return -1
 	}
-	return s.s.get(ID(int(x) - s.first))
+	k := ID(int(x) - s.first)
+	if !s.s.contains(k) {
+		return -1 // TODO: push presence check to callers?
+	}
+	return s.s.get(k)
 }
 
 // getEntry returns the i'th key and value stored in s,
