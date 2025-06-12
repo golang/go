@@ -17,7 +17,7 @@
 //
 // Note that the examples in this package assume a Unix system.
 // They may not run on Windows, and they do not run in the Go Playground
-// used by golang.org and godoc.org.
+// used by go.dev and pkg.go.dev.
 //
 // # Executables in the current directory
 //
