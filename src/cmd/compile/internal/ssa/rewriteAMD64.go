@@ -1263,6 +1263,8 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpDivFloat64x8:
 		v.Op = OpAMD64VDIVPD512
 		return true
+	case OpDotProdBroadcastFloat64x2:
+		return rewriteValueAMD64_OpDotProdBroadcastFloat64x2(v)
 	case OpEq16:
 		return rewriteValueAMD64_OpEq16(v)
 	case OpEq32:
@@ -2694,6 +2696,12 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpMaskedOrUint64x4(v)
 	case OpMaskedOrUint64x8:
 		return rewriteValueAMD64_OpMaskedOrUint64x8(v)
+	case OpMaskedPairDotProdInt16x16:
+		return rewriteValueAMD64_OpMaskedPairDotProdInt16x16(v)
+	case OpMaskedPairDotProdInt16x32:
+		return rewriteValueAMD64_OpMaskedPairDotProdInt16x32(v)
+	case OpMaskedPairDotProdInt16x8:
+		return rewriteValueAMD64_OpMaskedPairDotProdInt16x8(v)
 	case OpMaskedPopCountInt16x16:
 		return rewriteValueAMD64_OpMaskedPopCountInt16x16(v)
 	case OpMaskedPopCountInt16x32:
@@ -2814,6 +2822,12 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpMaskedSaturatedSubUint8x32(v)
 	case OpMaskedSaturatedSubUint8x64:
 		return rewriteValueAMD64_OpMaskedSaturatedSubUint8x64(v)
+	case OpMaskedSaturatedUnsignedSignedPairDotProdUint16x16:
+		return rewriteValueAMD64_OpMaskedSaturatedUnsignedSignedPairDotProdUint16x16(v)
+	case OpMaskedSaturatedUnsignedSignedPairDotProdUint16x32:
+		return rewriteValueAMD64_OpMaskedSaturatedUnsignedSignedPairDotProdUint16x32(v)
+	case OpMaskedSaturatedUnsignedSignedPairDotProdUint16x8:
+		return rewriteValueAMD64_OpMaskedSaturatedUnsignedSignedPairDotProdUint16x8(v)
 	case OpMaskedSqrtFloat32x16:
 		return rewriteValueAMD64_OpMaskedSqrtFloat32x16(v)
 	case OpMaskedSqrtFloat32x4:
@@ -3476,6 +3490,15 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpOrUint8x32:
 		v.Op = OpAMD64VPOR256
 		return true
+	case OpPairDotProdInt16x16:
+		v.Op = OpAMD64VPMADDWD256
+		return true
+	case OpPairDotProdInt16x32:
+		v.Op = OpAMD64VPMADDWD512
+		return true
+	case OpPairDotProdInt16x8:
+		v.Op = OpAMD64VPMADDWD128
+		return true
 	case OpPairwiseAddFloat32x4:
 		v.Op = OpAMD64VHADDPS128
 		return true
@@ -3837,6 +3860,21 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpSaturatedSubUint8x64:
 		v.Op = OpAMD64VPSUBSB512
+		return true
+	case OpSaturatedUnsignedSignedPairDotProdUint16x16:
+		v.Op = OpAMD64VPMADDUBSW256
+		return true
+	case OpSaturatedUnsignedSignedPairDotProdUint16x32:
+		v.Op = OpAMD64VPMADDUBSW512
+		return true
+	case OpSaturatedUnsignedSignedPairDotProdUint16x8:
+		v.Op = OpAMD64VPMADDUBSW128
+		return true
+	case OpSaturatedUnsignedSignedPairDotProdUint8x16:
+		v.Op = OpAMD64VPMADDUBSW128
+		return true
+	case OpSaturatedUnsignedSignedPairDotProdUint8x32:
+		v.Op = OpAMD64VPMADDUBSW256
 		return true
 	case OpSelect0:
 		return rewriteValueAMD64_OpSelect0(v)
@@ -29568,6 +29606,20 @@ func rewriteValueAMD64_OpDiv8u(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueAMD64_OpDotProdBroadcastFloat64x2(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (DotProdBroadcastFloat64x2 x y)
+	// result: (VDPPD128 [127] x y)
+	for {
+		x := v_0
+		y := v_1
+		v.reset(OpAMD64VDPPD128)
+		v.AuxInt = int8ToAuxInt(127)
+		v.AddArg2(x, y)
+		return true
+	}
+}
 func rewriteValueAMD64_OpEq16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -42720,6 +42772,60 @@ func rewriteValueAMD64_OpMaskedOrUint64x8(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueAMD64_OpMaskedPairDotProdInt16x16(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (MaskedPairDotProdInt16x16 x y mask)
+	// result: (VPMADDWDMasked256 x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		y := v_1
+		mask := v_2
+		v.reset(OpAMD64VPMADDWDMasked256)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpMaskedPairDotProdInt16x32(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (MaskedPairDotProdInt16x32 x y mask)
+	// result: (VPMADDWDMasked512 x y (VPMOVVec16x32ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		y := v_1
+		mask := v_2
+		v.reset(OpAMD64VPMADDWDMasked512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpMaskedPairDotProdInt16x8(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (MaskedPairDotProdInt16x8 x y mask)
+	// result: (VPMADDWDMasked128 x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		y := v_1
+		mask := v_2
+		v.reset(OpAMD64VPMADDWDMasked128)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
 func rewriteValueAMD64_OpMaskedPopCountInt16x16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -43747,6 +43853,60 @@ func rewriteValueAMD64_OpMaskedSaturatedSubUint8x64(v *Value) bool {
 		mask := v_2
 		v.reset(OpAMD64VPSUBSBMasked512)
 		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x64ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpMaskedSaturatedUnsignedSignedPairDotProdUint16x16(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (MaskedSaturatedUnsignedSignedPairDotProdUint16x16 x y mask)
+	// result: (VPMADDUBSWMasked256 x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		y := v_1
+		mask := v_2
+		v.reset(OpAMD64VPMADDUBSWMasked256)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpMaskedSaturatedUnsignedSignedPairDotProdUint16x32(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (MaskedSaturatedUnsignedSignedPairDotProdUint16x32 x y mask)
+	// result: (VPMADDUBSWMasked512 x y (VPMOVVec16x32ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		y := v_1
+		mask := v_2
+		v.reset(OpAMD64VPMADDUBSWMasked512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpMaskedSaturatedUnsignedSignedPairDotProdUint16x8(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (MaskedSaturatedUnsignedSignedPairDotProdUint16x8 x y mask)
+	// result: (VPMADDUBSWMasked128 x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		y := v_1
+		mask := v_2
+		v.reset(OpAMD64VPMADDUBSWMasked128)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
 		v0.AddArg(mask)
 		v.AddArg3(x, y, v0)
 		return true

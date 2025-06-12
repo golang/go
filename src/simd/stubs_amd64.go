@@ -486,6 +486,11 @@ func (x Float64x2) AndNot(y Float64x2) Float64x2
 // Asm: VDIVPD, CPU Feature: AVX
 func (x Float64x2) Div(y Float64x2) Float64x2
 
+// Multiply all the elements and add them together; the result is a broadcast of the dot product
+//
+// Asm: VDPPD, CPU Feature: AVX
+func (x Float64x2) DotProdBroadcast(y Float64x2) Float64x2
+
 // Predicate immediate is 0 if it has;
 //
 // Asm: VCMPPD, CPU Feature: AVX
@@ -792,6 +797,11 @@ func (x Int16x16) NotEqual(y Int16x16) Mask16x16
 // Asm: VPOR, CPU Feature: AVX2
 func (x Int16x16) Or(y Int16x16) Int16x16
 
+// Multiply the elements and add the pairs together, yielding a vector of half as many elements with twice the input element size
+//
+// Asm: VPMADDWD, CPU Feature: AVX2
+func (x Int16x16) PairDotProd(y Int16x16) Int32x8
+
 // Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
 //
 // Asm: VPHADDW, CPU Feature: AVX2
@@ -882,6 +892,11 @@ func (x Int16x32) MulLow(y Int16x32) Int16x32
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) NotEqual(y Int16x32) Mask16x32
 
+// Multiply the elements and add the pairs together, yielding a vector of half as many elements with twice the input element size
+//
+// Asm: VPMADDWD, CPU Feature: AVX512EVEX
+func (x Int16x32) PairDotProd(y Int16x32) Int32x16
+
 // Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Int16x32) SaturatedAdd(y Int16x32) Int16x32
 
@@ -954,6 +969,11 @@ func (x Int16x8) NotEqual(y Int16x8) Mask16x8
 
 // Asm: VPOR, CPU Feature: AVX
 func (x Int16x8) Or(y Int16x8) Int16x8
+
+// Multiply the elements and add the pairs together, yielding a vector of half as many elements with twice the input element size
+//
+// Asm: VPMADDWD, CPU Feature: AVX
+func (x Int16x8) PairDotProd(y Int16x8) Int32x4
 
 // Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
 //
@@ -1698,6 +1718,11 @@ func (x Uint16x16) SaturatedAdd(y Uint16x16) Uint16x16
 // Asm: VPSUBSW, CPU Feature: AVX2
 func (x Uint16x16) SaturatedSub(y Uint16x16) Uint16x16
 
+// Multiply the elements and add the pairs together with saturation, yielding a vector of half as many elements with twice the input element size
+//
+// Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
+func (x Uint16x16) SaturatedUnsignedSignedPairDotProd(y Int16x16) Int16x16
+
 // Asm: VPSUBW, CPU Feature: AVX2
 func (x Uint16x16) Sub(y Uint16x16) Uint16x16
 
@@ -1759,6 +1784,11 @@ func (x Uint16x32) SaturatedAdd(y Uint16x32) Uint16x32
 
 // Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x32) SaturatedSub(y Uint16x32) Uint16x32
+
+// Multiply the elements and add the pairs together with saturation, yielding a vector of half as many elements with twice the input element size
+//
+// Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
+func (x Uint16x32) SaturatedUnsignedSignedPairDotProd(y Int16x32) Int16x32
 
 // Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Sub(y Uint16x32) Uint16x32
@@ -1837,6 +1867,11 @@ func (x Uint16x8) SaturatedAdd(y Uint16x8) Uint16x8
 
 // Asm: VPSUBSW, CPU Feature: AVX
 func (x Uint16x8) SaturatedSub(y Uint16x8) Uint16x8
+
+// Multiply the elements and add the pairs together with saturation, yielding a vector of half as many elements with twice the input element size
+//
+// Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
+func (x Uint16x8) SaturatedUnsignedSignedPairDotProd(y Int16x8) Int16x8
 
 // Asm: VPSUBW, CPU Feature: AVX
 func (x Uint16x8) Sub(y Uint16x8) Uint16x8
@@ -2291,6 +2326,11 @@ func (x Uint8x16) SaturatedAdd(y Uint8x16) Uint8x16
 // Asm: VPSUBSB, CPU Feature: AVX
 func (x Uint8x16) SaturatedSub(y Uint8x16) Uint8x16
 
+// Multiply the elements and add the pairs together with saturation, yielding a vector of half as many elements with twice the input element size
+//
+// Asm: VPMADDUBSW, CPU Feature: AVX
+func (x Uint8x16) SaturatedUnsignedSignedPairDotProd(y Int8x16) Int16x8
+
 // Asm: VPSUBB, CPU Feature: AVX
 func (x Uint8x16) Sub(y Uint8x16) Uint8x16
 
@@ -2356,6 +2396,11 @@ func (x Uint8x32) SaturatedAdd(y Uint8x32) Uint8x32
 
 // Asm: VPSUBSB, CPU Feature: AVX2
 func (x Uint8x32) SaturatedSub(y Uint8x32) Uint8x32
+
+// Multiply the elements and add the pairs together with saturation, yielding a vector of half as many elements with twice the input element size
+//
+// Asm: VPMADDUBSW, CPU Feature: AVX2
+func (x Uint8x32) SaturatedUnsignedSignedPairDotProd(y Int8x32) Int16x16
 
 // Asm: VPSUBB, CPU Feature: AVX2
 func (x Uint8x32) Sub(y Uint8x32) Uint8x32
@@ -2874,6 +2919,11 @@ func (x Int16x16) MaskedMulLow(y Int16x16, z Mask16x16) Int16x16
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedNotEqual(y Int16x16, z Mask16x16) Mask16x16
 
+// Multiply the elements and add the pairs together, yielding a vector of half as many elements with twice the input element size
+//
+// Asm: VPMADDWD, CPU Feature: AVX512EVEX
+func (x Int16x16) MaskedPairDotProd(y Int16x16, z Mask16x16) Int32x8
+
 // Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedSaturatedAdd(y Int16x16, z Mask16x16) Int16x16
 
@@ -2932,6 +2982,11 @@ func (x Int16x32) MaskedMulLow(y Int16x32, z Mask16x32) Int16x32
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedNotEqual(y Int16x32, z Mask16x32) Mask16x32
 
+// Multiply the elements and add the pairs together, yielding a vector of half as many elements with twice the input element size
+//
+// Asm: VPMADDWD, CPU Feature: AVX512EVEX
+func (x Int16x32) MaskedPairDotProd(y Int16x32, z Mask16x32) Int32x16
+
 // Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedSaturatedAdd(y Int16x32, z Mask16x32) Int16x32
 
@@ -2989,6 +3044,11 @@ func (x Int16x8) MaskedMulLow(y Int16x8, z Mask16x8) Int16x8
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedNotEqual(y Int16x8, z Mask16x8) Mask16x8
+
+// Multiply the elements and add the pairs together, yielding a vector of half as many elements with twice the input element size
+//
+// Asm: VPMADDWD, CPU Feature: AVX512EVEX
+func (x Int16x8) MaskedPairDotProd(y Int16x8, z Mask16x8) Int32x4
 
 // Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedSaturatedAdd(y Int16x8, z Mask16x8) Int16x8
@@ -3565,6 +3625,11 @@ func (x Uint16x16) MaskedSaturatedAdd(y Uint16x16, z Mask16x16) Uint16x16
 // Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedSaturatedSub(y Uint16x16, z Mask16x16) Uint16x16
 
+// Multiply the elements and add the pairs together with saturation, yielding a vector of half as many elements with twice the input element size
+//
+// Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
+func (x Uint16x16) MaskedSaturatedUnsignedSignedPairDotProd(y Int16x16, z Mask16x16) Int16x16
+
 // Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedSub(y Uint16x16, z Mask16x16) Uint16x16
 
@@ -3621,6 +3686,11 @@ func (x Uint16x32) MaskedSaturatedAdd(y Uint16x32, z Mask16x32) Uint16x32
 // Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedSaturatedSub(y Uint16x32, z Mask16x32) Uint16x32
 
+// Multiply the elements and add the pairs together with saturation, yielding a vector of half as many elements with twice the input element size
+//
+// Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
+func (x Uint16x32) MaskedSaturatedUnsignedSignedPairDotProd(y Int16x32, z Mask16x32) Int16x32
+
 // Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedSub(y Uint16x32, z Mask16x32) Uint16x32
 
@@ -3676,6 +3746,11 @@ func (x Uint16x8) MaskedSaturatedAdd(y Uint16x8, z Mask16x8) Uint16x8
 
 // Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedSaturatedSub(y Uint16x8, z Mask16x8) Uint16x8
+
+// Multiply the elements and add the pairs together with saturation, yielding a vector of half as many elements with twice the input element size
+//
+// Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
+func (x Uint16x8) MaskedSaturatedUnsignedSignedPairDotProd(y Int16x8, z Mask16x8) Int16x8
 
 // Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedSub(y Uint16x8, z Mask16x8) Uint16x8

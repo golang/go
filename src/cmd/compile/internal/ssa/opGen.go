@@ -1378,6 +1378,7 @@ const (
 	OpAMD64VPMINSWMasked256
 	OpAMD64VPMULHWMasked256
 	OpAMD64VPMULLWMasked256
+	OpAMD64VPMADDWDMasked256
 	OpAMD64VPOPCNTWMasked256
 	OpAMD64VPADDSWMasked256
 	OpAMD64VPSUBSWMasked256
@@ -1387,6 +1388,7 @@ const (
 	OpAMD64VPMULHW256
 	OpAMD64VPMULLW256
 	OpAMD64VPOR256
+	OpAMD64VPMADDWD256
 	OpAMD64VPHADDW256
 	OpAMD64VPHSUBW256
 	OpAMD64VPOPCNTW256
@@ -1409,6 +1411,7 @@ const (
 	OpAMD64VPMINSWMasked512
 	OpAMD64VPMULHWMasked512
 	OpAMD64VPMULLWMasked512
+	OpAMD64VPMADDWDMasked512
 	OpAMD64VPOPCNTWMasked512
 	OpAMD64VPADDSWMasked512
 	OpAMD64VPSUBSWMasked512
@@ -1417,6 +1420,7 @@ const (
 	OpAMD64VPMINSW512
 	OpAMD64VPMULHW512
 	OpAMD64VPMULLW512
+	OpAMD64VPMADDWD512
 	OpAMD64VPOPCNTW512
 	OpAMD64VPADDSW512
 	OpAMD64VPSUBSW512
@@ -1435,6 +1439,7 @@ const (
 	OpAMD64VPMINSWMasked128
 	OpAMD64VPMULHWMasked128
 	OpAMD64VPMULLWMasked128
+	OpAMD64VPMADDWDMasked128
 	OpAMD64VPOPCNTWMasked128
 	OpAMD64VPADDSWMasked128
 	OpAMD64VPSUBSWMasked128
@@ -1444,6 +1449,7 @@ const (
 	OpAMD64VPMULHW128
 	OpAMD64VPMULLW128
 	OpAMD64VPOR128
+	OpAMD64VPMADDWD128
 	OpAMD64VPHADDW128
 	OpAMD64VPHSUBW128
 	OpAMD64VPOPCNTW128
@@ -1673,6 +1679,7 @@ const (
 	OpAMD64VPMAXUWMasked256
 	OpAMD64VPMINUWMasked256
 	OpAMD64VPMULHUWMasked256
+	OpAMD64VPMADDUBSWMasked256
 	OpAMD64VPMAXUW256
 	OpAMD64VPMINUW256
 	OpAMD64VPMULHUW256
@@ -1681,14 +1688,17 @@ const (
 	OpAMD64VPMAXUWMasked512
 	OpAMD64VPMINUWMasked512
 	OpAMD64VPMULHUWMasked512
+	OpAMD64VPMADDUBSWMasked512
 	OpAMD64VPMAXUW512
 	OpAMD64VPMINUW512
 	OpAMD64VPMULHUW512
+	OpAMD64VPMADDUBSW512
 	OpAMD64VPAVGW128
 	OpAMD64VPAVGWMasked128
 	OpAMD64VPMAXUWMasked128
 	OpAMD64VPMINUWMasked128
 	OpAMD64VPMULHUWMasked128
+	OpAMD64VPMADDUBSWMasked128
 	OpAMD64VPMAXUW128
 	OpAMD64VPMINUW128
 	OpAMD64VPMULHUW128
@@ -1728,12 +1738,14 @@ const (
 	OpAMD64VPMINUBMasked128
 	OpAMD64VPMAXUB128
 	OpAMD64VPMINUB128
+	OpAMD64VPMADDUBSW128
 	OpAMD64VPAVGB256
 	OpAMD64VPAVGBMasked256
 	OpAMD64VPMAXUBMasked256
 	OpAMD64VPMINUBMasked256
 	OpAMD64VPMAXUB256
 	OpAMD64VPMINUB256
+	OpAMD64VPMADDUBSW256
 	OpAMD64VPAVGB512
 	OpAMD64VPAVGBMasked512
 	OpAMD64VPMAXUBMasked512
@@ -1763,6 +1775,7 @@ const (
 	OpAMD64VROUNDPD128
 	OpAMD64VRNDSCALEPD128
 	OpAMD64VREDUCEPD128
+	OpAMD64VDPPD128
 	OpAMD64VCMPPD128
 	OpAMD64VRNDSCALEPDMasked128
 	OpAMD64VREDUCEPDMasked128
@@ -4202,6 +4215,7 @@ const (
 	OpApproximateReciprocalOfSqrtFloat64x2
 	OpCeilFloat64x2
 	OpDivFloat64x2
+	OpDotProdBroadcastFloat64x2
 	OpEqualFloat64x2
 	OpFloorFloat64x2
 	OpGreaterFloat64x2
@@ -4355,6 +4369,7 @@ const (
 	OpMaskedMulHighInt16x16
 	OpMaskedMulLowInt16x16
 	OpMaskedNotEqualInt16x16
+	OpMaskedPairDotProdInt16x16
 	OpMaskedPopCountInt16x16
 	OpMaskedSaturatedAddInt16x16
 	OpMaskedSaturatedSubInt16x16
@@ -4365,6 +4380,7 @@ const (
 	OpMulLowInt16x16
 	OpNotEqualInt16x16
 	OpOrInt16x16
+	OpPairDotProdInt16x16
 	OpPairwiseAddInt16x16
 	OpPairwiseSubInt16x16
 	OpPopCountInt16x16
@@ -4394,6 +4410,7 @@ const (
 	OpMaskedMulHighInt16x32
 	OpMaskedMulLowInt16x32
 	OpMaskedNotEqualInt16x32
+	OpMaskedPairDotProdInt16x32
 	OpMaskedPopCountInt16x32
 	OpMaskedSaturatedAddInt16x32
 	OpMaskedSaturatedSubInt16x32
@@ -4403,6 +4420,7 @@ const (
 	OpMulHighInt16x32
 	OpMulLowInt16x32
 	OpNotEqualInt16x32
+	OpPairDotProdInt16x32
 	OpPopCountInt16x32
 	OpSaturatedAddInt16x32
 	OpSaturatedSubInt16x32
@@ -4428,6 +4446,7 @@ const (
 	OpMaskedMulHighInt16x8
 	OpMaskedMulLowInt16x8
 	OpMaskedNotEqualInt16x8
+	OpMaskedPairDotProdInt16x8
 	OpMaskedPopCountInt16x8
 	OpMaskedSaturatedAddInt16x8
 	OpMaskedSaturatedSubInt16x8
@@ -4438,6 +4457,7 @@ const (
 	OpMulLowInt16x8
 	OpNotEqualInt16x8
 	OpOrInt16x8
+	OpPairDotProdInt16x8
 	OpPairwiseAddInt16x8
 	OpPairwiseSubInt16x8
 	OpPopCountInt16x8
@@ -4783,6 +4803,7 @@ const (
 	OpMaskedPopCountUint16x16
 	OpMaskedSaturatedAddUint16x16
 	OpMaskedSaturatedSubUint16x16
+	OpMaskedSaturatedUnsignedSignedPairDotProdUint16x16
 	OpMaskedSubUint16x16
 	OpMaxUint16x16
 	OpMinUint16x16
@@ -4794,6 +4815,7 @@ const (
 	OpPopCountUint16x16
 	OpSaturatedAddUint16x16
 	OpSaturatedSubUint16x16
+	OpSaturatedUnsignedSignedPairDotProdUint16x16
 	OpSubUint16x16
 	OpXorUint16x16
 	OpAddUint16x32
@@ -4817,6 +4839,7 @@ const (
 	OpMaskedPopCountUint16x32
 	OpMaskedSaturatedAddUint16x32
 	OpMaskedSaturatedSubUint16x32
+	OpMaskedSaturatedUnsignedSignedPairDotProdUint16x32
 	OpMaskedSubUint16x32
 	OpMaxUint16x32
 	OpMinUint16x32
@@ -4825,6 +4848,7 @@ const (
 	OpPopCountUint16x32
 	OpSaturatedAddUint16x32
 	OpSaturatedSubUint16x32
+	OpSaturatedUnsignedSignedPairDotProdUint16x32
 	OpSubUint16x32
 	OpAddUint16x8
 	OpAndUint16x8
@@ -4849,6 +4873,7 @@ const (
 	OpMaskedPopCountUint16x8
 	OpMaskedSaturatedAddUint16x8
 	OpMaskedSaturatedSubUint16x8
+	OpMaskedSaturatedUnsignedSignedPairDotProdUint16x8
 	OpMaskedSubUint16x8
 	OpMaxUint16x8
 	OpMinUint16x8
@@ -4860,6 +4885,7 @@ const (
 	OpPopCountUint16x8
 	OpSaturatedAddUint16x8
 	OpSaturatedSubUint16x8
+	OpSaturatedUnsignedSignedPairDotProdUint16x8
 	OpSubUint16x8
 	OpXorUint16x8
 	OpAddUint32x16
@@ -5084,6 +5110,7 @@ const (
 	OpPopCountUint8x16
 	OpSaturatedAddUint8x16
 	OpSaturatedSubUint8x16
+	OpSaturatedUnsignedSignedPairDotProdUint8x16
 	OpSubUint8x16
 	OpXorUint8x16
 	OpAddUint8x32
@@ -5116,6 +5143,7 @@ const (
 	OpPopCountUint8x32
 	OpSaturatedAddUint8x32
 	OpSaturatedSubUint8x32
+	OpSaturatedUnsignedSignedPairDotProdUint8x32
 	OpSubUint8x32
 	OpXorUint8x32
 	OpAddUint8x64
@@ -20636,6 +20664,21 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPMADDWDMasked256",
+		argLen: 3,
+		asm:    x86.AVPMADDWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:   "VPOPCNTWMasked256",
 		argLen: 2,
 		asm:    x86.AVPOPCNTW,
@@ -20760,6 +20803,20 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVPOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMADDWD256",
+		argLen: 2,
+		asm:    x86.AVPMADDWD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -21094,6 +21151,21 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPMADDWDMasked512",
+		argLen: 3,
+		asm:    x86.AVPMADDWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:   "VPOPCNTWMasked512",
 		argLen: 2,
 		asm:    x86.AVPOPCNTW,
@@ -21203,6 +21275,20 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVPMULLW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMADDWD512",
+		argLen: 2,
+		asm:    x86.AVPMADDWD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -21482,6 +21568,21 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPMADDWDMasked128",
+		argLen: 3,
+		asm:    x86.AVPMADDWD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:   "VPOPCNTWMasked128",
 		argLen: 2,
 		asm:    x86.AVPOPCNTW,
@@ -21606,6 +21707,20 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVPOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMADDWD128",
+		argLen: 2,
+		asm:    x86.AVPMADDWD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25036,6 +25151,21 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPMADDUBSWMasked256",
+		argLen: 3,
+		asm:    x86.AVPMADDUBSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPMAXUW256",
 		argLen:      2,
 		commutative: true,
@@ -25160,6 +25290,21 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPMADDUBSWMasked512",
+		argLen: 3,
+		asm:    x86.AVPMADDUBSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPMAXUW512",
 		argLen:      2,
 		commutative: true,
@@ -25194,6 +25339,20 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVPMULHUW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMADDUBSW512",
+		argLen: 2,
+		asm:    x86.AVPMADDUBSW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25272,6 +25431,21 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPMULHUW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMADDUBSWMasked128",
+		argLen: 3,
+		asm:    x86.AVPMADDUBSW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -25887,6 +26061,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPMADDUBSW128",
+		argLen: 2,
+		asm:    x86.AVPMADDUBSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPAVGB256",
 		argLen:      2,
 		commutative: true,
@@ -25969,6 +26157,20 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVPMINUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPMADDUBSW256",
+		argLen: 2,
+		asm:    x86.AVPMADDUBSW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -26409,6 +26611,22 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VDPPD128",
+		auxType:     auxInt8,
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVDPPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -55404,6 +55622,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:        "DotProdBroadcastFloat64x2",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
 		name:        "EqualFloat64x2",
 		argLen:      2,
 		commutative: true,
@@ -56243,6 +56467,11 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:    "MaskedPairDotProdInt16x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "MaskedPopCountInt16x16",
 		argLen:  2,
 		generic: true,
@@ -56298,6 +56527,11 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "PairDotProdInt16x16",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:    "PairwiseAddInt16x16",
@@ -56456,6 +56690,11 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:    "MaskedPairDotProdInt16x32",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "MaskedPopCountInt16x32",
 		argLen:  2,
 		generic: true,
@@ -56505,6 +56744,11 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "PairDotProdInt16x32",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:    "PopCountInt16x32",
@@ -56644,6 +56888,11 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:    "MaskedPairDotProdInt16x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "MaskedPopCountInt16x8",
 		argLen:  2,
 		generic: true,
@@ -56699,6 +56948,11 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "PairDotProdInt16x8",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:    "PairwiseAddInt16x8",
@@ -58613,6 +58867,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "MaskedSaturatedUnsignedSignedPairDotProdUint16x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "MaskedSubUint16x16",
 		argLen:  3,
 		generic: true,
@@ -58670,6 +58929,11 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SaturatedSubUint16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SaturatedUnsignedSignedPairDotProdUint16x16",
 		argLen:  2,
 		generic: true,
 	},
@@ -58801,6 +59065,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "MaskedSaturatedUnsignedSignedPairDotProdUint16x32",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "MaskedSubUint16x32",
 		argLen:  3,
 		generic: true,
@@ -58842,6 +59111,11 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SaturatedSubUint16x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SaturatedUnsignedSignedPairDotProdUint16x32",
 		argLen:  2,
 		generic: true,
 	},
@@ -58979,6 +59253,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "MaskedSaturatedUnsignedSignedPairDotProdUint16x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "MaskedSubUint16x8",
 		argLen:  3,
 		generic: true,
@@ -59036,6 +59315,11 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SaturatedSubUint16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SaturatedUnsignedSignedPairDotProdUint16x8",
 		argLen:  2,
 		generic: true,
 	},
@@ -60294,6 +60578,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "SaturatedUnsignedSignedPairDotProdUint8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:    "SubUint8x16",
 		argLen:  2,
 		generic: true,
@@ -60468,6 +60757,11 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SaturatedSubUint8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SaturatedUnsignedSignedPairDotProdUint8x32",
 		argLen:  2,
 		generic: true,
 	},
