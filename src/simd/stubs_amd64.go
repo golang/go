@@ -4,4822 +4,7142 @@
 
 package simd
 
+// ApproximateReciprocal computes an approximate reciprocal of each element.
+//
 // Asm: VRCP14PS, CPU Feature: AVX512EVEX
 func (x Float32x16) ApproximateReciprocal() Float32x16
 
+// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
+//
 // Asm: VRSQRT14PS, CPU Feature: AVX512EVEX
 func (x Float32x16) ApproximateReciprocalOfSqrt() Float32x16
 
+// Sqrt computes the square root of each element.
+//
 // Asm: VSQRTPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Sqrt() Float32x16
 
+// ApproximateReciprocal computes an approximate reciprocal of each element.
+//
 // Asm: VRCP14PS, CPU Feature: AVX512EVEX
 func (x Float32x4) ApproximateReciprocal() Float32x4
 
+// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
+//
 // Asm: VRSQRTPS, CPU Feature: AVX
 func (x Float32x4) ApproximateReciprocalOfSqrt() Float32x4
 
+// Ceil rounds elements up to the nearest integer.
+// Const Immediate = 2.
+//
 // Asm: VROUNDPS, CPU Feature: AVX
 func (x Float32x4) Ceil() Float32x4
 
+// Floor rounds elements down to the nearest integer.
+// Const Immediate = 1.
+//
 // Asm: VROUNDPS, CPU Feature: AVX
 func (x Float32x4) Floor() Float32x4
 
+// Round rounds elements to the nearest integer.
+// Const Immediate = 0.
+//
 // Asm: VROUNDPS, CPU Feature: AVX
 func (x Float32x4) Round() Float32x4
 
+// Sqrt computes the square root of each element.
+//
 // Asm: VSQRTPS, CPU Feature: AVX
 func (x Float32x4) Sqrt() Float32x4
 
+// Trunc truncates elements towards zero.
+// Const Immediate = 3.
+//
 // Asm: VROUNDPS, CPU Feature: AVX
 func (x Float32x4) Trunc() Float32x4
 
+// ApproximateReciprocal computes an approximate reciprocal of each element.
+//
 // Asm: VRCP14PS, CPU Feature: AVX512EVEX
 func (x Float32x8) ApproximateReciprocal() Float32x8
 
+// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
+//
 // Asm: VRSQRTPS, CPU Feature: AVX
 func (x Float32x8) ApproximateReciprocalOfSqrt() Float32x8
 
+// Ceil rounds elements up to the nearest integer.
+// Const Immediate = 2.
+//
 // Asm: VROUNDPS, CPU Feature: AVX
 func (x Float32x8) Ceil() Float32x8
 
+// Floor rounds elements down to the nearest integer.
+// Const Immediate = 1.
+//
 // Asm: VROUNDPS, CPU Feature: AVX
 func (x Float32x8) Floor() Float32x8
 
+// Round rounds elements to the nearest integer.
+// Const Immediate = 0.
+//
 // Asm: VROUNDPS, CPU Feature: AVX
 func (x Float32x8) Round() Float32x8
 
+// Sqrt computes the square root of each element.
+//
 // Asm: VSQRTPS, CPU Feature: AVX
 func (x Float32x8) Sqrt() Float32x8
 
+// Trunc truncates elements towards zero.
+// Const Immediate = 3.
+//
 // Asm: VROUNDPS, CPU Feature: AVX
 func (x Float32x8) Trunc() Float32x8
 
+// ApproximateReciprocal computes an approximate reciprocal of each element.
+//
 // Asm: VRCP14PD, CPU Feature: AVX512EVEX
 func (x Float64x2) ApproximateReciprocal() Float64x2
 
+// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
+//
 // Asm: VRSQRT14PD, CPU Feature: AVX512EVEX
 func (x Float64x2) ApproximateReciprocalOfSqrt() Float64x2
 
+// Ceil rounds elements up to the nearest integer.
+// Const Immediate = 2.
+//
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x2) Ceil() Float64x2
 
+// Floor rounds elements down to the nearest integer.
+// Const Immediate = 1.
+//
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x2) Floor() Float64x2
 
+// Round rounds elements to the nearest integer.
+// Const Immediate = 0.
+//
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x2) Round() Float64x2
 
+// Sqrt computes the square root of each element.
+//
 // Asm: VSQRTPD, CPU Feature: AVX
 func (x Float64x2) Sqrt() Float64x2
 
+// Trunc truncates elements towards zero.
+// Const Immediate = 3.
+//
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x2) Trunc() Float64x2
 
+// ApproximateReciprocal computes an approximate reciprocal of each element.
+//
 // Asm: VRCP14PD, CPU Feature: AVX512EVEX
 func (x Float64x4) ApproximateReciprocal() Float64x4
 
+// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
+//
 // Asm: VRSQRT14PD, CPU Feature: AVX512EVEX
 func (x Float64x4) ApproximateReciprocalOfSqrt() Float64x4
 
+// Ceil rounds elements up to the nearest integer.
+// Const Immediate = 2.
+//
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x4) Ceil() Float64x4
 
+// Floor rounds elements down to the nearest integer.
+// Const Immediate = 1.
+//
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x4) Floor() Float64x4
 
+// Round rounds elements to the nearest integer.
+// Const Immediate = 0.
+//
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x4) Round() Float64x4
 
+// Sqrt computes the square root of each element.
+//
 // Asm: VSQRTPD, CPU Feature: AVX
 func (x Float64x4) Sqrt() Float64x4
 
+// Trunc truncates elements towards zero.
+// Const Immediate = 3.
+//
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x4) Trunc() Float64x4
 
+// ApproximateReciprocal computes an approximate reciprocal of each element.
+//
 // Asm: VRCP14PD, CPU Feature: AVX512EVEX
 func (x Float64x8) ApproximateReciprocal() Float64x8
 
+// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
+//
 // Asm: VRSQRT14PD, CPU Feature: AVX512EVEX
 func (x Float64x8) ApproximateReciprocalOfSqrt() Float64x8
 
+// Sqrt computes the square root of each element.
+//
 // Asm: VSQRTPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Sqrt() Float64x8
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSW, CPU Feature: AVX2
 func (x Int16x16) Absolute() Int16x16
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Int16x16) PopCount() Int16x16
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSW, CPU Feature: AVX512EVEX
 func (x Int16x32) Absolute() Int16x32
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Int16x32) PopCount() Int16x32
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSW, CPU Feature: AVX
 func (x Int16x8) Absolute() Int16x8
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Int16x8) PopCount() Int16x8
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSD, CPU Feature: AVX512EVEX
 func (x Int32x16) Absolute() Int32x16
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Int32x16) PopCount() Int32x16
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSD, CPU Feature: AVX
 func (x Int32x4) Absolute() Int32x4
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Int32x4) PopCount() Int32x4
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSD, CPU Feature: AVX2
 func (x Int32x8) Absolute() Int32x8
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Int32x8) PopCount() Int32x8
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSQ, CPU Feature: AVX512EVEX
 func (x Int64x2) Absolute() Int64x2
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Int64x2) PopCount() Int64x2
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSQ, CPU Feature: AVX512EVEX
 func (x Int64x4) Absolute() Int64x4
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Int64x4) PopCount() Int64x4
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Absolute() Int64x8
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Int64x8) PopCount() Int64x8
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSB, CPU Feature: AVX
 func (x Int8x16) Absolute() Int8x16
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Int8x16) PopCount() Int8x16
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSB, CPU Feature: AVX2
 func (x Int8x32) Absolute() Int8x32
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Int8x32) PopCount() Int8x32
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSB, CPU Feature: AVX512EVEX
 func (x Int8x64) Absolute() Int8x64
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Int8x64) PopCount() Int8x64
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Uint16x16) PopCount() Uint16x16
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Uint16x32) PopCount() Uint16x32
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Uint16x8) PopCount() Uint16x8
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Uint32x16) PopCount() Uint32x16
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Uint32x4) PopCount() Uint32x4
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Uint32x8) PopCount() Uint32x8
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) PopCount() Uint64x2
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) PopCount() Uint64x4
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) PopCount() Uint64x8
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Uint8x16) PopCount() Uint8x16
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Uint8x32) PopCount() Uint8x32
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Uint8x64) PopCount() Uint8x64
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VADDPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Add(y Float32x16) Float32x16
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VANDPS, CPU Feature: AVX512EVEX
 func (x Float32x16) And(y Float32x16) Float32x16
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VANDNPS, CPU Feature: AVX512EVEX
 func (x Float32x16) AndNot(y Float32x16) Float32x16
 
+// Div divides elements of two vectors.
+//
 // Asm: VDIVPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Div(y Float32x16) Float32x16
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Equal(y Float32x16) Mask32x16
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Greater(y Float32x16) Mask32x16
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) GreaterEqual(y Float32x16) Mask32x16
 
-// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// IsNan checks if elements are NaN. Use as x.IsNan(x).
+// Const Immediate = 3.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) IsNan(y Float32x16) Mask32x16
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Less(y Float32x16) Mask32x16
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) LessEqual(y Float32x16) Mask32x16
 
+// ApproximateReciprocal computes an approximate reciprocal of each element.
+//
 // Asm: VRCP14PS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedApproximateReciprocal(y Mask32x16) Float32x16
 
+// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
+//
 // Asm: VRSQRT14PS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedApproximateReciprocalOfSqrt(y Mask32x16) Float32x16
 
+// Sqrt computes the square root of each element.
+//
 // Asm: VSQRTPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedSqrt(y Mask32x16) Float32x16
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VMAXPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Max(y Float32x16) Float32x16
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VMINPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Min(y Float32x16) Float32x16
 
+// Mul multiplies corresponding elements of two vectors, masked.
+//
 // Asm: VMULPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Mul(y Float32x16) Float32x16
 
+// MulByPowOf2 multiplies elements by a power of 2.
+//
 // Asm: VSCALEFPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MulByPowOf2(y Float32x16) Float32x16
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) NotEqual(y Float32x16) Mask32x16
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VORPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Or(y Float32x16) Float32x16
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VADDPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Sub(y Float32x16) Float32x16
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VXORPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Xor(y Float32x16) Float32x16
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VADDPS, CPU Feature: AVX
 func (x Float32x4) Add(y Float32x4) Float32x4
 
+// AddSub subtracts even elements and adds odd elements of two vectors.
+//
 // Asm: VADDSUBPS, CPU Feature: AVX
 func (x Float32x4) AddSub(y Float32x4) Float32x4
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VANDPS, CPU Feature: AVX
 func (x Float32x4) And(y Float32x4) Float32x4
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VANDNPS, CPU Feature: AVX
 func (x Float32x4) AndNot(y Float32x4) Float32x4
 
+// Div divides elements of two vectors.
+//
 // Asm: VDIVPS, CPU Feature: AVX
 func (x Float32x4) Div(y Float32x4) Float32x4
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality.
+// Const Immediate = 0.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) Equal(y Float32x4) Mask32x4
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) Greater(y Float32x4) Mask32x4
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) GreaterEqual(y Float32x4) Mask32x4
 
-// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// IsNan checks if elements are NaN. Use as x.IsNan(x).
+// Const Immediate = 3.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) IsNan(y Float32x4) Mask32x4
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) Less(y Float32x4) Mask32x4
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) LessEqual(y Float32x4) Mask32x4
 
+// ApproximateReciprocal computes an approximate reciprocal of each element.
+//
 // Asm: VRCP14PS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedApproximateReciprocal(y Mask32x4) Float32x4
 
+// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
+//
 // Asm: VRSQRT14PS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedApproximateReciprocalOfSqrt(y Mask32x4) Float32x4
 
+// Sqrt computes the square root of each element.
+//
 // Asm: VSQRTPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedSqrt(y Mask32x4) Float32x4
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VMAXPS, CPU Feature: AVX
 func (x Float32x4) Max(y Float32x4) Float32x4
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VMINPS, CPU Feature: AVX
 func (x Float32x4) Min(y Float32x4) Float32x4
 
+// Mul multiplies corresponding elements of two vectors.
+//
 // Asm: VMULPS, CPU Feature: AVX
 func (x Float32x4) Mul(y Float32x4) Float32x4
 
+// MulByPowOf2 multiplies elements by a power of 2.
+//
 // Asm: VSCALEFPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MulByPowOf2(y Float32x4) Float32x4
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) NotEqual(y Float32x4) Mask32x4
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VORPS, CPU Feature: AVX
 func (x Float32x4) Or(y Float32x4) Float32x4
 
-// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// PairwiseAdd horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
 //
 // Asm: VHADDPS, CPU Feature: AVX
 func (x Float32x4) PairwiseAdd(y Float32x4) Float32x4
 
-// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// PairwiseSub horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
 //
 // Asm: VHSUBPS, CPU Feature: AVX
 func (x Float32x4) PairwiseSub(y Float32x4) Float32x4
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VADDPS, CPU Feature: AVX
 func (x Float32x4) Sub(y Float32x4) Float32x4
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VXORPS, CPU Feature: AVX
 func (x Float32x4) Xor(y Float32x4) Float32x4
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VADDPS, CPU Feature: AVX
 func (x Float32x8) Add(y Float32x8) Float32x8
 
+// AddSub subtracts even elements and adds odd elements of two vectors.
+//
 // Asm: VADDSUBPS, CPU Feature: AVX
 func (x Float32x8) AddSub(y Float32x8) Float32x8
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VANDPS, CPU Feature: AVX
 func (x Float32x8) And(y Float32x8) Float32x8
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VANDNPS, CPU Feature: AVX
 func (x Float32x8) AndNot(y Float32x8) Float32x8
 
+// Div divides elements of two vectors.
+//
 // Asm: VDIVPS, CPU Feature: AVX
 func (x Float32x8) Div(y Float32x8) Float32x8
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality.
+// Const Immediate = 0.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) Equal(y Float32x8) Mask32x8
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) Greater(y Float32x8) Mask32x8
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) GreaterEqual(y Float32x8) Mask32x8
 
-// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// IsNan checks if elements are NaN. Use as x.IsNan(x).
+// Const Immediate = 3.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) IsNan(y Float32x8) Mask32x8
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) Less(y Float32x8) Mask32x8
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) LessEqual(y Float32x8) Mask32x8
 
+// ApproximateReciprocal computes an approximate reciprocal of each element.
+//
 // Asm: VRCP14PS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedApproximateReciprocal(y Mask32x8) Float32x8
 
+// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
+//
 // Asm: VRSQRT14PS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedApproximateReciprocalOfSqrt(y Mask32x8) Float32x8
 
+// Sqrt computes the square root of each element.
+//
 // Asm: VSQRTPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedSqrt(y Mask32x8) Float32x8
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VMAXPS, CPU Feature: AVX
 func (x Float32x8) Max(y Float32x8) Float32x8
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VMINPS, CPU Feature: AVX
 func (x Float32x8) Min(y Float32x8) Float32x8
 
+// Mul multiplies corresponding elements of two vectors.
+//
 // Asm: VMULPS, CPU Feature: AVX
 func (x Float32x8) Mul(y Float32x8) Float32x8
 
+// MulByPowOf2 multiplies elements by a power of 2.
+//
 // Asm: VSCALEFPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MulByPowOf2(y Float32x8) Float32x8
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) NotEqual(y Float32x8) Mask32x8
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VORPS, CPU Feature: AVX
 func (x Float32x8) Or(y Float32x8) Float32x8
 
-// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// PairwiseAdd horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
 //
 // Asm: VHADDPS, CPU Feature: AVX
 func (x Float32x8) PairwiseAdd(y Float32x8) Float32x8
 
-// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// PairwiseSub horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
 //
 // Asm: VHSUBPS, CPU Feature: AVX
 func (x Float32x8) PairwiseSub(y Float32x8) Float32x8
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VADDPS, CPU Feature: AVX
 func (x Float32x8) Sub(y Float32x8) Float32x8
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VXORPS, CPU Feature: AVX
 func (x Float32x8) Xor(y Float32x8) Float32x8
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VADDPD, CPU Feature: AVX
 func (x Float64x2) Add(y Float64x2) Float64x2
 
+// AddSub subtracts even elements and adds odd elements of two vectors.
+//
 // Asm: VADDSUBPD, CPU Feature: AVX
 func (x Float64x2) AddSub(y Float64x2) Float64x2
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VANDPD, CPU Feature: AVX
 func (x Float64x2) And(y Float64x2) Float64x2
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VANDNPD, CPU Feature: AVX
 func (x Float64x2) AndNot(y Float64x2) Float64x2
 
+// Div divides elements of two vectors.
+//
 // Asm: VDIVPD, CPU Feature: AVX
 func (x Float64x2) Div(y Float64x2) Float64x2
 
-// Multiply all the elements and add them together; the result is a broadcast of the dot product
+// DotProdBroadcast multiplies all elements and broadcasts the sum.
 //
 // Asm: VDPPD, CPU Feature: AVX
 func (x Float64x2) DotProdBroadcast(y Float64x2) Float64x2
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality.
+// Const Immediate = 0.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) Equal(y Float64x2) Mask64x2
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) Greater(y Float64x2) Mask64x2
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) GreaterEqual(y Float64x2) Mask64x2
 
-// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// IsNan checks if elements are NaN. Use as x.IsNan(x).
+// Const Immediate = 3.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) IsNan(y Float64x2) Mask64x2
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) Less(y Float64x2) Mask64x2
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) LessEqual(y Float64x2) Mask64x2
 
+// ApproximateReciprocal computes an approximate reciprocal of each element.
+//
 // Asm: VRCP14PD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedApproximateReciprocal(y Mask64x2) Float64x2
 
+// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
+//
 // Asm: VRSQRT14PD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedApproximateReciprocalOfSqrt(y Mask64x2) Float64x2
 
+// Sqrt computes the square root of each element.
+//
 // Asm: VSQRTPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedSqrt(y Mask64x2) Float64x2
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VMAXPD, CPU Feature: AVX
 func (x Float64x2) Max(y Float64x2) Float64x2
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VMINPD, CPU Feature: AVX
 func (x Float64x2) Min(y Float64x2) Float64x2
 
+// Mul multiplies corresponding elements of two vectors.
+//
 // Asm: VMULPD, CPU Feature: AVX
 func (x Float64x2) Mul(y Float64x2) Float64x2
 
+// MulByPowOf2 multiplies elements by a power of 2.
+//
 // Asm: VSCALEFPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MulByPowOf2(y Float64x2) Float64x2
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) NotEqual(y Float64x2) Mask64x2
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VORPD, CPU Feature: AVX
 func (x Float64x2) Or(y Float64x2) Float64x2
 
-// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// PairwiseAdd horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
 //
 // Asm: VHADDPD, CPU Feature: AVX
 func (x Float64x2) PairwiseAdd(y Float64x2) Float64x2
 
-// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// PairwiseSub horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
 //
 // Asm: VHSUBPD, CPU Feature: AVX
 func (x Float64x2) PairwiseSub(y Float64x2) Float64x2
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VADDPD, CPU Feature: AVX
 func (x Float64x2) Sub(y Float64x2) Float64x2
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VXORPD, CPU Feature: AVX
 func (x Float64x2) Xor(y Float64x2) Float64x2
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VADDPD, CPU Feature: AVX
 func (x Float64x4) Add(y Float64x4) Float64x4
 
+// AddSub subtracts even elements and adds odd elements of two vectors.
+//
 // Asm: VADDSUBPD, CPU Feature: AVX
 func (x Float64x4) AddSub(y Float64x4) Float64x4
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VANDPD, CPU Feature: AVX
 func (x Float64x4) And(y Float64x4) Float64x4
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VANDNPD, CPU Feature: AVX
 func (x Float64x4) AndNot(y Float64x4) Float64x4
 
+// Div divides elements of two vectors.
+//
 // Asm: VDIVPD, CPU Feature: AVX
 func (x Float64x4) Div(y Float64x4) Float64x4
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality.
+// Const Immediate = 0.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) Equal(y Float64x4) Mask64x4
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) Greater(y Float64x4) Mask64x4
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) GreaterEqual(y Float64x4) Mask64x4
 
-// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// IsNan checks if elements are NaN. Use as x.IsNan(x).
+// Const Immediate = 3.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) IsNan(y Float64x4) Mask64x4
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) Less(y Float64x4) Mask64x4
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) LessEqual(y Float64x4) Mask64x4
 
+// ApproximateReciprocal computes an approximate reciprocal of each element.
+//
 // Asm: VRCP14PD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedApproximateReciprocal(y Mask64x4) Float64x4
 
+// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
+//
 // Asm: VRSQRT14PD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedApproximateReciprocalOfSqrt(y Mask64x4) Float64x4
 
+// Sqrt computes the square root of each element.
+//
 // Asm: VSQRTPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedSqrt(y Mask64x4) Float64x4
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VMAXPD, CPU Feature: AVX
 func (x Float64x4) Max(y Float64x4) Float64x4
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VMINPD, CPU Feature: AVX
 func (x Float64x4) Min(y Float64x4) Float64x4
 
+// Mul multiplies corresponding elements of two vectors.
+//
 // Asm: VMULPD, CPU Feature: AVX
 func (x Float64x4) Mul(y Float64x4) Float64x4
 
+// MulByPowOf2 multiplies elements by a power of 2.
+//
 // Asm: VSCALEFPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MulByPowOf2(y Float64x4) Float64x4
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) NotEqual(y Float64x4) Mask64x4
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VORPD, CPU Feature: AVX
 func (x Float64x4) Or(y Float64x4) Float64x4
 
-// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// PairwiseAdd horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
 //
 // Asm: VHADDPD, CPU Feature: AVX
 func (x Float64x4) PairwiseAdd(y Float64x4) Float64x4
 
-// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// PairwiseSub horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
 //
 // Asm: VHSUBPD, CPU Feature: AVX
 func (x Float64x4) PairwiseSub(y Float64x4) Float64x4
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VADDPD, CPU Feature: AVX
 func (x Float64x4) Sub(y Float64x4) Float64x4
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VXORPD, CPU Feature: AVX
 func (x Float64x4) Xor(y Float64x4) Float64x4
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VADDPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Add(y Float64x8) Float64x8
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VANDPD, CPU Feature: AVX512EVEX
 func (x Float64x8) And(y Float64x8) Float64x8
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VANDNPD, CPU Feature: AVX512EVEX
 func (x Float64x8) AndNot(y Float64x8) Float64x8
 
+// Div divides elements of two vectors.
+//
 // Asm: VDIVPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Div(y Float64x8) Float64x8
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Equal(y Float64x8) Mask64x8
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Greater(y Float64x8) Mask64x8
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) GreaterEqual(y Float64x8) Mask64x8
 
-// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// IsNan checks if elements are NaN. Use as x.IsNan(x).
+// Const Immediate = 3.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) IsNan(y Float64x8) Mask64x8
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Less(y Float64x8) Mask64x8
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) LessEqual(y Float64x8) Mask64x8
 
+// ApproximateReciprocal computes an approximate reciprocal of each element.
+//
 // Asm: VRCP14PD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedApproximateReciprocal(y Mask64x8) Float64x8
 
+// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
+//
 // Asm: VRSQRT14PD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedApproximateReciprocalOfSqrt(y Mask64x8) Float64x8
 
+// Sqrt computes the square root of each element.
+//
 // Asm: VSQRTPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedSqrt(y Mask64x8) Float64x8
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VMAXPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Max(y Float64x8) Float64x8
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VMINPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Min(y Float64x8) Float64x8
 
+// Mul multiplies corresponding elements of two vectors, masked.
+//
 // Asm: VMULPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Mul(y Float64x8) Float64x8
 
+// MulByPowOf2 multiplies elements by a power of 2.
+//
 // Asm: VSCALEFPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MulByPowOf2(y Float64x8) Float64x8
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) NotEqual(y Float64x8) Mask64x8
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VORPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Or(y Float64x8) Float64x8
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VADDPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Sub(y Float64x8) Float64x8
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VXORPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Xor(y Float64x8) Float64x8
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDW, CPU Feature: AVX2
 func (x Int16x16) Add(y Int16x16) Int16x16
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VPAND, CPU Feature: AVX2
 func (x Int16x16) And(y Int16x16) Int16x16
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDN, CPU Feature: AVX2
 func (x Int16x16) AndNot(y Int16x16) Int16x16
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX2
 func (x Int16x16) Equal(y Int16x16) Mask16x16
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTW, CPU Feature: AVX2
 func (x Int16x16) Greater(y Int16x16) Mask16x16
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) GreaterEqual(y Int16x16) Mask16x16
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) Less(y Int16x16) Mask16x16
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) LessEqual(y Int16x16) Mask16x16
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedAbsolute(y Mask16x16) Int16x16
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedPopCount(y Mask16x16) Int16x16
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSW, CPU Feature: AVX2
 func (x Int16x16) Max(y Int16x16) Int16x16
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSW, CPU Feature: AVX2
 func (x Int16x16) Min(y Int16x16) Int16x16
 
-// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// MulHigh multiplies elements and stores the high part of the result.
 //
 // Asm: VPMULHW, CPU Feature: AVX2
 func (x Int16x16) MulHigh(y Int16x16) Int16x16
 
-// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// MulLow multiplies elements and stores the low part of the result.
 //
 // Asm: VPMULLW, CPU Feature: AVX2
 func (x Int16x16) MulLow(y Int16x16) Int16x16
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) NotEqual(y Int16x16) Mask16x16
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VPOR, CPU Feature: AVX2
 func (x Int16x16) Or(y Int16x16) Int16x16
 
-// Multiply the elements and add the pairs together, yielding a vector of half as many elements with twice the input element size
+// PairDotProd multiplies the elements and add the pairs together,
+// yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDWD, CPU Feature: AVX2
 func (x Int16x16) PairDotProd(y Int16x16) Int32x8
 
-// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// PairwiseAdd horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
 //
 // Asm: VPHADDW, CPU Feature: AVX2
 func (x Int16x16) PairwiseAdd(y Int16x16) Int16x16
 
-// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// PairwiseSub horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
 //
 // Asm: VPHSUBW, CPU Feature: AVX2
 func (x Int16x16) PairwiseSub(y Int16x16) Int16x16
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSW, CPU Feature: AVX2
 func (x Int16x16) SaturatedAdd(y Int16x16) Int16x16
 
-// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target; With saturation
+// SaturatedPairwiseAdd horizontally adds adjacent pairs of elements with saturation.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
 //
 // Asm: VPHADDSW, CPU Feature: AVX2
 func (x Int16x16) SaturatedPairwiseAdd(y Int16x16) Int16x16
 
-// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target; With saturation
+// SaturatedPairwiseSub horizontally subtracts adjacent pairs of elements with saturation.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
 //
 // Asm: VPHSUBSW, CPU Feature: AVX2
 func (x Int16x16) SaturatedPairwiseSub(y Int16x16) Int16x16
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSW, CPU Feature: AVX2
 func (x Int16x16) SaturatedSub(y Int16x16) Int16x16
 
+// Sign returns the product of the first operand with -1, 0, or 1,
+// whichever constant is nearest to the value of the second operand.
+//
 // Asm: VPSIGNW, CPU Feature: AVX2
 func (x Int16x16) Sign(y Int16x16) Int16x16
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBW, CPU Feature: AVX2
 func (x Int16x16) Sub(y Int16x16) Int16x16
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VPXOR, CPU Feature: AVX2
 func (x Int16x16) Xor(y Int16x16) Int16x16
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Int16x32) Add(y Int16x32) Int16x32
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX512EVEX
 func (x Int16x32) Equal(y Int16x32) Mask16x32
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTW, CPU Feature: AVX512EVEX
 func (x Int16x32) Greater(y Int16x32) Mask16x32
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) GreaterEqual(y Int16x32) Mask16x32
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) Less(y Int16x32) Mask16x32
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) LessEqual(y Int16x32) Mask16x32
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedAbsolute(y Mask16x32) Int16x32
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedPopCount(y Mask16x32) Int16x32
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSW, CPU Feature: AVX512EVEX
 func (x Int16x32) Max(y Int16x32) Int16x32
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSW, CPU Feature: AVX512EVEX
 func (x Int16x32) Min(y Int16x32) Int16x32
 
-// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// MulHigh multiplies elements and stores the high part of the result, masked.
 //
 // Asm: VPMULHW, CPU Feature: AVX512EVEX
 func (x Int16x32) MulHigh(y Int16x32) Int16x32
 
-// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// MulLow multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLW, CPU Feature: AVX512EVEX
 func (x Int16x32) MulLow(y Int16x32) Int16x32
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) NotEqual(y Int16x32) Mask16x32
 
-// Multiply the elements and add the pairs together, yielding a vector of half as many elements with twice the input element size
+// PairDotProd multiplies the elements and add the pairs together,
+// yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDWD, CPU Feature: AVX512EVEX
 func (x Int16x32) PairDotProd(y Int16x32) Int32x16
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Int16x32) SaturatedAdd(y Int16x32) Int16x32
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Int16x32) SaturatedSub(y Int16x32) Int16x32
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Int16x32) Sub(y Int16x32) Int16x32
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDW, CPU Feature: AVX
 func (x Int16x8) Add(y Int16x8) Int16x8
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VPAND, CPU Feature: AVX
 func (x Int16x8) And(y Int16x8) Int16x8
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDN, CPU Feature: AVX
 func (x Int16x8) AndNot(y Int16x8) Int16x8
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX
 func (x Int16x8) Equal(y Int16x8) Mask16x8
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTW, CPU Feature: AVX
 func (x Int16x8) Greater(y Int16x8) Mask16x8
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) GreaterEqual(y Int16x8) Mask16x8
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) Less(y Int16x8) Mask16x8
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) LessEqual(y Int16x8) Mask16x8
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedAbsolute(y Mask16x8) Int16x8
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedPopCount(y Mask16x8) Int16x8
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSW, CPU Feature: AVX
 func (x Int16x8) Max(y Int16x8) Int16x8
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSW, CPU Feature: AVX
 func (x Int16x8) Min(y Int16x8) Int16x8
 
-// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// MulHigh multiplies elements and stores the high part of the result.
 //
 // Asm: VPMULHW, CPU Feature: AVX
 func (x Int16x8) MulHigh(y Int16x8) Int16x8
 
-// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// MulLow multiplies elements and stores the low part of the result.
 //
 // Asm: VPMULLW, CPU Feature: AVX
 func (x Int16x8) MulLow(y Int16x8) Int16x8
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) NotEqual(y Int16x8) Mask16x8
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VPOR, CPU Feature: AVX
 func (x Int16x8) Or(y Int16x8) Int16x8
 
-// Multiply the elements and add the pairs together, yielding a vector of half as many elements with twice the input element size
+// PairDotProd multiplies the elements and add the pairs together,
+// yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDWD, CPU Feature: AVX
 func (x Int16x8) PairDotProd(y Int16x8) Int32x4
 
-// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// PairwiseAdd horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
 //
 // Asm: VPHADDW, CPU Feature: AVX
 func (x Int16x8) PairwiseAdd(y Int16x8) Int16x8
 
-// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// PairwiseSub horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
 //
 // Asm: VPHSUBW, CPU Feature: AVX
 func (x Int16x8) PairwiseSub(y Int16x8) Int16x8
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSW, CPU Feature: AVX
 func (x Int16x8) SaturatedAdd(y Int16x8) Int16x8
 
-// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target; With saturation
+// SaturatedPairwiseAdd horizontally adds adjacent pairs of elements with saturation.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
 //
 // Asm: VPHADDSW, CPU Feature: AVX
 func (x Int16x8) SaturatedPairwiseAdd(y Int16x8) Int16x8
 
-// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target; With saturation
+// SaturatedPairwiseSub horizontally subtracts adjacent pairs of elements with saturation.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
 //
 // Asm: VPHSUBSW, CPU Feature: AVX
 func (x Int16x8) SaturatedPairwiseSub(y Int16x8) Int16x8
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSW, CPU Feature: AVX
 func (x Int16x8) SaturatedSub(y Int16x8) Int16x8
 
+// Sign returns the product of the first operand with -1, 0, or 1,
+// whichever constant is nearest to the value of the second operand.
+//
 // Asm: VPSIGNW, CPU Feature: AVX
 func (x Int16x8) Sign(y Int16x8) Int16x8
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBW, CPU Feature: AVX
 func (x Int16x8) Sub(y Int16x8) Int16x8
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VPXOR, CPU Feature: AVX
 func (x Int16x8) Xor(y Int16x8) Int16x8
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Int32x16) Add(y Int32x16) Int32x16
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Int32x16) And(y Int32x16) Int32x16
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Int32x16) AndNot(y Int32x16) Int32x16
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX512EVEX
 func (x Int32x16) Equal(y Int32x16) Mask32x16
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTD, CPU Feature: AVX512EVEX
 func (x Int32x16) Greater(y Int32x16) Mask32x16
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) GreaterEqual(y Int32x16) Mask32x16
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) Less(y Int32x16) Mask32x16
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) LessEqual(y Int32x16) Mask32x16
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedAbsolute(y Mask32x16) Int32x16
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedPopCount(y Mask32x16) Int32x16
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSD, CPU Feature: AVX512EVEX
 func (x Int32x16) Max(y Int32x16) Int32x16
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSD, CPU Feature: AVX512EVEX
 func (x Int32x16) Min(y Int32x16) Int32x16
 
-// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// MulLow multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLD, CPU Feature: AVX512EVEX
 func (x Int32x16) MulLow(y Int32x16) Int32x16
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) NotEqual(y Int32x16) Mask32x16
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Int32x16) Or(y Int32x16) Int32x16
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Int32x16) Sub(y Int32x16) Int32x16
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Int32x16) Xor(y Int32x16) Int32x16
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDD, CPU Feature: AVX
 func (x Int32x4) Add(y Int32x4) Int32x4
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VPAND, CPU Feature: AVX
 func (x Int32x4) And(y Int32x4) Int32x4
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDN, CPU Feature: AVX
 func (x Int32x4) AndNot(y Int32x4) Int32x4
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX
 func (x Int32x4) Equal(y Int32x4) Mask32x4
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTD, CPU Feature: AVX
 func (x Int32x4) Greater(y Int32x4) Mask32x4
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) GreaterEqual(y Int32x4) Mask32x4
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) Less(y Int32x4) Mask32x4
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) LessEqual(y Int32x4) Mask32x4
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedAbsolute(y Mask32x4) Int32x4
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedPopCount(y Mask32x4) Int32x4
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSD, CPU Feature: AVX
 func (x Int32x4) Max(y Int32x4) Int32x4
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSD, CPU Feature: AVX
 func (x Int32x4) Min(y Int32x4) Int32x4
 
-// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// MulEvenWiden multiplies even-indexed elements, widening the result.
+// Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULDQ, CPU Feature: AVX
 func (x Int32x4) MulEvenWiden(y Int32x4) Int64x2
 
-// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// MulLow multiplies elements and stores the low part of the result.
 //
 // Asm: VPMULLD, CPU Feature: AVX
 func (x Int32x4) MulLow(y Int32x4) Int32x4
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) NotEqual(y Int32x4) Mask32x4
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VPOR, CPU Feature: AVX
 func (x Int32x4) Or(y Int32x4) Int32x4
 
-// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// PairwiseAdd horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
 //
 // Asm: VPHADDD, CPU Feature: AVX
 func (x Int32x4) PairwiseAdd(y Int32x4) Int32x4
 
-// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// PairwiseSub horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
 //
 // Asm: VPHSUBD, CPU Feature: AVX
 func (x Int32x4) PairwiseSub(y Int32x4) Int32x4
 
+// Sign returns the product of the first operand with -1, 0, or 1,
+// whichever constant is nearest to the value of the second operand.
+//
 // Asm: VPSIGND, CPU Feature: AVX
 func (x Int32x4) Sign(y Int32x4) Int32x4
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBD, CPU Feature: AVX
 func (x Int32x4) Sub(y Int32x4) Int32x4
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VPXOR, CPU Feature: AVX
 func (x Int32x4) Xor(y Int32x4) Int32x4
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDD, CPU Feature: AVX2
 func (x Int32x8) Add(y Int32x8) Int32x8
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VPAND, CPU Feature: AVX2
 func (x Int32x8) And(y Int32x8) Int32x8
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDN, CPU Feature: AVX2
 func (x Int32x8) AndNot(y Int32x8) Int32x8
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX2
 func (x Int32x8) Equal(y Int32x8) Mask32x8
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTD, CPU Feature: AVX2
 func (x Int32x8) Greater(y Int32x8) Mask32x8
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) GreaterEqual(y Int32x8) Mask32x8
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) Less(y Int32x8) Mask32x8
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) LessEqual(y Int32x8) Mask32x8
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedAbsolute(y Mask32x8) Int32x8
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedPopCount(y Mask32x8) Int32x8
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSD, CPU Feature: AVX2
 func (x Int32x8) Max(y Int32x8) Int32x8
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSD, CPU Feature: AVX2
 func (x Int32x8) Min(y Int32x8) Int32x8
 
-// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// MulEvenWiden multiplies even-indexed elements, widening the result.
+// Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULDQ, CPU Feature: AVX2
 func (x Int32x8) MulEvenWiden(y Int32x8) Int64x4
 
-// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// MulLow multiplies elements and stores the low part of the result.
 //
 // Asm: VPMULLD, CPU Feature: AVX2
 func (x Int32x8) MulLow(y Int32x8) Int32x8
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) NotEqual(y Int32x8) Mask32x8
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VPOR, CPU Feature: AVX2
 func (x Int32x8) Or(y Int32x8) Int32x8
 
-// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// PairwiseAdd horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
 //
 // Asm: VPHADDD, CPU Feature: AVX2
 func (x Int32x8) PairwiseAdd(y Int32x8) Int32x8
 
-// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// PairwiseSub horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
 //
 // Asm: VPHSUBD, CPU Feature: AVX2
 func (x Int32x8) PairwiseSub(y Int32x8) Int32x8
 
+// Sign returns the product of the first operand with -1, 0, or 1,
+// whichever constant is nearest to the value of the second operand.
+//
 // Asm: VPSIGND, CPU Feature: AVX2
 func (x Int32x8) Sign(y Int32x8) Int32x8
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBD, CPU Feature: AVX2
 func (x Int32x8) Sub(y Int32x8) Int32x8
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VPXOR, CPU Feature: AVX2
 func (x Int32x8) Xor(y Int32x8) Int32x8
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDQ, CPU Feature: AVX
 func (x Int64x2) Add(y Int64x2) Int64x2
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VPAND, CPU Feature: AVX
 func (x Int64x2) And(y Int64x2) Int64x2
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDN, CPU Feature: AVX
 func (x Int64x2) AndNot(y Int64x2) Int64x2
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX
 func (x Int64x2) Equal(y Int64x2) Mask64x2
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTQ, CPU Feature: AVX512EVEX
 func (x Int64x2) Greater(y Int64x2) Mask64x2
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) GreaterEqual(y Int64x2) Mask64x2
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) Less(y Int64x2) Mask64x2
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) LessEqual(y Int64x2) Mask64x2
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedAbsolute(y Mask64x2) Int64x2
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedPopCount(y Mask64x2) Int64x2
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSQ, CPU Feature: AVX512EVEX
 func (x Int64x2) Max(y Int64x2) Int64x2
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSQ, CPU Feature: AVX512EVEX
 func (x Int64x2) Min(y Int64x2) Int64x2
 
-// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// MulEvenWiden multiplies even-indexed elements, widening the result, masked.
+// Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULDQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MulEvenWiden(y Int64x2) Int64x2
 
-// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// MulLow multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MulLow(y Int64x2) Int64x2
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) NotEqual(y Int64x2) Mask64x2
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VPOR, CPU Feature: AVX
 func (x Int64x2) Or(y Int64x2) Int64x2
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBQ, CPU Feature: AVX
 func (x Int64x2) Sub(y Int64x2) Int64x2
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VPXOR, CPU Feature: AVX
 func (x Int64x2) Xor(y Int64x2) Int64x2
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDQ, CPU Feature: AVX2
 func (x Int64x4) Add(y Int64x4) Int64x4
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VPAND, CPU Feature: AVX2
 func (x Int64x4) And(y Int64x4) Int64x4
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDN, CPU Feature: AVX2
 func (x Int64x4) AndNot(y Int64x4) Int64x4
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX2
 func (x Int64x4) Equal(y Int64x4) Mask64x4
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTQ, CPU Feature: AVX2
 func (x Int64x4) Greater(y Int64x4) Mask64x4
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) GreaterEqual(y Int64x4) Mask64x4
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) Less(y Int64x4) Mask64x4
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) LessEqual(y Int64x4) Mask64x4
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedAbsolute(y Mask64x4) Int64x4
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedPopCount(y Mask64x4) Int64x4
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSQ, CPU Feature: AVX512EVEX
 func (x Int64x4) Max(y Int64x4) Int64x4
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSQ, CPU Feature: AVX512EVEX
 func (x Int64x4) Min(y Int64x4) Int64x4
 
-// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// MulEvenWiden multiplies even-indexed elements, widening the result, masked.
+// Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULDQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MulEvenWiden(y Int64x4) Int64x4
 
-// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// MulLow multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MulLow(y Int64x4) Int64x4
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) NotEqual(y Int64x4) Mask64x4
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VPOR, CPU Feature: AVX2
 func (x Int64x4) Or(y Int64x4) Int64x4
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBQ, CPU Feature: AVX2
 func (x Int64x4) Sub(y Int64x4) Int64x4
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VPXOR, CPU Feature: AVX2
 func (x Int64x4) Xor(y Int64x4) Int64x4
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Add(y Int64x8) Int64x8
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Int64x8) And(y Int64x8) Int64x8
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Int64x8) AndNot(y Int64x8) Int64x8
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Equal(y Int64x8) Mask64x8
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Greater(y Int64x8) Mask64x8
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) GreaterEqual(y Int64x8) Mask64x8
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Less(y Int64x8) Mask64x8
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) LessEqual(y Int64x8) Mask64x8
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedAbsolute(y Mask64x8) Int64x8
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedPopCount(y Mask64x8) Int64x8
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Max(y Int64x8) Int64x8
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Min(y Int64x8) Int64x8
 
-// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// MulEvenWiden multiplies even-indexed elements, widening the result, masked.
+// Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULDQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MulEvenWiden(y Int64x8) Int64x8
 
-// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// MulLow multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MulLow(y Int64x8) Int64x8
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) NotEqual(y Int64x8) Mask64x8
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Or(y Int64x8) Int64x8
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Sub(y Int64x8) Int64x8
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Xor(y Int64x8) Int64x8
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDB, CPU Feature: AVX
 func (x Int8x16) Add(y Int8x16) Int8x16
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VPAND, CPU Feature: AVX
 func (x Int8x16) And(y Int8x16) Int8x16
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDN, CPU Feature: AVX
 func (x Int8x16) AndNot(y Int8x16) Int8x16
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX
 func (x Int8x16) Equal(y Int8x16) Mask8x16
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTB, CPU Feature: AVX
 func (x Int8x16) Greater(y Int8x16) Mask8x16
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) GreaterEqual(y Int8x16) Mask8x16
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) Less(y Int8x16) Mask8x16
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) LessEqual(y Int8x16) Mask8x16
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedAbsolute(y Mask8x16) Int8x16
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedPopCount(y Mask8x16) Int8x16
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSB, CPU Feature: AVX
 func (x Int8x16) Max(y Int8x16) Int8x16
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSB, CPU Feature: AVX
 func (x Int8x16) Min(y Int8x16) Int8x16
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) NotEqual(y Int8x16) Mask8x16
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VPOR, CPU Feature: AVX
 func (x Int8x16) Or(y Int8x16) Int8x16
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSB, CPU Feature: AVX
 func (x Int8x16) SaturatedAdd(y Int8x16) Int8x16
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSB, CPU Feature: AVX
 func (x Int8x16) SaturatedSub(y Int8x16) Int8x16
 
+// Sign returns the product of the first operand with -1, 0, or 1,
+// whichever constant is nearest to the value of the second operand.
+//
 // Asm: VPSIGNB, CPU Feature: AVX
 func (x Int8x16) Sign(y Int8x16) Int8x16
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBB, CPU Feature: AVX
 func (x Int8x16) Sub(y Int8x16) Int8x16
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VPXOR, CPU Feature: AVX
 func (x Int8x16) Xor(y Int8x16) Int8x16
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDB, CPU Feature: AVX2
 func (x Int8x32) Add(y Int8x32) Int8x32
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VPAND, CPU Feature: AVX2
 func (x Int8x32) And(y Int8x32) Int8x32
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDN, CPU Feature: AVX2
 func (x Int8x32) AndNot(y Int8x32) Int8x32
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX2
 func (x Int8x32) Equal(y Int8x32) Mask8x32
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTB, CPU Feature: AVX2
 func (x Int8x32) Greater(y Int8x32) Mask8x32
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) GreaterEqual(y Int8x32) Mask8x32
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) Less(y Int8x32) Mask8x32
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) LessEqual(y Int8x32) Mask8x32
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedAbsolute(y Mask8x32) Int8x32
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedPopCount(y Mask8x32) Int8x32
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSB, CPU Feature: AVX2
 func (x Int8x32) Max(y Int8x32) Int8x32
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSB, CPU Feature: AVX2
 func (x Int8x32) Min(y Int8x32) Int8x32
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) NotEqual(y Int8x32) Mask8x32
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VPOR, CPU Feature: AVX2
 func (x Int8x32) Or(y Int8x32) Int8x32
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSB, CPU Feature: AVX2
 func (x Int8x32) SaturatedAdd(y Int8x32) Int8x32
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSB, CPU Feature: AVX2
 func (x Int8x32) SaturatedSub(y Int8x32) Int8x32
 
+// Sign returns the product of the first operand with -1, 0, or 1,
+// whichever constant is nearest to the value of the second operand.
+//
 // Asm: VPSIGNB, CPU Feature: AVX2
 func (x Int8x32) Sign(y Int8x32) Int8x32
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBB, CPU Feature: AVX2
 func (x Int8x32) Sub(y Int8x32) Int8x32
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VPXOR, CPU Feature: AVX2
 func (x Int8x32) Xor(y Int8x32) Int8x32
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Int8x64) Add(y Int8x64) Int8x64
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX512EVEX
 func (x Int8x64) Equal(y Int8x64) Mask8x64
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTB, CPU Feature: AVX512EVEX
 func (x Int8x64) Greater(y Int8x64) Mask8x64
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) GreaterEqual(y Int8x64) Mask8x64
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) Less(y Int8x64) Mask8x64
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) LessEqual(y Int8x64) Mask8x64
 
+// Absolute computes the absolute value of each element.
+//
 // Asm: VPABSB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedAbsolute(y Mask8x64) Int8x64
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedPopCount(y Mask8x64) Int8x64
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSB, CPU Feature: AVX512EVEX
 func (x Int8x64) Max(y Int8x64) Int8x64
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSB, CPU Feature: AVX512EVEX
 func (x Int8x64) Min(y Int8x64) Int8x64
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) NotEqual(y Int8x64) Mask8x64
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Int8x64) SaturatedAdd(y Int8x64) Int8x64
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Int8x64) SaturatedSub(y Int8x64) Int8x64
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Int8x64) Sub(y Int8x64) Int8x64
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDW, CPU Feature: AVX2
 func (x Uint16x16) Add(y Uint16x16) Uint16x16
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VPAND, CPU Feature: AVX2
 func (x Uint16x16) And(y Uint16x16) Uint16x16
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDN, CPU Feature: AVX2
 func (x Uint16x16) AndNot(y Uint16x16) Uint16x16
 
+// Average computes the rounded average of corresponding elements.
+//
 // Asm: VPAVGW, CPU Feature: AVX2
 func (x Uint16x16) Average(y Uint16x16) Uint16x16
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) Equal(y Uint16x16) Mask16x16
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) Greater(y Uint16x16) Mask16x16
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) GreaterEqual(y Uint16x16) Mask16x16
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) Less(y Uint16x16) Mask16x16
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) LessEqual(y Uint16x16) Mask16x16
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedPopCount(y Mask16x16) Uint16x16
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUW, CPU Feature: AVX2
 func (x Uint16x16) Max(y Uint16x16) Uint16x16
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUW, CPU Feature: AVX2
 func (x Uint16x16) Min(y Uint16x16) Uint16x16
 
-// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// MulHigh multiplies elements and stores the high part of the result.
 //
 // Asm: VPMULHUW, CPU Feature: AVX2
 func (x Uint16x16) MulHigh(y Uint16x16) Uint16x16
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) NotEqual(y Uint16x16) Mask16x16
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VPOR, CPU Feature: AVX2
 func (x Uint16x16) Or(y Uint16x16) Uint16x16
 
-// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// PairwiseAdd horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
 //
 // Asm: VPHADDW, CPU Feature: AVX2
 func (x Uint16x16) PairwiseAdd(y Uint16x16) Uint16x16
 
-// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// PairwiseSub horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
 //
 // Asm: VPHSUBW, CPU Feature: AVX2
 func (x Uint16x16) PairwiseSub(y Uint16x16) Uint16x16
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSW, CPU Feature: AVX2
 func (x Uint16x16) SaturatedAdd(y Uint16x16) Uint16x16
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSW, CPU Feature: AVX2
 func (x Uint16x16) SaturatedSub(y Uint16x16) Uint16x16
 
-// Multiply the elements and add the pairs together with saturation, yielding a vector of half as many elements with twice the input element size
+// SaturatedPairDotProd multiplies the elements and add the pairs together with saturation,
+// yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x16) SaturatedUnsignedSignedPairDotProd(y Int16x16) Int16x16
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBW, CPU Feature: AVX2
 func (x Uint16x16) Sub(y Uint16x16) Uint16x16
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VPXOR, CPU Feature: AVX2
 func (x Uint16x16) Xor(y Uint16x16) Uint16x16
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Add(y Uint16x32) Uint16x32
 
+// Average computes the rounded average of corresponding elements.
+//
 // Asm: VPAVGW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Average(y Uint16x32) Uint16x32
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Equal(y Uint16x32) Mask16x32
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Greater(y Uint16x32) Mask16x32
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) GreaterEqual(y Uint16x32) Mask16x32
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Less(y Uint16x32) Mask16x32
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) LessEqual(y Uint16x32) Mask16x32
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedPopCount(y Mask16x32) Uint16x32
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Max(y Uint16x32) Uint16x32
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Min(y Uint16x32) Uint16x32
 
-// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// MulHigh multiplies elements and stores the high part of the result, masked.
 //
 // Asm: VPMULHUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MulHigh(y Uint16x32) Uint16x32
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) NotEqual(y Uint16x32) Mask16x32
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Uint16x32) SaturatedAdd(y Uint16x32) Uint16x32
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x32) SaturatedSub(y Uint16x32) Uint16x32
 
-// Multiply the elements and add the pairs together with saturation, yielding a vector of half as many elements with twice the input element size
+// SaturatedPairDotProd multiplies the elements and add the pairs together with saturation,
+// yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x32) SaturatedUnsignedSignedPairDotProd(y Int16x32) Int16x32
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Sub(y Uint16x32) Uint16x32
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDW, CPU Feature: AVX
 func (x Uint16x8) Add(y Uint16x8) Uint16x8
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VPAND, CPU Feature: AVX
 func (x Uint16x8) And(y Uint16x8) Uint16x8
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDN, CPU Feature: AVX
 func (x Uint16x8) AndNot(y Uint16x8) Uint16x8
 
+// Average computes the rounded average of corresponding elements.
+//
 // Asm: VPAVGW, CPU Feature: AVX
 func (x Uint16x8) Average(y Uint16x8) Uint16x8
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) Equal(y Uint16x8) Mask16x8
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) Greater(y Uint16x8) Mask16x8
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) GreaterEqual(y Uint16x8) Mask16x8
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) Less(y Uint16x8) Mask16x8
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) LessEqual(y Uint16x8) Mask16x8
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedPopCount(y Mask16x8) Uint16x8
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUW, CPU Feature: AVX
 func (x Uint16x8) Max(y Uint16x8) Uint16x8
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUW, CPU Feature: AVX
 func (x Uint16x8) Min(y Uint16x8) Uint16x8
 
-// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// MulHigh multiplies elements and stores the high part of the result.
 //
 // Asm: VPMULHUW, CPU Feature: AVX
 func (x Uint16x8) MulHigh(y Uint16x8) Uint16x8
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) NotEqual(y Uint16x8) Mask16x8
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VPOR, CPU Feature: AVX
 func (x Uint16x8) Or(y Uint16x8) Uint16x8
 
-// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// PairwiseAdd horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
 //
 // Asm: VPHADDW, CPU Feature: AVX
 func (x Uint16x8) PairwiseAdd(y Uint16x8) Uint16x8
 
-// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// PairwiseSub horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
 //
 // Asm: VPHSUBW, CPU Feature: AVX
 func (x Uint16x8) PairwiseSub(y Uint16x8) Uint16x8
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSW, CPU Feature: AVX
 func (x Uint16x8) SaturatedAdd(y Uint16x8) Uint16x8
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSW, CPU Feature: AVX
 func (x Uint16x8) SaturatedSub(y Uint16x8) Uint16x8
 
-// Multiply the elements and add the pairs together with saturation, yielding a vector of half as many elements with twice the input element size
+// SaturatedPairDotProd multiplies the elements and add the pairs together with saturation,
+// yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x8) SaturatedUnsignedSignedPairDotProd(y Int16x8) Int16x8
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBW, CPU Feature: AVX
 func (x Uint16x8) Sub(y Uint16x8) Uint16x8
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VPXOR, CPU Feature: AVX
 func (x Uint16x8) Xor(y Uint16x8) Uint16x8
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Add(y Uint32x16) Uint32x16
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Uint32x16) And(y Uint32x16) Uint32x16
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Uint32x16) AndNot(y Uint32x16) Uint32x16
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Equal(y Uint32x16) Mask32x16
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Greater(y Uint32x16) Mask32x16
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) GreaterEqual(y Uint32x16) Mask32x16
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Less(y Uint32x16) Mask32x16
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) LessEqual(y Uint32x16) Mask32x16
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedPopCount(y Mask32x16) Uint32x16
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Max(y Uint32x16) Uint32x16
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Min(y Uint32x16) Uint32x16
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) NotEqual(y Uint32x16) Mask32x16
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Or(y Uint32x16) Uint32x16
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Sub(y Uint32x16) Uint32x16
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Xor(y Uint32x16) Uint32x16
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDD, CPU Feature: AVX
 func (x Uint32x4) Add(y Uint32x4) Uint32x4
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VPAND, CPU Feature: AVX
 func (x Uint32x4) And(y Uint32x4) Uint32x4
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDN, CPU Feature: AVX
 func (x Uint32x4) AndNot(y Uint32x4) Uint32x4
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) Equal(y Uint32x4) Mask32x4
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) Greater(y Uint32x4) Mask32x4
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) GreaterEqual(y Uint32x4) Mask32x4
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) Less(y Uint32x4) Mask32x4
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) LessEqual(y Uint32x4) Mask32x4
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedPopCount(y Mask32x4) Uint32x4
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUD, CPU Feature: AVX
 func (x Uint32x4) Max(y Uint32x4) Uint32x4
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUD, CPU Feature: AVX
 func (x Uint32x4) Min(y Uint32x4) Uint32x4
 
-// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// MulEvenWiden multiplies even-indexed elements, widening the result.
+// Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULUDQ, CPU Feature: AVX
 func (x Uint32x4) MulEvenWiden(y Uint32x4) Uint64x2
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) NotEqual(y Uint32x4) Mask32x4
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VPOR, CPU Feature: AVX
 func (x Uint32x4) Or(y Uint32x4) Uint32x4
 
-// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// PairwiseAdd horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
 //
 // Asm: VPHADDD, CPU Feature: AVX
 func (x Uint32x4) PairwiseAdd(y Uint32x4) Uint32x4
 
-// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// PairwiseSub horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
 //
 // Asm: VPHSUBD, CPU Feature: AVX
 func (x Uint32x4) PairwiseSub(y Uint32x4) Uint32x4
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBD, CPU Feature: AVX
 func (x Uint32x4) Sub(y Uint32x4) Uint32x4
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VPXOR, CPU Feature: AVX
 func (x Uint32x4) Xor(y Uint32x4) Uint32x4
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDD, CPU Feature: AVX2
 func (x Uint32x8) Add(y Uint32x8) Uint32x8
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VPAND, CPU Feature: AVX2
 func (x Uint32x8) And(y Uint32x8) Uint32x8
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDN, CPU Feature: AVX2
 func (x Uint32x8) AndNot(y Uint32x8) Uint32x8
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) Equal(y Uint32x8) Mask32x8
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) Greater(y Uint32x8) Mask32x8
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) GreaterEqual(y Uint32x8) Mask32x8
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) Less(y Uint32x8) Mask32x8
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) LessEqual(y Uint32x8) Mask32x8
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedPopCount(y Mask32x8) Uint32x8
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUD, CPU Feature: AVX2
 func (x Uint32x8) Max(y Uint32x8) Uint32x8
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUD, CPU Feature: AVX2
 func (x Uint32x8) Min(y Uint32x8) Uint32x8
 
-// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// MulEvenWiden multiplies even-indexed elements, widening the result.
+// Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULUDQ, CPU Feature: AVX2
 func (x Uint32x8) MulEvenWiden(y Uint32x8) Uint64x4
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) NotEqual(y Uint32x8) Mask32x8
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VPOR, CPU Feature: AVX2
 func (x Uint32x8) Or(y Uint32x8) Uint32x8
 
-// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// PairwiseAdd horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
 //
 // Asm: VPHADDD, CPU Feature: AVX2
 func (x Uint32x8) PairwiseAdd(y Uint32x8) Uint32x8
 
-// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// PairwiseSub horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
 //
 // Asm: VPHSUBD, CPU Feature: AVX2
 func (x Uint32x8) PairwiseSub(y Uint32x8) Uint32x8
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBD, CPU Feature: AVX2
 func (x Uint32x8) Sub(y Uint32x8) Uint32x8
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VPXOR, CPU Feature: AVX2
 func (x Uint32x8) Xor(y Uint32x8) Uint32x8
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDQ, CPU Feature: AVX
 func (x Uint64x2) Add(y Uint64x2) Uint64x2
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VPAND, CPU Feature: AVX
 func (x Uint64x2) And(y Uint64x2) Uint64x2
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDN, CPU Feature: AVX
 func (x Uint64x2) AndNot(y Uint64x2) Uint64x2
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) Equal(y Uint64x2) Mask64x2
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) Greater(y Uint64x2) Mask64x2
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) GreaterEqual(y Uint64x2) Mask64x2
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) Less(y Uint64x2) Mask64x2
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) LessEqual(y Uint64x2) Mask64x2
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedPopCount(y Mask64x2) Uint64x2
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) Max(y Uint64x2) Uint64x2
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) Min(y Uint64x2) Uint64x2
 
-// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// MulEvenWiden multiplies even-indexed elements, widening the result, masked.
+// Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULUDQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MulEvenWiden(y Uint64x2) Uint64x2
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) NotEqual(y Uint64x2) Mask64x2
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VPOR, CPU Feature: AVX
 func (x Uint64x2) Or(y Uint64x2) Uint64x2
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBQ, CPU Feature: AVX
 func (x Uint64x2) Sub(y Uint64x2) Uint64x2
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VPXOR, CPU Feature: AVX
 func (x Uint64x2) Xor(y Uint64x2) Uint64x2
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDQ, CPU Feature: AVX2
 func (x Uint64x4) Add(y Uint64x4) Uint64x4
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VPAND, CPU Feature: AVX2
 func (x Uint64x4) And(y Uint64x4) Uint64x4
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDN, CPU Feature: AVX2
 func (x Uint64x4) AndNot(y Uint64x4) Uint64x4
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) Equal(y Uint64x4) Mask64x4
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) Greater(y Uint64x4) Mask64x4
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) GreaterEqual(y Uint64x4) Mask64x4
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) Less(y Uint64x4) Mask64x4
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) LessEqual(y Uint64x4) Mask64x4
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedPopCount(y Mask64x4) Uint64x4
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) Max(y Uint64x4) Uint64x4
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) Min(y Uint64x4) Uint64x4
 
-// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// MulEvenWiden multiplies even-indexed elements, widening the result, masked.
+// Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULUDQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MulEvenWiden(y Uint64x4) Uint64x4
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) NotEqual(y Uint64x4) Mask64x4
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VPOR, CPU Feature: AVX2
 func (x Uint64x4) Or(y Uint64x4) Uint64x4
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBQ, CPU Feature: AVX2
 func (x Uint64x4) Sub(y Uint64x4) Uint64x4
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VPXOR, CPU Feature: AVX2
 func (x Uint64x4) Xor(y Uint64x4) Uint64x4
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Add(y Uint64x8) Uint64x8
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) And(y Uint64x8) Uint64x8
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) AndNot(y Uint64x8) Uint64x8
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Equal(y Uint64x8) Mask64x8
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Greater(y Uint64x8) Mask64x8
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) GreaterEqual(y Uint64x8) Mask64x8
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Less(y Uint64x8) Mask64x8
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) LessEqual(y Uint64x8) Mask64x8
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedPopCount(y Mask64x8) Uint64x8
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Max(y Uint64x8) Uint64x8
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Min(y Uint64x8) Uint64x8
 
-// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// MulEvenWiden multiplies even-indexed elements, widening the result, masked.
+// Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULUDQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MulEvenWiden(y Uint64x8) Uint64x8
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) NotEqual(y Uint64x8) Mask64x8
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Or(y Uint64x8) Uint64x8
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Sub(y Uint64x8) Uint64x8
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Xor(y Uint64x8) Uint64x8
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDB, CPU Feature: AVX
 func (x Uint8x16) Add(y Uint8x16) Uint8x16
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VPAND, CPU Feature: AVX
 func (x Uint8x16) And(y Uint8x16) Uint8x16
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDN, CPU Feature: AVX
 func (x Uint8x16) AndNot(y Uint8x16) Uint8x16
 
+// Average computes the rounded average of corresponding elements.
+//
 // Asm: VPAVGB, CPU Feature: AVX
 func (x Uint8x16) Average(y Uint8x16) Uint8x16
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) Equal(y Uint8x16) Mask8x16
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) Greater(y Uint8x16) Mask8x16
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) GreaterEqual(y Uint8x16) Mask8x16
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) Less(y Uint8x16) Mask8x16
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) LessEqual(y Uint8x16) Mask8x16
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedPopCount(y Mask8x16) Uint8x16
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUB, CPU Feature: AVX
 func (x Uint8x16) Max(y Uint8x16) Uint8x16
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUB, CPU Feature: AVX
 func (x Uint8x16) Min(y Uint8x16) Uint8x16
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) NotEqual(y Uint8x16) Mask8x16
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VPOR, CPU Feature: AVX
 func (x Uint8x16) Or(y Uint8x16) Uint8x16
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSB, CPU Feature: AVX
 func (x Uint8x16) SaturatedAdd(y Uint8x16) Uint8x16
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSB, CPU Feature: AVX
 func (x Uint8x16) SaturatedSub(y Uint8x16) Uint8x16
 
-// Multiply the elements and add the pairs together with saturation, yielding a vector of half as many elements with twice the input element size
+// SaturatedPairDotProd multiplies the elements and add the pairs together with saturation,
+// yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX
 func (x Uint8x16) SaturatedUnsignedSignedPairDotProd(y Int8x16) Int16x8
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBB, CPU Feature: AVX
 func (x Uint8x16) Sub(y Uint8x16) Uint8x16
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VPXOR, CPU Feature: AVX
 func (x Uint8x16) Xor(y Uint8x16) Uint8x16
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDB, CPU Feature: AVX2
 func (x Uint8x32) Add(y Uint8x32) Uint8x32
 
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VPAND, CPU Feature: AVX2
 func (x Uint8x32) And(y Uint8x32) Uint8x32
 
+// AndNot performs a bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDN, CPU Feature: AVX2
 func (x Uint8x32) AndNot(y Uint8x32) Uint8x32
 
+// Average computes the rounded average of corresponding elements.
+//
 // Asm: VPAVGB, CPU Feature: AVX2
 func (x Uint8x32) Average(y Uint8x32) Uint8x32
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) Equal(y Uint8x32) Mask8x32
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) Greater(y Uint8x32) Mask8x32
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) GreaterEqual(y Uint8x32) Mask8x32
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) Less(y Uint8x32) Mask8x32
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) LessEqual(y Uint8x32) Mask8x32
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedPopCount(y Mask8x32) Uint8x32
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUB, CPU Feature: AVX2
 func (x Uint8x32) Max(y Uint8x32) Uint8x32
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUB, CPU Feature: AVX2
 func (x Uint8x32) Min(y Uint8x32) Uint8x32
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) NotEqual(y Uint8x32) Mask8x32
 
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VPOR, CPU Feature: AVX2
 func (x Uint8x32) Or(y Uint8x32) Uint8x32
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSB, CPU Feature: AVX2
 func (x Uint8x32) SaturatedAdd(y Uint8x32) Uint8x32
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSB, CPU Feature: AVX2
 func (x Uint8x32) SaturatedSub(y Uint8x32) Uint8x32
 
-// Multiply the elements and add the pairs together with saturation, yielding a vector of half as many elements with twice the input element size
+// SaturatedPairDotProd multiplies the elements and add the pairs together with saturation,
+// yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX2
 func (x Uint8x32) SaturatedUnsignedSignedPairDotProd(y Int8x32) Int16x16
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBB, CPU Feature: AVX2
 func (x Uint8x32) Sub(y Uint8x32) Uint8x32
 
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VPXOR, CPU Feature: AVX2
 func (x Uint8x32) Xor(y Uint8x32) Uint8x32
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Add(y Uint8x64) Uint8x64
 
+// Average computes the rounded average of corresponding elements.
+//
 // Asm: VPAVGB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Average(y Uint8x64) Uint8x64
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Equal(y Uint8x64) Mask8x64
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Greater(y Uint8x64) Mask8x64
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) GreaterEqual(y Uint8x64) Mask8x64
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Less(y Uint8x64) Mask8x64
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) LessEqual(y Uint8x64) Mask8x64
 
+// PopCount counts the number of set bits in each element.
+//
 // Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedPopCount(y Mask8x64) Uint8x64
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Max(y Uint8x64) Uint8x64
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Min(y Uint8x64) Uint8x64
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) NotEqual(y Uint8x64) Mask8x64
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Uint8x64) SaturatedAdd(y Uint8x64) Uint8x64
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Uint8x64) SaturatedSub(y Uint8x64) Uint8x64
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Sub(y Uint8x64) Uint8x64
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VADDPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedAdd(y Float32x16, z Mask32x16) Float32x16
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VANDPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedAnd(y Float32x16, z Mask32x16) Float32x16
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VANDNPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedAndNot(y Float32x16, z Mask32x16) Float32x16
 
+// Div divides elements of two vectors.
+//
 // Asm: VDIVPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedDiv(y Float32x16, z Mask32x16) Float32x16
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedEqual(y Float32x16, z Mask32x16) Mask32x16
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedGreater(y Float32x16, z Mask32x16) Mask32x16
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedGreaterEqual(y Float32x16, z Mask32x16) Mask32x16
 
-// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// IsNan checks if elements are NaN. Use as x.IsNan(x).
+// Const Immediate = 3.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedIsNan(y Float32x16, z Mask32x16) Mask32x16
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedLess(y Float32x16, z Mask32x16) Mask32x16
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedLessEqual(y Float32x16, z Mask32x16) Mask32x16
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VMAXPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedMax(y Float32x16, z Mask32x16) Float32x16
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VMINPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedMin(y Float32x16, z Mask32x16) Float32x16
 
+// Mul multiplies corresponding elements of two vectors, masked.
+//
 // Asm: VMULPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedMul(y Float32x16, z Mask32x16) Float32x16
 
+// MulByPowOf2 multiplies elements by a power of 2.
+//
 // Asm: VSCALEFPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedMulByPowOf2(y Float32x16, z Mask32x16) Float32x16
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedNotEqual(y Float32x16, z Mask32x16) Mask32x16
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VORPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedOr(y Float32x16, z Mask32x16) Float32x16
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VADDPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedSub(y Float32x16, z Mask32x16) Float32x16
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VXORPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedXor(y Float32x16, z Mask32x16) Float32x16
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VADDPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedAdd(y Float32x4, z Mask32x4) Float32x4
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VANDPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedAnd(y Float32x4, z Mask32x4) Float32x4
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VANDNPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedAndNot(y Float32x4, z Mask32x4) Float32x4
 
+// Div divides elements of two vectors.
+//
 // Asm: VDIVPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedDiv(y Float32x4, z Mask32x4) Float32x4
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedEqual(y Float32x4, z Mask32x4) Mask32x4
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedGreater(y Float32x4, z Mask32x4) Mask32x4
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedGreaterEqual(y Float32x4, z Mask32x4) Mask32x4
 
-// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// IsNan checks if elements are NaN. Use as x.IsNan(x).
+// Const Immediate = 3.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedIsNan(y Float32x4, z Mask32x4) Mask32x4
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedLess(y Float32x4, z Mask32x4) Mask32x4
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedLessEqual(y Float32x4, z Mask32x4) Mask32x4
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VMAXPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedMax(y Float32x4, z Mask32x4) Float32x4
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VMINPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedMin(y Float32x4, z Mask32x4) Float32x4
 
+// Mul multiplies corresponding elements of two vectors, masked.
+//
 // Asm: VMULPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedMul(y Float32x4, z Mask32x4) Float32x4
 
+// MulByPowOf2 multiplies elements by a power of 2.
+//
 // Asm: VSCALEFPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedMulByPowOf2(y Float32x4, z Mask32x4) Float32x4
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedNotEqual(y Float32x4, z Mask32x4) Mask32x4
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VORPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedOr(y Float32x4, z Mask32x4) Float32x4
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VADDPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedSub(y Float32x4, z Mask32x4) Float32x4
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VXORPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedXor(y Float32x4, z Mask32x4) Float32x4
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VADDPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedAdd(y Float32x8, z Mask32x8) Float32x8
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VANDPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedAnd(y Float32x8, z Mask32x8) Float32x8
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VANDNPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedAndNot(y Float32x8, z Mask32x8) Float32x8
 
+// Div divides elements of two vectors.
+//
 // Asm: VDIVPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedDiv(y Float32x8, z Mask32x8) Float32x8
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedEqual(y Float32x8, z Mask32x8) Mask32x8
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedGreater(y Float32x8, z Mask32x8) Mask32x8
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedGreaterEqual(y Float32x8, z Mask32x8) Mask32x8
 
-// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// IsNan checks if elements are NaN. Use as x.IsNan(x).
+// Const Immediate = 3.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedIsNan(y Float32x8, z Mask32x8) Mask32x8
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedLess(y Float32x8, z Mask32x8) Mask32x8
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedLessEqual(y Float32x8, z Mask32x8) Mask32x8
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VMAXPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedMax(y Float32x8, z Mask32x8) Float32x8
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VMINPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedMin(y Float32x8, z Mask32x8) Float32x8
 
+// Mul multiplies corresponding elements of two vectors, masked.
+//
 // Asm: VMULPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedMul(y Float32x8, z Mask32x8) Float32x8
 
+// MulByPowOf2 multiplies elements by a power of 2.
+//
 // Asm: VSCALEFPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedMulByPowOf2(y Float32x8, z Mask32x8) Float32x8
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedNotEqual(y Float32x8, z Mask32x8) Mask32x8
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VORPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedOr(y Float32x8, z Mask32x8) Float32x8
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VADDPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedSub(y Float32x8, z Mask32x8) Float32x8
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VXORPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedXor(y Float32x8, z Mask32x8) Float32x8
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VADDPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedAdd(y Float64x2, z Mask64x2) Float64x2
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VANDPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedAnd(y Float64x2, z Mask64x2) Float64x2
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VANDNPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedAndNot(y Float64x2, z Mask64x2) Float64x2
 
+// Div divides elements of two vectors.
+//
 // Asm: VDIVPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedDiv(y Float64x2, z Mask64x2) Float64x2
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedEqual(y Float64x2, z Mask64x2) Mask64x2
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedGreater(y Float64x2, z Mask64x2) Mask64x2
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedGreaterEqual(y Float64x2, z Mask64x2) Mask64x2
 
-// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// IsNan checks if elements are NaN. Use as x.IsNan(x).
+// Const Immediate = 3.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedIsNan(y Float64x2, z Mask64x2) Mask64x2
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedLess(y Float64x2, z Mask64x2) Mask64x2
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedLessEqual(y Float64x2, z Mask64x2) Mask64x2
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VMAXPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedMax(y Float64x2, z Mask64x2) Float64x2
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VMINPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedMin(y Float64x2, z Mask64x2) Float64x2
 
+// Mul multiplies corresponding elements of two vectors, masked.
+//
 // Asm: VMULPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedMul(y Float64x2, z Mask64x2) Float64x2
 
+// MulByPowOf2 multiplies elements by a power of 2.
+//
 // Asm: VSCALEFPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedMulByPowOf2(y Float64x2, z Mask64x2) Float64x2
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedNotEqual(y Float64x2, z Mask64x2) Mask64x2
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VORPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedOr(y Float64x2, z Mask64x2) Float64x2
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VADDPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedSub(y Float64x2, z Mask64x2) Float64x2
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VXORPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedXor(y Float64x2, z Mask64x2) Float64x2
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VADDPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedAdd(y Float64x4, z Mask64x4) Float64x4
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VANDPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedAnd(y Float64x4, z Mask64x4) Float64x4
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VANDNPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedAndNot(y Float64x4, z Mask64x4) Float64x4
 
+// Div divides elements of two vectors.
+//
 // Asm: VDIVPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedDiv(y Float64x4, z Mask64x4) Float64x4
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedEqual(y Float64x4, z Mask64x4) Mask64x4
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedGreater(y Float64x4, z Mask64x4) Mask64x4
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedGreaterEqual(y Float64x4, z Mask64x4) Mask64x4
 
-// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// IsNan checks if elements are NaN. Use as x.IsNan(x).
+// Const Immediate = 3.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedIsNan(y Float64x4, z Mask64x4) Mask64x4
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedLess(y Float64x4, z Mask64x4) Mask64x4
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedLessEqual(y Float64x4, z Mask64x4) Mask64x4
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VMAXPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedMax(y Float64x4, z Mask64x4) Float64x4
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VMINPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedMin(y Float64x4, z Mask64x4) Float64x4
 
+// Mul multiplies corresponding elements of two vectors, masked.
+//
 // Asm: VMULPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedMul(y Float64x4, z Mask64x4) Float64x4
 
+// MulByPowOf2 multiplies elements by a power of 2.
+//
 // Asm: VSCALEFPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedMulByPowOf2(y Float64x4, z Mask64x4) Float64x4
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedNotEqual(y Float64x4, z Mask64x4) Mask64x4
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VORPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedOr(y Float64x4, z Mask64x4) Float64x4
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VADDPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedSub(y Float64x4, z Mask64x4) Float64x4
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VXORPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedXor(y Float64x4, z Mask64x4) Float64x4
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VADDPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedAdd(y Float64x8, z Mask64x8) Float64x8
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VANDPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedAnd(y Float64x8, z Mask64x8) Float64x8
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VANDNPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedAndNot(y Float64x8, z Mask64x8) Float64x8
 
+// Div divides elements of two vectors.
+//
 // Asm: VDIVPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedDiv(y Float64x8, z Mask64x8) Float64x8
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedEqual(y Float64x8, z Mask64x8) Mask64x8
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedGreater(y Float64x8, z Mask64x8) Mask64x8
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedGreaterEqual(y Float64x8, z Mask64x8) Mask64x8
 
-// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// IsNan checks if elements are NaN. Use as x.IsNan(x).
+// Const Immediate = 3.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedIsNan(y Float64x8, z Mask64x8) Mask64x8
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedLess(y Float64x8, z Mask64x8) Mask64x8
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedLessEqual(y Float64x8, z Mask64x8) Mask64x8
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VMAXPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedMax(y Float64x8, z Mask64x8) Float64x8
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VMINPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedMin(y Float64x8, z Mask64x8) Float64x8
 
+// Mul multiplies corresponding elements of two vectors, masked.
+//
 // Asm: VMULPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedMul(y Float64x8, z Mask64x8) Float64x8
 
+// MulByPowOf2 multiplies elements by a power of 2.
+//
 // Asm: VSCALEFPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedMulByPowOf2(y Float64x8, z Mask64x8) Float64x8
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedNotEqual(y Float64x8, z Mask64x8) Mask64x8
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VORPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedOr(y Float64x8, z Mask64x8) Float64x8
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VADDPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedSub(y Float64x8, z Mask64x8) Float64x8
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VXORPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedXor(y Float64x8, z Mask64x8) Float64x8
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedAdd(y Int16x16, z Mask16x16) Int16x16
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedEqual(y Int16x16, z Mask16x16) Mask16x16
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedGreater(y Int16x16, z Mask16x16) Mask16x16
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedGreaterEqual(y Int16x16, z Mask16x16) Mask16x16
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedLess(y Int16x16, z Mask16x16) Mask16x16
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedLessEqual(y Int16x16, z Mask16x16) Mask16x16
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedMax(y Int16x16, z Mask16x16) Int16x16
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedMin(y Int16x16, z Mask16x16) Int16x16
 
-// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// MulHigh multiplies elements and stores the high part of the result, masked.
 //
 // Asm: VPMULHW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedMulHigh(y Int16x16, z Mask16x16) Int16x16
 
-// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// MulLow multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedMulLow(y Int16x16, z Mask16x16) Int16x16
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedNotEqual(y Int16x16, z Mask16x16) Mask16x16
 
-// Multiply the elements and add the pairs together, yielding a vector of half as many elements with twice the input element size
+// PairDotProd multiplies the elements and add the pairs together,
+// yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDWD, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedPairDotProd(y Int16x16, z Mask16x16) Int32x8
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedSaturatedAdd(y Int16x16, z Mask16x16) Int16x16
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedSaturatedSub(y Int16x16, z Mask16x16) Int16x16
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedSub(y Int16x16, z Mask16x16) Int16x16
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedAdd(y Int16x32, z Mask16x32) Int16x32
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedEqual(y Int16x32, z Mask16x32) Mask16x32
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedGreater(y Int16x32, z Mask16x32) Mask16x32
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedGreaterEqual(y Int16x32, z Mask16x32) Mask16x32
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedLess(y Int16x32, z Mask16x32) Mask16x32
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedLessEqual(y Int16x32, z Mask16x32) Mask16x32
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedMax(y Int16x32, z Mask16x32) Int16x32
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedMin(y Int16x32, z Mask16x32) Int16x32
 
-// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// MulHigh multiplies elements and stores the high part of the result, masked.
 //
 // Asm: VPMULHW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedMulHigh(y Int16x32, z Mask16x32) Int16x32
 
-// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// MulLow multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedMulLow(y Int16x32, z Mask16x32) Int16x32
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedNotEqual(y Int16x32, z Mask16x32) Mask16x32
 
-// Multiply the elements and add the pairs together, yielding a vector of half as many elements with twice the input element size
+// PairDotProd multiplies the elements and add the pairs together,
+// yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDWD, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedPairDotProd(y Int16x32, z Mask16x32) Int32x16
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedSaturatedAdd(y Int16x32, z Mask16x32) Int16x32
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedSaturatedSub(y Int16x32, z Mask16x32) Int16x32
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedSub(y Int16x32, z Mask16x32) Int16x32
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedAdd(y Int16x8, z Mask16x8) Int16x8
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedEqual(y Int16x8, z Mask16x8) Mask16x8
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedGreater(y Int16x8, z Mask16x8) Mask16x8
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedGreaterEqual(y Int16x8, z Mask16x8) Mask16x8
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedLess(y Int16x8, z Mask16x8) Mask16x8
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedLessEqual(y Int16x8, z Mask16x8) Mask16x8
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedMax(y Int16x8, z Mask16x8) Int16x8
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedMin(y Int16x8, z Mask16x8) Int16x8
 
-// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// MulHigh multiplies elements and stores the high part of the result, masked.
 //
 // Asm: VPMULHW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedMulHigh(y Int16x8, z Mask16x8) Int16x8
 
-// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// MulLow multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedMulLow(y Int16x8, z Mask16x8) Int16x8
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedNotEqual(y Int16x8, z Mask16x8) Mask16x8
 
-// Multiply the elements and add the pairs together, yielding a vector of half as many elements with twice the input element size
+// PairDotProd multiplies the elements and add the pairs together,
+// yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDWD, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedPairDotProd(y Int16x8, z Mask16x8) Int32x4
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedSaturatedAdd(y Int16x8, z Mask16x8) Int16x8
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedSaturatedSub(y Int16x8, z Mask16x8) Int16x8
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedSub(y Int16x8, z Mask16x8) Int16x8
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedAdd(y Int32x16, z Mask32x16) Int32x16
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedAnd(y Int32x16, z Mask32x16) Int32x16
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedAndNot(y Int32x16, z Mask32x16) Int32x16
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedEqual(y Int32x16, z Mask32x16) Mask32x16
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedGreater(y Int32x16, z Mask32x16) Mask32x16
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedGreaterEqual(y Int32x16, z Mask32x16) Mask32x16
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedLess(y Int32x16, z Mask32x16) Mask32x16
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedLessEqual(y Int32x16, z Mask32x16) Mask32x16
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedMax(y Int32x16, z Mask32x16) Int32x16
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedMin(y Int32x16, z Mask32x16) Int32x16
 
-// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// MulLow multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedMulLow(y Int32x16, z Mask32x16) Int32x16
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedNotEqual(y Int32x16, z Mask32x16) Mask32x16
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedOr(y Int32x16, z Mask32x16) Int32x16
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedSub(y Int32x16, z Mask32x16) Int32x16
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedXor(y Int32x16, z Mask32x16) Int32x16
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedAdd(y Int32x4, z Mask32x4) Int32x4
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedAnd(y Int32x4, z Mask32x4) Int32x4
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedAndNot(y Int32x4, z Mask32x4) Int32x4
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedEqual(y Int32x4, z Mask32x4) Mask32x4
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedGreater(y Int32x4, z Mask32x4) Mask32x4
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedGreaterEqual(y Int32x4, z Mask32x4) Mask32x4
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedLess(y Int32x4, z Mask32x4) Mask32x4
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedLessEqual(y Int32x4, z Mask32x4) Mask32x4
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedMax(y Int32x4, z Mask32x4) Int32x4
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedMin(y Int32x4, z Mask32x4) Int32x4
 
-// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// MulLow multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedMulLow(y Int32x4, z Mask32x4) Int32x4
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedNotEqual(y Int32x4, z Mask32x4) Mask32x4
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedOr(y Int32x4, z Mask32x4) Int32x4
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedSub(y Int32x4, z Mask32x4) Int32x4
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedXor(y Int32x4, z Mask32x4) Int32x4
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedAdd(y Int32x8, z Mask32x8) Int32x8
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedAnd(y Int32x8, z Mask32x8) Int32x8
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedAndNot(y Int32x8, z Mask32x8) Int32x8
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedEqual(y Int32x8, z Mask32x8) Mask32x8
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedGreater(y Int32x8, z Mask32x8) Mask32x8
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedGreaterEqual(y Int32x8, z Mask32x8) Mask32x8
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedLess(y Int32x8, z Mask32x8) Mask32x8
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedLessEqual(y Int32x8, z Mask32x8) Mask32x8
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedMax(y Int32x8, z Mask32x8) Int32x8
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedMin(y Int32x8, z Mask32x8) Int32x8
 
-// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// MulLow multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedMulLow(y Int32x8, z Mask32x8) Int32x8
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedNotEqual(y Int32x8, z Mask32x8) Mask32x8
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedOr(y Int32x8, z Mask32x8) Int32x8
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedSub(y Int32x8, z Mask32x8) Int32x8
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedXor(y Int32x8, z Mask32x8) Int32x8
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedAdd(y Int64x2, z Mask64x2) Int64x2
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedAnd(y Int64x2, z Mask64x2) Int64x2
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedAndNot(y Int64x2, z Mask64x2) Int64x2
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedEqual(y Int64x2, z Mask64x2) Mask64x2
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedGreater(y Int64x2, z Mask64x2) Mask64x2
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedGreaterEqual(y Int64x2, z Mask64x2) Mask64x2
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedLess(y Int64x2, z Mask64x2) Mask64x2
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedLessEqual(y Int64x2, z Mask64x2) Mask64x2
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedMax(y Int64x2, z Mask64x2) Int64x2
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedMin(y Int64x2, z Mask64x2) Int64x2
 
-// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// MulEvenWiden multiplies even-indexed elements, widening the result, masked.
+// Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULDQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedMulEvenWiden(y Int64x2, z Mask64x2) Int64x2
 
-// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// MulLow multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedMulLow(y Int64x2, z Mask64x2) Int64x2
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedNotEqual(y Int64x2, z Mask64x2) Mask64x2
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedOr(y Int64x2, z Mask64x2) Int64x2
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedSub(y Int64x2, z Mask64x2) Int64x2
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedXor(y Int64x2, z Mask64x2) Int64x2
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedAdd(y Int64x4, z Mask64x4) Int64x4
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedAnd(y Int64x4, z Mask64x4) Int64x4
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedAndNot(y Int64x4, z Mask64x4) Int64x4
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedEqual(y Int64x4, z Mask64x4) Mask64x4
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedGreater(y Int64x4, z Mask64x4) Mask64x4
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedGreaterEqual(y Int64x4, z Mask64x4) Mask64x4
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedLess(y Int64x4, z Mask64x4) Mask64x4
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedLessEqual(y Int64x4, z Mask64x4) Mask64x4
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedMax(y Int64x4, z Mask64x4) Int64x4
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedMin(y Int64x4, z Mask64x4) Int64x4
 
-// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// MulEvenWiden multiplies even-indexed elements, widening the result, masked.
+// Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULDQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedMulEvenWiden(y Int64x4, z Mask64x4) Int64x4
 
-// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// MulLow multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedMulLow(y Int64x4, z Mask64x4) Int64x4
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedNotEqual(y Int64x4, z Mask64x4) Mask64x4
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedOr(y Int64x4, z Mask64x4) Int64x4
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedSub(y Int64x4, z Mask64x4) Int64x4
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedXor(y Int64x4, z Mask64x4) Int64x4
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedAdd(y Int64x8, z Mask64x8) Int64x8
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedAnd(y Int64x8, z Mask64x8) Int64x8
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedAndNot(y Int64x8, z Mask64x8) Int64x8
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedEqual(y Int64x8, z Mask64x8) Mask64x8
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedGreater(y Int64x8, z Mask64x8) Mask64x8
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedGreaterEqual(y Int64x8, z Mask64x8) Mask64x8
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedLess(y Int64x8, z Mask64x8) Mask64x8
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedLessEqual(y Int64x8, z Mask64x8) Mask64x8
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedMax(y Int64x8, z Mask64x8) Int64x8
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedMin(y Int64x8, z Mask64x8) Int64x8
 
-// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// MulEvenWiden multiplies even-indexed elements, widening the result, masked.
+// Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULDQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedMulEvenWiden(y Int64x8, z Mask64x8) Int64x8
 
-// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// MulLow multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedMulLow(y Int64x8, z Mask64x8) Int64x8
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedNotEqual(y Int64x8, z Mask64x8) Mask64x8
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedOr(y Int64x8, z Mask64x8) Int64x8
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedSub(y Int64x8, z Mask64x8) Int64x8
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedXor(y Int64x8, z Mask64x8) Int64x8
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedAdd(y Int8x16, z Mask8x16) Int8x16
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedEqual(y Int8x16, z Mask8x16) Mask8x16
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedGreater(y Int8x16, z Mask8x16) Mask8x16
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedGreaterEqual(y Int8x16, z Mask8x16) Mask8x16
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedLess(y Int8x16, z Mask8x16) Mask8x16
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedLessEqual(y Int8x16, z Mask8x16) Mask8x16
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedMax(y Int8x16, z Mask8x16) Int8x16
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedMin(y Int8x16, z Mask8x16) Int8x16
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedNotEqual(y Int8x16, z Mask8x16) Mask8x16
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedSaturatedAdd(y Int8x16, z Mask8x16) Int8x16
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedSaturatedSub(y Int8x16, z Mask8x16) Int8x16
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedSub(y Int8x16, z Mask8x16) Int8x16
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedAdd(y Int8x32, z Mask8x32) Int8x32
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedEqual(y Int8x32, z Mask8x32) Mask8x32
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedGreater(y Int8x32, z Mask8x32) Mask8x32
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedGreaterEqual(y Int8x32, z Mask8x32) Mask8x32
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedLess(y Int8x32, z Mask8x32) Mask8x32
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedLessEqual(y Int8x32, z Mask8x32) Mask8x32
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedMax(y Int8x32, z Mask8x32) Int8x32
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedMin(y Int8x32, z Mask8x32) Int8x32
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedNotEqual(y Int8x32, z Mask8x32) Mask8x32
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedSaturatedAdd(y Int8x32, z Mask8x32) Int8x32
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedSaturatedSub(y Int8x32, z Mask8x32) Int8x32
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedSub(y Int8x32, z Mask8x32) Int8x32
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedAdd(y Int8x64, z Mask8x64) Int8x64
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedEqual(y Int8x64, z Mask8x64) Mask8x64
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPGTB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedGreater(y Int8x64, z Mask8x64) Mask8x64
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedGreaterEqual(y Int8x64, z Mask8x64) Mask8x64
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedLess(y Int8x64, z Mask8x64) Mask8x64
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedLessEqual(y Int8x64, z Mask8x64) Mask8x64
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXSB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedMax(y Int8x64, z Mask8x64) Int8x64
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINSB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedMin(y Int8x64, z Mask8x64) Int8x64
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedNotEqual(y Int8x64, z Mask8x64) Mask8x64
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedSaturatedAdd(y Int8x64, z Mask8x64) Int8x64
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedSaturatedSub(y Int8x64, z Mask8x64) Int8x64
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedSub(y Int8x64, z Mask8x64) Int8x64
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedAdd(y Uint16x16, z Mask16x16) Uint16x16
 
+// Average computes the rounded average of corresponding elements.
+//
 // Asm: VPAVGW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedAverage(y Uint16x16, z Mask16x16) Uint16x16
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedEqual(y Uint16x16, z Mask16x16) Mask16x16
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedGreater(y Uint16x16, z Mask16x16) Mask16x16
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedGreaterEqual(y Uint16x16, z Mask16x16) Mask16x16
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedLess(y Uint16x16, z Mask16x16) Mask16x16
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedLessEqual(y Uint16x16, z Mask16x16) Mask16x16
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedMax(y Uint16x16, z Mask16x16) Uint16x16
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedMin(y Uint16x16, z Mask16x16) Uint16x16
 
-// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// MulHigh multiplies elements and stores the high part of the result, masked.
 //
 // Asm: VPMULHUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedMulHigh(y Uint16x16, z Mask16x16) Uint16x16
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedNotEqual(y Uint16x16, z Mask16x16) Mask16x16
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedSaturatedAdd(y Uint16x16, z Mask16x16) Uint16x16
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedSaturatedSub(y Uint16x16, z Mask16x16) Uint16x16
 
-// Multiply the elements and add the pairs together with saturation, yielding a vector of half as many elements with twice the input element size
+// SaturatedPairDotProd multiplies the elements and add the pairs together with saturation,
+// yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedSaturatedUnsignedSignedPairDotProd(y Int16x16, z Mask16x16) Int16x16
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedSub(y Uint16x16, z Mask16x16) Uint16x16
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedAdd(y Uint16x32, z Mask16x32) Uint16x32
 
+// Average computes the rounded average of corresponding elements.
+//
 // Asm: VPAVGW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedAverage(y Uint16x32, z Mask16x32) Uint16x32
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedEqual(y Uint16x32, z Mask16x32) Mask16x32
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedGreater(y Uint16x32, z Mask16x32) Mask16x32
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedGreaterEqual(y Uint16x32, z Mask16x32) Mask16x32
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedLess(y Uint16x32, z Mask16x32) Mask16x32
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedLessEqual(y Uint16x32, z Mask16x32) Mask16x32
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedMax(y Uint16x32, z Mask16x32) Uint16x32
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedMin(y Uint16x32, z Mask16x32) Uint16x32
 
-// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// MulHigh multiplies elements and stores the high part of the result, masked.
 //
 // Asm: VPMULHUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedMulHigh(y Uint16x32, z Mask16x32) Uint16x32
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedNotEqual(y Uint16x32, z Mask16x32) Mask16x32
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedSaturatedAdd(y Uint16x32, z Mask16x32) Uint16x32
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedSaturatedSub(y Uint16x32, z Mask16x32) Uint16x32
 
-// Multiply the elements and add the pairs together with saturation, yielding a vector of half as many elements with twice the input element size
+// SaturatedPairDotProd multiplies the elements and add the pairs together with saturation,
+// yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedSaturatedUnsignedSignedPairDotProd(y Int16x32, z Mask16x32) Int16x32
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedSub(y Uint16x32, z Mask16x32) Uint16x32
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedAdd(y Uint16x8, z Mask16x8) Uint16x8
 
+// Average computes the rounded average of corresponding elements.
+//
 // Asm: VPAVGW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedAverage(y Uint16x8, z Mask16x8) Uint16x8
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedEqual(y Uint16x8, z Mask16x8) Mask16x8
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedGreater(y Uint16x8, z Mask16x8) Mask16x8
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedGreaterEqual(y Uint16x8, z Mask16x8) Mask16x8
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedLess(y Uint16x8, z Mask16x8) Mask16x8
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedLessEqual(y Uint16x8, z Mask16x8) Mask16x8
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedMax(y Uint16x8, z Mask16x8) Uint16x8
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedMin(y Uint16x8, z Mask16x8) Uint16x8
 
-// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// MulHigh multiplies elements and stores the high part of the result, masked.
 //
 // Asm: VPMULHUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedMulHigh(y Uint16x8, z Mask16x8) Uint16x8
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedNotEqual(y Uint16x8, z Mask16x8) Mask16x8
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedSaturatedAdd(y Uint16x8, z Mask16x8) Uint16x8
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedSaturatedSub(y Uint16x8, z Mask16x8) Uint16x8
 
-// Multiply the elements and add the pairs together with saturation, yielding a vector of half as many elements with twice the input element size
+// SaturatedPairDotProd multiplies the elements and add the pairs together with saturation,
+// yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedSaturatedUnsignedSignedPairDotProd(y Int16x8, z Mask16x8) Int16x8
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedSub(y Uint16x8, z Mask16x8) Uint16x8
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedAdd(y Uint32x16, z Mask32x16) Uint32x16
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedAnd(y Uint32x16, z Mask32x16) Uint32x16
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedAndNot(y Uint32x16, z Mask32x16) Uint32x16
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedEqual(y Uint32x16, z Mask32x16) Mask32x16
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedGreater(y Uint32x16, z Mask32x16) Mask32x16
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedGreaterEqual(y Uint32x16, z Mask32x16) Mask32x16
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedLess(y Uint32x16, z Mask32x16) Mask32x16
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedLessEqual(y Uint32x16, z Mask32x16) Mask32x16
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedMax(y Uint32x16, z Mask32x16) Uint32x16
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedMin(y Uint32x16, z Mask32x16) Uint32x16
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedNotEqual(y Uint32x16, z Mask32x16) Mask32x16
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedOr(y Uint32x16, z Mask32x16) Uint32x16
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedSub(y Uint32x16, z Mask32x16) Uint32x16
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedXor(y Uint32x16, z Mask32x16) Uint32x16
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedAdd(y Uint32x4, z Mask32x4) Uint32x4
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedAnd(y Uint32x4, z Mask32x4) Uint32x4
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedAndNot(y Uint32x4, z Mask32x4) Uint32x4
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedEqual(y Uint32x4, z Mask32x4) Mask32x4
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedGreater(y Uint32x4, z Mask32x4) Mask32x4
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedGreaterEqual(y Uint32x4, z Mask32x4) Mask32x4
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedLess(y Uint32x4, z Mask32x4) Mask32x4
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedLessEqual(y Uint32x4, z Mask32x4) Mask32x4
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedMax(y Uint32x4, z Mask32x4) Uint32x4
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedMin(y Uint32x4, z Mask32x4) Uint32x4
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedNotEqual(y Uint32x4, z Mask32x4) Mask32x4
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedOr(y Uint32x4, z Mask32x4) Uint32x4
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedSub(y Uint32x4, z Mask32x4) Uint32x4
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedXor(y Uint32x4, z Mask32x4) Uint32x4
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedAdd(y Uint32x8, z Mask32x8) Uint32x8
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedAnd(y Uint32x8, z Mask32x8) Uint32x8
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedAndNot(y Uint32x8, z Mask32x8) Uint32x8
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedEqual(y Uint32x8, z Mask32x8) Mask32x8
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedGreater(y Uint32x8, z Mask32x8) Mask32x8
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedGreaterEqual(y Uint32x8, z Mask32x8) Mask32x8
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedLess(y Uint32x8, z Mask32x8) Mask32x8
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedLessEqual(y Uint32x8, z Mask32x8) Mask32x8
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedMax(y Uint32x8, z Mask32x8) Uint32x8
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedMin(y Uint32x8, z Mask32x8) Uint32x8
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedNotEqual(y Uint32x8, z Mask32x8) Mask32x8
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedOr(y Uint32x8, z Mask32x8) Uint32x8
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedSub(y Uint32x8, z Mask32x8) Uint32x8
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedXor(y Uint32x8, z Mask32x8) Uint32x8
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedAdd(y Uint64x2, z Mask64x2) Uint64x2
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedAnd(y Uint64x2, z Mask64x2) Uint64x2
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedAndNot(y Uint64x2, z Mask64x2) Uint64x2
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedEqual(y Uint64x2, z Mask64x2) Mask64x2
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedGreater(y Uint64x2, z Mask64x2) Mask64x2
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedGreaterEqual(y Uint64x2, z Mask64x2) Mask64x2
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedLess(y Uint64x2, z Mask64x2) Mask64x2
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedLessEqual(y Uint64x2, z Mask64x2) Mask64x2
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedMax(y Uint64x2, z Mask64x2) Uint64x2
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedMin(y Uint64x2, z Mask64x2) Uint64x2
 
-// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// MulEvenWiden multiplies even-indexed elements, widening the result, masked.
+// Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULUDQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedMulEvenWiden(y Uint64x2, z Mask64x2) Uint64x2
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedNotEqual(y Uint64x2, z Mask64x2) Mask64x2
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedOr(y Uint64x2, z Mask64x2) Uint64x2
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedSub(y Uint64x2, z Mask64x2) Uint64x2
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedXor(y Uint64x2, z Mask64x2) Uint64x2
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedAdd(y Uint64x4, z Mask64x4) Uint64x4
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedAnd(y Uint64x4, z Mask64x4) Uint64x4
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedAndNot(y Uint64x4, z Mask64x4) Uint64x4
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedEqual(y Uint64x4, z Mask64x4) Mask64x4
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedGreater(y Uint64x4, z Mask64x4) Mask64x4
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedGreaterEqual(y Uint64x4, z Mask64x4) Mask64x4
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedLess(y Uint64x4, z Mask64x4) Mask64x4
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedLessEqual(y Uint64x4, z Mask64x4) Mask64x4
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedMax(y Uint64x4, z Mask64x4) Uint64x4
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedMin(y Uint64x4, z Mask64x4) Uint64x4
 
-// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// MulEvenWiden multiplies even-indexed elements, widening the result, masked.
+// Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULUDQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedMulEvenWiden(y Uint64x4, z Mask64x4) Uint64x4
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedNotEqual(y Uint64x4, z Mask64x4) Mask64x4
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedOr(y Uint64x4, z Mask64x4) Uint64x4
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedSub(y Uint64x4, z Mask64x4) Uint64x4
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedXor(y Uint64x4, z Mask64x4) Uint64x4
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedAdd(y Uint64x8, z Mask64x8) Uint64x8
 
+// And performs a masked bitwise AND operation between two vectors.
+//
 // Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedAnd(y Uint64x8, z Mask64x8) Uint64x8
 
+// AndNot performs a masked bitwise AND NOT operation between two vectors.
+//
 // Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedAndNot(y Uint64x8, z Mask64x8) Uint64x8
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedEqual(y Uint64x8, z Mask64x8) Mask64x8
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedGreater(y Uint64x8, z Mask64x8) Mask64x8
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedGreaterEqual(y Uint64x8, z Mask64x8) Mask64x8
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedLess(y Uint64x8, z Mask64x8) Mask64x8
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedLessEqual(y Uint64x8, z Mask64x8) Mask64x8
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedMax(y Uint64x8, z Mask64x8) Uint64x8
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedMin(y Uint64x8, z Mask64x8) Uint64x8
 
-// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// MulEvenWiden multiplies even-indexed elements, widening the result, masked.
+// Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULUDQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedMulEvenWiden(y Uint64x8, z Mask64x8) Uint64x8
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedNotEqual(y Uint64x8, z Mask64x8) Mask64x8
 
+// Or performs a masked bitwise OR operation between two vectors.
+//
 // Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedOr(y Uint64x8, z Mask64x8) Uint64x8
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedSub(y Uint64x8, z Mask64x8) Uint64x8
 
+// Xor performs a masked bitwise XOR operation between two vectors.
+//
 // Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedXor(y Uint64x8, z Mask64x8) Uint64x8
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedAdd(y Uint8x16, z Mask8x16) Uint8x16
 
+// Average computes the rounded average of corresponding elements.
+//
 // Asm: VPAVGB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedAverage(y Uint8x16, z Mask8x16) Uint8x16
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedEqual(y Uint8x16, z Mask8x16) Mask8x16
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedGreater(y Uint8x16, z Mask8x16) Mask8x16
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedGreaterEqual(y Uint8x16, z Mask8x16) Mask8x16
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedLess(y Uint8x16, z Mask8x16) Mask8x16
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedLessEqual(y Uint8x16, z Mask8x16) Mask8x16
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedMax(y Uint8x16, z Mask8x16) Uint8x16
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedMin(y Uint8x16, z Mask8x16) Uint8x16
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedNotEqual(y Uint8x16, z Mask8x16) Mask8x16
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedSaturatedAdd(y Uint8x16, z Mask8x16) Uint8x16
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedSaturatedSub(y Uint8x16, z Mask8x16) Uint8x16
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedSub(y Uint8x16, z Mask8x16) Uint8x16
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedAdd(y Uint8x32, z Mask8x32) Uint8x32
 
+// Average computes the rounded average of corresponding elements.
+//
 // Asm: VPAVGB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedAverage(y Uint8x32, z Mask8x32) Uint8x32
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedEqual(y Uint8x32, z Mask8x32) Mask8x32
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedGreater(y Uint8x32, z Mask8x32) Mask8x32
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedGreaterEqual(y Uint8x32, z Mask8x32) Mask8x32
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedLess(y Uint8x32, z Mask8x32) Mask8x32
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedLessEqual(y Uint8x32, z Mask8x32) Mask8x32
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedMax(y Uint8x32, z Mask8x32) Uint8x32
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedMin(y Uint8x32, z Mask8x32) Uint8x32
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedNotEqual(y Uint8x32, z Mask8x32) Mask8x32
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedSaturatedAdd(y Uint8x32, z Mask8x32) Uint8x32
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedSaturatedSub(y Uint8x32, z Mask8x32) Uint8x32
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedSub(y Uint8x32, z Mask8x32) Uint8x32
 
+// Add adds corresponding elements of two vectors.
+//
 // Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedAdd(y Uint8x64, z Mask8x64) Uint8x64
 
+// Average computes the rounded average of corresponding elements.
+//
 // Asm: VPAVGB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedAverage(y Uint8x64, z Mask8x64) Uint8x64
 
-// Predicate immediate is 0 if it has;
+// Equal compares for equality, masked.
+// Const Immediate = 0.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedEqual(y Uint8x64, z Mask8x64) Mask8x64
 
-// Predicate immediate is 6 if it has;
+// Greater compares for greater than.
+// Const Immediate = 6.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedGreater(y Uint8x64, z Mask8x64) Mask8x64
 
-// Predicate immediate is 5 if it has;
+// GreaterEqual compares for greater than or equal.
+// Const Immediate = 5.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedGreaterEqual(y Uint8x64, z Mask8x64) Mask8x64
 
-// Predicate immediate is 1 if it has;
+// Less compares for less than.
+// Const Immediate = 1.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedLess(y Uint8x64, z Mask8x64) Mask8x64
 
-// Predicate immediate is 2 if it has;
+// LessEqual compares for less than or equal.
+// Const Immediate = 2.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedLessEqual(y Uint8x64, z Mask8x64) Mask8x64
 
+// Max computes the maximum of corresponding elements.
+//
 // Asm: VPMAXUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedMax(y Uint8x64, z Mask8x64) Uint8x64
 
+// Min computes the minimum of corresponding elements.
+//
 // Asm: VPMINUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedMin(y Uint8x64, z Mask8x64) Uint8x64
 
-// Predicate immediate is 4 if it has;
+// NotEqual compares for inequality.
+// Const Immediate = 4.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedNotEqual(y Uint8x64, z Mask8x64) Mask8x64
 
+// SaturatedAdd adds corresponding elements of two vectors with saturation.
+//
 // Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedSaturatedAdd(y Uint8x64, z Mask8x64) Uint8x64
 
+// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+//
 // Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedSaturatedSub(y Uint8x64, z Mask8x64) Uint8x64
 
+// Sub subtracts corresponding elements of two vectors.
+//
 // Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedSub(y Uint8x64, z Mask8x64) Uint8x64
 
+// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) CeilSuppressExceptionWithPrecision(imm8 uint8) Float32x16
 
+// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) CeilSuppressExceptionWithPrecision(imm8 uint8) Float32x4
 
+// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) CeilSuppressExceptionWithPrecision(imm8 uint8) Float32x8
 
+// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) CeilSuppressExceptionWithPrecision(imm8 uint8) Float64x2
 
+// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) CeilSuppressExceptionWithPrecision(imm8 uint8) Float64x4
 
+// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) CeilSuppressExceptionWithPrecision(imm8 uint8) Float64x8
 
+// CeilWithPrecision rounds elements up with specified precision, masked.
+// Const Immediate = 2.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) CeilWithPrecision(imm8 uint8) Float32x16
 
+// CeilWithPrecision rounds elements up with specified precision, masked.
+// Const Immediate = 2.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) CeilWithPrecision(imm8 uint8) Float32x4
 
+// CeilWithPrecision rounds elements up with specified precision, masked.
+// Const Immediate = 2.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) CeilWithPrecision(imm8 uint8) Float32x8
 
+// CeilWithPrecision rounds elements up with specified precision, masked.
+// Const Immediate = 2.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) CeilWithPrecision(imm8 uint8) Float64x2
 
+// CeilWithPrecision rounds elements up with specified precision, masked.
+// Const Immediate = 2.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) CeilWithPrecision(imm8 uint8) Float64x4
 
+// CeilWithPrecision rounds elements up with specified precision, masked.
+// Const Immediate = 2.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) CeilWithPrecision(imm8 uint8) Float64x8
 
+// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) DiffWithCeilSuppressExceptionWithPrecision(imm8 uint8) Float32x16
 
+// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) DiffWithCeilSuppressExceptionWithPrecision(imm8 uint8) Float32x4
 
+// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) DiffWithCeilSuppressExceptionWithPrecision(imm8 uint8) Float32x8
 
+// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) DiffWithCeilSuppressExceptionWithPrecision(imm8 uint8) Float64x2
 
+// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) DiffWithCeilSuppressExceptionWithPrecision(imm8 uint8) Float64x4
 
+// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) DiffWithCeilSuppressExceptionWithPrecision(imm8 uint8) Float64x8
 
+// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+// Const Immediate = 2.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) DiffWithCeilWithPrecision(imm8 uint8) Float32x16
 
+// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+// Const Immediate = 2.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) DiffWithCeilWithPrecision(imm8 uint8) Float32x4
 
+// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+// Const Immediate = 2.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) DiffWithCeilWithPrecision(imm8 uint8) Float32x8
 
+// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+// Const Immediate = 2.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) DiffWithCeilWithPrecision(imm8 uint8) Float64x2
 
+// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+// Const Immediate = 2.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) DiffWithCeilWithPrecision(imm8 uint8) Float64x4
 
+// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+// Const Immediate = 2.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) DiffWithCeilWithPrecision(imm8 uint8) Float64x8
 
+// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
+// Const Immediate = 9.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) DiffWithFloorSuppressExceptionWithPrecision(imm8 uint8) Float32x16
 
+// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
+// Const Immediate = 9.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) DiffWithFloorSuppressExceptionWithPrecision(imm8 uint8) Float32x4
 
+// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
+// Const Immediate = 9.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) DiffWithFloorSuppressExceptionWithPrecision(imm8 uint8) Float32x8
 
+// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
+// Const Immediate = 9.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) DiffWithFloorSuppressExceptionWithPrecision(imm8 uint8) Float64x2
 
+// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
+// Const Immediate = 9.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) DiffWithFloorSuppressExceptionWithPrecision(imm8 uint8) Float64x4
 
+// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
+// Const Immediate = 9.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) DiffWithFloorSuppressExceptionWithPrecision(imm8 uint8) Float64x8
 
+// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+// Const Immediate = 1.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) DiffWithFloorWithPrecision(imm8 uint8) Float32x16
 
+// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+// Const Immediate = 1.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) DiffWithFloorWithPrecision(imm8 uint8) Float32x4
 
+// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+// Const Immediate = 1.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) DiffWithFloorWithPrecision(imm8 uint8) Float32x8
 
+// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+// Const Immediate = 1.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) DiffWithFloorWithPrecision(imm8 uint8) Float64x2
 
+// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+// Const Immediate = 1.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) DiffWithFloorWithPrecision(imm8 uint8) Float64x4
 
+// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+// Const Immediate = 1.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) DiffWithFloorWithPrecision(imm8 uint8) Float64x8
 
+// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) DiffWithRoundSuppressExceptionWithPrecision(imm8 uint8) Float32x16
 
+// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) DiffWithRoundSuppressExceptionWithPrecision(imm8 uint8) Float32x4
 
+// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) DiffWithRoundSuppressExceptionWithPrecision(imm8 uint8) Float32x8
 
+// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) DiffWithRoundSuppressExceptionWithPrecision(imm8 uint8) Float64x2
 
+// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) DiffWithRoundSuppressExceptionWithPrecision(imm8 uint8) Float64x4
 
+// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) DiffWithRoundSuppressExceptionWithPrecision(imm8 uint8) Float64x8
 
+// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) DiffWithRoundWithPrecision(imm8 uint8) Float32x16
 
+// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) DiffWithRoundWithPrecision(imm8 uint8) Float32x4
 
+// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) DiffWithRoundWithPrecision(imm8 uint8) Float32x8
 
+// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) DiffWithRoundWithPrecision(imm8 uint8) Float64x2
 
+// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) DiffWithRoundWithPrecision(imm8 uint8) Float64x4
 
+// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) DiffWithRoundWithPrecision(imm8 uint8) Float64x8
 
+// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) DiffWithTruncSuppressExceptionWithPrecision(imm8 uint8) Float32x16
 
+// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) DiffWithTruncSuppressExceptionWithPrecision(imm8 uint8) Float32x4
 
+// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) DiffWithTruncSuppressExceptionWithPrecision(imm8 uint8) Float32x8
 
+// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) DiffWithTruncSuppressExceptionWithPrecision(imm8 uint8) Float64x2
 
+// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) DiffWithTruncSuppressExceptionWithPrecision(imm8 uint8) Float64x4
 
+// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) DiffWithTruncSuppressExceptionWithPrecision(imm8 uint8) Float64x8
 
+// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) DiffWithTruncWithPrecision(imm8 uint8) Float32x16
 
+// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) DiffWithTruncWithPrecision(imm8 uint8) Float32x4
 
+// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) DiffWithTruncWithPrecision(imm8 uint8) Float32x8
 
+// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) DiffWithTruncWithPrecision(imm8 uint8) Float64x2
 
+// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) DiffWithTruncWithPrecision(imm8 uint8) Float64x4
 
+// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) DiffWithTruncWithPrecision(imm8 uint8) Float64x8
 
+// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
+// Const Immediate = 9.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) FloorSuppressExceptionWithPrecision(imm8 uint8) Float32x16
 
+// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
+// Const Immediate = 9.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) FloorSuppressExceptionWithPrecision(imm8 uint8) Float32x4
 
+// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
+// Const Immediate = 9.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) FloorSuppressExceptionWithPrecision(imm8 uint8) Float32x8
 
+// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
+// Const Immediate = 9.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) FloorSuppressExceptionWithPrecision(imm8 uint8) Float64x2
 
+// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
+// Const Immediate = 9.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) FloorSuppressExceptionWithPrecision(imm8 uint8) Float64x4
 
+// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
+// Const Immediate = 9.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) FloorSuppressExceptionWithPrecision(imm8 uint8) Float64x8
 
+// FloorWithPrecision rounds elements down with specified precision, masked.
+// Const Immediate = 1.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) FloorWithPrecision(imm8 uint8) Float32x16
 
+// FloorWithPrecision rounds elements down with specified precision, masked.
+// Const Immediate = 1.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) FloorWithPrecision(imm8 uint8) Float32x4
 
+// FloorWithPrecision rounds elements down with specified precision, masked.
+// Const Immediate = 1.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) FloorWithPrecision(imm8 uint8) Float32x8
 
+// FloorWithPrecision rounds elements down with specified precision, masked.
+// Const Immediate = 1.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) FloorWithPrecision(imm8 uint8) Float64x2
 
+// FloorWithPrecision rounds elements down with specified precision, masked.
+// Const Immediate = 1.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) FloorWithPrecision(imm8 uint8) Float64x4
 
+// FloorWithPrecision rounds elements down with specified precision, masked.
+// Const Immediate = 1.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) FloorWithPrecision(imm8 uint8) Float64x8
 
+// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) RoundSuppressExceptionWithPrecision(imm8 uint8) Float32x16
 
+// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) RoundSuppressExceptionWithPrecision(imm8 uint8) Float32x4
 
+// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) RoundSuppressExceptionWithPrecision(imm8 uint8) Float32x8
 
+// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) RoundSuppressExceptionWithPrecision(imm8 uint8) Float64x2
 
+// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) RoundSuppressExceptionWithPrecision(imm8 uint8) Float64x4
 
+// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) RoundSuppressExceptionWithPrecision(imm8 uint8) Float64x8
 
+// RoundWithPrecision rounds elements with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) RoundWithPrecision(imm8 uint8) Float32x16
 
+// RoundWithPrecision rounds elements with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) RoundWithPrecision(imm8 uint8) Float32x4
 
+// RoundWithPrecision rounds elements with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) RoundWithPrecision(imm8 uint8) Float32x8
 
+// RoundWithPrecision rounds elements with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) RoundWithPrecision(imm8 uint8) Float64x2
 
+// RoundWithPrecision rounds elements with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) RoundWithPrecision(imm8 uint8) Float64x4
 
+// RoundWithPrecision rounds elements with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) RoundWithPrecision(imm8 uint8) Float64x8
 
+// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) TruncSuppressExceptionWithPrecision(imm8 uint8) Float32x16
 
+// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) TruncSuppressExceptionWithPrecision(imm8 uint8) Float32x4
 
+// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) TruncSuppressExceptionWithPrecision(imm8 uint8) Float32x8
 
+// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) TruncSuppressExceptionWithPrecision(imm8 uint8) Float64x2
 
+// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) TruncSuppressExceptionWithPrecision(imm8 uint8) Float64x4
 
+// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) TruncSuppressExceptionWithPrecision(imm8 uint8) Float64x8
 
+// TruncWithPrecision truncates elements with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) TruncWithPrecision(imm8 uint8) Float32x16
 
+// TruncWithPrecision truncates elements with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) TruncWithPrecision(imm8 uint8) Float32x4
 
+// TruncWithPrecision truncates elements with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) TruncWithPrecision(imm8 uint8) Float32x8
 
+// TruncWithPrecision truncates elements with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) TruncWithPrecision(imm8 uint8) Float64x2
 
+// TruncWithPrecision truncates elements with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) TruncWithPrecision(imm8 uint8) Float64x4
 
+// TruncWithPrecision truncates elements with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) TruncWithPrecision(imm8 uint8) Float64x8
 
+// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedCeilSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
 
+// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedCeilSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
 
+// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedCeilSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
 
+// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedCeilSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
 
+// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedCeilSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
 
+// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedCeilSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
 
+// CeilWithPrecision rounds elements up with specified precision, masked.
+// Const Immediate = 2.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedCeilWithPrecision(imm uint8, y Mask32x16) Float32x16
 
+// CeilWithPrecision rounds elements up with specified precision, masked.
+// Const Immediate = 2.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedCeilWithPrecision(imm uint8, y Mask32x4) Float32x4
 
+// CeilWithPrecision rounds elements up with specified precision, masked.
+// Const Immediate = 2.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedCeilWithPrecision(imm uint8, y Mask32x8) Float32x8
 
+// CeilWithPrecision rounds elements up with specified precision, masked.
+// Const Immediate = 2.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedCeilWithPrecision(imm uint8, y Mask64x2) Float64x2
 
+// CeilWithPrecision rounds elements up with specified precision, masked.
+// Const Immediate = 2.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedCeilWithPrecision(imm uint8, y Mask64x4) Float64x4
 
+// CeilWithPrecision rounds elements up with specified precision, masked.
+// Const Immediate = 2.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedCeilWithPrecision(imm uint8, y Mask64x8) Float64x8
 
+// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedDiffWithCeilSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
 
+// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedDiffWithCeilSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
 
+// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedDiffWithCeilSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
 
+// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedDiffWithCeilSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
 
+// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedDiffWithCeilSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
 
+// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
+// Const Immediate = 10.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedDiffWithCeilSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
 
+// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+// Const Immediate = 2.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedDiffWithCeilWithPrecision(imm uint8, y Mask32x16) Float32x16
 
+// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+// Const Immediate = 2.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedDiffWithCeilWithPrecision(imm uint8, y Mask32x4) Float32x4
 
+// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+// Const Immediate = 2.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedDiffWithCeilWithPrecision(imm uint8, y Mask32x8) Float32x8
 
+// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+// Const Immediate = 2.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedDiffWithCeilWithPrecision(imm uint8, y Mask64x2) Float64x2
 
+// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+// Const Immediate = 2.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedDiffWithCeilWithPrecision(imm uint8, y Mask64x4) Float64x4
 
+// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+// Const Immediate = 2.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedDiffWithCeilWithPrecision(imm uint8, y Mask64x8) Float64x8
 
+// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
+// Const Immediate = 9.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedDiffWithFloorSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
 
+// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
+// Const Immediate = 9.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedDiffWithFloorSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
 
+// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
+// Const Immediate = 9.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedDiffWithFloorSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
 
+// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
+// Const Immediate = 9.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedDiffWithFloorSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
 
+// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
+// Const Immediate = 9.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedDiffWithFloorSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
 
+// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
+// Const Immediate = 9.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedDiffWithFloorSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
 
+// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+// Const Immediate = 1.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedDiffWithFloorWithPrecision(imm uint8, y Mask32x16) Float32x16
 
+// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+// Const Immediate = 1.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedDiffWithFloorWithPrecision(imm uint8, y Mask32x4) Float32x4
 
+// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+// Const Immediate = 1.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedDiffWithFloorWithPrecision(imm uint8, y Mask32x8) Float32x8
 
+// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+// Const Immediate = 1.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedDiffWithFloorWithPrecision(imm uint8, y Mask64x2) Float64x2
 
+// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+// Const Immediate = 1.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedDiffWithFloorWithPrecision(imm uint8, y Mask64x4) Float64x4
 
+// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+// Const Immediate = 1.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedDiffWithFloorWithPrecision(imm uint8, y Mask64x8) Float64x8
 
+// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedDiffWithRoundSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
 
+// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedDiffWithRoundSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
 
+// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedDiffWithRoundSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
 
+// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedDiffWithRoundSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
 
+// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedDiffWithRoundSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
 
+// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedDiffWithRoundSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
 
+// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedDiffWithRoundWithPrecision(imm uint8, y Mask32x16) Float32x16
 
+// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedDiffWithRoundWithPrecision(imm uint8, y Mask32x4) Float32x4
 
+// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedDiffWithRoundWithPrecision(imm uint8, y Mask32x8) Float32x8
 
+// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedDiffWithRoundWithPrecision(imm uint8, y Mask64x2) Float64x2
 
+// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedDiffWithRoundWithPrecision(imm uint8, y Mask64x4) Float64x4
 
+// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedDiffWithRoundWithPrecision(imm uint8, y Mask64x8) Float64x8
 
+// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedDiffWithTruncSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
 
+// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedDiffWithTruncSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
 
+// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedDiffWithTruncSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
 
+// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedDiffWithTruncSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
 
+// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedDiffWithTruncSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
 
+// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedDiffWithTruncSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
 
+// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedDiffWithTruncWithPrecision(imm uint8, y Mask32x16) Float32x16
 
+// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedDiffWithTruncWithPrecision(imm uint8, y Mask32x4) Float32x4
 
+// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedDiffWithTruncWithPrecision(imm uint8, y Mask32x8) Float32x8
 
+// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedDiffWithTruncWithPrecision(imm uint8, y Mask64x2) Float64x2
 
+// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedDiffWithTruncWithPrecision(imm uint8, y Mask64x4) Float64x4
 
+// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedDiffWithTruncWithPrecision(imm uint8, y Mask64x8) Float64x8
 
+// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
+// Const Immediate = 9.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedFloorSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
 
+// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
+// Const Immediate = 9.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedFloorSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
 
+// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
+// Const Immediate = 9.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedFloorSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
 
+// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
+// Const Immediate = 9.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedFloorSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
 
+// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
+// Const Immediate = 9.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedFloorSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
 
+// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
+// Const Immediate = 9.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedFloorSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
 
+// FloorWithPrecision rounds elements down with specified precision, masked.
+// Const Immediate = 1.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedFloorWithPrecision(imm uint8, y Mask32x16) Float32x16
 
+// FloorWithPrecision rounds elements down with specified precision, masked.
+// Const Immediate = 1.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedFloorWithPrecision(imm uint8, y Mask32x4) Float32x4
 
+// FloorWithPrecision rounds elements down with specified precision, masked.
+// Const Immediate = 1.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedFloorWithPrecision(imm uint8, y Mask32x8) Float32x8
 
+// FloorWithPrecision rounds elements down with specified precision, masked.
+// Const Immediate = 1.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedFloorWithPrecision(imm uint8, y Mask64x2) Float64x2
 
+// FloorWithPrecision rounds elements down with specified precision, masked.
+// Const Immediate = 1.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedFloorWithPrecision(imm uint8, y Mask64x4) Float64x4
 
+// FloorWithPrecision rounds elements down with specified precision, masked.
+// Const Immediate = 1.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedFloorWithPrecision(imm uint8, y Mask64x8) Float64x8
 
+// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedRoundSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
 
+// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedRoundSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
 
+// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedRoundSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
 
+// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedRoundSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
 
+// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedRoundSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
 
+// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
+// Const Immediate = 8.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedRoundSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
 
+// RoundWithPrecision rounds elements with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedRoundWithPrecision(imm uint8, y Mask32x16) Float32x16
 
+// RoundWithPrecision rounds elements with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedRoundWithPrecision(imm uint8, y Mask32x4) Float32x4
 
+// RoundWithPrecision rounds elements with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedRoundWithPrecision(imm uint8, y Mask32x8) Float32x8
 
+// RoundWithPrecision rounds elements with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedRoundWithPrecision(imm uint8, y Mask64x2) Float64x2
 
+// RoundWithPrecision rounds elements with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedRoundWithPrecision(imm uint8, y Mask64x4) Float64x4
 
+// RoundWithPrecision rounds elements with specified precision.
+// Const Immediate = 0.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedRoundWithPrecision(imm uint8, y Mask64x8) Float64x8
 
+// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedTruncSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
 
+// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedTruncSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
 
+// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedTruncSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
 
+// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedTruncSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
 
+// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedTruncSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
 
+// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
+// Const Immediate = 11.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedTruncSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
 
+// TruncWithPrecision truncates elements with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedTruncWithPrecision(imm uint8, y Mask32x16) Float32x16
 
+// TruncWithPrecision truncates elements with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedTruncWithPrecision(imm uint8, y Mask32x4) Float32x4
 
+// TruncWithPrecision truncates elements with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedTruncWithPrecision(imm uint8, y Mask32x8) Float32x8
 
+// TruncWithPrecision truncates elements with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedTruncWithPrecision(imm uint8, y Mask64x2) Float64x2
 
+// TruncWithPrecision truncates elements with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedTruncWithPrecision(imm uint8, y Mask64x4) Float64x4
 
+// TruncWithPrecision truncates elements with specified precision.
+// Const Immediate = 3.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedTruncWithPrecision(imm uint8, y Mask64x8) Float64x8
 
