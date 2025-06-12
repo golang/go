@@ -1202,6 +1202,7 @@ const (
 	OpAMD64VRCP14PS512
 	OpAMD64VRSQRT14PS512
 	OpAMD64VDIVPS512
+	OpAMD64VADDPSMasked512
 	OpAMD64VANDPSMasked512
 	OpAMD64VANDNPSMasked512
 	OpAMD64VRCP14PSMasked512
@@ -1213,7 +1214,6 @@ const (
 	OpAMD64VSCALEFPSMasked512
 	OpAMD64VORPSMasked512
 	OpAMD64VSQRTPSMasked512
-	OpAMD64VADDPSMasked512
 	OpAMD64VXORPSMasked512
 	OpAMD64VMAXPS512
 	OpAMD64VMINPS512
@@ -1222,6 +1222,7 @@ const (
 	OpAMD64VORPS512
 	OpAMD64VSQRTPS512
 	OpAMD64VXORPS512
+	OpAMD64VADDPS128
 	OpAMD64VANDPS128
 	OpAMD64VANDNPS128
 	OpAMD64VRCP14PS128
@@ -1248,7 +1249,6 @@ const (
 	OpAMD64VHADDPS128
 	OpAMD64VHSUBPS128
 	OpAMD64VSQRTPS128
-	OpAMD64VADDPS128
 	OpAMD64VXORPS128
 	OpAMD64VADDPS256
 	OpAMD64VANDPS256
@@ -1256,6 +1256,7 @@ const (
 	OpAMD64VRCP14PS256
 	OpAMD64VRSQRTPS256
 	OpAMD64VDIVPS256
+	OpAMD64VADDPSMasked256
 	OpAMD64VANDPSMasked256
 	OpAMD64VANDNPSMasked256
 	OpAMD64VRCP14PSMasked256
@@ -1267,7 +1268,6 @@ const (
 	OpAMD64VSCALEFPSMasked256
 	OpAMD64VORPSMasked256
 	OpAMD64VSQRTPSMasked256
-	OpAMD64VADDPSMasked256
 	OpAMD64VXORPSMasked256
 	OpAMD64VMAXPS256
 	OpAMD64VMINPS256
@@ -1312,6 +1312,7 @@ const (
 	OpAMD64VRCP14PD256
 	OpAMD64VRSQRT14PD256
 	OpAMD64VDIVPD256
+	OpAMD64VADDPDMasked256
 	OpAMD64VANDPDMasked256
 	OpAMD64VANDNPDMasked256
 	OpAMD64VRCP14PDMasked256
@@ -1323,7 +1324,6 @@ const (
 	OpAMD64VSCALEFPDMasked256
 	OpAMD64VORPDMasked256
 	OpAMD64VSQRTPDMasked256
-	OpAMD64VADDPDMasked256
 	OpAMD64VXORPDMasked256
 	OpAMD64VMAXPD256
 	OpAMD64VMINPD256
@@ -1334,11 +1334,13 @@ const (
 	OpAMD64VHSUBPD256
 	OpAMD64VSQRTPD256
 	OpAMD64VXORPD256
+	OpAMD64VADDPD512
 	OpAMD64VANDPD512
 	OpAMD64VANDNPD512
 	OpAMD64VRCP14PD512
 	OpAMD64VRSQRT14PD512
 	OpAMD64VDIVPD512
+	OpAMD64VADDPDMasked512
 	OpAMD64VANDPDMasked512
 	OpAMD64VANDNPDMasked512
 	OpAMD64VRCP14PDMasked512
@@ -1350,7 +1352,6 @@ const (
 	OpAMD64VSCALEFPDMasked512
 	OpAMD64VORPDMasked512
 	OpAMD64VSQRTPDMasked512
-	OpAMD64VADDPDMasked512
 	OpAMD64VXORPDMasked512
 	OpAMD64VMAXPD512
 	OpAMD64VMINPD512
@@ -1358,10 +1359,11 @@ const (
 	OpAMD64VSCALEFPD512
 	OpAMD64VORPD512
 	OpAMD64VSQRTPD512
-	OpAMD64VADDPD512
 	OpAMD64VXORPD512
 	OpAMD64VPABSW256
 	OpAMD64VPADDW256
+	OpAMD64VPAND256
+	OpAMD64VPANDN256
 	OpAMD64VPCMPEQW256
 	OpAMD64VPCMPGTW256
 	OpAMD64VPABSWMasked256
@@ -1372,6 +1374,7 @@ const (
 	OpAMD64VPMINSWMasked256
 	OpAMD64VPMULHWMasked256
 	OpAMD64VPMULLWMasked256
+	OpAMD64VPOPCNTWMasked256
 	OpAMD64VPADDSWMasked256
 	OpAMD64VPSUBSWMasked256
 	OpAMD64VPSUBWMasked256
@@ -1379,33 +1382,49 @@ const (
 	OpAMD64VPMINSW256
 	OpAMD64VPMULHW256
 	OpAMD64VPMULLW256
+	OpAMD64VPOR256
+	OpAMD64VPHADDW256
 	OpAMD64VPHSUBW256
+	OpAMD64VPOPCNTW256
+	OpAMD64VPADDSW256
 	OpAMD64VPHADDSW256
 	OpAMD64VPHSUBSW256
 	OpAMD64VPSUBSW256
 	OpAMD64VPSIGNW256
 	OpAMD64VPSUBW256
+	OpAMD64VPXOR256
 	OpAMD64VPABSW512
 	OpAMD64VPADDW512
 	OpAMD64VPCMPEQW512
 	OpAMD64VPCMPGTW512
 	OpAMD64VPABSWMasked512
+	OpAMD64VPADDWMasked512
 	OpAMD64VPCMPEQWMasked512
 	OpAMD64VPCMPGTWMasked512
 	OpAMD64VPMAXSWMasked512
 	OpAMD64VPMINSWMasked512
 	OpAMD64VPMULHWMasked512
 	OpAMD64VPMULLWMasked512
+	OpAMD64VPOPCNTWMasked512
+	OpAMD64VPADDSWMasked512
+	OpAMD64VPSUBSWMasked512
+	OpAMD64VPSUBWMasked512
 	OpAMD64VPMAXSW512
 	OpAMD64VPMINSW512
 	OpAMD64VPMULHW512
 	OpAMD64VPMULLW512
+	OpAMD64VPOPCNTW512
+	OpAMD64VPADDSW512
 	OpAMD64VPSUBSW512
+	OpAMD64VPSUBW512
 	OpAMD64VPABSW128
 	OpAMD64VPADDW128
+	OpAMD64VPAND128
+	OpAMD64VPANDN128
 	OpAMD64VPCMPEQW128
 	OpAMD64VPCMPGTW128
 	OpAMD64VPABSWMasked128
+	OpAMD64VPADDWMasked128
 	OpAMD64VPCMPEQWMasked128
 	OpAMD64VPCMPGTWMasked128
 	OpAMD64VPMAXSWMasked128
@@ -1413,21 +1432,40 @@ const (
 	OpAMD64VPMULHWMasked128
 	OpAMD64VPMULLWMasked128
 	OpAMD64VPOPCNTWMasked128
+	OpAMD64VPADDSWMasked128
 	OpAMD64VPSUBSWMasked128
+	OpAMD64VPSUBWMasked128
 	OpAMD64VPMAXSW128
 	OpAMD64VPMINSW128
 	OpAMD64VPMULHW128
 	OpAMD64VPMULLW128
+	OpAMD64VPOR128
+	OpAMD64VPHADDW128
 	OpAMD64VPHSUBW128
+	OpAMD64VPOPCNTW128
+	OpAMD64VPADDSW128
 	OpAMD64VPHADDSW128
 	OpAMD64VPHSUBSW128
+	OpAMD64VPSUBSW128
 	OpAMD64VPSIGNW128
+	OpAMD64VPSUBW128
+	OpAMD64VPXOR128
 	OpAMD64VPABSD512
+	OpAMD64VPADDD512
 	OpAMD64VPANDD512
+	OpAMD64VPANDND512
+	OpAMD64VPCMPEQD512
+	OpAMD64VPCMPGTD512
 	OpAMD64VPABSDMasked512
+	OpAMD64VPADDDMasked512
+	OpAMD64VPANDDMasked512
+	OpAMD64VPANDNDMasked512
+	OpAMD64VPCMPEQDMasked512
+	OpAMD64VPCMPGTDMasked512
 	OpAMD64VPMAXSDMasked512
 	OpAMD64VPMINSDMasked512
 	OpAMD64VPMULLDMasked512
+	OpAMD64VPORDMasked512
 	OpAMD64VPOPCNTDMasked512
 	OpAMD64VPSUBDMasked512
 	OpAMD64VPXORDMasked512
@@ -1435,12 +1473,19 @@ const (
 	OpAMD64VPMINSD512
 	OpAMD64VPMULLD512
 	OpAMD64VPORD512
+	OpAMD64VPOPCNTD512
+	OpAMD64VPSUBD512
 	OpAMD64VPXORD512
 	OpAMD64VPABSD128
+	OpAMD64VPADDD128
 	OpAMD64VPCMPEQD128
 	OpAMD64VPCMPGTD128
 	OpAMD64VPABSDMasked128
+	OpAMD64VPADDDMasked128
 	OpAMD64VPANDDMasked128
+	OpAMD64VPANDNDMasked128
+	OpAMD64VPCMPEQDMasked128
+	OpAMD64VPCMPGTDMasked128
 	OpAMD64VPMAXSDMasked128
 	OpAMD64VPMINSDMasked128
 	OpAMD64VPMULLDMasked128
@@ -1450,31 +1495,45 @@ const (
 	OpAMD64VPXORDMasked128
 	OpAMD64VPMAXSD128
 	OpAMD64VPMINSD128
+	OpAMD64VPMULDQ128
 	OpAMD64VPMULLD128
+	OpAMD64VPHADDD128
 	OpAMD64VPHSUBD128
+	OpAMD64VPOPCNTD128
 	OpAMD64VPSIGND128
 	OpAMD64VPSUBD128
 	OpAMD64VPABSD256
-	OpAMD64VPAND256
+	OpAMD64VPADDD256
 	OpAMD64VPCMPEQD256
 	OpAMD64VPCMPGTD256
 	OpAMD64VPABSDMasked256
+	OpAMD64VPADDDMasked256
+	OpAMD64VPANDDMasked256
+	OpAMD64VPANDNDMasked256
+	OpAMD64VPCMPEQDMasked256
+	OpAMD64VPCMPGTDMasked256
 	OpAMD64VPMAXSDMasked256
 	OpAMD64VPMINSDMasked256
 	OpAMD64VPMULLDMasked256
 	OpAMD64VPORDMasked256
+	OpAMD64VPOPCNTDMasked256
 	OpAMD64VPSUBDMasked256
+	OpAMD64VPXORDMasked256
 	OpAMD64VPMAXSD256
 	OpAMD64VPMINSD256
+	OpAMD64VPMULDQ256
 	OpAMD64VPMULLD256
+	OpAMD64VPHADDD256
 	OpAMD64VPHSUBD256
 	OpAMD64VPOPCNTD256
 	OpAMD64VPSIGND256
 	OpAMD64VPSUBD256
 	OpAMD64VPABSQ128
+	OpAMD64VPADDQ128
 	OpAMD64VPCMPEQQ128
 	OpAMD64VPCMPGTQ128
 	OpAMD64VPABSQMasked128
+	OpAMD64VPADDQMasked128
 	OpAMD64VPANDQMasked128
 	OpAMD64VPANDNQMasked128
 	OpAMD64VPCMPEQQMasked128
@@ -1483,17 +1542,21 @@ const (
 	OpAMD64VPMINSQMasked128
 	OpAMD64VPMULDQMasked128
 	OpAMD64VPMULLQMasked128
+	OpAMD64VPORQMasked128
+	OpAMD64VPOPCNTQMasked128
 	OpAMD64VPSUBQMasked128
+	OpAMD64VPXORQMasked128
 	OpAMD64VPMAXSQ128
 	OpAMD64VPMINSQ128
-	OpAMD64VPMULDQ128
 	OpAMD64VPMULLQ128
-	OpAMD64VPOR128
+	OpAMD64VPOPCNTQ128
+	OpAMD64VPSUBQ128
 	OpAMD64VPABSQ256
 	OpAMD64VPADDQ256
 	OpAMD64VPCMPEQQ256
 	OpAMD64VPCMPGTQ256
 	OpAMD64VPABSQMasked256
+	OpAMD64VPADDQMasked256
 	OpAMD64VPANDQMasked256
 	OpAMD64VPANDNQMasked256
 	OpAMD64VPCMPEQQMasked256
@@ -1505,19 +1568,21 @@ const (
 	OpAMD64VPORQMasked256
 	OpAMD64VPOPCNTQMasked256
 	OpAMD64VPSUBQMasked256
+	OpAMD64VPXORQMasked256
 	OpAMD64VPMAXSQ256
 	OpAMD64VPMINSQ256
-	OpAMD64VPMULDQ256
 	OpAMD64VPMULLQ256
-	OpAMD64VPOR256
 	OpAMD64VPOPCNTQ256
 	OpAMD64VPSUBQ256
 	OpAMD64VPABSQ512
+	OpAMD64VPADDQ512
 	OpAMD64VPANDQ512
+	OpAMD64VPANDNQ512
 	OpAMD64VPCMPEQQ512
 	OpAMD64VPCMPGTQ512
 	OpAMD64VPABSQMasked512
 	OpAMD64VPADDQMasked512
+	OpAMD64VPANDQMasked512
 	OpAMD64VPANDNQMasked512
 	OpAMD64VPCMPEQQMasked512
 	OpAMD64VPCMPGTQMasked512
@@ -1525,48 +1590,78 @@ const (
 	OpAMD64VPMINSQMasked512
 	OpAMD64VPMULDQMasked512
 	OpAMD64VPMULLQMasked512
+	OpAMD64VPORQMasked512
+	OpAMD64VPOPCNTQMasked512
+	OpAMD64VPSUBQMasked512
+	OpAMD64VPXORQMasked512
 	OpAMD64VPMAXSQ512
 	OpAMD64VPMINSQ512
 	OpAMD64VPMULDQ512
 	OpAMD64VPMULLQ512
+	OpAMD64VPORQ512
 	OpAMD64VPOPCNTQ512
 	OpAMD64VPSUBQ512
 	OpAMD64VPXORQ512
 	OpAMD64VPABSB128
 	OpAMD64VPADDB128
-	OpAMD64VPAND128
 	OpAMD64VPCMPEQB128
 	OpAMD64VPCMPGTB128
 	OpAMD64VPABSBMasked128
 	OpAMD64VPADDBMasked128
+	OpAMD64VPCMPEQBMasked128
+	OpAMD64VPCMPGTBMasked128
 	OpAMD64VPMAXSBMasked128
 	OpAMD64VPMINSBMasked128
+	OpAMD64VPOPCNTBMasked128
+	OpAMD64VPADDSBMasked128
 	OpAMD64VPSUBSBMasked128
+	OpAMD64VPSUBBMasked128
 	OpAMD64VPMAXSB128
 	OpAMD64VPMINSB128
+	OpAMD64VPOPCNTB128
+	OpAMD64VPADDSB128
+	OpAMD64VPSUBSB128
 	OpAMD64VPSIGNB128
 	OpAMD64VPSUBB128
 	OpAMD64VPABSB256
 	OpAMD64VPADDB256
-	OpAMD64VPANDN256
 	OpAMD64VPCMPEQB256
 	OpAMD64VPCMPGTB256
 	OpAMD64VPABSBMasked256
+	OpAMD64VPADDBMasked256
+	OpAMD64VPCMPEQBMasked256
+	OpAMD64VPCMPGTBMasked256
 	OpAMD64VPMAXSBMasked256
 	OpAMD64VPMINSBMasked256
+	OpAMD64VPOPCNTBMasked256
+	OpAMD64VPADDSBMasked256
 	OpAMD64VPSUBSBMasked256
+	OpAMD64VPSUBBMasked256
 	OpAMD64VPMAXSB256
 	OpAMD64VPMINSB256
 	OpAMD64VPOPCNTB256
+	OpAMD64VPADDSB256
+	OpAMD64VPSUBSB256
 	OpAMD64VPSIGNB256
+	OpAMD64VPSUBB256
 	OpAMD64VPABSB512
+	OpAMD64VPADDB512
+	OpAMD64VPCMPEQB512
+	OpAMD64VPCMPGTB512
 	OpAMD64VPABSBMasked512
+	OpAMD64VPADDBMasked512
+	OpAMD64VPCMPEQBMasked512
+	OpAMD64VPCMPGTBMasked512
 	OpAMD64VPMAXSBMasked512
 	OpAMD64VPMINSBMasked512
+	OpAMD64VPOPCNTBMasked512
 	OpAMD64VPADDSBMasked512
+	OpAMD64VPSUBSBMasked512
+	OpAMD64VPSUBBMasked512
 	OpAMD64VPMAXSB512
 	OpAMD64VPMINSB512
 	OpAMD64VPOPCNTB512
+	OpAMD64VPADDSB512
 	OpAMD64VPSUBSB512
 	OpAMD64VPSUBB512
 	OpAMD64VPAVGW256
@@ -1574,152 +1669,73 @@ const (
 	OpAMD64VPMAXUWMasked256
 	OpAMD64VPMINUWMasked256
 	OpAMD64VPMULHUWMasked256
-	OpAMD64VPOPCNTWMasked256
 	OpAMD64VPMAXUW256
 	OpAMD64VPMINUW256
 	OpAMD64VPMULHUW256
-	OpAMD64VPHADDW256
-	OpAMD64VPOPCNTW256
-	OpAMD64VPADDSW256
 	OpAMD64VPAVGW512
-	OpAMD64VPADDWMasked512
 	OpAMD64VPAVGWMasked512
 	OpAMD64VPMAXUWMasked512
 	OpAMD64VPMINUWMasked512
 	OpAMD64VPMULHUWMasked512
-	OpAMD64VPOPCNTWMasked512
-	OpAMD64VPADDSWMasked512
-	OpAMD64VPSUBSWMasked512
-	OpAMD64VPSUBWMasked512
 	OpAMD64VPMAXUW512
 	OpAMD64VPMINUW512
 	OpAMD64VPMULHUW512
-	OpAMD64VPOPCNTW512
-	OpAMD64VPADDSW512
-	OpAMD64VPSUBW512
 	OpAMD64VPAVGW128
-	OpAMD64VPADDWMasked128
 	OpAMD64VPAVGWMasked128
 	OpAMD64VPMAXUWMasked128
 	OpAMD64VPMINUWMasked128
 	OpAMD64VPMULHUWMasked128
-	OpAMD64VPADDSWMasked128
-	OpAMD64VPSUBWMasked128
 	OpAMD64VPMAXUW128
 	OpAMD64VPMINUW128
 	OpAMD64VPMULHUW128
-	OpAMD64VPHADDW128
-	OpAMD64VPOPCNTW128
-	OpAMD64VPADDSW128
-	OpAMD64VPSUBSW128
-	OpAMD64VPSUBW128
-	OpAMD64VPADDD512
-	OpAMD64VPANDND512
-	OpAMD64VPADDDMasked512
-	OpAMD64VPANDDMasked512
-	OpAMD64VPANDNDMasked512
 	OpAMD64VPMAXUDMasked512
 	OpAMD64VPMINUDMasked512
-	OpAMD64VPORDMasked512
 	OpAMD64VPMAXUD512
 	OpAMD64VPMINUD512
-	OpAMD64VPOPCNTD512
-	OpAMD64VPSUBD512
-	OpAMD64VPADDD128
-	OpAMD64VPADDDMasked128
-	OpAMD64VPANDNDMasked128
 	OpAMD64VPMAXUDMasked128
 	OpAMD64VPMINUDMasked128
 	OpAMD64VPMAXUD128
 	OpAMD64VPMINUD128
-	OpAMD64VPHADDD128
-	OpAMD64VPOPCNTD128
-	OpAMD64VPADDD256
-	OpAMD64VPADDDMasked256
-	OpAMD64VPANDDMasked256
-	OpAMD64VPANDNDMasked256
+	OpAMD64VPMULUDQ128
 	OpAMD64VPMAXUDMasked256
 	OpAMD64VPMINUDMasked256
-	OpAMD64VPOPCNTDMasked256
-	OpAMD64VPXORDMasked256
 	OpAMD64VPMAXUD256
 	OpAMD64VPMINUD256
 	OpAMD64VPMULUDQ256
-	OpAMD64VPHADDD256
-	OpAMD64VPXOR256
-	OpAMD64VPADDQ128
-	OpAMD64VPADDQMasked128
 	OpAMD64VPMAXUQMasked128
 	OpAMD64VPMINUQMasked128
 	OpAMD64VPMULUDQMasked128
-	OpAMD64VPORQMasked128
-	OpAMD64VPOPCNTQMasked128
-	OpAMD64VPXORQMasked128
 	OpAMD64VPMAXUQ128
 	OpAMD64VPMINUQ128
-	OpAMD64VPMULUDQ128
-	OpAMD64VPOPCNTQ128
-	OpAMD64VPSUBQ128
-	OpAMD64VPXOR128
-	OpAMD64VPADDQMasked256
 	OpAMD64VPMAXUQMasked256
 	OpAMD64VPMINUQMasked256
 	OpAMD64VPMULUDQMasked256
-	OpAMD64VPXORQMasked256
 	OpAMD64VPMAXUQ256
 	OpAMD64VPMINUQ256
-	OpAMD64VPADDQ512
-	OpAMD64VPANDNQ512
-	OpAMD64VPANDQMasked512
 	OpAMD64VPMAXUQMasked512
 	OpAMD64VPMINUQMasked512
 	OpAMD64VPMULUDQMasked512
-	OpAMD64VPORQMasked512
-	OpAMD64VPOPCNTQMasked512
-	OpAMD64VPSUBQMasked512
-	OpAMD64VPXORQMasked512
 	OpAMD64VPMAXUQ512
 	OpAMD64VPMINUQ512
 	OpAMD64VPMULUDQ512
-	OpAMD64VPORQ512
-	OpAMD64VPANDN128
 	OpAMD64VPAVGB128
 	OpAMD64VPAVGBMasked128
 	OpAMD64VPMAXUBMasked128
 	OpAMD64VPMINUBMasked128
-	OpAMD64VPOPCNTBMasked128
-	OpAMD64VPADDSBMasked128
-	OpAMD64VPSUBBMasked128
 	OpAMD64VPMAXUB128
 	OpAMD64VPMINUB128
-	OpAMD64VPOPCNTB128
-	OpAMD64VPADDSB128
-	OpAMD64VPSUBSB128
 	OpAMD64VPAVGB256
-	OpAMD64VPADDBMasked256
 	OpAMD64VPAVGBMasked256
 	OpAMD64VPMAXUBMasked256
 	OpAMD64VPMINUBMasked256
-	OpAMD64VPOPCNTBMasked256
-	OpAMD64VPADDSBMasked256
-	OpAMD64VPSUBBMasked256
 	OpAMD64VPMAXUB256
 	OpAMD64VPMINUB256
-	OpAMD64VPADDSB256
-	OpAMD64VPSUBSB256
-	OpAMD64VPSUBB256
-	OpAMD64VPADDB512
 	OpAMD64VPAVGB512
-	OpAMD64VPADDBMasked512
 	OpAMD64VPAVGBMasked512
 	OpAMD64VPMAXUBMasked512
 	OpAMD64VPMINUBMasked512
-	OpAMD64VPOPCNTBMasked512
-	OpAMD64VPSUBSBMasked512
-	OpAMD64VPSUBBMasked512
 	OpAMD64VPMAXUB512
 	OpAMD64VPMINUB512
-	OpAMD64VPADDSB512
 	OpAMD64VCMPPS512
 	OpAMD64VCMPPSMasked512
 	OpAMD64VCMPPS128
@@ -1734,26 +1750,26 @@ const (
 	OpAMD64VCMPPDMasked512
 	OpAMD64VPCMPW256
 	OpAMD64VPCMPWMasked256
-	OpAMD64VPCMPWMasked512
 	OpAMD64VPCMPW512
+	OpAMD64VPCMPWMasked512
 	OpAMD64VPCMPW128
 	OpAMD64VPCMPWMasked128
 	OpAMD64VPCMPD512
 	OpAMD64VPCMPDMasked512
-	OpAMD64VPCMPDMasked128
 	OpAMD64VPCMPD128
+	OpAMD64VPCMPDMasked128
 	OpAMD64VPCMPD256
 	OpAMD64VPCMPDMasked256
 	OpAMD64VPCMPQ128
 	OpAMD64VPCMPQMasked128
 	OpAMD64VPCMPQ256
 	OpAMD64VPCMPQMasked256
-	OpAMD64VPCMPQMasked512
 	OpAMD64VPCMPQ512
-	OpAMD64VPCMPBMasked128
+	OpAMD64VPCMPQMasked512
 	OpAMD64VPCMPB128
-	OpAMD64VPCMPBMasked256
+	OpAMD64VPCMPBMasked128
 	OpAMD64VPCMPB256
+	OpAMD64VPCMPBMasked256
 	OpAMD64VPCMPB512
 	OpAMD64VPCMPBMasked512
 	OpAMD64VPCMPUW256
@@ -1762,16 +1778,16 @@ const (
 	OpAMD64VPCMPUWMasked512
 	OpAMD64VPCMPUW128
 	OpAMD64VPCMPUWMasked128
-	OpAMD64VPCMPUDMasked512
 	OpAMD64VPCMPUD512
+	OpAMD64VPCMPUDMasked512
 	OpAMD64VPCMPUD128
 	OpAMD64VPCMPUDMasked128
-	OpAMD64VPCMPUDMasked256
 	OpAMD64VPCMPUD256
+	OpAMD64VPCMPUDMasked256
 	OpAMD64VPCMPUQ128
 	OpAMD64VPCMPUQMasked128
-	OpAMD64VPCMPUQMasked256
 	OpAMD64VPCMPUQ256
+	OpAMD64VPCMPUQMasked256
 	OpAMD64VPCMPUQ512
 	OpAMD64VPCMPUQMasked512
 	OpAMD64VPCMPUB128
@@ -17759,6 +17775,22 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VADDPSMasked512",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVADDPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VANDPSMasked512",
 		argLen:      3,
 		commutative: true,
@@ -17927,21 +17959,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VADDPSMasked512",
-		argLen: 3,
-		asm:    x86.AVADDPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VXORPSMasked512",
 		argLen:      3,
 		commutative: true,
@@ -18049,6 +18066,21 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVXORPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VADDPS128",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVADDPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -18445,20 +18477,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VADDPS128",
-		argLen: 2,
-		asm:    x86.AVADDPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VXORPS128",
 		argLen:      2,
 		commutative: true,
@@ -18552,6 +18570,22 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VADDPSMasked256",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVADDPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -18720,21 +18754,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VADDPSMasked256",
-		argLen: 3,
-		asm:    x86.AVADDPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -19388,6 +19407,22 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VADDPDMasked256",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVADDPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VANDPDMasked256",
 		argLen:      3,
 		commutative: true,
@@ -19556,21 +19591,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VADDPDMasked256",
-		argLen: 3,
-		asm:    x86.AVADDPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VXORPDMasked256",
 		argLen:      3,
 		commutative: true,
@@ -19717,6 +19737,21 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VADDPD512",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVADDPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VANDPD512",
 		argLen:      2,
 		commutative: true,
@@ -19780,6 +19815,22 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VADDPDMasked512",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVADDPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -19955,21 +20006,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VADDPDMasked512",
-		argLen: 3,
-		asm:    x86.AVADDPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VXORPDMasked512",
 		argLen:      3,
 		commutative: true,
@@ -20073,20 +20109,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VADDPD512",
-		argLen: 2,
-		asm:    x86.AVADDPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VXORPD512",
 		argLen:      2,
 		commutative: true,
@@ -20119,6 +20141,36 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVPADDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPAND256",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPAND,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPANDN256",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPANDN,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -20284,6 +20336,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPOPCNTWMasked256",
+		argLen: 2,
+		asm:    x86.AVPOPCNTW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPADDSWMasked256",
 		argLen:      3,
 		commutative: true,
@@ -20390,9 +20456,66 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPOR256",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPHADDW256",
+		argLen: 2,
+		asm:    x86.AVPHADDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:   "VPHSUBW256",
 		argLen: 2,
 		asm:    x86.AVPHSUBW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPOPCNTW256",
+		argLen: 1,
+		asm:    x86.AVPOPCNTW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDSW256",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPADDSW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -20474,6 +20597,21 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPXOR256",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPXOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:   "VPABSW512",
 		argLen: 1,
 		asm:    x86.AVPABSW,
@@ -20538,6 +20676,22 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDWMasked512",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPADDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -20640,6 +20794,66 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPOPCNTWMasked512",
+		argLen: 2,
+		asm:    x86.AVPOPCNTW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDSWMasked512",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPADDSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBSWMasked512",
+		argLen: 3,
+		asm:    x86.AVPSUBSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBWMasked512",
+		argLen: 3,
+		asm:    x86.AVPSUBW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPMAXSW512",
 		argLen:      2,
 		commutative: true,
@@ -20700,9 +20914,51 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPOPCNTW512",
+		argLen: 1,
+		asm:    x86.AVPOPCNTW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDSW512",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPADDSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:   "VPSUBSW512",
 		argLen: 2,
 		asm:    x86.AVPSUBSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBW512",
+		argLen: 2,
+		asm:    x86.AVPSUBW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -20731,6 +20987,36 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVPADDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPAND128",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPAND,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPANDN128",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPANDN,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -20778,6 +21064,22 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDWMasked128",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPADDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -20894,9 +21196,40 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPADDSWMasked128",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPADDSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:   "VPSUBSWMasked128",
 		argLen: 3,
 		asm:    x86.AVPSUBSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBWMasked128",
+		argLen: 3,
+		asm:    x86.AVPSUBW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -20969,9 +21302,66 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPOR128",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPHADDW128",
+		argLen: 2,
+		asm:    x86.AVPHADDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:   "VPHSUBW128",
 		argLen: 2,
 		asm:    x86.AVPHSUBW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPOPCNTW128",
+		argLen: 1,
+		asm:    x86.AVPOPCNTW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDSW128",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPADDSW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -21011,9 +21401,52 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPSUBSW128",
+		argLen: 2,
+		asm:    x86.AVPSUBSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:   "VPSIGNW128",
 		argLen: 2,
 		asm:    x86.AVPSIGNW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBW128",
+		argLen: 2,
+		asm:    x86.AVPSUBW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPXOR128",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPXOR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -21038,6 +21471,21 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPADDD512",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPADDD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPANDD512",
 		argLen:      2,
 		commutative: true,
@@ -21053,6 +21501,50 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPANDND512",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPANDND,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPCMPEQD512",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPCMPEQD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "VPCMPGTD512",
+		argLen: 2,
+		asm:    x86.AVPCMPGTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
 		name:   "VPABSDMasked512",
 		argLen: 2,
 		asm:    x86.AVPABSD,
@@ -21063,6 +21555,85 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDDMasked512",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPADDD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPANDDMasked512",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPANDD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPANDNDMasked512",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPANDND,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPCMPEQDMasked512",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPCMPEQD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "VPCMPGTDMasked512",
+		argLen: 3,
+		asm:    x86.AVPCMPGTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
 			},
 		},
 	},
@@ -21103,6 +21674,22 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPMULLD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPORDMasked512",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPORD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -21220,6 +21807,33 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPOPCNTD512",
+		argLen: 1,
+		asm:    x86.AVPOPCNTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBD512",
+		argLen: 2,
+		asm:    x86.AVPSUBD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPXORD512",
 		argLen:      2,
 		commutative: true,
@@ -21241,6 +21855,21 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDD128",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPADDD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -21291,6 +21920,22 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPADDDMasked128",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPADDD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPANDDMasked128",
 		argLen:      3,
 		commutative: true,
@@ -21303,6 +21948,53 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPANDNDMasked128",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPANDND,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPCMPEQDMasked128",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPCMPEQD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "VPCMPGTDMasked128",
+		argLen: 3,
+		asm:    x86.AVPCMPGTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
 			},
 		},
 	},
@@ -21446,10 +22138,39 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPMULDQ128",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPMULDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPMULLD128",
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVPMULLD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPHADDD128",
+		argLen: 2,
+		asm:    x86.AVPHADDD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -21468,6 +22189,19 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPOPCNTD128",
+		argLen: 1,
+		asm:    x86.AVPOPCNTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -21516,10 +22250,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPAND256",
+		name:        "VPADDD256",
 		argLen:      2,
 		commutative: true,
-		asm:         x86.AVPAND,
+		asm:         x86.AVPADDD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -21570,6 +22304,85 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDDMasked256",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPADDD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPANDDMasked256",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPANDD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPANDNDMasked256",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPANDND,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPCMPEQDMasked256",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPCMPEQD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "VPCMPGTDMasked256",
+		argLen: 3,
+		asm:    x86.AVPCMPGTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
 			},
 		},
 	},
@@ -21638,9 +22451,39 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPOPCNTDMasked256",
+		argLen: 2,
+		asm:    x86.AVPOPCNTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:   "VPSUBDMasked256",
 		argLen: 3,
 		asm:    x86.AVPSUBD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPXORDMasked256",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPXORD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -21683,10 +22526,39 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPMULDQ256",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPMULDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPMULLD256",
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVPMULLD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPHADDD256",
+		argLen: 2,
+		asm:    x86.AVPHADDD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -21766,6 +22638,21 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPADDQ128",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPADDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPCMPEQQ128",
 		argLen:      2,
 		commutative: true,
@@ -21802,6 +22689,22 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDQMasked128",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPADDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -21936,9 +22839,55 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPORQMasked128",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPORQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPOPCNTQMasked128",
+		argLen: 2,
+		asm:    x86.AVPOPCNTQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:   "VPSUBQMasked128",
 		argLen: 3,
 		asm:    x86.AVPSUBQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPXORQMasked128",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPXORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -21981,21 +22930,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPMULDQ128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPMULDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPMULLQ128",
 		argLen:      2,
 		commutative: true,
@@ -22011,10 +22945,22 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPOR128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPOR,
+		name:   "VPOPCNTQ128",
+		argLen: 1,
+		asm:    x86.AVPOPCNTQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBQ128",
+		argLen: 2,
+		asm:    x86.AVPSUBQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -22090,6 +23036,22 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDQMasked256",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPADDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -22269,6 +23231,22 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPXORQMasked256",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPXORQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPMAXSQ256",
 		argLen:      2,
 		commutative: true,
@@ -22299,40 +23277,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPMULDQ256",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPMULDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPMULLQ256",
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVPMULLQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPOR256",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPOR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -22384,10 +23332,40 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPADDQ512",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPADDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPANDQ512",
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVPANDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPANDNQ512",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPANDNQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -22446,6 +23424,22 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPADDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPANDQMasked512",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPANDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -22569,6 +23563,67 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPORQMasked512",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPORQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPOPCNTQMasked512",
+		argLen: 2,
+		asm:    x86.AVPOPCNTQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBQMasked512",
+		argLen: 3,
+		asm:    x86.AVPSUBQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPXORQMasked512",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPXORQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPMAXSQ512",
 		argLen:      2,
 		commutative: true,
@@ -22618,6 +23673,21 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVPMULLQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPORQ512",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -22699,21 +23769,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPAND128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPAND,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPCMPEQB128",
 		argLen:      2,
 		commutative: true,
@@ -22773,6 +23828,37 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPCMPEQBMasked128",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPCMPEQB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "VPCMPGTBMasked128",
+		argLen: 3,
+		asm:    x86.AVPCMPGTB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
 		name:        "VPMAXSBMasked128",
 		argLen:      3,
 		commutative: true,
@@ -22805,9 +23891,54 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPOPCNTBMasked128",
+		argLen: 2,
+		asm:    x86.AVPOPCNTB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDSBMasked128",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPADDSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:   "VPSUBSBMasked128",
 		argLen: 3,
 		asm:    x86.AVPSUBSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBBMasked128",
+		argLen: 3,
+		asm:    x86.AVPSUBB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -22839,6 +23970,48 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVPMINSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPOPCNTB128",
+		argLen: 1,
+		asm:    x86.AVPOPCNTB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDSB128",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPADDSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBSB128",
+		argLen: 2,
+		asm:    x86.AVPSUBSB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -22906,21 +24079,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPANDN256",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPANDN,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPCMPEQB256",
 		argLen:      2,
 		commutative: true,
@@ -22964,6 +24122,53 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPADDBMasked256",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPADDB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPCMPEQBMasked256",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPCMPEQB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "VPCMPGTBMasked256",
+		argLen: 3,
+		asm:    x86.AVPCMPGTB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
 		name:        "VPMAXSBMasked256",
 		argLen:      3,
 		commutative: true,
@@ -22996,9 +24201,54 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPOPCNTBMasked256",
+		argLen: 2,
+		asm:    x86.AVPOPCNTB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDSBMasked256",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPADDSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:   "VPSUBSBMasked256",
 		argLen: 3,
 		asm:    x86.AVPSUBSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBBMasked256",
+		argLen: 3,
+		asm:    x86.AVPSUBB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -23054,9 +24304,52 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPADDSB256",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPADDSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBSB256",
+		argLen: 2,
+		asm:    x86.AVPSUBSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:   "VPSIGNB256",
 		argLen: 2,
 		asm:    x86.AVPSIGNB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBB256",
+		argLen: 2,
+		asm:    x86.AVPSUBB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -23081,6 +24374,50 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPADDB512",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPADDB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPCMPEQB512",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPCMPEQB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "VPCMPGTB512",
+		argLen: 2,
+		asm:    x86.AVPCMPGTB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
 		name:   "VPABSBMasked512",
 		argLen: 2,
 		asm:    x86.AVPABSB,
@@ -23091,6 +24428,53 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDBMasked512",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPADDB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPCMPEQBMasked512",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPCMPEQB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "VPCMPGTBMasked512",
+		argLen: 3,
+		asm:    x86.AVPCMPGTB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
 			},
 		},
 	},
@@ -23127,10 +24511,54 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPOPCNTBMasked512",
+		argLen: 2,
+		asm:    x86.AVPOPCNTB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPADDSBMasked512",
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPADDSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBSBMasked512",
+		argLen: 3,
+		asm:    x86.AVPSUBSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBBMasked512",
+		argLen: 3,
+		asm:    x86.AVPSUBB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -23179,6 +24607,21 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDSB512",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPADDSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -23293,20 +24736,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPOPCNTWMasked256",
-		argLen: 2,
-		asm:    x86.AVPOPCNTW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPMAXUW256",
 		argLen:      2,
 		commutative: true,
@@ -23352,48 +24781,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPHADDW256",
-		argLen: 2,
-		asm:    x86.AVPHADDW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPOPCNTW256",
-		argLen: 1,
-		asm:    x86.AVPOPCNTW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDSW256",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPADDSW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPAVGW512",
 		argLen:      2,
 		commutative: true,
@@ -23402,22 +24789,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDWMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPADDW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -23489,66 +24860,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPOPCNTWMasked512",
-		argLen: 2,
-		asm:    x86.AVPOPCNTW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDSWMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPADDSW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSUBSWMasked512",
-		argLen: 3,
-		asm:    x86.AVPSUBSW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSUBWMasked512",
-		argLen: 3,
-		asm:    x86.AVPSUBW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPMAXUW512",
 		argLen:      2,
 		commutative: true,
@@ -23594,48 +24905,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPOPCNTW512",
-		argLen: 1,
-		asm:    x86.AVPOPCNTW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDSW512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPADDSW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSUBW512",
-		argLen: 2,
-		asm:    x86.AVPSUBW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPAVGW128",
 		argLen:      2,
 		commutative: true,
@@ -23644,22 +24913,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDWMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPADDW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -23731,37 +24984,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPADDSWMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPADDSW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSUBWMasked128",
-		argLen: 3,
-		asm:    x86.AVPSUBW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPMAXUW128",
 		argLen:      2,
 		commutative: true,
@@ -23807,154 +25029,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPHADDW128",
-		argLen: 2,
-		asm:    x86.AVPHADDW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPOPCNTW128",
-		argLen: 1,
-		asm:    x86.AVPOPCNTW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDSW128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPADDSW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSUBSW128",
-		argLen: 2,
-		asm:    x86.AVPSUBSW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSUBW128",
-		argLen: 2,
-		asm:    x86.AVPSUBW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDD512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPADDD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPANDND512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPANDND,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDDMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPADDD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPANDDMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPANDD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPANDNDMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPANDND,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPMAXUDMasked512",
 		argLen:      3,
 		commutative: true,
@@ -23975,22 +25049,6 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPMINUD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPORDMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPORD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -24026,80 +25084,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPOPCNTD512",
-		argLen: 1,
-		asm:    x86.AVPOPCNTD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSUBD512",
-		argLen: 2,
-		asm:    x86.AVPSUBD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDD128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPADDD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDDMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPADDD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPANDNDMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPANDND,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -24169,89 +25153,14 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPHADDD128",
-		argLen: 2,
-		asm:    x86.AVPHADDD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPOPCNTD128",
-		argLen: 1,
-		asm:    x86.AVPOPCNTD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDD256",
+		name:        "VPMULUDQ128",
 		argLen:      2,
 		commutative: true,
-		asm:         x86.AVPADDD,
+		asm:         x86.AVPMULUDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDDMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPADDD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPANDDMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPANDD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPANDNDMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPANDND,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -24279,36 +25188,6 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPMINUD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPOPCNTDMasked256",
-		argLen: 2,
-		asm:    x86.AVPOPCNTD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPXORDMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPXORD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -24366,66 +25245,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPHADDD256",
-		argLen: 2,
-		asm:    x86.AVPHADDD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPXOR256",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPXOR,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDQ128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPADDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDQMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPADDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPMAXUQMasked128",
 		argLen:      3,
 		commutative: true,
@@ -24474,52 +25293,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPORQMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPORQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPOPCNTQMasked128",
-		argLen: 2,
-		asm:    x86.AVPOPCNTQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPXORQMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPXORQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPMAXUQ128",
 		argLen:      2,
 		commutative: true,
@@ -24543,79 +25316,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPMULUDQ128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPMULUDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPOPCNTQ128",
-		argLen: 1,
-		asm:    x86.AVPOPCNTQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSUBQ128",
-		argLen: 2,
-		asm:    x86.AVPSUBQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPXOR128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPXOR,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDQMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPADDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -24671,22 +25371,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPXORQMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPXORQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPMAXUQ256",
 		argLen:      2,
 		commutative: true,
@@ -24710,52 +25394,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDQ512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPADDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPANDNQ512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPANDNQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPANDQMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPANDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -24811,67 +25449,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPORQMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPORQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPOPCNTQMasked512",
-		argLen: 2,
-		asm:    x86.AVPOPCNTQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSUBQMasked512",
-		argLen: 3,
-		asm:    x86.AVPSUBQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPXORQMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPXORQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPMAXUQ512",
 		argLen:      2,
 		commutative: true,
@@ -24906,36 +25483,6 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVPMULUDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPORQ512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPORQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPANDN128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPANDN,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25010,51 +25557,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPOPCNTBMasked128",
-		argLen: 2,
-		asm:    x86.AVPOPCNTB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDSBMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPADDSB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSUBBMasked128",
-		argLen: 3,
-		asm:    x86.AVPSUBB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPMAXUB128",
 		argLen:      2,
 		commutative: true,
@@ -25085,48 +25587,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPOPCNTB128",
-		argLen: 1,
-		asm:    x86.AVPOPCNTB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDSB128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPADDSB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSUBSB128",
-		argLen: 2,
-		asm:    x86.AVPSUBSB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPAVGB256",
 		argLen:      2,
 		commutative: true,
@@ -25135,22 +25595,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDBMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPADDB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25206,51 +25650,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPOPCNTBMasked256",
-		argLen: 2,
-		asm:    x86.AVPOPCNTB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDSBMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPADDSB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSUBBMasked256",
-		argLen: 3,
-		asm:    x86.AVPSUBB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPMAXUB256",
 		argLen:      2,
 		commutative: true,
@@ -25281,64 +25680,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPADDSB256",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPADDSB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSUBSB256",
-		argLen: 2,
-		asm:    x86.AVPSUBSB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSUBB256",
-		argLen: 2,
-		asm:    x86.AVPSUBB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDB512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPADDB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPAVGB512",
 		argLen:      2,
 		commutative: true,
@@ -25347,22 +25688,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPADDBMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPADDB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25418,50 +25743,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPOPCNTBMasked512",
-		argLen: 2,
-		asm:    x86.AVPOPCNTB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSUBSBMasked512",
-		argLen: 3,
-		asm:    x86.AVPSUBSB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSUBBMasked512",
-		argLen: 3,
-		asm:    x86.AVPSUBB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPMAXUB512",
 		argLen:      2,
 		commutative: true,
@@ -25492,25 +25773,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPADDSB512",
+		name:        "VCMPPS512",
+		auxType:     auxInt8,
 		argLen:      2,
 		commutative: true,
-		asm:         x86.AVPADDSB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:    "VCMPPS512",
-		auxType: auxInt8,
-		argLen:  2,
-		asm:     x86.AVCMPPS,
+		asm:         x86.AVCMPPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25522,10 +25789,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VCMPPSMasked512",
-		auxType: auxInt8,
-		argLen:  3,
-		asm:     x86.AVCMPPS,
+		name:        "VCMPPSMasked512",
+		auxType:     auxInt8,
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVCMPPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -25538,10 +25806,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VCMPPS128",
-		auxType: auxInt8,
-		argLen:  2,
-		asm:     x86.AVCMPPS,
+		name:        "VCMPPS128",
+		auxType:     auxInt8,
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVCMPPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25553,10 +25822,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VCMPPSMasked128",
-		auxType: auxInt8,
-		argLen:  3,
-		asm:     x86.AVCMPPS,
+		name:        "VCMPPSMasked128",
+		auxType:     auxInt8,
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVCMPPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -25569,10 +25839,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VCMPPS256",
-		auxType: auxInt8,
-		argLen:  2,
-		asm:     x86.AVCMPPS,
+		name:        "VCMPPS256",
+		auxType:     auxInt8,
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVCMPPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25584,10 +25855,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VCMPPSMasked256",
-		auxType: auxInt8,
-		argLen:  3,
-		asm:     x86.AVCMPPS,
+		name:        "VCMPPSMasked256",
+		auxType:     auxInt8,
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVCMPPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -25600,10 +25872,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VCMPPD128",
-		auxType: auxInt8,
-		argLen:  2,
-		asm:     x86.AVCMPPD,
+		name:        "VCMPPD128",
+		auxType:     auxInt8,
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVCMPPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25632,10 +25905,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VCMPPD256",
-		auxType: auxInt8,
-		argLen:  2,
-		asm:     x86.AVCMPPD,
+		name:        "VCMPPD256",
+		auxType:     auxInt8,
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVCMPPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25664,10 +25938,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VCMPPD512",
-		auxType: auxInt8,
-		argLen:  2,
-		asm:     x86.AVCMPPD,
+		name:        "VCMPPD512",
+		auxType:     auxInt8,
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVCMPPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25727,6 +26002,21 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "VPCMPW512",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
 		name:    "VPCMPWMasked512",
 		auxType: auxInt8,
 		argLen:  3,
@@ -25736,22 +26026,6 @@ var opcodeTable = [...]opInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:        "VPCMPW512",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -25774,11 +26048,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPWMasked128",
-		auxType:     auxInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPW,
+		name:    "VPCMPWMasked128",
+		auxType: auxInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -25806,16 +26079,30 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPDMasked512",
-		auxType:     auxInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPD,
+		name:    "VPCMPDMasked512",
+		auxType: auxInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VPCMPD128",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -25839,22 +26126,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPD128",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
 		name:    "VPCMPD256",
 		auxType: auxInt8,
 		argLen:  2,
@@ -25870,11 +26141,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPDMasked256",
-		auxType:     auxInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPD,
+		name:    "VPCMPDMasked256",
+		auxType: auxInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -25949,11 +26219,25 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPQMasked512",
-		auxType:     auxInt8,
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPCMPQ,
+		name:    "VPCMPQ512",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VPCMPQMasked512",
+		auxType: auxInt8,
+		argLen:  3,
+		asm:     x86.AVPCMPQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -25966,11 +26250,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPQ512",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPQ,
+		name:    "VPCMPB128",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25998,11 +26281,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPB128",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPB,
+		name:    "VPCMPB256",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -26023,22 +26305,6 @@ var opcodeTable = [...]opInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:        "VPCMPB256",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -26077,10 +26343,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPUW256",
-		auxType: auxInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPUW,
+		name:        "VPCMPUW256",
+		auxType:     auxInt8,
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPCMPUW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -26092,10 +26359,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPUWMasked256",
-		auxType: auxInt8,
-		argLen:  3,
-		asm:     x86.AVPCMPUW,
+		name:        "VPCMPUWMasked256",
+		auxType:     auxInt8,
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPCMPUW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -26124,10 +26392,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPUWMasked512",
-		auxType: auxInt8,
-		argLen:  3,
-		asm:     x86.AVPCMPUW,
+		name:        "VPCMPUWMasked512",
+		auxType:     auxInt8,
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPCMPUW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -26140,10 +26409,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPUW128",
-		auxType: auxInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPUW,
+		name:        "VPCMPUW128",
+		auxType:     auxInt8,
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPCMPUW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -26172,22 +26442,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPUDMasked512",
-		auxType: auxInt8,
-		argLen:  3,
-		asm:     x86.AVPCMPUD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
 		name:        "VPCMPUD512",
 		auxType:     auxInt8,
 		argLen:      2,
@@ -26204,25 +26458,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPUD128",
-		auxType: auxInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPUD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:    "VPCMPUDMasked128",
-		auxType: auxInt8,
-		argLen:  3,
-		asm:     x86.AVPCMPUD,
+		name:        "VPCMPUDMasked512",
+		auxType:     auxInt8,
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPCMPUD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -26235,10 +26475,27 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPUDMasked256",
-		auxType: auxInt8,
-		argLen:  3,
-		asm:     x86.AVPCMPUD,
+		name:        "VPCMPUD128",
+		auxType:     auxInt8,
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPCMPUD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:        "VPCMPUDMasked128",
+		auxType:     auxInt8,
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPCMPUD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -26267,25 +26524,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPUQ128",
-		auxType: auxInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPUQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:    "VPCMPUQMasked128",
-		auxType: auxInt8,
-		argLen:  3,
-		asm:     x86.AVPCMPUQ,
+		name:        "VPCMPUDMasked256",
+		auxType:     auxInt8,
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPCMPUD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -26298,10 +26541,27 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPUQMasked256",
-		auxType: auxInt8,
-		argLen:  3,
-		asm:     x86.AVPCMPUQ,
+		name:        "VPCMPUQ128",
+		auxType:     auxInt8,
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPCMPUQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:        "VPCMPUQMasked128",
+		auxType:     auxInt8,
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPCMPUQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -26330,25 +26590,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPUQ512",
-		auxType: auxInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPUQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:    "VPCMPUQMasked512",
-		auxType: auxInt8,
-		argLen:  3,
-		asm:     x86.AVPCMPUQ,
+		name:        "VPCMPUQMasked256",
+		auxType:     auxInt8,
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPCMPUQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -26361,10 +26607,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPUB128",
-		auxType: auxInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPUB,
+		name:        "VPCMPUQ512",
+		auxType:     auxInt8,
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPCMPUQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -26376,10 +26623,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPUBMasked128",
-		auxType: auxInt8,
-		argLen:  3,
-		asm:     x86.AVPCMPUB,
+		name:        "VPCMPUQMasked512",
+		auxType:     auxInt8,
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPCMPUQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -26392,10 +26640,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPUB256",
-		auxType: auxInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPUB,
+		name:        "VPCMPUB128",
+		auxType:     auxInt8,
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPCMPUB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -26407,10 +26656,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPUBMasked256",
-		auxType: auxInt8,
-		argLen:  3,
-		asm:     x86.AVPCMPUB,
+		name:        "VPCMPUBMasked128",
+		auxType:     auxInt8,
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPCMPUB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -26423,10 +26673,11 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPUB512",
-		auxType: auxInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPUB,
+		name:        "VPCMPUB256",
+		auxType:     auxInt8,
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPCMPUB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -26438,10 +26689,44 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPUBMasked512",
-		auxType: auxInt8,
-		argLen:  3,
-		asm:     x86.AVPCMPUB,
+		name:        "VPCMPUBMasked256",
+		auxType:     auxInt8,
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPCMPUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:        "VPCMPUB512",
+		auxType:     auxInt8,
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPCMPUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:        "VPCMPUBMasked512",
+		auxType:     auxInt8,
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPCMPUB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7

@@ -4,3872 +4,4152 @@
 
 package simd
 
-// Asm: VRCP14PS, Arch: AVX512EVEX
+// Asm: VRCP14PS, CPU Feature: AVX512EVEX
 func (x Float32x16) ApproximateReciprocal() Float32x16
 
-// Asm: VRSQRT14PS, Arch: AVX512EVEX
+// Asm: VRSQRT14PS, CPU Feature: AVX512EVEX
 func (x Float32x16) ApproximateReciprocalOfSqrt() Float32x16
 
-// Asm: VSQRTPS, Arch: AVX512EVEX
+// Asm: VSQRTPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Sqrt() Float32x16
 
-// Asm: VRCP14PS, Arch: AVX512EVEX
+// Asm: VRCP14PS, CPU Feature: AVX512EVEX
 func (x Float32x4) ApproximateReciprocal() Float32x4
 
-// Asm: VRSQRTPS, Arch: AVX
+// Asm: VRSQRTPS, CPU Feature: AVX
 func (x Float32x4) ApproximateReciprocalOfSqrt() Float32x4
 
-// Asm: VSQRTPS, Arch: AVX
+// Asm: VSQRTPS, CPU Feature: AVX
 func (x Float32x4) Sqrt() Float32x4
 
-// Asm: VRCP14PS, Arch: AVX512EVEX
+// Asm: VRCP14PS, CPU Feature: AVX512EVEX
 func (x Float32x8) ApproximateReciprocal() Float32x8
 
-// Asm: VRSQRTPS, Arch: AVX
+// Asm: VRSQRTPS, CPU Feature: AVX
 func (x Float32x8) ApproximateReciprocalOfSqrt() Float32x8
 
-// Asm: VSQRTPS, Arch: AVX
+// Asm: VSQRTPS, CPU Feature: AVX
 func (x Float32x8) Sqrt() Float32x8
 
-// Asm: VRCP14PD, Arch: AVX512EVEX
+// Asm: VRCP14PD, CPU Feature: AVX512EVEX
 func (x Float64x2) ApproximateReciprocal() Float64x2
 
-// Asm: VRSQRT14PD, Arch: AVX512EVEX
+// Asm: VRSQRT14PD, CPU Feature: AVX512EVEX
 func (x Float64x2) ApproximateReciprocalOfSqrt() Float64x2
 
-// Asm: VSQRTPD, Arch: AVX
+// Asm: VSQRTPD, CPU Feature: AVX
 func (x Float64x2) Sqrt() Float64x2
 
-// Asm: VRCP14PD, Arch: AVX512EVEX
+// Asm: VRCP14PD, CPU Feature: AVX512EVEX
 func (x Float64x4) ApproximateReciprocal() Float64x4
 
-// Asm: VRSQRT14PD, Arch: AVX512EVEX
+// Asm: VRSQRT14PD, CPU Feature: AVX512EVEX
 func (x Float64x4) ApproximateReciprocalOfSqrt() Float64x4
 
-// Asm: VSQRTPD, Arch: AVX
+// Asm: VSQRTPD, CPU Feature: AVX
 func (x Float64x4) Sqrt() Float64x4
 
-// Asm: VRCP14PD, Arch: AVX512EVEX
+// Asm: VRCP14PD, CPU Feature: AVX512EVEX
 func (x Float64x8) ApproximateReciprocal() Float64x8
 
-// Asm: VRSQRT14PD, Arch: AVX512EVEX
+// Asm: VRSQRT14PD, CPU Feature: AVX512EVEX
 func (x Float64x8) ApproximateReciprocalOfSqrt() Float64x8
 
-// Asm: VSQRTPD, Arch: AVX512EVEX
+// Asm: VSQRTPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Sqrt() Float64x8
 
-// Asm: VPABSW, Arch: AVX2
+// Asm: VPABSW, CPU Feature: AVX2
 func (x Int16x16) Absolute() Int16x16
 
-// Asm: VPOPCNTW, Arch: AVX512EVEX
+// Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Int16x16) PopCount() Int16x16
 
-// Asm: VPABSW, Arch: AVX512EVEX
+// Asm: VPABSW, CPU Feature: AVX512EVEX
 func (x Int16x32) Absolute() Int16x32
 
-// Asm: VPOPCNTW, Arch: AVX512EVEX
+// Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Int16x32) PopCount() Int16x32
 
-// Asm: VPABSW, Arch: AVX
+// Asm: VPABSW, CPU Feature: AVX
 func (x Int16x8) Absolute() Int16x8
 
-// Asm: VPOPCNTW, Arch: AVX512EVEX
+// Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Int16x8) PopCount() Int16x8
 
-// Asm: VPABSD, Arch: AVX512EVEX
+// Asm: VPABSD, CPU Feature: AVX512EVEX
 func (x Int32x16) Absolute() Int32x16
 
-// Asm: VPOPCNTD, Arch: AVX512EVEX
+// Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Int32x16) PopCount() Int32x16
 
-// Asm: VPABSD, Arch: AVX
+// Asm: VPABSD, CPU Feature: AVX
 func (x Int32x4) Absolute() Int32x4
 
-// Asm: VPOPCNTD, Arch: AVX512EVEX
+// Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Int32x4) PopCount() Int32x4
 
-// Asm: VPABSD, Arch: AVX2
+// Asm: VPABSD, CPU Feature: AVX2
 func (x Int32x8) Absolute() Int32x8
 
-// Asm: VPOPCNTD, Arch: AVX512EVEX
+// Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Int32x8) PopCount() Int32x8
 
-// Asm: VPABSQ, Arch: AVX512EVEX
+// Asm: VPABSQ, CPU Feature: AVX512EVEX
 func (x Int64x2) Absolute() Int64x2
 
-// Asm: VPOPCNTQ, Arch: AVX512EVEX
+// Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Int64x2) PopCount() Int64x2
 
-// Asm: VPABSQ, Arch: AVX512EVEX
+// Asm: VPABSQ, CPU Feature: AVX512EVEX
 func (x Int64x4) Absolute() Int64x4
 
-// Asm: VPOPCNTQ, Arch: AVX512EVEX
+// Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Int64x4) PopCount() Int64x4
 
-// Asm: VPABSQ, Arch: AVX512EVEX
+// Asm: VPABSQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Absolute() Int64x8
 
-// Asm: VPOPCNTQ, Arch: AVX512EVEX
+// Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Int64x8) PopCount() Int64x8
 
-// Asm: VPABSB, Arch: AVX
+// Asm: VPABSB, CPU Feature: AVX
 func (x Int8x16) Absolute() Int8x16
 
-// Asm: VPOPCNTB, Arch: AVX512EVEX
+// Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Int8x16) PopCount() Int8x16
 
-// Asm: VPABSB, Arch: AVX2
+// Asm: VPABSB, CPU Feature: AVX2
 func (x Int8x32) Absolute() Int8x32
 
-// Asm: VPOPCNTB, Arch: AVX512EVEX
+// Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Int8x32) PopCount() Int8x32
 
-// Asm: VPABSB, Arch: AVX512EVEX
+// Asm: VPABSB, CPU Feature: AVX512EVEX
 func (x Int8x64) Absolute() Int8x64
 
-// Asm: VPOPCNTB, Arch: AVX512EVEX
+// Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Int8x64) PopCount() Int8x64
 
-// Asm: VPOPCNTW, Arch: AVX512EVEX
+// Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Uint16x16) PopCount() Uint16x16
 
-// Asm: VPOPCNTW, Arch: AVX512EVEX
+// Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Uint16x32) PopCount() Uint16x32
 
-// Asm: VPOPCNTW, Arch: AVX512EVEX
+// Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Uint16x8) PopCount() Uint16x8
 
-// Asm: VPOPCNTD, Arch: AVX512EVEX
+// Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Uint32x16) PopCount() Uint32x16
 
-// Asm: VPOPCNTD, Arch: AVX512EVEX
+// Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Uint32x4) PopCount() Uint32x4
 
-// Asm: VPOPCNTD, Arch: AVX512EVEX
+// Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Uint32x8) PopCount() Uint32x8
 
-// Asm: VPOPCNTQ, Arch: AVX512EVEX
+// Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) PopCount() Uint64x2
 
-// Asm: VPOPCNTQ, Arch: AVX512EVEX
+// Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) PopCount() Uint64x4
 
-// Asm: VPOPCNTQ, Arch: AVX512EVEX
+// Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) PopCount() Uint64x8
 
-// Asm: VPOPCNTB, Arch: AVX512EVEX
+// Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Uint8x16) PopCount() Uint8x16
 
-// Asm: VPOPCNTB, Arch: AVX512EVEX
+// Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Uint8x32) PopCount() Uint8x32
 
-// Asm: VPOPCNTB, Arch: AVX512EVEX
+// Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Uint8x64) PopCount() Uint8x64
 
-// Asm: VADDPS, Arch: AVX512EVEX
+// Asm: VADDPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Add(y Float32x16) Float32x16
 
-// Asm: VANDPS, Arch: AVX512EVEX
+// Asm: VANDPS, CPU Feature: AVX512EVEX
 func (x Float32x16) And(y Float32x16) Float32x16
 
-// Asm: VANDNPS, Arch: AVX512EVEX
+// Asm: VANDNPS, CPU Feature: AVX512EVEX
 func (x Float32x16) AndNot(y Float32x16) Float32x16
 
-// Asm: VDIVPS, Arch: AVX512EVEX
+// Asm: VDIVPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Div(y Float32x16) Float32x16
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Equal(y Float32x16) Mask32x16
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Greater(y Float32x16) Mask32x16
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) GreaterEqual(y Float32x16) Mask32x16
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) IsNan(y Float32x16) Mask32x16
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Less(y Float32x16) Mask32x16
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) LessEqual(y Float32x16) Mask32x16
 
-// Asm: VRCP14PS, Arch: AVX512EVEX
+// Asm: VRCP14PS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedApproximateReciprocal(y Mask32x16) Float32x16
 
-// Asm: VRSQRT14PS, Arch: AVX512EVEX
+// Asm: VRSQRT14PS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedApproximateReciprocalOfSqrt(y Mask32x16) Float32x16
 
-// Asm: VSQRTPS, Arch: AVX512EVEX
+// Asm: VSQRTPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedSqrt(y Mask32x16) Float32x16
 
-// Asm: VMAXPS, Arch: AVX512EVEX
+// Asm: VMAXPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Max(y Float32x16) Float32x16
 
-// Asm: VMINPS, Arch: AVX512EVEX
+// Asm: VMINPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Min(y Float32x16) Float32x16
 
-// Asm: VMULPS, Arch: AVX512EVEX
+// Asm: VMULPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Mul(y Float32x16) Float32x16
 
-// Asm: VSCALEFPS, Arch: AVX512EVEX
+// Asm: VSCALEFPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MulByPowOf2(y Float32x16) Float32x16
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) NotEqual(y Float32x16) Mask32x16
 
-// Asm: VORPS, Arch: AVX512EVEX
+// Asm: VORPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Or(y Float32x16) Float32x16
 
-// Asm: VADDPS, Arch: AVX512EVEX
+// Asm: VADDPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Sub(y Float32x16) Float32x16
 
-// Asm: VXORPS, Arch: AVX512EVEX
+// Asm: VXORPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Xor(y Float32x16) Float32x16
 
-// Asm: VADDPS, Arch: AVX
+// Asm: VADDPS, CPU Feature: AVX
 func (x Float32x4) Add(y Float32x4) Float32x4
 
-// Asm: VANDPS, Arch: AVX
+// Asm: VANDPS, CPU Feature: AVX
 func (x Float32x4) And(y Float32x4) Float32x4
 
-// Asm: VANDNPS, Arch: AVX
+// Asm: VANDNPS, CPU Feature: AVX
 func (x Float32x4) AndNot(y Float32x4) Float32x4
 
-// Asm: VDIVPS, Arch: AVX
+// Asm: VDIVPS, CPU Feature: AVX
 func (x Float32x4) Div(y Float32x4) Float32x4
 
-// Asm: VCMPPS, Arch: AVX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) Equal(y Float32x4) Mask32x4
 
-// Asm: VCMPPS, Arch: AVX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) Greater(y Float32x4) Mask32x4
 
-// Asm: VCMPPS, Arch: AVX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) GreaterEqual(y Float32x4) Mask32x4
 
-// Asm: VCMPPS, Arch: AVX, Doc: Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+//
+// Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) IsNan(y Float32x4) Mask32x4
 
-// Asm: VCMPPS, Arch: AVX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) Less(y Float32x4) Mask32x4
 
-// Asm: VCMPPS, Arch: AVX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) LessEqual(y Float32x4) Mask32x4
 
-// Asm: VRCP14PS, Arch: AVX512EVEX
+// Asm: VRCP14PS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedApproximateReciprocal(y Mask32x4) Float32x4
 
-// Asm: VRSQRT14PS, Arch: AVX512EVEX
+// Asm: VRSQRT14PS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedApproximateReciprocalOfSqrt(y Mask32x4) Float32x4
 
-// Asm: VSQRTPS, Arch: AVX512EVEX
+// Asm: VSQRTPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedSqrt(y Mask32x4) Float32x4
 
-// Asm: VMAXPS, Arch: AVX
+// Asm: VMAXPS, CPU Feature: AVX
 func (x Float32x4) Max(y Float32x4) Float32x4
 
-// Asm: VMINPS, Arch: AVX
+// Asm: VMINPS, CPU Feature: AVX
 func (x Float32x4) Min(y Float32x4) Float32x4
 
-// Asm: VMULPS, Arch: AVX
+// Asm: VMULPS, CPU Feature: AVX
 func (x Float32x4) Mul(y Float32x4) Float32x4
 
-// Asm: VSCALEFPS, Arch: AVX512EVEX
+// Asm: VSCALEFPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MulByPowOf2(y Float32x4) Float32x4
 
-// Asm: VCMPPS, Arch: AVX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) NotEqual(y Float32x4) Mask32x4
 
-// Asm: VORPS, Arch: AVX
+// Asm: VORPS, CPU Feature: AVX
 func (x Float32x4) Or(y Float32x4) Float32x4
 
-// Asm: VHADDPS, Arch: AVX, Doc: Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VHADDPS, CPU Feature: AVX
 func (x Float32x4) PairwiseAdd(y Float32x4) Float32x4
 
-// Asm: VHSUBPS, Arch: AVX, Doc: Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VHSUBPS, CPU Feature: AVX
 func (x Float32x4) PairwiseSub(y Float32x4) Float32x4
 
-// Asm: VADDPS, Arch: AVX
+// Asm: VADDPS, CPU Feature: AVX
 func (x Float32x4) Sub(y Float32x4) Float32x4
 
-// Asm: VXORPS, Arch: AVX
+// Asm: VXORPS, CPU Feature: AVX
 func (x Float32x4) Xor(y Float32x4) Float32x4
 
-// Asm: VADDPS, Arch: AVX
+// Asm: VADDPS, CPU Feature: AVX
 func (x Float32x8) Add(y Float32x8) Float32x8
 
-// Asm: VANDPS, Arch: AVX
+// Asm: VANDPS, CPU Feature: AVX
 func (x Float32x8) And(y Float32x8) Float32x8
 
-// Asm: VANDNPS, Arch: AVX
+// Asm: VANDNPS, CPU Feature: AVX
 func (x Float32x8) AndNot(y Float32x8) Float32x8
 
-// Asm: VDIVPS, Arch: AVX
+// Asm: VDIVPS, CPU Feature: AVX
 func (x Float32x8) Div(y Float32x8) Float32x8
 
-// Asm: VCMPPS, Arch: AVX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) Equal(y Float32x8) Mask32x8
 
-// Asm: VCMPPS, Arch: AVX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) Greater(y Float32x8) Mask32x8
 
-// Asm: VCMPPS, Arch: AVX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) GreaterEqual(y Float32x8) Mask32x8
 
-// Asm: VCMPPS, Arch: AVX, Doc: Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+//
+// Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) IsNan(y Float32x8) Mask32x8
 
-// Asm: VCMPPS, Arch: AVX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) Less(y Float32x8) Mask32x8
 
-// Asm: VCMPPS, Arch: AVX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) LessEqual(y Float32x8) Mask32x8
 
-// Asm: VRCP14PS, Arch: AVX512EVEX
+// Asm: VRCP14PS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedApproximateReciprocal(y Mask32x8) Float32x8
 
-// Asm: VRSQRT14PS, Arch: AVX512EVEX
+// Asm: VRSQRT14PS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedApproximateReciprocalOfSqrt(y Mask32x8) Float32x8
 
-// Asm: VSQRTPS, Arch: AVX512EVEX
+// Asm: VSQRTPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedSqrt(y Mask32x8) Float32x8
 
-// Asm: VMAXPS, Arch: AVX
+// Asm: VMAXPS, CPU Feature: AVX
 func (x Float32x8) Max(y Float32x8) Float32x8
 
-// Asm: VMINPS, Arch: AVX
+// Asm: VMINPS, CPU Feature: AVX
 func (x Float32x8) Min(y Float32x8) Float32x8
 
-// Asm: VMULPS, Arch: AVX
+// Asm: VMULPS, CPU Feature: AVX
 func (x Float32x8) Mul(y Float32x8) Float32x8
 
-// Asm: VSCALEFPS, Arch: AVX512EVEX
+// Asm: VSCALEFPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MulByPowOf2(y Float32x8) Float32x8
 
-// Asm: VCMPPS, Arch: AVX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) NotEqual(y Float32x8) Mask32x8
 
-// Asm: VORPS, Arch: AVX
+// Asm: VORPS, CPU Feature: AVX
 func (x Float32x8) Or(y Float32x8) Float32x8
 
-// Asm: VHADDPS, Arch: AVX, Doc: Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VHADDPS, CPU Feature: AVX
 func (x Float32x8) PairwiseAdd(y Float32x8) Float32x8
 
-// Asm: VHSUBPS, Arch: AVX, Doc: Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VHSUBPS, CPU Feature: AVX
 func (x Float32x8) PairwiseSub(y Float32x8) Float32x8
 
-// Asm: VADDPS, Arch: AVX
+// Asm: VADDPS, CPU Feature: AVX
 func (x Float32x8) Sub(y Float32x8) Float32x8
 
-// Asm: VXORPS, Arch: AVX
+// Asm: VXORPS, CPU Feature: AVX
 func (x Float32x8) Xor(y Float32x8) Float32x8
 
-// Asm: VADDPD, Arch: AVX
+// Asm: VADDPD, CPU Feature: AVX
 func (x Float64x2) Add(y Float64x2) Float64x2
 
-// Asm: VANDPD, Arch: AVX
+// Asm: VANDPD, CPU Feature: AVX
 func (x Float64x2) And(y Float64x2) Float64x2
 
-// Asm: VANDNPD, Arch: AVX
+// Asm: VANDNPD, CPU Feature: AVX
 func (x Float64x2) AndNot(y Float64x2) Float64x2
 
-// Asm: VDIVPD, Arch: AVX
+// Asm: VDIVPD, CPU Feature: AVX
 func (x Float64x2) Div(y Float64x2) Float64x2
 
-// Asm: VCMPPD, Arch: AVX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) Equal(y Float64x2) Mask64x2
 
-// Asm: VCMPPD, Arch: AVX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) Greater(y Float64x2) Mask64x2
 
-// Asm: VCMPPD, Arch: AVX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) GreaterEqual(y Float64x2) Mask64x2
 
-// Asm: VCMPPD, Arch: AVX, Doc: Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+//
+// Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) IsNan(y Float64x2) Mask64x2
 
-// Asm: VCMPPD, Arch: AVX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) Less(y Float64x2) Mask64x2
 
-// Asm: VCMPPD, Arch: AVX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) LessEqual(y Float64x2) Mask64x2
 
-// Asm: VRCP14PD, Arch: AVX512EVEX
+// Asm: VRCP14PD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedApproximateReciprocal(y Mask64x2) Float64x2
 
-// Asm: VRSQRT14PD, Arch: AVX512EVEX
+// Asm: VRSQRT14PD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedApproximateReciprocalOfSqrt(y Mask64x2) Float64x2
 
-// Asm: VSQRTPD, Arch: AVX512EVEX
+// Asm: VSQRTPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedSqrt(y Mask64x2) Float64x2
 
-// Asm: VMAXPD, Arch: AVX
+// Asm: VMAXPD, CPU Feature: AVX
 func (x Float64x2) Max(y Float64x2) Float64x2
 
-// Asm: VMINPD, Arch: AVX
+// Asm: VMINPD, CPU Feature: AVX
 func (x Float64x2) Min(y Float64x2) Float64x2
 
-// Asm: VMULPD, Arch: AVX
+// Asm: VMULPD, CPU Feature: AVX
 func (x Float64x2) Mul(y Float64x2) Float64x2
 
-// Asm: VSCALEFPD, Arch: AVX512EVEX
+// Asm: VSCALEFPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MulByPowOf2(y Float64x2) Float64x2
 
-// Asm: VCMPPD, Arch: AVX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) NotEqual(y Float64x2) Mask64x2
 
-// Asm: VORPD, Arch: AVX
+// Asm: VORPD, CPU Feature: AVX
 func (x Float64x2) Or(y Float64x2) Float64x2
 
-// Asm: VHADDPD, Arch: AVX, Doc: Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VHADDPD, CPU Feature: AVX
 func (x Float64x2) PairwiseAdd(y Float64x2) Float64x2
 
-// Asm: VHSUBPD, Arch: AVX, Doc: Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VHSUBPD, CPU Feature: AVX
 func (x Float64x2) PairwiseSub(y Float64x2) Float64x2
 
-// Asm: VADDPD, Arch: AVX
+// Asm: VADDPD, CPU Feature: AVX
 func (x Float64x2) Sub(y Float64x2) Float64x2
 
-// Asm: VXORPD, Arch: AVX
+// Asm: VXORPD, CPU Feature: AVX
 func (x Float64x2) Xor(y Float64x2) Float64x2
 
-// Asm: VADDPD, Arch: AVX
+// Asm: VADDPD, CPU Feature: AVX
 func (x Float64x4) Add(y Float64x4) Float64x4
 
-// Asm: VANDPD, Arch: AVX
+// Asm: VANDPD, CPU Feature: AVX
 func (x Float64x4) And(y Float64x4) Float64x4
 
-// Asm: VANDNPD, Arch: AVX
+// Asm: VANDNPD, CPU Feature: AVX
 func (x Float64x4) AndNot(y Float64x4) Float64x4
 
-// Asm: VDIVPD, Arch: AVX
+// Asm: VDIVPD, CPU Feature: AVX
 func (x Float64x4) Div(y Float64x4) Float64x4
 
-// Asm: VCMPPD, Arch: AVX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) Equal(y Float64x4) Mask64x4
 
-// Asm: VCMPPD, Arch: AVX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) Greater(y Float64x4) Mask64x4
 
-// Asm: VCMPPD, Arch: AVX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) GreaterEqual(y Float64x4) Mask64x4
 
-// Asm: VCMPPD, Arch: AVX, Doc: Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+//
+// Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) IsNan(y Float64x4) Mask64x4
 
-// Asm: VCMPPD, Arch: AVX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) Less(y Float64x4) Mask64x4
 
-// Asm: VCMPPD, Arch: AVX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) LessEqual(y Float64x4) Mask64x4
 
-// Asm: VRCP14PD, Arch: AVX512EVEX
+// Asm: VRCP14PD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedApproximateReciprocal(y Mask64x4) Float64x4
 
-// Asm: VRSQRT14PD, Arch: AVX512EVEX
+// Asm: VRSQRT14PD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedApproximateReciprocalOfSqrt(y Mask64x4) Float64x4
 
-// Asm: VSQRTPD, Arch: AVX512EVEX
+// Asm: VSQRTPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedSqrt(y Mask64x4) Float64x4
 
-// Asm: VMAXPD, Arch: AVX
+// Asm: VMAXPD, CPU Feature: AVX
 func (x Float64x4) Max(y Float64x4) Float64x4
 
-// Asm: VMINPD, Arch: AVX
+// Asm: VMINPD, CPU Feature: AVX
 func (x Float64x4) Min(y Float64x4) Float64x4
 
-// Asm: VMULPD, Arch: AVX
+// Asm: VMULPD, CPU Feature: AVX
 func (x Float64x4) Mul(y Float64x4) Float64x4
 
-// Asm: VSCALEFPD, Arch: AVX512EVEX
+// Asm: VSCALEFPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MulByPowOf2(y Float64x4) Float64x4
 
-// Asm: VCMPPD, Arch: AVX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) NotEqual(y Float64x4) Mask64x4
 
-// Asm: VORPD, Arch: AVX
+// Asm: VORPD, CPU Feature: AVX
 func (x Float64x4) Or(y Float64x4) Float64x4
 
-// Asm: VHADDPD, Arch: AVX, Doc: Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VHADDPD, CPU Feature: AVX
 func (x Float64x4) PairwiseAdd(y Float64x4) Float64x4
 
-// Asm: VHSUBPD, Arch: AVX, Doc: Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VHSUBPD, CPU Feature: AVX
 func (x Float64x4) PairwiseSub(y Float64x4) Float64x4
 
-// Asm: VADDPD, Arch: AVX
+// Asm: VADDPD, CPU Feature: AVX
 func (x Float64x4) Sub(y Float64x4) Float64x4
 
-// Asm: VXORPD, Arch: AVX
+// Asm: VXORPD, CPU Feature: AVX
 func (x Float64x4) Xor(y Float64x4) Float64x4
 
-// Asm: VADDPD, Arch: AVX512EVEX
+// Asm: VADDPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Add(y Float64x8) Float64x8
 
-// Asm: VANDPD, Arch: AVX512EVEX
+// Asm: VANDPD, CPU Feature: AVX512EVEX
 func (x Float64x8) And(y Float64x8) Float64x8
 
-// Asm: VANDNPD, Arch: AVX512EVEX
+// Asm: VANDNPD, CPU Feature: AVX512EVEX
 func (x Float64x8) AndNot(y Float64x8) Float64x8
 
-// Asm: VDIVPD, Arch: AVX512EVEX
+// Asm: VDIVPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Div(y Float64x8) Float64x8
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Equal(y Float64x8) Mask64x8
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Greater(y Float64x8) Mask64x8
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) GreaterEqual(y Float64x8) Mask64x8
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) IsNan(y Float64x8) Mask64x8
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Less(y Float64x8) Mask64x8
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) LessEqual(y Float64x8) Mask64x8
 
-// Asm: VRCP14PD, Arch: AVX512EVEX
+// Asm: VRCP14PD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedApproximateReciprocal(y Mask64x8) Float64x8
 
-// Asm: VRSQRT14PD, Arch: AVX512EVEX
+// Asm: VRSQRT14PD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedApproximateReciprocalOfSqrt(y Mask64x8) Float64x8
 
-// Asm: VSQRTPD, Arch: AVX512EVEX
+// Asm: VSQRTPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedSqrt(y Mask64x8) Float64x8
 
-// Asm: VMAXPD, Arch: AVX512EVEX
+// Asm: VMAXPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Max(y Float64x8) Float64x8
 
-// Asm: VMINPD, Arch: AVX512EVEX
+// Asm: VMINPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Min(y Float64x8) Float64x8
 
-// Asm: VMULPD, Arch: AVX512EVEX
+// Asm: VMULPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Mul(y Float64x8) Float64x8
 
-// Asm: VSCALEFPD, Arch: AVX512EVEX
+// Asm: VSCALEFPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MulByPowOf2(y Float64x8) Float64x8
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) NotEqual(y Float64x8) Mask64x8
 
-// Asm: VORPD, Arch: AVX512EVEX
+// Asm: VORPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Or(y Float64x8) Float64x8
 
-// Asm: VADDPD, Arch: AVX512EVEX
+// Asm: VADDPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Sub(y Float64x8) Float64x8
 
-// Asm: VXORPD, Arch: AVX512EVEX
+// Asm: VXORPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Xor(y Float64x8) Float64x8
 
-// Asm: VPADDW, Arch: AVX2
+// Asm: VPADDW, CPU Feature: AVX2
 func (x Int16x16) Add(y Int16x16) Int16x16
 
-// Asm: VPAND, Arch: AVX2
+// Asm: VPAND, CPU Feature: AVX2
 func (x Int16x16) And(y Int16x16) Int16x16
 
-// Asm: VPANDN, Arch: AVX2
+// Asm: VPANDN, CPU Feature: AVX2
 func (x Int16x16) AndNot(y Int16x16) Int16x16
 
-// Asm: VPCMPEQW, Arch: AVX2, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQW, CPU Feature: AVX2
 func (x Int16x16) Equal(y Int16x16) Mask16x16
 
-// Asm: VPCMPGTW, Arch: AVX2, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTW, CPU Feature: AVX2
 func (x Int16x16) Greater(y Int16x16) Mask16x16
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) GreaterEqual(y Int16x16) Mask16x16
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) Less(y Int16x16) Mask16x16
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) LessEqual(y Int16x16) Mask16x16
 
-// Asm: VPABSW, Arch: AVX512EVEX
+// Asm: VPABSW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedAbsolute(y Mask16x16) Int16x16
 
-// Asm: VPOPCNTW, Arch: AVX512EVEX
+// Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedPopCount(y Mask16x16) Int16x16
 
-// Asm: VPMAXSW, Arch: AVX2
+// Asm: VPMAXSW, CPU Feature: AVX2
 func (x Int16x16) Max(y Int16x16) Int16x16
 
-// Asm: VPMINSW, Arch: AVX2
+// Asm: VPMINSW, CPU Feature: AVX2
 func (x Int16x16) Min(y Int16x16) Int16x16
 
-// Asm: VPMULHW, Arch: AVX2, Doc: Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+//
+// Asm: VPMULHW, CPU Feature: AVX2
 func (x Int16x16) MulHigh(y Int16x16) Int16x16
 
-// Asm: VPMULLW, Arch: AVX2, Doc: Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+//
+// Asm: VPMULLW, CPU Feature: AVX2
 func (x Int16x16) MulLow(y Int16x16) Int16x16
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) NotEqual(y Int16x16) Mask16x16
 
-// Asm: VPOR, Arch: AVX2
+// Asm: VPOR, CPU Feature: AVX2
 func (x Int16x16) Or(y Int16x16) Int16x16
 
-// Asm: VPHADDW, Arch: AVX2, Doc: Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VPHADDW, CPU Feature: AVX2
 func (x Int16x16) PairwiseAdd(y Int16x16) Int16x16
 
-// Asm: VPHSUBW, Arch: AVX2, Doc: Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VPHSUBW, CPU Feature: AVX2
 func (x Int16x16) PairwiseSub(y Int16x16) Int16x16
 
-// Asm: VPADDSW, Arch: AVX2
+// Asm: VPADDSW, CPU Feature: AVX2
 func (x Int16x16) SaturatedAdd(y Int16x16) Int16x16
 
-// Asm: VPHADDSW, Arch: AVX2, Doc: Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target; With saturation
+// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target; With saturation
+//
+// Asm: VPHADDSW, CPU Feature: AVX2
 func (x Int16x16) SaturatedPairwiseAdd(y Int16x16) Int16x16
 
-// Asm: VPHSUBSW, Arch: AVX2, Doc: Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target; With saturation
+// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target; With saturation
+//
+// Asm: VPHSUBSW, CPU Feature: AVX2
 func (x Int16x16) SaturatedPairwiseSub(y Int16x16) Int16x16
 
-// Asm: VPSUBSW, Arch: AVX2
+// Asm: VPSUBSW, CPU Feature: AVX2
 func (x Int16x16) SaturatedSub(y Int16x16) Int16x16
 
-// Asm: VPSIGNW, Arch: AVX2
+// Asm: VPSIGNW, CPU Feature: AVX2
 func (x Int16x16) Sign(y Int16x16) Int16x16
 
-// Asm: VPSUBW, Arch: AVX2
+// Asm: VPSUBW, CPU Feature: AVX2
 func (x Int16x16) Sub(y Int16x16) Int16x16
 
-// Asm: VPXOR, Arch: AVX2
+// Asm: VPXOR, CPU Feature: AVX2
 func (x Int16x16) Xor(y Int16x16) Int16x16
 
-// Asm: VPADDW, Arch: AVX512EVEX
+// Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Int16x32) Add(y Int16x32) Int16x32
 
-// Asm: VPCMPEQW, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQW, CPU Feature: AVX512EVEX
 func (x Int16x32) Equal(y Int16x32) Mask16x32
 
-// Asm: VPCMPGTW, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTW, CPU Feature: AVX512EVEX
 func (x Int16x32) Greater(y Int16x32) Mask16x32
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) GreaterEqual(y Int16x32) Mask16x32
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) Less(y Int16x32) Mask16x32
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) LessEqual(y Int16x32) Mask16x32
 
-// Asm: VPABSW, Arch: AVX512EVEX
+// Asm: VPABSW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedAbsolute(y Mask16x32) Int16x32
 
-// Asm: VPOPCNTW, Arch: AVX512EVEX
+// Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedPopCount(y Mask16x32) Int16x32
 
-// Asm: VPMAXSW, Arch: AVX512EVEX
+// Asm: VPMAXSW, CPU Feature: AVX512EVEX
 func (x Int16x32) Max(y Int16x32) Int16x32
 
-// Asm: VPMINSW, Arch: AVX512EVEX
+// Asm: VPMINSW, CPU Feature: AVX512EVEX
 func (x Int16x32) Min(y Int16x32) Int16x32
 
-// Asm: VPMULHW, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+//
+// Asm: VPMULHW, CPU Feature: AVX512EVEX
 func (x Int16x32) MulHigh(y Int16x32) Int16x32
 
-// Asm: VPMULLW, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+//
+// Asm: VPMULLW, CPU Feature: AVX512EVEX
 func (x Int16x32) MulLow(y Int16x32) Int16x32
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) NotEqual(y Int16x32) Mask16x32
 
-// Asm: VPADDSW, Arch: AVX512EVEX
+// Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Int16x32) SaturatedAdd(y Int16x32) Int16x32
 
-// Asm: VPSUBSW, Arch: AVX512EVEX
+// Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Int16x32) SaturatedSub(y Int16x32) Int16x32
 
-// Asm: VPSUBW, Arch: AVX512EVEX
+// Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Int16x32) Sub(y Int16x32) Int16x32
 
-// Asm: VPADDW, Arch: AVX
+// Asm: VPADDW, CPU Feature: AVX
 func (x Int16x8) Add(y Int16x8) Int16x8
 
-// Asm: VPAND, Arch: AVX
+// Asm: VPAND, CPU Feature: AVX
 func (x Int16x8) And(y Int16x8) Int16x8
 
-// Asm: VPANDN, Arch: AVX
+// Asm: VPANDN, CPU Feature: AVX
 func (x Int16x8) AndNot(y Int16x8) Int16x8
 
-// Asm: VPCMPEQW, Arch: AVX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQW, CPU Feature: AVX
 func (x Int16x8) Equal(y Int16x8) Mask16x8
 
-// Asm: VPCMPGTW, Arch: AVX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTW, CPU Feature: AVX
 func (x Int16x8) Greater(y Int16x8) Mask16x8
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) GreaterEqual(y Int16x8) Mask16x8
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) Less(y Int16x8) Mask16x8
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) LessEqual(y Int16x8) Mask16x8
 
-// Asm: VPABSW, Arch: AVX512EVEX
+// Asm: VPABSW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedAbsolute(y Mask16x8) Int16x8
 
-// Asm: VPOPCNTW, Arch: AVX512EVEX
+// Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedPopCount(y Mask16x8) Int16x8
 
-// Asm: VPMAXSW, Arch: AVX
+// Asm: VPMAXSW, CPU Feature: AVX
 func (x Int16x8) Max(y Int16x8) Int16x8
 
-// Asm: VPMINSW, Arch: AVX
+// Asm: VPMINSW, CPU Feature: AVX
 func (x Int16x8) Min(y Int16x8) Int16x8
 
-// Asm: VPMULHW, Arch: AVX, Doc: Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+//
+// Asm: VPMULHW, CPU Feature: AVX
 func (x Int16x8) MulHigh(y Int16x8) Int16x8
 
-// Asm: VPMULLW, Arch: AVX, Doc: Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+//
+// Asm: VPMULLW, CPU Feature: AVX
 func (x Int16x8) MulLow(y Int16x8) Int16x8
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) NotEqual(y Int16x8) Mask16x8
 
-// Asm: VPOR, Arch: AVX
+// Asm: VPOR, CPU Feature: AVX
 func (x Int16x8) Or(y Int16x8) Int16x8
 
-// Asm: VPHADDW, Arch: AVX, Doc: Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VPHADDW, CPU Feature: AVX
 func (x Int16x8) PairwiseAdd(y Int16x8) Int16x8
 
-// Asm: VPHSUBW, Arch: AVX, Doc: Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VPHSUBW, CPU Feature: AVX
 func (x Int16x8) PairwiseSub(y Int16x8) Int16x8
 
-// Asm: VPADDSW, Arch: AVX
+// Asm: VPADDSW, CPU Feature: AVX
 func (x Int16x8) SaturatedAdd(y Int16x8) Int16x8
 
-// Asm: VPHADDSW, Arch: AVX, Doc: Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target; With saturation
+// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target; With saturation
+//
+// Asm: VPHADDSW, CPU Feature: AVX
 func (x Int16x8) SaturatedPairwiseAdd(y Int16x8) Int16x8
 
-// Asm: VPHSUBSW, Arch: AVX, Doc: Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target; With saturation
+// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target; With saturation
+//
+// Asm: VPHSUBSW, CPU Feature: AVX
 func (x Int16x8) SaturatedPairwiseSub(y Int16x8) Int16x8
 
-// Asm: VPSUBSW, Arch: AVX
+// Asm: VPSUBSW, CPU Feature: AVX
 func (x Int16x8) SaturatedSub(y Int16x8) Int16x8
 
-// Asm: VPSIGNW, Arch: AVX
+// Asm: VPSIGNW, CPU Feature: AVX
 func (x Int16x8) Sign(y Int16x8) Int16x8
 
-// Asm: VPSUBW, Arch: AVX
+// Asm: VPSUBW, CPU Feature: AVX
 func (x Int16x8) Sub(y Int16x8) Int16x8
 
-// Asm: VPXOR, Arch: AVX
+// Asm: VPXOR, CPU Feature: AVX
 func (x Int16x8) Xor(y Int16x8) Int16x8
 
-// Asm: VPADDD, Arch: AVX512EVEX
+// Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Int32x16) Add(y Int32x16) Int32x16
 
-// Asm: VPANDD, Arch: AVX512EVEX
+// Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Int32x16) And(y Int32x16) Int32x16
 
-// Asm: VPANDND, Arch: AVX512EVEX
+// Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Int32x16) AndNot(y Int32x16) Int32x16
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQD, CPU Feature: AVX512EVEX
 func (x Int32x16) Equal(y Int32x16) Mask32x16
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTD, CPU Feature: AVX512EVEX
 func (x Int32x16) Greater(y Int32x16) Mask32x16
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) GreaterEqual(y Int32x16) Mask32x16
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) Less(y Int32x16) Mask32x16
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) LessEqual(y Int32x16) Mask32x16
 
-// Asm: VPABSD, Arch: AVX512EVEX
+// Asm: VPABSD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedAbsolute(y Mask32x16) Int32x16
 
-// Asm: VPOPCNTD, Arch: AVX512EVEX
+// Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedPopCount(y Mask32x16) Int32x16
 
-// Asm: VPMAXSD, Arch: AVX512EVEX
+// Asm: VPMAXSD, CPU Feature: AVX512EVEX
 func (x Int32x16) Max(y Int32x16) Int32x16
 
-// Asm: VPMINSD, Arch: AVX512EVEX
+// Asm: VPMINSD, CPU Feature: AVX512EVEX
 func (x Int32x16) Min(y Int32x16) Int32x16
 
-// Asm: VPMULLD, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+//
+// Asm: VPMULLD, CPU Feature: AVX512EVEX
 func (x Int32x16) MulLow(y Int32x16) Int32x16
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) NotEqual(y Int32x16) Mask32x16
 
-// Asm: VPORD, Arch: AVX512EVEX
+// Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Int32x16) Or(y Int32x16) Int32x16
 
-// Asm: VPSUBD, Arch: AVX512EVEX
+// Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Int32x16) Sub(y Int32x16) Int32x16
 
-// Asm: VPXORD, Arch: AVX512EVEX
+// Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Int32x16) Xor(y Int32x16) Int32x16
 
-// Asm: VPADDD, Arch: AVX
+// Asm: VPADDD, CPU Feature: AVX
 func (x Int32x4) Add(y Int32x4) Int32x4
 
-// Asm: VPAND, Arch: AVX
+// Asm: VPAND, CPU Feature: AVX
 func (x Int32x4) And(y Int32x4) Int32x4
 
-// Asm: VPANDN, Arch: AVX
+// Asm: VPANDN, CPU Feature: AVX
 func (x Int32x4) AndNot(y Int32x4) Int32x4
 
-// Asm: VPCMPEQD, Arch: AVX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQD, CPU Feature: AVX
 func (x Int32x4) Equal(y Int32x4) Mask32x4
 
-// Asm: VPCMPGTD, Arch: AVX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTD, CPU Feature: AVX
 func (x Int32x4) Greater(y Int32x4) Mask32x4
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) GreaterEqual(y Int32x4) Mask32x4
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) Less(y Int32x4) Mask32x4
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) LessEqual(y Int32x4) Mask32x4
 
-// Asm: VPABSD, Arch: AVX512EVEX
+// Asm: VPABSD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedAbsolute(y Mask32x4) Int32x4
 
-// Asm: VPOPCNTD, Arch: AVX512EVEX
+// Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedPopCount(y Mask32x4) Int32x4
 
-// Asm: VPMAXSD, Arch: AVX
+// Asm: VPMAXSD, CPU Feature: AVX
 func (x Int32x4) Max(y Int32x4) Int32x4
 
-// Asm: VPMINSD, Arch: AVX
+// Asm: VPMINSD, CPU Feature: AVX
 func (x Int32x4) Min(y Int32x4) Int32x4
 
-// Asm: VPMULDQ, Arch: AVX, Doc: Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+//
+// Asm: VPMULDQ, CPU Feature: AVX
 func (x Int32x4) MulEvenWiden(y Int32x4) Int64x2
 
-// Asm: VPMULLD, Arch: AVX, Doc: Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+//
+// Asm: VPMULLD, CPU Feature: AVX
 func (x Int32x4) MulLow(y Int32x4) Int32x4
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) NotEqual(y Int32x4) Mask32x4
 
-// Asm: VPOR, Arch: AVX
+// Asm: VPOR, CPU Feature: AVX
 func (x Int32x4) Or(y Int32x4) Int32x4
 
-// Asm: VPHADDD, Arch: AVX, Doc: Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VPHADDD, CPU Feature: AVX
 func (x Int32x4) PairwiseAdd(y Int32x4) Int32x4
 
-// Asm: VPHSUBD, Arch: AVX, Doc: Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VPHSUBD, CPU Feature: AVX
 func (x Int32x4) PairwiseSub(y Int32x4) Int32x4
 
-// Asm: VPSIGND, Arch: AVX
+// Asm: VPSIGND, CPU Feature: AVX
 func (x Int32x4) Sign(y Int32x4) Int32x4
 
-// Asm: VPSUBD, Arch: AVX
+// Asm: VPSUBD, CPU Feature: AVX
 func (x Int32x4) Sub(y Int32x4) Int32x4
 
-// Asm: VPXOR, Arch: AVX
+// Asm: VPXOR, CPU Feature: AVX
 func (x Int32x4) Xor(y Int32x4) Int32x4
 
-// Asm: VPADDD, Arch: AVX2
+// Asm: VPADDD, CPU Feature: AVX2
 func (x Int32x8) Add(y Int32x8) Int32x8
 
-// Asm: VPAND, Arch: AVX2
+// Asm: VPAND, CPU Feature: AVX2
 func (x Int32x8) And(y Int32x8) Int32x8
 
-// Asm: VPANDN, Arch: AVX2
+// Asm: VPANDN, CPU Feature: AVX2
 func (x Int32x8) AndNot(y Int32x8) Int32x8
 
-// Asm: VPCMPEQD, Arch: AVX2, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQD, CPU Feature: AVX2
 func (x Int32x8) Equal(y Int32x8) Mask32x8
 
-// Asm: VPCMPGTD, Arch: AVX2, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTD, CPU Feature: AVX2
 func (x Int32x8) Greater(y Int32x8) Mask32x8
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) GreaterEqual(y Int32x8) Mask32x8
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) Less(y Int32x8) Mask32x8
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) LessEqual(y Int32x8) Mask32x8
 
-// Asm: VPABSD, Arch: AVX512EVEX
+// Asm: VPABSD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedAbsolute(y Mask32x8) Int32x8
 
-// Asm: VPOPCNTD, Arch: AVX512EVEX
+// Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedPopCount(y Mask32x8) Int32x8
 
-// Asm: VPMAXSD, Arch: AVX2
+// Asm: VPMAXSD, CPU Feature: AVX2
 func (x Int32x8) Max(y Int32x8) Int32x8
 
-// Asm: VPMINSD, Arch: AVX2
+// Asm: VPMINSD, CPU Feature: AVX2
 func (x Int32x8) Min(y Int32x8) Int32x8
 
-// Asm: VPMULDQ, Arch: AVX2, Doc: Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+//
+// Asm: VPMULDQ, CPU Feature: AVX2
 func (x Int32x8) MulEvenWiden(y Int32x8) Int64x4
 
-// Asm: VPMULLD, Arch: AVX2, Doc: Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+//
+// Asm: VPMULLD, CPU Feature: AVX2
 func (x Int32x8) MulLow(y Int32x8) Int32x8
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) NotEqual(y Int32x8) Mask32x8
 
-// Asm: VPOR, Arch: AVX2
+// Asm: VPOR, CPU Feature: AVX2
 func (x Int32x8) Or(y Int32x8) Int32x8
 
-// Asm: VPHADDD, Arch: AVX2, Doc: Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VPHADDD, CPU Feature: AVX2
 func (x Int32x8) PairwiseAdd(y Int32x8) Int32x8
 
-// Asm: VPHSUBD, Arch: AVX2, Doc: Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VPHSUBD, CPU Feature: AVX2
 func (x Int32x8) PairwiseSub(y Int32x8) Int32x8
 
-// Asm: VPSIGND, Arch: AVX2
+// Asm: VPSIGND, CPU Feature: AVX2
 func (x Int32x8) Sign(y Int32x8) Int32x8
 
-// Asm: VPSUBD, Arch: AVX2
+// Asm: VPSUBD, CPU Feature: AVX2
 func (x Int32x8) Sub(y Int32x8) Int32x8
 
-// Asm: VPXOR, Arch: AVX2
+// Asm: VPXOR, CPU Feature: AVX2
 func (x Int32x8) Xor(y Int32x8) Int32x8
 
-// Asm: VPADDQ, Arch: AVX
+// Asm: VPADDQ, CPU Feature: AVX
 func (x Int64x2) Add(y Int64x2) Int64x2
 
-// Asm: VPAND, Arch: AVX
+// Asm: VPAND, CPU Feature: AVX
 func (x Int64x2) And(y Int64x2) Int64x2
 
-// Asm: VPANDN, Arch: AVX
+// Asm: VPANDN, CPU Feature: AVX
 func (x Int64x2) AndNot(y Int64x2) Int64x2
 
-// Asm: VPCMPEQQ, Arch: AVX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQQ, CPU Feature: AVX
 func (x Int64x2) Equal(y Int64x2) Mask64x2
 
-// Asm: VPCMPGTQ, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTQ, CPU Feature: AVX512EVEX
 func (x Int64x2) Greater(y Int64x2) Mask64x2
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) GreaterEqual(y Int64x2) Mask64x2
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) Less(y Int64x2) Mask64x2
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) LessEqual(y Int64x2) Mask64x2
 
-// Asm: VPABSQ, Arch: AVX512EVEX
+// Asm: VPABSQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedAbsolute(y Mask64x2) Int64x2
 
-// Asm: VPOPCNTQ, Arch: AVX512EVEX
+// Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedPopCount(y Mask64x2) Int64x2
 
-// Asm: VPMAXSQ, Arch: AVX512EVEX
+// Asm: VPMAXSQ, CPU Feature: AVX512EVEX
 func (x Int64x2) Max(y Int64x2) Int64x2
 
-// Asm: VPMINSQ, Arch: AVX512EVEX
+// Asm: VPMINSQ, CPU Feature: AVX512EVEX
 func (x Int64x2) Min(y Int64x2) Int64x2
 
-// Asm: VPMULDQ, Arch: AVX512EVEX, Doc: Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+//
+// Asm: VPMULDQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MulEvenWiden(y Int64x2) Int64x2
 
-// Asm: VPMULLQ, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+//
+// Asm: VPMULLQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MulLow(y Int64x2) Int64x2
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) NotEqual(y Int64x2) Mask64x2
 
-// Asm: VPOR, Arch: AVX
+// Asm: VPOR, CPU Feature: AVX
 func (x Int64x2) Or(y Int64x2) Int64x2
 
-// Asm: VPSUBQ, Arch: AVX
+// Asm: VPSUBQ, CPU Feature: AVX
 func (x Int64x2) Sub(y Int64x2) Int64x2
 
-// Asm: VPXOR, Arch: AVX
+// Asm: VPXOR, CPU Feature: AVX
 func (x Int64x2) Xor(y Int64x2) Int64x2
 
-// Asm: VPADDQ, Arch: AVX2
+// Asm: VPADDQ, CPU Feature: AVX2
 func (x Int64x4) Add(y Int64x4) Int64x4
 
-// Asm: VPAND, Arch: AVX2
+// Asm: VPAND, CPU Feature: AVX2
 func (x Int64x4) And(y Int64x4) Int64x4
 
-// Asm: VPANDN, Arch: AVX2
+// Asm: VPANDN, CPU Feature: AVX2
 func (x Int64x4) AndNot(y Int64x4) Int64x4
 
-// Asm: VPCMPEQQ, Arch: AVX2, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQQ, CPU Feature: AVX2
 func (x Int64x4) Equal(y Int64x4) Mask64x4
 
-// Asm: VPCMPGTQ, Arch: AVX2, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTQ, CPU Feature: AVX2
 func (x Int64x4) Greater(y Int64x4) Mask64x4
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) GreaterEqual(y Int64x4) Mask64x4
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) Less(y Int64x4) Mask64x4
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) LessEqual(y Int64x4) Mask64x4
 
-// Asm: VPABSQ, Arch: AVX512EVEX
+// Asm: VPABSQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedAbsolute(y Mask64x4) Int64x4
 
-// Asm: VPOPCNTQ, Arch: AVX512EVEX
+// Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedPopCount(y Mask64x4) Int64x4
 
-// Asm: VPMAXSQ, Arch: AVX512EVEX
+// Asm: VPMAXSQ, CPU Feature: AVX512EVEX
 func (x Int64x4) Max(y Int64x4) Int64x4
 
-// Asm: VPMINSQ, Arch: AVX512EVEX
+// Asm: VPMINSQ, CPU Feature: AVX512EVEX
 func (x Int64x4) Min(y Int64x4) Int64x4
 
-// Asm: VPMULDQ, Arch: AVX512EVEX, Doc: Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+//
+// Asm: VPMULDQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MulEvenWiden(y Int64x4) Int64x4
 
-// Asm: VPMULLQ, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+//
+// Asm: VPMULLQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MulLow(y Int64x4) Int64x4
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) NotEqual(y Int64x4) Mask64x4
 
-// Asm: VPOR, Arch: AVX2
+// Asm: VPOR, CPU Feature: AVX2
 func (x Int64x4) Or(y Int64x4) Int64x4
 
-// Asm: VPSUBQ, Arch: AVX2
+// Asm: VPSUBQ, CPU Feature: AVX2
 func (x Int64x4) Sub(y Int64x4) Int64x4
 
-// Asm: VPXOR, Arch: AVX2
+// Asm: VPXOR, CPU Feature: AVX2
 func (x Int64x4) Xor(y Int64x4) Int64x4
 
-// Asm: VPADDQ, Arch: AVX512EVEX
+// Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Add(y Int64x8) Int64x8
 
-// Asm: VPANDQ, Arch: AVX512EVEX
+// Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Int64x8) And(y Int64x8) Int64x8
 
-// Asm: VPANDNQ, Arch: AVX512EVEX
+// Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Int64x8) AndNot(y Int64x8) Int64x8
 
-// Asm: VPCMPEQQ, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Equal(y Int64x8) Mask64x8
 
-// Asm: VPCMPGTQ, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Greater(y Int64x8) Mask64x8
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) GreaterEqual(y Int64x8) Mask64x8
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Less(y Int64x8) Mask64x8
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) LessEqual(y Int64x8) Mask64x8
 
-// Asm: VPABSQ, Arch: AVX512EVEX
+// Asm: VPABSQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedAbsolute(y Mask64x8) Int64x8
 
-// Asm: VPOPCNTQ, Arch: AVX512EVEX
+// Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedPopCount(y Mask64x8) Int64x8
 
-// Asm: VPMAXSQ, Arch: AVX512EVEX
+// Asm: VPMAXSQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Max(y Int64x8) Int64x8
 
-// Asm: VPMINSQ, Arch: AVX512EVEX
+// Asm: VPMINSQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Min(y Int64x8) Int64x8
 
-// Asm: VPMULDQ, Arch: AVX512EVEX, Doc: Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+//
+// Asm: VPMULDQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MulEvenWiden(y Int64x8) Int64x8
 
-// Asm: VPMULLQ, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+//
+// Asm: VPMULLQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MulLow(y Int64x8) Int64x8
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) NotEqual(y Int64x8) Mask64x8
 
-// Asm: VPORQ, Arch: AVX512EVEX
+// Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Or(y Int64x8) Int64x8
 
-// Asm: VPSUBQ, Arch: AVX512EVEX
+// Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Sub(y Int64x8) Int64x8
 
-// Asm: VPXORQ, Arch: AVX512EVEX
+// Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Xor(y Int64x8) Int64x8
 
-// Asm: VPADDB, Arch: AVX
+// Asm: VPADDB, CPU Feature: AVX
 func (x Int8x16) Add(y Int8x16) Int8x16
 
-// Asm: VPAND, Arch: AVX
+// Asm: VPAND, CPU Feature: AVX
 func (x Int8x16) And(y Int8x16) Int8x16
 
-// Asm: VPANDN, Arch: AVX
+// Asm: VPANDN, CPU Feature: AVX
 func (x Int8x16) AndNot(y Int8x16) Int8x16
 
-// Asm: VPCMPEQB, Arch: AVX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQB, CPU Feature: AVX
 func (x Int8x16) Equal(y Int8x16) Mask8x16
 
-// Asm: VPCMPGTB, Arch: AVX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTB, CPU Feature: AVX
 func (x Int8x16) Greater(y Int8x16) Mask8x16
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) GreaterEqual(y Int8x16) Mask8x16
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) Less(y Int8x16) Mask8x16
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) LessEqual(y Int8x16) Mask8x16
 
-// Asm: VPABSB, Arch: AVX512EVEX
+// Asm: VPABSB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedAbsolute(y Mask8x16) Int8x16
 
-// Asm: VPOPCNTB, Arch: AVX512EVEX
+// Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedPopCount(y Mask8x16) Int8x16
 
-// Asm: VPMAXSB, Arch: AVX
+// Asm: VPMAXSB, CPU Feature: AVX
 func (x Int8x16) Max(y Int8x16) Int8x16
 
-// Asm: VPMINSB, Arch: AVX
+// Asm: VPMINSB, CPU Feature: AVX
 func (x Int8x16) Min(y Int8x16) Int8x16
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) NotEqual(y Int8x16) Mask8x16
 
-// Asm: VPOR, Arch: AVX
+// Asm: VPOR, CPU Feature: AVX
 func (x Int8x16) Or(y Int8x16) Int8x16
 
-// Asm: VPADDSB, Arch: AVX
+// Asm: VPADDSB, CPU Feature: AVX
 func (x Int8x16) SaturatedAdd(y Int8x16) Int8x16
 
-// Asm: VPSUBSB, Arch: AVX
+// Asm: VPSUBSB, CPU Feature: AVX
 func (x Int8x16) SaturatedSub(y Int8x16) Int8x16
 
-// Asm: VPSIGNB, Arch: AVX
+// Asm: VPSIGNB, CPU Feature: AVX
 func (x Int8x16) Sign(y Int8x16) Int8x16
 
-// Asm: VPSUBB, Arch: AVX
+// Asm: VPSUBB, CPU Feature: AVX
 func (x Int8x16) Sub(y Int8x16) Int8x16
 
-// Asm: VPXOR, Arch: AVX
+// Asm: VPXOR, CPU Feature: AVX
 func (x Int8x16) Xor(y Int8x16) Int8x16
 
-// Asm: VPADDB, Arch: AVX2
+// Asm: VPADDB, CPU Feature: AVX2
 func (x Int8x32) Add(y Int8x32) Int8x32
 
-// Asm: VPAND, Arch: AVX2
+// Asm: VPAND, CPU Feature: AVX2
 func (x Int8x32) And(y Int8x32) Int8x32
 
-// Asm: VPANDN, Arch: AVX2
+// Asm: VPANDN, CPU Feature: AVX2
 func (x Int8x32) AndNot(y Int8x32) Int8x32
 
-// Asm: VPCMPEQB, Arch: AVX2, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQB, CPU Feature: AVX2
 func (x Int8x32) Equal(y Int8x32) Mask8x32
 
-// Asm: VPCMPGTB, Arch: AVX2, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTB, CPU Feature: AVX2
 func (x Int8x32) Greater(y Int8x32) Mask8x32
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) GreaterEqual(y Int8x32) Mask8x32
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) Less(y Int8x32) Mask8x32
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) LessEqual(y Int8x32) Mask8x32
 
-// Asm: VPABSB, Arch: AVX512EVEX
+// Asm: VPABSB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedAbsolute(y Mask8x32) Int8x32
 
-// Asm: VPOPCNTB, Arch: AVX512EVEX
+// Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedPopCount(y Mask8x32) Int8x32
 
-// Asm: VPMAXSB, Arch: AVX2
+// Asm: VPMAXSB, CPU Feature: AVX2
 func (x Int8x32) Max(y Int8x32) Int8x32
 
-// Asm: VPMINSB, Arch: AVX2
+// Asm: VPMINSB, CPU Feature: AVX2
 func (x Int8x32) Min(y Int8x32) Int8x32
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) NotEqual(y Int8x32) Mask8x32
 
-// Asm: VPOR, Arch: AVX2
+// Asm: VPOR, CPU Feature: AVX2
 func (x Int8x32) Or(y Int8x32) Int8x32
 
-// Asm: VPADDSB, Arch: AVX2
+// Asm: VPADDSB, CPU Feature: AVX2
 func (x Int8x32) SaturatedAdd(y Int8x32) Int8x32
 
-// Asm: VPSUBSB, Arch: AVX2
+// Asm: VPSUBSB, CPU Feature: AVX2
 func (x Int8x32) SaturatedSub(y Int8x32) Int8x32
 
-// Asm: VPSIGNB, Arch: AVX2
+// Asm: VPSIGNB, CPU Feature: AVX2
 func (x Int8x32) Sign(y Int8x32) Int8x32
 
-// Asm: VPSUBB, Arch: AVX2
+// Asm: VPSUBB, CPU Feature: AVX2
 func (x Int8x32) Sub(y Int8x32) Int8x32
 
-// Asm: VPXOR, Arch: AVX2
+// Asm: VPXOR, CPU Feature: AVX2
 func (x Int8x32) Xor(y Int8x32) Int8x32
 
-// Asm: VPADDB, Arch: AVX512EVEX
+// Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Int8x64) Add(y Int8x64) Int8x64
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQB, CPU Feature: AVX512EVEX
 func (x Int8x64) Equal(y Int8x64) Mask8x64
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTB, CPU Feature: AVX512EVEX
 func (x Int8x64) Greater(y Int8x64) Mask8x64
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) GreaterEqual(y Int8x64) Mask8x64
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) Less(y Int8x64) Mask8x64
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) LessEqual(y Int8x64) Mask8x64
 
-// Asm: VPABSB, Arch: AVX512EVEX
+// Asm: VPABSB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedAbsolute(y Mask8x64) Int8x64
 
-// Asm: VPOPCNTB, Arch: AVX512EVEX
+// Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedPopCount(y Mask8x64) Int8x64
 
-// Asm: VPMAXSB, Arch: AVX512EVEX
+// Asm: VPMAXSB, CPU Feature: AVX512EVEX
 func (x Int8x64) Max(y Int8x64) Int8x64
 
-// Asm: VPMINSB, Arch: AVX512EVEX
+// Asm: VPMINSB, CPU Feature: AVX512EVEX
 func (x Int8x64) Min(y Int8x64) Int8x64
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) NotEqual(y Int8x64) Mask8x64
 
-// Asm: VPADDSB, Arch: AVX512EVEX
+// Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Int8x64) SaturatedAdd(y Int8x64) Int8x64
 
-// Asm: VPSUBSB, Arch: AVX512EVEX
+// Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Int8x64) SaturatedSub(y Int8x64) Int8x64
 
-// Asm: VPSUBB, Arch: AVX512EVEX
+// Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Int8x64) Sub(y Int8x64) Int8x64
 
-// Asm: VPADDW, Arch: AVX2
+// Asm: VPADDW, CPU Feature: AVX2
 func (x Uint16x16) Add(y Uint16x16) Uint16x16
 
-// Asm: VPAND, Arch: AVX2
+// Asm: VPAND, CPU Feature: AVX2
 func (x Uint16x16) And(y Uint16x16) Uint16x16
 
-// Asm: VPANDN, Arch: AVX2
+// Asm: VPANDN, CPU Feature: AVX2
 func (x Uint16x16) AndNot(y Uint16x16) Uint16x16
 
-// Asm: VPAVGW, Arch: AVX2
+// Asm: VPAVGW, CPU Feature: AVX2
 func (x Uint16x16) Average(y Uint16x16) Uint16x16
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) Equal(y Uint16x16) Mask16x16
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) Greater(y Uint16x16) Mask16x16
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) GreaterEqual(y Uint16x16) Mask16x16
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) Less(y Uint16x16) Mask16x16
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) LessEqual(y Uint16x16) Mask16x16
 
-// Asm: VPOPCNTW, Arch: AVX512EVEX
+// Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedPopCount(y Mask16x16) Uint16x16
 
-// Asm: VPMAXUW, Arch: AVX2
+// Asm: VPMAXUW, CPU Feature: AVX2
 func (x Uint16x16) Max(y Uint16x16) Uint16x16
 
-// Asm: VPMINUW, Arch: AVX2
+// Asm: VPMINUW, CPU Feature: AVX2
 func (x Uint16x16) Min(y Uint16x16) Uint16x16
 
-// Asm: VPMULHUW, Arch: AVX2, Doc: Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+//
+// Asm: VPMULHUW, CPU Feature: AVX2
 func (x Uint16x16) MulHigh(y Uint16x16) Uint16x16
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) NotEqual(y Uint16x16) Mask16x16
 
-// Asm: VPOR, Arch: AVX2
+// Asm: VPOR, CPU Feature: AVX2
 func (x Uint16x16) Or(y Uint16x16) Uint16x16
 
-// Asm: VPHADDW, Arch: AVX2, Doc: Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VPHADDW, CPU Feature: AVX2
 func (x Uint16x16) PairwiseAdd(y Uint16x16) Uint16x16
 
-// Asm: VPHSUBW, Arch: AVX2, Doc: Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VPHSUBW, CPU Feature: AVX2
 func (x Uint16x16) PairwiseSub(y Uint16x16) Uint16x16
 
-// Asm: VPADDSW, Arch: AVX2
+// Asm: VPADDSW, CPU Feature: AVX2
 func (x Uint16x16) SaturatedAdd(y Uint16x16) Uint16x16
 
-// Asm: VPSUBSW, Arch: AVX2
+// Asm: VPSUBSW, CPU Feature: AVX2
 func (x Uint16x16) SaturatedSub(y Uint16x16) Uint16x16
 
-// Asm: VPSUBW, Arch: AVX2
+// Asm: VPSUBW, CPU Feature: AVX2
 func (x Uint16x16) Sub(y Uint16x16) Uint16x16
 
-// Asm: VPXOR, Arch: AVX2
+// Asm: VPXOR, CPU Feature: AVX2
 func (x Uint16x16) Xor(y Uint16x16) Uint16x16
 
-// Asm: VPADDW, Arch: AVX512EVEX
+// Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Add(y Uint16x32) Uint16x32
 
-// Asm: VPAVGW, Arch: AVX512EVEX
+// Asm: VPAVGW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Average(y Uint16x32) Uint16x32
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Equal(y Uint16x32) Mask16x32
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Greater(y Uint16x32) Mask16x32
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) GreaterEqual(y Uint16x32) Mask16x32
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Less(y Uint16x32) Mask16x32
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) LessEqual(y Uint16x32) Mask16x32
 
-// Asm: VPOPCNTW, Arch: AVX512EVEX
+// Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedPopCount(y Mask16x32) Uint16x32
 
-// Asm: VPMAXUW, Arch: AVX512EVEX
+// Asm: VPMAXUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Max(y Uint16x32) Uint16x32
 
-// Asm: VPMINUW, Arch: AVX512EVEX
+// Asm: VPMINUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Min(y Uint16x32) Uint16x32
 
-// Asm: VPMULHUW, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+//
+// Asm: VPMULHUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MulHigh(y Uint16x32) Uint16x32
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) NotEqual(y Uint16x32) Mask16x32
 
-// Asm: VPADDSW, Arch: AVX512EVEX
+// Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Uint16x32) SaturatedAdd(y Uint16x32) Uint16x32
 
-// Asm: VPSUBSW, Arch: AVX512EVEX
+// Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x32) SaturatedSub(y Uint16x32) Uint16x32
 
-// Asm: VPSUBW, Arch: AVX512EVEX
+// Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Sub(y Uint16x32) Uint16x32
 
-// Asm: VPADDW, Arch: AVX
+// Asm: VPADDW, CPU Feature: AVX
 func (x Uint16x8) Add(y Uint16x8) Uint16x8
 
-// Asm: VPAND, Arch: AVX
+// Asm: VPAND, CPU Feature: AVX
 func (x Uint16x8) And(y Uint16x8) Uint16x8
 
-// Asm: VPANDN, Arch: AVX
+// Asm: VPANDN, CPU Feature: AVX
 func (x Uint16x8) AndNot(y Uint16x8) Uint16x8
 
-// Asm: VPAVGW, Arch: AVX
+// Asm: VPAVGW, CPU Feature: AVX
 func (x Uint16x8) Average(y Uint16x8) Uint16x8
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) Equal(y Uint16x8) Mask16x8
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) Greater(y Uint16x8) Mask16x8
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) GreaterEqual(y Uint16x8) Mask16x8
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) Less(y Uint16x8) Mask16x8
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) LessEqual(y Uint16x8) Mask16x8
 
-// Asm: VPOPCNTW, Arch: AVX512EVEX
+// Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedPopCount(y Mask16x8) Uint16x8
 
-// Asm: VPMAXUW, Arch: AVX
+// Asm: VPMAXUW, CPU Feature: AVX
 func (x Uint16x8) Max(y Uint16x8) Uint16x8
 
-// Asm: VPMINUW, Arch: AVX
+// Asm: VPMINUW, CPU Feature: AVX
 func (x Uint16x8) Min(y Uint16x8) Uint16x8
 
-// Asm: VPMULHUW, Arch: AVX, Doc: Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+//
+// Asm: VPMULHUW, CPU Feature: AVX
 func (x Uint16x8) MulHigh(y Uint16x8) Uint16x8
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) NotEqual(y Uint16x8) Mask16x8
 
-// Asm: VPOR, Arch: AVX
+// Asm: VPOR, CPU Feature: AVX
 func (x Uint16x8) Or(y Uint16x8) Uint16x8
 
-// Asm: VPHADDW, Arch: AVX, Doc: Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VPHADDW, CPU Feature: AVX
 func (x Uint16x8) PairwiseAdd(y Uint16x8) Uint16x8
 
-// Asm: VPHSUBW, Arch: AVX, Doc: Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VPHSUBW, CPU Feature: AVX
 func (x Uint16x8) PairwiseSub(y Uint16x8) Uint16x8
 
-// Asm: VPADDSW, Arch: AVX
+// Asm: VPADDSW, CPU Feature: AVX
 func (x Uint16x8) SaturatedAdd(y Uint16x8) Uint16x8
 
-// Asm: VPSUBSW, Arch: AVX
+// Asm: VPSUBSW, CPU Feature: AVX
 func (x Uint16x8) SaturatedSub(y Uint16x8) Uint16x8
 
-// Asm: VPSUBW, Arch: AVX
+// Asm: VPSUBW, CPU Feature: AVX
 func (x Uint16x8) Sub(y Uint16x8) Uint16x8
 
-// Asm: VPXOR, Arch: AVX
+// Asm: VPXOR, CPU Feature: AVX
 func (x Uint16x8) Xor(y Uint16x8) Uint16x8
 
-// Asm: VPADDD, Arch: AVX512EVEX
+// Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Add(y Uint32x16) Uint32x16
 
-// Asm: VPANDD, Arch: AVX512EVEX
+// Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Uint32x16) And(y Uint32x16) Uint32x16
 
-// Asm: VPANDND, Arch: AVX512EVEX
+// Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Uint32x16) AndNot(y Uint32x16) Uint32x16
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Equal(y Uint32x16) Mask32x16
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Greater(y Uint32x16) Mask32x16
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) GreaterEqual(y Uint32x16) Mask32x16
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Less(y Uint32x16) Mask32x16
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) LessEqual(y Uint32x16) Mask32x16
 
-// Asm: VPOPCNTD, Arch: AVX512EVEX
+// Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedPopCount(y Mask32x16) Uint32x16
 
-// Asm: VPMAXUD, Arch: AVX512EVEX
+// Asm: VPMAXUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Max(y Uint32x16) Uint32x16
 
-// Asm: VPMINUD, Arch: AVX512EVEX
+// Asm: VPMINUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Min(y Uint32x16) Uint32x16
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) NotEqual(y Uint32x16) Mask32x16
 
-// Asm: VPORD, Arch: AVX512EVEX
+// Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Or(y Uint32x16) Uint32x16
 
-// Asm: VPSUBD, Arch: AVX512EVEX
+// Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Sub(y Uint32x16) Uint32x16
 
-// Asm: VPXORD, Arch: AVX512EVEX
+// Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Xor(y Uint32x16) Uint32x16
 
-// Asm: VPADDD, Arch: AVX
+// Asm: VPADDD, CPU Feature: AVX
 func (x Uint32x4) Add(y Uint32x4) Uint32x4
 
-// Asm: VPAND, Arch: AVX
+// Asm: VPAND, CPU Feature: AVX
 func (x Uint32x4) And(y Uint32x4) Uint32x4
 
-// Asm: VPANDN, Arch: AVX
+// Asm: VPANDN, CPU Feature: AVX
 func (x Uint32x4) AndNot(y Uint32x4) Uint32x4
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) Equal(y Uint32x4) Mask32x4
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) Greater(y Uint32x4) Mask32x4
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) GreaterEqual(y Uint32x4) Mask32x4
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) Less(y Uint32x4) Mask32x4
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) LessEqual(y Uint32x4) Mask32x4
 
-// Asm: VPOPCNTD, Arch: AVX512EVEX
+// Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedPopCount(y Mask32x4) Uint32x4
 
-// Asm: VPMAXUD, Arch: AVX
+// Asm: VPMAXUD, CPU Feature: AVX
 func (x Uint32x4) Max(y Uint32x4) Uint32x4
 
-// Asm: VPMINUD, Arch: AVX
+// Asm: VPMINUD, CPU Feature: AVX
 func (x Uint32x4) Min(y Uint32x4) Uint32x4
 
-// Asm: VPMULUDQ, Arch: AVX, Doc: Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+//
+// Asm: VPMULUDQ, CPU Feature: AVX
 func (x Uint32x4) MulEvenWiden(y Uint32x4) Uint64x2
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) NotEqual(y Uint32x4) Mask32x4
 
-// Asm: VPOR, Arch: AVX
+// Asm: VPOR, CPU Feature: AVX
 func (x Uint32x4) Or(y Uint32x4) Uint32x4
 
-// Asm: VPHADDD, Arch: AVX, Doc: Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VPHADDD, CPU Feature: AVX
 func (x Uint32x4) PairwiseAdd(y Uint32x4) Uint32x4
 
-// Asm: VPHSUBD, Arch: AVX, Doc: Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VPHSUBD, CPU Feature: AVX
 func (x Uint32x4) PairwiseSub(y Uint32x4) Uint32x4
 
-// Asm: VPSUBD, Arch: AVX
+// Asm: VPSUBD, CPU Feature: AVX
 func (x Uint32x4) Sub(y Uint32x4) Uint32x4
 
-// Asm: VPXOR, Arch: AVX
+// Asm: VPXOR, CPU Feature: AVX
 func (x Uint32x4) Xor(y Uint32x4) Uint32x4
 
-// Asm: VPADDD, Arch: AVX2
+// Asm: VPADDD, CPU Feature: AVX2
 func (x Uint32x8) Add(y Uint32x8) Uint32x8
 
-// Asm: VPAND, Arch: AVX2
+// Asm: VPAND, CPU Feature: AVX2
 func (x Uint32x8) And(y Uint32x8) Uint32x8
 
-// Asm: VPANDN, Arch: AVX2
+// Asm: VPANDN, CPU Feature: AVX2
 func (x Uint32x8) AndNot(y Uint32x8) Uint32x8
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) Equal(y Uint32x8) Mask32x8
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) Greater(y Uint32x8) Mask32x8
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) GreaterEqual(y Uint32x8) Mask32x8
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) Less(y Uint32x8) Mask32x8
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) LessEqual(y Uint32x8) Mask32x8
 
-// Asm: VPOPCNTD, Arch: AVX512EVEX
+// Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedPopCount(y Mask32x8) Uint32x8
 
-// Asm: VPMAXUD, Arch: AVX2
+// Asm: VPMAXUD, CPU Feature: AVX2
 func (x Uint32x8) Max(y Uint32x8) Uint32x8
 
-// Asm: VPMINUD, Arch: AVX2
+// Asm: VPMINUD, CPU Feature: AVX2
 func (x Uint32x8) Min(y Uint32x8) Uint32x8
 
-// Asm: VPMULUDQ, Arch: AVX2, Doc: Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+//
+// Asm: VPMULUDQ, CPU Feature: AVX2
 func (x Uint32x8) MulEvenWiden(y Uint32x8) Uint64x4
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) NotEqual(y Uint32x8) Mask32x8
 
-// Asm: VPOR, Arch: AVX2
+// Asm: VPOR, CPU Feature: AVX2
 func (x Uint32x8) Or(y Uint32x8) Uint32x8
 
-// Asm: VPHADDD, Arch: AVX2, Doc: Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+// Add pairs of elements in vector x and store them in higher half of the target; Add pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VPHADDD, CPU Feature: AVX2
 func (x Uint32x8) PairwiseAdd(y Uint32x8) Uint32x8
 
-// Asm: VPHSUBD, Arch: AVX2, Doc: Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+// Sub pairs of elements in vector x and store them in higher half of the target; Sub pairs of elements in vector y and store them in lower half of the target
+//
+// Asm: VPHSUBD, CPU Feature: AVX2
 func (x Uint32x8) PairwiseSub(y Uint32x8) Uint32x8
 
-// Asm: VPSUBD, Arch: AVX2
+// Asm: VPSUBD, CPU Feature: AVX2
 func (x Uint32x8) Sub(y Uint32x8) Uint32x8
 
-// Asm: VPXOR, Arch: AVX2
+// Asm: VPXOR, CPU Feature: AVX2
 func (x Uint32x8) Xor(y Uint32x8) Uint32x8
 
-// Asm: VPADDQ, Arch: AVX
+// Asm: VPADDQ, CPU Feature: AVX
 func (x Uint64x2) Add(y Uint64x2) Uint64x2
 
-// Asm: VPAND, Arch: AVX
+// Asm: VPAND, CPU Feature: AVX
 func (x Uint64x2) And(y Uint64x2) Uint64x2
 
-// Asm: VPANDN, Arch: AVX
+// Asm: VPANDN, CPU Feature: AVX
 func (x Uint64x2) AndNot(y Uint64x2) Uint64x2
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) Equal(y Uint64x2) Mask64x2
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) Greater(y Uint64x2) Mask64x2
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) GreaterEqual(y Uint64x2) Mask64x2
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) Less(y Uint64x2) Mask64x2
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) LessEqual(y Uint64x2) Mask64x2
 
-// Asm: VPOPCNTQ, Arch: AVX512EVEX
+// Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedPopCount(y Mask64x2) Uint64x2
 
-// Asm: VPMAXUQ, Arch: AVX512EVEX
+// Asm: VPMAXUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) Max(y Uint64x2) Uint64x2
 
-// Asm: VPMINUQ, Arch: AVX512EVEX
+// Asm: VPMINUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) Min(y Uint64x2) Uint64x2
 
-// Asm: VPMULUDQ, Arch: AVX512EVEX, Doc: Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+//
+// Asm: VPMULUDQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MulEvenWiden(y Uint64x2) Uint64x2
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) NotEqual(y Uint64x2) Mask64x2
 
-// Asm: VPOR, Arch: AVX
+// Asm: VPOR, CPU Feature: AVX
 func (x Uint64x2) Or(y Uint64x2) Uint64x2
 
-// Asm: VPSUBQ, Arch: AVX
+// Asm: VPSUBQ, CPU Feature: AVX
 func (x Uint64x2) Sub(y Uint64x2) Uint64x2
 
-// Asm: VPXOR, Arch: AVX
+// Asm: VPXOR, CPU Feature: AVX
 func (x Uint64x2) Xor(y Uint64x2) Uint64x2
 
-// Asm: VPADDQ, Arch: AVX2
+// Asm: VPADDQ, CPU Feature: AVX2
 func (x Uint64x4) Add(y Uint64x4) Uint64x4
 
-// Asm: VPAND, Arch: AVX2
+// Asm: VPAND, CPU Feature: AVX2
 func (x Uint64x4) And(y Uint64x4) Uint64x4
 
-// Asm: VPANDN, Arch: AVX2
+// Asm: VPANDN, CPU Feature: AVX2
 func (x Uint64x4) AndNot(y Uint64x4) Uint64x4
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) Equal(y Uint64x4) Mask64x4
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) Greater(y Uint64x4) Mask64x4
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) GreaterEqual(y Uint64x4) Mask64x4
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) Less(y Uint64x4) Mask64x4
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) LessEqual(y Uint64x4) Mask64x4
 
-// Asm: VPOPCNTQ, Arch: AVX512EVEX
+// Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedPopCount(y Mask64x4) Uint64x4
 
-// Asm: VPMAXUQ, Arch: AVX512EVEX
+// Asm: VPMAXUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) Max(y Uint64x4) Uint64x4
 
-// Asm: VPMINUQ, Arch: AVX512EVEX
+// Asm: VPMINUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) Min(y Uint64x4) Uint64x4
 
-// Asm: VPMULUDQ, Arch: AVX512EVEX, Doc: Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+//
+// Asm: VPMULUDQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MulEvenWiden(y Uint64x4) Uint64x4
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) NotEqual(y Uint64x4) Mask64x4
 
-// Asm: VPOR, Arch: AVX2
+// Asm: VPOR, CPU Feature: AVX2
 func (x Uint64x4) Or(y Uint64x4) Uint64x4
 
-// Asm: VPSUBQ, Arch: AVX2
+// Asm: VPSUBQ, CPU Feature: AVX2
 func (x Uint64x4) Sub(y Uint64x4) Uint64x4
 
-// Asm: VPXOR, Arch: AVX2
+// Asm: VPXOR, CPU Feature: AVX2
 func (x Uint64x4) Xor(y Uint64x4) Uint64x4
 
-// Asm: VPADDQ, Arch: AVX512EVEX
+// Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Add(y Uint64x8) Uint64x8
 
-// Asm: VPANDQ, Arch: AVX512EVEX
+// Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) And(y Uint64x8) Uint64x8
 
-// Asm: VPANDNQ, Arch: AVX512EVEX
+// Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) AndNot(y Uint64x8) Uint64x8
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Equal(y Uint64x8) Mask64x8
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Greater(y Uint64x8) Mask64x8
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) GreaterEqual(y Uint64x8) Mask64x8
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Less(y Uint64x8) Mask64x8
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) LessEqual(y Uint64x8) Mask64x8
 
-// Asm: VPOPCNTQ, Arch: AVX512EVEX
+// Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedPopCount(y Mask64x8) Uint64x8
 
-// Asm: VPMAXUQ, Arch: AVX512EVEX
+// Asm: VPMAXUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Max(y Uint64x8) Uint64x8
 
-// Asm: VPMINUQ, Arch: AVX512EVEX
+// Asm: VPMINUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Min(y Uint64x8) Uint64x8
 
-// Asm: VPMULUDQ, Arch: AVX512EVEX, Doc: Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+//
+// Asm: VPMULUDQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MulEvenWiden(y Uint64x8) Uint64x8
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) NotEqual(y Uint64x8) Mask64x8
 
-// Asm: VPORQ, Arch: AVX512EVEX
+// Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Or(y Uint64x8) Uint64x8
 
-// Asm: VPSUBQ, Arch: AVX512EVEX
+// Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Sub(y Uint64x8) Uint64x8
 
-// Asm: VPXORQ, Arch: AVX512EVEX
+// Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Xor(y Uint64x8) Uint64x8
 
-// Asm: VPADDB, Arch: AVX
+// Asm: VPADDB, CPU Feature: AVX
 func (x Uint8x16) Add(y Uint8x16) Uint8x16
 
-// Asm: VPAND, Arch: AVX
+// Asm: VPAND, CPU Feature: AVX
 func (x Uint8x16) And(y Uint8x16) Uint8x16
 
-// Asm: VPANDN, Arch: AVX
+// Asm: VPANDN, CPU Feature: AVX
 func (x Uint8x16) AndNot(y Uint8x16) Uint8x16
 
-// Asm: VPAVGB, Arch: AVX
+// Asm: VPAVGB, CPU Feature: AVX
 func (x Uint8x16) Average(y Uint8x16) Uint8x16
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) Equal(y Uint8x16) Mask8x16
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) Greater(y Uint8x16) Mask8x16
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) GreaterEqual(y Uint8x16) Mask8x16
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) Less(y Uint8x16) Mask8x16
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) LessEqual(y Uint8x16) Mask8x16
 
-// Asm: VPOPCNTB, Arch: AVX512EVEX
+// Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedPopCount(y Mask8x16) Uint8x16
 
-// Asm: VPMAXUB, Arch: AVX
+// Asm: VPMAXUB, CPU Feature: AVX
 func (x Uint8x16) Max(y Uint8x16) Uint8x16
 
-// Asm: VPMINUB, Arch: AVX
+// Asm: VPMINUB, CPU Feature: AVX
 func (x Uint8x16) Min(y Uint8x16) Uint8x16
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) NotEqual(y Uint8x16) Mask8x16
 
-// Asm: VPOR, Arch: AVX
+// Asm: VPOR, CPU Feature: AVX
 func (x Uint8x16) Or(y Uint8x16) Uint8x16
 
-// Asm: VPADDSB, Arch: AVX
+// Asm: VPADDSB, CPU Feature: AVX
 func (x Uint8x16) SaturatedAdd(y Uint8x16) Uint8x16
 
-// Asm: VPSUBSB, Arch: AVX
+// Asm: VPSUBSB, CPU Feature: AVX
 func (x Uint8x16) SaturatedSub(y Uint8x16) Uint8x16
 
-// Asm: VPSUBB, Arch: AVX
+// Asm: VPSUBB, CPU Feature: AVX
 func (x Uint8x16) Sub(y Uint8x16) Uint8x16
 
-// Asm: VPXOR, Arch: AVX
+// Asm: VPXOR, CPU Feature: AVX
 func (x Uint8x16) Xor(y Uint8x16) Uint8x16
 
-// Asm: VPADDB, Arch: AVX2
+// Asm: VPADDB, CPU Feature: AVX2
 func (x Uint8x32) Add(y Uint8x32) Uint8x32
 
-// Asm: VPAND, Arch: AVX2
+// Asm: VPAND, CPU Feature: AVX2
 func (x Uint8x32) And(y Uint8x32) Uint8x32
 
-// Asm: VPANDN, Arch: AVX2
+// Asm: VPANDN, CPU Feature: AVX2
 func (x Uint8x32) AndNot(y Uint8x32) Uint8x32
 
-// Asm: VPAVGB, Arch: AVX2
+// Asm: VPAVGB, CPU Feature: AVX2
 func (x Uint8x32) Average(y Uint8x32) Uint8x32
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) Equal(y Uint8x32) Mask8x32
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) Greater(y Uint8x32) Mask8x32
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) GreaterEqual(y Uint8x32) Mask8x32
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) Less(y Uint8x32) Mask8x32
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) LessEqual(y Uint8x32) Mask8x32
 
-// Asm: VPOPCNTB, Arch: AVX512EVEX
+// Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedPopCount(y Mask8x32) Uint8x32
 
-// Asm: VPMAXUB, Arch: AVX2
+// Asm: VPMAXUB, CPU Feature: AVX2
 func (x Uint8x32) Max(y Uint8x32) Uint8x32
 
-// Asm: VPMINUB, Arch: AVX2
+// Asm: VPMINUB, CPU Feature: AVX2
 func (x Uint8x32) Min(y Uint8x32) Uint8x32
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) NotEqual(y Uint8x32) Mask8x32
 
-// Asm: VPOR, Arch: AVX2
+// Asm: VPOR, CPU Feature: AVX2
 func (x Uint8x32) Or(y Uint8x32) Uint8x32
 
-// Asm: VPADDSB, Arch: AVX2
+// Asm: VPADDSB, CPU Feature: AVX2
 func (x Uint8x32) SaturatedAdd(y Uint8x32) Uint8x32
 
-// Asm: VPSUBSB, Arch: AVX2
+// Asm: VPSUBSB, CPU Feature: AVX2
 func (x Uint8x32) SaturatedSub(y Uint8x32) Uint8x32
 
-// Asm: VPSUBB, Arch: AVX2
+// Asm: VPSUBB, CPU Feature: AVX2
 func (x Uint8x32) Sub(y Uint8x32) Uint8x32
 
-// Asm: VPXOR, Arch: AVX2
+// Asm: VPXOR, CPU Feature: AVX2
 func (x Uint8x32) Xor(y Uint8x32) Uint8x32
 
-// Asm: VPADDB, Arch: AVX512EVEX
+// Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Add(y Uint8x64) Uint8x64
 
-// Asm: VPAVGB, Arch: AVX512EVEX
+// Asm: VPAVGB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Average(y Uint8x64) Uint8x64
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Equal(y Uint8x64) Mask8x64
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Greater(y Uint8x64) Mask8x64
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) GreaterEqual(y Uint8x64) Mask8x64
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Less(y Uint8x64) Mask8x64
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) LessEqual(y Uint8x64) Mask8x64
 
-// Asm: VPOPCNTB, Arch: AVX512EVEX
+// Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedPopCount(y Mask8x64) Uint8x64
 
-// Asm: VPMAXUB, Arch: AVX512EVEX
+// Asm: VPMAXUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Max(y Uint8x64) Uint8x64
 
-// Asm: VPMINUB, Arch: AVX512EVEX
+// Asm: VPMINUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Min(y Uint8x64) Uint8x64
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) NotEqual(y Uint8x64) Mask8x64
 
-// Asm: VPADDSB, Arch: AVX512EVEX
+// Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Uint8x64) SaturatedAdd(y Uint8x64) Uint8x64
 
-// Asm: VPSUBSB, Arch: AVX512EVEX
+// Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Uint8x64) SaturatedSub(y Uint8x64) Uint8x64
 
-// Asm: VPSUBB, Arch: AVX512EVEX
+// Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Sub(y Uint8x64) Uint8x64
 
-// Asm: VADDPS, Arch: AVX512EVEX
+// Asm: VADDPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedAdd(y Float32x16, z Mask32x16) Float32x16
 
-// Asm: VANDPS, Arch: AVX512EVEX
+// Asm: VANDPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedAnd(y Float32x16, z Mask32x16) Float32x16
 
-// Asm: VANDNPS, Arch: AVX512EVEX
+// Asm: VANDNPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedAndNot(y Float32x16, z Mask32x16) Float32x16
 
-// Asm: VDIVPS, Arch: AVX512EVEX
+// Asm: VDIVPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedDiv(y Float32x16, z Mask32x16) Float32x16
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedEqual(y Float32x16, z Mask32x16) Mask32x16
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedGreater(y Float32x16, z Mask32x16) Mask32x16
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedGreaterEqual(y Float32x16, z Mask32x16) Mask32x16
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedIsNan(y Float32x16, z Mask32x16) Mask32x16
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedLess(y Float32x16, z Mask32x16) Mask32x16
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedLessEqual(y Float32x16, z Mask32x16) Mask32x16
 
-// Asm: VMAXPS, Arch: AVX512EVEX
+// Asm: VMAXPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedMax(y Float32x16, z Mask32x16) Float32x16
 
-// Asm: VMINPS, Arch: AVX512EVEX
+// Asm: VMINPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedMin(y Float32x16, z Mask32x16) Float32x16
 
-// Asm: VMULPS, Arch: AVX512EVEX
+// Asm: VMULPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedMul(y Float32x16, z Mask32x16) Float32x16
 
-// Asm: VSCALEFPS, Arch: AVX512EVEX
+// Asm: VSCALEFPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedMulByPowOf2(y Float32x16, z Mask32x16) Float32x16
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedNotEqual(y Float32x16, z Mask32x16) Mask32x16
 
-// Asm: VORPS, Arch: AVX512EVEX
+// Asm: VORPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedOr(y Float32x16, z Mask32x16) Float32x16
 
-// Asm: VADDPS, Arch: AVX512EVEX
+// Asm: VADDPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedSub(y Float32x16, z Mask32x16) Float32x16
 
-// Asm: VXORPS, Arch: AVX512EVEX
+// Asm: VXORPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedXor(y Float32x16, z Mask32x16) Float32x16
 
-// Asm: VADDPS, Arch: AVX512EVEX
+// Asm: VADDPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedAdd(y Float32x4, z Mask32x4) Float32x4
 
-// Asm: VANDPS, Arch: AVX512EVEX
+// Asm: VANDPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedAnd(y Float32x4, z Mask32x4) Float32x4
 
-// Asm: VANDNPS, Arch: AVX512EVEX
+// Asm: VANDNPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedAndNot(y Float32x4, z Mask32x4) Float32x4
 
-// Asm: VDIVPS, Arch: AVX512EVEX
+// Asm: VDIVPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedDiv(y Float32x4, z Mask32x4) Float32x4
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedEqual(y Float32x4, z Mask32x4) Mask32x4
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedGreater(y Float32x4, z Mask32x4) Mask32x4
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedGreaterEqual(y Float32x4, z Mask32x4) Mask32x4
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedIsNan(y Float32x4, z Mask32x4) Mask32x4
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedLess(y Float32x4, z Mask32x4) Mask32x4
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedLessEqual(y Float32x4, z Mask32x4) Mask32x4
 
-// Asm: VMAXPS, Arch: AVX512EVEX
+// Asm: VMAXPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedMax(y Float32x4, z Mask32x4) Float32x4
 
-// Asm: VMINPS, Arch: AVX512EVEX
+// Asm: VMINPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedMin(y Float32x4, z Mask32x4) Float32x4
 
-// Asm: VMULPS, Arch: AVX512EVEX
+// Asm: VMULPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedMul(y Float32x4, z Mask32x4) Float32x4
 
-// Asm: VSCALEFPS, Arch: AVX512EVEX
+// Asm: VSCALEFPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedMulByPowOf2(y Float32x4, z Mask32x4) Float32x4
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedNotEqual(y Float32x4, z Mask32x4) Mask32x4
 
-// Asm: VORPS, Arch: AVX512EVEX
+// Asm: VORPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedOr(y Float32x4, z Mask32x4) Float32x4
 
-// Asm: VADDPS, Arch: AVX512EVEX
+// Asm: VADDPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedSub(y Float32x4, z Mask32x4) Float32x4
 
-// Asm: VXORPS, Arch: AVX512EVEX
+// Asm: VXORPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedXor(y Float32x4, z Mask32x4) Float32x4
 
-// Asm: VADDPS, Arch: AVX512EVEX
+// Asm: VADDPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedAdd(y Float32x8, z Mask32x8) Float32x8
 
-// Asm: VANDPS, Arch: AVX512EVEX
+// Asm: VANDPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedAnd(y Float32x8, z Mask32x8) Float32x8
 
-// Asm: VANDNPS, Arch: AVX512EVEX
+// Asm: VANDNPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedAndNot(y Float32x8, z Mask32x8) Float32x8
 
-// Asm: VDIVPS, Arch: AVX512EVEX
+// Asm: VDIVPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedDiv(y Float32x8, z Mask32x8) Float32x8
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedEqual(y Float32x8, z Mask32x8) Mask32x8
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedGreater(y Float32x8, z Mask32x8) Mask32x8
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedGreaterEqual(y Float32x8, z Mask32x8) Mask32x8
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedIsNan(y Float32x8, z Mask32x8) Mask32x8
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedLess(y Float32x8, z Mask32x8) Mask32x8
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedLessEqual(y Float32x8, z Mask32x8) Mask32x8
 
-// Asm: VMAXPS, Arch: AVX512EVEX
+// Asm: VMAXPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedMax(y Float32x8, z Mask32x8) Float32x8
 
-// Asm: VMINPS, Arch: AVX512EVEX
+// Asm: VMINPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedMin(y Float32x8, z Mask32x8) Float32x8
 
-// Asm: VMULPS, Arch: AVX512EVEX
+// Asm: VMULPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedMul(y Float32x8, z Mask32x8) Float32x8
 
-// Asm: VSCALEFPS, Arch: AVX512EVEX
+// Asm: VSCALEFPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedMulByPowOf2(y Float32x8, z Mask32x8) Float32x8
 
-// Asm: VCMPPS, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedNotEqual(y Float32x8, z Mask32x8) Mask32x8
 
-// Asm: VORPS, Arch: AVX512EVEX
+// Asm: VORPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedOr(y Float32x8, z Mask32x8) Float32x8
 
-// Asm: VADDPS, Arch: AVX512EVEX
+// Asm: VADDPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedSub(y Float32x8, z Mask32x8) Float32x8
 
-// Asm: VXORPS, Arch: AVX512EVEX
+// Asm: VXORPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedXor(y Float32x8, z Mask32x8) Float32x8
 
-// Asm: VADDPD, Arch: AVX512EVEX
+// Asm: VADDPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedAdd(y Float64x2, z Mask64x2) Float64x2
 
-// Asm: VANDPD, Arch: AVX512EVEX
+// Asm: VANDPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedAnd(y Float64x2, z Mask64x2) Float64x2
 
-// Asm: VANDNPD, Arch: AVX512EVEX
+// Asm: VANDNPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedAndNot(y Float64x2, z Mask64x2) Float64x2
 
-// Asm: VDIVPD, Arch: AVX512EVEX
+// Asm: VDIVPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedDiv(y Float64x2, z Mask64x2) Float64x2
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedEqual(y Float64x2, z Mask64x2) Mask64x2
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedGreater(y Float64x2, z Mask64x2) Mask64x2
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedGreaterEqual(y Float64x2, z Mask64x2) Mask64x2
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedIsNan(y Float64x2, z Mask64x2) Mask64x2
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedLess(y Float64x2, z Mask64x2) Mask64x2
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedLessEqual(y Float64x2, z Mask64x2) Mask64x2
 
-// Asm: VMAXPD, Arch: AVX512EVEX
+// Asm: VMAXPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedMax(y Float64x2, z Mask64x2) Float64x2
 
-// Asm: VMINPD, Arch: AVX512EVEX
+// Asm: VMINPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedMin(y Float64x2, z Mask64x2) Float64x2
 
-// Asm: VMULPD, Arch: AVX512EVEX
+// Asm: VMULPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedMul(y Float64x2, z Mask64x2) Float64x2
 
-// Asm: VSCALEFPD, Arch: AVX512EVEX
+// Asm: VSCALEFPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedMulByPowOf2(y Float64x2, z Mask64x2) Float64x2
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedNotEqual(y Float64x2, z Mask64x2) Mask64x2
 
-// Asm: VORPD, Arch: AVX512EVEX
+// Asm: VORPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedOr(y Float64x2, z Mask64x2) Float64x2
 
-// Asm: VADDPD, Arch: AVX512EVEX
+// Asm: VADDPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedSub(y Float64x2, z Mask64x2) Float64x2
 
-// Asm: VXORPD, Arch: AVX512EVEX
+// Asm: VXORPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedXor(y Float64x2, z Mask64x2) Float64x2
 
-// Asm: VADDPD, Arch: AVX512EVEX
+// Asm: VADDPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedAdd(y Float64x4, z Mask64x4) Float64x4
 
-// Asm: VANDPD, Arch: AVX512EVEX
+// Asm: VANDPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedAnd(y Float64x4, z Mask64x4) Float64x4
 
-// Asm: VANDNPD, Arch: AVX512EVEX
+// Asm: VANDNPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedAndNot(y Float64x4, z Mask64x4) Float64x4
 
-// Asm: VDIVPD, Arch: AVX512EVEX
+// Asm: VDIVPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedDiv(y Float64x4, z Mask64x4) Float64x4
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedEqual(y Float64x4, z Mask64x4) Mask64x4
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedGreater(y Float64x4, z Mask64x4) Mask64x4
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedGreaterEqual(y Float64x4, z Mask64x4) Mask64x4
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedIsNan(y Float64x4, z Mask64x4) Mask64x4
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedLess(y Float64x4, z Mask64x4) Mask64x4
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedLessEqual(y Float64x4, z Mask64x4) Mask64x4
 
-// Asm: VMAXPD, Arch: AVX512EVEX
+// Asm: VMAXPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedMax(y Float64x4, z Mask64x4) Float64x4
 
-// Asm: VMINPD, Arch: AVX512EVEX
+// Asm: VMINPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedMin(y Float64x4, z Mask64x4) Float64x4
 
-// Asm: VMULPD, Arch: AVX512EVEX
+// Asm: VMULPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedMul(y Float64x4, z Mask64x4) Float64x4
 
-// Asm: VSCALEFPD, Arch: AVX512EVEX
+// Asm: VSCALEFPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedMulByPowOf2(y Float64x4, z Mask64x4) Float64x4
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedNotEqual(y Float64x4, z Mask64x4) Mask64x4
 
-// Asm: VORPD, Arch: AVX512EVEX
+// Asm: VORPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedOr(y Float64x4, z Mask64x4) Float64x4
 
-// Asm: VADDPD, Arch: AVX512EVEX
+// Asm: VADDPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedSub(y Float64x4, z Mask64x4) Float64x4
 
-// Asm: VXORPD, Arch: AVX512EVEX
+// Asm: VXORPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedXor(y Float64x4, z Mask64x4) Float64x4
 
-// Asm: VADDPD, Arch: AVX512EVEX
+// Asm: VADDPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedAdd(y Float64x8, z Mask64x8) Float64x8
 
-// Asm: VANDPD, Arch: AVX512EVEX
+// Asm: VANDPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedAnd(y Float64x8, z Mask64x8) Float64x8
 
-// Asm: VANDNPD, Arch: AVX512EVEX
+// Asm: VANDNPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedAndNot(y Float64x8, z Mask64x8) Float64x8
 
-// Asm: VDIVPD, Arch: AVX512EVEX
+// Asm: VDIVPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedDiv(y Float64x8, z Mask64x8) Float64x8
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedEqual(y Float64x8, z Mask64x8) Mask64x8
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedGreater(y Float64x8, z Mask64x8) Mask64x8
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedGreaterEqual(y Float64x8, z Mask64x8) Mask64x8
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+// Predicate immediate is 3 if it has; Returns mask element True if either one of the input\'s element is Nan; Please use this method as x\.IsNan\(x\) to check x only;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedIsNan(y Float64x8, z Mask64x8) Mask64x8
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedLess(y Float64x8, z Mask64x8) Mask64x8
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedLessEqual(y Float64x8, z Mask64x8) Mask64x8
 
-// Asm: VMAXPD, Arch: AVX512EVEX
+// Asm: VMAXPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedMax(y Float64x8, z Mask64x8) Float64x8
 
-// Asm: VMINPD, Arch: AVX512EVEX
+// Asm: VMINPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedMin(y Float64x8, z Mask64x8) Float64x8
 
-// Asm: VMULPD, Arch: AVX512EVEX
+// Asm: VMULPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedMul(y Float64x8, z Mask64x8) Float64x8
 
-// Asm: VSCALEFPD, Arch: AVX512EVEX
+// Asm: VSCALEFPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedMulByPowOf2(y Float64x8, z Mask64x8) Float64x8
 
-// Asm: VCMPPD, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedNotEqual(y Float64x8, z Mask64x8) Mask64x8
 
-// Asm: VORPD, Arch: AVX512EVEX
+// Asm: VORPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedOr(y Float64x8, z Mask64x8) Float64x8
 
-// Asm: VADDPD, Arch: AVX512EVEX
+// Asm: VADDPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedSub(y Float64x8, z Mask64x8) Float64x8
 
-// Asm: VXORPD, Arch: AVX512EVEX
+// Asm: VXORPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedXor(y Float64x8, z Mask64x8) Float64x8
 
-// Asm: VPADDW, Arch: AVX512EVEX
+// Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedAdd(y Int16x16, z Mask16x16) Int16x16
 
-// Asm: VPCMPEQW, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedEqual(y Int16x16, z Mask16x16) Mask16x16
 
-// Asm: VPCMPGTW, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedGreater(y Int16x16, z Mask16x16) Mask16x16
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedGreaterEqual(y Int16x16, z Mask16x16) Mask16x16
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedLess(y Int16x16, z Mask16x16) Mask16x16
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedLessEqual(y Int16x16, z Mask16x16) Mask16x16
 
-// Asm: VPMAXSW, Arch: AVX512EVEX
+// Asm: VPMAXSW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedMax(y Int16x16, z Mask16x16) Int16x16
 
-// Asm: VPMINSW, Arch: AVX512EVEX
+// Asm: VPMINSW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedMin(y Int16x16, z Mask16x16) Int16x16
 
-// Asm: VPMULHW, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+//
+// Asm: VPMULHW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedMulHigh(y Int16x16, z Mask16x16) Int16x16
 
-// Asm: VPMULLW, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+//
+// Asm: VPMULLW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedMulLow(y Int16x16, z Mask16x16) Int16x16
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedNotEqual(y Int16x16, z Mask16x16) Mask16x16
 
-// Asm: VPADDSW, Arch: AVX512EVEX
+// Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedSaturatedAdd(y Int16x16, z Mask16x16) Int16x16
 
-// Asm: VPSUBSW, Arch: AVX512EVEX
+// Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedSaturatedSub(y Int16x16, z Mask16x16) Int16x16
 
-// Asm: VPSUBW, Arch: AVX512EVEX
+// Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedSub(y Int16x16, z Mask16x16) Int16x16
 
-// Asm: VPADDW, Arch: AVX512EVEX
+// Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedAdd(y Int16x32, z Mask16x32) Int16x32
 
-// Asm: VPCMPEQW, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedEqual(y Int16x32, z Mask16x32) Mask16x32
 
-// Asm: VPCMPGTW, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedGreater(y Int16x32, z Mask16x32) Mask16x32
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedGreaterEqual(y Int16x32, z Mask16x32) Mask16x32
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedLess(y Int16x32, z Mask16x32) Mask16x32
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedLessEqual(y Int16x32, z Mask16x32) Mask16x32
 
-// Asm: VPMAXSW, Arch: AVX512EVEX
+// Asm: VPMAXSW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedMax(y Int16x32, z Mask16x32) Int16x32
 
-// Asm: VPMINSW, Arch: AVX512EVEX
+// Asm: VPMINSW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedMin(y Int16x32, z Mask16x32) Int16x32
 
-// Asm: VPMULHW, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+//
+// Asm: VPMULHW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedMulHigh(y Int16x32, z Mask16x32) Int16x32
 
-// Asm: VPMULLW, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+//
+// Asm: VPMULLW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedMulLow(y Int16x32, z Mask16x32) Int16x32
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedNotEqual(y Int16x32, z Mask16x32) Mask16x32
 
-// Asm: VPADDSW, Arch: AVX512EVEX
+// Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedSaturatedAdd(y Int16x32, z Mask16x32) Int16x32
 
-// Asm: VPSUBSW, Arch: AVX512EVEX
+// Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedSaturatedSub(y Int16x32, z Mask16x32) Int16x32
 
-// Asm: VPSUBW, Arch: AVX512EVEX
+// Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedSub(y Int16x32, z Mask16x32) Int16x32
 
-// Asm: VPADDW, Arch: AVX512EVEX
+// Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedAdd(y Int16x8, z Mask16x8) Int16x8
 
-// Asm: VPCMPEQW, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedEqual(y Int16x8, z Mask16x8) Mask16x8
 
-// Asm: VPCMPGTW, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedGreater(y Int16x8, z Mask16x8) Mask16x8
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedGreaterEqual(y Int16x8, z Mask16x8) Mask16x8
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedLess(y Int16x8, z Mask16x8) Mask16x8
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedLessEqual(y Int16x8, z Mask16x8) Mask16x8
 
-// Asm: VPMAXSW, Arch: AVX512EVEX
+// Asm: VPMAXSW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedMax(y Int16x8, z Mask16x8) Int16x8
 
-// Asm: VPMINSW, Arch: AVX512EVEX
+// Asm: VPMINSW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedMin(y Int16x8, z Mask16x8) Int16x8
 
-// Asm: VPMULHW, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+//
+// Asm: VPMULHW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedMulHigh(y Int16x8, z Mask16x8) Int16x8
 
-// Asm: VPMULLW, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+//
+// Asm: VPMULLW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedMulLow(y Int16x8, z Mask16x8) Int16x8
 
-// Asm: VPCMPW, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedNotEqual(y Int16x8, z Mask16x8) Mask16x8
 
-// Asm: VPADDSW, Arch: AVX512EVEX
+// Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedSaturatedAdd(y Int16x8, z Mask16x8) Int16x8
 
-// Asm: VPSUBSW, Arch: AVX512EVEX
+// Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedSaturatedSub(y Int16x8, z Mask16x8) Int16x8
 
-// Asm: VPSUBW, Arch: AVX512EVEX
+// Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedSub(y Int16x8, z Mask16x8) Int16x8
 
-// Asm: VPADDD, Arch: AVX512EVEX
+// Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedAdd(y Int32x16, z Mask32x16) Int32x16
 
-// Asm: VPANDD, Arch: AVX512EVEX
+// Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedAnd(y Int32x16, z Mask32x16) Int32x16
 
-// Asm: VPANDND, Arch: AVX512EVEX
+// Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedAndNot(y Int32x16, z Mask32x16) Int32x16
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedEqual(y Int32x16, z Mask32x16) Mask32x16
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedGreater(y Int32x16, z Mask32x16) Mask32x16
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedGreaterEqual(y Int32x16, z Mask32x16) Mask32x16
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedLess(y Int32x16, z Mask32x16) Mask32x16
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedLessEqual(y Int32x16, z Mask32x16) Mask32x16
 
-// Asm: VPMAXSD, Arch: AVX512EVEX
+// Asm: VPMAXSD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedMax(y Int32x16, z Mask32x16) Int32x16
 
-// Asm: VPMINSD, Arch: AVX512EVEX
+// Asm: VPMINSD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedMin(y Int32x16, z Mask32x16) Int32x16
 
-// Asm: VPMULLD, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+//
+// Asm: VPMULLD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedMulLow(y Int32x16, z Mask32x16) Int32x16
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedNotEqual(y Int32x16, z Mask32x16) Mask32x16
 
-// Asm: VPORD, Arch: AVX512EVEX
+// Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedOr(y Int32x16, z Mask32x16) Int32x16
 
-// Asm: VPSUBD, Arch: AVX512EVEX
+// Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedSub(y Int32x16, z Mask32x16) Int32x16
 
-// Asm: VPXORD, Arch: AVX512EVEX
+// Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedXor(y Int32x16, z Mask32x16) Int32x16
 
-// Asm: VPADDD, Arch: AVX512EVEX
+// Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedAdd(y Int32x4, z Mask32x4) Int32x4
 
-// Asm: VPANDD, Arch: AVX512EVEX
+// Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedAnd(y Int32x4, z Mask32x4) Int32x4
 
-// Asm: VPANDND, Arch: AVX512EVEX
+// Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedAndNot(y Int32x4, z Mask32x4) Int32x4
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedEqual(y Int32x4, z Mask32x4) Mask32x4
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedGreater(y Int32x4, z Mask32x4) Mask32x4
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedGreaterEqual(y Int32x4, z Mask32x4) Mask32x4
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedLess(y Int32x4, z Mask32x4) Mask32x4
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedLessEqual(y Int32x4, z Mask32x4) Mask32x4
 
-// Asm: VPMAXSD, Arch: AVX512EVEX
+// Asm: VPMAXSD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedMax(y Int32x4, z Mask32x4) Int32x4
 
-// Asm: VPMINSD, Arch: AVX512EVEX
+// Asm: VPMINSD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedMin(y Int32x4, z Mask32x4) Int32x4
 
-// Asm: VPMULLD, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+//
+// Asm: VPMULLD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedMulLow(y Int32x4, z Mask32x4) Int32x4
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedNotEqual(y Int32x4, z Mask32x4) Mask32x4
 
-// Asm: VPORD, Arch: AVX512EVEX
+// Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedOr(y Int32x4, z Mask32x4) Int32x4
 
-// Asm: VPSUBD, Arch: AVX512EVEX
+// Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedSub(y Int32x4, z Mask32x4) Int32x4
 
-// Asm: VPXORD, Arch: AVX512EVEX
+// Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedXor(y Int32x4, z Mask32x4) Int32x4
 
-// Asm: VPADDD, Arch: AVX512EVEX
+// Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedAdd(y Int32x8, z Mask32x8) Int32x8
 
-// Asm: VPANDD, Arch: AVX512EVEX
+// Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedAnd(y Int32x8, z Mask32x8) Int32x8
 
-// Asm: VPANDND, Arch: AVX512EVEX
+// Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedAndNot(y Int32x8, z Mask32x8) Int32x8
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedEqual(y Int32x8, z Mask32x8) Mask32x8
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedGreater(y Int32x8, z Mask32x8) Mask32x8
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedGreaterEqual(y Int32x8, z Mask32x8) Mask32x8
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedLess(y Int32x8, z Mask32x8) Mask32x8
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedLessEqual(y Int32x8, z Mask32x8) Mask32x8
 
-// Asm: VPMAXSD, Arch: AVX512EVEX
+// Asm: VPMAXSD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedMax(y Int32x8, z Mask32x8) Int32x8
 
-// Asm: VPMINSD, Arch: AVX512EVEX
+// Asm: VPMINSD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedMin(y Int32x8, z Mask32x8) Int32x8
 
-// Asm: VPMULLD, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+//
+// Asm: VPMULLD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedMulLow(y Int32x8, z Mask32x8) Int32x8
 
-// Asm: VPCMPD, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedNotEqual(y Int32x8, z Mask32x8) Mask32x8
 
-// Asm: VPORD, Arch: AVX512EVEX
+// Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedOr(y Int32x8, z Mask32x8) Int32x8
 
-// Asm: VPSUBD, Arch: AVX512EVEX
+// Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedSub(y Int32x8, z Mask32x8) Int32x8
 
-// Asm: VPXORD, Arch: AVX512EVEX
+// Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedXor(y Int32x8, z Mask32x8) Int32x8
 
-// Asm: VPADDQ, Arch: AVX512EVEX
+// Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedAdd(y Int64x2, z Mask64x2) Int64x2
 
-// Asm: VPANDQ, Arch: AVX512EVEX
+// Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedAnd(y Int64x2, z Mask64x2) Int64x2
 
-// Asm: VPANDNQ, Arch: AVX512EVEX
+// Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedAndNot(y Int64x2, z Mask64x2) Int64x2
 
-// Asm: VPCMPEQQ, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedEqual(y Int64x2, z Mask64x2) Mask64x2
 
-// Asm: VPCMPGTQ, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedGreater(y Int64x2, z Mask64x2) Mask64x2
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedGreaterEqual(y Int64x2, z Mask64x2) Mask64x2
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedLess(y Int64x2, z Mask64x2) Mask64x2
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedLessEqual(y Int64x2, z Mask64x2) Mask64x2
 
-// Asm: VPMAXSQ, Arch: AVX512EVEX
+// Asm: VPMAXSQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedMax(y Int64x2, z Mask64x2) Int64x2
 
-// Asm: VPMINSQ, Arch: AVX512EVEX
+// Asm: VPMINSQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedMin(y Int64x2, z Mask64x2) Int64x2
 
-// Asm: VPMULDQ, Arch: AVX512EVEX, Doc: Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+//
+// Asm: VPMULDQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedMulEvenWiden(y Int64x2, z Mask64x2) Int64x2
 
-// Asm: VPMULLQ, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+//
+// Asm: VPMULLQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedMulLow(y Int64x2, z Mask64x2) Int64x2
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedNotEqual(y Int64x2, z Mask64x2) Mask64x2
 
-// Asm: VPORQ, Arch: AVX512EVEX
+// Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedOr(y Int64x2, z Mask64x2) Int64x2
 
-// Asm: VPSUBQ, Arch: AVX512EVEX
+// Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedSub(y Int64x2, z Mask64x2) Int64x2
 
-// Asm: VPXORQ, Arch: AVX512EVEX
+// Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedXor(y Int64x2, z Mask64x2) Int64x2
 
-// Asm: VPADDQ, Arch: AVX512EVEX
+// Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedAdd(y Int64x4, z Mask64x4) Int64x4
 
-// Asm: VPANDQ, Arch: AVX512EVEX
+// Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedAnd(y Int64x4, z Mask64x4) Int64x4
 
-// Asm: VPANDNQ, Arch: AVX512EVEX
+// Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedAndNot(y Int64x4, z Mask64x4) Int64x4
 
-// Asm: VPCMPEQQ, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedEqual(y Int64x4, z Mask64x4) Mask64x4
 
-// Asm: VPCMPGTQ, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedGreater(y Int64x4, z Mask64x4) Mask64x4
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedGreaterEqual(y Int64x4, z Mask64x4) Mask64x4
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedLess(y Int64x4, z Mask64x4) Mask64x4
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedLessEqual(y Int64x4, z Mask64x4) Mask64x4
 
-// Asm: VPMAXSQ, Arch: AVX512EVEX
+// Asm: VPMAXSQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedMax(y Int64x4, z Mask64x4) Int64x4
 
-// Asm: VPMINSQ, Arch: AVX512EVEX
+// Asm: VPMINSQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedMin(y Int64x4, z Mask64x4) Int64x4
 
-// Asm: VPMULDQ, Arch: AVX512EVEX, Doc: Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+//
+// Asm: VPMULDQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedMulEvenWiden(y Int64x4, z Mask64x4) Int64x4
 
-// Asm: VPMULLQ, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+//
+// Asm: VPMULLQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedMulLow(y Int64x4, z Mask64x4) Int64x4
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedNotEqual(y Int64x4, z Mask64x4) Mask64x4
 
-// Asm: VPORQ, Arch: AVX512EVEX
+// Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedOr(y Int64x4, z Mask64x4) Int64x4
 
-// Asm: VPSUBQ, Arch: AVX512EVEX
+// Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedSub(y Int64x4, z Mask64x4) Int64x4
 
-// Asm: VPXORQ, Arch: AVX512EVEX
+// Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedXor(y Int64x4, z Mask64x4) Int64x4
 
-// Asm: VPADDQ, Arch: AVX512EVEX
+// Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedAdd(y Int64x8, z Mask64x8) Int64x8
 
-// Asm: VPANDQ, Arch: AVX512EVEX
+// Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedAnd(y Int64x8, z Mask64x8) Int64x8
 
-// Asm: VPANDNQ, Arch: AVX512EVEX
+// Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedAndNot(y Int64x8, z Mask64x8) Int64x8
 
-// Asm: VPCMPEQQ, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedEqual(y Int64x8, z Mask64x8) Mask64x8
 
-// Asm: VPCMPGTQ, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedGreater(y Int64x8, z Mask64x8) Mask64x8
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedGreaterEqual(y Int64x8, z Mask64x8) Mask64x8
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedLess(y Int64x8, z Mask64x8) Mask64x8
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedLessEqual(y Int64x8, z Mask64x8) Mask64x8
 
-// Asm: VPMAXSQ, Arch: AVX512EVEX
+// Asm: VPMAXSQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedMax(y Int64x8, z Mask64x8) Int64x8
 
-// Asm: VPMINSQ, Arch: AVX512EVEX
+// Asm: VPMINSQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedMin(y Int64x8, z Mask64x8) Int64x8
 
-// Asm: VPMULDQ, Arch: AVX512EVEX, Doc: Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+//
+// Asm: VPMULDQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedMulEvenWiden(y Int64x8, z Mask64x8) Int64x8
 
-// Asm: VPMULLQ, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the low X bits of the result of size 2X at index i
+//
+// Asm: VPMULLQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedMulLow(y Int64x8, z Mask64x8) Int64x8
 
-// Asm: VPCMPQ, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedNotEqual(y Int64x8, z Mask64x8) Mask64x8
 
-// Asm: VPORQ, Arch: AVX512EVEX
+// Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedOr(y Int64x8, z Mask64x8) Int64x8
 
-// Asm: VPSUBQ, Arch: AVX512EVEX
+// Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedSub(y Int64x8, z Mask64x8) Int64x8
 
-// Asm: VPXORQ, Arch: AVX512EVEX
+// Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedXor(y Int64x8, z Mask64x8) Int64x8
 
-// Asm: VPADDB, Arch: AVX512EVEX
+// Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedAdd(y Int8x16, z Mask8x16) Int8x16
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedEqual(y Int8x16, z Mask8x16) Mask8x16
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedGreater(y Int8x16, z Mask8x16) Mask8x16
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedGreaterEqual(y Int8x16, z Mask8x16) Mask8x16
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedLess(y Int8x16, z Mask8x16) Mask8x16
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedLessEqual(y Int8x16, z Mask8x16) Mask8x16
 
-// Asm: VPMAXSB, Arch: AVX512EVEX
+// Asm: VPMAXSB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedMax(y Int8x16, z Mask8x16) Int8x16
 
-// Asm: VPMINSB, Arch: AVX512EVEX
+// Asm: VPMINSB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedMin(y Int8x16, z Mask8x16) Int8x16
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedNotEqual(y Int8x16, z Mask8x16) Mask8x16
 
-// Asm: VPADDSB, Arch: AVX512EVEX
+// Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedSaturatedAdd(y Int8x16, z Mask8x16) Int8x16
 
-// Asm: VPSUBSB, Arch: AVX512EVEX
+// Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedSaturatedSub(y Int8x16, z Mask8x16) Int8x16
 
-// Asm: VPSUBB, Arch: AVX512EVEX
+// Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedSub(y Int8x16, z Mask8x16) Int8x16
 
-// Asm: VPADDB, Arch: AVX512EVEX
+// Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedAdd(y Int8x32, z Mask8x32) Int8x32
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedEqual(y Int8x32, z Mask8x32) Mask8x32
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedGreater(y Int8x32, z Mask8x32) Mask8x32
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedGreaterEqual(y Int8x32, z Mask8x32) Mask8x32
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedLess(y Int8x32, z Mask8x32) Mask8x32
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedLessEqual(y Int8x32, z Mask8x32) Mask8x32
 
-// Asm: VPMAXSB, Arch: AVX512EVEX
+// Asm: VPMAXSB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedMax(y Int8x32, z Mask8x32) Int8x32
 
-// Asm: VPMINSB, Arch: AVX512EVEX
+// Asm: VPMINSB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedMin(y Int8x32, z Mask8x32) Int8x32
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedNotEqual(y Int8x32, z Mask8x32) Mask8x32
 
-// Asm: VPADDSB, Arch: AVX512EVEX
+// Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedSaturatedAdd(y Int8x32, z Mask8x32) Int8x32
 
-// Asm: VPSUBSB, Arch: AVX512EVEX
+// Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedSaturatedSub(y Int8x32, z Mask8x32) Int8x32
 
-// Asm: VPSUBB, Arch: AVX512EVEX
+// Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedSub(y Int8x32, z Mask8x32) Int8x32
 
-// Asm: VPADDB, Arch: AVX512EVEX
+// Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedAdd(y Int8x64, z Mask8x64) Int8x64
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPEQB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedEqual(y Int8x64, z Mask8x64) Mask8x64
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPGTB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedGreater(y Int8x64, z Mask8x64) Mask8x64
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedGreaterEqual(y Int8x64, z Mask8x64) Mask8x64
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedLess(y Int8x64, z Mask8x64) Mask8x64
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedLessEqual(y Int8x64, z Mask8x64) Mask8x64
 
-// Asm: VPMAXSB, Arch: AVX512EVEX
+// Asm: VPMAXSB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedMax(y Int8x64, z Mask8x64) Int8x64
 
-// Asm: VPMINSB, Arch: AVX512EVEX
+// Asm: VPMINSB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedMin(y Int8x64, z Mask8x64) Int8x64
 
-// Asm: VPCMPB, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedNotEqual(y Int8x64, z Mask8x64) Mask8x64
 
-// Asm: VPADDSB, Arch: AVX512EVEX
+// Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedSaturatedAdd(y Int8x64, z Mask8x64) Int8x64
 
-// Asm: VPSUBSB, Arch: AVX512EVEX
+// Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedSaturatedSub(y Int8x64, z Mask8x64) Int8x64
 
-// Asm: VPSUBB, Arch: AVX512EVEX
+// Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedSub(y Int8x64, z Mask8x64) Int8x64
 
-// Asm: VPADDW, Arch: AVX512EVEX
+// Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedAdd(y Uint16x16, z Mask16x16) Uint16x16
 
-// Asm: VPAVGW, Arch: AVX512EVEX
+// Asm: VPAVGW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedAverage(y Uint16x16, z Mask16x16) Uint16x16
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedEqual(y Uint16x16, z Mask16x16) Mask16x16
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedGreater(y Uint16x16, z Mask16x16) Mask16x16
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedGreaterEqual(y Uint16x16, z Mask16x16) Mask16x16
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedLess(y Uint16x16, z Mask16x16) Mask16x16
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedLessEqual(y Uint16x16, z Mask16x16) Mask16x16
 
-// Asm: VPMAXUW, Arch: AVX512EVEX
+// Asm: VPMAXUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedMax(y Uint16x16, z Mask16x16) Uint16x16
 
-// Asm: VPMINUW, Arch: AVX512EVEX
+// Asm: VPMINUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedMin(y Uint16x16, z Mask16x16) Uint16x16
 
-// Asm: VPMULHUW, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+//
+// Asm: VPMULHUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedMulHigh(y Uint16x16, z Mask16x16) Uint16x16
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedNotEqual(y Uint16x16, z Mask16x16) Mask16x16
 
-// Asm: VPADDSW, Arch: AVX512EVEX
+// Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedSaturatedAdd(y Uint16x16, z Mask16x16) Uint16x16
 
-// Asm: VPSUBSW, Arch: AVX512EVEX
+// Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedSaturatedSub(y Uint16x16, z Mask16x16) Uint16x16
 
-// Asm: VPSUBW, Arch: AVX512EVEX
+// Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedSub(y Uint16x16, z Mask16x16) Uint16x16
 
-// Asm: VPADDW, Arch: AVX512EVEX
+// Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedAdd(y Uint16x32, z Mask16x32) Uint16x32
 
-// Asm: VPAVGW, Arch: AVX512EVEX
+// Asm: VPAVGW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedAverage(y Uint16x32, z Mask16x32) Uint16x32
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedEqual(y Uint16x32, z Mask16x32) Mask16x32
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedGreater(y Uint16x32, z Mask16x32) Mask16x32
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedGreaterEqual(y Uint16x32, z Mask16x32) Mask16x32
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedLess(y Uint16x32, z Mask16x32) Mask16x32
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedLessEqual(y Uint16x32, z Mask16x32) Mask16x32
 
-// Asm: VPMAXUW, Arch: AVX512EVEX
+// Asm: VPMAXUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedMax(y Uint16x32, z Mask16x32) Uint16x32
 
-// Asm: VPMINUW, Arch: AVX512EVEX
+// Asm: VPMINUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedMin(y Uint16x32, z Mask16x32) Uint16x32
 
-// Asm: VPMULHUW, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+//
+// Asm: VPMULHUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedMulHigh(y Uint16x32, z Mask16x32) Uint16x32
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedNotEqual(y Uint16x32, z Mask16x32) Mask16x32
 
-// Asm: VPADDSW, Arch: AVX512EVEX
+// Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedSaturatedAdd(y Uint16x32, z Mask16x32) Uint16x32
 
-// Asm: VPSUBSW, Arch: AVX512EVEX
+// Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedSaturatedSub(y Uint16x32, z Mask16x32) Uint16x32
 
-// Asm: VPSUBW, Arch: AVX512EVEX
+// Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedSub(y Uint16x32, z Mask16x32) Uint16x32
 
-// Asm: VPADDW, Arch: AVX512EVEX
+// Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedAdd(y Uint16x8, z Mask16x8) Uint16x8
 
-// Asm: VPAVGW, Arch: AVX512EVEX
+// Asm: VPAVGW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedAverage(y Uint16x8, z Mask16x8) Uint16x8
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedEqual(y Uint16x8, z Mask16x8) Mask16x8
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedGreater(y Uint16x8, z Mask16x8) Mask16x8
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedGreaterEqual(y Uint16x8, z Mask16x8) Mask16x8
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedLess(y Uint16x8, z Mask16x8) Mask16x8
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedLessEqual(y Uint16x8, z Mask16x8) Mask16x8
 
-// Asm: VPMAXUW, Arch: AVX512EVEX
+// Asm: VPMAXUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedMax(y Uint16x8, z Mask16x8) Uint16x8
 
-// Asm: VPMINUW, Arch: AVX512EVEX
+// Asm: VPMINUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedMin(y Uint16x8, z Mask16x8) Uint16x8
 
-// Asm: VPMULHUW, Arch: AVX512EVEX, Doc: Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+// Multiplies the elements from the two sources of size X at index i, store the high X bits of the result of size 2X at index i
+//
+// Asm: VPMULHUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedMulHigh(y Uint16x8, z Mask16x8) Uint16x8
 
-// Asm: VPCMPUW, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedNotEqual(y Uint16x8, z Mask16x8) Mask16x8
 
-// Asm: VPADDSW, Arch: AVX512EVEX
+// Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedSaturatedAdd(y Uint16x8, z Mask16x8) Uint16x8
 
-// Asm: VPSUBSW, Arch: AVX512EVEX
+// Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedSaturatedSub(y Uint16x8, z Mask16x8) Uint16x8
 
-// Asm: VPSUBW, Arch: AVX512EVEX
+// Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedSub(y Uint16x8, z Mask16x8) Uint16x8
 
-// Asm: VPADDD, Arch: AVX512EVEX
+// Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedAdd(y Uint32x16, z Mask32x16) Uint32x16
 
-// Asm: VPANDD, Arch: AVX512EVEX
+// Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedAnd(y Uint32x16, z Mask32x16) Uint32x16
 
-// Asm: VPANDND, Arch: AVX512EVEX
+// Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedAndNot(y Uint32x16, z Mask32x16) Uint32x16
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedEqual(y Uint32x16, z Mask32x16) Mask32x16
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedGreater(y Uint32x16, z Mask32x16) Mask32x16
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedGreaterEqual(y Uint32x16, z Mask32x16) Mask32x16
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedLess(y Uint32x16, z Mask32x16) Mask32x16
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedLessEqual(y Uint32x16, z Mask32x16) Mask32x16
 
-// Asm: VPMAXUD, Arch: AVX512EVEX
+// Asm: VPMAXUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedMax(y Uint32x16, z Mask32x16) Uint32x16
 
-// Asm: VPMINUD, Arch: AVX512EVEX
+// Asm: VPMINUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedMin(y Uint32x16, z Mask32x16) Uint32x16
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedNotEqual(y Uint32x16, z Mask32x16) Mask32x16
 
-// Asm: VPORD, Arch: AVX512EVEX
+// Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedOr(y Uint32x16, z Mask32x16) Uint32x16
 
-// Asm: VPSUBD, Arch: AVX512EVEX
+// Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedSub(y Uint32x16, z Mask32x16) Uint32x16
 
-// Asm: VPXORD, Arch: AVX512EVEX
+// Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedXor(y Uint32x16, z Mask32x16) Uint32x16
 
-// Asm: VPADDD, Arch: AVX512EVEX
+// Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedAdd(y Uint32x4, z Mask32x4) Uint32x4
 
-// Asm: VPANDD, Arch: AVX512EVEX
+// Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedAnd(y Uint32x4, z Mask32x4) Uint32x4
 
-// Asm: VPANDND, Arch: AVX512EVEX
+// Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedAndNot(y Uint32x4, z Mask32x4) Uint32x4
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedEqual(y Uint32x4, z Mask32x4) Mask32x4
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedGreater(y Uint32x4, z Mask32x4) Mask32x4
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedGreaterEqual(y Uint32x4, z Mask32x4) Mask32x4
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedLess(y Uint32x4, z Mask32x4) Mask32x4
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedLessEqual(y Uint32x4, z Mask32x4) Mask32x4
 
-// Asm: VPMAXUD, Arch: AVX512EVEX
+// Asm: VPMAXUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedMax(y Uint32x4, z Mask32x4) Uint32x4
 
-// Asm: VPMINUD, Arch: AVX512EVEX
+// Asm: VPMINUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedMin(y Uint32x4, z Mask32x4) Uint32x4
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedNotEqual(y Uint32x4, z Mask32x4) Mask32x4
 
-// Asm: VPORD, Arch: AVX512EVEX
+// Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedOr(y Uint32x4, z Mask32x4) Uint32x4
 
-// Asm: VPSUBD, Arch: AVX512EVEX
+// Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedSub(y Uint32x4, z Mask32x4) Uint32x4
 
-// Asm: VPXORD, Arch: AVX512EVEX
+// Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedXor(y Uint32x4, z Mask32x4) Uint32x4
 
-// Asm: VPADDD, Arch: AVX512EVEX
+// Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedAdd(y Uint32x8, z Mask32x8) Uint32x8
 
-// Asm: VPANDD, Arch: AVX512EVEX
+// Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedAnd(y Uint32x8, z Mask32x8) Uint32x8
 
-// Asm: VPANDND, Arch: AVX512EVEX
+// Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedAndNot(y Uint32x8, z Mask32x8) Uint32x8
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedEqual(y Uint32x8, z Mask32x8) Mask32x8
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedGreater(y Uint32x8, z Mask32x8) Mask32x8
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedGreaterEqual(y Uint32x8, z Mask32x8) Mask32x8
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedLess(y Uint32x8, z Mask32x8) Mask32x8
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedLessEqual(y Uint32x8, z Mask32x8) Mask32x8
 
-// Asm: VPMAXUD, Arch: AVX512EVEX
+// Asm: VPMAXUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedMax(y Uint32x8, z Mask32x8) Uint32x8
 
-// Asm: VPMINUD, Arch: AVX512EVEX
+// Asm: VPMINUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedMin(y Uint32x8, z Mask32x8) Uint32x8
 
-// Asm: VPCMPUD, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedNotEqual(y Uint32x8, z Mask32x8) Mask32x8
 
-// Asm: VPORD, Arch: AVX512EVEX
+// Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedOr(y Uint32x8, z Mask32x8) Uint32x8
 
-// Asm: VPSUBD, Arch: AVX512EVEX
+// Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedSub(y Uint32x8, z Mask32x8) Uint32x8
 
-// Asm: VPXORD, Arch: AVX512EVEX
+// Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedXor(y Uint32x8, z Mask32x8) Uint32x8
 
-// Asm: VPADDQ, Arch: AVX512EVEX
+// Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedAdd(y Uint64x2, z Mask64x2) Uint64x2
 
-// Asm: VPANDQ, Arch: AVX512EVEX
+// Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedAnd(y Uint64x2, z Mask64x2) Uint64x2
 
-// Asm: VPANDNQ, Arch: AVX512EVEX
+// Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedAndNot(y Uint64x2, z Mask64x2) Uint64x2
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedEqual(y Uint64x2, z Mask64x2) Mask64x2
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedGreater(y Uint64x2, z Mask64x2) Mask64x2
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedGreaterEqual(y Uint64x2, z Mask64x2) Mask64x2
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedLess(y Uint64x2, z Mask64x2) Mask64x2
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedLessEqual(y Uint64x2, z Mask64x2) Mask64x2
 
-// Asm: VPMAXUQ, Arch: AVX512EVEX
+// Asm: VPMAXUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedMax(y Uint64x2, z Mask64x2) Uint64x2
 
-// Asm: VPMINUQ, Arch: AVX512EVEX
+// Asm: VPMINUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedMin(y Uint64x2, z Mask64x2) Uint64x2
 
-// Asm: VPMULUDQ, Arch: AVX512EVEX, Doc: Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+//
+// Asm: VPMULUDQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedMulEvenWiden(y Uint64x2, z Mask64x2) Uint64x2
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedNotEqual(y Uint64x2, z Mask64x2) Mask64x2
 
-// Asm: VPORQ, Arch: AVX512EVEX
+// Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedOr(y Uint64x2, z Mask64x2) Uint64x2
 
-// Asm: VPSUBQ, Arch: AVX512EVEX
+// Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedSub(y Uint64x2, z Mask64x2) Uint64x2
 
-// Asm: VPXORQ, Arch: AVX512EVEX
+// Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedXor(y Uint64x2, z Mask64x2) Uint64x2
 
-// Asm: VPADDQ, Arch: AVX512EVEX
+// Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedAdd(y Uint64x4, z Mask64x4) Uint64x4
 
-// Asm: VPANDQ, Arch: AVX512EVEX
+// Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedAnd(y Uint64x4, z Mask64x4) Uint64x4
 
-// Asm: VPANDNQ, Arch: AVX512EVEX
+// Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedAndNot(y Uint64x4, z Mask64x4) Uint64x4
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedEqual(y Uint64x4, z Mask64x4) Mask64x4
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedGreater(y Uint64x4, z Mask64x4) Mask64x4
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedGreaterEqual(y Uint64x4, z Mask64x4) Mask64x4
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedLess(y Uint64x4, z Mask64x4) Mask64x4
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedLessEqual(y Uint64x4, z Mask64x4) Mask64x4
 
-// Asm: VPMAXUQ, Arch: AVX512EVEX
+// Asm: VPMAXUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedMax(y Uint64x4, z Mask64x4) Uint64x4
 
-// Asm: VPMINUQ, Arch: AVX512EVEX
+// Asm: VPMINUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedMin(y Uint64x4, z Mask64x4) Uint64x4
 
-// Asm: VPMULUDQ, Arch: AVX512EVEX, Doc: Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+//
+// Asm: VPMULUDQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedMulEvenWiden(y Uint64x4, z Mask64x4) Uint64x4
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedNotEqual(y Uint64x4, z Mask64x4) Mask64x4
 
-// Asm: VPORQ, Arch: AVX512EVEX
+// Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedOr(y Uint64x4, z Mask64x4) Uint64x4
 
-// Asm: VPSUBQ, Arch: AVX512EVEX
+// Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedSub(y Uint64x4, z Mask64x4) Uint64x4
 
-// Asm: VPXORQ, Arch: AVX512EVEX
+// Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedXor(y Uint64x4, z Mask64x4) Uint64x4
 
-// Asm: VPADDQ, Arch: AVX512EVEX
+// Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedAdd(y Uint64x8, z Mask64x8) Uint64x8
 
-// Asm: VPANDQ, Arch: AVX512EVEX
+// Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedAnd(y Uint64x8, z Mask64x8) Uint64x8
 
-// Asm: VPANDNQ, Arch: AVX512EVEX
+// Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedAndNot(y Uint64x8, z Mask64x8) Uint64x8
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedEqual(y Uint64x8, z Mask64x8) Mask64x8
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedGreater(y Uint64x8, z Mask64x8) Mask64x8
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedGreaterEqual(y Uint64x8, z Mask64x8) Mask64x8
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedLess(y Uint64x8, z Mask64x8) Mask64x8
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedLessEqual(y Uint64x8, z Mask64x8) Mask64x8
 
-// Asm: VPMAXUQ, Arch: AVX512EVEX
+// Asm: VPMAXUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedMax(y Uint64x8, z Mask64x8) Uint64x8
 
-// Asm: VPMINUQ, Arch: AVX512EVEX
+// Asm: VPMINUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedMin(y Uint64x8, z Mask64x8) Uint64x8
 
-// Asm: VPMULUDQ, Arch: AVX512EVEX, Doc: Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+// Multiplies the even index elements from the two sources of size X at index i, store the result of size 2X at index i/2
+//
+// Asm: VPMULUDQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedMulEvenWiden(y Uint64x8, z Mask64x8) Uint64x8
 
-// Asm: VPCMPUQ, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedNotEqual(y Uint64x8, z Mask64x8) Mask64x8
 
-// Asm: VPORQ, Arch: AVX512EVEX
+// Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedOr(y Uint64x8, z Mask64x8) Uint64x8
 
-// Asm: VPSUBQ, Arch: AVX512EVEX
+// Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedSub(y Uint64x8, z Mask64x8) Uint64x8
 
-// Asm: VPXORQ, Arch: AVX512EVEX
+// Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedXor(y Uint64x8, z Mask64x8) Uint64x8
 
-// Asm: VPADDB, Arch: AVX512EVEX
+// Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedAdd(y Uint8x16, z Mask8x16) Uint8x16
 
-// Asm: VPAVGB, Arch: AVX512EVEX
+// Asm: VPAVGB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedAverage(y Uint8x16, z Mask8x16) Uint8x16
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedEqual(y Uint8x16, z Mask8x16) Mask8x16
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedGreater(y Uint8x16, z Mask8x16) Mask8x16
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedGreaterEqual(y Uint8x16, z Mask8x16) Mask8x16
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedLess(y Uint8x16, z Mask8x16) Mask8x16
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedLessEqual(y Uint8x16, z Mask8x16) Mask8x16
 
-// Asm: VPMAXUB, Arch: AVX512EVEX
+// Asm: VPMAXUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedMax(y Uint8x16, z Mask8x16) Uint8x16
 
-// Asm: VPMINUB, Arch: AVX512EVEX
+// Asm: VPMINUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedMin(y Uint8x16, z Mask8x16) Uint8x16
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedNotEqual(y Uint8x16, z Mask8x16) Mask8x16
 
-// Asm: VPADDSB, Arch: AVX512EVEX
+// Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedSaturatedAdd(y Uint8x16, z Mask8x16) Uint8x16
 
-// Asm: VPSUBSB, Arch: AVX512EVEX
+// Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedSaturatedSub(y Uint8x16, z Mask8x16) Uint8x16
 
-// Asm: VPSUBB, Arch: AVX512EVEX
+// Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedSub(y Uint8x16, z Mask8x16) Uint8x16
 
-// Asm: VPADDB, Arch: AVX512EVEX
+// Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedAdd(y Uint8x32, z Mask8x32) Uint8x32
 
-// Asm: VPAVGB, Arch: AVX512EVEX
+// Asm: VPAVGB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedAverage(y Uint8x32, z Mask8x32) Uint8x32
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedEqual(y Uint8x32, z Mask8x32) Mask8x32
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedGreater(y Uint8x32, z Mask8x32) Mask8x32
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedGreaterEqual(y Uint8x32, z Mask8x32) Mask8x32
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedLess(y Uint8x32, z Mask8x32) Mask8x32
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedLessEqual(y Uint8x32, z Mask8x32) Mask8x32
 
-// Asm: VPMAXUB, Arch: AVX512EVEX
+// Asm: VPMAXUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedMax(y Uint8x32, z Mask8x32) Uint8x32
 
-// Asm: VPMINUB, Arch: AVX512EVEX
+// Asm: VPMINUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedMin(y Uint8x32, z Mask8x32) Uint8x32
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedNotEqual(y Uint8x32, z Mask8x32) Mask8x32
 
-// Asm: VPADDSB, Arch: AVX512EVEX
+// Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedSaturatedAdd(y Uint8x32, z Mask8x32) Uint8x32
 
-// Asm: VPSUBSB, Arch: AVX512EVEX
+// Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedSaturatedSub(y Uint8x32, z Mask8x32) Uint8x32
 
-// Asm: VPSUBB, Arch: AVX512EVEX
+// Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedSub(y Uint8x32, z Mask8x32) Uint8x32
 
-// Asm: VPADDB, Arch: AVX512EVEX
+// Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedAdd(y Uint8x64, z Mask8x64) Uint8x64
 
-// Asm: VPAVGB, Arch: AVX512EVEX
+// Asm: VPAVGB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedAverage(y Uint8x64, z Mask8x64) Uint8x64
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 0 if it has;
+// Predicate immediate is 0 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedEqual(y Uint8x64, z Mask8x64) Mask8x64
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 6 if it has;
+// Predicate immediate is 6 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedGreater(y Uint8x64, z Mask8x64) Mask8x64
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 5 if it has;
+// Predicate immediate is 5 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedGreaterEqual(y Uint8x64, z Mask8x64) Mask8x64
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 1 if it has;
+// Predicate immediate is 1 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedLess(y Uint8x64, z Mask8x64) Mask8x64
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 2 if it has;
+// Predicate immediate is 2 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedLessEqual(y Uint8x64, z Mask8x64) Mask8x64
 
-// Asm: VPMAXUB, Arch: AVX512EVEX
+// Asm: VPMAXUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedMax(y Uint8x64, z Mask8x64) Uint8x64
 
-// Asm: VPMINUB, Arch: AVX512EVEX
+// Asm: VPMINUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedMin(y Uint8x64, z Mask8x64) Uint8x64
 
-// Asm: VPCMPUB, Arch: AVX512EVEX, Doc: Predicate immediate is 4 if it has;
+// Predicate immediate is 4 if it has;
+//
+// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedNotEqual(y Uint8x64, z Mask8x64) Mask8x64
 
-// Asm: VPADDSB, Arch: AVX512EVEX
+// Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedSaturatedAdd(y Uint8x64, z Mask8x64) Uint8x64
 
-// Asm: VPSUBSB, Arch: AVX512EVEX
+// Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedSaturatedSub(y Uint8x64, z Mask8x64) Uint8x64
 
-// Asm: VPSUBB, Arch: AVX512EVEX
+// Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedSub(y Uint8x64, z Mask8x64) Uint8x64
-
-// Int32x8 converts from Int16x16 to Int32x8
-func (from Int16x16) AsInt32x8() (to Int32x8)
-
-// Uint64x4 converts from Int16x16 to Uint64x4
-func (from Int16x16) AsUint64x4() (to Uint64x4)
-
-// Int64x4 converts from Int16x16 to Int64x4
-func (from Int16x16) AsInt64x4() (to Int64x4)
-
-// Float64x4 converts from Int16x16 to Float64x4
-func (from Int16x16) AsFloat64x4() (to Float64x4)
-
-// Float32x8 converts from Int16x16 to Float32x8
-func (from Int16x16) AsFloat32x8() (to Float32x8)
-
-// Uint16x16 converts from Int16x16 to Uint16x16
-func (from Int16x16) AsUint16x16() (to Uint16x16)
-
-// Int8x32 converts from Int16x16 to Int8x32
-func (from Int16x16) AsInt8x32() (to Int8x32)
-
-// Uint8x32 converts from Int16x16 to Uint8x32
-func (from Int16x16) AsUint8x32() (to Uint8x32)
-
-// Uint32x8 converts from Int16x16 to Uint32x8
-func (from Int16x16) AsUint32x8() (to Uint32x8)
-
-// Int16x16 converts from Int32x8 to Int16x16
-func (from Int32x8) AsInt16x16() (to Int16x16)
-
-// Uint64x4 converts from Int32x8 to Uint64x4
-func (from Int32x8) AsUint64x4() (to Uint64x4)
-
-// Int64x4 converts from Int32x8 to Int64x4
-func (from Int32x8) AsInt64x4() (to Int64x4)
-
-// Float64x4 converts from Int32x8 to Float64x4
-func (from Int32x8) AsFloat64x4() (to Float64x4)
-
-// Float32x8 converts from Int32x8 to Float32x8
-func (from Int32x8) AsFloat32x8() (to Float32x8)
-
-// Uint16x16 converts from Int32x8 to Uint16x16
-func (from Int32x8) AsUint16x16() (to Uint16x16)
-
-// Int8x32 converts from Int32x8 to Int8x32
-func (from Int32x8) AsInt8x32() (to Int8x32)
-
-// Uint8x32 converts from Int32x8 to Uint8x32
-func (from Int32x8) AsUint8x32() (to Uint8x32)
-
-// Uint32x8 converts from Int32x8 to Uint32x8
-func (from Int32x8) AsUint32x8() (to Uint32x8)
-
-// Int16x16 converts from Uint64x4 to Int16x16
-func (from Uint64x4) AsInt16x16() (to Int16x16)
-
-// Int32x8 converts from Uint64x4 to Int32x8
-func (from Uint64x4) AsInt32x8() (to Int32x8)
-
-// Int64x4 converts from Uint64x4 to Int64x4
-func (from Uint64x4) AsInt64x4() (to Int64x4)
-
-// Float64x4 converts from Uint64x4 to Float64x4
-func (from Uint64x4) AsFloat64x4() (to Float64x4)
-
-// Float32x8 converts from Uint64x4 to Float32x8
-func (from Uint64x4) AsFloat32x8() (to Float32x8)
-
-// Uint16x16 converts from Uint64x4 to Uint16x16
-func (from Uint64x4) AsUint16x16() (to Uint16x16)
-
-// Int8x32 converts from Uint64x4 to Int8x32
-func (from Uint64x4) AsInt8x32() (to Int8x32)
-
-// Uint8x32 converts from Uint64x4 to Uint8x32
-func (from Uint64x4) AsUint8x32() (to Uint8x32)
-
-// Uint32x8 converts from Uint64x4 to Uint32x8
-func (from Uint64x4) AsUint32x8() (to Uint32x8)
-
-// Int16x16 converts from Int64x4 to Int16x16
-func (from Int64x4) AsInt16x16() (to Int16x16)
-
-// Int32x8 converts from Int64x4 to Int32x8
-func (from Int64x4) AsInt32x8() (to Int32x8)
-
-// Uint64x4 converts from Int64x4 to Uint64x4
-func (from Int64x4) AsUint64x4() (to Uint64x4)
-
-// Float64x4 converts from Int64x4 to Float64x4
-func (from Int64x4) AsFloat64x4() (to Float64x4)
-
-// Float32x8 converts from Int64x4 to Float32x8
-func (from Int64x4) AsFloat32x8() (to Float32x8)
-
-// Uint16x16 converts from Int64x4 to Uint16x16
-func (from Int64x4) AsUint16x16() (to Uint16x16)
-
-// Int8x32 converts from Int64x4 to Int8x32
-func (from Int64x4) AsInt8x32() (to Int8x32)
-
-// Uint8x32 converts from Int64x4 to Uint8x32
-func (from Int64x4) AsUint8x32() (to Uint8x32)
-
-// Uint32x8 converts from Int64x4 to Uint32x8
-func (from Int64x4) AsUint32x8() (to Uint32x8)
-
-// Int16x16 converts from Float64x4 to Int16x16
-func (from Float64x4) AsInt16x16() (to Int16x16)
-
-// Int32x8 converts from Float64x4 to Int32x8
-func (from Float64x4) AsInt32x8() (to Int32x8)
-
-// Uint64x4 converts from Float64x4 to Uint64x4
-func (from Float64x4) AsUint64x4() (to Uint64x4)
-
-// Int64x4 converts from Float64x4 to Int64x4
-func (from Float64x4) AsInt64x4() (to Int64x4)
-
-// Float32x8 converts from Float64x4 to Float32x8
-func (from Float64x4) AsFloat32x8() (to Float32x8)
-
-// Uint16x16 converts from Float64x4 to Uint16x16
-func (from Float64x4) AsUint16x16() (to Uint16x16)
-
-// Int8x32 converts from Float64x4 to Int8x32
-func (from Float64x4) AsInt8x32() (to Int8x32)
-
-// Uint8x32 converts from Float64x4 to Uint8x32
-func (from Float64x4) AsUint8x32() (to Uint8x32)
-
-// Uint32x8 converts from Float64x4 to Uint32x8
-func (from Float64x4) AsUint32x8() (to Uint32x8)
-
-// Int16x16 converts from Float32x8 to Int16x16
-func (from Float32x8) AsInt16x16() (to Int16x16)
-
-// Int32x8 converts from Float32x8 to Int32x8
-func (from Float32x8) AsInt32x8() (to Int32x8)
-
-// Uint64x4 converts from Float32x8 to Uint64x4
-func (from Float32x8) AsUint64x4() (to Uint64x4)
-
-// Int64x4 converts from Float32x8 to Int64x4
-func (from Float32x8) AsInt64x4() (to Int64x4)
-
-// Float64x4 converts from Float32x8 to Float64x4
-func (from Float32x8) AsFloat64x4() (to Float64x4)
-
-// Uint16x16 converts from Float32x8 to Uint16x16
-func (from Float32x8) AsUint16x16() (to Uint16x16)
-
-// Int8x32 converts from Float32x8 to Int8x32
-func (from Float32x8) AsInt8x32() (to Int8x32)
-
-// Uint8x32 converts from Float32x8 to Uint8x32
-func (from Float32x8) AsUint8x32() (to Uint8x32)
-
-// Uint32x8 converts from Float32x8 to Uint32x8
-func (from Float32x8) AsUint32x8() (to Uint32x8)
-
-// Int16x16 converts from Uint16x16 to Int16x16
-func (from Uint16x16) AsInt16x16() (to Int16x16)
-
-// Int32x8 converts from Uint16x16 to Int32x8
-func (from Uint16x16) AsInt32x8() (to Int32x8)
-
-// Uint64x4 converts from Uint16x16 to Uint64x4
-func (from Uint16x16) AsUint64x4() (to Uint64x4)
-
-// Int64x4 converts from Uint16x16 to Int64x4
-func (from Uint16x16) AsInt64x4() (to Int64x4)
-
-// Float64x4 converts from Uint16x16 to Float64x4
-func (from Uint16x16) AsFloat64x4() (to Float64x4)
-
-// Float32x8 converts from Uint16x16 to Float32x8
-func (from Uint16x16) AsFloat32x8() (to Float32x8)
-
-// Int8x32 converts from Uint16x16 to Int8x32
-func (from Uint16x16) AsInt8x32() (to Int8x32)
-
-// Uint8x32 converts from Uint16x16 to Uint8x32
-func (from Uint16x16) AsUint8x32() (to Uint8x32)
-
-// Uint32x8 converts from Uint16x16 to Uint32x8
-func (from Uint16x16) AsUint32x8() (to Uint32x8)
-
-// Int16x16 converts from Int8x32 to Int16x16
-func (from Int8x32) AsInt16x16() (to Int16x16)
-
-// Int32x8 converts from Int8x32 to Int32x8
-func (from Int8x32) AsInt32x8() (to Int32x8)
-
-// Uint64x4 converts from Int8x32 to Uint64x4
-func (from Int8x32) AsUint64x4() (to Uint64x4)
-
-// Int64x4 converts from Int8x32 to Int64x4
-func (from Int8x32) AsInt64x4() (to Int64x4)
-
-// Float64x4 converts from Int8x32 to Float64x4
-func (from Int8x32) AsFloat64x4() (to Float64x4)
-
-// Float32x8 converts from Int8x32 to Float32x8
-func (from Int8x32) AsFloat32x8() (to Float32x8)
-
-// Uint16x16 converts from Int8x32 to Uint16x16
-func (from Int8x32) AsUint16x16() (to Uint16x16)
-
-// Uint8x32 converts from Int8x32 to Uint8x32
-func (from Int8x32) AsUint8x32() (to Uint8x32)
-
-// Uint32x8 converts from Int8x32 to Uint32x8
-func (from Int8x32) AsUint32x8() (to Uint32x8)
-
-// Int16x16 converts from Uint8x32 to Int16x16
-func (from Uint8x32) AsInt16x16() (to Int16x16)
-
-// Int32x8 converts from Uint8x32 to Int32x8
-func (from Uint8x32) AsInt32x8() (to Int32x8)
-
-// Uint64x4 converts from Uint8x32 to Uint64x4
-func (from Uint8x32) AsUint64x4() (to Uint64x4)
-
-// Int64x4 converts from Uint8x32 to Int64x4
-func (from Uint8x32) AsInt64x4() (to Int64x4)
-
-// Float64x4 converts from Uint8x32 to Float64x4
-func (from Uint8x32) AsFloat64x4() (to Float64x4)
-
-// Float32x8 converts from Uint8x32 to Float32x8
-func (from Uint8x32) AsFloat32x8() (to Float32x8)
-
-// Uint16x16 converts from Uint8x32 to Uint16x16
-func (from Uint8x32) AsUint16x16() (to Uint16x16)
-
-// Int8x32 converts from Uint8x32 to Int8x32
-func (from Uint8x32) AsInt8x32() (to Int8x32)
-
-// Uint32x8 converts from Uint8x32 to Uint32x8
-func (from Uint8x32) AsUint32x8() (to Uint32x8)
-
-// Int16x16 converts from Uint32x8 to Int16x16
-func (from Uint32x8) AsInt16x16() (to Int16x16)
-
-// Int32x8 converts from Uint32x8 to Int32x8
-func (from Uint32x8) AsInt32x8() (to Int32x8)
-
-// Uint64x4 converts from Uint32x8 to Uint64x4
-func (from Uint32x8) AsUint64x4() (to Uint64x4)
-
-// Int64x4 converts from Uint32x8 to Int64x4
-func (from Uint32x8) AsInt64x4() (to Int64x4)
-
-// Float64x4 converts from Uint32x8 to Float64x4
-func (from Uint32x8) AsFloat64x4() (to Float64x4)
-
-// Float32x8 converts from Uint32x8 to Float32x8
-func (from Uint32x8) AsFloat32x8() (to Float32x8)
-
-// Uint16x16 converts from Uint32x8 to Uint16x16
-func (from Uint32x8) AsUint16x16() (to Uint16x16)
-
-// Int8x32 converts from Uint32x8 to Int8x32
-func (from Uint32x8) AsInt8x32() (to Int8x32)
-
-// Uint8x32 converts from Uint32x8 to Uint8x32
-func (from Uint32x8) AsUint8x32() (to Uint8x32)
-
-// Int64x8 converts from Float64x8 to Int64x8
-func (from Float64x8) AsInt64x8() (to Int64x8)
-
-// Uint8x64 converts from Float64x8 to Uint8x64
-func (from Float64x8) AsUint8x64() (to Uint8x64)
-
-// Int8x64 converts from Float64x8 to Int8x64
-func (from Float64x8) AsInt8x64() (to Int8x64)
-
-// Float32x16 converts from Float64x8 to Float32x16
-func (from Float64x8) AsFloat32x16() (to Float32x16)
-
-// Int32x16 converts from Float64x8 to Int32x16
-func (from Float64x8) AsInt32x16() (to Int32x16)
-
-// Uint16x32 converts from Float64x8 to Uint16x32
-func (from Float64x8) AsUint16x32() (to Uint16x32)
-
-// Int16x32 converts from Float64x8 to Int16x32
-func (from Float64x8) AsInt16x32() (to Int16x32)
-
-// Uint64x8 converts from Float64x8 to Uint64x8
-func (from Float64x8) AsUint64x8() (to Uint64x8)
-
-// Uint32x16 converts from Float64x8 to Uint32x16
-func (from Float64x8) AsUint32x16() (to Uint32x16)
-
-// Float64x8 converts from Int64x8 to Float64x8
-func (from Int64x8) AsFloat64x8() (to Float64x8)
-
-// Uint8x64 converts from Int64x8 to Uint8x64
-func (from Int64x8) AsUint8x64() (to Uint8x64)
-
-// Int8x64 converts from Int64x8 to Int8x64
-func (from Int64x8) AsInt8x64() (to Int8x64)
-
-// Float32x16 converts from Int64x8 to Float32x16
-func (from Int64x8) AsFloat32x16() (to Float32x16)
-
-// Int32x16 converts from Int64x8 to Int32x16
-func (from Int64x8) AsInt32x16() (to Int32x16)
-
-// Uint16x32 converts from Int64x8 to Uint16x32
-func (from Int64x8) AsUint16x32() (to Uint16x32)
-
-// Int16x32 converts from Int64x8 to Int16x32
-func (from Int64x8) AsInt16x32() (to Int16x32)
-
-// Uint64x8 converts from Int64x8 to Uint64x8
-func (from Int64x8) AsUint64x8() (to Uint64x8)
-
-// Uint32x16 converts from Int64x8 to Uint32x16
-func (from Int64x8) AsUint32x16() (to Uint32x16)
-
-// Float64x8 converts from Uint8x64 to Float64x8
-func (from Uint8x64) AsFloat64x8() (to Float64x8)
-
-// Int64x8 converts from Uint8x64 to Int64x8
-func (from Uint8x64) AsInt64x8() (to Int64x8)
-
-// Int8x64 converts from Uint8x64 to Int8x64
-func (from Uint8x64) AsInt8x64() (to Int8x64)
-
-// Float32x16 converts from Uint8x64 to Float32x16
-func (from Uint8x64) AsFloat32x16() (to Float32x16)
-
-// Int32x16 converts from Uint8x64 to Int32x16
-func (from Uint8x64) AsInt32x16() (to Int32x16)
-
-// Uint16x32 converts from Uint8x64 to Uint16x32
-func (from Uint8x64) AsUint16x32() (to Uint16x32)
-
-// Int16x32 converts from Uint8x64 to Int16x32
-func (from Uint8x64) AsInt16x32() (to Int16x32)
-
-// Uint64x8 converts from Uint8x64 to Uint64x8
-func (from Uint8x64) AsUint64x8() (to Uint64x8)
-
-// Uint32x16 converts from Uint8x64 to Uint32x16
-func (from Uint8x64) AsUint32x16() (to Uint32x16)
-
-// Float64x8 converts from Int8x64 to Float64x8
-func (from Int8x64) AsFloat64x8() (to Float64x8)
-
-// Int64x8 converts from Int8x64 to Int64x8
-func (from Int8x64) AsInt64x8() (to Int64x8)
-
-// Uint8x64 converts from Int8x64 to Uint8x64
-func (from Int8x64) AsUint8x64() (to Uint8x64)
-
-// Float32x16 converts from Int8x64 to Float32x16
-func (from Int8x64) AsFloat32x16() (to Float32x16)
-
-// Int32x16 converts from Int8x64 to Int32x16
-func (from Int8x64) AsInt32x16() (to Int32x16)
-
-// Uint16x32 converts from Int8x64 to Uint16x32
-func (from Int8x64) AsUint16x32() (to Uint16x32)
-
-// Int16x32 converts from Int8x64 to Int16x32
-func (from Int8x64) AsInt16x32() (to Int16x32)
-
-// Uint64x8 converts from Int8x64 to Uint64x8
-func (from Int8x64) AsUint64x8() (to Uint64x8)
-
-// Uint32x16 converts from Int8x64 to Uint32x16
-func (from Int8x64) AsUint32x16() (to Uint32x16)
 
 // Float64x8 converts from Float32x16 to Float64x8
 func (from Float32x16) AsFloat64x8() (to Float64x8)
 
-// Int64x8 converts from Float32x16 to Int64x8
-func (from Float32x16) AsInt64x8() (to Int64x8)
-
-// Uint8x64 converts from Float32x16 to Uint8x64
-func (from Float32x16) AsUint8x64() (to Uint8x64)
-
-// Int8x64 converts from Float32x16 to Int8x64
-func (from Float32x16) AsInt8x64() (to Int8x64)
+// Int16x32 converts from Float32x16 to Int16x32
+func (from Float32x16) AsInt16x32() (to Int16x32)
 
 // Int32x16 converts from Float32x16 to Int32x16
 func (from Float32x16) AsInt32x16() (to Int32x16)
 
+// Int64x8 converts from Float32x16 to Int64x8
+func (from Float32x16) AsInt64x8() (to Int64x8)
+
+// Int8x64 converts from Float32x16 to Int8x64
+func (from Float32x16) AsInt8x64() (to Int8x64)
+
 // Uint16x32 converts from Float32x16 to Uint16x32
 func (from Float32x16) AsUint16x32() (to Uint16x32)
-
-// Int16x32 converts from Float32x16 to Int16x32
-func (from Float32x16) AsInt16x32() (to Int16x32)
-
-// Uint64x8 converts from Float32x16 to Uint64x8
-func (from Float32x16) AsUint64x8() (to Uint64x8)
 
 // Uint32x16 converts from Float32x16 to Uint32x16
 func (from Float32x16) AsUint32x16() (to Uint32x16)
 
-// Float64x8 converts from Int32x16 to Float64x8
-func (from Int32x16) AsFloat64x8() (to Float64x8)
+// Uint64x8 converts from Float32x16 to Uint64x8
+func (from Float32x16) AsUint64x8() (to Uint64x8)
 
-// Int64x8 converts from Int32x16 to Int64x8
-func (from Int32x16) AsInt64x8() (to Int64x8)
+// Uint8x64 converts from Float32x16 to Uint8x64
+func (from Float32x16) AsUint8x64() (to Uint8x64)
 
-// Uint8x64 converts from Int32x16 to Uint8x64
-func (from Int32x16) AsUint8x64() (to Uint8x64)
+// Float64x2 converts from Float32x4 to Float64x2
+func (from Float32x4) AsFloat64x2() (to Float64x2)
 
-// Int8x64 converts from Int32x16 to Int8x64
-func (from Int32x16) AsInt8x64() (to Int8x64)
-
-// Float32x16 converts from Int32x16 to Float32x16
-func (from Int32x16) AsFloat32x16() (to Float32x16)
-
-// Uint16x32 converts from Int32x16 to Uint16x32
-func (from Int32x16) AsUint16x32() (to Uint16x32)
-
-// Int16x32 converts from Int32x16 to Int16x32
-func (from Int32x16) AsInt16x32() (to Int16x32)
-
-// Uint64x8 converts from Int32x16 to Uint64x8
-func (from Int32x16) AsUint64x8() (to Uint64x8)
-
-// Uint32x16 converts from Int32x16 to Uint32x16
-func (from Int32x16) AsUint32x16() (to Uint32x16)
-
-// Float64x8 converts from Uint16x32 to Float64x8
-func (from Uint16x32) AsFloat64x8() (to Float64x8)
-
-// Int64x8 converts from Uint16x32 to Int64x8
-func (from Uint16x32) AsInt64x8() (to Int64x8)
-
-// Uint8x64 converts from Uint16x32 to Uint8x64
-func (from Uint16x32) AsUint8x64() (to Uint8x64)
-
-// Int8x64 converts from Uint16x32 to Int8x64
-func (from Uint16x32) AsInt8x64() (to Int8x64)
-
-// Float32x16 converts from Uint16x32 to Float32x16
-func (from Uint16x32) AsFloat32x16() (to Float32x16)
-
-// Int32x16 converts from Uint16x32 to Int32x16
-func (from Uint16x32) AsInt32x16() (to Int32x16)
-
-// Int16x32 converts from Uint16x32 to Int16x32
-func (from Uint16x32) AsInt16x32() (to Int16x32)
-
-// Uint64x8 converts from Uint16x32 to Uint64x8
-func (from Uint16x32) AsUint64x8() (to Uint64x8)
-
-// Uint32x16 converts from Uint16x32 to Uint32x16
-func (from Uint16x32) AsUint32x16() (to Uint32x16)
-
-// Float64x8 converts from Int16x32 to Float64x8
-func (from Int16x32) AsFloat64x8() (to Float64x8)
-
-// Int64x8 converts from Int16x32 to Int64x8
-func (from Int16x32) AsInt64x8() (to Int64x8)
-
-// Uint8x64 converts from Int16x32 to Uint8x64
-func (from Int16x32) AsUint8x64() (to Uint8x64)
-
-// Int8x64 converts from Int16x32 to Int8x64
-func (from Int16x32) AsInt8x64() (to Int8x64)
-
-// Float32x16 converts from Int16x32 to Float32x16
-func (from Int16x32) AsFloat32x16() (to Float32x16)
-
-// Int32x16 converts from Int16x32 to Int32x16
-func (from Int16x32) AsInt32x16() (to Int32x16)
-
-// Uint16x32 converts from Int16x32 to Uint16x32
-func (from Int16x32) AsUint16x32() (to Uint16x32)
-
-// Uint64x8 converts from Int16x32 to Uint64x8
-func (from Int16x32) AsUint64x8() (to Uint64x8)
-
-// Uint32x16 converts from Int16x32 to Uint32x16
-func (from Int16x32) AsUint32x16() (to Uint32x16)
-
-// Float64x8 converts from Uint64x8 to Float64x8
-func (from Uint64x8) AsFloat64x8() (to Float64x8)
-
-// Int64x8 converts from Uint64x8 to Int64x8
-func (from Uint64x8) AsInt64x8() (to Int64x8)
-
-// Uint8x64 converts from Uint64x8 to Uint8x64
-func (from Uint64x8) AsUint8x64() (to Uint8x64)
-
-// Int8x64 converts from Uint64x8 to Int8x64
-func (from Uint64x8) AsInt8x64() (to Int8x64)
-
-// Float32x16 converts from Uint64x8 to Float32x16
-func (from Uint64x8) AsFloat32x16() (to Float32x16)
-
-// Int32x16 converts from Uint64x8 to Int32x16
-func (from Uint64x8) AsInt32x16() (to Int32x16)
-
-// Uint16x32 converts from Uint64x8 to Uint16x32
-func (from Uint64x8) AsUint16x32() (to Uint16x32)
-
-// Int16x32 converts from Uint64x8 to Int16x32
-func (from Uint64x8) AsInt16x32() (to Int16x32)
-
-// Uint32x16 converts from Uint64x8 to Uint32x16
-func (from Uint64x8) AsUint32x16() (to Uint32x16)
-
-// Float64x8 converts from Uint32x16 to Float64x8
-func (from Uint32x16) AsFloat64x8() (to Float64x8)
-
-// Int64x8 converts from Uint32x16 to Int64x8
-func (from Uint32x16) AsInt64x8() (to Int64x8)
-
-// Uint8x64 converts from Uint32x16 to Uint8x64
-func (from Uint32x16) AsUint8x64() (to Uint8x64)
-
-// Int8x64 converts from Uint32x16 to Int8x64
-func (from Uint32x16) AsInt8x64() (to Int8x64)
-
-// Float32x16 converts from Uint32x16 to Float32x16
-func (from Uint32x16) AsFloat32x16() (to Float32x16)
-
-// Int32x16 converts from Uint32x16 to Int32x16
-func (from Uint32x16) AsInt32x16() (to Int32x16)
-
-// Uint16x32 converts from Uint32x16 to Uint16x32
-func (from Uint32x16) AsUint16x32() (to Uint16x32)
-
-// Int16x32 converts from Uint32x16 to Int16x32
-func (from Uint32x16) AsInt16x32() (to Int16x32)
-
-// Uint64x8 converts from Uint32x16 to Uint64x8
-func (from Uint32x16) AsUint64x8() (to Uint64x8)
-
-// Int8x16 converts from Int32x4 to Int8x16
-func (from Int32x4) AsInt8x16() (to Int8x16)
-
-// Uint16x8 converts from Int32x4 to Uint16x8
-func (from Int32x4) AsUint16x8() (to Uint16x8)
-
-// Int16x8 converts from Int32x4 to Int16x8
-func (from Int32x4) AsInt16x8() (to Int16x8)
-
-// Float32x4 converts from Int32x4 to Float32x4
-func (from Int32x4) AsFloat32x4() (to Float32x4)
-
-// Uint64x2 converts from Int32x4 to Uint64x2
-func (from Int32x4) AsUint64x2() (to Uint64x2)
-
-// Float64x2 converts from Int32x4 to Float64x2
-func (from Int32x4) AsFloat64x2() (to Float64x2)
-
-// Int64x2 converts from Int32x4 to Int64x2
-func (from Int32x4) AsInt64x2() (to Int64x2)
-
-// Uint8x16 converts from Int32x4 to Uint8x16
-func (from Int32x4) AsUint8x16() (to Uint8x16)
-
-// Uint32x4 converts from Int32x4 to Uint32x4
-func (from Int32x4) AsUint32x4() (to Uint32x4)
-
-// Int32x4 converts from Int8x16 to Int32x4
-func (from Int8x16) AsInt32x4() (to Int32x4)
-
-// Uint16x8 converts from Int8x16 to Uint16x8
-func (from Int8x16) AsUint16x8() (to Uint16x8)
-
-// Int16x8 converts from Int8x16 to Int16x8
-func (from Int8x16) AsInt16x8() (to Int16x8)
-
-// Float32x4 converts from Int8x16 to Float32x4
-func (from Int8x16) AsFloat32x4() (to Float32x4)
-
-// Uint64x2 converts from Int8x16 to Uint64x2
-func (from Int8x16) AsUint64x2() (to Uint64x2)
-
-// Float64x2 converts from Int8x16 to Float64x2
-func (from Int8x16) AsFloat64x2() (to Float64x2)
-
-// Int64x2 converts from Int8x16 to Int64x2
-func (from Int8x16) AsInt64x2() (to Int64x2)
-
-// Uint8x16 converts from Int8x16 to Uint8x16
-func (from Int8x16) AsUint8x16() (to Uint8x16)
-
-// Uint32x4 converts from Int8x16 to Uint32x4
-func (from Int8x16) AsUint32x4() (to Uint32x4)
-
-// Int32x4 converts from Uint16x8 to Int32x4
-func (from Uint16x8) AsInt32x4() (to Int32x4)
-
-// Int8x16 converts from Uint16x8 to Int8x16
-func (from Uint16x8) AsInt8x16() (to Int8x16)
-
-// Int16x8 converts from Uint16x8 to Int16x8
-func (from Uint16x8) AsInt16x8() (to Int16x8)
-
-// Float32x4 converts from Uint16x8 to Float32x4
-func (from Uint16x8) AsFloat32x4() (to Float32x4)
-
-// Uint64x2 converts from Uint16x8 to Uint64x2
-func (from Uint16x8) AsUint64x2() (to Uint64x2)
-
-// Float64x2 converts from Uint16x8 to Float64x2
-func (from Uint16x8) AsFloat64x2() (to Float64x2)
-
-// Int64x2 converts from Uint16x8 to Int64x2
-func (from Uint16x8) AsInt64x2() (to Int64x2)
-
-// Uint8x16 converts from Uint16x8 to Uint8x16
-func (from Uint16x8) AsUint8x16() (to Uint8x16)
-
-// Uint32x4 converts from Uint16x8 to Uint32x4
-func (from Uint16x8) AsUint32x4() (to Uint32x4)
-
-// Int32x4 converts from Int16x8 to Int32x4
-func (from Int16x8) AsInt32x4() (to Int32x4)
-
-// Int8x16 converts from Int16x8 to Int8x16
-func (from Int16x8) AsInt8x16() (to Int8x16)
-
-// Uint16x8 converts from Int16x8 to Uint16x8
-func (from Int16x8) AsUint16x8() (to Uint16x8)
-
-// Float32x4 converts from Int16x8 to Float32x4
-func (from Int16x8) AsFloat32x4() (to Float32x4)
-
-// Uint64x2 converts from Int16x8 to Uint64x2
-func (from Int16x8) AsUint64x2() (to Uint64x2)
-
-// Float64x2 converts from Int16x8 to Float64x2
-func (from Int16x8) AsFloat64x2() (to Float64x2)
-
-// Int64x2 converts from Int16x8 to Int64x2
-func (from Int16x8) AsInt64x2() (to Int64x2)
-
-// Uint8x16 converts from Int16x8 to Uint8x16
-func (from Int16x8) AsUint8x16() (to Uint8x16)
-
-// Uint32x4 converts from Int16x8 to Uint32x4
-func (from Int16x8) AsUint32x4() (to Uint32x4)
+// Int16x8 converts from Float32x4 to Int16x8
+func (from Float32x4) AsInt16x8() (to Int16x8)
 
 // Int32x4 converts from Float32x4 to Int32x4
 func (from Float32x4) AsInt32x4() (to Int32x4)
+
+// Int64x2 converts from Float32x4 to Int64x2
+func (from Float32x4) AsInt64x2() (to Int64x2)
 
 // Int8x16 converts from Float32x4 to Int8x16
 func (from Float32x4) AsInt8x16() (to Int8x16)
@@ -3877,53 +4157,53 @@ func (from Float32x4) AsInt8x16() (to Int8x16)
 // Uint16x8 converts from Float32x4 to Uint16x8
 func (from Float32x4) AsUint16x8() (to Uint16x8)
 
-// Int16x8 converts from Float32x4 to Int16x8
-func (from Float32x4) AsInt16x8() (to Int16x8)
+// Uint32x4 converts from Float32x4 to Uint32x4
+func (from Float32x4) AsUint32x4() (to Uint32x4)
 
 // Uint64x2 converts from Float32x4 to Uint64x2
 func (from Float32x4) AsUint64x2() (to Uint64x2)
 
-// Float64x2 converts from Float32x4 to Float64x2
-func (from Float32x4) AsFloat64x2() (to Float64x2)
-
-// Int64x2 converts from Float32x4 to Int64x2
-func (from Float32x4) AsInt64x2() (to Int64x2)
-
 // Uint8x16 converts from Float32x4 to Uint8x16
 func (from Float32x4) AsUint8x16() (to Uint8x16)
 
-// Uint32x4 converts from Float32x4 to Uint32x4
-func (from Float32x4) AsUint32x4() (to Uint32x4)
+// Float64x4 converts from Float32x8 to Float64x4
+func (from Float32x8) AsFloat64x4() (to Float64x4)
 
-// Int32x4 converts from Uint64x2 to Int32x4
-func (from Uint64x2) AsInt32x4() (to Int32x4)
+// Int16x16 converts from Float32x8 to Int16x16
+func (from Float32x8) AsInt16x16() (to Int16x16)
 
-// Int8x16 converts from Uint64x2 to Int8x16
-func (from Uint64x2) AsInt8x16() (to Int8x16)
+// Int32x8 converts from Float32x8 to Int32x8
+func (from Float32x8) AsInt32x8() (to Int32x8)
 
-// Uint16x8 converts from Uint64x2 to Uint16x8
-func (from Uint64x2) AsUint16x8() (to Uint16x8)
+// Int64x4 converts from Float32x8 to Int64x4
+func (from Float32x8) AsInt64x4() (to Int64x4)
 
-// Int16x8 converts from Uint64x2 to Int16x8
-func (from Uint64x2) AsInt16x8() (to Int16x8)
+// Int8x32 converts from Float32x8 to Int8x32
+func (from Float32x8) AsInt8x32() (to Int8x32)
 
-// Float32x4 converts from Uint64x2 to Float32x4
-func (from Uint64x2) AsFloat32x4() (to Float32x4)
+// Uint16x16 converts from Float32x8 to Uint16x16
+func (from Float32x8) AsUint16x16() (to Uint16x16)
 
-// Float64x2 converts from Uint64x2 to Float64x2
-func (from Uint64x2) AsFloat64x2() (to Float64x2)
+// Uint32x8 converts from Float32x8 to Uint32x8
+func (from Float32x8) AsUint32x8() (to Uint32x8)
 
-// Int64x2 converts from Uint64x2 to Int64x2
-func (from Uint64x2) AsInt64x2() (to Int64x2)
+// Uint64x4 converts from Float32x8 to Uint64x4
+func (from Float32x8) AsUint64x4() (to Uint64x4)
 
-// Uint8x16 converts from Uint64x2 to Uint8x16
-func (from Uint64x2) AsUint8x16() (to Uint8x16)
+// Uint8x32 converts from Float32x8 to Uint8x32
+func (from Float32x8) AsUint8x32() (to Uint8x32)
 
-// Uint32x4 converts from Uint64x2 to Uint32x4
-func (from Uint64x2) AsUint32x4() (to Uint32x4)
+// Float32x4 converts from Float64x2 to Float32x4
+func (from Float64x2) AsFloat32x4() (to Float32x4)
+
+// Int16x8 converts from Float64x2 to Int16x8
+func (from Float64x2) AsInt16x8() (to Int16x8)
 
 // Int32x4 converts from Float64x2 to Int32x4
 func (from Float64x2) AsInt32x4() (to Int32x4)
+
+// Int64x2 converts from Float64x2 to Int64x2
+func (from Float64x2) AsInt64x2() (to Int64x2)
 
 // Int8x16 converts from Float64x2 to Int8x16
 func (from Float64x2) AsInt8x16() (to Int8x16)
@@ -3931,23 +4211,239 @@ func (from Float64x2) AsInt8x16() (to Int8x16)
 // Uint16x8 converts from Float64x2 to Uint16x8
 func (from Float64x2) AsUint16x8() (to Uint16x8)
 
-// Int16x8 converts from Float64x2 to Int16x8
-func (from Float64x2) AsInt16x8() (to Int16x8)
-
-// Float32x4 converts from Float64x2 to Float32x4
-func (from Float64x2) AsFloat32x4() (to Float32x4)
+// Uint32x4 converts from Float64x2 to Uint32x4
+func (from Float64x2) AsUint32x4() (to Uint32x4)
 
 // Uint64x2 converts from Float64x2 to Uint64x2
 func (from Float64x2) AsUint64x2() (to Uint64x2)
 
-// Int64x2 converts from Float64x2 to Int64x2
-func (from Float64x2) AsInt64x2() (to Int64x2)
-
 // Uint8x16 converts from Float64x2 to Uint8x16
 func (from Float64x2) AsUint8x16() (to Uint8x16)
 
-// Uint32x4 converts from Float64x2 to Uint32x4
-func (from Float64x2) AsUint32x4() (to Uint32x4)
+// Float32x8 converts from Float64x4 to Float32x8
+func (from Float64x4) AsFloat32x8() (to Float32x8)
+
+// Int16x16 converts from Float64x4 to Int16x16
+func (from Float64x4) AsInt16x16() (to Int16x16)
+
+// Int32x8 converts from Float64x4 to Int32x8
+func (from Float64x4) AsInt32x8() (to Int32x8)
+
+// Int64x4 converts from Float64x4 to Int64x4
+func (from Float64x4) AsInt64x4() (to Int64x4)
+
+// Int8x32 converts from Float64x4 to Int8x32
+func (from Float64x4) AsInt8x32() (to Int8x32)
+
+// Uint16x16 converts from Float64x4 to Uint16x16
+func (from Float64x4) AsUint16x16() (to Uint16x16)
+
+// Uint32x8 converts from Float64x4 to Uint32x8
+func (from Float64x4) AsUint32x8() (to Uint32x8)
+
+// Uint64x4 converts from Float64x4 to Uint64x4
+func (from Float64x4) AsUint64x4() (to Uint64x4)
+
+// Uint8x32 converts from Float64x4 to Uint8x32
+func (from Float64x4) AsUint8x32() (to Uint8x32)
+
+// Float32x16 converts from Float64x8 to Float32x16
+func (from Float64x8) AsFloat32x16() (to Float32x16)
+
+// Int16x32 converts from Float64x8 to Int16x32
+func (from Float64x8) AsInt16x32() (to Int16x32)
+
+// Int32x16 converts from Float64x8 to Int32x16
+func (from Float64x8) AsInt32x16() (to Int32x16)
+
+// Int64x8 converts from Float64x8 to Int64x8
+func (from Float64x8) AsInt64x8() (to Int64x8)
+
+// Int8x64 converts from Float64x8 to Int8x64
+func (from Float64x8) AsInt8x64() (to Int8x64)
+
+// Uint16x32 converts from Float64x8 to Uint16x32
+func (from Float64x8) AsUint16x32() (to Uint16x32)
+
+// Uint32x16 converts from Float64x8 to Uint32x16
+func (from Float64x8) AsUint32x16() (to Uint32x16)
+
+// Uint64x8 converts from Float64x8 to Uint64x8
+func (from Float64x8) AsUint64x8() (to Uint64x8)
+
+// Uint8x64 converts from Float64x8 to Uint8x64
+func (from Float64x8) AsUint8x64() (to Uint8x64)
+
+// Float32x8 converts from Int16x16 to Float32x8
+func (from Int16x16) AsFloat32x8() (to Float32x8)
+
+// Float64x4 converts from Int16x16 to Float64x4
+func (from Int16x16) AsFloat64x4() (to Float64x4)
+
+// Int32x8 converts from Int16x16 to Int32x8
+func (from Int16x16) AsInt32x8() (to Int32x8)
+
+// Int64x4 converts from Int16x16 to Int64x4
+func (from Int16x16) AsInt64x4() (to Int64x4)
+
+// Int8x32 converts from Int16x16 to Int8x32
+func (from Int16x16) AsInt8x32() (to Int8x32)
+
+// Uint16x16 converts from Int16x16 to Uint16x16
+func (from Int16x16) AsUint16x16() (to Uint16x16)
+
+// Uint32x8 converts from Int16x16 to Uint32x8
+func (from Int16x16) AsUint32x8() (to Uint32x8)
+
+// Uint64x4 converts from Int16x16 to Uint64x4
+func (from Int16x16) AsUint64x4() (to Uint64x4)
+
+// Uint8x32 converts from Int16x16 to Uint8x32
+func (from Int16x16) AsUint8x32() (to Uint8x32)
+
+// Float32x16 converts from Int16x32 to Float32x16
+func (from Int16x32) AsFloat32x16() (to Float32x16)
+
+// Float64x8 converts from Int16x32 to Float64x8
+func (from Int16x32) AsFloat64x8() (to Float64x8)
+
+// Int32x16 converts from Int16x32 to Int32x16
+func (from Int16x32) AsInt32x16() (to Int32x16)
+
+// Int64x8 converts from Int16x32 to Int64x8
+func (from Int16x32) AsInt64x8() (to Int64x8)
+
+// Int8x64 converts from Int16x32 to Int8x64
+func (from Int16x32) AsInt8x64() (to Int8x64)
+
+// Uint16x32 converts from Int16x32 to Uint16x32
+func (from Int16x32) AsUint16x32() (to Uint16x32)
+
+// Uint32x16 converts from Int16x32 to Uint32x16
+func (from Int16x32) AsUint32x16() (to Uint32x16)
+
+// Uint64x8 converts from Int16x32 to Uint64x8
+func (from Int16x32) AsUint64x8() (to Uint64x8)
+
+// Uint8x64 converts from Int16x32 to Uint8x64
+func (from Int16x32) AsUint8x64() (to Uint8x64)
+
+// Float32x4 converts from Int16x8 to Float32x4
+func (from Int16x8) AsFloat32x4() (to Float32x4)
+
+// Float64x2 converts from Int16x8 to Float64x2
+func (from Int16x8) AsFloat64x2() (to Float64x2)
+
+// Int32x4 converts from Int16x8 to Int32x4
+func (from Int16x8) AsInt32x4() (to Int32x4)
+
+// Int64x2 converts from Int16x8 to Int64x2
+func (from Int16x8) AsInt64x2() (to Int64x2)
+
+// Int8x16 converts from Int16x8 to Int8x16
+func (from Int16x8) AsInt8x16() (to Int8x16)
+
+// Uint16x8 converts from Int16x8 to Uint16x8
+func (from Int16x8) AsUint16x8() (to Uint16x8)
+
+// Uint32x4 converts from Int16x8 to Uint32x4
+func (from Int16x8) AsUint32x4() (to Uint32x4)
+
+// Uint64x2 converts from Int16x8 to Uint64x2
+func (from Int16x8) AsUint64x2() (to Uint64x2)
+
+// Uint8x16 converts from Int16x8 to Uint8x16
+func (from Int16x8) AsUint8x16() (to Uint8x16)
+
+// Float32x16 converts from Int32x16 to Float32x16
+func (from Int32x16) AsFloat32x16() (to Float32x16)
+
+// Float64x8 converts from Int32x16 to Float64x8
+func (from Int32x16) AsFloat64x8() (to Float64x8)
+
+// Int16x32 converts from Int32x16 to Int16x32
+func (from Int32x16) AsInt16x32() (to Int16x32)
+
+// Int64x8 converts from Int32x16 to Int64x8
+func (from Int32x16) AsInt64x8() (to Int64x8)
+
+// Int8x64 converts from Int32x16 to Int8x64
+func (from Int32x16) AsInt8x64() (to Int8x64)
+
+// Uint16x32 converts from Int32x16 to Uint16x32
+func (from Int32x16) AsUint16x32() (to Uint16x32)
+
+// Uint32x16 converts from Int32x16 to Uint32x16
+func (from Int32x16) AsUint32x16() (to Uint32x16)
+
+// Uint64x8 converts from Int32x16 to Uint64x8
+func (from Int32x16) AsUint64x8() (to Uint64x8)
+
+// Uint8x64 converts from Int32x16 to Uint8x64
+func (from Int32x16) AsUint8x64() (to Uint8x64)
+
+// Float32x4 converts from Int32x4 to Float32x4
+func (from Int32x4) AsFloat32x4() (to Float32x4)
+
+// Float64x2 converts from Int32x4 to Float64x2
+func (from Int32x4) AsFloat64x2() (to Float64x2)
+
+// Int16x8 converts from Int32x4 to Int16x8
+func (from Int32x4) AsInt16x8() (to Int16x8)
+
+// Int64x2 converts from Int32x4 to Int64x2
+func (from Int32x4) AsInt64x2() (to Int64x2)
+
+// Int8x16 converts from Int32x4 to Int8x16
+func (from Int32x4) AsInt8x16() (to Int8x16)
+
+// Uint16x8 converts from Int32x4 to Uint16x8
+func (from Int32x4) AsUint16x8() (to Uint16x8)
+
+// Uint32x4 converts from Int32x4 to Uint32x4
+func (from Int32x4) AsUint32x4() (to Uint32x4)
+
+// Uint64x2 converts from Int32x4 to Uint64x2
+func (from Int32x4) AsUint64x2() (to Uint64x2)
+
+// Uint8x16 converts from Int32x4 to Uint8x16
+func (from Int32x4) AsUint8x16() (to Uint8x16)
+
+// Float32x8 converts from Int32x8 to Float32x8
+func (from Int32x8) AsFloat32x8() (to Float32x8)
+
+// Float64x4 converts from Int32x8 to Float64x4
+func (from Int32x8) AsFloat64x4() (to Float64x4)
+
+// Int16x16 converts from Int32x8 to Int16x16
+func (from Int32x8) AsInt16x16() (to Int16x16)
+
+// Int64x4 converts from Int32x8 to Int64x4
+func (from Int32x8) AsInt64x4() (to Int64x4)
+
+// Int8x32 converts from Int32x8 to Int8x32
+func (from Int32x8) AsInt8x32() (to Int8x32)
+
+// Uint16x16 converts from Int32x8 to Uint16x16
+func (from Int32x8) AsUint16x16() (to Uint16x16)
+
+// Uint32x8 converts from Int32x8 to Uint32x8
+func (from Int32x8) AsUint32x8() (to Uint32x8)
+
+// Uint64x4 converts from Int32x8 to Uint64x4
+func (from Int32x8) AsUint64x4() (to Uint64x4)
+
+// Uint8x32 converts from Int32x8 to Uint8x32
+func (from Int32x8) AsUint8x32() (to Uint8x32)
+
+// Float32x4 converts from Int64x2 to Float32x4
+func (from Int64x2) AsFloat32x4() (to Float32x4)
+
+// Float64x2 converts from Int64x2 to Float64x2
+func (from Int64x2) AsFloat64x2() (to Float64x2)
+
+// Int16x8 converts from Int64x2 to Int16x8
+func (from Int64x2) AsInt16x8() (to Int16x8)
 
 // Int32x4 converts from Int64x2 to Int32x4
 func (from Int64x2) AsInt32x4() (to Int32x4)
@@ -3958,53 +4454,272 @@ func (from Int64x2) AsInt8x16() (to Int8x16)
 // Uint16x8 converts from Int64x2 to Uint16x8
 func (from Int64x2) AsUint16x8() (to Uint16x8)
 
-// Int16x8 converts from Int64x2 to Int16x8
-func (from Int64x2) AsInt16x8() (to Int16x8)
-
-// Float32x4 converts from Int64x2 to Float32x4
-func (from Int64x2) AsFloat32x4() (to Float32x4)
+// Uint32x4 converts from Int64x2 to Uint32x4
+func (from Int64x2) AsUint32x4() (to Uint32x4)
 
 // Uint64x2 converts from Int64x2 to Uint64x2
 func (from Int64x2) AsUint64x2() (to Uint64x2)
 
-// Float64x2 converts from Int64x2 to Float64x2
-func (from Int64x2) AsFloat64x2() (to Float64x2)
-
 // Uint8x16 converts from Int64x2 to Uint8x16
 func (from Int64x2) AsUint8x16() (to Uint8x16)
 
-// Uint32x4 converts from Int64x2 to Uint32x4
-func (from Int64x2) AsUint32x4() (to Uint32x4)
+// Float32x8 converts from Int64x4 to Float32x8
+func (from Int64x4) AsFloat32x8() (to Float32x8)
 
-// Int32x4 converts from Uint8x16 to Int32x4
-func (from Uint8x16) AsInt32x4() (to Int32x4)
+// Float64x4 converts from Int64x4 to Float64x4
+func (from Int64x4) AsFloat64x4() (to Float64x4)
 
-// Int8x16 converts from Uint8x16 to Int8x16
-func (from Uint8x16) AsInt8x16() (to Int8x16)
+// Int16x16 converts from Int64x4 to Int16x16
+func (from Int64x4) AsInt16x16() (to Int16x16)
 
-// Uint16x8 converts from Uint8x16 to Uint16x8
-func (from Uint8x16) AsUint16x8() (to Uint16x8)
+// Int32x8 converts from Int64x4 to Int32x8
+func (from Int64x4) AsInt32x8() (to Int32x8)
 
-// Int16x8 converts from Uint8x16 to Int16x8
-func (from Uint8x16) AsInt16x8() (to Int16x8)
+// Int8x32 converts from Int64x4 to Int8x32
+func (from Int64x4) AsInt8x32() (to Int8x32)
 
-// Float32x4 converts from Uint8x16 to Float32x4
-func (from Uint8x16) AsFloat32x4() (to Float32x4)
+// Uint16x16 converts from Int64x4 to Uint16x16
+func (from Int64x4) AsUint16x16() (to Uint16x16)
 
-// Uint64x2 converts from Uint8x16 to Uint64x2
-func (from Uint8x16) AsUint64x2() (to Uint64x2)
+// Uint32x8 converts from Int64x4 to Uint32x8
+func (from Int64x4) AsUint32x8() (to Uint32x8)
 
-// Float64x2 converts from Uint8x16 to Float64x2
-func (from Uint8x16) AsFloat64x2() (to Float64x2)
+// Uint64x4 converts from Int64x4 to Uint64x4
+func (from Int64x4) AsUint64x4() (to Uint64x4)
 
-// Int64x2 converts from Uint8x16 to Int64x2
-func (from Uint8x16) AsInt64x2() (to Int64x2)
+// Uint8x32 converts from Int64x4 to Uint8x32
+func (from Int64x4) AsUint8x32() (to Uint8x32)
 
-// Uint32x4 converts from Uint8x16 to Uint32x4
-func (from Uint8x16) AsUint32x4() (to Uint32x4)
+// Float32x16 converts from Int64x8 to Float32x16
+func (from Int64x8) AsFloat32x16() (to Float32x16)
+
+// Float64x8 converts from Int64x8 to Float64x8
+func (from Int64x8) AsFloat64x8() (to Float64x8)
+
+// Int16x32 converts from Int64x8 to Int16x32
+func (from Int64x8) AsInt16x32() (to Int16x32)
+
+// Int32x16 converts from Int64x8 to Int32x16
+func (from Int64x8) AsInt32x16() (to Int32x16)
+
+// Int8x64 converts from Int64x8 to Int8x64
+func (from Int64x8) AsInt8x64() (to Int8x64)
+
+// Uint16x32 converts from Int64x8 to Uint16x32
+func (from Int64x8) AsUint16x32() (to Uint16x32)
+
+// Uint32x16 converts from Int64x8 to Uint32x16
+func (from Int64x8) AsUint32x16() (to Uint32x16)
+
+// Uint64x8 converts from Int64x8 to Uint64x8
+func (from Int64x8) AsUint64x8() (to Uint64x8)
+
+// Uint8x64 converts from Int64x8 to Uint8x64
+func (from Int64x8) AsUint8x64() (to Uint8x64)
+
+// Float32x4 converts from Int8x16 to Float32x4
+func (from Int8x16) AsFloat32x4() (to Float32x4)
+
+// Float64x2 converts from Int8x16 to Float64x2
+func (from Int8x16) AsFloat64x2() (to Float64x2)
+
+// Int16x8 converts from Int8x16 to Int16x8
+func (from Int8x16) AsInt16x8() (to Int16x8)
+
+// Int32x4 converts from Int8x16 to Int32x4
+func (from Int8x16) AsInt32x4() (to Int32x4)
+
+// Int64x2 converts from Int8x16 to Int64x2
+func (from Int8x16) AsInt64x2() (to Int64x2)
+
+// Uint16x8 converts from Int8x16 to Uint16x8
+func (from Int8x16) AsUint16x8() (to Uint16x8)
+
+// Uint32x4 converts from Int8x16 to Uint32x4
+func (from Int8x16) AsUint32x4() (to Uint32x4)
+
+// Uint64x2 converts from Int8x16 to Uint64x2
+func (from Int8x16) AsUint64x2() (to Uint64x2)
+
+// Uint8x16 converts from Int8x16 to Uint8x16
+func (from Int8x16) AsUint8x16() (to Uint8x16)
+
+// Float32x8 converts from Int8x32 to Float32x8
+func (from Int8x32) AsFloat32x8() (to Float32x8)
+
+// Float64x4 converts from Int8x32 to Float64x4
+func (from Int8x32) AsFloat64x4() (to Float64x4)
+
+// Int16x16 converts from Int8x32 to Int16x16
+func (from Int8x32) AsInt16x16() (to Int16x16)
+
+// Int32x8 converts from Int8x32 to Int32x8
+func (from Int8x32) AsInt32x8() (to Int32x8)
+
+// Int64x4 converts from Int8x32 to Int64x4
+func (from Int8x32) AsInt64x4() (to Int64x4)
+
+// Uint16x16 converts from Int8x32 to Uint16x16
+func (from Int8x32) AsUint16x16() (to Uint16x16)
+
+// Uint32x8 converts from Int8x32 to Uint32x8
+func (from Int8x32) AsUint32x8() (to Uint32x8)
+
+// Uint64x4 converts from Int8x32 to Uint64x4
+func (from Int8x32) AsUint64x4() (to Uint64x4)
+
+// Uint8x32 converts from Int8x32 to Uint8x32
+func (from Int8x32) AsUint8x32() (to Uint8x32)
+
+// Float32x16 converts from Int8x64 to Float32x16
+func (from Int8x64) AsFloat32x16() (to Float32x16)
+
+// Float64x8 converts from Int8x64 to Float64x8
+func (from Int8x64) AsFloat64x8() (to Float64x8)
+
+// Int16x32 converts from Int8x64 to Int16x32
+func (from Int8x64) AsInt16x32() (to Int16x32)
+
+// Int32x16 converts from Int8x64 to Int32x16
+func (from Int8x64) AsInt32x16() (to Int32x16)
+
+// Int64x8 converts from Int8x64 to Int64x8
+func (from Int8x64) AsInt64x8() (to Int64x8)
+
+// Uint16x32 converts from Int8x64 to Uint16x32
+func (from Int8x64) AsUint16x32() (to Uint16x32)
+
+// Uint32x16 converts from Int8x64 to Uint32x16
+func (from Int8x64) AsUint32x16() (to Uint32x16)
+
+// Uint64x8 converts from Int8x64 to Uint64x8
+func (from Int8x64) AsUint64x8() (to Uint64x8)
+
+// Uint8x64 converts from Int8x64 to Uint8x64
+func (from Int8x64) AsUint8x64() (to Uint8x64)
+
+// Float32x8 converts from Uint16x16 to Float32x8
+func (from Uint16x16) AsFloat32x8() (to Float32x8)
+
+// Float64x4 converts from Uint16x16 to Float64x4
+func (from Uint16x16) AsFloat64x4() (to Float64x4)
+
+// Int16x16 converts from Uint16x16 to Int16x16
+func (from Uint16x16) AsInt16x16() (to Int16x16)
+
+// Int32x8 converts from Uint16x16 to Int32x8
+func (from Uint16x16) AsInt32x8() (to Int32x8)
+
+// Int64x4 converts from Uint16x16 to Int64x4
+func (from Uint16x16) AsInt64x4() (to Int64x4)
+
+// Int8x32 converts from Uint16x16 to Int8x32
+func (from Uint16x16) AsInt8x32() (to Int8x32)
+
+// Uint32x8 converts from Uint16x16 to Uint32x8
+func (from Uint16x16) AsUint32x8() (to Uint32x8)
+
+// Uint64x4 converts from Uint16x16 to Uint64x4
+func (from Uint16x16) AsUint64x4() (to Uint64x4)
+
+// Uint8x32 converts from Uint16x16 to Uint8x32
+func (from Uint16x16) AsUint8x32() (to Uint8x32)
+
+// Float32x16 converts from Uint16x32 to Float32x16
+func (from Uint16x32) AsFloat32x16() (to Float32x16)
+
+// Float64x8 converts from Uint16x32 to Float64x8
+func (from Uint16x32) AsFloat64x8() (to Float64x8)
+
+// Int16x32 converts from Uint16x32 to Int16x32
+func (from Uint16x32) AsInt16x32() (to Int16x32)
+
+// Int32x16 converts from Uint16x32 to Int32x16
+func (from Uint16x32) AsInt32x16() (to Int32x16)
+
+// Int64x8 converts from Uint16x32 to Int64x8
+func (from Uint16x32) AsInt64x8() (to Int64x8)
+
+// Int8x64 converts from Uint16x32 to Int8x64
+func (from Uint16x32) AsInt8x64() (to Int8x64)
+
+// Uint32x16 converts from Uint16x32 to Uint32x16
+func (from Uint16x32) AsUint32x16() (to Uint32x16)
+
+// Uint64x8 converts from Uint16x32 to Uint64x8
+func (from Uint16x32) AsUint64x8() (to Uint64x8)
+
+// Uint8x64 converts from Uint16x32 to Uint8x64
+func (from Uint16x32) AsUint8x64() (to Uint8x64)
+
+// Float32x4 converts from Uint16x8 to Float32x4
+func (from Uint16x8) AsFloat32x4() (to Float32x4)
+
+// Float64x2 converts from Uint16x8 to Float64x2
+func (from Uint16x8) AsFloat64x2() (to Float64x2)
+
+// Int16x8 converts from Uint16x8 to Int16x8
+func (from Uint16x8) AsInt16x8() (to Int16x8)
+
+// Int32x4 converts from Uint16x8 to Int32x4
+func (from Uint16x8) AsInt32x4() (to Int32x4)
+
+// Int64x2 converts from Uint16x8 to Int64x2
+func (from Uint16x8) AsInt64x2() (to Int64x2)
+
+// Int8x16 converts from Uint16x8 to Int8x16
+func (from Uint16x8) AsInt8x16() (to Int8x16)
+
+// Uint32x4 converts from Uint16x8 to Uint32x4
+func (from Uint16x8) AsUint32x4() (to Uint32x4)
+
+// Uint64x2 converts from Uint16x8 to Uint64x2
+func (from Uint16x8) AsUint64x2() (to Uint64x2)
+
+// Uint8x16 converts from Uint16x8 to Uint8x16
+func (from Uint16x8) AsUint8x16() (to Uint8x16)
+
+// Float32x16 converts from Uint32x16 to Float32x16
+func (from Uint32x16) AsFloat32x16() (to Float32x16)
+
+// Float64x8 converts from Uint32x16 to Float64x8
+func (from Uint32x16) AsFloat64x8() (to Float64x8)
+
+// Int16x32 converts from Uint32x16 to Int16x32
+func (from Uint32x16) AsInt16x32() (to Int16x32)
+
+// Int32x16 converts from Uint32x16 to Int32x16
+func (from Uint32x16) AsInt32x16() (to Int32x16)
+
+// Int64x8 converts from Uint32x16 to Int64x8
+func (from Uint32x16) AsInt64x8() (to Int64x8)
+
+// Int8x64 converts from Uint32x16 to Int8x64
+func (from Uint32x16) AsInt8x64() (to Int8x64)
+
+// Uint16x32 converts from Uint32x16 to Uint16x32
+func (from Uint32x16) AsUint16x32() (to Uint16x32)
+
+// Uint64x8 converts from Uint32x16 to Uint64x8
+func (from Uint32x16) AsUint64x8() (to Uint64x8)
+
+// Uint8x64 converts from Uint32x16 to Uint8x64
+func (from Uint32x16) AsUint8x64() (to Uint8x64)
+
+// Float32x4 converts from Uint32x4 to Float32x4
+func (from Uint32x4) AsFloat32x4() (to Float32x4)
+
+// Float64x2 converts from Uint32x4 to Float64x2
+func (from Uint32x4) AsFloat64x2() (to Float64x2)
+
+// Int16x8 converts from Uint32x4 to Int16x8
+func (from Uint32x4) AsInt16x8() (to Int16x8)
 
 // Int32x4 converts from Uint32x4 to Int32x4
 func (from Uint32x4) AsInt32x4() (to Int32x4)
+
+// Int64x2 converts from Uint32x4 to Int64x2
+func (from Uint32x4) AsInt64x2() (to Int64x2)
 
 // Int8x16 converts from Uint32x4 to Int8x16
 func (from Uint32x4) AsInt8x16() (to Int8x16)
@@ -4012,33 +4727,200 @@ func (from Uint32x4) AsInt8x16() (to Int8x16)
 // Uint16x8 converts from Uint32x4 to Uint16x8
 func (from Uint32x4) AsUint16x8() (to Uint16x8)
 
-// Int16x8 converts from Uint32x4 to Int16x8
-func (from Uint32x4) AsInt16x8() (to Int16x8)
-
-// Float32x4 converts from Uint32x4 to Float32x4
-func (from Uint32x4) AsFloat32x4() (to Float32x4)
-
 // Uint64x2 converts from Uint32x4 to Uint64x2
 func (from Uint32x4) AsUint64x2() (to Uint64x2)
-
-// Float64x2 converts from Uint32x4 to Float64x2
-func (from Uint32x4) AsFloat64x2() (to Float64x2)
-
-// Int64x2 converts from Uint32x4 to Int64x2
-func (from Uint32x4) AsInt64x2() (to Int64x2)
 
 // Uint8x16 converts from Uint32x4 to Uint8x16
 func (from Uint32x4) AsUint8x16() (to Uint8x16)
 
-// converts from Mask64x4 to Int64x4
-func (from Mask64x4) AsInt64x4() (to Int64x4)
+// Float32x8 converts from Uint32x8 to Float32x8
+func (from Uint32x8) AsFloat32x8() (to Float32x8)
 
-// converts from Int64x4 to Mask64x4
-func (from Int64x4) AsMask64x4() (to Mask64x4)
+// Float64x4 converts from Uint32x8 to Float64x4
+func (from Uint32x8) AsFloat64x4() (to Float64x4)
 
-func (x Mask64x4) And(y Mask64x4) Mask64x4
+// Int16x16 converts from Uint32x8 to Int16x16
+func (from Uint32x8) AsInt16x16() (to Int16x16)
 
-func (x Mask64x4) Or(y Mask64x4) Mask64x4
+// Int32x8 converts from Uint32x8 to Int32x8
+func (from Uint32x8) AsInt32x8() (to Int32x8)
+
+// Int64x4 converts from Uint32x8 to Int64x4
+func (from Uint32x8) AsInt64x4() (to Int64x4)
+
+// Int8x32 converts from Uint32x8 to Int8x32
+func (from Uint32x8) AsInt8x32() (to Int8x32)
+
+// Uint16x16 converts from Uint32x8 to Uint16x16
+func (from Uint32x8) AsUint16x16() (to Uint16x16)
+
+// Uint64x4 converts from Uint32x8 to Uint64x4
+func (from Uint32x8) AsUint64x4() (to Uint64x4)
+
+// Uint8x32 converts from Uint32x8 to Uint8x32
+func (from Uint32x8) AsUint8x32() (to Uint8x32)
+
+// Float32x4 converts from Uint64x2 to Float32x4
+func (from Uint64x2) AsFloat32x4() (to Float32x4)
+
+// Float64x2 converts from Uint64x2 to Float64x2
+func (from Uint64x2) AsFloat64x2() (to Float64x2)
+
+// Int16x8 converts from Uint64x2 to Int16x8
+func (from Uint64x2) AsInt16x8() (to Int16x8)
+
+// Int32x4 converts from Uint64x2 to Int32x4
+func (from Uint64x2) AsInt32x4() (to Int32x4)
+
+// Int64x2 converts from Uint64x2 to Int64x2
+func (from Uint64x2) AsInt64x2() (to Int64x2)
+
+// Int8x16 converts from Uint64x2 to Int8x16
+func (from Uint64x2) AsInt8x16() (to Int8x16)
+
+// Uint16x8 converts from Uint64x2 to Uint16x8
+func (from Uint64x2) AsUint16x8() (to Uint16x8)
+
+// Uint32x4 converts from Uint64x2 to Uint32x4
+func (from Uint64x2) AsUint32x4() (to Uint32x4)
+
+// Uint8x16 converts from Uint64x2 to Uint8x16
+func (from Uint64x2) AsUint8x16() (to Uint8x16)
+
+// Float32x8 converts from Uint64x4 to Float32x8
+func (from Uint64x4) AsFloat32x8() (to Float32x8)
+
+// Float64x4 converts from Uint64x4 to Float64x4
+func (from Uint64x4) AsFloat64x4() (to Float64x4)
+
+// Int16x16 converts from Uint64x4 to Int16x16
+func (from Uint64x4) AsInt16x16() (to Int16x16)
+
+// Int32x8 converts from Uint64x4 to Int32x8
+func (from Uint64x4) AsInt32x8() (to Int32x8)
+
+// Int64x4 converts from Uint64x4 to Int64x4
+func (from Uint64x4) AsInt64x4() (to Int64x4)
+
+// Int8x32 converts from Uint64x4 to Int8x32
+func (from Uint64x4) AsInt8x32() (to Int8x32)
+
+// Uint16x16 converts from Uint64x4 to Uint16x16
+func (from Uint64x4) AsUint16x16() (to Uint16x16)
+
+// Uint32x8 converts from Uint64x4 to Uint32x8
+func (from Uint64x4) AsUint32x8() (to Uint32x8)
+
+// Uint8x32 converts from Uint64x4 to Uint8x32
+func (from Uint64x4) AsUint8x32() (to Uint8x32)
+
+// Float32x16 converts from Uint64x8 to Float32x16
+func (from Uint64x8) AsFloat32x16() (to Float32x16)
+
+// Float64x8 converts from Uint64x8 to Float64x8
+func (from Uint64x8) AsFloat64x8() (to Float64x8)
+
+// Int16x32 converts from Uint64x8 to Int16x32
+func (from Uint64x8) AsInt16x32() (to Int16x32)
+
+// Int32x16 converts from Uint64x8 to Int32x16
+func (from Uint64x8) AsInt32x16() (to Int32x16)
+
+// Int64x8 converts from Uint64x8 to Int64x8
+func (from Uint64x8) AsInt64x8() (to Int64x8)
+
+// Int8x64 converts from Uint64x8 to Int8x64
+func (from Uint64x8) AsInt8x64() (to Int8x64)
+
+// Uint16x32 converts from Uint64x8 to Uint16x32
+func (from Uint64x8) AsUint16x32() (to Uint16x32)
+
+// Uint32x16 converts from Uint64x8 to Uint32x16
+func (from Uint64x8) AsUint32x16() (to Uint32x16)
+
+// Uint8x64 converts from Uint64x8 to Uint8x64
+func (from Uint64x8) AsUint8x64() (to Uint8x64)
+
+// Float32x4 converts from Uint8x16 to Float32x4
+func (from Uint8x16) AsFloat32x4() (to Float32x4)
+
+// Float64x2 converts from Uint8x16 to Float64x2
+func (from Uint8x16) AsFloat64x2() (to Float64x2)
+
+// Int16x8 converts from Uint8x16 to Int16x8
+func (from Uint8x16) AsInt16x8() (to Int16x8)
+
+// Int32x4 converts from Uint8x16 to Int32x4
+func (from Uint8x16) AsInt32x4() (to Int32x4)
+
+// Int64x2 converts from Uint8x16 to Int64x2
+func (from Uint8x16) AsInt64x2() (to Int64x2)
+
+// Int8x16 converts from Uint8x16 to Int8x16
+func (from Uint8x16) AsInt8x16() (to Int8x16)
+
+// Uint16x8 converts from Uint8x16 to Uint16x8
+func (from Uint8x16) AsUint16x8() (to Uint16x8)
+
+// Uint32x4 converts from Uint8x16 to Uint32x4
+func (from Uint8x16) AsUint32x4() (to Uint32x4)
+
+// Uint64x2 converts from Uint8x16 to Uint64x2
+func (from Uint8x16) AsUint64x2() (to Uint64x2)
+
+// Float32x8 converts from Uint8x32 to Float32x8
+func (from Uint8x32) AsFloat32x8() (to Float32x8)
+
+// Float64x4 converts from Uint8x32 to Float64x4
+func (from Uint8x32) AsFloat64x4() (to Float64x4)
+
+// Int16x16 converts from Uint8x32 to Int16x16
+func (from Uint8x32) AsInt16x16() (to Int16x16)
+
+// Int32x8 converts from Uint8x32 to Int32x8
+func (from Uint8x32) AsInt32x8() (to Int32x8)
+
+// Int64x4 converts from Uint8x32 to Int64x4
+func (from Uint8x32) AsInt64x4() (to Int64x4)
+
+// Int8x32 converts from Uint8x32 to Int8x32
+func (from Uint8x32) AsInt8x32() (to Int8x32)
+
+// Uint16x16 converts from Uint8x32 to Uint16x16
+func (from Uint8x32) AsUint16x16() (to Uint16x16)
+
+// Uint32x8 converts from Uint8x32 to Uint32x8
+func (from Uint8x32) AsUint32x8() (to Uint32x8)
+
+// Uint64x4 converts from Uint8x32 to Uint64x4
+func (from Uint8x32) AsUint64x4() (to Uint64x4)
+
+// Float32x16 converts from Uint8x64 to Float32x16
+func (from Uint8x64) AsFloat32x16() (to Float32x16)
+
+// Float64x8 converts from Uint8x64 to Float64x8
+func (from Uint8x64) AsFloat64x8() (to Float64x8)
+
+// Int16x32 converts from Uint8x64 to Int16x32
+func (from Uint8x64) AsInt16x32() (to Int16x32)
+
+// Int32x16 converts from Uint8x64 to Int32x16
+func (from Uint8x64) AsInt32x16() (to Int32x16)
+
+// Int64x8 converts from Uint8x64 to Int64x8
+func (from Uint8x64) AsInt64x8() (to Int64x8)
+
+// Int8x64 converts from Uint8x64 to Int8x64
+func (from Uint8x64) AsInt8x64() (to Int8x64)
+
+// Uint16x32 converts from Uint8x64 to Uint16x32
+func (from Uint8x64) AsUint16x32() (to Uint16x32)
+
+// Uint32x16 converts from Uint8x64 to Uint32x16
+func (from Uint8x64) AsUint32x16() (to Uint32x16)
+
+// Uint64x8 converts from Uint8x64 to Uint64x8
+func (from Uint8x64) AsUint64x8() (to Uint64x8)
 
 // converts from Mask16x16 to Int16x16
 func (from Mask16x16) AsInt16x16() (to Int16x16)
@@ -4050,56 +4932,6 @@ func (x Mask16x16) And(y Mask16x16) Mask16x16
 
 func (x Mask16x16) Or(y Mask16x16) Mask16x16
 
-// converts from Mask32x8 to Int32x8
-func (from Mask32x8) AsInt32x8() (to Int32x8)
-
-// converts from Int32x8 to Mask32x8
-func (from Int32x8) AsMask32x8() (to Mask32x8)
-
-func (x Mask32x8) And(y Mask32x8) Mask32x8
-
-func (x Mask32x8) Or(y Mask32x8) Mask32x8
-
-// converts from Mask8x32 to Int8x32
-func (from Mask8x32) AsInt8x32() (to Int8x32)
-
-// converts from Int8x32 to Mask8x32
-func (from Int8x32) AsMask8x32() (to Mask8x32)
-
-func (x Mask8x32) And(y Mask8x32) Mask8x32
-
-func (x Mask8x32) Or(y Mask8x32) Mask8x32
-
-// converts from Mask64x8 to Int64x8
-func (from Mask64x8) AsInt64x8() (to Int64x8)
-
-// converts from Int64x8 to Mask64x8
-func (from Int64x8) AsMask64x8() (to Mask64x8)
-
-func (x Mask64x8) And(y Mask64x8) Mask64x8
-
-func (x Mask64x8) Or(y Mask64x8) Mask64x8
-
-// converts from Mask8x64 to Int8x64
-func (from Mask8x64) AsInt8x64() (to Int8x64)
-
-// converts from Int8x64 to Mask8x64
-func (from Int8x64) AsMask8x64() (to Mask8x64)
-
-func (x Mask8x64) And(y Mask8x64) Mask8x64
-
-func (x Mask8x64) Or(y Mask8x64) Mask8x64
-
-// converts from Mask32x16 to Int32x16
-func (from Mask32x16) AsInt32x16() (to Int32x16)
-
-// converts from Int32x16 to Mask32x16
-func (from Int32x16) AsMask32x16() (to Mask32x16)
-
-func (x Mask32x16) And(y Mask32x16) Mask32x16
-
-func (x Mask32x16) Or(y Mask32x16) Mask32x16
-
 // converts from Mask16x32 to Int16x32
 func (from Mask16x32) AsInt16x32() (to Int16x32)
 
@@ -4109,26 +4941,6 @@ func (from Int16x32) AsMask16x32() (to Mask16x32)
 func (x Mask16x32) And(y Mask16x32) Mask16x32
 
 func (x Mask16x32) Or(y Mask16x32) Mask16x32
-
-// converts from Mask32x4 to Int32x4
-func (from Mask32x4) AsInt32x4() (to Int32x4)
-
-// converts from Int32x4 to Mask32x4
-func (from Int32x4) AsMask32x4() (to Mask32x4)
-
-func (x Mask32x4) And(y Mask32x4) Mask32x4
-
-func (x Mask32x4) Or(y Mask32x4) Mask32x4
-
-// converts from Mask8x16 to Int8x16
-func (from Mask8x16) AsInt8x16() (to Int8x16)
-
-// converts from Int8x16 to Mask8x16
-func (from Int8x16) AsMask8x16() (to Mask8x16)
-
-func (x Mask8x16) And(y Mask8x16) Mask8x16
-
-func (x Mask8x16) Or(y Mask8x16) Mask8x16
 
 // converts from Mask16x8 to Int16x8
 func (from Mask16x8) AsInt16x8() (to Int16x8)
@@ -4140,6 +4952,36 @@ func (x Mask16x8) And(y Mask16x8) Mask16x8
 
 func (x Mask16x8) Or(y Mask16x8) Mask16x8
 
+// converts from Mask32x16 to Int32x16
+func (from Mask32x16) AsInt32x16() (to Int32x16)
+
+// converts from Int32x16 to Mask32x16
+func (from Int32x16) AsMask32x16() (to Mask32x16)
+
+func (x Mask32x16) And(y Mask32x16) Mask32x16
+
+func (x Mask32x16) Or(y Mask32x16) Mask32x16
+
+// converts from Mask32x4 to Int32x4
+func (from Mask32x4) AsInt32x4() (to Int32x4)
+
+// converts from Int32x4 to Mask32x4
+func (from Int32x4) AsMask32x4() (to Mask32x4)
+
+func (x Mask32x4) And(y Mask32x4) Mask32x4
+
+func (x Mask32x4) Or(y Mask32x4) Mask32x4
+
+// converts from Mask32x8 to Int32x8
+func (from Mask32x8) AsInt32x8() (to Int32x8)
+
+// converts from Int32x8 to Mask32x8
+func (from Int32x8) AsMask32x8() (to Mask32x8)
+
+func (x Mask32x8) And(y Mask32x8) Mask32x8
+
+func (x Mask32x8) Or(y Mask32x8) Mask32x8
+
 // converts from Mask64x2 to Int64x2
 func (from Mask64x2) AsInt64x2() (to Int64x2)
 
@@ -4149,3 +4991,53 @@ func (from Int64x2) AsMask64x2() (to Mask64x2)
 func (x Mask64x2) And(y Mask64x2) Mask64x2
 
 func (x Mask64x2) Or(y Mask64x2) Mask64x2
+
+// converts from Mask64x4 to Int64x4
+func (from Mask64x4) AsInt64x4() (to Int64x4)
+
+// converts from Int64x4 to Mask64x4
+func (from Int64x4) AsMask64x4() (to Mask64x4)
+
+func (x Mask64x4) And(y Mask64x4) Mask64x4
+
+func (x Mask64x4) Or(y Mask64x4) Mask64x4
+
+// converts from Mask64x8 to Int64x8
+func (from Mask64x8) AsInt64x8() (to Int64x8)
+
+// converts from Int64x8 to Mask64x8
+func (from Int64x8) AsMask64x8() (to Mask64x8)
+
+func (x Mask64x8) And(y Mask64x8) Mask64x8
+
+func (x Mask64x8) Or(y Mask64x8) Mask64x8
+
+// converts from Mask8x16 to Int8x16
+func (from Mask8x16) AsInt8x16() (to Int8x16)
+
+// converts from Int8x16 to Mask8x16
+func (from Int8x16) AsMask8x16() (to Mask8x16)
+
+func (x Mask8x16) And(y Mask8x16) Mask8x16
+
+func (x Mask8x16) Or(y Mask8x16) Mask8x16
+
+// converts from Mask8x32 to Int8x32
+func (from Mask8x32) AsInt8x32() (to Int8x32)
+
+// converts from Int8x32 to Mask8x32
+func (from Int8x32) AsMask8x32() (to Mask8x32)
+
+func (x Mask8x32) And(y Mask8x32) Mask8x32
+
+func (x Mask8x32) Or(y Mask8x32) Mask8x32
+
+// converts from Mask8x64 to Int8x64
+func (from Mask8x64) AsInt8x64() (to Int8x64)
+
+// converts from Int8x64 to Mask8x64
+func (from Int8x64) AsMask8x64() (to Mask8x64)
+
+func (x Mask8x64) And(y Mask8x64) Mask8x64
+
+func (x Mask8x64) Or(y Mask8x64) Mask8x64
