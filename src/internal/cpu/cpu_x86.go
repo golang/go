@@ -36,7 +36,9 @@ const (
 	cpuid_BMI2     = 1 << 8
 	cpuid_ERMS     = 1 << 9
 	cpuid_AVX512F  = 1 << 16
+	cpuid_AVX512DQ = 1 << 17
 	cpuid_ADX      = 1 << 19
+	cpuid_AVX512CD = 1 << 28
 	cpuid_SHA      = 1 << 29
 	cpuid_AVX512BW = 1 << 30
 	cpuid_AVX512VL = 1 << 31
@@ -84,7 +86,9 @@ func doinit() {
 		// they can be turned off.
 		options = append(options,
 			option{Name: "avx512f", Feature: &X86.HasAVX512F},
+			option{Name: "avx512cd", Feature: &X86.HasAVX512CD},
 			option{Name: "avx512bw", Feature: &X86.HasAVX512BW},
+			option{Name: "avx512dq", Feature: &X86.HasAVX512DQ},
 			option{Name: "avx512vl", Feature: &X86.HasAVX512VL},
 		)
 	}
@@ -149,7 +153,9 @@ func doinit() {
 
 	X86.HasAVX512F = isSet(ebx7, cpuid_AVX512F) && osSupportsAVX512
 	if X86.HasAVX512F {
+		X86.HasAVX512CD = isSet(ebx7, cpuid_AVX512CD)
 		X86.HasAVX512BW = isSet(ebx7, cpuid_AVX512BW)
+		X86.HasAVX512DQ = isSet(ebx7, cpuid_AVX512DQ)
 		X86.HasAVX512VL = isSet(ebx7, cpuid_AVX512VL)
 	}
 
@@ -164,6 +170,17 @@ func doinit() {
 
 	_, _, _, edxExt1 := cpuid(0x80000001, 0)
 	X86.HasRDTSCP = isSet(edxExt1, cpuid_RDTSCP)
+
+	doDerived = func() {
+		// Rather than carefully gating on fundamental AVX-512 features, we have
+		// a virtual "AVX512" feature that captures F+CD+BW+DQ+VL. BW, DQ, and
+		// VL have a huge effect on which AVX-512 instructions are available,
+		// and these have all been supported on everything except the earliest
+		// Phi chips with AVX-512. No CPU has had CD without F, so we include
+		// it. GOAMD64=v4 also implies exactly this set, and these are all
+		// included in AVX10.1.
+		X86.HasAVX512 = X86.HasAVX512F && X86.HasAVX512CD && X86.HasAVX512BW && X86.HasAVX512DQ && X86.HasAVX512VL
+	}
 }
 
 func isSet(hwc uint32, value uint32) bool {
