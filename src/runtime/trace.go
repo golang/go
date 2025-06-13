@@ -331,7 +331,7 @@ func StopTrace() {
 //
 // traceAdvanceSema must not be held.
 //
-// traceAdvance is called by golang.org/x/exp/trace using linkname.
+// traceAdvance is called by runtime/trace and golang.org/x/exp/trace using linkname.
 //
 //go:linkname traceAdvance
 func traceAdvance(stopTrace bool) {

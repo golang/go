@@ -51,7 +51,7 @@ type traceTime uint64
 // nosplit because it's called from exitsyscall and various trace writing functions,
 // which are nosplit.
 //
-// traceClockNow is called by golang.org/x/exp/trace using linkname.
+// traceClockNow is called by runtime/trace and golang.org/x/exp/trace using linkname.
 //
 //go:linkname traceClockNow
 //go:nosplit
