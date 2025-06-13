@@ -18484,10 +18484,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VANDNPS512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVANDNPS,
+		name:   "VANDNPS512",
+		argLen: 2,
+		asm:    x86.AVANDNPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -18859,10 +18858,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VANDNPSMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVANDNPS,
+		name:   "VANDNPSMasked512",
+		argLen: 3,
+		asm:    x86.AVANDNPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -19479,10 +19477,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VANDNPS128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVANDNPS,
+		name:   "VANDNPS128",
+		argLen: 2,
+		asm:    x86.AVANDNPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -19854,10 +19851,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VANDNPSMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVANDNPS,
+		name:   "VANDNPSMasked128",
+		argLen: 3,
+		asm:    x86.AVANDNPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -20502,10 +20498,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VANDNPS256",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVANDNPS,
+		name:   "VANDNPS256",
+		argLen: 2,
+		asm:    x86.AVANDNPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -20877,10 +20872,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VANDNPSMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVANDNPS,
+		name:   "VANDNPSMasked256",
+		argLen: 3,
+		asm:    x86.AVANDNPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -21525,10 +21519,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VANDNPD128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVANDNPD,
+		name:   "VANDNPD128",
+		argLen: 2,
+		asm:    x86.AVANDNPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -21900,10 +21893,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VANDNPDMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVANDNPD,
+		name:   "VANDNPDMasked128",
+		argLen: 3,
+		asm:    x86.AVANDNPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -22548,10 +22540,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VANDNPD256",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVANDNPD,
+		name:   "VANDNPD256",
+		argLen: 2,
+		asm:    x86.AVANDNPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -22923,10 +22914,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VANDNPDMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVANDNPD,
+		name:   "VANDNPDMasked256",
+		argLen: 3,
+		asm:    x86.AVANDNPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -23557,10 +23547,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VANDNPD512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVANDNPD,
+		name:   "VANDNPD512",
+		argLen: 2,
+		asm:    x86.AVANDNPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -23932,10 +23921,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VANDNPDMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVANDNPD,
+		name:   "VANDNPDMasked512",
+		argLen: 3,
+		asm:    x86.AVANDNPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -24551,10 +24539,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPANDN256",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPANDN,
+		name:   "VPANDN256",
+		argLen: 2,
+		asm:    x86.AVPANDN,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25455,10 +25442,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPANDN128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPANDN,
+		name:   "VPANDN128",
+		argLen: 2,
+		asm:    x86.AVPANDN,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25972,10 +25958,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPANDND512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPANDND,
+		name:   "VPANDND512",
+		argLen: 2,
+		asm:    x86.AVPANDND,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -26062,10 +26047,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPANDNDMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPANDND,
+		name:   "VPANDNDMasked512",
+		argLen: 3,
+		asm:    x86.AVPANDND,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -26555,10 +26539,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPANDNDMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPANDND,
+		name:   "VPANDNDMasked128",
+		argLen: 3,
+		asm:    x86.AVPANDND,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -27075,10 +27058,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPANDNDMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPANDND,
+		name:   "VPANDNDMasked256",
+		argLen: 3,
+		asm:    x86.AVPANDND,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -27595,10 +27577,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPANDNQMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPANDNQ,
+		name:   "VPANDNQMasked128",
+		argLen: 3,
+		asm:    x86.AVPANDNQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -27942,10 +27923,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPANDNQMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPANDNQ,
+		name:   "VPANDNQMasked256",
+		argLen: 3,
+		asm:    x86.AVPANDNQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -28229,10 +28209,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPANDNQ512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPANDNQ,
+		name:   "VPANDNQ512",
+		argLen: 2,
+		asm:    x86.AVPANDNQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -28319,10 +28298,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPANDNQMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPANDNQ,
+		name:   "VPANDNQMasked512",
+		argLen: 3,
+		asm:    x86.AVPANDNQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -59277,10 +59255,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotFloat32x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotFloat32x16",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:    "ApproximateReciprocalFloat32x16",
@@ -59432,10 +59409,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedAndNotFloat32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
+		name:    "MaskedAndNotFloat32x16",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:    "MaskedApproximateReciprocalFloat32x16",
@@ -59694,10 +59670,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotFloat32x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotFloat32x4",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:    "ApproximateReciprocalFloat32x4",
@@ -59859,10 +59834,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedAndNotFloat32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
+		name:    "MaskedAndNotFloat32x4",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:    "MaskedApproximateReciprocalFloat32x4",
@@ -60141,10 +60115,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotFloat32x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotFloat32x8",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:    "ApproximateReciprocalFloat32x8",
@@ -60306,10 +60279,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedAndNotFloat32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
+		name:    "MaskedAndNotFloat32x8",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:    "MaskedApproximateReciprocalFloat32x8",
@@ -60588,10 +60560,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotFloat64x2",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotFloat64x2",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:    "ApproximateReciprocalFloat64x2",
@@ -60759,10 +60730,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedAndNotFloat64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
+		name:    "MaskedAndNotFloat64x2",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:    "MaskedApproximateReciprocalFloat64x2",
@@ -61041,10 +61011,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotFloat64x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotFloat64x4",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:    "ApproximateReciprocalFloat64x4",
@@ -61206,10 +61175,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedAndNotFloat64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
+		name:    "MaskedAndNotFloat64x4",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:    "MaskedApproximateReciprocalFloat64x4",
@@ -61483,10 +61451,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotFloat64x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotFloat64x8",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:    "ApproximateReciprocalFloat64x8",
@@ -61638,10 +61605,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedAndNotFloat64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
+		name:    "MaskedAndNotFloat64x8",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:    "MaskedApproximateReciprocalFloat64x8",
@@ -61900,10 +61866,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotInt16x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotInt16x16",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "EqualInt16x16",
@@ -62321,10 +62286,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotInt16x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotInt16x8",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "EqualInt16x8",
@@ -62556,10 +62520,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotInt32x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotInt32x16",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "EqualInt32x16",
@@ -62605,10 +62568,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedAndNotInt32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
+		name:    "MaskedAndNotInt32x16",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:        "MaskedEqualInt32x16",
@@ -62786,10 +62748,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotInt32x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotInt32x4",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "EqualInt32x4",
@@ -62835,10 +62796,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedAndNotInt32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
+		name:    "MaskedAndNotInt32x4",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:        "MaskedEqualInt32x4",
@@ -63037,10 +62997,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotInt32x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotInt32x8",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "EqualInt32x8",
@@ -63086,10 +63045,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedAndNotInt32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
+		name:    "MaskedAndNotInt32x8",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:        "MaskedEqualInt32x8",
@@ -63288,10 +63246,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotInt64x2",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotInt64x2",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "EqualInt64x2",
@@ -63337,10 +63294,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedAndNotInt64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
+		name:    "MaskedAndNotInt64x2",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:        "MaskedEqualInt64x2",
@@ -63490,10 +63446,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotInt64x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotInt64x4",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "EqualInt64x4",
@@ -63539,10 +63494,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedAndNotInt64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
+		name:    "MaskedAndNotInt64x4",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:        "MaskedEqualInt64x4",
@@ -63692,10 +63646,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotInt64x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotInt64x8",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "EqualInt64x8",
@@ -63741,10 +63694,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedAndNotInt64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
+		name:    "MaskedAndNotInt64x8",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:        "MaskedEqualInt64x8",
@@ -63894,10 +63846,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotInt8x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotInt8x16",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "EqualInt8x16",
@@ -64075,10 +64026,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotInt8x32",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotInt8x32",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "EqualInt8x32",
@@ -64403,10 +64353,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotUint16x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotUint16x16",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "AverageUint16x16",
@@ -64789,10 +64738,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotUint16x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotUint16x8",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "AverageUint16x8",
@@ -64999,10 +64947,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotUint32x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotUint32x16",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "EqualUint32x16",
@@ -65043,10 +64990,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedAndNotUint32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
+		name:    "MaskedAndNotUint32x16",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:        "MaskedEqualUint32x16",
@@ -65187,10 +65133,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotUint32x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotUint32x4",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "EqualUint32x4",
@@ -65231,10 +65176,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedAndNotUint32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
+		name:    "MaskedAndNotUint32x4",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:        "MaskedEqualUint32x4",
@@ -65391,10 +65335,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotUint32x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotUint32x8",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "EqualUint32x8",
@@ -65435,10 +65378,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedAndNotUint32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
+		name:    "MaskedAndNotUint32x8",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:        "MaskedEqualUint32x8",
@@ -65595,10 +65537,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotUint64x2",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotUint64x2",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "EqualUint64x2",
@@ -65639,10 +65580,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedAndNotUint64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
+		name:    "MaskedAndNotUint64x2",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:        "MaskedEqualUint64x2",
@@ -65775,10 +65715,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotUint64x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotUint64x4",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "EqualUint64x4",
@@ -65819,10 +65758,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedAndNotUint64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
+		name:    "MaskedAndNotUint64x4",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:        "MaskedEqualUint64x4",
@@ -65955,10 +65893,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotUint64x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotUint64x8",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "EqualUint64x8",
@@ -65999,10 +65936,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedAndNotUint64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
+		name:    "MaskedAndNotUint64x8",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:        "MaskedEqualUint64x8",
@@ -66135,10 +66071,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotUint8x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotUint8x16",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "AverageUint8x16",
@@ -66318,10 +66253,9 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndNotUint8x32",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "AndNotUint8x32",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "AverageUint8x32",
