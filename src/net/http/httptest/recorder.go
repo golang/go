@@ -224,14 +224,15 @@ func (rw *ResponseRecorder) Result() *http.Response {
 		}
 	}
 	for k, vv := range rw.HeaderMap {
-		if !strings.HasPrefix(k, http.TrailerPrefix) {
+		k, cut := strings.CutPrefix(k, http.TrailerPrefix)
+		if !cut {
 			continue
 		}
 		if res.Trailer == nil {
 			res.Trailer = make(http.Header)
 		}
 		for _, v := range vv {
-			res.Trailer.Add(strings.TrimPrefix(k, http.TrailerPrefix), v)
+			res.Trailer.Add(k, v)
 		}
 	}
 	return res

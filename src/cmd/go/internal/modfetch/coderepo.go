@@ -565,10 +565,10 @@ func (r *codeRepo) convert(ctx context.Context, info *codehost.RevInfo, statVers
 	// If the tag is invalid, retracted, or a pseudo-version, tagToVersion returns
 	// an empty version.
 	tagToVersion := func(tag string) (v string, tagIsCanonical bool) {
-		if !strings.HasPrefix(tag, tagPrefix) {
+		trimmed, cut := strings.CutPrefix(tag, tagPrefix)
+		if !cut {
 			return "", false
 		}
-		trimmed := tag[len(tagPrefix):]
 		// Tags that look like pseudo-versions would be confusing. Ignore them.
 		if module.IsPseudoVersion(tag) {
 			return "", false
