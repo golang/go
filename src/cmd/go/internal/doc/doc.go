@@ -108,26 +108,20 @@ Examples:
 	cd go/src/encoding/json; go doc decode
 
 Flags:
+	-C dir
+    		change to dir before running command
 	-all
-		Show all the documentation for the package.
-	-c
-		Respect case when matching symbols.
+			show all documentation for package
+	-c		symbol matching honors case (paths not affected)
 	-cmd
-		Treat a command (package main) like a regular package.
-		Otherwise package main's exported symbols are hidden
-		when showing the package's top-level documentation.
+			show symbols with package docs even if package is a command
+	-http
+			serve HTML docs over HTTP
 	-short
-		One-line representation for each symbol.
+			one-line representation for each symbol
 	-src
-		Show the full source code for the symbol. This will
-		display the full Go source of its declaration and
-		definition, such as a function definition (including
-		the body), type declaration or enclosing const
-		block. The output may therefore include unexported
-		details.
-	-u
-		Show documentation for unexported as well as exported
-		symbols, methods, and fields.
+			show source code for symbol
+	-u		show unexported symbols as well as exported
 `,
 }
 
