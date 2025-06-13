@@ -41,13 +41,13 @@ func (s *genericSparseMap[K, V]) contains(k K) bool {
 
 // get returns the value for key k, or the zero V
 // if k does not appear in the map.
-func (s *genericSparseMap[K, V]) get(k K) V {
+func (s *genericSparseMap[K, V]) get(k K) (V, bool) {
 	i := s.sparse[k]
 	if i < int32(len(s.dense)) && s.dense[i].key == k {
-		return s.dense[i].val
+		return s.dense[i].val, true
 	}
 	var v V
-	return v
+	return v, false
 }
 
 func (s *genericSparseMap[K, V]) set(k K, v V) {

@@ -118,7 +118,8 @@ func dse(f *Func) {
 					ptr = la
 				}
 			}
-			sr := shadowRange(shadowed.get(ptr.ID))
+			srNum, _ := shadowed.get(ptr.ID)
+			sr := shadowRange(srNum)
 			if sr.contains(off, off+sz) {
 				// Modify the store/zero into a copy of the memory state,
 				// effectively eliding the store operation.

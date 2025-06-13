@@ -199,16 +199,18 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 				f.freeValue(v)
 				continue
 			}
-			if v.Pos.IsStmt() != src.PosNotStmt && !notStmtBoundary(v.Op) && pendingLines.get(vl) == int32(b.ID) {
-				pendingLines.remove(vl)
-				v.Pos = v.Pos.WithIsStmt()
+			if v.Pos.IsStmt() != src.PosNotStmt && !notStmtBoundary(v.Op) {
+				if pl, ok := pendingLines.get(vl); ok && pl == int32(b.ID) {
+					pendingLines.remove(vl)
+					v.Pos = v.Pos.WithIsStmt()
+				}
 			}
 			if i != j {
 				b.Values[j] = v
 			}
 			j++
 		}
-		if pendingLines.get(b.Pos) == int32(b.ID) {
+		if pl, ok := pendingLines.get(b.Pos); ok && pl == int32(b.ID) {
 			b.Pos = b.Pos.WithIsStmt()
 			pendingLines.remove(b.Pos)
 		}
