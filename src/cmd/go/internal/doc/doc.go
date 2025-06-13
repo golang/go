@@ -108,20 +108,20 @@ Examples:
 	cd go/src/encoding/json; go doc decode
 
 Flags:
-	-C dir
-    		change to dir before running command
-	-all
-			show all documentation for package
-	-c		symbol matching honors case (paths not affected)
-	-cmd
-			show symbols with package docs even if package is a command
-	-http
-			serve HTML docs over HTTP
-	-short
-			one-line representation for each symbol
-	-src
-			show source code for symbol
-	-u		show unexported symbols as well as exported
+  -C dir
+    	change to dir before running command
+  -all
+    	show all documentation for package
+  -c	symbol matching honors case (paths not affected)
+  -cmd
+    	show symbols with package docs even if package is a command
+  -http
+    	serve HTML docs over HTTP
+  -short
+    	one-line representation for each symbol
+  -src
+    	show source code for symbol
+  -u	show unexported symbols as well as exported
 `,
 }
 
