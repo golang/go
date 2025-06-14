@@ -312,8 +312,10 @@ type heapArena struct {
 	// during marking.
 	pageSpecials [pagesPerArena / 8]uint8
 
-	// pageUseSpanDartboard is a bitmap that indicates which spans are
-	// heap spans and also gcUsesSpanDartboard.
+	// pageUseSpanInlineMarkBits is a bitmap where each bit corresponds
+	// to a span, as only spans one page in size can have inline mark bits.
+	// The bit indicates that the span has a spanInlineMarkBits struct
+	// stored directly at the top end of the span's memory.
 	pageUseSpanInlineMarkBits [pagesPerArena / 8]uint8
 
 	// checkmarks stores the debug.gccheckmark state. It is only
