@@ -187,7 +187,7 @@ Go 1.25 switched to SHA-256 to fill in missing SubjectKeyId in
 crypto/x509.CreateCertificate. The setting `x509sha256skid=0` reverts to SHA-1.
 
 Go 1.25 corrected the semantics of contention reports for runtime-internal locks,
-and so removed the [`runtimecontentionstacks` setting](/pkg/runtime#hdr-Environment_Variable).
+and so removed the [`runtimecontentionstacks` setting](/pkg/runtime#hdr-Environment_Variables).
 
 ### Go 1.24
 
@@ -369,7 +369,7 @@ In particular, a common default Linux kernel configuration can result in
 significant memory overheads, and Go 1.22 no longer works around this default.
 To work around this issue without adjusting kernel settings, transparent huge
 pages can be disabled for Go memory with the
-[`disablethp` setting](/pkg/runtime#hdr-Environment_Variable).
+[`disablethp` setting](/pkg/runtime#hdr-Environment_Variables).
 This behavior was backported to Go 1.21.1, but the setting is only available
 starting with Go 1.21.6.
 This setting may be removed in a future release, and users impacted by this issue
@@ -381,7 +381,7 @@ Go 1.22 added contention on runtime-internal locks to the [`mutex`
 profile](/pkg/runtime/pprof#Profile). Contention on these locks is always
 reported at `runtime._LostContendedRuntimeLock`. Complete stack traces of
 runtime locks can be enabled with the [`runtimecontentionstacks`
-setting](/pkg/runtime#hdr-Environment_Variable). These stack traces have
+setting](/pkg/runtime#hdr-Environment_Variables). These stack traces have
 non-standard semantics, see setting documentation for details.
 
 Go 1.22 added a new [`crypto/x509.Certificate`](/pkg/crypto/x509/#Certificate)
