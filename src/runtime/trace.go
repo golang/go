@@ -375,7 +375,7 @@ func traceAdvance(stopTrace bool) {
 			me := getg().m.curg
 			// We don't have to handle this G status transition because we
 			// already eliminated ourselves from consideration above.
-			casGToWaitingForGC(me, _Grunning, waitReasonTraceGoroutineStatus)
+			casGToWaitingForSuspendG(me, _Grunning, waitReasonTraceGoroutineStatus)
 			// We need to suspend and take ownership of the G to safely read its
 			// goid. Note that we can't actually emit the event at this point
 			// because we might stop the G in a window where it's unsafe to write

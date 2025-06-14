@@ -1282,13 +1282,13 @@ func casGToWaiting(gp *g, old uint32, reason waitReason) {
 	casgstatus(gp, old, _Gwaiting)
 }
 
-// casGToWaitingForGC transitions gp from old to _Gwaiting, and sets the wait reason.
-// The wait reason must be a valid isWaitingForGC wait reason.
+// casGToWaitingForSuspendG transitions gp from old to _Gwaiting, and sets the wait reason.
+// The wait reason must be a valid isWaitingForSuspendG wait reason.
 //
 // Use this over casgstatus when possible to ensure that a waitreason is set.
-func casGToWaitingForGC(gp *g, old uint32, reason waitReason) {
-	if !reason.isWaitingForGC() {
-		throw("casGToWaitingForGC with non-isWaitingForGC wait reason")
+func casGToWaitingForSuspendG(gp *g, old uint32, reason waitReason) {
+	if !reason.isWaitingForSuspendG() {
+		throw("casGToWaitingForSuspendG with non-isWaitingForSuspendG wait reason")
 	}
 	casGToWaiting(gp, old, reason)
 }
@@ -1429,23 +1429,7 @@ func stopTheWorld(reason stwReason) worldStop {
 	gp := getg()
 	gp.m.preemptoff = reason.String()
 	systemstack(func() {
-		// Mark the goroutine which called stopTheWorld preemptible so its
-		// stack may be scanned.
-		// This lets a mark worker scan us while we try to stop the world
-		// since otherwise we could get in a mutual preemption deadlock.
-		// We must not modify anything on the G stack because a stack shrink
-		// may occur. A stack shrink is otherwise OK though because in order
-		// to return from this function (and to leave the system stack) we
-		// must have preempted all goroutines, including any attempting
-		// to scan our stack, in which case, any stack shrinking will
-		// have already completed by the time we exit.
-		//
-		// N.B. The execution tracer is not aware of this status
-		// transition and handles it specially based on the
-		// wait reason.
-		casGToWaitingForGC(gp, _Grunning, waitReasonStoppingTheWorld)
 		stopTheWorldContext = stopTheWorldWithSema(reason) // avoid write to stack
-		casgstatus(gp, _Gwaiting, _Grunning)
 	})
 	return stopTheWorldContext
 }
@@ -1534,7 +1518,30 @@ var gcsema uint32 = 1
 //
 // Returns the STW context. When starting the world, this context must be
 // passed to startTheWorldWithSema.
+//
+//go:systemstack
 func stopTheWorldWithSema(reason stwReason) worldStop {
+	// Mark the goroutine which called stopTheWorld preemptible so its
+	// stack may be scanned by the GC or observed by the execution tracer.
+	//
+	// This lets a mark worker scan us or the execution tracer take our
+	// stack while we try to stop the world since otherwise we could get
+	// in a mutual preemption deadlock.
+	//
+	// We must not modify anything on the G stack because a stack shrink
+	// may occur, now that we switched to _Gwaiting, specifically if we're
+	// doing this during the mark phase (mark termination excepted, since
+	// we know that stack scanning is done by that point). A stack shrink
+	// is otherwise OK though because in order to return from this function
+	// (and to leave the system stack) we must have preempted all
+	// goroutines, including any attempting to scan our stack, in which
+	// case, any stack shrinking will have already completed by the time we
+	// exit.
+	//
+	// N.B. The execution tracer is not aware of this status transition and
+	// andles it specially based on the wait reason.
+	casGToWaitingForSuspendG(getg().m.curg, _Grunning, waitReasonStoppingTheWorld)
+
 	trace := traceAcquire()
 	if trace.ok() {
 		trace.STWStart(reason)
@@ -1641,6 +1648,9 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
 	}
 
 	worldStopped()
+
+	// Switch back to _Grunning, now that the world is stopped.
+	casgstatus(getg().m.curg, _Gwaiting, _Grunning)
 
 	return worldStop{
 		reason:           reason,
@@ -1999,15 +2009,23 @@ found:
 func forEachP(reason waitReason, fn func(*p)) {
 	systemstack(func() {
 		gp := getg().m.curg
-		// Mark the user stack as preemptible so that it may be scanned.
-		// Otherwise, our attempt to force all P's to a safepoint could
-		// result in a deadlock as we attempt to preempt a worker that's
-		// trying to preempt us (e.g. for a stack scan).
+		// Mark the user stack as preemptible so that it may be scanned
+		// by the GC or observed by the execution tracer. Otherwise, our
+		// attempt to force all P's to a safepoint could result in a
+		// deadlock as we attempt to preempt a goroutine that's trying
+		// to preempt us (e.g. for a stack scan).
+		//
+		// We must not modify anything on the G stack because a stack shrink
+		// may occur. A stack shrink is otherwise OK though because in order
+		// to return from this function (and to leave the system stack) we
+		// must have preempted all goroutines, including any attempting
+		// to scan our stack, in which case, any stack shrinking will
+		// have already completed by the time we exit.
 		//
 		// N.B. The execution tracer is not aware of this status
 		// transition and handles it specially based on the
 		// wait reason.
-		casGToWaitingForGC(gp, _Grunning, reason)
+		casGToWaitingForSuspendG(gp, _Grunning, reason)
 		forEachPInternal(fn)
 		casgstatus(gp, _Gwaiting, _Grunning)
 	})
