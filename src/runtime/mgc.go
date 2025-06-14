@@ -1030,7 +1030,7 @@ func gcMarkTermination(stw worldStop) {
 	// N.B. The execution tracer is not aware of this status
 	// transition and handles it specially based on the
 	// wait reason.
-	casGToWaitingForGC(curgp, _Grunning, waitReasonGarbageCollection)
+	casGToWaitingForSuspendG(curgp, _Grunning, waitReasonGarbageCollection)
 
 	// Run gc on the g0 stack. We do this so that the g stack
 	// we're currently running on will no longer change. Cuts
@@ -1482,7 +1482,8 @@ func gcBgMarkWorker(ready chan struct{}) {
 
 		systemstack(func() {
 			// Mark our goroutine preemptible so its stack
-			// can be scanned. This lets two mark workers
+			// can be scanned or observed by the execution
+			// tracer. This, for example, lets two mark workers
 			// scan each other (otherwise, they would
 			// deadlock). We must not modify anything on
 			// the G stack. However, stack shrinking is
@@ -1492,7 +1493,7 @@ func gcBgMarkWorker(ready chan struct{}) {
 			// N.B. The execution tracer is not aware of this status
 			// transition and handles it specially based on the
 			// wait reason.
-			casGToWaitingForGC(gp, _Grunning, waitReasonGCWorkerActive)
+			casGToWaitingForSuspendG(gp, _Grunning, waitReasonGCWorkerActive)
 			switch pp.gcMarkWorkerMode {
 			default:
 				throw("gcBgMarkWorker: unexpected gcMarkWorkerMode")
