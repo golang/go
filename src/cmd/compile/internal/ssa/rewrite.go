@@ -2772,3 +2772,17 @@ func panicBoundsCCToAux(p PanicBoundsCC) Aux {
 func isDictArgSym(sym Sym) bool {
 	return sym.(*ir.Name).Sym().Name == typecheck.LocalDictName
 }
+
+// When v is (IMake typ (StructMake ...)), convert to
+// (IMake typ arg) where arg is the pointer-y argument to
+// the StructMake (there must be exactly one).
+func imakeOfStructMake(v *Value) *Value {
+	var arg *Value
+	for _, a := range v.Args[1].Args {
+		if a.Type.Size() > 0 {
+			arg = a
+			break
+		}
+	}
+	return v.Block.NewValue2(v.Pos, OpIMake, v.Type, v.Args[0], arg)
+}
