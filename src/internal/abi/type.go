@@ -24,7 +24,7 @@ type Type struct {
 	TFlag       TFlag   // extra type information flags
 	Align_      uint8   // alignment of variable with this type
 	FieldAlign_ uint8   // alignment of struct field with this type
-	Kind_       Kind    // enumeration for C
+	Kind_       Kind    // what kind of type this is (string, int, ...)
 	// function for comparing objects of this type
 	// (ptr to object A, ptr to object B) -> ==?
 	Equal func(unsafe.Pointer, unsafe.Pointer) bool
@@ -78,12 +78,6 @@ const (
 	UnsafePointer
 )
 
-const (
-	// TODO (khr, drchase) why aren't these in TFlag?  Investigate, fix if possible.
-	KindDirectIface Kind = 1 << 5
-	KindMask        Kind = (1 << 5) - 1
-)
-
 // TFlag is used by a Type to signal what extra type information is
 // available in the memory directly following the Type value.
 type TFlag uint8
@@ -125,6 +119,15 @@ const (
 	// has type **byte instead of *byte. The runtime will store a
 	// pointer to the GC pointer bitmask in *GCData.
 	TFlagGCMaskOnDemand TFlag = 1 << 4
+
+	// TFlagDirectIface means that a value of this type is stored directly
+	// in the data field of an interface, instead of indirectly. Normally
+	// this means the type is pointer-ish.
+	TFlagDirectIface TFlag = 1 << 5
+
+	// Leaving this breadcrumb behind for dlv. It should not be used, and no
+	// Kind should be big enough to set this bit.
+	KindDirectIface Kind = 1 << 5
 )
 
 // NameOff is the offset to a name from moduledata.types.  See resolveNameOff in runtime.
@@ -190,7 +193,7 @@ func TypeFor[T any]() *Type {
 	return (*PtrType)(unsafe.Pointer(TypeOf((*T)(nil)))).Elem
 }
 
-func (t *Type) Kind() Kind { return t.Kind_ & KindMask }
+func (t *Type) Kind() Kind { return t.Kind_ }
 
 func (t *Type) HasName() bool {
 	return t.TFlag&TFlagNamed != 0
@@ -199,14 +202,9 @@ func (t *Type) HasName() bool {
 // Pointers reports whether t contains pointers.
 func (t *Type) Pointers() bool { return t.PtrBytes != 0 }
 
-// IfaceIndir reports whether t is stored indirectly in an interface value.
-func (t *Type) IfaceIndir() bool {
-	return t.Kind_&KindDirectIface == 0
-}
-
-// isDirectIface reports whether t is stored directly in an interface value.
+// IsDirectIface reports whether t is stored directly in an interface value.
 func (t *Type) IsDirectIface() bool {
-	return t.Kind_&KindDirectIface != 0
+	return t.TFlag&TFlagDirectIface != 0
 }
 
 func (t *Type) GcSlice(begin, end uintptr) []byte {

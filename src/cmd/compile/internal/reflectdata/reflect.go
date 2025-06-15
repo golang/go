@@ -491,6 +491,9 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 			exported = types.IsExported(t.Elem().Sym().Name)
 		}
 	}
+	if types.IsDirectIface(t) {
+		tflag |= abi.TFlagDirectIface
+	}
 
 	if tflag != abi.TFlag(uint8(tflag)) {
 		// this should optimize away completely
@@ -511,9 +514,6 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	c.Field("FieldAlign_").WriteUint8(uint8(t.Alignment()))
 
 	kind := kinds[t.Kind()]
-	if types.IsDirectIface(t) {
-		kind |= abi.KindDirectIface
-	}
 	c.Field("Kind_").WriteUint8(uint8(kind))
 
 	c.Field("Equal").WritePtr(eqfunc)

@@ -104,7 +104,7 @@ func (p *abiDesc) assignArg(t *_type) {
 		// registers and the stack.
 		panic("compileCallback: argument size is larger than uintptr")
 	}
-	if k := t.Kind_ & abi.KindMask; GOARCH != "386" && (k == abi.Float32 || k == abi.Float64) {
+	if k := t.Kind(); GOARCH != "386" && (k == abi.Float32 || k == abi.Float64) {
 		// In fastcall, floating-point arguments in
 		// the first four positions are passed in
 		// floating-point registers, which we don't
@@ -175,7 +175,7 @@ func (p *abiDesc) assignArg(t *_type) {
 //
 // Returns whether the assignment succeeded.
 func (p *abiDesc) tryRegAssignArg(t *_type, offset uintptr) bool {
-	switch k := t.Kind_ & abi.KindMask; k {
+	switch k := t.Kind(); k {
 	case abi.Bool, abi.Int, abi.Int8, abi.Int16, abi.Int32, abi.Uint, abi.Uint8, abi.Uint16, abi.Uint32, abi.Uintptr, abi.Pointer, abi.UnsafePointer:
 		// Assign a register for all these types.
 		return p.assignReg(t.Size_, offset)
@@ -270,7 +270,7 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 		cdecl = false
 	}
 
-	if fn._type == nil || (fn._type.Kind_&abi.KindMask) != abi.Func {
+	if fn._type == nil || fn._type.Kind() != abi.Func {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
 	ft := (*functype)(unsafe.Pointer(fn._type))
@@ -291,7 +291,7 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 	if ft.OutSlice()[0].Size_ != goarch.PtrSize {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
-	if k := ft.OutSlice()[0].Kind_ & abi.KindMask; k == abi.Float32 || k == abi.Float64 {
+	if k := ft.OutSlice()[0].Kind(); k == abi.Float32 || k == abi.Float64 {
 		// In cdecl and stdcall, float results are returned in
 		// ST(0). In fastcall, they're returned in XMM0.
 		// Either way, it's not AX.

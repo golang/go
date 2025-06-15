@@ -38,7 +38,7 @@ func uncommonSize(arch *sys.Arch) int    { return int(abi.UncommonSize()) }     
 
 // Type.commonType.kind
 func decodetypeKind(arch *sys.Arch, p []byte) abi.Kind {
-	return abi.Kind(p[2*arch.PtrSize+7]) & abi.KindMask //  0x13 / 0x1f
+	return abi.Kind(p[2*arch.PtrSize+7]) //  0x13
 }
 
 // Type.commonType.size

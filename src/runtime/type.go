@@ -69,7 +69,7 @@ func (t rtype) pkgpath() string {
 	if u := t.uncommon(); u != nil {
 		return t.nameOff(u.PkgPath).Name()
 	}
-	switch t.Kind_ & abi.KindMask {
+	switch t.Kind() {
 	case abi.Struct:
 		st := (*structtype)(unsafe.Pointer(t.Type))
 		return st.PkgPath.Name()
@@ -522,8 +522,8 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
 	if t == v {
 		return true
 	}
-	kind := t.Kind_ & abi.KindMask
-	if kind != v.Kind_&abi.KindMask {
+	kind := t.Kind()
+	if kind != v.Kind() {
 		return false
 	}
 	rt, rv := toRType(t), toRType(v)

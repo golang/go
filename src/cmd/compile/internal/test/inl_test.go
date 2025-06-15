@@ -47,7 +47,6 @@ func TestIntendedInlining(t *testing.T) {
 			"getMCache",
 			"heapSetTypeNoHeader",
 			"heapSetTypeSmallHeader",
-			"isDirectIface",
 			"itabHashFunc",
 			"nextslicecap",
 			"noescape",
@@ -109,6 +108,7 @@ func TestIntendedInlining(t *testing.T) {
 			"(*Buffer).tryGrowByReslice",
 		},
 		"internal/abi": {
+			"(*Type).IsDirectIface",
 			"UseInterfaceSwitchCache",
 		},
 		"internal/runtime/math": {

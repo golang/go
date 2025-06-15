@@ -859,7 +859,7 @@ func mapKeyError2(t *abi.Type, p unsafe.Pointer) error {
 			return unhashableTypeError{t}
 		}
 
-		if t.Kind_&abi.KindDirectIface != 0 {
+		if t.IsDirectIface() {
 			return mapKeyError2(t, unsafe.Pointer(pdata))
 		} else {
 			return mapKeyError2(t, *pdata)

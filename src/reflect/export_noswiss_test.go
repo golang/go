@@ -7,7 +7,6 @@
 package reflect
 
 import (
-	"internal/abi"
 	"unsafe"
 )
 
@@ -17,7 +16,7 @@ func MapBucketOf(x, y Type) Type {
 
 func CachedBucketOf(m Type) Type {
 	t := m.(*rtype)
-	if Kind(t.t.Kind_&abi.KindMask) != Map {
+	if Kind(t.t.Kind()) != Map {
 		panic("not map")
 	}
 	tt := (*mapType)(unsafe.Pointer(t))
