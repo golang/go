@@ -921,8 +921,8 @@
   @x.Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(int(i))] ptr) mem)
 
 // Putting struct{*byte} and similar into direct interfaces.
-(IMake _typ (StructMake val)) => (IMake _typ val)
-(StructSelect [0] (IData x)) => (IData x)
+(IMake _typ (StructMake val)) => imakeOfStructMake(v)
+(StructSelect [_] (IData x)) => (IData x)
 
 // un-SSAable values use mem->mem copies
 (Store {t} dst (Load src mem) mem) && !CanSSA(t) =>

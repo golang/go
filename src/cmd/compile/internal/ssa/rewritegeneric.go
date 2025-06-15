@@ -11201,15 +11201,12 @@ func rewriteValuegeneric_OpIMake(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (IMake _typ (StructMake val))
-	// result: (IMake _typ val)
+	// result: imakeOfStructMake(v)
 	for {
-		_typ := v_0
 		if v_1.Op != OpStructMake || len(v_1.Args) != 1 {
 			break
 		}
-		val := v_1.Args[0]
-		v.reset(OpIMake)
-		v.AddArg2(_typ, val)
+		v.copyOf(imakeOfStructMake(v))
 		return true
 	}
 	// match: (IMake _typ (ArrayMake1 val))
@@ -32045,10 +32042,10 @@ func rewriteValuegeneric_OpStructSelect(v *Value) bool {
 		v0.AddArg2(v1, mem)
 		return true
 	}
-	// match: (StructSelect [0] (IData x))
+	// match: (StructSelect [_] (IData x))
 	// result: (IData x)
 	for {
-		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpIData {
+		if v_0.Op != OpIData {
 			break
 		}
 		x := v_0.Args[0]

@@ -2524,8 +2524,7 @@ func StructOf(fields []StructField) Type {
 	}
 
 	switch {
-	case len(fs) == 1 && fs[0].Typ.IsDirectIface():
-		// structs of 1 direct iface type can be direct
+	case typ.Size_ == goarch.PtrSize && typ.PtrBytes == goarch.PtrSize:
 		typ.TFlag |= abi.TFlagDirectIface
 	default:
 		typ.TFlag &^= abi.TFlagDirectIface
@@ -2694,8 +2693,7 @@ func ArrayOf(length int, elem Type) Type {
 	}
 
 	switch {
-	case length == 1 && typ.IsDirectIface():
-		// array of 1 direct iface type can be direct
+	case array.Size_ == goarch.PtrSize && array.PtrBytes == goarch.PtrSize:
 		array.TFlag |= abi.TFlagDirectIface
 	default:
 		array.TFlag &^= abi.TFlagDirectIface
