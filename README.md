@@ -3,8 +3,7 @@
 ## Overview
 
 `go-panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for signed integer arithmetic operations. When overflow is detected, the program will **panic** with an "integer overflow" message.
-
-## TLDR;
+ 
 
 ### Arithmetic Operations Checked:
 - **Addition** (`+`) - Detects positive and negative overflow

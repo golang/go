@@ -5288,80 +5288,41 @@ func (s *state) intAdd(n ir.Node, a, b *ssa.Value) *ssa.Value {
 		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 	}
 
-	// Check if we can optimize constants
-	needcheck := true
-	aIsConst := false
-	bIsConst := false
+	// Simple and reliable overflow detection:
+	// For addition a + b:
+	// - Overflow if both positive and result < a (or result < b)
+	// - Underflow if both negative and result > a (or result > b)
 	
-	switch a.Op {
-	case ssa.OpConst8, ssa.OpConst16, ssa.OpConst32, ssa.OpConst64:
-		aIsConst = true
-	}
-	
-	switch b.Op {
-	case ssa.OpConst8, ssa.OpConst16, ssa.OpConst32, ssa.OpConst64:
-		bIsConst = true
-	}
-	
-	
-	switch {
-	case aIsConst && bIsConst:
-		// Both constants - compiler can check at compile time
-		needcheck = false
-	case aIsConst:
-		// a is constant, check if it's zero
-		if a.AuxInt == 0 {
-			needcheck = false
-		}
-	case bIsConst:
-		// b is constant, check if it's zero  
-		if b.AuxInt == 0 {
-			needcheck = false
-		}
-	}
-
 	result := s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
-
-	if needcheck {
-		
-		// Check for overflow: (a > 0 && b > 0 && result < 0) || (a < 0 && b < 0 && result >= 0)
-		zero := s.zeroVal(n.Type())
-		
-		// a > 0 (use 0 < a instead)
-		aPos := s.newValue2(s.ssaOp(ir.OLT, zero.Type), types.Types[types.TBOOL], zero, a)
-		// b > 0 (use 0 < b instead)
-		bPos := s.newValue2(s.ssaOp(ir.OLT, zero.Type), types.Types[types.TBOOL], zero, b)
-		// result < 0
-		resultNeg := s.newValue2(s.ssaOp(ir.OLT, result.Type), types.Types[types.TBOOL], result, zero)
-		
-		// a < 0
-		aNeg := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
-		// b < 0
-		bNeg := s.newValue2(s.ssaOp(ir.OLT, b.Type), types.Types[types.TBOOL], b, zero)
-		// result >= 0 (use !(result < 0) instead)
-		resultPosTemp := s.newValue2(s.ssaOp(ir.OLT, result.Type), types.Types[types.TBOOL], result, zero)
-		resultPos := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], resultPosTemp)
-		
-		// Positive overflow: a > 0 && b > 0 && result < 0
-		posOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], 
-			s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aPos, bPos), resultNeg)
-		
-		// Negative overflow: a < 0 && b < 0 && result >= 0  
-		negOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL],
-			s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aNeg, bNeg), resultPos)
-		
-		// Overall overflow condition
-		overflow := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], posOverflow, negOverflow)
-		
-		
-		// s.check() panics when condition is FALSE, so we need to invert the overflow condition
-		// We want: panic when overflow occurs, so pass "no overflow" condition
-		noOverflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], overflow)
-		
-		
-		s.check(noOverflow, ir.Syms.Panicoverflow)
-	} else {
-	}
+	zero := s.zeroVal(n.Type())
+	
+	// Check if a >= 0 (use !(a < 0))
+	aLtZeroTemp := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
+	aGeZero := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], aLtZeroTemp)
+	// Check if b >= 0 (use !(b < 0))
+	bLtZeroTemp := s.newValue2(s.ssaOp(ir.OLT, b.Type), types.Types[types.TBOOL], b, zero)
+	bGeZero := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], bLtZeroTemp)
+	// Check if result < a
+	resultLtA := s.newValue2(s.ssaOp(ir.OLT, result.Type), types.Types[types.TBOOL], result, a)
+	// Check if result > a (use a < result)
+	resultGtA := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, result)
+	
+	// Both operands >= 0 and result < a means positive overflow
+	bothPos := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aGeZero, bGeZero)
+	posOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], bothPos, resultLtA)
+	
+	// Both operands < 0 and result > a means negative overflow (underflow)
+	aNeg := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
+	bNeg := s.newValue2(s.ssaOp(ir.OLT, b.Type), types.Types[types.TBOOL], b, zero)
+	bothNeg := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aNeg, bNeg)
+	negOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], bothNeg, resultGtA)
+	
+	// Overall overflow condition
+	overflow := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], posOverflow, negOverflow)
+	
+	// s.check() panics when condition is FALSE, so pass "no overflow" condition
+	noOverflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], overflow)
+	s.check(noOverflow, ir.Syms.Panicoverflow)
 
 	return result
 }
@@ -5372,70 +5333,41 @@ func (s *state) intSub(n ir.Node, a, b *ssa.Value) *ssa.Value {
 		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 	}
 
-	// Check if we can optimize constants
-	needcheck := true
-	aIsConst := false
-	bIsConst := false
+	// Simple and reliable overflow detection for subtraction a - b:
+	// - Positive overflow: a >= 0, b < 0, and result < a  
+	// - Negative overflow: a < 0, b > 0, and result > a
 	
-	switch a.Op {
-	case ssa.OpConst8, ssa.OpConst16, ssa.OpConst32, ssa.OpConst64:
-		aIsConst = true
-	}
-	
-	switch b.Op {
-	case ssa.OpConst8, ssa.OpConst16, ssa.OpConst32, ssa.OpConst64:
-		bIsConst = true
-	}
-	
-	switch {
-	case aIsConst && bIsConst:
-		// Both constants - compiler can check at compile time
-		needcheck = false
-	case bIsConst:
-		// b is constant, check if it's zero
-		if b.AuxInt == 0 {
-			needcheck = false
-		}
-	}
-
 	result := s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
-
-	if needcheck {
-		// Check for overflow: (a >= 0 && b < 0 && result < 0) || (a < 0 && b >= 0 && result >= 0)
-		zero := s.zeroVal(n.Type())
-		
-		// a >= 0 (use !(a < 0) instead)
-		aNegTemp := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
-		aNonNeg := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], aNegTemp)
-		// b < 0
-		bNeg := s.newValue2(s.ssaOp(ir.OLT, b.Type), types.Types[types.TBOOL], b, zero)
-		// result < 0
-		resultNeg := s.newValue2(s.ssaOp(ir.OLT, result.Type), types.Types[types.TBOOL], result, zero)
-		
-		// a < 0
-		aNeg := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
-		// b >= 0 (use !(b < 0) instead)
-		bNegTemp := s.newValue2(s.ssaOp(ir.OLT, b.Type), types.Types[types.TBOOL], b, zero)
-		bNonNeg := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], bNegTemp)
-		// result >= 0 (use !(result < 0) instead)
-		resultNegTemp := s.newValue2(s.ssaOp(ir.OLT, result.Type), types.Types[types.TBOOL], result, zero)
-		resultNonNeg := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], resultNegTemp)
-		
-		// Positive overflow: a >= 0 && b < 0 && result < 0
-		posOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL],
-			s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aNonNeg, bNeg), resultNeg)
-		
-		// Negative overflow: a < 0 && b >= 0 && result >= 0
-		negOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL],
-			s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aNeg, bNonNeg), resultNonNeg)
-		
-		// Overall overflow condition
-		overflow := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], posOverflow, negOverflow)
-		
-		// s.check() panics when condition is FALSE, so pass "no overflow" condition
-		noOverflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], overflow)
-		s.check(noOverflow, ir.Syms.Panicoverflow)
-	}
+	zero := s.zeroVal(n.Type())
+	
+	// Check if a >= 0 (use !(a < 0))
+	aLtZeroTemp2 := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
+	aGeZero := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], aLtZeroTemp2)
+	// Check if a < 0 
+	aLtZero := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
+	// Check if b < 0
+	bLtZero := s.newValue2(s.ssaOp(ir.OLT, b.Type), types.Types[types.TBOOL], b, zero)
+	// Check if b > 0 (use 0 < b)
+	bGtZero := s.newValue2(s.ssaOp(ir.OLT, zero.Type), types.Types[types.TBOOL], zero, b)
+	// Check if result < a
+	resultLtA := s.newValue2(s.ssaOp(ir.OLT, result.Type), types.Types[types.TBOOL], result, a)
+	// Check if result > a (use a < result) 
+	resultGtA := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, result)
+	
+	// Positive overflow: a >= 0 && b < 0 && result < a
+	posOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL],
+		s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aGeZero, bLtZero), resultLtA)
+	
+	// Negative overflow: a < 0 && b > 0 && result > a
+	negOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL],
+		s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aLtZero, bGtZero), resultGtA)
+	
+	// Overall overflow condition
+	overflow := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], posOverflow, negOverflow)
+	
+	// s.check() panics when condition is FALSE, so pass "no overflow" condition
+	noOverflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], overflow)
+	s.check(noOverflow, ir.Syms.Panicoverflow)
 
 	return result
 }
@@ -5446,78 +5378,28 @@ func (s *state) intMul(n ir.Node, a, b *ssa.Value) *ssa.Value {
 		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 	}
 
-	// Check if we can optimize constants
-	needcheck := true
-	aIsConst := false
-	bIsConst := false
+	// Simple multiplication overflow detection:
+	// Check if result/a != b (when a != 0) or result/b != a (when b != 0)
 	
-	switch a.Op {
-	case ssa.OpConst8, ssa.OpConst16, ssa.OpConst32, ssa.OpConst64:
-		aIsConst = true
-	}
-	
-	switch b.Op {
-	case ssa.OpConst8, ssa.OpConst16, ssa.OpConst32, ssa.OpConst64:
-		bIsConst = true
-	}
-	
-	switch {
-	case aIsConst && bIsConst:
-		// Both constants - compiler can check at compile time
-		needcheck = false
-	case aIsConst:
-		if a.AuxInt == 0 || a.AuxInt == 1 || a.AuxInt == -1 {
-			needcheck = false
-		}
-	case bIsConst:
-		if b.AuxInt == 0 || b.AuxInt == 1 || b.AuxInt == -1 {
-			needcheck = false
-		}
-	}
-
 	result := s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
-
-	if needcheck {
-		// Conservative overflow detection for multiplication
-		// Check if either operand is zero
-		zero := s.zeroVal(n.Type())
-		one := s.newValue0I(a.Op, a.Type, 1)
-		minusOne := s.newValue0I(a.Op, a.Type, -1)
-		
-		aIsZero := s.newValue2(s.ssaOp(ir.OEQ, a.Type), types.Types[types.TBOOL], a, zero)
-		bIsZero := s.newValue2(s.ssaOp(ir.OEQ, b.Type), types.Types[types.TBOOL], b, zero)
-		
-		aIsOne := s.newValue2(s.ssaOp(ir.OEQ, a.Type), types.Types[types.TBOOL], a, one)
-		bIsOne := s.newValue2(s.ssaOp(ir.OEQ, b.Type), types.Types[types.TBOOL], b, one)
-		
-		aIsMinusOne := s.newValue2(s.ssaOp(ir.OEQ, a.Type), types.Types[types.TBOOL], a, minusOne)
-		bIsMinusOne := s.newValue2(s.ssaOp(ir.OEQ, b.Type), types.Types[types.TBOOL], b, minusOne)
-		
-		// Safe cases: either operand is 0, 1, or -1
-		safeCases := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], aIsZero, 
-			s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], bIsZero,
-				s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], aIsOne,
-					s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], bIsOne,
-						s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], aIsMinusOne, bIsMinusOne)))))
-		
-		// For non-safe cases, we do a conservative check by dividing result by one operand
-		// and checking if we get the other operand back (if the divisor is not zero)
-		needOverflowCheck := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], safeCases)
-		
-		// Simple overflow detection: if |a| > sqrt(max) or |b| > sqrt(max), potential overflow
-		// For conservative approach, check if result/a != b (when a != 0)
-		aNotZero := s.newValue2(s.ssaOp(ir.ONE, a.Type), types.Types[types.TBOOL], a, zero)
-		quotient := s.newValue2(s.ssaOp(ir.ODIV, n.Type()), a.Type, result, a)
-		quotientNotEqB := s.newValue2(s.ssaOp(ir.ONE, quotient.Type), types.Types[types.TBOOL], quotient, b)
-		
-		overflowDetected := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aNotZero, quotientNotEqB)
-		
-		shouldPanic := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], needOverflowCheck, overflowDetected)
-		
-		// s.check() panics when condition is FALSE, so pass "no overflow" condition
-		noOverflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], shouldPanic)
-		s.check(noOverflow, ir.Syms.Panicoverflow)
-	}
+	zero := s.zeroVal(n.Type())
+	
+	// Check if a is zero
+	aIsZero := s.newValue2(s.ssaOp(ir.OEQ, a.Type), types.Types[types.TBOOL], a, zero)
+	// Check if b is zero
+	bIsZero := s.newValue2(s.ssaOp(ir.OEQ, b.Type), types.Types[types.TBOOL], b, zero)
+	// Either operand is zero - no overflow possible
+	eitherZero := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], aIsZero, bIsZero)
+	
+	// For non-zero operands, check if result/a == b
+	quotientA := s.newValue2(s.ssaOp(ir.ODIV, n.Type()), a.Type, result, a)
+	quotientAEqB := s.newValue2(s.ssaOp(ir.OEQ, quotientA.Type), types.Types[types.TBOOL], quotientA, b)
+	
+	// Valid multiplication: either operand is zero OR result/a == b
+	validMul := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], eitherZero, quotientAEqB)
+	
+	// s.check() panics when condition is FALSE, so pass the valid condition
+	s.check(validMul, ir.Syms.Panicoverflow)
 
 	return result
 }
