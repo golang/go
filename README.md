@@ -1,20 +1,16 @@
-# go-panikint: Go Compiler with Arithmetic Overflow Detection
-
-## Overview
+## Go-Panikint 
+### Overview
 
 `go-panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for signed integer arithmetic operations. When overflow is detected, the program will **panic** with an "integer overflow" message.
- 
 
-### Arithmetic Operations Checked:
+#### Basic infos:
 - **Addition** (`+`) - Detects positive and negative overflow
 - **Subtraction** (`-`) - Detects underflow and overflow  
 - **Multiplication** (`*`) - Detects overflow (with conservative checking)
-
-### Integer Types Covered:
-- `int8`, `int16`, `int32` (signed integers)
+- **Handles** `int8`, `int16`, `int32` (signed integers)
 - **Note**: `int64`, `uintptr`, and unsigned types are **not checked** to avoid runtime compatibility issues
 
-### Packages Excluded:
+#### Packages excluded:
 - Standard library packages (`runtime`, `sync`, `os`, `syscall`, etc.)
 - Internal packages (`internal/*`)
 - Math and unsafe packages
@@ -36,7 +32,9 @@ GOROOT=/path/to/go-arithmetic-panik/go-arithmetic-panik && ./bin/go run test_sim
 GOROOT=/path/to/go-arithmetic-panik/go-arithmetic-panik && ./bin/go build test_simple_overflow.go
 ```
 
-## Example Overflow Detection
+## Example 
+
+#### Example 1:
 
 ```go
 package main
@@ -65,6 +63,28 @@ panic: runtime error: integer overflow
 goroutine 1 [running]:
 main.main()
 	/Users/XXX/go-arithmetic-panik/test_simple_overflow.go:12 +0xfc
+exit status 2
+```
+
+#### Example 2:
+
+```bash
+bash-5.2$ go run  vim_panik.go
+1. Signed int8 overflow:
+   Max int8: 127
+   After adding 1: -128 (wrapped to minimum)
+
+
+
+
+bash-5.2$ GOROOT=/XXXXXX/XXXX/go-arithmetic-panik && ./bin/go run  vim_panik.go
+1. Signed int8 overflow:
+   Max int8: 127
+panic: runtime error: integer overflow
+
+goroutine 1 [running]:
+main.main()
+	/Users/kevinvalerio/Desktop/tooling/go-arithmetic-panik/vim_panik.go:14 +0x11c
 exit status 2
 ```
 
