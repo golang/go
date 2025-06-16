@@ -5259,14 +5259,11 @@ func (s *state) shouldCheckOverflow(typ *types.Type) bool {
 	// This ensures we only apply overflow detection to user code
 	pkgPath := base.Ctxt.Pkgpath
 	
-	// Skip debug output in production
-	
 	if pkgPath == "" || // empty package path means standard library
 		strings.HasPrefix(pkgPath, "cmd/") || // All cmd packages (go compiler, tools, etc.)
 		strings.HasPrefix(pkgPath, "runtime") ||
-		strings.HasPrefix(pkgPath, "internal") ||
+		strings.HasPrefix(pkgPath, "internal") || // Go's internal packages (not user internal packages)
 		strings.HasPrefix(pkgPath, "bootstrap") ||
-		strings.Contains(pkgPath, "/internal/") || // Any internal package
 		strings.Contains(pkgPath, "vendor/") || // Any vendor package
 		(!strings.Contains(pkgPath, ".") && pkgPath != "main" && pkgPath != "command-line-arguments") { // Standard library packages typically don't have dots, but allow "main" and test packages
 		return false
