@@ -1,42 +1,77 @@
-# The Go Programming Language
+# go-panikint: Go Compiler with Arithmetic Overflow Detection
 
-Go is an open source programming language that makes it easy to build simple,
-reliable, and efficient software.
+## Overview
 
-![Gopher image](https://golang.org/doc/gopher/fiveyears.jpg)
-*Gopher image by [Renee French][rf], licensed under [Creative Commons 4.0 Attribution license][cc4-by].*
+`go-panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for signed integer arithmetic operations. When overflow is detected, the program will **panic** with an "integer overflow" message.
 
-Our canonical Git repository is located at https://go.googlesource.com/go.
-There is a mirror of the repository at https://github.com/golang/go.
+## TLDR;
 
-Unless otherwise noted, the Go source files are distributed under the
-BSD-style license found in the LICENSE file.
+### Arithmetic Operations Checked:
+- **Addition** (`+`) - Detects positive and negative overflow
+- **Subtraction** (`-`) - Detects underflow and overflow  
+- **Multiplication** (`*`) - Detects overflow (with conservative checking)
 
-### Download and Install
+### Integer Types Covered:
+- `int8`, `int16`, `int32` (signed integers)
+- **Note**: `int64`, `uintptr`, and unsigned types are **not checked** to avoid runtime compatibility issues
 
-#### Binary Distributions
+### Packages Excluded:
+- Standard library packages (`runtime`, `sync`, `os`, `syscall`, etc.)
+- Internal packages (`internal/*`)
+- Math and unsafe packages
 
-Official binary distributions are available at https://go.dev/dl/.
+## Installation & Usage
 
-After downloading a binary release, visit https://go.dev/doc/install
-for installation instructions.
+### Usage and installation :
+```bash
+git clone https://github.com/kevin-valerio/go-arithmetic-panik
 
-#### Install From Source
+cd go-arithmetic-panik/src
 
-If a binary distribution is not available for your combination of
-operating system and architecture, visit
-https://go.dev/doc/install/source
-for source installation instructions.
+./all.bash
 
-### Contributing
+# Compile and run a Go program
+GOROOT=/path/to/go-arithmetic-panik/go-arithmetic-panik && ./bin/go run test_simple_overflow.go
 
-Go is the work of thousands of contributors. We appreciate your help!
+# Or compile only
+GOROOT=/path/to/go-arithmetic-panik/go-arithmetic-panik && ./bin/go build test_simple_overflow.go
+```
 
-To contribute, please read the contribution guidelines at https://go.dev/doc/contribute.
+## Example Overflow Detection
 
-Note that the Go project uses the issue tracker for bug reports and
-proposals only. See https://go.dev/wiki/Questions for a list of
-places to ask questions about the Go language.
+```go
+package main
 
-[rf]: https://reneefrench.blogspot.com/
-[cc4-by]: https://creativecommons.org/licenses/by/4.0/
+import "fmt"
+
+func main() {
+	fmt.Println("Testing overflow detection...")
+
+	// Test int8 addition overflow
+	var a int8 = 127
+	var b int8 = 1
+	fmt.Printf("Before: a=%d, b=%d\n", a, b)
+	result := a + b  // Should panic with "integer overflow"
+	fmt.Printf("After: result=%d\n", result)
+}
+```
+
+Expected output:
+```bash
+bash-5.2$ GOROOT=/path/to/go-arithmetic-panik/go-arithmetic-panik && ./bin/go run test_simple_overflow.go
+Testing overflow detection...
+Before: a=127, b=1
+panic: runtime error: integer overflow
+
+goroutine 1 [running]:
+main.main()
+	/Users/XXX/go-arithmetic-panik/test_simple_overflow.go:12 +0xfc
+exit status 2
+```
+
+## Limitations
+
+1. **Standard Library**: No overflow checking in standard library code
+2. **64-bit Integers**: `int64` and `uintptr` are not checked 
+3. **Unsigned Types**: `uint8`, `uint16`, `uint32`, `uint64` are not checked
+4. **Performance**: Slight performance overhead due to additional checks
