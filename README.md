@@ -1,5 +1,4 @@
-# go-panikint: Go Compiler with Arithmetic Overflow Detection
-
+# Go-Panikint 
 ## Overview
 
 `go-panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for signed integer arithmetic operations. When overflow is detected, the program will **panic** with an "integer overflow" message.
