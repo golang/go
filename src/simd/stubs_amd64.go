@@ -5962,17 +5962,17 @@ func (x Int16x32) MaskedPairDotProd(y Int16x32, z Mask16x32) Int32x16
 // PairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPWSSD, CPU Feature: AVX512EVEX
-func (x Int32x4) MaskedPairDotProdAccumulate(y Int16x8, z Int32x4, u Mask32x4) Int32x4
+func (x Int32x4) MaskedPairDotProdAccumulate(y Int16x8, z Int16x8, u Mask32x4) Int32x4
 
 // PairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPWSSD, CPU Feature: AVX512EVEX
-func (x Int32x8) MaskedPairDotProdAccumulate(y Int16x16, z Int32x8, u Mask32x8) Int32x8
+func (x Int32x8) MaskedPairDotProdAccumulate(y Int16x16, z Int16x16, u Mask32x8) Int32x8
 
 // PairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPWSSD, CPU Feature: AVX512EVEX
-func (x Int32x16) MaskedPairDotProdAccumulate(y Int16x32, z Int32x16, u Mask32x16) Int32x16
+func (x Int32x16) MaskedPairDotProdAccumulate(y Int16x32, z Int16x32, u Mask32x16) Int32x16
 
 /* MaskedPopCount */
 
@@ -6239,17 +6239,17 @@ func (x Uint16x32) MaskedSaturatedAdd(y Uint16x32, z Mask16x32) Uint16x32
 // SaturatedPairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPWSSDS, CPU Feature: AVX512EVEX
-func (x Int32x4) MaskedSaturatedPairDotProdAccumulate(y Int16x8, z Int32x4, u Mask32x4) Int32x4
+func (x Int32x4) MaskedSaturatedPairDotProdAccumulate(y Int16x8, z Int16x8, u Mask32x4) Int32x4
 
 // SaturatedPairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPWSSDS, CPU Feature: AVX512EVEX
-func (x Int32x8) MaskedSaturatedPairDotProdAccumulate(y Int16x16, z Int32x8, u Mask32x8) Int32x8
+func (x Int32x8) MaskedSaturatedPairDotProdAccumulate(y Int16x16, z Int16x16, u Mask32x8) Int32x8
 
 // SaturatedPairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPWSSDS, CPU Feature: AVX512EVEX
-func (x Int32x16) MaskedSaturatedPairDotProdAccumulate(y Int16x32, z Int32x16, u Mask32x16) Int32x16
+func (x Int32x16) MaskedSaturatedPairDotProdAccumulate(y Int16x32, z Int16x32, u Mask32x16) Int32x16
 
 /* MaskedSaturatedSub */
 
@@ -6319,51 +6319,51 @@ func (x Uint16x32) MaskedSaturatedSub(y Uint16x32, z Mask16x32) Uint16x32
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
-func (x Uint16x8) MaskedSaturatedUnsignedSignedPairDotProd(y Int16x8, z Mask16x8) Int16x8
+func (x Uint8x16) MaskedSaturatedUnsignedSignedPairDotProd(y Int8x16, z Mask16x8) Int16x8
 
 // SaturatedPairDotProd multiplies the elements and add the pairs together with saturation,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
-func (x Uint16x16) MaskedSaturatedUnsignedSignedPairDotProd(y Int16x16, z Mask16x16) Int16x16
+func (x Uint8x32) MaskedSaturatedUnsignedSignedPairDotProd(y Int8x32, z Mask16x16) Int16x16
 
 // SaturatedPairDotProd multiplies the elements and add the pairs together with saturation,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
-func (x Uint16x32) MaskedSaturatedUnsignedSignedPairDotProd(y Int16x32, z Mask16x32) Int16x32
+func (x Uint8x64) MaskedSaturatedUnsignedSignedPairDotProd(y Int8x64, z Mask16x32) Int16x32
 
 /* MaskedSaturatedUnsignedSignedQuadDotProdAccumulate */
 
 // SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512EVEX
-func (x Int32x4) MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int32x4, u Mask32x4) Int32x4
+func (x Int32x4) MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int8x16, u Mask32x4) Int32x4
 
 // SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512EVEX
-func (x Int32x8) MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int32x8, u Mask32x8) Int32x8
+func (x Int32x8) MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int8x32, u Mask32x8) Int32x8
 
 // SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512EVEX
-func (x Int32x16) MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int32x16, u Mask32x16) Int32x16
+func (x Int32x16) MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int8x64, u Mask32x16) Int32x16
 
 // SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512EVEX
-func (x Uint32x4) MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int32x4, u Mask32x4) Uint32x4
+func (x Uint32x4) MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int8x16, u Mask32x4) Uint32x4
 
 // SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512EVEX
-func (x Uint32x8) MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int32x8, u Mask32x8) Uint32x8
+func (x Uint32x8) MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int8x32, u Mask32x8) Uint32x8
 
 // SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512EVEX
-func (x Uint32x16) MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int32x16, u Mask32x16) Uint32x16
+func (x Uint32x16) MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int8x64, u Mask32x16) Uint32x16
 
 /* MaskedSqrt */
 
@@ -6630,32 +6630,32 @@ func (x Float64x8) MaskedTruncWithPrecision(imm uint8, y Mask64x8) Float64x8
 // UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX512EVEX
-func (x Int32x4) MaskedUnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int32x4, u Mask32x4) Int32x4
+func (x Int32x4) MaskedUnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int8x16, u Mask32x4) Int32x4
 
 // UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX512EVEX
-func (x Int32x8) MaskedUnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int32x8, u Mask32x8) Int32x8
+func (x Int32x8) MaskedUnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int8x32, u Mask32x8) Int32x8
 
 // UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX512EVEX
-func (x Int32x16) MaskedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int32x16, u Mask32x16) Int32x16
+func (x Int32x16) MaskedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int8x64, u Mask32x16) Int32x16
 
 // UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX512EVEX
-func (x Uint32x4) MaskedUnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int32x4, u Mask32x4) Uint32x4
+func (x Uint32x4) MaskedUnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int8x16, u Mask32x4) Uint32x4
 
 // UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX512EVEX
-func (x Uint32x8) MaskedUnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int32x8, u Mask32x8) Uint32x8
+func (x Uint32x8) MaskedUnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int8x32, u Mask32x8) Uint32x8
 
 // UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX512EVEX
-func (x Uint32x16) MaskedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int32x16, u Mask32x16) Uint32x16
+func (x Uint32x16) MaskedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int8x64, u Mask32x16) Uint32x16
 
 /* MaskedXor */
 
@@ -7597,17 +7597,17 @@ func (x Int16x32) PairDotProd(y Int16x32) Int32x16
 // PairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPWSSD, CPU Feature: AVX_VNNI
-func (x Int32x4) PairDotProdAccumulate(y Int32x4, z Int32x4) Int32x4
+func (x Int32x4) PairDotProdAccumulate(y Int16x8, z Int16x8) Int32x4
 
 // PairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPWSSD, CPU Feature: AVX_VNNI
-func (x Int32x8) PairDotProdAccumulate(y Int32x8, z Int32x8) Int32x8
+func (x Int32x8) PairDotProdAccumulate(y Int16x16, z Int16x16) Int32x8
 
 // PairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPWSSD, CPU Feature: AVX512EVEX
-func (x Int32x16) PairDotProdAccumulate(y Int16x32, z Int32x16) Int32x16
+func (x Int32x16) PairDotProdAccumulate(y Int16x32, z Int16x32) Int32x16
 
 /* PairwiseAdd */
 
@@ -8048,17 +8048,17 @@ func (x Uint16x32) SaturatedAdd(y Uint16x32) Uint16x32
 // SaturatedPairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPWSSDS, CPU Feature: AVX_VNNI
-func (x Int32x4) SaturatedPairDotProdAccumulate(y Int32x4, z Int32x4) Int32x4
+func (x Int32x4) SaturatedPairDotProdAccumulate(y Int16x8, z Int16x8) Int32x4
 
 // SaturatedPairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPWSSDS, CPU Feature: AVX_VNNI
-func (x Int32x8) SaturatedPairDotProdAccumulate(y Int32x8, z Int32x8) Int32x8
+func (x Int32x8) SaturatedPairDotProdAccumulate(y Int16x16, z Int16x16) Int32x8
 
 // SaturatedPairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPWSSDS, CPU Feature: AVX512EVEX
-func (x Int32x16) SaturatedPairDotProdAccumulate(y Int16x32, z Int32x16) Int32x16
+func (x Int32x16) SaturatedPairDotProdAccumulate(y Int16x32, z Int16x32) Int32x16
 
 /* SaturatedPairwiseAdd */
 
@@ -8168,51 +8168,39 @@ func (x Uint8x32) SaturatedUnsignedSignedPairDotProd(y Int8x32) Int16x16
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
-func (x Uint16x8) SaturatedUnsignedSignedPairDotProd(y Int16x8) Int16x8
-
-// SaturatedPairDotProd multiplies the elements and add the pairs together with saturation,
-// yielding a vector of half as many elements with twice the input element size.
-//
-// Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
-func (x Uint16x16) SaturatedUnsignedSignedPairDotProd(y Int16x16) Int16x16
-
-// SaturatedPairDotProd multiplies the elements and add the pairs together with saturation,
-// yielding a vector of half as many elements with twice the input element size.
-//
-// Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
-func (x Uint16x32) SaturatedUnsignedSignedPairDotProd(y Int16x32) Int16x32
+func (x Uint8x64) SaturatedUnsignedSignedPairDotProd(y Int8x64) Int16x32
 
 /* SaturatedUnsignedSignedQuadDotProdAccumulate */
 
 // SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX_VNNI
-func (x Int32x4) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint32x4, z Int32x4) Int32x4
+func (x Int32x4) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int8x16) Int32x4
 
 // SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX_VNNI
-func (x Int32x8) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint32x8, z Int32x8) Int32x8
+func (x Int32x8) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int8x32) Int32x8
 
 // SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512EVEX
-func (x Int32x16) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int32x16) Int32x16
+func (x Int32x16) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int8x64) Int32x16
 
 // SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX_VNNI
-func (x Uint32x4) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint32x4, z Int32x4) Uint32x4
+func (x Uint32x4) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int8x16) Uint32x4
 
 // SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX_VNNI
-func (x Uint32x8) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint32x8, z Int32x8) Uint32x8
+func (x Uint32x8) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int8x32) Uint32x8
 
 // SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512EVEX
-func (x Uint32x16) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int32x16) Uint32x16
+func (x Uint32x16) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int8x64) Uint32x16
 
 /* Sign */
 
@@ -8543,32 +8531,32 @@ func (x Float64x8) TruncWithPrecision(imm8 uint8) Float64x8
 // UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX_VNNI
-func (x Int32x4) UnsignedSignedQuadDotProdAccumulate(y Uint32x4, z Int32x4) Int32x4
+func (x Int32x4) UnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int8x16) Int32x4
 
 // UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX_VNNI
-func (x Int32x8) UnsignedSignedQuadDotProdAccumulate(y Uint32x8, z Int32x8) Int32x8
+func (x Int32x8) UnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int8x32) Int32x8
 
 // UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX512EVEX
-func (x Int32x16) UnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int32x16) Int32x16
+func (x Int32x16) UnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int8x64) Int32x16
 
 // UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX_VNNI
-func (x Uint32x4) UnsignedSignedQuadDotProdAccumulate(y Uint32x4, z Int32x4) Uint32x4
+func (x Uint32x4) UnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int8x16) Uint32x4
 
 // UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX_VNNI
-func (x Uint32x8) UnsignedSignedQuadDotProdAccumulate(y Uint32x8, z Int32x8) Uint32x8
+func (x Uint32x8) UnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int8x32) Uint32x8
 
 // UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX512EVEX
-func (x Uint32x16) UnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int32x16) Uint32x16
+func (x Uint32x16) UnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int8x64) Uint32x16
 
 /* Xor */
 
