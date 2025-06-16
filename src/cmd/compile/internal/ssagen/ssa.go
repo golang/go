@@ -5268,7 +5268,7 @@ func (s *state) shouldCheckOverflow(typ *types.Type) bool {
 		strings.HasPrefix(pkgPath, "bootstrap") ||
 		strings.Contains(pkgPath, "/internal/") || // Any internal package
 		strings.Contains(pkgPath, "vendor/") || // Any vendor package
-		(!strings.Contains(pkgPath, ".") && pkgPath != "main") { // Standard library packages typically don't have dots, but allow "main"
+		(!strings.Contains(pkgPath, ".") && pkgPath != "main" && pkgPath != "command-line-arguments") { // Standard library packages typically don't have dots, but allow "main" and test packages
 		return false
 	}
 
