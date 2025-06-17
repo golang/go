@@ -4,7 +4,7 @@
 
 `Go-Panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for signed integer arithmetic operations. When overflow is detected, a **panic** with an "integer overflow" message will pop.
 
-It can handle addition `+`, subtraction `-`, multiplication `*`, for types `int8`, `int16`, `int32`. Regarding `int64`, `uintptr`, they are not checked.
+It can handle addition `+`, subtraction `-`, multiplication `*`, and division `/` for types `int8`, `int16`, `int32`. The division case specifically detects the MIN_INT / -1 overflow condition where the mathematical result exceeds the maximum representable value. Regarding `int64`, `uintptr`, they are not checked.
 
 ### Usage and installation :
 ```bash
@@ -26,7 +26,7 @@ export GOROOT=/path/to/go-panikint
 
 ### How does it work ?
 #### What is being done exactly ?
-We basically patched the intermediate representation (IR) part of the Go compiler so that, on every math operands (i.e `OADD`, `OMUL`, `OSUB`, ...), the compiler does not only add the IR opcodes that perform the math operation but also **insert** a bunch of checks for arithmetic bugs and insert a panic call with `ir.Syms.Panicoverflow` if those checks are met. This code will ultimately end up to the binary code (Assembly) of the application, so use with caution.
+We basically patched the intermediate representation (IR) part of the Go compiler so that, on every math operands (i.e `OADD`, `OMUL`, `OSUB`, `ODIV`, ...), the compiler does not only add the IR opcodes that perform the math operation but also **insert** a bunch of checks for arithmetic bugs and insert a panic call with `ir.Syms.Panicoverflow` if those checks are met. This code will ultimately end up to the binary code (Assembly) of the application, so use with caution.
 Below is an example of a Ghidra-decompiled addition `+`:
 
 ```c++

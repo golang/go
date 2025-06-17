@@ -5237,6 +5237,13 @@ func (s *state) check(cmp *ssa.Value, fn *obj.LSym) {
 }
 
 func (s *state) intDivide(n ir.Node, a, b *ssa.Value) *ssa.Value {
+	// For division operations, use intDiv which handles both zero-division and overflow
+	// For modulo operations, use the original behavior (only zero-division check)
+	if n.Op() == ir.ODIV {
+		return s.intDiv(n, a, b)
+	}
+	
+	// Original behavior for modulo operations (only zero-division check)
 	needcheck := true
 	switch b.Op {
 	case ssa.OpConst8, ssa.OpConst16, ssa.OpConst32, ssa.OpConst64:
@@ -5249,6 +5256,7 @@ func (s *state) intDivide(n ir.Node, a, b *ssa.Value) *ssa.Value {
 		cmp := s.newValue2(s.ssaOp(ir.ONE, n.Type()), types.Types[types.TBOOL], b, s.zeroVal(n.Type()))
 		s.check(cmp, ir.Syms.Panicdivide)
 	}
+	
 	return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 }
 
@@ -5398,6 +5406,70 @@ func (s *state) intMul(n ir.Node, a, b *ssa.Value) *ssa.Value {
 	// s.check() panics when condition is FALSE, so pass the valid condition
 	s.check(validMul, ir.Syms.Panicoverflow)
 
+	return result
+}
+
+// intDiv performs division with overflow detection for signed integers
+// The specific case we're checking for is MIN_INT / -1 which causes overflow
+// because MIN_INT = -2^(n-1) and -MIN_INT = 2^(n-1) which exceeds MAX_INT = 2^(n-1) - 1
+func (s *state) intDiv(n ir.Node, a, b *ssa.Value) *ssa.Value {
+	// First check for division by zero (same as intDivide function)
+	needcheck := true
+	switch b.Op {
+	case ssa.OpConst8, ssa.OpConst16, ssa.OpConst32, ssa.OpConst64:
+		if b.AuxInt != 0 {
+			needcheck = false
+		}
+	}
+	if needcheck {
+		// do a size-appropriate check for zero
+		cmp := s.newValue2(s.ssaOp(ir.ONE, n.Type()), types.Types[types.TBOOL], b, s.zeroVal(n.Type()))
+		s.check(cmp, ir.Syms.Panicdivide)
+	}
+	
+	// If overflow detection is disabled, just perform the division
+	if !s.shouldCheckOverflow(n.Type()) {
+		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+	}
+
+	// Check for MIN_INT / -1 overflow
+	// This occurs when a is the minimum value for the integer type and b is -1
+	// For int8: -128 / -1 = 128 (but max int8 is 127)
+	// For int16: -32768 / -1 = 32768 (but max int16 is 32767)  
+	// For int32: -2147483648 / -1 = 2147483648 (but max int32 is 2147483647)
+	
+	// Create constants for MIN_INT and -1 based on the type
+	var minInt int64  
+	switch n.Type().Size() {
+	case 1: // int8
+		minInt = -128
+	case 2: // int16
+		minInt = -32768
+	case 4: // int32
+		minInt = -2147483648
+	default:
+		// For other sizes, don't apply overflow detection
+		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+	}
+	
+	minIntConst := s.constInt(n.Type(), minInt)
+	negOneConst := s.constInt(n.Type(), -1)
+	
+	// Check if a == MIN_INT
+	aIsMinInt := s.newValue2(s.ssaOp(ir.OEQ, n.Type()), types.Types[types.TBOOL], a, minIntConst)
+	
+	// Check if b == -1
+	bIsNegOne := s.newValue2(s.ssaOp(ir.OEQ, n.Type()), types.Types[types.TBOOL], b, negOneConst)
+	
+	// Overflow occurs when both conditions are true
+	overflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aIsMinInt, bIsNegOne)
+	
+	// s.check() panics when condition is FALSE, so pass "no overflow" condition
+	noOverflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], overflow)
+	s.check(noOverflow, ir.Syms.Panicoverflow)
+
+	// Perform the division
+	result := s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 	return result
 }
 
