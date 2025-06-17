@@ -1,35 +1,32 @@
 ## Go-Panikint 
+
 ### Overview
 
-`go-panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for signed integer arithmetic operations. When overflow is detected, the program will **panic** with an "integer overflow" message.
+`go-panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for signed integer arithmetic operations. When overflow is detected, a **panic** with an "integer overflow" message will pop. 
 
-#### Basic infos:
-- **Addition** (`+`) - Detects positive and negative overflow
-- **Subtraction** (`-`) - Detects underflow and overflow  
-- **Multiplication** (`*`) - Detects overflow (with conservative checking)
-- **Handles** `int8`, `int16`, `int32` (signed integers)
-- **Note**: `int64`, `uintptr`, and unsigned types are **not checked** to avoid runtime compatibility issues
+Go-Panikint can handle **Addition** (`+`), **Subtraction** (`-`), **Multiplication** (`*`), for types `int8`, `int16`, `int32`. Regarding `int64`, `uintptr`, they are not checked.
 
 #### Packages excluded:
 - Standard library packages (`runtime`, `sync`, `os`, `syscall`, etc.)
 - Internal packages (`internal/*`)
 - Math and unsafe packages
 
-## Installation & Usage
-
 ### Usage and installation :
 ```bash
-git clone https://github.com/kevin-valerio/go-arithmetic-panik
+# Clone, change dir and compile the compiler
+git clone https://github.com/kevin-valerio/go-panikint && cd go-panikint/src && ./make.bash
 
-cd go-arithmetic-panik/src
-
-./all.bash
+# Full path to the root of the forked compiler
+export GOROOT=/path/to/go-panikint
 
 # Compile and run a Go program
-GOROOT=/path/to/go-arithmetic-panik/go-arithmetic-panik && ./bin/go run test_simple_overflow.go
+./bin/go run test_simple_overflow.go
 
-# Or compile only
-GOROOT=/path/to/go-arithmetic-panik/go-arithmetic-panik && ./bin/go build test_simple_overflow.go
+# Compile only
+./bin/go build test_simple_overflow.go
+
+# Fuzz only
+./bin/go test -fuzz=FuzzIntegerOverflow -v
 ```
 
 ## Example 
@@ -53,16 +50,17 @@ func main() {
 }
 ```
 
-Expected output:
+** Expected output: **
+
 ```bash
-bash-5.2$ GOROOT=/path/to/go-arithmetic-panik/go-arithmetic-panik && ./bin/go run test_simple_overflow.go
+bash-5.2$ GOROOT=/path/to/go-panikint && ./bin/go run test_simple_overflow.go
 Testing overflow detection...
 Before: a=127, b=1
 panic: runtime error: integer overflow
 
 goroutine 1 [running]:
 main.main()
-	/Users/XXX/go-arithmetic-panik/test_simple_overflow.go:12 +0xfc
+	/path/to/go-panikint/test_simple_overflow.go:12 +0xfc
 exit status 2
 ```
 
@@ -71,26 +69,69 @@ exit status 2
 ```bash
 bash-5.2$ go run  vim_panik.go
 1. Signed int8 overflow:
-   Max int8: 127
-   After adding 1: -128 (wrapped to minimum)
+Max int8: 127
+After adding 1: -128 (wrapped to minimum)
 
-
-
-
-bash-5.2$ GOROOT=/XXXXXX/XXXX/go-arithmetic-panik && ./bin/go run  vim_panik.go
+bash-5.2$ GOROOT=/path/to/go-panikint && ./bin/go run  vim_panik.go
 1. Signed int8 overflow:
-   Max int8: 127
+Max int8: 127
 panic: runtime error: integer overflow
 
 goroutine 1 [running]:
 main.main()
-	/Users/kevinvalerio/Desktop/tooling/go-arithmetic-panik/vim_panik.go:14 +0x11c
+	/path/to/go-panikint/vim_panik.go:14 +0x11c
 exit status 2
 ```
 
-## Limitations
+#### Example 3 (fuzzing):
+**Fuzzing harness:**
+```go
+package fuzztest
+import "testing"
 
-1. **Standard Library**: No overflow checking in standard library code
-2. **64-bit Integers**: `int64` and `uintptr` are not checked 
-3. **Unsigned Types**: `uint8`, `uint16`, `uint32`, `uint64` are not checked
-4. **Performance**: Slight performance overhead due to additional checks
+func FuzzAdd(f *testing.F) {
+	f.Fuzz(func(t *testing.T, a, b int8) {
+		result := a + b
+		t.Logf("%d + %d = %d", a, b, result)
+	})
+}
+```
+
+**Output:**
+```bash
+GOROOT=/path/to/go-panikint/go-panikint  ../bin/go test -fuzz=FuzzIntegerOverflow -v
+=== RUN   FuzzIntegerOverflow
+fuzz: elapsed: 0s, gathering baseline coverage: 0/15 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 9/15 completed
+--- FAIL: FuzzIntegerOverflow (0.03s)
+    --- FAIL: FuzzIntegerOverflow (0.00s)
+        testing.go:1822: panic: runtime error: integer overflow
+            goroutine 23 [running]:
+            runtime/debug.Stack()
+            	/path/to/go-panikintgo-panikint/src/runtime/debug/stack.go:26 +0xc4
+            testing.tRunner.func1()
+            	/path/to/go-panikintgo-panikint/src/testing/testing.go:1822 +0x220
+            panic({0x100e27b00?, 0x100fa4d60?})
+            	/path/to/go-panikintgo-panikint/src/runtime/panic.go:783 +0x120
+            fuzztest.FuzzIntegerOverflow.func1(0x0?, 0x0?, 0x0?)
+            	/path/to/go-panikintgo-panikint/fuzz_test/fuzz_test.go:10 +0xf8
+            reflect.Value.call({0x100e24ca0?, 0x100e5d5f8?, 0x14000093e28?}, {0x100dba042, 0x4}, {0x1400012a180, 0x3, 0x0?})
+            	/path/to/go-panikintgo-panikint/src/reflect/value.go:581 +0x960
+            reflect.Value.Call({0x100e24ca0?, 0x100e5d5f8?, 0x14000154000?}, {0x1400012a180?, 0x100e5ce40?, 0x100d2abf3?})
+            	/path/to/go-panikintgo-panikint/src/reflect/value.go:365 +0x94
+            testing.(*F).Fuzz.func1.1(0x140001028c0?)
+            	/path/to/go-panikintgo-panikint/src/testing/fuzz.go:341 +0x258
+            testing.tRunner(0x140001028c0, 0x14000152000)
+            	/path/to/go-panikintgo-panikint/src/testing/testing.go:1931 +0xc8
+            created by testing.(*F).Fuzz.func1 in goroutine 7
+            	/path/to/go-panikintgo-panikint/src/testing/fuzz.go:328 +0x4a4
+
+
+    Failing input written to testdata/fuzz/FuzzIntegerOverflow/8a8466cc4de923f0
+    To re-run:
+    go test -run=FuzzIntegerOverflow/8a8466cc4de923f0
+=== NAME
+FAIL
+exit status 1
+FAIL	fuzztest	0.724s
+``` 
