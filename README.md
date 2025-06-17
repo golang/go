@@ -24,6 +24,16 @@ export GOROOT=/path/to/go-panikint
 ./bin/go test -fuzz=FuzzIntegerOverflow -v
 ```
 
+
+### How does it work ?
+#### What is being patched ?
+We basically patched the intermediate representation (IR) part of the Go compiler so that, on every math operands (i.e `OADD`, `OMUL`, `OSUB`, ...), the compiler does not only add the IR opcodes that perform the math operation but also **insert** a bunch of checks for aritmetic bugs and insert a panic call with `ir.Syms.Panicoverflow` if those checks are met. 
+
+#### Why do we use package filters ?
+As you can see [here](https://github.com/kevin-valerio/go-panikint/blob/0d6340a37c6cc7a3e44c556f8df42e8ec9d1efc8/src/cmd/compile/internal/ssagen/ssa.go#L5258-L5270), we do not apply our panics for arithmetic issues on every packages, there is different reasons for this.
+
+First, we need to compile Go, with Go itself. Because of this, some behaviors of the vanilla compiler must remain. Some functions like hashing sometimes rely on overflow for bit mixing. Moreover, some components like routine scheduling or memory management cannot be interupted with panics. 
+
 ## Examples
 
 #### Example 1:
@@ -136,3 +146,4 @@ FAIL	fuzztest	0.724s
 - Standard library packages (`runtime`, `sync`, `os`, `syscall`, etc.)
 - Internal packages (`internal/*`)
 - Math and unsafe packages
+
