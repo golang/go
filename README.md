@@ -4,7 +4,7 @@
 
 `Go-Panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for signed integer arithmetic operations. When overflow is detected, a **panic** with an "integer overflow" message will pop.
 
-It can handle addition `+`, subtraction `-`, multiplication `*`, and division `/` for types `int8`, `int16`, `int32`. The division case specifically detects the MIN_INT / -1 overflow condition where the mathematical result exceeds the maximum representable value. Regarding `int64`, `uintptr`, they are not checked.
+It can handle addition `+`, subtraction `-`, multiplication `*`, and division `/` for types `int8`, `int16`, `int32`. The division case specifically detects the `MIN_INT / -1` overflow condition where the result exceeds the maximum representable value. Regarding `int64`, `uintptr`, they are not checked.
 
 ### Usage and installation :
 ```bash
