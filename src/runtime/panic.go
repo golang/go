@@ -112,13 +112,13 @@ func panicCheck2(err string) {
 //go:yeswritebarrierrec
 func goPanicIndex(x int, y int) {
 	panicCheck1(sys.GetCallerPC(), "index out of range")
-	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsIndex})
+	panic(boundsError{x: int64(x), signed: true, y: y, code: abi.BoundsIndex})
 }
 
 //go:yeswritebarrierrec
 func goPanicIndexU(x uint, y int) {
 	panicCheck1(sys.GetCallerPC(), "index out of range")
-	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsIndex})
+	panic(boundsError{x: int64(x), signed: false, y: y, code: abi.BoundsIndex})
 }
 
 // failures in the comparisons for s[:x], 0 <= x <= y (y == len(s) or cap(s))
@@ -126,25 +126,25 @@ func goPanicIndexU(x uint, y int) {
 //go:yeswritebarrierrec
 func goPanicSliceAlen(x int, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSliceAlen})
+	panic(boundsError{x: int64(x), signed: true, y: y, code: abi.BoundsSliceAlen})
 }
 
 //go:yeswritebarrierrec
 func goPanicSliceAlenU(x uint, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSliceAlen})
+	panic(boundsError{x: int64(x), signed: false, y: y, code: abi.BoundsSliceAlen})
 }
 
 //go:yeswritebarrierrec
 func goPanicSliceAcap(x int, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSliceAcap})
+	panic(boundsError{x: int64(x), signed: true, y: y, code: abi.BoundsSliceAcap})
 }
 
 //go:yeswritebarrierrec
 func goPanicSliceAcapU(x uint, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSliceAcap})
+	panic(boundsError{x: int64(x), signed: false, y: y, code: abi.BoundsSliceAcap})
 }
 
 // failures in the comparisons for s[x:y], 0 <= x <= y
@@ -152,57 +152,57 @@ func goPanicSliceAcapU(x uint, y int) {
 //go:yeswritebarrierrec
 func goPanicSliceB(x int, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSliceB})
+	panic(boundsError{x: int64(x), signed: true, y: y, code: abi.BoundsSliceB})
 }
 
 //go:yeswritebarrierrec
 func goPanicSliceBU(x uint, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSliceB})
+	panic(boundsError{x: int64(x), signed: false, y: y, code: abi.BoundsSliceB})
 }
 
 // failures in the comparisons for s[::x], 0 <= x <= y (y == len(s) or cap(s))
 func goPanicSlice3Alen(x int, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSlice3Alen})
+	panic(boundsError{x: int64(x), signed: true, y: y, code: abi.BoundsSlice3Alen})
 }
 func goPanicSlice3AlenU(x uint, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSlice3Alen})
+	panic(boundsError{x: int64(x), signed: false, y: y, code: abi.BoundsSlice3Alen})
 }
 func goPanicSlice3Acap(x int, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSlice3Acap})
+	panic(boundsError{x: int64(x), signed: true, y: y, code: abi.BoundsSlice3Acap})
 }
 func goPanicSlice3AcapU(x uint, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSlice3Acap})
+	panic(boundsError{x: int64(x), signed: false, y: y, code: abi.BoundsSlice3Acap})
 }
 
 // failures in the comparisons for s[:x:y], 0 <= x <= y
 func goPanicSlice3B(x int, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSlice3B})
+	panic(boundsError{x: int64(x), signed: true, y: y, code: abi.BoundsSlice3B})
 }
 func goPanicSlice3BU(x uint, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSlice3B})
+	panic(boundsError{x: int64(x), signed: false, y: y, code: abi.BoundsSlice3B})
 }
 
 // failures in the comparisons for s[x:y:], 0 <= x <= y
 func goPanicSlice3C(x int, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSlice3C})
+	panic(boundsError{x: int64(x), signed: true, y: y, code: abi.BoundsSlice3C})
 }
 func goPanicSlice3CU(x uint, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSlice3C})
+	panic(boundsError{x: int64(x), signed: false, y: y, code: abi.BoundsSlice3C})
 }
 
 // failures in the conversion ([x]T)(s) or (*[x]T)(s), 0 <= x <= y, y == len(s)
 func goPanicSliceConvert(x int, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice length too short to convert to array or pointer to array")
-	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsConvert})
+	panic(boundsError{x: int64(x), signed: true, y: y, code: abi.BoundsConvert})
 }
 
 // Implemented in assembly, as they take arguments in registers.
