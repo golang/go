@@ -1330,581 +1330,101 @@ func (x Float64x4) FloorWithPrecision(imm8 uint8) Float64x4
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) FloorWithPrecision(imm8 uint8) Float64x8
 
-/* FusedMultiplyAdd132 */
+/* FusedMultiplyAdd */
 
-// FusedMultiplyAdd132 performs `(v1 * v3) + v2`.
-//
-// Asm: VFMADD132PS, CPU Feature: AVX512EVEX
-func (x Float32x4) FusedMultiplyAdd132(y Float32x4, z Float32x4) Float32x4
-
-// FusedMultiplyAdd132 performs `(v1 * v3) + v2`.
-//
-// Asm: VFMADD132PS, CPU Feature: AVX512EVEX
-func (x Float32x8) FusedMultiplyAdd132(y Float32x8, z Float32x8) Float32x8
-
-// FusedMultiplyAdd132 performs `(v1 * v3) + v2`.
-//
-// Asm: VFMADD132PS, CPU Feature: AVX512EVEX
-func (x Float32x16) FusedMultiplyAdd132(y Float32x16, z Float32x16) Float32x16
-
-// FusedMultiplyAdd132 performs `(v1 * v3) + v2`.
-//
-// Asm: VFMADD132PD, CPU Feature: AVX512EVEX
-func (x Float64x2) FusedMultiplyAdd132(y Float64x2, z Float64x2) Float64x2
-
-// FusedMultiplyAdd132 performs `(v1 * v3) + v2`.
-//
-// Asm: VFMADD132PD, CPU Feature: AVX512EVEX
-func (x Float64x4) FusedMultiplyAdd132(y Float64x4, z Float64x4) Float64x4
-
-// FusedMultiplyAdd132 performs `(v1 * v3) + v2`.
-//
-// Asm: VFMADD132PD, CPU Feature: AVX512EVEX
-func (x Float64x8) FusedMultiplyAdd132(y Float64x8, z Float64x8) Float64x8
-
-/* FusedMultiplyAdd213 */
-
-// FusedMultiplyAdd213 performs `(v2 * v1) + v3`.
+// FusedMultiplyAdd performs `(v1 * v2) + v3`.
 //
 // Asm: VFMADD213PS, CPU Feature: AVX512EVEX
-func (x Float32x4) FusedMultiplyAdd213(y Float32x4, z Float32x4) Float32x4
+func (x Float32x4) FusedMultiplyAdd(y Float32x4, z Float32x4) Float32x4
 
-// FusedMultiplyAdd213 performs `(v2 * v1) + v3`.
+// FusedMultiplyAdd performs `(v1 * v2) + v3`.
 //
 // Asm: VFMADD213PS, CPU Feature: AVX512EVEX
-func (x Float32x8) FusedMultiplyAdd213(y Float32x8, z Float32x8) Float32x8
+func (x Float32x8) FusedMultiplyAdd(y Float32x8, z Float32x8) Float32x8
 
-// FusedMultiplyAdd213 performs `(v2 * v1) + v3`.
+// FusedMultiplyAdd performs `(v1 * v2) + v3`.
 //
 // Asm: VFMADD213PS, CPU Feature: AVX512EVEX
-func (x Float32x16) FusedMultiplyAdd213(y Float32x16, z Float32x16) Float32x16
+func (x Float32x16) FusedMultiplyAdd(y Float32x16, z Float32x16) Float32x16
 
-// FusedMultiplyAdd213 performs `(v2 * v1) + v3`.
+// FusedMultiplyAdd performs `(v1 * v2) + v3`.
 //
 // Asm: VFMADD213PD, CPU Feature: AVX512EVEX
-func (x Float64x2) FusedMultiplyAdd213(y Float64x2, z Float64x2) Float64x2
+func (x Float64x2) FusedMultiplyAdd(y Float64x2, z Float64x2) Float64x2
 
-// FusedMultiplyAdd213 performs `(v2 * v1) + v3`.
+// FusedMultiplyAdd performs `(v1 * v2) + v3`.
 //
 // Asm: VFMADD213PD, CPU Feature: AVX512EVEX
-func (x Float64x4) FusedMultiplyAdd213(y Float64x4, z Float64x4) Float64x4
+func (x Float64x4) FusedMultiplyAdd(y Float64x4, z Float64x4) Float64x4
 
-// FusedMultiplyAdd213 performs `(v2 * v1) + v3`.
+// FusedMultiplyAdd performs `(v1 * v2) + v3`.
 //
 // Asm: VFMADD213PD, CPU Feature: AVX512EVEX
-func (x Float64x8) FusedMultiplyAdd213(y Float64x8, z Float64x8) Float64x8
+func (x Float64x8) FusedMultiplyAdd(y Float64x8, z Float64x8) Float64x8
 
-/* FusedMultiplyAdd231 */
+/* FusedMultiplyAddSub */
 
-// FusedMultiplyAdd231 performs `(v2 * v3) + v1`.
-//
-// Asm: VFMADD231PS, CPU Feature: AVX512EVEX
-func (x Float32x4) FusedMultiplyAdd231(y Float32x4, z Float32x4) Float32x4
-
-// FusedMultiplyAdd231 performs `(v2 * v3) + v1`.
-//
-// Asm: VFMADD231PS, CPU Feature: AVX512EVEX
-func (x Float32x8) FusedMultiplyAdd231(y Float32x8, z Float32x8) Float32x8
-
-// FusedMultiplyAdd231 performs `(v2 * v3) + v1`.
-//
-// Asm: VFMADD231PS, CPU Feature: AVX512EVEX
-func (x Float32x16) FusedMultiplyAdd231(y Float32x16, z Float32x16) Float32x16
-
-// FusedMultiplyAdd231 performs `(v2 * v3) + v1`.
-//
-// Asm: VFMADD231PD, CPU Feature: AVX512EVEX
-func (x Float64x2) FusedMultiplyAdd231(y Float64x2, z Float64x2) Float64x2
-
-// FusedMultiplyAdd231 performs `(v2 * v3) + v1`.
-//
-// Asm: VFMADD231PD, CPU Feature: AVX512EVEX
-func (x Float64x4) FusedMultiplyAdd231(y Float64x4, z Float64x4) Float64x4
-
-// FusedMultiplyAdd231 performs `(v2 * v3) + v1`.
-//
-// Asm: VFMADD231PD, CPU Feature: AVX512EVEX
-func (x Float64x8) FusedMultiplyAdd231(y Float64x8, z Float64x8) Float64x8
-
-/* FusedMultiplyAddSub132 */
-
-// FusedMultiplyAddSub132 performs `(v1 * v3) - v2` for odd-indexed elements, and `(v1 * v3) + v2` for even-indexed elements.
-//
-// Asm: VFMADDSUB132PS, CPU Feature: AVX512EVEX
-func (x Float32x4) FusedMultiplyAddSub132(y Float32x4, z Float32x4) Float32x4
-
-// FusedMultiplyAddSub132 performs `(v1 * v3) - v2` for odd-indexed elements, and `(v1 * v3) + v2` for even-indexed elements.
-//
-// Asm: VFMADDSUB132PS, CPU Feature: AVX512EVEX
-func (x Float32x8) FusedMultiplyAddSub132(y Float32x8, z Float32x8) Float32x8
-
-// FusedMultiplyAddSub132 performs `(v1 * v3) - v2` for odd-indexed elements, and `(v1 * v3) + v2` for even-indexed elements.
-//
-// Asm: VFMADDSUB132PS, CPU Feature: AVX512EVEX
-func (x Float32x16) FusedMultiplyAddSub132(y Float32x16, z Float32x16) Float32x16
-
-// FusedMultiplyAddSub132 performs `(v1 * v3) - v2` for odd-indexed elements, and `(v1 * v3) + v2` for even-indexed elements.
-//
-// Asm: VFMADDSUB132PD, CPU Feature: AVX512EVEX
-func (x Float64x2) FusedMultiplyAddSub132(y Float64x2, z Float64x2) Float64x2
-
-// FusedMultiplyAddSub132 performs `(v1 * v3) - v2` for odd-indexed elements, and `(v1 * v3) + v2` for even-indexed elements.
-//
-// Asm: VFMADDSUB132PD, CPU Feature: AVX512EVEX
-func (x Float64x4) FusedMultiplyAddSub132(y Float64x4, z Float64x4) Float64x4
-
-// FusedMultiplyAddSub132 performs `(v1 * v3) - v2` for odd-indexed elements, and `(v1 * v3) + v2` for even-indexed elements.
-//
-// Asm: VFMADDSUB132PD, CPU Feature: AVX512EVEX
-func (x Float64x8) FusedMultiplyAddSub132(y Float64x8, z Float64x8) Float64x8
-
-/* FusedMultiplyAddSub213 */
-
-// FusedMultiplyAddSub213 performs `(v2 * v1) - v3` for odd-indexed elements, and `(v2 * v1) + v3` for even-indexed elements.
+// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
 //
 // Asm: VFMADDSUB213PS, CPU Feature: AVX512EVEX
-func (x Float32x4) FusedMultiplyAddSub213(y Float32x4, z Float32x4) Float32x4
+func (x Float32x4) FusedMultiplyAddSub(y Float32x4, z Float32x4) Float32x4
 
-// FusedMultiplyAddSub213 performs `(v2 * v1) - v3` for odd-indexed elements, and `(v2 * v1) + v3` for even-indexed elements.
+// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
 //
 // Asm: VFMADDSUB213PS, CPU Feature: AVX512EVEX
-func (x Float32x8) FusedMultiplyAddSub213(y Float32x8, z Float32x8) Float32x8
+func (x Float32x8) FusedMultiplyAddSub(y Float32x8, z Float32x8) Float32x8
 
-// FusedMultiplyAddSub213 performs `(v2 * v1) - v3` for odd-indexed elements, and `(v2 * v1) + v3` for even-indexed elements.
+// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
 //
 // Asm: VFMADDSUB213PS, CPU Feature: AVX512EVEX
-func (x Float32x16) FusedMultiplyAddSub213(y Float32x16, z Float32x16) Float32x16
+func (x Float32x16) FusedMultiplyAddSub(y Float32x16, z Float32x16) Float32x16
 
-// FusedMultiplyAddSub213 performs `(v2 * v1) - v3` for odd-indexed elements, and `(v2 * v1) + v3` for even-indexed elements.
+// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
 //
 // Asm: VFMADDSUB213PD, CPU Feature: AVX512EVEX
-func (x Float64x2) FusedMultiplyAddSub213(y Float64x2, z Float64x2) Float64x2
+func (x Float64x2) FusedMultiplyAddSub(y Float64x2, z Float64x2) Float64x2
 
-// FusedMultiplyAddSub213 performs `(v2 * v1) - v3` for odd-indexed elements, and `(v2 * v1) + v3` for even-indexed elements.
+// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
 //
 // Asm: VFMADDSUB213PD, CPU Feature: AVX512EVEX
-func (x Float64x4) FusedMultiplyAddSub213(y Float64x4, z Float64x4) Float64x4
+func (x Float64x4) FusedMultiplyAddSub(y Float64x4, z Float64x4) Float64x4
 
-// FusedMultiplyAddSub213 performs `(v2 * v1) - v3` for odd-indexed elements, and `(v2 * v1) + v3` for even-indexed elements.
+// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
 //
 // Asm: VFMADDSUB213PD, CPU Feature: AVX512EVEX
-func (x Float64x8) FusedMultiplyAddSub213(y Float64x8, z Float64x8) Float64x8
+func (x Float64x8) FusedMultiplyAddSub(y Float64x8, z Float64x8) Float64x8
 
-/* FusedMultiplyAddSub231 */
+/* FusedMultiplySubAdd */
 
-// FusedMultiplyAddSub231 performs `(v2 * v3) - v1` for odd-indexed elements, and `(v2 * v3) + v1` for even-indexed elements.
-//
-// Asm: VFMADDSUB231PS, CPU Feature: AVX512EVEX
-func (x Float32x4) FusedMultiplyAddSub231(y Float32x4, z Float32x4) Float32x4
-
-// FusedMultiplyAddSub231 performs `(v2 * v3) - v1` for odd-indexed elements, and `(v2 * v3) + v1` for even-indexed elements.
-//
-// Asm: VFMADDSUB231PS, CPU Feature: AVX512EVEX
-func (x Float32x8) FusedMultiplyAddSub231(y Float32x8, z Float32x8) Float32x8
-
-// FusedMultiplyAddSub231 performs `(v2 * v3) - v1` for odd-indexed elements, and `(v2 * v3) + v1` for even-indexed elements.
-//
-// Asm: VFMADDSUB231PS, CPU Feature: AVX512EVEX
-func (x Float32x16) FusedMultiplyAddSub231(y Float32x16, z Float32x16) Float32x16
-
-// FusedMultiplyAddSub231 performs `(v2 * v3) - v1` for odd-indexed elements, and `(v2 * v3) + v1` for even-indexed elements.
-//
-// Asm: VFMADDSUB231PD, CPU Feature: AVX512EVEX
-func (x Float64x2) FusedMultiplyAddSub231(y Float64x2, z Float64x2) Float64x2
-
-// FusedMultiplyAddSub231 performs `(v2 * v3) - v1` for odd-indexed elements, and `(v2 * v3) + v1` for even-indexed elements.
-//
-// Asm: VFMADDSUB231PD, CPU Feature: AVX512EVEX
-func (x Float64x4) FusedMultiplyAddSub231(y Float64x4, z Float64x4) Float64x4
-
-// FusedMultiplyAddSub231 performs `(v2 * v3) - v1` for odd-indexed elements, and `(v2 * v3) + v1` for even-indexed elements.
-//
-// Asm: VFMADDSUB231PD, CPU Feature: AVX512EVEX
-func (x Float64x8) FusedMultiplyAddSub231(y Float64x8, z Float64x8) Float64x8
-
-/* FusedMultiplySub132 */
-
-// FusedMultiplySub132 performs `(v1 * v3) - v2`.
-//
-// Asm: VFMSUB132PS, CPU Feature: AVX512EVEX
-func (x Float32x4) FusedMultiplySub132(y Float32x4, z Float32x4) Float32x4
-
-// FusedMultiplySub132 performs `(v1 * v3) - v2`.
-//
-// Asm: VFMSUB132PS, CPU Feature: AVX512EVEX
-func (x Float32x8) FusedMultiplySub132(y Float32x8, z Float32x8) Float32x8
-
-// FusedMultiplySub132 performs `(v1 * v3) - v2`.
-//
-// Asm: VFMSUB132PS, CPU Feature: AVX512EVEX
-func (x Float32x16) FusedMultiplySub132(y Float32x16, z Float32x16) Float32x16
-
-// FusedMultiplySub132 performs `(v1 * v3) - v2`.
-//
-// Asm: VFMSUB132PD, CPU Feature: AVX512EVEX
-func (x Float64x2) FusedMultiplySub132(y Float64x2, z Float64x2) Float64x2
-
-// FusedMultiplySub132 performs `(v1 * v3) - v2`.
-//
-// Asm: VFMSUB132PD, CPU Feature: AVX512EVEX
-func (x Float64x4) FusedMultiplySub132(y Float64x4, z Float64x4) Float64x4
-
-// FusedMultiplySub132 performs `(v1 * v3) - v2`.
-//
-// Asm: VFMSUB132PD, CPU Feature: AVX512EVEX
-func (x Float64x8) FusedMultiplySub132(y Float64x8, z Float64x8) Float64x8
-
-/* FusedMultiplySub213 */
-
-// FusedMultiplySub213 performs `(v2 * v1) - v3`.
-//
-// Asm: VFMSUB213PS, CPU Feature: AVX512EVEX
-func (x Float32x4) FusedMultiplySub213(y Float32x4, z Float32x4) Float32x4
-
-// FusedMultiplySub213 performs `(v2 * v1) - v3`.
-//
-// Asm: VFMSUB213PS, CPU Feature: AVX512EVEX
-func (x Float32x8) FusedMultiplySub213(y Float32x8, z Float32x8) Float32x8
-
-// FusedMultiplySub213 performs `(v2 * v1) - v3`.
-//
-// Asm: VFMSUB213PS, CPU Feature: AVX512EVEX
-func (x Float32x16) FusedMultiplySub213(y Float32x16, z Float32x16) Float32x16
-
-// FusedMultiplySub213 performs `(v2 * v1) - v3`.
-//
-// Asm: VFMSUB213PD, CPU Feature: AVX512EVEX
-func (x Float64x2) FusedMultiplySub213(y Float64x2, z Float64x2) Float64x2
-
-// FusedMultiplySub213 performs `(v2 * v1) - v3`.
-//
-// Asm: VFMSUB213PD, CPU Feature: AVX512EVEX
-func (x Float64x4) FusedMultiplySub213(y Float64x4, z Float64x4) Float64x4
-
-// FusedMultiplySub213 performs `(v2 * v1) - v3`.
-//
-// Asm: VFMSUB213PD, CPU Feature: AVX512EVEX
-func (x Float64x8) FusedMultiplySub213(y Float64x8, z Float64x8) Float64x8
-
-/* FusedMultiplySub231 */
-
-// FusedMultiplySub231 performs `(v2 * v3) - v1`.
-//
-// Asm: VFMSUB231PS, CPU Feature: AVX512EVEX
-func (x Float32x4) FusedMultiplySub231(y Float32x4, z Float32x4) Float32x4
-
-// FusedMultiplySub231 performs `(v2 * v3) - v1`.
-//
-// Asm: VFMSUB231PS, CPU Feature: AVX512EVEX
-func (x Float32x8) FusedMultiplySub231(y Float32x8, z Float32x8) Float32x8
-
-// FusedMultiplySub231 performs `(v2 * v3) - v1`.
-//
-// Asm: VFMSUB231PS, CPU Feature: AVX512EVEX
-func (x Float32x16) FusedMultiplySub231(y Float32x16, z Float32x16) Float32x16
-
-// FusedMultiplySub231 performs `(v2 * v3) - v1`.
-//
-// Asm: VFMSUB231PD, CPU Feature: AVX512EVEX
-func (x Float64x2) FusedMultiplySub231(y Float64x2, z Float64x2) Float64x2
-
-// FusedMultiplySub231 performs `(v2 * v3) - v1`.
-//
-// Asm: VFMSUB231PD, CPU Feature: AVX512EVEX
-func (x Float64x4) FusedMultiplySub231(y Float64x4, z Float64x4) Float64x4
-
-// FusedMultiplySub231 performs `(v2 * v3) - v1`.
-//
-// Asm: VFMSUB231PD, CPU Feature: AVX512EVEX
-func (x Float64x8) FusedMultiplySub231(y Float64x8, z Float64x8) Float64x8
-
-/* FusedMultiplySubAdd132 */
-
-// FusedMultiplySubAdd132 performs `(v1 * v3) + v2` for odd-indexed elements, and `(v1 * v3) - v2` for even-indexed elements.
-//
-// Asm: VFMSUBADD132PS, CPU Feature: AVX512EVEX
-func (x Float32x4) FusedMultiplySubAdd132(y Float32x4, z Float32x4) Float32x4
-
-// FusedMultiplySubAdd132 performs `(v1 * v3) + v2` for odd-indexed elements, and `(v1 * v3) - v2` for even-indexed elements.
-//
-// Asm: VFMSUBADD132PS, CPU Feature: AVX512EVEX
-func (x Float32x8) FusedMultiplySubAdd132(y Float32x8, z Float32x8) Float32x8
-
-// FusedMultiplySubAdd132 performs `(v1 * v3) + v2` for odd-indexed elements, and `(v1 * v3) - v2` for even-indexed elements.
-//
-// Asm: VFMSUBADD132PS, CPU Feature: AVX512EVEX
-func (x Float32x16) FusedMultiplySubAdd132(y Float32x16, z Float32x16) Float32x16
-
-// FusedMultiplySubAdd132 performs `(v1 * v3) + v2` for odd-indexed elements, and `(v1 * v3) - v2` for even-indexed elements.
-//
-// Asm: VFMSUBADD132PD, CPU Feature: AVX512EVEX
-func (x Float64x2) FusedMultiplySubAdd132(y Float64x2, z Float64x2) Float64x2
-
-// FusedMultiplySubAdd132 performs `(v1 * v3) + v2` for odd-indexed elements, and `(v1 * v3) - v2` for even-indexed elements.
-//
-// Asm: VFMSUBADD132PD, CPU Feature: AVX512EVEX
-func (x Float64x4) FusedMultiplySubAdd132(y Float64x4, z Float64x4) Float64x4
-
-// FusedMultiplySubAdd132 performs `(v1 * v3) + v2` for odd-indexed elements, and `(v1 * v3) - v2` for even-indexed elements.
-//
-// Asm: VFMSUBADD132PD, CPU Feature: AVX512EVEX
-func (x Float64x8) FusedMultiplySubAdd132(y Float64x8, z Float64x8) Float64x8
-
-/* FusedMultiplySubAdd213 */
-
-// FusedMultiplySubAdd213 performs `(v2 * v1) + v3` for odd-indexed elements, and `(v2 * v1) - v3` for even-indexed elements.
+// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
 //
 // Asm: VFMSUBADD213PS, CPU Feature: AVX512EVEX
-func (x Float32x4) FusedMultiplySubAdd213(y Float32x4, z Float32x4) Float32x4
+func (x Float32x4) FusedMultiplySubAdd(y Float32x4, z Float32x4) Float32x4
 
-// FusedMultiplySubAdd213 performs `(v2 * v1) + v3` for odd-indexed elements, and `(v2 * v1) - v3` for even-indexed elements.
+// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
 //
 // Asm: VFMSUBADD213PS, CPU Feature: AVX512EVEX
-func (x Float32x8) FusedMultiplySubAdd213(y Float32x8, z Float32x8) Float32x8
+func (x Float32x8) FusedMultiplySubAdd(y Float32x8, z Float32x8) Float32x8
 
-// FusedMultiplySubAdd213 performs `(v2 * v1) + v3` for odd-indexed elements, and `(v2 * v1) - v3` for even-indexed elements.
+// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
 //
 // Asm: VFMSUBADD213PS, CPU Feature: AVX512EVEX
-func (x Float32x16) FusedMultiplySubAdd213(y Float32x16, z Float32x16) Float32x16
+func (x Float32x16) FusedMultiplySubAdd(y Float32x16, z Float32x16) Float32x16
 
-// FusedMultiplySubAdd213 performs `(v2 * v1) + v3` for odd-indexed elements, and `(v2 * v1) - v3` for even-indexed elements.
+// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
 //
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512EVEX
-func (x Float64x2) FusedMultiplySubAdd213(y Float64x2, z Float64x2) Float64x2
+func (x Float64x2) FusedMultiplySubAdd(y Float64x2, z Float64x2) Float64x2
 
-// FusedMultiplySubAdd213 performs `(v2 * v1) + v3` for odd-indexed elements, and `(v2 * v1) - v3` for even-indexed elements.
+// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
 //
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512EVEX
-func (x Float64x4) FusedMultiplySubAdd213(y Float64x4, z Float64x4) Float64x4
+func (x Float64x4) FusedMultiplySubAdd(y Float64x4, z Float64x4) Float64x4
 
-// FusedMultiplySubAdd213 performs `(v2 * v1) + v3` for odd-indexed elements, and `(v2 * v1) - v3` for even-indexed elements.
+// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
 //
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512EVEX
-func (x Float64x8) FusedMultiplySubAdd213(y Float64x8, z Float64x8) Float64x8
-
-/* FusedMultiplySubAdd231 */
-
-// FusedMultiplySubAdd231 performs `(v2 * v3) + v1` for odd-indexed elements, and `(v2 * v3) - v1` for even-indexed elements.
-//
-// Asm: VFMSUBADD231PS, CPU Feature: AVX512EVEX
-func (x Float32x4) FusedMultiplySubAdd231(y Float32x4, z Float32x4) Float32x4
-
-// FusedMultiplySubAdd231 performs `(v2 * v3) + v1` for odd-indexed elements, and `(v2 * v3) - v1` for even-indexed elements.
-//
-// Asm: VFMSUBADD231PS, CPU Feature: AVX512EVEX
-func (x Float32x8) FusedMultiplySubAdd231(y Float32x8, z Float32x8) Float32x8
-
-// FusedMultiplySubAdd231 performs `(v2 * v3) + v1` for odd-indexed elements, and `(v2 * v3) - v1` for even-indexed elements.
-//
-// Asm: VFMSUBADD231PS, CPU Feature: AVX512EVEX
-func (x Float32x16) FusedMultiplySubAdd231(y Float32x16, z Float32x16) Float32x16
-
-// FusedMultiplySubAdd231 performs `(v2 * v3) + v1` for odd-indexed elements, and `(v2 * v3) - v1` for even-indexed elements.
-//
-// Asm: VFMSUBADD231PD, CPU Feature: AVX512EVEX
-func (x Float64x2) FusedMultiplySubAdd231(y Float64x2, z Float64x2) Float64x2
-
-// FusedMultiplySubAdd231 performs `(v2 * v3) + v1` for odd-indexed elements, and `(v2 * v3) - v1` for even-indexed elements.
-//
-// Asm: VFMSUBADD231PD, CPU Feature: AVX512EVEX
-func (x Float64x4) FusedMultiplySubAdd231(y Float64x4, z Float64x4) Float64x4
-
-// FusedMultiplySubAdd231 performs `(v2 * v3) + v1` for odd-indexed elements, and `(v2 * v3) - v1` for even-indexed elements.
-//
-// Asm: VFMSUBADD231PD, CPU Feature: AVX512EVEX
-func (x Float64x8) FusedMultiplySubAdd231(y Float64x8, z Float64x8) Float64x8
-
-/* FusedNegativeMultiplyAdd132 */
-
-// FusedNegativeMultiplyAdd132 performs `-(v1 * v3) + v2`.
-//
-// Asm: VFNMADD132PS, CPU Feature: AVX512EVEX
-func (x Float32x4) FusedNegativeMultiplyAdd132(y Float32x4, z Float32x4) Float32x4
-
-// FusedNegativeMultiplyAdd132 performs `-(v1 * v3) + v2`.
-//
-// Asm: VFNMADD132PS, CPU Feature: AVX512EVEX
-func (x Float32x8) FusedNegativeMultiplyAdd132(y Float32x8, z Float32x8) Float32x8
-
-// FusedNegativeMultiplyAdd132 performs `-(v1 * v3) + v2`.
-//
-// Asm: VFNMADD132PS, CPU Feature: AVX512EVEX
-func (x Float32x16) FusedNegativeMultiplyAdd132(y Float32x16, z Float32x16) Float32x16
-
-// FusedNegativeMultiplyAdd132 performs `-(v1 * v3) + v2`.
-//
-// Asm: VFNMADD132PD, CPU Feature: AVX512EVEX
-func (x Float64x2) FusedNegativeMultiplyAdd132(y Float64x2, z Float64x2) Float64x2
-
-// FusedNegativeMultiplyAdd132 performs `-(v1 * v3) + v2`.
-//
-// Asm: VFNMADD132PD, CPU Feature: AVX512EVEX
-func (x Float64x4) FusedNegativeMultiplyAdd132(y Float64x4, z Float64x4) Float64x4
-
-// FusedNegativeMultiplyAdd132 performs `-(v1 * v3) + v2`.
-//
-// Asm: VFNMADD132PD, CPU Feature: AVX512EVEX
-func (x Float64x8) FusedNegativeMultiplyAdd132(y Float64x8, z Float64x8) Float64x8
-
-/* FusedNegativeMultiplyAdd213 */
-
-// FusedNegativeMultiplyAdd213 performs `-(v2 * v1) + v3`.
-//
-// Asm: VFNMADD213PS, CPU Feature: AVX512EVEX
-func (x Float32x4) FusedNegativeMultiplyAdd213(y Float32x4, z Float32x4) Float32x4
-
-// FusedNegativeMultiplyAdd213 performs `-(v2 * v1) + v3`.
-//
-// Asm: VFNMADD213PS, CPU Feature: AVX512EVEX
-func (x Float32x8) FusedNegativeMultiplyAdd213(y Float32x8, z Float32x8) Float32x8
-
-// FusedNegativeMultiplyAdd213 performs `-(v2 * v1) + v3`.
-//
-// Asm: VFNMADD213PS, CPU Feature: AVX512EVEX
-func (x Float32x16) FusedNegativeMultiplyAdd213(y Float32x16, z Float32x16) Float32x16
-
-// FusedNegativeMultiplyAdd213 performs `-(v2 * v1) + v3`.
-//
-// Asm: VFNMADD213PD, CPU Feature: AVX512EVEX
-func (x Float64x2) FusedNegativeMultiplyAdd213(y Float64x2, z Float64x2) Float64x2
-
-// FusedNegativeMultiplyAdd213 performs `-(v2 * v1) + v3`.
-//
-// Asm: VFNMADD213PD, CPU Feature: AVX512EVEX
-func (x Float64x4) FusedNegativeMultiplyAdd213(y Float64x4, z Float64x4) Float64x4
-
-// FusedNegativeMultiplyAdd213 performs `-(v2 * v1) + v3`.
-//
-// Asm: VFNMADD213PD, CPU Feature: AVX512EVEX
-func (x Float64x8) FusedNegativeMultiplyAdd213(y Float64x8, z Float64x8) Float64x8
-
-/* FusedNegativeMultiplyAdd231 */
-
-// FusedNegativeMultiplyAdd231 performs `-(v2 * v3) + v1`.
-//
-// Asm: VFNMADD231PS, CPU Feature: AVX512EVEX
-func (x Float32x4) FusedNegativeMultiplyAdd231(y Float32x4, z Float32x4) Float32x4
-
-// FusedNegativeMultiplyAdd231 performs `-(v2 * v3) + v1`.
-//
-// Asm: VFNMADD231PS, CPU Feature: AVX512EVEX
-func (x Float32x8) FusedNegativeMultiplyAdd231(y Float32x8, z Float32x8) Float32x8
-
-// FusedNegativeMultiplyAdd231 performs `-(v2 * v3) + v1`.
-//
-// Asm: VFNMADD231PS, CPU Feature: AVX512EVEX
-func (x Float32x16) FusedNegativeMultiplyAdd231(y Float32x16, z Float32x16) Float32x16
-
-// FusedNegativeMultiplyAdd231 performs `-(v2 * v3) + v1`.
-//
-// Asm: VFNMADD231PD, CPU Feature: AVX512EVEX
-func (x Float64x2) FusedNegativeMultiplyAdd231(y Float64x2, z Float64x2) Float64x2
-
-// FusedNegativeMultiplyAdd231 performs `-(v2 * v3) + v1`.
-//
-// Asm: VFNMADD231PD, CPU Feature: AVX512EVEX
-func (x Float64x4) FusedNegativeMultiplyAdd231(y Float64x4, z Float64x4) Float64x4
-
-// FusedNegativeMultiplyAdd231 performs `-(v2 * v3) + v1`.
-//
-// Asm: VFNMADD231PD, CPU Feature: AVX512EVEX
-func (x Float64x8) FusedNegativeMultiplyAdd231(y Float64x8, z Float64x8) Float64x8
-
-/* FusedNegativeMultiplySub132 */
-
-// FusedNegativeMultiplySub132 performs `-(v1 * v3) - v2`.
-//
-// Asm: VFNMSUB132PS, CPU Feature: AVX512EVEX
-func (x Float32x4) FusedNegativeMultiplySub132(y Float32x4, z Float32x4) Float32x4
-
-// FusedNegativeMultiplySub132 performs `-(v1 * v3) - v2`.
-//
-// Asm: VFNMSUB132PS, CPU Feature: AVX512EVEX
-func (x Float32x8) FusedNegativeMultiplySub132(y Float32x8, z Float32x8) Float32x8
-
-// FusedNegativeMultiplySub132 performs `-(v1 * v3) - v2`.
-//
-// Asm: VFNMSUB132PS, CPU Feature: AVX512EVEX
-func (x Float32x16) FusedNegativeMultiplySub132(y Float32x16, z Float32x16) Float32x16
-
-// FusedNegativeMultiplySub132 performs `-(v1 * v3) - v2`.
-//
-// Asm: VFNMSUB132PD, CPU Feature: AVX512EVEX
-func (x Float64x2) FusedNegativeMultiplySub132(y Float64x2, z Float64x2) Float64x2
-
-// FusedNegativeMultiplySub132 performs `-(v1 * v3) - v2`.
-//
-// Asm: VFNMSUB132PD, CPU Feature: AVX512EVEX
-func (x Float64x4) FusedNegativeMultiplySub132(y Float64x4, z Float64x4) Float64x4
-
-// FusedNegativeMultiplySub132 performs `-(v1 * v3) - v2`.
-//
-// Asm: VFNMSUB132PD, CPU Feature: AVX512EVEX
-func (x Float64x8) FusedNegativeMultiplySub132(y Float64x8, z Float64x8) Float64x8
-
-/* FusedNegativeMultiplySub213 */
-
-// FusedNegativeMultiplySub213 performs `-(v2 * v1) - v3`.
-//
-// Asm: VFNMSUB213PS, CPU Feature: AVX512EVEX
-func (x Float32x4) FusedNegativeMultiplySub213(y Float32x4, z Float32x4) Float32x4
-
-// FusedNegativeMultiplySub213 performs `-(v2 * v1) - v3`.
-//
-// Asm: VFNMSUB213PS, CPU Feature: AVX512EVEX
-func (x Float32x8) FusedNegativeMultiplySub213(y Float32x8, z Float32x8) Float32x8
-
-// FusedNegativeMultiplySub213 performs `-(v2 * v1) - v3`.
-//
-// Asm: VFNMSUB213PS, CPU Feature: AVX512EVEX
-func (x Float32x16) FusedNegativeMultiplySub213(y Float32x16, z Float32x16) Float32x16
-
-// FusedNegativeMultiplySub213 performs `-(v2 * v1) - v3`.
-//
-// Asm: VFNMSUB213PD, CPU Feature: AVX512EVEX
-func (x Float64x2) FusedNegativeMultiplySub213(y Float64x2, z Float64x2) Float64x2
-
-// FusedNegativeMultiplySub213 performs `-(v2 * v1) - v3`.
-//
-// Asm: VFNMSUB213PD, CPU Feature: AVX512EVEX
-func (x Float64x4) FusedNegativeMultiplySub213(y Float64x4, z Float64x4) Float64x4
-
-// FusedNegativeMultiplySub213 performs `-(v2 * v1) - v3`.
-//
-// Asm: VFNMSUB213PD, CPU Feature: AVX512EVEX
-func (x Float64x8) FusedNegativeMultiplySub213(y Float64x8, z Float64x8) Float64x8
-
-/* FusedNegativeMultiplySub231 */
-
-// FusedNegativeMultiplySub231 performs `-(v2 * v3) - v1`.
-//
-// Asm: VFNMSUB231PS, CPU Feature: AVX512EVEX
-func (x Float32x4) FusedNegativeMultiplySub231(y Float32x4, z Float32x4) Float32x4
-
-// FusedNegativeMultiplySub231 performs `-(v2 * v3) - v1`.
-//
-// Asm: VFNMSUB231PS, CPU Feature: AVX512EVEX
-func (x Float32x8) FusedNegativeMultiplySub231(y Float32x8, z Float32x8) Float32x8
-
-// FusedNegativeMultiplySub231 performs `-(v2 * v3) - v1`.
-//
-// Asm: VFNMSUB231PS, CPU Feature: AVX512EVEX
-func (x Float32x16) FusedNegativeMultiplySub231(y Float32x16, z Float32x16) Float32x16
-
-// FusedNegativeMultiplySub231 performs `-(v2 * v3) - v1`.
-//
-// Asm: VFNMSUB231PD, CPU Feature: AVX512EVEX
-func (x Float64x2) FusedNegativeMultiplySub231(y Float64x2, z Float64x2) Float64x2
-
-// FusedNegativeMultiplySub231 performs `-(v2 * v3) - v1`.
-//
-// Asm: VFNMSUB231PD, CPU Feature: AVX512EVEX
-func (x Float64x4) FusedNegativeMultiplySub231(y Float64x4, z Float64x4) Float64x4
-
-// FusedNegativeMultiplySub231 performs `-(v2 * v3) - v1`.
-//
-// Asm: VFNMSUB231PD, CPU Feature: AVX512EVEX
-func (x Float64x8) FusedNegativeMultiplySub231(y Float64x8, z Float64x8) Float64x8
+func (x Float64x8) FusedMultiplySubAdd(y Float64x8, z Float64x8) Float64x8
 
 /* Greater */
 
@@ -3836,581 +3356,101 @@ func (x Float64x4) MaskedFloorWithPrecision(imm uint8, y Mask64x4) Float64x4
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedFloorWithPrecision(imm uint8, y Mask64x8) Float64x8
 
-/* MaskedFusedMultiplyAdd132 */
+/* MaskedFusedMultiplyAdd */
 
-// FusedMultiplyAdd132 performs `(v1 * v3) + v2`.
-//
-// Asm: VFMADD132PS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedFusedMultiplyAdd132(y Float32x4, z Float32x4, u Mask32x4) Float32x4
-
-// FusedMultiplyAdd132 performs `(v1 * v3) + v2`.
-//
-// Asm: VFMADD132PS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedFusedMultiplyAdd132(y Float32x8, z Float32x8, u Mask32x8) Float32x8
-
-// FusedMultiplyAdd132 performs `(v1 * v3) + v2`.
-//
-// Asm: VFMADD132PS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedFusedMultiplyAdd132(y Float32x16, z Float32x16, u Mask32x16) Float32x16
-
-// FusedMultiplyAdd132 performs `(v1 * v3) + v2`.
-//
-// Asm: VFMADD132PD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedFusedMultiplyAdd132(y Float64x2, z Float64x2, u Mask64x2) Float64x2
-
-// FusedMultiplyAdd132 performs `(v1 * v3) + v2`.
-//
-// Asm: VFMADD132PD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedFusedMultiplyAdd132(y Float64x4, z Float64x4, u Mask64x4) Float64x4
-
-// FusedMultiplyAdd132 performs `(v1 * v3) + v2`.
-//
-// Asm: VFMADD132PD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedFusedMultiplyAdd132(y Float64x8, z Float64x8, u Mask64x8) Float64x8
-
-/* MaskedFusedMultiplyAdd213 */
-
-// FusedMultiplyAdd213 performs `(v2 * v1) + v3`.
+// FusedMultiplyAdd performs `(v1 * v2) + v3`.
 //
 // Asm: VFMADD213PS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedFusedMultiplyAdd213(y Float32x4, z Float32x4, u Mask32x4) Float32x4
+func (x Float32x4) MaskedFusedMultiplyAdd(y Float32x4, z Float32x4, u Mask32x4) Float32x4
 
-// FusedMultiplyAdd213 performs `(v2 * v1) + v3`.
+// FusedMultiplyAdd performs `(v1 * v2) + v3`.
 //
 // Asm: VFMADD213PS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedFusedMultiplyAdd213(y Float32x8, z Float32x8, u Mask32x8) Float32x8
+func (x Float32x8) MaskedFusedMultiplyAdd(y Float32x8, z Float32x8, u Mask32x8) Float32x8
 
-// FusedMultiplyAdd213 performs `(v2 * v1) + v3`.
+// FusedMultiplyAdd performs `(v1 * v2) + v3`.
 //
 // Asm: VFMADD213PS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedFusedMultiplyAdd213(y Float32x16, z Float32x16, u Mask32x16) Float32x16
+func (x Float32x16) MaskedFusedMultiplyAdd(y Float32x16, z Float32x16, u Mask32x16) Float32x16
 
-// FusedMultiplyAdd213 performs `(v2 * v1) + v3`.
+// FusedMultiplyAdd performs `(v1 * v2) + v3`.
 //
 // Asm: VFMADD213PD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedFusedMultiplyAdd213(y Float64x2, z Float64x2, u Mask64x2) Float64x2
+func (x Float64x2) MaskedFusedMultiplyAdd(y Float64x2, z Float64x2, u Mask64x2) Float64x2
 
-// FusedMultiplyAdd213 performs `(v2 * v1) + v3`.
+// FusedMultiplyAdd performs `(v1 * v2) + v3`.
 //
 // Asm: VFMADD213PD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedFusedMultiplyAdd213(y Float64x4, z Float64x4, u Mask64x4) Float64x4
+func (x Float64x4) MaskedFusedMultiplyAdd(y Float64x4, z Float64x4, u Mask64x4) Float64x4
 
-// FusedMultiplyAdd213 performs `(v2 * v1) + v3`.
+// FusedMultiplyAdd performs `(v1 * v2) + v3`.
 //
 // Asm: VFMADD213PD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedFusedMultiplyAdd213(y Float64x8, z Float64x8, u Mask64x8) Float64x8
+func (x Float64x8) MaskedFusedMultiplyAdd(y Float64x8, z Float64x8, u Mask64x8) Float64x8
 
-/* MaskedFusedMultiplyAdd231 */
+/* MaskedFusedMultiplyAddSub */
 
-// FusedMultiplyAdd231 performs `(v2 * v3) + v1`.
-//
-// Asm: VFMADD231PS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedFusedMultiplyAdd231(y Float32x4, z Float32x4, u Mask32x4) Float32x4
-
-// FusedMultiplyAdd231 performs `(v2 * v3) + v1`.
-//
-// Asm: VFMADD231PS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedFusedMultiplyAdd231(y Float32x8, z Float32x8, u Mask32x8) Float32x8
-
-// FusedMultiplyAdd231 performs `(v2 * v3) + v1`.
-//
-// Asm: VFMADD231PS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedFusedMultiplyAdd231(y Float32x16, z Float32x16, u Mask32x16) Float32x16
-
-// FusedMultiplyAdd231 performs `(v2 * v3) + v1`.
-//
-// Asm: VFMADD231PD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedFusedMultiplyAdd231(y Float64x2, z Float64x2, u Mask64x2) Float64x2
-
-// FusedMultiplyAdd231 performs `(v2 * v3) + v1`.
-//
-// Asm: VFMADD231PD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedFusedMultiplyAdd231(y Float64x4, z Float64x4, u Mask64x4) Float64x4
-
-// FusedMultiplyAdd231 performs `(v2 * v3) + v1`.
-//
-// Asm: VFMADD231PD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedFusedMultiplyAdd231(y Float64x8, z Float64x8, u Mask64x8) Float64x8
-
-/* MaskedFusedMultiplyAddSub132 */
-
-// FusedMultiplyAddSub132 performs `(v1 * v3) - v2` for odd-indexed elements, and `(v1 * v3) + v2` for even-indexed elements.
-//
-// Asm: VFMADDSUB132PS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedFusedMultiplyAddSub132(y Float32x4, z Float32x4, u Mask32x4) Float32x4
-
-// FusedMultiplyAddSub132 performs `(v1 * v3) - v2` for odd-indexed elements, and `(v1 * v3) + v2` for even-indexed elements.
-//
-// Asm: VFMADDSUB132PS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedFusedMultiplyAddSub132(y Float32x8, z Float32x8, u Mask32x8) Float32x8
-
-// FusedMultiplyAddSub132 performs `(v1 * v3) - v2` for odd-indexed elements, and `(v1 * v3) + v2` for even-indexed elements.
-//
-// Asm: VFMADDSUB132PS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedFusedMultiplyAddSub132(y Float32x16, z Float32x16, u Mask32x16) Float32x16
-
-// FusedMultiplyAddSub132 performs `(v1 * v3) - v2` for odd-indexed elements, and `(v1 * v3) + v2` for even-indexed elements.
-//
-// Asm: VFMADDSUB132PD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedFusedMultiplyAddSub132(y Float64x2, z Float64x2, u Mask64x2) Float64x2
-
-// FusedMultiplyAddSub132 performs `(v1 * v3) - v2` for odd-indexed elements, and `(v1 * v3) + v2` for even-indexed elements.
-//
-// Asm: VFMADDSUB132PD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedFusedMultiplyAddSub132(y Float64x4, z Float64x4, u Mask64x4) Float64x4
-
-// FusedMultiplyAddSub132 performs `(v1 * v3) - v2` for odd-indexed elements, and `(v1 * v3) + v2` for even-indexed elements.
-//
-// Asm: VFMADDSUB132PD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedFusedMultiplyAddSub132(y Float64x8, z Float64x8, u Mask64x8) Float64x8
-
-/* MaskedFusedMultiplyAddSub213 */
-
-// FusedMultiplyAddSub213 performs `(v2 * v1) - v3` for odd-indexed elements, and `(v2 * v1) + v3` for even-indexed elements.
+// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
 //
 // Asm: VFMADDSUB213PS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedFusedMultiplyAddSub213(y Float32x4, z Float32x4, u Mask32x4) Float32x4
+func (x Float32x4) MaskedFusedMultiplyAddSub(y Float32x4, z Float32x4, u Mask32x4) Float32x4
 
-// FusedMultiplyAddSub213 performs `(v2 * v1) - v3` for odd-indexed elements, and `(v2 * v1) + v3` for even-indexed elements.
+// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
 //
 // Asm: VFMADDSUB213PS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedFusedMultiplyAddSub213(y Float32x8, z Float32x8, u Mask32x8) Float32x8
+func (x Float32x8) MaskedFusedMultiplyAddSub(y Float32x8, z Float32x8, u Mask32x8) Float32x8
 
-// FusedMultiplyAddSub213 performs `(v2 * v1) - v3` for odd-indexed elements, and `(v2 * v1) + v3` for even-indexed elements.
+// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
 //
 // Asm: VFMADDSUB213PS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedFusedMultiplyAddSub213(y Float32x16, z Float32x16, u Mask32x16) Float32x16
+func (x Float32x16) MaskedFusedMultiplyAddSub(y Float32x16, z Float32x16, u Mask32x16) Float32x16
 
-// FusedMultiplyAddSub213 performs `(v2 * v1) - v3` for odd-indexed elements, and `(v2 * v1) + v3` for even-indexed elements.
+// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
 //
 // Asm: VFMADDSUB213PD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedFusedMultiplyAddSub213(y Float64x2, z Float64x2, u Mask64x2) Float64x2
+func (x Float64x2) MaskedFusedMultiplyAddSub(y Float64x2, z Float64x2, u Mask64x2) Float64x2
 
-// FusedMultiplyAddSub213 performs `(v2 * v1) - v3` for odd-indexed elements, and `(v2 * v1) + v3` for even-indexed elements.
+// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
 //
 // Asm: VFMADDSUB213PD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedFusedMultiplyAddSub213(y Float64x4, z Float64x4, u Mask64x4) Float64x4
+func (x Float64x4) MaskedFusedMultiplyAddSub(y Float64x4, z Float64x4, u Mask64x4) Float64x4
 
-// FusedMultiplyAddSub213 performs `(v2 * v1) - v3` for odd-indexed elements, and `(v2 * v1) + v3` for even-indexed elements.
+// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
 //
 // Asm: VFMADDSUB213PD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedFusedMultiplyAddSub213(y Float64x8, z Float64x8, u Mask64x8) Float64x8
+func (x Float64x8) MaskedFusedMultiplyAddSub(y Float64x8, z Float64x8, u Mask64x8) Float64x8
 
-/* MaskedFusedMultiplyAddSub231 */
+/* MaskedFusedMultiplySubAdd */
 
-// FusedMultiplyAddSub231 performs `(v2 * v3) - v1` for odd-indexed elements, and `(v2 * v3) + v1` for even-indexed elements.
-//
-// Asm: VFMADDSUB231PS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedFusedMultiplyAddSub231(y Float32x4, z Float32x4, u Mask32x4) Float32x4
-
-// FusedMultiplyAddSub231 performs `(v2 * v3) - v1` for odd-indexed elements, and `(v2 * v3) + v1` for even-indexed elements.
-//
-// Asm: VFMADDSUB231PS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedFusedMultiplyAddSub231(y Float32x8, z Float32x8, u Mask32x8) Float32x8
-
-// FusedMultiplyAddSub231 performs `(v2 * v3) - v1` for odd-indexed elements, and `(v2 * v3) + v1` for even-indexed elements.
-//
-// Asm: VFMADDSUB231PS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedFusedMultiplyAddSub231(y Float32x16, z Float32x16, u Mask32x16) Float32x16
-
-// FusedMultiplyAddSub231 performs `(v2 * v3) - v1` for odd-indexed elements, and `(v2 * v3) + v1` for even-indexed elements.
-//
-// Asm: VFMADDSUB231PD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedFusedMultiplyAddSub231(y Float64x2, z Float64x2, u Mask64x2) Float64x2
-
-// FusedMultiplyAddSub231 performs `(v2 * v3) - v1` for odd-indexed elements, and `(v2 * v3) + v1` for even-indexed elements.
-//
-// Asm: VFMADDSUB231PD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedFusedMultiplyAddSub231(y Float64x4, z Float64x4, u Mask64x4) Float64x4
-
-// FusedMultiplyAddSub231 performs `(v2 * v3) - v1` for odd-indexed elements, and `(v2 * v3) + v1` for even-indexed elements.
-//
-// Asm: VFMADDSUB231PD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedFusedMultiplyAddSub231(y Float64x8, z Float64x8, u Mask64x8) Float64x8
-
-/* MaskedFusedMultiplySub132 */
-
-// FusedMultiplySub132 performs `(v1 * v3) - v2`.
-//
-// Asm: VFMSUB132PS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedFusedMultiplySub132(y Float32x4, z Float32x4, u Mask32x4) Float32x4
-
-// FusedMultiplySub132 performs `(v1 * v3) - v2`.
-//
-// Asm: VFMSUB132PS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedFusedMultiplySub132(y Float32x8, z Float32x8, u Mask32x8) Float32x8
-
-// FusedMultiplySub132 performs `(v1 * v3) - v2`.
-//
-// Asm: VFMSUB132PS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedFusedMultiplySub132(y Float32x16, z Float32x16, u Mask32x16) Float32x16
-
-// FusedMultiplySub132 performs `(v1 * v3) - v2`.
-//
-// Asm: VFMSUB132PD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedFusedMultiplySub132(y Float64x2, z Float64x2, u Mask64x2) Float64x2
-
-// FusedMultiplySub132 performs `(v1 * v3) - v2`.
-//
-// Asm: VFMSUB132PD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedFusedMultiplySub132(y Float64x4, z Float64x4, u Mask64x4) Float64x4
-
-// FusedMultiplySub132 performs `(v1 * v3) - v2`.
-//
-// Asm: VFMSUB132PD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedFusedMultiplySub132(y Float64x8, z Float64x8, u Mask64x8) Float64x8
-
-/* MaskedFusedMultiplySub213 */
-
-// FusedMultiplySub213 performs `(v2 * v1) - v3`.
-//
-// Asm: VFMSUB213PS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedFusedMultiplySub213(y Float32x4, z Float32x4, u Mask32x4) Float32x4
-
-// FusedMultiplySub213 performs `(v2 * v1) - v3`.
-//
-// Asm: VFMSUB213PS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedFusedMultiplySub213(y Float32x8, z Float32x8, u Mask32x8) Float32x8
-
-// FusedMultiplySub213 performs `(v2 * v1) - v3`.
-//
-// Asm: VFMSUB213PS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedFusedMultiplySub213(y Float32x16, z Float32x16, u Mask32x16) Float32x16
-
-// FusedMultiplySub213 performs `(v2 * v1) - v3`.
-//
-// Asm: VFMSUB213PD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedFusedMultiplySub213(y Float64x2, z Float64x2, u Mask64x2) Float64x2
-
-// FusedMultiplySub213 performs `(v2 * v1) - v3`.
-//
-// Asm: VFMSUB213PD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedFusedMultiplySub213(y Float64x4, z Float64x4, u Mask64x4) Float64x4
-
-// FusedMultiplySub213 performs `(v2 * v1) - v3`.
-//
-// Asm: VFMSUB213PD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedFusedMultiplySub213(y Float64x8, z Float64x8, u Mask64x8) Float64x8
-
-/* MaskedFusedMultiplySub231 */
-
-// FusedMultiplySub231 performs `(v2 * v3) - v1`.
-//
-// Asm: VFMSUB231PS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedFusedMultiplySub231(y Float32x4, z Float32x4, u Mask32x4) Float32x4
-
-// FusedMultiplySub231 performs `(v2 * v3) - v1`.
-//
-// Asm: VFMSUB231PS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedFusedMultiplySub231(y Float32x8, z Float32x8, u Mask32x8) Float32x8
-
-// FusedMultiplySub231 performs `(v2 * v3) - v1`.
-//
-// Asm: VFMSUB231PS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedFusedMultiplySub231(y Float32x16, z Float32x16, u Mask32x16) Float32x16
-
-// FusedMultiplySub231 performs `(v2 * v3) - v1`.
-//
-// Asm: VFMSUB231PD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedFusedMultiplySub231(y Float64x2, z Float64x2, u Mask64x2) Float64x2
-
-// FusedMultiplySub231 performs `(v2 * v3) - v1`.
-//
-// Asm: VFMSUB231PD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedFusedMultiplySub231(y Float64x4, z Float64x4, u Mask64x4) Float64x4
-
-// FusedMultiplySub231 performs `(v2 * v3) - v1`.
-//
-// Asm: VFMSUB231PD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedFusedMultiplySub231(y Float64x8, z Float64x8, u Mask64x8) Float64x8
-
-/* MaskedFusedMultiplySubAdd132 */
-
-// FusedMultiplySubAdd132 performs `(v1 * v3) + v2` for odd-indexed elements, and `(v1 * v3) - v2` for even-indexed elements.
-//
-// Asm: VFMSUBADD132PS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedFusedMultiplySubAdd132(y Float32x4, z Float32x4, u Mask32x4) Float32x4
-
-// FusedMultiplySubAdd132 performs `(v1 * v3) + v2` for odd-indexed elements, and `(v1 * v3) - v2` for even-indexed elements.
-//
-// Asm: VFMSUBADD132PS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedFusedMultiplySubAdd132(y Float32x8, z Float32x8, u Mask32x8) Float32x8
-
-// FusedMultiplySubAdd132 performs `(v1 * v3) + v2` for odd-indexed elements, and `(v1 * v3) - v2` for even-indexed elements.
-//
-// Asm: VFMSUBADD132PS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedFusedMultiplySubAdd132(y Float32x16, z Float32x16, u Mask32x16) Float32x16
-
-// FusedMultiplySubAdd132 performs `(v1 * v3) + v2` for odd-indexed elements, and `(v1 * v3) - v2` for even-indexed elements.
-//
-// Asm: VFMSUBADD132PD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedFusedMultiplySubAdd132(y Float64x2, z Float64x2, u Mask64x2) Float64x2
-
-// FusedMultiplySubAdd132 performs `(v1 * v3) + v2` for odd-indexed elements, and `(v1 * v3) - v2` for even-indexed elements.
-//
-// Asm: VFMSUBADD132PD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedFusedMultiplySubAdd132(y Float64x4, z Float64x4, u Mask64x4) Float64x4
-
-// FusedMultiplySubAdd132 performs `(v1 * v3) + v2` for odd-indexed elements, and `(v1 * v3) - v2` for even-indexed elements.
-//
-// Asm: VFMSUBADD132PD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedFusedMultiplySubAdd132(y Float64x8, z Float64x8, u Mask64x8) Float64x8
-
-/* MaskedFusedMultiplySubAdd213 */
-
-// FusedMultiplySubAdd213 performs `(v2 * v1) + v3` for odd-indexed elements, and `(v2 * v1) - v3` for even-indexed elements.
+// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
 //
 // Asm: VFMSUBADD213PS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedFusedMultiplySubAdd213(y Float32x4, z Float32x4, u Mask32x4) Float32x4
+func (x Float32x4) MaskedFusedMultiplySubAdd(y Float32x4, z Float32x4, u Mask32x4) Float32x4
 
-// FusedMultiplySubAdd213 performs `(v2 * v1) + v3` for odd-indexed elements, and `(v2 * v1) - v3` for even-indexed elements.
+// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
 //
 // Asm: VFMSUBADD213PS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedFusedMultiplySubAdd213(y Float32x8, z Float32x8, u Mask32x8) Float32x8
+func (x Float32x8) MaskedFusedMultiplySubAdd(y Float32x8, z Float32x8, u Mask32x8) Float32x8
 
-// FusedMultiplySubAdd213 performs `(v2 * v1) + v3` for odd-indexed elements, and `(v2 * v1) - v3` for even-indexed elements.
+// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
 //
 // Asm: VFMSUBADD213PS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedFusedMultiplySubAdd213(y Float32x16, z Float32x16, u Mask32x16) Float32x16
+func (x Float32x16) MaskedFusedMultiplySubAdd(y Float32x16, z Float32x16, u Mask32x16) Float32x16
 
-// FusedMultiplySubAdd213 performs `(v2 * v1) + v3` for odd-indexed elements, and `(v2 * v1) - v3` for even-indexed elements.
+// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
 //
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedFusedMultiplySubAdd213(y Float64x2, z Float64x2, u Mask64x2) Float64x2
+func (x Float64x2) MaskedFusedMultiplySubAdd(y Float64x2, z Float64x2, u Mask64x2) Float64x2
 
-// FusedMultiplySubAdd213 performs `(v2 * v1) + v3` for odd-indexed elements, and `(v2 * v1) - v3` for even-indexed elements.
+// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
 //
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedFusedMultiplySubAdd213(y Float64x4, z Float64x4, u Mask64x4) Float64x4
+func (x Float64x4) MaskedFusedMultiplySubAdd(y Float64x4, z Float64x4, u Mask64x4) Float64x4
 
-// FusedMultiplySubAdd213 performs `(v2 * v1) + v3` for odd-indexed elements, and `(v2 * v1) - v3` for even-indexed elements.
+// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
 //
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedFusedMultiplySubAdd213(y Float64x8, z Float64x8, u Mask64x8) Float64x8
-
-/* MaskedFusedMultiplySubAdd231 */
-
-// FusedMultiplySubAdd231 performs `(v2 * v3) + v1` for odd-indexed elements, and `(v2 * v3) - v1` for even-indexed elements.
-//
-// Asm: VFMSUBADD231PS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedFusedMultiplySubAdd231(y Float32x4, z Float32x4, u Mask32x4) Float32x4
-
-// FusedMultiplySubAdd231 performs `(v2 * v3) + v1` for odd-indexed elements, and `(v2 * v3) - v1` for even-indexed elements.
-//
-// Asm: VFMSUBADD231PS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedFusedMultiplySubAdd231(y Float32x8, z Float32x8, u Mask32x8) Float32x8
-
-// FusedMultiplySubAdd231 performs `(v2 * v3) + v1` for odd-indexed elements, and `(v2 * v3) - v1` for even-indexed elements.
-//
-// Asm: VFMSUBADD231PS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedFusedMultiplySubAdd231(y Float32x16, z Float32x16, u Mask32x16) Float32x16
-
-// FusedMultiplySubAdd231 performs `(v2 * v3) + v1` for odd-indexed elements, and `(v2 * v3) - v1` for even-indexed elements.
-//
-// Asm: VFMSUBADD231PD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedFusedMultiplySubAdd231(y Float64x2, z Float64x2, u Mask64x2) Float64x2
-
-// FusedMultiplySubAdd231 performs `(v2 * v3) + v1` for odd-indexed elements, and `(v2 * v3) - v1` for even-indexed elements.
-//
-// Asm: VFMSUBADD231PD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedFusedMultiplySubAdd231(y Float64x4, z Float64x4, u Mask64x4) Float64x4
-
-// FusedMultiplySubAdd231 performs `(v2 * v3) + v1` for odd-indexed elements, and `(v2 * v3) - v1` for even-indexed elements.
-//
-// Asm: VFMSUBADD231PD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedFusedMultiplySubAdd231(y Float64x8, z Float64x8, u Mask64x8) Float64x8
-
-/* MaskedFusedNegativeMultiplyAdd132 */
-
-// FusedNegativeMultiplyAdd132 performs `-(v1 * v3) + v2`.
-//
-// Asm: VFNMADD132PS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedFusedNegativeMultiplyAdd132(y Float32x4, z Float32x4, u Mask32x4) Float32x4
-
-// FusedNegativeMultiplyAdd132 performs `-(v1 * v3) + v2`.
-//
-// Asm: VFNMADD132PS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedFusedNegativeMultiplyAdd132(y Float32x8, z Float32x8, u Mask32x8) Float32x8
-
-// FusedNegativeMultiplyAdd132 performs `-(v1 * v3) + v2`.
-//
-// Asm: VFNMADD132PS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedFusedNegativeMultiplyAdd132(y Float32x16, z Float32x16, u Mask32x16) Float32x16
-
-// FusedNegativeMultiplyAdd132 performs `-(v1 * v3) + v2`.
-//
-// Asm: VFNMADD132PD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedFusedNegativeMultiplyAdd132(y Float64x2, z Float64x2, u Mask64x2) Float64x2
-
-// FusedNegativeMultiplyAdd132 performs `-(v1 * v3) + v2`.
-//
-// Asm: VFNMADD132PD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedFusedNegativeMultiplyAdd132(y Float64x4, z Float64x4, u Mask64x4) Float64x4
-
-// FusedNegativeMultiplyAdd132 performs `-(v1 * v3) + v2`.
-//
-// Asm: VFNMADD132PD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedFusedNegativeMultiplyAdd132(y Float64x8, z Float64x8, u Mask64x8) Float64x8
-
-/* MaskedFusedNegativeMultiplyAdd213 */
-
-// FusedNegativeMultiplyAdd213 performs `-(v2 * v1) + v3`.
-//
-// Asm: VFNMADD213PS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedFusedNegativeMultiplyAdd213(y Float32x4, z Float32x4, u Mask32x4) Float32x4
-
-// FusedNegativeMultiplyAdd213 performs `-(v2 * v1) + v3`.
-//
-// Asm: VFNMADD213PS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedFusedNegativeMultiplyAdd213(y Float32x8, z Float32x8, u Mask32x8) Float32x8
-
-// FusedNegativeMultiplyAdd213 performs `-(v2 * v1) + v3`.
-//
-// Asm: VFNMADD213PS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedFusedNegativeMultiplyAdd213(y Float32x16, z Float32x16, u Mask32x16) Float32x16
-
-// FusedNegativeMultiplyAdd213 performs `-(v2 * v1) + v3`.
-//
-// Asm: VFNMADD213PD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedFusedNegativeMultiplyAdd213(y Float64x2, z Float64x2, u Mask64x2) Float64x2
-
-// FusedNegativeMultiplyAdd213 performs `-(v2 * v1) + v3`.
-//
-// Asm: VFNMADD213PD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedFusedNegativeMultiplyAdd213(y Float64x4, z Float64x4, u Mask64x4) Float64x4
-
-// FusedNegativeMultiplyAdd213 performs `-(v2 * v1) + v3`.
-//
-// Asm: VFNMADD213PD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedFusedNegativeMultiplyAdd213(y Float64x8, z Float64x8, u Mask64x8) Float64x8
-
-/* MaskedFusedNegativeMultiplyAdd231 */
-
-// FusedNegativeMultiplyAdd231 performs `-(v2 * v3) + v1`.
-//
-// Asm: VFNMADD231PS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedFusedNegativeMultiplyAdd231(y Float32x4, z Float32x4, u Mask32x4) Float32x4
-
-// FusedNegativeMultiplyAdd231 performs `-(v2 * v3) + v1`.
-//
-// Asm: VFNMADD231PS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedFusedNegativeMultiplyAdd231(y Float32x8, z Float32x8, u Mask32x8) Float32x8
-
-// FusedNegativeMultiplyAdd231 performs `-(v2 * v3) + v1`.
-//
-// Asm: VFNMADD231PS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedFusedNegativeMultiplyAdd231(y Float32x16, z Float32x16, u Mask32x16) Float32x16
-
-// FusedNegativeMultiplyAdd231 performs `-(v2 * v3) + v1`.
-//
-// Asm: VFNMADD231PD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedFusedNegativeMultiplyAdd231(y Float64x2, z Float64x2, u Mask64x2) Float64x2
-
-// FusedNegativeMultiplyAdd231 performs `-(v2 * v3) + v1`.
-//
-// Asm: VFNMADD231PD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedFusedNegativeMultiplyAdd231(y Float64x4, z Float64x4, u Mask64x4) Float64x4
-
-// FusedNegativeMultiplyAdd231 performs `-(v2 * v3) + v1`.
-//
-// Asm: VFNMADD231PD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedFusedNegativeMultiplyAdd231(y Float64x8, z Float64x8, u Mask64x8) Float64x8
-
-/* MaskedFusedNegativeMultiplySub132 */
-
-// FusedNegativeMultiplySub132 performs `-(v1 * v3) - v2`.
-//
-// Asm: VFNMSUB132PS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedFusedNegativeMultiplySub132(y Float32x4, z Float32x4, u Mask32x4) Float32x4
-
-// FusedNegativeMultiplySub132 performs `-(v1 * v3) - v2`.
-//
-// Asm: VFNMSUB132PS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedFusedNegativeMultiplySub132(y Float32x8, z Float32x8, u Mask32x8) Float32x8
-
-// FusedNegativeMultiplySub132 performs `-(v1 * v3) - v2`.
-//
-// Asm: VFNMSUB132PS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedFusedNegativeMultiplySub132(y Float32x16, z Float32x16, u Mask32x16) Float32x16
-
-// FusedNegativeMultiplySub132 performs `-(v1 * v3) - v2`.
-//
-// Asm: VFNMSUB132PD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedFusedNegativeMultiplySub132(y Float64x2, z Float64x2, u Mask64x2) Float64x2
-
-// FusedNegativeMultiplySub132 performs `-(v1 * v3) - v2`.
-//
-// Asm: VFNMSUB132PD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedFusedNegativeMultiplySub132(y Float64x4, z Float64x4, u Mask64x4) Float64x4
-
-// FusedNegativeMultiplySub132 performs `-(v1 * v3) - v2`.
-//
-// Asm: VFNMSUB132PD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedFusedNegativeMultiplySub132(y Float64x8, z Float64x8, u Mask64x8) Float64x8
-
-/* MaskedFusedNegativeMultiplySub213 */
-
-// FusedNegativeMultiplySub213 performs `-(v2 * v1) - v3`.
-//
-// Asm: VFNMSUB213PS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedFusedNegativeMultiplySub213(y Float32x4, z Float32x4, u Mask32x4) Float32x4
-
-// FusedNegativeMultiplySub213 performs `-(v2 * v1) - v3`.
-//
-// Asm: VFNMSUB213PS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedFusedNegativeMultiplySub213(y Float32x8, z Float32x8, u Mask32x8) Float32x8
-
-// FusedNegativeMultiplySub213 performs `-(v2 * v1) - v3`.
-//
-// Asm: VFNMSUB213PS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedFusedNegativeMultiplySub213(y Float32x16, z Float32x16, u Mask32x16) Float32x16
-
-// FusedNegativeMultiplySub213 performs `-(v2 * v1) - v3`.
-//
-// Asm: VFNMSUB213PD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedFusedNegativeMultiplySub213(y Float64x2, z Float64x2, u Mask64x2) Float64x2
-
-// FusedNegativeMultiplySub213 performs `-(v2 * v1) - v3`.
-//
-// Asm: VFNMSUB213PD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedFusedNegativeMultiplySub213(y Float64x4, z Float64x4, u Mask64x4) Float64x4
-
-// FusedNegativeMultiplySub213 performs `-(v2 * v1) - v3`.
-//
-// Asm: VFNMSUB213PD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedFusedNegativeMultiplySub213(y Float64x8, z Float64x8, u Mask64x8) Float64x8
-
-/* MaskedFusedNegativeMultiplySub231 */
-
-// FusedNegativeMultiplySub231 performs `-(v2 * v3) - v1`.
-//
-// Asm: VFNMSUB231PS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedFusedNegativeMultiplySub231(y Float32x4, z Float32x4, u Mask32x4) Float32x4
-
-// FusedNegativeMultiplySub231 performs `-(v2 * v3) - v1`.
-//
-// Asm: VFNMSUB231PS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedFusedNegativeMultiplySub231(y Float32x8, z Float32x8, u Mask32x8) Float32x8
-
-// FusedNegativeMultiplySub231 performs `-(v2 * v3) - v1`.
-//
-// Asm: VFNMSUB231PS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedFusedNegativeMultiplySub231(y Float32x16, z Float32x16, u Mask32x16) Float32x16
-
-// FusedNegativeMultiplySub231 performs `-(v2 * v3) - v1`.
-//
-// Asm: VFNMSUB231PD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedFusedNegativeMultiplySub231(y Float64x2, z Float64x2, u Mask64x2) Float64x2
-
-// FusedNegativeMultiplySub231 performs `-(v2 * v3) - v1`.
-//
-// Asm: VFNMSUB231PD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedFusedNegativeMultiplySub231(y Float64x4, z Float64x4, u Mask64x4) Float64x4
-
-// FusedNegativeMultiplySub231 performs `-(v2 * v3) - v1`.
-//
-// Asm: VFNMSUB231PD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedFusedNegativeMultiplySub231(y Float64x8, z Float64x8, u Mask64x8) Float64x8
+func (x Float64x8) MaskedFusedMultiplySubAdd(y Float64x8, z Float64x8, u Mask64x8) Float64x8
 
 /* MaskedGreater */
 
