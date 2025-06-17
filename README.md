@@ -4,12 +4,7 @@
 
 `go-panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for signed integer arithmetic operations. When overflow is detected, a **panic** with an "integer overflow" message will pop. 
 
-Go-Panikint can handle **Addition** (`+`), **Subtraction** (`-`), **Multiplication** (`*`), for types `int8`, `int16`, `int32`. Regarding `int64`, `uintptr`, they are not checked.
-
-#### Packages excluded:
-- Standard library packages (`runtime`, `sync`, `os`, `syscall`, etc.)
-- Internal packages (`internal/*`)
-- Math and unsafe packages
+Go-Panikint can handle addition `+`, subtraction `-`, multiplication `*`, for types `int8`, `int16`, `int32`. Regarding `int64`, `uintptr`, they are not checked.
 
 ### Usage and installation :
 ```bash
@@ -29,7 +24,7 @@ export GOROOT=/path/to/go-panikint
 ./bin/go test -fuzz=FuzzIntegerOverflow -v
 ```
 
-## Example 
+## Examples
 
 #### Example 1:
 
@@ -135,3 +130,9 @@ FAIL
 exit status 1
 FAIL	fuzztest	0.724s
 ``` 
+
+
+#### Packages excluded:
+- Standard library packages (`runtime`, `sync`, `os`, `syscall`, etc.)
+- Internal packages (`internal/*`)
+- Math and unsafe packages
