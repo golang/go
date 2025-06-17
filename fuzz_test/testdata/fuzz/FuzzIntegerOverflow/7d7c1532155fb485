@@ -1,0 +1,3 @@
+go test fuzz v1
+int8(66)
+int8(-1)

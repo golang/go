@@ -5265,7 +5265,7 @@ func (s *state) shouldCheckOverflow(typ *types.Type) bool {
 		strings.HasPrefix(pkgPath, "internal") || // Go's internal packages (not user internal packages)
 		strings.HasPrefix(pkgPath, "bootstrap") ||
 		strings.Contains(pkgPath, "vendor/") || // Any vendor package
-		(!strings.Contains(pkgPath, ".") && pkgPath != "main" && pkgPath != "command-line-arguments") { // Standard library packages typically don't have dots, but allow "main" and test packages
+		(!strings.Contains(pkgPath, ".") && pkgPath != "main" && pkgPath != "command-line-arguments" && !strings.HasSuffix(pkgPath, "test")) { // Standard library packages typically don't have dots, but allow "main", test packages, and packages ending in "test"
 		return false
 	}
 
