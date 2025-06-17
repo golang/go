@@ -1,8 +1,8 @@
-## Go-Panikint 
+## Go-Panikint
 
 ### Overview
 
-`Go-Panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for signed integer arithmetic operations. When overflow is detected, a **panic** with an "integer overflow" message will pop. 
+`Go-Panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for signed integer arithmetic operations. When overflow is detected, a **panic** with an "integer overflow" message will pop.
 
 It can handle addition `+`, subtraction `-`, multiplication `*`, for types `int8`, `int16`, `int32`. Regarding `int64`, `uintptr`, they are not checked.
 
@@ -25,14 +25,27 @@ export GOROOT=/path/to/go-panikint
 ```
 
 ### How does it work ?
-#### What is being patched ?
-We basically patched the intermediate representation (IR) part of the Go compiler so that, on every math operands (i.e `OADD`, `OMUL`, `OSUB`, ...), the compiler does not only add the IR opcodes that perform the math operation but also **insert** a bunch of checks for aritmetic bugs and insert a panic call with `ir.Syms.Panicoverflow` if those checks are met. 
+#### What is being done exactly ?
+We basically patched the intermediate representation (IR) part of the Go compiler so that, on every math operands (i.e `OADD`, `OMUL`, `OSUB`, ...), the compiler does not only add the IR opcodes that perform the math operation but also **insert** a bunch of checks for arithmetic bugs and insert a panic call with `ir.Syms.Panicoverflow` if those checks are met. This code will ultimately end up to the binary code (Assembly) of the application, so use with caution.
+Below is an example of a Ghidra-decompiled addition `+`:
+
+```c++
+if (*x_00 == '+') {
+  val = (uint32)*(undefined8 *)(puVar9 + 0x60);
+  sVar23 = val + sVar21;
+  puVar17 = puVar9 + 8;
+  if (((sdword)val < 0 && sVar21 < 0) && (sdword)val < sVar23 ||
+      ((sdword)val >= 0 && sVar21 >= 0) && sVar23 < (sdword)val) {
+    runtime.panicoverflow(); // <-- panic if overflow caught
+  }
+  goto LAB_1000a10d4;
+}
+```
 
 #### Why do we use package filters ?
 As you can see [here](https://github.com/kevin-valerio/go-panikint/blob/0d6340a37c6cc7a3e44c556f8df42e8ec9d1efc8/src/cmd/compile/internal/ssagen/ssa.go#L5258-L5270), we do not apply our panics for arithmetic issues on every packages: standard library packages (`runtime`, `sync`, `os`, `syscall`, etc.), internal packages (`internal/*`) and math and unsafe packages are not concerned by the overhead. There is different reasons for this.
 
-First, we need to compile Go, with Go itself. Because of this, some behaviors of the vanilla compiler must remain. Some functions like hashing sometimes rely on overflow for bit mixing. Moreover, some components like routine scheduling or memory management cannot be interupted with panics. 
-
+First, we need to compile Go, with Go itself. Because of this, some behaviors of the vanilla compiler must remain. Some functions like hashing sometimes rely on overflow for bit mixing. Moreover, some components like routine scheduling or memory management cannot be interrupted with panics.
 
 ### Examples
 
@@ -135,4 +148,4 @@ fuzz: elapsed: 0s, gathering baseline coverage: 9/15 completed
     Failing input written to testdata/fuzz/FuzzIntegerOverflow/8a8466cc4de923f0
     To re-run:
     go test -run=FuzzIntegerOverflow/8a8466cc4de923f0
-``` 
+```
