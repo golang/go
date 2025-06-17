@@ -365,7 +365,7 @@ type (
 		Interface any               `json:",omitzero,format:invalid"`
 	}
 	structDurationFormat struct {
-		D1  time.Duration
+		D1  time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 		D2  time.Duration `json:",format:units"`
 		D3  time.Duration `json:",format:sec"`
 		D4  time.Duration `json:",string,format:sec"`
@@ -4312,14 +4312,14 @@ func TestMarshal(t *testing.T) {
 	}, {
 		name: jsontest.Name("Duration/Zero"),
 		in: struct {
-			D1 time.Duration
+			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}{0, 0},
 		want: `{"D1":"0s","D2":0}`,
 	}, {
 		name: jsontest.Name("Duration/Positive"),
 		in: struct {
-			D1 time.Duration
+			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}{
 			123456789123456789,
@@ -4329,7 +4329,7 @@ func TestMarshal(t *testing.T) {
 	}, {
 		name: jsontest.Name("Duration/Negative"),
 		in: struct {
-			D1 time.Duration
+			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}{
 			-123456789123456789,
@@ -4356,11 +4356,12 @@ func TestMarshal(t *testing.T) {
 		want:    `{"D"`,
 		wantErr: EM(errInvalidFormatFlag).withPos(`{"D":`, "/D").withType(0, T[time.Duration]()),
 	}, {
+		/* TODO(https://go.dev/issue/71631): Re-enable this test case.
 		name: jsontest.Name("Duration/IgnoreInvalidFormat"),
 		opts: []Options{invalidFormatOption},
 		in:   time.Duration(0),
 		want: `"0s"`,
-	}, {
+		}, { */
 		name: jsontest.Name("Duration/Format"),
 		opts: []Options{jsontext.Multiline(true)},
 		in: structDurationFormat{
@@ -4388,6 +4389,7 @@ func TestMarshal(t *testing.T) {
 	"D10": "45296078090012"
 }`,
 	}, {
+		/* TODO(https://go.dev/issue/71631): Re-enable this test case.
 		name: jsontest.Name("Duration/Format/Legacy"),
 		opts: []Options{jsonflags.FormatTimeWithLegacySemantics | 1},
 		in: structDurationFormat{
@@ -4395,11 +4397,12 @@ func TestMarshal(t *testing.T) {
 			D2: 12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
 		},
 		want: `{"D1":45296078090012,"D2":"12h34m56.078090012s","D3":0,"D4":"0","D5":0,"D6":"0","D7":0,"D8":"0","D9":0,"D10":"0"}`,
-	}, {
+		}, { */
+		/* TODO(https://go.dev/issue/71631): Re-enable this test case.
 		name: jsontest.Name("Duration/MapKey"),
 		in:   map[time.Duration]string{time.Second: ""},
 		want: `{"1s":""}`,
-	}, {
+		}, { */
 		name: jsontest.Name("Duration/MapKey/Legacy"),
 		opts: []Options{jsonflags.FormatTimeWithLegacySemantics | 1},
 		in:   map[time.Duration]string{time.Second: ""},
@@ -8713,33 +8716,33 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Duration/Null"),
 		inBuf: `{"D1":null,"D2":null}`,
 		inVal: addr(struct {
-			D1 time.Duration
+			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}{1, 1}),
 		want: addr(struct {
-			D1 time.Duration
+			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}{0, 0}),
 	}, {
 		name:  jsontest.Name("Duration/Zero"),
 		inBuf: `{"D1":"0s","D2":0}`,
 		inVal: addr(struct {
-			D1 time.Duration
+			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}{1, 1}),
 		want: addr(struct {
-			D1 time.Duration
+			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}{0, 0}),
 	}, {
 		name:  jsontest.Name("Duration/Positive"),
 		inBuf: `{"D1":"34293h33m9.123456789s","D2":123456789123456789}`,
 		inVal: new(struct {
-			D1 time.Duration
+			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}),
 		want: addr(struct {
-			D1 time.Duration
+			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}{
 			123456789123456789,
@@ -8749,11 +8752,11 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Duration/Negative"),
 		inBuf: `{"D1":"-34293h33m9.123456789s","D2":-123456789123456789}`,
 		inVal: new(struct {
-			D1 time.Duration
+			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}),
 		want: addr(struct {
-			D1 time.Duration
+			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}{
 			-123456789123456789,
@@ -8801,20 +8804,20 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Duration/String/Mismatch"),
 		inBuf: `{"D":-123456789123456789}`,
 		inVal: addr(struct {
-			D time.Duration
+			D time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 		}{1}),
 		want: addr(struct {
-			D time.Duration
+			D time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 		}{1}),
 		wantErr: EU(nil).withPos(`{"D":`, "/D").withType('0', timeDurationType),
 	}, {
 		name:  jsontest.Name("Duration/String/Invalid"),
 		inBuf: `{"D":"5minkutes"}`,
 		inVal: addr(struct {
-			D time.Duration
+			D time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 		}{1}),
 		want: addr(struct {
-			D time.Duration
+			D time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 		}{1}),
 		wantErr: EU(func() error {
 			_, err := time.ParseDuration("5minkutes")
@@ -8824,10 +8827,10 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Duration/Syntax/Invalid"),
 		inBuf: `{"D":x}`,
 		inVal: addr(struct {
-			D time.Duration
+			D time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 		}{1}),
 		want: addr(struct {
-			D time.Duration
+			D time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 		}{1}),
 		wantErr: newInvalidCharacterError("x", "at start of value", len64(`{"D":`), "/D"),
 	}, {
@@ -8841,6 +8844,7 @@ func TestUnmarshal(t *testing.T) {
 		}{1}),
 		wantErr: EU(errInvalidFormatFlag).withPos(`{"D":`, "/D").withType(0, timeDurationType),
 	}, {
+		/* TODO(https://go.dev/issue/71631): Re-enable this test case.
 		name:  jsontest.Name("Duration/Format/Legacy"),
 		inBuf: `{"D1":45296078090012,"D2":"12h34m56.078090012s"}`,
 		opts:  []Options{jsonflags.FormatTimeWithLegacySemantics | 1},
@@ -8849,24 +8853,26 @@ func TestUnmarshal(t *testing.T) {
 			D1: 12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
 			D2: 12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
 		}),
-	}, {
+		}, { */
+		/* TODO(https://go.dev/issue/71631): Re-enable this test case.
 		name:  jsontest.Name("Duration/MapKey"),
 		inBuf: `{"1s":""}`,
 		inVal: new(map[time.Duration]string),
 		want:  addr(map[time.Duration]string{time.Second: ""}),
-	}, {
+		}, { */
 		name:  jsontest.Name("Duration/MapKey/Legacy"),
 		opts:  []Options{jsonflags.FormatTimeWithLegacySemantics | 1},
 		inBuf: `{"1000000000":""}`,
 		inVal: new(map[time.Duration]string),
 		want:  addr(map[time.Duration]string{time.Second: ""}),
 	}, {
+		/* TODO(https://go.dev/issue/71631): Re-enable this test case.
 		name:  jsontest.Name("Duration/IgnoreInvalidFormat"),
 		opts:  []Options{invalidFormatOption},
 		inBuf: `"1s"`,
 		inVal: addr(time.Duration(0)),
 		want:  addr(time.Second),
-	}, {
+		}, { */
 		name:  jsontest.Name("Time/Zero"),
 		inBuf: `{"T1":"0001-01-01T00:00:00Z","T2":"01 Jan 01 00:00 UTC","T3":"0001-01-01","T4":"0001-01-01T00:00:00Z","T5":"0001-01-01T00:00:00Z"}`,
 		inVal: new(struct {
