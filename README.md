@@ -2,9 +2,9 @@
 
 ### Overview
 
-`go-panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for signed integer arithmetic operations. When overflow is detected, a **panic** with an "integer overflow" message will pop. 
+`Go-Panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for signed integer arithmetic operations. When overflow is detected, a **panic** with an "integer overflow" message will pop. 
 
-Go-Panikint can handle addition `+`, subtraction `-`, multiplication `*`, for types `int8`, `int16`, `int32`. Regarding `int64`, `uintptr`, they are not checked.
+It can handle addition `+`, subtraction `-`, multiplication `*`, for types `int8`, `int16`, `int32`. Regarding `int64`, `uintptr`, they are not checked.
 
 ### Usage and installation :
 ```bash
@@ -45,7 +45,7 @@ func main() {
 }
 ```
 
-** Expected output: **
+**Expected output:**
 
 ```bash
 bash-5.2$ GOROOT=/path/to/go-panikint && ./bin/go run test_simple_overflow.go
@@ -125,14 +125,8 @@ fuzz: elapsed: 0s, gathering baseline coverage: 9/15 completed
     Failing input written to testdata/fuzz/FuzzIntegerOverflow/8a8466cc4de923f0
     To re-run:
     go test -run=FuzzIntegerOverflow/8a8466cc4de923f0
-=== NAME
-FAIL
-exit status 1
-FAIL	fuzztest	0.724s
 ``` 
 
 
 #### Packages excluded:
-- Standard library packages (`runtime`, `sync`, `os`, `syscall`, etc.)
-- Internal packages (`internal/*`)
-- Math and unsafe packages
+Standard library packages (`runtime`, `sync`, `os`, `syscall`, etc.), internal packages (`internal/*`) and math and unsafe packages are not concerned by the overhead.
