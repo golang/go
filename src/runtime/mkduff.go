@@ -32,7 +32,6 @@ import (
 )
 
 func main() {
-	gen("amd64", notags, zeroAMD64, copyAMD64)
 	gen("386", notags, zero386, copy386)
 	gen("arm", notags, zeroARM, copyARM)
 	gen("loong64", notags, zeroLOONG64, copyLOONG64)
