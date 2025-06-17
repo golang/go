@@ -755,6 +755,9 @@
 
 (MULV  x (MOVVconst [c])) && canMulStrengthReduce(config, c) => {mulStrengthReduce(v, x, c)}
 
+(MULV (NEGV x) (MOVVconst [c])) => (MULV x (MOVVconst [-c]))
+(MULV (NEGV x) (NEGV y)) => (MULV x y)
+
 // div by constant
 (DIVVU x (MOVVconst [1])) => x
 (DIVVU x (MOVVconst [c])) && isPowerOfTwo(c) => (SRLVconst [log64(c)] x)

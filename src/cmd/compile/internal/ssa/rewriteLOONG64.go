@@ -5539,6 +5539,7 @@ func rewriteValueLOONG64_OpLOONG64MULV(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (MULV _ (MOVVconst [0]))
 	// result: (MOVVconst [0])
 	for {
@@ -5579,6 +5580,44 @@ func rewriteValueLOONG64_OpLOONG64MULV(v *Value) bool {
 				continue
 			}
 			v.copyOf(mulStrengthReduce(v, x, c))
+			return true
+		}
+		break
+	}
+	// match: (MULV (NEGV x) (MOVVconst [c]))
+	// result: (MULV x (MOVVconst [-c]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpLOONG64NEGV {
+				continue
+			}
+			x := v_0.Args[0]
+			if v_1.Op != OpLOONG64MOVVconst {
+				continue
+			}
+			c := auxIntToInt64(v_1.AuxInt)
+			v.reset(OpLOONG64MULV)
+			v0 := b.NewValue0(v.Pos, OpLOONG64MOVVconst, typ.UInt64)
+			v0.AuxInt = int64ToAuxInt(-c)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (MULV (NEGV x) (NEGV y))
+	// result: (MULV x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpLOONG64NEGV {
+				continue
+			}
+			x := v_0.Args[0]
+			if v_1.Op != OpLOONG64NEGV {
+				continue
+			}
+			y := v_1.Args[0]
+			v.reset(OpLOONG64MULV)
+			v.AddArg2(x, y)
 			return true
 		}
 		break
