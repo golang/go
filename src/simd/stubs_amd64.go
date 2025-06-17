@@ -8702,35 +8702,11 @@ func (x Uint64x4) Xor(y Uint64x4) Uint64x4
 // Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Xor(y Uint64x8) Uint64x8
 
-// Float64x8 converts from Float32x16 to Float64x8
-func (from Float32x16) AsFloat64x8() (to Float64x8)
-
-// Int16x32 converts from Float32x16 to Int16x32
-func (from Float32x16) AsInt16x32() (to Int16x32)
-
-// Int32x16 converts from Float32x16 to Int32x16
-func (from Float32x16) AsInt32x16() (to Int32x16)
-
-// Int64x8 converts from Float32x16 to Int64x8
-func (from Float32x16) AsInt64x8() (to Int64x8)
-
-// Int8x64 converts from Float32x16 to Int8x64
-func (from Float32x16) AsInt8x64() (to Int8x64)
-
-// Uint16x32 converts from Float32x16 to Uint16x32
-func (from Float32x16) AsUint16x32() (to Uint16x32)
-
-// Uint32x16 converts from Float32x16 to Uint32x16
-func (from Float32x16) AsUint32x16() (to Uint32x16)
-
-// Uint64x8 converts from Float32x16 to Uint64x8
-func (from Float32x16) AsUint64x8() (to Uint64x8)
-
-// Uint8x64 converts from Float32x16 to Uint8x64
-func (from Float32x16) AsUint8x64() (to Uint8x64)
-
 // Float64x2 converts from Float32x4 to Float64x2
 func (from Float32x4) AsFloat64x2() (to Float64x2)
+
+// Int8x16 converts from Float32x4 to Int8x16
+func (from Float32x4) AsInt8x16() (to Int8x16)
 
 // Int16x8 converts from Float32x4 to Int16x8
 func (from Float32x4) AsInt16x8() (to Int16x8)
@@ -8741,8 +8717,8 @@ func (from Float32x4) AsInt32x4() (to Int32x4)
 // Int64x2 converts from Float32x4 to Int64x2
 func (from Float32x4) AsInt64x2() (to Int64x2)
 
-// Int8x16 converts from Float32x4 to Int8x16
-func (from Float32x4) AsInt8x16() (to Int8x16)
+// Uint8x16 converts from Float32x4 to Uint8x16
+func (from Float32x4) AsUint8x16() (to Uint8x16)
 
 // Uint16x8 converts from Float32x4 to Uint16x8
 func (from Float32x4) AsUint16x8() (to Uint16x8)
@@ -8753,11 +8729,11 @@ func (from Float32x4) AsUint32x4() (to Uint32x4)
 // Uint64x2 converts from Float32x4 to Uint64x2
 func (from Float32x4) AsUint64x2() (to Uint64x2)
 
-// Uint8x16 converts from Float32x4 to Uint8x16
-func (from Float32x4) AsUint8x16() (to Uint8x16)
-
 // Float64x4 converts from Float32x8 to Float64x4
 func (from Float32x8) AsFloat64x4() (to Float64x4)
+
+// Int8x32 converts from Float32x8 to Int8x32
+func (from Float32x8) AsInt8x32() (to Int8x32)
 
 // Int16x16 converts from Float32x8 to Int16x16
 func (from Float32x8) AsInt16x16() (to Int16x16)
@@ -8768,8 +8744,8 @@ func (from Float32x8) AsInt32x8() (to Int32x8)
 // Int64x4 converts from Float32x8 to Int64x4
 func (from Float32x8) AsInt64x4() (to Int64x4)
 
-// Int8x32 converts from Float32x8 to Int8x32
-func (from Float32x8) AsInt8x32() (to Int8x32)
+// Uint8x32 converts from Float32x8 to Uint8x32
+func (from Float32x8) AsUint8x32() (to Uint8x32)
 
 // Uint16x16 converts from Float32x8 to Uint16x16
 func (from Float32x8) AsUint16x16() (to Uint16x16)
@@ -8780,11 +8756,38 @@ func (from Float32x8) AsUint32x8() (to Uint32x8)
 // Uint64x4 converts from Float32x8 to Uint64x4
 func (from Float32x8) AsUint64x4() (to Uint64x4)
 
-// Uint8x32 converts from Float32x8 to Uint8x32
-func (from Float32x8) AsUint8x32() (to Uint8x32)
+// Float64x8 converts from Float32x16 to Float64x8
+func (from Float32x16) AsFloat64x8() (to Float64x8)
+
+// Int8x64 converts from Float32x16 to Int8x64
+func (from Float32x16) AsInt8x64() (to Int8x64)
+
+// Int16x32 converts from Float32x16 to Int16x32
+func (from Float32x16) AsInt16x32() (to Int16x32)
+
+// Int32x16 converts from Float32x16 to Int32x16
+func (from Float32x16) AsInt32x16() (to Int32x16)
+
+// Int64x8 converts from Float32x16 to Int64x8
+func (from Float32x16) AsInt64x8() (to Int64x8)
+
+// Uint8x64 converts from Float32x16 to Uint8x64
+func (from Float32x16) AsUint8x64() (to Uint8x64)
+
+// Uint16x32 converts from Float32x16 to Uint16x32
+func (from Float32x16) AsUint16x32() (to Uint16x32)
+
+// Uint32x16 converts from Float32x16 to Uint32x16
+func (from Float32x16) AsUint32x16() (to Uint32x16)
+
+// Uint64x8 converts from Float32x16 to Uint64x8
+func (from Float32x16) AsUint64x8() (to Uint64x8)
 
 // Float32x4 converts from Float64x2 to Float32x4
 func (from Float64x2) AsFloat32x4() (to Float32x4)
+
+// Int8x16 converts from Float64x2 to Int8x16
+func (from Float64x2) AsInt8x16() (to Int8x16)
 
 // Int16x8 converts from Float64x2 to Int16x8
 func (from Float64x2) AsInt16x8() (to Int16x8)
@@ -8795,8 +8798,8 @@ func (from Float64x2) AsInt32x4() (to Int32x4)
 // Int64x2 converts from Float64x2 to Int64x2
 func (from Float64x2) AsInt64x2() (to Int64x2)
 
-// Int8x16 converts from Float64x2 to Int8x16
-func (from Float64x2) AsInt8x16() (to Int8x16)
+// Uint8x16 converts from Float64x2 to Uint8x16
+func (from Float64x2) AsUint8x16() (to Uint8x16)
 
 // Uint16x8 converts from Float64x2 to Uint16x8
 func (from Float64x2) AsUint16x8() (to Uint16x8)
@@ -8807,11 +8810,11 @@ func (from Float64x2) AsUint32x4() (to Uint32x4)
 // Uint64x2 converts from Float64x2 to Uint64x2
 func (from Float64x2) AsUint64x2() (to Uint64x2)
 
-// Uint8x16 converts from Float64x2 to Uint8x16
-func (from Float64x2) AsUint8x16() (to Uint8x16)
-
 // Float32x8 converts from Float64x4 to Float32x8
 func (from Float64x4) AsFloat32x8() (to Float32x8)
+
+// Int8x32 converts from Float64x4 to Int8x32
+func (from Float64x4) AsInt8x32() (to Int8x32)
 
 // Int16x16 converts from Float64x4 to Int16x16
 func (from Float64x4) AsInt16x16() (to Int16x16)
@@ -8822,8 +8825,8 @@ func (from Float64x4) AsInt32x8() (to Int32x8)
 // Int64x4 converts from Float64x4 to Int64x4
 func (from Float64x4) AsInt64x4() (to Int64x4)
 
-// Int8x32 converts from Float64x4 to Int8x32
-func (from Float64x4) AsInt8x32() (to Int8x32)
+// Uint8x32 converts from Float64x4 to Uint8x32
+func (from Float64x4) AsUint8x32() (to Uint8x32)
 
 // Uint16x16 converts from Float64x4 to Uint16x16
 func (from Float64x4) AsUint16x16() (to Uint16x16)
@@ -8834,11 +8837,11 @@ func (from Float64x4) AsUint32x8() (to Uint32x8)
 // Uint64x4 converts from Float64x4 to Uint64x4
 func (from Float64x4) AsUint64x4() (to Uint64x4)
 
-// Uint8x32 converts from Float64x4 to Uint8x32
-func (from Float64x4) AsUint8x32() (to Uint8x32)
-
 // Float32x16 converts from Float64x8 to Float32x16
 func (from Float64x8) AsFloat32x16() (to Float32x16)
+
+// Int8x64 converts from Float64x8 to Int8x64
+func (from Float64x8) AsInt8x64() (to Int8x64)
 
 // Int16x32 converts from Float64x8 to Int16x32
 func (from Float64x8) AsInt16x32() (to Int16x32)
@@ -8849,8 +8852,8 @@ func (from Float64x8) AsInt32x16() (to Int32x16)
 // Int64x8 converts from Float64x8 to Int64x8
 func (from Float64x8) AsInt64x8() (to Int64x8)
 
-// Int8x64 converts from Float64x8 to Int8x64
-func (from Float64x8) AsInt8x64() (to Int8x64)
+// Uint8x64 converts from Float64x8 to Uint8x64
+func (from Float64x8) AsUint8x64() (to Uint8x64)
 
 // Uint16x32 converts from Float64x8 to Uint16x32
 func (from Float64x8) AsUint16x32() (to Uint16x32)
@@ -8860,252 +8863,6 @@ func (from Float64x8) AsUint32x16() (to Uint32x16)
 
 // Uint64x8 converts from Float64x8 to Uint64x8
 func (from Float64x8) AsUint64x8() (to Uint64x8)
-
-// Uint8x64 converts from Float64x8 to Uint8x64
-func (from Float64x8) AsUint8x64() (to Uint8x64)
-
-// Float32x8 converts from Int16x16 to Float32x8
-func (from Int16x16) AsFloat32x8() (to Float32x8)
-
-// Float64x4 converts from Int16x16 to Float64x4
-func (from Int16x16) AsFloat64x4() (to Float64x4)
-
-// Int32x8 converts from Int16x16 to Int32x8
-func (from Int16x16) AsInt32x8() (to Int32x8)
-
-// Int64x4 converts from Int16x16 to Int64x4
-func (from Int16x16) AsInt64x4() (to Int64x4)
-
-// Int8x32 converts from Int16x16 to Int8x32
-func (from Int16x16) AsInt8x32() (to Int8x32)
-
-// Uint16x16 converts from Int16x16 to Uint16x16
-func (from Int16x16) AsUint16x16() (to Uint16x16)
-
-// Uint32x8 converts from Int16x16 to Uint32x8
-func (from Int16x16) AsUint32x8() (to Uint32x8)
-
-// Uint64x4 converts from Int16x16 to Uint64x4
-func (from Int16x16) AsUint64x4() (to Uint64x4)
-
-// Uint8x32 converts from Int16x16 to Uint8x32
-func (from Int16x16) AsUint8x32() (to Uint8x32)
-
-// Float32x16 converts from Int16x32 to Float32x16
-func (from Int16x32) AsFloat32x16() (to Float32x16)
-
-// Float64x8 converts from Int16x32 to Float64x8
-func (from Int16x32) AsFloat64x8() (to Float64x8)
-
-// Int32x16 converts from Int16x32 to Int32x16
-func (from Int16x32) AsInt32x16() (to Int32x16)
-
-// Int64x8 converts from Int16x32 to Int64x8
-func (from Int16x32) AsInt64x8() (to Int64x8)
-
-// Int8x64 converts from Int16x32 to Int8x64
-func (from Int16x32) AsInt8x64() (to Int8x64)
-
-// Uint16x32 converts from Int16x32 to Uint16x32
-func (from Int16x32) AsUint16x32() (to Uint16x32)
-
-// Uint32x16 converts from Int16x32 to Uint32x16
-func (from Int16x32) AsUint32x16() (to Uint32x16)
-
-// Uint64x8 converts from Int16x32 to Uint64x8
-func (from Int16x32) AsUint64x8() (to Uint64x8)
-
-// Uint8x64 converts from Int16x32 to Uint8x64
-func (from Int16x32) AsUint8x64() (to Uint8x64)
-
-// Float32x4 converts from Int16x8 to Float32x4
-func (from Int16x8) AsFloat32x4() (to Float32x4)
-
-// Float64x2 converts from Int16x8 to Float64x2
-func (from Int16x8) AsFloat64x2() (to Float64x2)
-
-// Int32x4 converts from Int16x8 to Int32x4
-func (from Int16x8) AsInt32x4() (to Int32x4)
-
-// Int64x2 converts from Int16x8 to Int64x2
-func (from Int16x8) AsInt64x2() (to Int64x2)
-
-// Int8x16 converts from Int16x8 to Int8x16
-func (from Int16x8) AsInt8x16() (to Int8x16)
-
-// Uint16x8 converts from Int16x8 to Uint16x8
-func (from Int16x8) AsUint16x8() (to Uint16x8)
-
-// Uint32x4 converts from Int16x8 to Uint32x4
-func (from Int16x8) AsUint32x4() (to Uint32x4)
-
-// Uint64x2 converts from Int16x8 to Uint64x2
-func (from Int16x8) AsUint64x2() (to Uint64x2)
-
-// Uint8x16 converts from Int16x8 to Uint8x16
-func (from Int16x8) AsUint8x16() (to Uint8x16)
-
-// Float32x16 converts from Int32x16 to Float32x16
-func (from Int32x16) AsFloat32x16() (to Float32x16)
-
-// Float64x8 converts from Int32x16 to Float64x8
-func (from Int32x16) AsFloat64x8() (to Float64x8)
-
-// Int16x32 converts from Int32x16 to Int16x32
-func (from Int32x16) AsInt16x32() (to Int16x32)
-
-// Int64x8 converts from Int32x16 to Int64x8
-func (from Int32x16) AsInt64x8() (to Int64x8)
-
-// Int8x64 converts from Int32x16 to Int8x64
-func (from Int32x16) AsInt8x64() (to Int8x64)
-
-// Uint16x32 converts from Int32x16 to Uint16x32
-func (from Int32x16) AsUint16x32() (to Uint16x32)
-
-// Uint32x16 converts from Int32x16 to Uint32x16
-func (from Int32x16) AsUint32x16() (to Uint32x16)
-
-// Uint64x8 converts from Int32x16 to Uint64x8
-func (from Int32x16) AsUint64x8() (to Uint64x8)
-
-// Uint8x64 converts from Int32x16 to Uint8x64
-func (from Int32x16) AsUint8x64() (to Uint8x64)
-
-// Float32x4 converts from Int32x4 to Float32x4
-func (from Int32x4) AsFloat32x4() (to Float32x4)
-
-// Float64x2 converts from Int32x4 to Float64x2
-func (from Int32x4) AsFloat64x2() (to Float64x2)
-
-// Int16x8 converts from Int32x4 to Int16x8
-func (from Int32x4) AsInt16x8() (to Int16x8)
-
-// Int64x2 converts from Int32x4 to Int64x2
-func (from Int32x4) AsInt64x2() (to Int64x2)
-
-// Int8x16 converts from Int32x4 to Int8x16
-func (from Int32x4) AsInt8x16() (to Int8x16)
-
-// Uint16x8 converts from Int32x4 to Uint16x8
-func (from Int32x4) AsUint16x8() (to Uint16x8)
-
-// Uint32x4 converts from Int32x4 to Uint32x4
-func (from Int32x4) AsUint32x4() (to Uint32x4)
-
-// Uint64x2 converts from Int32x4 to Uint64x2
-func (from Int32x4) AsUint64x2() (to Uint64x2)
-
-// Uint8x16 converts from Int32x4 to Uint8x16
-func (from Int32x4) AsUint8x16() (to Uint8x16)
-
-// Float32x8 converts from Int32x8 to Float32x8
-func (from Int32x8) AsFloat32x8() (to Float32x8)
-
-// Float64x4 converts from Int32x8 to Float64x4
-func (from Int32x8) AsFloat64x4() (to Float64x4)
-
-// Int16x16 converts from Int32x8 to Int16x16
-func (from Int32x8) AsInt16x16() (to Int16x16)
-
-// Int64x4 converts from Int32x8 to Int64x4
-func (from Int32x8) AsInt64x4() (to Int64x4)
-
-// Int8x32 converts from Int32x8 to Int8x32
-func (from Int32x8) AsInt8x32() (to Int8x32)
-
-// Uint16x16 converts from Int32x8 to Uint16x16
-func (from Int32x8) AsUint16x16() (to Uint16x16)
-
-// Uint32x8 converts from Int32x8 to Uint32x8
-func (from Int32x8) AsUint32x8() (to Uint32x8)
-
-// Uint64x4 converts from Int32x8 to Uint64x4
-func (from Int32x8) AsUint64x4() (to Uint64x4)
-
-// Uint8x32 converts from Int32x8 to Uint8x32
-func (from Int32x8) AsUint8x32() (to Uint8x32)
-
-// Float32x4 converts from Int64x2 to Float32x4
-func (from Int64x2) AsFloat32x4() (to Float32x4)
-
-// Float64x2 converts from Int64x2 to Float64x2
-func (from Int64x2) AsFloat64x2() (to Float64x2)
-
-// Int16x8 converts from Int64x2 to Int16x8
-func (from Int64x2) AsInt16x8() (to Int16x8)
-
-// Int32x4 converts from Int64x2 to Int32x4
-func (from Int64x2) AsInt32x4() (to Int32x4)
-
-// Int8x16 converts from Int64x2 to Int8x16
-func (from Int64x2) AsInt8x16() (to Int8x16)
-
-// Uint16x8 converts from Int64x2 to Uint16x8
-func (from Int64x2) AsUint16x8() (to Uint16x8)
-
-// Uint32x4 converts from Int64x2 to Uint32x4
-func (from Int64x2) AsUint32x4() (to Uint32x4)
-
-// Uint64x2 converts from Int64x2 to Uint64x2
-func (from Int64x2) AsUint64x2() (to Uint64x2)
-
-// Uint8x16 converts from Int64x2 to Uint8x16
-func (from Int64x2) AsUint8x16() (to Uint8x16)
-
-// Float32x8 converts from Int64x4 to Float32x8
-func (from Int64x4) AsFloat32x8() (to Float32x8)
-
-// Float64x4 converts from Int64x4 to Float64x4
-func (from Int64x4) AsFloat64x4() (to Float64x4)
-
-// Int16x16 converts from Int64x4 to Int16x16
-func (from Int64x4) AsInt16x16() (to Int16x16)
-
-// Int32x8 converts from Int64x4 to Int32x8
-func (from Int64x4) AsInt32x8() (to Int32x8)
-
-// Int8x32 converts from Int64x4 to Int8x32
-func (from Int64x4) AsInt8x32() (to Int8x32)
-
-// Uint16x16 converts from Int64x4 to Uint16x16
-func (from Int64x4) AsUint16x16() (to Uint16x16)
-
-// Uint32x8 converts from Int64x4 to Uint32x8
-func (from Int64x4) AsUint32x8() (to Uint32x8)
-
-// Uint64x4 converts from Int64x4 to Uint64x4
-func (from Int64x4) AsUint64x4() (to Uint64x4)
-
-// Uint8x32 converts from Int64x4 to Uint8x32
-func (from Int64x4) AsUint8x32() (to Uint8x32)
-
-// Float32x16 converts from Int64x8 to Float32x16
-func (from Int64x8) AsFloat32x16() (to Float32x16)
-
-// Float64x8 converts from Int64x8 to Float64x8
-func (from Int64x8) AsFloat64x8() (to Float64x8)
-
-// Int16x32 converts from Int64x8 to Int16x32
-func (from Int64x8) AsInt16x32() (to Int16x32)
-
-// Int32x16 converts from Int64x8 to Int32x16
-func (from Int64x8) AsInt32x16() (to Int32x16)
-
-// Int8x64 converts from Int64x8 to Int8x64
-func (from Int64x8) AsInt8x64() (to Int8x64)
-
-// Uint16x32 converts from Int64x8 to Uint16x32
-func (from Int64x8) AsUint16x32() (to Uint16x32)
-
-// Uint32x16 converts from Int64x8 to Uint32x16
-func (from Int64x8) AsUint32x16() (to Uint32x16)
-
-// Uint64x8 converts from Int64x8 to Uint64x8
-func (from Int64x8) AsUint64x8() (to Uint64x8)
-
-// Uint8x64 converts from Int64x8 to Uint8x64
-func (from Int64x8) AsUint8x64() (to Uint8x64)
 
 // Float32x4 converts from Int8x16 to Float32x4
 func (from Int8x16) AsFloat32x4() (to Float32x4)
@@ -9122,6 +8879,9 @@ func (from Int8x16) AsInt32x4() (to Int32x4)
 // Int64x2 converts from Int8x16 to Int64x2
 func (from Int8x16) AsInt64x2() (to Int64x2)
 
+// Uint8x16 converts from Int8x16 to Uint8x16
+func (from Int8x16) AsUint8x16() (to Uint8x16)
+
 // Uint16x8 converts from Int8x16 to Uint16x8
 func (from Int8x16) AsUint16x8() (to Uint16x8)
 
@@ -9130,9 +8890,6 @@ func (from Int8x16) AsUint32x4() (to Uint32x4)
 
 // Uint64x2 converts from Int8x16 to Uint64x2
 func (from Int8x16) AsUint64x2() (to Uint64x2)
-
-// Uint8x16 converts from Int8x16 to Uint8x16
-func (from Int8x16) AsUint8x16() (to Uint8x16)
 
 // Float32x8 converts from Int8x32 to Float32x8
 func (from Int8x32) AsFloat32x8() (to Float32x8)
@@ -9149,6 +8906,9 @@ func (from Int8x32) AsInt32x8() (to Int32x8)
 // Int64x4 converts from Int8x32 to Int64x4
 func (from Int8x32) AsInt64x4() (to Int64x4)
 
+// Uint8x32 converts from Int8x32 to Uint8x32
+func (from Int8x32) AsUint8x32() (to Uint8x32)
+
 // Uint16x16 converts from Int8x32 to Uint16x16
 func (from Int8x32) AsUint16x16() (to Uint16x16)
 
@@ -9157,9 +8917,6 @@ func (from Int8x32) AsUint32x8() (to Uint32x8)
 
 // Uint64x4 converts from Int8x32 to Uint64x4
 func (from Int8x32) AsUint64x4() (to Uint64x4)
-
-// Uint8x32 converts from Int8x32 to Uint8x32
-func (from Int8x32) AsUint8x32() (to Uint8x32)
 
 // Float32x16 converts from Int8x64 to Float32x16
 func (from Int8x64) AsFloat32x16() (to Float32x16)
@@ -9176,6 +8933,9 @@ func (from Int8x64) AsInt32x16() (to Int32x16)
 // Int64x8 converts from Int8x64 to Int64x8
 func (from Int8x64) AsInt64x8() (to Int64x8)
 
+// Uint8x64 converts from Int8x64 to Uint8x64
+func (from Int8x64) AsUint8x64() (to Uint8x64)
+
 // Uint16x32 converts from Int8x64 to Uint16x32
 func (from Int8x64) AsUint16x32() (to Uint16x32)
 
@@ -9185,257 +8945,257 @@ func (from Int8x64) AsUint32x16() (to Uint32x16)
 // Uint64x8 converts from Int8x64 to Uint64x8
 func (from Int8x64) AsUint64x8() (to Uint64x8)
 
-// Uint8x64 converts from Int8x64 to Uint8x64
-func (from Int8x64) AsUint8x64() (to Uint8x64)
+// Float32x4 converts from Int16x8 to Float32x4
+func (from Int16x8) AsFloat32x4() (to Float32x4)
 
-// Float32x8 converts from Uint16x16 to Float32x8
-func (from Uint16x16) AsFloat32x8() (to Float32x8)
+// Float64x2 converts from Int16x8 to Float64x2
+func (from Int16x8) AsFloat64x2() (to Float64x2)
 
-// Float64x4 converts from Uint16x16 to Float64x4
-func (from Uint16x16) AsFloat64x4() (to Float64x4)
+// Int8x16 converts from Int16x8 to Int8x16
+func (from Int16x8) AsInt8x16() (to Int8x16)
 
-// Int16x16 converts from Uint16x16 to Int16x16
-func (from Uint16x16) AsInt16x16() (to Int16x16)
+// Int32x4 converts from Int16x8 to Int32x4
+func (from Int16x8) AsInt32x4() (to Int32x4)
 
-// Int32x8 converts from Uint16x16 to Int32x8
-func (from Uint16x16) AsInt32x8() (to Int32x8)
+// Int64x2 converts from Int16x8 to Int64x2
+func (from Int16x8) AsInt64x2() (to Int64x2)
 
-// Int64x4 converts from Uint16x16 to Int64x4
-func (from Uint16x16) AsInt64x4() (to Int64x4)
+// Uint8x16 converts from Int16x8 to Uint8x16
+func (from Int16x8) AsUint8x16() (to Uint8x16)
 
-// Int8x32 converts from Uint16x16 to Int8x32
-func (from Uint16x16) AsInt8x32() (to Int8x32)
+// Uint16x8 converts from Int16x8 to Uint16x8
+func (from Int16x8) AsUint16x8() (to Uint16x8)
 
-// Uint32x8 converts from Uint16x16 to Uint32x8
-func (from Uint16x16) AsUint32x8() (to Uint32x8)
+// Uint32x4 converts from Int16x8 to Uint32x4
+func (from Int16x8) AsUint32x4() (to Uint32x4)
 
-// Uint64x4 converts from Uint16x16 to Uint64x4
-func (from Uint16x16) AsUint64x4() (to Uint64x4)
+// Uint64x2 converts from Int16x8 to Uint64x2
+func (from Int16x8) AsUint64x2() (to Uint64x2)
 
-// Uint8x32 converts from Uint16x16 to Uint8x32
-func (from Uint16x16) AsUint8x32() (to Uint8x32)
+// Float32x8 converts from Int16x16 to Float32x8
+func (from Int16x16) AsFloat32x8() (to Float32x8)
 
-// Float32x16 converts from Uint16x32 to Float32x16
-func (from Uint16x32) AsFloat32x16() (to Float32x16)
+// Float64x4 converts from Int16x16 to Float64x4
+func (from Int16x16) AsFloat64x4() (to Float64x4)
 
-// Float64x8 converts from Uint16x32 to Float64x8
-func (from Uint16x32) AsFloat64x8() (to Float64x8)
+// Int8x32 converts from Int16x16 to Int8x32
+func (from Int16x16) AsInt8x32() (to Int8x32)
 
-// Int16x32 converts from Uint16x32 to Int16x32
-func (from Uint16x32) AsInt16x32() (to Int16x32)
+// Int32x8 converts from Int16x16 to Int32x8
+func (from Int16x16) AsInt32x8() (to Int32x8)
 
-// Int32x16 converts from Uint16x32 to Int32x16
-func (from Uint16x32) AsInt32x16() (to Int32x16)
+// Int64x4 converts from Int16x16 to Int64x4
+func (from Int16x16) AsInt64x4() (to Int64x4)
 
-// Int64x8 converts from Uint16x32 to Int64x8
-func (from Uint16x32) AsInt64x8() (to Int64x8)
+// Uint8x32 converts from Int16x16 to Uint8x32
+func (from Int16x16) AsUint8x32() (to Uint8x32)
 
-// Int8x64 converts from Uint16x32 to Int8x64
-func (from Uint16x32) AsInt8x64() (to Int8x64)
+// Uint16x16 converts from Int16x16 to Uint16x16
+func (from Int16x16) AsUint16x16() (to Uint16x16)
 
-// Uint32x16 converts from Uint16x32 to Uint32x16
-func (from Uint16x32) AsUint32x16() (to Uint32x16)
+// Uint32x8 converts from Int16x16 to Uint32x8
+func (from Int16x16) AsUint32x8() (to Uint32x8)
 
-// Uint64x8 converts from Uint16x32 to Uint64x8
-func (from Uint16x32) AsUint64x8() (to Uint64x8)
+// Uint64x4 converts from Int16x16 to Uint64x4
+func (from Int16x16) AsUint64x4() (to Uint64x4)
 
-// Uint8x64 converts from Uint16x32 to Uint8x64
-func (from Uint16x32) AsUint8x64() (to Uint8x64)
+// Float32x16 converts from Int16x32 to Float32x16
+func (from Int16x32) AsFloat32x16() (to Float32x16)
 
-// Float32x4 converts from Uint16x8 to Float32x4
-func (from Uint16x8) AsFloat32x4() (to Float32x4)
+// Float64x8 converts from Int16x32 to Float64x8
+func (from Int16x32) AsFloat64x8() (to Float64x8)
 
-// Float64x2 converts from Uint16x8 to Float64x2
-func (from Uint16x8) AsFloat64x2() (to Float64x2)
+// Int8x64 converts from Int16x32 to Int8x64
+func (from Int16x32) AsInt8x64() (to Int8x64)
 
-// Int16x8 converts from Uint16x8 to Int16x8
-func (from Uint16x8) AsInt16x8() (to Int16x8)
+// Int32x16 converts from Int16x32 to Int32x16
+func (from Int16x32) AsInt32x16() (to Int32x16)
 
-// Int32x4 converts from Uint16x8 to Int32x4
-func (from Uint16x8) AsInt32x4() (to Int32x4)
+// Int64x8 converts from Int16x32 to Int64x8
+func (from Int16x32) AsInt64x8() (to Int64x8)
 
-// Int64x2 converts from Uint16x8 to Int64x2
-func (from Uint16x8) AsInt64x2() (to Int64x2)
+// Uint8x64 converts from Int16x32 to Uint8x64
+func (from Int16x32) AsUint8x64() (to Uint8x64)
 
-// Int8x16 converts from Uint16x8 to Int8x16
-func (from Uint16x8) AsInt8x16() (to Int8x16)
+// Uint16x32 converts from Int16x32 to Uint16x32
+func (from Int16x32) AsUint16x32() (to Uint16x32)
 
-// Uint32x4 converts from Uint16x8 to Uint32x4
-func (from Uint16x8) AsUint32x4() (to Uint32x4)
+// Uint32x16 converts from Int16x32 to Uint32x16
+func (from Int16x32) AsUint32x16() (to Uint32x16)
 
-// Uint64x2 converts from Uint16x8 to Uint64x2
-func (from Uint16x8) AsUint64x2() (to Uint64x2)
+// Uint64x8 converts from Int16x32 to Uint64x8
+func (from Int16x32) AsUint64x8() (to Uint64x8)
 
-// Uint8x16 converts from Uint16x8 to Uint8x16
-func (from Uint16x8) AsUint8x16() (to Uint8x16)
+// Float32x4 converts from Int32x4 to Float32x4
+func (from Int32x4) AsFloat32x4() (to Float32x4)
 
-// Float32x16 converts from Uint32x16 to Float32x16
-func (from Uint32x16) AsFloat32x16() (to Float32x16)
+// Float64x2 converts from Int32x4 to Float64x2
+func (from Int32x4) AsFloat64x2() (to Float64x2)
 
-// Float64x8 converts from Uint32x16 to Float64x8
-func (from Uint32x16) AsFloat64x8() (to Float64x8)
+// Int8x16 converts from Int32x4 to Int8x16
+func (from Int32x4) AsInt8x16() (to Int8x16)
 
-// Int16x32 converts from Uint32x16 to Int16x32
-func (from Uint32x16) AsInt16x32() (to Int16x32)
+// Int16x8 converts from Int32x4 to Int16x8
+func (from Int32x4) AsInt16x8() (to Int16x8)
 
-// Int32x16 converts from Uint32x16 to Int32x16
-func (from Uint32x16) AsInt32x16() (to Int32x16)
+// Int64x2 converts from Int32x4 to Int64x2
+func (from Int32x4) AsInt64x2() (to Int64x2)
 
-// Int64x8 converts from Uint32x16 to Int64x8
-func (from Uint32x16) AsInt64x8() (to Int64x8)
+// Uint8x16 converts from Int32x4 to Uint8x16
+func (from Int32x4) AsUint8x16() (to Uint8x16)
 
-// Int8x64 converts from Uint32x16 to Int8x64
-func (from Uint32x16) AsInt8x64() (to Int8x64)
+// Uint16x8 converts from Int32x4 to Uint16x8
+func (from Int32x4) AsUint16x8() (to Uint16x8)
 
-// Uint16x32 converts from Uint32x16 to Uint16x32
-func (from Uint32x16) AsUint16x32() (to Uint16x32)
+// Uint32x4 converts from Int32x4 to Uint32x4
+func (from Int32x4) AsUint32x4() (to Uint32x4)
 
-// Uint64x8 converts from Uint32x16 to Uint64x8
-func (from Uint32x16) AsUint64x8() (to Uint64x8)
+// Uint64x2 converts from Int32x4 to Uint64x2
+func (from Int32x4) AsUint64x2() (to Uint64x2)
 
-// Uint8x64 converts from Uint32x16 to Uint8x64
-func (from Uint32x16) AsUint8x64() (to Uint8x64)
+// Float32x8 converts from Int32x8 to Float32x8
+func (from Int32x8) AsFloat32x8() (to Float32x8)
 
-// Float32x4 converts from Uint32x4 to Float32x4
-func (from Uint32x4) AsFloat32x4() (to Float32x4)
+// Float64x4 converts from Int32x8 to Float64x4
+func (from Int32x8) AsFloat64x4() (to Float64x4)
 
-// Float64x2 converts from Uint32x4 to Float64x2
-func (from Uint32x4) AsFloat64x2() (to Float64x2)
+// Int8x32 converts from Int32x8 to Int8x32
+func (from Int32x8) AsInt8x32() (to Int8x32)
 
-// Int16x8 converts from Uint32x4 to Int16x8
-func (from Uint32x4) AsInt16x8() (to Int16x8)
+// Int16x16 converts from Int32x8 to Int16x16
+func (from Int32x8) AsInt16x16() (to Int16x16)
 
-// Int32x4 converts from Uint32x4 to Int32x4
-func (from Uint32x4) AsInt32x4() (to Int32x4)
+// Int64x4 converts from Int32x8 to Int64x4
+func (from Int32x8) AsInt64x4() (to Int64x4)
 
-// Int64x2 converts from Uint32x4 to Int64x2
-func (from Uint32x4) AsInt64x2() (to Int64x2)
+// Uint8x32 converts from Int32x8 to Uint8x32
+func (from Int32x8) AsUint8x32() (to Uint8x32)
 
-// Int8x16 converts from Uint32x4 to Int8x16
-func (from Uint32x4) AsInt8x16() (to Int8x16)
+// Uint16x16 converts from Int32x8 to Uint16x16
+func (from Int32x8) AsUint16x16() (to Uint16x16)
 
-// Uint16x8 converts from Uint32x4 to Uint16x8
-func (from Uint32x4) AsUint16x8() (to Uint16x8)
+// Uint32x8 converts from Int32x8 to Uint32x8
+func (from Int32x8) AsUint32x8() (to Uint32x8)
 
-// Uint64x2 converts from Uint32x4 to Uint64x2
-func (from Uint32x4) AsUint64x2() (to Uint64x2)
+// Uint64x4 converts from Int32x8 to Uint64x4
+func (from Int32x8) AsUint64x4() (to Uint64x4)
 
-// Uint8x16 converts from Uint32x4 to Uint8x16
-func (from Uint32x4) AsUint8x16() (to Uint8x16)
+// Float32x16 converts from Int32x16 to Float32x16
+func (from Int32x16) AsFloat32x16() (to Float32x16)
 
-// Float32x8 converts from Uint32x8 to Float32x8
-func (from Uint32x8) AsFloat32x8() (to Float32x8)
+// Float64x8 converts from Int32x16 to Float64x8
+func (from Int32x16) AsFloat64x8() (to Float64x8)
 
-// Float64x4 converts from Uint32x8 to Float64x4
-func (from Uint32x8) AsFloat64x4() (to Float64x4)
+// Int8x64 converts from Int32x16 to Int8x64
+func (from Int32x16) AsInt8x64() (to Int8x64)
 
-// Int16x16 converts from Uint32x8 to Int16x16
-func (from Uint32x8) AsInt16x16() (to Int16x16)
+// Int16x32 converts from Int32x16 to Int16x32
+func (from Int32x16) AsInt16x32() (to Int16x32)
 
-// Int32x8 converts from Uint32x8 to Int32x8
-func (from Uint32x8) AsInt32x8() (to Int32x8)
+// Int64x8 converts from Int32x16 to Int64x8
+func (from Int32x16) AsInt64x8() (to Int64x8)
 
-// Int64x4 converts from Uint32x8 to Int64x4
-func (from Uint32x8) AsInt64x4() (to Int64x4)
+// Uint8x64 converts from Int32x16 to Uint8x64
+func (from Int32x16) AsUint8x64() (to Uint8x64)
 
-// Int8x32 converts from Uint32x8 to Int8x32
-func (from Uint32x8) AsInt8x32() (to Int8x32)
+// Uint16x32 converts from Int32x16 to Uint16x32
+func (from Int32x16) AsUint16x32() (to Uint16x32)
 
-// Uint16x16 converts from Uint32x8 to Uint16x16
-func (from Uint32x8) AsUint16x16() (to Uint16x16)
+// Uint32x16 converts from Int32x16 to Uint32x16
+func (from Int32x16) AsUint32x16() (to Uint32x16)
 
-// Uint64x4 converts from Uint32x8 to Uint64x4
-func (from Uint32x8) AsUint64x4() (to Uint64x4)
+// Uint64x8 converts from Int32x16 to Uint64x8
+func (from Int32x16) AsUint64x8() (to Uint64x8)
 
-// Uint8x32 converts from Uint32x8 to Uint8x32
-func (from Uint32x8) AsUint8x32() (to Uint8x32)
+// Float32x4 converts from Int64x2 to Float32x4
+func (from Int64x2) AsFloat32x4() (to Float32x4)
 
-// Float32x4 converts from Uint64x2 to Float32x4
-func (from Uint64x2) AsFloat32x4() (to Float32x4)
+// Float64x2 converts from Int64x2 to Float64x2
+func (from Int64x2) AsFloat64x2() (to Float64x2)
 
-// Float64x2 converts from Uint64x2 to Float64x2
-func (from Uint64x2) AsFloat64x2() (to Float64x2)
+// Int8x16 converts from Int64x2 to Int8x16
+func (from Int64x2) AsInt8x16() (to Int8x16)
 
-// Int16x8 converts from Uint64x2 to Int16x8
-func (from Uint64x2) AsInt16x8() (to Int16x8)
+// Int16x8 converts from Int64x2 to Int16x8
+func (from Int64x2) AsInt16x8() (to Int16x8)
 
-// Int32x4 converts from Uint64x2 to Int32x4
-func (from Uint64x2) AsInt32x4() (to Int32x4)
+// Int32x4 converts from Int64x2 to Int32x4
+func (from Int64x2) AsInt32x4() (to Int32x4)
 
-// Int64x2 converts from Uint64x2 to Int64x2
-func (from Uint64x2) AsInt64x2() (to Int64x2)
+// Uint8x16 converts from Int64x2 to Uint8x16
+func (from Int64x2) AsUint8x16() (to Uint8x16)
 
-// Int8x16 converts from Uint64x2 to Int8x16
-func (from Uint64x2) AsInt8x16() (to Int8x16)
+// Uint16x8 converts from Int64x2 to Uint16x8
+func (from Int64x2) AsUint16x8() (to Uint16x8)
 
-// Uint16x8 converts from Uint64x2 to Uint16x8
-func (from Uint64x2) AsUint16x8() (to Uint16x8)
+// Uint32x4 converts from Int64x2 to Uint32x4
+func (from Int64x2) AsUint32x4() (to Uint32x4)
 
-// Uint32x4 converts from Uint64x2 to Uint32x4
-func (from Uint64x2) AsUint32x4() (to Uint32x4)
+// Uint64x2 converts from Int64x2 to Uint64x2
+func (from Int64x2) AsUint64x2() (to Uint64x2)
 
-// Uint8x16 converts from Uint64x2 to Uint8x16
-func (from Uint64x2) AsUint8x16() (to Uint8x16)
+// Float32x8 converts from Int64x4 to Float32x8
+func (from Int64x4) AsFloat32x8() (to Float32x8)
 
-// Float32x8 converts from Uint64x4 to Float32x8
-func (from Uint64x4) AsFloat32x8() (to Float32x8)
+// Float64x4 converts from Int64x4 to Float64x4
+func (from Int64x4) AsFloat64x4() (to Float64x4)
 
-// Float64x4 converts from Uint64x4 to Float64x4
-func (from Uint64x4) AsFloat64x4() (to Float64x4)
+// Int8x32 converts from Int64x4 to Int8x32
+func (from Int64x4) AsInt8x32() (to Int8x32)
 
-// Int16x16 converts from Uint64x4 to Int16x16
-func (from Uint64x4) AsInt16x16() (to Int16x16)
+// Int16x16 converts from Int64x4 to Int16x16
+func (from Int64x4) AsInt16x16() (to Int16x16)
 
-// Int32x8 converts from Uint64x4 to Int32x8
-func (from Uint64x4) AsInt32x8() (to Int32x8)
+// Int32x8 converts from Int64x4 to Int32x8
+func (from Int64x4) AsInt32x8() (to Int32x8)
 
-// Int64x4 converts from Uint64x4 to Int64x4
-func (from Uint64x4) AsInt64x4() (to Int64x4)
+// Uint8x32 converts from Int64x4 to Uint8x32
+func (from Int64x4) AsUint8x32() (to Uint8x32)
 
-// Int8x32 converts from Uint64x4 to Int8x32
-func (from Uint64x4) AsInt8x32() (to Int8x32)
+// Uint16x16 converts from Int64x4 to Uint16x16
+func (from Int64x4) AsUint16x16() (to Uint16x16)
 
-// Uint16x16 converts from Uint64x4 to Uint16x16
-func (from Uint64x4) AsUint16x16() (to Uint16x16)
+// Uint32x8 converts from Int64x4 to Uint32x8
+func (from Int64x4) AsUint32x8() (to Uint32x8)
 
-// Uint32x8 converts from Uint64x4 to Uint32x8
-func (from Uint64x4) AsUint32x8() (to Uint32x8)
+// Uint64x4 converts from Int64x4 to Uint64x4
+func (from Int64x4) AsUint64x4() (to Uint64x4)
 
-// Uint8x32 converts from Uint64x4 to Uint8x32
-func (from Uint64x4) AsUint8x32() (to Uint8x32)
+// Float32x16 converts from Int64x8 to Float32x16
+func (from Int64x8) AsFloat32x16() (to Float32x16)
 
-// Float32x16 converts from Uint64x8 to Float32x16
-func (from Uint64x8) AsFloat32x16() (to Float32x16)
+// Float64x8 converts from Int64x8 to Float64x8
+func (from Int64x8) AsFloat64x8() (to Float64x8)
 
-// Float64x8 converts from Uint64x8 to Float64x8
-func (from Uint64x8) AsFloat64x8() (to Float64x8)
+// Int8x64 converts from Int64x8 to Int8x64
+func (from Int64x8) AsInt8x64() (to Int8x64)
 
-// Int16x32 converts from Uint64x8 to Int16x32
-func (from Uint64x8) AsInt16x32() (to Int16x32)
+// Int16x32 converts from Int64x8 to Int16x32
+func (from Int64x8) AsInt16x32() (to Int16x32)
 
-// Int32x16 converts from Uint64x8 to Int32x16
-func (from Uint64x8) AsInt32x16() (to Int32x16)
+// Int32x16 converts from Int64x8 to Int32x16
+func (from Int64x8) AsInt32x16() (to Int32x16)
 
-// Int64x8 converts from Uint64x8 to Int64x8
-func (from Uint64x8) AsInt64x8() (to Int64x8)
+// Uint8x64 converts from Int64x8 to Uint8x64
+func (from Int64x8) AsUint8x64() (to Uint8x64)
 
-// Int8x64 converts from Uint64x8 to Int8x64
-func (from Uint64x8) AsInt8x64() (to Int8x64)
+// Uint16x32 converts from Int64x8 to Uint16x32
+func (from Int64x8) AsUint16x32() (to Uint16x32)
 
-// Uint16x32 converts from Uint64x8 to Uint16x32
-func (from Uint64x8) AsUint16x32() (to Uint16x32)
+// Uint32x16 converts from Int64x8 to Uint32x16
+func (from Int64x8) AsUint32x16() (to Uint32x16)
 
-// Uint32x16 converts from Uint64x8 to Uint32x16
-func (from Uint64x8) AsUint32x16() (to Uint32x16)
-
-// Uint8x64 converts from Uint64x8 to Uint8x64
-func (from Uint64x8) AsUint8x64() (to Uint8x64)
+// Uint64x8 converts from Int64x8 to Uint64x8
+func (from Int64x8) AsUint64x8() (to Uint64x8)
 
 // Float32x4 converts from Uint8x16 to Float32x4
 func (from Uint8x16) AsFloat32x4() (to Float32x4)
 
 // Float64x2 converts from Uint8x16 to Float64x2
 func (from Uint8x16) AsFloat64x2() (to Float64x2)
+
+// Int8x16 converts from Uint8x16 to Int8x16
+func (from Uint8x16) AsInt8x16() (to Int8x16)
 
 // Int16x8 converts from Uint8x16 to Int16x8
 func (from Uint8x16) AsInt16x8() (to Int16x8)
@@ -9445,9 +9205,6 @@ func (from Uint8x16) AsInt32x4() (to Int32x4)
 
 // Int64x2 converts from Uint8x16 to Int64x2
 func (from Uint8x16) AsInt64x2() (to Int64x2)
-
-// Int8x16 converts from Uint8x16 to Int8x16
-func (from Uint8x16) AsInt8x16() (to Int8x16)
 
 // Uint16x8 converts from Uint8x16 to Uint16x8
 func (from Uint8x16) AsUint16x8() (to Uint16x8)
@@ -9464,6 +9221,9 @@ func (from Uint8x32) AsFloat32x8() (to Float32x8)
 // Float64x4 converts from Uint8x32 to Float64x4
 func (from Uint8x32) AsFloat64x4() (to Float64x4)
 
+// Int8x32 converts from Uint8x32 to Int8x32
+func (from Uint8x32) AsInt8x32() (to Int8x32)
+
 // Int16x16 converts from Uint8x32 to Int16x16
 func (from Uint8x32) AsInt16x16() (to Int16x16)
 
@@ -9472,9 +9232,6 @@ func (from Uint8x32) AsInt32x8() (to Int32x8)
 
 // Int64x4 converts from Uint8x32 to Int64x4
 func (from Uint8x32) AsInt64x4() (to Int64x4)
-
-// Int8x32 converts from Uint8x32 to Int8x32
-func (from Uint8x32) AsInt8x32() (to Int8x32)
 
 // Uint16x16 converts from Uint8x32 to Uint16x16
 func (from Uint8x32) AsUint16x16() (to Uint16x16)
@@ -9491,6 +9248,9 @@ func (from Uint8x64) AsFloat32x16() (to Float32x16)
 // Float64x8 converts from Uint8x64 to Float64x8
 func (from Uint8x64) AsFloat64x8() (to Float64x8)
 
+// Int8x64 converts from Uint8x64 to Int8x64
+func (from Uint8x64) AsInt8x64() (to Int8x64)
+
 // Int16x32 converts from Uint8x64 to Int16x32
 func (from Uint8x64) AsInt16x32() (to Int16x32)
 
@@ -9499,9 +9259,6 @@ func (from Uint8x64) AsInt32x16() (to Int32x16)
 
 // Int64x8 converts from Uint8x64 to Int64x8
 func (from Uint8x64) AsInt64x8() (to Int64x8)
-
-// Int8x64 converts from Uint8x64 to Int8x64
-func (from Uint8x64) AsInt8x64() (to Int8x64)
 
 // Uint16x32 converts from Uint8x64 to Uint16x32
 func (from Uint8x64) AsUint16x32() (to Uint16x32)
@@ -9512,95 +9269,248 @@ func (from Uint8x64) AsUint32x16() (to Uint32x16)
 // Uint64x8 converts from Uint8x64 to Uint64x8
 func (from Uint8x64) AsUint64x8() (to Uint64x8)
 
-// converts from Mask16x16 to Int16x16
-func (from Mask16x16) AsInt16x16() (to Int16x16)
+// Float32x4 converts from Uint16x8 to Float32x4
+func (from Uint16x8) AsFloat32x4() (to Float32x4)
 
-// converts from Int16x16 to Mask16x16
-func (from Int16x16) AsMask16x16() (to Mask16x16)
+// Float64x2 converts from Uint16x8 to Float64x2
+func (from Uint16x8) AsFloat64x2() (to Float64x2)
 
-func (x Mask16x16) And(y Mask16x16) Mask16x16
+// Int8x16 converts from Uint16x8 to Int8x16
+func (from Uint16x8) AsInt8x16() (to Int8x16)
 
-func (x Mask16x16) Or(y Mask16x16) Mask16x16
+// Int16x8 converts from Uint16x8 to Int16x8
+func (from Uint16x8) AsInt16x8() (to Int16x8)
 
-// converts from Mask16x32 to Int16x32
-func (from Mask16x32) AsInt16x32() (to Int16x32)
+// Int32x4 converts from Uint16x8 to Int32x4
+func (from Uint16x8) AsInt32x4() (to Int32x4)
 
-// converts from Int16x32 to Mask16x32
-func (from Int16x32) AsMask16x32() (to Mask16x32)
+// Int64x2 converts from Uint16x8 to Int64x2
+func (from Uint16x8) AsInt64x2() (to Int64x2)
 
-func (x Mask16x32) And(y Mask16x32) Mask16x32
+// Uint8x16 converts from Uint16x8 to Uint8x16
+func (from Uint16x8) AsUint8x16() (to Uint8x16)
 
-func (x Mask16x32) Or(y Mask16x32) Mask16x32
+// Uint32x4 converts from Uint16x8 to Uint32x4
+func (from Uint16x8) AsUint32x4() (to Uint32x4)
 
-// converts from Mask16x8 to Int16x8
-func (from Mask16x8) AsInt16x8() (to Int16x8)
+// Uint64x2 converts from Uint16x8 to Uint64x2
+func (from Uint16x8) AsUint64x2() (to Uint64x2)
 
-// converts from Int16x8 to Mask16x8
-func (from Int16x8) AsMask16x8() (to Mask16x8)
+// Float32x8 converts from Uint16x16 to Float32x8
+func (from Uint16x16) AsFloat32x8() (to Float32x8)
 
-func (x Mask16x8) And(y Mask16x8) Mask16x8
+// Float64x4 converts from Uint16x16 to Float64x4
+func (from Uint16x16) AsFloat64x4() (to Float64x4)
 
-func (x Mask16x8) Or(y Mask16x8) Mask16x8
+// Int8x32 converts from Uint16x16 to Int8x32
+func (from Uint16x16) AsInt8x32() (to Int8x32)
 
-// converts from Mask32x16 to Int32x16
-func (from Mask32x16) AsInt32x16() (to Int32x16)
+// Int16x16 converts from Uint16x16 to Int16x16
+func (from Uint16x16) AsInt16x16() (to Int16x16)
 
-// converts from Int32x16 to Mask32x16
-func (from Int32x16) AsMask32x16() (to Mask32x16)
+// Int32x8 converts from Uint16x16 to Int32x8
+func (from Uint16x16) AsInt32x8() (to Int32x8)
 
-func (x Mask32x16) And(y Mask32x16) Mask32x16
+// Int64x4 converts from Uint16x16 to Int64x4
+func (from Uint16x16) AsInt64x4() (to Int64x4)
 
-func (x Mask32x16) Or(y Mask32x16) Mask32x16
+// Uint8x32 converts from Uint16x16 to Uint8x32
+func (from Uint16x16) AsUint8x32() (to Uint8x32)
 
-// converts from Mask32x4 to Int32x4
-func (from Mask32x4) AsInt32x4() (to Int32x4)
+// Uint32x8 converts from Uint16x16 to Uint32x8
+func (from Uint16x16) AsUint32x8() (to Uint32x8)
 
-// converts from Int32x4 to Mask32x4
-func (from Int32x4) AsMask32x4() (to Mask32x4)
+// Uint64x4 converts from Uint16x16 to Uint64x4
+func (from Uint16x16) AsUint64x4() (to Uint64x4)
 
-func (x Mask32x4) And(y Mask32x4) Mask32x4
+// Float32x16 converts from Uint16x32 to Float32x16
+func (from Uint16x32) AsFloat32x16() (to Float32x16)
 
-func (x Mask32x4) Or(y Mask32x4) Mask32x4
+// Float64x8 converts from Uint16x32 to Float64x8
+func (from Uint16x32) AsFloat64x8() (to Float64x8)
 
-// converts from Mask32x8 to Int32x8
-func (from Mask32x8) AsInt32x8() (to Int32x8)
+// Int8x64 converts from Uint16x32 to Int8x64
+func (from Uint16x32) AsInt8x64() (to Int8x64)
 
-// converts from Int32x8 to Mask32x8
-func (from Int32x8) AsMask32x8() (to Mask32x8)
+// Int16x32 converts from Uint16x32 to Int16x32
+func (from Uint16x32) AsInt16x32() (to Int16x32)
 
-func (x Mask32x8) And(y Mask32x8) Mask32x8
+// Int32x16 converts from Uint16x32 to Int32x16
+func (from Uint16x32) AsInt32x16() (to Int32x16)
 
-func (x Mask32x8) Or(y Mask32x8) Mask32x8
+// Int64x8 converts from Uint16x32 to Int64x8
+func (from Uint16x32) AsInt64x8() (to Int64x8)
 
-// converts from Mask64x2 to Int64x2
-func (from Mask64x2) AsInt64x2() (to Int64x2)
+// Uint8x64 converts from Uint16x32 to Uint8x64
+func (from Uint16x32) AsUint8x64() (to Uint8x64)
 
-// converts from Int64x2 to Mask64x2
-func (from Int64x2) AsMask64x2() (to Mask64x2)
+// Uint32x16 converts from Uint16x32 to Uint32x16
+func (from Uint16x32) AsUint32x16() (to Uint32x16)
 
-func (x Mask64x2) And(y Mask64x2) Mask64x2
+// Uint64x8 converts from Uint16x32 to Uint64x8
+func (from Uint16x32) AsUint64x8() (to Uint64x8)
 
-func (x Mask64x2) Or(y Mask64x2) Mask64x2
+// Float32x4 converts from Uint32x4 to Float32x4
+func (from Uint32x4) AsFloat32x4() (to Float32x4)
 
-// converts from Mask64x4 to Int64x4
-func (from Mask64x4) AsInt64x4() (to Int64x4)
+// Float64x2 converts from Uint32x4 to Float64x2
+func (from Uint32x4) AsFloat64x2() (to Float64x2)
 
-// converts from Int64x4 to Mask64x4
-func (from Int64x4) AsMask64x4() (to Mask64x4)
+// Int8x16 converts from Uint32x4 to Int8x16
+func (from Uint32x4) AsInt8x16() (to Int8x16)
 
-func (x Mask64x4) And(y Mask64x4) Mask64x4
+// Int16x8 converts from Uint32x4 to Int16x8
+func (from Uint32x4) AsInt16x8() (to Int16x8)
 
-func (x Mask64x4) Or(y Mask64x4) Mask64x4
+// Int32x4 converts from Uint32x4 to Int32x4
+func (from Uint32x4) AsInt32x4() (to Int32x4)
 
-// converts from Mask64x8 to Int64x8
-func (from Mask64x8) AsInt64x8() (to Int64x8)
+// Int64x2 converts from Uint32x4 to Int64x2
+func (from Uint32x4) AsInt64x2() (to Int64x2)
 
-// converts from Int64x8 to Mask64x8
-func (from Int64x8) AsMask64x8() (to Mask64x8)
+// Uint8x16 converts from Uint32x4 to Uint8x16
+func (from Uint32x4) AsUint8x16() (to Uint8x16)
 
-func (x Mask64x8) And(y Mask64x8) Mask64x8
+// Uint16x8 converts from Uint32x4 to Uint16x8
+func (from Uint32x4) AsUint16x8() (to Uint16x8)
 
-func (x Mask64x8) Or(y Mask64x8) Mask64x8
+// Uint64x2 converts from Uint32x4 to Uint64x2
+func (from Uint32x4) AsUint64x2() (to Uint64x2)
+
+// Float32x8 converts from Uint32x8 to Float32x8
+func (from Uint32x8) AsFloat32x8() (to Float32x8)
+
+// Float64x4 converts from Uint32x8 to Float64x4
+func (from Uint32x8) AsFloat64x4() (to Float64x4)
+
+// Int8x32 converts from Uint32x8 to Int8x32
+func (from Uint32x8) AsInt8x32() (to Int8x32)
+
+// Int16x16 converts from Uint32x8 to Int16x16
+func (from Uint32x8) AsInt16x16() (to Int16x16)
+
+// Int32x8 converts from Uint32x8 to Int32x8
+func (from Uint32x8) AsInt32x8() (to Int32x8)
+
+// Int64x4 converts from Uint32x8 to Int64x4
+func (from Uint32x8) AsInt64x4() (to Int64x4)
+
+// Uint8x32 converts from Uint32x8 to Uint8x32
+func (from Uint32x8) AsUint8x32() (to Uint8x32)
+
+// Uint16x16 converts from Uint32x8 to Uint16x16
+func (from Uint32x8) AsUint16x16() (to Uint16x16)
+
+// Uint64x4 converts from Uint32x8 to Uint64x4
+func (from Uint32x8) AsUint64x4() (to Uint64x4)
+
+// Float32x16 converts from Uint32x16 to Float32x16
+func (from Uint32x16) AsFloat32x16() (to Float32x16)
+
+// Float64x8 converts from Uint32x16 to Float64x8
+func (from Uint32x16) AsFloat64x8() (to Float64x8)
+
+// Int8x64 converts from Uint32x16 to Int8x64
+func (from Uint32x16) AsInt8x64() (to Int8x64)
+
+// Int16x32 converts from Uint32x16 to Int16x32
+func (from Uint32x16) AsInt16x32() (to Int16x32)
+
+// Int32x16 converts from Uint32x16 to Int32x16
+func (from Uint32x16) AsInt32x16() (to Int32x16)
+
+// Int64x8 converts from Uint32x16 to Int64x8
+func (from Uint32x16) AsInt64x8() (to Int64x8)
+
+// Uint8x64 converts from Uint32x16 to Uint8x64
+func (from Uint32x16) AsUint8x64() (to Uint8x64)
+
+// Uint16x32 converts from Uint32x16 to Uint16x32
+func (from Uint32x16) AsUint16x32() (to Uint16x32)
+
+// Uint64x8 converts from Uint32x16 to Uint64x8
+func (from Uint32x16) AsUint64x8() (to Uint64x8)
+
+// Float32x4 converts from Uint64x2 to Float32x4
+func (from Uint64x2) AsFloat32x4() (to Float32x4)
+
+// Float64x2 converts from Uint64x2 to Float64x2
+func (from Uint64x2) AsFloat64x2() (to Float64x2)
+
+// Int8x16 converts from Uint64x2 to Int8x16
+func (from Uint64x2) AsInt8x16() (to Int8x16)
+
+// Int16x8 converts from Uint64x2 to Int16x8
+func (from Uint64x2) AsInt16x8() (to Int16x8)
+
+// Int32x4 converts from Uint64x2 to Int32x4
+func (from Uint64x2) AsInt32x4() (to Int32x4)
+
+// Int64x2 converts from Uint64x2 to Int64x2
+func (from Uint64x2) AsInt64x2() (to Int64x2)
+
+// Uint8x16 converts from Uint64x2 to Uint8x16
+func (from Uint64x2) AsUint8x16() (to Uint8x16)
+
+// Uint16x8 converts from Uint64x2 to Uint16x8
+func (from Uint64x2) AsUint16x8() (to Uint16x8)
+
+// Uint32x4 converts from Uint64x2 to Uint32x4
+func (from Uint64x2) AsUint32x4() (to Uint32x4)
+
+// Float32x8 converts from Uint64x4 to Float32x8
+func (from Uint64x4) AsFloat32x8() (to Float32x8)
+
+// Float64x4 converts from Uint64x4 to Float64x4
+func (from Uint64x4) AsFloat64x4() (to Float64x4)
+
+// Int8x32 converts from Uint64x4 to Int8x32
+func (from Uint64x4) AsInt8x32() (to Int8x32)
+
+// Int16x16 converts from Uint64x4 to Int16x16
+func (from Uint64x4) AsInt16x16() (to Int16x16)
+
+// Int32x8 converts from Uint64x4 to Int32x8
+func (from Uint64x4) AsInt32x8() (to Int32x8)
+
+// Int64x4 converts from Uint64x4 to Int64x4
+func (from Uint64x4) AsInt64x4() (to Int64x4)
+
+// Uint8x32 converts from Uint64x4 to Uint8x32
+func (from Uint64x4) AsUint8x32() (to Uint8x32)
+
+// Uint16x16 converts from Uint64x4 to Uint16x16
+func (from Uint64x4) AsUint16x16() (to Uint16x16)
+
+// Uint32x8 converts from Uint64x4 to Uint32x8
+func (from Uint64x4) AsUint32x8() (to Uint32x8)
+
+// Float32x16 converts from Uint64x8 to Float32x16
+func (from Uint64x8) AsFloat32x16() (to Float32x16)
+
+// Float64x8 converts from Uint64x8 to Float64x8
+func (from Uint64x8) AsFloat64x8() (to Float64x8)
+
+// Int8x64 converts from Uint64x8 to Int8x64
+func (from Uint64x8) AsInt8x64() (to Int8x64)
+
+// Int16x32 converts from Uint64x8 to Int16x32
+func (from Uint64x8) AsInt16x32() (to Int16x32)
+
+// Int32x16 converts from Uint64x8 to Int32x16
+func (from Uint64x8) AsInt32x16() (to Int32x16)
+
+// Int64x8 converts from Uint64x8 to Int64x8
+func (from Uint64x8) AsInt64x8() (to Int64x8)
+
+// Uint8x64 converts from Uint64x8 to Uint8x64
+func (from Uint64x8) AsUint8x64() (to Uint8x64)
+
+// Uint16x32 converts from Uint64x8 to Uint16x32
+func (from Uint64x8) AsUint16x32() (to Uint16x32)
+
+// Uint32x16 converts from Uint64x8 to Uint32x16
+func (from Uint64x8) AsUint32x16() (to Uint32x16)
 
 // converts from Mask8x16 to Int8x16
 func (from Mask8x16) AsInt8x16() (to Int8x16)
@@ -9631,3 +9541,93 @@ func (from Int8x64) AsMask8x64() (to Mask8x64)
 func (x Mask8x64) And(y Mask8x64) Mask8x64
 
 func (x Mask8x64) Or(y Mask8x64) Mask8x64
+
+// converts from Mask16x8 to Int16x8
+func (from Mask16x8) AsInt16x8() (to Int16x8)
+
+// converts from Int16x8 to Mask16x8
+func (from Int16x8) AsMask16x8() (to Mask16x8)
+
+func (x Mask16x8) And(y Mask16x8) Mask16x8
+
+func (x Mask16x8) Or(y Mask16x8) Mask16x8
+
+// converts from Mask16x16 to Int16x16
+func (from Mask16x16) AsInt16x16() (to Int16x16)
+
+// converts from Int16x16 to Mask16x16
+func (from Int16x16) AsMask16x16() (to Mask16x16)
+
+func (x Mask16x16) And(y Mask16x16) Mask16x16
+
+func (x Mask16x16) Or(y Mask16x16) Mask16x16
+
+// converts from Mask16x32 to Int16x32
+func (from Mask16x32) AsInt16x32() (to Int16x32)
+
+// converts from Int16x32 to Mask16x32
+func (from Int16x32) AsMask16x32() (to Mask16x32)
+
+func (x Mask16x32) And(y Mask16x32) Mask16x32
+
+func (x Mask16x32) Or(y Mask16x32) Mask16x32
+
+// converts from Mask32x4 to Int32x4
+func (from Mask32x4) AsInt32x4() (to Int32x4)
+
+// converts from Int32x4 to Mask32x4
+func (from Int32x4) AsMask32x4() (to Mask32x4)
+
+func (x Mask32x4) And(y Mask32x4) Mask32x4
+
+func (x Mask32x4) Or(y Mask32x4) Mask32x4
+
+// converts from Mask32x8 to Int32x8
+func (from Mask32x8) AsInt32x8() (to Int32x8)
+
+// converts from Int32x8 to Mask32x8
+func (from Int32x8) AsMask32x8() (to Mask32x8)
+
+func (x Mask32x8) And(y Mask32x8) Mask32x8
+
+func (x Mask32x8) Or(y Mask32x8) Mask32x8
+
+// converts from Mask32x16 to Int32x16
+func (from Mask32x16) AsInt32x16() (to Int32x16)
+
+// converts from Int32x16 to Mask32x16
+func (from Int32x16) AsMask32x16() (to Mask32x16)
+
+func (x Mask32x16) And(y Mask32x16) Mask32x16
+
+func (x Mask32x16) Or(y Mask32x16) Mask32x16
+
+// converts from Mask64x2 to Int64x2
+func (from Mask64x2) AsInt64x2() (to Int64x2)
+
+// converts from Int64x2 to Mask64x2
+func (from Int64x2) AsMask64x2() (to Mask64x2)
+
+func (x Mask64x2) And(y Mask64x2) Mask64x2
+
+func (x Mask64x2) Or(y Mask64x2) Mask64x2
+
+// converts from Mask64x4 to Int64x4
+func (from Mask64x4) AsInt64x4() (to Int64x4)
+
+// converts from Int64x4 to Mask64x4
+func (from Int64x4) AsMask64x4() (to Mask64x4)
+
+func (x Mask64x4) And(y Mask64x4) Mask64x4
+
+func (x Mask64x4) Or(y Mask64x4) Mask64x4
+
+// converts from Mask64x8 to Int64x8
+func (from Mask64x8) AsInt64x8() (to Int64x8)
+
+// converts from Int64x8 to Mask64x8
+func (from Int64x8) AsMask64x8() (to Mask64x8)
+
+func (x Mask64x8) And(y Mask64x8) Mask64x8
+
+func (x Mask64x8) Or(y Mask64x8) Mask64x8
