@@ -2843,9 +2843,10 @@ const (
 	OpS390XLoweredRound32F
 	OpS390XLoweredRound64F
 	OpS390XLoweredWB
-	OpS390XLoweredPanicBoundsA
-	OpS390XLoweredPanicBoundsB
-	OpS390XLoweredPanicBoundsC
+	OpS390XLoweredPanicBoundsRR
+	OpS390XLoweredPanicBoundsRC
+	OpS390XLoweredPanicBoundsCR
+	OpS390XLoweredPanicBoundsCC
 	OpS390XFlagEQ
 	OpS390XFlagLT
 	OpS390XFlagGT
@@ -38525,40 +38526,45 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "LoweredPanicBoundsA",
+		name:    "LoweredPanicBoundsRR",
 		auxType: auxInt64,
 		argLen:  3,
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4}, // R2
-				{1, 8}, // R3
+				{0, 7167}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12
+				{1, 7167}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12
 			},
 		},
 	},
 	{
-		name:    "LoweredPanicBoundsB",
-		auxType: auxInt64,
-		argLen:  3,
+		name:    "LoweredPanicBoundsRC",
+		auxType: auxPanicBoundsC,
+		argLen:  2,
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 2}, // R1
-				{1, 4}, // R2
+				{0, 7167}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12
 			},
 		},
 	},
 	{
-		name:    "LoweredPanicBoundsC",
-		auxType: auxInt64,
-		argLen:  3,
+		name:    "LoweredPanicBoundsCR",
+		auxType: auxPanicBoundsC,
+		argLen:  2,
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1}, // R0
-				{1, 2}, // R1
+				{0, 7167}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12
 			},
 		},
+	},
+	{
+		name:    "LoweredPanicBoundsCC",
+		auxType: auxPanicBoundsCC,
+		argLen:  1,
+		call:    true,
+		reg:     regInfo{},
 	},
 	{
 		name:   "FlagEQ",
