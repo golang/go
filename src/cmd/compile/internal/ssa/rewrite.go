@@ -2673,3 +2673,32 @@ func flagify(v *Value) bool {
 	v.AddArg(inner)
 	return true
 }
+
+// PanicBoundsC contains a constant for a bounds failure.
+type PanicBoundsC struct {
+	C int64
+}
+
+// PanicBoundsCC contains 2 constants for a bounds failure.
+type PanicBoundsCC struct {
+	Cx int64
+	Cy int64
+}
+
+func (p PanicBoundsC) CanBeAnSSAAux() {
+}
+func (p PanicBoundsCC) CanBeAnSSAAux() {
+}
+
+func auxToPanicBoundsC(i Aux) PanicBoundsC {
+	return i.(PanicBoundsC)
+}
+func auxToPanicBoundsCC(i Aux) PanicBoundsCC {
+	return i.(PanicBoundsCC)
+}
+func panicBoundsCToAux(p PanicBoundsC) Aux {
+	return p
+}
+func panicBoundsCCToAux(p PanicBoundsCC) Aux {
+	return p
+}

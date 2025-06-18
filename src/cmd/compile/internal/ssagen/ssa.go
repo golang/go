@@ -137,6 +137,8 @@ func InitConfig() {
 	ir.Syms.Asanwrite = typecheck.LookupRuntimeFunc("asanwrite")
 	ir.Syms.Newobject = typecheck.LookupRuntimeFunc("newobject")
 	ir.Syms.Newproc = typecheck.LookupRuntimeFunc("newproc")
+	ir.Syms.PanicBounds = typecheck.LookupRuntimeFunc("panicBounds")
+	ir.Syms.PanicExtend = typecheck.LookupRuntimeFunc("panicExtend")
 	ir.Syms.Panicdivide = typecheck.LookupRuntimeFunc("panicdivide")
 	ir.Syms.PanicdottypeE = typecheck.LookupRuntimeFunc("panicdottypeE")
 	ir.Syms.PanicdottypeI = typecheck.LookupRuntimeFunc("panicdottypeI")

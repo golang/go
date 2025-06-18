@@ -225,6 +225,99 @@ func panicSlice3C(x int, y int)
 func panicSlice3CU(x uint, y int)
 func panicSliceConvert(x int, y int)
 
+func panicBounds() // in asm_GOARCH.s files, called from generated code
+func panicExtend() // in asm_GOARCH.s files, called from generated code (on 32-bit archs)
+func panicBounds64(pc uintptr, regs *[16]int64) { // called from panicBounds on 64-bit archs
+	f := findfunc(pc)
+	v := pcdatavalue(f, abi.PCDATA_PanicBounds, pc-1)
+
+	code, signed, xIsReg, yIsReg, xVal, yVal := abi.BoundsDecode(int(v))
+
+	if code == abi.BoundsIndex {
+		panicCheck1(pc, "index out of range")
+	} else {
+		panicCheck1(pc, "slice bounds out of range")
+	}
+
+	var e boundsError
+	e.code = code
+	e.signed = signed
+	if xIsReg {
+		e.x = regs[xVal]
+	} else {
+		e.x = int64(xVal)
+	}
+	if yIsReg {
+		e.y = int(regs[yVal])
+	} else {
+		e.y = yVal
+	}
+	panic(e)
+}
+
+func panicBounds32(pc uintptr, regs *[16]int32) { // called from panicBounds on 32-bit archs
+	f := findfunc(pc)
+	v := pcdatavalue(f, abi.PCDATA_PanicBounds, pc-1)
+
+	code, signed, xIsReg, yIsReg, xVal, yVal := abi.BoundsDecode(int(v))
+
+	if code == abi.BoundsIndex {
+		panicCheck1(pc, "index out of range")
+	} else {
+		panicCheck1(pc, "slice bounds out of range")
+	}
+
+	var e boundsError
+	e.code = code
+	e.signed = signed
+	if xIsReg {
+		if signed {
+			e.x = int64(regs[xVal])
+		} else {
+			e.x = int64(uint32(regs[xVal]))
+		}
+	} else {
+		e.x = int64(xVal)
+	}
+	if yIsReg {
+		e.y = int(regs[yVal])
+	} else {
+		e.y = yVal
+	}
+	panic(e)
+}
+
+func panicBounds32X(pc uintptr, regs *[16]int32) { // called from panicExtend on 32-bit archs
+	f := findfunc(pc)
+	v := pcdatavalue(f, abi.PCDATA_PanicBounds, pc-1)
+
+	code, signed, xIsReg, yIsReg, xVal, yVal := abi.BoundsDecode(int(v))
+
+	if code == abi.BoundsIndex {
+		panicCheck1(pc, "index out of range")
+	} else {
+		panicCheck1(pc, "slice bounds out of range")
+	}
+
+	var e boundsError
+	e.code = code
+	e.signed = signed
+	if xIsReg {
+		// Our 4-bit register numbers are actually 2 2-bit register numbers.
+		lo := xVal & 3
+		hi := xVal >> 2
+		e.x = int64(regs[hi])<<32 + int64(uint32(regs[lo]))
+	} else {
+		e.x = int64(xVal)
+	}
+	if yIsReg {
+		e.y = int(regs[yVal])
+	} else {
+		e.y = yVal
+	}
+	panic(e)
+}
+
 var shiftError = error(errorString("negative shift amount"))
 
 //go:yeswritebarrierrec
