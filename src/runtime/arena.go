@@ -1063,9 +1063,17 @@ func (h *mheap) allocUserArenaChunk() *mspan {
 	h.initSpan(s, spanAllocHeap, spc, base, userArenaChunkPages)
 	s.isUserArenaChunk = true
 	s.elemsize -= userArenaChunkReserveBytes()
-	s.limit = s.base() + s.elemsize
 	s.freeindex = 1
 	s.allocCount = 1
+
+	// Adjust s.limit down to the object-containing part of the span.
+	//
+	// This is just to create a slightly tighter bound on the limit.
+	// It's totally OK if the garbage collector, in particular
+	// conservative scanning, can temporarily observes an inflated
+	// limit. It will simply mark the whole chunk or just skip it
+	// since we're in the mark phase anyway.
+	s.limit = s.base() + s.elemsize
 
 	// Account for this new arena chunk memory.
 	gcController.heapInUse.add(int64(userArenaChunkBytes))
