@@ -1398,7 +1398,6 @@ func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base,
 	if typ.manual() {
 		s.manualFreeList = 0
 		s.nelems = 0
-		s.limit = s.base() + s.npages*pageSize
 		s.state.set(mSpanManual)
 	} else {
 		// We must set span properties before the span is published anywhere
@@ -1425,6 +1424,9 @@ func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base,
 		s.allocCache = ^uint64(0) // all 1s indicating all free.
 		s.gcmarkBits = newMarkBits(uintptr(s.nelems))
 		s.allocBits = newAllocBits(uintptr(s.nelems))
+
+		// Adjust s.limit down to the object-containing part of the span.
+		s.limit = s.base() + uintptr(s.elemsize)*uintptr(s.nelems)
 
 		// It's safe to access h.sweepgen without the heap lock because it's
 		// only ever updated with the world stopped and we run on the
@@ -1709,6 +1711,7 @@ func (span *mspan) init(base uintptr, npages uintptr) {
 	span.list = nil
 	span.startAddr = base
 	span.npages = npages
+	span.limit = base + npages*pageSize // see go.dev/issue/74288; adjusted later for heap spans
 	span.allocCount = 0
 	span.spanclass = 0
 	span.elemsize = 0
