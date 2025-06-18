@@ -49,7 +49,7 @@ func riscv64RegName(r int) string {
 
 func init() {
 	var regNamesRISCV64 []string
-	var gpMask, fpMask, gpgMask, gpspMask, gpspsbMask, gpspsbgMask regMask
+	var gpMask, fpMask, gpgMask, gpspMask, gpspsbMask, gpspsbgMask, first16Mask regMask
 	regNamed := make(map[string]regMask)
 
 	// Build the list of register names, creating an appropriately indexed
@@ -93,6 +93,9 @@ func init() {
 			gpspMask |= mask
 			gpspsbMask |= mask
 			gpspsbgMask |= mask
+			if r >= 5 && r < 5+16 {
+				first16Mask |= mask
+			}
 		}
 	}
 
@@ -429,12 +432,15 @@ func init() {
 		// Do data barrier. arg0=memorys
 		{name: "LoweredPubBarrier", argLength: 1, asm: "FENCE", hasSideEffects: true},
 
-		// There are three of these functions so that they can have three different register inputs.
-		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
-		// default registers to match so we don't need to copy registers around unnecessarily.
-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{regNamed["X7"], regNamed["X28"]}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{regNamed["X6"], regNamed["X7"]}}, typ: "Mem", call: true},  // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{regNamed["X5"], regNamed["X6"]}}, typ: "Mem", call: true},  // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+		// LoweredPanicBoundsRR takes x and y, two values that caused a bounds check to fail.
+		// the RC and CR versions are used when one of the arguments is a constant. CC is used
+		// when both are constant (normally both 0, as prove derives the fact that a [0] bounds
+		// failure means the length must have also been 0).
+		// AuxInt contains a report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsRR", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{first16Mask, first16Mask}}, typ: "Mem", call: true}, // arg0=x, arg1=y, arg2=mem, returns memory.
+		{name: "LoweredPanicBoundsRC", argLength: 2, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{first16Mask}}, typ: "Mem", call: true},       // arg0=x, arg1=mem, returns memory.
+		{name: "LoweredPanicBoundsCR", argLength: 2, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{first16Mask}}, typ: "Mem", call: true},       // arg0=y, arg1=mem, returns memory.
+		{name: "LoweredPanicBoundsCC", argLength: 1, aux: "PanicBoundsCC", reg: regInfo{}, typ: "Mem", call: true},                                    // arg0=mem, returns memory.
 
 		// F extension.
 		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true, typ: "Float32"},                                           // arg0 + arg1
