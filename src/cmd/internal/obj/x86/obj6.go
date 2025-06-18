@@ -653,6 +653,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			case obj.ACALL:
 				// Treat common runtime calls that take no arguments
 				// the same as duffcopy and duffzero.
+
+				// Note that of these functions, panicBounds does
+				// use some stack, but its stack together with the
+				// < StackSmall used by this function is still
+				// less than stackNosplit. See issue 31219.
 				if !isZeroArgRuntimeCall(q.To.Sym) {
 					leaf = false
 					break LeafSearch
@@ -969,13 +974,7 @@ func isZeroArgRuntimeCall(s *obj.LSym) bool {
 		return false
 	}
 	switch s.Name {
-	case "runtime.panicdivide", "runtime.panicwrap", "runtime.panicshift":
-		return true
-	}
-	if strings.HasPrefix(s.Name, "runtime.panicIndex") || strings.HasPrefix(s.Name, "runtime.panicSlice") {
-		// These functions do take arguments (in registers),
-		// but use no stack before they do a stack check. We
-		// should include them. See issue 31219.
+	case "runtime.panicdivide", "runtime.panicwrap", "runtime.panicshift", "runtime.panicBounds", "runtime.panicExtend":
 		return true
 	}
 	return false

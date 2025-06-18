@@ -363,13 +363,16 @@
 // Write barrier.
 (WB ...) => (LoweredWB ...)
 
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
+(PanicBounds ...) => (LoweredPanicBoundsRR ...)
+(PanicExtend ...) => (LoweredPanicExtendRR ...)
 
-(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 0 => (LoweredPanicExtendA [kind] hi lo y mem)
-(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 1 => (LoweredPanicExtendB [kind] hi lo y mem)
-(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 2 => (LoweredPanicExtendC [kind] hi lo y mem)
+(LoweredPanicBoundsRR [kind] x (MOVLconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:int64(c)}} mem)
+(LoweredPanicBoundsRR [kind] (MOVLconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:int64(c)}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVLconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:int64(c), Cy:p.C}} mem)
+
+(LoweredPanicExtendRR [kind] hi lo (MOVLconst [c]) mem) => (LoweredPanicExtendRC [kind] hi lo {PanicBoundsC{C:int64(c)}} mem)
+(LoweredPanicExtendRR [kind] (MOVLconst [hi]) (MOVLconst [lo]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:int64(hi)<<32 + int64(uint32(lo))}} y mem)
+(LoweredPanicExtendRC [kind] {p} (MOVLconst [hi]) (MOVLconst [lo]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:int64(hi)<<32+int64(uint32(lo)), Cy:p.C}} mem)
 
 // ***************************
 // Above: lowering rules
