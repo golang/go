@@ -2212,9 +2212,10 @@ const (
 	OpMIPS64LoweredGetCallerPC
 	OpMIPS64LoweredWB
 	OpMIPS64LoweredPubBarrier
-	OpMIPS64LoweredPanicBoundsA
-	OpMIPS64LoweredPanicBoundsB
-	OpMIPS64LoweredPanicBoundsC
+	OpMIPS64LoweredPanicBoundsRR
+	OpMIPS64LoweredPanicBoundsRC
+	OpMIPS64LoweredPanicBoundsCR
+	OpMIPS64LoweredPanicBoundsCC
 
 	OpPPC64ADD
 	OpPPC64ADDCC
@@ -29766,40 +29767,45 @@ var opcodeTable = [...]opInfo{
 		reg:            regInfo{},
 	},
 	{
-		name:    "LoweredPanicBoundsA",
+		name:    "LoweredPanicBoundsRR",
 		auxType: auxInt64,
 		argLen:  3,
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 8},  // R3
-				{1, 16}, // R4
+				{0, 131070}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16
+				{1, 131070}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16
 			},
 		},
 	},
 	{
-		name:    "LoweredPanicBoundsB",
-		auxType: auxInt64,
-		argLen:  3,
+		name:    "LoweredPanicBoundsRC",
+		auxType: auxPanicBoundsC,
+		argLen:  2,
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4}, // R2
-				{1, 8}, // R3
+				{0, 131070}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16
 			},
 		},
 	},
 	{
-		name:    "LoweredPanicBoundsC",
-		auxType: auxInt64,
-		argLen:  3,
+		name:    "LoweredPanicBoundsCR",
+		auxType: auxPanicBoundsC,
+		argLen:  2,
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 2}, // R1
-				{1, 4}, // R2
+				{0, 131070}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16
 			},
 		},
+	},
+	{
+		name:    "LoweredPanicBoundsCC",
+		auxType: auxPanicBoundsCC,
+		argLen:  1,
+		call:    true,
+		reg:     regInfo{},
 	},
 
 	{

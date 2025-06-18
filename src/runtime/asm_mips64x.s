@@ -791,76 +791,30 @@ TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
 	MOVV	$64, R25
 	JMP	gcWriteBarrier<>(SB)
 
-// Note: these functions use a special calling convention to save generated code space.
-// Arguments are passed in registers, but the space for those arguments are allocated
-// in the caller's stack frame. These stubs write the args into that stack space and
-// then tail call to the corresponding runtime handler.
-// The tail call makes these stubs disappear in backtraces.
-TEXT runtime·panicIndex(SB),NOSPLIT,$0-16
-	MOVV	R1, x+0(FP)
-	MOVV	R2, y+8(FP)
-	JMP	runtime·goPanicIndex(SB)
-TEXT runtime·panicIndexU(SB),NOSPLIT,$0-16
-	MOVV	R1, x+0(FP)
-	MOVV	R2, y+8(FP)
-	JMP	runtime·goPanicIndexU(SB)
-TEXT runtime·panicSliceAlen(SB),NOSPLIT,$0-16
-	MOVV	R2, x+0(FP)
-	MOVV	R3, y+8(FP)
-	JMP	runtime·goPanicSliceAlen(SB)
-TEXT runtime·panicSliceAlenU(SB),NOSPLIT,$0-16
-	MOVV	R2, x+0(FP)
-	MOVV	R3, y+8(FP)
-	JMP	runtime·goPanicSliceAlenU(SB)
-TEXT runtime·panicSliceAcap(SB),NOSPLIT,$0-16
-	MOVV	R2, x+0(FP)
-	MOVV	R3, y+8(FP)
-	JMP	runtime·goPanicSliceAcap(SB)
-TEXT runtime·panicSliceAcapU(SB),NOSPLIT,$0-16
-	MOVV	R2, x+0(FP)
-	MOVV	R3, y+8(FP)
-	JMP	runtime·goPanicSliceAcapU(SB)
-TEXT runtime·panicSliceB(SB),NOSPLIT,$0-16
-	MOVV	R1, x+0(FP)
-	MOVV	R2, y+8(FP)
-	JMP	runtime·goPanicSliceB(SB)
-TEXT runtime·panicSliceBU(SB),NOSPLIT,$0-16
-	MOVV	R1, x+0(FP)
-	MOVV	R2, y+8(FP)
-	JMP	runtime·goPanicSliceBU(SB)
-TEXT runtime·panicSlice3Alen(SB),NOSPLIT,$0-16
-	MOVV	R3, x+0(FP)
-	MOVV	R4, y+8(FP)
-	JMP	runtime·goPanicSlice3Alen(SB)
-TEXT runtime·panicSlice3AlenU(SB),NOSPLIT,$0-16
-	MOVV	R3, x+0(FP)
-	MOVV	R4, y+8(FP)
-	JMP	runtime·goPanicSlice3AlenU(SB)
-TEXT runtime·panicSlice3Acap(SB),NOSPLIT,$0-16
-	MOVV	R3, x+0(FP)
-	MOVV	R4, y+8(FP)
-	JMP	runtime·goPanicSlice3Acap(SB)
-TEXT runtime·panicSlice3AcapU(SB),NOSPLIT,$0-16
-	MOVV	R3, x+0(FP)
-	MOVV	R4, y+8(FP)
-	JMP	runtime·goPanicSlice3AcapU(SB)
-TEXT runtime·panicSlice3B(SB),NOSPLIT,$0-16
-	MOVV	R2, x+0(FP)
-	MOVV	R3, y+8(FP)
-	JMP	runtime·goPanicSlice3B(SB)
-TEXT runtime·panicSlice3BU(SB),NOSPLIT,$0-16
-	MOVV	R2, x+0(FP)
-	MOVV	R3, y+8(FP)
-	JMP	runtime·goPanicSlice3BU(SB)
-TEXT runtime·panicSlice3C(SB),NOSPLIT,$0-16
-	MOVV	R1, x+0(FP)
-	MOVV	R2, y+8(FP)
-	JMP	runtime·goPanicSlice3C(SB)
-TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
-	MOVV	R1, x+0(FP)
-	MOVV	R2, y+8(FP)
-	JMP	runtime·goPanicSlice3CU(SB)
-TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-16
-	MOVV	R3, x+0(FP)
-	MOVV	R4, y+8(FP)
-	JMP	runtime·goPanicSliceConvert(SB)
+TEXT runtime·panicBounds<ABIInternal>(SB),NOSPLIT,$144-0
+	NO_LOCAL_POINTERS
+	// Save all 16 int registers that could have an index in them.
+	// They may be pointers, but if they are they are dead.
+	// Skip R0 aka ZERO.
+	MOVV	R1, 24(R29)
+	MOVV	R2, 32(R29)
+	MOVV	R3, 40(R29)
+	MOVV	R4, 48(R29)
+	MOVV	R5, 56(R29)
+	MOVV	R6, 64(R29)
+	MOVV	R7, 72(R29)
+	MOVV	R8, 80(R29)
+	MOVV	R9, 88(R29)
+	MOVV	R10, 96(R29)
+	MOVV	R11, 104(R29)
+	MOVV	R12, 112(R29)
+	MOVV	R13, 120(R29)
+	MOVV	R14, 128(R29)
+	MOVV	R15, 136(R29)
+	MOVV	R16, 144(R29)
+
+	MOVV	R31, 8(R29)	// PC immediately after call to panicBounds
+	ADDV	$24, R29, R1	// pointer to save area
+	MOVV	R1, 16(R29)
+	CALL	runtime·panicBounds64<ABIInternal>(SB)
+	RET
