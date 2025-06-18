@@ -1422,12 +1422,12 @@ const (
 	OpARMLoweredGetClosurePtr
 	OpARMLoweredGetCallerSP
 	OpARMLoweredGetCallerPC
-	OpARMLoweredPanicBoundsA
-	OpARMLoweredPanicBoundsB
-	OpARMLoweredPanicBoundsC
-	OpARMLoweredPanicExtendA
-	OpARMLoweredPanicExtendB
-	OpARMLoweredPanicExtendC
+	OpARMLoweredPanicBoundsRR
+	OpARMLoweredPanicBoundsRC
+	OpARMLoweredPanicBoundsCR
+	OpARMLoweredPanicBoundsCC
+	OpARMLoweredPanicExtendRR
+	OpARMLoweredPanicExtendRC
 	OpARMFlagConstant
 	OpARMInvertFlags
 	OpARMLoweredWB
@@ -19111,77 +19111,68 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "LoweredPanicBoundsA",
+		name:    "LoweredPanicBoundsRR",
 		auxType: auxInt64,
 		argLen:  3,
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4}, // R2
-				{1, 8}, // R3
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
 			},
 		},
 	},
 	{
-		name:    "LoweredPanicBoundsB",
+		name:    "LoweredPanicBoundsRC",
+		auxType: auxPanicBoundsC,
+		argLen:  2,
+		call:    true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "LoweredPanicBoundsCR",
+		auxType: auxPanicBoundsC,
+		argLen:  2,
+		call:    true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+			},
+		},
+	},
+	{
+		name:    "LoweredPanicBoundsCC",
+		auxType: auxPanicBoundsCC,
+		argLen:  1,
+		call:    true,
+		reg:     regInfo{},
+	},
+	{
+		name:    "LoweredPanicExtendRR",
 		auxType: auxInt64,
+		argLen:  4,
+		call:    true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 15},    // R0 R1 R2 R3
+				{1, 15},    // R0 R1 R2 R3
+				{2, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+			},
+		},
+	},
+	{
+		name:    "LoweredPanicExtendRC",
+		auxType: auxPanicBoundsC,
 		argLen:  3,
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 2}, // R1
-				{1, 4}, // R2
-			},
-		},
-	},
-	{
-		name:    "LoweredPanicBoundsC",
-		auxType: auxInt64,
-		argLen:  3,
-		call:    true,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 1}, // R0
-				{1, 2}, // R1
-			},
-		},
-	},
-	{
-		name:    "LoweredPanicExtendA",
-		auxType: auxInt64,
-		argLen:  4,
-		call:    true,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 16}, // R4
-				{1, 4},  // R2
-				{2, 8},  // R3
-			},
-		},
-	},
-	{
-		name:    "LoweredPanicExtendB",
-		auxType: auxInt64,
-		argLen:  4,
-		call:    true,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 16}, // R4
-				{1, 2},  // R1
-				{2, 4},  // R2
-			},
-		},
-	},
-	{
-		name:    "LoweredPanicExtendC",
-		auxType: auxInt64,
-		argLen:  4,
-		call:    true,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 16}, // R4
-				{1, 1},  // R0
-				{2, 2},  // R1
+				{0, 15}, // R0 R1 R2 R3
+				{1, 15}, // R0 R1 R2 R3
 			},
 		},
 	},
