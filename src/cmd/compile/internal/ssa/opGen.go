@@ -1963,9 +1963,10 @@ const (
 	OpLOONG64LoweredGetCallerPC
 	OpLOONG64LoweredWB
 	OpLOONG64LoweredPubBarrier
-	OpLOONG64LoweredPanicBoundsA
-	OpLOONG64LoweredPanicBoundsB
-	OpLOONG64LoweredPanicBoundsC
+	OpLOONG64LoweredPanicBoundsRR
+	OpLOONG64LoweredPanicBoundsRC
+	OpLOONG64LoweredPanicBoundsCR
+	OpLOONG64LoweredPanicBoundsCC
 	OpLOONG64PRELD
 	OpLOONG64PRELDX
 
@@ -26439,40 +26440,45 @@ var opcodeTable = [...]opInfo{
 		reg:            regInfo{},
 	},
 	{
-		name:    "LoweredPanicBoundsA",
+		name:    "LoweredPanicBoundsRR",
 		auxType: auxInt64,
 		argLen:  3,
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4194304}, // R23
-				{1, 8388608}, // R24
+				{0, 524280}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19
+				{1, 524280}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19
 			},
 		},
 	},
 	{
-		name:    "LoweredPanicBoundsB",
-		auxType: auxInt64,
-		argLen:  3,
+		name:    "LoweredPanicBoundsRC",
+		auxType: auxPanicBoundsC,
+		argLen:  2,
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1048576}, // R21
-				{1, 4194304}, // R23
+				{0, 524280}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19
 			},
 		},
 	},
 	{
-		name:    "LoweredPanicBoundsC",
-		auxType: auxInt64,
-		argLen:  3,
+		name:    "LoweredPanicBoundsCR",
+		auxType: auxPanicBoundsC,
+		argLen:  2,
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 524288},  // R20
-				{1, 1048576}, // R21
+				{0, 524280}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19
 			},
 		},
+	},
+	{
+		name:    "LoweredPanicBoundsCC",
+		auxType: auxPanicBoundsCC,
+		argLen:  1,
+		call:    true,
+		reg:     regInfo{},
 	},
 	{
 		name:           "PRELD",
