@@ -1349,67 +1349,30 @@ TEXT runtime·debugCallPanicked(SB),NOSPLIT,$32-16
 	TW	$31, R0, R0
 	RET
 #endif
-// Note: these functions use a special calling convention to save generated code space.
-// Arguments are passed in registers, but the space for those arguments are allocated
-// in the caller's stack frame. These stubs write the args into that stack space and
-// then tail call to the corresponding runtime handler.
-// The tail call makes these stubs disappear in backtraces.
-TEXT runtime·panicIndex<ABIInternal>(SB),NOSPLIT,$0-16
-	JMP	runtime·goPanicIndex<ABIInternal>(SB)
-TEXT runtime·panicIndexU<ABIInternal>(SB),NOSPLIT,$0-16
-	JMP	runtime·goPanicIndexU<ABIInternal>(SB)
-TEXT runtime·panicSliceAlen<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R4, R3
-	MOVD	R5, R4
-	JMP	runtime·goPanicSliceAlen<ABIInternal>(SB)
-TEXT runtime·panicSliceAlenU<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R4, R3
-	MOVD	R5, R4
-	JMP	runtime·goPanicSliceAlenU<ABIInternal>(SB)
-TEXT runtime·panicSliceAcap<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R4, R3
-	MOVD	R5, R4
-	JMP	runtime·goPanicSliceAcap<ABIInternal>(SB)
-TEXT runtime·panicSliceAcapU<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R4, R3
-	MOVD	R5, R4
-	JMP	runtime·goPanicSliceAcapU<ABIInternal>(SB)
-TEXT runtime·panicSliceB<ABIInternal>(SB),NOSPLIT,$0-16
-	JMP	runtime·goPanicSliceB<ABIInternal>(SB)
-TEXT runtime·panicSliceBU<ABIInternal>(SB),NOSPLIT,$0-16
-	JMP	runtime·goPanicSliceBU<ABIInternal>(SB)
-TEXT runtime·panicSlice3Alen<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R5, R3
-	MOVD	R6, R4
-	JMP	runtime·goPanicSlice3Alen<ABIInternal>(SB)
-TEXT runtime·panicSlice3AlenU<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R5, R3
-	MOVD	R6, R4
-	JMP	runtime·goPanicSlice3AlenU<ABIInternal>(SB)
-TEXT runtime·panicSlice3Acap<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R5, R3
-	MOVD	R6, R4
-	JMP	runtime·goPanicSlice3Acap<ABIInternal>(SB)
-TEXT runtime·panicSlice3AcapU<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R5, R3
-	MOVD	R6, R4
-	JMP	runtime·goPanicSlice3AcapU<ABIInternal>(SB)
-TEXT runtime·panicSlice3B<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R4, R3
-	MOVD	R5, R4
-	JMP	runtime·goPanicSlice3B<ABIInternal>(SB)
-TEXT runtime·panicSlice3BU<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R4, R3
-	MOVD	R5, R4
-	JMP	runtime·goPanicSlice3BU<ABIInternal>(SB)
-TEXT runtime·panicSlice3C<ABIInternal>(SB),NOSPLIT,$0-16
-	JMP	runtime·goPanicSlice3C<ABIInternal>(SB)
-TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
-	JMP	runtime·goPanicSlice3CU<ABIInternal>(SB)
-TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
-	MOVD	R5, R3
-	MOVD	R6, R4
-	JMP	runtime·goPanicSliceConvert<ABIInternal>(SB)
+
+TEXT runtime·panicBounds<ABIInternal>(SB),NOSPLIT,$104-0
+	// Note: frame size is 16 bytes larger than necessary
+	// in order to pacify vet. Vet doesn't understand ppc64
+	// layout properly.
+	NO_LOCAL_POINTERS
+	// Save all 8 int registers that could have an index in them.
+	// They may be pointers, but if they are they are dead.
+	// Skip R0 aka ZERO, R1 aka SP, R2 aka SB
+	MOVD	R3, 48(R1)
+	MOVD	R4, 56(R1)
+	MOVD	R5, 64(R1)
+	MOVD	R6, 72(R1)
+	MOVD	R7, 80(R1)
+	MOVD	R8, 88(R1)
+	MOVD	R9, 96(R1)
+	MOVD	R10, 104(R1)
+	// Note: we only save 8 reigsters to keep under nosplit stack limit
+	// Also, R11 is clobbered in dynamic linking situations
+
+	MOVD	LR, R3		// PC immediately after call to panicBounds
+	ADD	$48, R1, R4	// pointer to save area
+	CALL	runtime·panicBounds64<ABIInternal>(SB)
+	RET
 
 // These functions are used when internal linking cgo with external
 // objects compiled with the -Os on gcc. They reduce prologue/epilogue

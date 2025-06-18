@@ -2453,9 +2453,10 @@ const (
 	OpPPC64LoweredAtomicOr32
 	OpPPC64LoweredWB
 	OpPPC64LoweredPubBarrier
-	OpPPC64LoweredPanicBoundsA
-	OpPPC64LoweredPanicBoundsB
-	OpPPC64LoweredPanicBoundsC
+	OpPPC64LoweredPanicBoundsRR
+	OpPPC64LoweredPanicBoundsRC
+	OpPPC64LoweredPanicBoundsCR
+	OpPPC64LoweredPanicBoundsCC
 	OpPPC64InvertFlags
 	OpPPC64FlagEQ
 	OpPPC64FlagLT
@@ -33022,40 +33023,45 @@ var opcodeTable = [...]opInfo{
 		reg:            regInfo{},
 	},
 	{
-		name:    "LoweredPanicBoundsA",
+		name:    "LoweredPanicBoundsRR",
 		auxType: auxInt64,
 		argLen:  3,
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 32}, // R5
-				{1, 64}, // R6
+				{0, 2040}, // R3 R4 R5 R6 R7 R8 R9 R10
+				{1, 2040}, // R3 R4 R5 R6 R7 R8 R9 R10
 			},
 		},
 	},
 	{
-		name:    "LoweredPanicBoundsB",
-		auxType: auxInt64,
-		argLen:  3,
+		name:    "LoweredPanicBoundsRC",
+		auxType: auxPanicBoundsC,
+		argLen:  2,
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 16}, // R4
-				{1, 32}, // R5
+				{0, 2040}, // R3 R4 R5 R6 R7 R8 R9 R10
 			},
 		},
 	},
 	{
-		name:    "LoweredPanicBoundsC",
-		auxType: auxInt64,
-		argLen:  3,
+		name:    "LoweredPanicBoundsCR",
+		auxType: auxPanicBoundsC,
+		argLen:  2,
 		call:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 8},  // R3
-				{1, 16}, // R4
+				{0, 2040}, // R3 R4 R5 R6 R7 R8 R9 R10
 			},
 		},
+	},
+	{
+		name:    "LoweredPanicBoundsCC",
+		auxType: auxPanicBoundsCC,
+		argLen:  1,
+		call:    true,
+		reg:     regInfo{},
 	},
 	{
 		name:   "InvertFlags",
