@@ -175,7 +175,7 @@ func (p *Proc) Call(a ...uintptr) (uintptr, uintptr, error) {
 // LazyDLL is subject to the same DLL preloading attacks as documented
 // on [LoadDLL].
 //
-// Use LazyDLL in golang.org/x/sys/windows for a secure way to
+// Use NewLazySystemDLL in golang.org/x/sys/windows for a secure way to
 // load system DLLs.
 type LazyDLL struct {
 	mu   sync.Mutex
