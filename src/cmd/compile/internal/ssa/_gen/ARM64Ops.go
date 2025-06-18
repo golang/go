@@ -144,11 +144,8 @@ func init() {
 		gpspsbg    = gpspg | buildReg("SB")
 		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
 		callerSave = gp | fp | buildReg("g") // runtime.setg (and anything calling it) may clobber g
-		r0         = buildReg("R0")
-		r1         = buildReg("R1")
-		r2         = buildReg("R2")
-		r3         = buildReg("R3")
 		rz         = buildReg("ZERO")
+		first16    = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15")
 	)
 	// Common regInfo
 	var (
@@ -760,12 +757,15 @@ func init() {
 		// Returns a pointer to a write barrier buffer in R25.
 		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ gpg) | buildReg("R16 R17 R30"), outputs: []regMask{buildReg("R25")}}, clobberFlags: true, aux: "Int64"},
 
-		// There are three of these functions so that they can have three different register inputs.
-		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
-		// default registers to match so we don't need to copy registers around unnecessarily.
-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in generic.go).
+		// LoweredPanicBoundsRR takes x and y, two values that caused a bounds check to fail.
+		// the RC and CR versions are used when one of the arguments is a constant. CC is used
+		// when both are constant (normally both 0, as prove derives the fact that a [0] bounds
+		// failure means the length must have also been 0).
+		// AuxInt contains a report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsRR", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{first16, first16}}, typ: "Mem", call: true}, // arg0=x, arg1=y, arg2=mem, returns memory.
+		{name: "LoweredPanicBoundsRC", argLength: 2, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{first16}}, typ: "Mem", call: true},   // arg0=x, arg1=mem, returns memory.
+		{name: "LoweredPanicBoundsCR", argLength: 2, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{first16}}, typ: "Mem", call: true},   // arg0=y, arg1=mem, returns memory.
+		{name: "LoweredPanicBoundsCC", argLength: 1, aux: "PanicBoundsCC", reg: regInfo{}, typ: "Mem", call: true},                            // arg0=mem, returns memory.
 
 		// Prefetch instruction
 		// Do prefetch arg0 address with option aux. arg0=addr, arg1=memory, aux=option.
