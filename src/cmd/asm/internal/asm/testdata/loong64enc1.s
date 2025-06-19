@@ -510,6 +510,16 @@ lable2:
 	VMOVQ		V3.W[1], V7.W4  // 67e4f772
 	VMOVQ		V4.V[0], V6.V2  // 86f0f772
 
+	// Load data from memory and broadcast to each element of a vector register: VMOVQ    offset(Rj), <Vd>.<T>
+	VMOVQ		(R4), V0.B16	// 80008030
+	VMOVQ		1(R4), V1.H8	// 81044030
+	VMOVQ		2(R4), V2.W4	// 82082030
+	VMOVQ		3(R4), V3.V2	// 830c1030
+	XVMOVQ		(R4), X0.B32	// 80008032
+	XVMOVQ		1(R4), X1.H16	// 81044032
+	XVMOVQ		2(R4), X2.W8	// 82082032
+	XVMOVQ		3(R4), X3.V4	// 830c1032
+
 	// VSEQ{B,H,W,V}, XVSEQ{B,H,W,V} instruction
 	VSEQB		V1, V2, V3      // 43040070
 	VSEQH		V1, V2, V3      // 43840070
