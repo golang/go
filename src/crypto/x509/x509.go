@@ -205,6 +205,17 @@ type publicKeyInfo struct {
 	PublicKey asn1.BitString
 }
 
+func (pki *publicKeyInfo) Equal(other crypto.PublicKey) bool {
+	pki2, ok := other.(*publicKeyInfo)
+	if !ok {
+		return false
+	}
+	return (pki.Algorithm.Algorithm.Equal(pki2.Algorithm.Algorithm) &&
+		bytes.Equal(pki.Algorithm.Parameters.FullBytes, pki2.Algorithm.Parameters.FullBytes) &&
+		pki.PublicKey.BitLength == pki2.PublicKey.BitLength &&
+		bytes.Equal(pki.PublicKey.Bytes, pki2.PublicKey.Bytes))
+}
+
 // RFC 5280,  4.2.1.1
 type authKeyId struct {
 	Id []byte `asn1:"optional,tag:0"`
@@ -909,6 +920,10 @@ func (c *Certificate) hasSANExtension() bool {
 // This is a low-level API that performs very limited checks, and not a full
 // path verifier. Most users should use [Certificate.Verify] instead.
 func (c *Certificate) CheckSignatureFrom(parent *Certificate) error {
+	return c.checkSignatureFrom(parent, nil)
+}
+
+func (c *Certificate) checkSignatureFrom(parent *Certificate, opts *VerifyOptions) error {
 	// RFC 5280, 4.2.1.9:
 	// "If the basic constraints extension is not present in a version 3
 	// certificate, or the extension is present but the cA boolean is not
@@ -923,11 +938,7 @@ func (c *Certificate) CheckSignatureFrom(parent *Certificate) error {
 		return ConstraintViolationError{}
 	}
 
-	if parent.PublicKeyAlgorithm == UnknownPublicKeyAlgorithm {
-		return ErrUnsupportedAlgorithm
-	}
-
-	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature, parent.PublicKey, false)
+	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature, parent.PublicKey, false, opts)
 }
 
 // CheckSignature verifies that signature is a valid signature over signed from
@@ -938,7 +949,7 @@ func (c *Certificate) CheckSignatureFrom(parent *Certificate) error {
 // [MD5WithRSA] signatures are rejected, while [SHA1WithRSA] and [ECDSAWithSHA1]
 // signatures are currently accepted.
 func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature []byte) error {
-	return checkSignature(algo, signed, signature, c.PublicKey, true)
+	return checkSignature(algo, signed, signature, c.PublicKey, true, nil)
 }
 
 func (c *Certificate) hasNameConstraints() bool {
@@ -960,9 +971,23 @@ func signaturePublicKeyAlgoMismatchError(expectedPubKeyAlgo PublicKeyAlgorithm, 
 
 // checkSignature verifies that signature is a valid signature over signed from
 // a crypto.PublicKey.
-func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey crypto.PublicKey, allowSHA1 bool) (err error) {
+func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey crypto.PublicKey, allowSHA1 bool, opts *VerifyOptions) (err error) {
 	var hashType crypto.Hash
 	var pubKeyAlgo PublicKeyAlgorithm
+
+	if algo == UnknownSignatureAlgorithm {
+		pki, ok := publicKey.(*publicKeyInfo)
+		if !ok || opts == nil || opts.UnknownAlgorithmVerifier == nil {
+			return ErrUnsupportedAlgorithm
+		}
+
+		return opts.UnknownAlgorithmVerifier(
+			pki.Algorithm,
+			signed,
+			signature,
+			pki.PublicKey.Bytes,
+		)
+	}
 
 	for _, details := range signatureAlgorithmDetails {
 		if details.algo == algo {
@@ -1585,7 +1610,7 @@ func signTBS(tbs []byte, key crypto.Signer, sigAlg SignatureAlgorithm, rand io.R
 	}
 
 	// Check the signature to ensure the crypto.Signer behaved correctly.
-	if err := checkSignature(sigAlg, tbs, signature, key.Public(), true); err != nil {
+	if err := checkSignature(sigAlg, tbs, signature, key.Public(), true, nil); err != nil {
 		return nil, fmt.Errorf("x509: signature returned by signer is invalid: %w", err)
 	}
 
@@ -2259,7 +2284,7 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
 
 // CheckSignature reports whether the signature on c is valid.
 func (c *CertificateRequest) CheckSignature() error {
-	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificateRequest, c.Signature, c.PublicKey, true)
+	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificateRequest, c.Signature, c.PublicKey, true, nil)
 }
 
 // RevocationListEntry represents an entry in the revokedCertificates
