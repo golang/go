@@ -7244,42 +7244,42 @@ func (x Uint32x16) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z In
 
 /* SetElem */
 
-// SetElem sets a single constant-indexed element's value
+// SetElem sets a single constant-indexed element's value.
 //
 // Asm: VPINSRB, CPU Feature: AVX
 func (x Int8x16) SetElem(imm uint8, y int8) Int8x16
 
-// SetElem sets a single constant-indexed element's value
+// SetElem sets a single constant-indexed element's value.
 //
 // Asm: VPINSRW, CPU Feature: AVX
 func (x Int16x8) SetElem(imm uint8, y int16) Int16x8
 
-// SetElem sets a single constant-indexed element's value
+// SetElem sets a single constant-indexed element's value.
 //
 // Asm: VPINSRD, CPU Feature: AVX
 func (x Int32x4) SetElem(imm uint8, y int8) Int32x4
 
-// SetElem sets a single constant-indexed element's value
+// SetElem sets a single constant-indexed element's value.
 //
 // Asm: VPINSRQ, CPU Feature: AVX
 func (x Int64x2) SetElem(imm uint8, y int64) Int64x2
 
-// SetElem sets a single constant-indexed element's value
+// SetElem sets a single constant-indexed element's value.
 //
 // Asm: VPINSRB, CPU Feature: AVX
 func (x Uint8x16) SetElem(imm uint8, y uint8) Uint8x16
 
-// SetElem sets a single constant-indexed element's value
+// SetElem sets a single constant-indexed element's value.
 //
 // Asm: VPINSRW, CPU Feature: AVX
 func (x Uint16x8) SetElem(imm uint8, y uint16) Uint16x8
 
-// SetElem sets a single constant-indexed element's value
+// SetElem sets a single constant-indexed element's value.
 //
 // Asm: VPINSRD, CPU Feature: AVX
 func (x Uint32x4) SetElem(imm uint8, y uint8) Uint32x4
 
-// SetElem sets a single constant-indexed element's value
+// SetElem sets a single constant-indexed element's value.
 //
 // Asm: VPINSRQ, CPU Feature: AVX
 func (x Uint64x2) SetElem(imm uint8, y uint64) Uint64x2

@@ -96,22 +96,6 @@ func TestReflectMethod(t *testing.T) {
 	}
 }
 
-func TestAdd(t *testing.T) {
-	xv := [4]int32{1, 2, 3, 4}
-	yv := [4]int32{5, 6, 7, 8}
-	want := []int32{6, 8, 10, 12}
-	x := simd.LoadInt32x4(&xv)
-	y := simd.LoadInt32x4(&yv)
-	x = x.Add(y)
-	got := [4]int32{}
-	x.Store(&got)
-	for i := range 4 {
-		if want[i] != got[i] {
-			t.Errorf("Result at %d incorrect: want %d, got %d", i, want[i], got[i])
-		}
-	}
-}
-
 func TestVectorConversion(t *testing.T) {
 	if !simd.HasAVX512() {
 		t.Skip("Test requires HasAVX512, not available on this hardware")
@@ -151,64 +135,20 @@ func TestMaskConversion(t *testing.T) {
 	}
 }
 
+func TestAdd(t *testing.T) {
+	testInt32x4Binary(t, []int32{1, 2, 3, 4}, []int32{5, 6, 7, 8}, []int32{6, 8, 10, 12}, "Add")
+}
+
+func TestSub(t *testing.T) {
+	testInt32x4Binary(t, []int32{5, 5, 5, 3}, []int32{3, 3, 3, 3}, []int32{2, 2, 2, 0}, "Sub")
+}
+
 func TestMaskedAdd(t *testing.T) {
 	if !simd.HasAVX512() {
 		t.Skip("Test requires HasAVX512, not available on this hardware")
 		return
 	}
-	xv := [4]int32{1, 2, 3, 4}
-	yv := [4]int32{5, 6, 7, 8}
-	// masking elements 1 and 2.
-	maskv := [4]int32{-1, -1, 0, 0}
-	want := []int32{6, 8, 0, 0}
-	x := simd.LoadInt32x4(&xv)
-	y := simd.LoadInt32x4(&yv)
-	mask := simd.LoadInt32x4(&maskv).AsMask32x4()
-	x = x.MaskedAdd(y, mask)
-	got := [4]int32{}
-	x.Store(&got)
-	for i := range 4 {
-		if want[i] != got[i] {
-			t.Errorf("Result at %d incorrect: want %d, got %d", i, want[i], got[i])
-		}
-	}
-}
-
-func TestCompare(t *testing.T) {
-	xv := [4]int32{5, 1, 5, 3}
-	yv := [4]int32{3, 3, 3, 3}
-	want := []int32{8, 0, 8, 0}
-	x := simd.LoadInt32x4(&xv)
-	y := simd.LoadInt32x4(&yv)
-	if !simd.HasAVX512() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
-		return
-	}
-	mask := x.Greater(y)
-	x = x.MaskedAdd(y, mask)
-	got := [4]int32{}
-	x.Store(&got)
-	for i := range 4 {
-		if want[i] != got[i] {
-			t.Errorf("Result at %d incorrect: want %d, got %d", i, want[i], got[i])
-		}
-	}
-}
-
-func TestSub(t *testing.T) {
-	xv := [4]int32{5, 5, 5, 3}
-	yv := [4]int32{3, 3, 3, 3}
-	want := []int32{2, 2, 2, 0}
-	x := simd.LoadInt32x4(&xv)
-	y := simd.LoadInt32x4(&yv)
-	x = x.Sub(y)
-	got := [4]int32{}
-	x.Store(&got)
-	for i := range 4 {
-		if want[i] != got[i] {
-			t.Errorf("Result at %d incorrect: want %d, got %d", i, want[i], got[i])
-		}
-	}
+	testInt32x4BinaryMasked(t, []int32{1, 2, 3, 4}, []int32{5, 6, 7, 8}, []int32{-1, -1, 0, 0}, []int32{6, 8, 0, 0}, "MaskedAdd")
 }
 
 // checkInt8Slices ensures that b and a are equal, to the end of b.
