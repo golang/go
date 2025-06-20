@@ -260,3 +260,13 @@ func TestTypeRace(t *testing.T) {
 	close(c)
 	wg.Wait()
 }
+
+func TestRegisteredNames(t *testing.T) {
+	var names []string
+	for name, _ := range RegisteredTypes() {
+		names = append(names, name)
+	}
+	if len(names) < 34 {
+		t.Errorf("registered names should contains all primitive type")
+	}
+}
