@@ -11,10 +11,7 @@ package simd
 
 import "internal/cpu"
 
-func HasAVX512BW() bool {
-	return cpu.X86.HasAVX512BW
-}
-
-func HasAVX512VL() bool {
-	return cpu.X86.HasAVX512VL
+// HasAVX512 checks AVX512 CPU feature F+CD+BW+DQ+VL.
+func HasAVX512() bool {
+	return cpu.X86.HasAVX512
 }

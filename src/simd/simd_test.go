@@ -38,8 +38,8 @@ func TestType(t *testing.T) {
 	v.y = &y
 	sink = y
 
-	if !simd.HasAVX512BW() || !simd.HasAVX512VL() {
-		t.Skip("Test requires HasAVX512BW+VL, not available on this hardware")
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
 		return
 	}
 	v.z = maskT(simd.LoadInt32x4(&maskv).AsMask32x4())
@@ -113,8 +113,8 @@ func TestAdd(t *testing.T) {
 }
 
 func TestVectorConversion(t *testing.T) {
-	if !simd.HasAVX512BW() || !simd.HasAVX512VL() {
-		t.Skip("Test requires HasAVX512BW+VL, not available on this hardware")
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
 		return
 	}
 	xv := [4]int32{1, 2, 3, 4}
@@ -131,8 +131,8 @@ func TestVectorConversion(t *testing.T) {
 }
 
 func TestMaskConversion(t *testing.T) {
-	if !simd.HasAVX512BW() || !simd.HasAVX512VL() {
-		t.Skip("Test requires HasAVX512BW+VL, not available on this hardware")
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
 		return
 	}
 	v := [4]int32{1, 0, 1, 0}
@@ -152,8 +152,8 @@ func TestMaskConversion(t *testing.T) {
 }
 
 func TestMaskedAdd(t *testing.T) {
-	if !simd.HasAVX512BW() || !simd.HasAVX512VL() {
-		t.Skip("Test requires HasAVX512BW+VL, not available on this hardware")
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
 		return
 	}
 	xv := [4]int32{1, 2, 3, 4}
@@ -180,8 +180,8 @@ func TestCompare(t *testing.T) {
 	want := []int32{8, 0, 8, 0}
 	x := simd.LoadInt32x4(&xv)
 	y := simd.LoadInt32x4(&yv)
-	if !simd.HasAVX512BW() {
-		t.Skip("Test requires HasAVX512BW, not available on this hardware")
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
 		return
 	}
 	mask := x.Greater(y)
