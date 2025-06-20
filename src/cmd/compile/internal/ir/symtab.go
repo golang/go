@@ -43,6 +43,7 @@ type symsStruct struct {
 	PanicdottypeI     *obj.LSym
 	Panicnildottype   *obj.LSym
 	Panicoverflow     *obj.LSym
+	Panictruncate     *obj.LSym
 	Racefuncenter     *obj.LSym
 	Racefuncexit      *obj.LSym
 	Raceread          *obj.LSym

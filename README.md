@@ -2,9 +2,11 @@
 
 ### Overview
 
-`Go-Panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for signed integer arithmetic operations. When overflow is detected, a **panic** with an "integer overflow" message will pop.
+`Go-Panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for signed integer arithmetic operations and **type truncation detection** for integer conversions. When overflow or truncation is detected, a **panic** with an appropriate error message is triggered.
 
-It can handle addition `+`, subtraction `-`, multiplication `*`, and division `/` for types `int8`, `int16`, `int32`. The division case specifically detects the `MIN_INT / -1` overflow condition where the result exceeds the maximum representable value. Regarding `int64`, `uintptr`, they are not checked.
+**Arithmetic operations**: Handles addition `+`, subtraction `-`, multiplication `*`, and division `/` for types `int8`, `int16`, `int32`. The division case specifically detects the `MIN_INT / -1` overflow condition where the result exceeds the maximum representable value. `int64` and `uintptr` are not checked for arithmetic operations.
+
+**Type truncation detection**: Detects when integer type conversions would result in data loss due to the target type having a smaller range than the source type. Covers all integer types: `int8`, `int16`, `int32`, `int64`, `uint8`, `uint16`, `uint32`, `uint64`. Excludes `uintptr` due to platform-dependent usage.
 
 ### Usage and installation :
 ```bash
@@ -26,7 +28,7 @@ export GOROOT=/path/to/go-panikint
 
 ### How does it work ?
 #### What is being done exactly ?
-We basically patched the intermediate representation (IR) part of the Go compiler so that, on every math operands (i.e `OADD`, `OMUL`, `OSUB`, `ODIV`, ...), the compiler does not only add the IR opcodes that perform the math operation but also **insert** a bunch of checks for arithmetic bugs and insert a panic call with `ir.Syms.Panicoverflow` if those checks are met. This code will ultimately end up to the binary code (Assembly) of the application, so use with caution.
+We basically patched the intermediate representation (IR) part of the Go compiler so that, on every math operands (i.e `OADD`, `OMUL`, `OSUB`, `ODIV`, ...) and type conversions, the compiler does not only add the IR opcodes that perform the operation but also **insert** a bunch of checks for arithmetic bugs and insert panic calls with `ir.Syms.Panicoverflow` or `ir.Syms.Panictruncate` if those checks are met. This code will ultimately end up to the binary code (Assembly) of the application, so use with caution.
 Below is an example of a Ghidra-decompiled addition `+`:
 
 ```c++
@@ -43,13 +45,31 @@ if (*x_00 == '+') {
 ```
 
 #### Why do we use package filters ?
-As you can see [here](https://github.com/kevin-valerio/go-panikint/blob/0d6340a37c6cc7a3e44c556f8df42e8ec9d1efc8/src/cmd/compile/internal/ssagen/ssa.go#L5258-L5270), we do not apply our panics for arithmetic issues on every packages: standard library packages (`runtime`, `sync`, `os`, `syscall`, etc.), internal packages (`internal/*`) and math and unsafe packages are not concerned by the overhead. There is different reasons for this.
+As you can see [here](https://github.com/kevin-valerio/go-panikint/blob/0d6340a37c6cc7a3e44c556f8df42e8ec9d1efc8/src/cmd/compile/internal/ssagen/ssa.go#L5258-L5270), we do not apply our panics for arithmetic issues and type truncation on every packages: standard library packages (`runtime`, `sync`, `os`, `syscall`, etc.), internal packages (`internal/*`) and math and unsafe packages are not concerned by the overhead. There is different reasons for this.
 
 First, we need to compile Go, with Go itself. Because of this, some behaviors of the vanilla compiler must remain. Some functions like hashing sometimes rely on overflow for bit mixing. Moreover, some components like routine scheduling or memory management cannot be interrupted with panics.
 
+### Testing
+
+#### Arithmetic overflow tests
+
+Test arithmetic overflow detection:
+```bash
+# Run arithmetic overflow tests
+./bin/go run arithmetic_tests/test_simple_overflow.go
+```
+
+#### Integer truncation tests
+
+Test integer truncation detection:
+```bash
+# Run comprehensive truncation tests
+./bin/go run cast_tests/truncation_tests.go
+```
+
 ### Examples
 
-#### Example 1:
+#### Example 1 (Arithmetic Overflow):
 
 ```go
 package main
@@ -82,22 +102,34 @@ main.main()
 exit status 2
 ```
 
-#### Example 2:
+#### Example 2 (Type truncation):
+
+```go
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("Testing type truncation detection...")
+
+	var u16 uint16 = 256
+	fmt.Printf("Before: u16=%d\n", u16)
+	result := uint8(u16)  // Should panic with "integer truncation"
+	fmt.Printf("After: result=%d\n", result)
+}
+```
+
+**Expected output:**
 
 ```bash
-bash-5.2$ go run  vim_panik.go
-1. Signed int8 overflow:
-Max int8: 127
-After adding 1: -128 (wrapped to minimum)
-
-bash-5.2$ GOROOT=/path/to/go-panikint && ./bin/go run  vim_panik.go
-1. Signed int8 overflow:
-Max int8: 127
-panic: runtime error: integer overflow
+bash-5.2$ GOROOT=/path/to/go-arithmetic-panik && ./bin/go run test_truncation.go
+Testing type truncation detection...
+Before: u16=256
+panic: runtime error: integer truncation
 
 goroutine 1 [running]:
 main.main()
-	/path/to/go-panikint/vim_panik.go:14 +0x11c
+	/path/to/go-arithmetic-panik/test_truncation.go:10 +0xfc
 exit status 2
 ```
 

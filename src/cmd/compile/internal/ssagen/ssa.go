@@ -142,6 +142,7 @@ func InitConfig() {
 	ir.Syms.PanicdottypeI = typecheck.LookupRuntimeFunc("panicdottypeI")
 	ir.Syms.Panicnildottype = typecheck.LookupRuntimeFunc("panicnildottype")
 	ir.Syms.Panicoverflow = typecheck.LookupRuntimeFunc("panicoverflow")
+	ir.Syms.Panictruncate = typecheck.LookupRuntimeFunc("panictruncate")
 	ir.Syms.Panicshift = typecheck.LookupRuntimeFunc("panicshift")
 	ir.Syms.Racefuncenter = typecheck.LookupRuntimeFunc("racefuncenter")
 	ir.Syms.Racefuncexit = typecheck.LookupRuntimeFunc("racefuncexit")
@@ -2747,6 +2748,11 @@ func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
 		var op ssa.Op
 		if tt.Size() == ft.Size() {
 			op = ssa.OpCopy
+			
+			// Check for same-size signed/unsigned conversion issues
+			if s.shouldCheckTruncation(ft, tt) {
+				return s.checkTypeTruncation(n, v, ft, tt, op)
+			}
 		} else if tt.Size() < ft.Size() {
 			// truncation
 			switch 10*ft.Size() + tt.Size() {
@@ -2764,6 +2770,11 @@ func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
 				op = ssa.OpTrunc64to32
 			default:
 				s.Fatalf("weird integer truncation %v -> %v", ft, tt)
+			}
+			
+			// Add truncation check if enabled
+			if s.shouldCheckTruncation(ft, tt) {
+				return s.checkTypeTruncation(n, v, ft, tt, op)
 			}
 		} else if ft.IsSigned() {
 			// sign extension
@@ -5285,6 +5296,122 @@ func (s *state) shouldCheckOverflow(typ *types.Type) bool {
 		}
 	}
 	return false
+}
+
+// shouldCheckTruncation returns true if truncation detection should be applied for this conversion.
+// It checks if the package should be excluded from truncation detection and if the conversion is potentially lossy.
+func (s *state) shouldCheckTruncation(fromType, toType *types.Type) bool {
+	// Use the same package filtering as overflow detection
+	pkgPath := base.Ctxt.Pkgpath
+	
+	if pkgPath == "" || // empty package path means standard library
+		strings.HasPrefix(pkgPath, "cmd/") || // All cmd packages (go compiler, tools, etc.)
+		strings.HasPrefix(pkgPath, "runtime") ||
+		strings.HasPrefix(pkgPath, "internal") || // Go's internal packages (not user internal packages)
+		strings.HasPrefix(pkgPath, "bootstrap") ||
+		strings.Contains(pkgPath, "vendor/") || // Any vendor package
+		(!strings.Contains(pkgPath, ".") && pkgPath != "main" && pkgPath != "command-line-arguments" && !strings.HasSuffix(pkgPath, "test")) { // Standard library packages typically don't have dots, but allow "main", test packages, and packages ending in "test"
+		return false
+	}
+
+	// Check truncation for integer types in these cases:
+	// 1. Target type is smaller than source type (traditional truncation)
+	// 2. Same size but different signedness (problematic conversions)
+	if fromType.IsInteger() && toType.IsInteger() {
+		// Support all integer types: int8, int16, int32, int64, uint8, uint16, uint32, uint64
+		// But exclude uintptr as it's platform-dependent and often used for low-level operations
+		if fromType.Kind() != types.TUINTPTR && toType.Kind() != types.TUINTPTR {
+			// Case 1: Traditional truncation (target smaller than source)
+			if fromType.Size() > toType.Size() {
+				return true
+			}
+			// Case 2: Same size but different signedness (can cause unexpected values)
+			if fromType.Size() == toType.Size() && fromType.IsSigned() != toType.IsSigned() {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// checkTypeTruncation generates runtime checks to detect truncation during type conversion
+func (s *state) checkTypeTruncation(n ir.Node, value *ssa.Value, fromType, toType *types.Type, op ssa.Op) *ssa.Value {
+	// Perform the conversion first
+	result := s.newValue1(op, toType, value)
+	
+	// Check if truncation/conversion issue occurred by comparing with range bounds
+	var maxVal, minVal int64
+	
+	// Get the maximum and minimum values for the target type
+	switch toType.Size() {
+	case 1: // int8/uint8
+		if toType.IsSigned() {
+			maxVal = 127
+			minVal = -128
+		} else {
+			maxVal = 255
+			minVal = 0
+		}
+	case 2: // int16/uint16
+		if toType.IsSigned() {
+			maxVal = 32767
+			minVal = -32768
+		} else {
+			maxVal = 65535
+			minVal = 0
+		}
+	case 4: // int32/uint32
+		if toType.IsSigned() {
+			maxVal = 2147483647
+			minVal = -2147483648
+		} else {
+			maxVal = 4294967295
+			minVal = 0
+		}
+	default:
+		// For 8-byte types, no truncation check needed yet
+		return result
+	}
+	
+	// Create constants with the correct type for comparison
+	maxConst := s.newValue0I(ssa.OpConst64, types.Types[types.TINT64], maxVal)
+	minConst := s.newValue0I(ssa.OpConst64, types.Types[types.TINT64], minVal)
+	
+	// Convert value to int64 for comparison if needed
+	compareValue := value
+	if fromType.Size() < 8 {
+		if fromType.IsSigned() {
+			// Sign extend smaller signed types to int64
+			switch fromType.Size() {
+			case 1:
+				compareValue = s.newValue1(ssa.OpSignExt8to64, types.Types[types.TINT64], value)
+			case 2:
+				compareValue = s.newValue1(ssa.OpSignExt16to64, types.Types[types.TINT64], value)
+			case 4:
+				compareValue = s.newValue1(ssa.OpSignExt32to64, types.Types[types.TINT64], value)
+			}
+		} else {
+			// Zero extend smaller unsigned types to int64
+			switch fromType.Size() {
+			case 1:
+				compareValue = s.newValue1(ssa.OpZeroExt8to64, types.Types[types.TINT64], value)
+			case 2:
+				compareValue = s.newValue1(ssa.OpZeroExt16to64, types.Types[types.TINT64], value)
+			case 4:
+				compareValue = s.newValue1(ssa.OpZeroExt32to64, types.Types[types.TINT64], value)
+			}
+		}
+	}
+	
+	// Check if value is within bounds: minVal <= value <= maxVal
+	geMin := s.newValue2(ssa.OpLeq64, types.Types[types.TBOOL], minConst, compareValue)
+	leMax := s.newValue2(ssa.OpLeq64, types.Types[types.TBOOL], compareValue, maxConst)
+	inBounds := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], geMin, leMax)
+	
+	// s.check() panics when condition is FALSE, so pass the "no truncation" condition
+	s.check(inBounds, ir.Syms.Panictruncate)
+
+	return result
 }
 
 // intAdd performs addition with overflow detection for signed integers
