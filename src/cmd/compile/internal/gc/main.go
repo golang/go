@@ -188,6 +188,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	ir.EscFmt = escape.Fmt
 	ir.IsIntrinsicCall = ssagen.IsIntrinsicCall
+	ir.IsIntrinsicSym = ssagen.IsIntrinsicSym
 	inline.SSADumpInline = ssagen.DumpInline
 	ssagen.InitEnv()
 	ssagen.InitTables()
@@ -304,7 +305,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		}
 
 		if nextFunc < len(typecheck.Target.Funcs) {
-			enqueueFunc(typecheck.Target.Funcs[nextFunc])
+			enqueueFunc(typecheck.Target.Funcs[nextFunc], symABIs)
 			nextFunc++
 			continue
 		}

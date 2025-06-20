@@ -12,6 +12,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/sys"
 )
@@ -1751,5 +1752,65 @@ func IsIntrinsicCall(n *ir.CallExpr) bool {
 	if !ok {
 		return false
 	}
-	return findIntrinsic(name.Sym()) != nil
+	return IsIntrinsicSym(name.Sym())
+}
+
+func IsIntrinsicSym(sym *types.Sym) bool {
+	return findIntrinsic(sym) != nil
+}
+
+// GenIntrinsicBody generates the function body for a bodyless intrinsic.
+// This is used when the intrinsic is used in a non-call context, e.g.
+// as a function pointer, or (for a method) being referenced from the type
+// descriptor.
+//
+// The compiler already recognizes a call to fn as an intrinsic and can
+// directly generate code for it. So we just fill in the body with a call
+// to fn.
+func GenIntrinsicBody(fn *ir.Func) {
+	if ir.CurFunc != nil {
+		base.FatalfAt(fn.Pos(), "enqueueFunc %v inside %v", fn, ir.CurFunc)
+	}
+
+	if base.Flag.LowerR != 0 {
+		fmt.Println("generate intrinsic for", ir.FuncName(fn))
+	}
+
+	pos := fn.Pos()
+	ft := fn.Type()
+	var ret ir.Node
+
+	// For a method, it usually starts with an ODOTMETH (pre-typecheck) or
+	// OMETHEXPR (post-typecheck) referencing the method symbol without the
+	// receiver type, and Walk rewrites it to a call directly to the
+	// type-qualified method symbol, moving the receiver to an argument.
+	// Here fn has already the type-qualified method symbol, and it is hard
+	// to get the unqualified symbol. So we just generate the post-Walk form
+	// and mark it typechecked and Walked.
+	call := ir.NewCallExpr(pos, ir.OCALLFUNC, fn.Nname, nil)
+	call.Args = ir.RecvParamNames(ft)
+	call.IsDDD = ft.IsVariadic()
+	typecheck.Exprs(call.Args)
+	call.SetTypecheck(1)
+	call.SetWalked(true)
+	ret = call
+	if ft.NumResults() > 0 {
+		if ft.NumResults() == 1 {
+			call.SetType(ft.Result(0).Type)
+		} else {
+			call.SetType(ft.ResultsTuple())
+		}
+		n := ir.NewReturnStmt(base.Pos, nil)
+		n.Results = []ir.Node{call}
+		ret = n
+	}
+	fn.Body.Append(ret)
+
+	if base.Flag.LowerR != 0 {
+		ir.DumpList("generate intrinsic body", fn.Body)
+	}
+
+	ir.CurFunc = fn
+	typecheck.Stmts(fn.Body)
+	ir.CurFunc = nil // we know CurFunc is nil at entry
 }
