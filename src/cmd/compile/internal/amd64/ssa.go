@@ -1626,6 +1626,22 @@ func simdFp21Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	return p
 }
 
+// Example instruction: VPINSRB $3, DX, X0, X0
+func simdFp1gp1fp1Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	imm := v.AuxInt
+	if imm < 0 || imm > 255 {
+		v.Fatalf("Invalid source selection immediate")
+	}
+	p.From.Offset = imm
+	p.From.Type = obj.TYPE_CONST
+	p.AddRestSourceReg(v.Args[1].Reg())
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
 // Example instruction: VPCMPD $1, Z1, Z2, K1
 func simdFp2k1Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	return simdFp21Imm8(s, v)
