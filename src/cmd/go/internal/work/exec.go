@@ -1899,12 +1899,21 @@ func (b *Builder) installHeader(ctx context.Context, a *Action) error {
 // regular outputs (instrumented source files) the cover tool also
 // writes a separate file (appearing first in the list of outputs)
 // that will contain coverage counters and meta-data.
+//
+// When an overlay is in use, it ensures the coverage tool processes the overlaid
+// files rather than the original source files.
 func (b *Builder) cover(a *Action, infiles, outfiles []string, varName string, mode string) ([]string, error) {
 	pkgcfg := a.Objdir + "pkgcfg.txt"
 	covoutputs := a.Objdir + "coveroutfiles.txt"
 	odir := filepath.Dir(outfiles[0])
 	cv := filepath.Join(odir, "covervars.go")
 	outfiles = append([]string{cv}, outfiles...)
+	overlayInfiles := make([]string, 0, len(infiles))
+	for _, f := range infiles {
+		overlayPath := fsys.Actual(f)
+		overlayInfiles = append(overlayInfiles, overlayPath)
+	}
+
 	if err := b.writeCoverPkgInputs(a, pkgcfg, covoutputs, outfiles); err != nil {
 		return nil, err
 	}
@@ -1914,7 +1923,7 @@ func (b *Builder) cover(a *Action, infiles, outfiles []string, varName string, m
 		"-var", varName,
 		"-outfilelist", covoutputs,
 	}
-	args = append(args, infiles...)
+	args = append(args, overlayInfiles...)
 	if err := b.Shell(a).run(a.Objdir, "", nil,
 		cfg.BuildToolexec, args); err != nil {
 		return nil, err
