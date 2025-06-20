@@ -1372,5 +1372,13 @@ func simdGenericOps() []opData {
 		{name: "RoundWithPrecisionFloat64x8", argLength: 1, commutative: false, aux: "Int8"},
 		{name: "TruncSuppressExceptionWithPrecisionFloat64x8", argLength: 1, commutative: false, aux: "Int8"},
 		{name: "TruncWithPrecisionFloat64x8", argLength: 1, commutative: false, aux: "Int8"},
+		{name: "SetElemInt16x8", argLength: 2, commutative: false, aux: "Int8"},
+		{name: "SetElemInt32x4", argLength: 2, commutative: false, aux: "Int8"},
+		{name: "SetElemInt64x2", argLength: 2, commutative: false, aux: "Int8"},
+		{name: "SetElemInt8x16", argLength: 2, commutative: false, aux: "Int8"},
+		{name: "SetElemUint16x8", argLength: 2, commutative: false, aux: "Int8"},
+		{name: "SetElemUint32x4", argLength: 2, commutative: false, aux: "Int8"},
+		{name: "SetElemUint64x2", argLength: 2, commutative: false, aux: "Int8"},
+		{name: "SetElemUint8x16", argLength: 2, commutative: false, aux: "Int8"},
 	}
 }

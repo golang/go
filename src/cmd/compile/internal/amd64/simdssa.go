@@ -718,6 +718,12 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VPDPBUSDMasked512:
 		p = simdFp3k1fp1ResultInArg0(s, v)
 
+	case ssa.OpAMD64VPINSRB128,
+		ssa.OpAMD64VPINSRW128,
+		ssa.OpAMD64VPINSRD128,
+		ssa.OpAMD64VPINSRQ128:
+		p = simdFp1gp1fp1Imm8(s, v)
+
 	default:
 		// Unknown reg shape
 		return false

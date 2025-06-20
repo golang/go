@@ -1838,20 +1838,24 @@ const (
 	OpAMD64VPCMPWMasked512
 	OpAMD64VPCMPW128
 	OpAMD64VPCMPWMasked128
+	OpAMD64VPINSRW128
 	OpAMD64VPCMPD512
 	OpAMD64VPCMPDMasked512
 	OpAMD64VPCMPD128
 	OpAMD64VPCMPDMasked128
+	OpAMD64VPINSRD128
 	OpAMD64VPCMPD256
 	OpAMD64VPCMPDMasked256
 	OpAMD64VPCMPQ128
 	OpAMD64VPCMPQMasked128
+	OpAMD64VPINSRQ128
 	OpAMD64VPCMPQ256
 	OpAMD64VPCMPQMasked256
 	OpAMD64VPCMPQ512
 	OpAMD64VPCMPQMasked512
 	OpAMD64VPCMPB128
 	OpAMD64VPCMPBMasked128
+	OpAMD64VPINSRB128
 	OpAMD64VPCMPB256
 	OpAMD64VPCMPBMasked256
 	OpAMD64VPCMPB512
@@ -5475,6 +5479,14 @@ const (
 	OpRoundWithPrecisionFloat64x8
 	OpTruncSuppressExceptionWithPrecisionFloat64x8
 	OpTruncWithPrecisionFloat64x8
+	OpSetElemInt16x8
+	OpSetElemInt32x4
+	OpSetElemInt64x2
+	OpSetElemInt8x16
+	OpSetElemUint16x8
+	OpSetElemUint32x4
+	OpSetElemUint64x2
+	OpSetElemUint8x16
 )
 
 var opcodeTable = [...]opInfo{
@@ -27739,6 +27751,21 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "VPINSRW128",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPINSRW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPCMPD512",
 		auxType:     auxInt8,
 		argLen:      2,
@@ -27804,6 +27831,21 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "VPINSRD128",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPINSRD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:    "VPCMPD256",
 		auxType: auxInt8,
 		argLen:  2,
@@ -27864,6 +27906,21 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VPINSRQ128",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPINSRQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -27961,6 +28018,21 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VPINSRB128",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPINSRB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -63151,6 +63223,54 @@ var opcodeTable = [...]opInfo{
 		name:    "TruncWithPrecisionFloat64x8",
 		auxType: auxInt8,
 		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "SetElemInt16x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SetElemInt32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SetElemInt64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SetElemInt8x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SetElemUint16x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SetElemUint32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SetElemUint64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SetElemUint8x16",
+		auxType: auxInt8,
+		argLen:  2,
 		generic: true,
 	},
 }

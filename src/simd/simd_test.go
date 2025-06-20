@@ -230,6 +230,19 @@ func TestSlicesInt8(t *testing.T) {
 	checkInt8Slices(t, a, b)
 }
 
+func TestSlicesInt8SetElem(t *testing.T) {
+	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	v := simd.LoadInt8x16Slice(a)
+
+	v = v.SetElem(3, 13)
+	a[3] = 13
+
+	b := make([]int8, 16, 16)
+	v.StoreSlice(b)
+	checkInt8Slices(t, a, b)
+}
+
 func TestSlicesInt8TooShortLoad(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
