@@ -7,17 +7,21 @@
 package simd_test
 
 import (
+	"reflect"
 	"simd"
 	"testing"
 )
 
+var sink any
+
 func TestType(t *testing.T) {
 	// Testing:
-	// - Defined as another struct's field is safe
-	// - Pointer is safe.
-	// - typedef is safe
-	// - type alias is safe
-	// - type conversion is safe
+	// - Defined as another struct's field is ok
+	// - Pointer is ok
+	// - Type defition is ok
+	// - Type alias is ok
+	// - Type conversion is ok
+	// - Conversion to interface is ok
 	type alias = simd.Int32x4
 	type maskT simd.Mask32x4
 	type myStruct struct {
@@ -32,6 +36,7 @@ func TestType(t *testing.T) {
 	want := []int32{2, 4, 0, 0}
 	y := simd.LoadInt32x4(&vals)
 	v.y = &y
+	sink = y
 
 	if !simd.HasAVX512BW() || !simd.HasAVX512VL() {
 		t.Skip("Test requires HasAVX512BW+VL, not available on this hardware")
@@ -42,6 +47,48 @@ func TestType(t *testing.T) {
 
 	got := [4]int32{}
 	v.y.Store(&got)
+	for i := range 4 {
+		if want[i] != got[i] {
+			t.Errorf("Result at %d incorrect: want %d, got %d", i, want[i], got[i])
+		}
+	}
+}
+
+func TestFuncValue(t *testing.T) {
+	// Test that simd intrinsic can be used as a function value.
+	xv := [4]int32{1, 2, 3, 4}
+	yv := [4]int32{5, 6, 7, 8}
+	want := []int32{6, 8, 10, 12}
+	x := simd.LoadInt32x4(&xv)
+	y := simd.LoadInt32x4(&yv)
+	fn := simd.Int32x4.Add
+	sink = fn
+	x = fn(x, y)
+	got := [4]int32{}
+	x.Store(&got)
+	for i := range 4 {
+		if want[i] != got[i] {
+			t.Errorf("Result at %d incorrect: want %d, got %d", i, want[i], got[i])
+		}
+	}
+}
+
+func TestReflectMethod(t *testing.T) {
+	// Test that simd intrinsic can be accessed via reflection.
+	// NOTE: we don't yet support reflect method.Call.
+	xv := [4]int32{1, 2, 3, 4}
+	yv := [4]int32{5, 6, 7, 8}
+	want := []int32{6, 8, 10, 12}
+	x := simd.LoadInt32x4(&xv)
+	y := simd.LoadInt32x4(&yv)
+	m, ok := reflect.TypeOf(x).MethodByName("Add")
+	if !ok {
+		t.Fatal("Add method not found")
+	}
+	fn := m.Func.Interface().(func(x, y simd.Int32x4) simd.Int32x4)
+	x = fn(x, y)
+	got := [4]int32{}
+	x.Store(&got)
 	for i := range 4 {
 		if want[i] != got[i] {
 			t.Errorf("Result at %d incorrect: want %d, got %d", i, want[i], got[i])
