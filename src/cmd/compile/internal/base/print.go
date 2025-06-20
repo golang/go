@@ -220,7 +220,7 @@ func FatalfAt(pos src.XPos, format string, args ...interface{}) {
 		fmt.Printf("\n")
 
 		// If this is a released compiler version, ask for a bug report.
-		if Debug.Panic == 0 && strings.HasPrefix(buildcfg.Version, "go") {
+		if Debug.Panic == 0 && strings.HasPrefix(buildcfg.Version, "go") && !strings.Contains(buildcfg.Version, "devel") {
 			fmt.Printf("\n")
 			fmt.Printf("Please file a bug report including a short program that triggers the error.\n")
 			fmt.Printf("https://go.dev/issue/new\n")
