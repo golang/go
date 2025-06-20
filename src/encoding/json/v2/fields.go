@@ -493,11 +493,11 @@ func parseFieldOptions(sf reflect.StructField) (out fieldOptions, ignored bool, 
 		}
 		switch opt {
 		case "case":
-			if !strings.HasPrefix(tag, ":") {
+			tag, cut := strings.CutPrefix(tag, ":")
+			if !cut {
 				err = cmp.Or(err, fmt.Errorf("Go struct field %s is missing value for `case` tag option; specify `case:ignore` or `case:strict` instead", sf.Name))
 				break
 			}
-			tag = tag[len(":"):]
 			opt, n, err2 := consumeTagOption(tag)
 			if err2 != nil {
 				err = cmp.Or(err, fmt.Errorf("Go struct field %s has malformed value for `case` tag option: %v", sf.Name, err2))
@@ -527,11 +527,11 @@ func parseFieldOptions(sf reflect.StructField) (out fieldOptions, ignored bool, 
 		case "string":
 			out.string = true
 		case "format":
-			if !strings.HasPrefix(tag, ":") {
+			tag, cut := strings.CutPrefix(tag, ":")
+			if !cut {
 				err = cmp.Or(err, fmt.Errorf("Go struct field %s is missing value for `format` tag option", sf.Name))
 				break
 			}
-			tag = tag[len(":"):]
 			opt, n, err2 := consumeTagOption(tag)
 			if err2 != nil {
 				err = cmp.Or(err, fmt.Errorf("Go struct field %s has malformed value for `format` tag option: %v", sf.Name, err2))

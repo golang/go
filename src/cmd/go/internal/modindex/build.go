@@ -171,10 +171,11 @@ func (ctxt *Context) hasSubdir(root, dir string) (rel string, ok bool) {
 func hasSubdir(root, dir string) (rel string, ok bool) {
 	root = str.WithFilePathSeparator(filepath.Clean(root))
 	dir = filepath.Clean(dir)
-	if !strings.HasPrefix(dir, root) {
+	path, cut := strings.CutPrefix(dir, root)
+	if !cut {
 		return "", false
 	}
-	return filepath.ToSlash(dir[len(root):]), true
+	return filepath.ToSlash(path), true
 }
 
 // gopath returns the list of Go path directories.
