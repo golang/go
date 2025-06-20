@@ -156,8 +156,11 @@ type Context interface {
 	//
 	// 	// FromContext returns the User value stored in ctx, if any.
 	// 	func FromContext(ctx context.Context) (*User, bool) {
-	// 		u, ok := ctx.Value(userKey).(*User)
-	// 		return u, ok
+	// 		u := ctx.Value(userKey)
+	// 		if u == nil {
+	// 		    return nil, false
+	// 		}
+	// 		return u.(*User), true
 	// 	}
 	Value(key any) any
 }
