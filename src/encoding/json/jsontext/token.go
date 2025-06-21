@@ -33,8 +33,8 @@ var errInvalidToken = errors.New("invalid jsontext.Token")
 //   - a JSON literal (i.e., null, true, or false)
 //   - a JSON string (e.g., "hello, world!")
 //   - a JSON number (e.g., 123.456)
-//   - a start or end delimiter for a JSON object (i.e., { or } )
-//   - a start or end delimiter for a JSON array (i.e., [ or ] )
+//   - a begin or end delimiter for a JSON object (i.e., { or } )
+//   - a begin or end delimiter for a JSON array (i.e., [ or ] )
 //
 // A Token cannot represent entire array or object values, while a [Value] can.
 // There is no Token to represent commas and colons since
@@ -481,9 +481,9 @@ func (t Token) Kind() Kind {
 //   - 't': true
 //   - '"': string
 //   - '0': number
-//   - '{': object start
+//   - '{': object begin
 //   - '}': object end
-//   - '[': array start
+//   - '[': array begin
 //   - ']': array end
 //
 // An invalid kind is usually represented using 0,
