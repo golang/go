@@ -48,7 +48,7 @@ const (
 	EvGoStatus            // goroutine status at the start of a generation [timestamp, goroutine ID, thread ID, status]
 
 	// STW.
-	EvSTWBegin // STW start [timestamp, kind]
+	EvSTWBegin // STW start [timestamp, kind, stack ID]
 	EvSTWEnd   // STW done [timestamp]
 
 	// GC events.
