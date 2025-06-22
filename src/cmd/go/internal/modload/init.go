@@ -149,7 +149,7 @@ type MainModuleSet struct {
 	// highest replaced version of each module path; empty string for wildcard-only replacements
 	highestReplaced map[string]string
 
-	indexMu sync.Mutex
+	indexMu sync.RWMutex
 	indices map[module.Version]*modFileIndex
 }
 
@@ -228,8 +228,8 @@ func (mms *MainModuleSet) GetSingleIndexOrNil() *modFileIndex {
 }
 
 func (mms *MainModuleSet) Index(m module.Version) *modFileIndex {
-	mms.indexMu.Lock()
-	defer mms.indexMu.Unlock()
+	mms.indexMu.RLock()
+	defer mms.indexMu.RUnlock()
 	return mms.indices[m]
 }
 
