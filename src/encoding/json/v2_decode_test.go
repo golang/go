@@ -1195,6 +1195,27 @@ var unmarshalTests = []struct {
 		out:      []int{1, 2, 0, 4, 5},
 		err:      &UnmarshalTypeError{Value: "bool", Type: reflect.TypeFor[int](), Field: "2", Offset: len64(`[1,2,`)},
 	},
+
+	{
+		CaseName: Name("DashComma"),
+		in:       `{"-":"hello"}`,
+		ptr: new(struct {
+			F string `json:"-,"`
+		}),
+		out: struct {
+			F string `json:"-,"`
+		}{"hello"},
+	},
+	{
+		CaseName: Name("DashCommaOmitEmpty"),
+		in:       `{"-":"hello"}`,
+		ptr: new(struct {
+			F string `json:"-,omitempty"`
+		}),
+		out: struct {
+			F string `json:"-,omitempty"`
+		}{"hello"},
+	},
 }
 
 func TestMarshal(t *testing.T) {
