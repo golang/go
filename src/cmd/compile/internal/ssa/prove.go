@@ -2267,6 +2267,10 @@ func addLocalFacts(ft *factsTable, b *Block) {
 			// the mod instruction executes (and thus panics if the
 			// modulus is 0). See issue 67625.
 			ft.update(b, v, v.Args[1], unsigned, lt)
+		case OpStringLen:
+			if v.Args[0].Op == OpStringMake {
+				ft.update(b, v, v.Args[0].Args[1], signed, eq)
+			}
 		case OpSliceLen:
 			if v.Args[0].Op == OpSliceMake {
 				ft.update(b, v, v.Args[0].Args[1], signed, eq)

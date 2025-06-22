@@ -2302,6 +2302,23 @@ func transitiveProofsThroughOverflowingUnsignedSub(x, y, z uint64) {
 	}
 }
 
+func resliceString(s string) byte {
+	if len(s) >= 4 {
+		s = s[2:]   // ERROR "Proved IsSliceInBounds" "Proved slicemask not needed"
+		s = s[1:]   // ERROR "Proved IsSliceInBounds" "Proved slicemask not needed"
+		return s[0] // ERROR "Proved IsInBounds"
+	}
+	return 0
+}
+func resliceBytes(b []byte) byte {
+	if len(b) >= 4 {
+		b = b[2:]   // ERROR "Proved IsSliceInBounds" "Proved slicemask not needed"
+		b = b[1:]   // ERROR "Proved IsSliceInBounds" "Proved slicemask not needed"
+		return b[0] // ERROR "Proved IsInBounds"
+	}
+	return 0
+}
+
 //go:noinline
 func useInt(a int) {
 }
