@@ -50,7 +50,7 @@ const (
 	//
 	// Must be a multiple of the pageInUse bitmap element size and
 	// must also evenly divide pagesPerArena.
-	pagesPerSpanRoot = 512
+	pagesPerSpanRoot = min(512, pagesPerArena)
 )
 
 // gcPrepareMarkRoots queues root scanning jobs (stacks, globals, and

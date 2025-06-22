@@ -54,35 +54,39 @@ func TestPallocBitsAllocRange(t *testing.T) {
 		want[PallocChunkPages/64-1] = 1 << 63
 		test(t, PallocChunkPages-1, 1, want)
 	})
-	t.Run("Inner", func(t *testing.T) {
-		want := new(PallocBits)
-		want[2] = 0x3e
-		test(t, 129, 5, want)
-	})
-	t.Run("Aligned", func(t *testing.T) {
-		want := new(PallocBits)
-		want[2] = ^uint64(0)
-		want[3] = ^uint64(0)
-		test(t, 128, 128, want)
-	})
-	t.Run("Begin", func(t *testing.T) {
-		want := new(PallocBits)
-		want[0] = ^uint64(0)
-		want[1] = ^uint64(0)
-		want[2] = ^uint64(0)
-		want[3] = ^uint64(0)
-		want[4] = ^uint64(0)
-		want[5] = 0x1
-		test(t, 0, 321, want)
-	})
-	t.Run("End", func(t *testing.T) {
-		want := new(PallocBits)
-		want[PallocChunkPages/64-1] = ^uint64(0)
-		want[PallocChunkPages/64-2] = ^uint64(0)
-		want[PallocChunkPages/64-3] = ^uint64(0)
-		want[PallocChunkPages/64-4] = 1 << 63
-		test(t, PallocChunkPages-(64*3+1), 64*3+1, want)
-	})
+	if PallocChunkPages >= 512 {
+		t.Run("Inner", func(t *testing.T) {
+			want := new(PallocBits)
+			want[:][2] = 0x3e
+			test(t, 129, 5, want)
+		})
+		t.Run("Aligned", func(t *testing.T) {
+			want := new(PallocBits)
+			want[:][2] = ^uint64(0)
+			want[:][3] = ^uint64(0)
+			test(t, 128, 128, want)
+		})
+		t.Run("Begin", func(t *testing.T) {
+			want := new(PallocBits)
+			want[:][0] = ^uint64(0)
+			want[:][1] = ^uint64(0)
+			want[:][2] = ^uint64(0)
+			want[:][3] = ^uint64(0)
+			want[:][4] = ^uint64(0)
+			want[:][5] = 0x1
+			test(t, 0, 321, want)
+		})
+		t.Run("End", func(t *testing.T) {
+			// avoid constant overflow when PallocChunkPages is small
+			var PallocChunkPages uint = PallocChunkPages
+			want := new(PallocBits)
+			want[PallocChunkPages/64-1] = ^uint64(0)
+			want[PallocChunkPages/64-2] = ^uint64(0)
+			want[PallocChunkPages/64-3] = ^uint64(0)
+			want[PallocChunkPages/64-4] = 1 << 63
+			test(t, PallocChunkPages-(64*3+1), 64*3+1, want)
+		})
+	}
 	t.Run("All", func(t *testing.T) {
 		want := new(PallocBits)
 		for i := range want {
@@ -118,10 +122,11 @@ func TestMallocBitsPopcntRange(t *testing.T) {
 		i, n uint // bit range to popcnt over.
 		want uint // expected popcnt result on that range.
 	}
-	tests := map[string]struct {
+	type testCase struct {
 		init  []BitRange // bit ranges to set to 1 in the bitmap.
 		tests []test     // a set of popcnt tests to run over the bitmap.
-	}{
+	}
+	tests := map[string]testCase{
 		"None": {
 			tests: []test{
 				{0, 1, 0},
@@ -157,7 +162,9 @@ func TestMallocBitsPopcntRange(t *testing.T) {
 				{0, PallocChunkPages, PallocChunkPages / 2},
 			},
 		},
-		"OddBound": {
+	}
+	if PallocChunkPages >= 512 {
+		tests["OddBound"] = testCase{
 			init: []BitRange{{0, 111}},
 			tests: []test{
 				{0, 1, 1},
@@ -172,8 +179,8 @@ func TestMallocBitsPopcntRange(t *testing.T) {
 				{PallocChunkPages / 2, PallocChunkPages / 2, 0},
 				{0, PallocChunkPages, 111},
 			},
-		},
-		"Scattered": {
+		}
+		tests["Scattered"] = testCase{
 			init: []BitRange{
 				{1, 3}, {5, 1}, {7, 1}, {10, 2}, {13, 1}, {15, 4},
 				{21, 1}, {23, 1}, {26, 2}, {30, 5}, {36, 2}, {40, 3},
@@ -190,7 +197,7 @@ func TestMallocBitsPopcntRange(t *testing.T) {
 				{1, 128, 74},
 				{0, PallocChunkPages, 75},
 			},
-		},
+		}
 	}
 	for name, v := range tests {
 		v := v
@@ -251,23 +258,25 @@ func TestPallocBitsSummarize(t *testing.T) {
 			PackPallocSum(11, 23, 23),
 		},
 	}
-	tests["StartMaxEnd"] = test{
-		free: []BitRange{{0, 4}, {50, 100}, {PallocChunkPages - 4, 4}},
-		hits: []PallocSum{
-			PackPallocSum(4, 100, 4),
-		},
-	}
-	tests["OnlyMax"] = test{
-		free: []BitRange{{1, 20}, {35, 241}, {PallocChunkPages - 50, 30}},
-		hits: []PallocSum{
-			PackPallocSum(0, 241, 0),
-		},
-	}
-	tests["MultiMax"] = test{
-		free: []BitRange{{35, 2}, {40, 5}, {100, 5}},
-		hits: []PallocSum{
-			PackPallocSum(0, 5, 0),
-		},
+	if PallocChunkPages >= 512 {
+		tests["StartMaxEnd"] = test{
+			free: []BitRange{{0, 4}, {50, 100}, {PallocChunkPages - 4, 4}},
+			hits: []PallocSum{
+				PackPallocSum(4, 100, 4),
+			},
+		}
+		tests["OnlyMax"] = test{
+			free: []BitRange{{1, 20}, {35, 241}, {PallocChunkPages - 50, 30}},
+			hits: []PallocSum{
+				PackPallocSum(0, 241, 0),
+			},
+		}
+		tests["MultiMax"] = test{
+			free: []BitRange{{35, 2}, {40, 5}, {100, 5}},
+			hits: []PallocSum{
+				PackPallocSum(0, 5, 0),
+			},
+		}
 	}
 	tests["One"] = test{
 		free: []BitRange{{2, 1}},
@@ -329,12 +338,13 @@ func BenchmarkPallocBitsSummarize(b *testing.B) {
 
 // Ensures page allocation works.
 func TestPallocBitsAlloc(t *testing.T) {
-	tests := map[string]struct {
+	type test struct {
 		before []BitRange
 		after  []BitRange
 		npages uintptr
 		hits   []uint
-	}{
+	}
+	tests := map[string]test{
 		"AllFree1": {
 			npages: 1,
 			hits:   []uint{0, 1, 2, 3, 4, 5},
@@ -349,22 +359,6 @@ func TestPallocBitsAlloc(t *testing.T) {
 			npages: 5,
 			hits:   []uint{0, 5, 10, 15, 20},
 			after:  []BitRange{{0, 25}},
-		},
-		"AllFree64": {
-			npages: 64,
-			hits:   []uint{0, 64, 128},
-			after:  []BitRange{{0, 192}},
-		},
-		"AllFree65": {
-			npages: 65,
-			hits:   []uint{0, 65, 130},
-			after:  []BitRange{{0, 195}},
-		},
-		"SomeFree64": {
-			before: []BitRange{{0, 32}, {64, 32}, {100, PallocChunkPages - 100}},
-			npages: 64,
-			hits:   []uint{^uint(0)},
-			after:  []BitRange{{0, 32}, {64, 32}, {100, PallocChunkPages - 100}},
 		},
 		"NoneFree1": {
 			before: []BitRange{{0, PallocChunkPages}},
@@ -408,18 +402,38 @@ func TestPallocBitsAlloc(t *testing.T) {
 			hits:   []uint{PallocChunkPages/2 - 3, ^uint(0)},
 			after:  []BitRange{{0, PallocChunkPages}},
 		},
-		"ExactFit65": {
+	}
+	if PallocChunkPages >= 512 {
+		// avoid constant overflow when PallocChunkPages is small
+		var PallocChunkPages uint = PallocChunkPages
+		tests["AllFree64"] = test{
+			npages: 64,
+			hits:   []uint{0, 64, 128},
+			after:  []BitRange{{0, 192}},
+		}
+		tests["AllFree65"] = test{
+			npages: 65,
+			hits:   []uint{0, 65, 130},
+			after:  []BitRange{{0, 195}},
+		}
+		tests["SomeFree64"] = test{
+			before: []BitRange{{0, 32}, {64, 32}, {100, PallocChunkPages - 100}},
+			npages: 64,
+			hits:   []uint{^uint(0)},
+			after:  []BitRange{{0, 32}, {64, 32}, {100, PallocChunkPages - 100}},
+		}
+		tests["ExactFit65"] = test{
 			before: []BitRange{{0, PallocChunkPages/2 - 31}, {PallocChunkPages/2 + 34, PallocChunkPages/2 - 34}},
 			npages: 65,
 			hits:   []uint{PallocChunkPages/2 - 31, ^uint(0)},
 			after:  []BitRange{{0, PallocChunkPages}},
-		},
-		"SomeFree161": {
+		}
+		tests["SomeFree161"] = test{
 			before: []BitRange{{0, 185}, {331, 1}},
 			npages: 161,
 			hits:   []uint{332},
 			after:  []BitRange{{0, 185}, {331, 162}},
-		},
+		}
 	}
 	for name, v := range tests {
 		v := v
@@ -442,18 +456,13 @@ func TestPallocBitsAlloc(t *testing.T) {
 
 // Ensures page freeing works.
 func TestPallocBitsFree(t *testing.T) {
-	tests := map[string]struct {
+	type test struct {
 		beforeInv []BitRange
 		afterInv  []BitRange
 		frees     []uint
 		npages    uintptr
-	}{
-		"SomeFree": {
-			npages:    1,
-			beforeInv: []BitRange{{0, 32}, {64, 32}, {100, 1}},
-			frees:     []uint{32},
-			afterInv:  []BitRange{{0, 33}, {64, 32}, {100, 1}},
-		},
+	}
+	tests := map[string]test{
 		"NoneFree1": {
 			npages:   1,
 			frees:    []uint{0, 1, 2, 3, 4, 5},
@@ -469,16 +478,24 @@ func TestPallocBitsFree(t *testing.T) {
 			frees:    []uint{0, 5, 10, 15, 20},
 			afterInv: []BitRange{{0, 25}},
 		},
-		"NoneFree64": {
+	}
+	if PallocChunkPages >= 512 {
+		tests["SomeFree"] = test{
+			npages:    1,
+			beforeInv: []BitRange{{0, 32}, {64, 32}, {100, 1}},
+			frees:     []uint{32},
+			afterInv:  []BitRange{{0, 33}, {64, 32}, {100, 1}},
+		}
+		tests["NoneFree64"] = test{
 			npages:   64,
 			frees:    []uint{0, 64, 128},
 			afterInv: []BitRange{{0, 192}},
-		},
-		"NoneFree65": {
+		}
+		tests["NoneFree65"] = test{
 			npages:   65,
 			frees:    []uint{0, 65, 130},
 			afterInv: []BitRange{{0, 195}},
-		},
+		}
 	}
 	for name, v := range tests {
 		v := v
