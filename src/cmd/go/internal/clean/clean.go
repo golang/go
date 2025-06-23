@@ -120,6 +120,7 @@ func init() {
 }
 
 func runClean(ctx context.Context, cmd *base.Command, args []string) {
+	modload.InitWorkfile()
 	if len(args) > 0 {
 		cacheFlag := ""
 		switch {
