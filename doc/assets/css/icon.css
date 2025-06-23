@@ -1,0 +1,45 @@
+.meuIcon {
+  position: fixed;
+  top: 5px;
+  right: 5px;
+  background-color: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.meuIcon img {
+  width: 32px;
+  height: 32px;
+  transition: border 0.2s ease-in-out;
+}
+
+.meuIcon img:hover {
+  filter: hue-rotate(901deg) saturate(0.5);
+  transform: scale(1.1);
+  animation: pulsa 0.5s infinite;
+  box-sizing: border-box;
+}
+
+@keyframes pulsa{
+    0%{
+        transform: scale(1);
+    }50%{
+        transform: scale(1.1);
+    }100%{
+        transform: scale(1);
+    }
+}
+
+.meuIcon img {
+  width: 32px;
+  height: 32px;
+  transition: transform 0.2s ease-in-out;
+}
+
+.meuIcon {
+  position: fixed;
+  top: 5px;
+  right: 5px;
+}

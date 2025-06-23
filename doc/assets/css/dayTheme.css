@@ -1,0 +1,81 @@
+body{
+        background-color: #c4c8d4;
+    }
+    h1, h2, h3, h4, h5, h6{
+        color: rgb(51, 107, 124);
+    }
+    a{
+        color: rgb(16, 24, 31);
+    }
+    p{
+        background-color: rgb(51, 107, 124, 0.2);
+        color: rgb(20, 36, 41);
+        padding: 0.7rem;
+        padding-top: 0.2rem;
+        padding-bottom: 0.2rem;
+        text-align: justify;
+        margin-top: 0;
+        margin-bottom: 0;
+        line-height: 1.4;
+    }
+    pre{
+        color: #181818;
+        background-color: rgb(21, 43, 56, 0.5);
+        padding: 0.7rem;
+        border: solid 2px rgb(54, 90, 110);
+        overflow-x: auto;
+        white-space: pre;
+    }
+    ul{
+        color: rgb(20, 36, 41);
+        background-color: rgb(81, 113, 119, 0.5);
+        padding: 0.2rem;
+        border: solid 2px rgb(54, 90, 110);
+        overflow-x: auto;
+        margin-top: 0.3rem;
+        margin-bottom: 0.3rem;
+    }
+    ul li{
+        list-style-type: disc !important;
+        margin-left: 1.2rem;
+        margin-top: 0.3rem;
+        margin-bottom: 0.3rem;
+        text-align: justify;
+        line-height: 1.4;
+    }
+    ol{
+        color: rgb(20, 36, 41);
+        background-color: rgb(81, 113, 119, 0.5);
+        padding: 0.2rem;
+        border: solid 2px rgb(54, 90, 110);
+        overflow-x: auto;
+        margin-top: 0.3rem;
+        margin-bottom: 0.3rem;
+    }
+    ol li{
+        margin-left: 1.2rem;
+        margin-top: 0.3rem;
+        margin-bottom: 0.3rem;
+        text-align: justify;
+        line-height: 1.4;
+    }
+
+    code{
+        color: #a7a7a7;
+        background-color: rgb(21, 27, 56);
+        margin-left: 0.2rem;
+        margin-right: 0.2rem;
+        padding-top: 0.1rem;
+        padding-bottom: 0.2rem;
+        padding-left: 0.3rem;
+        padding-right: 0.3rem;
+        border-radius: 3px;
+    }
+    @media screen and (max-width : 700px){
+        ul li{
+            margin-left: 1.5rem !important;
+        }
+        ol li{
+            margin-left: 1.5rem !important;
+        }
+    }
