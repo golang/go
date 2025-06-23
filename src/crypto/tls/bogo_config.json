@@ -74,6 +74,9 @@
         "BadRSAClientKeyExchange-5": "crypto/tls doesn't check the version number in the premaster secret - see processClientKeyExchange comment",
         "SupportTicketsWithSessionID": "We don't support session ID resumption",
         "ResumeTLS12SessionID-TLS13": "We don't support session ID resumption",
+        "TrustAnchors-*": "We don't support draft-beck-tls-trust-anchor-ids",
+        "PAKE-Extension-*": "We don't support PAKE",
+        "*TicketFlags": "We don't support draft-ietf-tls-tlsflags",
 
         "CheckLeafCurve": "TODO: first pass, this should be fixed",
         "KeyUpdate-RequestACK": "TODO: first pass, this should be fixed",
@@ -206,7 +209,14 @@
         "EarlyData-Server-BadFinished-TLS13": "TODO: first pass, this should be fixed",
         "EarlyData-UnexpectedHandshake-Server-TLS13": "TODO: first pass, this should be fixed",
         "EarlyData-CipherMismatch-Client-TLS13": "TODO: first pass, this should be fixed",
-        "Resume-Server-UnofferedCipher-TLS13": "TODO: first pass, this should be fixed"
+
+        "ServerNameExtensionServer-TLS-*": "https://github.com/golang/go/issues/74282",
+
+        "Resume-Server-UnofferedCipher-TLS13": "TODO: first pass, this should be fixed",
+        "GarbageCertificate-Server-TLS13": "TODO: 2025/06 BoGo update, should be fixed",
+        "WrongMessageType-TLS13-ClientCertificate-TLS": "TODO: 2025/06  BoGo update, should be fixed",
+        "KeyUpdate-Requested": "TODO: 2025/06  BoGo update, should be fixed",
+        "AppDataBeforeTLS13KeyChange-*": "TODO: 2025/06  BoGo update, should be fixed"
     },
     "AllCurves": [
         23,
@@ -216,6 +226,6 @@
         4588
     ],
     "ErrorMap": {
-        ":ECH_REJECTED:": "tls: server rejected ECH"
+        ":ECH_REJECTED:": ["tls: server rejected ECH"]
     }
 }

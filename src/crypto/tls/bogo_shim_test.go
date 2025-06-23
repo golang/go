@@ -420,6 +420,12 @@ func bogoShim() {
 			}
 		}
 		if err != io.EOF {
+			// Flush the TLS conn and then perform a graceful shutdown of the
+			// TCP connection to avoid the runner side hitting an unexpected
+			// write error before it has processed the alert we may have
+			// generated for the error condition.
+			orderlyShutdown(tlsConn)
+
 			retryErr, ok := err.(*ECHRejectionError)
 			if !ok {
 				log.Fatal(err)
@@ -505,6 +511,31 @@ func bogoShim() {
 	}
 }
 
+// If the test case produces an error, we don't want to immediately close the
+// TCP connection after generating an alert. The runner side may try to write
+// additional data to the connection before it reads the alert. If the conn
+// has already been torn down, then these writes will produce an unexpected
+// broken pipe err and fail the test.
+func orderlyShutdown(tlsConn *Conn) {
+	// Flush any pending alert data
+	tlsConn.flush()
+
+	netConn := tlsConn.NetConn()
+	tcpConn := netConn.(*net.TCPConn)
+	tcpConn.CloseWrite()
+
+	// Read and discard any data that was sent by the peer.
+	buf := make([]byte, maxPlaintext)
+	for {
+		n, err := tcpConn.Read(buf)
+		if n == 0 || err != nil {
+			break
+		}
+	}
+
+	tcpConn.CloseRead()
+}
+
 func TestBogoSuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
@@ -526,7 +557,7 @@ func TestBogoSuite(t *testing.T) {
 	if *bogoLocalDir != "" {
 		bogoDir = *bogoLocalDir
 	} else {
-		const boringsslModVer = "v0.0.0-20241120195446-5cce3fbd23e1"
+		const boringsslModVer = "v0.0.0-20250620172916-f51d8b099832"
 		bogoDir = cryptotest.FetchModule(t, "boringssl.googlesource.com/boringssl.git", boringsslModVer)
 	}
 
