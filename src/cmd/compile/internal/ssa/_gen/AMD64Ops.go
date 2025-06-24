@@ -1301,7 +1301,7 @@ func init() {
 		pkg:                "cmd/internal/obj/x86",
 		genfile:            "../../amd64/ssa.go",
 		genSIMDfile:        "../../amd64/simdssa.go",
-		ops:                append(AMD64ops, simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp3fp1, fp3k1fp1, fp1gp1fp1)...), // AMD64ops,
+		ops:                append(AMD64ops, simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp3fp1, fp3k1fp1, fp1gp1fp1, fpgp)...), // AMD64ops,
 		blocks:             AMD64blocks,
 		regnames:           regNamesAMD64,
 		ParamIntRegNames:   "AX BX CX DI SI R8 R9 R10 R11",

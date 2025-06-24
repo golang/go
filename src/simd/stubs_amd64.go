@@ -7257,7 +7257,7 @@ func (x Int16x8) SetElem(imm uint8, y int16) Int16x8
 // SetElem sets a single constant-indexed element's value.
 //
 // Asm: VPINSRD, CPU Feature: AVX
-func (x Int32x4) SetElem(imm uint8, y int8) Int32x4
+func (x Int32x4) SetElem(imm uint8, y int32) Int32x4
 
 // SetElem sets a single constant-indexed element's value.
 //
@@ -7277,7 +7277,7 @@ func (x Uint16x8) SetElem(imm uint8, y uint16) Uint16x8
 // SetElem sets a single constant-indexed element's value.
 //
 // Asm: VPINSRD, CPU Feature: AVX
-func (x Uint32x4) SetElem(imm uint8, y uint8) Uint32x4
+func (x Uint32x4) SetElem(imm uint8, y uint32) Uint32x4
 
 // SetElem sets a single constant-indexed element's value.
 //

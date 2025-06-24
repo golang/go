@@ -1720,6 +1720,20 @@ func simdFp3kfpResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	return p
 }
 
+func simdFpgpImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	imm := v.AuxInt
+	if imm < 0 || imm > 255 {
+		v.Fatalf("Invalid source selection immediate")
+	}
+	p.From.Offset = imm
+	p.From.Type = obj.TYPE_CONST
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = v.Reg()
+	return p
+}
+
 // Currently unused
 func simdFp31(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
