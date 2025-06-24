@@ -1836,16 +1836,19 @@ const (
 	OpAMD64VPCMPWMasked256
 	OpAMD64VPCMPW512
 	OpAMD64VPCMPWMasked512
+	OpAMD64VPEXTRW128
 	OpAMD64VPCMPW128
 	OpAMD64VPCMPWMasked128
 	OpAMD64VPINSRW128
 	OpAMD64VPCMPD512
 	OpAMD64VPCMPDMasked512
+	OpAMD64VPEXTRD128
 	OpAMD64VPCMPD128
 	OpAMD64VPCMPDMasked128
 	OpAMD64VPINSRD128
 	OpAMD64VPCMPD256
 	OpAMD64VPCMPDMasked256
+	OpAMD64VPEXTRQ128
 	OpAMD64VPCMPQ128
 	OpAMD64VPCMPQMasked128
 	OpAMD64VPINSRQ128
@@ -1853,6 +1856,7 @@ const (
 	OpAMD64VPCMPQMasked256
 	OpAMD64VPCMPQ512
 	OpAMD64VPCMPQMasked512
+	OpAMD64VPEXTRB128
 	OpAMD64VPCMPB128
 	OpAMD64VPCMPBMasked128
 	OpAMD64VPINSRB128
@@ -5479,13 +5483,21 @@ const (
 	OpRoundWithPrecisionFloat64x8
 	OpTruncSuppressExceptionWithPrecisionFloat64x8
 	OpTruncWithPrecisionFloat64x8
+	OpGetElemInt16x8
 	OpSetElemInt16x8
+	OpGetElemInt32x4
 	OpSetElemInt32x4
+	OpGetElemInt64x2
 	OpSetElemInt64x2
+	OpGetElemInt8x16
 	OpSetElemInt8x16
+	OpGetElemUint16x8
 	OpSetElemUint16x8
+	OpGetElemUint32x4
 	OpSetElemUint32x4
+	OpGetElemUint64x2
 	OpSetElemUint64x2
+	OpGetElemUint8x16
 	OpSetElemUint8x16
 )
 
@@ -27719,6 +27731,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "VPEXTRW128",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVPEXTRW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
 		name:    "VPCMPW128",
 		auxType: auxInt8,
 		argLen:  2,
@@ -27799,6 +27825,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "VPEXTRD128",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVPEXTRD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
 		name:    "VPCMPD128",
 		auxType: auxInt8,
 		argLen:  2,
@@ -27874,6 +27914,20 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VPEXTRQ128",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVPEXTRQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -27986,6 +28040,20 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VPEXTRB128",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVPEXTRB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -63226,9 +63294,21 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "GetElemInt16x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "SetElemInt16x8",
 		auxType: auxInt8,
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "GetElemInt32x4",
+		auxType: auxInt8,
+		argLen:  1,
 		generic: true,
 	},
 	{
@@ -63238,9 +63318,21 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "GetElemInt64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "SetElemInt64x2",
 		auxType: auxInt8,
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "GetElemInt8x16",
+		auxType: auxInt8,
+		argLen:  1,
 		generic: true,
 	},
 	{
@@ -63250,9 +63342,21 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "GetElemUint16x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "SetElemUint16x8",
 		auxType: auxInt8,
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "GetElemUint32x4",
+		auxType: auxInt8,
+		argLen:  1,
 		generic: true,
 	},
 	{
@@ -63262,9 +63366,21 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "GetElemUint64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "SetElemUint64x2",
 		auxType: auxInt8,
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "GetElemUint8x16",
+		auxType: auxInt8,
+		argLen:  1,
 		generic: true,
 	},
 	{

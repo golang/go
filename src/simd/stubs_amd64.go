@@ -1426,6 +1426,48 @@ func (x Float64x4) FusedMultiplySubAdd(y Float64x4, z Float64x4) Float64x4
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512EVEX
 func (x Float64x8) FusedMultiplySubAdd(y Float64x8, z Float64x8) Float64x8
 
+/* GetElem */
+
+// GetElem retrieves a single constant-indexed element's value.
+//
+// Asm: VPEXTRB, CPU Feature: AVX512EVEX
+func (x Int8x16) GetElem(imm8 uint8) int8
+
+// GetElem retrieves a single constant-indexed element's value.
+//
+// Asm: VPEXTRW, CPU Feature: AVX512EVEX
+func (x Int16x8) GetElem(imm8 uint8) int16
+
+// GetElem retrieves a single constant-indexed element's value.
+//
+// Asm: VPEXTRD, CPU Feature: AVX
+func (x Int32x4) GetElem(imm8 uint8) int32
+
+// GetElem retrieves a single constant-indexed element's value.
+//
+// Asm: VPEXTRQ, CPU Feature: AVX
+func (x Int64x2) GetElem(imm8 uint8) int64
+
+// GetElem retrieves a single constant-indexed element's value.
+//
+// Asm: VPEXTRB, CPU Feature: AVX512EVEX
+func (x Uint8x16) GetElem(imm8 uint8) uint8
+
+// GetElem retrieves a single constant-indexed element's value.
+//
+// Asm: VPEXTRW, CPU Feature: AVX512EVEX
+func (x Uint16x8) GetElem(imm8 uint8) uint16
+
+// GetElem retrieves a single constant-indexed element's value.
+//
+// Asm: VPEXTRD, CPU Feature: AVX
+func (x Uint32x4) GetElem(imm8 uint8) uint32
+
+// GetElem retrieves a single constant-indexed element's value.
+//
+// Asm: VPEXTRQ, CPU Feature: AVX
+func (x Uint64x2) GetElem(imm8 uint8) uint64
+
 /* Greater */
 
 // Greater compares for greater than.
