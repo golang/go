@@ -1540,6 +1540,21 @@ func simdFp21(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	return p
 }
 
+// This function is to accustomize the shifts.
+// The 2nd arg is an XMM, and this function merely checks that.
+// Example instruction: VPSLLQ Z1, X1, Z2
+func simdFpXfp(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	// Vector registers operands follows a right-to-left order.
+	// e.g. VPSUBD X1, X2, X3 means X3 = X2 - X1.
+	p.From.Reg = v.Args[1].Reg()
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
 // Example instruction: VPCMPEQW Z26, Z30, K4
 func simdFp2k(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	// simdReg handles mask and vector registers altogether
@@ -1557,6 +1572,20 @@ func simdFp2kfp(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	// or "predicate" for "predicated AVX512 instructions"
 	// sits right at the end of the operand list.
 	// TODO: verify this assumption.
+	p.AddRestSourceReg(simdReg(v.Args[2]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
+}
+
+// This function is to accustomize the shifts.
+// The 2nd arg is an XMM, and this function merely checks that.
+// Example instruction: VPSLLQ Z1, X1, K1, Z2
+func simdFpXkfp(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = v.Args[1].Reg()
+	p.AddRestSourceReg(simdReg(v.Args[0]))
 	p.AddRestSourceReg(simdReg(v.Args[2]))
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = simdReg(v)
@@ -1662,6 +1691,10 @@ func simdFp2kkImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = simdReg(v)
 	return p
+}
+
+func simdFp2kfpImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	return simdFp2kkImm8(s, v)
 }
 
 // Example instruction: VFMADD213PD Z2, Z1, Z0
@@ -1832,6 +1865,17 @@ func simdReg(v *ssa.Value) int16 {
 		return v.Reg() + (x86.REG_Z0 - x86.REG_X0)
 	}
 	panic("unreachable")
+}
+
+// XXX this is used for shift operations only.
+// regalloc will issue OpCopy with incorrect type, but the assigned
+// register should be correct, and this function is merely checking
+// the sanity of this part.
+func simdCheckRegOnly(v *ssa.Value, regStart, regEnd int16) int16 {
+	if v.Reg() > regEnd || v.Reg() < regStart {
+		panic("simdCheckRegOnly: not the desired register")
+	}
+	return v.Reg()
 }
 
 func simdMov(width int64) obj.As {
