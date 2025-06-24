@@ -2147,6 +2147,12 @@ func testInt16x8Binary(t *testing.T, v0 []int16, v1 []int16, want []int16, which
 		gotv = vec0.SaturatedPairwiseSub(vec1)
 	case "SaturatedSub":
 		gotv = vec0.SaturatedSub(vec1)
+	case "ShiftLeft":
+		gotv = vec0.ShiftLeft(vec1)
+	case "ShiftRight":
+		gotv = vec0.ShiftRight(vec1)
+	case "ShiftRightSignExtended":
+		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sign":
 		gotv = vec0.Sign(vec1)
 	case "Sub":
@@ -2187,6 +2193,12 @@ func testInt16x8BinaryMasked(t *testing.T, v0 []int16, v1 []int16, v2 []int16, w
 		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x8())
 	case "MaskedSaturatedSub":
 		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x8())
+	case "MaskedShiftLeft":
+		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask16x8())
+	case "MaskedShiftRight":
+		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask16x8())
+	case "MaskedShiftRightSignExtended":
+		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask16x8())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x8())
 
@@ -2307,6 +2319,55 @@ func testInt16x8MaskedCompare(t *testing.T, v0 []int16, v1 []int16, v2 []int16, 
 	}
 }
 
+func testInt16x8Ternary(t *testing.T, v0 []int16, v1 []int16, v2 []int16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x8
+	got := make([]int16, len(want))
+	vec0 := simd.LoadInt16x8Slice(v0)
+	vec1 := simd.LoadInt16x8Slice(v1)
+	vec2 := simd.LoadInt16x8Slice(v2)
+	switch which {
+	case "ShiftLeftAndFillUpperFrom":
+		gotv = vec0.ShiftLeftAndFillUpperFrom(vec1, vec2)
+	case "ShiftRightAndFillUpperFrom":
+		gotv = vec0.ShiftRightAndFillUpperFrom(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Int16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt16x8TernaryMasked(t *testing.T, v0 []int16, v1 []int16, v2 []int16, v3 []int16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x8
+	got := make([]int16, len(want))
+	vec0 := simd.LoadInt16x8Slice(v0)
+	vec1 := simd.LoadInt16x8Slice(v1)
+	vec2 := simd.LoadInt16x8Slice(v2)
+	vec3 := simd.LoadInt16x8Slice(v3)
+	switch which {
+	case "MaskedShiftLeftAndFillUpperFrom":
+		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask16x8())
+	case "MaskedShiftRightAndFillUpperFrom":
+		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask16x8())
+
+	default:
+		t.Errorf("Unknown method: Int16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testInt16x8Unary(t *testing.T, v0 []int16, want []int16, which string) {
 	t.Helper()
 	var gotv simd.Int16x8
@@ -2387,6 +2448,12 @@ func testInt16x16Binary(t *testing.T, v0 []int16, v1 []int16, want []int16, whic
 		gotv = vec0.SaturatedPairwiseSub(vec1)
 	case "SaturatedSub":
 		gotv = vec0.SaturatedSub(vec1)
+	case "ShiftLeft":
+		gotv = vec0.ShiftLeft(vec1)
+	case "ShiftRight":
+		gotv = vec0.ShiftRight(vec1)
+	case "ShiftRightSignExtended":
+		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sign":
 		gotv = vec0.Sign(vec1)
 	case "Sub":
@@ -2427,6 +2494,12 @@ func testInt16x16BinaryMasked(t *testing.T, v0 []int16, v1 []int16, v2 []int16, 
 		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x16())
 	case "MaskedSaturatedSub":
 		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x16())
+	case "MaskedShiftLeft":
+		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask16x16())
+	case "MaskedShiftRight":
+		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask16x16())
+	case "MaskedShiftRightSignExtended":
+		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask16x16())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x16())
 
@@ -2547,6 +2620,55 @@ func testInt16x16MaskedCompare(t *testing.T, v0 []int16, v1 []int16, v2 []int16,
 	}
 }
 
+func testInt16x16Ternary(t *testing.T, v0 []int16, v1 []int16, v2 []int16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x16
+	got := make([]int16, len(want))
+	vec0 := simd.LoadInt16x16Slice(v0)
+	vec1 := simd.LoadInt16x16Slice(v1)
+	vec2 := simd.LoadInt16x16Slice(v2)
+	switch which {
+	case "ShiftLeftAndFillUpperFrom":
+		gotv = vec0.ShiftLeftAndFillUpperFrom(vec1, vec2)
+	case "ShiftRightAndFillUpperFrom":
+		gotv = vec0.ShiftRightAndFillUpperFrom(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Int16x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt16x16TernaryMasked(t *testing.T, v0 []int16, v1 []int16, v2 []int16, v3 []int16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x16
+	got := make([]int16, len(want))
+	vec0 := simd.LoadInt16x16Slice(v0)
+	vec1 := simd.LoadInt16x16Slice(v1)
+	vec2 := simd.LoadInt16x16Slice(v2)
+	vec3 := simd.LoadInt16x16Slice(v3)
+	switch which {
+	case "MaskedShiftLeftAndFillUpperFrom":
+		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask16x16())
+	case "MaskedShiftRightAndFillUpperFrom":
+		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask16x16())
+
+	default:
+		t.Errorf("Unknown method: Int16x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testInt16x16Unary(t *testing.T, v0 []int16, want []int16, which string) {
 	t.Helper()
 	var gotv simd.Int16x16
@@ -2613,6 +2735,12 @@ func testInt16x32Binary(t *testing.T, v0 []int16, v1 []int16, want []int16, whic
 		gotv = vec0.SaturatedAdd(vec1)
 	case "SaturatedSub":
 		gotv = vec0.SaturatedSub(vec1)
+	case "ShiftLeft":
+		gotv = vec0.ShiftLeft(vec1)
+	case "ShiftRight":
+		gotv = vec0.ShiftRight(vec1)
+	case "ShiftRightSignExtended":
+		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 
@@ -2649,6 +2777,12 @@ func testInt16x32BinaryMasked(t *testing.T, v0 []int16, v1 []int16, v2 []int16, 
 		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x32())
 	case "MaskedSaturatedSub":
 		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x32())
+	case "MaskedShiftLeft":
+		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask16x32())
+	case "MaskedShiftRight":
+		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask16x32())
+	case "MaskedShiftRightSignExtended":
+		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask16x32())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x32())
 
@@ -2769,6 +2903,55 @@ func testInt16x32MaskedCompare(t *testing.T, v0 []int16, v1 []int16, v2 []int16,
 	}
 }
 
+func testInt16x32Ternary(t *testing.T, v0 []int16, v1 []int16, v2 []int16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x32
+	got := make([]int16, len(want))
+	vec0 := simd.LoadInt16x32Slice(v0)
+	vec1 := simd.LoadInt16x32Slice(v1)
+	vec2 := simd.LoadInt16x32Slice(v2)
+	switch which {
+	case "ShiftLeftAndFillUpperFrom":
+		gotv = vec0.ShiftLeftAndFillUpperFrom(vec1, vec2)
+	case "ShiftRightAndFillUpperFrom":
+		gotv = vec0.ShiftRightAndFillUpperFrom(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Int16x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt16x32TernaryMasked(t *testing.T, v0 []int16, v1 []int16, v2 []int16, v3 []int16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x32
+	got := make([]int16, len(want))
+	vec0 := simd.LoadInt16x32Slice(v0)
+	vec1 := simd.LoadInt16x32Slice(v1)
+	vec2 := simd.LoadInt16x32Slice(v2)
+	vec3 := simd.LoadInt16x32Slice(v3)
+	switch which {
+	case "MaskedShiftLeftAndFillUpperFrom":
+		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask16x32())
+	case "MaskedShiftRightAndFillUpperFrom":
+		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask16x32())
+
+	default:
+		t.Errorf("Unknown method: Int16x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testInt16x32Unary(t *testing.T, v0 []int16, want []int16, which string) {
 	t.Helper()
 	var gotv simd.Int16x32
@@ -2839,6 +3022,16 @@ func testInt32x4Binary(t *testing.T, v0 []int32, v1 []int32, want []int32, which
 		gotv = vec0.PairwiseAdd(vec1)
 	case "PairwiseSub":
 		gotv = vec0.PairwiseSub(vec1)
+	case "RotateLeft":
+		gotv = vec0.RotateLeft(vec1)
+	case "RotateRight":
+		gotv = vec0.RotateRight(vec1)
+	case "ShiftLeft":
+		gotv = vec0.ShiftLeft(vec1)
+	case "ShiftRight":
+		gotv = vec0.ShiftRight(vec1)
+	case "ShiftRightSignExtended":
+		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sign":
 		gotv = vec0.Sign(vec1)
 	case "Sub":
@@ -2879,6 +3072,16 @@ func testInt32x4BinaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32, w
 		gotv = vec0.MaskedMulLow(vec1, vec2.AsMask32x4())
 	case "MaskedOr":
 		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x4())
+	case "MaskedRotateLeft":
+		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask32x4())
+	case "MaskedRotateRight":
+		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask32x4())
+	case "MaskedShiftLeft":
+		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask32x4())
+	case "MaskedShiftRight":
+		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask32x4())
+	case "MaskedShiftRightSignExtended":
+		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask32x4())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x4())
 	case "MaskedXor":
@@ -3028,6 +3231,55 @@ func testInt32x4MaskedCompare(t *testing.T, v0 []int32, v1 []int32, v2 []int32, 
 	}
 }
 
+func testInt32x4Ternary(t *testing.T, v0 []int32, v1 []int32, v2 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x4
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt32x4Slice(v0)
+	vec1 := simd.LoadInt32x4Slice(v1)
+	vec2 := simd.LoadInt32x4Slice(v2)
+	switch which {
+	case "ShiftLeftAndFillUpperFrom":
+		gotv = vec0.ShiftLeftAndFillUpperFrom(vec1, vec2)
+	case "ShiftRightAndFillUpperFrom":
+		gotv = vec0.ShiftRightAndFillUpperFrom(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Int32x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt32x4TernaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32, v3 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x4
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt32x4Slice(v0)
+	vec1 := simd.LoadInt32x4Slice(v1)
+	vec2 := simd.LoadInt32x4Slice(v2)
+	vec3 := simd.LoadInt32x4Slice(v3)
+	switch which {
+	case "MaskedShiftLeftAndFillUpperFrom":
+		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask32x4())
+	case "MaskedShiftRightAndFillUpperFrom":
+		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask32x4())
+
+	default:
+		t.Errorf("Unknown method: Int32x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testInt32x4Uint8x16Int8x16Int32x4(t *testing.T, v0 []int32, v1 []uint8, v2 []int8, want []int32, which string) {
 	t.Helper()
 	var gotv simd.Int32x4
@@ -3147,6 +3399,16 @@ func testInt32x8Binary(t *testing.T, v0 []int32, v1 []int32, want []int32, which
 		gotv = vec0.PairwiseAdd(vec1)
 	case "PairwiseSub":
 		gotv = vec0.PairwiseSub(vec1)
+	case "RotateLeft":
+		gotv = vec0.RotateLeft(vec1)
+	case "RotateRight":
+		gotv = vec0.RotateRight(vec1)
+	case "ShiftLeft":
+		gotv = vec0.ShiftLeft(vec1)
+	case "ShiftRight":
+		gotv = vec0.ShiftRight(vec1)
+	case "ShiftRightSignExtended":
+		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sign":
 		gotv = vec0.Sign(vec1)
 	case "Sub":
@@ -3187,6 +3449,16 @@ func testInt32x8BinaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32, w
 		gotv = vec0.MaskedMulLow(vec1, vec2.AsMask32x8())
 	case "MaskedOr":
 		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x8())
+	case "MaskedRotateLeft":
+		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask32x8())
+	case "MaskedRotateRight":
+		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask32x8())
+	case "MaskedShiftLeft":
+		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask32x8())
+	case "MaskedShiftRight":
+		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask32x8())
+	case "MaskedShiftRightSignExtended":
+		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask32x8())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x8())
 	case "MaskedXor":
@@ -3336,6 +3608,55 @@ func testInt32x8MaskedCompare(t *testing.T, v0 []int32, v1 []int32, v2 []int32, 
 	}
 }
 
+func testInt32x8Ternary(t *testing.T, v0 []int32, v1 []int32, v2 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x8
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt32x8Slice(v0)
+	vec1 := simd.LoadInt32x8Slice(v1)
+	vec2 := simd.LoadInt32x8Slice(v2)
+	switch which {
+	case "ShiftLeftAndFillUpperFrom":
+		gotv = vec0.ShiftLeftAndFillUpperFrom(vec1, vec2)
+	case "ShiftRightAndFillUpperFrom":
+		gotv = vec0.ShiftRightAndFillUpperFrom(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Int32x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt32x8TernaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32, v3 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x8
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt32x8Slice(v0)
+	vec1 := simd.LoadInt32x8Slice(v1)
+	vec2 := simd.LoadInt32x8Slice(v2)
+	vec3 := simd.LoadInt32x8Slice(v3)
+	switch which {
+	case "MaskedShiftLeftAndFillUpperFrom":
+		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask32x8())
+	case "MaskedShiftRightAndFillUpperFrom":
+		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask32x8())
+
+	default:
+		t.Errorf("Unknown method: Int32x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testInt32x8Uint8x32Int8x32Int32x8(t *testing.T, v0 []int32, v1 []uint8, v2 []int8, want []int32, which string) {
 	t.Helper()
 	var gotv simd.Int32x8
@@ -3451,6 +3772,16 @@ func testInt32x16Binary(t *testing.T, v0 []int32, v1 []int32, want []int32, whic
 		gotv = vec0.MulLow(vec1)
 	case "Or":
 		gotv = vec0.Or(vec1)
+	case "RotateLeft":
+		gotv = vec0.RotateLeft(vec1)
+	case "RotateRight":
+		gotv = vec0.RotateRight(vec1)
+	case "ShiftLeft":
+		gotv = vec0.ShiftLeft(vec1)
+	case "ShiftRight":
+		gotv = vec0.ShiftRight(vec1)
+	case "ShiftRightSignExtended":
+		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -3489,6 +3820,16 @@ func testInt32x16BinaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32, 
 		gotv = vec0.MaskedMulLow(vec1, vec2.AsMask32x16())
 	case "MaskedOr":
 		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x16())
+	case "MaskedRotateLeft":
+		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask32x16())
+	case "MaskedRotateRight":
+		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask32x16())
+	case "MaskedShiftLeft":
+		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask32x16())
+	case "MaskedShiftRight":
+		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask32x16())
+	case "MaskedShiftRightSignExtended":
+		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask32x16())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x16())
 	case "MaskedXor":
@@ -3605,6 +3946,55 @@ func testInt32x16MaskedCompare(t *testing.T, v0 []int32, v1 []int32, v2 []int32,
 		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
 	case "MaskedNotEqual":
 		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
+
+	default:
+		t.Errorf("Unknown method: Int32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt32x16Ternary(t *testing.T, v0 []int32, v1 []int32, v2 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x16
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt32x16Slice(v0)
+	vec1 := simd.LoadInt32x16Slice(v1)
+	vec2 := simd.LoadInt32x16Slice(v2)
+	switch which {
+	case "ShiftLeftAndFillUpperFrom":
+		gotv = vec0.ShiftLeftAndFillUpperFrom(vec1, vec2)
+	case "ShiftRightAndFillUpperFrom":
+		gotv = vec0.ShiftRightAndFillUpperFrom(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Int32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt32x16TernaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32, v3 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x16
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt32x16Slice(v0)
+	vec1 := simd.LoadInt32x16Slice(v1)
+	vec2 := simd.LoadInt32x16Slice(v2)
+	vec3 := simd.LoadInt32x16Slice(v3)
+	switch which {
+	case "MaskedShiftLeftAndFillUpperFrom":
+		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask32x16())
+	case "MaskedShiftRightAndFillUpperFrom":
+		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask32x16())
 
 	default:
 		t.Errorf("Unknown method: Int32x16.%s", which)
@@ -3734,6 +4124,16 @@ func testInt64x2Binary(t *testing.T, v0 []int64, v1 []int64, want []int64, which
 		gotv = vec0.MulLow(vec1)
 	case "Or":
 		gotv = vec0.Or(vec1)
+	case "RotateLeft":
+		gotv = vec0.RotateLeft(vec1)
+	case "RotateRight":
+		gotv = vec0.RotateRight(vec1)
+	case "ShiftLeft":
+		gotv = vec0.ShiftLeft(vec1)
+	case "ShiftRight":
+		gotv = vec0.ShiftRight(vec1)
+	case "ShiftRightSignExtended":
+		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -3774,6 +4174,16 @@ func testInt64x2BinaryMasked(t *testing.T, v0 []int64, v1 []int64, v2 []int64, w
 		gotv = vec0.MaskedMulLow(vec1, vec2.AsMask64x2())
 	case "MaskedOr":
 		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x2())
+	case "MaskedRotateLeft":
+		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask64x2())
+	case "MaskedRotateRight":
+		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask64x2())
+	case "MaskedShiftLeft":
+		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask64x2())
+	case "MaskedShiftRight":
+		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask64x2())
+	case "MaskedShiftRightSignExtended":
+		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask64x2())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x2())
 	case "MaskedXor":
@@ -3841,6 +4251,55 @@ func testInt64x2MaskedCompare(t *testing.T, v0 []int64, v1 []int64, v2 []int64, 
 		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
 	case "MaskedNotEqual":
 		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
+
+	default:
+		t.Errorf("Unknown method: Int64x2.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt64x2Ternary(t *testing.T, v0 []int64, v1 []int64, v2 []int64, want []int64, which string) {
+	t.Helper()
+	var gotv simd.Int64x2
+	got := make([]int64, len(want))
+	vec0 := simd.LoadInt64x2Slice(v0)
+	vec1 := simd.LoadInt64x2Slice(v1)
+	vec2 := simd.LoadInt64x2Slice(v2)
+	switch which {
+	case "ShiftLeftAndFillUpperFrom":
+		gotv = vec0.ShiftLeftAndFillUpperFrom(vec1, vec2)
+	case "ShiftRightAndFillUpperFrom":
+		gotv = vec0.ShiftRightAndFillUpperFrom(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Int64x2.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt64x2TernaryMasked(t *testing.T, v0 []int64, v1 []int64, v2 []int64, v3 []int64, want []int64, which string) {
+	t.Helper()
+	var gotv simd.Int64x2
+	got := make([]int64, len(want))
+	vec0 := simd.LoadInt64x2Slice(v0)
+	vec1 := simd.LoadInt64x2Slice(v1)
+	vec2 := simd.LoadInt64x2Slice(v2)
+	vec3 := simd.LoadInt64x2Slice(v3)
+	switch which {
+	case "MaskedShiftLeftAndFillUpperFrom":
+		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask64x2())
+	case "MaskedShiftRightAndFillUpperFrom":
+		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask64x2())
 
 	default:
 		t.Errorf("Unknown method: Int64x2.%s", which)
@@ -3921,6 +4380,16 @@ func testInt64x4Binary(t *testing.T, v0 []int64, v1 []int64, want []int64, which
 		gotv = vec0.MulLow(vec1)
 	case "Or":
 		gotv = vec0.Or(vec1)
+	case "RotateLeft":
+		gotv = vec0.RotateLeft(vec1)
+	case "RotateRight":
+		gotv = vec0.RotateRight(vec1)
+	case "ShiftLeft":
+		gotv = vec0.ShiftLeft(vec1)
+	case "ShiftRight":
+		gotv = vec0.ShiftRight(vec1)
+	case "ShiftRightSignExtended":
+		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -3961,6 +4430,16 @@ func testInt64x4BinaryMasked(t *testing.T, v0 []int64, v1 []int64, v2 []int64, w
 		gotv = vec0.MaskedMulLow(vec1, vec2.AsMask64x4())
 	case "MaskedOr":
 		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x4())
+	case "MaskedRotateLeft":
+		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask64x4())
+	case "MaskedRotateRight":
+		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask64x4())
+	case "MaskedShiftLeft":
+		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask64x4())
+	case "MaskedShiftRight":
+		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask64x4())
+	case "MaskedShiftRightSignExtended":
+		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask64x4())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x4())
 	case "MaskedXor":
@@ -4028,6 +4507,55 @@ func testInt64x4MaskedCompare(t *testing.T, v0 []int64, v1 []int64, v2 []int64, 
 		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
 	case "MaskedNotEqual":
 		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
+
+	default:
+		t.Errorf("Unknown method: Int64x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt64x4Ternary(t *testing.T, v0 []int64, v1 []int64, v2 []int64, want []int64, which string) {
+	t.Helper()
+	var gotv simd.Int64x4
+	got := make([]int64, len(want))
+	vec0 := simd.LoadInt64x4Slice(v0)
+	vec1 := simd.LoadInt64x4Slice(v1)
+	vec2 := simd.LoadInt64x4Slice(v2)
+	switch which {
+	case "ShiftLeftAndFillUpperFrom":
+		gotv = vec0.ShiftLeftAndFillUpperFrom(vec1, vec2)
+	case "ShiftRightAndFillUpperFrom":
+		gotv = vec0.ShiftRightAndFillUpperFrom(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Int64x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt64x4TernaryMasked(t *testing.T, v0 []int64, v1 []int64, v2 []int64, v3 []int64, want []int64, which string) {
+	t.Helper()
+	var gotv simd.Int64x4
+	got := make([]int64, len(want))
+	vec0 := simd.LoadInt64x4Slice(v0)
+	vec1 := simd.LoadInt64x4Slice(v1)
+	vec2 := simd.LoadInt64x4Slice(v2)
+	vec3 := simd.LoadInt64x4Slice(v3)
+	switch which {
+	case "MaskedShiftLeftAndFillUpperFrom":
+		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask64x4())
+	case "MaskedShiftRightAndFillUpperFrom":
+		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask64x4())
 
 	default:
 		t.Errorf("Unknown method: Int64x4.%s", which)
@@ -4108,6 +4636,16 @@ func testInt64x8Binary(t *testing.T, v0 []int64, v1 []int64, want []int64, which
 		gotv = vec0.MulLow(vec1)
 	case "Or":
 		gotv = vec0.Or(vec1)
+	case "RotateLeft":
+		gotv = vec0.RotateLeft(vec1)
+	case "RotateRight":
+		gotv = vec0.RotateRight(vec1)
+	case "ShiftLeft":
+		gotv = vec0.ShiftLeft(vec1)
+	case "ShiftRight":
+		gotv = vec0.ShiftRight(vec1)
+	case "ShiftRightSignExtended":
+		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -4148,6 +4686,16 @@ func testInt64x8BinaryMasked(t *testing.T, v0 []int64, v1 []int64, v2 []int64, w
 		gotv = vec0.MaskedMulLow(vec1, vec2.AsMask64x8())
 	case "MaskedOr":
 		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x8())
+	case "MaskedRotateLeft":
+		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask64x8())
+	case "MaskedRotateRight":
+		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask64x8())
+	case "MaskedShiftLeft":
+		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask64x8())
+	case "MaskedShiftRight":
+		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask64x8())
+	case "MaskedShiftRightSignExtended":
+		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask64x8())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x8())
 	case "MaskedXor":
@@ -4215,6 +4763,55 @@ func testInt64x8MaskedCompare(t *testing.T, v0 []int64, v1 []int64, v2 []int64, 
 		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
 	case "MaskedNotEqual":
 		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
+
+	default:
+		t.Errorf("Unknown method: Int64x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt64x8Ternary(t *testing.T, v0 []int64, v1 []int64, v2 []int64, want []int64, which string) {
+	t.Helper()
+	var gotv simd.Int64x8
+	got := make([]int64, len(want))
+	vec0 := simd.LoadInt64x8Slice(v0)
+	vec1 := simd.LoadInt64x8Slice(v1)
+	vec2 := simd.LoadInt64x8Slice(v2)
+	switch which {
+	case "ShiftLeftAndFillUpperFrom":
+		gotv = vec0.ShiftLeftAndFillUpperFrom(vec1, vec2)
+	case "ShiftRightAndFillUpperFrom":
+		gotv = vec0.ShiftRightAndFillUpperFrom(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Int64x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt64x8TernaryMasked(t *testing.T, v0 []int64, v1 []int64, v2 []int64, v3 []int64, want []int64, which string) {
+	t.Helper()
+	var gotv simd.Int64x8
+	got := make([]int64, len(want))
+	vec0 := simd.LoadInt64x8Slice(v0)
+	vec1 := simd.LoadInt64x8Slice(v1)
+	vec2 := simd.LoadInt64x8Slice(v2)
+	vec3 := simd.LoadInt64x8Slice(v3)
+	switch which {
+	case "MaskedShiftLeftAndFillUpperFrom":
+		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask64x8())
+	case "MaskedShiftRightAndFillUpperFrom":
+		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask64x8())
 
 	default:
 		t.Errorf("Unknown method: Int64x8.%s", which)
@@ -4961,6 +5558,12 @@ func testUint16x8Binary(t *testing.T, v0 []uint16, v1 []uint16, want []uint16, w
 		gotv = vec0.SaturatedAdd(vec1)
 	case "SaturatedSub":
 		gotv = vec0.SaturatedSub(vec1)
+	case "ShiftLeft":
+		gotv = vec0.ShiftLeft(vec1)
+	case "ShiftRight":
+		gotv = vec0.ShiftRight(vec1)
+	case "ShiftRightSignExtended":
+		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -4999,6 +5602,12 @@ func testUint16x8BinaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []int16
 		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x8())
 	case "MaskedSaturatedSub":
 		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x8())
+	case "MaskedShiftLeft":
+		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask16x8())
+	case "MaskedShiftRight":
+		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask16x8())
+	case "MaskedShiftRightSignExtended":
+		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask16x8())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x8())
 
@@ -5064,6 +5673,55 @@ func testUint16x8MaskedCompare(t *testing.T, v0 []uint16, v1 []uint16, v2 []int1
 		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
 	case "MaskedNotEqual":
 		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
+
+	default:
+		t.Errorf("Unknown method: Uint16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x8Ternary(t *testing.T, v0 []uint16, v1 []uint16, v2 []uint16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x8
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x8Slice(v0)
+	vec1 := simd.LoadUint16x8Slice(v1)
+	vec2 := simd.LoadUint16x8Slice(v2)
+	switch which {
+	case "ShiftLeftAndFillUpperFrom":
+		gotv = vec0.ShiftLeftAndFillUpperFrom(vec1, vec2)
+	case "ShiftRightAndFillUpperFrom":
+		gotv = vec0.ShiftRightAndFillUpperFrom(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Uint16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x8TernaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []uint16, v3 []int16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x8
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x8Slice(v0)
+	vec1 := simd.LoadUint16x8Slice(v1)
+	vec2 := simd.LoadUint16x8Slice(v2)
+	vec3 := simd.LoadInt16x8Slice(v3)
+	switch which {
+	case "MaskedShiftLeftAndFillUpperFrom":
+		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask16x8())
+	case "MaskedShiftRightAndFillUpperFrom":
+		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask16x8())
 
 	default:
 		t.Errorf("Unknown method: Uint16x8.%s", which)
@@ -5148,6 +5806,12 @@ func testUint16x16Binary(t *testing.T, v0 []uint16, v1 []uint16, want []uint16, 
 		gotv = vec0.SaturatedAdd(vec1)
 	case "SaturatedSub":
 		gotv = vec0.SaturatedSub(vec1)
+	case "ShiftLeft":
+		gotv = vec0.ShiftLeft(vec1)
+	case "ShiftRight":
+		gotv = vec0.ShiftRight(vec1)
+	case "ShiftRightSignExtended":
+		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -5186,6 +5850,12 @@ func testUint16x16BinaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []int1
 		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x16())
 	case "MaskedSaturatedSub":
 		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x16())
+	case "MaskedShiftLeft":
+		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask16x16())
+	case "MaskedShiftRight":
+		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask16x16())
+	case "MaskedShiftRightSignExtended":
+		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask16x16())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x16())
 
@@ -5263,6 +5933,55 @@ func testUint16x16MaskedCompare(t *testing.T, v0 []uint16, v1 []uint16, v2 []int
 	}
 }
 
+func testUint16x16Ternary(t *testing.T, v0 []uint16, v1 []uint16, v2 []uint16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x16
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x16Slice(v0)
+	vec1 := simd.LoadUint16x16Slice(v1)
+	vec2 := simd.LoadUint16x16Slice(v2)
+	switch which {
+	case "ShiftLeftAndFillUpperFrom":
+		gotv = vec0.ShiftLeftAndFillUpperFrom(vec1, vec2)
+	case "ShiftRightAndFillUpperFrom":
+		gotv = vec0.ShiftRightAndFillUpperFrom(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Uint16x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x16TernaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []uint16, v3 []int16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x16
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x16Slice(v0)
+	vec1 := simd.LoadUint16x16Slice(v1)
+	vec2 := simd.LoadUint16x16Slice(v2)
+	vec3 := simd.LoadInt16x16Slice(v3)
+	switch which {
+	case "MaskedShiftLeftAndFillUpperFrom":
+		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask16x16())
+	case "MaskedShiftRightAndFillUpperFrom":
+		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask16x16())
+
+	default:
+		t.Errorf("Unknown method: Uint16x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testUint16x16Unary(t *testing.T, v0 []uint16, want []uint16, which string) {
 	t.Helper()
 	var gotv simd.Uint16x16
@@ -5325,6 +6044,12 @@ func testUint16x32Binary(t *testing.T, v0 []uint16, v1 []uint16, want []uint16, 
 		gotv = vec0.SaturatedAdd(vec1)
 	case "SaturatedSub":
 		gotv = vec0.SaturatedSub(vec1)
+	case "ShiftLeft":
+		gotv = vec0.ShiftLeft(vec1)
+	case "ShiftRight":
+		gotv = vec0.ShiftRight(vec1)
+	case "ShiftRightSignExtended":
+		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 
@@ -5361,6 +6086,12 @@ func testUint16x32BinaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []int1
 		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x32())
 	case "MaskedSaturatedSub":
 		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x32())
+	case "MaskedShiftLeft":
+		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask16x32())
+	case "MaskedShiftRight":
+		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask16x32())
+	case "MaskedShiftRightSignExtended":
+		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask16x32())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x32())
 
@@ -5438,6 +6169,55 @@ func testUint16x32MaskedCompare(t *testing.T, v0 []uint16, v1 []uint16, v2 []int
 	}
 }
 
+func testUint16x32Ternary(t *testing.T, v0 []uint16, v1 []uint16, v2 []uint16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x32
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x32Slice(v0)
+	vec1 := simd.LoadUint16x32Slice(v1)
+	vec2 := simd.LoadUint16x32Slice(v2)
+	switch which {
+	case "ShiftLeftAndFillUpperFrom":
+		gotv = vec0.ShiftLeftAndFillUpperFrom(vec1, vec2)
+	case "ShiftRightAndFillUpperFrom":
+		gotv = vec0.ShiftRightAndFillUpperFrom(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Uint16x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x32TernaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []uint16, v3 []int16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x32
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x32Slice(v0)
+	vec1 := simd.LoadUint16x32Slice(v1)
+	vec2 := simd.LoadUint16x32Slice(v2)
+	vec3 := simd.LoadInt16x32Slice(v3)
+	switch which {
+	case "MaskedShiftLeftAndFillUpperFrom":
+		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask16x32())
+	case "MaskedShiftRightAndFillUpperFrom":
+		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask16x32())
+
+	default:
+		t.Errorf("Unknown method: Uint16x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testUint16x32Unary(t *testing.T, v0 []uint16, want []uint16, which string) {
 	t.Helper()
 	var gotv simd.Uint16x32
@@ -5502,6 +6282,16 @@ func testUint32x4Binary(t *testing.T, v0 []uint32, v1 []uint32, want []uint32, w
 		gotv = vec0.PairwiseAdd(vec1)
 	case "PairwiseSub":
 		gotv = vec0.PairwiseSub(vec1)
+	case "RotateLeft":
+		gotv = vec0.RotateLeft(vec1)
+	case "RotateRight":
+		gotv = vec0.RotateRight(vec1)
+	case "ShiftLeft":
+		gotv = vec0.ShiftLeft(vec1)
+	case "ShiftRight":
+		gotv = vec0.ShiftRight(vec1)
+	case "ShiftRightSignExtended":
+		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -5538,6 +6328,16 @@ func testUint32x4BinaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []int32
 		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x4())
 	case "MaskedOr":
 		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x4())
+	case "MaskedRotateLeft":
+		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask32x4())
+	case "MaskedRotateRight":
+		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask32x4())
+	case "MaskedShiftLeft":
+		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask32x4())
+	case "MaskedShiftRight":
+		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask32x4())
+	case "MaskedShiftRightSignExtended":
+		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask32x4())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x4())
 	case "MaskedXor":
@@ -5626,6 +6426,55 @@ func testUint32x4MaskedCompare(t *testing.T, v0 []uint32, v1 []uint32, v2 []int3
 		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
 	case "MaskedNotEqual":
 		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
+
+	default:
+		t.Errorf("Unknown method: Uint32x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x4Ternary(t *testing.T, v0 []uint32, v1 []uint32, v2 []uint32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x4
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x4Slice(v0)
+	vec1 := simd.LoadUint32x4Slice(v1)
+	vec2 := simd.LoadUint32x4Slice(v2)
+	switch which {
+	case "ShiftLeftAndFillUpperFrom":
+		gotv = vec0.ShiftLeftAndFillUpperFrom(vec1, vec2)
+	case "ShiftRightAndFillUpperFrom":
+		gotv = vec0.ShiftRightAndFillUpperFrom(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Uint32x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x4TernaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []uint32, v3 []int32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x4
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x4Slice(v0)
+	vec1 := simd.LoadUint32x4Slice(v1)
+	vec2 := simd.LoadUint32x4Slice(v2)
+	vec3 := simd.LoadInt32x4Slice(v3)
+	switch which {
+	case "MaskedShiftLeftAndFillUpperFrom":
+		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask32x4())
+	case "MaskedShiftRightAndFillUpperFrom":
+		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask32x4())
 
 	default:
 		t.Errorf("Unknown method: Uint32x4.%s", which)
@@ -5751,6 +6600,16 @@ func testUint32x8Binary(t *testing.T, v0 []uint32, v1 []uint32, want []uint32, w
 		gotv = vec0.PairwiseAdd(vec1)
 	case "PairwiseSub":
 		gotv = vec0.PairwiseSub(vec1)
+	case "RotateLeft":
+		gotv = vec0.RotateLeft(vec1)
+	case "RotateRight":
+		gotv = vec0.RotateRight(vec1)
+	case "ShiftLeft":
+		gotv = vec0.ShiftLeft(vec1)
+	case "ShiftRight":
+		gotv = vec0.ShiftRight(vec1)
+	case "ShiftRightSignExtended":
+		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -5787,6 +6646,16 @@ func testUint32x8BinaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []int32
 		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x8())
 	case "MaskedOr":
 		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x8())
+	case "MaskedRotateLeft":
+		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask32x8())
+	case "MaskedRotateRight":
+		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask32x8())
+	case "MaskedShiftLeft":
+		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask32x8())
+	case "MaskedShiftRight":
+		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask32x8())
+	case "MaskedShiftRightSignExtended":
+		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask32x8())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x8())
 	case "MaskedXor":
@@ -5875,6 +6744,55 @@ func testUint32x8MaskedCompare(t *testing.T, v0 []uint32, v1 []uint32, v2 []int3
 		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
 	case "MaskedNotEqual":
 		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
+
+	default:
+		t.Errorf("Unknown method: Uint32x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x8Ternary(t *testing.T, v0 []uint32, v1 []uint32, v2 []uint32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x8
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x8Slice(v0)
+	vec1 := simd.LoadUint32x8Slice(v1)
+	vec2 := simd.LoadUint32x8Slice(v2)
+	switch which {
+	case "ShiftLeftAndFillUpperFrom":
+		gotv = vec0.ShiftLeftAndFillUpperFrom(vec1, vec2)
+	case "ShiftRightAndFillUpperFrom":
+		gotv = vec0.ShiftRightAndFillUpperFrom(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Uint32x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x8TernaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []uint32, v3 []int32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x8
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x8Slice(v0)
+	vec1 := simd.LoadUint32x8Slice(v1)
+	vec2 := simd.LoadUint32x8Slice(v2)
+	vec3 := simd.LoadInt32x8Slice(v3)
+	switch which {
+	case "MaskedShiftLeftAndFillUpperFrom":
+		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask32x8())
+	case "MaskedShiftRightAndFillUpperFrom":
+		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask32x8())
 
 	default:
 		t.Errorf("Unknown method: Uint32x8.%s", which)
@@ -5996,6 +6914,16 @@ func testUint32x16Binary(t *testing.T, v0 []uint32, v1 []uint32, want []uint32, 
 		gotv = vec0.Min(vec1)
 	case "Or":
 		gotv = vec0.Or(vec1)
+	case "RotateLeft":
+		gotv = vec0.RotateLeft(vec1)
+	case "RotateRight":
+		gotv = vec0.RotateRight(vec1)
+	case "ShiftLeft":
+		gotv = vec0.ShiftLeft(vec1)
+	case "ShiftRight":
+		gotv = vec0.ShiftRight(vec1)
+	case "ShiftRightSignExtended":
+		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -6032,6 +6960,16 @@ func testUint32x16BinaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []int3
 		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x16())
 	case "MaskedOr":
 		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x16())
+	case "MaskedRotateLeft":
+		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask32x16())
+	case "MaskedRotateRight":
+		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask32x16())
+	case "MaskedShiftLeft":
+		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask32x16())
+	case "MaskedShiftRight":
+		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask32x16())
+	case "MaskedShiftRightSignExtended":
+		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask32x16())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x16())
 	case "MaskedXor":
@@ -6099,6 +7037,55 @@ func testUint32x16MaskedCompare(t *testing.T, v0 []uint32, v1 []uint32, v2 []int
 		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
 	case "MaskedNotEqual":
 		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
+
+	default:
+		t.Errorf("Unknown method: Uint32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x16Ternary(t *testing.T, v0 []uint32, v1 []uint32, v2 []uint32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x16
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x16Slice(v0)
+	vec1 := simd.LoadUint32x16Slice(v1)
+	vec2 := simd.LoadUint32x16Slice(v2)
+	switch which {
+	case "ShiftLeftAndFillUpperFrom":
+		gotv = vec0.ShiftLeftAndFillUpperFrom(vec1, vec2)
+	case "ShiftRightAndFillUpperFrom":
+		gotv = vec0.ShiftRightAndFillUpperFrom(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Uint32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x16TernaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []uint32, v3 []int32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x16
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x16Slice(v0)
+	vec1 := simd.LoadUint32x16Slice(v1)
+	vec2 := simd.LoadUint32x16Slice(v2)
+	vec3 := simd.LoadInt32x16Slice(v3)
+	switch which {
+	case "MaskedShiftLeftAndFillUpperFrom":
+		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask32x16())
+	case "MaskedShiftRightAndFillUpperFrom":
+		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask32x16())
 
 	default:
 		t.Errorf("Unknown method: Uint32x16.%s", which)
@@ -6222,6 +7209,16 @@ func testUint64x2Binary(t *testing.T, v0 []uint64, v1 []uint64, want []uint64, w
 		gotv = vec0.MulEvenWiden(vec1)
 	case "Or":
 		gotv = vec0.Or(vec1)
+	case "RotateLeft":
+		gotv = vec0.RotateLeft(vec1)
+	case "RotateRight":
+		gotv = vec0.RotateRight(vec1)
+	case "ShiftLeft":
+		gotv = vec0.ShiftLeft(vec1)
+	case "ShiftRight":
+		gotv = vec0.ShiftRight(vec1)
+	case "ShiftRightSignExtended":
+		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -6260,6 +7257,16 @@ func testUint64x2BinaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64
 		gotv = vec0.MaskedMulEvenWiden(vec1, vec2.AsMask64x2())
 	case "MaskedOr":
 		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x2())
+	case "MaskedRotateLeft":
+		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask64x2())
+	case "MaskedRotateRight":
+		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask64x2())
+	case "MaskedShiftLeft":
+		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask64x2())
+	case "MaskedShiftRight":
+		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask64x2())
+	case "MaskedShiftRightSignExtended":
+		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask64x2())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x2())
 	case "MaskedXor":
@@ -6339,6 +7346,55 @@ func testUint64x2MaskedCompare(t *testing.T, v0 []uint64, v1 []uint64, v2 []int6
 	}
 }
 
+func testUint64x2Ternary(t *testing.T, v0 []uint64, v1 []uint64, v2 []uint64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x2
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x2Slice(v0)
+	vec1 := simd.LoadUint64x2Slice(v1)
+	vec2 := simd.LoadUint64x2Slice(v2)
+	switch which {
+	case "ShiftLeftAndFillUpperFrom":
+		gotv = vec0.ShiftLeftAndFillUpperFrom(vec1, vec2)
+	case "ShiftRightAndFillUpperFrom":
+		gotv = vec0.ShiftRightAndFillUpperFrom(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Uint64x2.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x2TernaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []uint64, v3 []int64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x2
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x2Slice(v0)
+	vec1 := simd.LoadUint64x2Slice(v1)
+	vec2 := simd.LoadUint64x2Slice(v2)
+	vec3 := simd.LoadInt64x2Slice(v3)
+	switch which {
+	case "MaskedShiftLeftAndFillUpperFrom":
+		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask64x2())
+	case "MaskedShiftRightAndFillUpperFrom":
+		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask64x2())
+
+	default:
+		t.Errorf("Unknown method: Uint64x2.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testUint64x2Unary(t *testing.T, v0 []uint64, want []uint64, which string) {
 	t.Helper()
 	var gotv simd.Uint64x2
@@ -6401,6 +7457,16 @@ func testUint64x4Binary(t *testing.T, v0 []uint64, v1 []uint64, want []uint64, w
 		gotv = vec0.MulEvenWiden(vec1)
 	case "Or":
 		gotv = vec0.Or(vec1)
+	case "RotateLeft":
+		gotv = vec0.RotateLeft(vec1)
+	case "RotateRight":
+		gotv = vec0.RotateRight(vec1)
+	case "ShiftLeft":
+		gotv = vec0.ShiftLeft(vec1)
+	case "ShiftRight":
+		gotv = vec0.ShiftRight(vec1)
+	case "ShiftRightSignExtended":
+		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -6439,6 +7505,16 @@ func testUint64x4BinaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64
 		gotv = vec0.MaskedMulEvenWiden(vec1, vec2.AsMask64x4())
 	case "MaskedOr":
 		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x4())
+	case "MaskedRotateLeft":
+		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask64x4())
+	case "MaskedRotateRight":
+		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask64x4())
+	case "MaskedShiftLeft":
+		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask64x4())
+	case "MaskedShiftRight":
+		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask64x4())
+	case "MaskedShiftRightSignExtended":
+		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask64x4())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x4())
 	case "MaskedXor":
@@ -6518,6 +7594,55 @@ func testUint64x4MaskedCompare(t *testing.T, v0 []uint64, v1 []uint64, v2 []int6
 	}
 }
 
+func testUint64x4Ternary(t *testing.T, v0 []uint64, v1 []uint64, v2 []uint64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x4
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x4Slice(v0)
+	vec1 := simd.LoadUint64x4Slice(v1)
+	vec2 := simd.LoadUint64x4Slice(v2)
+	switch which {
+	case "ShiftLeftAndFillUpperFrom":
+		gotv = vec0.ShiftLeftAndFillUpperFrom(vec1, vec2)
+	case "ShiftRightAndFillUpperFrom":
+		gotv = vec0.ShiftRightAndFillUpperFrom(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Uint64x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x4TernaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []uint64, v3 []int64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x4
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x4Slice(v0)
+	vec1 := simd.LoadUint64x4Slice(v1)
+	vec2 := simd.LoadUint64x4Slice(v2)
+	vec3 := simd.LoadInt64x4Slice(v3)
+	switch which {
+	case "MaskedShiftLeftAndFillUpperFrom":
+		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask64x4())
+	case "MaskedShiftRightAndFillUpperFrom":
+		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask64x4())
+
+	default:
+		t.Errorf("Unknown method: Uint64x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testUint64x4Unary(t *testing.T, v0 []uint64, want []uint64, which string) {
 	t.Helper()
 	var gotv simd.Uint64x4
@@ -6580,6 +7705,16 @@ func testUint64x8Binary(t *testing.T, v0 []uint64, v1 []uint64, want []uint64, w
 		gotv = vec0.MulEvenWiden(vec1)
 	case "Or":
 		gotv = vec0.Or(vec1)
+	case "RotateLeft":
+		gotv = vec0.RotateLeft(vec1)
+	case "RotateRight":
+		gotv = vec0.RotateRight(vec1)
+	case "ShiftLeft":
+		gotv = vec0.ShiftLeft(vec1)
+	case "ShiftRight":
+		gotv = vec0.ShiftRight(vec1)
+	case "ShiftRightSignExtended":
+		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -6618,6 +7753,16 @@ func testUint64x8BinaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64
 		gotv = vec0.MaskedMulEvenWiden(vec1, vec2.AsMask64x8())
 	case "MaskedOr":
 		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x8())
+	case "MaskedRotateLeft":
+		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask64x8())
+	case "MaskedRotateRight":
+		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask64x8())
+	case "MaskedShiftLeft":
+		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask64x8())
+	case "MaskedShiftRight":
+		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask64x8())
+	case "MaskedShiftRightSignExtended":
+		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask64x8())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x8())
 	case "MaskedXor":
@@ -6697,6 +7842,55 @@ func testUint64x8MaskedCompare(t *testing.T, v0 []uint64, v1 []uint64, v2 []int6
 	}
 }
 
+func testUint64x8Ternary(t *testing.T, v0 []uint64, v1 []uint64, v2 []uint64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x8
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x8Slice(v0)
+	vec1 := simd.LoadUint64x8Slice(v1)
+	vec2 := simd.LoadUint64x8Slice(v2)
+	switch which {
+	case "ShiftLeftAndFillUpperFrom":
+		gotv = vec0.ShiftLeftAndFillUpperFrom(vec1, vec2)
+	case "ShiftRightAndFillUpperFrom":
+		gotv = vec0.ShiftRightAndFillUpperFrom(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Uint64x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x8TernaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []uint64, v3 []int64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x8
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x8Slice(v0)
+	vec1 := simd.LoadUint64x8Slice(v1)
+	vec2 := simd.LoadUint64x8Slice(v2)
+	vec3 := simd.LoadInt64x8Slice(v3)
+	switch which {
+	case "MaskedShiftLeftAndFillUpperFrom":
+		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask64x8())
+	case "MaskedShiftRightAndFillUpperFrom":
+		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask64x8())
+
+	default:
+		t.Errorf("Unknown method: Uint64x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testUint64x8Unary(t *testing.T, v0 []uint64, want []uint64, which string) {
 	t.Helper()
 	var gotv simd.Uint64x8
@@ -6737,3 +7931,54 @@ func testUint64x8UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint6
 		}
 	}
 }
+
+/* The operations below cannot be tested via wrappers, please test them directly */
+
+// CeilSuppressExceptionWithPrecision
+// CeilWithPrecision
+// DiffWithCeilSuppressExceptionWithPrecision
+// DiffWithCeilWithPrecision
+// DiffWithFloorSuppressExceptionWithPrecision
+// DiffWithFloorWithPrecision
+// DiffWithRoundSuppressExceptionWithPrecision
+// DiffWithRoundWithPrecision
+// DiffWithTruncSuppressExceptionWithPrecision
+// DiffWithTruncWithPrecision
+// FloorSuppressExceptionWithPrecision
+// FloorWithPrecision
+// GetElem
+// MaskedCeilSuppressExceptionWithPrecision
+// MaskedCeilWithPrecision
+// MaskedDiffWithCeilSuppressExceptionWithPrecision
+// MaskedDiffWithCeilWithPrecision
+// MaskedDiffWithFloorSuppressExceptionWithPrecision
+// MaskedDiffWithFloorWithPrecision
+// MaskedDiffWithRoundSuppressExceptionWithPrecision
+// MaskedDiffWithRoundWithPrecision
+// MaskedDiffWithTruncSuppressExceptionWithPrecision
+// MaskedDiffWithTruncWithPrecision
+// MaskedFloorSuppressExceptionWithPrecision
+// MaskedFloorWithPrecision
+// MaskedRotateAllLeft
+// MaskedRotateAllRight
+// MaskedRoundSuppressExceptionWithPrecision
+// MaskedRoundWithPrecision
+// MaskedShiftAllLeft
+// MaskedShiftAllLeftAndFillUpperFrom
+// MaskedShiftAllRight
+// MaskedShiftAllRightAndFillUpperFrom
+// MaskedShiftAllRightSignExtended
+// MaskedTruncSuppressExceptionWithPrecision
+// MaskedTruncWithPrecision
+// RotateAllLeft
+// RotateAllRight
+// RoundSuppressExceptionWithPrecision
+// RoundWithPrecision
+// SetElem
+// ShiftAllLeft
+// ShiftAllLeftAndFillUpperFrom
+// ShiftAllRight
+// ShiftAllRightAndFillUpperFrom
+// ShiftAllRightSignExtended
+// TruncSuppressExceptionWithPrecision
+// TruncWithPrecision
