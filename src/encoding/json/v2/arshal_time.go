@@ -52,6 +52,9 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 				}
 			} else if mo.Flags.Get(jsonflags.FormatTimeWithLegacySemantics) {
 				return marshalNano(enc, va, mo)
+			} else {
+				// TODO(https://go.dev/issue/71631): Decide on default duration representation.
+				return newMarshalErrorBefore(enc, t, errors.New("no default representation; specify an explicit format"))
 			}
 
 			// TODO(https://go.dev/issue/62121): Use reflect.Value.AssertTo.
@@ -75,6 +78,9 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 				}
 			} else if uo.Flags.Get(jsonflags.FormatTimeWithLegacySemantics) {
 				return unmarshalNano(dec, va, uo)
+			} else {
+				// TODO(https://go.dev/issue/71631): Decide on default duration representation.
+				return newUnmarshalErrorBeforeWithSkipping(dec, uo, t, errors.New("no default representation; specify an explicit format"))
 			}
 
 			stringify := !u.isNumeric() || xd.Tokens.Last.NeedObjectName() || uo.Flags.Get(jsonflags.StringifyNumbers)

@@ -743,6 +743,15 @@ func (t *tester) registerTests() {
 		}
 	}
 
+	// Test GOEXPERIMENT=jsonv2.
+	if !strings.Contains(goexperiment, "jsonv2") {
+		t.registerTest("GOEXPERIMENT=jsonv2 go test encoding/json/...", &goTest{
+			variant: "jsonv2",
+			env:     []string{"GOEXPERIMENT=jsonv2"},
+			pkg:     "encoding/json/...",
+		})
+	}
+
 	// Test ios/amd64 for the iOS simulator.
 	if goos == "darwin" && goarch == "amd64" && t.cgoEnabled {
 		t.registerTest("GOOS=ios on darwin/amd64",
