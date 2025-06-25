@@ -1198,6 +1198,58 @@ func (x Uint8x32) GaloisFieldMul(y Uint8x32) Uint8x32
 // Asm: VGF2P8MULB, CPU Feature: AVX512EVEX
 func (x Uint8x64) GaloisFieldMul(y Uint8x64) Uint8x64
 
+/* Get128 */
+
+// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
+//
+// Asm: VEXTRACTF128, CPU Feature: AVX
+func (x Float32x8) Get128(imm uint8) Float32x4
+
+// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
+//
+// Asm: VEXTRACTF128, CPU Feature: AVX
+func (x Float64x4) Get128(imm uint8) Float64x2
+
+// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Int8x32) Get128(imm uint8) Int8x16
+
+// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Int16x16) Get128(imm uint8) Int16x8
+
+// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Int32x8) Get128(imm uint8) Int32x4
+
+// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Int64x4) Get128(imm uint8) Int64x2
+
+// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Uint8x32) Get128(imm uint8) Uint8x16
+
+// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Uint16x16) Get128(imm uint8) Uint16x8
+
+// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Uint32x8) Get128(imm uint8) Uint32x4
+
+// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Uint64x4) Get128(imm uint8) Uint64x2
+
 /* GetElem */
 
 // GetElem retrieves a single constant-indexed element's value.

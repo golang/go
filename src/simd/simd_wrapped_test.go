@@ -7954,6 +7954,7 @@ func testUint64x8UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint6
 // FloorWithPrecision
 // GaloisFieldAffineTransform
 // GaloisFieldAffineTransformInversed
+// Get128
 // GetElem
 // MaskedCeilWithPrecision
 // MaskedDiffWithCeilWithPrecision

@@ -1388,6 +1388,26 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpGaloisFieldMulUint8x64:
 		v.Op = OpAMD64VGF2P8MULB512
 		return true
+	case OpGet128Float32x8:
+		return rewriteValueAMD64_OpGet128Float32x8(v)
+	case OpGet128Float64x4:
+		return rewriteValueAMD64_OpGet128Float64x4(v)
+	case OpGet128Int16x16:
+		return rewriteValueAMD64_OpGet128Int16x16(v)
+	case OpGet128Int32x8:
+		return rewriteValueAMD64_OpGet128Int32x8(v)
+	case OpGet128Int64x4:
+		return rewriteValueAMD64_OpGet128Int64x4(v)
+	case OpGet128Int8x32:
+		return rewriteValueAMD64_OpGet128Int8x32(v)
+	case OpGet128Uint16x16:
+		return rewriteValueAMD64_OpGet128Uint16x16(v)
+	case OpGet128Uint32x8:
+		return rewriteValueAMD64_OpGet128Uint32x8(v)
+	case OpGet128Uint64x4:
+		return rewriteValueAMD64_OpGet128Uint64x4(v)
+	case OpGet128Uint8x32:
+		return rewriteValueAMD64_OpGet128Uint8x32(v)
 	case OpGetCallerPC:
 		v.Op = OpAMD64LoweredGetCallerPC
 		return true
@@ -30996,6 +31016,136 @@ func rewriteValueAMD64_OpGaloisFieldAffineTransformUint8x64(v *Value) bool {
 		v.reset(OpAMD64VGF2P8AFFINEQB512)
 		v.AuxInt = int8ToAuxInt(a)
 		v.AddArg2(x, y)
+		return true
+	}
+}
+func rewriteValueAMD64_OpGet128Float32x8(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Get128Float32x8 [a] x)
+	// result: (VEXTRACTF128128 [a] x)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		v.reset(OpAMD64VEXTRACTF128128)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueAMD64_OpGet128Float64x4(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Get128Float64x4 [a] x)
+	// result: (VEXTRACTF128128 [a] x)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		v.reset(OpAMD64VEXTRACTF128128)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueAMD64_OpGet128Int16x16(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Get128Int16x16 [a] x)
+	// result: (VEXTRACTI128128 [a] x)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		v.reset(OpAMD64VEXTRACTI128128)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueAMD64_OpGet128Int32x8(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Get128Int32x8 [a] x)
+	// result: (VEXTRACTI128128 [a] x)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		v.reset(OpAMD64VEXTRACTI128128)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueAMD64_OpGet128Int64x4(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Get128Int64x4 [a] x)
+	// result: (VEXTRACTI128128 [a] x)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		v.reset(OpAMD64VEXTRACTI128128)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueAMD64_OpGet128Int8x32(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Get128Int8x32 [a] x)
+	// result: (VEXTRACTI128128 [a] x)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		v.reset(OpAMD64VEXTRACTI128128)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueAMD64_OpGet128Uint16x16(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Get128Uint16x16 [a] x)
+	// result: (VEXTRACTI128128 [a] x)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		v.reset(OpAMD64VEXTRACTI128128)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueAMD64_OpGet128Uint32x8(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Get128Uint32x8 [a] x)
+	// result: (VEXTRACTI128128 [a] x)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		v.reset(OpAMD64VEXTRACTI128128)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueAMD64_OpGet128Uint64x4(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Get128Uint64x4 [a] x)
+	// result: (VEXTRACTI128128 [a] x)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		v.reset(OpAMD64VEXTRACTI128128)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueAMD64_OpGet128Uint8x32(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Get128Uint8x32 [a] x)
+	// result: (VEXTRACTI128128 [a] x)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		v.reset(OpAMD64VEXTRACTI128128)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg(x)
 		return true
 	}
 }

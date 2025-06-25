@@ -1958,6 +1958,7 @@ const (
 	OpAMD64VRNDSCALEPS256
 	OpAMD64VREDUCEPS256
 	OpAMD64VCMPPS256
+	OpAMD64VEXTRACTF128128
 	OpAMD64VRNDSCALEPSMasked256
 	OpAMD64VREDUCEPSMasked256
 	OpAMD64VCMPPSMasked256
@@ -2071,6 +2072,7 @@ const (
 	OpAMD64VPCMPB128
 	OpAMD64VPCMPBMasked128
 	OpAMD64VPINSRB128
+	OpAMD64VEXTRACTI128128
 	OpAMD64VPCMPB256
 	OpAMD64VPCMPBMasked256
 	OpAMD64VINSERTI128256
@@ -5837,6 +5839,7 @@ const (
 	OpDiffWithRoundWithPrecisionFloat32x8
 	OpDiffWithTruncWithPrecisionFloat32x8
 	OpFloorWithPrecisionFloat32x8
+	OpGet128Float32x8
 	OpMaskedCeilWithPrecisionFloat32x8
 	OpMaskedDiffWithCeilWithPrecisionFloat32x8
 	OpMaskedDiffWithFloorWithPrecisionFloat32x8
@@ -5870,6 +5873,7 @@ const (
 	OpDiffWithRoundWithPrecisionFloat64x4
 	OpDiffWithTruncWithPrecisionFloat64x4
 	OpFloorWithPrecisionFloat64x4
+	OpGet128Float64x4
 	OpMaskedCeilWithPrecisionFloat64x4
 	OpMaskedDiffWithCeilWithPrecisionFloat64x4
 	OpMaskedDiffWithFloorWithPrecisionFloat64x4
@@ -5897,6 +5901,7 @@ const (
 	OpMaskedTruncWithPrecisionFloat64x8
 	OpRoundWithPrecisionFloat64x8
 	OpTruncWithPrecisionFloat64x8
+	OpGet128Int16x16
 	OpMaskedShiftAllLeftAndFillUpperFromInt16x16
 	OpMaskedShiftAllRightAndFillUpperFromInt16x16
 	OpSet128Int16x16
@@ -5930,6 +5935,7 @@ const (
 	OpSetElemInt32x4
 	OpShiftAllLeftAndFillUpperFromInt32x4
 	OpShiftAllRightAndFillUpperFromInt32x4
+	OpGet128Int32x8
 	OpMaskedRotateAllLeftInt32x8
 	OpMaskedRotateAllRightInt32x8
 	OpMaskedShiftAllLeftAndFillUpperFromInt32x8
@@ -5949,6 +5955,7 @@ const (
 	OpSetElemInt64x2
 	OpShiftAllLeftAndFillUpperFromInt64x2
 	OpShiftAllRightAndFillUpperFromInt64x2
+	OpGet128Int64x4
 	OpMaskedRotateAllLeftInt64x4
 	OpMaskedRotateAllRightInt64x4
 	OpMaskedShiftAllLeftAndFillUpperFromInt64x4
@@ -5968,7 +5975,9 @@ const (
 	OpShiftAllRightAndFillUpperFromInt64x8
 	OpGetElemInt8x16
 	OpSetElemInt8x16
+	OpGet128Int8x32
 	OpSet128Int8x32
+	OpGet128Uint16x16
 	OpMaskedShiftAllLeftAndFillUpperFromUint16x16
 	OpMaskedShiftAllRightAndFillUpperFromUint16x16
 	OpSet128Uint16x16
@@ -6002,6 +6011,7 @@ const (
 	OpSetElemUint32x4
 	OpShiftAllLeftAndFillUpperFromUint32x4
 	OpShiftAllRightAndFillUpperFromUint32x4
+	OpGet128Uint32x8
 	OpMaskedRotateAllLeftUint32x8
 	OpMaskedRotateAllRightUint32x8
 	OpMaskedShiftAllLeftAndFillUpperFromUint32x8
@@ -6021,6 +6031,7 @@ const (
 	OpSetElemUint64x2
 	OpShiftAllLeftAndFillUpperFromUint64x2
 	OpShiftAllRightAndFillUpperFromUint64x2
+	OpGet128Uint64x4
 	OpMaskedRotateAllLeftUint64x4
 	OpMaskedRotateAllRightUint64x4
 	OpMaskedShiftAllLeftAndFillUpperFromUint64x4
@@ -6046,6 +6057,7 @@ const (
 	OpSetElemUint8x16
 	OpGaloisFieldAffineTransformUint8x32
 	OpGaloisFieldAffineTransformInversedUint8x32
+	OpGet128Uint8x32
 	OpMaskedGaloisFieldAffineTransformUint8x32
 	OpMaskedGaloisFieldAffineTransformInversedUint8x32
 	OpSet128Uint8x32
@@ -30097,6 +30109,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "VEXTRACTF128128",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVEXTRACTF128,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:    "VRNDSCALEPSMasked256",
 		auxType: auxInt8,
 		argLen:  2,
@@ -31813,6 +31839,20 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VEXTRACTI128128",
+		auxType: auxInt8,
+		argLen:  1,
+		asm:     x86.AVEXTRACTI128,
+		reg: regInfo{
+			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
@@ -67707,6 +67747,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "Get128Float32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "MaskedCeilWithPrecisionFloat32x8",
 		auxType: auxInt8,
 		argLen:  2,
@@ -67905,6 +67951,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "Get128Float64x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "MaskedCeilWithPrecisionFloat64x4",
 		auxType: auxInt8,
 		argLen:  2,
@@ -68062,6 +68114,12 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "TruncWithPrecisionFloat64x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Get128Int16x16",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -68265,6 +68323,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "Get128Int32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "MaskedRotateAllLeftInt32x8",
 		auxType: auxInt8,
 		argLen:  2,
@@ -68376,6 +68440,12 @@ var opcodeTable = [...]opInfo{
 		name:    "ShiftAllRightAndFillUpperFromInt64x2",
 		auxType: auxInt8,
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Get128Int64x4",
+		auxType: auxInt8,
+		argLen:  1,
 		generic: true,
 	},
 	{
@@ -68493,9 +68563,21 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "Get128Int8x32",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "Set128Int8x32",
 		auxType: auxInt8,
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Get128Uint16x16",
+		auxType: auxInt8,
+		argLen:  1,
 		generic: true,
 	},
 	{
@@ -68697,6 +68779,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "Get128Uint32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "MaskedRotateAllLeftUint32x8",
 		auxType: auxInt8,
 		argLen:  2,
@@ -68808,6 +68896,12 @@ var opcodeTable = [...]opInfo{
 		name:    "ShiftAllRightAndFillUpperFromUint64x2",
 		auxType: auxInt8,
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Get128Uint64x4",
+		auxType: auxInt8,
+		argLen:  1,
 		generic: true,
 	},
 	{
@@ -68958,6 +69052,12 @@ var opcodeTable = [...]opInfo{
 		name:    "GaloisFieldAffineTransformInversedUint8x32",
 		auxType: auxInt8,
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Get128Uint8x32",
+		auxType: auxInt8,
+		argLen:  1,
 		generic: true,
 	},
 	{
