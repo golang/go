@@ -9,258 +9,6 @@ import (
 	"testing"
 )
 
-func testFloat32x16Binary(t *testing.T, v0 []float32, v1 []float32, want []float32, which string) {
-	t.Helper()
-	var gotv simd.Float32x16
-	got := make([]float32, len(want))
-	vec0 := simd.LoadFloat32x16Slice(v0)
-	vec1 := simd.LoadFloat32x16Slice(v1)
-	switch which {
-	case "Add":
-		gotv = vec0.Add(vec1)
-	case "And":
-		gotv = vec0.And(vec1)
-	case "AndNot":
-		gotv = vec0.AndNot(vec1)
-	case "Div":
-		gotv = vec0.Div(vec1)
-	case "Max":
-		gotv = vec0.Max(vec1)
-	case "Min":
-		gotv = vec0.Min(vec1)
-	case "Mul":
-		gotv = vec0.Mul(vec1)
-	case "MulByPowOf2":
-		gotv = vec0.MulByPowOf2(vec1)
-	case "Or":
-		gotv = vec0.Or(vec1)
-	case "Sub":
-		gotv = vec0.Sub(vec1)
-	case "Xor":
-		gotv = vec0.Xor(vec1)
-
-	default:
-		t.Errorf("Unknown method: Float32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testFloat32x16BinaryMasked(t *testing.T, v0 []float32, v1 []float32, v2 []int32, want []float32, which string) {
-	t.Helper()
-	var gotv simd.Float32x16
-	got := make([]float32, len(want))
-	vec0 := simd.LoadFloat32x16Slice(v0)
-	vec1 := simd.LoadFloat32x16Slice(v1)
-	vec2 := simd.LoadInt32x16Slice(v2)
-	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x16())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask32x16())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask32x16())
-	case "MaskedDiv":
-		gotv = vec0.MaskedDiv(vec1, vec2.AsMask32x16())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask32x16())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x16())
-	case "MaskedMul":
-		gotv = vec0.MaskedMul(vec1, vec2.AsMask32x16())
-	case "MaskedMulByPowOf2":
-		gotv = vec0.MaskedMulByPowOf2(vec1, vec2.AsMask32x16())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x16())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x16())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask32x16())
-
-	default:
-		t.Errorf("Unknown method: Float32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testFloat32x16Compare(t *testing.T, v0 []float32, v1 []float32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x16
-	got := make([]int32, len(want))
-	vec0 := simd.LoadFloat32x16Slice(v0)
-	vec1 := simd.LoadFloat32x16Slice(v1)
-	switch which {
-	case "Equal":
-		gotv = vec0.Equal(vec1).AsInt32x16()
-	case "Greater":
-		gotv = vec0.Greater(vec1).AsInt32x16()
-	case "GreaterEqual":
-		gotv = vec0.GreaterEqual(vec1).AsInt32x16()
-	case "IsNan":
-		gotv = vec0.IsNan(vec1).AsInt32x16()
-	case "Less":
-		gotv = vec0.Less(vec1).AsInt32x16()
-	case "LessEqual":
-		gotv = vec0.LessEqual(vec1).AsInt32x16()
-	case "NotEqual":
-		gotv = vec0.NotEqual(vec1).AsInt32x16()
-
-	default:
-		t.Errorf("Unknown method: Float32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testFloat32x16MaskedCompare(t *testing.T, v0 []float32, v1 []float32, v2 []int32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x16
-	got := make([]int32, len(want))
-	vec0 := simd.LoadFloat32x16Slice(v0)
-	vec1 := simd.LoadFloat32x16Slice(v1)
-	vec2 := simd.LoadInt32x16Slice(v2)
-	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedIsNan":
-		gotv = vec0.MaskedIsNan(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-
-	default:
-		t.Errorf("Unknown method: Float32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testFloat32x16Ternary(t *testing.T, v0 []float32, v1 []float32, v2 []float32, want []float32, which string) {
-	t.Helper()
-	var gotv simd.Float32x16
-	got := make([]float32, len(want))
-	vec0 := simd.LoadFloat32x16Slice(v0)
-	vec1 := simd.LoadFloat32x16Slice(v1)
-	vec2 := simd.LoadFloat32x16Slice(v2)
-	switch which {
-	case "FusedMultiplyAdd":
-		gotv = vec0.FusedMultiplyAdd(vec1, vec2)
-	case "FusedMultiplyAddSub":
-		gotv = vec0.FusedMultiplyAddSub(vec1, vec2)
-	case "FusedMultiplySubAdd":
-		gotv = vec0.FusedMultiplySubAdd(vec1, vec2)
-
-	default:
-		t.Errorf("Unknown method: Float32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testFloat32x16TernaryMasked(t *testing.T, v0 []float32, v1 []float32, v2 []float32, v3 []int32, want []float32, which string) {
-	t.Helper()
-	var gotv simd.Float32x16
-	got := make([]float32, len(want))
-	vec0 := simd.LoadFloat32x16Slice(v0)
-	vec1 := simd.LoadFloat32x16Slice(v1)
-	vec2 := simd.LoadFloat32x16Slice(v2)
-	vec3 := simd.LoadInt32x16Slice(v3)
-	switch which {
-	case "MaskedFusedMultiplyAdd":
-		gotv = vec0.MaskedFusedMultiplyAdd(vec1, vec2, vec3.AsMask32x16())
-	case "MaskedFusedMultiplyAddSub":
-		gotv = vec0.MaskedFusedMultiplyAddSub(vec1, vec2, vec3.AsMask32x16())
-	case "MaskedFusedMultiplySubAdd":
-		gotv = vec0.MaskedFusedMultiplySubAdd(vec1, vec2, vec3.AsMask32x16())
-
-	default:
-		t.Errorf("Unknown method: Float32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testFloat32x16Unary(t *testing.T, v0 []float32, want []float32, which string) {
-	t.Helper()
-	var gotv simd.Float32x16
-	got := make([]float32, len(want))
-	vec0 := simd.LoadFloat32x16Slice(v0)
-	switch which {
-	case "ApproximateReciprocal":
-		gotv = vec0.ApproximateReciprocal()
-	case "ApproximateReciprocalOfSqrt":
-		gotv = vec0.ApproximateReciprocalOfSqrt()
-	case "Sqrt":
-		gotv = vec0.Sqrt()
-
-	default:
-		t.Errorf("Unknown method: Float32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testFloat32x16UnaryMasked(t *testing.T, v0 []float32, v1 []int32, want []float32, which string) {
-	t.Helper()
-	var gotv simd.Float32x16
-	got := make([]float32, len(want))
-	vec0 := simd.LoadFloat32x16Slice(v0)
-	vec1 := simd.LoadInt32x16Slice(v1)
-	switch which {
-	case "MaskedApproximateReciprocal":
-		gotv = vec0.MaskedApproximateReciprocal(vec1.AsMask32x16())
-	case "MaskedApproximateReciprocalOfSqrt":
-		gotv = vec0.MaskedApproximateReciprocalOfSqrt(vec1.AsMask32x16())
-	case "MaskedSqrt":
-		gotv = vec0.MaskedSqrt(vec1.AsMask32x16())
-
-	default:
-		t.Errorf("Unknown method: Float32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
 func testFloat32x4Binary(t *testing.T, v0 []float32, v1 []float32, want []float32, which string) {
 	t.Helper()
 	var gotv simd.Float32x4
@@ -784,6 +532,258 @@ func testFloat32x8UnaryMasked(t *testing.T, v0 []float32, v1 []int32, want []flo
 
 	default:
 		t.Errorf("Unknown method: Float32x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testFloat32x16Binary(t *testing.T, v0 []float32, v1 []float32, want []float32, which string) {
+	t.Helper()
+	var gotv simd.Float32x16
+	got := make([]float32, len(want))
+	vec0 := simd.LoadFloat32x16Slice(v0)
+	vec1 := simd.LoadFloat32x16Slice(v1)
+	switch which {
+	case "Add":
+		gotv = vec0.Add(vec1)
+	case "And":
+		gotv = vec0.And(vec1)
+	case "AndNot":
+		gotv = vec0.AndNot(vec1)
+	case "Div":
+		gotv = vec0.Div(vec1)
+	case "Max":
+		gotv = vec0.Max(vec1)
+	case "Min":
+		gotv = vec0.Min(vec1)
+	case "Mul":
+		gotv = vec0.Mul(vec1)
+	case "MulByPowOf2":
+		gotv = vec0.MulByPowOf2(vec1)
+	case "Or":
+		gotv = vec0.Or(vec1)
+	case "Sub":
+		gotv = vec0.Sub(vec1)
+	case "Xor":
+		gotv = vec0.Xor(vec1)
+
+	default:
+		t.Errorf("Unknown method: Float32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testFloat32x16BinaryMasked(t *testing.T, v0 []float32, v1 []float32, v2 []int32, want []float32, which string) {
+	t.Helper()
+	var gotv simd.Float32x16
+	got := make([]float32, len(want))
+	vec0 := simd.LoadFloat32x16Slice(v0)
+	vec1 := simd.LoadFloat32x16Slice(v1)
+	vec2 := simd.LoadInt32x16Slice(v2)
+	switch which {
+	case "MaskedAdd":
+		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x16())
+	case "MaskedAnd":
+		gotv = vec0.MaskedAnd(vec1, vec2.AsMask32x16())
+	case "MaskedAndNot":
+		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask32x16())
+	case "MaskedDiv":
+		gotv = vec0.MaskedDiv(vec1, vec2.AsMask32x16())
+	case "MaskedMax":
+		gotv = vec0.MaskedMax(vec1, vec2.AsMask32x16())
+	case "MaskedMin":
+		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x16())
+	case "MaskedMul":
+		gotv = vec0.MaskedMul(vec1, vec2.AsMask32x16())
+	case "MaskedMulByPowOf2":
+		gotv = vec0.MaskedMulByPowOf2(vec1, vec2.AsMask32x16())
+	case "MaskedOr":
+		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x16())
+	case "MaskedSub":
+		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x16())
+	case "MaskedXor":
+		gotv = vec0.MaskedXor(vec1, vec2.AsMask32x16())
+
+	default:
+		t.Errorf("Unknown method: Float32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testFloat32x16Compare(t *testing.T, v0 []float32, v1 []float32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x16
+	got := make([]int32, len(want))
+	vec0 := simd.LoadFloat32x16Slice(v0)
+	vec1 := simd.LoadFloat32x16Slice(v1)
+	switch which {
+	case "Equal":
+		gotv = vec0.Equal(vec1).AsInt32x16()
+	case "Greater":
+		gotv = vec0.Greater(vec1).AsInt32x16()
+	case "GreaterEqual":
+		gotv = vec0.GreaterEqual(vec1).AsInt32x16()
+	case "IsNan":
+		gotv = vec0.IsNan(vec1).AsInt32x16()
+	case "Less":
+		gotv = vec0.Less(vec1).AsInt32x16()
+	case "LessEqual":
+		gotv = vec0.LessEqual(vec1).AsInt32x16()
+	case "NotEqual":
+		gotv = vec0.NotEqual(vec1).AsInt32x16()
+
+	default:
+		t.Errorf("Unknown method: Float32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testFloat32x16MaskedCompare(t *testing.T, v0 []float32, v1 []float32, v2 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x16
+	got := make([]int32, len(want))
+	vec0 := simd.LoadFloat32x16Slice(v0)
+	vec1 := simd.LoadFloat32x16Slice(v1)
+	vec2 := simd.LoadInt32x16Slice(v2)
+	switch which {
+	case "MaskedEqual":
+		gotv = vec0.MaskedEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "MaskedGreater":
+		gotv = vec0.MaskedGreater(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "MaskedGreaterEqual":
+		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "MaskedIsNan":
+		gotv = vec0.MaskedIsNan(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "MaskedLess":
+		gotv = vec0.MaskedLess(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "MaskedLessEqual":
+		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "MaskedNotEqual":
+		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
+
+	default:
+		t.Errorf("Unknown method: Float32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testFloat32x16Ternary(t *testing.T, v0 []float32, v1 []float32, v2 []float32, want []float32, which string) {
+	t.Helper()
+	var gotv simd.Float32x16
+	got := make([]float32, len(want))
+	vec0 := simd.LoadFloat32x16Slice(v0)
+	vec1 := simd.LoadFloat32x16Slice(v1)
+	vec2 := simd.LoadFloat32x16Slice(v2)
+	switch which {
+	case "FusedMultiplyAdd":
+		gotv = vec0.FusedMultiplyAdd(vec1, vec2)
+	case "FusedMultiplyAddSub":
+		gotv = vec0.FusedMultiplyAddSub(vec1, vec2)
+	case "FusedMultiplySubAdd":
+		gotv = vec0.FusedMultiplySubAdd(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Float32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testFloat32x16TernaryMasked(t *testing.T, v0 []float32, v1 []float32, v2 []float32, v3 []int32, want []float32, which string) {
+	t.Helper()
+	var gotv simd.Float32x16
+	got := make([]float32, len(want))
+	vec0 := simd.LoadFloat32x16Slice(v0)
+	vec1 := simd.LoadFloat32x16Slice(v1)
+	vec2 := simd.LoadFloat32x16Slice(v2)
+	vec3 := simd.LoadInt32x16Slice(v3)
+	switch which {
+	case "MaskedFusedMultiplyAdd":
+		gotv = vec0.MaskedFusedMultiplyAdd(vec1, vec2, vec3.AsMask32x16())
+	case "MaskedFusedMultiplyAddSub":
+		gotv = vec0.MaskedFusedMultiplyAddSub(vec1, vec2, vec3.AsMask32x16())
+	case "MaskedFusedMultiplySubAdd":
+		gotv = vec0.MaskedFusedMultiplySubAdd(vec1, vec2, vec3.AsMask32x16())
+
+	default:
+		t.Errorf("Unknown method: Float32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testFloat32x16Unary(t *testing.T, v0 []float32, want []float32, which string) {
+	t.Helper()
+	var gotv simd.Float32x16
+	got := make([]float32, len(want))
+	vec0 := simd.LoadFloat32x16Slice(v0)
+	switch which {
+	case "ApproximateReciprocal":
+		gotv = vec0.ApproximateReciprocal()
+	case "ApproximateReciprocalOfSqrt":
+		gotv = vec0.ApproximateReciprocalOfSqrt()
+	case "Sqrt":
+		gotv = vec0.Sqrt()
+
+	default:
+		t.Errorf("Unknown method: Float32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testFloat32x16UnaryMasked(t *testing.T, v0 []float32, v1 []int32, want []float32, which string) {
+	t.Helper()
+	var gotv simd.Float32x16
+	got := make([]float32, len(want))
+	vec0 := simd.LoadFloat32x16Slice(v0)
+	vec1 := simd.LoadInt32x16Slice(v1)
+	switch which {
+	case "MaskedApproximateReciprocal":
+		gotv = vec0.MaskedApproximateReciprocal(vec1.AsMask32x16())
+	case "MaskedApproximateReciprocalOfSqrt":
+		gotv = vec0.MaskedApproximateReciprocalOfSqrt(vec1.AsMask32x16())
+	case "MaskedSqrt":
+		gotv = vec0.MaskedSqrt(vec1.AsMask32x16())
+
+	default:
+		t.Errorf("Unknown method: Float32x16.%s", which)
 	}
 	gotv.StoreSlice(got)
 	for i := range len(want) {
@@ -1579,6 +1579,779 @@ func testFloat64x8UnaryMasked(t *testing.T, v0 []float64, v1 []int64, want []flo
 	}
 }
 
+func testInt8x16Binary(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x16
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x16Slice(v0)
+	vec1 := simd.LoadInt8x16Slice(v1)
+	switch which {
+	case "Add":
+		gotv = vec0.Add(vec1)
+	case "And":
+		gotv = vec0.And(vec1)
+	case "AndNot":
+		gotv = vec0.AndNot(vec1)
+	case "Max":
+		gotv = vec0.Max(vec1)
+	case "Min":
+		gotv = vec0.Min(vec1)
+	case "Or":
+		gotv = vec0.Or(vec1)
+	case "SaturatedAdd":
+		gotv = vec0.SaturatedAdd(vec1)
+	case "SaturatedSub":
+		gotv = vec0.SaturatedSub(vec1)
+	case "Sign":
+		gotv = vec0.Sign(vec1)
+	case "Sub":
+		gotv = vec0.Sub(vec1)
+	case "Xor":
+		gotv = vec0.Xor(vec1)
+
+	default:
+		t.Errorf("Unknown method: Int8x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt8x16BinaryMasked(t *testing.T, v0 []int8, v1 []int8, v2 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x16
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x16Slice(v0)
+	vec1 := simd.LoadInt8x16Slice(v1)
+	vec2 := simd.LoadInt8x16Slice(v2)
+	switch which {
+	case "MaskedAdd":
+		gotv = vec0.MaskedAdd(vec1, vec2.AsMask8x16())
+	case "MaskedMax":
+		gotv = vec0.MaskedMax(vec1, vec2.AsMask8x16())
+	case "MaskedMin":
+		gotv = vec0.MaskedMin(vec1, vec2.AsMask8x16())
+	case "MaskedSaturatedAdd":
+		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask8x16())
+	case "MaskedSaturatedSub":
+		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask8x16())
+	case "MaskedSub":
+		gotv = vec0.MaskedSub(vec1, vec2.AsMask8x16())
+
+	default:
+		t.Errorf("Unknown method: Int8x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt8x16Compare(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x16
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x16Slice(v0)
+	vec1 := simd.LoadInt8x16Slice(v1)
+	switch which {
+	case "Equal":
+		gotv = vec0.Equal(vec1).AsInt8x16()
+	case "Greater":
+		gotv = vec0.Greater(vec1).AsInt8x16()
+	case "GreaterEqual":
+		gotv = vec0.GreaterEqual(vec1).AsInt8x16()
+	case "Less":
+		gotv = vec0.Less(vec1).AsInt8x16()
+	case "LessEqual":
+		gotv = vec0.LessEqual(vec1).AsInt8x16()
+	case "NotEqual":
+		gotv = vec0.NotEqual(vec1).AsInt8x16()
+
+	default:
+		t.Errorf("Unknown method: Int8x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt8x16MaskedCompare(t *testing.T, v0 []int8, v1 []int8, v2 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x16
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x16Slice(v0)
+	vec1 := simd.LoadInt8x16Slice(v1)
+	vec2 := simd.LoadInt8x16Slice(v2)
+	switch which {
+	case "MaskedEqual":
+		gotv = vec0.MaskedEqual(vec1, vec2.AsMask8x16()).AsInt8x16()
+	case "MaskedGreater":
+		gotv = vec0.MaskedGreater(vec1, vec2.AsMask8x16()).AsInt8x16()
+	case "MaskedGreaterEqual":
+		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask8x16()).AsInt8x16()
+	case "MaskedLess":
+		gotv = vec0.MaskedLess(vec1, vec2.AsMask8x16()).AsInt8x16()
+	case "MaskedLessEqual":
+		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask8x16()).AsInt8x16()
+	case "MaskedNotEqual":
+		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask8x16()).AsInt8x16()
+
+	default:
+		t.Errorf("Unknown method: Int8x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt8x16Unary(t *testing.T, v0 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x16
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x16Slice(v0)
+	switch which {
+	case "Absolute":
+		gotv = vec0.Absolute()
+	case "PopCount":
+		gotv = vec0.PopCount()
+
+	default:
+		t.Errorf("Unknown method: Int8x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt8x16UnaryMasked(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x16
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x16Slice(v0)
+	vec1 := simd.LoadInt8x16Slice(v1)
+	switch which {
+	case "MaskedAbsolute":
+		gotv = vec0.MaskedAbsolute(vec1.AsMask8x16())
+	case "MaskedPopCount":
+		gotv = vec0.MaskedPopCount(vec1.AsMask8x16())
+
+	default:
+		t.Errorf("Unknown method: Int8x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt8x32Binary(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x32
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x32Slice(v0)
+	vec1 := simd.LoadInt8x32Slice(v1)
+	switch which {
+	case "Add":
+		gotv = vec0.Add(vec1)
+	case "And":
+		gotv = vec0.And(vec1)
+	case "AndNot":
+		gotv = vec0.AndNot(vec1)
+	case "Max":
+		gotv = vec0.Max(vec1)
+	case "Min":
+		gotv = vec0.Min(vec1)
+	case "Or":
+		gotv = vec0.Or(vec1)
+	case "SaturatedAdd":
+		gotv = vec0.SaturatedAdd(vec1)
+	case "SaturatedSub":
+		gotv = vec0.SaturatedSub(vec1)
+	case "Sign":
+		gotv = vec0.Sign(vec1)
+	case "Sub":
+		gotv = vec0.Sub(vec1)
+	case "Xor":
+		gotv = vec0.Xor(vec1)
+
+	default:
+		t.Errorf("Unknown method: Int8x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt8x32BinaryMasked(t *testing.T, v0 []int8, v1 []int8, v2 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x32
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x32Slice(v0)
+	vec1 := simd.LoadInt8x32Slice(v1)
+	vec2 := simd.LoadInt8x32Slice(v2)
+	switch which {
+	case "MaskedAdd":
+		gotv = vec0.MaskedAdd(vec1, vec2.AsMask8x32())
+	case "MaskedMax":
+		gotv = vec0.MaskedMax(vec1, vec2.AsMask8x32())
+	case "MaskedMin":
+		gotv = vec0.MaskedMin(vec1, vec2.AsMask8x32())
+	case "MaskedSaturatedAdd":
+		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask8x32())
+	case "MaskedSaturatedSub":
+		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask8x32())
+	case "MaskedSub":
+		gotv = vec0.MaskedSub(vec1, vec2.AsMask8x32())
+
+	default:
+		t.Errorf("Unknown method: Int8x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt8x32Compare(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x32
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x32Slice(v0)
+	vec1 := simd.LoadInt8x32Slice(v1)
+	switch which {
+	case "Equal":
+		gotv = vec0.Equal(vec1).AsInt8x32()
+	case "Greater":
+		gotv = vec0.Greater(vec1).AsInt8x32()
+	case "GreaterEqual":
+		gotv = vec0.GreaterEqual(vec1).AsInt8x32()
+	case "Less":
+		gotv = vec0.Less(vec1).AsInt8x32()
+	case "LessEqual":
+		gotv = vec0.LessEqual(vec1).AsInt8x32()
+	case "NotEqual":
+		gotv = vec0.NotEqual(vec1).AsInt8x32()
+
+	default:
+		t.Errorf("Unknown method: Int8x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt8x32MaskedCompare(t *testing.T, v0 []int8, v1 []int8, v2 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x32
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x32Slice(v0)
+	vec1 := simd.LoadInt8x32Slice(v1)
+	vec2 := simd.LoadInt8x32Slice(v2)
+	switch which {
+	case "MaskedEqual":
+		gotv = vec0.MaskedEqual(vec1, vec2.AsMask8x32()).AsInt8x32()
+	case "MaskedGreater":
+		gotv = vec0.MaskedGreater(vec1, vec2.AsMask8x32()).AsInt8x32()
+	case "MaskedGreaterEqual":
+		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask8x32()).AsInt8x32()
+	case "MaskedLess":
+		gotv = vec0.MaskedLess(vec1, vec2.AsMask8x32()).AsInt8x32()
+	case "MaskedLessEqual":
+		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask8x32()).AsInt8x32()
+	case "MaskedNotEqual":
+		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask8x32()).AsInt8x32()
+
+	default:
+		t.Errorf("Unknown method: Int8x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt8x32Unary(t *testing.T, v0 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x32
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x32Slice(v0)
+	switch which {
+	case "Absolute":
+		gotv = vec0.Absolute()
+	case "PopCount":
+		gotv = vec0.PopCount()
+
+	default:
+		t.Errorf("Unknown method: Int8x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt8x32UnaryMasked(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x32
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x32Slice(v0)
+	vec1 := simd.LoadInt8x32Slice(v1)
+	switch which {
+	case "MaskedAbsolute":
+		gotv = vec0.MaskedAbsolute(vec1.AsMask8x32())
+	case "MaskedPopCount":
+		gotv = vec0.MaskedPopCount(vec1.AsMask8x32())
+
+	default:
+		t.Errorf("Unknown method: Int8x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt8x64Binary(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x64
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x64Slice(v0)
+	vec1 := simd.LoadInt8x64Slice(v1)
+	switch which {
+	case "Add":
+		gotv = vec0.Add(vec1)
+	case "Max":
+		gotv = vec0.Max(vec1)
+	case "Min":
+		gotv = vec0.Min(vec1)
+	case "SaturatedAdd":
+		gotv = vec0.SaturatedAdd(vec1)
+	case "SaturatedSub":
+		gotv = vec0.SaturatedSub(vec1)
+	case "Sub":
+		gotv = vec0.Sub(vec1)
+
+	default:
+		t.Errorf("Unknown method: Int8x64.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt8x64BinaryMasked(t *testing.T, v0 []int8, v1 []int8, v2 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x64
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x64Slice(v0)
+	vec1 := simd.LoadInt8x64Slice(v1)
+	vec2 := simd.LoadInt8x64Slice(v2)
+	switch which {
+	case "MaskedAdd":
+		gotv = vec0.MaskedAdd(vec1, vec2.AsMask8x64())
+	case "MaskedMax":
+		gotv = vec0.MaskedMax(vec1, vec2.AsMask8x64())
+	case "MaskedMin":
+		gotv = vec0.MaskedMin(vec1, vec2.AsMask8x64())
+	case "MaskedSaturatedAdd":
+		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask8x64())
+	case "MaskedSaturatedSub":
+		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask8x64())
+	case "MaskedSub":
+		gotv = vec0.MaskedSub(vec1, vec2.AsMask8x64())
+
+	default:
+		t.Errorf("Unknown method: Int8x64.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt8x64Compare(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x64
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x64Slice(v0)
+	vec1 := simd.LoadInt8x64Slice(v1)
+	switch which {
+	case "Equal":
+		gotv = vec0.Equal(vec1).AsInt8x64()
+	case "Greater":
+		gotv = vec0.Greater(vec1).AsInt8x64()
+	case "GreaterEqual":
+		gotv = vec0.GreaterEqual(vec1).AsInt8x64()
+	case "Less":
+		gotv = vec0.Less(vec1).AsInt8x64()
+	case "LessEqual":
+		gotv = vec0.LessEqual(vec1).AsInt8x64()
+	case "NotEqual":
+		gotv = vec0.NotEqual(vec1).AsInt8x64()
+
+	default:
+		t.Errorf("Unknown method: Int8x64.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt8x64MaskedCompare(t *testing.T, v0 []int8, v1 []int8, v2 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x64
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x64Slice(v0)
+	vec1 := simd.LoadInt8x64Slice(v1)
+	vec2 := simd.LoadInt8x64Slice(v2)
+	switch which {
+	case "MaskedEqual":
+		gotv = vec0.MaskedEqual(vec1, vec2.AsMask8x64()).AsInt8x64()
+	case "MaskedGreater":
+		gotv = vec0.MaskedGreater(vec1, vec2.AsMask8x64()).AsInt8x64()
+	case "MaskedGreaterEqual":
+		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask8x64()).AsInt8x64()
+	case "MaskedLess":
+		gotv = vec0.MaskedLess(vec1, vec2.AsMask8x64()).AsInt8x64()
+	case "MaskedLessEqual":
+		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask8x64()).AsInt8x64()
+	case "MaskedNotEqual":
+		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask8x64()).AsInt8x64()
+
+	default:
+		t.Errorf("Unknown method: Int8x64.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt8x64Unary(t *testing.T, v0 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x64
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x64Slice(v0)
+	switch which {
+	case "Absolute":
+		gotv = vec0.Absolute()
+	case "PopCount":
+		gotv = vec0.PopCount()
+
+	default:
+		t.Errorf("Unknown method: Int8x64.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt8x64UnaryMasked(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x64
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x64Slice(v0)
+	vec1 := simd.LoadInt8x64Slice(v1)
+	switch which {
+	case "MaskedAbsolute":
+		gotv = vec0.MaskedAbsolute(vec1.AsMask8x64())
+	case "MaskedPopCount":
+		gotv = vec0.MaskedPopCount(vec1.AsMask8x64())
+
+	default:
+		t.Errorf("Unknown method: Int8x64.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt16x8Binary(t *testing.T, v0 []int16, v1 []int16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x8
+	got := make([]int16, len(want))
+	vec0 := simd.LoadInt16x8Slice(v0)
+	vec1 := simd.LoadInt16x8Slice(v1)
+	switch which {
+	case "Add":
+		gotv = vec0.Add(vec1)
+	case "And":
+		gotv = vec0.And(vec1)
+	case "AndNot":
+		gotv = vec0.AndNot(vec1)
+	case "Max":
+		gotv = vec0.Max(vec1)
+	case "Min":
+		gotv = vec0.Min(vec1)
+	case "MulHigh":
+		gotv = vec0.MulHigh(vec1)
+	case "MulLow":
+		gotv = vec0.MulLow(vec1)
+	case "Or":
+		gotv = vec0.Or(vec1)
+	case "PairwiseAdd":
+		gotv = vec0.PairwiseAdd(vec1)
+	case "PairwiseSub":
+		gotv = vec0.PairwiseSub(vec1)
+	case "SaturatedAdd":
+		gotv = vec0.SaturatedAdd(vec1)
+	case "SaturatedPairwiseAdd":
+		gotv = vec0.SaturatedPairwiseAdd(vec1)
+	case "SaturatedPairwiseSub":
+		gotv = vec0.SaturatedPairwiseSub(vec1)
+	case "SaturatedSub":
+		gotv = vec0.SaturatedSub(vec1)
+	case "Sign":
+		gotv = vec0.Sign(vec1)
+	case "Sub":
+		gotv = vec0.Sub(vec1)
+	case "Xor":
+		gotv = vec0.Xor(vec1)
+
+	default:
+		t.Errorf("Unknown method: Int16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt16x8BinaryMasked(t *testing.T, v0 []int16, v1 []int16, v2 []int16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x8
+	got := make([]int16, len(want))
+	vec0 := simd.LoadInt16x8Slice(v0)
+	vec1 := simd.LoadInt16x8Slice(v1)
+	vec2 := simd.LoadInt16x8Slice(v2)
+	switch which {
+	case "MaskedAdd":
+		gotv = vec0.MaskedAdd(vec1, vec2.AsMask16x8())
+	case "MaskedMax":
+		gotv = vec0.MaskedMax(vec1, vec2.AsMask16x8())
+	case "MaskedMin":
+		gotv = vec0.MaskedMin(vec1, vec2.AsMask16x8())
+	case "MaskedMulHigh":
+		gotv = vec0.MaskedMulHigh(vec1, vec2.AsMask16x8())
+	case "MaskedMulLow":
+		gotv = vec0.MaskedMulLow(vec1, vec2.AsMask16x8())
+	case "MaskedSaturatedAdd":
+		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x8())
+	case "MaskedSaturatedSub":
+		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x8())
+	case "MaskedSub":
+		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x8())
+
+	default:
+		t.Errorf("Unknown method: Int16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt16x8BinaryMaskedWiden(t *testing.T, v0 []int16, v1 []int16, v2 []int16, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x4
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt16x8Slice(v0)
+	vec1 := simd.LoadInt16x8Slice(v1)
+	vec2 := simd.LoadInt16x8Slice(v2)
+	switch which {
+	case "MaskedPairDotProd":
+		gotv = vec0.MaskedPairDotProd(vec1, vec2.AsMask16x8())
+
+	default:
+		t.Errorf("Unknown method: Int16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt16x8BinaryWiden(t *testing.T, v0 []int16, v1 []int16, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x4
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt16x8Slice(v0)
+	vec1 := simd.LoadInt16x8Slice(v1)
+	switch which {
+	case "PairDotProd":
+		gotv = vec0.PairDotProd(vec1)
+
+	default:
+		t.Errorf("Unknown method: Int16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt16x8Compare(t *testing.T, v0 []int16, v1 []int16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x8
+	got := make([]int16, len(want))
+	vec0 := simd.LoadInt16x8Slice(v0)
+	vec1 := simd.LoadInt16x8Slice(v1)
+	switch which {
+	case "Equal":
+		gotv = vec0.Equal(vec1).AsInt16x8()
+	case "Greater":
+		gotv = vec0.Greater(vec1).AsInt16x8()
+	case "GreaterEqual":
+		gotv = vec0.GreaterEqual(vec1).AsInt16x8()
+	case "Less":
+		gotv = vec0.Less(vec1).AsInt16x8()
+	case "LessEqual":
+		gotv = vec0.LessEqual(vec1).AsInt16x8()
+	case "NotEqual":
+		gotv = vec0.NotEqual(vec1).AsInt16x8()
+
+	default:
+		t.Errorf("Unknown method: Int16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt16x8MaskedCompare(t *testing.T, v0 []int16, v1 []int16, v2 []int16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x8
+	got := make([]int16, len(want))
+	vec0 := simd.LoadInt16x8Slice(v0)
+	vec1 := simd.LoadInt16x8Slice(v1)
+	vec2 := simd.LoadInt16x8Slice(v2)
+	switch which {
+	case "MaskedEqual":
+		gotv = vec0.MaskedEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "MaskedGreater":
+		gotv = vec0.MaskedGreater(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "MaskedGreaterEqual":
+		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "MaskedLess":
+		gotv = vec0.MaskedLess(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "MaskedLessEqual":
+		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "MaskedNotEqual":
+		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
+
+	default:
+		t.Errorf("Unknown method: Int16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt16x8Unary(t *testing.T, v0 []int16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x8
+	got := make([]int16, len(want))
+	vec0 := simd.LoadInt16x8Slice(v0)
+	switch which {
+	case "Absolute":
+		gotv = vec0.Absolute()
+	case "PopCount":
+		gotv = vec0.PopCount()
+
+	default:
+		t.Errorf("Unknown method: Int16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt16x8UnaryMasked(t *testing.T, v0 []int16, v1 []int16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x8
+	got := make([]int16, len(want))
+	vec0 := simd.LoadInt16x8Slice(v0)
+	vec1 := simd.LoadInt16x8Slice(v1)
+	switch which {
+	case "MaskedAbsolute":
+		gotv = vec0.MaskedAbsolute(vec1.AsMask16x8())
+	case "MaskedPopCount":
+		gotv = vec0.MaskedPopCount(vec1.AsMask16x8())
+
+	default:
+		t.Errorf("Unknown method: Int16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testInt16x16Binary(t *testing.T, v0 []int16, v1 []int16, want []int16, which string) {
 	t.Helper()
 	var gotv simd.Int16x16
@@ -2032,527 +2805,6 @@ func testInt16x32UnaryMasked(t *testing.T, v0 []int16, v1 []int16, want []int16,
 
 	default:
 		t.Errorf("Unknown method: Int16x32.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt16x8Binary(t *testing.T, v0 []int16, v1 []int16, want []int16, which string) {
-	t.Helper()
-	var gotv simd.Int16x8
-	got := make([]int16, len(want))
-	vec0 := simd.LoadInt16x8Slice(v0)
-	vec1 := simd.LoadInt16x8Slice(v1)
-	switch which {
-	case "Add":
-		gotv = vec0.Add(vec1)
-	case "And":
-		gotv = vec0.And(vec1)
-	case "AndNot":
-		gotv = vec0.AndNot(vec1)
-	case "Max":
-		gotv = vec0.Max(vec1)
-	case "Min":
-		gotv = vec0.Min(vec1)
-	case "MulHigh":
-		gotv = vec0.MulHigh(vec1)
-	case "MulLow":
-		gotv = vec0.MulLow(vec1)
-	case "Or":
-		gotv = vec0.Or(vec1)
-	case "PairwiseAdd":
-		gotv = vec0.PairwiseAdd(vec1)
-	case "PairwiseSub":
-		gotv = vec0.PairwiseSub(vec1)
-	case "SaturatedAdd":
-		gotv = vec0.SaturatedAdd(vec1)
-	case "SaturatedPairwiseAdd":
-		gotv = vec0.SaturatedPairwiseAdd(vec1)
-	case "SaturatedPairwiseSub":
-		gotv = vec0.SaturatedPairwiseSub(vec1)
-	case "SaturatedSub":
-		gotv = vec0.SaturatedSub(vec1)
-	case "Sign":
-		gotv = vec0.Sign(vec1)
-	case "Sub":
-		gotv = vec0.Sub(vec1)
-	case "Xor":
-		gotv = vec0.Xor(vec1)
-
-	default:
-		t.Errorf("Unknown method: Int16x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt16x8BinaryMasked(t *testing.T, v0 []int16, v1 []int16, v2 []int16, want []int16, which string) {
-	t.Helper()
-	var gotv simd.Int16x8
-	got := make([]int16, len(want))
-	vec0 := simd.LoadInt16x8Slice(v0)
-	vec1 := simd.LoadInt16x8Slice(v1)
-	vec2 := simd.LoadInt16x8Slice(v2)
-	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask16x8())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask16x8())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask16x8())
-	case "MaskedMulHigh":
-		gotv = vec0.MaskedMulHigh(vec1, vec2.AsMask16x8())
-	case "MaskedMulLow":
-		gotv = vec0.MaskedMulLow(vec1, vec2.AsMask16x8())
-	case "MaskedSaturatedAdd":
-		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x8())
-	case "MaskedSaturatedSub":
-		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x8())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x8())
-
-	default:
-		t.Errorf("Unknown method: Int16x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt16x8BinaryMaskedWiden(t *testing.T, v0 []int16, v1 []int16, v2 []int16, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x4
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt16x8Slice(v0)
-	vec1 := simd.LoadInt16x8Slice(v1)
-	vec2 := simd.LoadInt16x8Slice(v2)
-	switch which {
-	case "MaskedPairDotProd":
-		gotv = vec0.MaskedPairDotProd(vec1, vec2.AsMask16x8())
-
-	default:
-		t.Errorf("Unknown method: Int16x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt16x8BinaryWiden(t *testing.T, v0 []int16, v1 []int16, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x4
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt16x8Slice(v0)
-	vec1 := simd.LoadInt16x8Slice(v1)
-	switch which {
-	case "PairDotProd":
-		gotv = vec0.PairDotProd(vec1)
-
-	default:
-		t.Errorf("Unknown method: Int16x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt16x8Compare(t *testing.T, v0 []int16, v1 []int16, want []int16, which string) {
-	t.Helper()
-	var gotv simd.Int16x8
-	got := make([]int16, len(want))
-	vec0 := simd.LoadInt16x8Slice(v0)
-	vec1 := simd.LoadInt16x8Slice(v1)
-	switch which {
-	case "Equal":
-		gotv = vec0.Equal(vec1).AsInt16x8()
-	case "Greater":
-		gotv = vec0.Greater(vec1).AsInt16x8()
-	case "GreaterEqual":
-		gotv = vec0.GreaterEqual(vec1).AsInt16x8()
-	case "Less":
-		gotv = vec0.Less(vec1).AsInt16x8()
-	case "LessEqual":
-		gotv = vec0.LessEqual(vec1).AsInt16x8()
-	case "NotEqual":
-		gotv = vec0.NotEqual(vec1).AsInt16x8()
-
-	default:
-		t.Errorf("Unknown method: Int16x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt16x8MaskedCompare(t *testing.T, v0 []int16, v1 []int16, v2 []int16, want []int16, which string) {
-	t.Helper()
-	var gotv simd.Int16x8
-	got := make([]int16, len(want))
-	vec0 := simd.LoadInt16x8Slice(v0)
-	vec1 := simd.LoadInt16x8Slice(v1)
-	vec2 := simd.LoadInt16x8Slice(v2)
-	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
-
-	default:
-		t.Errorf("Unknown method: Int16x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt16x8Unary(t *testing.T, v0 []int16, want []int16, which string) {
-	t.Helper()
-	var gotv simd.Int16x8
-	got := make([]int16, len(want))
-	vec0 := simd.LoadInt16x8Slice(v0)
-	switch which {
-	case "Absolute":
-		gotv = vec0.Absolute()
-	case "PopCount":
-		gotv = vec0.PopCount()
-
-	default:
-		t.Errorf("Unknown method: Int16x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt16x8UnaryMasked(t *testing.T, v0 []int16, v1 []int16, want []int16, which string) {
-	t.Helper()
-	var gotv simd.Int16x8
-	got := make([]int16, len(want))
-	vec0 := simd.LoadInt16x8Slice(v0)
-	vec1 := simd.LoadInt16x8Slice(v1)
-	switch which {
-	case "MaskedAbsolute":
-		gotv = vec0.MaskedAbsolute(vec1.AsMask16x8())
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask16x8())
-
-	default:
-		t.Errorf("Unknown method: Int16x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt32x16Binary(t *testing.T, v0 []int32, v1 []int32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x16
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x16Slice(v0)
-	vec1 := simd.LoadInt32x16Slice(v1)
-	switch which {
-	case "Add":
-		gotv = vec0.Add(vec1)
-	case "And":
-		gotv = vec0.And(vec1)
-	case "AndNot":
-		gotv = vec0.AndNot(vec1)
-	case "Max":
-		gotv = vec0.Max(vec1)
-	case "Min":
-		gotv = vec0.Min(vec1)
-	case "MulLow":
-		gotv = vec0.MulLow(vec1)
-	case "Or":
-		gotv = vec0.Or(vec1)
-	case "Sub":
-		gotv = vec0.Sub(vec1)
-	case "Xor":
-		gotv = vec0.Xor(vec1)
-
-	default:
-		t.Errorf("Unknown method: Int32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt32x16BinaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x16
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x16Slice(v0)
-	vec1 := simd.LoadInt32x16Slice(v1)
-	vec2 := simd.LoadInt32x16Slice(v2)
-	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x16())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask32x16())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask32x16())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask32x16())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x16())
-	case "MaskedMulLow":
-		gotv = vec0.MaskedMulLow(vec1, vec2.AsMask32x16())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x16())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x16())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask32x16())
-
-	default:
-		t.Errorf("Unknown method: Int32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt32x16Compare(t *testing.T, v0 []int32, v1 []int32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x16
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x16Slice(v0)
-	vec1 := simd.LoadInt32x16Slice(v1)
-	switch which {
-	case "Equal":
-		gotv = vec0.Equal(vec1).AsInt32x16()
-	case "Greater":
-		gotv = vec0.Greater(vec1).AsInt32x16()
-	case "GreaterEqual":
-		gotv = vec0.GreaterEqual(vec1).AsInt32x16()
-	case "Less":
-		gotv = vec0.Less(vec1).AsInt32x16()
-	case "LessEqual":
-		gotv = vec0.LessEqual(vec1).AsInt32x16()
-	case "NotEqual":
-		gotv = vec0.NotEqual(vec1).AsInt32x16()
-
-	default:
-		t.Errorf("Unknown method: Int32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt32x16Int16x32Int16x32Int32x16(t *testing.T, v0 []int32, v1 []int16, v2 []int16, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x16
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x16Slice(v0)
-	vec1 := simd.LoadInt16x32Slice(v1)
-	vec2 := simd.LoadInt16x32Slice(v2)
-	switch which {
-	case "PairDotProdAccumulate":
-		gotv = vec0.PairDotProdAccumulate(vec1, vec2)
-	case "SaturatedPairDotProdAccumulate":
-		gotv = vec0.SaturatedPairDotProdAccumulate(vec1, vec2)
-
-	default:
-		t.Errorf("Unknown method: Int32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt32x16Int16x32Int16x32Mask32x16Int32x16(t *testing.T, v0 []int32, v1 []int16, v2 []int16, v3 []int32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x16
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x16Slice(v0)
-	vec1 := simd.LoadInt16x32Slice(v1)
-	vec2 := simd.LoadInt16x32Slice(v2)
-	vec3 := simd.LoadInt32x16Slice(v3)
-	switch which {
-	case "MaskedPairDotProdAccumulate":
-		gotv = vec0.MaskedPairDotProdAccumulate(vec1, vec2, vec3.AsMask32x16())
-	case "MaskedSaturatedPairDotProdAccumulate":
-		gotv = vec0.MaskedSaturatedPairDotProdAccumulate(vec1, vec2, vec3.AsMask32x16())
-
-	default:
-		t.Errorf("Unknown method: Int32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt32x16MaskedCompare(t *testing.T, v0 []int32, v1 []int32, v2 []int32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x16
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x16Slice(v0)
-	vec1 := simd.LoadInt32x16Slice(v1)
-	vec2 := simd.LoadInt32x16Slice(v2)
-	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-
-	default:
-		t.Errorf("Unknown method: Int32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt32x16Uint8x64Int8x64Int32x16(t *testing.T, v0 []int32, v1 []uint8, v2 []int8, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x16
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x16Slice(v0)
-	vec1 := simd.LoadUint8x64Slice(v1)
-	vec2 := simd.LoadInt8x64Slice(v2)
-	switch which {
-	case "SaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2)
-	case "UnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.UnsignedSignedQuadDotProdAccumulate(vec1, vec2)
-
-	default:
-		t.Errorf("Unknown method: Int32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt32x16Uint8x64Int8x64Mask32x16Int32x16(t *testing.T, v0 []int32, v1 []uint8, v2 []int8, v3 []int32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x16
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x16Slice(v0)
-	vec1 := simd.LoadUint8x64Slice(v1)
-	vec2 := simd.LoadInt8x64Slice(v2)
-	vec3 := simd.LoadInt32x16Slice(v3)
-	switch which {
-	case "MaskedSaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x16())
-	case "MaskedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x16())
-
-	default:
-		t.Errorf("Unknown method: Int32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt32x16Unary(t *testing.T, v0 []int32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x16
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x16Slice(v0)
-	switch which {
-	case "Absolute":
-		gotv = vec0.Absolute()
-	case "PopCount":
-		gotv = vec0.PopCount()
-
-	default:
-		t.Errorf("Unknown method: Int32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt32x16UnaryMasked(t *testing.T, v0 []int32, v1 []int32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x16
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x16Slice(v0)
-	vec1 := simd.LoadInt32x16Slice(v1)
-	switch which {
-	case "MaskedAbsolute":
-		gotv = vec0.MaskedAbsolute(vec1.AsMask32x16())
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask32x16())
-
-	default:
-		t.Errorf("Unknown method: Int32x16.%s", which)
 	}
 	gotv.StoreSlice(got)
 	for i := range len(want) {
@@ -3178,6 +3430,287 @@ func testInt32x8UnaryMasked(t *testing.T, v0 []int32, v1 []int32, want []int32, 
 	}
 }
 
+func testInt32x16Binary(t *testing.T, v0 []int32, v1 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x16
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt32x16Slice(v0)
+	vec1 := simd.LoadInt32x16Slice(v1)
+	switch which {
+	case "Add":
+		gotv = vec0.Add(vec1)
+	case "And":
+		gotv = vec0.And(vec1)
+	case "AndNot":
+		gotv = vec0.AndNot(vec1)
+	case "Max":
+		gotv = vec0.Max(vec1)
+	case "Min":
+		gotv = vec0.Min(vec1)
+	case "MulLow":
+		gotv = vec0.MulLow(vec1)
+	case "Or":
+		gotv = vec0.Or(vec1)
+	case "Sub":
+		gotv = vec0.Sub(vec1)
+	case "Xor":
+		gotv = vec0.Xor(vec1)
+
+	default:
+		t.Errorf("Unknown method: Int32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt32x16BinaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x16
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt32x16Slice(v0)
+	vec1 := simd.LoadInt32x16Slice(v1)
+	vec2 := simd.LoadInt32x16Slice(v2)
+	switch which {
+	case "MaskedAdd":
+		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x16())
+	case "MaskedAnd":
+		gotv = vec0.MaskedAnd(vec1, vec2.AsMask32x16())
+	case "MaskedAndNot":
+		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask32x16())
+	case "MaskedMax":
+		gotv = vec0.MaskedMax(vec1, vec2.AsMask32x16())
+	case "MaskedMin":
+		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x16())
+	case "MaskedMulLow":
+		gotv = vec0.MaskedMulLow(vec1, vec2.AsMask32x16())
+	case "MaskedOr":
+		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x16())
+	case "MaskedSub":
+		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x16())
+	case "MaskedXor":
+		gotv = vec0.MaskedXor(vec1, vec2.AsMask32x16())
+
+	default:
+		t.Errorf("Unknown method: Int32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt32x16Compare(t *testing.T, v0 []int32, v1 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x16
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt32x16Slice(v0)
+	vec1 := simd.LoadInt32x16Slice(v1)
+	switch which {
+	case "Equal":
+		gotv = vec0.Equal(vec1).AsInt32x16()
+	case "Greater":
+		gotv = vec0.Greater(vec1).AsInt32x16()
+	case "GreaterEqual":
+		gotv = vec0.GreaterEqual(vec1).AsInt32x16()
+	case "Less":
+		gotv = vec0.Less(vec1).AsInt32x16()
+	case "LessEqual":
+		gotv = vec0.LessEqual(vec1).AsInt32x16()
+	case "NotEqual":
+		gotv = vec0.NotEqual(vec1).AsInt32x16()
+
+	default:
+		t.Errorf("Unknown method: Int32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt32x16Int16x32Int16x32Int32x16(t *testing.T, v0 []int32, v1 []int16, v2 []int16, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x16
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt32x16Slice(v0)
+	vec1 := simd.LoadInt16x32Slice(v1)
+	vec2 := simd.LoadInt16x32Slice(v2)
+	switch which {
+	case "PairDotProdAccumulate":
+		gotv = vec0.PairDotProdAccumulate(vec1, vec2)
+	case "SaturatedPairDotProdAccumulate":
+		gotv = vec0.SaturatedPairDotProdAccumulate(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Int32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt32x16Int16x32Int16x32Mask32x16Int32x16(t *testing.T, v0 []int32, v1 []int16, v2 []int16, v3 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x16
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt32x16Slice(v0)
+	vec1 := simd.LoadInt16x32Slice(v1)
+	vec2 := simd.LoadInt16x32Slice(v2)
+	vec3 := simd.LoadInt32x16Slice(v3)
+	switch which {
+	case "MaskedPairDotProdAccumulate":
+		gotv = vec0.MaskedPairDotProdAccumulate(vec1, vec2, vec3.AsMask32x16())
+	case "MaskedSaturatedPairDotProdAccumulate":
+		gotv = vec0.MaskedSaturatedPairDotProdAccumulate(vec1, vec2, vec3.AsMask32x16())
+
+	default:
+		t.Errorf("Unknown method: Int32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt32x16MaskedCompare(t *testing.T, v0 []int32, v1 []int32, v2 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x16
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt32x16Slice(v0)
+	vec1 := simd.LoadInt32x16Slice(v1)
+	vec2 := simd.LoadInt32x16Slice(v2)
+	switch which {
+	case "MaskedEqual":
+		gotv = vec0.MaskedEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "MaskedGreater":
+		gotv = vec0.MaskedGreater(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "MaskedGreaterEqual":
+		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "MaskedLess":
+		gotv = vec0.MaskedLess(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "MaskedLessEqual":
+		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "MaskedNotEqual":
+		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
+
+	default:
+		t.Errorf("Unknown method: Int32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt32x16Uint8x64Int8x64Int32x16(t *testing.T, v0 []int32, v1 []uint8, v2 []int8, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x16
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt32x16Slice(v0)
+	vec1 := simd.LoadUint8x64Slice(v1)
+	vec2 := simd.LoadInt8x64Slice(v2)
+	switch which {
+	case "SaturatedUnsignedSignedQuadDotProdAccumulate":
+		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2)
+	case "UnsignedSignedQuadDotProdAccumulate":
+		gotv = vec0.UnsignedSignedQuadDotProdAccumulate(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Int32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt32x16Uint8x64Int8x64Mask32x16Int32x16(t *testing.T, v0 []int32, v1 []uint8, v2 []int8, v3 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x16
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt32x16Slice(v0)
+	vec1 := simd.LoadUint8x64Slice(v1)
+	vec2 := simd.LoadInt8x64Slice(v2)
+	vec3 := simd.LoadInt32x16Slice(v3)
+	switch which {
+	case "MaskedSaturatedUnsignedSignedQuadDotProdAccumulate":
+		gotv = vec0.MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x16())
+	case "MaskedUnsignedSignedQuadDotProdAccumulate":
+		gotv = vec0.MaskedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x16())
+
+	default:
+		t.Errorf("Unknown method: Int32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt32x16Unary(t *testing.T, v0 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x16
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt32x16Slice(v0)
+	switch which {
+	case "Absolute":
+		gotv = vec0.Absolute()
+	case "PopCount":
+		gotv = vec0.PopCount()
+
+	default:
+		t.Errorf("Unknown method: Int32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt32x16UnaryMasked(t *testing.T, v0 []int32, v1 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x16
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt32x16Slice(v0)
+	vec1 := simd.LoadInt32x16Slice(v1)
+	switch which {
+	case "MaskedAbsolute":
+		gotv = vec0.MaskedAbsolute(vec1.AsMask32x16())
+	case "MaskedPopCount":
+		gotv = vec0.MaskedPopCount(vec1.AsMask32x16())
+
+	default:
+		t.Errorf("Unknown method: Int32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testInt64x2Binary(t *testing.T, v0 []int64, v1 []int64, want []int64, which string) {
 	t.Helper()
 	var gotv simd.Int64x2
@@ -3730,2347 +4263,6 @@ func testInt64x8UnaryMasked(t *testing.T, v0 []int64, v1 []int64, want []int64, 
 
 	default:
 		t.Errorf("Unknown method: Int64x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt8x16Binary(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
-	t.Helper()
-	var gotv simd.Int8x16
-	got := make([]int8, len(want))
-	vec0 := simd.LoadInt8x16Slice(v0)
-	vec1 := simd.LoadInt8x16Slice(v1)
-	switch which {
-	case "Add":
-		gotv = vec0.Add(vec1)
-	case "And":
-		gotv = vec0.And(vec1)
-	case "AndNot":
-		gotv = vec0.AndNot(vec1)
-	case "Max":
-		gotv = vec0.Max(vec1)
-	case "Min":
-		gotv = vec0.Min(vec1)
-	case "Or":
-		gotv = vec0.Or(vec1)
-	case "SaturatedAdd":
-		gotv = vec0.SaturatedAdd(vec1)
-	case "SaturatedSub":
-		gotv = vec0.SaturatedSub(vec1)
-	case "Sign":
-		gotv = vec0.Sign(vec1)
-	case "Sub":
-		gotv = vec0.Sub(vec1)
-	case "Xor":
-		gotv = vec0.Xor(vec1)
-
-	default:
-		t.Errorf("Unknown method: Int8x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt8x16BinaryMasked(t *testing.T, v0 []int8, v1 []int8, v2 []int8, want []int8, which string) {
-	t.Helper()
-	var gotv simd.Int8x16
-	got := make([]int8, len(want))
-	vec0 := simd.LoadInt8x16Slice(v0)
-	vec1 := simd.LoadInt8x16Slice(v1)
-	vec2 := simd.LoadInt8x16Slice(v2)
-	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask8x16())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask8x16())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask8x16())
-	case "MaskedSaturatedAdd":
-		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask8x16())
-	case "MaskedSaturatedSub":
-		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask8x16())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask8x16())
-
-	default:
-		t.Errorf("Unknown method: Int8x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt8x16Compare(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
-	t.Helper()
-	var gotv simd.Int8x16
-	got := make([]int8, len(want))
-	vec0 := simd.LoadInt8x16Slice(v0)
-	vec1 := simd.LoadInt8x16Slice(v1)
-	switch which {
-	case "Equal":
-		gotv = vec0.Equal(vec1).AsInt8x16()
-	case "Greater":
-		gotv = vec0.Greater(vec1).AsInt8x16()
-	case "GreaterEqual":
-		gotv = vec0.GreaterEqual(vec1).AsInt8x16()
-	case "Less":
-		gotv = vec0.Less(vec1).AsInt8x16()
-	case "LessEqual":
-		gotv = vec0.LessEqual(vec1).AsInt8x16()
-	case "NotEqual":
-		gotv = vec0.NotEqual(vec1).AsInt8x16()
-
-	default:
-		t.Errorf("Unknown method: Int8x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt8x16MaskedCompare(t *testing.T, v0 []int8, v1 []int8, v2 []int8, want []int8, which string) {
-	t.Helper()
-	var gotv simd.Int8x16
-	got := make([]int8, len(want))
-	vec0 := simd.LoadInt8x16Slice(v0)
-	vec1 := simd.LoadInt8x16Slice(v1)
-	vec2 := simd.LoadInt8x16Slice(v2)
-	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask8x16()).AsInt8x16()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask8x16()).AsInt8x16()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask8x16()).AsInt8x16()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask8x16()).AsInt8x16()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask8x16()).AsInt8x16()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask8x16()).AsInt8x16()
-
-	default:
-		t.Errorf("Unknown method: Int8x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt8x16Unary(t *testing.T, v0 []int8, want []int8, which string) {
-	t.Helper()
-	var gotv simd.Int8x16
-	got := make([]int8, len(want))
-	vec0 := simd.LoadInt8x16Slice(v0)
-	switch which {
-	case "Absolute":
-		gotv = vec0.Absolute()
-	case "PopCount":
-		gotv = vec0.PopCount()
-
-	default:
-		t.Errorf("Unknown method: Int8x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt8x16UnaryMasked(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
-	t.Helper()
-	var gotv simd.Int8x16
-	got := make([]int8, len(want))
-	vec0 := simd.LoadInt8x16Slice(v0)
-	vec1 := simd.LoadInt8x16Slice(v1)
-	switch which {
-	case "MaskedAbsolute":
-		gotv = vec0.MaskedAbsolute(vec1.AsMask8x16())
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask8x16())
-
-	default:
-		t.Errorf("Unknown method: Int8x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt8x32Binary(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
-	t.Helper()
-	var gotv simd.Int8x32
-	got := make([]int8, len(want))
-	vec0 := simd.LoadInt8x32Slice(v0)
-	vec1 := simd.LoadInt8x32Slice(v1)
-	switch which {
-	case "Add":
-		gotv = vec0.Add(vec1)
-	case "And":
-		gotv = vec0.And(vec1)
-	case "AndNot":
-		gotv = vec0.AndNot(vec1)
-	case "Max":
-		gotv = vec0.Max(vec1)
-	case "Min":
-		gotv = vec0.Min(vec1)
-	case "Or":
-		gotv = vec0.Or(vec1)
-	case "SaturatedAdd":
-		gotv = vec0.SaturatedAdd(vec1)
-	case "SaturatedSub":
-		gotv = vec0.SaturatedSub(vec1)
-	case "Sign":
-		gotv = vec0.Sign(vec1)
-	case "Sub":
-		gotv = vec0.Sub(vec1)
-	case "Xor":
-		gotv = vec0.Xor(vec1)
-
-	default:
-		t.Errorf("Unknown method: Int8x32.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt8x32BinaryMasked(t *testing.T, v0 []int8, v1 []int8, v2 []int8, want []int8, which string) {
-	t.Helper()
-	var gotv simd.Int8x32
-	got := make([]int8, len(want))
-	vec0 := simd.LoadInt8x32Slice(v0)
-	vec1 := simd.LoadInt8x32Slice(v1)
-	vec2 := simd.LoadInt8x32Slice(v2)
-	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask8x32())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask8x32())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask8x32())
-	case "MaskedSaturatedAdd":
-		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask8x32())
-	case "MaskedSaturatedSub":
-		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask8x32())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask8x32())
-
-	default:
-		t.Errorf("Unknown method: Int8x32.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt8x32Compare(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
-	t.Helper()
-	var gotv simd.Int8x32
-	got := make([]int8, len(want))
-	vec0 := simd.LoadInt8x32Slice(v0)
-	vec1 := simd.LoadInt8x32Slice(v1)
-	switch which {
-	case "Equal":
-		gotv = vec0.Equal(vec1).AsInt8x32()
-	case "Greater":
-		gotv = vec0.Greater(vec1).AsInt8x32()
-	case "GreaterEqual":
-		gotv = vec0.GreaterEqual(vec1).AsInt8x32()
-	case "Less":
-		gotv = vec0.Less(vec1).AsInt8x32()
-	case "LessEqual":
-		gotv = vec0.LessEqual(vec1).AsInt8x32()
-	case "NotEqual":
-		gotv = vec0.NotEqual(vec1).AsInt8x32()
-
-	default:
-		t.Errorf("Unknown method: Int8x32.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt8x32MaskedCompare(t *testing.T, v0 []int8, v1 []int8, v2 []int8, want []int8, which string) {
-	t.Helper()
-	var gotv simd.Int8x32
-	got := make([]int8, len(want))
-	vec0 := simd.LoadInt8x32Slice(v0)
-	vec1 := simd.LoadInt8x32Slice(v1)
-	vec2 := simd.LoadInt8x32Slice(v2)
-	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask8x32()).AsInt8x32()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask8x32()).AsInt8x32()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask8x32()).AsInt8x32()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask8x32()).AsInt8x32()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask8x32()).AsInt8x32()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask8x32()).AsInt8x32()
-
-	default:
-		t.Errorf("Unknown method: Int8x32.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt8x32Unary(t *testing.T, v0 []int8, want []int8, which string) {
-	t.Helper()
-	var gotv simd.Int8x32
-	got := make([]int8, len(want))
-	vec0 := simd.LoadInt8x32Slice(v0)
-	switch which {
-	case "Absolute":
-		gotv = vec0.Absolute()
-	case "PopCount":
-		gotv = vec0.PopCount()
-
-	default:
-		t.Errorf("Unknown method: Int8x32.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt8x32UnaryMasked(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
-	t.Helper()
-	var gotv simd.Int8x32
-	got := make([]int8, len(want))
-	vec0 := simd.LoadInt8x32Slice(v0)
-	vec1 := simd.LoadInt8x32Slice(v1)
-	switch which {
-	case "MaskedAbsolute":
-		gotv = vec0.MaskedAbsolute(vec1.AsMask8x32())
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask8x32())
-
-	default:
-		t.Errorf("Unknown method: Int8x32.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt8x64Binary(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
-	t.Helper()
-	var gotv simd.Int8x64
-	got := make([]int8, len(want))
-	vec0 := simd.LoadInt8x64Slice(v0)
-	vec1 := simd.LoadInt8x64Slice(v1)
-	switch which {
-	case "Add":
-		gotv = vec0.Add(vec1)
-	case "Max":
-		gotv = vec0.Max(vec1)
-	case "Min":
-		gotv = vec0.Min(vec1)
-	case "SaturatedAdd":
-		gotv = vec0.SaturatedAdd(vec1)
-	case "SaturatedSub":
-		gotv = vec0.SaturatedSub(vec1)
-	case "Sub":
-		gotv = vec0.Sub(vec1)
-
-	default:
-		t.Errorf("Unknown method: Int8x64.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt8x64BinaryMasked(t *testing.T, v0 []int8, v1 []int8, v2 []int8, want []int8, which string) {
-	t.Helper()
-	var gotv simd.Int8x64
-	got := make([]int8, len(want))
-	vec0 := simd.LoadInt8x64Slice(v0)
-	vec1 := simd.LoadInt8x64Slice(v1)
-	vec2 := simd.LoadInt8x64Slice(v2)
-	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask8x64())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask8x64())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask8x64())
-	case "MaskedSaturatedAdd":
-		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask8x64())
-	case "MaskedSaturatedSub":
-		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask8x64())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask8x64())
-
-	default:
-		t.Errorf("Unknown method: Int8x64.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt8x64Compare(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
-	t.Helper()
-	var gotv simd.Int8x64
-	got := make([]int8, len(want))
-	vec0 := simd.LoadInt8x64Slice(v0)
-	vec1 := simd.LoadInt8x64Slice(v1)
-	switch which {
-	case "Equal":
-		gotv = vec0.Equal(vec1).AsInt8x64()
-	case "Greater":
-		gotv = vec0.Greater(vec1).AsInt8x64()
-	case "GreaterEqual":
-		gotv = vec0.GreaterEqual(vec1).AsInt8x64()
-	case "Less":
-		gotv = vec0.Less(vec1).AsInt8x64()
-	case "LessEqual":
-		gotv = vec0.LessEqual(vec1).AsInt8x64()
-	case "NotEqual":
-		gotv = vec0.NotEqual(vec1).AsInt8x64()
-
-	default:
-		t.Errorf("Unknown method: Int8x64.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt8x64MaskedCompare(t *testing.T, v0 []int8, v1 []int8, v2 []int8, want []int8, which string) {
-	t.Helper()
-	var gotv simd.Int8x64
-	got := make([]int8, len(want))
-	vec0 := simd.LoadInt8x64Slice(v0)
-	vec1 := simd.LoadInt8x64Slice(v1)
-	vec2 := simd.LoadInt8x64Slice(v2)
-	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask8x64()).AsInt8x64()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask8x64()).AsInt8x64()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask8x64()).AsInt8x64()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask8x64()).AsInt8x64()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask8x64()).AsInt8x64()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask8x64()).AsInt8x64()
-
-	default:
-		t.Errorf("Unknown method: Int8x64.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt8x64Unary(t *testing.T, v0 []int8, want []int8, which string) {
-	t.Helper()
-	var gotv simd.Int8x64
-	got := make([]int8, len(want))
-	vec0 := simd.LoadInt8x64Slice(v0)
-	switch which {
-	case "Absolute":
-		gotv = vec0.Absolute()
-	case "PopCount":
-		gotv = vec0.PopCount()
-
-	default:
-		t.Errorf("Unknown method: Int8x64.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt8x64UnaryMasked(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
-	t.Helper()
-	var gotv simd.Int8x64
-	got := make([]int8, len(want))
-	vec0 := simd.LoadInt8x64Slice(v0)
-	vec1 := simd.LoadInt8x64Slice(v1)
-	switch which {
-	case "MaskedAbsolute":
-		gotv = vec0.MaskedAbsolute(vec1.AsMask8x64())
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask8x64())
-
-	default:
-		t.Errorf("Unknown method: Int8x64.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint16x16Binary(t *testing.T, v0 []uint16, v1 []uint16, want []uint16, which string) {
-	t.Helper()
-	var gotv simd.Uint16x16
-	got := make([]uint16, len(want))
-	vec0 := simd.LoadUint16x16Slice(v0)
-	vec1 := simd.LoadUint16x16Slice(v1)
-	switch which {
-	case "Add":
-		gotv = vec0.Add(vec1)
-	case "And":
-		gotv = vec0.And(vec1)
-	case "AndNot":
-		gotv = vec0.AndNot(vec1)
-	case "Average":
-		gotv = vec0.Average(vec1)
-	case "Max":
-		gotv = vec0.Max(vec1)
-	case "Min":
-		gotv = vec0.Min(vec1)
-	case "MulHigh":
-		gotv = vec0.MulHigh(vec1)
-	case "Or":
-		gotv = vec0.Or(vec1)
-	case "PairwiseAdd":
-		gotv = vec0.PairwiseAdd(vec1)
-	case "PairwiseSub":
-		gotv = vec0.PairwiseSub(vec1)
-	case "SaturatedAdd":
-		gotv = vec0.SaturatedAdd(vec1)
-	case "SaturatedSub":
-		gotv = vec0.SaturatedSub(vec1)
-	case "Sub":
-		gotv = vec0.Sub(vec1)
-	case "Xor":
-		gotv = vec0.Xor(vec1)
-
-	default:
-		t.Errorf("Unknown method: Uint16x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint16x16BinaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []int16, want []uint16, which string) {
-	t.Helper()
-	var gotv simd.Uint16x16
-	got := make([]uint16, len(want))
-	vec0 := simd.LoadUint16x16Slice(v0)
-	vec1 := simd.LoadUint16x16Slice(v1)
-	vec2 := simd.LoadInt16x16Slice(v2)
-	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask16x16())
-	case "MaskedAverage":
-		gotv = vec0.MaskedAverage(vec1, vec2.AsMask16x16())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask16x16())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask16x16())
-	case "MaskedMulHigh":
-		gotv = vec0.MaskedMulHigh(vec1, vec2.AsMask16x16())
-	case "MaskedSaturatedAdd":
-		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x16())
-	case "MaskedSaturatedSub":
-		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x16())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x16())
-
-	default:
-		t.Errorf("Unknown method: Uint16x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint16x16Compare(t *testing.T, v0 []uint16, v1 []uint16, want []int16, which string) {
-	t.Helper()
-	var gotv simd.Int16x16
-	got := make([]int16, len(want))
-	vec0 := simd.LoadUint16x16Slice(v0)
-	vec1 := simd.LoadUint16x16Slice(v1)
-	switch which {
-	case "Equal":
-		gotv = vec0.Equal(vec1).AsInt16x16()
-	case "Greater":
-		gotv = vec0.Greater(vec1).AsInt16x16()
-	case "GreaterEqual":
-		gotv = vec0.GreaterEqual(vec1).AsInt16x16()
-	case "Less":
-		gotv = vec0.Less(vec1).AsInt16x16()
-	case "LessEqual":
-		gotv = vec0.LessEqual(vec1).AsInt16x16()
-	case "NotEqual":
-		gotv = vec0.NotEqual(vec1).AsInt16x16()
-
-	default:
-		t.Errorf("Unknown method: Uint16x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint16x16MaskedCompare(t *testing.T, v0 []uint16, v1 []uint16, v2 []int16, want []int16, which string) {
-	t.Helper()
-	var gotv simd.Int16x16
-	got := make([]int16, len(want))
-	vec0 := simd.LoadUint16x16Slice(v0)
-	vec1 := simd.LoadUint16x16Slice(v1)
-	vec2 := simd.LoadInt16x16Slice(v2)
-	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask16x16()).AsInt16x16()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask16x16()).AsInt16x16()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask16x16()).AsInt16x16()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask16x16()).AsInt16x16()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask16x16()).AsInt16x16()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask16x16()).AsInt16x16()
-
-	default:
-		t.Errorf("Unknown method: Uint16x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint16x16Unary(t *testing.T, v0 []uint16, want []uint16, which string) {
-	t.Helper()
-	var gotv simd.Uint16x16
-	got := make([]uint16, len(want))
-	vec0 := simd.LoadUint16x16Slice(v0)
-	switch which {
-	case "PopCount":
-		gotv = vec0.PopCount()
-
-	default:
-		t.Errorf("Unknown method: Uint16x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint16x16UnaryMasked(t *testing.T, v0 []uint16, v1 []int16, want []uint16, which string) {
-	t.Helper()
-	var gotv simd.Uint16x16
-	got := make([]uint16, len(want))
-	vec0 := simd.LoadUint16x16Slice(v0)
-	vec1 := simd.LoadInt16x16Slice(v1)
-	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask16x16())
-
-	default:
-		t.Errorf("Unknown method: Uint16x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint16x32Binary(t *testing.T, v0 []uint16, v1 []uint16, want []uint16, which string) {
-	t.Helper()
-	var gotv simd.Uint16x32
-	got := make([]uint16, len(want))
-	vec0 := simd.LoadUint16x32Slice(v0)
-	vec1 := simd.LoadUint16x32Slice(v1)
-	switch which {
-	case "Add":
-		gotv = vec0.Add(vec1)
-	case "Average":
-		gotv = vec0.Average(vec1)
-	case "Max":
-		gotv = vec0.Max(vec1)
-	case "Min":
-		gotv = vec0.Min(vec1)
-	case "MulHigh":
-		gotv = vec0.MulHigh(vec1)
-	case "SaturatedAdd":
-		gotv = vec0.SaturatedAdd(vec1)
-	case "SaturatedSub":
-		gotv = vec0.SaturatedSub(vec1)
-	case "Sub":
-		gotv = vec0.Sub(vec1)
-
-	default:
-		t.Errorf("Unknown method: Uint16x32.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint16x32BinaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []int16, want []uint16, which string) {
-	t.Helper()
-	var gotv simd.Uint16x32
-	got := make([]uint16, len(want))
-	vec0 := simd.LoadUint16x32Slice(v0)
-	vec1 := simd.LoadUint16x32Slice(v1)
-	vec2 := simd.LoadInt16x32Slice(v2)
-	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask16x32())
-	case "MaskedAverage":
-		gotv = vec0.MaskedAverage(vec1, vec2.AsMask16x32())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask16x32())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask16x32())
-	case "MaskedMulHigh":
-		gotv = vec0.MaskedMulHigh(vec1, vec2.AsMask16x32())
-	case "MaskedSaturatedAdd":
-		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x32())
-	case "MaskedSaturatedSub":
-		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x32())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x32())
-
-	default:
-		t.Errorf("Unknown method: Uint16x32.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint16x32Compare(t *testing.T, v0 []uint16, v1 []uint16, want []int16, which string) {
-	t.Helper()
-	var gotv simd.Int16x32
-	got := make([]int16, len(want))
-	vec0 := simd.LoadUint16x32Slice(v0)
-	vec1 := simd.LoadUint16x32Slice(v1)
-	switch which {
-	case "Equal":
-		gotv = vec0.Equal(vec1).AsInt16x32()
-	case "Greater":
-		gotv = vec0.Greater(vec1).AsInt16x32()
-	case "GreaterEqual":
-		gotv = vec0.GreaterEqual(vec1).AsInt16x32()
-	case "Less":
-		gotv = vec0.Less(vec1).AsInt16x32()
-	case "LessEqual":
-		gotv = vec0.LessEqual(vec1).AsInt16x32()
-	case "NotEqual":
-		gotv = vec0.NotEqual(vec1).AsInt16x32()
-
-	default:
-		t.Errorf("Unknown method: Uint16x32.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint16x32MaskedCompare(t *testing.T, v0 []uint16, v1 []uint16, v2 []int16, want []int16, which string) {
-	t.Helper()
-	var gotv simd.Int16x32
-	got := make([]int16, len(want))
-	vec0 := simd.LoadUint16x32Slice(v0)
-	vec1 := simd.LoadUint16x32Slice(v1)
-	vec2 := simd.LoadInt16x32Slice(v2)
-	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask16x32()).AsInt16x32()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask16x32()).AsInt16x32()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask16x32()).AsInt16x32()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask16x32()).AsInt16x32()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask16x32()).AsInt16x32()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask16x32()).AsInt16x32()
-
-	default:
-		t.Errorf("Unknown method: Uint16x32.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint16x32Unary(t *testing.T, v0 []uint16, want []uint16, which string) {
-	t.Helper()
-	var gotv simd.Uint16x32
-	got := make([]uint16, len(want))
-	vec0 := simd.LoadUint16x32Slice(v0)
-	switch which {
-	case "PopCount":
-		gotv = vec0.PopCount()
-
-	default:
-		t.Errorf("Unknown method: Uint16x32.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint16x32UnaryMasked(t *testing.T, v0 []uint16, v1 []int16, want []uint16, which string) {
-	t.Helper()
-	var gotv simd.Uint16x32
-	got := make([]uint16, len(want))
-	vec0 := simd.LoadUint16x32Slice(v0)
-	vec1 := simd.LoadInt16x32Slice(v1)
-	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask16x32())
-
-	default:
-		t.Errorf("Unknown method: Uint16x32.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint16x8Binary(t *testing.T, v0 []uint16, v1 []uint16, want []uint16, which string) {
-	t.Helper()
-	var gotv simd.Uint16x8
-	got := make([]uint16, len(want))
-	vec0 := simd.LoadUint16x8Slice(v0)
-	vec1 := simd.LoadUint16x8Slice(v1)
-	switch which {
-	case "Add":
-		gotv = vec0.Add(vec1)
-	case "And":
-		gotv = vec0.And(vec1)
-	case "AndNot":
-		gotv = vec0.AndNot(vec1)
-	case "Average":
-		gotv = vec0.Average(vec1)
-	case "Max":
-		gotv = vec0.Max(vec1)
-	case "Min":
-		gotv = vec0.Min(vec1)
-	case "MulHigh":
-		gotv = vec0.MulHigh(vec1)
-	case "Or":
-		gotv = vec0.Or(vec1)
-	case "PairwiseAdd":
-		gotv = vec0.PairwiseAdd(vec1)
-	case "PairwiseSub":
-		gotv = vec0.PairwiseSub(vec1)
-	case "SaturatedAdd":
-		gotv = vec0.SaturatedAdd(vec1)
-	case "SaturatedSub":
-		gotv = vec0.SaturatedSub(vec1)
-	case "Sub":
-		gotv = vec0.Sub(vec1)
-	case "Xor":
-		gotv = vec0.Xor(vec1)
-
-	default:
-		t.Errorf("Unknown method: Uint16x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint16x8BinaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []int16, want []uint16, which string) {
-	t.Helper()
-	var gotv simd.Uint16x8
-	got := make([]uint16, len(want))
-	vec0 := simd.LoadUint16x8Slice(v0)
-	vec1 := simd.LoadUint16x8Slice(v1)
-	vec2 := simd.LoadInt16x8Slice(v2)
-	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask16x8())
-	case "MaskedAverage":
-		gotv = vec0.MaskedAverage(vec1, vec2.AsMask16x8())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask16x8())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask16x8())
-	case "MaskedMulHigh":
-		gotv = vec0.MaskedMulHigh(vec1, vec2.AsMask16x8())
-	case "MaskedSaturatedAdd":
-		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x8())
-	case "MaskedSaturatedSub":
-		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x8())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x8())
-
-	default:
-		t.Errorf("Unknown method: Uint16x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint16x8Compare(t *testing.T, v0 []uint16, v1 []uint16, want []int16, which string) {
-	t.Helper()
-	var gotv simd.Int16x8
-	got := make([]int16, len(want))
-	vec0 := simd.LoadUint16x8Slice(v0)
-	vec1 := simd.LoadUint16x8Slice(v1)
-	switch which {
-	case "Equal":
-		gotv = vec0.Equal(vec1).AsInt16x8()
-	case "Greater":
-		gotv = vec0.Greater(vec1).AsInt16x8()
-	case "GreaterEqual":
-		gotv = vec0.GreaterEqual(vec1).AsInt16x8()
-	case "Less":
-		gotv = vec0.Less(vec1).AsInt16x8()
-	case "LessEqual":
-		gotv = vec0.LessEqual(vec1).AsInt16x8()
-	case "NotEqual":
-		gotv = vec0.NotEqual(vec1).AsInt16x8()
-
-	default:
-		t.Errorf("Unknown method: Uint16x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint16x8MaskedCompare(t *testing.T, v0 []uint16, v1 []uint16, v2 []int16, want []int16, which string) {
-	t.Helper()
-	var gotv simd.Int16x8
-	got := make([]int16, len(want))
-	vec0 := simd.LoadUint16x8Slice(v0)
-	vec1 := simd.LoadUint16x8Slice(v1)
-	vec2 := simd.LoadInt16x8Slice(v2)
-	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
-
-	default:
-		t.Errorf("Unknown method: Uint16x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint16x8Unary(t *testing.T, v0 []uint16, want []uint16, which string) {
-	t.Helper()
-	var gotv simd.Uint16x8
-	got := make([]uint16, len(want))
-	vec0 := simd.LoadUint16x8Slice(v0)
-	switch which {
-	case "PopCount":
-		gotv = vec0.PopCount()
-
-	default:
-		t.Errorf("Unknown method: Uint16x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint16x8UnaryMasked(t *testing.T, v0 []uint16, v1 []int16, want []uint16, which string) {
-	t.Helper()
-	var gotv simd.Uint16x8
-	got := make([]uint16, len(want))
-	vec0 := simd.LoadUint16x8Slice(v0)
-	vec1 := simd.LoadInt16x8Slice(v1)
-	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask16x8())
-
-	default:
-		t.Errorf("Unknown method: Uint16x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x16Binary(t *testing.T, v0 []uint32, v1 []uint32, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x16
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x16Slice(v0)
-	vec1 := simd.LoadUint32x16Slice(v1)
-	switch which {
-	case "Add":
-		gotv = vec0.Add(vec1)
-	case "And":
-		gotv = vec0.And(vec1)
-	case "AndNot":
-		gotv = vec0.AndNot(vec1)
-	case "Max":
-		gotv = vec0.Max(vec1)
-	case "Min":
-		gotv = vec0.Min(vec1)
-	case "Or":
-		gotv = vec0.Or(vec1)
-	case "Sub":
-		gotv = vec0.Sub(vec1)
-	case "Xor":
-		gotv = vec0.Xor(vec1)
-
-	default:
-		t.Errorf("Unknown method: Uint32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x16BinaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []int32, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x16
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x16Slice(v0)
-	vec1 := simd.LoadUint32x16Slice(v1)
-	vec2 := simd.LoadInt32x16Slice(v2)
-	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x16())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask32x16())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask32x16())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask32x16())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x16())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x16())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x16())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask32x16())
-
-	default:
-		t.Errorf("Unknown method: Uint32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x16Compare(t *testing.T, v0 []uint32, v1 []uint32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x16
-	got := make([]int32, len(want))
-	vec0 := simd.LoadUint32x16Slice(v0)
-	vec1 := simd.LoadUint32x16Slice(v1)
-	switch which {
-	case "Equal":
-		gotv = vec0.Equal(vec1).AsInt32x16()
-	case "Greater":
-		gotv = vec0.Greater(vec1).AsInt32x16()
-	case "GreaterEqual":
-		gotv = vec0.GreaterEqual(vec1).AsInt32x16()
-	case "Less":
-		gotv = vec0.Less(vec1).AsInt32x16()
-	case "LessEqual":
-		gotv = vec0.LessEqual(vec1).AsInt32x16()
-	case "NotEqual":
-		gotv = vec0.NotEqual(vec1).AsInt32x16()
-
-	default:
-		t.Errorf("Unknown method: Uint32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x16MaskedCompare(t *testing.T, v0 []uint32, v1 []uint32, v2 []int32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x16
-	got := make([]int32, len(want))
-	vec0 := simd.LoadUint32x16Slice(v0)
-	vec1 := simd.LoadUint32x16Slice(v1)
-	vec2 := simd.LoadInt32x16Slice(v2)
-	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-
-	default:
-		t.Errorf("Unknown method: Uint32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x16Uint8x64Int8x64Mask32x16Uint32x16(t *testing.T, v0 []uint32, v1 []uint8, v2 []int8, v3 []int32, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x16
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x16Slice(v0)
-	vec1 := simd.LoadUint8x64Slice(v1)
-	vec2 := simd.LoadInt8x64Slice(v2)
-	vec3 := simd.LoadInt32x16Slice(v3)
-	switch which {
-	case "MaskedSaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x16())
-	case "MaskedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x16())
-
-	default:
-		t.Errorf("Unknown method: Uint32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x16Uint8x64Int8x64Uint32x16(t *testing.T, v0 []uint32, v1 []uint8, v2 []int8, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x16
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x16Slice(v0)
-	vec1 := simd.LoadUint8x64Slice(v1)
-	vec2 := simd.LoadInt8x64Slice(v2)
-	switch which {
-	case "SaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2)
-	case "UnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.UnsignedSignedQuadDotProdAccumulate(vec1, vec2)
-
-	default:
-		t.Errorf("Unknown method: Uint32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x16Unary(t *testing.T, v0 []uint32, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x16
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x16Slice(v0)
-	switch which {
-	case "PopCount":
-		gotv = vec0.PopCount()
-
-	default:
-		t.Errorf("Unknown method: Uint32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x16UnaryMasked(t *testing.T, v0 []uint32, v1 []int32, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x16
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x16Slice(v0)
-	vec1 := simd.LoadInt32x16Slice(v1)
-	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask32x16())
-
-	default:
-		t.Errorf("Unknown method: Uint32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x4Binary(t *testing.T, v0 []uint32, v1 []uint32, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x4
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x4Slice(v0)
-	vec1 := simd.LoadUint32x4Slice(v1)
-	switch which {
-	case "Add":
-		gotv = vec0.Add(vec1)
-	case "And":
-		gotv = vec0.And(vec1)
-	case "AndNot":
-		gotv = vec0.AndNot(vec1)
-	case "Max":
-		gotv = vec0.Max(vec1)
-	case "Min":
-		gotv = vec0.Min(vec1)
-	case "Or":
-		gotv = vec0.Or(vec1)
-	case "PairwiseAdd":
-		gotv = vec0.PairwiseAdd(vec1)
-	case "PairwiseSub":
-		gotv = vec0.PairwiseSub(vec1)
-	case "Sub":
-		gotv = vec0.Sub(vec1)
-	case "Xor":
-		gotv = vec0.Xor(vec1)
-
-	default:
-		t.Errorf("Unknown method: Uint32x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x4BinaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []int32, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x4
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x4Slice(v0)
-	vec1 := simd.LoadUint32x4Slice(v1)
-	vec2 := simd.LoadInt32x4Slice(v2)
-	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x4())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask32x4())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask32x4())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask32x4())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x4())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x4())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x4())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask32x4())
-
-	default:
-		t.Errorf("Unknown method: Uint32x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x4BinaryWiden(t *testing.T, v0 []uint32, v1 []uint32, want []uint64, which string) {
-	t.Helper()
-	var gotv simd.Uint64x2
-	got := make([]uint64, len(want))
-	vec0 := simd.LoadUint32x4Slice(v0)
-	vec1 := simd.LoadUint32x4Slice(v1)
-	switch which {
-	case "MulEvenWiden":
-		gotv = vec0.MulEvenWiden(vec1)
-
-	default:
-		t.Errorf("Unknown method: Uint32x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x4Compare(t *testing.T, v0 []uint32, v1 []uint32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x4
-	got := make([]int32, len(want))
-	vec0 := simd.LoadUint32x4Slice(v0)
-	vec1 := simd.LoadUint32x4Slice(v1)
-	switch which {
-	case "Equal":
-		gotv = vec0.Equal(vec1).AsInt32x4()
-	case "Greater":
-		gotv = vec0.Greater(vec1).AsInt32x4()
-	case "GreaterEqual":
-		gotv = vec0.GreaterEqual(vec1).AsInt32x4()
-	case "Less":
-		gotv = vec0.Less(vec1).AsInt32x4()
-	case "LessEqual":
-		gotv = vec0.LessEqual(vec1).AsInt32x4()
-	case "NotEqual":
-		gotv = vec0.NotEqual(vec1).AsInt32x4()
-
-	default:
-		t.Errorf("Unknown method: Uint32x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x4MaskedCompare(t *testing.T, v0 []uint32, v1 []uint32, v2 []int32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x4
-	got := make([]int32, len(want))
-	vec0 := simd.LoadUint32x4Slice(v0)
-	vec1 := simd.LoadUint32x4Slice(v1)
-	vec2 := simd.LoadInt32x4Slice(v2)
-	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
-
-	default:
-		t.Errorf("Unknown method: Uint32x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x4Uint8x16Int8x16Mask32x4Uint32x4(t *testing.T, v0 []uint32, v1 []uint8, v2 []int8, v3 []int32, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x4
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x4Slice(v0)
-	vec1 := simd.LoadUint8x16Slice(v1)
-	vec2 := simd.LoadInt8x16Slice(v2)
-	vec3 := simd.LoadInt32x4Slice(v3)
-	switch which {
-	case "MaskedSaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x4())
-	case "MaskedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x4())
-
-	default:
-		t.Errorf("Unknown method: Uint32x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x4Uint8x16Int8x16Uint32x4(t *testing.T, v0 []uint32, v1 []uint8, v2 []int8, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x4
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x4Slice(v0)
-	vec1 := simd.LoadUint8x16Slice(v1)
-	vec2 := simd.LoadInt8x16Slice(v2)
-	switch which {
-	case "SaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2)
-	case "UnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.UnsignedSignedQuadDotProdAccumulate(vec1, vec2)
-
-	default:
-		t.Errorf("Unknown method: Uint32x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x4Unary(t *testing.T, v0 []uint32, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x4
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x4Slice(v0)
-	switch which {
-	case "PopCount":
-		gotv = vec0.PopCount()
-
-	default:
-		t.Errorf("Unknown method: Uint32x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x4UnaryMasked(t *testing.T, v0 []uint32, v1 []int32, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x4
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x4Slice(v0)
-	vec1 := simd.LoadInt32x4Slice(v1)
-	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask32x4())
-
-	default:
-		t.Errorf("Unknown method: Uint32x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x8Binary(t *testing.T, v0 []uint32, v1 []uint32, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x8
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x8Slice(v0)
-	vec1 := simd.LoadUint32x8Slice(v1)
-	switch which {
-	case "Add":
-		gotv = vec0.Add(vec1)
-	case "And":
-		gotv = vec0.And(vec1)
-	case "AndNot":
-		gotv = vec0.AndNot(vec1)
-	case "Max":
-		gotv = vec0.Max(vec1)
-	case "Min":
-		gotv = vec0.Min(vec1)
-	case "Or":
-		gotv = vec0.Or(vec1)
-	case "PairwiseAdd":
-		gotv = vec0.PairwiseAdd(vec1)
-	case "PairwiseSub":
-		gotv = vec0.PairwiseSub(vec1)
-	case "Sub":
-		gotv = vec0.Sub(vec1)
-	case "Xor":
-		gotv = vec0.Xor(vec1)
-
-	default:
-		t.Errorf("Unknown method: Uint32x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x8BinaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []int32, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x8
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x8Slice(v0)
-	vec1 := simd.LoadUint32x8Slice(v1)
-	vec2 := simd.LoadInt32x8Slice(v2)
-	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x8())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask32x8())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask32x8())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask32x8())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x8())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x8())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x8())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask32x8())
-
-	default:
-		t.Errorf("Unknown method: Uint32x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x8BinaryWiden(t *testing.T, v0 []uint32, v1 []uint32, want []uint64, which string) {
-	t.Helper()
-	var gotv simd.Uint64x4
-	got := make([]uint64, len(want))
-	vec0 := simd.LoadUint32x8Slice(v0)
-	vec1 := simd.LoadUint32x8Slice(v1)
-	switch which {
-	case "MulEvenWiden":
-		gotv = vec0.MulEvenWiden(vec1)
-
-	default:
-		t.Errorf("Unknown method: Uint32x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x8Compare(t *testing.T, v0 []uint32, v1 []uint32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x8
-	got := make([]int32, len(want))
-	vec0 := simd.LoadUint32x8Slice(v0)
-	vec1 := simd.LoadUint32x8Slice(v1)
-	switch which {
-	case "Equal":
-		gotv = vec0.Equal(vec1).AsInt32x8()
-	case "Greater":
-		gotv = vec0.Greater(vec1).AsInt32x8()
-	case "GreaterEqual":
-		gotv = vec0.GreaterEqual(vec1).AsInt32x8()
-	case "Less":
-		gotv = vec0.Less(vec1).AsInt32x8()
-	case "LessEqual":
-		gotv = vec0.LessEqual(vec1).AsInt32x8()
-	case "NotEqual":
-		gotv = vec0.NotEqual(vec1).AsInt32x8()
-
-	default:
-		t.Errorf("Unknown method: Uint32x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x8MaskedCompare(t *testing.T, v0 []uint32, v1 []uint32, v2 []int32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x8
-	got := make([]int32, len(want))
-	vec0 := simd.LoadUint32x8Slice(v0)
-	vec1 := simd.LoadUint32x8Slice(v1)
-	vec2 := simd.LoadInt32x8Slice(v2)
-	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
-
-	default:
-		t.Errorf("Unknown method: Uint32x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x8Uint8x32Int8x32Mask32x8Uint32x8(t *testing.T, v0 []uint32, v1 []uint8, v2 []int8, v3 []int32, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x8
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x8Slice(v0)
-	vec1 := simd.LoadUint8x32Slice(v1)
-	vec2 := simd.LoadInt8x32Slice(v2)
-	vec3 := simd.LoadInt32x8Slice(v3)
-	switch which {
-	case "MaskedSaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x8())
-	case "MaskedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x8())
-
-	default:
-		t.Errorf("Unknown method: Uint32x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x8Uint8x32Int8x32Uint32x8(t *testing.T, v0 []uint32, v1 []uint8, v2 []int8, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x8
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x8Slice(v0)
-	vec1 := simd.LoadUint8x32Slice(v1)
-	vec2 := simd.LoadInt8x32Slice(v2)
-	switch which {
-	case "SaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2)
-	case "UnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.UnsignedSignedQuadDotProdAccumulate(vec1, vec2)
-
-	default:
-		t.Errorf("Unknown method: Uint32x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x8Unary(t *testing.T, v0 []uint32, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x8
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x8Slice(v0)
-	switch which {
-	case "PopCount":
-		gotv = vec0.PopCount()
-
-	default:
-		t.Errorf("Unknown method: Uint32x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x8UnaryMasked(t *testing.T, v0 []uint32, v1 []int32, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x8
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x8Slice(v0)
-	vec1 := simd.LoadInt32x8Slice(v1)
-	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask32x8())
-
-	default:
-		t.Errorf("Unknown method: Uint32x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint64x2Binary(t *testing.T, v0 []uint64, v1 []uint64, want []uint64, which string) {
-	t.Helper()
-	var gotv simd.Uint64x2
-	got := make([]uint64, len(want))
-	vec0 := simd.LoadUint64x2Slice(v0)
-	vec1 := simd.LoadUint64x2Slice(v1)
-	switch which {
-	case "Add":
-		gotv = vec0.Add(vec1)
-	case "And":
-		gotv = vec0.And(vec1)
-	case "AndNot":
-		gotv = vec0.AndNot(vec1)
-	case "Max":
-		gotv = vec0.Max(vec1)
-	case "Min":
-		gotv = vec0.Min(vec1)
-	case "MulEvenWiden":
-		gotv = vec0.MulEvenWiden(vec1)
-	case "Or":
-		gotv = vec0.Or(vec1)
-	case "Sub":
-		gotv = vec0.Sub(vec1)
-	case "Xor":
-		gotv = vec0.Xor(vec1)
-
-	default:
-		t.Errorf("Unknown method: Uint64x2.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint64x2BinaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64, want []uint64, which string) {
-	t.Helper()
-	var gotv simd.Uint64x2
-	got := make([]uint64, len(want))
-	vec0 := simd.LoadUint64x2Slice(v0)
-	vec1 := simd.LoadUint64x2Slice(v1)
-	vec2 := simd.LoadInt64x2Slice(v2)
-	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask64x2())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask64x2())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask64x2())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask64x2())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask64x2())
-	case "MaskedMulEvenWiden":
-		gotv = vec0.MaskedMulEvenWiden(vec1, vec2.AsMask64x2())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x2())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x2())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask64x2())
-
-	default:
-		t.Errorf("Unknown method: Uint64x2.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint64x2Compare(t *testing.T, v0 []uint64, v1 []uint64, want []int64, which string) {
-	t.Helper()
-	var gotv simd.Int64x2
-	got := make([]int64, len(want))
-	vec0 := simd.LoadUint64x2Slice(v0)
-	vec1 := simd.LoadUint64x2Slice(v1)
-	switch which {
-	case "Equal":
-		gotv = vec0.Equal(vec1).AsInt64x2()
-	case "Greater":
-		gotv = vec0.Greater(vec1).AsInt64x2()
-	case "GreaterEqual":
-		gotv = vec0.GreaterEqual(vec1).AsInt64x2()
-	case "Less":
-		gotv = vec0.Less(vec1).AsInt64x2()
-	case "LessEqual":
-		gotv = vec0.LessEqual(vec1).AsInt64x2()
-	case "NotEqual":
-		gotv = vec0.NotEqual(vec1).AsInt64x2()
-
-	default:
-		t.Errorf("Unknown method: Uint64x2.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint64x2MaskedCompare(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64, want []int64, which string) {
-	t.Helper()
-	var gotv simd.Int64x2
-	got := make([]int64, len(want))
-	vec0 := simd.LoadUint64x2Slice(v0)
-	vec1 := simd.LoadUint64x2Slice(v1)
-	vec2 := simd.LoadInt64x2Slice(v2)
-	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
-
-	default:
-		t.Errorf("Unknown method: Uint64x2.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint64x2Unary(t *testing.T, v0 []uint64, want []uint64, which string) {
-	t.Helper()
-	var gotv simd.Uint64x2
-	got := make([]uint64, len(want))
-	vec0 := simd.LoadUint64x2Slice(v0)
-	switch which {
-	case "PopCount":
-		gotv = vec0.PopCount()
-
-	default:
-		t.Errorf("Unknown method: Uint64x2.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint64x2UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint64, which string) {
-	t.Helper()
-	var gotv simd.Uint64x2
-	got := make([]uint64, len(want))
-	vec0 := simd.LoadUint64x2Slice(v0)
-	vec1 := simd.LoadInt64x2Slice(v1)
-	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask64x2())
-
-	default:
-		t.Errorf("Unknown method: Uint64x2.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint64x4Binary(t *testing.T, v0 []uint64, v1 []uint64, want []uint64, which string) {
-	t.Helper()
-	var gotv simd.Uint64x4
-	got := make([]uint64, len(want))
-	vec0 := simd.LoadUint64x4Slice(v0)
-	vec1 := simd.LoadUint64x4Slice(v1)
-	switch which {
-	case "Add":
-		gotv = vec0.Add(vec1)
-	case "And":
-		gotv = vec0.And(vec1)
-	case "AndNot":
-		gotv = vec0.AndNot(vec1)
-	case "Max":
-		gotv = vec0.Max(vec1)
-	case "Min":
-		gotv = vec0.Min(vec1)
-	case "MulEvenWiden":
-		gotv = vec0.MulEvenWiden(vec1)
-	case "Or":
-		gotv = vec0.Or(vec1)
-	case "Sub":
-		gotv = vec0.Sub(vec1)
-	case "Xor":
-		gotv = vec0.Xor(vec1)
-
-	default:
-		t.Errorf("Unknown method: Uint64x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint64x4BinaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64, want []uint64, which string) {
-	t.Helper()
-	var gotv simd.Uint64x4
-	got := make([]uint64, len(want))
-	vec0 := simd.LoadUint64x4Slice(v0)
-	vec1 := simd.LoadUint64x4Slice(v1)
-	vec2 := simd.LoadInt64x4Slice(v2)
-	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask64x4())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask64x4())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask64x4())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask64x4())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask64x4())
-	case "MaskedMulEvenWiden":
-		gotv = vec0.MaskedMulEvenWiden(vec1, vec2.AsMask64x4())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x4())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x4())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask64x4())
-
-	default:
-		t.Errorf("Unknown method: Uint64x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint64x4Compare(t *testing.T, v0 []uint64, v1 []uint64, want []int64, which string) {
-	t.Helper()
-	var gotv simd.Int64x4
-	got := make([]int64, len(want))
-	vec0 := simd.LoadUint64x4Slice(v0)
-	vec1 := simd.LoadUint64x4Slice(v1)
-	switch which {
-	case "Equal":
-		gotv = vec0.Equal(vec1).AsInt64x4()
-	case "Greater":
-		gotv = vec0.Greater(vec1).AsInt64x4()
-	case "GreaterEqual":
-		gotv = vec0.GreaterEqual(vec1).AsInt64x4()
-	case "Less":
-		gotv = vec0.Less(vec1).AsInt64x4()
-	case "LessEqual":
-		gotv = vec0.LessEqual(vec1).AsInt64x4()
-	case "NotEqual":
-		gotv = vec0.NotEqual(vec1).AsInt64x4()
-
-	default:
-		t.Errorf("Unknown method: Uint64x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint64x4MaskedCompare(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64, want []int64, which string) {
-	t.Helper()
-	var gotv simd.Int64x4
-	got := make([]int64, len(want))
-	vec0 := simd.LoadUint64x4Slice(v0)
-	vec1 := simd.LoadUint64x4Slice(v1)
-	vec2 := simd.LoadInt64x4Slice(v2)
-	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
-
-	default:
-		t.Errorf("Unknown method: Uint64x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint64x4Unary(t *testing.T, v0 []uint64, want []uint64, which string) {
-	t.Helper()
-	var gotv simd.Uint64x4
-	got := make([]uint64, len(want))
-	vec0 := simd.LoadUint64x4Slice(v0)
-	switch which {
-	case "PopCount":
-		gotv = vec0.PopCount()
-
-	default:
-		t.Errorf("Unknown method: Uint64x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint64x4UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint64, which string) {
-	t.Helper()
-	var gotv simd.Uint64x4
-	got := make([]uint64, len(want))
-	vec0 := simd.LoadUint64x4Slice(v0)
-	vec1 := simd.LoadInt64x4Slice(v1)
-	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask64x4())
-
-	default:
-		t.Errorf("Unknown method: Uint64x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint64x8Binary(t *testing.T, v0 []uint64, v1 []uint64, want []uint64, which string) {
-	t.Helper()
-	var gotv simd.Uint64x8
-	got := make([]uint64, len(want))
-	vec0 := simd.LoadUint64x8Slice(v0)
-	vec1 := simd.LoadUint64x8Slice(v1)
-	switch which {
-	case "Add":
-		gotv = vec0.Add(vec1)
-	case "And":
-		gotv = vec0.And(vec1)
-	case "AndNot":
-		gotv = vec0.AndNot(vec1)
-	case "Max":
-		gotv = vec0.Max(vec1)
-	case "Min":
-		gotv = vec0.Min(vec1)
-	case "MulEvenWiden":
-		gotv = vec0.MulEvenWiden(vec1)
-	case "Or":
-		gotv = vec0.Or(vec1)
-	case "Sub":
-		gotv = vec0.Sub(vec1)
-	case "Xor":
-		gotv = vec0.Xor(vec1)
-
-	default:
-		t.Errorf("Unknown method: Uint64x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint64x8BinaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64, want []uint64, which string) {
-	t.Helper()
-	var gotv simd.Uint64x8
-	got := make([]uint64, len(want))
-	vec0 := simd.LoadUint64x8Slice(v0)
-	vec1 := simd.LoadUint64x8Slice(v1)
-	vec2 := simd.LoadInt64x8Slice(v2)
-	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask64x8())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask64x8())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask64x8())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask64x8())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask64x8())
-	case "MaskedMulEvenWiden":
-		gotv = vec0.MaskedMulEvenWiden(vec1, vec2.AsMask64x8())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x8())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x8())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask64x8())
-
-	default:
-		t.Errorf("Unknown method: Uint64x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint64x8Compare(t *testing.T, v0 []uint64, v1 []uint64, want []int64, which string) {
-	t.Helper()
-	var gotv simd.Int64x8
-	got := make([]int64, len(want))
-	vec0 := simd.LoadUint64x8Slice(v0)
-	vec1 := simd.LoadUint64x8Slice(v1)
-	switch which {
-	case "Equal":
-		gotv = vec0.Equal(vec1).AsInt64x8()
-	case "Greater":
-		gotv = vec0.Greater(vec1).AsInt64x8()
-	case "GreaterEqual":
-		gotv = vec0.GreaterEqual(vec1).AsInt64x8()
-	case "Less":
-		gotv = vec0.Less(vec1).AsInt64x8()
-	case "LessEqual":
-		gotv = vec0.LessEqual(vec1).AsInt64x8()
-	case "NotEqual":
-		gotv = vec0.NotEqual(vec1).AsInt64x8()
-
-	default:
-		t.Errorf("Unknown method: Uint64x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint64x8MaskedCompare(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64, want []int64, which string) {
-	t.Helper()
-	var gotv simd.Int64x8
-	got := make([]int64, len(want))
-	vec0 := simd.LoadUint64x8Slice(v0)
-	vec1 := simd.LoadUint64x8Slice(v1)
-	vec2 := simd.LoadInt64x8Slice(v2)
-	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
-
-	default:
-		t.Errorf("Unknown method: Uint64x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint64x8Unary(t *testing.T, v0 []uint64, want []uint64, which string) {
-	t.Helper()
-	var gotv simd.Uint64x8
-	got := make([]uint64, len(want))
-	vec0 := simd.LoadUint64x8Slice(v0)
-	switch which {
-	case "PopCount":
-		gotv = vec0.PopCount()
-
-	default:
-		t.Errorf("Unknown method: Uint64x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint64x8UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint64, which string) {
-	t.Helper()
-	var gotv simd.Uint64x8
-	got := make([]uint64, len(want))
-	vec0 := simd.LoadUint64x8Slice(v0)
-	vec1 := simd.LoadInt64x8Slice(v1)
-	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask64x8())
-
-	default:
-		t.Errorf("Unknown method: Uint64x8.%s", which)
 	}
 	gotv.StoreSlice(got)
 	for i := range len(want) {
@@ -6729,6 +4921,1814 @@ func testUint8x64UnaryMasked(t *testing.T, v0 []uint8, v1 []int8, want []uint8, 
 
 	default:
 		t.Errorf("Unknown method: Uint8x64.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x8Binary(t *testing.T, v0 []uint16, v1 []uint16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x8
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x8Slice(v0)
+	vec1 := simd.LoadUint16x8Slice(v1)
+	switch which {
+	case "Add":
+		gotv = vec0.Add(vec1)
+	case "And":
+		gotv = vec0.And(vec1)
+	case "AndNot":
+		gotv = vec0.AndNot(vec1)
+	case "Average":
+		gotv = vec0.Average(vec1)
+	case "Max":
+		gotv = vec0.Max(vec1)
+	case "Min":
+		gotv = vec0.Min(vec1)
+	case "MulHigh":
+		gotv = vec0.MulHigh(vec1)
+	case "Or":
+		gotv = vec0.Or(vec1)
+	case "PairwiseAdd":
+		gotv = vec0.PairwiseAdd(vec1)
+	case "PairwiseSub":
+		gotv = vec0.PairwiseSub(vec1)
+	case "SaturatedAdd":
+		gotv = vec0.SaturatedAdd(vec1)
+	case "SaturatedSub":
+		gotv = vec0.SaturatedSub(vec1)
+	case "Sub":
+		gotv = vec0.Sub(vec1)
+	case "Xor":
+		gotv = vec0.Xor(vec1)
+
+	default:
+		t.Errorf("Unknown method: Uint16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x8BinaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []int16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x8
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x8Slice(v0)
+	vec1 := simd.LoadUint16x8Slice(v1)
+	vec2 := simd.LoadInt16x8Slice(v2)
+	switch which {
+	case "MaskedAdd":
+		gotv = vec0.MaskedAdd(vec1, vec2.AsMask16x8())
+	case "MaskedAverage":
+		gotv = vec0.MaskedAverage(vec1, vec2.AsMask16x8())
+	case "MaskedMax":
+		gotv = vec0.MaskedMax(vec1, vec2.AsMask16x8())
+	case "MaskedMin":
+		gotv = vec0.MaskedMin(vec1, vec2.AsMask16x8())
+	case "MaskedMulHigh":
+		gotv = vec0.MaskedMulHigh(vec1, vec2.AsMask16x8())
+	case "MaskedSaturatedAdd":
+		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x8())
+	case "MaskedSaturatedSub":
+		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x8())
+	case "MaskedSub":
+		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x8())
+
+	default:
+		t.Errorf("Unknown method: Uint16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x8Compare(t *testing.T, v0 []uint16, v1 []uint16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x8
+	got := make([]int16, len(want))
+	vec0 := simd.LoadUint16x8Slice(v0)
+	vec1 := simd.LoadUint16x8Slice(v1)
+	switch which {
+	case "Equal":
+		gotv = vec0.Equal(vec1).AsInt16x8()
+	case "Greater":
+		gotv = vec0.Greater(vec1).AsInt16x8()
+	case "GreaterEqual":
+		gotv = vec0.GreaterEqual(vec1).AsInt16x8()
+	case "Less":
+		gotv = vec0.Less(vec1).AsInt16x8()
+	case "LessEqual":
+		gotv = vec0.LessEqual(vec1).AsInt16x8()
+	case "NotEqual":
+		gotv = vec0.NotEqual(vec1).AsInt16x8()
+
+	default:
+		t.Errorf("Unknown method: Uint16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x8MaskedCompare(t *testing.T, v0 []uint16, v1 []uint16, v2 []int16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x8
+	got := make([]int16, len(want))
+	vec0 := simd.LoadUint16x8Slice(v0)
+	vec1 := simd.LoadUint16x8Slice(v1)
+	vec2 := simd.LoadInt16x8Slice(v2)
+	switch which {
+	case "MaskedEqual":
+		gotv = vec0.MaskedEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "MaskedGreater":
+		gotv = vec0.MaskedGreater(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "MaskedGreaterEqual":
+		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "MaskedLess":
+		gotv = vec0.MaskedLess(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "MaskedLessEqual":
+		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "MaskedNotEqual":
+		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
+
+	default:
+		t.Errorf("Unknown method: Uint16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x8Unary(t *testing.T, v0 []uint16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x8
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x8Slice(v0)
+	switch which {
+	case "PopCount":
+		gotv = vec0.PopCount()
+
+	default:
+		t.Errorf("Unknown method: Uint16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x8UnaryMasked(t *testing.T, v0 []uint16, v1 []int16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x8
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x8Slice(v0)
+	vec1 := simd.LoadInt16x8Slice(v1)
+	switch which {
+	case "MaskedPopCount":
+		gotv = vec0.MaskedPopCount(vec1.AsMask16x8())
+
+	default:
+		t.Errorf("Unknown method: Uint16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x16Binary(t *testing.T, v0 []uint16, v1 []uint16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x16
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x16Slice(v0)
+	vec1 := simd.LoadUint16x16Slice(v1)
+	switch which {
+	case "Add":
+		gotv = vec0.Add(vec1)
+	case "And":
+		gotv = vec0.And(vec1)
+	case "AndNot":
+		gotv = vec0.AndNot(vec1)
+	case "Average":
+		gotv = vec0.Average(vec1)
+	case "Max":
+		gotv = vec0.Max(vec1)
+	case "Min":
+		gotv = vec0.Min(vec1)
+	case "MulHigh":
+		gotv = vec0.MulHigh(vec1)
+	case "Or":
+		gotv = vec0.Or(vec1)
+	case "PairwiseAdd":
+		gotv = vec0.PairwiseAdd(vec1)
+	case "PairwiseSub":
+		gotv = vec0.PairwiseSub(vec1)
+	case "SaturatedAdd":
+		gotv = vec0.SaturatedAdd(vec1)
+	case "SaturatedSub":
+		gotv = vec0.SaturatedSub(vec1)
+	case "Sub":
+		gotv = vec0.Sub(vec1)
+	case "Xor":
+		gotv = vec0.Xor(vec1)
+
+	default:
+		t.Errorf("Unknown method: Uint16x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x16BinaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []int16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x16
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x16Slice(v0)
+	vec1 := simd.LoadUint16x16Slice(v1)
+	vec2 := simd.LoadInt16x16Slice(v2)
+	switch which {
+	case "MaskedAdd":
+		gotv = vec0.MaskedAdd(vec1, vec2.AsMask16x16())
+	case "MaskedAverage":
+		gotv = vec0.MaskedAverage(vec1, vec2.AsMask16x16())
+	case "MaskedMax":
+		gotv = vec0.MaskedMax(vec1, vec2.AsMask16x16())
+	case "MaskedMin":
+		gotv = vec0.MaskedMin(vec1, vec2.AsMask16x16())
+	case "MaskedMulHigh":
+		gotv = vec0.MaskedMulHigh(vec1, vec2.AsMask16x16())
+	case "MaskedSaturatedAdd":
+		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x16())
+	case "MaskedSaturatedSub":
+		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x16())
+	case "MaskedSub":
+		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x16())
+
+	default:
+		t.Errorf("Unknown method: Uint16x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x16Compare(t *testing.T, v0 []uint16, v1 []uint16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x16
+	got := make([]int16, len(want))
+	vec0 := simd.LoadUint16x16Slice(v0)
+	vec1 := simd.LoadUint16x16Slice(v1)
+	switch which {
+	case "Equal":
+		gotv = vec0.Equal(vec1).AsInt16x16()
+	case "Greater":
+		gotv = vec0.Greater(vec1).AsInt16x16()
+	case "GreaterEqual":
+		gotv = vec0.GreaterEqual(vec1).AsInt16x16()
+	case "Less":
+		gotv = vec0.Less(vec1).AsInt16x16()
+	case "LessEqual":
+		gotv = vec0.LessEqual(vec1).AsInt16x16()
+	case "NotEqual":
+		gotv = vec0.NotEqual(vec1).AsInt16x16()
+
+	default:
+		t.Errorf("Unknown method: Uint16x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x16MaskedCompare(t *testing.T, v0 []uint16, v1 []uint16, v2 []int16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x16
+	got := make([]int16, len(want))
+	vec0 := simd.LoadUint16x16Slice(v0)
+	vec1 := simd.LoadUint16x16Slice(v1)
+	vec2 := simd.LoadInt16x16Slice(v2)
+	switch which {
+	case "MaskedEqual":
+		gotv = vec0.MaskedEqual(vec1, vec2.AsMask16x16()).AsInt16x16()
+	case "MaskedGreater":
+		gotv = vec0.MaskedGreater(vec1, vec2.AsMask16x16()).AsInt16x16()
+	case "MaskedGreaterEqual":
+		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask16x16()).AsInt16x16()
+	case "MaskedLess":
+		gotv = vec0.MaskedLess(vec1, vec2.AsMask16x16()).AsInt16x16()
+	case "MaskedLessEqual":
+		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask16x16()).AsInt16x16()
+	case "MaskedNotEqual":
+		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask16x16()).AsInt16x16()
+
+	default:
+		t.Errorf("Unknown method: Uint16x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x16Unary(t *testing.T, v0 []uint16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x16
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x16Slice(v0)
+	switch which {
+	case "PopCount":
+		gotv = vec0.PopCount()
+
+	default:
+		t.Errorf("Unknown method: Uint16x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x16UnaryMasked(t *testing.T, v0 []uint16, v1 []int16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x16
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x16Slice(v0)
+	vec1 := simd.LoadInt16x16Slice(v1)
+	switch which {
+	case "MaskedPopCount":
+		gotv = vec0.MaskedPopCount(vec1.AsMask16x16())
+
+	default:
+		t.Errorf("Unknown method: Uint16x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x32Binary(t *testing.T, v0 []uint16, v1 []uint16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x32
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x32Slice(v0)
+	vec1 := simd.LoadUint16x32Slice(v1)
+	switch which {
+	case "Add":
+		gotv = vec0.Add(vec1)
+	case "Average":
+		gotv = vec0.Average(vec1)
+	case "Max":
+		gotv = vec0.Max(vec1)
+	case "Min":
+		gotv = vec0.Min(vec1)
+	case "MulHigh":
+		gotv = vec0.MulHigh(vec1)
+	case "SaturatedAdd":
+		gotv = vec0.SaturatedAdd(vec1)
+	case "SaturatedSub":
+		gotv = vec0.SaturatedSub(vec1)
+	case "Sub":
+		gotv = vec0.Sub(vec1)
+
+	default:
+		t.Errorf("Unknown method: Uint16x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x32BinaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []int16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x32
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x32Slice(v0)
+	vec1 := simd.LoadUint16x32Slice(v1)
+	vec2 := simd.LoadInt16x32Slice(v2)
+	switch which {
+	case "MaskedAdd":
+		gotv = vec0.MaskedAdd(vec1, vec2.AsMask16x32())
+	case "MaskedAverage":
+		gotv = vec0.MaskedAverage(vec1, vec2.AsMask16x32())
+	case "MaskedMax":
+		gotv = vec0.MaskedMax(vec1, vec2.AsMask16x32())
+	case "MaskedMin":
+		gotv = vec0.MaskedMin(vec1, vec2.AsMask16x32())
+	case "MaskedMulHigh":
+		gotv = vec0.MaskedMulHigh(vec1, vec2.AsMask16x32())
+	case "MaskedSaturatedAdd":
+		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x32())
+	case "MaskedSaturatedSub":
+		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x32())
+	case "MaskedSub":
+		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x32())
+
+	default:
+		t.Errorf("Unknown method: Uint16x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x32Compare(t *testing.T, v0 []uint16, v1 []uint16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x32
+	got := make([]int16, len(want))
+	vec0 := simd.LoadUint16x32Slice(v0)
+	vec1 := simd.LoadUint16x32Slice(v1)
+	switch which {
+	case "Equal":
+		gotv = vec0.Equal(vec1).AsInt16x32()
+	case "Greater":
+		gotv = vec0.Greater(vec1).AsInt16x32()
+	case "GreaterEqual":
+		gotv = vec0.GreaterEqual(vec1).AsInt16x32()
+	case "Less":
+		gotv = vec0.Less(vec1).AsInt16x32()
+	case "LessEqual":
+		gotv = vec0.LessEqual(vec1).AsInt16x32()
+	case "NotEqual":
+		gotv = vec0.NotEqual(vec1).AsInt16x32()
+
+	default:
+		t.Errorf("Unknown method: Uint16x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x32MaskedCompare(t *testing.T, v0 []uint16, v1 []uint16, v2 []int16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x32
+	got := make([]int16, len(want))
+	vec0 := simd.LoadUint16x32Slice(v0)
+	vec1 := simd.LoadUint16x32Slice(v1)
+	vec2 := simd.LoadInt16x32Slice(v2)
+	switch which {
+	case "MaskedEqual":
+		gotv = vec0.MaskedEqual(vec1, vec2.AsMask16x32()).AsInt16x32()
+	case "MaskedGreater":
+		gotv = vec0.MaskedGreater(vec1, vec2.AsMask16x32()).AsInt16x32()
+	case "MaskedGreaterEqual":
+		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask16x32()).AsInt16x32()
+	case "MaskedLess":
+		gotv = vec0.MaskedLess(vec1, vec2.AsMask16x32()).AsInt16x32()
+	case "MaskedLessEqual":
+		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask16x32()).AsInt16x32()
+	case "MaskedNotEqual":
+		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask16x32()).AsInt16x32()
+
+	default:
+		t.Errorf("Unknown method: Uint16x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x32Unary(t *testing.T, v0 []uint16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x32
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x32Slice(v0)
+	switch which {
+	case "PopCount":
+		gotv = vec0.PopCount()
+
+	default:
+		t.Errorf("Unknown method: Uint16x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x32UnaryMasked(t *testing.T, v0 []uint16, v1 []int16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x32
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x32Slice(v0)
+	vec1 := simd.LoadInt16x32Slice(v1)
+	switch which {
+	case "MaskedPopCount":
+		gotv = vec0.MaskedPopCount(vec1.AsMask16x32())
+
+	default:
+		t.Errorf("Unknown method: Uint16x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x4Binary(t *testing.T, v0 []uint32, v1 []uint32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x4
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x4Slice(v0)
+	vec1 := simd.LoadUint32x4Slice(v1)
+	switch which {
+	case "Add":
+		gotv = vec0.Add(vec1)
+	case "And":
+		gotv = vec0.And(vec1)
+	case "AndNot":
+		gotv = vec0.AndNot(vec1)
+	case "Max":
+		gotv = vec0.Max(vec1)
+	case "Min":
+		gotv = vec0.Min(vec1)
+	case "Or":
+		gotv = vec0.Or(vec1)
+	case "PairwiseAdd":
+		gotv = vec0.PairwiseAdd(vec1)
+	case "PairwiseSub":
+		gotv = vec0.PairwiseSub(vec1)
+	case "Sub":
+		gotv = vec0.Sub(vec1)
+	case "Xor":
+		gotv = vec0.Xor(vec1)
+
+	default:
+		t.Errorf("Unknown method: Uint32x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x4BinaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []int32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x4
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x4Slice(v0)
+	vec1 := simd.LoadUint32x4Slice(v1)
+	vec2 := simd.LoadInt32x4Slice(v2)
+	switch which {
+	case "MaskedAdd":
+		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x4())
+	case "MaskedAnd":
+		gotv = vec0.MaskedAnd(vec1, vec2.AsMask32x4())
+	case "MaskedAndNot":
+		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask32x4())
+	case "MaskedMax":
+		gotv = vec0.MaskedMax(vec1, vec2.AsMask32x4())
+	case "MaskedMin":
+		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x4())
+	case "MaskedOr":
+		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x4())
+	case "MaskedSub":
+		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x4())
+	case "MaskedXor":
+		gotv = vec0.MaskedXor(vec1, vec2.AsMask32x4())
+
+	default:
+		t.Errorf("Unknown method: Uint32x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x4BinaryWiden(t *testing.T, v0 []uint32, v1 []uint32, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x2
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint32x4Slice(v0)
+	vec1 := simd.LoadUint32x4Slice(v1)
+	switch which {
+	case "MulEvenWiden":
+		gotv = vec0.MulEvenWiden(vec1)
+
+	default:
+		t.Errorf("Unknown method: Uint32x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x4Compare(t *testing.T, v0 []uint32, v1 []uint32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x4
+	got := make([]int32, len(want))
+	vec0 := simd.LoadUint32x4Slice(v0)
+	vec1 := simd.LoadUint32x4Slice(v1)
+	switch which {
+	case "Equal":
+		gotv = vec0.Equal(vec1).AsInt32x4()
+	case "Greater":
+		gotv = vec0.Greater(vec1).AsInt32x4()
+	case "GreaterEqual":
+		gotv = vec0.GreaterEqual(vec1).AsInt32x4()
+	case "Less":
+		gotv = vec0.Less(vec1).AsInt32x4()
+	case "LessEqual":
+		gotv = vec0.LessEqual(vec1).AsInt32x4()
+	case "NotEqual":
+		gotv = vec0.NotEqual(vec1).AsInt32x4()
+
+	default:
+		t.Errorf("Unknown method: Uint32x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x4MaskedCompare(t *testing.T, v0 []uint32, v1 []uint32, v2 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x4
+	got := make([]int32, len(want))
+	vec0 := simd.LoadUint32x4Slice(v0)
+	vec1 := simd.LoadUint32x4Slice(v1)
+	vec2 := simd.LoadInt32x4Slice(v2)
+	switch which {
+	case "MaskedEqual":
+		gotv = vec0.MaskedEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "MaskedGreater":
+		gotv = vec0.MaskedGreater(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "MaskedGreaterEqual":
+		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "MaskedLess":
+		gotv = vec0.MaskedLess(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "MaskedLessEqual":
+		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "MaskedNotEqual":
+		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
+
+	default:
+		t.Errorf("Unknown method: Uint32x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x4Uint8x16Int8x16Mask32x4Uint32x4(t *testing.T, v0 []uint32, v1 []uint8, v2 []int8, v3 []int32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x4
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x4Slice(v0)
+	vec1 := simd.LoadUint8x16Slice(v1)
+	vec2 := simd.LoadInt8x16Slice(v2)
+	vec3 := simd.LoadInt32x4Slice(v3)
+	switch which {
+	case "MaskedSaturatedUnsignedSignedQuadDotProdAccumulate":
+		gotv = vec0.MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x4())
+	case "MaskedUnsignedSignedQuadDotProdAccumulate":
+		gotv = vec0.MaskedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x4())
+
+	default:
+		t.Errorf("Unknown method: Uint32x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x4Uint8x16Int8x16Uint32x4(t *testing.T, v0 []uint32, v1 []uint8, v2 []int8, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x4
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x4Slice(v0)
+	vec1 := simd.LoadUint8x16Slice(v1)
+	vec2 := simd.LoadInt8x16Slice(v2)
+	switch which {
+	case "SaturatedUnsignedSignedQuadDotProdAccumulate":
+		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2)
+	case "UnsignedSignedQuadDotProdAccumulate":
+		gotv = vec0.UnsignedSignedQuadDotProdAccumulate(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Uint32x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x4Unary(t *testing.T, v0 []uint32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x4
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x4Slice(v0)
+	switch which {
+	case "PopCount":
+		gotv = vec0.PopCount()
+
+	default:
+		t.Errorf("Unknown method: Uint32x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x4UnaryMasked(t *testing.T, v0 []uint32, v1 []int32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x4
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x4Slice(v0)
+	vec1 := simd.LoadInt32x4Slice(v1)
+	switch which {
+	case "MaskedPopCount":
+		gotv = vec0.MaskedPopCount(vec1.AsMask32x4())
+
+	default:
+		t.Errorf("Unknown method: Uint32x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x8Binary(t *testing.T, v0 []uint32, v1 []uint32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x8
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x8Slice(v0)
+	vec1 := simd.LoadUint32x8Slice(v1)
+	switch which {
+	case "Add":
+		gotv = vec0.Add(vec1)
+	case "And":
+		gotv = vec0.And(vec1)
+	case "AndNot":
+		gotv = vec0.AndNot(vec1)
+	case "Max":
+		gotv = vec0.Max(vec1)
+	case "Min":
+		gotv = vec0.Min(vec1)
+	case "Or":
+		gotv = vec0.Or(vec1)
+	case "PairwiseAdd":
+		gotv = vec0.PairwiseAdd(vec1)
+	case "PairwiseSub":
+		gotv = vec0.PairwiseSub(vec1)
+	case "Sub":
+		gotv = vec0.Sub(vec1)
+	case "Xor":
+		gotv = vec0.Xor(vec1)
+
+	default:
+		t.Errorf("Unknown method: Uint32x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x8BinaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []int32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x8
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x8Slice(v0)
+	vec1 := simd.LoadUint32x8Slice(v1)
+	vec2 := simd.LoadInt32x8Slice(v2)
+	switch which {
+	case "MaskedAdd":
+		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x8())
+	case "MaskedAnd":
+		gotv = vec0.MaskedAnd(vec1, vec2.AsMask32x8())
+	case "MaskedAndNot":
+		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask32x8())
+	case "MaskedMax":
+		gotv = vec0.MaskedMax(vec1, vec2.AsMask32x8())
+	case "MaskedMin":
+		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x8())
+	case "MaskedOr":
+		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x8())
+	case "MaskedSub":
+		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x8())
+	case "MaskedXor":
+		gotv = vec0.MaskedXor(vec1, vec2.AsMask32x8())
+
+	default:
+		t.Errorf("Unknown method: Uint32x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x8BinaryWiden(t *testing.T, v0 []uint32, v1 []uint32, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x4
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint32x8Slice(v0)
+	vec1 := simd.LoadUint32x8Slice(v1)
+	switch which {
+	case "MulEvenWiden":
+		gotv = vec0.MulEvenWiden(vec1)
+
+	default:
+		t.Errorf("Unknown method: Uint32x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x8Compare(t *testing.T, v0 []uint32, v1 []uint32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x8
+	got := make([]int32, len(want))
+	vec0 := simd.LoadUint32x8Slice(v0)
+	vec1 := simd.LoadUint32x8Slice(v1)
+	switch which {
+	case "Equal":
+		gotv = vec0.Equal(vec1).AsInt32x8()
+	case "Greater":
+		gotv = vec0.Greater(vec1).AsInt32x8()
+	case "GreaterEqual":
+		gotv = vec0.GreaterEqual(vec1).AsInt32x8()
+	case "Less":
+		gotv = vec0.Less(vec1).AsInt32x8()
+	case "LessEqual":
+		gotv = vec0.LessEqual(vec1).AsInt32x8()
+	case "NotEqual":
+		gotv = vec0.NotEqual(vec1).AsInt32x8()
+
+	default:
+		t.Errorf("Unknown method: Uint32x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x8MaskedCompare(t *testing.T, v0 []uint32, v1 []uint32, v2 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x8
+	got := make([]int32, len(want))
+	vec0 := simd.LoadUint32x8Slice(v0)
+	vec1 := simd.LoadUint32x8Slice(v1)
+	vec2 := simd.LoadInt32x8Slice(v2)
+	switch which {
+	case "MaskedEqual":
+		gotv = vec0.MaskedEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "MaskedGreater":
+		gotv = vec0.MaskedGreater(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "MaskedGreaterEqual":
+		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "MaskedLess":
+		gotv = vec0.MaskedLess(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "MaskedLessEqual":
+		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "MaskedNotEqual":
+		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
+
+	default:
+		t.Errorf("Unknown method: Uint32x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x8Uint8x32Int8x32Mask32x8Uint32x8(t *testing.T, v0 []uint32, v1 []uint8, v2 []int8, v3 []int32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x8
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x8Slice(v0)
+	vec1 := simd.LoadUint8x32Slice(v1)
+	vec2 := simd.LoadInt8x32Slice(v2)
+	vec3 := simd.LoadInt32x8Slice(v3)
+	switch which {
+	case "MaskedSaturatedUnsignedSignedQuadDotProdAccumulate":
+		gotv = vec0.MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x8())
+	case "MaskedUnsignedSignedQuadDotProdAccumulate":
+		gotv = vec0.MaskedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x8())
+
+	default:
+		t.Errorf("Unknown method: Uint32x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x8Uint8x32Int8x32Uint32x8(t *testing.T, v0 []uint32, v1 []uint8, v2 []int8, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x8
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x8Slice(v0)
+	vec1 := simd.LoadUint8x32Slice(v1)
+	vec2 := simd.LoadInt8x32Slice(v2)
+	switch which {
+	case "SaturatedUnsignedSignedQuadDotProdAccumulate":
+		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2)
+	case "UnsignedSignedQuadDotProdAccumulate":
+		gotv = vec0.UnsignedSignedQuadDotProdAccumulate(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Uint32x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x8Unary(t *testing.T, v0 []uint32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x8
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x8Slice(v0)
+	switch which {
+	case "PopCount":
+		gotv = vec0.PopCount()
+
+	default:
+		t.Errorf("Unknown method: Uint32x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x8UnaryMasked(t *testing.T, v0 []uint32, v1 []int32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x8
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x8Slice(v0)
+	vec1 := simd.LoadInt32x8Slice(v1)
+	switch which {
+	case "MaskedPopCount":
+		gotv = vec0.MaskedPopCount(vec1.AsMask32x8())
+
+	default:
+		t.Errorf("Unknown method: Uint32x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x16Binary(t *testing.T, v0 []uint32, v1 []uint32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x16
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x16Slice(v0)
+	vec1 := simd.LoadUint32x16Slice(v1)
+	switch which {
+	case "Add":
+		gotv = vec0.Add(vec1)
+	case "And":
+		gotv = vec0.And(vec1)
+	case "AndNot":
+		gotv = vec0.AndNot(vec1)
+	case "Max":
+		gotv = vec0.Max(vec1)
+	case "Min":
+		gotv = vec0.Min(vec1)
+	case "Or":
+		gotv = vec0.Or(vec1)
+	case "Sub":
+		gotv = vec0.Sub(vec1)
+	case "Xor":
+		gotv = vec0.Xor(vec1)
+
+	default:
+		t.Errorf("Unknown method: Uint32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x16BinaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []int32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x16
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x16Slice(v0)
+	vec1 := simd.LoadUint32x16Slice(v1)
+	vec2 := simd.LoadInt32x16Slice(v2)
+	switch which {
+	case "MaskedAdd":
+		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x16())
+	case "MaskedAnd":
+		gotv = vec0.MaskedAnd(vec1, vec2.AsMask32x16())
+	case "MaskedAndNot":
+		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask32x16())
+	case "MaskedMax":
+		gotv = vec0.MaskedMax(vec1, vec2.AsMask32x16())
+	case "MaskedMin":
+		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x16())
+	case "MaskedOr":
+		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x16())
+	case "MaskedSub":
+		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x16())
+	case "MaskedXor":
+		gotv = vec0.MaskedXor(vec1, vec2.AsMask32x16())
+
+	default:
+		t.Errorf("Unknown method: Uint32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x16Compare(t *testing.T, v0 []uint32, v1 []uint32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x16
+	got := make([]int32, len(want))
+	vec0 := simd.LoadUint32x16Slice(v0)
+	vec1 := simd.LoadUint32x16Slice(v1)
+	switch which {
+	case "Equal":
+		gotv = vec0.Equal(vec1).AsInt32x16()
+	case "Greater":
+		gotv = vec0.Greater(vec1).AsInt32x16()
+	case "GreaterEqual":
+		gotv = vec0.GreaterEqual(vec1).AsInt32x16()
+	case "Less":
+		gotv = vec0.Less(vec1).AsInt32x16()
+	case "LessEqual":
+		gotv = vec0.LessEqual(vec1).AsInt32x16()
+	case "NotEqual":
+		gotv = vec0.NotEqual(vec1).AsInt32x16()
+
+	default:
+		t.Errorf("Unknown method: Uint32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x16MaskedCompare(t *testing.T, v0 []uint32, v1 []uint32, v2 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x16
+	got := make([]int32, len(want))
+	vec0 := simd.LoadUint32x16Slice(v0)
+	vec1 := simd.LoadUint32x16Slice(v1)
+	vec2 := simd.LoadInt32x16Slice(v2)
+	switch which {
+	case "MaskedEqual":
+		gotv = vec0.MaskedEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "MaskedGreater":
+		gotv = vec0.MaskedGreater(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "MaskedGreaterEqual":
+		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "MaskedLess":
+		gotv = vec0.MaskedLess(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "MaskedLessEqual":
+		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "MaskedNotEqual":
+		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
+
+	default:
+		t.Errorf("Unknown method: Uint32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x16Uint8x64Int8x64Mask32x16Uint32x16(t *testing.T, v0 []uint32, v1 []uint8, v2 []int8, v3 []int32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x16
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x16Slice(v0)
+	vec1 := simd.LoadUint8x64Slice(v1)
+	vec2 := simd.LoadInt8x64Slice(v2)
+	vec3 := simd.LoadInt32x16Slice(v3)
+	switch which {
+	case "MaskedSaturatedUnsignedSignedQuadDotProdAccumulate":
+		gotv = vec0.MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x16())
+	case "MaskedUnsignedSignedQuadDotProdAccumulate":
+		gotv = vec0.MaskedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x16())
+
+	default:
+		t.Errorf("Unknown method: Uint32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x16Uint8x64Int8x64Uint32x16(t *testing.T, v0 []uint32, v1 []uint8, v2 []int8, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x16
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x16Slice(v0)
+	vec1 := simd.LoadUint8x64Slice(v1)
+	vec2 := simd.LoadInt8x64Slice(v2)
+	switch which {
+	case "SaturatedUnsignedSignedQuadDotProdAccumulate":
+		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2)
+	case "UnsignedSignedQuadDotProdAccumulate":
+		gotv = vec0.UnsignedSignedQuadDotProdAccumulate(vec1, vec2)
+
+	default:
+		t.Errorf("Unknown method: Uint32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x16Unary(t *testing.T, v0 []uint32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x16
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x16Slice(v0)
+	switch which {
+	case "PopCount":
+		gotv = vec0.PopCount()
+
+	default:
+		t.Errorf("Unknown method: Uint32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x16UnaryMasked(t *testing.T, v0 []uint32, v1 []int32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x16
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x16Slice(v0)
+	vec1 := simd.LoadInt32x16Slice(v1)
+	switch which {
+	case "MaskedPopCount":
+		gotv = vec0.MaskedPopCount(vec1.AsMask32x16())
+
+	default:
+		t.Errorf("Unknown method: Uint32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x2Binary(t *testing.T, v0 []uint64, v1 []uint64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x2
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x2Slice(v0)
+	vec1 := simd.LoadUint64x2Slice(v1)
+	switch which {
+	case "Add":
+		gotv = vec0.Add(vec1)
+	case "And":
+		gotv = vec0.And(vec1)
+	case "AndNot":
+		gotv = vec0.AndNot(vec1)
+	case "Max":
+		gotv = vec0.Max(vec1)
+	case "Min":
+		gotv = vec0.Min(vec1)
+	case "MulEvenWiden":
+		gotv = vec0.MulEvenWiden(vec1)
+	case "Or":
+		gotv = vec0.Or(vec1)
+	case "Sub":
+		gotv = vec0.Sub(vec1)
+	case "Xor":
+		gotv = vec0.Xor(vec1)
+
+	default:
+		t.Errorf("Unknown method: Uint64x2.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x2BinaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x2
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x2Slice(v0)
+	vec1 := simd.LoadUint64x2Slice(v1)
+	vec2 := simd.LoadInt64x2Slice(v2)
+	switch which {
+	case "MaskedAdd":
+		gotv = vec0.MaskedAdd(vec1, vec2.AsMask64x2())
+	case "MaskedAnd":
+		gotv = vec0.MaskedAnd(vec1, vec2.AsMask64x2())
+	case "MaskedAndNot":
+		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask64x2())
+	case "MaskedMax":
+		gotv = vec0.MaskedMax(vec1, vec2.AsMask64x2())
+	case "MaskedMin":
+		gotv = vec0.MaskedMin(vec1, vec2.AsMask64x2())
+	case "MaskedMulEvenWiden":
+		gotv = vec0.MaskedMulEvenWiden(vec1, vec2.AsMask64x2())
+	case "MaskedOr":
+		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x2())
+	case "MaskedSub":
+		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x2())
+	case "MaskedXor":
+		gotv = vec0.MaskedXor(vec1, vec2.AsMask64x2())
+
+	default:
+		t.Errorf("Unknown method: Uint64x2.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x2Compare(t *testing.T, v0 []uint64, v1 []uint64, want []int64, which string) {
+	t.Helper()
+	var gotv simd.Int64x2
+	got := make([]int64, len(want))
+	vec0 := simd.LoadUint64x2Slice(v0)
+	vec1 := simd.LoadUint64x2Slice(v1)
+	switch which {
+	case "Equal":
+		gotv = vec0.Equal(vec1).AsInt64x2()
+	case "Greater":
+		gotv = vec0.Greater(vec1).AsInt64x2()
+	case "GreaterEqual":
+		gotv = vec0.GreaterEqual(vec1).AsInt64x2()
+	case "Less":
+		gotv = vec0.Less(vec1).AsInt64x2()
+	case "LessEqual":
+		gotv = vec0.LessEqual(vec1).AsInt64x2()
+	case "NotEqual":
+		gotv = vec0.NotEqual(vec1).AsInt64x2()
+
+	default:
+		t.Errorf("Unknown method: Uint64x2.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x2MaskedCompare(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64, want []int64, which string) {
+	t.Helper()
+	var gotv simd.Int64x2
+	got := make([]int64, len(want))
+	vec0 := simd.LoadUint64x2Slice(v0)
+	vec1 := simd.LoadUint64x2Slice(v1)
+	vec2 := simd.LoadInt64x2Slice(v2)
+	switch which {
+	case "MaskedEqual":
+		gotv = vec0.MaskedEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "MaskedGreater":
+		gotv = vec0.MaskedGreater(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "MaskedGreaterEqual":
+		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "MaskedLess":
+		gotv = vec0.MaskedLess(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "MaskedLessEqual":
+		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "MaskedNotEqual":
+		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
+
+	default:
+		t.Errorf("Unknown method: Uint64x2.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x2Unary(t *testing.T, v0 []uint64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x2
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x2Slice(v0)
+	switch which {
+	case "PopCount":
+		gotv = vec0.PopCount()
+
+	default:
+		t.Errorf("Unknown method: Uint64x2.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x2UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x2
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x2Slice(v0)
+	vec1 := simd.LoadInt64x2Slice(v1)
+	switch which {
+	case "MaskedPopCount":
+		gotv = vec0.MaskedPopCount(vec1.AsMask64x2())
+
+	default:
+		t.Errorf("Unknown method: Uint64x2.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x4Binary(t *testing.T, v0 []uint64, v1 []uint64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x4
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x4Slice(v0)
+	vec1 := simd.LoadUint64x4Slice(v1)
+	switch which {
+	case "Add":
+		gotv = vec0.Add(vec1)
+	case "And":
+		gotv = vec0.And(vec1)
+	case "AndNot":
+		gotv = vec0.AndNot(vec1)
+	case "Max":
+		gotv = vec0.Max(vec1)
+	case "Min":
+		gotv = vec0.Min(vec1)
+	case "MulEvenWiden":
+		gotv = vec0.MulEvenWiden(vec1)
+	case "Or":
+		gotv = vec0.Or(vec1)
+	case "Sub":
+		gotv = vec0.Sub(vec1)
+	case "Xor":
+		gotv = vec0.Xor(vec1)
+
+	default:
+		t.Errorf("Unknown method: Uint64x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x4BinaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x4
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x4Slice(v0)
+	vec1 := simd.LoadUint64x4Slice(v1)
+	vec2 := simd.LoadInt64x4Slice(v2)
+	switch which {
+	case "MaskedAdd":
+		gotv = vec0.MaskedAdd(vec1, vec2.AsMask64x4())
+	case "MaskedAnd":
+		gotv = vec0.MaskedAnd(vec1, vec2.AsMask64x4())
+	case "MaskedAndNot":
+		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask64x4())
+	case "MaskedMax":
+		gotv = vec0.MaskedMax(vec1, vec2.AsMask64x4())
+	case "MaskedMin":
+		gotv = vec0.MaskedMin(vec1, vec2.AsMask64x4())
+	case "MaskedMulEvenWiden":
+		gotv = vec0.MaskedMulEvenWiden(vec1, vec2.AsMask64x4())
+	case "MaskedOr":
+		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x4())
+	case "MaskedSub":
+		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x4())
+	case "MaskedXor":
+		gotv = vec0.MaskedXor(vec1, vec2.AsMask64x4())
+
+	default:
+		t.Errorf("Unknown method: Uint64x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x4Compare(t *testing.T, v0 []uint64, v1 []uint64, want []int64, which string) {
+	t.Helper()
+	var gotv simd.Int64x4
+	got := make([]int64, len(want))
+	vec0 := simd.LoadUint64x4Slice(v0)
+	vec1 := simd.LoadUint64x4Slice(v1)
+	switch which {
+	case "Equal":
+		gotv = vec0.Equal(vec1).AsInt64x4()
+	case "Greater":
+		gotv = vec0.Greater(vec1).AsInt64x4()
+	case "GreaterEqual":
+		gotv = vec0.GreaterEqual(vec1).AsInt64x4()
+	case "Less":
+		gotv = vec0.Less(vec1).AsInt64x4()
+	case "LessEqual":
+		gotv = vec0.LessEqual(vec1).AsInt64x4()
+	case "NotEqual":
+		gotv = vec0.NotEqual(vec1).AsInt64x4()
+
+	default:
+		t.Errorf("Unknown method: Uint64x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x4MaskedCompare(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64, want []int64, which string) {
+	t.Helper()
+	var gotv simd.Int64x4
+	got := make([]int64, len(want))
+	vec0 := simd.LoadUint64x4Slice(v0)
+	vec1 := simd.LoadUint64x4Slice(v1)
+	vec2 := simd.LoadInt64x4Slice(v2)
+	switch which {
+	case "MaskedEqual":
+		gotv = vec0.MaskedEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "MaskedGreater":
+		gotv = vec0.MaskedGreater(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "MaskedGreaterEqual":
+		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "MaskedLess":
+		gotv = vec0.MaskedLess(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "MaskedLessEqual":
+		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "MaskedNotEqual":
+		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
+
+	default:
+		t.Errorf("Unknown method: Uint64x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x4Unary(t *testing.T, v0 []uint64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x4
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x4Slice(v0)
+	switch which {
+	case "PopCount":
+		gotv = vec0.PopCount()
+
+	default:
+		t.Errorf("Unknown method: Uint64x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x4UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x4
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x4Slice(v0)
+	vec1 := simd.LoadInt64x4Slice(v1)
+	switch which {
+	case "MaskedPopCount":
+		gotv = vec0.MaskedPopCount(vec1.AsMask64x4())
+
+	default:
+		t.Errorf("Unknown method: Uint64x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x8Binary(t *testing.T, v0 []uint64, v1 []uint64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x8
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x8Slice(v0)
+	vec1 := simd.LoadUint64x8Slice(v1)
+	switch which {
+	case "Add":
+		gotv = vec0.Add(vec1)
+	case "And":
+		gotv = vec0.And(vec1)
+	case "AndNot":
+		gotv = vec0.AndNot(vec1)
+	case "Max":
+		gotv = vec0.Max(vec1)
+	case "Min":
+		gotv = vec0.Min(vec1)
+	case "MulEvenWiden":
+		gotv = vec0.MulEvenWiden(vec1)
+	case "Or":
+		gotv = vec0.Or(vec1)
+	case "Sub":
+		gotv = vec0.Sub(vec1)
+	case "Xor":
+		gotv = vec0.Xor(vec1)
+
+	default:
+		t.Errorf("Unknown method: Uint64x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x8BinaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x8
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x8Slice(v0)
+	vec1 := simd.LoadUint64x8Slice(v1)
+	vec2 := simd.LoadInt64x8Slice(v2)
+	switch which {
+	case "MaskedAdd":
+		gotv = vec0.MaskedAdd(vec1, vec2.AsMask64x8())
+	case "MaskedAnd":
+		gotv = vec0.MaskedAnd(vec1, vec2.AsMask64x8())
+	case "MaskedAndNot":
+		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask64x8())
+	case "MaskedMax":
+		gotv = vec0.MaskedMax(vec1, vec2.AsMask64x8())
+	case "MaskedMin":
+		gotv = vec0.MaskedMin(vec1, vec2.AsMask64x8())
+	case "MaskedMulEvenWiden":
+		gotv = vec0.MaskedMulEvenWiden(vec1, vec2.AsMask64x8())
+	case "MaskedOr":
+		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x8())
+	case "MaskedSub":
+		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x8())
+	case "MaskedXor":
+		gotv = vec0.MaskedXor(vec1, vec2.AsMask64x8())
+
+	default:
+		t.Errorf("Unknown method: Uint64x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x8Compare(t *testing.T, v0 []uint64, v1 []uint64, want []int64, which string) {
+	t.Helper()
+	var gotv simd.Int64x8
+	got := make([]int64, len(want))
+	vec0 := simd.LoadUint64x8Slice(v0)
+	vec1 := simd.LoadUint64x8Slice(v1)
+	switch which {
+	case "Equal":
+		gotv = vec0.Equal(vec1).AsInt64x8()
+	case "Greater":
+		gotv = vec0.Greater(vec1).AsInt64x8()
+	case "GreaterEqual":
+		gotv = vec0.GreaterEqual(vec1).AsInt64x8()
+	case "Less":
+		gotv = vec0.Less(vec1).AsInt64x8()
+	case "LessEqual":
+		gotv = vec0.LessEqual(vec1).AsInt64x8()
+	case "NotEqual":
+		gotv = vec0.NotEqual(vec1).AsInt64x8()
+
+	default:
+		t.Errorf("Unknown method: Uint64x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x8MaskedCompare(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64, want []int64, which string) {
+	t.Helper()
+	var gotv simd.Int64x8
+	got := make([]int64, len(want))
+	vec0 := simd.LoadUint64x8Slice(v0)
+	vec1 := simd.LoadUint64x8Slice(v1)
+	vec2 := simd.LoadInt64x8Slice(v2)
+	switch which {
+	case "MaskedEqual":
+		gotv = vec0.MaskedEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "MaskedGreater":
+		gotv = vec0.MaskedGreater(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "MaskedGreaterEqual":
+		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "MaskedLess":
+		gotv = vec0.MaskedLess(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "MaskedLessEqual":
+		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "MaskedNotEqual":
+		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
+
+	default:
+		t.Errorf("Unknown method: Uint64x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x8Unary(t *testing.T, v0 []uint64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x8
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x8Slice(v0)
+	switch which {
+	case "PopCount":
+		gotv = vec0.PopCount()
+
+	default:
+		t.Errorf("Unknown method: Uint64x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x8UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x8
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x8Slice(v0)
+	vec1 := simd.LoadInt64x8Slice(v1)
+	switch which {
+	case "MaskedPopCount":
+		gotv = vec0.MaskedPopCount(vec1.AsMask64x8())
+
+	default:
+		t.Errorf("Unknown method: Uint64x8.%s", which)
 	}
 	gotv.StoreSlice(got)
 	for i := range len(want) {
