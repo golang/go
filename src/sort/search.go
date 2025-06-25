@@ -72,6 +72,28 @@ func Search(n int, f func(int) bool) int {
 	return i
 }
 
+// SearchWithError is like [Search] but allows f to return an error.
+func SearchWithError(n int, f func(int) (bool, error)) (int, error) {
+	// Define f(-1) == false and f(n) == true.
+	// Invariant: f(i-1) == false, f(j) == true.
+	i, j := 0, n
+	for i < j {
+		h := int(uint(i+j) >> 1) // avoid overflow when computing h
+		// i ≤ h < j
+		ok, err := f(h)
+		if err != nil {
+			return -1, err
+		}
+		if !ok {
+			i = h + 1 // preserves f(i-1) == false
+		} else {
+			j = h // preserves f(j) == true
+		}
+	}
+	// i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
+	return i, nil
+}
+
 // Find uses binary search to find and return the smallest index i in [0, n)
 // at which cmp(i) <= 0. If there is no such index i, Find returns i = n.
 // The found result is true if i < n and cmp(i) == 0.
