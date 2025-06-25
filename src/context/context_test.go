@@ -5,7 +5,7 @@
 package context
 
 // Tests in package context cannot depend directly on package testing due to an import cycle.
-// If your test does requires access to unexported members of the context package,
+// If your test requires access to unexported members of the context package,
 // add your test below as `func XTestFoo(t testingT)` and add a `TestFoo` to x_test.go
 // that calls it. Otherwise, write a regular test in a test.go file in package context_test.
 

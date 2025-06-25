@@ -231,6 +231,7 @@ func sysReserveAlignedSbrk(size, align uintptr) (unsafe.Pointer, uintptr) {
 			memFree(unsafe.Pointer(end), endLen)
 		}
 		memCheck()
+		unlock(&memlock)
 		return unsafe.Pointer(pAligned), size
 	}
 

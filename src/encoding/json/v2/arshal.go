@@ -147,17 +147,23 @@ var export = jsontext.Internal.Export(&internal.AllowInternalUse)
 //     If the format matches one of the format constants declared
 //     in the time package (e.g., RFC1123), then that format is used.
 //     If the format is "unix", "unixmilli", "unixmicro", or "unixnano",
-//     then the timestamp is encoded as a JSON number of the number of seconds
-//     (or milliseconds, microseconds, or nanoseconds) since the Unix epoch,
-//     which is January 1st, 1970 at 00:00:00 UTC.
+//     then the timestamp is encoded as a possibly fractional JSON number
+//     of the number of seconds (or milliseconds, microseconds, or nanoseconds)
+//     since the Unix epoch, which is January 1st, 1970 at 00:00:00 UTC.
+//     To avoid a fractional component, round the timestamp to the relevant unit.
 //     Otherwise, the format is used as-is with [time.Time.Format] if non-empty.
 //
-//   - A Go [time.Duration] is encoded as a JSON string containing the duration
-//     formatted according to [time.Duration.String].
+//   - A Go [time.Duration] currently has no default representation and
+//     requires an explicit format to be specified.
 //     If the format is "sec", "milli", "micro", or "nano",
-//     then the duration is encoded as a JSON number of the number of seconds
-//     (or milliseconds, microseconds, or nanoseconds) in the duration.
-//     If the format is "units", it uses [time.Duration.String].
+//     then the duration is encoded as a possibly fractional JSON number
+//     of the number of seconds (or milliseconds, microseconds, or nanoseconds).
+//     To avoid a fractional component, round the duration to the relevant unit.
+//     If the format is "units", it is encoded as a JSON string formatted using
+//     [time.Duration.String] (e.g., "1h30m" for 1 hour 30 minutes).
+//     If the format is "iso8601", it is encoded as a JSON string using the
+//     ISO 8601 standard for durations (e.g., "PT1H30M" for 1 hour 30 minutes)
+//     using only accurate units of hours, minutes, and seconds.
 //
 //   - All other Go types (e.g., complex numbers, channels, and functions)
 //     have no default representation and result in a [SemanticError].
@@ -375,17 +381,21 @@ func marshalEncode(out *jsontext.Encoder, in any, mo *jsonopts.Struct) (err erro
 //     If the format matches one of the format constants declared in
 //     the time package (e.g., RFC1123), then that format is used for parsing.
 //     If the format is "unix", "unixmilli", "unixmicro", or "unixnano",
-//     then the timestamp is decoded from a JSON number of the number of seconds
-//     (or milliseconds, microseconds, or nanoseconds) since the Unix epoch,
-//     which is January 1st, 1970 at 00:00:00 UTC.
+//     then the timestamp is decoded from an optionally fractional JSON number
+//     of the number of seconds (or milliseconds, microseconds, or nanoseconds)
+//     since the Unix epoch, which is January 1st, 1970 at 00:00:00 UTC.
 //     Otherwise, the format is used as-is with [time.Time.Parse] if non-empty.
 //
-//   - A Go [time.Duration] is decoded from a JSON string by
-//     passing the decoded string to [time.ParseDuration].
+//   - A Go [time.Duration] currently has no default representation and
+//     requires an explicit format to be specified.
 //     If the format is "sec", "milli", "micro", or "nano",
-//     then the duration is decoded from a JSON number of the number of seconds
-//     (or milliseconds, microseconds, or nanoseconds) in the duration.
-//     If the format is "units", it uses [time.ParseDuration].
+//     then the duration is decoded from an optionally fractional JSON number
+//     of the number of seconds (or milliseconds, microseconds, or nanoseconds).
+//     If the format is "units", it is decoded from a JSON string parsed using
+//     [time.ParseDuration] (e.g., "1h30m" for 1 hour 30 minutes).
+//     If the format is "iso8601", it is decoded from a JSON string using the
+//     ISO 8601 standard for durations (e.g., "PT1H30M" for 1 hour 30 minutes)
+//     accepting only accurate units of hours, minutes, or seconds.
 //
 //   - All other Go types (e.g., complex numbers, channels, and functions)
 //     have no default representation and result in a [SemanticError].

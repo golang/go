@@ -1038,6 +1038,7 @@ func TestMergeComposite(t *testing.T) {
 //
 //	https://go.dev/issue/10275
 func TestTimeDurations(t *testing.T) {
+	t.SkipNow() // TODO(https://go.dev/issue/71631): The default representation of time.Duration is still undecided.
 	for _, json := range jsonPackages {
 		t.Run(path.Join("Marshal", json.Version), func(t *testing.T) {
 			got, err := json.Marshal(time.Minute)

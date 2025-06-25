@@ -338,11 +338,6 @@ func blockUntilEmptyFinalizerQueue(timeout int64) bool {
 	return false
 }
 
-//go:linkname unique_runtime_blockUntilEmptyFinalizerQueue unique.runtime_blockUntilEmptyFinalizerQueue
-func unique_runtime_blockUntilEmptyFinalizerQueue(timeout int64) bool {
-	return blockUntilEmptyFinalizerQueue(timeout)
-}
-
 // SetFinalizer sets the finalizer associated with obj to the provided
 // finalizer function. When the garbage collector finds an unreachable block
 // with an associated finalizer, it clears the association and runs

@@ -2368,7 +2368,6 @@ var blockedLinknames = map[string][]string{
 	"crypto/internal/sysrand.fatal":         {"crypto/internal/sysrand"},
 	"crypto/rand.fatal":                     {"crypto/rand"},
 	"internal/runtime/maps.errNilAssign":    {"internal/runtime/maps"},
-	"internal/runtime/maps.typeString":      {"internal/runtime/maps"},
 	"internal/runtime/maps.fatal":           {"internal/runtime/maps"},
 	"internal/runtime/maps.newarray":        {"internal/runtime/maps"},
 	"internal/runtime/maps.newobject":       {"internal/runtime/maps"},
@@ -2399,6 +2398,23 @@ var blockedLinknames = map[string][]string{
 	"runtime.mapdelete_fast32":   {"runtime"},
 	"runtime.mapdelete_fast64":   {"runtime"},
 	"runtime.mapdelete_faststr":  {"runtime"},
+	// New internal linknames in Go 1.25
+	// Pushed from runtime
+	"internal/cpu.riscvHWProbe":                      {"internal/cpu"},
+	"internal/runtime/cgroup.throw":                  {"internal/runtime/cgroup"},
+	"internal/runtime/maps.typeString":               {"internal/runtime/maps"},
+	"internal/synctest.IsInBubble":                   {"internal/synctest"},
+	"internal/synctest.associate":                    {"internal/synctest"},
+	"internal/synctest.disassociate":                 {"internal/synctest"},
+	"internal/synctest.isAssociated":                 {"internal/synctest"},
+	"runtime/trace.runtime_readTrace":                {"runtime/trace"},
+	"runtime/trace.runtime_traceClockUnitsPerSecond": {"runtime/trace"},
+	"sync_test.runtime_blockUntilEmptyCleanupQueue":  {"sync_test"},
+	"time.runtimeIsBubbled":                          {"time"},
+	"unique.runtime_blockUntilEmptyCleanupQueue":     {"unique"},
+	// Others
+	"net.newWindowsFile":                   {"net"},              // pushed from os
+	"testing/synctest.testingSynctestTest": {"testing/synctest"}, // pushed from testing
 }
 
 // check if a linkname reference to symbol s from pkg is allowed

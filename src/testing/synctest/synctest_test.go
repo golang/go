@@ -140,6 +140,18 @@ func TestRun(t *testing.T) {
 	})
 }
 
+func TestHelper(t *testing.T) {
+	runTest(t, []string{"-test.v"}, func() {
+		synctest.Test(t, func(t *testing.T) {
+			helperLog(t, "log in helper")
+		})
+	}, `^=== RUN   TestHelper
+    synctest_test.go:.* log in helper
+--- PASS: TestHelper.*
+PASS
+$`)
+}
+
 func wantPanic(t *testing.T, want string) {
 	if e := recover(); e != nil {
 		if got := fmt.Sprint(e); got != want {

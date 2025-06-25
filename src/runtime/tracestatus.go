@@ -126,11 +126,12 @@ func goStatusToTraceGoStatus(status uint32, wr waitReason) tracev2.GoStatus {
 		// There are a number of cases where a G might end up in
 		// _Gwaiting but it's actually running in a non-preemptive
 		// state but needs to present itself as preempted to the
-		// garbage collector. In these cases, we're not going to
-		// emit an event, and we want these goroutines to appear in
-		// the final trace as if they're running, not blocked.
+		// garbage collector and traceAdvance (via suspendG). In
+		// these cases, we're not going to emit an event, and we
+		// want these goroutines to appear in the final trace as
+		// if they're running, not blocked.
 		tgs = tracev2.GoWaiting
-		if status == _Gwaiting && wr.isWaitingForGC() {
+		if status == _Gwaiting && wr.isWaitingForSuspendG() {
 			tgs = tracev2.GoRunning
 		}
 	case _Gdead:

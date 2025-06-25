@@ -10,6 +10,11 @@
 // primitive data types such as booleans, strings, and numbers,
 // in addition to structured data types such as objects and arrays.
 //
+// This package (encoding/json/jsontext) is experimental,
+// and not subject to the Go 1 compatibility promise.
+// It only exists when building with the GOEXPERIMENT=jsonv2 environment variable set.
+// Most users should use [encoding/json].
+//
 // The [Encoder] and [Decoder] types are used to encode or decode
 // a stream of JSON tokens or values.
 //
@@ -20,8 +25,8 @@
 //   - a JSON literal (i.e., null, true, or false)
 //   - a JSON string (e.g., "hello, world!")
 //   - a JSON number (e.g., 123.456)
-//   - a start or end delimiter for a JSON object (i.e., '{' or '}')
-//   - a start or end delimiter for a JSON array (i.e., '[' or ']')
+//   - a begin or end delimiter for a JSON object (i.e., '{' or '}')
+//   - a begin or end delimiter for a JSON array (i.e., '[' or ']')
 //
 // A JSON token is represented by the [Token] type in Go. Technically,
 // there are two additional structural characters (i.e., ':' and ','),

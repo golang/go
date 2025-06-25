@@ -713,7 +713,7 @@ func (e *encoderState) reformatValue(dst []byte, src Value, depth int) ([]byte, 
 // appends it to the end of src, reformatting whitespace and strings as needed.
 // It returns the extended dst buffer and the number of consumed input bytes.
 func (e *encoderState) reformatObject(dst []byte, src Value, depth int) ([]byte, int, error) {
-	// Append object start.
+	// Append object begin.
 	if len(src) == 0 || src[0] != '{' {
 		panic("BUG: reformatObject must be called with a buffer that starts with '{'")
 	} else if depth == maxNestingDepth+1 {
@@ -824,7 +824,7 @@ func (e *encoderState) reformatObject(dst []byte, src Value, depth int) ([]byte,
 // appends it to the end of dst, reformatting whitespace and strings as needed.
 // It returns the extended dst buffer and the number of consumed input bytes.
 func (e *encoderState) reformatArray(dst []byte, src Value, depth int) ([]byte, int, error) {
-	// Append array start.
+	// Append array begin.
 	if len(src) == 0 || src[0] != '[' {
 		panic("BUG: reformatArray must be called with a buffer that starts with '['")
 	} else if depth == maxNestingDepth+1 {

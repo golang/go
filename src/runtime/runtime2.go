@@ -1163,17 +1163,17 @@ func (w waitReason) isMutexWait() bool {
 		w == waitReasonSyncRWMutexLock
 }
 
-func (w waitReason) isWaitingForGC() bool {
-	return isWaitingForGC[w]
+func (w waitReason) isWaitingForSuspendG() bool {
+	return isWaitingForSuspendG[w]
 }
 
-// isWaitingForGC indicates that a goroutine is only entering _Gwaiting and
-// setting a waitReason because it needs to be able to let the GC take ownership
-// of its stack. The G is always actually executing on the system stack, in
-// these cases.
+// isWaitingForSuspendG indicates that a goroutine is only entering _Gwaiting and
+// setting a waitReason because it needs to be able to let the suspendG
+// (used by the GC and the execution tracer) take ownership of its stack.
+// The G is always actually executing on the system stack in these cases.
 //
 // TODO(mknyszek): Consider replacing this with a new dedicated G status.
-var isWaitingForGC = [len(waitReasonStrings)]bool{
+var isWaitingForSuspendG = [len(waitReasonStrings)]bool{
 	waitReasonStoppingTheWorld:      true,
 	waitReasonGCMarkTermination:     true,
 	waitReasonGarbageCollection:     true,

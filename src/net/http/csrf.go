@@ -136,7 +136,7 @@ func (c *CrossOriginProtection) Check(req *Request) error {
 		if c.isRequestExempt(req) {
 			return nil
 		}
-		return errors.New("cross-origin request detected from Sec-Fetch-Site header")
+		return errCrossOriginRequest
 	}
 
 	origin := req.Header.Get("Origin")
@@ -159,9 +159,14 @@ func (c *CrossOriginProtection) Check(req *Request) error {
 	if c.isRequestExempt(req) {
 		return nil
 	}
-	return errors.New("cross-origin request detected, and/or browser is out of date: " +
-		"Sec-Fetch-Site is missing, and Origin does not match Host")
+	return errCrossOriginRequestFromOldBrowser
 }
+
+var (
+	errCrossOriginRequest               = errors.New("cross-origin request detected from Sec-Fetch-Site header")
+	errCrossOriginRequestFromOldBrowser = errors.New("cross-origin request detected, and/or browser is out of date: " +
+		"Sec-Fetch-Site is missing, and Origin does not match Host")
+)
 
 // isRequestExempt checks the bypasses which require taking a lock, and should
 // be deferred until the last moment.

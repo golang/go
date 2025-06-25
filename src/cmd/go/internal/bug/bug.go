@@ -69,7 +69,7 @@ const bugFooter = `### What did you do?
 <!--
 If possible, provide a recipe for reproducing the error.
 A complete runnable program is good.
-A link on play.golang.org is best.
+A link on go.dev/play is best.
 -->
 
 
