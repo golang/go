@@ -900,11 +900,6 @@ func (e *Encoder) OutputOffset() int64 {
 	return e.s.previousOffsetEnd()
 }
 
-// Deprecated: Use [Encoder.AvailableBuffer] instead.
-func (e *Encoder) UnusedBuffer() []byte {
-	return e.AvailableBuffer()
-}
-
 // AvailableBuffer returns a zero-length buffer with a possible non-zero capacity.
 // This buffer is intended to be used to populate a [Value]
 // being passed to an immediately succeeding [Encoder.WriteValue] call.
