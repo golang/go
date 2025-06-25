@@ -193,6 +193,22 @@ func TestSlicesInt8GetElem(t *testing.T) {
 	}
 
 }
+
+func TestSlicesInt8Set128(t *testing.T) {
+	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	v := simd.LoadInt8x16Slice(a) // 1-16
+	u := simd.LoadInt8x32Slice(a) // 1-32
+
+	w := u.Set128(1, v) // 1-16:1-16
+
+	b := make([]int8, 32, 32)
+	w.StoreSlice(b)
+
+	checkInt8Slices(t, a, b[:16])
+	checkInt8Slices(t, a, b[16:])
+}
+
 func TestSlicesInt8TooShortLoad(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {

@@ -7682,6 +7682,58 @@ func (x Uint32x8) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int
 // Asm: VPDPBUSDS, CPU Feature: AVX512EVEX
 func (x Uint32x16) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int8x64) Uint32x16
 
+/* Set128 */
+
+// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
+//
+// Asm: VINSERTF128, CPU Feature: AVX
+func (x Float32x8) Set128(imm uint8, y Float32x4) Float32x8
+
+// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
+//
+// Asm: VINSERTF128, CPU Feature: AVX
+func (x Float64x4) Set128(imm uint8, y Float64x2) Float64x4
+
+// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Int8x32) Set128(imm uint8, y Int8x16) Int8x32
+
+// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Int16x16) Set128(imm uint8, y Int16x8) Int16x16
+
+// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Int32x8) Set128(imm uint8, y Int32x4) Int32x8
+
+// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Int64x4) Set128(imm uint8, y Int64x2) Int64x4
+
+// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Uint8x32) Set128(imm uint8, y Uint8x16) Uint8x32
+
+// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Uint16x16) Set128(imm uint8, y Uint16x8) Uint16x16
+
+// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Uint32x8) Set128(imm uint8, y Uint32x4) Uint32x8
+
+// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Uint64x4) Set128(imm uint8, y Uint64x2) Uint64x4
+
 /* SetElem */
 
 // SetElem sets a single constant-indexed element's value.

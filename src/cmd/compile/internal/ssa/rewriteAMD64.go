@@ -4411,6 +4411,26 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpSelect1(v)
 	case OpSelectN:
 		return rewriteValueAMD64_OpSelectN(v)
+	case OpSet128Float32x8:
+		return rewriteValueAMD64_OpSet128Float32x8(v)
+	case OpSet128Float64x4:
+		return rewriteValueAMD64_OpSet128Float64x4(v)
+	case OpSet128Int16x16:
+		return rewriteValueAMD64_OpSet128Int16x16(v)
+	case OpSet128Int32x8:
+		return rewriteValueAMD64_OpSet128Int32x8(v)
+	case OpSet128Int64x4:
+		return rewriteValueAMD64_OpSet128Int64x4(v)
+	case OpSet128Int8x32:
+		return rewriteValueAMD64_OpSet128Int8x32(v)
+	case OpSet128Uint16x16:
+		return rewriteValueAMD64_OpSet128Uint16x16(v)
+	case OpSet128Uint32x8:
+		return rewriteValueAMD64_OpSet128Uint32x8(v)
+	case OpSet128Uint64x4:
+		return rewriteValueAMD64_OpSet128Uint64x4(v)
+	case OpSet128Uint8x32:
+		return rewriteValueAMD64_OpSet128Uint8x32(v)
 	case OpSetElemInt16x8:
 		return rewriteValueAMD64_OpSetElemInt16x8(v)
 	case OpSetElemInt32x4:
@@ -53101,6 +53121,156 @@ func rewriteValueAMD64_OpSelectN(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValueAMD64_OpSet128Float32x8(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Set128Float32x8 [a] x y)
+	// result: (VINSERTF128256 [a] x y)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		y := v_1
+		v.reset(OpAMD64VINSERTF128256)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg2(x, y)
+		return true
+	}
+}
+func rewriteValueAMD64_OpSet128Float64x4(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Set128Float64x4 [a] x y)
+	// result: (VINSERTF128256 [a] x y)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		y := v_1
+		v.reset(OpAMD64VINSERTF128256)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg2(x, y)
+		return true
+	}
+}
+func rewriteValueAMD64_OpSet128Int16x16(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Set128Int16x16 [a] x y)
+	// result: (VINSERTI128256 [a] x y)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		y := v_1
+		v.reset(OpAMD64VINSERTI128256)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg2(x, y)
+		return true
+	}
+}
+func rewriteValueAMD64_OpSet128Int32x8(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Set128Int32x8 [a] x y)
+	// result: (VINSERTI128256 [a] x y)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		y := v_1
+		v.reset(OpAMD64VINSERTI128256)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg2(x, y)
+		return true
+	}
+}
+func rewriteValueAMD64_OpSet128Int64x4(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Set128Int64x4 [a] x y)
+	// result: (VINSERTI128256 [a] x y)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		y := v_1
+		v.reset(OpAMD64VINSERTI128256)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg2(x, y)
+		return true
+	}
+}
+func rewriteValueAMD64_OpSet128Int8x32(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Set128Int8x32 [a] x y)
+	// result: (VINSERTI128256 [a] x y)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		y := v_1
+		v.reset(OpAMD64VINSERTI128256)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg2(x, y)
+		return true
+	}
+}
+func rewriteValueAMD64_OpSet128Uint16x16(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Set128Uint16x16 [a] x y)
+	// result: (VINSERTI128256 [a] x y)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		y := v_1
+		v.reset(OpAMD64VINSERTI128256)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg2(x, y)
+		return true
+	}
+}
+func rewriteValueAMD64_OpSet128Uint32x8(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Set128Uint32x8 [a] x y)
+	// result: (VINSERTI128256 [a] x y)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		y := v_1
+		v.reset(OpAMD64VINSERTI128256)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg2(x, y)
+		return true
+	}
+}
+func rewriteValueAMD64_OpSet128Uint64x4(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Set128Uint64x4 [a] x y)
+	// result: (VINSERTI128256 [a] x y)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		y := v_1
+		v.reset(OpAMD64VINSERTI128256)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg2(x, y)
+		return true
+	}
+}
+func rewriteValueAMD64_OpSet128Uint8x32(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Set128Uint8x32 [a] x y)
+	// result: (VINSERTI128256 [a] x y)
+	for {
+		a := auxIntToInt8(v.AuxInt)
+		x := v_0
+		y := v_1
+		v.reset(OpAMD64VINSERTI128256)
+		v.AuxInt = int8ToAuxInt(a)
+		v.AddArg2(x, y)
+		return true
+	}
 }
 func rewriteValueAMD64_OpSetElemInt16x8(v *Value) bool {
 	v_1 := v.Args[1]
