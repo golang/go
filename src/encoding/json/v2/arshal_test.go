@@ -375,6 +375,7 @@ type (
 		D8  time.Duration `json:",string,format:micro"`
 		D9  time.Duration `json:",format:nano"`
 		D10 time.Duration `json:",string,format:nano"`
+		D11 time.Duration `json:",format:iso8601"`
 	}
 	structTimeFormat struct {
 		T1  time.Time
@@ -4375,6 +4376,7 @@ func TestMarshal(t *testing.T) {
 			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
 			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
 			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
+			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
 		},
 		want: `{
 	"D1": "12h34m56.078090012s",
@@ -4386,7 +4388,8 @@ func TestMarshal(t *testing.T) {
 	"D7": 45296078090.012,
 	"D8": "45296078090.012",
 	"D9": 45296078090012,
-	"D10": "45296078090012"
+	"D10": "45296078090012",
+	"D11": "PT12H34M56.078090012S"
 }`,
 	}, {
 		/* TODO(https://go.dev/issue/71631): Re-enable this test case.
@@ -4396,7 +4399,7 @@ func TestMarshal(t *testing.T) {
 			D1: 12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
 			D2: 12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
 		},
-		want: `{"D1":45296078090012,"D2":"12h34m56.078090012s","D3":0,"D4":"0","D5":0,"D6":"0","D7":0,"D8":"0","D9":0,"D10":"0"}`,
+		want: `{"D1":45296078090012,"D2":"12h34m56.078090012s","D3":0,"D4":"0","D5":0,"D6":"0","D7":0,"D8":"0","D9":0,"D10":"0","D11":"PT0S"}`,
 		}, { */
 		/* TODO(https://go.dev/issue/71631): Re-enable this test case.
 		name: jsontest.Name("Duration/MapKey"),
@@ -8833,6 +8836,35 @@ func TestUnmarshal(t *testing.T) {
 			D time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 		}{1}),
 		wantErr: newInvalidCharacterError("x", "at start of value", len64(`{"D":`), "/D"),
+	}, {
+		name: jsontest.Name("Duration/Format"),
+		inBuf: `{
+			"D1": "12h34m56.078090012s",
+			"D2": "12h34m56.078090012s",
+			"D3": 45296.078090012,
+			"D4": "45296.078090012",
+			"D5": 45296078.090012,
+			"D6": "45296078.090012",
+			"D7": 45296078090.012,
+			"D8": "45296078090.012",
+			"D9": 45296078090012,
+			"D10": "45296078090012",
+			"D11": "PT12H34M56.078090012S"
+        }`,
+		inVal: new(structDurationFormat),
+		want: addr(structDurationFormat{
+			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
+			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
+			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
+			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
+			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
+			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
+			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
+			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
+			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
+			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
+			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
+		}),
 	}, {
 		name:  jsontest.Name("Duration/Format/Invalid"),
 		inBuf: `{"D":"0s"}`,

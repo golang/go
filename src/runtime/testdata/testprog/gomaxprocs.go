@@ -133,6 +133,20 @@ func UpdateGOMAXPROCS() {
 	mustSetCPUMax(path, 200000)
 	mustNotChangeMaxProcs(3)
 
+	// Re-enable updates. Change is immediately visible.
+	runtime.SetDefaultGOMAXPROCS()
+	procs = runtime.GOMAXPROCS(0)
+	println("GOMAXPROCS:", procs)
+	if procs != 2 {
+		panic(fmt.Sprintf("GOMAXPROCS got %d want %d", procs, 2))
+	}
+
+	// Setting GOMAXPROCS to itself also disables updates, despite not
+	// changing the value itself.
+	runtime.GOMAXPROCS(runtime.GOMAXPROCS(0))
+	mustSetCPUMax(path, 300000)
+	mustNotChangeMaxProcs(2)
+
 	println("OK")
 }
 

@@ -2400,6 +2400,7 @@ var blockedLinknames = map[string][]string{
 	"runtime.mapdelete_faststr":  {"runtime"},
 	// New internal linknames in Go 1.25
 	// Pushed from runtime
+	"internal/cpu.riscvHWProbe":                      {"internal/cpu"},
 	"internal/runtime/cgroup.throw":                  {"internal/runtime/cgroup"},
 	"internal/runtime/maps.typeString":               {"internal/runtime/maps"},
 	"internal/synctest.IsInBubble":                   {"internal/synctest"},
