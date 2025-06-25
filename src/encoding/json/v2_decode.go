@@ -199,7 +199,7 @@ func (n Number) MarshalJSONTo(enc *jsontext.Encoder) error {
 	}
 	n = cmp.Or(n, "0")
 	var num []byte
-	val := enc.UnusedBuffer()
+	val := enc.AvailableBuffer()
 	if stringify {
 		val = append(val, '"')
 		val = append(val, n...)
