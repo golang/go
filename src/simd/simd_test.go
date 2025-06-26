@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.simd
+//go:build goexperiment.simd && amd64
 
 package simd_test
 
@@ -154,6 +154,30 @@ func TestMaskedAdd(t *testing.T) {
 // checkInt8Slices ensures that b and a are equal, to the end of b.
 // also serves to use the slices, to prevent accidental optimization.
 func checkInt8Slices(t *testing.T, a, b []int8) {
+	for i := range b {
+		if a[i] != b[i] {
+			t.Errorf("a and b differ at index %d, a=%d, b=%d", i, a[i], b[i])
+		}
+	}
+}
+
+func checkUint8Slices(t *testing.T, a, b []uint8) {
+	for i := range b {
+		if a[i] != b[i] {
+			t.Errorf("a and b differ at index %d, a=%d, b=%d", i, a[i], b[i])
+		}
+	}
+}
+
+func checkInt16Slices(t *testing.T, a, b []int16) {
+	for i := range b {
+		if a[i] != b[i] {
+			t.Errorf("a and b differ at index %d, a=%d, b=%d", i, a[i], b[i])
+		}
+	}
+}
+
+func checkUint16Slices(t *testing.T, a, b []uint16) {
 	for i := range b {
 		if a[i] != b[i] {
 			t.Errorf("a and b differ at index %d, a=%d, b=%d", i, a[i], b[i])
