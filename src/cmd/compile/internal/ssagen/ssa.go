@@ -5274,9 +5274,20 @@ func (s *state) intDivide(n ir.Node, a, b *ssa.Value) *ssa.Value {
 // shouldCheckOverflow returns true if overflow detection should be applied for this operation.
 // It checks if the package should be excluded from overflow detection and if the type is supported.
 func (s *state) shouldCheckOverflow(typ *types.Type) bool {
+	// Check environment variable to disable overflow detection
+	if os.Getenv("IDC_ABOUT_OVERFLOW") == "true" {
+		return false
+	}
 	// Skip overflow detection for ALL standard library packages, cmd packages, and internal packages
 	// This ensures we only apply overflow detection to user code
 	pkgPath := base.Ctxt.Pkgpath
+	
+	// Standard library packages don't contain dots and aren't user packages
+	// User packages typically have domain names (contain dots) like github.com/user/repo
+	isStandardLibrary := !strings.Contains(pkgPath, ".") && 
+		pkgPath != "main" && 
+		pkgPath != "command-line-arguments" && 
+		!strings.HasSuffix(pkgPath, "_test")
 	
 	if pkgPath == "" || // empty package path means standard library
 		strings.HasPrefix(pkgPath, "cmd/") || // All cmd packages (go compiler, tools, etc.)
@@ -5284,7 +5295,7 @@ func (s *state) shouldCheckOverflow(typ *types.Type) bool {
 		strings.HasPrefix(pkgPath, "internal") || // Go's internal packages (not user internal packages)
 		strings.HasPrefix(pkgPath, "bootstrap") ||
 		strings.Contains(pkgPath, "vendor/") || // Any vendor package
-		(!strings.Contains(pkgPath, ".") && pkgPath != "main" && pkgPath != "command-line-arguments" && !strings.HasSuffix(pkgPath, "test")) { // Standard library packages typically don't have dots, but allow "main", test packages, and packages ending in "test"
+		isStandardLibrary { // Standard library packages like encoding/binary, net/http, etc.
 		return false
 	}
 
@@ -5301,6 +5312,10 @@ func (s *state) shouldCheckOverflow(typ *types.Type) bool {
 // shouldCheckTruncation returns true if truncation detection should be applied for this conversion.
 // It checks if the package should be excluded from truncation detection and if the conversion is potentially lossy.
 func (s *state) shouldCheckTruncation(fromType, toType *types.Type) bool {
+	// Check environment variable to disable truncation detection
+	if os.Getenv("IDC_ABOUT_TRUNCATION") == "true" {
+		return false
+	}
 	// Use the same package filtering as overflow detection
 	pkgPath := base.Ctxt.Pkgpath
 	

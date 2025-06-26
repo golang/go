@@ -8,6 +8,28 @@
 
 **Type truncation detection**: Detects when integer type conversions would result in data loss due to the target type having a smaller range than the source type. Covers all integer types: `int8`, `int16`, `int32`, `int64`, `uint8`, `uint16`, `uint32`, `uint64`. Excludes `uintptr` due to platform-dependent usage.
 
+### Configuration
+
+The compiler supports environment variables to disable specific detection features:
+
+- `IDC_ABOUT_OVERFLOW=true` - Disables arithmetic overflow detection
+- `IDC_ABOUT_TRUNCATION=true` - Disables integer truncation detection
+
+Set these environment variables during compilation to disable the respective checks:
+
+```bash
+# Disable overflow detection
+IDC_ABOUT_OVERFLOW=true ./bin/go build program.go
+
+# Disable truncation detection  
+IDC_ABOUT_TRUNCATION=true ./bin/go build program.go
+
+# Disable both
+IDC_ABOUT_OVERFLOW=true IDC_ABOUT_TRUNCATION=true ./bin/go build program.go
+```
+
+By default, both overflow and truncation detection are enabled.
+
 ### Usage and installation :
 ```bash
 # Clone, change dir and compile the compiler
