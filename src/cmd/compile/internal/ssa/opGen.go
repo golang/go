@@ -1912,7 +1912,9 @@ const (
 	OpAMD64VPMINUQ512
 	OpAMD64VPMULUDQ512
 	OpAMD64VPAVGB128
+	OpAMD64VGF2P8MULB128
 	OpAMD64VPAVGBMasked128
+	OpAMD64VGF2P8MULBMasked128
 	OpAMD64VPMAXUBMasked128
 	OpAMD64VPMINUBMasked128
 	OpAMD64VPMADDUBSWMasked128
@@ -1920,7 +1922,9 @@ const (
 	OpAMD64VPMINUB128
 	OpAMD64VPMADDUBSW128
 	OpAMD64VPAVGB256
+	OpAMD64VGF2P8MULB256
 	OpAMD64VPAVGBMasked256
+	OpAMD64VGF2P8MULBMasked256
 	OpAMD64VPMAXUBMasked256
 	OpAMD64VPMINUBMasked256
 	OpAMD64VPMADDUBSWMasked256
@@ -1928,7 +1932,9 @@ const (
 	OpAMD64VPMINUB256
 	OpAMD64VPMADDUBSW256
 	OpAMD64VPAVGB512
+	OpAMD64VGF2P8MULB512
 	OpAMD64VPAVGBMasked512
+	OpAMD64VGF2P8MULBMasked512
 	OpAMD64VPMAXUBMasked512
 	OpAMD64VPMINUBMasked512
 	OpAMD64VPMADDUBSWMasked512
@@ -2087,11 +2093,23 @@ const (
 	OpAMD64VPCMPUQ512
 	OpAMD64VPCMPUQMasked512
 	OpAMD64VPCMPUB128
+	OpAMD64VGF2P8AFFINEQB128
+	OpAMD64VGF2P8AFFINEINVQB128
 	OpAMD64VPCMPUBMasked128
+	OpAMD64VGF2P8AFFINEQBMasked128
+	OpAMD64VGF2P8AFFINEINVQBMasked128
 	OpAMD64VPCMPUB256
+	OpAMD64VGF2P8AFFINEQB256
+	OpAMD64VGF2P8AFFINEINVQB256
 	OpAMD64VPCMPUBMasked256
+	OpAMD64VGF2P8AFFINEQBMasked256
+	OpAMD64VGF2P8AFFINEINVQBMasked256
 	OpAMD64VPCMPUB512
+	OpAMD64VGF2P8AFFINEQB512
+	OpAMD64VGF2P8AFFINEINVQB512
 	OpAMD64VPCMPUBMasked512
+	OpAMD64VGF2P8AFFINEQBMasked512
+	OpAMD64VGF2P8AFFINEINVQBMasked512
 
 	OpARMADD
 	OpARMADDconst
@@ -5680,6 +5698,7 @@ const (
 	OpAndNotUint8x16
 	OpAverageUint8x16
 	OpEqualUint8x16
+	OpGaloisFieldMulUint8x16
 	OpGreaterUint8x16
 	OpGreaterEqualUint8x16
 	OpLessUint8x16
@@ -5687,6 +5706,7 @@ const (
 	OpMaskedAddUint8x16
 	OpMaskedAverageUint8x16
 	OpMaskedEqualUint8x16
+	OpMaskedGaloisFieldMulUint8x16
 	OpMaskedGreaterUint8x16
 	OpMaskedGreaterEqualUint8x16
 	OpMaskedLessUint8x16
@@ -5714,6 +5734,7 @@ const (
 	OpAndNotUint8x32
 	OpAverageUint8x32
 	OpEqualUint8x32
+	OpGaloisFieldMulUint8x32
 	OpGreaterUint8x32
 	OpGreaterEqualUint8x32
 	OpLessUint8x32
@@ -5721,6 +5742,7 @@ const (
 	OpMaskedAddUint8x32
 	OpMaskedAverageUint8x32
 	OpMaskedEqualUint8x32
+	OpMaskedGaloisFieldMulUint8x32
 	OpMaskedGreaterUint8x32
 	OpMaskedGreaterEqualUint8x32
 	OpMaskedLessUint8x32
@@ -5746,6 +5768,7 @@ const (
 	OpAddUint8x64
 	OpAverageUint8x64
 	OpEqualUint8x64
+	OpGaloisFieldMulUint8x64
 	OpGreaterUint8x64
 	OpGreaterEqualUint8x64
 	OpLessUint8x64
@@ -5753,6 +5776,7 @@ const (
 	OpMaskedAddUint8x64
 	OpMaskedAverageUint8x64
 	OpMaskedEqualUint8x64
+	OpMaskedGaloisFieldMulUint8x64
 	OpMaskedGreaterUint8x64
 	OpMaskedGreaterEqualUint8x64
 	OpMaskedLessUint8x64
@@ -6099,8 +6123,20 @@ const (
 	OpRotateAllRightUint64x8
 	OpShiftAllLeftAndFillUpperFromUint64x8
 	OpShiftAllRightAndFillUpperFromUint64x8
+	OpGaloisFieldAffineTransformUint8x16
+	OpGaloisFieldAffineTransformInversedUint8x16
 	OpGetElemUint8x16
+	OpMaskedGaloisFieldAffineTransformUint8x16
+	OpMaskedGaloisFieldAffineTransformInversedUint8x16
 	OpSetElemUint8x16
+	OpGaloisFieldAffineTransformUint8x32
+	OpGaloisFieldAffineTransformInversedUint8x32
+	OpMaskedGaloisFieldAffineTransformUint8x32
+	OpMaskedGaloisFieldAffineTransformInversedUint8x32
+	OpGaloisFieldAffineTransformUint8x64
+	OpGaloisFieldAffineTransformInversedUint8x64
+	OpMaskedGaloisFieldAffineTransformUint8x64
+	OpMaskedGaloisFieldAffineTransformInversedUint8x64
 )
 
 var opcodeTable = [...]opInfo{
@@ -29453,10 +29489,39 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VGF2P8MULB128",
+		argLen: 2,
+		asm:    x86.AVGF2P8MULB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPAVGBMasked128",
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPAVGB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VGF2P8MULBMasked128",
+		argLen: 3,
+		asm:    x86.AVGF2P8MULB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -29575,10 +29640,39 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VGF2P8MULB256",
+		argLen: 2,
+		asm:    x86.AVGF2P8MULB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPAVGBMasked256",
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPAVGB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VGF2P8MULBMasked256",
+		argLen: 3,
+		asm:    x86.AVGF2P8MULB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -29697,10 +29791,39 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VGF2P8MULB512",
+		argLen: 2,
+		asm:    x86.AVGF2P8MULB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPAVGBMasked512",
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPAVGB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VGF2P8MULBMasked512",
+		argLen: 3,
+		asm:    x86.AVGF2P8MULB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -32145,6 +32268,36 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "VGF2P8AFFINEQB128",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVGF2P8AFFINEQB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VGF2P8AFFINEINVQB128",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVGF2P8AFFINEINVQB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPCMPUBMasked128",
 		auxType:     auxInt8,
 		argLen:      3,
@@ -32162,6 +32315,38 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "VGF2P8AFFINEQBMasked128",
+		auxType: auxInt8,
+		argLen:  3,
+		asm:     x86.AVGF2P8AFFINEQB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VGF2P8AFFINEINVQBMasked128",
+		auxType: auxInt8,
+		argLen:  3,
+		asm:     x86.AVGF2P8AFFINEINVQB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPCMPUB256",
 		auxType:     auxInt8,
 		argLen:      2,
@@ -32174,6 +32359,36 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VGF2P8AFFINEQB256",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVGF2P8AFFINEQB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VGF2P8AFFINEINVQB256",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVGF2P8AFFINEINVQB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -32195,6 +32410,38 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "VGF2P8AFFINEQBMasked256",
+		auxType: auxInt8,
+		argLen:  3,
+		asm:     x86.AVGF2P8AFFINEQB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VGF2P8AFFINEINVQBMasked256",
+		auxType: auxInt8,
+		argLen:  3,
+		asm:     x86.AVGF2P8AFFINEINVQB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPCMPUB512",
 		auxType:     auxInt8,
 		argLen:      2,
@@ -32207,6 +32454,36 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VGF2P8AFFINEQB512",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVGF2P8AFFINEQB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VGF2P8AFFINEINVQB512",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVGF2P8AFFINEINVQB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -32224,6 +32501,38 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VGF2P8AFFINEQBMasked512",
+		auxType: auxInt8,
+		argLen:  3,
+		asm:     x86.AVGF2P8AFFINEQB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VGF2P8AFFINEINVQBMasked512",
+		auxType: auxInt8,
+		argLen:  3,
+		asm:     x86.AVGF2P8AFFINEINVQB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -66685,6 +66994,11 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:    "GaloisFieldMulUint8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:    "GreaterUint8x16",
 		argLen:  2,
 		generic: true,
@@ -66721,6 +67035,11 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "MaskedGaloisFieldMulUint8x16",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:    "MaskedGreaterUint8x16",
@@ -66872,6 +67191,11 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:    "GaloisFieldMulUint8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:    "GreaterUint8x32",
 		argLen:  2,
 		generic: true,
@@ -66908,6 +67232,11 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "MaskedGaloisFieldMulUint8x32",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:    "MaskedGreaterUint8x32",
@@ -67048,6 +67377,11 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:    "GaloisFieldMulUint8x64",
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:    "GreaterUint8x64",
 		argLen:  2,
 		generic: true,
@@ -67084,6 +67418,11 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "MaskedGaloisFieldMulUint8x64",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:    "MaskedGreaterUint8x64",
@@ -69150,15 +69489,87 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "GaloisFieldAffineTransformUint8x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "GaloisFieldAffineTransformInversedUint8x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:    "GetElemUint8x16",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
+		name:    "MaskedGaloisFieldAffineTransformUint8x16",
+		auxType: auxInt8,
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MaskedGaloisFieldAffineTransformInversedUint8x16",
+		auxType: auxInt8,
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "SetElemUint8x16",
 		auxType: auxInt8,
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "GaloisFieldAffineTransformUint8x32",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "GaloisFieldAffineTransformInversedUint8x32",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedGaloisFieldAffineTransformUint8x32",
+		auxType: auxInt8,
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MaskedGaloisFieldAffineTransformInversedUint8x32",
+		auxType: auxInt8,
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "GaloisFieldAffineTransformUint8x64",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "GaloisFieldAffineTransformInversedUint8x64",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MaskedGaloisFieldAffineTransformUint8x64",
+		auxType: auxInt8,
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MaskedGaloisFieldAffineTransformInversedUint8x64",
+		auxType: auxInt8,
+		argLen:  3,
 		generic: true,
 	},
 }

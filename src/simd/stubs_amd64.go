@@ -1426,6 +1426,81 @@ func (x Float64x4) FusedMultiplySubAdd(y Float64x4, z Float64x4) Float64x4
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512EVEX
 func (x Float64x8) FusedMultiplySubAdd(y Float64x8, z Float64x8) Float64x8
 
+/* GaloisFieldAffineTransform */
+
+// GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
+// x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// corresponding to a group of 8 elements in x.
+//
+// Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
+func (x Uint8x16) GaloisFieldAffineTransform(y Uint64x2, b uint8) Uint8x16
+
+// GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
+// x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// corresponding to a group of 8 elements in x.
+//
+// Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
+func (x Uint8x32) GaloisFieldAffineTransform(y Uint64x4, b uint8) Uint8x32
+
+// GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
+// x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// corresponding to a group of 8 elements in x.
+//
+// Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
+func (x Uint8x64) GaloisFieldAffineTransform(y Uint64x8, b uint8) Uint8x64
+
+/* GaloisFieldAffineTransformInversed */
+
+// GaloisFieldAffineTransform computes an affine transformation in GF(2^8),
+// with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
+// x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// corresponding to a group of 8 elements in x.
+//
+// Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
+func (x Uint8x16) GaloisFieldAffineTransformInversed(y Uint64x2, b uint8) Uint8x16
+
+// GaloisFieldAffineTransform computes an affine transformation in GF(2^8),
+// with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
+// x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// corresponding to a group of 8 elements in x.
+//
+// Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
+func (x Uint8x32) GaloisFieldAffineTransformInversed(y Uint64x4, b uint8) Uint8x32
+
+// GaloisFieldAffineTransform computes an affine transformation in GF(2^8),
+// with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
+// x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// corresponding to a group of 8 elements in x.
+//
+// Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
+func (x Uint8x64) GaloisFieldAffineTransformInversed(y Uint64x8, b uint8) Uint8x64
+
+/* GaloisFieldMul */
+
+// GaloisFieldMul computes element-wise GF(2^8) multiplication with
+// reduction polynomial x^8 + x^4 + x^3 + x + 1.
+//
+// Asm: VGF2P8MULB, CPU Feature: AVX512EVEX
+func (x Uint8x16) GaloisFieldMul(y Uint8x16) Uint8x16
+
+// GaloisFieldMul computes element-wise GF(2^8) multiplication with
+// reduction polynomial x^8 + x^4 + x^3 + x + 1.
+//
+// Asm: VGF2P8MULB, CPU Feature: AVX512EVEX
+func (x Uint8x32) GaloisFieldMul(y Uint8x32) Uint8x32
+
+// GaloisFieldMul computes element-wise GF(2^8) multiplication with
+// reduction polynomial x^8 + x^4 + x^3 + x + 1.
+//
+// Asm: VGF2P8MULB, CPU Feature: AVX512EVEX
+func (x Uint8x64) GaloisFieldMul(y Uint8x64) Uint8x64
+
 /* GetElem */
 
 // GetElem retrieves a single constant-indexed element's value.
@@ -3493,6 +3568,81 @@ func (x Float64x4) MaskedFusedMultiplySubAdd(y Float64x4, z Float64x4, u Mask64x
 //
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedFusedMultiplySubAdd(y Float64x8, z Float64x8, u Mask64x8) Float64x8
+
+/* MaskedGaloisFieldAffineTransform */
+
+// GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
+// x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// corresponding to a group of 8 elements in x.
+//
+// Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
+func (x Uint8x16) MaskedGaloisFieldAffineTransform(y Uint64x2, b uint8, m Mask8x16) Uint8x16
+
+// GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
+// x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// corresponding to a group of 8 elements in x.
+//
+// Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
+func (x Uint8x32) MaskedGaloisFieldAffineTransform(y Uint64x4, b uint8, m Mask8x32) Uint8x32
+
+// GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
+// x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// corresponding to a group of 8 elements in x.
+//
+// Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
+func (x Uint8x64) MaskedGaloisFieldAffineTransform(y Uint64x8, b uint8, m Mask8x64) Uint8x64
+
+/* MaskedGaloisFieldAffineTransformInversed */
+
+// GaloisFieldAffineTransform computes an affine transformation in GF(2^8),
+// with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
+// x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// corresponding to a group of 8 elements in x.
+//
+// Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
+func (x Uint8x16) MaskedGaloisFieldAffineTransformInversed(y Uint64x2, b uint8, m Mask8x16) Uint8x16
+
+// GaloisFieldAffineTransform computes an affine transformation in GF(2^8),
+// with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
+// x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// corresponding to a group of 8 elements in x.
+//
+// Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
+func (x Uint8x32) MaskedGaloisFieldAffineTransformInversed(y Uint64x4, b uint8, m Mask8x32) Uint8x32
+
+// GaloisFieldAffineTransform computes an affine transformation in GF(2^8),
+// with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
+// x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// corresponding to a group of 8 elements in x.
+//
+// Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
+func (x Uint8x64) MaskedGaloisFieldAffineTransformInversed(y Uint64x8, b uint8, m Mask8x64) Uint8x64
+
+/* MaskedGaloisFieldMul */
+
+// GaloisFieldMul computes element-wise GF(2^8) multiplication with
+// reduction polynomial x^8 + x^4 + x^3 + x + 1.
+//
+// Asm: VGF2P8MULB, CPU Feature: AVX512EVEX
+func (x Uint8x16) MaskedGaloisFieldMul(y Uint8x16, z Mask8x16) Uint8x16
+
+// GaloisFieldMul computes element-wise GF(2^8) multiplication with
+// reduction polynomial x^8 + x^4 + x^3 + x + 1.
+//
+// Asm: VGF2P8MULB, CPU Feature: AVX512EVEX
+func (x Uint8x32) MaskedGaloisFieldMul(y Uint8x32, z Mask8x32) Uint8x32
+
+// GaloisFieldMul computes element-wise GF(2^8) multiplication with
+// reduction polynomial x^8 + x^4 + x^3 + x + 1.
+//
+// Asm: VGF2P8MULB, CPU Feature: AVX512EVEX
+func (x Uint8x64) MaskedGaloisFieldMul(y Uint8x64, z Mask8x64) Uint8x64
 
 /* MaskedGreater */
 

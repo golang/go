@@ -262,6 +262,15 @@ func simdIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies .
 	addF(simdPackage, "Float64x2.FusedMultiplySubAdd", opLen3(ssa.OpFusedMultiplySubAddFloat64x2, types.TypeVec128), sys.AMD64)
 	addF(simdPackage, "Float64x4.FusedMultiplySubAdd", opLen3(ssa.OpFusedMultiplySubAddFloat64x4, types.TypeVec256), sys.AMD64)
 	addF(simdPackage, "Float64x8.FusedMultiplySubAdd", opLen3(ssa.OpFusedMultiplySubAddFloat64x8, types.TypeVec512), sys.AMD64)
+	addF(simdPackage, "Uint8x16.GaloisFieldAffineTransform", opGaloisFieldAffineTransform(ssa.OpGaloisFieldAffineTransformUint8x16, types.TypeVec128), sys.AMD64)
+	addF(simdPackage, "Uint8x32.GaloisFieldAffineTransform", opGaloisFieldAffineTransform(ssa.OpGaloisFieldAffineTransformUint8x32, types.TypeVec256), sys.AMD64)
+	addF(simdPackage, "Uint8x64.GaloisFieldAffineTransform", opGaloisFieldAffineTransform(ssa.OpGaloisFieldAffineTransformUint8x64, types.TypeVec512), sys.AMD64)
+	addF(simdPackage, "Uint8x16.GaloisFieldAffineTransformInversed", opGaloisFieldAffineTransform(ssa.OpGaloisFieldAffineTransformInversedUint8x16, types.TypeVec128), sys.AMD64)
+	addF(simdPackage, "Uint8x32.GaloisFieldAffineTransformInversed", opGaloisFieldAffineTransform(ssa.OpGaloisFieldAffineTransformInversedUint8x32, types.TypeVec256), sys.AMD64)
+	addF(simdPackage, "Uint8x64.GaloisFieldAffineTransformInversed", opGaloisFieldAffineTransform(ssa.OpGaloisFieldAffineTransformInversedUint8x64, types.TypeVec512), sys.AMD64)
+	addF(simdPackage, "Uint8x16.GaloisFieldMul", opLen2(ssa.OpGaloisFieldMulUint8x16, types.TypeVec128), sys.AMD64)
+	addF(simdPackage, "Uint8x32.GaloisFieldMul", opLen2(ssa.OpGaloisFieldMulUint8x32, types.TypeVec256), sys.AMD64)
+	addF(simdPackage, "Uint8x64.GaloisFieldMul", opLen2(ssa.OpGaloisFieldMulUint8x64, types.TypeVec512), sys.AMD64)
 	addF(simdPackage, "Int8x16.GetElem", opLen1Imm8(ssa.OpGetElemInt8x16, types.Types[types.TINT8], 0), sys.AMD64)
 	addF(simdPackage, "Int16x8.GetElem", opLen1Imm8(ssa.OpGetElemInt16x8, types.Types[types.TINT16], 0), sys.AMD64)
 	addF(simdPackage, "Int32x4.GetElem", opLen1Imm8(ssa.OpGetElemInt32x4, types.Types[types.TINT32], 0), sys.AMD64)
@@ -618,6 +627,15 @@ func simdIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies .
 	addF(simdPackage, "Float64x2.MaskedFusedMultiplySubAdd", opLen4(ssa.OpMaskedFusedMultiplySubAddFloat64x2, types.TypeVec128), sys.AMD64)
 	addF(simdPackage, "Float64x4.MaskedFusedMultiplySubAdd", opLen4(ssa.OpMaskedFusedMultiplySubAddFloat64x4, types.TypeVec256), sys.AMD64)
 	addF(simdPackage, "Float64x8.MaskedFusedMultiplySubAdd", opLen4(ssa.OpMaskedFusedMultiplySubAddFloat64x8, types.TypeVec512), sys.AMD64)
+	addF(simdPackage, "Uint8x16.MaskedGaloisFieldAffineTransform", opGaloisFieldAffineTransformMasked(ssa.OpMaskedGaloisFieldAffineTransformUint8x16, types.TypeVec128), sys.AMD64)
+	addF(simdPackage, "Uint8x32.MaskedGaloisFieldAffineTransform", opGaloisFieldAffineTransformMasked(ssa.OpMaskedGaloisFieldAffineTransformUint8x32, types.TypeVec256), sys.AMD64)
+	addF(simdPackage, "Uint8x64.MaskedGaloisFieldAffineTransform", opGaloisFieldAffineTransformMasked(ssa.OpMaskedGaloisFieldAffineTransformUint8x64, types.TypeVec512), sys.AMD64)
+	addF(simdPackage, "Uint8x16.MaskedGaloisFieldAffineTransformInversed", opGaloisFieldAffineTransformMasked(ssa.OpMaskedGaloisFieldAffineTransformInversedUint8x16, types.TypeVec128), sys.AMD64)
+	addF(simdPackage, "Uint8x32.MaskedGaloisFieldAffineTransformInversed", opGaloisFieldAffineTransformMasked(ssa.OpMaskedGaloisFieldAffineTransformInversedUint8x32, types.TypeVec256), sys.AMD64)
+	addF(simdPackage, "Uint8x64.MaskedGaloisFieldAffineTransformInversed", opGaloisFieldAffineTransformMasked(ssa.OpMaskedGaloisFieldAffineTransformInversedUint8x64, types.TypeVec512), sys.AMD64)
+	addF(simdPackage, "Uint8x16.MaskedGaloisFieldMul", opLen3(ssa.OpMaskedGaloisFieldMulUint8x16, types.TypeVec128), sys.AMD64)
+	addF(simdPackage, "Uint8x32.MaskedGaloisFieldMul", opLen3(ssa.OpMaskedGaloisFieldMulUint8x32, types.TypeVec256), sys.AMD64)
+	addF(simdPackage, "Uint8x64.MaskedGaloisFieldMul", opLen3(ssa.OpMaskedGaloisFieldMulUint8x64, types.TypeVec512), sys.AMD64)
 	addF(simdPackage, "Float32x4.MaskedGreater", opLen3(ssa.OpMaskedGreaterFloat32x4, types.TypeVec128), sys.AMD64)
 	addF(simdPackage, "Float32x8.MaskedGreater", opLen3(ssa.OpMaskedGreaterFloat32x8, types.TypeVec256), sys.AMD64)
 	addF(simdPackage, "Float32x16.MaskedGreater", opLen3(ssa.OpMaskedGreaterFloat32x16, types.TypeVec512), sys.AMD64)
@@ -2196,4 +2214,24 @@ func simdIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies .
 	addF(simdPackage, "Int64x8.AsMask64x8", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, sys.AMD64)
 	addF(simdPackage, "Mask64x8.And", opLen2(ssa.OpAndInt32x16, types.TypeVec512), sys.AMD64)
 	addF(simdPackage, "Mask64x8.Or", opLen2(ssa.OpOrInt32x16, types.TypeVec512), sys.AMD64)
+}
+
+func opGaloisFieldAffineTransform(op ssa.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		if args[0].Op == ssa.OpConst8 {
+			return s.newValue2I(op, t, args[0].AuxInt, args[0], args[1])
+		}
+		plainPanicSimdImm(s)
+		return s.newValue2I(op, t, 0, args[0], args[1])
+	}
+}
+
+func opGaloisFieldAffineTransformMasked(op ssa.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		if args[0].Op == ssa.OpConst8 {
+			return s.newValue3I(op, t, args[0].AuxInt, args[0], args[1], args[3])
+		}
+		plainPanicSimdImm(s)
+		return s.newValue3I(op, t, 0, args[0], args[1], args[3])
+	}
 }

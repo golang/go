@@ -4884,6 +4884,8 @@ func testUint8x16Binary(t *testing.T, v0 []uint8, v1 []uint8, want []uint8, whic
 		gotv = vec0.AndNot(vec1)
 	case "Average":
 		gotv = vec0.Average(vec1)
+	case "GaloisFieldMul":
+		gotv = vec0.GaloisFieldMul(vec1)
 	case "Max":
 		gotv = vec0.Max(vec1)
 	case "Min":
@@ -4922,6 +4924,8 @@ func testUint8x16BinaryMasked(t *testing.T, v0 []uint8, v1 []uint8, v2 []int8, w
 		gotv = vec0.MaskedAdd(vec1, vec2.AsMask8x16())
 	case "MaskedAverage":
 		gotv = vec0.MaskedAverage(vec1, vec2.AsMask8x16())
+	case "MaskedGaloisFieldMul":
+		gotv = vec0.MaskedGaloisFieldMul(vec1, vec2.AsMask8x16())
 	case "MaskedMax":
 		gotv = vec0.MaskedMax(vec1, vec2.AsMask8x16())
 	case "MaskedMin":
@@ -5106,6 +5110,8 @@ func testUint8x32Binary(t *testing.T, v0 []uint8, v1 []uint8, want []uint8, whic
 		gotv = vec0.AndNot(vec1)
 	case "Average":
 		gotv = vec0.Average(vec1)
+	case "GaloisFieldMul":
+		gotv = vec0.GaloisFieldMul(vec1)
 	case "Max":
 		gotv = vec0.Max(vec1)
 	case "Min":
@@ -5144,6 +5150,8 @@ func testUint8x32BinaryMasked(t *testing.T, v0 []uint8, v1 []uint8, v2 []int8, w
 		gotv = vec0.MaskedAdd(vec1, vec2.AsMask8x32())
 	case "MaskedAverage":
 		gotv = vec0.MaskedAverage(vec1, vec2.AsMask8x32())
+	case "MaskedGaloisFieldMul":
+		gotv = vec0.MaskedGaloisFieldMul(vec1, vec2.AsMask8x32())
 	case "MaskedMax":
 		gotv = vec0.MaskedMax(vec1, vec2.AsMask8x32())
 	case "MaskedMin":
@@ -5324,6 +5332,8 @@ func testUint8x64Binary(t *testing.T, v0 []uint8, v1 []uint8, want []uint8, whic
 		gotv = vec0.Add(vec1)
 	case "Average":
 		gotv = vec0.Average(vec1)
+	case "GaloisFieldMul":
+		gotv = vec0.GaloisFieldMul(vec1)
 	case "Max":
 		gotv = vec0.Max(vec1)
 	case "Min":
@@ -5358,6 +5368,8 @@ func testUint8x64BinaryMasked(t *testing.T, v0 []uint8, v1 []uint8, v2 []int8, w
 		gotv = vec0.MaskedAdd(vec1, vec2.AsMask8x64())
 	case "MaskedAverage":
 		gotv = vec0.MaskedAverage(vec1, vec2.AsMask8x64())
+	case "MaskedGaloisFieldMul":
+		gotv = vec0.MaskedGaloisFieldMul(vec1, vec2.AsMask8x64())
 	case "MaskedMax":
 		gotv = vec0.MaskedMax(vec1, vec2.AsMask8x64())
 	case "MaskedMin":
@@ -7946,6 +7958,8 @@ func testUint64x8UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint6
 // DiffWithTruncWithPrecision
 // FloorSuppressExceptionWithPrecision
 // FloorWithPrecision
+// GaloisFieldAffineTransform
+// GaloisFieldAffineTransformInversed
 // GetElem
 // MaskedCeilSuppressExceptionWithPrecision
 // MaskedCeilWithPrecision
@@ -7959,6 +7973,8 @@ func testUint64x8UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint6
 // MaskedDiffWithTruncWithPrecision
 // MaskedFloorSuppressExceptionWithPrecision
 // MaskedFloorWithPrecision
+// MaskedGaloisFieldAffineTransform
+// MaskedGaloisFieldAffineTransformInversed
 // MaskedRotateAllLeft
 // MaskedRotateAllRight
 // MaskedRoundSuppressExceptionWithPrecision
