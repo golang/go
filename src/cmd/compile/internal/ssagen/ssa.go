@@ -5299,11 +5299,20 @@ func (s *state) shouldCheckOverflow(typ *types.Type) bool {
 		return false
 	}
 
-	// Only check overflow for int8, int16, int32 (not int64, uintptr, or unsigned types)
-	if typ.IsInteger() && typ.IsSigned() {
-		switch typ.Size() {
-		case 1, 2, 4: // int8, int16, int32
-			return true
+	// Check overflow for signed (int8, int16, int32) and unsigned (uint8, uint16, uint32, uint64) integers
+	// Exclude int64 and uintptr due to complexity and platform dependencies
+	if typ.IsInteger() {
+		if typ.IsSigned() {
+			switch typ.Size() {
+			case 1, 2, 4: // int8, int16, int32
+				return true
+			}
+		} else {
+			// Include unsigned types: uint8, uint16, uint32, uint64
+			switch typ.Size() {
+			case 1, 2, 4, 8: // uint8, uint16, uint32, uint64
+				return true
+			}
 		}
 	}
 	return false
@@ -5429,104 +5438,133 @@ func (s *state) checkTypeTruncation(n ir.Node, value *ssa.Value, fromType, toTyp
 	return result
 }
 
-// intAdd performs addition with overflow detection for signed integers
+// intAdd performs addition with overflow detection for signed and unsigned integers
 func (s *state) intAdd(n ir.Node, a, b *ssa.Value) *ssa.Value {
 	if !s.shouldCheckOverflow(n.Type()) {
 		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 	}
 
-	// Simple and reliable overflow detection:
-	// For addition a + b:
-	// - Overflow if both positive and result < a (or result < b)
-	// - Underflow if both negative and result > a (or result > b)
-	
 	result := s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
-	zero := s.zeroVal(n.Type())
 	
-	// Check if a >= 0 (use !(a < 0))
-	aLtZeroTemp := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
-	aGeZero := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], aLtZeroTemp)
-	// Check if b >= 0 (use !(b < 0))
-	bLtZeroTemp := s.newValue2(s.ssaOp(ir.OLT, b.Type), types.Types[types.TBOOL], b, zero)
-	bGeZero := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], bLtZeroTemp)
-	// Check if result < a
-	resultLtA := s.newValue2(s.ssaOp(ir.OLT, result.Type), types.Types[types.TBOOL], result, a)
-	// Check if result > a (use a < result)
-	resultGtA := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, result)
-	
-	// Both operands >= 0 and result < a means positive overflow
-	bothPos := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aGeZero, bGeZero)
-	posOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], bothPos, resultLtA)
-	
-	// Both operands < 0 and result > a means negative overflow (underflow)
-	aNeg := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
-	bNeg := s.newValue2(s.ssaOp(ir.OLT, b.Type), types.Types[types.TBOOL], b, zero)
-	bothNeg := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aNeg, bNeg)
-	negOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], bothNeg, resultGtA)
-	
-	// Overall overflow condition
-	overflow := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], posOverflow, negOverflow)
-	
-	// s.check() panics when condition is FALSE, so pass "no overflow" condition
-	noOverflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], overflow)
-	s.check(noOverflow, ir.Syms.Panicoverflow)
+	if n.Type().IsSigned() {
+		// Signed integer overflow detection:
+		// For addition a + b:
+		// - Overflow if both positive and result < a (or result < b)
+		// - Underflow if both negative and result > a (or result > b)
+		
+		zero := s.zeroVal(n.Type())
+		
+		// Check if a >= 0 (use !(a < 0))
+		aLtZeroTemp := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
+		aGeZero := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], aLtZeroTemp)
+		// Check if b >= 0 (use !(b < 0))
+		bLtZeroTemp := s.newValue2(s.ssaOp(ir.OLT, b.Type), types.Types[types.TBOOL], b, zero)
+		bGeZero := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], bLtZeroTemp)
+		// Check if result < a
+		resultLtA := s.newValue2(s.ssaOp(ir.OLT, result.Type), types.Types[types.TBOOL], result, a)
+		// Check if result > a (use a < result)
+		resultGtA := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, result)
+		
+		// Both operands >= 0 and result < a means positive overflow
+		bothPos := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aGeZero, bGeZero)
+		posOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], bothPos, resultLtA)
+		
+		// Both operands < 0 and result > a means negative overflow (underflow)
+		aNeg := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
+		bNeg := s.newValue2(s.ssaOp(ir.OLT, b.Type), types.Types[types.TBOOL], b, zero)
+		bothNeg := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aNeg, bNeg)
+		negOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], bothNeg, resultGtA)
+		
+		// Overall overflow condition
+		overflow := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], posOverflow, negOverflow)
+		
+		// s.check() panics when condition is FALSE, so pass "no overflow" condition
+		noOverflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], overflow)
+		s.check(noOverflow, ir.Syms.Panicoverflow)
+	} else {
+		// Unsigned integer overflow detection:
+		// For addition a + b, overflow occurs when result < a (or result < b)
+		// This is because if there's no overflow, result should be >= both operands
+		
+		// Check if result < a (overflow condition)
+		resultLtA := s.newValue2(s.ssaOp(ir.OLT, result.Type), types.Types[types.TBOOL], result, a)
+		
+		// s.check() panics when condition is FALSE, so pass "no overflow" condition
+		noOverflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], resultLtA)
+		s.check(noOverflow, ir.Syms.Panicoverflow)
+	}
 
 	return result
 }
 
-// intSub performs subtraction with overflow detection for signed integers
+// intSub performs subtraction with overflow detection for signed and unsigned integers
 func (s *state) intSub(n ir.Node, a, b *ssa.Value) *ssa.Value {
 	if !s.shouldCheckOverflow(n.Type()) {
 		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 	}
 
-	// Simple and reliable overflow detection for subtraction a - b:
-	// - Positive overflow: a >= 0, b < 0, and result < a  
-	// - Negative overflow: a < 0, b > 0, and result > a
-	
 	result := s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
-	zero := s.zeroVal(n.Type())
 	
-	// Check if a >= 0 (use !(a < 0))
-	aLtZeroTemp2 := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
-	aGeZero := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], aLtZeroTemp2)
-	// Check if a < 0 
-	aLtZero := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
-	// Check if b < 0
-	bLtZero := s.newValue2(s.ssaOp(ir.OLT, b.Type), types.Types[types.TBOOL], b, zero)
-	// Check if b > 0 (use 0 < b)
-	bGtZero := s.newValue2(s.ssaOp(ir.OLT, zero.Type), types.Types[types.TBOOL], zero, b)
-	// Check if result < a
-	resultLtA := s.newValue2(s.ssaOp(ir.OLT, result.Type), types.Types[types.TBOOL], result, a)
-	// Check if result > a (use a < result) 
-	resultGtA := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, result)
-	
-	// Positive overflow: a >= 0 && b < 0 && result < a
-	posOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL],
-		s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aGeZero, bLtZero), resultLtA)
-	
-	// Negative overflow: a < 0 && b > 0 && result > a
-	negOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL],
-		s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aLtZero, bGtZero), resultGtA)
-	
-	// Overall overflow condition
-	overflow := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], posOverflow, negOverflow)
-	
-	// s.check() panics when condition is FALSE, so pass "no overflow" condition
-	noOverflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], overflow)
-	s.check(noOverflow, ir.Syms.Panicoverflow)
+	if n.Type().IsSigned() {
+		// Signed integer overflow detection for subtraction a - b:
+		// - Positive overflow: a >= 0, b < 0, and result < a  
+		// - Negative overflow: a < 0, b > 0, and result > a
+		
+		zero := s.zeroVal(n.Type())
+		
+		// Check if a >= 0 (use !(a < 0))
+		aLtZeroTemp2 := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
+		aGeZero := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], aLtZeroTemp2)
+		// Check if a < 0 
+		aLtZero := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
+		// Check if b < 0
+		bLtZero := s.newValue2(s.ssaOp(ir.OLT, b.Type), types.Types[types.TBOOL], b, zero)
+		// Check if b > 0 (use 0 < b)
+		bGtZero := s.newValue2(s.ssaOp(ir.OLT, zero.Type), types.Types[types.TBOOL], zero, b)
+		// Check if result < a
+		resultLtA := s.newValue2(s.ssaOp(ir.OLT, result.Type), types.Types[types.TBOOL], result, a)
+		// Check if result > a (use a < result) 
+		resultGtA := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, result)
+		
+		// Positive overflow: a >= 0 && b < 0 && result < a
+		posOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL],
+			s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aGeZero, bLtZero), resultLtA)
+		
+		// Negative overflow: a < 0 && b > 0 && result > a
+		negOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL],
+			s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aLtZero, bGtZero), resultGtA)
+		
+		// Overall overflow condition
+		overflow := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], posOverflow, negOverflow)
+		
+		// s.check() panics when condition is FALSE, so pass "no overflow" condition
+		noOverflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], overflow)
+		s.check(noOverflow, ir.Syms.Panicoverflow)
+	} else {
+		// Unsigned integer underflow detection:
+		// For subtraction a - b, underflow occurs when a < b
+		// This is because unsigned integers cannot be negative
+		
+		// Check if a < b (underflow condition)
+		aLtB := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, b)
+		
+		// s.check() panics when condition is FALSE, so pass "no underflow" condition
+		noUnderflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], aLtB)
+		s.check(noUnderflow, ir.Syms.Panicoverflow)
+	}
 
 	return result
 }
 
-// intMul performs multiplication with overflow detection for signed integers
+// intMul performs multiplication with overflow detection for signed and unsigned integers
 func (s *state) intMul(n ir.Node, a, b *ssa.Value) *ssa.Value {
 	if !s.shouldCheckOverflow(n.Type()) {
 		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 	}
 
-	// Simple multiplication overflow detection:
+	// Multiplication overflow detection for both signed and unsigned integers:
 	// Check if result/a != b (when a != 0) or result/b != a (when b != 0)
+	// This works for both signed and unsigned integers
 	
 	result := s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 	zero := s.zeroVal(n.Type())

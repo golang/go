@@ -2,9 +2,9 @@
 
 ### Overview
 
-`Go-Panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for signed integer arithmetic operations and **type truncation detection** for integer conversions. When overflow or truncation is detected, a **panic** with an appropriate error message is triggered.
+`Go-Panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for integer arithmetic operations and **type truncation detection** for integer conversions. When overflow or truncation is detected, a **panic** with an appropriate error message is triggered.
 
-**Arithmetic operations**: Handles addition `+`, subtraction `-`, multiplication `*`, and division `/` for types `int8`, `int16`, `int32`. The division case specifically detects the `MIN_INT / -1` overflow condition where the result exceeds the maximum representable value. `int64` and `uintptr` are not checked for arithmetic operations.
+**Arithmetic operations**: Handles addition `+`, subtraction `-`, multiplication `*`, and division `/` for both signed and unsigned integer types. For signed integers, covers `int8`, `int16`, `int32`. For unsigned integers, covers `uint8`, `uint16`, `uint32`, `uint64`. The division case specifically detects the `MIN_INT / -1` overflow condition for signed integers. `int64` and `uintptr` are not checked for arithmetic operations.
 
 **Type truncation detection**: Detects when integer type conversions would result in data loss due to the target type having a smaller range than the source type. Covers all integer types: `int8`, `int16`, `int32`, `int64`, `uint8`, `uint16`, `uint32`, `uint64`. Excludes `uintptr` due to platform-dependent usage.
 
@@ -77,8 +77,14 @@ First, we need to compile Go, with Go itself. Because of this, some behaviors of
 
 Test arithmetic overflow detection:
 ```bash
-# Run arithmetic overflow tests
+# Run signed integer overflow tests
 ./bin/go run arithmetic_tests/test_simple_overflow.go
+
+# Run unsigned integer overflow tests
+./bin/go run arithmetic_tests/test_unsigned_overflow.go
+
+# Run comprehensive tests for both signed and unsigned
+./bin/go run arithmetic_tests/test_comprehensive_both.go
 ```
 
 #### Integer truncation tests
@@ -91,7 +97,7 @@ Test integer truncation detection:
 
 ### Examples
 
-#### Example 1 (Arithmetic Overflow):
+#### Example 1 (Signed Integer Overflow):
 
 ```go
 package main
@@ -99,7 +105,7 @@ package main
 import "fmt"
 
 func main() {
-	fmt.Println("Testing overflow detection...")
+	fmt.Println("Testing signed integer overflow detection...")
 
 	// Test int8 addition overflow
 	var a int8 = 127
@@ -110,21 +116,40 @@ func main() {
 }
 ```
 
-**Expected output:**
+#### Example 2 (Unsigned Integer Overflow):
+
+```go
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("Testing unsigned integer overflow detection...")
+
+	// Test uint8 addition overflow
+	var a uint8 = 255
+	var b uint8 = 1
+	fmt.Printf("Before: a=%d, b=%d\n", a, b)
+	result := a + b  // Should panic with "integer overflow"
+	fmt.Printf("After: result=%d\n", result)
+}
+```
+
+**Expected output (for both signed and unsigned overflow):**
 
 ```bash
-bash-5.2$ GOROOT=/path/to/go-panikint && ./bin/go run test_simple_overflow.go
+bash-5.2$ GOROOT=/path/to/go-panikint && ./bin/go run test_overflow.go
 Testing overflow detection...
 Before: a=127, b=1
 panic: runtime error: integer overflow
 
 goroutine 1 [running]:
 main.main()
-	/path/to/go-panikint/test_simple_overflow.go:12 +0xfc
+	/path/to/go-panikint/test_overflow.go:12 +0xfc
 exit status 2
 ```
 
-#### Example 2 (Type truncation):
+#### Example 3 (Type truncation):
 
 ```go
 package main
@@ -155,7 +180,7 @@ main.main()
 exit status 2
 ```
 
-#### Example 3 (fuzzing):
+#### Example 4 (fuzzing):
 **Fuzzing harness:**
 ```go
 package fuzztest
