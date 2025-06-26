@@ -536,7 +536,7 @@ func (c *config) checkRuntime() (skip bool, err error) {
 
 // srcPath returns the path to the given file relative to this test's source tree.
 func srcPath(path string) string {
-	return filepath.Join("testdata", path)
+	return "./testdata/" + path
 }
 
 // A tempDir manages a temporary directory within a test.

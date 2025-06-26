@@ -253,6 +253,12 @@ type Loader struct {
 
 	WasmExports []Sym
 
+	// sizeFixups records symbols that we need to fix up the size
+	// after loading. It is very rarely needed, only for a DATA symbol
+	// and a BSS symbol with the same name, and the BSS symbol has
+	// larger size.
+	sizeFixups []symAndSize
+
 	flags uint32
 
 	strictDupMsgs int // number of strict-dup warning/errors, when FlagStrictDups is enabled
@@ -469,18 +475,17 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
 	// In summary, the "overwrite" variable and the final result are
 	//
 	// new sym       old sym       result
-	// ---------------------------------------------
+	// -------------------------------------------------------
 	// TEXT          BSS           new wins
 	// DATA          DATA          ERROR
 	// DATA lg/eq    BSS  sm/eq    new wins
-	// DATA small    BSS  large    ERROR
-	// BSS  large    DATA small    ERROR
+	// DATA small    BSS  large    merge: new with larger size
+	// BSS  large    DATA small    merge: old with larger size
 	// BSS  large    BSS  small    new wins
 	// BSS  sm/eq    D/B  lg/eq    old wins
 	// BSS           TEXT          old wins
 	oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type())]
 	newtyp := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
-	oldIsText := oldtyp.IsText()
 	newIsText := newtyp.IsText()
 	oldHasContent := oldr.DataSize(oldli) != 0
 	newHasContent := r.DataSize(li) != 0
@@ -488,12 +493,28 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
 	newIsBSS := newtyp.IsData() && !newHasContent
 	switch {
 	case newIsText && oldIsBSS,
-		newHasContent && oldIsBSS && sz >= oldsz,
+		newHasContent && oldIsBSS,
 		newIsBSS && oldIsBSS && sz > oldsz:
 		// new symbol overwrites old symbol.
 		l.objSyms[oldi] = objSym{r.objidx, li}
-	case newIsBSS && (oldsz >= sz || oldIsText):
+		if oldsz > sz {
+			// If the BSS symbol has a larger size, expand the data
+			// symbol's size so access from the BSS side cannot overrun.
+			// It is hard to modify the symbol size until all Go objects
+			// (potentially read-only) are loaded, so we record it in
+			// a fixup table and apply them later. This is very rare.
+			// One case is a global variable with a Go declaration and an
+			// assembly definition, which typically have the same size,
+			// but in ASAN mode the Go declaration has a larger size due
+			// to the inserted red zone.
+			l.sizeFixups = append(l.sizeFixups, symAndSize{oldi, uint32(oldsz)})
+		}
+	case newIsBSS:
 		// old win, just ignore the new symbol.
+		if sz > oldsz {
+			// See the comment above for sizeFixups.
+			l.sizeFixups = append(l.sizeFixups, symAndSize{oldi, uint32(sz)})
+		}
 	default:
 		log.Fatalf("duplicated definition of symbol %s, from %s (type %s size %d) and %s (type %s size %d)", name, r.unit.Lib.Pkg, newtyp, sz, oldr.unit.Lib.Pkg, oldtyp, oldsz)
 	}
@@ -2285,6 +2306,10 @@ func (l *Loader) LoadSyms(arch *sys.Arch) {
 		st.preloadSyms(r, hashedDef)
 		st.preloadSyms(r, nonPkgDef)
 	}
+	for _, sf := range l.sizeFixups {
+		pp := l.cloneToExternal(sf.sym)
+		pp.size = int64(sf.size)
+	}
 	for _, vr := range st.linknameVarRefs {
 		l.checkLinkname(vr.pkg, vr.name, vr.sym)
 	}
@@ -2490,7 +2515,7 @@ func topLevelSym(sname string, skind sym.SymKind) bool {
 // a symbol originally discovered as part of an object file, it's
 // easier to do this if we make the updates to an external symbol
 // payload.
-func (l *Loader) cloneToExternal(symIdx Sym) {
+func (l *Loader) cloneToExternal(symIdx Sym) *extSymPayload {
 	if l.IsExternal(symIdx) {
 		panic("sym is already external, no need for clone")
 	}
@@ -2542,6 +2567,8 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 	// Some attributes were encoded in the object file. Copy them over.
 	l.SetAttrDuplicateOK(symIdx, r.Sym(li).Dupok())
 	l.SetAttrShared(symIdx, r.Shared())
+
+	return pp
 }
 
 // Copy the payload of symbol src to dst. Both src and dst must be external
