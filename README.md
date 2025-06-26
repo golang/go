@@ -8,28 +8,6 @@
 
 **Type truncation detection**: Detects when integer type conversions would result in data loss due to the target type having a smaller range than the source type. Covers all integer types: `int8`, `int16`, `int32`, `int64`, `uint8`, `uint16`, `uint32`, `uint64`. Excludes `uintptr` due to platform-dependent usage.
 
-### Configuration
-
-The compiler supports environment variables to disable specific detection features:
-
-- `IDC_ABOUT_OVERFLOW=true` - Disables arithmetic overflow detection
-- `IDC_ABOUT_TRUNCATION=true` - Disables integer truncation detection
-
-Set these environment variables during compilation to disable the respective checks:
-
-```bash
-# Disable overflow detection
-IDC_ABOUT_OVERFLOW=true ./bin/go build program.go
-
-# Disable truncation detection  
-IDC_ABOUT_TRUNCATION=true ./bin/go build program.go
-
-# Disable both
-IDC_ABOUT_OVERFLOW=true IDC_ABOUT_TRUNCATION=true ./bin/go build program.go
-```
-
-By default, both overflow and truncation detection are enabled.
-
 ### Usage and installation :
 ```bash
 # Clone, change dir and compile the compiler
@@ -47,6 +25,15 @@ export GOROOT=/path/to/go-panikint
 # Fuzz only
 ./bin/go test -fuzz=FuzzIntegerOverflow -v
 ```
+
+### Configuration
+
+The compiler supports environment variables to disable specific detection features:
+
+- `IDC_ABOUT_OVERFLOW=true` - Disables arithmetic overflow detection
+- `IDC_ABOUT_TRUNCATION=true` - Disables integer truncation detection
+
+Set these environment variables during compilation to disable the respective checks: By default, both overflow and truncation detection are enabled.
 
 ### How does it work ?
 #### What is being done exactly ?
@@ -73,26 +60,11 @@ First, we need to compile Go, with Go itself. Because of this, some behaviors of
 
 ### Testing
 
-#### Arithmetic overflow tests
+You can run the tests for truncation issues in `tests/` with
 
-Test arithmetic overflow detection:
 ```bash
-# Run signed integer overflow tests
-./bin/go run arithmetic_tests/test_simple_overflow.go
-
-# Run unsigned integer overflow tests
-./bin/go run arithmetic_tests/test_unsigned_overflow.go
-
-# Run comprehensive tests for both signed and unsigned
-./bin/go run arithmetic_tests/test_comprehensive_both.go
-```
-
-#### Integer truncation tests
-
-Test integer truncation detection:
-```bash
-# Run comprehensive truncation tests
-./bin/go run cast_tests/truncation_tests.go
+cd tests;
+GOROOT=/path/to/go-arithmetic-panik /path/to/go-arithmetic-panik/go-arithmetic-panik/bin/go test -v .
 ```
 
 ### Examples
