@@ -164,6 +164,16 @@ func TestSignedToUnsignedNegative(t *testing.T) {
 	_ = uint32(negative)
 }
 
+func TestUnsignedToSigned(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("Expected panic for unsigned to signed with large values")
+		}
+	}()
+	var unsigned uint32 = 0xFFFFFFFF
+	_ = int32(unsigned)
+}
+
 func TestInt16ToUint16Negative(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
