@@ -43,11 +43,14 @@ import (
 // and the input is a JSON quoted string, Unmarshal calls
 // [encoding.TextUnmarshaler.UnmarshalText] with the unquoted form of the string.
 //
-// To unmarshal JSON into a struct, Unmarshal matches incoming object
-// keys to the keys used by [Marshal] (either the struct field name or its tag),
-// preferring an exact match but also accepting a case-insensitive match. By
-// default, object keys which don't have a corresponding struct field are
-// ignored (see [Decoder.DisallowUnknownFields] for an alternative).
+// To unmarshal JSON into a struct, Unmarshal matches incoming object keys to
+// the keys used by [Marshal] (either the struct field name or its tag),
+// ignoring case. If multiple struct fields match an object key, an exact case
+// match is preferred over a case-insensitive one.
+//
+// Incoming object members are processed in the order observed. If an object
+// includes duplicate keys, later duplicates will replace or be merged into
+// prior values.
 //
 // To unmarshal JSON into an interface value,
 // Unmarshal stores one of these in the interface value:
