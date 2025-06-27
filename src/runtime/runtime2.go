@@ -466,6 +466,7 @@ type g struct {
 	runnableTime    int64 // the amount of time spent runnable, cleared when running, only used when tracking
 	lockedm         muintptr
 	fipsIndicator   uint8
+	syncSafePoint   bool // set if g is stopped at a synchronous safe point.
 	runningCleanups atomic.Bool
 	sig             uint32
 	writebuf        []byte

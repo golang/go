@@ -326,7 +326,8 @@ func TestTraceStacks(t *testing.T) {
 		const mainLine = 21
 		want := []evDesc{
 			{trace.EventStateTransition, "Goroutine Running->Runnable", []frame{
-				{"main.main", mainLine + 82},
+				{"runtime.Gosched", 0},
+				{"main.main", mainLine + 87},
 			}},
 			{trace.EventStateTransition, "Goroutine NotExist->Runnable", []frame{
 				{"main.main", mainLine + 11},
@@ -349,7 +350,7 @@ func TestTraceStacks(t *testing.T) {
 			}},
 			{trace.EventStateTransition, "Goroutine Waiting->Runnable", []frame{
 				{"runtime.chansend1", 0},
-				{"main.main", mainLine + 84},
+				{"main.main", mainLine + 89},
 			}},
 			{trace.EventStateTransition, "Goroutine Running->Waiting", []frame{
 				{"runtime.chansend1", 0},
@@ -357,7 +358,7 @@ func TestTraceStacks(t *testing.T) {
 			}},
 			{trace.EventStateTransition, "Goroutine Waiting->Runnable", []frame{
 				{"runtime.chanrecv1", 0},
-				{"main.main", mainLine + 85},
+				{"main.main", mainLine + 90},
 			}},
 			{trace.EventStateTransition, "Goroutine Running->Waiting", []frame{
 				{"runtime.selectgo", 0},
@@ -365,7 +366,7 @@ func TestTraceStacks(t *testing.T) {
 			}},
 			{trace.EventStateTransition, "Goroutine Waiting->Runnable", []frame{
 				{"runtime.selectgo", 0},
-				{"main.main", mainLine + 86},
+				{"main.main", mainLine + 91},
 			}},
 			{trace.EventStateTransition, "Goroutine Running->Waiting", []frame{
 				{"sync.(*Mutex).Lock", 0},
@@ -382,7 +383,7 @@ func TestTraceStacks(t *testing.T) {
 			{trace.EventStateTransition, "Goroutine Waiting->Runnable", []frame{
 				{"sync.(*WaitGroup).Add", 0},
 				{"sync.(*WaitGroup).Done", 0},
-				{"main.main", mainLine + 91},
+				{"main.main", mainLine + 96},
 			}},
 			{trace.EventStateTransition, "Goroutine Running->Waiting", []frame{
 				{"sync.(*Cond).Wait", 0},
@@ -401,6 +402,10 @@ func TestTraceStacks(t *testing.T) {
 				{"runtime.startTheWorldGC", 0},
 				{"runtime.GOMAXPROCS", 0},
 				{"main.main", 0},
+			}},
+			{trace.EventStateTransition, "Goroutine Running->Runnable", []frame{
+				{"main.syncPreemptPoint", 0},
+				{"main.main.func12", 0},
 			}},
 		}
 		if !stress {

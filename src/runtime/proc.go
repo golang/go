@@ -3307,10 +3307,10 @@ func execute(gp *g, inheritTime bool) {
 		tryRecordGoroutineProfile(gp, nil, osyield)
 	}
 
-	// Assign gp.m before entering _Grunning so running Gs have an
-	// M.
+	// Assign gp.m before entering _Grunning so running Gs have an M.
 	mp.curg = gp
 	gp.m = mp
+	gp.syncSafePoint = false // Clear the flag, which may have been set by morestack.
 	casgstatus(gp, _Grunnable, _Grunning)
 	gp.waitsince = 0
 	gp.preempt = false
