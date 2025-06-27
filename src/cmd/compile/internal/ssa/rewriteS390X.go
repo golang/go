@@ -368,6 +368,18 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpLsh8x64(v)
 	case OpLsh8x8:
 		return rewriteValueS390X_OpLsh8x8(v)
+	case OpMax32F:
+		v.Op = OpS390XWFMAXSB
+		return true
+	case OpMax64F:
+		v.Op = OpS390XWFMAXDB
+		return true
+	case OpMin32F:
+		v.Op = OpS390XWFMINSB
+		return true
+	case OpMin64F:
+		v.Op = OpS390XWFMINDB
+		return true
 	case OpMod16:
 		return rewriteValueS390X_OpMod16(v)
 	case OpMod16u:
