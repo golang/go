@@ -23,12 +23,7 @@ jobs:
         cd src
         ./make.bash
 
-    - name: Run arithmetic overflow tests
+    - name: Run tests
       run: |
         cd tests
-        GOROOT=${{ github.workspace }} ${{ github.workspace }}/bin/go test -v . -run TestArithmetic
-
-    - name: Run truncation detection tests
-      run: |
-        cd tests
-        GOROOT=${{ github.workspace }} ${{ github.workspace }}/bin/go test -v . -run TestTruncation
+        GOROOT=${{ github.workspace }} ${{ github.workspace }}/bin/go test -v .
