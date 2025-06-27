@@ -562,6 +562,7 @@ type m struct {
 	needextram      bool
 	g0StackAccurate bool // whether the g0 stack has accurate bounds
 	traceback       uint8
+	allpSnapshot    []*p          // Snapshot of allp for use after dropping P in findRunnable, nil otherwise.
 	ncgocall        uint64        // number of cgo calls in total
 	ncgo            int32         // number of cgo calls currently in progress
 	cgoCallersUse   atomic.Uint32 // if non-zero, cgoCallers in use temporarily
