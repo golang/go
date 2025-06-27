@@ -26,15 +26,6 @@ export GOROOT=/path/to/go-panikint
 ./bin/go test -fuzz=FuzzIntegerOverflow -v
 ```
 
-### Configuration
-
-The compiler supports environment variables to disable specific detection features:
-
-- `IDC_ABOUT_OVERFLOW=true` - Disables arithmetic overflow detection
-- `IDC_ABOUT_TRUNCATION=true` - Disables integer truncation detection
-
-Set these environment variables during compilation to disable the respective checks: By default, both overflow and truncation detection are enabled.
-
 ### How does it work ?
 #### What is being done exactly ?
 We basically patched the intermediate representation (IR) part of the Go compiler so that, on every math operands (i.e `OADD`, `OMUL`, `OSUB`, `ODIV`, ...) and type conversions, the compiler does not only add the IR opcodes that perform the operation but also **insert** a bunch of checks for arithmetic bugs and insert panic calls with detailed error messages. Panic messages include specific operation types (e.g., "integer overflow in int8 addition operation", "integer truncation: uint16 cannot fit in uint8"). This code will ultimately end up to the binary code (Assembly) of the application, so use with caution.
@@ -53,18 +44,17 @@ if (*x_00 == '+') {
 }
 ```
 
-#### Why do we use package filters ?
-As you can see [here](https://github.com/kevin-valerio/go-panikint/blob/0d6340a37c6cc7a3e44c556f8df42e8ec9d1efc8/src/cmd/compile/internal/ssagen/ssa.go#L5258-L5270), we do not apply our panics for arithmetic issues and type truncation on every packages: standard library packages (`runtime`, `sync`, `os`, `syscall`, etc.), internal packages (`internal/*`) and math and unsafe packages are not concerned by the overhead. There is different reasons for this.
-
-First, we need to compile Go, with Go itself. Because of this, some behaviors of the vanilla compiler must remain. Some functions like hashing sometimes rely on overflow for bit mixing. Moreover, some components like routine scheduling or memory management cannot be interrupted with panics.
+#### Why do we use source-location-based filtering ?
+As implemented in `src/cmd/compile/internal/ssagen/ssa.go`, we apply a source-location-based filtering for overflow detection. This ensures overflow detection is applied only to user code and target applications (like security audits of external codebases) while excluding standard library and third-party dependencies.
+Each arithmetic operation (`intAdd`, `intSub`, `intMul`, `intDiv`) checks the actual source file location using `n.Pos()` and `base.Ctxt.PosTable.Pos(pos).Filename()`. Operations from files containing `/go-panikint/src/`, `/pkg/mod/`, `/vendor/` are automatically excluded  and standard library packages (`runtime`, `sync`, `os`, `syscall`, etc.) / internal packages (`internal/*`) are excluded during compiler build.
 
 ### Testing
 
-You can run the tests for truncation issues in `tests/` with
+You can run theÒ test suite in `tests/` with:
 
 ```bash
-cd tests;
-GOROOT=/path/to/go-arithmetic-panik /path/to/go-arithmetic-panik/go-arithmetic-panik/bin/go test -v .
+cd tests/;
+GOROOT=/path/to/go-panikint /path/to/go-panikint/bin/go test -v .
 ```
 
 ### Examples
@@ -141,14 +131,14 @@ func main() {
 **Expected output:**
 
 ```bash
-bash-5.2$ GOROOT=/path/to/go-arithmetic-panik && ./bin/go run test_truncation.go
+bash-5.2$ GOROOT=/path/to/go-panikint && ./bin/go run test_truncation.go
 Testing type truncation detection...
 Before: u16=256
 panic: runtime error: integer truncation: uint16 cannot fit in uint8
 
 goroutine 1 [running]:
 main.main()
-	/path/to/go-arithmetic-panik/test_truncation.go:10 +0xfc
+	/path/to/go-panikint/test_truncation.go:10 +0xfc
 exit status 2
 ```
 

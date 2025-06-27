@@ -5485,11 +5485,6 @@ func (s *state) shouldCheckTruncation(n ir.Node, fromType, toType *types.Type) b
 		return false
 	}
 
-	// CRITICAL: For external package testing (like Avalanchego), we must rely
-	// entirely on file-level filtering, not package-level filtering.
-	// The package path will be something like "github.com/ava-labs/avalanchego/..."
-	// which is not a standard library package, but operations might still come
-	// from standard library files when those libraries are used.
 
 	// Check truncation for integer types in these cases:
 	// 1. Target type is smaller than source type (traditional truncation)
@@ -5513,7 +5508,7 @@ func (s *state) shouldCheckTruncation(n ir.Node, fromType, toType *types.Type) b
 
 // checkTypeTruncation generates runtime checks to detect truncation during type conversion
 func (s *state) checkTypeTruncation(n ir.Node, value *ssa.Value, fromType, toType *types.Type, op ssa.Op) *ssa.Value {
-	// CRITICAL FIX: When Node is nil (like in s.conv(nil, load, loadType, lenType)),
+	// When Node is nil (like in s.conv(nil, load, loadType, lenType)),
 	// we cannot rely on source position. In this case, we must be conservative
 	// and assume it's standard library code that should be excluded.
 	//
@@ -5521,7 +5516,7 @@ func (s *state) checkTypeTruncation(n ir.Node, value *ssa.Value, fromType, toTyp
 	// - Length conversions: s.conv(nil, load, loadType, lenType)
 	// - Compiler-generated conversions without source context
 	// - Internal operations within standard library functions
-	
+
 	if n == nil {
 		// No source context - assume it's compiler-generated or standard library
 		// This matches the behavior of overflow detection which doesn't get
@@ -5538,7 +5533,7 @@ func (s *state) checkTypeTruncation(n ir.Node, value *ssa.Value, fromType, toTyp
 			// Skip truncation detection for operations from standard library files
 			return s.newValue1(op, toType, value)
 		}
-		
+
 		// Additional specific check for encoding/binary
 		if strings.Contains(filename, "/encoding/binary/") {
 			return s.newValue1(op, toType, value)
