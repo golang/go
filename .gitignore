@@ -14,6 +14,7 @@ fuzz_test/testdata/
 *.rej
 *.exe
 .*.swp
+CLAUDE.local.md
 core
 *.cgo*.go
 *.cgo*.c
