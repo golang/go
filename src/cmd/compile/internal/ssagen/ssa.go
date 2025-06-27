@@ -2748,7 +2748,7 @@ func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
 		var op ssa.Op
 		if tt.Size() == ft.Size() {
 			op = ssa.OpCopy
-			
+
 			// Check for same-size signed/unsigned conversion issues
 			if s.shouldCheckTruncation(ft, tt) {
 				return s.checkTypeTruncation(n, v, ft, tt, op)
@@ -2771,7 +2771,7 @@ func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
 			default:
 				s.Fatalf("weird integer truncation %v -> %v", ft, tt)
 			}
-			
+
 			// Add truncation check if enabled
 			if s.shouldCheckTruncation(ft, tt) {
 				return s.checkTypeTruncation(n, v, ft, tt, op)
@@ -5253,7 +5253,7 @@ func (s *state) intDivide(n ir.Node, a, b *ssa.Value) *ssa.Value {
 	if n.Op() == ir.ODIV {
 		return s.intDiv(n, a, b)
 	}
-	
+
 	// Original behavior for modulo operations (only zero-division check)
 	needcheck := true
 	switch b.Op {
@@ -5267,21 +5267,18 @@ func (s *state) intDivide(n ir.Node, a, b *ssa.Value) *ssa.Value {
 		cmp := s.newValue2(s.ssaOp(ir.ONE, n.Type()), types.Types[types.TBOOL], b, s.zeroVal(n.Type()))
 		s.check(cmp, ir.Syms.Panicdivide)
 	}
-	
+
 	return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 }
 
 // shouldCheckOverflow returns true if overflow detection should be applied for this operation.
 // It checks if the package should be excluded from overflow detection and if the type is supported.
 func (s *state) shouldCheckOverflow(typ *types.Type) bool {
-	// Check environment variable to disable overflow detection
-	if os.Getenv("IDC_ABOUT_OVERFLOW") == "true" {
-		return false
-	}
+ 
 	// Skip overflow detection ONLY for Go's standard library and internal packages
 	// This ensures we apply overflow detection to user code AND external dependencies
 	pkgPath := base.Ctxt.Pkgpath
-	
+
 	// Exclude ONLY Go's built-in standard library packages and internal tooling
 	// Examples to exclude: "fmt", "os", "hash/fnv", "runtime", "cmd/compile", "internal/abi"
 	// Examples to include: "main", "github.com/user/repo", "example.com/pkg"
@@ -5291,11 +5288,11 @@ func (s *state) shouldCheckOverflow(typ *types.Type) bool {
 		strings.HasPrefix(pkgPath, "internal") || // Go's internal packages
 		strings.HasPrefix(pkgPath, "bootstrap") ||
 		// Standard library packages: no dots, not main, not test, not command-line-arguments
-		(!strings.Contains(pkgPath, ".") && 
-		 pkgPath != "main" && 
-		 pkgPath != "command-line-arguments" && 
-		 !strings.HasSuffix(pkgPath, "_test"))
-	
+		(!strings.Contains(pkgPath, ".") &&
+			pkgPath != "main" &&
+			pkgPath != "command-line-arguments" &&
+			!strings.HasSuffix(pkgPath, "_test"))
+
 	if isGoStandardLibrary {
 		return false
 	}
@@ -5322,14 +5319,11 @@ func (s *state) shouldCheckOverflow(typ *types.Type) bool {
 // shouldCheckTruncation returns true if truncation detection should be applied for this conversion.
 // It checks if the package should be excluded from truncation detection and if the conversion is potentially lossy.
 func (s *state) shouldCheckTruncation(fromType, toType *types.Type) bool {
-	// Check environment variable to disable truncation detection
-	if os.Getenv("IDC_ABOUT_TRUNCATION") == "true" {
-		return false
-	}
+
 	// Skip truncation detection ONLY for Go's standard library and internal packages
 	// This ensures we apply truncation detection to user code AND external dependencies
 	pkgPath := base.Ctxt.Pkgpath
-	
+
 	// Exclude ONLY Go's built-in standard library packages and internal tooling
 	// Examples to exclude: "fmt", "os", "hash/fnv", "runtime", "cmd/compile", "internal/abi"
 	// Examples to include: "main", "github.com/user/repo", "example.com/pkg"
@@ -5339,11 +5333,11 @@ func (s *state) shouldCheckTruncation(fromType, toType *types.Type) bool {
 		strings.HasPrefix(pkgPath, "internal") || // Go's internal packages
 		strings.HasPrefix(pkgPath, "bootstrap") ||
 		// Standard library packages: no dots, not main, not test, not command-line-arguments
-		(!strings.Contains(pkgPath, ".") && 
-		 pkgPath != "main" && 
-		 pkgPath != "command-line-arguments" && 
-		 !strings.HasSuffix(pkgPath, "_test"))
-	
+		(!strings.Contains(pkgPath, ".") &&
+			pkgPath != "main" &&
+			pkgPath != "command-line-arguments" &&
+			!strings.HasSuffix(pkgPath, "_test"))
+
 	if isGoStandardLibrary {
 		return false
 	}
@@ -5372,10 +5366,10 @@ func (s *state) shouldCheckTruncation(fromType, toType *types.Type) bool {
 func (s *state) checkTypeTruncation(n ir.Node, value *ssa.Value, fromType, toType *types.Type, op ssa.Op) *ssa.Value {
 	// Perform the conversion first
 	result := s.newValue1(op, toType, value)
-	
+
 	// Check if truncation/conversion issue occurred by comparing with range bounds
 	var maxVal, minVal int64
-	
+
 	// Get the maximum and minimum values for the target type
 	switch toType.Size() {
 	case 1: // int8/uint8
@@ -5406,11 +5400,11 @@ func (s *state) checkTypeTruncation(n ir.Node, value *ssa.Value, fromType, toTyp
 		// For 8-byte types, no truncation check needed yet
 		return result
 	}
-	
+
 	// Create constants with the correct type for comparison
 	maxConst := s.newValue0I(ssa.OpConst64, types.Types[types.TINT64], maxVal)
 	minConst := s.newValue0I(ssa.OpConst64, types.Types[types.TINT64], minVal)
-	
+
 	// Convert value to int64 for comparison if needed
 	compareValue := value
 	if fromType.Size() < 8 {
@@ -5436,12 +5430,12 @@ func (s *state) checkTypeTruncation(n ir.Node, value *ssa.Value, fromType, toTyp
 			}
 		}
 	}
-	
+
 	// Check if value is within bounds: minVal <= value <= maxVal
 	geMin := s.newValue2(ssa.OpLeq64, types.Types[types.TBOOL], minConst, compareValue)
 	leMax := s.newValue2(ssa.OpLeq64, types.Types[types.TBOOL], compareValue, maxConst)
 	inBounds := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], geMin, leMax)
-	
+
 	// s.check() panics when condition is FALSE, so pass the "no truncation" condition
 	s.check(inBounds, ir.Syms.Panictruncate)
 
@@ -5455,15 +5449,15 @@ func (s *state) intAdd(n ir.Node, a, b *ssa.Value) *ssa.Value {
 	}
 
 	result := s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
-	
+
 	if n.Type().IsSigned() {
 		// Signed integer overflow detection:
 		// For addition a + b:
 		// - Overflow if both positive and result < a (or result < b)
 		// - Underflow if both negative and result > a (or result > b)
-		
+
 		zero := s.zeroVal(n.Type())
-		
+
 		// Check if a >= 0 (use !(a < 0))
 		aLtZeroTemp := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
 		aGeZero := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], aLtZeroTemp)
@@ -5474,20 +5468,20 @@ func (s *state) intAdd(n ir.Node, a, b *ssa.Value) *ssa.Value {
 		resultLtA := s.newValue2(s.ssaOp(ir.OLT, result.Type), types.Types[types.TBOOL], result, a)
 		// Check if result > a (use a < result)
 		resultGtA := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, result)
-		
+
 		// Both operands >= 0 and result < a means positive overflow
 		bothPos := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aGeZero, bGeZero)
 		posOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], bothPos, resultLtA)
-		
+
 		// Both operands < 0 and result > a means negative overflow (underflow)
 		aNeg := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
 		bNeg := s.newValue2(s.ssaOp(ir.OLT, b.Type), types.Types[types.TBOOL], b, zero)
 		bothNeg := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aNeg, bNeg)
 		negOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], bothNeg, resultGtA)
-		
+
 		// Overall overflow condition
 		overflow := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], posOverflow, negOverflow)
-		
+
 		// s.check() panics when condition is FALSE, so pass "no overflow" condition
 		noOverflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], overflow)
 		s.check(noOverflow, ir.Syms.Panicoverflow)
@@ -5495,10 +5489,10 @@ func (s *state) intAdd(n ir.Node, a, b *ssa.Value) *ssa.Value {
 		// Unsigned integer overflow detection:
 		// For addition a + b, overflow occurs when result < a (or result < b)
 		// This is because if there's no overflow, result should be >= both operands
-		
+
 		// Check if result < a (overflow condition)
 		resultLtA := s.newValue2(s.ssaOp(ir.OLT, result.Type), types.Types[types.TBOOL], result, a)
-		
+
 		// s.check() panics when condition is FALSE, so pass "no overflow" condition
 		noOverflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], resultLtA)
 		s.check(noOverflow, ir.Syms.Panicoverflow)
@@ -5514,18 +5508,18 @@ func (s *state) intSub(n ir.Node, a, b *ssa.Value) *ssa.Value {
 	}
 
 	result := s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
-	
+
 	if n.Type().IsSigned() {
 		// Signed integer overflow detection for subtraction a - b:
-		// - Positive overflow: a >= 0, b < 0, and result < a  
+		// - Positive overflow: a >= 0, b < 0, and result < a
 		// - Negative overflow: a < 0, b > 0, and result > a
-		
+
 		zero := s.zeroVal(n.Type())
-		
+
 		// Check if a >= 0 (use !(a < 0))
 		aLtZeroTemp2 := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
 		aGeZero := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], aLtZeroTemp2)
-		// Check if a < 0 
+		// Check if a < 0
 		aLtZero := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, zero)
 		// Check if b < 0
 		bLtZero := s.newValue2(s.ssaOp(ir.OLT, b.Type), types.Types[types.TBOOL], b, zero)
@@ -5533,20 +5527,20 @@ func (s *state) intSub(n ir.Node, a, b *ssa.Value) *ssa.Value {
 		bGtZero := s.newValue2(s.ssaOp(ir.OLT, zero.Type), types.Types[types.TBOOL], zero, b)
 		// Check if result < a
 		resultLtA := s.newValue2(s.ssaOp(ir.OLT, result.Type), types.Types[types.TBOOL], result, a)
-		// Check if result > a (use a < result) 
+		// Check if result > a (use a < result)
 		resultGtA := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, result)
-		
+
 		// Positive overflow: a >= 0 && b < 0 && result < a
 		posOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL],
 			s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aGeZero, bLtZero), resultLtA)
-		
+
 		// Negative overflow: a < 0 && b > 0 && result > a
 		negOverflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL],
 			s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aLtZero, bGtZero), resultGtA)
-		
+
 		// Overall overflow condition
 		overflow := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], posOverflow, negOverflow)
-		
+
 		// s.check() panics when condition is FALSE, so pass "no overflow" condition
 		noOverflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], overflow)
 		s.check(noOverflow, ir.Syms.Panicoverflow)
@@ -5554,10 +5548,10 @@ func (s *state) intSub(n ir.Node, a, b *ssa.Value) *ssa.Value {
 		// Unsigned integer underflow detection:
 		// For subtraction a - b, underflow occurs when a < b
 		// This is because unsigned integers cannot be negative
-		
+
 		// Check if a < b (underflow condition)
 		aLtB := s.newValue2(s.ssaOp(ir.OLT, a.Type), types.Types[types.TBOOL], a, b)
-		
+
 		// s.check() panics when condition is FALSE, so pass "no underflow" condition
 		noUnderflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], aLtB)
 		s.check(noUnderflow, ir.Syms.Panicoverflow)
@@ -5575,24 +5569,24 @@ func (s *state) intMul(n ir.Node, a, b *ssa.Value) *ssa.Value {
 	// Multiplication overflow detection for both signed and unsigned integers:
 	// Check if result/a != b (when a != 0) or result/b != a (when b != 0)
 	// This works for both signed and unsigned integers
-	
+
 	result := s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 	zero := s.zeroVal(n.Type())
-	
+
 	// Check if a is zero
 	aIsZero := s.newValue2(s.ssaOp(ir.OEQ, a.Type), types.Types[types.TBOOL], a, zero)
 	// Check if b is zero
 	bIsZero := s.newValue2(s.ssaOp(ir.OEQ, b.Type), types.Types[types.TBOOL], b, zero)
 	// Either operand is zero - no overflow possible
 	eitherZero := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], aIsZero, bIsZero)
-	
+
 	// For non-zero operands, check if result/a == b
 	quotientA := s.newValue2(s.ssaOp(ir.ODIV, n.Type()), a.Type, result, a)
 	quotientAEqB := s.newValue2(s.ssaOp(ir.OEQ, quotientA.Type), types.Types[types.TBOOL], quotientA, b)
-	
+
 	// Valid multiplication: either operand is zero OR result/a == b
 	validMul := s.newValue2(ssa.OpOrB, types.Types[types.TBOOL], eitherZero, quotientAEqB)
-	
+
 	// s.check() panics when condition is FALSE, so pass the valid condition
 	s.check(validMul, ir.Syms.Panicoverflow)
 
@@ -5616,7 +5610,7 @@ func (s *state) intDiv(n ir.Node, a, b *ssa.Value) *ssa.Value {
 		cmp := s.newValue2(s.ssaOp(ir.ONE, n.Type()), types.Types[types.TBOOL], b, s.zeroVal(n.Type()))
 		s.check(cmp, ir.Syms.Panicdivide)
 	}
-	
+
 	// If overflow detection is disabled, just perform the division
 	if !s.shouldCheckOverflow(n.Type()) {
 		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
@@ -5625,11 +5619,11 @@ func (s *state) intDiv(n ir.Node, a, b *ssa.Value) *ssa.Value {
 	// Check for MIN_INT / -1 overflow
 	// This occurs when a is the minimum value for the integer type and b is -1
 	// For int8: -128 / -1 = 128 (but max int8 is 127)
-	// For int16: -32768 / -1 = 32768 (but max int16 is 32767)  
+	// For int16: -32768 / -1 = 32768 (but max int16 is 32767)
 	// For int32: -2147483648 / -1 = 2147483648 (but max int32 is 2147483647)
-	
+
 	// Create constants for MIN_INT and -1 based on the type
-	var minInt int64  
+	var minInt int64
 	switch n.Type().Size() {
 	case 1: // int8
 		minInt = -128
@@ -5641,19 +5635,19 @@ func (s *state) intDiv(n ir.Node, a, b *ssa.Value) *ssa.Value {
 		// For other sizes, don't apply overflow detection
 		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 	}
-	
+
 	minIntConst := s.constInt(n.Type(), minInt)
 	negOneConst := s.constInt(n.Type(), -1)
-	
+
 	// Check if a == MIN_INT
 	aIsMinInt := s.newValue2(s.ssaOp(ir.OEQ, n.Type()), types.Types[types.TBOOL], a, minIntConst)
-	
+
 	// Check if b == -1
 	bIsNegOne := s.newValue2(s.ssaOp(ir.OEQ, n.Type()), types.Types[types.TBOOL], b, negOneConst)
-	
+
 	// Overflow occurs when both conditions are true
 	overflow := s.newValue2(ssa.OpAndB, types.Types[types.TBOOL], aIsMinInt, bIsNegOne)
-	
+
 	// s.check() panics when condition is FALSE, so pass "no overflow" condition
 	noOverflow := s.newValue1(ssa.OpNot, types.Types[types.TBOOL], overflow)
 	s.check(noOverflow, ir.Syms.Panicoverflow)
