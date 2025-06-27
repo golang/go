@@ -1,0 +1,34 @@
+name: Go
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.20'
+
+    - name: Build Go-Panikint compiler
+      run: |
+        cd src
+        ./make.bash
+
+    - name: Run arithmetic overflow tests
+      run: |
+        cd tests
+        GOROOT=${{ github.workspace }} ${{ github.workspace }}/bin/go test -v . -run TestArithmetic
+
+    - name: Run truncation detection tests
+      run: |
+        cd tests
+        GOROOT=${{ github.workspace }} ${{ github.workspace }}/bin/go test -v . -run TestTruncation
