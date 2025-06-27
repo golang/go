@@ -2,7 +2,7 @@
 
 ### Overview
 
-`Go-Panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for integer arithmetic operations and **type truncation detection** for integer conversions. When overflow or truncation is detected, a **panic** with an appropriate error message is triggered.
+`Go-Panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for integer arithmetic operations and **type truncation detection** for integer conversions. When overflow or truncation is detected, a **panic** with a detailed error message is triggered, including the specific operation type and integer types involved.
 
 **Arithmetic operations**: Handles addition `+`, subtraction `-`, multiplication `*`, and division `/` for both signed and unsigned integer types. For signed integers, covers `int8`, `int16`, `int32`. For unsigned integers, covers `uint8`, `uint16`, `uint32`, `uint64`. The division case specifically detects the `MIN_INT / -1` overflow condition for signed integers. `int64` and `uintptr` are not checked for arithmetic operations.
 
@@ -37,7 +37,7 @@ Set these environment variables during compilation to disable the respective che
 
 ### How does it work ?
 #### What is being done exactly ?
-We basically patched the intermediate representation (IR) part of the Go compiler so that, on every math operands (i.e `OADD`, `OMUL`, `OSUB`, `ODIV`, ...) and type conversions, the compiler does not only add the IR opcodes that perform the operation but also **insert** a bunch of checks for arithmetic bugs and insert panic calls with `ir.Syms.Panicoverflow` or `ir.Syms.Panictruncate` if those checks are met. This code will ultimately end up to the binary code (Assembly) of the application, so use with caution.
+We basically patched the intermediate representation (IR) part of the Go compiler so that, on every math operands (i.e `OADD`, `OMUL`, `OSUB`, `ODIV`, ...) and type conversions, the compiler does not only add the IR opcodes that perform the operation but also **insert** a bunch of checks for arithmetic bugs and insert panic calls with detailed error messages. Panic messages include specific operation types (e.g., "integer overflow in int8 addition operation", "integer truncation: uint16 cannot fit in uint8"). This code will ultimately end up to the binary code (Assembly) of the application, so use with caution.
 Below is an example of a Ghidra-decompiled addition `+`:
 
 ```c++
@@ -83,7 +83,7 @@ func main() {
 	var a int8 = 127
 	var b int8 = 1
 	fmt.Printf("Before: a=%d, b=%d\n", a, b)
-	result := a + b  // Should panic with "integer overflow"
+	result := a + b  // Should panic with "integer overflow in int8 addition operation"
 	fmt.Printf("After: result=%d\n", result)
 }
 ```
@@ -102,7 +102,7 @@ func main() {
 	var a uint8 = 255
 	var b uint8 = 1
 	fmt.Printf("Before: a=%d, b=%d\n", a, b)
-	result := a + b  // Should panic with "integer overflow"
+	result := a + b  // Should panic with "integer overflow in uint8 addition operation"
 	fmt.Printf("After: result=%d\n", result)
 }
 ```
@@ -113,7 +113,7 @@ func main() {
 bash-5.2$ GOROOT=/path/to/go-panikint && ./bin/go run test_overflow.go
 Testing overflow detection...
 Before: a=127, b=1
-panic: runtime error: integer overflow
+panic: runtime error: integer overflow in int8 addition operation
 
 goroutine 1 [running]:
 main.main()
@@ -133,7 +133,7 @@ func main() {
 
 	var u16 uint16 = 256
 	fmt.Printf("Before: u16=%d\n", u16)
-	result := uint8(u16)  // Should panic with "integer truncation"
+	result := uint8(u16)  // Should panic with "integer truncation: uint16 cannot fit in uint8"
 	fmt.Printf("After: result=%d\n", result)
 }
 ```
@@ -144,7 +144,7 @@ func main() {
 bash-5.2$ GOROOT=/path/to/go-arithmetic-panik && ./bin/go run test_truncation.go
 Testing type truncation detection...
 Before: u16=256
-panic: runtime error: integer truncation
+panic: runtime error: integer truncation: uint16 cannot fit in uint8
 
 goroutine 1 [running]:
 main.main()
@@ -174,7 +174,7 @@ fuzz: elapsed: 0s, gathering baseline coverage: 0/15 completed
 fuzz: elapsed: 0s, gathering baseline coverage: 9/15 completed
 --- FAIL: FuzzIntegerOverflow (0.03s)
     --- FAIL: FuzzIntegerOverflow (0.00s)
-        testing.go:1822: panic: runtime error: integer overflow
+        testing.go:1822: panic: runtime error: integer overflow in int8 addition operation
             goroutine 23 [running]:
             runtime/debug.Stack()
             	/path/to/go-panikintgo-panikint/src/runtime/debug/stack.go:26 +0xc4

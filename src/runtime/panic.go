@@ -248,11 +248,21 @@ func panicoverflow() {
 	panic(overflowError)
 }
 
+func panicoverflowdetailed(msg string) {
+	panicCheck2(msg)
+	panic(errorString(msg))
+}
+
 var truncateError = error(errorString("integer truncation"))
 
 func panictruncate() {
 	panicCheck2("integer truncation")
 	panic(truncateError)
+}
+
+func panictruncatedetailed(msg string) {
+	panicCheck2(msg)
+	panic(errorString(msg))
 }
 
 var floatError = error(errorString("floating point error"))
