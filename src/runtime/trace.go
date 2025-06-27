@@ -396,7 +396,7 @@ func traceAdvance(stopTrace bool) {
 				ug.status = readgstatus(s.g) &^ _Gscan
 				ug.waitreason = s.g.waitreason
 				ug.inMarkAssist = s.g.inMarkAssist
-				ug.stackID = traceStack(0, gp, gen)
+				ug.stackID = traceStack(0, gp, &trace.stackTab[gen%2])
 			}
 			resumeG(s)
 			casgstatus(me, _Gwaiting, _Grunning)
