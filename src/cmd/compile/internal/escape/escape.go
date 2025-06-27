@@ -534,10 +534,6 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 	if n.Op() != ir.OMAKESLICE && n.Op() != ir.OCONVIFACE {
 		return
 	}
-	if base.Flag.Cfg.CoverageInfo != nil {
-		// Avoid altering coverage results.
-		return
-	}
 
 	// Look up a cached ReassignOracle for the function, lazily computing one if needed.
 	ro := b.reassignOracle(fn)
