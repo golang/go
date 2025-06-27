@@ -180,7 +180,7 @@ with the extra operations and then provide an iterator over positions.
 For example, a tree implementation might provide:
 
 	// Positions returns an iterator over positions in the sequence.
-	func (t *Tree[V]) Positions() iter.Seq[*Pos]
+	func (t *Tree[V]) Positions() iter.Seq[*Pos[V]]
 
 	// A Pos represents a position in the sequence.
 	// It is only valid during the yield call it is passed to.
