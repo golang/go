@@ -2752,7 +2752,7 @@ func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
 			op = ssa.OpCopy
 
 			// Check for same-size signed/unsigned conversion issues
-			if s.shouldCheckTruncation(ft, tt) {
+			if s.shouldCheckTruncation(n, ft, tt) {
 				return s.checkTypeTruncation(n, v, ft, tt, op)
 			}
 		} else if tt.Size() < ft.Size() {
@@ -2775,7 +2775,7 @@ func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
 			}
 
 			// Add truncation check if enabled
-			if s.shouldCheckTruncation(ft, tt) {
+			if s.shouldCheckTruncation(n, ft, tt) {
 				return s.checkTypeTruncation(n, v, ft, tt, op)
 			}
 		} else if ft.IsSigned() {
@@ -5396,7 +5396,7 @@ func isStandardLibraryPackage(pkgPath string) bool {
 		strings.HasPrefix(pkgPath, "bootstrap") {
 		return true
 	}
-	
+
 	// Standard library packages: no dots, not main, not test, not command-line-arguments
 	if !strings.Contains(pkgPath, ".") &&
 		pkgPath != "main" &&
@@ -5404,7 +5404,7 @@ func isStandardLibraryPackage(pkgPath string) bool {
 		!strings.HasSuffix(pkgPath, "_test") {
 		return true
 	}
-	
+
 	return false
 }
 
@@ -5414,22 +5414,23 @@ func isStandardLibraryFile(filename string) bool {
 	if filename == "" {
 		return false
 	}
-	
+
 	// Check if file is from GOROOT (standard library)
-	if strings.Contains(filename, "/go-arithmetic-panik/src/") {
+	// TODO: This shouldn't be static as this relies on the compiler name
+	if strings.Contains(filename, "/go-panikint/src/") {
 		return true
 	}
-	
+
 	// Check if file is from module cache (third-party dependencies)
 	if strings.Contains(filename, "/pkg/mod/") {
 		return true
 	}
-	
+
 	// Check if file is from vendor directory
 	if strings.Contains(filename, "/vendor/") {
 		return true
 	}
-	
+
 	return false
 }
 
@@ -5440,10 +5441,10 @@ func (s *state) shouldCheckOverflow(typ *types.Type) bool {
 	// Apply overflow detection based on source location, not compilation context
 	// The key insight is that when user code calls library functions, those functions
 	// may get inlined, but the source positions still point to the original files.
-	
+
 	// Check current package path - this helps during the initial toolchain build
 	pkgPath := base.Ctxt.Pkgpath
-	
+
 	// During toolchain build, exclude standard library and internal packages
 	if isStandardLibraryPackage(pkgPath) {
 		return false
@@ -5470,27 +5471,25 @@ func (s *state) shouldCheckOverflow(typ *types.Type) bool {
 
 // shouldCheckTruncation returns true if truncation detection should be applied for this conversion.
 // It checks if the package should be excluded from truncation detection and if the conversion is potentially lossy.
-func (s *state) shouldCheckTruncation(fromType, toType *types.Type) bool {
+func (s *state) shouldCheckTruncation(n ir.Node, fromType, toType *types.Type) bool {
 
-	return false // Disabled to avoid issues with standard library and third-party code
-	
-	// Only apply truncation detection to user code (main package only)
-	// Skip everything else to avoid issues with standard library and third-party dependencies
+	// Apply truncation detection based on source location, not compilation context
+	// The key insight is that when user code calls library functions, those functions
+	// may get inlined, but the source positions still point to the original files.
+
+	// Check current package path - this helps during the initial toolchain build
 	pkgPath := base.Ctxt.Pkgpath
 
-	// Be very restrictive - only check truncation for:
-	// - "main" package (user's main program)
-	// - "command-line-arguments" (go run command)
-	// Skip everything else including:
-	// - All standard library packages: "fmt", "os", "go/doc/comment", "hash/fnv", etc.
-	// - All third-party packages: "github.com/...", "google.golang.org/...", etc.
-	// - All internal tooling: "cmd/...", "internal/...", etc.
-	// - All local packages that might use standard library features
-	isUserCode := pkgPath == "main" || pkgPath == "command-line-arguments"
-
-	if !isUserCode {
+	// During toolchain build, exclude standard library and internal packages
+	if isStandardLibraryPackage(pkgPath) {
 		return false
 	}
+
+	// CRITICAL: For external package testing (like Avalanchego), we must rely
+	// entirely on file-level filtering, not package-level filtering.
+	// The package path will be something like "github.com/ava-labs/avalanchego/..."
+	// which is not a standard library package, but operations might still come
+	// from standard library files when those libraries are used.
 
 	// Check truncation for integer types in these cases:
 	// 1. Target type is smaller than source type (traditional truncation)
@@ -5514,6 +5513,38 @@ func (s *state) shouldCheckTruncation(fromType, toType *types.Type) bool {
 
 // checkTypeTruncation generates runtime checks to detect truncation during type conversion
 func (s *state) checkTypeTruncation(n ir.Node, value *ssa.Value, fromType, toType *types.Type, op ssa.Op) *ssa.Value {
+	// CRITICAL FIX: When Node is nil (like in s.conv(nil, load, loadType, lenType)),
+	// we cannot rely on source position. In this case, we must be conservative
+	// and assume it's standard library code that should be excluded.
+	//
+	// This happens in cases like:
+	// - Length conversions: s.conv(nil, load, loadType, lenType)
+	// - Compiler-generated conversions without source context
+	// - Internal operations within standard library functions
+	
+	if n == nil {
+		// No source context - assume it's compiler-generated or standard library
+		// This matches the behavior of overflow detection which doesn't get
+		// called for these internal conversions
+		return s.newValue1(op, toType, value)
+	}
+
+	// Check source location of this specific conversion operation
+	// This is crucial for distinguishing user code from standard library code
+	pos := n.Pos()
+	if pos.IsKnown() {
+		filename := base.Ctxt.PosTable.Pos(pos).Filename()
+		if isStandardLibraryFile(filename) {
+			// Skip truncation detection for operations from standard library files
+			return s.newValue1(op, toType, value)
+		}
+		
+		// Additional specific check for encoding/binary
+		if strings.Contains(filename, "/encoding/binary/") {
+			return s.newValue1(op, toType, value)
+		}
+	}
+
 	// Perform the conversion first
 	result := s.newValue1(op, toType, value)
 
@@ -5605,7 +5636,7 @@ func (s *state) intAdd(n ir.Node, a, b *ssa.Value) *ssa.Value {
 			return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 		}
 	}
-	
+
 	if !s.shouldCheckOverflow(n.Type()) {
 		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 	}
@@ -5676,7 +5707,7 @@ func (s *state) intSub(n ir.Node, a, b *ssa.Value) *ssa.Value {
 			return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 		}
 	}
-	
+
 	if !s.shouldCheckOverflow(n.Type()) {
 		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 	}
@@ -5747,7 +5778,7 @@ func (s *state) intMul(n ir.Node, a, b *ssa.Value) *ssa.Value {
 			return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 		}
 	}
-	
+
 	if !s.shouldCheckOverflow(n.Type()) {
 		return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 	}
@@ -5805,7 +5836,7 @@ func (s *state) intDiv(n ir.Node, a, b *ssa.Value) *ssa.Value {
 			return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 		}
 	}
-	
+
 	// First check for division by zero (same as intDivide function)
 	needcheck := true
 	switch b.Op {
