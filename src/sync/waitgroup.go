@@ -120,13 +120,6 @@ func (wg *WaitGroup) Add(delta int) {
 	if w != 0 && delta > 0 && v == int32(delta) {
 		panic("sync: WaitGroup misuse: Add called concurrently with Wait")
 	}
-	if v == 0 && bubbled {
-		// Disassociate the WaitGroup from its bubble.
-		synctest.Disassociate(wg)
-		if w == 0 {
-			wg.state.Store(0)
-		}
-	}
 	if v > 0 || w == 0 {
 		return
 	}
@@ -140,6 +133,11 @@ func (wg *WaitGroup) Add(delta int) {
 	}
 	// Reset waiters count to 0.
 	wg.state.Store(0)
+	if bubbled {
+		// Adds must not happen concurrently with wait when counter is 0,
+		// so we can safely disassociate wg from its current bubble.
+		synctest.Disassociate(wg)
+	}
 	for ; w != 0; w-- {
 		runtime_Semrelease(&wg.sema, false, 0)
 	}
@@ -166,12 +164,19 @@ func (wg *WaitGroup) Wait() {
 	for {
 		state := wg.state.Load()
 		v := int32(state >> 32)
-		w := uint32(state)
+		w := uint32(state & 0x7fffffff)
 		if v == 0 {
 			// Counter is 0, no need to wait.
 			if race.Enabled {
 				race.Enable()
 				race.Acquire(unsafe.Pointer(wg))
+			}
+			if w == 0 && state&waitGroupBubbleFlag != 0 && synctest.IsAssociated(wg) {
+				// Adds must not happen concurrently with wait when counter is 0,
+				// so we can disassociate wg from its current bubble.
+				if wg.state.CompareAndSwap(state, 0) {
+					synctest.Disassociate(wg)
+				}
 			}
 			return
 		}
