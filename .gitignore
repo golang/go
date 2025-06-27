@@ -1,4 +1,5 @@
 .idea/
+temp/*
 fuzz_test/testdata/
 .DS_Store
 *.[56789ao]
