@@ -246,14 +246,18 @@ func (o *orderState) addrTemp(n ir.Node) ir.Node {
 	if v == nil {
 		v = n
 	}
+	optEnabled := func(n ir.Node) bool {
+		// Do this optimization only when enabled for this node.
+		return base.LiteralAllocHash.MatchPos(n.Pos(), nil)
+	}
 	if (v.Op() == ir.OSTRUCTLIT || v.Op() == ir.OARRAYLIT) && !base.Ctxt.IsFIPS() {
-		if ir.IsZero(v) && 0 < v.Type().Size() && v.Type().Size() <= abi.ZeroValSize {
+		if ir.IsZero(v) && 0 < v.Type().Size() && v.Type().Size() <= abi.ZeroValSize && optEnabled(n) {
 			// This zero value can be represented by the read-only zeroVal.
 			zeroVal := ir.NewLinksymExpr(v.Pos(), ir.Syms.ZeroVal, n.Type())
 			vstat := typecheck.Expr(zeroVal).(*ir.LinksymOffsetExpr)
 			return vstat
 		}
-		if isStaticCompositeLiteral(v) {
+		if isStaticCompositeLiteral(v) && optEnabled(n) {
 			// v can be directly represented in the read-only data section.
 			lit := v.(*ir.CompLitExpr)
 			vstat := readonlystaticname(n.Type())

@@ -567,6 +567,10 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 					base.Fatalf("unexpected BasicLit Kind")
 				}
 				if constant.Compare(lit.Val(), token.GEQ, constant.MakeInt64(0)) {
+					if !base.LiteralAllocHash.MatchPos(n.Pos(), nil) {
+						// De-selected by literal alloc optimizations debug hash.
+						return
+					}
 					// Preserve any side effects of the original expression, then replace it.
 					assignTemp(*r, n.PtrInit())
 					*r = lit
@@ -580,6 +584,10 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 		if conv.X.Op() != ir.OLITERAL && !conv.X.Type().IsInterface() {
 			v := ro.StaticValue(conv.X)
 			if v != nil && v.Op() == ir.OLITERAL && ir.ValidTypeForConst(conv.X.Type(), v.Val()) {
+				if !base.LiteralAllocHash.MatchPos(n.Pos(), nil) {
+					// De-selected by literal alloc optimizations debug hash.
+					return
+				}
 				if base.Debug.EscapeDebug >= 3 {
 					base.WarnfAt(n.Pos(), "rewriting OCONVIFACE value from %v (%v) to %v (%v)", conv.X, conv.X.Type(), v, v.Type())
 				}
