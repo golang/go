@@ -1866,7 +1866,7 @@ func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg in
 func simdReg(v *ssa.Value) int16 {
 	t := v.Type
 	if !t.IsSIMD() {
-		panic("simdReg: not a simd type")
+		base.Fatalf("simdReg: not a simd type; v=%s, b=b%d, f=%s", v.LongString(), v.Block.ID, v.Block.Func.Name)
 	}
 	switch t.Size() {
 	case 8:

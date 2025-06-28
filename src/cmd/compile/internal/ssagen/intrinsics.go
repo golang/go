@@ -1684,6 +1684,34 @@ func opLen3Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallE
 	}
 }
 
+func opLen2Imm8_2I(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		if args[1].Op == ssa.OpConst8 {
+			return s.newValue2I(op, t, args[2].AuxInt<<int64(offset), args[0], args[1])
+		}
+		plainPanicSimdImm(s)
+		// Even though this default call is unreachable semantically,
+		// it has to return something, otherwise the compiler will try to generate
+		// default codes which might lead to a FwdRef being put at the entry block
+		// triggering a compiler panic.
+		return s.newValue2I(op, t, 0, args[0], args[1])
+	}
+}
+
+func opLen3Imm8_2I(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		if args[1].Op == ssa.OpConst8 {
+			return s.newValue3I(op, t, args[2].AuxInt<<int64(offset), args[0], args[1], args[3])
+		}
+		plainPanicSimdImm(s)
+		// Even though this default call is unreachable semantically,
+		// it has to return something, otherwise the compiler will try to generate
+		// default codes which might lead to a FwdRef being put at the entry block
+		// triggering a compiler panic.
+		return s.newValue3I(op, t, 0, args[0], args[1], args[3])
+	}
+}
+
 func opLen4Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		if args[1].Op == ssa.OpConst8 {
