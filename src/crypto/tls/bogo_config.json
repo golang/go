@@ -208,8 +208,6 @@
         "EarlyData-UnexpectedHandshake-Server-TLS13": "TODO: first pass, this should be fixed",
         "EarlyData-CipherMismatch-Client-TLS13": "TODO: first pass, this should be fixed",
 
-        "ServerNameExtensionServer-TLS-*": "https://github.com/golang/go/issues/74282",
-
         "Resume-Server-UnofferedCipher-TLS13": "TODO: first pass, this should be fixed",
         "GarbageCertificate-Server-TLS13": "TODO: 2025/06 BoGo update, should be fixed",
         "WrongMessageType-TLS13-ClientCertificate-TLS": "TODO: 2025/06  BoGo update, should be fixed",
