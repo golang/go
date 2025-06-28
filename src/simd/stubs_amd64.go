@@ -632,37 +632,37 @@ func (x Float64x4) Ceil() Float64x4
 // Const Immediate = 10.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) CeilSuppressExceptionWithPrecision(imm8 uint8) Float32x4
+func (x Float32x4) CeilSuppressExceptionWithPrecision(imm uint8) Float32x4
 
 // CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
 // Const Immediate = 10.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) CeilSuppressExceptionWithPrecision(imm8 uint8) Float32x8
+func (x Float32x8) CeilSuppressExceptionWithPrecision(imm uint8) Float32x8
 
 // CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
 // Const Immediate = 10.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) CeilSuppressExceptionWithPrecision(imm8 uint8) Float32x16
+func (x Float32x16) CeilSuppressExceptionWithPrecision(imm uint8) Float32x16
 
 // CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
 // Const Immediate = 10.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) CeilSuppressExceptionWithPrecision(imm8 uint8) Float64x2
+func (x Float64x2) CeilSuppressExceptionWithPrecision(imm uint8) Float64x2
 
 // CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
 // Const Immediate = 10.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) CeilSuppressExceptionWithPrecision(imm8 uint8) Float64x4
+func (x Float64x4) CeilSuppressExceptionWithPrecision(imm uint8) Float64x4
 
 // CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
 // Const Immediate = 10.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) CeilSuppressExceptionWithPrecision(imm8 uint8) Float64x8
+func (x Float64x8) CeilSuppressExceptionWithPrecision(imm uint8) Float64x8
 
 /* CeilWithPrecision */
 
@@ -670,37 +670,37 @@ func (x Float64x8) CeilSuppressExceptionWithPrecision(imm8 uint8) Float64x8
 // Const Immediate = 2.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) CeilWithPrecision(imm8 uint8) Float32x4
+func (x Float32x4) CeilWithPrecision(imm uint8) Float32x4
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
 // Const Immediate = 2.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) CeilWithPrecision(imm8 uint8) Float32x8
+func (x Float32x8) CeilWithPrecision(imm uint8) Float32x8
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
 // Const Immediate = 2.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) CeilWithPrecision(imm8 uint8) Float32x16
+func (x Float32x16) CeilWithPrecision(imm uint8) Float32x16
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
 // Const Immediate = 2.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) CeilWithPrecision(imm8 uint8) Float64x2
+func (x Float64x2) CeilWithPrecision(imm uint8) Float64x2
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
 // Const Immediate = 2.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) CeilWithPrecision(imm8 uint8) Float64x4
+func (x Float64x4) CeilWithPrecision(imm uint8) Float64x4
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
 // Const Immediate = 2.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) CeilWithPrecision(imm8 uint8) Float64x8
+func (x Float64x8) CeilWithPrecision(imm uint8) Float64x8
 
 /* DiffWithCeilSuppressExceptionWithPrecision */
 
@@ -708,37 +708,37 @@ func (x Float64x8) CeilWithPrecision(imm8 uint8) Float64x8
 // Const Immediate = 10.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithCeilSuppressExceptionWithPrecision(imm8 uint8) Float32x4
+func (x Float32x4) DiffWithCeilSuppressExceptionWithPrecision(imm uint8) Float32x4
 
 // DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
 // Const Immediate = 10.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithCeilSuppressExceptionWithPrecision(imm8 uint8) Float32x8
+func (x Float32x8) DiffWithCeilSuppressExceptionWithPrecision(imm uint8) Float32x8
 
 // DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
 // Const Immediate = 10.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithCeilSuppressExceptionWithPrecision(imm8 uint8) Float32x16
+func (x Float32x16) DiffWithCeilSuppressExceptionWithPrecision(imm uint8) Float32x16
 
 // DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
 // Const Immediate = 10.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithCeilSuppressExceptionWithPrecision(imm8 uint8) Float64x2
+func (x Float64x2) DiffWithCeilSuppressExceptionWithPrecision(imm uint8) Float64x2
 
 // DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
 // Const Immediate = 10.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithCeilSuppressExceptionWithPrecision(imm8 uint8) Float64x4
+func (x Float64x4) DiffWithCeilSuppressExceptionWithPrecision(imm uint8) Float64x4
 
 // DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
 // Const Immediate = 10.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithCeilSuppressExceptionWithPrecision(imm8 uint8) Float64x8
+func (x Float64x8) DiffWithCeilSuppressExceptionWithPrecision(imm uint8) Float64x8
 
 /* DiffWithCeilWithPrecision */
 
@@ -746,37 +746,37 @@ func (x Float64x8) DiffWithCeilSuppressExceptionWithPrecision(imm8 uint8) Float6
 // Const Immediate = 2.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithCeilWithPrecision(imm8 uint8) Float32x4
+func (x Float32x4) DiffWithCeilWithPrecision(imm uint8) Float32x4
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
 // Const Immediate = 2.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithCeilWithPrecision(imm8 uint8) Float32x8
+func (x Float32x8) DiffWithCeilWithPrecision(imm uint8) Float32x8
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
 // Const Immediate = 2.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithCeilWithPrecision(imm8 uint8) Float32x16
+func (x Float32x16) DiffWithCeilWithPrecision(imm uint8) Float32x16
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
 // Const Immediate = 2.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithCeilWithPrecision(imm8 uint8) Float64x2
+func (x Float64x2) DiffWithCeilWithPrecision(imm uint8) Float64x2
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
 // Const Immediate = 2.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithCeilWithPrecision(imm8 uint8) Float64x4
+func (x Float64x4) DiffWithCeilWithPrecision(imm uint8) Float64x4
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
 // Const Immediate = 2.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithCeilWithPrecision(imm8 uint8) Float64x8
+func (x Float64x8) DiffWithCeilWithPrecision(imm uint8) Float64x8
 
 /* DiffWithFloorSuppressExceptionWithPrecision */
 
@@ -784,37 +784,37 @@ func (x Float64x8) DiffWithCeilWithPrecision(imm8 uint8) Float64x8
 // Const Immediate = 9.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithFloorSuppressExceptionWithPrecision(imm8 uint8) Float32x4
+func (x Float32x4) DiffWithFloorSuppressExceptionWithPrecision(imm uint8) Float32x4
 
 // DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
 // Const Immediate = 9.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithFloorSuppressExceptionWithPrecision(imm8 uint8) Float32x8
+func (x Float32x8) DiffWithFloorSuppressExceptionWithPrecision(imm uint8) Float32x8
 
 // DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
 // Const Immediate = 9.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithFloorSuppressExceptionWithPrecision(imm8 uint8) Float32x16
+func (x Float32x16) DiffWithFloorSuppressExceptionWithPrecision(imm uint8) Float32x16
 
 // DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
 // Const Immediate = 9.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithFloorSuppressExceptionWithPrecision(imm8 uint8) Float64x2
+func (x Float64x2) DiffWithFloorSuppressExceptionWithPrecision(imm uint8) Float64x2
 
 // DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
 // Const Immediate = 9.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithFloorSuppressExceptionWithPrecision(imm8 uint8) Float64x4
+func (x Float64x4) DiffWithFloorSuppressExceptionWithPrecision(imm uint8) Float64x4
 
 // DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
 // Const Immediate = 9.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithFloorSuppressExceptionWithPrecision(imm8 uint8) Float64x8
+func (x Float64x8) DiffWithFloorSuppressExceptionWithPrecision(imm uint8) Float64x8
 
 /* DiffWithFloorWithPrecision */
 
@@ -822,37 +822,37 @@ func (x Float64x8) DiffWithFloorSuppressExceptionWithPrecision(imm8 uint8) Float
 // Const Immediate = 1.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithFloorWithPrecision(imm8 uint8) Float32x4
+func (x Float32x4) DiffWithFloorWithPrecision(imm uint8) Float32x4
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
 // Const Immediate = 1.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithFloorWithPrecision(imm8 uint8) Float32x8
+func (x Float32x8) DiffWithFloorWithPrecision(imm uint8) Float32x8
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
 // Const Immediate = 1.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithFloorWithPrecision(imm8 uint8) Float32x16
+func (x Float32x16) DiffWithFloorWithPrecision(imm uint8) Float32x16
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
 // Const Immediate = 1.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithFloorWithPrecision(imm8 uint8) Float64x2
+func (x Float64x2) DiffWithFloorWithPrecision(imm uint8) Float64x2
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
 // Const Immediate = 1.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithFloorWithPrecision(imm8 uint8) Float64x4
+func (x Float64x4) DiffWithFloorWithPrecision(imm uint8) Float64x4
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
 // Const Immediate = 1.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithFloorWithPrecision(imm8 uint8) Float64x8
+func (x Float64x8) DiffWithFloorWithPrecision(imm uint8) Float64x8
 
 /* DiffWithRoundSuppressExceptionWithPrecision */
 
@@ -860,37 +860,37 @@ func (x Float64x8) DiffWithFloorWithPrecision(imm8 uint8) Float64x8
 // Const Immediate = 8.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithRoundSuppressExceptionWithPrecision(imm8 uint8) Float32x4
+func (x Float32x4) DiffWithRoundSuppressExceptionWithPrecision(imm uint8) Float32x4
 
 // DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
 // Const Immediate = 8.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithRoundSuppressExceptionWithPrecision(imm8 uint8) Float32x8
+func (x Float32x8) DiffWithRoundSuppressExceptionWithPrecision(imm uint8) Float32x8
 
 // DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
 // Const Immediate = 8.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithRoundSuppressExceptionWithPrecision(imm8 uint8) Float32x16
+func (x Float32x16) DiffWithRoundSuppressExceptionWithPrecision(imm uint8) Float32x16
 
 // DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
 // Const Immediate = 8.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithRoundSuppressExceptionWithPrecision(imm8 uint8) Float64x2
+func (x Float64x2) DiffWithRoundSuppressExceptionWithPrecision(imm uint8) Float64x2
 
 // DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
 // Const Immediate = 8.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithRoundSuppressExceptionWithPrecision(imm8 uint8) Float64x4
+func (x Float64x4) DiffWithRoundSuppressExceptionWithPrecision(imm uint8) Float64x4
 
 // DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
 // Const Immediate = 8.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithRoundSuppressExceptionWithPrecision(imm8 uint8) Float64x8
+func (x Float64x8) DiffWithRoundSuppressExceptionWithPrecision(imm uint8) Float64x8
 
 /* DiffWithRoundWithPrecision */
 
@@ -898,37 +898,37 @@ func (x Float64x8) DiffWithRoundSuppressExceptionWithPrecision(imm8 uint8) Float
 // Const Immediate = 0.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithRoundWithPrecision(imm8 uint8) Float32x4
+func (x Float32x4) DiffWithRoundWithPrecision(imm uint8) Float32x4
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
 // Const Immediate = 0.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithRoundWithPrecision(imm8 uint8) Float32x8
+func (x Float32x8) DiffWithRoundWithPrecision(imm uint8) Float32x8
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
 // Const Immediate = 0.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithRoundWithPrecision(imm8 uint8) Float32x16
+func (x Float32x16) DiffWithRoundWithPrecision(imm uint8) Float32x16
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
 // Const Immediate = 0.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithRoundWithPrecision(imm8 uint8) Float64x2
+func (x Float64x2) DiffWithRoundWithPrecision(imm uint8) Float64x2
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
 // Const Immediate = 0.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithRoundWithPrecision(imm8 uint8) Float64x4
+func (x Float64x4) DiffWithRoundWithPrecision(imm uint8) Float64x4
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
 // Const Immediate = 0.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithRoundWithPrecision(imm8 uint8) Float64x8
+func (x Float64x8) DiffWithRoundWithPrecision(imm uint8) Float64x8
 
 /* DiffWithTruncSuppressExceptionWithPrecision */
 
@@ -936,37 +936,37 @@ func (x Float64x8) DiffWithRoundWithPrecision(imm8 uint8) Float64x8
 // Const Immediate = 11.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithTruncSuppressExceptionWithPrecision(imm8 uint8) Float32x4
+func (x Float32x4) DiffWithTruncSuppressExceptionWithPrecision(imm uint8) Float32x4
 
 // DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
 // Const Immediate = 11.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithTruncSuppressExceptionWithPrecision(imm8 uint8) Float32x8
+func (x Float32x8) DiffWithTruncSuppressExceptionWithPrecision(imm uint8) Float32x8
 
 // DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
 // Const Immediate = 11.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithTruncSuppressExceptionWithPrecision(imm8 uint8) Float32x16
+func (x Float32x16) DiffWithTruncSuppressExceptionWithPrecision(imm uint8) Float32x16
 
 // DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
 // Const Immediate = 11.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithTruncSuppressExceptionWithPrecision(imm8 uint8) Float64x2
+func (x Float64x2) DiffWithTruncSuppressExceptionWithPrecision(imm uint8) Float64x2
 
 // DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
 // Const Immediate = 11.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithTruncSuppressExceptionWithPrecision(imm8 uint8) Float64x4
+func (x Float64x4) DiffWithTruncSuppressExceptionWithPrecision(imm uint8) Float64x4
 
 // DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
 // Const Immediate = 11.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithTruncSuppressExceptionWithPrecision(imm8 uint8) Float64x8
+func (x Float64x8) DiffWithTruncSuppressExceptionWithPrecision(imm uint8) Float64x8
 
 /* DiffWithTruncWithPrecision */
 
@@ -974,37 +974,37 @@ func (x Float64x8) DiffWithTruncSuppressExceptionWithPrecision(imm8 uint8) Float
 // Const Immediate = 3.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithTruncWithPrecision(imm8 uint8) Float32x4
+func (x Float32x4) DiffWithTruncWithPrecision(imm uint8) Float32x4
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
 // Const Immediate = 3.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithTruncWithPrecision(imm8 uint8) Float32x8
+func (x Float32x8) DiffWithTruncWithPrecision(imm uint8) Float32x8
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
 // Const Immediate = 3.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithTruncWithPrecision(imm8 uint8) Float32x16
+func (x Float32x16) DiffWithTruncWithPrecision(imm uint8) Float32x16
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
 // Const Immediate = 3.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithTruncWithPrecision(imm8 uint8) Float64x2
+func (x Float64x2) DiffWithTruncWithPrecision(imm uint8) Float64x2
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
 // Const Immediate = 3.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithTruncWithPrecision(imm8 uint8) Float64x4
+func (x Float64x4) DiffWithTruncWithPrecision(imm uint8) Float64x4
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
 // Const Immediate = 3.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithTruncWithPrecision(imm8 uint8) Float64x8
+func (x Float64x8) DiffWithTruncWithPrecision(imm uint8) Float64x8
 
 /* Div */
 
@@ -1260,37 +1260,37 @@ func (x Float64x4) Floor() Float64x4
 // Const Immediate = 9.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) FloorSuppressExceptionWithPrecision(imm8 uint8) Float32x4
+func (x Float32x4) FloorSuppressExceptionWithPrecision(imm uint8) Float32x4
 
 // FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
 // Const Immediate = 9.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) FloorSuppressExceptionWithPrecision(imm8 uint8) Float32x8
+func (x Float32x8) FloorSuppressExceptionWithPrecision(imm uint8) Float32x8
 
 // FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
 // Const Immediate = 9.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) FloorSuppressExceptionWithPrecision(imm8 uint8) Float32x16
+func (x Float32x16) FloorSuppressExceptionWithPrecision(imm uint8) Float32x16
 
 // FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
 // Const Immediate = 9.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) FloorSuppressExceptionWithPrecision(imm8 uint8) Float64x2
+func (x Float64x2) FloorSuppressExceptionWithPrecision(imm uint8) Float64x2
 
 // FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
 // Const Immediate = 9.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) FloorSuppressExceptionWithPrecision(imm8 uint8) Float64x4
+func (x Float64x4) FloorSuppressExceptionWithPrecision(imm uint8) Float64x4
 
 // FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
 // Const Immediate = 9.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) FloorSuppressExceptionWithPrecision(imm8 uint8) Float64x8
+func (x Float64x8) FloorSuppressExceptionWithPrecision(imm uint8) Float64x8
 
 /* FloorWithPrecision */
 
@@ -1298,37 +1298,37 @@ func (x Float64x8) FloorSuppressExceptionWithPrecision(imm8 uint8) Float64x8
 // Const Immediate = 1.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) FloorWithPrecision(imm8 uint8) Float32x4
+func (x Float32x4) FloorWithPrecision(imm uint8) Float32x4
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
 // Const Immediate = 1.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) FloorWithPrecision(imm8 uint8) Float32x8
+func (x Float32x8) FloorWithPrecision(imm uint8) Float32x8
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
 // Const Immediate = 1.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) FloorWithPrecision(imm8 uint8) Float32x16
+func (x Float32x16) FloorWithPrecision(imm uint8) Float32x16
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
 // Const Immediate = 1.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) FloorWithPrecision(imm8 uint8) Float64x2
+func (x Float64x2) FloorWithPrecision(imm uint8) Float64x2
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
 // Const Immediate = 1.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) FloorWithPrecision(imm8 uint8) Float64x4
+func (x Float64x4) FloorWithPrecision(imm uint8) Float64x4
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
 // Const Immediate = 1.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) FloorWithPrecision(imm8 uint8) Float64x8
+func (x Float64x8) FloorWithPrecision(imm uint8) Float64x8
 
 /* FusedMultiplyAdd */
 
@@ -1430,56 +1430,56 @@ func (x Float64x8) FusedMultiplySubAdd(y Float64x8, z Float64x8) Float64x8
 
 // GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
 // corresponding to a group of 8 elements in x.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
-func (x Uint8x16) GaloisFieldAffineTransform(y Uint64x2, b uint8) Uint8x16
+func (x Uint8x16) GaloisFieldAffineTransform(b uint8, y Uint64x2) Uint8x16
 
 // GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
 // corresponding to a group of 8 elements in x.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
-func (x Uint8x32) GaloisFieldAffineTransform(y Uint64x4, b uint8) Uint8x32
+func (x Uint8x32) GaloisFieldAffineTransform(b uint8, y Uint64x4) Uint8x32
 
 // GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
 // corresponding to a group of 8 elements in x.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
-func (x Uint8x64) GaloisFieldAffineTransform(y Uint64x8, b uint8) Uint8x64
+func (x Uint8x64) GaloisFieldAffineTransform(b uint8, y Uint64x8) Uint8x64
 
 /* GaloisFieldAffineTransformInversed */
 
 // GaloisFieldAffineTransform computes an affine transformation in GF(2^8),
 // with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
 // corresponding to a group of 8 elements in x.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
-func (x Uint8x16) GaloisFieldAffineTransformInversed(y Uint64x2, b uint8) Uint8x16
+func (x Uint8x16) GaloisFieldAffineTransformInversed(b uint8, y Uint64x2) Uint8x16
 
 // GaloisFieldAffineTransform computes an affine transformation in GF(2^8),
 // with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
 // corresponding to a group of 8 elements in x.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
-func (x Uint8x32) GaloisFieldAffineTransformInversed(y Uint64x4, b uint8) Uint8x32
+func (x Uint8x32) GaloisFieldAffineTransformInversed(b uint8, y Uint64x4) Uint8x32
 
 // GaloisFieldAffineTransform computes an affine transformation in GF(2^8),
 // with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
 // corresponding to a group of 8 elements in x.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
-func (x Uint8x64) GaloisFieldAffineTransformInversed(y Uint64x8, b uint8) Uint8x64
+func (x Uint8x64) GaloisFieldAffineTransformInversed(b uint8, y Uint64x8) Uint8x64
 
 /* GaloisFieldMul */
 
@@ -1506,42 +1506,42 @@ func (x Uint8x64) GaloisFieldMul(y Uint8x64) Uint8x64
 // GetElem retrieves a single constant-indexed element's value.
 //
 // Asm: VPEXTRB, CPU Feature: AVX512EVEX
-func (x Int8x16) GetElem(imm8 uint8) int8
+func (x Int8x16) GetElem(imm uint8) int8
 
 // GetElem retrieves a single constant-indexed element's value.
 //
 // Asm: VPEXTRW, CPU Feature: AVX512EVEX
-func (x Int16x8) GetElem(imm8 uint8) int16
+func (x Int16x8) GetElem(imm uint8) int16
 
 // GetElem retrieves a single constant-indexed element's value.
 //
 // Asm: VPEXTRD, CPU Feature: AVX
-func (x Int32x4) GetElem(imm8 uint8) int32
+func (x Int32x4) GetElem(imm uint8) int32
 
 // GetElem retrieves a single constant-indexed element's value.
 //
 // Asm: VPEXTRQ, CPU Feature: AVX
-func (x Int64x2) GetElem(imm8 uint8) int64
+func (x Int64x2) GetElem(imm uint8) int64
 
 // GetElem retrieves a single constant-indexed element's value.
 //
 // Asm: VPEXTRB, CPU Feature: AVX512EVEX
-func (x Uint8x16) GetElem(imm8 uint8) uint8
+func (x Uint8x16) GetElem(imm uint8) uint8
 
 // GetElem retrieves a single constant-indexed element's value.
 //
 // Asm: VPEXTRW, CPU Feature: AVX512EVEX
-func (x Uint16x8) GetElem(imm8 uint8) uint16
+func (x Uint16x8) GetElem(imm uint8) uint16
 
 // GetElem retrieves a single constant-indexed element's value.
 //
 // Asm: VPEXTRD, CPU Feature: AVX
-func (x Uint32x4) GetElem(imm8 uint8) uint32
+func (x Uint32x4) GetElem(imm uint8) uint32
 
 // GetElem retrieves a single constant-indexed element's value.
 //
 // Asm: VPEXTRQ, CPU Feature: AVX
-func (x Uint64x2) GetElem(imm8 uint8) uint64
+func (x Uint64x2) GetElem(imm uint8) uint64
 
 /* Greater */
 
@@ -3573,56 +3573,56 @@ func (x Float64x8) MaskedFusedMultiplySubAdd(y Float64x8, z Float64x8, u Mask64x
 
 // GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
 // corresponding to a group of 8 elements in x.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
-func (x Uint8x16) MaskedGaloisFieldAffineTransform(y Uint64x2, b uint8, m Mask8x16) Uint8x16
+func (x Uint8x16) MaskedGaloisFieldAffineTransform(b uint8, y Uint64x2, m Mask8x16) Uint8x16
 
 // GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
 // corresponding to a group of 8 elements in x.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
-func (x Uint8x32) MaskedGaloisFieldAffineTransform(y Uint64x4, b uint8, m Mask8x32) Uint8x32
+func (x Uint8x32) MaskedGaloisFieldAffineTransform(b uint8, y Uint64x4, m Mask8x32) Uint8x32
 
 // GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
 // corresponding to a group of 8 elements in x.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
-func (x Uint8x64) MaskedGaloisFieldAffineTransform(y Uint64x8, b uint8, m Mask8x64) Uint8x64
+func (x Uint8x64) MaskedGaloisFieldAffineTransform(b uint8, y Uint64x8, m Mask8x64) Uint8x64
 
 /* MaskedGaloisFieldAffineTransformInversed */
 
 // GaloisFieldAffineTransform computes an affine transformation in GF(2^8),
 // with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
 // corresponding to a group of 8 elements in x.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
-func (x Uint8x16) MaskedGaloisFieldAffineTransformInversed(y Uint64x2, b uint8, m Mask8x16) Uint8x16
+func (x Uint8x16) MaskedGaloisFieldAffineTransformInversed(b uint8, y Uint64x2, m Mask8x16) Uint8x16
 
 // GaloisFieldAffineTransform computes an affine transformation in GF(2^8),
 // with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
 // corresponding to a group of 8 elements in x.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
-func (x Uint8x32) MaskedGaloisFieldAffineTransformInversed(y Uint64x4, b uint8, m Mask8x32) Uint8x32
+func (x Uint8x32) MaskedGaloisFieldAffineTransformInversed(b uint8, y Uint64x4, m Mask8x32) Uint8x32
 
 // GaloisFieldAffineTransform computes an affine transformation in GF(2^8),
 // with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
 // corresponding to a group of 8 elements in x.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
-func (x Uint8x64) MaskedGaloisFieldAffineTransformInversed(y Uint64x8, b uint8, m Mask8x64) Uint8x64
+func (x Uint8x64) MaskedGaloisFieldAffineTransformInversed(b uint8, y Uint64x8, m Mask8x64) Uint8x64
 
 /* MaskedGaloisFieldMul */
 
@@ -8161,124 +8161,124 @@ func (x Uint64x8) PopCount() Uint64x8
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
-func (x Int32x4) RotateAllLeft(imm8 uint8) Int32x4
+func (x Int32x4) RotateAllLeft(imm uint8) Int32x4
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
-func (x Int32x8) RotateAllLeft(imm8 uint8) Int32x8
+func (x Int32x8) RotateAllLeft(imm uint8) Int32x8
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
-func (x Int32x16) RotateAllLeft(imm8 uint8) Int32x16
+func (x Int32x16) RotateAllLeft(imm uint8) Int32x16
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLQ, CPU Feature: AVX512EVEX
-func (x Int64x2) RotateAllLeft(imm8 uint8) Int64x2
+func (x Int64x2) RotateAllLeft(imm uint8) Int64x2
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLQ, CPU Feature: AVX512EVEX
-func (x Int64x4) RotateAllLeft(imm8 uint8) Int64x4
+func (x Int64x4) RotateAllLeft(imm uint8) Int64x4
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLQ, CPU Feature: AVX512EVEX
-func (x Int64x8) RotateAllLeft(imm8 uint8) Int64x8
+func (x Int64x8) RotateAllLeft(imm uint8) Int64x8
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
-func (x Uint32x4) RotateAllLeft(imm8 uint8) Uint32x4
+func (x Uint32x4) RotateAllLeft(imm uint8) Uint32x4
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
-func (x Uint32x8) RotateAllLeft(imm8 uint8) Uint32x8
+func (x Uint32x8) RotateAllLeft(imm uint8) Uint32x8
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
-func (x Uint32x16) RotateAllLeft(imm8 uint8) Uint32x16
+func (x Uint32x16) RotateAllLeft(imm uint8) Uint32x16
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLQ, CPU Feature: AVX512EVEX
-func (x Uint64x2) RotateAllLeft(imm8 uint8) Uint64x2
+func (x Uint64x2) RotateAllLeft(imm uint8) Uint64x2
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLQ, CPU Feature: AVX512EVEX
-func (x Uint64x4) RotateAllLeft(imm8 uint8) Uint64x4
+func (x Uint64x4) RotateAllLeft(imm uint8) Uint64x4
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLQ, CPU Feature: AVX512EVEX
-func (x Uint64x8) RotateAllLeft(imm8 uint8) Uint64x8
+func (x Uint64x8) RotateAllLeft(imm uint8) Uint64x8
 
 /* RotateAllRight */
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
-func (x Int32x4) RotateAllRight(imm8 uint8) Int32x4
+func (x Int32x4) RotateAllRight(imm uint8) Int32x4
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
-func (x Int32x8) RotateAllRight(imm8 uint8) Int32x8
+func (x Int32x8) RotateAllRight(imm uint8) Int32x8
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
-func (x Int32x16) RotateAllRight(imm8 uint8) Int32x16
+func (x Int32x16) RotateAllRight(imm uint8) Int32x16
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORQ, CPU Feature: AVX512EVEX
-func (x Int64x2) RotateAllRight(imm8 uint8) Int64x2
+func (x Int64x2) RotateAllRight(imm uint8) Int64x2
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORQ, CPU Feature: AVX512EVEX
-func (x Int64x4) RotateAllRight(imm8 uint8) Int64x4
+func (x Int64x4) RotateAllRight(imm uint8) Int64x4
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORQ, CPU Feature: AVX512EVEX
-func (x Int64x8) RotateAllRight(imm8 uint8) Int64x8
+func (x Int64x8) RotateAllRight(imm uint8) Int64x8
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
-func (x Uint32x4) RotateAllRight(imm8 uint8) Uint32x4
+func (x Uint32x4) RotateAllRight(imm uint8) Uint32x4
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
-func (x Uint32x8) RotateAllRight(imm8 uint8) Uint32x8
+func (x Uint32x8) RotateAllRight(imm uint8) Uint32x8
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
-func (x Uint32x16) RotateAllRight(imm8 uint8) Uint32x16
+func (x Uint32x16) RotateAllRight(imm uint8) Uint32x16
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORQ, CPU Feature: AVX512EVEX
-func (x Uint64x2) RotateAllRight(imm8 uint8) Uint64x2
+func (x Uint64x2) RotateAllRight(imm uint8) Uint64x2
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORQ, CPU Feature: AVX512EVEX
-func (x Uint64x4) RotateAllRight(imm8 uint8) Uint64x4
+func (x Uint64x4) RotateAllRight(imm uint8) Uint64x4
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORQ, CPU Feature: AVX512EVEX
-func (x Uint64x8) RotateAllRight(imm8 uint8) Uint64x8
+func (x Uint64x8) RotateAllRight(imm uint8) Uint64x8
 
 /* RotateLeft */
 
@@ -8436,37 +8436,37 @@ func (x Float64x4) Round() Float64x4
 // Const Immediate = 8.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) RoundSuppressExceptionWithPrecision(imm8 uint8) Float32x4
+func (x Float32x4) RoundSuppressExceptionWithPrecision(imm uint8) Float32x4
 
 // RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
 // Const Immediate = 8.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) RoundSuppressExceptionWithPrecision(imm8 uint8) Float32x8
+func (x Float32x8) RoundSuppressExceptionWithPrecision(imm uint8) Float32x8
 
 // RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
 // Const Immediate = 8.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) RoundSuppressExceptionWithPrecision(imm8 uint8) Float32x16
+func (x Float32x16) RoundSuppressExceptionWithPrecision(imm uint8) Float32x16
 
 // RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
 // Const Immediate = 8.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) RoundSuppressExceptionWithPrecision(imm8 uint8) Float64x2
+func (x Float64x2) RoundSuppressExceptionWithPrecision(imm uint8) Float64x2
 
 // RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
 // Const Immediate = 8.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) RoundSuppressExceptionWithPrecision(imm8 uint8) Float64x4
+func (x Float64x4) RoundSuppressExceptionWithPrecision(imm uint8) Float64x4
 
 // RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
 // Const Immediate = 8.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) RoundSuppressExceptionWithPrecision(imm8 uint8) Float64x8
+func (x Float64x8) RoundSuppressExceptionWithPrecision(imm uint8) Float64x8
 
 /* RoundWithPrecision */
 
@@ -8474,37 +8474,37 @@ func (x Float64x8) RoundSuppressExceptionWithPrecision(imm8 uint8) Float64x8
 // Const Immediate = 0.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) RoundWithPrecision(imm8 uint8) Float32x4
+func (x Float32x4) RoundWithPrecision(imm uint8) Float32x4
 
 // RoundWithPrecision rounds elements with specified precision.
 // Const Immediate = 0.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) RoundWithPrecision(imm8 uint8) Float32x8
+func (x Float32x8) RoundWithPrecision(imm uint8) Float32x8
 
 // RoundWithPrecision rounds elements with specified precision.
 // Const Immediate = 0.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) RoundWithPrecision(imm8 uint8) Float32x16
+func (x Float32x16) RoundWithPrecision(imm uint8) Float32x16
 
 // RoundWithPrecision rounds elements with specified precision.
 // Const Immediate = 0.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) RoundWithPrecision(imm8 uint8) Float64x2
+func (x Float64x2) RoundWithPrecision(imm uint8) Float64x2
 
 // RoundWithPrecision rounds elements with specified precision.
 // Const Immediate = 0.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) RoundWithPrecision(imm8 uint8) Float64x4
+func (x Float64x4) RoundWithPrecision(imm uint8) Float64x4
 
 // RoundWithPrecision rounds elements with specified precision.
 // Const Immediate = 0.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) RoundWithPrecision(imm8 uint8) Float64x8
+func (x Float64x8) RoundWithPrecision(imm uint8) Float64x8
 
 /* SaturatedAdd */
 
@@ -9920,37 +9920,37 @@ func (x Float64x4) Trunc() Float64x4
 // Const Immediate = 11.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) TruncSuppressExceptionWithPrecision(imm8 uint8) Float32x4
+func (x Float32x4) TruncSuppressExceptionWithPrecision(imm uint8) Float32x4
 
 // TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
 // Const Immediate = 11.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) TruncSuppressExceptionWithPrecision(imm8 uint8) Float32x8
+func (x Float32x8) TruncSuppressExceptionWithPrecision(imm uint8) Float32x8
 
 // TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
 // Const Immediate = 11.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) TruncSuppressExceptionWithPrecision(imm8 uint8) Float32x16
+func (x Float32x16) TruncSuppressExceptionWithPrecision(imm uint8) Float32x16
 
 // TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
 // Const Immediate = 11.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) TruncSuppressExceptionWithPrecision(imm8 uint8) Float64x2
+func (x Float64x2) TruncSuppressExceptionWithPrecision(imm uint8) Float64x2
 
 // TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
 // Const Immediate = 11.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) TruncSuppressExceptionWithPrecision(imm8 uint8) Float64x4
+func (x Float64x4) TruncSuppressExceptionWithPrecision(imm uint8) Float64x4
 
 // TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
 // Const Immediate = 11.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) TruncSuppressExceptionWithPrecision(imm8 uint8) Float64x8
+func (x Float64x8) TruncSuppressExceptionWithPrecision(imm uint8) Float64x8
 
 /* TruncWithPrecision */
 
@@ -9958,37 +9958,37 @@ func (x Float64x8) TruncSuppressExceptionWithPrecision(imm8 uint8) Float64x8
 // Const Immediate = 3.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) TruncWithPrecision(imm8 uint8) Float32x4
+func (x Float32x4) TruncWithPrecision(imm uint8) Float32x4
 
 // TruncWithPrecision truncates elements with specified precision.
 // Const Immediate = 3.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) TruncWithPrecision(imm8 uint8) Float32x8
+func (x Float32x8) TruncWithPrecision(imm uint8) Float32x8
 
 // TruncWithPrecision truncates elements with specified precision.
 // Const Immediate = 3.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) TruncWithPrecision(imm8 uint8) Float32x16
+func (x Float32x16) TruncWithPrecision(imm uint8) Float32x16
 
 // TruncWithPrecision truncates elements with specified precision.
 // Const Immediate = 3.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) TruncWithPrecision(imm8 uint8) Float64x2
+func (x Float64x2) TruncWithPrecision(imm uint8) Float64x2
 
 // TruncWithPrecision truncates elements with specified precision.
 // Const Immediate = 3.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) TruncWithPrecision(imm8 uint8) Float64x4
+func (x Float64x4) TruncWithPrecision(imm uint8) Float64x4
 
 // TruncWithPrecision truncates elements with specified precision.
 // Const Immediate = 3.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) TruncWithPrecision(imm8 uint8) Float64x8
+func (x Float64x8) TruncWithPrecision(imm uint8) Float64x8
 
 /* UnsignedSignedQuadDotProdAccumulate */
 
