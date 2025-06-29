@@ -256,3 +256,103 @@ func TestDWARFiOS(t *testing.T) {
 		testDWARF(t, "c-archive", true, cc, "CGO_ENABLED=1", "GOOS=ios", "GOARCH=arm64")
 	})
 }
+
+func TestDWARFLocationList(t *testing.T) {
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveGoBuild(t)
+
+	if !platform.ExecutableHasDWARF(runtime.GOOS, runtime.GOARCH) {
+		t.Skipf("skipping on %s/%s: no DWARF symbol table in executables", runtime.GOOS, runtime.GOARCH)
+	}
+
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	exe := filepath.Join(tmpDir, "issue65405.exe")
+	dir := "./testdata/dwarf/issue65405"
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-toolexec", os.Args[0], "-gcflags=all=-N -l", "-o", exe, dir)
+	cmd.Env = append(os.Environ(), "CGO_CFLAGS=")
+	cmd.Env = append(cmd.Env, "LINK_TEST_TOOLEXEC=1")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go build -o %v %v: %v\n%s", exe, dir, err, out)
+	}
+	t.Log("output:\n", string(out))
+
+	f, err := objfile.Open(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Find the net.sendFile function and check its return parameter location list
+	reader := d.Reader()
+	found := false
+
+	for {
+		entry, err := reader.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if entry == nil {
+			break
+		}
+
+		// Look for the net.sendFile subprogram
+		if entry.Tag == dwarf.TagSubprogram {
+			name, ok := entry.Val(dwarf.AttrName).(string)
+			if ok && name == "net.sendFile" {
+				found = true
+
+				// Look for formal parameters (including return parameters)
+				for {
+					paramEntry, err := reader.Next()
+					if err != nil {
+						t.Fatal(err)
+					}
+					if paramEntry == nil || paramEntry.Tag == 0 {
+						break
+					}
+
+					if paramEntry.Tag == dwarf.TagFormalParameter {
+						paramName, hasName := paramEntry.Val(dwarf.AttrName).(string)
+						if hasName && paramName == "handled" {
+							// Check if this parameter has a location attribute
+							if loc := paramEntry.Val(dwarf.AttrLocation); loc != nil {
+								switch locData := loc.(type) {
+								case []byte:
+									if len(locData) == 0 {
+										t.Errorf("net.sendFile return parameter 'handled' has empty location list")
+									}
+								case int64:
+									// Location list offset - this means it has a location list
+									if locData == 0 {
+										t.Errorf("net.sendFile return parameter 'handled' has zero location list offset")
+									} else {
+										// Non-zero offset means valid location list
+										t.Logf("net.sendFile return parameter 'handled' has location list at offset %d", locData)
+									}
+								default:
+									t.Logf("net.sendFile return parameter 'handled' has location of type %T: %v", locData, locData)
+								}
+							} else {
+								t.Errorf("net.sendFile return parameter 'handled' has no location attribute")
+							}
+							return // Found what we're looking for
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if !found {
+		t.Fatal("could not find net.sendFile function in DWARF info")
+	}
+}
