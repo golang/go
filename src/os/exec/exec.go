@@ -1328,3 +1328,13 @@ func addCriticalEnv(env []string) []string {
 // Code should use errors.Is(err, ErrDot), not err == ErrDot,
 // to test whether a returned error err is due to this condition.
 var ErrDot = errors.New("cannot run executable found relative to current directory")
+
+// validateLookPath excludes paths that can't be valid
+// executable names. See issue #74466 and CVE-2025-47906.
+func validateLookPath(s string) error {
+	switch s {
+	case "", ".", "..":
+		return ErrNotFound
+	}
+	return nil
+}
