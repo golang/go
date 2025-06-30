@@ -278,7 +278,6 @@ func TestDWARFLocationList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("go build -o %v %v: %v\n%s", exe, dir, err, out)
 	}
-	t.Log("output:\n", string(out))
 
 	f, err := objfile.Open(exe)
 	if err != nil {
@@ -310,7 +309,6 @@ func TestDWARFLocationList(t *testing.T) {
 			if ok && name == "net.sendFile" {
 				found = true
 
-				// Look for formal parameters (including return parameters)
 				for {
 					paramEntry, err := reader.Next()
 					if err != nil {
@@ -334,17 +332,15 @@ func TestDWARFLocationList(t *testing.T) {
 									// Location list offset - this means it has a location list
 									if locData == 0 {
 										t.Errorf("net.sendFile return parameter 'handled' has zero location list offset")
-									} else {
-										// Non-zero offset means valid location list
-										t.Logf("net.sendFile return parameter 'handled' has location list at offset %d", locData)
 									}
+									break
 								default:
-									t.Logf("net.sendFile return parameter 'handled' has location of type %T: %v", locData, locData)
+									t.Errorf("net.sendFile return parameter 'handled' has unexpected location type %T: %v", locData, locData)
 								}
 							} else {
 								t.Errorf("net.sendFile return parameter 'handled' has no location attribute")
 							}
-							return // Found what we're looking for
+							return
 						}
 					}
 				}
