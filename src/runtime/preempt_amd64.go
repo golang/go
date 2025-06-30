@@ -2,7 +2,7 @@
 
 package runtime
 
-type xRegState struct {
+type xRegs struct {
 	Z0  [64]byte
 	Z1  [64]byte
 	Z2  [64]byte

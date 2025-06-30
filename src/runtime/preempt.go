@@ -302,7 +302,16 @@ func canPreemptM(mp *m) bool {
 // asyncPreempt is implemented in assembly.
 func asyncPreempt()
 
+// asyncPreempt2 is the Go continuation of asyncPreempt.
+//
+// It must be deeply nosplit because there's untyped data on the stack from
+// asyncPreempt.
+//
+// It must not have any write barriers because we need to limit the amount of
+// stack it uses.
+//
 //go:nosplit
+//go:nowritebarrierrec
 func asyncPreempt2() {
 	// We can't grow the stack with untyped data from asyncPreempt, so switch to
 	// the system stack right away.

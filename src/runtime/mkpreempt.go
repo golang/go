@@ -160,7 +160,7 @@ func writeXRegs(arch string, l *layout) {
 	fmt.Fprintf(g.w, `
 package runtime
 
-type xRegState struct {
+type xRegs struct {
 `)
 	pos := 0
 	for _, reg := range l.regs {

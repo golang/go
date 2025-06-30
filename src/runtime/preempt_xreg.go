@@ -19,7 +19,17 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/runtime/sys"
+	"unsafe"
+)
+
+// xRegState is long-lived extended register state. It is allocated off-heap and
+// manually managed.
+type xRegState struct {
+	_    sys.NotInHeap // Allocated from xRegAlloc
+	regs xRegs
+}
 
 // xRegPerG stores extended register state while a goroutine is asynchronously
 // preempted. This is nil otherwise, so we can reuse a (likely small) pool of
@@ -31,7 +41,7 @@ type xRegPerG struct {
 type xRegPerP struct {
 	// scratch temporary per-P space where [asyncPreempt] saves the register
 	// state before entering Go. It's quickly copied to per-G state.
-	scratch xRegState
+	scratch xRegs
 
 	// cache is a 1-element allocation cache of extended register state used by
 	// asynchronous preemption. On entry to preemption, this is used as a simple
@@ -84,7 +94,7 @@ func xRegSave(gp *g) {
 	// If we ever need to save less state (e.g., avoid saving vector registers
 	// that aren't in use), we could have multiple allocation pools for
 	// different size states and copy only the registers we need.
-	*dest = pp.xRegs.scratch
+	dest.regs = pp.xRegs.scratch
 
 	// Save on the G.
 	gp.xRegs.state = dest
