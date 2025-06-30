@@ -333,7 +333,6 @@ func TestDWARFLocationList(t *testing.T) {
 									if locData == 0 {
 										t.Errorf("net.sendFile return parameter 'handled' has zero location list offset")
 									}
-									break
 								default:
 									t.Errorf("net.sendFile return parameter 'handled' has unexpected location type %T: %v", locData, locData)
 								}
