@@ -7946,49 +7946,34 @@ func testUint64x8UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint6
 
 /* The operations below cannot be tested via wrappers, please test them directly */
 
-// CeilSuppressExceptionWithPrecision
 // CeilWithPrecision
-// DiffWithCeilSuppressExceptionWithPrecision
 // DiffWithCeilWithPrecision
-// DiffWithFloorSuppressExceptionWithPrecision
 // DiffWithFloorWithPrecision
-// DiffWithRoundSuppressExceptionWithPrecision
 // DiffWithRoundWithPrecision
-// DiffWithTruncSuppressExceptionWithPrecision
 // DiffWithTruncWithPrecision
-// FloorSuppressExceptionWithPrecision
 // FloorWithPrecision
 // GaloisFieldAffineTransform
 // GaloisFieldAffineTransformInversed
 // GetElem
-// MaskedCeilSuppressExceptionWithPrecision
 // MaskedCeilWithPrecision
-// MaskedDiffWithCeilSuppressExceptionWithPrecision
 // MaskedDiffWithCeilWithPrecision
-// MaskedDiffWithFloorSuppressExceptionWithPrecision
 // MaskedDiffWithFloorWithPrecision
-// MaskedDiffWithRoundSuppressExceptionWithPrecision
 // MaskedDiffWithRoundWithPrecision
-// MaskedDiffWithTruncSuppressExceptionWithPrecision
 // MaskedDiffWithTruncWithPrecision
-// MaskedFloorSuppressExceptionWithPrecision
 // MaskedFloorWithPrecision
 // MaskedGaloisFieldAffineTransform
 // MaskedGaloisFieldAffineTransformInversed
 // MaskedRotateAllLeft
 // MaskedRotateAllRight
-// MaskedRoundSuppressExceptionWithPrecision
 // MaskedRoundWithPrecision
 // MaskedShiftAllLeft
 // MaskedShiftAllLeftAndFillUpperFrom
 // MaskedShiftAllRight
 // MaskedShiftAllRightAndFillUpperFrom
 // MaskedShiftAllRightSignExtended
-// MaskedTruncSuppressExceptionWithPrecision
 // MaskedTruncWithPrecision
 // RotateAllLeft
 // RotateAllRight
-// RoundSuppressExceptionWithPrecision
 // RoundWithPrecision
 // SetElem
 // ShiftAllLeft
@@ -7996,5 +7981,4 @@ func testUint64x8UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint6
 // ShiftAllRight
 // ShiftAllRightAndFillUpperFrom
 // ShiftAllRightSignExtended
-// TruncSuppressExceptionWithPrecision
 // TruncWithPrecision

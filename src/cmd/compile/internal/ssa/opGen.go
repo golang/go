@@ -5797,197 +5797,101 @@ const (
 	OpSaturatedSubUint8x64
 	OpSaturatedUnsignedSignedPairDotProdUint8x64
 	OpSubUint8x64
-	OpCeilSuppressExceptionWithPrecisionFloat32x16
 	OpCeilWithPrecisionFloat32x16
-	OpDiffWithCeilSuppressExceptionWithPrecisionFloat32x16
 	OpDiffWithCeilWithPrecisionFloat32x16
-	OpDiffWithFloorSuppressExceptionWithPrecisionFloat32x16
 	OpDiffWithFloorWithPrecisionFloat32x16
-	OpDiffWithRoundSuppressExceptionWithPrecisionFloat32x16
 	OpDiffWithRoundWithPrecisionFloat32x16
-	OpDiffWithTruncSuppressExceptionWithPrecisionFloat32x16
 	OpDiffWithTruncWithPrecisionFloat32x16
-	OpFloorSuppressExceptionWithPrecisionFloat32x16
 	OpFloorWithPrecisionFloat32x16
-	OpMaskedCeilSuppressExceptionWithPrecisionFloat32x16
 	OpMaskedCeilWithPrecisionFloat32x16
-	OpMaskedDiffWithCeilSuppressExceptionWithPrecisionFloat32x16
 	OpMaskedDiffWithCeilWithPrecisionFloat32x16
-	OpMaskedDiffWithFloorSuppressExceptionWithPrecisionFloat32x16
 	OpMaskedDiffWithFloorWithPrecisionFloat32x16
-	OpMaskedDiffWithRoundSuppressExceptionWithPrecisionFloat32x16
 	OpMaskedDiffWithRoundWithPrecisionFloat32x16
-	OpMaskedDiffWithTruncSuppressExceptionWithPrecisionFloat32x16
 	OpMaskedDiffWithTruncWithPrecisionFloat32x16
-	OpMaskedFloorSuppressExceptionWithPrecisionFloat32x16
 	OpMaskedFloorWithPrecisionFloat32x16
-	OpMaskedRoundSuppressExceptionWithPrecisionFloat32x16
 	OpMaskedRoundWithPrecisionFloat32x16
-	OpMaskedTruncSuppressExceptionWithPrecisionFloat32x16
 	OpMaskedTruncWithPrecisionFloat32x16
-	OpRoundSuppressExceptionWithPrecisionFloat32x16
 	OpRoundWithPrecisionFloat32x16
-	OpTruncSuppressExceptionWithPrecisionFloat32x16
 	OpTruncWithPrecisionFloat32x16
-	OpCeilSuppressExceptionWithPrecisionFloat32x4
 	OpCeilWithPrecisionFloat32x4
-	OpDiffWithCeilSuppressExceptionWithPrecisionFloat32x4
 	OpDiffWithCeilWithPrecisionFloat32x4
-	OpDiffWithFloorSuppressExceptionWithPrecisionFloat32x4
 	OpDiffWithFloorWithPrecisionFloat32x4
-	OpDiffWithRoundSuppressExceptionWithPrecisionFloat32x4
 	OpDiffWithRoundWithPrecisionFloat32x4
-	OpDiffWithTruncSuppressExceptionWithPrecisionFloat32x4
 	OpDiffWithTruncWithPrecisionFloat32x4
-	OpFloorSuppressExceptionWithPrecisionFloat32x4
 	OpFloorWithPrecisionFloat32x4
-	OpMaskedCeilSuppressExceptionWithPrecisionFloat32x4
 	OpMaskedCeilWithPrecisionFloat32x4
-	OpMaskedDiffWithCeilSuppressExceptionWithPrecisionFloat32x4
 	OpMaskedDiffWithCeilWithPrecisionFloat32x4
-	OpMaskedDiffWithFloorSuppressExceptionWithPrecisionFloat32x4
 	OpMaskedDiffWithFloorWithPrecisionFloat32x4
-	OpMaskedDiffWithRoundSuppressExceptionWithPrecisionFloat32x4
 	OpMaskedDiffWithRoundWithPrecisionFloat32x4
-	OpMaskedDiffWithTruncSuppressExceptionWithPrecisionFloat32x4
 	OpMaskedDiffWithTruncWithPrecisionFloat32x4
-	OpMaskedFloorSuppressExceptionWithPrecisionFloat32x4
 	OpMaskedFloorWithPrecisionFloat32x4
-	OpMaskedRoundSuppressExceptionWithPrecisionFloat32x4
 	OpMaskedRoundWithPrecisionFloat32x4
-	OpMaskedTruncSuppressExceptionWithPrecisionFloat32x4
 	OpMaskedTruncWithPrecisionFloat32x4
-	OpRoundSuppressExceptionWithPrecisionFloat32x4
 	OpRoundWithPrecisionFloat32x4
-	OpTruncSuppressExceptionWithPrecisionFloat32x4
 	OpTruncWithPrecisionFloat32x4
-	OpCeilSuppressExceptionWithPrecisionFloat32x8
 	OpCeilWithPrecisionFloat32x8
-	OpDiffWithCeilSuppressExceptionWithPrecisionFloat32x8
 	OpDiffWithCeilWithPrecisionFloat32x8
-	OpDiffWithFloorSuppressExceptionWithPrecisionFloat32x8
 	OpDiffWithFloorWithPrecisionFloat32x8
-	OpDiffWithRoundSuppressExceptionWithPrecisionFloat32x8
 	OpDiffWithRoundWithPrecisionFloat32x8
-	OpDiffWithTruncSuppressExceptionWithPrecisionFloat32x8
 	OpDiffWithTruncWithPrecisionFloat32x8
-	OpFloorSuppressExceptionWithPrecisionFloat32x8
 	OpFloorWithPrecisionFloat32x8
-	OpMaskedCeilSuppressExceptionWithPrecisionFloat32x8
 	OpMaskedCeilWithPrecisionFloat32x8
-	OpMaskedDiffWithCeilSuppressExceptionWithPrecisionFloat32x8
 	OpMaskedDiffWithCeilWithPrecisionFloat32x8
-	OpMaskedDiffWithFloorSuppressExceptionWithPrecisionFloat32x8
 	OpMaskedDiffWithFloorWithPrecisionFloat32x8
-	OpMaskedDiffWithRoundSuppressExceptionWithPrecisionFloat32x8
 	OpMaskedDiffWithRoundWithPrecisionFloat32x8
-	OpMaskedDiffWithTruncSuppressExceptionWithPrecisionFloat32x8
 	OpMaskedDiffWithTruncWithPrecisionFloat32x8
-	OpMaskedFloorSuppressExceptionWithPrecisionFloat32x8
 	OpMaskedFloorWithPrecisionFloat32x8
-	OpMaskedRoundSuppressExceptionWithPrecisionFloat32x8
 	OpMaskedRoundWithPrecisionFloat32x8
-	OpMaskedTruncSuppressExceptionWithPrecisionFloat32x8
 	OpMaskedTruncWithPrecisionFloat32x8
-	OpRoundSuppressExceptionWithPrecisionFloat32x8
 	OpRoundWithPrecisionFloat32x8
-	OpTruncSuppressExceptionWithPrecisionFloat32x8
 	OpTruncWithPrecisionFloat32x8
-	OpCeilSuppressExceptionWithPrecisionFloat64x2
 	OpCeilWithPrecisionFloat64x2
-	OpDiffWithCeilSuppressExceptionWithPrecisionFloat64x2
 	OpDiffWithCeilWithPrecisionFloat64x2
-	OpDiffWithFloorSuppressExceptionWithPrecisionFloat64x2
 	OpDiffWithFloorWithPrecisionFloat64x2
-	OpDiffWithRoundSuppressExceptionWithPrecisionFloat64x2
 	OpDiffWithRoundWithPrecisionFloat64x2
-	OpDiffWithTruncSuppressExceptionWithPrecisionFloat64x2
 	OpDiffWithTruncWithPrecisionFloat64x2
-	OpFloorSuppressExceptionWithPrecisionFloat64x2
 	OpFloorWithPrecisionFloat64x2
-	OpMaskedCeilSuppressExceptionWithPrecisionFloat64x2
 	OpMaskedCeilWithPrecisionFloat64x2
-	OpMaskedDiffWithCeilSuppressExceptionWithPrecisionFloat64x2
 	OpMaskedDiffWithCeilWithPrecisionFloat64x2
-	OpMaskedDiffWithFloorSuppressExceptionWithPrecisionFloat64x2
 	OpMaskedDiffWithFloorWithPrecisionFloat64x2
-	OpMaskedDiffWithRoundSuppressExceptionWithPrecisionFloat64x2
 	OpMaskedDiffWithRoundWithPrecisionFloat64x2
-	OpMaskedDiffWithTruncSuppressExceptionWithPrecisionFloat64x2
 	OpMaskedDiffWithTruncWithPrecisionFloat64x2
-	OpMaskedFloorSuppressExceptionWithPrecisionFloat64x2
 	OpMaskedFloorWithPrecisionFloat64x2
-	OpMaskedRoundSuppressExceptionWithPrecisionFloat64x2
 	OpMaskedRoundWithPrecisionFloat64x2
-	OpMaskedTruncSuppressExceptionWithPrecisionFloat64x2
 	OpMaskedTruncWithPrecisionFloat64x2
-	OpRoundSuppressExceptionWithPrecisionFloat64x2
 	OpRoundWithPrecisionFloat64x2
-	OpTruncSuppressExceptionWithPrecisionFloat64x2
 	OpTruncWithPrecisionFloat64x2
-	OpCeilSuppressExceptionWithPrecisionFloat64x4
 	OpCeilWithPrecisionFloat64x4
-	OpDiffWithCeilSuppressExceptionWithPrecisionFloat64x4
 	OpDiffWithCeilWithPrecisionFloat64x4
-	OpDiffWithFloorSuppressExceptionWithPrecisionFloat64x4
 	OpDiffWithFloorWithPrecisionFloat64x4
-	OpDiffWithRoundSuppressExceptionWithPrecisionFloat64x4
 	OpDiffWithRoundWithPrecisionFloat64x4
-	OpDiffWithTruncSuppressExceptionWithPrecisionFloat64x4
 	OpDiffWithTruncWithPrecisionFloat64x4
-	OpFloorSuppressExceptionWithPrecisionFloat64x4
 	OpFloorWithPrecisionFloat64x4
-	OpMaskedCeilSuppressExceptionWithPrecisionFloat64x4
 	OpMaskedCeilWithPrecisionFloat64x4
-	OpMaskedDiffWithCeilSuppressExceptionWithPrecisionFloat64x4
 	OpMaskedDiffWithCeilWithPrecisionFloat64x4
-	OpMaskedDiffWithFloorSuppressExceptionWithPrecisionFloat64x4
 	OpMaskedDiffWithFloorWithPrecisionFloat64x4
-	OpMaskedDiffWithRoundSuppressExceptionWithPrecisionFloat64x4
 	OpMaskedDiffWithRoundWithPrecisionFloat64x4
-	OpMaskedDiffWithTruncSuppressExceptionWithPrecisionFloat64x4
 	OpMaskedDiffWithTruncWithPrecisionFloat64x4
-	OpMaskedFloorSuppressExceptionWithPrecisionFloat64x4
 	OpMaskedFloorWithPrecisionFloat64x4
-	OpMaskedRoundSuppressExceptionWithPrecisionFloat64x4
 	OpMaskedRoundWithPrecisionFloat64x4
-	OpMaskedTruncSuppressExceptionWithPrecisionFloat64x4
 	OpMaskedTruncWithPrecisionFloat64x4
-	OpRoundSuppressExceptionWithPrecisionFloat64x4
 	OpRoundWithPrecisionFloat64x4
-	OpTruncSuppressExceptionWithPrecisionFloat64x4
 	OpTruncWithPrecisionFloat64x4
-	OpCeilSuppressExceptionWithPrecisionFloat64x8
 	OpCeilWithPrecisionFloat64x8
-	OpDiffWithCeilSuppressExceptionWithPrecisionFloat64x8
 	OpDiffWithCeilWithPrecisionFloat64x8
-	OpDiffWithFloorSuppressExceptionWithPrecisionFloat64x8
 	OpDiffWithFloorWithPrecisionFloat64x8
-	OpDiffWithRoundSuppressExceptionWithPrecisionFloat64x8
 	OpDiffWithRoundWithPrecisionFloat64x8
-	OpDiffWithTruncSuppressExceptionWithPrecisionFloat64x8
 	OpDiffWithTruncWithPrecisionFloat64x8
-	OpFloorSuppressExceptionWithPrecisionFloat64x8
 	OpFloorWithPrecisionFloat64x8
-	OpMaskedCeilSuppressExceptionWithPrecisionFloat64x8
 	OpMaskedCeilWithPrecisionFloat64x8
-	OpMaskedDiffWithCeilSuppressExceptionWithPrecisionFloat64x8
 	OpMaskedDiffWithCeilWithPrecisionFloat64x8
-	OpMaskedDiffWithFloorSuppressExceptionWithPrecisionFloat64x8
 	OpMaskedDiffWithFloorWithPrecisionFloat64x8
-	OpMaskedDiffWithRoundSuppressExceptionWithPrecisionFloat64x8
 	OpMaskedDiffWithRoundWithPrecisionFloat64x8
-	OpMaskedDiffWithTruncSuppressExceptionWithPrecisionFloat64x8
 	OpMaskedDiffWithTruncWithPrecisionFloat64x8
-	OpMaskedFloorSuppressExceptionWithPrecisionFloat64x8
 	OpMaskedFloorWithPrecisionFloat64x8
-	OpMaskedRoundSuppressExceptionWithPrecisionFloat64x8
 	OpMaskedRoundWithPrecisionFloat64x8
-	OpMaskedTruncSuppressExceptionWithPrecisionFloat64x8
 	OpMaskedTruncWithPrecisionFloat64x8
-	OpRoundSuppressExceptionWithPrecisionFloat64x8
 	OpRoundWithPrecisionFloat64x8
-	OpTruncSuppressExceptionWithPrecisionFloat64x8
 	OpTruncWithPrecisionFloat64x8
 	OpMaskedShiftAllLeftAndFillUpperFromInt16x16
 	OpMaskedShiftAllRightAndFillUpperFromInt16x16
@@ -67533,19 +67437,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "CeilSuppressExceptionWithPrecisionFloat32x16",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "CeilWithPrecisionFloat32x16",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "DiffWithCeilSuppressExceptionWithPrecisionFloat32x16",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -67557,19 +67449,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "DiffWithFloorSuppressExceptionWithPrecisionFloat32x16",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "DiffWithFloorWithPrecisionFloat32x16",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "DiffWithRoundSuppressExceptionWithPrecisionFloat32x16",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -67581,19 +67461,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "DiffWithTruncSuppressExceptionWithPrecisionFloat32x16",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "DiffWithTruncWithPrecisionFloat32x16",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "FloorSuppressExceptionWithPrecisionFloat32x16",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -67605,19 +67473,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedCeilSuppressExceptionWithPrecisionFloat32x16",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedCeilWithPrecisionFloat32x16",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedDiffWithCeilSuppressExceptionWithPrecisionFloat32x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -67629,19 +67485,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedDiffWithFloorSuppressExceptionWithPrecisionFloat32x16",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedDiffWithFloorWithPrecisionFloat32x16",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedDiffWithRoundSuppressExceptionWithPrecisionFloat32x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -67653,19 +67497,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedDiffWithTruncSuppressExceptionWithPrecisionFloat32x16",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedDiffWithTruncWithPrecisionFloat32x16",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedFloorSuppressExceptionWithPrecisionFloat32x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -67677,19 +67509,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedRoundSuppressExceptionWithPrecisionFloat32x16",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedRoundWithPrecisionFloat32x16",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedTruncSuppressExceptionWithPrecisionFloat32x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -67701,19 +67521,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "RoundSuppressExceptionWithPrecisionFloat32x16",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "RoundWithPrecisionFloat32x16",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "TruncSuppressExceptionWithPrecisionFloat32x16",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -67725,19 +67533,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "CeilSuppressExceptionWithPrecisionFloat32x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "CeilWithPrecisionFloat32x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "DiffWithCeilSuppressExceptionWithPrecisionFloat32x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -67749,19 +67545,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "DiffWithFloorSuppressExceptionWithPrecisionFloat32x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "DiffWithFloorWithPrecisionFloat32x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "DiffWithRoundSuppressExceptionWithPrecisionFloat32x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -67773,19 +67557,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "DiffWithTruncSuppressExceptionWithPrecisionFloat32x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "DiffWithTruncWithPrecisionFloat32x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "FloorSuppressExceptionWithPrecisionFloat32x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -67797,19 +67569,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedCeilSuppressExceptionWithPrecisionFloat32x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedCeilWithPrecisionFloat32x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedDiffWithCeilSuppressExceptionWithPrecisionFloat32x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -67821,19 +67581,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedDiffWithFloorSuppressExceptionWithPrecisionFloat32x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedDiffWithFloorWithPrecisionFloat32x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedDiffWithRoundSuppressExceptionWithPrecisionFloat32x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -67845,19 +67593,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedDiffWithTruncSuppressExceptionWithPrecisionFloat32x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedDiffWithTruncWithPrecisionFloat32x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedFloorSuppressExceptionWithPrecisionFloat32x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -67869,19 +67605,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedRoundSuppressExceptionWithPrecisionFloat32x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedRoundWithPrecisionFloat32x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedTruncSuppressExceptionWithPrecisionFloat32x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -67893,19 +67617,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "RoundSuppressExceptionWithPrecisionFloat32x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "RoundWithPrecisionFloat32x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "TruncSuppressExceptionWithPrecisionFloat32x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -67917,19 +67629,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "CeilSuppressExceptionWithPrecisionFloat32x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "CeilWithPrecisionFloat32x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "DiffWithCeilSuppressExceptionWithPrecisionFloat32x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -67941,19 +67641,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "DiffWithFloorSuppressExceptionWithPrecisionFloat32x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "DiffWithFloorWithPrecisionFloat32x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "DiffWithRoundSuppressExceptionWithPrecisionFloat32x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -67965,19 +67653,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "DiffWithTruncSuppressExceptionWithPrecisionFloat32x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "DiffWithTruncWithPrecisionFloat32x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "FloorSuppressExceptionWithPrecisionFloat32x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -67989,19 +67665,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedCeilSuppressExceptionWithPrecisionFloat32x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedCeilWithPrecisionFloat32x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedDiffWithCeilSuppressExceptionWithPrecisionFloat32x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -68013,19 +67677,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedDiffWithFloorSuppressExceptionWithPrecisionFloat32x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedDiffWithFloorWithPrecisionFloat32x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedDiffWithRoundSuppressExceptionWithPrecisionFloat32x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -68037,19 +67689,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedDiffWithTruncSuppressExceptionWithPrecisionFloat32x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedDiffWithTruncWithPrecisionFloat32x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedFloorSuppressExceptionWithPrecisionFloat32x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -68061,19 +67701,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedRoundSuppressExceptionWithPrecisionFloat32x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedRoundWithPrecisionFloat32x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedTruncSuppressExceptionWithPrecisionFloat32x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -68085,19 +67713,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "RoundSuppressExceptionWithPrecisionFloat32x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "RoundWithPrecisionFloat32x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "TruncSuppressExceptionWithPrecisionFloat32x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -68109,19 +67725,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "CeilSuppressExceptionWithPrecisionFloat64x2",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "CeilWithPrecisionFloat64x2",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "DiffWithCeilSuppressExceptionWithPrecisionFloat64x2",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -68133,19 +67737,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "DiffWithFloorSuppressExceptionWithPrecisionFloat64x2",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "DiffWithFloorWithPrecisionFloat64x2",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "DiffWithRoundSuppressExceptionWithPrecisionFloat64x2",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -68157,19 +67749,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "DiffWithTruncSuppressExceptionWithPrecisionFloat64x2",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "DiffWithTruncWithPrecisionFloat64x2",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "FloorSuppressExceptionWithPrecisionFloat64x2",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -68181,19 +67761,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedCeilSuppressExceptionWithPrecisionFloat64x2",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedCeilWithPrecisionFloat64x2",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedDiffWithCeilSuppressExceptionWithPrecisionFloat64x2",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -68205,19 +67773,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedDiffWithFloorSuppressExceptionWithPrecisionFloat64x2",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedDiffWithFloorWithPrecisionFloat64x2",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedDiffWithRoundSuppressExceptionWithPrecisionFloat64x2",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -68229,19 +67785,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedDiffWithTruncSuppressExceptionWithPrecisionFloat64x2",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedDiffWithTruncWithPrecisionFloat64x2",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedFloorSuppressExceptionWithPrecisionFloat64x2",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -68253,19 +67797,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedRoundSuppressExceptionWithPrecisionFloat64x2",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedRoundWithPrecisionFloat64x2",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedTruncSuppressExceptionWithPrecisionFloat64x2",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -68277,19 +67809,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "RoundSuppressExceptionWithPrecisionFloat64x2",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "RoundWithPrecisionFloat64x2",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "TruncSuppressExceptionWithPrecisionFloat64x2",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -68301,19 +67821,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "CeilSuppressExceptionWithPrecisionFloat64x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "CeilWithPrecisionFloat64x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "DiffWithCeilSuppressExceptionWithPrecisionFloat64x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -68325,19 +67833,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "DiffWithFloorSuppressExceptionWithPrecisionFloat64x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "DiffWithFloorWithPrecisionFloat64x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "DiffWithRoundSuppressExceptionWithPrecisionFloat64x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -68349,19 +67845,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "DiffWithTruncSuppressExceptionWithPrecisionFloat64x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "DiffWithTruncWithPrecisionFloat64x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "FloorSuppressExceptionWithPrecisionFloat64x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -68373,19 +67857,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedCeilSuppressExceptionWithPrecisionFloat64x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedCeilWithPrecisionFloat64x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedDiffWithCeilSuppressExceptionWithPrecisionFloat64x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -68397,19 +67869,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedDiffWithFloorSuppressExceptionWithPrecisionFloat64x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedDiffWithFloorWithPrecisionFloat64x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedDiffWithRoundSuppressExceptionWithPrecisionFloat64x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -68421,19 +67881,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedDiffWithTruncSuppressExceptionWithPrecisionFloat64x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedDiffWithTruncWithPrecisionFloat64x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedFloorSuppressExceptionWithPrecisionFloat64x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -68445,19 +67893,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedRoundSuppressExceptionWithPrecisionFloat64x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedRoundWithPrecisionFloat64x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedTruncSuppressExceptionWithPrecisionFloat64x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -68469,19 +67905,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "RoundSuppressExceptionWithPrecisionFloat64x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "RoundWithPrecisionFloat64x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "TruncSuppressExceptionWithPrecisionFloat64x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -68493,19 +67917,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "CeilSuppressExceptionWithPrecisionFloat64x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "CeilWithPrecisionFloat64x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "DiffWithCeilSuppressExceptionWithPrecisionFloat64x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -68517,19 +67929,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "DiffWithFloorSuppressExceptionWithPrecisionFloat64x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "DiffWithFloorWithPrecisionFloat64x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "DiffWithRoundSuppressExceptionWithPrecisionFloat64x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -68541,19 +67941,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "DiffWithTruncSuppressExceptionWithPrecisionFloat64x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "DiffWithTruncWithPrecisionFloat64x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "FloorSuppressExceptionWithPrecisionFloat64x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
@@ -68565,19 +67953,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedCeilSuppressExceptionWithPrecisionFloat64x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedCeilWithPrecisionFloat64x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedDiffWithCeilSuppressExceptionWithPrecisionFloat64x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -68589,19 +67965,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedDiffWithFloorSuppressExceptionWithPrecisionFloat64x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedDiffWithFloorWithPrecisionFloat64x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedDiffWithRoundSuppressExceptionWithPrecisionFloat64x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -68613,19 +67977,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedDiffWithTruncSuppressExceptionWithPrecisionFloat64x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedDiffWithTruncWithPrecisionFloat64x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedFloorSuppressExceptionWithPrecisionFloat64x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -68637,19 +67989,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MaskedRoundSuppressExceptionWithPrecisionFloat64x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "MaskedRoundWithPrecisionFloat64x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MaskedTruncSuppressExceptionWithPrecisionFloat64x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -68661,19 +68001,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "RoundSuppressExceptionWithPrecisionFloat64x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "RoundWithPrecisionFloat64x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "TruncSuppressExceptionWithPrecisionFloat64x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,

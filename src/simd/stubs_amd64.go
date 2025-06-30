@@ -603,405 +603,181 @@ func (x Uint16x32) Average(y Uint16x32) Uint16x32
 /* Ceil */
 
 // Ceil rounds elements up to the nearest integer.
-// Const Immediate = 2.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
 func (x Float32x4) Ceil() Float32x4
 
 // Ceil rounds elements up to the nearest integer.
-// Const Immediate = 2.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
 func (x Float32x8) Ceil() Float32x8
 
 // Ceil rounds elements up to the nearest integer.
-// Const Immediate = 2.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x2) Ceil() Float64x2
 
 // Ceil rounds elements up to the nearest integer.
-// Const Immediate = 2.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x4) Ceil() Float64x4
 
-/* CeilSuppressExceptionWithPrecision */
-
-// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) CeilSuppressExceptionWithPrecision(imm uint8) Float32x4
-
-// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) CeilSuppressExceptionWithPrecision(imm uint8) Float32x8
-
-// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) CeilSuppressExceptionWithPrecision(imm uint8) Float32x16
-
-// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) CeilSuppressExceptionWithPrecision(imm uint8) Float64x2
-
-// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) CeilSuppressExceptionWithPrecision(imm uint8) Float64x4
-
-// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) CeilSuppressExceptionWithPrecision(imm uint8) Float64x8
-
 /* CeilWithPrecision */
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
-// Const Immediate = 2.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) CeilWithPrecision(imm uint8) Float32x4
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
-// Const Immediate = 2.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) CeilWithPrecision(imm uint8) Float32x8
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
-// Const Immediate = 2.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) CeilWithPrecision(imm uint8) Float32x16
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
-// Const Immediate = 2.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) CeilWithPrecision(imm uint8) Float64x2
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
-// Const Immediate = 2.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) CeilWithPrecision(imm uint8) Float64x4
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
-// Const Immediate = 2.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) CeilWithPrecision(imm uint8) Float64x8
 
-/* DiffWithCeilSuppressExceptionWithPrecision */
-
-// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithCeilSuppressExceptionWithPrecision(imm uint8) Float32x4
-
-// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithCeilSuppressExceptionWithPrecision(imm uint8) Float32x8
-
-// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithCeilSuppressExceptionWithPrecision(imm uint8) Float32x16
-
-// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithCeilSuppressExceptionWithPrecision(imm uint8) Float64x2
-
-// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithCeilSuppressExceptionWithPrecision(imm uint8) Float64x4
-
-// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithCeilSuppressExceptionWithPrecision(imm uint8) Float64x8
-
 /* DiffWithCeilWithPrecision */
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
-// Const Immediate = 2.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) DiffWithCeilWithPrecision(imm uint8) Float32x4
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
-// Const Immediate = 2.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) DiffWithCeilWithPrecision(imm uint8) Float32x8
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
-// Const Immediate = 2.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) DiffWithCeilWithPrecision(imm uint8) Float32x16
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
-// Const Immediate = 2.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) DiffWithCeilWithPrecision(imm uint8) Float64x2
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
-// Const Immediate = 2.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) DiffWithCeilWithPrecision(imm uint8) Float64x4
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
-// Const Immediate = 2.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) DiffWithCeilWithPrecision(imm uint8) Float64x8
 
-/* DiffWithFloorSuppressExceptionWithPrecision */
-
-// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
-// Const Immediate = 9.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithFloorSuppressExceptionWithPrecision(imm uint8) Float32x4
-
-// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
-// Const Immediate = 9.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithFloorSuppressExceptionWithPrecision(imm uint8) Float32x8
-
-// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
-// Const Immediate = 9.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithFloorSuppressExceptionWithPrecision(imm uint8) Float32x16
-
-// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
-// Const Immediate = 9.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithFloorSuppressExceptionWithPrecision(imm uint8) Float64x2
-
-// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
-// Const Immediate = 9.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithFloorSuppressExceptionWithPrecision(imm uint8) Float64x4
-
-// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
-// Const Immediate = 9.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithFloorSuppressExceptionWithPrecision(imm uint8) Float64x8
-
 /* DiffWithFloorWithPrecision */
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
-// Const Immediate = 1.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) DiffWithFloorWithPrecision(imm uint8) Float32x4
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
-// Const Immediate = 1.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) DiffWithFloorWithPrecision(imm uint8) Float32x8
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
-// Const Immediate = 1.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) DiffWithFloorWithPrecision(imm uint8) Float32x16
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
-// Const Immediate = 1.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) DiffWithFloorWithPrecision(imm uint8) Float64x2
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
-// Const Immediate = 1.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) DiffWithFloorWithPrecision(imm uint8) Float64x4
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
-// Const Immediate = 1.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) DiffWithFloorWithPrecision(imm uint8) Float64x8
 
-/* DiffWithRoundSuppressExceptionWithPrecision */
-
-// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithRoundSuppressExceptionWithPrecision(imm uint8) Float32x4
-
-// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithRoundSuppressExceptionWithPrecision(imm uint8) Float32x8
-
-// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithRoundSuppressExceptionWithPrecision(imm uint8) Float32x16
-
-// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithRoundSuppressExceptionWithPrecision(imm uint8) Float64x2
-
-// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithRoundSuppressExceptionWithPrecision(imm uint8) Float64x4
-
-// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithRoundSuppressExceptionWithPrecision(imm uint8) Float64x8
-
 /* DiffWithRoundWithPrecision */
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) DiffWithRoundWithPrecision(imm uint8) Float32x4
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) DiffWithRoundWithPrecision(imm uint8) Float32x8
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) DiffWithRoundWithPrecision(imm uint8) Float32x16
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) DiffWithRoundWithPrecision(imm uint8) Float64x2
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) DiffWithRoundWithPrecision(imm uint8) Float64x4
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) DiffWithRoundWithPrecision(imm uint8) Float64x8
 
-/* DiffWithTruncSuppressExceptionWithPrecision */
-
-// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithTruncSuppressExceptionWithPrecision(imm uint8) Float32x4
-
-// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithTruncSuppressExceptionWithPrecision(imm uint8) Float32x8
-
-// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithTruncSuppressExceptionWithPrecision(imm uint8) Float32x16
-
-// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithTruncSuppressExceptionWithPrecision(imm uint8) Float64x2
-
-// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithTruncSuppressExceptionWithPrecision(imm uint8) Float64x4
-
-// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithTruncSuppressExceptionWithPrecision(imm uint8) Float64x8
-
 /* DiffWithTruncWithPrecision */
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) DiffWithTruncWithPrecision(imm uint8) Float32x4
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) DiffWithTruncWithPrecision(imm uint8) Float32x8
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) DiffWithTruncWithPrecision(imm uint8) Float32x16
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) DiffWithTruncWithPrecision(imm uint8) Float64x2
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) DiffWithTruncWithPrecision(imm uint8) Float64x4
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) DiffWithTruncWithPrecision(imm uint8) Float64x8
@@ -1041,7 +817,6 @@ func (x Float64x8) Div(y Float64x8) Float64x8
 /* DotProdBroadcast */
 
 // DotProdBroadcast multiplies all elements and broadcasts the sum.
-// Const Immediate = 127.
 //
 // Asm: VDPPD, CPU Feature: AVX
 func (x Float64x2) DotProdBroadcast(y Float64x2) Float64x2
@@ -1049,181 +824,151 @@ func (x Float64x2) DotProdBroadcast(y Float64x2) Float64x2
 /* Equal */
 
 // Equal compares for equality.
-// Const Immediate = 0.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX
 func (x Int8x16) Equal(y Int8x16) Mask8x16
 
 // Equal compares for equality.
-// Const Immediate = 0.
 //
 // Asm: VPCMPEQB, CPU Feature: AVX2
 func (x Int8x32) Equal(y Int8x32) Mask8x32
 
 // Equal compares for equality.
-// Const Immediate = 0.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX
 func (x Int16x8) Equal(y Int16x8) Mask16x8
 
 // Equal compares for equality.
-// Const Immediate = 0.
 //
 // Asm: VPCMPEQW, CPU Feature: AVX2
 func (x Int16x16) Equal(y Int16x16) Mask16x16
 
 // Equal compares for equality.
-// Const Immediate = 0.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX
 func (x Int32x4) Equal(y Int32x4) Mask32x4
 
 // Equal compares for equality.
-// Const Immediate = 0.
 //
 // Asm: VPCMPEQD, CPU Feature: AVX2
 func (x Int32x8) Equal(y Int32x8) Mask32x8
 
 // Equal compares for equality.
-// Const Immediate = 0.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX
 func (x Int64x2) Equal(y Int64x2) Mask64x2
 
 // Equal compares for equality.
-// Const Immediate = 0.
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX2
 func (x Int64x4) Equal(y Int64x4) Mask64x4
 
 // Equal compares for equality.
-// Const Immediate = 0.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) Equal(y Float32x4) Mask32x4
 
 // Equal compares for equality.
-// Const Immediate = 0.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) Equal(y Float32x8) Mask32x8
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Equal(y Float32x16) Mask32x16
 
 // Equal compares for equality.
-// Const Immediate = 0.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) Equal(y Float64x2) Mask64x2
 
 // Equal compares for equality.
-// Const Immediate = 0.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) Equal(y Float64x4) Mask64x4
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Equal(y Float64x8) Mask64x8
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) Equal(y Int8x64) Mask8x64
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) Equal(y Int16x32) Mask16x32
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) Equal(y Int32x16) Mask32x16
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Equal(y Int64x8) Mask64x8
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) Equal(y Uint8x16) Mask8x16
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) Equal(y Uint8x32) Mask8x32
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Equal(y Uint8x64) Mask8x64
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) Equal(y Uint16x8) Mask16x8
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) Equal(y Uint16x16) Mask16x16
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Equal(y Uint16x32) Mask16x32
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) Equal(y Uint32x4) Mask32x4
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) Equal(y Uint32x8) Mask32x8
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Equal(y Uint32x16) Mask32x16
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) Equal(y Uint64x2) Mask64x2
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) Equal(y Uint64x4) Mask64x4
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Equal(y Uint64x8) Mask64x8
@@ -1231,101 +976,53 @@ func (x Uint64x8) Equal(y Uint64x8) Mask64x8
 /* Floor */
 
 // Floor rounds elements down to the nearest integer.
-// Const Immediate = 1.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
 func (x Float32x4) Floor() Float32x4
 
 // Floor rounds elements down to the nearest integer.
-// Const Immediate = 1.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
 func (x Float32x8) Floor() Float32x8
 
 // Floor rounds elements down to the nearest integer.
-// Const Immediate = 1.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x2) Floor() Float64x2
 
 // Floor rounds elements down to the nearest integer.
-// Const Immediate = 1.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x4) Floor() Float64x4
 
-/* FloorSuppressExceptionWithPrecision */
-
-// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
-// Const Immediate = 9.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) FloorSuppressExceptionWithPrecision(imm uint8) Float32x4
-
-// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
-// Const Immediate = 9.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) FloorSuppressExceptionWithPrecision(imm uint8) Float32x8
-
-// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
-// Const Immediate = 9.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) FloorSuppressExceptionWithPrecision(imm uint8) Float32x16
-
-// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
-// Const Immediate = 9.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) FloorSuppressExceptionWithPrecision(imm uint8) Float64x2
-
-// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
-// Const Immediate = 9.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) FloorSuppressExceptionWithPrecision(imm uint8) Float64x4
-
-// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
-// Const Immediate = 9.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) FloorSuppressExceptionWithPrecision(imm uint8) Float64x8
-
 /* FloorWithPrecision */
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
-// Const Immediate = 1.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) FloorWithPrecision(imm uint8) Float32x4
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
-// Const Immediate = 1.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) FloorWithPrecision(imm uint8) Float32x8
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
-// Const Immediate = 1.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) FloorWithPrecision(imm uint8) Float32x16
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
-// Const Immediate = 1.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) FloorWithPrecision(imm uint8) Float64x2
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
-// Const Immediate = 1.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) FloorWithPrecision(imm uint8) Float64x4
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
-// Const Immediate = 1.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) FloorWithPrecision(imm uint8) Float64x8
@@ -1546,181 +1243,151 @@ func (x Uint64x2) GetElem(imm uint8) uint64
 /* Greater */
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPGTB, CPU Feature: AVX
 func (x Int8x16) Greater(y Int8x16) Mask8x16
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPGTB, CPU Feature: AVX2
 func (x Int8x32) Greater(y Int8x32) Mask8x32
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPGTW, CPU Feature: AVX
 func (x Int16x8) Greater(y Int16x8) Mask16x8
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPGTW, CPU Feature: AVX2
 func (x Int16x16) Greater(y Int16x16) Mask16x16
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPGTD, CPU Feature: AVX
 func (x Int32x4) Greater(y Int32x4) Mask32x4
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPGTD, CPU Feature: AVX2
 func (x Int32x8) Greater(y Int32x8) Mask32x8
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPGTQ, CPU Feature: AVX2
 func (x Int64x4) Greater(y Int64x4) Mask64x4
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) Greater(y Float32x4) Mask32x4
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) Greater(y Float32x8) Mask32x8
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Greater(y Float32x16) Mask32x16
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) Greater(y Float64x2) Mask64x2
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) Greater(y Float64x4) Mask64x4
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Greater(y Float64x8) Mask64x8
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) Greater(y Int8x64) Mask8x64
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) Greater(y Int16x32) Mask16x32
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) Greater(y Int32x16) Mask32x16
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) Greater(y Int64x2) Mask64x2
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Greater(y Int64x8) Mask64x8
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) Greater(y Uint8x16) Mask8x16
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) Greater(y Uint8x32) Mask8x32
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Greater(y Uint8x64) Mask8x64
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) Greater(y Uint16x8) Mask16x8
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) Greater(y Uint16x16) Mask16x16
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Greater(y Uint16x32) Mask16x32
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) Greater(y Uint32x4) Mask32x4
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) Greater(y Uint32x8) Mask32x8
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Greater(y Uint32x16) Mask32x16
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) Greater(y Uint64x2) Mask64x2
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) Greater(y Uint64x4) Mask64x4
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Greater(y Uint64x8) Mask64x8
@@ -1728,181 +1395,151 @@ func (x Uint64x8) Greater(y Uint64x8) Mask64x8
 /* GreaterEqual */
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) GreaterEqual(y Float32x4) Mask32x4
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) GreaterEqual(y Float32x8) Mask32x8
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) GreaterEqual(y Float32x16) Mask32x16
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) GreaterEqual(y Float64x2) Mask64x2
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) GreaterEqual(y Float64x4) Mask64x4
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) GreaterEqual(y Float64x8) Mask64x8
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) GreaterEqual(y Int8x16) Mask8x16
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) GreaterEqual(y Int8x32) Mask8x32
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) GreaterEqual(y Int8x64) Mask8x64
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) GreaterEqual(y Int16x8) Mask16x8
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) GreaterEqual(y Int16x16) Mask16x16
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) GreaterEqual(y Int16x32) Mask16x32
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) GreaterEqual(y Int32x4) Mask32x4
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) GreaterEqual(y Int32x8) Mask32x8
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) GreaterEqual(y Int32x16) Mask32x16
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) GreaterEqual(y Int64x2) Mask64x2
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) GreaterEqual(y Int64x4) Mask64x4
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) GreaterEqual(y Int64x8) Mask64x8
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) GreaterEqual(y Uint8x16) Mask8x16
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) GreaterEqual(y Uint8x32) Mask8x32
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) GreaterEqual(y Uint8x64) Mask8x64
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) GreaterEqual(y Uint16x8) Mask16x8
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) GreaterEqual(y Uint16x16) Mask16x16
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) GreaterEqual(y Uint16x32) Mask16x32
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) GreaterEqual(y Uint32x4) Mask32x4
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) GreaterEqual(y Uint32x8) Mask32x8
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) GreaterEqual(y Uint32x16) Mask32x16
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) GreaterEqual(y Uint64x2) Mask64x2
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) GreaterEqual(y Uint64x4) Mask64x4
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) GreaterEqual(y Uint64x8) Mask64x8
@@ -1910,37 +1547,31 @@ func (x Uint64x8) GreaterEqual(y Uint64x8) Mask64x8
 /* IsNan */
 
 // IsNan checks if elements are NaN. Use as x.IsNan(x).
-// Const Immediate = 3.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) IsNan(y Float32x4) Mask32x4
 
 // IsNan checks if elements are NaN. Use as x.IsNan(x).
-// Const Immediate = 3.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) IsNan(y Float32x8) Mask32x8
 
 // IsNan checks if elements are NaN. Use as x.IsNan(x).
-// Const Immediate = 3.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) IsNan(y Float32x16) Mask32x16
 
 // IsNan checks if elements are NaN. Use as x.IsNan(x).
-// Const Immediate = 3.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) IsNan(y Float64x2) Mask64x2
 
 // IsNan checks if elements are NaN. Use as x.IsNan(x).
-// Const Immediate = 3.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) IsNan(y Float64x4) Mask64x4
 
 // IsNan checks if elements are NaN. Use as x.IsNan(x).
-// Const Immediate = 3.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) IsNan(y Float64x8) Mask64x8
@@ -1948,181 +1579,151 @@ func (x Float64x8) IsNan(y Float64x8) Mask64x8
 /* Less */
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) Less(y Float32x4) Mask32x4
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) Less(y Float32x8) Mask32x8
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) Less(y Float32x16) Mask32x16
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) Less(y Float64x2) Mask64x2
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) Less(y Float64x4) Mask64x4
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) Less(y Float64x8) Mask64x8
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) Less(y Int8x16) Mask8x16
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) Less(y Int8x32) Mask8x32
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) Less(y Int8x64) Mask8x64
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) Less(y Int16x8) Mask16x8
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) Less(y Int16x16) Mask16x16
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) Less(y Int16x32) Mask16x32
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) Less(y Int32x4) Mask32x4
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) Less(y Int32x8) Mask32x8
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) Less(y Int32x16) Mask32x16
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) Less(y Int64x2) Mask64x2
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) Less(y Int64x4) Mask64x4
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) Less(y Int64x8) Mask64x8
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) Less(y Uint8x16) Mask8x16
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) Less(y Uint8x32) Mask8x32
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Less(y Uint8x64) Mask8x64
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) Less(y Uint16x8) Mask16x8
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) Less(y Uint16x16) Mask16x16
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) Less(y Uint16x32) Mask16x32
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) Less(y Uint32x4) Mask32x4
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) Less(y Uint32x8) Mask32x8
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Less(y Uint32x16) Mask32x16
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) Less(y Uint64x2) Mask64x2
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) Less(y Uint64x4) Mask64x4
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) Less(y Uint64x8) Mask64x8
@@ -2130,181 +1731,151 @@ func (x Uint64x8) Less(y Uint64x8) Mask64x8
 /* LessEqual */
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) LessEqual(y Float32x4) Mask32x4
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) LessEqual(y Float32x8) Mask32x8
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) LessEqual(y Float32x16) Mask32x16
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) LessEqual(y Float64x2) Mask64x2
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) LessEqual(y Float64x4) Mask64x4
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) LessEqual(y Float64x8) Mask64x8
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) LessEqual(y Int8x16) Mask8x16
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) LessEqual(y Int8x32) Mask8x32
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) LessEqual(y Int8x64) Mask8x64
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) LessEqual(y Int16x8) Mask16x8
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) LessEqual(y Int16x16) Mask16x16
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) LessEqual(y Int16x32) Mask16x32
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) LessEqual(y Int32x4) Mask32x4
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) LessEqual(y Int32x8) Mask32x8
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) LessEqual(y Int32x16) Mask32x16
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) LessEqual(y Int64x2) Mask64x2
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) LessEqual(y Int64x4) Mask64x4
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) LessEqual(y Int64x8) Mask64x8
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) LessEqual(y Uint8x16) Mask8x16
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) LessEqual(y Uint8x32) Mask8x32
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) LessEqual(y Uint8x64) Mask8x64
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) LessEqual(y Uint16x8) Mask16x8
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) LessEqual(y Uint16x16) Mask16x16
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) LessEqual(y Uint16x32) Mask16x32
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) LessEqual(y Uint32x4) Mask32x4
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) LessEqual(y Uint32x8) Mask32x8
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) LessEqual(y Uint32x16) Mask32x16
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) LessEqual(y Uint64x2) Mask64x2
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) LessEqual(y Uint64x4) Mask64x4
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) LessEqual(y Uint64x8) Mask64x8
@@ -2803,382 +2374,162 @@ func (x Uint16x16) MaskedAverage(y Uint16x16, z Mask16x16) Uint16x16
 // Asm: VPAVGW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedAverage(y Uint16x32, z Mask16x32) Uint16x32
 
-/* MaskedCeilSuppressExceptionWithPrecision */
-
-// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedCeilSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
-
-// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedCeilSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
-
-// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedCeilSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
-
-// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedCeilSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
-
-// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedCeilSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
-
-// CeilSuppressExceptionWithPrecision rounds elements up with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedCeilSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
-
 /* MaskedCeilWithPrecision */
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
-// Const Immediate = 2.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedCeilWithPrecision(imm uint8, y Mask32x4) Float32x4
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
-// Const Immediate = 2.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedCeilWithPrecision(imm uint8, y Mask32x8) Float32x8
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
-// Const Immediate = 2.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedCeilWithPrecision(imm uint8, y Mask32x16) Float32x16
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
-// Const Immediate = 2.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedCeilWithPrecision(imm uint8, y Mask64x2) Float64x2
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
-// Const Immediate = 2.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedCeilWithPrecision(imm uint8, y Mask64x4) Float64x4
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
-// Const Immediate = 2.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedCeilWithPrecision(imm uint8, y Mask64x8) Float64x8
 
-/* MaskedDiffWithCeilSuppressExceptionWithPrecision */
-
-// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedDiffWithCeilSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
-
-// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedDiffWithCeilSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
-
-// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedDiffWithCeilSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
-
-// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedDiffWithCeilSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
-
-// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedDiffWithCeilSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
-
-// DiffWithCeilSuppressExceptionWithPrecision computes the difference after ceiling with specified precision, suppressing exceptions.
-// Const Immediate = 10.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedDiffWithCeilSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
-
 /* MaskedDiffWithCeilWithPrecision */
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
-// Const Immediate = 2.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedDiffWithCeilWithPrecision(imm uint8, y Mask32x4) Float32x4
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
-// Const Immediate = 2.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedDiffWithCeilWithPrecision(imm uint8, y Mask32x8) Float32x8
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
-// Const Immediate = 2.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedDiffWithCeilWithPrecision(imm uint8, y Mask32x16) Float32x16
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
-// Const Immediate = 2.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedDiffWithCeilWithPrecision(imm uint8, y Mask64x2) Float64x2
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
-// Const Immediate = 2.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedDiffWithCeilWithPrecision(imm uint8, y Mask64x4) Float64x4
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
-// Const Immediate = 2.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedDiffWithCeilWithPrecision(imm uint8, y Mask64x8) Float64x8
 
-/* MaskedDiffWithFloorSuppressExceptionWithPrecision */
-
-// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
-// Const Immediate = 9.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedDiffWithFloorSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
-
-// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
-// Const Immediate = 9.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedDiffWithFloorSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
-
-// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
-// Const Immediate = 9.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedDiffWithFloorSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
-
-// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
-// Const Immediate = 9.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedDiffWithFloorSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
-
-// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
-// Const Immediate = 9.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedDiffWithFloorSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
-
-// DiffWithFloorSuppressExceptionWithPrecision computes the difference after flooring with specified precision, suppressing exceptions.
-// Const Immediate = 9.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedDiffWithFloorSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
-
 /* MaskedDiffWithFloorWithPrecision */
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
-// Const Immediate = 1.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedDiffWithFloorWithPrecision(imm uint8, y Mask32x4) Float32x4
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
-// Const Immediate = 1.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedDiffWithFloorWithPrecision(imm uint8, y Mask32x8) Float32x8
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
-// Const Immediate = 1.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedDiffWithFloorWithPrecision(imm uint8, y Mask32x16) Float32x16
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
-// Const Immediate = 1.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedDiffWithFloorWithPrecision(imm uint8, y Mask64x2) Float64x2
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
-// Const Immediate = 1.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedDiffWithFloorWithPrecision(imm uint8, y Mask64x4) Float64x4
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
-// Const Immediate = 1.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedDiffWithFloorWithPrecision(imm uint8, y Mask64x8) Float64x8
 
-/* MaskedDiffWithRoundSuppressExceptionWithPrecision */
-
-// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedDiffWithRoundSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
-
-// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedDiffWithRoundSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
-
-// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedDiffWithRoundSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
-
-// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedDiffWithRoundSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
-
-// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedDiffWithRoundSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
-
-// DiffWithRoundSuppressExceptionWithPrecision computes the difference after rounding with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedDiffWithRoundSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
-
 /* MaskedDiffWithRoundWithPrecision */
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedDiffWithRoundWithPrecision(imm uint8, y Mask32x4) Float32x4
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedDiffWithRoundWithPrecision(imm uint8, y Mask32x8) Float32x8
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedDiffWithRoundWithPrecision(imm uint8, y Mask32x16) Float32x16
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedDiffWithRoundWithPrecision(imm uint8, y Mask64x2) Float64x2
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedDiffWithRoundWithPrecision(imm uint8, y Mask64x4) Float64x4
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedDiffWithRoundWithPrecision(imm uint8, y Mask64x8) Float64x8
 
-/* MaskedDiffWithTruncSuppressExceptionWithPrecision */
-
-// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedDiffWithTruncSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
-
-// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedDiffWithTruncSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
-
-// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedDiffWithTruncSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
-
-// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedDiffWithTruncSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
-
-// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedDiffWithTruncSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
-
-// DiffWithTruncSuppressExceptionWithPrecision computes the difference after truncating with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedDiffWithTruncSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
-
 /* MaskedDiffWithTruncWithPrecision */
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedDiffWithTruncWithPrecision(imm uint8, y Mask32x4) Float32x4
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedDiffWithTruncWithPrecision(imm uint8, y Mask32x8) Float32x8
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedDiffWithTruncWithPrecision(imm uint8, y Mask32x16) Float32x16
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedDiffWithTruncWithPrecision(imm uint8, y Mask64x2) Float64x2
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedDiffWithTruncWithPrecision(imm uint8, y Mask64x4) Float64x4
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedDiffWithTruncWithPrecision(imm uint8, y Mask64x8) Float64x8
@@ -3218,257 +2569,183 @@ func (x Float64x8) MaskedDiv(y Float64x8, z Mask64x8) Float64x8
 /* MaskedEqual */
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedEqual(y Float32x4, z Mask32x4) Mask32x4
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedEqual(y Float32x8, z Mask32x8) Mask32x8
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedEqual(y Float32x16, z Mask32x16) Mask32x16
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedEqual(y Float64x2, z Mask64x2) Mask64x2
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedEqual(y Float64x4, z Mask64x4) Mask64x4
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedEqual(y Float64x8, z Mask64x8) Mask64x8
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedEqual(y Int8x16, z Mask8x16) Mask8x16
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedEqual(y Int8x32, z Mask8x32) Mask8x32
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedEqual(y Int8x64, z Mask8x64) Mask8x64
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedEqual(y Int16x8, z Mask16x8) Mask16x8
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedEqual(y Int16x16, z Mask16x16) Mask16x16
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedEqual(y Int16x32, z Mask16x32) Mask16x32
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedEqual(y Int32x4, z Mask32x4) Mask32x4
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedEqual(y Int32x8, z Mask32x8) Mask32x8
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedEqual(y Int32x16, z Mask32x16) Mask32x16
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedEqual(y Int64x2, z Mask64x2) Mask64x2
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedEqual(y Int64x4, z Mask64x4) Mask64x4
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedEqual(y Int64x8, z Mask64x8) Mask64x8
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedEqual(y Uint8x16, z Mask8x16) Mask8x16
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedEqual(y Uint8x32, z Mask8x32) Mask8x32
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedEqual(y Uint8x64, z Mask8x64) Mask8x64
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedEqual(y Uint16x8, z Mask16x8) Mask16x8
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedEqual(y Uint16x16, z Mask16x16) Mask16x16
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedEqual(y Uint16x32, z Mask16x32) Mask16x32
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedEqual(y Uint32x4, z Mask32x4) Mask32x4
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedEqual(y Uint32x8, z Mask32x8) Mask32x8
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedEqual(y Uint32x16, z Mask32x16) Mask32x16
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedEqual(y Uint64x2, z Mask64x2) Mask64x2
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedEqual(y Uint64x4, z Mask64x4) Mask64x4
 
 // Equal compares for equality, masked.
-// Const Immediate = 0.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedEqual(y Uint64x8, z Mask64x8) Mask64x8
 
-/* MaskedFloorSuppressExceptionWithPrecision */
-
-// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
-// Const Immediate = 9.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedFloorSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
-
-// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
-// Const Immediate = 9.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedFloorSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
-
-// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
-// Const Immediate = 9.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedFloorSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
-
-// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
-// Const Immediate = 9.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedFloorSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
-
-// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
-// Const Immediate = 9.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedFloorSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
-
-// FloorSuppressExceptionWithPrecision rounds elements down with specified precision, suppressing exceptions, masked.
-// Const Immediate = 9.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedFloorSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
-
 /* MaskedFloorWithPrecision */
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
-// Const Immediate = 1.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedFloorWithPrecision(imm uint8, y Mask32x4) Float32x4
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
-// Const Immediate = 1.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedFloorWithPrecision(imm uint8, y Mask32x8) Float32x8
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
-// Const Immediate = 1.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedFloorWithPrecision(imm uint8, y Mask32x16) Float32x16
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
-// Const Immediate = 1.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedFloorWithPrecision(imm uint8, y Mask64x2) Float64x2
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
-// Const Immediate = 1.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedFloorWithPrecision(imm uint8, y Mask64x4) Float64x4
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
-// Const Immediate = 1.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedFloorWithPrecision(imm uint8, y Mask64x8) Float64x8
@@ -3647,181 +2924,151 @@ func (x Uint8x64) MaskedGaloisFieldMul(y Uint8x64, z Mask8x64) Uint8x64
 /* MaskedGreater */
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedGreater(y Float32x4, z Mask32x4) Mask32x4
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedGreater(y Float32x8, z Mask32x8) Mask32x8
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedGreater(y Float32x16, z Mask32x16) Mask32x16
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedGreater(y Float64x2, z Mask64x2) Mask64x2
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedGreater(y Float64x4, z Mask64x4) Mask64x4
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedGreater(y Float64x8, z Mask64x8) Mask64x8
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedGreater(y Int8x16, z Mask8x16) Mask8x16
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedGreater(y Int8x32, z Mask8x32) Mask8x32
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedGreater(y Int8x64, z Mask8x64) Mask8x64
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedGreater(y Int16x8, z Mask16x8) Mask16x8
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedGreater(y Int16x16, z Mask16x16) Mask16x16
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedGreater(y Int16x32, z Mask16x32) Mask16x32
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedGreater(y Int32x4, z Mask32x4) Mask32x4
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedGreater(y Int32x8, z Mask32x8) Mask32x8
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedGreater(y Int32x16, z Mask32x16) Mask32x16
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedGreater(y Int64x2, z Mask64x2) Mask64x2
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedGreater(y Int64x4, z Mask64x4) Mask64x4
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedGreater(y Int64x8, z Mask64x8) Mask64x8
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedGreater(y Uint8x16, z Mask8x16) Mask8x16
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedGreater(y Uint8x32, z Mask8x32) Mask8x32
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedGreater(y Uint8x64, z Mask8x64) Mask8x64
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedGreater(y Uint16x8, z Mask16x8) Mask16x8
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedGreater(y Uint16x16, z Mask16x16) Mask16x16
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedGreater(y Uint16x32, z Mask16x32) Mask16x32
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedGreater(y Uint32x4, z Mask32x4) Mask32x4
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedGreater(y Uint32x8, z Mask32x8) Mask32x8
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedGreater(y Uint32x16, z Mask32x16) Mask32x16
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedGreater(y Uint64x2, z Mask64x2) Mask64x2
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedGreater(y Uint64x4, z Mask64x4) Mask64x4
 
 // Greater compares for greater than.
-// Const Immediate = 6.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedGreater(y Uint64x8, z Mask64x8) Mask64x8
@@ -3829,181 +3076,151 @@ func (x Uint64x8) MaskedGreater(y Uint64x8, z Mask64x8) Mask64x8
 /* MaskedGreaterEqual */
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedGreaterEqual(y Float32x4, z Mask32x4) Mask32x4
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedGreaterEqual(y Float32x8, z Mask32x8) Mask32x8
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedGreaterEqual(y Float32x16, z Mask32x16) Mask32x16
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedGreaterEqual(y Float64x2, z Mask64x2) Mask64x2
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedGreaterEqual(y Float64x4, z Mask64x4) Mask64x4
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedGreaterEqual(y Float64x8, z Mask64x8) Mask64x8
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedGreaterEqual(y Int8x16, z Mask8x16) Mask8x16
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedGreaterEqual(y Int8x32, z Mask8x32) Mask8x32
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedGreaterEqual(y Int8x64, z Mask8x64) Mask8x64
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedGreaterEqual(y Int16x8, z Mask16x8) Mask16x8
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedGreaterEqual(y Int16x16, z Mask16x16) Mask16x16
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedGreaterEqual(y Int16x32, z Mask16x32) Mask16x32
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedGreaterEqual(y Int32x4, z Mask32x4) Mask32x4
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedGreaterEqual(y Int32x8, z Mask32x8) Mask32x8
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedGreaterEqual(y Int32x16, z Mask32x16) Mask32x16
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedGreaterEqual(y Int64x2, z Mask64x2) Mask64x2
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedGreaterEqual(y Int64x4, z Mask64x4) Mask64x4
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedGreaterEqual(y Int64x8, z Mask64x8) Mask64x8
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedGreaterEqual(y Uint8x16, z Mask8x16) Mask8x16
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedGreaterEqual(y Uint8x32, z Mask8x32) Mask8x32
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedGreaterEqual(y Uint8x64, z Mask8x64) Mask8x64
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedGreaterEqual(y Uint16x8, z Mask16x8) Mask16x8
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedGreaterEqual(y Uint16x16, z Mask16x16) Mask16x16
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedGreaterEqual(y Uint16x32, z Mask16x32) Mask16x32
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedGreaterEqual(y Uint32x4, z Mask32x4) Mask32x4
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedGreaterEqual(y Uint32x8, z Mask32x8) Mask32x8
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedGreaterEqual(y Uint32x16, z Mask32x16) Mask32x16
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedGreaterEqual(y Uint64x2, z Mask64x2) Mask64x2
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedGreaterEqual(y Uint64x4, z Mask64x4) Mask64x4
 
 // GreaterEqual compares for greater than or equal.
-// Const Immediate = 5.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedGreaterEqual(y Uint64x8, z Mask64x8) Mask64x8
@@ -4011,37 +3228,31 @@ func (x Uint64x8) MaskedGreaterEqual(y Uint64x8, z Mask64x8) Mask64x8
 /* MaskedIsNan */
 
 // IsNan checks if elements are NaN. Use as x.IsNan(x).
-// Const Immediate = 3.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedIsNan(y Float32x4, z Mask32x4) Mask32x4
 
 // IsNan checks if elements are NaN. Use as x.IsNan(x).
-// Const Immediate = 3.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedIsNan(y Float32x8, z Mask32x8) Mask32x8
 
 // IsNan checks if elements are NaN. Use as x.IsNan(x).
-// Const Immediate = 3.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedIsNan(y Float32x16, z Mask32x16) Mask32x16
 
 // IsNan checks if elements are NaN. Use as x.IsNan(x).
-// Const Immediate = 3.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedIsNan(y Float64x2, z Mask64x2) Mask64x2
 
 // IsNan checks if elements are NaN. Use as x.IsNan(x).
-// Const Immediate = 3.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedIsNan(y Float64x4, z Mask64x4) Mask64x4
 
 // IsNan checks if elements are NaN. Use as x.IsNan(x).
-// Const Immediate = 3.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedIsNan(y Float64x8, z Mask64x8) Mask64x8
@@ -4049,181 +3260,151 @@ func (x Float64x8) MaskedIsNan(y Float64x8, z Mask64x8) Mask64x8
 /* MaskedLess */
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedLess(y Float32x4, z Mask32x4) Mask32x4
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedLess(y Float32x8, z Mask32x8) Mask32x8
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedLess(y Float32x16, z Mask32x16) Mask32x16
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedLess(y Float64x2, z Mask64x2) Mask64x2
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedLess(y Float64x4, z Mask64x4) Mask64x4
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedLess(y Float64x8, z Mask64x8) Mask64x8
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedLess(y Int8x16, z Mask8x16) Mask8x16
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedLess(y Int8x32, z Mask8x32) Mask8x32
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedLess(y Int8x64, z Mask8x64) Mask8x64
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedLess(y Int16x8, z Mask16x8) Mask16x8
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedLess(y Int16x16, z Mask16x16) Mask16x16
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedLess(y Int16x32, z Mask16x32) Mask16x32
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedLess(y Int32x4, z Mask32x4) Mask32x4
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedLess(y Int32x8, z Mask32x8) Mask32x8
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedLess(y Int32x16, z Mask32x16) Mask32x16
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedLess(y Int64x2, z Mask64x2) Mask64x2
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedLess(y Int64x4, z Mask64x4) Mask64x4
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedLess(y Int64x8, z Mask64x8) Mask64x8
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedLess(y Uint8x16, z Mask8x16) Mask8x16
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedLess(y Uint8x32, z Mask8x32) Mask8x32
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedLess(y Uint8x64, z Mask8x64) Mask8x64
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedLess(y Uint16x8, z Mask16x8) Mask16x8
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedLess(y Uint16x16, z Mask16x16) Mask16x16
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedLess(y Uint16x32, z Mask16x32) Mask16x32
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedLess(y Uint32x4, z Mask32x4) Mask32x4
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedLess(y Uint32x8, z Mask32x8) Mask32x8
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedLess(y Uint32x16, z Mask32x16) Mask32x16
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedLess(y Uint64x2, z Mask64x2) Mask64x2
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedLess(y Uint64x4, z Mask64x4) Mask64x4
 
 // Less compares for less than.
-// Const Immediate = 1.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedLess(y Uint64x8, z Mask64x8) Mask64x8
@@ -4231,181 +3412,151 @@ func (x Uint64x8) MaskedLess(y Uint64x8, z Mask64x8) Mask64x8
 /* MaskedLessEqual */
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedLessEqual(y Float32x4, z Mask32x4) Mask32x4
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedLessEqual(y Float32x8, z Mask32x8) Mask32x8
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedLessEqual(y Float32x16, z Mask32x16) Mask32x16
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedLessEqual(y Float64x2, z Mask64x2) Mask64x2
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedLessEqual(y Float64x4, z Mask64x4) Mask64x4
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedLessEqual(y Float64x8, z Mask64x8) Mask64x8
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedLessEqual(y Int8x16, z Mask8x16) Mask8x16
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedLessEqual(y Int8x32, z Mask8x32) Mask8x32
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedLessEqual(y Int8x64, z Mask8x64) Mask8x64
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedLessEqual(y Int16x8, z Mask16x8) Mask16x8
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedLessEqual(y Int16x16, z Mask16x16) Mask16x16
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedLessEqual(y Int16x32, z Mask16x32) Mask16x32
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedLessEqual(y Int32x4, z Mask32x4) Mask32x4
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedLessEqual(y Int32x8, z Mask32x8) Mask32x8
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedLessEqual(y Int32x16, z Mask32x16) Mask32x16
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedLessEqual(y Int64x2, z Mask64x2) Mask64x2
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedLessEqual(y Int64x4, z Mask64x4) Mask64x4
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedLessEqual(y Int64x8, z Mask64x8) Mask64x8
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedLessEqual(y Uint8x16, z Mask8x16) Mask8x16
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedLessEqual(y Uint8x32, z Mask8x32) Mask8x32
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedLessEqual(y Uint8x64, z Mask8x64) Mask8x64
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedLessEqual(y Uint16x8, z Mask16x8) Mask16x8
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedLessEqual(y Uint16x16, z Mask16x16) Mask16x16
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedLessEqual(y Uint16x32, z Mask16x32) Mask16x32
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedLessEqual(y Uint32x4, z Mask32x4) Mask32x4
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedLessEqual(y Uint32x8, z Mask32x8) Mask32x8
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedLessEqual(y Uint32x16, z Mask32x16) Mask32x16
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedLessEqual(y Uint64x2, z Mask64x2) Mask64x2
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedLessEqual(y Uint64x4, z Mask64x4) Mask64x4
 
 // LessEqual compares for less than or equal.
-// Const Immediate = 2.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedLessEqual(y Uint64x8, z Mask64x8) Mask64x8
@@ -4898,181 +4049,151 @@ func (x Int64x8) MaskedMulLow(y Int64x8, z Mask64x8) Int64x8
 /* MaskedNotEqual */
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedNotEqual(y Float32x4, z Mask32x4) Mask32x4
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedNotEqual(y Float32x8, z Mask32x8) Mask32x8
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedNotEqual(y Float32x16, z Mask32x16) Mask32x16
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedNotEqual(y Float64x2, z Mask64x2) Mask64x2
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedNotEqual(y Float64x4, z Mask64x4) Mask64x4
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedNotEqual(y Float64x8, z Mask64x8) Mask64x8
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaskedNotEqual(y Int8x16, z Mask8x16) Mask8x16
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaskedNotEqual(y Int8x32, z Mask8x32) Mask8x32
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaskedNotEqual(y Int8x64, z Mask8x64) Mask8x64
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaskedNotEqual(y Int16x8, z Mask16x8) Mask16x8
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaskedNotEqual(y Int16x16, z Mask16x16) Mask16x16
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaskedNotEqual(y Int16x32, z Mask16x32) Mask16x32
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedNotEqual(y Int32x4, z Mask32x4) Mask32x4
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaskedNotEqual(y Int32x8, z Mask32x8) Mask32x8
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaskedNotEqual(y Int32x16, z Mask32x16) Mask32x16
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaskedNotEqual(y Int64x2, z Mask64x2) Mask64x2
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaskedNotEqual(y Int64x4, z Mask64x4) Mask64x4
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaskedNotEqual(y Int64x8, z Mask64x8) Mask64x8
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaskedNotEqual(y Uint8x16, z Mask8x16) Mask8x16
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaskedNotEqual(y Uint8x32, z Mask8x32) Mask8x32
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaskedNotEqual(y Uint8x64, z Mask8x64) Mask8x64
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaskedNotEqual(y Uint16x8, z Mask16x8) Mask16x8
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaskedNotEqual(y Uint16x16, z Mask16x16) Mask16x16
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaskedNotEqual(y Uint16x32, z Mask16x32) Mask16x32
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaskedNotEqual(y Uint32x4, z Mask32x4) Mask32x4
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaskedNotEqual(y Uint32x8, z Mask32x8) Mask32x8
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaskedNotEqual(y Uint32x16, z Mask32x16) Mask32x16
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaskedNotEqual(y Uint64x2, z Mask64x2) Mask64x2
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaskedNotEqual(y Uint64x4, z Mask64x4) Mask64x4
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedNotEqual(y Uint64x8, z Mask64x8) Mask64x8
@@ -5576,78 +4697,34 @@ func (x Uint64x4) MaskedRotateRight(y Uint64x4, z Mask64x4) Uint64x4
 // Asm: VPRORVQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedRotateRight(y Uint64x8, z Mask64x8) Uint64x8
 
-/* MaskedRoundSuppressExceptionWithPrecision */
-
-// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedRoundSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
-
-// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedRoundSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
-
-// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedRoundSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
-
-// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedRoundSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
-
-// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedRoundSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
-
-// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedRoundSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
-
 /* MaskedRoundWithPrecision */
 
 // RoundWithPrecision rounds elements with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedRoundWithPrecision(imm uint8, y Mask32x4) Float32x4
 
 // RoundWithPrecision rounds elements with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedRoundWithPrecision(imm uint8, y Mask32x8) Float32x8
 
 // RoundWithPrecision rounds elements with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedRoundWithPrecision(imm uint8, y Mask32x16) Float32x16
 
 // RoundWithPrecision rounds elements with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedRoundWithPrecision(imm uint8, y Mask64x2) Float64x2
 
 // RoundWithPrecision rounds elements with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedRoundWithPrecision(imm uint8, y Mask64x4) Float64x4
 
 // RoundWithPrecision rounds elements with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedRoundWithPrecision(imm uint8, y Mask64x8) Float64x8
@@ -6826,78 +5903,34 @@ func (x Uint64x4) MaskedSub(y Uint64x4, z Mask64x4) Uint64x4
 // Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaskedSub(y Uint64x8, z Mask64x8) Uint64x8
 
-/* MaskedTruncSuppressExceptionWithPrecision */
-
-// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedTruncSuppressExceptionWithPrecision(imm uint8, y Mask32x4) Float32x4
-
-// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedTruncSuppressExceptionWithPrecision(imm uint8, y Mask32x8) Float32x8
-
-// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedTruncSuppressExceptionWithPrecision(imm uint8, y Mask32x16) Float32x16
-
-// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedTruncSuppressExceptionWithPrecision(imm uint8, y Mask64x2) Float64x2
-
-// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedTruncSuppressExceptionWithPrecision(imm uint8, y Mask64x4) Float64x4
-
-// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedTruncSuppressExceptionWithPrecision(imm uint8, y Mask64x8) Float64x8
-
 /* MaskedTruncWithPrecision */
 
 // TruncWithPrecision truncates elements with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaskedTruncWithPrecision(imm uint8, y Mask32x4) Float32x4
 
 // TruncWithPrecision truncates elements with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaskedTruncWithPrecision(imm uint8, y Mask32x8) Float32x8
 
 // TruncWithPrecision truncates elements with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaskedTruncWithPrecision(imm uint8, y Mask32x16) Float32x16
 
 // TruncWithPrecision truncates elements with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaskedTruncWithPrecision(imm uint8, y Mask64x2) Float64x2
 
 // TruncWithPrecision truncates elements with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaskedTruncWithPrecision(imm uint8, y Mask64x4) Float64x4
 
 // TruncWithPrecision truncates elements with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaskedTruncWithPrecision(imm uint8, y Mask64x8) Float64x8
@@ -7538,181 +6571,151 @@ func (x Int64x8) MulLow(y Int64x8) Int64x8
 /* NotEqual */
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) NotEqual(y Float32x4) Mask32x4
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x8) NotEqual(y Float32x8) Mask32x8
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) NotEqual(y Float32x16) Mask32x16
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x2) NotEqual(y Float64x2) Mask64x2
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VCMPPD, CPU Feature: AVX
 func (x Float64x4) NotEqual(y Float64x4) Mask64x4
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) NotEqual(y Float64x8) Mask64x8
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) NotEqual(y Int8x16) Mask8x16
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) NotEqual(y Int8x32) Mask8x32
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) NotEqual(y Int8x64) Mask8x64
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) NotEqual(y Int16x8) Mask16x8
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) NotEqual(y Int16x16) Mask16x16
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) NotEqual(y Int16x32) Mask16x32
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) NotEqual(y Int32x4) Mask32x4
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) NotEqual(y Int32x8) Mask32x8
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) NotEqual(y Int32x16) Mask32x16
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) NotEqual(y Int64x2) Mask64x2
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) NotEqual(y Int64x4) Mask64x4
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) NotEqual(y Int64x8) Mask64x8
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) NotEqual(y Uint8x16) Mask8x16
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) NotEqual(y Uint8x32) Mask8x32
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) NotEqual(y Uint8x64) Mask8x64
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) NotEqual(y Uint16x8) Mask16x8
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) NotEqual(y Uint16x16) Mask16x16
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) NotEqual(y Uint16x32) Mask16x32
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) NotEqual(y Uint32x4) Mask32x4
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) NotEqual(y Uint32x8) Mask32x8
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) NotEqual(y Uint32x16) Mask32x16
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) NotEqual(y Uint64x2) Mask64x2
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) NotEqual(y Uint64x4) Mask64x4
 
 // NotEqual compares for inequality.
-// Const Immediate = 4.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) NotEqual(y Uint64x8) Mask64x8
@@ -8407,101 +7410,53 @@ func (x Uint64x8) RotateRight(y Uint64x8) Uint64x8
 /* Round */
 
 // Round rounds elements to the nearest integer.
-// Const Immediate = 0.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
 func (x Float32x4) Round() Float32x4
 
 // Round rounds elements to the nearest integer.
-// Const Immediate = 0.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
 func (x Float32x8) Round() Float32x8
 
 // Round rounds elements to the nearest integer.
-// Const Immediate = 0.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x2) Round() Float64x2
 
 // Round rounds elements to the nearest integer.
-// Const Immediate = 0.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x4) Round() Float64x4
 
-/* RoundSuppressExceptionWithPrecision */
-
-// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) RoundSuppressExceptionWithPrecision(imm uint8) Float32x4
-
-// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) RoundSuppressExceptionWithPrecision(imm uint8) Float32x8
-
-// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) RoundSuppressExceptionWithPrecision(imm uint8) Float32x16
-
-// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) RoundSuppressExceptionWithPrecision(imm uint8) Float64x2
-
-// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) RoundSuppressExceptionWithPrecision(imm uint8) Float64x4
-
-// RoundSuppressExceptionWithPrecision rounds elements with specified precision, suppressing exceptions.
-// Const Immediate = 8.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) RoundSuppressExceptionWithPrecision(imm uint8) Float64x8
-
 /* RoundWithPrecision */
 
 // RoundWithPrecision rounds elements with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) RoundWithPrecision(imm uint8) Float32x4
 
 // RoundWithPrecision rounds elements with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) RoundWithPrecision(imm uint8) Float32x8
 
 // RoundWithPrecision rounds elements with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) RoundWithPrecision(imm uint8) Float32x16
 
 // RoundWithPrecision rounds elements with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) RoundWithPrecision(imm uint8) Float64x2
 
 // RoundWithPrecision rounds elements with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) RoundWithPrecision(imm uint8) Float64x4
 
 // RoundWithPrecision rounds elements with specified precision.
-// Const Immediate = 0.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) RoundWithPrecision(imm uint8) Float64x8
@@ -9891,101 +8846,53 @@ func (x Uint64x8) Sub(y Uint64x8) Uint64x8
 /* Trunc */
 
 // Trunc truncates elements towards zero.
-// Const Immediate = 3.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
 func (x Float32x4) Trunc() Float32x4
 
 // Trunc truncates elements towards zero.
-// Const Immediate = 3.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
 func (x Float32x8) Trunc() Float32x8
 
 // Trunc truncates elements towards zero.
-// Const Immediate = 3.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x2) Trunc() Float64x2
 
 // Trunc truncates elements towards zero.
-// Const Immediate = 3.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x4) Trunc() Float64x4
 
-/* TruncSuppressExceptionWithPrecision */
-
-// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) TruncSuppressExceptionWithPrecision(imm uint8) Float32x4
-
-// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) TruncSuppressExceptionWithPrecision(imm uint8) Float32x8
-
-// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) TruncSuppressExceptionWithPrecision(imm uint8) Float32x16
-
-// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) TruncSuppressExceptionWithPrecision(imm uint8) Float64x2
-
-// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) TruncSuppressExceptionWithPrecision(imm uint8) Float64x4
-
-// TruncSuppressExceptionWithPrecision truncates elements with specified precision, suppressing exceptions.
-// Const Immediate = 11.
-//
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) TruncSuppressExceptionWithPrecision(imm uint8) Float64x8
-
 /* TruncWithPrecision */
 
 // TruncWithPrecision truncates elements with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) TruncWithPrecision(imm uint8) Float32x4
 
 // TruncWithPrecision truncates elements with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) TruncWithPrecision(imm uint8) Float32x8
 
 // TruncWithPrecision truncates elements with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) TruncWithPrecision(imm uint8) Float32x16
 
 // TruncWithPrecision truncates elements with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) TruncWithPrecision(imm uint8) Float64x2
 
 // TruncWithPrecision truncates elements with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) TruncWithPrecision(imm uint8) Float64x4
 
 // TruncWithPrecision truncates elements with specified precision.
-// Const Immediate = 3.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) TruncWithPrecision(imm uint8) Float64x8
