@@ -47,6 +47,7 @@ var (
 	bogoMode     = flag.Bool("bogo-mode", false, "Enabled bogo shim mode, ignore everything else")
 	bogoFilter   = flag.String("bogo-filter", "", "BoGo test filter")
 	bogoLocalDir = flag.String("bogo-local-dir", "", "Local BoGo to use, instead of fetching from source")
+	bogoReport   = flag.String("bogo-html-report", "", "File path to render an HTML report with BoGo results")
 )
 
 func runTestAndUpdateIfNeeded(t *testing.T, name string, run func(t *testing.T, update bool), wait bool) {
