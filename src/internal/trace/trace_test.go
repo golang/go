@@ -610,7 +610,6 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 			buildCmd.Args = append(buildCmd.Args, "-race")
 		}
 		buildCmd.Args = append(buildCmd.Args, testPath)
-		buildCmd.Env = append(os.Environ(), "GOEXPERIMENT=rangefunc")
 		buildOutput, err := buildCmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("failed to build %s: %v: output:\n%s", testPath, err, buildOutput)

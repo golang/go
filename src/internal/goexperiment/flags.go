@@ -100,9 +100,6 @@ type Flags struct {
 	// inlining phase within the Go compiler.
 	NewInliner bool
 
-	// RangeFunc enables range over func.
-	RangeFunc bool
-
 	// AliasTypeParams enables type parameters for alias types.
 	// Requires that gotypesalias=1 is set with GODEBUG.
 	// This flag will be removed with Go 1.25.
