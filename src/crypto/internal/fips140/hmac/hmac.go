@@ -130,26 +130,36 @@ func (h *HMAC) Reset() {
 	h.marshaled = true
 }
 
+type errCloneUnsupported struct{}
+
+func (e errCloneUnsupported) Error() string {
+	return "crypto/hmac: hash does not support hash.Cloner"
+}
+
+func (e errCloneUnsupported) Unwrap() error {
+	return errors.ErrUnsupported
+}
+
 // Clone implements [hash.Cloner] if the underlying hash does.
-// Otherwise, it returns [errors.ErrUnsupported].
+// Otherwise, it returns an error wrapping [errors.ErrUnsupported].
 func (h *HMAC) Clone() (hash.Cloner, error) {
 	r := *h
 	ic, ok := h.inner.(hash.Cloner)
 	if !ok {
-		return nil, errors.ErrUnsupported
+		return nil, errCloneUnsupported{}
 	}
 	oc, ok := h.outer.(hash.Cloner)
 	if !ok {
-		return nil, errors.ErrUnsupported
+		return nil, errCloneUnsupported{}
 	}
 	var err error
 	r.inner, err = ic.Clone()
 	if err != nil {
-		return nil, errors.ErrUnsupported
+		return nil, errCloneUnsupported{}
 	}
 	r.outer, err = oc.Clone()
 	if err != nil {
-		return nil, errors.ErrUnsupported
+		return nil, errCloneUnsupported{}
 	}
 	return &r, nil
 }

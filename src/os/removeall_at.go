@@ -8,6 +8,7 @@ package os
 
 import (
 	"io"
+	"runtime"
 	"syscall"
 )
 
@@ -34,7 +35,15 @@ func removeAll(path string) error {
 	// its parent directory
 	parentDir, base := splitPath(path)
 
-	parent, err := Open(parentDir)
+	flag := O_RDONLY
+	if runtime.GOOS == "windows" {
+		// On Windows, the process might not have read permission on the parent directory,
+		// but still can delete files in it. See https://go.dev/issue/74134.
+		// We can open a file even if we don't have read permission by passing the
+		// O_WRONLY | O_RDWR flag, which is mapped to FILE_READ_ATTRIBUTES.
+		flag = O_WRONLY | O_RDWR
+	}
+	parent, err := OpenFile(parentDir, flag, 0)
 	if IsNotExist(err) {
 		// If parent does not exist, base cannot exist. Fail silently
 		return nil

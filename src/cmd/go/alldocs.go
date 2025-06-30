@@ -405,6 +405,8 @@
 //
 //	go doc
 //		Show documentation for current package.
+//	go doc -http
+//		Serve HTML documentation over HTTP for the current package.
 //	go doc Foo
 //		Show documentation for Foo in the current package.
 //		(Foo starts with a capital letter so it cannot match
@@ -439,26 +441,28 @@
 //
 // Flags:
 //
-//	-all
-//		Show all the documentation for the package.
-//	-c
-//		Respect case when matching symbols.
-//	-cmd
-//		Treat a command (package main) like a regular package.
-//		Otherwise package main's exported symbols are hidden
-//		when showing the package's top-level documentation.
-//	-short
-//		One-line representation for each symbol.
-//	-src
-//		Show the full source code for the symbol. This will
-//		display the full Go source of its declaration and
-//		definition, such as a function definition (including
-//		the body), type declaration or enclosing const
-//		block. The output may therefore include unexported
-//		details.
-//	-u
-//		Show documentation for unexported as well as exported
-//		symbols, methods, and fields.
+//		-all
+//			Show all the documentation for the package.
+//		-c
+//			Respect case when matching symbols.
+//		-cmd
+//			Treat a command (package main) like a regular package.
+//			Otherwise package main's exported symbols are hidden
+//			when showing the package's top-level documentation.
+//	  	-http
+//			Serve HTML docs over HTTP.
+//		-short
+//			One-line representation for each symbol.
+//		-src
+//			Show the full source code for the symbol. This will
+//			display the full Go source of its declaration and
+//			definition, such as a function definition (including
+//			the body), type declaration or enclosing const
+//			block. The output may therefore include unexported
+//			details.
+//		-u
+//			Show documentation for unexported as well as exported
+//			symbols, methods, and fields.
 //
 // # Print Go environment information
 //

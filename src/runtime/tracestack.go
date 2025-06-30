@@ -109,7 +109,22 @@ func traceStack(skip int, gp *g, gen uintptr) uint64 {
 				nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.syscallbp), pcBuf[2:])
 			} else {
 				pcBuf[1] = gp.sched.pc
-				nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.sched.bp), pcBuf[2:])
+				if gp.syncSafePoint {
+					// We're stopped in morestack, which is an odd state because gp.sched.bp
+					// refers to our parent frame, since we haven't had the chance to push our
+					// frame pointer to the stack yet. If we just start walking from gp.sched.bp,
+					// we'll skip a frame as a result. Luckily, we can find the PC we want right
+					// at gp.sched.sp on non-LR platforms, and we have it directly on LR platforms.
+					// See issue go.dev/issue/68090.
+					if usesLR {
+						pcBuf[2] = gp.sched.lr
+					} else {
+						pcBuf[2] = *(*uintptr)(unsafe.Pointer(gp.sched.sp))
+					}
+					nstk += 2 + fpTracebackPCs(unsafe.Pointer(gp.sched.bp), pcBuf[3:])
+				} else {
+					nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.sched.bp), pcBuf[2:])
+				}
 			}
 		}
 	}

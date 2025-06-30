@@ -221,7 +221,7 @@ type Options = jsonopts.Options
 //   - [jsontext.AllowInvalidUTF8]
 //   - [jsontext.EscapeForHTML]
 //   - [jsontext.EscapeForJS]
-//   - [jsontext.PreserveRawString]
+//   - [jsontext.PreserveRawStrings]
 //
 // All other boolean options are set to false.
 // All non-boolean options are set to the zero value,

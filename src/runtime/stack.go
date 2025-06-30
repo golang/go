@@ -1115,6 +1115,9 @@ func newstack() {
 			shrinkstack(gp)
 		}
 
+		// Set a flag indicated that we've been synchronously preempted.
+		gp.syncSafePoint = true
+
 		if gp.preemptStop {
 			preemptPark(gp) // never returns
 		}

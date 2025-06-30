@@ -545,6 +545,14 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 		base.Fatalf("no ReassignOracle for function %v with closure parent %v", fn, fn.ClosureParent)
 	}
 
+	assignTemp := func(n ir.Node, init *ir.Nodes) {
+		// Preserve any side effects of n by assigning it to an otherwise unused temp.
+		pos := n.Pos()
+		tmp := typecheck.TempAt(pos, fn, n.Type())
+		init.Append(typecheck.Stmt(ir.NewDecl(pos, ir.ODCL, tmp)))
+		init.Append(typecheck.Stmt(ir.NewAssignStmt(pos, tmp, n)))
+	}
+
 	switch n.Op() {
 	case ir.OMAKESLICE:
 		// Check if we can replace a non-constant argument to make with
@@ -556,13 +564,17 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 			r = &n.Len
 		}
 
-		if s := ro.StaticValue(*r); s.Op() == ir.OLITERAL {
-			lit, ok := s.(*ir.BasicLit)
-			if !ok || lit.Val().Kind() != constant.Int {
-				base.Fatalf("unexpected BasicLit Kind")
-			}
-			if constant.Compare(lit.Val(), token.GEQ, constant.MakeInt64(0)) {
-				*r = lit
+		if (*r).Op() != ir.OLITERAL {
+			if s := ro.StaticValue(*r); s.Op() == ir.OLITERAL {
+				lit, ok := s.(*ir.BasicLit)
+				if !ok || lit.Val().Kind() != constant.Int {
+					base.Fatalf("unexpected BasicLit Kind")
+				}
+				if constant.Compare(lit.Val(), token.GEQ, constant.MakeInt64(0)) {
+					// Preserve any side effects of the original expression, then replace it.
+					assignTemp(*r, n.PtrInit())
+					*r = lit
+				}
 			}
 		}
 	case ir.OCONVIFACE:
@@ -575,6 +587,8 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 				if base.Debug.EscapeDebug >= 3 {
 					base.WarnfAt(n.Pos(), "rewriting OCONVIFACE value from %v (%v) to %v (%v)", conv.X, conv.X.Type(), v, v.Type())
 				}
+				// Preserve any side effects of the original expression, then replace it.
+				assignTemp(conv.X, conv.PtrInit())
 				v := v.(*ir.BasicLit)
 				conv.X = ir.NewBasicLit(conv.X.Pos(), conv.X.Type(), v.Val())
 				typecheck.Expr(conv)

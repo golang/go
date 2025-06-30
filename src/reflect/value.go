@@ -1514,46 +1514,46 @@ func TypeAssert[T any](v Value) (T, bool) {
 	}
 
 	typ := abi.TypeFor[T]()
+
+	// If v is an interface, return the element inside the interface.
+	//
+	// T is a concrete type and v is an interface. For example:
+	//
+	//	var v any = int(1)
+	//	val := ValueOf(&v).Elem()
+	//	TypeAssert[int](val) == val.Interface().(int)
+	//
+	// T is a interface and v is a non-nil interface value. For example:
+	//
+	//	var v any = &someError{}
+	//	val := ValueOf(&v).Elem()
+	//	TypeAssert[error](val) == val.Interface().(error)
+	//
+	// T is a interface and v is a nil interface value. For example:
+	//
+	//	var v error = nil
+	//	val := ValueOf(&v).Elem()
+	//	TypeAssert[error](val) == val.Interface().(error)
+	if v.kind() == Interface {
+		v, ok := packIfaceValueIntoEmptyIface(v).(T)
+		return v, ok
+	}
+
+	// If T is an interface and v is a concrete type. For example:
+	//
+	//	TypeAssert[any](ValueOf(1)) == ValueOf(1).Interface().(any)
+	//	TypeAssert[error](ValueOf(&someError{})) == ValueOf(&someError{}).Interface().(error)
+	if typ.Kind() == abi.Interface {
+		v, ok := packEface(v).(T)
+		return v, ok
+	}
+
+	// Both v and T must be concrete types.
+	// The only way for an type-assertion to match is if the types are equal.
 	if typ != v.typ() {
-		// We can't just return false here:
-		//
-		//	var zero T
-		//	return zero, false
-		//
-		// since this function should work in the same manner as v.Interface().(T) does.
-		// Thus we have to handle two cases specially.
-
-		// Return the element inside the interface.
-		//
-		// T is a concrete type and v is an interface. For example:
-		//
-		// var v any = int(1)
-		// val := ValueOf(&v).Elem()
-		// TypeAssert[int](val) == val.Interface().(int)
-		//
-		// T is a interface and v is an interface, but the iface types are different. For example:
-		//
-		// var v any = &someError{}
-		// val := ValueOf(&v).Elem()
-		// TypeAssert[error](val) == val.Interface().(error)
-		if v.kind() == Interface {
-			v, ok := packIfaceValueIntoEmptyIface(v).(T)
-			return v, ok
-		}
-
-		// T is an interface, v is a concrete type. For example:
-		//
-		// TypeAssert[any](ValueOf(1)) == ValueOf(1).Interface().(any)
-		// TypeAssert[error](ValueOf(&someError{})) == ValueOf(&someError{}).Interface().(error)
-		if typ.Kind() == abi.Interface {
-			v, ok := packEface(v).(T)
-			return v, ok
-		}
-
 		var zero T
 		return zero, false
 	}
-
 	if v.flag&flagIndir == 0 {
 		return *(*T)(unsafe.Pointer(&v.ptr)), true
 	}
