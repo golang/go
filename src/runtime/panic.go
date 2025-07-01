@@ -864,6 +864,7 @@ func gopanic(e any) {
 
 	var p _panic
 	p.arg = e
+	p.gopanicFP = unsafe.Pointer(sys.GetCallerSP())
 
 	runningPanicDefers.Add(1)
 
@@ -1086,27 +1087,86 @@ func (p *_panic) initOpenCodedDefers(fn funcInfo, varp unsafe.Pointer) bool {
 }
 
 // The implementation of the predeclared function recover.
-// Cannot split the stack because it needs to reliably
-// find the stack segment of its caller.
-//
-// TODO(rsc): Once we commit to CopyStackAlways,
-// this doesn't need to be nosplit.
-//
-//go:nosplit
-func gorecover(argp uintptr) any {
-	// Must be in a function running as part of a deferred call during the panic.
-	// Must be called from the topmost function of the call
-	// (the function used in the defer statement).
-	// p.argp is the argument pointer of that topmost deferred function call.
-	// Compare against argp reported by caller.
-	// If they match, the caller is the one who can recover.
+func gorecover(_ uintptr) any {
 	gp := getg()
 	p := gp._panic
-	if p != nil && !p.goexit && !p.recovered && argp == uintptr(p.argp) {
-		p.recovered = true
-		return p.arg
+	if p == nil || p.goexit || p.recovered {
+		return nil
 	}
-	return nil
+
+	// Check to see if the function that called recover() was
+	// deferred directly from the panicking function.
+	// For code like:
+	//     func foo() {
+	//         defer bar()
+	//         panic("panic")
+	//     }
+	//     func bar() {
+	//         recover()
+	//     }
+	// Normally the stack would look like this:
+	//     foo
+	//     runtime.gopanic
+	//     bar
+	//     runtime.gorecover
+	//
+	// However, if the function we deferred requires a wrapper
+	// of some sort, we need to ignore the wrapper. In that case,
+	// the stack looks like:
+	//     foo
+	//     runtime.gopanic
+	//     wrapper
+	//     bar
+	//     runtime.gorecover
+	// And we should also successfully recover.
+	//
+	// Finally, in the weird case "defer recover()", the stack looks like:
+	//     foo
+	//     runtime.gopanic
+	//     wrapper
+	//     runtime.gorecover
+	// And we should not recover in that case.
+	//
+	// So our criteria is, there must be exactly one non-wrapper
+	// frame between gopanic and gorecover.
+	//
+	// We don't recover this:
+	//     defer func() { func() { recover() }() }
+	// because there are 2 non-wrapper frames.
+	//
+	// We don't recover this:
+	//     defer recover()
+	// because there are 0 non-wrapper frames.
+	canRecover := false
+	systemstack(func() {
+		var u unwinder
+		u.init(gp, 0)
+		u.next() // skip systemstack_switch
+		u.next() // skip gorecover
+		nonWrapperFrames := 0
+	loop:
+		for ; u.valid(); u.next() {
+			switch u.frame.fn.funcID {
+			case abi.FuncIDWrapper:
+				continue
+			case abi.FuncID_gopanic:
+				if u.frame.fp == uintptr(p.gopanicFP) && nonWrapperFrames > 0 {
+					canRecover = true
+				}
+				break loop
+			default:
+				nonWrapperFrames++
+				if nonWrapperFrames > 1 {
+					break loop
+				}
+			}
+		}
+	})
+	if !canRecover {
+		return nil
+	}
+	p.recovered = true
+	return p.arg
 }
 
 //go:linkname sync_throw sync.throw
