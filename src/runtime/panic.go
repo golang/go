@@ -959,10 +959,6 @@ func (p *_panic) nextDefer() (func(), bool) {
 		}
 	}
 
-	// The assembler adjusts p.argp in wrapper functions that shouldn't
-	// be visible to recover(), so we need to restore it each iteration.
-	p.argp = add(p.startSP, sys.MinFrameSize)
-
 	for {
 		for p.deferBitsPtr != nil {
 			bits := *p.deferBitsPtr
