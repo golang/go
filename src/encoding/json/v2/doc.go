@@ -166,6 +166,100 @@
 // Marshaling or unmarshaling a non-empty struct
 // without any JSON representable fields results in a [SemanticError].
 // Unexported fields must not have any `json` tags except for `json:"-"`.
+//
+// # Security Considerations
+//
+// JSON is frequently used as a data interchange format to communicate
+// between different systems, possibly implemented in different languages.
+// For interoperability and security reasons, it is important that
+// all implementations agree upon the semantic meaning of the data.
+//
+// [For example, suppose we have two micro-services.]
+// The first service is responsible for authenticating a JSON request,
+// while the second service is responsible for executing the request
+// (having assumed that the prior service authenticated the request).
+// If an attacker were able to maliciously craft a JSON request such that
+// both services believe that the same request is from different users,
+// it could bypass the authenticator with valid credentials for one user,
+// but maliciously perform an action on behalf of a different user.
+//
+// According to RFC 8259, there unfortunately exist many JSON texts
+// that are syntactically valid but semantically ambiguous.
+// For example, the standard does not define how to interpret duplicate
+// names within an object.
+//
+// The v1 [encoding/json] and [encoding/json/v2] packages
+// interpret some inputs in different ways. In particular:
+//
+//   - The standard specifies that JSON must be encoded using UTF-8.
+//     By default, v1 replaces invalid bytes of UTF-8 in JSON strings
+//     with the Unicode replacement character,
+//     while v2 rejects inputs with invalid UTF-8.
+//     To change the default, specify the [jsontext.AllowInvalidUTF8] option.
+//     The replacement of invalid UTF-8 is a form of data corruption
+//     that alters the precise meaning of strings.
+//
+//   - The standard does not specify a particular behavior when
+//     duplicate names are encountered within a JSON object,
+//     which means that different implementations may behave differently.
+//     By default, v1 allows for the presence of duplicate names,
+//     while v2 rejects duplicate names.
+//     To change the default, specify the [jsontext.AllowDuplicateNames] option.
+//     If allowed, object members are processed in the order they are observed,
+//     meaning that later values will replace or be merged into prior values,
+//     depending on the Go value type.
+//
+//   - The standard defines a JSON object as an unordered collection of name/value pairs.
+//     While ordering can be observed through the underlying [jsontext] API,
+//     both v1 and v2 generally avoid exposing the ordering.
+//     No application should semantically depend on the order of object members.
+//     Allowing duplicate names is a vector through which ordering of members
+//     can accidentally be observed and depended upon.
+//
+//   - The standard suggests that JSON object names are typically compared
+//     based on equality of the sequence of Unicode code points,
+//     which implies that comparing names is often case-sensitive.
+//     When unmarshaling a JSON object into a Go struct,
+//     by default, v1 uses a (loose) case-insensitive match on the name,
+//     while v2 uses a (strict) case-sensitive match on the name.
+//     To change the default, specify the [MatchCaseInsensitiveNames] option.
+//     The use of case-insensitive matching provides another vector through
+//     which duplicate names can occur. Allowing case-insensitive matching
+//     means that v1 or v2 might interpret JSON objects differently from most
+//     other JSON implementations (which typically use a case-sensitive match).
+//
+//   - The standard does not specify a particular behavior when
+//     an unknown name in a JSON object is encountered.
+//     When unmarshaling a JSON object into a Go struct, by default
+//     both v1 and v2 ignore unknown names and their corresponding values.
+//     To change the default, specify the [RejectUnknownMembers] option.
+//
+//   - The standard suggests that implementations may use a float64
+//     to represent a JSON number. Consequently, large JSON integers
+//     may lose precision when stored as a floating-point type.
+//     Both v1 and v2 correctly preserve precision when marshaling and
+//     unmarshaling a concrete integer type. However, even if v1 and v2
+//     preserve precision for concrete types, other JSON implementations
+//     may not be able to preserve precision for outputs produced by v1 or v2.
+//     The `string` tag option can be used to specify that an integer type
+//     is to be quoted within a JSON string to avoid loss of precision.
+//     Furthermore, v1 and v2 may still lose precision when unmarshaling
+//     into an any interface value, where unmarshal uses a float64
+//     by default to represent a JSON number.
+//     To change the default, specify the [WithUnmarshalers] option
+//     with a custom unmarshaler that pre-populates the interface value
+//     with a concrete Go type that can preserve precision.
+//
+// RFC 8785 specifies a canonical form for any JSON text,
+// which explicitly defines specific behaviors that RFC 8259 leaves undefined.
+// In theory, if a text can successfully [jsontext.Value.Canonicalize]
+// without changing the semantic meaning of the data, then it provides a
+// greater degree of confidence that the data is more secure and interoperable.
+//
+// The v2 API generally chooses more secure defaults than v1,
+// but care should still be taken with large integers or unknown members.
+//
+// [For example, suppose we have two micro-services.]: https://www.youtube.com/watch?v=avilmOcHKHE&t=1057s
 package json
 
 // requireKeyedLiterals can be embedded in a struct to require keyed literals.
