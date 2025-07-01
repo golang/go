@@ -36,7 +36,7 @@
 //     any empty array, slice, map, or string. In contrast, v2 redefines
 //     `omitempty` to omit a field if it encodes as an "empty" JSON value,
 //     which is defined as a JSON null, or an empty JSON string, object, or array.
-//     The [OmitEmptyWithLegacyDefinition] option controls this behavior difference.
+//     The [OmitEmptyWithLegacySemantics] option controls this behavior difference.
 //     Note that `omitempty` behaves identically in both v1 and v2 for a
 //     Go array, slice, map, or string (assuming no user-defined MarshalJSON method
 //     overrides the default representation). Existing usages of `omitempty` on a
@@ -66,7 +66,7 @@
 //
 //   - In v1, a Go byte array is represented as a JSON array of JSON numbers.
 //     In contrast, in v2 a Go byte array is represented as a Base64-encoded JSON string.
-//     The [FormatBytesWithLegacySemantics] option controls this behavior difference.
+//     The [FormatByteArrayAsArray] option controls this behavior difference.
 //     To explicitly specify a Go struct field to use a particular representation,
 //     either the `format:array` or `format:base64` field option can be specified.
 //     Field-specified options take precedence over caller-specified options.
@@ -118,9 +118,8 @@
 //
 //   - In v1, a [time.Duration] is represented as a JSON number containing
 //     the decimal number of nanoseconds. In contrast, in v2 a [time.Duration]
-//     is represented as a JSON string containing the formatted duration
-//     (e.g., "1h2m3.456s") according to [time.Duration.String].
-//     The [FormatTimeWithLegacySemantics] option controls this behavior difference.
+//     has no default representation and results in a runtime error.
+//     The [FormatDurationAsNano] option controls this behavior difference.
 //     To explicitly specify a Go struct field to use a particular representation,
 //     either the `format:nano` or `format:units` field option can be specified.
 //     Field-specified options take precedence over caller-specified options.
@@ -172,6 +171,9 @@
 // but the v1 package will forever remain supported.
 package json
 
+// TODO(https://go.dev/issue/71631): Update the "Migrating to v2" documentation
+// with default v2 behavior for [time.Duration].
+
 import (
 	"encoding"
 
@@ -204,11 +206,14 @@ type Options = jsonopts.Options
 // It is equivalent to the following boolean options being set to true:
 //
 //   - [CallMethodsWithLegacySemantics]
+//   - [FormatByteArrayAsArray]
 //   - [FormatBytesWithLegacySemantics]
-//   - [FormatTimeWithLegacySemantics]
+//   - [FormatDurationAsNano]
 //   - [MatchCaseSensitiveDelimiter]
 //   - [MergeWithLegacySemantics]
-//   - [OmitEmptyWithLegacyDefinition]
+//   - [OmitEmptyWithLegacySemantics]
+//   - [ParseBytesWithLooseRFC4648]
+//   - [ParseTimeWithLooseRFC3339]
 //   - [ReportErrorsWithLegacySemantics]
 //   - [StringifyWithLegacySemantics]
 //   - [UnmarshalArrayFromAnyLength]
@@ -278,12 +283,24 @@ func CallMethodsWithLegacySemantics(v bool) Options {
 	}
 }
 
+// FormatByteArrayAsArray specifies that a Go [N]byte is
+// formatted as as a normal Go array in contrast to the v2 default of
+// formatting [N]byte as using binary data encoding (RFC 4648).
+// If a struct field has a `format` tag option,
+// then the specified formatting takes precedence.
+//
+// This affects either marshaling or unmarshaling.
+// The v1 default is true.
+func FormatByteArrayAsArray(v bool) Options {
+	if v {
+		return jsonflags.FormatByteArrayAsArray | 1
+	} else {
+		return jsonflags.FormatByteArrayAsArray | 0
+	}
+}
+
 // FormatBytesWithLegacySemantics specifies that handling of
 // []~byte and [N]~byte types follow legacy semantics:
-//
-//   - A Go [N]~byte is always treated as as a normal Go array
-//     in contrast to the v2 default of treating [N]byte as
-//     using some form of binary data encoding (RFC 4648).
 //
 //   - A Go []~byte is to be treated as using some form of
 //     binary data encoding (RFC 4648) in contrast to the v2 default
@@ -299,12 +316,6 @@ func CallMethodsWithLegacySemantics(v bool) Options {
 //     In contrast, the v2 default is to report an error unmarshaling
 //     a JSON array when expecting some form of binary data encoding.
 //
-//   - When unmarshaling, '\r' and '\n' characters are ignored
-//     within the encoded "base32" and "base64" data.
-//     In contrast, the v2 default is to report an error in order to be
-//     strictly compliant with RFC 4648, section 3.3,
-//     which specifies that non-alphabet characters must be rejected.
-//
 // This affects either marshaling or unmarshaling.
 // The v1 default is true.
 func FormatBytesWithLegacySemantics(v bool) Options {
@@ -315,29 +326,20 @@ func FormatBytesWithLegacySemantics(v bool) Options {
 	}
 }
 
-// FormatTimeWithLegacySemantics specifies that [time] types are formatted
-// with legacy semantics:
-//
-//   - When marshaling or unmarshaling, a [time.Duration] is formatted as
-//     a JSON number representing the number of nanoseconds.
-//     In contrast, the default v2 behavior uses a JSON string
-//     with the duration formatted with [time.Duration.String].
-//     If a duration field has a `format` tag option,
-//     then the specified formatting takes precedence.
-//
-//   - When unmarshaling, a [time.Time] follows loose adherence to RFC 3339.
-//     In particular, it permits historically incorrect representations,
-//     allowing for deviations in hour format, sub-second separator,
-//     and timezone representation. In contrast, the default v2 behavior
-//     is to strictly comply with the grammar specified in RFC 3339.
+// FormatDurationAsNano specifies that a [time.Duration] is
+// formatted as a JSON number representing the number of nanoseconds
+// in contrast to the v2 default of reporting an error.
+// If a duration field has a `format` tag option,
+// then the specified formatting takes precedence.
 //
 // This affects either marshaling or unmarshaling.
 // The v1 default is true.
-func FormatTimeWithLegacySemantics(v bool) Options {
+func FormatDurationAsNano(v bool) Options {
+	// TODO(https://go.dev/issue/71631): Update documentation with v2 behavior.
 	if v {
-		return jsonflags.FormatTimeWithLegacySemantics | 1
+		return jsonflags.FormatDurationAsNano | 1
 	} else {
-		return jsonflags.FormatTimeWithLegacySemantics | 0
+		return jsonflags.FormatDurationAsNano | 0
 	}
 }
 
@@ -386,7 +388,7 @@ func MergeWithLegacySemantics(v bool) Options {
 	}
 }
 
-// OmitEmptyWithLegacyDefinition specifies that the `omitempty` tag option
+// OmitEmptyWithLegacySemantics specifies that the `omitempty` tag option
 // follows a definition of empty where a field is omitted if the Go value is
 // false, 0, a nil pointer, a nil interface value,
 // or any empty array, slice, map, or string.
@@ -400,11 +402,45 @@ func MergeWithLegacySemantics(v bool) Options {
 //
 // This only affects marshaling and is ignored when unmarshaling.
 // The v1 default is true.
-func OmitEmptyWithLegacyDefinition(v bool) Options {
+func OmitEmptyWithLegacySemantics(v bool) Options {
 	if v {
-		return jsonflags.OmitEmptyWithLegacyDefinition | 1
+		return jsonflags.OmitEmptyWithLegacySemantics | 1
 	} else {
-		return jsonflags.OmitEmptyWithLegacyDefinition | 0
+		return jsonflags.OmitEmptyWithLegacySemantics | 0
+	}
+}
+
+// ParseBytesWithLooseRFC4648 specifies that when parsing
+// binary data encoded as "base32" or "base64",
+// to ignore the presence of '\r' and '\n' characters.
+// In contrast, the v2 default is to report an error in order to be
+// strictly compliant with RFC 4648, section 3.3,
+// which specifies that non-alphabet characters must be rejected.
+//
+// This only affects unmarshaling and is ignored when marshaling.
+// The v1 default is true.
+func ParseBytesWithLooseRFC4648(v bool) Options {
+	if v {
+		return jsonflags.ParseBytesWithLooseRFC4648 | 1
+	} else {
+		return jsonflags.ParseBytesWithLooseRFC4648 | 0
+	}
+}
+
+// ParseTimeWithLooseRFC3339 specifies that a [time.Time]
+// parses according to loose adherence to RFC 3339.
+// In particular, it permits historically incorrect representations,
+// allowing for deviations in hour format, sub-second separator,
+// and timezone representation. In contrast, the default v2 behavior
+// is to strictly comply with the grammar specified in RFC 3339.
+//
+// This only affects unmarshaling and is ignored when marshaling.
+// The v1 default is true.
+func ParseTimeWithLooseRFC3339(v bool) Options {
+	if v {
+		return jsonflags.ParseTimeWithLooseRFC3339 | 1
+	} else {
+		return jsonflags.ParseTimeWithLooseRFC3339 | 0
 	}
 }
 
