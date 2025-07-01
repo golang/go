@@ -64,7 +64,8 @@ type Hash64 interface {
 // unless GOFIPS140=v1.0.0 is set.
 //
 // If a hash can only determine at runtime if it can be cloned (e.g. if it wraps
-// another hash), it may return an error wrapping [errors.ErrUnsupported].
+// another hash), Clone may return an error wrapping [errors.ErrUnsupported].
+// Otherwise, Clone must always return a nil error.
 type Cloner interface {
 	Hash
 	Clone() (Cloner, error)
