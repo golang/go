@@ -22,6 +22,7 @@ const (
 	cpuid_SSE3      = 1 << 0
 	cpuid_PCLMULQDQ = 1 << 1
 	cpuid_SSSE3     = 1 << 9
+	cpuid_GFNI      = 1 << 8
 	cpuid_FMA       = 1 << 12
 	cpuid_SSE41     = 1 << 19
 	cpuid_SSE42     = 1 << 20
@@ -143,7 +144,7 @@ func doinit() {
 		return
 	}
 
-	_, ebx7, _, edx7 := cpuid(7, 0)
+	_, ebx7, ecx7, edx7 := cpuid(7, 0)
 	X86.HasBMI1 = isSet(ebx7, cpuid_BMI1)
 	X86.HasAVX2 = isSet(ebx7, cpuid_AVX2) && osSupportsAVX
 	X86.HasBMI2 = isSet(ebx7, cpuid_BMI2)
@@ -160,6 +161,7 @@ func doinit() {
 	}
 
 	X86.HasFSRM = isSet(edx7, cpuid_FSRM)
+	X86.HasGFNI = isSet(ecx7, cpuid_GFNI)
 
 	var maxExtendedInformation uint32
 	maxExtendedInformation, _, _, _ = cpuid(0x80000000, 0)
@@ -180,6 +182,7 @@ func doinit() {
 		// it. GOAMD64=v4 also implies exactly this set, and these are all
 		// included in AVX10.1.
 		X86.HasAVX512 = X86.HasAVX512F && X86.HasAVX512CD && X86.HasAVX512BW && X86.HasAVX512DQ && X86.HasAVX512VL
+		X86.HasAVX512GFNI = X86.HasAVX512 && X86.HasGFNI
 	}
 }
 

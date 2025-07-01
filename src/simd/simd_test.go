@@ -38,7 +38,7 @@ func TestType(t *testing.T) {
 	v.y = &y
 	sink = y
 
-	if !simd.HasAVX512() {
+	if !simd.HasAVX512GFNI() {
 		t.Skip("Test requires HasAVX512, not available on this hardware")
 		return
 	}
@@ -97,7 +97,7 @@ func TestReflectMethod(t *testing.T) {
 }
 
 func TestVectorConversion(t *testing.T) {
-	if !simd.HasAVX512() {
+	if !simd.HasAVX512GFNI() {
 		t.Skip("Test requires HasAVX512, not available on this hardware")
 		return
 	}
@@ -115,7 +115,7 @@ func TestVectorConversion(t *testing.T) {
 }
 
 func TestMaskConversion(t *testing.T) {
-	if !simd.HasAVX512() {
+	if !simd.HasAVX512GFNI() {
 		t.Skip("Test requires HasAVX512, not available on this hardware")
 		return
 	}
@@ -144,7 +144,7 @@ func TestSub(t *testing.T) {
 }
 
 func TestMaskedAdd(t *testing.T) {
-	if !simd.HasAVX512() {
+	if !simd.HasAVX512GFNI() {
 		t.Skip("Test requires HasAVX512, not available on this hardware")
 		return
 	}
