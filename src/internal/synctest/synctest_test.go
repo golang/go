@@ -654,6 +654,17 @@ func TestWaitGroupInBubble(t *testing.T) {
 	})
 }
 
+// https://go.dev/issue/74386
+func TestWaitGroupRacingAdds(t *testing.T) {
+	synctest.Run(func() {
+		var wg sync.WaitGroup
+		for range 100 {
+			wg.Go(func() {})
+		}
+		wg.Wait()
+	})
+}
+
 func TestWaitGroupOutOfBubble(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -705,29 +716,35 @@ func TestWaitGroupMovedBetweenBubblesWithNonZeroCount(t *testing.T) {
 	})
 }
 
-func TestWaitGroupMovedBetweenBubblesWithZeroCount(t *testing.T) {
+func TestWaitGroupDisassociateInWait(t *testing.T) {
 	var wg sync.WaitGroup
 	synctest.Run(func() {
 		wg.Add(1)
 		wg.Done()
+		// Count and waiters are 0, so Wait disassociates the WaitGroup.
+		wg.Wait()
 	})
 	synctest.Run(func() {
-		// Reusing the WaitGroup is safe, because its count is zero.
+		// Reusing the WaitGroup is safe, because it is no longer bubbled.
 		wg.Add(1)
 		wg.Done()
 	})
 }
 
-func TestWaitGroupMovedBetweenBubblesAfterWait(t *testing.T) {
+func TestWaitGroupDisassociateInAdd(t *testing.T) {
 	var wg sync.WaitGroup
 	synctest.Run(func() {
-		wg.Go(func() {})
-		wg.Wait()
+		wg.Add(1)
+		go wg.Wait()
+		synctest.Wait() // wait for Wait to block
+		// Count is 0 and waiters != 0, so Done wakes the waiters and
+		// disassociates the WaitGroup.
+		wg.Done()
 	})
 	synctest.Run(func() {
-		// Reusing the WaitGroup is safe, because its count is zero.
-		wg.Go(func() {})
-		wg.Wait()
+		// Reusing the WaitGroup is safe, because it is no longer bubbled.
+		wg.Add(1)
+		wg.Done()
 	})
 }
 

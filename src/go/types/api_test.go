@@ -364,6 +364,11 @@ func TestTypesInfo(t *testing.T) {
 		// go.dev/issue/47895
 		{`package p; import "unsafe"; type S struct { f int }; var s S; var _ = unsafe.Offsetof(s.f)`, `s.f`, `int`},
 
+		// go.dev/issue/74303. Note that interface field types are synthetic, so
+		// even though `func()` doesn't appear in the source, it appears in the
+		// syntax tree.
+		{`package p; type T interface { M(int) }`, `func(int)`, `func(int)`},
+
 		// go.dev/issue/50093
 		{`package u0a; func _[_ interface{int}]() {}`, `int`, `int`},
 		{`package u1a; func _[_ interface{~int}]() {}`, `~int`, `~int`},

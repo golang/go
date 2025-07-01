@@ -35,24 +35,27 @@ func (v Value) Kind() ValueKind {
 	return v.kind
 }
 
-// ToUint64 returns the uint64 value for a ValueUint64.
+// Uint64 returns the uint64 value for a ValueUint64.
 //
 // Panics if this Value's Kind is not ValueUint64.
-func (v Value) ToUint64() uint64 {
+func (v Value) Uint64() uint64 {
 	if v.kind != ValueUint64 {
-		panic("ToUint64 called on Value of a different Kind")
+		panic("Uint64 called on Value of a different Kind")
 	}
 	return v.scalar
 }
 
-// ToString returns the uint64 value for a ValueString.
-//
-// Panics if this Value's Kind is not ValueString.
-func (v Value) ToString() string {
-	if v.kind != ValueString {
-		panic("ToString called on Value of a different Kind")
+// String returns the string value for a ValueString, and otherwise
+// a string representation of the value for other kinds of values.
+func (v Value) String() string {
+	if v.kind == ValueString {
+		return unsafe.String((*byte)(v.pointer), int(v.scalar))
 	}
-	return unsafe.String((*byte)(v.pointer), int(v.scalar))
+	switch v.kind {
+	case ValueUint64:
+		return fmt.Sprintf("Value{Uint64(%d)}", v.Uint64())
+	}
+	return "Value{Bad}"
 }
 
 func uint64Value(x uint64) Value {
@@ -61,15 +64,4 @@ func uint64Value(x uint64) Value {
 
 func stringValue(s string) Value {
 	return Value{kind: ValueString, scalar: uint64(len(s)), pointer: unsafe.Pointer(unsafe.StringData(s))}
-}
-
-// String returns the string representation of the value.
-func (v Value) String() string {
-	switch v.Kind() {
-	case ValueUint64:
-		return fmt.Sprintf("Value{Uint64(%d)}", v.ToUint64())
-	case ValueString:
-		return fmt.Sprintf("Value{String(%s)}", v.ToString())
-	}
-	return "Value{Bad}"
 }

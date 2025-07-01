@@ -1261,6 +1261,9 @@ func (c *common) Skipped() bool {
 // When printing file and line information, that function will be skipped.
 // Helper may be called simultaneously from multiple goroutines.
 func (c *common) Helper() {
+	if c.isSynctest {
+		c = c.parent
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.helperPCs == nil {

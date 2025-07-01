@@ -14,9 +14,6 @@ import (
 // BUG(mikio): On Plan 9, the ReadMsgUDP and
 // WriteMsgUDP methods of UDPConn are not implemented.
 
-// BUG(mikio): On Windows, the File method of UDPConn is not
-// implemented.
-
 // BUG(mikio): On JS, methods and functions related to UDPConn are not
 // implemented.
 

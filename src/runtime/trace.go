@@ -331,7 +331,7 @@ func StopTrace() {
 //
 // traceAdvanceSema must not be held.
 //
-// traceAdvance is called by golang.org/x/exp/trace using linkname.
+// traceAdvance is called by runtime/trace and golang.org/x/exp/trace using linkname.
 //
 //go:linkname traceAdvance
 func traceAdvance(stopTrace bool) {
@@ -376,7 +376,7 @@ func traceAdvance(stopTrace bool) {
 			me := getg().m.curg
 			// We don't have to handle this G status transition because we
 			// already eliminated ourselves from consideration above.
-			casGToWaitingForGC(me, _Grunning, waitReasonTraceGoroutineStatus)
+			casGToWaitingForSuspendG(me, _Grunning, waitReasonTraceGoroutineStatus)
 			// We need to suspend and take ownership of the G to safely read its
 			// goid. Note that we can't actually emit the event at this point
 			// because we might stop the G in a window where it's unsafe to write
@@ -956,7 +956,7 @@ func traceReader() *g {
 // scheduled and should be. Callers should first check that
 // (traceEnabled() || traceShuttingDown()) is true.
 func traceReaderAvailable() *g {
-	// There are three conditions under which we definitely want to schedule
+	// There are two conditions under which we definitely want to schedule
 	// the reader:
 	// - The reader is lagging behind in finishing off the last generation.
 	//   In this case, trace buffers could even be empty, but the trace
@@ -965,12 +965,10 @@ func traceReaderAvailable() *g {
 	// - The reader has pending work to process for it's reader generation
 	//   (assuming readerGen is not lagging behind). Note that we also want
 	//   to be careful *not* to schedule the reader if there's no work to do.
-	// - The trace is shutting down. The trace stopper blocks on the reader
-	//   to finish, much like trace advancement.
 	//
 	// We also want to be careful not to schedule the reader if there's no
 	// reason to.
-	if trace.flushedGen.Load() == trace.readerGen.Load() || trace.workAvailable.Load() || trace.shutdown.Load() {
+	if trace.flushedGen.Load() == trace.readerGen.Load() || trace.workAvailable.Load() {
 		return trace.reader.Load()
 	}
 	return nil

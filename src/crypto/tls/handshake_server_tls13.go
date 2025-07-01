@@ -1098,7 +1098,8 @@ func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
 		// See RFC 8446, Section 4.4.3.
 		// We don't use certReq.supportedSignatureAlgorithms because it would
 		// require keeping the certificateRequestMsgTLS13 around in the hs.
-		if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms(c.vers)) {
+		if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms(c.vers)) ||
+			!isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, signatureSchemesForPublicKey(c.vers, c.peerCertificates[0].PublicKey)) {
 			c.sendAlert(alertIllegalParameter)
 			return errors.New("tls: client certificate used with invalid signature algorithm")
 		}

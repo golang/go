@@ -268,6 +268,10 @@ func ParseFlags() {
 	if Debug.PGOHash != "" {
 		PGOHash = NewHashDebug("pgohash", Debug.PGOHash, nil)
 	}
+	if Debug.LiteralAllocHash != "" {
+		LiteralAllocHash = NewHashDebug("literalalloc", Debug.LiteralAllocHash, nil)
+	}
+
 	if Debug.MergeLocalsHash != "" {
 		MergeLocalsHash = NewHashDebug("mergelocals", Debug.MergeLocalsHash, nil)
 	}

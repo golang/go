@@ -457,7 +457,7 @@ func (tl traceLocker) GoPreempt() {
 
 // GoStop emits a GoStop event with the provided reason.
 func (tl traceLocker) GoStop(reason traceGoStopReason) {
-	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGoStop, traceArg(trace.goStopReasons[tl.gen%2][reason]), tl.stack(1))
+	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGoStop, traceArg(trace.goStopReasons[tl.gen%2][reason]), tl.stack(0))
 }
 
 // GoPark emits a GoBlock event with the provided reason.
