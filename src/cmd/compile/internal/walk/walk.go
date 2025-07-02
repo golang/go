@@ -275,6 +275,15 @@ func backingArrayPtrLen(n ir.Node) (ptr, length ir.Node) {
 // function calls, which could clobber function call arguments/results
 // currently on the stack.
 func mayCall(n ir.Node) bool {
+	// This is intended to avoid putting constants
+	// into temporaries with the race detector (or other
+	// instrumentation) which interferes with simple
+	// "this is a constant" tests in ssagen.
+	// Also, it will generally lead to better code.
+	if n.Op() == ir.OLITERAL {
+		return false
+	}
+
 	// When instrumenting, any expression might require function calls.
 	if base.Flag.Cfg.Instrumenting {
 		return true
