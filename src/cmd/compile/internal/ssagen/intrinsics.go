@@ -1636,7 +1636,7 @@ func opLen4(op ssa.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa
 
 func plainPanicSimdImm(s *state) {
 	cmp := s.newValue0(ssa.OpConstBool, types.Types[types.TBOOL])
-	cmp.AuxInt = 1
+	cmp.AuxInt = 0
 	// TODO: make this a standalone panic instead of reusing the overflow panic.
 	// Or maybe after we implement the switch table this will be obsolete anyway.
 	s.check(cmp, ir.Syms.Panicoverflow)
