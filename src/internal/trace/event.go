@@ -489,7 +489,6 @@ func (e Event) Range() Range {
 		} else {
 			r.Scope.id = int64(e.Proc())
 		}
-		r.Scope.id = int64(e.Proc())
 	case tracev2.EvGCMarkAssistBegin, tracev2.EvGCMarkAssistActive, tracev2.EvGCMarkAssistEnd:
 		r.Name = "GC mark assist"
 		r.Scope = ResourceID{Kind: ResourceGoroutine}
