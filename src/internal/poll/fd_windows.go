@@ -79,7 +79,6 @@ type operation struct {
 	// fields used only by net package
 	buf  syscall.WSABuf
 	msg  windows.WSAMsg
-	sa   syscall.Sockaddr
 	rsa  *syscall.RawSockaddrAny
 	rsan int32
 	bufs []syscall.WSABuf
@@ -922,9 +921,8 @@ func (fd *FD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 		// handle zero-byte payload
 		o := &fd.wop
 		o.InitBuf(buf)
-		o.sa = sa
 		n, err := fd.execIO(o, func(o *operation) (qty uint32, err error) {
-			err = syscall.WSASendto(fd.Sysfd, &o.buf, 1, &qty, 0, o.sa, &o.o, nil)
+			err = syscall.WSASendto(fd.Sysfd, &o.buf, 1, &qty, 0, sa, &o.o, nil)
 			return qty, err
 		})
 		return n, err
@@ -938,9 +936,8 @@ func (fd *FD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 		}
 		o := &fd.wop
 		o.InitBuf(b)
-		o.sa = sa
 		n, err := fd.execIO(o, func(o *operation) (qty uint32, err error) {
-			err = syscall.WSASendto(fd.Sysfd, &o.buf, 1, &qty, 0, o.sa, &o.o, nil)
+			err = syscall.WSASendto(fd.Sysfd, &o.buf, 1, &qty, 0, sa, &o.o, nil)
 			return qty, err
 		})
 		ntotal += int(n)
@@ -1035,9 +1032,8 @@ func (fd *FD) WriteToInet6(buf []byte, sa6 *syscall.SockaddrInet6) (int, error) 
 // than in the net package so that it can use fd.wop.
 func (fd *FD) ConnectEx(ra syscall.Sockaddr) error {
 	o := &fd.wop
-	o.sa = ra
 	_, err := fd.execIO(o, func(o *operation) (uint32, error) {
-		return 0, ConnectExFunc(fd.Sysfd, o.sa, nil, 0, nil, &o.o)
+		return 0, ConnectExFunc(fd.Sysfd, ra, nil, 0, nil, &o.o)
 	})
 	return err
 }
