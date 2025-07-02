@@ -80,7 +80,6 @@ type operation struct {
 	buf  syscall.WSABuf
 	msg  windows.WSAMsg
 	rsa  *syscall.RawSockaddrAny
-	rsan int32
 	bufs []syscall.WSABuf
 }
 
@@ -668,9 +667,9 @@ func (fd *FD) ReadFrom(buf []byte) (int, syscall.Sockaddr, error) {
 		if o.rsa == nil {
 			o.rsa = new(syscall.RawSockaddrAny)
 		}
-		o.rsan = int32(unsafe.Sizeof(*o.rsa))
+		rsan := int32(unsafe.Sizeof(*o.rsa))
 		var flags uint32
-		err = syscall.WSARecvFrom(fd.Sysfd, &o.buf, 1, &qty, &flags, o.rsa, &o.rsan, &o.o, nil)
+		err = syscall.WSARecvFrom(fd.Sysfd, &o.buf, 1, &qty, &flags, o.rsa, &rsan, &o.o, nil)
 		return qty, err
 	})
 	err = fd.eofError(n, err)
@@ -699,9 +698,9 @@ func (fd *FD) ReadFromInet4(buf []byte, sa4 *syscall.SockaddrInet4) (int, error)
 		if o.rsa == nil {
 			o.rsa = new(syscall.RawSockaddrAny)
 		}
-		o.rsan = int32(unsafe.Sizeof(*o.rsa))
+		rsan := int32(unsafe.Sizeof(*o.rsa))
 		var flags uint32
-		err = syscall.WSARecvFrom(fd.Sysfd, &o.buf, 1, &qty, &flags, o.rsa, &o.rsan, &o.o, nil)
+		err = syscall.WSARecvFrom(fd.Sysfd, &o.buf, 1, &qty, &flags, o.rsa, &rsan, &o.o, nil)
 		return qty, err
 	})
 	err = fd.eofError(n, err)
@@ -730,9 +729,9 @@ func (fd *FD) ReadFromInet6(buf []byte, sa6 *syscall.SockaddrInet6) (int, error)
 		if o.rsa == nil {
 			o.rsa = new(syscall.RawSockaddrAny)
 		}
-		o.rsan = int32(unsafe.Sizeof(*o.rsa))
+		rsan := int32(unsafe.Sizeof(*o.rsa))
 		var flags uint32
-		err = syscall.WSARecvFrom(fd.Sysfd, &o.buf, 1, &qty, &flags, o.rsa, &o.rsan, &o.o, nil)
+		err = syscall.WSARecvFrom(fd.Sysfd, &o.buf, 1, &qty, &flags, o.rsa, &rsan, &o.o, nil)
 		return qty, err
 	})
 	err = fd.eofError(n, err)
@@ -1040,10 +1039,11 @@ func (fd *FD) ConnectEx(ra syscall.Sockaddr) error {
 
 func (fd *FD) acceptOne(s syscall.Handle, rawsa []syscall.RawSockaddrAny, o *operation) (string, error) {
 	// Submit accept request.
-	o.rsan = int32(unsafe.Sizeof(rawsa[0]))
+	rsan := uint32(unsafe.Sizeof(rawsa[0]))
 	_, err := fd.execIO(o, func(o *operation) (qty uint32, err error) {
-		err = AcceptFunc(fd.Sysfd, s, (*byte)(unsafe.Pointer(&rawsa[0])), 0, uint32(o.rsan), uint32(o.rsan), &qty, &o.o)
+		err = AcceptFunc(fd.Sysfd, s, (*byte)(unsafe.Pointer(&rawsa[0])), 0, rsan, rsan, &qty, &o.o)
 		return qty, err
+
 	})
 	if err != nil {
 		CloseFunc(s)
@@ -1078,7 +1078,7 @@ func (fd *FD) Accept(sysSocket func() (syscall.Handle, error)) (syscall.Handle, 
 
 		errcall, err := fd.acceptOne(s, rawsa[:], o)
 		if err == nil {
-			return s, rawsa[:], uint32(o.rsan), "", nil
+			return s, rawsa[:], uint32(unsafe.Sizeof(rawsa[0])), "", nil
 		}
 
 		// Sometimes we see WSAECONNRESET and ERROR_NETNAME_DELETED is
