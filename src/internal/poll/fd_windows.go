@@ -77,15 +77,14 @@ type operation struct {
 	mode       int32
 
 	// fields used only by net package
-	buf    syscall.WSABuf
-	msg    windows.WSAMsg
-	sa     syscall.Sockaddr
-	rsa    *syscall.RawSockaddrAny
-	rsan   int32
-	handle syscall.Handle
-	flags  uint32
-	qty    uint32
-	bufs   []syscall.WSABuf
+	buf   syscall.WSABuf
+	msg   windows.WSAMsg
+	sa    syscall.Sockaddr
+	rsa   *syscall.RawSockaddrAny
+	rsan  int32
+	flags uint32
+	qty   uint32
+	bufs  []syscall.WSABuf
 }
 
 func (o *operation) setEvent() {
@@ -1028,10 +1027,9 @@ func (fd *FD) ConnectEx(ra syscall.Sockaddr) error {
 
 func (fd *FD) acceptOne(s syscall.Handle, rawsa []syscall.RawSockaddrAny, o *operation) (string, error) {
 	// Submit accept request.
-	o.handle = s
 	o.rsan = int32(unsafe.Sizeof(rawsa[0]))
 	_, err := fd.execIO(o, func(o *operation) error {
-		return AcceptFunc(fd.Sysfd, o.handle, (*byte)(unsafe.Pointer(&rawsa[0])), 0, uint32(o.rsan), uint32(o.rsan), &o.qty, &o.o)
+		return AcceptFunc(fd.Sysfd, s, (*byte)(unsafe.Pointer(&rawsa[0])), 0, uint32(o.rsan), uint32(o.rsan), &o.qty, &o.o)
 	})
 	if err != nil {
 		CloseFunc(s)

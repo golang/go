@@ -63,7 +63,6 @@ func SendFile(fd *FD, src uintptr, size int64) (written int64, err error, handle
 	const maxChunkSizePerCall = int64(0x7fffffff - 1)
 
 	o := &fd.wop
-	o.handle = hsrc
 	for size > 0 {
 		chunkSize := maxChunkSizePerCall
 		if chunkSize > size {
@@ -76,7 +75,7 @@ func SendFile(fd *FD, src uintptr, size int64) (written int64, err error, handle
 
 		n, err := fd.execIO(o, func(o *operation) error {
 			o.qty = uint32(chunkSize)
-			return syscall.TransmitFile(fd.Sysfd, o.handle, o.qty, 0, &o.o, nil, syscall.TF_WRITE_BEHIND)
+			return syscall.TransmitFile(fd.Sysfd, hsrc, o.qty, 0, &o.o, nil, syscall.TF_WRITE_BEHIND)
 		})
 		if err != nil {
 			return written, err, written > 0
