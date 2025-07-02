@@ -846,7 +846,7 @@ func (o *orderState) stmt(n ir.Node) {
 		o.out = append(o.out, n)
 		o.popTemp(t)
 
-	case ir.OPRINT, ir.OPRINTLN, ir.ORECOVERFP:
+	case ir.OPRINT, ir.OPRINTLN, ir.ORECOVER:
 		n := n.(*ir.CallExpr)
 		t := o.markTemp()
 		o.call(n)
@@ -1355,7 +1355,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		ir.OMIN,
 		ir.ONEW,
 		ir.OREAL,
-		ir.ORECOVERFP,
+		ir.ORECOVER,
 		ir.OSTR2BYTES,
 		ir.OSTR2BYTESTMP,
 		ir.OSTR2RUNES:

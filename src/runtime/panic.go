@@ -1083,7 +1083,7 @@ func (p *_panic) initOpenCodedDefers(fn funcInfo, varp unsafe.Pointer) bool {
 }
 
 // The implementation of the predeclared function recover.
-func gorecover(_ uintptr) any {
+func gorecover() any {
 	gp := getg()
 	p := gp._panic
 	if p == nil || p.goexit || p.recovered {

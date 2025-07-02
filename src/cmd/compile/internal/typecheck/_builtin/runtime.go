@@ -25,7 +25,7 @@ func throwinit()
 func panicwrap()
 
 func gopanic(interface{})
-func gorecover(*int32) interface{}
+func gorecover() interface{}
 func goschedguarded()
 
 // Note: these declarations are just for wasm port.

@@ -213,7 +213,7 @@ func (n *CallExpr) SetOp(op Op) {
 		ODELETE,
 		OGETG, OGETCALLERSP,
 		OMAKE, OMAX, OMIN, OPRINT, OPRINTLN,
-		ORECOVER, ORECOVERFP:
+		ORECOVER:
 		n.op = op
 	}
 }

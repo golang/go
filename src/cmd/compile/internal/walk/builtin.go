@@ -860,9 +860,9 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 	return walkStmt(typecheck.Stmt(r))
 }
 
-// walkRecoverFP walks an ORECOVERFP node.
-func walkRecoverFP(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
-	return mkcall("gorecover", nn.Type(), init, walkExpr(nn.Args[0], init))
+// walkRecover walks an ORECOVER node.
+func walkRecover(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+	return mkcall("gorecover", nn.Type(), init)
 }
 
 // walkUnsafeData walks an OUNSAFESLICEDATA or OUNSAFESTRINGDATA expression.
