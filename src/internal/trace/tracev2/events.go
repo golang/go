@@ -45,7 +45,7 @@ const (
 	EvGoSyscallBegin      // syscall enter [timestamp, P seq, stack ID]
 	EvGoSyscallEnd        // syscall exit [timestamp]
 	EvGoSyscallEndBlocked // syscall exit and it blocked at some point [timestamp]
-	EvGoStatus            // goroutine status at the start of a generation [timestamp, goroutine ID, thread ID, status]
+	EvGoStatus            // goroutine status at the start of a generation [timestamp, goroutine ID, M ID, status]
 
 	// STW.
 	EvSTWBegin // STW start [timestamp, kind, stack ID]
