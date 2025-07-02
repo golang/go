@@ -295,6 +295,9 @@
 (Neq16 (Const16 <t> [c]) (Add16 (Const16 <t> [d]) x)) => (Neq16 (Const16 <t> [c-d]) x)
 (Neq8  (Const8  <t> [c]) (Add8  (Const8  <t> [d]) x)) => (Neq8  (Const8  <t> [c-d]) x)
 
+(CondSelect x _ (ConstBool [true ])) => x
+(CondSelect _ y (ConstBool [false])) => y
+
 // signed integer range: ( c <= x && x (<|<=) d ) -> ( unsigned(x-c) (<|<=) unsigned(d-c) )
 (AndB (Leq64 (Const64 [c]) x) ((Less|Leq)64 x (Const64 [d]))) && d >= c => ((Less|Leq)64U (Sub64 <x.Type> x (Const64 <x.Type> [c])) (Const64 <x.Type> [d-c]))
 (AndB (Leq32 (Const32 [c]) x) ((Less|Leq)32 x (Const32 [d]))) && d >= c => ((Less|Leq)32U (Sub32 <x.Type> x (Const32 <x.Type> [c])) (Const32 <x.Type> [d-c]))
@@ -2843,3 +2846,12 @@
   && clobber(sbts)
   && clobber(key)
 => (StaticLECall {f} [argsize] dict_ (StringMake <typ.String> ptr len) mem)
+
+// Transform some CondSelect into math operations.
+// if b { x++ } => x += b // but not on arm64 because it has CSINC
+(CondSelect (Add8 <t> x (Const8 [1])) x bool) && config.arch != "arm64" => (Add8 x (CvtBoolToUint8 <t> bool))
+(CondSelect (Add(64|32|16) <t> x (Const(64|32|16) [1])) x bool) && config.arch != "arm64" => (Add(64|32|16) x (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool)))
+
+// if b { x-- } => x -= b
+(CondSelect (Add8 <t> x (Const8 [-1])) x bool) => (Sub8 x (CvtBoolToUint8 <t> bool))
+(CondSelect (Add(64|32|16) <t> x (Const(64|32|16) [-1])) x bool) => (Sub(64|32|16) x (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool)))

@@ -106,7 +106,7 @@ func cmovfloatint2(x, y float64) float64 {
 	for r >= y {
 		rfr, rexp := frexp(r)
 		if rfr < yfr {
-			rexp = rexp - 1
+			rexp = rexp - 42
 		}
 		// amd64:"CMOVQHI"
 		// arm64:"CSEL\tMI"
@@ -205,7 +205,7 @@ func cmovinvert6(x, y uint64) uint64 {
 
 func cmovload(a []int, i int, b bool) int {
 	if b {
-		i++
+		i += 42
 	}
 	// See issue 26306
 	// amd64:-"CMOVQNE"
@@ -214,7 +214,7 @@ func cmovload(a []int, i int, b bool) int {
 
 func cmovstore(a []int, i int, b bool) {
 	if b {
-		i++
+		i += 42
 	}
 	// amd64:"CMOVQNE"
 	a[i] = 7
@@ -450,4 +450,26 @@ func cmovzeroreg1(a, b int) int {
 	}
 	// ppc64x:"ISEL\t[$]2, R0, R[0-9]+, R[0-9]+"
 	return x
+}
+
+func cmovmathadd(a uint, b bool) uint {
+	if b {
+		a++
+	}
+	// amd64:"ADDQ", -"CMOV"
+	// arm64:"CSINC", -"CSEL"
+	// ppc64x:"ADD", -"ISEL"
+	// wasm:"Add", "-Select"
+	return a
+}
+
+func cmovmathsub(a uint, b bool) uint {
+	if b {
+		a--
+	}
+	// amd64:"SUBQ", -"CMOV"
+	// arm64:"SUB", -"CSEL"
+	// ppc64x:"SUB", -"ISEL"
+	// wasm:"Sub", "-Select"
+	return a
 }
