@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !wasip1
-
 package net
 
 import (
@@ -14,13 +12,15 @@ import (
 	"net/netip"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 )
+
+var goResolver = Resolver{PreferGo: true}
 
 func hasSuffixFold(s, suffix string) bool {
 	return strings.HasSuffix(strings.ToLower(s), strings.ToLower(suffix))
@@ -246,14 +246,10 @@ func TestLookupGmailTXT(t *testing.T) {
 		if len(txts) == 0 {
 			t.Error("got no record")
 		}
-		found := false
-		for _, txt := range txts {
-			if strings.Contains(txt, tt.txt) && (strings.HasSuffix(txt, tt.host) || strings.HasSuffix(txt, tt.host+".")) {
-				found = true
-				break
-			}
-		}
-		if !found {
+
+		if !slices.ContainsFunc(txts, func(txt string) bool {
+			return strings.Contains(txt, tt.txt) && (strings.HasSuffix(txt, tt.host) || strings.HasSuffix(txt, tt.host+"."))
+		}) {
 			t.Errorf("got %v; want a record containing %s, %s", txts, tt.txt, tt.host)
 		}
 	}
@@ -302,14 +298,7 @@ func TestLookupIPv6LinkLocalAddr(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	found := false
-	for _, addr := range addrs {
-		if addr == "fe80::1%lo0" {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if !slices.Contains(addrs, "fe80::1%lo0") {
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 	if _, err := LookupAddr("fe80::1%lo0"); err != nil {
@@ -428,12 +417,12 @@ func TestLookupLongTXT(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sort.Strings(txts)
+	slices.Sort(txts)
 	want := []string{
 		strings.Repeat("abcdefghijklmnopqrstuvwxyABCDEFGHJIKLMNOPQRSTUVWXY", 10),
 		"gophers rule",
 	}
-	if !reflect.DeepEqual(txts, want) {
+	if !slices.Equal(txts, want) {
 		t.Fatalf("LookupTXT golang.rsc.io incorrect\nhave %q\nwant %q", txts, want)
 	}
 }
@@ -1460,5 +1449,205 @@ func testLookupNoData(t *testing.T, prefix string) {
 
 		t.Errorf("%v: unexpected error: %v", prefix, err)
 		return
+	}
+}
+
+func TestLookupPortNotFound(t *testing.T) {
+	allResolvers(t, func(t *testing.T) {
+		_, err := LookupPort("udp", "_-unknown-service-")
+		var dnsErr *DNSError
+		if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+// submissions service is only available through a tcp network, see:
+// https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=submissions
+var tcpOnlyService = func() string {
+	// plan9 does not have submissions service defined in the service database.
+	if runtime.GOOS == "plan9" {
+		return "https"
+	}
+	return "submissions"
+}()
+
+func TestLookupPortDifferentNetwork(t *testing.T) {
+	allResolvers(t, func(t *testing.T) {
+		_, err := LookupPort("udp", tcpOnlyService)
+		var dnsErr *DNSError
+		if !errors.As(err, &dnsErr) || !dnsErr.IsNotFound {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestLookupPortEmptyNetworkString(t *testing.T) {
+	allResolvers(t, func(t *testing.T) {
+		_, err := LookupPort("", tcpOnlyService)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestLookupPortIPNetworkString(t *testing.T) {
+	allResolvers(t, func(t *testing.T) {
+		_, err := LookupPort("ip", tcpOnlyService)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestLookupNoSuchHost(t *testing.T) {
+	mustHaveExternalNetwork(t)
+
+	const testNXDOMAIN = "invalid.invalid."
+	const testNODATA = "_ldap._tcp.google.com."
+
+	tests := []struct {
+		name  string
+		query func() error
+	}{
+		{
+			name: "LookupCNAME NXDOMAIN",
+			query: func() error {
+				_, err := LookupCNAME(testNXDOMAIN)
+				return err
+			},
+		},
+		{
+			name: "LookupHost NXDOMAIN",
+			query: func() error {
+				_, err := LookupHost(testNXDOMAIN)
+				return err
+			},
+		},
+		{
+			name: "LookupHost NODATA",
+			query: func() error {
+				_, err := LookupHost(testNODATA)
+				return err
+			},
+		},
+		{
+			name: "LookupMX NXDOMAIN",
+			query: func() error {
+				_, err := LookupMX(testNXDOMAIN)
+				return err
+			},
+		},
+		{
+			name: "LookupMX NODATA",
+			query: func() error {
+				_, err := LookupMX(testNODATA)
+				return err
+			},
+		},
+		{
+			name: "LookupNS NXDOMAIN",
+			query: func() error {
+				_, err := LookupNS(testNXDOMAIN)
+				return err
+			},
+		},
+		{
+			name: "LookupNS NODATA",
+			query: func() error {
+				_, err := LookupNS(testNODATA)
+				return err
+			},
+		},
+		{
+			name: "LookupSRV NXDOMAIN",
+			query: func() error {
+				_, _, err := LookupSRV("unknown", "tcp", testNXDOMAIN)
+				return err
+			},
+		},
+		{
+			name: "LookupTXT NXDOMAIN",
+			query: func() error {
+				_, err := LookupTXT(testNXDOMAIN)
+				return err
+			},
+		},
+		{
+			name: "LookupTXT NODATA",
+			query: func() error {
+				_, err := LookupTXT(testNODATA)
+				return err
+			},
+		},
+	}
+
+	for _, v := range tests {
+		t.Run(v.name, func(t *testing.T) {
+			allResolvers(t, func(t *testing.T) {
+				attempts := 0
+				for {
+					err := v.query()
+					if err == nil {
+						t.Errorf("unexpected success")
+						return
+					}
+					if dnsErr, ok := err.(*DNSError); ok {
+						succeeded := true
+						if !dnsErr.IsNotFound {
+							succeeded = false
+							t.Log("IsNotFound is set to false")
+						}
+						if dnsErr.Err != errNoSuchHost.Error() {
+							succeeded = false
+							t.Logf("error message is not equal to: %v", errNoSuchHost.Error())
+						}
+						if succeeded {
+							return
+						}
+					}
+					testenv.SkipFlakyNet(t)
+					if attempts < len(backoffDuration) {
+						dur := backoffDuration[attempts]
+						t.Logf("backoff %v after failure %v\n", dur, err)
+						time.Sleep(dur)
+						attempts++
+						continue
+					}
+					t.Errorf("unexpected error: %v", err)
+					return
+				}
+			})
+		})
+	}
+}
+
+func TestDNSErrorUnwrap(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		// The Plan 9 implementation of the resolver doesn't use the Dial function yet. See https://go.dev/cl/409234
+		t.Skip("skipping on plan9")
+	}
+	rDeadlineExcceeded := &Resolver{PreferGo: true, Dial: func(ctx context.Context, network, address string) (Conn, error) {
+		return nil, context.DeadlineExceeded
+	}}
+	rCancelled := &Resolver{PreferGo: true, Dial: func(ctx context.Context, network, address string) (Conn, error) {
+		return nil, context.Canceled
+	}}
+
+	_, err := rDeadlineExcceeded.LookupHost(context.Background(), "test.go.dev")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("errors.Is(err, context.DeadlineExceeded) = false; want = true")
+	}
+
+	_, err = rCancelled.LookupHost(context.Background(), "test.go.dev")
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("errors.Is(err, context.Canceled) = false; want = true")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = goResolver.LookupHost(ctx, "text.go.dev")
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("errors.Is(err, context.Canceled) = false; want = true")
 	}
 }

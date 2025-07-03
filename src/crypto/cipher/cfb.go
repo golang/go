@@ -7,7 +7,8 @@
 package cipher
 
 import (
-	"crypto/internal/alias"
+	"crypto/internal/fips140/alias"
+	"crypto/internal/fips140only"
 	"crypto/subtle"
 )
 
@@ -50,17 +51,35 @@ func (x *cfb) XORKeyStream(dst, src []byte) {
 	}
 }
 
-// NewCFBEncrypter returns a Stream which encrypts with cipher feedback mode,
-// using the given Block. The iv must be the same length as the Block's block
+// NewCFBEncrypter returns a [Stream] which encrypts with cipher feedback mode,
+// using the given [Block]. The iv must be the same length as the [Block]'s block
 // size.
+//
+// Deprecated: CFB mode is not authenticated, which generally enables active
+// attacks to manipulate and recover the plaintext. It is recommended that
+// applications use [AEAD] modes instead. The standard library implementation of
+// CFB is also unoptimized and not validated as part of the FIPS 140-3 module.
+// If an unauthenticated [Stream] mode is required, use [NewCTR] instead.
 func NewCFBEncrypter(block Block, iv []byte) Stream {
+	if fips140only.Enabled {
+		panic("crypto/cipher: use of CFB is not allowed in FIPS 140-only mode")
+	}
 	return newCFB(block, iv, false)
 }
 
-// NewCFBDecrypter returns a Stream which decrypts with cipher feedback mode,
-// using the given Block. The iv must be the same length as the Block's block
+// NewCFBDecrypter returns a [Stream] which decrypts with cipher feedback mode,
+// using the given [Block]. The iv must be the same length as the [Block]'s block
 // size.
+//
+// Deprecated: CFB mode is not authenticated, which generally enables active
+// attacks to manipulate and recover the plaintext. It is recommended that
+// applications use [AEAD] modes instead. The standard library implementation of
+// CFB is also unoptimized and not validated as part of the FIPS 140-3 module.
+// If an unauthenticated [Stream] mode is required, use [NewCTR] instead.
 func NewCFBDecrypter(block Block, iv []byte) Stream {
+	if fips140only.Enabled {
+		panic("crypto/cipher: use of CFB is not allowed in FIPS 140-only mode")
+	}
 	return newCFB(block, iv, true)
 }
 

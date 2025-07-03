@@ -21,6 +21,7 @@ import (
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm64"
+	"cmd/internal/obj/riscv"
 	"cmd/internal/obj/x86"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -217,8 +218,8 @@ next:
 		for {
 			tok = p.nextToken()
 			if len(operands) == 0 && len(items) == 0 {
-				if p.arch.InFamily(sys.ARM, sys.ARM64, sys.AMD64, sys.I386) && tok == '.' {
-					// Suffixes: ARM conditionals or x86 modifiers.
+				if p.arch.InFamily(sys.ARM, sys.ARM64, sys.AMD64, sys.I386, sys.Loong64, sys.RISCV64) && tok == '.' {
+					// Suffixes: ARM conditionals, Loong64 vector instructions, RISCV rounding mode or x86 modifiers.
 					tok = p.nextToken()
 					str := p.lex.Text()
 					if tok != scanner.Ident {
@@ -398,16 +399,21 @@ func (p *Parser) operand(a *obj.Addr) {
 	tok := p.next()
 	name := tok.String()
 	if tok.ScanToken == scanner.Ident && !p.atStartOfRegister(name) {
+		// See if this is an architecture specific special operand.
 		switch p.arch.Family {
 		case sys.ARM64:
-			// arm64 special operands.
-			if opd := arch.GetARM64SpecialOperand(name); opd != arm64.SPOP_END {
+			if opd := arch.ARM64SpecialOperand(name); opd != arm64.SPOP_END {
 				a.Type = obj.TYPE_SPECIAL
 				a.Offset = int64(opd)
-				break
 			}
-			fallthrough
-		default:
+		case sys.RISCV64:
+			if opd := arch.RISCV64SpecialOperand(name); opd != riscv.SPOP_END {
+				a.Type = obj.TYPE_SPECIAL
+				a.Offset = int64(opd)
+			}
+		}
+
+		if a.Type != obj.TYPE_SPECIAL {
 			// We have a symbol. Parse $sym±offset(symkind)
 			p.symbolReference(a, p.qualifySymbol(name), prefix)
 		}
@@ -570,12 +576,13 @@ func (p *Parser) atRegisterShift() bool {
 // atRegisterExtension reports whether we are at the start of an ARM64 extended register.
 // We have consumed the register or R prefix.
 func (p *Parser) atRegisterExtension() bool {
-	// ARM64 only.
-	if p.arch.Family != sys.ARM64 {
+	switch p.arch.Family {
+	case sys.ARM64, sys.Loong64:
+		// R1.xxx
+		return p.peek() == '.'
+	default:
 		return false
 	}
-	// R1.xxx
-	return p.peek() == '.'
 }
 
 // registerReference parses a register given either the name, R10, or a parenthesized form, SPR(10).
@@ -708,7 +715,7 @@ func (p *Parser) registerShift(name string, prefix rune) int64 {
 	if p.arch.Family == sys.ARM64 {
 		off, err := arch.ARM64RegisterShift(r1, op, count)
 		if err != nil {
-			p.errorf(err.Error())
+			p.errorf("%v", err)
 		}
 		return off
 	} else {
@@ -770,7 +777,12 @@ func (p *Parser) registerExtension(a *obj.Addr, name string, prefix rune) {
 	case sys.ARM64:
 		err := arch.ARM64RegisterExtension(a, ext, reg, num, isAmount, isIndex)
 		if err != nil {
-			p.errorf(err.Error())
+			p.errorf("%v", err)
+		}
+	case sys.Loong64:
+		err := arch.Loong64RegisterExtension(a, ext, reg, num, isAmount, isIndex)
+		if err != nil {
+			p.errorf("%v", err)
 		}
 	default:
 		p.errorf("register extension not supported on this architecture")
@@ -1117,7 +1129,7 @@ ListLoop:
 			ext := tok.String()
 			curArrangement, err := arch.ARM64RegisterArrangement(reg, name, ext)
 			if err != nil {
-				p.errorf(err.Error())
+				p.errorf("%v", err)
 			}
 			if firstReg == -1 {
 				// only record the first register and arrangement
@@ -1164,7 +1176,7 @@ ListLoop:
 	case sys.ARM64:
 		offset, err := arch.ARM64RegisterListOffset(firstReg, regCnt, arrangement)
 		if err != nil {
-			p.errorf(err.Error())
+			p.errorf("%v", err)
 		}
 		a.Offset = offset
 	default:

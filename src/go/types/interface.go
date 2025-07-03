@@ -59,7 +59,7 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
 	typ := (*Checker)(nil).newInterface()
 	for _, m := range methods {
 		if sig := m.typ.(*Signature); sig.recv == nil {
-			sig.recv = NewVar(m.pos, m.pkg, "", typ)
+			sig.recv = newVar(RecvVar, m.pos, m.pkg, "", typ)
 		}
 	}
 
@@ -94,16 +94,16 @@ func (t *Interface) MarkImplicit() {
 func (t *Interface) NumExplicitMethods() int { return len(t.methods) }
 
 // ExplicitMethod returns the i'th explicitly declared method of interface t for 0 <= i < t.NumExplicitMethods().
-// The methods are ordered by their unique Id.
+// The methods are ordered by their unique [Id].
 func (t *Interface) ExplicitMethod(i int) *Func { return t.methods[i] }
 
 // NumEmbeddeds returns the number of embedded types in interface t.
 func (t *Interface) NumEmbeddeds() int { return len(t.embeddeds) }
 
-// Embedded returns the i'th embedded defined (*Named) type of interface t for 0 <= i < t.NumEmbeddeds().
+// Embedded returns the i'th embedded defined (*[Named]) type of interface t for 0 <= i < t.NumEmbeddeds().
 // The result is nil if the i'th embedded type is not a defined type.
 //
-// Deprecated: Use EmbeddedType which is not restricted to defined (*Named) types.
+// Deprecated: Use [Interface.EmbeddedType] which is not restricted to defined (*[Named]) types.
 func (t *Interface) Embedded(i int) *Named { return asNamed(t.embeddeds[i]) }
 
 // EmbeddedType returns the i'th embedded type of interface t for 0 <= i < t.NumEmbeddeds().
@@ -130,7 +130,7 @@ func (t *Interface) IsMethodSet() bool { return t.typeSet().IsMethodSet() }
 func (t *Interface) IsImplicit() bool { return t.implicit }
 
 // Complete computes the interface's type set. It must be called by users of
-// NewInterfaceType and NewInterface after the interface's embedded types are
+// [NewInterfaceType] and [NewInterface] after the interface's embedded types are
 // fully defined and before using the interface type in any way other than to
 // form other types. The interface must not contain duplicate methods or a
 // panic occurs. Complete returns the receiver.
@@ -156,7 +156,7 @@ func (t *Interface) cleanup() {
 	t.embedPos = nil
 }
 
-func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *Named) {
+func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *TypeName) {
 	addEmbedded := func(pos token.Pos, typ Type) {
 		ityp.embeddeds = append(ityp.embeddeds, typ)
 		if ityp.embedPos == nil {
@@ -188,23 +188,23 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			continue // ignore
 		}
 
-		// Always type-check method type parameters but complain if they are not enabled.
-		// (This extra check is needed here because interface method signatures don't have
-		// a receiver specification.)
+		// The go/parser doesn't accept method type parameters but an ast.FuncType may have them.
 		if sig.tparams != nil {
 			var at positioner = f.Type
 			if ftyp, _ := f.Type.(*ast.FuncType); ftyp != nil && ftyp.TypeParams != nil {
 				at = ftyp.TypeParams
 			}
-			check.error(at, InvalidMethodTypeParams, "methods cannot have type parameters")
+			check.error(at, InvalidSyntaxTree, "methods cannot have type parameters")
 		}
 
 		// use named receiver type if available (for better error messages)
 		var recvTyp Type = ityp
 		if def != nil {
-			recvTyp = def
+			if named := asNamed(def.typ); named != nil {
+				recvTyp = named
+			}
 		}
-		sig.recv = NewVar(name.Pos(), check.pkg, "", recvTyp)
+		sig.recv = newVar(RecvVar, name.Pos(), check.pkg, "", recvTyp)
 
 		m := NewFunc(name.Pos(), check.pkg, name.Name, sig)
 		check.recordDef(name, m)

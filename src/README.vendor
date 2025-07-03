@@ -31,13 +31,17 @@ Maintaining vendor directories
 
 Before updating vendor directories, ensure that module mode is enabled.
 Make sure that GO111MODULE is not set in the environment, or that it is
-set to 'on' or 'auto'.
+set to 'on' or 'auto', and if you use a go.work file, set GOWORK=off.
+
+Also, ensure that 'go env GOROOT' shows the root of this Go source
+tree. Otherwise, the results are undefined. It's recommended to build
+Go from source and use that 'go' binary to update its source tree.
 
 Requirements may be added, updated, and removed with 'go get'.
 The vendor directory may be updated with 'go mod vendor'.
 A typical sequence might be:
 
-    cd src
+    cd src  # or src/cmd
     go get golang.org/x/net@master
     go mod tidy
     go mod vendor

@@ -11,7 +11,7 @@ package runtime
 import "unsafe"
 
 // AtomicFields is the set of fields on which we perform 64-bit atomic
-// operations (all the *64 operations in runtime/internal/atomic).
+// operations (all the *64 operations in internal/runtime/atomic).
 var AtomicFields = []uintptr{
 	unsafe.Offsetof(m{}.procid),
 	unsafe.Offsetof(p{}.gcFractionalMarkTime),
@@ -28,7 +28,6 @@ var AtomicFields = []uintptr{
 	unsafe.Offsetof(heapStatsDelta{}.released),
 	unsafe.Offsetof(heapStatsDelta{}.inHeap),
 	unsafe.Offsetof(heapStatsDelta{}.inStacks),
-	unsafe.Offsetof(heapStatsDelta{}.inPtrScalarBits),
 	unsafe.Offsetof(heapStatsDelta{}.inWorkBufs),
 	unsafe.Offsetof(lfnode{}.next),
 	unsafe.Offsetof(mstats{}.last_gc_nanotime),

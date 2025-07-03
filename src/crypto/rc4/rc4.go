@@ -10,7 +10,9 @@
 package rc4
 
 import (
-	"crypto/internal/alias"
+	"crypto/internal/fips140/alias"
+	"crypto/internal/fips140only"
+	"errors"
 	"strconv"
 )
 
@@ -26,9 +28,12 @@ func (k KeySizeError) Error() string {
 	return "crypto/rc4: invalid key size " + strconv.Itoa(int(k))
 }
 
-// NewCipher creates and returns a new Cipher. The key argument should be the
+// NewCipher creates and returns a new [Cipher]. The key argument should be the
 // RC4 key, at least 1 byte and at most 256 bytes.
 func NewCipher(key []byte) (*Cipher, error) {
+	if fips140only.Enabled {
+		return nil, errors.New("crypto/rc4: use of RC4 is not allowed in FIPS 140-only mode")
+	}
 	k := len(key)
 	if k < 1 || k > 256 {
 		return nil, KeySizeError(k)
@@ -45,7 +50,7 @@ func NewCipher(key []byte) (*Cipher, error) {
 	return &c, nil
 }
 
-// Reset zeros the key data and makes the Cipher unusable.
+// Reset zeros the key data and makes the [Cipher] unusable.
 //
 // Deprecated: Reset can't guarantee that the key will be entirely removed from
 // the process's memory.

@@ -33,7 +33,7 @@ package obj
 
 import (
 	"cmd/internal/goobj"
-	"cmd/internal/notsha256"
+	"cmd/internal/hash"
 	"cmd/internal/objabi"
 	"encoding/base64"
 	"encoding/binary"
@@ -137,13 +137,18 @@ func (ctxt *Link) LookupInit(name string, init func(s *LSym)) *LSym {
 	return s
 }
 
+func (ctxt *Link) rodataKind() (suffix string, typ objabi.SymKind) {
+	return "", objabi.SRODATA
+}
+
 func (ctxt *Link) Float32Sym(f float32) *LSym {
+	suffix, typ := ctxt.rodataKind()
 	i := math.Float32bits(f)
-	name := fmt.Sprintf("$f32.%08x", i)
+	name := fmt.Sprintf("$f32.%08x%s", i, suffix)
 	return ctxt.LookupInit(name, func(s *LSym) {
 		s.Size = 4
 		s.WriteFloat32(ctxt, 0, f)
-		s.Type = objabi.SRODATA
+		s.Type = typ
 		s.Set(AttrLocal, true)
 		s.Set(AttrContentAddressable, true)
 		ctxt.constSyms = append(ctxt.constSyms, s)
@@ -151,12 +156,13 @@ func (ctxt *Link) Float32Sym(f float32) *LSym {
 }
 
 func (ctxt *Link) Float64Sym(f float64) *LSym {
+	suffix, typ := ctxt.rodataKind()
 	i := math.Float64bits(f)
-	name := fmt.Sprintf("$f64.%016x", i)
+	name := fmt.Sprintf("$f64.%016x%s", i, suffix)
 	return ctxt.LookupInit(name, func(s *LSym) {
 		s.Size = 8
 		s.WriteFloat64(ctxt, 0, f)
-		s.Type = objabi.SRODATA
+		s.Type = typ
 		s.Set(AttrLocal, true)
 		s.Set(AttrContentAddressable, true)
 		ctxt.constSyms = append(ctxt.constSyms, s)
@@ -164,11 +170,12 @@ func (ctxt *Link) Float64Sym(f float64) *LSym {
 }
 
 func (ctxt *Link) Int32Sym(i int64) *LSym {
-	name := fmt.Sprintf("$i32.%08x", uint64(i))
+	suffix, typ := ctxt.rodataKind()
+	name := fmt.Sprintf("$i32.%08x%s", uint64(i), suffix)
 	return ctxt.LookupInit(name, func(s *LSym) {
 		s.Size = 4
 		s.WriteInt(ctxt, 0, 4, i)
-		s.Type = objabi.SRODATA
+		s.Type = typ
 		s.Set(AttrLocal, true)
 		s.Set(AttrContentAddressable, true)
 		ctxt.constSyms = append(ctxt.constSyms, s)
@@ -176,11 +183,12 @@ func (ctxt *Link) Int32Sym(i int64) *LSym {
 }
 
 func (ctxt *Link) Int64Sym(i int64) *LSym {
-	name := fmt.Sprintf("$i64.%016x", uint64(i))
+	suffix, typ := ctxt.rodataKind()
+	name := fmt.Sprintf("$i64.%016x%s", uint64(i), suffix)
 	return ctxt.LookupInit(name, func(s *LSym) {
 		s.Size = 8
 		s.WriteInt(ctxt, 0, 8, i)
-		s.Type = objabi.SRODATA
+		s.Type = typ
 		s.Set(AttrLocal, true)
 		s.Set(AttrContentAddressable, true)
 		ctxt.constSyms = append(ctxt.constSyms, s)
@@ -188,7 +196,8 @@ func (ctxt *Link) Int64Sym(i int64) *LSym {
 }
 
 func (ctxt *Link) Int128Sym(hi, lo int64) *LSym {
-	name := fmt.Sprintf("$i128.%016x%016x", uint64(hi), uint64(lo))
+	suffix, typ := ctxt.rodataKind()
+	name := fmt.Sprintf("$i128.%016x%016x%s", uint64(hi), uint64(lo), suffix)
 	return ctxt.LookupInit(name, func(s *LSym) {
 		s.Size = 16
 		if ctxt.Arch.ByteOrder == binary.LittleEndian {
@@ -198,7 +207,7 @@ func (ctxt *Link) Int128Sym(hi, lo int64) *LSym {
 			s.WriteInt(ctxt, 0, 8, hi)
 			s.WriteInt(ctxt, 8, 8, lo)
 		}
-		s.Type = objabi.SRODATA
+		s.Type = typ
 		s.Set(AttrLocal, true)
 		s.Set(AttrContentAddressable, true)
 		ctxt.constSyms = append(ctxt.constSyms, s)
@@ -207,7 +216,7 @@ func (ctxt *Link) Int128Sym(hi, lo int64) *LSym {
 
 // GCLocalsSym generates a content-addressable sym containing data.
 func (ctxt *Link) GCLocalsSym(data []byte) *LSym {
-	sum := notsha256.Sum256(data)
+	sum := hash.Sum32(data)
 	str := base64.StdEncoding.EncodeToString(sum[:16])
 	return ctxt.LookupInit(fmt.Sprintf("gclocals·%s", str), func(lsym *LSym) {
 		lsym.P = data
@@ -244,6 +253,13 @@ func (ctxt *Link) NumberSyms() {
 	})
 	ctxt.Data = append(ctxt.Data, ctxt.constSyms...)
 	ctxt.constSyms = nil
+
+	// So are SEH symbols.
+	sort.Slice(ctxt.SEHSyms, func(i, j int) bool {
+		return ctxt.SEHSyms[i].Name < ctxt.SEHSyms[j].Name
+	})
+	ctxt.Data = append(ctxt.Data, ctxt.SEHSyms...)
+	ctxt.SEHSyms = nil
 
 	ctxt.pkgIdx = make(map[string]int32)
 	ctxt.defs = []*LSym{}
@@ -304,7 +320,7 @@ func (ctxt *Link) NumberSyms() {
 			// Assign special index for builtin symbols.
 			// Don't do it when linking against shared libraries, as the runtime
 			// may be in a different library.
-			if i := goobj.BuiltinIdx(rs.Name, int(rs.ABI())); i != -1 {
+			if i := goobj.BuiltinIdx(rs.Name, int(rs.ABI())); i != -1 && !rs.IsLinkname() {
 				rs.PkgIdx = goobj.PkgIdxBuiltin
 				rs.SymIdx = int32(i)
 				rs.Set(AttrIndexed, true)
@@ -362,10 +378,10 @@ func isNonPkgSym(ctxt *Link, s *LSym) bool {
 	return false
 }
 
-// StaticNamePref is the prefix the front end applies to static temporary
+// StaticNamePrefix is the prefix the front end applies to static temporary
 // variables. When turned into LSyms, these can be tagged as static so
 // as to avoid inserting them into the linker's name lookup tables.
-const StaticNamePref = ".stmp_"
+const StaticNamePrefix = ".stmp_"
 
 type traverseFlag uint32
 
@@ -399,7 +415,7 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
 			}
 			if flag&traverseAux != 0 {
 				fnNoNil(s.Gotype)
-				if s.Type == objabi.STEXT {
+				if s.Type.IsText() {
 					f := func(parent *LSym, aux *LSym) {
 						fn(aux)
 					}
@@ -408,7 +424,7 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
 					fnNoNil(v.dwarfInfoSym)
 				}
 			}
-			if flag&traversePcdata != 0 && s.Type == objabi.STEXT {
+			if flag&traversePcdata != 0 && s.Type.IsText() {
 				fi := s.Func().Pcln
 				fnNoNil(fi.Pcsp)
 				fnNoNil(fi.Pcfile)
@@ -451,7 +467,13 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent 
 		}
 	}
 
-	auxsyms := []*LSym{fninfo.dwarfRangesSym, fninfo.dwarfLocSym, fninfo.dwarfDebugLinesSym, fninfo.dwarfInfoSym, fninfo.WasmImportSym, fninfo.sehUnwindInfoSym}
+	auxsyms := []*LSym{fninfo.dwarfRangesSym, fninfo.dwarfLocSym, fninfo.dwarfDebugLinesSym, fninfo.dwarfInfoSym, fninfo.sehUnwindInfoSym}
+	if wi := fninfo.WasmImport; wi != nil {
+		auxsyms = append(auxsyms, wi.AuxSym)
+	}
+	if we := fninfo.WasmExport; we != nil {
+		auxsyms = append(auxsyms, we.AuxSym)
+	}
 	for _, s := range auxsyms {
 		if s == nil || s.Size == 0 {
 			continue
@@ -478,7 +500,7 @@ func (ctxt *Link) traverseAuxSyms(flag traverseFlag, fn func(parent *LSym, aux *
 					fn(s, s.Gotype)
 				}
 			}
-			if s.Type == objabi.STEXT {
+			if s.Type.IsText() {
 				ctxt.traverseFuncAux(flag, s, fn, files)
 			} else if v := s.VarInfo(); v != nil && v.dwarfInfoSym != nil {
 				fn(s, v.dwarfInfoSym)

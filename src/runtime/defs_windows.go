@@ -41,8 +41,9 @@ const (
 	_INFINITE     = 0xffffffff
 	_WAIT_TIMEOUT = 0x102
 
-	_EXCEPTION_CONTINUE_EXECUTION = -0x1
-	_EXCEPTION_CONTINUE_SEARCH    = 0x0
+	_EXCEPTION_CONTINUE_EXECUTION  = -0x1
+	_EXCEPTION_CONTINUE_SEARCH     = 0x0
+	_EXCEPTION_CONTINUE_SEARCH_SEH = 0x1
 )
 
 type systeminfo struct {
@@ -87,4 +88,14 @@ type memoryBasicInformation struct {
 	state             uint32
 	protect           uint32
 	type_             uint32
+}
+
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_osversioninfow
+type _OSVERSIONINFOW struct {
+	osVersionInfoSize uint32
+	majorVersion      uint32
+	minorVersion      uint32
+	buildNumber       uint32
+	platformId        uint32
+	csdVersion        [128]uint16
 }

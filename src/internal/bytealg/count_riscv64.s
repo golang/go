@@ -5,6 +5,13 @@
 #include "go_asm.h"
 #include "textflag.h"
 
+TEXT ·CountString<ABIInternal>(SB),NOSPLIT,$0-32
+	// X10 = s_base
+	// X11 = s_len
+	// X12 = byte to count
+	MOV	X12, X13
+	JMP	·Count<ABIInternal>(SB)
+
 TEXT ·Count<ABIInternal>(SB),NOSPLIT,$0-40
 	// X10 = b_base
 	// X11 = b_len
@@ -14,26 +21,7 @@ TEXT ·Count<ABIInternal>(SB),NOSPLIT,$0-40
 	MOV	ZERO, X14	// count
 	ADD	X10, X11	// end
 
-loop:
-	BEQ	X10, X11, done
-	MOVBU	(X10), X15
-	ADD	$1, X10
-	BNE	X12, X15, loop
-	ADD	$1, X14
-	JMP	loop
-
-done:
-	MOV	X14, X10
-	RET
-
-TEXT ·CountString<ABIInternal>(SB),NOSPLIT,$0-32
-	// X10 = s_base
-	// X11 = s_len
-	// X12 = byte to count
-	AND	$0xff, X12
-	MOV	ZERO, X14	// count
-	ADD	X10, X11	// end
-
+	PCALIGN	$16
 loop:
 	BEQ	X10, X11, done
 	MOVBU	(X10), X15

@@ -19,6 +19,7 @@ func load_le64(b []byte) uint64 {
 	// amd64:`MOVQ\s\(.*\),`,-`MOV[BWL]\t[^$]`,-`OR`
 	// s390x:`MOVDBR\s\(.*\),`
 	// arm64:`MOVD\s\(R[0-9]+\),`,-`MOV[BHW]`
+	// loong64:`MOVV\s\(R[0-9]+\),`
 	// ppc64le:`MOVD\s`,-`MOV[BHW]Z`
 	// ppc64:`MOVDBR\s`,-`MOV[BHW]Z`
 	return binary.LittleEndian.Uint64(b)
@@ -28,6 +29,7 @@ func load_le64_idx(b []byte, idx int) uint64 {
 	// amd64:`MOVQ\s\(.*\)\(.*\*1\),`,-`MOV[BWL]\t[^$]`,-`OR`
 	// s390x:`MOVDBR\s\(.*\)\(.*\*1\),`
 	// arm64:`MOVD\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[BHW]`
+	// loong64:`MOVV\s\(R[0-9]+\)\(R[0-9]+\),`
 	// ppc64le:`MOVD\s`,-`MOV[BHW]Z\s`
 	// ppc64:`MOVDBR\s`,-`MOV[BHW]Z\s`
 	return binary.LittleEndian.Uint64(b[idx:])
@@ -38,6 +40,7 @@ func load_le32(b []byte) uint32 {
 	// 386:`MOVL\s\(.*\),`,-`MOV[BW]`,-`OR`
 	// s390x:`MOVWBR\s\(.*\),`
 	// arm64:`MOVWU\s\(R[0-9]+\),`,-`MOV[BH]`
+	// loong64:`MOVWU\s\(R[0-9]+\),`
 	// ppc64le:`MOVWZ\s`,-`MOV[BH]Z\s`
 	// ppc64:`MOVWBR\s`,-`MOV[BH]Z\s`
 	return binary.LittleEndian.Uint32(b)
@@ -48,6 +51,7 @@ func load_le32_idx(b []byte, idx int) uint32 {
 	// 386:`MOVL\s\(.*\)\(.*\*1\),`,-`MOV[BW]`,-`OR`
 	// s390x:`MOVWBR\s\(.*\)\(.*\*1\),`
 	// arm64:`MOVWU\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[BH]`
+	// loong64:`MOVWU\s\(R[0-9]+\)\(R[0-9]+\),`
 	// ppc64le:`MOVWZ\s`,-`MOV[BH]Z\s`
 	// ppc64:`MOVWBR\s`,-`MOV[BH]Z\s'
 	return binary.LittleEndian.Uint32(b[idx:])
@@ -57,6 +61,7 @@ func load_le16(b []byte) uint16 {
 	// amd64:`MOVWLZX\s\(.*\),`,-`MOVB`,-`OR`
 	// ppc64le:`MOVHZ\s`,-`MOVBZ`
 	// arm64:`MOVHU\s\(R[0-9]+\),`,-`MOVB`
+	// loong64:`MOVHU\s\(R[0-9]+\),`
 	// s390x:`MOVHBR\s\(.*\),`
 	// ppc64:`MOVHBR\s`,-`MOVBZ`
 	return binary.LittleEndian.Uint16(b)
@@ -67,6 +72,7 @@ func load_le16_idx(b []byte, idx int) uint16 {
 	// ppc64le:`MOVHZ\s`,-`MOVBZ`
 	// ppc64:`MOVHBR\s`,-`MOVBZ`
 	// arm64:`MOVHU\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOVB`
+	// loong64:`MOVHU\s\(R[0-9]+\)\(R[0-9]+\),`
 	// s390x:`MOVHBR\s\(.*\)\(.*\*1\),`
 	return binary.LittleEndian.Uint16(b[idx:])
 }
@@ -348,7 +354,6 @@ func reassoc_load_uint32(b []byte) uint32 {
 func extrashift_load_uint32(b []byte) uint32 {
 	// amd64:`MOVL\s\([A-Z]+\)`,`SHLL\s[$]2`,-`MOV[BW]`,-`OR`
 	return uint32(b[0])<<2 | uint32(b[1])<<10 | uint32(b[2])<<18 | uint32(b[3])<<26
-
 }
 
 func outoforder_load_uint32(b []byte) uint32 {
@@ -389,6 +394,15 @@ func load_op_no_merge(p, q *int) {
 	for i := 0; i < 10; i++ {
 		*q += x // amd64:`ADDQ\t[A-Z]`
 	}
+}
+
+func load_op_in_loop(a []int) int {
+	r := 0
+	for _, x := range a {
+		// amd64:`ADDQ\t\([A-Z]+\)\([A-Z]+\*8\), [A-Z]+`
+		r += x
+	}
+	return r
 }
 
 // Make sure offsets are folded into loads and stores.
@@ -748,16 +762,16 @@ func zero_byte_4(b1, b2 []byte) {
 
 func zero_byte_8(b []byte) {
 	_ = b[7]
-	b[0], b[1], b[2], b[3] = 0, 0, 0, 0
-	b[4], b[5], b[6], b[7] = 0, 0, 0, 0 // arm64:"MOVD\tZR",-"MOVB",-"MOVH",-"MOVW"
+	b[0], b[1], b[2], b[3] = 0, 0, 0, 0 // arm64:"MOVD\tZR",-"MOVB",-"MOVH",-"MOVW"
+	b[4], b[5], b[6], b[7] = 0, 0, 0, 0
 }
 
 func zero_byte_16(b []byte) {
 	_ = b[15]
-	b[0], b[1], b[2], b[3] = 0, 0, 0, 0
+	b[0], b[1], b[2], b[3] = 0, 0, 0, 0 // arm64:"STP",-"MOVB",-"MOVH",-"MOVW"
 	b[4], b[5], b[6], b[7] = 0, 0, 0, 0
 	b[8], b[9], b[10], b[11] = 0, 0, 0, 0
-	b[12], b[13], b[14], b[15] = 0, 0, 0, 0 // arm64:"STP",-"MOVB",-"MOVH",-"MOVW"
+	b[12], b[13], b[14], b[15] = 0, 0, 0, 0
 }
 
 func zero_byte_30(a *[30]byte) {
@@ -809,8 +823,8 @@ func zero_uint16_4(h1, h2 []uint16) {
 
 func zero_uint16_8(h []uint16) {
 	_ = h[7]
-	h[0], h[1], h[2], h[3] = 0, 0, 0, 0
-	h[4], h[5], h[6], h[7] = 0, 0, 0, 0 // arm64:"STP",-"MOVB",-"MOVH"
+	h[0], h[1], h[2], h[3] = 0, 0, 0, 0 // arm64:"STP",-"MOVB",-"MOVH"
+	h[4], h[5], h[6], h[7] = 0, 0, 0, 0
 }
 
 func zero_uint32_2(w1, w2 []uint32) {
@@ -857,4 +871,219 @@ func loadstore2(p, q *S1) {
 	// amd64:"MOVL",-"MOVW"
 	// arm64:"MOVW",-"MOVH"
 	q.a, q.b = a, b
+}
+
+func wideStore(p *[8]uint64) {
+	if p == nil {
+		return
+	}
+
+	// amd64:"MOVUPS",-"MOVQ"
+	// arm64:"STP",-"MOVD"
+	p[0] = 0
+	// amd64:-"MOVUPS",-"MOVQ"
+	// arm64:-"STP",-"MOVD"
+	p[1] = 0
+}
+
+func wideStore2(p *[8]uint64, x, y uint64) {
+	if p == nil {
+		return
+	}
+
+	// s390x:"STMG"
+	p[0] = x
+	// s390x:-"STMG",-"MOVD"
+	p[1] = y
+}
+
+func store32le(p *struct{ a, b uint32 }, x uint64) {
+	// amd64:"MOVQ",-"MOVL",-"SHRQ"
+	// arm64:"MOVD",-"MOVW",-"LSR"
+	// ppc64le:"MOVD",-"MOVW",-"SRD"
+	p.a = uint32(x)
+	// amd64:-"MOVL",-"SHRQ"
+	// arm64:-"MOVW",-"LSR"
+	// ppc64le:-"MOVW",-"SRD"
+	p.b = uint32(x >> 32)
+}
+func store32be(p *struct{ a, b uint32 }, x uint64) {
+	// arm64:"STPW"
+	// ppc64:"MOVD",-"MOVW",-"SRD"
+	// s390x:"MOVD",-"MOVW",-"SRD"
+	p.a = uint32(x >> 32)
+	// arm64:-"STPW"
+	// ppc64:-"MOVW",-"SRD"
+	// s390x:-"MOVW",-"SRD"
+	p.b = uint32(x)
+}
+func store16le(p *struct{ a, b uint16 }, x uint32) {
+	// amd64:"MOVL",-"MOVW",-"SHRL"
+	// arm64:"MOVW",-"MOVH",-"UBFX"
+	// ppc64le:"MOVW",-"MOVH",-"SRW"
+	p.a = uint16(x)
+	// amd64:-"MOVW",-"SHRL"
+	// arm64:-"MOVH",-"UBFX"
+	// ppc64le:-"MOVH",-"SRW"
+	p.b = uint16(x >> 16)
+}
+func store16be(p *struct{ a, b uint16 }, x uint32) {
+	// ppc64:"MOVW",-"MOVH",-"SRW"
+	// s390x:"MOVW",-"MOVH",-"SRW"
+	p.a = uint16(x >> 16)
+	// ppc64:-"MOVH",-"SRW"
+	// s390x:-"MOVH",-"SRW"
+	p.b = uint16(x)
+}
+
+func storeBoolConst(p *struct{ a, b bool }) {
+	// amd64:"MOVW",-"MOVB"
+	// arm64:"MOVH",-"MOVB"
+	p.a = true
+	p.b = true
+}
+func issue66413(p *struct {
+	a byte
+	b bool
+	c bool
+	d int8
+}) {
+	// amd64:"MOVL",-"MOVB"
+	// arm64:"MOVW",-"MOVB"
+	p.a = 31
+	p.b = false
+	p.c = true
+	p.d = 12
+}
+
+func issue70300(v uint64) (b [8]byte) {
+	// amd64:"MOVQ",-"MOVB"
+	b[0] = byte(v)
+	b[1] = byte(v >> 8)
+	b[2] = byte(v >> 16)
+	b[3] = byte(v >> 24)
+	b[4] = byte(v >> 32)
+	b[5] = byte(v >> 40)
+	b[6] = byte(v >> 48)
+	b[7] = byte(v >> 56)
+	return b
+}
+
+func issue70300Reverse(v uint64) (b [8]byte) {
+	// amd64:"MOVQ",-"MOVB"
+	b[7] = byte(v >> 56)
+	b[6] = byte(v >> 48)
+	b[5] = byte(v >> 40)
+	b[4] = byte(v >> 32)
+	b[3] = byte(v >> 24)
+	b[2] = byte(v >> 16)
+	b[1] = byte(v >> 8)
+	b[0] = byte(v)
+	return b
+}
+
+// --------------------------------- //
+//    Arm64 double-register loads    //
+// --------------------------------- //
+
+func dwloadI64(p *struct{ a, b int64 }) int64 {
+	// arm64:"LDP\t"
+	return p.a + p.b
+}
+func dwloadI32(p *struct{ a, b int32 }) int32 {
+	// arm64:"LDPSW\t"
+	return p.a + p.b
+}
+func dwloadU32(p *struct{ a, b uint32 }) uint32 {
+	// arm64:"LDPW\t"
+	return p.a + p.b
+}
+func dwloadF64(p *struct{ a, b float64 }) float64 {
+	// arm64:"FLDPD\t"
+	return p.a + p.b
+}
+func dwloadF32(p *struct{ a, b float32 }) float32 {
+	// arm64:"FLDPS\t"
+	return p.a + p.b
+}
+
+func dwloadBig(p *struct{ a, b, c, d, e, f int64 }) int64 {
+	// arm64:"LDP\t\\(", "LDP\t16", "LDP\t32"
+	return p.c + p.f + p.a + p.e + p.d + p.b
+}
+
+func dwloadArg(a [2]int64) int64 {
+	// arm64:"LDP\t"
+	return a[0] + a[1]
+}
+
+func dwloadResult1(p *string) string {
+	// arm64:"LDP\t\\(R0\\), \\(R0, R1\\)"
+	return *p
+}
+
+func dwloadResult2(p *[2]int64) (int64, int64) {
+	// arm64:"LDP\t\\(R0\\), \\(R1, R0\\)"
+	return p[1], p[0]
+}
+
+// ---------------------------------- //
+//    Arm64 double-register stores    //
+// ---------------------------------- //
+
+func dwstoreI64(p *struct{ a, b int64 }, x, y int64) {
+	// arm64:"STP\t"
+	p.a = x
+	p.b = y
+}
+func dwstoreI32(p *struct{ a, b int32 }, x, y int32) {
+	// arm64:"STPW\t"
+	p.a = x
+	p.b = y
+}
+func dwstoreF64(p *struct{ a, b float64 }, x, y float64) {
+	// arm64:"FSTPD\t"
+	p.a = x
+	p.b = y
+}
+func dwstoreF32(p *struct{ a, b float32 }, x, y float32) {
+	// arm64:"FSTPS\t"
+	p.a = x
+	p.b = y
+}
+
+func dwstoreBig(p *struct{ a, b, c, d, e, f int64 }, a, b, c, d, e, f int64) {
+	// This is not perfect. We merge b+a, then d+e, then c and f have no pair.
+	p.c = c
+	p.f = f
+	// arm64:`STP\s\(R[0-9]+, R[0-9]+\), \(R[0-9]+\)`
+	p.a = a
+	// arm64:`STP\s\(R[0-9]+, R[0-9]+\), 24\(R[0-9]+\)`
+	p.e = e
+	p.d = d
+	p.b = b
+}
+
+func dwstoreRet() [2]int {
+	// arm64:"STP\t"
+	return [2]int{5, 6}
+}
+
+func dwstoreLocal(i int) int64 {
+	var a [2]int64
+	a[0] = 5
+	// arm64:"STP\t"
+	a[1] = 6
+	return a[i]
+}
+
+func dwstoreOrder(p *struct {
+	a, b       int64
+	c, d, e, f bool
+}, a, b int64) {
+	// arm64:"STP\t"
+	p.a = a
+	p.c = true
+	p.e = true
+	p.b = b
 }

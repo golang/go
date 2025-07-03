@@ -11,13 +11,13 @@ TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT|NOFRAME,$0-16
 	MOVD	ptr+0(FP), R4
 	MOVD	n+8(FP), R5
 
+	CMPBGE	R5, $32, clearge32
+
 start:
 	CMPBLE	R5, $3, clear0to3
 	CMPBLE	R5, $7, clear4to7
 	CMPBLE	R5, $11, clear8to11
 	CMPBLE	R5, $15, clear12to15
-	CMP	R5, $32
-	BGE	clearmt32
 	MOVD	$0, 0(R4)
 	MOVD	$0, 8(R4)
 	ADD	$16, R4
@@ -102,23 +102,130 @@ clear15:
 	MOVB	$0, 14(R4)
 	RET
 
-clearmt32:
-	CMP	R5, $256
-	BLT	clearlt256
+clearge32:
+	CMP	R5, $4096
+	BLT	clear256Bto4KB
+
+// For size >= 4KB, XC is loop unrolled 16 times (4KB = 256B * 16)
+clearge4KB:
 	XC	$256, 0(R4), 0(R4)
 	ADD	$256, R4
 	ADD	$-256, R5
-	BR	clearmt32
-clearlt256:
+	XC	$256, 0(R4), 0(R4)
+	ADD	$256, R4
+	ADD	$-256, R5
+	XC	$256, 0(R4), 0(R4)
+	ADD	$256, R4
+	ADD	$-256, R5
+	XC	$256, 0(R4), 0(R4)
+	ADD	$256, R4
+	ADD	$-256, R5
+	XC	$256, 0(R4), 0(R4)
+	ADD	$256, R4
+	ADD	$-256, R5
+	XC	$256, 0(R4), 0(R4)
+	ADD	$256, R4
+	ADD	$-256, R5
+	XC	$256, 0(R4), 0(R4)
+	ADD	$256, R4
+	ADD	$-256, R5
+	XC	$256, 0(R4), 0(R4)
+	ADD	$256, R4
+	ADD	$-256, R5
+	XC	$256, 0(R4), 0(R4)
+	ADD	$256, R4
+	ADD	$-256, R5
+	XC	$256, 0(R4), 0(R4)
+	ADD	$256, R4
+	ADD	$-256, R5
+	XC	$256, 0(R4), 0(R4)
+	ADD	$256, R4
+	ADD	$-256, R5
+	XC	$256, 0(R4), 0(R4)
+	ADD	$256, R4
+	ADD	$-256, R5
+	XC	$256, 0(R4), 0(R4)
+	ADD	$256, R4
+	ADD	$-256, R5
+	XC	$256, 0(R4), 0(R4)
+	ADD	$256, R4
+	ADD	$-256, R5
+	XC	$256, 0(R4), 0(R4)
+	ADD	$256, R4
+	ADD	$-256, R5
+	XC	$256, 0(R4), 0(R4)
+	ADD	$256, R4
+	ADD	$-256, R5
+	CMP	R5, $4096
+	BGE	clearge4KB
+
+clear256Bto4KB:
+	CMP	R5, $256
+	BLT	clear32to255
+	XC	$256, 0(R4), 0(R4)
+	ADD	$256, R4
+	ADD	$-256, R5
+	BR	clear256Bto4KB
+
+clear32to255:
 	CMPBEQ	R5, $0, done
-	ADD	$-1, R5
-	EXRL	$memclr_exrl_xc<>(SB), R5
-done:
+	CMPBLT	R5, $32, start
+	CMPBEQ	R5, $32, clear32
+	CMPBLE	R5, $64, clear33to64
+	CMP	R5, $128
+	BLE	clear65to128
+	CMP	R5, $255
+	BLE	clear129to255
+
+clear32:
+	VZERO	V1
+	VST	V1, 0(R4)
+	VST 	V1, 16(R4)
 	RET
 
-// DO NOT CALL - target for exrl (execute relative long) instruction.
-TEXT memclr_exrl_xc<>(SB),NOSPLIT|NOFRAME,$0-0
-	XC	$1, 0(R4), 0(R4)
-	MOVD	$0, 0(R0)
+clear33to64:
+	VZERO	V1
+	VST	V1, 0(R4)
+	VST	V1, 16(R4)
+	ADD	$-32, R5
+	VST	V1, 0(R4)(R5)
+	VST	V1, 16(R4)(R5)
+	RET
+
+clear65to128:
+	VZERO	V1
+	VST	V1, 0(R4)
+	VST	V1, 16(R4)
+	VST	V1, 32(R4)
+	VST	V1, 48(R4)
+	ADD	$-64, R5
+	VST	V1, 0(R4)(R5)
+	VST	V1, 16(R4)(R5)
+	VST	V1, 32(R4)(R5)
+	VST	V1, 48(R4)(R5)
+	RET
+
+clear129to255:
+	VZERO	V1
+	VST	V1, 0(R4)
+	VST	V1, 16(R4)
+	VST	V1, 32(R4)
+	VST	V1, 48(R4)
+	VST	V1, 64(R4)
+	VST	V1, 80(R4)
+	VST	V1, 96(R4)
+	VST	V1, 112(R4)
+	ADD	$-128, R5
+	VST	V1, 0(R4)(R5)
+	VST	V1, 16(R4)(R5)
+	VST	V1, 32(R4)(R5)
+	VST	V1, 48(R4)(R5)
+	VST	V1, 64(R4)(R5)
+	VST	V1, 80(R4)(R5)
+	VST	V1, 96(R4)(R5)
+	VST	V1, 112(R4)(R5)
+	RET
+
+done:
 	RET
 

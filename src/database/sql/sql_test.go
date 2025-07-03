@@ -14,6 +14,7 @@ import (
 	"math/rand"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -39,14 +40,7 @@ func init() {
 		freedFrom[c] = s
 	}
 	putConnHook = func(db *DB, c *driverConn) {
-		idx := -1
-		for i, v := range db.freeConn {
-			if v == c {
-				idx = i
-				break
-			}
-		}
-		if idx >= 0 {
+		if slices.Contains(db.freeConn, c) {
 			// print before panic, as panic may get lost due to conflicting panic
 			// (all goroutines asleep) elsewhere, since we might not unlock
 			// the mutex in freeConn here.
@@ -267,6 +261,7 @@ func TestQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Query: %v", err)
 	}
+	defer rows.Close()
 	type row struct {
 		age  int
 		name string
@@ -289,7 +284,7 @@ func TestQuery(t *testing.T) {
 		{age: 2, name: "Bob"},
 		{age: 3, name: "Chris"},
 	}
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Errorf("mismatch.\n got: %#v\nwant: %#v", got, want)
 	}
 
@@ -353,7 +348,7 @@ func TestQueryContext(t *testing.T) {
 		{age: 1, name: "Alice"},
 		{age: 2, name: "Bob"},
 	}
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Errorf("mismatch.\n got: %#v\nwant: %#v", got, want)
 	}
 
@@ -538,7 +533,7 @@ func TestMultiResultSetQuery(t *testing.T) {
 		{age: 2, name: "Bob"},
 		{age: 3, name: "Chris"},
 	}
-	if !reflect.DeepEqual(got1, want1) {
+	if !slices.Equal(got1, want1) {
 		t.Errorf("mismatch.\n got1: %#v\nwant: %#v", got1, want1)
 	}
 
@@ -564,7 +559,7 @@ func TestMultiResultSetQuery(t *testing.T) {
 		{name: "Bob"},
 		{name: "Chris"},
 	}
-	if !reflect.DeepEqual(got2, want2) {
+	if !slices.Equal(got2, want2) {
 		t.Errorf("mismatch.\n got: %#v\nwant: %#v", got2, want2)
 	}
 	if rows.NextResultSet() {
@@ -612,7 +607,7 @@ func TestQueryNamedArg(t *testing.T) {
 	want := []row{
 		{age: 2, name: "Bob"},
 	}
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Errorf("mismatch.\n got: %#v\nwant: %#v", got, want)
 	}
 
@@ -722,7 +717,7 @@ func TestRowsColumns(t *testing.T) {
 		t.Fatalf("Columns: %v", err)
 	}
 	want := []string{"age", "name"}
-	if !reflect.DeepEqual(cols, want) {
+	if !slices.Equal(cols, want) {
 		t.Errorf("got %#v; want %#v", cols, want)
 	}
 	if err := rows.Close(); err != nil {
@@ -825,7 +820,7 @@ func TestQueryRow(t *testing.T) {
 		t.Fatalf("photo QueryRow+Scan: %v", err)
 	}
 	want := []byte("APHOTO")
-	if !reflect.DeepEqual(photo, want) {
+	if !slices.Equal(photo, want) {
 		t.Errorf("photo = %q; want %q", photo, want)
 	}
 }
@@ -1379,8 +1374,7 @@ func TestConnQuery(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -1407,8 +1401,7 @@ func TestConnRaw(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -1523,8 +1516,7 @@ func TestInvalidNilValues(t *testing.T) {
 			db := newTestDB(t, "people")
 			defer closeDB(t, db)
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			conn, err := db.Conn(ctx)
 			if err != nil {
 				t.Fatal(err)
@@ -1552,8 +1544,7 @@ func TestConnTx(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -1758,7 +1749,7 @@ func TestIssue6651(t *testing.T) {
 
 	want := "error in rows.Next"
 	rowsCursorNextHook = func(dest []driver.Value) error {
-		return fmt.Errorf(want)
+		return errors.New(want)
 	}
 	defer func() { rowsCursorNextHook = nil }()
 
@@ -1770,7 +1761,7 @@ func TestIssue6651(t *testing.T) {
 
 	want = "error in rows.Close"
 	setRowsCloseHook(func(rows *Rows, err *error) {
-		*err = fmt.Errorf(want)
+		*err = errors.New(want)
 	})
 	defer setRowsCloseHook(nil)
 	err = db.QueryRow("SELECT|people|name|").Scan(&v)
@@ -2402,9 +2393,6 @@ func TestConnMaxLifetime(t *testing.T) {
 	// Expire first conn
 	offset = 11 * time.Second
 	db.SetConnMaxLifetime(10 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	tx, err = db.Begin()
 	if err != nil {
@@ -2801,8 +2789,7 @@ func TestManyErrBadConn(t *testing.T) {
 	// Conn
 	db = manyErrBadConnSetup()
 	defer closeDB(t, db)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -2943,8 +2930,7 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 	}
 	defer func() { nowFunc = time.Now }()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	db := newTestDB(t, "magicquery")
 	defer closeDB(t, db)
@@ -2986,7 +2972,7 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 						return
 					}
 					db.mu.Lock()
-					ct := len(db.connRequests)
+					ct := db.connRequests.Len()
 					db.mu.Unlock()
 					if ct > 0 {
 						return
@@ -3769,7 +3755,7 @@ func TestIssue18719(t *testing.T) {
 		cancel()
 
 		// Wait for the context to cancel and tx to rollback.
-		for tx.isDone() == false {
+		for !tx.isDone() {
 			time.Sleep(pollDuration)
 		}
 	}
@@ -3794,8 +3780,7 @@ func TestIssue20647(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	conn, err := db.Conn(ctx)
 	if err != nil {
@@ -4150,9 +4135,7 @@ func TestNamedValueChecker(t *testing.T) {
 	}
 	defer db.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+	ctx := t.Context()
 	_, err = db.ExecContext(ctx, "WIPE")
 	if err != nil {
 		t.Fatal("exec wipe", err)
@@ -4200,9 +4183,7 @@ func TestNamedValueCheckerSkip(t *testing.T) {
 	}
 	defer db.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+	ctx := t.Context()
 	_, err = db.ExecContext(ctx, "WIPE")
 	if err != nil {
 		t.Fatal("exec wipe", err)
@@ -4313,8 +4294,7 @@ func TestQueryExecContextOnly(t *testing.T) {
 	}
 	defer db.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	conn, err := db.Conn(ctx)
 	if err != nil {
@@ -4396,6 +4376,49 @@ func TestRowsScanProperlyWrapsErrors(t *testing.T) {
 			t.Fatalf("Error %v does not contain %v", err, errTestScanWrap)
 		}
 	}
+}
+
+type alwaysErrValuer struct{}
+
+// errEmpty is returned when an empty value is found
+var errEmpty = errors.New("empty value")
+
+func (v alwaysErrValuer) Value() (driver.Value, error) {
+	return nil, errEmpty
+}
+
+// Issue 64707: Ensure that Stmt.Exec and Stmt.Query properly wraps underlying errors.
+func TestDriverArgsWrapsErrors(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	t.Run("exec", func(t *testing.T) {
+		_, err := db.Exec("INSERT|keys|dec1=?", alwaysErrValuer{})
+		if err == nil {
+			t.Fatal("expecting back an error")
+		}
+		if !errors.Is(err, errEmpty) {
+			t.Fatalf("errors.Is mismatch\n%v\nWant: %v", err, errEmpty)
+		}
+		// Ensure that error substring matching still correctly works.
+		if !strings.Contains(err.Error(), errEmpty.Error()) {
+			t.Fatalf("Error %v does not contain %v", err, errEmpty)
+		}
+	})
+
+	t.Run("query", func(t *testing.T) {
+		_, err := db.Query("INSERT|keys|dec1=?", alwaysErrValuer{})
+		if err == nil {
+			t.Fatal("expecting back an error")
+		}
+		if !errors.Is(err, errEmpty) {
+			t.Fatalf("errors.Is mismatch\n%v\nWant: %v", err, errEmpty)
+		}
+		// Ensure that error substring matching still correctly works.
+		if !strings.Contains(err.Error(), errEmpty.Error()) {
+			t.Fatalf("Error %v does not contain %v", err, errEmpty)
+		}
+	})
 }
 
 func TestContextCancelDuringRawBytesScan(t *testing.T) {
@@ -4528,6 +4551,53 @@ func TestNilErrorAfterClose(t *testing.T) {
 	time.Sleep(10 * time.Millisecond) // increase odds of seeing failure
 	if err := r.Err(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// Issue #65201.
+//
+// If a RawBytes is reused across multiple queries,
+// subsequent queries shouldn't overwrite driver-owned memory from previous queries.
+func TestRawBytesReuse(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	if _, err := db.Exec("USE_RAWBYTES"); err != nil {
+		t.Fatal(err)
+	}
+
+	var raw RawBytes
+
+	// The RawBytes in this query aliases driver-owned memory.
+	rows, err := db.Query("SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows.Next()
+	rows.Scan(&raw) // now raw is pointing to driver-owned memory
+	name1 := string(raw)
+	rows.Close()
+
+	// The RawBytes in this query does not alias driver-owned memory.
+	rows, err = db.Query("SELECT|people|age|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows.Next()
+	rows.Scan(&raw) // this must not write to the driver-owned memory in raw
+	rows.Close()
+
+	// Repeat the first query. Nothing should have changed.
+	rows, err = db.Query("SELECT|people|name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows.Next()
+	rows.Scan(&raw) // raw points to driver-owned memory again
+	name2 := string(raw)
+	rows.Close()
+	if name1 != name2 {
+		t.Fatalf("Scan read name %q, want %q", name2, name1)
 	}
 }
 
@@ -4761,5 +4831,164 @@ func BenchmarkGrabConn(b *testing.B) {
 			b.Fatal(err)
 		}
 		release(nil)
+	}
+}
+
+func TestConnRequestSet(t *testing.T) {
+	var s connRequestSet
+	wantLen := func(want int) {
+		t.Helper()
+		if got := s.Len(); got != want {
+			t.Errorf("Len = %d; want %d", got, want)
+		}
+		if want == 0 && !t.Failed() {
+			if _, ok := s.TakeRandom(); ok {
+				t.Fatalf("TakeRandom returned result when empty")
+			}
+		}
+	}
+	reset := func() { s = connRequestSet{} }
+
+	t.Run("add-delete", func(t *testing.T) {
+		reset()
+		wantLen(0)
+		dh := s.Add(nil)
+		wantLen(1)
+		if !s.Delete(dh) {
+			t.Fatal("failed to delete")
+		}
+		wantLen(0)
+		if s.Delete(dh) {
+			t.Error("delete worked twice")
+		}
+		wantLen(0)
+	})
+	t.Run("take-before-delete", func(t *testing.T) {
+		reset()
+		ch1 := make(chan connRequest)
+		dh := s.Add(ch1)
+		wantLen(1)
+		if got, ok := s.TakeRandom(); !ok || got != ch1 {
+			t.Fatalf("wrong take; ok=%v", ok)
+		}
+		wantLen(0)
+		if s.Delete(dh) {
+			t.Error("unexpected delete after take")
+		}
+	})
+	t.Run("get-take-many", func(t *testing.T) {
+		reset()
+		m := map[chan connRequest]bool{}
+		const N = 100
+		var inOrder, backOut []chan connRequest
+		for range N {
+			c := make(chan connRequest)
+			m[c] = true
+			s.Add(c)
+			inOrder = append(inOrder, c)
+		}
+		if s.Len() != N {
+			t.Fatalf("Len = %v; want %v", s.Len(), N)
+		}
+		for s.Len() > 0 {
+			c, ok := s.TakeRandom()
+			if !ok {
+				t.Fatal("failed to take when non-empty")
+			}
+			if !m[c] {
+				t.Fatal("returned item not in remaining set")
+			}
+			delete(m, c)
+			backOut = append(backOut, c)
+		}
+		if len(m) > 0 {
+			t.Error("items remain in expected map")
+		}
+		if slices.Equal(inOrder, backOut) { // N! chance of flaking; N=100 is fine
+			t.Error("wasn't random")
+		}
+	})
+	t.Run("close-delete", func(t *testing.T) {
+		reset()
+		ch := make(chan connRequest)
+		dh := s.Add(ch)
+		wantLen(1)
+		s.CloseAndRemoveAll()
+		wantLen(0)
+		if s.Delete(dh) {
+			t.Error("unexpected delete after CloseAndRemoveAll")
+		}
+	})
+}
+
+func BenchmarkConnRequestSet(b *testing.B) {
+	var s connRequestSet
+	for range b.N {
+		for range 16 {
+			s.Add(nil)
+		}
+		for range 8 {
+			if _, ok := s.TakeRandom(); !ok {
+				b.Fatal("want ok")
+			}
+		}
+		for range 8 {
+			s.Add(nil)
+		}
+		for range 16 {
+			if _, ok := s.TakeRandom(); !ok {
+				b.Fatal("want ok")
+			}
+		}
+		if _, ok := s.TakeRandom(); ok {
+			b.Fatal("unexpected ok")
+		}
+	}
+}
+
+func TestIssue69837(t *testing.T) {
+	u := Null[uint]{V: 1, Valid: true}
+	val, err := driver.DefaultParameterConverter.ConvertValue(u)
+	if err != nil {
+		t.Errorf("ConvertValue() error = %v, want nil", err)
+	}
+
+	if v, ok := val.(int64); !ok {
+		t.Errorf("val.(type): got %T, expected int64", val)
+	} else if v != 1 {
+		t.Errorf("val: got %d, expected 1", v)
+	}
+}
+
+type issue69728Type struct {
+	ID   int
+	Name string
+}
+
+func (t issue69728Type) Value() (driver.Value, error) {
+	return []byte(fmt.Sprintf("%d, %s", t.ID, t.Name)), nil
+}
+
+func TestIssue69728(t *testing.T) {
+	forValue := Null[issue69728Type]{
+		Valid: true,
+		V: issue69728Type{
+			ID:   42,
+			Name: "foobar",
+		},
+	}
+
+	v1, err := forValue.Value()
+	if err != nil {
+		t.Errorf("forValue.Value() error = %v, want nil", err)
+	}
+
+	v2, err := forValue.V.Value()
+	if err != nil {
+		t.Errorf("forValue.V.Value() error = %v, want nil", err)
+	}
+
+	if !reflect.DeepEqual(v1, v2) {
+		t.Errorf("not equal; v1 = %v, v2 = %v", v1, v2)
 	}
 }

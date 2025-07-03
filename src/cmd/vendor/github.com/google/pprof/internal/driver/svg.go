@@ -65,7 +65,7 @@ func massageSVG(svg string) string {
 
 	if loc := graphID.FindStringIndex(svg); loc != nil {
 		svg = svg[:loc[0]] +
-			`<script type="text/ecmascript"><![CDATA[` + string(svgpan.JSSource) + `]]></script>` +
+			`<script type="text/ecmascript"><![CDATA[` + svgpan.JSSource + `]]></script>` +
 			`<g id="viewport" transform="scale(0.5,0.5) translate(0,0)">` +
 			svg[loc[0]:]
 	}

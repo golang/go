@@ -20,7 +20,26 @@ import (
 // fakeLabelName matches the RISCV_FAKE_LABEL_NAME from binutils.
 const fakeLabelName = ".L0 "
 
-func gentext(ctxt *ld.Link, ldr *loader.Loader) {}
+func gentext(ctxt *ld.Link, ldr *loader.Loader) {
+	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
+	if initfunc == nil {
+		return
+	}
+
+	// Emit the following function:
+	//
+	// go.link.addmoduledatainit:
+	//      auipc a0, %pcrel_hi(local.moduledata)
+	//      addi  a0, %pcrel_lo(local.moduledata)
+	//      j     runtime.addmoduledata
+
+	sz := initfunc.AddSymRef(ctxt.Arch, ctxt.Moduledata, 0, objabi.R_RISCV_PCREL_ITYPE, 8)
+	initfunc.SetUint32(ctxt.Arch, sz-8, 0x00000517) // auipc a0, %pcrel_hi(local.moduledata)
+	initfunc.SetUint32(ctxt.Arch, sz-4, 0x00050513) // addi  a0, %pcrel_lo(local.moduledata)
+
+	sz = initfunc.AddSymRef(ctxt.Arch, addmoduledata, 0, objabi.R_RISCV_JAL, 4)
+	initfunc.SetUint32(ctxt.Arch, sz-4, 0x0000006f) // j runtime.addmoduledata
+}
 
 func findHI20Reloc(ldr *loader.Loader, s loader.Sym, val int64) *loader.Reloc {
 	outer := ldr.OuterSym(s)
@@ -63,7 +82,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			ldr.Errorf(s, "unknown symbol %s in RISCV call", ldr.SymName(targ))
 		}
 		su := ldr.MakeSymbolUpdater(s)
-		su.SetRelocType(rIdx, objabi.R_RISCV_PCREL_ITYPE)
+		su.SetRelocType(rIdx, objabi.R_RISCV_CALL)
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_GOT_HI20):
@@ -130,7 +149,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 	r = relocs.At(rIdx)
 
 	switch r.Type() {
-	case objabi.R_RISCV_PCREL_ITYPE:
+	case objabi.R_RISCV_CALL:
 		if targType != sym.SDYNIMPORT {
 			// nothing to do, the relocation will be laid out in reloc
 			return true
@@ -170,11 +189,14 @@ func genSymsLate(ctxt *ld.Link, ldr *loader.Loader) {
 		relocs := ldr.Relocs(s)
 		for ri := 0; ri < relocs.Count(); ri++ {
 			r := relocs.At(ri)
-			if r.Type() != objabi.R_RISCV_PCREL_ITYPE && r.Type() != objabi.R_RISCV_PCREL_STYPE &&
-				r.Type() != objabi.R_RISCV_TLS_IE {
+			if r.Type() != objabi.R_RISCV_CALL &&
+				r.Type() != objabi.R_RISCV_PCREL_ITYPE &&
+				r.Type() != objabi.R_RISCV_PCREL_STYPE &&
+				r.Type() != objabi.R_RISCV_TLS_IE &&
+				r.Type() != objabi.R_RISCV_GOT_PCREL_ITYPE {
 				continue
 			}
-			if r.Off() == 0 && ldr.SymType(s) == sym.STEXT {
+			if r.Off() == 0 && ldr.SymType(s).IsText() {
 				// Use the symbol for the function instead of creating
 				// an overlapping symbol.
 				continue
@@ -206,7 +228,7 @@ func findHI20Symbol(ctxt *ld.Link, ldr *loader.Loader, val int64) loader.Sym {
 	if idx >= len(ctxt.Textp) {
 		return 0
 	}
-	if s := ctxt.Textp[idx]; ldr.SymValue(s) == val && ldr.SymType(s) == sym.STEXT {
+	if s := ctxt.Textp[idx]; ldr.SymValue(s) == val && ldr.SymType(s).IsText() {
 		return s
 	}
 	return 0
@@ -223,24 +245,28 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		case 8:
 			out.Write64(uint64(elf.R_RISCV_64) | uint64(elfsym)<<32)
 		default:
-			ld.Errorf(nil, "unknown size %d for %v relocation", r.Size, r.Type)
+			ld.Errorf("unknown size %d for %v relocation", r.Size, r.Type)
 			return false
 		}
 		out.Write64(uint64(r.Xadd))
 
-	case objabi.R_RISCV_CALL, objabi.R_RISCV_CALL_TRAMP:
+	case objabi.R_RISCV_JAL, objabi.R_RISCV_JAL_TRAMP:
 		out.Write64(uint64(sectoff))
 		out.Write64(uint64(elf.R_RISCV_JAL) | uint64(elfsym)<<32)
 		out.Write64(uint64(r.Xadd))
 
-	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE:
+	case objabi.R_RISCV_CALL,
+		objabi.R_RISCV_PCREL_ITYPE,
+		objabi.R_RISCV_PCREL_STYPE,
+		objabi.R_RISCV_TLS_IE,
+		objabi.R_RISCV_GOT_PCREL_ITYPE:
 		// Find the text symbol for the AUIPC instruction targeted
 		// by this relocation.
 		relocs := ldr.Relocs(s)
 		offset := int64(relocs.At(ri).Off())
 		hi20Sym := findHI20Symbol(ctxt, ldr, ldr.SymValue(s)+offset)
 		if hi20Sym == 0 {
-			ld.Errorf(nil, "failed to find text symbol for HI20 relocation at %d (%x)", sectoff, ldr.SymValue(s)+offset)
+			ld.Errorf("failed to find text symbol for HI20 relocation at %d (%x)", sectoff, ldr.SymValue(s)+offset)
 			return false
 		}
 		hi20ElfSym := ld.ElfSymForReloc(ctxt, hi20Sym)
@@ -256,12 +282,14 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		//
 		var hiRel, loRel elf.R_RISCV
 		switch r.Type {
-		case objabi.R_RISCV_PCREL_ITYPE:
+		case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE:
 			hiRel, loRel = elf.R_RISCV_PCREL_HI20, elf.R_RISCV_PCREL_LO12_I
 		case objabi.R_RISCV_PCREL_STYPE:
 			hiRel, loRel = elf.R_RISCV_PCREL_HI20, elf.R_RISCV_PCREL_LO12_S
 		case objabi.R_RISCV_TLS_IE:
 			hiRel, loRel = elf.R_RISCV_TLS_GOT_HI20, elf.R_RISCV_PCREL_LO12_I
+		case objabi.R_RISCV_GOT_PCREL_ITYPE:
+			hiRel, loRel = elf.R_RISCV_GOT_HI20, elf.R_RISCV_PCREL_LO12_I
 		}
 		out.Write64(uint64(sectoff))
 		out.Write64(uint64(hiRel) | uint64(elfsym)<<32)
@@ -399,20 +427,20 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	// If the call points to a trampoline, see if we can reach the symbol
 	// directly. This situation can occur when the relocation symbol is
 	// not assigned an address until after the trampolines are generated.
-	if r.Type() == objabi.R_RISCV_CALL_TRAMP {
+	if r.Type() == objabi.R_RISCV_JAL_TRAMP {
 		relocs := ldr.Relocs(rs)
 		if relocs.Count() != 1 {
 			ldr.Errorf(s, "trampoline %v has %d relocations", ldr.SymName(rs), relocs.Count())
 		}
 		tr := relocs.At(0)
-		if tr.Type() != objabi.R_RISCV_PCREL_ITYPE {
+		if tr.Type() != objabi.R_RISCV_CALL {
 			ldr.Errorf(s, "trampoline %v has unexpected relocation %v", ldr.SymName(rs), tr.Type())
 		}
 		trs := tr.Sym()
 		if ldr.SymValue(trs) != 0 && ldr.SymType(trs) != sym.SDYNIMPORT && ldr.SymType(trs) != sym.SUNDEFEXT {
 			trsOff := ldr.SymValue(trs) + tr.Add() - pc
 			if trsOff >= -(1<<20) && trsOff < (1<<20) {
-				r.SetType(objabi.R_RISCV_CALL)
+				r.SetType(objabi.R_RISCV_JAL)
 				r.SetSym(trs)
 				r.SetAdd(tr.Add())
 				rs = trs
@@ -423,10 +451,10 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 
 	if target.IsExternal() {
 		switch r.Type() {
-		case objabi.R_RISCV_CALL, objabi.R_RISCV_CALL_TRAMP:
+		case objabi.R_RISCV_JAL, objabi.R_RISCV_JAL_TRAMP:
 			return val, 1, true
 
-		case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE:
+		case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE, objabi.R_RISCV_GOT_PCREL_ITYPE:
 			return val, 2, true
 		}
 
@@ -436,11 +464,11 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	off := ldr.SymValue(rs) + r.Add() - pc
 
 	switch r.Type() {
-	case objabi.R_RISCV_CALL, objabi.R_RISCV_CALL_TRAMP:
+	case objabi.R_RISCV_JAL, objabi.R_RISCV_JAL_TRAMP:
 		// Generate instruction immediates.
 		imm, err := riscv.EncodeJImmediate(off)
 		if err != nil {
-			ldr.Errorf(s, "cannot encode R_RISCV_CALL relocation offset for %s: %v", ldr.SymName(rs), err)
+			ldr.Errorf(s, "cannot encode J-type instruction relocation offset for %s: %v", ldr.SymName(rs), err)
 		}
 		immMask := int64(riscv.JTypeImmMask)
 
@@ -574,31 +602,31 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		ins = (ins &^ immMask) | int64(uint32(imm))
 		return ins, 0, true
 
-	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE:
+	case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE:
 		// Generate AUIPC and second instruction immediates.
 		low, high, err := riscv.Split32BitImmediate(off)
 		if err != nil {
-			ldr.Errorf(s, "R_RISCV_PCREL_ relocation does not fit in 32 bits: %d", off)
+			ldr.Errorf(s, "pc-relative relocation does not fit in 32 bits: %d", off)
 		}
 
 		auipcImm, err := riscv.EncodeUImmediate(high)
 		if err != nil {
-			ldr.Errorf(s, "cannot encode R_RISCV_PCREL_ AUIPC relocation offset for %s: %v", ldr.SymName(rs), err)
+			ldr.Errorf(s, "cannot encode AUIPC relocation offset for %s: %v", ldr.SymName(rs), err)
 		}
 
 		var secondImm, secondImmMask int64
 		switch r.Type() {
-		case objabi.R_RISCV_PCREL_ITYPE:
+		case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE:
 			secondImmMask = riscv.ITypeImmMask
 			secondImm, err = riscv.EncodeIImmediate(low)
 			if err != nil {
-				ldr.Errorf(s, "cannot encode R_RISCV_PCREL_ITYPE I-type instruction relocation offset for %s: %v", ldr.SymName(rs), err)
+				ldr.Errorf(s, "cannot encode I-type instruction relocation offset for %s: %v", ldr.SymName(rs), err)
 			}
 		case objabi.R_RISCV_PCREL_STYPE:
 			secondImmMask = riscv.STypeImmMask
 			secondImm, err = riscv.EncodeSImmediate(low)
 			if err != nil {
-				ldr.Errorf(s, "cannot encode R_RISCV_PCREL_STYPE S-type instruction relocation offset for %s: %v", ldr.SymName(rs), err)
+				ldr.Errorf(s, "cannot encode S-type instruction relocation offset for %s: %v", ldr.SymName(rs), err)
 			}
 		default:
 			panic(fmt.Sprintf("unknown relocation type: %v", r.Type()))
@@ -623,10 +651,10 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant
 
 func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sym) (loader.ExtReloc, bool) {
 	switch r.Type() {
-	case objabi.R_RISCV_CALL, objabi.R_RISCV_CALL_TRAMP:
+	case objabi.R_RISCV_JAL, objabi.R_RISCV_JAL_TRAMP:
 		return ld.ExtrelocSimple(ldr, r), true
 
-	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE:
+	case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE, objabi.R_RISCV_GOT_PCREL_ITYPE:
 		return ld.ExtrelocViaOuterSym(ldr, r, s), true
 	}
 	return loader.ExtReloc{}, false
@@ -637,7 +665,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 	r := relocs.At(ri)
 
 	switch r.Type() {
-	case objabi.R_RISCV_CALL:
+	case objabi.R_RISCV_JAL:
 		pc := ldr.SymValue(s) + int64(r.Off())
 		off := ldr.SymValue(rs) + r.Add() - pc
 
@@ -682,7 +710,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 		}
 		if ldr.SymType(tramp) == 0 {
 			trampb := ldr.MakeSymbolUpdater(tramp)
-			ctxt.AddTramp(trampb)
+			ctxt.AddTramp(trampb, ldr.SymType(s))
 			genCallTramp(ctxt.Arch, ctxt.LinkMode, ldr, trampb, rs, int64(r.Add()))
 		}
 		sb := ldr.MakeSymbolUpdater(s)
@@ -691,12 +719,15 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 			// address, so we have to assume a trampoline is required. Mark
 			// this as a call via a trampoline so that we can potentially
 			// switch to a direct call during relocation.
-			sb.SetRelocType(ri, objabi.R_RISCV_CALL_TRAMP)
+			sb.SetRelocType(ri, objabi.R_RISCV_JAL_TRAMP)
 		}
 		relocs := sb.Relocs()
 		r := relocs.At(ri)
 		r.SetSym(tramp)
 		r.SetAdd(0)
+
+	case objabi.R_RISCV_CALL:
+		// Nothing to do, already using AUIPC+JALR.
 
 	default:
 		ctxt.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()))
@@ -707,7 +738,7 @@ func genCallTramp(arch *sys.Arch, linkmode ld.LinkMode, ldr *loader.Loader, tram
 	tramp.AddUint32(arch, 0x00000f97) // AUIPC	$0, X31
 	tramp.AddUint32(arch, 0x000f8067) // JALR	X0, (X31)
 
-	r, _ := tramp.AddRel(objabi.R_RISCV_PCREL_ITYPE)
+	r, _ := tramp.AddRel(objabi.R_RISCV_CALL)
 	r.SetSiz(8)
 	r.SetSym(target)
 	r.SetAdd(offset)

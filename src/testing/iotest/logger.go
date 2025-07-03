@@ -25,7 +25,7 @@ func (l *writeLogger) Write(p []byte) (n int, err error) {
 }
 
 // NewWriteLogger returns a writer that behaves like w except
-// that it logs (using log.Printf) each write to standard error,
+// that it logs (using [log.Printf]) each write to standard error,
 // printing the prefix and the hexadecimal data written.
 func NewWriteLogger(prefix string, w io.Writer) io.Writer {
 	return &writeLogger{prefix, w}
@@ -47,7 +47,7 @@ func (l *readLogger) Read(p []byte) (n int, err error) {
 }
 
 // NewReadLogger returns a reader that behaves like r except
-// that it logs (using log.Printf) each read to standard error,
+// that it logs (using [log.Printf]) each read to standard error,
 // printing the prefix and the hexadecimal data read.
 func NewReadLogger(prefix string, r io.Reader) io.Reader {
 	return &readLogger{prefix, r}

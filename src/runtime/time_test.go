@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"runtime"
 	"testing"
+	"time"
 )
 
 func TestFakeTime(t *testing.T) {
@@ -22,7 +23,7 @@ func TestFakeTime(t *testing.T) {
 
 	// Faketime is advanced in checkdead. External linking brings in cgo,
 	// causing checkdead not working.
-	testenv.MustInternalLink(t, false)
+	testenv.MustInternalLink(t, deadlockBuildTypes)
 
 	t.Parallel()
 
@@ -94,4 +95,35 @@ func parseFakeTime(x []byte) ([]fakeTimeFrame, error) {
 		frames = append(frames, fakeTimeFrame{time, data})
 	}
 	return frames, nil
+}
+
+func TestTimeTimerType(t *testing.T) {
+	// runtime.timeTimer (exported for testing as TimeTimer)
+	// must have time.Timer and time.Ticker as a prefix
+	// (meaning those two must have the same layout).
+	runtimeTimeTimer := reflect.TypeOf(runtime.TimeTimer{})
+
+	check := func(name string, typ reflect.Type) {
+		n1 := runtimeTimeTimer.NumField()
+		n2 := typ.NumField()
+		if n1 != n2+1 {
+			t.Errorf("runtime.TimeTimer has %d fields, want %d (%s has %d fields)", n1, n2+1, name, n2)
+			return
+		}
+		for i := 0; i < n2; i++ {
+			f1 := runtimeTimeTimer.Field(i)
+			f2 := typ.Field(i)
+			t1 := f1.Type
+			t2 := f2.Type
+			if t1 != t2 && !(t1.Kind() == reflect.UnsafePointer && t2.Kind() == reflect.Chan) {
+				t.Errorf("runtime.Timer field %s %v incompatible with %s field %s %v", f1.Name, t1, name, f2.Name, t2)
+			}
+			if f1.Offset != f2.Offset {
+				t.Errorf("runtime.Timer field %s offset %d incompatible with %s field %s offset %d", f1.Name, f1.Offset, name, f2.Name, f2.Offset)
+			}
+		}
+	}
+
+	check("time.Timer", reflect.TypeOf(time.Timer{}))
+	check("time.Ticker", reflect.TypeOf(time.Ticker{}))
 }

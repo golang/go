@@ -11,15 +11,24 @@ import (
 	"cmd/compile/internal/syntax"
 	"errors"
 	"fmt"
+	"internal/buildcfg"
 	. "internal/types/errors"
 )
 
+// A genericType implements access to its type parameters.
+type genericType interface {
+	Type
+	TypeParams() *TypeParamList
+}
+
 // Instantiate instantiates the type orig with the given type arguments targs.
-// orig must be a *Named or a *Signature type. If there is no error, the
-// resulting Type is an instantiated type of the same kind (either a *Named or
-// a *Signature). Methods attached to a *Named type are also instantiated, and
-// associated with a new *Func that has the same position as the original
-// method, but nil function scope.
+// orig must be an *Alias, *Named, or *Signature type. If there is no error,
+// the resulting Type is an instantiated type of the same kind (*Alias, *Named
+// or *Signature, respectively).
+//
+// Methods attached to a *Named type are also instantiated, and associated with
+// a new *Func that has the same position as the original method, but nil function
+// scope.
 //
 // If ctxt is non-nil, it may be used to de-duplicate the instance against
 // previous instances with the same identity. As a special case, generic
@@ -29,10 +38,10 @@ import (
 // not guarantee that identical instances are deduplicated in all cases.
 //
 // If validate is set, Instantiate verifies that the number of type arguments
-// and parameters match, and that the type arguments satisfy their
-// corresponding type constraints. If verification fails, the resulting error
-// may wrap an *ArgumentError indicating which type argument did not satisfy
-// its corresponding type parameter constraint, and why.
+// and parameters match, and that the type arguments satisfy their respective
+// type constraints. If verification fails, the resulting error may wrap an
+// *ArgumentError indicating which type argument did not satisfy its type parameter
+// constraint, and why.
 //
 // If validate is not set, Instantiate does not verify the type argument count
 // or whether the type arguments satisfy their constraints. Instantiate is
@@ -41,17 +50,15 @@ import (
 // count is incorrect; for *Named types, a panic may occur later inside the
 // *Named API.
 func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, error) {
+	assert(len(targs) > 0)
 	if ctxt == nil {
 		ctxt = NewContext()
 	}
+	orig_ := orig.(genericType) // signature of Instantiate must not change for backward-compatibility
+
 	if validate {
-		var tparams []*TypeParam
-		switch t := orig.(type) {
-		case *Named:
-			tparams = t.TypeParams().list()
-		case *Signature:
-			tparams = t.TypeParams().list()
-		}
+		tparams := orig_.TypeParams().list()
+		assert(len(tparams) > 0)
 		if len(targs) != len(tparams) {
 			return nil, fmt.Errorf("got %d type arguments but %s has %d type parameters", len(targs), orig, len(tparams))
 		}
@@ -60,14 +67,15 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
 		}
 	}
 
-	inst := (*Checker)(nil).instance(nopos, orig, targs, nil, ctxt)
+	inst := (*Checker)(nil).instance(nopos, orig_, targs, nil, ctxt)
 	return inst, nil
 }
 
 // instance instantiates the given original (generic) function or type with the
 // provided type arguments and returns the resulting instance. If an identical
 // instance exists already in the given contexts, it returns that instance,
-// otherwise it creates a new one.
+// otherwise it creates a new one. If there is an error (such as wrong number
+// of type arguments), the result is Typ[Invalid].
 //
 // If expanding is non-nil, it is the Named instance type currently being
 // expanded. If ctxt is non-nil, it is the context associated with the current
@@ -75,7 +83,9 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
 // must be non-nil.
 //
 // For Named types the resulting instance may be unexpanded.
-func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, expanding *Named, ctxt *Context) (res Type) {
+//
+// check may be nil (when not type-checking syntax); pos is used only only if check is non-nil.
+func (check *Checker) instance(pos syntax.Pos, orig genericType, targs []Type, expanding *Named, ctxt *Context) (res Type) {
 	// The order of the contexts below matters: we always prefer instances in the
 	// expanding instance context in order to preserve reference cycles.
 	//
@@ -97,8 +107,9 @@ func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, expandin
 		hashes[i] = ctxt.instanceHash(orig, targs)
 	}
 
-	// If local is non-nil, updateContexts return the type recorded in
-	// local.
+	// Record the result in all contexts.
+	// Prefer to re-use existing types from expanding context, if it exists, to reduce
+	// the memory pinned by the Named type.
 	updateContexts := func(res Type) Type {
 		for i := len(ctxts) - 1; i >= 0; i-- {
 			res = ctxts[i].update(hashes[i], orig, targs, res)
@@ -118,11 +129,32 @@ func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, expandin
 	case *Named:
 		res = check.newNamedInstance(pos, orig, targs, expanding) // substituted lazily
 
+	case *Alias:
+		if !buildcfg.Experiment.AliasTypeParams {
+			assert(expanding == nil) // Alias instances cannot be reached from Named types
+		}
+
+		// verify type parameter count (see go.dev/issue/71198 for a test case)
+		tparams := orig.TypeParams()
+		if !check.validateTArgLen(pos, orig.obj.Name(), tparams.Len(), len(targs)) {
+			// TODO(gri) Consider returning a valid alias instance with invalid
+			//           underlying (aliased) type to match behavior of *Named
+			//           types. Then this function will never return an invalid
+			//           result.
+			return Typ[Invalid]
+		}
+		if tparams.Len() == 0 {
+			return orig // nothing to do (minor optimization)
+		}
+
+		res = check.newAliasInstance(pos, orig, targs, expanding, ctxt)
+
 	case *Signature:
 		assert(expanding == nil) // function instances cannot be reached from Named types
 
 		tparams := orig.TypeParams()
-		if !check.validateTArgLen(pos, tparams.Len(), len(targs)) {
+		// TODO(gri) investigate if this is needed (type argument and parameter count seem to be correct here)
+		if !check.validateTArgLen(pos, orig.String(), tparams.Len(), len(targs)) {
 			return Typ[Invalid]
 		}
 		if tparams.Len() == 0 {
@@ -150,21 +182,30 @@ func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, expandin
 	return updateContexts(res)
 }
 
-// validateTArgLen verifies that the length of targs and tparams matches,
-// reporting an error if not. If validation fails and check is nil,
-// validateTArgLen panics.
-func (check *Checker) validateTArgLen(pos syntax.Pos, ntparams, ntargs int) bool {
-	if ntargs != ntparams {
-		// TODO(gri) provide better error message
-		if check != nil {
-			check.errorf(pos, WrongTypeArgCount, "got %d arguments but %d type parameters", ntargs, ntparams)
-			return false
-		}
-		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, ntargs, ntparams))
+// validateTArgLen checks that the number of type arguments (got) matches the
+// number of type parameters (want); if they don't match an error is reported.
+// If validation fails and check is nil, validateTArgLen panics.
+func (check *Checker) validateTArgLen(pos syntax.Pos, name string, want, got int) bool {
+	var qual string
+	switch {
+	case got < want:
+		qual = "not enough"
+	case got > want:
+		qual = "too many"
+	default:
+		return true
 	}
-	return true
+
+	msg := check.sprintf("%s type arguments for type %s: have %d, want %d", qual, name, got, want)
+	if check != nil {
+		check.error(atPos(pos), WrongTypeArgCount, msg)
+		return false
+	}
+
+	panic(fmt.Sprintf("%v: %s", pos, msg))
 }
 
+// check may be nil; pos is used only if check is non-nil.
 func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type, ctxt *Context) (int, error) {
 	smap := makeSubstMap(tparams, targs)
 	for i, tpar := range tparams {
@@ -176,7 +217,7 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
 		// the parameterized type.
 		bound := check.subst(pos, tpar.bound, smap, nil, ctxt)
 		var cause string
-		if !check.implements(pos, targs[i], bound, true, &cause) {
+		if !check.implements(targs[i], bound, true, &cause) {
 			return i, errors.New(cause)
 		}
 	}
@@ -189,7 +230,7 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
 //
 // If the provided cause is non-nil, it may be set to an error string
 // explaining why V does not implement (or satisfy, for constraints) T.
-func (check *Checker) implements(pos syntax.Pos, V, T Type, constraint bool, cause *string) bool {
+func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool {
 	Vu := under(V)
 	Tu := under(T)
 	if !isValid(Vu) || !isValid(Tu) {
@@ -241,7 +282,7 @@ func (check *Checker) implements(pos syntax.Pos, V, T Type, constraint bool, cau
 	}
 
 	// V must implement T's methods, if any.
-	if m, _ := check.missingMethod(V, T, true, Identical, cause); m != nil /* !Implements(V, T) */ {
+	if !check.hasAllMethods(V, T, true, Identical, cause) /* !Implements(V, T) */ {
 		if cause != nil {
 			*cause = check.sprintf("%s does not %s %s %s", V, verb, T, *cause)
 		}
@@ -255,14 +296,14 @@ func (check *Checker) implements(pos syntax.Pos, V, T Type, constraint bool, cau
 		}
 		// If T is comparable, V must be comparable.
 		// If V is strictly comparable, we're done.
-		if comparable(V, false /* strict comparability */, nil, nil) {
+		if comparableType(V, false /* strict comparability */, nil) == nil {
 			return true
 		}
 		// For constraint satisfaction, use dynamic (spec) comparability
 		// so that ordinary, non-type parameter interfaces implement comparable.
-		if constraint && comparable(V, true /* spec comparability */, nil, nil) {
+		if constraint && comparableType(V, true /* spec comparability */, nil) == nil {
 			// V is comparable if we are at Go 1.20 or higher.
-			if check == nil || check.allowVersion(check.pkg, atPos(pos), go1_20) { // atPos needed so that go/types generate passes
+			if check == nil || check.allowVersion(go1_20) {
 				return true
 			}
 			if cause != nil {

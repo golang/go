@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,17 +27,11 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/lockedfile"
-	"cmd/go/internal/par"
 	"cmd/go/internal/web"
+	"cmd/internal/par"
 
 	"golang.org/x/mod/semver"
 )
-
-// LocalGitRepo is like Repo but accepts both Git remote references
-// and paths to repositories on the local file system.
-func LocalGitRepo(ctx context.Context, remote string) (Repo, error) {
-	return newGitRepoCached(ctx, remote, true)
-}
 
 // A notExistError wraps another error to retain its original text
 // but makes it opaquely equivalent to fs.ErrNotExist.
@@ -49,78 +44,12 @@ func (notExistError) Is(err error) bool { return err == fs.ErrNotExist }
 
 const gitWorkDirType = "git3"
 
-var gitRepoCache par.ErrCache[gitCacheKey, Repo]
-
-type gitCacheKey struct {
-	remote  string
-	localOK bool
-}
-
-func newGitRepoCached(ctx context.Context, remote string, localOK bool) (Repo, error) {
-	return gitRepoCache.Do(gitCacheKey{remote, localOK}, func() (Repo, error) {
-		return newGitRepo(ctx, remote, localOK)
-	})
-}
-
-func newGitRepo(ctx context.Context, remote string, localOK bool) (Repo, error) {
-	r := &gitRepo{remote: remote}
-	if strings.Contains(remote, "://") {
-		// This is a remote path.
-		var err error
-		r.dir, r.mu.Path, err = WorkDir(ctx, gitWorkDirType, r.remote)
-		if err != nil {
-			return nil, err
+func newGitRepo(ctx context.Context, remote string, local bool) (Repo, error) {
+	r := &gitRepo{remote: remote, local: local}
+	if local {
+		if strings.Contains(remote, "://") { // Local flag, but URL provided
+			return nil, fmt.Errorf("git remote (%s) lookup disabled", remote)
 		}
-
-		unlock, err := r.mu.Lock()
-		if err != nil {
-			return nil, err
-		}
-		defer unlock()
-
-		if _, err := os.Stat(filepath.Join(r.dir, "objects")); err != nil {
-			if _, err := Run(ctx, r.dir, "git", "init", "--bare"); err != nil {
-				os.RemoveAll(r.dir)
-				return nil, err
-			}
-			// We could just say git fetch https://whatever later,
-			// but this lets us say git fetch origin instead, which
-			// is a little nicer. More importantly, using a named remote
-			// avoids a problem with Git LFS. See golang.org/issue/25605.
-			if _, err := Run(ctx, r.dir, "git", "remote", "add", "origin", "--", r.remote); err != nil {
-				os.RemoveAll(r.dir)
-				return nil, err
-			}
-			if runtime.GOOS == "windows" {
-				// Git for Windows by default does not support paths longer than
-				// MAX_PATH (260 characters) because that may interfere with navigation
-				// in some Windows programs. However, cmd/go should be able to handle
-				// long paths just fine, and we expect people to use 'go clean' to
-				// manipulate the module cache, so it should be harmless to set here,
-				// and in some cases may be necessary in order to download modules with
-				// long branch names.
-				//
-				// See https://github.com/git-for-windows/git/wiki/Git-cannot-create-a-file-or-directory-with-a-long-path.
-				if _, err := Run(ctx, r.dir, "git", "config", "core.longpaths", "true"); err != nil {
-					os.RemoveAll(r.dir)
-					return nil, err
-				}
-			}
-		}
-		r.remoteURL = r.remote
-		r.remote = "origin"
-	} else {
-		// Local path.
-		// Disallow colon (not in ://) because sometimes
-		// that's rcp-style host:path syntax and sometimes it's not (c:\work).
-		// The go command has always insisted on URL syntax for ssh.
-		if strings.Contains(remote, ":") {
-			return nil, fmt.Errorf("git remote cannot use host:path syntax")
-		}
-		if !localOK {
-			return nil, fmt.Errorf("git remote must not be local directory")
-		}
-		r.local = true
 		info, err := os.Stat(remote)
 		if err != nil {
 			return nil, err
@@ -130,7 +59,73 @@ func newGitRepo(ctx context.Context, remote string, localOK bool) (Repo, error) 
 		}
 		r.dir = remote
 		r.mu.Path = r.dir + ".lock"
+		r.sha256Hashes = r.checkConfigSHA256(ctx)
+		return r, nil
 	}
+	// This is a remote path lookup.
+	if !strings.Contains(remote, "://") { // No URL scheme, could be host:path
+		if strings.Contains(remote, ":") {
+			return nil, fmt.Errorf("git remote (%s) must not be local directory (use URL syntax not host:path syntax)", remote)
+		}
+		return nil, fmt.Errorf("git remote (%s) must not be local directory", remote)
+	}
+	var err error
+	r.dir, r.mu.Path, err = WorkDir(ctx, gitWorkDirType, r.remote)
+	if err != nil {
+		return nil, err
+	}
+
+	unlock, err := r.mu.Lock()
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+
+	if _, err := os.Stat(filepath.Join(r.dir, "objects")); err != nil {
+		repoSha256Hash := false
+		if refs, lrErr := r.loadRefs(ctx); lrErr == nil {
+			// Check any ref's hash, it doesn't matter which; they won't be mixed
+			// between sha1 and sha256 for the moment.
+			for _, refHash := range refs {
+				repoSha256Hash = len(refHash) == (256 / 4)
+				break
+			}
+		}
+		objFormatFlag := []string{}
+		if repoSha256Hash {
+			objFormatFlag = []string{"--object-format=sha256"}
+		}
+		if _, err := Run(ctx, r.dir, "git", "init", "--bare", objFormatFlag); err != nil {
+			os.RemoveAll(r.dir)
+			return nil, err
+		}
+		// We could just say git fetch https://whatever later,
+		// but this lets us say git fetch origin instead, which
+		// is a little nicer. More importantly, using a named remote
+		// avoids a problem with Git LFS. See golang.org/issue/25605.
+		if _, err := r.runGit(ctx, "git", "remote", "add", "origin", "--", r.remote); err != nil {
+			os.RemoveAll(r.dir)
+			return nil, err
+		}
+		if runtime.GOOS == "windows" {
+			// Git for Windows by default does not support paths longer than
+			// MAX_PATH (260 characters) because that may interfere with navigation
+			// in some Windows programs. However, cmd/go should be able to handle
+			// long paths just fine, and we expect people to use 'go clean' to
+			// manipulate the module cache, so it should be harmless to set here,
+			// and in some cases may be necessary in order to download modules with
+			// long branch names.
+			//
+			// See https://github.com/git-for-windows/git/wiki/Git-cannot-create-a-file-or-directory-with-a-long-path.
+			if _, err := r.runGit(ctx, "git", "config", "core.longpaths", "true"); err != nil {
+				os.RemoveAll(r.dir)
+				return nil, err
+			}
+		}
+	}
+	r.sha256Hashes = r.checkConfigSHA256(ctx)
+	r.remoteURL = r.remote
+	r.remote = "origin"
 	return r, nil
 }
 
@@ -138,8 +133,11 @@ type gitRepo struct {
 	ctx context.Context
 
 	remote, remoteURL string
-	local             bool
+	local             bool // local only lookups; no remote fetches
 	dir               string
+
+	// Repo uses the SHA256 for hashes, so expect the hashes to be 256/4 == 64-bytes in hex.
+	sha256Hashes bool
 
 	mu lockedfile.Mutex // protects fetchLevel and git repo state
 
@@ -154,7 +152,7 @@ type gitRepo struct {
 	refsErr error
 
 	localTagsOnce sync.Once
-	localTags     map[string]bool
+	localTags     sync.Map // map[string]bool
 }
 
 const (
@@ -166,20 +164,18 @@ const (
 
 // loadLocalTags loads tag references from the local git cache
 // into the map r.localTags.
-// Should only be called as r.localTagsOnce.Do(r.loadLocalTags).
 func (r *gitRepo) loadLocalTags(ctx context.Context) {
 	// The git protocol sends all known refs and ls-remote filters them on the client side,
 	// so we might as well record both heads and tags in one shot.
 	// Most of the time we only care about tags but sometimes we care about heads too.
-	out, err := Run(ctx, r.dir, "git", "tag", "-l")
+	out, err := r.runGit(ctx, "git", "tag", "-l")
 	if err != nil {
 		return
 	}
 
-	r.localTags = make(map[string]bool)
 	for _, line := range strings.Split(string(out), "\n") {
 		if line != "" {
-			r.localTags[line] = true
+			r.localTags.Store(line, true)
 		}
 	}
 }
@@ -238,6 +234,11 @@ func (r *gitRepo) CheckReuse(ctx context.Context, old *Origin, subdir string) er
 // loadRefs loads heads and tags references from the remote into the map r.refs.
 // The result is cached in memory.
 func (r *gitRepo) loadRefs(ctx context.Context) (map[string]string, error) {
+	if r.local { // Return results from the cache if local only.
+		// In the future, we could consider loading r.refs using local git commands
+		// if desired.
+		return nil, nil
+	}
 	r.refsOnce.Do(func() {
 		// The git protocol sends all known refs and ls-remote filters them on the client side,
 		// so we might as well record both heads and tags in one shot.
@@ -247,7 +248,7 @@ func (r *gitRepo) loadRefs(ctx context.Context) (map[string]string, error) {
 			r.refsErr = err
 			return
 		}
-		out, gitErr := Run(ctx, r.dir, "git", "ls-remote", "-q", r.remote)
+		out, gitErr := r.runGit(ctx, "git", "ls-remote", "-q", r.remote)
 		release()
 
 		if gitErr != nil {
@@ -336,7 +337,7 @@ func (r *gitRepo) Tags(ctx context.Context, prefix string) (*Tags, error) {
 // the absence of a specific module version.
 // The caller must supply refs, the result of a successful r.loadRefs.
 func (r *gitRepo) repoSum(refs map[string]string) string {
-	var list []string
+	list := make([]string, 0, len(refs))
 	for ref := range refs {
 		list = append(list, ref)
 	}
@@ -403,6 +404,32 @@ func (r *gitRepo) findRef(ctx context.Context, hash string) (ref string, ok bool
 	return "", false
 }
 
+func (r *gitRepo) checkConfigSHA256(ctx context.Context) bool {
+	if hashType, sha256CfgErr := r.runGit(ctx, "git", "config", "extensions.objectformat"); sha256CfgErr == nil {
+		return "sha256" == strings.TrimSpace(string(hashType))
+	}
+	return false
+}
+
+func (r *gitRepo) hexHashLen() int {
+	if !r.sha256Hashes {
+		return 160 / 4
+	}
+	return 256 / 4
+}
+
+// shortenObjectHash shortens a SHA1 or SHA256 hash (40 or 64 hex digits) to
+// the canonical length used in pseudo-versions (12 hex digits).
+func (r *gitRepo) shortenObjectHash(rev string) string {
+	if !r.sha256Hashes {
+		return ShortenSHA1(rev)
+	}
+	if AllHex(rev) && len(rev) == 256/4 {
+		return rev[:12]
+	}
+	return rev
+}
+
 // minHashDigits is the minimum number of digits to require
 // before accepting a hex digit sequence as potentially identifying
 // a specific commit in a git repo. (Of course, users can always
@@ -414,13 +441,9 @@ const minHashDigits = 7
 // stat stats the given rev in the local repository,
 // or else it fetches more info from the remote repository and tries again.
 func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err error) {
-	if r.local {
-		return r.statLocal(ctx, rev, rev)
-	}
-
 	// Fast path: maybe rev is a hash we already have locally.
 	didStatLocal := false
-	if len(rev) >= minHashDigits && len(rev) <= 40 && AllHex(rev) {
+	if len(rev) >= minHashDigits && len(rev) <= r.hexHashLen() && AllHex(rev) {
 		if info, err := r.statLocal(ctx, rev, rev); err == nil {
 			return info, nil
 		}
@@ -430,13 +453,14 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 	// Maybe rev is a tag we already have locally.
 	// (Note that we're excluding branches, which can be stale.)
 	r.localTagsOnce.Do(func() { r.loadLocalTags(ctx) })
-	if r.localTags[rev] {
+	if _, ok := r.localTags.Load(rev); ok {
 		return r.statLocal(ctx, rev, "refs/tags/"+rev)
 	}
 
 	// Maybe rev is the name of a tag or branch on the remote server.
 	// Or maybe it's the prefix of a hash of a named ref.
-	// Try to resolve to both a ref (git name) and full (40-hex-digit) commit hash.
+	// Try to resolve to both a ref (git name) and full (40-hex-digit for
+	// sha1 64 for sha256) commit hash.
 	refs, err := r.loadRefs(ctx)
 	if err != nil {
 		return nil, err
@@ -457,7 +481,7 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 		ref = "HEAD"
 		hash = refs[ref]
 		rev = hash // Replace rev, because meaning of HEAD can change.
-	} else if len(rev) >= minHashDigits && len(rev) <= 40 && AllHex(rev) {
+	} else if len(rev) >= minHashDigits && len(rev) <= r.hexHashLen() && AllHex(rev) {
 		// At the least, we have a hash prefix we can look up after the fetch below.
 		// Maybe we can map it to a full hash using the known refs.
 		prefix := rev
@@ -476,7 +500,7 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 				hash = h
 			}
 		}
-		if hash == "" && len(rev) == 40 { // Didn't find a ref, but rev is a full hash.
+		if hash == "" && len(rev) == r.hexHashLen() { // Didn't find a ref, but rev is a full hash.
 			hash = rev
 		}
 	} else {
@@ -506,12 +530,23 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 	// Either way, try a local stat before falling back to network I/O.
 	if !didStatLocal {
 		if info, err := r.statLocal(ctx, rev, hash); err == nil {
-			if after, found := strings.CutPrefix(ref, "refs/tags/"); found {
-				// Make sure tag exists, so it will be in localTags next time the go command is run.
-				Run(ctx, r.dir, "git", "tag", after, hash)
+			tag, fromTag := strings.CutPrefix(ref, "refs/tags/")
+			if fromTag && !slices.Contains(info.Tags, tag) {
+				// The local repo includes the commit hash we want, but it is missing
+				// the corresponding tag. Add that tag and try again.
+				_, err := r.runGit(ctx, "git", "tag", tag, hash)
+				if err != nil {
+					return nil, err
+				}
+				r.localTags.Store(tag, true)
+				return r.statLocal(ctx, rev, ref)
 			}
-			return info, nil
+			return info, err
 		}
+	}
+
+	if r.local { // at this point, we have determined that we need to fetch rev, fail early if local only mode.
+		return nil, fmt.Errorf("revision does not exist locally: %s", rev)
 	}
 
 	// If we know a specific commit we need and its ref, fetch it.
@@ -521,16 +556,10 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 	// Both Gerrit and GitHub expose every CL/PR as a named ref,
 	// and we don't want those commits masquerading as being real
 	// pseudo-versions in the main repo.
-	if r.fetchLevel <= fetchSome && ref != "" && hash != "" && !r.local {
+	if r.fetchLevel <= fetchSome && ref != "" && hash != "" {
 		r.fetchLevel = fetchSome
 		var refspec string
-		if ref != "" && ref != "HEAD" {
-			// If we do know the ref name, save the mapping locally
-			// so that (if it is a tag) it can show up in localTags
-			// on a future call. Also, some servers refuse to allow
-			// full hashes in ref specs, so prefer a ref name if known.
-			refspec = ref + ":" + ref
-		} else {
+		if ref == "HEAD" {
 			// Fetch the hash but give it a local name (refs/dummy),
 			// because that triggers the fetch behavior of creating any
 			// other known remote tags for the hash. We never use
@@ -538,13 +567,23 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 			// overwritten in the next command, and that's fine.
 			ref = hash
 			refspec = hash + ":refs/dummy"
+		} else {
+			// If we do know the ref name, save the mapping locally
+			// so that (if it is a tag) it can show up in localTags
+			// on a future call. Also, some servers refuse to allow
+			// full hashes in ref specs, so prefer a ref name if known.
+			refspec = ref + ":" + ref
 		}
 
 		release, err := base.AcquireNet()
 		if err != nil {
 			return nil, err
 		}
-		_, err = Run(ctx, r.dir, "git", "fetch", "-f", "--depth=1", r.remote, refspec)
+		// We explicitly set protocol.version=2 for this command to work around
+		// an apparent Git bug introduced in Git 2.21 (commit 61c771),
+		// which causes the handler for protocol version 1 to sometimes miss
+		// tags that point to the requested commit (see https://go.dev/issue/56881).
+		_, err = r.runGit(ctx, "git", "-c", "protocol.version=2", "fetch", "-f", "--depth=1", r.remote, refspec)
 		release()
 
 		if err == nil {
@@ -574,6 +613,9 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 //
 // fetchRefsLocked requires that r.mu remain locked for the duration of the call.
 func (r *gitRepo) fetchRefsLocked(ctx context.Context) error {
+	if r.local {
+		panic("go: fetchRefsLocked called in local only mode.")
+	}
 	if r.fetchLevel < fetchAll {
 		// NOTE: To work around a bug affecting Git clients up to at least 2.23.0
 		// (2019-08-16), we must first expand the set of local refs, and only then
@@ -587,12 +629,12 @@ func (r *gitRepo) fetchRefsLocked(ctx context.Context) error {
 		}
 		defer release()
 
-		if _, err := Run(ctx, r.dir, "git", "fetch", "-f", r.remote, "refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
+		if _, err := r.runGit(ctx, "git", "fetch", "-f", r.remote, "refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
 			return err
 		}
 
 		if _, err := os.Stat(filepath.Join(r.dir, "shallow")); err == nil {
-			if _, err := Run(ctx, r.dir, "git", "fetch", "--unshallow", "-f", r.remote); err != nil {
+			if _, err := r.runGit(ctx, "git", "fetch", "--unshallow", "-f", r.remote); err != nil {
 				return err
 			}
 		}
@@ -605,7 +647,7 @@ func (r *gitRepo) fetchRefsLocked(ctx context.Context) error {
 // statLocal returns a new RevInfo describing rev in the local git repository.
 // It uses version as info.Version.
 func (r *gitRepo) statLocal(ctx context.Context, version, rev string) (*RevInfo, error) {
-	out, err := Run(ctx, r.dir, "git", "-c", "log.showsignature=false", "log", "--no-decorate", "-n1", "--format=format:%H %ct %D", rev, "--")
+	out, err := r.runGit(ctx, "git", "-c", "log.showsignature=false", "log", "--no-decorate", "-n1", "--format=format:%H %ct %D", rev, "--")
 	if err != nil {
 		// Return info with Origin.RepoSum if possible to allow caching of negative lookup.
 		var info *RevInfo
@@ -634,7 +676,7 @@ func (r *gitRepo) statLocal(ctx context.Context, version, rev string) (*RevInfo,
 			Hash: hash,
 		},
 		Name:    hash,
-		Short:   ShortenSHA1(hash),
+		Short:   r.shortenObjectHash(hash),
 		Time:    time.Unix(t, 0).UTC(),
 		Version: hash,
 	}
@@ -652,7 +694,21 @@ func (r *gitRepo) statLocal(ctx context.Context, version, rev string) (*RevInfo,
 			}
 		}
 	}
-	sort.Strings(info.Tags)
+
+	// Git 2.47.1 does not send the tags during shallow clone anymore
+	// (perhaps the exact version that changed behavior is an earlier one),
+	// so we have to also add tags from the refs list we fetched with ls-remote.
+	if refs, err := r.loadRefs(ctx); err == nil {
+		for ref, h := range refs {
+			if h == hash {
+				if tag, found := strings.CutPrefix(ref, "refs/tags/"); found {
+					info.Tags = append(info.Tags, tag)
+				}
+			}
+		}
+	}
+	slices.Sort(info.Tags)
+	info.Tags = slices.Compact(info.Tags)
 
 	// Used hash as info.Version above.
 	// Use caller's suggested version if it appears in the tag list
@@ -681,7 +737,7 @@ func (r *gitRepo) ReadFile(ctx context.Context, rev, file string, maxSize int64)
 	if err != nil {
 		return nil, err
 	}
-	out, err := Run(ctx, r.dir, "git", "cat-file", "blob", info.Name+":"+file)
+	out, err := r.runGit(ctx, "git", "cat-file", "blob", info.Name+":"+file)
 	if err != nil {
 		return nil, fs.ErrNotExist
 	}
@@ -699,7 +755,7 @@ func (r *gitRepo) RecentTag(ctx context.Context, rev, prefix string, allowed fun
 	// result is definitive.
 	describe := func() (definitive bool) {
 		var out []byte
-		out, err = Run(ctx, r.dir, "git", "for-each-ref", "--format", "%(refname)", "refs/tags", "--merged", rev)
+		out, err = r.runGit(ctx, "git", "for-each-ref", "--format", "%(refname)", "refs/tags", "--merged", rev)
 		if err != nil {
 			return true
 		}
@@ -749,6 +805,9 @@ func (r *gitRepo) RecentTag(ctx context.Context, rev, prefix string, allowed fun
 		return "", nil
 	}
 
+	if r.local { // at this point, we have determined that we need to fetch rev, fail early if local only mode.
+		return "", fmt.Errorf("revision does not exist locally: %s", rev)
+	}
 	// There are plausible tags, but we don't know if rev is a descendent of any of them.
 	// Fetch the history to find out.
 
@@ -783,7 +842,7 @@ func (r *gitRepo) DescendsFrom(ctx context.Context, rev, tag string) (bool, erro
 	//
 	// git merge-base --is-ancestor exits with status 0 if rev is an ancestor, or
 	// 1 if not.
-	_, err := Run(ctx, r.dir, "git", "merge-base", "--is-ancestor", "--", tag, rev)
+	_, err := r.runGit(ctx, "git", "merge-base", "--is-ancestor", "--", tag, rev)
 
 	// Git reports "is an ancestor" with exit code 0 and "not an ancestor" with
 	// exit code 1.
@@ -810,6 +869,10 @@ func (r *gitRepo) DescendsFrom(ctx context.Context, rev, tag string) (bool, erro
 		return false, err
 	}
 
+	if r.local { // at this point, we have determined that we need to fetch rev, fail early if local only mode.
+		return false, fmt.Errorf("revision does not exist locally: %s", rev)
+	}
+
 	// Now fetch history so that git can search for a path.
 	unlock, err := r.mu.Lock()
 	if err != nil {
@@ -827,7 +890,7 @@ func (r *gitRepo) DescendsFrom(ctx context.Context, rev, tag string) (bool, erro
 		}
 	}
 
-	_, err = Run(ctx, r.dir, "git", "merge-base", "--is-ancestor", "--", tag, rev)
+	_, err = r.runGit(ctx, "git", "merge-base", "--is-ancestor", "--", tag, rev)
 	if err == nil {
 		return true, nil
 	}
@@ -863,7 +926,7 @@ func (r *gitRepo) ReadZip(ctx context.Context, rev, subdir string, maxSize int64
 	// text file line endings. Setting -c core.autocrlf=input means only
 	// translate files on the way into the repo, not on the way out (archive).
 	// The -c core.eol=lf should be unnecessary but set it anyway.
-	archive, err := Run(ctx, r.dir, "git", "-c", "core.autocrlf=input", "-c", "core.eol=lf", "archive", "--format=zip", "--prefix=prefix/", info.Name, args)
+	archive, err := r.runGit(ctx, "git", "-c", "core.autocrlf=input", "-c", "core.eol=lf", "archive", "--format=zip", "--prefix=prefix/", info.Name, args)
 	if err != nil {
 		if bytes.Contains(err.(*RunError).Stderr, []byte("did not match any files")) {
 			return nil, fs.ErrNotExist
@@ -912,4 +975,14 @@ func ensureGitAttributes(repoDir string) (err error) {
 	}
 
 	return nil
+}
+
+func (r *gitRepo) runGit(ctx context.Context, cmdline ...any) ([]byte, error) {
+	args := RunArgs{cmdline: cmdline, dir: r.dir, local: r.local}
+	if !r.local {
+		// Manually supply GIT_DIR so Git works with safe.bareRepository=explicit set.
+		// This is necessary only for remote repositories as they are initialized with git init --bare.
+		args.env = []string{"GIT_DIR=" + r.dir}
+	}
+	return RunWithArgs(ctx, args)
 }

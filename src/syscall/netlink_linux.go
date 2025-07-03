@@ -36,7 +36,7 @@ func (rr *NetlinkRouteRequest) toWireFormat() []byte {
 	*(*uint16)(unsafe.Pointer(&b[6:8][0])) = rr.Header.Flags
 	*(*uint32)(unsafe.Pointer(&b[8:12][0])) = rr.Header.Seq
 	*(*uint32)(unsafe.Pointer(&b[12:16][0])) = rr.Header.Pid
-	b[16] = byte(rr.Data.Family)
+	b[16] = rr.Data.Family
 	return b
 }
 

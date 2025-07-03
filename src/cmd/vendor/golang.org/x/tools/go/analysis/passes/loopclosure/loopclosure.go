@@ -14,6 +14,9 @@ import (
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/typesinternal"
+	"golang.org/x/tools/internal/versions"
 )
 
 //go:embed doc.go
@@ -27,14 +30,19 @@ var Analyzer = &analysis.Analyzer{
 	Run:      run,
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
+		(*ast.File)(nil),
 		(*ast.RangeStmt)(nil),
 		(*ast.ForStmt)(nil),
 	}
-	inspect.Preorder(nodeFilter, func(n ast.Node) {
+	inspect.Nodes(nodeFilter, func(n ast.Node, push bool) bool {
+		if !push {
+			// inspect.Nodes is slightly suboptimal as we only use push=true.
+			return true
+		}
 		// Find the variables updated by the loop statement.
 		var vars []types.Object
 		addVar := func(expr ast.Expr) {
@@ -46,6 +54,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 		var body *ast.BlockStmt
 		switch n := n.(type) {
+		case *ast.File:
+			// Only traverse the file if its goversion is strictly before go1.22.
+			goversion := versions.FileVersion(pass.TypesInfo, n)
+			return versions.Before(goversion, versions.Go1_22)
 		case *ast.RangeStmt:
 			body = n.Body
 			addVar(n.Key)
@@ -64,7 +76,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			}
 		}
 		if vars == nil {
-			return
+			return true
 		}
 
 		// Inspect statements to find function literals that may be run outside of
@@ -76,7 +88,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		//
 		// TODO: consider allowing the "last" go/defer/Go statement to be followed by
 		// N "trivial" statements, possibly under a recursive definition of "trivial"
-		// so that that checker could, for example, conclude that a go statement is
+		// so that checker could, for example, conclude that a go statement is
 		// followed by an if statement made of only trivial statements and trivial expressions,
 		// and hence the go statement could still be checked.
 		forEachLastStmt(body.List, func(last ast.Stmt) {
@@ -113,6 +125,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				}
 			}
 		}
+		return true
 	})
 	return nil, nil
 }
@@ -355,24 +368,6 @@ func isMethodCall(info *types.Info, expr ast.Expr, pkgPath, typeName, method str
 
 	// Check that the receiver is a <pkgPath>.<typeName> or
 	// *<pkgPath>.<typeName>.
-	rtype := recv.Type()
-	if ptr, ok := recv.Type().(*types.Pointer); ok {
-		rtype = ptr.Elem()
-	}
-	named, ok := rtype.(*types.Named)
-	if !ok {
-		return false
-	}
-	if named.Obj().Name() != typeName {
-		return false
-	}
-	pkg := f.Pkg()
-	if pkg == nil {
-		return false
-	}
-	if pkg.Path() != pkgPath {
-		return false
-	}
-
-	return true
+	_, named := typesinternal.ReceiverNamed(recv)
+	return analysisinternal.IsTypeNamed(named, pkgPath, typeName)
 }

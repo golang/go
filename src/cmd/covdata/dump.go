@@ -325,13 +325,13 @@ func (d *dstate) Finish() {
 	// d.format maybe nil here if the specified input dir was empty.
 	if d.format != nil {
 		if d.cmd == percentMode {
-			d.format.EmitPercent(os.Stdout, "", false, false)
+			d.format.EmitPercent(os.Stdout, nil, "", false, false)
 		}
 		if d.cmd == funcMode {
 			d.format.EmitFuncs(os.Stdout)
 		}
 		if d.textfmtoutf != nil {
-			if err := d.format.EmitTextual(d.textfmtoutf); err != nil {
+			if err := d.format.EmitTextual(nil, d.textfmtoutf); err != nil {
 				fatal("writing to %s: %v", *textfmtoutflag, err)
 			}
 		}

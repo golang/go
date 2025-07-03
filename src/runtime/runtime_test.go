@@ -7,10 +7,17 @@ package runtime_test
 import (
 	"flag"
 	"fmt"
+	"internal/asan"
+	"internal/cpu"
+	"internal/msan"
+	"internal/race"
+	"internal/runtime/atomic"
+	"internal/testenv"
 	"io"
+	"math/bits"
 	. "runtime"
 	"runtime/debug"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -304,7 +311,7 @@ func TestTrailingZero(t *testing.T) {
 	}
 }
 
-func TestAppendGrowth(t *testing.T) {
+func TestAppendGrowthHeap(t *testing.T) {
 	var x []int64
 	check := func(want int) {
 		if cap(x) != want {
@@ -319,6 +326,32 @@ func TestAppendGrowth(t *testing.T) {
 		check(want)
 		if i&(i-1) == 0 {
 			want = 2 * i
+		}
+	}
+	Escape(&x[0]) // suppress stack-allocated backing store
+}
+
+func TestAppendGrowthStack(t *testing.T) {
+	if race.Enabled || asan.Enabled || msan.Enabled {
+		t.Skip("instrumentation breaks this optimization")
+	}
+	var x []int64
+	check := func(want int) {
+		if cap(x) != want {
+			t.Errorf("len=%d, cap=%d, want cap=%d", len(x), cap(x), want)
+		}
+	}
+
+	check(0)
+	want := 32 / 8 // 32 is the default for cmd/compile/internal/base.DebugFlags.VariableMakeThreshold
+	if testenv.OptimizationOff() {
+		want = 1
+	}
+	for i := 1; i <= 100; i++ {
+		x = append(x, 1)
+		check(want)
+		if i&(i-1) == 0 {
+			want = max(want, 2*i)
 		}
 	}
 }
@@ -382,9 +415,7 @@ func BenchmarkGoroutineProfile(b *testing.B) {
 			b.StopTimer()
 
 			// Sort latencies then report percentiles.
-			sort.Slice(latencies, func(i, j int) bool {
-				return latencies[i] < latencies[j]
-			})
+			slices.Sort(latencies)
 			b.ReportMetric(float64(latencies[len(latencies)*50/100]), "p50-ns")
 			b.ReportMetric(float64(latencies[len(latencies)*90/100]), "p90-ns")
 			b.ReportMetric(float64(latencies[len(latencies)*99/100]), "p99-ns")
@@ -540,4 +571,281 @@ func TestTimediv(t *testing.T) {
 			}
 		})
 	}
+}
+
+func BenchmarkProcYield(b *testing.B) {
+	benchN := func(n uint32) func(*testing.B) {
+		return func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				ProcYield(n)
+			}
+		}
+	}
+
+	b.Run("1", benchN(1))
+	b.Run("10", benchN(10))
+	b.Run("30", benchN(30)) // active_spin_cnt in lock_sema.go and lock_futex.go
+	b.Run("100", benchN(100))
+	b.Run("1000", benchN(1000))
+}
+
+func BenchmarkOSYield(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		OSYield()
+	}
+}
+
+func BenchmarkMutexContention(b *testing.B) {
+	// Measure throughput of a single mutex with all threads contending
+	//
+	// Share a single counter across all threads. Progress from any thread is
+	// progress for the benchmark as a whole. We don't measure or give points
+	// for fairness here, arbitrary delay to any given thread's progress is
+	// invisible and allowed.
+	//
+	// The cache line that holds the count value will need to move between
+	// processors, but not as often as the cache line that holds the mutex. The
+	// mutex protects access to the count value, which limits contention on that
+	// cache line. This is a simple design, but it helps to make the behavior of
+	// the benchmark clear. Most real uses of mutex will protect some number of
+	// cache lines anyway.
+
+	var state struct {
+		_     cpu.CacheLinePad
+		lock  Mutex
+		_     cpu.CacheLinePad
+		count atomic.Int64
+		_     cpu.CacheLinePad
+	}
+
+	procs := GOMAXPROCS(0)
+	var wg sync.WaitGroup
+	for range procs {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				Lock(&state.lock)
+				ours := state.count.Add(1)
+				Unlock(&state.lock)
+				if ours >= int64(b.N) {
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func BenchmarkMutexCapture(b *testing.B) {
+
+	// Measure mutex fairness.
+	//
+	// Have several threads contend for a single mutex value. Measure how
+	// effectively a single thread is able to capture the lock and report the
+	// duration of those "streak" events. Measure how long other individual
+	// threads need to wait between their turns with the lock. Report the
+	// duration of those "starve" events.
+	//
+	// Report in terms of wall clock time (assuming a constant time per
+	// lock/unlock pair) rather than number of locks/unlocks. This keeps
+	// timekeeping overhead out of the critical path, and avoids giving an
+	// advantage to lock/unlock implementations that take less time per
+	// operation.
+
+	var state struct {
+		_     cpu.CacheLinePad
+		lock  Mutex
+		_     cpu.CacheLinePad
+		count atomic.Int64
+		_     cpu.CacheLinePad
+	}
+
+	procs := GOMAXPROCS(0)
+	var wg sync.WaitGroup
+	histograms := make(chan [2][65]int)
+	for range procs {
+		wg.Add(1)
+		go func() {
+			var (
+				prev      int64
+				streak    int64
+				histogram [2][65]int
+			)
+			for {
+				Lock(&state.lock)
+				ours := state.count.Add(1)
+				Unlock(&state.lock)
+				delta := ours - prev - 1
+				prev = ours
+				if delta == 0 {
+					streak++
+				} else {
+					histogram[0][bits.LeadingZeros64(uint64(streak))]++
+					histogram[1][bits.LeadingZeros64(uint64(delta))]++
+					streak = 1
+				}
+				if ours >= int64(b.N) {
+					wg.Done()
+					if delta == 0 {
+						histogram[0][bits.LeadingZeros64(uint64(streak))]++
+						histogram[1][bits.LeadingZeros64(uint64(delta))]++
+					}
+					histograms <- histogram
+					return
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	b.StopTimer()
+
+	var histogram [2][65]int
+	for range procs {
+		h := <-histograms
+		for i := range h {
+			for j := range h[i] {
+				histogram[i][j] += h[i][j]
+			}
+		}
+	}
+
+	percentile := func(h [65]int, p float64) int {
+		sum := 0
+		for i, v := range h {
+			bound := uint64(1<<63) >> i
+			sum += int(bound) * v
+		}
+
+		// Imagine that the longest streak / starvation events were instead half
+		// as long but twice in number. (Note that we've pre-multiplied by the
+		// [lower] "bound" value.) Continue those splits until we meet the
+		// percentile target.
+		part := 0
+		for i, v := range h {
+			bound := uint64(1<<63) >> i
+			part += int(bound) * v
+			// have we trimmed off enough at the head to dip below the percentile goal
+			if float64(sum-part) < float64(sum)*p {
+				return int(bound)
+			}
+		}
+
+		return 0
+	}
+
+	perOp := float64(b.Elapsed().Nanoseconds()) / float64(b.N)
+	b.ReportMetric(perOp*float64(percentile(histogram[0], 1.0)), "ns/streak-p100")
+	b.ReportMetric(perOp*float64(percentile(histogram[0], 0.9)), "ns/streak-p90")
+	b.ReportMetric(perOp*float64(percentile(histogram[1], 1.0)), "ns/starve-p100")
+	b.ReportMetric(perOp*float64(percentile(histogram[1], 0.9)), "ns/starve-p90")
+}
+
+func BenchmarkMutexHandoff(b *testing.B) {
+	testcase := func(delay func(l *Mutex)) func(b *testing.B) {
+		return func(b *testing.B) {
+			if workers := 2; GOMAXPROCS(0) < workers {
+				b.Skipf("requires GOMAXPROCS >= %d", workers)
+			}
+
+			// Measure latency of mutex handoff between threads.
+			//
+			// Hand off a runtime.mutex between two threads, one running a
+			// "coordinator" goroutine and the other running a "worker"
+			// goroutine. We don't override the runtime's typical
+			// goroutine/thread mapping behavior.
+			//
+			// Measure the latency, starting when the coordinator enters a call
+			// to runtime.unlock and ending when the worker's call to
+			// runtime.lock returns. The benchmark can specify a "delay"
+			// function to simulate the length of the mutex-holder's critical
+			// section, including to arrange for the worker's thread to be in
+			// either the "spinning" or "sleeping" portions of the runtime.lock2
+			// implementation. Measurement starts after any such "delay".
+			//
+			// The two threads' goroutines communicate their current position to
+			// each other in a non-blocking way via the "turn" state.
+
+			var state struct {
+				_    cpu.CacheLinePad
+				lock Mutex
+				_    cpu.CacheLinePad
+				turn atomic.Int64
+				_    cpu.CacheLinePad
+			}
+
+			var delta atomic.Int64
+			var wg sync.WaitGroup
+
+			// coordinator:
+			//  - acquire the mutex
+			//  - set the turn to 2 mod 4, instructing the worker to begin its Lock call
+			//  - wait until the mutex is contended
+			//  - wait a bit more so the worker can commit to its sleep
+			//  - release the mutex and wait for it to be our turn (0 mod 4) again
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				var t int64
+				for range b.N {
+					Lock(&state.lock)
+					state.turn.Add(2)
+					delay(&state.lock)
+					t -= Nanotime() // start the timer
+					Unlock(&state.lock)
+					for state.turn.Load()&0x2 != 0 {
+					}
+				}
+				state.turn.Add(1)
+				delta.Add(t)
+			}()
+
+			// worker:
+			//  - wait until its our turn (2 mod 4)
+			//  - acquire and release the mutex
+			//  - switch the turn counter back to the coordinator (0 mod 4)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				var t int64
+				for {
+					switch state.turn.Load() & 0x3 {
+					case 0:
+					case 1, 3:
+						delta.Add(t)
+						return
+					case 2:
+						Lock(&state.lock)
+						t += Nanotime() // stop the timer
+						Unlock(&state.lock)
+						state.turn.Add(2)
+					}
+				}
+			}()
+
+			wg.Wait()
+			b.ReportMetric(float64(delta.Load())/float64(b.N), "ns/op")
+		}
+	}
+
+	b.Run("Solo", func(b *testing.B) {
+		var lock Mutex
+		for range b.N {
+			Lock(&lock)
+			Unlock(&lock)
+		}
+	})
+
+	b.Run("FastPingPong", testcase(func(l *Mutex) {}))
+	b.Run("SlowPingPong", testcase(func(l *Mutex) {
+		// Wait for the worker to stop spinning and prepare to sleep
+		for !MutexContended(l) {
+		}
+		// Wait a bit longer so the OS can finish committing the worker to its
+		// sleep. Balance consistency against getting enough iterations.
+		const extraNs = 10e3
+		for t0 := Nanotime(); Nanotime()-t0 < extraNs; {
+		}
+	}))
 }

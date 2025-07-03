@@ -31,7 +31,7 @@ var (
 func _() {
 	_ = nil == nil // ERROR "operator == not defined on untyped nil"
 	_ = b == b
-	_ = a /* ERROR "[10]func() cannot be compared" */ == a
+	_ = a /* ERROR "A cannot be compared" */ == a
 	_ = l /* ERROR "slice can only be compared to nil" */ == l
 	_ = s /* ERROR "struct containing []byte cannot be compared" */ == s
 	_ = p == p
@@ -108,13 +108,13 @@ func _[
 	_ = c == nil
 
 	_ = b < b
-	_ = a /* ERROR "type parameter A is not comparable with <" */ < a
-	_ = l /* ERROR "type parameter L is not comparable with <" */ < l
-	_ = s /* ERROR "type parameter S is not comparable with <" */ < s
-	_ = p /* ERROR "type parameter P is not comparable with <" */ < p
-	_ = f /* ERROR "type parameter F is not comparable with <" */ < f
-	_ = i /* ERROR "type parameter I is not comparable with <" */ < i
-	_ = j /* ERROR "type parameter J is not comparable with <" */ < j
-	_ = m /* ERROR "type parameter M is not comparable with <" */ < m
-	_ = c /* ERROR "type parameter C is not comparable with <" */ < c
+	_ = a /* ERROR "type parameter A cannot use operator <" */ < a
+	_ = l /* ERROR "type parameter L cannot use operator <" */ < l
+	_ = s /* ERROR "type parameter S cannot use operator <" */ < s
+	_ = p /* ERROR "type parameter P cannot use operator <" */ < p
+	_ = f /* ERROR "type parameter F cannot use operator <" */ < f
+	_ = i /* ERROR "type parameter I cannot use operator <" */ < i
+	_ = j /* ERROR "type parameter J cannot use operator <" */ < j
+	_ = m /* ERROR "type parameter M cannot use operator <" */ < m
+	_ = c /* ERROR "type parameter C cannot use operator <" */ < c
 }

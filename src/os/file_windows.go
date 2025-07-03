@@ -6,10 +6,13 @@ package os
 
 import (
 	"errors"
+	"internal/filepathlite"
+	"internal/godebug"
 	"internal/poll"
 	"internal/syscall/windows"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"unsafe"
 )
@@ -19,37 +22,41 @@ const _UTIME_OMIT = -1
 
 // file is the real representation of *File.
 // The extra level of indirection ensures that no clients of os
-// can overwrite this data, which could cause the finalizer
+// can overwrite this data, which could cause the cleanup
 // to close the wrong file descriptor.
 type file struct {
 	pfd        poll.FD
 	name       string
-	dirinfo    *dirInfo // nil unless directory being read
-	appendMode bool     // whether file is opened for appending
+	dirinfo    atomic.Pointer[dirInfo] // nil unless directory being read
+	appendMode bool                    // whether file is opened for appending
+	cleanup    runtime.Cleanup         // cleanup closes the file when no longer referenced
 }
 
-// Fd returns the Windows handle referencing the open file.
-// If f is closed, the file descriptor becomes invalid.
-// If f is garbage collected, a finalizer may close the file descriptor,
-// making it invalid; see runtime.SetFinalizer for more information on when
-// a finalizer might be run. On Unix systems this will cause the SetDeadline
-// methods to stop working.
-func (file *File) Fd() uintptr {
+// fd is the Windows implementation of Fd.
+func (file *File) fd() uintptr {
 	if file == nil {
 		return uintptr(syscall.InvalidHandle)
 	}
+	// Try to disassociate the file from the runtime poller.
+	// File.Fd doesn't return an error, so we don't have a way to
+	// report it. We just ignore it. It's up to the caller to call
+	// it when there are no concurrent IO operations.
+	_ = file.pfd.DisassociateIOCP()
 	return uintptr(file.pfd.Sysfd)
 }
 
 // newFile returns a new File with the given file handle and name.
 // Unlike NewFile, it does not check that h is syscall.InvalidHandle.
-func newFile(h syscall.Handle, name string, kind string) *File {
+// If nonBlocking is true, it tries to add the file to the runtime poller.
+func newFile(h syscall.Handle, name string, kind string, nonBlocking bool) *File {
 	if kind == "file" {
-		var m uint32
-		if syscall.GetConsoleMode(h, &m) == nil {
-			kind = "console"
-		}
-		if t, err := syscall.GetFileType(h); err == nil && t == syscall.FILE_TYPE_PIPE {
+		t, err := syscall.GetFileType(h)
+		if err != nil || t == syscall.FILE_TYPE_CHAR {
+			var m uint32
+			if syscall.GetConsoleMode(h, &m) == nil {
+				kind = "console"
+			}
+		} else if t == syscall.FILE_TYPE_PIPE {
 			kind = "pipe"
 		}
 	}
@@ -62,29 +69,39 @@ func newFile(h syscall.Handle, name string, kind string) *File {
 		},
 		name: name,
 	}}
-	runtime.SetFinalizer(f.file, (*file).close)
+	f.cleanup = runtime.AddCleanup(f, func(f *file) { f.close() }, f.file)
 
 	// Ignore initialization errors.
 	// Assume any problems will show up in later I/O.
-	f.pfd.Init(kind, false)
-
+	f.pfd.Init(kind, nonBlocking)
 	return f
 }
 
 // newConsoleFile creates new File that will be used as console.
 func newConsoleFile(h syscall.Handle, name string) *File {
-	return newFile(h, name, "console")
+	return newFile(h, name, "console", false)
 }
 
-// NewFile returns a new File with the given file descriptor and
-// name. The returned value will be nil if fd is not a valid file
-// descriptor.
-func NewFile(fd uintptr, name string) *File {
+// newFileFromNewFile is called by [NewFile].
+func newFileFromNewFile(fd uintptr, name string) *File {
 	h := syscall.Handle(fd)
 	if h == syscall.InvalidHandle {
 		return nil
 	}
-	return newFile(h, name, "file")
+	nonBlocking, _ := windows.IsNonblock(syscall.Handle(fd))
+	return newFile(h, name, "file", nonBlocking)
+}
+
+// net_newWindowsFile is a hidden entry point called by net.conn.File.
+// This is used so that the File.pfd.close method calls [syscall.Closesocket]
+// instead of [syscall.CloseHandle].
+//
+//go:linkname net_newWindowsFile net.newWindowsFile
+func net_newWindowsFile(h syscall.Handle, name string) *File {
+	if h == syscall.InvalidHandle {
+		panic("invalid FD")
+	}
+	return newFile(h, name, "file+net", true)
 }
 
 func epipecheck(file *File, e error) {
@@ -100,35 +117,24 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 		return nil, &PathError{Op: "open", Path: name, Err: syscall.ENOENT}
 	}
 	path := fixLongPath(name)
-	r, e := syscall.Open(path, flag|syscall.O_CLOEXEC, syscallMode(perm))
-	if e != nil {
-		// We should return EISDIR when we are trying to open a directory with write access.
-		if e == syscall.ERROR_ACCESS_DENIED && (flag&O_WRONLY != 0 || flag&O_RDWR != 0) {
-			pathp, e1 := syscall.UTF16PtrFromString(path)
-			if e1 == nil {
-				var fa syscall.Win32FileAttributeData
-				e1 = syscall.GetFileAttributesEx(pathp, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
-				if e1 == nil && fa.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
-					e = syscall.EISDIR
-				}
-			}
-		}
-		return nil, &PathError{Op: "open", Path: name, Err: e}
+	r, err := syscall.Open(path, flag|syscall.O_CLOEXEC, syscallMode(perm))
+	if err != nil {
+		return nil, &PathError{Op: "open", Path: name, Err: err}
 	}
-	f, e := newFile(r, name, "file"), nil
-	if e != nil {
-		return nil, &PathError{Op: "open", Path: name, Err: e}
-	}
-	return f, nil
+	// syscall.Open always returns a non-blocking handle.
+	return newFile(r, name, "file", false), nil
+}
+
+func openDirNolog(name string) (*File, error) {
+	return openFileNolog(name, O_RDONLY, 0)
 }
 
 func (file *file) close() error {
 	if file == nil {
 		return syscall.EINVAL
 	}
-	if file.dirinfo != nil {
-		file.dirinfo.close()
-		file.dirinfo = nil
+	if info := file.dirinfo.Swap(nil); info != nil {
+		info.close()
 	}
 	var err error
 	if e := file.pfd.Close(); e != nil {
@@ -138,8 +144,9 @@ func (file *file) close() error {
 		err = &PathError{Op: "close", Path: file.name, Err: e}
 	}
 
-	// no need for a finalizer anymore
-	runtime.SetFinalizer(file, nil)
+	// There is no need for a cleanup at this point. File must be alive at the point
+	// where cleanup.stop is called.
+	file.cleanup.Stop()
 	return err
 }
 
@@ -148,11 +155,10 @@ func (file *file) close() error {
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
 func (f *File) seek(offset int64, whence int) (ret int64, err error) {
-	if f.dirinfo != nil {
+	if info := f.dirinfo.Swap(nil); info != nil {
 		// Free cached dirinfo, so we allocate a new one if we
 		// access this file as a directory again. See #35767 and #37161.
-		f.dirinfo.close()
-		f.dirinfo = nil
+		info.close()
 	}
 	ret, err = f.pfd.Seek(offset, whence)
 	runtime.KeepAlive(f)
@@ -175,7 +181,7 @@ func Truncate(name string, size int64) error {
 }
 
 // Remove removes the named file or directory.
-// If there is an error, it will be of type *PathError.
+// If there is an error, it will be of type [*PathError].
 func Remove(name string) error {
 	p, e := syscall.UTF16PtrFromString(fixLongPath(name))
 	if e != nil {
@@ -230,20 +236,17 @@ func Pipe() (r *File, w *File, err error) {
 	if e != nil {
 		return nil, nil, NewSyscallError("pipe", e)
 	}
-	return newFile(p[0], "|0", "pipe"), newFile(p[1], "|1", "pipe"), nil
+	// syscall.Pipe always returns a non-blocking handle.
+	return newFile(p[0], "|0", "pipe", false), newFile(p[1], "|1", "pipe", false), nil
 }
 
-var (
-	useGetTempPath2Once sync.Once
-	useGetTempPath2     bool
-)
+var useGetTempPath2 = sync.OnceValue(func() bool {
+	return windows.ErrorLoadingGetTempPath2() == nil
+})
 
 func tempDir() string {
-	useGetTempPath2Once.Do(func() {
-		useGetTempPath2 = (windows.ErrorLoadingGetTempPath2() == nil)
-	})
 	getTempPath := syscall.GetTempPath
-	if useGetTempPath2 {
+	if useGetTempPath2() {
 		getTempPath = windows.GetTempPath2
 	}
 	n := uint32(syscall.MAX_PATH)
@@ -287,14 +290,14 @@ func Link(oldname, newname string) error {
 // If there is an error, it will be of type *LinkError.
 func Symlink(oldname, newname string) error {
 	// '/' does not work in link's content
-	oldname = fromSlash(oldname)
+	oldname = filepathlite.FromSlash(oldname)
 
 	// need the exact location of the oldname when it's relative to determine if it's a directory
 	destpath := oldname
-	if v := volumeName(oldname); v == "" {
+	if v := filepathlite.VolumeName(oldname); v == "" {
 		if len(oldname) > 0 && IsPathSeparator(oldname[0]) {
 			// oldname is relative to the volume containing newname.
-			if v = volumeName(newname); v != "" {
+			if v = filepathlite.VolumeName(newname); v != "" {
 				// Prepend the volume explicitly, because it may be different from the
 				// volume of the current working directory.
 				destpath = v + oldname
@@ -312,7 +315,18 @@ func Symlink(oldname, newname string) error {
 	if err != nil {
 		return &LinkError{"symlink", oldname, newname, err}
 	}
-	o, err := syscall.UTF16PtrFromString(fixLongPath(oldname))
+	var o *uint16
+	if filepathlite.IsAbs(oldname) {
+		o, err = syscall.UTF16PtrFromString(fixLongPath(oldname))
+	} else {
+		// Do not use fixLongPath on oldname for relative symlinks,
+		// as it would turn the name into an absolute path thus making
+		// an absolute symlink instead.
+		// Notice that CreateSymbolicLinkW does not fail for relative
+		// symlinks beyond MAX_PATH, so this does not prevent the
+		// creation of an arbitrary long path name.
+		o, err = syscall.UTF16PtrFromString(oldname)
+	}
 	if err != nil {
 		return &LinkError{"symlink", oldname, newname, err}
 	}
@@ -353,6 +367,8 @@ func openSymlink(path string) (syscall.Handle, error) {
 	return h, nil
 }
 
+var winreadlinkvolume = godebug.New("winreadlinkvolume")
+
 // normaliseLinkPath converts absolute paths returned by
 // DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, ...)
 // into paths acceptable by all Windows APIs.
@@ -360,7 +376,7 @@ func openSymlink(path string) (syscall.Handle, error) {
 //
 //	\??\C:\foo\bar into C:\foo\bar
 //	\??\UNC\foo\bar into \\foo\bar
-//	\??\Volume{abc}\ into C:\
+//	\??\Volume{abc}\ into \\?\Volume{abc}\
 func normaliseLinkPath(path string) (string, error) {
 	if len(path) < 4 || path[:4] != `\??\` {
 		// unexpected path, return it as is
@@ -375,7 +391,11 @@ func normaliseLinkPath(path string) (string, error) {
 		return `\\` + s[4:], nil
 	}
 
-	// handle paths, like \??\Volume{abc}\...
+	// \??\Volume{abc}\
+	if winreadlinkvolume.Value() != "0" {
+		return `\\?\` + path[4:], nil
+	}
+	winreadlinkvolume.IncNonDefault()
 
 	h, err := openSymlink(path)
 	if err != nil {
@@ -406,16 +426,19 @@ func normaliseLinkPath(path string) (string, error) {
 	return "", errors.New("GetFinalPathNameByHandle returned unexpected path: " + s)
 }
 
-func readlink(path string) (string, error) {
+func readReparseLink(path string) (string, error) {
 	h, err := openSymlink(path)
 	if err != nil {
 		return "", err
 	}
 	defer syscall.CloseHandle(h)
+	return readReparseLinkHandle(h)
+}
 
+func readReparseLinkHandle(h syscall.Handle) (string, error) {
 	rdbbuf := make([]byte, syscall.MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
 	var bytesReturned uint32
-	err = syscall.DeviceIoControl(h, syscall.FSCTL_GET_REPARSE_POINT, nil, 0, &rdbbuf[0], uint32(len(rdbbuf)), &bytesReturned, nil)
+	err := syscall.DeviceIoControl(h, syscall.FSCTL_GET_REPARSE_POINT, nil, 0, &rdbbuf[0], uint32(len(rdbbuf)), &bytesReturned, nil)
 	if err != nil {
 		return "", err
 	}
@@ -438,10 +461,8 @@ func readlink(path string) (string, error) {
 	}
 }
 
-// Readlink returns the destination of the named symbolic link.
-// If there is an error, it will be of type *PathError.
-func Readlink(name string) (string, error) {
-	s, err := readlink(fixLongPath(name))
+func readlink(name string) (string, error) {
+	s, err := readReparseLink(fixLongPath(name))
 	if err != nil {
 		return "", &PathError{Op: "readlink", Path: name, Err: err}
 	}

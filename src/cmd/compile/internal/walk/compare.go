@@ -192,8 +192,18 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		// is handled by walkCompare.
 		fn, needsLength := reflectdata.EqFor(t)
 		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
-		call.Args.Append(typecheck.NodAddr(cmpl))
-		call.Args.Append(typecheck.NodAddr(cmpr))
+		addrCmpl := typecheck.NodAddr(cmpl)
+		addrCmpR := typecheck.NodAddr(cmpr)
+		if !types.IsNoRacePkg(types.LocalPkg) && base.Flag.Race {
+			ptrL := typecheck.Conv(typecheck.Conv(addrCmpl, types.Types[types.TUNSAFEPTR]), types.Types[types.TUINTPTR])
+			ptrR := typecheck.Conv(typecheck.Conv(addrCmpR, types.Types[types.TUNSAFEPTR]), types.Types[types.TUINTPTR])
+			raceFn := typecheck.LookupRuntime("racereadrange")
+			size := ir.NewInt(base.Pos, t.Size())
+			call.PtrInit().Append(mkcall1(raceFn, nil, init, ptrL, size))
+			call.PtrInit().Append(mkcall1(raceFn, nil, init, ptrR, size))
+		}
+		call.Args.Append(addrCmpl)
+		call.Args.Append(addrCmpR)
 		if needsLength {
 			call.Args.Append(ir.NewInt(base.Pos, t.Size()))
 		}
@@ -307,8 +317,17 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 }
 
 func walkCompareInterface(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+	swap := n.X.Op() != ir.OCONVIFACE && n.Y.Op() == ir.OCONVIFACE
 	n.Y = cheapExpr(n.Y, init)
 	n.X = cheapExpr(n.X, init)
+	if swap {
+		// Put the concrete type first in the comparison.
+		// This passes a constant type (itab) to efaceeq (ifaceeq)
+		// which is easier to match against in rewrite rules.
+		// See issue 70738.
+		n.X, n.Y = n.Y, n.X
+	}
+
 	eqtab, eqdata := compare.EqInterface(n.X, n.Y)
 	var cmp ir.Node
 	if n.Op() == ir.OEQ {

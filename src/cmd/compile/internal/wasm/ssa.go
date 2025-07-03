@@ -169,7 +169,7 @@ func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {
 
 func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
-	case ssa.BlockPlain:
+	case ssa.BlockPlain, ssa.BlockDefer:
 		if next != b.Succs[0].Block() {
 			s.Br(obj.AJMP, b.Succs[0].Block())
 		}
@@ -202,18 +202,6 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 		s.Prog(obj.ARET)
 
 	case ssa.BlockExit, ssa.BlockRetJmp:
-
-	case ssa.BlockDefer:
-		p := s.Prog(wasm.AGet)
-		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: wasm.REG_RET0}
-		s.Prog(wasm.AI64Eqz)
-		s.Prog(wasm.AI32Eqz)
-		s.Prog(wasm.AIf)
-		s.Br(obj.AJMP, b.Succs[1].Block())
-		s.Prog(wasm.AEnd)
-		if next != b.Succs[0].Block() {
-			s.Br(obj.AJMP, b.Succs[0].Block())
-		}
 
 	default:
 		panic("unexpected block")

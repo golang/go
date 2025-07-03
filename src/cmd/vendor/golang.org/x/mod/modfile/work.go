@@ -6,7 +6,7 @@ package modfile
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -14,6 +14,7 @@ import (
 type WorkFile struct {
 	Go        *Go
 	Toolchain *Toolchain
+	Godebug   []*Godebug
 	Use       []*Use
 	Replace   []*Replace
 
@@ -68,7 +69,7 @@ func ParseWork(file string, data []byte, fix VersionFixer) (*WorkFile, error) {
 					Err:      fmt.Errorf("unknown block type: %s", strings.Join(x.Token, " ")),
 				})
 				continue
-			case "use", "replace":
+			case "godebug", "use", "replace":
 				for _, l := range x.Line {
 					f.add(&errs, l, x.Token[0], l.Token, fix)
 				}
@@ -184,6 +185,55 @@ func (f *WorkFile) DropToolchainStmt() {
 	}
 }
 
+// AddGodebug sets the first godebug line for key to value,
+// preserving any existing comments for that line and removing all
+// other godebug lines for key.
+//
+// If no line currently exists for key, AddGodebug adds a new line
+// at the end of the last godebug block.
+func (f *WorkFile) AddGodebug(key, value string) error {
+	need := true
+	for _, g := range f.Godebug {
+		if g.Key == key {
+			if need {
+				g.Value = value
+				f.Syntax.updateLine(g.Syntax, "godebug", key+"="+value)
+				need = false
+			} else {
+				g.Syntax.markRemoved()
+				*g = Godebug{}
+			}
+		}
+	}
+
+	if need {
+		f.addNewGodebug(key, value)
+	}
+	return nil
+}
+
+// addNewGodebug adds a new godebug key=value line at the end
+// of the last godebug block, regardless of any existing godebug lines for key.
+func (f *WorkFile) addNewGodebug(key, value string) {
+	line := f.Syntax.addLine(nil, "godebug", key+"="+value)
+	g := &Godebug{
+		Key:    key,
+		Value:  value,
+		Syntax: line,
+	}
+	f.Godebug = append(f.Godebug, g)
+}
+
+func (f *WorkFile) DropGodebug(key string) error {
+	for _, g := range f.Godebug {
+		if g.Key == key {
+			g.Syntax.markRemoved()
+			*g = Godebug{}
+		}
+	}
+	return nil
+}
+
 func (f *WorkFile) AddUse(diskPath, modulePath string) error {
 	need := true
 	for _, d := range f.Use {
@@ -265,9 +315,7 @@ func (f *WorkFile) SortBlocks() {
 		if !ok {
 			continue
 		}
-		sort.SliceStable(block.Line, func(i, j int) bool {
-			return lineLess(block.Line[i], block.Line[j])
-		})
+		slices.SortStableFunc(block.Line, compareLine)
 	}
 }
 
@@ -281,5 +329,5 @@ func (f *WorkFile) SortBlocks() {
 // retract directives are not de-duplicated since comments are
 // meaningful, and versions may be retracted multiple times.
 func (f *WorkFile) removeDups() {
-	removeDups(f.Syntax, nil, &f.Replace)
+	removeDups(f.Syntax, nil, &f.Replace, nil, nil)
 }

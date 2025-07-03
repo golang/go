@@ -25,13 +25,17 @@ import (
 // the site, and "ID" is a numeric ID for the site within its
 // containing function.
 type CallSite struct {
-	Callee    *ir.Func
-	Call      *ir.CallExpr
-	Assign    ir.Node
-	Flags     CSPropBits
+	Callee *ir.Func
+	Call   *ir.CallExpr
+	parent *CallSite
+	Assign ir.Node
+	Flags  CSPropBits
+
+	ArgProps  []ActualExprPropBits
 	Score     int
 	ScoreMask scoreAdjustTyp
 	ID        uint
+	aux       uint8
 }
 
 // CallSiteTab is a table of call sites, keyed by call expr.
@@ -41,20 +45,16 @@ type CallSite struct {
 // with many calls that share the same auto-generated pos.
 type CallSiteTab map[*ir.CallExpr]*CallSite
 
-// Package-level table of callsites.
-var cstab = CallSiteTab{}
+// ActualExprPropBits describes a property of an actual expression (value
+// passed to some specific func argument at a call site).
+type ActualExprPropBits uint8
 
-func GetCallSiteScore(ce *ir.CallExpr) (bool, int) {
-	cs, ok := cstab[ce]
-	if !ok {
-		return false, 0
-	}
-	return true, cs.Score
-}
-
-func CallSiteTable() CallSiteTab {
-	return cstab
-}
+const (
+	ActualExprConstant ActualExprPropBits = 1 << iota
+	ActualExprIsConcreteConvIface
+	ActualExprIsFunc
+	ActualExprIsInlinableFunc
+)
 
 type CSPropBits uint32
 
@@ -62,6 +62,12 @@ const (
 	CallSiteInLoop CSPropBits = 1 << iota
 	CallSiteOnPanicPath
 	CallSiteInInitFunc
+)
+
+type csAuxBits uint8
+
+const (
+	csAuxInlined = 1 << iota
 )
 
 // encodedCallSiteTab is a table keyed by "encoded" callsite
@@ -94,7 +100,7 @@ func fmtFullPos(p src.XPos) string {
 	var sb strings.Builder
 	sep := ""
 	base.Ctxt.AllPos(p, func(pos src.Pos) {
-		fmt.Fprintf(&sb, sep)
+		sb.WriteString(sep)
 		sep = "|"
 		file := filepath.Base(pos.Filename())
 		fmt.Fprintf(&sb, "%s:%d:%d", file, pos.Line(), pos.Col())

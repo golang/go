@@ -135,7 +135,7 @@ func (r *PipeReader) Read(data []byte) (n int, err error) {
 }
 
 // Close closes the reader; subsequent writes to the
-// write half of the pipe will return the error ErrClosedPipe.
+// write half of the pipe will return the error [ErrClosedPipe].
 func (r *PipeReader) Close() error {
 	return r.CloseWithError(nil)
 }
@@ -156,7 +156,7 @@ type PipeWriter struct{ r PipeReader }
 // it writes data to the pipe, blocking until one or more readers
 // have consumed all the data or the read end is closed.
 // If the read end is closed with an error, that err is
-// returned as err; otherwise err is ErrClosedPipe.
+// returned as err; otherwise err is [ErrClosedPipe].
 func (w *PipeWriter) Write(data []byte) (n int, err error) {
 	return w.r.pipe.write(data)
 }
@@ -178,13 +178,13 @@ func (w *PipeWriter) CloseWithError(err error) error {
 }
 
 // Pipe creates a synchronous in-memory pipe.
-// It can be used to connect code expecting an io.Reader
-// with code expecting an io.Writer.
+// It can be used to connect code expecting an [io.Reader]
+// with code expecting an [io.Writer].
 //
 // Reads and Writes on the pipe are matched one to one
 // except when multiple Reads are needed to consume a single Write.
-// That is, each Write to the PipeWriter blocks until it has satisfied
-// one or more Reads from the PipeReader that fully consume
+// That is, each Write to the [PipeWriter] blocks until it has satisfied
+// one or more Reads from the [PipeReader] that fully consume
 // the written data.
 // The data is copied directly from the Write to the corresponding
 // Read (or Reads); there is no internal buffering.

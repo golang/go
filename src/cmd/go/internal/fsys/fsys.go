@@ -2,23 +2,30 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package fsys is an abstraction for reading files that
-// allows for virtual overlays on top of the files on disk.
+// Package fsys implements a virtual file system that the go command
+// uses to read source file trees. The virtual file system redirects some
+// OS file paths to other OS file paths, according to an overlay file.
+// Editors can use this overlay support to invoke the go command on
+// temporary files that have been edited but not yet saved into their
+// final locations.
 package fsys
 
 import (
+	"cmd/go/internal/str"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"internal/godebug"
+	"io"
 	"io/fs"
+	"iter"
 	"log"
+	"maps"
 	"os"
 	pathpkg "path"
 	"path/filepath"
-	"runtime"
 	"runtime/debug"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -70,43 +77,75 @@ func init() {
 	}
 }
 
-// OverlayFile is the path to a text file in the OverlayJSON format.
-// It is the value of the -overlay flag.
+// OverlayFile is the -overlay flag value.
+// It names a file containing the JSON for an overlayJSON struct.
 var OverlayFile string
 
-// OverlayJSON is the format overlay files are expected to be in.
-// The Replace map maps from overlaid paths to replacement paths:
-// the Go command will forward all reads trying to open
-// each overlaid path to its replacement path, or consider the overlaid
-// path not to exist if the replacement path is empty.
-type OverlayJSON struct {
+// overlayJSON is the format for the -overlay file.
+type overlayJSON struct {
+	// Replace maps file names observed by Go tools
+	// to the actual files that should be used when those are read.
+	// If the actual name is "", the file should appear to be deleted.
 	Replace map[string]string
 }
 
-type node struct {
-	actualFilePath string           // empty if a directory
-	children       map[string]*node // path element → file or directory
+// overlay is a list of replacements to be applied, sorted by cmp of the from field.
+// cmp sorts the filepath.Separator less than any other byte so that x is always
+// just before any children x/a, x/b, and so on, before x.go. (This would not
+// be the case with byte-wise sorting, which would produce x, x.go, x/a.)
+// The sorting lets us find the relevant overlay entry quickly even if it is for a
+// parent of the path being searched.
+var overlay []replace
+
+// A replace represents a single replaced path.
+type replace struct {
+	// from is the old path being replaced.
+	// It is an absolute path returned by abs.
+	from string
+
+	// to is the replacement for the old path.
+	// It is an absolute path returned by abs.
+	// If it is the empty string, the old path appears deleted.
+	// Otherwise the old path appears to be the file named by to.
+	// If to ends in a trailing slash, the overlay code below treats
+	// it as a directory replacement, akin to a bind mount.
+	// However, our processing of external overlay maps removes
+	// such paths by calling abs, except for / or C:\.
+	to string
 }
 
-func (n *node) isDir() bool {
-	return n.actualFilePath == "" && n.children != nil
+var binds []replace
+
+// Bind makes the virtual file system use dir as if it were mounted at mtpt,
+// like Plan 9's “bind” or Linux's “mount --bind”, or like os.Symlink
+// but without the symbolic link.
+//
+// For now, the behavior of using Bind on multiple overlapping
+// mountpoints (for example Bind("x", "/a") and Bind("y", "/a/b"))
+// is undefined.
+func Bind(dir, mtpt string) {
+	if dir == "" || mtpt == "" {
+		panic("Bind of empty directory")
+	}
+	binds = append(binds, replace{abs(mtpt), abs(dir)})
 }
 
-func (n *node) isDeleted() bool {
-	return n.actualFilePath == "" && n.children == nil
+// cwd returns the current directory, caching it on first use.
+var cwd = sync.OnceValue(cwdOnce)
+
+func cwdOnce() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		// Note: cannot import base, so using log.Fatal.
+		log.Fatalf("cannot determine current directory: %v", err)
+	}
+	return wd
 }
 
-// TODO(matloob): encapsulate these in an io/fs-like interface
-var overlay map[string]*node // path -> file or directory node
-var cwd string               // copy of base.Cwd() to avoid dependency
-
-// canonicalize a path for looking it up in the overlay.
-// Important: filepath.Join(cwd, path) doesn't always produce
-// the correct absolute path if path is relative, because on
-// Windows producing the correct absolute path requires making
-// a syscall. So this should only be used when looking up paths
-// in the overlay, or canonicalizing the paths in the overlay.
-func canonicalize(path string) string {
+// abs returns the absolute form of path, for looking up in the overlay map.
+// For the most part, this is filepath.Abs and filepath.Clean,
+// except that Windows requires special handling, as always.
+func abs(path string) string {
 	if path == "" {
 		return ""
 	}
@@ -114,27 +153,198 @@ func canonicalize(path string) string {
 		return filepath.Clean(path)
 	}
 
-	if v := filepath.VolumeName(cwd); v != "" && path[0] == filepath.Separator {
-		// On Windows filepath.Join(cwd, path) doesn't always work. In general
-		// filepath.Abs needs to make a syscall on Windows. Elsewhere in cmd/go
-		// use filepath.Join(cwd, path), but cmd/go specifically supports Windows
-		// paths that start with "\" which implies the path is relative to the
-		// volume of the working directory. See golang.org/issue/8130.
-		return filepath.Join(v, path)
+	dir := cwd()
+	if vol := filepath.VolumeName(dir); vol != "" && (path[0] == '\\' || path[0] == '/') {
+		// path is volume-relative, like `\Temp`.
+		// Connect to volume name to make absolute path.
+		// See go.dev/issue/8130.
+		return filepath.Join(vol, path)
 	}
 
-	// Make the path absolute.
-	return filepath.Join(cwd, path)
+	return filepath.Join(dir, path)
+}
+
+func searchcmp(r replace, t string) int {
+	return cmp(r.from, t)
+}
+
+// info is a summary of the known information about a path
+// being looked up in the virtual file system.
+type info struct {
+	abs      string
+	deleted  bool
+	replaced bool
+	dir      bool // must be dir
+	file     bool // must be file
+	actual   string
+}
+
+// stat returns info about the path in the virtual file system.
+func stat(path string) info {
+	apath := abs(path)
+	if path == "" {
+		return info{abs: apath, actual: path}
+	}
+
+	// Apply bind replacements before applying overlay.
+	replaced := false
+	for _, r := range binds {
+		if str.HasFilePathPrefix(apath, r.from) {
+			// apath is below r.from.
+			// Replace prefix with r.to and fall through to overlay.
+			apath = r.to + apath[len(r.from):]
+			path = apath
+			replaced = true
+			break
+		}
+		if str.HasFilePathPrefix(r.from, apath) {
+			// apath is above r.from.
+			// Synthesize a directory in case one does not exist.
+			return info{abs: apath, replaced: true, dir: true, actual: path}
+		}
+	}
+
+	// Binary search for apath to find the nearest relevant entry in the overlay.
+	i, ok := slices.BinarySearchFunc(overlay, apath, searchcmp)
+	if ok {
+		// Exact match; overlay[i].from == apath.
+		r := overlay[i]
+		if r.to == "" {
+			// Deleted.
+			return info{abs: apath, deleted: true}
+		}
+		if strings.HasSuffix(r.to, string(filepath.Separator)) {
+			// Replacement ends in slash, denoting directory.
+			// Note that this is impossible in current overlays since we call abs
+			// and it strips the trailing slashes. But we could support it in the future.
+			return info{abs: apath, replaced: true, dir: true, actual: path}
+		}
+		// Replaced file.
+		return info{abs: apath, replaced: true, file: true, actual: r.to}
+	}
+	if i < len(overlay) && str.HasFilePathPrefix(overlay[i].from, apath) {
+		// Replacement for child path; infer existence of parent directory.
+		return info{abs: apath, replaced: true, dir: true, actual: path}
+	}
+	if i > 0 && str.HasFilePathPrefix(apath, overlay[i-1].from) {
+		// Replacement for parent.
+		r := overlay[i-1]
+		if strings.HasSuffix(r.to, string(filepath.Separator)) {
+			// Parent replaced by directory; apply replacement in our path.
+			// Note that this is impossible in current overlays since we call abs
+			// and it strips the trailing slashes. But we could support it in the future.
+			p := r.to + apath[len(r.from)+1:]
+			return info{abs: apath, replaced: true, actual: p}
+		}
+		// Parent replaced by file; path is deleted.
+		return info{abs: apath, deleted: true}
+	}
+	return info{abs: apath, replaced: replaced, actual: path}
+}
+
+// children returns a sequence of (name, info)
+// for all the children of the directory i
+// implied by the overlay.
+func (i *info) children() iter.Seq2[string, info] {
+	return func(yield func(string, info) bool) {
+		// Build list of directory children implied by the binds.
+		// Binds are not sorted, so just loop over them.
+		var dirs []string
+		for _, m := range binds {
+			if str.HasFilePathPrefix(m.from, i.abs) && m.from != i.abs {
+				name := m.from[len(i.abs)+1:]
+				if i := strings.IndexByte(name, filepath.Separator); i >= 0 {
+					name = name[:i]
+				}
+				dirs = append(dirs, name)
+			}
+		}
+		if len(dirs) > 1 {
+			slices.Sort(dirs)
+			str.Uniq(&dirs)
+		}
+
+		// Loop looking for next possible child in sorted overlay,
+		// which is previous child plus "\x00".
+		target := i.abs + string(filepath.Separator) + "\x00"
+		for {
+			// Search for next child: first entry in overlay >= target.
+			j, _ := slices.BinarySearchFunc(overlay, target, func(r replace, t string) int {
+				return cmp(r.from, t)
+			})
+
+		Loop:
+			// Skip subdirectories with deleted children (but not direct deleted children).
+			for j < len(overlay) && overlay[j].to == "" && str.HasFilePathPrefix(overlay[j].from, i.abs) && strings.Contains(overlay[j].from[len(i.abs)+1:], string(filepath.Separator)) {
+				j++
+			}
+			if j >= len(overlay) {
+				// Nothing found at all.
+				break
+			}
+			r := overlay[j]
+			if !str.HasFilePathPrefix(r.from, i.abs) {
+				// Next entry in overlay is beyond the directory we want; all done.
+				break
+			}
+
+			// Found the next child in the directory.
+			// Yield it and its info.
+			name := r.from[len(i.abs)+1:]
+			actual := r.to
+			dir := false
+			if j := strings.IndexByte(name, filepath.Separator); j >= 0 {
+				// Child is multiple levels down, so name must be a directory,
+				// and there is no actual replacement.
+				name = name[:j]
+				dir = true
+				actual = ""
+			}
+			deleted := !dir && r.to == ""
+			ci := info{
+				abs:      filepath.Join(i.abs, name),
+				deleted:  deleted,
+				replaced: !deleted,
+				dir:      dir || strings.HasSuffix(r.to, string(filepath.Separator)),
+				actual:   actual,
+			}
+			for ; len(dirs) > 0 && dirs[0] < name; dirs = dirs[1:] {
+				if !yield(dirs[0], info{abs: filepath.Join(i.abs, dirs[0]), replaced: true, dir: true}) {
+					return
+				}
+			}
+			if len(dirs) > 0 && dirs[0] == name {
+				dirs = dirs[1:]
+			}
+			if !yield(name, ci) {
+				return
+			}
+
+			// Next target is first name after the one we just returned.
+			target = ci.abs + "\x00"
+
+			// Optimization: Check whether the very next element
+			// is the next child. If so, skip the binary search.
+			if j+1 < len(overlay) && cmp(overlay[j+1].from, target) >= 0 {
+				j++
+				goto Loop
+			}
+		}
+
+		for _, dir := range dirs {
+			if !yield(dir, info{abs: filepath.Join(i.abs, dir), replaced: true, dir: true}) {
+				return
+			}
+		}
+	}
 }
 
 // Init initializes the overlay, if one is being used.
-func Init(wd string) error {
+func Init() error {
 	if overlay != nil {
 		// already initialized
 		return nil
 	}
-
-	cwd = wd
 
 	if OverlayFile == "" {
 		return nil
@@ -143,103 +353,51 @@ func Init(wd string) error {
 	Trace("ReadFile", OverlayFile)
 	b, err := os.ReadFile(OverlayFile)
 	if err != nil {
-		return fmt.Errorf("reading overlay file: %v", err)
+		return fmt.Errorf("reading overlay: %v", err)
 	}
+	return initFromJSON(b)
+}
 
-	var overlayJSON OverlayJSON
-	if err := json.Unmarshal(b, &overlayJSON); err != nil {
+func initFromJSON(js []byte) error {
+	var ojs overlayJSON
+	if err := json.Unmarshal(js, &ojs); err != nil {
 		return fmt.Errorf("parsing overlay JSON: %v", err)
 	}
 
-	return initFromJSON(overlayJSON)
-}
-
-func initFromJSON(overlayJSON OverlayJSON) error {
-	// Canonicalize the paths in the overlay map.
-	// Use reverseCanonicalized to check for collisions:
-	// no two 'from' paths should canonicalize to the same path.
-	overlay = make(map[string]*node)
-	reverseCanonicalized := make(map[string]string) // inverse of canonicalize operation, to check for duplicates
-	// Build a table of file and directory nodes from the replacement map.
-
-	// Remove any potential non-determinism from iterating over map by sorting it.
-	replaceFrom := make([]string, 0, len(overlayJSON.Replace))
-	for k := range overlayJSON.Replace {
-		replaceFrom = append(replaceFrom, k)
-	}
-	sort.Strings(replaceFrom)
-
-	for _, from := range replaceFrom {
-		to := overlayJSON.Replace[from]
-		// Canonicalize paths and check for a collision.
+	seen := make(map[string]string)
+	var list []replace
+	for _, from := range slices.Sorted(maps.Keys(ojs.Replace)) {
 		if from == "" {
-			return fmt.Errorf("empty string key in overlay file Replace map")
+			return fmt.Errorf("empty string key in overlay map")
 		}
-		cfrom := canonicalize(from)
-		if to != "" {
-			// Don't canonicalize "", meaning to delete a file, because then it will turn into ".".
-			to = canonicalize(to)
+		afrom := abs(from)
+		if old, ok := seen[afrom]; ok {
+			return fmt.Errorf("duplicate paths %s and %s in overlay map", old, from)
 		}
-		if otherFrom, seen := reverseCanonicalized[cfrom]; seen {
-			return fmt.Errorf(
-				"paths %q and %q both canonicalize to %q in overlay file Replace map", otherFrom, from, cfrom)
-		}
-		reverseCanonicalized[cfrom] = from
-		from = cfrom
+		seen[afrom] = from
+		list = append(list, replace{from: afrom, to: abs(ojs.Replace[from])})
+	}
 
-		// Create node for overlaid file.
-		dir, base := filepath.Dir(from), filepath.Base(from)
-		if n, ok := overlay[from]; ok {
-			// All 'from' paths in the overlay are file paths. Since the from paths
-			// are in a map, they are unique, so if the node already exists we added
-			// it below when we create parent directory nodes. That is, that
-			// both a file and a path to one of its parent directories exist as keys
-			// in the Replace map.
-			//
-			// This only applies if the overlay directory has any files or directories
-			// in it: placeholder directories that only contain deleted files don't
-			// count. They are safe to be overwritten with actual files.
-			for _, f := range n.children {
-				if !f.isDeleted() {
-					return fmt.Errorf("invalid overlay: path %v is used as both file and directory", from)
-				}
-			}
-		}
-		overlay[from] = &node{actualFilePath: to}
+	slices.SortFunc(list, func(x, y replace) int { return cmp(x.from, y.from) })
 
-		// Add parent directory nodes to overlay structure.
-		childNode := overlay[from]
-		for {
-			dirNode := overlay[dir]
-			if dirNode == nil || dirNode.isDeleted() {
-				dirNode = &node{children: make(map[string]*node)}
-				overlay[dir] = dirNode
-			}
-			if childNode.isDeleted() {
-				// Only create one parent for a deleted file:
-				// the directory only conditionally exists if
-				// there are any non-deleted children, so
-				// we don't create their parents.
-				if dirNode.isDir() {
-					dirNode.children[base] = childNode
-				}
+	for i, r := range list {
+		if r.to == "" { // deleted
+			continue
+		}
+		// have file for r.from; look for child file implying r.from is a directory
+		prefix := r.from + string(filepath.Separator)
+		for _, next := range list[i+1:] {
+			if !strings.HasPrefix(next.from, prefix) {
 				break
 			}
-			if !dirNode.isDir() {
-				// This path already exists as a file, so it can't be a parent
-				// directory. See comment at error above.
-				return fmt.Errorf("invalid overlay: path %v is used as both file and directory", dir)
+			if next.to != "" {
+				// found child file
+				return fmt.Errorf("inconsistent files %s and %s in overlay map", r.from, next.from)
 			}
-			dirNode.children[base] = childNode
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				break // reached the top; there is no parent
-			}
-			dir, base = parent, filepath.Base(dir)
-			childNode = dirNode
 		}
 	}
 
+	overlay = list
 	return nil
 }
 
@@ -247,199 +405,191 @@ func initFromJSON(overlayJSON OverlayJSON) error {
 // overlay.
 func IsDir(path string) (bool, error) {
 	Trace("IsDir", path)
-	path = canonicalize(path)
 
-	if _, ok := parentIsOverlayFile(path); ok {
+	switch info := stat(path); {
+	case info.dir:
+		return true, nil
+	case info.deleted, info.replaced:
 		return false, nil
 	}
 
-	if n, ok := overlay[path]; ok {
-		return n.isDir(), nil
-	}
-
-	fi, err := os.Stat(path)
+	info, err := os.Stat(path)
 	if err != nil {
 		return false, err
 	}
-
-	return fi.IsDir(), nil
+	return info.IsDir(), nil
 }
 
-// parentIsOverlayFile returns whether name or any of
-// its parents are files in the overlay, and the first parent found,
-// including name itself, that's a file in the overlay.
-func parentIsOverlayFile(name string) (string, bool) {
-	if overlay != nil {
-		// Check if name can't possibly be a directory because
-		// it or one of its parents is overlaid with a file.
-		// TODO(matloob): Maybe save this to avoid doing it every time?
-		prefix := name
-		for {
-			node := overlay[prefix]
-			if node != nil && !node.isDir() {
-				return prefix, true
-			}
-			parent := filepath.Dir(prefix)
-			if parent == prefix {
-				break
-			}
-			prefix = parent
-		}
-	}
-
-	return "", false
-}
-
-// errNotDir is used to communicate from ReadDir to IsDirWithGoFiles
-// that the argument is not a directory, so that IsDirWithGoFiles doesn't
+// errNotDir is used to communicate from ReadDir to IsGoDir
+// that the argument is not a directory, so that IsGoDir doesn't
 // return an error.
 var errNotDir = errors.New("not a directory")
 
-func nonFileInOverlayError(overlayPath string) error {
-	return fmt.Errorf("replacement path %q is a directory, not a file", overlayPath)
+// osReadDir is like os.ReadDir corrects the error to be errNotDir
+// if the problem is that name exists but is not a directory.
+func osReadDir(name string) ([]fs.DirEntry, error) {
+	dirs, err := os.ReadDir(name)
+	if err != nil && !os.IsNotExist(err) {
+		if info, err := os.Stat(name); err == nil && !info.IsDir() {
+			return nil, &fs.PathError{Op: "ReadDir", Path: name, Err: errNotDir}
+		}
+	}
+	return dirs, err
 }
 
-// readDir reads a dir on disk, returning an error that is errNotDir if the dir is not a directory.
-// Unfortunately, the error returned by os.ReadDir if dir is not a directory
-// can vary depending on the OS (Linux, Mac, Windows return ENOTDIR; BSD returns EINVAL).
-func readDir(dir string) ([]fs.FileInfo, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, err
-		}
-		if dirfi, staterr := os.Stat(dir); staterr == nil && !dirfi.IsDir() {
-			return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
-		}
-		return nil, err
+// ReadDir reads the named directory in the virtual file system.
+func ReadDir(name string) ([]fs.DirEntry, error) {
+	Trace("ReadDir", name)
+
+	info := stat(name)
+	if info.deleted {
+		return nil, &fs.PathError{Op: "read", Path: name, Err: fs.ErrNotExist}
+	}
+	if !info.replaced {
+		return osReadDir(name)
+	}
+	if info.file {
+		return nil, &fs.PathError{Op: "read", Path: name, Err: errNotDir}
 	}
 
-	fis := make([]fs.FileInfo, 0, len(entries))
-	for _, entry := range entries {
-		info, err := entry.Info()
-		if err != nil {
-			continue
-		}
-		fis = append(fis, info)
-	}
-	return fis, nil
-}
-
-// ReadDir provides a slice of fs.FileInfo entries corresponding
-// to the overlaid files in the directory.
-func ReadDir(dir string) ([]fs.FileInfo, error) {
-	Trace("ReadDir", dir)
-	dir = canonicalize(dir)
-	if _, ok := parentIsOverlayFile(dir); ok {
-		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
-	}
-
-	dirNode := overlay[dir]
-	if dirNode == nil {
-		return readDir(dir)
-	}
-	if dirNode.isDeleted() {
-		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: fs.ErrNotExist}
-	}
-	diskfis, err := readDir(dir)
+	// Start with normal disk listing.
+	dirs, err := osReadDir(info.actual)
 	if err != nil && !os.IsNotExist(err) && !errors.Is(err, errNotDir) {
 		return nil, err
 	}
+	dirErr := err
 
-	// Stat files in overlay to make composite list of fileinfos
-	files := make(map[string]fs.FileInfo)
-	for _, f := range diskfis {
-		files[f.Name()] = f
+	// Merge disk listing and overlay entries in map.
+	all := make(map[string]fs.DirEntry)
+	for _, d := range dirs {
+		all[d.Name()] = d
 	}
-	for name, to := range dirNode.children {
-		switch {
-		case to.isDir():
-			files[name] = fakeDir(name)
-		case to.isDeleted():
-			delete(files, name)
-		default:
-			// To keep the data model simple, if the overlay contains a symlink we
-			// always stat through it (using Stat, not Lstat). That way we don't need
-			// to worry about the interaction between Lstat and directories: if a
-			// symlink in the overlay points to a directory, we reject it like an
-			// ordinary directory.
-			fi, err := os.Stat(to.actualFilePath)
-			if err != nil {
-				files[name] = missingFile(name)
-				continue
-			} else if fi.IsDir() {
-				return nil, &fs.PathError{Op: "Stat", Path: filepath.Join(dir, name), Err: nonFileInOverlayError(to.actualFilePath)}
-			}
-			// Add a fileinfo for the overlaid file, so that it has
-			// the original file's name, but the overlaid file's metadata.
-			files[name] = fakeFile{name, fi}
+	for cname, cinfo := range info.children() {
+		if cinfo.dir {
+			all[cname] = fs.FileInfoToDirEntry(fakeDir(cname))
+			continue
 		}
-	}
-	sortedFiles := diskfis[:0]
-	for _, f := range files {
-		sortedFiles = append(sortedFiles, f)
-	}
-	sort.Slice(sortedFiles, func(i, j int) bool { return sortedFiles[i].Name() < sortedFiles[j].Name() })
-	return sortedFiles, nil
-}
-
-// OverlayPath returns the path to the overlaid contents of the
-// file, the empty string if the overlay deletes the file, or path
-// itself if the file is not in the overlay, the file is a directory
-// in the overlay, or there is no overlay.
-// It returns true if the path is overlaid with a regular file
-// or deleted, and false otherwise.
-func OverlayPath(path string) (string, bool) {
-	if p, ok := overlay[canonicalize(path)]; ok && !p.isDir() {
-		return p.actualFilePath, ok
-	}
-
-	return path, false
-}
-
-// Open opens the file at or overlaid on the given path.
-func Open(path string) (*os.File, error) {
-	Trace("Open", path)
-	return openFile(path, os.O_RDONLY, 0)
-}
-
-// OpenFile opens the file at or overlaid on the given path with the flag and perm.
-func OpenFile(path string, flag int, perm os.FileMode) (*os.File, error) {
-	Trace("OpenFile", path)
-	return openFile(path, flag, perm)
-}
-
-func openFile(path string, flag int, perm os.FileMode) (*os.File, error) {
-	cpath := canonicalize(path)
-	if node, ok := overlay[cpath]; ok {
-		// Opening a file in the overlay.
-		if node.isDir() {
-			return nil, &fs.PathError{Op: "OpenFile", Path: path, Err: errors.New("fsys.OpenFile doesn't support opening directories yet")}
+		if cinfo.deleted {
+			delete(all, cname)
+			continue
 		}
-		// We can't open overlaid paths for write.
-		if perm != os.FileMode(os.O_RDONLY) {
-			return nil, &fs.PathError{Op: "OpenFile", Path: path, Err: errors.New("overlaid files can't be opened for write")}
+
+		// Overlay is not allowed to have targets that are directories.
+		// And we hide symlinks, although it's not clear it helps callers.
+		cinfo, err := os.Stat(cinfo.actual)
+		if err != nil {
+			all[cname] = fs.FileInfoToDirEntry(missingFile(cname))
+			continue
 		}
-		return os.OpenFile(node.actualFilePath, flag, perm)
+		if cinfo.IsDir() {
+			return nil, &fs.PathError{Op: "read", Path: name, Err: fmt.Errorf("overlay maps child %s to directory", cname)}
+		}
+		all[cname] = fs.FileInfoToDirEntry(fakeFile{cname, cinfo})
 	}
-	if parent, ok := parentIsOverlayFile(filepath.Dir(cpath)); ok {
-		// The file is deleted explicitly in the Replace map,
-		// or implicitly because one of its parent directories was
-		// replaced by a file.
+
+	// Rebuild list using same storage.
+	dirs = dirs[:0]
+	for _, d := range all {
+		dirs = append(dirs, d)
+	}
+	slices.SortFunc(dirs, func(x, y fs.DirEntry) int { return strings.Compare(x.Name(), y.Name()) })
+
+	if len(dirs) == 0 {
+		return nil, dirErr
+	}
+	return dirs, nil
+}
+
+// Actual returns the actual file system path for the named file.
+// It returns the empty string if name has been deleted in the virtual file system.
+func Actual(name string) string {
+	info := stat(name)
+	if info.deleted {
+		return ""
+	}
+	if info.dir || info.replaced {
+		return info.actual
+	}
+	return name
+}
+
+// Replaced reports whether the named file has been modified
+// in the virtual file system compared to the OS file system.
+func Replaced(name string) bool {
+	info := stat(name)
+	return info.deleted || info.replaced && !info.dir
+}
+
+// DirContainsReplacement reports whether the named directory is affected by a replacement,
+// either because a parent directory has been replaced, it has been replaced, or a file or
+// directory under it has been replaced.
+// It is meant to be used to detect cases where GOMODCACHE has been replaced. That replacement
+// is not supported (GOMODCACHE is meant to be immutable) and the caller will use the
+// information to return an error.
+func DirContainsReplacement(name string) (string, bool) {
+	apath := abs(name)
+
+	// Check the overlay using similar logic to what stat uses.
+	i, ok := slices.BinarySearchFunc(overlay, apath, searchcmp)
+	if ok {
+		// The named directory itself has been replaced.
+		return overlay[i].from, true
+	}
+	if i < len(overlay) && str.HasFilePathPrefix(overlay[i].from, apath) {
+		// A file or directory contained in the named directory has been replaced.
+		return overlay[i].from, true
+	}
+	if i > 0 && str.HasFilePathPrefix(apath, overlay[i-1].from) {
+		// A parent of the named directory has been replaced.
+		return overlay[i-1].from, true
+	}
+	return "", false
+}
+
+// Open opens the named file in the virtual file system.
+// It must be an ordinary file, not a directory.
+func Open(name string) (*os.File, error) {
+	Trace("Open", name)
+
+	bad := func(msg string) (*os.File, error) {
 		return nil, &fs.PathError{
 			Op:   "Open",
-			Path: path,
-			Err:  fmt.Errorf("file %s does not exist: parent directory %s is replaced by a file in overlay", path, parent),
+			Path: name,
+			Err:  errors.New(msg),
 		}
 	}
-	return os.OpenFile(cpath, flag, perm)
+
+	info := stat(name)
+	if info.deleted {
+		return bad("deleted in overlay")
+	}
+	if info.dir {
+		return bad("cannot open directory in overlay")
+	}
+	if info.replaced {
+		name = info.actual
+	}
+
+	return os.Open(name)
 }
 
-// IsDirWithGoFiles reports whether dir is a directory containing Go files
-// either on disk or in the overlay.
-func IsDirWithGoFiles(dir string) (bool, error) {
-	Trace("IsDirWithGoFiles", dir)
-	fis, err := ReadDir(dir)
+// ReadFile reads the named file from the virtual file system
+// and returns the contents.
+func ReadFile(name string) ([]byte, error) {
+	f, err := Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	return io.ReadAll(f)
+}
+
+// IsGoDir reports whether the named directory in the virtual file system
+// is a directory containing one or more Go source files.
+func IsGoDir(name string) (bool, error) {
+	Trace("IsGoDir", name)
+	fis, err := ReadDir(name)
 	if os.IsNotExist(err) || errors.Is(err, errNotDir) {
 		return false, nil
 	}
@@ -448,32 +598,24 @@ func IsDirWithGoFiles(dir string) (bool, error) {
 	}
 
 	var firstErr error
-	for _, fi := range fis {
-		if fi.IsDir() {
+	for _, d := range fis {
+		if d.IsDir() || !strings.HasSuffix(d.Name(), ".go") {
 			continue
 		}
-
-		// TODO(matloob): this enforces that the "from" in the map
-		// has a .go suffix, but the actual destination file
-		// doesn't need to have a .go suffix. Is this okay with the
-		// compiler?
-		if !strings.HasSuffix(fi.Name(), ".go") {
-			continue
-		}
-		if fi.Mode().IsRegular() {
+		if d.Type().IsRegular() {
 			return true, nil
 		}
 
-		// fi is the result of an Lstat, so it doesn't follow symlinks.
-		// But it's okay if the file is a symlink pointing to a regular
-		// file, so use os.Stat to follow symlinks and check that.
-		actualFilePath, _ := OverlayPath(filepath.Join(dir, fi.Name()))
-		fi, err := os.Stat(actualFilePath)
-		if err == nil && fi.Mode().IsRegular() {
-			return true, nil
-		}
-		if err != nil && firstErr == nil {
-			firstErr = err
+		// d is a non-directory, non-regular .go file.
+		// Stat to see if it is a symlink, which we allow.
+		if actual := Actual(filepath.Join(name, d.Name())); actual != "" {
+			fi, err := os.Stat(actual)
+			if err == nil && fi.Mode().IsRegular() {
+				return true, nil
+			}
+			if err != nil && firstErr == nil {
+				firstErr = err
+			}
 		}
 	}
 
@@ -481,91 +623,45 @@ func IsDirWithGoFiles(dir string) (bool, error) {
 	return false, firstErr
 }
 
-// walk recursively descends path, calling walkFn. Copied, with some
-// modifications from path/filepath.walk.
-func walk(path string, info fs.FileInfo, walkFn filepath.WalkFunc) error {
-	if err := walkFn(path, info, nil); err != nil || !info.IsDir() {
-		return err
-	}
-
-	fis, err := ReadDir(path)
-	if err != nil {
-		return walkFn(path, info, err)
-	}
-
-	for _, fi := range fis {
-		filename := filepath.Join(path, fi.Name())
-		if err := walk(filename, fi, walkFn); err != nil {
-			if !fi.IsDir() || err != filepath.SkipDir {
-				return err
-			}
-		}
-	}
-	return nil
+// Lstat returns a FileInfo describing the named file in the virtual file system.
+// It does not follow symbolic links
+func Lstat(name string) (fs.FileInfo, error) {
+	Trace("Lstat", name)
+	return overlayStat("lstat", name, os.Lstat)
 }
 
-// Walk walks the file tree rooted at root, calling walkFn for each file or
-// directory in the tree, including root.
-func Walk(root string, walkFn filepath.WalkFunc) error {
-	Trace("Walk", root)
-	info, err := Lstat(root)
-	if err != nil {
-		err = walkFn(root, nil, err)
-	} else {
-		err = walk(root, info, walkFn)
-	}
-	if err == filepath.SkipDir {
-		return nil
-	}
-	return err
-}
-
-// Lstat implements a version of os.Lstat that operates on the overlay filesystem.
-func Lstat(path string) (fs.FileInfo, error) {
-	Trace("Lstat", path)
-	return overlayStat(path, os.Lstat, "lstat")
-}
-
-// Stat implements a version of os.Stat that operates on the overlay filesystem.
-func Stat(path string) (fs.FileInfo, error) {
-	Trace("Stat", path)
-	return overlayStat(path, os.Stat, "stat")
+// Stat returns a FileInfo describing the named file in the virtual file system.
+// It follows symbolic links.
+func Stat(name string) (fs.FileInfo, error) {
+	Trace("Stat", name)
+	return overlayStat("stat", name, os.Stat)
 }
 
 // overlayStat implements lstat or Stat (depending on whether os.Lstat or os.Stat is passed in).
-func overlayStat(path string, osStat func(string) (fs.FileInfo, error), opName string) (fs.FileInfo, error) {
-	cpath := canonicalize(path)
-
-	if _, ok := parentIsOverlayFile(filepath.Dir(cpath)); ok {
-		return nil, &fs.PathError{Op: opName, Path: cpath, Err: fs.ErrNotExist}
+func overlayStat(op, path string, osStat func(string) (fs.FileInfo, error)) (fs.FileInfo, error) {
+	info := stat(path)
+	if info.deleted {
+		return nil, &fs.PathError{Op: op, Path: path, Err: fs.ErrNotExist}
 	}
-
-	node, ok := overlay[cpath]
-	if !ok {
-		// The file or directory is not overlaid.
-		return osStat(path)
-	}
-
-	switch {
-	case node.isDeleted():
-		return nil, &fs.PathError{Op: opName, Path: cpath, Err: fs.ErrNotExist}
-	case node.isDir():
+	if info.dir {
 		return fakeDir(filepath.Base(path)), nil
-	default:
+	}
+	if info.replaced {
 		// To keep the data model simple, if the overlay contains a symlink we
 		// always stat through it (using Stat, not Lstat). That way we don't need to
 		// worry about the interaction between Lstat and directories: if a symlink
 		// in the overlay points to a directory, we reject it like an ordinary
 		// directory.
-		fi, err := os.Stat(node.actualFilePath)
+		ainfo, err := os.Stat(info.actual)
 		if err != nil {
 			return nil, err
 		}
-		if fi.IsDir() {
-			return nil, &fs.PathError{Op: opName, Path: cpath, Err: nonFileInOverlayError(node.actualFilePath)}
+		if ainfo.IsDir() {
+			return nil, &fs.PathError{Op: op, Path: path, Err: fmt.Errorf("overlay maps to directory")}
 		}
-		return fakeFile{name: filepath.Base(path), real: fi}, nil
+		return fakeFile{name: filepath.Base(path), real: ainfo}, nil
 	}
+	return osStat(path)
 }
 
 // fakeFile provides an fs.FileInfo implementation for an overlaid file,
@@ -620,165 +716,19 @@ func (f fakeDir) String() string {
 	return fs.FormatFileInfo(f)
 }
 
-// Glob is like filepath.Glob but uses the overlay file system.
-func Glob(pattern string) (matches []string, err error) {
-	Trace("Glob", pattern)
-	// Check pattern is well-formed.
-	if _, err := filepath.Match(pattern, ""); err != nil {
-		return nil, err
-	}
-	if !hasMeta(pattern) {
-		if _, err = Lstat(pattern); err != nil {
-			return nil, nil
+func cmp(x, y string) int {
+	for i := 0; i < len(x) && i < len(y); i++ {
+		xi := int(x[i])
+		yi := int(y[i])
+		if xi == filepath.Separator {
+			xi = -1
 		}
-		return []string{pattern}, nil
-	}
-
-	dir, file := filepath.Split(pattern)
-	volumeLen := 0
-	if runtime.GOOS == "windows" {
-		volumeLen, dir = cleanGlobPathWindows(dir)
-	} else {
-		dir = cleanGlobPath(dir)
-	}
-
-	if !hasMeta(dir[volumeLen:]) {
-		return glob(dir, file, nil)
-	}
-
-	// Prevent infinite recursion. See issue 15879.
-	if dir == pattern {
-		return nil, filepath.ErrBadPattern
-	}
-
-	var m []string
-	m, err = Glob(dir)
-	if err != nil {
-		return
-	}
-	for _, d := range m {
-		matches, err = glob(d, file, matches)
-		if err != nil {
-			return
+		if yi == filepath.Separator {
+			yi = -1
+		}
+		if xi != yi {
+			return xi - yi
 		}
 	}
-	return
-}
-
-// cleanGlobPath prepares path for glob matching.
-func cleanGlobPath(path string) string {
-	switch path {
-	case "":
-		return "."
-	case string(filepath.Separator):
-		// do nothing to the path
-		return path
-	default:
-		return path[0 : len(path)-1] // chop off trailing separator
-	}
-}
-
-func volumeNameLen(path string) int {
-	isSlash := func(c uint8) bool {
-		return c == '\\' || c == '/'
-	}
-	if len(path) < 2 {
-		return 0
-	}
-	// with drive letter
-	c := path[0]
-	if path[1] == ':' && ('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') {
-		return 2
-	}
-	// is it UNC? https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file
-	if l := len(path); l >= 5 && isSlash(path[0]) && isSlash(path[1]) &&
-		!isSlash(path[2]) && path[2] != '.' {
-		// first, leading `\\` and next shouldn't be `\`. its server name.
-		for n := 3; n < l-1; n++ {
-			// second, next '\' shouldn't be repeated.
-			if isSlash(path[n]) {
-				n++
-				// third, following something characters. its share name.
-				if !isSlash(path[n]) {
-					if path[n] == '.' {
-						break
-					}
-					for ; n < l; n++ {
-						if isSlash(path[n]) {
-							break
-						}
-					}
-					return n
-				}
-				break
-			}
-		}
-	}
-	return 0
-}
-
-// cleanGlobPathWindows is windows version of cleanGlobPath.
-func cleanGlobPathWindows(path string) (prefixLen int, cleaned string) {
-	vollen := volumeNameLen(path)
-	switch {
-	case path == "":
-		return 0, "."
-	case vollen+1 == len(path) && os.IsPathSeparator(path[len(path)-1]): // /, \, C:\ and C:/
-		// do nothing to the path
-		return vollen + 1, path
-	case vollen == len(path) && len(path) == 2: // C:
-		return vollen, path + "." // convert C: into C:.
-	default:
-		if vollen >= len(path) {
-			vollen = len(path) - 1
-		}
-		return vollen, path[0 : len(path)-1] // chop off trailing separator
-	}
-}
-
-// glob searches for files matching pattern in the directory dir
-// and appends them to matches. If the directory cannot be
-// opened, it returns the existing matches. New matches are
-// added in lexicographical order.
-func glob(dir, pattern string, matches []string) (m []string, e error) {
-	m = matches
-	fi, err := Stat(dir)
-	if err != nil {
-		return // ignore I/O error
-	}
-	if !fi.IsDir() {
-		return // ignore I/O error
-	}
-
-	list, err := ReadDir(dir)
-	if err != nil {
-		return // ignore I/O error
-	}
-
-	var names []string
-	for _, info := range list {
-		names = append(names, info.Name())
-	}
-	sort.Strings(names)
-
-	for _, n := range names {
-		matched, err := filepath.Match(pattern, n)
-		if err != nil {
-			return m, err
-		}
-		if matched {
-			m = append(m, filepath.Join(dir, n))
-		}
-	}
-	return
-}
-
-// hasMeta reports whether path contains any of the magic characters
-// recognized by filepath.Match.
-func hasMeta(path string) bool {
-	magicChars := `*?[`
-	if runtime.GOOS != "windows" {
-		magicChars = `*?[\`
-	}
-	return strings.ContainsAny(path, magicChars)
+	return len(x) - len(y)
 }

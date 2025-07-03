@@ -28,6 +28,8 @@ import (
 //
 // Users of the slog package should not invoke Handler methods directly.
 // They should use the methods of [Logger] instead.
+//
+// Before implementing your own handler, consult https://go.dev/s/slog-handler-guide.
 type Handler interface {
 	// Enabled reports whether the handler handles records at the given level.
 	// The handler ignores records whose level is lower.
@@ -57,6 +59,9 @@ type Handler interface {
 	//   - If a group's key is empty, inline the group's Attrs.
 	//   - If a group has no Attrs (even if it has a non-empty key),
 	//     ignore it.
+	//
+	// [Logger] discards any errors from Handle. Wrap the Handle method to
+	// process any errors from Handlers.
 	Handle(context.Context, Record) error
 
 	// WithAttrs returns a new Handler whose attributes consist of
@@ -76,11 +81,11 @@ type Handler interface {
 	// A Handler should treat WithGroup as starting a Group of Attrs that ends
 	// at the end of the log event. That is,
 	//
-	//     logger.WithGroup("s").LogAttrs(level, msg, slog.Int("a", 1), slog.Int("b", 2))
+	//     logger.WithGroup("s").LogAttrs(ctx, level, msg, slog.Int("a", 1), slog.Int("b", 2))
 	//
 	// should behave like
 	//
-	//     logger.LogAttrs(level, msg, slog.Group("s", slog.Int("a", 1), slog.Int("b", 2)))
+	//     logger.LogAttrs(ctx, level, msg, slog.Group("s", slog.Int("a", 1), slog.Int("b", 2)))
 	//
 	// If the name is empty, WithGroup returns the receiver.
 	WithGroup(name string) Handler
@@ -100,7 +105,7 @@ func newDefaultHandler(output func(uintptr, []byte) error) *defaultHandler {
 }
 
 func (*defaultHandler) Enabled(_ context.Context, l Level) bool {
-	return l >= LevelInfo
+	return l >= logLoggerLevel.Level()
 }
 
 // Collect the level, attributes and message in a string and
@@ -125,7 +130,7 @@ func (h *defaultHandler) WithGroup(name string) Handler {
 	return &defaultHandler{h.ch.withGroup(name), h.output}
 }
 
-// HandlerOptions are options for a TextHandler or JSONHandler.
+// HandlerOptions are options for a [TextHandler] or [JSONHandler].
 // A zero HandlerOptions consists entirely of default values.
 type HandlerOptions struct {
 	// AddSource causes the handler to compute the source code position
@@ -239,15 +244,18 @@ func (h *commonHandler) withAttrs(as []Attr) *commonHandler {
 			state.sep = ""
 		}
 	}
+	// Remember the position in the buffer, in case all attrs are empty.
+	pos := state.buf.Len()
 	state.openGroups()
-	for _, a := range as {
-		state.appendAttr(a)
+	if !state.appendAttrs(as) {
+		state.buf.SetLen(pos)
+	} else {
+		// Remember the new prefix for later keys.
+		h2.groupPrefix = state.prefix.String()
+		// Remember how many opened groups are in preformattedAttrs,
+		// so we don't open them again when we handle a Record.
+		h2.nOpenGroups = len(h2.groups)
 	}
-	// Remember the new prefix for later keys.
-	h2.groupPrefix = state.prefix.String()
-	// Remember how many opened groups are in preformattedAttrs,
-	// so we don't open them again when we handle a Record.
-	h2.nOpenGroups = len(h2.groups)
 	return h2
 }
 
@@ -291,7 +299,11 @@ func (h *commonHandler) handle(r Record) error {
 	}
 	// source
 	if h.opts.AddSource {
-		state.appendAttr(Any(SourceKey, r.source()))
+		src := r.Source()
+		if src == nil {
+			src = &Source{}
+		}
+		state.appendAttr(Any(SourceKey, src))
 	}
 	key = MessageKey
 	msg := r.Message
@@ -327,12 +339,24 @@ func (s *handleState) appendNonBuiltIns(r Record) {
 	nOpenGroups := s.h.nOpenGroups
 	if r.NumAttrs() > 0 {
 		s.prefix.WriteString(s.h.groupPrefix)
+		// The group may turn out to be empty even though it has attrs (for
+		// example, ReplaceAttr may delete all the attrs).
+		// So remember where we are in the buffer, to restore the position
+		// later if necessary.
+		pos := s.buf.Len()
 		s.openGroups()
 		nOpenGroups = len(s.h.groups)
+		empty := true
 		r.Attrs(func(a Attr) bool {
-			s.appendAttr(a)
+			if s.appendAttr(a) {
+				empty = false
+			}
 			return true
 		})
+		if empty {
+			s.buf.SetLen(pos)
+			nOpenGroups = s.h.nOpenGroups
+		}
 	}
 	if s.h.json {
 		// Close all open groups.
@@ -434,27 +458,43 @@ func (s *handleState) closeGroup(name string) {
 	}
 }
 
-// appendAttr appends the Attr's key and value using app.
+// appendAttrs appends the slice of Attrs.
+// It reports whether something was appended.
+func (s *handleState) appendAttrs(as []Attr) bool {
+	nonEmpty := false
+	for _, a := range as {
+		if s.appendAttr(a) {
+			nonEmpty = true
+		}
+	}
+	return nonEmpty
+}
+
+// appendAttr appends the Attr's key and value.
 // It handles replacement and checking for an empty key.
-// after replacement).
-func (s *handleState) appendAttr(a Attr) {
+// It reports whether something was appended.
+func (s *handleState) appendAttr(a Attr) bool {
+	a.Value = a.Value.Resolve()
 	if rep := s.h.opts.ReplaceAttr; rep != nil && a.Value.Kind() != KindGroup {
 		var gs []string
 		if s.groups != nil {
 			gs = *s.groups
 		}
-		// Resolve before calling ReplaceAttr, so the user doesn't have to.
-		a.Value = a.Value.Resolve()
+		// a.Value is resolved before calling ReplaceAttr, so the user doesn't have to.
 		a = rep(gs, a)
+		// The ReplaceAttr function may return an unresolved Attr.
+		a.Value = a.Value.Resolve()
 	}
-	a.Value = a.Value.Resolve()
 	// Elide empty Attrs.
 	if a.isEmpty() {
-		return
+		return false
 	}
 	// Special case: Source.
 	if v := a.Value; v.Kind() == KindAny {
 		if src, ok := v.Any().(*Source); ok {
+			if src.isEmpty() {
+				return false
+			}
 			if s.h.json {
 				a.Value = src.group()
 			} else {
@@ -466,12 +506,18 @@ func (s *handleState) appendAttr(a Attr) {
 		attrs := a.Value.Group()
 		// Output only non-empty groups.
 		if len(attrs) > 0 {
+			// The group may turn out to be empty even though it has attrs (for
+			// example, ReplaceAttr may delete all the attrs).
+			// So remember where we are in the buffer, to restore the position
+			// later if necessary.
+			pos := s.buf.Len()
 			// Inline a group with an empty key.
 			if a.Key != "" {
 				s.openGroup(a.Key)
 			}
-			for _, aa := range attrs {
-				s.appendAttr(aa)
+			if !s.appendAttrs(attrs) {
+				s.buf.SetLen(pos)
+				return false
 			}
 			if a.Key != "" {
 				s.closeGroup(a.Key)
@@ -481,6 +527,7 @@ func (s *handleState) appendAttr(a Attr) {
 		s.appendKey(a.Key)
 		s.appendValue(a.Value)
 	}
+	return true
 }
 
 func (s *handleState) appendError(err error) {
@@ -490,8 +537,7 @@ func (s *handleState) appendError(err error) {
 func (s *handleState) appendKey(key string) {
 	s.buf.WriteString(s.sep)
 	if s.prefix != nil && len(*s.prefix) > 0 {
-		// TODO: optimize by avoiding allocation.
-		s.appendString(string(*s.prefix) + key)
+		s.appendTwoStrings(string(*s.prefix), key)
 	} else {
 		s.appendString(key)
 	}
@@ -501,6 +547,24 @@ func (s *handleState) appendKey(key string) {
 		s.buf.WriteByte('=')
 	}
 	s.sep = s.h.attrSep()
+}
+
+// appendTwoStrings implements appendString(prefix + key), but faster.
+func (s *handleState) appendTwoStrings(x, y string) {
+	buf := *s.buf
+	switch {
+	case s.h.json:
+		buf.WriteByte('"')
+		buf = appendEscapedJSONString(buf, x)
+		buf = appendEscapedJSONString(buf, y)
+		buf.WriteByte('"')
+	case !needsQuoting(x) && !needsQuoting(y):
+		buf.WriteString(x)
+		buf.WriteString(y)
+	default:
+		buf = strconv.AppendQuote(buf, x+y)
+	}
+	*s.buf = buf
 }
 
 func (s *handleState) appendString(str string) {
@@ -567,3 +631,14 @@ func appendRFC3339Millis(b []byte, t time.Time) []byte {
 	b = append(b[:n+prefixLen], b[n+prefixLen+1:]...) // drop the 4th digit
 	return b
 }
+
+// DiscardHandler discards all log output.
+// DiscardHandler.Enabled returns false for all Levels.
+var DiscardHandler Handler = discardHandler{}
+
+type discardHandler struct{}
+
+func (dh discardHandler) Enabled(context.Context, Level) bool  { return false }
+func (dh discardHandler) Handle(context.Context, Record) error { return nil }
+func (dh discardHandler) WithAttrs(attrs []Attr) Handler       { return dh }
+func (dh discardHandler) WithGroup(name string) Handler        { return dh }

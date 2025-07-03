@@ -6,11 +6,13 @@
 
 package main
 
-func run() { // ERROR "cannot inline run: recursive"
+//go:noinline
+func run() { // ERROR "cannot inline run: marked go:noinline"
 	f := func() { // ERROR "can inline run.func1 with cost .* as:.*" "func literal does not escape"
 		g() // ERROR "inlining call to g"
 	}
 	f() // ERROR "inlining call to run.func1" "inlining call to g"
+	_ = f
 	run()
 }
 

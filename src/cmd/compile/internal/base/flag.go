@@ -5,11 +5,12 @@
 package base
 
 import (
+	"cmd/internal/cov/covcmd"
+	"cmd/internal/telemetry/counter"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"internal/buildcfg"
-	"internal/coverage/covcmd"
 	"internal/platform"
 	"log"
 	"os"
@@ -124,7 +125,7 @@ type CmdFlags struct {
 	TraceProfile       string       "help:\"write an execution trace to `file`\""
 	TrimPath           string       "help:\"remove `prefix` from recorded source file paths\""
 	WB                 bool         "help:\"enable write barrier\"" // TODO: remove
-	PgoProfile         string       "help:\"read profile from `file`\""
+	PgoProfile         string       "help:\"read profile or pre-process profile from `file`\""
 	ErrorURL           bool         "help:\"print explanatory URL with error message if applicable\""
 
 	// Configuration derived from flags; not a flag itself.
@@ -176,12 +177,17 @@ func ParseFlags() {
 	Flag.WB = true
 
 	Debug.ConcurrentOk = true
+	Debug.MaxShapeLen = 500
+	Debug.AlignHot = 1
 	Debug.InlFuncsWithClosures = 1
 	Debug.InlStaticInit = 1
 	Debug.PGOInline = 1
-	Debug.PGODevirtualize = 1
-	Debug.SyncFrames = -1 // disable sync markers by default
+	Debug.PGODevirtualize = 2
+	Debug.SyncFrames = -1            // disable sync markers by default
+	Debug.VariableMakeThreshold = 32 // 32 byte default for stack allocated make results
 	Debug.ZeroCopy = 1
+	Debug.RangeFuncCheck = 1
+	Debug.MergeLocals = 1
 
 	Debug.Checkptr = -1 // so we can tell whether it is set explicitly
 
@@ -190,6 +196,7 @@ func ParseFlags() {
 	objabi.AddVersionFlag() // -V
 	registerFlags()
 	objabi.Flagparse(usage)
+	counter.CountFlags("compile/flag:", *flag.CommandLine)
 
 	if gcd := os.Getenv("GOCOMPILEDEBUG"); gcd != "" {
 		// This will only override the flags set in gcd;
@@ -200,12 +207,15 @@ func ParseFlags() {
 	if Debug.Gossahash != "" {
 		hashDebug = NewHashDebug("gossahash", Debug.Gossahash, nil)
 	}
+	obj.SetFIPSDebugHash(Debug.FIPSHash)
 
 	// Compute whether we're compiling the runtime from the package path. Test
 	// code can also use the flag to set this explicitly.
 	if Flag.Std && objabi.LookupPkgSpecial(Ctxt.Pkgpath).Runtime {
 		Flag.CompilingRuntime = true
 	}
+
+	Ctxt.Std = Flag.Std
 
 	// Three inputs govern loop iteration variable rewriting, hash, experiment, flag.
 	// The loop variable rewriting is:
@@ -254,6 +264,19 @@ func ParseFlags() {
 
 	if Debug.Fmahash != "" {
 		FmaHash = NewHashDebug("fmahash", Debug.Fmahash, nil)
+	}
+	if Debug.PGOHash != "" {
+		PGOHash = NewHashDebug("pgohash", Debug.PGOHash, nil)
+	}
+	if Debug.LiteralAllocHash != "" {
+		LiteralAllocHash = NewHashDebug("literalalloc", Debug.LiteralAllocHash, nil)
+	}
+
+	if Debug.MergeLocalsHash != "" {
+		MergeLocalsHash = NewHashDebug("mergelocals", Debug.MergeLocalsHash, nil)
+	}
+	if Debug.VariableMakeHash != "" {
+		VariableMakeHash = NewHashDebug("variablemake", Debug.VariableMakeHash, nil)
 	}
 
 	if Flag.MSan && !platform.MSanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
@@ -349,6 +372,11 @@ func ParseFlags() {
 
 	// set via a -d flag
 	Ctxt.Debugpcln = Debug.PCTab
+
+	// https://golang.org/issue/67502
+	if buildcfg.GOOS == "plan9" && buildcfg.GOARCH == "386" {
+		Debug.AlignHot = 0
+	}
 }
 
 // registerFlags adds flag registrations for all the fields in Flag.

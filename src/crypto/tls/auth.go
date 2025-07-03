@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"slices"
 )
 
 // verifyHandshakeSignature verifies a signature against pre-hashed
@@ -148,103 +149,94 @@ func legacyTypeAndHashFromPublicKey(pub crypto.PublicKey) (sigType uint8, hash c
 var rsaSignatureSchemes = []struct {
 	scheme          SignatureScheme
 	minModulusBytes int
-	maxVersion      uint16
 }{
 	// RSA-PSS is used with PSSSaltLengthEqualsHash, and requires
 	//    emLen >= hLen + sLen + 2
-	{PSSWithSHA256, crypto.SHA256.Size()*2 + 2, VersionTLS13},
-	{PSSWithSHA384, crypto.SHA384.Size()*2 + 2, VersionTLS13},
-	{PSSWithSHA512, crypto.SHA512.Size()*2 + 2, VersionTLS13},
+	{PSSWithSHA256, crypto.SHA256.Size()*2 + 2},
+	{PSSWithSHA384, crypto.SHA384.Size()*2 + 2},
+	{PSSWithSHA512, crypto.SHA512.Size()*2 + 2},
 	// PKCS #1 v1.5 uses prefixes from hashPrefixes in crypto/rsa, and requires
 	//    emLen >= len(prefix) + hLen + 11
-	// TLS 1.3 dropped support for PKCS #1 v1.5 in favor of RSA-PSS.
-	{PKCS1WithSHA256, 19 + crypto.SHA256.Size() + 11, VersionTLS12},
-	{PKCS1WithSHA384, 19 + crypto.SHA384.Size() + 11, VersionTLS12},
-	{PKCS1WithSHA512, 19 + crypto.SHA512.Size() + 11, VersionTLS12},
-	{PKCS1WithSHA1, 15 + crypto.SHA1.Size() + 11, VersionTLS12},
+	{PKCS1WithSHA256, 19 + crypto.SHA256.Size() + 11},
+	{PKCS1WithSHA384, 19 + crypto.SHA384.Size() + 11},
+	{PKCS1WithSHA512, 19 + crypto.SHA512.Size() + 11},
+	{PKCS1WithSHA1, 15 + crypto.SHA1.Size() + 11},
 }
 
-// signatureSchemesForCertificate returns the list of supported SignatureSchemes
-// for a given certificate, based on the public key and the protocol version,
-// and optionally filtered by its explicit SupportedSignatureAlgorithms.
-//
-// This function must be kept in sync with supportedSignatureAlgorithms.
-// FIPS filtering is applied in the caller, selectSignatureScheme.
-func signatureSchemesForCertificate(version uint16, cert *Certificate) []SignatureScheme {
-	priv, ok := cert.PrivateKey.(crypto.Signer)
-	if !ok {
-		return nil
-	}
-
-	var sigAlgs []SignatureScheme
-	switch pub := priv.Public().(type) {
+func signatureSchemesForPublicKey(version uint16, pub crypto.PublicKey) []SignatureScheme {
+	switch pub := pub.(type) {
 	case *ecdsa.PublicKey:
-		if version != VersionTLS13 {
+		if version < VersionTLS13 {
 			// In TLS 1.2 and earlier, ECDSA algorithms are not
 			// constrained to a single curve.
-			sigAlgs = []SignatureScheme{
+			return []SignatureScheme{
 				ECDSAWithP256AndSHA256,
 				ECDSAWithP384AndSHA384,
 				ECDSAWithP521AndSHA512,
 				ECDSAWithSHA1,
 			}
-			break
 		}
 		switch pub.Curve {
 		case elliptic.P256():
-			sigAlgs = []SignatureScheme{ECDSAWithP256AndSHA256}
+			return []SignatureScheme{ECDSAWithP256AndSHA256}
 		case elliptic.P384():
-			sigAlgs = []SignatureScheme{ECDSAWithP384AndSHA384}
+			return []SignatureScheme{ECDSAWithP384AndSHA384}
 		case elliptic.P521():
-			sigAlgs = []SignatureScheme{ECDSAWithP521AndSHA512}
+			return []SignatureScheme{ECDSAWithP521AndSHA512}
 		default:
 			return nil
 		}
 	case *rsa.PublicKey:
 		size := pub.Size()
-		sigAlgs = make([]SignatureScheme, 0, len(rsaSignatureSchemes))
+		sigAlgs := make([]SignatureScheme, 0, len(rsaSignatureSchemes))
 		for _, candidate := range rsaSignatureSchemes {
-			if size >= candidate.minModulusBytes && version <= candidate.maxVersion {
+			if size >= candidate.minModulusBytes {
 				sigAlgs = append(sigAlgs, candidate.scheme)
 			}
 		}
+		return sigAlgs
 	case ed25519.PublicKey:
-		sigAlgs = []SignatureScheme{Ed25519}
+		return []SignatureScheme{Ed25519}
 	default:
 		return nil
 	}
-
-	if cert.SupportedSignatureAlgorithms != nil {
-		var filteredSigAlgs []SignatureScheme
-		for _, sigAlg := range sigAlgs {
-			if isSupportedSignatureAlgorithm(sigAlg, cert.SupportedSignatureAlgorithms) {
-				filteredSigAlgs = append(filteredSigAlgs, sigAlg)
-			}
-		}
-		return filteredSigAlgs
-	}
-	return sigAlgs
 }
 
 // selectSignatureScheme picks a SignatureScheme from the peer's preference list
 // that works with the selected certificate. It's only called for protocol
 // versions that support signature algorithms, so TLS 1.2 and 1.3.
 func selectSignatureScheme(vers uint16, c *Certificate, peerAlgs []SignatureScheme) (SignatureScheme, error) {
-	supportedAlgs := signatureSchemesForCertificate(vers, c)
+	priv, ok := c.PrivateKey.(crypto.Signer)
+	if !ok {
+		return 0, unsupportedCertificateError(c)
+	}
+	supportedAlgs := signatureSchemesForPublicKey(vers, priv.Public())
+	if c.SupportedSignatureAlgorithms != nil {
+		supportedAlgs = slices.DeleteFunc(supportedAlgs, func(sigAlg SignatureScheme) bool {
+			return !isSupportedSignatureAlgorithm(sigAlg, c.SupportedSignatureAlgorithms)
+		})
+	}
+	// Filter out any unsupported signature algorithms, for example due to
+	// FIPS 140-3 policy, tlssha1=0, or protocol version.
+	supportedAlgs = slices.DeleteFunc(supportedAlgs, func(sigAlg SignatureScheme) bool {
+		return isDisabledSignatureAlgorithm(vers, sigAlg, false)
+	})
 	if len(supportedAlgs) == 0 {
 		return 0, unsupportedCertificateError(c)
 	}
 	if len(peerAlgs) == 0 && vers == VersionTLS12 {
 		// For TLS 1.2, if the client didn't send signature_algorithms then we
 		// can assume that it supports SHA1. See RFC 5246, Section 7.4.1.4.1.
+		// RFC 9155 made signature_algorithms mandatory in TLS 1.2, and we gated
+		// it behind the tlssha1 GODEBUG setting.
+		if tlssha1.Value() != "1" {
+			return 0, errors.New("tls: missing signature_algorithms from TLS 1.2 peer")
+		}
 		peerAlgs = []SignatureScheme{PKCS1WithSHA1, ECDSAWithSHA1}
 	}
 	// Pick signature scheme in the peer's preference order, as our
 	// preference order is not configurable.
 	for _, preferredAlg := range peerAlgs {
-		if needFIPS() && !isSupportedSignatureAlgorithm(preferredAlg, fipsSupportedSignatureAlgorithms) {
-			continue
-		}
 		if isSupportedSignatureAlgorithm(preferredAlg, supportedAlgs) {
 			return preferredAlg, nil
 		}

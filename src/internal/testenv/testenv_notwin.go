@@ -11,9 +11,10 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 )
 
-func hasSymlink() (ok bool, reason string) {
+var hasSymlink = sync.OnceValues(func() (ok bool, reason string) {
 	switch runtime.GOOS {
 	case "plan9":
 		return false, ""
@@ -43,4 +44,4 @@ func hasSymlink() (ok bool, reason string) {
 	}
 
 	return true, ""
-}
+})

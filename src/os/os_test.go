@@ -5,19 +5,21 @@
 package os_test
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
 	"internal/testenv"
 	"io"
 	"io/fs"
+	"log"
 	. "os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"runtime/debug"
-	"sort"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -32,6 +34,8 @@ func TestMain(m *testing.M) {
 		io.Copy(io.Discard, Stdin)
 		Exit(0)
 	}
+
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	Exit(m.Run())
 }
@@ -147,35 +151,27 @@ func size(name string, t *testing.T) int64 {
 func equal(name1, name2 string) (r bool) {
 	switch runtime.GOOS {
 	case "windows":
-		r = strings.ToLower(name1) == strings.ToLower(name2)
+		r = strings.EqualFold(name1, name2)
 	default:
 		r = name1 == name2
 	}
 	return
 }
 
-// localTmp returns a local temporary directory not on NFS.
-func localTmp() string {
-	switch runtime.GOOS {
-	case "android", "ios", "windows":
-		return TempDir()
-	}
-	return "/tmp"
-}
-
-func newFile(testName string, t *testing.T) (f *File) {
-	f, err := CreateTemp(localTmp(), "_Go_"+testName)
+func newFile(t *testing.T) (f *File) {
+	t.Helper()
+	f, err := CreateTemp("", "_Go_"+t.Name())
 	if err != nil {
-		t.Fatalf("TempFile %s: %s", testName, err)
+		t.Fatal(err)
 	}
-	return
-}
-
-func newDir(testName string, t *testing.T) (name string) {
-	name, err := MkdirTemp(localTmp(), "_Go_"+testName)
-	if err != nil {
-		t.Fatalf("TempDir %s: %s", testName, err)
-	}
+	t.Cleanup(func() {
+		if err := f.Close(); err != nil && !errors.Is(err, ErrClosed) {
+			t.Fatal(err)
+		}
+		if err := Remove(f.Name()); err != nil {
+			t.Fatal(err)
+		}
+	})
 	return
 }
 
@@ -200,7 +196,7 @@ func TestStat(t *testing.T) {
 }
 
 func TestStatError(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 
 	path := "no-such-file"
 
@@ -237,8 +233,7 @@ func TestStatError(t *testing.T) {
 
 func TestStatSymlinkLoop(t *testing.T) {
 	testenv.MustHaveSymlink(t)
-
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 
 	err := Symlink("x", "y")
 	if err != nil {
@@ -804,18 +799,18 @@ func TestReaddirStatFailures(t *testing.T) {
 		for i, fi := range fis {
 			s[i] = fi.Name()
 		}
-		sort.Strings(s)
+		slices.Sort(s)
 		return s
 	}
 
 	if got, want := names(mustReadDir("initial readdir")),
-		[]string{"good1", "good2", "x"}; !reflect.DeepEqual(got, want) {
+		[]string{"good1", "good2", "x"}; !slices.Equal(got, want) {
 		t.Errorf("initial readdir got %q; want %q", got, want)
 	}
 
 	xerr = ErrNotExist
 	if got, want := names(mustReadDir("with x disappearing")),
-		[]string{"good1", "good2"}; !reflect.DeepEqual(got, want) {
+		[]string{"good1", "good2"}; !slices.Equal(got, want) {
 		t.Errorf("with x disappearing, got %q; want %q", got, want)
 	}
 
@@ -855,34 +850,49 @@ func TestReaddirOfFile(t *testing.T) {
 }
 
 func TestHardLink(t *testing.T) {
+	testMaybeRooted(t, testHardLink)
+}
+func testHardLink(t *testing.T, root *Root) {
 	testenv.MustHaveLink(t)
 
-	defer chtmpdir(t)()
+	var (
+		create = Create
+		link   = Link
+		stat   = Stat
+		op     = "link"
+	)
+	if root != nil {
+		create = root.Create
+		link = root.Link
+		stat = root.Stat
+		op = "linkat"
+	}
+
 	from, to := "hardlinktestfrom", "hardlinktestto"
-	file, err := Create(to)
+	file, err := create(to)
 	if err != nil {
 		t.Fatalf("open %q failed: %v", to, err)
 	}
 	if err = file.Close(); err != nil {
 		t.Errorf("close %q failed: %v", to, err)
 	}
-	err = Link(to, from)
+	err = link(to, from)
 	if err != nil {
 		t.Fatalf("link %q, %q failed: %v", to, from, err)
 	}
 
 	none := "hardlinktestnone"
-	err = Link(none, none)
+	err = link(none, none)
 	// Check the returned error is well-formed.
 	if lerr, ok := err.(*LinkError); !ok || lerr.Error() == "" {
 		t.Errorf("link %q, %q failed to return a valid error", none, none)
 	}
 
-	tostat, err := Stat(to)
+	tostat, err := stat(to)
 	if err != nil {
 		t.Fatalf("stat %q failed: %v", to, err)
 	}
-	fromstat, err := Stat(from)
+	fromstat, err := stat(from)
 	if err != nil {
 		t.Fatalf("stat %q failed: %v", from, err)
 	}
@@ -890,11 +900,11 @@ func TestHardLink(t *testing.T) {
 		t.Errorf("link %q, %q did not create hard link", to, from)
 	}
 	// We should not be able to perform the same Link() a second time
-	err = Link(to, from)
+	err = link(to, from)
 	switch err := err.(type) {
 	case *LinkError:
-		if err.Op != "link" {
-			t.Errorf("Link(%q, %q) err.Op = %q; want %q", to, from, err.Op, "link")
+		if err.Op != op {
+			t.Errorf("Link(%q, %q) err.Op = %q; want %q", to, from, err.Op, op)
 		}
 		if err.Old != to {
 			t.Errorf("Link(%q, %q) err.Old = %q; want %q", to, from, err.Old, to)
@@ -912,66 +922,63 @@ func TestHardLink(t *testing.T) {
 	}
 }
 
-// chtmpdir changes the working directory to a new temporary directory and
-// provides a cleanup function.
-func chtmpdir(t *testing.T) func() {
-	oldwd, err := Getwd()
-	if err != nil {
-		t.Fatalf("chtmpdir: %v", err)
-	}
-	d, err := MkdirTemp("", "test")
-	if err != nil {
-		t.Fatalf("chtmpdir: %v", err)
-	}
-	if err := Chdir(d); err != nil {
-		t.Fatalf("chtmpdir: %v", err)
-	}
-	return func() {
-		if err := Chdir(oldwd); err != nil {
-			t.Fatalf("chtmpdir: %v", err)
-		}
-		RemoveAll(d)
-	}
-}
-
 func TestSymlink(t *testing.T) {
+	testMaybeRooted(t, testSymlink)
+}
+func testSymlink(t *testing.T, root *Root) {
 	testenv.MustHaveSymlink(t)
 
-	defer chtmpdir(t)()
+	var (
+		create   = Create
+		open     = Open
+		symlink  = Symlink
+		stat     = Stat
+		lstat    = Lstat
+		readlink = Readlink
+	)
+	if root != nil {
+		create = root.Create
+		open = root.Open
+		symlink = root.Symlink
+		stat = root.Stat
+		lstat = root.Lstat
+		readlink = root.Readlink
+	}
+
 	from, to := "symlinktestfrom", "symlinktestto"
-	file, err := Create(to)
+	file, err := create(to)
 	if err != nil {
 		t.Fatalf("Create(%q) failed: %v", to, err)
 	}
 	if err = file.Close(); err != nil {
 		t.Errorf("Close(%q) failed: %v", to, err)
 	}
-	err = Symlink(to, from)
+	err = symlink(to, from)
 	if err != nil {
 		t.Fatalf("Symlink(%q, %q) failed: %v", to, from, err)
 	}
-	tostat, err := Lstat(to)
+	tostat, err := lstat(to)
 	if err != nil {
 		t.Fatalf("Lstat(%q) failed: %v", to, err)
 	}
 	if tostat.Mode()&ModeSymlink != 0 {
 		t.Fatalf("Lstat(%q).Mode()&ModeSymlink = %v, want 0", to, tostat.Mode()&ModeSymlink)
 	}
-	fromstat, err := Stat(from)
+	fromstat, err := stat(from)
 	if err != nil {
 		t.Fatalf("Stat(%q) failed: %v", from, err)
 	}
 	if !SameFile(tostat, fromstat) {
 		t.Errorf("Symlink(%q, %q) did not create symlink", to, from)
 	}
-	fromstat, err = Lstat(from)
+	fromstat, err = lstat(from)
 	if err != nil {
 		t.Fatalf("Lstat(%q) failed: %v", from, err)
 	}
 	if fromstat.Mode()&ModeSymlink == 0 {
 		t.Fatalf("Lstat(%q).Mode()&ModeSymlink = 0, want %v", from, ModeSymlink)
 	}
-	fromstat, err = Stat(from)
+	fromstat, err = stat(from)
 	if err != nil {
 		t.Fatalf("Stat(%q) failed: %v", from, err)
 	}
@@ -981,14 +988,14 @@ func TestSymlink(t *testing.T) {
 	if fromstat.Mode()&ModeSymlink != 0 {
 		t.Fatalf("Stat(%q).Mode()&ModeSymlink = %v, want 0", from, fromstat.Mode()&ModeSymlink)
 	}
-	s, err := Readlink(from)
+	s, err := readlink(from)
 	if err != nil {
 		t.Fatalf("Readlink(%q) failed: %v", from, err)
 	}
 	if s != to {
 		t.Fatalf("Readlink(%q) = %q, want %q", from, s, to)
 	}
-	file, err = Open(from)
+	file, err = open(from)
 	if err != nil {
 		t.Fatalf("Open(%q) failed: %v", from, err)
 	}
@@ -997,8 +1004,8 @@ func TestSymlink(t *testing.T) {
 
 func TestLongSymlink(t *testing.T) {
 	testenv.MustHaveSymlink(t)
+	t.Chdir(t.TempDir())
 
-	defer chtmpdir(t)()
 	s := "0123456789abcdef"
 	// Long, but not too long: a common limit is 255.
 	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s
@@ -1017,7 +1024,7 @@ func TestLongSymlink(t *testing.T) {
 }
 
 func TestRename(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 	from, to := "renamefrom", "renameto"
 
 	file, err := Create(from)
@@ -1038,7 +1045,7 @@ func TestRename(t *testing.T) {
 }
 
 func TestRenameOverwriteDest(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 	from, to := "renamefrom", "renameto"
 
 	toData := []byte("to")
@@ -1075,7 +1082,7 @@ func TestRenameOverwriteDest(t *testing.T) {
 }
 
 func TestRenameFailed(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 	from, to := "renamefrom", "renameto"
 
 	err := Rename(from, to)
@@ -1098,7 +1105,7 @@ func TestRenameFailed(t *testing.T) {
 }
 
 func TestRenameNotExisting(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 	from, to := "doesnt-exist", "dest"
 
 	Mkdir(to, 0777)
@@ -1109,7 +1116,7 @@ func TestRenameNotExisting(t *testing.T) {
 }
 
 func TestRenameToDirFailed(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 	from, to := "renamefrom", "renameto"
 
 	Mkdir(from, 0777)
@@ -1154,7 +1161,7 @@ func TestRenameCaseDifference(pt *testing.T) {
 
 	for _, test := range tests {
 		pt.Run(test.name, func(t *testing.T) {
-			defer chtmpdir(t)()
+			t.Chdir(t.TempDir())
 
 			if err := test.create(); err != nil {
 				t.Fatalf("failed to create test file: %s", err)
@@ -1272,9 +1279,7 @@ func TestChmod(t *testing.T) {
 	}
 	t.Parallel()
 
-	f := newFile("TestChmod", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 	// Creation mode is read write
 
 	fm := FileMode(0456)
@@ -1310,9 +1315,7 @@ func checkSize(t *testing.T, f *File, size int64) {
 func TestFTruncate(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestFTruncate", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	checkSize(t, f, 0)
 	f.Write([]byte("hello, world\n"))
@@ -1332,9 +1335,7 @@ func TestFTruncate(t *testing.T) {
 func TestTruncate(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestTruncate", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	checkSize(t, f, 0)
 	f.Write([]byte("hello, world\n"))
@@ -1371,155 +1372,140 @@ func TestTruncateNonexistentFile(t *testing.T) {
 	assertPathError(t, path, err)
 }
 
-// Use TempDir (via newFile) to make sure we're on a local file system,
-// so that timings are not distorted by latency and caching.
-// On NFS, timings can be off due to caching of meta-data on
-// NFS servers (Issue 848).
+var hasNoatime = sync.OnceValue(func() bool {
+	// A sloppy way to check if noatime flag is set (as all filesystems are
+	// checked, not just the one we're interested in). A correct way
+	// would be to use statvfs syscall and check if flags has ST_NOATIME,
+	// but the syscall is OS-specific and is not even wired into Go stdlib.
+	//
+	// Only used on NetBSD (which ignores explicit atime updates with noatime).
+	if runtime.GOOS != "netbsd" {
+		return false
+	}
+	mounts, _ := ReadFile("/proc/mounts")
+	return bytes.Contains(mounts, []byte("noatime"))
+})
+
 func TestChtimes(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestChtimes", t)
-	defer Remove(f.Name())
-
-	f.Write([]byte("hello, world\n"))
+	f := newFile(t)
+	// This should be an empty file (see #68687, #68663).
 	f.Close()
 
 	testChtimes(t, f.Name())
 }
 
-func TestChtimesWithZeroTimes(t *testing.T) {
-	file := newFile("chtimes-with-zero", t)
-	_, err := file.Write([]byte("hello, world\n"))
+func TestChtimesOmit(t *testing.T) {
+	t.Parallel()
+
+	testChtimesOmit(t, true, false)
+	testChtimesOmit(t, false, true)
+	testChtimesOmit(t, true, true)
+	testChtimesOmit(t, false, false) // Same as TestChtimes.
+}
+
+func testChtimesOmit(t *testing.T, omitAt, omitMt bool) {
+	t.Logf("omit atime: %v, mtime: %v", omitAt, omitMt)
+	file := newFile(t)
+	// This should be an empty file (see #68687, #68663).
+	name := file.Name()
+	err := file.Close()
 	if err != nil {
-		t.Fatalf("Write: %s", err)
+		t.Error(err)
 	}
-	fName := file.Name()
-	defer Remove(file.Name())
-	err = file.Close()
-	if err != nil {
-		t.Errorf("%v", err)
-	}
-	fs, err := Stat(fName)
+	fs, err := Stat(name)
 	if err != nil {
 		t.Fatal(err)
 	}
-	startAtime := Atime(fs)
-	startMtime := fs.ModTime()
+
+	wantAtime := Atime(fs)
+	wantMtime := fs.ModTime()
 	switch runtime.GOOS {
 	case "js":
-		startAtime = startAtime.Truncate(time.Second)
-		startMtime = startMtime.Truncate(time.Second)
-	}
-	at0 := startAtime
-	mt0 := startMtime
-	t0 := startMtime.Truncate(time.Second).Add(1 * time.Hour)
-
-	tests := []struct {
-		aTime     time.Time
-		mTime     time.Time
-		wantATime time.Time
-		wantMTime time.Time
-	}{
-		{
-			aTime:     time.Time{},
-			mTime:     time.Time{},
-			wantATime: startAtime,
-			wantMTime: startMtime,
-		},
-		{
-			aTime:     t0.Add(200 * time.Second),
-			mTime:     time.Time{},
-			wantATime: t0.Add(200 * time.Second),
-			wantMTime: startMtime,
-		},
-		{
-			aTime:     time.Time{},
-			mTime:     t0.Add(100 * time.Second),
-			wantATime: t0.Add(200 * time.Second),
-			wantMTime: t0.Add(100 * time.Second),
-		},
-		{
-			aTime:     t0.Add(300 * time.Second),
-			mTime:     t0.Add(100 * time.Second),
-			wantATime: t0.Add(300 * time.Second),
-			wantMTime: t0.Add(100 * time.Second),
-		},
+		wantAtime = wantAtime.Truncate(time.Second)
+		wantMtime = wantMtime.Truncate(time.Second)
 	}
 
-	for _, tt := range tests {
-		// Now change the times accordingly.
-		if err := Chtimes(fName, tt.aTime, tt.mTime); err != nil {
-			t.Error(err)
-		}
+	var setAtime, setMtime time.Time // Zero value means omit.
+	if !omitAt {
+		wantAtime = wantAtime.Add(-1 * time.Second)
+		setAtime = wantAtime
+	}
+	if !omitMt {
+		wantMtime = wantMtime.Add(-1 * time.Second)
+		setMtime = wantMtime
+	}
 
-		// Finally verify the expectations.
-		fs, err = Stat(fName)
-		if err != nil {
-			t.Error(err)
-		}
-		at0 = Atime(fs)
-		mt0 = fs.ModTime()
+	// Change the times accordingly.
+	if err := Chtimes(name, setAtime, setMtime); err != nil {
+		t.Error(err)
+	}
 
-		if got, want := at0, tt.wantATime; !got.Equal(want) {
-			errormsg := fmt.Sprintf("AccessTime mismatch with values ATime:%q-MTime:%q\ngot:  %q\nwant: %q", tt.aTime, tt.mTime, got, want)
-			switch runtime.GOOS {
-			case "plan9":
-				// Mtime is the time of the last change of
-				// content.  Similarly, atime is set whenever
-				// the contents are accessed; also, it is set
-				// whenever mtime is set.
-			case "windows":
-				t.Error(errormsg)
-			default: // unix's
-				if got, want := at0, tt.wantATime; !got.Equal(want) {
-					mounts, err := ReadFile("/bin/mounts")
-					if err != nil {
-						mounts, err = ReadFile("/etc/mtab")
-					}
-					if strings.Contains(string(mounts), "noatime") {
-						t.Log(errormsg)
-						t.Log("A filesystem is mounted with noatime; ignoring.")
-					} else {
-						switch runtime.GOOS {
-						case "netbsd", "dragonfly":
-							// On a 64-bit implementation, birth time is generally supported and cannot be changed.
-							// When supported, atime update is restricted and depends on the file system and on the
-							// OS configuration.
-							if strings.Contains(runtime.GOARCH, "64") {
-								t.Log(errormsg)
-								t.Log("Filesystem might not support atime changes; ignoring.")
-							}
-						default:
-							t.Error(errormsg)
-						}
-					}
-				}
-			}
-		}
-		if got, want := mt0, tt.wantMTime; !got.Equal(want) {
-			errormsg := fmt.Sprintf("ModTime mismatch with values ATime:%q-MTime:%q\ngot:  %q\nwant: %q", tt.aTime, tt.mTime, got, want)
-			switch runtime.GOOS {
-			case "dragonfly":
+	// Verify the expectations.
+	fs, err = Stat(name)
+	if err != nil {
+		t.Error(err)
+	}
+	gotAtime := Atime(fs)
+	gotMtime := fs.ModTime()
+
+	// TODO: remove the dragonfly omitAt && omitMt exceptions below once the
+	// fix (https://github.com/DragonFlyBSD/DragonFlyBSD/commit/c7c71870ed0)
+	// is available generally and on CI runners.
+	if !gotAtime.Equal(wantAtime) {
+		errormsg := fmt.Sprintf("atime mismatch, got: %q, want: %q", gotAtime, wantAtime)
+		switch runtime.GOOS {
+		case "plan9":
+			// Mtime is the time of the last change of content.
+			// Similarly, atime is set whenever the contents are
+			// accessed; also, it is set whenever mtime is set.
+		case "dragonfly":
+			if omitAt && omitMt {
 				t.Log(errormsg)
-				t.Log("Mtime is always updated; ignoring.")
-			default:
+				t.Log("Known DragonFly BSD issue (won't work when both times are omitted); ignoring.")
+			} else {
+				// Assume hammer2 fs; https://www.dragonflybsd.org/hammer/ says:
+				// > Because HAMMER2 is a block copy-on-write filesystem,
+				// > the "atime" field is not supported and will typically
+				// > just reflect local system in-memory caches or mtime.
+				//
+				// TODO: if only can CI define TMPDIR to point to a tmpfs
+				// (e.g. /var/run/shm), this exception can be removed.
+				t.Log(errormsg)
+				t.Log("Known DragonFly BSD issue (atime not supported on hammer2); ignoring.")
+			}
+		case "netbsd":
+			if !omitAt && hasNoatime() {
+				t.Log(errormsg)
+				t.Log("Known NetBSD issue (atime not changed on fs mounted with noatime); ignoring.")
+			} else {
 				t.Error(errormsg)
 			}
+		default:
+			t.Error(errormsg)
+		}
+	}
+	if !gotMtime.Equal(wantMtime) {
+		errormsg := fmt.Sprintf("mtime mismatch, got: %q, want: %q", gotMtime, wantMtime)
+		switch runtime.GOOS {
+		case "dragonfly":
+			if omitAt && omitMt {
+				t.Log(errormsg)
+				t.Log("Known DragonFly BSD issue (won't work when both times are omitted); ignoring.")
+			} else {
+				t.Error(errormsg)
+			}
+		default:
+			t.Error(errormsg)
 		}
 	}
 }
 
-// Use TempDir (via newDir) to make sure we're on a local file system,
-// so that timings are not distorted by latency and caching.
-// On NFS, timings can be off due to caching of meta-data on
-// NFS servers (Issue 848).
 func TestChtimesDir(t *testing.T) {
 	t.Parallel()
 
-	name := newDir("TestChtimes", t)
-	defer RemoveAll(name)
-
-	testChtimes(t, name)
+	testChtimes(t, t.TempDir())
 }
 
 func testChtimes(t *testing.T, name string) {
@@ -1546,6 +1532,7 @@ func testChtimes(t *testing.T, name string) {
 	pat := Atime(postStat)
 	pmt := postStat.ModTime()
 	if !pat.Before(at) {
+		errormsg := fmt.Sprintf("AccessTime didn't go backwards; was=%v, after=%v", at, pat)
 		switch runtime.GOOS {
 		case "plan9":
 			// Mtime is the time of the last change of
@@ -1553,14 +1540,14 @@ func testChtimes(t *testing.T, name string) {
 			// the contents are accessed; also, it is set
 			// whenever mtime is set.
 		case "netbsd":
-			mounts, _ := ReadFile("/proc/mounts")
-			if strings.Contains(string(mounts), "noatime") {
-				t.Logf("AccessTime didn't go backwards, but see a filesystem mounted noatime; ignoring. Issue 19293.")
+			if hasNoatime() {
+				t.Log(errormsg)
+				t.Log("Known NetBSD issue (atime not changed on fs mounted with noatime); ignoring.")
 			} else {
-				t.Logf("AccessTime didn't go backwards; was=%v, after=%v (Ignoring on NetBSD, assuming noatime, Issue 19293)", at, pat)
+				t.Error(errormsg)
 			}
 		default:
-			t.Errorf("AccessTime didn't go backwards; was=%v, after=%v", at, pat)
+			t.Error(errormsg)
 		}
 	}
 
@@ -1570,9 +1557,8 @@ func testChtimes(t *testing.T, name string) {
 }
 
 func TestChtimesToUnixZero(t *testing.T) {
-	file := newFile("chtimes-to-unix-zero", t)
+	file := newFile(t)
 	fn := file.Name()
-	defer Remove(fn)
 	if _, err := file.Write([]byte("hi")); err != nil {
 		t.Fatal(err)
 	}
@@ -1600,7 +1586,7 @@ func TestFileChdir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Getwd: %s", err)
 	}
-	defer Chdir(wd)
+	t.Chdir(".") // Ensure wd is restored after the test.
 
 	fd, err := Open(".")
 	if err != nil {
@@ -1620,16 +1606,23 @@ func TestFileChdir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Getwd: %s", err)
 	}
-	if !equal(wdNew, wd) {
-		t.Fatalf("fd.Chdir failed, got %s, want %s", wdNew, wd)
+
+	wdInfo, err := fd.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	newInfo, err := Stat(wdNew)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !SameFile(wdInfo, newInfo) {
+		t.Fatalf("fd.Chdir failed: got %s, want %s", wdNew, wd)
 	}
 }
 
 func TestChdirAndGetwd(t *testing.T) {
-	fd, err := Open(".")
-	if err != nil {
-		t.Fatalf("Open .: %s", err)
-	}
+	t.Chdir(t.TempDir()) // Ensure wd is restored after the test.
+
 	// These are chosen carefully not to be symlinks on a Mac
 	// (unlike, say, /var, /etc), except /tmp, which we handle below.
 	dirs := []string{"/", "/usr/bin", "/tmp"}
@@ -1643,16 +1636,16 @@ func TestChdirAndGetwd(t *testing.T) {
 		dirs = nil
 		for _, dir := range []string{t.TempDir(), t.TempDir()} {
 			// Expand symlinks so path equality tests work.
-			dir, err = filepath.EvalSymlinks(dir)
+			dir, err := filepath.EvalSymlinks(dir)
 			if err != nil {
 				t.Fatalf("EvalSymlinks: %v", err)
 			}
 			dirs = append(dirs, dir)
 		}
 	}
-	oldwd := Getenv("PWD")
 	for mode := 0; mode < 2; mode++ {
 		for _, d := range dirs {
+			var err error
 			if mode == 0 {
 				err = Chdir(d)
 			} else {
@@ -1668,30 +1661,17 @@ func TestChdirAndGetwd(t *testing.T) {
 				Setenv("PWD", "/tmp")
 			}
 			pwd, err1 := Getwd()
-			Setenv("PWD", oldwd)
-			err2 := fd.Chdir()
-			if err2 != nil {
-				// We changed the current directory and cannot go back.
-				// Don't let the tests continue; they'll scribble
-				// all over some other directory.
-				fmt.Fprintf(Stderr, "fchdir back to dot failed: %s\n", err2)
-				Exit(1)
-			}
 			if err != nil {
-				fd.Close()
 				t.Fatalf("Chdir %s: %s", d, err)
 			}
 			if err1 != nil {
-				fd.Close()
 				t.Fatalf("Getwd in %s: %s", d, err1)
 			}
 			if !equal(pwd, d) {
-				fd.Close()
 				t.Fatalf("Getwd returned %q want %q", pwd, d)
 			}
 		}
 	}
-	fd.Close()
 }
 
 // Test that Chdir+Getwd is program-wide.
@@ -1702,17 +1682,7 @@ func TestProgWideChdir(t *testing.T) {
 	done := make(chan struct{})
 
 	d := t.TempDir()
-	oldwd, err := Getwd()
-	if err != nil {
-		t.Fatalf("Getwd: %v", err)
-	}
-	defer func() {
-		if err := Chdir(oldwd); err != nil {
-			// It's not safe to continue with tests if we can't get back to
-			// the original working directory.
-			panic(err)
-		}
-	}()
+	t.Chdir(d)
 
 	// Note the deferred Wait must be called after the deferred close(done),
 	// to ensure the N goroutines have been released even if the main goroutine
@@ -1767,6 +1737,7 @@ func TestProgWideChdir(t *testing.T) {
 			}
 		}(i)
 	}
+	var err error
 	if err = Chdir(d); err != nil {
 		t.Fatalf("Chdir: %v", err)
 	}
@@ -1783,9 +1754,7 @@ func TestProgWideChdir(t *testing.T) {
 func TestSeek(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestSeek", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	const data = "hello, world\n"
 	io.WriteString(f, data)
@@ -1814,13 +1783,6 @@ func TestSeek(t *testing.T) {
 	for i, tt := range tests {
 		off, err := f.Seek(tt.in, tt.whence)
 		if off != tt.out || err != nil {
-			if e, ok := err.(*PathError); ok && e.Err == syscall.EINVAL && tt.out > 1<<32 && runtime.GOOS == "linux" {
-				mounts, _ := ReadFile("/proc/mounts")
-				if strings.Contains(string(mounts), "reiserfs") {
-					// Reiserfs rejects the big seeks.
-					t.Skipf("skipping test known to fail on reiserfs; https://golang.org/issue/91")
-				}
-			}
 			t.Errorf("#%d: Seek(%v, %v) = %v, %v want %v, nil", i, tt.in, tt.whence, off, err, tt.out)
 		}
 	}
@@ -1853,43 +1815,62 @@ func TestSeekError(t *testing.T) {
 	}
 }
 
-type openErrorTest struct {
-	path  string
-	mode  int
-	error error
-}
-
-var openErrorTests = []openErrorTest{
-	{
-		sfdir + "/no-such-file",
-		O_RDONLY,
-		syscall.ENOENT,
-	},
-	{
-		sfdir,
-		O_WRONLY,
-		syscall.EISDIR,
-	},
-	{
-		sfdir + "/" + sfname + "/no-such-file",
-		O_WRONLY,
-		syscall.ENOTDIR,
-	},
-}
-
 func TestOpenError(t *testing.T) {
 	t.Parallel()
-
-	for _, tt := range openErrorTests {
-		f, err := OpenFile(tt.path, tt.mode, 0)
+	dir := makefs(t, []string{
+		"is-a-file",
+		"is-a-dir/",
+	})
+	t.Run("NoRoot", func(t *testing.T) { testOpenError(t, dir, false) })
+	t.Run("InRoot", func(t *testing.T) { testOpenError(t, dir, true) })
+}
+func testOpenError(t *testing.T, dir string, rooted bool) {
+	t.Parallel()
+	var r *Root
+	if rooted {
+		var err error
+		r, err = OpenRoot(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer r.Close()
+	}
+	for _, tt := range []struct {
+		path  string
+		mode  int
+		error error
+	}{{
+		"no-such-file",
+		O_RDONLY,
+		syscall.ENOENT,
+	}, {
+		"is-a-dir",
+		O_WRONLY,
+		syscall.EISDIR,
+	}, {
+		"is-a-file/no-such-file",
+		O_WRONLY,
+		syscall.ENOTDIR,
+	}} {
+		var f *File
+		var err error
+		var name string
+		if rooted {
+			name = fmt.Sprintf("Root(%q).OpenFile(%q, %d)", dir, tt.path, tt.mode)
+			f, err = r.OpenFile(tt.path, tt.mode, 0)
+		} else {
+			path := filepath.Join(dir, tt.path)
+			name = fmt.Sprintf("OpenFile(%q, %d)", path, tt.mode)
+			f, err = OpenFile(path, tt.mode, 0)
+		}
 		if err == nil {
-			t.Errorf("Open(%q, %d) succeeded", tt.path, tt.mode)
+			t.Errorf("%v succeeded", name)
 			f.Close()
 			continue
 		}
 		perr, ok := err.(*PathError)
 		if !ok {
-			t.Errorf("Open(%q, %d) returns error of %T type; want *PathError", tt.path, tt.mode, err)
+			t.Errorf("%v returns error of %T type; want *PathError", name, err)
 		}
 		if perr.Err != tt.error {
 			if runtime.GOOS == "plan9" {
@@ -1897,12 +1878,14 @@ func TestOpenError(t *testing.T) {
 				expectedErrStr := strings.Replace(tt.error.Error(), "file ", "", 1)
 				if !strings.HasSuffix(syscallErrStr, expectedErrStr) {
 					// Some Plan 9 file servers incorrectly return
-					// EACCES rather than EISDIR when a directory is
+					// EPERM or EACCES rather than EISDIR when a directory is
 					// opened for write.
-					if tt.error == syscall.EISDIR && strings.HasSuffix(syscallErrStr, syscall.EACCES.Error()) {
+					if tt.error == syscall.EISDIR &&
+						(strings.HasSuffix(syscallErrStr, syscall.EPERM.Error()) ||
+							strings.HasSuffix(syscallErrStr, syscall.EACCES.Error())) {
 						continue
 					}
-					t.Errorf("Open(%q, %d) = _, %q; want suffix %q", tt.path, tt.mode, syscallErrStr, expectedErrStr)
+					t.Errorf("%v = _, %q; want suffix %q", name, syscallErrStr, expectedErrStr)
 				}
 				continue
 			}
@@ -1913,7 +1896,7 @@ func TestOpenError(t *testing.T) {
 					continue
 				}
 			}
-			t.Errorf("Open(%q, %d) = _, %q; want %q", tt.path, tt.mode, perr.Err.Error(), tt.error.Error())
+			t.Errorf("%v = _, %q; want %q", name, perr.Err.Error(), tt.error.Error())
 		}
 	}
 }
@@ -2027,9 +2010,7 @@ func TestHostname(t *testing.T) {
 func TestReadAt(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestReadAt", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	const data = "hello, world\n"
 	io.WriteString(f, data)
@@ -2051,9 +2032,7 @@ func TestReadAt(t *testing.T) {
 func TestReadAtOffset(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestReadAtOffset", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	const data = "hello, world\n"
 	io.WriteString(f, data)
@@ -2082,9 +2061,7 @@ func TestReadAtOffset(t *testing.T) {
 func TestReadAtNegativeOffset(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestReadAtNegativeOffset", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	const data = "hello, world\n"
 	io.WriteString(f, data)
@@ -2103,24 +2080,60 @@ func TestReadAtNegativeOffset(t *testing.T) {
 func TestWriteAt(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestWriteAt", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
-	const data = "hello, world\n"
+	const data = "hello, world"
 	io.WriteString(f, data)
 
-	n, err := f.WriteAt([]byte("WORLD"), 7)
-	if err != nil || n != 5 {
+	n, err := f.WriteAt([]byte("WOR"), 7)
+	if err != nil || n != 3 {
 		t.Fatalf("WriteAt 7: %d, %v", n, err)
 	}
+	n, err = io.WriteString(f, "!") // test that WriteAt doesn't change the file offset
+	if err != nil || n != 1 {
+		t.Fatal(err)
+	}
 
-	b, err := ReadFile(f.Name())
+	got, err := ReadFile(f.Name())
 	if err != nil {
 		t.Fatalf("ReadFile %s: %v", f.Name(), err)
 	}
-	if string(b) != "hello, WORLD\n" {
-		t.Fatalf("after write: have %q want %q", string(b), "hello, WORLD\n")
+	want := "hello, WORld!"
+	if string(got) != want {
+		t.Fatalf("after write: have %q want %q", string(got), want)
+	}
+}
+
+func TestWriteAtConcurrent(t *testing.T) {
+	t.Parallel()
+
+	f := newFile(t)
+	io.WriteString(f, "0000000000")
+
+	var wg sync.WaitGroup
+	for i := range 10 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			n, err := f.WriteAt([]byte(strconv.Itoa(i)), int64(i))
+			if err != nil || n != 1 {
+				t.Errorf("WriteAt %d: %d, %v", i, n, err)
+			}
+			n, err = io.WriteString(f, "!") // test that WriteAt doesn't change the file offset
+			if err != nil || n != 1 {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+
+	got, err := ReadFile(f.Name())
+	if err != nil {
+		t.Fatalf("ReadFile %s: %v", f.Name(), err)
+	}
+	want := "0123456789!!!!!!!!!!"
+	if string(got) != want {
+		t.Fatalf("after write: have %q want %q", string(got), want)
 	}
 }
 
@@ -2128,9 +2141,7 @@ func TestWriteAt(t *testing.T) {
 func TestWriteAtNegativeOffset(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestWriteAtNegativeOffset", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	n, err := f.WriteAt([]byte("WORLD"), -10)
 
@@ -2142,7 +2153,7 @@ func TestWriteAtNegativeOffset(t *testing.T) {
 
 // Verify that WriteAt doesn't work in append mode.
 func TestWriteAtInAppendMode(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 	f, err := OpenFile("write_at_in_append_mode.txt", O_APPEND|O_CREATE, 0666)
 	if err != nil {
 		t.Fatalf("OpenFile: %v", err)
@@ -2155,8 +2166,15 @@ func TestWriteAtInAppendMode(t *testing.T) {
 	}
 }
 
-func writeFile(t *testing.T, fname string, flag int, text string) string {
-	f, err := OpenFile(fname, flag, 0666)
+func writeFile(t *testing.T, r *Root, fname string, flag int, text string) string {
+	t.Helper()
+	var f *File
+	var err error
+	if r == nil {
+		f, err = OpenFile(fname, flag, 0666)
+	} else {
+		f, err = r.OpenFile(fname, flag, 0666)
+	}
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -2173,35 +2191,206 @@ func writeFile(t *testing.T, fname string, flag int, text string) string {
 }
 
 func TestAppend(t *testing.T) {
-	defer chtmpdir(t)()
-	const f = "append.txt"
-	s := writeFile(t, f, O_CREATE|O_TRUNC|O_RDWR, "new")
-	if s != "new" {
-		t.Fatalf("writeFile: have %q want %q", s, "new")
+	testMaybeRooted(t, func(t *testing.T, r *Root) {
+		const f = "append.txt"
+		s := writeFile(t, r, f, O_CREATE|O_TRUNC|O_RDWR, "new")
+		if s != "new" {
+			t.Fatalf("writeFile: have %q want %q", s, "new")
+		}
+		s = writeFile(t, r, f, O_APPEND|O_RDWR, "|append")
+		if s != "new|append" {
+			t.Fatalf("writeFile: have %q want %q", s, "new|append")
+		}
+		s = writeFile(t, r, f, O_CREATE|O_APPEND|O_RDWR, "|append")
+		if s != "new|append|append" {
+			t.Fatalf("writeFile: have %q want %q", s, "new|append|append")
+		}
+		err := Remove(f)
+		if err != nil {
+			t.Fatalf("Remove: %v", err)
+		}
+		s = writeFile(t, r, f, O_CREATE|O_APPEND|O_RDWR, "new&append")
+		if s != "new&append" {
+			t.Fatalf("writeFile: after append have %q want %q", s, "new&append")
+		}
+		s = writeFile(t, r, f, O_CREATE|O_RDWR, "old")
+		if s != "old&append" {
+			t.Fatalf("writeFile: after create have %q want %q", s, "old&append")
+		}
+		s = writeFile(t, r, f, O_CREATE|O_TRUNC|O_RDWR, "new")
+		if s != "new" {
+			t.Fatalf("writeFile: after truncate have %q want %q", s, "new")
+		}
+	})
+}
+
+// TestFilePermissions tests setting Unix permission bits on file creation.
+func TestFilePermissions(t *testing.T) {
+	if Getuid() == 0 {
+		t.Skip("skipping test when running as root")
 	}
-	s = writeFile(t, f, O_APPEND|O_RDWR, "|append")
-	if s != "new|append" {
-		t.Fatalf("writeFile: have %q want %q", s, "new|append")
+	for _, test := range []struct {
+		name string
+		mode FileMode
+	}{
+		{"r", 0o444},
+		{"w", 0o222},
+		{"rw", 0o666},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			switch runtime.GOOS {
+			case "windows":
+				if test.mode&0444 == 0 {
+					t.Skip("write-only files not supported on " + runtime.GOOS)
+				}
+			case "wasip1":
+				t.Skip("file permissions not supported on " + runtime.GOOS)
+			}
+			testMaybeRooted(t, func(t *testing.T, r *Root) {
+				const filename = "f"
+				var f *File
+				var err error
+				if r == nil {
+					f, err = OpenFile(filename, O_RDWR|O_CREATE|O_EXCL, test.mode)
+				} else {
+					f, err = r.OpenFile(filename, O_RDWR|O_CREATE|O_EXCL, test.mode)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				f.Close()
+				b, err := ReadFile(filename)
+				if test.mode&0o444 != 0 {
+					if err != nil {
+						t.Errorf("ReadFile = %v; want success", err)
+					}
+				} else {
+					if err == nil {
+						t.Errorf("ReadFile = %q, <nil>; want failure", string(b))
+					}
+				}
+				_, err = Stat(filename)
+				if err != nil {
+					t.Errorf("Stat = %v; want success", err)
+				}
+				err = WriteFile(filename, nil, 0666)
+				if test.mode&0o222 != 0 {
+					if err != nil {
+						t.Errorf("WriteFile = %v; want success", err)
+						b, err := ReadFile(filename)
+						t.Errorf("ReadFile: %v", err)
+						t.Errorf("file contents: %q", b)
+					}
+				} else {
+					if err == nil {
+						t.Errorf("WriteFile(%q) = <nil>; want failure", filename)
+						st, err := Stat(filename)
+						if err == nil {
+							t.Errorf("mode: %s", st.Mode())
+						}
+						b, err := ReadFile(filename)
+						t.Errorf("ReadFile: %v", err)
+						t.Errorf("file contents: %q", b)
+					}
+				}
+			})
+		})
 	}
-	s = writeFile(t, f, O_CREATE|O_APPEND|O_RDWR, "|append")
-	if s != "new|append|append" {
-		t.Fatalf("writeFile: have %q want %q", s, "new|append|append")
-	}
-	err := Remove(f)
-	if err != nil {
-		t.Fatalf("Remove: %v", err)
-	}
-	s = writeFile(t, f, O_CREATE|O_APPEND|O_RDWR, "new&append")
-	if s != "new&append" {
-		t.Fatalf("writeFile: after append have %q want %q", s, "new&append")
-	}
-	s = writeFile(t, f, O_CREATE|O_RDWR, "old")
-	if s != "old&append" {
-		t.Fatalf("writeFile: after create have %q want %q", s, "old&append")
-	}
-	s = writeFile(t, f, O_CREATE|O_TRUNC|O_RDWR, "new")
-	if s != "new" {
-		t.Fatalf("writeFile: after truncate have %q want %q", s, "new")
+
+}
+
+func TestOpenFileCreateExclDanglingSymlink(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+	testMaybeRooted(t, func(t *testing.T, r *Root) {
+		const link = "link"
+		if err := Symlink("does_not_exist", link); err != nil {
+			t.Fatal(err)
+		}
+		var f *File
+		var err error
+		if r == nil {
+			f, err = OpenFile(link, O_WRONLY|O_CREATE|O_EXCL, 0o444)
+		} else {
+			f, err = r.OpenFile(link, O_WRONLY|O_CREATE|O_EXCL, 0o444)
+		}
+		if err == nil {
+			f.Close()
+		}
+		if !errors.Is(err, ErrExist) {
+			t.Errorf("OpenFile of a dangling symlink with O_CREATE|O_EXCL = %v, want ErrExist", err)
+		}
+		if _, err := Stat(link); err == nil {
+			t.Errorf("OpenFile of a dangling symlink with O_CREATE|O_EXCL created a file")
+		}
+	})
+}
+
+// TestFileRDWRFlags tests the O_RDONLY, O_WRONLY, and O_RDWR flags.
+func TestFileRDWRFlags(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		flag int
+	}{
+		{"O_RDONLY", O_RDONLY},
+		{"O_WRONLY", O_WRONLY},
+		{"O_RDWR", O_RDWR},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			testMaybeRooted(t, func(t *testing.T, r *Root) {
+				const filename = "f"
+				content := []byte("content")
+				if err := WriteFile(filename, content, 0666); err != nil {
+					t.Fatal(err)
+				}
+				var f *File
+				var err error
+				if r == nil {
+					f, err = OpenFile(filename, test.flag, 0)
+				} else {
+					f, err = r.OpenFile(filename, test.flag, 0)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer f.Close()
+				got, err := io.ReadAll(f)
+				if test.flag == O_WRONLY {
+					if err == nil {
+						t.Errorf("read file: %q, %v; want error", got, err)
+					}
+				} else {
+					if err != nil || !bytes.Equal(got, content) {
+						t.Errorf("read file: %q, %v; want %q, <nil>", got, err, content)
+					}
+				}
+				if _, err := f.Seek(0, 0); err != nil {
+					t.Fatalf("f.Seek: %v", err)
+				}
+				newcontent := []byte("CONTENT")
+				_, err = f.Write(newcontent)
+				if test.flag == O_RDONLY {
+					if err == nil {
+						t.Errorf("write file: succeeded, want error")
+					}
+				} else {
+					if err != nil {
+						t.Errorf("write file: %v, want success", err)
+					}
+				}
+				f.Close()
+				got, err = ReadFile(filename)
+				if err != nil {
+					t.Fatal(err)
+				}
+				want := content
+				if test.flag != O_RDONLY {
+					want = newcontent
+				}
+				if !bytes.Equal(got, want) {
+					t.Fatalf("after write, file contains %q, want %q", got, want)
+				}
+			})
+		})
 	}
 }
 
@@ -2232,7 +2421,7 @@ func TestNilProcessStateString(t *testing.T) {
 }
 
 func TestSameFile(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 	fa, err := Create("a")
 	if err != nil {
 		t.Fatalf("Create(a): %v", err)
@@ -2375,13 +2564,8 @@ func TestStatStdin(t *testing.T) {
 		Exit(0)
 	}
 
-	exe, err := Executable()
-	if err != nil {
-		t.Skipf("can't find executable: %v", err)
-	}
-
-	testenv.MustHaveExec(t)
 	t.Parallel()
+	exe := testenv.Executable(t)
 
 	fi, err := Stdin.Stat()
 	if err != nil {
@@ -2464,9 +2648,7 @@ func TestStatRelativeSymlink(t *testing.T) {
 func TestReadAtEOF(t *testing.T) {
 	t.Parallel()
 
-	f := newFile("TestReadAtEOF", t)
-	defer Remove(f.Name())
-	defer f.Close()
+	f := newFile(t)
 
 	_, err := f.ReadAt(make([]byte, 10), 0)
 	switch err {
@@ -2482,12 +2664,7 @@ func TestReadAtEOF(t *testing.T) {
 func TestLongPath(t *testing.T) {
 	t.Parallel()
 
-	tmpdir := newDir("TestLongPath", t)
-	defer func(d string) {
-		if err := RemoveAll(d); err != nil {
-			t.Fatalf("RemoveAll failed: %v", err)
-		}
-	}(tmpdir)
+	tmpdir := t.TempDir()
 
 	// Test the boundary of 247 and fewer bytes (normal) and 248 and more bytes (adjusted).
 	sizes := []int{247, 248, 249, 400}
@@ -2554,11 +2731,10 @@ func TestLongPath(t *testing.T) {
 }
 
 func testKillProcess(t *testing.T, processKiller func(p *Process)) {
-	testenv.MustHaveExec(t)
 	t.Parallel()
 
 	// Re-exec the test binary to start a process that hangs until stdin is closed.
-	cmd := testenv.Command(t, Args[0])
+	cmd := testenv.Command(t, testenv.Executable(t))
 	cmd.Env = append(cmd.Environ(), "GO_OS_TEST_DRAIN_STDIN=1")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -2607,10 +2783,9 @@ func TestGetppid(t *testing.T) {
 		Exit(0)
 	}
 
-	testenv.MustHaveExec(t)
 	t.Parallel()
 
-	cmd := testenv.Command(t, Args[0], "-test.run=^TestGetppid$")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestGetppid$")
 	cmd.Env = append(Environ(), "GO_WANT_HELPER_PROCESS=1")
 
 	// verify that Getppid() from the forked process reports our process id
@@ -2703,10 +2878,7 @@ func TestRemoveAllRace(t *testing.T) {
 
 	n := runtime.GOMAXPROCS(16)
 	defer runtime.GOMAXPROCS(n)
-	root, err := MkdirTemp("", "issue")
-	if err != nil {
-		t.Fatal(err)
-	}
+	root := t.TempDir()
 	mkdirTree(t, root, 1, 6)
 	hold := make(chan struct{})
 	var wg sync.WaitGroup
@@ -2728,6 +2900,8 @@ func TestRemoveAllRace(t *testing.T) {
 // Test that reading from a pipe doesn't use up a thread.
 func TestPipeThreads(t *testing.T) {
 	switch runtime.GOOS {
+	case "aix":
+		t.Skip("skipping on aix; issue 70131")
 	case "illumos", "solaris":
 		t.Skip("skipping on Solaris and illumos; issue 19111")
 	case "windows":
@@ -2741,11 +2915,6 @@ func TestPipeThreads(t *testing.T) {
 	}
 
 	threads := 100
-
-	// OpenBSD has a low default for max number of files.
-	if runtime.GOOS == "openbsd" {
-		threads = 50
-	}
 
 	r := make([]*File, threads)
 	w := make([]*File, threads)
@@ -2838,15 +3007,43 @@ func TestUserCacheDir(t *testing.T) {
 		t.Fatalf("UserCacheDir returned %q; want non-empty path or error", dir)
 	}
 
-	if err := MkdirAll(dir, 0777); err != nil {
-		t.Fatalf("could not create UserCacheDir: %v", err)
-	}
-	d, err := MkdirTemp(dir, "TestUserCacheDir")
+	fi, err := Stat(dir)
 	if err != nil {
-		t.Fatalf("could not create a directory in UserCacheDir: %v", err)
-	}
-	if err := Remove(d); err != nil {
+		if IsNotExist(err) {
+			t.Log(err)
+			return
+		}
 		t.Fatal(err)
+	}
+	if !fi.IsDir() {
+		t.Fatalf("dir %s is not directory; type = %v", dir, fi.Mode())
+	}
+}
+
+func TestUserCacheDirXDGConfigDirEnvVar(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows", "darwin", "plan9":
+		t.Skip("$XDG_CACHE_HOME is effective only on Unix systems")
+	}
+
+	wd, err := Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_CACHE_HOME", wd)
+
+	dir, err := UserCacheDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dir != wd {
+		t.Fatalf("UserCacheDir returned %q; want the value of $XDG_CACHE_HOME %q", dir, wd)
+	}
+
+	t.Setenv("XDG_CACHE_HOME", "some-dir")
+	_, err = UserCacheDir()
+	if err == nil {
+		t.Fatal("UserCacheDir succeeded though $XDG_CACHE_HOME contains a relative path")
 	}
 }
 
@@ -2861,16 +3058,43 @@ func TestUserConfigDir(t *testing.T) {
 		t.Fatalf("UserConfigDir returned %q; want non-empty path or error", dir)
 	}
 
-	if err := MkdirAll(dir, 0777); err != nil {
-		t.Fatalf("could not create UserConfigDir: %v", err)
+	fi, err := Stat(dir)
+	if err != nil {
+		if IsNotExist(err) {
+			t.Log(err)
+			return
+		}
+		t.Fatal(err)
+	}
+	if !fi.IsDir() {
+		t.Fatalf("dir %s is not directory; type = %v", dir, fi.Mode())
+	}
+}
+
+func TestUserConfigDirXDGConfigDirEnvVar(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows", "darwin", "plan9":
+		t.Skip("$XDG_CONFIG_HOME is effective only on Unix systems")
 	}
 
-	d, err := MkdirTemp(dir, "TestUserConfigDir")
+	wd, err := Getwd()
 	if err != nil {
-		t.Fatalf("could not create a directory in UserConfigDir: %v", err)
-	}
-	if err := Remove(d); err != nil {
 		t.Fatal(err)
+	}
+	t.Setenv("XDG_CONFIG_HOME", wd)
+
+	dir, err := UserConfigDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dir != wd {
+		t.Fatalf("UserConfigDir returned %q; want the value of $XDG_CONFIG_HOME %q", dir, wd)
+	}
+
+	t.Setenv("XDG_CONFIG_HOME", "some-dir")
+	_, err = UserConfigDir()
+	if err == nil {
+		t.Fatal("UserConfigDir succeeded though $XDG_CONFIG_HOME contains a relative path")
 	}
 }
 
@@ -2987,6 +3211,22 @@ func isDeadlineExceeded(err error) bool {
 
 // Test that opening a file does not change its permissions.  Issue 38225.
 func TestOpenFileKeepsPermissions(t *testing.T) {
+	t.Run("OpenFile", func(t *testing.T) {
+		testOpenFileKeepsPermissions(t, OpenFile)
+	})
+	t.Run("RootOpenFile", func(t *testing.T) {
+		testOpenFileKeepsPermissions(t, func(name string, flag int, perm FileMode) (*File, error) {
+			dir, file := filepath.Split(name)
+			r, err := OpenRoot(dir)
+			if err != nil {
+				return nil, err
+			}
+			defer r.Close()
+			return r.OpenFile(file, flag, perm)
+		})
+	})
+}
+func testOpenFileKeepsPermissions(t *testing.T, openf func(name string, flag int, perm FileMode) (*File, error)) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -2998,7 +3238,7 @@ func TestOpenFileKeepsPermissions(t *testing.T) {
 	if err := f.Close(); err != nil {
 		t.Error(err)
 	}
-	f, err = OpenFile(name, O_WRONLY|O_CREATE|O_TRUNC, 0)
+	f, err = openf(name, O_WRONLY|O_CREATE|O_TRUNC, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3017,36 +3257,57 @@ func TestOpenFileKeepsPermissions(t *testing.T) {
 	}
 }
 
-func TestDirFS(t *testing.T) {
-	t.Parallel()
+func forceMFTUpdateOnWindows(t *testing.T, path string) {
+	t.Helper()
+
+	if runtime.GOOS != "windows" {
+		return
+	}
 
 	// On Windows, we force the MFT to update by reading the actual metadata from GetFileInformationByHandle and then
 	// explicitly setting that. Otherwise it might get out of sync with FindFirstFile. See golang.org/issues/42637.
-	if runtime.GOOS == "windows" {
-		if err := filepath.WalkDir("./testdata/dirfs", func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				t.Fatal(err)
-			}
-			info, err := d.Info()
-			if err != nil {
-				t.Fatal(err)
-			}
-			stat, err := Stat(path) // This uses GetFileInformationByHandle internally.
-			if err != nil {
-				t.Fatal(err)
-			}
-			if stat.ModTime() == info.ModTime() {
-				return nil
-			}
-			if err := Chtimes(path, stat.ModTime(), stat.ModTime()); err != nil {
-				t.Log(err) // We only log, not die, in case the test directory is not writable.
-			}
-			return nil
-		}); err != nil {
+	if err := filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
 			t.Fatal(err)
 		}
+		info, err := d.Info()
+		if err != nil {
+			t.Fatal(err)
+		}
+		stat, err := Stat(path) // This uses GetFileInformationByHandle internally.
+		if err != nil {
+			t.Fatal(err)
+		}
+		if stat.ModTime() == info.ModTime() {
+			return nil
+		}
+		if err := Chtimes(path, stat.ModTime(), stat.ModTime()); err != nil {
+			t.Log(err) // We only log, not die, in case the test directory is not writable.
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
 	}
-	fsys := DirFS("./testdata/dirfs")
+}
+
+func TestDirFS(t *testing.T) {
+	t.Parallel()
+	testDirFS(t, DirFS("./testdata/dirfs"))
+}
+
+func TestRootDirFS(t *testing.T) {
+	t.Parallel()
+	r, err := OpenRoot("./testdata/dirfs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	testDirFS(t, r.FS())
+}
+
+func testDirFS(t *testing.T, fsys fs.FS) {
+	forceMFTUpdateOnWindows(t, "./testdata/dirfs")
+
 	if err := fstest.TestFS(fsys, "a", "b", "dir/x"); err != nil {
 		t.Fatal(err)
 	}
@@ -3319,5 +3580,477 @@ func TestPipeCloseRace(t *testing.T) {
 	}
 	if nils != 2 || errs != 2 {
 		t.Errorf("got nils %d errs %d, want 2 2", nils, errs)
+	}
+}
+
+func TestRandomLen(t *testing.T) {
+	for range 5 {
+		dir, err := MkdirTemp(t.TempDir(), "*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		base := filepath.Base(dir)
+		if len(base) > 10 {
+			t.Errorf("MkdirTemp returned len %d: %s", len(base), base)
+		}
+	}
+	for range 5 {
+		f, err := CreateTemp(t.TempDir(), "*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		base := filepath.Base(f.Name())
+		f.Close()
+		if len(base) > 10 {
+			t.Errorf("CreateTemp returned len %d: %s", len(base), base)
+		}
+	}
+}
+
+func TestCopyFS(t *testing.T) {
+	t.Parallel()
+
+	// Test with disk filesystem.
+	forceMFTUpdateOnWindows(t, "./testdata/dirfs")
+	fsys := DirFS("./testdata/dirfs")
+	tmpDir := t.TempDir()
+	if err := CopyFS(tmpDir, fsys); err != nil {
+		t.Fatal("CopyFS:", err)
+	}
+	forceMFTUpdateOnWindows(t, tmpDir)
+	tmpFsys := DirFS(tmpDir)
+	if err := fstest.TestFS(tmpFsys, "a", "b", "dir/x"); err != nil {
+		t.Fatal("TestFS:", err)
+	}
+	if err := verifyCopyFS(t, fsys, tmpFsys); err != nil {
+		t.Fatal("comparing two directories:", err)
+	}
+
+	// Test whether CopyFS disallows copying for disk filesystem when there is any
+	// existing file in the destination directory.
+	if err := CopyFS(tmpDir, fsys); !errors.Is(err, fs.ErrExist) {
+		t.Errorf("CopyFS should have failed and returned error when there is"+
+			"any existing file in the destination directory (in disk filesystem), "+
+			"got: %v, expected any error that indicates <file exists>", err)
+	}
+
+	// Test with memory filesystem.
+	fsys = fstest.MapFS{
+		"william":    {Data: []byte("Shakespeare\n")},
+		"carl":       {Data: []byte("Gauss\n")},
+		"daVinci":    {Data: []byte("Leonardo\n")},
+		"einstein":   {Data: []byte("Albert\n")},
+		"dir/newton": {Data: []byte("Sir Isaac\n")},
+	}
+	tmpDir = t.TempDir()
+	if err := CopyFS(tmpDir, fsys); err != nil {
+		t.Fatal("CopyFS:", err)
+	}
+	forceMFTUpdateOnWindows(t, tmpDir)
+	tmpFsys = DirFS(tmpDir)
+	if err := fstest.TestFS(tmpFsys, "william", "carl", "daVinci", "einstein", "dir/newton"); err != nil {
+		t.Fatal("TestFS:", err)
+	}
+	if err := verifyCopyFS(t, fsys, tmpFsys); err != nil {
+		t.Fatal("comparing two directories:", err)
+	}
+
+	// Test whether CopyFS disallows copying for memory filesystem when there is any
+	// existing file in the destination directory.
+	if err := CopyFS(tmpDir, fsys); !errors.Is(err, fs.ErrExist) {
+		t.Errorf("CopyFS should have failed and returned error when there is"+
+			"any existing file in the destination directory (in memory filesystem), "+
+			"got: %v, expected any error that indicates <file exists>", err)
+	}
+}
+
+// verifyCopyFS checks the content and permission of each file inside copied FS to ensure
+// the copied files satisfy the convention stipulated in CopyFS.
+func verifyCopyFS(t *testing.T, originFS, copiedFS fs.FS) error {
+	testDir := filepath.Join(t.TempDir(), "test")
+	// umask doesn't apply to the wasip and windows and there is no general way to get masked perm,
+	// so create a dir and a file to compare the permission after umask if any
+	if err := Mkdir(testDir, ModePerm); err != nil {
+		return fmt.Errorf("mkdir %q failed: %v", testDir, err)
+	}
+	dirStat, err := Stat(testDir)
+	if err != nil {
+		return fmt.Errorf("stat dir %q failed: %v", testDir, err)
+	}
+	wantDirMode := dirStat.Mode()
+
+	f, err := Create(filepath.Join(testDir, "tmp"))
+	if err != nil {
+		return fmt.Errorf("open %q failed: %v", filepath.Join(testDir, "tmp"), err)
+	}
+	defer f.Close()
+	wantFileRWStat, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("stat file %q failed: %v", f.Name(), err)
+	}
+	wantFileRWMode := wantFileRWStat.Mode()
+
+	return fs.WalkDir(originFS, ".", func(path string, d fs.DirEntry, err error) error {
+		if d.IsDir() {
+			// the dir . is not the dir created by CopyFS so skip checking its permission
+			if d.Name() == "." {
+				return nil
+			}
+
+			dinfo, err := fs.Stat(copiedFS, path)
+			if err != nil {
+				return err
+			}
+
+			if dinfo.Mode() != wantDirMode {
+				return fmt.Errorf("dir %q mode is %v, want %v",
+					d.Name(), dinfo.Mode(), wantDirMode)
+			}
+			return nil
+		}
+
+		fInfo, err := originFS.Open(path)
+		if err != nil {
+			return err
+		}
+		defer fInfo.Close()
+		copiedInfo, err := copiedFS.Open(path)
+		if err != nil {
+			return err
+		}
+		defer copiedInfo.Close()
+
+		// verify the file contents are the same
+		data, err := io.ReadAll(fInfo)
+		if err != nil {
+			return err
+		}
+		newData, err := io.ReadAll(copiedInfo)
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(data, newData) {
+			return fmt.Errorf("file %q content is %s, want %s", path, newData, data)
+		}
+
+		fStat, err := fInfo.Stat()
+		if err != nil {
+			return err
+		}
+		copiedStat, err := copiedInfo.Stat()
+		if err != nil {
+			return err
+		}
+
+		// check whether the execute permission is inherited from original FS
+
+		if copiedStat.Mode()&0111&wantFileRWMode != fStat.Mode()&0111&wantFileRWMode {
+			return fmt.Errorf("file %q execute mode is %v, want %v",
+				path, copiedStat.Mode()&0111, fStat.Mode()&0111)
+		}
+
+		rwMode := copiedStat.Mode() &^ 0111 // unset the executable permission from file mode
+		if rwMode != wantFileRWMode {
+			return fmt.Errorf("file %q rw mode is %v, want %v",
+				path, rwMode, wantFileRWStat.Mode())
+		}
+		return nil
+	})
+}
+
+func TestCopyFSWithSymlinks(t *testing.T) {
+	// Test it with absolute and relative symlinks that point inside and outside the tree.
+	testenv.MustHaveSymlink(t)
+
+	// Create a directory and file outside.
+	tmpDir := t.TempDir()
+	outsideDir := filepath.Join(tmpDir, "copyfs_out")
+	if err := Mkdir(outsideDir, 0755); err != nil {
+		t.Fatalf("Mkdir: %v", err)
+	}
+	outsideFile := filepath.Join(outsideDir, "file.out.txt")
+
+	if err := WriteFile(outsideFile, []byte("Testing CopyFS outside"), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	// Create a directory and file inside.
+	insideDir := filepath.Join(tmpDir, "copyfs_in")
+	if err := Mkdir(insideDir, 0755); err != nil {
+		t.Fatalf("Mkdir: %v", err)
+	}
+	insideFile := filepath.Join(insideDir, "file.in.txt")
+	if err := WriteFile(insideFile, []byte("Testing CopyFS inside"), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	// Create directories for symlinks.
+	linkInDir := filepath.Join(insideDir, "in_symlinks")
+	if err := Mkdir(linkInDir, 0755); err != nil {
+		t.Fatalf("Mkdir: %v", err)
+	}
+	linkOutDir := filepath.Join(insideDir, "out_symlinks")
+	if err := Mkdir(linkOutDir, 0755); err != nil {
+		t.Fatalf("Mkdir: %v", err)
+	}
+
+	// First, we create the absolute symlink pointing outside.
+	outLinkFile := filepath.Join(linkOutDir, "file.abs.out.link")
+	if err := Symlink(outsideFile, outLinkFile); err != nil {
+		t.Fatalf("Symlink: %v", err)
+	}
+
+	// Then, we create the relative symlink pointing outside.
+	relOutsideFile, err := filepath.Rel(filepath.Join(linkOutDir, "."), outsideFile)
+	if err != nil {
+		t.Fatalf("filepath.Rel: %v", err)
+	}
+	relOutLinkFile := filepath.Join(linkOutDir, "file.rel.out.link")
+	if err := Symlink(relOutsideFile, relOutLinkFile); err != nil {
+		t.Fatalf("Symlink: %v", err)
+	}
+
+	// Last, we create the relative symlink pointing inside.
+	relInsideFile, err := filepath.Rel(filepath.Join(linkInDir, "."), insideFile)
+	if err != nil {
+		t.Fatalf("filepath.Rel: %v", err)
+	}
+	relInLinkFile := filepath.Join(linkInDir, "file.rel.in.link")
+	if err := Symlink(relInsideFile, relInLinkFile); err != nil {
+		t.Fatalf("Symlink: %v", err)
+	}
+
+	// Copy the directory tree and verify.
+	forceMFTUpdateOnWindows(t, insideDir)
+	fsys := DirFS(insideDir)
+	tmpDupDir := filepath.Join(tmpDir, "copyfs_dup")
+	if err := Mkdir(tmpDupDir, 0755); err != nil {
+		t.Fatalf("Mkdir: %v", err)
+	}
+
+	if err := CopyFS(tmpDupDir, fsys); err != nil {
+		t.Fatalf("CopyFS: %v", err)
+	}
+
+	forceMFTUpdateOnWindows(t, tmpDupDir)
+	tmpFsys := DirFS(tmpDupDir)
+	if err := fstest.TestFS(tmpFsys, "file.in.txt", "out_symlinks/file.abs.out.link", "out_symlinks/file.rel.out.link", "in_symlinks/file.rel.in.link"); err != nil {
+		t.Fatal("TestFS:", err)
+	}
+	if err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
+		if d.IsDir() {
+			return nil
+		}
+
+		fi, err := d.Info()
+		if err != nil {
+			return err
+		}
+		if filepath.Ext(path) == ".link" {
+			if fi.Mode()&ModeSymlink == 0 {
+				return errors.New("original file " + path + " should be a symlink")
+			}
+			tmpfi, err := fs.Stat(tmpFsys, path)
+			if err != nil {
+				return err
+			}
+			if tmpfi.Mode()&ModeSymlink != 0 {
+				return errors.New("copied file " + path + " should not be a symlink")
+			}
+		}
+
+		data, err := fs.ReadFile(fsys, path)
+		if err != nil {
+			return err
+		}
+		newData, err := fs.ReadFile(tmpFsys, path)
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(data, newData) {
+			return errors.New("file " + path + " contents differ")
+		}
+
+		var target string
+		switch fileName := filepath.Base(path); fileName {
+		case "file.abs.out.link", "file.rel.out.link":
+			target = outsideFile
+		case "file.rel.in.link":
+			target = insideFile
+		}
+		if len(target) > 0 {
+			targetData, err := ReadFile(target)
+			if err != nil {
+				return err
+			}
+			if !bytes.Equal(targetData, newData) {
+				return errors.New("file " + path + " contents differ from target")
+			}
+		}
+
+		return nil
+	}); err != nil {
+		t.Fatal("comparing two directories:", err)
+	}
+}
+
+func TestAppendDoesntOverwrite(t *testing.T) {
+	testMaybeRooted(t, func(t *testing.T, r *Root) {
+		name := "file"
+		if err := WriteFile(name, []byte("hello"), 0666); err != nil {
+			t.Fatal(err)
+		}
+		var f *File
+		var err error
+		if r == nil {
+			f, err = OpenFile(name, O_APPEND|O_WRONLY, 0)
+		} else {
+			f, err = r.OpenFile(name, O_APPEND|O_WRONLY, 0)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := f.Write([]byte(" world")); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
+		if err := f.Close(); err != nil {
+			t.Fatal(err)
+		}
+		got, err := ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := "hello world"
+		if string(got) != want {
+			t.Fatalf("got %q, want %q", got, want)
+		}
+	})
+}
+
+func TestRemoveReadOnlyFile(t *testing.T) {
+	testMaybeRooted(t, func(t *testing.T, r *Root) {
+		if err := WriteFile("file", []byte("1"), 0); err != nil {
+			t.Fatal(err)
+		}
+		var err error
+		if r == nil {
+			err = Remove("file")
+		} else {
+			err = r.Remove("file")
+		}
+		if err != nil {
+			t.Fatalf("Remove read-only file: %v", err)
+		}
+		if _, err := Stat("file"); !IsNotExist(err) {
+			t.Fatalf("Stat read-only file after removal: %v (want IsNotExist)", err)
+		}
+	})
+}
+
+func TestOpenFileDevNull(t *testing.T) {
+	// See https://go.dev/issue/71752.
+	t.Parallel()
+
+	f, err := OpenFile(DevNull, O_WRONLY|O_CREATE|O_TRUNC, 0o644)
+	if err != nil {
+		t.Fatalf("OpenFile(DevNull): %v", err)
+	}
+	f.Close()
+}
+
+func TestReadFileContents(t *testing.T) {
+	type readStep struct {
+		bufSize int   // non-zero to check length of buf to Read
+		retN    int   // result of Read call
+		retErr  error // error result of Read call
+	}
+	errFoo := errors.New("foo")
+	tests := []struct {
+		name     string
+		statSize int64 // size of file to read, per stat (may be 0 for /proc files)
+		wantSize int   // wanted length of []byte from readFileContents
+		wantErr  error // wanted error from readFileContents
+		reads    []readStep
+	}{
+		{
+			name:     "big-file",
+			statSize: 2000,
+			wantSize: 2000,
+			reads: []readStep{
+				{bufSize: 2001, retN: 21, retErr: nil},
+				{bufSize: 1980, retN: 1979, retErr: io.EOF},
+			},
+		},
+		{
+			name:     "small-file",
+			statSize: 100,
+			wantSize: 100,
+			reads: []readStep{
+				{bufSize: 512, retN: 100, retErr: io.EOF},
+			},
+		},
+		{
+			name:     "returning-error",
+			statSize: 1000,
+			wantSize: 50,
+			wantErr:  errFoo,
+			reads: []readStep{
+				{bufSize: 1001, retN: 25, retErr: nil},
+				{retN: 25, retErr: errFoo},
+			},
+		},
+		{
+			name:     "proc-file",
+			statSize: 0,
+			wantSize: 1023,
+			reads: []readStep{
+				{bufSize: 512, retN: 512, retErr: nil},
+				{retN: 511, retErr: io.EOF},
+			},
+		},
+		{
+			name:     "plan9-iproute-file", // Issue 72080
+			statSize: 0,
+			wantSize: 1032,
+			reads: []readStep{
+				{bufSize: 512, retN: 511, retErr: nil},
+				{retN: 511, retErr: nil},
+				{retN: 10, retErr: io.EOF},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			remain := tt.reads
+			i := -1
+			got, err := ExportReadFileContents(tt.statSize, func(buf []byte) (int, error) {
+				i++
+				t.Logf("read[%d] with buf size %d", i, len(buf))
+				if len(remain) == 0 {
+					t.Fatalf("unexpected read of length %d after %d expected reads", len(buf), len(tt.reads))
+				}
+				if tt.statSize == 0 && len(buf) < 512 {
+					// Issue 72080: readFileContents should not do /proc reads with buffers
+					// smaller than 512.
+					t.Fatalf("read[%d] with buf size %d; want at least 512 for 0-sized file", i, len(buf))
+				}
+				step := remain[0]
+				remain = remain[1:]
+				if step.bufSize != 0 && len(buf) != step.bufSize {
+					t.Fatalf("read[%d] has buffer size %d; want %d", i, len(buf), step.bufSize)
+				}
+				return step.retN, step.retErr
+			})
+			if len(remain) > 0 {
+				t.Fatalf("expected %d reads, got %d", len(tt.reads), i+1)
+			}
+			if fmt.Sprint(err) != fmt.Sprint(tt.wantErr) {
+				t.Errorf("got error %v; want %v", err, tt.wantErr)
+			}
+			if len(got) != tt.wantSize {
+				t.Errorf("got size %d; want %d", len(got), tt.wantSize)
+			}
+		})
 	}
 }

@@ -158,6 +158,13 @@ func TestScripts(t *testing.T) {
 				if notInstalled := (vcweb.ServerNotInstalledError{}); errors.As(err, &notInstalled) || errors.Is(err, exec.ErrNotFound) {
 					t.Skip(err)
 				}
+				if skip := (vcweb.SkipError{}); errors.As(err, &skip) {
+					if skip.Msg == "" {
+						t.Skip("SKIP")
+					} else {
+						t.Skipf("SKIP: %v", skip.Msg)
+					}
+				}
 				t.Error(err)
 			}
 		})

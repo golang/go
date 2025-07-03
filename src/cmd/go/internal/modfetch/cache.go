@@ -24,8 +24,9 @@ import (
 	"cmd/go/internal/gover"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch/codehost"
-	"cmd/go/internal/par"
-	"cmd/go/internal/robustio"
+	"cmd/internal/par"
+	"cmd/internal/robustio"
+	"cmd/internal/telemetry/counter"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
@@ -110,6 +111,13 @@ func DownloadDir(ctx context.Context, m module.Version) (string, error) {
 		return dir, &DownloadDirPartialError{dir, errors.New("not completely extracted")}
 	} else if !os.IsNotExist(err) {
 		return dir, err
+	}
+
+	// Special case: ziphash is not required for the golang.org/fips140 module,
+	// because it is unpacked from a file in GOROOT, not downloaded.
+	// We've already checked that it's not a partial unpacking, so we're happy.
+	if m.Path == "golang.org/fips140" {
+		return dir, nil
 	}
 
 	// Check if a .ziphash file exists. It should be created before the
@@ -777,6 +785,8 @@ func rewriteVersionList(ctx context.Context, dir string) (err error) {
 var (
 	statCacheOnce sync.Once
 	statCacheErr  error
+
+	counterErrorsGOMODCACHEEntryRelative = counter.New("go/errors:gomodcache-entry-relative")
 )
 
 // checkCacheDir checks if the directory specified by GOMODCACHE exists. An
@@ -788,6 +798,7 @@ func checkCacheDir(ctx context.Context) error {
 		return fmt.Errorf("module cache not found: neither GOMODCACHE nor GOPATH is set")
 	}
 	if !filepath.IsAbs(cfg.GOMODCACHE) {
+		counterErrorsGOMODCACHEEntryRelative.Inc()
 		return fmt.Errorf("GOMODCACHE entry is relative; must be absolute path: %q.\n", cfg.GOMODCACHE)
 	}
 

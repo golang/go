@@ -1,5 +1,5 @@
 // cmd/7c/7.out.h  from Vita Nuova.
-// https://code.google.com/p/ken-cc/source/browse/src/cmd/7c/7.out.h
+// https://bitbucket.org/plan9-from-bell-labs/9-cc/src/master/src/cmd/7c/7.out.h
 //
 // 	Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 // 	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
@@ -337,6 +337,7 @@ const (
 	NOSCHED
 )
 
+//go:generate go run ../mkcnames.go -i a.out.go -o anames7.go -p arm64
 const (
 	// optab is sorted based on the order of these constants
 	// and the first match is chosen.
@@ -1018,6 +1019,7 @@ const (
 	AWFI
 	AWORD
 	AYIELD
+	ABTI
 	ALAST
 	AB  = obj.AJMP
 	ABL = obj.ACALL
@@ -1054,8 +1056,8 @@ type SpecialOperand int
 
 const (
 	// PRFM
-	SPOP_PLDL1KEEP SpecialOperand = iota     // must be the first one
-	SPOP_BEGIN     SpecialOperand = iota - 1 // set as the lower bound
+	SPOP_PLDL1KEEP SpecialOperand = obj.SpecialOperandARM64Base + iota     // must be the first one
+	SPOP_BEGIN     SpecialOperand = obj.SpecialOperandARM64Base + iota - 1 // set as the lower bound
 	SPOP_PLDL1STRM
 	SPOP_PLDL2KEEP
 	SPOP_PLDL2STRM
@@ -1188,7 +1190,7 @@ const (
 	SPOP_DAIFSet
 	SPOP_DAIFClr
 
-	// Condition code, EQ, NE, etc. Their relative order to EQ is matter.
+	// Condition code, EQ, NE, etc. Their relative order to EQ matters.
 	SPOP_EQ
 	SPOP_NE
 	SPOP_HS
@@ -1205,7 +1207,11 @@ const (
 	SPOP_LE
 	SPOP_AL
 	SPOP_NV
-	// Condition code end.
+
+	// Branch Target Indicator (BTI) targets
+	SPOP_C
+	SPOP_J
+	SPOP_JC
 
 	SPOP_END
 )

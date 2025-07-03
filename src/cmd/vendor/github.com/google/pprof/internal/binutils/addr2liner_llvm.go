@@ -16,6 +16,7 @@ package binutils
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os/exec"
@@ -37,6 +38,7 @@ type llvmSymbolizer struct {
 	filename string
 	rw       lineReaderWriter
 	base     uint64
+	isData   bool
 }
 
 type llvmSymbolizerJob struct {
@@ -76,7 +78,7 @@ func newLLVMSymbolizer(cmd, file string, base uint64, isData bool) (*llvmSymboli
 	}
 
 	j := &llvmSymbolizerJob{
-		cmd:     exec.Command(cmd, "--inlining", "-demangle=false"),
+		cmd:     exec.Command(cmd, "--inlining", "-demangle=false", "--output-style=JSON"),
 		symType: "CODE",
 	}
 	if isData {
@@ -102,57 +104,68 @@ func newLLVMSymbolizer(cmd, file string, base uint64, isData bool) (*llvmSymboli
 		filename: file,
 		rw:       j,
 		base:     base,
+		isData:   isData,
 	}
 
 	return a, nil
 }
 
-// readFrame parses the llvm-symbolizer output for a single address. It
-// returns a populated plugin.Frame and whether it has reached the end of the
-// data.
-func (d *llvmSymbolizer) readFrame() (plugin.Frame, bool) {
-	funcname, err := d.rw.readLine()
+// readDataFrames parses the llvm-symbolizer DATA output for a single address. It
+// returns a populated plugin.Frame array with a single entry.
+func (d *llvmSymbolizer) readDataFrames() ([]plugin.Frame, error) {
+	line, err := d.rw.readLine()
 	if err != nil {
-		return plugin.Frame{}, true
+		return nil, err
 	}
-
-	switch funcname {
-	case "":
-		return plugin.Frame{}, true
-	case "??":
-		funcname = ""
+	var frame struct {
+		Address    string `json:"Address"`
+		ModuleName string `json:"ModuleName"`
+		Data       struct {
+			Start string `json:"Start"`
+			Size  string `json:"Size"`
+			Name  string `json:"Name"`
+		} `json:"Data"`
 	}
-
-	fileline, err := d.rw.readLine()
+	if err := json.Unmarshal([]byte(line), &frame); err != nil {
+		return nil, err
+	}
+	// Match non-JSON output behaviour of stuffing the start/size into the filename of a single frame,
+	// with the size being a decimal value.
+	size, err := strconv.ParseInt(frame.Data.Size, 0, 0)
 	if err != nil {
-		return plugin.Frame{Func: funcname}, true
+		return nil, err
 	}
+	var stack []plugin.Frame
+	stack = append(stack, plugin.Frame{Func: frame.Data.Name, File: fmt.Sprintf("%s %d", frame.Data.Start, size)})
+	return stack, nil
+}
 
-	linenumber := 0
-	// The llvm-symbolizer outputs the <file_name>:<line_number>:<column_number>.
-	// When it cannot identify the source code location, it outputs "??:0:0".
-	// Older versions output just the filename and line number, so we check for
-	// both conditions here.
-	if fileline == "??:0" || fileline == "??:0:0" {
-		fileline = ""
-	} else {
-		switch split := strings.Split(fileline, ":"); len(split) {
-		case 1:
-			// filename
-			fileline = split[0]
-		case 2, 3:
-			// filename:line , or
-			// filename:line:disc , or
-			fileline = split[0]
-			if line, err := strconv.Atoi(split[1]); err == nil {
-				linenumber = line
-			}
-		default:
-			// Unrecognized, ignore
-		}
+// readCodeFrames parses the llvm-symbolizer CODE output for a single address. It
+// returns a populated plugin.Frame array.
+func (d *llvmSymbolizer) readCodeFrames() ([]plugin.Frame, error) {
+	line, err := d.rw.readLine()
+	if err != nil {
+		return nil, err
 	}
-
-	return plugin.Frame{Func: funcname, File: fileline, Line: linenumber}, false
+	var frame struct {
+		Address    string `json:"Address"`
+		ModuleName string `json:"ModuleName"`
+		Symbol     []struct {
+			Line          int    `json:"Line"`
+			Column        int    `json:"Column"`
+			FunctionName  string `json:"FunctionName"`
+			FileName      string `json:"FileName"`
+			StartLine     int    `json:"StartLine"`
+		} `json:"Symbol"`
+	}
+	if err := json.Unmarshal([]byte(line), &frame); err != nil {
+		return nil, err
+	}
+	var stack []plugin.Frame
+	for _, s := range frame.Symbol {
+		stack = append(stack, plugin.Frame{Func: s.FunctionName, File: s.FileName, Line: s.Line, Column: s.Column, StartLine: s.StartLine})
+	}
+	return stack, nil
 }
 
 // addrInfo returns the stack frame information for a specific program
@@ -164,18 +177,8 @@ func (d *llvmSymbolizer) addrInfo(addr uint64) ([]plugin.Frame, error) {
 	if err := d.rw.write(fmt.Sprintf("%s 0x%x", d.filename, addr-d.base)); err != nil {
 		return nil, err
 	}
-
-	var stack []plugin.Frame
-	for {
-		frame, end := d.readFrame()
-		if end {
-			break
-		}
-
-		if frame != (plugin.Frame{}) {
-			stack = append(stack, frame)
-		}
+	if d.isData {
+		return d.readDataFrames()
 	}
-
-	return stack, nil
+	return d.readCodeFrames()
 }

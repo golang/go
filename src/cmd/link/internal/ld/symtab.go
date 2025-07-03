@@ -155,10 +155,10 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
 	// match exactly. Tools like DTrace will have to wait for now.
 	if !ctxt.DynlinkingGo() {
 		// Rewrite · to . for ASCII-only tools like DTrace (sigh)
-		sname = strings.Replace(sname, "·", ".", -1)
+		sname = strings.ReplaceAll(sname, "·", ".")
 	}
 
-	if ctxt.DynlinkingGo() && bind == elf.STB_GLOBAL && curbind == elf.STB_LOCAL && ldr.SymType(x) == sym.STEXT {
+	if ctxt.DynlinkingGo() && bind == elf.STB_GLOBAL && curbind == elf.STB_LOCAL && ldr.SymType(x).IsText() {
 		// When dynamically linking, we want references to functions defined
 		// in this module to always be to the function object, not to the
 		// PLT. We force this by writing an additional local symbol for every
@@ -202,7 +202,7 @@ func genelfsym(ctxt *Link, elfbind elf.SymBind) {
 		if s == 0 {
 			break
 		}
-		if ldr.SymType(s) != sym.STEXT {
+		if !ldr.SymType(s).IsText() {
 			panic("unexpected type for runtime.text symbol")
 		}
 		putelfsym(ctxt, s, elf.STT_FUNC, elfbind)
@@ -215,7 +215,7 @@ func genelfsym(ctxt *Link, elfbind elf.SymBind) {
 
 	// runtime.etext marker symbol.
 	s = ldr.Lookup("runtime.etext", 0)
-	if ldr.SymType(s) == sym.STEXT {
+	if ldr.SymType(s).IsText() {
 		putelfsym(ctxt, s, elf.STT_FUNC, elfbind)
 	}
 
@@ -315,11 +315,11 @@ func asmbPlan9Sym(ctxt *Link) {
 
 	// Add special runtime.text and runtime.etext symbols.
 	s := ldr.Lookup("runtime.text", 0)
-	if ldr.SymType(s) == sym.STEXT {
+	if ldr.SymType(s).IsText() {
 		putplan9sym(ctxt, ldr, s, TextSym)
 	}
 	s = ldr.Lookup("runtime.etext", 0)
-	if ldr.SymType(s) == sym.STEXT {
+	if ldr.SymType(s).IsText() {
 		putplan9sym(ctxt, ldr, s, TextSym)
 	}
 
@@ -359,20 +359,6 @@ func asmbPlan9Sym(ctxt *Link) {
 			putplan9sym(ctxt, ldr, s, char)
 		}
 	}
-}
-
-type byPkg []*sym.Library
-
-func (libs byPkg) Len() int {
-	return len(libs)
-}
-
-func (libs byPkg) Less(a, b int) bool {
-	return libs[a].Pkg < libs[b].Pkg
-}
-
-func (libs byPkg) Swap(a, b int) {
-	libs[a], libs[b] = libs[b], libs[a]
 }
 
 // Create a table with information on the text sections.
@@ -432,7 +418,7 @@ func textsectionmap(ctxt *Link) (loader.Sym, uint32) {
 func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	ldr := ctxt.loader
 
-	if !ctxt.IsAIX() {
+	if !ctxt.IsAIX() && !ctxt.IsWasm() {
 		switch ctxt.BuildMode {
 		case BuildModeCArchive, BuildModeCShared:
 			s := ldr.Lookup(*flagEntrySymbol, sym.SymVerABI0)
@@ -445,13 +431,13 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	// Define these so that they'll get put into the symbol table.
 	// data.c:/^address will provide the actual values.
 	ctxt.xdefine("runtime.rodata", sym.SRODATA, 0)
-	ctxt.xdefine("runtime.erodata", sym.SRODATA, 0)
+	ctxt.xdefine("runtime.erodata", sym.SRODATAEND, 0)
 	ctxt.xdefine("runtime.types", sym.SRODATA, 0)
 	ctxt.xdefine("runtime.etypes", sym.SRODATA, 0)
 	ctxt.xdefine("runtime.noptrdata", sym.SNOPTRDATA, 0)
-	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATA, 0)
+	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATAEND, 0)
 	ctxt.xdefine("runtime.data", sym.SDATA, 0)
-	ctxt.xdefine("runtime.edata", sym.SDATA, 0)
+	ctxt.xdefine("runtime.edata", sym.SDATAEND, 0)
 	ctxt.xdefine("runtime.bss", sym.SBSS, 0)
 	ctxt.xdefine("runtime.ebss", sym.SBSS, 0)
 	ctxt.xdefine("runtime.noptrbss", sym.SNOPTRBSS, 0)
@@ -721,6 +707,17 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		// except go:buildid which is generated late and not used by the program.
 		addRef("go:buildid")
 	}
+	if ctxt.IsAIX() {
+		// On AIX, an R_ADDR relocation from an RODATA symbol to a DATA symbol
+		// does not work. See data.go:relocsym, case R_ADDR.
+		// Here we record the unrelocated address in aixStaticDataBase (it is
+		// unrelocated as it is in RODATA) so we can compute the delta at
+		// run time.
+		sb := ldr.CreateSymForUpdate("runtime.aixStaticDataBase", 0)
+		sb.SetSize(0)
+		sb.AddAddr(ctxt.Arch, ldr.Lookup("runtime.data", 0))
+		sb.SetType(sym.SRODATA)
+	}
 
 	// text section information
 	slice(textsectionmapSym, uint64(nsections))
@@ -859,6 +856,9 @@ func setCarrierSym(typ sym.SymKind, s loader.Sym) {
 }
 
 func setCarrierSize(typ sym.SymKind, sz int64) {
+	if typ == sym.Sxxx {
+		panic("setCarrierSize(Sxxx)")
+	}
 	if CarrierSymByType[typ].Size != 0 {
 		panic(fmt.Sprintf("carrier symbol size for type %v already set", typ))
 	}
@@ -866,7 +866,7 @@ func setCarrierSize(typ sym.SymKind, sz int64) {
 }
 
 func isStaticTmp(name string) bool {
-	return strings.Contains(name, "."+obj.StaticNamePref)
+	return strings.Contains(name, "."+obj.StaticNamePrefix)
 }
 
 // Mangle function name with ABI information.
@@ -885,8 +885,8 @@ func mangleABIName(ctxt *Link, ldr *loader.Loader, x loader.Sym, name string) st
 		return name
 	}
 
-	if ldr.SymType(x) == sym.STEXT && ldr.SymVersion(x) != sym.SymVerABIInternal && ldr.SymVersion(x) < sym.SymVerStatic {
-		if s2 := ldr.Lookup(name, sym.SymVerABIInternal); s2 != 0 && ldr.SymType(s2) == sym.STEXT {
+	if ldr.SymType(x).IsText() && ldr.SymVersion(x) != sym.SymVerABIInternal && ldr.SymVersion(x) < sym.SymVerStatic {
+		if s2 := ldr.Lookup(name, sym.SymVerABIInternal); s2 != 0 && ldr.SymType(s2).IsText() {
 			name = fmt.Sprintf("%s.abi%d", name, ldr.SymVersion(x))
 		}
 	}
@@ -897,7 +897,7 @@ func mangleABIName(ctxt *Link, ldr *loader.Loader, x loader.Sym, name string) st
 	// except symbols that are exported to C. Type symbols are always
 	// ABIInternal so they are not mangled.
 	if ctxt.IsShared() {
-		if ldr.SymType(x) == sym.STEXT && ldr.SymVersion(x) == sym.SymVerABIInternal && !ldr.AttrCgoExport(x) && !strings.HasPrefix(name, "type:") {
+		if ldr.SymType(x).IsText() && ldr.SymVersion(x) == sym.SymVerABIInternal && !ldr.AttrCgoExport(x) && !strings.HasPrefix(name, "type:") {
 			name = fmt.Sprintf("%s.abiinternal", name)
 		}
 	}

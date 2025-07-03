@@ -9,7 +9,7 @@ import (
 	"syscall"
 )
 
-// WSASocket wraps syscall.WSASocket.
+// WSASocket wraps [syscall.WSASocket].
 func (sw *Switch) WSASocket(family, sotype, proto int32, protinfo *syscall.WSAProtocolInfo, group uint32, flags uint32) (s syscall.Handle, err error) {
 	sw.once.Do(sw.init)
 
@@ -41,7 +41,7 @@ func (sw *Switch) WSASocket(family, sotype, proto int32, protinfo *syscall.WSAPr
 	return s, nil
 }
 
-// Closesocket wraps syscall.Closesocket.
+// Closesocket wraps [syscall.Closesocket].
 func (sw *Switch) Closesocket(s syscall.Handle) (err error) {
 	so := sw.sockso(s)
 	if so == nil {
@@ -71,7 +71,7 @@ func (sw *Switch) Closesocket(s syscall.Handle) (err error) {
 	return nil
 }
 
-// Connect wraps syscall.Connect.
+// Connect wraps [syscall.Connect].
 func (sw *Switch) Connect(s syscall.Handle, sa syscall.Sockaddr) (err error) {
 	so := sw.sockso(s)
 	if so == nil {
@@ -100,7 +100,7 @@ func (sw *Switch) Connect(s syscall.Handle, sa syscall.Sockaddr) (err error) {
 	return nil
 }
 
-// ConnectEx wraps syscall.ConnectEx.
+// ConnectEx wraps [syscall.ConnectEx].
 func (sw *Switch) ConnectEx(s syscall.Handle, sa syscall.Sockaddr, b *byte, n uint32, nwr *uint32, o *syscall.Overlapped) (err error) {
 	so := sw.sockso(s)
 	if so == nil {
@@ -129,7 +129,7 @@ func (sw *Switch) ConnectEx(s syscall.Handle, sa syscall.Sockaddr, b *byte, n ui
 	return nil
 }
 
-// Listen wraps syscall.Listen.
+// Listen wraps [syscall.Listen].
 func (sw *Switch) Listen(s syscall.Handle, backlog int) (err error) {
 	so := sw.sockso(s)
 	if so == nil {
@@ -158,7 +158,7 @@ func (sw *Switch) Listen(s syscall.Handle, backlog int) (err error) {
 	return nil
 }
 
-// AcceptEx wraps syscall.AcceptEx.
+// AcceptEx wraps [syscall.AcceptEx].
 func (sw *Switch) AcceptEx(ls syscall.Handle, as syscall.Handle, b *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, rcvd *uint32, overlapped *syscall.Overlapped) error {
 	so := sw.sockso(ls)
 	if so == nil {

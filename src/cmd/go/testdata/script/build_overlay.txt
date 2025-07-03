@@ -22,6 +22,8 @@ go build -overlay overlay.json -o print_abspath$GOEXE ./printpath
 exec ./print_abspath$GOEXE
 stdout $WORK[/\\]gopath[/\\]src[/\\]m[/\\]printpath[/\\]main.go
 
+go vet -overlay overlay.json ./printpath
+
 go build -overlay overlay.json -o print_trimpath$GOEXE -trimpath ./printpath
 exec ./print_trimpath$GOEXE
 stdout ^m[/\\]printpath[/\\]main.go

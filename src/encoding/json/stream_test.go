@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !goexperiment.jsonv2
+
 package json
 
 import (
@@ -79,9 +81,9 @@ func TestEncoder(t *testing.T) {
 				t.Fatalf("#%d.%d Encode error: %v", i, j, err)
 			}
 		}
-		if have, want := buf.String(), nlines(streamEncoded, i); have != want {
+		if got, want := buf.String(), nlines(streamEncoded, i); got != want {
 			t.Errorf("encoding %d items: mismatch:", i)
-			diff(t, []byte(have), []byte(want))
+			diff(t, []byte(got), []byte(want))
 			break
 		}
 	}
@@ -148,9 +150,9 @@ func TestEncoderIndent(t *testing.T) {
 	for _, v := range streamTest {
 		enc.Encode(v)
 	}
-	if have, want := buf.String(), streamEncodedIndent; have != want {
-		t.Error("Encode mismatch:")
-		diff(t, []byte(have), []byte(want))
+	if got, want := buf.String(), streamEncodedIndent; got != want {
+		t.Errorf("Encode mismatch:\ngot:\n%s\n\nwant:\n%s", got, want)
+		diff(t, []byte(got), []byte(want))
 	}
 }
 

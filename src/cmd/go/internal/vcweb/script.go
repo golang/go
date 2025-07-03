@@ -7,7 +7,7 @@ package vcweb
 import (
 	"bufio"
 	"bytes"
-	"cmd/go/internal/script"
+	"cmd/internal/script"
 	"context"
 	"errors"
 	"fmt"
@@ -32,6 +32,17 @@ import (
 func newScriptEngine() *script.Engine {
 	conds := script.DefaultConds()
 
+	add := func(name string, cond script.Cond) {
+		if _, ok := conds[name]; ok {
+			panic(fmt.Sprintf("condition %q is already registered", name))
+		}
+		conds[name] = cond
+	}
+	lazyBool := func(summary string, f func() bool) script.Cond {
+		return script.OnceCondition(summary, func() (bool, error) { return f(), nil })
+	}
+	add("bzr", lazyBool("the 'bzr' executable exists and provides the standard CLI", hasWorkingBzr))
+
 	interrupt := func(cmd *exec.Cmd) error { return cmd.Process.Signal(os.Interrupt) }
 	gracePeriod := 30 * time.Second // arbitrary
 
@@ -43,6 +54,7 @@ func newScriptEngine() *script.Engine {
 	cmds["hg"] = script.Program("hg", interrupt, gracePeriod)
 	cmds["handle"] = scriptHandle()
 	cmds["modzip"] = scriptModzip()
+	cmds["skip"] = scriptSkip()
 	cmds["svnadmin"] = script.Program("svnadmin", interrupt, gracePeriod)
 	cmds["svn"] = script.Program("svn", interrupt, gracePeriod)
 	cmds["unquote"] = scriptUnquote()
@@ -321,6 +333,34 @@ func scriptModzip() script.Cmd {
 		})
 }
 
+func scriptSkip() script.Cmd {
+	return script.Command(
+		script.CmdUsage{
+			Summary: "skip the current test",
+			Args:    "[msg]",
+		},
+		func(_ *script.State, args ...string) (script.WaitFunc, error) {
+			if len(args) > 1 {
+				return nil, script.ErrUsage
+			}
+			if len(args) == 0 {
+				return nil, SkipError{""}
+			}
+			return nil, SkipError{args[0]}
+		})
+}
+
+type SkipError struct {
+	Msg string
+}
+
+func (s SkipError) Error() string {
+	if s.Msg == "" {
+		return "skip"
+	}
+	return s.Msg
+}
+
 func scriptUnquote() script.Cmd {
 	return script.Command(
 		script.CmdUsage{
@@ -342,4 +382,15 @@ func scriptUnquote() script.Cmd {
 			}
 			return wait, nil
 		})
+}
+
+func hasWorkingBzr() bool {
+	bzr, err := exec.LookPath("bzr")
+	if err != nil {
+		return false
+	}
+	// Check that 'bzr help' exits with code 0.
+	// See go.dev/issue/71504 for an example where 'bzr' exists in PATH but doesn't work.
+	err = exec.Command(bzr, "help").Run()
+	return err == nil
 }

@@ -9,9 +9,36 @@ import (
 	"encoding"
 	"encoding/binary"
 	"hash"
+	"internal/testhash"
 	"io"
 	"testing"
 )
+
+func TestHashInterface(t *testing.T) {
+	type test struct {
+		name string
+		fn   func() hash.Hash
+	}
+	fn32 := func(fn func() hash.Hash32) func() hash.Hash {
+		return func() hash.Hash { return fn() }
+	}
+	fn64 := func(fn func() hash.Hash64) func() hash.Hash {
+		return func() hash.Hash { return fn() }
+	}
+	tests := []test{
+		{"32", fn32(New32)},
+		{"32a", fn32(New32a)},
+		{"64", fn64(New64)},
+		{"64a", fn64(New64a)},
+		{"128", New128},
+		{"128a", New128a},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			testhash.TestHash(t, test.fn)
+		})
+	}
+}
 
 type golden struct {
 	out       []byte
@@ -128,8 +155,20 @@ func TestGoldenMarshal(t *testing.T) {
 					continue
 				}
 
+				stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
+				if err != nil {
+					t.Errorf("could not marshal: %v", err)
+					continue
+				}
+				stateAppend = stateAppend[4:]
+
 				if string(state) != g.halfState {
 					t.Errorf("checksum(%q) state = %q, want %q", g.in, state, g.halfState)
+					continue
+				}
+
+				if string(stateAppend) != g.halfState {
+					t.Errorf("checksum(%q) state = %q, want %q", g.in, stateAppend, g.halfState)
 					continue
 				}
 

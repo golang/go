@@ -58,10 +58,10 @@ func min[T interface{ ~int }](x, y T) T {
 }
 
 func _[T interface{~int | ~float32}](x, y T) bool { return x < y }
-func _[T any](x, y T) bool { return x /* ERROR "type parameter T is not comparable" */ < y }
-func _[T interface{~int | ~float32 | ~bool}](x, y T) bool { return x /* ERROR "type parameter T is not comparable" */ < y }
+func _[T any](x, y T) bool { return x /* ERROR "type parameter T cannot use operator <" */ < y }
+func _[T interface{~int | ~float32 | ~bool}](x, y T) bool { return x /* ERROR "type parameter T cannot use operator <" */ < y }
 
-func _[T C1[T]](x, y T) bool { return x /* ERROR "type parameter T is not comparable" */ < y }
+func _[T C1[T]](x, y T) bool { return x /* ERROR "type parameter T cannot use operator <" */ < y }
 func _[T C2[T]](x, y T) bool { return x < y }
 
 type C1[T any] interface{}
@@ -134,11 +134,11 @@ func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR "
 type myByte1 []byte
 type myByte2 []byte
 func _[T interface{ []byte | myByte1 | myByte2 }] (x T, i, j, k int) { var _ T = x[i:j:k] }
-func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x /* ERROR "no core type" */ [i:j:k] }
+func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x /* ERROR "[]byte and []int have different underlying types" */ [i:j:k] }
 
 func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j] }
 func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR "3-index slice of string" */ ] }
-func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x /* ERROR "no core type" */ [i:j] }
+func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x /* ERROR "[]byte and []int have different underlying types" */ [i:j] }
 
 // len/cap built-ins
 
@@ -230,7 +230,7 @@ func _[
         for _, _ = range s1 {}
 
         var s2 S2
-        for range s2 /* ERRORx `cannot range over s2.*no core type` */ {}
+        for range s2 /* ERRORx `cannot range over s2.*\[\]int and \[10\]int have different underlying types` */ {}
 
         var a0 []int
         for range a0 {}
@@ -243,7 +243,7 @@ func _[
         for _, _ = range a1 {}
 
         var a2 A2
-        for range a2 /* ERRORx `cannot range over a2.*no core type` */ {}
+        for range a2 /* ERRORx `cannot range over a2.*\[10\]int and \[\]int have different underlying types` */ {}
 
         var p0 *[10]int
         for range p0 {}
@@ -256,7 +256,7 @@ func _[
         for _, _ = range p1 {}
 
         var p2 P2
-        for range p2 /* ERRORx `cannot range over p2.*no core type` */ {}
+        for range p2 /* ERRORx `cannot range over p2.*\*\[10\]int and \*\[\]int have different underlying types` */ {}
 
         var m0 map[string]int
         for range m0 {}
@@ -269,7 +269,7 @@ func _[
         for _, _ = range m1 {}
 
         var m2 M2
-        for range m2 /* ERRORx `cannot range over m2.*no core type` */ {}
+        for range m2 /* ERRORx `cannot range over m2.*map\[string\]int and map\[string\]string` */ {}
 }
 
 // type inference checks

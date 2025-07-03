@@ -75,10 +75,10 @@ func (c *nowritebarrierrecChecker) findExtraCalls(nn ir.Node) {
 		return
 	}
 	n := nn.(*ir.CallExpr)
-	if n.X == nil || n.X.Op() != ir.ONAME {
+	if n.Fun == nil || n.Fun.Op() != ir.ONAME {
 		return
 	}
-	fn := n.X.(*ir.Name)
+	fn := n.Fun.(*ir.Name)
 	if fn.Class != ir.PFUNC || fn.Defn == nil {
 		return
 	}
@@ -174,6 +174,14 @@ func (c *nowritebarrierrecChecker) check() {
 				fmt.Fprintf(&err, "\n\t%v: called by %v", base.FmtPos(call.lineno), call.target.Nname)
 				call = funcs[call.target]
 			}
+			// Seeing this error in a failed CI run? It indicates that
+			// a function in the runtime package marked nowritebarrierrec
+			// (the outermost stack element) was found, by a static
+			// reachability analysis over the fully lowered optimized code,
+			// to call a function (fn) that involves a write barrier.
+			//
+			// Even if the call path is infeasable,
+			// you will need to reorganize the code to avoid it.
 			base.ErrorfAt(fn.WBPos, 0, "write barrier prohibited by caller; %v%s", fn.Nname, err.String())
 			continue
 		}

@@ -225,9 +225,10 @@ func (x *FileSyntax) Cleanup() {
 			if ww == 0 {
 				continue
 			}
-			if ww == 1 {
-				// Collapse block into single line.
-				line := &Line{
+			if ww == 1 && len(stmt.RParen.Comments.Before) == 0 {
+				// Collapse block into single line but keep the Line reference used by the
+				// parsed File structure.
+				*stmt.Line[0] = Line{
 					Comments: Comments{
 						Before: commentsAdd(stmt.Before, stmt.Line[0].Before),
 						Suffix: commentsAdd(stmt.Line[0].Suffix, stmt.Suffix),
@@ -235,7 +236,7 @@ func (x *FileSyntax) Cleanup() {
 					},
 					Token: stringsAdd(stmt.Token, stmt.Line[0].Token),
 				}
-				x.Stmt[w] = line
+				x.Stmt[w] = stmt.Line[0]
 				w++
 				continue
 			}
@@ -876,6 +877,11 @@ func (in *input) parseLineBlock(start Position, token []string, lparen token) *L
 			in.Error(fmt.Sprintf("syntax error (unterminated block started at %s:%d:%d)", in.filename, x.Start.Line, x.Start.LineRune))
 		case ')':
 			rparen := in.lex()
+			// Don't preserve blank lines (denoted by a single empty comment, added above)
+			// at the end of the block.
+			if len(comments) == 1 && comments[0] == (Comment{}) {
+				comments = nil
+			}
 			x.RParen.Before = comments
 			x.RParen.Pos = rparen.pos
 			if !in.peek().isEOL() {

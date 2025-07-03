@@ -13,8 +13,9 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
-	"runtime/internal/sys"
+	"internal/runtime/atomic"
+	"internal/runtime/gc"
+	"internal/runtime/sys"
 )
 
 // Central list of free objects of a given size.
@@ -80,12 +81,14 @@ func (c *mcentral) fullSwept(sweepgen uint32) *spanSet {
 // Allocate a span to use in an mcache.
 func (c *mcentral) cacheSpan() *mspan {
 	// Deduct credit for this span allocation and sweep if necessary.
-	spanBytes := uintptr(class_to_allocnpages[c.spanclass.sizeclass()]) * _PageSize
+	spanBytes := uintptr(gc.SizeClassToNPages[c.spanclass.sizeclass()]) * pageSize
 	deductSweepCredit(spanBytes, 0)
 
 	traceDone := false
-	if traceEnabled() {
-		traceGCSweepStart()
+	trace := traceAcquire()
+	if trace.ok() {
+		trace.GCSweepStart()
+		traceRelease(trace)
 	}
 
 	// If we sweep spanBudget spans without finding any free
@@ -157,9 +160,11 @@ func (c *mcentral) cacheSpan() *mspan {
 		}
 		sweep.active.end(sl)
 	}
-	if traceEnabled() {
-		traceGCSweepDone()
+	trace = traceAcquire()
+	if trace.ok() {
+		trace.GCSweepDone()
 		traceDone = true
+		traceRelease(trace)
 	}
 
 	// We failed to get a span from the mcentral so get one from mheap.
@@ -170,11 +175,15 @@ func (c *mcentral) cacheSpan() *mspan {
 
 	// At this point s is a span that should have free slots.
 havespan:
-	if traceEnabled() && !traceDone {
-		traceGCSweepDone()
+	if !traceDone {
+		trace := traceAcquire()
+		if trace.ok() {
+			trace.GCSweepDone()
+			traceRelease(trace)
+		}
 	}
 	n := int(s.nelems) - int(s.allocCount)
-	if n == 0 || s.freeindex == s.nelems || uintptr(s.allocCount) == s.nelems {
+	if n == 0 || s.freeindex == s.nelems || s.allocCount == s.nelems {
 		throw("span has no free objects")
 	}
 	freeByteBase := s.freeindex &^ (64 - 1)
@@ -240,18 +249,11 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 
 // grow allocates a new empty span from the heap and initializes it for c's size class.
 func (c *mcentral) grow() *mspan {
-	npages := uintptr(class_to_allocnpages[c.spanclass.sizeclass()])
-	size := uintptr(class_to_size[c.spanclass.sizeclass()])
-
+	npages := uintptr(gc.SizeClassToNPages[c.spanclass.sizeclass()])
 	s := mheap_.alloc(npages, c.spanclass)
 	if s == nil {
 		return nil
 	}
-
-	// Use division by multiplication and shifts to quickly compute:
-	// n := (npages << _PageShift) / size
-	n := s.divideByElemSize(npages << _PageShift)
-	s.limit = s.base() + size*n
-	s.initHeapBits(false)
+	s.initHeapBits()
 	return s
 }

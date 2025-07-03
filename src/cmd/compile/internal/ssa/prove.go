@@ -8,6 +8,7 @@ import (
 	"cmd/internal/src"
 	"fmt"
 	"math"
+	"math/bits"
 )
 
 type branch int
@@ -21,6 +22,19 @@ const (
 	// arbitrary number so we can't list them all here.
 	jumpTable0
 )
+
+func (b branch) String() string {
+	switch b {
+	case unknown:
+		return "unk"
+	case positive:
+		return "pos"
+	case negative:
+		return "neg"
+	default:
+		return fmt.Sprintf("jmp%d", b-jumpTable0)
+	}
+}
 
 // relation represents the set of possible relations between
 // pairs of variables (v, w). Without a priori knowledge the
@@ -99,23 +113,19 @@ func (d domain) String() string {
 	return s
 }
 
-type pair struct {
-	v, w *Value // a pair of values, ordered by ID.
-	// v can be nil, to mean the zero value.
-	// for booleans the zero value (v == nil) is false.
-	d domain
-}
-
-// fact is a pair plus a relation for that pair.
-type fact struct {
-	p pair
-	r relation
-}
-
 // a limit records known upper and lower bounds for a value.
+//
+// If we have min>max or umin>umax, then this limit is
+// called "unsatisfiable". When we encounter such a limit, we
+// know that any code for which that limit applies is unreachable.
+// We don't particularly care how unsatisfiable limits propagate,
+// including becoming satisfiable, because any optimization
+// decisions based on those limits only apply to unreachable code.
 type limit struct {
 	min, max   int64  // min <= value <= max, signed
 	umin, umax uint64 // umin <= value <= umax, unsigned
+	// For booleans, we use 0==false, 1==true for both ranges
+	// For pointers, we use 0,0,0,0 for nil and minInt64,maxInt64,1,maxUint64 for nonnil
 }
 
 func (l limit) String() string {
@@ -123,19 +133,224 @@ func (l limit) String() string {
 }
 
 func (l limit) intersect(l2 limit) limit {
-	if l.min < l2.min {
-		l.min = l2.min
-	}
-	if l.umin < l2.umin {
-		l.umin = l2.umin
-	}
-	if l.max > l2.max {
-		l.max = l2.max
-	}
-	if l.umax > l2.umax {
-		l.umax = l2.umax
-	}
+	l.min = max(l.min, l2.min)
+	l.umin = max(l.umin, l2.umin)
+	l.max = min(l.max, l2.max)
+	l.umax = min(l.umax, l2.umax)
 	return l
+}
+
+func (l limit) signedMin(m int64) limit {
+	l.min = max(l.min, m)
+	return l
+}
+func (l limit) signedMax(m int64) limit {
+	l.max = min(l.max, m)
+	return l
+}
+func (l limit) signedMinMax(minimum, maximum int64) limit {
+	l.min = max(l.min, minimum)
+	l.max = min(l.max, maximum)
+	return l
+}
+
+func (l limit) unsignedMin(m uint64) limit {
+	l.umin = max(l.umin, m)
+	return l
+}
+func (l limit) unsignedMax(m uint64) limit {
+	l.umax = min(l.umax, m)
+	return l
+}
+func (l limit) unsignedMinMax(minimum, maximum uint64) limit {
+	l.umin = max(l.umin, minimum)
+	l.umax = min(l.umax, maximum)
+	return l
+}
+
+func (l limit) nonzero() bool {
+	return l.min > 0 || l.umin > 0 || l.max < 0
+}
+func (l limit) nonnegative() bool {
+	return l.min >= 0
+}
+func (l limit) unsat() bool {
+	return l.min > l.max || l.umin > l.umax
+}
+
+// If x and y can add without overflow or underflow
+// (using b bits), safeAdd returns x+y, true.
+// Otherwise, returns 0, false.
+func safeAdd(x, y int64, b uint) (int64, bool) {
+	s := x + y
+	if x >= 0 && y >= 0 && s < 0 {
+		return 0, false // 64-bit overflow
+	}
+	if x < 0 && y < 0 && s >= 0 {
+		return 0, false // 64-bit underflow
+	}
+	if !fitsInBits(s, b) {
+		return 0, false
+	}
+	return s, true
+}
+
+// same as safeAdd for unsigned arithmetic.
+func safeAddU(x, y uint64, b uint) (uint64, bool) {
+	s := x + y
+	if s < x || s < y {
+		return 0, false // 64-bit overflow
+	}
+	if !fitsInBitsU(s, b) {
+		return 0, false
+	}
+	return s, true
+}
+
+// same as safeAdd but for subtraction.
+func safeSub(x, y int64, b uint) (int64, bool) {
+	if y == math.MinInt64 {
+		if x == math.MaxInt64 {
+			return 0, false // 64-bit overflow
+		}
+		x++
+		y++
+	}
+	return safeAdd(x, -y, b)
+}
+
+// same as safeAddU but for subtraction.
+func safeSubU(x, y uint64, b uint) (uint64, bool) {
+	if x < y {
+		return 0, false // 64-bit underflow
+	}
+	s := x - y
+	if !fitsInBitsU(s, b) {
+		return 0, false
+	}
+	return s, true
+}
+
+// fitsInBits reports whether x fits in b bits (signed).
+func fitsInBits(x int64, b uint) bool {
+	if b == 64 {
+		return true
+	}
+	m := int64(-1) << (b - 1)
+	M := -m - 1
+	return x >= m && x <= M
+}
+
+// fitsInBitsU reports whether x fits in b bits (unsigned).
+func fitsInBitsU(x uint64, b uint) bool {
+	return x>>b == 0
+}
+
+// add returns the limit obtained by adding a value with limit l
+// to a value with limit l2. The result must fit in b bits.
+func (l limit) add(l2 limit, b uint) limit {
+	r := noLimit
+	min, minOk := safeAdd(l.min, l2.min, b)
+	max, maxOk := safeAdd(l.max, l2.max, b)
+	if minOk && maxOk {
+		r.min = min
+		r.max = max
+	}
+	umin, uminOk := safeAddU(l.umin, l2.umin, b)
+	umax, umaxOk := safeAddU(l.umax, l2.umax, b)
+	if uminOk && umaxOk {
+		r.umin = umin
+		r.umax = umax
+	}
+	return r
+}
+
+// same as add but for subtraction.
+func (l limit) sub(l2 limit, b uint) limit {
+	r := noLimit
+	min, minOk := safeSub(l.min, l2.max, b)
+	max, maxOk := safeSub(l.max, l2.min, b)
+	if minOk && maxOk {
+		r.min = min
+		r.max = max
+	}
+	umin, uminOk := safeSubU(l.umin, l2.umax, b)
+	umax, umaxOk := safeSubU(l.umax, l2.umin, b)
+	if uminOk && umaxOk {
+		r.umin = umin
+		r.umax = umax
+	}
+	return r
+}
+
+// same as add but for multiplication.
+func (l limit) mul(l2 limit, b uint) limit {
+	r := noLimit
+	umaxhi, umaxlo := bits.Mul64(l.umax, l2.umax)
+	if umaxhi == 0 && fitsInBitsU(umaxlo, b) {
+		r.umax = umaxlo
+		r.umin = l.umin * l2.umin
+		// Note: if the code containing this multiply is
+		// unreachable, then we may have umin>umax, and this
+		// multiply may overflow.  But that's ok for
+		// unreachable code. If this code is reachable, we
+		// know umin<=umax, so this multiply will not overflow
+		// because the max multiply didn't.
+	}
+	// Signed is harder, so don't bother. The only useful
+	// case is when we know both multiplicands are nonnegative,
+	// but that case is handled above because we would have then
+	// previously propagated signed info to the unsigned domain,
+	// and will propagate it back after the multiply.
+	return r
+}
+
+// Similar to add, but compute 1 << l if it fits without overflow in b bits.
+func (l limit) exp2(b uint) limit {
+	r := noLimit
+	if l.umax < uint64(b) {
+		r.umin = 1 << l.umin
+		r.umax = 1 << l.umax
+		// Same as above in mul, signed<->unsigned propagation
+		// will handle the signed case for us.
+	}
+	return r
+}
+
+// Similar to add, but computes the complement of the limit for bitsize b.
+func (l limit) com(b uint) limit {
+	switch b {
+	case 64:
+		return limit{
+			min:  ^l.max,
+			max:  ^l.min,
+			umin: ^l.umax,
+			umax: ^l.umin,
+		}
+	case 32:
+		return limit{
+			min:  int64(^int32(l.max)),
+			max:  int64(^int32(l.min)),
+			umin: uint64(^uint32(l.umax)),
+			umax: uint64(^uint32(l.umin)),
+		}
+	case 16:
+		return limit{
+			min:  int64(^int16(l.max)),
+			max:  int64(^int16(l.min)),
+			umin: uint64(^uint16(l.umax)),
+			umax: uint64(^uint16(l.umin)),
+		}
+	case 8:
+		return limit{
+			min:  int64(^int8(l.max)),
+			max:  int64(^int8(l.min)),
+			umin: uint64(^uint8(l.umax)),
+			umax: uint64(^uint8(l.umin)),
+		}
+	default:
+		panic("unreachable")
+	}
 }
 
 var noLimit = limit{math.MinInt64, math.MaxInt64, 0, math.MaxUint64}
@@ -144,6 +359,16 @@ var noLimit = limit{math.MinInt64, math.MaxInt64, 0, math.MaxUint64}
 type limitFact struct {
 	vid   ID
 	limit limit
+}
+
+// An ordering encodes facts like v < w.
+type ordering struct {
+	next *ordering // linked list of all known orderings for v.
+	// Note: v is implicit here, determined by which linked list it is in.
+	w *Value
+	d domain
+	r relation // one of ==,!=,<,<=,>,>=
+	// if d is boolean or pointer, r can only be ==, !=
 }
 
 // factsTable keeps track of relations between pairs of values.
@@ -162,32 +387,37 @@ type factsTable struct {
 	unsat      bool // true if facts contains a contradiction
 	unsatDepth int  // number of unsat checkpoints
 
-	facts map[pair]relation // current known set of relation
-	stack []fact            // previous sets of relations
-
-	// order is a couple of partial order sets that record information
+	// order* is a couple of partial order sets that record information
 	// about relations between SSA values in the signed and unsigned
 	// domain.
 	orderS *poset
 	orderU *poset
 
-	// known lower and upper bounds on individual values.
-	limits     map[ID]limit
-	limitStack []limitFact // previous entries
+	// orderings contains a list of known orderings between values.
+	// These lists are indexed by v.ID.
+	// We do not record transitive orderings. Only explicitly learned
+	// orderings are recorded. Transitive orderings can be obtained
+	// by walking along the individual orderings.
+	orderings map[ID]*ordering
+	// stack of IDs which have had an entry added in orderings.
+	// In addition, ID==0 are checkpoint markers.
+	orderingsStack []ID
+	orderingCache  *ordering // unused ordering records
+
+	// known lower and upper constant bounds on individual values.
+	limits       []limit     // indexed by value ID
+	limitStack   []limitFact // previous entries
+	recurseCheck []bool      // recursion detector for limit propagation
 
 	// For each slice s, a map from s to a len(s)/cap(s) value (if any)
 	// TODO: check if there are cases that matter where we have
 	// more than one len(s) for a slice. We could keep a list if necessary.
 	lens map[ID]*Value
 	caps map[ID]*Value
-
-	// zero is a zero-valued constant
-	zero *Value
 }
 
-// checkpointFact is an invalid value used for checkpointing
+// checkpointBound is an invalid value used for checkpointing
 // and restoring factsTable.
-var checkpointFact = fact{}
 var checkpointBound = limitFact{}
 
 func newFactsTable(f *Func) *factsTable {
@@ -196,12 +426,303 @@ func newFactsTable(f *Func) *factsTable {
 	ft.orderU = f.newPoset()
 	ft.orderS.SetUnsigned(false)
 	ft.orderU.SetUnsigned(true)
-	ft.facts = make(map[pair]relation)
-	ft.stack = make([]fact, 4)
-	ft.limits = make(map[ID]limit)
+	ft.orderings = make(map[ID]*ordering)
+	ft.limits = f.Cache.allocLimitSlice(f.NumValues())
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			ft.limits[v.ID] = initLimit(v)
+		}
+	}
 	ft.limitStack = make([]limitFact, 4)
-	ft.zero = f.ConstInt64(f.Config.Types.Int64, 0)
+	ft.recurseCheck = f.Cache.allocBoolSlice(f.NumValues())
 	return ft
+}
+
+// initLimitForNewValue initializes the limits for newly created values,
+// possibly needing to expand the limits slice. Currently used by
+// simplifyBlock when certain provably constant results are folded.
+func (ft *factsTable) initLimitForNewValue(v *Value) {
+	if int(v.ID) >= len(ft.limits) {
+		f := v.Block.Func
+		n := f.NumValues()
+		if cap(ft.limits) >= n {
+			ft.limits = ft.limits[:n]
+		} else {
+			old := ft.limits
+			ft.limits = f.Cache.allocLimitSlice(n)
+			copy(ft.limits, old)
+			f.Cache.freeLimitSlice(old)
+		}
+	}
+	ft.limits[v.ID] = initLimit(v)
+}
+
+// signedMin records the fact that we know v is at least
+// min in the signed domain.
+func (ft *factsTable) signedMin(v *Value, min int64) bool {
+	return ft.newLimit(v, limit{min: min, max: math.MaxInt64, umin: 0, umax: math.MaxUint64})
+}
+
+// signedMax records the fact that we know v is at most
+// max in the signed domain.
+func (ft *factsTable) signedMax(v *Value, max int64) bool {
+	return ft.newLimit(v, limit{min: math.MinInt64, max: max, umin: 0, umax: math.MaxUint64})
+}
+func (ft *factsTable) signedMinMax(v *Value, min, max int64) bool {
+	return ft.newLimit(v, limit{min: min, max: max, umin: 0, umax: math.MaxUint64})
+}
+
+// setNonNegative records the fact that v is known to be non-negative.
+func (ft *factsTable) setNonNegative(v *Value) bool {
+	return ft.signedMin(v, 0)
+}
+
+// unsignedMin records the fact that we know v is at least
+// min in the unsigned domain.
+func (ft *factsTable) unsignedMin(v *Value, min uint64) bool {
+	return ft.newLimit(v, limit{min: math.MinInt64, max: math.MaxInt64, umin: min, umax: math.MaxUint64})
+}
+
+// unsignedMax records the fact that we know v is at most
+// max in the unsigned domain.
+func (ft *factsTable) unsignedMax(v *Value, max uint64) bool {
+	return ft.newLimit(v, limit{min: math.MinInt64, max: math.MaxInt64, umin: 0, umax: max})
+}
+func (ft *factsTable) unsignedMinMax(v *Value, min, max uint64) bool {
+	return ft.newLimit(v, limit{min: math.MinInt64, max: math.MaxInt64, umin: min, umax: max})
+}
+
+func (ft *factsTable) booleanFalse(v *Value) bool {
+	return ft.newLimit(v, limit{min: 0, max: 0, umin: 0, umax: 0})
+}
+func (ft *factsTable) booleanTrue(v *Value) bool {
+	return ft.newLimit(v, limit{min: 1, max: 1, umin: 1, umax: 1})
+}
+func (ft *factsTable) pointerNil(v *Value) bool {
+	return ft.newLimit(v, limit{min: 0, max: 0, umin: 0, umax: 0})
+}
+func (ft *factsTable) pointerNonNil(v *Value) bool {
+	l := noLimit
+	l.umin = 1
+	return ft.newLimit(v, l)
+}
+
+// newLimit adds new limiting information for v.
+// Returns true if the new limit added any new information.
+func (ft *factsTable) newLimit(v *Value, newLim limit) bool {
+	oldLim := ft.limits[v.ID]
+
+	// Merge old and new information.
+	lim := oldLim.intersect(newLim)
+
+	// signed <-> unsigned propagation
+	if lim.min >= 0 {
+		lim = lim.unsignedMinMax(uint64(lim.min), uint64(lim.max))
+	}
+	if fitsInBitsU(lim.umax, uint(8*v.Type.Size()-1)) {
+		lim = lim.signedMinMax(int64(lim.umin), int64(lim.umax))
+	}
+
+	if lim == oldLim {
+		return false // nothing new to record
+	}
+
+	if lim.unsat() {
+		r := !ft.unsat
+		ft.unsat = true
+		return r
+	}
+
+	// Check for recursion. This normally happens because in unsatisfiable
+	// cases we have a < b < a, and every update to a's limits returns
+	// here again with the limit increased by 2.
+	// Normally this is caught early by the orderS/orderU posets, but in
+	// cases where the comparisons jump between signed and unsigned domains,
+	// the posets will not notice.
+	if ft.recurseCheck[v.ID] {
+		// This should only happen for unsatisfiable cases. TODO: check
+		return false
+	}
+	ft.recurseCheck[v.ID] = true
+	defer func() {
+		ft.recurseCheck[v.ID] = false
+	}()
+
+	// Record undo information.
+	ft.limitStack = append(ft.limitStack, limitFact{v.ID, oldLim})
+	// Record new information.
+	ft.limits[v.ID] = lim
+	if v.Block.Func.pass.debug > 2 {
+		// TODO: pos is probably wrong. This is the position where v is defined,
+		// not the position where we learned the fact about it (which was
+		// probably some subsequent compare+branch).
+		v.Block.Func.Warnl(v.Pos, "new limit %s %s unsat=%v", v, lim.String(), ft.unsat)
+	}
+
+	// Propagate this new constant range to other values
+	// that we know are ordered with respect to this one.
+	// Note overflow/underflow in the arithmetic below is ok,
+	// it will just lead to imprecision (undetected unsatisfiability).
+	for o := ft.orderings[v.ID]; o != nil; o = o.next {
+		switch o.d {
+		case signed:
+			switch o.r {
+			case eq: // v == w
+				ft.signedMinMax(o.w, lim.min, lim.max)
+			case lt | eq: // v <= w
+				ft.signedMin(o.w, lim.min)
+			case lt: // v < w
+				ft.signedMin(o.w, lim.min+1)
+			case gt | eq: // v >= w
+				ft.signedMax(o.w, lim.max)
+			case gt: // v > w
+				ft.signedMax(o.w, lim.max-1)
+			case lt | gt: // v != w
+				if lim.min == lim.max { // v is a constant
+					c := lim.min
+					if ft.limits[o.w.ID].min == c {
+						ft.signedMin(o.w, c+1)
+					}
+					if ft.limits[o.w.ID].max == c {
+						ft.signedMax(o.w, c-1)
+					}
+				}
+			}
+		case unsigned:
+			switch o.r {
+			case eq: // v == w
+				ft.unsignedMinMax(o.w, lim.umin, lim.umax)
+			case lt | eq: // v <= w
+				ft.unsignedMin(o.w, lim.umin)
+			case lt: // v < w
+				ft.unsignedMin(o.w, lim.umin+1)
+			case gt | eq: // v >= w
+				ft.unsignedMax(o.w, lim.umax)
+			case gt: // v > w
+				ft.unsignedMax(o.w, lim.umax-1)
+			case lt | gt: // v != w
+				if lim.umin == lim.umax { // v is a constant
+					c := lim.umin
+					if ft.limits[o.w.ID].umin == c {
+						ft.unsignedMin(o.w, c+1)
+					}
+					if ft.limits[o.w.ID].umax == c {
+						ft.unsignedMax(o.w, c-1)
+					}
+				}
+			}
+		case boolean:
+			switch o.r {
+			case eq:
+				if lim.min == 0 && lim.max == 0 { // constant false
+					ft.booleanFalse(o.w)
+				}
+				if lim.min == 1 && lim.max == 1 { // constant true
+					ft.booleanTrue(o.w)
+				}
+			case lt | gt:
+				if lim.min == 0 && lim.max == 0 { // constant false
+					ft.booleanTrue(o.w)
+				}
+				if lim.min == 1 && lim.max == 1 { // constant true
+					ft.booleanFalse(o.w)
+				}
+			}
+		case pointer:
+			switch o.r {
+			case eq:
+				if lim.umax == 0 { // nil
+					ft.pointerNil(o.w)
+				}
+				if lim.umin > 0 { // non-nil
+					ft.pointerNonNil(o.w)
+				}
+			case lt | gt:
+				if lim.umax == 0 { // nil
+					ft.pointerNonNil(o.w)
+				}
+				// note: not equal to non-nil doesn't tell us anything.
+			}
+		}
+	}
+
+	// If this is new known constant for a boolean value,
+	// extract relation between its args. For example, if
+	// We learn v is false, and v is defined as a<b, then we learn a>=b.
+	if v.Type.IsBoolean() {
+		// If we reach here, it is because we have a more restrictive
+		// value for v than the default. The only two such values
+		// are constant true or constant false.
+		if lim.min != lim.max {
+			v.Block.Func.Fatalf("boolean not constant %v", v)
+		}
+		isTrue := lim.min == 1
+		if dr, ok := domainRelationTable[v.Op]; ok && v.Op != OpIsInBounds && v.Op != OpIsSliceInBounds {
+			d := dr.d
+			r := dr.r
+			if d == signed && ft.isNonNegative(v.Args[0]) && ft.isNonNegative(v.Args[1]) {
+				d |= unsigned
+			}
+			if !isTrue {
+				r ^= lt | gt | eq
+			}
+			// TODO: v.Block is wrong?
+			addRestrictions(v.Block, ft, d, v.Args[0], v.Args[1], r)
+		}
+		switch v.Op {
+		case OpIsNonNil:
+			if isTrue {
+				ft.pointerNonNil(v.Args[0])
+			} else {
+				ft.pointerNil(v.Args[0])
+			}
+		case OpIsInBounds, OpIsSliceInBounds:
+			// 0 <= a0 < a1 (or 0 <= a0 <= a1)
+			r := lt
+			if v.Op == OpIsSliceInBounds {
+				r |= eq
+			}
+			if isTrue {
+				// On the positive branch, we learn:
+				//   signed: 0 <= a0 < a1 (or 0 <= a0 <= a1)
+				//   unsigned:    a0 < a1 (or a0 <= a1)
+				ft.setNonNegative(v.Args[0])
+				ft.update(v.Block, v.Args[0], v.Args[1], signed, r)
+				ft.update(v.Block, v.Args[0], v.Args[1], unsigned, r)
+			} else {
+				// On the negative branch, we learn (0 > a0 ||
+				// a0 >= a1). In the unsigned domain, this is
+				// simply a0 >= a1 (which is the reverse of the
+				// positive branch, so nothing surprising).
+				// But in the signed domain, we can't express the ||
+				// condition, so check if a0 is non-negative instead,
+				// to be able to learn something.
+				r ^= lt | gt | eq // >= (index) or > (slice)
+				if ft.isNonNegative(v.Args[0]) {
+					ft.update(v.Block, v.Args[0], v.Args[1], signed, r)
+				}
+				ft.update(v.Block, v.Args[0], v.Args[1], unsigned, r)
+				// TODO: v.Block is wrong here
+			}
+		}
+	}
+
+	return true
+}
+
+func (ft *factsTable) addOrdering(v, w *Value, d domain, r relation) {
+	o := ft.orderingCache
+	if o == nil {
+		o = &ordering{}
+	} else {
+		ft.orderingCache = o.next
+	}
+	o.w = w
+	o.d = d
+	o.r = r
+	o.next = ft.orderings[v.ID]
+	ft.orderings[v.ID] = o
+	ft.orderingsStack = append(ft.orderingsStack, v.ID)
 }
 
 // update updates the set of relations between v and w in domain d
@@ -246,6 +767,9 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 		default:
 			panic("unknown relation")
 		}
+		ft.addOrdering(v, w, d, r)
+		ft.addOrdering(w, v, d, reverseBits[r])
+
 		if !ok {
 			if parent.Func.pass.debug > 2 {
 				parent.Func.Warnl(parent.Pos, "unsat %s %s %s", v, w, r)
@@ -253,138 +777,162 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 			ft.unsat = true
 			return
 		}
-	} else {
-		if lessByID(w, v) {
-			v, w = w, v
-			r = reverseBits[r]
-		}
-
-		p := pair{v, w, d}
-		oldR, ok := ft.facts[p]
-		if !ok {
-			if v == w {
-				oldR = eq
-			} else {
-				oldR = lt | eq | gt
+	}
+	if d == boolean || d == pointer {
+		for o := ft.orderings[v.ID]; o != nil; o = o.next {
+			if o.d == d && o.w == w {
+				// We already know a relationship between v and w.
+				// Either it is a duplicate, or it is a contradiction,
+				// as we only allow eq and lt|gt for these domains,
+				if o.r != r {
+					ft.unsat = true
+				}
+				return
 			}
 		}
-		// No changes compared to information already in facts table.
-		if oldR == r {
-			return
-		}
-		ft.stack = append(ft.stack, fact{p, oldR})
-		ft.facts[p] = oldR & r
-		// If this relation is not satisfiable, mark it and exit right away
-		if oldR&r == 0 {
-			if parent.Func.pass.debug > 2 {
-				parent.Func.Warnl(parent.Pos, "unsat %s %s %s", v, w, r)
-			}
-			ft.unsat = true
-			return
-		}
+		// TODO: this does not do transitive equality.
+		// We could use a poset like above, but somewhat degenerate (==,!= only).
+		ft.addOrdering(v, w, d, r)
+		ft.addOrdering(w, v, d, r) // note: reverseBits unnecessary for eq and lt|gt.
 	}
 
-	// Extract bounds when comparing against constants
-	if v.isGenericIntConst() {
-		v, w = w, v
-		r = reverseBits[r]
-	}
-	if v != nil && w.isGenericIntConst() {
-		// Note: all the +1/-1 below could overflow/underflow. Either will
-		// still generate correct results, it will just lead to imprecision.
-		// In fact if there is overflow/underflow, the corresponding
-		// code is unreachable because the known range is outside the range
-		// of the value's type.
-		old, ok := ft.limits[v.ID]
-		if !ok {
-			old = noLimit
-			if v.isGenericIntConst() {
-				switch d {
-				case signed:
-					old.min, old.max = v.AuxInt, v.AuxInt
-					if v.AuxInt >= 0 {
-						old.umin, old.umax = uint64(v.AuxInt), uint64(v.AuxInt)
-					}
-				case unsigned:
-					old.umin = v.AuxUnsigned()
-					old.umax = old.umin
-					if int64(old.umin) >= 0 {
-						old.min, old.max = int64(old.umin), int64(old.umin)
-					}
+	// Extract new constant limits based on the comparison.
+	vLimit := ft.limits[v.ID]
+	wLimit := ft.limits[w.ID]
+	// Note: all the +1/-1 below could overflow/underflow. Either will
+	// still generate correct results, it will just lead to imprecision.
+	// In fact if there is overflow/underflow, the corresponding
+	// code is unreachable because the known range is outside the range
+	// of the value's type.
+	switch d {
+	case signed:
+		switch r {
+		case eq: // v == w
+			ft.signedMinMax(v, wLimit.min, wLimit.max)
+			ft.signedMinMax(w, vLimit.min, vLimit.max)
+		case lt: // v < w
+			ft.signedMax(v, wLimit.max-1)
+			ft.signedMin(w, vLimit.min+1)
+		case lt | eq: // v <= w
+			ft.signedMax(v, wLimit.max)
+			ft.signedMin(w, vLimit.min)
+		case gt: // v > w
+			ft.signedMin(v, wLimit.min+1)
+			ft.signedMax(w, vLimit.max-1)
+		case gt | eq: // v >= w
+			ft.signedMin(v, wLimit.min)
+			ft.signedMax(w, vLimit.max)
+		case lt | gt: // v != w
+			if vLimit.min == vLimit.max { // v is a constant
+				c := vLimit.min
+				if wLimit.min == c {
+					ft.signedMin(w, c+1)
+				}
+				if wLimit.max == c {
+					ft.signedMax(w, c-1)
+				}
+			}
+			if wLimit.min == wLimit.max { // w is a constant
+				c := wLimit.min
+				if vLimit.min == c {
+					ft.signedMin(v, c+1)
+				}
+				if vLimit.max == c {
+					ft.signedMax(v, c-1)
 				}
 			}
 		}
-		lim := noLimit
-		switch d {
-		case signed:
-			c := w.AuxInt
-			switch r {
-			case lt:
-				lim.max = c - 1
-			case lt | eq:
-				lim.max = c
-			case gt | eq:
-				lim.min = c
-			case gt:
-				lim.min = c + 1
-			case lt | gt:
-				lim = old
-				if c == lim.min {
-					lim.min++
+	case unsigned:
+		switch r {
+		case eq: // v == w
+			ft.unsignedMinMax(v, wLimit.umin, wLimit.umax)
+			ft.unsignedMinMax(w, vLimit.umin, vLimit.umax)
+		case lt: // v < w
+			ft.unsignedMax(v, wLimit.umax-1)
+			ft.unsignedMin(w, vLimit.umin+1)
+		case lt | eq: // v <= w
+			ft.unsignedMax(v, wLimit.umax)
+			ft.unsignedMin(w, vLimit.umin)
+		case gt: // v > w
+			ft.unsignedMin(v, wLimit.umin+1)
+			ft.unsignedMax(w, vLimit.umax-1)
+		case gt | eq: // v >= w
+			ft.unsignedMin(v, wLimit.umin)
+			ft.unsignedMax(w, vLimit.umax)
+		case lt | gt: // v != w
+			if vLimit.umin == vLimit.umax { // v is a constant
+				c := vLimit.umin
+				if wLimit.umin == c {
+					ft.unsignedMin(w, c+1)
 				}
-				if c == lim.max {
-					lim.max--
+				if wLimit.umax == c {
+					ft.unsignedMax(w, c-1)
 				}
-			case eq:
-				lim.min = c
-				lim.max = c
 			}
-			if lim.min >= 0 {
-				// int(x) >= 0 && int(x) >= N  ⇒  uint(x) >= N
-				lim.umin = uint64(lim.min)
-			}
-			if lim.max != noLimit.max && old.min >= 0 && lim.max >= 0 {
-				// 0 <= int(x) <= N  ⇒  0 <= uint(x) <= N
-				// This is for a max update, so the lower bound
-				// comes from what we already know (old).
-				lim.umax = uint64(lim.max)
-			}
-		case unsigned:
-			uc := w.AuxUnsigned()
-			switch r {
-			case lt:
-				lim.umax = uc - 1
-			case lt | eq:
-				lim.umax = uc
-			case gt | eq:
-				lim.umin = uc
-			case gt:
-				lim.umin = uc + 1
-			case lt | gt:
-				lim = old
-				if uc == lim.umin {
-					lim.umin++
+			if wLimit.umin == wLimit.umax { // w is a constant
+				c := wLimit.umin
+				if vLimit.umin == c {
+					ft.unsignedMin(v, c+1)
 				}
-				if uc == lim.umax {
-					lim.umax--
+				if vLimit.umax == c {
+					ft.unsignedMax(v, c-1)
 				}
-			case eq:
-				lim.umin = uc
-				lim.umax = uc
 			}
-			// We could use the contrapositives of the
-			// signed implications to derive signed facts,
-			// but it turns out not to matter.
 		}
-		ft.limitStack = append(ft.limitStack, limitFact{v.ID, old})
-		lim = old.intersect(lim)
-		ft.limits[v.ID] = lim
-		if v.Block.Func.pass.debug > 2 {
-			v.Block.Func.Warnl(parent.Pos, "parent=%s, new limits %s %s %s %s", parent, v, w, r, lim.String())
+	case boolean:
+		switch r {
+		case eq: // v == w
+			if vLimit.min == 1 { // v is true
+				ft.booleanTrue(w)
+			}
+			if vLimit.max == 0 { // v is false
+				ft.booleanFalse(w)
+			}
+			if wLimit.min == 1 { // w is true
+				ft.booleanTrue(v)
+			}
+			if wLimit.max == 0 { // w is false
+				ft.booleanFalse(v)
+			}
+		case lt | gt: // v != w
+			if vLimit.min == 1 { // v is true
+				ft.booleanFalse(w)
+			}
+			if vLimit.max == 0 { // v is false
+				ft.booleanTrue(w)
+			}
+			if wLimit.min == 1 { // w is true
+				ft.booleanFalse(v)
+			}
+			if wLimit.max == 0 { // w is false
+				ft.booleanTrue(v)
+			}
 		}
-		if lim.min > lim.max || lim.umin > lim.umax {
-			ft.unsat = true
-			return
+	case pointer:
+		switch r {
+		case eq: // v == w
+			if vLimit.umax == 0 { // v is nil
+				ft.pointerNil(w)
+			}
+			if vLimit.umin > 0 { // v is non-nil
+				ft.pointerNonNil(w)
+			}
+			if wLimit.umax == 0 { // w is nil
+				ft.pointerNil(v)
+			}
+			if wLimit.umin > 0 { // w is non-nil
+				ft.pointerNonNil(v)
+			}
+		case lt | gt: // v != w
+			if vLimit.umax == 0 { // v is nil
+				ft.pointerNonNil(w)
+			}
+			if wLimit.umax == 0 { // w is nil
+				ft.pointerNonNil(v)
+			}
+			// Note: the other direction doesn't work.
+			// Being not equal to a non-nil pointer doesn't
+			// make you (necessarily) a nil pointer.
 		}
 	}
 
@@ -443,14 +991,14 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 			// x-1 >= w && x > min  ⇒  x > w
 			//
 			// Useful for i > 0; s[i-1].
-			lim, ok := ft.limits[x.ID]
-			if ok && ((d == signed && lim.min > opMin[v.Op]) || (d == unsigned && lim.umin > 0)) {
+			lim := ft.limits[x.ID]
+			if (d == signed && lim.min > opMin[v.Op]) || (d == unsigned && lim.umin > 0) {
 				ft.update(parent, x, w, d, gt)
 			}
 		} else if x, delta := isConstDelta(w); x != nil && delta == 1 {
 			// v >= x+1 && x < max  ⇒  v > x
-			lim, ok := ft.limits[x.ID]
-			if ok && ((d == signed && lim.max < opMax[w.Op]) || (d == unsigned && lim.umax < opUMax[w.Op])) {
+			lim := ft.limits[x.ID]
+			if (d == signed && lim.max < opMax[w.Op]) || (d == unsigned && lim.umax < opUMax[w.Op]) {
 				ft.update(parent, v, x, d, gt)
 			}
 		}
@@ -464,7 +1012,8 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 				parent.Func.Warnl(parent.Pos, "x+d %s w; x:%v %v delta:%v w:%v d:%v", r, x, parent.String(), delta, w.AuxInt, d)
 			}
 			underflow := true
-			if l, has := ft.limits[x.ID]; has && delta < 0 {
+			if delta < 0 {
+				l := ft.limits[x.ID]
 				if (x.Type.Size() == 8 && l.min >= math.MinInt64-delta) ||
 					(x.Type.Size() == 4 && l.min >= math.MinInt32-delta) {
 					underflow = false
@@ -500,58 +1049,45 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 				//
 				// Notice the conditions for max are still <=, as they handle overflows.
 				var min, max int64
-				var vmin, vmax *Value
 				switch x.Type.Size() {
 				case 8:
 					min = w.AuxInt - delta
 					max = int64(^uint64(0)>>1) - delta
-
-					vmin = parent.NewValue0I(parent.Pos, OpConst64, parent.Func.Config.Types.Int64, min)
-					vmax = parent.NewValue0I(parent.Pos, OpConst64, parent.Func.Config.Types.Int64, max)
-
 				case 4:
 					min = int64(int32(w.AuxInt) - int32(delta))
 					max = int64(int32(^uint32(0)>>1) - int32(delta))
-
-					vmin = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, min)
-					vmax = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, max)
-
 				case 2:
 					min = int64(int16(w.AuxInt) - int16(delta))
 					max = int64(int16(^uint16(0)>>1) - int16(delta))
-
-					vmin = parent.NewValue0I(parent.Pos, OpConst16, parent.Func.Config.Types.Int16, min)
-					vmax = parent.NewValue0I(parent.Pos, OpConst16, parent.Func.Config.Types.Int16, max)
-
 				case 1:
 					min = int64(int8(w.AuxInt) - int8(delta))
 					max = int64(int8(^uint8(0)>>1) - int8(delta))
-
-					vmin = parent.NewValue0I(parent.Pos, OpConst8, parent.Func.Config.Types.Int8, min)
-					vmax = parent.NewValue0I(parent.Pos, OpConst8, parent.Func.Config.Types.Int8, max)
-
 				default:
 					panic("unimplemented")
 				}
 
 				if min < max {
 					// Record that x > min and max >= x
-					ft.update(parent, x, vmin, d, r)
-					ft.update(parent, vmax, x, d, r|eq)
+					if r == gt {
+						min++
+					}
+					ft.signedMinMax(x, min, max)
 				} else {
 					// We know that either x>min OR x<=max. factsTable cannot record OR conditions,
 					// so let's see if we can already prove that one of them is false, in which case
 					// the other must be true
-					if l, has := ft.limits[x.ID]; has {
-						if l.max <= min {
-							if r&eq == 0 || l.max < min {
-								// x>min (x>=min) is impossible, so it must be x<=max
-								ft.update(parent, vmax, x, d, r|eq)
-							}
-						} else if l.min > max {
-							// x<=max is impossible, so it must be x>min
-							ft.update(parent, x, vmin, d, r)
+					l := ft.limits[x.ID]
+					if l.max <= min {
+						if r&eq == 0 || l.max < min {
+							// x>min (x>=min) is impossible, so it must be x<=max
+							ft.signedMax(x, max)
 						}
+					} else if l.min > max {
+						// x<=max is impossible, so it must be x>min
+						if r == gt {
+							min++
+						}
+						ft.signedMin(x, min)
 					}
 				}
 			}
@@ -596,49 +1132,7 @@ var opUMax = map[Op]uint64{
 
 // isNonNegative reports whether v is known to be non-negative.
 func (ft *factsTable) isNonNegative(v *Value) bool {
-	if isNonNegative(v) {
-		return true
-	}
-
-	var max int64
-	switch v.Type.Size() {
-	case 1:
-		max = math.MaxInt8
-	case 2:
-		max = math.MaxInt16
-	case 4:
-		max = math.MaxInt32
-	case 8:
-		max = math.MaxInt64
-	default:
-		panic("unexpected integer size")
-	}
-
-	// Check if the recorded limits can prove that the value is positive
-
-	if l, has := ft.limits[v.ID]; has && (l.min >= 0 || l.umax <= uint64(max)) {
-		return true
-	}
-
-	// Check if v = x+delta, and we can use x's limits to prove that it's positive
-	if x, delta := isConstDelta(v); x != nil {
-		if l, has := ft.limits[x.ID]; has {
-			if delta > 0 && l.min >= -delta && l.max <= max-delta {
-				return true
-			}
-			if delta < 0 && l.min >= -delta {
-				return true
-			}
-		}
-	}
-
-	// Check if v is a value-preserving extension of a non-negative value.
-	if isCleanExt(v) && ft.isNonNegative(v.Args[0]) {
-		return true
-	}
-
-	// Check if the signed poset can prove that the value is >= 0
-	return ft.orderS.OrderedOrEqual(ft.zero, v)
+	return ft.limits[v.ID].min >= 0
 }
 
 // checkpoint saves the current state of known relations.
@@ -647,10 +1141,10 @@ func (ft *factsTable) checkpoint() {
 	if ft.unsat {
 		ft.unsatDepth++
 	}
-	ft.stack = append(ft.stack, checkpointFact)
 	ft.limitStack = append(ft.limitStack, checkpointBound)
 	ft.orderS.Checkpoint()
 	ft.orderU.Checkpoint()
+	ft.orderingsStack = append(ft.orderingsStack, 0)
 }
 
 // restore restores known relation to the state just
@@ -663,42 +1157,26 @@ func (ft *factsTable) restore() {
 		ft.unsat = false
 	}
 	for {
-		old := ft.stack[len(ft.stack)-1]
-		ft.stack = ft.stack[:len(ft.stack)-1]
-		if old == checkpointFact {
-			break
-		}
-		if old.r == lt|eq|gt {
-			delete(ft.facts, old.p)
-		} else {
-			ft.facts[old.p] = old.r
-		}
-	}
-	for {
 		old := ft.limitStack[len(ft.limitStack)-1]
 		ft.limitStack = ft.limitStack[:len(ft.limitStack)-1]
 		if old.vid == 0 { // checkpointBound
 			break
 		}
-		if old.limit == noLimit {
-			delete(ft.limits, old.vid)
-		} else {
-			ft.limits[old.vid] = old.limit
-		}
+		ft.limits[old.vid] = old.limit
 	}
 	ft.orderS.Undo()
 	ft.orderU.Undo()
-}
-
-func lessByID(v, w *Value) bool {
-	if v == nil && w == nil {
-		// Should not happen, but just in case.
-		return false
+	for {
+		id := ft.orderingsStack[len(ft.orderingsStack)-1]
+		ft.orderingsStack = ft.orderingsStack[:len(ft.orderingsStack)-1]
+		if id == 0 { // checkpoint marker
+			break
+		}
+		o := ft.orderings[id]
+		ft.orderings[id] = o.next
+		o.next = ft.orderingCache
+		ft.orderingCache = o
 	}
-	if v == nil {
-		return true
-	}
-	return w != nil && v.ID < w.ID
 }
 
 var (
@@ -708,8 +1186,8 @@ var (
 	// For example:
 	//      OpLess8:   {signed, lt},
 	//	v1 = (OpLess8 v2 v3).
-	// If v1 branch is taken then we learn that the rangeMask
-	// can be at most lt.
+	// If we learn that v1 is true, then we can deduce that v2<v3
+	// in the signed domain.
 	domainRelationTable = map[Op]struct {
 		d domain
 		r relation
@@ -719,12 +1197,14 @@ var (
 		OpEq32:  {signed | unsigned, eq},
 		OpEq64:  {signed | unsigned, eq},
 		OpEqPtr: {pointer, eq},
+		OpEqB:   {boolean, eq},
 
 		OpNeq8:   {signed | unsigned, lt | gt},
 		OpNeq16:  {signed | unsigned, lt | gt},
 		OpNeq32:  {signed | unsigned, lt | gt},
 		OpNeq64:  {signed | unsigned, lt | gt},
 		OpNeqPtr: {pointer, lt | gt},
+		OpNeqB:   {boolean, lt | gt},
 
 		OpLess8:   {signed, lt},
 		OpLess8U:  {unsigned, lt},
@@ -743,12 +1223,6 @@ var (
 		OpLeq32U: {unsigned, lt | eq},
 		OpLeq64:  {signed, lt | eq},
 		OpLeq64U: {unsigned, lt | eq},
-
-		// For these ops, the negative branch is different: we can only
-		// prove signed/GE (signed/GT) if we can prove that arg0 is non-negative.
-		// See the special case in addBranchRestrictions.
-		OpIsInBounds:      {signed | unsigned, lt},      // 0 <= arg0 < arg1
-		OpIsSliceInBounds: {signed | unsigned, lt | eq}, // 0 <= arg0 <= arg1
 	}
 )
 
@@ -764,6 +1238,8 @@ func (ft *factsTable) cleanup(f *Func) {
 		}
 		f.retPoset(po)
 	}
+	f.Cache.freeLimitSlice(ft.limits)
+	f.Cache.freeBoolSlice(ft.recurseCheck)
 }
 
 // prove removes redundant BlockIf branches that can be inferred
@@ -823,8 +1299,8 @@ func prove(f *Func) {
 		}
 
 		// try to rewrite to a downward counting loop checking against start if the
-		// loop body does not depends on ind or nxt and end is known before the loop.
-		// This reduce pressure on the register allocator because this do not need
+		// loop body does not depend on ind or nxt and end is known before the loop.
+		// This reduces pressure on the register allocator because this does not need
 		// to use end on each iteration anymore. We compare against the start constant instead.
 		// That means this code:
 		//
@@ -856,18 +1332,18 @@ func prove(f *Func) {
 		//
 		//	exit_loop:
 		//
-		// this is better because it only require to keep ind then nxt alive while looping,
+		// this is better because it only requires to keep ind then nxt alive while looping,
 		// while the original form keeps ind then nxt and end alive
 		start, end := v.min, v.max
 		if v.flags&indVarCountDown != 0 {
 			start, end = end, start
 		}
 
-		if !(start.Op == OpConst8 || start.Op == OpConst16 || start.Op == OpConst32 || start.Op == OpConst64) {
+		if !start.isGenericIntConst() {
 			// if start is not a constant we would be winning nothing from inverting the loop
 			continue
 		}
-		if end.Op == OpConst8 || end.Op == OpConst16 || end.Op == OpConst32 || end.Op == OpConst64 {
+		if end.isGenericIntConst() {
 			// TODO: if both start and end are constants we should rewrite such that the comparison
 			// is against zero and nxt is ++ or -- operation
 			// That means:
@@ -877,34 +1353,17 @@ func prove(f *Func) {
 			continue
 		}
 
-		header := ind.Block
-		check := header.Controls[0]
-		if check == nil {
-			// we don't know how to rewrite a loop that not simple comparison
-			continue
-		}
-		switch check.Op {
-		case OpLeq64, OpLeq32, OpLeq16, OpLeq8,
-			OpLess64, OpLess32, OpLess16, OpLess8:
-		default:
-			// we don't know how to rewrite a loop that not simple comparison
-			continue
-		}
-		if !((check.Args[0] == ind && check.Args[1] == end) ||
-			(check.Args[1] == ind && check.Args[0] == end)) {
-			// we don't know how to rewrite a loop that not simple comparison
-			continue
-		}
 		if end.Block == ind.Block {
 			// we can't rewrite loops where the condition depends on the loop body
-			// this simple check is forced to work because if this is true a Phi in ind.Block must exists
+			// this simple check is forced to work because if this is true a Phi in ind.Block must exist
 			continue
 		}
 
+		check := ind.Block.Controls[0]
 		// invert the check
 		check.Args[0], check.Args[1] = check.Args[1], check.Args[0]
 
-		// invert start and end in the loop
+		// swap start and end in the loop
 		for i, v := range check.Args {
 			if v != end {
 				continue
@@ -961,9 +1420,6 @@ func prove(f *Func) {
 	ft := newFactsTable(f)
 	ft.checkpoint()
 
-	var lensVars map[*Block][]*Value
-	var logicVars map[*Block][]*Value
-
 	// Find length and capacity ops.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
@@ -973,8 +1429,6 @@ func prove(f *Func) {
 				continue
 			}
 			switch v.Op {
-			case OpStringLen:
-				ft.update(b, v, ft.zero, signed, gt|eq)
 			case OpSliceLen:
 				if ft.lens == nil {
 					ft.lens = map[ID]*Value{}
@@ -987,13 +1441,6 @@ func prove(f *Func) {
 				} else {
 					ft.lens[v.Args[0].ID] = v
 				}
-				ft.update(b, v, ft.zero, signed, gt|eq)
-				if v.Args[0].Op == OpSliceMake {
-					if lensVars == nil {
-						lensVars = make(map[*Block][]*Value)
-					}
-					lensVars[b] = append(lensVars[b], v)
-				}
 			case OpSliceCap:
 				if ft.caps == nil {
 					ft.caps = map[ID]*Value{}
@@ -1004,92 +1451,6 @@ func prove(f *Func) {
 				} else {
 					ft.caps[v.Args[0].ID] = v
 				}
-				ft.update(b, v, ft.zero, signed, gt|eq)
-				if v.Args[0].Op == OpSliceMake {
-					if lensVars == nil {
-						lensVars = make(map[*Block][]*Value)
-					}
-					lensVars[b] = append(lensVars[b], v)
-				}
-			case OpCtz64, OpCtz32, OpCtz16, OpCtz8, OpBitLen64, OpBitLen32, OpBitLen16, OpBitLen8:
-				ft.update(b, v, ft.zero, signed, gt|eq)
-				// TODO: we could also do <= 64/32/16/8, if that helped.
-			case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
-				ft.update(b, v, v.Args[1], unsigned, lt|eq)
-				ft.update(b, v, v.Args[0], unsigned, lt|eq)
-				for i := 0; i < 2; i++ {
-					if isNonNegative(v.Args[i]) {
-						ft.update(b, v, v.Args[i], signed, lt|eq)
-						ft.update(b, v, ft.zero, signed, gt|eq)
-					}
-				}
-				if logicVars == nil {
-					logicVars = make(map[*Block][]*Value)
-				}
-				logicVars[b] = append(logicVars[b], v)
-			case OpOr64, OpOr32, OpOr16, OpOr8:
-				// TODO: investigate how to always add facts without much slowdown, see issue #57959.
-				if v.Args[0].isGenericIntConst() {
-					ft.update(b, v, v.Args[0], unsigned, gt|eq)
-				}
-				if v.Args[1].isGenericIntConst() {
-					ft.update(b, v, v.Args[1], unsigned, gt|eq)
-				}
-			case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u,
-				OpRsh8Ux64, OpRsh8Ux32, OpRsh8Ux16, OpRsh8Ux8,
-				OpRsh16Ux64, OpRsh16Ux32, OpRsh16Ux16, OpRsh16Ux8,
-				OpRsh32Ux64, OpRsh32Ux32, OpRsh32Ux16, OpRsh32Ux8,
-				OpRsh64Ux64, OpRsh64Ux32, OpRsh64Ux16, OpRsh64Ux8:
-				ft.update(b, v, v.Args[0], unsigned, lt|eq)
-			case OpMod64u, OpMod32u, OpMod16u, OpMod8u:
-				ft.update(b, v, v.Args[0], unsigned, lt|eq)
-				ft.update(b, v, v.Args[1], unsigned, lt)
-			case OpPhi:
-				// Determine the min and max value of OpPhi composed entirely of integer constants.
-				//
-				// For example, for an OpPhi:
-				//
-				// v1 = OpConst64 [13]
-				// v2 = OpConst64 [7]
-				// v3 = OpConst64 [42]
-				//
-				// v4 = OpPhi(v1, v2, v3)
-				//
-				// We can prove:
-				//
-				// v4 >= 7 && v4 <= 42
-				//
-				// TODO(jake-ciolek): Handle nested constant OpPhi's
-				sameConstOp := true
-				min := 0
-				max := 0
-
-				if !v.Args[min].isGenericIntConst() {
-					break
-				}
-
-				for k := range v.Args {
-					if v.Args[k].Op != v.Args[min].Op {
-						sameConstOp = false
-						break
-					}
-					if v.Args[k].AuxInt < v.Args[min].AuxInt {
-						min = k
-					}
-					if v.Args[k].AuxInt > v.Args[max].AuxInt {
-						max = k
-					}
-				}
-
-				if sameConstOp {
-					ft.update(b, v, v.Args[min], signed, gt|eq)
-					ft.update(b, v, v.Args[max], signed, lt|eq)
-				}
-				// One might be tempted to create a v >= ft.zero relation for
-				// all OpPhi's composed of only provably-positive values
-				// but that bloats up the facts table for a very negligible gain.
-				// In Go itself, very few functions get improved (< 5) at a cost of 5-7% total increase
-				// of compile time.
 			}
 		}
 	}
@@ -1134,54 +1495,32 @@ func prove(f *Func) {
 		case descend:
 			ft.checkpoint()
 
-			// Entering the block, add the block-depending facts that we collected
-			// at the beginning: induction variables and lens/caps of slices.
+			// Entering the block, add facts about the induction variable
+			// that is bound to this block.
 			if iv, ok := indVars[node.block]; ok {
 				addIndVarRestrictions(ft, parent, iv)
 			}
-			if lens, ok := lensVars[node.block]; ok {
-				for _, v := range lens {
-					switch v.Op {
-					case OpSliceLen:
-						ft.update(node.block, v, v.Args[0].Args[1], signed, eq)
-					case OpSliceCap:
-						ft.update(node.block, v, v.Args[0].Args[2], signed, eq)
-					}
-				}
-			}
 
+			// Add results of reaching this block via a branch from
+			// its immediate dominator (if any).
 			if branch != unknown {
 				addBranchRestrictions(ft, parent, branch)
-				// After we add the branch restriction, re-check the logic operations in the parent block,
-				// it may give us more info to omit some branches
-				if logic, ok := logicVars[parent]; ok {
-					for _, v := range logic {
-						// we only have OpAnd for now
-						ft.update(parent, v, v.Args[1], unsigned, lt|eq)
-						ft.update(parent, v, v.Args[0], unsigned, lt|eq)
-						for i := 0; i < 2; i++ {
-							if isNonNegative(v.Args[i]) {
-								ft.update(parent, v, v.Args[i], signed, lt|eq)
-								ft.update(parent, v, ft.zero, signed, gt|eq)
-							}
-						}
-					}
-				}
-				if ft.unsat {
-					// node.block is unreachable.
-					// Remove it and don't visit
-					// its children.
-					removeBranch(parent, branch)
-					ft.restore()
-					break
-				}
-				// Otherwise, we can now commit to
-				// taking this branch. We'll restore
-				// ft when we unwind.
 			}
 
-			// Add inductive facts for phis in this block.
-			addLocalInductiveFacts(ft, node.block)
+			if ft.unsat {
+				// node.block is unreachable.
+				// Remove it and don't visit
+				// its children.
+				removeBranch(parent, branch)
+				ft.restore()
+				break
+			}
+			// Otherwise, we can now commit to
+			// taking this branch. We'll restore
+			// ft when we unwind.
+
+			// Add facts about the values in the current block.
+			addLocalFacts(ft, node.block)
 
 			work = append(work, bp{
 				block: node.block,
@@ -1203,6 +1542,493 @@ func prove(f *Func) {
 	ft.restore()
 
 	ft.cleanup(f)
+}
+
+// initLimit sets initial constant limit for v.  This limit is based
+// only on the operation itself, not any of its input arguments. This
+// method is only used in two places, once when the prove pass startup
+// and the other when a new ssa value is created, both for init. (unlike
+// flowLimit, below, which computes additional constraints based on
+// ranges of opcode arguments).
+func initLimit(v *Value) limit {
+	if v.Type.IsBoolean() {
+		switch v.Op {
+		case OpConstBool:
+			b := v.AuxInt
+			return limit{min: b, max: b, umin: uint64(b), umax: uint64(b)}
+		default:
+			return limit{min: 0, max: 1, umin: 0, umax: 1}
+		}
+	}
+	if v.Type.IsPtrShaped() { // These are the types that EqPtr/NeqPtr operate on, except uintptr.
+		switch v.Op {
+		case OpConstNil:
+			return limit{min: 0, max: 0, umin: 0, umax: 0}
+		case OpAddr, OpLocalAddr: // TODO: others?
+			l := noLimit
+			l.umin = 1
+			return l
+		default:
+			return noLimit
+		}
+	}
+	if !v.Type.IsInteger() {
+		return noLimit
+	}
+
+	// Default limits based on type.
+	bitsize := v.Type.Size() * 8
+	lim := limit{min: -(1 << (bitsize - 1)), max: 1<<(bitsize-1) - 1, umin: 0, umax: 1<<bitsize - 1}
+
+	// Tighter limits on some opcodes.
+	switch v.Op {
+	// constants
+	case OpConst64:
+		lim = limit{min: v.AuxInt, max: v.AuxInt, umin: uint64(v.AuxInt), umax: uint64(v.AuxInt)}
+	case OpConst32:
+		lim = limit{min: v.AuxInt, max: v.AuxInt, umin: uint64(uint32(v.AuxInt)), umax: uint64(uint32(v.AuxInt))}
+	case OpConst16:
+		lim = limit{min: v.AuxInt, max: v.AuxInt, umin: uint64(uint16(v.AuxInt)), umax: uint64(uint16(v.AuxInt))}
+	case OpConst8:
+		lim = limit{min: v.AuxInt, max: v.AuxInt, umin: uint64(uint8(v.AuxInt)), umax: uint64(uint8(v.AuxInt))}
+
+	// extensions
+	case OpZeroExt8to64, OpZeroExt8to32, OpZeroExt8to16:
+		lim = lim.signedMinMax(0, 1<<8-1)
+		lim = lim.unsignedMax(1<<8 - 1)
+	case OpZeroExt16to64, OpZeroExt16to32:
+		lim = lim.signedMinMax(0, 1<<16-1)
+		lim = lim.unsignedMax(1<<16 - 1)
+	case OpZeroExt32to64:
+		lim = lim.signedMinMax(0, 1<<32-1)
+		lim = lim.unsignedMax(1<<32 - 1)
+	case OpSignExt8to64, OpSignExt8to32, OpSignExt8to16:
+		lim = lim.signedMinMax(math.MinInt8, math.MaxInt8)
+	case OpSignExt16to64, OpSignExt16to32:
+		lim = lim.signedMinMax(math.MinInt16, math.MaxInt16)
+	case OpSignExt32to64:
+		lim = lim.signedMinMax(math.MinInt32, math.MaxInt32)
+
+	// math/bits intrinsics
+	case OpCtz64, OpBitLen64, OpPopCount64,
+		OpCtz32, OpBitLen32, OpPopCount32,
+		OpCtz16, OpBitLen16, OpPopCount16,
+		OpCtz8, OpBitLen8, OpPopCount8:
+		lim = lim.unsignedMax(uint64(v.Args[0].Type.Size() * 8))
+
+	// bool to uint8 conversion
+	case OpCvtBoolToUint8:
+		lim = lim.unsignedMax(1)
+
+	// length operations
+	case OpStringLen, OpSliceLen, OpSliceCap:
+		lim = lim.signedMin(0)
+	}
+
+	// signed <-> unsigned propagation
+	if lim.min >= 0 {
+		lim = lim.unsignedMinMax(uint64(lim.min), uint64(lim.max))
+	}
+	if fitsInBitsU(lim.umax, uint(8*v.Type.Size()-1)) {
+		lim = lim.signedMinMax(int64(lim.umin), int64(lim.umax))
+	}
+
+	return lim
+}
+
+// flowLimit updates the known limits of v in ft. Returns true if anything changed.
+// flowLimit can use the ranges of input arguments.
+//
+// Note: this calculation only happens at the point the value is defined. We do not reevaluate
+// it later. So for example:
+//
+//	v := x + y
+//	if 0 <= x && x < 5 && 0 <= y && y < 5 { ... use v ... }
+//
+// we don't discover that the range of v is bounded in the conditioned
+// block. We could recompute the range of v once we enter the block so
+// we know that it is 0 <= v <= 8, but we don't have a mechanism to do
+// that right now.
+func (ft *factsTable) flowLimit(v *Value) bool {
+	if !v.Type.IsInteger() {
+		// TODO: boolean?
+		return false
+	}
+
+	// Additional limits based on opcode and argument.
+	// No need to repeat things here already done in initLimit.
+	switch v.Op {
+
+	// extensions
+	case OpZeroExt8to64, OpZeroExt8to32, OpZeroExt8to16, OpZeroExt16to64, OpZeroExt16to32, OpZeroExt32to64:
+		a := ft.limits[v.Args[0].ID]
+		return ft.unsignedMinMax(v, a.umin, a.umax)
+	case OpSignExt8to64, OpSignExt8to32, OpSignExt8to16, OpSignExt16to64, OpSignExt16to32, OpSignExt32to64:
+		a := ft.limits[v.Args[0].ID]
+		return ft.signedMinMax(v, a.min, a.max)
+	case OpTrunc64to8, OpTrunc64to16, OpTrunc64to32, OpTrunc32to8, OpTrunc32to16, OpTrunc16to8:
+		a := ft.limits[v.Args[0].ID]
+		if a.umax <= 1<<(uint64(v.Type.Size())*8)-1 {
+			return ft.unsignedMinMax(v, a.umin, a.umax)
+		}
+
+	// math/bits
+	case OpCtz64:
+		a := ft.limits[v.Args[0].ID]
+		if a.nonzero() {
+			return ft.unsignedMax(v, uint64(bits.Len64(a.umax)-1))
+		}
+	case OpCtz32:
+		a := ft.limits[v.Args[0].ID]
+		if a.nonzero() {
+			return ft.unsignedMax(v, uint64(bits.Len32(uint32(a.umax))-1))
+		}
+	case OpCtz16:
+		a := ft.limits[v.Args[0].ID]
+		if a.nonzero() {
+			return ft.unsignedMax(v, uint64(bits.Len16(uint16(a.umax))-1))
+		}
+	case OpCtz8:
+		a := ft.limits[v.Args[0].ID]
+		if a.nonzero() {
+			return ft.unsignedMax(v, uint64(bits.Len8(uint8(a.umax))-1))
+		}
+
+	case OpPopCount64, OpPopCount32, OpPopCount16, OpPopCount8:
+		a := ft.limits[v.Args[0].ID]
+		changingBitsCount := uint64(bits.Len64(a.umax ^ a.umin))
+		sharedLeadingMask := ^(uint64(1)<<changingBitsCount - 1)
+		fixedBits := a.umax & sharedLeadingMask
+		min := uint64(bits.OnesCount64(fixedBits))
+		return ft.unsignedMinMax(v, min, min+changingBitsCount)
+
+	case OpBitLen64:
+		a := ft.limits[v.Args[0].ID]
+		return ft.unsignedMinMax(v,
+			uint64(bits.Len64(a.umin)),
+			uint64(bits.Len64(a.umax)))
+	case OpBitLen32:
+		a := ft.limits[v.Args[0].ID]
+		return ft.unsignedMinMax(v,
+			uint64(bits.Len32(uint32(a.umin))),
+			uint64(bits.Len32(uint32(a.umax))))
+	case OpBitLen16:
+		a := ft.limits[v.Args[0].ID]
+		return ft.unsignedMinMax(v,
+			uint64(bits.Len16(uint16(a.umin))),
+			uint64(bits.Len16(uint16(a.umax))))
+	case OpBitLen8:
+		a := ft.limits[v.Args[0].ID]
+		return ft.unsignedMinMax(v,
+			uint64(bits.Len8(uint8(a.umin))),
+			uint64(bits.Len8(uint8(a.umax))))
+
+	// Masks.
+
+	// TODO: if y.umax and y.umin share a leading bit pattern, y also has that leading bit pattern.
+	// we could compare the patterns of always set bits in a and b and learn more about minimum and maximum.
+	// But I doubt this help any real world code.
+	case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
+		// AND can only make the value smaller.
+		a := ft.limits[v.Args[0].ID]
+		b := ft.limits[v.Args[1].ID]
+		return ft.unsignedMax(v, min(a.umax, b.umax))
+	case OpOr64, OpOr32, OpOr16, OpOr8:
+		// OR can only make the value bigger and can't flip bits proved to be zero in both inputs.
+		a := ft.limits[v.Args[0].ID]
+		b := ft.limits[v.Args[1].ID]
+		return ft.unsignedMinMax(v,
+			max(a.umin, b.umin),
+			1<<bits.Len64(a.umax|b.umax)-1)
+	case OpXor64, OpXor32, OpXor16, OpXor8:
+		// XOR can't flip bits that are proved to be zero in both inputs.
+		a := ft.limits[v.Args[0].ID]
+		b := ft.limits[v.Args[1].ID]
+		return ft.unsignedMax(v, 1<<bits.Len64(a.umax|b.umax)-1)
+	case OpCom64, OpCom32, OpCom16, OpCom8:
+		a := ft.limits[v.Args[0].ID]
+		return ft.newLimit(v, a.com(uint(v.Type.Size())*8))
+
+	// Arithmetic.
+	case OpAdd64, OpAdd32, OpAdd16, OpAdd8:
+		a := ft.limits[v.Args[0].ID]
+		b := ft.limits[v.Args[1].ID]
+		return ft.newLimit(v, a.add(b, uint(v.Type.Size())*8))
+	case OpSub64, OpSub32, OpSub16, OpSub8:
+		a := ft.limits[v.Args[0].ID]
+		b := ft.limits[v.Args[1].ID]
+		sub := ft.newLimit(v, a.sub(b, uint(v.Type.Size())*8))
+		mod := ft.detectSignedMod(v)
+		return sub || mod
+	case OpNeg64, OpNeg32, OpNeg16, OpNeg8:
+		a := ft.limits[v.Args[0].ID]
+		bitsize := uint(v.Type.Size()) * 8
+		return ft.newLimit(v, a.com(bitsize).add(limit{min: 1, max: 1, umin: 1, umax: 1}, bitsize))
+	case OpMul64, OpMul32, OpMul16, OpMul8:
+		a := ft.limits[v.Args[0].ID]
+		b := ft.limits[v.Args[1].ID]
+		return ft.newLimit(v, a.mul(b, uint(v.Type.Size())*8))
+	case OpLsh64x64, OpLsh64x32, OpLsh64x16, OpLsh64x8,
+		OpLsh32x64, OpLsh32x32, OpLsh32x16, OpLsh32x8,
+		OpLsh16x64, OpLsh16x32, OpLsh16x16, OpLsh16x8,
+		OpLsh8x64, OpLsh8x32, OpLsh8x16, OpLsh8x8:
+		a := ft.limits[v.Args[0].ID]
+		b := ft.limits[v.Args[1].ID]
+		bitsize := uint(v.Type.Size()) * 8
+		return ft.newLimit(v, a.mul(b.exp2(bitsize), bitsize))
+	case OpMod64, OpMod32, OpMod16, OpMod8:
+		a := ft.limits[v.Args[0].ID]
+		b := ft.limits[v.Args[1].ID]
+		if !(a.nonnegative() && b.nonnegative()) {
+			// TODO: we could handle signed limits but I didn't bother.
+			break
+		}
+		fallthrough
+	case OpMod64u, OpMod32u, OpMod16u, OpMod8u:
+		a := ft.limits[v.Args[0].ID]
+		b := ft.limits[v.Args[1].ID]
+		// Underflow in the arithmetic below is ok, it gives to MaxUint64 which does nothing to the limit.
+		return ft.unsignedMax(v, min(a.umax, b.umax-1))
+	case OpDiv64, OpDiv32, OpDiv16, OpDiv8:
+		a := ft.limits[v.Args[0].ID]
+		b := ft.limits[v.Args[1].ID]
+		if !(a.nonnegative() && b.nonnegative()) {
+			// TODO: we could handle signed limits but I didn't bother.
+			break
+		}
+		fallthrough
+	case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u:
+		a := ft.limits[v.Args[0].ID]
+		b := ft.limits[v.Args[1].ID]
+		lim := noLimit
+		if b.umax > 0 {
+			lim = lim.unsignedMin(a.umin / b.umax)
+		}
+		if b.umin > 0 {
+			lim = lim.unsignedMax(a.umax / b.umin)
+		}
+		return ft.newLimit(v, lim)
+
+	case OpPhi:
+		{
+			// Work around for go.dev/issue/68857, look for min(x, y) and max(x, y).
+			b := v.Block
+			if len(b.Preds) != 2 {
+				goto notMinNorMax
+			}
+			// FIXME: this code searches for the following losange pattern
+			// because that what ssagen produce for min and max builtins:
+			// conditionBlock → (firstBlock, secondBlock) → v.Block
+			// there are three non losange equivalent constructions
+			// we could match for, but I didn't bother:
+			// conditionBlock → (v.Block, secondBlock → v.Block)
+			// conditionBlock → (firstBlock → v.Block, v.Block)
+			// conditionBlock → (v.Block, v.Block)
+			firstBlock, secondBlock := b.Preds[0].b, b.Preds[1].b
+			if firstBlock.Kind != BlockPlain || secondBlock.Kind != BlockPlain {
+				goto notMinNorMax
+			}
+			if len(firstBlock.Preds) != 1 || len(secondBlock.Preds) != 1 {
+				goto notMinNorMax
+			}
+			conditionBlock := firstBlock.Preds[0].b
+			if conditionBlock != secondBlock.Preds[0].b {
+				goto notMinNorMax
+			}
+			if conditionBlock.Kind != BlockIf {
+				goto notMinNorMax
+			}
+
+			less := conditionBlock.Controls[0]
+			var unsigned bool
+			switch less.Op {
+			case OpLess64U, OpLess32U, OpLess16U, OpLess8U,
+				OpLeq64U, OpLeq32U, OpLeq16U, OpLeq8U:
+				unsigned = true
+			case OpLess64, OpLess32, OpLess16, OpLess8,
+				OpLeq64, OpLeq32, OpLeq16, OpLeq8:
+			default:
+				goto notMinNorMax
+			}
+			small, big := less.Args[0], less.Args[1]
+			truev, falsev := v.Args[0], v.Args[1]
+			if conditionBlock.Succs[0].b == secondBlock {
+				truev, falsev = falsev, truev
+			}
+
+			bigl, smalll := ft.limits[big.ID], ft.limits[small.ID]
+			if truev == big {
+				if falsev == small {
+					// v := big if small <¿=? big else small
+					if unsigned {
+						maximum := max(bigl.umax, smalll.umax)
+						minimum := max(bigl.umin, smalll.umin)
+						return ft.unsignedMinMax(v, minimum, maximum)
+					} else {
+						maximum := max(bigl.max, smalll.max)
+						minimum := max(bigl.min, smalll.min)
+						return ft.signedMinMax(v, minimum, maximum)
+					}
+				} else {
+					goto notMinNorMax
+				}
+			} else if truev == small {
+				if falsev == big {
+					// v := small if small <¿=? big else big
+					if unsigned {
+						maximum := min(bigl.umax, smalll.umax)
+						minimum := min(bigl.umin, smalll.umin)
+						return ft.unsignedMinMax(v, minimum, maximum)
+					} else {
+						maximum := min(bigl.max, smalll.max)
+						minimum := min(bigl.min, smalll.min)
+						return ft.signedMinMax(v, minimum, maximum)
+					}
+				} else {
+					goto notMinNorMax
+				}
+			} else {
+				goto notMinNorMax
+			}
+		}
+	notMinNorMax:
+
+		// Compute the union of all the input phis.
+		// Often this will convey no information, because the block
+		// is not dominated by its predecessors and hence the
+		// phi arguments might not have been processed yet. But if
+		// the values are declared earlier, it may help. e.g., for
+		//    v = phi(c3, c5)
+		// where c3 = OpConst [3] and c5 = OpConst [5] are
+		// defined in the entry block, we can derive [3,5]
+		// as the limit for v.
+		l := ft.limits[v.Args[0].ID]
+		for _, a := range v.Args[1:] {
+			l2 := ft.limits[a.ID]
+			l.min = min(l.min, l2.min)
+			l.max = max(l.max, l2.max)
+			l.umin = min(l.umin, l2.umin)
+			l.umax = max(l.umax, l2.umax)
+		}
+		return ft.newLimit(v, l)
+	}
+	return false
+}
+
+// See if we can get any facts because v is the result of signed mod by a constant.
+// The mod operation has already been rewritten, so we have to try and reconstruct it.
+//   x % d
+// is rewritten as
+//   x - (x / d) * d
+// furthermore, the divide itself gets rewritten. If d is a power of 2 (d == 1<<k), we do
+//   (x / d) * d = ((x + adj) >> k) << k
+//               = (x + adj) & (-1<<k)
+// with adj being an adjustment in case x is negative (see below).
+// if d is not a power of 2, we do
+//   x / d = ... TODO ...
+func (ft *factsTable) detectSignedMod(v *Value) bool {
+	if ft.detectSignedModByPowerOfTwo(v) {
+		return true
+	}
+	// TODO: non-powers-of-2
+	return false
+}
+func (ft *factsTable) detectSignedModByPowerOfTwo(v *Value) bool {
+	// We're looking for:
+	//
+	//   x % d ==
+	//   x - (x / d) * d
+	//
+	// which for d a power of 2, d == 1<<k, is done as
+	//
+	//   x - ((x + (x>>(w-1))>>>(w-k)) & (-1<<k))
+	//
+	// w = bit width of x.
+	// (>> = signed shift, >>> = unsigned shift).
+	// See ./_gen/generic.rules, search for "Signed divide by power of 2".
+
+	var w int64
+	var addOp, andOp, constOp, sshiftOp, ushiftOp Op
+	switch v.Op {
+	case OpSub64:
+		w = 64
+		addOp = OpAdd64
+		andOp = OpAnd64
+		constOp = OpConst64
+		sshiftOp = OpRsh64x64
+		ushiftOp = OpRsh64Ux64
+	case OpSub32:
+		w = 32
+		addOp = OpAdd32
+		andOp = OpAnd32
+		constOp = OpConst32
+		sshiftOp = OpRsh32x64
+		ushiftOp = OpRsh32Ux64
+	case OpSub16:
+		w = 16
+		addOp = OpAdd16
+		andOp = OpAnd16
+		constOp = OpConst16
+		sshiftOp = OpRsh16x64
+		ushiftOp = OpRsh16Ux64
+	case OpSub8:
+		w = 8
+		addOp = OpAdd8
+		andOp = OpAnd8
+		constOp = OpConst8
+		sshiftOp = OpRsh8x64
+		ushiftOp = OpRsh8Ux64
+	default:
+		return false
+	}
+
+	x := v.Args[0]
+	and := v.Args[1]
+	if and.Op != andOp {
+		return false
+	}
+	var add, mask *Value
+	if and.Args[0].Op == addOp && and.Args[1].Op == constOp {
+		add = and.Args[0]
+		mask = and.Args[1]
+	} else if and.Args[1].Op == addOp && and.Args[0].Op == constOp {
+		add = and.Args[1]
+		mask = and.Args[0]
+	} else {
+		return false
+	}
+	var ushift *Value
+	if add.Args[0] == x {
+		ushift = add.Args[1]
+	} else if add.Args[1] == x {
+		ushift = add.Args[0]
+	} else {
+		return false
+	}
+	if ushift.Op != ushiftOp {
+		return false
+	}
+	if ushift.Args[1].Op != OpConst64 {
+		return false
+	}
+	k := w - ushift.Args[1].AuxInt // Now we know k!
+	d := int64(1) << k             // divisor
+	sshift := ushift.Args[0]
+	if sshift.Op != sshiftOp {
+		return false
+	}
+	if sshift.Args[0] != x {
+		return false
+	}
+	if sshift.Args[1].Op != OpConst64 || sshift.Args[1].AuxInt != w-1 {
+		return false
+	}
+	if mask.AuxInt != -d {
+		return false
+	}
+
+	// All looks ok. x % d is at most +/- d-1.
+	return ft.signedMinMax(v, -d+1, d-1)
 }
 
 // getBranch returns the range restrictions added by p
@@ -1265,9 +2091,9 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 	c := b.Controls[0]
 	switch {
 	case br == negative:
-		addRestrictions(b, ft, boolean, nil, c, eq)
+		ft.booleanFalse(c)
 	case br == positive:
-		addRestrictions(b, ft, boolean, nil, c, lt|gt)
+		ft.booleanTrue(c)
 	case br >= jumpTable0:
 		idx := br - jumpTable0
 		val := int64(idx)
@@ -1277,67 +2103,9 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 			c = v
 			val -= off
 		}
-		old, ok := ft.limits[c.ID]
-		if !ok {
-			old = noLimit
-		}
-		ft.limitStack = append(ft.limitStack, limitFact{c.ID, old})
-		if val < old.min || val > old.max || uint64(val) < old.umin || uint64(val) > old.umax {
-			ft.unsat = true
-			if b.Func.pass.debug > 2 {
-				b.Func.Warnl(b.Pos, "block=%s outedge=%d %s=%d unsat", b, idx, c, val)
-			}
-		} else {
-			ft.limits[c.ID] = limit{val, val, uint64(val), uint64(val)}
-			if b.Func.pass.debug > 2 {
-				b.Func.Warnl(b.Pos, "block=%s outedge=%d %s=%d", b, idx, c, val)
-			}
-		}
+		ft.newLimit(c, limit{min: val, max: val, umin: uint64(val), umax: uint64(val)})
 	default:
 		panic("unknown branch")
-	}
-	if tr, has := domainRelationTable[c.Op]; has {
-		// When we branched from parent we learned a new set of
-		// restrictions. Update the factsTable accordingly.
-		d := tr.d
-		if d == signed && ft.isNonNegative(c.Args[0]) && ft.isNonNegative(c.Args[1]) {
-			d |= unsigned
-		}
-		switch c.Op {
-		case OpIsInBounds, OpIsSliceInBounds:
-			// 0 <= a0 < a1 (or 0 <= a0 <= a1)
-			//
-			// On the positive branch, we learn:
-			//   signed: 0 <= a0 < a1 (or 0 <= a0 <= a1)
-			//   unsigned:    a0 < a1 (or a0 <= a1)
-			//
-			// On the negative branch, we learn (0 > a0 ||
-			// a0 >= a1). In the unsigned domain, this is
-			// simply a0 >= a1 (which is the reverse of the
-			// positive branch, so nothing surprising).
-			// But in the signed domain, we can't express the ||
-			// condition, so check if a0 is non-negative instead,
-			// to be able to learn something.
-			switch br {
-			case negative:
-				d = unsigned
-				if ft.isNonNegative(c.Args[0]) {
-					d |= signed
-				}
-				addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r^(lt|gt|eq))
-			case positive:
-				addRestrictions(b, ft, signed, ft.zero, c.Args[0], lt|eq)
-				addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r)
-			}
-		default:
-			switch br {
-			case negative:
-				addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r^(lt|gt|eq))
-			case positive:
-				addRestrictions(b, ft, d, c.Args[0], c.Args[1], tr.r)
-			}
-		}
-
 	}
 }
 
@@ -1357,114 +2125,138 @@ func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r rel
 	}
 }
 
-// addLocalInductiveFacts adds inductive facts when visiting b, where
-// b is a join point in a loop. In contrast with findIndVar, this
-// depends on facts established for b, which is why it happens when
-// visiting b.
-//
-// TODO: It would be nice to combine this with findIndVar.
-func addLocalInductiveFacts(ft *factsTable, b *Block) {
-	// This looks for a specific pattern of induction:
-	//
-	// 1. i1 = OpPhi(min, i2) in b
-	// 2. i2 = i1 + 1
-	// 3. i2 < max at exit from b.Preds[1]
-	// 4. min < max
-	//
-	// If all of these conditions are true, then i1 < max and i1 >= min.
+func addLocalFacts(ft *factsTable, b *Block) {
+	// Propagate constant ranges among values in this block.
+	// We do this before the second loop so that we have the
+	// most up-to-date constant bounds for isNonNegative calls.
+	for {
+		changed := false
+		for _, v := range b.Values {
+			changed = ft.flowLimit(v) || changed
+		}
+		if !changed {
+			break
+		}
+	}
 
-	// To ensure this is a loop header node.
-	if len(b.Preds) != 2 {
+	// Add facts about individual operations.
+	for _, v := range b.Values {
+		// FIXME(go.dev/issue/68857): this loop only set up limits properly when b.Values is in topological order.
+		// flowLimit can also depend on limits given by this loop which right now is not handled.
+		switch v.Op {
+		case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
+			ft.update(b, v, v.Args[0], unsigned, lt|eq)
+			ft.update(b, v, v.Args[1], unsigned, lt|eq)
+			if ft.isNonNegative(v.Args[0]) {
+				ft.update(b, v, v.Args[0], signed, lt|eq)
+			}
+			if ft.isNonNegative(v.Args[1]) {
+				ft.update(b, v, v.Args[1], signed, lt|eq)
+			}
+		case OpOr64, OpOr32, OpOr16, OpOr8:
+			// TODO: investigate how to always add facts without much slowdown, see issue #57959
+			//ft.update(b, v, v.Args[0], unsigned, gt|eq)
+			//ft.update(b, v, v.Args[1], unsigned, gt|eq)
+		case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u,
+			OpRsh8Ux64, OpRsh8Ux32, OpRsh8Ux16, OpRsh8Ux8,
+			OpRsh16Ux64, OpRsh16Ux32, OpRsh16Ux16, OpRsh16Ux8,
+			OpRsh32Ux64, OpRsh32Ux32, OpRsh32Ux16, OpRsh32Ux8,
+			OpRsh64Ux64, OpRsh64Ux32, OpRsh64Ux16, OpRsh64Ux8:
+			ft.update(b, v, v.Args[0], unsigned, lt|eq)
+		case OpMod64u, OpMod32u, OpMod16u, OpMod8u:
+			ft.update(b, v, v.Args[0], unsigned, lt|eq)
+			// Note: we have to be careful that this doesn't imply
+			// that the modulus is >0, which isn't true until *after*
+			// the mod instruction executes (and thus panics if the
+			// modulus is 0). See issue 67625.
+			ft.update(b, v, v.Args[1], unsigned, lt)
+		case OpSliceLen:
+			if v.Args[0].Op == OpSliceMake {
+				ft.update(b, v, v.Args[0].Args[1], signed, eq)
+			}
+		case OpSliceCap:
+			if v.Args[0].Op == OpSliceMake {
+				ft.update(b, v, v.Args[0].Args[2], signed, eq)
+			}
+		case OpPhi:
+			addLocalFactsPhi(ft, v)
+		}
+	}
+}
+
+func addLocalFactsPhi(ft *factsTable, v *Value) {
+	// Look for phis that implement min/max.
+	//   z:
+	//      c = Less64 x y (or other Less/Leq operation)
+	//      If c -> bx by
+	//   bx: <- z
+	//       -> b ...
+	//   by: <- z
+	//      -> b ...
+	//   b: <- bx by
+	//      v = Phi x y
+	// Then v is either min or max of x,y.
+	// If it is the min, then we deduce v <= x && v <= y.
+	// If it is the max, then we deduce v >= x && v >= y.
+	// The min case is useful for the copy builtin, see issue 16833.
+	if len(v.Args) != 2 {
 		return
 	}
-
-	for _, i1 := range b.Values {
-		if i1.Op != OpPhi {
-			continue
-		}
-
-		// Check for conditions 1 and 2. This is easy to do
-		// and will throw out most phis.
-		min, i2 := i1.Args[0], i1.Args[1]
-		if i1q, delta := isConstDelta(i2); i1q != i1 || delta != 1 {
-			continue
-		}
-
-		// Try to prove condition 3. We can't just query the
-		// fact table for this because we don't know what the
-		// facts of b.Preds[1] are (in general, b.Preds[1] is
-		// a loop-back edge, so we haven't even been there
-		// yet). As a conservative approximation, we look for
-		// this condition in the predecessor chain until we
-		// hit a join point.
-		uniquePred := func(b *Block) *Block {
-			if len(b.Preds) == 1 {
-				return b.Preds[0].b
-			}
-			return nil
-		}
-		pred, child := b.Preds[1].b, b
-		for ; pred != nil; pred, child = uniquePred(pred), pred {
-			if pred.Kind != BlockIf {
-				continue
-			}
-			control := pred.Controls[0]
-
-			br := unknown
-			if pred.Succs[0].b == child {
-				br = positive
-			}
-			if pred.Succs[1].b == child {
-				if br != unknown {
-					continue
-				}
-				br = negative
-			}
-			if br == unknown {
-				continue
-			}
-
-			tr, has := domainRelationTable[control.Op]
-			if !has {
-				continue
-			}
-			r := tr.r
-			if br == negative {
-				// Negative branch taken to reach b.
-				// Complement the relations.
-				r = (lt | eq | gt) ^ r
-			}
-
-			// Check for i2 < max or max > i2.
-			var max *Value
-			if r == lt && control.Args[0] == i2 {
-				max = control.Args[1]
-			} else if r == gt && control.Args[1] == i2 {
-				max = control.Args[0]
-			} else {
-				continue
-			}
-
-			// Check condition 4 now that we have a
-			// candidate max. For this we can query the
-			// fact table. We "prove" min < max by showing
-			// that min >= max is unsat. (This may simply
-			// compare two constants; that's fine.)
-			ft.checkpoint()
-			ft.update(b, min, max, tr.d, gt|eq)
-			proved := ft.unsat
-			ft.restore()
-
-			if proved {
-				// We know that min <= i1 < max.
-				if b.Func.pass.debug > 0 {
-					printIndVar(b, i1, min, max, 1, 0)
-				}
-				ft.update(b, min, i1, tr.d, lt|eq)
-				ft.update(b, i1, max, tr.d, lt)
-			}
-		}
+	b := v.Block
+	x := v.Args[0]
+	y := v.Args[1]
+	bx := b.Preds[0].b
+	by := b.Preds[1].b
+	var z *Block // branch point
+	switch {
+	case bx == by: // bx == by == z case
+		z = bx
+	case by.uniquePred() == bx: // bx == z case
+		z = bx
+	case bx.uniquePred() == by: // by == z case
+		z = by
+	case bx.uniquePred() == by.uniquePred():
+		z = bx.uniquePred()
 	}
+	if z == nil || z.Kind != BlockIf {
+		return
+	}
+	c := z.Controls[0]
+	if len(c.Args) != 2 {
+		return
+	}
+	var isMin bool // if c, a less-than comparison, is true, phi chooses x.
+	if bx == z {
+		isMin = b.Preds[0].i == 0
+	} else {
+		isMin = bx.Preds[0].i == 0
+	}
+	if c.Args[0] == x && c.Args[1] == y {
+		// ok
+	} else if c.Args[0] == y && c.Args[1] == x {
+		// Comparison is reversed from how the values are listed in the Phi.
+		isMin = !isMin
+	} else {
+		// Not comparing x and y.
+		return
+	}
+	var dom domain
+	switch c.Op {
+	case OpLess64, OpLess32, OpLess16, OpLess8, OpLeq64, OpLeq32, OpLeq16, OpLeq8:
+		dom = signed
+	case OpLess64U, OpLess32U, OpLess16U, OpLess8U, OpLeq64U, OpLeq32U, OpLeq16U, OpLeq8U:
+		dom = unsigned
+	default:
+		return
+	}
+	var rel relation
+	if isMin {
+		rel = lt | eq
+	} else {
+		rel = gt | eq
+	}
+	ft.update(b, v, x, dom, rel)
+	ft.update(b, v, y, dom, rel)
 }
 
 var ctzNonZeroOp = map[Op]Op{OpCtz8: OpCtz8NonZero, OpCtz16: OpCtz16NonZero, OpCtz32: OpCtz32NonZero, OpCtz64: OpCtz64NonZero}
@@ -1489,10 +2281,7 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			}
 			// slicemask(x + y)
 			// if x is larger than -y (y is negative), then slicemask is -1.
-			lim, ok := ft.limits[x.ID]
-			if !ok {
-				break
-			}
+			lim := ft.limits[x.ID]
 			if lim.umin > uint64(-delta) {
 				if v.Args[0].Op == OpAdd64 {
 					v.reset(OpConst64)
@@ -1509,10 +2298,7 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			// code for CtzNN if we know that the argument is non-zero.
 			// Capture that information here for use in arch-specific optimizations.
 			x := v.Args[0]
-			lim, ok := ft.limits[x.ID]
-			if !ok {
-				break
-			}
+			lim := ft.limits[x.ID]
 			if lim.umin > 0 || lim.min > 0 || lim.max < 0 {
 				if b.Func.pass.debug > 0 {
 					b.Func.Warnl(v.Pos, "Proved %v non-zero", v.Op)
@@ -1525,7 +2311,7 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			OpRsh64x8, OpRsh64x16, OpRsh64x32, OpRsh64x64:
 			// Check whether, for a >> b, we know that a is non-negative
 			// and b is all of a's bits except the MSB. If so, a is shifted to zero.
-			bits := 8 * v.Type.Size()
+			bits := 8 * v.Args[0].Type.Size()
 			if v.Args[1].isGenericIntConst() && v.Args[1].AuxInt >= bits-1 && ft.isNonNegative(v.Args[0]) {
 				if b.Func.pass.debug > 0 {
 					b.Func.Warnl(v.Pos, "Proved %v shifts to zero", v.Op)
@@ -1558,14 +2344,11 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			// Check whether, for a << b, we know that b
 			// is strictly less than the number of bits in a.
 			by := v.Args[1]
-			lim, ok := ft.limits[by.ID]
-			if !ok {
-				break
-			}
+			lim := ft.limits[by.ID]
 			bits := 8 * v.Args[0].Type.Size()
 			if lim.umax < uint64(bits) || (lim.max < bits && ft.isNonNegative(by)) {
 				v.AuxInt = 1 // see shiftIsBounded
-				if b.Func.pass.debug > 0 {
+				if b.Func.pass.debug > 0 && !by.isGenericIntConst() {
 					b.Func.Warnl(v.Pos, "Proved %v bounded", v.Op)
 				}
 			}
@@ -1579,11 +2362,10 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 				break
 			}
 			divr := v.Args[1]
-			divrLim, divrLimok := ft.limits[divr.ID]
+			divrLim := ft.limits[divr.ID]
 			divd := v.Args[0]
-			divdLim, divdLimok := ft.limits[divd.ID]
-			if (divrLimok && (divrLim.max < -1 || divrLim.min > -1)) ||
-				(divdLimok && divdLim.min > mostNegativeDividend[v.Op]) {
+			divdLim := ft.limits[divd.ID]
+			if divrLim.max < -1 || divrLim.min > -1 || divdLim.min > mostNegativeDividend[v.Op] {
 				// See DivisionNeedsFixUp in rewrite.go.
 				// v.AuxInt = 1 means we have proved both that the divisor is not -1
 				// and that the dividend is not the most negative integer,
@@ -1597,53 +2379,49 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 		// Fold provable constant results.
 		// Helps in cases where we reuse a value after branching on its equality.
 		for i, arg := range v.Args {
-			switch arg.Op {
-			case OpConst64, OpConst32, OpConst16, OpConst8:
-				continue
-			}
-			lim, ok := ft.limits[arg.ID]
-			if !ok {
-				continue
-			}
-
+			lim := ft.limits[arg.ID]
 			var constValue int64
-			typ := arg.Type
-			bits := 8 * typ.Size()
 			switch {
 			case lim.min == lim.max:
 				constValue = lim.min
 			case lim.umin == lim.umax:
-				// truncate then sign extand
-				switch bits {
-				case 64:
-					constValue = int64(lim.umin)
-				case 32:
-					constValue = int64(int32(lim.umin))
-				case 16:
-					constValue = int64(int16(lim.umin))
-				case 8:
-					constValue = int64(int8(lim.umin))
-				default:
-					panic("unexpected integer size")
-				}
+				constValue = int64(lim.umin)
 			default:
 				continue
 			}
-			var c *Value
+			switch arg.Op {
+			case OpConst64, OpConst32, OpConst16, OpConst8, OpConstBool, OpConstNil:
+				continue
+			}
+			typ := arg.Type
 			f := b.Func
-			switch bits {
-			case 64:
-				c = f.ConstInt64(typ, constValue)
-			case 32:
-				c = f.ConstInt32(typ, int32(constValue))
-			case 16:
-				c = f.ConstInt16(typ, int16(constValue))
-			case 8:
+			var c *Value
+			switch {
+			case typ.IsBoolean():
+				c = f.ConstBool(typ, constValue != 0)
+			case typ.IsInteger() && typ.Size() == 1:
 				c = f.ConstInt8(typ, int8(constValue))
+			case typ.IsInteger() && typ.Size() == 2:
+				c = f.ConstInt16(typ, int16(constValue))
+			case typ.IsInteger() && typ.Size() == 4:
+				c = f.ConstInt32(typ, int32(constValue))
+			case typ.IsInteger() && typ.Size() == 8:
+				c = f.ConstInt64(typ, constValue)
+			case typ.IsPtrShaped():
+				if constValue == 0 {
+					c = f.ConstNil(typ)
+				} else {
+					// Not sure how this might happen, but if it
+					// does, just skip it.
+					continue
+				}
 			default:
-				panic("unexpected integer size")
+				// Not sure how this might happen, but if it
+				// does, just skip it.
+				continue
 			}
 			v.SetArg(i, c)
+			ft.initLimitForNewValue(c)
 			if b.Func.pass.debug > 1 {
 				b.Func.Warnl(v.Pos, "Proved %v's arg %d (%v) is constant %d", v, i, arg, constValue)
 			}
@@ -1709,59 +2487,6 @@ func removeBranch(b *Block, branch branch) {
 	} else {
 		// TODO: figure out how to remove an entry from a jump table
 	}
-}
-
-// isNonNegative reports whether v is known to be greater or equal to zero.
-func isNonNegative(v *Value) bool {
-	if !v.Type.IsInteger() {
-		v.Fatalf("isNonNegative bad type: %v", v.Type)
-	}
-	// TODO: return true if !v.Type.IsSigned()
-	// SSA isn't type-safe enough to do that now (issue 37753).
-	// The checks below depend only on the pattern of bits.
-
-	switch v.Op {
-	case OpConst64:
-		return v.AuxInt >= 0
-
-	case OpConst32:
-		return int32(v.AuxInt) >= 0
-
-	case OpConst16:
-		return int16(v.AuxInt) >= 0
-
-	case OpConst8:
-		return int8(v.AuxInt) >= 0
-
-	case OpStringLen, OpSliceLen, OpSliceCap,
-		OpZeroExt8to64, OpZeroExt16to64, OpZeroExt32to64,
-		OpZeroExt8to32, OpZeroExt16to32, OpZeroExt8to16,
-		OpCtz64, OpCtz32, OpCtz16, OpCtz8,
-		OpCtz64NonZero, OpCtz32NonZero, OpCtz16NonZero, OpCtz8NonZero,
-		OpBitLen64, OpBitLen32, OpBitLen16, OpBitLen8:
-		return true
-
-	case OpRsh64Ux64, OpRsh32Ux64:
-		by := v.Args[1]
-		return by.Op == OpConst64 && by.AuxInt > 0
-
-	case OpRsh64x64, OpRsh32x64, OpRsh8x64, OpRsh16x64, OpRsh32x32, OpRsh64x32,
-		OpSignExt32to64, OpSignExt16to64, OpSignExt8to64, OpSignExt16to32, OpSignExt8to32:
-		return isNonNegative(v.Args[0])
-
-	case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
-		return isNonNegative(v.Args[0]) || isNonNegative(v.Args[1])
-
-	case OpMod64, OpMod32, OpMod16, OpMod8,
-		OpDiv64, OpDiv32, OpDiv16, OpDiv8,
-		OpOr64, OpOr32, OpOr16, OpOr8,
-		OpXor64, OpXor32, OpXor16, OpXor8:
-		return isNonNegative(v.Args[0]) && isNonNegative(v.Args[1])
-
-		// We could handle OpPhi here, but the improvements from doing
-		// so are very minor, and it is neither simple nor cheap.
-	}
-	return false
 }
 
 // isConstDelta returns non-nil if v is equivalent to w+delta (signed).

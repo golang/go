@@ -31,13 +31,13 @@ func lookupUser(username string) (*User, error) {
 			(*_C_char)(unsafe.Pointer(&buf[0])), _C_size_t(len(buf)))
 		return errno
 	})
+	if err == syscall.ENOENT || (err == nil && !found) {
+		return nil, UnknownUserError(username)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("user: lookup username %s: %v", username, err)
 	}
-	if !found {
-		return nil, UnknownUserError(username)
-	}
-	return buildUser(&pwd), err
+	return buildUser(&pwd), nil
 }
 
 func lookupUserId(uid string) (*User, error) {
@@ -58,11 +58,11 @@ func lookupUnixUid(uid int) (*User, error) {
 			(*_C_char)(unsafe.Pointer(&buf[0])), _C_size_t(len(buf)))
 		return errno
 	})
+	if err == syscall.ENOENT || (err == nil && !found) {
+		return nil, UnknownUserIdError(uid)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("user: lookup userid %d: %v", uid, err)
-	}
-	if !found {
-		return nil, UnknownUserIdError(uid)
 	}
 	return buildUser(&pwd), nil
 }
@@ -96,11 +96,11 @@ func lookupGroup(groupname string) (*Group, error) {
 			(*_C_char)(unsafe.Pointer(&buf[0])), _C_size_t(len(buf)))
 		return errno
 	})
+	if err == syscall.ENOENT || (err == nil && !found) {
+		return nil, UnknownGroupError(groupname)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("user: lookup groupname %s: %v", groupname, err)
-	}
-	if !found {
-		return nil, UnknownGroupError(groupname)
 	}
 	return buildGroup(&grp), nil
 }
@@ -123,11 +123,11 @@ func lookupUnixGid(gid int) (*Group, error) {
 			(*_C_char)(unsafe.Pointer(&buf[0])), _C_size_t(len(buf)))
 		return syscall.Errno(errno)
 	})
+	if err == syscall.ENOENT || (err == nil && !found) {
+		return nil, UnknownGroupIdError(strconv.Itoa(gid))
+	}
 	if err != nil {
 		return nil, fmt.Errorf("user: lookup groupid %d: %v", gid, err)
-	}
-	if !found {
-		return nil, UnknownGroupIdError(strconv.Itoa(gid))
 	}
 	return buildGroup(&grp), nil
 }

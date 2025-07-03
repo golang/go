@@ -82,7 +82,7 @@ while still insisting that races are errors and that tools can diagnose and repo
 <p>
 The following formal definition of Go's memory model closely follows
 the approach presented by Hans-J. Boehm and Sarita V. Adve in
-“<a href="https://www.hpl.hp.com/techreports/2008/HPL-2008-56.pdf">Foundations of the C++ Concurrency Memory Model</a>”,
+“<a href="https://dl.acm.org/doi/10.1145/1375581.1375591">Foundations of the C++ Concurrency Memory Model</a>”,
 published in PLDI 2008.
 The definition of data-race-free programs and the guarantee of sequential consistency
 for race-free programs are equivalent to the ones in that work.
@@ -98,12 +98,12 @@ which in turn are made up of memory operations.
 A <i>memory operation</i> is modeled by four details:
 </p>
 <ul>
-<li>its kind, indicating whether it is an ordinary data read, an ordinary data write,
-or a <i>synchronizing operation</i> such as an atomic data access,
-a mutex operation, or a channel operation,
-<li>its location in the program,
-<li>the memory location or variable being accessed, and
-<li>the values read or written by the operation.
+	<li>its kind, indicating whether it is an ordinary data read, an ordinary data write,
+    or a <i>synchronizing operation</i> such as an atomic data access,
+	a mutex operation, or a channel operation,</li>
+	<li>its location in the program,</li>
+	<li>the memory location or variable being accessed, and</li>
+	<li>the values read or written by the operation.</li>
 </ul>
 <p>
 Some memory operations are <i>read-like</i>, including read, atomic read, mutex lock, and channel receive.
@@ -162,8 +162,8 @@ where visible means that both of the following hold:
 </p>
 
 <ol>
-<li><i>w</i> happens before <i>r</i>.
-<li><i>w</i> does not happen before any other write <i>w'</i> (to <i>x</i>) that happens before <i>r</i>.
+	<li><i>w</i> happens before <i>r</i>.</li>
+	<li><i>w</i> does not happen before any other write <i>w'</i> (to <i>x</i>) that happens before <i>r</i>.</li>
 </ol>
 
 <p>
@@ -453,7 +453,7 @@ crash, or do something else.)
 </p>
 
 <p class="rule">
-The <i>k</i>th receive on a channel with capacity <i>C</i> is synchronized before the completion of the <i>k</i>+<i>C</i>th send from that channel completes.
+The <i>k</i>th receive from a channel with capacity <i>C</i> is synchronized before the completion of the <i>k</i>+<i>C</i>th send on that channel.
 </p>
 
 <p>

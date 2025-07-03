@@ -7,7 +7,8 @@ package token
 import (
 	"fmt"
 	"math/rand"
-	"reflect"
+	"slices"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -130,7 +131,7 @@ func TestPositions(t *testing.T) {
 		if f.LineCount() != len(test.lines) {
 			t.Errorf("%s, SetLines: got line count %d; want %d", f.Name(), f.LineCount(), len(test.lines))
 		}
-		if !reflect.DeepEqual(f.Lines(), test.lines) {
+		if !slices.Equal(f.Lines(), test.lines) {
 			t.Errorf("%s, Lines after SetLines(v): got %v; want %v", f.Name(), f.Lines(), test.lines)
 		}
 		verifyPositions(t, fset, f, test.lines)
@@ -472,9 +473,109 @@ func TestFileAddLineColumnInfo(t *testing.T) {
 			for _, info := range test.infos {
 				f.AddLineColumnInfo(info.Offset, info.Filename, info.Line, info.Column)
 			}
-			if !reflect.DeepEqual(f.infos, test.want) {
+			if !slices.Equal(f.infos, test.want) {
 				t.Errorf("\ngot %+v, \nwant %+v", f.infos, test.want)
 			}
 		})
 	}
+}
+
+func TestIssue57490(t *testing.T) {
+	// If debug is set, this test is expected to panic.
+	if debug {
+		defer func() {
+			if recover() == nil {
+				t.Errorf("got no panic")
+			}
+		}()
+	}
+
+	const fsize = 5
+	fset := NewFileSet()
+	base := fset.Base()
+	f := fset.AddFile("f", base, fsize)
+
+	// out-of-bounds positions must not lead to a panic when calling f.Offset
+	if got := f.Offset(NoPos); got != 0 {
+		t.Errorf("offset = %d, want %d", got, 0)
+	}
+	if got := f.Offset(Pos(-1)); got != 0 {
+		t.Errorf("offset = %d, want %d", got, 0)
+	}
+	if got := f.Offset(Pos(base + fsize + 1)); got != fsize {
+		t.Errorf("offset = %d, want %d", got, fsize)
+	}
+
+	// out-of-bounds offsets must not lead to a panic when calling f.Pos
+	if got := f.Pos(-1); got != Pos(base) {
+		t.Errorf("pos = %d, want %d", got, base)
+	}
+	if got := f.Pos(fsize + 1); got != Pos(base+fsize) {
+		t.Errorf("pos = %d, want %d", got, base+fsize)
+	}
+
+	// out-of-bounds Pos values must not lead to a panic when calling f.Position
+	want := fmt.Sprintf("%s:1:1", f.Name())
+	if got := f.Position(Pos(-1)).String(); got != want {
+		t.Errorf("position = %s, want %s", got, want)
+	}
+	want = fmt.Sprintf("%s:1:%d", f.Name(), fsize+1)
+	if got := f.Position(Pos(fsize + 1)).String(); got != want {
+		t.Errorf("position = %s, want %s", got, want)
+	}
+
+	// check invariants
+	const xsize = fsize + 5
+	for offset := -xsize; offset < xsize; offset++ {
+		want1 := f.Offset(Pos(f.base + offset))
+		if got := f.Offset(f.Pos(offset)); got != want1 {
+			t.Errorf("offset = %d, want %d", got, want1)
+		}
+
+		want2 := f.Pos(offset)
+		if got := f.Pos(f.Offset(want2)); got != want2 {
+			t.Errorf("pos = %d, want %d", got, want2)
+		}
+	}
+}
+
+func TestFileSet_AddExistingFiles(t *testing.T) {
+	fset := NewFileSet()
+
+	check := func(descr, want string) {
+		t.Helper()
+		if got := fsetString(fset); got != want {
+			t.Errorf("%s: got %s, want %s", descr, got, want)
+		}
+	}
+
+	fileA := fset.AddFile("A", -1, 3)
+	fileB := fset.AddFile("B", -1, 5)
+	_ = fileB
+	check("after AddFile [AB]", "{A:1-4 B:5-10}")
+
+	fset.AddExistingFiles() // noop
+	check("after AddExistingFiles []", "{A:1-4 B:5-10}")
+
+	fileC := NewFileSet().AddFile("C", 100, 5)
+	fileD := NewFileSet().AddFile("D", 200, 5)
+	fset.AddExistingFiles(fileC, fileA, fileD, fileC)
+	check("after AddExistingFiles [CADC]", "{A:1-4 B:5-10 C:100-105 D:200-205}")
+
+	fileE := fset.AddFile("E", -1, 3)
+	_ = fileE
+	check("after AddFile [E]", "{A:1-4 B:5-10 C:100-105 D:200-205 E:206-209}")
+}
+
+func fsetString(fset *FileSet) string {
+	var buf strings.Builder
+	buf.WriteRune('{')
+	sep := ""
+	fset.Iterate(func(f *File) bool {
+		fmt.Fprintf(&buf, "%s%s:%d-%d", sep, f.Name(), f.Base(), f.Base()+f.Size())
+		sep = " "
+		return true
+	})
+	buf.WriteRune('}')
+	return buf.String()
 }

@@ -7,6 +7,7 @@ package sql
 import (
 	"database/sql/driver"
 	"fmt"
+	"internal/asan"
 	"reflect"
 	"runtime"
 	"strings"
@@ -353,10 +354,14 @@ func TestRawBytesAllocs(t *testing.T) {
 		{"bool", false, "false"},
 		{"time", time.Unix(2, 5).UTC(), "1970-01-01T00:00:02.000000005Z"},
 	}
+	if asan.Enabled {
+		t.Skip("test allocates more with -asan; see #70079")
+	}
 
-	buf := make(RawBytes, 10)
+	var buf RawBytes
+	rows := &Rows{}
 	test := func(name string, in any, want string) {
-		if err := convertAssign(&buf, in); err != nil {
+		if err := convertAssignRows(&buf, in, rows); err != nil {
 			t.Fatalf("%s: convertAssign = %v", name, err)
 		}
 		match := len(buf) == len(want)
@@ -375,6 +380,7 @@ func TestRawBytesAllocs(t *testing.T) {
 
 	n := testing.AllocsPerRun(100, func() {
 		for _, tt := range tests {
+			rows.raw = rows.raw[:0]
 			test(tt.name, tt.in, tt.want)
 		}
 	})
@@ -383,7 +389,11 @@ func TestRawBytesAllocs(t *testing.T) {
 	// and gc. With 32-bit words there are more convT2E allocs, and
 	// with gccgo, only pointers currently go in interface data.
 	// So only care on amd64 gc for now.
-	measureAllocs := runtime.GOARCH == "amd64" && runtime.Compiler == "gc"
+	measureAllocs := false
+	switch runtime.GOARCH {
+	case "amd64", "arm64":
+		measureAllocs = runtime.Compiler == "gc"
+	}
 
 	if n > 0.5 && measureAllocs {
 		t.Fatalf("allocs = %v; want 0", n)

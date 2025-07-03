@@ -7,11 +7,19 @@
 package sanitizers_test
 
 import (
+	"internal/testenv"
 	"strings"
 	"testing"
 )
 
 func TestLibFuzzer(t *testing.T) {
+	// Skip tests in short mode.
+	if testing.Short() {
+		t.Skip("libfuzzer tests can take upwards of minutes to run; skipping in short mode")
+	}
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+
 	goos, err := goEnv("GOOS")
 	if err != nil {
 		t.Fatal(err)
@@ -87,6 +95,8 @@ func libFuzzerSupported(goos, goarch string) bool {
 		default:
 			return false
 		}
+	case "loong64":
+		return true
 	default:
 		return false
 	}

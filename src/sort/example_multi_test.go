@@ -87,7 +87,7 @@ var changes = []Change{
 	{"gri", "Smalltalk", 80},
 }
 
-// ExampleMultiKeys demonstrates a technique for sorting a struct type using different
+// Example_sortMultiKeys demonstrates a technique for sorting a struct type using different
 // sets of multiple fields in the comparison. We chain together "Less" functions, each of
 // which compares a single field.
 func Example_sortMultiKeys() {

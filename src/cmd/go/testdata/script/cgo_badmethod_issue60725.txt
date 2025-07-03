@@ -1,0 +1,26 @@
+[short] skip
+[!cgo] skip
+
+# Test that cgo rejects attempts to declare methods
+# on the types A or *A; see issue #60725.
+
+! go build ./a
+stderr 'cannot define new methods on non-local type A'
+stderr 'cannot define new methods on non-local type A'
+
+-- go.mod --
+module example.com
+go 1.24
+
+-- a/a.go --
+package a
+
+/*
+typedef int T;
+*/
+import "C"
+
+type A = C.T
+
+func (A) m1() {}
+func (*A) m2() {}

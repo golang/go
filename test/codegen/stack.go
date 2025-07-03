@@ -6,7 +6,10 @@
 
 package codegen
 
-import "runtime"
+import (
+	"runtime"
+	"unsafe"
+)
 
 // This file contains code generation tests related to the use of the
 // stack.
@@ -112,4 +115,56 @@ func Defer() {
 	}
 	// amd64:`CALL\truntime\.deferprocStack`
 	defer func() {}()
+}
+
+// Check that stack slots are shared among values of the same
+// type, but not pointer-identical types. See issue 65783.
+
+func spillSlotReuse() {
+	// The return values of getp1 and getp2 need to be
+	// spilled around the calls to nopInt. Make sure that
+	// spill slot gets reused.
+
+	//arm64:`.*autotmp_2-8\(SP\)`
+	getp1()[nopInt()] = 0
+	//arm64:`.*autotmp_2-8\(SP\)`
+	getp2()[nopInt()] = 0
+}
+
+// Check that no stack frame space is needed for simple slice initialization with underlying structure.
+type mySlice struct {
+	array unsafe.Pointer
+	len   int
+	cap   int
+}
+
+// amd64:"TEXT\t.*, [$]0-"
+func sliceInit(base uintptr) []uintptr {
+	const ptrSize = 8
+	size := uintptr(4096)
+	bitmapSize := size / ptrSize / 8
+	elements := int(bitmapSize / ptrSize)
+	var sl mySlice
+	sl = mySlice{
+		unsafe.Pointer(base + size - bitmapSize),
+		elements,
+		elements,
+	}
+	// amd64:-"POPQ",-"SP"
+	return *(*[]uintptr)(unsafe.Pointer(&sl))
+}
+
+//go:noinline
+func nopInt() int {
+	return 0
+}
+
+//go:noinline
+func getp1() *[4]int {
+	return nil
+}
+
+//go:noinline
+func getp2() *[4]int {
+	return nil
 }

@@ -2,30 +2,35 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package typeutil defines various utilities for types, such as Map,
-// a mapping from types.Type to interface{} values.
-package typeutil // import "golang.org/x/tools/go/types/typeutil"
+// Package typeutil defines various utilities for types, such as [Map],
+// a hash table that maps [types.Type] to any value.
+package typeutil
 
 import (
 	"bytes"
 	"fmt"
 	"go/types"
-	"reflect"
+	"hash/maphash"
+	"unsafe"
 
 	"golang.org/x/tools/internal/typeparams"
 )
 
 // Map is a hash-table-based mapping from types (types.Type) to
-// arbitrary interface{} values.  The concrete types that implement
+// arbitrary values.  The concrete types that implement
 // the Type interface are pointers.  Since they are not canonicalized,
 // == cannot be used to check for equivalence, and thus we cannot
 // simply use a Go map.
 //
 // Just as with map[K]V, a nil *Map is a valid empty map.
 //
-// Not thread-safe.
+// Read-only map operations ([Map.At], [Map.Len], and so on) may
+// safely be called concurrently.
+//
+// TODO(adonovan): deprecate in favor of https://go.dev/issues/69420
+// and 69559, if the latter proposals for a generic hash-map type and
+// a types.Hash function are accepted.
 type Map struct {
-	hasher Hasher             // shared by many Maps
 	table  map[uint32][]entry // maps hash to bucket; entry.key==nil means unused
 	length int                // number of map entries
 }
@@ -33,38 +38,20 @@ type Map struct {
 // entry is an entry (key/value association) in a hash bucket.
 type entry struct {
 	key   types.Type
-	value interface{}
+	value any
 }
 
-// SetHasher sets the hasher used by Map.
+// SetHasher has no effect.
 //
-// All Hashers are functionally equivalent but contain internal state
-// used to cache the results of hashing previously seen types.
-//
-// A single Hasher created by MakeHasher() may be shared among many
-// Maps.  This is recommended if the instances have many keys in
-// common, as it will amortize the cost of hash computation.
-//
-// A Hasher may grow without bound as new types are seen.  Even when a
-// type is deleted from the map, the Hasher never shrinks, since other
-// types in the map may reference the deleted type indirectly.
-//
-// Hashers are not thread-safe, and read-only operations such as
-// Map.Lookup require updates to the hasher, so a full Mutex lock (not a
-// read-lock) is require around all Map operations if a shared
-// hasher is accessed from multiple threads.
-//
-// If SetHasher is not called, the Map will create a private hasher at
-// the first call to Insert.
-func (m *Map) SetHasher(hasher Hasher) {
-	m.hasher = hasher
-}
+// It is a relic of an optimization that is no longer profitable. Do
+// not use [Hasher], [MakeHasher], or [SetHasher] in new code.
+func (m *Map) SetHasher(Hasher) {}
 
 // Delete removes the entry with the given key, if any.
 // It returns true if the entry was found.
 func (m *Map) Delete(key types.Type) bool {
 	if m != nil && m.table != nil {
-		hash := m.hasher.Hash(key)
+		hash := hash(key)
 		bucket := m.table[hash]
 		for i, e := range bucket {
 			if e.key != nil && types.Identical(key, e.key) {
@@ -81,9 +68,9 @@ func (m *Map) Delete(key types.Type) bool {
 
 // At returns the map entry for the given key.
 // The result is nil if the entry is not present.
-func (m *Map) At(key types.Type) interface{} {
+func (m *Map) At(key types.Type) any {
 	if m != nil && m.table != nil {
-		for _, e := range m.table[m.hasher.Hash(key)] {
+		for _, e := range m.table[hash(key)] {
 			if e.key != nil && types.Identical(key, e.key) {
 				return e.value
 			}
@@ -94,9 +81,9 @@ func (m *Map) At(key types.Type) interface{} {
 
 // Set sets the map entry for key to val,
 // and returns the previous entry, if any.
-func (m *Map) Set(key types.Type, value interface{}) (prev interface{}) {
+func (m *Map) Set(key types.Type, value any) (prev any) {
 	if m.table != nil {
-		hash := m.hasher.Hash(key)
+		hash := hash(key)
 		bucket := m.table[hash]
 		var hole *entry
 		for i, e := range bucket {
@@ -115,10 +102,7 @@ func (m *Map) Set(key types.Type, value interface{}) (prev interface{}) {
 			m.table[hash] = append(bucket, entry{key, value})
 		}
 	} else {
-		if m.hasher.memo == nil {
-			m.hasher = MakeHasher()
-		}
-		hash := m.hasher.Hash(key)
+		hash := hash(key)
 		m.table = map[uint32][]entry{hash: {entry{key, value}}}
 	}
 
@@ -141,7 +125,7 @@ func (m *Map) Len() int {
 // f will not be invoked for it, but if f inserts a map entry that
 // Iterate has not yet reached, whether or not f will be invoked for
 // it is unspecified.
-func (m *Map) Iterate(f func(key types.Type, value interface{})) {
+func (m *Map) Iterate(f func(key types.Type, value any)) {
 	if m != nil {
 		for _, bucket := range m.table {
 			for _, e := range bucket {
@@ -157,7 +141,7 @@ func (m *Map) Iterate(f func(key types.Type, value interface{})) {
 // The order is unspecified.
 func (m *Map) Keys() []types.Type {
 	keys := make([]types.Type, 0, m.Len())
-	m.Iterate(func(key types.Type, _ interface{}) {
+	m.Iterate(func(key types.Type, _ any) {
 		keys = append(keys, key)
 	})
 	return keys
@@ -170,7 +154,7 @@ func (m *Map) toString(values bool) string {
 	var buf bytes.Buffer
 	fmt.Fprint(&buf, "{")
 	sep := ""
-	m.Iterate(func(key types.Type, value interface{}) {
+	m.Iterate(func(key types.Type, value any) {
 		fmt.Fprint(&buf, sep)
 		sep = ", "
 		fmt.Fprint(&buf, key)
@@ -195,52 +179,34 @@ func (m *Map) KeysString() string {
 	return m.toString(false)
 }
 
-////////////////////////////////////////////////////////////////////////
-// Hasher
+// -- Hasher --
 
-// A Hasher maps each type to its hash value.
-// For efficiency, a hasher uses memoization; thus its memory
-// footprint grows monotonically over time.
-// Hashers are not thread-safe.
-// Hashers have reference semantics.
-// Call MakeHasher to create a Hasher.
-type Hasher struct {
-	memo map[types.Type]uint32
-
-	// ptrMap records pointer identity.
-	ptrMap map[interface{}]uint32
-
-	// sigTParams holds type parameters from the signature being hashed.
-	// Signatures are considered identical modulo renaming of type parameters, so
-	// within the scope of a signature type the identity of the signature's type
-	// parameters is just their index.
-	//
-	// Since the language does not currently support referring to uninstantiated
-	// generic types or functions, and instantiated signatures do not have type
-	// parameter lists, we should never encounter a second non-empty type
-	// parameter list when hashing a generic signature.
-	sigTParams *typeparams.TypeParamList
+// hash returns the hash of type t.
+// TODO(adonovan): replace by types.Hash when Go proposal #69420 is accepted.
+func hash(t types.Type) uint32 {
+	return theHasher.Hash(t)
 }
 
-// MakeHasher returns a new Hasher instance.
-func MakeHasher() Hasher {
-	return Hasher{
-		memo:       make(map[types.Type]uint32),
-		ptrMap:     make(map[interface{}]uint32),
-		sigTParams: nil,
-	}
-}
+// A Hasher provides a [Hasher.Hash] method to map a type to its hash value.
+// Hashers are stateless, and all are equivalent.
+type Hasher struct{}
+
+var theHasher Hasher
+
+// MakeHasher returns Hasher{}.
+// Hashers are stateless; all are equivalent.
+func MakeHasher() Hasher { return theHasher }
 
 // Hash computes a hash value for the given type t such that
 // Identical(t, t') => Hash(t) == Hash(t').
 func (h Hasher) Hash(t types.Type) uint32 {
-	hash, ok := h.memo[t]
-	if !ok {
-		hash = h.hashFor(t)
-		h.memo[t] = hash
-	}
-	return hash
+	return hasher{inGenericSig: false}.hash(t)
 }
+
+// hasher holds the state of a single Hash traversal: whether we are
+// inside the signature of a generic function; this is used to
+// optimize [hasher.hashTypeParam].
+type hasher struct{ inGenericSig bool }
 
 // hashString computes the Fowler–Noll–Vo hash of s.
 func hashString(s string) uint32 {
@@ -252,18 +218,21 @@ func hashString(s string) uint32 {
 	return h
 }
 
-// hashFor computes the hash of t.
-func (h Hasher) hashFor(t types.Type) uint32 {
+// hash computes the hash of t.
+func (h hasher) hash(t types.Type) uint32 {
 	// See Identical for rationale.
 	switch t := t.(type) {
 	case *types.Basic:
 		return uint32(t.Kind())
 
+	case *types.Alias:
+		return h.hash(types.Unalias(t))
+
 	case *types.Array:
-		return 9043 + 2*uint32(t.Len()) + 3*h.Hash(t.Elem())
+		return 9043 + 2*uint32(t.Len()) + 3*h.hash(t.Elem())
 
 	case *types.Slice:
-		return 9049 + 2*h.Hash(t.Elem())
+		return 9049 + 2*h.hash(t.Elem())
 
 	case *types.Struct:
 		var hash uint32 = 9059
@@ -274,12 +243,12 @@ func (h Hasher) hashFor(t types.Type) uint32 {
 			}
 			hash += hashString(t.Tag(i))
 			hash += hashString(f.Name()) // (ignore f.Pkg)
-			hash += h.Hash(f.Type())
+			hash += h.hash(f.Type())
 		}
 		return hash
 
 	case *types.Pointer:
-		return 9067 + 2*h.Hash(t.Elem())
+		return 9067 + 2*h.hash(t.Elem())
 
 	case *types.Signature:
 		var hash uint32 = 9091
@@ -287,38 +256,19 @@ func (h Hasher) hashFor(t types.Type) uint32 {
 			hash *= 8863
 		}
 
-		// Use a separate hasher for types inside of the signature, where type
-		// parameter identity is modified to be (index, constraint). We must use a
-		// new memo for this hasher as type identity may be affected by this
-		// masking. For example, in func[T any](*T), the identity of *T depends on
-		// whether we are mapping the argument in isolation, or recursively as part
-		// of hashing the signature.
-		//
-		// We should never encounter a generic signature while hashing another
-		// generic signature, but defensively set sigTParams only if h.mask is
-		// unset.
-		tparams := typeparams.ForSignature(t)
-		if h.sigTParams == nil && tparams.Len() != 0 {
-			h = Hasher{
-				// There may be something more efficient than discarding the existing
-				// memo, but it would require detecting whether types are 'tainted' by
-				// references to type parameters.
-				memo: make(map[types.Type]uint32),
-				// Re-using ptrMap ensures that pointer identity is preserved in this
-				// hasher.
-				ptrMap:     h.ptrMap,
-				sigTParams: tparams,
-			}
-		}
+		tparams := t.TypeParams()
+		if n := tparams.Len(); n > 0 {
+			h.inGenericSig = true // affects constraints, params, and results
 
-		for i := 0; i < tparams.Len(); i++ {
-			tparam := tparams.At(i)
-			hash += 7 * h.Hash(tparam.Constraint())
+			for i := range n {
+				tparam := tparams.At(i)
+				hash += 7 * h.hash(tparam.Constraint())
+			}
 		}
 
 		return hash + 3*h.hashTuple(t.Params()) + 5*h.hashTuple(t.Results())
 
-	case *typeparams.Union:
+	case *types.Union:
 		return h.hashUnion(t)
 
 	case *types.Interface:
@@ -347,21 +297,21 @@ func (h Hasher) hashFor(t types.Type) uint32 {
 		return hash
 
 	case *types.Map:
-		return 9109 + 2*h.Hash(t.Key()) + 3*h.Hash(t.Elem())
+		return 9109 + 2*h.hash(t.Key()) + 3*h.hash(t.Elem())
 
 	case *types.Chan:
-		return 9127 + 2*uint32(t.Dir()) + 3*h.Hash(t.Elem())
+		return 9127 + 2*uint32(t.Dir()) + 3*h.hash(t.Elem())
 
 	case *types.Named:
-		hash := h.hashPtr(t.Obj())
-		targs := typeparams.NamedTypeArgs(t)
+		hash := h.hashTypeName(t.Obj())
+		targs := t.TypeArgs()
 		for i := 0; i < targs.Len(); i++ {
 			targ := targs.At(i)
-			hash += 2 * h.Hash(targ)
+			hash += 2 * h.hash(targ)
 		}
 		return hash
 
-	case *typeparams.TypeParam:
+	case *types.TypeParam:
 		return h.hashTypeParam(t)
 
 	case *types.Tuple:
@@ -371,17 +321,17 @@ func (h Hasher) hashFor(t types.Type) uint32 {
 	panic(fmt.Sprintf("%T: %v", t, t))
 }
 
-func (h Hasher) hashTuple(tuple *types.Tuple) uint32 {
+func (h hasher) hashTuple(tuple *types.Tuple) uint32 {
 	// See go/types.identicalTypes for rationale.
 	n := tuple.Len()
 	hash := 9137 + 2*uint32(n)
-	for i := 0; i < n; i++ {
-		hash += 3 * h.Hash(tuple.At(i).Type())
+	for i := range n {
+		hash += 3 * h.hash(tuple.At(i).Type())
 	}
 	return hash
 }
 
-func (h Hasher) hashUnion(t *typeparams.Union) uint32 {
+func (h hasher) hashUnion(t *types.Union) uint32 {
 	// Hash type restrictions.
 	terms, err := typeparams.UnionTermSet(t)
 	// if err != nil t has invalid type restrictions. Fall back on a non-zero
@@ -392,11 +342,11 @@ func (h Hasher) hashUnion(t *typeparams.Union) uint32 {
 	return h.hashTermSet(terms)
 }
 
-func (h Hasher) hashTermSet(terms []*typeparams.Term) uint32 {
+func (h hasher) hashTermSet(terms []*types.Term) uint32 {
 	hash := 9157 + 2*uint32(len(terms))
 	for _, term := range terms {
 		// term order is not significant.
-		termHash := h.Hash(term.Type())
+		termHash := h.hash(term.Type())
 		if term.Tilde() {
 			termHash *= 9161
 		}
@@ -405,36 +355,47 @@ func (h Hasher) hashTermSet(terms []*typeparams.Term) uint32 {
 	return hash
 }
 
-// hashTypeParam returns a hash of the type parameter t, with a hash value
-// depending on whether t is contained in h.sigTParams.
-//
-// If h.sigTParams is set and contains t, then we are in the process of hashing
-// a signature, and the hash value of t must depend only on t's index and
-// constraint: signatures are considered identical modulo type parameter
-// renaming. To avoid infinite recursion, we only hash the type parameter
-// index, and rely on types.Identical to handle signatures where constraints
-// are not identical.
-//
-// Otherwise the hash of t depends only on t's pointer identity.
-func (h Hasher) hashTypeParam(t *typeparams.TypeParam) uint32 {
-	if h.sigTParams != nil {
-		i := t.Index()
-		if i >= 0 && i < h.sigTParams.Len() && t == h.sigTParams.At(i) {
-			return 9173 + 3*uint32(i)
-		}
+// hashTypeParam returns the hash of a type parameter.
+func (h hasher) hashTypeParam(t *types.TypeParam) uint32 {
+	// Within the signature of a generic function, TypeParams are
+	// identical if they have the same index and constraint, so we
+	// hash them based on index.
+	//
+	// When we are outside a generic function, free TypeParams are
+	// identical iff they are the same object, so we can use a
+	// more discriminating hash consistent with object identity.
+	// This optimization saves [Map] about 4% when hashing all the
+	// types.Info.Types in the forward closure of net/http.
+	if !h.inGenericSig {
+		// Optimization: outside a generic function signature,
+		// use a more discrimating hash consistent with object identity.
+		return h.hashTypeName(t.Obj())
 	}
-	return h.hashPtr(t.Obj())
+	return 9173 + 3*uint32(t.Index())
 }
 
-// hashPtr hashes the pointer identity of ptr. It uses h.ptrMap to ensure that
-// pointers values are not dependent on the GC.
-func (h Hasher) hashPtr(ptr interface{}) uint32 {
-	if hash, ok := h.ptrMap[ptr]; ok {
-		return hash
+var theSeed = maphash.MakeSeed()
+
+// hashTypeName hashes the pointer of tname.
+func (hasher) hashTypeName(tname *types.TypeName) uint32 {
+	// Since types.Identical uses == to compare TypeNames,
+	// the Hash function uses maphash.Comparable.
+	// TODO(adonovan): or will, when it becomes available in go1.24.
+	// In the meantime we use the pointer's numeric value.
+	//
+	//   hash := maphash.Comparable(theSeed, tname)
+	//
+	// (Another approach would be to hash the name and package
+	// path, and whether or not it is a package-level typename. It
+	// is rare for a package to define multiple local types with
+	// the same name.)
+	ptr := uintptr(unsafe.Pointer(tname))
+	if unsafe.Sizeof(ptr) == 8 {
+		hash := uint64(ptr)
+		return uint32(hash ^ (hash >> 32))
+	} else {
+		return uint32(ptr)
 	}
-	hash := uint32(reflect.ValueOf(ptr).Pointer())
-	h.ptrMap[ptr] = hash
-	return hash
 }
 
 // shallowHash computes a hash of t without looking at any of its
@@ -451,12 +412,15 @@ func (h Hasher) hashPtr(ptr interface{}) uint32 {
 // include m itself; there is no mention of the named type X that
 // might help us break the cycle.
 // (See comment in go/types.identical, case *Interface, for more.)
-func (h Hasher) shallowHash(t types.Type) uint32 {
+func (h hasher) shallowHash(t types.Type) uint32 {
 	// t is the type of an interface method (Signature),
 	// its params or results (Tuples), or their immediate
 	// elements (mostly Slice, Pointer, Basic, Named),
 	// so there's no need to optimize anything else.
 	switch t := t.(type) {
+	case *types.Alias:
+		return h.shallowHash(types.Unalias(t))
+
 	case *types.Signature:
 		var hash uint32 = 604171
 		if t.Variadic() {
@@ -469,7 +433,7 @@ func (h Hasher) shallowHash(t types.Type) uint32 {
 	case *types.Tuple:
 		n := t.Len()
 		hash := 9137 + 2*uint32(n)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			hash += 53471161 * h.shallowHash(t.At(i).Type())
 		}
 		return hash
@@ -489,7 +453,7 @@ func (h Hasher) shallowHash(t types.Type) uint32 {
 	case *types.Pointer:
 		return 4393139
 
-	case *typeparams.Union:
+	case *types.Union:
 		return 562448657
 
 	case *types.Interface:
@@ -502,10 +466,10 @@ func (h Hasher) shallowHash(t types.Type) uint32 {
 		return 9127
 
 	case *types.Named:
-		return h.hashPtr(t.Obj())
+		return h.hashTypeName(t.Obj())
 
-	case *typeparams.TypeParam:
-		return h.hashPtr(t.Obj())
+	case *types.TypeParam:
+		return h.hashTypeParam(t)
 	}
 	panic(fmt.Sprintf("shallowHash: %T: %v", t, t))
 }

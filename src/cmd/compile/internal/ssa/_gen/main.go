@@ -19,6 +19,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"runtime/trace"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -68,6 +69,7 @@ type opData struct {
 	hasSideEffects    bool   // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
 	zeroWidth         bool   // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
 	unsafePoint       bool   // this op is an unsafe point, i.e. not safe for async preemption
+	fixedReg          bool   // this op will be assigned a fixed register
 	symEffect         string // effect this op has on symbol in aux
 	scale             uint8  // amd64/386 indexed load scale
 }
@@ -111,6 +113,7 @@ var archs []arch
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
 var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
 var tracefile = flag.String("trace", "", "write trace to `file`")
+var outDir = flag.String("outdir", "..", "directory in which to write generated files")
 
 func main() {
 	flag.Parse()
@@ -142,7 +145,16 @@ func main() {
 		defer trace.Stop()
 	}
 
-	sort.Sort(ArchsByName(archs))
+	if *outDir != ".." {
+		err := os.MkdirAll(*outDir, 0755)
+		if err != nil {
+			log.Fatalf("failed to create output directory: %v", err)
+		}
+	}
+
+	slices.SortFunc(archs, func(a, b arch) int {
+		return strings.Compare(a.name, b.name)
+	})
 
 	// The generate tasks are run concurrently, since they are CPU-intensive
 	// that can easily make use of many cores on a machine.
@@ -187,6 +199,10 @@ func main() {
 			log.Fatal("could not write memory profile: ", err)
 		}
 	}
+}
+
+func outFile(file string) string {
+	return *outDir + "/" + file
 }
 
 func genOp() {
@@ -335,6 +351,9 @@ func genOp() {
 			if v.zeroWidth {
 				fmt.Fprintln(w, "zeroWidth: true,")
 			}
+			if v.fixedReg {
+				fmt.Fprintln(w, "fixedReg: true,")
+			}
 			if v.unsafePoint {
 				fmt.Fprintln(w, "unsafePoint: true,")
 			}
@@ -343,7 +362,7 @@ func genOp() {
 				if !needEffect {
 					log.Fatalf("symEffect with aux %s not allowed", v.aux)
 				}
-				fmt.Fprintf(w, "symEffect: Sym%s,\n", strings.Replace(v.symEffect, ",", "|Sym", -1))
+				fmt.Fprintf(w, "symEffect: Sym%s,\n", strings.ReplaceAll(v.symEffect, ",", "|Sym"))
 			} else if needEffect {
 				log.Fatalf("symEffect needed for aux %s", v.aux)
 			}
@@ -423,7 +442,6 @@ func genOp() {
 			continue
 		}
 		fmt.Fprintf(w, "var registers%s = [...]Register {\n", a.name)
-		var gcRegN int
 		num := map[string]int8{}
 		for i, r := range a.regnames {
 			num[r] = int8(i)
@@ -437,17 +455,12 @@ func genOp() {
 				objname = pkg + ".REGSP"
 			case "g":
 				objname = pkg + ".REGG"
+			case "ZERO":
+				objname = pkg + ".REGZERO"
 			default:
 				objname = pkg + ".REG_" + r
 			}
-			// Assign a GC register map index to registers
-			// that may contain pointers.
-			gcRegIdx := -1
-			if a.gpregmask&(1<<uint(i)) != 0 {
-				gcRegIdx = gcRegN
-				gcRegN++
-			}
-			fmt.Fprintf(w, "  {%d, %s, %d, \"%s\"},\n", i, objname, gcRegIdx, r)
+			fmt.Fprintf(w, "  {%d, %s, \"%s\"},\n", i, objname, r)
 		}
 		parameterRegisterList := func(paramNamesString string) []int8 {
 			paramNamesString = strings.TrimSpace(paramNamesString)
@@ -474,10 +487,6 @@ func genOp() {
 		paramIntRegs := parameterRegisterList(a.ParamIntRegNames)
 		paramFloatRegs := parameterRegisterList(a.ParamFloatRegNames)
 
-		if gcRegN > 32 {
-			// Won't fit in a uint32 mask.
-			log.Fatalf("too many GC registers (%d > 32) on %s", gcRegN, a.name)
-		}
 		fmt.Fprintln(w, "}")
 		fmt.Fprintf(w, "var paramIntReg%s = %#v\n", a.name, paramIntRegs)
 		fmt.Fprintf(w, "var paramFloatReg%s = %#v\n", a.name, paramFloatRegs)
@@ -503,7 +512,7 @@ func genOp() {
 		panic(err)
 	}
 
-	if err := os.WriteFile("../opGen.go", b, 0666); err != nil {
+	if err := os.WriteFile(outFile("opGen.go"), b, 0666); err != nil {
 		log.Fatalf("can't write output: %v\n", err)
 	}
 
@@ -563,9 +572,3 @@ type byKey []intPair
 func (a byKey) Len() int           { return len(a) }
 func (a byKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byKey) Less(i, j int) bool { return a[i].key < a[j].key }
-
-type ArchsByName []arch
-
-func (x ArchsByName) Len() int           { return len(x) }
-func (x ArchsByName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
-func (x ArchsByName) Less(i, j int) bool { return x[i].name < x[j].name }

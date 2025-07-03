@@ -87,7 +87,7 @@ L2:
 	WFDDB	V0, V1, V0
 	WFMDB	V2, V16, V2
 	WFMADB	V2, V0, V4, V0
-	WORD	$0xB3130000	//lcdbr	%f0,%f0
+	LCDBR	F0, F0
 	FMOVD	F0, ret+8(FP)
 	RET
 L12:
@@ -102,7 +102,7 @@ L11:
 	FMOVD	F0, ret+8(FP)
 	RET
 L10:
-	WORD	$0xB3130020	//lcdbr	%f2,%f0
+	LCDBR	F0, F2
 	BR	L2
 L9:
 	BR	·tan(SB)

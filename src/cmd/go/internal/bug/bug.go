@@ -69,7 +69,7 @@ const bugFooter = `### What did you do?
 <!--
 If possible, provide a recipe for reproducing the error.
 A complete runnable program is good.
-A link on play.golang.org is best.
+A link on go.dev/play is best.
 -->
 
 
@@ -106,7 +106,7 @@ func printGoEnv(w io.Writer) {
 	env := envcmd.MkEnv()
 	env = append(env, envcmd.ExtraEnvVars()...)
 	env = append(env, envcmd.ExtraEnvVarsCostly()...)
-	envcmd.PrintEnv(w, env)
+	envcmd.PrintEnv(w, env, false)
 }
 
 func printGoDetails(w io.Writer) {

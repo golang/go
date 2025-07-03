@@ -210,6 +210,7 @@ const (
 	cloneText2 = `{{define "b"}}b{{end}}`
 	cloneText3 = `{{define "c"}}root{{end}}`
 	cloneText4 = `{{define "c"}}clone{{end}}`
+	cloneText5 = `{{define "e"}}{{.Foo}}{{end}}`
 )
 
 func TestClone(t *testing.T) {
@@ -222,6 +223,8 @@ func TestClone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	root.Parse(cloneText5)
+	root.Option("missingkey=error")
 	clone := Must(root.Clone())
 	// Add variants to both.
 	_, err = root.Parse(cloneText3)
@@ -258,6 +261,14 @@ func TestClone(t *testing.T) {
 	}
 	if b.String() != "bclone" {
 		t.Errorf("expected %q got %q", "bclone", b.String())
+	}
+	b.Reset()
+	rootErr := root.ExecuteTemplate(&b, "e", map[string]any{})
+	cloneErr := clone.ExecuteTemplate(&b, "e", map[string]any{})
+	if cloneErr == nil {
+		t.Errorf("expected error from missing key in cloned template")
+	} else if got, want := cloneErr.Error(), rootErr.Error(); got != want {
+		t.Errorf("got %q, wan t %q", got, want)
 	}
 }
 

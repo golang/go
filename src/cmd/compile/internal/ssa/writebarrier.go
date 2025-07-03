@@ -252,6 +252,7 @@ func writebarrier(f *Func) {
 		var start, end int
 		var nonPtrStores int
 		values := b.Values
+		hasMove := false
 	FindSeq:
 		for i := len(values) - 1; i >= 0; i-- {
 			w := values[i]
@@ -263,6 +264,9 @@ func writebarrier(f *Func) {
 					end = i + 1
 				}
 				nonPtrStores = 0
+				if w.Op == OpMoveWB {
+					hasMove = true
+				}
 			case OpVarDef, OpVarLive:
 				continue
 			case OpStore:
@@ -271,6 +275,17 @@ func writebarrier(f *Func) {
 				}
 				nonPtrStores++
 				if nonPtrStores > 2 {
+					break FindSeq
+				}
+				if hasMove {
+					// We need to ensure that this store happens
+					// before we issue a wbMove, as the wbMove might
+					// use the result of this store as its source.
+					// Even though this store is not write-barrier
+					// eligible, it might nevertheless be the store
+					// of a pointer to the stack, which is then the
+					// source of the move.
+					// See issue 71228.
 					break FindSeq
 				}
 			default:
@@ -361,21 +376,6 @@ func writebarrier(f *Func) {
 
 		// For each write barrier store, append write barrier code to bThen.
 		memThen := mem
-		var curCall *Value
-		var curPtr *Value
-		addEntry := func(pos src.XPos, v *Value) {
-			if curCall == nil || curCall.AuxInt == maxEntries {
-				t := types.NewTuple(types.Types[types.TUINTPTR].PtrTo(), types.TypeMem)
-				curCall = bThen.NewValue1(pos, OpWB, t, memThen)
-				curPtr = bThen.NewValue1(pos, OpSelect0, types.Types[types.TUINTPTR].PtrTo(), curCall)
-				memThen = bThen.NewValue1(pos, OpSelect1, types.TypeMem, curCall)
-			}
-			// Store value in write buffer
-			num := curCall.AuxInt
-			curCall.AuxInt = num + 1
-			wbuf := bThen.NewValue1I(pos, OpOffPtr, types.Types[types.TUINTPTR].PtrTo(), num*f.Config.PtrSize, curPtr)
-			memThen = bThen.NewValue3A(pos, OpStore, types.TypeMem, types.Types[types.TUINTPTR], wbuf, v, memThen)
-		}
 
 		// Note: we can issue the write barrier code in any order. In particular,
 		// it doesn't matter if they are in a different order *even if* they end
@@ -395,6 +395,38 @@ func writebarrier(f *Func) {
 		dsts := sset2
 		dsts.clear()
 
+		// Buffer up entries that we need to put in the write barrier buffer.
+		type write struct {
+			ptr *Value   // value to put in write barrier buffer
+			pos src.XPos // location to use for the write
+		}
+		var writeStore [maxEntries]write
+		writes := writeStore[:0]
+
+		flush := func() {
+			if len(writes) == 0 {
+				return
+			}
+			// Issue a call to get a write barrier buffer.
+			t := types.NewTuple(types.Types[types.TUINTPTR].PtrTo(), types.TypeMem)
+			call := bThen.NewValue1I(pos, OpWB, t, int64(len(writes)), memThen)
+			curPtr := bThen.NewValue1(pos, OpSelect0, types.Types[types.TUINTPTR].PtrTo(), call)
+			memThen = bThen.NewValue1(pos, OpSelect1, types.TypeMem, call)
+			// Write each pending pointer to a slot in the buffer.
+			for i, write := range writes {
+				wbuf := bThen.NewValue1I(write.pos, OpOffPtr, types.Types[types.TUINTPTR].PtrTo(), int64(i)*f.Config.PtrSize, curPtr)
+				memThen = bThen.NewValue3A(write.pos, OpStore, types.TypeMem, types.Types[types.TUINTPTR], wbuf, write.ptr, memThen)
+			}
+			writes = writes[:0]
+		}
+		addEntry := func(pos src.XPos, ptr *Value) {
+			writes = append(writes, write{ptr: ptr, pos: pos})
+			if len(writes) == maxEntries {
+				flush()
+			}
+		}
+
+		// Find all the pointers we need to write to the buffer.
 		for _, w := range stores {
 			if w.Op != OpStoreWB {
 				continue
@@ -422,7 +454,9 @@ func writebarrier(f *Func) {
 			f.fe.Func().SetWBPos(pos)
 			nWBops--
 		}
+		flush()
 
+		// Now do the rare cases, Zeros and Moves.
 		for _, w := range stores {
 			pos := w.Pos
 			switch w.Op {
@@ -559,10 +593,7 @@ func (f *Func) computeZeroMap(select1 []*Value) map[ID]ZeroRegion {
 					continue
 				}
 
-				nptr := v.Type.Elem().Size() / ptrSize
-				if nptr > 64 {
-					nptr = 64
-				}
+				nptr := min(64, v.Type.Elem().Size()/ptrSize)
 				zeroes[mem.ID] = ZeroRegion{base: v, mask: 1<<uint(nptr) - 1}
 			}
 		}
@@ -606,17 +637,12 @@ func (f *Func) computeZeroMap(select1 []*Value) map[ID]ZeroRegion {
 					size += ptrSize - d
 				}
 				// Clip to the 64 words that we track.
-				min := off
-				max := off + size
-				if min < 0 {
-					min = 0
-				}
-				if max > 64*ptrSize {
-					max = 64 * ptrSize
-				}
+				minimum := max(off, 0)
+				maximum := min(off+size, 64*ptrSize)
+
 				// Clear bits for parts that we are writing (and hence
 				// will no longer necessarily be zero).
-				for i := min; i < max; i += ptrSize {
+				for i := minimum; i < maximum; i += ptrSize {
 					bit := i / ptrSize
 					z.mask &^= 1 << uint(bit)
 				}
@@ -675,11 +701,6 @@ func wbcall(pos src.XPos, b *Block, fn *obj.LSym, sp, mem *Value, args ...*Value
 	call.AddArgs(args...)
 	call.AuxInt = int64(nargs) * typ.Size()
 	return b.NewValue1I(pos, OpSelectN, types.TypeMem, 0, call)
-}
-
-// round to a multiple of r, r is a power of 2.
-func round(o int64, r int64) int64 {
-	return (o + r - 1) &^ (r - 1)
 }
 
 // IsStackAddr reports whether v is known to be an address of a stack slot.

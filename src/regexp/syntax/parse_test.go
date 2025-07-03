@@ -107,10 +107,16 @@ var parseTests = []parseTest{
 	{`[\P{^Braille}]`, `cc{0x2800-0x28ff}`},
 	{`[\pZ]`, `cc{0x20 0xa0 0x1680 0x2000-0x200a 0x2028-0x2029 0x202f 0x205f 0x3000}`},
 	{`\p{Lu}`, mkCharClass(unicode.IsUpper)},
+	{`\p{Uppercase_Letter}`, mkCharClass(unicode.IsUpper)},
+	{`\p{upper case-let ter}`, mkCharClass(unicode.IsUpper)},
+	{`\p{__upper case-let ter}`, mkCharClass(unicode.IsUpper)},
 	{`[\p{Lu}]`, mkCharClass(unicode.IsUpper)},
 	{`(?i)[\p{Lu}]`, mkCharClass(isUpperFold)},
 	{`\p{Any}`, `dot{}`},
 	{`\p{^Any}`, `cc{}`},
+	{`(?i)\p{ascii}`, `cc{0x0-0x7f 0x17f 0x212a}`},
+	{`\p{Assigned}`, mkCharClass(func(r rune) bool { return !unicode.In(r, unicode.Cn) })},
+	{`\p{^Assigned}`, mkCharClass(func(r rune) bool { return unicode.In(r, unicode.Cn) })},
 
 	// Hex, octal.
 	{`[\012-\234]\141`, `cat{cc{0xa-0x9c}lit{a}}`},

@@ -63,6 +63,7 @@ func (h *authHandler) Handler(dir string, env []string, logger *log.Logger) (htt
 			var err error
 			accessFile, err = fs.Open(path.Join(accessDir, ".access"))
 			if err == nil {
+				defer accessFile.Close()
 				break
 			}
 

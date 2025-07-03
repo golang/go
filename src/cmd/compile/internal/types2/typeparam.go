@@ -9,13 +9,16 @@ import "sync/atomic"
 // Note: This is a uint32 rather than a uint64 because the
 // respective 64 bit atomic instructions are not available
 // on all platforms.
-var lastID uint32
+var lastID atomic.Uint32
 
 // nextID returns a value increasing monotonically by 1 with
 // each call, starting with 1. It may be called concurrently.
-func nextID() uint64 { return uint64(atomic.AddUint32(&lastID, 1)) }
+func nextID() uint64 { return uint64(lastID.Add(1)) }
 
-// A TypeParam represents a type parameter type.
+// A TypeParam represents the type of a type parameter in a generic declaration.
+//
+// A TypeParam has a name; use the [TypeParam.Obj] method to access
+// its [TypeName] object.
 type TypeParam struct {
 	check *Checker  // for lazy type bound completion
 	id    uint64    // unique id, for debugging only
@@ -25,8 +28,8 @@ type TypeParam struct {
 }
 
 // NewTypeParam returns a new TypeParam. Type parameters may be set on a Named
-// or Signature type by calling SetTypeParams. Setting a type parameter on more
-// than one type will result in a panic.
+// type by calling SetTypeParams. Setting a type parameter on more than one type
+// will result in a panic.
 //
 // The constraint argument can be nil, and set later via SetConstraint. If the
 // constraint is non-nil, it must be fully defined.
@@ -86,6 +89,10 @@ func (t *TypeParam) SetConstraint(bound Type) {
 	t.iface()
 }
 
+// Underlying returns the [underlying type] of the type parameter t, which is
+// the underlying type of its constraint. This type is always an interface.
+//
+// [underlying type]: https://go.dev/ref/spec#Underlying_types.
 func (t *TypeParam) Underlying() Type {
 	return t.iface()
 }
@@ -148,9 +155,10 @@ func (t *TypeParam) is(f func(*term) bool) bool {
 	return t.iface().typeSet().is(f)
 }
 
-// underIs calls f with the underlying types of the specific type terms
-// of t's constraint and reports whether all calls to f returned true.
-// If there are no specific terms, underIs returns the result of f(nil).
-func (t *TypeParam) underIs(f func(Type) bool) bool {
-	return t.iface().typeSet().underIs(f)
+// typeset is an iterator over the (type/underlying type) pairs of the
+// specific type terms of t's constraint.
+// If there are no specific terms, typeset calls yield with (nil, nil).
+// In any case, typeset is guaranteed to call yield at least once.
+func (t *TypeParam) typeset(yield func(t, u Type) bool) {
+	t.iface().typeSet().typeset(yield)
 }

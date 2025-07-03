@@ -56,7 +56,7 @@ func (s *gcSizes) Alignof(T Type) (result int64) {
 			return s.WordSize
 		}
 	case *TypeParam, *Union:
-		unreachable()
+		panic("unreachable")
 	}
 	a := s.Sizeof(T) // may be 0 or negative
 	// spec: "For a variable x of any type: unsafe.Alignof(x) is at least 1."
@@ -154,13 +154,14 @@ func (s *gcSizes) Sizeof(T Type) int64 {
 		assert(!isTypeParam(T))
 		return s.WordSize * 2
 	case *TypeParam, *Union:
-		unreachable()
+		panic("unreachable")
 	}
 	return s.WordSize // catch-all
 }
 
 // gcSizesFor returns the Sizes used by gc for an architecture.
-// The result is nil if a compiler/architecture pair is not known.
+// The result is a nil *gcSizes pointer (which is not a valid types.Sizes)
+// if a compiler/architecture pair is not known.
 func gcSizesFor(compiler, arch string) *gcSizes {
 	if compiler != "gc" {
 		return nil

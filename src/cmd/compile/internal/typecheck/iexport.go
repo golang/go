@@ -90,8 +90,9 @@
 //     }
 //
 //     type Alias struct {
-//         Tag  byte // 'A'
+//         Tag  byte // 'A' or 'B'
 //         Pos  Pos
+//         TypeParams []typeOff  // only present if Tag == 'B'
 //         Type typeOff
 //     }
 //

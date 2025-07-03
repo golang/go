@@ -11,7 +11,7 @@ import (
 	"internal/testenv"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -57,7 +57,10 @@ func TestGolden(t *testing.T) {
 		// TODO(gri) remove extra pkg directory eventually
 		goldenFile := filepath.Join("testdata", "src", "pkg", fi.Name(), "golden.txt")
 		w := NewWalker(nil, "testdata/src/pkg")
-		pkg, _ := w.import_(fi.Name())
+		pkg, err := w.import_(fi.Name())
+		if err != nil {
+			t.Fatalf("import %s: %v", fi.Name(), err)
+		}
 		w.export(pkg)
 
 		if *updateGolden {
@@ -77,7 +80,7 @@ func TestGolden(t *testing.T) {
 			t.Fatalf("opening golden.txt for package %q: %v", fi.Name(), err)
 		}
 		wanted := strings.Split(string(bs), "\n")
-		sort.Strings(wanted)
+		slices.Sort(wanted)
 		for _, feature := range wanted {
 			if feature == "" {
 				continue
@@ -96,6 +99,11 @@ func TestGolden(t *testing.T) {
 }
 
 func TestCompareAPI(t *testing.T) {
+	if *flagCheck {
+		// not worth repeating in -check
+		t.Skip("skipping with -check set")
+	}
+
 	tests := []struct {
 		name                          string
 		features, required, exception []string
@@ -177,6 +185,11 @@ func TestCompareAPI(t *testing.T) {
 }
 
 func TestSkipInternal(t *testing.T) {
+	if *flagCheck {
+		// not worth repeating in -check
+		t.Skip("skipping with -check set")
+	}
+
 	tests := []struct {
 		pkg  string
 		want bool
@@ -201,7 +214,13 @@ func BenchmarkAll(b *testing.B) {
 		for _, context := range contexts {
 			w := NewWalker(context, filepath.Join(testenv.GOROOT(b), "src"))
 			for _, name := range w.stdPackages {
-				pkg, _ := w.import_(name)
+				pkg, err := w.import_(name)
+				if _, nogo := err.(*build.NoGoError); nogo {
+					continue
+				}
+				if err != nil {
+					b.Fatalf("import %s (%s-%s): %v", name, context.GOOS, context.GOARCH, err)
+				}
 				w.export(pkg)
 			}
 			w.Features()
@@ -239,8 +258,7 @@ func TestIssue21181(t *testing.T) {
 		w := NewWalker(context, "testdata/src/issue21181")
 		pkg, err := w.import_("p")
 		if err != nil {
-			t.Fatalf("%s: (%s-%s) %s %v", err, context.GOOS, context.GOARCH,
-				pkg.Name(), w.imported)
+			t.Fatalf("import %s (%s-%s): %v", "p", context.GOOS, context.GOARCH, err)
 		}
 		w.export(pkg)
 	}
@@ -282,6 +300,31 @@ func TestIssue41358(t *testing.T) {
 		if strings.HasPrefix(pkg, "vendor/") || strings.HasPrefix(pkg, "golang.org/x/") {
 			t.Fatalf("stdPackages contains unexpected package %s", pkg)
 		}
+	}
+}
+
+func TestIssue64958(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping with -short")
+	}
+	if *flagCheck {
+		// slow, not worth repeating in -check
+		t.Skip("skipping with -check set")
+	}
+	testenv.MustHaveGoBuild(t)
+
+	defer func() {
+		if x := recover(); x != nil {
+			t.Errorf("expected no panic; recovered %v", x)
+		}
+	}()
+	for _, context := range contexts {
+		w := NewWalker(context, "testdata/src/issue64958")
+		pkg, err := w.importFrom("p", "", 0)
+		if err != nil {
+			t.Errorf("expected no error importing; got %T", err)
+		}
+		w.export(pkg)
 	}
 }
 

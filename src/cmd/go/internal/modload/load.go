@@ -36,6 +36,7 @@ package modload
 // A package matches the "all" pattern if:
 // 	- it is in the main module, or
 // 	- it is imported by any test in the main module, or
+// 	- it is imported by a tool of the main module, or
 // 	- it is imported by another package in "all", or
 // 	- the main module specifies a go version ≤ 1.15, and the package is imported
 // 	  by a *test of* another package in "all".
@@ -98,13 +99,14 @@ import (
 	"errors"
 	"fmt"
 	"go/build"
+	"internal/diff"
 	"io/fs"
+	"maps"
 	"os"
-	"path"
 	pathpkg "path"
 	"path/filepath"
-	"reflect"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -112,15 +114,16 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fips140"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modindex"
 	"cmd/go/internal/mvs"
-	"cmd/go/internal/par"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
+	"cmd/internal/par"
 
 	"golang.org/x/mod/module"
 )
@@ -152,6 +155,11 @@ type PackageOpts struct {
 	// the minimal dependencies needed to reproducibly reload the requested
 	// packages.
 	Tidy bool
+
+	// TidyDiff, if true, causes tidy not to modify go.mod or go.sum but
+	// instead print the necessary changes as a unified diff. It exits
+	// with a non-zero code if the diff is not empty.
+	TidyDiff bool
 
 	// TidyCompatibleVersion is the oldest Go version that must be able to
 	// reproducibly reload the requested packages.
@@ -315,9 +323,16 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 				}
 				matchPackages(ctx, m, opts.Tags, includeStd, mg.BuildList())
 
+			case m.Pattern() == "work":
+				matchModules := MainModules.Versions()
+				if opts.MainModule != (module.Version{}) {
+					matchModules = []module.Version{opts.MainModule}
+				}
+				matchPackages(ctx, m, opts.Tags, omitStd, matchModules)
+
 			case m.Pattern() == "all":
 				if ld == nil {
-					// The initial roots are the packages in the main module.
+					// The initial roots are the packages and tools in the main module.
 					// loadFromRoots will expand that to "all".
 					m.Errs = m.Errs[:0]
 					matchModules := MainModules.Versions()
@@ -325,6 +340,9 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 						matchModules = []module.Version{opts.MainModule}
 					}
 					matchPackages(ctx, m, opts.Tags, omitStd, matchModules)
+					for tool := range MainModules.Tools() {
+						m.Pkgs = append(m.Pkgs, tool)
+					}
 				} else {
 					// Starting with the packages in the main module,
 					// enumerate the full list of "all".
@@ -336,6 +354,10 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 					m.MatchPackages() // Locate the packages within GOROOT/src.
 				}
 
+			case m.Pattern() == "tool":
+				for tool := range MainModules.Tools() {
+					m.Pkgs = append(m.Pkgs, tool)
+				}
 			default:
 				panic(fmt.Sprintf("internal error: modload missing case for pattern %s", m.Pattern()))
 			}
@@ -430,6 +452,36 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 			}
 		}
 
+		if opts.TidyDiff {
+			cfg.BuildMod = "readonly"
+			loaded = ld
+			requirements = loaded.requirements
+			currentGoMod, updatedGoMod, _, err := UpdateGoModFromReqs(ctx, WriteOpts{})
+			if err != nil {
+				base.Fatal(err)
+			}
+			goModDiff := diff.Diff("current/go.mod", currentGoMod, "tidy/go.mod", updatedGoMod)
+
+			modfetch.TrimGoSum(keep)
+			// Dropping compatibility for 1.16 may result in a strictly smaller go.sum.
+			// Update the keep map with only the loaded.requirements.
+			if gover.Compare(compatVersion, "1.16") > 0 {
+				keep = keepSums(ctx, loaded, requirements, addBuildListZipSums)
+			}
+			currentGoSum, tidyGoSum := modfetch.TidyGoSum(keep)
+			goSumDiff := diff.Diff("current/go.sum", currentGoSum, "tidy/go.sum", tidyGoSum)
+
+			if len(goModDiff) > 0 {
+				fmt.Println(string(goModDiff))
+				base.SetExitStatus(1)
+			}
+			if len(goSumDiff) > 0 {
+				fmt.Println(string(goSumDiff))
+				base.SetExitStatus(1)
+			}
+			base.Exit()
+		}
+
 		if !ExplicitWriteGoMod {
 			modfetch.TrimGoSum(keep)
 
@@ -442,6 +494,10 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 				base.Fatal(err)
 			}
 		}
+	}
+
+	if opts.TidyDiff && !opts.Tidy {
+		panic("TidyDiff is set but Tidy is not.")
 	}
 
 	// Success! Update go.mod and go.sum (if needed) and return the results.
@@ -487,14 +543,7 @@ func matchLocalDirs(ctx context.Context, modRoots []string, m *search.Match, rs 
 		}
 
 		modRoot := findModuleRoot(absDir)
-		found := false
-		for _, mainModuleRoot := range modRoots {
-			if mainModuleRoot == modRoot {
-				found = true
-				break
-			}
-		}
-		if !found && search.InDir(absDir, cfg.GOROOTsrc) == "" && pathInModuleCache(ctx, absDir, rs) == "" {
+		if !slices.Contains(modRoots, modRoot) && search.InDir(absDir, cfg.GOROOTsrc) == "" && pathInModuleCache(ctx, absDir, rs) == "" {
 			m.Dirs = []string{}
 			scope := "main module or its selected dependencies"
 			if inWorkspaceMode() {
@@ -674,7 +723,7 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
 			return "", false
 		}
 
-		return path.Join(m.Path, filepath.ToSlash(sub)), true
+		return pathpkg.Join(m.Path, filepath.ToSlash(sub)), true
 	}
 
 	if rs.pruning == pruned {
@@ -777,7 +826,7 @@ func (mms *MainModuleSet) DirImportPath(ctx context.Context, dir string) (path s
 				longestPrefixVersion = v
 				suffix := filepath.ToSlash(str.TrimFilePathPrefix(dir, modRoot))
 				if strings.HasPrefix(suffix, "vendor/") {
-					longestPrefixPath = strings.TrimPrefix(suffix, "vendor/")
+					longestPrefixPath = suffix[len("vendor/"):]
 					continue
 				}
 				longestPrefixPath = pathpkg.Join(mms.PathPrefix(v), suffix)
@@ -1181,7 +1230,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			ld.error(err)
 			break
 		}
-		if reflect.DeepEqual(rs.rootModules, ld.requirements.rootModules) {
+		if slices.Equal(rs.rootModules, ld.requirements.rootModules) {
 			// Something is deeply wrong. resolveMissingImports gave us a non-empty
 			// set of modules to add to the graph, but adding those modules had no
 			// effect — either they were already in the graph, or updateRoots did not
@@ -1319,7 +1368,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 	// imports.AnyTags, then we didn't necessarily load every package that
 	// contributes “direct” imports — so we can't safely mark existing direct
 	// dependencies in ld.requirements as indirect-only. Propagate them as direct.
-	loadedDirect := ld.allPatternIsRoot && reflect.DeepEqual(ld.Tags, imports.AnyTags())
+	loadedDirect := ld.allPatternIsRoot && maps.Equal(ld.Tags, imports.AnyTags())
 	if loadedDirect {
 		direct = make(map[string]bool)
 	} else {
@@ -1374,10 +1423,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 						Module:       dep.mod,
 					}
 				}
-				continue
-			}
-
-			if pkg.err == nil && cfg.BuildMod != "mod" {
+			} else if pkg.err == nil && cfg.BuildMod != "mod" {
 				if v, ok := rs.rootSelected(dep.mod.Path); !ok || v != dep.mod.Version {
 					// dep.mod is not an explicit dependency, but needs to be.
 					// Because we are not in "mod" mode, we will not be able to update it.
@@ -1465,7 +1511,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 		// packages present in the standard library. If it has changed, it's best to
 		// reload packages once more to be sure everything is stable.
 		changed = true
-	} else if rs != ld.requirements && !reflect.DeepEqual(rs.rootModules, ld.requirements.rootModules) {
+	} else if rs != ld.requirements && !slices.Equal(rs.rootModules, ld.requirements.rootModules) {
 		// The roots of the module graph have changed in some way (not just the
 		// "direct" markings). Check whether the changes affected any of the loaded
 		// packages.
@@ -1779,7 +1825,7 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
 		ld.exitIfErrors(ctx)
 		return false
 	}
-	if reflect.DeepEqual(rs.rootModules, ld.requirements.rootModules) {
+	if slices.Equal(rs.rootModules, ld.requirements.rootModules) {
 		// Something is deeply wrong. resolveMissingImports gave us a non-empty
 		// set of modules to add to the graph, but adding those modules had no
 		// effect — either they were already in the graph, or updateRoots did not
@@ -1812,6 +1858,12 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
 
 	var modroot string
 	pkg.mod, modroot, pkg.dir, pkg.altMods, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg, ld.skipImportModFiles)
+	if MainModules.Tools()[pkg.path] {
+		// Tools declared by main modules are always in "all".
+		// We apply the package flags before returning so that missing
+		// tool dependencies report an error https://go.dev/issue/70582
+		ld.applyPkgFlags(ctx, pkg, pkgInAll)
+	}
 	if pkg.dir == "" {
 		return
 	}
@@ -1915,6 +1967,9 @@ func (ld *loader) pkgTest(ctx context.Context, pkg *loadPkg, testFlags loadPkgFl
 // stdVendor returns the canonical import path for the package with the given
 // path when imported from the standard-library package at parentPath.
 func (ld *loader) stdVendor(parentPath, path string) string {
+	if p, _, ok := fips140.ResolveImport(path); ok {
+		return p
+	}
 	if search.IsStandardImportPath(path) {
 		return path
 	}
@@ -1954,6 +2009,13 @@ func (ld *loader) stdVendor(parentPath, path string) string {
 // starting with a list of the import paths for the packages in the main module.
 func (ld *loader) computePatternAll() (all []string) {
 	for _, pkg := range ld.pkgs {
+		if module.CheckImportPath(pkg.path) != nil {
+			// Don't add packages with invalid paths. This means that
+			// we don't try to load invalid imports of the main modules'
+			// packages. We will still report an errors invalid imports
+			// when we load the importing package.
+			continue
+		}
 		if pkg.flags.has(pkgInAll) && !pkg.isTest() {
 			all = append(all, pkg.path)
 		}
@@ -2031,8 +2093,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements, 
 
 		fmt.Fprintf(os.Stderr, "If reproducibility with go %s is not needed:\n\tgo mod tidy%s -compat=%s\n", compatVersion, goFlag, goVersion)
 
-		// TODO(#46141): Populate the linked wiki page.
-		fmt.Fprintf(os.Stderr, "For other options, see:\n\thttps://golang.org/doc/modules/pruning\n")
+		fmt.Fprintf(os.Stderr, "For information about 'go mod tidy' compatibility, see:\n\thttps://go.dev/ref/mod#graph-pruning\n")
 	}
 
 	mg, err := rs.Graph(ctx)

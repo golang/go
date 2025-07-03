@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"os"
+	"slices"
 	"syscall"
 	"testing"
 	"unsafe"
@@ -98,21 +99,6 @@ func TestCreateOpenDeleteKey(t *testing.T) {
 	if err != registry.ErrNotExist {
 		t.Fatalf(`unexpected error ("not exist" expected): %v`, err)
 	}
-}
-
-func equalStringSlice(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	if a == nil {
-		return true
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 type ValueTest struct {
@@ -304,7 +290,7 @@ func testGetStringsValue(t *testing.T, k registry.Key, test ValueTest) {
 		t.Errorf("GetStringsValue(%s) failed: %v", test.Name, err)
 		return
 	}
-	if !equalStringSlice(got, test.Value.([]string)) {
+	if !slices.Equal(got, test.Value.([]string)) {
 		t.Errorf("want %s value %#v, got %#v", test.Name, test.Value, got)
 		return
 	}
@@ -647,9 +633,9 @@ type DynamicTimezoneinformation struct {
 }
 
 var (
-	kernel32DLL = syscall.NewLazyDLL("kernel32")
+	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
 
-	procGetDynamicTimeZoneInformation = kernel32DLL.NewProc("GetDynamicTimeZoneInformation")
+	procGetDynamicTimeZoneInformation = modkernel32.NewProc("GetDynamicTimeZoneInformation")
 )
 
 func GetDynamicTimeZoneInformation(dtzi *DynamicTimezoneinformation) (rc uint32, err error) {

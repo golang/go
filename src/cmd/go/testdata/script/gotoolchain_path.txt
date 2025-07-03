@@ -8,10 +8,10 @@ env TESTGO_VERSION=go1.21pre3
 # Compile a fake toolchain to put in the path under various names.
 env GOTOOLCHAIN=
 mkdir $WORK/bin
-[!GOOS:plan9] env PATH=$WORK/bin${:}$PATH
-[GOOS:plan9] env path=$WORK/bin${:}$path
-go build -o $WORK/bin/ ./fakego.go  # adds .exe extension implicitly on Windows
-cp $WORK/bin/fakego$GOEXE $WORK/bin/go1.50.0$GOEXE
+go build -o $WORK/bin/go1.50.0$GOEXE ./fakego.go  # adds .exe extension implicitly on Windows
+
+[!GOOS:plan9] env PATH=$WORK/bin
+[GOOS:plan9] env path=$WORK/bin
 
 go version
 stdout go1.21pre3
@@ -59,8 +59,8 @@ stderr 'running go1.50.0 from PATH'
 
 # NewerToolchain should find Go 1.50.0.
 env GOTOOLCHAIN=local
-go mod edit -toolchain=none -go=1.22
-grep 'go 1.22$' go.mod
+go mod edit -toolchain=none -go=1.21
+grep 'go 1.21$' go.mod
 ! grep toolchain go.mod
 env GOTOOLCHAIN=path
 ! go run rsc.io/fortune@v0.0.1

@@ -52,6 +52,16 @@ func maybeToolchainVersion(name string) string {
 	return FromToolchain(name)
 }
 
+// ToolchainMax returns the maximum of x and y interpreted as toolchain names,
+// compared using Compare(FromToolchain(x), FromToolchain(y)).
+// If x and y compare equal, Max returns x.
+func ToolchainMax(x, y string) string {
+	if Compare(FromToolchain(x), FromToolchain(y)) < 0 {
+		return y
+	}
+	return x
+}
+
 // Startup records the information that went into the startup-time version switch.
 // It is initialized by switchGoToolchain.
 var Startup struct {

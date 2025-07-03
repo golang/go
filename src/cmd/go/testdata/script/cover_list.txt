@@ -3,7 +3,6 @@
 # build arguments (such as -cover, -covermode). See issue #57785.
 
 [short] skip
-[!GOEXPERIMENT:coverageredesign] skip
 
 env GOBIN=$WORK/bin
 
@@ -37,6 +36,10 @@ cp stdout $WORK/toolbuildid.txt
 
 # Build IDs should match here.
 cmp $WORK/toolbuildid.txt $WORK/listbuildid.txt
+
+# Make sure that the build succeeds regardless of covermode.
+go list -export -covermode=atomic m/example
+go list -export -covermode=count m/example
 
 -- go.mod --
 module m

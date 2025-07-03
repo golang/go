@@ -53,49 +53,69 @@ func TestMarshalUnmarshal(t *testing.T) {
 
 	for i, m := range tests {
 		ty := reflect.ValueOf(m).Type()
-
-		n := 100
-		if testing.Short() {
-			n = 5
-		}
-		for j := 0; j < n; j++ {
-			v, ok := quick.Value(ty, rand)
-			if !ok {
-				t.Errorf("#%d: failed to create value", i)
-				break
+		t.Run(ty.String(), func(t *testing.T) {
+			n := 100
+			if testing.Short() {
+				n = 5
 			}
+			for j := 0; j < n; j++ {
+				v, ok := quick.Value(ty, rand)
+				if !ok {
+					t.Errorf("#%d: failed to create value", i)
+					break
+				}
 
-			m1 := v.Interface().(handshakeMessage)
-			marshaled := mustMarshal(t, m1)
-			if !m.unmarshal(marshaled) {
-				t.Errorf("#%d failed to unmarshal %#v %x", i, m1, marshaled)
-				break
-			}
-			m.marshal() // to fill any marshal cache in the message
+				m1 := v.Interface().(handshakeMessage)
+				marshaled := mustMarshal(t, m1)
+				if !m.unmarshal(marshaled) {
+					t.Errorf("#%d failed to unmarshal %#v %x", i, m1, marshaled)
+					break
+				}
 
-			if m, ok := m.(*SessionState); ok {
-				m.activeCertHandles = nil
-			}
+				if ch, ok := m.(*clientHelloMsg); ok {
+					// extensions is special cased, as it is only populated by the
+					// server-side of a handshake and is not expected to roundtrip
+					// through marshal + unmarshal.  m ends up with the list of
+					// extensions necessary to serialize the other fields of
+					// clientHelloMsg, so check that it is non-empty, then clear it.
+					if len(ch.extensions) == 0 {
+						t.Errorf("expected ch.extensions to be populated on unmarshal")
+					}
+					ch.extensions = nil
+				}
 
-			if !reflect.DeepEqual(m1, m) {
-				t.Errorf("#%d got:%#v want:%#v %x", i, m, m1, marshaled)
-				break
-			}
+				// clientHelloMsg and serverHelloMsg, when unmarshalled, store
+				// their original representation, for later use in the handshake
+				// transcript. In order to prevent DeepEqual from failing since
+				// we didn't create the original message via unmarshalling, nil
+				// the field.
+				switch t := m.(type) {
+				case *clientHelloMsg:
+					t.original = nil
+				case *serverHelloMsg:
+					t.original = nil
+				}
 
-			if i >= 3 {
-				// The first three message types (ClientHello,
-				// ServerHello and Finished) are allowed to
-				// have parsable prefixes because the extension
-				// data is optional and the length of the
-				// Finished varies across versions.
-				for j := 0; j < len(marshaled); j++ {
-					if m.unmarshal(marshaled[0:j]) {
-						t.Errorf("#%d unmarshaled a prefix of length %d of %#v", i, j, m1)
-						break
+				if !reflect.DeepEqual(m1, m) {
+					t.Errorf("#%d got:%#v want:%#v %x", i, m, m1, marshaled)
+					break
+				}
+
+				if i >= 3 {
+					// The first three message types (ClientHello,
+					// ServerHello and Finished) are allowed to
+					// have parsable prefixes because the extension
+					// data is optional and the length of the
+					// Finished varies across versions.
+					for j := 0; j < len(marshaled); j++ {
+						if m.unmarshal(marshaled[0:j]) {
+							t.Errorf("#%d unmarshaled a prefix of length %d of %#v", i, j, m1)
+							break
+						}
 					}
 				}
 			}
-		}
+		})
 	}
 }
 
@@ -159,10 +179,10 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		}
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms(VersionTLS12)
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms()
+		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms(VersionTLS12)
 	}
 	for i := 0; i < rand.Intn(5); i++ {
 		m.alpnProtocols = append(m.alpnProtocols, randomString(rand.Intn(20)+1, rand))
@@ -207,6 +227,9 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	}
 	if rand.Intn(10) > 5 {
 		m.earlyData = true
+	}
+	if rand.Intn(10) > 5 {
+		m.encryptedClientHello = randomBytes(rand.Intn(50)+1, rand)
 	}
 
 	return reflect.ValueOf(m)
@@ -259,6 +282,12 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	if rand.Intn(10) > 5 {
 		m.selectedIdentityPresent = true
 		m.selectedIdentity = uint16(rand.Intn(0xffff))
+	}
+	if rand.Intn(10) > 5 {
+		m.encryptedClientHello = randomBytes(rand.Intn(50)+1, rand)
+	}
+	if rand.Intn(10) > 5 {
+		m.serverNameAck = rand.Intn(2) == 1
 	}
 
 	return reflect.ValueOf(m)
@@ -391,11 +420,13 @@ func (*SessionState) Generate(rand *rand.Rand, size int) reflect.Value {
 	if rand.Intn(10) > 5 && s.EarlyData {
 		s.alpnProtocol = string(randomBytes(rand.Intn(10), rand))
 	}
-	if s.isClient {
-		if isTLS13 {
+	if isTLS13 {
+		if s.isClient {
 			s.useBy = uint64(rand.Int63())
 			s.ageAdd = uint32(rand.Int63() & math.MaxUint32)
 		}
+	} else {
+		s.curveID = CurveID(rand.Intn(30000) + 1)
 	}
 	return reflect.ValueOf(s)
 }
@@ -442,10 +473,10 @@ func (*certificateRequestMsgTLS13) Generate(rand *rand.Rand, size int) reflect.V
 		m.scts = true
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms(VersionTLS12)
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms()
+		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms(VersionTLS12)
 	}
 	if rand.Intn(10) > 5 {
 		m.certificateAuthorities = make([][]byte, 3)

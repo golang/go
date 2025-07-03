@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build race
-// +build race
 
 #include "go_asm.h"
 #include "funcdata.h"
@@ -275,6 +274,56 @@ TEXT	sync∕atomic·AddUintptr(SB), NOSPLIT, $0-24
 	GO_ARGS
 	JMP	sync∕atomic·AddInt64(SB)
 
+// And
+TEXT	sync∕atomic·AndInt32(SB), NOSPLIT, $0-20
+	GO_ARGS
+	MOVD	$__tsan_go_atomic32_fetch_and(SB), R1
+	BL	racecallatomic<>(SB)
+	RET
+
+TEXT	sync∕atomic·AndInt64(SB), NOSPLIT, $0-24
+	GO_ARGS
+	MOVD	$__tsan_go_atomic64_fetch_and(SB), R1
+	BL	racecallatomic<>(SB)
+	RET
+
+TEXT	sync∕atomic·AndUint32(SB), NOSPLIT, $0-20
+	GO_ARGS
+	JMP	sync∕atomic·AndInt32(SB)
+
+TEXT	sync∕atomic·AndUint64(SB), NOSPLIT, $0-24
+	GO_ARGS
+	JMP	sync∕atomic·AndInt64(SB)
+
+TEXT	sync∕atomic·AndUintptr(SB), NOSPLIT, $0-24
+	GO_ARGS
+	JMP	sync∕atomic·AndInt64(SB)
+
+// Or
+TEXT	sync∕atomic·OrInt32(SB), NOSPLIT, $0-20
+	GO_ARGS
+	MOVD	$__tsan_go_atomic32_fetch_or(SB), R1
+	BL	racecallatomic<>(SB)
+	RET
+
+TEXT	sync∕atomic·OrInt64(SB), NOSPLIT, $0-24
+	GO_ARGS
+	MOVD	$__tsan_go_atomic64_fetch_or(SB), R1
+	BL	racecallatomic<>(SB)
+	RET
+
+TEXT	sync∕atomic·OrUint32(SB), NOSPLIT, $0-20
+	GO_ARGS
+	JMP	sync∕atomic·OrInt32(SB)
+
+TEXT	sync∕atomic·OrUint64(SB), NOSPLIT, $0-24
+	GO_ARGS
+	JMP	sync∕atomic·OrInt64(SB)
+
+TEXT	sync∕atomic·OrUintptr(SB), NOSPLIT, $0-24
+	GO_ARGS
+	JMP	sync∕atomic·OrInt64(SB)
+
 // CompareAndSwap
 
 TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT, $0-17
@@ -361,9 +410,16 @@ TEXT	racecall<>(SB), NOSPLIT, $0-0
 	BL	runtime·save_g(SB)		// Save g for callbacks.
 	MOVD	R15, R7				// Save SP.
 	MOVD	g_m(g), R8			// R8 = thread.
-	MOVD	m_g0(R8), R8			// R8 = g0.
-	CMPBEQ	R8, g, call			// Already on g0?
-	MOVD	(g_sched+gobuf_sp)(R8), R15	// Switch SP to g0.
+
+	// Switch to g0 stack if we aren't already on g0 or gsignal.
+	MOVD	m_gsignal(R8), R9
+	CMPBEQ	R9, g, call
+
+	MOVD	m_g0(R8), R9
+	CMPBEQ	R9, g, call
+
+	MOVD	(g_sched+gobuf_sp)(R9), R15	// Switch SP to g0.
+
 call:	SUB	$160, R15			// Allocate C frame.
 	BL	R1				// Call C code.
 	MOVD	R7, R15				// Restore SP.

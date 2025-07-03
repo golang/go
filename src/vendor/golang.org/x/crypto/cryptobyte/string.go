@@ -15,7 +15,7 @@
 //
 // See the documentation and examples for the Builder and String types to get
 // started.
-package cryptobyte // import "golang.org/x/crypto/cryptobyte"
+package cryptobyte
 
 // String represents a string of bytes. It provides methods for parsing
 // fixed-length and length-prefixed values from it.
@@ -78,6 +78,17 @@ func (s *String) ReadUint32(out *uint32) bool {
 		return false
 	}
 	*out = uint32(v[0])<<24 | uint32(v[1])<<16 | uint32(v[2])<<8 | uint32(v[3])
+	return true
+}
+
+// ReadUint48 decodes a big-endian, 48-bit value into out and advances over it.
+// It reports whether the read was successful.
+func (s *String) ReadUint48(out *uint64) bool {
+	v := s.read(6)
+	if v == nil {
+		return false
+	}
+	*out = uint64(v[0])<<40 | uint64(v[1])<<32 | uint64(v[2])<<24 | uint64(v[3])<<16 | uint64(v[4])<<8 | uint64(v[5])
 	return true
 }
 

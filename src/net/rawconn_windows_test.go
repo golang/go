@@ -95,6 +95,11 @@ func controlOnConnSetup(network string, address string, c syscall.RawConn) error
 	switch network {
 	case "tcp", "udp", "ip":
 		return errors.New("ambiguous network: " + network)
+	case "unix", "unixpacket", "unixgram":
+		fn = func(s uintptr) {
+			const SO_ERROR = 0x1007
+			_, operr = syscall.GetsockoptInt(syscall.Handle(s), syscall.SOL_SOCKET, SO_ERROR)
+		}
 	default:
 		switch network[len(network)-1] {
 		case '4':

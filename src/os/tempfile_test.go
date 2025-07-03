@@ -17,13 +17,7 @@ import (
 func TestCreateTemp(t *testing.T) {
 	t.Parallel()
 
-	dir, err := MkdirTemp("", "TestCreateTempBadDir")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer RemoveAll(dir)
-
-	nonexistentDir := filepath.Join(dir, "_not_exists_")
+	nonexistentDir := filepath.Join(t.TempDir(), "_not_exists_")
 	f, err := CreateTemp(nonexistentDir, "foo")
 	if f != nil || err == nil {
 		t.Errorf("CreateTemp(%q, `foo`) = %v, %v", nonexistentDir, f, err)
@@ -57,11 +51,7 @@ func TestCreateTempPattern(t *testing.T) {
 func TestCreateTempBadPattern(t *testing.T) {
 	t.Parallel()
 
-	tmpDir, err := MkdirTemp("", t.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	const sep = string(PathSeparator)
 	tests := []struct {
@@ -152,14 +142,8 @@ func TestMkdirTemp(t *testing.T) {
 func TestMkdirTempBadDir(t *testing.T) {
 	t.Parallel()
 
-	dir, err := MkdirTemp("", "MkdirTempBadDir")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer RemoveAll(dir)
-
-	badDir := filepath.Join(dir, "not-exist")
-	_, err = MkdirTemp(badDir, "foo")
+	badDir := filepath.Join(t.TempDir(), "not-exist")
+	_, err := MkdirTemp(badDir, "foo")
 	if pe, ok := err.(*fs.PathError); !ok || !IsNotExist(err) || pe.Path != badDir {
 		t.Errorf("TempDir error = %#v; want PathError for path %q satisfying IsNotExist", err, badDir)
 	}
@@ -168,11 +152,7 @@ func TestMkdirTempBadDir(t *testing.T) {
 func TestMkdirTempBadPattern(t *testing.T) {
 	t.Parallel()
 
-	tmpDir, err := MkdirTemp("", t.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	const sep = string(PathSeparator)
 	tests := []struct {

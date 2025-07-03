@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"internal/types/errors"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -68,7 +69,7 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 		// The conversion allocates, so only do it if the concrete type is huge.
 		converted := false
 		if r.Type().Kind() != types.TBLANK {
-			aop, _ = Assignop(l.Type(), r.Type())
+			aop, _ = assignOp(l.Type(), r.Type())
 			if aop != ir.OXXX {
 				if r.Type().IsInterface() && !l.Type().IsInterface() && !types.IsComparable(l.Type()) {
 					base.Errorf("invalid operation: %v (operator %v not defined on %s)", n, op, typekind(l.Type()))
@@ -87,7 +88,7 @@ func tcArith(n ir.Node, op ir.Op, l, r ir.Node) (ir.Node, ir.Node, *types.Type) 
 		}
 
 		if !converted && l.Type().Kind() != types.TBLANK {
-			aop, _ = Assignop(r.Type(), l.Type())
+			aop, _ = assignOp(r.Type(), l.Type())
 			if aop != ir.OXXX {
 				if l.Type().IsInterface() && !r.Type().IsInterface() && !types.IsComparable(r.Type()) {
 					base.Errorf("invalid operation: %v (operator %v not defined on %s)", n, op, typekind(r.Type()))
@@ -240,7 +241,7 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 				// walkClosure(), because the instantiated
 				// function is compiled as if in the source
 				// package of the generic function.
-				if !(ir.CurFunc != nil && strings.Index(ir.CurFunc.Nname.Sym().Name, "[") >= 0) {
+				if !(ir.CurFunc != nil && strings.Contains(ir.CurFunc.Nname.Sym().Name, "[")) {
 					if s != nil && !types.IsExported(s.Name) && s.Pkg != types.LocalPkg {
 						base.Errorf("implicit assignment of unexported field '%s' in %v literal", s.Name, t)
 					}
@@ -351,9 +352,12 @@ func tcConv(n *ir.ConvExpr) ir.Node {
 		n.SetType(nil)
 		return n
 	}
-	op, why := Convertop(n.X.Op() == ir.OLITERAL, t, n.Type())
+	op, why := convertOp(n.X.Op() == ir.OLITERAL, t, n.Type())
 	if op == ir.OXXX {
-		base.Fatalf("cannot convert %L to type %v%s", n.X, n.Type(), why)
+		// Due to //go:nointerface, we may be stricter than types2 here (#63333).
+		base.ErrorfAt(n.Pos(), errors.InvalidConversion, "cannot convert %L to type %v%s", n.X, n.Type(), why)
+		n.SetType(nil)
+		return n
 	}
 
 	n.SetOp(op)
@@ -429,7 +433,7 @@ func dot(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node, selection *types.Fi
 	return n
 }
 
-// XDotMethod returns an expression representing the field selection
+// XDotField returns an expression representing the field selection
 // x.sym. If any implicit field selection are necessary, those are
 // inserted too.
 func XDotField(pos src.XPos, x ir.Node, sym *types.Sym) *ir.SelectorExpr {
@@ -617,19 +621,6 @@ func tcIndex(n *ir.IndexExpr) ir.Node {
 			return n
 		}
 
-		if !n.Bounded() && ir.IsConst(n.Index, constant.Int) {
-			x := n.Index.Val()
-			if constant.Sign(x) < 0 {
-				base.Errorf("invalid %s index %v (index must be non-negative)", why, n.Index)
-			} else if t.IsArray() && constant.Compare(x, token.GEQ, constant.MakeInt64(t.NumElem())) {
-				base.Errorf("invalid array index %v (out of bounds for %d-element array)", n.Index, t.NumElem())
-			} else if ir.IsConst(n.X, constant.String) && constant.Compare(x, token.GEQ, constant.MakeInt64(int64(len(ir.StringVal(n.X))))) {
-				base.Errorf("invalid string index %v (out of bounds for %d-byte string)", n.Index, len(ir.StringVal(n.X)))
-			} else if ir.ConstOverflow(x, types.Types[types.TINT]) {
-				base.Errorf("invalid %s index %v (index too large)", why, n.Index)
-			}
-		}
-
 	case types.TMAP:
 		n.Index = AssignConv(n.Index, t.Key(), "map index")
 		n.SetType(t.Elem())
@@ -643,16 +634,16 @@ func tcIndex(n *ir.IndexExpr) ir.Node {
 func tcLenCap(n *ir.UnaryExpr) ir.Node {
 	n.X = Expr(n.X)
 	n.X = DefaultLit(n.X, nil)
-	n.X = implicitstar(n.X)
 	l := n.X
 	t := l.Type()
 	if t == nil {
 		n.SetType(nil)
 		return n
 	}
-
 	var ok bool
-	if n.Op() == ir.OLEN {
+	if t.IsPtr() && t.Elem().IsArray() {
+		ok = true
+	} else if n.Op() == ir.OLEN {
 		ok = okforlen[t.Kind()]
 	} else {
 		ok = okforcap[t.Kind()]
@@ -797,19 +788,15 @@ func tcSlice(n *ir.SliceExpr) ir.Node {
 		return n
 	}
 
-	if n.Low != nil && !checksliceindex(l, n.Low, tp) {
+	if n.Low != nil && !checksliceindex(n.Low) {
 		n.SetType(nil)
 		return n
 	}
-	if n.High != nil && !checksliceindex(l, n.High, tp) {
+	if n.High != nil && !checksliceindex(n.High) {
 		n.SetType(nil)
 		return n
 	}
-	if n.Max != nil && !checksliceindex(l, n.Max, tp) {
-		n.SetType(nil)
-		return n
-	}
-	if !checksliceconst(n.Low, n.High) || !checksliceconst(n.Low, n.Max) || !checksliceconst(n.High, n.Max) {
+	if n.Max != nil && !checksliceindex(n.Max) {
 		n.SetType(nil)
 		return n
 	}

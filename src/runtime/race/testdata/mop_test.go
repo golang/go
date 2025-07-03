@@ -612,6 +612,8 @@ func TestNoRaceEnoughRegisters(t *testing.T) {
 }
 
 // emptyFunc should not be inlined.
+//
+//go:noinline
 func emptyFunc(x int) {
 	if false {
 		fmt.Println(x)
@@ -1176,7 +1178,7 @@ func TestNoRaceHeapReallocation(t *testing.T) {
 	// others.
 	const n = 2
 	done := make(chan bool, n)
-	empty := func(p *int) {}
+	empty := func(p *int) { _ = p }
 	for i := 0; i < n; i++ {
 		ms := i
 		go func() {
@@ -1417,7 +1419,7 @@ func TestRaceInterCall2(t *testing.T) {
 
 func TestRaceFuncCall(t *testing.T) {
 	c := make(chan bool, 1)
-	f := func(x, y int) {}
+	f := func(x, y int) { _ = y }
 	x, y := 0, 0
 	go func() {
 		y = 42
@@ -1804,6 +1806,7 @@ func TestRaceAsFunc2(t *testing.T) {
 	x := 0
 	go func() {
 		func(x int) {
+			_ = x
 		}(x)
 		c <- true
 	}()
@@ -1817,6 +1820,7 @@ func TestRaceAsFunc3(t *testing.T) {
 	x := 0
 	go func() {
 		func(x int) {
+			_ = x
 			mu.Lock()
 		}(x) // Read of x must be outside of the mutex.
 		mu.Unlock()

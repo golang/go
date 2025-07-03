@@ -6,6 +6,7 @@ package walk
 
 import (
 	"go/constant"
+	"internal/abi"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -103,7 +104,7 @@ func walkAssign(init *ir.Nodes, n ir.Node) ir.Node {
 			// Left in place for back end.
 			// Do not add a new write barrier.
 			// Set up address of type for back end.
-			r.X = reflectdata.AppendElemRType(base.Pos, r)
+			r.Fun = reflectdata.AppendElemRType(base.Pos, r)
 			return as
 		}
 		// Otherwise, lowered for race detector.
@@ -168,7 +169,7 @@ func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 	a := n.Lhs[0]
 
 	var call *ir.CallExpr
-	if w := t.Elem().Size(); w <= zeroValSize {
+	if w := t.Elem().Size(); w <= abi.ZeroValSize {
 		fn := mapfn(mapaccess2[fast], t, false)
 		call = mkcall1(fn, fn.Type().ResultsTuple(), init, reflectdata.IndexMapRType(base.Pos, r), r.X, key)
 	} else {
@@ -622,21 +623,23 @@ func isAppendOfMake(n ir.Node) bool {
 //	    panicmakeslicelen()
 //	  }
 //	  s := l1
-//	  n := len(s) + l2
-//	  // Compare n and s as uint so growslice can panic on overflow of len(s) + l2.
-//	  // cap is a positive int and n can become negative when len(s) + l2
-//	  // overflows int. Interpreting n when negative as uint makes it larger
-//	  // than cap(s). growslice will check the int n arg and panic if n is
-//	  // negative. This prevents the overflow from being undetected.
-//	  if uint(n) <= uint(cap(s)) {
-//	    s = s[:n]
-//	  } else {
-//	    s = growslice(T, s.ptr, n, s.cap, l2, T)
+//	  if l2 != 0 {
+//	    n := len(s) + l2
+//	    // Compare n and s as uint so growslice can panic on overflow of len(s) + l2.
+//	    // cap is a positive int and n can become negative when len(s) + l2
+//	    // overflows int. Interpreting n when negative as uint makes it larger
+//	    // than cap(s). growslice will check the int n arg and panic if n is
+//	    // negative. This prevents the overflow from being undetected.
+//	    if uint(n) <= uint(cap(s)) {
+//	      s = s[:n]
+//	    } else {
+//	      s = growslice(T, s.ptr, n, s.cap, l2, T)
+//	    }
+//	    // clear the new portion of the underlying array.
+//	    hp := &s[len(s)-l2]
+//	    hn := l2 * sizeof(T)
+//	    memclr(hp, hn)
 //	  }
-//	  // clear the new portion of the underlying array.
-//	  hp := &s[len(s)-l2]
-//	  hn := l2 * sizeof(T)
-//	  memclr(hp, hn)
 //	}
 //	s
 //
@@ -670,11 +673,18 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	s := typecheck.TempAt(base.Pos, ir.CurFunc, l1.Type())
 	nodes = append(nodes, ir.NewAssignStmt(base.Pos, s, l1))
 
+	// if l2 != 0 {
+	// Avoid work if we're not appending anything. But more importantly,
+	// avoid allowing hp to be a past-the-end pointer when clearing. See issue 67255.
+	nifnz := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.ONE, l2, ir.NewInt(base.Pos, 0)), nil, nil)
+	nifnz.Likely = true
+	nodes = append(nodes, nifnz)
+
 	elemtype := s.Type().Elem()
 
 	// n := s.len + l2
 	nn := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
-	nodes = append(nodes, ir.NewAssignStmt(base.Pos, nn, ir.NewBinaryExpr(base.Pos, ir.OADD, ir.NewUnaryExpr(base.Pos, ir.OLEN, s), l2)))
+	nifnz.Body = append(nifnz.Body, ir.NewAssignStmt(base.Pos, nn, ir.NewBinaryExpr(base.Pos, ir.OADD, ir.NewUnaryExpr(base.Pos, ir.OLEN, s), l2)))
 
 	// if uint(n) <= uint(s.cap)
 	nuint := typecheck.Conv(nn, types.Types[types.TUINT])
@@ -696,7 +706,7 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 			l2)),
 	}
 
-	nodes = append(nodes, nif)
+	nifnz.Body = append(nifnz.Body, nif)
 
 	// hp := &s[s.len - l2]
 	// TODO: &s[s.len] - hn?
@@ -722,7 +732,7 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		// if growslice isn't called do we need to do the zeroing ourselves.
 		nif.Body = append(nif.Body, clr...)
 	} else {
-		nodes = append(nodes, clr...)
+		nifnz.Body = append(nifnz.Body, clr...)
 	}
 
 	typecheck.Stmts(nodes)

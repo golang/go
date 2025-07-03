@@ -54,7 +54,7 @@ var IllegalPrefixes = []string{
 // That sentence ends after the first period followed by space and not
 // preceded by exactly one uppercase letter, or at the first paragraph break.
 // The result string has no \n, \r, or \t characters and uses only single
-// spaces between words. If text starts with any of the IllegalPrefixes,
+// spaces between words. If text starts with any of the [IllegalPrefixes],
 // the result is the empty string.
 func (p *Package) Synopsis(text string) string {
 	text = firstSentence(text)

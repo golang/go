@@ -28,15 +28,11 @@ TEXT runtime·cmpstring<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
 // X11 length of a
 // X12 points to start of b
 // X13 length of b
-// for non-regabi X14 points to the address to store the return value (-1/0/1)
-// for regabi the return value in X10
+// return value in X10 (-1/0/1)
 TEXT compare<>(SB),NOSPLIT|NOFRAME,$0
 	BEQ	X10, X12, cmp_len
 
-	MOV	X11, X5
-	BGE	X13, X5, use_a_len // X5 = min(len(a), len(b))
-	MOV	X13, X5
-use_a_len:
+	MIN	X11, X13, X5
 	BEQZ	X5, cmp_len
 
 	MOV	$32, X6
@@ -53,7 +49,7 @@ use_a_len:
 	ADD	$8, X7, X7
 	SUB	X7, X5, X5
 align:
-	ADD	$-1, X7
+	SUB	$1, X7
 	MOVBU	0(X10), X8
 	MOVBU	0(X12), X9
 	BNE	X8, X9, cmp
@@ -79,7 +75,7 @@ compare32:
 	BNE	X17, X18, cmp8b
 	ADD	$32, X10
 	ADD	$32, X12
-	ADD	$-32, X5
+	SUB	$32, X5
 	BGE	X5, X6, compare32
 	BEQZ	X5, cmp_len
 
@@ -95,7 +91,7 @@ compare16:
 	BNE	X17, X18, cmp8b
 	ADD	$16, X10
 	ADD	$16, X12
-	ADD	$-16, X5
+	SUB	$16, X5
 	BEQZ	X5, cmp_len
 
 check8_unaligned:
@@ -128,7 +124,7 @@ compare8_unaligned:
 	BNE	X29, X30, cmp1h
 	ADD	$8, X10
 	ADD	$8, X12
-	ADD	$-8, X5
+	SUB	$8, X5
 	BGE	X5, X6, compare8_unaligned
 	BEQZ	X5, cmp_len
 
@@ -150,7 +146,7 @@ compare4_unaligned:
 	BNE	X19, X20, cmp1d
 	ADD	$4, X10
 	ADD	$4, X12
-	ADD	$-4, X5
+	SUB	$4, X5
 	BGE	X5, X6, compare4_unaligned
 
 compare1:
@@ -160,7 +156,7 @@ compare1:
 	BNE	X8, X9, cmp
 	ADD	$1, X10
 	ADD	$1, X12
-	ADD	$-1, X5
+	SUB	$1, X5
 	JMP	compare1
 
 	// Compare 8 bytes of memory in X15/X16 that are known to differ.

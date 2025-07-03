@@ -36,8 +36,6 @@ func TestInlining(t *testing.T) {
 		"Addr.Is4",
 		"Addr.Is4In6",
 		"Addr.Is6",
-		"Addr.IsLoopback",
-		"Addr.IsMulticast",
 		"Addr.IsInterfaceLocalMulticast",
 		"Addr.IsValid",
 		"Addr.IsUnspecified",
@@ -80,6 +78,7 @@ func TestInlining(t *testing.T) {
 	case "amd64", "arm64":
 		// These don't inline on 32-bit.
 		wantInlinable = append(wantInlinable,
+			"Addr.AsSlice",
 			"Addr.Next",
 			"Addr.Prev",
 		)

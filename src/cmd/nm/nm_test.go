@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"testing"
 	"text/template"
 )
@@ -28,26 +27,6 @@ func TestMain(m *testing.M) {
 	os.Setenv("GO_NMTEST_IS_NM", "1") // Set for subprocesses to inherit.
 	os.Exit(m.Run())
 }
-
-// nmPath returns the path to the "nm" binary to run.
-func nmPath(t testing.TB) string {
-	t.Helper()
-	testenv.MustHaveExec(t)
-
-	nmPathOnce.Do(func() {
-		nmExePath, nmPathErr = os.Executable()
-	})
-	if nmPathErr != nil {
-		t.Fatal(nmPathErr)
-	}
-	return nmExePath
-}
-
-var (
-	nmPathOnce sync.Once
-	nmExePath  string
-	nmPathErr  error
-)
 
 func TestNonGoExecs(t *testing.T) {
 	t.Parallel()
@@ -74,7 +53,7 @@ func TestNonGoExecs(t *testing.T) {
 			exepath = tf
 		}
 
-		cmd := testenv.Command(t, nmPath(t), exepath)
+		cmd := testenv.Command(t, testenv.Executable(t), exepath)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Errorf("go tool nm %v: %v\n%s", exepath, err, string(out))
@@ -84,11 +63,7 @@ func TestNonGoExecs(t *testing.T) {
 
 func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 	t.Parallel()
-	tmpdir, err := os.MkdirTemp("", "TestGoExec")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "a.go")
 	file, err := os.Create(src)
@@ -148,7 +123,7 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 		runtimeSyms["runtime.epclntab"] = "D"
 	}
 
-	out, err = testenv.Command(t, nmPath(t), exe).CombinedOutput()
+	out, err = testenv.Command(t, testenv.Executable(t), exe).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool nm: %v\n%s", err, string(out))
 	}
@@ -221,16 +196,12 @@ func TestGoExec(t *testing.T) {
 
 func testGoLib(t *testing.T, iscgo bool) {
 	t.Parallel()
-	tmpdir, err := os.MkdirTemp("", "TestGoLib")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	gopath := filepath.Join(tmpdir, "gopath")
 	libpath := filepath.Join(gopath, "src", "mylib")
 
-	err = os.MkdirAll(libpath, 0777)
+	err := os.MkdirAll(libpath, 0777)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -259,7 +230,7 @@ func testGoLib(t *testing.T, iscgo bool) {
 	}
 	mylib := filepath.Join(libpath, "mylib.a")
 
-	out, err = testenv.Command(t, nmPath(t), mylib).CombinedOutput()
+	out, err = testenv.Command(t, testenv.Executable(t), mylib).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go tool nm: %v\n%s", err, string(out))
 	}

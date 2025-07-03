@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !goexperiment.jsonv2
+
 package json
 
 import "bytes"
@@ -53,29 +55,37 @@ func appendCompact(dst, src []byte, escape bool) ([]byte, error) {
 	start := 0
 	for i, c := range src {
 		if escape && (c == '<' || c == '>' || c == '&') {
-			dst = append(dst, src[start:i]...)
+			if start < i {
+				dst = append(dst, src[start:i]...)
+			}
 			dst = append(dst, '\\', 'u', '0', '0', hex[c>>4], hex[c&0xF])
 			start = i + 1
 		}
 		// Convert U+2028 and U+2029 (E2 80 A8 and E2 80 A9).
 		if escape && c == 0xE2 && i+2 < len(src) && src[i+1] == 0x80 && src[i+2]&^1 == 0xA8 {
-			dst = append(dst, src[start:i]...)
+			if start < i {
+				dst = append(dst, src[start:i]...)
+			}
 			dst = append(dst, '\\', 'u', '2', '0', '2', hex[src[i+2]&0xF])
-			start = i + len("\u2029")
+			start = i + 3
 		}
 		v := scan.step(scan, c)
 		if v >= scanSkipSpace {
 			if v == scanError {
 				break
 			}
-			dst = append(dst, src[start:i]...)
+			if start < i {
+				dst = append(dst, src[start:i]...)
+			}
 			start = i + 1
 		}
 	}
 	if scan.eof() == scanError {
 		return dst[:origLen], scan.err
 	}
-	dst = append(dst, src[start:]...)
+	if start < len(src) {
+		dst = append(dst, src[start:]...)
+	}
 	return dst, nil
 }
 

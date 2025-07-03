@@ -7,6 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/stringslite"
 	"unsafe"
 )
 
@@ -47,7 +48,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 	// level by the program but will otherwise be ignored.
 	flags = _SigNotify
 	for sig, t = range sigtable {
-		if hasPrefix(notestr, t.name) {
+		if stringslite.HasPrefix(notestr, t.name) {
 			flags = t.flags
 			break
 		}

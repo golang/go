@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"cmd/go/internal/base"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/mmap"
 )
@@ -37,8 +38,8 @@ type Cache interface {
 	// Get returns the cache entry for the provided ActionID.
 	// On miss, the error type should be of type *entryNotFoundError.
 	//
-	// After a success call to Get, OutputFile(Entry.OutputID) must
-	// exist on disk for until Close is called (at the end of the process).
+	// After a successful call to Get, OutputFile(Entry.OutputID) must
+	// exist on disk until Close is called (at the end of the process).
 	Get(ActionID) (Entry, error)
 
 	// Put adds an item to the cache.
@@ -49,16 +50,16 @@ type Cache interface {
 	// As a special case, if the ReadSeeker is of type noVerifyReadSeeker,
 	// the verification from GODEBUG=goverifycache=1 is skipped.
 	//
-	// After a success call to Get, OutputFile(Entry.OutputID) must
-	// exist on disk for until Close is called (at the end of the process).
+	// After a successful call to Put, OutputFile(OutputID) must
+	// exist on disk until Close is called (at the end of the process).
 	Put(ActionID, io.ReadSeeker) (_ OutputID, size int64, _ error)
 
 	// Close is called at the end of the go process. Implementations can do
 	// cache cleanup work at this phase, or wait for and report any errors from
-	// background cleanup work started earlier. Any cache trimming should in one
-	// process should not violate cause the invariants of this interface to be
+	// background cleanup work started earlier. Any cache trimming in one
+	// process should not cause the invariants of this interface to be
 	// violated in another process. Namely, a cache trim from one process should
-	// not delete an ObjectID from disk that was recently Get or Put from
+	// not delete an OutputID from disk that was recently Get or Put from
 	// another process. As a rule of thumb, don't trim things used in the last
 	// day.
 	Close() error
@@ -101,7 +102,7 @@ func Open(dir string) (*DiskCache, error) {
 	}
 	for i := 0; i < 256; i++ {
 		name := filepath.Join(dir, fmt.Sprintf("%02x", i))
-		if err := os.MkdirAll(name, 0777); err != nil {
+		if err := os.MkdirAll(name, 0o777); err != nil {
 			return nil, err
 		}
 	}
@@ -159,22 +160,22 @@ var DebugTest = false
 func init() { initEnv() }
 
 var (
-	goCacheVerify = godebug.New("gocacheverify")
-	goDebugHash   = godebug.New("gocachehash")
-	goCacheTest   = godebug.New("gocachetest")
+	gocacheverify = godebug.New("gocacheverify")
+	gocachehash   = godebug.New("gocachehash")
+	gocachetest   = godebug.New("gocachetest")
 )
 
 func initEnv() {
-	if goCacheVerify.Value() == "1" {
-		goCacheVerify.IncNonDefault()
+	if gocacheverify.Value() == "1" {
+		gocacheverify.IncNonDefault()
 		verify = true
 	}
-	if goDebugHash.Value() == "1" {
-		goDebugHash.IncNonDefault()
+	if gocachehash.Value() == "1" {
+		gocachehash.IncNonDefault()
 		debugHash = true
 	}
-	if goCacheTest.Value() == "1" {
-		goCacheTest.IncNonDefault()
+	if gocachetest.Value() == "1" {
+		gocachetest.IncNonDefault()
 		DebugTest = true
 	}
 }
@@ -254,7 +255,7 @@ func (c *DiskCache) get(id ActionID) (Entry, error) {
 		return missing(errors.New("negative timestamp"))
 	}
 
-	c.used(c.fileName(id, "a"))
+	c.markUsed(c.fileName(id, "a"))
 
 	return Entry{buf, size, time.Unix(0, tm)}, nil
 }
@@ -295,25 +296,39 @@ func GetBytes(c Cache, id ActionID) ([]byte, Entry, error) {
 // GetMmap looks up the action ID in the cache and returns
 // the corresponding output bytes.
 // GetMmap should only be used for data that can be expected to fit in memory.
-func GetMmap(c Cache, id ActionID) ([]byte, Entry, error) {
+// The boolean result indicates whether the file was opened.
+// If it is true, the caller should avoid attempting
+// to write to the file on Windows, because Windows locks
+// the open file, and writes to it will fail.
+func GetMmap(c Cache, id ActionID) ([]byte, Entry, bool, error) {
 	entry, err := c.Get(id)
 	if err != nil {
-		return nil, entry, err
+		return nil, entry, false, err
 	}
-	md, err := mmap.Mmap(c.OutputFile(entry.OutputID))
+	md, opened, err := mmap.Mmap(c.OutputFile(entry.OutputID))
 	if err != nil {
-		return nil, Entry{}, err
+		return nil, Entry{}, opened, err
 	}
 	if int64(len(md.Data)) != entry.Size {
-		return nil, Entry{}, &entryNotFoundError{Err: errors.New("file incomplete")}
+		return nil, Entry{}, true, &entryNotFoundError{Err: errors.New("file incomplete")}
 	}
-	return md.Data, entry, nil
+	return md.Data, entry, true, nil
 }
 
 // OutputFile returns the name of the cache file storing output with the given OutputID.
 func (c *DiskCache) OutputFile(out OutputID) string {
 	file := c.fileName(out, "d")
-	c.used(file)
+	isDir := c.markUsed(file)
+	if isDir { // => cached executable
+		entries, err := os.ReadDir(file)
+		if err != nil {
+			return fmt.Sprintf("DO NOT USE - missing binary cache entry: %v", err)
+		}
+		if len(entries) != 1 {
+			return "DO NOT USE - invalid binary cache entry"
+		}
+		return filepath.Join(file, entries[0].Name())
+	}
 	return file
 }
 
@@ -335,7 +350,7 @@ const (
 	trimLimit     = 5 * 24 * time.Hour
 )
 
-// used makes a best-effort attempt to update mtime on file,
+// markUsed makes a best-effort attempt to update mtime on file,
 // so that mtime reflects cache access time.
 //
 // Because the reflection only needs to be approximate,
@@ -344,12 +359,17 @@ const (
 // mtime is more than an hour old. This heuristic eliminates
 // nearly all of the mtime updates that would otherwise happen,
 // while still keeping the mtimes useful for cache trimming.
-func (c *DiskCache) used(file string) {
+//
+// markUsed reports whether the file is a directory (an executable cache entry).
+func (c *DiskCache) markUsed(file string) (isDir bool) {
 	info, err := os.Stat(file)
-	if err == nil && c.now().Sub(info.ModTime()) < mtimeInterval {
-		return
+	if err != nil {
+		return false
 	}
-	os.Chtimes(file, c.now(), c.now())
+	if now := c.now(); now.Sub(info.ModTime()) >= mtimeInterval {
+		os.Chtimes(file, now, now)
+	}
+	return info.IsDir()
 }
 
 func (c *DiskCache) Close() error { return c.Trim() }
@@ -387,7 +407,7 @@ func (c *DiskCache) Trim() error {
 	// cache will appear older than it is, and we'll trim it again next time.
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "%d", now.Unix())
-	if err := lockedfile.Write(filepath.Join(c.dir, "trim.txt"), &b, 0666); err != nil {
+	if err := lockedfile.Write(filepath.Join(c.dir, "trim.txt"), &b, 0o666); err != nil {
 		return err
 	}
 
@@ -416,6 +436,10 @@ func (c *DiskCache) trimSubdir(subdir string, cutoff time.Time) {
 		entry := filepath.Join(subdir, name)
 		info, err := os.Stat(entry)
 		if err == nil && info.ModTime().Before(cutoff) {
+			if info.IsDir() { // executable cache entry
+				os.RemoveAll(entry)
+				continue
+			}
 			os.Remove(entry)
 		}
 	}
@@ -448,7 +472,7 @@ func (c *DiskCache) putIndexEntry(id ActionID, out OutputID, size int64, allowVe
 
 	// Copy file to cache directory.
 	mode := os.O_WRONLY | os.O_CREATE
-	f, err := os.OpenFile(file, mode, 0666)
+	f, err := os.OpenFile(file, mode, 0o666)
 	if err != nil {
 		return err
 	}
@@ -477,7 +501,7 @@ func (c *DiskCache) putIndexEntry(id ActionID, out OutputID, size int64, allowVe
 	return nil
 }
 
-// noVerifyReadSeeker is a io.ReadSeeker wrapper sentinel type
+// noVerifyReadSeeker is an io.ReadSeeker wrapper sentinel type
 // that says that Cache.Put should skip the verify check
 // (from GODEBUG=goverifycache=1).
 type noVerifyReadSeeker struct {
@@ -491,7 +515,21 @@ func (c *DiskCache) Put(id ActionID, file io.ReadSeeker) (OutputID, int64, error
 	if isNoVerify {
 		file = wrapper.ReadSeeker
 	}
-	return c.put(id, file, !isNoVerify)
+	return c.put(id, "", file, !isNoVerify)
+}
+
+// PutExecutable is used to store the output as the output for the action ID into a
+// file with the given base name, with the executable mode bit set.
+// It may read file twice. The content of file must not change between the two passes.
+func (c *DiskCache) PutExecutable(id ActionID, name string, file io.ReadSeeker) (OutputID, int64, error) {
+	if name == "" {
+		panic("PutExecutable called without a name")
+	}
+	wrapper, isNoVerify := file.(noVerifyReadSeeker)
+	if isNoVerify {
+		file = wrapper.ReadSeeker
+	}
+	return c.put(id, name, file, !isNoVerify)
 }
 
 // PutNoVerify is like Put but disables the verify check
@@ -502,7 +540,7 @@ func PutNoVerify(c Cache, id ActionID, file io.ReadSeeker) (OutputID, int64, err
 	return c.Put(id, noVerifyReadSeeker{file})
 }
 
-func (c *DiskCache) put(id ActionID, file io.ReadSeeker, allowVerify bool) (OutputID, int64, error) {
+func (c *DiskCache) put(id ActionID, executableName string, file io.ReadSeeker, allowVerify bool) (OutputID, int64, error) {
 	// Compute output ID.
 	h := sha256.New()
 	if _, err := file.Seek(0, 0); err != nil {
@@ -516,7 +554,11 @@ func (c *DiskCache) put(id ActionID, file io.ReadSeeker, allowVerify bool) (Outp
 	h.Sum(out[:0])
 
 	// Copy to cached output file (if not already present).
-	if err := c.copyFile(file, out, size); err != nil {
+	fileMode := fs.FileMode(0o666)
+	if executableName != "" {
+		fileMode = 0o777
+	}
+	if err := c.copyFile(file, executableName, out, size, fileMode); err != nil {
 		return out, size, err
 	}
 
@@ -532,9 +574,33 @@ func PutBytes(c Cache, id ActionID, data []byte) error {
 
 // copyFile copies file into the cache, expecting it to have the given
 // output ID and size, if that file is not present already.
-func (c *DiskCache) copyFile(file io.ReadSeeker, out OutputID, size int64) error {
-	name := c.fileName(out, "d")
+func (c *DiskCache) copyFile(file io.ReadSeeker, executableName string, out OutputID, size int64, perm os.FileMode) error {
+	name := c.fileName(out, "d") // TODO(matloob): use a different suffix for the executable cache?
 	info, err := os.Stat(name)
+	if executableName != "" {
+		// This is an executable file. The file at name won't hold the output itself, but will
+		// be a directory that holds the output, named according to executableName. Check to see
+		// if the directory already exists, and if it does not, create it. Then reset name
+		// to the name we want the output written to.
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return err
+			}
+			if err := os.Mkdir(name, 0o777); err != nil {
+				return err
+			}
+			if info, err = os.Stat(name); err != nil {
+				return err
+			}
+		}
+		if !info.IsDir() {
+			return errors.New("internal error: invalid binary cache entry: not a directory")
+		}
+
+		// directory exists. now set name to the inner file
+		name = filepath.Join(name, executableName)
+		info, err = os.Stat(name)
+	}
 	if err == nil && info.Size() == size {
 		// Check hash.
 		if f, err := os.Open(name); err == nil {
@@ -555,8 +621,14 @@ func (c *DiskCache) copyFile(file io.ReadSeeker, out OutputID, size int64) error
 	if err == nil && info.Size() > size { // shouldn't happen but fix in case
 		mode |= os.O_TRUNC
 	}
-	f, err := os.OpenFile(name, mode, 0666)
+	f, err := os.OpenFile(name, mode, perm)
 	if err != nil {
+		if base.IsETXTBSY(err) {
+			// This file is being used by an executable. It must have
+			// already been written by another go process and then run.
+			// return without an error.
+			return nil
+		}
 		return err
 	}
 	defer f.Close()

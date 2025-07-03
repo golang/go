@@ -8,3 +8,5 @@ module golang.org/toolchain
 module golang.org/toolchain
 -- bin/go.bat --
 @echo go1.999testmod here!
+-- pkg/tool/fake --
+-- lib/wasm/go_js_wasm_exec --

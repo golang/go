@@ -6,6 +6,7 @@ package fuzz
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 )
 
@@ -31,12 +32,6 @@ func (mr *mockRand) uint32n(n uint32) uint32 {
 	c := mr.values[mr.counter]
 	mr.counter++
 	return uint32(c) % n
-}
-
-func (mr *mockRand) exp2() int {
-	c := mr.values[mr.counter]
-	mr.counter++
-	return c
 }
 
 func (mr *mockRand) bool() bool {
@@ -180,6 +175,46 @@ func TestByteSliceMutators(t *testing.T) {
 			b := tc.mutator(m, tc.input)
 			if !bytes.Equal(b, tc.expected) {
 				t.Errorf("got %x, want %x", b, tc.expected)
+			}
+		})
+	}
+}
+
+func BenchmarkByteSliceMutators(b *testing.B) {
+	tests := [...]struct {
+		name    string
+		mutator func(*mutator, []byte) []byte
+	}{
+		{"RemoveBytes", byteSliceRemoveBytes},
+		{"InsertRandomBytes", byteSliceInsertRandomBytes},
+		{"DuplicateBytes", byteSliceDuplicateBytes},
+		{"OverwriteBytes", byteSliceOverwriteBytes},
+		{"BitFlip", byteSliceBitFlip},
+		{"XORByte", byteSliceXORByte},
+		{"SwapByte", byteSliceSwapByte},
+		{"ArithmeticUint8", byteSliceArithmeticUint8},
+		{"ArithmeticUint16", byteSliceArithmeticUint16},
+		{"ArithmeticUint32", byteSliceArithmeticUint32},
+		{"ArithmeticUint64", byteSliceArithmeticUint64},
+		{"OverwriteInterestingUint8", byteSliceOverwriteInterestingUint8},
+		{"OverwriteInterestingUint16", byteSliceOverwriteInterestingUint16},
+		{"OverwriteInterestingUint32", byteSliceOverwriteInterestingUint32},
+		{"InsertConstantBytes", byteSliceInsertConstantBytes},
+		{"OverwriteConstantBytes", byteSliceOverwriteConstantBytes},
+		{"ShuffleBytes", byteSliceShuffleBytes},
+		{"SwapBytes", byteSliceSwapBytes},
+	}
+
+	for _, tc := range tests {
+		b.Run(tc.name, func(b *testing.B) {
+			for size := 64; size <= 1024; size *= 2 {
+				b.Run(fmt.Sprintf("%d", size), func(b *testing.B) {
+					m := &mutator{r: newPcgRand()}
+					input := make([]byte, size)
+					for i := 0; i < b.N; i++ {
+						tc.mutator(m, input)
+					}
+				})
 			}
 		})
 	}

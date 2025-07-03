@@ -21,7 +21,7 @@ package runtime
 
 import (
 	"internal/cpu"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -57,6 +57,15 @@ func (t *semTable) rootFor(addr *uint32) *semaRoot {
 	return &t[(uintptr(unsafe.Pointer(addr))>>3)%semTabSize].root
 }
 
+// sync_runtime_Semacquire should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
+//   - github.com/sagernet/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname sync_runtime_Semacquire sync.runtime_Semacquire
 func sync_runtime_Semacquire(addr *uint32) {
 	semacquire1(addr, false, semaBlockProfile, 0, waitReasonSemacquire)
@@ -67,13 +76,22 @@ func poll_runtime_Semacquire(addr *uint32) {
 	semacquire1(addr, false, semaBlockProfile, 0, waitReasonSemacquire)
 }
 
+// sync_runtime_Semrelease should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - gvisor.dev/gvisor
+//   - github.com/sagernet/gvisor
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname sync_runtime_Semrelease sync.runtime_Semrelease
 func sync_runtime_Semrelease(addr *uint32, handoff bool, skipframes int) {
 	semrelease1(addr, handoff, skipframes)
 }
 
-//go:linkname sync_runtime_SemacquireMutex sync.runtime_SemacquireMutex
-func sync_runtime_SemacquireMutex(addr *uint32, lifo bool, skipframes int) {
+//go:linkname internal_sync_runtime_SemacquireMutex internal/sync.runtime_SemacquireMutex
+func internal_sync_runtime_SemacquireMutex(addr *uint32, lifo bool, skipframes int) {
 	semacquire1(addr, lifo, semaBlockProfile|semaMutexProfile, skipframes, waitReasonSyncMutexLock)
 }
 
@@ -87,9 +105,23 @@ func sync_runtime_SemacquireRWMutex(addr *uint32, lifo bool, skipframes int) {
 	semacquire1(addr, lifo, semaBlockProfile|semaMutexProfile, skipframes, waitReasonSyncRWMutexLock)
 }
 
+//go:linkname sync_runtime_SemacquireWaitGroup sync.runtime_SemacquireWaitGroup
+func sync_runtime_SemacquireWaitGroup(addr *uint32, synctestDurable bool) {
+	reason := waitReasonSyncWaitGroupWait
+	if synctestDurable {
+		reason = waitReasonSynctestWaitGroupWait
+	}
+	semacquire1(addr, false, semaBlockProfile, 0, reason)
+}
+
 //go:linkname poll_runtime_Semrelease internal/poll.runtime_Semrelease
 func poll_runtime_Semrelease(addr *uint32) {
 	semrelease(addr)
+}
+
+//go:linkname internal_sync_runtime_Semrelease internal/sync.runtime_Semrelease
+func internal_sync_runtime_Semrelease(addr *uint32, handoff bool, skipframes int) {
+	semrelease1(addr, handoff, skipframes)
 }
 
 func readyWithTime(s *sudog, traceskip int) {
@@ -229,11 +261,13 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
 			s.ticket = 1
 		}
 		readyWithTime(s, 5+skipframes)
-		if s.ticket == 1 && getg().m.locks == 0 {
+		if s.ticket == 1 && getg().m.locks == 0 && getg() != getg().m.g0 {
 			// Direct G handoff
+			//
 			// readyWithTime has added the waiter G as runnext in the
 			// current P; we now call the scheduler so that we start running
 			// the waiter G immediately.
+			//
 			// Note that waiter inherits our time slice: this is desirable
 			// to avoid having a highly contended semaphore hog the P
 			// indefinitely. goyield is like Gosched, but it emits a
@@ -243,9 +277,12 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
 			// the non-starving case it is possible for a different waiter
 			// to acquire the semaphore while we are yielding/scheduling,
 			// and this would be wasteful. We wait instead to enter starving
-			// regime, and then we start to do direct handoffs of ticket and
-			// P.
+			// regime, and then we start to do direct handoffs of ticket and P.
+			//
 			// See issue 33747 for discussion.
+			//
+			// We don't handoff directly if we're holding locks or on the
+			// system stack, since it's not safe to enter the scheduler.
 			goyield()
 		}
 	}
@@ -338,7 +375,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool) {
 	//
 	// s.ticket compared with zero in couple of places, therefore set lowest bit.
 	// It will not affect treap's quality noticeably.
-	s.ticket = fastrand() | 1
+	s.ticket = cheaprand() | 1
 	s.parent = last
 	*pt = s
 
@@ -601,6 +638,10 @@ func notifyListNotifyAll(l *notifyList) {
 	for s != nil {
 		next := s.next
 		s.next = nil
+		if s.g.bubble != nil && getg().bubble != s.g.bubble {
+			println("semaphore wake of synctest goroutine", s.g.goid, "from outside bubble")
+			fatal("semaphore wake of synctest goroutine from outside bubble")
+		}
 		readyWithTime(s, 4)
 		s = next
 	}
@@ -654,6 +695,10 @@ func notifyListNotifyOne(l *notifyList) {
 			}
 			unlock(&l.lock)
 			s.next = nil
+			if s.g.bubble != nil && getg().bubble != s.g.bubble {
+				println("semaphore wake of synctest goroutine", s.g.goid, "from outside bubble")
+				fatal("semaphore wake of synctest goroutine from outside bubble")
+			}
 			readyWithTime(s, 4)
 			return
 		}
@@ -669,7 +714,7 @@ func notifyListCheck(sz uintptr) {
 	}
 }
 
-//go:linkname sync_nanotime sync.runtime_nanotime
-func sync_nanotime() int64 {
+//go:linkname internal_sync_nanotime internal/sync.runtime_nanotime
+func internal_sync_nanotime() int64 {
 	return nanotime()
 }

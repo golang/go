@@ -5,13 +5,20 @@
 package slog
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
+	"internal/asan"
+	"internal/msan"
 	"internal/race"
 	"internal/testenv"
 	"io"
 	"log"
 	loginternal "log/internal"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -22,7 +29,13 @@ import (
 	"time"
 )
 
-const timeRE = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{1,9}(Z|[+-]\d{2}:\d{2})`
+// textTimeRE is a regexp to match log timestamps for Text handler.
+// This is RFC3339Nano with the fixed 3 digit sub-second precision.
+const textTimeRE = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(Z|[+-]\d{2}:\d{2})`
+
+// jsonTimeRE is a regexp to match log timestamps for Text handler.
+// This is RFC3339Nano with an arbitrary sub-second precision.
+const jsonTimeRE = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})`
 
 func TestLogTextHandler(t *testing.T) {
 	ctx := context.Background()
@@ -33,7 +46,7 @@ func TestLogTextHandler(t *testing.T) {
 	check := func(want string) {
 		t.Helper()
 		if want != "" {
-			want = "time=" + timeRE + " " + want
+			want = "time=" + textTimeRE + " " + want
 		}
 		checkLogOutput(t, buf.String(), want)
 		buf.Reset()
@@ -118,7 +131,7 @@ func TestConnections(t *testing.T) {
 	// log.Logger's output goes through the handler.
 	SetDefault(New(NewTextHandler(&slogbuf, &HandlerOptions{AddSource: true})))
 	log.Print("msg2")
-	checkLogOutput(t, slogbuf.String(), "time="+timeRE+` level=INFO source=.*logger_test.go:\d{3}"? msg=msg2`)
+	checkLogOutput(t, slogbuf.String(), "time="+textTimeRE+` level=INFO source=.*logger_test.go:\d{3}"? msg=msg2`)
 
 	// The default log.Logger always outputs at Info level.
 	slogbuf.Reset()
@@ -177,7 +190,10 @@ func TestCallDepth(t *testing.T) {
 		const wantFunc = "log/slog.TestCallDepth"
 		const wantFile = "logger_test.go"
 		wantLine := startLine + count*2
-		got := h.r.source()
+		got := h.r.Source()
+		if got == nil {
+			t.Fatal("got nil source")
+		}
 		gotFile := filepath.Base(got.File)
 		if got.Function != wantFunc || gotFile != wantFile || got.Line != wantLine {
 			t.Errorf("got (%s, %s, %d), want (%s, %s, %d)",
@@ -185,6 +201,7 @@ func TestCallDepth(t *testing.T) {
 		}
 	}
 
+	defer SetDefault(Default()) // restore
 	logger := New(h)
 	SetDefault(logger)
 
@@ -220,9 +237,100 @@ func TestCallDepth(t *testing.T) {
 	check(11)
 }
 
+func TestCallDepthConnection(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
+
+	testenv.MustHaveExec(t)
+	ep, err := os.Executable()
+	if err != nil {
+		t.Fatalf("Executable failed: %v", err)
+	}
+
+	tests := []struct {
+		name string
+		log  func()
+	}{
+		{"log.Fatal", func() { log.Fatal("log.Fatal") }},
+		{"log.Fatalf", func() { log.Fatalf("log.Fatalf") }},
+		{"log.Fatalln", func() { log.Fatalln("log.Fatalln") }},
+		{"log.Output", func() { log.Output(1, "log.Output") }},
+		{"log.Panic", func() { log.Panic("log.Panic") }},
+		{"log.Panicf", func() { log.Panicf("log.Panicf") }},
+		{"log.Panicln", func() { log.Panicf("log.Panicln") }},
+		{"log.Default.Fatal", func() { log.Default().Fatal("log.Default.Fatal") }},
+		{"log.Default.Fatalf", func() { log.Default().Fatalf("log.Default.Fatalf") }},
+		{"log.Default.Fatalln", func() { log.Default().Fatalln("log.Default.Fatalln") }},
+		{"log.Default.Output", func() { log.Default().Output(1, "log.Default.Output") }},
+		{"log.Default.Panic", func() { log.Default().Panic("log.Default.Panic") }},
+		{"log.Default.Panicf", func() { log.Default().Panicf("log.Default.Panicf") }},
+		{"log.Default.Panicln", func() { log.Default().Panicf("log.Default.Panicln") }},
+	}
+
+	// calculate the line offset until the first test case
+	_, _, line, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatalf("runtime.Caller failed")
+	}
+	line -= len(tests) + 3
+
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// inside spawned test executable
+			const envVar = "SLOGTEST_CALL_DEPTH_CONNECTION"
+			if os.Getenv(envVar) == "1" {
+				h := NewTextHandler(os.Stderr, &HandlerOptions{
+					AddSource: true,
+					ReplaceAttr: func(groups []string, a Attr) Attr {
+						if (a.Key == MessageKey || a.Key == SourceKey) && len(groups) == 0 {
+							return a
+						}
+						return Attr{}
+					},
+				})
+				SetDefault(New(h))
+				log.SetFlags(log.Lshortfile)
+				tt.log()
+				os.Exit(1)
+			}
+
+			// spawn test executable
+			cmd := testenv.Command(t, ep,
+				"-test.run=^"+regexp.QuoteMeta(t.Name())+"$",
+				"-test.count=1",
+			)
+			cmd.Env = append(cmd.Environ(), envVar+"=1")
+
+			out, err := cmd.CombinedOutput()
+			var exitErr *exec.ExitError
+			if !errors.As(err, &exitErr) {
+				t.Fatalf("expected exec.ExitError: %v", err)
+			}
+
+			_, firstLine, err := bufio.ScanLines(out, true)
+			if err != nil {
+				t.Fatalf("failed to split line: %v", err)
+			}
+			got := string(firstLine)
+
+			want := fmt.Sprintf(
+				`msg="logger_test.go:%d: %s"`,
+				line+i, tt.name,
+			)
+			if got != want {
+				t.Errorf(
+					"output from %s() mismatch:\n\t got: %s\n\twant: %s",
+					tt.name, got, want,
+				)
+			}
+		})
+	}
+}
+
 func TestAlloc(t *testing.T) {
 	ctx := context.Background()
-	dl := New(discardHandler{})
+	dl := New(discardTestHandler{})
 	defer SetDefault(Default()) // restore
 	SetDefault(dl)
 
@@ -241,7 +349,7 @@ func TestAlloc(t *testing.T) {
 	t.Run("2 pairs", func(t *testing.T) {
 		s := "abc"
 		i := 2000
-		wantAllocs(t, 2, func() {
+		wantAllocs(t, 0, func() {
 			dl.Info("hello",
 				"n", i,
 				"s", s,
@@ -249,10 +357,10 @@ func TestAlloc(t *testing.T) {
 		})
 	})
 	t.Run("2 pairs disabled inline", func(t *testing.T) {
-		l := New(discardHandler{disabled: true})
+		l := New(DiscardHandler)
 		s := "abc"
 		i := 2000
-		wantAllocs(t, 2, func() {
+		wantAllocs(t, 0, func() {
 			l.Log(ctx, LevelInfo, "hello",
 				"n", i,
 				"s", s,
@@ -260,7 +368,7 @@ func TestAlloc(t *testing.T) {
 		})
 	})
 	t.Run("2 pairs disabled", func(t *testing.T) {
-		l := New(discardHandler{disabled: true})
+		l := New(DiscardHandler)
 		s := "abc"
 		i := 2000
 		wantAllocs(t, 0, func() {
@@ -276,7 +384,7 @@ func TestAlloc(t *testing.T) {
 		s := "abc"
 		i := 2000
 		d := time.Second
-		wantAllocs(t, 10, func() {
+		wantAllocs(t, 1, func() {
 			dl.Info("hello",
 				"n", i, "s", s, "d", d,
 				"n", i, "s", s, "d", d,
@@ -296,7 +404,7 @@ func TestAlloc(t *testing.T) {
 		})
 	})
 	t.Run("attrs3 disabled", func(t *testing.T) {
-		logger := New(discardHandler{disabled: true})
+		logger := New(DiscardHandler)
 		wantAllocs(t, 0, func() {
 			logger.LogAttrs(ctx, LevelInfo, "hello", Int("a", 1), String("b", "two"), Duration("c", time.Second))
 		})
@@ -357,6 +465,71 @@ func TestSetDefault(t *testing.T) {
 	}
 }
 
+// Test defaultHandler minimum level without calling slog.SetDefault.
+func TestLogLoggerLevelForDefaultHandler(t *testing.T) {
+	// Revert any changes to the default logger, flags, and level of log and slog.
+	currentLogLoggerLevel := logLoggerLevel.Level()
+	currentLogWriter := log.Writer()
+	currentLogFlags := log.Flags()
+	t.Cleanup(func() {
+		logLoggerLevel.Set(currentLogLoggerLevel)
+		log.SetOutput(currentLogWriter)
+		log.SetFlags(currentLogFlags)
+	})
+
+	var logBuf bytes.Buffer
+	log.SetOutput(&logBuf)
+	log.SetFlags(0)
+
+	for _, test := range []struct {
+		logLevel Level
+		logFn    func(string, ...any)
+		want     string
+	}{
+		{LevelDebug, Debug, "DEBUG a"},
+		{LevelDebug, Info, "INFO a"},
+		{LevelInfo, Debug, ""},
+		{LevelInfo, Info, "INFO a"},
+	} {
+		SetLogLoggerLevel(test.logLevel)
+		test.logFn("a")
+		checkLogOutput(t, logBuf.String(), test.want)
+		logBuf.Reset()
+	}
+}
+
+// Test handlerWriter minimum level by calling slog.SetDefault.
+func TestLogLoggerLevelForHandlerWriter(t *testing.T) {
+	removeTime := func(_ []string, a Attr) Attr {
+		if a.Key == TimeKey {
+			return Attr{}
+		}
+		return a
+	}
+
+	// Revert any changes to the default logger. This is important because other
+	// tests might change the default logger using SetDefault. Also ensure we
+	// restore the default logger at the end of the test.
+	currentLogger := Default()
+	currentLogLoggerLevel := logLoggerLevel.Level()
+	currentLogWriter := log.Writer()
+	currentFlags := log.Flags()
+	t.Cleanup(func() {
+		SetDefault(currentLogger)
+		logLoggerLevel.Set(currentLogLoggerLevel)
+		log.SetOutput(currentLogWriter)
+		log.SetFlags(currentFlags)
+	})
+
+	var logBuf bytes.Buffer
+	log.SetOutput(&logBuf)
+	log.SetFlags(0)
+	SetLogLoggerLevel(LevelError)
+	SetDefault(New(NewTextHandler(&logBuf, &HandlerOptions{ReplaceAttr: removeTime})))
+	log.Print("error")
+	checkLogOutput(t, logBuf.String(), `level=ERROR msg=error`)
+}
+
 func TestLoggerError(t *testing.T) {
 	var buf bytes.Buffer
 
@@ -381,7 +554,7 @@ func TestNewLogLogger(t *testing.T) {
 	h := NewTextHandler(&buf, nil)
 	ll := NewLogLogger(h, LevelWarn)
 	ll.Print("hello")
-	checkLogOutput(t, buf.String(), "time="+timeRE+` level=WARN msg=hello`)
+	checkLogOutput(t, buf.String(), "time="+textTimeRE+` level=WARN msg=hello`)
 }
 
 func TestLoggerNoOps(t *testing.T) {
@@ -494,18 +667,17 @@ func (c *captureHandler) clear() {
 	c.r = Record{}
 }
 
-type discardHandler struct {
-	disabled bool
-	attrs    []Attr
+type discardTestHandler struct {
+	attrs []Attr
 }
 
-func (d discardHandler) Enabled(context.Context, Level) bool { return !d.disabled }
-func (discardHandler) Handle(context.Context, Record) error  { return nil }
-func (d discardHandler) WithAttrs(as []Attr) Handler {
+func (d discardTestHandler) Enabled(context.Context, Level) bool { return true }
+func (discardTestHandler) Handle(context.Context, Record) error  { return nil }
+func (d discardTestHandler) WithAttrs(as []Attr) Handler {
 	d.attrs = concat(d.attrs, as)
 	return d
 }
-func (h discardHandler) WithGroup(name string) Handler {
+func (h discardTestHandler) WithGroup(name string) Handler {
 	return h
 }
 
@@ -572,8 +744,8 @@ func callerPC(depth int) uintptr {
 }
 
 func wantAllocs(t *testing.T, want int, f func()) {
-	if race.Enabled {
-		t.Skip("skipping test in race mode")
+	if race.Enabled || asan.Enabled || msan.Enabled {
+		t.Skip("skipping test in race, asan, and msan modes")
 	}
 	testenv.SkipIfOptimizationOff(t)
 	t.Helper()
@@ -633,10 +805,10 @@ func TestPanics(t *testing.T) {
 		in  any
 		out string
 	}{
-		{(*panicTextAndJsonMarshaler)(nil), `{"time":"` + timeRE + `","level":"INFO","msg":"msg","p":null}`},
-		{panicTextAndJsonMarshaler{io.ErrUnexpectedEOF}, `{"time":"` + timeRE + `","level":"INFO","msg":"msg","p":"!PANIC: unexpected EOF"}`},
-		{panicTextAndJsonMarshaler{"panicking"}, `{"time":"` + timeRE + `","level":"INFO","msg":"msg","p":"!PANIC: panicking"}`},
-		{panicTextAndJsonMarshaler{42}, `{"time":"` + timeRE + `","level":"INFO","msg":"msg","p":"!PANIC: 42"}`},
+		{(*panicTextAndJsonMarshaler)(nil), `{"time":"` + jsonTimeRE + `","level":"INFO","msg":"msg","p":null}`},
+		{panicTextAndJsonMarshaler{io.ErrUnexpectedEOF}, `{"time":"` + jsonTimeRE + `","level":"INFO","msg":"msg","p":"!PANIC: unexpected EOF"}`},
+		{panicTextAndJsonMarshaler{"panicking"}, `{"time":"` + jsonTimeRE + `","level":"INFO","msg":"msg","p":"!PANIC: panicking"}`},
+		{panicTextAndJsonMarshaler{42}, `{"time":"` + jsonTimeRE + `","level":"INFO","msg":"msg","p":"!PANIC: 42"}`},
 	} {
 		Info("msg", "p", pt.in)
 		checkLogOutput(t, logBuf.String(), pt.out)

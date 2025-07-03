@@ -16,7 +16,7 @@ func TestLookPathUnixEmptyPath(t *testing.T) {
 	// Not parallel: uses Chdir and Setenv.
 
 	tmp := t.TempDir()
-	chdir(t, tmp)
+	t.Chdir(tmp)
 
 	f, err := os.OpenFile("exec_me", os.O_CREATE|os.O_EXCL, 0700)
 	if err != nil {

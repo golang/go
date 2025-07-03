@@ -7,7 +7,6 @@ package typecheck
 import (
 	"fmt"
 	"go/constant"
-	"go/token"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -160,11 +159,6 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 	lno := ir.SetPos(n)
 	defer func() { base.Pos = lno }()
 
-	// Skip over parens.
-	for n.Op() == ir.OPAREN {
-		n = n.(*ir.ParenExpr).X
-	}
-
 	// Skip typecheck if already done.
 	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
 	if n.Typecheck() == 1 || n.Typecheck() == 3 {
@@ -216,6 +210,11 @@ func indexlit(n ir.Node) ir.Node {
 
 // typecheck1 should ONLY be called from typecheck.
 func typecheck1(n ir.Node, top int) ir.Node {
+	// Skip over parens.
+	for n.Op() == ir.OPAREN {
+		n = n.(*ir.ParenExpr).X
+	}
+
 	switch n.Op() {
 	default:
 		ir.Dump("typecheck", n)
@@ -438,7 +437,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.UnaryExpr)
 		return tcNew(n)
 
-	case ir.OPRINT, ir.OPRINTN:
+	case ir.OPRINT, ir.OPRINTLN:
 		n := n.(*ir.CallExpr)
 		return tcPrint(n)
 
@@ -491,7 +490,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n.SetType(types.Types[types.TUINTPTR])
 		return n
 
-	case ir.OGETCALLERPC, ir.OGETCALLERSP:
+	case ir.OGETCALLERSP:
 		n := n.(*ir.CallExpr)
 		if len(n.Args) != 0 {
 			base.FatalfAt(n.Pos(), "unexpected arguments: %v", n)
@@ -626,7 +625,7 @@ func typecheckargs(n ir.InitNode) {
 // RewriteNonNameCall replaces non-Name call expressions with temps,
 // rewriting f()(...) to t0 := f(); t0(...).
 func RewriteNonNameCall(n *ir.CallExpr) {
-	np := &n.X
+	np := &n.Fun
 	if dot, ok := (*np).(*ir.SelectorExpr); ok && (dot.Op() == ir.ODOTMETH || dot.Op() == ir.ODOTINTER || dot.Op() == ir.OMETHVALUE) {
 		np = &dot.X // peel away method selector
 	}
@@ -663,14 +662,14 @@ func RewriteMultiValueCall(n ir.InitNode, call ir.Node) {
 
 	switch n := n.(type) {
 	default:
-		base.Fatalf("rewriteMultiValueCall %+v", n.Op())
+		base.Fatalf("RewriteMultiValueCall %+v", n.Op())
 	case *ir.CallExpr:
 		n.Args = list
 	case *ir.ReturnStmt:
 		n.Results = list
 	case *ir.AssignListStmt:
 		if n.Op() != ir.OAS2FUNC {
-			base.Fatalf("rewriteMultiValueCall: invalid op %v", n.Op())
+			base.Fatalf("RewriteMultiValueCall: invalid op %v", n.Op())
 		}
 		as.SetOp(ir.OAS2FUNC)
 		n.SetOp(ir.OAS2)
@@ -681,7 +680,7 @@ func RewriteMultiValueCall(n ir.InitNode, call ir.Node) {
 	}
 }
 
-func checksliceindex(l ir.Node, r ir.Node, tp *types.Type) bool {
+func checksliceindex(r ir.Node) bool {
 	t := r.Type()
 	if t == nil {
 		return false
@@ -690,33 +689,6 @@ func checksliceindex(l ir.Node, r ir.Node, tp *types.Type) bool {
 		base.Errorf("invalid slice index %v (type %v)", r, t)
 		return false
 	}
-
-	if r.Op() == ir.OLITERAL {
-		x := r.Val()
-		if constant.Sign(x) < 0 {
-			base.Errorf("invalid slice index %v (index must be non-negative)", r)
-			return false
-		} else if tp != nil && tp.NumElem() >= 0 && constant.Compare(x, token.GTR, constant.MakeInt64(tp.NumElem())) {
-			base.Errorf("invalid slice index %v (out of bounds for %d-element array)", r, tp.NumElem())
-			return false
-		} else if ir.IsConst(l, constant.String) && constant.Compare(x, token.GTR, constant.MakeInt64(int64(len(ir.StringVal(l))))) {
-			base.Errorf("invalid slice index %v (out of bounds for %d-byte string)", r, len(ir.StringVal(l)))
-			return false
-		} else if ir.ConstOverflow(x, types.Types[types.TINT]) {
-			base.Errorf("invalid slice index %v (index too large)", r)
-			return false
-		}
-	}
-
-	return true
-}
-
-func checksliceconst(lo ir.Node, hi ir.Node) bool {
-	if lo != nil && hi != nil && lo.Op() == ir.OLITERAL && hi.Op() == ir.OLITERAL && constant.Compare(lo.Val(), token.GTR, hi.Val()) {
-		base.Errorf("invalid slice index: %v > %v", lo, hi)
-		return false
-	}
-
 	return true
 }
 
@@ -1116,9 +1088,6 @@ func typecheckarraylit(elemType *types.Type, bound int64, elts []ir.Node, ctx st
 			elt := elt.(*ir.KeyExpr)
 			elt.Key = Expr(elt.Key)
 			key = IndexConst(elt.Key)
-			if key < 0 {
-				base.Fatalf("invalid index: %v", elt.Key)
-			}
 			kv = elt
 			r = elt.Value
 		}
@@ -1209,7 +1178,7 @@ func checkassignto(src *types.Type, dst ir.Node) {
 		return
 	}
 
-	if op, why := Assignop(src, dst.Type()); op == ir.OXXX {
+	if op, why := assignOp(src, dst.Type()); op == ir.OXXX {
 		base.Errorf("cannot assign %v to %L in multiple assignment%s", src, dst, why)
 		return
 	}
@@ -1240,20 +1209,6 @@ func checkmake(t *types.Type, arg string, np *ir.Node) bool {
 		return false
 	}
 
-	// Do range checks for constants before DefaultLit
-	// to avoid redundant "constant NNN overflows int" errors.
-	if n.Op() == ir.OLITERAL {
-		v := toint(n.Val())
-		if constant.Sign(v) < 0 {
-			base.Errorf("negative %s argument in make(%v)", arg, t)
-			return false
-		}
-		if ir.ConstOverflow(v, types.Types[types.TINT]) {
-			base.Errorf("%s argument too large in make(%v)", arg, t)
-			return false
-		}
-	}
-
 	// DefaultLit is necessary for non-constants too: n might be 1.1<<k.
 	// TODO(gri) The length argument requirements for (array/slice) make
 	// are the same as for index expressions. Factor the code better;
@@ -1271,20 +1226,6 @@ func checkunsafesliceorstring(op ir.Op, np *ir.Node) bool {
 	if !n.Type().IsInteger() && n.Type().Kind() != types.TIDEAL {
 		base.Errorf("non-integer len argument in %v - %v", op, n.Type())
 		return false
-	}
-
-	// Do range checks for constants before DefaultLit
-	// to avoid redundant "constant NNN overflows int" errors.
-	if n.Op() == ir.OLITERAL {
-		v := toint(n.Val())
-		if constant.Sign(v) < 0 {
-			base.Errorf("negative len argument in %v", op)
-			return false
-		}
-		if ir.ConstOverflow(v, types.Types[types.TINT]) {
-			base.Errorf("len argument too large in %v", op)
-			return false
-		}
 	}
 
 	// DefaultLit is necessary for non-constants too: n might be 1.1<<k.

@@ -6,9 +6,12 @@
 
 package syscall
 
-func OrigRlimitNofile() Rlimit {
-	if rlim, ok := origRlimitNofile.Load().(Rlimit); ok {
-		return rlim
-	}
-	return Rlimit{0, 0}
+import "sync/atomic"
+
+func OrigRlimitNofile() *Rlimit {
+	return origRlimitNofile.Load()
+}
+
+func GetInternalOrigRlimitNofile() *atomic.Pointer[Rlimit] {
+	return &origRlimitNofile
 }

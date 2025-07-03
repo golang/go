@@ -448,6 +448,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		//
 		// We disable open-coded defers in buildssa() on 386 ONLY with shared
 		// libraries because of this extra code added before deferreturn calls.
+		//
+		// computeDeferReturn in cmd/link/internal/ld/pcln.go depends
+		// on the size of these instructions.
 		if ctxt.Arch.Family == sys.AMD64 || (p.To.Sym != nil && p.To.Sym.Local()) || p.RegTo2 != 0 {
 			return
 		}

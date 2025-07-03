@@ -454,7 +454,7 @@ func init() {
 		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
 
 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
-		// I.e., if f calls g "calls" getcallerpc,
+		// I.e., if f calls g "calls" sys.GetCallerPC,
 		// the result should be the PC within f that g will return to.
 		// See runtime/stubs.go for a more detailed discussion.
 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
@@ -465,6 +465,9 @@ func init() {
 		// and R23 (REGTMP).
 		// Returns a pointer to a write barrier buffer in R25.
 		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ gpg) | buildReg("R31"), outputs: []regMask{buildReg("R25")}}, clobberFlags: true, aux: "Int64"},
+
+		// Do data barrier. arg0=memorys
+		{name: "LoweredPubBarrier", argLength: 1, asm: "SYNC", hasSideEffects: true},
 
 		// There are three of these functions so that they can have three different register inputs.
 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the

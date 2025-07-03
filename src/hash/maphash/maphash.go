@@ -2,24 +2,29 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package maphash provides hash functions on byte sequences.
+// Package maphash provides hash functions on byte sequences and comparable values.
 // These hash functions are intended to be used to implement hash tables or
 // other data structures that need to map arbitrary strings or byte
 // sequences to a uniform distribution on unsigned 64-bit integers.
-// Each different instance of a hash table or data structure should use its own Seed.
+// Each different instance of a hash table or data structure should use its own [Seed].
 //
 // The hash functions are not cryptographically secure.
 // (See crypto/sha256 and crypto/sha512 for cryptographic use.)
 package maphash
 
+import (
+	"hash"
+	"internal/abi"
+)
+
 // A Seed is a random value that selects the specific hash function
-// computed by a Hash. If two Hashes use the same Seeds, they
+// computed by a [Hash]. If two Hashes use the same Seeds, they
 // will compute the same hash values for any given input.
 // If two Hashes use different Seeds, they are very likely to compute
 // distinct hash values for any given input.
 //
-// A Seed must be initialized by calling MakeSeed.
-// The zero seed is uninitialized and not valid for use with Hash's SetSeed method.
+// A Seed must be initialized by calling [MakeSeed].
+// The zero seed is uninitialized and not valid for use with [Hash]'s SetSeed method.
 //
 // Each Seed value is local to a single process and cannot be serialized
 // or otherwise recreated in a different process.
@@ -75,7 +80,7 @@ func String(seed Seed, s string) uint64 {
 //
 // The zero Hash is a valid Hash ready to use.
 // A zero Hash chooses a random seed for itself during
-// the first call to a Reset, Write, Seed, or Sum64 method.
+// the first call to a Reset, Write, Seed, Clone, or Sum64 method.
 // For control over the seed, use SetSeed.
 //
 // The computed hash values depend only on the initial seed and
@@ -122,7 +127,7 @@ func (h *Hash) initSeed() {
 }
 
 // WriteByte adds b to the sequence of bytes hashed by h.
-// It never fails; the error result is for implementing io.ByteWriter.
+// It never fails; the error result is for implementing [io.ByteWriter].
 func (h *Hash) WriteByte(b byte) error {
 	if h.n == len(h.buf) {
 		h.flush()
@@ -133,7 +138,7 @@ func (h *Hash) WriteByte(b byte) error {
 }
 
 // Write adds b to the sequence of bytes hashed by h.
-// It always writes all of b and never fails; the count and error result are for implementing io.Writer.
+// It always writes all of b and never fails; the count and error result are for implementing [io.Writer].
 func (h *Hash) Write(b []byte) (int, error) {
 	size := len(b)
 	// Deal with bytes left over in h.buf.
@@ -165,7 +170,7 @@ func (h *Hash) Write(b []byte) (int, error) {
 }
 
 // WriteString adds the bytes of s to the sequence of bytes hashed by h.
-// It always writes all of s and never fails; the count and error result are for implementing io.StringWriter.
+// It always writes all of s and never fails; the count and error result are for implementing [io.StringWriter].
 func (h *Hash) WriteString(s string) (int, error) {
 	// WriteString mirrors Write. See Write for comments.
 	size := len(s)
@@ -196,10 +201,10 @@ func (h *Hash) Seed() Seed {
 	return h.seed
 }
 
-// SetSeed sets h to use seed, which must have been returned by MakeSeed
-// or by another Hash's Seed method.
-// Two Hash objects with the same seed behave identically.
-// Two Hash objects with different seeds will very likely behave differently.
+// SetSeed sets h to use seed, which must have been returned by [MakeSeed]
+// or by another [Hash.Seed] method.
+// Two [Hash] objects with the same seed behave identically.
+// Two [Hash] objects with different seeds will very likely behave differently.
 // Any bytes added to h before this call will be discarded.
 func (h *Hash) SetSeed(seed Seed) {
 	if seed.s == 0 {
@@ -230,7 +235,7 @@ func (h *Hash) flush() {
 
 // Sum64 returns h's current 64-bit value, which depends on
 // h's seed and the sequence of bytes added to h since the
-// last call to Reset or SetSeed.
+// last call to [Hash.Reset] or [Hash.SetSeed].
 //
 // All bits of the Sum64 result are close to uniformly and
 // independently distributed, so it can be safely reduced
@@ -255,8 +260,8 @@ func MakeSeed() Seed {
 }
 
 // Sum appends the hash's current 64-bit value to b.
-// It exists for implementing hash.Hash.
-// For direct calls, it is more efficient to use Sum64.
+// It exists for implementing [hash.Hash].
+// For direct calls, it is more efficient to use [Hash.Sum64].
 func (h *Hash) Sum(b []byte) []byte {
 	x := h.Sum64()
 	return append(b,
@@ -275,3 +280,31 @@ func (h *Hash) Size() int { return 8 }
 
 // BlockSize returns h's block size.
 func (h *Hash) BlockSize() int { return len(h.buf) }
+
+// Clone implements [hash.Cloner].
+func (h *Hash) Clone() (hash.Cloner, error) {
+	h.initSeed()
+	r := *h
+	return &r, nil
+}
+
+// Comparable returns the hash of comparable value v with the given seed
+// such that Comparable(s, v1) == Comparable(s, v2) if v1 == v2.
+// If v != v, then the resulting hash is randomly distributed.
+func Comparable[T comparable](seed Seed, v T) uint64 {
+	abi.EscapeNonString(v)
+	return comparableHash(v, seed)
+}
+
+// WriteComparable adds x to the data hashed by h.
+func WriteComparable[T comparable](h *Hash, x T) {
+	abi.EscapeNonString(x)
+	// writeComparable (not in purego mode) directly operates on h.state
+	// without using h.buf. Mix in the buffer length so it won't
+	// commute with a buffered write, which either changes h.n or changes
+	// h.state.
+	if h.n != 0 {
+		writeComparable(h, h.n)
+	}
+	writeComparable(h, x)
+}

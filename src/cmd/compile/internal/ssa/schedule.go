@@ -7,7 +7,9 @@ package ssa
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
+	"cmp"
 	"container/heap"
+	"slices"
 	"sort"
 )
 
@@ -20,6 +22,7 @@ const (
 	ScoreMemory
 	ScoreReadFlags
 	ScoreDefault
+	ScoreInductionInc // an increment of an induction variable
 	ScoreFlags
 	ScoreControl // towards bottom of block
 )
@@ -183,14 +186,29 @@ func schedule(f *Func) {
 				// Note that this case is after the case above, so values
 				// which both read and generate flags are given ScoreReadFlags.
 				score[v.ID] = ScoreFlags
+			case (len(v.Args) == 1 &&
+				v.Args[0].Op == OpPhi &&
+				v.Args[0].Uses > 1 &&
+				len(b.Succs) == 1 &&
+				b.Succs[0].b == v.Args[0].Block &&
+				v.Args[0].Args[b.Succs[0].i] == v):
+				// This is a value computing v++ (or similar) in a loop.
+				// Try to schedule it later, so we issue all uses of v before the v++.
+				// If we don't, then we need an additional move.
+				// loop:
+				//     p = (PHI v ...)
+				//     ... ok other uses of p ...
+				//     v = (ADDQconst [1] p)
+				//     ... troublesome other uses of p ...
+				//     goto loop
+				// We want to allocate p and v to the same register so when we get to
+				// the end of the block we don't have to move v back to p's register.
+				// But we can only do that if v comes after all the other uses of p.
+				// Any "troublesome" use means we have to reg-reg move either p or v
+				// somewhere in the loop.
+				score[v.ID] = ScoreInductionInc
 			default:
 				score[v.ID] = ScoreDefault
-				// If we're reading flags, schedule earlier to keep flag lifetime short.
-				for _, a := range v.Args {
-					if a.isFlagOp() {
-						score[v.ID] = ScoreReadFlags
-					}
-				}
 			}
 		}
 		for _, c := range b.ControlValues() {
@@ -260,8 +278,8 @@ func schedule(f *Func) {
 		}
 
 		// Sort all the edges by source Value ID.
-		sort.Slice(edges, func(i, j int) bool {
-			return edges[i].x.ID < edges[j].x.ID
+		slices.SortFunc(edges, func(a, b edge) int {
+			return cmp.Compare(a.x.ID, b.x.ID)
 		})
 		// Compute inEdges for values in this block.
 		for _, e := range edges {
@@ -307,12 +325,21 @@ func schedule(f *Func) {
 	}
 
 	// Remove SPanchored now that we've scheduled.
+	// Also unlink nil checks now that ordering is assured
+	// between the nil check and the uses of the nil-checked pointer.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			for i, a := range v.Args {
-				if a.Op == OpSPanchored {
-					v.SetArg(i, a.Args[0])
+				for a.Op == OpSPanchored || opcodeTable[a.Op].nilCheck {
+					a = a.Args[0]
+					v.SetArg(i, a)
 				}
+			}
+		}
+		for i, c := range b.ControlValues() {
+			for c.Op == OpSPanchored || opcodeTable[c.Op].nilCheck {
+				c = c.Args[0]
+				b.ReplaceControl(i, c)
 			}
 		}
 	}
@@ -327,6 +354,15 @@ func schedule(f *Func) {
 				v.resetArgs()
 				f.freeValue(v)
 			} else {
+				if opcodeTable[v.Op].nilCheck {
+					if v.Uses != 0 {
+						base.Fatalf("nilcheck still has %d uses", v.Uses)
+					}
+					// We can't delete the nil check, but we mark
+					// it as having void type so regalloc won't
+					// try to allocate a register for it.
+					v.Type = types.TypeVoid
+				}
 				b.Values[i] = v
 				i++
 			}
@@ -509,13 +545,13 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 				}
 			} else {
 				if start != -1 {
-					sort.Sort(bySourcePos(order[start:i]))
+					slices.SortFunc(order[start:i], valuePosCmp)
 					start = -1
 				}
 			}
 		}
 		if start != -1 {
-			sort.Sort(bySourcePos(order[start:]))
+			slices.SortFunc(order[start:], valuePosCmp)
 		}
 	}
 
@@ -546,14 +582,18 @@ func (v *Value) hasFlagInput() bool {
 	// PPC64 carry dependencies are conveyed through their final argument,
 	// so we treat those operations as taking flags as well.
 	switch v.Op {
-	case OpPPC64SUBE, OpPPC64ADDE, OpPPC64SUBZEzero, OpPPC64ADDZEzero:
+	case OpPPC64SUBE, OpPPC64ADDE, OpPPC64SUBZEzero, OpPPC64ADDZE, OpPPC64ADDZEzero:
 		return true
 	}
 	return false
 }
 
-type bySourcePos []*Value
-
-func (s bySourcePos) Len() int           { return len(s) }
-func (s bySourcePos) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s bySourcePos) Less(i, j int) bool { return s[i].Pos.Before(s[j].Pos) }
+func valuePosCmp(a, b *Value) int {
+	if a.Pos.Before(b.Pos) {
+		return -1
+	}
+	if a.Pos.After(b.Pos) {
+		return +1
+	}
+	return 0
+}

@@ -5,12 +5,13 @@
 // Though the debug call function feature is not enabled on
 // ppc64, inserted ppc64 to avoid missing Go declaration error
 // for debugCallPanicked while building runtime.test
-//go:build amd64 || arm64 || ppc64le || ppc64
+//go:build amd64 || arm64 || loong64 || ppc64le || ppc64
 
 package runtime
 
 import (
 	"internal/abi"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -34,7 +35,7 @@ func debugCallCheck(pc uintptr) string {
 	if getg() != getg().m.curg {
 		return debugCallSystemStack
 	}
-	if sp := getcallersp(); !(getg().stack.lo < sp && sp <= getg().stack.hi) {
+	if sp := sys.GetCallerSP(); !(getg().stack.lo < sp && sp <= getg().stack.hi) {
 		// Fast syscalls (nanotime) and racecall switch to the
 		// g0 stack without switching g. We can't safely make
 		// a call in this state. (We can't even safely
@@ -106,7 +107,7 @@ func debugCallCheck(pc uintptr) string {
 //go:nosplit
 func debugCallWrap(dispatch uintptr) {
 	var lockedExt uint32
-	callerpc := getcallerpc()
+	callerpc := sys.GetCallerPC()
 	gp := getg()
 
 	// Lock ourselves to the OS thread.
@@ -124,7 +125,7 @@ func debugCallWrap(dispatch uintptr) {
 		// closure and start the goroutine with that closure, but the compiler disallows
 		// implicit closure allocation in the runtime.
 		fn := debugCallWrap1
-		newg := newproc1(*(**funcval)(unsafe.Pointer(&fn)), gp, callerpc)
+		newg := newproc1(*(**funcval)(unsafe.Pointer(&fn)), gp, callerpc, false, waitReasonZero)
 		args := &debugCallWrapArgs{
 			dispatch: dispatch,
 			callingG: gp,
@@ -166,10 +167,17 @@ func debugCallWrap(dispatch uintptr) {
 		gp.schedlink = 0
 
 		// Park the calling goroutine.
-		if traceEnabled() {
-			traceGoPark(traceBlockDebugCall, 1)
+		trace := traceAcquire()
+		if trace.ok() {
+			// Trace the event before the transition. It may take a
+			// stack trace, but we won't own the stack after the
+			// transition anymore.
+			trace.GoPark(traceBlockDebugCall, 1)
 		}
 		casGToWaiting(gp, _Grunning, waitReasonDebugCall)
+		if trace.ok() {
+			traceRelease(trace)
+		}
 		dropg()
 
 		// Directly execute the new goroutine. The debug
@@ -225,19 +233,28 @@ func debugCallWrap1() {
 		// Switch back to the calling goroutine. At some point
 		// the scheduler will schedule us again and we'll
 		// finish exiting.
-		if traceEnabled() {
-			traceGoSched()
+		trace := traceAcquire()
+		if trace.ok() {
+			// Trace the event before the transition. It may take a
+			// stack trace, but we won't own the stack after the
+			// transition anymore.
+			trace.GoSched()
 		}
 		casgstatus(gp, _Grunning, _Grunnable)
+		if trace.ok() {
+			traceRelease(trace)
+		}
 		dropg()
 		lock(&sched.lock)
 		globrunqput(gp)
 		unlock(&sched.lock)
 
-		if traceEnabled() {
-			traceGoUnpark(callingG, 0)
-		}
+		trace = traceAcquire()
 		casgstatus(callingG, _Gwaiting, _Grunnable)
+		if trace.ok() {
+			trace.GoUnpark(callingG, 0)
+			traceRelease(trace)
+		}
 		execute(callingG, true)
 	})
 }

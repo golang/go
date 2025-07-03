@@ -8,8 +8,8 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/atomic"
-	"runtime/internal/sys"
+	"internal/runtime/atomic"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -405,7 +405,7 @@ func sigFetchG(c *sigctxt) *g {
 			// bottom of the signal stack. Fetch from there.
 			// TODO: in efence mode, stack is sysAlloc'd, so this wouldn't
 			// work.
-			sp := getcallersp()
+			sp := sys.GetCallerSP()
 			s := spanOf(sp)
 			if s != nil && s.state.get() == mSpanManual && s.base() < sp && sp < s.limit {
 				gp := *(**g)(unsafe.Pointer(s.base()))
@@ -479,7 +479,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	var gsignalStack gsignalStack
 	setStack := adjustSignalStack(sig, gp.m, &gsignalStack)
 	if setStack {
-		gp.m.gsignal.stktopsp = getcallersp()
+		gp.m.gsignal.stktopsp = sys.GetCallerSP()
 	}
 
 	if gp.stackguard0 == stackFork {
@@ -584,26 +584,47 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
 	}
 
 	// sp is not within gsignal stack, g0 stack, or sigaltstack. Bad.
+	// Call indirectly to avoid nosplit stack overflow on OpenBSD.
+	adjustSignalStack2Indirect(sig, sp, mp, st.ss_flags&_SS_DISABLE != 0)
+	return false
+}
+
+var adjustSignalStack2Indirect = adjustSignalStack2
+
+//go:nosplit
+func adjustSignalStack2(sig uint32, sp uintptr, mp *m, ssDisable bool) {
 	setg(nil)
 	needm(true)
-	if st.ss_flags&_SS_DISABLE != 0 {
+	if ssDisable {
 		noSignalStack(sig)
 	} else {
 		sigNotOnStack(sig, sp, mp)
 	}
 	dropm()
-	return false
 }
 
 // crashing is the number of m's we have waited for when implementing
 // GOTRACEBACK=crash when a signal is received.
-var crashing int32
+var crashing atomic.Int32
 
 // testSigtrap and testSigusr1 are used by the runtime tests. If
 // non-nil, it is called on SIGTRAP/SIGUSR1. If it returns true, the
 // normal behavior on this signal is suppressed.
 var testSigtrap func(info *siginfo, ctxt *sigctxt, gp *g) bool
 var testSigusr1 func(gp *g) bool
+
+// sigsysIgnored is non-zero if we are currently ignoring SIGSYS. See issue #69065.
+var sigsysIgnored uint32
+
+//go:linkname ignoreSIGSYS os.ignoreSIGSYS
+func ignoreSIGSYS() {
+	atomic.Store(&sigsysIgnored, 1)
+}
+
+//go:linkname restoreSIGSYS os.restoreSIGSYS
+func restoreSIGSYS() {
+	atomic.Store(&sigsysIgnored, 0)
+}
 
 // sighandler is invoked when a signal occurs. The global g will be
 // set to a gsignal goroutine and we will be running on the alternate
@@ -698,7 +719,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		// the unwinding code.
 		gp.sig = sig
 		gp.sigcode0 = uintptr(c.sigcode())
-		gp.sigcode1 = uintptr(c.fault())
+		gp.sigcode1 = c.fault()
 		gp.sigpc = c.sigpc()
 
 		c.preparePanic(sig, gp)
@@ -712,6 +733,10 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 
 	if c.sigFromUser() && signal_ignored(sig) {
+		return
+	}
+
+	if sig == _SIGSYS && c.sigFromSeccomp() && atomic.Load(&sigsysIgnored) != 0 {
 		return
 	}
 
@@ -730,7 +755,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	mp.throwing = throwTypeRuntime
 	mp.caughtsig.set(gp)
 
-	if crashing == 0 {
+	if crashing.Load() == 0 {
 		startpanic_m()
 	}
 
@@ -740,11 +765,11 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	if level > 0 {
 		goroutineheader(gp)
 		tracebacktrap(c.sigpc(), c.sigsp(), c.siglr(), gp)
-		if crashing > 0 && gp != mp.curg && mp.curg != nil && readgstatus(mp.curg)&^_Gscan == _Grunning {
+		if crashing.Load() > 0 && gp != mp.curg && mp.curg != nil && readgstatus(mp.curg)&^_Gscan == _Grunning {
 			// tracebackothers on original m skipped this one; trace it now.
 			goroutineheader(mp.curg)
 			traceback(^uintptr(0), ^uintptr(0), 0, mp.curg)
-		} else if crashing == 0 {
+		} else if crashing.Load() == 0 {
 			tracebackothers(gp)
 			print("\n")
 		}
@@ -752,21 +777,55 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 
 	if docrash {
-		crashing++
-		if crashing < mcount()-int32(extraMLength.Load()) {
+		var crashSleepMicros uint32 = 5000
+		var watchdogTimeoutMicros uint32 = 2000 * crashSleepMicros
+
+		isCrashThread := false
+		if crashing.CompareAndSwap(0, 1) {
+			isCrashThread = true
+		} else {
+			crashing.Add(1)
+		}
+		if crashing.Load() < mcount()-int32(extraMLength.Load()) {
 			// There are other m's that need to dump their stacks.
 			// Relay SIGQUIT to the next m by sending it to the current process.
 			// All m's that have already received SIGQUIT have signal masks blocking
 			// receipt of any signals, so the SIGQUIT will go to an m that hasn't seen it yet.
-			// When the last m receives the SIGQUIT, it will fall through to the call to
-			// crash below. Just in case the relaying gets botched, each m involved in
+			// The first m will wait until all ms received the SIGQUIT, then crash/exit.
+			// Just in case the relaying gets botched, each m involved in
 			// the relay sleeps for 5 seconds and then does the crash/exit itself.
-			// In expected operation, the last m has received the SIGQUIT and run
-			// crash/exit and the process is gone, all long before any of the
-			// 5-second sleeps have finished.
+			// The faulting m is crashing first so it is the faulting thread in the core dump (see issue #63277):
+			// in expected operation, the first m will wait until the last m has received the SIGQUIT,
+			// and then run crash/exit and the process is gone.
+			// However, if it spends more than 10 seconds to send SIGQUIT to all ms,
+			// any of ms may crash/exit the process after waiting for 10 seconds.
 			print("\n-----\n\n")
 			raiseproc(_SIGQUIT)
-			usleep(5 * 1000 * 1000)
+		}
+		if isCrashThread {
+			// Sleep for short intervals so that we can crash quickly after all ms have received SIGQUIT.
+			// Reset the timer whenever we see more ms received SIGQUIT
+			// to make it have enough time to crash (see issue #64752).
+			timeout := watchdogTimeoutMicros
+			maxCrashing := crashing.Load()
+			for timeout > 0 && (crashing.Load() < mcount()-int32(extraMLength.Load())) {
+				usleep(crashSleepMicros)
+				timeout -= crashSleepMicros
+
+				if c := crashing.Load(); c > maxCrashing {
+					// We make progress, so reset the watchdog timeout
+					maxCrashing = c
+					timeout = watchdogTimeoutMicros
+				}
+			}
+		} else {
+			maxCrashing := int32(0)
+			c := crashing.Load()
+			for c > maxCrashing {
+				maxCrashing = c
+				usleep(watchdogTimeoutMicros)
+				c = crashing.Load()
+			}
 		}
 		printDebugLog()
 		crash()
@@ -788,7 +847,11 @@ func fatalsignal(sig uint32, c *sigctxt, gp *g, mp *m) *g {
 		exit(2)
 	}
 
-	print("PC=", hex(c.sigpc()), " m=", mp.id, " sigcode=", c.sigcode(), "\n")
+	print("PC=", hex(c.sigpc()), " m=", mp.id, " sigcode=", c.sigcode())
+	if sig == _SIGSEGV || sig == _SIGBUS {
+		print(" addr=", hex(c.fault()))
+	}
+	print("\n")
 	if mp.incgo && gp == mp.g0 && mp.curg != nil {
 		print("signal arrived during cgo execution\n")
 		// Switch to curg so that we get a traceback of the Go code
@@ -934,10 +997,17 @@ func raisebadsignal(sig uint32, c *sigctxt) {
 	}
 
 	var handler uintptr
+	var flags int32
 	if sig >= _NSIG {
 		handler = _SIG_DFL
 	} else {
 		handler = atomic.Loaduintptr(&fwdSig[sig])
+		flags = sigtable[sig].flags
+	}
+
+	// If the signal is ignored, raising the signal is no-op.
+	if handler == _SIG_IGN || (handler == _SIG_DFL && flags&_SigIgn != 0) {
+		return
 	}
 
 	// Reset the signal handler and raise the signal.

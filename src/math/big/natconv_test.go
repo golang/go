@@ -350,7 +350,10 @@ func BenchmarkStringPiParallel(b *testing.B) {
 }
 
 func BenchmarkScan(b *testing.B) {
-	const x = 10
+	stk := getStack()
+	defer stk.free()
+
+	const x = 9 // avoid tested bases, in case runs of 0s are handled specially
 	for _, base := range []int{2, 8, 10, 16} {
 		for _, y := range []Word{10, 100, 1000, 10000, 100000} {
 			if isRaceBuilder && y > 1000 {
@@ -359,7 +362,7 @@ func BenchmarkScan(b *testing.B) {
 			b.Run(fmt.Sprintf("%d/Base%d", y, base), func(b *testing.B) {
 				b.StopTimer()
 				var z nat
-				z = z.expWW(x, y)
+				z = z.expWW(stk, x, y)
 
 				s := z.utoa(base)
 				if t := itoa(z, base); !bytes.Equal(s, t) {
@@ -376,6 +379,9 @@ func BenchmarkScan(b *testing.B) {
 }
 
 func BenchmarkString(b *testing.B) {
+	stk := getStack()
+	defer stk.free()
+
 	const x = 10
 	for _, base := range []int{2, 8, 10, 16} {
 		for _, y := range []Word{10, 100, 1000, 10000, 100000} {
@@ -385,7 +391,7 @@ func BenchmarkString(b *testing.B) {
 			b.Run(fmt.Sprintf("%d/Base%d", y, base), func(b *testing.B) {
 				b.StopTimer()
 				var z nat
-				z = z.expWW(x, y)
+				z = z.expWW(stk, x, y)
 				z.utoa(base) // warm divisor cache
 				b.StartTimer()
 
@@ -416,9 +422,11 @@ func LeafSizeHelper(b *testing.B, base, size int) {
 
 	for d := 1; d <= 10000; d *= 10 {
 		b.StopTimer()
+		stk := getStack()
 		var z nat
-		z = z.expWW(Word(base), Word(d)) // build target number
-		_ = z.utoa(base)                 // warm divisor cache
+		z = z.expWW(stk, Word(base), Word(d)) // build target number
+		_ = z.utoa(base)                      // warm divisor cache
+		stk.free()
 		b.StartTimer()
 
 		for i := 0; i < b.N; i++ {
@@ -443,13 +451,16 @@ func resetTable(table []divisor) {
 }
 
 func TestStringPowers(t *testing.T) {
+	stk := getStack()
+	defer stk.free()
+
 	var p Word
 	for b := 2; b <= 16; b++ {
 		for p = 0; p <= 512; p++ {
 			if testing.Short() && p > 10 {
 				break
 			}
-			x := nat(nil).expWW(Word(b), p)
+			x := nat(nil).expWW(stk, Word(b), p)
 			xs := x.utoa(b)
 			xs2 := itoa(x, b)
 			if !bytes.Equal(xs, xs2) {

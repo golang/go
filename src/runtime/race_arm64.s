@@ -163,7 +163,7 @@ data:
 	BLT	ret
 	MOVD	runtime·racedataend(SB), R10
 	CMP	R10, R1
-	BGT	ret
+	BGE	ret
 call:
 	JMP	racecall<>(SB)
 ret:
@@ -312,6 +312,56 @@ TEXT	sync∕atomic·AddUintptr(SB), NOSPLIT, $0-24
 	GO_ARGS
 	JMP	sync∕atomic·AddInt64(SB)
 
+// And
+TEXT	sync∕atomic·AndInt32(SB), NOSPLIT, $0-20
+	GO_ARGS
+	MOVD	$__tsan_go_atomic32_fetch_and(SB), R9
+	BL	racecallatomic<>(SB)
+	RET
+
+TEXT	sync∕atomic·AndInt64(SB), NOSPLIT, $0-24
+	GO_ARGS
+	MOVD	$__tsan_go_atomic64_fetch_and(SB), R9
+	BL	racecallatomic<>(SB)
+	RET
+
+TEXT	sync∕atomic·AndUint32(SB), NOSPLIT, $0-20
+	GO_ARGS
+	JMP	sync∕atomic·AndInt32(SB)
+
+TEXT	sync∕atomic·AndUint64(SB), NOSPLIT, $0-24
+	GO_ARGS
+	JMP	sync∕atomic·AndInt64(SB)
+
+TEXT	sync∕atomic·AndUintptr(SB), NOSPLIT, $0-24
+	GO_ARGS
+	JMP	sync∕atomic·AndInt64(SB)
+
+// Or
+TEXT	sync∕atomic·OrInt32(SB), NOSPLIT, $0-20
+	GO_ARGS
+	MOVD	$__tsan_go_atomic32_fetch_or(SB), R9
+	BL	racecallatomic<>(SB)
+	RET
+
+TEXT	sync∕atomic·OrInt64(SB), NOSPLIT, $0-24
+	GO_ARGS
+	MOVD	$__tsan_go_atomic64_fetch_or(SB), R9
+	BL	racecallatomic<>(SB)
+	RET
+
+TEXT	sync∕atomic·OrUint32(SB), NOSPLIT, $0-20
+	GO_ARGS
+	JMP	sync∕atomic·OrInt32(SB)
+
+TEXT	sync∕atomic·OrUint64(SB), NOSPLIT, $0-24
+	GO_ARGS
+	JMP	sync∕atomic·OrInt64(SB)
+
+TEXT	sync∕atomic·OrUintptr(SB), NOSPLIT, $0-24
+	GO_ARGS
+	JMP	sync∕atomic·OrInt64(SB)
+
 // CompareAndSwap
 TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT, $0-17
 	GO_ARGS
@@ -413,12 +463,23 @@ TEXT	racecall<>(SB), NOSPLIT|NOFRAME, $0-0
 	// Switch to g0 stack.
 	MOVD	RSP, R19	// callee-saved, preserved across the CALL
 	MOVD	R30, R20	// callee-saved, preserved across the CALL
+
+	// Switch to g0 stack if we aren't already on g0 or gsignal.
+	MOVD	m_gsignal(R10), R11
+	CMP	R11, g
+	BEQ	call
+
 	MOVD	m_g0(R10), R11
 	CMP	R11, g
-	BEQ	call	// already on g0
+	BEQ	call
+
 	MOVD	(g_sched+gobuf_sp)(R11), R12
 	MOVD	R12, RSP
 call:
+	// Decrement SP past where the frame pointer is saved in the Go arm64
+	// ABI (one word below the stack pointer) so the race detector library
+	// code doesn't clobber it
+	SUB	$16, RSP
 	BL	R9
 	MOVD	R19, RSP
 	JMP	(R20)

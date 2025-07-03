@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 )
@@ -144,6 +145,8 @@ func indirectToJSONMarshaler(a any) any {
 	return v.Interface()
 }
 
+var scriptTagRe = regexp.MustCompile("(?i)<(/?)script")
+
 // jsValEscaper escapes its inputs to a JS Expression (section 11.14) that has
 // neither side-effects nor free variables outside (NaN, Infinity).
 func jsValEscaper(args ...any) string {
@@ -171,13 +174,31 @@ func jsValEscaper(args ...any) string {
 	// cyclic data. This may be an unacceptable DoS risk.
 	b, err := json.Marshal(a)
 	if err != nil {
-		// Put a space before comment so that if it is flush against
+		// While the standard JSON marshaler does not include user controlled
+		// information in the error message, if a type has a MarshalJSON method,
+		// the content of the error message is not guaranteed. Since we insert
+		// the error into the template, as part of a comment, we attempt to
+		// prevent the error from either terminating the comment, or the script
+		// block itself.
+		//
+		// In particular we:
+		//   * replace "*/" comment end tokens with "* /", which does not
+		//     terminate the comment
+		//   * replace "<script" and "</script" with "\x3Cscript" and "\x3C/script"
+		//     (case insensitively), and "<!--" with "\x3C!--", which prevents
+		//     confusing script block termination semantics
+		//
+		// We also put a space before the comment so that if it is flush against
 		// a division operator it is not turned into a line comment:
 		//     x/{{y}}
 		// turning into
 		//     x//* error marshaling y:
 		//          second line of error message */null
-		return fmt.Sprintf(" /* %s */null ", strings.ReplaceAll(err.Error(), "*/", "* /"))
+		errStr := err.Error()
+		errStr = string(scriptTagRe.ReplaceAll([]byte(errStr), []byte(`\x3C${1}script`)))
+		errStr = strings.ReplaceAll(errStr, "*/", "* /")
+		errStr = strings.ReplaceAll(errStr, "<!--", `\x3C!--`)
+		return fmt.Sprintf(" /* %s */null ", errStr)
 	}
 
 	// TODO: maybe post-process output to prevent it from containing
@@ -236,6 +257,11 @@ func jsStrEscaper(args ...any) string {
 		return replace(s, jsStrNormReplacementTable)
 	}
 	return replace(s, jsStrReplacementTable)
+}
+
+func jsTmplLitEscaper(args ...any) string {
+	s, _ := stringify(args...)
+	return replace(s, jsBqStrReplacementTable)
 }
 
 // jsRegexpEscaper behaves like jsStrEscaper but escapes regular expression
@@ -322,6 +348,31 @@ var jsStrReplacementTable = []string{
 	'<':  `\u003c`,
 	'>':  `\u003e`,
 	'\\': `\\`,
+}
+
+// jsBqStrReplacementTable is like jsStrReplacementTable except it also contains
+// the special characters for JS template literals: $, {, and }.
+var jsBqStrReplacementTable = []string{
+	0:    `\u0000`,
+	'\t': `\t`,
+	'\n': `\n`,
+	'\v': `\u000b`, // "\v" == "v" on IE 6.
+	'\f': `\f`,
+	'\r': `\r`,
+	// Encode HTML specials as hex so the output can be embedded
+	// in HTML attributes without further encoding.
+	'"':  `\u0022`,
+	'`':  `\u0060`,
+	'&':  `\u0026`,
+	'\'': `\u0027`,
+	'+':  `\u002b`,
+	'/':  `\/`,
+	'<':  `\u003c`,
+	'>':  `\u003e`,
+	'\\': `\\`,
+	'$':  `\u0024`,
+	'{':  `\u007b`,
+	'}':  `\u007d`,
 }
 
 // jsStrNormReplacementTable is like jsStrReplacementTable but does not

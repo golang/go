@@ -70,15 +70,6 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	c := typecheck.TempAt(base.Pos, ir.CurFunc, fromType)
 	init.Append(ir.NewAssignStmt(base.Pos, c, n.X))
 
-	// Grab its parts.
-	itab := ir.NewUnaryExpr(base.Pos, ir.OITAB, c)
-	itab.SetType(types.Types[types.TUINTPTR].PtrTo())
-	itab.SetTypecheck(1)
-	data := ir.NewUnaryExpr(n.Pos(), ir.OIDATA, c)
-	data.SetType(types.Types[types.TUINT8].PtrTo()) // Type is generic pointer - we're just passing it through.
-	data.SetTypecheck(1)
-
-	var typeWord ir.Node
 	if toType.IsEmptyInterface() {
 		// Implement interface to empty interface conversion:
 		//
@@ -87,27 +78,50 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		// if res != nil {
 		//    res = res.type
 		// }
-		typeWord = typecheck.TempAt(base.Pos, ir.CurFunc, types.NewPtr(types.Types[types.TUINT8]))
+
+		// Grab its parts.
+		itab := ir.NewUnaryExpr(base.Pos, ir.OITAB, c)
+		itab.SetType(types.Types[types.TUINTPTR].PtrTo())
+		itab.SetTypecheck(1)
+		data := ir.NewUnaryExpr(n.Pos(), ir.OIDATA, c)
+		data.SetType(types.Types[types.TUINT8].PtrTo()) // Type is generic pointer - we're just passing it through.
+		data.SetTypecheck(1)
+
+		typeWord := typecheck.TempAt(base.Pos, ir.CurFunc, types.NewPtr(types.Types[types.TUINT8]))
 		init.Append(ir.NewAssignStmt(base.Pos, typeWord, typecheck.Conv(typecheck.Conv(itab, types.Types[types.TUNSAFEPTR]), typeWord.Type())))
 		nif := ir.NewIfStmt(base.Pos, typecheck.Expr(ir.NewBinaryExpr(base.Pos, ir.ONE, typeWord, typecheck.NodNil())), nil, nil)
 		nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, typeWord, itabType(typeWord))}
 		init.Append(nif)
-	} else {
-		// Must be converting I2I (more specific to less specific interface).
-		// res = convI2I(toType, itab)
-		fn := typecheck.LookupRuntime("convI2I")
-		types.CalcSize(fn.Type())
-		call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
-		call.Args = []ir.Node{reflectdata.ConvIfaceTypeWord(base.Pos, n), itab}
-		typeWord = walkExpr(typecheck.Expr(call), init)
+
+		// Build the result.
+		// e = iface{typeWord, data}
+		e := ir.NewBinaryExpr(base.Pos, ir.OMAKEFACE, typeWord, data)
+		e.SetType(toType) // assign type manually, typecheck doesn't understand OEFACE.
+		e.SetTypecheck(1)
+		return e
 	}
 
-	// Build the result.
-	// e = iface{typeWord, data}
-	e := ir.NewBinaryExpr(base.Pos, ir.OMAKEFACE, typeWord, data)
-	e.SetType(toType) // assign type manually, typecheck doesn't understand OEFACE.
-	e.SetTypecheck(1)
-	return e
+	// Must be converting I2I (more specific to less specific interface).
+	// Use the same code as e, _ = c.(T).
+	var rhs ir.Node
+	if n.TypeWord == nil || n.TypeWord.Op() == ir.OADDR && n.TypeWord.(*ir.AddrExpr).X.Op() == ir.OLINKSYMOFFSET {
+		// Fixed (not loaded from a dictionary) type.
+		ta := ir.NewTypeAssertExpr(base.Pos, c, toType)
+		ta.SetOp(ir.ODOTTYPE2)
+		// Allocate a descriptor for this conversion to pass to the runtime.
+		ta.Descriptor = makeTypeAssertDescriptor(toType, true)
+		rhs = ta
+	} else {
+		ta := ir.NewDynamicTypeAssertExpr(base.Pos, ir.ODYNAMICDOTTYPE2, c, n.TypeWord)
+		rhs = ta
+	}
+	rhs.SetType(toType)
+	rhs.SetTypecheck(1)
+
+	res := typecheck.TempAt(base.Pos, ir.CurFunc, toType)
+	as := ir.NewAssignListStmt(base.Pos, ir.OAS2DOTTYPE, []ir.Node{res, ir.BlankNode}, []ir.Node{rhs})
+	init.Append(as)
+	return res
 }
 
 // Returns the data word (the second word) used to represent conv.X in
@@ -127,16 +141,27 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		isInteger = sc.IsInteger()
 		isBool = sc.IsBoolean()
 	}
+
+	diagnose := func(msg string, n ir.Node) {
+		if base.Debug.EscapeDebug > 0 {
+			// This output is most useful with -gcflags=-W=2 or similar because
+			// it often prints a temp variable name.
+			base.WarnfAt(n.Pos(), "convert: %s: %v", msg, n)
+		}
+	}
+
 	// Try a bunch of cases to avoid an allocation.
 	var value ir.Node
 	switch {
 	case fromType.Size() == 0:
 		// n is zero-sized. Use zerobase.
+		diagnose("using global for zero-sized interface value", n)
 		cheapExpr(n, init) // Evaluate n for side-effects. See issue 19246.
 		value = ir.NewLinksymExpr(base.Pos, ir.Syms.Zerobase, types.Types[types.TUINTPTR])
 	case isBool || fromType.Size() == 1 && isInteger:
 		// n is a bool/byte. Use staticuint64s[n * 8] on little-endian
 		// and staticuint64s[n * 8 + 7] on big-endian.
+		diagnose("using global for single-byte interface value", n)
 		n = cheapExpr(n, init)
 		n = soleComponent(init, n)
 		// byteindex widens n so that the multiplication doesn't overflow.
@@ -150,11 +175,18 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		xe := ir.NewIndexExpr(base.Pos, staticuint64s, index)
 		xe.SetBounded(true)
 		value = xe
+	case n.Op() == ir.OLINKSYMOFFSET && n.(*ir.LinksymOffsetExpr).Linksym == ir.Syms.ZeroVal && n.(*ir.LinksymOffsetExpr).Offset_ == 0:
+		// n is using zeroVal, so we can use n directly.
+		// (Note that n does not have a proper pos in this case, so using conv for the diagnostic instead.)
+		diagnose("using global for zero value interface value", conv)
+		value = n
 	case n.Op() == ir.ONAME && n.(*ir.Name).Class == ir.PEXTERN && n.(*ir.Name).Readonly():
 		// n is a readonly global; use it directly.
+		diagnose("using global for interface value", n)
 		value = n
 	case conv.Esc() == ir.EscNone && fromType.Size() <= 1024:
 		// n does not escape. Use a stack temporary initialized to n.
+		diagnose("using stack temporary for interface value", n)
 		value = typecheck.TempAt(base.Pos, ir.CurFunc, fromType)
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(base.Pos, value, n)))
 	}
@@ -256,6 +288,11 @@ func walkRuneToString(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 // walkStringToBytes walks an OSTR2BYTES node.
 func walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	s := n.X
+
+	if expr, ok := s.(*ir.AddStringExpr); ok {
+		return walkAddString(expr, init, n)
+	}
+
 	if ir.IsConst(s, constant.String) {
 		sc := ir.StringVal(s)
 

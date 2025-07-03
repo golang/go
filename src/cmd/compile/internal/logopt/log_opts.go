@@ -309,7 +309,7 @@ func parseLogPath(destination string) (string, string) {
 func checkLogPath(destination string) string {
 	path, complaint := parseLogPath(destination)
 	if complaint != "" {
-		log.Fatalf(complaint)
+		log.Fatal(complaint)
 	}
 	err := os.MkdirAll(path, 0755)
 	if err != nil {
@@ -326,7 +326,7 @@ var mu = sync.Mutex{} // mu protects loggedOpts.
 // funcName is the name of the function
 // A typical use for this to accumulate an explanation for a missed optimization, for example, why did something escape?
 func NewLoggedOpt(pos, lastPos src.XPos, what, pass, funcName string, args ...interface{}) *LoggedOpt {
-	pass = strings.Replace(pass, " ", "_", -1)
+	pass = strings.ReplaceAll(pass, " ", "_")
 	return &LoggedOpt{pos, lastPos, pass, funcName, what, args}
 }
 
@@ -405,7 +405,7 @@ func fixSlash(f string) string {
 	if os.PathSeparator == '/' {
 		return f
 	}
-	return strings.Replace(f, string(os.PathSeparator), "/", -1)
+	return strings.ReplaceAll(f, string(os.PathSeparator), "/")
 }
 
 func uriIfy(f string) DocumentURI {

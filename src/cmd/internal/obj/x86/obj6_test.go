@@ -83,11 +83,7 @@ func normalize(s string) string {
 }
 
 func asmOutput(t *testing.T, s string) []byte {
-	tmpdir, err := os.MkdirTemp("", "progedittest")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 	tmpfile, err := os.Create(filepath.Join(tmpdir, "input.s"))
 	if err != nil {
 		t.Fatal(err)

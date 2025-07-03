@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !wasip1
-
 package net
 
 import (
@@ -92,7 +90,6 @@ var (
 		"www.google.com:80",
 		"%d.%d.%d.%d:http",
 		"www.google.com:http",
-		"%03d.%03d.%03d.%03d:0080",
 		"[::ffff:%d.%d.%d.%d]:80",
 		"[::ffff:%02x%02x:%02x%02x]:80",
 		"[0:0:0:0:0000:ffff:%d.%d.%d.%d]:80",

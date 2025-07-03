@@ -19,6 +19,9 @@ const (
 	offsetARMHasIDIVA = unsafe.Offsetof(cpu.ARM.HasIDIVA)
 
 	offsetMIPS64XHasMSA = unsafe.Offsetof(cpu.MIPS64X.HasMSA)
+
+	offsetLOONG64HasLSX  = unsafe.Offsetof(cpu.Loong64.HasLSX)
+	offsetLOONG64HasLASX = unsafe.Offsetof(cpu.Loong64.HasLASX)
 )
 
 var (
@@ -31,4 +34,10 @@ var (
 	armHasVFPv4 bool
 
 	arm64HasATOMICS bool
+
+	loong64HasLAMCAS bool
+	loong64HasLAM_BH bool
+	loong64HasLSX    bool
+
+	riscv64HasZbb bool
 )

@@ -23,9 +23,17 @@ cp go.mod go.mod.orig
 
 stderr '^go: example\.com/m imports\n\texample\.net/indirect imports\n\texample\.net/ambiguous/nested/pkg loaded from example\.net/ambiguous/nested@v0\.1\.0,\n\tbut go 1.16 would fail to locate it:\n\tambiguous import: found package example\.net/ambiguous/nested/pkg in multiple modules:\n\texample\.net/ambiguous v0.1.0 \(.*\)\n\texample\.net/ambiguous/nested v0.1.0 \(.*\)\n\n'
 
-stderr '\n\nTo proceed despite packages unresolved in go 1\.16:\n\tgo mod tidy -e\nIf reproducibility with go 1.16 is not needed:\n\tgo mod tidy -compat=1\.17\nFor other options, see:\n\thttps://golang\.org/doc/modules/pruning\n'
+stderr '\n\nTo proceed despite packages unresolved in go 1\.16:\n\tgo mod tidy -e\nIf reproducibility with go 1.16 is not needed:\n\tgo mod tidy -compat=1\.17\nFor information about ''go mod tidy'' compatibility, see:\n\thttps://go\.dev/ref/mod#graph-pruning\n'
 
 cmp go.mod go.mod.orig
+
+# Make sure that -diff behaves the same as tidy.
+[exec:patch] cp go.mod.orig go.mod
+[exec:patch] ! exists go.sum
+[exec:patch] ! go mod tidy -diff
+[exec:patch] ! stdout .
+[exec:patch] stderr '^go: example\.com/m imports\n\texample\.net/indirect imports\n\texample\.net/ambiguous/nested/pkg loaded from example\.net/ambiguous/nested@v0\.1\.0,\n\tbut go 1.16 would fail to locate it:\n\tambiguous import: found package example\.net/ambiguous/nested/pkg in multiple modules:\n\texample\.net/ambiguous v0.1.0 \(.*\)\n\texample\.net/ambiguous/nested v0.1.0 \(.*\)\n\n'
+[exec:patch] stderr '\n\nTo proceed despite packages unresolved in go 1\.16:\n\tgo mod tidy -e\nIf reproducibility with go 1.16 is not needed:\n\tgo mod tidy -compat=1\.17\nFor information about ''go mod tidy'' compatibility, see:\n\thttps://go\.dev/ref/mod#graph-pruning\n'
 
 
 # If we run 'go mod tidy -e', we should still save enough checksums to run
@@ -35,6 +43,19 @@ cmp go.mod go.mod.orig
 go mod tidy -e
 ! stderr '\n\tgo mod tidy'
 cmp go.mod go.mod.orig
+
+# Make sure that -diff behaves the same as tidy.
+[exec:patch] mv go.mod go.mod.tidyResult
+[exec:patch] mv go.sum go.sum.tidyResult
+[exec:patch] cp go.mod.orig go.mod
+[exec:patch] ! go mod tidy -e -diff
+[exec:patch] ! stderr '\n\tgo mod tidy'
+[exec:patch] cp stdout diff.patch
+[exec:patch] exec patch -p1 -i diff.patch
+[exec:patch] go mod tidy -e -diff
+[exec:patch] ! stdout .
+[exec:patch] cmp go.mod go.mod.tidyResult
+[exec:patch] cmp go.sum go.sum.tidyResult
 
 go list -m all
 cmp stdout all-m.txt
@@ -59,6 +80,19 @@ go mod tidy -compat=1.17
 ! stderr .
 go list -m all
 cmp stdout all-m.txt
+
+# Make sure that -diff behaves the same as tidy.
+[exec:patch] mv go.mod go.mod.tidyResult
+[exec:patch] mv go.sum go.sum.tidyResult
+[exec:patch] cp go.mod.orig go.mod
+[exec:patch] ! go mod tidy -compat=1.17 -diff
+[exec:patch] ! stderr .
+[exec:patch] cp stdout diff.patch
+[exec:patch] exec patch -p1 -i diff.patch
+[exec:patch] go mod tidy -compat=1.17 -diff
+[exec:patch] ! stdout .
+[exec:patch] cmp go.mod go.mod.tidyResult
+[exec:patch] cmp go.sum go.sum.tidyResult
 
 go mod edit -go=1.16
 ! go list -m all

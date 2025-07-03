@@ -5,36 +5,37 @@
 // Package driver defines interfaces to be implemented by database
 // drivers as used by package sql.
 //
-// Most code should use package sql.
+// Most code should use the [database/sql] package.
 //
 // The driver interface has evolved over time. Drivers should implement
-// Connector and DriverContext interfaces.
-// The Connector.Connect and Driver.Open methods should never return ErrBadConn.
-// ErrBadConn should only be returned from Validator, SessionResetter, or
+// [Connector] and [DriverContext] interfaces.
+// The Connector.Connect and Driver.Open methods should never return [ErrBadConn].
+// [ErrBadConn] should only be returned from [Validator], [SessionResetter], or
 // a query method if the connection is already in an invalid (e.g. closed) state.
 //
-// All Conn implementations should implement the following interfaces:
-// Pinger, SessionResetter, and Validator.
+// All [Conn] implementations should implement the following interfaces:
+// [Pinger], [SessionResetter], and [Validator].
 //
-// If named parameters or context are supported, the driver's Conn should implement:
-// ExecerContext, QueryerContext, ConnPrepareContext, and ConnBeginTx.
+// If named parameters or context are supported, the driver's [Conn] should implement:
+// [ExecerContext], [QueryerContext], [ConnPrepareContext], and [ConnBeginTx].
 //
-// To support custom data types, implement NamedValueChecker. NamedValueChecker
+// To support custom data types, implement [NamedValueChecker]. [NamedValueChecker]
 // also allows queries to accept per-query options as a parameter by returning
-// ErrRemoveArgument from CheckNamedValue.
+// [ErrRemoveArgument] from CheckNamedValue.
 //
-// If multiple result sets are supported, Rows should implement RowsNextResultSet.
+// If multiple result sets are supported, [Rows] should implement [RowsNextResultSet].
 // If the driver knows how to describe the types present in the returned result
-// it should implement the following interfaces: RowsColumnTypeScanType,
-// RowsColumnTypeDatabaseTypeName, RowsColumnTypeLength, RowsColumnTypeNullable,
-// and RowsColumnTypePrecisionScale. A given row value may also return a Rows
+// it should implement the following interfaces: [RowsColumnTypeScanType],
+// [RowsColumnTypeDatabaseTypeName], [RowsColumnTypeLength], [RowsColumnTypeNullable],
+// and [RowsColumnTypePrecisionScale]. A given row value may also return a [Rows]
 // type, which may represent a database cursor value.
 //
-// Before a connection is returned to the connection pool after use, IsValid is
-// called if implemented. Before a connection is reused for another query,
-// ResetSession is called if implemented. If a connection is never returned to the
-// connection pool but immediately reused, then ResetSession is called prior to
-// reuse but IsValid is not called.
+// If a [Conn] implements [Validator], then the IsValid method is called
+// before returning the connection to the connection pool. If an entry in the
+// connection pool implements [SessionResetter], then ResetSession
+// is called before reusing the connection for another query. If a connection is
+// never returned to the connection pool but is immediately reused, then
+// ResetSession is called prior to reuse but IsValid is not called.
 package driver
 
 import (
@@ -44,7 +45,7 @@ import (
 )
 
 // Value is a value that drivers must be able to handle.
-// It is either nil, a type handled by a database driver's NamedValueChecker
+// It is either nil, a type handled by a database driver's [NamedValueChecker]
 // interface, or an instance of one of these types:
 //
 //	int64
@@ -54,10 +55,10 @@ import (
 //	string
 //	time.Time
 //
-// If the driver supports cursors, a returned Value may also implement the Rows interface
+// If the driver supports cursors, a returned Value may also implement the [Rows] interface
 // in this package. This is used, for example, when a user selects a cursor
-// such as "select cursor(select * from my_table) from dual". If the Rows
-// from the select is closed, the cursor Rows will also be closed.
+// such as "select cursor(select * from my_table) from dual". If the [Rows]
+// from the select is closed, the cursor [Rows] will also be closed.
 type Value any
 
 // NamedValue holds both the value name and value.
@@ -78,7 +79,7 @@ type NamedValue struct {
 // Driver is the interface that must be implemented by a database
 // driver.
 //
-// Database drivers may implement DriverContext for access
+// Database drivers may implement [DriverContext] for access
 // to contexts and to parse the name only once for a pool of connections,
 // instead of once per connection.
 type Driver interface {
@@ -94,12 +95,12 @@ type Driver interface {
 	Open(name string) (Conn, error)
 }
 
-// If a Driver implements DriverContext, then sql.DB will call
-// OpenConnector to obtain a Connector and then invoke
-// that Connector's Connect method to obtain each needed connection,
-// instead of invoking the Driver's Open method for each connection.
+// If a [Driver] implements DriverContext, then [database/sql.DB] will call
+// OpenConnector to obtain a [Connector] and then invoke
+// that [Connector]'s Connect method to obtain each needed connection,
+// instead of invoking the [Driver]'s Open method for each connection.
 // The two-step sequence allows drivers to parse the name just once
-// and also provides access to per-Conn contexts.
+// and also provides access to per-[Conn] contexts.
 type DriverContext interface {
 	// OpenConnector must parse the name in the same format that Driver.Open
 	// parses the name parameter.
@@ -110,14 +111,14 @@ type DriverContext interface {
 // and can create any number of equivalent Conns for use
 // by multiple goroutines.
 //
-// A Connector can be passed to sql.OpenDB, to allow drivers
-// to implement their own sql.DB constructors, or returned by
-// DriverContext's OpenConnector method, to allow drivers
+// A Connector can be passed to [database/sql.OpenDB], to allow drivers
+// to implement their own [database/sql.DB] constructors, or returned by
+// [DriverContext]'s OpenConnector method, to allow drivers
 // access to context and to avoid repeated parsing of driver
 // configuration.
 //
-// If a Connector implements io.Closer, the sql package's DB.Close
-// method will call Close and return error (if any).
+// If a Connector implements [io.Closer], the [database/sql.DB.Close]
+// method will call the Close method and return error (if any).
 type Connector interface {
 	// Connect returns a connection to the database.
 	// Connect may return a cached connection (one previously
@@ -147,9 +148,9 @@ type Connector interface {
 // documented.
 var ErrSkip = errors.New("driver: skip fast-path; continue as if unimplemented")
 
-// ErrBadConn should be returned by a driver to signal to the sql
-// package that a driver.Conn is in a bad state (such as the server
-// having earlier closed the connection) and the sql package should
+// ErrBadConn should be returned by a driver to signal to the [database/sql]
+// package that a driver.[Conn] is in a bad state (such as the server
+// having earlier closed the connection) and the [database/sql] package should
 // retry on a new connection.
 //
 // To prevent duplicate operations, ErrBadConn should NOT be returned
@@ -157,69 +158,69 @@ var ErrSkip = errors.New("driver: skip fast-path; continue as if unimplemented")
 // performed the operation. Even if the server sends back an error,
 // you shouldn't return ErrBadConn.
 //
-// Errors will be checked using errors.Is. An error may
+// Errors will be checked using [errors.Is]. An error may
 // wrap ErrBadConn or implement the Is(error) bool method.
 var ErrBadConn = errors.New("driver: bad connection")
 
-// Pinger is an optional interface that may be implemented by a Conn.
+// Pinger is an optional interface that may be implemented by a [Conn].
 //
-// If a Conn does not implement Pinger, the sql package's DB.Ping and
-// DB.PingContext will check if there is at least one Conn available.
+// If a [Conn] does not implement Pinger, the [database/sql.DB.Ping] and
+// [database/sql.DB.PingContext] will check if there is at least one [Conn] available.
 //
-// If Conn.Ping returns ErrBadConn, DB.Ping and DB.PingContext will remove
-// the Conn from pool.
+// If Conn.Ping returns [ErrBadConn], [database/sql.DB.Ping] and [database/sql.DB.PingContext] will remove
+// the [Conn] from pool.
 type Pinger interface {
 	Ping(ctx context.Context) error
 }
 
-// Execer is an optional interface that may be implemented by a Conn.
+// Execer is an optional interface that may be implemented by a [Conn].
 //
-// If a Conn implements neither ExecerContext nor Execer,
-// the sql package's DB.Exec will first prepare a query, execute the statement,
+// If a [Conn] implements neither [ExecerContext] nor [Execer],
+// the [database/sql.DB.Exec] will first prepare a query, execute the statement,
 // and then close the statement.
 //
-// Exec may return ErrSkip.
+// Exec may return [ErrSkip].
 //
-// Deprecated: Drivers should implement ExecerContext instead.
+// Deprecated: Drivers should implement [ExecerContext] instead.
 type Execer interface {
 	Exec(query string, args []Value) (Result, error)
 }
 
-// ExecerContext is an optional interface that may be implemented by a Conn.
+// ExecerContext is an optional interface that may be implemented by a [Conn].
 //
-// If a Conn does not implement ExecerContext, the sql package's DB.Exec
-// will fall back to Execer; if the Conn does not implement Execer either,
-// DB.Exec will first prepare a query, execute the statement, and then
+// If a [Conn] does not implement [ExecerContext], the [database/sql.DB.Exec]
+// will fall back to [Execer]; if the Conn does not implement Execer either,
+// [database/sql.DB.Exec] will first prepare a query, execute the statement, and then
 // close the statement.
 //
-// ExecContext may return ErrSkip.
+// ExecContext may return [ErrSkip].
 //
 // ExecContext must honor the context timeout and return when the context is canceled.
 type ExecerContext interface {
 	ExecContext(ctx context.Context, query string, args []NamedValue) (Result, error)
 }
 
-// Queryer is an optional interface that may be implemented by a Conn.
+// Queryer is an optional interface that may be implemented by a [Conn].
 //
-// If a Conn implements neither QueryerContext nor Queryer,
-// the sql package's DB.Query will first prepare a query, execute the statement,
+// If a [Conn] implements neither [QueryerContext] nor [Queryer],
+// the [database/sql.DB.Query] will first prepare a query, execute the statement,
 // and then close the statement.
 //
-// Query may return ErrSkip.
+// Query may return [ErrSkip].
 //
-// Deprecated: Drivers should implement QueryerContext instead.
+// Deprecated: Drivers should implement [QueryerContext] instead.
 type Queryer interface {
 	Query(query string, args []Value) (Rows, error)
 }
 
-// QueryerContext is an optional interface that may be implemented by a Conn.
+// QueryerContext is an optional interface that may be implemented by a [Conn].
 //
-// If a Conn does not implement QueryerContext, the sql package's DB.Query
-// will fall back to Queryer; if the Conn does not implement Queryer either,
-// DB.Query will first prepare a query, execute the statement, and then
+// If a [Conn] does not implement QueryerContext, the [database/sql.DB.Query]
+// will fall back to [Queryer]; if the [Conn] does not implement [Queryer] either,
+// [database/sql.DB.Query] will first prepare a query, execute the statement, and then
 // close the statement.
 //
-// QueryContext may return ErrSkip.
+// QueryContext may return [ErrSkip].
 //
 // QueryContext must honor the context timeout and return when the context is canceled.
 type QueryerContext interface {
@@ -253,7 +254,7 @@ type Conn interface {
 	Begin() (Tx, error)
 }
 
-// ConnPrepareContext enhances the Conn interface with context.
+// ConnPrepareContext enhances the [Conn] interface with context.
 type ConnPrepareContext interface {
 	// PrepareContext returns a prepared statement, bound to this connection.
 	// context is for the preparation of the statement,
@@ -261,21 +262,21 @@ type ConnPrepareContext interface {
 	PrepareContext(ctx context.Context, query string) (Stmt, error)
 }
 
-// IsolationLevel is the transaction isolation level stored in TxOptions.
+// IsolationLevel is the transaction isolation level stored in [TxOptions].
 //
-// This type should be considered identical to sql.IsolationLevel along
+// This type should be considered identical to [database/sql.IsolationLevel] along
 // with any values defined on it.
 type IsolationLevel int
 
 // TxOptions holds the transaction options.
 //
-// This type should be considered identical to sql.TxOptions.
+// This type should be considered identical to [database/sql.TxOptions].
 type TxOptions struct {
 	Isolation IsolationLevel
 	ReadOnly  bool
 }
 
-// ConnBeginTx enhances the Conn interface with context and TxOptions.
+// ConnBeginTx enhances the [Conn] interface with context and [TxOptions].
 type ConnBeginTx interface {
 	// BeginTx starts and returns a new transaction.
 	// If the context is canceled by the user the sql package will
@@ -292,7 +293,7 @@ type ConnBeginTx interface {
 	BeginTx(ctx context.Context, opts TxOptions) (Tx, error)
 }
 
-// SessionResetter may be implemented by Conn to allow drivers to reset the
+// SessionResetter may be implemented by [Conn] to allow drivers to reset the
 // session state associated with the connection and to signal a bad connection.
 type SessionResetter interface {
 	// ResetSession is called prior to executing a query on the connection
@@ -301,7 +302,7 @@ type SessionResetter interface {
 	ResetSession(ctx context.Context) error
 }
 
-// Validator may be implemented by Conn to allow drivers to
+// Validator may be implemented by [Conn] to allow drivers to
 // signal if a connection is valid or if it should be discarded.
 //
 // If implemented, drivers may return the underlying error from queries,
@@ -324,7 +325,7 @@ type Result interface {
 	RowsAffected() (int64, error)
 }
 
-// Stmt is a prepared statement. It is bound to a Conn and not
+// Stmt is a prepared statement. It is bound to a [Conn] and not
 // used by multiple goroutines concurrently.
 type Stmt interface {
 	// Close closes the statement.
@@ -360,7 +361,7 @@ type Stmt interface {
 	Query(args []Value) (Rows, error)
 }
 
-// StmtExecContext enhances the Stmt interface by providing Exec with context.
+// StmtExecContext enhances the [Stmt] interface by providing Exec with context.
 type StmtExecContext interface {
 	// ExecContext executes a query that doesn't return rows, such
 	// as an INSERT or UPDATE.
@@ -369,7 +370,7 @@ type StmtExecContext interface {
 	ExecContext(ctx context.Context, args []NamedValue) (Result, error)
 }
 
-// StmtQueryContext enhances the Stmt interface by providing Query with context.
+// StmtQueryContext enhances the [Stmt] interface by providing Query with context.
 type StmtQueryContext interface {
 	// QueryContext executes a query that may return rows, such as a
 	// SELECT.
@@ -378,26 +379,26 @@ type StmtQueryContext interface {
 	QueryContext(ctx context.Context, args []NamedValue) (Rows, error)
 }
 
-// ErrRemoveArgument may be returned from NamedValueChecker to instruct the
-// sql package to not pass the argument to the driver query interface.
+// ErrRemoveArgument may be returned from [NamedValueChecker] to instruct the
+// [database/sql] package to not pass the argument to the driver query interface.
 // Return when accepting query specific options or structures that aren't
 // SQL query arguments.
 var ErrRemoveArgument = errors.New("driver: remove argument from query")
 
-// NamedValueChecker may be optionally implemented by Conn or Stmt. It provides
+// NamedValueChecker may be optionally implemented by [Conn] or [Stmt]. It provides
 // the driver more control to handle Go and database types beyond the default
-// Values types allowed.
+// [Value] types allowed.
 //
-// The sql package checks for value checkers in the following order,
+// The [database/sql] package checks for value checkers in the following order,
 // stopping at the first found match: Stmt.NamedValueChecker, Conn.NamedValueChecker,
-// Stmt.ColumnConverter, DefaultParameterConverter.
+// Stmt.ColumnConverter, [DefaultParameterConverter].
 //
-// If CheckNamedValue returns ErrRemoveArgument, the NamedValue will not be included in
+// If CheckNamedValue returns [ErrRemoveArgument], the [NamedValue] will not be included in
 // the final query arguments. This may be used to pass special options to
 // the query itself.
 //
-// If ErrSkip is returned the column converter error checking
-// path is used for the argument. Drivers may wish to return ErrSkip after
+// If [ErrSkip] is returned the column converter error checking
+// path is used for the argument. Drivers may wish to return [ErrSkip] after
 // they have exhausted their own special cases.
 type NamedValueChecker interface {
 	// CheckNamedValue is called before passing arguments to the driver
@@ -406,15 +407,15 @@ type NamedValueChecker interface {
 	CheckNamedValue(*NamedValue) error
 }
 
-// ColumnConverter may be optionally implemented by Stmt if the
+// ColumnConverter may be optionally implemented by [Stmt] if the
 // statement is aware of its own columns' types and can convert from
-// any type to a driver Value.
+// any type to a driver [Value].
 //
-// Deprecated: Drivers should implement NamedValueChecker.
+// Deprecated: Drivers should implement [NamedValueChecker].
 type ColumnConverter interface {
 	// ColumnConverter returns a ValueConverter for the provided
 	// column index. If the type of a specific column isn't known
-	// or shouldn't be handled specially, DefaultValueConverter
+	// or shouldn't be handled specially, [DefaultParameterConverter]
 	// can be returned.
 	ColumnConverter(idx int) ValueConverter
 }
@@ -442,7 +443,7 @@ type Rows interface {
 	Next(dest []Value) error
 }
 
-// RowsNextResultSet extends the Rows interface by providing a way to signal
+// RowsNextResultSet extends the [Rows] interface by providing a way to signal
 // the driver to advance to the next result set.
 type RowsNextResultSet interface {
 	Rows
@@ -458,15 +459,15 @@ type RowsNextResultSet interface {
 	NextResultSet() error
 }
 
-// RowsColumnTypeScanType may be implemented by Rows. It should return
+// RowsColumnTypeScanType may be implemented by [Rows]. It should return
 // the value type that can be used to scan types into. For example, the database
-// column type "bigint" this should return "reflect.TypeOf(int64(0))".
+// column type "bigint" this should return "[reflect.TypeOf](int64(0))".
 type RowsColumnTypeScanType interface {
 	Rows
 	ColumnTypeScanType(index int) reflect.Type
 }
 
-// RowsColumnTypeDatabaseTypeName may be implemented by Rows. It should return the
+// RowsColumnTypeDatabaseTypeName may be implemented by [Rows]. It should return the
 // database system type name without the length. Type names should be uppercase.
 // Examples of returned types: "VARCHAR", "NVARCHAR", "VARCHAR2", "CHAR", "TEXT",
 // "DECIMAL", "SMALLINT", "INT", "BIGINT", "BOOL", "[]BIGINT", "JSONB", "XML",
@@ -476,10 +477,10 @@ type RowsColumnTypeDatabaseTypeName interface {
 	ColumnTypeDatabaseTypeName(index int) string
 }
 
-// RowsColumnTypeLength may be implemented by Rows. It should return the length
+// RowsColumnTypeLength may be implemented by [Rows]. It should return the length
 // of the column type if the column is a variable length type. If the column is
 // not a variable length type ok should return false.
-// If length is not limited other than system limits, it should return math.MaxInt64.
+// If length is not limited other than system limits, it should return [math.MaxInt64].
 // The following are examples of returned values for various types:
 //
 //	TEXT          (math.MaxInt64, true)
@@ -493,7 +494,7 @@ type RowsColumnTypeLength interface {
 	ColumnTypeLength(index int) (length int64, ok bool)
 }
 
-// RowsColumnTypeNullable may be implemented by Rows. The nullable value should
+// RowsColumnTypeNullable may be implemented by [Rows]. The nullable value should
 // be true if it is known the column may be null, or false if the column is known
 // to be not nullable.
 // If the column nullability is unknown, ok should be false.
@@ -502,7 +503,7 @@ type RowsColumnTypeNullable interface {
 	ColumnTypeNullable(index int) (nullable, ok bool)
 }
 
-// RowsColumnTypePrecisionScale may be implemented by Rows. It should return
+// RowsColumnTypePrecisionScale may be implemented by [Rows]. It should return
 // the precision and scale for decimal types. If not applicable, ok should be false.
 // The following are examples of returned values for various types:
 //
@@ -520,7 +521,7 @@ type Tx interface {
 	Rollback() error
 }
 
-// RowsAffected implements Result for an INSERT or UPDATE operation
+// RowsAffected implements [Result] for an INSERT or UPDATE operation
 // which mutates a number of rows.
 type RowsAffected int64
 
@@ -534,9 +535,9 @@ func (v RowsAffected) RowsAffected() (int64, error) {
 	return int64(v), nil
 }
 
-// ResultNoRows is a pre-defined Result for drivers to return when a DDL
+// ResultNoRows is a pre-defined [Result] for drivers to return when a DDL
 // command (such as a CREATE TABLE) succeeds. It returns an error for both
-// LastInsertId and RowsAffected.
+// LastInsertId and [RowsAffected].
 var ResultNoRows noRows
 
 type noRows struct{}

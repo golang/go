@@ -80,15 +80,16 @@
 (OffPtr [off] ptr) && is32Bit(off) => (ADDconst [int32(off)] ptr)
 (OffPtr [off] ptr) => (ADD (MOVDconst [off]) ptr)
 
-// TODO: optimize these cases?
-(Ctz64NonZero ...) => (Ctz64 ...)
-(Ctz32NonZero ...) => (Ctz32 ...)
+(Ctz(64|32|16|8)NonZero ...) => (Ctz64 ...)
 
 // Ctz(x) = 64 - findLeftmostOne((x-1)&^x)
 (Ctz64 <t> x) => (SUB (MOVDconst [64]) (FLOGR (AND <t> (SUBconst <t> [1] x) (NOT <t> x))))
 (Ctz32 <t> x) => (SUB (MOVDconst [64]) (FLOGR (MOVWZreg (ANDW <t> (SUBWconst <t> [1] x) (NOTW <t> x)))))
+(Ctz16 x) => (Ctz64 (Or64 <typ.UInt64> x (MOVDconst [1<<16])))
+(Ctz8  x) => (Ctz64 (Or64 <typ.UInt64> x (MOVDconst [1<<8])))
 
 (BitLen64 x) => (SUB (MOVDconst [64]) (FLOGR x))
+(BitLen(32|16|8) x) => (BitLen64 (ZeroExt(32|16|8)to64 x))
 
 // POPCNT treats the input register as a vector of 8 bytes, producing
 // a population count for each individual byte. For inputs larger than
@@ -703,10 +704,10 @@
 (CMP(W|WU) (MOVDconst [c]) x) => (InvertFlags (CMP(W|WU)const x [int32(c)]))
 
 // Match (x >> c) << d to 'rotate then insert selected bits [into zero]'.
-(SLDconst (SRDconst x [c]) [d]) => (RISBGZ x {s390x.NewRotateParams(uint8(max8(0, int8(c-d))), 63-d, uint8(int8(d-c)&63))})
+(SLDconst (SRDconst x [c]) [d]) => (RISBGZ x {s390x.NewRotateParams(uint8(max(0, int8(c-d))), 63-d, uint8(int8(d-c)&63))})
 
 // Match (x << c) >> d to 'rotate then insert selected bits [into zero]'.
-(SRDconst (SLDconst x [c]) [d]) => (RISBGZ x {s390x.NewRotateParams(d, uint8(min8(63, int8(63-c+d))), uint8(int8(c-d)&63))})
+(SRDconst (SLDconst x [c]) [d]) => (RISBGZ x {s390x.NewRotateParams(d, uint8(min(63, int8(63-c+d))), uint8(int8(c-d)&63))})
 
 // Absorb input zero extension into 'rotate then insert selected bits [into zero]'.
 (RISBGZ (MOVWZreg x) {r}) && r.InMerge(0xffffffff) != nil => (RISBGZ x {*r.InMerge(0xffffffff)})
@@ -810,22 +811,22 @@
 //
 // Notes:
 //   - the generic rules have already matched single powers of two so we ignore them here
-//   - isPowerOfTwo32 asserts that its argument is greater than 0
+//   - isPowerOfTwo asserts that its argument is greater than 0
 //   - c&(c-1) = clear rightmost bit
 //   - c&^(c-1) = isolate rightmost bit
 
 // c = 2ˣ + 2ʸ => c - 2ˣ = 2ʸ
-(MULL(D|W)const <t> x [c]) && isPowerOfTwo32(c&(c-1))
+(MULL(D|W)const <t> x [c]) && isPowerOfTwo(c&(c-1))
   => ((ADD|ADDW) (SL(D|W)const <t> x [uint8(log32(c&(c-1)))])
                  (SL(D|W)const <t> x [uint8(log32(c&^(c-1)))]))
 
 // c = 2ʸ - 2ˣ => c + 2ˣ = 2ʸ
-(MULL(D|W)const <t> x [c]) && isPowerOfTwo32(c+(c&^(c-1)))
+(MULL(D|W)const <t> x [c]) && isPowerOfTwo(c+(c&^(c-1)))
   => ((SUB|SUBW) (SL(D|W)const <t> x [uint8(log32(c+(c&^(c-1))))])
                  (SL(D|W)const <t> x [uint8(log32(c&^(c-1)))]))
 
 // c = 2ˣ - 2ʸ => -c + 2ˣ = 2ʸ
-(MULL(D|W)const <t> x [c]) && isPowerOfTwo32(-c+(-c&^(-c-1)))
+(MULL(D|W)const <t> x [c]) && isPowerOfTwo(-c+(-c&^(-c-1)))
   => ((SUB|SUBW) (SL(D|W)const <t> x [uint8(log32(-c&^(-c-1)))])
                  (SL(D|W)const <t> x [uint8(log32(-c+(-c&^(-c-1))))]))
 
@@ -1187,6 +1188,8 @@
 // TODO: more of this
 (ADD x (NEG y)) => (SUB x y)
 (ADDW x (NEGW y)) => (SUBW x y)
+(SUB x (NEG y)) => (ADD x y)
+(SUBW x (NEGW y)) => (ADDW x y)
 (SUB x x) => (MOVDconst [0])
 (SUBW x x) => (MOVDconst [0])
 (AND x x) => x
@@ -1195,6 +1198,7 @@
 (ORW x x) => x
 (XOR x x) => (MOVDconst [0])
 (XORW x x) => (MOVDconst [0])
+(NEG (NEG x)) => x
 (NEG (ADDconst [c] (NEG x))) && c != -(1<<31) => (ADDconst [-c] x)
 (MOVBZreg (ANDWconst [m] x)) => (MOVWZreg (ANDWconst <typ.UInt32> [int32( uint8(m))] x))
 (MOVHZreg (ANDWconst [m] x)) => (MOVWZreg (ANDWconst <typ.UInt32> [int32(uint16(m))] x))
@@ -1300,21 +1304,25 @@
   && p.Op != OpSB
   && x.Uses == 1
   && is20Bit(int64(i)-4)
+  && setPos(v, x.Pos)
   && clobber(x)
   => (STM2 [i-4] {s} p w0 w1 mem)
 (MOVWstore [i] {s} p w2 x:(STM2 [i-8] {s} p w0 w1 mem))
   && x.Uses == 1
   && is20Bit(int64(i)-8)
+  && setPos(v, x.Pos)
   && clobber(x)
   => (STM3 [i-8] {s} p w0 w1 w2 mem)
 (MOVWstore [i] {s} p w3 x:(STM3 [i-12] {s} p w0 w1 w2 mem))
   && x.Uses == 1
   && is20Bit(int64(i)-12)
+  && setPos(v, x.Pos)
   && clobber(x)
   => (STM4 [i-12] {s} p w0 w1 w2 w3 mem)
 (STM2 [i] {s} p w2 w3 x:(STM2 [i-8] {s} p w0 w1 mem))
   && x.Uses == 1
   && is20Bit(int64(i)-8)
+  && setPos(v, x.Pos)
   && clobber(x)
   => (STM4 [i-8] {s} p w0 w1 w2 w3 mem)
 // 64-bit
@@ -1322,21 +1330,25 @@
   && p.Op != OpSB
   && x.Uses == 1
   && is20Bit(int64(i)-8)
+  && setPos(v, x.Pos)
   && clobber(x)
   => (STMG2 [i-8] {s} p w0 w1 mem)
 (MOVDstore [i] {s} p w2 x:(STMG2 [i-16] {s} p w0 w1 mem))
   && x.Uses == 1
   && is20Bit(int64(i)-16)
+  && setPos(v, x.Pos)
   && clobber(x)
   => (STMG3 [i-16] {s} p w0 w1 w2 mem)
 (MOVDstore [i] {s} p w3 x:(STMG3 [i-24] {s} p w0 w1 w2 mem))
   && x.Uses == 1
   && is20Bit(int64(i)-24)
+  && setPos(v, x.Pos)
   && clobber(x)
   => (STMG4 [i-24] {s} p w0 w1 w2 w3 mem)
 (STMG2 [i] {s} p w2 w3 x:(STMG2 [i-16] {s} p w0 w1 mem))
   && x.Uses == 1
   && is20Bit(int64(i)-16)
+  && setPos(v, x.Pos)
   && clobber(x)
   => (STMG4 [i-16] {s} p w0 w1 w2 w3 mem)
 

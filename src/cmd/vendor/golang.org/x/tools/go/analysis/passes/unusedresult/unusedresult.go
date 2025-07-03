@@ -26,6 +26,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/analysisinternal"
 )
 
 //go:embed doc.go
@@ -58,7 +59,64 @@ func init() {
 	// List standard library functions here.
 	// The context.With{Cancel,Deadline,Timeout} entries are
 	// effectively redundant wrt the lostcancel analyzer.
-	funcs.Set("errors.New,fmt.Errorf,fmt.Sprintf,fmt.Sprint,sort.Reverse,context.WithValue,context.WithCancel,context.WithDeadline,context.WithTimeout")
+	funcs = stringSetFlag{
+		"context.WithCancel":      true,
+		"context.WithDeadline":    true,
+		"context.WithTimeout":     true,
+		"context.WithValue":       true,
+		"errors.New":              true,
+		"fmt.Append":              true,
+		"fmt.Appendf":             true,
+		"fmt.Appendln":            true,
+		"fmt.Errorf":              true,
+		"fmt.Sprint":              true,
+		"fmt.Sprintf":             true,
+		"fmt.Sprintln":            true,
+		"maps.All":                true,
+		"maps.Clone":              true,
+		"maps.Collect":            true,
+		"maps.Equal":              true,
+		"maps.EqualFunc":          true,
+		"maps.Keys":               true,
+		"maps.Values":             true,
+		"slices.All":              true,
+		"slices.AppendSeq":        true,
+		"slices.Backward":         true,
+		"slices.BinarySearch":     true,
+		"slices.BinarySearchFunc": true,
+		"slices.Chunk":            true,
+		"slices.Clip":             true,
+		"slices.Clone":            true,
+		"slices.Collect":          true,
+		"slices.Compact":          true,
+		"slices.CompactFunc":      true,
+		"slices.Compare":          true,
+		"slices.CompareFunc":      true,
+		"slices.Concat":           true,
+		"slices.Contains":         true,
+		"slices.ContainsFunc":     true,
+		"slices.Delete":           true,
+		"slices.DeleteFunc":       true,
+		"slices.Equal":            true,
+		"slices.EqualFunc":        true,
+		"slices.Grow":             true,
+		"slices.Index":            true,
+		"slices.IndexFunc":        true,
+		"slices.Insert":           true,
+		"slices.IsSorted":         true,
+		"slices.IsSortedFunc":     true,
+		"slices.Max":              true,
+		"slices.MaxFunc":          true,
+		"slices.Min":              true,
+		"slices.MinFunc":          true,
+		"slices.Repeat":           true,
+		"slices.Replace":          true,
+		"slices.Sorted":           true,
+		"slices.SortedFunc":       true,
+		"slices.SortedStableFunc": true,
+		"slices.Values":           true,
+		"sort.Reverse":            true,
+	}
 	Analyzer.Flags.Var(&funcs, "funcs",
 		"comma-separated list of functions whose results must be used")
 
@@ -67,7 +125,7 @@ func init() {
 		"comma-separated list of names of methods of type func() string whose results must be used")
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	// Split functions into (pkg, name) pairs to save allocation later.
@@ -82,7 +140,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.ExprStmt)(nil),
 	}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
-		call, ok := analysisutil.Unparen(n.(*ast.ExprStmt).X).(*ast.CallExpr)
+		call, ok := ast.Unparen(n.(*ast.ExprStmt).X).(*ast.CallExpr)
 		if !ok {
 			return // not a call statement
 		}
@@ -92,19 +150,20 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		if !ok {
 			return // e.g. var or builtin
 		}
-
 		if sig := fn.Type().(*types.Signature); sig.Recv() != nil {
 			// method (e.g. foo.String())
 			if types.Identical(sig, sigNoArgsStringResult) {
 				if stringMethods[fn.Name()] {
-					pass.Reportf(call.Lparen, "result of (%s).%s call not used",
+					pass.ReportRangef(analysisinternal.Range(call.Pos(), call.Lparen),
+						"result of (%s).%s call not used",
 						sig.Recv().Type(), fn.Name())
 				}
 			}
 		} else {
 			// package-level function (e.g. fmt.Errorf)
 			if pkgFuncs[[2]string{fn.Pkg().Path(), fn.Name()}] {
-				pass.Reportf(call.Lparen, "result of %s.%s call not used",
+				pass.ReportRangef(analysisinternal.Range(call.Pos(), call.Lparen),
+					"result of %s.%s call not used",
 					fn.Pkg().Path(), fn.Name())
 			}
 		}
@@ -113,9 +172,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 }
 
 // func() string
-var sigNoArgsStringResult = types.NewSignature(nil, nil,
-	types.NewTuple(types.NewVar(token.NoPos, nil, "", types.Typ[types.String])),
-	false)
+var sigNoArgsStringResult = types.NewSignatureType(nil, nil, nil, nil, types.NewTuple(types.NewParam(token.NoPos, nil, "", types.Typ[types.String])), false)
 
 type stringSetFlag map[string]bool
 

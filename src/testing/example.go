@@ -6,7 +6,8 @@ package testing
 
 import (
 	"fmt"
-	"sort"
+	"runtime"
+	"slices"
 	"strings"
 	"time"
 )
@@ -45,12 +46,6 @@ func runExamples(matchString func(pat, str string) (bool, error), examples []Int
 	return ran, ok
 }
 
-func sortLines(output string) string {
-	lines := strings.Split(output, "\n")
-	sort.Strings(lines)
-	return strings.Join(lines, "\n")
-}
-
 // processRunResult computes a summary and status of the result of running an example test.
 // stdout is the captured output from stdout of the test.
 // recovered is the result of invoking recover after running the test, in case it panicked.
@@ -66,8 +61,14 @@ func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Durati
 	var fail string
 	got := strings.TrimSpace(stdout)
 	want := strings.TrimSpace(eg.Output)
+	if runtime.GOOS == "windows" {
+		got = strings.ReplaceAll(got, "\r\n", "\n")
+		want = strings.ReplaceAll(want, "\r\n", "\n")
+	}
 	if eg.Unordered {
-		if sortLines(got) != sortLines(want) && recovered == nil {
+		gotLines := slices.Sorted(strings.SplitSeq(got, "\n"))
+		wantLines := slices.Sorted(strings.SplitSeq(want, "\n"))
+		if !slices.Equal(gotLines, wantLines) && recovered == nil {
 			fail = fmt.Sprintf("got:\n%s\nwant (unordered):\n%s\n", stdout, eg.Output)
 		}
 	} else {

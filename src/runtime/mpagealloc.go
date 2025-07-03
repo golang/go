@@ -48,7 +48,8 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
+	"internal/runtime/gc"
 	"unsafe"
 )
 
@@ -58,7 +59,7 @@ const (
 	pallocChunkPages    = 1 << logPallocChunkPages
 	pallocChunkBytes    = pallocChunkPages * pageSize
 	logPallocChunkPages = 9
-	logPallocChunkBytes = logPallocChunkPages + pageShift
+	logPallocChunkBytes = logPallocChunkPages + gc.PageShift
 
 	// The number of radix bits for each level.
 	//
@@ -81,6 +82,8 @@ const (
 	// there should this change.
 	pallocChunksL2Bits  = heapAddrBits - logPallocChunkBytes - pallocChunksL1Bits
 	pallocChunksL1Shift = pallocChunksL2Bits
+
+	vmaNamePageAllocIndex = "page alloc index"
 )
 
 // maxSearchAddr returns the maximum searchAddr value, which indicates
@@ -401,7 +404,7 @@ func (p *pageAlloc) grow(base, size uintptr) {
 		if p.chunks[c.l1()] == nil {
 			// Create the necessary l2 entry.
 			const l2Size = unsafe.Sizeof(*p.chunks[0])
-			r := sysAlloc(l2Size, p.sysStat)
+			r := sysAlloc(l2Size, p.sysStat, vmaNamePageAllocIndex)
 			if r == nil {
 				throw("pageAlloc: out of memory")
 			}
@@ -437,6 +440,10 @@ func (p *pageAlloc) grow(base, size uintptr) {
 //
 // The heap lock must not be held over this operation, since it will briefly acquire
 // the heap lock.
+//
+// Must be called on the system stack because it acquires the heap lock.
+//
+//go:systemstack
 func (p *pageAlloc) enableChunkHugePages() {
 	// Grab the heap lock to turn on huge pages for new chunks and clone the current
 	// heap address space ranges.
@@ -507,10 +514,7 @@ func (p *pageAlloc) update(base, npages uintptr, contig, alloc bool) {
 		// either totally allocated or freed.
 		whole := p.summary[len(p.summary)-1][sc+1 : ec]
 		if alloc {
-			// Should optimize into a memclr.
-			for i := range whole {
-				whole[i] = 0
-			}
+			clear(whole)
 		} else {
 			for i := range whole {
 				whole[i] = freeChunkSum
@@ -1038,8 +1042,8 @@ func mergeSummaries(sums []pallocSum, logMaxPagesPerSum uint) pallocSum {
 	// Merge the summaries in sums into one.
 	//
 	// We do this by keeping a running summary representing the merged
-	// summaries of sums[:i] in start, max, and end.
-	start, max, end := sums[0].unpack()
+	// summaries of sums[:i] in start, most, and end.
+	start, most, end := sums[0].unpack()
 	for i := 1; i < len(sums); i++ {
 		// Merge in sums[i].
 		si, mi, ei := sums[i].unpack()
@@ -1055,12 +1059,7 @@ func mergeSummaries(sums []pallocSum, logMaxPagesPerSum uint) pallocSum {
 		// across the boundary between the running sum and sums[i]
 		// and at the max sums[i], taking the greatest of those two
 		// and the max of the running sum.
-		if end+si > max {
-			max = end + si
-		}
-		if mi > max {
-			max = mi
-		}
+		most = max(most, end+si, mi)
 
 		// Merge in end by checking if this new summary is totally
 		// free. If it is, then we want to extend the running sum's
@@ -1073,5 +1072,5 @@ func mergeSummaries(sums []pallocSum, logMaxPagesPerSum uint) pallocSum {
 			end = ei
 		}
 	}
-	return packPallocSum(start, max, end)
+	return packPallocSum(start, most, end)
 }

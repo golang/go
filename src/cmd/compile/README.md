@@ -63,7 +63,6 @@ Unified IR is also involved in import/export of packages and inlining.
 
 ### 4. Middle end
 
-* `cmd/compile/internal/deadcode` (dead code elimination)
 * `cmd/compile/internal/inline` (function call inlining)
 * `cmd/compile/internal/devirtualize` (devirtualization of known interface method calls)
 * `cmd/compile/internal/escape` (escape analysis)
@@ -71,6 +70,8 @@ Unified IR is also involved in import/export of packages and inlining.
 Several optimization passes are performed on the IR representation:
 dead code elimination, (early) devirtualization, function call
 inlining, and escape analysis.
+
+The early dead code elimination pass is integrated into the unified IR writer phase.
 
 ### 5. Walk
 
@@ -139,6 +140,55 @@ a series of obj.Prog instructions. These are passed to the assembler
 (`cmd/internal/obj`), which turns them into machine code and writes out the
 final object file. The object file will also contain reflect data, export data,
 and debugging information.
+
+### 7a. Export
+
+In addition to writing a file of object code for the linker, the
+compiler also writes a file of "export data" for downstream
+compilation units. The export data file holds all the information
+computed during compilation of package P that may be needed when
+compiling a package Q that directly imports P. It includes type
+information for all exported declarations, IR for bodies of functions
+that are candidates for inlining, IR for bodies of generic functions
+that may be instantiated in another package, and a summary of the
+findings of escape analysis on function parameters.
+
+The format of the export data file has gone through a number of
+iterations. Its current form is called "unified", and it is a
+serialized representation of an object graph, with an index allowing
+lazy decoding of parts of the whole (since most imports are used to
+provide only a handful of symbols).
+
+The GOROOT repository contains a reader and a writer for the unified
+format; it encodes from/decodes to the compiler's IR.
+The golang.org/x/tools repository also provides a public API for an export
+data reader (using the go/types representation) that always supports the
+compiler's current file format and a small number of historic versions.
+(It is used by x/tools/go/packages in modes that require type information
+but not type-annotated syntax.)
+
+The x/tools repository also provides public APIs for reading and
+writing exported type information (but nothing more) using the older
+"indexed" format. (For example, gopls uses this version for its
+database of workspace information, which includes types.)
+
+Export data usually provides a "deep" summary, so that compilation of
+package Q can read the export data files only for each direct import,
+and be assured that these provide all necessary information about
+declarations in indirect imports, such as the methods and struct
+fields of types referred to in P's public API. Deep export data is
+simpler for build systems, since only one file is needed per direct
+dependency. However, it does have a tendency to grow as one gets
+higher up the import graph of a big repository: if there is a set of
+very commonly used types with a large API, nearly every package's
+export data will include a copy. This problem motivated the "indexed"
+design, which allowed partial loading on demand.
+(gopls does less work than the compiler for each import and is thus
+more sensitive to export data overheads. For this reason, it uses
+"shallow" export data, in which indirect information is not recorded
+at all. This demands random access to the export data files of all
+dependencies, so is not suitable for distributed build systems.)
+
 
 ### 8. Tips
 

@@ -11,6 +11,9 @@ import "unsafe"
 // The number of bits stored in the numeric tag of a taggedPointer
 const taggedPointerBits = 32
 
+// The number of bits allowed in a tag.
+const tagBits = 32
+
 // On 32-bit systems, taggedPointer has a 32-bit pointer and 32-bit count.
 
 // taggedPointerPack created a taggedPointer from a pointer and a tag.

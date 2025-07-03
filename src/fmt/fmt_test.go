@@ -11,7 +11,6 @@ import (
 	"io"
 	"math"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -110,6 +109,19 @@ var pValue P
 
 func (p *P) String() string {
 	return "String(p)"
+}
+
+// Fn is a function type with a String method.
+type Fn func() int
+
+func (fn Fn) String() string { return "String(fn)" }
+
+var fnValue Fn
+
+// U is a type with two unexported function fields.
+type U struct {
+	u  func() string
+	fn Fn
 }
 
 var barray = [5]renamedUint8{1, 2, 3, 4, 5}
@@ -714,7 +726,6 @@ var fmtTests = []struct {
 	// go syntax
 	{"%#v", A{1, 2, "a", []int{1, 2}}, `fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}`},
 	{"%#v", new(byte), "(*uint8)(0xPTR)"},
-	{"%#v", TestFmtInterface, "(func(*testing.T))(0xPTR)"},
 	{"%#v", make(chan int), "(chan int)(0xPTR)"},
 	{"%#v", uint64(1<<64 - 1), "0xffffffffffffffff"},
 	{"%#v", 1000000000, "1000000000"},
@@ -736,6 +747,54 @@ var fmtTests = []struct {
 	{"%#v", []int32(nil), "[]int32(nil)"},
 	{"%#v", 1.2345678, "1.2345678"},
 	{"%#v", float32(1.2345678), "1.2345678"},
+
+	// functions
+	{"%v", TestFmtInterface, "0xPTR"}, // simple function
+	{"%v", reflect.ValueOf(TestFmtInterface), "0xPTR"},
+	{"%v", G.GoString, "0xPTR"}, // method expression
+	{"%v", reflect.ValueOf(G.GoString), "0xPTR"},
+	{"%v", G(23).GoString, "0xPTR"}, // method value
+	{"%v", reflect.ValueOf(G(23).GoString), "0xPTR"},
+	{"%v", reflect.ValueOf(G(23)).Method(0), "0xPTR"},
+	{"%v", Fn.String, "0xPTR"}, // method of function type
+	{"%v", reflect.ValueOf(Fn.String), "0xPTR"},
+	{"%v", fnValue, "String(fn)"}, // variable of function type with String method
+	{"%v", reflect.ValueOf(fnValue), "String(fn)"},
+	{"%v", [1]Fn{fnValue}, "[String(fn)]"}, // array of function type with String method
+	{"%v", reflect.ValueOf([1]Fn{fnValue}), "[String(fn)]"},
+	{"%v", fnValue.String, "0xPTR"}, // method value from function type
+	{"%v", reflect.ValueOf(fnValue.String), "0xPTR"},
+	{"%v", reflect.ValueOf(fnValue).Method(0), "0xPTR"},
+	{"%v", U{}.u, "<nil>"}, // unexported function field
+	{"%v", reflect.ValueOf(U{}.u), "<nil>"},
+	{"%v", reflect.ValueOf(U{}).Field(0), "<nil>"},
+	{"%v", U{fn: fnValue}.fn, "String(fn)"}, // unexported field of function type with String method
+	{"%v", reflect.ValueOf(U{fn: fnValue}.fn), "String(fn)"},
+	{"%v", reflect.ValueOf(U{fn: fnValue}).Field(1), "<nil>"},
+
+	// functions with go syntax
+	{"%#v", TestFmtInterface, "(func(*testing.T))(0xPTR)"}, // simple function
+	{"%#v", reflect.ValueOf(TestFmtInterface), "(func(*testing.T))(0xPTR)"},
+	{"%#v", G.GoString, "(func(fmt_test.G) string)(0xPTR)"}, // method expression
+	{"%#v", reflect.ValueOf(G.GoString), "(func(fmt_test.G) string)(0xPTR)"},
+	{"%#v", G(23).GoString, "(func() string)(0xPTR)"}, // method value
+	{"%#v", reflect.ValueOf(G(23).GoString), "(func() string)(0xPTR)"},
+	{"%#v", reflect.ValueOf(G(23)).Method(0), "(func() string)(0xPTR)"},
+	{"%#v", Fn.String, "(func(fmt_test.Fn) string)(0xPTR)"}, // method of function type
+	{"%#v", reflect.ValueOf(Fn.String), "(func(fmt_test.Fn) string)(0xPTR)"},
+	{"%#v", fnValue, "(fmt_test.Fn)(nil)"}, // variable of function type with String method
+	{"%#v", reflect.ValueOf(fnValue), "(fmt_test.Fn)(nil)"},
+	{"%#v", [1]Fn{fnValue}, "[1]fmt_test.Fn{(fmt_test.Fn)(nil)}"}, // array of function type with String method
+	{"%#v", reflect.ValueOf([1]Fn{fnValue}), "[1]fmt_test.Fn{(fmt_test.Fn)(nil)}"},
+	{"%#v", fnValue.String, "(func() string)(0xPTR)"}, // method value from function type
+	{"%#v", reflect.ValueOf(fnValue.String), "(func() string)(0xPTR)"},
+	{"%#v", reflect.ValueOf(fnValue).Method(0), "(func() string)(0xPTR)"},
+	{"%#v", U{}.u, "(func() string)(nil)"}, // unexported function field
+	{"%#v", reflect.ValueOf(U{}.u), "(func() string)(nil)"},
+	{"%#v", reflect.ValueOf(U{}).Field(0), "(func() string)(nil)"},
+	{"%#v", U{fn: fnValue}.fn, "(fmt_test.Fn)(nil)"}, // unexported field of function type with String method
+	{"%#v", reflect.ValueOf(U{fn: fnValue}.fn), "(fmt_test.Fn)(nil)"},
+	{"%#v", reflect.ValueOf(U{fn: fnValue}).Field(1), "(fmt_test.Fn)(nil)"},
 
 	// Whole number floats are printed without decimals. See Issue 27634.
 	{"%#v", 1.0, "1"},
@@ -1230,7 +1289,6 @@ func TestReorder(t *testing.T) {
 		s := Sprintf(tt.fmt, tt.val...)
 		if s != tt.out {
 			t.Errorf("Sprintf(%q, %v) = <%s> want <%s>", tt.fmt, tt.val, s, tt.out)
-		} else {
 		}
 	}
 }
@@ -1437,8 +1495,15 @@ var mallocTest = []struct {
 	{1, `Sprintf("%x %x")`, func() { _ = Sprintf("%x %x", 7, 112) }},
 	{1, `Sprintf("%g")`, func() { _ = Sprintf("%g", float32(3.14159)) }},
 	{0, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%s", "hello") }},
+	{0, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); s := "hello"; Fprintf(&mallocBuf, "%s", s) }},
+	{1, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); s := "hello"; Fprintf(&mallocBuf, "%s", noliteral(s)) }},
 	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x", 7) }},
 	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x", 1<<16) }},
+	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); i := 1 << 16; Fprintf(&mallocBuf, "%x", i) }},
+	{1, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); i := 1 << 16; Fprintf(&mallocBuf, "%x", noliteral(i)) }},
+	{4, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); s := []int{1, 2}; Fprintf(&mallocBuf, "%v", s) }},
+	{0, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); type P struct{ x, y int }; Fprintf(&mallocBuf, "%v", P{1, 2}) }},
+	{1, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); type P struct{ x, y int }; Fprintf(&mallocBuf, "%v", noliteral(P{1, 2})) }},
 	{2, `Fprintf(buf, "%80000s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%80000s", "hello") }}, // large buffer (>64KB)
 	// If the interface value doesn't need to allocate, amortized allocation overhead should be zero.
 	{0, `Fprintf(buf, "%x %x %x")`, func() {
@@ -1453,15 +1518,13 @@ func TestCountMallocs(t *testing.T) {
 	switch {
 	case testing.Short():
 		t.Skip("skipping malloc count in short mode")
-	case runtime.GOMAXPROCS(0) > 1:
-		t.Skip("skipping; GOMAXPROCS>1")
 	case race.Enabled:
 		t.Skip("skipping malloc count under race detector")
 	}
 	for _, mt := range mallocTest {
 		mallocs := testing.AllocsPerRun(100, mt.fn)
-		if got, max := mallocs, float64(mt.count); got > max {
-			t.Errorf("%s: got %v allocs, want <=%v", mt.desc, got, max)
+		if got, max := mallocs, float64(mt.count); got != max {
+			t.Errorf("%s: got %v allocs, want %v", mt.desc, got, max)
 		}
 	}
 }
@@ -1501,6 +1564,7 @@ var flagtests = []struct {
 	{"%-+1.2a", "[%+-1.2a]"},
 	{"%-+1.2abc", "[%+-1.2a]bc"},
 	{"%-1.2abc", "[%-1.2a]bc"},
+	{"%-0abc", "[%-0a]bc"},
 }
 
 func TestFlagParser(t *testing.T) {
@@ -1827,6 +1891,7 @@ var formatterFlagTests = []struct {
 	{"%-+1.2a", flagPrinter{}, "[%+-1.2a]"},
 	{"%-+1.2abc", flagPrinter{}, "[%+-1.2a]bc"},
 	{"%-1.2abc", flagPrinter{}, "[%-1.2a]bc"},
+	{"%-0abc", flagPrinter{}, "[%-0a]bc"},
 
 	// composite values with the 'a' verb
 	{"%a", [1]flagPrinter{}, "[[%a]]"},
@@ -1841,6 +1906,7 @@ var formatterFlagTests = []struct {
 	{"%-+1.2a", [1]flagPrinter{}, "[[%+-1.2a]]"},
 	{"%-+1.2abc", [1]flagPrinter{}, "[[%+-1.2a]]bc"},
 	{"%-1.2abc", [1]flagPrinter{}, "[[%-1.2a]]bc"},
+	{"%-0abc", [1]flagPrinter{}, "[[%-0a]]bc"},
 
 	// simple values with the 'v' verb
 	{"%v", flagPrinter{}, "[%v]"},
@@ -1855,6 +1921,7 @@ var formatterFlagTests = []struct {
 	{"%-+1.2v", flagPrinter{}, "[%+-1.2v]"},
 	{"%-+1.2vbc", flagPrinter{}, "[%+-1.2v]bc"},
 	{"%-1.2vbc", flagPrinter{}, "[%-1.2v]bc"},
+	{"%-0vbc", flagPrinter{}, "[%-0v]bc"},
 
 	// composite values with the 'v' verb.
 	{"%v", [1]flagPrinter{}, "[[%v]]"},
@@ -1869,6 +1936,7 @@ var formatterFlagTests = []struct {
 	{"%-+1.2v", [1]flagPrinter{}, "[[%+-1.2v]]"},
 	{"%-+1.2vbc", [1]flagPrinter{}, "[[%+-1.2v]]bc"},
 	{"%-1.2vbc", [1]flagPrinter{}, "[[%-1.2v]]bc"},
+	{"%-0vbc", [1]flagPrinter{}, "[[%-0v]]bc"},
 }
 
 func TestFormatterFlags(t *testing.T) {
@@ -1945,4 +2013,11 @@ func TestAppendln(t *testing.T) {
 	if &b[0] != &got[0] {
 		t.Fatalf("Appendln allocated a new slice")
 	}
+}
+
+// noliteral prevents escape analysis from recognizing a literal value.
+//
+//go:noinline
+func noliteral[T any](t T) T {
+	return t
 }

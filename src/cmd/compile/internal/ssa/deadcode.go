@@ -110,16 +110,15 @@ func liveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
 			}
 		}
 		for _, v := range b.Values {
-			if (opcodeTable[v.Op].call || opcodeTable[v.Op].hasSideEffects) && !live[v.ID] {
+			if (opcodeTable[v.Op].call || opcodeTable[v.Op].hasSideEffects || opcodeTable[v.Op].nilCheck) && !live[v.ID] {
 				live[v.ID] = true
 				q = append(q, v)
 				if v.Pos.IsStmt() != src.PosNotStmt {
 					liveOrderStmts = append(liveOrderStmts, v)
 				}
 			}
-			if v.Type.IsVoid() && !live[v.ID] {
-				// The only Void ops are nil checks and inline marks.  We must keep these.
-				if v.Op == OpInlMark && !liveInlIdx[int(v.AuxInt)] {
+			if v.Op == OpInlMark {
+				if !liveInlIdx[int(v.AuxInt)] {
 					// We don't need marks for bodies that
 					// have been completely optimized away.
 					// TODO: save marks only for bodies which
@@ -233,10 +232,7 @@ func deadcode(f *Func) {
 			f.NamedValues[*name] = values[:j]
 		}
 	}
-	clearNames := f.Names[i:]
-	for j := range clearNames {
-		clearNames[j] = nil
-	}
+	clear(f.Names[i:])
 	f.Names = f.Names[:i]
 
 	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
@@ -304,15 +300,14 @@ func deadcode(f *Func) {
 		}
 	}
 	// zero remainder to help GC
-	tail := f.Blocks[i:]
-	for j := range tail {
-		tail[j] = nil
-	}
+	clear(f.Blocks[i:])
 	f.Blocks = f.Blocks[:i]
 }
 
 // removeEdge removes the i'th outgoing edge from b (and
 // the corresponding incoming edge from b.Succs[i].b).
+// Note that this potentially reorders successors of b, so it
+// must be used very carefully.
 func (b *Block) removeEdge(i int) {
 	e := b.Succs[i]
 	c := e.b

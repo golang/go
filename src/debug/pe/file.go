@@ -39,7 +39,7 @@ type File struct {
 	closer io.Closer
 }
 
-// Open opens the named file using os.Open and prepares it for use as a PE binary.
+// Open opens the named file using [os.Open] and prepares it for use as a PE binary.
 func Open(name string) (*File, error) {
 	f, err := os.Open(name)
 	if err != nil {
@@ -54,8 +54,8 @@ func Open(name string) (*File, error) {
 	return ff, nil
 }
 
-// Close closes the File.
-// If the File was created using NewFile directly instead of Open,
+// Close closes the [File].
+// If the [File] was created using [NewFile] directly instead of [Open],
 // Close has no effect.
 func (f *File) Close() error {
 	var err error
@@ -68,7 +68,7 @@ func (f *File) Close() error {
 
 // TODO(brainman): add Load function, as a replacement for NewFile, that does not call removeAuxSymbols (for performance)
 
-// NewFile creates a new File for accessing a PE binary in an underlying reader.
+// NewFile creates a new [File] for accessing a PE binary in an underlying reader.
 func NewFile(r io.ReaderAt) (*File, error) {
 	f := new(File)
 	sr := io.NewSectionReader(r, 0, 1<<63-1)

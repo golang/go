@@ -193,10 +193,8 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
 	MOVD	0(g), R4
 	MOVD	gobuf_sp(R5), R15
 	MOVD	gobuf_lr(R5), LR
-	MOVD	gobuf_ret(R5), R3
 	MOVD	gobuf_ctxt(R5), R12
 	MOVD	$0, gobuf_sp(R5)
-	MOVD	$0, gobuf_ret(R5)
 	MOVD	$0, gobuf_lr(R5)
 	MOVD	$0, gobuf_ctxt(R5)
 	CMP	R0, R0 // set condition codes for == test, needed by stack split
@@ -292,6 +290,29 @@ noswitch:
 	ADD	$8, R15
 	BR	(R3)
 
+// func switchToCrashStack0(fn func())
+TEXT runtime·switchToCrashStack0<ABIInternal>(SB), NOSPLIT, $0-8
+	MOVD	fn+0(FP), R12	// context
+	MOVD	g_m(g), R4	// curm
+
+	// set g to gcrash
+	MOVD	$runtime·gcrash(SB), g	// g = &gcrash
+	BL	runtime·save_g(SB)
+	MOVD	R4, g_m(g)	// g.m = curm
+	MOVD	g, m_g0(R4)	// curm.g0 = g
+
+	// switch to crashstack
+	MOVD	(g_stack+stack_hi)(g), R4
+	ADD	$(-4*8), R4, R15
+
+	// call target function
+	MOVD	0(R12), R3	// code pointer
+	BL	(R3)
+
+	// should never return
+	BL	runtime·abort(SB)
+	UNDEF
+
 /*
  * support for morestack
  */
@@ -305,6 +326,14 @@ noswitch:
 // calling the scheduler calling newm calling gc), so we must
 // record an argument size. For that purpose, it has no arguments.
 TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+	// Called from f.
+	// Set g->sched to context in f.
+	MOVD	R15, (g_sched+gobuf_sp)(g)
+	MOVD	LR, R8
+	MOVD	R8, (g_sched+gobuf_pc)(g)
+	MOVD	R5, (g_sched+gobuf_lr)(g)
+	MOVD	R12, (g_sched+gobuf_ctxt)(g)
+
 	// Cannot grow scheduler stack (m->g0).
 	MOVD	g_m(g), R7
 	MOVD	m_g0(R7), R8
@@ -318,14 +347,6 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	BNE	3(PC)
 	BL	runtime·badmorestackgsignal(SB)
 	BL	runtime·abort(SB)
-
-	// Called from f.
-	// Set g->sched to context in f.
-	MOVD	R15, (g_sched+gobuf_sp)(g)
-	MOVD	LR, R8
-	MOVD	R8, (g_sched+gobuf_pc)(g)
-	MOVD	R5, (g_sched+gobuf_lr)(g)
-	MOVD	R12, (g_sched+gobuf_ctxt)(g)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
@@ -499,7 +520,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	R1, (g_sched+gobuf_pc)(g)
 	MOVD	R15, (g_sched+gobuf_sp)(g)
 	MOVD	$0, (g_sched+gobuf_lr)(g)
-	MOVD	$0, (g_sched+gobuf_ret)(g)
 	// Assert ctxt is zero. See func save.
 	MOVD	(g_sched+gobuf_ctxt)(g), R1
 	CMPBEQ	R1, $0, 2(PC)
@@ -743,10 +763,6 @@ TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
 	JMP	runtime·memhash32Fallback(SB)
 TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
 	JMP	runtime·memhash64Fallback(SB)
-
-TEXT runtime·return0(SB), NOSPLIT, $0
-	MOVW	$0, R3
-	RET
 
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.

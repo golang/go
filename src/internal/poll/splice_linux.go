@@ -9,10 +9,15 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
-	"unsafe"
 )
 
 const (
+	// spliceNonblock doesn't make the splice itself necessarily nonblocking
+	// (because the actual file descriptors that are spliced from/to may block
+	// unless they have the O_NONBLOCK flag set), but it makes the splice pipe
+	// operations nonblocking.
+	spliceNonblock = 0x2
+
 	// maxSpliceSize is the maximum amount of data Splice asks
 	// the kernel to move in a single call to splice(2).
 	// We use 1MB as Splice writes data through a pipe, and 1MB is the default maximum pipe buffer size,
@@ -25,12 +30,10 @@ const (
 //
 // Splice gets a pipe buffer from the pool or creates a new one if needed, to serve as a buffer for the data transfer.
 // src and dst must both be stream-oriented sockets.
-//
-// If err != nil, sc is the system call which caused the error.
-func Splice(dst, src *FD, remain int64) (written int64, handled bool, sc string, err error) {
-	p, sc, err := getPipe()
+func Splice(dst, src *FD, remain int64) (written int64, handled bool, err error) {
+	p, err := getPipe()
 	if err != nil {
-		return 0, false, sc, err
+		return 0, false, err
 	}
 	defer putPipe(p)
 	var inPipe, n int
@@ -65,9 +68,9 @@ func Splice(dst, src *FD, remain int64) (written int64, handled bool, sc string,
 		}
 	}
 	if err != nil {
-		return written, handled, "splice", err
+		return written, handled, err
 	}
-	return written, true, "", nil
+	return written, true, nil
 }
 
 // spliceDrain moves data from a socket to a pipe.
@@ -89,7 +92,11 @@ func spliceDrain(pipefd int, sock *FD, max int) (int, error) {
 		return 0, err
 	}
 	for {
-		n, err := splice(pipefd, sock.Sysfd, max, 0)
+		// In theory calling splice(2) with SPLICE_F_NONBLOCK could end up an infinite loop here,
+		// because it could return EAGAIN ceaselessly when the write end of the pipe is full,
+		// but this shouldn't be a concern here, since the pipe buffer must be sufficient for
+		// this data transmission on the basis of the workflow in Splice.
+		n, err := splice(pipefd, sock.Sysfd, max, spliceNonblock)
 		if err == syscall.EINTR {
 			continue
 		}
@@ -127,7 +134,14 @@ func splicePump(sock *FD, pipefd int, inPipe int) (int, error) {
 	}
 	written := 0
 	for inPipe > 0 {
-		n, err := splice(sock.Sysfd, pipefd, inPipe, 0)
+		// In theory calling splice(2) with SPLICE_F_NONBLOCK could end up an infinite loop here,
+		// because it could return EAGAIN ceaselessly when the read end of the pipe is empty,
+		// but this shouldn't be a concern here, since the pipe buffer must contain inPipe size of
+		// data on the basis of the workflow in Splice.
+		n, err := splice(sock.Sysfd, pipefd, inPipe, spliceNonblock)
+		if err == syscall.EINTR {
+			continue
+		}
 		// Here, the condition n == 0 && err == nil should never be
 		// observed, since Splice controls the write side of the pipe.
 		if n > 0 {
@@ -164,10 +178,7 @@ type splicePipeFields struct {
 
 type splicePipe struct {
 	splicePipeFields
-
-	// We want to use a finalizer, so ensure that the size is
-	// large enough to not use the tiny allocator.
-	_ [24 - unsafe.Sizeof(splicePipeFields{})%24]byte
+	cleanup runtime.Cleanup
 }
 
 // splicePipePool caches pipes to avoid high-frequency construction and destruction of pipe buffers.
@@ -182,27 +193,27 @@ func newPoolPipe() any {
 	if p == nil {
 		return nil
 	}
-	runtime.SetFinalizer(p, destroyPipe)
+
+	p.cleanup = runtime.AddCleanup(p, func(spf splicePipeFields) {
+		destroyPipe(&splicePipe{splicePipeFields: spf})
+	}, p.splicePipeFields)
 	return p
 }
 
 // getPipe tries to acquire a pipe buffer from the pool or create a new one with newPipe() if it gets nil from the cache.
-//
-// Note that it may fail to create a new pipe buffer by newPipe(), in which case getPipe() will return a generic error
-// and system call name splice in a string as the indication.
-func getPipe() (*splicePipe, string, error) {
+func getPipe() (*splicePipe, error) {
 	v := splicePipePool.Get()
 	if v == nil {
-		return nil, "splice", syscall.EINVAL
+		return nil, syscall.EINVAL
 	}
-	return v.(*splicePipe), "", nil
+	return v.(*splicePipe), nil
 }
 
 func putPipe(p *splicePipe) {
 	// If there is still data left in the pipe,
 	// then close and discard it instead of putting it back into the pool.
 	if p.data != 0 {
-		runtime.SetFinalizer(p, nil)
+		p.cleanup.Stop()
 		destroyPipe(p)
 		return
 	}

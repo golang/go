@@ -26,8 +26,11 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"slices"
 	"sync"
 )
+
+var errBufferTooSmall = errors.New("buffer too small")
 
 // A ByteOrder specifies how to convert byte slices into
 // 16-, 32-, or 64-bit unsigned integers.
@@ -62,17 +65,20 @@ var BigEndian bigEndian
 
 type littleEndian struct{}
 
+// Uint16 returns the uint16 representation of b[0:2].
 func (littleEndian) Uint16(b []byte) uint16 {
 	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint16(b[0]) | uint16(b[1])<<8
 }
 
+// PutUint16 stores v into b[0:2].
 func (littleEndian) PutUint16(b []byte, v uint16) {
 	_ = b[1] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v)
 	b[1] = byte(v >> 8)
 }
 
+// AppendUint16 appends the bytes of v to b and returns the appended slice.
 func (littleEndian) AppendUint16(b []byte, v uint16) []byte {
 	return append(b,
 		byte(v),
@@ -80,11 +86,13 @@ func (littleEndian) AppendUint16(b []byte, v uint16) []byte {
 	)
 }
 
+// Uint32 returns the uint32 representation of b[0:4].
 func (littleEndian) Uint32(b []byte) uint32 {
 	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
 }
 
+// PutUint32 stores v into b[0:4].
 func (littleEndian) PutUint32(b []byte, v uint32) {
 	_ = b[3] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v)
@@ -93,6 +101,7 @@ func (littleEndian) PutUint32(b []byte, v uint32) {
 	b[3] = byte(v >> 24)
 }
 
+// AppendUint32 appends the bytes of v to b and returns the appended slice.
 func (littleEndian) AppendUint32(b []byte, v uint32) []byte {
 	return append(b,
 		byte(v),
@@ -102,12 +111,14 @@ func (littleEndian) AppendUint32(b []byte, v uint32) []byte {
 	)
 }
 
+// Uint64 returns the uint64 representation of b[0:8].
 func (littleEndian) Uint64(b []byte) uint64 {
 	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
 		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
 }
 
+// PutUint64 stores v into b[0:8].
 func (littleEndian) PutUint64(b []byte, v uint64) {
 	_ = b[7] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v)
@@ -120,6 +131,7 @@ func (littleEndian) PutUint64(b []byte, v uint64) {
 	b[7] = byte(v >> 56)
 }
 
+// AppendUint64 appends the bytes of v to b and returns the appended slice.
 func (littleEndian) AppendUint64(b []byte, v uint64) []byte {
 	return append(b,
 		byte(v),
@@ -139,17 +151,20 @@ func (littleEndian) GoString() string { return "binary.LittleEndian" }
 
 type bigEndian struct{}
 
+// Uint16 returns the uint16 representation of b[0:2].
 func (bigEndian) Uint16(b []byte) uint16 {
 	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint16(b[1]) | uint16(b[0])<<8
 }
 
+// PutUint16 stores v into b[0:2].
 func (bigEndian) PutUint16(b []byte, v uint16) {
 	_ = b[1] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v >> 8)
 	b[1] = byte(v)
 }
 
+// AppendUint16 appends the bytes of v to b and returns the appended slice.
 func (bigEndian) AppendUint16(b []byte, v uint16) []byte {
 	return append(b,
 		byte(v>>8),
@@ -157,11 +172,13 @@ func (bigEndian) AppendUint16(b []byte, v uint16) []byte {
 	)
 }
 
+// Uint32 returns the uint32 representation of b[0:4].
 func (bigEndian) Uint32(b []byte) uint32 {
 	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
 }
 
+// PutUint32 stores v into b[0:4].
 func (bigEndian) PutUint32(b []byte, v uint32) {
 	_ = b[3] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v >> 24)
@@ -170,6 +187,7 @@ func (bigEndian) PutUint32(b []byte, v uint32) {
 	b[3] = byte(v)
 }
 
+// AppendUint32 appends the bytes of v to b and returns the appended slice.
 func (bigEndian) AppendUint32(b []byte, v uint32) []byte {
 	return append(b,
 		byte(v>>24),
@@ -179,12 +197,14 @@ func (bigEndian) AppendUint32(b []byte, v uint32) []byte {
 	)
 }
 
+// Uint64 returns the uint64 representation of b[0:8].
 func (bigEndian) Uint64(b []byte) uint64 {
 	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
 	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
 		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
 }
 
+// PutUint64 stores v into b[0:8].
 func (bigEndian) PutUint64(b []byte, v uint64) {
 	_ = b[7] // early bounds check to guarantee safety of writes below
 	b[0] = byte(v >> 56)
@@ -197,6 +217,7 @@ func (bigEndian) PutUint64(b []byte, v uint64) {
 	b[7] = byte(v)
 }
 
+// AppendUint64 appends the bytes of v to b and returns the appended slice.
 func (bigEndian) AppendUint64(b []byte, v uint64) []byte {
 	return append(b,
 		byte(v>>56),
@@ -236,80 +257,13 @@ func (nativeEndian) GoString() string { return "binary.NativeEndian" }
 // Read returns [io.ErrUnexpectedEOF].
 func Read(r io.Reader, order ByteOrder, data any) error {
 	// Fast path for basic types and slices.
-	if n := intDataSize(data); n != 0 {
+	if n, _ := intDataSize(data); n != 0 {
 		bs := make([]byte, n)
 		if _, err := io.ReadFull(r, bs); err != nil {
 			return err
 		}
-		switch data := data.(type) {
-		case *bool:
-			*data = bs[0] != 0
-		case *int8:
-			*data = int8(bs[0])
-		case *uint8:
-			*data = bs[0]
-		case *int16:
-			*data = int16(order.Uint16(bs))
-		case *uint16:
-			*data = order.Uint16(bs)
-		case *int32:
-			*data = int32(order.Uint32(bs))
-		case *uint32:
-			*data = order.Uint32(bs)
-		case *int64:
-			*data = int64(order.Uint64(bs))
-		case *uint64:
-			*data = order.Uint64(bs)
-		case *float32:
-			*data = math.Float32frombits(order.Uint32(bs))
-		case *float64:
-			*data = math.Float64frombits(order.Uint64(bs))
-		case []bool:
-			for i, x := range bs { // Easier to loop over the input for 8-bit values.
-				data[i] = x != 0
-			}
-		case []int8:
-			for i, x := range bs {
-				data[i] = int8(x)
-			}
-		case []uint8:
-			copy(data, bs)
-		case []int16:
-			for i := range data {
-				data[i] = int16(order.Uint16(bs[2*i:]))
-			}
-		case []uint16:
-			for i := range data {
-				data[i] = order.Uint16(bs[2*i:])
-			}
-		case []int32:
-			for i := range data {
-				data[i] = int32(order.Uint32(bs[4*i:]))
-			}
-		case []uint32:
-			for i := range data {
-				data[i] = order.Uint32(bs[4*i:])
-			}
-		case []int64:
-			for i := range data {
-				data[i] = int64(order.Uint64(bs[8*i:]))
-			}
-		case []uint64:
-			for i := range data {
-				data[i] = order.Uint64(bs[8*i:])
-			}
-		case []float32:
-			for i := range data {
-				data[i] = math.Float32frombits(order.Uint32(bs[4*i:]))
-			}
-		case []float64:
-			for i := range data {
-				data[i] = math.Float64frombits(order.Uint64(bs[8*i:]))
-			}
-		default:
-			n = 0 // fast path doesn't apply
-		}
-		if n != 0 {
+
+		if decodeFast(bs, order, data) {
 			return nil
 		}
 	}
@@ -327,12 +281,122 @@ func Read(r io.Reader, order ByteOrder, data any) error {
 	if size < 0 {
 		return errors.New("binary.Read: invalid type " + reflect.TypeOf(data).String())
 	}
+
 	d := &decoder{order: order, buf: make([]byte, size)}
 	if _, err := io.ReadFull(r, d.buf); err != nil {
 		return err
 	}
 	d.value(v)
 	return nil
+}
+
+// Decode decodes binary data from buf into data according to
+// the given byte order.
+// It returns an error if buf is too small, otherwise the number of
+// bytes consumed from buf.
+func Decode(buf []byte, order ByteOrder, data any) (int, error) {
+	if n, _ := intDataSize(data); n != 0 {
+		if len(buf) < n {
+			return 0, errBufferTooSmall
+		}
+
+		if decodeFast(buf, order, data) {
+			return n, nil
+		}
+	}
+
+	// Fallback to reflect-based decoding.
+	v := reflect.ValueOf(data)
+	size := -1
+	switch v.Kind() {
+	case reflect.Pointer:
+		v = v.Elem()
+		size = dataSize(v)
+	case reflect.Slice:
+		size = dataSize(v)
+	}
+	if size < 0 {
+		return 0, errors.New("binary.Decode: invalid type " + reflect.TypeOf(data).String())
+	}
+
+	if len(buf) < size {
+		return 0, errBufferTooSmall
+	}
+	d := &decoder{order: order, buf: buf[:size]}
+	d.value(v)
+	return size, nil
+}
+
+func decodeFast(bs []byte, order ByteOrder, data any) bool {
+	switch data := data.(type) {
+	case *bool:
+		*data = bs[0] != 0
+	case *int8:
+		*data = int8(bs[0])
+	case *uint8:
+		*data = bs[0]
+	case *int16:
+		*data = int16(order.Uint16(bs))
+	case *uint16:
+		*data = order.Uint16(bs)
+	case *int32:
+		*data = int32(order.Uint32(bs))
+	case *uint32:
+		*data = order.Uint32(bs)
+	case *int64:
+		*data = int64(order.Uint64(bs))
+	case *uint64:
+		*data = order.Uint64(bs)
+	case *float32:
+		*data = math.Float32frombits(order.Uint32(bs))
+	case *float64:
+		*data = math.Float64frombits(order.Uint64(bs))
+	case []bool:
+		for i, x := range bs { // Easier to loop over the input for 8-bit values.
+			data[i] = x != 0
+		}
+	case []int8:
+		for i, x := range bs {
+			data[i] = int8(x)
+		}
+	case []uint8:
+		copy(data, bs)
+	case []int16:
+		for i := range data {
+			data[i] = int16(order.Uint16(bs[2*i:]))
+		}
+	case []uint16:
+		for i := range data {
+			data[i] = order.Uint16(bs[2*i:])
+		}
+	case []int32:
+		for i := range data {
+			data[i] = int32(order.Uint32(bs[4*i:]))
+		}
+	case []uint32:
+		for i := range data {
+			data[i] = order.Uint32(bs[4*i:])
+		}
+	case []int64:
+		for i := range data {
+			data[i] = int64(order.Uint64(bs[8*i:]))
+		}
+	case []uint64:
+		for i := range data {
+			data[i] = order.Uint64(bs[8*i:])
+		}
+	case []float32:
+		for i := range data {
+			data[i] = math.Float32frombits(order.Uint32(bs[4*i:]))
+		}
+	case []float64:
+		for i := range data {
+			data[i] = math.Float64frombits(order.Uint64(bs[8*i:]))
+		}
+	default:
+		return false
+	}
+	return true
 }
 
 // Write writes the binary representation of data into w.
@@ -345,108 +409,12 @@ func Read(r io.Reader, order ByteOrder, data any) error {
 // with blank (_) field names.
 func Write(w io.Writer, order ByteOrder, data any) error {
 	// Fast path for basic types and slices.
-	if n := intDataSize(data); n != 0 {
-		bs := make([]byte, n)
-		switch v := data.(type) {
-		case *bool:
-			if *v {
-				bs[0] = 1
-			} else {
-				bs[0] = 0
-			}
-		case bool:
-			if v {
-				bs[0] = 1
-			} else {
-				bs[0] = 0
-			}
-		case []bool:
-			for i, x := range v {
-				if x {
-					bs[i] = 1
-				} else {
-					bs[i] = 0
-				}
-			}
-		case *int8:
-			bs[0] = byte(*v)
-		case int8:
-			bs[0] = byte(v)
-		case []int8:
-			for i, x := range v {
-				bs[i] = byte(x)
-			}
-		case *uint8:
-			bs[0] = *v
-		case uint8:
-			bs[0] = v
-		case []uint8:
-			bs = v
-		case *int16:
-			order.PutUint16(bs, uint16(*v))
-		case int16:
-			order.PutUint16(bs, uint16(v))
-		case []int16:
-			for i, x := range v {
-				order.PutUint16(bs[2*i:], uint16(x))
-			}
-		case *uint16:
-			order.PutUint16(bs, *v)
-		case uint16:
-			order.PutUint16(bs, v)
-		case []uint16:
-			for i, x := range v {
-				order.PutUint16(bs[2*i:], x)
-			}
-		case *int32:
-			order.PutUint32(bs, uint32(*v))
-		case int32:
-			order.PutUint32(bs, uint32(v))
-		case []int32:
-			for i, x := range v {
-				order.PutUint32(bs[4*i:], uint32(x))
-			}
-		case *uint32:
-			order.PutUint32(bs, *v)
-		case uint32:
-			order.PutUint32(bs, v)
-		case []uint32:
-			for i, x := range v {
-				order.PutUint32(bs[4*i:], x)
-			}
-		case *int64:
-			order.PutUint64(bs, uint64(*v))
-		case int64:
-			order.PutUint64(bs, uint64(v))
-		case []int64:
-			for i, x := range v {
-				order.PutUint64(bs[8*i:], uint64(x))
-			}
-		case *uint64:
-			order.PutUint64(bs, *v)
-		case uint64:
-			order.PutUint64(bs, v)
-		case []uint64:
-			for i, x := range v {
-				order.PutUint64(bs[8*i:], x)
-			}
-		case *float32:
-			order.PutUint32(bs, math.Float32bits(*v))
-		case float32:
-			order.PutUint32(bs, math.Float32bits(v))
-		case []float32:
-			for i, x := range v {
-				order.PutUint32(bs[4*i:], math.Float32bits(x))
-			}
-		case *float64:
-			order.PutUint64(bs, math.Float64bits(*v))
-		case float64:
-			order.PutUint64(bs, math.Float64bits(v))
-		case []float64:
-			for i, x := range v {
-				order.PutUint64(bs[8*i:], math.Float64bits(x))
-			}
+	if n, bs := intDataSize(data); n != 0 {
+		if bs == nil {
+			bs = make([]byte, n)
+			encodeFast(bs, order, data)
 		}
+
 		_, err := w.Write(bs)
 		return err
 	}
@@ -457,6 +425,7 @@ func Write(w io.Writer, order ByteOrder, data any) error {
 	if size < 0 {
 		return errors.New("binary.Write: some values are not fixed-sized in type " + reflect.TypeOf(data).String())
 	}
+
 	buf := make([]byte, size)
 	e := &encoder{order: order, buf: buf}
 	e.value(v)
@@ -464,10 +433,259 @@ func Write(w io.Writer, order ByteOrder, data any) error {
 	return err
 }
 
+// Encode encodes the binary representation of data into buf according to
+// the given byte order.
+// It returns an error if buf is too small, otherwise the number of
+// bytes written into buf.
+func Encode(buf []byte, order ByteOrder, data any) (int, error) {
+	// Fast path for basic types and slices.
+	if n, _ := intDataSize(data); n != 0 {
+		if len(buf) < n {
+			return 0, errBufferTooSmall
+		}
+
+		encodeFast(buf, order, data)
+		return n, nil
+	}
+
+	// Fallback to reflect-based encoding.
+	v := reflect.Indirect(reflect.ValueOf(data))
+	size := dataSize(v)
+	if size < 0 {
+		return 0, errors.New("binary.Encode: some values are not fixed-sized in type " + reflect.TypeOf(data).String())
+	}
+
+	if len(buf) < size {
+		return 0, errBufferTooSmall
+	}
+	e := &encoder{order: order, buf: buf}
+	e.value(v)
+	return size, nil
+}
+
+// Append appends the binary representation of data to buf.
+// buf may be nil, in which case a new buffer will be allocated.
+// See [Write] on which data are acceptable.
+// It returns the (possibly extended) buffer containing data or an error.
+func Append(buf []byte, order ByteOrder, data any) ([]byte, error) {
+	// Fast path for basic types and slices.
+	if n, _ := intDataSize(data); n != 0 {
+		buf, pos := ensure(buf, n)
+		encodeFast(pos, order, data)
+		return buf, nil
+	}
+
+	// Fallback to reflect-based encoding.
+	v := reflect.Indirect(reflect.ValueOf(data))
+	size := dataSize(v)
+	if size < 0 {
+		return nil, errors.New("binary.Append: some values are not fixed-sized in type " + reflect.TypeOf(data).String())
+	}
+
+	buf, pos := ensure(buf, size)
+	e := &encoder{order: order, buf: pos}
+	e.value(v)
+	return buf, nil
+}
+
+func encodeFast(bs []byte, order ByteOrder, data any) {
+	switch v := data.(type) {
+	case *bool:
+		if *v {
+			bs[0] = 1
+		} else {
+			bs[0] = 0
+		}
+	case bool:
+		if v {
+			bs[0] = 1
+		} else {
+			bs[0] = 0
+		}
+	case []bool:
+		for i, x := range v {
+			if x {
+				bs[i] = 1
+			} else {
+				bs[i] = 0
+			}
+		}
+	case *int8:
+		bs[0] = byte(*v)
+	case int8:
+		bs[0] = byte(v)
+	case []int8:
+		for i, x := range v {
+			bs[i] = byte(x)
+		}
+	case *uint8:
+		bs[0] = *v
+	case uint8:
+		bs[0] = v
+	case []uint8:
+		copy(bs, v)
+	case *int16:
+		order.PutUint16(bs, uint16(*v))
+	case int16:
+		order.PutUint16(bs, uint16(v))
+	case []int16:
+		for i, x := range v {
+			order.PutUint16(bs[2*i:], uint16(x))
+		}
+	case *uint16:
+		order.PutUint16(bs, *v)
+	case uint16:
+		order.PutUint16(bs, v)
+	case []uint16:
+		for i, x := range v {
+			order.PutUint16(bs[2*i:], x)
+		}
+	case *int32:
+		order.PutUint32(bs, uint32(*v))
+	case int32:
+		order.PutUint32(bs, uint32(v))
+	case []int32:
+		for i, x := range v {
+			order.PutUint32(bs[4*i:], uint32(x))
+		}
+	case *uint32:
+		order.PutUint32(bs, *v)
+	case uint32:
+		order.PutUint32(bs, v)
+	case []uint32:
+		for i, x := range v {
+			order.PutUint32(bs[4*i:], x)
+		}
+	case *int64:
+		order.PutUint64(bs, uint64(*v))
+	case int64:
+		order.PutUint64(bs, uint64(v))
+	case []int64:
+		for i, x := range v {
+			order.PutUint64(bs[8*i:], uint64(x))
+		}
+	case *uint64:
+		order.PutUint64(bs, *v)
+	case uint64:
+		order.PutUint64(bs, v)
+	case []uint64:
+		for i, x := range v {
+			order.PutUint64(bs[8*i:], x)
+		}
+	case *float32:
+		order.PutUint32(bs, math.Float32bits(*v))
+	case float32:
+		order.PutUint32(bs, math.Float32bits(v))
+	case []float32:
+		for i, x := range v {
+			order.PutUint32(bs[4*i:], math.Float32bits(x))
+		}
+	case *float64:
+		order.PutUint64(bs, math.Float64bits(*v))
+	case float64:
+		order.PutUint64(bs, math.Float64bits(v))
+	case []float64:
+		for i, x := range v {
+			order.PutUint64(bs[8*i:], math.Float64bits(x))
+		}
+	}
+}
+
 // Size returns how many bytes [Write] would generate to encode the value v, which
 // must be a fixed-size value or a slice of fixed-size values, or a pointer to such data.
 // If v is neither of these, Size returns -1.
 func Size(v any) int {
+	switch data := v.(type) {
+	case bool, int8, uint8:
+		return 1
+	case *bool:
+		if data == nil {
+			return -1
+		}
+		return 1
+	case *int8:
+		if data == nil {
+			return -1
+		}
+		return 1
+	case *uint8:
+		if data == nil {
+			return -1
+		}
+		return 1
+	case []bool:
+		return len(data)
+	case []int8:
+		return len(data)
+	case []uint8:
+		return len(data)
+	case int16, uint16:
+		return 2
+	case *int16:
+		if data == nil {
+			return -1
+		}
+		return 2
+	case *uint16:
+		if data == nil {
+			return -1
+		}
+		return 2
+	case []int16:
+		return 2 * len(data)
+	case []uint16:
+		return 2 * len(data)
+	case int32, uint32:
+		return 4
+	case *int32:
+		if data == nil {
+			return -1
+		}
+		return 4
+	case *uint32:
+		if data == nil {
+			return -1
+		}
+		return 4
+	case []int32:
+		return 4 * len(data)
+	case []uint32:
+		return 4 * len(data)
+	case int64, uint64:
+		return 8
+	case *int64:
+		if data == nil {
+			return -1
+		}
+		return 8
+	case *uint64:
+		if data == nil {
+			return -1
+		}
+		return 8
+	case []int64:
+		return 8 * len(data)
+	case []uint64:
+		return 8 * len(data)
+	case float32:
+		return 4
+	case *float32:
+		if data == nil {
+			return -1
+		}
+		return 4
+	case float64:
+		return 8
+	case *float64:
+		if data == nil {
+			return -1
+		}
+		return 8
+	case []float32:
+		return 4 * len(data)
+	case []float64:
+		return 8 * len(data)
+	}
 	return dataSize(reflect.Indirect(reflect.ValueOf(v)))
 }
 
@@ -479,9 +697,18 @@ var structSize sync.Map // map[reflect.Type]int
 // occupied by the header. If the type of v is not acceptable, dataSize returns -1.
 func dataSize(v reflect.Value) int {
 	switch v.Kind() {
-	case reflect.Slice:
-		if s := sizeof(v.Type().Elem()); s >= 0 {
-			return s * v.Len()
+	case reflect.Slice, reflect.Array:
+		t := v.Type().Elem()
+		if size, ok := structSize.Load(t); ok {
+			return size.(int) * v.Len()
+		}
+
+		size := sizeof(t)
+		if size >= 0 {
+			if t.Kind() == reflect.Struct {
+				structSize.Store(t, size)
+			}
+			return size * v.Len()
 		}
 
 	case reflect.Struct:
@@ -713,49 +940,37 @@ func (e *encoder) value(v reflect.Value) {
 	case reflect.Bool:
 		e.bool(v.Bool())
 
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		switch v.Type().Kind() {
-		case reflect.Int8:
-			e.int8(int8(v.Int()))
-		case reflect.Int16:
-			e.int16(int16(v.Int()))
-		case reflect.Int32:
-			e.int32(int32(v.Int()))
-		case reflect.Int64:
-			e.int64(v.Int())
-		}
+	case reflect.Int8:
+		e.int8(int8(v.Int()))
+	case reflect.Int16:
+		e.int16(int16(v.Int()))
+	case reflect.Int32:
+		e.int32(int32(v.Int()))
+	case reflect.Int64:
+		e.int64(v.Int())
 
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		switch v.Type().Kind() {
-		case reflect.Uint8:
-			e.uint8(uint8(v.Uint()))
-		case reflect.Uint16:
-			e.uint16(uint16(v.Uint()))
-		case reflect.Uint32:
-			e.uint32(uint32(v.Uint()))
-		case reflect.Uint64:
-			e.uint64(v.Uint())
-		}
+	case reflect.Uint8:
+		e.uint8(uint8(v.Uint()))
+	case reflect.Uint16:
+		e.uint16(uint16(v.Uint()))
+	case reflect.Uint32:
+		e.uint32(uint32(v.Uint()))
+	case reflect.Uint64:
+		e.uint64(v.Uint())
 
-	case reflect.Float32, reflect.Float64:
-		switch v.Type().Kind() {
-		case reflect.Float32:
-			e.uint32(math.Float32bits(float32(v.Float())))
-		case reflect.Float64:
-			e.uint64(math.Float64bits(v.Float()))
-		}
+	case reflect.Float32:
+		e.uint32(math.Float32bits(float32(v.Float())))
+	case reflect.Float64:
+		e.uint64(math.Float64bits(v.Float()))
 
-	case reflect.Complex64, reflect.Complex128:
-		switch v.Type().Kind() {
-		case reflect.Complex64:
-			x := v.Complex()
-			e.uint32(math.Float32bits(float32(real(x))))
-			e.uint32(math.Float32bits(float32(imag(x))))
-		case reflect.Complex128:
-			x := v.Complex()
-			e.uint64(math.Float64bits(real(x)))
-			e.uint64(math.Float64bits(imag(x)))
-		}
+	case reflect.Complex64:
+		x := v.Complex()
+		e.uint32(math.Float32bits(float32(real(x))))
+		e.uint32(math.Float32bits(float32(imag(x))))
+	case reflect.Complex128:
+		x := v.Complex()
+		e.uint64(math.Float64bits(real(x)))
+		e.uint64(math.Float64bits(imag(x)))
 	}
 }
 
@@ -765,51 +980,57 @@ func (d *decoder) skip(v reflect.Value) {
 
 func (e *encoder) skip(v reflect.Value) {
 	n := dataSize(v)
-	zero := e.buf[e.offset : e.offset+n]
-	for i := range zero {
-		zero[i] = 0
-	}
+	clear(e.buf[e.offset : e.offset+n])
 	e.offset += n
 }
 
-// intDataSize returns the size of the data required to represent the data when encoded.
-// It returns zero if the type cannot be implemented by the fast path in Read or Write.
-func intDataSize(data any) int {
+// intDataSize returns the size of the data required to represent the data when encoded,
+// and optionally a byte slice containing the encoded data if no conversion is necessary.
+// It returns zero, nil if the type cannot be implemented by the fast path in Read or Write.
+func intDataSize(data any) (int, []byte) {
 	switch data := data.(type) {
 	case bool, int8, uint8, *bool, *int8, *uint8:
-		return 1
+		return 1, nil
 	case []bool:
-		return len(data)
+		return len(data), nil
 	case []int8:
-		return len(data)
+		return len(data), nil
 	case []uint8:
-		return len(data)
+		return len(data), data
 	case int16, uint16, *int16, *uint16:
-		return 2
+		return 2, nil
 	case []int16:
-		return 2 * len(data)
+		return 2 * len(data), nil
 	case []uint16:
-		return 2 * len(data)
+		return 2 * len(data), nil
 	case int32, uint32, *int32, *uint32:
-		return 4
+		return 4, nil
 	case []int32:
-		return 4 * len(data)
+		return 4 * len(data), nil
 	case []uint32:
-		return 4 * len(data)
+		return 4 * len(data), nil
 	case int64, uint64, *int64, *uint64:
-		return 8
+		return 8, nil
 	case []int64:
-		return 8 * len(data)
+		return 8 * len(data), nil
 	case []uint64:
-		return 8 * len(data)
+		return 8 * len(data), nil
 	case float32, *float32:
-		return 4
+		return 4, nil
 	case float64, *float64:
-		return 8
+		return 8, nil
 	case []float32:
-		return 4 * len(data)
+		return 4 * len(data), nil
 	case []float64:
-		return 8 * len(data)
+		return 8 * len(data), nil
 	}
-	return 0
+	return 0, nil
+}
+
+// ensure grows buf to length len(buf) + n and returns the grown buffer
+// and a slice starting at the original length of buf (that is, buf2[len(buf):]).
+func ensure(buf []byte, n int) (buf2, pos []byte) {
+	l := len(buf)
+	buf = slices.Grow(buf, n)[:l+n]
+	return buf, buf[l:]
 }

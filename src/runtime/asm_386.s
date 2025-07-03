@@ -291,10 +291,8 @@ TEXT gogo<>(SB), NOSPLIT, $0
 	get_tls(CX)
 	MOVL	DX, g(CX)
 	MOVL	gobuf_sp(BX), SP	// restore SP
-	MOVL	gobuf_ret(BX), AX
 	MOVL	gobuf_ctxt(BX), DX
 	MOVL	$0, gobuf_sp(BX)	// clear to help garbage collector
-	MOVL	$0, gobuf_ret(BX)
 	MOVL	$0, gobuf_ctxt(BX)
 	MOVL	gobuf_pc(BX), BX
 	JMP	BX
@@ -398,6 +396,35 @@ bad:
 	CALL	AX
 	INT	$3
 
+// func switchToCrashStack0(fn func())
+TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-4
+	MOVL 	fn+0(FP), AX
+
+	get_tls(CX)
+	MOVL	g(CX), BX	// BX = g
+	MOVL	g_m(BX), DX	// DX = curm
+
+	// set g to gcrash
+	LEAL	runtime·gcrash(SB), BX // g = &gcrash
+	MOVL	DX, g_m(BX)            // g.m = curm
+	MOVL	BX, m_g0(DX)           // curm.g0 = g
+	get_tls(CX)
+	MOVL	BX, g(CX)
+
+	// switch to crashstack
+	MOVL	(g_stack+stack_hi)(BX), DX
+	SUBL	$(4*8), DX
+	MOVL	DX, SP
+
+	// call target function
+	MOVL	AX, DX
+	MOVL	0(AX), AX
+	CALL	AX
+
+	// should never return
+	CALL	runtime·abort(SB)
+	UNDEF
+
 /*
  * support for morestack
  */
@@ -408,11 +435,19 @@ bad:
 // the top of a stack (for example, morestack calling newstack
 // calling the scheduler calling newm calling gc), so we must
 // record an argument size. For that purpose, it has no arguments.
-TEXT runtime·morestack(SB),NOSPLIT,$0-0
+TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	// Cannot grow scheduler stack (m->g0).
 	get_tls(CX)
-	MOVL	g(CX), BX
-	MOVL	g_m(BX), BX
+	MOVL	g(CX), DI
+	MOVL	g_m(DI), BX
+
+	// Set g->sched to context in f.
+	MOVL	0(SP), AX	// f's PC
+	MOVL	AX, (g_sched+gobuf_pc)(DI)
+	LEAL	4(SP), AX	// f's SP
+	MOVL	AX, (g_sched+gobuf_sp)(DI)
+	MOVL	DX, (g_sched+gobuf_ctxt)(DI)
+
 	MOVL	m_g0(BX), SI
 	CMPL	g(CX), SI
 	JNE	3(PC)
@@ -436,13 +471,6 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 	get_tls(CX)
 	MOVL	g(CX), SI
 	MOVL	SI, (m_morebuf+gobuf_g)(BX)
-
-	// Set g->sched to context in f.
-	MOVL	0(SP), AX	// f's PC
-	MOVL	AX, (g_sched+gobuf_pc)(SI)
-	LEAL	4(SP), AX	// f's SP
-	MOVL	AX, (g_sched+gobuf_sp)(SI)
-	MOVL	DX, (g_sched+gobuf_ctxt)(SI)
 
 	// Call newstack on m->g0's stack.
 	MOVL	m_g0(BX), BP
@@ -595,7 +623,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
 	MOVL	AX, (g_sched+gobuf_sp)(BX)
 	MOVL	$runtime·systemstack_switch(SB), AX
 	MOVL	AX, (g_sched+gobuf_pc)(BX)
-	MOVL	$0, (g_sched+gobuf_ret)(BX)
 	// Assert ctxt is zero. See func save.
 	MOVL	(g_sched+gobuf_ctxt)(BX), AX
 	TESTL	AX, AX
@@ -1341,10 +1368,6 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 	ORL	BX, AX
 	TESTL	$15, AX
 	SETEQ	ret+0(FP)
-	RET
-
-TEXT runtime·return0(SB), NOSPLIT, $0
-	MOVL	$0, AX
 	RET
 
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.

@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
 	"math"
@@ -140,7 +141,7 @@ func (pa *ABIParamAssignment) RegisterTypesAndOffsets() ([]*types.Type, []int64)
 	}
 	typs := make([]*types.Type, 0, l)
 	offs := make([]int64, 0, l)
-	offs, _ = appendParamOffsets(offs, 0, pa.Type)
+	offs, _ = appendParamOffsets(offs, 0, pa.Type) // 0 is aligned for everything.
 	return appendParamTypes(typs, pa.Type), offs
 }
 
@@ -192,8 +193,8 @@ func appendParamTypes(rts []*types.Type, t *types.Type) []*types.Type {
 
 // appendParamOffsets appends the offset(s) of type t, starting from "at",
 // to input offsets, and returns the longer slice and the next unused offset.
+// at should already be aligned for t.
 func appendParamOffsets(offsets []int64, at int64, t *types.Type) ([]int64, int64) {
-	at = align(at, t)
 	w := t.Size()
 	if w == 0 {
 		return offsets, at
@@ -209,11 +210,15 @@ func appendParamOffsets(offsets []int64, at int64, t *types.Type) ([]int64, int6
 		typ := t.Kind()
 		switch typ {
 		case types.TARRAY:
+			te := t.Elem()
 			for i := int64(0); i < t.NumElem(); i++ {
-				offsets, at = appendParamOffsets(offsets, at, t.Elem())
+				at = align(at, te)
+				offsets, at = appendParamOffsets(offsets, at, te)
 			}
 		case types.TSTRUCT:
+			at0 := at
 			for i, f := range t.Fields() {
+				at = at0 + f.Offset // Fields may be over-aligned, see wasm32.
 				offsets, at = appendParamOffsets(offsets, at, f.Type)
 				if f.Type.Size() == 0 && i == t.NumFields()-1 {
 					at++ // last field has zero width
@@ -261,12 +266,13 @@ type ABIConfig struct {
 	// Do we need anything more than this?
 	offsetForLocals int64 // e.g., obj.(*Link).Arch.FixedFrameSize -- extra linkage information on some architectures.
 	regAmounts      RegAmounts
+	which           obj.ABI
 }
 
 // NewABIConfig returns a new ABI configuration for an architecture with
 // iRegsCount integer/pointer registers and fRegsCount floating point registers.
-func NewABIConfig(iRegsCount, fRegsCount int, offsetForLocals int64) *ABIConfig {
-	return &ABIConfig{offsetForLocals: offsetForLocals, regAmounts: RegAmounts{iRegsCount, fRegsCount}}
+func NewABIConfig(iRegsCount, fRegsCount int, offsetForLocals int64, which uint8) *ABIConfig {
+	return &ABIConfig{offsetForLocals: offsetForLocals, regAmounts: RegAmounts{iRegsCount, fRegsCount}, which: obj.ABI(which)}
 }
 
 // Copy returns config.
@@ -274,6 +280,11 @@ func NewABIConfig(iRegsCount, fRegsCount int, offsetForLocals int64) *ABIConfig 
 // TODO(mdempsky): Remove.
 func (config *ABIConfig) Copy() *ABIConfig {
 	return config
+}
+
+// Which returns the ABI number
+func (config *ABIConfig) Which() obj.ABI {
+	return config.which
 }
 
 // LocalsOffset returns the architecture-dependent offset from SP for args and results.
@@ -661,12 +672,12 @@ func (pa *ABIParamAssignment) ComputePadding(storage []uint64) []uint64 {
 	if len(types) != nr {
 		panic("internal error")
 	}
-	off := int64(0)
+	offsets, _ := appendParamOffsets([]int64{}, 0, pa.Type)
 	for idx, t := range types {
 		ts := t.Size()
-		off += int64(ts)
+		off := offsets[idx] + ts
 		if idx < len(types)-1 {
-			noff := align(off, types[idx+1])
+			noff := offsets[idx+1]
 			if noff != off {
 				padding[idx] = uint64(noff - off)
 			}

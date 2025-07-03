@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !wasip1
-
 package net
 
 import (
@@ -692,6 +690,10 @@ func TestDialerDualStack(t *testing.T) {
 }
 
 func TestDialerKeepAlive(t *testing.T) {
+	t.Cleanup(func() {
+		testHookSetKeepAlive = func(KeepAliveConfig) {}
+	})
+
 	handler := func(ls *localServer, ln Listener) {
 		for {
 			c, err := ln.Accept()
@@ -701,26 +703,30 @@ func TestDialerKeepAlive(t *testing.T) {
 			c.Close()
 		}
 	}
-	ls := newLocalServer(t, "tcp")
+	ln := newLocalListener(t, "tcp", &ListenConfig{
+		KeepAlive: -1, // prevent calling hook from accepting
+	})
+	ls := (&streamListener{Listener: ln}).newLocalServer()
 	defer ls.teardown()
 	if err := ls.buildup(handler); err != nil {
 		t.Fatal(err)
 	}
-	defer func() { testHookSetKeepAlive = func(time.Duration) {} }()
 
 	tests := []struct {
 		ka       time.Duration
 		expected time.Duration
 	}{
 		{-1, -1},
-		{0, 15 * time.Second},
+		{0, 0},
 		{5 * time.Second, 5 * time.Second},
 		{30 * time.Second, 30 * time.Second},
 	}
 
+	var got time.Duration = -1
+	testHookSetKeepAlive = func(cfg KeepAliveConfig) { got = cfg.Idle }
+
 	for _, test := range tests {
-		var got time.Duration = -1
-		testHookSetKeepAlive = func(d time.Duration) { got = d }
+		got = -1
 		d := Dialer{KeepAlive: test.ka}
 		c, err := d.Dial("tcp", ls.Listener.Addr().String())
 		if err != nil {
@@ -983,6 +989,8 @@ func TestDialerControl(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
+	case "js", "wasip1":
+		t.Skipf("skipping: fake net does not support Dialer.Control")
 	}
 
 	t.Run("StreamDial", func(t *testing.T) {
@@ -1026,28 +1034,32 @@ func TestDialerControlContext(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9":
 		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
+	case "js", "wasip1":
+		t.Skipf("skipping: fake net does not support Dialer.ControlContext")
 	}
 	t.Run("StreamDial", func(t *testing.T) {
 		for i, network := range []string{"tcp", "tcp4", "tcp6", "unix", "unixpacket"} {
-			if !testableNetwork(network) {
-				continue
-			}
-			ln := newLocalListener(t, network)
-			defer ln.Close()
-			var id int
-			d := Dialer{ControlContext: func(ctx context.Context, network string, address string, c syscall.RawConn) error {
-				id = ctx.Value("id").(int)
-				return controlOnConnSetup(network, address, c)
-			}}
-			c, err := d.DialContext(context.WithValue(context.Background(), "id", i+1), network, ln.Addr().String())
-			if err != nil {
-				t.Error(err)
-				continue
-			}
-			if id != i+1 {
-				t.Errorf("got id %d, want %d", id, i+1)
-			}
-			c.Close()
+			t.Run(network, func(t *testing.T) {
+				if !testableNetwork(network) {
+					t.Skipf("skipping: %s not available", network)
+				}
+
+				ln := newLocalListener(t, network)
+				defer ln.Close()
+				var id int
+				d := Dialer{ControlContext: func(ctx context.Context, network string, address string, c syscall.RawConn) error {
+					id = ctx.Value("id").(int)
+					return controlOnConnSetup(network, address, c)
+				}}
+				c, err := d.DialContext(context.WithValue(context.Background(), "id", i+1), network, ln.Addr().String())
+				if err != nil {
+					t.Fatal(err)
+				}
+				if id != i+1 {
+					t.Errorf("got id %d, want %d", id, i+1)
+				}
+				c.Close()
+			})
 		}
 	})
 }
@@ -1059,7 +1071,8 @@ func mustHaveExternalNetwork(t *testing.T) {
 	t.Helper()
 	definitelyHasLongtestBuilder := runtime.GOOS == "linux"
 	mobile := runtime.GOOS == "android" || runtime.GOOS == "ios"
-	if testenv.Builder() != "" && !definitelyHasLongtestBuilder && !mobile {
+	fake := runtime.GOOS == "js" || runtime.GOOS == "wasip1"
+	if testenv.Builder() != "" && !definitelyHasLongtestBuilder && !mobile && !fake {
 		// On a non-Linux, non-mobile builder (e.g., freebsd-amd64-13_0).
 		//
 		// Don't skip testing because otherwise the test may never run on

@@ -5,6 +5,7 @@
 package test
 
 import (
+	"math/bits"
 	"reflect"
 	"testing"
 )
@@ -1149,4 +1150,206 @@ func TestShiftOverflow(t *testing.T) {
 	if v, w, z := variableShiftOverflow8x16(-64, makeU16(0xffff), 2); v != -32 || w != -128 || z != 0x60 {
 		t.Errorf("got %d %d 0x%x, expected -32 -128 0x60", v, w, z)
 	}
+}
+
+//go:noinline
+func lsh64s(n int64, k int) int64 {
+	return n << k
+}
+
+//go:noinline
+func lsh64u(n uint64, k int) uint64 {
+	return n << k
+}
+
+//go:noinline
+func lsh32s(n int32, k int) int32 {
+	return n << k
+}
+
+//go:noinline
+func lsh32u(n uint32, k int) uint32 {
+	return n << k
+}
+
+//go:noinline
+func lsh16s(n int16, k int) int16 {
+	return n << k
+}
+
+//go:noinline
+func lsh16u(n uint16, k int) uint16 {
+	return n << k
+}
+
+//go:noinline
+func lsh8s(n int8, k int) int8 {
+	return n << k
+}
+
+//go:noinline
+func lsh8u(n uint8, k int) uint8 {
+	return n << k
+}
+
+//go:noinline
+func rsh64s(n int64, k int) int64 {
+	return n >> k
+}
+
+//go:noinline
+func rsh64u(n uint64, k int) uint64 {
+	return n >> k
+}
+
+//go:noinline
+func rsh32s(n int32, k int) int32 {
+	return n >> k
+}
+
+//go:noinline
+func rsh32u(n uint32, k int) uint32 {
+	return n >> k
+}
+
+//go:noinline
+func rsh16s(n int16, k int) int16 {
+	return n >> k
+}
+
+//go:noinline
+func rsh16u(n uint16, k int) uint16 {
+	return n >> k
+}
+
+//go:noinline
+func rsh8s(n int8, k int) int8 {
+	return n >> k
+}
+
+//go:noinline
+func rsh8u(n uint8, k int) uint8 {
+	return n >> k
+}
+
+func TestOverShiftLeft(t *testing.T) {
+	for _, f := range []reflect.Value{
+		reflect.ValueOf(lsh64s),
+		reflect.ValueOf(lsh64u),
+		reflect.ValueOf(lsh32s),
+		reflect.ValueOf(lsh32u),
+		reflect.ValueOf(lsh16s),
+		reflect.ValueOf(lsh16u),
+		reflect.ValueOf(lsh8s),
+		reflect.ValueOf(lsh8u),
+	} {
+		typ := f.Type().In(0) // type of input/output
+		one := reflect.ValueOf(1).Convert(typ)
+		zero := reflect.ValueOf(0).Convert(typ).Interface()
+		for k := 0; k < 100; k++ {
+			got := f.Call([]reflect.Value{one, reflect.ValueOf(k)})[0].Interface()
+			if k >= int(typ.Size()*8) {
+				if got != zero {
+					t.Errorf("shifted to zero prematurely: %s %d %v", typ, k, got)
+				}
+			} else {
+				if got == zero {
+					t.Errorf("shift doesn't result in zero: %s %d %v", typ, k, got)
+				}
+			}
+		}
+	}
+}
+
+func TestOverShiftRightU(t *testing.T) {
+	for _, f := range []reflect.Value{
+		reflect.ValueOf(rsh64u),
+		reflect.ValueOf(rsh32u),
+		reflect.ValueOf(rsh16u),
+		reflect.ValueOf(rsh8u),
+	} {
+		typ := f.Type().In(0) // type of input/output
+		max := reflect.ValueOf(uint64(1) << (typ.Size()*8 - 1)).Convert(typ)
+		zero := reflect.ValueOf(0).Convert(typ).Interface()
+		for k := 0; k < 100; k++ {
+			got := f.Call([]reflect.Value{max, reflect.ValueOf(k)})[0].Interface()
+			if k >= int(typ.Size()*8) {
+				if got != zero {
+					t.Errorf("shifted to zero prematurely: %s %d %v", typ, k, got)
+				}
+			} else {
+				if got == zero {
+					t.Errorf("shift doesn't result in zero: %s %d %v", typ, k, got)
+				}
+			}
+		}
+	}
+}
+func TestOverShiftRightS(t *testing.T) {
+	for _, f := range []reflect.Value{
+		reflect.ValueOf(rsh64s),
+		reflect.ValueOf(rsh32s),
+		reflect.ValueOf(rsh16s),
+		reflect.ValueOf(rsh8s),
+	} {
+		typ := f.Type().In(0) // type of input/output
+		maxInt := reflect.ValueOf(int64(1)<<(typ.Size()*8-1) - 1).Convert(typ)
+		zero := reflect.ValueOf(0).Convert(typ).Interface()
+		for k := 0; k < 100; k++ {
+			got := f.Call([]reflect.Value{maxInt, reflect.ValueOf(k)})[0].Interface()
+			if k < int(typ.Size()*8)-1 {
+				if got == zero {
+					t.Errorf("shifted to zero prematurely: %s %d %v", typ, k, got)
+				}
+			} else {
+				if got != zero {
+					t.Errorf("shift doesn't result in zero: %s %d %v", typ, k, got)
+				}
+			}
+		}
+		minInt := reflect.ValueOf(int64(1) << (typ.Size()*8 - 1)).Convert(typ)
+		negOne := reflect.ValueOf(-1).Convert(typ).Interface()
+		for k := 0; k < 100; k++ {
+			got := f.Call([]reflect.Value{minInt, reflect.ValueOf(k)})[0].Interface()
+			if k < int(typ.Size()*8)-1 {
+				if got == negOne {
+					t.Errorf("shifted to negative one prematurely: %s %d %v", typ, k, got)
+				}
+			} else {
+				if got != negOne {
+					t.Errorf("shift doesn't result in negative one: %s %d %v", typ, k, got)
+				}
+			}
+		}
+	}
+}
+
+func TestNegShifts(t *testing.T) {
+	for i := 0; i < bits.UintSize; i++ {
+		k := (-1) << i
+		shouldPanic(func() { lsh64s(0, k) })
+		shouldPanic(func() { lsh64u(0, k) })
+		shouldPanic(func() { lsh32s(0, k) })
+		shouldPanic(func() { lsh32u(0, k) })
+		shouldPanic(func() { lsh16s(0, k) })
+		shouldPanic(func() { lsh16u(0, k) })
+		shouldPanic(func() { lsh8s(0, k) })
+		shouldPanic(func() { lsh8u(0, k) })
+		shouldPanic(func() { rsh64s(0, k) })
+		shouldPanic(func() { rsh64u(0, k) })
+		shouldPanic(func() { rsh32s(0, k) })
+		shouldPanic(func() { rsh32u(0, k) })
+		shouldPanic(func() { rsh16s(0, k) })
+		shouldPanic(func() { rsh16u(0, k) })
+		shouldPanic(func() { rsh8s(0, k) })
+		shouldPanic(func() { rsh8u(0, k) })
+	}
+}
+func shouldPanic(f func()) {
+	defer func() {
+		if recover() == nil {
+			panic("not panicking")
+		}
+	}()
+	f()
 }

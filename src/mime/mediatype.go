@@ -7,7 +7,8 @@ package mime
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -33,13 +34,7 @@ func FormatMediaType(t string, param map[string]string) string {
 		b.WriteString(strings.ToLower(sub))
 	}
 
-	attrs := make([]string, 0, len(param))
-	for a := range param {
-		attrs = append(attrs, a)
-	}
-	sort.Strings(attrs)
-
-	for _, attribute := range attrs {
+	for _, attribute := range slices.Sorted(maps.Keys(param)) {
 		value := param[attribute]
 		b.WriteByte(';')
 		b.WriteByte(' ')
@@ -65,7 +60,7 @@ func FormatMediaType(t string, param map[string]string) string {
 				// attribute-char := <any (US-ASCII) CHAR except SPACE, CTLs, "*", "'", "%", or tspecials>
 				if ch <= ' ' || ch >= 0x7F ||
 					ch == '*' || ch == '\'' || ch == '%' ||
-					isTSpecial(rune(ch)) {
+					isTSpecial(ch) {
 
 					b.WriteString(value[offset:index])
 					offset = index + 1
@@ -121,7 +116,7 @@ func checkMediaTypeDisposition(s string) error {
 	return nil
 }
 
-// ErrInvalidMediaParameter is returned by ParseMediaType if
+// ErrInvalidMediaParameter is returned by [ParseMediaType] if
 // the media type value was found but there was an error parsing
 // the optional parameters
 var ErrInvalidMediaParameter = errors.New("mime: invalid media parameter")
@@ -133,7 +128,7 @@ var ErrInvalidMediaParameter = errors.New("mime: invalid media parameter")
 // to lowercase and trimmed of white space and a non-nil map.
 // If there is an error parsing the optional parameter,
 // the media type will be returned along with the error
-// ErrInvalidMediaParameter.
+// [ErrInvalidMediaParameter].
 // The returned map, params, maps from the lowercase
 // attribute to the attribute value with its case preserved.
 func ParseMediaType(v string) (mediatype string, params map[string]string, err error) {
@@ -255,23 +250,17 @@ func decode2231Enc(v string) (string, bool) {
 	return encv, true
 }
 
-func isNotTokenChar(r rune) bool {
-	return !isTokenChar(r)
-}
-
 // consumeToken consumes a token from the beginning of provided
 // string, per RFC 2045 section 5.1 (referenced from 2183), and return
 // the token consumed and the rest of the string. Returns ("", v) on
 // failure to consume at least one character.
 func consumeToken(v string) (token, rest string) {
-	notPos := strings.IndexFunc(v, isNotTokenChar)
-	if notPos == -1 {
-		return v, ""
+	for i := range len(v) {
+		if !isTokenChar(v[i]) {
+			return v[:i], v[i:]
+		}
 	}
-	if notPos == 0 {
-		return "", v
-	}
-	return v[0:notPos], v[notPos:]
+	return v, ""
 }
 
 // consumeValue consumes a "value" per RFC 2045, where a value is
@@ -304,7 +293,7 @@ func consumeValue(v string) (value, rest string) {
 		// and intended as a literal backslash. This makes Go servers deal better
 		// with MSIE without affecting the way they handle conforming MIME
 		// generators.
-		if r == '\\' && i+1 < len(v) && isTSpecial(rune(v[i+1])) {
+		if r == '\\' && i+1 < len(v) && isTSpecial(v[i+1]) {
 			buffer.WriteByte(v[i+1])
 			i++
 			continue

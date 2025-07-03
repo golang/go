@@ -45,7 +45,7 @@ func FreeBSDNumCPU() {
 	cmd := exec.Command("sysctl", "-n", "kern.smp.active")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf("fail to launch '%s', error: %s, output: %s\n", strings.Join(cmd.Args, " "), err, output)
+		fmt.Printf("fail to launch %#q, error: %s, output: %s\n", cmd, err, output)
 		return
 	}
 	if !bytes.Equal(output, []byte("1\n")) {
@@ -80,19 +80,18 @@ func getList() ([]string, error) {
 
 	// Launch cpuset to print a list of available CPUs: pid <PID> mask: 0, 1, 2, 3.
 	cmd := exec.Command("cpuset", "-g", "-p", strconv.Itoa(pid))
-	cmdline := strings.Join(cmd.Args, " ")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("fail to execute '%s': %s", cmdline, err)
+		return nil, fmt.Errorf("fail to execute %#q: %s", cmd, err)
 	}
 	output, _, ok := bytes.Cut(output, []byte("\n"))
 	if !ok {
-		return nil, fmt.Errorf("invalid output from '%s', '\\n' not found: %s", cmdline, output)
+		return nil, fmt.Errorf("invalid output from %#q, '\\n' not found: %s", cmd, output)
 	}
 
 	_, cpus, ok := bytes.Cut(output, []byte(":"))
 	if !ok {
-		return nil, fmt.Errorf("invalid output from '%s', ':' not found: %s", cmdline, output)
+		return nil, fmt.Errorf("invalid output from %#q, ':' not found: %s", cmd, output)
 	}
 
 	var list []string
@@ -104,7 +103,7 @@ func getList() ([]string, error) {
 		list = append(list, index)
 	}
 	if len(list) == 0 {
-		return nil, fmt.Errorf("empty CPU list from '%s': %s", cmdline, output)
+		return nil, fmt.Errorf("empty CPU list from %#q: %s", cmd, output)
 	}
 	return list, nil
 }
@@ -121,17 +120,16 @@ func checkNCPU(list []string) error {
 	}
 	// Launch FreeBSDNumCPUHelper() with specified CPUs list.
 	cmd := exec.Command("cpuset", "-l", cListString, os.Args[0], "FreeBSDNumCPUHelper")
-	cmdline := strings.Join(cmd.Args, " ")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("fail to launch child '%s', error: %s, output: %s", cmdline, err, output)
+		return fmt.Errorf("fail to launch child %#q, error: %s, output: %s", cmd, err, output)
 	}
 
 	// NumCPU from FreeBSDNumCPUHelper come with '\n'.
 	output = bytes.TrimSpace(output)
 	n, err := strconv.Atoi(string(output))
 	if err != nil {
-		return fmt.Errorf("fail to parse output from child '%s', error: %s, output: %s", cmdline, err, output)
+		return fmt.Errorf("fail to parse output from child %#q, error: %s, output: %s", cmd, err, output)
 	}
 	if n != len(list) {
 		return fmt.Errorf("runtime.NumCPU() expected to %d, got %d when run with CPU list %s", len(list), n, cListString)

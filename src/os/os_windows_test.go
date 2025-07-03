@@ -5,8 +5,10 @@
 package os_test
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"internal/poll"
 	"internal/syscall/windows"
 	"internal/syscall/windows/registry"
@@ -16,42 +18,27 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"slices"
-	"sort"
+	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
+	"time"
 	"unicode/utf16"
 	"unsafe"
 )
 
+var winsymlink = godebug.New("winsymlink")
+var winreadlinkvolume = godebug.New("winreadlinkvolume")
+
 // For TestRawConnReadWrite.
 type syscallDescriptor = syscall.Handle
 
-// chdir changes the current working directory to the named directory,
-// and then restore the original working directory at the end of the test.
-func chdir(t *testing.T, dir string) {
-	olddir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("chdir: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("chdir %s: %v", dir, err)
-	}
-
-	t.Cleanup(func() {
-		if err := os.Chdir(olddir); err != nil {
-			t.Errorf("chdir to original working directory %s: %v", olddir, err)
-			os.Exit(1)
-		}
-	})
-}
-
 func TestSameWindowsFile(t *testing.T) {
-	temp := t.TempDir()
-	chdir(t, temp)
+	t.Chdir(t.TempDir())
 
 	f, err := os.Create("a")
 	if err != nil {
@@ -90,14 +77,14 @@ func TestSameWindowsFile(t *testing.T) {
 }
 
 type dirLinkTest struct {
-	name    string
-	mklink  func(link, target string) error
-	issueNo int // correspondent issue number (for broken tests)
+	name         string
+	mklink       func(link, target string) error
+	isMountPoint bool
 }
 
 func testDirLinks(t *testing.T, tests []dirLinkTest) {
 	tmpdir := t.TempDir()
-	chdir(t, tmpdir)
+	t.Chdir(tmpdir)
 
 	dir := filepath.Join(tmpdir, "dir")
 	err := os.Mkdir(dir, 0777)
@@ -130,18 +117,13 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
 			continue
 		}
 
-		if test.issueNo > 0 {
-			t.Logf("skipping broken %q test: see issue %d", test.name, test.issueNo)
-			continue
-		}
-
 		fi1, err := os.Stat(link)
 		if err != nil {
 			t.Errorf("failed to stat link %v: %v", link, err)
 			continue
 		}
-		if !fi1.IsDir() {
-			t.Errorf("%q should be a directory", link)
+		if tp := fi1.Mode().Type(); tp != fs.ModeDir {
+			t.Errorf("Stat(%q) is type %v; want %v", link, tp, fs.ModeDir)
 			continue
 		}
 		if fi1.Name() != filepath.Base(link) {
@@ -158,13 +140,16 @@ func testDirLinks(t *testing.T, tests []dirLinkTest) {
 			t.Errorf("failed to lstat link %v: %v", link, err)
 			continue
 		}
-		if m := fi2.Mode(); m&fs.ModeSymlink == 0 {
-			t.Errorf("%q should be a link, but is not (mode=0x%x)", link, uint32(m))
-			continue
+		var wantType fs.FileMode
+		if test.isMountPoint && winsymlink.Value() != "0" {
+			// Mount points are reparse points, and we no longer treat them as symlinks.
+			wantType = fs.ModeIrregular
+		} else {
+			// This is either a real symlink, or a mount point treated as a symlink.
+			wantType = fs.ModeSymlink
 		}
-		if m := fi2.Mode(); m&fs.ModeDir != 0 {
-			t.Errorf("%q should be a link, not a directory (mode=0x%x)", link, uint32(m))
-			continue
+		if tp := fi2.Mode().Type(); tp != wantType {
+			t.Errorf("Lstat(%q) is type %v; want %v", link, tp, wantType)
 		}
 	}
 }
@@ -272,7 +257,8 @@ func TestDirectoryJunction(t *testing.T) {
 	var tests = []dirLinkTest{
 		{
 			// Create link similar to what mklink does, by inserting \??\ at the front of absolute target.
-			name: "standard",
+			name:         "standard",
+			isMountPoint: true,
 			mklink: func(link, target string) error {
 				var t reparseData
 				t.addSubstituteName(`\??\` + target)
@@ -282,7 +268,8 @@ func TestDirectoryJunction(t *testing.T) {
 		},
 		{
 			// Do as junction utility https://learn.microsoft.com/en-us/sysinternals/downloads/junction does - set PrintNameLength to 0.
-			name: "have_blank_print_name",
+			name:         "have_blank_print_name",
+			isMountPoint: true,
 			mklink: func(link, target string) error {
 				var t reparseData
 				t.addSubstituteName(`\??\` + target)
@@ -296,7 +283,8 @@ func TestDirectoryJunction(t *testing.T) {
 	if mklinkSupportsJunctionLinks {
 		tests = append(tests,
 			dirLinkTest{
-				name: "use_mklink_cmd",
+				name:         "use_mklink_cmd",
+				isMountPoint: true,
 				mklink: func(link, target string) error {
 					output, err := testenv.Command(t, "cmd", "/c", "mklink", "/J", link, target).CombinedOutput()
 					if err != nil {
@@ -455,7 +443,7 @@ func TestNetworkSymbolicLink(t *testing.T) {
 	const _NERR_ServerNotStarted = syscall.Errno(2114)
 
 	dir := t.TempDir()
-	chdir(t, dir)
+	t.Chdir(dir)
 
 	pid := os.Getpid()
 	shareName := fmt.Sprintf("GoSymbolicLinkTestShare%d", pid)
@@ -558,8 +546,7 @@ func TestStatLxSymLink(t *testing.T) {
 		t.Skip("skipping: WSL not detected")
 	}
 
-	temp := t.TempDir()
-	chdir(t, temp)
+	t.Chdir(t.TempDir())
 
 	const target = "target"
 	const link = "link"
@@ -581,7 +568,7 @@ func TestStatLxSymLink(t *testing.T) {
 	}
 	if m := fi.Mode(); m&fs.ModeSymlink != 0 {
 		// This can happen depending on newer WSL versions when running as admin or in developer mode.
-		t.Skip("skipping: WSL created reparse tag IO_REPARSE_TAG_SYMLINK instead of a IO_REPARSE_TAG_LX_SYMLINK")
+		t.Skip("skipping: WSL created reparse tag IO_REPARSE_TAG_SYMLINK instead of an IO_REPARSE_TAG_LX_SYMLINK")
 	}
 	// Stat'ing a IO_REPARSE_TAG_LX_SYMLINK from outside WSL always return ERROR_CANT_ACCESS_FILE.
 	// We check this condition to validate that os.Stat has tried to follow the link.
@@ -626,7 +613,7 @@ func TestBadNetPathError(t *testing.T) {
 }
 
 func TestStatDir(t *testing.T) {
-	defer chtmpdir(t)()
+	t.Chdir(t.TempDir())
 
 	f, err := os.Open(".")
 	if err != nil {
@@ -656,10 +643,10 @@ func TestStatDir(t *testing.T) {
 
 func TestOpenVolumeName(t *testing.T) {
 	tmpdir := t.TempDir()
-	chdir(t, tmpdir)
+	t.Chdir(tmpdir)
 
 	want := []string{"file1", "file2", "file3", "gopher.txt"}
-	sort.Strings(want)
+	slices.Sort(want)
 	for _, name := range want {
 		err := os.WriteFile(filepath.Join(tmpdir, name), nil, 0777)
 		if err != nil {
@@ -677,7 +664,7 @@ func TestOpenVolumeName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sort.Strings(have)
+	slices.Sort(have)
 
 	if strings.Join(want, "/") != strings.Join(have, "/") {
 		t.Fatalf("unexpected file list %q, want %q", have, want)
@@ -774,7 +761,7 @@ func TestReadStdin(t *testing.T) {
 					for len(want) < 5 {
 						want = append(want, "")
 					}
-					if !reflect.DeepEqual(all, want) {
+					if !slices.Equal(all, want) {
 						t.Errorf("reading %q:\nhave %x\nwant %x", s, all, want)
 					}
 				})
@@ -949,7 +936,9 @@ func findOneDriveDir() (string, error) {
 		return "", fmt.Errorf("reading UserFolder failed: %v", err)
 	}
 
-	if valtype == registry.EXPAND_SZ {
+	// REG_SZ values may also contain environment variables that need to be expanded.
+	// It's recommended but not required to use REG_EXPAND_SZ for paths that contain environment variables.
+	if valtype == registry.EXPAND_SZ || valtype == registry.SZ {
 		expanded, err := registry.ExpandString(path)
 		if err != nil {
 			return "", fmt.Errorf("expanding UserFolder failed: %v", err)
@@ -1008,6 +997,8 @@ func TestFileStatNUL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer f.Close()
+
 	fi, err := f.Stat()
 	if err != nil {
 		t.Fatal(err)
@@ -1033,8 +1024,8 @@ func TestStatNUL(t *testing.T) {
 // works on Windows when developer mode is active.
 // This is supported starting Windows 10 (1703, v10.0.14972).
 func TestSymlinkCreation(t *testing.T) {
-	if !testenv.HasSymlink() && !isWindowsDeveloperModeActive() {
-		t.Skip("Windows developer mode is not active")
+	if !testenv.HasSymlink() {
+		t.Skip("skipping test; no symlink support")
 	}
 	t.Parallel()
 
@@ -1048,23 +1039,6 @@ func TestSymlinkCreation(t *testing.T) {
 	if err := os.Symlink(dummyFile, linkFile); err != nil {
 		t.Fatal(err)
 	}
-}
-
-// isWindowsDeveloperModeActive checks whether or not the developer mode is active on Windows 10.
-// Returns false for prior Windows versions.
-// see https://docs.microsoft.com/en-us/windows/uwp/get-started/enable-your-device-for-development
-func isWindowsDeveloperModeActive() bool {
-	key, err := registry.OpenKey(registry.LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock", registry.READ)
-	if err != nil {
-		return false
-	}
-
-	val, _, err := key.GetIntegerValue("AllowDevelopmentWithoutDevLicense")
-	if err != nil {
-		return false
-	}
-
-	return val != 0
 }
 
 // TestRootRelativeDirSymlink verifies that symlinks to paths relative to the
@@ -1126,14 +1100,7 @@ func TestWorkingDirectoryRelativeSymlink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if err := os.Chdir(oldwd); err != nil {
-			t.Fatal(err)
-		}
-	}()
-	if err := os.Chdir(temp); err != nil {
-		t.Fatal(err)
-	}
+	t.Chdir(temp)
 	t.Logf("Chdir(%#q)", temp)
 
 	wdRelDir := filepath.VolumeName(temp) + `dir\sub` // no backslash after volume.
@@ -1218,10 +1185,7 @@ func TestRootDirAsTemp(t *testing.T) {
 	testenv.MustHaveExec(t)
 	t.Parallel()
 
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
+	exe := testenv.Executable(t)
 
 	newtmp, err := findUnusedDriveLetter()
 	if err != nil {
@@ -1242,110 +1206,126 @@ func TestRootDirAsTemp(t *testing.T) {
 	}
 }
 
-func testReadlink(t *testing.T, path, want string) {
-	got, err := os.Readlink(path)
+// replaceDriveWithVolumeID returns path with its volume name replaced with
+// the mounted volume ID. E.g. C:\foo -> \\?\Volume{GUID}\foo.
+func replaceDriveWithVolumeID(t *testing.T, path string) string {
+	t.Helper()
+	cmd := testenv.Command(t, "cmd", "/c", "mountvol", filepath.VolumeName(path), "/L")
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatalf("%v: %v\n%s", cmd, err, out)
 	}
-	if got != want {
-		t.Errorf(`Readlink(%q): got %q, want %q`, path, got, want)
-	}
+	vol := strings.Trim(string(out), " \n\r")
+	return filepath.Join(vol, path[len(filepath.VolumeName(path)):])
 }
 
-func mklink(t *testing.T, link, target string) {
-	output, err := testenv.Command(t, "cmd", "/c", "mklink", link, target).CombinedOutput()
-	if err != nil {
-		t.Fatalf("failed to run mklink %v %v: %v %q", link, target, err, output)
+func TestReadlink(t *testing.T) {
+	tests := []struct {
+		junction bool
+		dir      bool
+		drive    bool
+		relative bool
+	}{
+		{junction: true, dir: true, drive: true, relative: false},
+		{junction: true, dir: true, drive: false, relative: false},
+		{junction: true, dir: true, drive: false, relative: true},
+		{junction: false, dir: true, drive: true, relative: false},
+		{junction: false, dir: true, drive: false, relative: false},
+		{junction: false, dir: true, drive: false, relative: true},
+		{junction: false, dir: false, drive: true, relative: false},
+		{junction: false, dir: false, drive: false, relative: false},
+		{junction: false, dir: false, drive: false, relative: true},
 	}
-}
+	for _, tt := range tests {
+		tt := tt
+		var name string
+		if tt.junction {
+			name = "junction"
+		} else {
+			name = "symlink"
+		}
+		if tt.dir {
+			name += "_dir"
+		} else {
+			name += "_file"
+		}
+		if tt.drive {
+			name += "_drive"
+		} else {
+			name += "_volume"
+		}
+		if tt.relative {
+			name += "_relative"
+		} else {
+			name += "_absolute"
+		}
 
-func mklinkj(t *testing.T, link, target string) {
-	output, err := testenv.Command(t, "cmd", "/c", "mklink", "/J", link, target).CombinedOutput()
-	if err != nil {
-		t.Fatalf("failed to run mklink %v %v: %v %q", link, target, err, output)
+		t.Run(name, func(t *testing.T) {
+			if !tt.junction {
+				testenv.MustHaveSymlink(t)
+			}
+			if !tt.relative {
+				t.Parallel()
+			}
+			// Make sure tmpdir is not a symlink, otherwise tests will fail.
+			tmpdir, err := filepath.EvalSymlinks(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			link := filepath.Join(tmpdir, "link")
+			target := filepath.Join(tmpdir, "target")
+			if tt.dir {
+				if err := os.MkdirAll(target, 0777); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				if err := os.WriteFile(target, nil, 0666); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var want string
+			if tt.relative {
+				relTarget := filepath.Base(target)
+				if tt.junction {
+					want = target // relative directory junction resolves to absolute path
+				} else {
+					want = relTarget
+				}
+				t.Chdir(tmpdir)
+				link = filepath.Base(link)
+				target = relTarget
+			} else {
+				if tt.drive {
+					want = target
+				} else {
+					volTarget := replaceDriveWithVolumeID(t, target)
+					if winreadlinkvolume.Value() == "0" {
+						want = target
+					} else {
+						want = volTarget
+					}
+					target = volTarget
+				}
+			}
+			if tt.junction {
+				cmd := testenv.Command(t, "cmd", "/c", "mklink", "/J", link, target)
+				if out, err := cmd.CombinedOutput(); err != nil {
+					t.Fatalf("%v: %v\n%s", cmd, err, out)
+				}
+			} else {
+				if err := os.Symlink(target, link); err != nil {
+					t.Fatalf("Symlink(%#q, %#q): %v", target, link, err)
+				}
+			}
+			got, err := os.Readlink(link)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != want {
+				t.Fatalf("Readlink(%#q) = %#q; want %#q", target, got, want)
+			}
+		})
 	}
-}
-
-func mklinkd(t *testing.T, link, target string) {
-	output, err := testenv.Command(t, "cmd", "/c", "mklink", "/D", link, target).CombinedOutput()
-	if err != nil {
-		t.Fatalf("failed to run mklink %v %v: %v %q", link, target, err, output)
-	}
-}
-
-func TestWindowsReadlink(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "TestWindowsReadlink")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	// Make sure tmpdir is not a symlink, otherwise tests will fail.
-	tmpdir, err = filepath.EvalSymlinks(tmpdir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	chdir(t, tmpdir)
-
-	vol := filepath.VolumeName(tmpdir)
-	output, err := testenv.Command(t, "cmd", "/c", "mountvol", vol, "/L").CombinedOutput()
-	if err != nil {
-		t.Fatalf("failed to run mountvol %v /L: %v %q", vol, err, output)
-	}
-	ntvol := strings.Trim(string(output), " \n\r")
-
-	dir := filepath.Join(tmpdir, "dir")
-	err = os.MkdirAll(dir, 0777)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	absdirjlink := filepath.Join(tmpdir, "absdirjlink")
-	mklinkj(t, absdirjlink, dir)
-	testReadlink(t, absdirjlink, dir)
-
-	ntdirjlink := filepath.Join(tmpdir, "ntdirjlink")
-	mklinkj(t, ntdirjlink, ntvol+absdirjlink[len(filepath.VolumeName(absdirjlink)):])
-	testReadlink(t, ntdirjlink, absdirjlink)
-
-	ntdirjlinktolink := filepath.Join(tmpdir, "ntdirjlinktolink")
-	mklinkj(t, ntdirjlinktolink, ntvol+absdirjlink[len(filepath.VolumeName(absdirjlink)):])
-	testReadlink(t, ntdirjlinktolink, absdirjlink)
-
-	mklinkj(t, "reldirjlink", "dir")
-	testReadlink(t, "reldirjlink", dir) // relative directory junction resolves to absolute path
-
-	// Make sure we have sufficient privilege to run mklink command.
-	testenv.MustHaveSymlink(t)
-
-	absdirlink := filepath.Join(tmpdir, "absdirlink")
-	mklinkd(t, absdirlink, dir)
-	testReadlink(t, absdirlink, dir)
-
-	ntdirlink := filepath.Join(tmpdir, "ntdirlink")
-	mklinkd(t, ntdirlink, ntvol+absdirlink[len(filepath.VolumeName(absdirlink)):])
-	testReadlink(t, ntdirlink, absdirlink)
-
-	mklinkd(t, "reldirlink", "dir")
-	testReadlink(t, "reldirlink", "dir")
-
-	file := filepath.Join(tmpdir, "file")
-	err = os.WriteFile(file, []byte(""), 0666)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	filelink := filepath.Join(tmpdir, "filelink")
-	mklink(t, filelink, file)
-	testReadlink(t, filelink, file)
-
-	linktofilelink := filepath.Join(tmpdir, "linktofilelink")
-	mklink(t, linktofilelink, ntvol+filelink[len(filepath.VolumeName(filelink)):])
-	testReadlink(t, linktofilelink, filelink)
-
-	mklink(t, "relfilelink", "file")
-	testReadlink(t, "relfilelink", "file")
 }
 
 func TestOpenDirTOCTOU(t *testing.T) {
@@ -1414,16 +1394,10 @@ func TestAppExecLinkStat(t *testing.T) {
 	if lfi.Name() != pythonExeName {
 		t.Errorf("Stat %s: got %q, but wanted %q", pythonPath, lfi.Name(), pythonExeName)
 	}
-	if m := lfi.Mode(); m&fs.ModeSymlink != 0 {
-		t.Errorf("%q should be a file, not a link (mode=0x%x)", pythonPath, uint32(m))
-	}
-	if m := lfi.Mode(); m&fs.ModeDir != 0 {
-		t.Errorf("%q should be a file, not a directory (mode=0x%x)", pythonPath, uint32(m))
-	}
-	if m := lfi.Mode(); m&fs.ModeIrregular == 0 {
+	if tp := lfi.Mode().Type(); tp != fs.ModeIrregular {
 		// A reparse point is not a regular file, but we don't have a more appropriate
 		// ModeType bit for it, so it should be marked as irregular.
-		t.Errorf("%q should not be a regular file (mode=0x%x)", pythonPath, uint32(m))
+		t.Errorf("%q should not be a an irregular file (mode=0x%x)", pythonPath, uint32(tp))
 	}
 
 	if sfi.Name() != pythonExeName {
@@ -1592,5 +1566,583 @@ func TestReadDirNoFileID(t *testing.T) {
 	}
 	if !os.SameFile(f2, f2s) {
 		t.Errorf("SameFile(%v, %v) = false; want true", f2, f2s)
+	}
+}
+
+func TestReadWriteFileOverlapped(t *testing.T) {
+	// See https://go.dev/issue/15388.
+	t.Parallel()
+
+	name := filepath.Join(t.TempDir(), "test.txt")
+	wname, err := syscall.UTF16PtrFromString(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := syscall.CreateFile(wname, syscall.GENERIC_ALL, 0, nil, syscall.CREATE_NEW, syscall.FILE_ATTRIBUTE_NORMAL|syscall.FILE_FLAG_OVERLAPPED, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := os.NewFile(uintptr(h), name)
+	defer f.Close()
+
+	data := []byte("test")
+	n, err := f.Write(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != len(data) {
+		t.Fatalf("Write = %d; want %d", n, len(data))
+	}
+
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := io.ReadAll(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, data) {
+		t.Fatalf("Read = %q; want %q", got, data)
+	}
+}
+
+func TestStdinOverlappedPipe(t *testing.T) {
+	// Test that we can read from a named pipe open with FILE_FLAG_OVERLAPPED.
+	// See https://go.dev/issue/15388.
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		var buf string
+		_, err := fmt.Scanln(&buf)
+		if err != nil {
+			fmt.Print(err)
+			os.Exit(1)
+		}
+		fmt.Println(buf)
+		os.Exit(0)
+	}
+
+	t.Parallel()
+	name := pipeName()
+
+	// Create the read handle inherited by the child process.
+	r := newPipe(t, name, false, true)
+	defer r.Close()
+
+	// Create a write handle.
+	w, err := os.OpenFile(name, os.O_WRONLY, 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer w.Close()
+
+	// Write some data to the pipe. The child process will read it.
+	want := []byte("test\n")
+	if _, err := w.Write(want); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a child process that will read from the pipe
+	// and write the data to stdout.
+	cmd := testenv.Command(t, testenv.Executable(t), fmt.Sprintf("-test.run=^%s$", t.Name()), "-test.v")
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
+	cmd.Stdin = r
+	got, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("running %q failed: %v\n%s", cmd, err, got)
+	}
+
+	if !bytes.Contains(got, want) {
+		t.Fatalf("output %q does not contain %q", got, want)
+	}
+}
+
+func newFileOverlapped(t testing.TB, name string, overlapped bool) *os.File {
+	namep, err := syscall.UTF16PtrFromString(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	flags := syscall.FILE_ATTRIBUTE_NORMAL
+	if overlapped {
+		flags |= syscall.FILE_FLAG_OVERLAPPED
+	}
+	h, err := syscall.CreateFile(namep,
+		syscall.GENERIC_READ|syscall.GENERIC_WRITE,
+		syscall.FILE_SHARE_WRITE|syscall.FILE_SHARE_READ,
+		nil, syscall.OPEN_ALWAYS, uint32(flags), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := os.NewFile(uintptr(h), name)
+	t.Cleanup(func() {
+		if err := f.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+			t.Fatal(err)
+		}
+	})
+	return f
+}
+
+var currentProcess = sync.OnceValue(func() string {
+	// Convert the process ID to a string.
+	return strconv.FormatUint(uint64(os.Getpid()), 10)
+})
+
+var pipeCounter atomic.Uint64
+
+func newBytePipe(t testing.TB, name string, overlapped bool) *os.File {
+	return newPipe(t, name, false, overlapped)
+}
+
+func newMessagePipe(t testing.TB, name string, overlapped bool) *os.File {
+	return newPipe(t, name, true, overlapped)
+}
+
+func pipeName() string {
+	return `\\.\pipe\go-os-test-` + currentProcess() + `-` + strconv.FormatUint(pipeCounter.Add(1), 10)
+}
+
+func newPipe(t testing.TB, name string, message, overlapped bool) *os.File {
+	wname, err := syscall.UTF16PtrFromString(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Create the read handle.
+	flags := windows.PIPE_ACCESS_DUPLEX
+	if overlapped {
+		flags |= syscall.FILE_FLAG_OVERLAPPED
+	}
+	typ := windows.PIPE_TYPE_BYTE | windows.PIPE_READMODE_BYTE
+	if message {
+		typ = windows.PIPE_TYPE_MESSAGE | windows.PIPE_READMODE_MESSAGE
+	}
+	h, err := windows.CreateNamedPipe(wname, uint32(flags), uint32(typ), 1, 4096, 4096, 0, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := os.NewFile(uintptr(h), name)
+	t.Cleanup(func() {
+		if err := f.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+			t.Fatal(err)
+		}
+	})
+	return f
+}
+
+func testReadWrite(t *testing.T, fdr, fdw *os.File) {
+	write := make(chan string, 1)
+	read := make(chan struct{}, 1)
+	go func() {
+		for s := range write {
+			n, err := fdw.Write([]byte(s))
+			read <- struct{}{}
+			if err != nil {
+				t.Error(err)
+			}
+			if n != len(s) {
+				t.Errorf("expected to write %d bytes, got %d", len(s), n)
+			}
+		}
+	}()
+	for i := range 10 {
+		s := strconv.Itoa(i)
+		write <- s
+		<-read
+		buf := make([]byte, len(s))
+		_, err := io.ReadFull(fdr, buf)
+		if err != nil {
+			t.Fatalf("read failed: %v", err)
+		}
+		if !bytes.Equal(buf, []byte(s)) {
+			t.Fatalf("expected %q, got %q", s, buf)
+		}
+	}
+	close(read)
+	close(write)
+}
+
+func testPreadPwrite(t *testing.T, fdr, fdw *os.File) {
+	type op struct {
+		s   string
+		off int64
+	}
+	write := make(chan op, 1)
+	read := make(chan struct{}, 1)
+	go func() {
+		for o := range write {
+			n, err := fdw.WriteAt([]byte(o.s), o.off)
+			read <- struct{}{}
+			if err != nil {
+				t.Error(err)
+			}
+			if n != len(o.s) {
+				t.Errorf("expected to write %d bytes, got %d", len(o.s), n)
+			}
+		}
+	}()
+	for i := range 10 {
+		off := int64(i % 3) // exercise some back and forth
+		s := strconv.Itoa(i)
+		write <- op{s, off}
+		<-read
+		buf := make([]byte, len(s))
+		n, err := fdr.ReadAt(buf, off)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n != len(s) {
+			t.Fatalf("expected to read %d bytes, got %d", len(s), n)
+		}
+		if !bytes.Equal(buf, []byte(s)) {
+			t.Fatalf("expected %q, got %q", s, buf)
+		}
+	}
+	close(read)
+	close(write)
+}
+
+func testFileReadEOF(t *testing.T, f *os.File) {
+	end, err := f.Seek(0, io.SeekEnd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf [1]byte
+	n, err := f.Read(buf[:])
+	if err != nil && err != io.EOF {
+		t.Errorf("expected EOF, got %v", err)
+	}
+	if n != 0 {
+		t.Errorf("expected 0 bytes, got %d", n)
+	}
+
+	n, err = f.ReadAt(buf[:], end)
+	if err != nil && err != io.EOF {
+		t.Errorf("expected EOF, got %v", err)
+	}
+	if n != 0 {
+		t.Errorf("expected 0 bytes, got %d", n)
+	}
+}
+
+func TestFile(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name            string
+		overlappedRead  bool
+		overlappedWrite bool
+	}{
+		{"overlapped", true, true},
+		{"overlapped-read", true, false},
+		{"overlapped-write", false, true},
+		{"sync", false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			name := filepath.Join(t.TempDir(), "foo")
+			rh := newFileOverlapped(t, name, tt.overlappedRead)
+			wh := newFileOverlapped(t, name, tt.overlappedWrite)
+			testReadWrite(t, rh, wh)
+			testPreadPwrite(t, rh, wh)
+			testFileReadEOF(t, rh)
+		})
+	}
+}
+
+func TestPipe(t *testing.T) {
+	t.Parallel()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := r.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if err := w.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	testReadWrite(t, r, w)
+}
+
+func TestNamedPipe(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name            string
+		overlappedRead  bool
+		overlappedWrite bool
+	}{
+		{"overlapped", true, true},
+		{"overlapped-write", false, true},
+		{"overlapped-read", true, false},
+		{"sync", false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			name := pipeName()
+			pipe := newBytePipe(t, name, tt.overlappedWrite)
+			file := newFileOverlapped(t, name, tt.overlappedRead)
+			testReadWrite(t, pipe, file)
+		})
+	}
+}
+
+func TestPipeMessageReadEOF(t *testing.T) {
+	t.Parallel()
+	name := pipeName()
+	pipe := newMessagePipe(t, name, true)
+	file := newFileOverlapped(t, name, true)
+
+	_, err := pipe.Write(nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	var buf [10]byte
+	n, err := file.Read(buf[:])
+	if err != io.EOF {
+		t.Errorf("expected EOF, got %v", err)
+	}
+	if n != 0 {
+		t.Errorf("expected 0 bytes, got %d", n)
+	}
+}
+
+func TestPipeClosedEOF(t *testing.T) {
+	t.Parallel()
+	name := pipeName()
+	pipe := newBytePipe(t, name, true)
+	file := newFileOverlapped(t, name, true)
+
+	pipe.Close()
+
+	var buf [10]byte
+	n, err := file.Read(buf[:])
+	if err != io.EOF {
+		t.Errorf("expected EOF, got %v", err)
+	}
+	if n != 0 {
+		t.Errorf("expected 0 bytes, got %d", n)
+	}
+}
+
+func TestPipeReadTimeout(t *testing.T) {
+	t.Parallel()
+	name := pipeName()
+	_ = newBytePipe(t, name, true)
+	file := newFileOverlapped(t, name, true)
+
+	err := file.SetReadDeadline(time.Now().Add(time.Millisecond))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var buf [10]byte
+	_, err = file.Read(buf[:])
+	if !errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Errorf("expected deadline exceeded, got %v", err)
+	}
+}
+
+func TestPipeCanceled(t *testing.T) {
+	t.Parallel()
+	name := pipeName()
+	_ = newBytePipe(t, name, true)
+	file := newFileOverlapped(t, name, true)
+	ch := make(chan struct{}, 1)
+	go func() {
+		for {
+			select {
+			case <-ch:
+				return
+			default:
+				sc, err := file.SyscallConn()
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				if err := sc.Control(func(fd uintptr) {
+					syscall.CancelIoEx(syscall.Handle(fd), nil)
+				}); err != nil {
+					t.Error(err)
+					return
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
+	}()
+	var tmp [1]byte
+	// Read will block until the cancel is complete.
+	_, err := file.Read(tmp[:])
+	ch <- struct{}{}
+	if errors.Is(err, os.ErrDeadlineExceeded) {
+		t.Skip("took too long to cancel")
+	}
+	if !errors.Is(err, syscall.ERROR_OPERATION_ABORTED) {
+		t.Errorf("expected ERROR_OPERATION_ABORTED, got %v", err)
+	}
+}
+
+func iocpAssociateFile(f *os.File, iocp syscall.Handle) error {
+	_, err := windows.CreateIoCompletionPort(syscall.Handle(f.Fd()), iocp, 0, 0)
+	return err
+}
+
+func TestFileAssociatedWithExternalIOCP(t *testing.T) {
+	// Test that a caller can associate an overlapped handle to an external IOCP
+	// after the handle has been passed to os.NewFile.
+	// Also test that the File can perform I/O after it is associated with the
+	// external IOCP and that those operations do not post to the external IOCP.
+	t.Parallel()
+	name := pipeName()
+	pipe := newMessagePipe(t, name, true)
+	_ = newFileOverlapped(t, name, true) // just open a pipe client
+
+	// Use a file to exercise WriteAt.
+	file := newFileOverlapped(t, filepath.Join(t.TempDir(), "a"), true)
+
+	iocp, err := windows.CreateIoCompletionPort(syscall.InvalidHandle, 0, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if iocp == syscall.InvalidHandle {
+			// Already closed at the end of the test.
+			return
+		}
+		if err := syscall.CloseHandle(iocp); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	ch := make(chan error, 1)
+	go func() {
+		var bytes, key uint32
+		var overlapped *syscall.Overlapped
+		err := syscall.GetQueuedCompletionStatus(syscall.Handle(iocp), &bytes, &key, &overlapped, syscall.INFINITE)
+		ch <- err
+	}()
+
+	if err := iocpAssociateFile(pipe, iocp); err != nil {
+		t.Fatal(err)
+	}
+	if err := iocpAssociateFile(file, iocp); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := pipe.Write([]byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := file.Write([]byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := file.WriteAt([]byte("hello"), 0); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait fot he goroutine to call GetQueuedCompletionStatus.
+	time.Sleep(100 * time.Millisecond)
+
+	// Trigger ERROR_ABANDONED_WAIT_0.
+	if err := syscall.CloseHandle(iocp); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for the completion to be posted to the IOCP.
+	err = <-ch
+	iocp = syscall.InvalidHandle
+	const ERROR_ABANDONED_WAIT_0 = syscall.Errno(735)
+	switch err {
+	case ERROR_ABANDONED_WAIT_0:
+		// This is what we expect.
+	case nil:
+		t.Error("unexpected queued completion")
+	default:
+		t.Error(err)
+	}
+}
+
+func TestFileWriteFdRace(t *testing.T) {
+	t.Parallel()
+
+	f := newFileOverlapped(t, filepath.Join(t.TempDir(), "a"), true)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		n, err := f.Write([]byte("hi"))
+		if err != nil {
+			// We look at error strings as the
+			// expected errors are OS-specific.
+			switch {
+			case errors.Is(err, windows.ERROR_INVALID_HANDLE):
+				// Ignore an expected error.
+			default:
+				// Unexpected error.
+				t.Error(err)
+			}
+			return
+		}
+		if n != 2 {
+			t.Errorf("wrote %d bytes, expected 2", n)
+			return
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		f.Fd()
+	}()
+	wg.Wait()
+
+	iocp, err := windows.CreateIoCompletionPort(syscall.InvalidHandle, 0, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer syscall.CloseHandle(iocp)
+	if err := iocpAssociateFile(f, iocp); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := f.Write([]byte("hi")); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSplitPath(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct{ path, wantDir, wantBase string }{
+		{`a`, `.`, `a`},
+		{`a\`, `.`, `a`},
+		{`a\\`, `.`, `a`},
+		{`a\b`, `a`, `b`},
+		{`a\\b`, `a`, `b`},
+		{`a\b\`, `a`, `b`},
+		{`a\b\c`, `a\b`, `c`},
+		{`\a`, `\`, `a`},
+		{`\a\`, `\`, `a`},
+		{`\a\b`, `\a`, `b`},
+		{`\a\b\`, `\a`, `b`},
+		{`\a\b\c`, `\a\b`, `c`},
+		{`\\a`, `\\a`, `.`},
+		{`\\a\`, `\\a\`, `.`},
+		{`\\\a`, `\\\a`, `.`},
+		{`\\\a\`, `\\\a`, `.`},
+		{`\\a\b\c`, `\\a\b`, `c`},
+		{`c:`, `c:`, `.`},
+		{`c:\`, `c:\`, `.`},
+		{`c:\a`, `c:\`, `a`},
+		{`c:a`, `c:`, `a`},
+		{`c:a\b\`, `c:a`, `b`},
+		{`c:base`, `c:`, `base`},
+		{`a/b/c`, `a/b`, `c`},
+		{`a/b/c/`, `a/b`, `c`},
+		{`\\?\c:\a`, `\\?\c:\`, `a`},
+	} {
+		if dir, base := os.SplitPath(tt.path); dir != tt.wantDir || base != tt.wantBase {
+			t.Errorf("splitPath(%q) = %q, %q, want %q, %q", tt.path, dir, base, tt.wantDir, tt.wantBase)
+		}
 	}
 }

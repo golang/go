@@ -6,11 +6,46 @@
 
 package types2
 
-import (
-	"bytes"
-	"cmd/compile/internal/syntax"
-	"strings"
-)
+import "bytes"
+
+// LookupSelection selects the field or method whose ID is Id(pkg,
+// name), on a value of type T. If addressable is set, T is the type
+// of an addressable variable (this matters only for method lookups).
+// T must not be nil.
+//
+// If the selection is valid:
+//
+//   - [Selection.Obj] returns the field ([Var]) or method ([Func]);
+//   - [Selection.Indirect] reports whether there were any pointer
+//     indirections on the path to the field or method.
+//   - [Selection.Index] returns the index sequence, defined below.
+//
+// The last index entry is the field or method index in the (possibly
+// embedded) type where the entry was found, either:
+//
+//  1. the list of declared methods of a named type; or
+//  2. the list of all methods (method set) of an interface type; or
+//  3. the list of fields of a struct type.
+//
+// The earlier index entries are the indices of the embedded struct
+// fields traversed to get to the found entry, starting at depth 0.
+//
+// See also [LookupFieldOrMethod], which returns the components separately.
+func LookupSelection(T Type, addressable bool, pkg *Package, name string) (Selection, bool) {
+	obj, index, indirect := LookupFieldOrMethod(T, addressable, pkg, name)
+	var kind SelectionKind
+	switch obj.(type) {
+	case nil:
+		return Selection{}, false
+	case *Func:
+		kind = MethodVal
+	case *Var:
+		kind = FieldVal
+	default:
+		panic(obj) // can't happen
+	}
+	return Selection{kind, T, obj, index, indirect}, true
+}
 
 // Internal use of LookupFieldOrMethod: If the obj result is a method
 // associated with a concrete (non-interface) type, the method's signature
@@ -42,11 +77,18 @@ import (
 //   - If indirect is set, a method with a pointer receiver type was found
 //     but there was no pointer on the path from the actual receiver type to
 //     the method's formal receiver base type, nor was the receiver addressable.
+//
+// See also [LookupSelection], which returns the result as a [Selection].
 func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
 	if T == nil {
 		panic("LookupFieldOrMethod on nil type")
 	}
+	return lookupFieldOrMethod(T, addressable, pkg, name, false)
+}
 
+// lookupFieldOrMethod is like LookupFieldOrMethod but with the additional foldCase parameter
+// (see Object.sameId for the meaning of foldCase).
+func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, foldCase bool) (obj Object, index []int, indirect bool) {
 	// Methods cannot be associated to a named pointer type.
 	// (spec: "The type denoted by T is called the receiver base type;
 	// it must not be a pointer or interface type and it must be declared
@@ -56,7 +98,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	// not have found it for T (see also go.dev/issue/8590).
 	if t := asNamed(T); t != nil {
 		if p, _ := t.Underlying().(*Pointer); p != nil {
-			obj, index, indirect = lookupFieldOrMethodImpl(p, false, pkg, name, false)
+			obj, index, indirect = lookupFieldOrMethodImpl(p, false, pkg, name, foldCase)
 			if _, ok := obj.(*Func); ok {
 				return nil, nil, false
 			}
@@ -64,16 +106,16 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 		}
 	}
 
-	obj, index, indirect = lookupFieldOrMethodImpl(T, addressable, pkg, name, false)
+	obj, index, indirect = lookupFieldOrMethodImpl(T, addressable, pkg, name, foldCase)
 
-	// If we didn't find anything and if we have a type parameter with a core type,
-	// see if there is a matching field (but not a method, those need to be declared
-	// explicitly in the constraint). If the constraint is a named pointer type (see
-	// above), we are ok here because only fields are accepted as results.
+	// If we didn't find anything and if we have a type parameter with a common underlying
+	// type, see if there is a matching field (but not a method, those need to be declared
+	// explicitly in the constraint). If the constraint is a named pointer type (see above),
+	// we are ok here because only fields are accepted as results.
 	const enableTParamFieldLookup = false // see go.dev/issue/51576
 	if enableTParamFieldLookup && obj == nil && isTypeParam(T) {
-		if t := coreType(T); t != nil {
-			obj, index, indirect = lookupFieldOrMethodImpl(t, addressable, pkg, name, false)
+		if t, _ := commonUnder(T, nil); t != nil {
+			obj, index, indirect = lookupFieldOrMethodImpl(t, addressable, pkg, name, foldCase)
 			if _, ok := obj.(*Var); !ok {
 				obj, index, indirect = nil, nil, false // accept fields (variables) only
 			}
@@ -82,8 +124,8 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	return
 }
 
-// lookupFieldOrMethodImpl is the implementation of LookupFieldOrMethod.
-// Notably, in contrast to LookupFieldOrMethod, it won't find struct fields
+// lookupFieldOrMethodImpl is the implementation of lookupFieldOrMethod.
+// Notably, in contrast to lookupFieldOrMethod, it won't find struct fields
 // in base types of defined (*Named) pointer types T. For instance, given
 // the declaration:
 //
@@ -92,11 +134,8 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 // lookupFieldOrMethodImpl won't find the field f in the defined (*Named) type T
 // (methods on T are not permitted in the first place).
 //
-// Thus, lookupFieldOrMethodImpl should only be called by LookupFieldOrMethod
+// Thus, lookupFieldOrMethodImpl should only be called by lookupFieldOrMethod
 // and missingMethod (the latter doesn't care about struct fields).
-//
-// If foldCase is true, method names are considered equal if they are equal
-// with case folding.
 //
 // The resulting object may not be fully type-checked.
 func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string, foldCase bool) (obj Object, index []int, indirect bool) {
@@ -167,7 +206,7 @@ func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string
 			case *Struct:
 				// look for a matching field and collect embedded types
 				for i, f := range t.fields {
-					if f.sameId(pkg, name) {
+					if f.sameId(pkg, name, foldCase) {
 						assert(f.typ != nil)
 						index = concat(e.index, i)
 						if obj != nil || e.multiples {
@@ -343,6 +382,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 		ok = iota
 		notFound
 		wrongName
+		unexported
 		wrongSig
 		ambigSel
 		ptrRecv
@@ -388,6 +428,11 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 					f, _ = obj.(*Func)
 					if f != nil {
 						state = wrongName
+						if f.name == m.name {
+							// If the names are equal, f must be unexported
+							// (otherwise the package wouldn't matter).
+							state = unexported
+						}
 					}
 				}
 				break
@@ -436,8 +481,9 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 			}
 		case wrongName:
 			fs, ms := check.funcString(f, false), check.funcString(m, false)
-			*cause = check.sprintf("(missing method %s)\n\t\thave %s\n\t\twant %s",
-				m.Name(), fs, ms)
+			*cause = check.sprintf("(missing method %s)\n\t\thave %s\n\t\twant %s", m.Name(), fs, ms)
+		case unexported:
+			*cause = check.sprintf("(unexported method %s)", m.Name())
 		case wrongSig:
 			fs, ms := check.funcString(f, false), check.funcString(m, false)
 			if fs == ms {
@@ -445,8 +491,18 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 				// Add package information to disambiguate (go.dev/issue/54258).
 				fs, ms = check.funcString(f, true), check.funcString(m, true)
 			}
-			*cause = check.sprintf("(wrong type for method %s)\n\t\thave %s\n\t\twant %s",
-				m.Name(), fs, ms)
+			if fs == ms {
+				// We still have "want Foo, have Foo".
+				// This is most likely due to different type parameters with
+				// the same name appearing in the instantiated signatures
+				// (go.dev/issue/61685).
+				// Rather than reporting this misleading error cause, for now
+				// just point out that the method signature is incorrect.
+				// TODO(gri) should find a good way to report the root cause
+				*cause = check.sprintf("(wrong type for method %s)", m.Name())
+				break
+			}
+			*cause = check.sprintf("(wrong type for method %s)\n\t\thave %s\n\t\twant %s", m.Name(), fs, ms)
 		case ambigSel:
 			*cause = check.sprintf("(ambiguous selector %s.%s)", V, m.Name())
 		case ptrRecv:
@@ -454,11 +510,42 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 		case field:
 			*cause = check.sprintf("(%s.%s is a field, not a method)", V, m.Name())
 		default:
-			unreachable()
+			panic("unreachable")
 		}
 	}
 
 	return m, state == wrongSig || state == ptrRecv
+}
+
+// hasAllMethods is similar to checkMissingMethod but instead reports whether all methods are present.
+// If V is not a valid type, or if it is a struct containing embedded fields with invalid types, the
+// result is true because it is not possible to say with certainty whether a method is missing or not
+// (an embedded field may have the method in question).
+// If the result is false and cause is not nil, *cause describes the error.
+// Use hasAllMethods to avoid follow-on errors due to incorrect types.
+func (check *Checker) hasAllMethods(V, T Type, static bool, equivalent func(x, y Type) bool, cause *string) bool {
+	if !isValid(V) {
+		return true // we don't know anything about V, assume it implements T
+	}
+	m, _ := check.missingMethod(V, T, static, equivalent, cause)
+	return m == nil || hasInvalidEmbeddedFields(V, nil)
+}
+
+// hasInvalidEmbeddedFields reports whether T is a struct (or a pointer to a struct) that contains
+// (directly or indirectly) embedded fields with invalid types.
+func hasInvalidEmbeddedFields(T Type, seen map[*Struct]bool) bool {
+	if S, _ := under(derefStructPtr(T)).(*Struct); S != nil && !seen[S] {
+		if seen == nil {
+			seen = make(map[*Struct]bool)
+		}
+		seen[S] = true
+		for _, f := range S.fields {
+			if f.embedded && (!isValid(f.typ) || hasInvalidEmbeddedFields(f.typ, seen)) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func isInterfacePtr(T Type) bool {
@@ -504,8 +591,7 @@ func (check *Checker) assertableTo(V, T Type, cause *string) bool {
 		return true
 	}
 	// TODO(gri) fix this for generalized interfaces
-	m, _ := check.missingMethod(T, V, false, Identical, cause)
-	return m == nil
+	return check.hasAllMethods(T, V, false, Identical, cause)
 }
 
 // newAssertableTo reports whether a value of type V can be asserted to have type T.
@@ -513,21 +599,21 @@ func (check *Checker) assertableTo(V, T Type, cause *string) bool {
 // in constraint position (we have not yet defined that behavior in the spec).
 // The underlying type of V must be an interface.
 // If the result is false and cause is not nil, *cause is set to the error cause.
-func (check *Checker) newAssertableTo(pos syntax.Pos, V, T Type, cause *string) bool {
+func (check *Checker) newAssertableTo(V, T Type, cause *string) bool {
 	// no static check is required if T is an interface
 	// spec: "If T is an interface type, x.(T) asserts that the
 	//        dynamic type of x implements the interface T."
 	if IsInterface(T) {
 		return true
 	}
-	return check.implements(pos, T, V, false, cause)
+	return check.implements(T, V, false, cause)
 }
 
 // deref dereferences typ if it is a *Pointer (but not a *Named type
 // with an underlying pointer type!) and returns its base and true.
 // Otherwise it returns (typ, false).
 func deref(typ Type) (Type, bool) {
-	if p, _ := typ.(*Pointer); p != nil {
+	if p, _ := Unalias(typ).(*Pointer); p != nil {
 		// p.base should never be nil, but be conservative
 		if p.base == nil {
 			if debug {
@@ -560,10 +646,11 @@ func concat(list []int, i int) []int {
 }
 
 // fieldIndex returns the index for the field with matching package and name, or a value < 0.
-func fieldIndex(fields []*Var, pkg *Package, name string) int {
+// See Object.sameId for the meaning of foldCase.
+func fieldIndex(fields []*Var, pkg *Package, name string, foldCase bool) int {
 	if name != "_" {
 		for i, f := range fields {
-			if f.sameId(pkg, name) {
+			if f.sameId(pkg, name, foldCase) {
 				return i
 			}
 		}
@@ -571,12 +658,12 @@ func fieldIndex(fields []*Var, pkg *Package, name string) int {
 	return -1
 }
 
-// lookupMethod returns the index of and method with matching package and name, or (-1, nil).
-// If foldCase is true, method names are considered equal if they are equal with case folding.
-func lookupMethod(methods []*Func, pkg *Package, name string, foldCase bool) (int, *Func) {
+// methodIndex returns the index of and method with matching package and name, or (-1, nil).
+// See Object.sameId for the meaning of foldCase.
+func methodIndex(methods []*Func, pkg *Package, name string, foldCase bool) (int, *Func) {
 	if name != "_" {
 		for i, m := range methods {
-			if (m.name == name || foldCase && strings.EqualFold(m.name, name)) && m.sameId(pkg, m.name) {
+			if m.sameId(pkg, name, foldCase) {
 				return i, m
 			}
 		}

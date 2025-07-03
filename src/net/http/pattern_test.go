@@ -94,6 +94,27 @@ func TestParsePattern(t *testing.T) {
 			"a.com/foo//",
 			pattern{host: "a.com", segments: []segment{lit("foo"), lit(""), multi("")}},
 		},
+		{
+			"/%61%62/%7b/%",
+			pattern{segments: []segment{lit("ab"), lit("{"), lit("%")}},
+		},
+		// Allow multiple spaces matching regexp '[ \t]+' between method and path.
+		{
+			"GET\t  /",
+			pattern{method: "GET", segments: []segment{multi("")}},
+		},
+		{
+			"POST \t  example.com/foo/{w}",
+			pattern{
+				method:   "POST",
+				host:     "example.com",
+				segments: []segment{lit("foo"), wild("w")},
+			},
+		},
+		{
+			"DELETE    \texample.com/a/{foo12}/{$}",
+			pattern{method: "DELETE", host: "example.com", segments: []segment{lit("a"), wild("foo12"), lit("/")}},
+		},
 	} {
 		got := mustParsePattern(t, test.in)
 		if !got.equal(&test.want) {
@@ -108,22 +129,26 @@ func TestParsePatternError(t *testing.T) {
 		contains string
 	}{
 		{"", "empty pattern"},
-		{"A=B /", "invalid method"},
-		{" ", "missing /"},
-		{"/{w}x", "bad wildcard segment"},
-		{"/x{w}", "bad wildcard segment"},
-		{"/{wx", "bad wildcard segment"},
-		{"/{a$}", "bad wildcard name"},
-		{"/{}", "empty wildcard"},
-		{"/{...}", "empty wildcard"},
-		{"/{$...}", "bad wildcard"},
-		{"/{$}/", "{$} not at end"},
-		{"/{$}/x", "{$} not at end"},
-		{"/{a...}/", "not at end"},
-		{"/{a...}/x", "not at end"},
-		{"{a}/b", "missing initial '/'"},
-		{"/a/{x}/b/{x...}", "duplicate wildcard name"},
-		{"GET //", "unclean path"},
+		{"A=B /", "at offset 0: invalid method"},
+		{" ", "at offset 1: host/path missing /"},
+		{"/{w}x", "at offset 1: bad wildcard segment"},
+		{"/x{w}", "at offset 1: bad wildcard segment"},
+		{"/{wx", "at offset 1: bad wildcard segment"},
+		{"/a/{/}/c", "at offset 3: bad wildcard segment"},
+		{"/a/{%61}/c", "at offset 3: bad wildcard name"}, // wildcard names aren't unescaped
+		{"/{a$}", "at offset 1: bad wildcard name"},
+		{"/{}", "at offset 1: empty wildcard"},
+		{"POST a.com/x/{}/y", "at offset 13: empty wildcard"},
+		{"/{...}", "at offset 1: empty wildcard"},
+		{"/{$...}", "at offset 1: bad wildcard"},
+		{"/{$}/", "at offset 1: {$} not at end"},
+		{"/{$}/x", "at offset 1: {$} not at end"},
+		{"/abc/{$}/x", "at offset 5: {$} not at end"},
+		{"/{a...}/", "at offset 1: {...} wildcard not at end"},
+		{"/{a...}/x", "at offset 1: {...} wildcard not at end"},
+		{"{a}/b", "at offset 0: host contains '{' (missing initial '/'?)"},
+		{"/a/{x}/b/{x...}", "at offset 9: duplicate wildcard name"},
+		{"GET //", "at offset 4: non-CONNECT pattern with unclean path"},
 	} {
 		_, err := parsePattern(test.in)
 		if err == nil || !strings.Contains(err.Error(), test.contains) {
@@ -137,31 +162,11 @@ func (p1 *pattern) equal(p2 *pattern) bool {
 		slices.Equal(p1.segments, p2.segments)
 }
 
-func TestIsValidHTTPToken(t *testing.T) {
-	for _, test := range []struct {
-		in   string
-		want bool
-	}{
-		{"", false},
-		{"GET", true},
-		{"get", true},
-		{"white space", false},
-		{"#!~", true},
-		{"a-b1_2", true},
-		{"notok)", false},
-	} {
-		got := isValidHTTPToken(test.in)
-		if g, w := got, test.want; g != w {
-			t.Errorf("%q: got %t, want %t", test.in, g, w)
-		}
-	}
-}
-
-func mustParsePattern(t *testing.T, s string) *pattern {
-	t.Helper()
+func mustParsePattern(tb testing.TB, s string) *pattern {
+	tb.Helper()
 	p, err := parsePattern(s)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	return p
 }
@@ -296,6 +301,7 @@ func TestComparePaths(t *testing.T) {
 		{"/a/{z}/{m...}", "/{z}/a/", overlaps},
 		{"/a/{z}/{m...}", "/{z}/b/{y...}", overlaps},
 		{"/a/{z}/b/{m...}", "/{x}/c/{y...}", overlaps},
+		{"/a/{z}/a/{m...}", "/{x}/b", disjoint},
 
 		// Dollar on left.
 		{"/{$}", "/a", disjoint},
@@ -314,6 +320,8 @@ func TestComparePaths(t *testing.T) {
 		{"/b/{$}", "/b/{x...}", moreSpecific},
 		{"/b/{$}", "/b/c/{x...}", disjoint},
 		{"/b/{x}/a/{$}", "/{x}/c/{y...}", overlaps},
+		{"/{x}/b/{$}", "/a/{x}/{y}", disjoint},
+		{"/{x}/b/{$}", "/a/{x}/c", disjoint},
 
 		{"/{z}/{$}", "/{z}/a", disjoint},
 		{"/{z}/{$}", "/{z}/a/b", disjoint},
@@ -386,6 +394,118 @@ func TestConflictsWith(t *testing.T) {
 		if got != test.want {
 			t.Errorf("%q.ConflictsWith(%q) = %t, want %t",
 				test.p2, test.p1, got, test.want)
+		}
+	}
+}
+
+func TestRegisterConflict(t *testing.T) {
+	mux := NewServeMux()
+	pat1 := "/a/{x}/"
+	if err := mux.registerErr(pat1, NotFoundHandler()); err != nil {
+		t.Fatal(err)
+	}
+	pat2 := "/a/{y}/{z...}"
+	err := mux.registerErr(pat2, NotFoundHandler())
+	var got string
+	if err == nil {
+		got = "<nil>"
+	} else {
+		got = err.Error()
+	}
+	want := "matches the same requests as"
+	if !strings.Contains(got, want) {
+		t.Errorf("got\n%s\nwant\n%s", got, want)
+	}
+}
+
+func TestDescribeConflict(t *testing.T) {
+	for _, test := range []struct {
+		p1, p2 string
+		want   string
+	}{
+		{"/a/{x}", "/a/{y}", "the same requests"},
+		{"/", "/{m...}", "the same requests"},
+		{"/a/{x}", "/{y}/b", "both match some paths"},
+		{"/a", "GET /{x}", "matches more methods than GET /{x}, but has a more specific path pattern"},
+		{"GET /a", "HEAD /", "matches more methods than HEAD /, but has a more specific path pattern"},
+		{"POST /", "/a", "matches fewer methods than /a, but has a more general path pattern"},
+	} {
+		got := describeConflict(mustParsePattern(t, test.p1), mustParsePattern(t, test.p2))
+		if !strings.Contains(got, test.want) {
+			t.Errorf("%s vs. %s:\ngot:\n%s\nwhich does not contain %q",
+				test.p1, test.p2, got, test.want)
+		}
+	}
+}
+
+func TestCommonPath(t *testing.T) {
+	for _, test := range []struct {
+		p1, p2 string
+		want   string
+	}{
+		{"/a/{x}", "/{x}/a", "/a/a"},
+		{"/a/{z}/", "/{z}/a/", "/a/a/"},
+		{"/a/{z}/{m...}", "/{z}/a/", "/a/a/"},
+		{"/{z}/{$}", "/a/", "/a/"},
+		{"/{z}/{$}", "/a/{x...}", "/a/"},
+		{"/a/{z}/{$}", "/{z}/a/", "/a/a/"},
+		{"/a/{x}/b/{y...}", "/{x}/c/{y...}", "/a/c/b/"},
+		{"/a/{x}/b/", "/{x}/c/{y...}", "/a/c/b/"},
+		{"/a/{x}/b/{$}", "/{x}/c/{y...}", "/a/c/b/"},
+		{"/a/{z}/{x...}", "/{z}/b/{y...}", "/a/b/"},
+	} {
+		pat1 := mustParsePattern(t, test.p1)
+		pat2 := mustParsePattern(t, test.p2)
+		if pat1.comparePaths(pat2) != overlaps {
+			t.Fatalf("%s does not overlap %s", test.p1, test.p2)
+		}
+		got := commonPath(pat1, pat2)
+		if got != test.want {
+			t.Errorf("%s vs. %s: got %q, want %q", test.p1, test.p2, got, test.want)
+		}
+	}
+}
+
+func TestDifferencePath(t *testing.T) {
+	for _, test := range []struct {
+		p1, p2 string
+		want   string
+	}{
+		{"/a/{x}", "/{x}/a", "/a/x"},
+		{"/{x}/a", "/a/{x}", "/x/a"},
+		{"/a/{z}/", "/{z}/a/", "/a/z/"},
+		{"/{z}/a/", "/a/{z}/", "/z/a/"},
+		{"/{a}/a/", "/a/{z}/", "/ax/a/"},
+		{"/a/{z}/{x...}", "/{z}/b/{y...}", "/a/z/"},
+		{"/{z}/b/{y...}", "/a/{z}/{x...}", "/z/b/"},
+		{"/a/b/", "/a/b/c", "/a/b/"},
+		{"/a/b/{x...}", "/a/b/c", "/a/b/"},
+		{"/a/b/{x...}", "/a/b/c/d", "/a/b/"},
+		{"/a/b/{x...}", "/a/b/c/d/", "/a/b/"},
+		{"/a/{z}/{m...}", "/{z}/a/", "/a/z/"},
+		{"/{z}/a/", "/a/{z}/{m...}", "/z/a/"},
+		{"/{z}/{$}", "/a/", "/z/"},
+		{"/a/", "/{z}/{$}", "/a/x"},
+		{"/{z}/{$}", "/a/{x...}", "/z/"},
+		{"/a/{foo...}", "/{z}/{$}", "/a/foo"},
+		{"/a/{z}/{$}", "/{z}/a/", "/a/z/"},
+		{"/{z}/a/", "/a/{z}/{$}", "/z/a/x"},
+		{"/a/{x}/b/{y...}", "/{x}/c/{y...}", "/a/x/b/"},
+		{"/{x}/c/{y...}", "/a/{x}/b/{y...}", "/x/c/"},
+		{"/a/{c}/b/", "/{x}/c/{y...}", "/a/cx/b/"},
+		{"/{x}/c/{y...}", "/a/{c}/b/", "/x/c/"},
+		{"/a/{x}/b/{$}", "/{x}/c/{y...}", "/a/x/b/"},
+		{"/{x}/c/{y...}", "/a/{x}/b/{$}", "/x/c/"},
+	} {
+		pat1 := mustParsePattern(t, test.p1)
+		pat2 := mustParsePattern(t, test.p2)
+		rel := pat1.comparePaths(pat2)
+		if rel != overlaps && rel != moreGeneral {
+			t.Fatalf("%s vs. %s are %s, need overlaps or moreGeneral", pat1, pat2, rel)
+		}
+		got := differencePath(pat1, pat2)
+		if got != test.want {
+			t.Errorf("%s vs. %s: got %q, want %q", test.p1, test.p2, got, test.want)
 		}
 	}
 }

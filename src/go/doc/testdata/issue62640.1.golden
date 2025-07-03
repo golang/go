@@ -1,0 +1,22 @@
+// 
+PACKAGE issue62640
+
+IMPORTPATH
+	testdata/issue62640
+
+FILENAMES
+	testdata/issue62640.go
+
+TYPES
+	// 
+	type E struct{}
+
+	// F should be hidden within S because of the S.F field. 
+	func (E) F()
+
+	// 
+	type S struct {
+		E
+		F	int
+	}
+

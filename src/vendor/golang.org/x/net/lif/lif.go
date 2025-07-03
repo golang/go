@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build solaris
-// +build solaris
 
 // Package lif provides basic functions for the manipulation of
 // logical network interfaces and interface addresses on Solaris.

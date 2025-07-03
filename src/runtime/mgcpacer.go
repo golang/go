@@ -7,7 +7,9 @@ package runtime
 import (
 	"internal/cpu"
 	"internal/goexperiment"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
+	"internal/runtime/math"
+	"internal/runtime/strconv"
 	_ "unsafe" // for go:linkname
 )
 
@@ -687,21 +689,42 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
 // another P if there are spare worker slots. It is used by putfull
 // when more work is made available.
 //
+// If goexperiment.GreenTeaGC, the caller must not hold a G's scan bit,
+// otherwise this could cause a deadlock. This is already enforced by
+// the static lock ranking.
+//
 //go:nowritebarrier
 func (c *gcControllerState) enlistWorker() {
-	// If there are idle Ps, wake one so it will run an idle worker.
-	// NOTE: This is suspected of causing deadlocks. See golang.org/issue/19112.
-	//
-	//	if sched.npidle.Load() != 0 && sched.nmspinning.Load() == 0 {
-	//		wakep()
-	//		return
-	//	}
+	needDedicated := c.dedicatedMarkWorkersNeeded.Load() > 0
 
-	// There are no idle Ps. If we need more dedicated workers,
-	// try to preempt a running P so it will switch to a worker.
-	if c.dedicatedMarkWorkersNeeded.Load() <= 0 {
+	// Create new workers from idle Ps with goexperiment.GreenTeaGC.
+	//
+	// Note: with Green Tea, this places a requirement on enlistWorker
+	// that it must not be called while a G's scan bit is held.
+	if goexperiment.GreenTeaGC {
+		needIdle := c.needIdleMarkWorker()
+
+		// If we're all full on dedicated and idle workers, nothing
+		// to do.
+		if !needDedicated && !needIdle {
+			return
+		}
+
+		// If there are idle Ps, wake one so it will run a worker
+		// (the scheduler will already prefer to spin up a new
+		// dedicated worker over an idle one).
+		if sched.npidle.Load() != 0 && sched.nmspinning.Load() == 0 {
+			wakep()
+			return
+		}
+	}
+
+	// If we still need more dedicated workers, try to preempt a running P
+	// so it will switch to a worker.
+	if !needDedicated {
 		return
 	}
+
 	// Pick a random other P to preempt.
 	if gomaxprocs <= 1 {
 		return
@@ -712,7 +735,7 @@ func (c *gcControllerState) enlistWorker() {
 	}
 	myID := gp.m.p.ptr().id
 	for tries := 0; tries < 5; tries++ {
-		id := int32(fastrandn(uint32(gomaxprocs - 1)))
+		id := int32(cheaprandn(uint32(gomaxprocs - 1)))
 		if id >= myID {
 			id++
 		}
@@ -749,6 +772,17 @@ func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
 		// the end of the mark phase when there are still
 		// assists tapering off. Don't bother running a worker
 		// now because it'll just return immediately.
+		return nil, now
+	}
+
+	if c.dedicatedMarkWorkersNeeded.Load() <= 0 && c.fractionalUtilizationGoal == 0 {
+		// No current need for dedicated workers, and no need at all for
+		// fractional workers. Check before trying to acquire a worker; when
+		// GOMAXPROCS is large, that can be expensive and is often unnecessary.
+		//
+		// When a dedicated worker stops running, the gcBgMarkWorker loop notes
+		// the need for the worker before returning it to the pool. If we don't
+		// see the need now, we wouldn't have found it in the pool anyway.
 		return nil, now
 	}
 
@@ -807,9 +841,11 @@ func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
 
 	// Run the background mark worker.
 	gp := node.gp.ptr()
+	trace := traceAcquire()
 	casgstatus(gp, _Gwaiting, _Grunnable)
-	if traceEnabled() {
-		traceGoUnpark(gp, 0)
+	if trace.ok() {
+		trace.GoUnpark(gp, 0)
+		traceRelease(trace)
 	}
 	return gp, now
 }
@@ -828,8 +864,10 @@ func (c *gcControllerState) resetLive(bytesMarked uint64) {
 	c.triggered = ^uint64(0) // Reset triggered.
 
 	// heapLive was updated, so emit a trace event.
-	if traceEnabled() {
-		traceHeapAlloc(bytesMarked)
+	trace := traceAcquire()
+	if trace.ok() {
+		trace.HeapAlloc(bytesMarked)
+		traceRelease(trace)
 	}
 }
 
@@ -856,10 +894,12 @@ func (c *gcControllerState) markWorkerStop(mode gcMarkWorkerMode, duration int64
 
 func (c *gcControllerState) update(dHeapLive, dHeapScan int64) {
 	if dHeapLive != 0 {
+		trace := traceAcquire()
 		live := gcController.heapLive.Add(dHeapLive)
-		if traceEnabled() {
+		if trace.ok() {
 			// gcController.heapLive changed.
-			traceHeapAlloc(live)
+			trace.HeapAlloc(live)
+			traceRelease(trace)
 		}
 	}
 	if gcBlackenEnabled == 0 {
@@ -1119,7 +1159,7 @@ func (c *gcControllerState) trigger() (uint64, uint64) {
 	// increase in RSS. By capping us at a point >0, we're essentially
 	// saying that we're OK using more CPU during the GC to prevent
 	// this growth in RSS.
-	triggerLowerBound := uint64(((goal-c.heapMarked)/triggerRatioDen)*minTriggerRatioNum) + c.heapMarked
+	triggerLowerBound := ((goal-c.heapMarked)/triggerRatioDen)*minTriggerRatioNum + c.heapMarked
 	if minTrigger < triggerLowerBound {
 		minTrigger = triggerLowerBound
 	}
@@ -1133,13 +1173,11 @@ func (c *gcControllerState) trigger() (uint64, uint64) {
 	// to reflect the costs of a GC with no work to do. With a large heap but
 	// very little scan work to perform, this gives us exactly as much runway
 	// as we would need, in the worst case.
-	maxTrigger := uint64(((goal-c.heapMarked)/triggerRatioDen)*maxTriggerRatioNum) + c.heapMarked
+	maxTrigger := ((goal-c.heapMarked)/triggerRatioDen)*maxTriggerRatioNum + c.heapMarked
 	if goal > defaultHeapMinimum && goal-defaultHeapMinimum > maxTrigger {
 		maxTrigger = goal - defaultHeapMinimum
 	}
-	if maxTrigger < minTrigger {
-		maxTrigger = minTrigger
-	}
+	maxTrigger = max(maxTrigger, minTrigger)
 
 	// Compute the trigger from our bounds and the runway stored by commit.
 	var trigger uint64
@@ -1149,12 +1187,8 @@ func (c *gcControllerState) trigger() (uint64, uint64) {
 	} else {
 		trigger = goal - runway
 	}
-	if trigger < minTrigger {
-		trigger = minTrigger
-	}
-	if trigger > maxTrigger {
-		trigger = maxTrigger
-	}
+	trigger = max(trigger, minTrigger)
+	trigger = min(trigger, maxTrigger)
 	if trigger > goal {
 		print("trigger=", trigger, " heapGoal=", goal, "\n")
 		print("minTrigger=", minTrigger, " maxTrigger=", maxTrigger, "\n")
@@ -1279,7 +1313,7 @@ func readGOGC() int32 {
 	if p == "off" {
 		return -1
 	}
-	if n, ok := atoi32(p); ok {
+	if n, ok := strconv.Atoi32(p); ok {
 		return n
 	}
 	return 100
@@ -1323,7 +1357,7 @@ func setMemoryLimit(in int64) (out int64) {
 func readGOMEMLIMIT() int64 {
 	p := gogetenv("GOMEMLIMIT")
 	if p == "" || p == "off" {
-		return maxInt64
+		return math.MaxInt64
 	}
 	n, ok := parseByteCount(p)
 	if !ok {
@@ -1377,7 +1411,7 @@ func (c *gcControllerState) needIdleMarkWorker() bool {
 	return n < max
 }
 
-// removeIdleMarkWorker must be called when an new idle mark worker stops executing.
+// removeIdleMarkWorker must be called when a new idle mark worker stops executing.
 func (c *gcControllerState) removeIdleMarkWorker() {
 	for {
 		old := c.idleMarkWorkers.Load()
@@ -1434,8 +1468,10 @@ func gcControllerCommit() {
 
 	// TODO(mknyszek): This isn't really accurate any longer because the heap
 	// goal is computed dynamically. Still useful to snapshot, but not as useful.
-	if traceEnabled() {
-		traceHeapGoal()
+	trace := traceAcquire()
+	if trace.ok() {
+		trace.HeapGoal()
+		traceRelease(trace)
 	}
 
 	trigger, heapGoal := gcController.trigger()

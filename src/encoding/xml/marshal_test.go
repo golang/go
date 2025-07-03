@@ -1751,7 +1751,7 @@ var marshalIndentTests = []struct {
 		},
 		Prefix:    "",
 		Indent:    "\t",
-		ExpectXML: fmt.Sprintf("<agent handle=\"007\">\n\t<Identity>James Bond</Identity><redacted/>\n</agent>"),
+		ExpectXML: "<agent handle=\"007\">\n\t<Identity>James Bond</Identity><redacted/>\n</agent>",
 	},
 }
 

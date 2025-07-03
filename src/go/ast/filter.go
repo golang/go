@@ -6,7 +6,7 @@ package ast
 
 import (
 	"go/token"
-	"sort"
+	"slices"
 )
 
 // ----------------------------------------------------------------------------
@@ -21,7 +21,7 @@ func exportFilter(name string) bool {
 // only exported nodes remain: all top-level identifiers which are not exported
 // and their associated information (such as type, initial value, or function
 // body) are removed. Non-exported fields and methods of exported types are
-// stripped. The File.Comments list is not changed.
+// stripped. The [File.Comments] list is not changed.
 //
 // FileExports reports whether there are exported declarations.
 func FileExports(src *File) bool {
@@ -34,6 +34,9 @@ func FileExports(src *File) bool {
 //
 // PackageExports reports whether there are exported declarations;
 // it returns false otherwise.
+//
+// Deprecated: use the type checker [go/types] instead of [Package];
+// see [Object]. Alternatively, use [FileExports].
 func PackageExports(pkg *Package) bool {
 	return filterPackage(pkg, exportFilter, true)
 }
@@ -246,7 +249,7 @@ func filterDecl(decl Decl, f Filter, export bool) bool {
 // interface method names, but not from parameter lists) that don't
 // pass through the filter f. If the declaration is empty afterwards,
 // the declaration is removed from the AST. Import declarations are
-// always removed. The File.Comments list is not changed.
+// always removed. The [File.Comments] list is not changed.
 //
 // FilterFile reports whether there are any top-level declarations
 // left after filtering.
@@ -276,6 +279,9 @@ func filterFile(src *File, f Filter, export bool) bool {
 //
 // FilterPackage reports whether there are any top-level declarations
 // left after filtering.
+//
+// Deprecated: use the type checker [go/types] instead of [Package];
+// see [Object]. Alternatively, use [FilterFile].
 func FilterPackage(pkg *Package, f Filter) bool {
 	return filterPackage(pkg, f, false)
 }
@@ -293,9 +299,14 @@ func filterPackage(pkg *Package, f Filter, export bool) bool {
 // ----------------------------------------------------------------------------
 // Merging of package files
 
-// The MergeMode flags control the behavior of MergePackageFiles.
+// The MergeMode flags control the behavior of [MergePackageFiles].
+//
+// Deprecated: use the type checker [go/types] instead of [Package];
+// see [Object].
 type MergeMode uint
 
+// Deprecated: use the type checker [go/types] instead of [Package];
+// see [Object].
 const (
 	// If set, duplicate function declarations are excluded.
 	FilterFuncDuplicates MergeMode = 1 << iota
@@ -332,6 +343,9 @@ var separator = &Comment{token.NoPos, "//"}
 
 // MergePackageFiles creates a file AST by merging the ASTs of the
 // files belonging to a package. The mode flags control merging behavior.
+//
+// Deprecated: this function is poorly specified and has unfixable
+// bugs; also [Package] is deprecated.
 func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 	// Count the number of package docs, comments and declarations across
 	// all package files. Also, compute sorted list of filenames, so that
@@ -357,7 +371,7 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 			maxPos = f.FileEnd
 		}
 	}
-	sort.Strings(filenames)
+	slices.Sort(filenames)
 
 	// Collect package comments from all package files into a single
 	// CommentGroup - the collected package documentation. In general

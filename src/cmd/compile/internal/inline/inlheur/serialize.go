@@ -6,18 +6,18 @@ package inlheur
 
 import "strings"
 
-func (fp *FuncProps) SerializeToString() string {
-	if fp == nil {
+func (funcProps *FuncProps) SerializeToString() string {
+	if funcProps == nil {
 		return ""
 	}
 	var sb strings.Builder
-	writeUleb128(&sb, uint64(fp.Flags))
-	writeUleb128(&sb, uint64(len(fp.ParamFlags)))
-	for _, pf := range fp.ParamFlags {
+	writeUleb128(&sb, uint64(funcProps.Flags))
+	writeUleb128(&sb, uint64(len(funcProps.ParamFlags)))
+	for _, pf := range funcProps.ParamFlags {
 		writeUleb128(&sb, uint64(pf))
 	}
-	writeUleb128(&sb, uint64(len(fp.ResultFlags)))
-	for _, rf := range fp.ResultFlags {
+	writeUleb128(&sb, uint64(len(funcProps.ResultFlags)))
+	for _, rf := range funcProps.ResultFlags {
 		writeUleb128(&sb, uint64(rf))
 	}
 	return sb.String()
@@ -27,24 +27,24 @@ func DeserializeFromString(s string) *FuncProps {
 	if len(s) == 0 {
 		return nil
 	}
-	var fp FuncProps
+	var funcProps FuncProps
 	var v uint64
 	sl := []byte(s)
 	v, sl = readULEB128(sl)
-	fp.Flags = FuncPropBits(v)
+	funcProps.Flags = FuncPropBits(v)
 	v, sl = readULEB128(sl)
-	fp.ParamFlags = make([]ParamPropBits, v)
-	for i := range fp.ParamFlags {
+	funcProps.ParamFlags = make([]ParamPropBits, v)
+	for i := range funcProps.ParamFlags {
 		v, sl = readULEB128(sl)
-		fp.ParamFlags[i] = ParamPropBits(v)
+		funcProps.ParamFlags[i] = ParamPropBits(v)
 	}
 	v, sl = readULEB128(sl)
-	fp.ResultFlags = make([]ResultPropBits, v)
-	for i := range fp.ResultFlags {
+	funcProps.ResultFlags = make([]ResultPropBits, v)
+	for i := range funcProps.ResultFlags {
 		v, sl = readULEB128(sl)
-		fp.ResultFlags[i] = ResultPropBits(v)
+		funcProps.ResultFlags[i] = ResultPropBits(v)
 	}
-	return &fp
+	return &funcProps
 }
 
 func readULEB128(sl []byte) (value uint64, rsl []byte) {

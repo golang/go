@@ -40,15 +40,23 @@ func TestCallback(t *testing.T) {
 }
 
 func run(t *testing.T, dir string, lto bool, args ...string) {
+	testenv.MustHaveGoRun(t)
 	runArgs := append([]string{"run", "."}, args...)
-	cmd := exec.Command("go", runArgs...)
+	cmd := exec.Command(testenv.GoToolPath(t), runArgs...)
 	cmd.Dir = dir
 	if lto {
+		// On the builders we're using the default /usr/bin/ld, but
+		// that has problems when asking for LTO in particular. Force
+		// use of lld, which ships with our clang installation.
+		extraLDFlags := ""
+		if strings.Contains(testenv.Builder(), "clang") {
+			extraLDFlags += " -fuse-ld=lld"
+		}
 		const cflags = "-flto -Wno-lto-type-mismatch -Wno-unknown-warning-option"
 		cmd.Env = append(cmd.Environ(),
 			"CGO_CFLAGS="+cflags,
 			"CGO_CXXFLAGS="+cflags,
-			"CGO_LDFLAGS="+cflags)
+			"CGO_LDFLAGS="+cflags+extraLDFlags)
 	}
 	out, err := cmd.CombinedOutput()
 	if string(out) != "OK\n" {
@@ -61,7 +69,7 @@ func run(t *testing.T, dir string, lto bool, args ...string) {
 
 func mustHaveCxx(t *testing.T) {
 	// Ask the go tool for the CXX it's configured to use.
-	cxx, err := exec.Command("go", "env", "CXX").CombinedOutput()
+	cxx, err := exec.Command(testenv.GoToolPath(t), "env", "CXX").CombinedOutput()
 	if err != nil {
 		t.Fatalf("go env CXX failed: %s", err)
 	}

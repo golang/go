@@ -48,21 +48,19 @@ func afterErrorAction() {
 	if *flagH {
 		panic("error")
 	}
-	if nerrors > 20 {
+	if nerrors > 20 && !*flagAllErrors {
 		Exitf("too many errors")
 	}
 }
 
-// Errorf logs an error message.
+// Errorf logs an error message without a specific symbol for context.
+// Use ctxt.Errorf when possible.
 //
 // If more than 20 errors have been printed, exit with an error.
 //
 // Logging an error means that on exit cmd/link will delete any
 // output file and return a non-zero error code.
-//
-// TODO: remove. Use ctxt.Errorf instead.
-// All remaining calls use nil as first arg.
-func Errorf(dummy *int, format string, args ...interface{}) {
+func Errorf(format string, args ...interface{}) {
 	format += "\n"
 	fmt.Fprintf(os.Stderr, format, args...)
 	afterErrorAction()
@@ -104,14 +102,4 @@ func stringtouint32(x []uint32, s string) {
 		s = s[copy(buf[:], s):]
 		x[i] = binary.LittleEndian.Uint32(buf[:])
 	}
-}
-
-// contains reports whether v is in s.
-func contains(s []string, v string) bool {
-	for _, x := range s {
-		if x == v {
-			return true
-		}
-	}
-	return false
 }

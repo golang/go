@@ -126,6 +126,11 @@ func (fd *netFD) Close() error {
 			return err
 		}
 	}
+	if fd.net == "udp" {
+		// The following line is required to unblock Reads.
+		// See https://go.dev/issue/72770.
+		fd.SetReadDeadline(time.Now().Add(-time.Hour))
+	}
 	err := fd.ctl.Close()
 	if fd.data != nil {
 		if err1 := fd.data.Close(); err1 != nil && err == nil {

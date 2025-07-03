@@ -11,7 +11,8 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
-	"sort"
+	"slices"
+	"strings"
 	"sync"
 )
 
@@ -287,12 +288,22 @@ func (c dwCtxt) Logf(format string, args ...interface{}) {
 	c.Link.Logf(format, args...)
 }
 
+func (c dwCtxt) AddIndirectTextRef(s dwarf.Sym, t interface{}) {
+	ls := s.(*LSym)
+	tsym := t.(*LSym)
+	// Note the doubling below -- DwTextCount is an estimate and
+	// usually a little short due to additional wrapper functions and
+	// such; by using c.DwTextCount*2 as the limit we'll ensure that
+	// we don't run out of space.
+	ls.WriteDwTxtAddrx(c.Link, ls.Size, tsym, c.DwTextCount*2)
+}
+
 func isDwarf64(ctxt *Link) bool {
 	return ctxt.Headtype == objabi.Haix
 }
 
 func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, dwarfAbsFnSym, dwarfDebugLines *LSym) {
-	if s.Type != objabi.STEXT {
+	if !s.Type.IsText() {
 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
 	}
 	fn := s.Func()
@@ -343,7 +354,7 @@ func (ctxt *Link) populateDWARF(curfn Func, s *LSym) {
 	var scopes []dwarf.Scope
 	var inlcalls dwarf.InlCalls
 	if ctxt.DebugInfo != nil {
-		scopes, inlcalls = ctxt.DebugInfo(s, info, curfn)
+		scopes, inlcalls = ctxt.DebugInfo(ctxt, s, info, curfn)
 	}
 	var err error
 	dwctxt := dwCtxt{ctxt}
@@ -370,7 +381,8 @@ func (ctxt *Link) populateDWARF(curfn Func, s *LSym) {
 		if err != nil {
 			ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
 		}
-		err = dwarf.PutConcreteFunc(dwctxt, fnstate, s.Wrapper())
+		err = dwarf.PutConcreteFunc(dwctxt, fnstate, s.Wrapper(),
+			ctxt.DwTextCount)
 	} else {
 		err = dwarf.PutDefaultFunc(dwctxt, fnstate, s.Wrapper())
 	}
@@ -420,7 +432,7 @@ func (ctxt *Link) DwarfAbstractFunc(curfn Func, s *LSym) {
 	if s.Func() == nil {
 		s.NewFuncInfo()
 	}
-	scopes, _ := ctxt.DebugInfo(s, absfn, curfn)
+	scopes, _ := ctxt.DebugInfo(ctxt, s, absfn, curfn)
 	dwctxt := dwCtxt{ctxt}
 	fnstate := dwarf.FnState{
 		Name:          s.Name,
@@ -665,7 +677,9 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
 		fns[idx] = fn
 		idx++
 	}
-	sort.Sort(BySymName(fns))
+	slices.SortFunc(fns, func(a, b *LSym) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 
 	// Should not be called during parallel portion of compilation.
 	if ft.ctxt.InParallel {
@@ -692,9 +706,3 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
 		}
 	}
 }
-
-type BySymName []*LSym
-
-func (s BySymName) Len() int           { return len(s) }
-func (s BySymName) Less(i, j int) bool { return s[i].Name < s[j].Name }
-func (s BySymName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

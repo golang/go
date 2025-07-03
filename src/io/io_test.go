@@ -384,6 +384,9 @@ func TestSectionReader_ReadAt(t *testing.T) {
 		if n, err := s.ReadAt(buf, int64(tt.at)); n != len(tt.exp) || string(buf[:n]) != tt.exp || err != tt.err {
 			t.Fatalf("%d: ReadAt(%d) = %q, %v; expected %q, %v", i, tt.at, buf[:n], err, tt.exp, tt.err)
 		}
+		if _r, off, n := s.Outer(); _r != r || off != int64(tt.off) || n != int64(tt.n) {
+			t.Fatalf("%d: Outer() = %v, %d, %d; expected %v, %d, %d", i, _r, off, n, r, tt.off, tt.n)
+		}
 	}
 }
 
@@ -445,6 +448,9 @@ func TestSectionReader_Max(t *testing.T) {
 	if n != 0 || err != EOF {
 		t.Errorf("Read = %v, %v, want 0, EOF", n, err)
 	}
+	if _r, off, n := sr.Outer(); _r != r || off != 3 || n != maxint64 {
+		t.Fatalf("Outer = %v, %d, %d; expected %v, %d, %d", _r, off, n, r, 3, int64(maxint64))
+	}
 }
 
 // largeWriter returns an invalid count that is larger than the number
@@ -499,7 +505,7 @@ func TestNopCloserWriterToForwarding(t *testing.T) {
 func TestOffsetWriter_Seek(t *testing.T) {
 	tmpfilename := "TestOffsetWriter_Seek"
 	tmpfile, err := os.CreateTemp(t.TempDir(), tmpfilename)
-	if err != nil || tmpfile == nil {
+	if err != nil {
 		t.Fatalf("CreateTemp(%s) failed: %v", tmpfilename, err)
 	}
 	defer tmpfile.Close()
@@ -558,15 +564,12 @@ func TestOffsetWriter_Seek(t *testing.T) {
 func TestOffsetWriter_WriteAt(t *testing.T) {
 	const content = "0123456789ABCDEF"
 	contentSize := int64(len(content))
-	tmpdir, err := os.MkdirTemp(t.TempDir(), "TestOffsetWriter_WriteAt")
-	if err != nil {
-		t.Fatal(err)
-	}
+	tmpdir := t.TempDir()
 
 	work := func(off, at int64) {
 		position := fmt.Sprintf("off_%d_at_%d", off, at)
 		tmpfile, err := os.CreateTemp(tmpdir, position)
-		if err != nil || tmpfile == nil {
+		if err != nil {
 			t.Fatalf("CreateTemp(%s) failed: %v", position, err)
 		}
 		defer tmpfile.Close()
@@ -636,7 +639,7 @@ func TestOffsetWriter_Write(t *testing.T) {
 	makeOffsetWriter := func(name string) (*OffsetWriter, *os.File) {
 		tmpfilename := "TestOffsetWriter_Write_" + name
 		tmpfile, err := os.CreateTemp(tmpdir, tmpfilename)
-		if err != nil || tmpfile == nil {
+		if err != nil {
 			t.Fatalf("CreateTemp(%s) failed: %v", tmpfilename, err)
 		}
 		return NewOffsetWriter(tmpfile, 0), tmpfile

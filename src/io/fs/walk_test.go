@@ -9,7 +9,7 @@ import (
 	"os"
 	pathpkg "path"
 	"path/filepath"
-	"reflect"
+	"slices"
 	"testing"
 	"testing/fstest"
 )
@@ -86,16 +86,7 @@ func mark(entry DirEntry, err error, errors *[]error, clear bool) error {
 }
 
 func TestWalkDir(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatal("finding working dir:", err)
-	}
-	if err = os.Chdir(tmpDir); err != nil {
-		t.Fatal("entering temp dir:", err)
-	}
-	defer os.Chdir(origDir)
+	t.Chdir(t.TempDir())
 
 	fsys := makeTree()
 	errors := make([]error, 0, 10)
@@ -104,7 +95,7 @@ func TestWalkDir(t *testing.T) {
 		return mark(entry, err, &errors, clear)
 	}
 	// Expect no errors.
-	err = WalkDir(fsys, ".", markFn)
+	err := WalkDir(fsys, ".", markFn)
 	if err != nil {
 		t.Fatalf("no error expected, found: %s", err)
 	}
@@ -117,6 +108,47 @@ func TestWalkDir(t *testing.T) {
 		}
 		n.mark = 0
 	})
+}
+
+func TestWalkDirSymlink(t *testing.T) {
+	fsys := fstest.MapFS{
+		"link":    {Data: []byte("dir"), Mode: ModeSymlink},
+		"dir/a":   {},
+		"dir/b/c": {},
+		"dir/d":   {Data: []byte("b"), Mode: ModeSymlink},
+	}
+
+	wantTypes := map[string]FileMode{
+		"link":     ModeDir,
+		"link/a":   0,
+		"link/b":   ModeDir,
+		"link/b/c": 0,
+		"link/d":   ModeSymlink,
+	}
+	marks := make(map[string]int)
+	walkFn := func(path string, entry DirEntry, err error) error {
+		marks[path]++
+		if want, ok := wantTypes[path]; !ok {
+			t.Errorf("Unexpected path %q in walk", path)
+		} else if got := entry.Type(); got != want {
+			t.Errorf("%s entry type = %v; want %v", path, got, want)
+		}
+		if err != nil {
+			t.Errorf("Walking %s: %v", path, err)
+		}
+		return nil
+	}
+
+	// Expect no errors.
+	err := WalkDir(fsys, "link", walkFn)
+	if err != nil {
+		t.Fatalf("no error expected, found: %s", err)
+	}
+	for path := range wantTypes {
+		if got := marks[path]; got != 1 {
+			t.Errorf("%s visited %d times; expected 1", path, got)
+		}
+	}
 }
 
 func TestIssue51617(t *testing.T) {
@@ -145,7 +177,7 @@ func TestIssue51617(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{".", "a", "a/bad", "a/next"}
-	if !reflect.DeepEqual(saw, want) {
+	if !slices.Equal(saw, want) {
 		t.Errorf("got directories %v, want %v", saw, want)
 	}
 }

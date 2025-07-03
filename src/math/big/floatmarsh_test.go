@@ -171,3 +171,46 @@ func TestFloatGobDecodeInvalid(t *testing.T) {
 		}
 	}
 }
+
+func TestFloatAppendText(t *testing.T) {
+	for _, test := range floatVals {
+		for _, sign := range []string{"", "+", "-"} {
+			for _, prec := range []uint{0, 1, 2, 10, 53, 64, 100, 1000} {
+				if prec > 53 && testing.Short() {
+					continue
+				}
+				x := sign + test
+				var tx Float
+				_, _, err := tx.SetPrec(prec).Parse(x, 0)
+				if err != nil {
+					t.Errorf("parsing of %s (prec = %d) failed (invalid test case): %v", x, prec, err)
+					continue
+				}
+				buf := make([]byte, 4, 32)
+				b, err := tx.AppendText(buf)
+				if err != nil {
+					t.Errorf("marshaling of %v (prec = %d) failed: %v", &tx, prec, err)
+					continue
+				}
+				var rx Float
+				rx.SetPrec(prec)
+				if err := rx.UnmarshalText(b[4:]); err != nil {
+					t.Errorf("unmarshaling of %v (prec = %d) failed: %v", &tx, prec, err)
+					continue
+				}
+				if rx.Cmp(&tx) != 0 {
+					t.Errorf("AppendText of %v (prec = %d) failed: got %v want %v", &tx, prec, &rx, &tx)
+				}
+			}
+		}
+	}
+}
+
+func TestFloatAppendTextNil(t *testing.T) {
+	var x *Float
+	buf := make([]byte, 4, 16)
+	data, _ := x.AppendText(buf)
+	if string(data[4:]) != "<nil>" {
+		t.Errorf("got %q, want <nil>", data[4:])
+	}
+}

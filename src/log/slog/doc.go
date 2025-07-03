@@ -222,7 +222,7 @@ details.
 
 A LogValue method may return a Value that itself implements [LogValuer]. The [Value.Resolve]
 method handles these cases carefully, avoiding infinite loops and unbounded recursion.
-Handler authors and others may wish to use Value.Resolve instead of calling LogValue directly.
+Handler authors and others may wish to use [Value.Resolve] instead of calling LogValue directly.
 
 # Wrapping output methods
 
@@ -310,8 +310,10 @@ Then use a value of that type in log calls:
 Now computeExpensiveValue will only be called when the line is enabled.
 
 The built-in handlers acquire a lock before calling [io.Writer.Write]
-to ensure that each record is written in one piece. User-defined
-handlers are responsible for their own locking.
+to ensure that exactly one [Record] is written at a time in its entirety.
+Although each log record has a timestamp,
+the built-in handlers do not use that time to sort the written records.
+User-defined handlers are responsible for their own locking and sorting.
 
 # Writing a handler
 

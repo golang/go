@@ -5,6 +5,9 @@
 // Package fs defines basic interfaces to a file system.
 // A file system can be provided by the host operating system
 // but also by other packages.
+//
+// See the [testing/fstest] package for support with testing
+// implementations of file systems.
 package fs
 
 import (
@@ -17,9 +20,13 @@ import (
 //
 // The FS interface is the minimum implementation required of the file system.
 // A file system may implement additional interfaces,
-// such as ReadFileFS, to provide additional or optimized functionality.
+// such as [ReadFileFS], to provide additional or optimized functionality.
+//
+// [testing/fstest.TestFS] may be used to test implementations of an FS for
+// correctness.
 type FS interface {
 	// Open opens the named file.
+	// [File.Close] must be called to release any associated resources.
 	//
 	// When Open returns an error, it should be of type *PathError
 	// with the Op field set to "open", the Path field set to name,
@@ -37,13 +44,13 @@ type FS interface {
 // Path names passed to open are UTF-8-encoded,
 // unrooted, slash-separated sequences of path elements, like “x/y/z”.
 // Path names must not contain an element that is “.” or “..” or the empty string,
-// except for the special case that the root directory is named “.”.
+// except for the special case that the name "." may be used for the root directory.
 // Paths must not start or end with a slash: “/x” and “x/” are invalid.
 //
 // Note that paths are slash-separated on all systems, even Windows.
 // Paths containing other characters such as backslash and colon
 // are accepted as valid, but those characters must never be
-// interpreted by an FS implementation as path element separators.
+// interpreted by an [FS] implementation as path element separators.
 func ValidPath(name string) bool {
 	if !utf8.ValidString(name) {
 		return false
@@ -73,8 +80,8 @@ func ValidPath(name string) bool {
 
 // A File provides access to a single file.
 // The File interface is the minimum implementation required of the file.
-// Directory files should also implement ReadDirFile.
-// A file may implement io.ReaderAt or io.Seeker as optimizations.
+// Directory files should also implement [ReadDirFile].
+// A file may implement [io.ReaderAt] or [io.Seeker] as optimizations.
 type File interface {
 	Stat() (FileInfo, error)
 	Read([]byte) (int, error)
@@ -82,7 +89,7 @@ type File interface {
 }
 
 // A DirEntry is an entry read from a directory
-// (using the ReadDir function or a ReadDirFile's ReadDir method).
+// (using the [ReadDir] function or a [ReadDirFile]'s ReadDir method).
 type DirEntry interface {
 	// Name returns the name of the file (or subdirectory) described by the entry.
 	// This name is only the final element of the path (the base name), not the entire path.
@@ -122,7 +129,7 @@ type ReadDirFile interface {
 	// At the end of a directory, the error is io.EOF.
 	// (ReadDir must return io.EOF itself, not an error wrapping io.EOF.)
 	//
-	// If n <= 0, ReadDir returns all the DirEntry values from the directory
+	// If n <= 0, ReadDir returns all remaining DirEntry values from the directory
 	// in a single slice. In this case, if ReadDir succeeds (reads all the way
 	// to the end of the directory), it returns the slice and a nil error.
 	// If it encounters an error before the end of the directory,
@@ -132,7 +139,7 @@ type ReadDirFile interface {
 
 // Generic file system errors.
 // Errors returned by file systems can be tested against these errors
-// using errors.Is.
+// using [errors.Is].
 var (
 	ErrInvalid    = errInvalid()    // "invalid argument"
 	ErrPermission = errPermission() // "permission denied"
@@ -147,7 +154,7 @@ func errExist() error      { return oserror.ErrExist }
 func errNotExist() error   { return oserror.ErrNotExist }
 func errClosed() error     { return oserror.ErrClosed }
 
-// A FileInfo describes a file and is returned by Stat.
+// A FileInfo describes a file and is returned by [Stat].
 type FileInfo interface {
 	Name() string       // base name of the file
 	Size() int64        // length in bytes for regular files; system-dependent for others
@@ -161,10 +168,10 @@ type FileInfo interface {
 // The bits have the same definition on all systems, so that
 // information about files can be moved from one system
 // to another portably. Not all bits apply to all systems.
-// The only required bit is ModeDir for directories.
+// The only required bit is [ModeDir] for directories.
 type FileMode uint32
 
-// The defined file mode bits are the most significant bits of the FileMode.
+// The defined file mode bits are the most significant bits of the [FileMode].
 // The nine least-significant bits are the standard Unix rwxrwxrwx permissions.
 // The values of these bits should be considered part of the public API and
 // may be used in wire protocols or disk representations: they must not be
@@ -219,7 +226,7 @@ func (m FileMode) String() string {
 }
 
 // IsDir reports whether m describes a directory.
-// That is, it tests for the ModeDir bit being set in m.
+// That is, it tests for the [ModeDir] bit being set in m.
 func (m FileMode) IsDir() bool {
 	return m&ModeDir != 0
 }
@@ -230,12 +237,12 @@ func (m FileMode) IsRegular() bool {
 	return m&ModeType == 0
 }
 
-// Perm returns the Unix permission bits in m (m & ModePerm).
+// Perm returns the Unix permission bits in m (m & [ModePerm]).
 func (m FileMode) Perm() FileMode {
 	return m & ModePerm
 }
 
-// Type returns type bits in m (m & ModeType).
+// Type returns type bits in m (m & [ModeType]).
 func (m FileMode) Type() FileMode {
 	return m & ModeType
 }

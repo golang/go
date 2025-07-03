@@ -10,7 +10,7 @@ import (
 )
 
 // GNUSyntax returns the GNU assembler syntax for the instruction, as defined by GNU binutils.
-// This general form is often called ``AT&T syntax'' as a reference to AT&T System V Unix.
+// This general form is often called “AT&T syntax” as a reference to AT&T System V Unix.
 func GNUSyntax(inst Inst, pc uint64, symname SymLookup) string {
 	// Rewrite instruction to mimic GNU peculiarities.
 	// Note that inst has been passed by value and contains
@@ -667,12 +667,14 @@ func gnuArg(inst *Inst, pc uint64, symname SymLookup, x Arg, usedPrefixes *bool)
 			}
 		}
 	case Imm:
-		if s, base := symname(uint64(x)); s != "" {
-			suffix := ""
-			if uint64(x) != base {
-				suffix = fmt.Sprintf("%+d", uint64(x)-base)
+		if (inst.Op == MOV || inst.Op == PUSH) && inst.DataSize == 32 { // See comment in plan9x.go.
+			if s, base := symname(uint64(x)); s != "" {
+				suffix := ""
+				if uint64(x) != base {
+					suffix = fmt.Sprintf("%+d", uint64(x)-base)
+				}
+				return fmt.Sprintf("$%s%s", s, suffix)
 			}
-			return fmt.Sprintf("$%s%s", s, suffix)
 		}
 		if inst.Mode == 32 {
 			return fmt.Sprintf("$%#x", uint32(x))

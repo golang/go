@@ -7,12 +7,12 @@ package godebug_test
 import (
 	"fmt"
 	. "internal/godebug"
+	"internal/race"
 	"internal/testenv"
 	"os"
 	"os/exec"
-	"reflect"
 	"runtime/metrics"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -70,21 +70,54 @@ func TestMetrics(t *testing.T) {
 	}
 }
 
+// TestPanicNilRace checks for a race in the runtime caused by use of runtime
+// atomics (not visible to usual race detection) to install the counter for
+// non-default panic(nil) semantics.  For #64649.
+func TestPanicNilRace(t *testing.T) {
+	if !race.Enabled {
+		t.Skip("Skipping test intended for use with -race.")
+	}
+	if os.Getenv("GODEBUG") != "panicnil=1" {
+		cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.Executable(t), "-test.run=^TestPanicNilRace$", "-test.v", "-test.parallel=2", "-test.count=1"))
+		cmd.Env = append(cmd.Env, "GODEBUG=panicnil=1")
+		out, err := cmd.CombinedOutput()
+		t.Logf("output:\n%s", out)
+
+		if err != nil {
+			t.Errorf("Was not expecting a crash")
+		}
+		return
+	}
+
+	test := func(t *testing.T) {
+		t.Parallel()
+		defer func() {
+			recover()
+		}()
+		panic(nil)
+	}
+	t.Run("One", test)
+	t.Run("Two", test)
+}
+
 func TestCmdBisect(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
-	out, err := exec.Command("go", "run", "cmd/vendor/golang.org/x/tools/cmd/bisect", "GODEBUG=buggy=1#PATTERN", os.Args[0], "-test.run=^TestBisectTestCase$").CombinedOutput()
+	testenv.MustHaveGoRun(t)
+	out, err := exec.Command(testenv.GoToolPath(t), "run", "cmd/vendor/golang.org/x/tools/cmd/bisect", "GODEBUG=buggy=1#PATTERN", os.Args[0], "-test.run=^TestBisectTestCase$").CombinedOutput()
 	if err != nil {
 		t.Fatalf("exec bisect: %v\n%s", err, out)
 	}
 
 	var want []string
 	src, err := os.ReadFile("godebug_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
 	for i, line := range strings.Split(string(src), "\n") {
 		if strings.Contains(line, "BISECT"+" "+"BUG") {
 			want = append(want, fmt.Sprintf("godebug_test.go:%d", i+1))
 		}
 	}
-	sort.Strings(want)
+	slices.Sort(want)
 
 	var have []string
 	for _, line := range strings.Split(string(out), "\n") {
@@ -92,9 +125,9 @@ func TestCmdBisect(t *testing.T) {
 			have = append(have, line[strings.LastIndex(line, "godebug_test.go:"):])
 		}
 	}
-	sort.Strings(have)
+	slices.Sort(have)
 
-	if !reflect.DeepEqual(have, want) {
+	if !slices.Equal(have, want) {
 		t.Errorf("bad bisect output:\nhave %v\nwant %v\ncomplete output:\n%s", have, want, string(out))
 	}
 }
@@ -127,5 +160,34 @@ func TestBisectTestCase(t *testing.T) {
 			e {
 			t.Error("bug")
 		}
+	}
+}
+
+func TestImmutable(t *testing.T) {
+	defer func(godebug string) {
+		os.Setenv("GODEBUG", godebug)
+	}(os.Getenv("GODEBUG"))
+
+	setting := New("fips140")
+	value := setting.Value()
+
+	os.Setenv("GODEBUG", "fips140=off")
+	if setting.Value() != value {
+		t.Errorf("Value() changed after setting GODEBUG=fips140=off")
+	}
+
+	os.Setenv("GODEBUG", "fips140=on")
+	if setting.Value() != value {
+		t.Errorf("Value() changed after setting GODEBUG=fips140=on")
+	}
+
+	os.Setenv("GODEBUG", "fips140=")
+	if setting.Value() != value {
+		t.Errorf("Value() changed after setting GODEBUG=fips140=")
+	}
+
+	os.Setenv("GODEBUG", "")
+	if setting.Value() != value {
+		t.Errorf("Value() changed after setting GODEBUG=")
 	}
 }

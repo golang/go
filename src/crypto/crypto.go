@@ -15,7 +15,7 @@ import (
 // package.
 type Hash uint
 
-// HashFunc simply returns the value of h so that Hash implements SignerOpts.
+// HashFunc simply returns the value of h so that [Hash] implements [SignerOpts].
 func (h Hash) HashFunc() Hash {
 	return h
 }
@@ -171,7 +171,7 @@ type PublicKey any
 //	    Equal(x crypto.PrivateKey) bool
 //	}
 //
-// as well as purpose-specific interfaces such as Signer and Decrypter, which
+// as well as purpose-specific interfaces such as [Signer] and [Decrypter], which
 // can be used for increased type safety within applications.
 type PrivateKey any
 
@@ -198,7 +198,24 @@ type Signer interface {
 	Sign(rand io.Reader, digest []byte, opts SignerOpts) (signature []byte, err error)
 }
 
-// SignerOpts contains options for signing with a Signer.
+// MessageSigner is an interface for an opaque private key that can be used for
+// signing operations where the message is not pre-hashed by the caller.
+// It is a superset of the Signer interface so that it can be passed to APIs
+// which accept Signer, which may try to do an interface upgrade.
+//
+// MessageSigner.SignMessage and MessageSigner.Sign should produce the same
+// result given the same opts. In particular, MessageSigner.SignMessage should
+// only accept a zero opts.HashFunc if the Signer would also accept messages
+// which are not pre-hashed.
+//
+// Implementations which do not provide the pre-hashed Sign API should implement
+// Signer.Sign by always returning an error.
+type MessageSigner interface {
+	Signer
+	SignMessage(rand io.Reader, msg []byte, opts SignerOpts) (signature []byte, err error)
+}
+
+// SignerOpts contains options for signing with a [Signer].
 type SignerOpts interface {
 	// HashFunc returns an identifier for the hash function used to produce
 	// the message passed to Signer.Sign, or else zero to indicate that no
@@ -221,3 +238,18 @@ type Decrypter interface {
 }
 
 type DecrypterOpts any
+
+// SignMessage signs msg with signer. If signer implements [MessageSigner],
+// [MessageSigner.SignMessage] is called directly. Otherwise, msg is hashed
+// with opts.HashFunc() and signed with [Signer.Sign].
+func SignMessage(signer Signer, rand io.Reader, msg []byte, opts SignerOpts) (signature []byte, err error) {
+	if ms, ok := signer.(MessageSigner); ok {
+		return ms.SignMessage(rand, msg, opts)
+	}
+	if opts.HashFunc() != 0 {
+		h := opts.HashFunc().New()
+		h.Write(msg)
+		msg = h.Sum(nil)
+	}
+	return signer.Sign(rand, msg, opts)
+}

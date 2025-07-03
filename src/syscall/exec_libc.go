@@ -91,7 +91,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		ngroups, groups uintptr
 	)
 
-	rlim, rlimOK := origRlimitNofile.Load().(Rlimit)
+	rlim := origRlimitNofile.Load()
 
 	// guard against side effects of shuffling fds below.
 	// Make sure that nextfd is beyond any currently open files so
@@ -296,8 +296,8 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 
 	// Restore original rlimit.
-	if rlimOK && rlim.Cur != 0 {
-		setrlimit1(RLIMIT_NOFILE, unsafe.Pointer(&rlim))
+	if rlim != nil {
+		setrlimit1(RLIMIT_NOFILE, unsafe.Pointer(rlim))
 	}
 
 	// Time to exec.
@@ -312,6 +312,11 @@ childerror:
 	for {
 		exit(253)
 	}
+}
+
+// forkAndExecFailureCleanup cleans up after an exec failure.
+func forkAndExecFailureCleanup(attr *ProcAttr, sys *SysProcAttr) {
+	// Nothing to do.
 }
 
 func ioctlPtr(fd, req uintptr, arg unsafe.Pointer) (err Errno) {

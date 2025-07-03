@@ -19,6 +19,7 @@ type paramsAnalyzer struct {
 	params []*ir.Name
 	top    []bool
 	*condLevelTracker
+	*nameFinder
 }
 
 // getParams returns an *ir.Name slice containing all params for the
@@ -29,10 +30,36 @@ func getParams(fn *ir.Func) []*ir.Name {
 	return fn.Dcl[:numParams]
 }
 
-func makeParamsAnalyzer(fn *ir.Func) *paramsAnalyzer {
+// addParamsAnalyzer creates a new paramsAnalyzer helper object for
+// the function fn, appends it to the analyzers list, and returns the
+// new list. If the function in question doesn't have any interesting
+// parameters then the analyzer list is returned unchanged, and the
+// params flags in "fp" are updated accordingly.
+func addParamsAnalyzer(fn *ir.Func, analyzers []propAnalyzer, fp *FuncProps, nf *nameFinder) []propAnalyzer {
+	pa, props := makeParamsAnalyzer(fn, nf)
+	if pa != nil {
+		analyzers = append(analyzers, pa)
+	} else {
+		fp.ParamFlags = props
+	}
+	return analyzers
+}
+
+// makeParamsAnalyzer creates a new helper object to analyze parameters
+// of function fn. If the function doesn't have any interesting
+// params, a nil helper is returned along with a set of default param
+// flags for the func.
+func makeParamsAnalyzer(fn *ir.Func, nf *nameFinder) (*paramsAnalyzer, []ParamPropBits) {
 	params := getParams(fn) // includes receiver if applicable
+	if len(params) == 0 {
+		return nil, nil
+	}
 	vals := make([]ParamPropBits, len(params))
+	if fn.Inl == nil {
+		return nil, vals
+	}
 	top := make([]bool, len(params))
+	interestingToAnalyze := false
 	for i, pn := range params {
 		if pn == nil {
 			continue
@@ -48,6 +75,10 @@ func makeParamsAnalyzer(fn *ir.Func) *paramsAnalyzer {
 			continue
 		}
 		top[i] = true
+		interestingToAnalyze = true
+	}
+	if !interestingToAnalyze {
+		return nil, vals
 	}
 
 	if debugTrace&debugTraceParams != 0 {
@@ -58,22 +89,23 @@ func makeParamsAnalyzer(fn *ir.Func) *paramsAnalyzer {
 			if params[i] != nil {
 				n = params[i].Sym().String()
 			}
-			fmt.Fprintf(os.Stderr, "=-=  %d: %q %s\n",
-				i, n, vals[i].String())
+			fmt.Fprintf(os.Stderr, "=-=  %d: %q %s top=%v\n",
+				i, n, vals[i].String(), top[i])
 		}
 	}
-
-	return &paramsAnalyzer{
+	pa := &paramsAnalyzer{
 		fname:            fn.Sym().Name,
 		values:           vals,
 		params:           params,
 		top:              top,
 		condLevelTracker: new(condLevelTracker),
+		nameFinder:       nf,
 	}
+	return pa, nil
 }
 
-func (pa *paramsAnalyzer) setResults(fp *FuncProps) {
-	fp.ParamFlags = pa.values
+func (pa *paramsAnalyzer) setResults(funcProps *FuncProps) {
+	funcProps.ParamFlags = pa.values
 }
 
 func (pa *paramsAnalyzer) findParamIdx(n *ir.Name) int {
@@ -131,8 +163,8 @@ func (pa *paramsAnalyzer) callCheckParams(ce *ir.CallExpr) {
 		if ce.Op() != ir.OCALLINTER {
 			return
 		}
-		sel := ce.X.(*ir.SelectorExpr)
-		r := ir.StaticValue(sel.X)
+		sel := ce.Fun.(*ir.SelectorExpr)
+		r := pa.staticValue(sel.X)
 		if r.Op() != ir.ONAME {
 			return
 		}
@@ -147,10 +179,10 @@ func (pa *paramsAnalyzer) callCheckParams(ce *ir.CallExpr) {
 				return name == p, false
 			})
 	case ir.OCALLFUNC:
-		if ce.X.Op() != ir.ONAME {
+		if ce.Fun.Op() != ir.ONAME {
 			return
 		}
-		called := ir.StaticValue(ce.X)
+		called := ir.StaticValue(ce.Fun)
 		if called.Op() != ir.ONAME {
 			return
 		}
@@ -163,8 +195,8 @@ func (pa *paramsAnalyzer) callCheckParams(ce *ir.CallExpr) {
 					return name == p, false
 				})
 		} else {
-			cname, isFunc, _ := isFuncName(called)
-			if isFunc {
+			cname := pa.funcName(called)
+			if cname != nil {
 				pa.deriveFlagsFromCallee(ce, cname.Func)
 			}
 		}
@@ -208,7 +240,7 @@ func (pa *paramsAnalyzer) deriveFlagsFromCallee(ce *ir.CallExpr, callee *ir.Func
 		}
 		// See if one of the caller's parameters is flowing unmodified
 		// into this actual expression.
-		r := ir.StaticValue(arg)
+		r := pa.staticValue(arg)
 		if r.Op() != ir.ONAME {
 			return
 		}
@@ -217,7 +249,13 @@ func (pa *paramsAnalyzer) deriveFlagsFromCallee(ce *ir.CallExpr, callee *ir.Func
 			return
 		}
 		callerParamIdx := pa.findParamIdx(name)
-		if callerParamIdx == -1 || pa.params[callerParamIdx] == nil {
+		// note that callerParamIdx may return -1 in the case where
+		// the param belongs not to the current closure func we're
+		// analyzing but to an outer enclosing func.
+		if callerParamIdx == -1 {
+			return
+		}
+		if pa.params[callerParamIdx] == nil {
 			panic("something went wrong")
 		}
 		if !pa.top[callerParamIdx] &&

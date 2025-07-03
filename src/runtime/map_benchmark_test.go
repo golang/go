@@ -5,12 +5,19 @@
 package runtime_test
 
 import (
+	"encoding/binary"
+	"flag"
 	"fmt"
 	"math/rand"
+	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
+	"unsafe"
 )
+
+var mapbench = flag.Bool("mapbench", false, "enable the full set of map benchmark variants")
 
 const size = 10
 
@@ -189,10 +196,12 @@ func BenchmarkSmallStrMap(b *testing.B) {
 	}
 }
 
-func BenchmarkMapStringKeysEight_16(b *testing.B) { benchmarkMapStringKeysEight(b, 16) }
-func BenchmarkMapStringKeysEight_32(b *testing.B) { benchmarkMapStringKeysEight(b, 32) }
-func BenchmarkMapStringKeysEight_64(b *testing.B) { benchmarkMapStringKeysEight(b, 64) }
-func BenchmarkMapStringKeysEight_1M(b *testing.B) { benchmarkMapStringKeysEight(b, 1<<20) }
+func BenchmarkMapStringKeysEight_16(b *testing.B)  { benchmarkMapStringKeysEight(b, 16) }
+func BenchmarkMapStringKeysEight_32(b *testing.B)  { benchmarkMapStringKeysEight(b, 32) }
+func BenchmarkMapStringKeysEight_64(b *testing.B)  { benchmarkMapStringKeysEight(b, 64) }
+func BenchmarkMapStringKeysEight_128(b *testing.B) { benchmarkMapStringKeysEight(b, 128) }
+func BenchmarkMapStringKeysEight_256(b *testing.B) { benchmarkMapStringKeysEight(b, 256) }
+func BenchmarkMapStringKeysEight_1M(b *testing.B)  { benchmarkMapStringKeysEight(b, 1<<20) }
 
 func benchmarkMapStringKeysEight(b *testing.B, keySize int) {
 	m := make(map[string]bool)
@@ -203,17 +212,6 @@ func benchmarkMapStringKeysEight(b *testing.B, keySize int) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = m[key]
-	}
-}
-
-func BenchmarkIntMap(b *testing.B) {
-	m := make(map[int]bool)
-	for i := 0; i < 8; i++ {
-		m[i] = true
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, _ = m[7]
 	}
 }
 
@@ -260,12 +258,41 @@ func BenchmarkMapLast(b *testing.B) {
 	}
 }
 
+func cyclicPermutation(n int) []int {
+	// From https://crypto.stackexchange.com/questions/51787/creating-single-cycle-permutations
+	p := rand.New(rand.NewSource(1)).Perm(n)
+	inc := make([]int, n)
+	pInv := make([]int, n)
+	for i := 0; i < n; i++ {
+		inc[i] = (i + 1) % n
+		pInv[p[i]] = i
+	}
+	res := make([]int, n)
+	for i := 0; i < n; i++ {
+		res[i] = pInv[inc[p[i]]]
+	}
+
+	// Test result.
+	j := 0
+	for i := 0; i < n-1; i++ {
+		j = res[j]
+		if j == 0 {
+			panic("got back to 0 too early")
+		}
+	}
+	j = res[j]
+	if j != 0 {
+		panic("didn't get back to 0")
+	}
+	return res
+}
+
 func BenchmarkMapCycle(b *testing.B) {
 	// Arrange map entries to be a permutation, so that
 	// we hit all entries, and one lookup is data dependent
 	// on the previous lookup.
 	const N = 3127
-	p := rand.New(rand.NewSource(1)).Perm(N)
+	p := cyclicPermutation(N)
 	m := map[int]int{}
 	for i := 0; i < N; i++ {
 		m[i] = p[i]
@@ -333,27 +360,6 @@ func BenchmarkNewSmallMap(b *testing.B) {
 	}
 }
 
-func BenchmarkMapIter(b *testing.B) {
-	m := make(map[int]bool)
-	for i := 0; i < 8; i++ {
-		m[i] = true
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for range m {
-		}
-	}
-}
-
-func BenchmarkMapIterEmpty(b *testing.B) {
-	m := make(map[int]bool)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for range m {
-		}
-	}
-}
-
 func BenchmarkSameLengthMap(b *testing.B) {
 	// long strings, same length, differ in first few
 	// and last few bytes.
@@ -365,28 +371,6 @@ func BenchmarkSameLengthMap(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = m[s1]
-	}
-}
-
-type BigKey [3]int64
-
-func BenchmarkBigKeyMap(b *testing.B) {
-	m := make(map[BigKey]bool)
-	k := BigKey{3, 4, 5}
-	m[k] = true
-	for i := 0; i < b.N; i++ {
-		_ = m[k]
-	}
-}
-
-type BigVal [3]int64
-
-func BenchmarkBigValMap(b *testing.B) {
-	m := make(map[BigKey]BigVal)
-	k := BigKey{3, 4, 5}
-	m[k] = BigVal{6, 7, 8}
-	for i := 0; i < b.N; i++ {
-		_ = m[k]
 	}
 }
 
@@ -537,4 +521,709 @@ func BenchmarkNewEmptyMapHintGreaterThan8(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = make(map[int]int, hintGreaterThan8)
 	}
+}
+
+func benchSizes(f func(b *testing.B, n int)) func(*testing.B) {
+	var cases = []int{
+		0,
+		6,
+		12,
+		18,
+		24,
+		30,
+		64,
+		128,
+		256,
+		512,
+		1024,
+		2048,
+		4096,
+		8192,
+		1 << 16,
+		1 << 18,
+		1 << 20,
+		1 << 22,
+	}
+
+	// Cases enabled by default. Set -mapbench for the remainder.
+	//
+	// With the other type combinations, there are literally thousands of
+	// variations. It take too long to run all of these as part of
+	// builders.
+	byDefault := map[int]bool{
+		6:       true,
+		64:      true,
+		1 << 16: true,
+	}
+
+	return func(b *testing.B) {
+		for _, n := range cases {
+			b.Run("len="+strconv.Itoa(n), func(b *testing.B) {
+				if !*mapbench && !byDefault[n] {
+					b.Skip("Skipped because -mapbench=false")
+				}
+
+				f(b, n)
+			})
+		}
+	}
+}
+func smallBenchSizes(f func(b *testing.B, n int)) func(*testing.B) {
+	return func(b *testing.B) {
+		for n := 1; n <= 8; n++ {
+			b.Run("len="+strconv.Itoa(n), func(b *testing.B) {
+				f(b, n)
+			})
+		}
+	}
+}
+
+// A 16 byte type.
+type smallType [16]byte
+
+// A 512 byte type.
+type mediumType [1 << 9]byte
+
+// A 4KiB type.
+type bigType [1 << 12]byte
+
+type mapBenchmarkKeyType interface {
+	int32 | int64 | string | smallType | mediumType | bigType | *int32
+}
+
+type mapBenchmarkElemType interface {
+	mapBenchmarkKeyType | []int32
+}
+
+func genIntValues[T int | int32 | int64](start, end int) []T {
+	vals := make([]T, 0, end-start)
+	for i := start; i < end; i++ {
+		vals = append(vals, T(i))
+	}
+	return vals
+}
+
+func genStringValues(start, end int) []string {
+	vals := make([]string, 0, end-start)
+	for i := start; i < end; i++ {
+		vals = append(vals, strconv.Itoa(i))
+	}
+	return vals
+}
+
+func genSmallValues(start, end int) []smallType {
+	vals := make([]smallType, 0, end-start)
+	for i := start; i < end; i++ {
+		var v smallType
+		binary.NativeEndian.PutUint64(v[:], uint64(i))
+		vals = append(vals, v)
+	}
+	return vals
+}
+
+func genMediumValues(start, end int) []mediumType {
+	vals := make([]mediumType, 0, end-start)
+	for i := start; i < end; i++ {
+		var v mediumType
+		binary.NativeEndian.PutUint64(v[:], uint64(i))
+		vals = append(vals, v)
+	}
+	return vals
+}
+
+func genBigValues(start, end int) []bigType {
+	vals := make([]bigType, 0, end-start)
+	for i := start; i < end; i++ {
+		var v bigType
+		binary.NativeEndian.PutUint64(v[:], uint64(i))
+		vals = append(vals, v)
+	}
+	return vals
+}
+
+func genPtrValues[T any](start, end int) []*T {
+	// Start and end don't mean much. Each pointer by definition has a
+	// unique identity.
+	vals := make([]*T, 0, end-start)
+	for i := start; i < end; i++ {
+		v := new(T)
+		vals = append(vals, v)
+	}
+	return vals
+}
+
+func genIntSliceValues[T int | int32 | int64](start, end int) [][]T {
+	vals := make([][]T, 0, end-start)
+	for i := start; i < end; i++ {
+		vals = append(vals, []T{T(i)})
+	}
+	return vals
+}
+
+func genValues[T mapBenchmarkElemType](start, end int) []T {
+	var t T
+	switch any(t).(type) {
+	case int32:
+		return any(genIntValues[int32](start, end)).([]T)
+	case int64:
+		return any(genIntValues[int64](start, end)).([]T)
+	case string:
+		return any(genStringValues(start, end)).([]T)
+	case smallType:
+		return any(genSmallValues(start, end)).([]T)
+	case mediumType:
+		return any(genMediumValues(start, end)).([]T)
+	case bigType:
+		return any(genBigValues(start, end)).([]T)
+	case *int32:
+		return any(genPtrValues[int32](start, end)).([]T)
+	case []int32:
+		return any(genIntSliceValues[int32](start, end)).([]T)
+	default:
+		panic("unreachable")
+	}
+}
+
+// Avoid inlining to force a heap allocation.
+//
+//go:noinline
+func newSink[T mapBenchmarkElemType]() *T {
+	return new(T)
+}
+
+// Return a new maps filled with keys and elems. Both slices must be the same length.
+func fillMap[K mapBenchmarkKeyType, E mapBenchmarkElemType](keys []K, elems []E) map[K]E {
+	m := make(map[K]E, len(keys))
+	for i := range keys {
+		m[keys[i]] = elems[i]
+	}
+	return m
+}
+
+func iterCount(b *testing.B, n int) int {
+	// Divide b.N by n so that the ns/op reports time per element,
+	// not time per full map iteration. This makes benchmarks of
+	// different map sizes more comparable.
+	//
+	// If size is zero we still need to do iterations.
+	if n == 0 {
+		return b.N
+	}
+	return b.N / n
+}
+
+func checkAllocSize[K, E any](b *testing.B, n int) {
+	var k K
+	size := uint64(n) * uint64(unsafe.Sizeof(k))
+	var e E
+	size += uint64(n) * uint64(unsafe.Sizeof(e))
+
+	if size >= 1<<30 {
+		b.Skipf("Total key+elem size %d exceeds 1GiB", size)
+	}
+}
+
+func benchmarkMapIter[K mapBenchmarkKeyType, E mapBenchmarkElemType](b *testing.B, n int) {
+	checkAllocSize[K, E](b, n)
+	k := genValues[K](0, n)
+	e := genValues[E](0, n)
+	m := fillMap(k, e)
+	iterations := iterCount(b, n)
+	sinkK := newSink[K]()
+	sinkE := newSink[E]()
+	b.ResetTimer()
+
+	for i := 0; i < iterations; i++ {
+		for k, e := range m {
+			*sinkK = k
+			*sinkE = e
+		}
+	}
+}
+
+func BenchmarkMapIter(b *testing.B) {
+	b.Run("Key=int32/Elem=int32", benchSizes(benchmarkMapIter[int32, int32]))
+	b.Run("Key=int64/Elem=int64", benchSizes(benchmarkMapIter[int64, int64]))
+	b.Run("Key=string/Elem=string", benchSizes(benchmarkMapIter[string, string]))
+	b.Run("Key=smallType/Elem=int32", benchSizes(benchmarkMapIter[smallType, int32]))
+	b.Run("Key=mediumType/Elem=int32", benchSizes(benchmarkMapIter[mediumType, int32]))
+	b.Run("Key=bigType/Elem=int32", benchSizes(benchmarkMapIter[bigType, int32]))
+	b.Run("Key=bigType/Elem=bigType", benchSizes(benchmarkMapIter[bigType, bigType]))
+	b.Run("Key=int32/Elem=bigType", benchSizes(benchmarkMapIter[int32, bigType]))
+	b.Run("Key=*int32/Elem=int32", benchSizes(benchmarkMapIter[*int32, int32]))
+	b.Run("Key=int32/Elem=*int32", benchSizes(benchmarkMapIter[int32, *int32]))
+}
+
+func benchmarkMapIterLowLoad[K mapBenchmarkKeyType, E mapBenchmarkElemType](b *testing.B, n int) {
+	// Only insert one entry regardless of map size.
+	k := genValues[K](0, 1)
+	e := genValues[E](0, 1)
+
+	m := make(map[K]E, n)
+	for i := range k {
+		m[k[i]] = e[i]
+	}
+
+	iterations := iterCount(b, n)
+	sinkK := newSink[K]()
+	sinkE := newSink[E]()
+	b.ResetTimer()
+
+	for i := 0; i < iterations; i++ {
+		for k, e := range m {
+			*sinkK = k
+			*sinkE = e
+		}
+	}
+}
+
+func BenchmarkMapIterLowLoad(b *testing.B) {
+	b.Run("Key=int32/Elem=int32", benchSizes(benchmarkMapIterLowLoad[int32, int32]))
+	b.Run("Key=int64/Elem=int64", benchSizes(benchmarkMapIterLowLoad[int64, int64]))
+	b.Run("Key=string/Elem=string", benchSizes(benchmarkMapIterLowLoad[string, string]))
+	b.Run("Key=smallType/Elem=int32", benchSizes(benchmarkMapIterLowLoad[smallType, int32]))
+	b.Run("Key=mediumType/Elem=int32", benchSizes(benchmarkMapIterLowLoad[mediumType, int32]))
+	b.Run("Key=bigType/Elem=int32", benchSizes(benchmarkMapIterLowLoad[bigType, int32]))
+	b.Run("Key=bigType/Elem=bigType", benchSizes(benchmarkMapIterLowLoad[bigType, bigType]))
+	b.Run("Key=int32/Elem=bigType", benchSizes(benchmarkMapIterLowLoad[int32, bigType]))
+	b.Run("Key=*int32/Elem=int32", benchSizes(benchmarkMapIterLowLoad[*int32, int32]))
+	b.Run("Key=int32/Elem=*int32", benchSizes(benchmarkMapIterLowLoad[int32, *int32]))
+}
+
+func benchmarkMapAccessHit[K mapBenchmarkKeyType, E mapBenchmarkElemType](b *testing.B, n int) {
+	if n == 0 {
+		b.Skip("can't access empty map")
+	}
+	checkAllocSize[K, E](b, n)
+	k := genValues[K](0, n)
+	e := genValues[E](0, n)
+	m := fillMap(k, e)
+	sink := newSink[E]()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		*sink = m[k[i%n]]
+	}
+}
+
+func BenchmarkMapAccessHit(b *testing.B) {
+	b.Run("Key=int32/Elem=int32", benchSizes(benchmarkMapAccessHit[int32, int32]))
+	b.Run("Key=int64/Elem=int64", benchSizes(benchmarkMapAccessHit[int64, int64]))
+	b.Run("Key=string/Elem=string", benchSizes(benchmarkMapAccessHit[string, string]))
+	b.Run("Key=smallType/Elem=int32", benchSizes(benchmarkMapAccessHit[smallType, int32]))
+	b.Run("Key=mediumType/Elem=int32", benchSizes(benchmarkMapAccessHit[mediumType, int32]))
+	b.Run("Key=bigType/Elem=int32", benchSizes(benchmarkMapAccessHit[bigType, int32]))
+	b.Run("Key=bigType/Elem=bigType", benchSizes(benchmarkMapAccessHit[bigType, bigType]))
+	b.Run("Key=int32/Elem=bigType", benchSizes(benchmarkMapAccessHit[int32, bigType]))
+	b.Run("Key=*int32/Elem=int32", benchSizes(benchmarkMapAccessHit[*int32, int32]))
+	b.Run("Key=int32/Elem=*int32", benchSizes(benchmarkMapAccessHit[int32, *int32]))
+}
+
+var sinkOK bool
+
+func benchmarkMapAccessMiss[K mapBenchmarkKeyType, E mapBenchmarkElemType](b *testing.B, n int) {
+	checkAllocSize[K, E](b, n)
+	k := genValues[K](0, n)
+	e := genValues[E](0, n)
+	m := fillMap(k, e)
+	if n == 0 { // Create a lookup values for empty maps.
+		n = 1
+	}
+	w := genValues[K](n, 2*n)
+	b.ResetTimer()
+
+	var ok bool
+	for i := 0; i < b.N; i++ {
+		_, ok = m[w[i%n]]
+	}
+
+	sinkOK = ok
+}
+
+func BenchmarkMapAccessMiss(b *testing.B) {
+	b.Run("Key=int32/Elem=int32", benchSizes(benchmarkMapAccessMiss[int32, int32]))
+	b.Run("Key=int64/Elem=int64", benchSizes(benchmarkMapAccessMiss[int64, int64]))
+	b.Run("Key=string/Elem=string", benchSizes(benchmarkMapAccessMiss[string, string]))
+	b.Run("Key=smallType/Elem=int32", benchSizes(benchmarkMapAccessMiss[smallType, int32]))
+	b.Run("Key=mediumType/Elem=int32", benchSizes(benchmarkMapAccessMiss[mediumType, int32]))
+	b.Run("Key=bigType/Elem=int32", benchSizes(benchmarkMapAccessMiss[bigType, int32]))
+	b.Run("Key=bigType/Elem=bigType", benchSizes(benchmarkMapAccessMiss[bigType, bigType]))
+	b.Run("Key=int32/Elem=bigType", benchSizes(benchmarkMapAccessMiss[int32, bigType]))
+	b.Run("Key=*int32/Elem=int32", benchSizes(benchmarkMapAccessMiss[*int32, int32]))
+	b.Run("Key=int32/Elem=*int32", benchSizes(benchmarkMapAccessMiss[int32, *int32]))
+}
+
+// Assign to a key that already exists.
+func benchmarkMapAssignExists[K mapBenchmarkKeyType, E mapBenchmarkElemType](b *testing.B, n int) {
+	if n == 0 {
+		b.Skip("can't assign to existing keys in empty map")
+	}
+	checkAllocSize[K, E](b, n)
+	k := genValues[K](0, n)
+	e := genValues[E](0, n)
+	m := fillMap(k, e)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m[k[i%n]] = e[i%n]
+	}
+}
+
+func BenchmarkMapAssignExists(b *testing.B) {
+	b.Run("Key=int32/Elem=int32", benchSizes(benchmarkMapAssignExists[int32, int32]))
+	b.Run("Key=int64/Elem=int64", benchSizes(benchmarkMapAssignExists[int64, int64]))
+	b.Run("Key=string/Elem=string", benchSizes(benchmarkMapAssignExists[string, string]))
+	b.Run("Key=smallType/Elem=int32", benchSizes(benchmarkMapAssignExists[smallType, int32]))
+	b.Run("Key=mediumType/Elem=int32", benchSizes(benchmarkMapAssignExists[mediumType, int32]))
+	b.Run("Key=bigType/Elem=int32", benchSizes(benchmarkMapAssignExists[bigType, int32]))
+	b.Run("Key=bigType/Elem=bigType", benchSizes(benchmarkMapAssignExists[bigType, bigType]))
+	b.Run("Key=int32/Elem=bigType", benchSizes(benchmarkMapAssignExists[int32, bigType]))
+	b.Run("Key=*int32/Elem=int32", benchSizes(benchmarkMapAssignExists[*int32, int32]))
+	b.Run("Key=int32/Elem=*int32", benchSizes(benchmarkMapAssignExists[int32, *int32]))
+}
+
+// Fill a map of size n with no hint. Time is per-key. A new map is created
+// every n assignments.
+//
+// TODO(prattmic): Results don't make much sense if b.N < n.
+// TODO(prattmic): Measure distribution of assign time to reveal the grow
+// latency.
+func benchmarkMapAssignFillNoHint[K mapBenchmarkKeyType, E mapBenchmarkElemType](b *testing.B, n int) {
+	if n == 0 {
+		b.Skip("can't create empty map via assignment")
+	}
+	checkAllocSize[K, E](b, n)
+	k := genValues[K](0, n)
+	e := genValues[E](0, n)
+	b.ResetTimer()
+
+	var m map[K]E
+	for i := 0; i < b.N; i++ {
+		if i%n == 0 {
+			m = make(map[K]E)
+		}
+		m[k[i%n]] = e[i%n]
+	}
+}
+
+func BenchmarkMapAssignFillNoHint(b *testing.B) {
+	b.Run("Key=int32/Elem=int32", benchSizes(benchmarkMapAssignFillNoHint[int32, int32]))
+	b.Run("Key=int64/Elem=int64", benchSizes(benchmarkMapAssignFillNoHint[int64, int64]))
+	b.Run("Key=string/Elem=string", benchSizes(benchmarkMapAssignFillNoHint[string, string]))
+	b.Run("Key=smallType/Elem=int32", benchSizes(benchmarkMapAssignFillNoHint[smallType, int32]))
+	b.Run("Key=mediumType/Elem=int32", benchSizes(benchmarkMapAssignFillNoHint[mediumType, int32]))
+	b.Run("Key=bigType/Elem=int32", benchSizes(benchmarkMapAssignFillNoHint[bigType, int32]))
+	b.Run("Key=bigType/Elem=bigType", benchSizes(benchmarkMapAssignFillNoHint[bigType, bigType]))
+	b.Run("Key=int32/Elem=bigType", benchSizes(benchmarkMapAssignFillNoHint[int32, bigType]))
+	b.Run("Key=*int32/Elem=int32", benchSizes(benchmarkMapAssignFillNoHint[*int32, int32]))
+	b.Run("Key=int32/Elem=*int32", benchSizes(benchmarkMapAssignFillNoHint[int32, *int32]))
+}
+
+// Identical to benchmarkMapAssignFillNoHint, but additionally measures the
+// latency of each mapassign to report tail latency due to map grow.
+func benchmarkMapAssignGrowLatency[K mapBenchmarkKeyType, E mapBenchmarkElemType](b *testing.B, n int) {
+	if n == 0 {
+		b.Skip("can't create empty map via assignment")
+	}
+	checkAllocSize[K, E](b, n)
+	k := genValues[K](0, n)
+	e := genValues[E](0, n)
+
+	// Store the run time of each mapassign. Keeping the full data rather
+	// than a histogram provides higher precision. b.N tends to be <10M, so
+	// the memory requirement isn't too bad.
+	sample := make([]int64, b.N)
+
+	b.ResetTimer()
+
+	var m map[K]E
+	for i := 0; i < b.N; i++ {
+		if i%n == 0 {
+			m = make(map[K]E)
+		}
+		start := runtime.Nanotime()
+		m[k[i%n]] = e[i%n]
+		end := runtime.Nanotime()
+		sample[i] = end - start
+	}
+
+	b.StopTimer()
+
+	slices.Sort(sample)
+	// TODO(prattmic): Grow is so rare that even p99.99 often doesn't
+	// display a grow case. Switch to a more direct measure of grow cases
+	// only?
+	b.ReportMetric(float64(sample[int(float64(len(sample))*0.5)]), "p50-ns/op")
+	b.ReportMetric(float64(sample[int(float64(len(sample))*0.99)]), "p99-ns/op")
+	b.ReportMetric(float64(sample[int(float64(len(sample))*0.999)]), "p99.9-ns/op")
+	b.ReportMetric(float64(sample[int(float64(len(sample))*0.9999)]), "p99.99-ns/op")
+	b.ReportMetric(float64(sample[len(sample)-1]), "p100-ns/op")
+}
+
+func BenchmarkMapAssignGrowLatency(b *testing.B) {
+	b.Run("Key=int32/Elem=int32", benchSizes(benchmarkMapAssignGrowLatency[int32, int32]))
+	b.Run("Key=int64/Elem=int64", benchSizes(benchmarkMapAssignGrowLatency[int64, int64]))
+	b.Run("Key=string/Elem=string", benchSizes(benchmarkMapAssignGrowLatency[string, string]))
+	b.Run("Key=smallType/Elem=int32", benchSizes(benchmarkMapAssignGrowLatency[smallType, int32]))
+	b.Run("Key=mediumType/Elem=int32", benchSizes(benchmarkMapAssignGrowLatency[mediumType, int32]))
+	b.Run("Key=bigType/Elem=int32", benchSizes(benchmarkMapAssignGrowLatency[bigType, int32]))
+	b.Run("Key=bigType/Elem=bigType", benchSizes(benchmarkMapAssignGrowLatency[bigType, bigType]))
+	b.Run("Key=int32/Elem=bigType", benchSizes(benchmarkMapAssignGrowLatency[int32, bigType]))
+	b.Run("Key=*int32/Elem=int32", benchSizes(benchmarkMapAssignGrowLatency[*int32, int32]))
+	b.Run("Key=int32/Elem=*int32", benchSizes(benchmarkMapAssignGrowLatency[int32, *int32]))
+}
+
+// Fill a map of size n with size hint. Time is per-key. A new map is created
+// every n assignments.
+//
+// TODO(prattmic): Results don't make much sense if b.N < n.
+func benchmarkMapAssignFillHint[K mapBenchmarkKeyType, E mapBenchmarkElemType](b *testing.B, n int) {
+	if n == 0 {
+		b.Skip("can't create empty map via assignment")
+	}
+	checkAllocSize[K, E](b, n)
+	k := genValues[K](0, n)
+	e := genValues[E](0, n)
+	b.ResetTimer()
+
+	var m map[K]E
+	for i := 0; i < b.N; i++ {
+		if i%n == 0 {
+			m = make(map[K]E, n)
+		}
+		m[k[i%n]] = e[i%n]
+	}
+}
+
+func BenchmarkMapAssignFillHint(b *testing.B) {
+	b.Run("Key=int32/Elem=int32", benchSizes(benchmarkMapAssignFillHint[int32, int32]))
+	b.Run("Key=int64/Elem=int64", benchSizes(benchmarkMapAssignFillHint[int64, int64]))
+	b.Run("Key=string/Elem=string", benchSizes(benchmarkMapAssignFillHint[string, string]))
+	b.Run("Key=smallType/Elem=int32", benchSizes(benchmarkMapAssignFillHint[smallType, int32]))
+	b.Run("Key=mediumType/Elem=int32", benchSizes(benchmarkMapAssignFillHint[mediumType, int32]))
+	b.Run("Key=bigType/Elem=int32", benchSizes(benchmarkMapAssignFillHint[bigType, int32]))
+	b.Run("Key=bigType/Elem=bigType", benchSizes(benchmarkMapAssignFillHint[bigType, bigType]))
+	b.Run("Key=int32/Elem=bigType", benchSizes(benchmarkMapAssignFillHint[int32, bigType]))
+	b.Run("Key=*int32/Elem=int32", benchSizes(benchmarkMapAssignFillHint[*int32, int32]))
+	b.Run("Key=int32/Elem=*int32", benchSizes(benchmarkMapAssignFillHint[int32, *int32]))
+}
+
+// Fill a map of size n, reusing the same map. Time is per-key. The map is
+// cleared every n assignments.
+//
+// TODO(prattmic): Results don't make much sense if b.N < n.
+func benchmarkMapAssignFillClear[K mapBenchmarkKeyType, E mapBenchmarkElemType](b *testing.B, n int) {
+	if n == 0 {
+		b.Skip("can't create empty map via assignment")
+	}
+	checkAllocSize[K, E](b, n)
+	k := genValues[K](0, n)
+	e := genValues[E](0, n)
+	m := fillMap(k, e)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		if i%n == 0 {
+			clear(m)
+		}
+		m[k[i%n]] = e[i%n]
+	}
+}
+
+func BenchmarkMapAssignFillClear(b *testing.B) {
+	b.Run("Key=int32/Elem=int32", benchSizes(benchmarkMapAssignFillClear[int32, int32]))
+	b.Run("Key=int64/Elem=int64", benchSizes(benchmarkMapAssignFillClear[int64, int64]))
+	b.Run("Key=string/Elem=string", benchSizes(benchmarkMapAssignFillClear[string, string]))
+	b.Run("Key=smallType/Elem=int32", benchSizes(benchmarkMapAssignFillClear[smallType, int32]))
+	b.Run("Key=mediumType/Elem=int32", benchSizes(benchmarkMapAssignFillClear[mediumType, int32]))
+	b.Run("Key=bigType/Elem=int32", benchSizes(benchmarkMapAssignFillClear[bigType, int32]))
+	b.Run("Key=bigType/Elem=bigType", benchSizes(benchmarkMapAssignFillClear[bigType, bigType]))
+	b.Run("Key=int32/Elem=bigType", benchSizes(benchmarkMapAssignFillClear[int32, bigType]))
+	b.Run("Key=*int32/Elem=int32", benchSizes(benchmarkMapAssignFillClear[*int32, int32]))
+	b.Run("Key=int32/Elem=*int32", benchSizes(benchmarkMapAssignFillClear[int32, *int32]))
+}
+
+// Modify values using +=.
+func benchmarkMapAssignAddition[K mapBenchmarkKeyType, E int32 | int64 | string](b *testing.B, n int) {
+	if n == 0 {
+		b.Skip("can't modify empty map via assignment")
+	}
+	checkAllocSize[K, E](b, n)
+	k := genValues[K](0, n)
+	e := genValues[E](0, n)
+	m := fillMap(k, e)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m[k[i%n]] += e[i%n]
+	}
+}
+
+func BenchmarkMapAssignAddition(b *testing.B) {
+	b.Run("Key=int32/Elem=int32", benchSizes(benchmarkMapAssignAddition[int32, int32]))
+	b.Run("Key=int64/Elem=int64", benchSizes(benchmarkMapAssignAddition[int64, int64]))
+	b.Run("Key=string/Elem=string", benchSizes(benchmarkMapAssignAddition[string, string]))
+	b.Run("Key=smallType/Elem=int32", benchSizes(benchmarkMapAssignAddition[smallType, int32]))
+	b.Run("Key=mediumType/Elem=int32", benchSizes(benchmarkMapAssignAddition[mediumType, int32]))
+	b.Run("Key=bigType/Elem=int32", benchSizes(benchmarkMapAssignAddition[bigType, int32]))
+}
+
+// Modify values append.
+func benchmarkMapAssignAppend[K mapBenchmarkKeyType](b *testing.B, n int) {
+	if n == 0 {
+		b.Skip("can't modify empty map via append")
+	}
+	checkAllocSize[K, []int32](b, n)
+	k := genValues[K](0, n)
+	e := genValues[[]int32](0, n)
+	m := fillMap(k, e)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m[k[i%n]] = append(m[k[i%n]], e[i%n][0])
+	}
+}
+
+func BenchmarkMapAssignAppend(b *testing.B) {
+	b.Run("Key=int32/Elem=[]int32", benchSizes(benchmarkMapAssignAppend[int32]))
+	b.Run("Key=int64/Elem=[]int32", benchSizes(benchmarkMapAssignAppend[int64]))
+	b.Run("Key=string/Elem=[]int32", benchSizes(benchmarkMapAssignAppend[string]))
+}
+
+func benchmarkMapDelete[K mapBenchmarkKeyType, E mapBenchmarkElemType](b *testing.B, n int) {
+	if n == 0 {
+		b.Skip("can't delete from empty map")
+	}
+	checkAllocSize[K, E](b, n)
+	k := genValues[K](0, n)
+	e := genValues[E](0, n)
+	m := fillMap(k, e)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		if len(m) == 0 {
+			// We'd like to StopTimer while refilling the map, but
+			// it is way too expensive and thus makes the benchmark
+			// take a long time. See https://go.dev/issue/20875.
+			for j := range k {
+				m[k[j]] = e[j]
+			}
+		}
+		delete(m, k[i%n])
+	}
+}
+
+func BenchmarkMapDelete(b *testing.B) {
+	b.Run("Key=int32/Elem=int32", benchSizes(benchmarkMapDelete[int32, int32]))
+	b.Run("Key=int64/Elem=int64", benchSizes(benchmarkMapDelete[int64, int64]))
+	b.Run("Key=string/Elem=string", benchSizes(benchmarkMapDelete[string, string]))
+	b.Run("Key=smallType/Elem=int32", benchSizes(benchmarkMapDelete[smallType, int32]))
+	b.Run("Key=mediumType/Elem=int32", benchSizes(benchmarkMapDelete[mediumType, int32]))
+	b.Run("Key=bigType/Elem=int32", benchSizes(benchmarkMapDelete[bigType, int32]))
+	b.Run("Key=bigType/Elem=bigType", benchSizes(benchmarkMapDelete[bigType, bigType]))
+	b.Run("Key=int32/Elem=bigType", benchSizes(benchmarkMapDelete[int32, bigType]))
+	b.Run("Key=*int32/Elem=int32", benchSizes(benchmarkMapDelete[*int32, int32]))
+	b.Run("Key=int32/Elem=*int32", benchSizes(benchmarkMapDelete[int32, *int32]))
+}
+
+// Use iterator to pop an element. We want this to be fast, see
+// https://go.dev/issue/8412.
+func benchmarkMapPop[K mapBenchmarkKeyType, E mapBenchmarkElemType](b *testing.B, n int) {
+	if n == 0 {
+		b.Skip("can't delete from empty map")
+	}
+	checkAllocSize[K, E](b, n)
+	k := genValues[K](0, n)
+	e := genValues[E](0, n)
+	m := fillMap(k, e)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		if len(m) == 0 {
+			// We'd like to StopTimer while refilling the map, but
+			// it is way too expensive and thus makes the benchmark
+			// take a long time. See https://go.dev/issue/20875.
+			for j := range k {
+				m[k[j]] = e[j]
+			}
+		}
+		for key := range m {
+			delete(m, key)
+			break
+		}
+	}
+}
+
+func BenchmarkMapPop(b *testing.B) {
+	b.Run("Key=int32/Elem=int32", benchSizes(benchmarkMapPop[int32, int32]))
+	b.Run("Key=int64/Elem=int64", benchSizes(benchmarkMapPop[int64, int64]))
+	b.Run("Key=string/Elem=string", benchSizes(benchmarkMapPop[string, string]))
+	b.Run("Key=smallType/Elem=int32", benchSizes(benchmarkMapPop[smallType, int32]))
+	b.Run("Key=mediumType/Elem=int32", benchSizes(benchmarkMapPop[mediumType, int32]))
+	b.Run("Key=bigType/Elem=int32", benchSizes(benchmarkMapPop[bigType, int32]))
+	b.Run("Key=bigType/Elem=bigType", benchSizes(benchmarkMapPop[bigType, bigType]))
+	b.Run("Key=int32/Elem=bigType", benchSizes(benchmarkMapPop[int32, bigType]))
+	b.Run("Key=*int32/Elem=int32", benchSizes(benchmarkMapPop[*int32, int32]))
+	b.Run("Key=int32/Elem=*int32", benchSizes(benchmarkMapPop[int32, *int32]))
+}
+
+func BenchmarkMapDeleteLargeKey(b *testing.B) {
+	m := map[string]int{}
+	for i := range 9 {
+		m[fmt.Sprintf("%d", i)] = i
+	}
+	key := strings.Repeat("*", 10000)
+	for range b.N {
+		delete(m, key)
+	}
+}
+
+func BenchmarkMapSmallAccessHit(b *testing.B) {
+	b.Run("Key=int32/Elem=int32", smallBenchSizes(benchmarkMapAccessHit[int32, int32]))
+	b.Run("Key=int64/Elem=int64", smallBenchSizes(benchmarkMapAccessHit[int64, int64]))
+	b.Run("Key=string/Elem=string", smallBenchSizes(benchmarkMapAccessHit[string, string]))
+	b.Run("Key=smallType/Elem=int32", smallBenchSizes(benchmarkMapAccessHit[smallType, int32]))
+}
+
+func BenchmarkMapSmallAccessMiss(b *testing.B) {
+	b.Run("Key=int32/Elem=int32", smallBenchSizes(benchmarkMapAccessMiss[int32, int32]))
+	b.Run("Key=int64/Elem=int64", smallBenchSizes(benchmarkMapAccessMiss[int64, int64]))
+	b.Run("Key=string/Elem=string", smallBenchSizes(benchmarkMapAccessMiss[string, string]))
+	b.Run("Key=smallType/Elem=int32", smallBenchSizes(benchmarkMapAccessMiss[smallType, int32]))
+}
+
+func mapAccessZeroBenchmark[K comparable](b *testing.B) {
+	var m map[K]uint64
+	var key K
+	for i := 0; i < b.N; i++ {
+		sink = m[key]
+	}
+}
+
+func BenchmarkMapAccessZero(b *testing.B) {
+	b.Run("Key=int64", mapAccessZeroBenchmark[int64])
+	b.Run("Key=int32", mapAccessZeroBenchmark[int32])
+	b.Run("Key=string", mapAccessZeroBenchmark[string])
+	b.Run("Key=mediumType", mapAccessZeroBenchmark[mediumType])
+	b.Run("Key=bigType", mapAccessZeroBenchmark[bigType])
+}
+
+func mapAccessEmptyBenchmark[K mapBenchmarkKeyType](b *testing.B) {
+	m := make(map[K]uint64)
+	for i, v := range genValues[K](0, 1000) {
+		m[v] = uint64(i)
+	}
+	clear(m)
+	var key K
+	for i := 0; i < b.N; i++ {
+		sink = m[key]
+	}
+}
+
+func BenchmarkMapAccessEmpty(b *testing.B) {
+	b.Run("Key=int64", mapAccessEmptyBenchmark[int64])
+	b.Run("Key=int32", mapAccessEmptyBenchmark[int32])
+	b.Run("Key=string", mapAccessEmptyBenchmark[string])
+	b.Run("Key=mediumType", mapAccessEmptyBenchmark[mediumType])
+	b.Run("Key=bigType", mapAccessEmptyBenchmark[bigType])
 }

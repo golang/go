@@ -6,7 +6,9 @@
 
 TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 start:
+	//
 	// Unprivileged ISA
+	//
 
 	// 2.4: Integer Computational Instructions
 
@@ -94,6 +96,10 @@ start:
 
 	SUB	X6, X5, X7				// b3836240
 	SUB	X5, X6					// 33035340
+	SUB	$-2047, X5, X6				// 1383f27f
+	SUB	$2048, X5, X6				// 13830280
+	SUB	$-2047, X5				// 9382f27f
+	SUB	$2048, X5				// 93820280
 
 	SRA	X6, X5, X7				// b3d36240
 	SRA	X5, X6					// 33535340
@@ -135,7 +141,7 @@ start:
 	// 2.7: Memory Ordering Instructions
 	FENCE						// 0f00f00f
 
-	// 5.2: Integer Computational Instructions (RV64I)
+	// 4.2: Integer Computational Instructions (RV64I)
 	ADDIW	$1, X5, X6				// 1b831200
 	SLLIW	$1, X5, X6				// 1b931200
 	SRLIW	$1, X5, X6				// 1bd31200
@@ -157,20 +163,28 @@ start:
 	ADDW	$1, X6					// 1b031300
 	SLLW	$1, X6					// 1b131300
 	SRLW	$1, X6					// 1b531300
+	SUBW	$1, X6					// 1b03f3ff
 	SRAW	$1, X6					// 1b531340
 
-	// 5.3: Load and Store Instructions (RV64I)
+	// 4.3: Load and Store Instructions (RV64I)
 	LD	(X5), X6				// 03b30200
 	LD	4(X5), X6				// 03b34200
 	SD	X5, (X6)				// 23305300
 	SD	X5, 4(X6)				// 23325300
 
-	// 7.1: Multiplication Operations
+	// 8.1: Base Counters and Timers (Zicntr)
+	RDCYCLE		X5				// f32200c0
+	RDTIME		X5				// f32210c0
+	RDINSTRET	X5				// f32220c0
+
+	// 13.1: Multiplication Operations
 	MUL	X5, X6, X7				// b3035302
 	MULH	X5, X6, X7				// b3135302
 	MULHU	X5, X6, X7				// b3335302
 	MULHSU	X5, X6, X7				// b3235302
 	MULW	X5, X6, X7				// bb035302
+
+	// 13.2: Division Operations
 	DIV	X5, X6, X7				// b3435302
 	DIVU	X5, X6, X7				// b3535302
 	REM	X5, X6, X7				// b3635302
@@ -180,13 +194,13 @@ start:
 	REMW	X5, X6, X7				// bb635302
 	REMUW	X5, X6, X7				// bb735302
 
-	// 8.2: Load-Reserved/Store-Conditional
+	// 14.2: Load-Reserved/Store-Conditional (Zalrsc)
 	LRW	(X5), X6				// 2fa30214
 	LRD	(X5), X6				// 2fb30214
 	SCW	X5, (X6), X7				// af23531a
 	SCD	X5, (X6), X7				// af33531a
 
-	// 8.3: Atomic Memory Operations
+	// 14.4: Atomic Memory Operations (Zaamo)
 	AMOSWAPW	X5, (X6), X7			// af23530e
 	AMOSWAPD	X5, (X6), X7			// af33530e
 	AMOADDW		X5, (X6), X7			// af235306
@@ -206,18 +220,13 @@ start:
 	AMOMINUW	X5, (X6), X7			// af2353c6
 	AMOMINUD	X5, (X6), X7			// af3353c6
 
-	// 10.1: Base Counters and Timers
-	RDCYCLE		X5				// f32200c0
-	RDTIME		X5				// f32210c0
-	RDINSTRET	X5				// f32220c0
-
-	// 11.5: Single-Precision Load and Store Instructions
+	// 20.5: Single-Precision Load and Store Instructions
 	FLW	(X5), F0				// 07a00200
 	FLW	4(X5), F0				// 07a04200
 	FSW	F0, (X5)				// 27a00200
 	FSW	F0, 4(X5)				// 27a20200
 
-	// 11.6: Single-Precision Floating-Point Computational Instructions
+	// 20.6: Single-Precision Floating-Point Computational Instructions
 	FADDS	F1, F0, F2				// 53011000
 	FSUBS	F1, F0, F2				// 53011008
 	FMULS	F1, F0, F2				// 53011010
@@ -226,13 +235,33 @@ start:
 	FMAXS	F1, F0, F2				// 53111028
 	FSQRTS	F0, F1					// d3000058
 
-	// 11.7: Single-Precision Floating-Point Conversion and Move Instructions
+	// 20.7: Single-Precision Floating-Point Conversion and Move Instructions
 	FCVTWS	F0, X5					// d31200c0
+	FCVTWS.RNE	F0, X5				// d30200c0
+	FCVTWS.RTZ	F0, X5				// d31200c0
+	FCVTWS.RDN	F0, X5				// d32200c0
+	FCVTWS.RUP	F0, X5				// d33200c0
+	FCVTWS.RMM	F0, X5				// d34200c0
 	FCVTLS	F0, X5					// d31220c0
+	FCVTLS.RNE	F0, X5				// d30220c0
+	FCVTLS.RTZ	F0, X5				// d31220c0
+	FCVTLS.RDN	F0, X5				// d32220c0
+	FCVTLS.RUP	F0, X5				// d33220c0
+	FCVTLS.RMM	F0, X5				// d34220c0
 	FCVTSW	X5, F0					// 538002d0
 	FCVTSL	X5, F0					// 538022d0
 	FCVTWUS	F0, X5					// d31210c0
+	FCVTWUS.RNE	F0, X5				// d30210c0
+	FCVTWUS.RTZ	F0, X5				// d31210c0
+	FCVTWUS.RDN	F0, X5				// d32210c0
+	FCVTWUS.RUP	F0, X5				// d33210c0
+	FCVTWUS.RMM	F0, X5				// d34210c0
 	FCVTLUS	F0, X5					// d31230c0
+	FCVTLUS.RNE	F0, X5				// d30230c0
+	FCVTLUS.RTZ	F0, X5				// d31230c0
+	FCVTLUS.RDN	F0, X5				// d32230c0
+	FCVTLUS.RUP	F0, X5				// d33230c0
+	FCVTLUS.RMM	F0, X5				// d34230c0
 	FCVTSWU	X5, F0					// 538012d0
 	FCVTSLU	X5, F0					// 538032d0
 	FSGNJS	F1, F0, F2				// 53011020
@@ -247,21 +276,21 @@ start:
 	FNMSUBS	F1, F2, F3, F4				// 4b822018
 	FNMADDS	F1, F2, F3, F4				// 4f822018
 
-	// 11.8: Single-Precision Floating-Point Compare Instructions
+	// 20.8: Single-Precision Floating-Point Compare Instructions
 	FEQS	F0, F1, X7				// d3a300a0
 	FLTS	F0, F1, X7				// d39300a0
 	FLES	F0, F1, X7				// d38300a0
 
-	// 11.9: Single-Precision Floating-Point Classify Instruction
+	// 20.9: Single-Precision Floating-Point Classify Instruction
 	FCLASSS	F0, X5					// d31200e0
 
-	// 12.3: Double-Precision Load and Store Instructions
+	// 21.3: Double-Precision Load and Store Instructions
 	FLD	(X5), F0				// 07b00200
 	FLD	4(X5), F0				// 07b04200
 	FSD	F0, (X5)				// 27b00200
 	FSD	F0, 4(X5)				// 27b20200
 
-	// 12.4: Double-Precision Floating-Point Computational Instructions
+	// 21.4: Double-Precision Floating-Point Computational Instructions
 	FADDD	F1, F0, F2				// 53011002
 	FSUBD	F1, F0, F2				// 5301100a
 	FMULD	F1, F0, F2				// 53011012
@@ -270,13 +299,33 @@ start:
 	FMAXD	F1, F0, F2				// 5311102a
 	FSQRTD	F0, F1					// d300005a
 
-	// 12.5: Double-Precision Floating-Point Conversion and Move Instructions
+	// 21.5: Double-Precision Floating-Point Conversion and Move Instructions
 	FCVTWD	F0, X5					// d31200c2
+	FCVTWD.RNE	F0, X5				// d30200c2
+	FCVTWD.RTZ	F0, X5				// d31200c2
+	FCVTWD.RDN	F0, X5				// d32200c2
+	FCVTWD.RUP	F0, X5				// d33200c2
+	FCVTWD.RMM	F0, X5				// d34200c2
 	FCVTLD	F0, X5					// d31220c2
+	FCVTLD.RNE	F0, X5				// d30220c2
+	FCVTLD.RTZ	F0, X5				// d31220c2
+	FCVTLD.RDN	F0, X5				// d32220c2
+	FCVTLD.RUP	F0, X5				// d33220c2
+	FCVTLD.RMM	F0, X5				// d34220c2
 	FCVTDW	X5, F0					// 538002d2
 	FCVTDL	X5, F0					// 538022d2
 	FCVTWUD F0, X5					// d31210c2
+	FCVTWUD.RNE F0, X5				// d30210c2
+	FCVTWUD.RTZ F0, X5				// d31210c2
+	FCVTWUD.RDN F0, X5				// d32210c2
+	FCVTWUD.RUP F0, X5				// d33210c2
+	FCVTWUD.RMM F0, X5				// d34210c2
 	FCVTLUD F0, X5					// d31230c2
+	FCVTLUD.RNE F0, X5				// d30230c2
+	FCVTLUD.RTZ F0, X5				// d31230c2
+	FCVTLUD.RDN F0, X5				// d32230c2
+	FCVTLUD.RUP F0, X5				// d33230c2
+	FCVTLUD.RMM F0, X5				// d34230c2
 	FCVTDWU X5, F0					// 538012d2
 	FCVTDLU X5, F0					// 538032d2
 	FCVTSD	F0, F1					// d3001040
@@ -291,12 +340,955 @@ start:
 	FNMSUBD	F1, F2, F3, F4				// 4b82201a
 	FNMADDD	F1, F2, F3, F4				// 4f82201a
 
-	// 12.6: Double-Precision Floating-Point Classify Instruction
+	// 21.7: Double-Precision Floating-Point Classify Instruction
 	FCLASSD	F0, X5					// d31200e2
 
-	// Privileged ISA
+	// 28.4.1: Address Generation Instructions (Zba)
+	ADDUW		X10, X11, X12			// 3b86a508
+	ADDUW		X10, X11			// bb85a508
+	SH1ADD		X11, X12, X13			// b326b620
+	SH1ADD		X11, X12			// 3326b620
+	SH1ADDUW	X12, X13, X14			// 3ba7c620
+	SH1ADDUW	X12, X13			// bba6c620
+	SH2ADD		X13, X14, X15			// b347d720
+	SH2ADD		X13, X14			// 3347d720
+	SH2ADDUW	X14, X15, X16			// 3bc8e720
+	SH2ADDUW	X14, X15			// bbc7e720
+	SH3ADD		X15, X16, X17			// b368f820
+	SH3ADD		X15, X16			// 3368f820
+	SH3ADDUW	X16, X17, X18			// 3be90821
+	SH3ADDUW	X16, X17			// bbe80821
+	SLLIUW		$31, X17, X18			// 1b99f809
+	SLLIUW		$63, X17			// 9b98f80b
+	SLLIUW		$63, X17, X18			// 1b99f80b
+	SLLIUW		$1, X18, X19			// 9b191908
 
-	// 3.2.1: Environment Call and Breakpoint
+	//
+	// "B" Extension for Bit Manipulation, Version 1.0.0
+	//
+
+	// 28.4.2: Basic Bit Manipulation (Zbb)
+	ANDN	X19, X20, X21				// b37a3a41 or 93caf9ffb37a5a01
+	ANDN	X19, X20				// 337a3a41 or 93cff9ff337afa01
+	CLZ	X20, X21				// 931a0a60
+	CLZW	X21, X22				// 1b9b0a60
+	CPOP	X22, X23				// 931b2b60
+	CPOPW	X23, X24				// 1b9c2b60
+	CTZ	X24, X25				// 931c1c60
+	CTZW	X25, X26				// 1b9d1c60
+	MAX	X26, X28, X29				// b36eae0b or b32fae01b30ff041b34eae01b3fedf01b34ede01
+	MAX	X26, X28				// 336eae0b or b32fcd01b30ff041334ecd0133fecf01334ecd01
+	MAXU	X28, X29, X30				// 33ffce0b or b3bfce01b30ff04133cfce0133ffef0133cfee01
+	MAXU	X28, X29				// b3fece0b or b33fde01b30ff041b34ede01b3fedf01b34ede01
+	MIN	X29, X30, X5				// b342df0b or b3afee01b30ff041b342df01b3f25f00b3425f00
+	MIN	X29, X30				// 334fdf0b or b32fdf01b30ff04133cfee0133ffef0133cfee01
+	MINU	X30, X5, X6				// 33d3e20b or b33f5f00b30ff04133c3e20133f36f0033c36200
+	MINU	X30, X5					// b3d2e20b or b3bfe201b30ff041b3425f00b3f25f00b3425f00
+	ORN	X6, X7, X8				// 33e46340 or 1344f3ff33e48300
+	ORN	X6, X7					// b3e36340 or 934ff3ffb3e3f301
+	SEXTB	X16, X17				// 93184860
+	SEXTH	X17, X18				// 13995860
+	XNOR	X18, X19, X20				// 33ca2941 or 33ca2901134afaff
+	XNOR	X18, X19				// b3c92941 or b3c9290193c9f9ff
+	ZEXTH	X19, X20				// 3bca0908
+
+	// 28.4.2: Bitwise Rotation (Zbb)
+	ROL	X8, X9, X10				// 33958460 or b30f8040b3dff4013395840033e5af00
+	ROL	X8, X9					// b3948460 or b30f8040b3dff401b3948400b3e49f00
+	ROLW	X9, X10, X11				// bb159560 or b30f9040bb5ff501bb159500b3e5bf00
+	ROLW	X9, X10					// 3b159560 or b30f9040bb5ff5013b15950033e5af00
+	ROR	X10, X11, X12				// 33d6a560 or b30fa040b39ff50133d6a50033e6cf00
+	ROR	X10, X11				// b3d5a560 or b30fa040b39ff501b3d5a500b3e5bf00
+	ROR	$63, X11				// 93d5f563 or 93dff50393951500b3e5bf00
+	RORI	$63, X11, X12				// 13d6f563 or 93dff5031396150033e6cf00
+	RORI	$1, X12, X13				// 93561660 or 935f16009316f603b3e6df00
+	RORIW	$31, X13, X14				// 1bd7f661 or 9bdff6011b97160033e7ef00
+	RORIW	$1, X14, X15				// 9b571760 or 9b5f17009b17f701b3e7ff00
+	RORW	X15, X16, X17				// bb58f860 or b30ff040bb1ff801bb58f800b3e81f01
+	RORW	X15, X16				// 3b58f860 or b30ff040bb1ff8013b58f80033e80f01
+	RORW	$31, X13				// 9bd6f661 or 9bdff6019b961600b3e6df00
+	ORCB	X5, X6					// 13d37228
+	REV8	X7, X8					// 13d4836b
+
+	// 28.4.4: Single-bit Instructions (Zbs)
+	BCLR	X23, X24, X25				// b31c7c49
+	BCLR	$63, X24				// 131cfc4b
+	BCLRI	$1, X25, X26				// 139d1c48
+	BEXT	X26, X28, X29				// b35eae49
+	BEXT	$63, X28				// 135efe4b
+	BEXTI	$1, X29, X30				// 13df1e48
+	BINV	X30, X5, X6				// 3393e269
+	BINV	$63, X6					// 1313f36b
+	BINVI	$1, X7, X8				// 13941368
+	BSET	X8, X9, X10				// 33958428
+	BSET	$63, X9					// 9394f42b
+	BSETI	$1, X10, X11				// 93151528
+
+	//
+	// "V" Standard Extension for Vector Operations, Version 1.0
+	//
+
+	// 31.6: Configuration Setting Instructions
+	VSETVLI	X10, E8, M1, TU, MU, X12		// 57760500
+	VSETVLI	X10, E16, M1, TU, MU, X12		// 57768500
+	VSETVLI	X10, E32, M1, TU, MU, X12		// 57760501
+	VSETVLI	X10, E64, M1, TU, MU, X12		// 57768501
+	VSETVLI	X10, E32, M1, TU, MA, X12		// 57760509
+	VSETVLI	X10, E32, M1, TA, MA, X12		// 5776050d
+	VSETVLI	X10, E32, M2, TA, MA, X12		// 5776150d
+	VSETVLI	X10, E32, M4, TA, MA, X12		// 5776250d
+	VSETVLI	X10, E32, M8, TA, MA, X12		// 5776350d
+	VSETVLI	X10, E32, MF8, TA, MA, X12		// 5776550d
+	VSETVLI	X10, E32, MF4, TA, MA, X12		// 5776650d
+	VSETVLI	X10, E32, MF2, TA, MA, X12		// 5776750d
+	VSETVLI	X10, E32, M1, TA, MA, X12		// 5776050d
+	VSETVLI	$15, E32, M1, TA, MA, X12		// 57f607cd
+	VSETIVLI $0, E32, M1, TA, MA, X12		// 577600cd
+	VSETIVLI $15, E32, M1, TA, MA, X12		// 57f607cd
+	VSETIVLI $31, E32, M1, TA, MA, X12		// 57f60fcd
+	VSETVL	X10, X11, X12				// 57f6a580
+
+	// 31.7.4: Vector Unit-Stride Instructions
+	VLE8V		(X10), V3			// 87010502
+	VLE8V		(X10), V0, V3			// 87010500
+	VLE16V		(X10), V3			// 87510502
+	VLE16V		(X10), V0, V3			// 87510500
+	VLE32V		(X10), V3			// 87610502
+	VLE32V		(X10), V0, V3			// 87610500
+	VLE64V		(X10), V3			// 87710502
+	VLE64V		(X10), V0, V3			// 87710500
+	VSE8V		V3, (X10)			// a7010502
+	VSE8V		V3, V0, (X10)			// a7010500
+	VSE16V		V3, (X10)			// a7510502
+	VSE16V		V3, V0, (X10)			// a7510500
+	VSE32V		V3, (X10)			// a7610502
+	VSE32V		V3, V0, (X10)			// a7610500
+	VSE64V		V3, (X10)			// a7710502
+	VSE64V		V3, V0, (X10)			// a7710500
+	VLMV		(X10), V3			// 8701b502
+	VSMV		V3, (X10)			// a701b502
+
+	// 31.7.5: Vector Strided Instructions
+	VLSE8V		(X10), X11, V3			// 8701b50a
+	VLSE8V		(X10), X11, V0, V3		// 8701b508
+	VLSE16V		(X10), X11, V3			// 8751b50a
+	VLSE16V		(X10), X11, V0, V3		// 8751b508
+	VLSE32V		(X10), X11, V3			// 8761b50a
+	VLSE32V		(X10), X11, V0, V3		// 8761b508
+	VLSE64V		(X10), X11, V3			// 8771b50a
+	VLSE64V		(X10), X11, V0, V3		// 8771b508
+	VSSE8V		V3, X11, (X10)			// a701b50a
+	VSSE8V		V3, X11, V0, (X10)		// a701b508
+	VSSE16V		V3, X11, (X10)			// a751b50a
+	VSSE16V		V3, X11, V0, (X10)		// a751b508
+	VSSE32V		V3, X11, (X10)			// a761b50a
+	VSSE32V		V3, X11, V0, (X10)		// a761b508
+	VSSE64V		V3, X11, (X10)			// a771b50a
+	VSSE64V		V3, X11, V0, (X10)		// a771b508
+
+	// 31.7.6: Vector Indexed Instructions
+	VLUXEI8V	(X10), V2, V3			// 87012506
+	VLUXEI8V	(X10), V2, V0, V3		// 87012504
+	VLUXEI16V	(X10), V2, V3			// 87512506
+	VLUXEI16V	(X10), V2, V0, V3		// 87512504
+	VLUXEI32V	(X10), V2, V3			// 87612506
+	VLUXEI32V	(X10), V2, V0, V3		// 87612504
+	VLUXEI64V	(X10), V2, V3			// 87712506
+	VLUXEI64V	(X10), V2, V0, V3		// 87712504
+	VLOXEI8V	(X10), V2, V3			// 8701250e
+	VLOXEI8V	(X10), V2, V0, V3		// 8701250c
+	VLOXEI16V	(X10), V2, V3			// 8751250e
+	VLOXEI16V	(X10), V2, V0, V3		// 8751250c
+	VLOXEI32V	(X10), V2, V3			// 8761250e
+	VLOXEI32V	(X10), V2, V0, V3		// 8761250c
+	VLOXEI64V	(X10), V2, V3			// 8771250e
+	VLOXEI64V	(X10), V2, V0, V3		// 8771250c
+	VSUXEI8V	V3, V2, (X10)			// a7012506
+	VSUXEI8V	V3, V2, V0, (X10)		// a7012504
+	VSUXEI16V	V3, V2, (X10)			// a7512506
+	VSUXEI16V	V3, V2, V0, (X10)		// a7512504
+	VSUXEI32V	V3, V2, (X10)			// a7612506
+	VSUXEI32V	V3, V2, V0, (X10)		// a7612504
+	VSUXEI64V	V3, V2, (X10)			// a7712506
+	VSUXEI64V	V3, V2, V0, (X10)		// a7712504
+	VSOXEI8V	V3, V2, (X10)			// a701250e
+	VSOXEI8V	V3, V2, V0, (X10)		// a701250c
+	VSOXEI16V	V3, V2, (X10)			// a751250e
+	VSOXEI16V	V3, V2, V0, (X10)		// a751250c
+	VSOXEI32V	V3, V2, (X10)			// a761250e
+	VSOXEI32V	V3, V2, V0, (X10)		// a761250c
+	VSOXEI64V	V3, V2, (X10)			// a771250e
+	VSOXEI64V	V3, V2, V0, (X10)		// a771250c
+
+	// 31.7.9: Vector Load/Store Whole Register Instructions
+	VL1RV		(X10), V3			// 87018502
+	VL1RE8V		(X10), V3			// 87018502
+	VL1RE16V	(X10), V3			// 87518502
+	VL1RE32V	(X10), V3			// 87618502
+	VL1RE64V	(X10), V3			// 87718502
+	VL2RV		(X10), V2			// 07018522
+	VL2RE8V		(X10), V2			// 07018522
+	VL2RE16V	(X10), V2			// 07518522
+	VL2RE32V	(X10), V2			// 07618522
+	VL2RE64V	(X10), V2			// 07718522
+	VL4RV		(X10), V4			// 07028562
+	VL4RE8V		(X10), V4			// 07028562
+	VL4RE16V	(X10), V4			// 07528562
+	VL4RE32V	(X10), V4			// 07628562
+	VL4RE64V	(X10), V4			// 07728562
+	VL8RV		(X10), V8			// 070485e2
+	VL8RE8V		(X10), V8			// 070485e2
+	VL8RE16V	(X10), V8			// 075485e2
+	VL8RE32V	(X10), V8			// 076485e2
+	VL8RE64V	(X10), V8			// 077485e2
+	VS1RV		V3, (X11)			// a7818502
+	VS2RV		V2, (X11)			// 27818522
+	VS4RV		V4, (X11)			// 27828562
+	VS8RV		V8, (X11)			// 278485e2
+
+	// 31.11.1: Vector Single-Width Integer Add and Subtract
+	VADDVV		V1, V2, V3			// d7812002
+	VADDVV		V1, V2, V0, V3			// d7812000
+	VADDVX		X10, V2, V3			// d7412502
+	VADDVX		X10, V2, V0, V3			// d7412500
+	VADDVI		$15, V2, V3			// d7b12702
+	VADDVI		$15, V2, V0, V3			// d7b12700
+	VADDVI		$-16, V2, V3			// d7312802
+	VADDVI		$-16, V2, V0, V3		// d7312800
+	VSUBVV		V1, V2, V3			// d781200a
+	VSUBVV		V1, V2, V0, V3			// d7812008
+	VSUBVX		X10, V2, V3			// d741250a
+	VSUBVX		X10, V2, V0, V3			// d7412508
+	VRSUBVX		X10, V2, V3			// d741250e
+	VRSUBVX		X10, V2, V0, V3			// d741250c
+	VRSUBVI		$15, V2, V0, V3			// d7b1270c
+	VRSUBVI		$-16, V2, V0, V3		// d731280c
+	VNEGV		V2, V3				// d741200e
+	VNEGV		V2, V0, V3			// d741200c
+
+	// 31.11.2: Vector Widening Integer Add/Subtract
+	VWADDUVV	V1, V2, V3			// d7a120c2
+	VWADDUVV	V1, V2, V0, V3			// d7a120c0
+	VWADDUVX	X10, V2, V3			// d76125c2
+	VWADDUVX	X10, V2, V0, V3			// d76125c0
+	VWSUBUVV	V1, V2, V3			// d7a120ca
+	VWSUBUVV	V1, V2, V0, V3			// d7a120c8
+	VWSUBUVX	X10, V2, V3			// d76125ca
+	VWSUBUVX	X10, V2, V0, V3			// d76125c8
+	VWADDVV		V1, V2, V3			// d7a120c6
+	VWADDVV		V1, V2, V0, V3			// d7a120c4
+	VWADDVX		X10, V2, V3			// d76125c6
+	VWADDVX		X10, V2, V0, V3			// d76125c4
+	VWSUBVV		V1, V2, V3			// d7a120ce
+	VWSUBVV		V1, V2, V0, V3			// d7a120cc
+	VWSUBVX		X10, V2, V3			// d76125ce
+	VWSUBVX		X10, V2, V0, V3			// d76125cc
+	VWADDUWV	V1, V2, V3			// d7a120d2
+	VWADDUWV	V1, V2, V0, V3			// d7a120d0
+	VWADDUWX	X10, V2, V3			// d76125d2
+	VWADDUWX	X10, V2, V0, V3			// d76125d0
+	VWSUBUWV	V1, V2, V3			// d7a120da
+	VWSUBUWV	V1, V2, V0, V3			// d7a120d8
+	VWSUBUWX	X10, V2, V3			// d76125da
+	VWSUBUWX	X10, V2, V0, V3			// d76125d8
+	VWADDWV		V1, V2, V3			// d7a120d6
+	VWADDWV		V1, V2, V0, V3			// d7a120d4
+	VWADDWX		X10, V2, V3			// d76125d6
+	VWADDWX		X10, V2, V0, V3			// d76125d4
+	VWSUBWV		V1, V2, V3			// d7a120de
+	VWSUBWV		V1, V2, V0, V3			// d7a120dc
+	VWSUBWX		X10, V2, V3			// d76125de
+	VWSUBWX		X10, V2, V0, V3			// d76125dc
+	VWCVTXXV	V2, V3				// d76120c6
+	VWCVTXXV	V2, V0, V3			// d76120c4
+	VWCVTUXXV	V2, V3				// d76120c2
+	VWCVTUXXV	V2, V0, V3			// d76120c0
+
+	// 31.11.3: Vector Integer Extension
+	VZEXTVF2	V2, V3				// d721234a
+	VZEXTVF2	V2, V0, V3			// d7212348
+	VSEXTVF2	V2, V3				// d7a1234a
+	VSEXTVF2	V2, V0, V3			// d7a12348
+	VZEXTVF4	V2, V3				// d721224a
+	VZEXTVF4	V2, V0, V3			// d7212248
+	VSEXTVF4	V2, V3				// d7a1224a
+	VSEXTVF4	V2, V0, V3			// d7a12248
+	VZEXTVF8	V2, V3				// d721214a
+	VZEXTVF8	V2, V0, V3			// d7212148
+	VSEXTVF8	V2, V3				// d7a1214a
+	VSEXTVF8	V2, V0, V3			// d7a12148
+
+	// 31.11.4: Vector Integer Add-with-Carry / Subtract-with-Borrow Instructions
+	VADCVVM		V1, V2, V0, V3			// d7812040
+	VADCVXM		X11, V2, V0, V3			// d7c12540
+	VADCVIM		$15, V2, V0, V3			// d7b12740
+	VMADCVVM	V1, V2, V0, V3			// d7812044
+	VMADCVVM	V1, V2, V0, V0			// 57802044
+	VMADCVXM	X11, V2, V0, V3			// d7c12544
+	VMADCVXM	X11, V2, V0, V0			// 57c02544
+	VMADCVIM	$15, V2, V0, V3			// d7b12744
+	VMADCVIM	$15, V2, V0, V0			// 57b02744
+	VMADCVV		V1, V2, V3			// d7812046
+	VMADCVV		V1, V2, V0			// 57802046
+	VMADCVX		X11, V2, V3			// d7c12546
+	VMADCVX		X11, V2, V0			// 57c02546
+	VMADCVI		$15, V2, V3			// d7b12746
+	VMADCVI		$15, V2, V0			// 57b02746
+	VSBCVVM		V1, V2, V0, V3			// d7812048
+	VSBCVXM		X11, V2, V0, V3			// d7c12548
+	VMSBCVVM	V1, V2, V0, V3			// d781204c
+	VMSBCVVM	V1, V2, V0, V0			// 5780204c
+	VMSBCVXM	X11, V2, V0, V3			// d7c1254c
+	VMSBCVXM	X11, V2, V0, V0			// 57c0254c
+	VMSBCVV		V1, V2, V3			// d781204e
+	VMSBCVV		V1, V2, V0			// 5780204e
+	VMSBCVX		X11, V2, V3			// d7c1254e
+	VMSBCVX		X11, V2, V0			// 57c0254e
+
+	// 31.11.5: Vector Bitwise Logical Instructions
+	VANDVV		V1, V2, V3			// d7812026
+	VANDVV		V1, V2, V0, V3			// d7812024
+	VANDVX		X11, V2, V3			// d7c12526
+	VANDVX		X11, V2, V0, V3			// d7c12524
+	VANDVI		$15, V2, V3			// d7b12726
+	VANDVI		$15, V2, V0, V3			// d7b12724
+	VORVV		V1, V2, V3			// d781202a
+	VORVV		V1, V2, V0, V3			// d7812028
+	VORVX		X11, V2, V3			// d7c1252a
+	VORVX		X11, V2, V0, V3			// d7c12528
+	VORVI		$15, V2, V3			// d7b1272a
+	VORVI		$15, V2, V0, V3			// d7b12728
+	VXORVV		V1, V2, V3			// d781202e
+	VXORVV		V1, V2, V0, V3			// d781202c
+	VXORVX		X11, V2, V3			// d7c1252e
+	VXORVX		X11, V2, V0, V3			// d7c1252c
+	VXORVI		$15, V2, V3			// d7b1272e
+	VXORVI		$15, V2, V0, V3			// d7b1272c
+	VNOTV		V2, V3				// d7b12f2e
+	VNOTV		V2, V0, V3			// d7b12f2c
+
+	// 31.11.6: Vector Single-Width Shift Instructions
+	VSLLVV		V1, V2, V3			// d7812096
+	VSLLVV		V1, V2, V0, V3			// d7812094
+	VSLLVX		X11, V2, V3			// d7c12596
+	VSLLVX		X11, V2, V0, V3			// d7c12594
+	VSLLVI		$15, V2, V3			// d7b12796
+	VSLLVI		$15, V2, V0, V3			// d7b12794
+	VSRLVV		V1, V2, V3			// d78120a2
+	VSRLVV		V1, V2, V0, V3			// d78120a0
+	VSRLVX		X11, V2, V3			// d7c125a2
+	VSRLVX		X11, V2, V0, V3			// d7c125a0
+	VSRLVI		$15, V2, V3			// d7b127a2
+	VSRLVI		$15, V2, V0, V3			// d7b127a0
+	VSRAVV		V1, V2, V3			// d78120a6
+	VSRAVV		V1, V2, V0, V3			// d78120a4
+	VSRAVX		X11, V2, V3			// d7c125a6
+	VSRAVX		X11, V2, V0, V3			// d7c125a4
+	VSRAVI		$15, V2, V3			// d7b127a6
+	VSRAVI		$15, V2, V0, V3			// d7b127a4
+
+	// 31.11.7: Vector Narrowing Integer Right Shift Instructions
+	VNSRLWV		V1, V2, V3			// d78120b2
+	VNSRLWV		V1, V2, V0, V3			// d78120b0
+	VNSRLWX		X10, V2, V3			// d74125b2
+	VNSRLWX		X10, V2, V0, V3			// d74125b0
+	VNSRLWI		$31, V2, V3			// d7b12fb2
+	VNSRLWI		$31, V2, V0, V3			// d7b12fb0
+	VNSRAWV		V1, V2, V3			// d78120b6
+	VNSRAWV		V1, V2, V0, V3			// d78120b4
+	VNSRAWX		X10, V2, V3			// d74125b6
+	VNSRAWX		X10, V2, V0, V3			// d74125b4
+	VNSRAWI		$31, V2, V3			// d7b12fb6
+	VNSRAWI		$31, V2, V0, V3			// d7b12fb4
+	VNCVTXXW	V2, V3				// d74120b2
+	VNCVTXXW	V2, V0, V3			// d74120b0
+
+	// 31.11.8: Vector Integer Compare Instructions
+	VMSEQVV		V1, V2, V3			// d7812062
+	VMSEQVV		V1, V2, V0, V3			// d7812060
+	VMSEQVX		X10, V2, V3			// d7412562
+	VMSEQVX		X10, V2, V0, V3			// d7412560
+	VMSEQVI		$15, V2, V3			// d7b12762
+	VMSEQVI		$15, V2, V0, V3			// d7b12760
+	VMSNEVV		V1, V2, V3			// d7812066
+	VMSNEVV		V1, V2, V0, V3			// d7812064
+	VMSNEVX		X10, V2, V3			// d7412566
+	VMSNEVX		X10, V2, V0, V3			// d7412564
+	VMSNEVI		$15, V2, V3			// d7b12766
+	VMSNEVI		$15, V2, V0, V3			// d7b12764
+	VMSLTUVV	V1, V2, V3			// d781206a
+	VMSLTUVV	V1, V2, V0, V3			// d7812068
+	VMSLTUVX	X10, V2, V3			// d741256a
+	VMSLTUVX	X10, V2, V0, V3			// d7412568
+	VMSLTVV		V1, V2, V3			// d781206e
+	VMSLTVV		V1, V2, V0, V3			// d781206c
+	VMSLTVX		X10, V2, V3			// d741256e
+	VMSLTVX		X10, V2, V0, V3			// d741256c
+	VMSLEUVV	V1, V2, V3			// d7812072
+	VMSLEUVV	V1, V2, V0, V3			// d7812070
+	VMSLEUVX	X10, V2, V3			// d7412572
+	VMSLEUVX	X10, V2, V0, V3			// d7412570
+	VMSLEUVI	$15, V2, V3			// d7b12772
+	VMSLEUVI	$15, V2, V0, V3			// d7b12770
+	VMSLEVV		V1, V2, V3			// d7812076
+	VMSLEVV		V1, V2, V0, V3			// d7812074
+	VMSLEVX		X10, V2, V3			// d7412576
+	VMSLEVX		X10, V2, V0, V3			// d7412574
+	VMSLEVI		$15, V2, V3			// d7b12776
+	VMSLEVI		$15, V2, V0, V3			// d7b12774
+	VMSGTUVX	X10, V2, V3			// d741257a
+	VMSGTUVX	X10, V2, V0, V3			// d7412578
+	VMSGTUVI	$15, V2, V3			// d7b1277a
+	VMSGTUVI	$15, V2, V0, V3			// d7b12778
+	VMSGTVX		X10, V2, V3			// d741257e
+	VMSGTVX		X10, V2, V0, V3			// d741257c
+	VMSGTVI		$15, V2, V3			// d7b1277e
+	VMSGTVI		$15, V2, V0, V3			// d7b1277c
+	VMSGTVV		V1, V2, V3			// d701116e
+	VMSGTVV		V1, V2, V0, V3			// d701116c
+	VMSGTUVV	V1, V2, V3			// d701116a
+	VMSGTUVV	V1, V2, V0, V3			// d7011168
+	VMSGEVV		V1, V2, V3			// d7011176
+	VMSGEVV		V1, V2, V0, V3			// d7011174
+	VMSGEUVV	V1, V2, V3			// d7011172
+	VMSGEUVV	V1, V2, V0, V3			// d7011170
+	VMSLTVI		$15, V2, V3			// d7312776
+	VMSLTVI		$15, V2, V0, V3			// d7312774
+	VMSLTUVI	$15, V2, V3			// d7312772
+	VMSLTUVI	$15, V2, V0, V3			// d7312770
+	VMSGEVI		$15, V2, V3			// d731277e
+	VMSGEVI		$15, V2, V0, V3			// d731277c
+	VMSGEUVI	$15, V2, V3			// d731277a
+	VMSGEUVI	$15, V2, V0, V3			// d7312778
+
+	// 31.11.9: Vector Integer Min/Max Instructions
+	VMINUVV		V1, V2, V3			// d7812012
+	VMINUVV		V1, V2, V0, V3			// d7812010
+	VMINUVX		X10, V2, V3			// d7412512
+	VMINUVX		X10, V2, V0, V3			// d7412510
+	VMINVV		V1, V2, V3			// d7812016
+	VMINVV		V1, V2, V0, V3			// d7812014
+	VMINVX		X10, V2, V3			// d7412516
+	VMINVX		X10, V2, V0, V3			// d7412514
+	VMAXUVV		V1, V2, V3			// d781201a
+	VMAXUVV		V1, V2, V0, V3			// d7812018
+	VMAXUVX		X10, V2, V3			// d741251a
+	VMAXUVX		X10, V2, V0, V3			// d7412518
+	VMAXVV		V1, V2, V3			// d781201e
+	VMAXVV		V1, V2, V0, V3			// d781201c
+	VMAXVX		X10, V2, V3			// d741251e
+	VMAXVX		X10, V2, V0, V3			// d741251c
+
+	// 31.11.10: Vector Single-Width Integer Multiply Instructions
+	VMULVV		V1, V2, V3			// d7a12096
+	VMULVV		V1, V2, V0, V3			// d7a12094
+	VMULVX		X10, V2, V3			// d7612596
+	VMULVX		X10, V2, V0, V3			// d7612594
+	VMULHVV		V1, V2, V3			// d7a1209e
+	VMULHVV		V1, V2, V0, V3			// d7a1209c
+	VMULHVX		X10, V2, V3			// d761259e
+	VMULHVX		X10, V2, V0, V3			// d761259c
+	VMULHUVV	V1, V2, V3			// d7a12092
+	VMULHUVV	V1, V2, V0, V3			// d7a12090
+	VMULHUVX	X10, V2, V3			// d7612592
+	VMULHUVX	X10, V2, V0, V3			// d7612590
+	VMULHSUVV	V1, V2, V3			// d7a1209a
+	VMULHSUVV	V1, V2, V0, V3			// d7a12098
+	VMULHSUVX	X10, V2, V3			// d761259a
+	VMULHSUVX	X10, V2, V0, V3			// d7612598
+
+	// 31.11.11: Vector Integer Divide Instructions
+	VDIVUVV		V1, V2, V3			// d7a12082
+	VDIVUVV		V1, V2, V0, V3			// d7a12080
+	VDIVUVX		X10, V2, V3			// d7612582
+	VDIVUVX		X10, V2, V0, V3			// d7612580
+	VDIVVV		V1, V2, V3			// d7a12086
+	VDIVVV		V1, V2, V0, V3			// d7a12084
+	VDIVVX		X10, V2, V3			// d7612586
+	VDIVVX		X10, V2, V0, V3			// d7612584
+	VREMUVV		V1, V2, V3			// d7a1208a
+	VREMUVV		V1, V2, V0, V3			// d7a12088
+	VREMUVX		X10, V2, V3			// d761258a
+	VREMUVX		X10, V2, V0, V3			// d7612588
+	VREMVV		V1, V2, V3			// d7a1208e
+	VREMVV		V1, V2, V0, V3			// d7a1208c
+	VREMVX		X10, V2, V3			// d761258e
+	VREMVX		X10, V2, V0, V3			// d761258c
+
+	// 31.11.12: Vector Widening Integer Multiply Instructions
+	VWMULVV		V1, V2, V3			// d7a120ee
+	VWMULVV		V1, V2, V0, V3			// d7a120ec
+	VWMULVX		X10, V2, V3			// d76125ee
+	VWMULVX		X10, V2, V0, V3			// d76125ec
+	VWMULUVV	V1, V2, V3			// d7a120e2
+	VWMULUVV	V1, V2, V0, V3			// d7a120e0
+	VWMULUVX	X10, V2, V3			// d76125e2
+	VWMULUVX	X10, V2, V0, V3			// d76125e0
+	VWMULSUVV	V1, V2, V3			// d7a120ea
+	VWMULSUVV	V1, V2, V0, V3			// d7a120e8
+	VWMULSUVX	X10, V2, V3			// d76125ea
+	VWMULSUVX	X10, V2, V0, V3			// d76125e8
+
+	// 31.11.13: Vector Single-Width Integer Multiply-Add Instructions
+	VMACCVV		V2, V1, V3			// d7a120b6
+	VMACCVV		V2, V1, V0, V3			// d7a120b4
+	VMACCVX		V2, X10, V3			// d76125b6
+	VMACCVX		V2, X10, V0, V3			// d76125b4
+	VNMSACVV	V2, V1, V3			// d7a120be
+	VNMSACVV	V2, V1, V0, V3			// d7a120bc
+	VNMSACVX	V2, X10, V3			// d76125be
+	VNMSACVX	V2, X10, V0, V3			// d76125bc
+	VMADDVV		V2, V1, V3			// d7a120a6
+	VMADDVV		V2, V1, V0, V3			// d7a120a4
+	VMADDVX		V2, X10, V3			// d76125a6
+	VMADDVX		V2, X10, V0, V3			// d76125a4
+	VNMSUBVV	V2, V1, V3			// d7a120ae
+	VNMSUBVV	V2, V1, V0, V3			// d7a120ac
+	VNMSUBVX	V2, X10, V3			// d76125ae
+	VNMSUBVX	V2, X10, V0, V3			// d76125ac
+
+	// 31.11.14: Vector Widening Integer Multiply-Add Instructions
+	VWMACCUVV	V2, V1, V3			// d7a120f2
+	VWMACCUVV	V2, V1, V0, V3			// d7a120f0
+	VWMACCUVX	V2, X10, V3			// d76125f2
+	VWMACCUVX	V2, X10, V0, V3			// d76125f0
+	VWMACCVV	V2, V1, V3			// d7a120f6
+	VWMACCVV	V2, V1, V0, V3			// d7a120f4
+	VWMACCVX	V2, X10, V3			// d76125f6
+	VWMACCVX	V2, X10, V0, V3			// d76125f4
+	VWMACCSUVV	V2, V1, V3			// d7a120fe
+	VWMACCSUVV	V2, V1, V0, V3			// d7a120fc
+	VWMACCSUVX	V2, X10, V3			// d76125fe
+	VWMACCSUVX	V2, X10, V0, V3			// d76125fc
+	VWMACCUSVX	V2, X10, V3			// d76125fa
+	VWMACCUSVX	V2, X10, V0, V3			// d76125f8
+
+	// 31.11.15: Vector Integer Merge Instructions
+	VMERGEVVM	V1, V2, V0, V3			// d781205c
+	VMERGEVXM	X10, V2, V0, V3			// d741255c
+	VMERGEVIM	$15, V2, V0, V3			// d7b1275c
+
+	// 31.11.16: Vector Integer Move Instructions
+	VMVVV		V2, V3				// d701015e
+	VMVVX		X10, V3				// d741055e
+	VMVVI		$15, V3				// d7b1075e
+
+	// 31.12.1: Vector Single-Width Saturating Add and Subtract
+	VSADDUVV	V1, V2, V3			// d7812082
+	VSADDUVV	V1, V2, V0, V3			// d7812080
+	VSADDUVX	X10, V2, V3			// d7412582
+	VSADDUVX	X10, V2, V0, V3			// d7412580
+	VSADDUVI	$15, V2, V3			// d7b12782
+	VSADDUVI	$15, V2, V0, V3			// d7b12780
+	VSADDVV		V1, V2, V3			// d7812086
+	VSADDVV		V1, V2, V0, V3			// d7812084
+	VSADDVX		X10, V2, V3			// d7412586
+	VSADDVX		X10, V2, V0, V3			// d7412584
+	VSADDVI		$15, V2, V3			// d7b12786
+	VSADDVI		$15, V2, V0, V3			// d7b12784
+	VSSUBUVV	V1, V2, V3			// d781208a
+	VSSUBUVV	V1, V2, V0, V3			// d7812088
+	VSSUBUVX	X10, V2, V3			// d741258a
+	VSSUBUVX	X10, V2, V0, V3			// d7412588
+	VSSUBVV		V1, V2, V3			// d781208e
+	VSSUBVV		V1, V2, V0, V3			// d781208c
+	VSSUBVX		X10, V2, V3			// d741258e
+	VSSUBVX		X10, V2, V0, V3			// d741258c
+
+	// 31.12.2: Vector Single-Width Averaging Add and Subtract
+	VAADDUVV	V1, V2, V3			// d7a12022
+	VAADDUVV	V1, V2, V0, V3			// d7a12020
+	VAADDUVX	X10, V2, V3			// d7612522
+	VAADDUVX	X10, V2, V0, V3			// d7612520
+	VAADDVV		V1, V2, V3			// d7a12026
+	VAADDVV		V1, V2, V0, V3			// d7a12024
+	VAADDVX		X10, V2, V3			// d7612526
+	VAADDVX		X10, V2, V0, V3			// d7612524
+	VASUBUVV	V1, V2, V3			// d7a1202a
+	VASUBUVV	V1, V2, V0, V3			// d7a12028
+	VASUBUVX	X10, V2, V3			// d761252a
+	VASUBUVX	X10, V2, V0, V3			// d7612528
+	VASUBVV		V1, V2, V3			// d7a1202e
+	VASUBVV		V1, V2, V0, V3			// d7a1202c
+	VASUBVX		X10, V2, V3			// d761252e
+	VASUBVX		X10, V2, V0, V3			// d761252c
+
+	// 31.12.3: Vector Single-Width Fractional Multiply with Rounding and Saturation
+	VSMULVV		V1, V2, V3			// d781209e
+	VSMULVV		V1, V2, V0, V3			// d781209c
+	VSMULVX		X10, V2, V3			// d741259e
+	VSMULVX		X10, V2, V0, V3			// d741259c
+
+	// 31.12.4: Vector Single-Width Scaling Shift Instructions
+	VSSRLVV		V1, V2, V3			// d78120aa
+	VSSRLVV		V1, V2, V0, V3			// d78120a8
+	VSSRLVX		X10, V2, V3			// d74125aa
+	VSSRLVX		X10, V2, V0, V3			// d74125a8
+	VSSRLVI		$15, V2, V3			// d7b127aa
+	VSSRLVI		$15, V2, V0, V3			// d7b127a8
+	VSSRAVV		V1, V2, V3			// d78120ae
+	VSSRAVV		V1, V2, V0, V3			// d78120ac
+	VSSRAVX		X10, V2, V3			// d74125ae
+	VSSRAVX		X10, V2, V0, V3			// d74125ac
+	VSSRAVI		$16, V2, V3			// d73128ae
+	VSSRAVI		$16, V2, V0, V3			// d73128ac
+
+	// 31.12.5: Vector Narrowing Fixed-Point Clip Instructions
+	VNCLIPUWV	V1, V2, V3			// d78120ba
+	VNCLIPUWV	V1, V2, V0, V3			// d78120b8
+	VNCLIPUWX	X10, V2, V3			// d74125ba
+	VNCLIPUWX	X10, V2, V0, V3			// d74125b8
+	VNCLIPUWI	$16, V2, V3			// d73128ba
+	VNCLIPUWI	$16, V2, V0, V3			// d73128b8
+	VNCLIPWV	V1, V2, V3			// d78120be
+	VNCLIPWV	V1, V2, V0, V3			// d78120bc
+	VNCLIPWX	X10, V2, V3			// d74125be
+	VNCLIPWX	X10, V2, V0, V3			// d74125bc
+	VNCLIPWI	$16, V2, V3			// d73128be
+	VNCLIPWI	$16, V2, V0, V3			// d73128bc
+
+	// 31.13.2: Vector Single-Width Floating-Point Add/Subtract Instructions
+	VFADDVV		V1, V2, V3			// d7912002
+	VFADDVV		V1, V2, V0, V3			// d7912000
+	VFADDVF		F10, V2, V3			// d7512502
+	VFADDVF		F10, V2, V0, V3			// d7512500
+	VFSUBVV		V1, V2, V3			// d791200a
+	VFSUBVV		V1, V2, V0, V3			// d7912008
+	VFSUBVF		F10, V2, V3			// d751250a
+	VFSUBVF		F10, V2, V0, V3			// d7512508
+	VFRSUBVF	F10, V2, V3			// d751259e
+	VFRSUBVF	F10, V2, V0, V3			// d751259c
+
+	// 31.13.3: Vector Widening Floating-Point Add/Subtract Instructions
+	VFWADDVV	V1, V2, V3			// d79120c2
+	VFWADDVV	V1, V2, V0, V3			// d79120c0
+	VFWADDVF	F10, V2, V3			// d75125c2
+	VFWADDVF	F10, V2, V0, V3			// d75125c0
+	VFWSUBVV	V1, V2, V3			// d79120ca
+	VFWSUBVV	V1, V2, V0, V3			// d79120c8
+	VFWSUBVF	F10, V2, V3			// d75125ca
+	VFWSUBVF	F10, V2, V0, V3			// d75125c8
+	VFWADDWV	V1, V2, V3			// d79120d2
+	VFWADDWV	V1, V2, V0, V3			// d79120d0
+	VFWADDWF	F10, V2, V3			// d75125d2
+	VFWADDWF	F10, V2, V0, V3			// d75125d0
+	VFWSUBWV	V1, V2, V3			// d79120da
+	VFWSUBWV	V1, V2, V0, V3			// d79120d8
+	VFWSUBWF	F10, V2, V3			// d75125da
+	VFWSUBWF	F10, V2, V0, V3			// d75125d8
+
+	// 31.13.4: Vector Single-Width Floating-Point Multiply/Divide Instructions
+	VFMULVV		V1, V2, V3			// d7912092
+	VFMULVV		V1, V2, V0, V3			// d7912090
+	VFMULVF		F10, V2, V3			// d7512592
+	VFMULVF		F10, V2, V0, V3			// d7512590
+	VFDIVVV		V1, V2, V3			// d7912082
+	VFDIVVV		V1, V2, V0, V3			// d7912080
+	VFDIVVF		F10, V2, V3			// d7512582
+	VFDIVVF		F10, V2, V0, V3			// d7512580
+	VFRDIVVF	F10, V2, V3			// d7512586
+	VFRDIVVF	F10, V2, V0, V3			// d7512584
+
+	// 31.13.5: Vector Widening Floating-Point Multiply
+	VFWMULVV	V1, V2, V3			// d79120e2
+	VFWMULVV	V1, V2, V0, V3			// d79120e0
+	VFWMULVF	F10, V2, V3			// d75125e2
+	VFWMULVF	F10, V2, V0, V3			// d75125e0
+
+	// 31.13.6: Vector Single-Width Floating-Point Fused Multiply-Add Instructions
+	VFMACCVV	V2, V1, V3			// d79120b2
+	VFMACCVV	V2, V1, V0, V3			// d79120b0
+	VFMACCVF	V2, F10, V3			// d75125b2
+	VFMACCVF	V2, F10, V0, V3			// d75125b0
+	VFNMACCVV	V2, V1, V3			// d79120b6
+	VFNMACCVV	V2, V1, V0, V3			// d79120b4
+	VFNMACCVF	V2, F10, V3			// d75125b6
+	VFNMACCVF	V2, F10, V0, V3			// d75125b4
+	VFMSACVV	V2, V1, V3			// d79120ba
+	VFMSACVV	V2, V1, V0, V3			// d79120b8
+	VFMSACVF	V2, F10, V3			// d75125ba
+	VFMSACVF	V2, F10, V0, V3			// d75125b8
+	VFNMSACVV	V2, V1, V3			// d79120be
+	VFNMSACVV	V2, V1, V0, V3			// d79120bc
+	VFNMSACVF	V2, F10, V3			// d75125be
+	VFNMSACVF	V2, F10, V0, V3			// d75125bc
+	VFMADDVV	V2, V1, V3			// d79120a2
+	VFMADDVV	V2, V1, V0, V3			// d79120a0
+	VFMADDVF	V2, F10, V3			// d75125a2
+	VFMADDVF	V2, F10, V0, V3			// d75125a0
+	VFNMADDVV	V2, V1, V3			// d79120a6
+	VFNMADDVV	V2, V1, V0, V3			// d79120a4
+	VFNMADDVF	V2, F10, V3			// d75125a6
+	VFNMADDVF	V2, F10, V0, V3			// d75125a4
+	VFMSUBVV	V2, V1, V3			// d79120aa
+	VFMSUBVV	V2, V1, V0, V3			// d79120a8
+	VFMSUBVF	V2, F10, V3			// d75125aa
+	VFMSUBVF	V2, F10, V0, V3			// d75125a8
+	VFNMSUBVV	V2, V1, V3			// d79120ae
+	VFNMSUBVV	V2, V1, V0, V3			// d79120ac
+	VFNMSUBVF	V2, F10, V3			// d75125ae
+	VFNMSUBVF	V2, F10, V0, V3			// d75125ac
+
+	// 31.13.7: Vector Widening Floating-Point Fused Multiply-Add Instructions
+	VFWMACCVV	V2, V1, V3			// d79120f2
+	VFWMACCVV	V2, V1, V0, V3			// d79120f0
+	VFWMACCVF	V2, F10, V3			// d75125f2
+	VFWMACCVF	V2, F10, V0, V3			// d75125f0
+	VFWNMACCVV	V2, V1, V3			// d79120f6
+	VFWNMACCVV	V2, V1, V0, V3			// d79120f4
+	VFWNMACCVF	V2, F10, V3			// d75125f6
+	VFWNMACCVF	V2, F10, V0, V3			// d75125f4
+	VFWMSACVV	V2, V1, V3			// d79120fa
+	VFWMSACVV	V2, V1, V0, V3			// d79120f8
+	VFWMSACVF	V2, F10, V3			// d75125fa
+	VFWMSACVF	V2, F10, V0, V3			// d75125f8
+	VFWNMSACVV	V2, V1, V3			// d79120fe
+	VFWNMSACVV	V2, V1, V0, V3			// d79120fc
+	VFWNMSACVF	V2, F10, V3			// d75125fe
+	VFWNMSACVF	V2, F10, V0, V3			// d75125fc
+
+	// 31.13.8: Vector Floating-Point Square-Root Instruction
+	VFSQRTV		V2, V3				// d711204e
+	VFSQRTV		V2, V0, V3			// d711204c
+
+	// 31.13.9: Vector Floating-Point Reciprocal Square-Root Estimate Instruction
+	VFRSQRT7V	V2, V3				// d711224e
+	VFRSQRT7V	V2, V0, V3			// d711224c
+
+	// 31.13.10: Vector Floating-Point Reciprocal Estimate Instruction
+	VFREC7V		V2, V3				// d791224e
+	VFREC7V		V2, V0, V3			// d791224c
+
+	// 31.13.11: Vector Floating-Point MIN/MAX Instructions
+	VFMINVV		V1, V2, V3			// d7912012
+	VFMINVV		V1, V2, V0, V3			// d7912010
+	VFMINVF		F10, V2, V3			// d7512512
+	VFMINVF		F10, V2, V0, V3			// d7512510
+	VFMAXVV		V1, V2, V3			// d791201a
+	VFMAXVV		V1, V2, V0, V3			// d7912018
+	VFMAXVF		F10, V2, V3			// d751251a
+	VFMAXVF		F10, V2, V0, V3			// d7512518
+
+	// 31.13.12: Vector Floating-Point Sign-Injection Instructions
+	VFSGNJVV	V1, V2, V3			// d7912022
+	VFSGNJVV	V1, V2, V0, V3			// d7912020
+	VFSGNJVF	F10, V2, V3			// d7512522
+	VFSGNJVF	F10, V2, V0, V3			// d7512520
+	VFSGNJNVV	V1, V2, V3			// d7912026
+	VFSGNJNVV	V1, V2, V0, V3			// d7912024
+	VFSGNJNVF	F10, V2, V3			// d7512526
+	VFSGNJNVF	F10, V2, V0, V3			// d7512524
+	VFSGNJXVV	V1, V2, V3			// d791202a
+	VFSGNJXVV	V1, V2, V0, V3			// d7912028
+	VFSGNJXVF	F10, V2, V3			// d751252a
+	VFSGNJXVF	F10, V2, V0, V3			// d7512528
+	VFNEGV		V2, V3				// d7112126
+	VFNEGV		V2, V0, V3			// d7112124
+	VFABSV		V2, V3				// d711212a
+	VFABSV		V2, V0, V3			// d7112128
+
+	// 31.13.13: Vector Floating-Point Compare Instructions
+	VMFEQVV		V1, V2, V3			// d7912062
+	VMFEQVV		V1, V2, V0, V3			// d7912060
+	VMFEQVF		F10, V2, V3			// d7512562
+	VMFEQVF		F10, V2, V0, V3			// d7512560
+	VMFNEVV		V1, V2, V3			// d7912072
+	VMFNEVV		V1, V2, V0, V3			// d7912070
+	VMFNEVF		F10, V2, V3			// d7512572
+	VMFNEVF		F10, V2, V0, V3			// d7512570
+	VMFLTVV		V1, V2, V3			// d791206e
+	VMFLTVV		V1, V2, V0, V3			// d791206c
+	VMFLTVF		F10, V2, V3			// d751256e
+	VMFLTVF		F10, V2, V0, V3			// d751256c
+	VMFLEVV		V1, V2, V3			// d7912066
+	VMFLEVV		V1, V2, V0, V3			// d7912064
+	VMFLEVF		F10, V2, V3			// d7512566
+	VMFLEVF		F10, V2, V0, V3			// d7512564
+	VMFGTVF		F10, V2, V3			// d7512576
+	VMFGTVF		F10, V2, V0, V3			// d7512574
+	VMFGEVF		F10, V2, V3			// d751257e
+	VMFGEVF		F10, V2, V0, V3			// d751257c
+	VMFGTVV		V1, V2, V3			// d711116e
+	VMFGTVV		V1, V2, V0, V3			// d711116c
+	VMFGEVV		V1, V2, V3			// d7111166
+	VMFGEVV		V1, V2, V0, V3			// d7111164
+
+	// 31.13.14: Vector Floating-Point Classify Instruction
+	VFCLASSV	V2, V3				// d711284e
+	VFCLASSV	V2, V0, V3			// d711284c
+
+	// 31.13.15: Vector Floating-Point Merge Instruction
+	VFMERGEVFM	F10, V2, V0, V3			// d751255c
+
+	// 31.13.16: Vector Floating-Point Move Instruction
+	VFMVVF		F10, V3				// d751055e
+
+	// 31.13.17: Single-Width Floating-Point/Integer Type-Convert Instructions
+	VFCVTXUFV	V2, V3				// d711204a
+	VFCVTXUFV	V2, V0, V3			// d7112048
+	VFCVTXFV	V2, V3				// d791204a
+	VFCVTXFV	V2, V0, V3			// d7912048
+	VFCVTRTZXUFV	V2, V3				// d711234a
+	VFCVTRTZXUFV	V2, V0, V3			// d7112348
+	VFCVTRTZXFV	V2, V3				// d791234a
+	VFCVTRTZXFV	V2, V0, V3			// d7912348
+	VFCVTFXUV	V2, V3				// d711214a
+	VFCVTFXUV	V2, V0, V3			// d7112148
+	VFCVTFXV	V2, V3				// d791214a
+	VFCVTFXV	V2, V0, V3			// d7912148
+
+	// 31.13.18: Widening Floating-Point/Integer Type-Convert Instructions
+	VFWCVTXUFV	V2, V3				// d711244a
+	VFWCVTXUFV	V2, V0, V3			// d7112448
+	VFWCVTXFV	V2, V3				// d791244a
+	VFWCVTXFV	V2, V0, V3			// d7912448
+	VFWCVTRTZXUFV	V2, V3				// d711274a
+	VFWCVTRTZXUFV	V2, V0, V3			// d7112748
+	VFWCVTRTZXFV	V2, V3				// d791274a
+	VFWCVTRTZXFV	V2, V0, V3			// d7912748
+	VFWCVTFXUV	V2, V3				// d711254a
+	VFWCVTFXUV	V2, V0, V3			// d7112548
+	VFWCVTFXV	V2, V3				// d791254a
+	VFWCVTFXV	V2, V0, V3			// d7912548
+	VFWCVTFFV	V2, V3				// d711264a
+	VFWCVTFFV	V2, V0, V3			// d7112648
+
+	// 31.13.19: Narrowing Floating-Point/Integer Type-Convert Instructions
+	VFNCVTXUFW	V2, V3				// d711284a
+	VFNCVTXUFW	V2, V0, V3			// d7112848
+	VFNCVTXFW	V2, V3				// d791284a
+	VFNCVTXFW	V2, V0, V3			// d7912848
+	VFNCVTRTZXUFW	V2, V3				// d7112b4a
+	VFNCVTRTZXUFW	V2, V0, V3			// d7112b48
+	VFNCVTRTZXFW	V2, V3				// d7912b4a
+	VFNCVTRTZXFW	V2, V0, V3			// d7912b48
+	VFNCVTFXUW	V2, V3				// d711294a
+	VFNCVTFXUW	V2, V0, V3			// d7112948
+	VFNCVTFXW	V2, V3				// d791294a
+	VFNCVTFXW	V2, V0, V3			// d7912948
+	VFNCVTFFW	V2, V3				// d7112a4a
+	VFNCVTFFW	V2, V0, V3			// d7112a48
+	VFNCVTRODFFW	V2, V3				// d7912a4a
+	VFNCVTRODFFW	V2, V0, V3			// d7912a48
+
+	// 31.14.1: Vector Single-Width Integer Reduction Instructions
+	VREDSUMVS	V1, V2, V3			// d7a12002
+	VREDSUMVS	V1, V2, V0, V3			// d7a12000
+	VREDMAXUVS	V1, V2, V3			// d7a1201a
+	VREDMAXUVS	V1, V2, V0, V3			// d7a12018
+	VREDMAXVS	V1, V2, V3			// d7a1201e
+	VREDMAXVS	V1, V2, V0, V3			// d7a1201c
+	VREDMINUVS	V1, V2, V3			// d7a12012
+	VREDMINUVS	V1, V2, V0, V3			// d7a12010
+	VREDMINVS	V1, V2, V3			// d7a12016
+	VREDMINVS	V1, V2, V0, V3			// d7a12014
+	VREDANDVS	V1, V2, V3			// d7a12006
+	VREDANDVS	V1, V2, V0, V3			// d7a12004
+	VREDORVS	V1, V2, V3			// d7a1200a
+	VREDORVS	V1, V2, V0, V3			// d7a12008
+	VREDXORVS	V1, V2, V3			// d7a1200e
+	VREDXORVS	V1, V2, V0, V3			// d7a1200c
+
+	// 31.14.2: Vector Widening Integer Reduction Instructions
+	VWREDSUMUVS	V1, V2, V3			// d78120c2
+	VWREDSUMUVS	V1, V2, V0, V3			// d78120c0
+	VWREDSUMVS	V1, V2, V3			// d78120c6
+	VWREDSUMVS	V1, V2, V0, V3			// d78120c4
+
+	// 31.14.3: Vector Single-Width Floating-Point Reduction Instructions
+	VFREDOSUMVS	V1, V2, V3			// d791200e
+	VFREDOSUMVS	V1, V2, V0, V3			// d791200c
+	VFREDUSUMVS	V1, V2, V3			// d7912006
+	VFREDUSUMVS	V1, V2, V0, V3			// d7912004
+	VFREDMAXVS	V1, V2, V3			// d791201e
+	VFREDMAXVS	V1, V2, V0, V3			// d791201c
+	VFREDMINVS	V1, V2, V3			// d7912016
+	VFREDMINVS	V1, V2, V0, V3			// d7912014
+
+	// 31.14.4: Vector Widening Floating-Point Reduction Instructions
+	VFWREDOSUMVS	V1, V2, V3			// d79120ce
+	VFWREDOSUMVS	V1, V2, V0, V3			// d79120cc
+	VFWREDUSUMVS	V1, V2, V3			// d79120c6
+	VFWREDUSUMVS	V1, V2, V0, V3			// d79120c4
+
+	// 31.15: Vector Mask Instructions
+	VMANDMM		V1, V2, V3			// d7a12066
+	VMNANDMM	V1, V2, V3			// d7a12076
+	VMANDNMM	V1, V2, V3			// d7a12062
+	VMXORMM		V1, V2, V3			// d7a1206e
+	VMORMM		V1, V2, V3			// d7a1206a
+	VMNORMM		V1, V2, V3			// d7a1207a
+	VMORNMM		V1, V2, V3			// d7a12072
+	VMXNORMM	V1, V2, V3			// d7a1207e
+	VMMVM		V2, V3				// d7212166
+	VMCLRM		V3				// d7a1316e
+	VMSETM		V3				// d7a1317e
+	VMNOTM		V2, V3				// d7212176
+	VCPOPM		V2, X10				// 57252842
+	VCPOPM		V2, V0, X10			// 57252840
+	VFIRSTM		V2, X10				// 57a52842
+	VFIRSTM		V2, V0, X10			// 57a52840
+	VMSBFM		V2, V3				// d7a12052
+	VMSBFM		V2, V0, V3			// d7a12050
+	VMSIFM		V2, V3				// d7a12152
+	VMSIFM		V2, V0, V3			// d7a12150
+	VMSOFM		V2, V3				// d7212152
+	VMSOFM		V2, V0, V3			// d7212150
+	VIOTAM		V2, V3				// d7212852
+	VIOTAM		V2, V0, V3			// d7212850
+	VIDV		V3				// d7a10852
+	VIDV		V0, V3				// d7a10850
+
+	// 31.16.1: Integer Scalar Move Instructions
+	VMVXS		V2, X10				// 57252042
+	VMVSX		X10, V2				// 57610542
+
+	// 31.16.2: Floating-Point Scalar Move Instructions
+	VFMVFS		V2, F10				// 57152042
+	VFMVSF		F10, V2				// 57510542
+
+	// 31.16.3: Vector Slide Instructions
+	VSLIDEUPVX	X10, V2, V3			// d741253a
+	VSLIDEUPVX	X10, V2, V0, V3			// d7412538
+	VSLIDEUPVI	$16, V2, V3			// d731283a
+	VSLIDEUPVI	$16, V2, V0, V3			// d7312838
+	VSLIDEDOWNVX	X10, V2, V3			// d741253e
+	VSLIDEDOWNVX	X10, V2, V0, V3			// d741253c
+	VSLIDEDOWNVI	$16, V2, V3			// d731283e
+	VSLIDEDOWNVI	$16, V2, V0, V3			// d731283c
+	VSLIDE1UPVX	X10, V2, V3			// d761253a
+	VSLIDE1UPVX	X10, V2, V0, V3			// d7612538
+	VFSLIDE1UPVF	F10, V2, V3			// d751253a
+	VFSLIDE1UPVF	F10, V2, V0, V3			// d7512538
+	VSLIDE1DOWNVX	X10, V2, V3			// d761253e
+	VSLIDE1DOWNVX	X10, V2, V0, V3			// d761253c
+	VFSLIDE1DOWNVF	F10, V2, V3			// d751253e
+	VFSLIDE1DOWNVF	F10, V2, V0, V3			// d751253c
+
+	// 31.16.4: Vector Register Gather Instructions
+	VRGATHERVV	V1, V2, V3			// d7812032
+	VRGATHERVV	V1, V2, V0, V3			// d7812030
+	VRGATHEREI16VV	V1, V2, V3			// d781203a
+	VRGATHEREI16VV	V1, V2, V0, V3			// d7812038
+	VRGATHERVX	X10, V2, V3			// d7412532
+	VRGATHERVX	X10, V2, V0, V3			// d7412530
+	VRGATHERVI	$16, V2, V3			// d7312832
+	VRGATHERVI	$16, V2, V0, V3			// d7312830
+
+	// 31.16.5: Vector Compress Instruction
+	VCOMPRESSVM	V1, V2, V3			// d7a1205e
+
+	// 31.16.6: Whole Vector Register Move
+	VMV1RV		V2, V1				// d730209e
+	VMV2RV		V12, V10			// 57b5c09e
+	VMV4RV		V8, V4				// 57b2819e
+	VMV8RV		V8, V0				// 57b0839e
+
+	//
+	// Privileged ISA
+	//
+
+	// 3.3.1: Environment Call and Breakpoint
 	ECALL						// 73000000
 	SCALL						// 73000000
 	EBREAK						// 73001000
@@ -307,20 +1299,36 @@ start:
 	WORD	$0x9abcdef0	// WORD $2596069104	// f0debc9a
 
 	// MOV pseudo-instructions
-	MOV	X5, X6					// 13830200
-	MOV	$2047, X5				// 9302f07f
-	MOV	$-2048, X5				// 93020080
-	MOV	$2048, X5				// b71200009b820280
-	MOV	$-2049, X5				// b7f2ffff9b82f27f
-	MOV	$4096, X5				// b7120000
-	MOV	$2147479552, X5				// b7f2ff7f
-	MOV	$2147483647, X5				// b70200809b82f2ff
-	MOV	$-2147483647, X5			// b70200809b821200
+	MOV	X5, X6								// 13830200
+	MOV	$2047, X5							// 9302f07f
+	MOV	$-2048, X5							// 93020080
+	MOV	$2048, X5							// b71200009b820280
+	MOV	$-2049, X5							// b7f2ffff9b82f27f
+	MOV	$4096, X5							// b7120000
+	MOV	$0x7ffff000, X5		// MOV	$2147479552, X5			// b7f2ff7f
+	MOV	$-0x7ffff000, X5	// MOV	$-2147479552, X5		// b7120080
+	MOV	$0x7fffffff, X5		// MOV	$2147483647, X5			// b70200809b82f2ff
+	MOV	$-0x7fffffff, X5	// MOV	$-2147483647, X5		// b70200809b821200
+
+	// Converted to load and shift(s)
+	MOV	$0xffffffff, X5		// MOV	$4294967295, X5			// 9302f0ff93d20202
+	MOV	$0x100000000, X5	// MOV	$4294967296, X5			// 9302100093920202
+	MOV	$0xfffffffffffda, X5	// MOV	$4503599627370458, X5		// 9302d0fe9392d20093d2c200
+	MOV	$0xffffffffffffe, X5	// MOV	$4503599627370494, X5		// 9302f0ff9392d20093d2c200
+	MOV	$0x7fffffff00000000, X5	// MOV	$9223372032559808512, X5	// b70200809b82f2ff93920202
+	MOV	$0x8000000100000000, X5	// MOV	$-9223372032559808512, X5	// b70200809b82120093920202
+	MOV	$0xffffffff00000000, X5	// MOV	$-4294967296, X5		// 9302f0ff93920202
+	MOV	$0x1ffffffff0000000, X5	// MOV	$2305843008945258496, X5	// 9302f0ff9392f20193d23200
+	MOV	$0x7fffffffffffffff, X5 // MOV	$9223372036854775807, X5	// 9302f0ff93d21200
 
 	// Converted to load of symbol (AUIPC + LD)
-	MOV	$4294967295, X5				// 9702000083b20200
-	// Converted to MOV $1, X5 + SLLI $32, X5
-	MOV	$4294967296, X5				// 9302100093920202
+	MOV	$0x80000001, X5		// MOV	$2147483649, X5			// 9702000083b20200
+	MOV	$0x100000001, X5	// MOV	$4294967297, X5			// 9702000083b20200
+	MOV	$0x0800000010000000, X5	// MOV	$576460752571858944, X5		// 9702000083b20200
+	MOV	$0x8000000010000000, X5	// MOV	$-9223372036586340352, X5	// 9702000083b20200
+	MOV	$0x0abcdabcd0000000, X5	// MOV	$773733740479250432, X5		// 9702000083b20200
+	MOV	$0x8abcdabcd0000000, X5	// MOV	$-8449638296375525376, X5	// 9702000083b20200
+	MOV	$0xfff0000000ffffff, X5 // MOV	$-4503599610593281, X5		// 9702000083b20200
 
 	MOV	(X5), X6				// 03b30200
 	MOV	4(X5), X6				// 03b34200
@@ -339,12 +1347,12 @@ start:
 	MOVW	X5, (X6)				// 23205300
 	MOVW	X5, 4(X6)				// 23225300
 
-	MOVB	X5, X6					// 1393820313538343
-	MOVH	X5, X6					// 1393020313530343
+	MOVB	X5, X6					// 1393820313538343 or 13934260
+	MOVH	X5, X6					// 1393020313530343 or 13935260
 	MOVW	X5, X6					// 1b830200
 	MOVBU	X5, X6					// 13f3f20f
-	MOVHU	X5, X6					// 1393020313530303
-	MOVWU	X5, X6					// 1393020213530302
+	MOVHU	X5, X6					// 1393020313530303 or 3bc30208
+	MOVWU	X5, X6					// 1393020213530302 or 3b830208
 
 	MOVF	4(X5), F0				// 07a04200
 	MOVF	F0, 4(X5)				// 27a20200
@@ -353,6 +1361,9 @@ start:
 	MOVD	4(X5), F0				// 07b04200
 	MOVD	F0, 4(X5)				// 27b20200
 	MOVD	F0, F1					// d3000022
+
+	// Convert to load of symbol (AUIPC + FLD)
+	MOVD	$(709.78271289338397), F3		// 970f000087b10f00
 
 	// TLS load with local-exec (LUI + ADDIW + ADD of TP + load)
 	MOV	tls(SB), X5				// b70f00009b8f0f00b38f4f0083b20f00
@@ -381,7 +1392,7 @@ start:
 	JMP	4(X5)					// 67804200
 
 	// CALL and JMP to symbol are encoded as JAL (using LR or ZERO
-	// respectively), with a R_RISCV_CALL relocation. The linker resolves
+	// respectively), with a R_RISCV_JAL relocation. The linker resolves
 	// the real address and updates the immediate, using a trampoline in
 	// the case where the address is not directly reachable.
 	CALL	asmtest(SB)				// ef000000

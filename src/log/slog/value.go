@@ -40,7 +40,7 @@ type (
 	groupptr  *Attr // used in Value.any when the Value is a []Attr
 )
 
-// Kind is the kind of a Value.
+// Kind is the kind of a [Value].
 type Kind int
 
 // The following list is sorted alphabetically, but it's also important that
@@ -90,7 +90,7 @@ func (v Value) Kind() Kind {
 		return x
 	case stringptr:
 		return KindString
-	case timeLocation:
+	case timeLocation, timeTime:
 		return KindTime
 	case groupptr:
 		return KindGroup
@@ -105,32 +105,32 @@ func (v Value) Kind() Kind {
 
 //////////////// Constructors
 
-// StringValue returns a new Value for a string.
+// StringValue returns a new [Value] for a string.
 func StringValue(value string) Value {
 	return Value{num: uint64(len(value)), any: stringptr(unsafe.StringData(value))}
 }
 
-// IntValue returns a Value for an int.
+// IntValue returns a [Value] for an int.
 func IntValue(v int) Value {
 	return Int64Value(int64(v))
 }
 
-// Int64Value returns a Value for an int64.
+// Int64Value returns a [Value] for an int64.
 func Int64Value(v int64) Value {
 	return Value{num: uint64(v), any: KindInt64}
 }
 
-// Uint64Value returns a Value for a uint64.
+// Uint64Value returns a [Value] for a uint64.
 func Uint64Value(v uint64) Value {
 	return Value{num: v, any: KindUint64}
 }
 
-// Float64Value returns a Value for a floating-point number.
+// Float64Value returns a [Value] for a floating-point number.
 func Float64Value(v float64) Value {
 	return Value{num: math.Float64bits(v), any: KindFloat64}
 }
 
-// BoolValue returns a Value for a bool.
+// BoolValue returns a [Value] for a bool.
 func BoolValue(v bool) Value {
 	u := uint64(0)
 	if v {
@@ -139,11 +139,16 @@ func BoolValue(v bool) Value {
 	return Value{num: u, any: KindBool}
 }
 
-// Unexported version of *time.Location, just so we can store *time.Locations in
-// Values. (No user-provided value has this type.)
-type timeLocation *time.Location
+type (
+	// Unexported version of *time.Location, just so we can store *time.Locations in
+	// Values. (No user-provided value has this type.)
+	timeLocation *time.Location
 
-// TimeValue returns a Value for a time.Time.
+	// timeTime is for times where UnixNano is undefined.
+	timeTime time.Time
+)
+
+// TimeValue returns a [Value] for a [time.Time].
 // It discards the monotonic portion.
 func TimeValue(v time.Time) Value {
 	if v.IsZero() {
@@ -153,15 +158,23 @@ func TimeValue(v time.Time) Value {
 		// mistaken for any other Value, time.Time or otherwise.
 		return Value{any: timeLocation(nil)}
 	}
-	return Value{num: uint64(v.UnixNano()), any: timeLocation(v.Location())}
+	nsec := v.UnixNano()
+	t := time.Unix(0, nsec)
+	if v.Equal(t) {
+		// UnixNano correctly represents the time, so use a zero-alloc representation.
+		return Value{num: uint64(nsec), any: timeLocation(v.Location())}
+	}
+	// Fall back to the general form.
+	// Strip the monotonic portion to match the other representation.
+	return Value{any: timeTime(v.Round(0))}
 }
 
-// DurationValue returns a Value for a time.Duration.
+// DurationValue returns a [Value] for a [time.Duration].
 func DurationValue(v time.Duration) Value {
 	return Value{num: uint64(v.Nanoseconds()), any: KindDuration}
 }
 
-// GroupValue returns a new Value for a list of Attrs.
+// GroupValue returns a new [Value] for a list of Attrs.
 // The caller must not subsequently mutate the argument slice.
 func GroupValue(as ...Attr) Value {
 	// Remove empty groups.
@@ -190,21 +203,21 @@ func countEmptyGroups(as []Attr) int {
 	return n
 }
 
-// AnyValue returns a Value for the supplied value.
+// AnyValue returns a [Value] for the supplied value.
 //
 // If the supplied value is of type Value, it is returned
 // unmodified.
 //
 // Given a value of one of Go's predeclared string, bool, or
 // (non-complex) numeric types, AnyValue returns a Value of kind
-// String, Bool, Uint64, Int64, or Float64. The width of the
-// original numeric type is not preserved.
+// [KindString], [KindBool], [KindUint64], [KindInt64], or [KindFloat64].
+// The width of the original numeric type is not preserved.
 //
-// Given a time.Time or time.Duration value, AnyValue returns a Value of kind
-// KindTime or KindDuration. The monotonic time is not preserved.
+// Given a [time.Time] or [time.Duration] value, AnyValue returns a Value of kind
+// [KindTime] or [KindDuration]. The monotonic time is not preserved.
 //
 // For nil, or values of all other types, including named types whose
-// underlying type is numeric, AnyValue returns a value of kind KindAny.
+// underlying type is numeric, AnyValue returns a value of kind [KindAny].
 func AnyValue(v any) Value {
 	switch v := v.(type) {
 	case string:
@@ -285,7 +298,7 @@ func (v Value) Any() any {
 	}
 }
 
-// String returns Value's value as a string, formatted like fmt.Sprint. Unlike
+// String returns Value's value as a string, formatted like [fmt.Sprint]. Unlike
 // the methods Int64, Float64, and so on, which panic if v is of the
 // wrong kind, String never panics.
 func (v Value) String() string {
@@ -331,7 +344,7 @@ func (v Value) bool() bool {
 	return v.num == 1
 }
 
-// Duration returns v's value as a time.Duration. It panics
+// Duration returns v's value as a [time.Duration]. It panics
 // if v is not a time.Duration.
 func (v Value) Duration() time.Duration {
 	if g, w := v.Kind(), KindDuration; g != w {
@@ -359,7 +372,7 @@ func (v Value) float() float64 {
 	return math.Float64frombits(v.num)
 }
 
-// Time returns v's value as a time.Time. It panics
+// Time returns v's value as a [time.Time]. It panics
 // if v is not a time.Time.
 func (v Value) Time() time.Time {
 	if g, w := v.Kind(), KindTime; g != w {
@@ -368,12 +381,19 @@ func (v Value) Time() time.Time {
 	return v.time()
 }
 
+// See TimeValue to understand how times are represented.
 func (v Value) time() time.Time {
-	loc := v.any.(timeLocation)
-	if loc == nil {
-		return time.Time{}
+	switch a := v.any.(type) {
+	case timeLocation:
+		if a == nil {
+			return time.Time{}
+		}
+		return time.Unix(0, int64(v.num)).In(a)
+	case timeTime:
+		return time.Time(a)
+	default:
+		panic(fmt.Sprintf("bad time type %T", v.any))
 	}
-	return time.Unix(0, int64(v.num)).In(loc)
 }
 
 // LogValuer returns v's value as a LogValuer. It panics
@@ -383,7 +403,7 @@ func (v Value) LogValuer() LogValuer {
 }
 
 // Group returns v's value as a []Attr.
-// It panics if v's Kind is not KindGroup.
+// It panics if v's [Kind] is not [KindGroup].
 func (v Value) Group() []Attr {
 	if sp, ok := v.any.(groupptr); ok {
 		return unsafe.Slice((*Attr)(sp), v.num)
@@ -470,13 +490,13 @@ type LogValuer interface {
 
 const maxLogValues = 100
 
-// Resolve repeatedly calls LogValue on v while it implements LogValuer,
+// Resolve repeatedly calls LogValue on v while it implements [LogValuer],
 // and returns the result.
 // If v resolves to a group, the group's attributes' values are not recursively
 // resolved.
 // If the number of LogValue calls exceeds a threshold, a Value containing an
 // error is returned.
-// Resolve's return value is guaranteed not to be of Kind KindLogValuer.
+// Resolve's return value is guaranteed not to be of Kind [KindLogValuer].
 func (v Value) Resolve() (rv Value) {
 	orig := v
 	defer func() {

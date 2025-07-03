@@ -345,7 +345,7 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error 
 }
 
 // build completes and returns the constructed profile.
-func (b *profileBuilder) build() {
+func (b *profileBuilder) build() error {
 	b.end = time.Now()
 
 	b.pb.int64Opt(tagProfile_TimeNanos, b.start.UnixNano())
@@ -367,8 +367,8 @@ func (b *profileBuilder) build() {
 		var labels func()
 		if e.tag != nil {
 			labels = func() {
-				for k, v := range *(*labelMap)(e.tag) {
-					b.pbLabel(tagSample_Label, k, v, 0)
+				for _, lbl := range (*labelMap)(e.tag).list {
+					b.pbLabel(tagSample_Label, lbl.key, lbl.value, 0)
 				}
 			}
 		}
@@ -387,8 +387,11 @@ func (b *profileBuilder) build() {
 	// TODO: Anything for tagProfile_KeepFrames?
 
 	b.pb.strings(tagProfile_StringTable, b.strings)
-	b.zw.Write(b.pb.data)
-	b.zw.Close()
+	_, err := b.zw.Write(b.pb.data)
+	if err != nil {
+		return err
+	}
+	return b.zw.Close()
 }
 
 // appendLocsForStack appends the location IDs for the given stack trace to the given
@@ -404,6 +407,7 @@ func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLo
 	b.deck.reset()
 
 	// The last frame might be truncated. Recover lost inline frames.
+	origStk := stk
 	stk = runtime_expandFinalInlineFrame(stk)
 
 	for len(stk) > 0 {
@@ -440,6 +444,9 @@ func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLo
 			// Even if stk was truncated due to the stack depth
 			// limit, expandFinalInlineFrame above has already
 			// fixed the truncation, ensuring it is long enough.
+			if len(l.pcs) > len(stk) {
+				panic(fmt.Sprintf("stack too short to match cached location; stk = %#x, l.pcs = %#x, original stk = %#x", stk, l.pcs, origStk))
+			}
 			stk = stk[len(l.pcs):]
 			continue
 		}
@@ -561,7 +568,7 @@ func (d *pcDeck) tryAdd(pc uintptr, frames []runtime.Frame, symbolizeResult symb
 		if last.Entry != newFrame.Entry { // newFrame is for a different function.
 			return false
 		}
-		if last.Function == newFrame.Function { // maybe recursion.
+		if runtime_FrameSymbolName(&last) == runtime_FrameSymbolName(&newFrame) { // maybe recursion.
 			return false
 		}
 	}
@@ -611,13 +618,14 @@ func (b *profileBuilder) emitLocation() uint64 {
 	b.pb.uint64Opt(tagLocation_Address, uint64(firstFrame.PC))
 	for _, frame := range b.deck.frames {
 		// Write out each line in frame expansion.
-		funcID := uint64(b.funcs[frame.Function])
+		funcName := runtime_FrameSymbolName(&frame)
+		funcID := uint64(b.funcs[funcName])
 		if funcID == 0 {
 			funcID = uint64(len(b.funcs)) + 1
-			b.funcs[frame.Function] = int(funcID)
+			b.funcs[funcName] = int(funcID)
 			newFuncs = append(newFuncs, newFunc{
 				id:        funcID,
-				name:      runtime_FrameSymbolName(&frame),
+				name:      funcName,
 				file:      frame.File,
 				startLine: int64(runtime_FrameStartLine(&frame)),
 			})

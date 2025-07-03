@@ -58,6 +58,28 @@ TEXT	runtime·asanregisterglobals(SB),NOSPLIT|NOFRAME,$0-16
 	MOVD	$__asan_register_globals_go(SB), FARG
 	BR	asancall<>(SB)
 
+// func runtime·lsanregisterrootregion(addr unsafe.Pointer, n uintptr)
+TEXT	runtime·lsanregisterrootregion(SB),NOSPLIT|NOFRAME,$0-16
+	MOVD	addr+0(FP), RARG0
+	MOVD	n+8(FP), RARG1
+	// void __lsan_register_root_region_go(void *addr, uintptr_t n);
+	MOVD	$__lsan_register_root_region_go(SB), FARG
+	BR	asancall<>(SB)
+
+// func runtime·lsanunregisterrootregion(addr unsafe.Pointer, n uintptr)
+TEXT	runtime·lsanunregisterrootregion(SB),NOSPLIT|NOFRAME,$0-16
+	MOVD	addr+0(FP), RARG0
+	MOVD	n+8(FP), RARG1
+	// void __lsan_unregister_root_region_go(void *addr, uintptr_t n);
+	MOVD	$__lsan_unregister_root_region_go(SB), FARG
+	BR	asancall<>(SB)
+
+// func runtime·lsandoleakcheck()
+TEXT	runtime·lsandoleakcheck(SB), NOSPLIT|NOFRAME, $0-0
+	// void __lsan_do_leak_check_go(void);
+	MOVD	$__lsan_do_leak_check_go(SB), FARG
+	BR	asancall<>(SB)
+
 // Switches SP to g0 stack and calls (FARG). Arguments already set.
 TEXT	asancall<>(SB), NOSPLIT, $0-0
 	// LR saved in generated prologue
@@ -66,10 +88,18 @@ TEXT	asancall<>(SB), NOSPLIT, $0-0
 	MOVD	0(R10), g
 	MOVD	g_m(g), R7		// m for g
 	MOVD	R1, R16			// callee-saved, preserved across C call
-	MOVD	m_g0(R7), R10		// g0 for m
-	CMP	R10, g			// same g0?
-	BEQ	call			// already on g0
+
+	// Switch to g0 stack if we aren't already on g0 or gsignal.
+	MOVD	m_gsignal(R7), R10
+	CMP	R10, g
+	BEQ	call
+
+	MOVD	m_g0(R7), R10
+	CMP	R10, g
+	BEQ	call
+
 	MOVD	(g_sched+gobuf_sp)(R10), R1 // switch R1
+
 call:
 	// prepare frame for C ABI
 	SUB	$32, R1			// create frame for callee saving LR, CR, R2 etc.

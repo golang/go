@@ -10,6 +10,7 @@ import (
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
+	"strings"
 )
 
 // call evaluates a call expressions, including builtin calls. ks
@@ -39,11 +40,12 @@ func (e *escape) call(ks []hole, call ir.Node) {
 		var fn *ir.Name
 		switch call.Op() {
 		case ir.OCALLFUNC:
-			v := ir.StaticValue(call.X)
+			// TODO(thepudds): use an ir.ReassignOracle here.
+			v := ir.StaticValue(call.Fun)
 			fn = ir.StaticCalleeName(v)
 		}
 
-		fntype := call.X.Type()
+		fntype := call.Fun.Type()
 		if fn != nil {
 			fntype = fn.Type()
 		}
@@ -70,9 +72,9 @@ func (e *escape) call(ks []hole, call ir.Node) {
 					}
 				}
 			}
-			e.expr(calleeK, call.X)
+			e.expr(calleeK, call.Fun)
 		} else {
-			recvArg = call.X.(*ir.SelectorExpr).X
+			recvArg = call.Fun.(*ir.SelectorExpr).X
 		}
 
 		// argumentParam handles escape analysis of assigning a call
@@ -80,6 +82,33 @@ func (e *escape) call(ks []hole, call ir.Node) {
 		argumentParam := func(param *types.Field, arg ir.Node) {
 			e.rewriteArgument(arg, call, fn)
 			argument(e.tagHole(ks, fn, param), arg)
+		}
+
+		// internal/abi.EscapeNonString forces its argument to be on
+		// the heap, if it contains a non-string pointer.
+		// This is used in hash/maphash.Comparable, where we cannot
+		// hash pointers to local variables, as the address of the
+		// local variable might change on stack growth.
+		// Strings are okay as the hash depends on only the content,
+		// not the pointer.
+		// This is also used in unique.clone, to model the data flow
+		// edge on the value with strings excluded, because strings
+		// are cloned (by content).
+		// The actual call we match is
+		//   internal/abi.EscapeNonString[go.shape.T](dict, go.shape.T)
+		if fn != nil && fn.Sym().Pkg.Path == "internal/abi" && strings.HasPrefix(fn.Sym().Name, "EscapeNonString[") {
+			ps := fntype.Params()
+			if len(ps) == 2 && ps[1].Type.IsShape() {
+				if !hasNonStringPointers(ps[1].Type) {
+					argumentParam = func(param *types.Field, arg ir.Node) {
+						argument(e.discardHole(), arg)
+					}
+				} else {
+					argumentParam = func(param *types.Field, arg ir.Node) {
+						argument(e.heapHole(), arg)
+					}
+				}
+			}
 		}
 
 		args := call.Args
@@ -135,6 +164,14 @@ func (e *escape) call(ks []hole, call ir.Node) {
 		}
 		e.discard(call.RType)
 
+		// Model the new backing store that might be allocated by append.
+		// Its address flows to the result.
+		// Users of escape analysis can look at the escape information for OAPPEND
+		// and use that to decide where to allocate the backing store.
+		backingStore := e.spill(ks[0], call)
+		// As we have a boolean to prevent reuse, we can treat these allocations as outside any loops.
+		backingStore.dst.loopDepth = 0
+
 	case ir.OCOPY:
 		call := call.(*ir.BinaryExpr)
 		argument(e.mutatorHole(), call.X)
@@ -155,10 +192,17 @@ func (e *escape) call(ks []hole, call ir.Node) {
 		e.discard(call.X)
 		e.discard(call.Y)
 
-	case ir.ODELETE, ir.OMAX, ir.OMIN, ir.OPRINT, ir.OPRINTN, ir.ORECOVERFP:
+	case ir.ODELETE, ir.OPRINT, ir.OPRINTLN, ir.ORECOVERFP:
 		call := call.(*ir.CallExpr)
-		for i := range call.Args {
-			e.discard(call.Args[i])
+		for _, arg := range call.Args {
+			e.discard(arg)
+		}
+		e.discard(call.RType)
+
+	case ir.OMIN, ir.OMAX:
+		call := call.(*ir.CallExpr)
+		for _, arg := range call.Args {
+			argument(ks[0], arg)
 		}
 		e.discard(call.RType)
 
@@ -185,7 +229,7 @@ func (e *escape) call(ks []hole, call ir.Node) {
 // goDeferStmt analyzes a "go" or "defer" statement.
 func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
 	k := e.heapHole()
-	if n.Op() == ir.ODEFER && e.loopDepth == 1 {
+	if n.Op() == ir.ODEFER && e.loopDepth == 1 && n.DeferAt == nil {
 		// Top-level defer arguments don't escape to the heap,
 		// but they do need to last until they're invoked.
 		k = e.later(e.discardHole())
@@ -206,15 +250,15 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
 	if !ok || call.Op() != ir.OCALLFUNC {
 		base.FatalfAt(n.Pos(), "expected function call: %v", n.Call)
 	}
-	if sig := call.X.Type(); sig.NumParams()+sig.NumResults() != 0 {
+	if sig := call.Fun.Type(); sig.NumParams()+sig.NumResults() != 0 {
 		base.FatalfAt(n.Pos(), "expected signature without parameters or results: %v", sig)
 	}
 
-	if clo, ok := call.X.(*ir.ClosureExpr); ok && n.Op() == ir.OGO {
+	if clo, ok := call.Fun.(*ir.ClosureExpr); ok && n.Op() == ir.OGO {
 		clo.IsGoWrap = true
 	}
 
-	e.expr(k, call.X)
+	e.expr(k, call.Fun)
 }
 
 // rewriteArgument rewrites the argument arg of the given call expression.
@@ -351,4 +395,24 @@ func (e *escape) tagHole(ks []hole, fn *ir.Name, param *types.Field) hole {
 	}
 
 	return e.teeHole(tagKs...)
+}
+
+func hasNonStringPointers(t *types.Type) bool {
+	if !t.HasPointers() {
+		return false
+	}
+	switch t.Kind() {
+	case types.TSTRING:
+		return false
+	case types.TSTRUCT:
+		for _, f := range t.Fields() {
+			if hasNonStringPointers(f.Type) {
+				return true
+			}
+		}
+		return false
+	case types.TARRAY:
+		return hasNonStringPointers(t.Elem())
+	}
+	return true
 }

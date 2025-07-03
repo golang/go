@@ -7,6 +7,7 @@ package types2
 import (
 	"cmd/compile/internal/syntax"
 	. "internal/types/errors"
+	"slices"
 )
 
 // labels checks correct label use in body.
@@ -26,8 +27,8 @@ func (check *Checker) labels(body *syntax.BlockStmt) {
 		name := jmp.Label.Value
 		if alt := all.Lookup(name); alt != nil {
 			msg = "goto %s jumps into block"
-			alt.(*Label).used = true // avoid another error
 			code = JumpIntoBlock
+			alt.(*Label).used = true // avoid another error
 		} else {
 			msg = "label %s not declared"
 			code = UndeclaredLabel
@@ -108,18 +109,11 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
 	}
 
 	jumpsOverVarDecl := func(jmp *syntax.BranchStmt) bool {
-		if varDeclPos.IsKnown() {
-			for _, bad := range badJumps {
-				if jmp == bad {
-					return true
-				}
-			}
-		}
-		return false
+		return varDeclPos.IsKnown() && slices.Contains(badJumps, jmp)
 	}
 
-	var stmtBranches func(syntax.Stmt)
-	stmtBranches = func(s syntax.Stmt) {
+	var stmtBranches func(*syntax.LabeledStmt, syntax.Stmt)
+	stmtBranches = func(lstmt *syntax.LabeledStmt, s syntax.Stmt) {
 		switch s := s.(type) {
 		case *syntax.DeclStmt:
 			for _, d := range s.DeclList {
@@ -133,12 +127,11 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
 			if name := s.Label.Value; name != "_" {
 				lbl := NewLabel(s.Label.Pos(), check.pkg, name)
 				if alt := all.Insert(lbl); alt != nil {
-					var err error_
-					err.code = DuplicateLabel
+					err := check.newError(DuplicateLabel)
 					err.soft = true
-					err.errorf(lbl.pos, "label %s already declared", name)
-					err.recordAltDecl(alt)
-					check.report(&err)
+					err.addf(lbl.pos, "label %s already declared", name)
+					err.addAltDecl(alt)
+					err.report()
 					// ok to continue
 				} else {
 					b.insert(s)
@@ -170,7 +163,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
 				fwdJumps = fwdJumps[:i]
 				lstmt = s
 			}
-			stmtBranches(s.Stmt)
+			stmtBranches(lstmt, s.Stmt)
 
 		case *syntax.BranchStmt:
 			if s.Label == nil {
@@ -239,9 +232,9 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
 			fwdJumps = append(fwdJumps, check.blockBranches(all, b, lstmt, s.List)...)
 
 		case *syntax.IfStmt:
-			stmtBranches(s.Then)
+			stmtBranches(lstmt, s.Then)
 			if s.Else != nil {
-				stmtBranches(s.Else)
+				stmtBranches(lstmt, s.Else)
 			}
 
 		case *syntax.SwitchStmt:
@@ -257,12 +250,12 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
 			}
 
 		case *syntax.ForStmt:
-			stmtBranches(s.Body)
+			stmtBranches(lstmt, s.Body)
 		}
 	}
 
 	for _, s := range list {
-		stmtBranches(s)
+		stmtBranches(nil, s)
 	}
 
 	return fwdJumps

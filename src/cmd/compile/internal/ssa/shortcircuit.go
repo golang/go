@@ -135,6 +135,8 @@ func shortcircuitBlock(b *Block) bool {
 		// to reason about the values of phis.
 		return false
 	}
+	// We only process blocks with only phi values except for control
+	// value and its wrappers.
 	if len(b.Values) != nval+nOtherPhi {
 		return false
 	}
@@ -293,78 +295,85 @@ func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, 
 	// In these cases, we can reconstruct what the value
 	// of any phi in b must be in the successor blocks.
 
-	if len(t.Preds) == 1 && len(t.Succs) == 1 &&
-		len(u.Preds) == 1 && len(u.Succs) == 1 &&
-		t.Succs[0].b == u.Succs[0].b && len(t.Succs[0].b.Preds) == 2 {
-		// p   q
-		//  \ /
-		//   b
-		//  / \
-		// t   u
-		//  \ /
-		//   m
-		//
-		// After the CFG modifications, this will look like
-		//
-		// p   q
-		// |  /
-		// | b
-		// |/ \
-		// t   u
-		//  \ /
-		//   m
-		//
-		// NB: t.Preds is (b, p), not (p, b).
+	if len(t.Preds) == 1 && len(t.Succs) == 1 && len(u.Preds) == 1 &&
+		len(t.Succs[0].b.Preds) == 2 {
 		m := t.Succs[0].b
-		return func(v *Value, i int) {
-			// Replace any uses of v in t and u with the value v must have,
-			// given that we have arrived at that block.
-			// Then move v to m and adjust its value accordingly;
-			// this handles all other uses of v.
-			argP, argQ := v.Args[cidx], v.Args[1^cidx]
-			u.replaceUses(v, argQ)
-			phi := t.Func.newValue(OpPhi, v.Type, t, v.Pos)
-			phi.AddArg2(argQ, argP)
-			t.replaceUses(v, phi)
-			if v.Uses == 0 {
-				return
-			}
-			v.moveTo(m, i)
-			// The phi in m belongs to whichever pred idx corresponds to t.
-			if m.Preds[0].b == t {
-				v.SetArgs2(phi, argQ)
-			} else {
-				v.SetArgs2(argQ, phi)
+		if visited := u.flowsTo(m, 5); visited != nil {
+			// p   q
+			//  \ /
+			//   b
+			//  / \
+			// t   U (sub graph that satisfy condition in flowsTo)
+			//  \ /
+			//   m
+			//
+			// After the CFG modifications, this will look like
+			//
+			// p   q
+			// |  /
+			// | b
+			// |/ \
+			// t   U
+			//  \ /
+			//   m
+			//
+			// NB: t.Preds is (b, p), not (p, b).
+			return func(v *Value, i int) {
+				// Replace any uses of v in t and u with the value v must have,
+				// given that we have arrived at that block.
+				// Then move v to m and adjust its value accordingly;
+				// this handles all other uses of v.
+				argP, argQ := v.Args[cidx], v.Args[1^cidx]
+				phi := t.Func.newValue(OpPhi, v.Type, t, v.Pos)
+				phi.AddArg2(argQ, argP)
+				t.replaceUses(v, phi)
+				for bb := range visited {
+					bb.replaceUses(v, argQ)
+				}
+				if v.Uses == 0 {
+					return
+				}
+				v.moveTo(m, i)
+				// The phi in m belongs to whichever pred idx corresponds to t.
+				if m.Preds[0].b == t {
+					v.SetArgs2(phi, argQ)
+				} else {
+					v.SetArgs2(argQ, phi)
+				}
 			}
 		}
 	}
 
-	if len(t.Preds) == 2 && len(u.Preds) == 1 && len(u.Succs) == 1 && u.Succs[0].b == t {
-		// p   q
-		//  \ /
-		//   b
-		//   |\
-		//   | u
-		//   |/
-		//   t
-		//
-		// After the CFG modifications, this will look like
-		//
-		//     q
-		//    /
-		//   b
-		//   |\
-		// p | u
-		//  \|/
-		//   t
-		//
-		// NB: t.Preds is (b or u, b or u, p).
-		return func(v *Value, i int) {
-			// Replace any uses of v in u. Then move v to t.
-			argP, argQ := v.Args[cidx], v.Args[1^cidx]
-			u.replaceUses(v, argQ)
-			v.moveTo(t, i)
-			v.SetArgs3(argQ, argQ, argP)
+	if len(t.Preds) == 2 && len(u.Preds) == 1 {
+		if visited := u.flowsTo(t, 5); visited != nil {
+			// p   q
+			//  \ /
+			//   b
+			//   |\
+			//   | U ((sub graph that satisfy condition in flowsTo))
+			//   |/
+			//   t
+			//
+			// After the CFG modifications, this will look like
+			//
+			//     q
+			//    /
+			//   b
+			//   |\
+			// p | U
+			//  \|/
+			//   t
+			//
+			// NB: t.Preds is (b or U, b or U, p).
+			return func(v *Value, i int) {
+				// Replace any uses of v in U. Then move v to t.
+				argP, argQ := v.Args[cidx], v.Args[1^cidx]
+				for bb := range visited {
+					bb.replaceUses(v, argQ)
+				}
+				v.moveTo(t, i)
+				v.SetArgs3(argQ, argQ, argP)
+			}
 		}
 	}
 
@@ -510,4 +519,78 @@ func (v *Value) moveTo(dst *Block, i int) {
 	src.Values[i] = src.Values[last]
 	src.Values[last] = nil
 	src.Values = src.Values[:last]
+}
+
+// flowsTo checks that the subgraph starting from v and ends at t is a DAG, with
+// the following constraints:
+//
+//	(1) v can reach t.
+//	(2) v's connected component removing the paths containing t is a DAG.
+//	(3) The blocks in the subgraph G defined in (2) has all their preds also in G,
+//	    except v.
+//	(4) The subgraph defined in (2) has a size smaller than cap.
+//
+//	We know that the subgraph G defined in constraint (2)(3) has the property that v
+//	dominates all the blocks in G:
+//		If there exist a block x in G that is not dominated by v, then there exist a
+//		path P from entry to x that does not contain v. Denote x's predecessor in P
+//		as x', then x' must also be in G given constraint (3), same to its pred x''
+//		in P. Given constraint (2), by going back in P we will in the end reach v,
+//		which conflicts with the definition of P.
+//
+// Constraint (2)'s DAG requirement could be further relaxed to contain "internal"
+// loops that doesn't change the dominance relation of v. But that is more subtle
+// and requires another constraint on the source block v, and a more complex proof.
+// Furthermore optimizing the branch guarding a loop might bring less gains as the
+// loop itself might be the bottleneck.
+func (v *Block) flowsTo(t *Block, cap int) map[*Block]struct{} {
+	seen := map[*Block]struct{}{}
+	var boundedDFS func(b *Block)
+	hasPathToT := false
+	fullyExplored := true
+	isDAG := true
+	visited := map[*Block]struct{}{}
+	boundedDFS = func(b *Block) {
+		if _, ok := seen[b]; ok {
+			return
+		}
+		if _, ok := visited[b]; ok {
+			isDAG = false
+			return
+		}
+		if b == t {
+			// do not put t into seen, this way
+			// if v can reach t's connected component without going through t,
+			// it will fail the pred check after boundedDFSUntil.
+			hasPathToT = true
+			return
+		}
+		if len(seen) > cap {
+			fullyExplored = false
+			return
+		}
+		seen[b] = struct{}{}
+		visited[b] = struct{}{}
+		for _, se := range b.Succs {
+			boundedDFS(se.b)
+			if !(isDAG && fullyExplored) {
+				return
+			}
+		}
+		delete(visited, b)
+	}
+	boundedDFS(v)
+	if hasPathToT && fullyExplored && isDAG {
+		for b := range seen {
+			if b != v {
+				for _, se := range b.Preds {
+					if _, ok := seen[se.b]; !ok {
+						return nil
+					}
+				}
+			}
+		}
+		return seen
+	}
+	return nil
 }

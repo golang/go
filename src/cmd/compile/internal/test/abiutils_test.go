@@ -22,7 +22,7 @@ import (
 // AMD64 registers available:
 // - integer: RAX, RBX, RCX, RDI, RSI, R8, R9, r10, R11
 // - floating point: X0 - X14
-var configAMD64 = abi.NewABIConfig(9, 15, 0)
+var configAMD64 = abi.NewABIConfig(9, 15, 0, 1)
 
 func TestMain(m *testing.M) {
 	ssagen.Arch.LinkArch = &x86.Linkamd64
@@ -390,9 +390,9 @@ func TestABIUtilsComputePadding(t *testing.T) {
 	padding := make([]uint64, 32)
 	parm := regRes.InParams()[1]
 	padding = parm.ComputePadding(padding)
-	want := "[1 1 1 0]"
+	want := "[1 0 0 0]"
 	got := fmt.Sprintf("%+v", padding)
 	if got != want {
-		t.Errorf("padding mismatch: wanted %q got %q\n", got, want)
+		t.Errorf("padding mismatch: wanted %q got %q\n", want, got)
 	}
 }

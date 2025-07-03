@@ -7,43 +7,17 @@
 package net
 
 import (
-	"internal/syscall/windows/registry"
+	"internal/syscall/windows"
 	"os"
 	"reflect"
-	"runtime"
-	"strconv"
+	"syscall"
 	"testing"
 )
 
-func isBuild17063() bool {
-	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion`, registry.READ)
-	if err != nil {
-		return false
-	}
-	defer k.Close()
-
-	s, _, err := k.GetStringValue("CurrentBuild")
-	if err != nil {
-		return false
-	}
-	ver, err := strconv.Atoi(s)
-	if err != nil {
-		return false
-	}
-	return ver >= 17063
-}
-
 func TestUnixConnLocalWindows(t *testing.T) {
-	switch runtime.GOARCH {
-	case "386":
-		t.Skip("not supported on windows/386, see golang.org/issue/27943")
-	case "arm":
-		t.Skip("not supported on windows/arm, see golang.org/issue/28061")
-	}
-	if !isBuild17063() {
+	if !windows.SupportUnixSocket() {
 		t.Skip("unix test")
 	}
-
 	handler := func(ls *localServer, ln Listener) {}
 	for _, laddr := range []string{"", testUnixAddr(t)} {
 		laddr := laddr
@@ -93,5 +67,50 @@ func TestUnixConnLocalWindows(t *testing.T) {
 				t.Fatalf("got %#v, expected %#v", ca.got, ca.want)
 			}
 		}
+	}
+}
+
+func TestUnixAbstractLongNameNulStart(t *testing.T) {
+	if !windows.SupportUnixSocket() {
+		t.Skip("unix test")
+	}
+
+	// Create an abstract socket name that starts with a null byte ("\x00")
+	// whose length is the maximum of RawSockaddrUnix Path len
+	paddedAddr := make([]byte, len(syscall.RawSockaddrUnix{}.Path))
+	copy(paddedAddr, "\x00abstract_test")
+
+	la, err := ResolveUnixAddr("unix", string(paddedAddr))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := ListenUnix("unix", la)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Close()
+}
+
+func TestModeSocket(t *testing.T) {
+	if !windows.SupportUnixSocket() {
+		t.Skip("unix test")
+	}
+
+	addr := testUnixAddr(t)
+
+	l, err := Listen("unix", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+
+	stat, err := os.Stat(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mode := stat.Mode()
+	if mode&os.ModeSocket == 0 {
+		t.Fatalf("%v should have ModeSocket", mode)
 	}
 }

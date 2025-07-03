@@ -108,7 +108,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		var key, elem Type // key != nil: we must have all maps
 		mode := variable   // non-maps result mode
 		// TODO(gri) factor out closure and use it for non-typeparam cases as well
-		if typ.typeSet().underIs(func(u Type) bool {
+		if underIs(x.typ, func(u Type) bool {
 			l := int64(-1) // valid if >= 0
 			var k, e Type  // k is only set for maps
 			switch t := u.(type) {
@@ -183,7 +183,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 	}
 
 	if !valid {
-		check.errorf(e.Pos(), NonSliceableOperand, invalidOp+"cannot index %s", x)
+		check.errorf(e.Pos(), NonSliceableOperand, "cannot index %s", x)
 		check.use(e.Index)
 		x.mode = invalid
 		return false
@@ -213,11 +213,51 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 		return
 	}
 
+	// determine common underlying type cu
+	var ct, cu Type // type and respective common underlying type
+	var hasString bool
+	typeset(x.typ, func(t, u Type) bool {
+		if u == nil {
+			check.errorf(x, NonSliceableOperand, "cannot slice %s: no specific type in %s", x, x.typ)
+			cu = nil
+			return false
+		}
+
+		// Treat strings like byte slices but remember that we saw a string.
+		if isString(u) {
+			u = NewSlice(universeByte)
+			hasString = true
+		}
+
+		// If this is the first type we're seeing, we're done.
+		if cu == nil {
+			ct, cu = t, u
+			return true
+		}
+
+		// Otherwise, the current type must have the same underlying type as all previous types.
+		if !Identical(cu, u) {
+			check.errorf(x, NonSliceableOperand, "cannot slice %s: %s and %s have different underlying types", x, ct, t)
+			cu = nil
+			return false
+		}
+
+		return true
+	})
+	if hasString {
+		// If we saw a string, proceed with string type,
+		// but don't go from untyped string to string.
+		cu = Typ[String]
+		if !isTypeParam(x.typ) {
+			cu = under(x.typ) // untyped string remains untyped
+		}
+	}
+
 	valid := false
 	length := int64(-1) // valid if >= 0
-	switch u := coreString(x.typ).(type) {
+	switch u := cu.(type) {
 	case nil:
-		check.errorf(x, NonSliceableOperand, invalidOp+"cannot slice %s: %s has no core type", x, x.typ)
+		// error reported above
 		x.mode = invalid
 		return
 
@@ -247,7 +287,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 		valid = true
 		length = u.len
 		if x.mode != variable {
-			check.errorf(x, NonSliceableOperand, invalidOp+"%s (slice of unaddressable value)", x)
+			check.errorf(x, NonSliceableOperand, "cannot slice unaddressable value %s", x)
 			x.mode = invalid
 			return
 		}
@@ -266,7 +306,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 	}
 
 	if !valid {
-		check.errorf(x, NonSliceableOperand, invalidOp+"cannot slice %s", x)
+		check.errorf(x, NonSliceableOperand, "cannot slice %s", x)
 		x.mode = invalid
 		return
 	}
@@ -414,51 +454,4 @@ func (check *Checker) isValidIndex(x *operand, code Code, what string, allowNega
 	}
 
 	return true
-}
-
-// indexedElts checks the elements (elts) of an array or slice composite literal
-// against the literal's element type (typ), and the element indices against
-// the literal length if known (length >= 0). It returns the length of the
-// literal (maximum index value + 1).
-func (check *Checker) indexedElts(elts []syntax.Expr, typ Type, length int64) int64 {
-	visited := make(map[int64]bool, len(elts))
-	var index, max int64
-	for _, e := range elts {
-		// determine and check index
-		validIndex := false
-		eval := e
-		if kv, _ := e.(*syntax.KeyValueExpr); kv != nil {
-			if typ, i := check.index(kv.Key, length); isValid(typ) {
-				if i >= 0 {
-					index = i
-					validIndex = true
-				} else {
-					check.errorf(e, InvalidLitIndex, "index %s must be integer constant", kv.Key)
-				}
-			}
-			eval = kv.Value
-		} else if length >= 0 && index >= length {
-			check.errorf(e, OversizeArrayLit, "index %d is out of bounds (>= %d)", index, length)
-		} else {
-			validIndex = true
-		}
-
-		// if we have a valid index, check for duplicate entries
-		if validIndex {
-			if visited[index] {
-				check.errorf(e, DuplicateLitKey, "duplicate index %d in array or slice literal", index)
-			}
-			visited[index] = true
-		}
-		index++
-		if index > max {
-			max = index
-		}
-
-		// check element against composite literal element type
-		var x operand
-		check.exprWithHint(&x, eval, typ)
-		check.assignment(&x, typ, "array or slice literal")
-	}
-	return max
 }

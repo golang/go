@@ -112,9 +112,10 @@ TEXT runtime·usleep(SB),NOSPLIT,$16-4
 	MOVW	$1000000, R3
 	DIVD	R3, R2
 	MOVD	R2, 8(R15)
-	MOVW	$1000, R3
-	MULLD	R2, R3
+	MULLD	R2, R3		// Convert sec to usec and subtract
 	SUB	R3, R4
+	MOVW	$1000, R3
+	MULLD	R3, R4		// Convert remaining usec into nsec.
 	MOVD	R4, 16(R15)
 
 	// nanosleep(&ts, 0)
@@ -603,4 +604,54 @@ TEXT runtime·connect(SB),$0-28
 TEXT runtime·socket(SB),$0-20
 	MOVD	$0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
 	MOVW	R0, ret+16(FP)
+	RET
+
+// func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
+TEXT runtime·vgetrandom1(SB),NOSPLIT,$16-48
+	MOVD	buf+0(FP), R2
+	MOVD	length+8(FP), R3
+	MOVW	flags+16(FP), R4
+	MOVD	state+24(FP), R5
+	MOVD	stateSize+32(FP), R6
+
+	MOVD	R15, R7
+
+	MOVD	runtime·vdsoGetrandomSym(SB), R1
+	MOVD	g_m(g), R9
+
+	MOVD	m_vdsoPC(R9), R12
+	MOVD	R12, 8(R15)
+	MOVD	m_vdsoSP(R9), R12
+	MOVD	R12, 16(R15)
+	MOVD	R14, m_vdsoPC(R9)
+	MOVD	$buf+0(FP), R12
+	MOVD	R12, m_vdsoSP(R9)
+
+	SUB	$160, R15
+	MOVD	$~7, R12
+	AND	R12, R15
+
+	MOVB	runtime·iscgo(SB), R12
+	CMPBNE	R12, $0, nosaveg
+	MOVD	m_gsignal(R9), R12
+	CMPBEQ	R12, $0, nosaveg
+	CMPBEQ	g, R12, nosaveg
+	MOVD	(g_stack+stack_lo)(R12), R12
+	MOVD	g, (R12)
+
+	BL	R1
+
+	MOVD	$0, (R12)
+	JMP	restore
+
+nosaveg:
+	BL	R1
+
+restore:
+	MOVD	R7, R15
+	MOVD	16(R15), R12
+	MOVD	R12, m_vdsoSP(R9)
+	MOVD	8(R15), R12
+	MOVD	R12, m_vdsoPC(R9)
+	MOVD	R2, ret+40(FP)
 	RET

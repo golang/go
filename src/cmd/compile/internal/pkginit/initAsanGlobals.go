@@ -227,6 +227,12 @@ func canInstrumentGlobal(g ir.Node) bool {
 		return false
 	}
 
+	// Do not instrument counter globals in internal/fuzz. These globals are replaced by the linker.
+	// See go.dev/issue/72766 for more details.
+	if n.Sym().Pkg.Path == "internal/fuzz" && (n.Sym().Name == "_counters" || n.Sym().Name == "_ecounters") {
+		return false
+	}
+
 	// Do not instrument globals that are linknamed, because their home package will do the work.
 	if n.Sym().Linkname != "" {
 		return false

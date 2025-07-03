@@ -500,6 +500,12 @@ TEXT runtime·osinit_hack_trampoline(SB),NOSPLIT,$0
 	CALL	libc_xpc_date_create_from_current(SB)
 	RET
 
+TEXT runtime·arc4random_buf_trampoline(SB),NOSPLIT,$0
+	MOVL	8(DI), SI	// arg 2 nbytes
+	MOVQ	0(DI), DI	// arg 1 buf
+	CALL	libc_arc4random_buf(SB)
+	RET
+
 // syscall calls a function in libc on behalf of the syscall package.
 // syscall takes a pointer to a struct like:
 // struct {
@@ -739,7 +745,7 @@ ok:
 //
 // syscall9 expects a 32-bit result and tests for 32-bit -1
 // to decide there was an error.
-TEXT runtime·syscall9(SB),NOSPLIT,$16
+TEXT runtime·syscall9(SB),NOSPLIT,$32
 	MOVQ	(0*8)(DI), R13// fn
 	MOVQ	(2*8)(DI), SI // a2
 	MOVQ	(3*8)(DI), DX // a3
@@ -747,15 +753,18 @@ TEXT runtime·syscall9(SB),NOSPLIT,$16
 	MOVQ	(5*8)(DI), R8 // a5
 	MOVQ	(6*8)(DI), R9 // a6
 	MOVQ	(7*8)(DI), R10 // a7
+	MOVQ	R10, 0(SP)
 	MOVQ	(8*8)(DI), R11 // a8
+	MOVQ	R11, 8(SP)
 	MOVQ	(9*8)(DI), R12 // a9
-	MOVQ	DI, (SP)
+	MOVQ	R12, 16(SP)
+	MOVQ	DI, 24(SP)
 	MOVQ	(1*8)(DI), DI // a1
 	XORL	AX, AX	      // vararg: say "no float args"
 
 	CALL	R13
 
-	MOVQ	(SP), DI
+	MOVQ	24(SP), DI
 	MOVQ	AX, (10*8)(DI) // r1
 	MOVQ	DX, (11*8)(DI) // r2
 
@@ -764,7 +773,7 @@ TEXT runtime·syscall9(SB),NOSPLIT,$16
 
 	CALL	libc_error(SB)
 	MOVLQSX	(AX), AX
-	MOVQ	(SP), DI
+	MOVQ	24(SP), DI
 	MOVQ	AX, (12*8)(DI) // err
 
 ok:

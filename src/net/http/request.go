@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"mime"
 	"mime/multipart"
 	"net/http/httptrace"
@@ -25,6 +26,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	_ "unsafe" // for linkname
 
 	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/idna"
@@ -107,14 +109,10 @@ var reqWriteExcludeHeader = map[string]bool{
 //
 // The field semantics differ slightly between client and server
 // usage. In addition to the notes on the fields below, see the
-// documentation for Request.Write and RoundTripper.
+// documentation for [Request.Write] and [RoundTripper].
 type Request struct {
 	// Method specifies the HTTP method (GET, POST, PUT, etc.).
 	// For client requests, an empty string means GET.
-	//
-	// Go's HTTP client does not support sending a request with
-	// the CONNECT method. See the documentation on Transport for
-	// details.
 	Method string
 
 	// URL specifies either the URI being requested (for server
@@ -324,6 +322,10 @@ type Request struct {
 	// redirects.
 	Response *Response
 
+	// Pattern is the [ServeMux] pattern that matched the request.
+	// It is empty if the request was not matched against a pattern.
+	Pattern string
+
 	// ctx is either the client or server context. It should only
 	// be modified via copying the whole Request using Clone or WithContext.
 	// It is unexported to prevent people from using Context wrong
@@ -337,7 +339,7 @@ type Request struct {
 }
 
 // Context returns the request's context. To change the context, use
-// Clone or WithContext.
+// [Request.Clone] or [Request.WithContext].
 //
 // The returned context is always non-nil; it defaults to the
 // background context.
@@ -361,8 +363,8 @@ func (r *Request) Context() context.Context {
 // lifetime of a request and its response: obtaining a connection,
 // sending the request, and reading the response headers and body.
 //
-// To create a new request with a context, use NewRequestWithContext.
-// To make a deep copy of a request with a new context, use Request.Clone.
+// To create a new request with a context, use [NewRequestWithContext].
+// To make a deep copy of a request with a new context, use [Request.Clone].
 func (r *Request) WithContext(ctx context.Context) *Request {
 	if ctx == nil {
 		panic("nil context")
@@ -376,6 +378,8 @@ func (r *Request) WithContext(ctx context.Context) *Request {
 // Clone returns a deep copy of r with its context changed to ctx.
 // The provided ctx must be non-nil.
 //
+// Clone only makes a shallow copy of the Body field.
+//
 // For an outgoing client request, the context controls the entire
 // lifetime of a request and its response: obtaining a connection,
 // sending the request, and reading the response headers and body.
@@ -387,12 +391,8 @@ func (r *Request) Clone(ctx context.Context) *Request {
 	*r2 = *r
 	r2.ctx = ctx
 	r2.URL = cloneURL(r.URL)
-	if r.Header != nil {
-		r2.Header = r.Header.Clone()
-	}
-	if r.Trailer != nil {
-		r2.Trailer = r.Trailer.Clone()
-	}
+	r2.Header = r.Header.Clone()
+	r2.Trailer = r.Trailer.Clone()
 	if s := r.TransferEncoding; s != nil {
 		s2 := make([]string, len(s))
 		copy(s2, s)
@@ -401,6 +401,14 @@ func (r *Request) Clone(ctx context.Context) *Request {
 	r2.Form = cloneURLValues(r.Form)
 	r2.PostForm = cloneURLValues(r.PostForm)
 	r2.MultipartForm = cloneMultipartForm(r.MultipartForm)
+
+	// Copy matches and otherValues. See issue 61410.
+	if s := r.matches; s != nil {
+		s2 := make([]string, len(s))
+		copy(s2, s)
+		r2.matches = s2
+	}
+	r2.otherValues = maps.Clone(r.otherValues)
 	return r2
 }
 
@@ -421,11 +429,20 @@ func (r *Request) Cookies() []*Cookie {
 	return readCookies(r.Header, "")
 }
 
+// CookiesNamed parses and returns the named HTTP cookies sent with the request
+// or an empty slice if none matched.
+func (r *Request) CookiesNamed(name string) []*Cookie {
+	if name == "" {
+		return []*Cookie{}
+	}
+	return readCookies(r.Header, name)
+}
+
 // ErrNoCookie is returned by Request's Cookie method when a cookie is not found.
 var ErrNoCookie = errors.New("http: named cookie not present")
 
 // Cookie returns the named cookie provided in the request or
-// ErrNoCookie if not found.
+// [ErrNoCookie] if not found.
 // If multiple cookies match the given name, only one cookie will
 // be returned.
 func (r *Request) Cookie(name string) (*Cookie, error) {
@@ -439,13 +456,13 @@ func (r *Request) Cookie(name string) (*Cookie, error) {
 }
 
 // AddCookie adds a cookie to the request. Per RFC 6265 section 5.4,
-// AddCookie does not attach more than one Cookie header field. That
+// AddCookie does not attach more than one [Cookie] header field. That
 // means all cookies, if any, are written into the same line,
 // separated by semicolon.
 // AddCookie only sanitizes c's name and value, and does not sanitize
 // a Cookie header already present in the request.
 func (r *Request) AddCookie(c *Cookie) {
-	s := fmt.Sprintf("%s=%s", sanitizeCookieName(c.Name), sanitizeCookieValue(c.Value))
+	s := fmt.Sprintf("%s=%s", sanitizeCookieName(c.Name), sanitizeCookieValue(c.Value, c.Quoted))
 	if c := r.Header.Get("Cookie"); c != "" {
 		r.Header.Set("Cookie", c+"; "+s)
 	} else {
@@ -457,7 +474,7 @@ func (r *Request) AddCookie(c *Cookie) {
 //
 // Referer is misspelled as in the request itself, a mistake from the
 // earliest days of HTTP.  This value can also be fetched from the
-// Header map as Header["Referer"]; the benefit of making it available
+// [Header] map as Header["Referer"]; the benefit of making it available
 // as a method is that the compiler can diagnose programs that use the
 // alternate (correct English) spelling req.Referrer() but cannot
 // diagnose programs that use Header["Referrer"].
@@ -475,7 +492,7 @@ var multipartByReader = &multipart.Form{
 
 // MultipartReader returns a MIME multipart reader if this is a
 // multipart/form-data or a multipart/mixed POST request, else returns nil and an error.
-// Use this function instead of ParseMultipartForm to
+// Use this function instead of [Request.ParseMultipartForm] to
 // process the request body as a stream.
 func (r *Request) MultipartReader() (*multipart.Reader, error) {
 	if r.MultipartForm == multipartByReader {
@@ -538,15 +555,15 @@ const defaultUserAgent = "Go-http-client/1.1"
 //	TransferEncoding
 //	Body
 //
-// If Body is present, Content-Length is <= 0 and TransferEncoding
+// If Body is present, Content-Length is <= 0 and [Request.TransferEncoding]
 // hasn't been set to "identity", Write adds "Transfer-Encoding:
 // chunked" to the header. Body is closed after it is sent.
 func (r *Request) Write(w io.Writer) error {
 	return r.write(w, false, nil, nil)
 }
 
-// WriteProxy is like Write but writes the request in the form
-// expected by an HTTP proxy. In particular, WriteProxy writes the
+// WriteProxy is like [Request.Write] but writes the request in the form
+// expected by an HTTP proxy. In particular, [Request.WriteProxy] writes the
 // initial Request-URI line of the request with an absolute URI, per
 // section 5.3 of RFC 7230, including the scheme and host.
 // In either case, WriteProxy also writes a Host header, using
@@ -838,36 +855,36 @@ func validMethod(method string) bool {
 	   extension-method = token
 	     token          = 1*<any CHAR except CTLs or separators>
 	*/
-	return len(method) > 0 && strings.IndexFunc(method, isNotToken) == -1
+	return isToken(method)
 }
 
-// NewRequest wraps NewRequestWithContext using context.Background.
+// NewRequest wraps [NewRequestWithContext] using [context.Background].
 func NewRequest(method, url string, body io.Reader) (*Request, error) {
 	return NewRequestWithContext(context.Background(), method, url, body)
 }
 
-// NewRequestWithContext returns a new Request given a method, URL, and
+// NewRequestWithContext returns a new [Request] given a method, URL, and
 // optional body.
 //
-// If the provided body is also an io.Closer, the returned
-// Request.Body is set to body and will be closed (possibly
+// If the provided body is also an [io.Closer], the returned
+// [Request.Body] is set to body and will be closed (possibly
 // asynchronously) by the Client methods Do, Post, and PostForm,
-// and Transport.RoundTrip.
+// and [Transport.RoundTrip].
 //
 // NewRequestWithContext returns a Request suitable for use with
-// Client.Do or Transport.RoundTrip. To create a request for use with
-// testing a Server Handler, either use the NewRequest function in the
-// net/http/httptest package, use ReadRequest, or manually update the
-// Request fields. For an outgoing client request, the context
+// [Client.Do] or [Transport.RoundTrip]. To create a request for use with
+// testing a Server Handler, either use the [net/http/httptest.NewRequest] function,
+// use [ReadRequest], or manually update the Request fields.
+// For an outgoing client request, the context
 // controls the entire lifetime of a request and its response:
 // obtaining a connection, sending the request, and reading the
-// response headers and body. See the Request type's documentation for
+// response headers and body. See the [Request] type's documentation for
 // the difference between inbound and outbound request fields.
 //
-// If body is of type *bytes.Buffer, *bytes.Reader, or
-// *strings.Reader, the returned request's ContentLength is set to its
+// If body is of type [*bytes.Buffer], [*bytes.Reader], or
+// [*strings.Reader], the returned request's ContentLength is set to its
 // exact value (instead of -1), GetBody is populated (so 307 and 308
-// redirects can replay the body), and Body is set to NoBody if the
+// redirects can replay the body), and Body is set to [NoBody] if the
 // ContentLength is 0.
 func NewRequestWithContext(ctx context.Context, method, url string, body io.Reader) (*Request, error) {
 	if method == "" {
@@ -963,6 +980,16 @@ func (r *Request) BasicAuth() (username, password string, ok bool) {
 
 // parseBasicAuth parses an HTTP Basic Authentication string.
 // "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==" returns ("Aladdin", "open sesame", true).
+//
+// parseBasicAuth should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/sagernet/sing
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname parseBasicAuth
 func parseBasicAuth(auth string) (username, password string, ok bool) {
 	const prefix = "Basic "
 	// Case insensitive prefix match. See Issue 22736.
@@ -991,7 +1018,7 @@ func parseBasicAuth(auth string) (username, password string, ok bool) {
 // The username may not contain a colon. Some protocols may impose
 // additional requirements on pre-escaping the username and
 // password. For instance, when used with OAuth2, both arguments must
-// be URL encoded first with url.QueryEscape.
+// be URL encoded first with [url.QueryEscape].
 func (r *Request) SetBasicAuth(username, password string) {
 	r.Header.Set("Authorization", "Basic "+basicAuth(username, password))
 }
@@ -1025,8 +1052,8 @@ func putTextprotoReader(r *textproto.Reader) {
 // ReadRequest reads and parses an incoming request from b.
 //
 // ReadRequest is a low-level function and should only be used for
-// specialized applications; most code should use the Server to read
-// requests and handle them via the Handler interface. ReadRequest
+// specialized applications; most code should use the [Server] to read
+// requests and handle them via the [Handler] interface. ReadRequest
 // only supports HTTP/1.x requests. For HTTP/2, use golang.org/x/net/http2.
 func ReadRequest(b *bufio.Reader) (*Request, error) {
 	req, err := readRequest(b)
@@ -1035,9 +1062,20 @@ func ReadRequest(b *bufio.Reader) (*Request, error) {
 	}
 
 	delete(req.Header, "Host")
-	return req, err
+	return req, nil
 }
 
+// readRequest should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/sagernet/sing
+//   - github.com/v2fly/v2ray-core/v4
+//   - github.com/v2fly/v2ray-core/v5
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname readRequest
 func readRequest(b *bufio.Reader) (req *Request, err error) {
 	tp := newTextprotoReader(b)
 	defer putTextprotoReader(tp)
@@ -1135,15 +1173,15 @@ func readRequest(b *bufio.Reader) (req *Request, err error) {
 	return req, nil
 }
 
-// MaxBytesReader is similar to io.LimitReader but is intended for
+// MaxBytesReader is similar to [io.LimitReader] but is intended for
 // limiting the size of incoming request bodies. In contrast to
 // io.LimitReader, MaxBytesReader's result is a ReadCloser, returns a
-// non-nil error of type *MaxBytesError for a Read beyond the limit,
+// non-nil error of type [*MaxBytesError] for a Read beyond the limit,
 // and closes the underlying reader when its Close method is called.
 //
 // MaxBytesReader prevents clients from accidentally or maliciously
 // sending a large request and wasting server resources. If possible,
-// it tells the ResponseWriter to close the connection after the limit
+// it tells the [ResponseWriter] to close the connection after the limit
 // has been reached.
 func MaxBytesReader(w ResponseWriter, r io.ReadCloser, n int64) io.ReadCloser {
 	if n < 0 { // Treat negative limits as equivalent to 0.
@@ -1152,7 +1190,7 @@ func MaxBytesReader(w ResponseWriter, r io.ReadCloser, n int64) io.ReadCloser {
 	return &maxBytesReader{w: w, r: r, i: n, n: n}
 }
 
-// MaxBytesError is returned by MaxBytesReader when its read limit is exceeded.
+// MaxBytesError is returned by [MaxBytesReader] when its read limit is exceeded.
 type MaxBytesError struct {
 	Limit int64
 }
@@ -1277,14 +1315,14 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
 // as a form and puts the results into both r.PostForm and r.Form. Request body
 // parameters take precedence over URL query string values in r.Form.
 //
-// If the request Body's size has not already been limited by MaxBytesReader,
+// If the request Body's size has not already been limited by [MaxBytesReader],
 // the size is capped at 10MB.
 //
 // For other HTTP methods, or when the Content-Type is not
 // application/x-www-form-urlencoded, the request Body is not read, and
 // r.PostForm is initialized to a non-nil, empty value.
 //
-// ParseMultipartForm calls ParseForm automatically.
+// [Request.ParseMultipartForm] calls ParseForm automatically.
 // ParseForm is idempotent.
 func (r *Request) ParseForm() error {
 	var err error
@@ -1325,7 +1363,7 @@ func (r *Request) ParseForm() error {
 // The whole request body is parsed and up to a total of maxMemory bytes of
 // its file parts are stored in memory, with the remainder stored on
 // disk in temporary files.
-// ParseMultipartForm calls ParseForm if necessary.
+// ParseMultipartForm calls [Request.ParseForm] if necessary.
 // If ParseForm returns an error, ParseMultipartForm returns it but also
 // continues parsing the request body.
 // After one call to ParseMultipartForm, subsequent calls have no effect.
@@ -1368,12 +1406,16 @@ func (r *Request) ParseMultipartForm(maxMemory int64) error {
 }
 
 // FormValue returns the first value for the named component of the query.
-// POST, PUT, and PATCH body parameters take precedence over URL query string values.
-// FormValue calls ParseMultipartForm and ParseForm if necessary and ignores
-// any errors returned by these functions.
+// The precedence order:
+//  1. application/x-www-form-urlencoded form body (POST, PUT, PATCH only)
+//  2. query parameters (always)
+//  3. multipart/form-data form body (always)
+//
+// FormValue calls [Request.ParseMultipartForm] and [Request.ParseForm]
+// if necessary and ignores any errors returned by these functions.
 // If key is not present, FormValue returns the empty string.
 // To access multiple values of the same key, call ParseForm and
-// then inspect Request.Form directly.
+// then inspect [Request.Form] directly.
 func (r *Request) FormValue(key string) string {
 	if r.Form == nil {
 		r.ParseMultipartForm(defaultMaxMemory)
@@ -1386,7 +1428,7 @@ func (r *Request) FormValue(key string) string {
 
 // PostFormValue returns the first value for the named component of the POST,
 // PUT, or PATCH request body. URL query parameters are ignored.
-// PostFormValue calls ParseMultipartForm and ParseForm if necessary and ignores
+// PostFormValue calls [Request.ParseMultipartForm] and [Request.ParseForm] if necessary and ignores
 // any errors returned by these functions.
 // If key is not present, PostFormValue returns the empty string.
 func (r *Request) PostFormValue(key string) string {
@@ -1400,7 +1442,7 @@ func (r *Request) PostFormValue(key string) string {
 }
 
 // FormFile returns the first file for the provided form key.
-// FormFile calls ParseMultipartForm and ParseForm if necessary.
+// FormFile calls [Request.ParseMultipartForm] and [Request.ParseForm] if necessary.
 func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, error) {
 	if r.MultipartForm == multipartByReader {
 		return nil, nil, errors.New("http: multipart handled by MultipartReader")
@@ -1420,7 +1462,7 @@ func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, e
 	return nil, nil, ErrMissingFile
 }
 
-// PathValue returns the value for the named path wildcard in the ServeMux pattern
+// PathValue returns the value for the named path wildcard in the [ServeMux] pattern
 // that matched the request.
 // It returns the empty string if the request was not matched against a pattern
 // or there is no such wildcard in the pattern.
@@ -1431,6 +1473,8 @@ func (r *Request) PathValue(name string) string {
 	return r.otherValues[name]
 }
 
+// SetPathValue sets name to value, so that subsequent calls to r.PathValue(name)
+// return value.
 func (r *Request) SetPathValue(name, value string) {
 	if i := r.patIndex(name); i >= 0 {
 		r.matches[i] = value

@@ -92,7 +92,8 @@ func (d intPairs) initB() {
 }
 
 // InOrder checks if a-equal elements were not reordered.
-func (d intPairs) inOrder() bool {
+// If reversed is true, expect reverse ordering.
+func (d intPairs) inOrder(reversed bool) bool {
 	lastA, lastB := -1, 0
 	for i := 0; i < len(d); i++ {
 		if lastA != d[i].a {
@@ -100,8 +101,14 @@ func (d intPairs) inOrder() bool {
 			lastB = d[i].b
 			continue
 		}
-		if d[i].b <= lastB {
-			return false
+		if !reversed {
+			if d[i].b <= lastB {
+				return false
+			}
+		} else {
+			if d[i].b >= lastB {
+				return false
+			}
 		}
 		lastB = d[i].b
 	}
@@ -127,7 +134,7 @@ func TestStability(t *testing.T) {
 	if !IsSortedFunc(data, intPairCmp) {
 		t.Errorf("Stable didn't sort %d ints", n)
 	}
-	if !data.inOrder() {
+	if !data.inOrder(false) {
 		t.Errorf("Stable wasn't stable on %d ints", n)
 	}
 
@@ -137,7 +144,7 @@ func TestStability(t *testing.T) {
 	if !IsSortedFunc(data, intPairCmp) {
 		t.Errorf("Stable shuffled sorted %d ints (order)", n)
 	}
-	if !data.inOrder() {
+	if !data.inOrder(false) {
 		t.Errorf("Stable shuffled sorted %d ints (stability)", n)
 	}
 
@@ -150,7 +157,7 @@ func TestStability(t *testing.T) {
 	if !IsSortedFunc(data, intPairCmp) {
 		t.Errorf("Stable didn't sort %d ints", n)
 	}
-	if !data.inOrder() {
+	if !data.inOrder(false) {
 		t.Errorf("Stable wasn't stable on %d ints", n)
 	}
 }
@@ -257,19 +264,19 @@ func TestMinMaxPanics(t *testing.T) {
 	intCmp := func(a, b int) int { return a - b }
 	emptySlice := []int{}
 
-	if !panics(func() { Min(emptySlice) }) {
+	if !panics(func() { _ = Min(emptySlice) }) {
 		t.Errorf("Min([]): got no panic, want panic")
 	}
 
-	if !panics(func() { Max(emptySlice) }) {
+	if !panics(func() { _ = Max(emptySlice) }) {
 		t.Errorf("Max([]): got no panic, want panic")
 	}
 
-	if !panics(func() { MinFunc(emptySlice, intCmp) }) {
+	if !panics(func() { _ = MinFunc(emptySlice, intCmp) }) {
 		t.Errorf("MinFunc([]): got no panic, want panic")
 	}
 
-	if !panics(func() { MaxFunc(emptySlice, intCmp) }) {
+	if !panics(func() { _ = MaxFunc(emptySlice, intCmp) }) {
 		t.Errorf("MaxFunc([]): got no panic, want panic")
 	}
 }

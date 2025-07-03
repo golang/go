@@ -172,3 +172,22 @@ func TestSortedHeader(t *testing.T) {
 		t.Fatalf("\n got: %q\nwant: %q\n", buf.String(), want)
 	}
 }
+
+func TestFileContentDisposition(t *testing.T) {
+	tests := []struct {
+		fieldname string
+		filename  string
+		want      string
+	}{
+		{"somefield", "somefile.txt", `form-data; name="somefield"; filename="somefile.txt"`},
+		{`field"withquotes"`, "somefile.txt", `form-data; name="field\"withquotes\""; filename="somefile.txt"`},
+		{`somefield`, `somefile"withquotes".txt`, `form-data; name="somefield"; filename="somefile\"withquotes\".txt"`},
+		{`somefield\withbackslash`, "somefile.txt", `form-data; name="somefield\\withbackslash"; filename="somefile.txt"`},
+		{"somefield", `somefile\withbackslash.txt`, `form-data; name="somefield"; filename="somefile\\withbackslash.txt"`},
+	}
+	for i, tt := range tests {
+		if found := FileContentDisposition(tt.fieldname, tt.filename); found != tt.want {
+			t.Errorf(`%d. found: "%s"; want: "%s"`, i, found, tt.want)
+		}
+	}
+}

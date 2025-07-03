@@ -35,6 +35,8 @@ type Decoder struct {
 	freeList     *decoderState                           // list of free decoderStates; avoids reallocation
 	countBuf     []byte                                  // used for decoding integers while parsing messages
 	err          error
+	// ignoreDepth tracks the depth of recursively parsed ignored fields
+	ignoreDepth int
 }
 
 // NewDecoder returns a new decoder that reads from the [io.Reader].
@@ -197,7 +199,7 @@ func (dec *Decoder) Decode(e any) error {
 	value := reflect.ValueOf(e)
 	// If e represents a value as opposed to a pointer, the answer won't
 	// get back to the caller. Make sure it's a pointer.
-	if value.Type().Kind() != reflect.Pointer {
+	if value.Kind() != reflect.Pointer {
 		dec.err = errors.New("gob: attempt to decode into a non-pointer")
 		return dec.err
 	}

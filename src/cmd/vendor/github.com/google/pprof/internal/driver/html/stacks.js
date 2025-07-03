@@ -13,23 +13,6 @@ function stackViewer(stacks, nodes) {
   const FONT_SIZE = 12;
   const MIN_FONT_SIZE = 8;
 
-  // Mapping from unit to a list of display scales/labels.
-  // List should be ordered by increasing unit size.
-  const UNITS = new Map([
-    ['B', [
-      ['B', 1],
-      ['kB', Math.pow(2, 10)],
-      ['MB', Math.pow(2, 20)],
-      ['GB', Math.pow(2, 30)],
-      ['TB', Math.pow(2, 40)],
-      ['PB', Math.pow(2, 50)]]],
-    ['s', [
-      ['ns', 1e-9],
-      ['µs', 1e-6],
-      ['ms', 1e-3],
-      ['s', 1],
-      ['hrs', 60*60]]]]);
-
   // Fields
   let pivots = [];          // Indices of currently selected data.Sources entries.
   let matches = new Set();  // Indices of sources that match search
@@ -38,6 +21,7 @@ function stackViewer(stacks, nodes) {
   let actionMenuOn = false; // Is action menu visible?
   let actionTarget = null;  // Box on which action menu is operating.
   let diff = false;         // Are we displaying a diff?
+  let shown = 0;            // How many profile values are being displayed?
 
   for (const stack of stacks.Stacks) {
     if (stack.Value < 0) {
@@ -56,7 +40,8 @@ function stackViewer(stacks, nodes) {
   const search = find('search');
   const actions = find('action-menu');
   const actionTitle = find('action-title');
-  const detailBox = find('current-details');
+  const leftDetailBox = find('current-details-left');
+  const rightDetailBox = find('current-details-right');
 
   window.addEventListener('resize', render);
   window.addEventListener('popstate', render);
@@ -75,13 +60,18 @@ function stackViewer(stacks, nodes) {
     hiliter: (n, on) => { return hilite(n, on); },
     current: () => {
       let r = new Map();
-      for (let p of pivots) {
-        r.set(p, true);
+      if (pivots.length == 1 && pivots[0] == 0) {
+        // Not pivoting
+      } else {
+        for (let p of pivots) {
+          r.set(p, true);
+        }
       }
       return r;
     }});
 
   render();
+  clearDetails();
 
   // Helper functions follow:
 
@@ -145,7 +135,9 @@ function stackViewer(stacks, nodes) {
     }
 
     // Update params to include src.
-    let v = stacks.Sources[src].RE;
+    // When `pprof` is invoked with `-lines`, FullName will be suffixed with `:<line>`,
+    // which we need to remove.
+    let v = pprofQuoteMeta(stacks.Sources[src].FullName.replace(/:[0-9]+$/, ''));
     if (param != 'f' && param != 'sf') { // old f,sf values are overwritten
       // Add new source to current parameter value.
       const old = params.get(param);
@@ -174,7 +166,11 @@ function stackViewer(stacks, nodes) {
   function switchPivots(regexp) {
     // Switch URL without hitting the server.
     const url = new URL(document.URL);
-    url.searchParams.set('p', regexp);
+    if (regexp === '' || regexp === '^$') {
+      url.searchParams.delete('p');  // Not pivoting
+    } else {
+      url.searchParams.set('p', regexp);
+    }
     history.pushState('', '', url.toString()); // Makes back-button work
     matches = new Set();
     search.value = '';
@@ -185,15 +181,25 @@ function stackViewer(stacks, nodes) {
     if (actionMenuOn) return;
     const src = stacks.Sources[box.src];
     div.title = details(box) + ' │ ' + src.FullName + (src.Inlined ? "\n(inlined)" : "");
-    detailBox.innerText = summary(box.sumpos, box.sumneg);
+    leftDetailBox.innerText = src.FullName + (src.Inlined ? " (inlined)" : "");
+    let timing = summary(box.sumpos, box.sumneg);
+    if (box.self != 0) {
+      timing = "self " + unitText(box.self) + " │ " + timing;
+    }
+    rightDetailBox.innerText = timing;
     // Highlight all boxes that have the same source as box.
     toggleClass(box.src, 'hilite2', true);
   }
 
   function handleLeave(box) {
     if (actionMenuOn) return;
-    detailBox.innerText = '';
+    clearDetails();
     toggleClass(box.src, 'hilite2', false);
+  }
+
+  function clearDetails() {
+    leftDetailBox.innerText = '';
+    rightDetailBox.innerText = percentText(shown);
   }
 
   // Return list of sources that match the regexp given by the 'p' URL parameter.
@@ -240,10 +246,14 @@ function stackViewer(stacks, nodes) {
     const x = PADDING;
     const y = 0;
 
+    // Show summary for pivots if we are actually pivoting.
+    const showPivotSummary = !(pivots.length == 1 && pivots[0] == 0);
+
+    shown = pos + neg;
     displayList.length = 0;
     renderStacks(0, xscale, x, y, places, +1);  // Callees
     renderStacks(0, xscale, x, y-ROW, places, -1);  // Callers (ROW left for separator)
-    display(xscale, pos, neg, displayList);
+    display(xscale, pos, neg, displayList, showPivotSummary);
   }
 
   // renderStacks creates boxes with top-left at x,y with children drawn as
@@ -271,22 +281,22 @@ function stackViewer(stacks, nodes) {
   // // Group represents a displayed (sub)tree.
   // interface Group {
   //   name: string;     // Full name of source
-  //   src: number;	 // Index in stacks.Sources
+  //   src: number;      // Index in stacks.Sources
   //   self: number;     // Contribution as leaf (may be < 0 for diffs)
-  //   sumpos: number;	 // Sum of |self| of positive nodes in tree (>= 0)
-  //   sumneg: number;	 // Sum of |self| of negative nodes in tree (>= 0)
+  //   sumpos: number;   // Sum of |self| of positive nodes in tree (>= 0)
+  //   sumneg: number;   // Sum of |self| of negative nodes in tree (>= 0)
   //   places: Place[];  // Stack slots that contributed to this group
   // }
   //
   // // Box is a rendered item.
   // interface Box {
-  //   x: number;	   // X coordinate of top-left
-  //   y: number;	   // Y coordinate of top-left
-  //   width: number;	   // Width of box to display
-  //   src: number;	   // Index in stacks.Sources
-  //   sumpos: number;	   // From corresponding Group
-  //   sumneg: number;	   // From corresponding Group
-  //   self: number;	   // From corresponding Group
+  //   x: number;          // X coordinate of top-left
+  //   y: number;          // Y coordinate of top-left
+  //   width: number;      // Width of box to display
+  //   src: number;        // Index in stacks.Sources
+  //   sumpos: number;     // From corresponding Group
+  //   sumneg: number;     // From corresponding Group
+  //   self: number;       // From corresponding Group
   // };
 
   function groupWidth(xscale, g) {
@@ -306,14 +316,14 @@ function stackViewer(stacks, nodes) {
         y:      y,
         width:  width,
         src:    g.src,
-	sumpos: g.sumpos,
-	sumneg: g.sumneg,
+        sumpos: g.sumpos,
+        sumneg: g.sumneg,
         self:   g.self,
       };
       displayList.push(box);
       if (direction > 0) {
-	// Leave gap on left hand side to indicate self contribution.
-	x += xscale*Math.abs(g.self);
+        // Leave gap on left hand side to indicate self contribution.
+        x += xscale*Math.abs(g.self);
       }
     }
     y += direction * ROW;
@@ -363,9 +373,9 @@ function stackViewer(stacks, nodes) {
         groups.push(group);
       }
       if (stack.Value < 0) {
-	group.sumneg += -stack.Value;
+        group.sumneg += -stack.Value;
       } else {
-	group.sumpos += stack.Value;
+        group.sumpos += stack.Value;
       }
       group.self += (place.Pos == stack.Sources.length-1) ? stack.Value : 0;
       group.places.push(place);
@@ -381,7 +391,7 @@ function stackViewer(stacks, nodes) {
     return groups;
   }
 
-  function display(xscale, posTotal, negTotal, list) {
+  function display(xscale, posTotal, negTotal, list, showPivotSummary) {
     // Sort boxes so that text selection follows a predictable order.
     list.sort(function(a, b) {
       if (a.y != b.y) return a.y - b.y;
@@ -390,14 +400,15 @@ function stackViewer(stacks, nodes) {
 
     // Adjust Y coordinates so that zero is at top.
     let adjust = (list.length > 0) ? list[0].y : 0;
-    adjust -= ROW + 2*PADDING;  // Room for details
 
     const divs = [];
     for (const box of list) {
       box.y -= adjust;
       divs.push(drawBox(xscale, box));
     }
-    divs.push(drawSep(-adjust, posTotal, negTotal));
+    if (showPivotSummary) {
+      divs.push(drawSep(-adjust, posTotal, negTotal));
+    }
 
     const h = (list.length > 0 ?  list[list.length-1].y : 0) + 4*ROW;
     chart.style.height = h+'px';
@@ -432,8 +443,8 @@ function stackViewer(stacks, nodes) {
       const delta = box.sumpos - box.sumneg;
       const partWidth = xscale * Math.abs(delta);
       if (partWidth >= MIN_WIDTH) {
-	r.appendChild(makeRect((delta < 0 ? 'negative' : 'positive'),
-			       0, 0, partWidth, ROW-1));
+        r.appendChild(makeRect((delta < 0 ? 'negative' : 'positive'),
+                               0, 0, partWidth, ROW-1));
       }
     }
 
@@ -445,11 +456,27 @@ function stackViewer(stacks, nodes) {
       r.appendChild(t);
     }
 
-    r.addEventListener('click', () => { switchPivots(src.RE); });
+    onClick(r, () => { switchPivots(pprofQuoteMeta(src.UniqueName)); });
     r.addEventListener('mouseenter', () => { handleEnter(box, r); });
     r.addEventListener('mouseleave', () => { handleLeave(box); });
     r.addEventListener('contextmenu', (e) => { showActionMenu(e, box); });
     return r;
+  }
+
+  // Handle clicks, but only if the mouse did not move during the click.
+  function onClick(target, handler) {
+    // Disable click if mouse moves more than threshold pixels since mousedown.
+    const threshold = 3;
+    let [x, y] = [-1, -1];
+    target.addEventListener('mousedown', (e) => {
+      [x, y] = [e.clientX, e.clientY];
+    });
+    target.addEventListener('click', (e) => {
+      if (Math.abs(e.clientX - x) <= threshold &&
+          Math.abs(e.clientY - y) <= threshold) {
+        handler();
+      }
+    });
   }
 
   function drawSep(y, posTotal, negTotal) {
@@ -515,9 +542,9 @@ function stackViewer(stacks, nodes) {
       seen.add(place.Stack);
       const stack = stacks.Stacks[place.Stack];
       if (stack.Value < 0) {
-	neg += -stack.Value;
+        neg += -stack.Value;
       } else {
-	pos += stack.Value;
+        pos += stack.Value;
       }
     }
     return [pos, neg];
@@ -562,22 +589,7 @@ function stackViewer(stacks, nodes) {
 
   // unitText returns a formatted string to display for value.
   function unitText(value) {
-    const sign = (value < 0) ? "-" : "";
-    let v = Math.abs(value) * stacks.Scale;
-    // Rescale to appropriate display unit.
-    let unit = stacks.Unit;
-    const list = UNITS.get(unit);
-    if (list) {
-      // Find first entry in list that is not too small.
-      for (const [name, scale] of list) {
-        if (v <= 100*scale) {
-          v /= scale;
-          unit = name;
-          break;
-        }
-      }
-    }
-    return sign + Number(v.toFixed(2)) + unit;
+    return pprofUnitText(value*stacks.Scale, stacks.Unit);
   }
 
   function find(name) {
@@ -597,4 +609,30 @@ function stackViewer(stacks, nodes) {
     const hsl = `hsl(${hue}rad 50% 80%)`;
     return hsl;
   }
+}
+
+// pprofUnitText returns a formatted string to display for value in the specified unit.
+function pprofUnitText(value, unit) {
+  const sign = (value < 0) ? "-" : "";
+  let v = Math.abs(value);
+  // Rescale to appropriate display unit.
+  let list = null;
+  for (const def of pprofUnitDefs) {
+    if (def.DefaultUnit.CanonicalName == unit) {
+      list = def.Units;
+      v *= def.DefaultUnit.Factor;
+      break;
+    }
+  }
+  if (list) {
+    // Stop just before entry that is too large.
+    for (let i = 0; i < list.length; i++) {
+      if (i == list.length-1 || list[i+1].Factor > v) {
+        v /= list[i].Factor;
+        unit = list[i].CanonicalName;
+        break;
+      }
+    }
+  }
+  return sign + Number(v.toFixed(2)) + unit;
 }

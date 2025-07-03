@@ -6,7 +6,6 @@ package runtime
 
 import (
 	"internal/abi"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -44,13 +43,13 @@ func enableWER() {
 func exceptiontramp()
 func firstcontinuetramp()
 func lastcontinuetramp()
+func sehtramp()
 func sigresume()
 
 func initExceptionHandler() {
 	stdcall2(_AddVectoredExceptionHandler, 1, abi.FuncPCABI0(exceptiontramp))
-	if _AddVectoredContinueHandler == nil || GOARCH == "386" {
-		// use SetUnhandledExceptionFilter for windows-386 or
-		// if VectoredContinueHandler is unavailable.
+	if GOARCH == "386" {
+		// use SetUnhandledExceptionFilter for windows-386.
 		// note: SetUnhandledExceptionFilter handler won't be called, if debugging.
 		stdcall1(_SetUnhandledExceptionFilter, abi.FuncPCABI0(lastcontinuetramp))
 	} else {
@@ -247,19 +246,49 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
 	// sigpanic call to make it look like that. Instead, just
 	// overwrite the PC. (See issue #35773)
 	if r.ip() != 0 && r.ip() != abi.FuncPCABI0(asyncPreempt) {
-		sp := unsafe.Pointer(r.sp())
-		delta := uintptr(sys.StackAlign)
-		sp = add(sp, -delta)
-		r.set_sp(uintptr(sp))
-		if usesLR {
-			*((*uintptr)(sp)) = r.lr()
-			r.set_lr(r.ip())
-		} else {
-			*((*uintptr)(sp)) = r.ip()
+		r.pushCall(abi.FuncPCABI0(sigpanic0), r.ip())
+	} else {
+		// Not safe to push the call. Just clobber the frame.
+		r.set_ip(abi.FuncPCABI0(sigpanic0))
+	}
+	return _EXCEPTION_CONTINUE_EXECUTION
+}
+
+// sehhandler is reached as part of the SEH chain.
+//
+// It is nosplit for the same reason as exceptionhandler.
+//
+//go:nosplit
+func sehhandler(_ *exceptionrecord, _ uint64, _ *context, dctxt *_DISPATCHER_CONTEXT) int32 {
+	g0 := getg()
+	if g0 == nil || g0.m.curg == nil {
+		// No g available, nothing to do here.
+		return _EXCEPTION_CONTINUE_SEARCH_SEH
+	}
+	// The Windows SEH machinery will unwind the stack until it finds
+	// a frame with a handler for the exception or until the frame is
+	// outside the stack boundaries, in which case it will call the
+	// UnhandledExceptionFilter. Unfortunately, it doesn't know about
+	// the goroutine stack, so it will stop unwinding when it reaches the
+	// first frame not running in g0. As a result, neither non-Go exceptions
+	// handlers higher up the stack nor UnhandledExceptionFilter will be called.
+	//
+	// To work around this, manually unwind the stack until the top of the goroutine
+	// stack is reached, and then pass the control back to Windows.
+	gp := g0.m.curg
+	ctxt := dctxt.ctx()
+	var base, sp uintptr
+	for {
+		entry := stdcall3(_RtlLookupFunctionEntry, ctxt.ip(), uintptr(unsafe.Pointer(&base)), 0)
+		if entry == 0 {
+			break
+		}
+		stdcall8(_RtlVirtualUnwind, 0, base, ctxt.ip(), entry, uintptr(unsafe.Pointer(ctxt)), 0, uintptr(unsafe.Pointer(&sp)), 0)
+		if sp < gp.stack.lo || gp.stack.hi <= sp {
+			break
 		}
 	}
-	r.set_ip(abi.FuncPCABI0(sigpanic0))
-	return _EXCEPTION_CONTINUE_EXECUTION
+	return _EXCEPTION_CONTINUE_SEARCH_SEH
 }
 
 // It seems Windows searches ContinueHandler's list even

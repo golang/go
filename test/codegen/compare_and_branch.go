@@ -241,4 +241,14 @@ func ui64x0(x chan uint64) {
 	for <-x < 1 {
 		dummy()
 	}
+
+	// riscv64:"BNEZ"
+	for 0 < <-x {
+		dummy()
+	}
+
+	// riscv64:"BEQZ"
+	for 0 >= <-x {
+		dummy()
+	}
 }

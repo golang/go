@@ -222,7 +222,7 @@ func selects() {
 	ch2 := make(chan int)
 	select {
 	case <-ch1:
-		var ch2 /* ERROR "ch2 declared and not used" */ chan bool
+		var ch2 /* ERROR "declared and not used: ch2" */ chan bool
 	case i := <-ch2:
 		print(i + 1)
 	}
@@ -394,7 +394,7 @@ func returns2() (a, b int) {
 	{
 		type a int
 		return 1, 2
-		return /* ERROR "a not in scope at return" */
+		return /* ERROR "result parameter a not in scope at return" */
 	}
 }
 
@@ -805,7 +805,6 @@ func fors1() {
 
 func rangeloops1() {
 	var (
-		x int
 		a [10]float32
 		b []string
 		p *[10]complex128
@@ -815,11 +814,12 @@ func rangeloops1() {
 		c chan int
 		sc chan<- int
 		rc <-chan int
+		xs struct{}
 	)
 
-	for range x /* ERROR "cannot range over" */ {}
-	for _ = range x /* ERROR "cannot range over" */ {}
-	for i := range x /* ERROR "cannot range over" */ {}
+	for range xs /* ERROR "cannot range over" */ {}
+	for _ = range xs /* ERROR "cannot range over" */ {}
+	for i := range xs /* ERROR "cannot range over" */ { _ = i }
 
 	for range a {}
 	for i := range a {
@@ -953,10 +953,10 @@ func issue10148() {
 	for y /* ERROR "declared and not used" */ := range "" {
 		_ = "" /* ERROR "mismatched types untyped string and untyped int" */ + 1
 	}
-	for range 1 /* ERROR "cannot range over 1" */ {
+	for range 1.5 /* ERROR "cannot range over 1.5 (untyped float constant)" */ {
 		_ = "" /* ERROR "mismatched types untyped string and untyped int" */ + 1
 	}
-	for y := range 1 /* ERROR "cannot range over 1" */ {
+	for y := range 1.5 /* ERROR "cannot range over 1.5 (untyped float constant)" */ {
 		_ = "" /* ERROR "mismatched types untyped string and untyped int" */ + 1
 	}
 }

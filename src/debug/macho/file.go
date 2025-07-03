@@ -197,7 +197,7 @@ func (e *FormatError) Error() string {
 	return msg
 }
 
-// Open opens the named file using os.Open and prepares it for use as a Mach-O binary.
+// Open opens the named file using [os.Open] and prepares it for use as a Mach-O binary.
 func Open(name string) (*File, error) {
 	f, err := os.Open(name)
 	if err != nil {
@@ -212,8 +212,8 @@ func Open(name string) (*File, error) {
 	return ff, nil
 }
 
-// Close closes the File.
-// If the File was created using NewFile directly instead of Open,
+// Close closes the [File].
+// If the [File] was created using [NewFile] directly instead of [Open],
 // Close has no effect.
 func (f *File) Close() error {
 	var err error
@@ -224,7 +224,7 @@ func (f *File) Close() error {
 	return err
 }
 
-// NewFile creates a new File for accessing a Mach-O binary in an underlying reader.
+// NewFile creates a new [File] for accessing a Mach-O binary in an underlying reader.
 // The Mach-O binary is expected to start at position 0 in the ReaderAt.
 func NewFile(r io.ReaderAt) (*File, error) {
 	f := new(File)
@@ -610,15 +610,33 @@ func (f *File) Section(name string) *Section {
 // DWARF returns the DWARF debug information for the Mach-O file.
 func (f *File) DWARF() (*dwarf.Data, error) {
 	dwarfSuffix := func(s *Section) string {
+		sectname := s.Name
+		var pfx int
 		switch {
-		case strings.HasPrefix(s.Name, "__debug_"):
-			return s.Name[8:]
-		case strings.HasPrefix(s.Name, "__zdebug_"):
-			return s.Name[9:]
+		case strings.HasPrefix(sectname, "__debug_"):
+			pfx = 8
+		case strings.HasPrefix(sectname, "__zdebug_"):
+			pfx = 9
 		default:
 			return ""
 		}
-
+		// Mach-O executables truncate section names to 16 characters, mangling some DWARF sections.
+		// As of DWARFv5 these are the only problematic section names (see DWARFv5 Appendix G).
+		for _, longname := range []string{
+			"__debug_str_offsets",
+			"__zdebug_line_str",
+			"__zdebug_loclists",
+			"__zdebug_pubnames",
+			"__zdebug_pubtypes",
+			"__zdebug_rnglists",
+			"__zdebug_str_offsets",
+		} {
+			if sectname == longname[:16] {
+				sectname = longname
+				break
+			}
+		}
+		return sectname[pfx:]
 	}
 	sectionData := func(s *Section) ([]byte, error) {
 		b, err := s.Data()

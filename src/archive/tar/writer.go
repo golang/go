@@ -9,14 +9,15 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"path"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
 
 // Writer provides sequential writing of a tar archive.
-// Write.WriteHeader begins a new file with the provided Header,
+// [Writer.WriteHeader] begins a new file with the provided [Header],
 // and then Writer can be treated as an io.Writer to supply that file's data.
 type Writer struct {
 	w    io.Writer
@@ -46,7 +47,7 @@ type fileWriter interface {
 // Flush finishes writing the current file's block padding.
 // The current file must be fully written before Flush can be called.
 //
-// This is unnecessary as the next call to WriteHeader or Close
+// This is unnecessary as the next call to [Writer.WriteHeader] or [Writer.Close]
 // will implicitly flush out the file's padding.
 func (tw *Writer) Flush() error {
 	if tw.err != nil {
@@ -169,16 +170,10 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 	// Write PAX records to the output.
 	isGlobal := hdr.Typeflag == TypeXGlobalHeader
 	if len(paxHdrs) > 0 || isGlobal {
-		// Sort keys for deterministic ordering.
-		var keys []string
-		for k := range paxHdrs {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-
 		// Write each record to a buffer.
 		var buf strings.Builder
-		for _, k := range keys {
+		// Sort keys for deterministic ordering.
+		for _, k := range slices.Sorted(maps.Keys(paxHdrs)) {
 			rec, err := formatPAXRecord(k, paxHdrs[k])
 			if err != nil {
 				return err
@@ -413,24 +408,36 @@ func (tw *Writer) AddFS(fsys fs.FS) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() {
+		if name == "." {
 			return nil
 		}
 		info, err := d.Info()
 		if err != nil {
 			return err
 		}
-		// TODO(#49580): Handle symlinks when fs.ReadLinkFS is available.
-		if !info.Mode().IsRegular() {
+		linkTarget := ""
+		if typ := d.Type(); typ == fs.ModeSymlink {
+			var err error
+			linkTarget, err = fs.ReadLink(fsys, name)
+			if err != nil {
+				return err
+			}
+		} else if !typ.IsRegular() && typ != fs.ModeDir {
 			return errors.New("tar: cannot add non-regular file")
 		}
-		h, err := FileInfoHeader(info, "")
+		h, err := FileInfoHeader(info, linkTarget)
 		if err != nil {
 			return err
 		}
 		h.Name = name
+		if d.IsDir() {
+			h.Name += "/"
+		}
 		if err := tw.WriteHeader(h); err != nil {
 			return err
+		}
+		if !d.Type().IsRegular() {
+			return nil
 		}
 		f, err := fsys.Open(name)
 		if err != nil {
@@ -464,12 +471,12 @@ func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
 }
 
 // Write writes to the current file in the tar archive.
-// Write returns the error ErrWriteTooLong if more than
-// Header.Size bytes are written after WriteHeader.
+// Write returns the error [ErrWriteTooLong] if more than
+// Header.Size bytes are written after [Writer.WriteHeader].
 //
-// Calling Write on special types like TypeLink, TypeSymlink, TypeChar,
-// TypeBlock, TypeDir, and TypeFifo returns (0, ErrWriteTooLong) regardless
-// of what the Header.Size claims.
+// Calling Write on special types like [TypeLink], [TypeSymlink], [TypeChar],
+// [TypeBlock], [TypeDir], and [TypeFifo] returns (0, [ErrWriteTooLong]) regardless
+// of what the [Header.Size] claims.
 func (tw *Writer) Write(b []byte) (int, error) {
 	if tw.err != nil {
 		return 0, tw.err
@@ -503,7 +510,7 @@ func (tw *Writer) readFrom(r io.Reader) (int64, error) {
 }
 
 // Close closes the tar archive by flushing the padding, and writing the footer.
-// If the current file (from a prior call to WriteHeader) is not fully written,
+// If the current file (from a prior call to [Writer.WriteHeader]) is not fully written,
 // then this returns an error.
 func (tw *Writer) Close() error {
 	if tw.err == ErrWriteAfterClose {
@@ -668,6 +675,7 @@ func (sw *sparseFileWriter) ReadFrom(r io.Reader) (n int64, err error) {
 func (sw sparseFileWriter) logicalRemaining() int64 {
 	return sw.sp[len(sw.sp)-1].endOffset() - sw.pos
 }
+
 func (sw sparseFileWriter) physicalRemaining() int64 {
 	return sw.fw.physicalRemaining()
 }

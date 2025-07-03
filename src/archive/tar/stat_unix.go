@@ -17,37 +17,36 @@ import (
 
 func init() {
 	sysStat = statUnix
-	loadUidAndGid = loadUidAndGidFunc
 }
 
 // userMap and groupMap caches UID and GID lookups for performance reasons.
 // The downside is that renaming uname or gname by the OS never takes effect.
 var userMap, groupMap sync.Map // map[int]string
 
-func statUnix(fi fs.FileInfo, h *Header) error {
+func statUnix(fi fs.FileInfo, h *Header, doNameLookups bool) error {
 	sys, ok := fi.Sys().(*syscall.Stat_t)
 	if !ok {
 		return nil
 	}
 	h.Uid = int(sys.Uid)
 	h.Gid = int(sys.Gid)
-
-	// Best effort at populating Uname and Gname.
-	// The os/user functions may fail for any number of reasons
-	// (not implemented on that platform, cgo not enabled, etc).
-	if u, ok := userMap.Load(h.Uid); ok {
-		h.Uname = u.(string)
-	} else if u, err := user.LookupId(strconv.Itoa(h.Uid)); err == nil {
-		h.Uname = u.Username
-		userMap.Store(h.Uid, h.Uname)
+	if doNameLookups {
+		// Best effort at populating Uname and Gname.
+		// The os/user functions may fail for any number of reasons
+		// (not implemented on that platform, cgo not enabled, etc).
+		if u, ok := userMap.Load(h.Uid); ok {
+			h.Uname = u.(string)
+		} else if u, err := user.LookupId(strconv.Itoa(h.Uid)); err == nil {
+			h.Uname = u.Username
+			userMap.Store(h.Uid, h.Uname)
+		}
+		if g, ok := groupMap.Load(h.Gid); ok {
+			h.Gname = g.(string)
+		} else if g, err := user.LookupGroupId(strconv.Itoa(h.Gid)); err == nil {
+			h.Gname = g.Name
+			groupMap.Store(h.Gid, h.Gname)
+		}
 	}
-	if g, ok := groupMap.Load(h.Gid); ok {
-		h.Gname = g.(string)
-	} else if g, err := user.LookupGroupId(strconv.Itoa(h.Gid)); err == nil {
-		h.Gname = g.Name
-		groupMap.Store(h.Gid, h.Gname)
-	}
-
 	h.AccessTime = statAtime(sys)
 	h.ChangeTime = statCtime(sys)
 
@@ -99,13 +98,4 @@ func statUnix(fi fs.FileInfo, h *Header) error {
 		}
 	}
 	return nil
-}
-
-func loadUidAndGidFunc(fi fs.FileInfo, uid, gid *int) {
-	sys, ok := fi.Sys().(*syscall.Stat_t)
-	if !ok {
-		return
-	}
-	*uid = int(sys.Uid)
-	*gid = int(sys.Gid)
 }

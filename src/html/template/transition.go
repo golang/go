@@ -27,8 +27,8 @@ var transitionFunc = [...]func(context, []byte) (context, int){
 	stateJS:             tJS,
 	stateJSDqStr:        tJSDelimited,
 	stateJSSqStr:        tJSDelimited,
-	stateJSBqStr:        tJSDelimited,
 	stateJSRegexp:       tJSDelimited,
+	stateJSTmplLit:      tJSTmpl,
 	stateJSBlockCmt:     tBlockCmt,
 	stateJSLineCmt:      tLineCmt,
 	stateJSHTMLOpenCmt:  tLineCmt,
@@ -270,7 +270,7 @@ func tURL(c context, s []byte) (context, int) {
 
 // tJS is the context transition function for the JS state.
 func tJS(c context, s []byte) (context, int) {
-	i := bytes.IndexAny(s, "\"`'/<-#")
+	i := bytes.IndexAny(s, "\"`'/{}<-#")
 	if i == -1 {
 		// Entire input is non string, comment, regexp tokens.
 		c.jsCtx = nextJSCtx(s, c.jsCtx)
@@ -283,7 +283,7 @@ func tJS(c context, s []byte) (context, int) {
 	case '\'':
 		c.state, c.jsCtx = stateJSSqStr, jsCtxRegexp
 	case '`':
-		c.state, c.jsCtx = stateJSBqStr, jsCtxRegexp
+		c.state, c.jsCtx = stateJSTmplLit, jsCtxRegexp
 	case '/':
 		switch {
 		case i+1 < len(s) && s[i+1] == '/':
@@ -320,10 +320,64 @@ func tJS(c context, s []byte) (context, int) {
 		if i+1 < len(s) && s[i+1] == '!' {
 			c.state, i = stateJSLineCmt, i+1
 		}
+	case '{':
+		// We only care about tracking brace depth if we are inside of a
+		// template literal.
+		if len(c.jsBraceDepth) == 0 {
+			return c, i + 1
+		}
+		c.jsBraceDepth[len(c.jsBraceDepth)-1]++
+	case '}':
+		if len(c.jsBraceDepth) == 0 {
+			return c, i + 1
+		}
+		// There are no cases where a brace can be escaped in the JS context
+		// that are not syntax errors, it seems. Because of this we can just
+		// count "\}" as "}" and move on, the script is already broken as
+		// fully fledged parsers will just fail anyway.
+		c.jsBraceDepth[len(c.jsBraceDepth)-1]--
+		if c.jsBraceDepth[len(c.jsBraceDepth)-1] >= 0 {
+			return c, i + 1
+		}
+		c.jsBraceDepth = c.jsBraceDepth[:len(c.jsBraceDepth)-1]
+		c.state = stateJSTmplLit
 	default:
 		panic("unreachable")
 	}
 	return c, i + 1
+}
+
+func tJSTmpl(c context, s []byte) (context, int) {
+	var k int
+	for {
+		i := k + bytes.IndexAny(s[k:], "`\\$")
+		if i < k {
+			break
+		}
+		switch s[i] {
+		case '\\':
+			i++
+			if i == len(s) {
+				return context{
+					state: stateError,
+					err:   errorf(ErrPartialEscape, nil, 0, "unfinished escape sequence in JS string: %q", s),
+				}, len(s)
+			}
+		case '$':
+			if len(s) >= i+2 && s[i+1] == '{' {
+				c.jsBraceDepth = append(c.jsBraceDepth, 0)
+				c.state = stateJS
+				return c, i + 2
+			}
+		case '`':
+			// end
+			c.state = stateJS
+			return c, i + 1
+		}
+		k = i + 1
+	}
+
+	return c, len(s)
 }
 
 // tJSDelimited is the context transition function for the JS string and regexp
@@ -333,8 +387,6 @@ func tJSDelimited(c context, s []byte) (context, int) {
 	switch c.state {
 	case stateJSSqStr:
 		specials = `\'`
-	case stateJSBqStr:
-		specials = "`\\"
 	case stateJSRegexp:
 		specials = `\/[]`
 	}
@@ -362,7 +414,7 @@ func tJSDelimited(c context, s []byte) (context, int) {
 			// If "</script" appears in a regex literal, the '/' should not
 			// close the regex literal, and it will later be escaped to
 			// "\x3C/script" in escapeText.
-			if i > 0 && i+7 <= len(s) && bytes.Compare(bytes.ToLower(s[i-1:i+7]), []byte("</script")) == 0 {
+			if i > 0 && i+7 <= len(s) && bytes.Equal(bytes.ToLower(s[i-1:i+7]), []byte("</script")) {
 				i++
 			} else if !inCharset {
 				c.state, c.jsCtx = stateJS, jsCtxDivOp

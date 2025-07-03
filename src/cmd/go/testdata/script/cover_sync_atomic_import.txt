@@ -1,6 +1,5 @@
 [short] skip
 [compiler:gccgo] skip # gccgo has no cover tool
-[!GOEXPERIMENT:coverageredesign] skip
 
 go test -short -cover -covermode=atomic -coverpkg=coverdep/p1 coverdep
 
@@ -11,13 +10,13 @@ go test -short -cover -covermode=atomic -coverpkg=coverdep/p1 coverdep
 # execute at least one test.
 
 go test -short -covermode=atomic -run=TestStoreInt64 sync/atomic
-go test -short -covermode=atomic -run=TestAnd8 runtime/internal/atomic
+go test -short -covermode=atomic -run=TestAnd8 internal/runtime/atomic
 
 # Skip remainder if no race detector support.
 [!race] skip
 
 go test -short -cover -race -run=TestStoreInt64 sync/atomic
-go test -short -cover -race -run=TestAnd8 runtime/internal/atomic
+go test -short -cover -race -run=TestAnd8 internal/runtime/atomic
 
 -- go.mod --
 module coverdep

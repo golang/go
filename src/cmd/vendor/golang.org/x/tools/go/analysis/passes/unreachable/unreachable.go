@@ -30,7 +30,7 @@ var Analyzer = &analysis.Analyzer{
 	Run:              run,
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
@@ -188,6 +188,9 @@ func (d *deadState) findDead(stmt ast.Stmt) {
 		case *ast.EmptyStmt:
 			// do not warn about unreachable empty statements
 		default:
+			// (This call to pass.Report is a frequent source
+			// of diagnostics beyond EOF in a truncated file;
+			// see #71659.)
 			d.pass.Report(analysis.Diagnostic{
 				Pos:     stmt.Pos(),
 				End:     stmt.End(),

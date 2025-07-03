@@ -16,7 +16,7 @@ func checkptrAlignment(p unsafe.Pointer, elem *_type, n uintptr) {
 	// Note that we allow unaligned pointers if the types they point to contain
 	// no pointers themselves. See issue 37298.
 	// TODO(mdempsky): What about fieldAlign?
-	if elem.PtrBytes != 0 && uintptr(p)&(uintptr(elem.Align_)-1) != 0 {
+	if elem.Pointers() && uintptr(p)&(uintptr(elem.Align_)-1) != 0 {
 		throw("checkptr: misaligned pointer conversion")
 	}
 
@@ -76,6 +76,16 @@ func checkptrArithmetic(p unsafe.Pointer, originals []unsafe.Pointer) {
 // checkptrBase(p1) == checkptrBase(p2). However, the converse/inverse
 // is not necessarily true as allocations can have trailing padding,
 // and multiple variables may be packed into a single allocation.
+//
+// checkptrBase should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/bytedance/sonic
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+//go:linkname checkptrBase
 func checkptrBase(p unsafe.Pointer) uintptr {
 	// stack
 	if gp := getg(); gp.stack.lo <= uintptr(p) && uintptr(p) < gp.stack.hi {

@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Sep 13, 2023",
+	"Subtitle": "Language version go1.25 (Feb 25, 2025)",
 	"Path": "/ref/spec"
 }-->
 
@@ -8,9 +8,7 @@
 
 <p>
 This is the reference manual for the Go programming language.
-The pre-Go1.18 version, without generics, can be found
-<a href="/doc/go1.17_spec.html">here</a>.
-For more information and other documents, see <a href="/">golang.org</a>.
+For more information and other documents, see <a href="/">go.dev</a>.
 </p>
 
 <p>
@@ -68,6 +66,14 @@ ellipsis <code>…</code> is also used elsewhere in the spec to informally denot
 enumerations or code snippets that are not further specified. The character <code>…</code>
 (as opposed to the three characters <code>...</code>) is not a token of the Go
 language.
+</p>
+
+<p>
+A link of the form [<a href="#Language_versions">Go 1.xx</a>] indicates that a described
+language feature (or some aspect of it) was changed or added with language version 1.xx and
+thus requires at minimum that language version to build.
+For details, see the <a href="#Language_versions">linked section</a>
+in the <a href="#Appendix">appendix</a>.
 </p>
 
 <h2 id="Source_code_representation">Source code representation</h2>
@@ -263,7 +269,8 @@ continue     for          import       return       var
 
 <p>
 The following character sequences represent <a href="#Operators">operators</a>
-(including <a href="#Assignment_statements">assignment operators</a>) and punctuation:
+(including <a href="#Assignment_statements">assignment operators</a>) and punctuation
+[<a href="#Go_1.18">Go 1.18</a>]:
 </p>
 <pre class="grammar">
 +    &amp;     +=    &amp;=     &amp;&amp;    ==    !=    (    )
@@ -281,7 +288,8 @@ An integer literal is a sequence of digits representing an
 <a href="#Constants">integer constant</a>.
 An optional prefix sets a non-decimal base: <code>0b</code> or <code>0B</code>
 for binary, <code>0</code>, <code>0o</code>, or <code>0O</code> for octal,
-and <code>0x</code> or <code>0X</code> for hexadecimal.
+and <code>0x</code> or <code>0X</code> for hexadecimal
+[<a href="#Go_1.13">Go 1.13</a>].
 A single <code>0</code> is considered a decimal zero.
 In hexadecimal literals, letters <code>a</code> through <code>f</code>
 and <code>A</code> through <code>F</code> represent values 10 through 15.
@@ -347,7 +355,8 @@ prefix, an integer part (hexadecimal digits), a radix point, a fractional part (
 and an exponent part (<code>p</code> or <code>P</code> followed by an optional sign and decimal digits).
 One of the integer part or the fractional part may be elided; the radix point may be elided as well,
 but the exponent part is required. (This syntax matches the one given in IEEE 754-2008 §5.12.3.)
-An exponent value exp scales the mantissa (integer and fractional part) by 2<sup>exp</sup>.
+An exponent value exp scales the mantissa (integer and fractional part) by 2<sup>exp</sup>
+[<a href="#Go_1.13">Go 1.13</a>].
 </p>
 
 <p>
@@ -411,7 +420,8 @@ It consists of an <a href="#Integer_literals">integer</a> or
 <a href="#Floating-point_literals">floating-point</a> literal
 followed by the lowercase letter <code>i</code>.
 The value of an imaginary literal is the value of the respective
-integer or floating-point literal multiplied by the imaginary unit <i>i</i>.
+integer or floating-point literal multiplied by the imaginary unit <i>i</i>
+[<a href="#Go_1.13">Go 1.13</a>]
 </p>
 
 <pre class="ebnf">
@@ -662,7 +672,7 @@ and are discussed in that section.
 
 <p>
 Numeric constants represent exact values of arbitrary precision and do not overflow.
-Consequently, there are no constants denoting the IEEE-754 negative zero, infinity,
+Consequently, there are no constants denoting the IEEE 754 negative zero, infinity,
 and not-a-number values.
 </p>
 
@@ -786,7 +796,6 @@ If a variable has not yet been assigned a value, its value is the
 <a href="#The_zero_value">zero value</a> for its type.
 </p>
 
-
 <h2 id="Types">Types</h2>
 
 <p>
@@ -798,12 +807,12 @@ from existing types.
 </p>
 
 <pre class="ebnf">
-Type      = TypeName [ TypeArgs ] | TypeLit | "(" Type ")" .
-TypeName  = identifier | QualifiedIdent .
-TypeArgs  = "[" TypeList [ "," ] "]" .
-TypeList  = Type { "," Type } .
-TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
-            SliceType | MapType | ChannelType .
+Type     = TypeName [ TypeArgs ] | TypeLit | "(" Type ")" .
+TypeName = identifier | QualifiedIdent .
+TypeArgs = "[" TypeList [ "," ] "]" .
+TypeList = Type { "," Type } .
+TypeLit  = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
+           SliceType | MapType | ChannelType .
 </pre>
 
 <p>
@@ -849,8 +858,8 @@ int16       the set of all signed 16-bit integers (-32768 to 32767)
 int32       the set of all signed 32-bit integers (-2147483648 to 2147483647)
 int64       the set of all signed 64-bit integers (-9223372036854775808 to 9223372036854775807)
 
-float32     the set of all IEEE-754 32-bit floating-point numbers
-float64     the set of all IEEE-754 64-bit floating-point numbers
+float32     the set of all IEEE 754 32-bit floating-point numbers
+float64     the set of all IEEE 754 64-bit floating-point numbers
 
 complex64   the set of all complex numbers with float32 real and imaginary parts
 complex128  the set of all complex numbers with float64 real and imaginary parts
@@ -1074,7 +1083,7 @@ A field declared with a type but no explicit field name is called an <i>embedded
 An embedded field must be specified as
 a type name <code>T</code> or as a pointer to a non-interface type name <code>*T</code>,
 and <code>T</code> itself may not be
-a pointer type. The unqualified type name acts as the field name.
+a pointer type or type parameter. The unqualified type name acts as the field name.
 </p>
 
 <pre>
@@ -1115,7 +1124,7 @@ of a struct except that they cannot be used as field names in
 </p>
 
 <p>
-Given a struct type <code>S</code> and a <a href="#Types">named type</a>
+Given a struct type <code>S</code> and a type name
 <code>T</code>, promoted methods are included in the method set of the struct as follows:
 </p>
 <ul>
@@ -1188,7 +1197,7 @@ type (
 <p>
 A pointer type denotes the set of all pointers to <a href="#Variables">variables</a> of a given
 type, called the <i>base type</i> of the pointer.
-The value of an uninitialized pointer is <code>nil</code>.
+The <a href="#Representation_of_values">value</a> of an uninitialized pointer is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
@@ -1204,18 +1213,18 @@ BaseType    = Type .
 <h3 id="Function_types">Function types</h3>
 
 <p>
-A function type denotes the set of all functions with the same parameter
-and result types. The value of an uninitialized variable of function type
-is <code>nil</code>.
+A function type denotes the set of all functions with the same parameter and result types.
+The <a href="#Representation_of_values">value</a> of an uninitialized variable of function
+type is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
-FunctionType   = "func" Signature .
-Signature      = Parameters [ Result ] .
-Result         = Parameters | Type .
-Parameters     = "(" [ ParameterList [ "," ] ] ")" .
-ParameterList  = ParameterDecl { "," ParameterDecl } .
-ParameterDecl  = [ IdentifierList ] [ "..." ] Type .
+FunctionType  = "func" Signature .
+Signature     = Parameters [ Result ] .
+Result        = Parameters | Type .
+Parameters    = "(" [ ParameterList [ "," ] ] ")" .
+ParameterList = ParameterDecl { "," ParameterDecl } .
+ParameterDecl = [ IdentifierList ] [ "..." ] Type .
 </pre>
 
 <p>
@@ -1255,7 +1264,8 @@ An interface type defines a <i>type set</i>.
 A variable of interface type can store a value of any type that is in the type
 set of the interface. Such a type is said to
 <a href="#Implementing_an_interface">implement the interface</a>.
-The value of an uninitialized variable of interface type is <code>nil</code>.
+The <a href="#Representation_of_values">value</a> of an uninitialized variable of
+interface type is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
@@ -1340,6 +1350,7 @@ interface{}
 
 <p>
 For convenience, the predeclared type <code>any</code> is an alias for the empty interface.
+[<a href="#Go_1.18">Go 1.18</a>]
 </p>
 
 <p>
@@ -1375,13 +1386,15 @@ as the <code>File</code> interface.
 In a slightly more general form
 an interface <code>T</code> may use a (possibly qualified) interface type
 name <code>E</code> as an interface element. This is called
-<i>embedding</i> interface <code>E</code> in <code>T</code>.
+<i>embedding</i> interface <code>E</code> in <code>T</code>
+[<a href="#Go_1.14">Go 1.14</a>].
 The type set of <code>T</code> is the <i>intersection</i> of the type sets
 defined by <code>T</code>'s explicitly declared methods and the type sets
 of <code>T</code>’s embedded interfaces.
 In other words, the type set of <code>T</code> is the set of all types that implement all the
 explicitly declared methods of <code>T</code> and also all the methods of
-<code>E</code>.
+<code>E</code>
+[<a href="#Go_1.18">Go 1.18</a>].
 </p>
 
 <pre>
@@ -1420,7 +1433,8 @@ type ReadCloser interface {
 <p>
 In their most general form, an interface element may also be an arbitrary type term
 <code>T</code>, or a term of the form <code>~T</code> specifying the underlying type <code>T</code>,
-or a union of terms <code>t<sub>1</sub>|t<sub>2</sub>|…|t<sub>n</sub></code>.
+or a union of terms <code>t<sub>1</sub>|t<sub>2</sub>|…|t<sub>n</sub></code>
+[<a href="#Go_1.18">Go 1.18</a>].
 Together with method specifications, these elements enable the precise
 definition of an interface's type set as follows:
 </p>
@@ -1614,12 +1628,12 @@ implements the interface.
 A map is an unordered group of elements of one type, called the
 element type, indexed by a set of unique <i>keys</i> of another type,
 called the key type.
-The value of an uninitialized map is <code>nil</code>.
+The <a href="#Representation_of_values">value</a> of an uninitialized map is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
-MapType     = "map" "[" KeyType "]" ElementType .
-KeyType     = Type .
+MapType = "map" "[" KeyType "]" ElementType .
+KeyType = Type .
 </pre>
 
 <p>
@@ -1666,6 +1680,7 @@ maps grow to accommodate the number of items
 stored in them, with the exception of <code>nil</code> maps.
 A <code>nil</code> map is equivalent to an empty map except that no elements
 may be added.
+</p>
 
 <h3 id="Channel_types">Channel types</h3>
 
@@ -1676,7 +1691,7 @@ to communicate by
 <a href="#Send_statements">sending</a> and
 <a href="#Receive_operator">receiving</a>
 values of a specified element type.
-The value of an uninitialized channel is <code>nil</code>.
+The <a href="#Representation_of_values">value</a> of an uninitialized channel is <code>nil</code>.
 </p>
 
 <pre class="ebnf">
@@ -1755,6 +1770,57 @@ received in the order sent.
 
 <h2 id="Properties_of_types_and_values">Properties of types and values</h2>
 
+<h3 id="Representation_of_values">Representation of values</h3>
+
+<p>
+Values of predeclared types (see below for the interfaces <code>any</code>
+and <code>error</code>), arrays, and structs are self-contained:
+Each such value contains a complete copy of all its data,
+and <a href="#Variables">variables</a> of such types store the entire value.
+For instance, an array variable provides the storage (the variables)
+for all elements of the array.
+The respective <a href="#The_zero_value">zero values</a> are specific to the
+value's types; they are never <code>nil</code>.
+</p>
+
+<p>
+Non-nil pointer, function, slice, map, and channel values contain references
+to underlying data which may be shared by multiple values:
+</p>
+
+<ul>
+<li>
+	A pointer value is a reference to the variable holding
+	the pointer base type value.
+</li>
+<li>
+	A function value contains references to the (possibly
+	<a href="#Function_literals">anonymous</a>) function
+	and enclosed variables.
+</li>
+<li>
+	A slice value contains the slice length, capacity, and
+	a reference to its <a href="#Slice_types">underlying array</a>.
+</li>
+<li>
+	A map or channel value is a reference to the implementation-specific
+	data structure of the map or channel.
+</li>
+</ul>
+
+<p>
+An interface value may be self-contained or contain references to underlying data
+depending on the interface's <a href="#Variables">dynamic type</a>.
+The predeclared identifier <code>nil</code> is the zero value for types whose values
+can contain references.
+</p>
+
+<p>
+When multiple values share underlying data, changing one value may change another.
+For instance, changing an element of a <a href="#Slice_types">slice</a> will change
+that element in the underlying array for all slices that share the array.
+</p>
+
 <h3 id="Underlying_types">Underlying types</h3>
 
 <p>
@@ -1790,110 +1856,10 @@ The underlying type of <code>[]B1</code>, <code>B3</code>, and <code>B4</code> i
 The underlying type of <code>P</code> is <code>interface{}</code>.
 </p>
 
-<h3 id="Core_types">Core types</h3>
-
-<p>
-Each non-interface type <code>T</code> has a <i>core type</i>, which is the same as the
-<a href="#Underlying_types">underlying type</a> of <code>T</code>.
-</p>
-
-<p>
-An interface <code>T</code> has a core type if one of the following
-conditions is satisfied:
-</p>
-
-<ol>
-<li>
-There is a single type <code>U</code> which is the <a href="#Underlying_types">underlying type</a>
-of all types in the <a href="#Interface_types">type set</a> of <code>T</code>; or
-</li>
-<li>
-the type set of <code>T</code> contains only <a href="#Channel_types">channel types</a>
-with identical element type <code>E</code>, and all directional channels have the same
-direction.
-</li>
-</ol>
-
-<p>
-No other interfaces have a core type.
-</p>
-
-<p>
-The core type of an interface is, depending on the condition that is satisfied, either:
-</p>
-
-<ol>
-<li>
-the type <code>U</code>; or
-</li>
-<li>
-the type <code>chan E</code> if <code>T</code> contains only bidirectional
-channels, or the type <code>chan&lt;- E</code> or <code>&lt;-chan E</code>
-depending on the direction of the directional channels present.
-</li>
-</ol>
-
-<p>
-By definition, a core type is never a <a href="#Type_definitions">defined type</a>,
-<a href="#Type_parameter_declarations">type parameter</a>, or
-<a href="#Interface_types">interface type</a>.
-</p>
-
-<p>
-Examples of interfaces with core types:
-</p>
-
-<pre>
-type Celsius float32
-type Kelvin  float32
-
-interface{ int }                          // int
-interface{ Celsius|Kelvin }               // float32
-interface{ ~chan int }                    // chan int
-interface{ ~chan int|~chan&lt;- int }        // chan&lt;- int
-interface{ ~[]*data; String() string }    // []*data
-</pre>
-
-<p>
-Examples of interfaces without core types:
-</p>
-
-<pre>
-interface{}                               // no single underlying type
-interface{ Celsius|float64 }              // no single underlying type
-interface{ chan int | chan&lt;- string }     // channels have different element types
-interface{ &lt;-chan int | chan&lt;- int }      // directional channels have different directions
-</pre>
-
-<p>
-Some operations (<a href="#Slice_expressions">slice expressions</a>,
-<a href="#Appending_and_copying_slices"><code>append</code> and <code>copy</code></a>)
-rely on a slightly more loose form of core types which accept byte slices and strings.
-Specifically, if there are exactly two types, <code>[]byte</code> and <code>string</code>,
-which are the underlying types of all types in the type set of interface <code>T</code>,
-the core type of <code>T</code> is called <code>bytestring</code>.
-</p>
-
-<p>
-Examples of interfaces with <code>bytestring</code> core types:
-</p>
-
-<pre>
-interface{ int }                          // int (same as ordinary core type)
-interface{ []byte | string }              // bytestring
-interface{ ~[]byte | myString }           // bytestring
-</pre>
-
-<p>
-Note that <code>bytestring</code> is not a real type; it cannot be used to declare
-variables or compose other types. It exists solely to describe the behavior of some
-operations that read from a sequence of bytes, which may be a byte slice or a string.
-</p>
-
 <h3 id="Type_identity">Type identity</h3>
 
 <p>
-Two types are either <i>identical</i> or <i>different</i>.
+Two types are either <i>identical</i> ("the same") or <i>different</i>.
 </p>
 
 <p>
@@ -1910,8 +1876,8 @@ components have identical types. In detail:
 	<li>Two slice types are identical if they have identical element types.</li>
 
 	<li>Two struct types are identical if they have the same sequence of fields,
-	    and if corresponding fields have the same names, and identical types,
-	    and identical tags.
+	    and if corresponding pairs of fields have the same names, identical types,
+	    and identical tags, and are either both embedded or both not embedded.
 	    <a href="#Exported_identifiers">Non-exported</a> field names from different
 	    packages are always different.</li>
 
@@ -2159,7 +2125,7 @@ within matching brace brackets.
 </p>
 
 <pre class="ebnf">
-Block = "{" StatementList "}" .
+Block         = "{" StatementList "}" .
 StatementList = { Statement ";" } .
 </pre>
 
@@ -2216,8 +2182,8 @@ and like the blank identifier it does not introduce a new binding.
 </p>
 
 <pre class="ebnf">
-Declaration   = ConstDecl | TypeDecl | VarDecl .
-TopLevelDecl  = Declaration | FunctionDecl | MethodDecl .
+Declaration  = ConstDecl | TypeDecl | VarDecl .
+TopLevelDecl = Declaration | FunctionDecl | MethodDecl .
 </pre>
 
 <p>
@@ -2303,7 +2269,9 @@ as an <a href="#Operands">operand</a>, and in <a href="#Assignment_statements">a
 
 <p>
 The following identifiers are implicitly declared in the
-<a href="#Blocks">universe block</a>:
+<a href="#Blocks">universe block</a>
+[<a href="#Go_1.18">Go 1.18</a>]
+[<a href="#Go_1.21">Go 1.21</a>]:
 </p>
 <pre class="grammar">
 Types:
@@ -2487,16 +2455,17 @@ TypeSpec = AliasDecl | TypeDef .
 <h4 id="Alias_declarations">Alias declarations</h4>
 
 <p>
-An alias declaration binds an identifier to the given type.
+An alias declaration binds an identifier to the given type
+[<a href="#Go_1.9">Go 1.9</a>].
 </p>
 
 <pre class="ebnf">
-AliasDecl = identifier "=" Type .
+AliasDecl = identifier [ TypeParameters ] "=" Type .
 </pre>
 
 <p>
 Within the <a href="#Declarations_and_scope">scope</a> of
-the identifier, it serves as an <i>alias</i> for the type.
+the identifier, it serves as an <i>alias</i> for the given type.
 </p>
 
 <pre>
@@ -2506,6 +2475,24 @@ type (
 )
 </pre>
 
+<p>
+If the alias declaration specifies <a href="#Type_parameter_declarations">type parameters</a>
+[<a href="#Go_1.24">Go 1.24</a>], the type name denotes a <i>generic alias</i>.
+Generic aliases must be <a href="#Instantiations">instantiated</a> when they
+are used.
+</p>
+
+<pre>
+type set[P comparable] = map[P]bool
+</pre>
+
+<p>
+In an alias declaration the given type cannot be a type parameter.
+</p>
+
+<pre>
+type A[P any] = P    // illegal: P is a type parameter
+</pre>
 
 <h4 id="Type_definitions">Type definitions</h4>
 
@@ -2636,13 +2623,14 @@ func (l *List[T]) Len() int  { … }
 A type parameter list declares the <i>type parameters</i> of a generic function or type declaration.
 The type parameter list looks like an ordinary <a href="#Function_types">function parameter list</a>
 except that the type parameter names must all be present and the list is enclosed
-in square brackets rather than parentheses.
+in square brackets rather than parentheses
+[<a href="#Go_1.18">Go 1.18</a>].
 </p>
 
 <pre class="ebnf">
-TypeParameters  = "[" TypeParamList [ "," ] "]" .
-TypeParamList   = TypeParamDecl { "," TypeParamDecl } .
-TypeParamDecl   = IdentifierList TypeConstraint .
+TypeParameters = "[" TypeParamList [ "," ] "]" .
+TypeParamList  = TypeParamDecl { "," TypeParamDecl } .
+TypeParamDecl  = IdentifierList TypeConstraint .
 </pre>
 
 <p>
@@ -2719,7 +2707,8 @@ type T6[P int] struct{ f *T6[P] }     // ok: reference to T6 is not in type para
 <p>
 A <i>type constraint</i> is an <a href="#Interface_types">interface</a> that defines the
 set of permissible type arguments for the respective type parameter and controls the
-operations supported by values of that type parameter.
+operations supported by values of that type parameter
+[<a href="#Go_1.18">Go 1.18</a>].
 </p>
 
 <pre class="ebnf">
@@ -2749,7 +2738,8 @@ other interfaces based on their type sets. But this should get us going for now.
 The <a href="#Predeclared_identifiers">predeclared</a>
 <a href="#Interface_types">interface type</a> <code>comparable</code>
 denotes the set of all non-interface types that are
-<a href="#Comparison_operators">strictly comparable</a>.
+<a href="#Comparison_operators">strictly comparable</a>
+[<a href="#Go_1.18">Go 1.18</a>].
 </p>
 
 <p>
@@ -2778,11 +2768,12 @@ values or variables, or components of other, non-interface types.
 
 <p>
 A type argument <code>T</code><i> satisfies</i> a type constraint <code>C</code>
-if <code>T</code> is an element of the type set defined by <code>C</code>; i.e.,
+if <code>T</code> is an element of the type set defined by <code>C</code>; in other words,
 if <code>T</code> <a href="#Implementing_an_interface">implements</a> <code>C</code>.
 As an exception, a <a href="#Comparison_operators">strictly comparable</a>
 type constraint may also be satisfied by a <a href="#Comparison_operators">comparable</a>
-(not necessarily strictly comparable) type argument.
+(not necessarily strictly comparable) type argument
+[<a href="#Go_1.20">Go 1.20</a>].
 More precisely:
 </p>
 
@@ -2827,8 +2818,8 @@ binds corresponding identifiers to them, and gives each a type and an initial va
 </p>
 
 <pre class="ebnf">
-VarDecl     = "var" ( VarSpec | "(" { VarSpec ";" } ")" ) .
-VarSpec     = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
+VarDecl = "var" ( VarSpec | "(" { VarSpec ";" } ")" ) .
+VarSpec = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
 </pre>
 
 <pre>
@@ -2857,7 +2848,7 @@ initialization value in the assignment.
 If that value is an untyped constant, it is first implicitly
 <a href="#Conversions">converted</a> to its <a href="#Constants">default type</a>;
 if it is an untyped boolean value, it is first implicitly converted to type <code>bool</code>.
-The predeclared value <code>nil</code> cannot be used to initialize a variable
+The predeclared identifier <code>nil</code> cannot be used to initialize a variable
 with no explicit type.
 </p>
 
@@ -3051,7 +3042,7 @@ to the base type <code>Point</code>.
 </p>
 
 <p>
-If the receiver base type is a <a href="#Type_declarations">generic type</a>, the
+If the receiver base type is a <a href="#Type_definitions">generic type</a>, the
 receiver specification must declare corresponding type parameters for the method
 to use. This makes the receiver type parameters available to the method.
 Syntactically, this type parameter declaration looks like an
@@ -3073,6 +3064,22 @@ type Pair[A, B any] struct {
 
 func (p Pair[A, B]) Swap() Pair[B, A]  { … }  // receiver declares A, B
 func (p Pair[First, _]) First() First  { … }  // receiver declares First, corresponds to A in Pair
+</pre>
+
+<p>
+If the receiver type is denoted by (a pointer to) an <a href="#Alias_declarations">alias</a>,
+the alias must not be generic and it must not denote an instantiated generic type, neither
+directly nor indirectly via another alias, and irrespective of pointer indirections.
+</p>
+
+<pre>
+type GPoint[P any] = Point
+type HPoint        = *GPoint[int]
+type IPair         = Pair[int, int]
+
+func (*GPoint[P]) Draw(P)   { … }  // illegal: alias must not be generic
+func (HPoint) Draw(P)       { … }  // illegal: alias must not denote instantiated type GPoint[int]
+func (*IPair) Second() int  { … }  // illegal: alias must not denote instantiated type Pair[int, int]
 </pre>
 
 <h2 id="Expressions">Expressions</h2>
@@ -3146,28 +3153,33 @@ math.Sin // denotes the Sin function in package math
 <h3 id="Composite_literals">Composite literals</h3>
 
 <p>
-Composite literals construct new composite values each time they are evaluated.
+Composite literals construct new values for structs, arrays, slices, and maps
+each time they are evaluated.
 They consist of the type of the literal followed by a brace-bound list of elements.
 Each element may optionally be preceded by a corresponding key.
 </p>
 
 <pre class="ebnf">
-CompositeLit  = LiteralType LiteralValue .
-LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
-                SliceType | MapType | TypeName [ TypeArgs ] .
-LiteralValue  = "{" [ ElementList [ "," ] ] "}" .
-ElementList   = KeyedElement { "," KeyedElement } .
-KeyedElement  = [ Key ":" ] Element .
-Key           = FieldName | Expression | LiteralValue .
-FieldName     = identifier .
-Element       = Expression | LiteralValue .
+CompositeLit = LiteralType LiteralValue .
+LiteralType  = StructType | ArrayType | "[" "..." "]" ElementType |
+               SliceType | MapType | TypeName [ TypeArgs ] .
+LiteralValue = "{" [ ElementList [ "," ] ] "}" .
+ElementList  = KeyedElement { "," KeyedElement } .
+KeyedElement = [ Key ":" ] Element .
+Key          = FieldName | Expression | LiteralValue .
+FieldName    = identifier .
+Element      = Expression | LiteralValue .
 </pre>
 
 <p>
-The LiteralType's <a href="#Core_types">core type</a> <code>T</code>
+Unless the LiteralType is a type parameter,
+its <a href="#Underlying_types">underlying type
 must be a struct, array, slice, or map type
 (the syntax enforces this constraint except when the type is given
 as a TypeName).
+If the LiteralType is a type parameter, all types in its type set
+must have the same underlying type which must be
+a valid composite literal type.
 The types of the elements and keys must be <a href="#Assignability">assignable</a>
 to the respective field, element, and key types of type <code>T</code>;
 there is no additional conversion.
@@ -3352,7 +3364,6 @@ noteFrequency := map[string]float32{
 }
 </pre>
 
-
 <h3 id="Function_literals">Function literals</h3>
 
 <p>
@@ -3392,22 +3403,21 @@ Primary expressions are the operands for unary and binary expressions.
 </p>
 
 <pre class="ebnf">
-PrimaryExpr =
-	Operand |
-	Conversion |
-	MethodExpr |
-	PrimaryExpr Selector |
-	PrimaryExpr Index |
-	PrimaryExpr Slice |
-	PrimaryExpr TypeAssertion |
-	PrimaryExpr Arguments .
+PrimaryExpr   = Operand |
+                Conversion |
+                MethodExpr |
+                PrimaryExpr Selector |
+                PrimaryExpr Index |
+                PrimaryExpr Slice |
+                PrimaryExpr TypeAssertion |
+                PrimaryExpr Arguments .
 
-Selector       = "." identifier .
-Index          = "[" Expression [ "," ] "]" .
-Slice          = "[" [ Expression ] ":" [ Expression ] "]" |
-                 "[" [ Expression ] ":" Expression ":" Expression "]" .
-TypeAssertion  = "." "(" Type ")" .
-Arguments      = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
+Selector      = "." identifier .
+Index         = "[" Expression [ "," ] "]" .
+Slice         = "[" [ Expression ] ":" [ Expression ] "]" |
+                "[" [ Expression ] ":" Expression ":" Expression "]" .
+TypeAssertion = "." "(" Type ")" .
+Arguments     = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
 </pre>
 
 
@@ -3580,8 +3590,8 @@ argument that is the receiver of the method.
 </p>
 
 <pre class="ebnf">
-MethodExpr    = ReceiverType "." MethodName .
-ReceiverType  = Type .
+MethodExpr   = ReceiverType "." MethodName .
+ReceiverType = Type .
 </pre>
 
 <p>
@@ -3826,11 +3836,12 @@ The following rules apply:
 </p>
 
 <p>
-If <code>a</code> is neither a map nor a type parameter:
+If <code>a</code> is neither a map nor a <a href="#Type_parameter_declarations">type parameter</a>:
 </p>
 <ul>
-	<li>the index <code>x</code> must be an untyped constant or its
-	    <a href="#Core_types">core type</a> must be an <a href="#Numeric_types">integer</a></li>
+	<li>the index <code>x</code> must be an untyped constant, or its type must be
+	    an <a href="#Numeric_types">integer</a> or a type parameter whose type set
+	    contains only integer types</li>
 	<li>a constant index must be non-negative and
 	    <a href="#Representability">representable</a> by a value of type <code>int</code></li>
 	<li>a constant index that is untyped is given type <code>int</code></li>
@@ -3944,14 +3955,26 @@ Assigning to an element of a <code>nil</code> map causes a
 
 <p>
 Slice expressions construct a substring or slice from a string, array, pointer
-to array, or slice. There are two variants: a simple form that specifies a low
+to array, or slice operand.
+There are two variants: a simple form that specifies a low
 and high bound, and a full form that also specifies a bound on the capacity.
+</p>
+
+<p>
+If the operand type is a <a href="#Type_parameter_declarations">type parameter</a>,
+unless its type set contains string types,
+all types in the type set must have the same underlying type, and the slice expression
+must be valid for an operand of that type.
+If the type set contains string types it may also contain byte slices with underlying
+type <code>[]byte</code>.
+In this case, the slice expression must be valid for an operand of <code>string</code>
+type.
 </p>
 
 <h4>Simple slice expressions</h4>
 
 <p>
-The primary expression
+For a string, array, pointer to array, or slice <code>a</code>, the primary expression
 </p>
 
 <pre>
@@ -3959,9 +3982,7 @@ a[low : high]
 </pre>
 
 <p>
-constructs a substring or slice. The <a href="#Core_types">core type</a> of
-<code>a</code> must be a string, array, pointer to array, slice, or a
-<a href="#Core_types"><code>bytestring</code></a>.
+constructs a substring or slice.
 The <i>indices</i> <code>low</code> and
 <code>high</code> select which elements of operand <code>a</code> appear
 in the result. The result has indices starting at 0 and length equal to
@@ -4041,7 +4062,7 @@ s3 := s[:0]    // s3 == nil
 <h4>Full slice expressions</h4>
 
 <p>
-The primary expression
+For an array, pointer to array, or slice <code>a</code> (but not a string), the primary expression
 </p>
 
 <pre>
@@ -4052,8 +4073,6 @@ a[low : high : max]
 constructs a slice of the same type, and with the same length and elements as the simple slice
 expression <code>a[low : high]</code>. Additionally, it controls the resulting slice's capacity
 by setting it to <code>max - low</code>. Only the first index may be omitted; it defaults to 0.
-The <a href="#Core_types">core type</a> of <code>a</code> must be an array, pointer to array,
-or slice (but not a string).
 After slicing the array <code>a</code>
 </p>
 
@@ -4159,8 +4178,8 @@ No <a href="#Run_time_panics">run-time panic</a> occurs in this case.
 <h3 id="Calls">Calls</h3>
 
 <p>
-Given an expression <code>f</code> with a <a href="#Core_types">core type</a>
-<code>F</code> of <a href="#Function_types">function type</a>,
+Given an expression <code>f</code> of <a href="#Function_types">function type</a>
+<code>F</code>,
 </p>
 
 <pre>
@@ -4172,8 +4191,7 @@ calls <code>f</code> with arguments <code>a1, a2, … an</code>.
 Except for one special case, arguments must be single-valued expressions
 <a href="#Assignability">assignable</a> to the parameter types of
 <code>F</code> and are evaluated before the function is called.
-The type of the expression is the result type
-of <code>F</code>.
+The type of the expression is the result type of <code>F</code>.
 A method invocation is similar but the method itself
 is specified as a selector upon a value of the receiver type for
 the method.
@@ -4192,11 +4210,22 @@ or used as a function value.
 </p>
 
 <p>
+If the type of <code>f</code> is a <a href="#Type_parameter_declarations">type parameter</a>,
+all types in its type set must have the same underlying type, which must be a function type,
+and the function call must be valid for that type.
+</p>
+
+<p>
 In a function call, the function value and arguments are evaluated in
 <a href="#Order_of_evaluation">the usual order</a>.
-After they are evaluated, the parameters of the call are passed by value to the function
+After they are evaluated, new storage is allocated for the function's
+<a href="#Variables">variables</a>, which includes its parameters
+and results.
+Then, the arguments of the call are <i>passed</i> to the function,
+which means that they are <a href="#Assignment_statements">assigned</a>
+to their corresponding function parameters,
 and the called function begins execution.
-The return parameters of the function are passed by value
+The return parameters of the function are passed
 back to the caller when the function returns.
 </p>
 
@@ -4210,9 +4239,9 @@ As a special case, if the return values of a function or method
 <code>g</code> are equal in number and individually
 assignable to the parameters of another function or method
 <code>f</code>, then the call <code>f(g(<i>parameters_of_g</i>))</code>
-will invoke <code>f</code> after binding the return values of
-<code>g</code> to the parameters of <code>f</code> in order.  The call
-of <code>f</code> must contain no parameters other than the call of <code>g</code>,
+will invoke <code>f</code> after passing the return values of
+<code>g</code> to the parameters of <code>f</code> in order.
+The call of <code>f</code> must contain no parameters other than the call of <code>g</code>,
 and <code>g</code> must have at least one return value.
 If <code>f</code> has a final <code>...</code> parameter, it is
 assigned the return values of <code>g</code> that remain after
@@ -4258,7 +4287,7 @@ If <code>f</code> is <a href="#Function_types">variadic</a> with a final
 parameter <code>p</code> of type <code>...T</code>, then within <code>f</code>
 the type of <code>p</code> is equivalent to type <code>[]T</code>.
 If <code>f</code> is invoked with no actual arguments for <code>p</code>,
-the value passed to <code>p</code> is <code>nil</code>.
+the value <a href="#Calls">passed</a> to <code>p</code> is <code>nil</code>.
 Otherwise, the value passed is a new slice
 of type <code>[]T</code> with a new underlying array whose successive elements
 are the actual arguments, which all must be <a href="#Assignability">assignable</a>
@@ -4306,7 +4335,7 @@ with the same underlying array.
 
 <p>
 A generic function or type is <i>instantiated</i> by substituting <i>type arguments</i>
-for the type parameters.
+for the type parameters [<a href="#Go_1.18">Go 1.18</a>].
 Instantiation proceeds in two steps:
 </p>
 
@@ -4699,17 +4728,28 @@ more complicated:
 
 <ul>
 <li>
-	If <code>C</code> has a <a href="#Core_types">core type</a>
-	<code>core(C)</code>
+	If all types in <code>C</code>'s type set have the same
+	underlying type <code>U</code>,
 	and <code>P</code> has a known type argument <code>A</code>,
-	<code>core(C)</code> and <code>A</code> must unify loosely.
+	<code>U</code> and <code>A</code> must unify loosely.
+</li>
+<li>
+	Similarly, if all types in <code>C</code>'s type set are
+	channel types with the same element type and non-conflicting
+	channel directions,
+	and <code>P</code> has a known type argument <code>A</code>,
+	the most restrictive channel type in <code>C</code>'s type
+	set and <code>A</code> must unify loosely.
+</li>
+<li>
 	If <code>P</code> does not have a known type argument
 	and <code>C</code> contains exactly one type term <code>T</code>
 	that is not an underlying (tilde) type, unification adds the
 	mapping <code>P ➞ T</code> to the map.
 </li>
 <li>
-	If <code>C</code> does not have a core type
+	If <code>C</code> does not have a type <code>U</code>
+	as described above
 	and <code>P</code> has a known type argument <code>A</code>,
 	<code>A</code> must have all methods of <code>C</code>, if any,
 	and corresponding method types must unify exactly.
@@ -4759,6 +4799,7 @@ to the type of the other operand.
 
 <p>
 The right operand in a shift expression must have <a href="#Numeric_types">integer type</a>
+[<a href="#Go_1.13">Go 1.13</a>]
 or be an untyped constant <a href="#Representability">representable</a> by a
 value of type <code>uint</code>.
 If the left operand of a non-constant shift expression is an untyped constant,
@@ -4826,12 +4867,13 @@ For instance, <code>x / y * z</code> is the same as <code>(x / y) * z</code>.
 </p>
 
 <pre>
-+x
-23 + 3*x[i]
-x &lt;= f()
-^a &gt;&gt; b
-f() || g()
-x == y+1 &amp;&amp; &lt;-chanInt &gt; 0
++x                         // x
+42 + a - b                 // (42 + a) - b
+23 + 3*x[i]                // 23 + (3 * x[i])
+x &lt;= f()                   // x &lt;= f()
+^a &gt;&gt; b                    // (^a) >> b
+f() || g()                 // f() || g()
+x == y+1 &amp;&amp; &lt;-chanInt &gt; 0  // (x == (y+1)) && ((<-chanInt) > 0)
 </pre>
 
 
@@ -4996,7 +5038,7 @@ For floating-point and complex numbers,
 <code>+x</code> is the same as <code>x</code>,
 while <code>-x</code> is the negation of <code>x</code>.
 The result of a floating-point or complex division by zero is not specified beyond the
-IEEE-754 standard; whether a <a href="#Run_time_panics">run-time panic</a>
+IEEE 754 standard; whether a <a href="#Run_time_panics">run-time panic</a>
 occurs is implementation-specific.
 </p>
 
@@ -5086,7 +5128,7 @@ These terms and the result of the comparisons are defined as follows:
 
 	<li>
 	Floating-point types are comparable and ordered.
-	Two floating-point values are compared as defined by the IEEE-754 standard.
+	Two floating-point values are compared as defined by the IEEE 754 standard.
 	</li>
 
 	<li>
@@ -5258,10 +5300,10 @@ var x *int = nil
 <h3 id="Receive_operator">Receive operator</h3>
 
 <p>
-For an operand <code>ch</code> whose <a href="#Core_types">core type</a> is a
-<a href="#Channel_types">channel</a>,
+For an operand <code>ch</code> of <a href="#Channel_types">channel type</a>,
 the value of the receive operation <code>&lt;-ch</code> is the value received
-from the channel <code>ch</code>. The channel direction must permit receive operations,
+from the channel <code>ch</code>.
+The channel direction must permit receive operations,
 and the type of the receive operation is the element type of the channel.
 The expression blocks until a value is available.
 Receiving from a <code>nil</code> channel blocks forever.
@@ -5276,6 +5318,12 @@ v2 = &lt;-ch
 f(&lt;-ch)
 &lt;-strobe  // wait until clock pulse and discard received value
 </pre>
+
+<p>
+If the operand type is a <a href="#Type_parameter_declarations">type parameter</a>,
+all types in its type set must be channel types that permit receive operations, and
+they must all have the same element type, which is the type of the receive operation.
+</p>
 
 <p>
 A receive expression used in an <a href="#Assignment_statements">assignment statement</a> or initialization of the special form
@@ -5425,7 +5473,8 @@ in any of these cases:
 	<code>x</code> is a string and <code>T</code> is a slice of bytes or runes.
 	</li>
 	<li>
-	<code>x</code> is a slice, <code>T</code> is an array or a pointer to an array,
+	<code>x</code> is a slice, <code>T</code> is an array [<a href="#Go_1.20">Go 1.20</a>]
+	or a pointer to an array [<a href="#Go_1.17">Go 1.17</a>],
 	and the slice and array types have <a href="#Type_identity">identical</a> element types.
 	</li>
 </ul>
@@ -5515,7 +5564,7 @@ When converting an integer or floating-point number to a floating-point type,
 or a <a href="#Numeric_types">complex number</a> to another complex type, the result value is rounded
 to the precision specified by the destination type.
 For instance, the value of a variable <code>x</code> of type <code>float32</code>
-may be stored using additional precision beyond that of an IEEE-754 32-bit number,
+may be stored using additional precision beyond that of an IEEE 754 32-bit number,
 but float32(x) represents the result of rounding <code>x</code>'s value to
 32-bit precision. Similarly, <code>x + 0.1</code> may use more than 32 bits
 of precision, but <code>float32(x + 0.1)</code> does not.
@@ -5571,6 +5620,8 @@ myString([]myRune{0x1f30e})              // "\U0001f30e" == "🌎"
 <li>
 Converting a value of a string type to a slice of bytes type
 yields a non-nil slice whose successive elements are the bytes of the string.
+The <a href="#Length_and_capacity">capacity</a> of the resulting slice is
+implementation-specific and may be larger than the slice length.
 
 <pre>
 []byte("hellø")             // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
@@ -5586,6 +5637,8 @@ bytes("hellø")              // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
 <li>
 Converting a value of a string type to a slice of runes type
 yields a slice containing the individual Unicode code points of the string.
+The <a href="#Length_and_capacity">capacity</a> of the resulting slice is
+implementation-specific and may be larger than the slice length.
 
 <pre>
 []rune(myString("白鵬翔"))   // []rune{0x767d, 0x9d6c, 0x7fd4}
@@ -5787,7 +5840,7 @@ Otherwise, when evaluating the <a href="#Operands">operands</a> of an
 expression, assignment, or
 <a href="#Return_statements">return statement</a>,
 all function calls, method calls,
-<a href="#Receive operator">receive operations</a>,
+<a href="#Receive_operator">receive operations</a>,
 and <a href="#Logical_operators">binary logical operations</a>
 are evaluated in lexical left-to-right order.
 </p>
@@ -5855,11 +5908,10 @@ Statements control execution.
 </p>
 
 <pre class="ebnf">
-Statement =
-	Declaration | LabeledStmt | SimpleStmt |
-	GoStmt | ReturnStmt | BreakStmt | ContinueStmt | GotoStmt |
-	FallthroughStmt | Block | IfStmt | SwitchStmt | SelectStmt | ForStmt |
-	DeferStmt .
+Statement  = Declaration | LabeledStmt | SimpleStmt |
+             GoStmt | ReturnStmt | BreakStmt | ContinueStmt | GotoStmt |
+             FallthroughStmt | Block | IfStmt | SwitchStmt | SelectStmt | ForStmt |
+             DeferStmt .
 
 SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | IncDecStmt | Assignment | ShortVarDecl .
 </pre>
@@ -6008,8 +6060,7 @@ len("foo")  // illegal if len is the built-in function
 
 <p>
 A send statement sends a value on a channel.
-The channel expression's <a href="#Core_types">core type</a>
-must be a <a href="#Channel_types">channel</a>,
+The channel expression must be of <a href="#Channel_types">channel type</a>,
 the channel direction must permit send operations,
 and the type of the value to be sent must be <a href="#Assignability">assignable</a>
 to the channel's element type.
@@ -6033,6 +6084,13 @@ A send on a <code>nil</code> channel blocks forever.
 ch &lt;- 3  // send value 3 to channel ch
 </pre>
 
+<p>
+If the type of the channel expression is a
+<a href="#Type_parameter_declarations">type parameter</a>,
+all types in its type set must be channel types that permit send operations,
+they must all have the same element type,
+and the type of the value to be sent must be assignable to that element type.
+</p>
 
 <h3 id="IncDec_statements">IncDec statements</h3>
 
@@ -6071,7 +6129,7 @@ matching number of variables.
 <pre class="ebnf">
 Assignment = ExpressionList assign_op ExpressionList .
 
-assign_op = [ add_op | mul_op ] "=" .
+assign_op  = [ add_op | mul_op ] "=" .
 </pre>
 
 <p>
@@ -6199,6 +6257,26 @@ to the type of the operand to which it is assigned, with the following special c
 	the blank identifier, it is first implicitly converted to type <code>bool</code>.
 </li>
 </ol>
+
+<p>
+When a value is assigned to a variable, only the data that is stored in the variable
+is replaced. If the value contains a <a href="#Representation_of_values">reference</a>,
+the assignment copies the reference but does not make a copy of the referenced data
+(such as the underlying array of a slice).
+</p>
+
+<pre>
+var s1 = []int{1, 2, 3}
+var s2 = s1                    // s2 stores the slice descriptor of s1
+s1 = s1[:1]                    // s1's length is 1 but it still shares its underlying array with s2
+s2[0] = 42                     // setting s2[0] changes s1[0] as well
+fmt.Println(s1, s2)            // prints [42] [42 2 3]
+
+var m1 = make(map[string]int)
+var m2 = m1                    // m2 stores the map descriptor of m1
+m1["foo"] = 42                 // setting m1["foo"] changes m2["foo"] as well
+fmt.Println(m2["foo"])         // prints 42
+</pre>
 
 <h3 id="If_statements">If statements</h3>
 
@@ -6487,7 +6565,7 @@ The iteration may be controlled by a single condition, a "for" clause, or a "ran
 </p>
 
 <pre class="ebnf">
-ForStmt = "for" [ Condition | ForClause | RangeClause ] Block .
+ForStmt   = "for" [ Condition | ForClause | RangeClause ] Block .
 Condition = Expression .
 </pre>
 
@@ -6515,13 +6593,12 @@ additionally it may specify an <i>init</i>
 and a <i>post</i> statement, such as an assignment,
 an increment or decrement statement. The init statement may be a
 <a href="#Short_variable_declarations">short variable declaration</a>, but the post statement must not.
-Variables declared by the init statement are re-used in each iteration.
 </p>
 
 <pre class="ebnf">
 ForClause = [ InitStmt ] ";" [ Condition ] ";" [ PostStmt ] .
-InitStmt = SimpleStmt .
-PostStmt = SimpleStmt .
+InitStmt  = SimpleStmt .
+PostStmt  = SimpleStmt .
 </pre>
 
 <pre>
@@ -6547,12 +6624,56 @@ for cond { S() }    is the same as    for ; cond ; { S() }
 for      { S() }    is the same as    for true     { S() }
 </pre>
 
+<p>
+Each iteration has its own separate declared variable (or variables)
+[<a href="#Go_1.22">Go 1.22</a>].
+The variable used by the first iteration is declared by the init statement.
+The variable used by each subsequent iteration is declared implicitly before
+executing the post statement and initialized to the value of the previous
+iteration's variable at that moment.
+</p>
+
+<pre>
+var prints []func()
+for i := 0; i < 5; i++ {
+	prints = append(prints, func() { println(i) })
+	i++
+}
+for _, p := range prints {
+	p()
+}
+</pre>
+
+<p>
+prints
+</p>
+
+<pre>
+1
+3
+5
+</pre>
+
+<p>
+Prior to [<a href="#Go_1.22">Go 1.22</a>], iterations share one set of variables
+instead of having their own separate variables.
+In that case, the example above prints
+</p>
+
+<pre>
+6
+6
+6
+</pre>
+
 <h4 id="For_range">For statements with <code>range</code> clause</h4>
 
 <p>
 A "for" statement with a "range" clause
-iterates through all entries of an array, slice, string or map,
-or values received on a channel. For each entry it assigns <i>iteration values</i>
+iterates through all entries of an array, slice, string or map, values received on
+a channel, integer values from zero to an upper limit [<a href="#Go_1.22">Go 1.22</a>],
+or values passed to an iterator function's yield function [<a href="#Go_1.23">Go 1.23</a>].
+For each entry it assigns <i>iteration values</i>
 to corresponding <i>iteration variables</i> if present and then executes the block.
 </p>
 
@@ -6562,21 +6683,24 @@ RangeClause = [ ExpressionList "=" | IdentifierList ":=" ] "range" Expression .
 
 <p>
 The expression on the right in the "range" clause is called the <i>range expression</i>,
-its <a href="#Core_types">core type</a> must be
-an array, pointer to an array, slice, string, map, or channel permitting
-<a href="#Receive_operator">receive operations</a>.
+which may be an array, pointer to an array, slice, string, map, channel permitting
+<a href="#Receive_operator">receive operations</a>, an integer, or
+a function with specific signature (see below).
 As with an assignment, if present the operands on the left must be
 <a href="#Address_operators">addressable</a> or map index expressions; they
-denote the iteration variables. If the range expression is a channel, at most
-one iteration variable is permitted, otherwise there may be up to two.
+denote the iteration variables.
+If the range expression is a function, the maximum number of iteration variables depends on
+the function signature.
+If the range expression is a channel or integer, at most one iteration variable is permitted;
+otherwise there may be up to two.
 If the last iteration variable is the <a href="#Blank_identifier">blank identifier</a>,
 the range clause is equivalent to the same clause without that identifier.
 </p>
 
 <p>
-The range expression <code>x</code> is evaluated once before beginning the loop,
-with one exception: if at most one iteration variable is present and
-<code>len(x)</code> is <a href="#Length_and_capacity">constant</a>,
+The range expression <code>x</code> is evaluated before beginning the loop,
+with one exception: if at most one iteration variable is present and <code>x</code> or
+<a href="#Length_and_capacity"><code>len(x)</code></a> is <a href="#Constants">constant</a>,
 the range expression is not evaluated.
 </p>
 
@@ -6587,12 +6711,16 @@ if the respective iteration variables are present:
 </p>
 
 <pre class="grammar">
-Range expression                          1st value          2nd value
+Range expression                                       1st value                2nd value
 
-array or slice  a  [n]E, *[n]E, or []E    index    i  int    a[i]       E
-string          s  string type            index    i  int    see below  rune
-map             m  map[K]V                key      k  K      m[k]       V
-channel         c  chan E, &lt;-chan E       element  e  E
+array or slice      a  [n]E, *[n]E, or []E             index    i  int          a[i]       E
+string              s  string type                     index    i  int          see below  rune
+map                 m  map[K]V                         key      k  K            m[k]       V
+channel             c  chan E, &lt;-chan E                element  e  E
+integer value       n  integer type, or untyped int    value    i  see below
+function, 0 values  f  func(func() bool)
+function, 1 value   f  func(func(V) bool)              value    v  V
+function, 2 values  f  func(func(K, V) bool)           key      k  K            v          V
 </pre>
 
 <ol>
@@ -6631,22 +6759,53 @@ For channels, the iteration values produced are the successive values sent on
 the channel until the channel is <a href="#Close">closed</a>. If the channel
 is <code>nil</code>, the range expression blocks forever.
 </li>
-</ol>
 
-<p>
-The iteration values are assigned to the respective
-iteration variables as in an <a href="#Assignment_statements">assignment statement</a>.
-</p>
+<li>
+For an integer value <code>n</code>, where <code>n</code> is of <a href="#Numeric_types">integer type</a>
+or an untyped <a href="#Constants">integer constant</a>, the iteration values 0 through <code>n-1</code>
+are produced in increasing order.
+If <code>n</code> is of integer type, the iteration values have that same type.
+Otherwise, the type of <code>n</code> is determined as if it were assigned to the
+iteration variable.
+Specifically:
+if the iteration variable is preexisting, the type of the iteration values is the type of the iteration
+variable, which must be of integer type.
+Otherwise, if the iteration variable is declared by the "range" clause or is absent,
+the type of the iteration values is the <a href="#Constants">default type</a> for <code>n</code>.
+If <code>n</code> &lt= 0, the loop does not run any iterations.
+</li>
+
+<li>
+For a function <code>f</code>, the iteration proceeds by calling <code>f</code>
+with a new, synthesized <code>yield</code> function as its argument.
+If <code>yield</code> is called before <code>f</code> returns,
+the arguments to <code>yield</code> become the iteration values
+for executing the loop body once.
+After each successive loop iteration, <code>yield</code> returns true
+and may be called again to continue the loop.
+As long as the loop body does not terminate, the "range" clause will continue
+to generate iteration values this way for each <code>yield</code> call until
+<code>f</code> returns.
+If the loop body terminates (such as by a <code>break</code> statement),
+<code>yield</code> returns false and must not be called again.
+</li>
+</ol>
 
 <p>
 The iteration variables may be declared by the "range" clause using a form of
 <a href="#Short_variable_declarations">short variable declaration</a>
 (<code>:=</code>).
-In this case their types are set to the types of the respective iteration values
-and their <a href="#Declarations_and_scope">scope</a> is the block of the "for"
-statement; they are re-used in each iteration.
-If the iteration variables are declared outside the "for" statement,
-after execution their values will be those of the last iteration.
+In this case their <a href="#Declarations_and_scope">scope</a> is the block of the "for" statement
+and each iteration has its own new variables [<a href="#Go_1.22">Go 1.22</a>]
+(see also <a href="#For_clause">"for" statements with a ForClause</a>).
+The variables have the types of their respective iteration values.
+</p>
+
+<p>
+If the iteration variables are not explicitly declared by the "range" clause,
+they must be preexisting.
+In this case, the iteration values are assigned to the respective variables
+as in an <a href="#Assignment_statements">assignment statement</a>.
 </p>
 
 <pre>
@@ -6683,8 +6842,67 @@ for w := range ch {
 
 // empty a channel
 for range ch {}
+
+// call f(0), f(1), ... f(9)
+for i := range 10 {
+	// type of i is int (default type for untyped constant 10)
+	f(i)
+}
+
+// invalid: 256 cannot be assigned to uint8
+var u uint8
+for u = range 256 {
+}
+
+// invalid: 1e3 is a floating-point constant
+for range 1e3 {
+}
+
+// fibo generates the Fibonacci sequence
+fibo := func(yield func(x int) bool) {
+	f0, f1 := 0, 1
+	for yield(f0) {
+		f0, f1 = f1, f0+f1
+	}
+}
+
+// print the Fibonacci numbers below 1000:
+for x := range fibo {
+	if x >= 1000 {
+		break
+	}
+	fmt.Printf("%d ", x)
+}
+// output: 0 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987
+
+// iteration support for a recursive tree data structure
+type Tree[K cmp.Ordered, V any] struct {
+	left, right *Tree[K, V]
+	key         K
+	value       V
+}
+
+func (t *Tree[K, V]) walk(yield func(key K, val V) bool) bool {
+	return t == nil || t.left.walk(yield) && yield(t.key, t.value) && t.right.walk(yield)
+}
+
+func (t *Tree[K, V]) Walk(yield func(key K, val V) bool) {
+	t.walk(yield)
+}
+
+// walk tree t in-order
+var t Tree[string, int]
+for k, v := range t.Walk {
+	// process k, v
+}
 </pre>
 
+<p>
+If the type of the range expression is a <a href="#Type_parameter_declarations">type parameter</a>,
+all types in its type set must have the same underlying type and the range expression must be valid
+for that type, or, if the type set contains channel types, it must only contain channel types with
+identical element types, and all channel types must permit receive operations.
+</p>
 
 <h3 id="Go_statements">Go statements</h3>
 
@@ -7158,22 +7376,27 @@ by the arguments overlaps.
 
 <p>
 The <a href="#Function_types">variadic</a> function <code>append</code>
-appends zero or more values <code>x</code> to a slice <code>s</code>
-and returns the resulting slice of the same type as <code>s</code>.
-The <a href="#Core_types">core type</a> of <code>s</code> must be a slice
-of type <code>[]E</code>.
+appends zero or more values <code>x</code> to a slice <code>s</code> of
+type <code>S</code> and returns the resulting slice, also of type
+<code>S</code>.
 The values <code>x</code> are passed to a parameter of type <code>...E</code>
+where <code>E</code> is the element type of <code>S</code>
 and the respective <a href="#Passing_arguments_to_..._parameters">parameter
 passing rules</a> apply.
-As a special case, if the core type of <code>s</code> is <code>[]byte</code>,
-<code>append</code> also accepts a second argument with core type
-<a href="#Core_types"><code>bytestring</code></a> followed by <code>...</code>.
-This form appends the bytes of the byte slice or string.
+As a special case, <code>append</code> also accepts a first argument assignable
+to type <code>[]byte</code> with a second argument of string type followed by
+<code>...</code>.
+This form appends the bytes of the string.
 </p>
 
 <pre class="grammar">
-append(s S, x ...E) S  // core type of S is []E
+append(s S, x ...E) S  // E is the element type of S
 </pre>
+
+<p>
+If <code>S</code> is a <a href="#Type_parameter_declarations">type parameter</a>,
+all types in its type set must have the same underlying slice type <code>[]E</code>.
+</p>
 
 <p>
 If the capacity of <code>s</code> is not large enough to fit the additional
@@ -7200,20 +7423,25 @@ b = append(b, "bar"...)            // append string contents      b is []byte{'b
 The function <code>copy</code> copies slice elements from
 a source <code>src</code> to a destination <code>dst</code> and returns the
 number of elements copied.
-The <a href="#Core_types">core types</a> of both arguments must be slices
-with <a href="#Type_identity">identical</a> element type.
+Both arguments must have <a href="#Type_identity">identical</a> element type
+<code>E</code> and must be assignable to a slice of type <code>[]E</code>.
 The number of elements copied is the minimum of
 <code>len(src)</code> and <code>len(dst)</code>.
-As a special case, if the destination's core type is <code>[]byte</code>,
-<code>copy</code> also accepts a source argument with core type
-</a> <a href="#Core_types"><code>bytestring</code></a>.
-This form copies the bytes from the byte slice or string into the byte slice.
+As a special case, <code>copy</code> also accepts a destination argument
+assignable to type <code>[]byte</code> with a source argument of a
+<code>string</code> type.
+This form copies the bytes from the string into the byte slice.
 </p>
 
 <pre class="grammar">
 copy(dst, src []T) int
 copy(dst []byte, src string) int
 </pre>
+
+<p>
+If the type of one or both arguments is a <a href="#Type_parameter_declarations">type parameter</a>,
+all types in their respective type sets must have the same underlying slice type <code>[]E</code>.
+</p>
 
 <p>
 Examples:
@@ -7234,7 +7462,8 @@ n3 := copy(b, "Hello, World!")  // n3 == 5, b is []byte("Hello")
 <p>
 The built-in function <code>clear</code> takes an argument of <a href="#Map_types">map</a>,
 <a href="#Slice_types">slice</a>, or <a href="#Type_parameter_declarations">type parameter</a> type,
-and deletes or zeroes out all elements.
+and deletes or zeroes out all elements
+[<a href="#Go_1.21">Go 1.21</a>].
 </p>
 
 <pre class="grammar">
@@ -7264,8 +7493,7 @@ If the map or slice is <code>nil</code>, <code>clear</code> is a no-op.
 <h3 id="Close">Close</h3>
 
 <p>
-For an argument <code>ch</code> with a <a href="#Core_types">core type</a>
-that is a <a href="#Channel_types">channel</a>, the built-in function <code>close</code>
+For a channel <code>ch</code>, the built-in function <code>close(ch)</code>
 records that no more values will be sent on the channel.
 It is an error if <code>ch</code> is a receive-only channel.
 Sending to or closing a closed channel causes a <a href="#Run_time_panics">run-time panic</a>.
@@ -7277,6 +7505,12 @@ The multi-valued <a href="#Receive_operator">receive operation</a>
 returns a received value along with an indication of whether the channel is closed.
 </p>
 
+<p>
+If the type of the argument to <code>close</code> is a
+<a href="#Type_parameter_declarations">type parameter</a>,
+all types in its type set must be channels with the same element type.
+It is an error if any of those channels is a receive-only channel.
+</p>
 
 <h3 id="Complex_numbers">Manipulating complex numbers</h3>
 
@@ -7446,26 +7680,35 @@ var z complex128
 
 <p>
 The built-in function <code>make</code> takes a type <code>T</code>,
+which must be a slice, map or channel type, or a type parameter,
 optionally followed by a type-specific list of expressions.
-The <a href="#Core_types">core type</a> of <code>T</code> must
-be a slice, map or channel.
 It returns a value of type <code>T</code> (not <code>*T</code>).
 The memory is initialized as described in the section on
 <a href="#The_zero_value">initial values</a>.
 </p>
 
 <pre class="grammar">
-Call             Core type    Result
+Call             Type T            Result
 
-make(T, n)       slice        slice of type T with length n and capacity n
-make(T, n, m)    slice        slice of type T with length n and capacity m
+make(T, n)       slice             slice of type T with length n and capacity n
+make(T, n, m)    slice             slice of type T with length n and capacity m
 
-make(T)          map          map of type T
-make(T, n)       map          map of type T with initial space for approximately n elements
+make(T)          map               map of type T
+make(T, n)       map               map of type T with initial space for approximately n elements
 
-make(T)          channel      unbuffered channel of type T
-make(T, n)       channel      buffered channel of type T, buffer size n
+make(T)          channel           unbuffered channel of type T
+make(T, n)       channel           buffered channel of type T, buffer size n
+
+make(T, n)       type parameter    see below
+make(T, n, m)    type parameter    see below
 </pre>
+
+<p>
+If the first argument is a <a href="#Type_parameter_declarations">type parameter</a>,
+all types in its type set must have the same underlying type, which must be a slice
+or map type, or, if there are channel types, there must only be channel types, they
+must all have the same element type, and the channel directions must not conflict.
+</p>
 
 <p>
 Each of the size arguments <code>n</code> and <code>m</code> must be of <a href="#Numeric_types">integer type</a>,
@@ -7501,7 +7744,8 @@ The precise behavior is implementation-dependent.
 The built-in functions <code>min</code> and <code>max</code> compute the
 smallest&mdash;or largest, respectively&mdash;value of a fixed number of
 arguments of <a href="#Comparison_operators">ordered types</a>.
-There must be at least one argument.
+There must be at least one argument
+[<a href="#Go_1.21">Go 1.21</a>].
 </p>
 
 <p>
@@ -7650,7 +7894,7 @@ causes a <a href="#Run_time_panics">run-time panic</a>.
 <p>
 The <code>protect</code> function in the example below invokes
 the function argument <code>g</code> and protects callers from
-run-time panics raised by <code>g</code>.
+run-time panics caused by <code>g</code>.
 </p>
 
 <pre>
@@ -7711,7 +7955,7 @@ types, variables, and constants.
 </p>
 
 <pre class="ebnf">
-SourceFile       = PackageClause ";" { ImportDecl ";" } { TopLevelDecl ";" } .
+SourceFile = PackageClause ";" { ImportDecl ";" } { TopLevelDecl ";" } .
 </pre>
 
 <h3 id="Package_clause">Package clause</h3>
@@ -7722,8 +7966,8 @@ to which the file belongs.
 </p>
 
 <pre class="ebnf">
-PackageClause  = "package" PackageName .
-PackageName    = identifier .
+PackageClause = "package" PackageName .
+PackageName   = identifier .
 </pre>
 
 <p>
@@ -7752,9 +7996,9 @@ that specifies the package to be imported.
 </p>
 
 <pre class="ebnf">
-ImportDecl       = "import" ( ImportSpec | "(" { ImportSpec ";" } ")" ) .
-ImportSpec       = [ "." | PackageName ] ImportPath .
-ImportPath       = string_lit .
+ImportDecl = "import" ( ImportSpec | "(" { ImportSpec ";" } ")" ) .
+ImportSpec = [ "." | PackageName ] ImportPath .
+ImportPath = string_lit .
 </pre>
 
 <p>
@@ -8208,17 +8452,14 @@ func String(ptr *byte, len IntegerType) string
 func StringData(str string) *byte
 </pre>
 
-<!--
-These conversions also apply to type parameters with suitable core types.
-Determine if we can simply use core type instead of underlying type here,
-of if the general conversion rules take care of this.
--->
-
 <p>
 A <code>Pointer</code> is a <a href="#Pointer_types">pointer type</a> but a <code>Pointer</code>
 value may not be <a href="#Address_operators">dereferenced</a>.
 Any pointer or value of <a href="#Underlying_types">underlying type</a> <code>uintptr</code> can be
 <a href="#Conversions">converted</a> to a type of underlying type <code>Pointer</code> and vice versa.
+If the respective types are <a href="#Type_parameter_declarations">type parameters</a>, all types in
+their respective type sets must have the same underlying type, which must be <code>uintptr</code> and
+<code>Pointer</code>, respectively.
 The effect of converting between <code>Pointer</code> and <code>uintptr</code> is implementation-defined.
 </p>
 
@@ -8229,13 +8470,17 @@ bits = *(*uint64)(unsafe.Pointer(&amp;f))
 type ptr unsafe.Pointer
 bits = *(*uint64)(ptr(&amp;f))
 
+func f[P ~*B, B any](p P) uintptr {
+	return uintptr(unsafe.Pointer(p))
+}
+
 var p ptr = nil
 </pre>
 
 <p>
 The functions <code>Alignof</code> and <code>Sizeof</code> take an expression <code>x</code>
 of any type and return the alignment or size, respectively, of a hypothetical variable <code>v</code>
-as if <code>v</code> was declared via <code>var v = x</code>.
+as if <code>v</code> were declared via <code>var v = x</code>.
 </p>
 <p>
 The function <code>Offsetof</code> takes a (possibly parenthesized) <a href="#Selectors">selector</a>
@@ -8277,7 +8522,8 @@ of constant size.
 
 <p>
 The function <code>Add</code> adds <code>len</code> to <code>ptr</code>
-and returns the updated pointer <code>unsafe.Pointer(uintptr(ptr) + uintptr(len))</code>.
+and returns the updated pointer <code>unsafe.Pointer(uintptr(ptr) + uintptr(len))</code>
+[<a href="#Go_1.17">Go 1.17</a>].
 The <code>len</code> argument must be of <a href="#Numeric_types">integer type</a> or an untyped <a href="#Constants">constant</a>.
 A constant <code>len</code> argument must be <a href="#Representability">representable</a> by a value of type <code>int</code>;
 if it is an untyped constant it is given type <code>int</code>.
@@ -8297,7 +8543,8 @@ and whose length and capacity are <code>len</code>.
 <p>
 except that, as a special case, if <code>ptr</code>
 is <code>nil</code> and <code>len</code> is zero,
-<code>Slice</code> returns <code>nil</code>.
+<code>Slice</code> returns <code>nil</code>
+[<a href="#Go_1.17">Go 1.17</a>].
 </p>
 
 <p>
@@ -8306,14 +8553,16 @@ A constant <code>len</code> argument must be non-negative and <a href="#Represen
 if it is an untyped constant it is given type <code>int</code>.
 At run time, if <code>len</code> is negative,
 or if <code>ptr</code> is <code>nil</code> and <code>len</code> is not zero,
-a <a href="#Run_time_panics">run-time panic</a> occurs.
+a <a href="#Run_time_panics">run-time panic</a> occurs
+[<a href="#Go_1.17">Go 1.17</a>].
 </p>
 
 <p>
 The function <code>SliceData</code> returns a pointer to the underlying array of the <code>slice</code> argument.
 If the slice's capacity <code>cap(slice)</code> is not zero, that pointer is <code>&slice[:1][0]</code>.
 If <code>slice</code> is <code>nil</code>, the result is <code>nil</code>.
-Otherwise it  is a non-<code>nil</code> pointer to an unspecified memory address.
+Otherwise it  is a non-<code>nil</code> pointer to an unspecified memory address
+[<a href="#Go_1.20">Go 1.20</a>].
 </p>
 
 <p>
@@ -8322,12 +8571,14 @@ The function <code>String</code> returns a <code>string</code> value whose under
 The same requirements apply to the <code>ptr</code> and <code>len</code> argument as in the function
 <code>Slice</code>. If <code>len</code> is zero, the result is the empty string <code>""</code>.
 Since Go strings are immutable, the bytes passed to <code>String</code> must not be modified afterwards.
+[<a href="#Go_1.20">Go 1.20</a>]
 </p>
 
 <p>
 The function <code>StringData</code> returns a pointer to the underlying bytes of the <code>str</code> argument.
 For an empty string the return value is unspecified, and may be <code>nil</code>.
-Since Go strings are immutable, the bytes returned by <code>StringData</code> must not be modified.
+Since Go strings are immutable, the bytes returned by <code>StringData</code> must not be modified
+[<a href="#Go_1.20">Go 1.20</a>].
 </p>
 
 <h3 id="Size_and_alignment_guarantees">Size and alignment guarantees</h3>
@@ -8367,6 +8618,160 @@ A struct or array type has size zero if it contains no fields (or elements, resp
 </p>
 
 <h2 id="Appendix">Appendix</h2>
+
+<h3 id="Language_versions">Language versions</h3>
+
+<p>
+The <a href="/doc/go1compat">Go 1 compatibility guarantee</a> ensures that
+programs written to the Go 1 specification will continue to compile and run
+correctly, unchanged, over the lifetime of that specification.
+More generally, as adjustments are made and features added to the language,
+the compatibility guarantee ensures that a Go program that works with a
+specific Go language version will continue to work with any subsequent version.
+</p>
+
+<p>
+For instance, the ability to use the prefix <code>0b</code> for binary
+integer literals was introduced with Go 1.13, indicated
+by [<a href="#Go_1.13">Go 1.13</a>] in the section on
+<a href="#Integer_literals">integer literals</a>.
+Source code containing an integer literal such as <code>0b1011</code>
+will be rejected if the implied or required language version used by
+the compiler is older than Go 1.13.
+</p>
+
+<p>
+The following table describes the minimum language version required for
+features introduced after Go 1.
+</p>
+
+<h4 id="Go_1.9">Go 1.9</h4>
+<ul>
+<li>
+An <a href="#Alias_declarations">alias declaration</a> may be used to declare an alias name for a type.
+</li>
+</ul>
+
+<h4 id="Go_1.13">Go 1.13</h4>
+<ul>
+<li>
+<a href="#Integer_literals">Integer literals</a> may use the prefixes <code>0b</code>, <code>0B</code>, <code>0o</code>,
+and <code>0O</code> for binary, and octal literals, respectively.
+</li>
+<li>
+Hexadecimal <a href="#Floating-point_literals">floating-point literals</a> may be written using the prefixes
+<code>0x</code> and <code>0X</code>.
+</li>
+<li>
+The <a href="#Imaginary_literals">imaginary suffix</a> <code>i</code> may be used with any (binary, decimal, hexadecimal)
+integer or floating-point literal, not just decimal literals.
+</li>
+<li>
+The digits of any number literal may be <a href="#Integer_literals">separated</a> (grouped)
+using underscores <code>_</code>.
+</li>
+<li>
+The shift count in a <a href="#Operators">shift operation</a> may be a signed integer type.
+</li>
+</ul>
+
+<h4 id="Go_1.14">Go 1.14</h4>
+<ul>
+<li>
+Emdedding a method more than once through different <a href="#Embedded_interfaces">embedded interfaces</a>
+is not an error.
+</li>
+</ul>
+
+<h4 id="Go_1.17">Go 1.17</h4>
+<ul>
+<li>
+A slice may be <a href="#Conversions">converted</a> to an array pointer if the slice and array element
+types match, and the array is not longer than the slice.
+</li>
+<li>
+The built-in <a href="#Package_unsafe">package <code>unsafe</code></a> includes the new functions
+<code>Add</code> and <code>Slice</code>.
+</li>
+</ul>
+
+<h4 id="Go_1.18">Go 1.18</h4>
+<p>
+The 1.18 release adds polymorphic functions and types ("generics") to the language.
+Specifically:
+</p>
+<ul>
+<li>
+The set of <a href="#Operators_and_punctuation">operators and punctuation</a> includes the new token <code>~</code>.
+</li>
+<li>
+Function and type declarations may declare <a href="#Type_parameter_declarations">type parameters</a>.
+</li>
+<li>
+Interface types may <a href="#General_interfaces">embed arbitrary types</a> (not just type names of interfaces)
+as well as union and <code>~T</code> type elements.
+</li>
+<li>
+The set of <a href="#Predeclared_identifiers">predeclared</a> types includes the new types
+<code>any</code> and <code>comparable</code>.
+</li>
+</ul>
+
+<h4 id="Go_1.20">Go 1.20</h4>
+<ul>
+<li>
+A slice may be <a href="#Conversions">converted</a> to an array if the slice and array element
+types match and the array is not longer than the slice.
+</li>
+<li>
+The built-in <a href="#Package_unsafe">package <code>unsafe</code></a> includes the new functions
+<code>SliceData</code>, <code>String</code>, and <code>StringData</code>.
+</li>
+<li>
+<a href="#Comparison_operators">Comparable types</a> (such as ordinary interfaces) may satisfy
+<code>comparable</code> constraints, even if the type arguments are not strictly comparable.
+</li>
+</ul>
+
+<h4 id="Go_1.21">Go 1.21</h4>
+<ul>
+<li>
+The set of <a href="#Predeclared_identifiers">predeclared</a> functions includes the new functions
+<code>min</code>, <code>max</code>, and <code>clear</code>.
+</li>
+<li>
+<a href="#Type_inference">Type inference</a> uses the types of interface methods for inference.
+It also infers type arguments for generic functions assigned to variables or
+passed as arguments to other (possibly generic) functions.
+</li>
+</ul>
+
+<h4 id="Go_1.22">Go 1.22</h4>
+<ul>
+<li>
+In a <a href="#For_statements">"for" statement</a>, each iteration has its own set of iteration
+variables rather than sharing the same variables in each iteration.
+</li>
+<li>
+A "for" statement with <a href="#For_range">"range" clause</a> may iterate over
+integer values from zero to an upper limit.
+</li>
+</ul>
+
+<h4 id="Go_1.23">Go 1.23</h4>
+<ul>
+<li>A "for" statement with <a href="#For_range">"range" clause</a> accepts an iterator
+function as range expression.
+</li>
+</ul>
+
+<h4 id="Go_1.24">Go 1.24</h4>
+<ul>
+<li>
+An <a href="#Alias_declarations">alias declaration</a> may declare
+<a href="#Type_parameter_declarations">type parameters</a>.
+</li>
+</ul>
 
 <h3 id="Type_unification_rules">Type unification rules</h3>
 
@@ -8408,9 +8813,9 @@ following conditions is true:
 </li>
 <li>
 	Exactly one type is an <a href="#Type_inference">unbound</a>
-	type parameter with a <a href="#Core_types">core type</a>,
-	and that core type unifies with the other type per the
-	unification rules for <code>≡<sub>A</sub></code>
+	type parameter, and all the types in its type set unify with
+	the other type
+	per the unification rules for <code>≡<sub>A</sub></code>
 	(loose unification at the top level and exact unification
 	for element types).
 </li>

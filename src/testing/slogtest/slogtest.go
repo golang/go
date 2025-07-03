@@ -172,6 +172,22 @@ var cases = []testCase{
 		},
 	},
 	{
+		name:        "nested-empty-group-record",
+		explanation: withSource("a Handler should not output nested groups if there are no attributes"),
+		f: func(l *slog.Logger) {
+			l.With("a", "b").WithGroup("G").With("c", "d").WithGroup("H").WithGroup("I").Info("msg")
+		},
+		checks: []check{
+			hasKey(slog.TimeKey),
+			hasKey(slog.LevelKey),
+			hasAttr(slog.MessageKey, "msg"),
+			hasAttr("a", "b"),
+			inGroup("G", hasAttr("c", "d")),
+			inGroup("G", missingKey("H")),
+			inGroup("G", missingKey("I")),
+		},
+	},
+	{
 		name:        "resolve",
 		explanation: withSource("a Handler should call Resolve on attribute values"),
 		f: func(l *slog.Logger) {
@@ -216,11 +232,22 @@ var cases = []testCase{
 			inGroup("G", hasAttr("b", "v2")),
 		},
 	},
+	{
+		name:        "empty-PC",
+		explanation: withSource("a Handler should not output SourceKey if the PC is zero"),
+		f: func(l *slog.Logger) {
+			l.Info("message")
+		},
+		mod: func(r *slog.Record) { r.PC = 0 },
+		checks: []check{
+			missingKey(slog.SourceKey),
+		},
+	},
 }
 
 // TestHandler tests a [slog.Handler].
 // If TestHandler finds any misbehaviors, it returns an error for each,
-// combined into a single error with errors.Join.
+// combined into a single error with [errors.Join].
 //
 // TestHandler installs the given Handler in a [slog.Logger] and
 // makes several calls to the Logger's output methods.
@@ -230,7 +257,7 @@ var cases = []testCase{
 // It should return a slice of map[string]any, one for each call to a Logger output method.
 // The keys and values of the map should correspond to the keys and values of the Handler's
 // output. Each group in the output should be represented as its own nested map[string]any.
-// The standard keys slog.TimeKey, slog.LevelKey and slog.MessageKey should be used.
+// The standard keys [slog.TimeKey], [slog.LevelKey] and [slog.MessageKey] should be used.
 //
 // If the Handler outputs JSON, then calling [encoding/json.Unmarshal] with a `map[string]any`
 // will create the right data structure.
@@ -254,7 +281,7 @@ func TestHandler(h slog.Handler, results func() []map[string]any) error {
 	if g, w := len(res), len(cases); g != w {
 		return fmt.Errorf("got %d results, want %d", g, w)
 	}
-	for i, got := range results() {
+	for i, got := range res {
 		c := cases[i]
 		for _, check := range c.checks {
 			if problem := check(got); problem != "" {

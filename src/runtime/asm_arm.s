@@ -39,10 +39,10 @@ TEXT _rt0_arm_lib(SB),NOSPLIT,$104
 	MOVW	g, 32(R13)
 	MOVW	R11, 36(R13)
 
-	// Skip floating point registers on GOARM < 6.
-	MOVB    runtime·goarm(SB), R11
-	CMP	$6, R11
-	BLT	skipfpsave
+	// Skip floating point registers on goarmsoftfp != 0.
+	MOVB    runtime·goarmsoftfp(SB), R11
+	CMP	$0, R11
+	BNE     skipfpsave
 	MOVD	F8, (40+8*0)(R13)
 	MOVD	F9, (40+8*1)(R13)
 	MOVD	F10, (40+8*2)(R13)
@@ -77,9 +77,9 @@ nocgo:
 	BL	runtime·newosproc0(SB)
 rr:
 	// Restore callee-save registers and return.
-	MOVB    runtime·goarm(SB), R11
-	CMP	$6, R11
-	BLT	skipfprest
+	MOVB    runtime·goarmsoftfp(SB), R11
+	CMP     $0, R11
+	BNE     skipfprest
 	MOVD	(40+8*0)(R13), F8
 	MOVD	(40+8*1)(R13), F9
 	MOVD	(40+8*2)(R13), F10
@@ -197,10 +197,10 @@ TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
 	RET
 
 TEXT runtime·asminit(SB),NOSPLIT,$0-0
-	// disable runfast (flush-to-zero) mode of vfp if runtime.goarm > 5
-	MOVB	runtime·goarm(SB), R11
-	CMP	$5, R11
-	BLE	4(PC)
+	// disable runfast (flush-to-zero) mode of vfp if runtime.goarmsoftfp == 0
+	MOVB	runtime·goarmsoftfp(SB), R11
+	CMP	$0, R11
+	BNE	4(PC)
 	WORD	$0xeef1ba10	// vmrs r11, fpscr
 	BIC	$(1<<24), R11
 	WORD	$0xeee1ba10	// vmsr fpscr, r11
@@ -226,11 +226,9 @@ TEXT gogo<>(SB),NOSPLIT|NOFRAME,$0
 	BL	setg<>(SB)
 	MOVW	gobuf_sp(R1), R13	// restore SP==R13
 	MOVW	gobuf_lr(R1), LR
-	MOVW	gobuf_ret(R1), R0
 	MOVW	gobuf_ctxt(R1), R7
 	MOVW	$0, R11
 	MOVW	R11, gobuf_sp(R1)	// clear to help garbage collector
-	MOVW	R11, gobuf_ret(R1)
 	MOVW	R11, gobuf_lr(R1)
 	MOVW	R11, gobuf_ctxt(R1)
 	MOVW	gobuf_pc(R1), R11
@@ -333,6 +331,30 @@ noswitch:
 	MOVW.P	4(R13), R14	// restore LR
 	B	(R0)
 
+// func switchToCrashStack0(fn func())
+TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-4
+	MOVW	fn+0(FP), R7 // context register
+	MOVW	g_m(g), R1 // curm
+
+	// set g to gcrash
+	MOVW	$runtime·gcrash(SB), R0
+	BL	setg<>(SB)	// g = &gcrash
+	MOVW	R1, g_m(g)	// g.m = curm
+	MOVW	g, m_g0(R1)	// curm.g0 = g
+
+	// switch to crashstack
+	MOVW	(g_stack+stack_hi)(g), R1
+	SUB	$(4*8), R1
+	MOVW	R1, R13
+
+	// call target function
+	MOVW	0(R7), R0
+	BL	(R0)
+
+	// should never return
+	CALL	runtime·abort(SB)
+	UNDEF
+
 /*
  * support for morestack
  */
@@ -349,6 +371,14 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	// Cannot grow scheduler stack (m->g0).
 	MOVW	g_m(g), R8
 	MOVW	m_g0(R8), R4
+
+	// Called from f.
+	// Set g->sched to context in f.
+	MOVW	R13, (g_sched+gobuf_sp)(g)
+	MOVW	LR, (g_sched+gobuf_pc)(g)
+	MOVW	R3, (g_sched+gobuf_lr)(g)
+	MOVW	R7, (g_sched+gobuf_ctxt)(g)
+
 	CMP	g, R4
 	BNE	3(PC)
 	BL	runtime·badmorestackg0(SB)
@@ -360,13 +390,6 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	BNE	3(PC)
 	BL	runtime·badmorestackgsignal(SB)
 	B	runtime·abort(SB)
-
-	// Called from f.
-	// Set g->sched to context in f.
-	MOVW	R13, (g_sched+gobuf_sp)(g)
-	MOVW	LR, (g_sched+gobuf_pc)(g)
-	MOVW	R3, (g_sched+gobuf_lr)(g)
-	MOVW	R7, (g_sched+gobuf_ctxt)(g)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
@@ -525,7 +548,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R13, (g_sched+gobuf_sp)(g)
 	MOVW	$0, R11
 	MOVW	R11, (g_sched+gobuf_lr)(g)
-	MOVW	R11, (g_sched+gobuf_ret)(g)
 	// Assert ctxt is zero. See func save.
 	MOVW	(g_sched+gobuf_ctxt)(g), R11
 	TST	R11, R11
@@ -820,10 +842,6 @@ TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-12
 	JMP	runtime·memhash32Fallback(SB)
 TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-12
 	JMP	runtime·memhash64Fallback(SB)
-
-TEXT runtime·return0(SB),NOSPLIT,$0
-	MOVW	$0, R0
-	RET
 
 TEXT runtime·procyield(SB),NOSPLIT|NOFRAME,$0
 	MOVW	cycles+0(FP), R1

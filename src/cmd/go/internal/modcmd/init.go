@@ -22,11 +22,7 @@ must not already exist.
 
 Init accepts one optional argument, the module path for the new module. If the
 module path argument is omitted, init will attempt to infer the module path
-using import comments in .go files, vendoring tool configuration files (like
-Gopkg.lock), and the current directory (if in GOPATH).
-
-If a configuration file for a vendoring tool is present, init will attempt to
-import module requirements from it.
+using import comments in .go files and the current directory (if in GOPATH).
 
 See https://golang.org/ref/mod#go-mod-init for more about 'go mod init'.
 `,

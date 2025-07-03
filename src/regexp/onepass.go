@@ -6,7 +6,7 @@ package regexp
 
 import (
 	"regexp/syntax"
-	"sort"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -282,13 +282,6 @@ func onePassCopy(prog *syntax.Prog) *onePassProg {
 	return p
 }
 
-// runeSlice exists to permit sorting the case-folded rune sets.
-type runeSlice []rune
-
-func (p runeSlice) Len() int           { return len(p) }
-func (p runeSlice) Less(i, j int) bool { return p[i] < p[j] }
-func (p runeSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-
 var anyRuneNotNL = []rune{0, '\n' - 1, '\n' + 1, unicode.MaxRune}
 var anyRune = []rune{0, unicode.MaxRune}
 
@@ -383,7 +376,7 @@ func makeOnePass(p *onePassProg) *onePassProg {
 				for r1 := unicode.SimpleFold(r0); r1 != r0; r1 = unicode.SimpleFold(r1) {
 					runes = append(runes, r1, r1)
 				}
-				sort.Sort(runeSlice(runes))
+				slices.Sort(runes)
 			} else {
 				runes = append(runes, inst.Rune...)
 			}
@@ -407,7 +400,7 @@ func makeOnePass(p *onePassProg) *onePassProg {
 				for r1 := unicode.SimpleFold(r0); r1 != r0; r1 = unicode.SimpleFold(r1) {
 					runes = append(runes, r1, r1)
 				}
-				sort.Sort(runeSlice(runes))
+				slices.Sort(runes)
 			} else {
 				runes = append(runes, inst.Rune[0], inst.Rune[0])
 			}
@@ -472,12 +465,20 @@ func compileOnePass(prog *syntax.Prog) (p *onePassProg) {
 		syntax.EmptyOp(prog.Inst[prog.Start].Arg)&syntax.EmptyBeginText != syntax.EmptyBeginText {
 		return nil
 	}
-	// every instruction leading to InstMatch must be EmptyEndText
+	hasAlt := false
+	for _, inst := range prog.Inst {
+		if inst.Op == syntax.InstAlt || inst.Op == syntax.InstAltMatch {
+			hasAlt = true
+			break
+		}
+	}
+	// If we have alternates, every instruction leading to InstMatch must be EmptyEndText.
+	// Also, any match on empty text must be $.
 	for _, inst := range prog.Inst {
 		opOut := prog.Inst[inst.Out].Op
 		switch inst.Op {
 		default:
-			if opOut == syntax.InstMatch {
+			if opOut == syntax.InstMatch && hasAlt {
 				return nil
 			}
 		case syntax.InstAlt, syntax.InstAltMatch:

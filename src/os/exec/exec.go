@@ -12,16 +12,16 @@
 // pipelines, or redirections typically done by shells. The package
 // behaves more like C's "exec" family of functions. To expand glob
 // patterns, either call the shell directly, taking care to escape any
-// dangerous input, or use the path/filepath package's Glob function.
+// dangerous input, or use the [path/filepath] package's Glob function.
 // To expand environment variables, use package os's ExpandEnv.
 //
 // Note that the examples in this package assume a Unix system.
 // They may not run on Windows, and they do not run in the Go Playground
-// used by golang.org and godoc.org.
+// used by go.dev and pkg.go.dev.
 //
 // # Executables in the current directory
 //
-// The functions Command and LookPath look for a program
+// The functions [Command] and [LookPath] look for a program
 // in the directories listed in the current path, following the
 // conventions of the host operating system.
 // Operating systems have for decades included the current
@@ -32,10 +32,10 @@
 //
 // To avoid those security problems, as of Go 1.19, this package will not resolve a program
 // using an implicit or explicit path entry relative to the current directory.
-// That is, if you run exec.LookPath("go"), it will not successfully return
+// That is, if you run [LookPath]("go"), it will not successfully return
 // ./go on Unix nor .\go.exe on Windows, no matter how the path is configured.
 // Instead, if the usual path algorithms would result in that answer,
-// these functions return an error err satisfying errors.Is(err, ErrDot).
+// these functions return an error err satisfying [errors.Is](err, [ErrDot]).
 //
 // For example, consider these two program snippets:
 //
@@ -106,7 +106,7 @@ import (
 	"time"
 )
 
-// Error is returned by LookPath when it fails to classify a file as an
+// Error is returned by [LookPath] when it fails to classify a file as an
 // executable.
 type Error struct {
 	// Name is the file name for which the error occurred.
@@ -121,7 +121,7 @@ func (e *Error) Error() string {
 
 func (e *Error) Unwrap() error { return e.Err }
 
-// ErrWaitDelay is returned by (*Cmd).Wait if the process exits with a
+// ErrWaitDelay is returned by [Cmd.Wait] if the process exits with a
 // successful status code but its output pipes are not closed before the
 // command's WaitDelay expires.
 var ErrWaitDelay = errors.New("exec: WaitDelay expired before I/O complete")
@@ -142,7 +142,7 @@ func (w wrappedError) Unwrap() error {
 
 // Cmd represents an external command being prepared or run.
 //
-// A Cmd cannot be reused after calling its Run, Output or CombinedOutput
+// A Cmd cannot be reused after calling its [Cmd.Run], [Cmd.Output] or [Cmd.CombinedOutput]
 // methods.
 type Cmd struct {
 	// Path is the path of the command to run.
@@ -166,11 +166,27 @@ type Cmd struct {
 	// value in the slice for each duplicate key is used.
 	// As a special case on Windows, SYSTEMROOT is always added if
 	// missing and not explicitly set to the empty string.
+	//
+	// See also the Dir field, which may set PWD in the environment.
 	Env []string
 
 	// Dir specifies the working directory of the command.
 	// If Dir is the empty string, Run runs the command in the
 	// calling process's current directory.
+	//
+	// On Unix systems, the value of Dir also determines the
+	// child process's PWD environment variable if not otherwise
+	// specified. A Unix process represents its working directory
+	// not by name but as an implicit reference to a node in the
+	// file tree. So, if the child process obtains its working
+	// directory by calling a function such as C's getcwd, which
+	// computes the canonical name by walking up the file tree, it
+	// will not recover the original value of Dir if that value
+	// was an alias involving symbolic links. However, if the
+	// child process calls Go's [os.Getwd] or GNU C's
+	// get_current_dir_name, and the value of PWD is an alias for
+	// the current directory, those functions will return the
+	// value of PWD, which matches the value of Dir.
 	Dir string
 
 	// Stdin specifies the process's standard input.
@@ -332,6 +348,12 @@ type Cmd struct {
 	// See https://go.dev/blog/path-security
 	// and https://go.dev/issue/43724 for more context.
 	lookPathErr error
+
+	// cachedLookExtensions caches the result of calling lookExtensions.
+	// It is set when Command is called with an absolute path, letting it do
+	// the work of resolving the extension, so Start doesn't need to do it again.
+	// This is only used on Windows.
+	cachedLookExtensions struct{ in, out string }
 }
 
 // A ctxResult reports the result of watching the Context associated with a
@@ -351,12 +373,12 @@ type ctxResult struct {
 var execwait = godebug.New("#execwait")
 var execerrdot = godebug.New("execerrdot")
 
-// Command returns the Cmd struct to execute the named program with
+// Command returns the [Cmd] struct to execute the named program with
 // the given arguments.
 //
 // It sets only the Path and Args in the returned structure.
 //
-// If name contains no path separators, Command uses LookPath to
+// If name contains no path separators, Command uses [LookPath] to
 // resolve name to a complete path if possible. Otherwise it uses name
 // directly as Path.
 //
@@ -430,27 +452,24 @@ func Command(name string, arg ...string) *Cmd {
 		// We may need to add a filename extension from PATHEXT
 		// or verify an extension that is already present.
 		// Since the path is absolute, its extension should be unambiguous
-		// and independent of cmd.Dir, and we can go ahead and update cmd.Path to
-		// reflect it.
+		// and independent of cmd.Dir, and we can go ahead and cache the lookup now.
 		//
-		// Note that we cannot add an extension here for relative paths, because
-		// cmd.Dir may be set after we return from this function and that may cause
-		// the command to resolve to a different extension.
-		lp, err := lookExtensions(name, "")
-		if lp != "" {
-			cmd.Path = lp
-		}
-		if err != nil {
+		// Note that we don't cache anything here for relative paths, because
+		// cmd.Dir may be set after we return from this function and that may
+		// cause the command to resolve to a different extension.
+		if lp, err := lookExtensions(name, ""); err == nil {
+			cmd.cachedLookExtensions.in, cmd.cachedLookExtensions.out = name, lp
+		} else {
 			cmd.Err = err
 		}
 	}
 	return cmd
 }
 
-// CommandContext is like Command but includes a context.
+// CommandContext is like [Command] but includes a context.
 //
 // The provided context is used to interrupt the process
-// (by calling cmd.Cancel or os.Process.Kill)
+// (by calling cmd.Cancel or [os.Process.Kill])
 // if the context becomes done before the command completes on its own.
 //
 // CommandContext sets the command's Cancel function to invoke the Kill method
@@ -594,10 +613,10 @@ func closeDescriptors(closers []io.Closer) {
 // status.
 //
 // If the command starts but does not complete successfully, the error is of
-// type *ExitError. Other error types may be returned for other situations.
+// type [*ExitError]. Other error types may be returned for other situations.
 //
 // If the calling goroutine has locked the operating system thread
-// with runtime.LockOSThread and modified any inheritable OS-level
+// with [runtime.LockOSThread] and modified any inheritable OS-level
 // thread state (for example, Linux or Plan 9 name spaces), the new
 // process will inherit the caller's thread state.
 func (c *Cmd) Run() error {
@@ -611,7 +630,7 @@ func (c *Cmd) Run() error {
 //
 // If Start returns successfully, the c.Process field will be set.
 //
-// After a successful call to Start the Wait method must be called in
+// After a successful call to Start the [Cmd.Wait] method must be called in
 // order to release associated system resources.
 func (c *Cmd) Start() error {
 	// Check for doubled Start calls before we defer failure cleanup. If the prior
@@ -641,26 +660,32 @@ func (c *Cmd) Start() error {
 		return c.Err
 	}
 	lp := c.Path
-	if runtime.GOOS == "windows" && !filepath.IsAbs(c.Path) {
-		// If c.Path is relative, we had to wait until now
-		// to resolve it in case c.Dir was changed.
-		// (If it is absolute, we already resolved its extension in Command
-		// and shouldn't need to do so again.)
-		//
-		// Unfortunately, we cannot write the result back to c.Path because programs
-		// may assume that they can call Start concurrently with reading the path.
-		// (It is safe and non-racy to do so on Unix platforms, and users might not
-		// test with the race detector on all platforms;
-		// see https://go.dev/issue/62596.)
-		//
-		// So we will pass the fully resolved path to os.StartProcess, but leave
-		// c.Path as is: missing a bit of logging information seems less harmful
-		// than triggering a surprising data race, and if the user really cares
-		// about that bit of logging they can always use LookPath to resolve it.
-		var err error
-		lp, err = lookExtensions(c.Path, c.Dir)
-		if err != nil {
-			return err
+	if runtime.GOOS == "windows" {
+		if c.Path == c.cachedLookExtensions.in {
+			// If Command was called with an absolute path, we already resolved
+			// its extension and shouldn't need to do so again (provided c.Path
+			// wasn't set to another value between the calls to Command and Start).
+			lp = c.cachedLookExtensions.out
+		} else {
+			// If *Cmd was made without using Command at all, or if Command was
+			// called with a relative path, we had to wait until now to resolve
+			// it in case c.Dir was changed.
+			//
+			// Unfortunately, we cannot write the result back to c.Path because programs
+			// may assume that they can call Start concurrently with reading the path.
+			// (It is safe and non-racy to do so on Unix platforms, and users might not
+			// test with the race detector on all platforms;
+			// see https://go.dev/issue/62596.)
+			//
+			// So we will pass the fully resolved path to os.StartProcess, but leave
+			// c.Path as is: missing a bit of logging information seems less harmful
+			// than triggering a surprising data race, and if the user really cares
+			// about that bit of logging they can always use LookPath to resolve it.
+			var err error
+			lp, err = lookExtensions(c.Path, c.Dir)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	if c.Cancel != nil && c.ctx == nil {
@@ -777,7 +802,7 @@ func (c *Cmd) watchCtx(resultc chan<- ctxResult) {
 		} else if errors.Is(interruptErr, os.ErrProcessDone) {
 			// The process already finished: we just didn't notice it yet.
 			// (Perhaps c.Wait hadn't been called, or perhaps it happened to race with
-			// c.ctx being cancelled.) Don't inject a needless error.
+			// c.ctx being canceled.) Don't inject a needless error.
 		} else {
 			err = wrappedError{
 				prefix: "exec: canceling Cmd",
@@ -872,20 +897,20 @@ func (e *ExitError) Error() string {
 // Wait waits for the command to exit and waits for any copying to
 // stdin or copying from stdout or stderr to complete.
 //
-// The command must have been started by Start.
+// The command must have been started by [Cmd.Start].
 //
 // The returned error is nil if the command runs, has no problems
 // copying stdin, stdout, and stderr, and exits with a zero exit
 // status.
 //
 // If the command fails to run or doesn't complete successfully, the
-// error is of type *ExitError. Other error types may be
+// error is of type [*ExitError]. Other error types may be
 // returned for I/O problems.
 //
-// If any of c.Stdin, c.Stdout or c.Stderr are not an *os.File, Wait also waits
+// If any of c.Stdin, c.Stdout or c.Stderr are not an [*os.File], Wait also waits
 // for the respective I/O loop copying to or from the process to complete.
 //
-// Wait releases any resources associated with the Cmd.
+// Wait releases any resources associated with the [Cmd].
 func (c *Cmd) Wait() error {
 	if c.Process == nil {
 		return errors.New("exec: not started")
@@ -974,8 +999,10 @@ func (c *Cmd) awaitGoroutines(timer *time.Timer) error {
 }
 
 // Output runs the command and returns its standard output.
-// Any returned error will usually be of type *ExitError.
-// If c.Stderr was nil, Output populates ExitError.Stderr.
+// Any returned error will usually be of type [*ExitError].
+// If c.Stderr was nil and the returned error is of type
+// [*ExitError], Output populates the Stderr field of the
+// returned error.
 func (c *Cmd) Output() ([]byte, error) {
 	if c.Stdout != nil {
 		return nil, errors.New("exec: Stdout already set")
@@ -1015,7 +1042,7 @@ func (c *Cmd) CombinedOutput() ([]byte, error) {
 
 // StdinPipe returns a pipe that will be connected to the command's
 // standard input when the command starts.
-// The pipe will be closed automatically after Wait sees the command exit.
+// The pipe will be closed automatically after [Cmd.Wait] sees the command exit.
 // A caller need only call Close to force the pipe to close sooner.
 // For example, if the command being run will not exit until standard input
 // is closed, the caller must close the pipe.
@@ -1039,10 +1066,10 @@ func (c *Cmd) StdinPipe() (io.WriteCloser, error) {
 // StdoutPipe returns a pipe that will be connected to the command's
 // standard output when the command starts.
 //
-// Wait will close the pipe after seeing the command exit, so most callers
+// [Cmd.Wait] will close the pipe after seeing the command exit, so most callers
 // need not close the pipe themselves. It is thus incorrect to call Wait
 // before all reads from the pipe have completed.
-// For the same reason, it is incorrect to call Run when using StdoutPipe.
+// For the same reason, it is incorrect to call [Cmd.Run] when using StdoutPipe.
 // See the example for idiomatic usage.
 func (c *Cmd) StdoutPipe() (io.ReadCloser, error) {
 	if c.Stdout != nil {
@@ -1064,10 +1091,10 @@ func (c *Cmd) StdoutPipe() (io.ReadCloser, error) {
 // StderrPipe returns a pipe that will be connected to the command's
 // standard error when the command starts.
 //
-// Wait will close the pipe after seeing the command exit, so most callers
+// [Cmd.Wait] will close the pipe after seeing the command exit, so most callers
 // need not close the pipe themselves. It is thus incorrect to call Wait
 // before all reads from the pipe have completed.
-// For the same reason, it is incorrect to use Run when using StderrPipe.
+// For the same reason, it is incorrect to use [Cmd.Run] when using StderrPipe.
 // See the StdoutPipe example for idiomatic usage.
 func (c *Cmd) StderrPipe() (io.ReadCloser, error) {
 	if c.Stderr != nil {

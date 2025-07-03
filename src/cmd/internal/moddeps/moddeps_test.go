@@ -62,7 +62,7 @@ func TestAllDependencies(t *testing.T) {
 				cmd.Stderr = new(strings.Builder)
 				_, err := cmd.Output()
 				if err != nil {
-					t.Errorf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
+					t.Errorf("%#q: %v\n%s", cmd, err, cmd.Stderr)
 					t.Logf("(Run 'go mod vendor' in %s to ensure that dependencies have been vendored.)", m.Dir)
 				}
 				return
@@ -76,10 +76,10 @@ func TestAllDependencies(t *testing.T) {
 			cmd.Stderr = new(strings.Builder)
 			out, err := cmd.Output()
 			if err != nil {
-				t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
+				t.Fatalf("%#q: %v\n%s", cmd, err, cmd.Stderr)
 			}
 			if strings.TrimSpace(string(out)) != m.Path {
-				t.Errorf("'%s' reported active modules other than %s:\n%s", strings.Join(cmd.Args, " "), m.Path, out)
+				t.Errorf("%#q reported active modules other than %s:\n%s", cmd, m.Path, out)
 				t.Logf("(Run 'go mod tidy' in %s to ensure that no extraneous dependencies were added, or 'go mod vendor' to copy in imported packages.)", m.Dir)
 			}
 		})
@@ -195,8 +195,6 @@ func TestAllDependencies(t *testing.T) {
 				Env: append(append(os.Environ(), modcacheEnv...),
 					// Set GOROOT.
 					"GOROOT="+gorootCopyDir,
-					// Explicitly clear GOROOT_FINAL so that GOROOT=gorootCopyDir is definitely used.
-					"GOROOT_FINAL=",
 					// Add GOROOTcopy/bin and bundleDir to front of PATH.
 					"PATH="+filepath.Join(gorootCopyDir, "bin")+string(filepath.ListSeparator)+
 						bundleDir+string(filepath.ListSeparator)+os.Getenv("PATH"),
@@ -443,11 +441,18 @@ func findGorootModules(t *testing.T) []gorootModule {
 	goBin := testenv.GoToolPath(t)
 
 	goroot.once.Do(func() {
-		goroot.err = filepath.WalkDir(testenv.GOROOT(t), func(path string, info fs.DirEntry, err error) error {
+		// If the root itself is a symlink to a directory,
+		// we want to follow it (see https://go.dev/issue/64375).
+		// Add a trailing separator to force that to happen.
+		root := testenv.GOROOT(t)
+		if !os.IsPathSeparator(root[len(root)-1]) {
+			root += string(filepath.Separator)
+		}
+		goroot.err = filepath.WalkDir(root, func(path string, info fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
-			if info.IsDir() && (info.Name() == "vendor" || info.Name() == "testdata") {
+			if info.IsDir() && path != root && (info.Name() == "vendor" || info.Name() == "testdata") {
 				return filepath.SkipDir
 			}
 			if info.IsDir() && path == filepath.Join(testenv.GOROOT(t), "pkg") {
@@ -458,7 +463,7 @@ func findGorootModules(t *testing.T) []gorootModule {
 				// running time of this test anyway.)
 				return filepath.SkipDir
 			}
-			if info.IsDir() && (strings.HasPrefix(info.Name(), "_") || strings.HasPrefix(info.Name(), ".")) {
+			if info.IsDir() && path != root && (strings.HasPrefix(info.Name(), "_") || strings.HasPrefix(info.Name(), ".")) {
 				// _ and . prefixed directories can be used for internal modules
 				// without a vendor directory that don't contribute to the build
 				// but might be used for example as code generators.

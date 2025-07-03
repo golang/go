@@ -233,9 +233,6 @@ uint(18446744073709551615)`
 				t.Fatalf("unmarshal unexpected error: %v", err)
 			}
 			newB := marshalCorpusFile(vals...)
-			if err != nil {
-				t.Fatalf("marshal unexpected error: %v", err)
-			}
 			if newB[len(newB)-1] != '\n' {
 				t.Error("didn't write final newline to corpus file")
 			}

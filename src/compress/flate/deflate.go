@@ -87,7 +87,6 @@ type compressor struct {
 	// compression algorithm
 	fill      func(*compressor, []byte) int // copy data to window
 	step      func(*compressor)             // process window
-	sync      bool                          // requesting flush
 	bestSpeed *deflateFast                  // Encoder for BestSpeed
 
 	// Input hash chains
@@ -106,6 +105,8 @@ type compressor struct {
 	windowEnd     int
 	blockStart    int  // window index where current tokens start
 	byteAvailable bool // if true, still need to process window[index-1].
+
+	sync bool // requesting flush
 
 	// queued output tokens
 	tokens []token
@@ -611,12 +612,8 @@ func (d *compressor) reset(w io.Writer) {
 		d.bestSpeed.reset()
 	default:
 		d.chainHead = -1
-		for i := range d.hashHead {
-			d.hashHead[i] = 0
-		}
-		for i := range d.hashPrev {
-			d.hashPrev[i] = 0
-		}
+		clear(d.hashHead[:])
+		clear(d.hashPrev[:])
 		d.hashOffset = 1
 		d.index, d.windowEnd = 0, 0
 		d.blockStart, d.byteAvailable = 0, false
@@ -650,13 +647,13 @@ func (d *compressor) close() error {
 	return nil
 }
 
-// NewWriter returns a new Writer compressing data at the given level.
-// Following zlib, levels range from 1 (BestSpeed) to 9 (BestCompression);
+// NewWriter returns a new [Writer] compressing data at the given level.
+// Following zlib, levels range from 1 ([BestSpeed]) to 9 ([BestCompression]);
 // higher levels typically run slower but compress more. Level 0
-// (NoCompression) does not attempt any compression; it only adds the
+// ([NoCompression]) does not attempt any compression; it only adds the
 // necessary DEFLATE framing.
-// Level -1 (DefaultCompression) uses the default compression level.
-// Level -2 (HuffmanOnly) will use Huffman compression only, giving
+// Level -1 ([DefaultCompression]) uses the default compression level.
+// Level -2 ([HuffmanOnly]) will use Huffman compression only, giving
 // a very fast compression for all types of input, but sacrificing considerable
 // compression efficiency.
 //
@@ -670,12 +667,12 @@ func NewWriter(w io.Writer, level int) (*Writer, error) {
 	return &dw, nil
 }
 
-// NewWriterDict is like NewWriter but initializes the new
-// Writer with a preset dictionary. The returned Writer behaves
+// NewWriterDict is like [NewWriter] but initializes the new
+// [Writer] with a preset dictionary. The returned [Writer] behaves
 // as if the dictionary had been written to it without producing
 // any compressed output. The compressed data written to w
-// can only be decompressed by a Reader initialized with the
-// same dictionary.
+// can only be decompressed by a reader initialized with the
+// same dictionary (see [NewReaderDict]).
 func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, error) {
 	dw := &dictWriter{w}
 	zw, err := NewWriter(dw, level)
@@ -684,7 +681,7 @@ func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, error) {
 	}
 	zw.d.fillWindow(dict)
 	zw.dict = append(zw.dict, dict...) // duplicate dictionary for Reset method.
-	return zw, err
+	return zw, nil
 }
 
 type dictWriter struct {
@@ -698,7 +695,7 @@ func (w *dictWriter) Write(b []byte) (n int, err error) {
 var errWriterClosed = errors.New("flate: closed writer")
 
 // A Writer takes data written to it and writes the compressed
-// form of that data to an underlying writer (see NewWriter).
+// form of that data to an underlying writer (see [NewWriter]).
 type Writer struct {
 	d    compressor
 	dict []byte
@@ -714,7 +711,7 @@ func (w *Writer) Write(data []byte) (n int, err error) {
 // It is useful mainly in compressed network protocols, to ensure that
 // a remote reader has enough data to reconstruct a packet.
 // Flush does not return until the data has been written.
-// Calling Flush when there is no pending data still causes the Writer
+// Calling Flush when there is no pending data still causes the [Writer]
 // to emit a sync marker of at least 4 bytes.
 // If the underlying writer returns an error, Flush returns that error.
 //
@@ -731,7 +728,7 @@ func (w *Writer) Close() error {
 }
 
 // Reset discards the writer's state and makes it equivalent to
-// the result of NewWriter or NewWriterDict called with dst
+// the result of [NewWriter] or [NewWriterDict] called with dst
 // and w's level and dictionary.
 func (w *Writer) Reset(dst io.Writer) {
 	if dw, ok := w.d.w.writer.(*dictWriter); ok {

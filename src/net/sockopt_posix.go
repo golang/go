@@ -7,7 +7,6 @@
 package net
 
 import (
-	"internal/bytealg"
 	"runtime"
 	"syscall"
 )
@@ -41,35 +40,6 @@ func interfaceToIPv4Addr(ifi *Interface) (IP, error) {
 		}
 	}
 	return nil, errNoSuchInterface
-}
-
-func setIPv4MreqToInterface(mreq *syscall.IPMreq, ifi *Interface) error {
-	if ifi == nil {
-		return nil
-	}
-	ifat, err := ifi.Addrs()
-	if err != nil {
-		return err
-	}
-	for _, ifa := range ifat {
-		switch v := ifa.(type) {
-		case *IPAddr:
-			if a := v.IP.To4(); a != nil {
-				copy(mreq.Interface[:], a)
-				goto done
-			}
-		case *IPNet:
-			if a := v.IP.To4(); a != nil {
-				copy(mreq.Interface[:], a)
-				goto done
-			}
-		}
-	}
-done:
-	if bytealg.Equal(mreq.Multiaddr[:], IPv4zero.To4()) {
-		return errNoSuchMulticastInterface
-	}
-	return nil
 }
 
 func setReadBuffer(fd *netFD, bytes int) error {

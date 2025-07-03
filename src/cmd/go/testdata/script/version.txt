@@ -8,6 +8,8 @@ stdout '^go version'
 stderr 'with arguments'
 ! go version -v
 stderr 'with arguments'
+! go version -json
+stderr 'with arguments'
 
 # Check that 'go version' succeed even when it does not contain Go build info.
 # It should print an error if the file has a known Go binary extension.
@@ -22,8 +24,8 @@ stderr 'could not read Go build info'
 go version empty.dll
 stderr 'could not read Go build info'
 
-# Neither of the two flags above should be an issue via GOFLAGS.
-env GOFLAGS='-m -v'
+# Neither of the three flags above should be an issue via GOFLAGS.
+env GOFLAGS='-m -v -json'
 go version
 stdout '^go version'
 env GOFLAGS=
@@ -57,8 +59,26 @@ stdout '^test2json.exe: .+'
 stdout '^\tpath\tcmd/test2json$'
 ! stdout 'mod[^e]'
 
-# Repeat the test with -buildmode=pie.
+# Check -json flag
+go build -o test2json.exe cmd/test2json
+go version -m -json test2json.exe
+stdout '"Path": "cmd/test2json"'
+! stdout 'null'
+
+# Check -json flag output with multiple binaries
+go build -o test2json.exe cmd/test2json
+go version -m -json test2json.exe test2json.exe
+stdout -count=2 '"Path": "cmd/test2json"'
+
+# Check -json flag without -m
+go build -o test2json.exe cmd/test2json
+! go version -json test2json.exe
+! stdout '"Path": "cmd/test2json"'
+stderr 'with -json flag requires -m flag'
+
+# Repeat the test with -buildmode=pie and default linking.
 [!buildmode:pie] stop
+[pielinkext] [!cgo] stop
 go build -buildmode=pie -o external.exe rsc.io/fortune
 go version external.exe
 stdout '^external.exe: .+'
@@ -68,9 +88,7 @@ stdout '^\tpath\trsc.io/fortune'
 stdout '^\tmod\trsc.io/fortune\tv1.0.0'
 
 # Also test PIE with internal linking.
-# currently only supported on linux/amd64, linux/arm64 and windows/amd64.
-[!GOOS:linux] [!GOOS:windows] stop
-[!GOARCH:amd64] [!GOARCH:arm64] stop
+[pielinkext] stop
 go build -buildmode=pie -ldflags=-linkmode=internal -o internal.exe rsc.io/fortune
 go version internal.exe
 stdout '^internal.exe: .+'

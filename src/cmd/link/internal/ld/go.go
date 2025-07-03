@@ -50,11 +50,7 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
 	// process header lines
 	for data != "" {
 		var line string
-		if i := strings.Index(data, "\n"); i >= 0 {
-			line, data = data[:i], data[i+1:]
-		} else {
-			line, data = data, ""
-		}
+		line, data, _ = strings.Cut(data, "\n")
 		if line == "main" {
 			lib.Main = true
 		}
@@ -141,8 +137,8 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
 			}
 
 			q := ""
-			if i := strings.Index(remote, "#"); i >= 0 {
-				remote, q = remote[:i], remote[i+1:]
+			if before, after, found := strings.Cut(remote, "#"); found {
+				remote, q = before, after
 			}
 			s := l.LookupOrCreateSym(local, 0)
 			st := l.SymType(s)
@@ -361,7 +357,7 @@ func adddynlib(ctxt *Link, lib string) {
 		du := ctxt.loader.MakeSymbolUpdater(ctxt.Dynamic)
 		Elfwritedynent(ctxt.Arch, du, elf.DT_NEEDED, uint64(dsu.Addstring(lib)))
 	} else {
-		Errorf(nil, "adddynlib: unsupported binary format")
+		Errorf("adddynlib: unsupported binary format")
 	}
 }
 

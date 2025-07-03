@@ -25,7 +25,7 @@ func f[P /* ERROR "type parameter requires go1.18 or later" */ any /* ERROR "pre
 	_ = T[ /* ERROR "type instantiation requires go1.18 or later" */ int](struct{}{})
 }
 
-func (T[ /* ERROR "type instantiation requires go1.18 or later" */ P]) g(x int) {
+func (T /* ERROR "type instantiation requires go1.18 or later" */ [P]) g(x int) {
 	f[ /* ERROR "function instantiation requires go1.18 or later" */ int](0)     // explicit instantiation
 	(f[ /* ERROR "function instantiation requires go1.18 or later" */ int])(0)   // parentheses (different code path)
 	f( /* ERROR "implicit function instantiation requires go1.18 or later" */ x) // implicit instantiation

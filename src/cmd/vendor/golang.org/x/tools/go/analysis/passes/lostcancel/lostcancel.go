@@ -16,6 +16,8 @@ import (
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/cfg"
+	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/astutil"
 )
 
 //go:embed doc.go
@@ -46,9 +48,9 @@ var contextPackage = "context"
 // containing the assignment, we assume that other uses exist.
 //
 // checkLostCancel analyzes a single named or literal function.
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	// Fast path: bypass check if file doesn't use context.WithCancel.
-	if !analysisutil.Imports(pass.Pkg, contextPackage) {
+	if !analysisinternal.Imports(pass.Pkg, contextPackage) {
 		return nil, nil
 	}
 
@@ -82,30 +84,22 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
 	// {FuncDecl,FuncLit,CallExpr,SelectorExpr}.
 
 	// Find the set of cancel vars to analyze.
-	stack := make([]ast.Node, 0, 32)
-	ast.Inspect(node, func(n ast.Node) bool {
-		switch n.(type) {
-		case *ast.FuncLit:
-			if len(stack) > 0 {
-				return false // don't stray into nested functions
-			}
-		case nil:
-			stack = stack[:len(stack)-1] // pop
-			return true
+	astutil.PreorderStack(node, nil, func(n ast.Node, stack []ast.Node) bool {
+		if _, ok := n.(*ast.FuncLit); ok && len(stack) > 0 {
+			return false // don't stray into nested functions
 		}
-		stack = append(stack, n) // push
 
-		// Look for [{AssignStmt,ValueSpec} CallExpr SelectorExpr]:
+		// Look for n=SelectorExpr beneath stack=[{AssignStmt,ValueSpec} CallExpr]:
 		//
 		//   ctx, cancel    := context.WithCancel(...)
 		//   ctx, cancel     = context.WithCancel(...)
 		//   var ctx, cancel = context.WithCancel(...)
 		//
-		if !isContextWithCancel(pass.TypesInfo, n) || !isCall(stack[len(stack)-2]) {
+		if !isContextWithCancel(pass.TypesInfo, n) || !isCall(stack[len(stack)-1]) {
 			return true
 		}
 		var id *ast.Ident // id of cancel var
-		stmt := stack[len(stack)-3]
+		stmt := stack[len(stack)-2]
 		switch stmt := stmt.(type) {
 		case *ast.ValueSpec:
 			if len(stmt.Names) > 1 {
@@ -172,7 +166,18 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
 		if ret := lostCancelPath(pass, g, v, stmt, sig); ret != nil {
 			lineno := pass.Fset.Position(stmt.Pos()).Line
 			pass.ReportRangef(stmt, "the %s function is not used on all paths (possible context leak)", v.Name())
-			pass.ReportRangef(ret, "this return statement may be reached without using the %s var defined on line %d", v.Name(), lineno)
+
+			pos, end := ret.Pos(), ret.End()
+			// golang/go#64547: cfg.Block.Return may return a synthetic
+			// ReturnStmt that overflows the file.
+			if pass.Fset.File(pos) != pass.Fset.File(end) {
+				end = pos
+			}
+			pass.Report(analysis.Diagnostic{
+				Pos:     pos,
+				End:     end,
+				Message: fmt.Sprintf("this return statement may be reached without using the %s var defined on line %d", v.Name(), lineno),
+			})
 		}
 	}
 }
@@ -187,7 +192,9 @@ func isContextWithCancel(info *types.Info, n ast.Node) bool {
 		return false
 	}
 	switch sel.Sel.Name {
-	case "WithCancel", "WithTimeout", "WithDeadline":
+	case "WithCancel", "WithCancelCause",
+		"WithTimeout", "WithTimeoutCause",
+		"WithDeadline", "WithDeadlineCause":
 	default:
 		return false
 	}

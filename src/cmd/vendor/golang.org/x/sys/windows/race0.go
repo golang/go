@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build windows && !race
-// +build windows,!race
 
 package windows
 

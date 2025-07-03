@@ -71,6 +71,7 @@ func insertLoopReschedChecks(f *Func) {
 	}
 
 	lastMems := findLastMems(f)
+	defer f.Cache.freeValueSlice(lastMems)
 
 	idom := f.Idom()
 	po := f.postorder()
@@ -406,7 +407,6 @@ func findLastMems(f *Func) []*Value {
 
 	var stores []*Value
 	lastMems := f.Cache.allocValueSlice(f.NumBlocks())
-	defer f.Cache.freeValueSlice(lastMems)
 	storeUse := f.newSparseSet(f.NumValues())
 	defer f.retSparseSet(storeUse)
 	for _, b := range f.Blocks {

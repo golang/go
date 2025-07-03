@@ -19,6 +19,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/analysisinternal"
 )
 
 const badFormat = "2006-02-01"
@@ -35,7 +36,7 @@ var Analyzer = &analysis.Analyzer{
 	Run:      run,
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	// Note: (time.Time).Format is a method and can be a typeutil.Callee
 	// without directly importing "time". So we cannot just skip this package
 	// when !analysisutil.Imports(pass.Pkg, "time").
@@ -48,11 +49,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
 		call := n.(*ast.CallExpr)
-		fn, ok := typeutil.Callee(pass.TypesInfo, call).(*types.Func)
-		if !ok {
-			return
-		}
-		if !isTimeDotFormat(fn) && !isTimeDotParse(fn) {
+		obj := typeutil.Callee(pass.TypesInfo, call)
+		if !analysisinternal.IsMethodNamed(obj, "time", "Time", "Format") &&
+			!analysisinternal.IsFunctionNamed(obj, "time", "Parse") {
 			return
 		}
 		if len(call.Args) > 0 {
@@ -87,32 +86,6 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
-func isTimeDotFormat(f *types.Func) bool {
-	if f.Name() != "Format" || f.Pkg().Path() != "time" {
-		return false
-	}
-	sig, ok := f.Type().(*types.Signature)
-	if !ok {
-		return false
-	}
-	// Verify that the receiver is time.Time.
-	recv := sig.Recv()
-	if recv == nil {
-		return false
-	}
-	named, ok := recv.Type().(*types.Named)
-	return ok && named.Obj().Name() == "Time"
-}
-
-func isTimeDotParse(f *types.Func) bool {
-	if f.Name() != "Parse" || f.Pkg().Path() != "time" {
-		return false
-	}
-	// Verify that there is no receiver.
-	sig, ok := f.Type().(*types.Signature)
-	return ok && sig.Recv() == nil
-}
-
 // badFormatAt return the start of a bad format in e or -1 if no bad format is found.
 func badFormatAt(info *types.Info, e ast.Expr) int {
 	tv, ok := info.Types[e]
@@ -120,7 +93,7 @@ func badFormatAt(info *types.Info, e ast.Expr) int {
 		return -1
 	}
 
-	t, ok := tv.Type.(*types.Basic)
+	t, ok := tv.Type.(*types.Basic) // sic, no unalias
 	if !ok || t.Info()&types.IsString == 0 {
 		return -1
 	}

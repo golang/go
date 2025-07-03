@@ -31,12 +31,8 @@ func main() {
 `
 
 func objdumpOutput(t *testing.T, mname, source string) []byte {
-	tmpdir, err := os.MkdirTemp("", mname)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-	err = os.WriteFile(filepath.Join(tmpdir, "go.mod"), []byte(fmt.Sprintf("module %s\n", mname)), 0666)
+	tmpdir := t.TempDir()
+	err := os.WriteFile(filepath.Join(tmpdir, "go.mod"), []byte(fmt.Sprintf("module %s\n", mname)), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +89,7 @@ LOOP:
 		data := bytes.Split(objout, []byte("\n"))
 		for idx := len(data) - 1; idx >= 0; idx-- {
 			// check that RET wasn't overwritten.
-			if bytes.Index(data[idx], []byte("RET")) != -1 {
+			if bytes.Contains(data[idx], []byte("RET")) {
 				if testing.Short() {
 					break LOOP
 				}

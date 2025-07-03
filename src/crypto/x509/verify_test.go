@@ -16,9 +16,11 @@ import (
 	"fmt"
 	"internal/testenv"
 	"math/big"
-	"reflect"
+	"os"
+	"os/exec"
 	"runtime"
-	"sort"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -134,45 +136,6 @@ var verifyTests = []verifyTest{
 		systemLax: true,
 	},
 	{
-		name:          "dnssec-exp",
-		leaf:          dnssecExpLeaf,
-		intermediates: []string{startComIntermediate},
-		roots:         []string{startComRoot},
-		currentTime:   1302726541,
-
-		// The StartCom root is not trusted by Windows when the default
-		// ServerAuth EKU is requested.
-		systemSkip: true,
-
-		expectedChains: [][]string{
-			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
-		},
-	},
-	{
-		name:          "dnssec-exp/AnyEKU",
-		leaf:          dnssecExpLeaf,
-		intermediates: []string{startComIntermediate},
-		roots:         []string{startComRoot},
-		currentTime:   1302726541,
-		keyUsages:     []ExtKeyUsage{ExtKeyUsageAny},
-
-		expectedChains: [][]string{
-			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
-		},
-	},
-	{
-		name:          "dnssec-exp/RootInIntermediates",
-		leaf:          dnssecExpLeaf,
-		intermediates: []string{startComIntermediate, startComRoot},
-		roots:         []string{startComRoot},
-		currentTime:   1302726541,
-		systemSkip:    true, // see dnssec-exp test
-
-		expectedChains: [][]string{
-			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority"},
-		},
-	},
-	{
 		name:          "InvalidHash",
 		leaf:          googleLeafWithInvalidHash,
 		intermediates: []string{gtsIntermediate},
@@ -226,15 +189,15 @@ var verifyTests = []verifyTest{
 		leaf:          nameConstraintsLeaf,
 		intermediates: []string{nameConstraintsIntermediate1, nameConstraintsIntermediate2},
 		roots:         []string{globalSignRoot},
-		currentTime:   1382387896,
-		dnsName:       "secure.iddl.vt.edu",
+		currentTime:   1524771953,
+		dnsName:       "udctest.ads.vt.edu",
 
 		expectedChains: [][]string{
 			{
-				"Technology-enhanced Learning and Online Strategies",
+				"udctest.ads.vt.edu",
 				"Virginia Tech Global Qualified Server CA",
-				"Trusted Root CA G2",
-				"GlobalSign Root CA",
+				"Trusted Root CA SHA256 G2",
+				"GlobalSign",
 			},
 		},
 	},
@@ -368,7 +331,7 @@ var verifyTests = []verifyTest{
 		},
 	},
 	{
-		// When there are two parents, one with a incorrect subject but matching SKID
+		// When there are two parents, one with an incorrect subject but matching SKID
 		// and one with a correct subject but missing SKID, the latter should be
 		// considered as a possible parent.
 		leaf:        leafMatchingAKIDMatchingIssuer,
@@ -551,10 +514,6 @@ func testVerify(t *testing.T, test verifyTest, useSystemRoots bool) {
 }
 
 func TestGoVerify(t *testing.T) {
-	// Temporarily enable SHA-1 verification since a number of test chains
-	// require it. TODO(filippo): regenerate test chains.
-	t.Setenv("GODEBUG", "x509sha1=1")
-
 	for _, test := range verifyTests {
 		t.Run(test.name, func(t *testing.T) {
 			testVerify(t, test, false)
@@ -723,128 +682,6 @@ c78zEqNswn6xGKXpWF5xVwdFcsx9HKhJ6UAi2bQ/KQ1yb7LPUOR6wXXWrG1cLnNP
 i8eNLnKL9PXQ+5SwJFCzfEhcIZuhzg==
 -----END CERTIFICATE-----`
 
-const dnssecExpLeaf = `-----BEGIN CERTIFICATE-----
-MIIGzTCCBbWgAwIBAgIDAdD6MA0GCSqGSIb3DQEBBQUAMIGMMQswCQYDVQQGEwJJ
-TDEWMBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMiU2VjdXJlIERpZ2l0
-YWwgQ2VydGlmaWNhdGUgU2lnbmluZzE4MDYGA1UEAxMvU3RhcnRDb20gQ2xhc3Mg
-MSBQcmltYXJ5IEludGVybWVkaWF0ZSBTZXJ2ZXIgQ0EwHhcNMTAwNzA0MTQ1MjQ1
-WhcNMTEwNzA1MTA1NzA0WjCBwTEgMB4GA1UEDRMXMjIxMTM3LWxpOWE5dHhJRzZM
-NnNyVFMxCzAJBgNVBAYTAlVTMR4wHAYDVQQKExVQZXJzb25hIE5vdCBWYWxpZGF0
-ZWQxKTAnBgNVBAsTIFN0YXJ0Q29tIEZyZWUgQ2VydGlmaWNhdGUgTWVtYmVyMRsw
-GQYDVQQDExJ3d3cuZG5zc2VjLWV4cC5vcmcxKDAmBgkqhkiG9w0BCQEWGWhvc3Rt
-YXN0ZXJAZG5zc2VjLWV4cC5vcmcwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK
-AoIBAQDEdF/22vaxrPbqpgVYMWi+alfpzBctpbfLBdPGuqOazJdCT0NbWcK8/+B4
-X6OlSOURNIlwLzhkmwVsWdVv6dVSaN7d4yI/fJkvgfDB9+au+iBJb6Pcz8ULBfe6
-D8HVvqKdORp6INzHz71z0sghxrQ0EAEkoWAZLh+kcn2ZHdcmZaBNUfjmGbyU6PRt
-RjdqoP+owIaC1aktBN7zl4uO7cRjlYFdusINrh2kPP02KAx2W84xjxX1uyj6oS6e
-7eBfvcwe8czW/N1rbE0CoR7h9+HnIrjnVG9RhBiZEiw3mUmF++Up26+4KTdRKbu3
-+BL4yMpfd66z0+zzqu+HkvyLpFn5AgMBAAGjggL/MIIC+zAJBgNVHRMEAjAAMAsG
-A1UdDwQEAwIDqDATBgNVHSUEDDAKBggrBgEFBQcDATAdBgNVHQ4EFgQUy04I5guM
-drzfh2JQaXhgV86+4jUwHwYDVR0jBBgwFoAU60I00Jiwq5/0G2sI98xkLu8OLEUw
-LQYDVR0RBCYwJIISd3d3LmRuc3NlYy1leHAub3Jngg5kbnNzZWMtZXhwLm9yZzCC
-AUIGA1UdIASCATkwggE1MIIBMQYLKwYBBAGBtTcBAgIwggEgMC4GCCsGAQUFBwIB
-FiJodHRwOi8vd3d3LnN0YXJ0c3NsLmNvbS9wb2xpY3kucGRmMDQGCCsGAQUFBwIB
-FihodHRwOi8vd3d3LnN0YXJ0c3NsLmNvbS9pbnRlcm1lZGlhdGUucGRmMIG3Bggr
-BgEFBQcCAjCBqjAUFg1TdGFydENvbSBMdGQuMAMCAQEagZFMaW1pdGVkIExpYWJp
-bGl0eSwgc2VlIHNlY3Rpb24gKkxlZ2FsIExpbWl0YXRpb25zKiBvZiB0aGUgU3Rh
-cnRDb20gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkgUG9saWN5IGF2YWlsYWJsZSBh
-dCBodHRwOi8vd3d3LnN0YXJ0c3NsLmNvbS9wb2xpY3kucGRmMGEGA1UdHwRaMFgw
-KqAooCaGJGh0dHA6Ly93d3cuc3RhcnRzc2wuY29tL2NydDEtY3JsLmNybDAqoCig
-JoYkaHR0cDovL2NybC5zdGFydHNzbC5jb20vY3J0MS1jcmwuY3JsMIGOBggrBgEF
-BQcBAQSBgTB/MDkGCCsGAQUFBzABhi1odHRwOi8vb2NzcC5zdGFydHNzbC5jb20v
-c3ViL2NsYXNzMS9zZXJ2ZXIvY2EwQgYIKwYBBQUHMAKGNmh0dHA6Ly93d3cuc3Rh
-cnRzc2wuY29tL2NlcnRzL3N1Yi5jbGFzczEuc2VydmVyLmNhLmNydDAjBgNVHRIE
-HDAahhhodHRwOi8vd3d3LnN0YXJ0c3NsLmNvbS8wDQYJKoZIhvcNAQEFBQADggEB
-ACXj6SB59KRJPenn6gUdGEqcta97U769SATyiQ87i9er64qLwvIGLMa3o2Rcgl2Y
-kghUeyLdN/EXyFBYA8L8uvZREPoc7EZukpT/ZDLXy9i2S0jkOxvF2fD/XLbcjGjM
-iEYG1/6ASw0ri9C0k4oDDoJLCoeH9++yqF7SFCCMcDkJqiAGXNb4euDpa8vCCtEQ
-CSS+ObZbfkreRt3cNCf5LfCXe9OsTnCfc8Cuq81c0oLaG+SmaLUQNBuToq8e9/Zm
-+b+/a3RVjxmkV5OCcGVBxsXNDn54Q6wsdw0TBMcjwoEndzpLS7yWgFbbkq5ZiGpw
-Qibb2+CfKuQ+WFV1GkVQmVA=
------END CERTIFICATE-----`
-
-const startComIntermediate = `-----BEGIN CERTIFICATE-----
-MIIGNDCCBBygAwIBAgIBGDANBgkqhkiG9w0BAQUFADB9MQswCQYDVQQGEwJJTDEW
-MBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwg
-Q2VydGlmaWNhdGUgU2lnbmluZzEpMCcGA1UEAxMgU3RhcnRDb20gQ2VydGlmaWNh
-dGlvbiBBdXRob3JpdHkwHhcNMDcxMDI0MjA1NDE3WhcNMTcxMDI0MjA1NDE3WjCB
-jDELMAkGA1UEBhMCSUwxFjAUBgNVBAoTDVN0YXJ0Q29tIEx0ZC4xKzApBgNVBAsT
-IlNlY3VyZSBEaWdpdGFsIENlcnRpZmljYXRlIFNpZ25pbmcxODA2BgNVBAMTL1N0
-YXJ0Q29tIENsYXNzIDEgUHJpbWFyeSBJbnRlcm1lZGlhdGUgU2VydmVyIENBMIIB
-IjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtonGrO8JUngHrJJj0PREGBiE
-gFYfka7hh/oyULTTRwbw5gdfcA4Q9x3AzhA2NIVaD5Ksg8asWFI/ujjo/OenJOJA
-pgh2wJJuniptTT9uYSAK21ne0n1jsz5G/vohURjXzTCm7QduO3CHtPn66+6CPAVv
-kvek3AowHpNz/gfK11+AnSJYUq4G2ouHI2mw5CrY6oPSvfNx23BaKA+vWjhwRRI/
-ME3NO68X5Q/LoKldSKqxYVDLNM08XMML6BDAjJvwAwNi/rJsPnIO7hxDKslIDlc5
-xDEhyBDBLIf+VJVSH1I8MRKbf+fAoKVZ1eKPPvDVqOHXcDGpxLPPr21TLwb0pwID
-AQABo4IBrTCCAakwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwHQYD
-VR0OBBYEFOtCNNCYsKuf9BtrCPfMZC7vDixFMB8GA1UdIwQYMBaAFE4L7xqkQFul
-F2mHMMo0aEPQQa7yMGYGCCsGAQUFBwEBBFowWDAnBggrBgEFBQcwAYYbaHR0cDov
-L29jc3Auc3RhcnRzc2wuY29tL2NhMC0GCCsGAQUFBzAChiFodHRwOi8vd3d3LnN0
-YXJ0c3NsLmNvbS9zZnNjYS5jcnQwWwYDVR0fBFQwUjAnoCWgI4YhaHR0cDovL3d3
-dy5zdGFydHNzbC5jb20vc2ZzY2EuY3JsMCegJaAjhiFodHRwOi8vY3JsLnN0YXJ0
-c3NsLmNvbS9zZnNjYS5jcmwwgYAGA1UdIAR5MHcwdQYLKwYBBAGBtTcBAgEwZjAu
-BggrBgEFBQcCARYiaHR0cDovL3d3dy5zdGFydHNzbC5jb20vcG9saWN5LnBkZjA0
-BggrBgEFBQcCARYoaHR0cDovL3d3dy5zdGFydHNzbC5jb20vaW50ZXJtZWRpYXRl
-LnBkZjANBgkqhkiG9w0BAQUFAAOCAgEAIQlJPqWIbuALi0jaMU2P91ZXouHTYlfp
-tVbzhUV1O+VQHwSL5qBaPucAroXQ+/8gA2TLrQLhxpFy+KNN1t7ozD+hiqLjfDen
-xk+PNdb01m4Ge90h2c9W/8swIkn+iQTzheWq8ecf6HWQTd35RvdCNPdFWAwRDYSw
-xtpdPvkBnufh2lWVvnQce/xNFE+sflVHfXv0pQ1JHpXo9xLBzP92piVH0PN1Nb6X
-t1gW66pceG/sUzCv6gRNzKkC4/C2BBL2MLERPZBOVmTX3DxDX3M570uvh+v2/miI
-RHLq0gfGabDBoYvvF0nXYbFFSF87ICHpW7LM9NfpMfULFWE7epTj69m8f5SuauNi
-YpaoZHy4h/OZMn6SolK+u/hlz8nyMPyLwcKmltdfieFcNID1j0cHL7SRv7Gifl9L
-WtBbnySGBVFaaQNlQ0lxxeBvlDRr9hvYqbBMflPrj0jfyjO1SPo2ShpTpjMM0InN
-SRXNiTE8kMBy12VLUjWKRhFEuT2OKGWmPnmeXAhEKa2wNREuIU640ucQPl2Eg7PD
-wuTSxv0JS3QJ3fGz0xk+gA2iCxnwOOfFwq/iI9th4p1cbiCJSS4jarJiwUW0n6+L
-p/EiO/h94pDQehn7Skzj0n1fSoMD7SfWI55rjbRZotnvbIIp3XUZPD9MEI3vu3Un
-0q6Dp6jOW6c=
------END CERTIFICATE-----`
-
-const startComRoot = `-----BEGIN CERTIFICATE-----
-MIIHyTCCBbGgAwIBAgIBATANBgkqhkiG9w0BAQUFADB9MQswCQYDVQQGEwJJTDEW
-MBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwg
-Q2VydGlmaWNhdGUgU2lnbmluZzEpMCcGA1UEAxMgU3RhcnRDb20gQ2VydGlmaWNh
-dGlvbiBBdXRob3JpdHkwHhcNMDYwOTE3MTk0NjM2WhcNMzYwOTE3MTk0NjM2WjB9
-MQswCQYDVQQGEwJJTDEWMBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMi
-U2VjdXJlIERpZ2l0YWwgQ2VydGlmaWNhdGUgU2lnbmluZzEpMCcGA1UEAxMgU3Rh
-cnRDb20gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwggIiMA0GCSqGSIb3DQEBAQUA
-A4ICDwAwggIKAoICAQDBiNsJvGxGfHiflXu1M5DycmLWwTYgIiRezul38kMKogZk
-pMyONvg45iPwbm2xPN1yo4UcodM9tDMr0y+v/uqwQVlntsQGfQqedIXWeUyAN3rf
-OQVSWff0G0ZDpNKFhdLDcfN1YjS6LIp/Ho/u7TTQEceWzVI9ujPW3U3eCztKS5/C
-Ji/6tRYccjV3yjxd5srhJosaNnZcAdt0FCX+7bWgiA/deMotHweXMAEtcnn6RtYT
-Kqi5pquDSR3l8u/d5AGOGAqPY1MWhWKpDhk6zLVmpsJrdAfkK+F2PrRt2PZE4XNi
-HzvEvqBTViVsUQn3qqvKv3b9bZvzndu/PWa8DFaqr5hIlTpL36dYUNk4dalb6kMM
-Av+Z6+hsTXBbKWWc3apdzK8BMewM69KN6Oqce+Zu9ydmDBpI125C4z/eIT574Q1w
-+2OqqGwaVLRcJXrJosmLFqa7LH4XXgVNWG4SHQHuEhANxjJ/GP/89PrNbpHoNkm+
-Gkhpi8KWTRoSsmkXwQqQ1vp5Iki/untp+HDH+no32NgN0nZPV/+Qt+OR0t3vwmC3
-Zzrd/qqc8NSLf3Iizsafl7b4r4qgEKjZ+xjGtrVcUjyJthkqcwEKDwOzEmDyei+B
-26Nu/yYwl/WL3YlXtq09s68rxbd2AvCl1iuahhQqcvbjM4xdCUsT37uMdBNSSwID
-AQABo4ICUjCCAk4wDAYDVR0TBAUwAwEB/zALBgNVHQ8EBAMCAa4wHQYDVR0OBBYE
-FE4L7xqkQFulF2mHMMo0aEPQQa7yMGQGA1UdHwRdMFswLKAqoCiGJmh0dHA6Ly9j
-ZXJ0LnN0YXJ0Y29tLm9yZy9zZnNjYS1jcmwuY3JsMCugKaAnhiVodHRwOi8vY3Js
-LnN0YXJ0Y29tLm9yZy9zZnNjYS1jcmwuY3JsMIIBXQYDVR0gBIIBVDCCAVAwggFM
-BgsrBgEEAYG1NwEBATCCATswLwYIKwYBBQUHAgEWI2h0dHA6Ly9jZXJ0LnN0YXJ0
-Y29tLm9yZy9wb2xpY3kucGRmMDUGCCsGAQUFBwIBFilodHRwOi8vY2VydC5zdGFy
-dGNvbS5vcmcvaW50ZXJtZWRpYXRlLnBkZjCB0AYIKwYBBQUHAgIwgcMwJxYgU3Rh
-cnQgQ29tbWVyY2lhbCAoU3RhcnRDb20pIEx0ZC4wAwIBARqBl0xpbWl0ZWQgTGlh
-YmlsaXR5LCByZWFkIHRoZSBzZWN0aW9uICpMZWdhbCBMaW1pdGF0aW9ucyogb2Yg
-dGhlIFN0YXJ0Q29tIENlcnRpZmljYXRpb24gQXV0aG9yaXR5IFBvbGljeSBhdmFp
-bGFibGUgYXQgaHR0cDovL2NlcnQuc3RhcnRjb20ub3JnL3BvbGljeS5wZGYwEQYJ
-YIZIAYb4QgEBBAQDAgAHMDgGCWCGSAGG+EIBDQQrFilTdGFydENvbSBGcmVlIFNT
-TCBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTANBgkqhkiG9w0BAQUFAAOCAgEAFmyZ
-9GYMNPXQhV59CuzaEE44HF7fpiUFS5Eyweg78T3dRAlbB0mKKctmArexmvclmAk8
-jhvh3TaHK0u7aNM5Zj2gJsfyOZEdUauCe37Vzlrk4gNXcGmXCPleWKYK34wGmkUW
-FjgKXlf2Ysd6AgXmvB618p70qSmD+LIU424oh0TDkBreOKk8rENNZEXO3SipXPJz
-ewT4F+irsfMuXGRuczE6Eri8sxHkfY+BUZo7jYn0TZNmezwD7dOaHZrzZVD1oNB1
-ny+v8OqCQ5j4aZyJecRDjkZy42Q2Eq/3JR44iZB3fsNrarnDy0RLrHiQi+fHLB5L
-EUTINFInzQpdn4XBidUaePKVEFMy3YCEZnXZtWgo+2EuvoSoOMCZEoalHmdkrQYu
-L6lwhceWD3yJZfWOQ1QOq92lgDmUYMA0yZZwLKMS9R9Ie70cfmu3nZD0Ijuu+Pwq
-yvqCUqDvr0tVk+vBtfAii6w0TiYiBKGHLHVKt+V9E9e4DGTANtLJL4YSjCMJwRuC
-O3NJo2pXh5Tl1njFmUNj403gdy3hZZlyaQQaRwnmDwFWJPsfvw55qVguucQJAX6V
-um0ABj6y6koQOdjQK/W/7HW/lwLFCRsI3FU34oH7N4RDYiDK51ZLZer+bMEkkySh
-NOsF/5oirpt9P/FlUQqmMGqz9IgcgA38corog14=
------END CERTIFICATE-----`
-
 const smimeLeaf = `-----BEGIN CERTIFICATE-----
 MIIIPDCCBiSgAwIBAgIQaMDxFS0pOMxZZeOBxoTJtjANBgkqhkiG9w0BAQsFADCB
 nTELMAkGA1UEBhMCRVMxFDASBgNVBAoMC0laRU5QRSBTLkEuMTowOAYDVQQLDDFB
@@ -970,168 +807,136 @@ QyYBNWNgVYkDOnXYukrZVP/u3oDYLdE41V4tC5h9Pmzb/CaIxw==
 -----END CERTIFICATE-----`
 
 var nameConstraintsLeaf = `-----BEGIN CERTIFICATE-----
-MIIHMTCCBRmgAwIBAgIIIZaV/3ezOJkwDQYJKoZIhvcNAQEFBQAwgcsxCzAJBgNV
-BAYTAlVTMREwDwYDVQQIEwhWaXJnaW5pYTETMBEGA1UEBxMKQmxhY2tzYnVyZzEj
-MCEGA1UECxMaR2xvYmFsIFF1YWxpZmllZCBTZXJ2ZXIgQ0ExPDA6BgNVBAoTM1Zp
-cmdpbmlhIFBvbHl0ZWNobmljIEluc3RpdHV0ZSBhbmQgU3RhdGUgVW5pdmVyc2l0
-eTExMC8GA1UEAxMoVmlyZ2luaWEgVGVjaCBHbG9iYWwgUXVhbGlmaWVkIFNlcnZl
-ciBDQTAeFw0xMzA5MTkxNDM2NTVaFw0xNTA5MTkxNDM2NTVaMIHNMQswCQYDVQQG
-EwJVUzERMA8GA1UECAwIVmlyZ2luaWExEzARBgNVBAcMCkJsYWNrc2J1cmcxPDA6
-BgNVBAoMM1ZpcmdpbmlhIFBvbHl0ZWNobmljIEluc3RpdHV0ZSBhbmQgU3RhdGUg
-VW5pdmVyc2l0eTE7MDkGA1UECwwyVGVjaG5vbG9neS1lbmhhbmNlZCBMZWFybmlu
-ZyBhbmQgT25saW5lIFN0cmF0ZWdpZXMxGzAZBgNVBAMMEnNlY3VyZS5pZGRsLnZ0
-LmVkdTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKkOyPpsOK/6IuPG
-WnIBlVwlHzeYf+cUlggqkLq0b0+vZbiTXgio9/VCuNQ8opSoss7J7o3ygV9to+9Y
-YwJKVC5WDT/y5JWpQey0CWILymViJnpNSwnxBc8A+Q8w5NUGDd/UhtPx/U8/hqbd
-WPDYj2hbOqyq8UlRhfS5pwtnv6BbCTaY11I6FhCLK7zttISyTuWCf9p9o/ggiipP
-ii/5oh4dkl+r5SfuSp5GPNHlYO8lWqys5NAPoDD4fc/kuflcK7Exx7XJ+Oqu0W0/
-psjEY/tES1ZgDWU/ParcxxFpFmKHbD5DXsfPOObzkVWXIY6tGMutSlE1Froy/Nn0
-OZsAOrcCAwEAAaOCAhMwggIPMIG4BggrBgEFBQcBAQSBqzCBqDBYBggrBgEFBQcw
-AoZMaHR0cDovL3d3dy5wa2kudnQuZWR1L2dsb2JhbHF1YWxpZmllZHNlcnZlci9j
-YWNlcnQvZ2xvYmFscXVhbGlmaWVkc2VydmVyLmNydDBMBggrBgEFBQcwAYZAaHR0
-cDovL3Z0Y2EtcC5lcHJvdi5zZXRpLnZ0LmVkdTo4MDgwL2VqYmNhL3B1YmxpY3dl
-Yi9zdGF0dXMvb2NzcDAdBgNVHQ4EFgQUp7xbO6iHkvtZbPE4jmndmnAbSEcwDAYD
-VR0TAQH/BAIwADAfBgNVHSMEGDAWgBS8YmAn1eM1SBfpS6tFatDIqHdxjDBqBgNV
-HSAEYzBhMA4GDCsGAQQBtGgFAgICATAOBgwrBgEEAbRoBQICAQEwPwYMKwYBBAG0
-aAUCAgMBMC8wLQYIKwYBBQUHAgEWIWh0dHA6Ly93d3cucGtpLnZ0LmVkdS9nbG9i
-YWwvY3BzLzBKBgNVHR8EQzBBMD+gPaA7hjlodHRwOi8vd3d3LnBraS52dC5lZHUv
-Z2xvYmFscXVhbGlmaWVkc2VydmVyL2NybC9jYWNybC5jcmwwDgYDVR0PAQH/BAQD
-AgTwMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAdBgNVHREEFjAUghJz
-ZWN1cmUuaWRkbC52dC5lZHUwDQYJKoZIhvcNAQEFBQADggIBAEgoYo4aUtatY3gI
-OyyKp7QlIOaLbTJZywESHqy+L5EGDdJW2DJV+mcE0LDGvqa2/1Lo+AR1ntsZwfOi
-Y718JwgVVaX/RCd5+QKP25c5/x72xI8hb/L1bgS0ED9b0YAhd7Qm1K1ot82+6mqX
-DW6WiGeDr8Z07MQ3143qQe2rBlq+QI69DYzm2GOqAIAnUIWv7tCyLUm31b4DwmrJ
-TeudVreTKUbBNB1TWRFHEPkWhjjXKZnNGRO11wHXcyBu6YekIvVZ+vmx8ePee4jJ
-3GFOi7lMuWOeq57jTVL7KOKaKLVXBb6gqo5aq+Wwt8RUD5MakrCAEeQZj7DKaFmZ
-oQCO0Pxrsl3InCGvxnGzT+bFVO9nJ/BAMj7hknFdm9Jr6Bg5q33Z+gnf909AD9QF
-ESqUSykaHu2LVdJx2MaCH1CyKnRgMw5tEwE15EXpUjCm24m8FMOYC+rNtf18pgrz
-5D8Jhh+oxK9PjcBYqXNtnioIxiMCYcV0q5d4w4BYFEh71tk7/bYB0R55CsBUVPmp
-timWNOdRd57Tfpk3USaVsumWZAf9MP3wPiC7gb4d5tYEEAG5BuDT8ruFw838wU8G
-1VvAVutSiYBg7k3NYO7AUqZ+Ax4klQX3aM9lgonmJ78Qt94UPtbptrfZ4/lSqEf8
-GBUwDrQNTb+gsXsDkjd5lcYxNx6l
+MIIG+jCCBOKgAwIBAgIQWj9gbtPPkZs65N6TKyutRjANBgkqhkiG9w0BAQsFADCB
+yzELMAkGA1UEBhMCVVMxETAPBgNVBAgTCFZpcmdpbmlhMRMwEQYDVQQHEwpCbGFj
+a3NidXJnMSMwIQYDVQQLExpHbG9iYWwgUXVhbGlmaWVkIFNlcnZlciBDQTE8MDoG
+A1UEChMzVmlyZ2luaWEgUG9seXRlY2huaWMgSW5zdGl0dXRlIGFuZCBTdGF0ZSBV
+bml2ZXJzaXR5MTEwLwYDVQQDEyhWaXJnaW5pYSBUZWNoIEdsb2JhbCBRdWFsaWZp
+ZWQgU2VydmVyIENBMB4XDTE4MDQyNjE5NDU1M1oXDTE5MTIxMDAwMDAwMFowgZAx
+CzAJBgNVBAYTAlVTMREwDwYDVQQIEwhWaXJnaW5pYTETMBEGA1UEBxMKQmxhY2tz
+YnVyZzE8MDoGA1UEChMzVmlyZ2luaWEgUG9seXRlY2huaWMgSW5zdGl0dXRlIGFu
+ZCBTdGF0ZSBVbml2ZXJzaXR5MRswGQYDVQQDExJ1ZGN0ZXN0LmFkcy52dC5lZHUw
+ggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCcoVBeV3AzdSGMzRWH0tuM
+VluEj+sq4r9PuLDBAdgjjHi4ED8npT2/fgOalswInXspRvFS+pkEwTrmeZ7HPzRJ
+HUE5YlX5Nc6WI8ZXPVg5E6GyoMy6gNlALwqsIvDCvqxBMc39oG6yOuGmQXdF6s0N
+BJMrXc4aPz60s4QMWNO2OHL0pmnZqE1TxYRBHUY/dk3cfsIepIDDuSxRsNE/P/MI
+pxm/uVOyiLEnPmOMsL430SZ7nC8PxUMqya9ok6Zaf7k54g7JJXDjE96VMCjMszIv
+Ud9qe1PbokTOxlG/4QW7Qm0dPbiJhTUuoBzVAxzlOOkSFdXqSYKjC9tFcbr8y+pT
+AgMBAAGjggIRMIICDTCBtgYIKwYBBQUHAQEEgakwgaYwXwYIKwYBBQUHMAKGU2h0
+dHA6Ly93d3cucGtpLnZ0LmVkdS9nbG9iYWxxdWFsaWZpZWRzZXJ2ZXIvY2FjZXJ0
+L2dsb2JhbHF1YWxpZmllZHNlcnZlcl9zaGEyNTYuY3J0MEMGCCsGAQUFBzABhjdo
+dHRwOi8vdnRjYS5wa2kudnQuZWR1OjgwODAvZWpiY2EvcHVibGljd2ViL3N0YXR1
+cy9vY3NwMB0GA1UdDgQWBBSzDLXee0wbgXpVQxvBQCophQDZbTAMBgNVHRMBAf8E
+AjAAMB8GA1UdIwQYMBaAFLxiYCfV4zVIF+lLq0Vq0Miod3GMMGoGA1UdIARjMGEw
+DgYMKwYBBAG0aAUCAgIBMA4GDCsGAQQBtGgFAgIBATA/BgwrBgEEAbRoBQICAwEw
+LzAtBggrBgEFBQcCARYhaHR0cDovL3d3dy5wa2kudnQuZWR1L2dsb2JhbC9jcHMv
+MEoGA1UdHwRDMEEwP6A9oDuGOWh0dHA6Ly93d3cucGtpLnZ0LmVkdS9nbG9iYWxx
+dWFsaWZpZWRzZXJ2ZXIvY3JsL2NhY3JsLmNybDAOBgNVHQ8BAf8EBAMCBeAwHQYD
+VR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMBMB0GA1UdEQQWMBSCEnVkY3Rlc3Qu
+YWRzLnZ0LmVkdTANBgkqhkiG9w0BAQsFAAOCAgEAD79kuyZbwQJCSBOVq9lA0lj4
+juHM7RMBfp2GuWvhk5F90OMKQCNdITva3oq4uQzt013TtwposYXq/d0Jobk6RHxj
+OJzRZVvEPsXLvKm8oLhz7/qgI8gcVeJFR9WgdNhjN1upn++EnABHUdDR77fgixuH
+FFwNC0WSZ6G0+WgYV7MKD4jYWh1DXEaJtQCN763IaWGxgvQaLUwS423xgwsx+8rw
+hCRYns5u8myTbUlEu2b+GYimiogtDFMT01A7y88vKl9g+3bx42dJHQNNmSzmYPfs
+IljtQbVwJIyNL/rwjoz7BTk8e9WY0qUK7ZYh+oGK8kla8yfPKtkvOJV29KdFKzTm
+42kNm6cH+U5gGwEEg+Xj66Q2yFH5J9kAoBazTepgQ/13wwTY0mU9PtKVBtMH5Y/u
+MoNVZz6p7vWWRrY5qSXIaW9qyF3bZnmPEHHYTplWsyAyh8blGlqPnpayDflPiQF/
+9y37kax5yhT0zPZW1ZwIZ5hDTO7pu5i83bYh3pzhvJNHtv74Nn/SX1dTZrWBi/HG
+OSWK3CLz8qAEBe72XGoBjBzuk9VQxg6k52qjxCyYf7CBSQpTZhsNMf0gzu+JNATc
+b+XaOqJT6uI/RfqAJVe16ZeXZIFZgQlzIwRS9vobq9fqTIpH/QxqgXROGqAlbBVp
+/ByH6FEe6+oH1UCklhg=
 -----END CERTIFICATE-----`
 
 var nameConstraintsIntermediate1 = `-----BEGIN CERTIFICATE-----
-MIINLjCCDBagAwIBAgIRIqpyf/YoGgvHc8HiDAxAI8owDQYJKoZIhvcNAQEFBQAw
-XDELMAkGA1UEBhMCQkUxFTATBgNVBAsTDFRydXN0ZWQgUm9vdDEZMBcGA1UEChMQ
-R2xvYmFsU2lnbiBudi1zYTEbMBkGA1UEAxMSVHJ1c3RlZCBSb290IENBIEcyMB4X
-DTEyMTIxMzAwMDAwMFoXDTE3MTIxMzAwMDAwMFowgcsxCzAJBgNVBAYTAlVTMREw
-DwYDVQQIEwhWaXJnaW5pYTETMBEGA1UEBxMKQmxhY2tzYnVyZzEjMCEGA1UECxMa
-R2xvYmFsIFF1YWxpZmllZCBTZXJ2ZXIgQ0ExPDA6BgNVBAoTM1ZpcmdpbmlhIFBv
-bHl0ZWNobmljIEluc3RpdHV0ZSBhbmQgU3RhdGUgVW5pdmVyc2l0eTExMC8GA1UE
-AxMoVmlyZ2luaWEgVGVjaCBHbG9iYWwgUXVhbGlmaWVkIFNlcnZlciBDQTCCAiIw
-DQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBALgIZhEaptBWADBqdJ45ueFGzMXa
-GHnzNxoxR1fQIaaRQNdCg4cw3A4dWKMeEgYLtsp65ai3Xfw62Qaus0+KJ3RhgV+r
-ihqK81NUzkls78fJlADVDI4fCTlothsrE1CTOMiy97jKHai5mVTiWxmcxpmjv7fm
-5Nhc+uHgh2hIz6npryq495mD51ZrUTIaqAQN6Pw/VHfAmR524vgriTOjtp1t4lA9
-pXGWjF/vkhAKFFheOQSQ00rngo2wHgCqMla64UTN0oz70AsCYNZ3jDLx0kOP0YmM
-R3Ih91VA63kLqPXA0R6yxmmhhxLZ5bcyAy1SLjr1N302MIxLM/pSy6aquEnbELhz
-qyp9yGgRyGJay96QH7c4RJY6gtcoPDbldDcHI9nXngdAL4DrZkJ9OkDkJLyqG66W
-ZTF5q4EIs6yMdrywz0x7QP+OXPJrjYpbeFs6tGZCFnWPFfmHCRJF8/unofYrheq+
-9J7Jx3U55S/k57NXbAM1RAJOuMTlfn9Etf9Dpoac9poI4Liav6rBoUQk3N3JWqnV
-HNx/NdCyJ1/6UbKMJUZsStAVglsi6lVPo289HHOE4f7iwl3SyekizVOp01wUin3y
-cnbZB/rXmZbwapSxTTSBf0EIOr9i4EGfnnhCAVA9U5uLrI5OEB69IY8PNX0071s3
-Z2a2fio5c8m3JkdrAgMBAAGjggh5MIIIdTAOBgNVHQ8BAf8EBAMCAQYwTAYDVR0g
-BEUwQzBBBgkrBgEEAaAyATwwNDAyBggrBgEFBQcCARYmaHR0cHM6Ly93d3cuZ2xv
-YmFsc2lnbi5jb20vcmVwb3NpdG9yeS8wEgYDVR0TAQH/BAgwBgEB/wIBADCCBtAG
-A1UdHgSCBscwggbDoIIGvzASghAzZGJsYWNrc2J1cmcub3JnMBiCFmFjY2VsZXJh
-dGV2aXJnaW5pYS5jb20wGIIWYWNjZWxlcmF0ZXZpcmdpbmlhLm9yZzALgglhY3Zj
-cC5vcmcwCYIHYmV2Lm5ldDAJggdiZXYub3JnMAuCCWNsaWdzLm9yZzAMggpjbWl3
-ZWIub3JnMBeCFWVhc3Rlcm5icm9va3Ryb3V0Lm5ldDAXghVlYXN0ZXJuYnJvb2t0
-cm91dC5vcmcwEYIPZWNvcnJpZG9ycy5pbmZvMBOCEWVkZ2FycmVzZWFyY2gub3Jn
-MBKCEGdldC1lZHVjYXRlZC5jb20wE4IRZ2V0LWVkdWNhdGVkLmluZm8wEYIPZ2V0
-ZWR1Y2F0ZWQubmV0MBKCEGdldC1lZHVjYXRlZC5uZXQwEYIPZ2V0ZWR1Y2F0ZWQu
-b3JnMBKCEGdldC1lZHVjYXRlZC5vcmcwD4INaG9raWVjbHViLmNvbTAQgg5ob2tp
-ZXBob3RvLmNvbTAPgg1ob2tpZXNob3AuY29tMBGCD2hva2llc3BvcnRzLmNvbTAS
-ghBob2tpZXRpY2tldHMuY29tMBKCEGhvdGVscm9hbm9rZS5jb20wE4IRaHVtYW53
-aWxkbGlmZS5vcmcwF4IVaW5uYXR2aXJnaW5pYXRlY2guY29tMA+CDWlzY2hwMjAx
-MS5vcmcwD4INbGFuZHJlaGFiLm9yZzAggh5uYXRpb25hbHRpcmVyZXNlYXJjaGNl
-bnRlci5jb20wFYITbmV0d29ya3ZpcmdpbmlhLm5ldDAMggpwZHJjdnQuY29tMBiC
-FnBldGVkeWVyaXZlcmNvdXJzZS5jb20wDYILcmFkaW9pcS5vcmcwFYITcml2ZXJj
-b3Vyc2Vnb2xmLmNvbTALgglzZGltaS5vcmcwEIIOc292YW1vdGlvbi5jb20wHoIc
-c3VzdGFpbmFibGUtYmlvbWF0ZXJpYWxzLmNvbTAeghxzdXN0YWluYWJsZS1iaW9t
-YXRlcmlhbHMub3JnMBWCE3RoaXNpc3RoZWZ1dHVyZS5jb20wGIIWdGhpcy1pcy10
-aGUtZnV0dXJlLmNvbTAVghN0aGlzaXN0aGVmdXR1cmUubmV0MBiCFnRoaXMtaXMt
-dGhlLWZ1dHVyZS5uZXQwCoIIdmFkcy5vcmcwDIIKdmFsZWFmLm9yZzANggt2YXRl
-Y2guaW5mbzANggt2YXRlY2gubW9iaTAcghp2YXRlY2hsaWZlbG9uZ2xlYXJuaW5n
-LmNvbTAcghp2YXRlY2hsaWZlbG9uZ2xlYXJuaW5nLm5ldDAcghp2YXRlY2hsaWZl
-bG9uZ2xlYXJuaW5nLm9yZzAKggh2Y29tLmVkdTASghB2aXJnaW5pYXZpZXcubmV0
-MDSCMnZpcmdpbmlhcG9seXRlY2huaWNpbnN0aXR1dGVhbmRzdGF0ZXVuaXZlcnNp
-dHkuY29tMDWCM3ZpcmdpbmlhcG9seXRlY2huaWNpbnN0aXR1dGVhbmRzdGF0ZXVu
-aXZlcnNpdHkuaW5mbzA0gjJ2aXJnaW5pYXBvbHl0ZWNobmljaW5zdGl0dXRlYW5k
-c3RhdGV1bml2ZXJzaXR5Lm5ldDA0gjJ2aXJnaW5pYXBvbHl0ZWNobmljaW5zdGl0
-dXRlYW5kc3RhdGV1bml2ZXJzaXR5Lm9yZzAZghd2aXJnaW5pYXB1YmxpY3JhZGlv
-Lm9yZzASghB2aXJnaW5pYXRlY2guZWR1MBOCEXZpcmdpbmlhdGVjaC5tb2JpMByC
-GnZpcmdpbmlhdGVjaGZvdW5kYXRpb24ub3JnMAiCBnZ0LmVkdTALggl2dGFyYy5v
-cmcwDIIKdnQtYXJjLm9yZzALggl2dGNyYy5jb20wCoIIdnRpcC5vcmcwDIIKdnRs
-ZWFuLm9yZzAWghR2dGtub3dsZWRnZXdvcmtzLmNvbTAYghZ2dGxpZmVsb25nbGVh
-cm5pbmcuY29tMBiCFnZ0bGlmZWxvbmdsZWFybmluZy5uZXQwGIIWdnRsaWZlbG9u
-Z2xlYXJuaW5nLm9yZzATghF2dHNwb3J0c21lZGlhLmNvbTALggl2dHdlaS5jb20w
-D4INd2l3YXR3ZXJjLmNvbTAKggh3dnRmLm9yZzAIgQZ2dC5lZHUwd6R1MHMxCzAJ
-BgNVBAYTAlVTMREwDwYDVQQIEwhWaXJnaW5pYTETMBEGA1UEBxMKQmxhY2tzYnVy
-ZzE8MDoGA1UEChMzVmlyZ2luaWEgUG9seXRlY2huaWMgSW5zdGl0dXRlIGFuZCBT
-dGF0ZSBVbml2ZXJzaXR5MCcGA1UdJQQgMB4GCCsGAQUFBwMCBggrBgEFBQcDAQYI
-KwYBBQUHAwkwPQYDVR0fBDYwNDAyoDCgLoYsaHR0cDovL2NybC5nbG9iYWxzaWdu
-LmNvbS9ncy90cnVzdHJvb3RnMi5jcmwwgYQGCCsGAQUFBwEBBHgwdjAzBggrBgEF
-BQcwAYYnaHR0cDovL29jc3AyLmdsb2JhbHNpZ24uY29tL3RydXN0cm9vdGcyMD8G
-CCsGAQUFBzAChjNodHRwOi8vc2VjdXJlLmdsb2JhbHNpZ24uY29tL2NhY2VydC90
-cnVzdHJvb3RnMi5jcnQwHQYDVR0OBBYEFLxiYCfV4zVIF+lLq0Vq0Miod3GMMB8G
-A1UdIwQYMBaAFBT25YsxtkWASkxt/MKHico2w5BiMA0GCSqGSIb3DQEBBQUAA4IB
-AQAyJm/lOB2Er4tHXhc/+fSufSzgjohJgYfMkvG4LknkvnZ1BjliefR8tTXX49d2
-SCDFWfGjqyJZwavavkl/4p3oXPG/nAMDMvxh4YAT+CfEK9HH+6ICV087kD4BLegi
-+aFJMj8MMdReWCzn5sLnSR1rdse2mo2arX3Uod14SW+PGrbUmTuWNyvRbz3fVmxp
-UdbGmj3laknO9YPsBGgHfv73pVVsTJkW4ZfY/7KdD/yaVv6ophpOB3coXfjl2+kd
-Z4ypn2zK+cx9IL/LSewqd/7W9cD55PCUy4X9OTbEmAccwiz3LB66mQoUGfdHdkoB
-jUY+v9vLQXmaVwI0AYL7g9LN
+MIIHVTCCBj2gAwIBAgINAecHzcaPEeFvu7X4TTANBgkqhkiG9w0BAQsFADBjMQsw
+CQYDVQQGEwJCRTEVMBMGA1UECxMMVHJ1c3RlZCBSb290MRkwFwYDVQQKExBHbG9i
+YWxTaWduIG52LXNhMSIwIAYDVQQDExlUcnVzdGVkIFJvb3QgQ0EgU0hBMjU2IEcy
+MB4XDTE3MTIwNjAwMDAwMFoXDTIyMTIwNjAwMDAwMFowgcsxCzAJBgNVBAYTAlVT
+MREwDwYDVQQIEwhWaXJnaW5pYTETMBEGA1UEBxMKQmxhY2tzYnVyZzEjMCEGA1UE
+CxMaR2xvYmFsIFF1YWxpZmllZCBTZXJ2ZXIgQ0ExPDA6BgNVBAoTM1Zpcmdpbmlh
+IFBvbHl0ZWNobmljIEluc3RpdHV0ZSBhbmQgU3RhdGUgVW5pdmVyc2l0eTExMC8G
+A1UEAxMoVmlyZ2luaWEgVGVjaCBHbG9iYWwgUXVhbGlmaWVkIFNlcnZlciBDQTCC
+AiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBALgIZhEaptBWADBqdJ45ueFG
+zMXaGHnzNxoxR1fQIaaRQNdCg4cw3A4dWKMeEgYLtsp65ai3Xfw62Qaus0+KJ3Rh
+gV+rihqK81NUzkls78fJlADVDI4fCTlothsrE1CTOMiy97jKHai5mVTiWxmcxpmj
+v7fm5Nhc+uHgh2hIz6npryq495mD51ZrUTIaqAQN6Pw/VHfAmR524vgriTOjtp1t
+4lA9pXGWjF/vkhAKFFheOQSQ00rngo2wHgCqMla64UTN0oz70AsCYNZ3jDLx0kOP
+0YmMR3Ih91VA63kLqPXA0R6yxmmhhxLZ5bcyAy1SLjr1N302MIxLM/pSy6aquEnb
+ELhzqyp9yGgRyGJay96QH7c4RJY6gtcoPDbldDcHI9nXngdAL4DrZkJ9OkDkJLyq
+G66WZTF5q4EIs6yMdrywz0x7QP+OXPJrjYpbeFs6tGZCFnWPFfmHCRJF8/unofYr
+heq+9J7Jx3U55S/k57NXbAM1RAJOuMTlfn9Etf9Dpoac9poI4Liav6rBoUQk3N3J
+WqnVHNx/NdCyJ1/6UbKMJUZsStAVglsi6lVPo289HHOE4f7iwl3SyekizVOp01wU
+in3ycnbZB/rXmZbwapSxTTSBf0EIOr9i4EGfnnhCAVA9U5uLrI5OEB69IY8PNX00
+71s3Z2a2fio5c8m3JkdrAgMBAAGjggKdMIICmTAOBgNVHQ8BAf8EBAMCAQYwHQYD
+VR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMBIGA1UdEwEB/wQIMAYBAf8CAQAw
+HQYDVR0OBBYEFLxiYCfV4zVIF+lLq0Vq0Miod3GMMB8GA1UdIwQYMBaAFMhjmwhp
+VMKYyNnN4zO3UF74yQGbMIGNBggrBgEFBQcBAQSBgDB+MDcGCCsGAQUFBzABhito
+dHRwOi8vb2NzcDIuZ2xvYmFsc2lnbi5jb20vdHJ1c3Ryb290c2hhMmcyMEMGCCsG
+AQUFBzAChjdodHRwOi8vc2VjdXJlLmdsb2JhbHNpZ24uY29tL2NhY2VydC90cnVz
+dHJvb3RzaGEyZzIuY3J0MIHyBgNVHR4EgeowgeeggbIwCIEGdnQuZWR1MAmCB2Jl
+di5uZXQwCoIIdmNvbS5lZHUwCIIGdnQuZWR1MAyCCnZ0Y2dpdC5jb20wd6R1MHMx
+CzAJBgNVBAYTAlVTMREwDwYDVQQIEwhWaXJnaW5pYTETMBEGA1UEBxMKQmxhY2tz
+YnVyZzE8MDoGA1UEChMzVmlyZ2luaWEgUG9seXRlY2huaWMgSW5zdGl0dXRlIGFu
+ZCBTdGF0ZSBVbml2ZXJzaXR5oTAwCocIAAAAAAAAAAAwIocgAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAwQQYDVR0fBDowODA2oDSgMoYwaHR0cDovL2Ny
+bC5nbG9iYWxzaWduLmNvbS9ncy90cnVzdHJvb3RzaGEyZzIuY3JsMEwGA1UdIARF
+MEMwQQYJKwYBBAGgMgE8MDQwMgYIKwYBBQUHAgEWJmh0dHBzOi8vd3d3Lmdsb2Jh
+bHNpZ24uY29tL3JlcG9zaXRvcnkvMA0GCSqGSIb3DQEBCwUAA4IBAQArHocpEKTv
+DW1Hw0USj60KN96aLJXTLm05s0LbjloeTePtDFtuisrbE85A0IhCwxdIl/VsQMZB
+7mQZBEmLzR+NK1/Luvs7C6WTmkqrE8H7D73dSOab5fMZIXS91V/aEtEQGpJMhwi1
+svd9TiiQrVkagrraeRWmTTz9BtUA3CeujuW2tShxF1ew4Q4prYw97EsE4HnKDJtu
+RtyTqKsuh/rRvKMmgUdEPZbVI23yzUKhi/mTbyml/35x/f6f5p7OYIKcQ/34sts8
+xoW9dfkWBQKAXCstXat3WJVilGXBFub6GoVZdnxTDipyMZhUT/vzXq2bPphjcdR5
+YGbmwyYmChfa
 -----END CERTIFICATE-----`
 
 var nameConstraintsIntermediate2 = `-----BEGIN CERTIFICATE-----
-MIIEXTCCA0WgAwIBAgILBAAAAAABNuk6OrMwDQYJKoZIhvcNAQEFBQAwVzELMAkG
-A1UEBhMCQkUxGTAXBgNVBAoTEEdsb2JhbFNpZ24gbnYtc2ExEDAOBgNVBAsTB1Jv
-b3QgQ0ExGzAZBgNVBAMTEkdsb2JhbFNpZ24gUm9vdCBDQTAeFw0xMjA0MjUxMTAw
-MDBaFw0yNzA0MjUxMTAwMDBaMFwxCzAJBgNVBAYTAkJFMRUwEwYDVQQLEwxUcnVz
-dGVkIFJvb3QxGTAXBgNVBAoTEEdsb2JhbFNpZ24gbnYtc2ExGzAZBgNVBAMTElRy
-dXN0ZWQgUm9vdCBDQSBHMjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEB
-AKyuvqrtcMr7g7EuNbu4sKwxM127UsCmx1RxbxxgcArGS7rjiefpBH/w4LYrymjf
-vcw1ueyMNoqLo9nJMz/ORXupb35NNfE667prQYHa+tTjl1IiKpB7QUwt3wXPuTMF
-Ja1tXtjKzkqJyuJlNuPKT76HcjgNqgV1s9qG44MD5I2JvI12du8zI1bgdQ+l/KsX
-kTfbGjUvhOLOlVNWVQDpL+YMIrGqgBYxy5TUNgrAcRtwpNdS2KkF5otSmMweVb5k
-hoUVv3u8UxQH/WWbNhHq1RrIlg/0rBUfi/ziShYFSB7U+aLx5DxPphTFBiDquQGp
-tB+FC4JvnukDStFihZCZ1R8CAwEAAaOCASMwggEfMA4GA1UdDwEB/wQEAwIBBjAP
-BgNVHRMBAf8EBTADAQH/MEcGA1UdIARAMD4wPAYEVR0gADA0MDIGCCsGAQUFBwIB
-FiZodHRwczovL3d3dy5nbG9iYWxzaWduLmNvbS9yZXBvc2l0b3J5LzAdBgNVHQ4E
-FgQUFPblizG2RYBKTG38woeJyjbDkGIwMwYDVR0fBCwwKjAooCagJIYiaHR0cDov
-L2NybC5nbG9iYWxzaWduLm5ldC9yb290LmNybDA+BggrBgEFBQcBAQQyMDAwLgYI
-KwYBBQUHMAGGImh0dHA6Ly9vY3NwMi5nbG9iYWxzaWduLmNvbS9yb290cjEwHwYD
-VR0jBBgwFoAUYHtmGkUNl8qJUC99BM00qP/8/UswDQYJKoZIhvcNAQEFBQADggEB
-AL7IG0l+k4LkcpI+a/kvZsSRwSM4uA6zGX34e78A2oytr8RG8bJwVb8+AHMUD+Xe
-2kYdh/Uj/waQXfqR0OgxQXL9Ct4ZM+JlR1avsNKXWL5AwYXAXCOB3J5PW2XOck7H
-Zw0vRbGQhjWjQx+B4KOUFg1b3ov/z6Xkr3yaCfRQhXh7KC0Bc0RXPPG5Nv5lCW+z
-tbbg0zMm3kyfQITRusMSg6IBsDJqOnjaiaKQRcXiD0Sk43ZXb2bUKMxC7+Td3QL4
-RyHcWJbQ7YylLTS/x+jxWIcOQ0oO5/54t5PTQ14neYhOz9x4gUk2AYAW6d1vePwb
-hcC8roQwkHT7HvfYBoc74FM=
+MIIEXDCCA0SgAwIBAgILBAAAAAABNumCOV0wDQYJKoZIhvcNAQELBQAwTDEgMB4G
+A1UECxMXR2xvYmFsU2lnbiBSb290IENBIC0gUjMxEzARBgNVBAoTCkdsb2JhbFNp
+Z24xEzARBgNVBAMTCkdsb2JhbFNpZ24wHhcNMTIwNDI1MTEwMDAwWhcNMjcwNDI1
+MTEwMDAwWjBjMQswCQYDVQQGEwJCRTEVMBMGA1UECxMMVHJ1c3RlZCBSb290MRkw
+FwYDVQQKExBHbG9iYWxTaWduIG52LXNhMSIwIAYDVQQDExlUcnVzdGVkIFJvb3Qg
+Q0EgU0hBMjU2IEcyMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAz80+
+/Q2PAhLuYwe04YTLBLGKr1/JScHtDvAY5E94GjGxCbSR1/1VhL880UPJyN85tddO
+oxZPgtIyZixDvvK+CgpT5webyBBbqK/ap7aoByghAJ7X520XZMRwKA6cEWa6tjCL
+WH1zscxQxGzgtV50rn2ux2SapoCPxMpM4+tpEVwWJf3KP3NT+jd9GRaXWgNei5JK
+Quo9l+cZkSeuoWijvaer5hcLCufPywMMQd0r6XXIM/l7g9DjMaE24d+fa2bWxQXC
+8WT/PZ+D1KUEkdtn/ixADqsoiIibGn7M84EE9/NLjbzPrwROlBUJFz6cuw+II0rZ
+8OFFeZ/OkHHYZq2h9wIDAQABo4IBJjCCASIwDgYDVR0PAQH/BAQDAgEGMA8GA1Ud
+EwEB/wQFMAMBAf8wRwYDVR0gBEAwPjA8BgRVHSAAMDQwMgYIKwYBBQUHAgEWJmh0
+dHBzOi8vd3d3Lmdsb2JhbHNpZ24uY29tL3JlcG9zaXRvcnkvMB0GA1UdDgQWBBTI
+Y5sIaVTCmMjZzeMzt1Be+MkBmzA2BgNVHR8ELzAtMCugKaAnhiVodHRwOi8vY3Js
+Lmdsb2JhbHNpZ24ubmV0L3Jvb3QtcjMuY3JsMD4GCCsGAQUFBwEBBDIwMDAuBggr
+BgEFBQcwAYYiaHR0cDovL29jc3AyLmdsb2JhbHNpZ24uY29tL3Jvb3RyMzAfBgNV
+HSMEGDAWgBSP8Et/qC5FJK5NUPpjmove4t0bvDANBgkqhkiG9w0BAQsFAAOCAQEA
+XzbLwBjJiY6j3WEcxD3eVnsIY4pY3bl6660tgpxCuLVx4o1xyiVkS/BcQFD7GIoX
+FBRrf5HibO1uSEOw0QZoRwlsio1VPg1PRaccG5C1sB51l/TL1XH5zldZBCnRYrrF
+qCPorxi0xoRogj8kqkS2xyzYLElhx9X7jIzfZ8dC4mgOeoCtVvwM9xvmef3n6Vyb
+7/hl3w/zWwKxWyKJNaF7tScD5nvtLUzyBpr++aztiyJ1WliWcS6W+V2gKg9rxEC/
+rc2yJS70DvfkPiEnBJ2x2AHZV3yKTALUqurkV705JledqUT9I5frAwYNXZ8pNzde
+n+DIcSIo7yKy6MX9czbFWQ==
 -----END CERTIFICATE-----`
 
 var globalSignRoot = `-----BEGIN CERTIFICATE-----
-MIIDdTCCAl2gAwIBAgILBAAAAAABFUtaw5QwDQYJKoZIhvcNAQEFBQAwVzELMAkG
-A1UEBhMCQkUxGTAXBgNVBAoTEEdsb2JhbFNpZ24gbnYtc2ExEDAOBgNVBAsTB1Jv
-b3QgQ0ExGzAZBgNVBAMTEkdsb2JhbFNpZ24gUm9vdCBDQTAeFw05ODA5MDExMjAw
-MDBaFw0yODAxMjgxMjAwMDBaMFcxCzAJBgNVBAYTAkJFMRkwFwYDVQQKExBHbG9i
-YWxTaWduIG52LXNhMRAwDgYDVQQLEwdSb290IENBMRswGQYDVQQDExJHbG9iYWxT
-aWduIFJvb3QgQ0EwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDaDuaZ
-jc6j40+Kfvvxi4Mla+pIH/EqsLmVEQS98GPR4mdmzxzdzxtIK+6NiY6arymAZavp
-xy0Sy6scTHAHoT0KMM0VjU/43dSMUBUc71DuxC73/OlS8pF94G3VNTCOXkNz8kHp
-1Wrjsok6Vjk4bwY8iGlbKk3Fp1S4bInMm/k8yuX9ifUSPJJ4ltbcdG6TRGHRjcdG
-snUOhugZitVtbNV4FpWi6cgKOOvyJBNPc1STE4U6G7weNLWLBYy5d4ux2x8gkasJ
-U26Qzns3dLlwR5EiUWMWea6xrkEmCMgZK9FGqkjWZCrXgzT/LCrBbBlDSgeF59N8
-9iFo7+ryUp9/k5DPAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMBAf8E
-BTADAQH/MB0GA1UdDgQWBBRge2YaRQ2XyolQL30EzTSo//z9SzANBgkqhkiG9w0B
-AQUFAAOCAQEA1nPnfE920I2/7LqivjTFKDK1fPxsnCwrvQmeU79rXqoRSLblCKOz
-yj1hTdNGCbM+w6DjY1Ub8rrvrTnhQ7k4o+YviiY776BQVvnGCv04zcQLcFGUl5gE
-38NflNUVyRRBnMRddWQVDf9VMOyGj/8N7yy5Y0b2qvzfvGn9LhJIZJrglfCm7ymP
-AbEVtQwdpf5pLGkkeB6zpxxxYu7KyJesF12KwvhHhm4qxFYxldBniYUr+WymXUad
-DKqC5JlR3XC321Y9YeRq4VzW9v493kHMB65jUr9TU/Qr6cf9tveCX4XSQRjbgbME
-HMUfpIBvFSDJ3gyICh3WZlXi/EjJKSZp4A==
+MIIDXzCCAkegAwIBAgILBAAAAAABIVhTCKIwDQYJKoZIhvcNAQELBQAwTDEgMB4G
+A1UECxMXR2xvYmFsU2lnbiBSb290IENBIC0gUjMxEzARBgNVBAoTCkdsb2JhbFNp
+Z24xEzARBgNVBAMTCkdsb2JhbFNpZ24wHhcNMDkwMzE4MTAwMDAwWhcNMjkwMzE4
+MTAwMDAwWjBMMSAwHgYDVQQLExdHbG9iYWxTaWduIFJvb3QgQ0EgLSBSMzETMBEG
+A1UEChMKR2xvYmFsU2lnbjETMBEGA1UEAxMKR2xvYmFsU2lnbjCCASIwDQYJKoZI
+hvcNAQEBBQADggEPADCCAQoCggEBAMwldpB5BngiFvXAg7aEyiie/QV2EcWtiHL8
+RgJDx7KKnQRfJMsuS+FggkbhUqsMgUdwbN1k0ev1LKMPgj0MK66X17YUhhB5uzsT
+gHeMCOFJ0mpiLx9e+pZo34knlTifBtc+ycsmWQ1z3rDI6SYOgxXG71uL0gRgykmm
+KPZpO/bLyCiR5Z2KYVc3rHQU3HTgOu5yLy6c+9C7v/U9AOEGM+iCK65TpjoWc4zd
+QQ4gOsC0p6Hpsk+QLjJg6VfLuQSSaGjlOCZgdbKfd/+RFO+uIEn8rUAVSNECMWEZ
+XriX7613t2Saer9fwRPvm2L7DWzgVGkWqQPabumDk3F2xmmFghcCAwEAAaNCMEAw
+DgYDVR0PAQH/BAQDAgEGMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0OBBYEFI/wS3+o
+LkUkrk1Q+mOai97i3Ru8MA0GCSqGSIb3DQEBCwUAA4IBAQBLQNvAUKr+yAzv95ZU
+RUm7lgAJQayzE4aGKAczymvmdLm6AC2upArT9fHxD4q/c2dKg8dEe3jgr25sbwMp
+jjM5RcOO5LlXbKr8EpbsU8Yt5CRsuZRj+9xTaGdWPoO4zzUhw8lo/s7awlOqzJCK
+6fBdRoyV3XpYKBovHd7NADdBj+1EbddTKJd+82cEHhXXipa0095MJ6RMG3NzdvQX
+mcIfeg7jLQitChws/zyrVQ4PkX4268NXSb7hLi18YIvDQVETI53O9zJrlAGomecs
+Mx86OyXShkDOOyyGeMlhLxS67ttVb9+E7gUJTb0o2HLO02JQZR7rkpeDMdmztcpH
+WD9f
 -----END CERTIFICATE-----`
 
 const digicertRoot = `-----BEGIN CERTIFICATE-----
@@ -1867,17 +1672,40 @@ func TestSystemRootsErrorUnwrap(t *testing.T) {
 	}
 }
 
+func macosMajorVersion(t *testing.T) (int, error) {
+	cmd := testenv.Command(t, "sw_vers", "-productVersion")
+	out, err := cmd.Output()
+	if err != nil {
+		if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+			return 0, fmt.Errorf("%v: %v\n%s", cmd, err, ee.Stderr)
+		}
+		return 0, fmt.Errorf("%v: %v", cmd, err)
+	}
+	before, _, ok := strings.Cut(string(out), ".")
+	major, err := strconv.Atoi(before)
+	if !ok || err != nil {
+		return 0, fmt.Errorf("%v: unexpected output: %q", cmd, out)
+	}
+
+	return major, nil
+}
+
 func TestIssue51759(t *testing.T) {
 	if runtime.GOOS != "darwin" {
 		t.Skip("only affects darwin")
 	}
-	builder := testenv.Builder()
-	if builder == "" {
-		t.Skip("only run this test on the builders, as we have no reasonable way to gate tests on macOS versions elsewhere")
-	}
-	if builder == "darwin-amd64-10_14" || builder == "darwin-amd64-10_15" {
+
+	testenv.MustHaveExecPath(t, "sw_vers")
+	if vers, err := macosMajorVersion(t); err != nil {
+		if builder := testenv.Builder(); builder != "" {
+			t.Fatalf("unable to determine macOS version: %s", err)
+		} else {
+			t.Skip("unable to determine macOS version")
+		}
+	} else if vers < 11 {
 		t.Skip("behavior only enforced in macOS 11 and after")
 	}
+
 	// badCertData contains a cert that we parse as valid
 	// but that macOS SecCertificateCreateWithData rejects.
 	const badCertData = "0\x82\x01U0\x82\x01\a\xa0\x03\x02\x01\x02\x02\x01\x020\x05\x06\x03+ep0R1P0N\x06\x03U\x04\x03\x13Gderpkey8dc58100b2493614ee1692831a461f3f4dd3f9b3b088e244f887f81b4906ac260\x1e\x17\r220112235755Z\x17\r220313235755Z0R1P0N\x06\x03U\x04\x03\x13Gderpkey8dc58100b2493614ee1692831a461f3f4dd3f9b3b088e244f887f81b4906ac260*0\x05\x06\x03+ep\x03!\x00bA\xd8e\xadW\xcb\xefZ\x89\xb5\"\x1eR\x9d\xba\x0e:\x1042Q@\u007f\xbd\xfb{ks\x04\xd1£\x020\x000\x05\x06\x03+ep\x03A\x00[\xa7\x06y\x86(\x94\x97\x9eLwA\x00\x01x\xaa\xbc\xbd Ê]\n(΅!ف0\xf5\x9a%I\x19<\xffo\xf1\xeaaf@\xb1\xa7\xaf\xfd\xe9R\xc7\x0f\x8d&\xd5\xfc\x0f;Ϙ\x82\x84a\xbc\r"
@@ -1918,11 +1746,13 @@ type trustGraphEdge struct {
 	Subject        string
 	Type           int
 	MutateTemplate func(*Certificate)
+	Constraint     func([]*Certificate) error
 }
 
 type rootDescription struct {
 	Subject        string
 	MutateTemplate func(*Certificate)
+	Constraint     func([]*Certificate) error
 }
 
 type trustGraphDescription struct {
@@ -1975,19 +1805,23 @@ func buildTrustGraph(t *testing.T, d trustGraphDescription) (*CertPool, *CertPoo
 
 	certs := map[string]*Certificate{}
 	keys := map[string]crypto.Signer{}
-	roots := []*Certificate{}
+	rootPool := NewCertPool()
 	for _, r := range d.Roots {
 		k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		if err != nil {
 			t.Fatalf("failed to generate test key: %s", err)
 		}
 		root := genCertEdge(t, r.Subject, k, r.MutateTemplate, rootCertificate, nil, nil)
-		roots = append(roots, root)
+		if r.Constraint != nil {
+			rootPool.AddCertWithConstraint(root, r.Constraint)
+		} else {
+			rootPool.AddCert(root)
+		}
 		certs[r.Subject] = root
 		keys[r.Subject] = k
 	}
 
-	intermediates := []*Certificate{}
+	intermediatePool := NewCertPool()
 	var leaf *Certificate
 	for _, e := range d.Graph {
 		issuerCert, ok := certs[e.Issuer]
@@ -2013,16 +1847,12 @@ func buildTrustGraph(t *testing.T, d trustGraphDescription) (*CertPool, *CertPoo
 		if e.Subject == d.Leaf {
 			leaf = cert
 		} else {
-			intermediates = append(intermediates, cert)
+			if e.Constraint != nil {
+				intermediatePool.AddCertWithConstraint(cert, e.Constraint)
+			} else {
+				intermediatePool.AddCert(cert)
+			}
 		}
-	}
-
-	rootPool, intermediatePool := NewCertPool(), NewCertPool()
-	for i := len(roots) - 1; i >= 0; i-- {
-		rootPool.AddCert(roots[i])
-	}
-	for i := len(intermediates) - 1; i >= 0; i-- {
-		intermediatePool.AddCert(intermediates[i])
 	}
 
 	return rootPool, intermediatePool, leaf
@@ -2037,7 +1867,7 @@ func chainsToStrings(chains [][]*Certificate) []string {
 		}
 		chainStrings = append(chainStrings, strings.Join(names, " -> "))
 	}
-	sort.Strings(chainStrings)
+	slices.Sort(chainStrings)
 	return chainStrings
 }
 
@@ -2480,6 +2310,78 @@ func TestPathBuilding(t *testing.T) {
 			},
 			expectedChains: []string{"CN=leaf -> CN=inter -> CN=root"},
 		},
+		{
+			// A code constraint on the root, applying to one of two intermediates in the graph, should
+			// result in only one valid chain.
+			name: "code constrained root, two paths, one valid",
+			graph: trustGraphDescription{
+				Roots: []rootDescription{{Subject: "root", Constraint: func(chain []*Certificate) error {
+					for _, c := range chain {
+						if c.Subject.CommonName == "inter a" {
+							return errors.New("bad")
+						}
+					}
+					return nil
+				}}},
+				Leaf: "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter a",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "root",
+						Subject: "inter b",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter a",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter b",
+						Subject: "inter c",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter c",
+						Subject: "leaf",
+						Type:    leafCertificate,
+					},
+				},
+			},
+			expectedChains: []string{"CN=leaf -> CN=inter c -> CN=inter b -> CN=root"},
+		},
+		{
+			// A code constraint on the root, applying to the only path, should result in an error.
+			name: "code constrained root, one invalid path",
+			graph: trustGraphDescription{
+				Roots: []rootDescription{{Subject: "root", Constraint: func(chain []*Certificate) error {
+					for _, c := range chain {
+						if c.Subject.CommonName == "leaf" {
+							return errors.New("bad")
+						}
+					}
+					return nil
+				}}},
+				Leaf: "leaf",
+				Graph: []trustGraphEdge{
+					{
+						Issuer:  "root",
+						Subject: "inter",
+						Type:    intermediateCertificate,
+					},
+					{
+						Issuer:  "inter",
+						Subject: "leaf",
+						Type:    leafCertificate,
+					},
+				},
+			},
+			expectedErr: "x509: certificate signed by unknown authority (possibly because of \"bad\" while trying to verify candidate authority certificate \"root\")",
+		},
 	}
 
 	for _, tc := range tests {
@@ -2496,7 +2398,7 @@ func TestPathBuilding(t *testing.T) {
 				return
 			}
 			gotChains := chainsToStrings(chains)
-			if !reflect.DeepEqual(gotChains, tc.expectedChains) {
+			if !slices.Equal(gotChains, tc.expectedChains) {
 				t.Errorf("unexpected chains returned:\ngot:\n\t%s\nwant:\n\t%s", strings.Join(gotChains, "\n\t"), strings.Join(tc.expectedChains, "\n\t"))
 			}
 		})
@@ -2617,7 +2519,7 @@ func TestEKUEnforcement(t *testing.T) {
 			if err == nil && tc.err != "" {
 				t.Errorf("expected error")
 			} else if err != nil && err.Error() != tc.err {
-				t.Errorf("unexpected error: want %q, got %q", err.Error(), tc.err)
+				t.Errorf("unexpected error: got %q, want %q", err.Error(), tc.err)
 			}
 		})
 	}
@@ -2692,4 +2594,457 @@ func TestVerifyEKURootAsLeaf(t *testing.T) {
 		})
 	}
 
+}
+
+func TestVerifyNilPubKey(t *testing.T) {
+	c := &Certificate{
+		RawIssuer:      []byte{1, 2, 3},
+		AuthorityKeyId: []byte{1, 2, 3},
+	}
+	opts := &VerifyOptions{}
+	opts.Roots = NewCertPool()
+	r := &Certificate{
+		RawSubject:   []byte{1, 2, 3},
+		SubjectKeyId: []byte{1, 2, 3},
+	}
+	opts.Roots.AddCert(r)
+
+	_, err := c.buildChains([]*Certificate{r}, nil, opts)
+	if _, ok := err.(UnknownAuthorityError); !ok {
+		t.Fatalf("buildChains returned unexpected error, got: %v, want %v", err, UnknownAuthorityError{})
+	}
+}
+
+func TestVerifyBareWildcard(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate key: %s", err)
+	}
+	tmpl := &Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "test"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		DNSNames:     []string{"*"},
+	}
+	cDER, err := CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
+	if err != nil {
+		t.Fatalf("failed to create certificate: %s", err)
+	}
+	c, err := ParseCertificate(cDER)
+	if err != nil {
+		t.Fatalf("failed to parse certificate: %s", err)
+	}
+
+	if err := c.VerifyHostname("label"); err == nil {
+		t.Fatalf("VerifyHostname unexpected success with bare wildcard SAN")
+	}
+}
+
+func TestPoliciesValid(t *testing.T) {
+	// These test cases, the comments, and the certificates they rely on, are
+	// stolen from BoringSSL [0]. We skip the tests which involve certificate
+	// parsing as part of the verification process. Those tests are in
+	// TestParsePolicies.
+	//
+	// [0] https://boringssl.googlesource.com/boringssl/+/264f4f7a958af6c4ccb04662e302a99dfa7c5b85/crypto/x509/x509_test.cc#5913
+
+	testOID1 := mustNewOIDFromInts([]uint64{1, 2, 840, 113554, 4, 1, 72585, 2, 1})
+	testOID2 := mustNewOIDFromInts([]uint64{1, 2, 840, 113554, 4, 1, 72585, 2, 2})
+	testOID3 := mustNewOIDFromInts([]uint64{1, 2, 840, 113554, 4, 1, 72585, 2, 3})
+	testOID4 := mustNewOIDFromInts([]uint64{1, 2, 840, 113554, 4, 1, 72585, 2, 4})
+	testOID5 := mustNewOIDFromInts([]uint64{1, 2, 840, 113554, 4, 1, 72585, 2, 5})
+
+	loadTestCert := func(t *testing.T, path string) *Certificate {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, _ := pem.Decode(b)
+		c, err := ParseCertificate(p.Bytes)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+
+	root := loadTestCert(t, "testdata/policy_root.pem")
+	root_cross_inhibit_mapping := loadTestCert(t, "testdata/policy_root_cross_inhibit_mapping.pem")
+	root2 := loadTestCert(t, "testdata/policy_root2.pem")
+	intermediate := loadTestCert(t, "testdata/policy_intermediate.pem")
+	intermediate_any := loadTestCert(t, "testdata/policy_intermediate_any.pem")
+	intermediate_mapped := loadTestCert(t, "testdata/policy_intermediate_mapped.pem")
+	intermediate_mapped_any := loadTestCert(t, "testdata/policy_intermediate_mapped_any.pem")
+	intermediate_mapped_oid3 := loadTestCert(t, "testdata/policy_intermediate_mapped_oid3.pem")
+	intermediate_require := loadTestCert(t, "testdata/policy_intermediate_require.pem")
+	intermediate_require1 := loadTestCert(t, "testdata/policy_intermediate_require1.pem")
+	intermediate_require2 := loadTestCert(t, "testdata/policy_intermediate_require2.pem")
+	intermediate_require_no_policies := loadTestCert(t, "testdata/policy_intermediate_require_no_policies.pem")
+	leaf := loadTestCert(t, "testdata/policy_leaf.pem")
+	leaf_any := loadTestCert(t, "testdata/policy_leaf_any.pem")
+	leaf_none := loadTestCert(t, "testdata/policy_leaf_none.pem")
+	leaf_oid1 := loadTestCert(t, "testdata/policy_leaf_oid1.pem")
+	leaf_oid2 := loadTestCert(t, "testdata/policy_leaf_oid2.pem")
+	leaf_oid3 := loadTestCert(t, "testdata/policy_leaf_oid3.pem")
+	leaf_oid4 := loadTestCert(t, "testdata/policy_leaf_oid4.pem")
+	leaf_oid5 := loadTestCert(t, "testdata/policy_leaf_oid5.pem")
+	leaf_require := loadTestCert(t, "testdata/policy_leaf_require.pem")
+	leaf_require1 := loadTestCert(t, "testdata/policy_leaf_require1.pem")
+
+	type testCase struct {
+		chain                 []*Certificate
+		policies              []OID
+		requireExplicitPolicy bool
+		inhibitPolicyMapping  bool
+		inhibitAnyPolicy      bool
+		valid                 bool
+	}
+
+	tests := []testCase{
+		// The chain is good for |oid1| and |oid2|, but not |oid3|.
+		{
+			chain:                 []*Certificate{leaf, intermediate, root},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		{
+			chain:                 []*Certificate{leaf, intermediate, root},
+			policies:              []OID{testOID1},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		{
+			chain:                 []*Certificate{leaf, intermediate, root},
+			policies:              []OID{testOID2},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		{
+			chain:                 []*Certificate{leaf, intermediate, root},
+			policies:              []OID{testOID3},
+			requireExplicitPolicy: true,
+			valid:                 false,
+		},
+		{
+			chain:                 []*Certificate{leaf, intermediate, root},
+			policies:              []OID{testOID1, testOID2},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		{
+			chain:                 []*Certificate{leaf, intermediate, root},
+			policies:              []OID{testOID1, testOID3},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		// Without |X509_V_FLAG_EXPLICIT_POLICY|, the policy tree is built and
+		// intersected with user-specified policies, but it is not required to result
+		// in any valid policies.
+		{
+			chain:    []*Certificate{leaf, intermediate, root},
+			policies: []OID{testOID1},
+			valid:    true,
+		},
+		{
+			chain:    []*Certificate{leaf, intermediate, root},
+			policies: []OID{testOID3},
+			valid:    true,
+		},
+		// However, a CA with policy constraints can require an explicit policy.
+		{
+			chain:    []*Certificate{leaf, intermediate_require, root},
+			policies: []OID{testOID1},
+			valid:    true,
+		},
+		{
+			chain:    []*Certificate{leaf, intermediate_require, root},
+			policies: []OID{testOID3},
+			valid:    false,
+		},
+		// requireExplicitPolicy applies even if the application does not configure a
+		// user-initial-policy-set. If the validation results in no policies, the
+		// chain is invalid.
+		{
+			chain:                 []*Certificate{leaf_none, intermediate_require, root},
+			requireExplicitPolicy: true,
+			valid:                 false,
+		},
+		// A leaf can also set requireExplicitPolicy.
+		{
+			chain: []*Certificate{leaf_require, intermediate, root},
+			valid: true,
+		},
+		{
+			chain:    []*Certificate{leaf_require, intermediate, root},
+			policies: []OID{testOID1},
+			valid:    true,
+		},
+		{
+			chain:    []*Certificate{leaf_require, intermediate, root},
+			policies: []OID{testOID3},
+			valid:    false,
+		},
+		// requireExplicitPolicy is a count of certificates to skip. If the value is
+		// not zero by the end of the chain, it doesn't count.
+		{
+			chain:    []*Certificate{leaf, intermediate_require1, root},
+			policies: []OID{testOID3},
+			valid:    false,
+		},
+		{
+			chain:    []*Certificate{leaf, intermediate_require2, root},
+			policies: []OID{testOID3},
+			valid:    true,
+		},
+		{
+			chain:    []*Certificate{leaf_require1, intermediate, root},
+			policies: []OID{testOID3},
+			valid:    true,
+		},
+		// If multiple certificates specify the constraint, the more constrained value
+		// wins.
+		{
+			chain:    []*Certificate{leaf_require1, intermediate_require1, root},
+			policies: []OID{testOID3},
+			valid:    false,
+		},
+		{
+			chain:    []*Certificate{leaf_require, intermediate_require2, root},
+			policies: []OID{testOID3},
+			valid:    false,
+		},
+		// An intermediate that requires an explicit policy, but then specifies no
+		// policies should fail verification as a result.
+		{
+			chain:    []*Certificate{leaf, intermediate_require_no_policies, root},
+			policies: []OID{testOID1},
+			valid:    false,
+		},
+		// A constrained intermediate's policy extension has a duplicate policy, which
+		// is invalid.
+		// {
+		// 	chain:    []*Certificate{leaf, intermediate_require_duplicate, root},
+		// 	policies: []OID{testOID1},
+		// 	valid:    false,
+		// },
+		// The leaf asserts anyPolicy, but the intermediate does not. The resulting
+		// valid policies are the intersection.
+		{
+			chain:                 []*Certificate{leaf_any, intermediate, root},
+			policies:              []OID{testOID1},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		{
+			chain:                 []*Certificate{leaf_any, intermediate, root},
+			policies:              []OID{testOID3},
+			requireExplicitPolicy: true,
+			valid:                 false,
+		},
+		// The intermediate asserts anyPolicy, but the leaf does not. The resulting
+		// valid policies are the intersection.
+		{
+			chain:                 []*Certificate{leaf, intermediate_any, root},
+			policies:              []OID{testOID1},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		{
+			chain:                 []*Certificate{leaf, intermediate_any, root},
+			policies:              []OID{testOID3},
+			requireExplicitPolicy: true,
+			valid:                 false,
+		},
+		// Both assert anyPolicy. All policies are valid.
+		{
+			chain:                 []*Certificate{leaf_any, intermediate_any, root},
+			policies:              []OID{testOID1},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		{
+			chain:                 []*Certificate{leaf_any, intermediate_any, root},
+			policies:              []OID{testOID3},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		// With just a trust anchor, policy checking silently succeeds.
+		{
+			chain:                 []*Certificate{root},
+			policies:              []OID{testOID1},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		// Although |intermediate_mapped_oid3| contains many mappings, it only accepts
+		// OID3. Nodes should not be created for the other mappings.
+		{
+			chain:                 []*Certificate{leaf_oid1, intermediate_mapped_oid3, root},
+			policies:              []OID{testOID3},
+			requireExplicitPolicy: true,
+			valid:                 true,
+		},
+		{
+			chain:                 []*Certificate{leaf_oid4, intermediate_mapped_oid3, root},
+			policies:              []OID{testOID4},
+			requireExplicitPolicy: true,
+			valid:                 false,
+		},
+		// Policy mapping can be inhibited, either by the caller or a certificate in
+		// the chain, in which case mapped policies are unassertable (apart from some
+		// anyPolicy edge cases).
+		{
+			chain:                 []*Certificate{leaf_oid1, intermediate_mapped_oid3, root},
+			policies:              []OID{testOID3},
+			requireExplicitPolicy: true,
+			inhibitPolicyMapping:  true,
+			valid:                 false,
+		},
+		{
+			chain:                 []*Certificate{leaf_oid1, intermediate_mapped_oid3, root_cross_inhibit_mapping, root2},
+			policies:              []OID{testOID3},
+			requireExplicitPolicy: true,
+			valid:                 false,
+		},
+	}
+
+	for _, useAny := range []bool{false, true} {
+		var intermediate *Certificate
+		if useAny {
+			intermediate = intermediate_mapped_any
+		} else {
+			intermediate = intermediate_mapped
+		}
+		extraTests := []testCase{
+			// OID3 is mapped to {OID1, OID2}, which means OID1 and OID2 (or both) are
+			// acceptable for OID3.
+			{
+				chain:                 []*Certificate{leaf, intermediate, root},
+				policies:              []OID{testOID3},
+				requireExplicitPolicy: true,
+				valid:                 true,
+			},
+			{
+				chain:                 []*Certificate{leaf_oid1, intermediate, root},
+				policies:              []OID{testOID3},
+				requireExplicitPolicy: true,
+				valid:                 true,
+			},
+			{
+				chain:                 []*Certificate{leaf_oid2, intermediate, root},
+				policies:              []OID{testOID3},
+				requireExplicitPolicy: true,
+				valid:                 true,
+			},
+			// If the intermediate's policies were anyPolicy, OID3 at the leaf, despite
+			// being mapped, is still acceptable as OID3 at the root. Despite the OID3
+			// having expected_policy_set = {OID1, OID2}, it can match the anyPolicy
+			// node instead.
+			//
+			// If the intermediate's policies listed OIDs explicitly, OID3 at the leaf
+			// is not acceptable as OID3 at the root. OID3 has expected_polciy_set =
+			// {OID1, OID2} and no other node allows OID3.
+			{
+				chain:                 []*Certificate{leaf_oid3, intermediate, root},
+				policies:              []OID{testOID3},
+				requireExplicitPolicy: true,
+				valid:                 useAny,
+			},
+			// If the intermediate's policies were anyPolicy, OID1 at the leaf is no
+			// longer acceptable as OID1 at the root because policies only match
+			// anyPolicy when they match no other policy.
+			//
+			// If the intermediate's policies listed OIDs explicitly, OID1 at the leaf
+			// is acceptable as OID1 at the root because it will match both OID1 and
+			// OID3 (mapped) policies.
+			{
+				chain:                 []*Certificate{leaf_oid1, intermediate, root},
+				policies:              []OID{testOID1},
+				requireExplicitPolicy: true,
+				valid:                 !useAny,
+			},
+			// All pairs of OID4 and OID5 are mapped together, so either can stand for
+			// the other.
+			{
+				chain:                 []*Certificate{leaf_oid4, intermediate, root},
+				policies:              []OID{testOID4},
+				requireExplicitPolicy: true,
+				valid:                 true,
+			},
+			{
+				chain:                 []*Certificate{leaf_oid4, intermediate, root},
+				policies:              []OID{testOID5},
+				requireExplicitPolicy: true,
+				valid:                 true,
+			},
+			{
+				chain:                 []*Certificate{leaf_oid5, intermediate, root},
+				policies:              []OID{testOID4},
+				requireExplicitPolicy: true,
+				valid:                 true,
+			},
+			{
+				chain:                 []*Certificate{leaf_oid5, intermediate, root},
+				policies:              []OID{testOID5},
+				requireExplicitPolicy: true,
+				valid:                 true,
+			},
+			{
+				chain:                 []*Certificate{leaf_oid4, intermediate, root},
+				policies:              []OID{testOID4, testOID5},
+				requireExplicitPolicy: true,
+				valid:                 true,
+			},
+		}
+		tests = append(tests, extraTests...)
+	}
+
+	for i, tc := range tests {
+		t.Run(fmt.Sprint(i), func(t *testing.T) {
+			valid := policiesValid(tc.chain, VerifyOptions{
+				CertificatePolicies:   tc.policies,
+				requireExplicitPolicy: tc.requireExplicitPolicy,
+				inhibitPolicyMapping:  tc.inhibitPolicyMapping,
+				inhibitAnyPolicy:      tc.inhibitAnyPolicy,
+			})
+			if valid != tc.valid {
+				t.Errorf("policiesValid: got %t, want %t", valid, tc.valid)
+			}
+		})
+	}
+}
+
+func TestInvalidPolicyWithAnyKeyUsage(t *testing.T) {
+	loadTestCert := func(t *testing.T, path string) *Certificate {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, _ := pem.Decode(b)
+		c, err := ParseCertificate(p.Bytes)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+
+	testOID3 := mustNewOIDFromInts([]uint64{1, 2, 840, 113554, 4, 1, 72585, 2, 3})
+	root, intermediate, leaf := loadTestCert(t, "testdata/policy_root.pem"), loadTestCert(t, "testdata/policy_intermediate_require.pem"), loadTestCert(t, "testdata/policy_leaf.pem")
+
+	expectedErr := "x509: no valid chains built: all candidate chains have invalid policies"
+
+	roots, intermediates := NewCertPool(), NewCertPool()
+	roots.AddCert(root)
+	intermediates.AddCert(intermediate)
+
+	_, err := leaf.Verify(VerifyOptions{
+		Roots:               roots,
+		Intermediates:       intermediates,
+		KeyUsages:           []ExtKeyUsage{ExtKeyUsageAny},
+		CertificatePolicies: []OID{testOID3},
+	})
+	if err == nil {
+		t.Fatal("unexpected success, invalid policy shouldn't be bypassed by passing VerifyOptions.KeyUsages with ExtKeyUsageAny")
+	} else if err.Error() != expectedErr {
+		t.Fatalf("unexpected error, got %q, want %q", err, expectedErr)
+	}
 }

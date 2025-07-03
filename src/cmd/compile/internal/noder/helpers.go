@@ -80,24 +80,27 @@ func idealType(tv syntax.TypeAndValue) types2.Type {
 	// types2 mostly satisfies this expectation already. But there are a few
 	// cases where the Go spec doesn't require converting to concrete type,
 	// and so types2 leaves them untyped. So we need to fix those up here.
-	typ := tv.Type
+	typ := types2.Unalias(tv.Type)
 	if basic, ok := typ.(*types2.Basic); ok && basic.Info()&types2.IsUntyped != 0 {
 		switch basic.Kind() {
 		case types2.UntypedNil:
 			// ok; can appear in type switch case clauses
 			// TODO(mdempsky): Handle as part of type switches instead?
 		case types2.UntypedInt, types2.UntypedFloat, types2.UntypedComplex:
-			// Untyped rhs of non-constant shift, e.g. x << 1.0.
-			// If we have a constant value, it must be an int >= 0.
+			typ = types2.Typ[types2.Uint]
 			if tv.Value != nil {
 				s := constant.ToInt(tv.Value)
-				assert(s.Kind() == constant.Int && constant.Sign(s) >= 0)
+				assert(s.Kind() == constant.Int)
+				if constant.Sign(s) < 0 {
+					typ = types2.Typ[types2.Int]
+				}
 			}
-			typ = types2.Typ[types2.Uint]
 		case types2.UntypedBool:
 			typ = types2.Typ[types2.Bool] // expression in "if" or "for" condition
 		case types2.UntypedString:
 			typ = types2.Typ[types2.String] // argument to "append" or "copy" calls
+		case types2.UntypedRune:
+			typ = types2.Typ[types2.Int32] // range over rune
 		default:
 			return nil
 		}
@@ -106,15 +109,16 @@ func idealType(tv syntax.TypeAndValue) types2.Type {
 }
 
 func isTypeParam(t types2.Type) bool {
-	_, ok := t.(*types2.TypeParam)
+	_, ok := types2.Unalias(t).(*types2.TypeParam)
 	return ok
 }
 
 // isNotInHeap reports whether typ is or contains an element of type
-// runtime/internal/sys.NotInHeap.
+// internal/runtime/sys.NotInHeap.
 func isNotInHeap(typ types2.Type) bool {
+	typ = types2.Unalias(typ)
 	if named, ok := typ.(*types2.Named); ok {
-		if obj := named.Obj(); obj.Name() == "nih" && obj.Pkg().Path() == "runtime/internal/sys" {
+		if obj := named.Obj(); obj.Name() == "nih" && obj.Pkg().Path() == "internal/runtime/sys" {
 			return true
 		}
 		typ = named.Underlying()

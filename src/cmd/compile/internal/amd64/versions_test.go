@@ -75,10 +75,11 @@ func TestGoAMD64v1(t *testing.T) {
 	cmd := testenv.Command(t, dst.Name())
 	testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "TESTGOAMD64V1=yes")
-	cmd.Env = append(cmd.Env, fmt.Sprintf("GODEBUG=%s", strings.Join(features, ",")))
+	// Disable FIPS 140-3 mode, since it would detect the modified binary.
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GODEBUG=%s,fips140=off", strings.Join(features, ",")))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("couldn't execute test: %s", err)
+		t.Fatalf("couldn't execute test: %s\n%s", err, out)
 	}
 	// Expect to see output of the form "PASS\n", unless the test binary
 	// was compiled for coverage (in which case there will be an extra line).

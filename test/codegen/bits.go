@@ -120,6 +120,16 @@ func bitoff64(a, b uint64) (n uint64) {
 	return n
 }
 
+func clearLastBit(x int64, y int32) (int64, int32) {
+	// amd64:"ANDQ\t[$]-2"
+	a := (x >> 1) << 1
+
+	// amd64:"ANDL\t[$]-2"
+	b := (y >> 1) << 1
+
+	return a, b
+}
+
 func bitcompl64(a, b uint64) (n uint64) {
 	// amd64:"BTCQ"
 	n += b ^ (1 << (a & 63))
@@ -322,7 +332,22 @@ func op_eon(x, y, z uint32, a []uint32, n, m uint64) uint64 {
 
 func op_orn(x, y uint32) uint32 {
 	// arm64:`ORN\t`,-`ORR`
+	// loong64:"ORN"\t,-"OR\t"
 	return x | ^y
+}
+
+func op_nor(x int64, a []int64) {
+	// loong64: "MOVV\t[$]0","NOR\tR"
+	a[0] = ^(0x1234 | x)
+	// loong64:"NOR",-"XOR"
+	a[1] = (-1) ^ x
+	// loong64: "MOVV\t[$]-55",-"OR",-"NOR"
+	a[2] = ^(0x12 | 0x34)
+}
+
+func op_andn(x, y uint32) uint32 {
+	// loong64:"ANDN\t",-"AND\t"
+	return x &^ y
 }
 
 // check bitsets
@@ -366,6 +391,7 @@ func issue48467(x, y uint64) uint64 {
 
 func foldConst(x, y uint64) uint64 {
 	// arm64: "ADDS\t[$]7",-"MOVD\t[$]7"
+	// ppc64x: "ADDC\t[$]7,"
 	d, b := bits.Add64(x, 7, 0)
 	return b & d
 }
@@ -382,7 +408,6 @@ func signextendAndMask8to64(a int8) (s, z uint64) {
 	// ppc64x: -"MOVB", "ANDCC\t[$]247,"
 	z = uint64(uint8(a)) & 0x3F7
 	return
-
 }
 
 // Verify zero-extended values are not sign-extended under a bit mask (#61297)
@@ -392,11 +417,10 @@ func zeroextendAndMask8to64(a int8, b int16) (x, y uint64) {
 	// ppc64x: -"MOVH\t", -"ANDCC", "MOVHZ"
 	y = uint64(b) & 0xFFFF
 	return
-
 }
 
 // Verify rotate and mask instructions, and further simplified instructions for small types
-func bitRotateAndMask(io64 [4]uint64, io32 [4]uint32, io16 [4]uint16, io8 [4]uint8) {
+func bitRotateAndMask(io64 [8]uint64, io32 [4]uint32, io16 [4]uint16, io8 [4]uint8) {
 	// ppc64x: "RLDICR\t[$]0, R[0-9]*, [$]47, R"
 	io64[0] = io64[0] & 0xFFFFFFFFFFFF0000
 	// ppc64x: "RLDICL\t[$]0, R[0-9]*, [$]16, R"
@@ -405,6 +429,9 @@ func bitRotateAndMask(io64 [4]uint64, io32 [4]uint32, io16 [4]uint16, io8 [4]uin
 	io64[2] = (io64[2] >> 4) & 0x0000FFFFFFFFFFFF
 	// ppc64x: -"SRD", -"AND", "RLDICL\t[$]36, R[0-9]*, [$]28, R"
 	io64[3] = (io64[3] >> 28) & 0x0000FFFFFFFFFFFF
+
+	// ppc64x: "MOVWZ", "RLWNM\t[$]1, R[0-9]*, [$]28, [$]3, R"
+	io64[4] = uint64(bits.RotateLeft32(io32[0], 1) & 0xF000000F)
 
 	// ppc64x: "RLWNM\t[$]0, R[0-9]*, [$]4, [$]19, R"
 	io32[0] = io32[0] & 0x0FFFF000

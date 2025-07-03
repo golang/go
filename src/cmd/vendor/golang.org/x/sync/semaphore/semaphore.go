@@ -35,11 +35,25 @@ type Weighted struct {
 // Acquire acquires the semaphore with a weight of n, blocking until resources
 // are available or ctx is done. On success, returns nil. On failure, returns
 // ctx.Err() and leaves the semaphore unchanged.
-//
-// If ctx is already done, Acquire may still succeed without blocking.
 func (s *Weighted) Acquire(ctx context.Context, n int64) error {
+	done := ctx.Done()
+
 	s.mu.Lock()
+	select {
+	case <-done:
+		// ctx becoming done has "happened before" acquiring the semaphore,
+		// whether it became done before the call began or while we were
+		// waiting for the mutex. We prefer to fail even if we could acquire
+		// the mutex without blocking.
+		s.mu.Unlock()
+		return ctx.Err()
+	default:
+	}
 	if s.size-s.cur >= n && s.waiters.Len() == 0 {
+		// Since we hold s.mu and haven't synchronized since checking done, if
+		// ctx becomes done before we return here, it becoming done must have
+		// "happened concurrently" with this call - it cannot "happen before"
+		// we return in this branch. So, we're ok to always acquire here.
 		s.cur += n
 		s.mu.Unlock()
 		return nil
@@ -48,7 +62,7 @@ func (s *Weighted) Acquire(ctx context.Context, n int64) error {
 	if n > s.size {
 		// Don't make other Acquire calls block on one that's doomed to fail.
 		s.mu.Unlock()
-		<-ctx.Done()
+		<-done
 		return ctx.Err()
 	}
 
@@ -58,14 +72,14 @@ func (s *Weighted) Acquire(ctx context.Context, n int64) error {
 	s.mu.Unlock()
 
 	select {
-	case <-ctx.Done():
-		err := ctx.Err()
+	case <-done:
 		s.mu.Lock()
 		select {
 		case <-ready:
-			// Acquired the semaphore after we were canceled.  Rather than trying to
-			// fix up the queue, just pretend we didn't notice the cancelation.
-			err = nil
+			// Acquired the semaphore after we were canceled.
+			// Pretend we didn't and put the tokens back.
+			s.cur -= n
+			s.notifyWaiters()
 		default:
 			isFront := s.waiters.Front() == elem
 			s.waiters.Remove(elem)
@@ -75,9 +89,19 @@ func (s *Weighted) Acquire(ctx context.Context, n int64) error {
 			}
 		}
 		s.mu.Unlock()
-		return err
+		return ctx.Err()
 
 	case <-ready:
+		// Acquired the semaphore. Check that ctx isn't already done.
+		// We check the done channel instead of calling ctx.Err because we
+		// already have the channel, and ctx.Err is O(n) with the nesting
+		// depth of ctx.
+		select {
+		case <-done:
+			s.Release(n)
+			return ctx.Err()
+		default:
+		}
 		return nil
 	}
 }

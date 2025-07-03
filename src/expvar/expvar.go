@@ -4,7 +4,8 @@
 
 // Package expvar provides a standardized interface to public variables, such
 // as operation counters in servers. It exposes these variables via HTTP at
-// /debug/vars in JSON format.
+// /debug/vars in JSON format. As of Go 1.22, the /debug/vars request must
+// use GET.
 //
 // Operations to set or modify these public variables are atomic.
 //
@@ -23,12 +24,13 @@ package expvar
 
 import (
 	"encoding/json"
+	"internal/godebug"
 	"log"
 	"math"
 	"net/http"
 	"os"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -48,13 +50,13 @@ type jsonVar interface {
 	appendJSON(b []byte) []byte
 }
 
-// Int is a 64-bit integer variable that satisfies the Var interface.
+// Int is a 64-bit integer variable that satisfies the [Var] interface.
 type Int struct {
-	i int64
+	i atomic.Int64
 }
 
 func (v *Int) Value() int64 {
-	return atomic.LoadInt64(&v.i)
+	return v.i.Load()
 }
 
 func (v *Int) String() string {
@@ -62,18 +64,18 @@ func (v *Int) String() string {
 }
 
 func (v *Int) appendJSON(b []byte) []byte {
-	return strconv.AppendInt(b, atomic.LoadInt64(&v.i), 10)
+	return strconv.AppendInt(b, v.i.Load(), 10)
 }
 
 func (v *Int) Add(delta int64) {
-	atomic.AddInt64(&v.i, delta)
+	v.i.Add(delta)
 }
 
 func (v *Int) Set(value int64) {
-	atomic.StoreInt64(&v.i, value)
+	v.i.Store(value)
 }
 
-// Float is a 64-bit float variable that satisfies the Var interface.
+// Float is a 64-bit float variable that satisfies the [Var] interface.
 type Float struct {
 	f atomic.Uint64
 }
@@ -108,14 +110,14 @@ func (v *Float) Set(value float64) {
 	v.f.Store(math.Float64bits(value))
 }
 
-// Map is a string-to-Var map variable that satisfies the Var interface.
+// Map is a string-to-Var map variable that satisfies the [Var] interface.
 type Map struct {
 	m      sync.Map // map[string]Var
 	keysMu sync.RWMutex
 	keys   []string // sorted
 }
 
-// KeyValue represents a single entry in a Map.
+// KeyValue represents a single entry in a [Map].
 type KeyValue struct {
 	Key   string
 	Value Var
@@ -167,10 +169,7 @@ func (v *Map) Init() *Map {
 	v.keysMu.Lock()
 	defer v.keysMu.Unlock()
 	v.keys = v.keys[:0]
-	v.m.Range(func(k, _ any) bool {
-		v.m.Delete(k)
-		return true
-	})
+	v.m.Clear()
 	return v
 }
 
@@ -179,13 +178,11 @@ func (v *Map) addKey(key string) {
 	v.keysMu.Lock()
 	defer v.keysMu.Unlock()
 	// Using insertion sort to place key into the already-sorted v.keys.
-	if i := sort.SearchStrings(v.keys, key); i >= len(v.keys) {
-		v.keys = append(v.keys, key)
-	} else if v.keys[i] != key {
-		v.keys = append(v.keys, "")
-		copy(v.keys[i+1:], v.keys[i:])
-		v.keys[i] = key
+	i, found := slices.BinarySearch(v.keys, key)
+	if found {
+		return
 	}
+	v.keys = slices.Insert(v.keys, i, key)
 }
 
 func (v *Map) Get(key string) Var {
@@ -208,7 +205,7 @@ func (v *Map) Set(key string, av Var) {
 	v.m.Store(key, av)
 }
 
-// Add adds delta to the *Int value stored under the given map key.
+// Add adds delta to the *[Int] value stored under the given map key.
 func (v *Map) Add(key string, delta int64) {
 	i, ok := v.m.Load(key)
 	if !ok {
@@ -225,7 +222,7 @@ func (v *Map) Add(key string, delta int64) {
 	}
 }
 
-// AddFloat adds delta to the *Float value stored under the given map key.
+// AddFloat adds delta to the *[Float] value stored under the given map key.
 func (v *Map) AddFloat(key string, delta float64) {
 	i, ok := v.m.Load(key)
 	if !ok {
@@ -246,9 +243,9 @@ func (v *Map) AddFloat(key string, delta float64) {
 func (v *Map) Delete(key string) {
 	v.keysMu.Lock()
 	defer v.keysMu.Unlock()
-	i := sort.SearchStrings(v.keys, key)
-	if i < len(v.keys) && key == v.keys[i] {
-		v.keys = append(v.keys[:i], v.keys[i+1:]...)
+	i, found := slices.BinarySearch(v.keys, key)
+	if found {
+		v.keys = slices.Delete(v.keys, i, i+1)
 		v.m.Delete(key)
 	}
 }
@@ -266,7 +263,7 @@ func (v *Map) Do(f func(KeyValue)) {
 	}
 }
 
-// String is a string variable, and satisfies the Var interface.
+// String is a string variable, and satisfies the [Var] interface.
 type String struct {
 	s atomic.Value // string
 }
@@ -276,8 +273,8 @@ func (v *String) Value() string {
 	return p
 }
 
-// String implements the Var interface. To get the unquoted string
-// use Value.
+// String implements the [Var] interface. To get the unquoted string
+// use [String.Value].
 func (v *String) String() string {
 	return string(v.appendJSON(nil))
 }
@@ -290,7 +287,7 @@ func (v *String) Set(value string) {
 	v.s.Store(value)
 }
 
-// Func implements Var by calling the function
+// Func implements [Var] by calling the function
 // and formatting the returned value using JSON.
 type Func func() any
 
@@ -316,7 +313,7 @@ func Publish(name string, v Var) {
 	vars.keysMu.Lock()
 	defer vars.keysMu.Unlock()
 	vars.keys = append(vars.keys, name)
-	sort.Strings(vars.keys)
+	slices.Sort(vars.keys)
 }
 
 // Get retrieves a named exported variable. It returns nil if the name has
@@ -381,7 +378,11 @@ func memstats() any {
 }
 
 func init() {
-	http.HandleFunc("/debug/vars", expvarHandler)
+	if godebug.New("httpmuxgo121").Value() == "1" {
+		http.HandleFunc("/debug/vars", expvarHandler)
+	} else {
+		http.HandleFunc("GET /debug/vars", expvarHandler)
+	}
 	Publish("cmdline", Func(cmdline))
 	Publish("memstats", Func(memstats))
 }

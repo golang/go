@@ -20,37 +20,6 @@ import (
 
 // Based on https://opensource.apple.com/source/Security/Security-59306.41.2/base/Security.h
 
-type SecTrustSettingsResult int32
-
-const (
-	SecTrustSettingsResultInvalid SecTrustSettingsResult = iota
-	SecTrustSettingsResultTrustRoot
-	SecTrustSettingsResultTrustAsRoot
-	SecTrustSettingsResultDeny
-	SecTrustSettingsResultUnspecified
-)
-
-type SecTrustResultType int32
-
-const (
-	SecTrustResultInvalid SecTrustResultType = iota
-	SecTrustResultProceed
-	SecTrustResultConfirm // deprecated
-	SecTrustResultDeny
-	SecTrustResultUnspecified
-	SecTrustResultRecoverableTrustFailure
-	SecTrustResultFatalTrustFailure
-	SecTrustResultOtherError
-)
-
-type SecTrustSettingsDomain int32
-
-const (
-	SecTrustSettingsDomainUser SecTrustSettingsDomain = iota
-	SecTrustSettingsDomainAdmin
-	SecTrustSettingsDomainSystem
-)
-
 const (
 	// various macOS error codes that can be returned from
 	// SecTrustEvaluateWithError that we can map to Go cert
@@ -68,54 +37,6 @@ type OSStatus struct {
 func (s OSStatus) Error() string {
 	return s.call + " error: " + strconv.Itoa(int(s.status))
 }
-
-// Dictionary keys are defined as build-time strings with CFSTR, but the Go
-// linker's internal linking mode can't handle CFSTR relocations. Create our
-// own dynamic strings instead and just never release them.
-//
-// Note that this might be the only thing that can break over time if
-// these values change, as the ABI arguably requires using the strings
-// pointed to by the symbols, not values that happen to be equal to them.
-
-var SecTrustSettingsResultKey = StringToCFString("kSecTrustSettingsResult")
-var SecTrustSettingsPolicy = StringToCFString("kSecTrustSettingsPolicy")
-var SecTrustSettingsPolicyString = StringToCFString("kSecTrustSettingsPolicyString")
-var SecPolicyOid = StringToCFString("SecPolicyOid")
-var SecPolicyAppleSSL = StringToCFString("1.2.840.113635.100.1.3") // defined by POLICYMACRO
-
-var ErrNoTrustSettings = errors.New("no trust settings found")
-
-const errSecNoTrustSettings = -25263
-
-//go:cgo_import_dynamic x509_SecTrustSettingsCopyCertificates SecTrustSettingsCopyCertificates "/System/Library/Frameworks/Security.framework/Versions/A/Security"
-
-func SecTrustSettingsCopyCertificates(domain SecTrustSettingsDomain) (certArray CFRef, err error) {
-	ret := syscall(abi.FuncPCABI0(x509_SecTrustSettingsCopyCertificates_trampoline), uintptr(domain),
-		uintptr(unsafe.Pointer(&certArray)), 0, 0, 0, 0)
-	if int32(ret) == errSecNoTrustSettings {
-		return 0, ErrNoTrustSettings
-	} else if ret != 0 {
-		return 0, OSStatus{"SecTrustSettingsCopyCertificates", int32(ret)}
-	}
-	return certArray, nil
-}
-func x509_SecTrustSettingsCopyCertificates_trampoline()
-
-const errSecItemNotFound = -25300
-
-//go:cgo_import_dynamic x509_SecTrustSettingsCopyTrustSettings SecTrustSettingsCopyTrustSettings "/System/Library/Frameworks/Security.framework/Versions/A/Security"
-
-func SecTrustSettingsCopyTrustSettings(cert CFRef, domain SecTrustSettingsDomain) (trustSettings CFRef, err error) {
-	ret := syscall(abi.FuncPCABI0(x509_SecTrustSettingsCopyTrustSettings_trampoline), uintptr(cert), uintptr(domain),
-		uintptr(unsafe.Pointer(&trustSettings)), 0, 0, 0)
-	if int32(ret) == errSecItemNotFound {
-		return 0, ErrNoTrustSettings
-	} else if ret != 0 {
-		return 0, OSStatus{"SecTrustSettingsCopyTrustSettings", int32(ret)}
-	}
-	return trustSettings, nil
-}
-func x509_SecTrustSettingsCopyTrustSettings_trampoline()
 
 //go:cgo_import_dynamic x509_SecTrustCreateWithCertificates SecTrustCreateWithCertificates "/System/Library/Frameworks/Security.framework/Versions/A/Security"
 
@@ -184,19 +105,6 @@ func SecTrustEvaluate(trustObj CFRef) (CFRef, error) {
 }
 func x509_SecTrustEvaluate_trampoline()
 
-//go:cgo_import_dynamic x509_SecTrustGetResult SecTrustGetResult "/System/Library/Frameworks/Security.framework/Versions/A/Security"
-
-func SecTrustGetResult(trustObj CFRef, result CFRef) (CFRef, CFRef, error) {
-	var chain, info CFRef
-	ret := syscall(abi.FuncPCABI0(x509_SecTrustGetResult_trampoline), uintptr(trustObj), uintptr(unsafe.Pointer(&result)),
-		uintptr(unsafe.Pointer(&chain)), uintptr(unsafe.Pointer(&info)), 0, 0)
-	if int32(ret) != 0 {
-		return 0, 0, OSStatus{"SecTrustGetResult", int32(ret)}
-	}
-	return chain, info, nil
-}
-func x509_SecTrustGetResult_trampoline()
-
 //go:cgo_import_dynamic x509_SecTrustEvaluateWithError SecTrustEvaluateWithError "/System/Library/Frameworks/Security.framework/Versions/A/Security"
 
 func SecTrustEvaluateWithError(trustObj CFRef) (int, error) {
@@ -214,25 +122,6 @@ func SecTrustEvaluateWithError(trustObj CFRef) (int, error) {
 }
 func x509_SecTrustEvaluateWithError_trampoline()
 
-//go:cgo_import_dynamic x509_SecTrustGetCertificateCount SecTrustGetCertificateCount "/System/Library/Frameworks/Security.framework/Versions/A/Security"
-
-func SecTrustGetCertificateCount(trustObj CFRef) int {
-	ret := syscall(abi.FuncPCABI0(x509_SecTrustGetCertificateCount_trampoline), uintptr(trustObj), 0, 0, 0, 0, 0)
-	return int(ret)
-}
-func x509_SecTrustGetCertificateCount_trampoline()
-
-//go:cgo_import_dynamic x509_SecTrustGetCertificateAtIndex SecTrustGetCertificateAtIndex "/System/Library/Frameworks/Security.framework/Versions/A/Security"
-
-func SecTrustGetCertificateAtIndex(trustObj CFRef, i int) (CFRef, error) {
-	ret := syscall(abi.FuncPCABI0(x509_SecTrustGetCertificateAtIndex_trampoline), uintptr(trustObj), uintptr(i), 0, 0, 0, 0)
-	if ret == 0 {
-		return 0, OSStatus{"SecTrustGetCertificateAtIndex", int32(ret)}
-	}
-	return CFRef(ret), nil
-}
-func x509_SecTrustGetCertificateAtIndex_trampoline()
-
 //go:cgo_import_dynamic x509_SecCertificateCopyData SecCertificateCopyData "/System/Library/Frameworks/Security.framework/Versions/A/Security"
 
 func SecCertificateCopyData(cert CFRef) ([]byte, error) {
@@ -245,3 +134,14 @@ func SecCertificateCopyData(cert CFRef) ([]byte, error) {
 	return b, nil
 }
 func x509_SecCertificateCopyData_trampoline()
+
+//go:cgo_import_dynamic x509_SecTrustCopyCertificateChain SecTrustCopyCertificateChain "/System/Library/Frameworks/Security.framework/Versions/A/Security"
+
+func SecTrustCopyCertificateChain(trustObj CFRef) (CFRef, error) {
+	ret := syscall(abi.FuncPCABI0(x509_SecTrustCopyCertificateChain_trampoline), uintptr(trustObj), 0, 0, 0, 0, 0)
+	if ret == 0 {
+		return 0, OSStatus{"SecTrustCopyCertificateChain", int32(ret)}
+	}
+	return CFRef(ret), nil
+}
+func x509_SecTrustCopyCertificateChain_trampoline()

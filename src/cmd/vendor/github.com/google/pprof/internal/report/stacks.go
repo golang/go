@@ -18,7 +18,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
-	"regexp"
+	"path/filepath"
 
 	"github.com/google/pprof/internal/measurement"
 	"github.com/google/pprof/profile"
@@ -35,6 +35,7 @@ type StackSet struct {
 	Unit    string        // One of "B", "s", "GCU", or "" (if unknown)
 	Stacks  []Stack       // List of stored stacks
 	Sources []StackSource // Mapping from source index to info
+	report  *Report
 }
 
 // Stack holds a single stack instance.
@@ -53,9 +54,6 @@ type StackSource struct {
 	// Alternative names to display (with decreasing lengths) to make text fit.
 	// Guaranteed to be non-empty.
 	Display []string
-
-	// Regular expression (anchored) that matches exactly FullName.
-	RE string
 
 	// Places holds the list of stack slots where this source occurs.
 	// In particular, if [a,b] is an element in Places,
@@ -98,45 +96,61 @@ func (rpt *Report) Stacks() StackSet {
 		Unit:    unit,
 		Stacks:  []Stack{},       // Ensure non-nil
 		Sources: []StackSource{}, // Ensure non-nil
+		report:  rpt,
 	}
 	s.makeInitialStacks(rpt)
 	s.fillPlaces()
-	s.assignColors()
 	return *s
 }
 
 func (s *StackSet) makeInitialStacks(rpt *Report) {
 	type key struct {
-		line    profile.Line
-		inlined bool
+		funcName string
+		fileName string
+		line     int64
+		column   int64
+		inlined  bool
 	}
 	srcs := map[key]int{} // Sources identified so far.
 	seenFunctions := map[string]bool{}
 	unknownIndex := 1
+
 	getSrc := func(line profile.Line, inlined bool) int {
-		k := key{line, inlined}
+		fn := line.Function
+		if fn == nil {
+			fn = &profile.Function{Name: fmt.Sprintf("?%d?", unknownIndex)}
+			unknownIndex++
+		}
+
+		k := key{fn.Name, fn.Filename, line.Line, line.Column, inlined}
 		if i, ok := srcs[k]; ok {
 			return i
 		}
-		x := StackSource{Places: []StackSlot{}} // Ensure Places is non-nil
-		if fn := line.Function; fn != nil {
-			x.FullName = fn.Name
-			x.FileName = fn.Filename
-			if !seenFunctions[fn.Name] {
-				x.UniqueName = fn.Name
-				seenFunctions[fn.Name] = true
-			} else {
-				// Assign a different name so pivoting picks this function.
-				x.UniqueName = fmt.Sprint(fn.Name, "#", fn.ID)
-			}
-		} else {
-			x.FullName = fmt.Sprintf("?%d?", unknownIndex)
-			x.UniqueName = x.FullName
-			unknownIndex++
+
+		fileName := trimPath(fn.Filename, rpt.options.TrimPath, rpt.options.SourcePath)
+		x := StackSource{
+			FileName: fileName,
+			Inlined:  inlined,
+			Places:   []StackSlot{}, // Ensure Places is non-nil
 		}
-		x.Inlined = inlined
-		x.RE = "^" + regexp.QuoteMeta(x.UniqueName) + "$"
-		x.Display = shortNameList(x.FullName)
+		if fn.Name != "" {
+			x.FullName = addLineInfo(fn.Name, line)
+			x.Display = shortNameList(x.FullName)
+			x.Color = pickColor(packageName(fn.Name))
+		} else { // Use file name, e.g., for file granularity display.
+			x.FullName = addLineInfo(fileName, line)
+			x.Display = fileNameSuffixes(x.FullName)
+			x.Color = pickColor(filepath.Dir(fileName))
+		}
+
+		if !seenFunctions[x.FullName] {
+			x.UniqueName = x.FullName
+			seenFunctions[x.FullName] = true
+		} else {
+			// Assign a different name so pivoting picks this function.
+			x.UniqueName = fmt.Sprint(x.FullName, "#", fn.ID)
+		}
+
 		s.Sources = append(s.Sources, x)
 		srcs[k] = len(s.Sources) - 1
 		return len(s.Sources) - 1
@@ -182,13 +196,25 @@ func (s *StackSet) fillPlaces() {
 	}
 }
 
-func (s *StackSet) assignColors() {
-	// Assign different color indices to different packages.
+// pickColor picks a color for key.
+func pickColor(key string) int {
 	const numColors = 1048576
-	for i, src := range s.Sources {
-		pkg := packageName(src.FullName)
-		h := sha256.Sum256([]byte(pkg))
-		index := binary.LittleEndian.Uint32(h[:])
-		s.Sources[i].Color = int(index % numColors)
+	h := sha256.Sum256([]byte(key))
+	index := binary.LittleEndian.Uint32(h[:])
+	return int(index % numColors)
+}
+
+// Legend returns the list of lines to display as the legend.
+func (s *StackSet) Legend() []string {
+	return reportLabels(s.report, s.report.total, len(s.Sources), len(s.Sources), 0, 0, false)
+}
+
+func addLineInfo(str string, line profile.Line) string {
+	if line.Column != 0 {
+		return fmt.Sprint(str, ":", line.Line, ":", line.Column)
 	}
+	if line.Line != 0 {
+		return fmt.Sprint(str, ":", line.Line)
+	}
+	return str
 }

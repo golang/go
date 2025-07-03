@@ -16,6 +16,10 @@ import (
 // Typically, the Location represents the collection of time offsets
 // in use in a geographical area. For many Locations the time offset varies
 // depending on whether daylight savings time is in use at the time instant.
+//
+// Location is used to provide a time zone in a printed Time value and for
+// calculations involving intervals that may cross daylight savings time
+// boundaries.
 type Location struct {
 	name string
 	zone []zone
@@ -95,7 +99,7 @@ func (l *Location) get() *Location {
 }
 
 // String returns a descriptive name for the time zone information,
-// corresponding to the name argument to LoadLocation or FixedZone.
+// corresponding to the name argument to [LoadLocation] or [FixedZone].
 func (l *Location) String() string {
 	return l.get().name
 }
@@ -103,7 +107,7 @@ func (l *Location) String() string {
 var unnamedFixedZones []*Location
 var unnamedFixedZonesOnce sync.Once
 
-// FixedZone returns a Location that always uses
+// FixedZone returns a [Location] that always uses
 // the given zone name and offset (seconds east of UTC).
 func FixedZone(name string, offset int) *Location {
 	// Most calls to FixedZone have an unnamed zone with an offset by the hour.
@@ -327,14 +331,11 @@ func tzset(s string, lastTxSec, sec int64) (name string, offset int, start, end 
 		return "", 0, 0, 0, false, false
 	}
 
-	year, _, _, yday := absDate(uint64(sec+unixToInternal+internalToAbsolute), false)
-
-	ysec := int64(yday*secondsPerDay) + sec%secondsPerDay
-
-	// Compute start of year in seconds since Unix epoch.
-	d := daysSinceEpoch(year)
-	abs := int64(d * secondsPerDay)
-	abs += absoluteToInternal + internalToUnix
+	// Compute start of year in seconds since Unix epoch,
+	// and seconds since then to get to sec.
+	year, yday := absSeconds(sec + unixToInternal + internalToAbsolute).days().yearYday()
+	ysec := int64((yday-1)*secondsPerDay) + sec%secondsPerDay
+	ystart := sec - ysec
 
 	startSec := int64(tzruleTime(year, startRule, stdOffset))
 	endSec := int64(tzruleTime(year, endRule, dstOffset))
@@ -354,11 +355,11 @@ func tzset(s string, lastTxSec, sec int64) (name string, offset int, start, end 
 	// just the start and end of the year. That suffices for
 	// the only caller that cares, which is Date.
 	if ysec < startSec {
-		return stdName, stdOffset, abs, startSec + abs, stdIsDST, true
+		return stdName, stdOffset, ystart, startSec + ystart, stdIsDST, true
 	} else if ysec >= endSec {
-		return stdName, stdOffset, endSec + abs, abs + 365*secondsPerDay, stdIsDST, true
+		return stdName, stdOffset, endSec + ystart, ystart + 365*secondsPerDay, stdIsDST, true
 	} else {
-		return dstName, dstOffset, startSec + abs, endSec + abs, dstIsDST, true
+		return dstName, dstOffset, startSec + ystart, endSec + ystart, dstIsDST, true
 	}
 }
 
@@ -592,7 +593,7 @@ func tzruleTime(year int, r rule, off int) int {
 			}
 			d += 7
 		}
-		d += int(daysBefore[r.mon-1])
+		d += daysBefore(Month(r.mon))
 		if isLeap(year) && r.mon > 2 {
 			d++
 		}

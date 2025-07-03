@@ -7,6 +7,7 @@ package signal
 import (
 	"context"
 	"os"
+	"slices"
 	"sync"
 )
 
@@ -81,7 +82,7 @@ func cancel(sigs []os.Signal, action func(int)) {
 
 // Ignore causes the provided signals to be ignored. If they are received by
 // the program, nothing will happen. Ignore undoes the effect of any prior
-// calls to Notify for the provided signals.
+// calls to [Notify] for the provided signals.
 // If no signals are provided, all incoming signals will be ignored.
 func Ignore(sig ...os.Signal) {
 	cancel(sig, ignoreSignal)
@@ -113,7 +114,7 @@ var (
 //
 // It is allowed to call Notify multiple times with the same channel:
 // each call expands the set of signals sent to that channel.
-// The only way to remove signals from the set is to call Stop.
+// The only way to remove signals from the set is to call [Stop].
 //
 // It is allowed to call Notify multiple times with different channels
 // and the same signals: each channel receives copies of incoming
@@ -167,7 +168,7 @@ func Notify(c chan<- os.Signal, sig ...os.Signal) {
 	}
 }
 
-// Reset undoes the effect of any prior calls to Notify for the provided
+// Reset undoes the effect of any prior calls to [Notify] for the provided
 // signals.
 // If no signals are provided, all signal handlers will be reset.
 func Reset(sig ...os.Signal) {
@@ -175,7 +176,7 @@ func Reset(sig ...os.Signal) {
 }
 
 // Stop causes package signal to stop relaying incoming signals to c.
-// It undoes the effect of all prior calls to Notify using c.
+// It undoes the effect of all prior calls to [Notify] using c.
 // When Stop returns, it is guaranteed that c will receive no more signals.
 func Stop(c chan<- os.Signal) {
 	handlers.Lock()
@@ -217,7 +218,7 @@ func Stop(c chan<- os.Signal) {
 
 	for i, s := range handlers.stopping {
 		if s.c == c {
-			handlers.stopping = append(handlers.stopping[:i], handlers.stopping[i+1:]...)
+			handlers.stopping = slices.Delete(handlers.stopping, i, i+1)
 			break
 		}
 	}
@@ -264,9 +265,9 @@ func process(sig os.Signal) {
 // when the returned stop function is called, or when the parent context's
 // Done channel is closed, whichever happens first.
 //
-// The stop function unregisters the signal behavior, which, like signal.Reset,
+// The stop function unregisters the signal behavior, which, like [signal.Reset],
 // may restore the default behavior for a given signal. For example, the default
-// behavior of a Go program receiving os.Interrupt is to exit. Calling
+// behavior of a Go program receiving [os.Interrupt] is to exit. Calling
 // NotifyContext(parent, os.Interrupt) will change the behavior to cancel
 // the returned context. Future interrupts received will not trigger the default
 // (exit) behavior until the returned stop function is called.

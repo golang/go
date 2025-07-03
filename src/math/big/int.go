@@ -20,7 +20,7 @@ import (
 // than Int values, and each unique Int value requires
 // its own unique *Int pointer. To "copy" an Int value,
 // an existing (or newly allocated) Int must be set to
-// a new value using the Int.Set method; shallow copies
+// a new value using the [Int.Set] method; shallow copies
 // of Ints are not supported and may lead to errors.
 //
 // Note that methods may leak the Int's value through timing side-channels.
@@ -38,10 +38,9 @@ type Int struct {
 var intOne = &Int{false, natOne}
 
 // Sign returns:
-//
-//	-1 if x <  0
-//	 0 if x == 0
-//	+1 if x >  0
+//   - -1 if x < 0;
+//   - 0 if x == 0;
+//   - +1 if x > 0.
 func (x *Int) Sign() int {
 	// This function is used in cryptographic operations. It must not leak
 	// anything but the Int's sign and bit size through side-channels. Any
@@ -74,7 +73,7 @@ func (z *Int) SetUint64(x uint64) *Int {
 	return z
 }
 
-// NewInt allocates and returns a new Int set to x.
+// NewInt allocates and returns a new [Int] set to x.
 func NewInt(x int64) *Int {
 	// This code is arranged to be inlineable and produce
 	// zero allocations when inlined. See issue 29951.
@@ -102,9 +101,9 @@ func (z *Int) Set(x *Int) *Int {
 }
 
 // Bits provides raw (unchecked but fast) access to x by returning its
-// absolute value as a little-endian Word slice. The result and x share
+// absolute value as a little-endian [Word] slice. The result and x share
 // the same underlying array.
-// Bits is intended to support implementation of missing low-level Int
+// Bits is intended to support implementation of missing low-level [Int]
 // functionality outside this package; it should be avoided otherwise.
 func (x *Int) Bits() []Word {
 	// This function is used in cryptographic operations. It must not leak
@@ -114,9 +113,9 @@ func (x *Int) Bits() []Word {
 }
 
 // SetBits provides raw (unchecked but fast) access to z by setting its
-// value to abs, interpreted as a little-endian Word slice, and returning
+// value to abs, interpreted as a little-endian [Word] slice, and returning
 // z. The result and abs share the same underlying array.
-// SetBits is intended to support implementation of missing low-level Int
+// SetBits is intended to support implementation of missing low-level [Int]
 // functionality outside this package; it should be avoided otherwise.
 func (z *Int) SetBits(abs []Word) *Int {
 	z.abs = nat(abs).norm()
@@ -182,18 +181,25 @@ func (z *Int) Sub(x, y *Int) *Int {
 
 // Mul sets z to the product x*y and returns z.
 func (z *Int) Mul(x, y *Int) *Int {
+	z.mul(nil, x, y)
+	return z
+}
+
+// mul is like Mul but takes an explicit stack to use, for internal use.
+// It does not return a *Int because doing so makes the stack-allocated Ints
+// used in natmul.go escape to the heap (even though the result is unused).
+func (z *Int) mul(stk *stack, x, y *Int) {
 	// x * y == x * y
 	// x * (-y) == -(x * y)
 	// (-x) * y == -(x * y)
 	// (-x) * (-y) == x * y
 	if x == y {
-		z.abs = z.abs.sqr(x.abs)
+		z.abs = z.abs.sqr(stk, x.abs)
 		z.neg = false
-		return z
+		return
 	}
-	z.abs = z.abs.mul(x.abs, y.abs)
+	z.abs = z.abs.mul(stk, x.abs, y.abs)
 	z.neg = len(z.abs) > 0 && x.neg != y.neg // 0 has no sign
-	return z
 }
 
 // MulRange sets z to the product of all integers
@@ -214,7 +220,7 @@ func (z *Int) MulRange(a, b int64) *Int {
 		a, b = -b, -a
 	}
 
-	z.abs = z.abs.mulRange(uint64(a), uint64(b))
+	z.abs = z.abs.mulRange(nil, uint64(a), uint64(b))
 	z.neg = neg
 	return z
 }
@@ -263,18 +269,18 @@ func (z *Int) Binomial(n, k int64) *Int {
 
 // Quo sets z to the quotient x/y for y != 0 and returns z.
 // If y == 0, a division-by-zero run-time panic occurs.
-// Quo implements truncated division (like Go); see QuoRem for more details.
+// Quo implements truncated division (like Go); see [Int.QuoRem] for more details.
 func (z *Int) Quo(x, y *Int) *Int {
-	z.abs, _ = z.abs.div(nil, x.abs, y.abs)
+	z.abs, _ = z.abs.div(nil, nil, x.abs, y.abs)
 	z.neg = len(z.abs) > 0 && x.neg != y.neg // 0 has no sign
 	return z
 }
 
 // Rem sets z to the remainder x%y for y != 0 and returns z.
 // If y == 0, a division-by-zero run-time panic occurs.
-// Rem implements truncated modulus (like Go); see QuoRem for more details.
+// Rem implements truncated modulus (like Go); see [Int.QuoRem] for more details.
 func (z *Int) Rem(x, y *Int) *Int {
-	_, z.abs = nat(nil).div(z.abs, x.abs, y.abs)
+	_, z.abs = nat(nil).div(nil, z.abs, x.abs, y.abs)
 	z.neg = len(z.abs) > 0 && x.neg // 0 has no sign
 	return z
 }
@@ -289,16 +295,16 @@ func (z *Int) Rem(x, y *Int) *Int {
 //	r = x - y*q
 //
 // (See Daan Leijen, “Division and Modulus for Computer Scientists”.)
-// See DivMod for Euclidean division and modulus (unlike Go).
+// See [Int.DivMod] for Euclidean division and modulus (unlike Go).
 func (z *Int) QuoRem(x, y, r *Int) (*Int, *Int) {
-	z.abs, r.abs = z.abs.div(r.abs, x.abs, y.abs)
+	z.abs, r.abs = z.abs.div(nil, r.abs, x.abs, y.abs)
 	z.neg, r.neg = len(z.abs) > 0 && x.neg != y.neg, len(r.abs) > 0 && x.neg // 0 has no sign
 	return z, r
 }
 
 // Div sets z to the quotient x/y for y != 0 and returns z.
 // If y == 0, a division-by-zero run-time panic occurs.
-// Div implements Euclidean division (unlike Go); see DivMod for more details.
+// Div implements Euclidean division (unlike Go); see [Int.DivMod] for more details.
 func (z *Int) Div(x, y *Int) *Int {
 	y_neg := y.neg // z may be an alias for y
 	var r Int
@@ -315,7 +321,7 @@ func (z *Int) Div(x, y *Int) *Int {
 
 // Mod sets z to the modulus x%y for y != 0 and returns z.
 // If y == 0, a division-by-zero run-time panic occurs.
-// Mod implements Euclidean modulus (unlike Go); see DivMod for more details.
+// Mod implements Euclidean modulus (unlike Go); see [Int.DivMod] for more details.
 func (z *Int) Mod(x, y *Int) *Int {
 	y0 := y // save y
 	if z == y || alias(z.abs, y.abs) {
@@ -346,7 +352,7 @@ func (z *Int) Mod(x, y *Int) *Int {
 // div and mod”. ACM Transactions on Programming Languages and
 // Systems (TOPLAS), 14(2):127-144, New York, NY, USA, 4/1992.
 // ACM press.)
-// See QuoRem for T-division and modulus (like Go).
+// See [Int.QuoRem] for T-division and modulus (like Go).
 func (z *Int) DivMod(x, y, m *Int) (*Int, *Int) {
 	y0 := y // save y
 	if z == y || alias(z.abs, y.abs) {
@@ -366,10 +372,9 @@ func (z *Int) DivMod(x, y, m *Int) (*Int, *Int) {
 }
 
 // Cmp compares x and y and returns:
-//
-//	-1 if x <  y
-//	 0 if x == y
-//	+1 if x >  y
+//   - -1 if x < y;
+//   - 0 if x == y;
+//   - +1 if x > y.
 func (x *Int) Cmp(y *Int) (r int) {
 	// x cmp y == x cmp y
 	// x cmp (-y) == x
@@ -392,10 +397,9 @@ func (x *Int) Cmp(y *Int) (r int) {
 }
 
 // CmpAbs compares the absolute values of x and y and returns:
-//
-//	-1 if |x| <  |y|
-//	 0 if |x| == |y|
-//	+1 if |x| >  |y|
+//   - -1 if |x| < |y|;
+//   - 0 if |x| == |y|;
+//   - +1 if |x| > |y|.
 func (x *Int) CmpAbs(y *Int) int {
 	return x.abs.cmp(y.abs)
 }
@@ -475,7 +479,7 @@ func (x *Int) Float64() (float64, Accuracy) {
 // (not just a prefix) must be valid for success. If SetString fails,
 // the value of z is undefined but the returned value is nil.
 //
-// The base argument must be 0 or a value between 2 and MaxBase.
+// The base argument must be 0 or a value between 2 and [MaxBase].
 // For base 0, the number prefix determines the actual base: A prefix of
 // “0b” or “0B” selects base 2, “0”, “0o” or “0O” selects base 8,
 // and “0x” or “0X” selects base 16. Otherwise, the selected base is 10
@@ -519,7 +523,7 @@ func (z *Int) SetBytes(buf []byte) *Int {
 
 // Bytes returns the absolute value of x as a big-endian byte slice.
 //
-// To use a fixed length slice, or a preallocated one, use FillBytes.
+// To use a fixed length slice, or a preallocated one, use [Int.FillBytes].
 func (x *Int) Bytes() []byte {
 	// This function is used in cryptographic operations. It must not leak
 	// anything but the Int's sign and bit size through side-channels. Any
@@ -533,10 +537,8 @@ func (x *Int) Bytes() []byte {
 //
 // If the absolute value of x doesn't fit in buf, FillBytes will panic.
 func (x *Int) FillBytes(buf []byte) []byte {
-	// Clear whole buffer. (This gets optimized into a memclr.)
-	for i := range buf {
-		buf[i] = 0
-	}
+	// Clear whole buffer.
+	clear(buf)
 	x.abs.bytes(buf)
 	return buf
 }
@@ -594,7 +596,7 @@ func (z *Int) exp(x, y, m *Int, slow bool) *Int {
 		mWords = m.abs // m.abs may be nil for m == 0
 	}
 
-	z.abs = z.abs.expNN(xWords, yWords, mWords, slow)
+	z.abs = z.abs.expNN(nil, xWords, yWords, mWords, slow)
 	z.neg = len(z.abs) > 0 && x.neg && len(yWords) > 0 && yWords[0]&1 == 1 // 0 has no sign
 	if z.neg && len(mWords) > 0 {
 		// make modulus result positive
@@ -712,42 +714,36 @@ func lehmerSimulate(A, B *Int) (u0, u1, v0, v1 Word, even bool) {
 // For even == true: u0, v1 >= 0 && u1, v0 <= 0
 // For even == false: u0, v1 <= 0 && u1, v0 >= 0
 // q, r, s, t are temporary variables to avoid allocations in the multiplication.
-func lehmerUpdate(A, B, q, r, s, t *Int, u0, u1, v0, v1 Word, even bool) {
+func lehmerUpdate(A, B, q, r *Int, u0, u1, v0, v1 Word, even bool) {
+	mulW(q, B, even, v0)
+	mulW(r, A, even, u1)
+	mulW(A, A, !even, u0)
+	mulW(B, B, !even, v1)
+	A.Add(A, q)
+	B.Add(B, r)
+}
 
-	t.abs = t.abs.setWord(u0)
-	s.abs = s.abs.setWord(v0)
-	t.neg = !even
-	s.neg = even
-
-	t.Mul(A, t)
-	s.Mul(B, s)
-
-	r.abs = r.abs.setWord(u1)
-	q.abs = q.abs.setWord(v1)
-	r.neg = even
-	q.neg = !even
-
-	r.Mul(A, r)
-	q.Mul(B, q)
-
-	A.Add(t, s)
-	B.Add(r, q)
+// mulW sets z = x * (-?)w
+// where the minus sign is present when neg is true.
+func mulW(z, x *Int, neg bool, w Word) {
+	z.abs = z.abs.mulAddWW(x.abs, w, 0)
+	z.neg = x.neg != neg
 }
 
 // euclidUpdate performs a single step of the Euclidean GCD algorithm
 // if extended is true, it also updates the cosequence Ua, Ub.
-func euclidUpdate(A, B, Ua, Ub, q, r, s, t *Int, extended bool) {
-	q, r = q.QuoRem(A, B, r)
-
-	*A, *B, *r = *B, *r, *A
+// q and r are used as temporaries; the initial values are ignored.
+func euclidUpdate(A, B, Ua, Ub, q, r *Int, extended bool) (nA, nB, nr, nUa, nUb *Int) {
+	q.QuoRem(A, B, r)
 
 	if extended {
-		// Ua, Ub = Ub, Ua - q*Ub
-		t.Set(Ub)
-		s.Mul(Ub, q)
-		Ub.Sub(Ua, s)
-		Ua.Set(t)
+		// Ua, Ub = Ub, Ua-q*Ub
+		q.Mul(q, Ub)
+		Ua, Ub = Ub, Ua
+		Ub.Sub(Ub, q)
 	}
+
+	return B, r, A, Ua, Ub
 }
 
 // lehmerGCD sets z to the greatest common divisor of a and b,
@@ -777,8 +773,6 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
 	// temp variables for multiprecision update
 	q := new(Int)
 	r := new(Int)
-	s := new(Int)
-	t := new(Int)
 
 	// ensure A >= B
 	if A.abs.cmp(B.abs) < 0 {
@@ -796,18 +790,18 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
 			// Simulate the effect of the single-precision steps using the cosequences.
 			// A = u0*A + v0*B
 			// B = u1*A + v1*B
-			lehmerUpdate(A, B, q, r, s, t, u0, u1, v0, v1, even)
+			lehmerUpdate(A, B, q, r, u0, u1, v0, v1, even)
 
 			if extended {
 				// Ua = u0*Ua + v0*Ub
 				// Ub = u1*Ua + v1*Ub
-				lehmerUpdate(Ua, Ub, q, r, s, t, u0, u1, v0, v1, even)
+				lehmerUpdate(Ua, Ub, q, r, u0, u1, v0, v1, even)
 			}
 
 		} else {
 			// Single-digit calculations failed to simulate any quotients.
 			// Do a standard Euclidean step.
-			euclidUpdate(A, B, Ua, Ub, q, r, s, t, extended)
+			A, B, r, Ua, Ub = euclidUpdate(A, B, Ua, Ub, q, r, extended)
 		}
 	}
 
@@ -815,7 +809,7 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
 		// extended Euclidean algorithm base case if B is a single Word
 		if len(A.abs) > 1 {
 			// A is longer than a single Word, so one update is needed.
-			euclidUpdate(A, B, Ua, Ub, q, r, s, t, extended)
+			A, B, r, Ua, Ub = euclidUpdate(A, B, Ua, Ub, q, r, extended)
 		}
 		if len(B.abs) > 0 {
 			// A and B are both a single Word.
@@ -833,15 +827,9 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
 					even = !even
 				}
 
-				t.abs = t.abs.setWord(ua)
-				s.abs = s.abs.setWord(va)
-				t.neg = !even
-				s.neg = even
-
-				t.Mul(Ua, t)
-				s.Mul(Ub, s)
-
-				Ua.Add(t, s)
+				mulW(Ua, Ua, !even, ua)
+				mulW(Ub, Ub, even, va)
+				Ua.Add(Ua, Ub)
 			} else {
 				for bWord != 0 {
 					aWord, bWord = bWord, aWord%bWord
@@ -868,21 +856,21 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
 	}
 
 	if x != nil {
-		*x = *Ua
+		x.Set(Ua)
 		if negA {
 			x.neg = !x.neg
 		}
 	}
 
-	*z = *A
+	z.Set(A)
 
 	return z
 }
 
 // Rand sets z to a pseudo-random number in [0, n) and returns z.
 //
-// As this uses the math/rand package, it must not be used for
-// security-sensitive work. Use crypto/rand.Int instead.
+// As this uses the [math/rand] package, it must not be used for
+// security-sensitive work. Use [crypto/rand.Int] instead.
 func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
 	// z.neg is not modified before the if check, because z and n might alias.
 	if n.neg || len(n.abs) == 0 {
@@ -1109,7 +1097,7 @@ func (z *Int) ModSqrt(x, p *Int) *Int {
 
 // Lsh sets z = x << n and returns z.
 func (z *Int) Lsh(x *Int, n uint) *Int {
-	z.abs = z.abs.shl(x.abs, n)
+	z.abs = z.abs.lsh(x.abs, n)
 	z.neg = x.neg
 	return z
 }
@@ -1119,13 +1107,13 @@ func (z *Int) Rsh(x *Int, n uint) *Int {
 	if x.neg {
 		// (-x) >> s == ^(x-1) >> s == ^((x-1) >> s) == -(((x-1) >> s) + 1)
 		t := z.abs.sub(x.abs, natOne) // no underflow because |x| > 0
-		t = t.shr(t, n)
+		t = t.rsh(t, n)
 		z.abs = t.add(t, natOne)
 		z.neg = true // z cannot be zero if x is negative
 		return z
 	}
 
-	z.abs = z.abs.shr(x.abs, n)
+	z.abs = z.abs.rsh(x.abs, n)
 	z.neg = false
 	return z
 }
@@ -1152,9 +1140,10 @@ func (x *Int) Bit(i int) uint {
 }
 
 // SetBit sets z to x, with x's i'th bit set to b (0 or 1).
-// That is, if b is 1 SetBit sets z = x | (1 << i);
-// if b is 0 SetBit sets z = x &^ (1 << i). If b is not 0 or 1,
-// SetBit will panic.
+// That is,
+//   - if b is 1, SetBit sets z = x | (1 << i);
+//   - if b is 0, SetBit sets z = x &^ (1 << i);
+//   - if b is not 0 or 1, SetBit will panic.
 func (z *Int) SetBit(x *Int, i int, b uint) *Int {
 	if i < 0 {
 		panic("negative bit index")
@@ -1316,6 +1305,6 @@ func (z *Int) Sqrt(x *Int) *Int {
 		panic("square root of negative number")
 	}
 	z.neg = false
-	z.abs = z.abs.sqrt(x.abs)
+	z.abs = z.abs.sqrt(nil, x.abs)
 	return z
 }

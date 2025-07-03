@@ -2,45 +2,48 @@
 [short] skip
 env GOCACHE=$WORK/cache
 
+# This test uses -vet=off to suppress vet, as vet's "tests" analyzer would
+# otherwise statically report the problems we are trying to observe dynamically.
+
 # Test that running a fuzz target that returns without failing or calling
 # f.Fuzz fails and causes a non-zero exit status.
-! go test noop_fuzz_test.go
+! go test -vet=off noop_fuzz_test.go
 ! stdout ^ok
 stdout FAIL
 
 # Test that fuzzing a fuzz target that returns without failing or calling
 # f.Fuzz fails and causes a non-zero exit status.
-! go test -fuzz=Fuzz -fuzztime=1x noop_fuzz_test.go
+! go test -vet=off -fuzz=Fuzz -fuzztime=1x noop_fuzz_test.go
 ! stdout ^ok
 stdout FAIL
 
 # Test that calling f.Error in a fuzz target causes a non-zero exit status.
-! go test -fuzz=Fuzz -fuzztime=1x error_fuzz_test.go
+! go test -vet=off -fuzz=Fuzz -fuzztime=1x error_fuzz_test.go
 ! stdout ^ok
 stdout FAIL
 
 # Test that calling f.Fatal in a fuzz target causes a non-zero exit status.
-! go test fatal_fuzz_test.go
+! go test -vet=off fatal_fuzz_test.go
 ! stdout ^ok
 stdout FAIL
 
 # Test that successful test exits cleanly.
-go test success_fuzz_test.go
+go test -vet=off success_fuzz_test.go
 stdout ^ok
 ! stdout FAIL
 
 # Test that successful fuzzing exits cleanly.
-go test -fuzz=Fuzz -fuzztime=1x success_fuzz_test.go
+go test -vet=off -fuzz=Fuzz -fuzztime=1x success_fuzz_test.go
 stdout ok
 ! stdout FAIL
 
 # Test that calling f.Fatal while fuzzing causes a non-zero exit status.
-! go test -fuzz=Fuzz -fuzztime=1x fatal_fuzz_test.go
+! go test -vet=off -fuzz=Fuzz -fuzztime=1x fatal_fuzz_test.go
 ! stdout ^ok
 stdout FAIL
 
 # Test error with seed corpus in f.Fuzz
-! go test -run FuzzError fuzz_add_test.go
+! go test -vet=off -run Fuzz_error -vet=off fuzz_add_test.go
 ! stdout ^ok
 stdout FAIL
 stdout 'error here'
@@ -48,44 +51,44 @@ stdout 'error here'
 [short] stop
 
 # Test that calling panic(nil) in a fuzz target causes a non-zero exit status.
-! go test panic_fuzz_test.go
+! go test -vet=off panic_fuzz_test.go
 ! stdout ^ok
 stdout FAIL
 
 # Test that skipped test exits cleanly.
-go test skipped_fuzz_test.go
+go test -vet=off skipped_fuzz_test.go
 stdout ok
 ! stdout FAIL
 
 # Test that f.Fatal within f.Fuzz panics
-! go test fatal_fuzz_fn_fuzz_test.go
+! go test -vet=off fatal_fuzz_fn_fuzz_test.go
 ! stdout ^ok
 ! stdout 'fatal here'
 stdout FAIL
 stdout 'fuzz target'
 
 # Test that f.Error within f.Fuzz panics
-! go test error_fuzz_fn_fuzz_test.go
+! go test -vet=off error_fuzz_fn_fuzz_test.go
 ! stdout ^ok
 ! stdout 'error here'
 stdout FAIL
 stdout 'fuzz target'
 
 # Test that f.Fail within f.Fuzz panics
-! go test fail_fuzz_fn_fuzz_test.go
+! go test -vet=off fail_fuzz_fn_fuzz_test.go
 ! stdout ^ok
 stdout FAIL
 stdout 'fuzz target'
 
 # Test that f.Skip within f.Fuzz panics
-! go test skip_fuzz_fn_fuzz_test.go
+! go test -vet=off skip_fuzz_fn_fuzz_test.go
 ! stdout ^ok
 ! stdout 'skip here'
 stdout FAIL
 stdout 'fuzz target'
 
 # Test that f.Skipped within f.Fuzz panics
-! go test skipped_fuzz_fn_fuzz_test.go
+! go test -vet=off skipped_fuzz_fn_fuzz_test.go
 ! stdout ^ok
 ! stdout 'f.Skipped is'
 stdout FAIL
@@ -93,110 +96,110 @@ stdout 'fuzz target'
 stdout 't.Skipped is false'
 
 # Test that runtime.Goexit within the fuzz function is an error.
-! go test goexit_fuzz_fn_fuzz_test.go
+! go test -vet=off goexit_fuzz_fn_fuzz_test.go
 ! stdout ^ok
 stdout FAIL
 
 # Test that a call to f.Fatal after the Fuzz func is executed.
-! go test fatal_after_fuzz_func_fuzz_test.go
+! go test -vet=off fatal_after_fuzz_func_fuzz_test.go
 ! stdout ok
 stdout FAIL
 
 # Test that missing *T in f.Fuzz causes a non-zero exit status.
-! go test incomplete_fuzz_call_fuzz_test.go
+! go test -vet=off incomplete_fuzz_call_fuzz_test.go
 ! stdout ^ok
 stdout FAIL
 
 # Test that a panic in the Cleanup func is executed.
-! go test cleanup_fuzz_test.go
+! go test -vet=off cleanup_fuzz_test.go
 ! stdout ^ok
 stdout FAIL
 stdout 'failed some precondition'
 
 # Test success with seed corpus in f.Fuzz
-go test -run FuzzPass fuzz_add_test.go
+go test -vet=off -run Fuzz_pass -vet=off fuzz_add_test.go
 stdout ok
 ! stdout FAIL
 ! stdout 'off by one error'
 
 # Test fatal with seed corpus in f.Fuzz
-! go test -run FuzzFatal fuzz_add_test.go
+! go test -vet=off -run Fuzz_fatal -vet=off fuzz_add_test.go
 ! stdout ^ok
 stdout FAIL
 stdout 'fatal here'
 
 # Test panic with seed corpus in f.Fuzz
-! go test -run FuzzPanic fuzz_add_test.go
+! go test -vet=off -run Fuzz_panic -vet=off fuzz_add_test.go
 ! stdout ^ok
 stdout FAIL
 stdout 'off by one error'
 
 # Test panic(nil) with seed corpus in f.Fuzz
-! go test -run FuzzNilPanic fuzz_add_test.go
+! go test -vet=off -run Fuzz_nilPanic -vet=off fuzz_add_test.go
 ! stdout ^ok
 stdout FAIL
 
 # Test panic with unsupported seed corpus
-! go test -run FuzzUnsupported fuzz_add_test.go
+! go test -vet=off -run Fuzz_unsupported -vet=off fuzz_add_test.go
 ! stdout ^ok
 stdout FAIL
 
 # Test panic with different number of args to f.Add
-! go test -run FuzzAddDifferentNumber fuzz_add_test.go
+! go test -vet=off -run Fuzz_addDifferentNumber -vet=off fuzz_add_test.go
 ! stdout ^ok
 stdout FAIL
 
 # Test panic with different type of args to f.Add
-! go test -run FuzzAddDifferentType fuzz_add_test.go
+! go test -vet=off -run Fuzz_addDifferentType -vet=off fuzz_add_test.go
 ! stdout ^ok
 stdout FAIL
 
 # Test that the wrong type given with f.Add will fail.
-! go test -run FuzzWrongType fuzz_add_test.go
+! go test -vet=off -run Fuzz_wrongType -vet=off fuzz_add_test.go
 ! stdout ^ok
 stdout '\[string int\], want \[\[\]uint8 int8\]'
 stdout FAIL
 
 # Test fatal with testdata seed corpus
-! go test -run FuzzFail corpustesting/fuzz_testdata_corpus_test.go
+! go test -vet=off -run Fuzz_fail corpustesting/fuzz_testdata_corpus_test.go
 ! stdout ^ok
 stdout FAIL
 stdout 'fatal here'
 
 # Test pass with testdata seed corpus
-go test -run FuzzPass corpustesting/fuzz_testdata_corpus_test.go
+go test -vet=off -run Fuzz_pass corpustesting/fuzz_testdata_corpus_test.go
 stdout ok
 ! stdout FAIL
 ! stdout 'fatal here'
 
 # Test pass with testdata and f.Add seed corpus
-go test -run FuzzPassString corpustesting/fuzz_testdata_corpus_test.go
+go test -vet=off -run Fuzz_passString corpustesting/fuzz_testdata_corpus_test.go
 stdout ok
 ! stdout FAIL
 
 # Fuzzing pass with testdata and f.Add seed corpus (skip running tests first)
-go test -run=None -fuzz=FuzzPassString corpustesting/fuzz_testdata_corpus_test.go -fuzztime=10x
+go test -vet=off -run=None -fuzz=Fuzz_passString corpustesting/fuzz_testdata_corpus_test.go -fuzztime=10x
 stdout ok
 ! stdout FAIL
 
 # Fuzzing pass with testdata and f.Add seed corpus
-go test -run=FuzzPassString -fuzz=FuzzPassString corpustesting/fuzz_testdata_corpus_test.go -fuzztime=10x
+go test -vet=off -run=Fuzz_passString -fuzz=Fuzz_passString corpustesting/fuzz_testdata_corpus_test.go -fuzztime=10x
 stdout ok
 ! stdout FAIL
 
 # Test panic with malformed seed corpus
-! go test -run FuzzFail corpustesting/fuzz_testdata_corpus_test.go
+! go test -vet=off -run Fuzz_fail corpustesting/fuzz_testdata_corpus_test.go
 ! stdout ^ok
 stdout FAIL
 
 # Test pass with file in other nested testdata directory
-go test -run FuzzInNestedDir corpustesting/fuzz_testdata_corpus_test.go
+go test -vet=off -run Fuzz_inNestedDir corpustesting/fuzz_testdata_corpus_test.go
 stdout ok
 ! stdout FAIL
 ! stdout 'fatal here'
 
 # Test fails with file containing wrong type
-! go test -run FuzzWrongType corpustesting/fuzz_testdata_corpus_test.go
+! go test -vet=off -run Fuzz_wrongType corpustesting/fuzz_testdata_corpus_test.go
 ! stdout ^ok
 stdout FAIL
 
@@ -230,7 +233,7 @@ package panic_fuzz
 
 import "testing"
 
-func FuzzPanic(f *testing.F) {
+func Fuzz_panic(f *testing.F) {
     panic(nil)
 }
 
@@ -374,7 +377,7 @@ func add(f *testing.F) {
     f.Add([]byte(""))
 }
 
-func FuzzPass(f *testing.F) {
+func Fuzz_pass(f *testing.F) {
     add(f)
     f.Fuzz(func(t *testing.T, b []byte) {
         if len(b) == -1 {
@@ -383,7 +386,7 @@ func FuzzPass(f *testing.F) {
     })
 }
 
-func FuzzError(f *testing.F) {
+func Fuzz_error(f *testing.F) {
     add(f)
     f.Fuzz(func(t *testing.T, b []byte) {
         if len(b) == 3 {
@@ -392,7 +395,7 @@ func FuzzError(f *testing.F) {
     })
 }
 
-func FuzzFatal(f *testing.F) {
+func Fuzz_fatal(f *testing.F) {
     add(f)
     f.Fuzz(func(t *testing.T, b []byte) {
         if len(b) == 0 {
@@ -401,7 +404,7 @@ func FuzzFatal(f *testing.F) {
     })
 }
 
-func FuzzPanic(f *testing.F) {
+func Fuzz_panic(f *testing.F) {
     add(f)
     f.Fuzz(func(t *testing.T, b []byte) {
         if len(b) == 5 {
@@ -410,7 +413,7 @@ func FuzzPanic(f *testing.F) {
     })
 }
 
-func FuzzNilPanic(f *testing.F) {
+func Fuzz_nilPanic(f *testing.F) {
     add(f)
     f.Fuzz(func(t *testing.T, b []byte) {
         if len(b) == 3 {
@@ -419,25 +422,25 @@ func FuzzNilPanic(f *testing.F) {
     })
 }
 
-func FuzzUnsupported(f *testing.F) {
+func Fuzz_unsupported(f *testing.F) {
     m := make(map[string]bool)
     f.Add(m)
     f.Fuzz(func(*testing.T, []byte) {})
 }
 
-func FuzzAddDifferentNumber(f *testing.F) {
+func Fuzz_addDifferentNumber(f *testing.F) {
     f.Add([]byte("a"))
     f.Add([]byte("a"), []byte("b"))
     f.Fuzz(func(*testing.T, []byte) {})
 }
 
-func FuzzAddDifferentType(f *testing.F) {
+func Fuzz_addDifferentType(f *testing.F) {
     f.Add(false)
     f.Add(1234)
     f.Fuzz(func(*testing.T, []byte) {})
 }
 
-func FuzzWrongType(f *testing.F) {
+func Fuzz_wrongType(f *testing.F) {
     f.Add("hello", 50)
     f.Fuzz(func(*testing.T, []byte, int8) {})
 }
@@ -456,45 +459,45 @@ func fuzzFn(f *testing.F) {
     })
 }
 
-func FuzzFail(f *testing.F) {
+func Fuzz_fail(f *testing.F) {
     fuzzFn(f)
 }
 
-func FuzzPass(f *testing.F) {
+func Fuzz_pass(f *testing.F) {
     fuzzFn(f)
 }
 
-func FuzzPassString(f *testing.F) {
+func Fuzz_passString(f *testing.F) {
     f.Add("some seed corpus")
     f.Fuzz(func(*testing.T, string) {})
 }
 
-func FuzzPanic(f *testing.F) {
+func Fuzz_panic(f *testing.F) {
     f.Fuzz(func(t *testing.T, b []byte) {})
 }
 
-func FuzzInNestedDir(f *testing.F) {
+func Fuzz_inNestedDir(f *testing.F) {
     f.Fuzz(func(t *testing.T, b []byte) {})
 }
 
-func FuzzWrongType(f *testing.F) {
+func Fuzz_wrongType(f *testing.F) {
     f.Fuzz(func(t *testing.T, b []byte) {})
 }
 
--- corpustesting/testdata/fuzz/FuzzFail/1 --
+-- corpustesting/testdata/fuzz/Fuzz_fail/1 --
 go test fuzz v1
 []byte("12345")
--- corpustesting/testdata/fuzz/FuzzPass/1 --
+-- corpustesting/testdata/fuzz/Fuzz_pass/1 --
 go test fuzz v1
 []byte("00000")
--- corpustesting/testdata/fuzz/FuzzPassString/1 --
+-- corpustesting/testdata/fuzz/Fuzz_passString/1 --
 go test fuzz v1
 string("hello")
--- corpustesting/testdata/fuzz/FuzzPanic/1 --
+-- corpustesting/testdata/fuzz/Fuzz_panic/1 --
 malformed
--- corpustesting/testdata/fuzz/FuzzInNestedDir/anotherdir/1 --
+-- corpustesting/testdata/fuzz/Fuzz_inNestedDir/anotherdir/1 --
 go test fuzz v1
 []byte("12345")
--- corpustesting/testdata/fuzz/FuzzWrongType/1 --
+-- corpustesting/testdata/fuzz/Fuzz_wrongType/1 --
 go test fuzz v1
 int("00000")

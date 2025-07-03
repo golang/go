@@ -15,6 +15,11 @@ Execution of the template walks the structure and sets the cursor, represented
 by a period '.' and called "dot", to the value at the current location in the
 structure as execution proceeds.
 
+The security model used by this package assumes that template authors are
+trusted. The package does not auto-escape output, so injecting code into
+a template can lead to arbitrary code execution if the template is executed
+by an untrusted source.
+
 The input text for a template is UTF-8-encoded text in any format.
 "Actions"--data evaluations or control structures--are delimited by
 "{{" and "}}"; all text outside actions is copied to the output unchanged.
@@ -98,7 +103,8 @@ data, defined in detail in the corresponding sections that follow.
 			{{if pipeline}} T1 {{else}}{{if pipeline}} T0 {{end}}{{end}}
 
 	{{range pipeline}} T1 {{end}}
-		The value of the pipeline must be an array, slice, map, or channel.
+		The value of the pipeline must be an array, slice, map, iter.Seq,
+		iter.Seq2, integer or channel.
 		If the value of the pipeline has length zero, nothing is output;
 		otherwise, dot is set to the successive elements of the array,
 		slice, or map and T1 is executed. If the value is a map and the
@@ -106,7 +112,8 @@ data, defined in detail in the corresponding sections that follow.
 		visited in sorted key order.
 
 	{{range pipeline}} T1 {{else}} T0 {{end}}
-		The value of the pipeline must be an array, slice, map, or channel.
+		The value of the pipeline must be an array, slice, map, iter.Seq,
+		iter.Seq2, integer or channel.
 		If the value of the pipeline has length zero, dot is unaffected and
 		T0 is executed; otherwise, dot is set to the successive elements
 		of the array, slice, or map and T1 is executed.
@@ -144,6 +151,13 @@ data, defined in detail in the corresponding sections that follow.
 		is executed; otherwise, dot is set to the value of the pipeline
 		and T1 is executed.
 
+	{{with pipeline}} T1 {{else with pipeline}} T0 {{end}}
+		To simplify the appearance of with-else chains, the else action
+		of a with may include another with directly; the effect is exactly
+		the same as writing
+			{{with pipeline}} T1 {{else}}{{with pipeline}} T0 {{end}}{{end}}
+
+
 Arguments
 
 An argument is a simple value, denoted by one of the following.
@@ -155,37 +169,55 @@ An argument is a simple value, denoted by one of the following.
 	  the host machine's ints are 32 or 64 bits.
 	- The keyword nil, representing an untyped Go nil.
 	- The character '.' (period):
+
 		.
+
 	  The result is the value of dot.
 	- A variable name, which is a (possibly empty) alphanumeric string
 	  preceded by a dollar sign, such as
+
 		$piOver2
+
 	  or
+
 		$
+
 	  The result is the value of the variable.
 	  Variables are described below.
 	- The name of a field of the data, which must be a struct, preceded
 	  by a period, such as
+
 		.Field
+
 	  The result is the value of the field. Field invocations may be
 	  chained:
+
 	    .Field1.Field2
+
 	  Fields can also be evaluated on variables, including chaining:
+
 	    $x.Field1.Field2
 	- The name of a key of the data, which must be a map, preceded
 	  by a period, such as
+
 		.Key
+
 	  The result is the map element value indexed by the key.
 	  Key invocations may be chained and combined with fields to any
 	  depth:
+
 	    .Field1.Key1.Field2.Key2
+
 	  Although the key must be an alphanumeric identifier, unlike with
 	  field names they do not need to start with an upper case letter.
 	  Keys can also be evaluated on variables, including chaining:
+
 	    $x.key1.key2
 	- The name of a niladic method of the data, preceded by a period,
 	  such as
+
 		.Method
+
 	  The result is the value of invoking the method with dot as the
 	  receiver, dot.Method(). Such a method must have one return value (of
 	  any type) or two return values, the second of which is an error.
@@ -193,16 +225,22 @@ An argument is a simple value, denoted by one of the following.
 	  and an error is returned to the caller as the value of Execute.
 	  Method invocations may be chained and combined with fields and keys
 	  to any depth:
+
 	    .Field1.Key1.Method1.Field2.Key2.Method2
+
 	  Methods can also be evaluated on variables, including chaining:
+
 	    $x.Method1.Field
 	- The name of a niladic function, such as
+
 		fun
+
 	  The result is the value of invoking the function, fun(). The return
 	  types and values behave as in methods. Functions and function
 	  names are described below.
 	- A parenthesized instance of one the above, for grouping. The result
 	  may be accessed by a field or map key invocation.
+
 		print (.F1 arg1) (.F2 arg2)
 		(.StructValuedMethod "arg").Field
 
@@ -438,13 +476,13 @@ produce the text
 By construction, a template may reside in only one association. If it's
 necessary to have a template addressable from multiple associations, the
 template definition must be parsed multiple times to create distinct *Template
-values, or must be copied with the Clone or AddParseTree method.
+values, or must be copied with [Template.Clone] or [Template.AddParseTree].
 
 Parse may be called multiple times to assemble the various associated templates;
-see the ParseFiles and ParseGlob functions and methods for simple ways to parse
-related templates stored in files.
+see [ParseFiles], [ParseGlob], [Template.ParseFiles] and [Template.ParseGlob]
+for simple ways to parse related templates stored in files.
 
-A template may be executed directly or through ExecuteTemplate, which executes
+A template may be executed directly or through [Template.ExecuteTemplate], which executes
 an associated template identified by name. To invoke our example above, we
 might write,
 

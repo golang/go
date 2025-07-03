@@ -24,7 +24,7 @@ package runtime
 
 import (
 	"internal/goarch"
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -237,6 +237,9 @@ func wbBufFlush1(pp *p) {
 			// path to reduce the rate of flushes?
 			continue
 		}
+		if tryDeferToSpanScan(ptr, gcw) {
+			continue
+		}
 		obj, span, objIndex := findObject(ptr, 0, 0)
 		if obj == 0 {
 			continue
@@ -264,7 +267,7 @@ func wbBufFlush1(pp *p) {
 	}
 
 	// Enqueue the greyed objects.
-	gcw.putBatch(ptrs[:pos])
+	gcw.putObjBatch(ptrs[:pos])
 
 	pp.wbBuf.reset()
 }

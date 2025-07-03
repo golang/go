@@ -30,7 +30,7 @@ const (
 func goenvs() {
 	buf := make([]byte, envBufSize)
 	copy(buf, envDir)
-	dirfd := open(&buf[0], _OREAD, 0)
+	dirfd := open(&buf[0], _OREAD|_OCEXEC, 0)
 	if dirfd < 0 {
 		return
 	}
@@ -40,7 +40,7 @@ func goenvs() {
 		buf = buf[:len(envDir)]
 		copy(buf, envDir)
 		buf = append(buf, name...)
-		fd := open(&buf[0], _OREAD, 0)
+		fd := open(&buf[0], _OREAD|_OCEXEC, 0)
 		if fd < 0 {
 			return
 		}

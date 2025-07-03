@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#ifdef __CYGWIN__
+#error "don't use the cygwin compiler to build native Windows programs; use MinGW instead"
+#endif
+
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include <process.h>
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 
 #include "libcgo.h"
 #include "libcgo_windows.h"
@@ -63,14 +65,16 @@ _cgo_maybe_run_preinit() {
 }
 
 void
-x_cgo_sys_thread_create(void (*func)(void*), void* arg) {
+x_cgo_sys_thread_create(unsigned long (__stdcall *func)(void*), void* arg) {
 	_cgo_beginthread(func, arg);
 }
 
 int
 _cgo_is_runtime_initialized() {
+	 int status;
+
 	 EnterCriticalSection(&runtime_init_cs);
-	 int status = runtime_init_done;
+	 status = runtime_init_done;
 	 LeaveCriticalSection(&runtime_init_cs);
 	 return status;
 }
@@ -135,24 +139,25 @@ void (*(_cgo_get_context_function(void)))(struct context_arg*) {
 	return ret;
 }
 
-void _cgo_beginthread(void (*func)(void*), void* arg) {
+void _cgo_beginthread(unsigned long (__stdcall *func)(void*), void* arg) {
 	int tries;
-	uintptr_t thandle;
+	HANDLE thandle;
 
 	for (tries = 0; tries < 20; tries++) {
-		thandle = _beginthread(func, 0, arg);
-		if (thandle == -1 && errno == EACCES) {
+		thandle = CreateThread(NULL, 0, func, arg, 0, NULL);
+		if (thandle == 0 && GetLastError() == ERROR_NOT_ENOUGH_MEMORY) {
 			// "Insufficient resources", try again in a bit.
 			//
 			// Note that the first Sleep(0) is a yield.
 			Sleep(tries); // milliseconds
 			continue;
-		} else if (thandle == -1) {
+		} else if (thandle == 0) {
 			break;
 		}
+		CloseHandle(thandle);
 		return; // Success!
 	}
 
-	fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
+	fprintf(stderr, "runtime: failed to create new OS thread (%lu)\n", GetLastError());
 	abort();
 }

@@ -96,7 +96,7 @@ type Note struct {
 	Body     string    // note body text
 }
 
-// Mode values control the operation of New and NewFromFiles.
+// Mode values control the operation of [New] and [NewFromFiles].
 type Mode int
 
 const (
@@ -116,7 +116,7 @@ const (
 
 // New computes the package documentation for the given package AST.
 // New takes ownership of the AST pkg and may edit or overwrite it.
-// To have the Examples fields populated, use NewFromFiles and include
+// To have the [Examples] fields populated, use [NewFromFiles] and include
 // the package's _test.go files.
 func New(pkg *ast.Package, importPath string, mode Mode) *Package {
 	var r reader
@@ -188,6 +188,7 @@ func (p *Package) collectFuncs(funcs []*Func) {
 //
 // The package is specified by a list of *ast.Files and corresponding
 // file set, which must not be nil.
+//
 // NewFromFiles uses all provided files when computing documentation,
 // so it is the caller's responsibility to provide only the files that
 // match the desired build context. "go/build".Context.MatchFile can
@@ -198,9 +199,9 @@ func (p *Package) collectFuncs(funcs []*Func) {
 // Examples found in _test.go files are associated with the corresponding
 // type, function, method, or the package, based on their name.
 // If the example has a suffix in its name, it is set in the
-// Example.Suffix field. Examples with malformed names are skipped.
+// [Example.Suffix] field. [Examples] with malformed names are skipped.
 //
-// Optionally, a single extra argument of type Mode can be provided to
+// Optionally, a single extra argument of type [Mode] can be provided to
 // control low-level aspects of the documentation extraction behavior.
 //
 // NewFromFiles takes ownership of the AST files and may edit them,
@@ -226,47 +227,36 @@ func NewFromFiles(fset *token.FileSet, files []*ast.File, importPath string, opt
 
 	// Collect .go and _test.go files.
 	var (
+		pkgName     string
 		goFiles     = make(map[string]*ast.File)
 		testGoFiles []*ast.File
 	)
-	for i := range files {
-		f := fset.File(files[i].Pos())
+	for i, file := range files {
+		f := fset.File(file.Pos())
 		if f == nil {
 			return nil, fmt.Errorf("file files[%d] is not found in the provided file set", i)
 		}
-		switch name := f.Name(); {
-		case strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, "_test.go"):
-			goFiles[name] = files[i]
-		case strings.HasSuffix(name, "_test.go"):
-			testGoFiles = append(testGoFiles, files[i])
+		switch filename := f.Name(); {
+		case strings.HasSuffix(filename, "_test.go"):
+			testGoFiles = append(testGoFiles, file)
+		case strings.HasSuffix(filename, ".go"):
+			pkgName = file.Name.Name
+			goFiles[filename] = file
 		default:
-			return nil, fmt.Errorf("file files[%d] filename %q does not have a .go extension", i, name)
+			return nil, fmt.Errorf("file files[%d] filename %q does not have a .go extension", i, filename)
 		}
 	}
 
-	// TODO(dmitshur,gri): A relatively high level call to ast.NewPackage with a simpleImporter
-	// ast.Importer implementation is made below. It might be possible to short-circuit and simplify.
-
 	// Compute package documentation.
-	pkg, _ := ast.NewPackage(fset, goFiles, simpleImporter, nil) // Ignore errors that can happen due to unresolved identifiers.
+	//
+	// Since this package doesn't need Package.{Scope,Imports}, or
+	// handle errors, and ast.File's Scope field is unset in files
+	// parsed with parser.SkipObjectResolution, we construct the
+	// Package directly instead of calling [ast.NewPackage].
+	pkg := &ast.Package{Name: pkgName, Files: goFiles}
 	p := New(pkg, importPath, mode)
 	classifyExamples(p, Examples(testGoFiles...))
 	return p, nil
-}
-
-// simpleImporter returns a (dummy) package object named by the last path
-// component of the provided package path (as is the convention for packages).
-// This is sufficient to resolve package identifiers without doing an actual
-// import. It never returns an error.
-func simpleImporter(imports map[string]*ast.Object, path string) (*ast.Object, error) {
-	pkg := imports[path]
-	if pkg == nil {
-		// note that strings.LastIndex returns -1 if there is no "/"
-		pkg = ast.NewObj(ast.Pkg, path[strings.LastIndex(path, "/")+1:])
-		pkg.Data = ast.NewScope(nil) // required by ast.NewPackage for dot-import
-		imports[path] = pkg
-	}
-	return pkg, nil
 }
 
 // lookupSym reports whether the package has a given symbol or method.

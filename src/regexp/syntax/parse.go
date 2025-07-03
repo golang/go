@@ -7,6 +7,7 @@ package syntax
 import (
 	"sort"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 )
@@ -249,9 +250,7 @@ func (p *parser) calcSize(re *Regexp, force bool) int64 {
 		size = int64(re.Max)*sub + int64(re.Max-re.Min)
 	}
 
-	if size < 1 {
-		size = 1
-	}
+	size = max(1, size)
 	p.size[re] = size
 	return size
 }
@@ -382,14 +381,12 @@ func minFoldRune(r rune) rune {
 	if r < minFold || r > maxFold {
 		return r
 	}
-	min := r
+	m := r
 	r0 := r
 	for r = unicode.SimpleFold(r); r != r0; r = unicode.SimpleFold(r) {
-		if min > r {
-			min = r
-		}
+		m = min(m, r)
 	}
-	return min
+	return m
 }
 
 // op pushes a regexp with the given op onto the stack
@@ -625,7 +622,7 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
 		}
 
 		// Found end of a run with common leading literal string:
-		// sub[start:i] all begin with str[0:len(str)], but sub[i]
+		// sub[start:i] all begin with str[:len(str)], but sub[i]
 		// does not even begin with str[0].
 		//
 		// Factor out common string and append factored expression to out.
@@ -945,9 +942,7 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			p.op(opLeftParen).Cap = p.numCap
 			t = t[1:]
 		case '|':
-			if err = p.parseVerticalBar(); err != nil {
-				return nil, err
-			}
+			p.parseVerticalBar()
 			t = t[1:]
 		case ')':
 			if err = p.parseRightParen(); err != nil {
@@ -1332,7 +1327,7 @@ func matchRune(re *Regexp, r rune) bool {
 }
 
 // parseVerticalBar handles a | in the input.
-func (p *parser) parseVerticalBar() error {
+func (p *parser) parseVerticalBar() {
 	p.concat()
 
 	// The concatenation we just parsed is on top of the stack.
@@ -1342,8 +1337,6 @@ func (p *parser) parseVerticalBar() error {
 	if !p.swapVerticalBar() {
 		p.op(opVerticalBar)
 	}
-
-	return nil
 }
 
 // mergeCharClass makes dst = dst|src.
@@ -1584,6 +1577,8 @@ type charGroup struct {
 	class []rune
 }
 
+//go:generate perl make_perl_groups.pl perl_groups.go
+
 // parsePerlClassEscape parses a leading Perl character class escape like \d
 // from the beginning of s. If one is present, it appends the characters to r
 // and returns the new slice r and the remainder of the string.
@@ -1645,20 +1640,109 @@ var anyTable = &unicode.RangeTable{
 	R32: []unicode.Range32{{Lo: 1 << 16, Hi: unicode.MaxRune, Stride: 1}},
 }
 
+var asciiTable = &unicode.RangeTable{
+	R16: []unicode.Range16{{Lo: 0, Hi: 0x7F, Stride: 1}},
+}
+
+var asciiFoldTable = &unicode.RangeTable{
+	R16: []unicode.Range16{
+		{Lo: 0, Hi: 0x7F, Stride: 1},
+		{Lo: 0x017F, Hi: 0x017F, Stride: 1}, // Old English long s (ſ), folds to S/s.
+		{Lo: 0x212A, Hi: 0x212A, Stride: 1}, // Kelvin K, folds to K/k.
+	},
+}
+
+// categoryAliases is a lazily constructed copy of unicode.CategoryAliases
+// but with the keys passed through canonicalName, to support inexact matches.
+var categoryAliases struct {
+	once sync.Once
+	m    map[string]string
+}
+
+// initCategoryAliases initializes categoryAliases by canonicalizing unicode.CategoryAliases.
+func initCategoryAliases() {
+	categoryAliases.m = make(map[string]string)
+	for name, actual := range unicode.CategoryAliases {
+		categoryAliases.m[canonicalName(name)] = actual
+	}
+}
+
+// canonicalName returns the canonical lookup string for name.
+// The canonical name has a leading uppercase letter and then lowercase letters,
+// and it omits all underscores, spaces, and hyphens.
+// (We could have used all lowercase, but this way most package unicode
+// map keys are already canonical.)
+func canonicalName(name string) string {
+	var b []byte
+	first := true
+	for i := range len(name) {
+		c := name[i]
+		switch {
+		case c == '_' || c == '-' || c == ' ':
+			c = ' '
+		case first:
+			if 'a' <= c && c <= 'z' {
+				c -= 'a' - 'A'
+			}
+			first = false
+		default:
+			if 'A' <= c && c <= 'Z' {
+				c += 'a' - 'A'
+			}
+		}
+		if b == nil {
+			if c == name[i] && c != ' ' {
+				// No changes so far, avoid allocating b.
+				continue
+			}
+			b = make([]byte, i, len(name))
+			copy(b, name[:i])
+		}
+		if c == ' ' {
+			continue
+		}
+		b = append(b, c)
+	}
+	if b == nil {
+		return name
+	}
+	return string(b)
+}
+
 // unicodeTable returns the unicode.RangeTable identified by name
 // and the table of additional fold-equivalent code points.
-func unicodeTable(name string) (*unicode.RangeTable, *unicode.RangeTable) {
-	// Special case: "Any" means any.
-	if name == "Any" {
-		return anyTable, anyTable
+// If sign < 0, the result should be inverted.
+func unicodeTable(name string) (tab, fold *unicode.RangeTable, sign int) {
+	name = canonicalName(name)
+
+	// Special cases: Any, Assigned, and ASCII.
+	// Also LC is the only non-canonical Categories key, so handle it here.
+	switch name {
+	case "Any":
+		return anyTable, anyTable, +1
+	case "Assigned":
+		return unicode.Cn, unicode.Cn, -1 // invert Cn (unassigned)
+	case "Ascii":
+		return asciiTable, asciiFoldTable, +1
+	case "Lc":
+		return unicode.Categories["LC"], unicode.FoldCategory["LC"], +1
 	}
 	if t := unicode.Categories[name]; t != nil {
-		return t, unicode.FoldCategory[name]
+		return t, unicode.FoldCategory[name], +1
 	}
 	if t := unicode.Scripts[name]; t != nil {
-		return t, unicode.FoldScript[name]
+		return t, unicode.FoldScript[name], +1
 	}
-	return nil, nil
+
+	// unicode.CategoryAliases makes liberal use of underscores in its names
+	// (they are defined that way by Unicode), but we want to match ignoring
+	// the underscores, so make our own map with canonical names.
+	categoryAliases.once.Do(initCategoryAliases)
+	if actual := categoryAliases.m[name]; actual != "" {
+		t := unicode.Categories[actual]
+		return t, unicode.FoldCategory[actual], +1
+	}
+	return nil, nil, 0
 }
 
 // parseUnicodeClass parses a leading Unicode character class like \p{Han}
@@ -1706,9 +1790,12 @@ func (p *parser) parseUnicodeClass(s string, r []rune) (out []rune, rest string,
 		name = name[1:]
 	}
 
-	tab, fold := unicodeTable(name)
+	tab, fold, tsign := unicodeTable(name)
 	if tab == nil {
 		return nil, "", &Error{ErrInvalidCharRange, seq}
+	}
+	if tsign < 0 {
+		sign = -sign
 	}
 
 	if p.flags&FoldCase == 0 || fold == nil {

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !wasip1
-
 package net
 
 import (
@@ -13,6 +11,7 @@ import (
 	"net/internal/socktest"
 	"os"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 )
@@ -99,12 +98,12 @@ func TestCloseWrite(t *testing.T) {
 				}
 
 				// Workaround for https://go.dev/issue/49352.
-				// On arm64 macOS (current as of macOS 12.4),
+				// On Windows and arm64 macOS (current as of macOS 12.4),
 				// reading from a socket at the same time as the client
 				// is closing it occasionally hangs for 60 seconds before
 				// returning ECONNRESET. Sleep for a bit to give the
 				// socket time to close before trying to read from it.
-				if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+				if runtime.GOOS == "windows" || (runtime.GOOS == "darwin" && runtime.GOARCH == "arm64") {
 					time.Sleep(10 * time.Millisecond)
 				}
 
@@ -295,30 +294,6 @@ func TestPacketConnClose(t *testing.T) {
 	}
 }
 
-func TestListenCloseListen(t *testing.T) {
-	const maxTries = 10
-	for tries := 0; tries < maxTries; tries++ {
-		ln := newLocalListener(t, "tcp")
-		addr := ln.Addr().String()
-		// TODO: This is racy. The selected address could be reused in between this
-		// Close and the subsequent Listen.
-		if err := ln.Close(); err != nil {
-			if perr := parseCloseError(err, false); perr != nil {
-				t.Error(perr)
-			}
-			t.Fatal(err)
-		}
-		ln, err := Listen("tcp", addr)
-		if err == nil {
-			// Success. (This test didn't always make it here earlier.)
-			ln.Close()
-			return
-		}
-		t.Errorf("failed on try %d/%d: %v", tries+1, maxTries, err)
-	}
-	t.Fatalf("failed to listen/close/listen on same address after %d tries", maxTries)
-}
-
 // See golang.org/issue/6163, golang.org/issue/6987.
 func TestAcceptIgnoreAbortedConnRequest(t *testing.T) {
 	switch runtime.GOOS {
@@ -383,8 +358,16 @@ func TestZeroByteRead(t *testing.T) {
 
 			ln := newLocalListener(t, network)
 			connc := make(chan Conn, 1)
+			defer func() {
+				ln.Close()
+				for c := range connc {
+					if c != nil {
+						c.Close()
+					}
+				}
+			}()
 			go func() {
-				defer ln.Close()
+				defer close(connc)
 				c, err := ln.Accept()
 				if err != nil {
 					t.Error(err)
@@ -524,6 +507,46 @@ func TestCloseUnblocksRead(t *testing.T) {
 		return nil
 	}
 	withTCPConnPair(t, client, server)
+}
+
+// Issue 72770: verify that a blocked UDP read is woken up by a Close.
+func TestCloseUnblocksReadUDP(t *testing.T) {
+	t.Parallel()
+	var (
+		mu   sync.Mutex
+		done bool
+	)
+	defer func() {
+		mu.Lock()
+		defer mu.Unlock()
+		done = true
+	}()
+	pc, err := ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.AfterFunc(250*time.Millisecond, func() {
+		mu.Lock()
+		defer mu.Unlock()
+		if done {
+			return
+		}
+		t.Logf("closing conn...")
+		pc.Close()
+	})
+	timer := time.AfterFunc(time.Second*10, func() {
+		panic("timeout waiting for Close")
+	})
+	defer timer.Stop()
+
+	n, src, err := pc.(*UDPConn).ReadFromUDPAddrPort([]byte{})
+
+	// Check for n > 0. Checking err == nil alone isn't enough;
+	// on macOS, it returns (n=0, src=0.0.0.0:0, err=nil).
+	if n > 0 {
+		t.Fatalf("unexpected Read success from ReadFromUDPAddrPort; read %d bytes from %v, err=%v", n, src, err)
+	}
+	t.Logf("got expected UDP read error")
 }
 
 // Issue 24808: verify that ECONNRESET is not temporary for read.

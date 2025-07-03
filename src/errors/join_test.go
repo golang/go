@@ -70,3 +70,37 @@ func TestJoinErrorMethod(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkJoin(b *testing.B) {
+	for _, bb := range []struct {
+		name string
+		errs []error
+	}{
+		{
+			name: "no error",
+		},
+		{
+			name: "single non-nil error",
+			errs: []error{errors.New("err")},
+		},
+		{
+			name: "multiple errors",
+			errs: []error{errors.New("err"), errors.New("newerr"), errors.New("newerr2")},
+		},
+		{
+			name: "unwrappable single error",
+			errs: []error{errors.Join(errors.New("err"))},
+		},
+		{
+			name: "nil first error",
+			errs: []error{nil, errors.New("newerr")},
+		},
+	} {
+		b.Run(bb.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				_ = errors.Join(bb.errs...)
+			}
+		})
+	}
+}

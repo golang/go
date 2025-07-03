@@ -5,8 +5,9 @@
 package ast
 
 import (
+	"cmp"
 	"go/token"
-	"sort"
+	"slices"
 	"strconv"
 )
 
@@ -32,11 +33,11 @@ func SortImports(fset *token.FileSet, f *File) {
 		for j, s := range d.Specs {
 			if j > i && lineAt(fset, s.Pos()) > 1+lineAt(fset, d.Specs[j-1].End()) {
 				// j begins a new run. End this one.
-				specs = append(specs, sortSpecs(fset, f, d.Specs[i:j])...)
+				specs = append(specs, sortSpecs(fset, f, d, d.Specs[i:j])...)
 				i = j
 			}
 		}
-		specs = append(specs, sortSpecs(fset, f, d.Specs[i:])...)
+		specs = append(specs, sortSpecs(fset, f, d, d.Specs[i:])...)
 		d.Specs = specs
 
 		// Deduping can leave a blank line before the rparen; clean that up.
@@ -47,6 +48,16 @@ func SortImports(fset *token.FileSet, f *File) {
 			for rParenLine > lastLine+1 {
 				rParenLine--
 				fset.File(d.Rparen).MergeLine(rParenLine)
+			}
+		}
+	}
+
+	// Make File.Imports order consistent.
+	f.Imports = f.Imports[:0]
+	for _, decl := range f.Decls {
+		if decl, ok := decl.(*GenDecl); ok && decl.Tok == token.IMPORT {
+			for _, spec := range decl.Specs {
+				f.Imports = append(f.Imports, spec.(*ImportSpec))
 			}
 		}
 	}
@@ -98,7 +109,7 @@ type cgPos struct {
 	cg   *CommentGroup
 }
 
-func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
+func sortSpecs(fset *token.FileSet, f *File, d *GenDecl, specs []Spec) []Spec {
 	// Can't short-circuit here even if specs are already sorted,
 	// since they might yet need deduplication.
 	// A lone import, however, may be safely ignored.
@@ -172,18 +183,20 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
 	// Reassign the import paths to have the same position sequence.
 	// Reassign each comment to the spec on the same line.
 	// Sort the comments by new position.
-	sort.Slice(specs, func(i, j int) bool {
-		ipath := importPath(specs[i])
-		jpath := importPath(specs[j])
-		if ipath != jpath {
-			return ipath < jpath
+	slices.SortFunc(specs, func(a, b Spec) int {
+		ipath := importPath(a)
+		jpath := importPath(b)
+		r := cmp.Compare(ipath, jpath)
+		if r != 0 {
+			return r
 		}
-		iname := importName(specs[i])
-		jname := importName(specs[j])
-		if iname != jname {
-			return iname < jname
+		iname := importName(a)
+		jname := importName(b)
+		r = cmp.Compare(iname, jname)
+		if r != 0 {
+			return r
 		}
-		return importComment(specs[i]) < importComment(specs[j])
+		return cmp.Compare(importComment(a), importComment(b))
 	})
 
 	// Dedup. Thanks to our sorting, we can just consider
@@ -194,7 +207,11 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
 			deduped = append(deduped, s)
 		} else {
 			p := s.Pos()
-			fset.File(p).MergeLine(lineAt(fset, p))
+			// This function is exited early when len(specs) <= 1,
+			// so d.Rparen must be populated (d.Rparen.IsValid() == true).
+			if l := lineAt(fset, p); l != lineAt(fset, d.Rparen) {
+				fset.File(p).MergeLine(l)
+			}
 		}
 	}
 	specs = deduped
@@ -222,8 +239,8 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
 		}
 	}
 
-	sort.Slice(comments, func(i, j int) bool {
-		return comments[i].Pos() < comments[j].Pos()
+	slices.SortFunc(comments, func(a, b *CommentGroup) int {
+		return cmp.Compare(a.Pos(), b.Pos())
 	})
 
 	return specs

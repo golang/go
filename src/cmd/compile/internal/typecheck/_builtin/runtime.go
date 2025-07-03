@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // NOTE: If you change this file you must run "go generate"
+// in cmd/compile/internal/typecheck
 // to update builtin.go. This is not done automatically
 // to avoid depending on having a working compiler binary.
 
@@ -70,6 +71,12 @@ func concatstring4(*[32]byte, string, string, string, string) string
 func concatstring5(*[32]byte, string, string, string, string, string) string
 func concatstrings(*[32]byte, []string) string
 
+func concatbyte2(*[32]byte, string, string) []byte
+func concatbyte3(*[32]byte, string, string, string) []byte
+func concatbyte4(*[32]byte, string, string, string, string) []byte
+func concatbyte5(*[32]byte, string, string, string, string, string) []byte
+func concatbytes(*[32]byte, []string) []byte
+
 func cmpstring(string, string) int
 func intstring(*[4]byte, int64) string
 func slicebytetostring(buf *[32]byte, ptr *byte, n int) string
@@ -81,9 +88,6 @@ func slicecopy(toPtr *any, toLen int, fromPtr *any, fromLen int, wid uintptr) in
 
 func decoderune(string, int) (retv rune, retk int)
 func countrunes(string) int
-
-// Non-empty-interface to non-empty-interface conversion.
-func convI2I(typ *byte, itab *uintptr) (ret *uintptr)
 
 // Convert non-interface type to the data word of a (empty or nonempty) interface.
 func convT(typ *byte, elem *any) unsafe.Pointer
@@ -105,19 +109,28 @@ func convTslice(val []uint8) unsafe.Pointer
 
 // interface type assertions x.(T)
 func assertE2I(inter *byte, typ *byte) *byte
-func assertE2I2(inter *byte, eface any) (ret any)
-func assertI2I(inter *byte, tab *byte) *byte
-func assertI2I2(inter *byte, iface any) (ret any)
+func assertE2I2(inter *byte, typ *byte) *byte
 func panicdottypeE(have, want, iface *byte)
 func panicdottypeI(have, want, iface *byte)
 func panicnildottype(want *byte)
+func typeAssert(s *byte, typ *byte) *byte
+
+// interface switches
+func interfaceSwitch(s *byte, t *byte) (int, *byte)
 
 // interface equality. Type/itab pointers are already known to be equal, so
 // we only need to pass one.
 func ifaceeq(tab *uintptr, x, y unsafe.Pointer) (ret bool)
 func efaceeq(typ *uintptr, x, y unsafe.Pointer) (ret bool)
 
-func fastrand() uint32
+// panic for various rangefunc iterator errors
+func panicrangestate(state int)
+
+// defer in range over func
+func deferrangefunc() interface{}
+
+func rand() uint64
+func rand32() uint32
 
 // *byte is really *runtime.Type
 func makemap64(mapType *byte, hint int64, mapbuf *any) (hmap map[any]any)
@@ -139,12 +152,14 @@ func mapassign_fast32ptr(mapType *byte, hmap map[any]any, key unsafe.Pointer) (v
 func mapassign_fast64(mapType *byte, hmap map[any]any, key uint64) (val *any)
 func mapassign_fast64ptr(mapType *byte, hmap map[any]any, key unsafe.Pointer) (val *any)
 func mapassign_faststr(mapType *byte, hmap map[any]any, key string) (val *any)
-func mapiterinit(mapType *byte, hmap map[any]any, hiter *any)
+func mapiterinit(mapType *byte, hmap map[any]any, hiter *any)  // old maps
+func mapIterStart(mapType *byte, hmap map[any]any, hiter *any) // swiss maps
 func mapdelete(mapType *byte, hmap map[any]any, key *any)
 func mapdelete_fast32(mapType *byte, hmap map[any]any, key uint32)
 func mapdelete_fast64(mapType *byte, hmap map[any]any, key uint64)
 func mapdelete_faststr(mapType *byte, hmap map[any]any, key string)
-func mapiternext(hiter *any)
+func mapiternext(hiter *any) // old maps
+func mapIterNext(hiter *any) // swiss maps
 func mapclear(mapType *byte, hmap map[any]any)
 
 // *byte is really *runtime.Type
@@ -153,12 +168,13 @@ func makechan(chanType *byte, size int) (hchan chan any)
 func chanrecv1(hchan <-chan any, elem *any)
 func chanrecv2(hchan <-chan any, elem *any) bool
 func chansend1(hchan chan<- any, elem *any)
-func closechan(hchan any)
+func closechan(hchan chan<- any)
+func chanlen(hchan any) int
+func chancap(hchan any) int
 
 var writeBarrier struct {
 	enabled bool
 	pad     [3]byte
-	needed  bool
 	cgo     bool
 	alignme uint64
 }
@@ -185,8 +201,6 @@ func panicunsafeslicenilptr()
 func unsafestringcheckptr(ptr unsafe.Pointer, len int64)
 func panicunsafestringlen()
 func panicunsafestringnilptr()
-
-func mulUintptr(x, y uintptr) (uintptr, bool)
 
 func memmove(to *any, frm *any, length uintptr)
 func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
@@ -238,9 +252,6 @@ func uint32tofloat64(uint32) float64
 
 func complex128div(num complex128, den complex128) (quo complex128)
 
-func getcallerpc() uintptr
-func getcallersp() uintptr
-
 // race detection
 func racefuncenter(uintptr)
 func racefuncexit()
@@ -280,5 +291,9 @@ var x86HasSSE41 bool
 var x86HasFMA bool
 var armHasVFPv4 bool
 var arm64HasATOMICS bool
+var loong64HasLAMCAS bool
+var loong64HasLAM_BH bool
+var loong64HasLSX bool
+var riscv64HasZbb bool
 
 func asanregisterglobals(unsafe.Pointer, uintptr)

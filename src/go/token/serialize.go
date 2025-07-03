@@ -4,6 +4,8 @@
 
 package token
 
+import "slices"
+
 type serializedFile struct {
 	// fields correspond 1:1 to fields with same (lower-case) name in File
 	Name  string
@@ -27,18 +29,15 @@ func (s *FileSet) Read(decode func(any) error) error {
 
 	s.mutex.Lock()
 	s.base = ss.Base
-	files := make([]*File, len(ss.Files))
-	for i := 0; i < len(ss.Files); i++ {
-		f := &ss.Files[i]
-		files[i] = &File{
+	for _, f := range ss.Files {
+		s.tree.add(&File{
 			name:  f.Name,
 			base:  f.Base,
 			size:  f.Size,
 			lines: f.Lines,
 			infos: f.Infos,
-		}
+		})
 	}
-	s.files = files
 	s.last.Store(nil)
 	s.mutex.Unlock()
 
@@ -51,16 +50,16 @@ func (s *FileSet) Write(encode func(any) error) error {
 
 	s.mutex.Lock()
 	ss.Base = s.base
-	files := make([]serializedFile, len(s.files))
-	for i, f := range s.files {
+	var files []serializedFile
+	for f := range s.tree.all() {
 		f.mutex.Lock()
-		files[i] = serializedFile{
+		files = append(files, serializedFile{
 			Name:  f.name,
 			Base:  f.base,
 			Size:  f.size,
-			Lines: append([]int(nil), f.lines...),
-			Infos: append([]lineInfo(nil), f.infos...),
-		}
+			Lines: slices.Clone(f.lines),
+			Infos: slices.Clone(f.infos),
+		})
 		f.mutex.Unlock()
 	}
 	ss.Files = files

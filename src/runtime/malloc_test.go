@@ -7,6 +7,7 @@ package runtime_test
 import (
 	"flag"
 	"fmt"
+	"internal/asan"
 	"internal/race"
 	"internal/testenv"
 	"os"
@@ -157,6 +158,9 @@ func TestTinyAlloc(t *testing.T) {
 	if runtime.Raceenabled {
 		t.Skip("tinyalloc suppressed when running in race mode")
 	}
+	if asan.Enabled {
+		t.Skip("tinyalloc suppressed when running in asan mode due to redzone")
+	}
 	const N = 16
 	var v [N]unsafe.Pointer
 	for i := range v {
@@ -181,6 +185,9 @@ type obj12 struct {
 func TestTinyAllocIssue37262(t *testing.T) {
 	if runtime.Raceenabled {
 		t.Skip("tinyalloc suppressed when running in race mode")
+	}
+	if asan.Enabled {
+		t.Skip("tinyalloc suppressed when running in asan mode due to redzone")
 	}
 	// Try to cause an alignment access fault
 	// by atomically accessing the first 64-bit
@@ -263,12 +270,10 @@ type acLink struct {
 var arenaCollisionSink []*acLink
 
 func TestArenaCollision(t *testing.T) {
-	testenv.MustHaveExec(t)
-
 	// Test that mheap.sysAlloc handles collisions with other
 	// memory mappings.
 	if os.Getenv("TEST_ARENA_COLLISION") != "1" {
-		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=^TestArenaCollision$", "-test.v"))
+		cmd := testenv.CleanCmdEnv(exec.Command(testenv.Executable(t), "-test.run=^TestArenaCollision$", "-test.v"))
 		cmd.Env = append(cmd.Env, "TEST_ARENA_COLLISION=1")
 		out, err := cmd.CombinedOutput()
 		if race.Enabled {

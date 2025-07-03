@@ -22,8 +22,23 @@
 //	}
 //
 // Each time a non-default setting causes a change in program behavior,
-// code should call [Setting.IncNonDefault] to increment a counter that can
-// be reported by [runtime/metrics.Read].
+// code must call [Setting.IncNonDefault] to increment a counter that can
+// be reported by [runtime/metrics.Read]. The call must only happen when
+// the program executes a non-default behavior, not just when the setting
+// is set to a non-default value. This is occasionally (but very rarely)
+// infeasible, in which case the internal/godebugs table entry must set
+// Opaque: true, and the documentation in doc/godebug.md should
+// mention that metrics are unavailable.
+//
+// Conventionally, the global variable representing a godebug is named
+// for the godebug itself, with no case changes:
+//
+//	var gotypesalias = godebug.New("gotypesalias") // this
+//	var goTypesAlias = godebug.New("gotypesalias") // NOT THIS
+//
+// The test in internal/godebugs that checks for use of IncNonDefault
+// requires the use of this convention.
+//
 // Note that counters used with IncNonDefault must be added to
 // various tables in other packages. See the [Setting.IncNonDefault]
 // documentation for details.
@@ -70,6 +85,11 @@ type value struct {
 // To disable that panic for access to an undocumented setting,
 // prefix the name with a #, as in godebug.New("#gofsystrace").
 // The # is a signal to New but not part of the key used in $GODEBUG.
+//
+// Note that almost all settings should arrange to call [IncNonDefault] precisely
+// when program behavior is changing from the default due to the setting
+// (not just when the setting is different, but when program behavior changes).
+// See the [internal/godebug] package comment for more.
 func New(name string) *Setting {
 	return &Setting{name: name}
 }
@@ -217,8 +237,14 @@ func update(def, env string) {
 	// Update all the cached values, creating new ones as needed.
 	// We parse the environment variable first, so that any settings it has
 	// are already locked in place (did[name] = true) before we consider
-	// the defaults.
+	// the defaults. Existing immutable settings are always locked.
 	did := make(map[string]bool)
+	cache.Range(func(name, s any) bool {
+		if info := s.(*setting).info; info != nil && info.Immutable {
+			did[name.(string)] = true
+		}
+		return true
+	})
 	parse(did, env)
 	parse(did, def)
 

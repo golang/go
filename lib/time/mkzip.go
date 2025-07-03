@@ -31,7 +31,7 @@ import (
 )
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: go run mkzip.go ../../zoneinfo.zip\n")
+	fmt.Fprintf(os.Stderr, "usage: go run mkzip.go zoneinfo.zip\n")
 	os.Exit(2)
 }
 

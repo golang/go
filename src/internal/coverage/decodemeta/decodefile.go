@@ -12,9 +12,9 @@ package decodemeta
 
 import (
 	"bufio"
-	"crypto/md5"
 	"encoding/binary"
 	"fmt"
+	"hash/fnv"
 	"internal/coverage"
 	"internal/coverage/slicereader"
 	"internal/coverage/stringtab"
@@ -147,7 +147,7 @@ func (r *CoverageMetaFileReader) CounterMode() coverage.CounterMode {
 	return r.hdr.CMode
 }
 
-// CounterMode returns the counter granularity (single counter per
+// CounterGranularity returns the counter granularity (single counter per
 // function, or counter per block) selected when building for coverage
 // for the program that produce this meta-data file.
 func (r *CoverageMetaFileReader) CounterGranularity() coverage.CounterGranularity {
@@ -171,8 +171,10 @@ func (r *CoverageMetaFileReader) FileHash() [16]byte {
 func (r *CoverageMetaFileReader) GetPackageDecoder(pkIdx uint32, payloadbuf []byte) (*CoverageMetaDataDecoder, []byte, error) {
 	pp, err := r.GetPackagePayload(pkIdx, payloadbuf)
 	if r.debug {
+		h := fnv.New128a()
+		h.Write(pp)
 		fmt.Fprintf(os.Stderr, "=-= pkidx=%d payload length is %d hash=%s\n",
-			pkIdx, len(pp), fmt.Sprintf("%x", md5.Sum(pp)))
+			pkIdx, len(pp), fmt.Sprintf("%x", h.Sum(nil)))
 	}
 	if err != nil {
 		return nil, nil, err

@@ -407,7 +407,7 @@ func main() {
 		argv = append(argv, "-ldflags", "-extldflags=-Wl,--export-all-symbols")
 	}
 	argv = append(argv, "-o", objfile, srcfile)
-	out, err := exec.Command("go", argv...).CombinedOutput()
+	out, err := exec.Command(testenv.GoToolPath(t), argv...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("build failure: %s\n%s\n", err, string(out))
 	}
@@ -876,6 +876,47 @@ func TestIssue36233(t *testing.T) {
 	if err = scanner.Err(); err != nil {
 		t.Errorf("scanner encountered error: %v", err)
 	}
+	if found != len(funcs) {
+		t.Error("missing functions")
+	}
+}
+
+func TestIssue68411(t *testing.T) {
+	globalSkip(t)
+	testenv.MustHaveCGO(t)
+
+	t.Parallel()
+
+	// Test that the export header uses a void function parameter for
+	// exported Go functions with no parameters.
+
+	tmpdir := t.TempDir()
+
+	const exportHeader = "issue68411.h"
+
+	run(t, nil, "go", "tool", "cgo", "-exportheader", exportHeader, "-objdir", tmpdir, "./issue68411/issue68411.go")
+	data, err := os.ReadFile(exportHeader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	funcs := []struct{ name, signature string }{
+		{"exportFuncWithNoParams", "void exportFuncWithNoParams(void)"},
+		{"exportFuncWithParams", "exportFuncWithParams(GoInt a, GoInt b)"},
+	}
+
+	var found int
+	for line := range bytes.Lines(data) {
+		for _, fn := range funcs {
+			if bytes.Contains(line, []byte(fn.name)) {
+				found++
+				if !bytes.Contains(line, []byte(fn.signature)) {
+					t.Errorf("function signature mismatch; got %q, want %q", line, fn.signature)
+				}
+			}
+		}
+	}
+
 	if found != len(funcs) {
 		t.Error("missing functions")
 	}

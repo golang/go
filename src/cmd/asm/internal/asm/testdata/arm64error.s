@@ -66,7 +66,6 @@ TEXT errors(SB),$0
 	LDP.W	8(R3), (R2, R3)                                  // ERROR "constrained unpredictable behavior"
 	LDP	(R1), (R2, R2)                                   // ERROR "constrained unpredictable behavior"
 	LDP	(R0), (F0, F1)                                   // ERROR "invalid register pair"
-	LDP	(R0), (R3, ZR)                                   // ERROR "invalid register pair"
 	LDXPW	(RSP), (R2, R2)                                  // ERROR "constrained unpredictable behavior"
 	LDAXPW	(R5), (R2, R2)                                   // ERROR "constrained unpredictable behavior"
 	MOVD.P	300(R2), R3                                      // ERROR "offset out of range [-256,255]"
@@ -421,4 +420,6 @@ TEXT errors(SB),$0
 	AESE	V1.B16, V2.B8                                    // ERROR "invalid arrangement"
 	SHA256SU1	V1.S4, V2.B16, V3.S4                     // ERROR "invalid arrangement"
 	SHA1H	V1.B16, V2.B16                                   // ERROR "invalid operands"
+	BTI                                       		 // ERROR "missing operand"
+	BTI	PLDL1KEEP					 // ERROR "illegal argument"
 	RET

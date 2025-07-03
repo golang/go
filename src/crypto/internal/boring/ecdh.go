@@ -17,7 +17,6 @@ import (
 type PublicKeyECDH struct {
 	curve string
 	key   *C.GO_EC_POINT
-	group *C.GO_EC_GROUP
 	bytes []byte
 }
 
@@ -35,8 +34,8 @@ func (k *PrivateKeyECDH) finalize() {
 }
 
 func NewPublicKeyECDH(curve string, bytes []byte) (*PublicKeyECDH, error) {
-	if len(bytes) < 1 {
-		return nil, errors.New("NewPublicKeyECDH: missing key")
+	if len(bytes) != 1+2*curveSize(curve) {
+		return nil, errors.New("NewPublicKeyECDH: wrong key length")
 	}
 
 	nid, err := curveNID(curve)
@@ -59,7 +58,7 @@ func NewPublicKeyECDH(curve string, bytes []byte) (*PublicKeyECDH, error) {
 		return nil, errors.New("point not on curve")
 	}
 
-	k := &PublicKeyECDH{curve, key, group, append([]byte(nil), bytes...)}
+	k := &PublicKeyECDH{curve, key, append([]byte(nil), bytes...)}
 	// Note: Because of the finalizer, any time k.key is passed to cgo,
 	// that call must be followed by a call to runtime.KeepAlive(k),
 	// to make sure k is not collected (and finalized) before the cgo
@@ -71,6 +70,10 @@ func NewPublicKeyECDH(curve string, bytes []byte) (*PublicKeyECDH, error) {
 func (k *PublicKeyECDH) Bytes() []byte { return k.bytes }
 
 func NewPrivateKeyECDH(curve string, bytes []byte) (*PrivateKeyECDH, error) {
+	if len(bytes) != curveSize(curve) {
+		return nil, errors.New("NewPrivateKeyECDH: wrong key length")
+	}
+
 	nid, err := curveNID(curve)
 	if err != nil {
 		return nil, err
@@ -118,7 +121,7 @@ func (k *PrivateKeyECDH) PublicKey() (*PublicKeyECDH, error) {
 		C._goboringcrypto_EC_POINT_free(pt)
 		return nil, err
 	}
-	pub := &PublicKeyECDH{k.curve, pt, group, bytes}
+	pub := &PublicKeyECDH{k.curve, pt, bytes}
 	// Note: Same as in NewPublicKeyECDH regarding finalizer and KeepAlive.
 	runtime.SetFinalizer(pub, (*PublicKeyECDH).finalize)
 	return pub, nil
@@ -134,6 +137,15 @@ func pointBytesECDH(curve string, group *C.GO_EC_GROUP, pt *C.GO_EC_POINT) ([]by
 }
 
 func ECDH(priv *PrivateKeyECDH, pub *PublicKeyECDH) ([]byte, error) {
+	// Make sure priv and pub are not garbage collected while we are in a cgo
+	// call.
+	//
+	// The call to xCoordBytesECDH should prevent priv from being collected, but
+	// include this in case the code is reordered and there is a subsequent call
+	// cgo call after that point.
+	defer runtime.KeepAlive(priv)
+	defer runtime.KeepAlive(pub)
+
 	group := C._goboringcrypto_EC_KEY_get0_group(priv.key)
 	if group == nil {
 		return nil, fail("EC_KEY_get0_group")

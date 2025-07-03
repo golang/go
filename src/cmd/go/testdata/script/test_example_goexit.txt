@@ -17,13 +17,13 @@ import (
 	"runtime"
 )
 
-func ExamplePass() {
+func Example_pass() {
 	fmt.Println("pass")
 	// Output:
 	// pass
 }
 
-func ExampleGoexit() {
+func Example_goexit() {
 	runtime.Goexit()
 	// Output:
 }

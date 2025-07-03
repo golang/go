@@ -8,9 +8,11 @@ package maphash
 
 import (
 	"fmt"
+	"internal/testenv"
 	"math"
 	"math/rand"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"unsafe"
@@ -29,6 +31,7 @@ var fixedSeed = MakeSeed()
 // hash should not depend on values outside key.
 // hash should not depend on alignment.
 func TestSmhasherSanity(t *testing.T) {
+	t.Parallel()
 	r := rand.New(rand.NewSource(1234))
 	const REP = 10
 	const KEYMAX = 128
@@ -71,16 +74,14 @@ func randBytes(r *rand.Rand, b []byte) {
 
 // A hashSet measures the frequency of hash collisions.
 type hashSet struct {
-	m map[uint64]struct{} // set of hashes added
-	n int                 // number of hashes added
+	list []uint64 // list of hashes added
 }
 
 func newHashSet() *hashSet {
-	return &hashSet{make(map[uint64]struct{}), 0}
+	return &hashSet{list: make([]uint64, 0, 1024)}
 }
 func (s *hashSet) add(h uint64) {
-	s.m[h] = struct{}{}
-	s.n++
+	s.list = append(s.list, h)
 }
 func (s *hashSet) addS(x string) {
 	s.add(stringHash(x))
@@ -95,18 +96,32 @@ func (s *hashSet) addS_seed(x string, seed Seed) {
 	s.add(h.Sum64())
 }
 func (s *hashSet) check(t *testing.T) {
+	t.Helper()
+	list := s.list
+	slices.Sort(list)
+
+	collisions := 0
+	for i := 1; i < len(list); i++ {
+		if list[i] == list[i-1] {
+			collisions++
+		}
+	}
+	n := len(list)
+
 	const SLOP = 10.0
-	collisions := s.n - len(s.m)
-	pairs := int64(s.n) * int64(s.n-1) / 2
+	pairs := int64(n) * int64(n-1) / 2
 	expected := float64(pairs) / math.Pow(2.0, float64(hashSize))
 	stddev := math.Sqrt(expected)
 	if float64(collisions) > expected+SLOP*(3*stddev+1) {
 		t.Errorf("unexpected number of collisions: got=%d mean=%f stddev=%f", collisions, expected, stddev)
 	}
+	// Reset for reuse
+	s.list = s.list[:0]
 }
 
 // a string plus adding zeros must make distinct hashes
 func TestSmhasherAppendedZeros(t *testing.T) {
+	t.Parallel()
 	s := "hello" + strings.Repeat("\x00", 256)
 	h := newHashSet()
 	for i := 0; i <= len(s); i++ {
@@ -117,6 +132,7 @@ func TestSmhasherAppendedZeros(t *testing.T) {
 
 // All 0-3 byte strings have distinct hashes.
 func TestSmhasherSmallKeys(t *testing.T) {
+	testenv.ParallelOn64Bit(t)
 	h := newHashSet()
 	var b [3]byte
 	for i := 0; i < 256; i++ {
@@ -138,6 +154,7 @@ func TestSmhasherSmallKeys(t *testing.T) {
 
 // Different length strings of all zeros have distinct hashes.
 func TestSmhasherZeros(t *testing.T) {
+	t.Parallel()
 	N := 256 * 1024
 	if testing.Short() {
 		N = 1024
@@ -158,6 +175,7 @@ func TestSmhasherTwoNonzero(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
+	testenv.ParallelOn64Bit(t)
 	h := newHashSet()
 	for n := 2; n <= 16; n++ {
 		twoNonZero(h, n)
@@ -200,11 +218,12 @@ func TestSmhasherCyclic(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
+	t.Parallel()
 	r := rand.New(rand.NewSource(1234))
 	const REPEAT = 8
 	const N = 1000000
+	h := newHashSet()
 	for n := 4; n <= 12; n++ {
-		h := newHashSet()
 		b := make([]byte, REPEAT*n)
 		for i := 0; i < N; i++ {
 			b[0] = byte(i * 79 % 97)
@@ -229,18 +248,20 @@ func TestSmhasherSparse(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
-	sparse(t, 32, 6)
-	sparse(t, 40, 6)
-	sparse(t, 48, 5)
-	sparse(t, 56, 5)
-	sparse(t, 64, 5)
-	sparse(t, 96, 4)
-	sparse(t, 256, 3)
-	sparse(t, 2048, 2)
-}
-func sparse(t *testing.T, n int, k int) {
-	b := make([]byte, n/8)
+	t.Parallel()
 	h := newHashSet()
+	sparse(t, h, 32, 6)
+	sparse(t, h, 40, 6)
+	sparse(t, h, 48, 5)
+	sparse(t, h, 56, 5)
+	sparse(t, h, 64, 5)
+	sparse(t, h, 96, 4)
+	sparse(t, h, 256, 3)
+	sparse(t, h, 2048, 2)
+}
+func sparse(t *testing.T, h *hashSet, n int, k int) {
+	t.Helper()
+	b := make([]byte, n/8)
 	setbits(h, b, 0, k)
 	h.check(t)
 }
@@ -267,15 +288,17 @@ func TestSmhasherPermutation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
-	permutation(t, []uint32{0, 1, 2, 3, 4, 5, 6, 7}, 8)
-	permutation(t, []uint32{0, 1 << 29, 2 << 29, 3 << 29, 4 << 29, 5 << 29, 6 << 29, 7 << 29}, 8)
-	permutation(t, []uint32{0, 1}, 20)
-	permutation(t, []uint32{0, 1 << 31}, 20)
-	permutation(t, []uint32{0, 1, 2, 3, 4, 5, 6, 7, 1 << 29, 2 << 29, 3 << 29, 4 << 29, 5 << 29, 6 << 29, 7 << 29}, 6)
-}
-func permutation(t *testing.T, s []uint32, n int) {
-	b := make([]byte, n*4)
+	testenv.ParallelOn64Bit(t)
 	h := newHashSet()
+	permutation(t, h, []uint32{0, 1, 2, 3, 4, 5, 6, 7}, 8)
+	permutation(t, h, []uint32{0, 1 << 29, 2 << 29, 3 << 29, 4 << 29, 5 << 29, 6 << 29, 7 << 29}, 8)
+	permutation(t, h, []uint32{0, 1}, 20)
+	permutation(t, h, []uint32{0, 1 << 31}, 20)
+	permutation(t, h, []uint32{0, 1, 2, 3, 4, 5, 6, 7, 1 << 29, 2 << 29, 3 << 29, 4 << 29, 5 << 29, 6 << 29, 7 << 29}, 6)
+}
+func permutation(t *testing.T, h *hashSet, s []uint32, n int) {
+	t.Helper()
+	b := make([]byte, n*4)
 	genPerm(h, b, s, 0)
 	h.check(t)
 }
@@ -307,9 +330,7 @@ type bytesKey struct {
 }
 
 func (k *bytesKey) clear() {
-	for i := range k.b {
-		k.b[i] = 0
-	}
+	clear(k.b)
 }
 func (k *bytesKey) random(r *rand.Rand) {
 	randBytes(r, k.b)
@@ -335,6 +356,7 @@ func TestSmhasherAvalanche(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
+	t.Parallel()
 	avalancheTest1(t, &bytesKey{make([]byte, 2)})
 	avalancheTest1(t, &bytesKey{make([]byte, 4)})
 	avalancheTest1(t, &bytesKey{make([]byte, 8)})
@@ -343,6 +365,7 @@ func TestSmhasherAvalanche(t *testing.T) {
 	avalancheTest1(t, &bytesKey{make([]byte, 200)})
 }
 func avalancheTest1(t *testing.T, k key) {
+	t.Helper()
 	const REP = 100000
 	r := rand.New(rand.NewSource(1234))
 	n := k.bits()
@@ -381,7 +404,7 @@ func avalancheTest1(t *testing.T, k key) {
 	// find c such that Prob(mean-c*stddev < x < mean+c*stddev)^N > .9999
 	for c = 0.0; math.Pow(math.Erf(c/math.Sqrt(2)), float64(N)) < .9999; c += .1 {
 	}
-	c *= 8.0 // allowed slack - we don't need to be perfectly random
+	c *= 11.0 // allowed slack: 40% to 60% - we don't need to be perfectly random
 	mean := .5 * REP
 	stddev := .5 * math.Sqrt(REP)
 	low := int(mean - c*stddev)
@@ -398,6 +421,7 @@ func avalancheTest1(t *testing.T, k key) {
 
 // All bit rotations of a set of distinct keys
 func TestSmhasherWindowed(t *testing.T) {
+	t.Parallel()
 	windowed(t, &bytesKey{make([]byte, 128)})
 }
 func windowed(t *testing.T, k key) {
@@ -409,8 +433,8 @@ func windowed(t *testing.T, k key) {
 	}
 	const BITS = 16
 
+	h := newHashSet()
 	for r := 0; r < k.bits(); r++ {
-		h := newHashSet()
 		for i := 0; i < 1<<BITS; i++ {
 			k.clear()
 			for j := 0; j < BITS; j++ {
@@ -429,18 +453,20 @@ func TestSmhasherText(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
-	text(t, "Foo", "Bar")
-	text(t, "FooBar", "")
-	text(t, "", "FooBar")
+	t.Parallel()
+	h := newHashSet()
+	text(t, h, "Foo", "Bar")
+	text(t, h, "FooBar", "")
+	text(t, h, "", "FooBar")
 }
-func text(t *testing.T, prefix, suffix string) {
+func text(t *testing.T, h *hashSet, prefix, suffix string) {
+	t.Helper()
 	const N = 4
 	const S = "ABCDEFGHIJKLMNOPQRSTabcdefghijklmnopqrst0123456789"
 	const L = len(S)
 	b := make([]byte, len(prefix)+N+len(suffix))
 	copy(b, prefix)
 	copy(b[len(prefix)+N:], suffix)
-	h := newHashSet()
 	c := b[len(prefix):]
 	for i := 0; i < L; i++ {
 		c[0] = S[i]
@@ -463,6 +489,7 @@ func TestSmhasherSeed(t *testing.T) {
 	if unsafe.Sizeof(uintptr(0)) == 4 {
 		t.Skip("32-bit platforms don't have ideal seed-input distributions (see issue 33988)")
 	}
+	t.Parallel()
 	h := newHashSet()
 	const N = 100000
 	s := "hello"

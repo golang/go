@@ -13,7 +13,7 @@ import (
 	"go/ast"
 	"math"
 
-	"golang.org/x/tools/internal/typeparams"
+	_ "unsafe"
 )
 
 const (
@@ -171,7 +171,7 @@ func typeOf(n ast.Node) uint64 {
 		return 1 << nIncDecStmt
 	case *ast.IndexExpr:
 		return 1 << nIndexExpr
-	case *typeparams.IndexListExpr:
+	case *ast.IndexListExpr:
 		return 1 << nIndexListExpr
 	case *ast.InterfaceType:
 		return 1 << nInterfaceType
@@ -217,8 +217,9 @@ func typeOf(n ast.Node) uint64 {
 	return 0
 }
 
+//go:linkname maskOf golang.org/x/tools/go/ast/inspector.maskOf
 func maskOf(nodes []ast.Node) uint64 {
-	if nodes == nil {
+	if len(nodes) == 0 {
 		return math.MaxUint64 // match all node types
 	}
 	var mask uint64

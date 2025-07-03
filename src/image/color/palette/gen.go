@@ -80,7 +80,7 @@ func printPlan9(w io.Writer) {
 	}
 	fmt.Fprintln(w, "// Plan9 is a 256-color palette that partitions the 24-bit RGB space")
 	fmt.Fprintln(w, "// into 4×4×4 subdivision, with 4 shades in each subcube. Compared to the")
-	fmt.Fprintln(w, "// WebSafe, the idea is to reduce the color resolution by dicing the")
+	fmt.Fprintln(w, "// [WebSafe], the idea is to reduce the color resolution by dicing the")
 	fmt.Fprintln(w, "// color cube into fewer cells, and to use the extra space to increase the")
 	fmt.Fprintln(w, "// intensity resolution. This results in 16 gray shades (4 gray subcubes with")
 	fmt.Fprintln(w, "// 4 samples in each), 13 shades of each primary and secondary color (3")

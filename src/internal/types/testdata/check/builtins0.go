@@ -100,7 +100,10 @@ func cap1() {
 
 	var s [][]byte
 	_ = cap(s)
-	_ = cap(s... /* ERROR "invalid use of ..." */ )
+	_ = cap(s... /* ERROR "invalid use of ... with built-in cap" */ )
+
+	var x int
+	_ = cap(x /* ERROR "invalid argument: x (variable of type int) for built-in cap" */ )
 }
 
 func cap2() {
@@ -257,9 +260,9 @@ func complex2() {
 func copy1() {
 	copy() // ERROR "not enough arguments"
 	copy("foo") // ERROR "not enough arguments"
-	copy([ /* ERROR "copy expects slice arguments" */ ...]int{}, []int{})
-	copy([ /* ERROR "copy expects slice arguments" */ ]int{}, [...]int{})
-	copy([ /* ERROR "different element types" */ ]int8{}, "foo")
+	copy([ /* ERROR "invalid copy: argument must be a slice; have [...]int{} (value of type [0]int)" */ ...]int{}, []int{})
+	copy([]int{}, [ /* ERROR "invalid copy: argument must be a slice; have [...]int{} (value of type [0]int)" */ ...]int{})
+	copy([ /* ERROR "invalid copy: arguments []int8{} (value of type []int8) and \"foo\" (untyped string constant) have different element types int8 and byte" */ ]int8{}, "foo")
 
 	// spec examples
 	var a = [...]int{0, 1, 2, 3, 4, 5, 6, 7}
@@ -272,9 +275,9 @@ func copy1() {
 
 	var t [][]int
 	copy(t, t)
-	copy(t /* ERROR "copy expects slice arguments" */ , nil)
-	copy(nil /* ERROR "copy expects slice arguments" */ , t)
-	copy(nil /* ERROR "copy expects slice arguments" */ , nil)
+	copy(t, nil /* ERROR "invalid copy: argument must be a slice; have untyped nil" */ )
+	copy(nil /* ERROR "invalid copy: argument must be a slice; have untyped nil" */ , t)
+	copy(nil /* ERROR "invalid copy: argument must be a slice; have untyped nil" */ , nil)
 	copy(t... /* ERROR "invalid use of ..." */ )
 }
 
@@ -512,7 +515,7 @@ func max1() {
 	_ = max(s)
 	_ = max(x, x)
 	_ = max(x, x, x, x, x)
-	var _ int = max /* ERROR "cannot use max(m) (value of type myint) as int value" */ (m)
+	var _ int = max /* ERROR "cannot use max(m) (value of int type myint) as int value" */ (m)
 	_ = max(x, m /* ERROR "invalid argument: mismatched types int (previous argument) and myint (type of m)" */ , x)
 
 	_ = max(1, x)
@@ -566,7 +569,7 @@ func min1() {
 	_ = min(s)
 	_ = min(x, x)
 	_ = min(x, x, x, x, x)
-	var _ int = min /* ERROR "cannot use min(m) (value of type myint) as int value" */ (m)
+	var _ int = min /* ERROR "cannot use min(m) (value of int type myint) as int value" */ (m)
 	_ = min(x, m /* ERROR "invalid argument: mismatched types int (previous argument) and myint (type of m)" */ , x)
 
 	_ = min(1, x)

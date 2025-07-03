@@ -12,7 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -71,7 +71,7 @@ func TestDirent(t *testing.T) {
 		}
 	}
 
-	sort.Strings(names)
+	slices.Sort(names)
 	t.Logf("names: %q", names)
 
 	if len(names) != 10 {
@@ -82,7 +82,7 @@ func TestDirent(t *testing.T) {
 		if err != nil {
 			t.Fatalf("names[%d] is non-integer %q: %v", i, names[i], err)
 		}
-		if expected := string(strings.Repeat(name[:1], filenameMinSize+ord)); name != expected {
+		if expected := strings.Repeat(name[:1], filenameMinSize+ord); name != expected {
 			t.Errorf("names[%d] is %q (len %d); expected %q (len %d)", i, name, len(name), expected, len(expected))
 		}
 	}
@@ -138,8 +138,8 @@ func TestDirentRepeat(t *testing.T) {
 	}
 
 	// Check results
-	sort.Strings(files)
-	sort.Strings(files2)
+	slices.Sort(files)
+	slices.Sort(files2)
 	if strings.Join(files, "|") != strings.Join(files2, "|") {
 		t.Errorf("bad file list: want\n%q\ngot\n%q", files, files2)
 	}

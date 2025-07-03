@@ -1,5 +1,6 @@
-// +build amd64,!gcflags_noopt
 // errorcheck -0 -d=ssa/check_bce/debug=3
+
+//go:build amd64 && !gcflags_noopt
 
 // Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -158,16 +159,14 @@ func decode1(data []byte) (x uint64) {
 }
 
 func decode2(data []byte) (x uint64) {
-	// TODO(rasky): this should behave like decode1 and compile to no
-	// boundchecks. We're currently not able to remove all of them.
 	for len(data) >= 32 {
 		x += binary.BigEndian.Uint64(data)
 		data = data[8:]
-		x += binary.BigEndian.Uint64(data) // ERROR "Found IsInBounds$"
+		x += binary.BigEndian.Uint64(data)
 		data = data[8:]
-		x += binary.BigEndian.Uint64(data) // ERROR "Found IsInBounds$"
+		x += binary.BigEndian.Uint64(data)
 		data = data[8:]
-		x += binary.BigEndian.Uint64(data) // ERROR "Found IsInBounds$"
+		x += binary.BigEndian.Uint64(data)
 		data = data[8:]
 	}
 	return x

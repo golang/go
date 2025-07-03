@@ -2,19 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
-
 package net
 
 import (
 	"errors"
 	"internal/bytealg"
 	"internal/godebug"
+	"internal/stringslite"
 	"io/fs"
 	"os"
 	"runtime"
 	"sync"
-	"syscall"
 )
 
 // The net package's name resolution is rather complicated.
@@ -95,19 +93,30 @@ func initConfVal() {
 			if confVal.dnsDebugLevel > 1 {
 				println("go package net: confVal.netCgo =", confVal.netCgo, " netGo =", confVal.netGo)
 			}
+			if dnsMode != "go" && dnsMode != "cgo" && dnsMode != "" {
+				println("go package net: GODEBUG=netdns contains an invalid dns mode, ignoring it")
+			}
 			switch {
-			case confVal.netGo:
-				if netGoBuildTag {
-					println("go package net: built with netgo build tag; using Go's DNS resolver")
+			case netGoBuildTag || !cgoAvailable:
+				if dnsMode == "cgo" {
+					println("go package net: ignoring GODEBUG=netdns=cgo as the binary was compiled without support for the cgo resolver")
 				} else {
-					println("go package net: GODEBUG setting forcing use of Go's resolver")
+					println("go package net: using the Go DNS resolver")
 				}
-			case !cgoAvailable:
-				println("go package net: cgo resolver not supported; using Go's DNS resolver")
-			case confVal.netCgo || confVal.preferCgo:
-				println("go package net: using cgo DNS resolver")
+			case netCgoBuildTag:
+				if dnsMode == "go" {
+					println("go package net: GODEBUG setting forcing use of the Go resolver")
+				} else {
+					println("go package net: using the cgo DNS resolver")
+				}
 			default:
-				println("go package net: dynamic selection of DNS resolver")
+				if dnsMode == "go" {
+					println("go package net: GODEBUG setting forcing use of the Go resolver")
+				} else if dnsMode == "cgo" {
+					println("go package net: GODEBUG setting forcing use of the cgo resolver")
+				} else {
+					println("go package net: dynamic selection of DNS resolver")
+				}
 			}
 		}()
 	}
@@ -139,7 +148,7 @@ func initConfVal() {
 	// prefer the cgo resolver.
 	// Note that LOCALDOMAIN can change behavior merely by being
 	// specified with the empty string.
-	_, localDomainDefined := syscall.Getenv("LOCALDOMAIN")
+	_, localDomainDefined := os.LookupEnv("LOCALDOMAIN")
 	if localDomainDefined || os.Getenv("RES_OPTIONS") != "" || os.Getenv("HOSTALIASES") != "" {
 		confVal.preferCgo = true
 		return
@@ -153,7 +162,7 @@ func initConfVal() {
 	}
 }
 
-// goosPreferCgo reports whether the GOOS value passed in prefers
+// goosPrefersCgo reports whether the GOOS value passed in prefers
 // the cgo resolver.
 func goosPrefersCgo() bool {
 	switch runtime.GOOS {
@@ -192,7 +201,7 @@ func (c *conf) mustUseGoResolver(r *Resolver) bool {
 	if runtime.GOOS == "plan9" {
 		// TODO(bradfitz): for now we only permit use of the PreferGo
 		// implementation when there's a non-nil Resolver with a
-		// non-nil Dialer. This is a sign that they the code is trying
+		// non-nil Dialer. This is a sign that the code is trying
 		// to use their DNS-speaking net.Conn (such as an in-memory
 		// DNS cache) and they don't want to actually hit the network.
 		// Once we add support for looking the default DNS servers
@@ -337,16 +346,7 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 	}
 
 	// Canonicalize the hostname by removing any trailing dot.
-	if stringsHasSuffix(hostname, ".") {
-		hostname = hostname[:len(hostname)-1]
-	}
-	if canUseCgo && stringsHasSuffixFold(hostname, ".local") {
-		// Per RFC 6762, the ".local" TLD is special. And
-		// because Go's native resolver doesn't do mDNS or
-		// similar local resolution mechanisms, assume that
-		// libc might (via Avahi, etc) and use cgo.
-		return hostLookupCgo, dnsConf
-	}
+	hostname = stringslite.TrimSuffix(hostname, ".")
 
 	nss := getSystemNSS()
 	srcs := nss.sources["hosts"]
@@ -405,10 +405,14 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 					return hostLookupCgo, dnsConf
 				}
 				continue
-			case hostname != "" && stringsHasPrefix(src.source, "mdns"):
-				// e.g. "mdns4", "mdns4_minimal"
-				// We already returned true before if it was *.local.
-				// libc wouldn't have found a hit on this anyway.
+			case hostname != "" && stringslite.HasPrefix(src.source, "mdns"):
+				if stringsHasSuffixFold(hostname, ".local") {
+					// Per RFC 6762, the ".local" TLD is special. And
+					// because Go's native resolver doesn't do mDNS or
+					// similar local resolution mechanisms, assume that
+					// libc might (via Avahi, etc) and use cgo.
+					return hostLookupCgo, dnsConf
+				}
 
 				// We don't parse mdns.allow files. They're rare. If one
 				// exists, it might list other TLDs (besides .local) or even
@@ -524,7 +528,7 @@ func isGateway(h string) bool {
 	return stringsEqualFold(h, "_gateway")
 }
 
-// isOutbound reports whether h should be considered a "outbound"
+// isOutbound reports whether h should be considered an "outbound"
 // name for the myhostname NSS module.
 func isOutbound(h string) bool {
 	return stringsEqualFold(h, "_outbound")

@@ -108,7 +108,7 @@ func TestWriter(t *testing.T) {
 
 // TestWriterComment is test for EOCD comment read/write.
 func TestWriterComment(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		comment string
 		ok      bool
 	}{
@@ -158,7 +158,7 @@ func TestWriterComment(t *testing.T) {
 }
 
 func TestWriterUTF8(t *testing.T) {
-	var utf8Tests = []struct {
+	utf8Tests := []struct {
 		name    string
 		comment string
 		nonUTF8 bool
@@ -619,25 +619,22 @@ func TestWriterAddFS(t *testing.T) {
 	buf := new(bytes.Buffer)
 	w := NewWriter(buf)
 	tests := []WriteTest{
-		{
-			Name: "file.go",
-			Data: []byte("hello"),
-			Mode: 0644,
-		},
-		{
-			Name: "subfolder/another.go",
-			Data: []byte("world"),
-			Mode: 0644,
-		},
+		{Name: "emptyfolder", Mode: 0o755 | os.ModeDir},
+		{Name: "file.go", Data: []byte("hello"), Mode: 0644},
+		{Name: "subfolder/another.go", Data: []byte("world"), Mode: 0644},
+		// Notably missing here is the "subfolder" directory. This makes sure even
+		// if we don't have a subfolder directory listed.
 	}
 	err := w.AddFS(writeTestsToFS(tests))
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if err := w.Close(); err != nil {
 		t.Fatal(err)
 	}
+
+	// Add subfolder into fsys to match what we'll read from the zip.
+	tests = append(tests[:2:2], WriteTest{Name: "subfolder", Mode: 0o555 | os.ModeDir}, tests[2])
 
 	// read it back
 	r, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
@@ -645,6 +642,9 @@ func TestWriterAddFS(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i, wt := range tests {
+		if wt.Mode.IsDir() {
+			wt.Name += "/"
+		}
 		testReadFile(t, r.File[i], &wt)
 	}
 }

@@ -178,7 +178,7 @@ func (t *Template) DefinedTemplates() string {
 // definition of t itself.
 //
 // Templates can be redefined in successive calls to Parse,
-// before the first use of Execute on t or any associated template.
+// before the first use of [Template.Execute] on t or any associated template.
 // A template definition with a body containing only white space and comments
 // is considered empty and will not replace an existing template's body.
 // This allows using Parse to add new named template definitions without
@@ -237,8 +237,8 @@ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error
 
 // Clone returns a duplicate of the template, including all associated
 // templates. The actual representation is not copied, but the name space of
-// associated templates is, so further calls to Parse in the copy will add
-// templates to the copy but not to the original. Clone can be used to prepare
+// associated templates is, so further calls to [Template.Parse] in the copy will add
+// templates to the copy but not to the original. [Template.Clone] can be used to prepare
 // common templates and use them with variant definitions for other templates
 // by adding the variants after the clone is made.
 //
@@ -341,7 +341,7 @@ func (t *Template) Funcs(funcMap FuncMap) *Template {
 }
 
 // Delims sets the action delimiters to the specified strings, to be used in
-// subsequent calls to Parse, ParseFiles, or ParseGlob. Nested template
+// subsequent calls to [Template.Parse], [ParseFiles], or [ParseGlob]. Nested template
 // definitions will inherit the settings. An empty delimiter stands for the
 // corresponding default: {{ or }}.
 // The return value is the template, so calls can be chained.
@@ -358,7 +358,7 @@ func (t *Template) Lookup(name string) *Template {
 	return t.set[name]
 }
 
-// Must is a helper that wraps a call to a function returning (*Template, error)
+// Must is a helper that wraps a call to a function returning ([*Template], error)
 // and panics if the error is non-nil. It is intended for use in variable initializations
 // such as
 //
@@ -370,10 +370,10 @@ func Must(t *Template, err error) *Template {
 	return t
 }
 
-// ParseFiles creates a new Template and parses the template definitions from
+// ParseFiles creates a new [Template] and parses the template definitions from
 // the named files. The returned template's name will have the (base) name and
 // (parsed) contents of the first file. There must be at least one file.
-// If an error occurs, parsing stops and the returned *Template is nil.
+// If an error occurs, parsing stops and the returned [*Template] is nil.
 //
 // When parsing multiple files with the same name in different directories,
 // the last one mentioned will be the one that results.
@@ -435,12 +435,12 @@ func parseFiles(t *Template, readFile func(string) (string, []byte, error), file
 	return t, nil
 }
 
-// ParseGlob creates a new Template and parses the template definitions from
+// ParseGlob creates a new [Template] and parses the template definitions from
 // the files identified by the pattern. The files are matched according to the
 // semantics of filepath.Match, and the pattern must match at least one file.
 // The returned template will have the (base) name and (parsed) contents of the
 // first file matched by the pattern. ParseGlob is equivalent to calling
-// ParseFiles with the list of files matched by the pattern.
+// [ParseFiles] with the list of files matched by the pattern.
 //
 // When parsing multiple files with the same name in different directories,
 // the last one mentioned will be the one that results.
@@ -484,7 +484,7 @@ func IsTrue(val any) (truth, ok bool) {
 	return template.IsTrue(val)
 }
 
-// ParseFS is like ParseFiles or ParseGlob but reads from the file system fs
+// ParseFS is like [ParseFiles] or [ParseGlob] but reads from the file system fs
 // instead of the host operating system's file system.
 // It accepts a list of glob patterns.
 // (Note that most file names serve as glob patterns matching only themselves.)
@@ -492,7 +492,7 @@ func ParseFS(fs fs.FS, patterns ...string) (*Template, error) {
 	return parseFS(nil, fs, patterns)
 }
 
-// ParseFS is like ParseFiles or ParseGlob but reads from the file system fs
+// ParseFS is like [Template.ParseFiles] or [Template.ParseGlob] but reads from the file system fs
 // instead of the host operating system's file system.
 // It accepts a list of glob patterns.
 // (Note that most file names serve as glob patterns matching only themselves.)

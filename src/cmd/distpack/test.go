@@ -35,7 +35,7 @@ var srcRules = []testRule{
 	{name: "go/pkg/**", exclude: true},
 	{name: "go/src/cmd/dist/dist", exclude: true},
 	{name: "go/src/cmd/dist/dist.exe", exclude: true},
-	{name: "go/src/runtime/internal/sys/zversion.go", exclude: true},
+	{name: "go/src/internal/runtime/sys/zversion.go", exclude: true},
 	{name: "go/src/time/tzdata/zzipdata.go", exclude: true},
 }
 
@@ -66,12 +66,19 @@ var zipRules = []testRule{
 	{name: "go/pkg/tool/*/compile", goos: "darwin"},
 	{name: "go/pkg/tool/*/compile", goos: "windows", exclude: true},
 	{name: "go/pkg/tool/*/compile.exe", goos: "windows"},
+	{name: "go/pkg/tool/*/pack", exclude: true},
+	{name: "go/pkg/tool/*/pack.exe", exclude: true},
 }
 
 var modRules = []testRule{
 	{name: "golang.org/toolchain@*/VERSION"},
 	{name: "golang.org/toolchain@*/src/cmd/go/main.go"},
 	{name: "golang.org/toolchain@*/src/bytes/bytes.go"},
+
+	{name: "golang.org/toolchain@*/lib/wasm/go_js_wasm_exec"},
+	{name: "golang.org/toolchain@*/lib/wasm/go_wasip1_wasm_exec"},
+	{name: "golang.org/toolchain@*/lib/wasm/wasm_exec.js"},
+	{name: "golang.org/toolchain@*/lib/wasm/wasm_exec_node.js"},
 
 	{name: "**/.DS_Store", exclude: true},
 	{name: "golang.org/toolchain@*/.git", exclude: true},
@@ -95,6 +102,8 @@ var modRules = []testRule{
 	{name: "golang.org/toolchain@*/pkg/tool/*/compile", goos: "darwin"},
 	{name: "golang.org/toolchain@*/pkg/tool/*/compile", goos: "windows", exclude: true},
 	{name: "golang.org/toolchain@*/pkg/tool/*/compile.exe", goos: "windows"},
+	{name: "golang.org/toolchain@*/pkg/tool/*/pack", exclude: true},
+	{name: "golang.org/toolchain@*/pkg/tool/*/pack.exe", exclude: true},
 
 	// go.mod are renamed to _go.mod.
 	{name: "**/go.mod", exclude: true},

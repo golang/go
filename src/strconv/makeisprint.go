@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 //
 // usage:
@@ -20,6 +19,7 @@ import (
 	"go/format"
 	"log"
 	"os"
+	"slices"
 	"unicode"
 )
 
@@ -32,36 +32,6 @@ var (
 	except32 []uint32
 )
 
-// bsearch16 returns the smallest i such that a[i] >= x.
-// If there is no such i, bsearch16 returns len(a).
-func bsearch16(a []uint16, x uint16) int {
-	i, j := 0, len(a)
-	for i < j {
-		h := i + (j-i)>>1
-		if a[h] < x {
-			i = h + 1
-		} else {
-			j = h
-		}
-	}
-	return i
-}
-
-// bsearch32 returns the smallest i such that a[i] >= x.
-// If there is no such i, bsearch32 returns len(a).
-func bsearch32(a []uint32, x uint32) int {
-	i, j := 0, len(a)
-	for i < j {
-		h := i + (j-i)>>1
-		if a[h] < x {
-			i = h + 1
-		} else {
-			j = h
-		}
-	}
-	return i
-}
-
 func isPrint(r rune) bool {
 	// Same algorithm, either on uint16 or uint32 value.
 	// First, find first i such that rang[i] >= x.
@@ -71,21 +41,21 @@ func isPrint(r rune) bool {
 
 	if 0 <= r && r < 1<<16 {
 		rr, rang, except := uint16(r), range16, except16
-		i := bsearch16(rang, rr)
+		i, _ := slices.BinarySearch(rang, rr)
 		if i >= len(rang) || rr < rang[i&^1] || rang[i|1] < rr {
 			return false
 		}
-		j := bsearch16(except, rr)
-		return j >= len(except) || except[j] != rr
+		_, found := slices.BinarySearch(except, rr)
+		return !found
 	}
 
 	rr, rang, except := uint32(r), range32, except32
-	i := bsearch32(rang, rr)
+	i, _ := slices.BinarySearch(rang, rr)
 	if i >= len(rang) || rr < rang[i&^1] || rang[i|1] < rr {
 		return false
 	}
-	j := bsearch32(except, rr)
-	return j >= len(except) || except[j] != rr
+	_, found := slices.BinarySearch(except, rr)
+	return !found
 }
 
 func scan(min, max rune) (rang, except []uint32) {

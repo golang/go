@@ -63,6 +63,7 @@
 (Ctz16NonZero ...) => (BSFL ...)
 (Ctz32 ...) => (LoweredCtz32 ...)
 (Ctz32NonZero ...) => (BSFL ...)
+(Ctz64On32 ...) => (LoweredCtz64 ...)
 
 // Lowering extension
 (SignExt8to16  ...) => (MOVBLSX ...)
@@ -245,7 +246,7 @@
 // Medium copying uses a duff device.
 (Move [s] dst src mem)
 	&& s > 8 && s <= 4*128 && s%4 == 0
-	&& !config.noDuffDevice && logLargeCopy(v, s) =>
+	&& logLargeCopy(v, s) =>
 	(DUFFCOPY [10*(128-s/4)] dst src mem)
 // 10 and 128 are magic constants.  10 is the number of bytes to encode:
 //	MOVL	(SI), CX
@@ -255,7 +256,7 @@
 // and 128 is the number of such blocks. See src/runtime/duff_386.s:duffcopy.
 
 // Large copying uses REP MOVSL.
-(Move [s] dst src mem) && (s > 4*128 || config.noDuffDevice) && s%4 == 0 && logLargeCopy(v, s) =>
+(Move [s] dst src mem) && s > 4*128 && s%4 == 0 && logLargeCopy(v, s) =>
 	(REPMOVSL dst src (MOVLconst [int32(s/4)]) mem)
 
 // Lowering Zero instructions
@@ -298,8 +299,7 @@
 
 // Medium zeroing uses a duff device.
 (Zero [s] destptr mem)
-  && s > 16 && s <= 4*128 && s%4 == 0
-  && !config.noDuffDevice =>
+  && s > 16 && s <= 4*128 && s%4 == 0 =>
 	(DUFFZERO [1*(128-s/4)] destptr (MOVLconst [0]) mem)
 // 1 and 128 are magic constants.  1 is the number of bytes to encode STOSL.
 // 128 is the number of STOSL instructions in duffzero.
@@ -307,7 +307,7 @@
 
 // Large zeroing uses REP STOSQ.
 (Zero [s] destptr mem)
-  && (s > 4*128 || (config.noDuffDevice && s > 16))
+  && s > 4*128
   && s%4 == 0 =>
 	(REPSTOSL destptr (MOVLconst [int32(s/4)]) (MOVLconst [0]) mem)
 
@@ -493,14 +493,14 @@
 (MULLconst [73] x) => (LEAL8 x (LEAL8 <v.Type> x x))
 (MULLconst [81] x) => (LEAL8 (LEAL8 <v.Type> x x) (LEAL8 <v.Type> x x))
 
-(MULLconst [c] x) && isPowerOfTwo32(c+1) && c >= 15 => (SUBL (SHLLconst <v.Type> [int32(log32(c+1))] x) x)
-(MULLconst [c] x) && isPowerOfTwo32(c-1) && c >= 17 => (LEAL1 (SHLLconst <v.Type> [int32(log32(c-1))] x) x)
-(MULLconst [c] x) && isPowerOfTwo32(c-2) && c >= 34 => (LEAL2 (SHLLconst <v.Type> [int32(log32(c-2))] x) x)
-(MULLconst [c] x) && isPowerOfTwo32(c-4) && c >= 68 => (LEAL4 (SHLLconst <v.Type> [int32(log32(c-4))] x) x)
-(MULLconst [c] x) && isPowerOfTwo32(c-8) && c >= 136 => (LEAL8 (SHLLconst <v.Type> [int32(log32(c-8))] x) x)
-(MULLconst [c] x) && c%3 == 0 && isPowerOfTwo32(c/3) => (SHLLconst [int32(log32(c/3))] (LEAL2 <v.Type> x x))
-(MULLconst [c] x) && c%5 == 0 && isPowerOfTwo32(c/5) => (SHLLconst [int32(log32(c/5))] (LEAL4 <v.Type> x x))
-(MULLconst [c] x) && c%9 == 0 && isPowerOfTwo32(c/9) => (SHLLconst [int32(log32(c/9))] (LEAL8 <v.Type> x x))
+(MULLconst [c] x) && isPowerOfTwo(c+1) && c >= 15 => (SUBL (SHLLconst <v.Type> [int32(log32(c+1))] x) x)
+(MULLconst [c] x) && isPowerOfTwo(c-1) && c >= 17 => (LEAL1 (SHLLconst <v.Type> [int32(log32(c-1))] x) x)
+(MULLconst [c] x) && isPowerOfTwo(c-2) && c >= 34 => (LEAL2 (SHLLconst <v.Type> [int32(log32(c-2))] x) x)
+(MULLconst [c] x) && isPowerOfTwo(c-4) && c >= 68 => (LEAL4 (SHLLconst <v.Type> [int32(log32(c-4))] x) x)
+(MULLconst [c] x) && isPowerOfTwo(c-8) && c >= 136 => (LEAL8 (SHLLconst <v.Type> [int32(log32(c-8))] x) x)
+(MULLconst [c] x) && c%3 == 0 && isPowerOfTwo(c/3) => (SHLLconst [int32(log32(c/3))] (LEAL2 <v.Type> x x))
+(MULLconst [c] x) && c%5 == 0 && isPowerOfTwo(c/5) => (SHLLconst [int32(log32(c/5))] (LEAL4 <v.Type> x x))
+(MULLconst [c] x) && c%9 == 0 && isPowerOfTwo(c/9) => (SHLLconst [int32(log32(c/9))] (LEAL8 <v.Type> x x))
 
 // combine add/shift into LEAL
 (ADDL x (SHLLconst [3] y)) => (LEAL8 x y)
@@ -939,3 +939,5 @@
 (MOVBload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read8(sym, int64(off)))])
 (MOVWload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
 (MOVLload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVBLSXload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(int8(read8(sym, int64(off))))])
+(MOVWLSXload [off] {sym} (SB) _) && symIsRO(sym) => (MOVLconst [int32(int16(read16(sym, int64(off), config.ctxt.Arch.ByteOrder)))])

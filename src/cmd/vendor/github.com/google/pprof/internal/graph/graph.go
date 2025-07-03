@@ -154,6 +154,7 @@ type NodeInfo struct {
 	Address           uint64
 	File              string
 	StartLine, Lineno int
+	Columnno          int
 	Objfile           string
 }
 
@@ -174,8 +175,12 @@ func (i *NodeInfo) NameComponents() []string {
 
 	switch {
 	case i.Lineno != 0:
+		s := fmt.Sprintf("%s:%d", i.File, i.Lineno)
+		if i.Columnno != 0 {
+			s += fmt.Sprintf(":%d", i.Columnno)
+		}
 		// User requested line numbers, provide what we have.
-		name = append(name, fmt.Sprintf("%s:%d", i.File, i.Lineno))
+		name = append(name, s)
 	case i.File != "":
 		// User requested file name, provide it.
 		name = append(name, i.File)
@@ -239,6 +244,7 @@ func (nm NodeMap) FindOrInsertNode(info NodeInfo, kept NodeSet) *Node {
 	// Find a node that represents the whole function.
 	info.Address = 0
 	info.Lineno = 0
+	info.Columnno = 0
 	n.Function = nm.FindOrInsertNode(info, nil)
 	return n
 }
@@ -438,7 +444,7 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
 		}
 	}
 
-	nodes := make(Nodes, len(prof.Location))
+	nodes := make(Nodes, 0, len(prof.Location))
 	for _, nm := range parentNodeMap {
 		nodes = append(nodes, nm.nodes()...)
 	}
@@ -592,9 +598,10 @@ func nodeInfo(l *profile.Location, line profile.Line, objfile string, o *Options
 		return &NodeInfo{Address: l.Address, Objfile: objfile}
 	}
 	ni := &NodeInfo{
-		Address: l.Address,
-		Lineno:  int(line.Line),
-		Name:    line.Function.Name,
+		Address:  l.Address,
+		Lineno:   int(line.Line),
+		Columnno: int(line.Column),
+		Name:     line.Function.Name,
 	}
 	if fname := line.Function.Filename; fname != "" {
 		ni.File = filepath.Clean(fname)

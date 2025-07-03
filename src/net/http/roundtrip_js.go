@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http/internal/ascii"
 	"strconv"
 	"strings"
 	"syscall/js"
@@ -55,7 +56,7 @@ var jsFetchMissing = js.Global().Get("fetch").IsUndefined()
 var jsFetchDisabled = js.Global().Get("process").Type() == js.TypeObject &&
 	strings.HasPrefix(js.Global().Get("process").Get("argv0").String(), "node")
 
-// RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
+// RoundTrip implements the [RoundTripper] interface using the WHATWG Fetch API.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	// The Transport has a documented contract that states that if the DialContext or
 	// DialTLSContext functions are set, they will be used to set up the connections.
@@ -184,11 +185,22 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		}
 
 		code := result.Get("status").Int()
+
+		uncompressed := false
+		if ascii.EqualFold(header.Get("Content-Encoding"), "gzip") {
+			// The fetch api will decode the gzip, but Content-Encoding not be deleted.
+			header.Del("Content-Encoding")
+			header.Del("Content-Length")
+			contentLength = -1
+			uncompressed = true
+		}
+
 		respCh <- &Response{
 			Status:        fmt.Sprintf("%d %s", code, StatusText(code)),
 			StatusCode:    code,
 			Header:        header,
 			ContentLength: contentLength,
+			Uncompressed:  uncompressed,
 			Body:          body,
 			Request:       req,
 		}
@@ -224,6 +236,14 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		if !ac.IsUndefined() {
 			// Abort the Fetch request.
 			ac.Call("abort")
+
+			// Wait for fetch promise to be rejected prior to exiting. See
+			// https://github.com/golang/go/issues/57098 for more details.
+			select {
+			case resp := <-respCh:
+				resp.Body.Close()
+			case <-errCh:
+			}
 		}
 		return nil, req.Context().Err()
 	case resp := <-respCh:

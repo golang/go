@@ -8,6 +8,7 @@ package version
 import (
 	"context"
 	"debug/buildinfo"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -21,7 +22,7 @@ import (
 )
 
 var CmdVersion = &base.Command{
-	UsageLine: "go version [-m] [-v] [file ...]",
+	UsageLine: "go version [-m] [-v] [-json] [file ...]",
 	Short:     "print Go version",
 	Long: `Version prints the build information for Go binary files.
 
@@ -40,6 +41,9 @@ module version information, when available. In the output, the module
 information consists of multiple lines following the version line, each
 indented by a leading tab character.
 
+The -json flag is similar to -m but outputs the runtime/debug.BuildInfo in JSON format.
+If flag -json is specified without -m, go version reports an error.
+
 See also: go doc runtime/debug.BuildInfo.
 `,
 }
@@ -50,8 +54,9 @@ func init() {
 }
 
 var (
-	versionM = CmdVersion.Flag.Bool("m", false, "")
-	versionV = CmdVersion.Flag.Bool("v", false, "")
+	versionM    = CmdVersion.Flag.Bool("m", false, "")
+	versionV    = CmdVersion.Flag.Bool("v", false, "")
+	versionJson = CmdVersion.Flag.Bool("json", false, "")
 )
 
 func runVersion(ctx context.Context, cmd *base.Command, args []string) {
@@ -68,6 +73,11 @@ func runVersion(ctx context.Context, cmd *base.Command, args []string) {
 			argOnlyFlag = "-m"
 		} else if !base.InGOFLAGS("-v") && *versionV {
 			argOnlyFlag = "-v"
+		} else if !base.InGOFLAGS("-json") && *versionJson {
+			// Even though '-json' without '-m' should report an error,
+			// it reports 'no arguments' issue only because that error will be reported
+			// once the 'no arguments' issue is fixed by users.
+			argOnlyFlag = "-json"
 		}
 		if argOnlyFlag != "" {
 			fmt.Fprintf(os.Stderr, "go: 'go version' only accepts %s flag with arguments\n", argOnlyFlag)
@@ -82,6 +92,12 @@ func runVersion(ctx context.Context, cmd *base.Command, args []string) {
 		return
 	}
 
+	if !*versionM && *versionJson {
+		fmt.Fprintf(os.Stderr, "go: 'go version' with -json flag requires -m flag\n")
+		base.SetExitStatus(2)
+		return
+	}
+
 	for _, arg := range args {
 		info, err := os.Stat(arg)
 		if err != nil {
@@ -92,7 +108,10 @@ func runVersion(ctx context.Context, cmd *base.Command, args []string) {
 		if info.IsDir() {
 			scanDir(arg)
 		} else {
-			scanFile(arg, info, true)
+			ok := scanFile(arg, info, true)
+			if !ok && *versionM {
+				base.SetExitStatus(1)
+			}
 		}
 	}
 }
@@ -132,7 +151,8 @@ func isGoBinaryCandidate(file string, info fs.FileInfo) bool {
 // If mustPrint is true, scanFile will report any error reading file.
 // Otherwise (mustPrint is false, because scanFile is being called
 // by scanDir) scanFile prints nothing for non-Go binaries.
-func scanFile(file string, info fs.FileInfo, mustPrint bool) {
+// scanFile reports whether the file is a Go binary.
+func scanFile(file string, info fs.FileInfo, mustPrint bool) bool {
 	if info.Mode()&fs.ModeSymlink != 0 {
 		// Accept file symlinks only.
 		i, err := os.Stat(file)
@@ -140,7 +160,7 @@ func scanFile(file string, info fs.FileInfo, mustPrint bool) {
 			if mustPrint {
 				fmt.Fprintf(os.Stderr, "%s: symlink\n", file)
 			}
-			return
+			return false
 		}
 		info = i
 	}
@@ -151,7 +171,6 @@ func scanFile(file string, info fs.FileInfo, mustPrint bool) {
 			if pathErr := (*os.PathError)(nil); errors.As(err, &pathErr) && filepath.Clean(pathErr.Path) == filepath.Clean(file) {
 				fmt.Fprintf(os.Stderr, "%v\n", file)
 			} else {
-
 				// Skip errors for non-Go binaries.
 				// buildinfo.ReadFile errors are not fine-grained enough
 				// to know if the file is a Go binary or not,
@@ -161,7 +180,16 @@ func scanFile(file string, info fs.FileInfo, mustPrint bool) {
 				}
 			}
 		}
-		return
+		return false
+	}
+
+	if *versionM && *versionJson {
+		bs, err := json.MarshalIndent(bi, "", "\t")
+		if err != nil {
+			base.Fatal(err)
+		}
+		fmt.Printf("%s\n", bs)
+		return true
 	}
 
 	fmt.Printf("%s: %s\n", file, bi.GoVersion)
@@ -170,4 +198,5 @@ func scanFile(file string, info fs.FileInfo, mustPrint bool) {
 	if *versionM && len(mod) > 0 {
 		fmt.Printf("\t%s\n", strings.ReplaceAll(mod[:len(mod)-1], "\n", "\n\t"))
 	}
+	return true
 }

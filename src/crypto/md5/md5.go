@@ -12,9 +12,10 @@ package md5
 
 import (
 	"crypto"
-	"encoding/binary"
+	"crypto/internal/fips140only"
 	"errors"
 	"hash"
+	"internal/byteorder"
 )
 
 func init() {
@@ -26,6 +27,11 @@ const Size = 16
 
 // The blocksize of MD5 in bytes.
 const BlockSize = 64
+
+// The maximum number of bytes that can be passed to block(). The limit exists
+// because implementations that rely on assembly routines are not preemptible.
+const maxAsmIters = 1024
+const maxAsmSize = BlockSize * maxAsmIters // 64KiB
 
 const (
 	init0 = 0x67452301
@@ -57,15 +63,18 @@ const (
 )
 
 func (d *digest) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, marshaledSize)
+	return d.AppendBinary(make([]byte, 0, marshaledSize))
+}
+
+func (d *digest) AppendBinary(b []byte) ([]byte, error) {
 	b = append(b, magic...)
-	b = binary.BigEndian.AppendUint32(b, d.s[0])
-	b = binary.BigEndian.AppendUint32(b, d.s[1])
-	b = binary.BigEndian.AppendUint32(b, d.s[2])
-	b = binary.BigEndian.AppendUint32(b, d.s[3])
+	b = byteorder.BEAppendUint32(b, d.s[0])
+	b = byteorder.BEAppendUint32(b, d.s[1])
+	b = byteorder.BEAppendUint32(b, d.s[2])
+	b = byteorder.BEAppendUint32(b, d.s[3])
 	b = append(b, d.x[:d.nx]...)
-	b = b[:len(b)+len(d.x)-d.nx] // already zero
-	b = binary.BigEndian.AppendUint64(b, d.len)
+	b = append(b, make([]byte, len(d.x)-d.nx)...)
+	b = byteorder.BEAppendUint64(b, d.len)
 	return b, nil
 }
 
@@ -88,16 +97,22 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 }
 
 func consumeUint64(b []byte) ([]byte, uint64) {
-	return b[8:], binary.BigEndian.Uint64(b[0:8])
+	return b[8:], byteorder.BEUint64(b[0:8])
 }
 
 func consumeUint32(b []byte) ([]byte, uint32) {
-	return b[4:], binary.BigEndian.Uint32(b[0:4])
+	return b[4:], byteorder.BEUint32(b[0:4])
 }
 
-// New returns a new hash.Hash computing the MD5 checksum. The Hash also
-// implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
-// marshal and unmarshal the internal state of the hash.
+func (d *digest) Clone() (hash.Cloner, error) {
+	r := *d
+	return &r, nil
+}
+
+// New returns a new [hash.Hash] computing the MD5 checksum. The Hash
+// also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
+// [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+// state of the hash.
 func New() hash.Hash {
 	d := new(digest)
 	d.Reset()
@@ -109,6 +124,9 @@ func (d *digest) Size() int { return Size }
 func (d *digest) BlockSize() int { return BlockSize }
 
 func (d *digest) Write(p []byte) (nn int, err error) {
+	if fips140only.Enabled {
+		return 0, errors.New("crypto/md5: use of MD5 is not allowed in FIPS 140-only mode")
+	}
 	// Note that we currently call block or blockGeneric
 	// directly (guarded using haveAsm) because this allows
 	// escape analysis to see that p and d don't escape.
@@ -130,6 +148,11 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 	if len(p) >= BlockSize {
 		n := len(p) &^ (BlockSize - 1)
 		if haveAsm {
+			for n > maxAsmSize {
+				block(d, p[:maxAsmSize])
+				p = p[maxAsmSize:]
+				n -= maxAsmSize
+			}
 			block(d, p[:n])
 		} else {
 			blockGeneric(d, p[:n])
@@ -150,14 +173,18 @@ func (d *digest) Sum(in []byte) []byte {
 }
 
 func (d *digest) checkSum() [Size]byte {
+	if fips140only.Enabled {
+		panic("crypto/md5: use of MD5 is not allowed in FIPS 140-only mode")
+	}
+
 	// Append 0x80 to the end of the message and then append zeros
 	// until the length is a multiple of 56 bytes. Finally append
 	// 8 bytes representing the message length in bits.
 	//
 	// 1 byte end marker :: 0-63 padding bytes :: 8 byte length
 	tmp := [1 + 63 + 8]byte{0x80}
-	pad := (55 - d.len) % 64                             // calculate number of padding bytes
-	binary.LittleEndian.PutUint64(tmp[1+pad:], d.len<<3) // append length in bits
+	pad := (55 - d.len) % 64                     // calculate number of padding bytes
+	byteorder.LEPutUint64(tmp[1+pad:], d.len<<3) // append length in bits
 	d.Write(tmp[:1+pad+8])
 
 	// The previous write ensures that a whole number of
@@ -167,10 +194,10 @@ func (d *digest) checkSum() [Size]byte {
 	}
 
 	var digest [Size]byte
-	binary.LittleEndian.PutUint32(digest[0:], d.s[0])
-	binary.LittleEndian.PutUint32(digest[4:], d.s[1])
-	binary.LittleEndian.PutUint32(digest[8:], d.s[2])
-	binary.LittleEndian.PutUint32(digest[12:], d.s[3])
+	byteorder.LEPutUint32(digest[0:], d.s[0])
+	byteorder.LEPutUint32(digest[4:], d.s[1])
+	byteorder.LEPutUint32(digest[8:], d.s[2])
+	byteorder.LEPutUint32(digest[12:], d.s[3])
 	return digest
 }
 

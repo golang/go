@@ -5,29 +5,30 @@
 #include "go_asm.h"
 #include "textflag.h"
 
-TEXT ·Index(SB),NOSPLIT,$0-56
-	MOVD	a_base+0(FP), R0
-	MOVD	a_len+8(FP), R1
-	MOVD	b_base+24(FP), R2
-	MOVD	b_len+32(FP), R3
-	MOVD	$ret+48(FP), R9
-	B	indexbody<>(SB)
-
-TEXT ·IndexString(SB),NOSPLIT,$0-40
-	MOVD	a_base+0(FP), R0
-	MOVD	a_len+8(FP), R1
-	MOVD	b_base+16(FP), R2
-	MOVD	b_len+24(FP), R3
-	MOVD	$ret+32(FP), R9
-	B	indexbody<>(SB)
-
+// func Index(a, b []byte) int
 // input:
-//   R0: haystack
-//   R1: length of haystack
-//   R2: needle
-//   R3: length of needle (2 <= len <= 32)
-//   R9: address to put result
-TEXT indexbody<>(SB),NOSPLIT,$0-56
+//   R0: a ptr (haystack)
+//   R1: a len (haystack)
+//   R2: a cap (haystack) (unused)
+//   R3: b ptr (needle)
+//   R4: b len (needle) (2 <= len <= 32)
+//   R5: b cap (needle) (unused)
+// return:
+//   R0: result
+TEXT ·Index<ABIInternal>(SB),NOSPLIT,$0-56
+	MOVD	R3, R2
+	MOVD	R4, R3
+	B	·IndexString<ABIInternal>(SB)
+
+// func IndexString(a, b string) int
+// input:
+//   R0: a ptr (haystack)
+//   R1: a len (haystack)
+//   R2: b ptr (needle)
+//   R3: b len (needle) (2 <= len <= 32)
+// return:
+//   R0: result
+TEXT ·IndexString<ABIInternal>(SB),NOSPLIT,$0-40
 	// main idea is to load 'sep' into separate register(s)
 	// to avoid repeatedly re-load it again and again
 	// for sebsequent substring comparisons
@@ -136,11 +137,9 @@ loop_2:
 	BNE	loop_2
 found:
 	SUB	R8, R0, R0
-	MOVD	R0, (R9)
 	RET
 not_found:
 	MOVD	$-1, R0
-	MOVD	R0, (R9)
 	RET
 greater_8:
 	SUB	$9, R3, R11	// len(sep) - 9, offset of R0 for last 8 bytes

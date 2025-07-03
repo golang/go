@@ -106,10 +106,8 @@ TEXT gogo<>(SB),NOSPLIT|NOFRAME,$0
 	JAL	runtime·save_g(SB)
 	MOVW	gobuf_sp(R3), R29
 	MOVW	gobuf_lr(R3), R31
-	MOVW	gobuf_ret(R3), R1
 	MOVW	gobuf_ctxt(R3), REGCTXT
 	MOVW	R0, gobuf_sp(R3)
-	MOVW	R0, gobuf_ret(R3)
 	MOVW	R0, gobuf_lr(R3)
 	MOVW	R0, gobuf_ctxt(R3)
 	MOVW	gobuf_pc(R3), R4
@@ -204,6 +202,29 @@ noswitch:
 	ADD	$4, R29
 	JMP	(R4)
 
+// func switchToCrashStack0(fn func())
+TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-4
+	MOVW	fn+0(FP), REGCTXT	// context register
+	MOVW	g_m(g), R2	// curm
+
+	// set g to gcrash
+	MOVW	$runtime·gcrash(SB), g	// g = &gcrash
+	CALL	runtime·save_g(SB)
+	MOVW	R2, g_m(g)	// g.m = curm
+	MOVW	g, m_g0(R2)	// curm.g0 = g
+
+	// switch to crashstack
+	MOVW	(g_stack+stack_hi)(g), R2
+	ADDU	$(-4*8), R2, R29
+
+	// call target function
+	MOVW	0(REGCTXT), R25
+	JAL	(R25)
+
+	// should never return
+	CALL	runtime·abort(SB)
+	UNDEF
+
 /*
  * support for morestack
  */
@@ -217,6 +238,13 @@ noswitch:
 // calling the scheduler calling newm calling gc), so we must
 // record an argument size. For that purpose, it has no arguments.
 TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+	// Called from f.
+	// Set g->sched to context in f.
+	MOVW	R29, (g_sched+gobuf_sp)(g)
+	MOVW	R31, (g_sched+gobuf_pc)(g)
+	MOVW	R3, (g_sched+gobuf_lr)(g)
+	MOVW	REGCTXT, (g_sched+gobuf_ctxt)(g)
+
 	// Cannot grow scheduler stack (m->g0).
 	MOVW	g_m(g), R7
 	MOVW	m_g0(R7), R8
@@ -229,13 +257,6 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	BNE	g, R8, 3(PC)
 	JAL	runtime·badmorestackgsignal(SB)
 	JAL	runtime·abort(SB)
-
-	// Called from f.
-	// Set g->sched to context in f.
-	MOVW	R29, (g_sched+gobuf_sp)(g)
-	MOVW	R31, (g_sched+gobuf_pc)(g)
-	MOVW	R3, (g_sched+gobuf_lr)(g)
-	MOVW	REGCTXT, (g_sched+gobuf_ctxt)(g)
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
@@ -399,7 +420,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R1, (g_sched+gobuf_pc)(g)
 	MOVW	R29, (g_sched+gobuf_sp)(g)
 	MOVW	R0, (g_sched+gobuf_lr)(g)
-	MOVW	R0, (g_sched+gobuf_ret)(g)
 	// Assert ctxt is zero. See func save.
 	MOVW	(g_sched+gobuf_ctxt)(g), R1
 	BEQ	R1, 2(PC)
@@ -610,10 +630,6 @@ TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-12
 	JMP	runtime·memhash32Fallback(SB)
 TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-12
 	JMP	runtime·memhash64Fallback(SB)
-
-TEXT runtime·return0(SB),NOSPLIT,$0
-	MOVW	$0, R1
-	RET
 
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.

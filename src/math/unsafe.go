@@ -6,6 +6,18 @@ package math
 
 import "unsafe"
 
+// Despite being an exported symbol,
+// Float32bits is linknamed by widely used packages.
+// Notable members of the hall of shame include:
+//   - gitee.com/quant1x/num
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
+// Note that this comment is not part of the doc comment.
+//
+//go:linkname Float32bits
+
 // Float32bits returns the IEEE 754 binary representation of f,
 // with the sign bit of f and the result in the same bit position.
 // Float32bits(Float32frombits(x)) == x.

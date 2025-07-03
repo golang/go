@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix || (js && wasm) || wasip1 || windows
+//go:build unix || js || wasip1 || windows
 
 package net
 
@@ -205,7 +205,7 @@ func (c *UDPConn) writeMsgAddrPort(b, oob []byte, addr netip.AddrPort) (n, oobn 
 func (sd *sysDialer) dialUDP(ctx context.Context, laddr, raddr *UDPAddr) (*UDPConn, error) {
 	ctrlCtxFn := sd.Dialer.ControlContext
 	if ctrlCtxFn == nil && sd.Dialer.Control != nil {
-		ctrlCtxFn = func(cxt context.Context, network, address string, c syscall.RawConn) error {
+		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
 			return sd.Dialer.Control(network, address, c)
 		}
 	}
@@ -217,9 +217,9 @@ func (sd *sysDialer) dialUDP(ctx context.Context, laddr, raddr *UDPAddr) (*UDPCo
 }
 
 func (sl *sysListener) listenUDP(ctx context.Context, laddr *UDPAddr) (*UDPConn, error) {
-	var ctrlCtxFn func(cxt context.Context, network, address string, c syscall.RawConn) error
+	var ctrlCtxFn func(ctx context.Context, network, address string, c syscall.RawConn) error
 	if sl.ListenConfig.Control != nil {
-		ctrlCtxFn = func(cxt context.Context, network, address string, c syscall.RawConn) error {
+		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
 			return sl.ListenConfig.Control(network, address, c)
 		}
 	}
@@ -231,9 +231,9 @@ func (sl *sysListener) listenUDP(ctx context.Context, laddr *UDPAddr) (*UDPConn,
 }
 
 func (sl *sysListener) listenMulticastUDP(ctx context.Context, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
-	var ctrlCtxFn func(cxt context.Context, network, address string, c syscall.RawConn) error
+	var ctrlCtxFn func(ctx context.Context, network, address string, c syscall.RawConn) error
 	if sl.ListenConfig.Control != nil {
-		ctrlCtxFn = func(cxt context.Context, network, address string, c syscall.RawConn) error {
+		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
 			return sl.ListenConfig.Control(network, address, c)
 		}
 	}

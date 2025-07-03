@@ -46,7 +46,21 @@ above has a `uint8` type, and a constant boolean value will have a `bool` type.
 However, certain types don't come from Go and are special; below we will cover
 `memory`, the most common of them.
 
-See [value.go](value.go) for more information.
+Some operators contain an auxiliary field. The aux fields are usually printed as
+enclosed in `[]` or `{}`, and could be the constant op argument, argument type,
+etc.
+for example:
+
+	v13 (?) = Const64 <int> [1]
+
+Here the aux field is the constant op argument, the op is creating a `Const64`
+value of 1. One more example:
+
+	v17 (361) = Store <mem> {int} v16 v14 v8
+
+Here the aux field is the type of the value being `Store`ed, which is int.
+
+See [value.go](value.go) and `_gen/*Ops.go` for more information.
 
 #### Memory types
 
@@ -191,6 +205,16 @@ name, e.g.
 
 This will match any function named "Foo" within a package whose final
 suffix is "blah" (e.g. something/blah.Foo, anotherthing/extra/blah.Foo).
+
+The users may also print the Control Flow Graph(CFG) by specifying in
+`GOSSAFUNC` value in the following format:
+
+	GOSSAFUNC="$FunctionName:$PassName1,$PassName2,..." go build
+
+For example, the following command will print SSA with CFGs attached to the
+`sccp` and `generic deadcode` pass columns:
+
+	GOSSAFUNC="blah.Foo:sccp,generic deadcode" go build
 
 If non-HTML dumps are needed, append a "+" to the GOSSAFUNC value
 and dumps will be written to stdout:

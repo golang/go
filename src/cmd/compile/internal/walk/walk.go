@@ -6,10 +6,13 @@ package walk
 
 import (
 	"fmt"
+	"internal/abi"
+	"internal/buildcfg"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -18,10 +21,16 @@ import (
 
 // The constant is known to runtime.
 const tmpstringbufsize = 32
-const zeroValSize = 1024 // must match value of runtime/map.go:maxZero
 
 func Walk(fn *ir.Func) {
 	ir.CurFunc = fn
+
+	// Set and then clear a package-level cache of static values for this fn.
+	// (At some point, it might be worthwhile to have a walkState structure
+	// that gets passed everywhere where things like this can go.)
+	staticValues = findStaticValues(fn)
+	defer func() { staticValues = nil }()
+
 	errorsBefore := base.Errors()
 	order(fn)
 	if base.Errors() > errorsBefore {
@@ -33,12 +42,6 @@ func Walk(fn *ir.Func) {
 		ir.DumpList(s, ir.CurFunc.Body)
 	}
 
-	lno := base.Pos
-
-	base.Pos = lno
-	if base.Errors() > errorsBefore {
-		return
-	}
 	walkStmtList(ir.CurFunc.Body)
 	if base.Flag.W != 0 {
 		s := fmt.Sprintf("after walk %v", ir.CurFunc.Sym())
@@ -189,8 +192,42 @@ var mapassign = mkmapnames("mapassign", "ptr")
 var mapdelete = mkmapnames("mapdelete", "")
 
 func mapfast(t *types.Type) int {
-	// Check runtime/map.go:maxElemSize before changing.
-	if t.Elem().Size() > 128 {
+	if buildcfg.Experiment.SwissMap {
+		return mapfastSwiss(t)
+	}
+	return mapfastOld(t)
+}
+
+func mapfastSwiss(t *types.Type) int {
+	if t.Elem().Size() > abi.OldMapMaxElemBytes {
+		return mapslow
+	}
+	switch reflectdata.AlgType(t.Key()) {
+	case types.AMEM32:
+		if !t.Key().HasPointers() {
+			return mapfast32
+		}
+		if types.PtrSize == 4 {
+			return mapfast32ptr
+		}
+		base.Fatalf("small pointer %v", t.Key())
+	case types.AMEM64:
+		if !t.Key().HasPointers() {
+			return mapfast64
+		}
+		if types.PtrSize == 8 {
+			return mapfast64ptr
+		}
+		// Two-word object, at least one of which is a pointer.
+		// Use the slow path.
+	case types.ASTRING:
+		return mapfaststr
+	}
+	return mapslow
+}
+
+func mapfastOld(t *types.Type) int {
+	if t.Elem().Size() > abi.OldMapMaxElemBytes {
 		return mapslow
 	}
 	switch reflectdata.AlgType(t.Key()) {
@@ -334,7 +371,7 @@ func mayCall(n ir.Node) bool {
 			ir.OCAP, ir.OIMAG, ir.OLEN, ir.OREAL,
 			ir.OCONVNOP, ir.ODOT,
 			ir.OCFUNC, ir.OIDATA, ir.OITAB, ir.OSPTR,
-			ir.OBYTES2STRTMP, ir.OGETG, ir.OGETCALLERPC, ir.OGETCALLERSP, ir.OSLICEHEADER, ir.OSTRINGHEADER:
+			ir.OBYTES2STRTMP, ir.OGETG, ir.OGETCALLERSP, ir.OSLICEHEADER, ir.OSTRINGHEADER:
 			// ok: operations that don't require function calls.
 			// Expand as needed.
 		}
@@ -346,8 +383,8 @@ func mayCall(n ir.Node) bool {
 // itabType loads the _type field from a runtime.itab struct.
 func itabType(itab ir.Node) ir.Node {
 	if itabTypeField == nil {
-		// runtime.itab's _type field
-		itabTypeField = runtimeField("_type", int64(types.PtrSize), types.NewPtr(types.Types[types.TUINT8]))
+		// internal/abi.ITab's Type field
+		itabTypeField = runtimeField("Type", rttype.ITab.OffsetOf("Type"), types.NewPtr(types.Types[types.TUINT8]))
 	}
 	return boundedDotPtr(base.Pos, itab, itabTypeField)
 }
@@ -391,4 +428,44 @@ func ifaceData(pos src.XPos, n ir.Node, t *types.Type) ir.Node {
 	ind.SetTypecheck(1)
 	ind.SetBounded(true)
 	return ind
+}
+
+// staticValue returns the earliest expression it can find that always
+// evaluates to n, with similar semantics to [ir.StaticValue].
+//
+// It only returns results for the ir.CurFunc being processed in [Walk],
+// including its closures, and uses a cache to reduce duplicative work.
+// It can return n or nil if it does not find an earlier expression.
+//
+// The current use case is reducing OCONVIFACE allocations, and hence
+// staticValue is currently only useful when given an *ir.ConvExpr.X as n.
+func staticValue(n ir.Node) ir.Node {
+	if staticValues == nil {
+		base.Fatalf("staticValues is nil. staticValue called outside of walk.Walk?")
+	}
+	return staticValues[n]
+}
+
+// staticValues is a cache of static values for use by staticValue.
+var staticValues map[ir.Node]ir.Node
+
+// findStaticValues returns a map of static values for fn.
+func findStaticValues(fn *ir.Func) map[ir.Node]ir.Node {
+	// We can't use an ir.ReassignOracle or ir.StaticValue in the
+	// middle of walk because they don't currently handle
+	// transformed assignments (e.g., will complain about 'RHS == nil').
+	// So we instead build this map to use in walk.
+	ro := &ir.ReassignOracle{}
+	ro.Init(fn)
+	m := make(map[ir.Node]ir.Node)
+	ir.Visit(fn, func(n ir.Node) {
+		if n.Op() == ir.OCONVIFACE {
+			x := n.(*ir.ConvExpr).X
+			v := ro.StaticValue(x)
+			if v != nil && v != x {
+				m[x] = v
+			}
+		}
+	})
+	return m
 }

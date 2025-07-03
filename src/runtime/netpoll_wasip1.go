@@ -205,13 +205,11 @@ func netpoll(delay int64) (gList, int32) {
 	}
 
 	evts = evts[:len(pollsubs)]
-	for i := range evts {
-		evts[i] = event{}
-	}
+	clear(evts)
 
 retry:
 	var nevents size
-	errno := poll_oneoff(unsafe.Pointer(&pollsubs[0]), unsafe.Pointer(&evts[0]), uint32(len(pollsubs)), unsafe.Pointer(&nevents))
+	errno := poll_oneoff(&pollsubs[0], &evts[0], uint32(len(pollsubs)), &nevents)
 	if errno != 0 {
 		if errno != _EINTR {
 			println("errno=", errno, " len(pollsubs)=", len(pollsubs))

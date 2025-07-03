@@ -25,7 +25,7 @@ type Encoder struct {
 }
 
 // EncoderBufferPool is an interface for getting and returning temporary
-// instances of the EncoderBuffer struct. This can be used to reuse buffers
+// instances of the [EncoderBuffer] struct. This can be used to reuse buffers
 // when encoding multiple images.
 type EncoderBufferPool interface {
 	Get() *EncoderBuffer
@@ -190,7 +190,7 @@ func (e *encoder) writePLTEAndTRNS(p color.Palette) {
 
 // An encoder is an io.Writer that satisfies writes by writing PNG IDAT chunks,
 // including an 8-byte header and 4-byte CRC checksum per Write call. Such calls
-// should be relatively infrequent, since writeIDATs uses a bufio.Writer.
+// should be relatively infrequent, since writeIDATs uses a [bufio.Writer].
 //
 // This method should only be called from writeIDATs (via writeImage).
 // No other code should treat an encoder as an io.Writer.
@@ -295,12 +295,6 @@ func filter(cr *[nFilter][]byte, pr []byte, bpp int) int {
 	return filter
 }
 
-func zeroMemory(v []uint8) {
-	for i := range v {
-		v[i] = 0
-	}
-}
-
 func (e *encoder) writeImage(w io.Writer, m image.Image, cb int, level int) error {
 	if e.zw == nil || e.zwLevel != level {
 		zw, err := zlib.NewWriterLevel(w, level)
@@ -359,7 +353,7 @@ func (e *encoder) writeImage(w io.Writer, m image.Image, cb int, level int) erro
 		e.pr = make([]uint8, sz)
 	} else {
 		e.pr = e.pr[:sz]
-		zeroMemory(e.pr)
+		clear(e.pr)
 	}
 	pr := e.pr
 
@@ -586,7 +580,7 @@ func levelToZlib(l CompressionLevel) int {
 func (e *encoder) writeIEND() { e.writeChunk(nil, "IEND") }
 
 // Encode writes the Image m to w in PNG format. Any Image may be
-// encoded, but images that are not image.NRGBA might be encoded lossily.
+// encoded, but images that are not [image.NRGBA] might be encoded lossily.
 func Encode(w io.Writer, m image.Image) error {
 	var e Encoder
 	return e.Encode(w, m)

@@ -25,7 +25,7 @@ type ExperimentFlags struct {
 // (This is not necessarily the set of experiments the compiler itself
 // was built with.)
 //
-// experimentBaseline specifies the experiment flags that are enabled by
+// Experiment.baseline specifies the experiment flags that are enabled by
 // default in the current toolchain. This is, in effect, the "control"
 // configuration and any variation from this is an experiment.
 var Experiment ExperimentFlags = func() ExperimentFlags {
@@ -54,7 +54,7 @@ var FramePointerEnabled = GOARCH == "amd64" || GOARCH == "arm64"
 // configuration tuple and returns the enabled and baseline experiment
 // flag sets.
 //
-// TODO(mdempsky): Move to internal/goexperiment.
+// TODO(mdempsky): Move to [internal/goexperiment].
 func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	// regabiSupported is set to true on platforms where register ABI is
 	// supported and enabled by default.
@@ -62,15 +62,29 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	// always on.
 	var regabiSupported, regabiAlwaysOn bool
 	switch goarch {
-	case "amd64", "arm64", "ppc64le", "ppc64", "riscv64":
+	case "amd64", "arm64", "loong64", "ppc64le", "ppc64", "riscv64":
 		regabiAlwaysOn = true
 		regabiSupported = true
 	}
 
+	// Older versions (anything before V16) of dsymutil don't handle
+	// the .debug_rnglists section in DWARF5. See
+	// https://github.com/golang/go/issues/26379#issuecomment-2677068742
+	// for more context. This disables all DWARF5 on mac, which is not
+	// ideal (would be better to disable just for cases where we know
+	// the build will use external linking). In the GOOS=aix case, the
+	// XCOFF format (as far as can be determined) doesn't seem to
+	// support the necessary section subtypes for DWARF-specific
+	// things like .debug_addr (needed for DWARF 5).
+	dwarf5Supported := (goos != "darwin" && goos != "ios" && goos != "aix")
+
 	baseline := goexperiment.Flags{
-		RegabiWrappers:   regabiSupported,
-		RegabiArgs:       regabiSupported,
-		CoverageRedesign: true,
+		RegabiWrappers:  regabiSupported,
+		RegabiArgs:      regabiSupported,
+		AliasTypeParams: true,
+		SwissMap:        true,
+		SyncHashTrieMap: true,
+		Dwarf5:          dwarf5Supported,
 	}
 
 	// Start with the statically enabled set of experiments.
@@ -129,7 +143,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		flags.RegabiWrappers = true
 		flags.RegabiArgs = true
 	}
-	// regabi is only supported on amd64, arm64, riscv64, ppc64 and ppc64le.
+	// regabi is only supported on amd64, arm64, loong64, riscv64, ppc64 and ppc64le.
 	if !regabiSupported {
 		flags.RegabiWrappers = false
 		flags.RegabiArgs = false

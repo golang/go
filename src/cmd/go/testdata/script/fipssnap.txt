@@ -1,0 +1,69 @@
+env snap=v1.0.0
+env alias=inprocess
+
+env GOFIPS140=$snap
+
+# Go+BoringCrypto conflicts with GOFIPS140.
+[GOEXPERIMENT:boringcrypto] skip
+
+# default GODEBUG includes fips140=on
+go list -f '{{.DefaultGODEBUG}}'
+stdout fips140=on
+
+# std lists fips snapshot and not regular fips
+go list std
+stdout crypto/internal/fips140/$snap/sha256
+! stdout crypto/internal/fips140/sha256
+! stdout crypto/internal/fips140/check
+
+# build does not use regular fips
+go list -json -test
+stdout crypto/internal/fips140/$snap/sha256
+! stdout crypto/internal/fips140/sha256
+! stdout crypto/internal/fips140/check
+
+# again with GOFIPS140=$alias
+# TODO: enable when we add inprocess.txt
+# env GOFIPS140=$alias
+
+# default GODEBUG includes fips140=on
+go list -f '{{.DefaultGODEBUG}}'
+stdout fips140=on
+
+# std lists fips snapshot and not regular fips
+go list std
+stdout crypto/internal/fips140/$snap/sha256
+! stdout crypto/internal/fips140/sha256
+! stdout crypto/internal/fips140/check
+
+# build does not use regular fips
+go list -json -test
+stdout crypto/internal/fips140/$snap/sha256
+! stdout crypto/internal/fips140/sha256
+! stdout crypto/internal/fips140/check
+
+[short] skip
+
+# build with GOFIPS140=snap is cached
+go build -x -o x.exe
+stderr link.*-fipso
+go build -x -o x.exe
+! stderr link.*-fipso
+
+# build test with GOFIPS140=snap is cached
+go test -x -c
+stderr link.*-fipso
+go test -x -c
+! stderr link
+
+-- go.mod --
+module m
+-- x.go --
+package main
+import _ "crypto/sha256"
+func main() {
+}
+-- x_test.go --
+package main
+import "testing"
+func Test(t *testing.T) {}

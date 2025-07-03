@@ -6,6 +6,7 @@ package time_test
 
 import (
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -99,13 +100,46 @@ func ExampleParseDuration() {
 	fmt.Println(complex)
 	fmt.Printf("There are %.0f seconds in %v.\n", complex.Seconds(), complex)
 	fmt.Printf("There are %d nanoseconds in %v.\n", micro.Nanoseconds(), micro)
-	fmt.Printf("There are %6.2e seconds in %v.\n", micro2.Seconds(), micro)
+	fmt.Printf("There are %6.2e seconds in %v.\n", micro2.Seconds(), micro2)
 	// Output:
 	// 10h0m0s
 	// 1h10m10s
 	// There are 4210 seconds in 1h10m10s.
 	// There are 1000 nanoseconds in 1µs.
 	// There are 1.00e-06 seconds in 1µs.
+}
+
+func ExampleSince() {
+	start := time.Now()
+	expensiveCall()
+	elapsed := time.Since(start)
+	fmt.Printf("The call took %v to run.\n", elapsed)
+}
+
+func ExampleUntil() {
+	futureTime := time.Now().Add(5 * time.Second)
+	durationUntil := time.Until(futureTime)
+	fmt.Printf("Duration until future time: %.0f seconds", math.Ceil(durationUntil.Seconds()))
+	// Output: Duration until future time: 5 seconds
+}
+
+func ExampleDuration_Abs() {
+	positiveDuration := 5 * time.Second
+	negativeDuration := -3 * time.Second
+	minInt64CaseDuration := time.Duration(math.MinInt64)
+
+	absPositive := positiveDuration.Abs()
+	absNegative := negativeDuration.Abs()
+	absSpecial := minInt64CaseDuration.Abs() == time.Duration(math.MaxInt64)
+
+	fmt.Printf("Absolute value of positive duration: %v\n", absPositive)
+	fmt.Printf("Absolute value of negative duration: %v\n", absNegative)
+	fmt.Printf("Absolute value of MinInt64 equal to MaxInt64: %t\n", absSpecial)
+
+	// Output:
+	// Absolute value of positive duration: 5s
+	// Absolute value of negative duration: 3s
+	// Absolute value of MinInt64 equal to MaxInt64: true
 }
 
 func ExampleDuration_Hours() {
@@ -295,8 +329,8 @@ func ExampleTime_Format() {
 	// default format: 2015-02-25 11:06:39 -0800 PST
 	// Unix format: Wed Feb 25 11:06:39 PST 2015
 	// Same, in UTC: Wed Feb 25 19:06:39 UTC 2015
-	//in Shanghai with seconds: 2015-02-26T03:06:39 +080000
-	//in Shanghai with colon seconds: 2015-02-26T03:06:39 +08:00:00
+	// in Shanghai with seconds: 2015-02-26T03:06:39 +080000
+	// in Shanghai with colon seconds: 2015-02-26T03:06:39 +08:00:00
 	//
 	// Formats:
 	//
@@ -591,19 +625,33 @@ func ExampleTime_Add() {
 }
 
 func ExampleTime_AddDate() {
-	start := time.Date(2009, 1, 1, 0, 0, 0, 0, time.UTC)
+	start := time.Date(2023, 03, 25, 12, 0, 0, 0, time.UTC)
 	oneDayLater := start.AddDate(0, 0, 1)
+	dayDuration := oneDayLater.Sub(start)
 	oneMonthLater := start.AddDate(0, 1, 0)
 	oneYearLater := start.AddDate(1, 0, 0)
+
+	zurich, err := time.LoadLocation("Europe/Zurich")
+	if err != nil {
+		panic(err)
+	}
+	// This was the day before a daylight saving time transition in Zürich.
+	startZurich := time.Date(2023, 03, 25, 12, 0, 0, 0, zurich)
+	oneDayLaterZurich := startZurich.AddDate(0, 0, 1)
+	dayDurationZurich := oneDayLaterZurich.Sub(startZurich)
 
 	fmt.Printf("oneDayLater: start.AddDate(0, 0, 1) = %v\n", oneDayLater)
 	fmt.Printf("oneMonthLater: start.AddDate(0, 1, 0) = %v\n", oneMonthLater)
 	fmt.Printf("oneYearLater: start.AddDate(1, 0, 0) = %v\n", oneYearLater)
+	fmt.Printf("oneDayLaterZurich: startZurich.AddDate(0, 0, 1) = %v\n", oneDayLaterZurich)
+	fmt.Printf("Day duration in UTC: %v | Day duration in Zürich: %v\n", dayDuration, dayDurationZurich)
 
 	// Output:
-	// oneDayLater: start.AddDate(0, 0, 1) = 2009-01-02 00:00:00 +0000 UTC
-	// oneMonthLater: start.AddDate(0, 1, 0) = 2009-02-01 00:00:00 +0000 UTC
-	// oneYearLater: start.AddDate(1, 0, 0) = 2010-01-01 00:00:00 +0000 UTC
+	// oneDayLater: start.AddDate(0, 0, 1) = 2023-03-26 12:00:00 +0000 UTC
+	// oneMonthLater: start.AddDate(0, 1, 0) = 2023-04-25 12:00:00 +0000 UTC
+	// oneYearLater: start.AddDate(1, 0, 0) = 2024-03-25 12:00:00 +0000 UTC
+	// oneDayLaterZurich: startZurich.AddDate(0, 0, 1) = 2023-03-26 12:00:00 +0200 CEST
+	// Day duration in UTC: 24h0m0s | Day duration in Zürich: 23h0m0s
 }
 
 func ExampleTime_After() {
@@ -706,6 +754,31 @@ func ExampleTime_Sub() {
 	// difference = 12h0m0s
 }
 
+func ExampleTime_AppendBinary() {
+	t := time.Date(2025, 4, 1, 15, 30, 45, 123456789, time.UTC)
+
+	var buffer []byte
+	buffer, err := t.AppendBinary(buffer)
+	if err != nil {
+		panic(err)
+	}
+
+	var parseTime time.Time
+	err = parseTime.UnmarshalBinary(buffer[:])
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("t: %v\n", t)
+	fmt.Printf("parseTime: %v\n", parseTime)
+	fmt.Printf("equal: %v\n", parseTime.Equal(t))
+
+	// Output:
+	// t: 2025-04-01 15:30:45.123456789 +0000 UTC
+	// parseTime: 2025-04-01 15:30:45.123456789 +0000 UTC
+	// equal: true
+}
+
 func ExampleTime_AppendFormat() {
 	t := time.Date(2017, time.November, 4, 11, 0, 0, 0, time.UTC)
 	text := []byte("Time: ")
@@ -717,6 +790,21 @@ func ExampleTime_AppendFormat() {
 	// Time: 11:00AM
 }
 
+func ExampleTime_AppendText() {
+	t := time.Date(2025, 4, 1, 15, 30, 45, 123456789, time.UTC)
+
+	buffer := []byte("t: ")
+
+	buffer, err := t.AppendText(buffer)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("%s\n", buffer)
+
+	// Output:
+	// t: 2025-04-01T15:30:45.123456789Z
+}
 func ExampleFixedZone() {
 	loc := time.FixedZone("UTC-8", -8*60*60)
 	t := time.Date(2009, time.November, 10, 23, 0, 0, 0, loc)

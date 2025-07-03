@@ -54,12 +54,17 @@ func parseMetaGoImports(r io.Reader, mod ModuleMode) ([]metaImport, error) {
 		if attrValue(e.Attr, "name") != "go-import" {
 			continue
 		}
-		if f := strings.Fields(attrValue(e.Attr, "content")); len(f) == 3 {
-			imports = append(imports, metaImport{
+		if f := strings.Fields(attrValue(e.Attr, "content")); len(f) == 3 || len(f) == 4 {
+			mi := metaImport{
 				Prefix:   f[0],
 				VCS:      f[1],
 				RepoRoot: f[2],
-			})
+			}
+			// An optional subdirectory may be provided.
+			if len(f) == 4 {
+				mi.SubDir = f[3]
+			}
+			imports = append(imports, mi)
 		}
 	}
 
@@ -86,7 +91,7 @@ func parseMetaGoImports(r io.Reader, mod ModuleMode) ([]metaImport, error) {
 }
 
 // attrValue returns the attribute value for the case-insensitive key
-// `name', or the empty string if nothing is found.
+// `name`, or the empty string if nothing is found.
 func attrValue(attrs []xml.Attr, name string) string {
 	for _, a := range attrs {
 		if strings.EqualFold(a.Name.Local, name) {

@@ -6,12 +6,14 @@ package gob
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/hex"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -73,7 +75,7 @@ func TestEncodeIntSlice(t *testing.T) {
 		res := make([]int8, 9)
 		dec.Decode(&res)
 
-		if !reflect.DeepEqual(s8, res) {
+		if !slices.Equal(s8, res) {
 			t.Fatalf("EncodeIntSlice: expected %v, got %v", s8, res)
 		}
 	})
@@ -87,7 +89,7 @@ func TestEncodeIntSlice(t *testing.T) {
 		res := make([]int16, 9)
 		dec.Decode(&res)
 
-		if !reflect.DeepEqual(s16, res) {
+		if !slices.Equal(s16, res) {
 			t.Fatalf("EncodeIntSlice: expected %v, got %v", s16, res)
 		}
 	})
@@ -101,7 +103,7 @@ func TestEncodeIntSlice(t *testing.T) {
 		res := make([]int32, 9)
 		dec.Decode(&res)
 
-		if !reflect.DeepEqual(s32, res) {
+		if !slices.Equal(s32, res) {
 			t.Fatalf("EncodeIntSlice: expected %v, got %v", s32, res)
 		}
 	})
@@ -115,7 +117,7 @@ func TestEncodeIntSlice(t *testing.T) {
 		res := make([]int64, 9)
 		dec.Decode(&res)
 
-		if !reflect.DeepEqual(s64, res) {
+		if !slices.Equal(s64, res) {
 			t.Fatalf("EncodeIntSlice: expected %v, got %v", s64, res)
 		}
 	})
@@ -688,7 +690,7 @@ func TestMapBug1(t *testing.T) {
 	if err != nil {
 		t.Fatal("decode:", err)
 	}
-	if !reflect.DeepEqual(in, out) {
+	if !maps.Equal(in, out) {
 		t.Errorf("mismatch: %v %v", in, out)
 	}
 }
@@ -762,7 +764,7 @@ func TestSliceReusesMemory(t *testing.T) {
 		if err != nil {
 			t.Fatal("ints: decode:", err)
 		}
-		if !reflect.DeepEqual(x, y) {
+		if !slices.Equal(x, y) {
 			t.Errorf("ints: expected %q got %q\n", x, y)
 		}
 		if addr != &y[0] {
@@ -1186,19 +1188,19 @@ func TestMarshalFloatMap(t *testing.T) {
 		for k, v := range m {
 			entries = append(entries, mapEntry{math.Float64bits(k), v})
 		}
-		sort.Slice(entries, func(i, j int) bool {
-			ei, ej := entries[i], entries[j]
-			if ei.keyBits != ej.keyBits {
-				return ei.keyBits < ej.keyBits
+		slices.SortFunc(entries, func(a, b mapEntry) int {
+			r := cmp.Compare(a.keyBits, b.keyBits)
+			if r != 0 {
+				return r
 			}
-			return ei.value < ej.value
+			return cmp.Compare(a.value, b.value)
 		})
 		return entries
 	}
 
 	got := readMap(out)
 	want := readMap(in)
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Fatalf("\nEncode: %v\nDecode: %v", want, got)
 	}
 }

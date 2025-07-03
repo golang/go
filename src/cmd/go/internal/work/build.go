@@ -23,6 +23,7 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/search"
 	"cmd/go/internal/trace"
+	"cmd/internal/pathcache"
 )
 
 var CmdBuild = &base.Command{
@@ -37,11 +38,16 @@ build treats them as a list of source files specifying a single package.
 
 When compiling packages, build ignores files that end in '_test.go'.
 
-When compiling a single main package, build writes
-the resulting executable to an output file named after
-the first source file ('go build ed.go rx.go' writes 'ed' or 'ed.exe')
-or the source code directory ('go build unix/sam' writes 'sam' or 'sam.exe').
-The '.exe' suffix is added when writing a Windows executable.
+When compiling a single main package, build writes the resulting
+executable to an output file named after the last non-major-version
+component of the package import path. The '.exe' suffix is added
+when writing a Windows executable.
+So 'go build example/sam' writes 'sam' or 'sam.exe'.
+'go build example.com/foo/v2' writes 'foo' or 'foo.exe', not 'v2.exe'.
+
+When compiling a package from a list of .go files, the executable
+is named after the first source file.
+'go build ed.go rx.go' writes 'ed' or 'ed.exe'.
 
 When compiling multiple packages or a single non-main package,
 build compiles the packages but discards the resulting object,
@@ -98,10 +104,11 @@ and test commands:
 		Sets -cover.
 	-coverpkg pattern1,pattern2,pattern3
 		For a build that targets package 'main' (e.g. building a Go
-		executable), apply coverage analysis to each package matching
-		the patterns. The default is to apply coverage analysis to
-		packages in the main Go module. See 'go help packages' for a
-		description of package patterns.  Sets -cover.
+		executable), apply coverage analysis to each package whose
+		import path matches the patterns. The default is to apply
+		coverage analysis to packages in the main Go module. See
+		'go help packages' for a description of package patterns.
+		Sets -cover.
 	-v
 		print the names of packages as they are compiled.
 	-work
@@ -134,6 +141,9 @@ and test commands:
 		or, if set explicitly, has _race appended to it. Likewise for the -msan
 		and -asan flags. Using a -buildmode option that requires non-default compile
 		flags has a similar effect.
+	-json
+		Emit build output in JSON suitable for automated processing.
+		See 'go help buildjson' for the encoding details.
 	-ldflags '[pattern=]arg list'
 		arguments to pass on each go tool link invocation.
 	-linkshared
@@ -157,15 +167,16 @@ and test commands:
 		-modfile flag by trimming the ".mod" extension and appending ".sum".
 	-overlay file
 		read a JSON config file that provides an overlay for build operations.
-		The file is a JSON struct with a single field, named 'Replace', that
+		The file is a JSON object with a single field, named 'Replace', that
 		maps each disk file path (a string) to its backing file path, so that
 		a build will run as if the disk file path exists with the contents
 		given by the backing file paths, or as if the disk file path does not
 		exist if its backing file path is empty. Support for the -overlay flag
 		has some limitations: importantly, cgo files included from outside the
 		include path must be in the same directory as the Go package they are
-		included from, and overlays will not appear when binaries and tests are
-		run through go run and go test respectively.
+		included from, overlays will not appear when binaries and tests are
+		run through go run and go test respectively, and files beneath
+		GOMODCACHE may not be replaced.
 	-pgo file
 		specify the file path of a profile for profile-guided optimization (PGO).
 		When the special name "auto" is specified, for each main package in the
@@ -237,10 +248,8 @@ func init() {
 
 	AddBuildFlags(CmdBuild, DefaultBuildFlags)
 	AddBuildFlags(CmdInstall, DefaultBuildFlags)
-	if cfg.Experiment != nil && cfg.Experiment.CoverageRedesign {
-		AddCoverFlags(CmdBuild, nil)
-		AddCoverFlags(CmdInstall, nil)
-	}
+	AddCoverFlags(CmdBuild, nil)
+	AddCoverFlags(CmdInstall, nil)
 }
 
 // Note that flags consulted by other parts of the code
@@ -271,8 +280,6 @@ func (c buildCompiler) Set(value string) error {
 		return fmt.Errorf("unknown compiler %q", value)
 	}
 	cfg.BuildToolchainName = value
-	cfg.BuildToolchainCompiler = BuildToolchain.compiler
-	cfg.BuildToolchainLinker = BuildToolchain.linker
 	cfg.BuildContext.Compiler = value
 	return nil
 }
@@ -295,6 +302,8 @@ const (
 	OmitModFlag       BuildFlagMask = 1 << iota
 	OmitModCommonFlags
 	OmitVFlag
+	OmitBuildOnlyFlags // Omit flags that only affect building packages
+	OmitJSONFlag
 )
 
 // AddBuildFlags adds the flags common to the build, clean, get,
@@ -308,9 +317,11 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 		cmd.Flag.BoolVar(&cfg.BuildV, "v", false, "")
 	}
 
+	cmd.Flag.BoolVar(&cfg.BuildASan, "asan", false, "")
 	cmd.Flag.Var(&load.BuildAsmflags, "asmflags", "")
 	cmd.Flag.Var(buildCompiler{}, "compiler", "")
 	cmd.Flag.StringVar(&cfg.BuildBuildmode, "buildmode", "default", "")
+	cmd.Flag.Var((*buildvcsFlag)(&cfg.BuildBuildvcs), "buildvcs", "")
 	cmd.Flag.Var(&load.BuildGcflags, "gcflags", "")
 	cmd.Flag.Var(&load.BuildGccgoflags, "gccgoflags", "")
 	if mask&OmitModFlag == 0 {
@@ -325,45 +336,37 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 		cmd.Flag.StringVar(&fsys.OverlayFile, "overlay", "", "")
 	}
 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
+	if mask&(OmitBuildOnlyFlags|OmitJSONFlag) == 0 {
+		// TODO(#62250): OmitBuildOnlyFlags should apply to many more flags
+		// here, but we let a bunch of flags slip in before we realized that
+		// many of them don't make sense for most subcommands. We might even
+		// want to separate "AddBuildFlags" and "AddSelectionFlags".
+		cmd.Flag.BoolVar(&cfg.BuildJSON, "json", false, "")
+	}
 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
 	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")
+	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
 	cmd.Flag.StringVar(&cfg.BuildPGO, "pgo", "auto", "")
 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
-	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
-	cmd.Flag.BoolVar(&cfg.BuildASan, "asan", false, "")
 	cmd.Flag.Var((*tagsFlag)(&cfg.BuildContext.BuildTags), "tags", "")
 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
-	cmd.Flag.Var((*buildvcsFlag)(&cfg.BuildBuildvcs), "buildvcs", "")
 
 	// Undocumented, unstable debugging flags.
 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
-	cmd.Flag.StringVar(&cfg.DebugTrace, "debug-trace", "", "")
 	cmd.Flag.StringVar(&cfg.DebugRuntimeTrace, "debug-runtime-trace", "", "")
+	cmd.Flag.StringVar(&cfg.DebugTrace, "debug-trace", "", "")
 }
 
-// AddCoverFlags adds coverage-related flags to "cmd". If the
-// CoverageRedesign experiment is enabled, we add -cover{mode,pkg} to
-// the build command and only -coverprofile to the test command. If
-// the CoverageRedesign experiment is disabled, -cover* flags are
-// added only to the test command.
+// AddCoverFlags adds coverage-related flags to "cmd".
+// We add -cover{mode,pkg} to the build command and only
+// -coverprofile to the test command.
 func AddCoverFlags(cmd *base.Command, coverProfileFlag *string) {
-	addCover := false
-	if cfg.Experiment != nil && cfg.Experiment.CoverageRedesign {
-		// New coverage enabled: both build and test commands get
-		// coverage flags.
-		addCover = true
-	} else {
-		// New coverage disabled: only test command gets cover flags.
-		addCover = coverProfileFlag != nil
-	}
-	if addCover {
-		cmd.Flag.BoolVar(&cfg.BuildCover, "cover", false, "")
-		cmd.Flag.Var(coverFlag{(*coverModeFlag)(&cfg.BuildCoverMode)}, "covermode", "")
-		cmd.Flag.Var(coverFlag{commaListFlag{&cfg.BuildCoverPkg}}, "coverpkg", "")
-	}
+	cmd.Flag.BoolVar(&cfg.BuildCover, "cover", false, "")
+	cmd.Flag.Var(coverFlag{(*coverModeFlag)(&cfg.BuildCoverMode)}, "covermode", "")
+	cmd.Flag.Var(coverFlag{commaListFlag{&cfg.BuildCoverPkg}}, "coverpkg", "")
 	if coverProfileFlag != nil {
 		cmd.Flag.Var(coverFlag{V: stringFlag{coverProfileFlag}}, "coverprofile", "")
 	}
@@ -498,7 +501,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 		cfg.BuildO = ""
 	}
 
-	if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
+	if cfg.BuildCover {
 		load.PrepareForCoverageBuild(pkgs)
 	}
 
@@ -715,7 +718,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 	}
 	load.CheckPackageErrors(pkgs)
 
-	if cfg.Experiment.CoverageRedesign && cfg.BuildCover {
+	if cfg.BuildCover {
 		load.PrepareForCoverageBuild(pkgs)
 	}
 
@@ -898,7 +901,7 @@ func FindExecCmd() []string {
 	if cfg.Goos == runtime.GOOS && cfg.Goarch == runtime.GOARCH {
 		return ExecCmd
 	}
-	path, err := cfg.LookPath(fmt.Sprintf("go_%s_%s_exec", cfg.Goos, cfg.Goarch))
+	path, err := pathcache.LookPath(fmt.Sprintf("go_%s_%s_exec", cfg.Goos, cfg.Goarch))
 	if err == nil {
 		ExecCmd = []string{path}
 	}

@@ -13,14 +13,14 @@ import (
 
 // A ResponseController is used by an HTTP handler to control the response.
 //
-// A ResponseController may not be used after the Handler.ServeHTTP method has returned.
+// A ResponseController may not be used after the [Handler.ServeHTTP] method has returned.
 type ResponseController struct {
 	rw ResponseWriter
 }
 
-// NewResponseController creates a ResponseController for a request.
+// NewResponseController creates a [ResponseController] for a request.
 //
-// The ResponseWriter should be the original value passed to the Handler.ServeHTTP method,
+// The ResponseWriter should be the original value passed to the [Handler.ServeHTTP] method,
 // or have an Unwrap method returning the original ResponseWriter.
 //
 // If the ResponseWriter implements any of the following methods, the ResponseController
@@ -34,7 +34,7 @@ type ResponseController struct {
 //	EnableFullDuplex() error
 //
 // If the ResponseWriter does not support a method, ResponseController returns
-// an error matching ErrNotSupported.
+// an error matching [ErrNotSupported].
 func NewResponseController(rw ResponseWriter) *ResponseController {
 	return &ResponseController{rw}
 }
@@ -62,7 +62,7 @@ func (c *ResponseController) Flush() error {
 }
 
 // Hijack lets the caller take over the connection.
-// See the Hijacker interface for details.
+// See the [Hijacker] interface for details.
 func (c *ResponseController) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	rw := c.rw
 	for {
@@ -116,8 +116,8 @@ func (c *ResponseController) SetWriteDeadline(deadline time.Time) error {
 	}
 }
 
-// EnableFullDuplex indicates that the request handler will interleave reads from Request.Body
-// with writes to the ResponseWriter.
+// EnableFullDuplex indicates that the request handler will interleave reads from [Request.Body]
+// with writes to the [ResponseWriter].
 //
 // For HTTP/1 requests, the Go HTTP server by default consumes any unread portion of
 // the request body before beginning to write the response, preventing handlers from

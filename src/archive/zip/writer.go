@@ -41,7 +41,7 @@ type header struct {
 	raw    bool
 }
 
-// NewWriter returns a new Writer writing a zip file to w.
+// NewWriter returns a new [Writer] writing a zip file to w.
 func NewWriter(w io.Writer) *Writer {
 	return &Writer{cw: &countWriter{w: bufio.NewWriter(w)}}
 }
@@ -64,7 +64,7 @@ func (w *Writer) Flush() error {
 }
 
 // SetComment sets the end-of-central-directory comment field.
-// It can only be called before Close.
+// It can only be called before [Writer.Close].
 func (w *Writer) SetComment(comment string) error {
 	if len(comment) > uint16max {
 		return errors.New("zip: Writer.Comment too long")
@@ -208,14 +208,15 @@ func (w *Writer) Close() error {
 }
 
 // Create adds a file to the zip file using the provided name.
-// It returns a Writer to which the file contents should be written.
-// The file contents will be compressed using the Deflate method.
+// It returns a [Writer] to which the file contents should be written.
+// The file contents will be compressed using the [Deflate] method.
 // The name must be a relative path: it must not start with a drive
 // letter (e.g. C:) or leading slash, and only forward slashes are
 // allowed. To create a directory instead of a file, add a trailing
-// slash to the name.
-// The file's contents must be written to the io.Writer before the next
-// call to Create, CreateHeader, or Close.
+// slash to the name. Duplicate names will not overwrite previous entries
+// and are appended to the zip file.
+// The file's contents must be written to the [io.Writer] before the next
+// call to [Writer.Create], [Writer.CreateHeader], or [Writer.Close].
 func (w *Writer) Create(name string) (io.Writer, error) {
 	header := &FileHeader{
 		Name:   name,
@@ -262,13 +263,13 @@ func (w *Writer) prepare(fh *FileHeader) error {
 	return nil
 }
 
-// CreateHeader adds a file to the zip archive using the provided FileHeader
-// for the file metadata. Writer takes ownership of fh and may mutate
-// its fields. The caller must not modify fh after calling CreateHeader.
+// CreateHeader adds a file to the zip archive using the provided [FileHeader]
+// for the file metadata. [Writer] takes ownership of fh and may mutate
+// its fields. The caller must not modify fh after calling [Writer.CreateHeader].
 //
-// This returns a Writer to which the file contents should be written.
+// This returns a [Writer] to which the file contents should be written.
 // The file's contents must be written to the io.Writer before the next
-// call to Create, CreateHeader, CreateRaw, or Close.
+// call to [Writer.Create], [Writer.CreateHeader], [Writer.CreateRaw], or [Writer.Close].
 func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 	if err := w.prepare(fh); err != nil {
 		return nil, err
@@ -427,12 +428,16 @@ func writeHeader(w io.Writer, h *header) error {
 	return err
 }
 
-// CreateRaw adds a file to the zip archive using the provided FileHeader and
-// returns a Writer to which the file contents should be written. The file's
-// contents must be written to the io.Writer before the next call to Create,
-// CreateHeader, CreateRaw, or Close.
+// CreateRaw adds a file to the zip archive using the provided [FileHeader] and
+// returns a [Writer] to which the file contents should be written. The file's
+// contents must be written to the io.Writer before the next call to [Writer.Create],
+// [Writer.CreateHeader], [Writer.CreateRaw], or [Writer.Close].
 //
-// In contrast to CreateHeader, the bytes passed to Writer are not compressed.
+// In contrast to [Writer.CreateHeader], the bytes passed to Writer are not compressed.
+//
+// CreateRaw's argument is stored in w. If the argument is a pointer to the embedded
+// [FileHeader] in a [File] obtained from a [Reader] created from in-memory data,
+// then w will refer to all of that memory.
 func (w *Writer) CreateRaw(fh *FileHeader) (io.Writer, error) {
 	if err := w.prepare(fh); err != nil {
 		return nil, err
@@ -464,14 +469,17 @@ func (w *Writer) CreateRaw(fh *FileHeader) (io.Writer, error) {
 	return fw, nil
 }
 
-// Copy copies the file f (obtained from a Reader) into w. It copies the raw
+// Copy copies the file f (obtained from a [Reader]) into w. It copies the raw
 // form directly bypassing decompression, compression, and validation.
 func (w *Writer) Copy(f *File) error {
 	r, err := f.OpenRaw()
 	if err != nil {
 		return err
 	}
-	fw, err := w.CreateRaw(&f.FileHeader)
+	// Copy the FileHeader so w doesn't store a pointer to the data
+	// of f's entire archive. See #65499.
+	fh := f.FileHeader
+	fw, err := w.CreateRaw(&fh)
 	if err != nil {
 		return err
 	}
@@ -480,7 +488,7 @@ func (w *Writer) Copy(f *File) error {
 }
 
 // RegisterCompressor registers or overrides a custom compressor for a specific
-// method ID. If a compressor for a given method is not found, Writer will
+// method ID. If a compressor for a given method is not found, [Writer] will
 // default to looking up the compressor at the package level.
 func (w *Writer) RegisterCompressor(method uint16, comp Compressor) {
 	if w.compressors == nil {
@@ -497,14 +505,14 @@ func (w *Writer) AddFS(fsys fs.FS) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() {
+		if name == "." {
 			return nil
 		}
 		info, err := d.Info()
 		if err != nil {
 			return err
 		}
-		if !info.Mode().IsRegular() {
+		if !d.IsDir() && !info.Mode().IsRegular() {
 			return errors.New("zip: cannot add non-regular file")
 		}
 		h, err := FileInfoHeader(info)
@@ -512,10 +520,16 @@ func (w *Writer) AddFS(fsys fs.FS) error {
 			return err
 		}
 		h.Name = name
+		if d.IsDir() {
+			h.Name += "/"
+		}
 		h.Method = Deflate
 		fw, err := w.CreateHeader(h)
 		if err != nil {
 			return err
+		}
+		if d.IsDir() {
+			return nil
 		}
 		f, err := fsys.Open(name)
 		if err != nil {
@@ -601,7 +615,7 @@ func (w *fileWriter) writeDataDescriptor() error {
 	}
 	// Write data descriptor. This is more complicated than one would
 	// think, see e.g. comments in zipfile.c:putextended() and
-	// http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=7073588.
+	// https://bugs.openjdk.org/browse/JDK-7073588.
 	// The approach here is to write 8 byte sizes if needed without
 	// adding a zip64 extra in the local header (too late anyway).
 	var buf []byte

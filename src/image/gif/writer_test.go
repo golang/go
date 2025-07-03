@@ -52,7 +52,7 @@ func averageDelta(m0, m1 image.Image) int64 {
 	return averageDeltaBound(m0, m1, b, b)
 }
 
-// averageDeltaBounds returns the average delta in RGB space. The average delta is
+// averageDeltaBound returns the average delta in RGB space. The average delta is
 // calculated in the specified bounds.
 func averageDeltaBound(m0, m1 image.Image, b0, b1 image.Rectangle) int64 {
 	var sum, n int64

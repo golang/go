@@ -193,3 +193,31 @@ func ExampleNotFoundHandler() {
 
 	log.Fatal(http.ListenAndServe(":8080", mux))
 }
+
+func ExampleProtocols_http1() {
+	srv := http.Server{
+		Addr: ":8443",
+	}
+
+	// Serve only HTTP/1.
+	srv.Protocols = new(http.Protocols)
+	srv.Protocols.SetHTTP1(true)
+
+	log.Fatal(srv.ListenAndServeTLS("cert.pem", "key.pem"))
+}
+
+func ExampleProtocols_http1or2() {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+
+	// Use either HTTP/1 and HTTP/2.
+	t.Protocols = new(http.Protocols)
+	t.Protocols.SetHTTP1(true)
+	t.Protocols.SetHTTP2(true)
+
+	cli := &http.Client{Transport: t}
+	res, err := cli.Get("http://www.google.com/robots.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	res.Body.Close()
+}

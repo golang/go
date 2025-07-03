@@ -39,21 +39,20 @@ func TestIntendedInlining(t *testing.T) {
 			"adjustpointer",
 			"alignDown",
 			"alignUp",
-			"bucketMask",
-			"bucketShift",
 			"chanbuf",
-			"evacuated",
 			"fastlog2",
-			"fastrand",
 			"float64bits",
 			"funcspdelta",
 			"getm",
 			"getMCache",
+			"heapSetTypeNoHeader",
+			"heapSetTypeSmallHeader",
 			"isDirectIface",
 			"itabHashFunc",
 			"nextslicecap",
 			"noescape",
 			"pcvalueCacheKey",
+			"rand32",
 			"readUnaligned32",
 			"readUnaligned64",
 			"releasem",
@@ -62,38 +61,39 @@ func TestIntendedInlining(t *testing.T) {
 			"stringStructOf",
 			"subtract1",
 			"subtractb",
-			"tophash",
-			"(*bmap).keys",
-			"(*bmap).overflow",
 			"(*waitq).enqueue",
 			"funcInfo.entry",
 
 			// GC-related ones
 			"cgoInRange",
 			"gclinkptr.ptr",
+			"gcUsesSpanInlineMarkBits",
 			"guintptr.ptr",
-			"writeHeapBitsForAddr",
+			"heapBitsSlice",
 			"markBits.isMarked",
 			"muintptr.ptr",
 			"puintptr.ptr",
+			"spanHeapBitsRange",
 			"spanOf",
 			"spanOfUnchecked",
-			"(*gcWork).putFast",
-			"(*gcWork).tryGetFast",
+			"typePointers.nextFast",
+			"(*gcWork).putObjFast",
+			"(*gcWork).tryGetObjFast",
 			"(*guintptr).set",
 			"(*markBits).advance",
 			"(*mspan).allocBitsForIndex",
 			"(*mspan).base",
 			"(*mspan).markBitsForBase",
 			"(*mspan).markBitsForIndex",
+			"(*mspan).writeUserArenaHeapBits",
 			"(*muintptr).set",
 			"(*puintptr).set",
 			"(*wbBuf).get1",
 			"(*wbBuf).get2",
-		},
-		"runtime/internal/sys": {},
-		"runtime/internal/math": {
-			"MulUintptr",
+
+			// Trace-related ones.
+			"traceLocker.ok",
+			"traceEnabled",
 		},
 		"bytes": {
 			"(*Buffer).Bytes",
@@ -108,6 +108,13 @@ func TestIntendedInlining(t *testing.T) {
 			"(*Buffer).UnreadByte",
 			"(*Buffer).tryGrowByReslice",
 		},
+		"internal/abi": {
+			"UseInterfaceSwitchCache",
+		},
+		"internal/runtime/math": {
+			"MulUintptr",
+		},
+		"internal/runtime/sys": {},
 		"compress/flate": {
 			"byLiteral.Len",
 			"byLiteral.Less",
@@ -170,9 +177,6 @@ func TestIntendedInlining(t *testing.T) {
 		},
 		"math/big": {
 			"bigEndianWord",
-			// The following functions require the math_big_pure_go build tag.
-			"addVW",
-			"subVW",
 		},
 		"math/rand": {
 			"(*rngSource).Int63",
@@ -185,7 +189,7 @@ func TestIntendedInlining(t *testing.T) {
 			// Both OnceFunc and its returned closure need to be inlinable so
 			// that the returned closure can be inlined into the caller of OnceFunc.
 			"OnceFunc",
-			"OnceFunc.func2", // The returned closure.
+			"OnceFunc.func1", // The returned closure.
 			// TODO(austin): It would be good to check OnceValue and OnceValues,
 			// too, but currently they aren't reported because they have type
 			// parameters and aren't instantiated in sync.
@@ -225,23 +229,37 @@ func TestIntendedInlining(t *testing.T) {
 			"(*Pointer[go.shape.int]).Store",
 			"(*Pointer[go.shape.int]).Swap",
 		},
+		"testing": {
+			"(*B).Loop",
+		},
 	}
 
+	if !goexperiment.SwissMap {
+		// Maps
+		want["runtime"] = append(want["runtime"], "bucketMask")
+		want["runtime"] = append(want["runtime"], "bucketShift")
+		want["runtime"] = append(want["runtime"], "evacuated")
+		want["runtime"] = append(want["runtime"], "tophash")
+		want["runtime"] = append(want["runtime"], "(*bmap).keys")
+		want["runtime"] = append(want["runtime"], "(*bmap).overflow")
+	}
 	if runtime.GOARCH != "386" && runtime.GOARCH != "loong64" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" && runtime.GOARCH != "riscv64" {
 		// nextFreeFast calls sys.TrailingZeros64, which on 386 is implemented in asm and is not inlinable.
 		// We currently don't have midstack inlining so nextFreeFast is also not inlinable on 386.
 		// On loong64, mips64x and riscv64, TrailingZeros64 is not intrinsified and causes nextFreeFast
 		// too expensive to inline (Issue 22239).
 		want["runtime"] = append(want["runtime"], "nextFreeFast")
-		// Same behavior for heapBits.nextFast.
-		want["runtime"] = append(want["runtime"], "heapBits.nextFast")
 	}
 	if runtime.GOARCH != "386" {
 		// As explained above, TrailingZeros64 and TrailingZeros32 are not Go code on 386.
 		// The same applies to Bswap32.
-		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "TrailingZeros64")
-		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "TrailingZeros32")
-		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Bswap32")
+		want["internal/runtime/sys"] = append(want["internal/runtime/sys"], "TrailingZeros64")
+		want["internal/runtime/sys"] = append(want["internal/runtime/sys"], "TrailingZeros32")
+		want["internal/runtime/sys"] = append(want["internal/runtime/sys"], "Bswap32")
+	}
+	if runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64" || runtime.GOARCH == "loong64" || runtime.GOARCH == "mips" || runtime.GOARCH == "mips64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "riscv64" || runtime.GOARCH == "s390x" {
+		// internal/runtime/atomic.Loaduintptr is only intrinsified on these platforms.
+		want["runtime"] = append(want["runtime"], "traceAcquire")
 	}
 	if bits.UintSize == 64 {
 		// mix is only defined on 64-bit architectures
@@ -263,6 +281,25 @@ func TestIntendedInlining(t *testing.T) {
 			"(*RWMutex).RLock",
 			"(*RWMutex).RUnlock",
 			"(*Once).Do",
+		}
+	}
+
+	if runtime.GOARCH != "wasm" {
+		// mutex implementation for multi-threaded GOARCHes
+		want["runtime"] = append(want["runtime"],
+			// in the fast paths of lock2 and unlock2
+			"key8",
+			"(*mLockProfile).store",
+		)
+		if bits.UintSize == 64 {
+			// these use 64-bit arithmetic, which is hard to inline on 32-bit platforms
+			want["runtime"] = append(want["runtime"],
+				// in the fast paths of lock2 and unlock2
+				"mutexSampleContention",
+
+				// in a slow path of lock2, but within the critical section
+				"(*mLockProfile).end",
+			)
 		}
 	}
 
@@ -359,10 +396,6 @@ func TestIssue56044(t *testing.T) {
 	if testing.Short() {
 		t.Skipf("skipping test: too long for short mode")
 	}
-	if !goexperiment.CoverageRedesign {
-		t.Skipf("skipping new coverage tests (experiment not enabled)")
-	}
-
 	testenv.MustHaveGoBuild(t)
 
 	modes := []string{"-covermode=set", "-covermode=atomic"}

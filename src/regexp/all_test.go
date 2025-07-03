@@ -7,6 +7,7 @@ package regexp
 import (
 	"reflect"
 	"regexp/syntax"
+	"slices"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -519,13 +520,13 @@ func TestSplit(t *testing.T) {
 		}
 
 		split := re.Split(test.s, test.n)
-		if !reflect.DeepEqual(split, test.out) {
+		if !slices.Equal(split, test.out) {
 			t.Errorf("#%d: %q: got %q; want %q", i, test.r, split, test.out)
 		}
 
 		if QuoteMeta(test.r) == test.r {
 			strsplit := strings.SplitN(test.s, test.r, test.n)
-			if !reflect.DeepEqual(split, strsplit) {
+			if !slices.Equal(split, strsplit) {
 				t.Errorf("#%d: Split(%q, %q, %d): regexp vs strings mismatch\nregexp=%q\nstrings=%q", i, test.s, test.r, test.n, split, strsplit)
 			}
 		}
@@ -958,6 +959,21 @@ func TestUnmarshalText(t *testing.T) {
 			continue
 		}
 		if err := unmarshaled.UnmarshalText(marshaled); err != nil {
+			t.Errorf("regexp %#q failed to unmarshal: %s", re, err)
+			continue
+		}
+		if unmarshaled.String() != goodRe[i] {
+			t.Errorf("UnmarshalText returned unexpected value: %s", unmarshaled.String())
+		}
+
+		buf := make([]byte, 4, 32)
+		marshalAppend, err := re.AppendText(buf)
+		if err != nil {
+			t.Errorf("regexp %#q failed to marshal: %s", re, err)
+			continue
+		}
+		marshalAppend = marshalAppend[4:]
+		if err := unmarshaled.UnmarshalText(marshalAppend); err != nil {
 			t.Errorf("regexp %#q failed to unmarshal: %s", re, err)
 			continue
 		}

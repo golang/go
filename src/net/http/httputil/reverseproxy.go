@@ -26,7 +26,7 @@ import (
 	"golang.org/x/net/http/httpguts"
 )
 
-// A ProxyRequest contains a request to be rewritten by a ReverseProxy.
+// A ProxyRequest contains a request to be rewritten by a [ReverseProxy].
 type ProxyRequest struct {
 	// In is the request received by the proxy.
 	// The Rewrite function must not modify In.
@@ -42,10 +42,12 @@ type ProxyRequest struct {
 // SetURL routes the outbound request to the scheme, host, and base path
 // provided in target. If the target's path is "/base" and the incoming
 // request was for "/dir", the target request will be for "/base/dir".
+// To route requests without joining the incoming path,
+// set r.Out.URL directly.
 //
 // SetURL rewrites the outbound Host header to match the target's host.
 // To preserve the inbound request's Host header (the default behavior
-// of NewSingleHostReverseProxy):
+// of [NewSingleHostReverseProxy]):
 //
 //	rewriteFunc := func(r *httputil.ProxyRequest) {
 //		r.SetURL(url)
@@ -68,7 +70,7 @@ func (r *ProxyRequest) SetURL(target *url.URL) {
 // If the outbound request contains an existing X-Forwarded-For header,
 // SetXForwarded appends the client IP address to it. To append to the
 // inbound request's X-Forwarded-For header (the default behavior of
-// ReverseProxy when using a Director function), copy the header
+// [ReverseProxy] when using a Director function), copy the header
 // from the inbound request before calling SetXForwarded:
 //
 //	rewriteFunc := func(r *httputil.ProxyRequest) {
@@ -100,6 +102,13 @@ func (r *ProxyRequest) SetXForwarded() {
 //
 // 1xx responses are forwarded to the client if the underlying
 // transport supports ClientTrace.Got1xxResponse.
+//
+// Hop-by-hop headers (see RFC 9110, section 7.6.1), including
+// Connection, Proxy-Connection, Keep-Alive, Proxy-Authenticate,
+// Proxy-Authorization, TE, Trailer, Transfer-Encoding, and Upgrade,
+// are removed from client requests and backend responses.
+// The Rewrite function may be used to add hop-by-hop headers to the request,
+// and the ModifyResponse function may be used to remove them from the response.
 type ReverseProxy struct {
 	// Rewrite must be a function which modifies
 	// the request into a new request to be sent
@@ -186,6 +195,10 @@ type ReverseProxy struct {
 	// If the backend is unreachable, the optional ErrorHandler is
 	// called without any call to ModifyResponse.
 	//
+	// Hop-by-hop headers are removed from the response before
+	// calling ModifyResponse. ModifyResponse may need to remove
+	// additional headers to fit its deployment model, such as Alt-Svc.
+	//
 	// If ModifyResponse returns an error, ErrorHandler is called
 	// with its error value. If ErrorHandler is nil, its default
 	// implementation is used.
@@ -200,7 +213,7 @@ type ReverseProxy struct {
 }
 
 // A BufferPool is an interface for getting and returning temporary
-// byte slices for use by io.CopyBuffer.
+// byte slices for use by [io.CopyBuffer].
 type BufferPool interface {
 	Get() []byte
 	Put([]byte)
@@ -239,7 +252,7 @@ func joinURLPath(a, b *url.URL) (path, rawpath string) {
 	return a.Path + b.Path, apath + bpath
 }
 
-// NewSingleHostReverseProxy returns a new ReverseProxy that routes
+// NewSingleHostReverseProxy returns a new [ReverseProxy] that routes
 // URLs to the scheme, host, and base path provided in target. If the
 // target's path is "/base" and the incoming request was for "/dir",
 // the target request will be for /base/dir.
@@ -454,8 +467,19 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		outreq.Header.Set("User-Agent", "")
 	}
 
+	var (
+		roundTripMutex sync.Mutex
+		roundTripDone  bool
+	)
 	trace := &httptrace.ClientTrace{
 		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
+			roundTripMutex.Lock()
+			defer roundTripMutex.Unlock()
+			if roundTripDone {
+				// If RoundTrip has returned, don't try to further modify
+				// the ResponseWriter's header map.
+				return nil
+			}
 			h := rw.Header()
 			copyHeader(h, http.Header(header))
 			rw.WriteHeader(code)
@@ -468,6 +492,9 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	outreq = outreq.WithContext(httptrace.WithClientTrace(outreq.Context(), trace))
 
 	res, err := transport.RoundTrip(outreq)
+	roundTripMutex.Lock()
+	roundTripDone = true
+	roundTripMutex.Unlock()
 	if err != nil {
 		p.getErrorHandler()(rw, outreq, err)
 		return
@@ -563,7 +590,7 @@ func shouldPanicOnCopyError(req *http.Request) bool {
 func removeHopByHopHeaders(h http.Header) {
 	// RFC 7230, section 6.1: Remove headers listed in the "Connection" header.
 	for _, f := range h["Connection"] {
-		for _, sf := range strings.Split(f, ",") {
+		for sf := range strings.SplitSeq(f, ",") {
 			if sf = textproto.TrimString(sf); sf != "" {
 				h.Del(sf)
 			}
@@ -725,6 +752,7 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 	resUpType := upgradeType(res.Header)
 	if !ascii.IsPrint(resUpType) { // We know reqUpType is ASCII, it's checked by the caller.
 		p.getErrorHandler()(rw, req, fmt.Errorf("backend tried to switch to invalid protocol %q", resUpType))
+		return
 	}
 	if !ascii.EqualFold(reqUpType, resUpType) {
 		p.getErrorHandler()(rw, req, fmt.Errorf("backend tried to switch protocol %q when %q was requested", resUpType, reqUpType))
@@ -778,8 +806,16 @@ func (p *ReverseProxy) handleUpgradeResponse(rw http.ResponseWriter, req *http.R
 	spc := switchProtocolCopier{user: conn, backend: backConn}
 	go spc.copyToBackend(errc)
 	go spc.copyFromBackend(errc)
-	<-errc
+
+	// Wait until both copy functions have sent on the error channel,
+	// or until one fails.
+	err := <-errc
+	if err == nil {
+		err = <-errc
+	}
 }
+
+var errCopyDone = errors.New("hijacked connection copy complete")
 
 // switchProtocolCopier exists so goroutines proxying data back and
 // forth have nice names in stacks.
@@ -788,13 +824,33 @@ type switchProtocolCopier struct {
 }
 
 func (c switchProtocolCopier) copyFromBackend(errc chan<- error) {
-	_, err := io.Copy(c.user, c.backend)
-	errc <- err
+	if _, err := io.Copy(c.user, c.backend); err != nil {
+		errc <- err
+		return
+	}
+
+	// backend conn has reached EOF so propogate close write to user conn
+	if wc, ok := c.user.(interface{ CloseWrite() error }); ok {
+		errc <- wc.CloseWrite()
+		return
+	}
+
+	errc <- errCopyDone
 }
 
 func (c switchProtocolCopier) copyToBackend(errc chan<- error) {
-	_, err := io.Copy(c.backend, c.user)
-	errc <- err
+	if _, err := io.Copy(c.backend, c.user); err != nil {
+		errc <- err
+		return
+	}
+
+	// user conn has reached EOF so propogate close write to backend conn
+	if wc, ok := c.backend.(interface{ CloseWrite() error }); ok {
+		errc <- wc.CloseWrite()
+		return
+	}
+
+	errc <- errCopyDone
 }
 
 func cleanQueryParams(s string) string {

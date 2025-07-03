@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix || (js && wasm) || wasip1 || windows
+//go:build unix || js || wasip1 || windows
 
 package net
 
@@ -157,7 +157,7 @@ func (c *UnixConn) writeMsg(b, oob []byte, addr *UnixAddr) (n, oobn int, err err
 func (sd *sysDialer) dialUnix(ctx context.Context, laddr, raddr *UnixAddr) (*UnixConn, error) {
 	ctrlCtxFn := sd.Dialer.ControlContext
 	if ctrlCtxFn == nil && sd.Dialer.Control != nil {
-		ctrlCtxFn = func(cxt context.Context, network, address string, c syscall.RawConn) error {
+		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
 			return sd.Dialer.Control(network, address, c)
 		}
 	}
@@ -217,9 +217,9 @@ func (l *UnixListener) SetUnlinkOnClose(unlink bool) {
 }
 
 func (sl *sysListener) listenUnix(ctx context.Context, laddr *UnixAddr) (*UnixListener, error) {
-	var ctrlCtxFn func(cxt context.Context, network, address string, c syscall.RawConn) error
+	var ctrlCtxFn func(ctx context.Context, network, address string, c syscall.RawConn) error
 	if sl.ListenConfig.Control != nil {
-		ctrlCtxFn = func(cxt context.Context, network, address string, c syscall.RawConn) error {
+		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
 			return sl.ListenConfig.Control(network, address, c)
 		}
 	}
@@ -231,9 +231,9 @@ func (sl *sysListener) listenUnix(ctx context.Context, laddr *UnixAddr) (*UnixLi
 }
 
 func (sl *sysListener) listenUnixgram(ctx context.Context, laddr *UnixAddr) (*UnixConn, error) {
-	var ctrlCtxFn func(cxt context.Context, network, address string, c syscall.RawConn) error
+	var ctrlCtxFn func(ctx context.Context, network, address string, c syscall.RawConn) error
 	if sl.ListenConfig.Control != nil {
-		ctrlCtxFn = func(cxt context.Context, network, address string, c syscall.RawConn) error {
+		ctrlCtxFn = func(ctx context.Context, network, address string, c syscall.RawConn) error {
 			return sl.ListenConfig.Control(network, address, c)
 		}
 	}

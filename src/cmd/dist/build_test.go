@@ -24,3 +24,20 @@ func TestMustLinkExternal(t *testing.T) {
 		}
 	}
 }
+
+func TestRequiredBootstrapVersion(t *testing.T) {
+	testCases := map[string]string{
+		"1.22": "1.20",
+		"1.23": "1.20",
+		"1.24": "1.22",
+		"1.25": "1.22",
+		"1.26": "1.24",
+		"1.27": "1.24",
+	}
+
+	for v, want := range testCases {
+		if got := requiredBootstrapVersion(v); got != want {
+			t.Errorf("requiredBootstrapVersion(%v): got %v, want %v", v, got, want)
+		}
+	}
+}

@@ -289,7 +289,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpARMANDconst, ssa.OpARMBICconst:
 		// try to optimize ANDconst and BICconst to BFC, which saves bytes and ticks
 		// BFC is only available on ARMv7, and its result and source are in the same register
-		if buildcfg.GOARM == 7 && v.Reg() == v.Args[0].Reg() {
+		if buildcfg.GOARM.Version == 7 && v.Reg() == v.Args[0].Reg() {
 			var val uint32
 			if v.Op == ssa.OpARMANDconst {
 				val = ^uint32(v.AuxInt)
@@ -646,7 +646,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			default:
 			}
 		}
-		if buildcfg.GOARM >= 6 {
+		if buildcfg.GOARM.Version >= 6 {
 			// generate more efficient "MOVB/MOVBU/MOVH/MOVHU Reg@>0, Reg" on ARMv6 & ARMv7
 			genshift(s, v, v.Op.Asm(), 0, v.Args[0].Reg(), v.Reg(), arm.SHIFT_RR, 0)
 			return
@@ -918,24 +918,7 @@ var gtJumps = [2][2]ssagen.IndexJump{
 
 func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
-	case ssa.BlockPlain:
-		if b.Succs[0].Block() != next {
-			p := s.Prog(obj.AJMP)
-			p.To.Type = obj.TYPE_BRANCH
-			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
-		}
-
-	case ssa.BlockDefer:
-		// defer returns in R0:
-		// 0 if we should continue executing
-		// 1 if we should jump to deferreturn call
-		p := s.Prog(arm.ACMP)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 0
-		p.Reg = arm.REG_R0
-		p = s.Prog(arm.ABNE)
-		p.To.Type = obj.TYPE_BRANCH
-		s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[1].Block()})
+	case ssa.BlockPlain, ssa.BlockDefer:
 		if b.Succs[0].Block() != next {
 			p := s.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH

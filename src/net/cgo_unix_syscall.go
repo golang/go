@@ -14,18 +14,20 @@ import (
 )
 
 const (
-	_C_AF_INET      = syscall.AF_INET
-	_C_AF_INET6     = syscall.AF_INET6
-	_C_AF_UNSPEC    = syscall.AF_UNSPEC
-	_C_EAI_AGAIN    = unix.EAI_AGAIN
-	_C_EAI_NONAME   = unix.EAI_NONAME
-	_C_EAI_NODATA   = unix.EAI_NODATA
-	_C_EAI_OVERFLOW = unix.EAI_OVERFLOW
-	_C_EAI_SYSTEM   = unix.EAI_SYSTEM
-	_C_IPPROTO_TCP  = syscall.IPPROTO_TCP
-	_C_IPPROTO_UDP  = syscall.IPPROTO_UDP
-	_C_SOCK_DGRAM   = syscall.SOCK_DGRAM
-	_C_SOCK_STREAM  = syscall.SOCK_STREAM
+	_C_AF_INET        = syscall.AF_INET
+	_C_AF_INET6       = syscall.AF_INET6
+	_C_AF_UNSPEC      = syscall.AF_UNSPEC
+	_C_EAI_ADDRFAMILY = unix.EAI_ADDRFAMILY
+	_C_EAI_AGAIN      = unix.EAI_AGAIN
+	_C_EAI_NONAME     = unix.EAI_NONAME
+	_C_EAI_SERVICE    = unix.EAI_SERVICE
+	_C_EAI_NODATA     = unix.EAI_NODATA
+	_C_EAI_OVERFLOW   = unix.EAI_OVERFLOW
+	_C_EAI_SYSTEM     = unix.EAI_SYSTEM
+	_C_IPPROTO_TCP    = syscall.IPPROTO_TCP
+	_C_IPPROTO_UDP    = syscall.IPPROTO_UDP
+	_C_SOCK_DGRAM     = syscall.SOCK_DGRAM
+	_C_SOCK_STREAM    = syscall.SOCK_STREAM
 )
 
 type (
@@ -72,8 +74,9 @@ func _C_res_ninit(state *_C_struct___res_state) error {
 	return nil
 }
 
-func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_char, anslen int) (int, error) {
-	return unix.ResNsearch(state, dname, class, typ, ans, anslen)
+func _C_res_nsearch(state *_C_struct___res_state, dname *_C_char, class, typ int, ans *_C_char, anslen int) int {
+	x, _ := unix.ResNsearch(state, dname, class, typ, ans, anslen)
+	return x
 }
 
 func _C_res_nclose(state *_C_struct___res_state) {

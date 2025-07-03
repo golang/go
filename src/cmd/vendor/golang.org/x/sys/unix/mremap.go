@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux || netbsd
-// +build linux netbsd
 
 package unix
 
@@ -50,4 +49,9 @@ func (m *mremapMmapper) Mremap(oldData []byte, newLength int, flags int) (data [
 
 func Mremap(oldData []byte, newLength int, flags int) (data []byte, err error) {
 	return mapper.Mremap(oldData, newLength, flags)
+}
+
+func MremapPtr(oldAddr unsafe.Pointer, oldSize uintptr, newAddr unsafe.Pointer, newSize uintptr, flags int) (ret unsafe.Pointer, err error) {
+	xaddr, err := mapper.mremap(uintptr(oldAddr), oldSize, newSize, flags, uintptr(newAddr))
+	return unsafe.Pointer(xaddr), err
 }

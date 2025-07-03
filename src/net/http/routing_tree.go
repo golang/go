@@ -19,7 +19,6 @@
 package http
 
 import (
-	"net/url"
 	"strings"
 )
 
@@ -35,8 +34,8 @@ type routingNode struct {
 	// special children keys:
 	//     "/"	trailing slash (resulting from {$})
 	//	   ""   single wildcard
-	//	   "*"  multi wildcard
 	children   mapping[string, *routingNode]
+	multiChild *routingNode // child with multi wildcard
 	emptyChild *routingNode // optimization: child with key ""
 }
 
@@ -64,7 +63,9 @@ func (n *routingNode) addSegments(segs []segment, p *pattern, h Handler) {
 		if len(segs) != 1 {
 			panic("multi wildcard not last")
 		}
-		n.addChild("*").set(p, h)
+		c := &routingNode{}
+		n.multiChild = c
+		c.set(p, h)
 	} else if seg.wild {
 		n.addChild("").addSegments(segs[1:], p, h)
 	} else {
@@ -180,35 +181,27 @@ func (n *routingNode) matchPath(path string, matches []string) (*routingNode, []
 	// We skip this step if the segment is a trailing slash, because single wildcards
 	// don't match trailing slashes.
 	if seg != "/" {
-		if n, m := n.emptyChild.matchPath(rest, append(matches, matchValue(seg))); n != nil {
+		if n, m := n.emptyChild.matchPath(rest, append(matches, seg)); n != nil {
 			return n, m
 		}
 	}
 	// Lastly, match the pattern (there can be at most one) that has a multi
 	// wildcard in this position to the rest of the path.
-	if c := n.findChild("*"); c != nil {
+	if c := n.multiChild; c != nil {
 		// Don't record a match for a nameless wildcard (which arises from a
 		// trailing slash in the pattern).
 		if c.pattern.lastSegment().s != "" {
-			matches = append(matches, matchValue(path[1:])) // remove initial slash
+			matches = append(matches, pathUnescape(path[1:])) // remove initial slash
 		}
 		return c, matches
 	}
 	return nil, nil
 }
 
-func matchValue(path string) string {
-	m, err := url.PathUnescape(path)
-	if err != nil {
-		// Path is not properly escaped, so use the original.
-		return path
-	}
-	return m
-}
-
 // firstSegment splits path into its first segment, and the rest.
 // The path must begin with "/".
 // If path consists of only a slash, firstSegment returns ("/", "").
+// The segment is returned unescaped, if possible.
 func firstSegment(path string) (seg, rest string) {
 	if path == "/" {
 		return "/", ""
@@ -216,9 +209,9 @@ func firstSegment(path string) (seg, rest string) {
 	path = path[1:] // drop initial slash
 	i := strings.IndexByte(path, '/')
 	if i < 0 {
-		return path, ""
+		i = len(path)
 	}
-	return path[:i], path[i:]
+	return pathUnescape(path[:i]), path[i:]
 }
 
 // matchingMethods adds to methodSet all the methods that would result in a

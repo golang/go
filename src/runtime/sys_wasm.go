@@ -6,7 +6,7 @@ package runtime
 
 import (
 	"internal/goarch"
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -33,4 +33,18 @@ func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
 	buf.sp = sp
 	buf.pc = uintptr(fn)
 	buf.ctxt = ctxt
+}
+
+func notInitialized() // defined in assembly, call notInitialized1
+
+// Called if a wasmexport function is called before runtime initialization
+//
+//go:nosplit
+func notInitialized1() {
+	writeErrStr("runtime: wasmexport function called before runtime initialization\n")
+	if isarchive || islibrary {
+		writeErrStr("\tcall _initialize first\n")
+	} else {
+		writeErrStr("\tcall _start first\n")
+	}
 }

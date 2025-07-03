@@ -899,14 +899,56 @@ var vfceilSC = []float64{
 	0,
 	Inf(1),
 	NaN(),
+	1<<52 - 1,
+	1<<52 - 0.5, // largest fractional float64
+	1 << 52,
+	-1 << 52,
+	-1<<52 + 0.5, // smallest fractional float64
+	-1<<52 + 1,
+	1 << 53,
+	-1 << 53,
 }
-var ceilSC = []float64{
+
+var ceilBaseSC = []float64{
 	Inf(-1),
 	Copysign(0, -1),
 	0,
 	Inf(1),
 	NaN(),
 }
+
+var ceilSC = append(ceilBaseSC,
+	1<<52-1,
+	1<<52,
+	1<<52,
+	-1<<52,
+	-1<<52+1,
+	-1<<52+1,
+	1<<53,
+	-1<<53,
+)
+
+var floorSC = append(ceilBaseSC,
+	1<<52-1,
+	1<<52-1,
+	1<<52,
+	-1<<52,
+	-1<<52,
+	-1<<52+1,
+	1<<53,
+	-1<<53,
+)
+
+var truncSC = append(ceilBaseSC,
+	1<<52-1,
+	1<<52-1,
+	1<<52,
+	-1<<52,
+	-1<<52+1,
+	-1<<52+1,
+	1<<53,
+	-1<<53,
+)
 
 var vfcopysignSC = []float64{
 	Inf(-1),
@@ -2084,6 +2126,11 @@ var fmaC = []struct{ x, y, z, want float64 }{
 	// Issue #61130
 	{-1, 1, 1, 0},
 	{1, 1, -1, 0},
+
+	// Issue #73757
+	{0x1p-1022, -0x1p-1022, 0, Copysign(0, -1)},
+	{Copysign(0, -1), 1, 0, 0},
+	{1, Copysign(0, -1), 0, 0},
 }
 
 var sqrt32 = []float32{
@@ -2489,8 +2536,8 @@ func TestFloor(t *testing.T) {
 		}
 	}
 	for i := 0; i < len(vfceilSC); i++ {
-		if f := Floor(vfceilSC[i]); !alike(ceilSC[i], f) {
-			t.Errorf("Floor(%g) = %g, want %g", vfceilSC[i], f, ceilSC[i])
+		if f := Floor(vfceilSC[i]); !alike(floorSC[i], f) {
+			t.Errorf("Floor(%g) = %g, want %g", vfceilSC[i], f, floorSC[i])
 		}
 	}
 }
@@ -3034,8 +3081,8 @@ func TestTrunc(t *testing.T) {
 		}
 	}
 	for i := 0; i < len(vfceilSC); i++ {
-		if f := Trunc(vfceilSC[i]); !alike(ceilSC[i], f) {
-			t.Errorf("Trunc(%g) = %g, want %g", vfceilSC[i], f, ceilSC[i])
+		if f := Trunc(vfceilSC[i]); !alike(truncSC[i], f) {
+			t.Errorf("Trunc(%g) = %g, want %g", vfceilSC[i], f, truncSC[i])
 		}
 	}
 }

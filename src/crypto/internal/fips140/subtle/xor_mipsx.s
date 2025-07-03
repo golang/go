@@ -1,0 +1,212 @@
+// Copyright 2025 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+//go:build (mips || mipsle) && !purego
+
+#include "textflag.h"
+
+// func xorBytes(dst, a, b *byte, n int)
+TEXT ·xorBytes(SB), NOSPLIT|NOFRAME, $0
+	MOVW	dst+0(FP), R1
+	MOVW	a+4(FP), R2
+	MOVW	b+8(FP), R3
+	MOVW	n+12(FP), R4
+
+	SGTU	$64, R4, R5 // R5 = 1 if (64 > R4)
+	BNE	R5, xor_32_check
+xor_64:
+	MOVW	(R2), R6
+	MOVW	4(R2), R7
+	MOVW	8(R2), R8
+	MOVW	12(R2), R9
+	MOVW	(R3), R10
+	MOVW	4(R3), R11
+	MOVW	8(R3), R12
+	MOVW	12(R3), R13
+	XOR	R6, R10
+	XOR	R7, R11
+	XOR	R8, R12
+	XOR	R9, R13
+	MOVW	R10, (R1)
+	MOVW	R11, 4(R1)
+	MOVW	R12, 8(R1)
+	MOVW	R13, 12(R1)
+	MOVW	16(R2), R6
+	MOVW	20(R2), R7
+	MOVW	24(R2), R8
+	MOVW	28(R2), R9
+	MOVW	16(R3), R10
+	MOVW	20(R3), R11
+	MOVW	24(R3), R12
+	MOVW	28(R3), R13
+	XOR	R6, R10
+	XOR	R7, R11
+	XOR	R8, R12
+	XOR	R9, R13
+	MOVW	R10, 16(R1)
+	MOVW	R11, 20(R1)
+	MOVW	R12, 24(R1)
+	MOVW	R13, 28(R1)
+	MOVW	32(R2), R6
+	MOVW	36(R2), R7
+	MOVW	40(R2), R8
+	MOVW	44(R2), R9
+	MOVW	32(R3), R10
+	MOVW	36(R3), R11
+	MOVW	40(R3), R12
+	MOVW	44(R3), R13
+	XOR	R6, R10
+	XOR	R7, R11
+	XOR	R8, R12
+	XOR	R9, R13
+	MOVW	R10, 32(R1)
+	MOVW	R11, 36(R1)
+	MOVW	R12, 40(R1)
+	MOVW	R13, 44(R1)
+	MOVW	48(R2), R6
+	MOVW	52(R2), R7
+	MOVW	56(R2), R8
+	MOVW	60(R2), R9
+	MOVW	48(R3), R10
+	MOVW	52(R3), R11
+	MOVW	56(R3), R12
+	MOVW	60(R3), R13
+	XOR	R6, R10
+	XOR	R7, R11
+	XOR	R8, R12
+	XOR	R9, R13
+	MOVW	R10, 48(R1)
+	MOVW	R11, 52(R1)
+	MOVW	R12, 56(R1)
+	MOVW	R13, 60(R1)
+	ADD	$64, R2
+	ADD	$64, R3
+	ADD	$64, R1
+	SUB	$64, R4
+	SGTU	$64, R4, R5
+	BEQ	R0, R5, xor_64
+	BEQ	R0, R4, end
+
+xor_32_check:
+	SGTU	$32, R4, R5
+	BNE	R5, xor_16_check
+xor_32:
+	MOVW	(R2), R6
+	MOVW	4(R2), R7
+	MOVW	8(R2), R8
+	MOVW	12(R2), R9
+	MOVW	(R3), R10
+	MOVW	4(R3), R11
+	MOVW	8(R3), R12
+	MOVW	12(R3), R13
+	XOR	R6, R10
+	XOR	R7, R11
+	XOR	R8, R12
+	XOR	R9, R13
+	MOVW	R10, (R1)
+	MOVW	R11, 4(R1)
+	MOVW	R12, 8(R1)
+	MOVW	R13, 12(R1)
+	MOVW	16(R2), R6
+	MOVW	20(R2), R7
+	MOVW	24(R2), R8
+	MOVW	28(R2), R9
+	MOVW	16(R3), R10
+	MOVW	20(R3), R11
+	MOVW	24(R3), R12
+	MOVW	28(R3), R13
+	XOR	R6, R10
+	XOR	R7, R11
+	XOR	R8, R12
+	XOR	R9, R13
+	MOVW	R10, 16(R1)
+	MOVW	R11, 20(R1)
+	MOVW	R12, 24(R1)
+	MOVW	R13, 28(R1)
+	ADD	$32, R2
+	ADD	$32, R3
+	ADD	$32, R1
+	SUB	$32, R4
+	BEQ	R0, R4, end
+
+xor_16_check:
+	SGTU	$16, R4, R5
+	BNE	R5, xor_8_check
+xor_16:
+	MOVW	(R2), R6
+	MOVW	4(R2), R7
+	MOVW	8(R2), R8
+	MOVW	12(R2), R9
+	MOVW	(R3), R10
+	MOVW	4(R3), R11
+	MOVW	8(R3), R12
+	MOVW	12(R3), R13
+	XOR	R6, R10
+	XOR	R7, R11
+	XOR	R8, R12
+	XOR	R9, R13
+	MOVW	R10, (R1)
+	MOVW	R11, 4(R1)
+	MOVW	R12, 8(R1)
+	MOVW	R13, 12(R1)
+	ADD	$16, R2
+	ADD	$16, R3
+	ADD	$16, R1
+	SUB	$16, R4
+	BEQ	R0, R4, end
+
+xor_8_check:
+	SGTU	$8, R4, R5
+	BNE	R5, xor_4_check
+xor_8:
+	MOVW	(R2), R6
+	MOVW	4(R2), R7
+	MOVW	(R3), R8
+	MOVW	4(R3), R9
+	XOR	R6, R8
+	XOR	R7, R9
+	MOVW	R8, (R1)
+	MOVW	R9, 4(R1)
+	ADD	$8, R1
+	ADD	$8, R2
+	ADD	$8, R3
+	SUB	$8, R4
+	BEQ	R0, R4, end
+
+xor_4_check:
+	SGTU	$4, R4, R5
+	BNE	R5, xor_2_check
+xor_4:
+	MOVW	(R2), R6
+	MOVW	(R3), R7
+	XOR	R6, R7
+	MOVW	R7, (R1)
+	ADD	$4, R2
+	ADD	$4, R3
+	ADD	$4, R1
+	SUB	$4, R4
+	BEQ	R0, R4, end
+
+xor_2_check:
+	SGTU	$2, R4, R5
+	BNE	R5, xor_1
+xor_2:
+	MOVH	(R2), R6
+	MOVH	(R3), R7
+	XOR	R6, R7
+	MOVH	R7, (R1)
+	ADD	$2, R2
+	ADD	$2, R3
+	ADD	$2, R1
+	SUB	$2, R4
+	BEQ	R0, R4, end
+
+xor_1:
+	MOVB	(R2), R6
+	MOVB	(R3), R7
+	XOR	R6, R7
+	MOVB	R7, (R1)
+
+end:
+	RET

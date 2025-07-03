@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -192,7 +193,7 @@ func firstComment(filename string) string {
 				lit = lit[:len(lit)-2]
 			}
 			contents := strings.TrimSpace(lit[2:])
-			if strings.HasPrefix(contents, "+build ") {
+			if strings.HasPrefix(contents, "go:build ") {
 				return "skip"
 			}
 			if first == "" {
@@ -237,6 +238,9 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		filename := filepath.Join(path, f.Name())
 		goVersion := ""
 		if comment := firstComment(filename); comment != "" {
+			if strings.Contains(comment, "-goexperiment") {
+				continue // ignore this file
+			}
 			fields := strings.Fields(comment)
 			switch fields[0] {
 			case "skip", "compiledir":
@@ -309,11 +313,13 @@ func TestStdFixed(t *testing.T) {
 
 	testTestDir(t, filepath.Join(testenv.GOROOT(t), "test", "fixedbugs"),
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
+		"bug398.go",      // go/types doesn't check for anonymous interface cycles (go.dev/issue/56103)
 		"issue6889.go",   // gc-specific test
 		"issue11362.go",  // canonical import path check
 		"issue16369.go",  // go/types handles this correctly - not an issue
 		"issue18459.go",  // go/types doesn't check validity of //go:xxx directives
 		"issue18882.go",  // go/types doesn't check validity of //go:xxx directives
+		"issue20027.go",  // go/types does not have constraints on channel element size
 		"issue20529.go",  // go/types does not have constraints on stack size
 		"issue22200.go",  // go/types does not have constraints on stack size
 		"issue22200b.go", // go/types does not have constraints on stack size
@@ -327,6 +333,9 @@ func TestStdFixed(t *testing.T) {
 		"issue49767.go",  // go/types does not have constraints on channel element size
 		"issue49814.go",  // go/types does not have constraints on array size
 		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
+		"issue52697.go",  // go/types does not have constraints on stack size
+		"issue73309.go",  // this test requires GODEBUG=gotypesalias=1
+		"issue73309b.go", // this test requires GODEBUG=gotypesalias=1
 
 		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
 		// However, go/types does not know about build constraints.
@@ -349,11 +358,8 @@ func TestStdKen(t *testing.T) {
 
 // Package paths of excluded packages.
 var excluded = map[string]bool{
-	"builtin": true,
-
-	// See go.dev/issue/46027: some imports are missing for this submodule.
-	"crypto/internal/edwards25519/field/_asm": true,
-	"crypto/internal/bigmod/_asm":             true,
+	"builtin":                       true,
+	"cmd/compile/internal/ssa/_gen": true,
 }
 
 // printPackageMu synchronizes the printing of type-checked package files in
@@ -433,6 +439,11 @@ func pkgFilenames(dir string, includeTest bool) ([]string, error) {
 		return nil, err
 	}
 	if excluded[pkg.ImportPath] {
+		return nil, nil
+	}
+	if slices.Contains(strings.Split(pkg.ImportPath, "/"), "_asm") {
+		// Submodules where not all dependencies are available.
+		// See go.dev/issue/46027.
 		return nil, nil
 	}
 	var filenames []string

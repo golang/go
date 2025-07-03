@@ -5,7 +5,7 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
+	"internal/runtime/atomic"
 	"unsafe"
 )
 
@@ -13,8 +13,13 @@ func osinit() {
 	// https://webassembly.github.io/spec/core/exec/runtime.html#memory-instances
 	physPageSize = 64 * 1024
 	initBloc()
-	ncpu = 1
+	blocMax = uintptr(currentMemory()) * physPageSize // record the initial linear memory size
+	numCPUStartup = getCPUCount()
 	getg().m.procid = 2
+}
+
+func getCPUCount() int32 {
+	return 1
 }
 
 const _SIGSEGV = 0xb
@@ -96,7 +101,7 @@ func signame(sig uint32) string {
 }
 
 func crash() {
-	*(*int32)(nil) = 0
+	abort()
 }
 
 func initsig(preinit bool) {
@@ -109,10 +114,10 @@ func newosproc(mp *m) {
 	throw("newosproc: not implemented")
 }
 
+// Do nothing on WASM platform, always return EPIPE to caller.
+//
 //go:linkname os_sigpipe os.sigpipe
-func os_sigpipe() {
-	throw("too many writes on closed pipe")
-}
+func os_sigpipe() {}
 
 //go:linkname syscall_now syscall.now
 func syscall_now() (sec int64, nsec int32) {
@@ -122,9 +127,7 @@ func syscall_now() (sec int64, nsec int32) {
 
 //go:nosplit
 func cputicks() int64 {
-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
-	// TODO: need more entropy to better seed fastrand.
 	return nanotime()
 }
 

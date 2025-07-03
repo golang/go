@@ -6,6 +6,13 @@
 
 package runtime
 
-func archauxv(tag, val uintptr) {}
+import "internal/cpu"
+
+func archauxv(tag, val uintptr) {
+	switch tag {
+	case _AT_HWCAP:
+		cpu.HWCap = uint(val)
+	}
+}
 
 func osArchInit() {}

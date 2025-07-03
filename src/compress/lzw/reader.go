@@ -11,7 +11,7 @@
 // two non-literal codes are a clear code and an EOF code.
 //
 // The TIFF file format uses a similar but incompatible version of the LZW
-// algorithm. See the golang.org/x/image/tiff/lzw package for an
+// algorithm. See the [golang.org/x/image/tiff/lzw] package for an
 // implementation.
 package lzw
 
@@ -42,7 +42,7 @@ const (
 	flushBuffer        = 1 << maxWidth
 )
 
-// Reader is an io.Reader which can be used to read compressed data in the
+// Reader is an [io.Reader] which can be used to read compressed data in the
 // LZW format.
 type Reader struct {
 	r        io.ByteReader
@@ -118,7 +118,7 @@ func (r *Reader) readMSB() (uint16, error) {
 	return code, nil
 }
 
-// Read implements io.Reader, reading uncompressed bytes from its underlying Reader.
+// Read implements io.Reader, reading uncompressed bytes from its underlying reader.
 func (r *Reader) Read(b []byte) (int, error) {
 	for {
 		if len(r.toRead) > 0 {
@@ -225,22 +225,22 @@ loop:
 
 var errClosed = errors.New("lzw: reader/writer is closed")
 
-// Close closes the Reader and returns an error for any future read operation.
-// It does not close the underlying io.Reader.
+// Close closes the [Reader] and returns an error for any future read operation.
+// It does not close the underlying [io.Reader].
 func (r *Reader) Close() error {
 	r.err = errClosed // in case any Reads come along
 	return nil
 }
 
-// Reset clears the Reader's state and allows it to be reused again
-// as a new Reader.
+// Reset clears the [Reader]'s state and allows it to be reused again
+// as a new [Reader].
 func (r *Reader) Reset(src io.Reader, order Order, litWidth int) {
 	*r = Reader{}
 	r.init(src, order, litWidth)
 }
 
-// NewReader creates a new io.ReadCloser.
-// Reads from the returned io.ReadCloser read and decompress data from r.
+// NewReader creates a new [io.ReadCloser].
+// Reads from the returned [io.ReadCloser] read and decompress data from r.
 // If r does not also implement [io.ByteReader],
 // the decompressor may read more data than necessary from r.
 // It is the caller's responsibility to call Close on the ReadCloser when
@@ -249,8 +249,8 @@ func (r *Reader) Reset(src io.Reader, order Order, litWidth int) {
 // range [2,8] and is typically 8. It must equal the litWidth
 // used during compression.
 //
-// It is guaranteed that the underlying type of the returned io.ReadCloser
-// is a *Reader.
+// It is guaranteed that the underlying type of the returned [io.ReadCloser]
+// is a *[Reader].
 func NewReader(r io.Reader, order Order, litWidth int) io.ReadCloser {
 	return newReader(r, order, litWidth)
 }

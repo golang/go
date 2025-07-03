@@ -169,9 +169,9 @@ func Compile(f *Func) {
 func (f *Func) DumpFileForPhase(phaseName string) io.WriteCloser {
 	f.dumpFileSeq++
 	fname := fmt.Sprintf("%s_%02d__%s.dump", f.Name, int(f.dumpFileSeq), phaseName)
-	fname = strings.Replace(fname, " ", "_", -1)
-	fname = strings.Replace(fname, "/", "_", -1)
-	fname = strings.Replace(fname, ":", "_", -1)
+	fname = strings.ReplaceAll(fname, " ", "_")
+	fname = strings.ReplaceAll(fname, "/", "_")
+	fname = strings.ReplaceAll(fname, ":", "_")
 
 	if ssaDir := os.Getenv("GOSSADIR"); ssaDir != "" {
 		fname = filepath.Join(ssaDir, fname)
@@ -264,7 +264,7 @@ func PhaseOption(phase, flag string, val int, valString string) string {
 		lastcr := 0
 		phasenames := "    check, all, build, intrinsics, genssa"
 		for _, p := range passes {
-			pn := strings.Replace(p.name, " ", "_", -1)
+			pn := strings.ReplaceAll(p.name, " ", "_")
 			if len(pn)+len(phasenames)-lastcr > 70 {
 				phasenames += "\n    "
 				lastcr = len(phasenames)
@@ -400,7 +400,7 @@ commas. For example:
 		return ""
 	}
 
-	underphase := strings.Replace(phase, "_", " ", -1)
+	underphase := strings.ReplaceAll(phase, "_", " ")
 	var re *regexp.Regexp
 	if phase[0] == '~' {
 		r, ok := regexp.Compile(underphase[1:])
@@ -455,10 +455,8 @@ commas. For example:
 
 // list of passes for the compiler
 var passes = [...]pass{
-	// TODO: combine phielim and copyelim into a single pass?
 	{name: "number lines", fn: numberLines, required: true},
-	{name: "early phielim", fn: phielim},
-	{name: "early copyelim", fn: copyelim},
+	{name: "early phielim and copyelim", fn: copyelim},
 	{name: "early deadcode", fn: deadcode}, // remove generated dead code to avoid doing pointless work during opt
 	{name: "short circuit", fn: shortcircuit},
 	{name: "decompose user", fn: decomposeUser, required: true},
@@ -472,16 +470,16 @@ var passes = [...]pass{
 	{name: "nilcheckelim", fn: nilcheckelim},
 	{name: "prove", fn: prove},
 	{name: "early fuse", fn: fuseEarly},
-	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
 	{name: "expand calls", fn: expandCalls, required: true},
+	{name: "decompose builtin", fn: postExpandCallsDecompose, required: true},
 	{name: "softfloat", fn: softfloat, required: true},
 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
 	{name: "dead auto elim", fn: elimDeadAutosGeneric},
 	{name: "sccp", fn: sccp},
 	{name: "generic deadcode", fn: deadcode, required: true}, // remove dead stores, which otherwise mess up store chain
-	{name: "check bce", fn: checkbce},
 	{name: "branchelim", fn: branchelim},
 	{name: "late fuse", fn: fuseLate},
+	{name: "check bce", fn: checkbce},
 	{name: "dse", fn: dse},
 	{name: "memcombine", fn: memcombine},
 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
@@ -490,14 +488,14 @@ var passes = [...]pass{
 	{name: "lower", fn: lower, required: true},
 	{name: "addressing modes", fn: addressingModes, required: false},
 	{name: "late lower", fn: lateLower, required: true},
+	{name: "pair", fn: pair},
 	{name: "lowered deadcode for cse", fn: deadcode}, // deadcode immediately before CSE avoids CSE making dead values live again
 	{name: "lowered cse", fn: cse},
 	{name: "elim unread autos", fn: elimUnreadAutos},
 	{name: "tighten tuple selectors", fn: tightenTupleSelectors, required: true},
 	{name: "lowered deadcode", fn: deadcode, required: true},
 	{name: "checkLower", fn: checkLower, required: true},
-	{name: "late phielim", fn: phielim},
-	{name: "late copyelim", fn: copyelim},
+	{name: "late phielim and copyelim", fn: copyelim},
 	{name: "tighten", fn: tighten, required: true}, // move values closer to their uses
 	{name: "late deadcode", fn: deadcode},
 	{name: "critical", fn: critical, required: true}, // remove critical edges
@@ -547,6 +545,8 @@ var passOrder = [...]constraint{
 	{"generic cse", "tighten"},
 	// checkbce needs the values removed
 	{"generic deadcode", "check bce"},
+	// decompose builtin now also cleans up after expand calls
+	{"expand calls", "decompose builtin"},
 	// don't run optimization pass until we've decomposed builtin objects
 	{"decompose builtin", "late opt"},
 	// decompose builtin is the last pass that may introduce new float ops, so run softfloat after it

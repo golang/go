@@ -19,13 +19,12 @@ import (
 	"fmt"
 	"go/ast"
 	"go/format"
-	"go/importer"
 	"go/parser"
 	"go/token"
 	"go/types"
 	"log"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -57,7 +56,7 @@ func Unused() { {}; {{ var x int; _ = x }} } // make sure empty block scopes get
 	// Type-check a package consisting of these files.
 	// Type information for the imported "fmt" package
 	// comes from $GOROOT/pkg/$GOOS_$GOOARCH/fmt.a.
-	conf := types.Config{Importer: importer.Default()}
+	conf := types.Config{Importer: defaultImporter(fset)}
 	pkg, err := conf.Check("temperature", fset, files, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -126,7 +125,7 @@ type I interface { m() byte }
 	// Type-check a package consisting of this file.
 	// Type information for the imported packages
 	// comes from $GOROOT/pkg/$GOOS_$GOOARCH/fmt.a.
-	conf := types.Config{Importer: importer.Default()}
+	conf := types.Config{Importer: defaultImporter(fset)}
 	pkg, err := conf.Check("temperature", fset, []*ast.File{f}, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -136,9 +135,8 @@ type I interface { m() byte }
 	celsius := pkg.Scope().Lookup("Celsius").Type()
 	for _, t := range []types.Type{celsius, types.NewPointer(celsius)} {
 		fmt.Printf("Method set of %s:\n", t)
-		mset := types.NewMethodSet(t)
-		for i := 0; i < mset.Len(); i++ {
-			fmt.Println(mset.At(i))
+		for m := range types.NewMethodSet(t).Methods() {
+			fmt.Println(m)
 		}
 		fmt.Println()
 	}
@@ -211,14 +209,14 @@ func fib(x int) int {
 	}
 	var items []string
 	for obj, uses := range usesByObj {
-		sort.Strings(uses)
+		slices.Sort(uses)
 		item := fmt.Sprintf("%s:\n  defined at %s\n  used at %s",
 			types.ObjectString(obj, types.RelativeTo(pkg)),
 			fset.Position(obj.Pos()),
 			strings.Join(uses, ", "))
 		items = append(items, item)
 	}
-	sort.Strings(items) // sort by line:col, in effect
+	slices.Sort(items) // sort by line:col, in effect
 	fmt.Println(strings.Join(items, "\n"))
 	fmt.Println()
 
@@ -237,7 +235,7 @@ func fib(x int) int {
 			mode(tv), tvstr)
 		items = append(items, buf.String())
 	}
-	sort.Strings(items)
+	slices.Sort(items)
 	fmt.Println(strings.Join(items, "\n"))
 
 	// Output:

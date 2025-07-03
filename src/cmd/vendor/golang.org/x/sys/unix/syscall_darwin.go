@@ -402,6 +402,18 @@ func IoctlSetIfreqMTU(fd int, ifreq *IfreqMTU) error {
 	return ioctlPtr(fd, SIOCSIFMTU, unsafe.Pointer(ifreq))
 }
 
+//sys	renamexNp(from string, to string, flag uint32) (err error)
+
+func RenamexNp(from string, to string, flag uint32) (err error) {
+	return renamexNp(from, to, flag)
+}
+
+//sys	renameatxNp(fromfd int, from string, tofd int, to string, flag uint32) (err error)
+
+func RenameatxNp(fromfd int, from string, tofd int, to string, flag uint32) (err error) {
+	return renameatxNp(fromfd, from, tofd, to, flag)
+}
+
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS_SYSCTL
 
 func Uname(uname *Utsname) error {
@@ -542,6 +554,198 @@ func SysctlKinfoProcSlice(name string, args ...int) ([]KinfoProc, error) {
 	}
 }
 
+//sys	pthread_chdir_np(path string) (err error)
+
+func PthreadChdir(path string) (err error) {
+	return pthread_chdir_np(path)
+}
+
+//sys	pthread_fchdir_np(fd int) (err error)
+
+func PthreadFchdir(fd int) (err error) {
+	return pthread_fchdir_np(fd)
+}
+
+// Connectx calls connectx(2) to initiate a connection on a socket.
+//
+// srcIf, srcAddr, and dstAddr are filled into a [SaEndpoints] struct and passed as the endpoints argument.
+//
+//   - srcIf is the optional source interface index. 0 means unspecified.
+//   - srcAddr is the optional source address. nil means unspecified.
+//   - dstAddr is the destination address.
+//
+// On success, Connectx returns the number of bytes enqueued for transmission.
+func Connectx(fd int, srcIf uint32, srcAddr, dstAddr Sockaddr, associd SaeAssocID, flags uint32, iov []Iovec, connid *SaeConnID) (n uintptr, err error) {
+	endpoints := SaEndpoints{
+		Srcif: srcIf,
+	}
+
+	if srcAddr != nil {
+		addrp, addrlen, err := srcAddr.sockaddr()
+		if err != nil {
+			return 0, err
+		}
+		endpoints.Srcaddr = (*RawSockaddr)(addrp)
+		endpoints.Srcaddrlen = uint32(addrlen)
+	}
+
+	if dstAddr != nil {
+		addrp, addrlen, err := dstAddr.sockaddr()
+		if err != nil {
+			return 0, err
+		}
+		endpoints.Dstaddr = (*RawSockaddr)(addrp)
+		endpoints.Dstaddrlen = uint32(addrlen)
+	}
+
+	err = connectx(fd, &endpoints, associd, flags, iov, &n, connid)
+	return
+}
+
+// sys	connectx(fd int, endpoints *SaEndpoints, associd SaeAssocID, flags uint32, iov []Iovec, n *uintptr, connid *SaeConnID) (err error)
+const minIovec = 8
+
+func Readv(fd int, iovs [][]byte) (n int, err error) {
+	if !darwinKernelVersionMin(11, 0, 0) {
+		return 0, ENOSYS
+	}
+
+	iovecs := make([]Iovec, 0, minIovec)
+	iovecs = appendBytes(iovecs, iovs)
+	n, err = readv(fd, iovecs)
+	readvRacedetect(iovecs, n, err)
+	return n, err
+}
+
+func Preadv(fd int, iovs [][]byte, offset int64) (n int, err error) {
+	if !darwinKernelVersionMin(11, 0, 0) {
+		return 0, ENOSYS
+	}
+	iovecs := make([]Iovec, 0, minIovec)
+	iovecs = appendBytes(iovecs, iovs)
+	n, err = preadv(fd, iovecs, offset)
+	readvRacedetect(iovecs, n, err)
+	return n, err
+}
+
+func Writev(fd int, iovs [][]byte) (n int, err error) {
+	if !darwinKernelVersionMin(11, 0, 0) {
+		return 0, ENOSYS
+	}
+
+	iovecs := make([]Iovec, 0, minIovec)
+	iovecs = appendBytes(iovecs, iovs)
+	if raceenabled {
+		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	}
+	n, err = writev(fd, iovecs)
+	writevRacedetect(iovecs, n)
+	return n, err
+}
+
+func Pwritev(fd int, iovs [][]byte, offset int64) (n int, err error) {
+	if !darwinKernelVersionMin(11, 0, 0) {
+		return 0, ENOSYS
+	}
+
+	iovecs := make([]Iovec, 0, minIovec)
+	iovecs = appendBytes(iovecs, iovs)
+	if raceenabled {
+		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	}
+	n, err = pwritev(fd, iovecs, offset)
+	writevRacedetect(iovecs, n)
+	return n, err
+}
+
+func appendBytes(vecs []Iovec, bs [][]byte) []Iovec {
+	for _, b := range bs {
+		var v Iovec
+		v.SetLen(len(b))
+		if len(b) > 0 {
+			v.Base = &b[0]
+		} else {
+			v.Base = (*byte)(unsafe.Pointer(&_zero))
+		}
+		vecs = append(vecs, v)
+	}
+	return vecs
+}
+
+func writevRacedetect(iovecs []Iovec, n int) {
+	if !raceenabled {
+		return
+	}
+	for i := 0; n > 0 && i < len(iovecs); i++ {
+		m := int(iovecs[i].Len)
+		if m > n {
+			m = n
+		}
+		n -= m
+		if m > 0 {
+			raceReadRange(unsafe.Pointer(iovecs[i].Base), m)
+		}
+	}
+}
+
+func readvRacedetect(iovecs []Iovec, n int, err error) {
+	if !raceenabled {
+		return
+	}
+	for i := 0; n > 0 && i < len(iovecs); i++ {
+		m := int(iovecs[i].Len)
+		if m > n {
+			m = n
+		}
+		n -= m
+		if m > 0 {
+			raceWriteRange(unsafe.Pointer(iovecs[i].Base), m)
+		}
+	}
+	if err == nil {
+		raceAcquire(unsafe.Pointer(&ioSync))
+	}
+}
+
+func darwinMajorMinPatch() (maj, min, patch int, err error) {
+	var un Utsname
+	err = Uname(&un)
+	if err != nil {
+		return
+	}
+
+	var mmp [3]int
+	c := 0
+Loop:
+	for _, b := range un.Release[:] {
+		switch {
+		case b >= '0' && b <= '9':
+			mmp[c] = 10*mmp[c] + int(b-'0')
+		case b == '.':
+			c++
+			if c > 2 {
+				return 0, 0, 0, ENOTSUP
+			}
+		case b == 0:
+			break Loop
+		default:
+			return 0, 0, 0, ENOTSUP
+		}
+	}
+	if c != 2 {
+		return 0, 0, 0, ENOTSUP
+	}
+	return mmp[0], mmp[1], mmp[2], nil
+}
+
+func darwinKernelVersionMin(maj, min, patch int) bool {
+	actualMaj, actualMin, actualPatch, err := darwinMajorMinPatch()
+	if err != nil {
+		return false
+	}
+	return actualMaj > maj || actualMaj == maj && (actualMin > min || actualMin == min && actualPatch >= patch)
+}
+
 //sys	sendfile(infd int, outfd int, offset int64, len *int64, hdtr unsafe.Pointer, flags int) (err error)
 
 //sys	shmat(id int, addr uintptr, flag int) (ret uintptr, err error)
@@ -644,189 +848,7 @@ func SysctlKinfoProcSlice(name string, args ...int) ([]KinfoProc, error) {
 //sys	write(fd int, p []byte) (n int, err error)
 //sys	mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
 //sys	munmap(addr uintptr, length uintptr) (err error)
-//sys	readlen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_READ
-//sys	writelen(fd int, buf *byte, nbuf int) (n int, err error) = SYS_WRITE
-
-/*
- * Unimplemented
- */
-// Profil
-// Sigaction
-// Sigprocmask
-// Getlogin
-// Sigpending
-// Sigaltstack
-// Ioctl
-// Reboot
-// Execve
-// Vfork
-// Sbrk
-// Sstk
-// Ovadvise
-// Mincore
-// Setitimer
-// Swapon
-// Select
-// Sigsuspend
-// Readv
-// Writev
-// Nfssvc
-// Getfh
-// Quotactl
-// Csops
-// Waitid
-// Add_profil
-// Kdebug_trace
-// Sigreturn
-// Atsocket
-// Kqueue_from_portset_np
-// Kqueue_portset
-// Getattrlist
-// Getdirentriesattr
-// Searchfs
-// Delete
-// Copyfile
-// Watchevent
-// Waitevent
-// Modwatch
-// Fsctl
-// Initgroups
-// Posix_spawn
-// Nfsclnt
-// Fhopen
-// Minherit
-// Semsys
-// Msgsys
-// Shmsys
-// Semctl
-// Semget
-// Semop
-// Msgctl
-// Msgget
-// Msgsnd
-// Msgrcv
-// Shm_open
-// Shm_unlink
-// Sem_open
-// Sem_close
-// Sem_unlink
-// Sem_wait
-// Sem_trywait
-// Sem_post
-// Sem_getvalue
-// Sem_init
-// Sem_destroy
-// Open_extended
-// Umask_extended
-// Stat_extended
-// Lstat_extended
-// Fstat_extended
-// Chmod_extended
-// Fchmod_extended
-// Access_extended
-// Settid
-// Gettid
-// Setsgroups
-// Getsgroups
-// Setwgroups
-// Getwgroups
-// Mkfifo_extended
-// Mkdir_extended
-// Identitysvc
-// Shared_region_check_np
-// Shared_region_map_np
-// __pthread_mutex_destroy
-// __pthread_mutex_init
-// __pthread_mutex_lock
-// __pthread_mutex_trylock
-// __pthread_mutex_unlock
-// __pthread_cond_init
-// __pthread_cond_destroy
-// __pthread_cond_broadcast
-// __pthread_cond_signal
-// Setsid_with_pid
-// __pthread_cond_timedwait
-// Aio_fsync
-// Aio_return
-// Aio_suspend
-// Aio_cancel
-// Aio_error
-// Aio_read
-// Aio_write
-// Lio_listio
-// __pthread_cond_wait
-// Iopolicysys
-// __pthread_kill
-// __pthread_sigmask
-// __sigwait
-// __disable_threadsignal
-// __pthread_markcancel
-// __pthread_canceled
-// __semwait_signal
-// Proc_info
-// sendfile
-// Stat64_extended
-// Lstat64_extended
-// Fstat64_extended
-// __pthread_chdir
-// __pthread_fchdir
-// Audit
-// Auditon
-// Getauid
-// Setauid
-// Getaudit
-// Setaudit
-// Getaudit_addr
-// Setaudit_addr
-// Auditctl
-// Bsdthread_create
-// Bsdthread_terminate
-// Stack_snapshot
-// Bsdthread_register
-// Workq_open
-// Workq_ops
-// __mac_execve
-// __mac_syscall
-// __mac_get_file
-// __mac_set_file
-// __mac_get_link
-// __mac_set_link
-// __mac_get_proc
-// __mac_set_proc
-// __mac_get_fd
-// __mac_set_fd
-// __mac_get_pid
-// __mac_get_lcid
-// __mac_get_lctx
-// __mac_set_lctx
-// Setlcid
-// Read_nocancel
-// Write_nocancel
-// Open_nocancel
-// Close_nocancel
-// Wait4_nocancel
-// Recvmsg_nocancel
-// Sendmsg_nocancel
-// Recvfrom_nocancel
-// Accept_nocancel
-// Fcntl_nocancel
-// Select_nocancel
-// Fsync_nocancel
-// Connect_nocancel
-// Sigsuspend_nocancel
-// Readv_nocancel
-// Writev_nocancel
-// Sendto_nocancel
-// Pread_nocancel
-// Pwrite_nocancel
-// Waitid_nocancel
-// Poll_nocancel
-// Msgsnd_nocancel
-// Msgrcv_nocancel
-// Sem_wait_nocancel
-// Aio_suspend_nocancel
-// __sigwait_nocancel
-// __semwait_signal_nocancel
-// __mac_mount
-// __mac_get_mount
-// __mac_getfsstat
+//sys	readv(fd int, iovecs []Iovec) (n int, err error)
+//sys	preadv(fd int, iovecs []Iovec, offset int64) (n int, err error)
+//sys	writev(fd int, iovecs []Iovec) (n int, err error)
+//sys	pwritev(fd int, iovecs []Iovec, offset int64) (n int, err error)

@@ -141,7 +141,7 @@ func text_32(text []byte, sa []int32) {
 // then the algorithm runs a little faster.
 // If sais_8_32 modifies tmp, it sets tmp[0] = -1 on return.
 func sais_8_32(text []byte, textMax int, sa, tmp []int32) {
-	if len(sa) != len(text) || len(tmp) < int(textMax) {
+	if len(sa) != len(text) || len(tmp) < textMax {
 		panic("suffixarray: misuse of sais_8_32")
 	}
 
@@ -219,9 +219,7 @@ func freq_8_32(text []byte, freq, bucket []int32) []int32 {
 	}
 
 	freq = freq[:256] // eliminate bounds check for freq[c] below
-	for i := range freq {
-		freq[i] = 0
-	}
+	clear(freq)
 	for _, c := range text {
 		freq[c]++
 	}
@@ -710,9 +708,7 @@ func recurse_32(sa, oldTmp []int32, numLMS, maxID int) {
 	// sais_32 requires that the caller arrange to clear dst,
 	// because in general the caller may know dst is
 	// freshly-allocated and already cleared. But this one is not.
-	for i := range dst {
-		dst[i] = 0
-	}
+	clear(dst)
 	sais_32(text, maxID, dst, tmp)
 }
 

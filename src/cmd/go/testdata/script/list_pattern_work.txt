@@ -1,0 +1,79 @@
+cd m
+go list all
+stdout 'example.com/dep'
+stdout 'example.com/m/a'
+stdout 'example.com/m/b'
+go list work
+! stdout 'example.com/dep'
+stdout 'example.com/m/a'
+stdout 'example.com/m/b'
+
+cd ../n
+go list all
+stdout 'example.com/n/c'
+stdout 'example.com/n/d'
+stdout 'unsafe'
+go list work
+stdout 'example.com/n/c'
+stdout 'example.com/n/d'
+! stdout 'unsafe'
+
+cd ../w
+go list all
+stdout 'example.com/dep'
+stdout 'example.com/m/a'
+stdout 'example.com/m/b'
+stdout 'example.com/n/c'
+stdout 'example.com/n/d'
+stdout 'unsafe'
+go list work
+! stdout 'example.com/dep'
+stdout 'example.com/m/a'
+stdout 'example.com/m/b'
+stdout 'example.com/n/c'
+stdout 'example.com/n/d'
+! stdout 'unsafe'
+
+-- m/go.mod --
+module example.com/m
+
+go 1.24
+
+require example.com/dep v1.0.0
+replace example.com/dep v1.0.0 => ../dep
+-- m/a/a.go --
+package a
+-- m/b/b.go --
+package b
+
+import _ "example.com/dep"
+-- n/go.mod --
+module example.com/n
+
+go 1.24
+-- n/c/c.go --
+package c
+-- n/d/d.go --
+package d
+
+import _ "unsafe"
+-- w/go.work --
+go 1.24
+
+use (
+	../m
+	../n
+)
+-- dep/go.mod --
+module example.com/dep
+
+go 1.24
+-- dep/dep.go --
+package dep
+-- want_w_all.txt --
+example.com/dep
+example.com/work/a
+example.com/work/b
+-- want_w_all.txt --
+example.com/work/a
+example.com/work/b

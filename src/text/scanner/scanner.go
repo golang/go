@@ -8,7 +8,7 @@
 // existing tools, the NUL character is not allowed. If the first character
 // in the source is a UTF-8 encoded byte order mark (BOM), it is discarded.
 //
-// By default, a Scanner skips white space and Go comments and recognizes all
+// By default, a [Scanner] skips white space and Go comments and recognizes all
 // literals as defined by the Go language specification. It may be
 // customized to recognize only a subset of those literals and to recognize
 // different identifier and white space characters.
@@ -47,16 +47,16 @@ func (pos Position) String() string {
 }
 
 // Predefined mode bits to control recognition of tokens. For instance,
-// to configure a Scanner such that it only recognizes (Go) identifiers,
+// to configure a [Scanner] such that it only recognizes (Go) identifiers,
 // integers, and skips comments, set the Scanner's Mode field to:
 //
-//	ScanIdents | ScanInts | SkipComments
+//	ScanIdents | ScanInts | ScanComments | SkipComments
 //
 // With the exceptions of comments, which are skipped if SkipComments is
 // set, unrecognized tokens are not ignored. Instead, the scanner simply
 // returns the respective individual characters (or possibly sub-tokens).
 // For instance, if the mode is ScanIdents (not ScanStrings), the string
-// "foo" is scanned as the token sequence '"' Ident '"'.
+// "foo" is scanned as the token sequence '"' [Ident] '"'.
 //
 // Use GoTokens to configure the Scanner such that it accepts all Go
 // literal tokens including Go identifiers. Comments will be skipped.
@@ -106,13 +106,13 @@ func TokenString(tok rune) string {
 	return fmt.Sprintf("%q", string(tok))
 }
 
-// GoWhitespace is the default value for the Scanner's Whitespace field.
+// GoWhitespace is the default value for the [Scanner]'s Whitespace field.
 // Its value selects Go's white space characters.
 const GoWhitespace = 1<<'\t' | 1<<'\n' | 1<<'\r' | 1<<' '
 
 const bufLen = 1024 // at least utf8.UTFMax
 
-// A Scanner implements reading of Unicode characters and tokens from an io.Reader.
+// A Scanner implements reading of Unicode characters and tokens from an [io.Reader].
 type Scanner struct {
 	// Input
 	src io.Reader
@@ -175,9 +175,9 @@ type Scanner struct {
 	Position
 }
 
-// Init initializes a Scanner with a new source and returns s.
-// Error is set to nil, ErrorCount is set to 0, Mode is set to GoTokens,
-// and Whitespace is set to GoWhitespace.
+// Init initializes a [Scanner] with a new source and returns s.
+// [Scanner.Error] is set to nil, [Scanner.ErrorCount] is set to 0, [Scanner.Mode] is set to [GoTokens],
+// and [Scanner.Whitespace] is set to [GoWhitespace].
 func (s *Scanner) Init(src io.Reader) *Scanner {
 	s.src = src
 
@@ -296,10 +296,10 @@ func (s *Scanner) next() rune {
 }
 
 // Next reads and returns the next Unicode character.
-// It returns EOF at the end of the source. It reports
+// It returns [EOF] at the end of the source. It reports
 // a read error by calling s.Error, if not nil; otherwise
-// it prints an error message to os.Stderr. Next does not
-// update the Scanner's Position field; use Pos() to
+// it prints an error message to [os.Stderr]. Next does not
+// update the [Scanner.Position] field; use [Scanner.Pos]() to
 // get the current position.
 func (s *Scanner) Next() rune {
 	s.tokPos = -1 // don't collect token text
@@ -312,7 +312,7 @@ func (s *Scanner) Next() rune {
 }
 
 // Peek returns the next Unicode character in the source without advancing
-// the scanner. It returns EOF if the scanner's position is at the last
+// the scanner. It returns [EOF] if the scanner's position is at the last
 // character of the source.
 func (s *Scanner) Peek() rune {
 	if s.ch == -2 {
@@ -639,10 +639,10 @@ func (s *Scanner) scanComment(ch rune) rune {
 }
 
 // Scan reads the next token or Unicode character from source and returns it.
-// It only recognizes tokens t for which the respective Mode bit (1<<-t) is set.
-// It returns EOF at the end of the source. It reports scanner errors (read and
+// It only recognizes tokens t for which the respective [Scanner.Mode] bit (1<<-t) is set.
+// It returns [EOF] at the end of the source. It reports scanner errors (read and
 // token errors) by calling s.Error, if not nil; otherwise it prints an error
-// message to os.Stderr.
+// message to [os.Stderr].
 func (s *Scanner) Scan() rune {
 	ch := s.Peek()
 
@@ -742,8 +742,8 @@ redo:
 }
 
 // Pos returns the position of the character immediately after
-// the character or token returned by the last call to Next or Scan.
-// Use the Scanner's Position field for the start position of the most
+// the character or token returned by the last call to [Scanner.Next] or [Scanner.Scan].
+// Use the [Scanner.Position] field for the start position of the most
 // recently scanned token.
 func (s *Scanner) Pos() (pos Position) {
 	pos.Filename = s.Filename
@@ -766,7 +766,7 @@ func (s *Scanner) Pos() (pos Position) {
 }
 
 // TokenText returns the string corresponding to the most recently scanned token.
-// Valid after calling Scan and in calls of Scanner.Error.
+// Valid after calling [Scanner.Scan] and in calls of [Scanner.Error].
 func (s *Scanner) TokenText() string {
 	if s.tokPos < 0 {
 		// no token text

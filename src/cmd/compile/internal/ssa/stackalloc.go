@@ -46,15 +46,9 @@ func newStackAllocState(f *Func) *stackAllocState {
 }
 
 func putStackAllocState(s *stackAllocState) {
-	for i := range s.values {
-		s.values[i] = stackValState{}
-	}
-	for i := range s.interfere {
-		s.interfere[i] = nil
-	}
-	for i := range s.names {
-		s.names[i] = LocalSlot{}
-	}
+	clear(s.values)
+	clear(s.interfere)
+	clear(s.names)
 	s.f.Cache.stackAllocState = s
 	s.f = nil
 	s.live = nil
@@ -202,11 +196,11 @@ func (s *stackAllocState) stackalloc() {
 	}
 
 	// For each type, we keep track of all the stack slots we
-	// have allocated for that type.
-	// TODO: share slots among equivalent types. We would need to
-	// only share among types with the same GC signature. See the
-	// type.Equal calls below for where this matters.
-	locations := map[*types.Type][]LocalSlot{}
+	// have allocated for that type. This map is keyed by
+	// strings returned by types.LinkString. This guarantees
+	// type equality, but also lets us match the same type represented
+	// by two different types.Type structures. See issue 65783.
+	locations := map[string][]LocalSlot{}
 
 	// Each time we assign a stack slot to a value v, we remember
 	// the slot we used via an index into locations[v.Type].
@@ -258,7 +252,8 @@ func (s *stackAllocState) stackalloc() {
 
 		noname:
 			// Set of stack slots we could reuse.
-			locs := locations[v.Type]
+			typeKey := v.Type.LinkString()
+			locs := locations[typeKey]
 			// Mark all positions in locs used by interfering values.
 			for i := 0; i < len(locs); i++ {
 				used[i] = false
@@ -281,7 +276,7 @@ func (s *stackAllocState) stackalloc() {
 			if i == len(locs) {
 				s.nAuto++
 				locs = append(locs, LocalSlot{N: f.NewLocal(v.Pos, v.Type), Type: v.Type, Off: 0})
-				locations[v.Type] = locs
+				locations[typeKey] = locs
 			}
 			// Use the stack variable at that index for v.
 			loc := locs[i]

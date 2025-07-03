@@ -4,6 +4,11 @@
 
 package runtime
 
+import (
+	"internal/goarch"
+	"unsafe"
+)
+
 const _CONTEXT_CONTROL = 0x100001
 
 type m128a struct {
@@ -71,6 +76,13 @@ func (c *context) set_ip(x uintptr) { c.rip = uint64(x) }
 func (c *context) set_sp(x uintptr) { c.rsp = uint64(x) }
 func (c *context) set_fp(x uintptr) { c.rbp = uint64(x) }
 
+func (c *context) pushCall(targetPC, resumePC uintptr) {
+	sp := c.sp() - goarch.StackAlign
+	*(*uintptr)(unsafe.Pointer(sp)) = resumePC
+	c.set_sp(sp)
+	c.set_ip(targetPC)
+}
+
 func prepareContextForSigResume(c *context) {
 	c.r8 = c.rsp
 	c.r9 = c.rip
@@ -98,4 +110,19 @@ func dumpregs(r *context) {
 	print("cs      ", hex(r.segcs), "\n")
 	print("fs      ", hex(r.segfs), "\n")
 	print("gs      ", hex(r.seggs), "\n")
+}
+
+type _DISPATCHER_CONTEXT struct {
+	controlPc        uint64
+	imageBase        uint64
+	functionEntry    uintptr
+	establisherFrame uint64
+	targetIp         uint64
+	context          *context
+	languageHandler  uintptr
+	handlerData      uintptr
+}
+
+func (c *_DISPATCHER_CONTEXT) ctx() *context {
+	return c.context
 }

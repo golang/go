@@ -264,19 +264,6 @@ func genAMD64() {
 
 	l.save()
 
-	// Apparently, the signal handling code path in darwin kernel leaves
-	// the upper bits of Y registers in a dirty state, which causes
-	// many SSE operations (128-bit and narrower) become much slower.
-	// Clear the upper bits to get to a clean state. See issue #37174.
-	// It is safe here as Go code don't use the upper bits of Y registers.
-	p("#ifdef GOOS_darwin")
-	p("#ifndef hasAVX")
-	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $0")
-	p("JE 2(PC)")
-	p("#endif")
-	p("VZEROUPPER")
-	p("#endif")
-
 	lSSE.save()
 	p("CALL ·asyncPreempt2(SB)")
 	lSSE.restore()
@@ -317,11 +304,11 @@ func genARM() {
 
 	p("MOVW.W R14, -%d(R13)", lfp.stack) // allocate frame, save LR
 	l.save()
-	p("MOVB ·goarm(SB), R0\nCMP $6, R0\nBLT nofp") // test goarm, and skip FP registers if goarm=5.
+	p("MOVB ·goarmsoftfp(SB), R0\nCMP $0, R0\nBNE nofp") // test goarmsoftfp, and skip FP registers if goarmsoftfp!=0.
 	lfp.save()
 	label("nofp:")
 	p("CALL ·asyncPreempt2(SB)")
-	p("MOVB ·goarm(SB), R0\nCMP $6, R0\nBLT nofp2") // test goarm, and skip FP registers if goarm=5.
+	p("MOVB ·goarmsoftfp(SB), R0\nCMP $0, R0\nBNE nofp2") // test goarmsoftfp, and skip FP registers if goarmsoftfp!=0.
 	lfp.restore()
 	label("nofp2:")
 	l.restore()
@@ -383,7 +370,7 @@ func genARM64() {
 	p("MOVD -8(RSP), R29")          // restore frame pointer
 	p("MOVD (RSP), R27")            // load PC to REGTMP
 	p("ADD $%d, RSP", l.stack+16)   // pop frame (including the space pushed by sigctxt.pushCall)
-	p("JMP (R27)")
+	p("RET (R27)")
 }
 
 func genMIPS(_64bit bool) {
@@ -576,7 +563,7 @@ func genRISCV64() {
 	}
 
 	p("MOV X1, -%d(X2)", l.stack)
-	p("ADD $-%d, X2", l.stack)
+	p("SUB $%d, X2", l.stack)
 	l.save()
 	p("CALL ·asyncPreempt2(SB)")
 	l.restore()

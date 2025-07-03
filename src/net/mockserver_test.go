@@ -2,16 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !wasip1
-
 package net
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"internal/testenv"
+	"log"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -58,12 +60,7 @@ func newLocalListener(t testing.TB, network string, lcOpt ...*ListenConfig) List
 	switch network {
 	case "tcp":
 		if supportsIPv4() {
-			if !supportsIPv6() {
-				return listen("tcp4", "127.0.0.1:0")
-			}
-			if ln, err := Listen("tcp4", "127.0.0.1:0"); err == nil {
-				return ln
-			}
+			return listen("tcp4", "127.0.0.1:0")
 		}
 		if supportsIPv6() {
 			return listen("tcp6", "[::1]:0")
@@ -339,6 +336,7 @@ func newLocalPacketListener(t testing.TB, network string, lcOpt ...*ListenConfig
 		return c
 	}
 
+	t.Helper()
 	switch network {
 	case "udp":
 		if supportsIPv4() {
@@ -359,7 +357,6 @@ func newLocalPacketListener(t testing.TB, network string, lcOpt ...*ListenConfig
 		return listenPacket(network, testUnixAddr(t))
 	}
 
-	t.Helper()
 	t.Fatalf("%s is not supported", network)
 	return nil
 }
@@ -506,5 +503,143 @@ func packetTransceiver(c PacketConn, wb []byte, dst Addr, ch chan<- error) {
 	}
 	if n != len(wb) {
 		ch <- fmt.Errorf("read %d; want %d", n, len(wb))
+	}
+}
+
+func spawnTestSocketPair(t testing.TB, net string) (client, server Conn) {
+	t.Helper()
+
+	if !testableNetwork(net) {
+		t.Skipf("network %q not supported", net)
+	}
+
+	ln := newLocalListener(t, net)
+	defer ln.Close()
+	var cerr, serr error
+	acceptDone := make(chan struct{})
+	go func() {
+		server, serr = ln.Accept()
+		acceptDone <- struct{}{}
+	}()
+	client, cerr = Dial(ln.Addr().Network(), ln.Addr().String())
+	<-acceptDone
+	if cerr != nil {
+		if server != nil {
+			server.Close()
+		}
+		t.Fatal(cerr)
+	}
+	if serr != nil {
+		if client != nil {
+			client.Close()
+		}
+		t.Fatal(serr)
+	}
+	return client, server
+}
+
+func startTestSocketPeer(t testing.TB, conn Conn, op string, chunkSize, totalSize int) (func(t testing.TB), error) {
+	t.Helper()
+	f, err := conn.(interface{ File() (*os.File, error) }).File()
+	if err != nil {
+		return nil, err
+	}
+
+	cmd := testenv.Command(t, testenv.Executable(t))
+	cmd.Env = []string{
+		"GO_NET_TEST_TRANSFER=1",
+		"GO_NET_TEST_TRANSFER_OP=" + op,
+		"GO_NET_TEST_TRANSFER_CHUNK_SIZE=" + strconv.Itoa(chunkSize),
+		"GO_NET_TEST_TRANSFER_TOTAL_SIZE=" + strconv.Itoa(totalSize),
+		"TMPDIR=" + os.Getenv("TMPDIR"),
+	}
+	if runtime.GOOS == "windows" {
+		// Windows doesn't support ExtraFiles
+		fd := f.Fd()
+		cmd.Env = append(cmd.Env, "GO_NET_TEST_TRANSFER_FD="+strconv.FormatUint(uint64(fd), 10))
+		addCmdInheritedHandle(cmd, fd)
+	} else {
+		cmd.ExtraFiles = append(cmd.ExtraFiles, f)
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+
+	cmdCh := make(chan error, 1)
+	go func() {
+		err := cmd.Wait()
+		conn.Close()
+		f.Close()
+		cmdCh <- err
+	}()
+
+	return func(tb testing.TB) {
+		err := <-cmdCh
+		if err != nil {
+			tb.Errorf("process exited with error: %v", err)
+		}
+	}, nil
+}
+
+func init() {
+	if os.Getenv("GO_NET_TEST_TRANSFER") == "" {
+		return
+	}
+	defer os.Exit(0)
+
+	var fd uintptr
+	if runtime.GOOS == "windows" {
+		v, err := strconv.ParseUint(os.Getenv("GO_NET_TEST_TRANSFER_FD"), 10, 0)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fd = uintptr(v)
+	} else {
+		fd = uintptr(3)
+	}
+	f := os.NewFile(fd, "splice-test-conn")
+	defer f.Close()
+
+	conn, err := FileConn(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var chunkSize int
+	if chunkSize, err = strconv.Atoi(os.Getenv("GO_NET_TEST_TRANSFER_CHUNK_SIZE")); err != nil {
+		log.Fatal(err)
+	}
+	buf := make([]byte, chunkSize)
+
+	var totalSize int
+	if totalSize, err = strconv.Atoi(os.Getenv("GO_NET_TEST_TRANSFER_TOTAL_SIZE")); err != nil {
+		log.Fatal(err)
+	}
+
+	var fn func([]byte) (int, error)
+	switch op := os.Getenv("GO_NET_TEST_TRANSFER_OP"); op {
+	case "r":
+		fn = conn.Read
+	case "w":
+		defer conn.Close()
+
+		fn = conn.Write
+	default:
+		log.Fatalf("unknown op %q", op)
+	}
+
+	var n int
+	for count := 0; count < totalSize; count += n {
+		if count+chunkSize > totalSize {
+			buf = buf[:totalSize-count]
+		}
+
+		var err error
+		if n, err = fn(buf); err != nil {
+			return
+		}
 	}
 }

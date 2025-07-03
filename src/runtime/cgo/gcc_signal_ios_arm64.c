@@ -168,7 +168,7 @@ mach_exception_handler(void *port)
 {
 	// Calls catch_exception_raise.
 	extern boolean_t exc_server();
-	mach_msg_server(exc_server, 2048, (mach_port_t)port, 0);
+	mach_msg_server(exc_server, 2048, (mach_port_t)(uintptr_t)port, 0);
 	abort(); // never returns
 }
 

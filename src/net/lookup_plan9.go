@@ -9,6 +9,7 @@ import (
 	"errors"
 	"internal/bytealg"
 	"internal/itoa"
+	"internal/stringslite"
 	"io"
 	"os"
 )
@@ -64,11 +65,7 @@ func query(ctx context.Context, filename, query string, bufSize int) (addrs []st
 	case r := <-ch:
 		return r.addrs, r.err
 	case <-ctx.Done():
-		return nil, &DNSError{
-			Name:      query,
-			Err:       ctx.Err().Error(),
-			IsTimeout: ctx.Err() == context.DeadlineExceeded,
-		}
+		return nil, mapErr(ctx.Err())
 	}
 }
 
@@ -106,6 +103,16 @@ func queryDNS(ctx context.Context, addr string, typ string) (res []string, err e
 	return query(ctx, netdir+"/dns", addr+" "+typ, 1024)
 }
 
+func handlePlan9DNSError(err error, name string) error {
+	if stringslite.HasSuffix(err.Error(), "dns: name does not exist") ||
+		stringslite.HasSuffix(err.Error(), "dns: resource does not exist; negrcode 0") ||
+		stringslite.HasSuffix(err.Error(), "dns: resource does not exist; negrcode") ||
+		stringslite.HasSuffix(err.Error(), "dns failure") {
+		err = errNoSuchHost
+	}
+	return newDNSError(err, name, "")
+}
+
 // toLower returns a lower-case version of in. Restricting us to
 // ASCII is sufficient to handle the IP protocol names and allow
 // us to not depend on the strings and unicode packages.
@@ -132,7 +139,7 @@ func toLower(in string) string {
 func lookupProtocol(ctx context.Context, name string) (proto int, err error) {
 	lines, err := query(ctx, netdir+"/cs", "!protocol="+toLower(name), 128)
 	if err != nil {
-		return 0, err
+		return 0, newDNSError(err, name, "")
 	}
 	if len(lines) == 0 {
 		return 0, UnknownNetworkError(name)
@@ -153,12 +160,7 @@ func (*Resolver) lookupHost(ctx context.Context, host string) (addrs []string, e
 	// host names in local network (e.g. from /lib/ndb/local)
 	lines, err := queryCS(ctx, "net", host, "1")
 	if err != nil {
-		dnsError := &DNSError{Err: err.Error(), Name: host}
-		if stringsHasSuffix(err.Error(), "dns failure") {
-			dnsError.Err = errNoSuchHost.Error()
-			dnsError.IsNotFound = true
-		}
-		return nil, dnsError
+		return nil, handlePlan9DNSError(err, host)
 	}
 loop:
 	for _, line := range lines {
@@ -203,24 +205,36 @@ func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []
 	return
 }
 
-func (*Resolver) lookupPort(ctx context.Context, network, service string) (port int, err error) {
+func (r *Resolver) lookupPort(ctx context.Context, network, service string) (port int, err error) {
 	switch network {
-	case "tcp4", "tcp6":
-		network = "tcp"
-	case "udp4", "udp6":
-		network = "udp"
+	case "ip": // no hints
+		if p, err := r.lookupPortWithNetwork(ctx, "tcp", "ip", service); err == nil {
+			return p, nil
+		}
+		return r.lookupPortWithNetwork(ctx, "udp", "ip", service)
+	case "tcp", "tcp4", "tcp6":
+		return r.lookupPortWithNetwork(ctx, "tcp", "tcp", service)
+	case "udp", "udp4", "udp6":
+		return r.lookupPortWithNetwork(ctx, "udp", "udp", service)
+	default:
+		return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}
 	}
+}
+
+func (*Resolver) lookupPortWithNetwork(ctx context.Context, network, errNetwork, service string) (port int, err error) {
 	lines, err := queryCS(ctx, network, "127.0.0.1", toLower(service))
 	if err != nil {
-		return
+		if stringslite.HasSuffix(err.Error(), "can't translate service") {
+			return 0, newDNSError(errUnknownPort, errNetwork+"/"+service, "")
+		}
+		return 0, newDNSError(err, errNetwork+"/"+service, "")
 	}
-	unknownPortError := &AddrError{Err: "unknown port", Addr: network + "/" + service}
 	if len(lines) == 0 {
-		return 0, unknownPortError
+		return 0, newDNSError(errUnknownPort, errNetwork+"/"+service, "")
 	}
 	f := getFields(lines[0])
 	if len(f) < 2 {
-		return 0, unknownPortError
+		return 0, newDNSError(errUnknownPort, errNetwork+"/"+service, "")
 	}
 	s := f[1]
 	if i := bytealg.IndexByteString(s, '!'); i >= 0 {
@@ -229,7 +243,7 @@ func (*Resolver) lookupPort(ctx context.Context, network, service string) (port 
 	if n, _, ok := dtoi(s); ok {
 		return n, nil
 	}
-	return 0, unknownPortError
+	return 0, newDNSError(errUnknownPort, errNetwork+"/"+service, "")
 }
 
 func (r *Resolver) lookupCNAME(ctx context.Context, name string) (cname string, err error) {
@@ -239,18 +253,19 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (cname string, 
 
 	lines, err := queryDNS(ctx, name, "cname")
 	if err != nil {
-		if stringsHasSuffix(err.Error(), "dns failure") || stringsHasSuffix(err.Error(), "resource does not exist; negrcode 0") {
-			cname = name + "."
-			err = nil
+		if stringslite.HasSuffix(err.Error(), "dns failure") ||
+			stringslite.HasSuffix(err.Error(), "resource does not exist; negrcode 0") ||
+			stringslite.HasSuffix(err.Error(), "resource does not exist; negrcode") {
+			return absDomainName(name), nil
 		}
-		return
+		return "", handlePlan9DNSError(err, cname)
 	}
 	if len(lines) > 0 {
 		if f := getFields(lines[0]); len(f) >= 3 {
 			return f[2] + ".", nil
 		}
 	}
-	return "", errors.New("bad response from ndb/dns")
+	return "", &DNSError{Err: "bad response from ndb/dns", Name: name}
 }
 
 func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*SRV, err error) {
@@ -265,7 +280,7 @@ func (r *Resolver) lookupSRV(ctx context.Context, service, proto, name string) (
 	}
 	lines, err := queryDNS(ctx, target, "srv")
 	if err != nil {
-		return
+		return "", nil, handlePlan9DNSError(err, name)
 	}
 	for _, line := range lines {
 		f := getFields(line)
@@ -291,7 +306,7 @@ func (r *Resolver) lookupMX(ctx context.Context, name string) (mx []*MX, err err
 	}
 	lines, err := queryDNS(ctx, name, "mx")
 	if err != nil {
-		return
+		return nil, handlePlan9DNSError(err, name)
 	}
 	for _, line := range lines {
 		f := getFields(line)
@@ -312,7 +327,7 @@ func (r *Resolver) lookupNS(ctx context.Context, name string) (ns []*NS, err err
 	}
 	lines, err := queryDNS(ctx, name, "ns")
 	if err != nil {
-		return
+		return nil, handlePlan9DNSError(err, name)
 	}
 	for _, line := range lines {
 		f := getFields(line)
@@ -330,7 +345,7 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) (txt []string, er
 	}
 	lines, err := queryDNS(ctx, name, "txt")
 	if err != nil {
-		return
+		return nil, handlePlan9DNSError(err, name)
 	}
 	for _, line := range lines {
 		if i := bytealg.IndexByteString(line, '\t'); i >= 0 {
@@ -350,7 +365,7 @@ func (r *Resolver) lookupAddr(ctx context.Context, addr string) (name []string, 
 	}
 	lines, err := queryDNS(ctx, arpa, "ptr")
 	if err != nil {
-		return
+		return nil, handlePlan9DNSError(err, addr)
 	}
 	for _, line := range lines {
 		f := getFields(line)

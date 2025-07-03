@@ -180,11 +180,15 @@ func TestObjImporter(t *testing.T) {
 
 		runImporterTest(t, imp, initmap, &test)
 
-		cmd = testenv.Command(t, "ar", "cr", afile, ofile)
+		ar := os.Getenv("AR")
+		if ar == "" {
+			ar = "ar"
+		}
+		cmd = testenv.Command(t, ar, "cr", afile, ofile)
 		out, err = cmd.CombinedOutput()
 		if err != nil {
 			t.Logf("%s", out)
-			t.Fatalf("ar cr %s %s failed: %s", afile, ofile, err)
+			t.Fatalf("%s cr %s %s failed: %s", ar, afile, ofile, err)
 		}
 
 		runImporterTest(t, arimp, arinitmap, &test)

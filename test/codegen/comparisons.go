@@ -6,7 +6,10 @@
 
 package codegen
 
-import "unsafe"
+import (
+	"cmp"
+	"unsafe"
+)
 
 // This file contains code generation tests related to the comparison
 // operators.
@@ -230,9 +233,9 @@ func CmpToZero(a, b, d int32, e, f int64, deOptC0, deOptC1 bool) int32 {
 	// arm:`AND`,-`TST`
 	// 386:`ANDL`
 	c6 := a&d >= 0
-	// arm64:`TST\sR[0-9]+<<3,\sR[0-9]+`
+	// For arm64, could be TST+BGE or AND+TBZ
 	c7 := e&(f<<3) < 0
-	// arm64:`CMN\sR[0-9]+<<3,\sR[0-9]+`
+	// For arm64, could be CMN+BPL or ADD+TBZ
 	c8 := e+(f<<3) < 0
 	// arm64:`TST\sR[0-9],\sR[0-9]+`
 	c9 := e&(-19) < 0
@@ -265,7 +268,7 @@ func CmpToZero(a, b, d int32, e, f int64, deOptC0, deOptC1 bool) int32 {
 	}
 }
 
-func CmpLogicalToZero(a, b, c uint32, d, e uint64) uint64 {
+func CmpLogicalToZero(a, b, c uint32, d, e, f, g uint64) uint64 {
 
 	// ppc64x:"ANDCC",-"CMPW"
 	// wasm:"I64Eqz",-"I32Eqz",-"I64ExtendI32U",-"I32WrapI64"
@@ -286,7 +289,7 @@ func CmpLogicalToZero(a, b, c uint32, d, e uint64) uint64 {
 	}
 	// ppc64x:"ORCC",-"CMP"
 	// wasm:"I64Eqz",-"I32Eqz",-"I64ExtendI32U",-"I32WrapI64"
-	if d|e == 0 {
+	if f|g == 0 {
 		return 1
 	}
 
@@ -727,6 +730,54 @@ func cmpToCmnLessThan(a, b, c, d int) int {
 	return c1 + c2 + c3 + c4
 }
 
+func less128Signed32(x int32) bool {
+	// amd64:`CMPL.*127`
+	// amd64:`SETLE`
+	return x < 128
+}
+
+func less128Signed64(x int64) bool {
+	// amd64:`CMPQ.*127`
+	// amd64:`SETLE`
+	return x < 128
+}
+
+func less128Unsigned32(x uint32) bool {
+	// amd64:`CMPL.*127`
+	// amd64:`SETLS`
+	return x < 128
+}
+
+func less128Unsigned64(x uint64) bool {
+	// amd64:`CMPQ.*127`
+	// amd64:`SETLS`
+	return x < 128
+}
+
+func ge128Unsigned32(x uint32) bool {
+	// amd64:`CMPL.*127`
+	// amd64:`SETHI`
+	return x >= 128
+}
+
+func ge128Unsigned64(x uint64) bool {
+	// amd64:`CMPQ.*127`
+	// amd64:`SETHI`
+	return x >= 128
+}
+
+func ge128Signed32(x int32) bool {
+	// amd64:`CMPL.*127`
+	// amd64:`SETGT`
+	return x >= 128
+}
+
+func ge128Signed64(x int64) bool {
+	// amd64:`CMPQ.*127`
+	// amd64:`SETGT`
+	return x >= 128
+}
+
 func cmpToCmnGreaterThanEqual(a, b, c, d int) int {
 	var c1, c2, c3, c4 int
 	// arm64:`CMN`,`CSET\tPL`,-`CMP`
@@ -787,4 +838,38 @@ func cmp6[T comparable](val T) bool {
 func cmp7() {
 	cmp5[string]("") // force instantiation
 	cmp6[string]("") // force instantiation
+}
+
+type Point struct {
+	X, Y int
+}
+
+// invertLessThanNoov checks (LessThanNoov (InvertFlags x)) is lowered as
+// CMP, CSET, CSEL instruction sequence. InvertFlags are only generated under
+// certain conditions, see canonLessThan, so if the code below does not
+// generate an InvertFlags OP, this check may fail.
+func invertLessThanNoov(p1, p2, p3 Point) bool {
+	// arm64:`CMP`,`CSET`,`CSEL`
+	return (p1.X-p3.X)*(p2.Y-p3.Y)-(p2.X-p3.X)*(p1.Y-p3.Y) < 0
+}
+
+func cmpstring1(x, y string) int {
+	// amd64:".*cmpstring"
+	if x < y {
+		return -1
+	}
+	// amd64:-".*cmpstring"
+	if x > y {
+		return +1
+	}
+	return 0
+}
+func cmpstring2(x, y string) int {
+	// We want to fail if there are two calls to cmpstring.
+	// They will both have the same line number, so a test
+	// like in cmpstring1 will not work. Instead, we
+	// look for spill/restore instructions, which only
+	// need to exist if there are 2 calls.
+	//amd64:-`MOVQ\t.*\(SP\)`
+	return cmp.Compare(x, y)
 }

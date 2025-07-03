@@ -11,6 +11,7 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
+	"internal/obscuretestdata"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -134,6 +135,22 @@ func TestReadFile(t *testing.T) {
 		}
 	}
 
+	damageStringLen := func(t *testing.T, name string) {
+		data, err := os.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		i := bytes.Index(data, []byte("\xff Go buildinf:"))
+		if i < 0 {
+			t.Fatal("Go buildinf not found")
+		}
+		verLen := data[i+32:]
+		binary.PutUvarint(verLen, 16<<40) // 16TB ought to be enough for anyone.
+		if err := os.WriteFile(name, data, 0666); err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	goVersionRe := regexp.MustCompile("(?m)^go\t.*\n")
 	buildRe := regexp.MustCompile("(?m)^build\t.*\n")
 	cleanOutputForComparison := func(got string) string {
@@ -194,6 +211,15 @@ func TestReadFile(t *testing.T) {
 			wantErr: "not a Go executable",
 		},
 		{
+			name: "invalid_str_len",
+			build: func(t *testing.T, goos, goarch, buildmode string) string {
+				name := buildWithModules(t, goos, goarch, buildmode)
+				damageStringLen(t, name)
+				return name
+			},
+			wantErr: "not a Go executable",
+		},
+		{
 			name:  "valid_gopath",
 			build: buildWithGOPATH,
 			want: "go\tGOVERSION\n" +
@@ -236,7 +262,7 @@ func TestReadFile(t *testing.T) {
 									t.Fatalf("unexpected success; want error containing %q", tc.wantErr)
 								}
 								got := info.String()
-								if clean := cleanOutputForComparison(string(got)); got != tc.want && clean != tc.want {
+								if clean := cleanOutputForComparison(got); got != tc.want && clean != tc.want {
 									t.Fatalf("got:\n%s\nwant:\n%s", got, tc.want)
 								}
 							}
@@ -245,6 +271,48 @@ func TestReadFile(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+// Test117 verifies that parsing of the old, pre-1.18 format works.
+func Test117(t *testing.T) {
+	b, err := obscuretestdata.ReadFile("testdata/go117/go117.base64")
+	if err != nil {
+		t.Fatalf("ReadFile got err %v, want nil", err)
+	}
+
+	info, err := buildinfo.Read(bytes.NewReader(b))
+	if err != nil {
+		t.Fatalf("Read got err %v, want nil", err)
+	}
+
+	if info.GoVersion != "go1.17" {
+		t.Errorf("GoVersion got %s want go1.17", info.GoVersion)
+	}
+	if info.Path != "example.com/go117" {
+		t.Errorf("Path got %s want example.com/go117", info.Path)
+	}
+	if info.Main.Path != "example.com/go117" {
+		t.Errorf("Main.Path got %s want example.com/go117", info.Main.Path)
+	}
+}
+
+// TestNotGo verifies that parsing of a non-Go binary returns the proper error.
+func TestNotGo(t *testing.T) {
+	b, err := obscuretestdata.ReadFile("testdata/notgo/notgo.base64")
+	if err != nil {
+		t.Fatalf("ReadFile got err %v, want nil", err)
+	}
+
+	_, err = buildinfo.Read(bytes.NewReader(b))
+	if err == nil {
+		t.Fatalf("Read got nil err, want non-nil")
+	}
+
+	// The precise error text here isn't critical, but we want something
+	// like errNotGoExe rather than e.g., a file read error.
+	if !strings.Contains(err.Error(), "not a Go executable") {
+		t.Errorf("ReadFile got err %v want not a Go executable", err)
 	}
 }
 
@@ -326,4 +394,22 @@ func TestIssue54968(t *testing.T) {
 			}
 		})
 	}
+}
+
+func FuzzRead(f *testing.F) {
+	go117, err := obscuretestdata.ReadFile("testdata/go117/go117.base64")
+	if err != nil {
+		f.Errorf("Error reading go117: %v", err)
+	}
+	f.Add(go117)
+
+	notgo, err := obscuretestdata.ReadFile("testdata/notgo/notgo.base64")
+	if err != nil {
+		f.Errorf("Error reading notgo: %v", err)
+	}
+	f.Add(notgo)
+
+	f.Fuzz(func(t *testing.T, in []byte) {
+		buildinfo.Read(bytes.NewReader(in))
+	})
 }

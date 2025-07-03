@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestVMInfo(t *testing.T) {
@@ -34,7 +35,10 @@ func TestVMInfo(t *testing.T) {
 		// the go toolchain itself.
 		first = false
 	})
-	lo, hi := useVMMap(t)
+	lo, hi, err := useVMMapWithRetry(t)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if got, want := begin, lo; got != want {
 		t.Errorf("got %x, want %x", got, want)
 	}
@@ -53,7 +57,38 @@ func TestVMInfo(t *testing.T) {
 	}
 }
 
-func useVMMap(t *testing.T) (hi, lo uint64) {
+type mapping struct {
+	hi, lo uint64
+	err    error
+}
+
+func useVMMapWithRetry(t *testing.T) (hi, lo uint64, err error) {
+	var retryable bool
+	ch := make(chan mapping)
+	go func() {
+		for {
+			hi, lo, retryable, err = useVMMap(t)
+			if err == nil {
+				ch <- mapping{hi, lo, nil}
+				return
+			}
+			if !retryable {
+				ch <- mapping{0, 0, err}
+				return
+			}
+			t.Logf("retrying vmmap after error: %v", err)
+		}
+	}()
+	select {
+	case m := <-ch:
+		return m.hi, m.lo, m.err
+	case <-time.After(time.Minute):
+		t.Skip("vmmap taking too long")
+	}
+	return 0, 0, fmt.Errorf("unreachable")
+}
+
+func useVMMap(t *testing.T) (hi, lo uint64, retryable bool, err error) {
 	pid := strconv.Itoa(os.Getpid())
 	testenv.MustHaveExecPath(t, "vmmap")
 	cmd := testenv.Command(t, "vmmap", pid)
@@ -62,21 +97,28 @@ func useVMMap(t *testing.T) (hi, lo uint64) {
 		t.Logf("vmmap output: %s", out)
 		if ee, ok := cmdErr.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
 			t.Logf("%v: %v\n%s", cmd, cmdErr, ee.Stderr)
+			if testing.Short() && (strings.Contains(string(ee.Stderr), "No process corpse slots currently available, waiting to get one") || strings.Contains(string(ee.Stderr), "Failed to generate corpse from the process")) {
+				t.Skipf("Skipping knwn flake in short test mode")
+			}
+			retryable = bytes.Contains(ee.Stderr, []byte("resource shortage"))
 		}
-		t.Logf("%v: %v", cmd, cmdErr)
+		t.Logf("%v: %v\n", cmd, cmdErr)
+		if retryable {
+			return 0, 0, true, cmdErr
+		}
 	}
 	// Always parse the output of vmmap since it may return an error
 	// code even if it successfully reports the text segment information
 	// required for this test.
-	hi, lo, err := parseVmmap(out)
+	hi, lo, err = parseVmmap(out)
 	if err != nil {
 		if cmdErr != nil {
-			t.Fatalf("failed to parse vmmap output, vmmap reported an error: %v", err)
+			return 0, 0, false, fmt.Errorf("failed to parse vmmap output, vmmap reported an error: %v", err)
 		}
 		t.Logf("vmmap output: %s", out)
-		t.Fatalf("failed to parse vmmap output, vmmap did not report an error: %v", err)
+		return 0, 0, false, fmt.Errorf("failed to parse vmmap output, vmmap did not report an error: %v", err)
 	}
-	return hi, lo
+	return hi, lo, false, nil
 }
 
 // parseVmmap parses the output of vmmap and calls addMapping for the first r-x TEXT segment in the output.

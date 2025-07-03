@@ -11,7 +11,7 @@ package sync_test
 import (
 	"runtime"
 	"runtime/debug"
-	"sort"
+	"slices"
 	. "sync"
 	"sync/atomic"
 	"testing"
@@ -102,35 +102,47 @@ func TestPoolRelease(t *testing.T) {
 }
 
 func testPool(t *testing.T, drain bool) {
+	if drain {
+		// Run with GOMAXPROCS=1 if drain is set. The code below implicitly
+		// assumes it can remove all the pool-cached values with cleanups
+		// with Get, but this isn't necessarily true if a value gets stuck
+		// in the private slot for some P. This is especially likely when
+		// running with mayMoreStackPreempt. We can make this exact, however,
+		// by setting GOMAXPROCS to 1, so there's only 1 P. This is fine for
+		// this test, since we're not trying to check any concurrent properties
+		// of Pool anyway.
+		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+	}
+
 	var p Pool
 	const N = 100
-loop:
 	for try := 0; try < 3; try++ {
 		if try == 1 && testing.Short() {
 			break
 		}
-		var fin, fin1 uint32
+		var cln, cln1 uint32
 		for i := 0; i < N; i++ {
 			v := new(string)
-			runtime.SetFinalizer(v, func(vv *string) {
-				atomic.AddUint32(&fin, 1)
-			})
+			runtime.AddCleanup(v, func(f *uint32) { atomic.AddUint32(f, 1) }, &cln)
 			p.Put(v)
 		}
 		if drain {
 			for i := 0; i < N; i++ {
 				p.Get()
 			}
-		}
-		for i := 0; i < 5; i++ {
+		} else {
+			// Run an extra GC cycles to drop items from the pool.
 			runtime.GC()
-			time.Sleep(time.Duration(i*100+10) * time.Millisecond)
-			// 1 pointer can remain on stack or elsewhere
-			if fin1 = atomic.LoadUint32(&fin); fin1 >= N-1 {
-				continue loop
-			}
 		}
-		t.Fatalf("only %v out of %v resources are finalized on try %v", fin1, N, try)
+
+		// Run a GC and wait for all the cleanups to run.
+		runtime.GC()
+		runtime_blockUntilEmptyCleanupQueue(int64(5 * time.Second))
+
+		// 1 pointer can remain on stack or elsewhere
+		if cln1 = atomic.LoadUint32(&cln); cln1 < N-1 {
+			t.Fatalf("only %v out of %v resources are cleaned up on try %v", cln1, N, try)
+		}
 	}
 }
 
@@ -338,7 +350,7 @@ func BenchmarkPoolSTW(b *testing.B) {
 	}
 
 	// Get pause time stats.
-	sort.Slice(pauses, func(i, j int) bool { return pauses[i] < pauses[j] })
+	slices.Sort(pauses)
 	var total uint64
 	for _, ns := range pauses {
 		total += ns

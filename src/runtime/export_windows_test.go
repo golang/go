@@ -6,7 +6,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/runtime/sys"
+	"unsafe"
+)
 
 const MaxArgs = maxArgs
 
@@ -31,13 +34,8 @@ func (c ContextStub) GetPC() uintptr {
 
 func NewContextStub() *ContextStub {
 	var ctx context
-	ctx.set_ip(getcallerpc())
-	ctx.set_sp(getcallersp())
-	fp := getfp()
-	// getfp is not implemented on windows/386 and windows/arm,
-	// in which case it returns 0.
-	if fp != 0 {
-		ctx.set_fp(*(*uintptr)(unsafe.Pointer(fp)))
-	}
+	ctx.set_ip(sys.GetCallerPC())
+	ctx.set_sp(sys.GetCallerSP())
+	ctx.set_fp(getcallerfp())
 	return &ContextStub{ctx}
 }

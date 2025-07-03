@@ -17,9 +17,11 @@ import (
 	"go/build"
 	"go/build/constraint"
 	"go/token"
+	"internal/syslist"
 	"io"
 	"io/fs"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"unicode"
@@ -132,7 +134,7 @@ func (ctxt *Context) isAbsPath(path string) bool {
 	return filepath.IsAbs(path)
 }
 
-// isDir calls ctxt.IsDir (if not nil) or else uses fsys.Stat.
+// isDir reports whether path is a directory.
 func isDir(path string) bool {
 	fi, err := fsys.Stat(path)
 	return err == nil && fi.IsDir()
@@ -878,7 +880,7 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 	if ctxt.GOOS == "ios" && name == "darwin" {
 		return true
 	}
-	if name == "unix" && unixOS[ctxt.GOOS] {
+	if name == "unix" && syslist.UnixOS[ctxt.GOOS] {
 		return true
 	}
 	if name == "boringcrypto" {
@@ -886,23 +888,8 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 	}
 
 	// other tags
-	for _, tag := range ctxt.BuildTags {
-		if tag == name {
-			return true
-		}
-	}
-	for _, tag := range ctxt.ToolTags {
-		if tag == name {
-			return true
-		}
-	}
-	for _, tag := range ctxt.ReleaseTags {
-		if tag == name {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(ctxt.BuildTags, name) || slices.Contains(ctxt.ToolTags, name) ||
+		slices.Contains(ctxt.ReleaseTags, name)
 }
 
 // goodOSArchFile returns false if the name contains a $GOOS or $GOARCH
@@ -941,14 +928,14 @@ func (ctxt *Context) goodOSArchFile(name string, allTags map[string]bool) bool {
 		l = l[:n-1]
 	}
 	n := len(l)
-	if n >= 2 && knownOS[l[n-2]] && knownArch[l[n-1]] {
+	if n >= 2 && syslist.KnownOS[l[n-2]] && syslist.KnownArch[l[n-1]] {
 		if allTags != nil {
 			// In case we short-circuit on l[n-1].
 			allTags[l[n-2]] = true
 		}
 		return ctxt.matchTag(l[n-1], allTags) && ctxt.matchTag(l[n-2], allTags)
 	}
-	if n >= 1 && (knownOS[l[n-1]] || knownArch[l[n-1]]) {
+	if n >= 1 && (syslist.KnownOS[l[n-1]] || syslist.KnownArch[l[n-1]]) {
 		return ctxt.matchTag(l[n-1], allTags)
 	}
 	return true

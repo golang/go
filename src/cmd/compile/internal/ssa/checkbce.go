@@ -16,6 +16,9 @@ func checkbce(f *Func) {
 	}
 
 	for _, b := range f.Blocks {
+		if b.Kind == BlockInvalid {
+			continue
+		}
 		for _, v := range b.Values {
 			if v.Op == OpIsInBounds || v.Op == OpIsSliceInBounds {
 				if f.pass.debug > 0 {

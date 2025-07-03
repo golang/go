@@ -7,6 +7,7 @@ package cache
 import (
 	"bufio"
 	"cmd/go/internal/base"
+	"cmd/go/internal/cacheprog"
 	"cmd/internal/quoted"
 	"context"
 	"crypto/sha256"
@@ -37,7 +38,7 @@ type ProgCache struct {
 
 	// can are the commands that the child process declared that it supports.
 	// This is effectively the versioning mechanism.
-	can map[ProgCmd]bool
+	can map[cacheprog.Cmd]bool
 
 	// fuzzDirCache is another Cache implementation to use for the FuzzDir
 	// method. In practice this is the default GOCACHE disk-based
@@ -54,90 +55,12 @@ type ProgCache struct {
 
 	mu         sync.Mutex // guards following fields
 	nextID     int64
-	inFlight   map[int64]chan<- *ProgResponse
+	inFlight   map[int64]chan<- *cacheprog.Response
 	outputFile map[OutputID]string // object => abs path on disk
 
 	// writeMu serializes writing to the child process.
 	// It must never be held at the same time as mu.
 	writeMu sync.Mutex
-}
-
-// ProgCmd is a command that can be issued to a child process.
-//
-// If the interface needs to grow, we can add new commands or new versioned
-// commands like "get2".
-type ProgCmd string
-
-const (
-	cmdGet   = ProgCmd("get")
-	cmdPut   = ProgCmd("put")
-	cmdClose = ProgCmd("close")
-)
-
-// ProgRequest is the JSON-encoded message that's sent from cmd/go to
-// the GOCACHEPROG child process over stdin. Each JSON object is on its
-// own line. A ProgRequest of Type "put" with BodySize > 0 will be followed
-// by a line containing a base64-encoded JSON string literal of the body.
-type ProgRequest struct {
-	// ID is a unique number per process across all requests.
-	// It must be echoed in the ProgResponse from the child.
-	ID int64
-
-	// Command is the type of request.
-	// The cmd/go tool will only send commands that were declared
-	// as supported by the child.
-	Command ProgCmd
-
-	// ActionID is non-nil for get and puts.
-	ActionID []byte `json:",omitempty"` // or nil if not used
-
-	// ObjectID is set for Type "put" and "output-file".
-	ObjectID []byte `json:",omitempty"` // or nil if not used
-
-	// Body is the body for "put" requests. It's sent after the JSON object
-	// as a base64-encoded JSON string when BodySize is non-zero.
-	// It's sent as a separate JSON value instead of being a struct field
-	// send in this JSON object so large values can be streamed in both directions.
-	// The base64 string body of a ProgRequest will always be written
-	// immediately after the JSON object and a newline.
-	Body io.Reader `json:"-"`
-
-	// BodySize is the number of bytes of Body. If zero, the body isn't written.
-	BodySize int64 `json:",omitempty"`
-}
-
-// ProgResponse is the JSON response from the child process to cmd/go.
-//
-// With the exception of the first protocol message that the child writes to its
-// stdout with ID==0 and KnownCommands populated, these are only sent in
-// response to a ProgRequest from cmd/go.
-//
-// ProgResponses can be sent in any order. The ID must match the request they're
-// replying to.
-type ProgResponse struct {
-	ID  int64  // that corresponds to ProgRequest; they can be answered out of order
-	Err string `json:",omitempty"` // if non-empty, the error
-
-	// KnownCommands is included in the first message that cache helper program
-	// writes to stdout on startup (with ID==0). It includes the
-	// ProgRequest.Command types that are supported by the program.
-	//
-	// This lets us extend the protocol gracefully over time (adding "get2",
-	// etc), or fail gracefully when needed. It also lets us verify the program
-	// wants to be a cache helper.
-	KnownCommands []ProgCmd `json:",omitempty"`
-
-	// For Get requests.
-
-	Miss     bool       `json:",omitempty"` // cache miss
-	OutputID []byte     `json:",omitempty"`
-	Size     int64      `json:",omitempty"` // in bytes
-	Time     *time.Time `json:",omitempty"` // an Entry.Time; when the object was added to the docs
-
-	// DiskPath is the absolute path on disk of the ObjectID corresponding
-	// a "get" request's ActionID (on cache hit) or a "put" request's
-	// provided ObjectID.
-	DiskPath string `json:",omitempty"`
 }
 
 // startCacheProg starts the prog binary (with optional space-separated flags)
@@ -171,6 +94,8 @@ func startCacheProg(progAndArgs string, fuzzDirCache Cache) Cache {
 		base.Fatalf("StdinPipe to GOCACHEPROG: %v", err)
 	}
 	cmd.Stderr = os.Stderr
+	// On close, we cancel the context. Rather than killing the helper,
+	// close its stdin.
 	cmd.Cancel = in.Close
 
 	if err := cmd.Start(); err != nil {
@@ -185,14 +110,14 @@ func startCacheProg(progAndArgs string, fuzzDirCache Cache) Cache {
 		stdout:       out,
 		stdin:        in,
 		bw:           bufio.NewWriter(in),
-		inFlight:     make(map[int64]chan<- *ProgResponse),
+		inFlight:     make(map[int64]chan<- *cacheprog.Response),
 		outputFile:   make(map[OutputID]string),
 		readLoopDone: make(chan struct{}),
 	}
 
 	// Register our interest in the initial protocol message from the child to
 	// us, saying what it can do.
-	capResc := make(chan *ProgResponse, 1)
+	capResc := make(chan *cacheprog.Response, 1)
 	pc.inFlight[0] = capResc
 
 	pc.jenc = json.NewEncoder(pc.bw)
@@ -207,7 +132,7 @@ func startCacheProg(progAndArgs string, fuzzDirCache Cache) Cache {
 		case <-timer.C:
 			log.Printf("# still waiting for GOCACHEPROG %v ...", prog)
 		case capRes := <-capResc:
-			can := map[ProgCmd]bool{}
+			can := map[cacheprog.Cmd]bool{}
 			for _, cmd := range capRes.KnownCommands {
 				can[cmd] = true
 			}
@@ -224,9 +149,15 @@ func (c *ProgCache) readLoop(readLoopDone chan<- struct{}) {
 	defer close(readLoopDone)
 	jd := json.NewDecoder(c.stdout)
 	for {
-		res := new(ProgResponse)
+		res := new(cacheprog.Response)
 		if err := jd.Decode(res); err != nil {
 			if c.closing.Load() {
+				c.mu.Lock()
+				for _, ch := range c.inFlight {
+					close(ch)
+				}
+				c.inFlight = nil
+				c.mu.Unlock()
 				return // quietly
 			}
 			if err == io.EOF {
@@ -249,13 +180,18 @@ func (c *ProgCache) readLoop(readLoopDone chan<- struct{}) {
 	}
 }
 
-func (c *ProgCache) send(ctx context.Context, req *ProgRequest) (*ProgResponse, error) {
-	resc := make(chan *ProgResponse, 1)
+var errCacheprogClosed = errors.New("GOCACHEPROG program closed unexpectedly")
+
+func (c *ProgCache) send(ctx context.Context, req *cacheprog.Request) (*cacheprog.Response, error) {
+	resc := make(chan *cacheprog.Response, 1)
 	if err := c.writeToChild(req, resc); err != nil {
 		return nil, err
 	}
 	select {
 	case res := <-resc:
+		if res == nil {
+			return nil, errCacheprogClosed
+		}
 		if res.Err != "" {
 			return nil, errors.New(res.Err)
 		}
@@ -265,8 +201,11 @@ func (c *ProgCache) send(ctx context.Context, req *ProgRequest) (*ProgResponse, 
 	}
 }
 
-func (c *ProgCache) writeToChild(req *ProgRequest, resc chan<- *ProgResponse) (err error) {
+func (c *ProgCache) writeToChild(req *cacheprog.Request, resc chan<- *cacheprog.Response) (err error) {
 	c.mu.Lock()
+	if c.inFlight == nil {
+		return errCacheprogClosed
+	}
 	c.nextID++
 	req.ID = c.nextID
 	c.inFlight[req.ID] = resc
@@ -275,7 +214,9 @@ func (c *ProgCache) writeToChild(req *ProgRequest, resc chan<- *ProgResponse) (e
 	defer func() {
 		if err != nil {
 			c.mu.Lock()
-			delete(c.inFlight, req.ID)
+			if c.inFlight != nil {
+				delete(c.inFlight, req.ID)
+			}
 			c.mu.Unlock()
 		}
 	}()
@@ -302,8 +243,8 @@ func (c *ProgCache) writeToChild(req *ProgRequest, resc chan<- *ProgResponse) (e
 			return nil
 		}
 		if wrote != req.BodySize {
-			return fmt.Errorf("short write writing body to GOCACHEPROG for action %x, object %x: wrote %v; expected %v",
-				req.ActionID, req.ObjectID, wrote, req.BodySize)
+			return fmt.Errorf("short write writing body to GOCACHEPROG for action %x, output %x: wrote %v; expected %v",
+				req.ActionID, req.OutputID, wrote, req.BodySize)
 		}
 		if _, err := c.bw.WriteString("\"\n"); err != nil {
 			return err
@@ -316,7 +257,7 @@ func (c *ProgCache) writeToChild(req *ProgRequest, resc chan<- *ProgResponse) (e
 }
 
 func (c *ProgCache) Get(a ActionID) (Entry, error) {
-	if !c.can[cmdGet] {
+	if !c.can[cacheprog.CmdGet] {
 		// They can't do a "get". Maybe they're a write-only cache.
 		//
 		// TODO(bradfitz,bcmills): figure out the proper error type here. Maybe
@@ -326,8 +267,8 @@ func (c *ProgCache) Get(a ActionID) (Entry, error) {
 		// error types on the Cache interface.
 		return Entry{}, &entryNotFoundError{}
 	}
-	res, err := c.send(c.ctx, &ProgRequest{
-		Command:  cmdGet,
+	res, err := c.send(c.ctx, &cacheprog.Request{
+		Command:  cacheprog.CmdGet,
 		ActionID: a[:],
 	})
 	if err != nil {
@@ -383,15 +324,15 @@ func (c *ProgCache) Put(a ActionID, file io.ReadSeeker) (_ OutputID, size int64,
 		return OutputID{}, 0, err
 	}
 
-	if !c.can[cmdPut] {
+	if !c.can[cacheprog.CmdPut] {
 		// Child is a read-only cache. Do nothing.
 		return out, size, nil
 	}
 
-	res, err := c.send(c.ctx, &ProgRequest{
-		Command:  cmdPut,
+	res, err := c.send(c.ctx, &cacheprog.Request{
+		Command:  cacheprog.CmdPut,
 		ActionID: a[:],
-		ObjectID: out[:],
+		OutputID: out[:],
 		Body:     file,
 		BodySize: size,
 	})
@@ -412,10 +353,16 @@ func (c *ProgCache) Close() error {
 	// First write a "close" message to the child so it can exit nicely
 	// and clean up if it wants. Only after that exchange do we cancel
 	// the context that kills the process.
-	if c.can[cmdClose] {
-		_, err = c.send(c.ctx, &ProgRequest{Command: cmdClose})
+	if c.can[cacheprog.CmdClose] {
+		_, err = c.send(c.ctx, &cacheprog.Request{Command: cacheprog.CmdClose})
+		if errors.Is(err, errCacheprogClosed) {
+			// Allow the child to quit without responding to close.
+			err = nil
+		}
 	}
+	// Cancel the context, which will close the helper's stdin.
 	c.ctxCancel()
+	// Wait until the helper closes its stdout.
 	<-c.readLoopDone
 	return err
 }

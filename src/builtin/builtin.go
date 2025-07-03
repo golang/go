@@ -53,10 +53,10 @@ type int32 int32
 // Range: -9223372036854775808 through 9223372036854775807.
 type int64 int64
 
-// float32 is the set of all IEEE-754 32-bit floating-point numbers.
+// float32 is the set of all IEEE 754 32-bit floating-point numbers.
 type float32 float32
 
-// float64 is the set of all IEEE-754 64-bit floating-point numbers.
+// float64 is the set of all IEEE 754 64-bit floating-point numbers.
 type float64 float64
 
 // complex64 is the set of all complex numbers with float32 real and
@@ -162,12 +162,12 @@ func delete(m map[Type]Type1, key Type)
 
 // The len built-in function returns the length of v, according to its type:
 //
-//	Array: the number of elements in v.
-//	Pointer to array: the number of elements in *v (even if v is nil).
-//	Slice, or map: the number of elements in v; if v is nil, len(v) is zero.
-//	String: the number of bytes in v.
-//	Channel: the number of elements queued (unread) in the channel buffer;
-//	         if v is nil, len(v) is zero.
+//   - Array: the number of elements in v.
+//   - Pointer to array: the number of elements in *v (even if v is nil).
+//   - Slice, or map: the number of elements in v; if v is nil, len(v) is zero.
+//   - String: the number of bytes in v.
+//   - Channel: the number of elements queued (unread) in the channel buffer;
+//     if v is nil, len(v) is zero.
 //
 // For some arguments, such as a string literal or a simple array expression, the
 // result can be a constant. See the Go language specification's "Length and
@@ -176,12 +176,12 @@ func len(v Type) int
 
 // The cap built-in function returns the capacity of v, according to its type:
 //
-//	Array: the number of elements in v (same as len(v)).
-//	Pointer to array: the number of elements in *v (same as len(v)).
-//	Slice: the maximum length the slice can reach when resliced;
-//	if v is nil, cap(v) is zero.
-//	Channel: the channel buffer capacity, in units of elements;
-//	if v is nil, cap(v) is zero.
+//   - Array: the number of elements in v (same as len(v)).
+//   - Pointer to array: the number of elements in *v (same as len(v)).
+//   - Slice: the maximum length the slice can reach when resliced;
+//     if v is nil, cap(v) is zero.
+//   - Channel: the channel buffer capacity, in units of elements;
+//     if v is nil, cap(v) is zero.
 //
 // For some arguments, such as a simple array expression, the result can be a
 // constant. See the Go language specification's "Length and capacity" section for
@@ -194,18 +194,18 @@ func cap(v Type) int
 // argument, not a pointer to it. The specification of the result depends on
 // the type:
 //
-//	Slice: The size specifies the length. The capacity of the slice is
-//	equal to its length. A second integer argument may be provided to
-//	specify a different capacity; it must be no smaller than the
-//	length. For example, make([]int, 0, 10) allocates an underlying array
-//	of size 10 and returns a slice of length 0 and capacity 10 that is
-//	backed by this underlying array.
-//	Map: An empty map is allocated with enough space to hold the
-//	specified number of elements. The size may be omitted, in which case
-//	a small starting size is allocated.
-//	Channel: The channel's buffer is initialized with the specified
-//	buffer capacity. If zero, or the size is omitted, the channel is
-//	unbuffered.
+//   - Slice: The size specifies the length. The capacity of the slice is
+//     equal to its length. A second integer argument may be provided to
+//     specify a different capacity; it must be no smaller than the
+//     length. For example, make([]int, 0, 10) allocates an underlying array
+//     of size 10 and returns a slice of length 0 and capacity 10 that is
+//     backed by this underlying array.
+//   - Map: An empty map is allocated with enough space to hold the
+//     specified number of elements. The size may be omitted, in which case
+//     a small starting size is allocated.
+//   - Channel: The channel's buffer is initialized with the specified
+//     buffer capacity. If zero, or the size is omitted, the channel is
+//     unbuffered.
 func make(t Type, size ...IntegerType) Type
 
 // The max built-in function returns the largest value of a fixed number of
@@ -247,7 +247,7 @@ func imag(c ComplexType) FloatType
 // to the zero value of the respective element type. If the argument
 // type is a type parameter, the type parameter's type set must
 // contain only map or slice types, and clear performs the operation
-// implied by the type argument.
+// implied by the type argument. If t is nil, clear is a no-op.
 func clear[T ~[]Type | ~map[Type]Type1](t T)
 
 // The close built-in function closes a channel, which must be either
@@ -284,9 +284,10 @@ func panic(v any)
 // by restoring normal execution and retrieves the error value passed to the
 // call of panic. If recover is called outside the deferred function it will
 // not stop a panicking sequence. In this case, or when the goroutine is not
-// panicking, or if the argument supplied to panic was nil, recover returns
-// nil. Thus the return value from recover reports whether the goroutine is
-// panicking.
+// panicking, recover returns nil.
+//
+// Prior to Go 1.21, recover would also return nil if panic is called with
+// a nil argument. See [panic] for details.
 func recover() any
 
 // The print built-in function formats its arguments in an

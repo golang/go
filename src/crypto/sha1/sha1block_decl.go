@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build arm || 386 || s390x
+//go:build (386 || arm || loong64) && !purego
 
 package sha1
 

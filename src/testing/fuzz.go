@@ -5,6 +5,7 @@
 package testing
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -56,19 +57,19 @@ type InternalFuzzTarget struct {
 // find and report potential bugs in the code being tested.
 //
 // A fuzz test runs the seed corpus by default, which includes entries provided
-// by (*F).Add and entries in the testdata/fuzz/<FuzzTestName> directory. After
-// any necessary setup and calls to (*F).Add, the fuzz test must then call
-// (*F).Fuzz to provide the fuzz target. See the testing package documentation
-// for an example, and see the F.Fuzz and F.Add method documentation for
+// by [F.Add] and entries in the testdata/fuzz/<FuzzTestName> directory. After
+// any necessary setup and calls to [F.Add], the fuzz test must then call
+// [F.Fuzz] to provide the fuzz target. See the testing package documentation
+// for an example, and see the [F.Fuzz] and [F.Add] method documentation for
 // details.
 //
-// *F methods can only be called before (*F).Fuzz. Once the test is
-// executing the fuzz target, only (*T) methods can be used. The only *F methods
-// that are allowed in the (*F).Fuzz function are (*F).Failed and (*F).Name.
+// *F methods can only be called before [F.Fuzz]. Once the test is
+// executing the fuzz target, only [*T] methods can be used. The only *F methods
+// that are allowed in the [F.Fuzz] function are [F.Failed] and [F.Name].
 type F struct {
 	common
-	fuzzContext *fuzzContext
-	testContext *testContext
+	fstate *fuzzState
+	tstate *testState
 
 	// inFuzzFn is true when the fuzz function is running. Most F methods cannot
 	// be called when inFuzzFn is true.
@@ -184,7 +185,7 @@ var supportedTypes = map[reflect.Type]bool{
 // Fuzz runs the fuzz function, ff, for fuzz testing. If ff fails for a set of
 // arguments, those arguments will be added to the seed corpus.
 //
-// ff must be a function with no return value whose first argument is *T and
+// ff must be a function with no return value whose first argument is [*T] and
 // whose remaining arguments are the types to be fuzzed.
 // For example:
 //
@@ -194,19 +195,19 @@ var supportedTypes = map[reflect.Type]bool{
 // float64, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64.
 // More types may be supported in the future.
 //
-// ff must not call any *F methods, e.g. (*F).Log, (*F).Error, (*F).Skip. Use
-// the corresponding *T method instead. The only *F methods that are allowed in
-// the (*F).Fuzz function are (*F).Failed and (*F).Name.
+// ff must not call any [*F] methods, e.g. [F.Log], [F.Error], [F.Skip]. Use
+// the corresponding [*T] method instead. The only [*F] methods that are allowed in
+// the F.Fuzz function are [F.Failed] and [F.Name].
 //
 // This function should be fast and deterministic, and its behavior should not
-// depend on shared state. No mutatable input arguments, or pointers to them,
+// depend on shared state. No mutable input arguments, or pointers to them,
 // should be retained between executions of the fuzz function, as the memory
 // backing them may be mutated during a subsequent invocation. ff must not
 // modify the underlying data of the arguments provided by the fuzzing engine.
 //
 // When fuzzing, F.Fuzz does not return until a problem is found, time runs out
 // (set with -fuzztime), or the test process is interrupted by a signal. F.Fuzz
-// should be called exactly once, unless F.Skip or F.Fail is called beforehand.
+// should be called exactly once, unless [F.Skip] or [F.Fail] is called beforehand.
 func (f *F) Fuzz(ff any) {
 	if f.fuzzCalled {
 		panic("testing: F.Fuzz called more than once")
@@ -244,22 +245,22 @@ func (f *F) Fuzz(ff any) {
 	// corpus and entries declared with F.Add.
 	//
 	// Don't load the seed corpus if this is a worker process; we won't use it.
-	if f.fuzzContext.mode != fuzzWorker {
+	if f.fstate.mode != fuzzWorker {
 		for _, c := range f.corpus {
-			if err := f.fuzzContext.deps.CheckCorpus(c.Values, types); err != nil {
+			if err := f.fstate.deps.CheckCorpus(c.Values, types); err != nil {
 				// TODO(#48302): Report the source location of the F.Add call.
 				f.Fatal(err)
 			}
 		}
 
 		// Load seed corpus
-		c, err := f.fuzzContext.deps.ReadCorpus(filepath.Join(corpusDir, f.name), types)
+		c, err := f.fstate.deps.ReadCorpus(filepath.Join(corpusDir, f.name), types)
 		if err != nil {
 			f.Fatal(err)
 		}
 		for i := range c {
 			c[i].IsSeed = true // these are all seed corpus values
-			if f.fuzzContext.mode == fuzzCoordinator {
+			if f.fstate.mode == fuzzCoordinator {
 				// If this is the coordinator process, zero the values, since we don't need
 				// to hold onto them.
 				c[i].Values = nil
@@ -285,13 +286,15 @@ func (f *F) Fuzz(ff any) {
 		if e.Path != "" {
 			testName = fmt.Sprintf("%s/%s", testName, filepath.Base(e.Path))
 		}
-		if f.testContext.isFuzzing {
+		if f.tstate.isFuzzing {
 			// Don't preserve subtest names while fuzzing. If fn calls T.Run,
 			// there will be a very large number of subtests with duplicate names,
 			// which will use a large amount of memory. The subtest names aren't
 			// useful since there's no way to re-run them deterministically.
-			f.testContext.match.clearSubNames()
+			f.tstate.match.clearSubNames()
 		}
+
+		ctx, cancelCtx := context.WithCancel(f.ctx)
 
 		// Record the stack trace at the point of this call so that if the subtest
 		// function - which runs in a separate stack - is marked as a helper, we can
@@ -300,21 +303,24 @@ func (f *F) Fuzz(ff any) {
 		n := runtime.Callers(2, pc[:])
 		t := &T{
 			common: common{
-				barrier: make(chan bool),
-				signal:  make(chan bool),
-				name:    testName,
-				parent:  &f.common,
-				level:   f.level + 1,
-				creator: pc[:n],
-				chatty:  f.chatty,
+				barrier:   make(chan bool),
+				signal:    make(chan bool),
+				name:      testName,
+				parent:    &f.common,
+				level:     f.level + 1,
+				creator:   pc[:n],
+				chatty:    f.chatty,
+				ctx:       ctx,
+				cancelCtx: cancelCtx,
 			},
-			context: f.testContext,
+			tstate: f.tstate,
 		}
 		if captureOut != nil {
 			// t.parent aliases f.common.
 			t.parent.w = captureOut
 		}
 		t.w = indenter{&t.common}
+		t.setOutputWriter()
 		if t.chatty != nil {
 			t.chatty.Updatef(t.name, "=== RUN   %s\n", t.name)
 		}
@@ -328,9 +334,9 @@ func (f *F) Fuzz(ff any) {
 			// we make sure it is called right before the tRunner function
 			// exits, regardless of whether it was executed cleanly, panicked,
 			// or if the fuzzFn called t.Fatal.
-			if f.testContext.isFuzzing {
-				defer f.fuzzContext.deps.SnapshotCoverage()
-				f.fuzzContext.deps.ResetCoverage()
+			if f.tstate.isFuzzing {
+				defer f.fstate.deps.SnapshotCoverage()
+				f.fstate.deps.ResetCoverage()
 			}
 			fn.Call(args)
 		})
@@ -342,14 +348,14 @@ func (f *F) Fuzz(ff any) {
 		return !t.Failed()
 	}
 
-	switch f.fuzzContext.mode {
+	switch f.fstate.mode {
 	case fuzzCoordinator:
 		// Fuzzing is enabled, and this is the test process started by 'go test'.
 		// Act as the coordinator process, and coordinate workers to perform the
 		// actual fuzzing.
 		corpusTargetDir := filepath.Join(corpusDir, f.name)
 		cacheTargetDir := filepath.Join(*fuzzCacheDir, f.name)
-		err := f.fuzzContext.deps.CoordinateFuzzing(
+		err := f.fstate.deps.CoordinateFuzzing(
 			fuzzDuration.d,
 			int64(fuzzDuration.n),
 			minimizeDuration.d,
@@ -376,7 +382,7 @@ func (f *F) Fuzz(ff any) {
 	case fuzzWorker:
 		// Fuzzing is enabled, and this is a worker process. Follow instructions
 		// from the coordinator.
-		if err := f.fuzzContext.deps.RunFuzzWorker(func(e corpusEntry) error {
+		if err := f.fstate.deps.RunFuzzWorker(func(e corpusEntry) error {
 			// Don't write to f.w (which points to Stdout) if running from a
 			// fuzz worker. This would become very verbose, particularly during
 			// minimization. Return the error instead, and let the caller deal
@@ -398,7 +404,7 @@ func (f *F) Fuzz(ff any) {
 		// corpus now.
 		for _, e := range f.corpus {
 			name := fmt.Sprintf("%s/%s", f.name, filepath.Base(e.Path))
-			if _, ok, _ := f.testContext.match.fullName(nil, name); ok {
+			if _, ok, _ := f.tstate.match.fullName(nil, name); ok {
 				run(f.w, e)
 			}
 		}
@@ -451,8 +457,8 @@ type fuzzCrashError interface {
 	CrashPath() string
 }
 
-// fuzzContext holds fields common to all fuzz tests.
-type fuzzContext struct {
+// fuzzState holds fields common to all fuzz tests.
+type fuzzState struct {
 	deps testDeps
 	mode fuzzMode
 }
@@ -486,9 +492,9 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
 				break
 			}
 
-			tctx := newTestContext(*parallel, m)
-			tctx.deadline = deadline
-			fctx := &fuzzContext{deps: deps, mode: seedCorpusOnly}
+			tstate := newTestState(*parallel, m)
+			tstate.deadline = deadline
+			fstate := &fuzzState{deps: deps, mode: seedCorpusOnly}
 			root := common{w: os.Stdout} // gather output in one place
 			if Verbose() {
 				root.chatty = newChattyPrinter(root.w)
@@ -497,7 +503,7 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
 				if shouldFailFast() {
 					break
 				}
-				testName, matched, _ := tctx.match.fullName(nil, ft.Name)
+				testName, matched, _ := tstate.match.fullName(nil, ft.Name)
 				if !matched {
 					continue
 				}
@@ -508,19 +514,23 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
 						continue
 					}
 				}
+				ctx, cancelCtx := context.WithCancel(context.Background())
 				f := &F{
 					common: common{
-						signal:  make(chan bool),
-						barrier: make(chan bool),
-						name:    testName,
-						parent:  &root,
-						level:   root.level + 1,
-						chatty:  root.chatty,
+						signal:    make(chan bool),
+						barrier:   make(chan bool),
+						name:      testName,
+						parent:    &root,
+						level:     root.level + 1,
+						chatty:    root.chatty,
+						ctx:       ctx,
+						cancelCtx: cancelCtx,
 					},
-					testContext: tctx,
-					fuzzContext: fctx,
+					tstate: tstate,
+					fstate: fstate,
 				}
 				f.w = indenter{&f.common}
+				f.setOutputWriter()
 				if f.chatty != nil {
 					f.chatty.Updatef(f.name, "=== RUN   %s\n", f.name)
 				}
@@ -554,17 +564,17 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
 		return true
 	}
 	m := newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz", *skip)
-	tctx := newTestContext(1, m)
-	tctx.isFuzzing = true
-	fctx := &fuzzContext{
+	tstate := newTestState(1, m)
+	tstate.isFuzzing = true
+	fstate := &fuzzState{
 		deps: deps,
 	}
 	root := common{w: os.Stdout}
 	if *isFuzzWorker {
 		root.w = io.Discard
-		fctx.mode = fuzzWorker
+		fstate.mode = fuzzWorker
 	} else {
-		fctx.mode = fuzzCoordinator
+		fstate.mode = fuzzCoordinator
 	}
 	if Verbose() && !*isFuzzWorker {
 		root.chatty = newChattyPrinter(root.w)
@@ -573,7 +583,7 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
 	var testName string
 	var matched []string
 	for i := range fuzzTests {
-		name, ok, _ := tctx.match.fullName(nil, fuzzTests[i].Name)
+		name, ok, _ := tstate.match.fullName(nil, fuzzTests[i].Name)
 		if !ok {
 			continue
 		}
@@ -590,19 +600,23 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
 		return false
 	}
 
+	ctx, cancelCtx := context.WithCancel(context.Background())
 	f := &F{
 		common: common{
-			signal:  make(chan bool),
-			barrier: nil, // T.Parallel has no effect when fuzzing.
-			name:    testName,
-			parent:  &root,
-			level:   root.level + 1,
-			chatty:  root.chatty,
+			signal:    make(chan bool),
+			barrier:   nil, // T.Parallel has no effect when fuzzing.
+			name:      testName,
+			parent:    &root,
+			level:     root.level + 1,
+			chatty:    root.chatty,
+			ctx:       ctx,
+			cancelCtx: cancelCtx,
 		},
-		fuzzContext: fctx,
-		testContext: tctx,
+		fstate: fstate,
+		tstate: tstate,
 	}
 	f.w = indenter{&f.common}
+	f.setOutputWriter()
 	if f.chatty != nil {
 		f.chatty.Updatef(f.name, "=== RUN   %s\n", f.name)
 	}
@@ -636,6 +650,7 @@ func fRunner(f *F, fn func(*F)) {
 		// Unfortunately, recovering here adds stack frames, but the location of
 		// the original panic should still be
 		// clear.
+		f.checkRaces()
 		if f.Failed() {
 			numFailed.Add(1)
 		}
@@ -673,7 +688,7 @@ func fRunner(f *F, fn func(*F)) {
 			}
 			for root := &f.common; root.parent != nil; root = root.parent {
 				root.mu.Lock()
-				root.duration += time.Since(root.start)
+				root.duration += highPrecisionTimeSince(root.start)
 				d := root.duration
 				root.mu.Unlock()
 				root.flushToParent(root.name, "--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
@@ -686,22 +701,22 @@ func fRunner(f *F, fn func(*F)) {
 		}
 
 		// No panic or inappropriate Goexit.
-		f.duration += time.Since(f.start)
+		f.duration += highPrecisionTimeSince(f.start)
 
 		if len(f.sub) > 0 {
 			// Unblock inputs that called T.Parallel while running the seed corpus.
 			// This only affects fuzz tests run as normal tests.
 			// While fuzzing, T.Parallel has no effect, so f.sub is empty, and this
 			// branch is not taken. f.barrier is nil in that case.
-			f.testContext.release()
+			f.tstate.release()
 			close(f.barrier)
 			// Wait for the subtests to complete.
 			for _, sub := range f.sub {
 				<-sub.signal
 			}
-			cleanupStart := time.Now()
+			cleanupStart := highPrecisionTimeNow()
 			err := f.runCleanup(recoverAndReturnPanic)
-			f.duration += time.Since(cleanupStart)
+			f.duration += highPrecisionTimeSince(cleanupStart)
 			if err != nil {
 				doPanic(err)
 			}
@@ -718,7 +733,8 @@ func fRunner(f *F, fn func(*F)) {
 		}
 	}()
 
-	f.start = time.Now()
+	f.start = highPrecisionTimeNow()
+	f.resetRaces()
 	fn(f)
 
 	// Code beyond this point will not be executed when FailNow or SkipNow

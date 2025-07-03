@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build loong64 && linux
-// +build loong64,linux
 
 package unix
 
@@ -215,3 +214,5 @@ func KexecFileLoad(kernelFd int, initrdFd int, cmdline string, flags int) error 
 	}
 	return kexecFileLoad(kernelFd, initrdFd, cmdlineLen, cmdline, flags)
 }
+
+const SYS_FSTATAT = SYS_NEWFSTATAT

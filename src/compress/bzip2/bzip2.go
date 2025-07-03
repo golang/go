@@ -27,8 +27,8 @@ type reader struct {
 	blockCRC     uint32
 	wantBlockCRC uint32
 	setupDone    bool // true if we have parsed the bzip2 header.
-	blockSize    int  // blockSize in bytes, i.e. 900 * 1000.
 	eof          bool
+	blockSize    int       // blockSize in bytes, i.e. 900 * 1000.
 	c            [256]uint // the ``C'' array for the inverse BWT.
 	tt           []uint32  // mirrors the ``tt'' array in the bzip2 source and contains the P array in the upper 24 bits.
 	tPos         uint32    // Index of the next output byte in tt.
@@ -40,7 +40,7 @@ type reader struct {
 	repeats     uint     // the number of copies of lastByte to output.
 }
 
-// NewReader returns an io.Reader which decompresses bzip2 data from r.
+// NewReader returns an [io.Reader] which decompresses bzip2 data from r.
 // If r does not also implement [io.ByteReader],
 // the decompressor may read more data than necessary from r.
 func NewReader(r io.Reader) io.Reader {
@@ -355,9 +355,7 @@ func (bz2 *reader) readBlock() (err error) {
 	repeatPower := 0
 
 	// The `C' array (used by the inverse BWT) needs to be zero initialized.
-	for i := range bz2.c {
-		bz2.c[i] = 0
-	}
+	clear(bz2.c[:])
 
 	decoded := 0 // counts the number of symbols decoded by the current tree.
 	for {

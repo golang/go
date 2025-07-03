@@ -8,7 +8,7 @@ import (
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"internal/testenv"
-	"sort"
+	"slices"
 	"testing"
 
 	. "cmd/compile/internal/types2"
@@ -197,7 +197,7 @@ func TestResolveIdents(t *testing.T) {
 	}
 
 	// check the expected set of idents that are simultaneously uses and defs
-	sort.Strings(both)
+	slices.Sort(both)
 	if got, want := fmt.Sprint(both), "[Mutex Stringer error]"; got != want {
 		t.Errorf("simultaneous uses/defs = %s, want %s", got, want)
 	}

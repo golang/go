@@ -111,20 +111,6 @@ type funcType = abi.FuncType
 
 type interfaceType = abi.InterfaceType
 
-// mapType represents a map type.
-type mapType struct {
-	rtype
-	Key    *abi.Type // map key type
-	Elem   *abi.Type // map element (value) type
-	Bucket *abi.Type // internal bucket structure
-	// function for hashing keys (ptr to key, seed) -> hash
-	Hasher     func(unsafe.Pointer, uintptr) uintptr
-	KeySize    uint8  // size of key slot
-	ValueSize  uint8  // size of value slot
-	BucketSize uint16 // size of bucket
-	Flags      uint32
-}
-
 // ptrType represents a pointer type.
 type ptrType = abi.PtrType
 
@@ -233,11 +219,15 @@ func pkgPath(n abi.Name) string {
 // resolveNameOff resolves a name offset from a base pointer.
 // The (*rtype).nameOff method is a convenience wrapper for this function.
 // Implemented in the runtime package.
+//
+//go:noescape
 func resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer
 
 // resolveTypeOff resolves an *rtype offset from a base type.
 // The (*rtype).typeOff method is a convenience wrapper for this function.
 // Implemented in the runtime package.
+//
+//go:noescape
 func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
 
 func (t rtype) nameOff(off nameOff) abi.Name {
@@ -394,8 +384,7 @@ func add(p unsafe.Pointer, x uintptr, whySafe string) unsafe.Pointer {
 // TypeOf returns the reflection Type that represents the dynamic type of i.
 // If i is a nil interface value, TypeOf returns nil.
 func TypeOf(i any) Type {
-	eface := *(*emptyInterface)(unsafe.Pointer(&i))
-	return toType(eface.typ)
+	return toType(abi.TypeOf(i))
 }
 
 func (t rtype) Implements(u Type) bool {
@@ -651,9 +640,4 @@ func toType(t *abi.Type) Type {
 		return nil
 	}
 	return toRType(t)
-}
-
-// ifaceIndir reports whether t is stored indirectly in an interface value.
-func ifaceIndir(t *abi.Type) bool {
-	return t.Kind_&abi.KindDirectIface == 0
 }

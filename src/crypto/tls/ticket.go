@@ -44,20 +44,21 @@ type SessionState struct {
 	//           case 0: Empty;
 	//           case 1: opaque alpn<1..2^8-1>;
 	//       };
-	//       select (SessionState.type) {
-	//           case server: Empty;
-	//           case client: struct {
-	//               select (SessionState.version) {
-	//                   case VersionTLS10..VersionTLS12: Empty;
-	//                   case VersionTLS13: struct {
-	//                       uint64 use_by;
-	//                       uint32 age_add;
-	//                   };
+	//       select (SessionState.version) {
+	//           case VersionTLS10..VersionTLS12: uint16 curve_id;
+	//           case VersionTLS13: select (SessionState.type) {
+	//               case server: Empty;
+	//               case client: struct {
+	//                   uint64 use_by;
+	//                   uint32 age_add;
 	//               };
 	//           };
 	//       };
 	//   } SessionState;
 	//
+	// The format can be extended backwards-compatibly by adding new fields at
+	// the end. Otherwise, a new SessionStateType must be used, as different Go
+	// versions may share the same session ticket encryption key.
 
 	// Extra is ignored by crypto/tls, but is encoded by [SessionState.Bytes]
 	// and parsed by [ParseSessionState].
@@ -69,7 +70,7 @@ type SessionState struct {
 	// To allow different layers in a protocol stack to share this field,
 	// applications must only append to it, not replace it, and must use entries
 	// that can be recognized even if out of order (for example, by starting
-	// with a id and version prefix).
+	// with an id and version prefix).
 	Extra [][]byte
 
 	// EarlyData indicates whether the ticket can be used for 0-RTT in a QUIC
@@ -83,19 +84,22 @@ type SessionState struct {
 	// createdAt is the generation time of the secret on the sever (which for
 	// TLS 1.0–1.2 might be earlier than the current session) and the time at
 	// which the ticket was received on the client.
-	createdAt         uint64 // seconds since UNIX epoch
-	secret            []byte // master secret for TLS 1.2, or the PSK for TLS 1.3
-	extMasterSecret   bool
-	peerCertificates  []*x509.Certificate
-	activeCertHandles []*activeCert
-	ocspResponse      []byte
-	scts              [][]byte
-	verifiedChains    [][]*x509.Certificate
-	alpnProtocol      string // only set if EarlyData is true
+	createdAt        uint64 // seconds since UNIX epoch
+	secret           []byte // master secret for TLS 1.2, or the PSK for TLS 1.3
+	extMasterSecret  bool
+	peerCertificates []*x509.Certificate
+	ocspResponse     []byte
+	scts             [][]byte
+	verifiedChains   [][]*x509.Certificate
+	alpnProtocol     string // only set if EarlyData is true
 
 	// Client-side TLS 1.3-only fields.
 	useBy  uint64 // seconds since UNIX epoch
 	ageAdd uint32
+	ticket []byte
+
+	// TLS 1.0–1.2 only fields.
+	curveID CurveID
 }
 
 // Bytes encodes the session, including any private fields, so that it can be
@@ -160,11 +164,13 @@ func (s *SessionState) Bytes() ([]byte, error) {
 			b.AddBytes([]byte(s.alpnProtocol))
 		})
 	}
-	if s.isClient {
-		if s.version >= VersionTLS13 {
+	if s.version >= VersionTLS13 {
+		if s.isClient {
 			addUint64(&b, s.useBy)
 			b.AddUint32(s.ageAdd)
 		}
+	} else {
+		b.AddUint16(uint16(s.curveID))
 	}
 	return b.Bytes()
 }
@@ -186,7 +192,6 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 	var extra cryptobyte.String
 	if !s.ReadUint16(&ss.version) ||
 		!s.ReadUint8(&typ) ||
-		(typ != 1 && typ != 2) ||
 		!s.ReadUint16(&ss.cipherSuite) ||
 		!readUint64(&s, &ss.createdAt) ||
 		!readUint8LengthPrefixed(&s, &ss.secret) ||
@@ -203,6 +208,14 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 			return nil, errors.New("tls: invalid session encoding")
 		}
 		ss.Extra = append(ss.Extra, e)
+	}
+	switch typ {
+	case 1:
+		ss.isClient = false
+	case 2:
+		ss.isClient = true
+	default:
+		return nil, errors.New("tls: unknown session encoding")
 	}
 	switch extMasterSecret {
 	case 0:
@@ -225,8 +238,10 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 		if err != nil {
 			return nil, err
 		}
-		ss.activeCertHandles = append(ss.activeCertHandles, c)
-		ss.peerCertificates = append(ss.peerCertificates, c.cert)
+		ss.peerCertificates = append(ss.peerCertificates, c)
+	}
+	if ss.isClient && len(ss.peerCertificates) == 0 {
+		return nil, errors.New("tls: no server certificates in client session")
 	}
 	ss.ocspResponse = cert.OCSPStaple
 	ss.scts = cert.SignedCertificateTimestamps
@@ -253,8 +268,7 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 			if err != nil {
 				return nil, err
 			}
-			ss.activeCertHandles = append(ss.activeCertHandles, c)
-			chain = append(chain, c.cert)
+			chain = append(chain, c)
 		}
 		ss.verifiedChains = append(ss.verifiedChains, chain)
 	}
@@ -265,47 +279,39 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 		}
 		ss.alpnProtocol = string(alpn)
 	}
-	if isClient := typ == 2; !isClient {
-		if !s.Empty() {
+	if ss.version >= VersionTLS13 {
+		if ss.isClient {
+			if !s.ReadUint64(&ss.useBy) || !s.ReadUint32(&ss.ageAdd) {
+				return nil, errors.New("tls: invalid session encoding")
+			}
+		}
+	} else {
+		if !s.ReadUint16((*uint16)(&ss.curveID)) {
 			return nil, errors.New("tls: invalid session encoding")
 		}
-		return ss, nil
-	}
-	ss.isClient = true
-	if len(ss.peerCertificates) == 0 {
-		return nil, errors.New("tls: no server certificates in client session")
-	}
-	if ss.version < VersionTLS13 {
-		if !s.Empty() {
-			return nil, errors.New("tls: invalid session encoding")
-		}
-		return ss, nil
-	}
-	if !s.ReadUint64(&ss.useBy) || !s.ReadUint32(&ss.ageAdd) || !s.Empty() {
-		return nil, errors.New("tls: invalid session encoding")
 	}
 	return ss, nil
 }
 
 // sessionState returns a partially filled-out [SessionState] with information
 // from the current connection.
-func (c *Conn) sessionState() (*SessionState, error) {
+func (c *Conn) sessionState() *SessionState {
 	return &SessionState{
-		version:           c.vers,
-		cipherSuite:       c.cipherSuite,
-		createdAt:         uint64(c.config.time().Unix()),
-		alpnProtocol:      c.clientProtocol,
-		peerCertificates:  c.peerCertificates,
-		activeCertHandles: c.activeCertHandles,
-		ocspResponse:      c.ocspResponse,
-		scts:              c.scts,
-		isClient:          c.isClient,
-		extMasterSecret:   c.extMasterSecret,
-		verifiedChains:    c.verifiedChains,
-	}, nil
+		version:          c.vers,
+		cipherSuite:      c.cipherSuite,
+		createdAt:        uint64(c.config.time().Unix()),
+		alpnProtocol:     c.clientProtocol,
+		peerCertificates: c.peerCertificates,
+		ocspResponse:     c.ocspResponse,
+		scts:             c.scts,
+		isClient:         c.isClient,
+		extMasterSecret:  c.extMasterSecret,
+		verifiedChains:   c.verifiedChains,
+		curveID:          c.curveID,
+	}
 }
 
-// EncryptTicket encrypts a ticket with the Config's configured (or default)
+// EncryptTicket encrypts a ticket with the [Config]'s configured (or default)
 // session ticket keys. It can be used as a [Config.WrapSession] implementation.
 func (c *Config) EncryptTicket(cs ConnectionState, ss *SessionState) ([]byte, error) {
 	ticketKeys := c.ticketKeys(nil)
@@ -396,7 +402,6 @@ func (c *Config) decryptTicket(encrypted []byte, ticketKeys []ticketKey) []byte 
 // ClientSessionState contains the state needed by a client to
 // resume a previous TLS session.
 type ClientSessionState struct {
-	ticket  []byte
 	session *SessionState
 }
 
@@ -406,7 +411,10 @@ type ClientSessionState struct {
 // It can be called by [ClientSessionCache.Put] to serialize (with
 // [SessionState.Bytes]) and store the session.
 func (cs *ClientSessionState) ResumptionState() (ticket []byte, state *SessionState, err error) {
-	return cs.ticket, cs.session, nil
+	if cs == nil || cs.session == nil {
+		return nil, nil, nil
+	}
+	return cs.session.ticket, cs.session, nil
 }
 
 // NewResumptionState returns a state value that can be returned by
@@ -415,7 +423,8 @@ func (cs *ClientSessionState) ResumptionState() (ticket []byte, state *SessionSt
 // state needs to be returned by [ParseSessionState], and the ticket and session
 // state must have been returned by [ClientSessionState.ResumptionState].
 func NewResumptionState(ticket []byte, state *SessionState) (*ClientSessionState, error) {
+	state.ticket = ticket
 	return &ClientSessionState{
-		ticket: ticket, session: state,
+		session: state,
 	}, nil
 }

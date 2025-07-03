@@ -1,0 +1,24 @@
+
+# Test of the linker's script test harness.
+
+go build
+[!cgo] skip
+cc -c testdata/mumble.c
+
+-- go.mod --
+module main
+
+go 1.20
+
+-- main.go --
+package main
+
+func main() {
+  println("Hi mom!")
+}
+
+-- testdata/mumble.c --
+
+int x;
+
+

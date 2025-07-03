@@ -21,7 +21,7 @@ const UintSize = uintSize
 
 // --- LeadingZeros ---
 
-// LeadingZeros returns the number of leading zero bits in x; the result is UintSize for x == 0.
+// LeadingZeros returns the number of leading zero bits in x; the result is [UintSize] for x == 0.
 func LeadingZeros(x uint) int { return UintSize - Len(x) }
 
 // LeadingZeros8 returns the number of leading zero bits in x; the result is 8 for x == 0.
@@ -38,7 +38,7 @@ func LeadingZeros64(x uint64) int { return 64 - Len64(x) }
 
 // --- TrailingZeros ---
 
-// See http://supertech.csail.mit.edu/papers/debruijn.pdf
+// See http://keithandkatie.com/keith/papers/debruijn.html
 const deBruijn32 = 0x077CB531
 
 var deBruijn32tab = [32]byte{
@@ -55,7 +55,7 @@ var deBruijn64tab = [64]byte{
 	54, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9, 13, 8, 7, 6,
 }
 
-// TrailingZeros returns the number of trailing zero bits in x; the result is UintSize for x == 0.
+// TrailingZeros returns the number of trailing zero bits in x; the result is [UintSize] for x == 0.
 func TrailingZeros(x uint) int {
 	if UintSize == 32 {
 		return TrailingZeros32(uint32(x))
@@ -169,7 +169,7 @@ func OnesCount64(x uint64) int {
 
 // --- RotateLeft ---
 
-// RotateLeft returns the value of x rotated left by (k mod UintSize) bits.
+// RotateLeft returns the value of x rotated left by (k mod [UintSize]) bits.
 // To rotate x right by k bits, call RotateLeft(x, -k).
 //
 // This function's execution time does not depend on the inputs.
@@ -578,14 +578,14 @@ func Rem(hi, lo, y uint) uint {
 }
 
 // Rem32 returns the remainder of (hi, lo) divided by y. Rem32 panics
-// for y == 0 (division by zero) but, unlike Div32, it doesn't panic
+// for y == 0 (division by zero) but, unlike [Div32], it doesn't panic
 // on a quotient overflow.
 func Rem32(hi, lo, y uint32) uint32 {
 	return uint32((uint64(hi)<<32 | uint64(lo)) % uint64(y))
 }
 
 // Rem64 returns the remainder of (hi, lo) divided by y. Rem64 panics
-// for y == 0 (division by zero) but, unlike Div64, it doesn't panic
+// for y == 0 (division by zero) but, unlike [Div64], it doesn't panic
 // on a quotient overflow.
 func Rem64(hi, lo, y uint64) uint64 {
 	// We scale down hi so that hi < y, then use Div64 to compute the

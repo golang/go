@@ -6,6 +6,7 @@ package user
 
 import (
 	"os"
+	"slices"
 	"testing"
 )
 
@@ -45,8 +46,9 @@ func TestCurrent(t *testing.T) {
 }
 
 func BenchmarkCurrent(b *testing.B) {
+	// Benchmark current instead of Current because Current caches the result.
 	for i := 0; i < b.N; i++ {
-		Current()
+		current()
 	}
 }
 
@@ -177,16 +179,7 @@ func TestGroupIds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%+v.GroupIds(): %v", user, err)
 	}
-	if !containsID(gids, user.Gid) {
+	if !slices.Contains(gids, user.Gid) {
 		t.Errorf("%+v.GroupIds() = %v; does not contain user GID %s", user, gids, user.Gid)
 	}
-}
-
-func containsID(ids []string, id string) bool {
-	for _, x := range ids {
-		if x == id {
-			return true
-		}
-	}
-	return false
 }

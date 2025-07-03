@@ -4,7 +4,7 @@
 
 package math
 
-// Ldexp is the inverse of Frexp.
+// Ldexp is the inverse of [Frexp].
 // It returns frac × 2**exp.
 //
 // Special cases are:

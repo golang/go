@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"unicode"
 )
@@ -102,7 +102,7 @@ func ExampleBuffer_Read() {
 	fmt.Println(n)
 	fmt.Println(b.String())
 	fmt.Println(string(rdbuf))
-	// Output
+	// Output:
 	// 1
 	// bcde
 	// a
@@ -118,7 +118,7 @@ func ExampleBuffer_ReadByte() {
 	}
 	fmt.Println(c)
 	fmt.Println(b.String())
-	// Output
+	// Output:
 	// 97
 	// bcde
 }
@@ -165,11 +165,8 @@ func ExampleCompare_search() {
 	// Binary search to find a matching byte slice.
 	var needle []byte
 	var haystack [][]byte // Assume sorted
-	i := sort.Search(len(haystack), func(i int) bool {
-		// Return haystack[i] >= needle.
-		return bytes.Compare(haystack[i], needle) >= 0
-	})
-	if i < len(haystack) && bytes.Equal(haystack[i], needle) {
+	_, found := slices.BinarySearchFunc(haystack, needle, bytes.Compare)
+	if found {
 		// Found it!
 	}
 }
@@ -212,6 +209,17 @@ func ExampleContainsRune() {
 	// false
 }
 
+func ExampleContainsFunc() {
+	f := func(r rune) bool {
+		return r >= 'a' && r <= 'z'
+	}
+	fmt.Println(bytes.ContainsFunc([]byte("HELLO"), f))
+	fmt.Println(bytes.ContainsFunc([]byte("World"), f))
+	// Output:
+	// false
+	// true
+}
+
 func ExampleCount() {
 	fmt.Println(bytes.Count([]byte("cheese"), []byte("e")))
 	fmt.Println(bytes.Count([]byte("five"), []byte(""))) // before & after each rune
@@ -237,9 +245,9 @@ func ExampleCut() {
 }
 
 func ExampleCutPrefix() {
-	show := func(s, sep string) {
-		after, found := bytes.CutPrefix([]byte(s), []byte(sep))
-		fmt.Printf("CutPrefix(%q, %q) = %q, %v\n", s, sep, after, found)
+	show := func(s, prefix string) {
+		after, found := bytes.CutPrefix([]byte(s), []byte(prefix))
+		fmt.Printf("CutPrefix(%q, %q) = %q, %v\n", s, prefix, after, found)
 	}
 	show("Gopher", "Go")
 	show("Gopher", "ph")
@@ -249,9 +257,9 @@ func ExampleCutPrefix() {
 }
 
 func ExampleCutSuffix() {
-	show := func(s, sep string) {
-		before, found := bytes.CutSuffix([]byte(s), []byte(sep))
-		fmt.Printf("CutSuffix(%q, %q) = %q, %v\n", s, sep, before, found)
+	show := func(s, suffix string) {
+		before, found := bytes.CutSuffix([]byte(s), []byte(suffix))
+		fmt.Printf("CutSuffix(%q, %q) = %q, %v\n", s, suffix, before, found)
 	}
 	show("Gopher", "Go")
 	show("Gopher", "er")
@@ -494,10 +502,10 @@ func ExampleTitle() {
 
 func ExampleToTitle() {
 	fmt.Printf("%s\n", bytes.ToTitle([]byte("loud noises")))
-	fmt.Printf("%s\n", bytes.ToTitle([]byte("хлеб")))
+	fmt.Printf("%s\n", bytes.ToTitle([]byte("брат")))
 	// Output:
 	// LOUD NOISES
-	// ХЛЕБ
+	// БРАТ
 }
 
 func ExampleToTitleSpecial() {
@@ -619,4 +627,94 @@ func ExampleToUpperSpecial() {
 	// Output:
 	// Original : ahoj vývojári golang
 	// ToUpper : AHOJ VÝVOJÁRİ GOLANG
+}
+
+func ExampleLines() {
+	text := []byte("Hello\nWorld\nGo Programming\n")
+	for line := range bytes.Lines(text) {
+		fmt.Printf("%q\n", line)
+	}
+
+	// Output:
+	// "Hello\n"
+	// "World\n"
+	// "Go Programming\n"
+}
+
+func ExampleSplitSeq() {
+	s := []byte("a,b,c,d")
+	for part := range bytes.SplitSeq(s, []byte(",")) {
+		fmt.Printf("%q\n", part)
+	}
+
+	// Output:
+	// "a"
+	// "b"
+	// "c"
+	// "d"
+}
+
+func ExampleSplitAfterSeq() {
+	s := []byte("a,b,c,d")
+	for part := range bytes.SplitAfterSeq(s, []byte(",")) {
+		fmt.Printf("%q\n", part)
+	}
+
+	// Output:
+	// "a,"
+	// "b,"
+	// "c,"
+	// "d"
+}
+
+func ExampleFieldsSeq() {
+	text := []byte("The quick brown fox")
+	fmt.Println("Split byte slice into fields:")
+	for word := range bytes.FieldsSeq(text) {
+		fmt.Printf("%q\n", word)
+	}
+
+	textWithSpaces := []byte("  lots   of   spaces  ")
+	fmt.Println("\nSplit byte slice with multiple spaces:")
+	for word := range bytes.FieldsSeq(textWithSpaces) {
+		fmt.Printf("%q\n", word)
+	}
+
+	// Output:
+	// Split byte slice into fields:
+	// "The"
+	// "quick"
+	// "brown"
+	// "fox"
+	//
+	// Split byte slice with multiple spaces:
+	// "lots"
+	// "of"
+	// "spaces"
+}
+
+func ExampleFieldsFuncSeq() {
+	text := []byte("The quick brown fox")
+	fmt.Println("Split on whitespace(similar to FieldsSeq):")
+	for word := range bytes.FieldsFuncSeq(text, unicode.IsSpace) {
+		fmt.Printf("%q\n", word)
+	}
+
+	mixedText := []byte("abc123def456ghi")
+	fmt.Println("\nSplit on digits:")
+	for word := range bytes.FieldsFuncSeq(mixedText, unicode.IsDigit) {
+		fmt.Printf("%q\n", word)
+	}
+
+	// Output:
+	// Split on whitespace(similar to FieldsSeq):
+	// "The"
+	// "quick"
+	// "brown"
+	// "fox"
+	//
+	// Split on digits:
+	// "abc"
+	// "def"
+	// "ghi"
 }

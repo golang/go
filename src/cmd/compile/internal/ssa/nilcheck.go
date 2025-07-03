@@ -38,11 +38,14 @@ func nilcheckelim(f *Func) {
 	work := make([]bp, 0, 256)
 	work = append(work, bp{block: f.Entry})
 
-	// map from value ID to bool indicating if value is known to be non-nil
-	// in the current dominator path being walked. This slice is updated by
+	// map from value ID to known non-nil version of that value ID
+	// (in the current dominator path being walked). This slice is updated by
 	// walkStates to maintain the known non-nil values.
-	nonNilValues := f.Cache.allocBoolSlice(f.NumValues())
-	defer f.Cache.freeBoolSlice(nonNilValues)
+	// If there is extrinsic information about non-nil-ness, this map
+	// points a value to itself. If a value is known non-nil because we
+	// already did a nil check on it, it points to the nil check operation.
+	nonNilValues := f.Cache.allocValueSlice(f.NumValues())
+	defer f.Cache.freeValueSlice(nonNilValues)
 
 	// make an initial pass identifying any non-nil values
 	for _, b := range f.Blocks {
@@ -54,7 +57,7 @@ func nilcheckelim(f *Func) {
 			// We assume that SlicePtr is non-nil because we do a bounds check
 			// before the slice access (and all cap>0 slices have a non-nil ptr). See #30366.
 			if v.Op == OpAddr || v.Op == OpLocalAddr || v.Op == OpAddPtr || v.Op == OpOffPtr || v.Op == OpAdd32 || v.Op == OpAdd64 || v.Op == OpSub32 || v.Op == OpSub64 || v.Op == OpSlicePtr {
-				nonNilValues[v.ID] = true
+				nonNilValues[v.ID] = v
 			}
 		}
 	}
@@ -68,16 +71,16 @@ func nilcheckelim(f *Func) {
 				if v.Op == OpPhi {
 					argsNonNil := true
 					for _, a := range v.Args {
-						if !nonNilValues[a.ID] {
+						if nonNilValues[a.ID] == nil {
 							argsNonNil = false
 							break
 						}
 					}
 					if argsNonNil {
-						if !nonNilValues[v.ID] {
+						if nonNilValues[v.ID] == nil {
 							changed = true
 						}
-						nonNilValues[v.ID] = true
+						nonNilValues[v.ID] = v
 					}
 				}
 			}
@@ -103,8 +106,8 @@ func nilcheckelim(f *Func) {
 			if len(b.Preds) == 1 {
 				p := b.Preds[0].b
 				if p.Kind == BlockIf && p.Controls[0].Op == OpIsNonNil && p.Succs[0].b == b {
-					if ptr := p.Controls[0].Args[0]; !nonNilValues[ptr.ID] {
-						nonNilValues[ptr.ID] = true
+					if ptr := p.Controls[0].Args[0]; nonNilValues[ptr.ID] == nil {
+						nonNilValues[ptr.ID] = ptr
 						work = append(work, bp{op: ClearPtr, ptr: ptr})
 					}
 				}
@@ -117,14 +120,11 @@ func nilcheckelim(f *Func) {
 			pendingLines.clear()
 
 			// Next, process values in the block.
-			i := 0
 			for _, v := range b.Values {
-				b.Values[i] = v
-				i++
 				switch v.Op {
 				case OpIsNonNil:
 					ptr := v.Args[0]
-					if nonNilValues[ptr.ID] {
+					if nonNilValues[ptr.ID] != nil {
 						if v.Pos.IsStmt() == src.PosIsStmt { // Boolean true is a terrible statement boundary.
 							pendingLines.add(v.Pos)
 							v.Pos = v.Pos.WithNotStmt()
@@ -135,7 +135,7 @@ func nilcheckelim(f *Func) {
 					}
 				case OpNilCheck:
 					ptr := v.Args[0]
-					if nonNilValues[ptr.ID] {
+					if nilCheck := nonNilValues[ptr.ID]; nilCheck != nil {
 						// This is a redundant implicit nil check.
 						// Logging in the style of the former compiler -- and omit line 1,
 						// which is usually in generated code.
@@ -145,14 +145,13 @@ func nilcheckelim(f *Func) {
 						if v.Pos.IsStmt() == src.PosIsStmt { // About to lose a statement boundary
 							pendingLines.add(v.Pos)
 						}
-						v.reset(OpUnknown)
-						f.freeValue(v)
-						i--
+						v.Op = OpCopy
+						v.SetArgs1(nilCheck)
 						continue
 					}
 					// Record the fact that we know ptr is non nil, and remember to
 					// undo that information when this dominator subtree is done.
-					nonNilValues[ptr.ID] = true
+					nonNilValues[ptr.ID] = v
 					work = append(work, bp{op: ClearPtr, ptr: ptr})
 					fallthrough // a non-eliminated nil check might be a good place for a statement boundary.
 				default:
@@ -163,7 +162,7 @@ func nilcheckelim(f *Func) {
 				}
 			}
 			// This reduces the lost statement count in "go" by 5 (out of 500 total).
-			for j := 0; j < i; j++ { // is this an ordering problem?
+			for j := range b.Values { // is this an ordering problem?
 				v := b.Values[j]
 				if v.Pos.IsStmt() != src.PosNotStmt && !isPoorStatementOp(v.Op) && pendingLines.contains(v.Pos) {
 					v.Pos = v.Pos.WithIsStmt()
@@ -174,7 +173,6 @@ func nilcheckelim(f *Func) {
 				b.Pos = b.Pos.WithIsStmt()
 				pendingLines.remove(b.Pos)
 			}
-			b.truncateValues(i)
 
 			// Add all dominated blocks to the work list.
 			for w := sdom[node.block.ID].child; w != nil; w = sdom[w.ID].sibling {
@@ -182,7 +180,7 @@ func nilcheckelim(f *Func) {
 			}
 
 		case ClearPtr:
-			nonNilValues[node.ptr.ID] = false
+			nonNilValues[node.ptr.ID] = nil
 			continue
 		}
 	}
@@ -219,12 +217,12 @@ func nilcheckelim2(f *Func) {
 					f.Warnl(v.Pos, "removed nil check")
 				}
 				// For bug 33724, policy is that we might choose to bump an existing position
-				// off the faulting load/store in favor of the one from the nil check.
+				// off the faulting load in favor of the one from the nil check.
 
 				// Iteration order means that first nilcheck in the chain wins, others
 				// are bumped into the ordinary statement preservation algorithm.
 				u := b.Values[unnecessary.get(v.Args[0].ID)]
-				if !u.Pos.SameFileAndLine(v.Pos) {
+				if !u.Type.IsMemory() && !u.Pos.SameFileAndLine(v.Pos) {
 					if u.Pos.IsStmt() == src.PosIsStmt {
 						pendingLines.add(u.Pos)
 					}

@@ -201,8 +201,8 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) error {
 // A template may be executed safely in parallel, although if parallel
 // executions share a Writer the output may be interleaved.
 //
-// If data is a reflect.Value, the template applies to the concrete
-// value that the reflect.Value holds, as in fmt.Print.
+// If data is a [reflect.Value], the template applies to the concrete
+// value that the reflect.Value holds, as in [fmt.Print].
 func (t *Template) Execute(wr io.Writer, data any) error {
 	return t.execute(wr, data)
 }
@@ -228,7 +228,7 @@ func (t *Template) execute(wr io.Writer, data any) (err error) {
 // DefinedTemplates returns a string listing the defined templates,
 // prefixed by the string "; defined templates are: ". If there are none,
 // it returns the empty string. For generating an error message here
-// and in html/template.
+// and in [html/template].
 func (t *Template) DefinedTemplates() string {
 	if t.common == nil {
 		return ""
@@ -333,7 +333,7 @@ func isTrue(val reflect.Value) (truth, ok bool) {
 		truth = val.Bool()
 	case reflect.Complex64, reflect.Complex128:
 		truth = val.Complex() != 0
-	case reflect.Chan, reflect.Func, reflect.Pointer, reflect.Interface:
+	case reflect.Chan, reflect.Func, reflect.Pointer, reflect.UnsafePointer, reflect.Interface:
 		truth = !val.IsNil()
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		truth = val.Int() != 0
@@ -395,6 +395,22 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		s.walk(elem, r.List)
 	}
 	switch val.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		if len(r.Pipe.Decl) > 1 {
+			s.errorf("can't use %v to iterate over more than one variable", val)
+			break
+		}
+		run := false
+		for v := range val.Seq() {
+			run = true
+			// Pass element as second value, as we do for channels.
+			oneIteration(reflect.Value{}, v)
+		}
+		if !run {
+			break
+		}
+		return
 	case reflect.Array, reflect.Slice:
 		if val.Len() == 0 {
 			break
@@ -408,8 +424,8 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 			break
 		}
 		om := fmtsort.Sort(val)
-		for i, key := range om.Key {
-			oneIteration(key, om.Value[i])
+		for _, m := range om {
+			oneIteration(m.Key, m.Value)
 		}
 		return
 	case reflect.Chan:
@@ -434,6 +450,43 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
 		return
 	case reflect.Invalid:
 		break // An invalid value is likely a nil map, etc. and acts like an empty map.
+	case reflect.Func:
+		if val.Type().CanSeq() {
+			if len(r.Pipe.Decl) > 1 {
+				s.errorf("can't use %v iterate over more than one variable", val)
+				break
+			}
+			run := false
+			for v := range val.Seq() {
+				run = true
+				// Pass element as second value,
+				// as we do for channels.
+				oneIteration(reflect.Value{}, v)
+			}
+			if !run {
+				break
+			}
+			return
+		}
+		if val.Type().CanSeq2() {
+			run := false
+			for i, v := range val.Seq2() {
+				run = true
+				if len(r.Pipe.Decl) > 1 {
+					oneIteration(i, v)
+				} else {
+					// If there is only one range variable,
+					// oneIteration will use the
+					// second value.
+					oneIteration(reflect.Value{}, i)
+				}
+			}
+			if !run {
+				break
+			}
+			return
+		}
+		fallthrough
 	default:
 		s.errorf("range can't iterate over %v", val)
 	}
@@ -479,7 +532,7 @@ func (s *state) evalPipeline(dot reflect.Value, pipe *parse.PipeNode) (value ref
 		value = s.evalCommand(dot, cmd, value) // previous value is this one's final arg.
 		// If the object has type interface{}, dig down one level to the thing inside.
 		if value.Kind() == reflect.Interface && value.Type().NumMethod() == 0 {
-			value = reflect.ValueOf(value.Interface()) // lovely!
+			value = value.Elem()
 		}
 	}
 	for _, variable := range pipe.Decl {
@@ -734,9 +787,8 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
 	} else if numIn != typ.NumIn() {
 		s.errorf("wrong number of args for %s: want %d got %d", name, typ.NumIn(), numIn)
 	}
-	if !goodFunc(typ) {
-		// TODO: This could still be a confusing error; maybe goodFunc should provide info.
-		s.errorf("can't call method/function %q with %d results", name, typ.NumOut())
+	if err := goodFunc(name, typ); err != nil {
+		s.errorf("%v", err)
 	}
 
 	unwrap := func(v reflect.Value) reflect.Value {
@@ -758,7 +810,7 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
 				return v
 			}
 		}
-		if final != missingVal {
+		if !final.Equal(missingVal) {
 			// The last argument to and/or is coming from
 			// the pipeline. We didn't short circuit on an earlier
 			// argument, so we are going to return this one.
@@ -800,6 +852,21 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
 		}
 		argv[i] = s.validateType(final, t)
 	}
+
+	// Special case for the "call" builtin.
+	// Insert the name of the callee function as the first argument.
+	if isBuiltin && name == "call" {
+		var calleeName string
+		if len(args) == 0 {
+			// final must be present or we would have errored out above.
+			calleeName = final.String()
+		} else {
+			calleeName = args[0].String()
+		}
+		argv = append([]reflect.Value{reflect.ValueOf(calleeName)}, argv...)
+		fun = reflect.ValueOf(call)
+	}
+
 	v, err := safeCall(fun, argv)
 	// If we have an error that is not nil, stop execution and return that
 	// error to the caller.

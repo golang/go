@@ -18,7 +18,7 @@ func TestReadGCStats(t *testing.T) {
 
 	var stats GCStats
 	var mstats runtime.MemStats
-	var min, max time.Duration
+	var minimum, maximum time.Duration
 
 	// First ReadGCStats will allocate, second should not,
 	// especially if we follow up with an explicit garbage collection.
@@ -52,11 +52,11 @@ func TestReadGCStats(t *testing.T) {
 			if dt != time.Duration(mstats.PauseNs[off]) {
 				t.Errorf("stats.Pause[%d] = %d, want %d", i, dt, mstats.PauseNs[off])
 			}
-			if max < dt {
-				max = dt
-			}
-			if min > dt || i == 0 {
-				min = dt
+			maximum = max(maximum, dt)
+			if i == 0 {
+				minimum = dt
+			} else {
+				minimum = min(minimum, dt)
 			}
 			off = (off + len(mstats.PauseNs) - 1) % len(mstats.PauseNs)
 		}
@@ -64,8 +64,8 @@ func TestReadGCStats(t *testing.T) {
 
 	q := stats.PauseQuantiles
 	nq := len(q)
-	if q[0] != min || q[nq-1] != max {
-		t.Errorf("stats.PauseQuantiles = [%d, ..., %d], want [%d, ..., %d]", q[0], q[nq-1], min, max)
+	if q[0] != minimum || q[nq-1] != maximum {
+		t.Errorf("stats.PauseQuantiles = [%d, ..., %d], want [%d, ..., %d]", q[0], q[nq-1], minimum, maximum)
 	}
 
 	for i := 0; i < nq-1; i++ {

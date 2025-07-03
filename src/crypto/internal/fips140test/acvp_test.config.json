@@ -1,0 +1,57 @@
+[
+  {"Wrapper": "go", "In": "vectors/SHA2-224.bz2", "Out": "expected/SHA2-224.bz2"},
+  {"Wrapper": "go", "In": "vectors/SHA2-256.bz2", "Out": "expected/SHA2-256.bz2"},
+  {"Wrapper": "go", "In": "vectors/SHA2-384.bz2", "Out": "expected/SHA2-384.bz2"},
+  {"Wrapper": "go", "In": "vectors/SHA2-512.bz2", "Out": "expected/SHA2-512.bz2"},
+  {"Wrapper": "go", "In": "vectors/SHA2-512-224.bz2", "Out": "expected/SHA2-512-224.bz2"},
+  {"Wrapper": "go", "In": "vectors/SHA2-512-256.bz2", "Out": "expected/SHA2-512-256.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/SHA3-224.bz2", "Out": "expected/SHA3-224.bz2"},
+  {"Wrapper": "go", "In": "vectors/SHA3-256.bz2", "Out": "expected/SHA3-256.bz2"},
+  {"Wrapper": "go", "In": "vectors/SHA3-384.bz2", "Out": "expected/SHA3-384.bz2"},
+  {"Wrapper": "go", "In": "vectors/SHA3-512.bz2", "Out": "expected/SHA3-512.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/SHAKE-128.bz2", "Out": "expected/SHAKE-128.bz2"},
+  {"Wrapper": "go", "In": "vectors/SHAKE-256.bz2", "Out": "expected/SHAKE-256.bz2"},
+  {"Wrapper": "go", "In": "vectors/cSHAKE-128.bz2", "Out": "expected/cSHAKE-128.bz2"},
+  {"Wrapper": "go", "In": "vectors/cSHAKE-256.bz2", "Out": "expected/cSHAKE-256.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA2-224.bz2", "Out": "expected/HMAC-SHA2-224.bz2"},
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA2-256.bz2", "Out": "expected/HMAC-SHA2-256.bz2"},
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA2-384.bz2", "Out": "expected/HMAC-SHA2-384.bz2"},
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA2-512.bz2", "Out": "expected/HMAC-SHA2-512.bz2"},
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA2-512-224.bz2", "Out": "expected/HMAC-SHA2-512-224.bz2"},
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA2-512-256.bz2", "Out": "expected/HMAC-SHA2-512-256.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/KDA.bz2", "Out": "expected/KDA.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA3-224.bz2", "Out": "expected/HMAC-SHA3-224.bz2"},
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA3-256.bz2", "Out": "expected/HMAC-SHA3-256.bz2"},
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA3-384.bz2", "Out": "expected/HMAC-SHA3-384.bz2"},
+  {"Wrapper": "go", "In": "vectors/HMAC-SHA3-512.bz2", "Out": "expected/HMAC-SHA3-512.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/PBKDF.bz2", "Out": "expected/PBKDF.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/ML-KEM.bz2", "Out": "expected/ML-KEM.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/hmacDRBG.bz2", "Out": "expected/hmacDRBG.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/ctrDRBG.bz2", "Out": "expected/ctrDRBG.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/EDDSA.bz2", "Out": "expected/EDDSA.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/ECDSA.bz2", "Out": "expected/ECDSA.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/ACVP-AES-CBC.bz2", "Out": "expected/ACVP-AES-CBC.bz2"},
+  {"Wrapper": "go", "In": "vectors/ACVP-AES-CTR.bz2", "Out": "expected/ACVP-AES-CTR.bz2"},
+  {"Wrapper": "go", "In": "vectors/ACVP-AES-GCM.bz2", "Out": "expected/ACVP-AES-GCM.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/CMAC-AES.bz2", "Out": "expected/CMAC-AES.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/TLS-v1.2.bz2", "Out": "expected/TLS-v1.2.bz2"},
+  {"Wrapper": "go", "In": "vectors/TLS-v1.3.bz2", "Out": "expected/TLS-v1.3.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/kdf-components.bz2", "Out": "expected/kdf-components.bz2"},
+
+  {"Wrapper": "go", "In": "vectors/RSA.bz2", "Out": "expected/RSA.bz2"}
+]

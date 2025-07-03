@@ -14,10 +14,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 )
 
-// a keyAgreement implements the client and server side of a TLS key agreement
-// protocol by generating and processing key exchange messages.
+// A keyAgreement implements the client and server side of a TLS 1.0–1.2 key
+// agreement protocol by generating and processing key exchange messages.
 type keyAgreement interface {
 	// On the server side, the first two methods are called in order.
 
@@ -126,7 +127,7 @@ func md5SHA1Hash(slices [][]byte) []byte {
 }
 
 // hashForServerKeyExchange hashes the given slices and returns their digest
-// using the given hash function (for >= TLS 1.2) or using a default based on
+// using the given hash function (for TLS 1.2) or using a default based on
 // the sigType (for earlier TLS versions). For Ed25519 signatures, which don't
 // do pre-hashing, it returns the concatenation of the slices.
 func hashForServerKeyExchange(sigType uint8, hashFunc crypto.Hash, version uint16, slices ...[]byte) []byte {
@@ -164,25 +165,29 @@ type ecdheKeyAgreement struct {
 	// and returned in generateClientKeyExchange.
 	ckx             *clientKeyExchangeMsg
 	preMasterSecret []byte
+
+	// curveID and signatureAlgorithm are set by processServerKeyExchange and
+	// generateServerKeyExchange.
+	curveID            CurveID
+	signatureAlgorithm SignatureScheme
 }
 
 func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Certificate, clientHello *clientHelloMsg, hello *serverHelloMsg) (*serverKeyExchangeMsg, error) {
-	var curveID CurveID
 	for _, c := range clientHello.supportedCurves {
-		if config.supportsCurve(c) {
-			curveID = c
+		if config.supportsCurve(ka.version, c) {
+			ka.curveID = c
 			break
 		}
 	}
 
-	if curveID == 0 {
+	if ka.curveID == 0 {
 		return nil, errors.New("tls: no supported elliptic curves offered")
 	}
-	if _, ok := curveForCurveID(curveID); !ok {
+	if _, ok := curveForCurveID(ka.curveID); !ok {
 		return nil, errors.New("tls: CurvePreferences includes unsupported curve")
 	}
 
-	key, err := generateECDHEKey(config.rand(), curveID)
+	key, err := generateECDHEKey(config.rand(), ka.curveID)
 	if err != nil {
 		return nil, err
 	}
@@ -192,8 +197,8 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 	ecdhePublic := key.PublicKey().Bytes()
 	serverECDHEParams := make([]byte, 1+2+1+len(ecdhePublic))
 	serverECDHEParams[0] = 3 // named curve
-	serverECDHEParams[1] = byte(curveID >> 8)
-	serverECDHEParams[2] = byte(curveID)
+	serverECDHEParams[1] = byte(ka.curveID >> 8)
+	serverECDHEParams[2] = byte(ka.curveID)
 	serverECDHEParams[3] = byte(len(ecdhePublic))
 	copy(serverECDHEParams[4:], ecdhePublic)
 
@@ -202,17 +207,20 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 		return nil, fmt.Errorf("tls: certificate private key of type %T does not implement crypto.Signer", cert.PrivateKey)
 	}
 
-	var signatureAlgorithm SignatureScheme
 	var sigType uint8
 	var sigHash crypto.Hash
 	if ka.version >= VersionTLS12 {
-		signatureAlgorithm, err = selectSignatureScheme(ka.version, cert, clientHello.supportedSignatureAlgorithms)
+		ka.signatureAlgorithm, err = selectSignatureScheme(ka.version, cert, clientHello.supportedSignatureAlgorithms)
 		if err != nil {
 			return nil, err
 		}
-		sigType, sigHash, err = typeAndHashFromSignatureScheme(signatureAlgorithm)
+		sigType, sigHash, err = typeAndHashFromSignatureScheme(ka.signatureAlgorithm)
 		if err != nil {
 			return nil, err
+		}
+		if sigHash == crypto.SHA1 {
+			tlssha1.Value() // ensure godebug is initialized
+			tlssha1.IncNonDefault()
 		}
 	} else {
 		sigType, sigHash, err = legacyTypeAndHashFromPublicKey(priv.Public())
@@ -244,8 +252,8 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 	copy(skx.key, serverECDHEParams)
 	k := skx.key[len(serverECDHEParams):]
 	if ka.version >= VersionTLS12 {
-		k[0] = byte(signatureAlgorithm >> 8)
-		k[1] = byte(signatureAlgorithm)
+		k[0] = byte(ka.signatureAlgorithm >> 8)
+		k[1] = byte(ka.signatureAlgorithm)
 		k = k[2:]
 	}
 	k[0] = byte(len(sig) >> 8)
@@ -279,7 +287,7 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 	if skx.key[0] != 3 { // named curve
 		return errors.New("tls: server selected unsupported curve")
 	}
-	curveID := CurveID(skx.key[1])<<8 | CurveID(skx.key[2])
+	ka.curveID = CurveID(skx.key[1])<<8 | CurveID(skx.key[2])
 
 	publicLen := int(skx.key[3])
 	if publicLen+4 > len(skx.key) {
@@ -293,11 +301,15 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 		return errServerKeyExchange
 	}
 
-	if _, ok := curveForCurveID(curveID); !ok {
+	if !slices.Contains(clientHello.supportedCurves, ka.curveID) {
+		return errors.New("tls: server selected unoffered curve")
+	}
+
+	if _, ok := curveForCurveID(ka.curveID); !ok {
 		return errors.New("tls: server selected unsupported curve")
 	}
 
-	key, err := generateECDHEKey(config.rand(), curveID)
+	key, err := generateECDHEKey(config.rand(), ka.curveID)
 	if err != nil {
 		return err
 	}
@@ -321,18 +333,22 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 	var sigType uint8
 	var sigHash crypto.Hash
 	if ka.version >= VersionTLS12 {
-		signatureAlgorithm := SignatureScheme(sig[0])<<8 | SignatureScheme(sig[1])
+		ka.signatureAlgorithm = SignatureScheme(sig[0])<<8 | SignatureScheme(sig[1])
 		sig = sig[2:]
 		if len(sig) < 2 {
 			return errServerKeyExchange
 		}
 
-		if !isSupportedSignatureAlgorithm(signatureAlgorithm, clientHello.supportedSignatureAlgorithms) {
+		if !isSupportedSignatureAlgorithm(ka.signatureAlgorithm, clientHello.supportedSignatureAlgorithms) {
 			return errors.New("tls: certificate used with invalid signature algorithm")
 		}
-		sigType, sigHash, err = typeAndHashFromSignatureScheme(signatureAlgorithm)
+		sigType, sigHash, err = typeAndHashFromSignatureScheme(ka.signatureAlgorithm)
 		if err != nil {
 			return err
+		}
+		if sigHash == crypto.SHA1 {
+			tlssha1.Value() // ensure godebug is initialized
+			tlssha1.IncNonDefault()
 		}
 	} else {
 		sigType, sigHash, err = legacyTypeAndHashFromPublicKey(cert.PublicKey)

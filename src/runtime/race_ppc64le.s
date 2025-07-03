@@ -153,7 +153,7 @@ data:
 	BLT	ret
 	MOVD	runtime·racedataend(SB), R9
 	CMP	R4, R9
-	BGT	ret
+	BGE	ret
 call:
 	// Careful!! racecall will save LR on its
 	// stack, which is OK as long as racecalladdr
@@ -325,6 +325,52 @@ TEXT	sync∕atomic·AddUintptr(SB), NOSPLIT, $0-24
 	GO_ARGS
 	BR	sync∕atomic·AddInt64(SB)
 
+// And
+TEXT	sync∕atomic·AndInt32(SB), NOSPLIT, $0-20
+	GO_ARGS
+	MOVD	$__tsan_go_atomic32_fetch_and(SB), R8
+	BR	racecallatomic<>(SB)
+
+TEXT	sync∕atomic·AndInt64(SB), NOSPLIT, $0-24
+	GO_ARGS
+	MOVD	$__tsan_go_atomic64_fetch_and(SB), R8
+	BR	racecallatomic<>(SB)
+
+TEXT	sync∕atomic·AndUint32(SB), NOSPLIT, $0-20
+	GO_ARGS
+	BR	sync∕atomic·AndInt32(SB)
+
+TEXT	sync∕atomic·AndUint64(SB), NOSPLIT, $0-24
+	GO_ARGS
+	BR	sync∕atomic·AndInt64(SB)
+
+TEXT	sync∕atomic·AndUintptr(SB), NOSPLIT, $0-24
+	GO_ARGS
+	BR	sync∕atomic·AndInt64(SB)
+
+// Or
+TEXT	sync∕atomic·OrInt32(SB), NOSPLIT, $0-20
+	GO_ARGS
+	MOVD	$__tsan_go_atomic32_fetch_or(SB), R8
+	BR	racecallatomic<>(SB)
+
+TEXT	sync∕atomic·OrInt64(SB), NOSPLIT, $0-24
+	GO_ARGS
+	MOVD	$__tsan_go_atomic64_fetch_or(SB), R8
+	BR	racecallatomic<>(SB)
+
+TEXT	sync∕atomic·OrUint32(SB), NOSPLIT, $0-20
+	GO_ARGS
+	BR	sync∕atomic·OrInt32(SB)
+
+TEXT	sync∕atomic·OrUint64(SB), NOSPLIT, $0-24
+	GO_ARGS
+	BR	sync∕atomic·OrInt64(SB)
+
+TEXT	sync∕atomic·OrUintptr(SB), NOSPLIT, $0-24
+	GO_ARGS
+	BR	sync∕atomic·OrInt64(SB)
+
 // CompareAndSwap in tsan
 TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT, $0-17
 	GO_ARGS
@@ -438,9 +484,16 @@ TEXT	racecall<>(SB), NOSPLIT, $0-0
 	MOVD    0(R10), g
 	MOVD	g_m(g), R7		// m for g
 	MOVD	R1, R16			// callee-saved, preserved across C call
-	MOVD	m_g0(R7), R10		// g0 for m
-	CMP	R10, g			// same g0?
-	BEQ	call			// already on g0
+
+	// Switch to g0 stack if we aren't already on g0 or gsignal.
+	MOVD	m_gsignal(R7), R10
+	CMP	R10, g
+	BEQ	call
+
+	MOVD	m_g0(R7), R10
+	CMP	R10, g
+	BEQ	call
+
 	MOVD	(g_sched+gobuf_sp)(R10), R1 // switch R1
 call:
 	// prepare frame for C ABI

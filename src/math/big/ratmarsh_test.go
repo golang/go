@@ -136,3 +136,26 @@ func TestRatGobDecodeShortBuffer(t *testing.T) {
 		}
 	}
 }
+
+func TestRatAppendText(t *testing.T) {
+	for _, num := range ratNums {
+		for _, denom := range ratDenoms {
+			var tx Rat
+			tx.SetString(num + "/" + denom)
+			buf := make([]byte, 4, 32)
+			b, err := tx.AppendText(buf)
+			if err != nil {
+				t.Errorf("marshaling of %s failed: %s", &tx, err)
+				continue
+			}
+			var rx Rat
+			if err := rx.UnmarshalText(b[4:]); err != nil {
+				t.Errorf("unmarshaling of %s failed: %s", &tx, err)
+				continue
+			}
+			if rx.Cmp(&tx) != 0 {
+				t.Errorf("AppendText of %s failed: got %s want %s", &tx, &rx, &tx)
+			}
+		}
+	}
+}

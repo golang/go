@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (darwin || dragonfly || freebsd || (linux && !ppc64 && !ppc64le) || netbsd || openbsd || solaris) && gc
-// +build darwin dragonfly freebsd linux,!ppc64,!ppc64le netbsd openbsd solaris
-// +build gc
 
 package unix
 

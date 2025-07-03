@@ -306,12 +306,12 @@
 // 8, and 128 are magic constants, see runtime/mkduff.go
 (Zero [s] {t} ptr mem)
 	&& s%8 == 0 && s > 24 && s <= 8*128
-	&& t.Alignment()%8 == 0 && !config.noDuffDevice =>
+	&& t.Alignment()%8 == 0 =>
 	(DUFFZERO [8 * (128 - s/8)] ptr mem)
 
 // large or unaligned zeroing uses a loop
 (Zero [s] {t} ptr mem)
-	&& (s > 8*128 || config.noDuffDevice) || t.Alignment()%8 != 0 =>
+	&& s > 8*128 || t.Alignment()%8 != 0 =>
 	(LoweredZero [t.Alignment()]
 		ptr
 		(ADDVconst <ptr.Type> ptr [s-moveSize(t.Alignment(), config)])
@@ -382,7 +382,7 @@
 // medium move uses a duff device
 (Move [s] {t} dst src mem)
 	&& s%8 == 0 && s >= 24 && s <= 8*128 && t.Alignment()%8 == 0
-	&& !config.noDuffDevice && logLargeCopy(v, s)  =>
+	&& logLargeCopy(v, s)  =>
 	(DUFFCOPY [16 * (128 - s/8)] dst src mem)
 // 16 and 128 are magic constants.  16 is the number of bytes to encode:
 //	MOVV	(R1), R23
@@ -475,6 +475,9 @@
 
 // Write barrier.
 (WB ...) => (LoweredWB ...)
+
+// Publication barrier as intrinsic
+(PubBarrier ...) => (LoweredPubBarrier ...)
 
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
@@ -709,21 +712,24 @@
 (Select1 (MULVU x (MOVVconst [-1]))) => (NEGV x)
 (Select1 (MULVU _ (MOVVconst [0]))) => (MOVVconst [0])
 (Select1 (MULVU x (MOVVconst [1]))) => x
-(Select1 (MULVU x (MOVVconst [c]))) && isPowerOfTwo64(c) => (SLLVconst [log64(c)] x)
+(Select1 (MULVU x (MOVVconst [c]))) && isPowerOfTwo(c) => (SLLVconst [log64(c)] x)
 
 // div by constant
 (Select1 (DIVVU x (MOVVconst [1]))) => x
-(Select1 (DIVVU x (MOVVconst [c]))) && isPowerOfTwo64(c) => (SRLVconst [log64(c)] x)
+(Select1 (DIVVU x (MOVVconst [c]))) && isPowerOfTwo(c) => (SRLVconst [log64(c)] x)
 (Select0 (DIVVU _ (MOVVconst [1]))) => (MOVVconst [0])                       // mod
-(Select0 (DIVVU x (MOVVconst [c]))) && isPowerOfTwo64(c) => (ANDconst [c-1] x) // mod
+(Select0 (DIVVU x (MOVVconst [c]))) && isPowerOfTwo(c) => (ANDconst [c-1] x) // mod
 
 // generic simplifications
 (ADDV x (NEGV y)) => (SUBV x y)
+(SUBV x (NEGV y)) => (ADDV x y)
 (SUBV x x) => (MOVVconst [0])
 (SUBV (MOVVconst [0]) x) => (NEGV x)
 (AND x x) => x
 (OR  x x) => x
 (XOR x x) => (MOVVconst [0])
+(NEGV (SUBV x y)) => (SUBV y x)
+(NEGV (NEGV x)) => x
 
 // remove redundant *const ops
 (ADDVconst [0]  x) => x
@@ -811,7 +817,10 @@
 (SGTU x x) => (MOVVconst [0])
 
 // fold readonly sym load
-(MOVBload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read8(sym, int64(off)))])
-(MOVHload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
-(MOVWload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVBUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read8(sym, int64(off)))])
+(MOVHUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read16(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVWUload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read32(sym, int64(off), config.ctxt.Arch.ByteOrder))])
 (MOVVload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(read64(sym, int64(off), config.ctxt.Arch.ByteOrder))])
+(MOVBload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(int8(read8(sym, int64(off))))])
+(MOVHload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(int16(read16(sym, int64(off), config.ctxt.Arch.ByteOrder)))])
+(MOVWload [off] {sym} (SB) _) && symIsRO(sym) => (MOVVconst [int64(int32(read32(sym, int64(off), config.ctxt.Arch.ByteOrder)))])

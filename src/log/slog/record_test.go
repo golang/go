@@ -39,24 +39,35 @@ func TestRecordAttrs(t *testing.T) {
 }
 
 func TestRecordSource(t *testing.T) {
-	// Zero call depth => empty *Source.
+	// Zero call depth => nil *Source.
 	for _, test := range []struct {
 		depth            int
 		wantFunction     string
 		wantFile         string
 		wantLinePositive bool
+		wantNil          bool
 	}{
-		{0, "", "", false},
-		{-16, "", "", false},
-		{1, "log/slog.TestRecordSource", "record_test.go", true}, // 1: caller of NewRecord
-		{2, "testing.tRunner", "testing.go", true},
+		{0, "", "", false, true},
+		{-16, "", "", false, true},
+		{1, "log/slog.TestRecordSource", "record_test.go", true, false}, // 1: caller of NewRecord
+		{2, "testing.tRunner", "testing.go", true, false},
 	} {
 		var pc uintptr
 		if test.depth > 0 {
 			pc = callerPC(test.depth + 1)
 		}
 		r := NewRecord(time.Time{}, 0, "", pc)
-		got := r.source()
+		got := r.Source()
+		if test.wantNil {
+			if got != nil {
+				t.Errorf("depth %d: got non-nil Source, want nil", test.depth)
+			}
+			continue
+		}
+		if got == nil {
+			t.Errorf("depth %d: got nil Source, want non-nil", test.depth)
+			continue
+		}
 		if i := strings.LastIndexByte(got.File, '/'); i >= 0 {
 			got.File = got.File[i+1:]
 		}

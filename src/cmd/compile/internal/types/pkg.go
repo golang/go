@@ -16,7 +16,7 @@ import (
 var pkgMap = make(map[string]*Pkg)
 
 type Pkg struct {
-	Path    string // string literal used in import statement, e.g. "runtime/internal/sys"
+	Path    string // string literal used in import statement, e.g. "internal/runtime/sys"
 	Name    string // package name, e.g. "sys"
 	Prefix  string // escaped path for use in symbol table
 	Syms    map[string]*Sym
@@ -52,6 +52,10 @@ func NewPkg(path, name string) *Pkg {
 	pkgMap[path] = p
 
 	return p
+}
+
+func PkgMap() map[string]*Pkg {
+	return pkgMap
 }
 
 var nopkg = &Pkg{
@@ -102,6 +106,14 @@ func (pkg *Pkg) LookupNum(prefix string, n int) *Sym {
 	return pkg.LookupBytes(b)
 }
 
+// Selector looks up a selector identifier.
+func (pkg *Pkg) Selector(name string) *Sym {
+	if IsExported(name) {
+		pkg = LocalPkg
+	}
+	return pkg.Lookup(name)
+}
+
 var (
 	internedStringsmu sync.Mutex // protects internedStrings
 	internedStrings   = map[string]string{}
@@ -116,13 +128,4 @@ func InternString(b []byte) string {
 	}
 	internedStringsmu.Unlock()
 	return s
-}
-
-// CleanroomDo invokes f in an environment with no preexisting packages.
-// For testing of import/export only.
-func CleanroomDo(f func()) {
-	saved := pkgMap
-	pkgMap = make(map[string]*Pkg)
-	f()
-	pkgMap = saved
 }

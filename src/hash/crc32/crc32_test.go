@@ -8,6 +8,7 @@ import (
 	"encoding"
 	"fmt"
 	"hash"
+	"internal/testhash"
 	"io"
 	"math/rand"
 	"testing"
@@ -21,6 +22,10 @@ func TestCastagnoliRace(t *testing.T) {
 	ieee := NewIEEE()
 	go MakeTable(Castagnoli)
 	ieee.Write([]byte("hello"))
+}
+
+func TestHashInterface(t *testing.T) {
+	testhash.TestHash(t, func() hash.Hash { return NewIEEE() })
 }
 
 type test struct {
@@ -133,8 +138,20 @@ func TestGoldenMarshal(t *testing.T) {
 				continue
 			}
 
+			stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
+			if err != nil {
+				t.Errorf("could not marshal: %v", err)
+				continue
+			}
+			stateAppend = stateAppend[4:]
+
 			if string(state) != g.halfStateIEEE {
 				t.Errorf("IEEE(%q) state = %q, want %q", g.in, state, g.halfStateIEEE)
+				continue
+			}
+
+			if string(stateAppend) != g.halfStateIEEE {
+				t.Errorf("IEEE(%q) state = %q, want %q", g.in, stateAppend, g.halfStateIEEE)
 				continue
 			}
 
@@ -165,8 +182,20 @@ func TestGoldenMarshal(t *testing.T) {
 				continue
 			}
 
+			stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
+			if err != nil {
+				t.Errorf("could not marshal: %v", err)
+				continue
+			}
+			stateAppend = stateAppend[4:]
+
 			if string(state) != g.halfStateCastagnoli {
 				t.Errorf("Castagnoli(%q) state = %q, want %q", g.in, state, g.halfStateCastagnoli)
+				continue
+			}
+
+			if string(stateAppend) != g.halfStateCastagnoli {
+				t.Errorf("Castagnoli(%q) state = %q, want %q", g.in, stateAppend, g.halfStateCastagnoli)
 				continue
 			}
 
@@ -199,7 +228,7 @@ func TestMarshalTableMismatch(t *testing.T) {
 	}
 }
 
-// TestSimple tests the slicing-by-8 algorithm.
+// TestSlicing tests the slicing-by-8 algorithm.
 func TestSlicing(t *testing.T) {
 	tab := slicingMakeTable(IEEE)
 	testGoldenIEEE(t, func(b []byte) uint32 {

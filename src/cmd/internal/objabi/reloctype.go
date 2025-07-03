@@ -118,11 +118,6 @@ const (
 	// Target of relocation must be size 4 (in current implementation).
 	R_DWARFSECREF
 
-	// R_DWARFFILEREF resolves to an index into the DWARF .debug_line
-	// file table for the specified file symbol. Must be applied to an
-	// attribute of form DW_FORM_data4.
-	R_DWARFFILEREF
-
 	// Platform dependent relocations. Architectures with fixed width instructions
 	// have the inherent issue that a 32-bit (or 64-bit!) displacement cannot be
 	// stuffed into a 32-bit instruction, so an address needs to be spread across
@@ -202,7 +197,7 @@ const (
 
 	// R_POWER_TLS marks an X-form instruction such as "ADD R3,R13,R4" as completing
 	// a sequence of GOT-relative relocations to compute a TLS address. This can be
-	// used by the system linker to to rewrite the GOT-relative TLS relocation into a
+	// used by the system linker to rewrite the GOT-relative TLS relocation into a
 	// simpler thread-pointer relative relocation. See table 3.26 and 3.28 in the
 	// ppc64 elfv2 1.4 ABI on this transformation.  Likewise, the second argument
 	// (usually called RB in X-form instructions) is assumed to be R13.
@@ -259,34 +254,41 @@ const (
 
 	// RISC-V.
 
-	// R_RISCV_CALL relocates a J-type instruction with a 21 bit PC-relative
-	// address.
-	R_RISCV_CALL
+	// R_RISCV_JAL resolves a 20 bit offset for a J-type instruction.
+	R_RISCV_JAL
 
-	// R_RISCV_CALL_TRAMP is the same as R_RISCV_CALL but denotes the use of a
+	// R_RISCV_JAL_TRAMP is the same as R_RISCV_JAL but denotes the use of a
 	// trampoline, which we may be able to avoid during relocation. These are
 	// only used by the linker and are not emitted by the compiler or assembler.
-	R_RISCV_CALL_TRAMP
+	R_RISCV_JAL_TRAMP
 
-	// R_RISCV_PCREL_ITYPE resolves a 32 bit PC-relative address using an
+	// R_RISCV_CALL resolves a 32 bit PC-relative address for an AUIPC + JALR
+	// instruction pair.
+	R_RISCV_CALL
+
+	// R_RISCV_PCREL_ITYPE resolves a 32 bit PC-relative address for an
 	// AUIPC + I-type instruction pair.
 	R_RISCV_PCREL_ITYPE
 
-	// R_RISCV_PCREL_STYPE resolves a 32 bit PC-relative address using an
+	// R_RISCV_PCREL_STYPE resolves a 32 bit PC-relative address for an
 	// AUIPC + S-type instruction pair.
 	R_RISCV_PCREL_STYPE
 
-	// R_RISCV_TLS_IE resolves a 32 bit TLS initial-exec address using an
+	// R_RISCV_TLS_IE resolves a 32 bit TLS initial-exec address for an
 	// AUIPC + I-type instruction pair.
 	R_RISCV_TLS_IE
 
-	// R_RISCV_TLS_LE resolves a 32 bit TLS local-exec address using an
+	// R_RISCV_TLS_LE resolves a 32 bit TLS local-exec address for a
 	// LUI + I-type instruction sequence.
 	R_RISCV_TLS_LE
 
 	// R_RISCV_GOT_HI20 resolves the high 20 bits of a 32-bit PC-relative GOT
 	// address.
 	R_RISCV_GOT_HI20
+
+	// R_RISCV_GOT_PCREL_ITYPE resolves a 32-bit PC-relative GOT entry
+	// address for an AUIPC + I-type instruction pair.
+	R_RISCV_GOT_PCREL_ITYPE
 
 	// R_RISCV_PCREL_HI20 resolves the high 20 bits of a 32-bit PC-relative
 	// address.
@@ -317,30 +319,44 @@ const (
 
 	// Loong64.
 
-	// R_ADDRLOONG64 resolves to the low 12 bits of an external address, by encoding
-	// it into the instruction.
-	R_ADDRLOONG64
-
-	// R_ADDRLOONG64U resolves to the sign-adjusted "upper" 20 bits (bit 5-24) of an
+	// R_LOONG64_ADDR_HI resolves to the sign-adjusted "upper" 20 bits (bit 5-24) of an
 	// external address, by encoding it into the instruction.
-	R_ADDRLOONG64U
+	// R_LOONG64_ADDR_LO resolves to the low 12 bits of an external address, by encoding
+	// it into the instruction.
+	R_LOONG64_ADDR_HI
+	R_LOONG64_ADDR_LO
 
-	// R_ADDRLOONG64TLS resolves to the low 12 bits of a TLS address (offset from
+	// R_LOONG64_TLS_LE_HI resolves to the high 20 bits of a TLS address (offset from
 	// thread pointer), by encoding it into the instruction.
-	R_ADDRLOONG64TLS
-
-	// R_ADDRLOONG64TLSU resolves to the high 20 bits of a TLS address (offset from
+	// R_LOONG64_TLS_LE_LO resolves to the low 12 bits of a TLS address (offset from
 	// thread pointer), by encoding it into the instruction.
-	R_ADDRLOONG64TLSU
+	R_LOONG64_TLS_LE_HI
+	R_LOONG64_TLS_LE_LO
 
 	// R_CALLLOONG64 resolves to non-PC-relative target address of a CALL (BL/JIRL)
 	// instruction, by encoding the address into the instruction.
 	R_CALLLOONG64
 
-	// R_LOONG64_TLS_IE_PCREL_HI and R_LOONG64_TLS_IE_LO relocates a pcalau12i, ld.d
+	// R_LOONG64_TLS_IE_HI and R_LOONG64_TLS_IE_LO relocates a pcalau12i, ld.d
 	// pair to compute the address of the GOT slot of the tls symbol.
-	R_LOONG64_TLS_IE_PCREL_HI
+	R_LOONG64_TLS_IE_HI
 	R_LOONG64_TLS_IE_LO
+
+	// R_LOONG64_GOT_HI and R_LOONG64_GOT_LO resolves a GOT-relative instruction sequence,
+	// usually an pcalau12i followed by another ld or addi instruction.
+	R_LOONG64_GOT_HI
+	R_LOONG64_GOT_LO
+
+	// 64-bit in-place addition.
+	R_LOONG64_ADD64
+	// 64-bit in-place subtraction.
+	R_LOONG64_SUB64
+
+	// R_JMP16LOONG64 resolves to 18-bit PC-relative target address of a JMP instructions.
+	R_JMP16LOONG64
+
+	// R_JMP21LOONG64 resolves to 23-bit PC-relative target address of a JMP instructions.
+	R_JMP21LOONG64
 
 	// R_JMPLOONG64 resolves to non-PC-relative target address of a JMP instruction,
 	// by encoding the address into the instruction.
@@ -375,6 +391,22 @@ const (
 	// just used in the linker to order the inittask records appropriately.
 	R_INITORDER
 
+	// The R_DWTXTADDR_* family of relocations are effectively
+	// references to the .debug_addr entry for a given TEXT symbol
+	// corresponding to a Go function. Given a R_DWTXTADDR_* reloc
+	// applied to dwarf section S at offset O against sym F, the linker
+	// locates the .debug_addr entry for F (within its package) and
+	// writes the index of that entry to section S at offset O, using
+	// ULEB encoding, writing a number of bytes controlled by the
+	// suffix (e.g. for R_DWTXTADDR_U2 we write two bytes). Note
+	// also that .debug_addr indices are not finalized until link time;
+	// when the compiler creates a R_DWTXTADDR_* relocation the
+	// index payload will be left as zero (to be filled in later).
+	R_DWTXTADDR_U1
+	R_DWTXTADDR_U2
+	R_DWTXTADDR_U3
+	R_DWTXTADDR_U4
+
 	// R_WEAK marks the relocation as a weak reference.
 	// A weak relocation does not make the symbol it refers to reachable,
 	// and is only honored by the linker if the symbol is in some other way
@@ -387,12 +419,13 @@ const (
 
 // IsDirectCall reports whether r is a relocation for a direct call.
 // A direct call is a CALL instruction that takes the target address
-// as an immediate. The address is embedded into the instruction, possibly
+// as an immediate. The address is embedded into the instruction(s), possibly
 // with limited width. An indirect call is a CALL instruction that takes
 // the target address in register or memory.
 func (r RelocType) IsDirectCall() bool {
 	switch r {
-	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLLOONG64, R_CALLMIPS, R_CALLPOWER, R_RISCV_CALL, R_RISCV_CALL_TRAMP:
+	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLLOONG64, R_CALLMIPS, R_CALLPOWER,
+		R_RISCV_CALL, R_RISCV_JAL, R_RISCV_JAL_TRAMP:
 		return true
 	}
 	return false
@@ -417,4 +450,76 @@ func (r RelocType) IsDirectJump() bool {
 // call or a direct jump.
 func (r RelocType) IsDirectCallOrJump() bool {
 	return r.IsDirectCall() || r.IsDirectJump()
+}
+
+// IsDwTxtAddr reports whether r is one of the several DWARF
+// .debug_addr section indirect relocations.
+func (r RelocType) IsDwTxtAddr() bool {
+	switch r {
+	case R_DWTXTADDR_U1, R_DWTXTADDR_U2, R_DWTXTADDR_U3, R_DWTXTADDR_U4:
+		return true
+	default:
+		return false
+	}
+}
+
+// FuncCountToDwTxtAddrFlavor returns the correct DWARF .debug_addr
+// section relocation to use when compiling a package with a total of
+// fncount functions, along with the size of the ULEB128-encoded blob
+// needed to store the the eventual .debug_addr index.
+func FuncCountToDwTxtAddrFlavor(fncount int) (RelocType, int) {
+	switch {
+	case fncount <= 127:
+		return R_DWTXTADDR_U1, 1
+	case fncount <= 16383:
+		return R_DWTXTADDR_U2, 2
+	case fncount <= 2097151:
+		return R_DWTXTADDR_U3, 3
+	case fncount <= 268435455:
+		return R_DWTXTADDR_U4, 4
+	default:
+		panic("package has more than 268435455 functions")
+	}
+}
+
+// DummyDwarfFunctionCountForAssembler returns a dummy value to be
+// used for "total number of functions in the package" for use in the
+// assembler (compiler does not call this function).
+//
+// Background/motivation: let's say we have a package P with some
+// assembly functions (in "a.s") and some Go functions (in
+// "b.go"). The compilation sequence used by the Go commmand will be:
+//
+// 1. run the assembler on a.s to generate a "symabis" file
+// 2. run the compiler on b.go passing it the symabis file and generating a "go_defs.h" asm header
+// 3. run the assembler on a.s passing it an include dir with the generated "go_defs.h" file
+//
+// When the compiler runs, it can easily determine the total function
+// count for the package (for use with FuncCountToDwTxtAddrFlavor
+// above) by counting defined Go funcs and looking at the symabis
+// file. With the assembler however there is no easy way for it to
+// figure out the total number of Go source funcs. To keep things
+// simple, we instead just use a dummy total function count while
+// running the assembler that will guarantee we pick a relocation
+// flavor that will work for any package size.
+func DummyDwarfFunctionCountForAssembler() int {
+	return 9999999
+}
+
+// DwTxtAddrRelocParams returns the maximum number of functions per
+// package supported for the DWARF .debug_addr relocation variant r,
+// along with the number of bytes it takes up in encoded form.
+func (r RelocType) DwTxtAddrRelocParams() (int, int) {
+	switch r {
+	case R_DWTXTADDR_U1:
+		return 0x7f, 1
+	case R_DWTXTADDR_U2:
+		return 0x3fff, 2
+	case R_DWTXTADDR_U3:
+		return 0x1fffff, 3
+	case R_DWTXTADDR_U4:
+		return 0xfffffff, 4
+	default:
+		panic("not a dwtxtaddr relocation")
+	}
 }

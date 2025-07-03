@@ -55,6 +55,40 @@ stderr preferlinkext
 env CGO_CFLAGS=-fprofile-instr-generate
 go build -x -n -o dummy.exe ./usesInternalCgo
 stderr preferlinkext
+
+# Trimming file information for the UndefinedBehaviorSanitizer is permitted for internal linking.
+env CGO_CFLAGS=-fsanitize-undefined-strip-path-components=-1
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
+env CGO_CFLAGS=-fsanitize-undefined-strip-path-components=2
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
+
+# The -fdebug-prefix-map=path is permitted for internal linking.
+env CGO_CFLAGS=-fdebug-prefix-map=/some/sandbox/execroot/workspace=/tmp/new
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
+env CGO_CFLAGS=-fdebug-prefix-map=/Users/someone/.cache/bazel/_bazel_someone/3fa7e4650c43657ead684537951f49e2/sandbox/linux-sandbox/10/execroot/rules_go_static=.
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
+# The -ffile-prefix-map=path is permitted for internal linking too.
+env CGO_CFLAGS=-ffile-prefix-map=/Users/someone/.cache/bazel/_bazel_someone/3fa7e4650c43657ead684537951f49e2/sandbox/linux-sandbox/10/execroot/rules_go_static/bazel-out/aarch64-fastbuild-ST-b33d65c724e6/bin/external/io_bazel_rules_go/stdlib_=.
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
+# Verifying that -fdebug-prefix-map=path, -ffile-prefix-map, -no-canonical-prefixes
+# and -fno-canonical-systemd-headers are permitted for internal linking.
+env CGO_CFLAGS=-fdebug-prefix-map=old=/tmp/new
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
+env CGO_CFLAGS=-ffile-prefix-map=/Users/someone/_11233/things=new
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
+env CGO_CFLAGS=-no-canonical-prefixes
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
+env CGO_CFLAGS=-fno-canonical-system-headers
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
 env CGO_CFLAGS=
 
 [short] skip

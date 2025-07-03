@@ -176,7 +176,7 @@ func (p *parser) parseQualifiedNameStr(unquotedName string) (pkgpath, name strin
 		name = parts[0]
 	default:
 		// qualified name, which may contain periods
-		pkgpath = strings.Join(parts[0:len(parts)-1], ".")
+		pkgpath = strings.Join(parts[:len(parts)-1], ".")
 		name = parts[len(parts)-1]
 	}
 
@@ -264,7 +264,7 @@ func (p *parser) parseField(pkg *types.Package) (field *types.Var, tag string) {
 }
 
 // Param = Name ["..."] Type .
-func (p *parser) parseParam(pkg *types.Package) (param *types.Var, isVariadic bool) {
+func (p *parser) parseParam(kind types.VarKind, pkg *types.Package) (param *types.Var, isVariadic bool) {
 	name := p.parseName()
 	// Ignore names invented for inlinable functions.
 	if strings.HasPrefix(name, "p.") || strings.HasPrefix(name, "r.") || strings.HasPrefix(name, "$ret") {
@@ -289,13 +289,14 @@ func (p *parser) parseParam(pkg *types.Package) (param *types.Var, isVariadic bo
 		typ = types.NewSlice(typ)
 	}
 	param = types.NewParam(token.NoPos, pkg, name, typ)
+	param.SetKind(kind)
 	return
 }
 
 // Var = Name Type .
 func (p *parser) parseVar(pkg *types.Package) *types.Var {
 	name := p.parseName()
-	v := types.NewVar(token.NoPos, pkg, name, p.parseType(pkg))
+	v := types.NewVar(token.NoPos, pkg, name, p.parseType(pkg)) // (types.PackageVar)
 	if name[0] == '.' || name[0] == '<' {
 		// This is an unexported variable,
 		// or a variable defined in a different package.
@@ -589,10 +590,10 @@ func (p *parser) parseNamedType(nlist []any) types.Type {
 				p.expect('/')
 			}
 			p.expect('(')
-			receiver, _ := p.parseParam(pkg)
+			receiver, _ := p.parseParam(types.RecvVar, pkg)
 			p.expect(')')
 			name := p.parseName()
-			params, isVariadic := p.parseParamList(pkg)
+			params, isVariadic := p.parseParamList(types.ParamVar, pkg)
 			results := p.parseResultList(pkg)
 			p.skipInlineBody()
 			p.expectEOL()
@@ -713,7 +714,7 @@ func (p *parser) parseStructType(pkg *types.Package, nlist []any) types.Type {
 }
 
 // ParamList = "(" [ { Parameter "," } Parameter ] ")" .
-func (p *parser) parseParamList(pkg *types.Package) (*types.Tuple, bool) {
+func (p *parser) parseParamList(kind types.VarKind, pkg *types.Package) (*types.Tuple, bool) {
 	var list []*types.Var
 	isVariadic := false
 
@@ -722,7 +723,7 @@ func (p *parser) parseParamList(pkg *types.Package) (*types.Tuple, bool) {
 		if len(list) > 0 {
 			p.expect(',')
 		}
-		par, variadic := p.parseParam(pkg)
+		par, variadic := p.parseParam(kind, pkg)
 		list = append(list, par)
 		if variadic {
 			if isVariadic {
@@ -745,10 +746,12 @@ func (p *parser) parseResultList(pkg *types.Package) *types.Tuple {
 			return nil
 		}
 		taa, _ := p.parseTypeAfterAngle(pkg)
-		return types.NewTuple(types.NewParam(token.NoPos, pkg, "", taa))
+		param := types.NewParam(token.NoPos, pkg, "", taa)
+		param.SetKind(types.ResultVar)
+		return types.NewTuple(param)
 
 	case '(':
-		params, _ := p.parseParamList(pkg)
+		params, _ := p.parseParamList(types.ResultVar, pkg)
 		return params
 
 	default:
@@ -761,7 +764,7 @@ func (p *parser) parseFunctionType(pkg *types.Package, nlist []any) *types.Signa
 	t := new(types.Signature)
 	p.update(t, nlist)
 
-	params, isVariadic := p.parseParamList(pkg)
+	params, isVariadic := p.parseParamList(types.ParamVar, pkg)
 	results := p.parseResultList(pkg)
 
 	*t = *types.NewSignatureType(nil, nil, nil, params, results, isVariadic)
@@ -902,6 +905,7 @@ const (
 	gccgoBuiltinERROR      = 19
 	gccgoBuiltinBYTE       = 20
 	gccgoBuiltinRUNE       = 21
+	gccgoBuiltinANY        = 22
 )
 
 func lookupBuiltinType(typ int) types.Type {
@@ -926,6 +930,7 @@ func lookupBuiltinType(typ int) types.Type {
 		gccgoBuiltinERROR:      types.Universe.Lookup("error").Type(),
 		gccgoBuiltinBYTE:       types.Universe.Lookup("byte").Type(),
 		gccgoBuiltinRUNE:       types.Universe.Lookup("rune").Type(),
+		gccgoBuiltinANY:        types.Universe.Lookup("any").Type(),
 	}[typ]
 }
 
@@ -1063,7 +1068,7 @@ func (p *parser) parseTypes(pkg *types.Package) {
 		p.typeData = append(p.typeData, allTypeData[to.offset:to.offset+to.length])
 	}
 
-	for i := 1; i < int(exportedp1); i++ {
+	for i := 1; i < exportedp1; i++ {
 		p.parseSavedType(pkg, i, nil)
 	}
 }

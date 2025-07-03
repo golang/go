@@ -1,0 +1,54 @@
+# Go+BoringCrypto conflicts with GOFIPS140.
+[GOEXPERIMENT:boringcrypto] skip
+
+# list with GOFIPS140=off
+env GOFIPS140=off
+go list -f '{{.DefaultGODEBUG}}'
+! stdout fips140
+
+# list with GOFIPS140=latest
+env GOFIPS140=latest
+go list -f '{{.DefaultGODEBUG}}'
+stdout fips140=on
+
+[short] skip
+
+# build with GOFIPS140=off is cached
+env GOFIPS140=off
+go build -x -o x.exe
+! stderr .-fipso
+go build -x -o x.exe
+! stderr link
+
+# build with GOFIPS140=latest is cached too
+env GOFIPS140=latest
+go build -x -o x.exe
+stderr link.*-fipso
+go build -x -o x.exe
+! stderr link.*-fipso
+
+# build test with GOFIPS140=off is cached
+env GOFIPS140=off
+go test -x -c
+! stderr .-fipso
+go test -x -c
+! stderr link
+
+# build test with GOFIPS140=latest is cached
+env GOFIPS140=latest
+go test -x -c
+stderr link.*-fipso
+go test -x -c
+! stderr link
+
+-- go.mod --
+module m
+-- x.go --
+package main
+import _ "crypto/sha256"
+func main() {
+}
+-- x_test.go --
+package main
+import "testing"
+func Test(t *testing.T) {}

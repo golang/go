@@ -2,7 +2,7 @@
 [!exec:pkg-config] skip 'test requires pkg-config tool'
 
 ! go list -export .
-stderr '^go build example:\n# pkg-config (.*\n)+pkg-config: exit status \d+$'
+stderr '^# example\n# \[pkg-config .*\]\n(.*\n)*(Package .* not found)|(could not find package .*)'
 
 -- go.mod --
 module example

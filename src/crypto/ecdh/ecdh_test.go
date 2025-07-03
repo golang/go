@@ -308,6 +308,8 @@ var invalidPublicKeys = map[ecdh.Curve][]string{
 		// Points not on the curve.
 		"046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f6",
 		"0400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+		// Non-canonical encoding.
+		"04ffffffff00000001000000000000000000000001000000000000000000000004ba6dbc4555a7e7fa016ec431667e8521ee35afc49b265c3accbea3f7cdb70433",
 	},
 	ecdh.P384(): {
 		// Bad lengths.
@@ -322,6 +324,8 @@ var invalidPublicKeys = map[ecdh.Curve][]string{
 		// Points not on the curve.
 		"04aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab73617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e60",
 		"04000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+		// Non-canonical encoding.
+		"04fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff000000000000000100000001732152442fb6ee5c3e6ce1d920c059bc623563814d79042b903ce60f1d4487fccd450a86da03f3e6ed525d02017bfdb3",
 	},
 	ecdh.P521(): {
 		// Bad lengths.
@@ -336,6 +340,8 @@ var invalidPublicKeys = map[ecdh.Curve][]string{
 		// Points not on the curve.
 		"0400c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66011839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16651",
 		"04000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+		// Non-canonical encoding.
+		"0402000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100d9254fdf800496acb33790b103c5ee9fac12832fe546c632225b0f7fce3da4574b1a879b623d722fa8fc34d5fc2a8731aad691a9a8bb8b554c95a051d6aa505acf",
 	},
 	ecdh.X25519(): {},
 }
@@ -412,9 +418,7 @@ type zr struct{}
 
 // Read replaces the contents of dst with zeros. It is safe for concurrent use.
 func (zr) Read(dst []byte) (n int, err error) {
-	for i := range dst {
-		dst[i] = 0
-	}
+	clear(dst)
 	return len(dst), nil
 }
 
@@ -425,7 +429,8 @@ package main
 import "crypto/ecdh"
 import "crypto/rand"
 func main() {
-	curve := ecdh.P384()
+	// Use P-256, since that's what the always-enabled CAST uses.
+	curve := ecdh.P256()
 	key, err := curve.GenerateKey(rand.Reader)
 	if err != nil { panic(err) }
 	_, err = curve.NewPublicKey(key.PublicKey().Bytes())
@@ -471,20 +476,20 @@ func TestLinker(t *testing.T) {
 	}
 
 	// List all text symbols under crypto/... and make sure there are some for
-	// P384, but none for the other curves.
+	// P256, but none for the other curves.
 	var consistent bool
 	nm := run(goBin, "tool", "nm", "hello.exe")
 	for _, match := range regexp.MustCompile(`(?m)T (crypto/.*)$`).FindAllStringSubmatch(nm, -1) {
 		symbol := strings.ToLower(match[1])
-		if strings.Contains(symbol, "p384") {
+		if strings.Contains(symbol, "p256") {
 			consistent = true
 		}
-		if strings.Contains(symbol, "p224") || strings.Contains(symbol, "p256") || strings.Contains(symbol, "p521") {
-			t.Errorf("unexpected symbol in program using only ecdh.P384: %s", match[1])
+		if strings.Contains(symbol, "p224") || strings.Contains(symbol, "p384") || strings.Contains(symbol, "p521") {
+			t.Errorf("unexpected symbol in program using only ecdh.P256: %s", match[1])
 		}
 	}
 	if !consistent {
-		t.Error("no P384 symbols found in program using ecdh.P384, test is broken")
+		t.Error("no P256 symbols found in program using ecdh.P256, test is broken")
 	}
 }
 

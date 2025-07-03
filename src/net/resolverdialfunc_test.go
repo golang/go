@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !wasip1
-
 // Test that Resolver.Dial can be a func returning an in-memory net.Conn
 // speaking DNS.
 
@@ -15,7 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"sort"
+	"slices"
 	"testing"
 	"time"
 
@@ -61,7 +59,7 @@ func TestResolverDialFunc(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got, want := sortedIPStrings(ips), []string{"0:200::e00", "1.2.3.4", "1::f", "5.6.7.8"}; !reflect.DeepEqual(got, want) {
+		if got, want := sortedIPStrings(ips), []string{"0:200::e00", "1.2.3.4", "1::f", "5.6.7.8"}; !slices.Equal(got, want) {
 			t.Errorf("LookupIP wrong.\n got: %q\nwant: %q\n", got, want)
 		}
 	})
@@ -99,7 +97,7 @@ func sortedIPStrings(ips []IP) []string {
 	for i, ip := range ips {
 		ret[i] = ip.String()
 	}
-	sort.Strings(ret)
+	slices.Sort(ret)
 	return ret
 }
 

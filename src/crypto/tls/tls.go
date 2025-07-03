@@ -4,6 +4,18 @@
 
 // Package tls partially implements TLS 1.2, as specified in RFC 5246,
 // and TLS 1.3, as specified in RFC 8446.
+//
+// # FIPS 140-3 mode
+//
+// When the program is in [FIPS 140-3 mode], this package behaves as if only
+// SP 800-140C and SP 800-140D approved protocol versions, cipher suites,
+// signature algorithms, certificate public key types and sizes, and key
+// exchange and derivation algorithms were implemented. Others are silently
+// ignored and not negotiated, or rejected. This set may depend on the
+// algorithms supported by the FIPS 140-3 Go Cryptographic Module selected with
+// GOFIPS140, and may change across Go versions.
+//
+// [FIPS 140-3 mode]: https://go.dev/doc/security/fips140
 package tls
 
 // BUG(agl): The crypto/tls package only implements some countermeasures
@@ -22,6 +34,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"net"
 	"os"
 	"strings"
@@ -71,7 +84,7 @@ func (l *listener) Accept() (net.Conn, error) {
 }
 
 // NewListener creates a Listener which accepts connections from an inner
-// Listener and wraps each connection with Server.
+// Listener and wraps each connection with [Server].
 // The configuration config must be non-nil and must include
 // at least one certificate or else set GetCertificate.
 func NewListener(inner net.Listener, config *Config) net.Listener {
@@ -86,6 +99,7 @@ func NewListener(inner net.Listener, config *Config) net.Listener {
 // The configuration config must be non-nil and must include
 // at least one certificate or else set GetCertificate.
 func Listen(network, laddr string, config *Config) (net.Listener, error) {
+	// If this condition changes, consider updating http.Server.ServeTLS too.
 	if config == nil || len(config.Certificates) == 0 &&
 		config.GetCertificate == nil && config.GetConfigForClient == nil {
 		return nil, errors.New("tls: neither Certificates, GetCertificate, nor GetConfigForClient set in Config")
@@ -109,10 +123,10 @@ func (timeoutError) Temporary() bool { return true }
 // handshake as a whole.
 //
 // DialWithDialer interprets a nil configuration as equivalent to the zero
-// configuration; see the documentation of Config for the defaults.
+// configuration; see the documentation of [Config] for the defaults.
 //
 // DialWithDialer uses context.Background internally; to specify the context,
-// use Dialer.DialContext with NetDialer set to the desired dialer.
+// use [Dialer.DialContext] with NetDialer set to the desired dialer.
 func DialWithDialer(dialer *net.Dialer, network, addr string, config *Config) (*Conn, error) {
 	return dial(context.Background(), dialer, network, addr, config)
 }
@@ -189,10 +203,10 @@ type Dialer struct {
 // Dial connects to the given network address and initiates a TLS
 // handshake, returning the resulting TLS connection.
 //
-// The returned Conn, if any, will always be of type *Conn.
+// The returned [Conn], if any, will always be of type *[Conn].
 //
 // Dial uses context.Background internally; to specify the context,
-// use DialContext.
+// use [Dialer.DialContext].
 func (d *Dialer) Dial(network, addr string) (net.Conn, error) {
 	return d.DialContext(context.Background(), network, addr)
 }
@@ -212,7 +226,7 @@ func (d *Dialer) netDialer() *net.Dialer {
 // connected, any expiration of the context will not affect the
 // connection.
 //
-// The returned Conn, if any, will always be of type *Conn.
+// The returned [Conn], if any, will always be of type *[Conn].
 func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	c, err := dial(ctx, d.netDialer(), network, addr, d.Config)
 	if err != nil {
@@ -222,11 +236,14 @@ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Con
 	return c, nil
 }
 
-// LoadX509KeyPair reads and parses a public/private key pair from a pair
-// of files. The files must contain PEM encoded data. The certificate file
-// may contain intermediate certificates following the leaf certificate to
-// form a certificate chain. On successful return, Certificate.Leaf will
-// be nil because the parsed form of the certificate is not retained.
+// LoadX509KeyPair reads and parses a public/private key pair from a pair of
+// files. The files must contain PEM encoded data. The certificate file may
+// contain intermediate certificates following the leaf certificate to form a
+// certificate chain. On successful return, Certificate.Leaf will be populated.
+//
+// Before Go 1.23 Certificate.Leaf was left nil, and the parsed certificate was
+// discarded. This behavior can be re-enabled by setting "x509keypairleaf=0"
+// in the GODEBUG environment variable.
 func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
 	certPEMBlock, err := os.ReadFile(certFile)
 	if err != nil {
@@ -239,9 +256,14 @@ func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
 	return X509KeyPair(certPEMBlock, keyPEMBlock)
 }
 
+var x509keypairleaf = godebug.New("x509keypairleaf")
+
 // X509KeyPair parses a public/private key pair from a pair of
-// PEM encoded data. On successful return, Certificate.Leaf will be nil because
-// the parsed form of the certificate is not retained.
+// PEM encoded data. On successful return, Certificate.Leaf will be populated.
+//
+// Before Go 1.23 Certificate.Leaf was left nil, and the parsed certificate was
+// discarded. This behavior can be re-enabled by setting "x509keypairleaf=0"
+// in the GODEBUG environment variable.
 func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
 	fail := func(err error) (Certificate, error) { return Certificate{}, err }
 
@@ -294,6 +316,12 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
 	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
 	if err != nil {
 		return fail(err)
+	}
+
+	if x509keypairleaf.Value() != "0" {
+		cert.Leaf = x509Cert
+	} else {
+		x509keypairleaf.IncNonDefault()
 	}
 
 	cert.PrivateKey, err = parsePrivateKey(keyDERBlock.Bytes)

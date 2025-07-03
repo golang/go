@@ -66,10 +66,10 @@ func mustOpen(t *testing.T, name string) *os.File {
 
 	f, err := os.OpenFile(name, os.O_RDWR, 0)
 	if err != nil {
-		t.Fatalf("os.Open(%q) = %v", name, err)
+		t.Fatalf("os.OpenFile(%q) = %v", name, err)
 	}
 
-	t.Logf("fd %d = os.Open(%q)", f.Fd(), name)
+	t.Logf("fd %d = os.OpenFile(%q)", f.Fd(), name)
 	return f
 }
 
@@ -198,7 +198,7 @@ func TestLockNotDroppedByExecCommand(t *testing.T) {
 	// Some kinds of file locks are dropped when a duplicated or forked file
 	// descriptor is unlocked. Double-check that the approach used by os/exec does
 	// not accidentally drop locks.
-	cmd := testenv.Command(t, os.Args[0], "-test.run=^$")
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^$")
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("exec failed: %v", err)
 	}

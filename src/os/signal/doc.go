@@ -68,15 +68,15 @@ signals SIGTSTP, SIGTTIN, and SIGTTOU, in which case the system
 default behavior does not occur. It also applies to some signals that
 otherwise cause no action: SIGUSR1, SIGUSR2, SIGPIPE, SIGALRM,
 SIGCHLD, SIGCONT, SIGURG, SIGXCPU, SIGXFSZ, SIGVTALRM, SIGWINCH,
-SIGIO, SIGPWR, SIGSYS, SIGINFO, SIGTHR, SIGWAITING, SIGLWP, SIGFREEZE,
+SIGIO, SIGPWR, SIGINFO, SIGTHR, SIGWAITING, SIGLWP, SIGFREEZE,
 SIGTHAW, SIGLOST, SIGXRES, SIGJVM1, SIGJVM2, and any real time signals
 used on the system. Note that not all of these signals are available
 on all systems.
 
-If the program was started with SIGHUP or SIGINT ignored, and Notify
+If the program was started with SIGHUP or SIGINT ignored, and [Notify]
 is called for either signal, a signal handler will be installed for
-that signal and it will no longer be ignored. If, later, Reset or
-Ignore is called for that signal, or Stop is called on all channels
+that signal and it will no longer be ignored. If, later, [Reset] or
+[Ignore] is called for that signal, or [Stop] is called on all channels
 passed to Notify for that signal, the signal will once again be
 ignored. Reset will restore the system default behavior for the
 signal, while Ignore will cause the system to ignore the signal
@@ -98,12 +98,13 @@ the behavior depends on the file descriptor number. A write to a
 broken pipe on file descriptors 1 or 2 (standard output or standard
 error) will cause the program to exit with a SIGPIPE signal. A write
 to a broken pipe on some other file descriptor will take no action on
-the SIGPIPE signal, and the write will fail with an EPIPE error.
+the SIGPIPE signal, and the write will fail with a [syscall.EPIPE]
+error.
 
 If the program has called Notify to receive SIGPIPE signals, the file
 descriptor number does not matter. The SIGPIPE signal will be
-delivered to the Notify channel, and the write will fail with an EPIPE
-error.
+delivered to the Notify channel, and the write will fail with a
+[syscall.EPIPE] error.
 
 This means that, by default, command line programs will behave like
 typical Unix command line programs, while other programs will not
@@ -146,8 +147,8 @@ Go behavior described above will not occur. This can be an issue with
 the SIGPROF signal in particular.
 
 The non-Go code should not change the signal mask on any threads
-created by the Go runtime. If the non-Go code starts new threads of
-its own, it may set the signal mask as it pleases.
+created by the Go runtime. If the non-Go code starts new threads
+itself, those threads may set the signal mask as they please.
 
 If the non-Go code starts a new thread, changes the signal mask, and
 then invokes a Go function in that thread, the Go runtime will

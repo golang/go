@@ -18,13 +18,13 @@ import (
 	"unicode/utf8"
 )
 
-// JSONHandler is a Handler that writes Records to an io.Writer as
+// JSONHandler is a [Handler] that writes Records to an [io.Writer] as
 // line-delimited JSON objects.
 type JSONHandler struct {
 	*commonHandler
 }
 
-// NewJSONHandler creates a JSONHandler that writes to w,
+// NewJSONHandler creates a [JSONHandler] that writes to w,
 // using the given options.
 // If opts is nil, the default options are used.
 func NewJSONHandler(w io.Writer, opts *HandlerOptions) *JSONHandler {
@@ -47,7 +47,7 @@ func (h *JSONHandler) Enabled(_ context.Context, level Level) bool {
 	return h.commonHandler.enabled(level)
 }
 
-// WithAttrs returns a new JSONHandler whose attributes consists
+// WithAttrs returns a new [JSONHandler] whose attributes consists
 // of h's attributes followed by attrs.
 func (h *JSONHandler) WithAttrs(attrs []Attr) Handler {
 	return &JSONHandler{commonHandler: h.commonHandler.withAttrs(attrs)}
@@ -57,15 +57,13 @@ func (h *JSONHandler) WithGroup(name string) Handler {
 	return &JSONHandler{commonHandler: h.commonHandler.withGroup(name)}
 }
 
-// Handle formats its argument Record as a JSON object on a single line.
+// Handle formats its argument [Record] as a JSON object on a single line.
 //
 // If the Record's time is zero, the time is omitted.
 // Otherwise, the key is "time"
 // and the value is output as with json.Marshal.
 //
-// If the Record's level is zero, the level is omitted.
-// Otherwise, the key is "level"
-// and the value of [Level.String] is output.
+// The level's key is "level" and its value is the result of calling [Level.String].
 //
 // If the AddSource option is set and source information is available,
 // the key is "source", and the value is a record of type [Source].
@@ -81,7 +79,7 @@ func (h *JSONHandler) WithGroup(name string) Handler {
 // First, an Attr whose Value is of type error is formatted as a string, by
 // calling its Error method. Only errors in Attrs receive this special treatment,
 // not errors embedded in structs, slices, maps or other data structures that
-// are processed by the encoding/json package.
+// are processed by the [encoding/json] package.
 //
 // Second, an encoding failure does not cause Handle to return an error.
 // Instead, the error message is formatted as a string.
@@ -226,7 +224,7 @@ func appendEscapedJSONString(buf []byte, s string) []byte {
 	return buf
 }
 
-var hex = "0123456789abcdef"
+const hex = "0123456789abcdef"
 
 // Copied from encoding/json/tables.go.
 //

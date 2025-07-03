@@ -6,4 +6,4 @@
 
 package main
 
-const A = complex(0()) // ERROR "cannot call non-function"
+const A = complex(0()) // ERROR "cannot call .* not a function"

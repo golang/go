@@ -59,3 +59,40 @@ type BlockMode interface {
 	// maintains state and does not reset at each CryptBlocks call.
 	CryptBlocks(dst, src []byte)
 }
+
+// AEAD is a cipher mode providing authenticated encryption with associated
+// data. For a description of the methodology, see
+// https://en.wikipedia.org/wiki/Authenticated_encryption.
+type AEAD interface {
+	// NonceSize returns the size of the nonce that must be passed to Seal
+	// and Open.
+	NonceSize() int
+
+	// Overhead returns the maximum difference between the lengths of a
+	// plaintext and its ciphertext.
+	Overhead() int
+
+	// Seal encrypts and authenticates plaintext, authenticates the
+	// additional data and appends the result to dst, returning the updated
+	// slice. The nonce must be NonceSize() bytes long and unique for all
+	// time, for a given key.
+	//
+	// To reuse plaintext's storage for the encrypted output, use plaintext[:0]
+	// as dst. Otherwise, the remaining capacity of dst must not overlap plaintext.
+	// dst and additionalData may not overlap.
+	Seal(dst, nonce, plaintext, additionalData []byte) []byte
+
+	// Open decrypts and authenticates ciphertext, authenticates the
+	// additional data and, if successful, appends the resulting plaintext
+	// to dst, returning the updated slice. The nonce must be NonceSize()
+	// bytes long and both it and the additional data must match the
+	// value passed to Seal.
+	//
+	// To reuse ciphertext's storage for the decrypted output, use ciphertext[:0]
+	// as dst. Otherwise, the remaining capacity of dst must not overlap ciphertext.
+	// dst and additionalData may not overlap.
+	//
+	// Even if the function fails, the contents of dst, up to its capacity,
+	// may be overwritten.
+	Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error)
+}

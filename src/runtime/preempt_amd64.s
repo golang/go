@@ -27,13 +27,6 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ R13, 88(SP)
 	MOVQ R14, 96(SP)
 	MOVQ R15, 104(SP)
-	#ifdef GOOS_darwin
-	#ifndef hasAVX
-	CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $0
-	JE 2(PC)
-	#endif
-	VZEROUPPER
-	#endif
 	MOVUPS X0, 112(SP)
 	MOVUPS X1, 128(SP)
 	MOVUPS X2, 144(SP)

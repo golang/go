@@ -51,11 +51,9 @@ TEXT runtime·gogo(SB), NOSPLIT, $0-8
 	I64Load gobuf_pc(R0)
 	I64Store $0
 
-	MOVD gobuf_ret(R0), RET0
 	MOVD gobuf_ctxt(R0), CTXT
 	// clear to help garbage collector
 	MOVD $0, gobuf_sp(R0)
-	MOVD $0, gobuf_ret(R0)
 	MOVD $0, gobuf_ctxt(R0)
 
 	I32Const $1
@@ -140,6 +138,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 	I64Ne
 	If
 		CALLNORESUME runtime·badsystemstack(SB)
+		CALLNORESUME runtime·abort(SB)
 	End
 
 	// switch:
@@ -181,6 +180,9 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
 	RET
 
+TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
+	UNDEF
+
 // AES hashing not implemented for wasm
 TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
 	JMP	runtime·memhashFallback(SB)
@@ -190,10 +192,6 @@ TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
 	JMP	runtime·memhash32Fallback(SB)
 TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
 	JMP	runtime·memhash64Fallback(SB)
-
-TEXT runtime·return0(SB), NOSPLIT, $0-0
-	MOVD $0, RET0
-	RET
 
 TEXT runtime·asminit(SB), NOSPLIT, $0-0
 	// No per-thread init.
@@ -206,6 +204,33 @@ TEXT runtime·procyield(SB), NOSPLIT, $0-0 // FIXME
 	RET
 
 TEXT runtime·breakpoint(SB), NOSPLIT, $0-0
+	UNDEF
+
+// func switchToCrashStack0(fn func())
+TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-8
+	MOVD fn+0(FP), CTXT	// context register
+	MOVD	g_m(g), R2	// curm
+
+	// set g to gcrash
+	MOVD	$runtime·gcrash(SB), g	// g = &gcrash
+	MOVD	R2, g_m(g)	// g.m = curm
+	MOVD	g, m_g0(R2)	// curm.g0 = g
+
+	// switch to crashstack
+	I64Load (g_stack+stack_hi)(g)
+	I64Const $(-4*8)
+	I64Add
+	I32WrapI64
+	Set SP
+
+	// call target function
+	Get CTXT
+	I32WrapI64
+	I64Load $0
+	CALL
+
+	// should never return
+	CALL	runtime·abort(SB)
 	UNDEF
 
 // Called during function prolog when more stack is needed.
@@ -221,12 +246,19 @@ TEXT runtime·morestack(SB), NOSPLIT, $0-0
 	// R2 = g0
 	MOVD m_g0(R1), R2
 
+	// Set g->sched to context in f.
+	NOP	SP	// tell vet SP changed - stop checking offsets
+	MOVD 0(SP), g_sched+gobuf_pc(g)
+	MOVD $8(SP), g_sched+gobuf_sp(g) // f's SP
+	MOVD CTXT, g_sched+gobuf_ctxt(g)
+
 	// Cannot grow scheduler stack (m->g0).
 	Get g
-	Get R1
+	Get R2
 	I64Eq
 	If
 		CALLNORESUME runtime·badmorestackg0(SB)
+		CALLNORESUME runtime·abort(SB)
 	End
 
 	// Cannot grow signal stack (m->gsignal).
@@ -235,19 +267,14 @@ TEXT runtime·morestack(SB), NOSPLIT, $0-0
 	I64Eq
 	If
 		CALLNORESUME runtime·badmorestackgsignal(SB)
+		CALLNORESUME runtime·abort(SB)
 	End
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
-	NOP	SP	// tell vet SP changed - stop checking offsets
 	MOVD 8(SP), m_morebuf+gobuf_pc(R1)
 	MOVD $16(SP), m_morebuf+gobuf_sp(R1) // f's caller's SP
 	MOVD g, m_morebuf+gobuf_g(R1)
-
-	// Set g->sched to context in f.
-	MOVD 0(SP), g_sched+gobuf_pc(g)
-	MOVD $8(SP), g_sched+gobuf_sp(g) // f's SP
-	MOVD CTXT, g_sched+gobuf_ctxt(g)
 
 	// Call newstack on m->g0's stack.
 	MOVD R2, g
@@ -521,5 +548,73 @@ TEXT wasm_pc_f_loop(SB),NOSPLIT,$0
 
 	Return
 
+// wasm_pc_f_loop_export is like wasm_pc_f_loop, except that this takes an
+// argument (on Wasm stack) that is a PC_F, and the loop stops when we get
+// to that PC in a normal return (not unwinding).
+// This is for handling an wasmexport function when it needs to switch the
+// stack.
+TEXT wasm_pc_f_loop_export(SB),NOSPLIT,$0
+	Get PAUSE
+	I32Eqz
+outer:
+	If
+		// R1 is whether a function return normally (0) or unwinding (1).
+		// Start with unwinding.
+		I32Const $1
+		Set R1
+	loop:
+		Loop
+			// Get PC_F & PC_B from -8(SP)
+			Get SP
+			I32Const $8
+			I32Sub
+			I32Load16U $2 // PC_F
+			Tee R2
+
+			Get R0
+			I32Eq
+			If // PC_F == R0, we're at the stop PC
+				Get R1
+				I32Eqz
+				// Break if it is a normal return
+				BrIf outer // actually jump to after the corresponding End
+			End
+
+			Get SP
+			I32Const $8
+			I32Sub
+			I32Load16U $0 // PC_B
+
+			Get R2 // PC_F
+			CallIndirect $0
+			Set R1 // save return/unwinding state for next iteration
+
+			Get PAUSE
+			I32Eqz
+			BrIf loop
+		End
+	End
+
+	I32Const $0
+	Set PAUSE
+
+	Return
+
 TEXT wasm_export_lib(SB),NOSPLIT,$0
+	UNDEF
+
+TEXT runtime·pause(SB), NOSPLIT, $0-8
+	MOVD newsp+0(FP), SP
+	I32Const $1
+	Set PAUSE
+	RETUNWIND
+
+// Called if a wasmexport function is called before runtime initialization
+TEXT runtime·notInitialized(SB), NOSPLIT, $0
+	MOVD $runtime·wasmStack+(m0Stack__size-16-8)(SB), SP
+	I32Const $0 // entry PC_B
+	Call runtime·notInitialized1(SB)
+	Drop
+	I32Const $0 // entry PC_B
+	Call runtime·abort(SB)
 	UNDEF

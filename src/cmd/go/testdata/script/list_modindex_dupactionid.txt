@@ -1,0 +1,100 @@
+# This is a regression test for #652435. It checks that we don't generate
+# multiple action entry ids for the same index file. That was happening
+# previously because we sometimes generated the action id with unclean
+# paths (and the rest of the time with clean paths) for the same package.
+# This test will use a go program ('check') to check the cache that there are
+# no two action entry files that point to the same object id.
+
+[short] skip 'builds and runs a go program'
+sleep 2s # Sleep so that the unpacked files are > 2 seconds old. The index won't be used if the modified times on the files are newer.
+go build -o check$GOEXE check.go
+cd mod
+env GOCACHE=$WORK/newcache # Run list command in a clean cache.
+go list all
+exec ../check$GOEXE
+
+-- mod/go.mod --
+module example.com/foo
+-- mod/foo.go --
+package foo
+-- check.go --
+package main
+
+import (
+	"errors"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+func main() {
+	cachedir := os.Getenv("GOCACHE")
+	if cachedir == "" {
+		log.Fatal("GOCACHE env var is empty; expected it to be set")
+	}
+
+	// Read the top level cache directory. The cache directory contains directories with
+	// each of the possible two hex digit prefixes (00-FF) of a cache entry's id.
+	// Those directories in turn contain files with the hex id followed by either
+	// "-a" for the action entries or "-d" for the object entries. We want to check
+	// if two action entries point to the same object entry so we'll iterate through
+	// all the "-a" files and see if any two of them refer to the same object id
+	// (corresponding to a "-d" file).
+	dirs, err := os.ReadDir(cachedir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	seen := map[string]string{} // object id -> action id
+
+	for _, entry := range dirs {
+		if entry.IsDir() && len(entry.Name()) == 2 {
+			prefixdir := filepath.Join(cachedir, entry.Name())
+			entries, err := os.ReadDir(prefixdir)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			for _, entry := range entries {
+				if !strings.HasSuffix(entry.Name(), "-a") {
+					// not an action id entry
+					continue
+				}
+				actionEntryFile := filepath.Join(prefixdir, entry.Name())
+				objid, err := objectid(actionEntryFile)
+				if err != nil {
+					log.Fatal(err)
+				}
+				if other, ok := seen[objid]; ok {
+					log.Printf("found two action entry files (%s, %s) pointing to the same object id: %s", other, entry.Name(), objid)
+					os.Exit(1)
+				}
+				seen[objid] = entry.Name()
+			}
+		}
+	}
+}
+
+// objectid returns the object id that the given actionEntryFile points to.
+func objectid(actionEntryFile string) (string, error) {
+	// See cmd/go/internal/cache.(*DiskCache).get for the code that reads
+	// from the action entry files. The following is based on that function.
+	const (
+		HashSize  = 32
+		hexSize   = HashSize * 2
+		entrySize = 2 + 1 + hexSize + 1 + hexSize + 1 + 20 + 1 + 20 + 1
+	)
+
+	entry, err := os.ReadFile(actionEntryFile)
+	if err != nil {
+		return "", err
+	}
+	if len(entry) < entrySize {
+		return "", errors.New("entry file incomplete")
+	}
+	if entry[0] != 'v' || entry[1] != '1' || entry[2] != ' ' || entry[3+hexSize] != ' ' || entry[3+hexSize+1+hexSize] != ' ' || entry[3+hexSize+1+hexSize+1+20] != ' ' || entry[entrySize-1] != '\n' {
+		return "", errors.New("invalid header")
+	}
+	return string(entry[3+hexSize+1 : 3+hexSize+1+hexSize]), nil
+}

@@ -76,9 +76,9 @@ const (
 
 type d [MaxCase]rune // to make the CaseRanges text shorter
 
-// If the Delta field of a CaseRange is UpperLower, it means
+// If the Delta field of a [CaseRange] is UpperLower, it means
 // this CaseRange represents a sequence of the form (say)
-// Upper Lower Upper Lower.
+// [Upper] [Lower] [Upper] [Lower].
 const (
 	UpperLower = MaxRune + 1 // (Cannot be a valid delta.)
 )
@@ -206,34 +206,17 @@ func IsTitle(r rune) bool {
 	return isExcludingLatin(Title, r)
 }
 
-// to maps the rune using the specified case mapping.
-// It additionally reports whether caseRange contained a mapping for r.
-func to(_case int, r rune, caseRange []CaseRange) (mappedRune rune, foundMapping bool) {
-	if _case < 0 || MaxCase <= _case {
-		return ReplacementChar, false // as reasonable an error as any
-	}
+// lookupCaseRange returns the CaseRange mapping for rune r or nil if no
+// mapping exists for r.
+func lookupCaseRange(r rune, caseRange []CaseRange) *CaseRange {
 	// binary search over ranges
 	lo := 0
 	hi := len(caseRange)
 	for lo < hi {
 		m := int(uint(lo+hi) >> 1)
-		cr := caseRange[m]
+		cr := &caseRange[m]
 		if rune(cr.Lo) <= r && r <= rune(cr.Hi) {
-			delta := cr.Delta[_case]
-			if delta > MaxRune {
-				// In an Upper-Lower sequence, which always starts with
-				// an UpperCase letter, the real deltas always look like:
-				//	{0, 1, 0}    UpperCase (Lower is next)
-				//	{-1, 0, -1}  LowerCase (Upper, Title are previous)
-				// The characters at even offsets from the beginning of the
-				// sequence are upper case; the ones at odd offsets are lower.
-				// The correct mapping can be done by clearing or setting the low
-				// bit in the sequence offset.
-				// The constants UpperCase and TitleCase are even while LowerCase
-				// is odd so we take the low bit from _case.
-				return rune(cr.Lo) + ((r-rune(cr.Lo))&^1 | rune(_case&1)), true
-			}
-			return r + delta, true
+			return cr
 		}
 		if r < rune(cr.Lo) {
 			hi = m
@@ -241,10 +224,41 @@ func to(_case int, r rune, caseRange []CaseRange) (mappedRune rune, foundMapping
 			lo = m + 1
 		}
 	}
+	return nil
+}
+
+// convertCase converts r to _case using CaseRange cr.
+func convertCase(_case int, r rune, cr *CaseRange) rune {
+	delta := cr.Delta[_case]
+	if delta > MaxRune {
+		// In an Upper-Lower sequence, which always starts with
+		// an UpperCase letter, the real deltas always look like:
+		//	{0, 1, 0}    UpperCase (Lower is next)
+		//	{-1, 0, -1}  LowerCase (Upper, Title are previous)
+		// The characters at even offsets from the beginning of the
+		// sequence are upper case; the ones at odd offsets are lower.
+		// The correct mapping can be done by clearing or setting the low
+		// bit in the sequence offset.
+		// The constants UpperCase and TitleCase are even while LowerCase
+		// is odd so we take the low bit from _case.
+		return rune(cr.Lo) + ((r-rune(cr.Lo))&^1 | rune(_case&1))
+	}
+	return r + delta
+}
+
+// to maps the rune using the specified case mapping.
+// It additionally reports whether caseRange contained a mapping for r.
+func to(_case int, r rune, caseRange []CaseRange) (mappedRune rune, foundMapping bool) {
+	if _case < 0 || MaxCase <= _case {
+		return ReplacementChar, false // as reasonable an error as any
+	}
+	if cr := lookupCaseRange(r, caseRange); cr != nil {
+		return convertCase(_case, r, cr), true
+	}
 	return r, false
 }
 
-// To maps the rune to the specified case: UpperCase, LowerCase, or TitleCase.
+// To maps the rune to the specified case: [UpperCase], [LowerCase], or [TitleCase].
 func To(_case int, r rune) rune {
 	r, _ = to(_case, r, CaseRanges)
 	return r
@@ -364,8 +378,11 @@ func SimpleFold(r rune) rune {
 	// No folding specified. This is a one- or two-element
 	// equivalence class containing rune and ToLower(rune)
 	// and ToUpper(rune) if they are different from rune.
-	if l := ToLower(r); l != r {
-		return l
+	if cr := lookupCaseRange(r, CaseRanges); cr != nil {
+		if l := convertCase(LowerCase, r, cr); l != r {
+			return l
+		}
+		return convertCase(UpperCase, r, cr)
 	}
-	return ToUpper(r)
+	return r
 }

@@ -7,7 +7,10 @@ package buffer
 
 import "sync"
 
-// buffer adapted from go/src/fmt/print.go
+// Buffer is a byte buffer.
+//
+// This implementation is adapted from the unexported type buffer
+// in go/src/fmt/print.go.
 type Buffer []byte
 
 // Having an initial size gives a dramatic speedup.
@@ -32,7 +35,7 @@ func (b *Buffer) Free() {
 }
 
 func (b *Buffer) Reset() {
-	*b = (*b)[:0]
+	b.SetLen(0)
 }
 
 func (b *Buffer) Write(p []byte) (int, error) {
@@ -52,4 +55,12 @@ func (b *Buffer) WriteByte(c byte) error {
 
 func (b *Buffer) String() string {
 	return string(*b)
+}
+
+func (b *Buffer) Len() int {
+	return len(*b)
+}
+
+func (b *Buffer) SetLen(n int) {
+	*b = (*b)[:n]
 }

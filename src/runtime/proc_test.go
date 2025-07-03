@@ -200,7 +200,7 @@ func testGoroutineParallelism2(t *testing.T, load, netpoll bool) {
 				laddr = "127.0.0.1:0"
 			}
 			ln, err := net.Listen("tcp", laddr)
-			if err != nil {
+			if err == nil {
 				defer ln.Close() // yup, defer in a loop
 			}
 		}
@@ -1023,6 +1023,17 @@ func TestLockOSThreadTemplateThreadRace(t *testing.T) {
 		if output != want {
 			t.Fatalf("run %d: want %q, got %q", i, want, output)
 		}
+	}
+}
+
+func TestLockOSThreadVgetrandom(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skipf("vgetrandom only relevant on Linux")
+	}
+	output := runTestProg(t, "testprog", "LockOSThreadVgetrandom")
+	want := "OK\n"
+	if output != want {
+		t.Errorf("want %q, got %q", want, output)
 	}
 }
 

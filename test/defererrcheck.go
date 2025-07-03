@@ -84,3 +84,57 @@ label:
 		fmt.Println("defer")
 	}()
 }
+
+// Test for function with too many exits, which will disable open-coded defer
+// even though the number of defer statements is not greater than 8.
+func f7() {
+	defer println(1) // ERROR "open-coded defer"
+	defer println(1) // ERROR "open-coded defer"
+	defer println(1) // ERROR "open-coded defer"
+	defer println(1) // ERROR "open-coded defer"
+
+	switch glob {
+	case 1:
+		return
+	case 2:
+		return
+	case 3:
+		return
+	}
+}
+
+func f8() {
+	defer println(1) // ERROR "stack-allocated defer"
+	defer println(1) // ERROR "stack-allocated defer"
+	defer println(1) // ERROR "stack-allocated defer"
+	defer println(1) // ERROR "stack-allocated defer"
+
+	switch glob {
+	case 1:
+		return
+	case 2:
+		return
+	case 3:
+		return
+	case 4:
+		return
+	}
+}
+
+func f9() {
+	defer println(1) // ERROR "open-coded defer"
+	defer println(1) // ERROR "open-coded defer"
+	defer println(1) // ERROR "open-coded defer"
+	defer println(1) // ERROR "open-coded defer"
+
+	switch glob {
+	case 1:
+		return
+	case 2:
+		return
+	case 3:
+		return
+	case 4:
+		panic("")
+	}
+}

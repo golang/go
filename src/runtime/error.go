@@ -4,16 +4,30 @@
 
 package runtime
 
-import "internal/bytealg"
+import (
+	"internal/abi"
+	"internal/bytealg"
+	"internal/runtime/sys"
+)
 
-// The Error interface identifies a run time error.
+// Error identifies a runtime error used in panic.
+//
+// The Go runtime triggers panics for a variety of cases, as described by the
+// Go Language Spec, such as out-of-bounds slice/array access, close of nil
+// channels, type assertion failures, etc.
+//
+// When these cases occur, the Go runtime panics with an error that implements
+// Error. This can be useful when recovering from panics to distinguish between
+// custom application panics and fundamental runtime panics.
+//
+// Packages outside of the Go standard library should not implement Error.
 type Error interface {
 	error
 
 	// RuntimeError is a no-op function but
-	// serves to distinguish types that are run time
+	// serves to distinguish types that are runtime
 	// errors from ordinary errors: a type is a
-	// run time error if it has a RuntimeError method.
+	// runtime error if it has a RuntimeError method.
 	RuntimeError()
 }
 
@@ -93,7 +107,7 @@ func (e errorAddressString) Error() string {
 // The address provided is best-effort.
 // The veracity of the result may depend on the platform.
 // Errors providing this method will only be returned as
-// a result of using runtime/debug.SetPanicOnFault.
+// a result of using [runtime/debug.SetPanicOnFault].
 func (e errorAddressString) Addr() uintptr {
 	return e.addr
 }
@@ -208,11 +222,16 @@ type stringer interface {
 	String() string
 }
 
-// printany prints an argument passed to panic.
+// printpanicval prints an argument passed to panic.
 // If panic is called with a value that has a String or Error method,
 // it has already been converted into a string by preprintpanics.
-func printany(i any) {
-	switch v := i.(type) {
+//
+// To ensure that the traceback can be unambiguously parsed even when
+// the panic value contains "\ngoroutine" and other stack-like
+// strings, newlines in the string representation of v are replaced by
+// "\n\t".
+func printpanicval(v any) {
+	switch v := v.(type) {
 	case nil:
 		print("nil")
 	case bool:
@@ -248,54 +267,72 @@ func printany(i any) {
 	case complex128:
 		print(v)
 	case string:
-		print(v)
+		printindented(v)
 	default:
-		printanycustomtype(i)
+		printanycustomtype(v)
 	}
 }
 
+// Invariant: each newline in the string representation is followed by a tab.
 func printanycustomtype(i any) {
 	eface := efaceOf(&i)
 	typestring := toRType(eface._type).string()
 
 	switch eface._type.Kind_ {
-	case kindString:
-		print(typestring, `("`, *(*string)(eface.data), `")`)
-	case kindBool:
+	case abi.String:
+		print(typestring, `("`)
+		printindented(*(*string)(eface.data))
+		print(`")`)
+	case abi.Bool:
 		print(typestring, "(", *(*bool)(eface.data), ")")
-	case kindInt:
+	case abi.Int:
 		print(typestring, "(", *(*int)(eface.data), ")")
-	case kindInt8:
+	case abi.Int8:
 		print(typestring, "(", *(*int8)(eface.data), ")")
-	case kindInt16:
+	case abi.Int16:
 		print(typestring, "(", *(*int16)(eface.data), ")")
-	case kindInt32:
+	case abi.Int32:
 		print(typestring, "(", *(*int32)(eface.data), ")")
-	case kindInt64:
+	case abi.Int64:
 		print(typestring, "(", *(*int64)(eface.data), ")")
-	case kindUint:
+	case abi.Uint:
 		print(typestring, "(", *(*uint)(eface.data), ")")
-	case kindUint8:
+	case abi.Uint8:
 		print(typestring, "(", *(*uint8)(eface.data), ")")
-	case kindUint16:
+	case abi.Uint16:
 		print(typestring, "(", *(*uint16)(eface.data), ")")
-	case kindUint32:
+	case abi.Uint32:
 		print(typestring, "(", *(*uint32)(eface.data), ")")
-	case kindUint64:
+	case abi.Uint64:
 		print(typestring, "(", *(*uint64)(eface.data), ")")
-	case kindUintptr:
+	case abi.Uintptr:
 		print(typestring, "(", *(*uintptr)(eface.data), ")")
-	case kindFloat32:
+	case abi.Float32:
 		print(typestring, "(", *(*float32)(eface.data), ")")
-	case kindFloat64:
+	case abi.Float64:
 		print(typestring, "(", *(*float64)(eface.data), ")")
-	case kindComplex64:
+	case abi.Complex64:
 		print(typestring, *(*complex64)(eface.data))
-	case kindComplex128:
+	case abi.Complex128:
 		print(typestring, *(*complex128)(eface.data))
 	default:
 		print("(", typestring, ") ", eface.data)
 	}
+}
+
+// printindented prints s, replacing "\n" with "\n\t".
+func printindented(s string) {
+	for {
+		i := bytealg.IndexByteString(s, '\n')
+		if i < 0 {
+			break
+		}
+		i += len("\n")
+		print(s[:i])
+		print("\t")
+		s = s[i:]
+	}
+	print(s)
 }
 
 // panicwrap generates a panic for a call to a wrapped value method
@@ -303,7 +340,7 @@ func printanycustomtype(i any) {
 //
 // It is called from the generated wrapper code.
 func panicwrap() {
-	pc := getcallerpc()
+	pc := sys.GetCallerPC()
 	name := funcNameForPrint(funcname(findfunc(pc)))
 	// name is something like "main.(*T).F".
 	// We want to extract pkg ("main"), typ ("T"), and meth ("F").

@@ -129,7 +129,7 @@ func (tur *typeUnitReader) AddressSize() int {
 	return tur.tu.unit.asize
 }
 
-// Next reads the next Entry from the type unit.
+// Next reads the next [Entry] from the type unit.
 func (tur *typeUnitReader) Next() (*Entry, error) {
 	if tur.err != nil {
 		return nil, tur.err
@@ -137,7 +137,7 @@ func (tur *typeUnitReader) Next() (*Entry, error) {
 	if len(tur.tu.data) == 0 {
 		return nil, nil
 	}
-	e := tur.b.entry(nil, tur.tu.atable, tur.tu.base, tur.tu.vers)
+	e := tur.b.entry(nil, &tur.tu.unit)
 	if tur.b.err != nil {
 		tur.err = tur.b.err
 		return nil, tur.err

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build windows
-// +build windows
 
 // Package windows contains an interface to the low-level operating system
 // primitives. OS details vary depending on the underlying system, and

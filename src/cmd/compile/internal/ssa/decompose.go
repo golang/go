@@ -6,7 +6,8 @@ package ssa
 
 import (
 	"cmd/compile/internal/types"
-	"sort"
+	"cmp"
+	"slices"
 )
 
 // decompose converts phi ops on compound builtin types into phi
@@ -317,11 +318,10 @@ func decomposeUserStructInto(f *Func, name *LocalSlot, slots []*LocalSlot) []*Lo
 		}
 	}
 
-	makeOp := StructMakeOp(n)
 	var keep []*Value
 	// create named values for each struct field
 	for _, v := range f.NamedValues[*name] {
-		if v.Op != makeOp {
+		if v.Op != OpStructMake || len(v.Args) != n {
 			keep = append(keep, v)
 			continue
 		}
@@ -372,7 +372,7 @@ func decomposeStructPhi(v *Value) {
 			fields[i].AddArg(a.Block.NewValue1I(v.Pos, OpStructSelect, t.FieldType(i), int64(i), a))
 		}
 	}
-	v.reset(StructMakeOp(n))
+	v.reset(OpStructMake)
 	v.AddArgs(fields[:n]...)
 
 	// Recursively decompose phis for each field.
@@ -407,24 +407,6 @@ func decomposeArrayPhi(v *Value) {
 // can have and still be SSAable.
 const MaxStruct = 4
 
-// StructMakeOp returns the opcode to construct a struct with the
-// given number of fields.
-func StructMakeOp(nf int) Op {
-	switch nf {
-	case 0:
-		return OpStructMake0
-	case 1:
-		return OpStructMake1
-	case 2:
-		return OpStructMake2
-	case 3:
-		return OpStructMake3
-	case 4:
-		return OpStructMake4
-	}
-	panic("too many fields in an SSAable struct")
-}
-
 type namedVal struct {
 	locIndex, valIndex int // f.NamedValues[f.Names[locIndex]][valIndex] = key
 }
@@ -433,12 +415,11 @@ type namedVal struct {
 // removes all values with OpInvalid, and re-sorts the list of Names.
 func deleteNamedVals(f *Func, toDelete []namedVal) {
 	// Arrange to delete from larger indices to smaller, to ensure swap-with-end deletion does not invalidate pending indices.
-	sort.Slice(toDelete, func(i, j int) bool {
-		if toDelete[i].locIndex != toDelete[j].locIndex {
-			return toDelete[i].locIndex > toDelete[j].locIndex
+	slices.SortFunc(toDelete, func(a, b namedVal) int {
+		if a.locIndex != b.locIndex {
+			return cmp.Compare(b.locIndex, a.locIndex)
 		}
-		return toDelete[i].valIndex > toDelete[j].valIndex
-
+		return cmp.Compare(b.valIndex, a.valIndex)
 	})
 
 	// Get rid of obsolete names

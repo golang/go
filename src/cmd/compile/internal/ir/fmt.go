@@ -73,7 +73,7 @@ var OpNames = []string{
 	OOR:               "|",
 	OPANIC:            "panic",
 	OPLUS:             "+",
-	OPRINTN:           "println",
+	OPRINTLN:          "println",
 	OPRINT:            "print",
 	ORANGE:            "range",
 	OREAL:             "real",
@@ -203,7 +203,7 @@ var OpPrec = []int{
 	ONONAME:           8,
 	OPANIC:            8,
 	OPAREN:            8,
-	OPRINTN:           8,
+	OPRINTLN:          8,
 	OPRINT:            8,
 	ORUNESTR:          8,
 	OSLICE2ARR:        8,
@@ -741,7 +741,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		OMIN,
 		ORECOVER,
 		OPRINT,
-		OPRINTN:
+		OPRINTLN:
 		n := n.(*CallExpr)
 		if n.IsDDD {
 			fmt.Fprintf(s, "%v(%.v...)", n.Op(), n.Args)
@@ -751,7 +751,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 
 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH, OGETG:
 		n := n.(*CallExpr)
-		exprFmt(n.X, s, nprec)
+		exprFmt(n.Fun, s, nprec)
 		if n.IsDDD {
 			fmt.Fprintf(s, "(%.v...)", n.Args)
 			return

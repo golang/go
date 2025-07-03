@@ -13,6 +13,8 @@ package msan
 #include <stdint.h>
 #include <sanitizer/msan_interface.h>
 
+extern void __msan_memmove(void*, const void*, uintptr_t);
+
 void __msan_read_go(void *addr, uintptr_t sz) {
 	__msan_check_mem_is_initialized(addr, sz);
 }
@@ -27,6 +29,10 @@ void __msan_malloc_go(void *addr, uintptr_t sz) {
 
 void __msan_free_go(void *addr, uintptr_t sz) {
 	__msan_poison(addr, sz);
+}
+
+void __msan_memmove_go(void *to, const void *from, uintptr_t sz) {
+	__msan_memmove(to, from, sz);
 }
 */
 import "C"

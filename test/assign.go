@@ -9,7 +9,10 @@
 
 package main
 
-import "sync"
+import (
+	"sync"
+	"time"
+)
 
 type T struct {
 	int
@@ -38,7 +41,7 @@ func main() {
 		_ = x
 	}
 	{
-		x := sync.Mutex{0, 0} // ERROR "assignment.*Mutex"
+		x := time.Time{0, 0, nil} // ERROR "assignment.*Time"
 		_ = x
 	}
 	{

@@ -67,3 +67,23 @@ func NewDynamicType(pos src.XPos, rtype Node) *DynamicType {
 	n.op = ODYNAMICTYPE
 	return n
 }
+
+// ToStatic returns static type of dt if it is actually static.
+func (dt *DynamicType) ToStatic() Node {
+	if dt.Typecheck() == 0 {
+		base.Fatalf("missing typecheck: %v", dt)
+	}
+	if dt.RType != nil && dt.RType.Op() == OADDR {
+		addr := dt.RType.(*AddrExpr)
+		if addr.X.Op() == OLINKSYMOFFSET {
+			return TypeNode(dt.Type())
+		}
+	}
+	if dt.ITab != nil && dt.ITab.Op() == OADDR {
+		addr := dt.ITab.(*AddrExpr)
+		if addr.X.Op() == OLINKSYMOFFSET {
+			return TypeNode(dt.Type())
+		}
+	}
+	return nil
+}

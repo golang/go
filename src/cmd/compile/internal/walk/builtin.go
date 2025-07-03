@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.walk/bui
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"internal/abi"
+	"internal/buildcfg"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -152,9 +154,7 @@ func walkClear(n *ir.UnaryExpr) ir.Node {
 
 // walkClose walks an OCLOSE node.
 func walkClose(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
-	// cannot use chanfn - closechan takes any, not chan any
-	fn := typecheck.LookupRuntime("closechan", n.X.Type())
-	return mkcall1(fn, nil, init, n.X)
+	return mkcall1(chanfn("closechan", 1, n.X.Type()), nil, init, n.X)
 }
 
 // Lower copy(a, b) to a memmove call or a runtime call.
@@ -262,18 +262,29 @@ func walkLenCap(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 		_, len := backingArrayPtrLen(cheapExpr(conv.X, init))
 		return len
 	}
+	if isChanLenCap(n) {
+		name := "chanlen"
+		if n.Op() == ir.OCAP {
+			name = "chancap"
+		}
+		// cannot use chanfn - closechan takes any, not chan any,
+		// because it accepts both send-only and recv-only channels.
+		fn := typecheck.LookupRuntime(name, n.X.Type())
+		return mkcall1(fn, n.Type(), init, n.X)
+	}
 
 	n.X = walkExpr(n.X, init)
 
 	// replace len(*[10]int) with 10.
 	// delayed until now to preserve side effects.
 	t := n.X.Type()
-
 	if t.IsPtr() {
 		t = t.Elem()
 	}
 	if t.IsArray() {
-		safeExpr(n.X, init)
+		// evaluate any side effects in n.X. See issue 72844.
+		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, ir.BlankNode, n.X))
+
 		con := ir.NewConstExpr(constant.MakeInt64(t.NumElem()), n)
 		con.SetTypecheck(1)
 		return con
@@ -302,8 +313,124 @@ func walkMakeChan(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 
 // walkMakeMap walks an OMAKEMAP node.
 func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+	if buildcfg.Experiment.SwissMap {
+		return walkMakeSwissMap(n, init)
+	}
+	return walkMakeOldMap(n, init)
+}
+
+func walkMakeSwissMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	t := n.Type()
-	hmapType := reflectdata.MapType()
+	mapType := reflectdata.SwissMapType()
+	hint := n.Len
+
+	// var m *Map
+	var m ir.Node
+	if n.Esc() == ir.EscNone {
+		// Allocate hmap on stack.
+
+		// var mv Map
+		// m = &mv
+		m = stackTempAddr(init, mapType)
+
+		// Allocate one group pointed to by m.dirPtr on stack if hint
+		// is not larger than SwissMapGroupSlots. In case hint is
+		// larger, runtime.makemap will allocate on the heap.
+		// Maximum key and elem size is 128 bytes, larger objects
+		// are stored with an indirection. So max bucket size is 2048+eps.
+		if !ir.IsConst(hint, constant.Int) ||
+			constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.SwissMapGroupSlots)) {
+
+			// In case hint is larger than SwissMapGroupSlots
+			// runtime.makemap will allocate on the heap, see
+			// #20184
+			//
+			// if hint <= abi.SwissMapGroupSlots {
+			//     var gv group
+			//     g = &gv
+			//     g.ctrl = abi.SwissMapCtrlEmpty
+			//     m.dirPtr = g
+			// }
+
+			nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLE, hint, ir.NewInt(base.Pos, abi.SwissMapGroupSlots)), nil, nil)
+			nif.Likely = true
+
+			groupType := reflectdata.SwissMapGroupType(t)
+
+			// var gv group
+			// g = &gv
+			g := stackTempAddr(&nif.Body, groupType)
+
+			// Can't use ir.NewInt because bit 63 is set, which
+			// makes conversion to uint64 upset.
+			empty := ir.NewBasicLit(base.Pos, types.UntypedInt, constant.MakeUint64(abi.SwissMapCtrlEmpty))
+
+			// g.ctrl = abi.SwissMapCtrlEmpty
+			csym := groupType.Field(0).Sym // g.ctrl see reflectdata/map_swiss.go
+			ca := ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, g, csym), empty)
+			nif.Body.Append(ca)
+
+			// m.dirPtr = g
+			dsym := mapType.Field(2).Sym // m.dirPtr see reflectdata/map_swiss.go
+			na := ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, m, dsym), typecheck.ConvNop(g, types.Types[types.TUNSAFEPTR]))
+			nif.Body.Append(na)
+			appendWalkStmt(init, nif)
+		}
+	}
+
+	if ir.IsConst(hint, constant.Int) && constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.SwissMapGroupSlots)) {
+		// Handling make(map[any]any) and
+		// make(map[any]any, hint) where hint <= abi.SwissMapGroupSlots
+		// specially allows for faster map initialization and
+		// improves binary size by using calls with fewer arguments.
+		// For hint <= abi.SwissMapGroupSlots no groups will be
+		// allocated by makemap. Therefore, no groups need to be
+		// allocated in this code path.
+		if n.Esc() == ir.EscNone {
+			// Only need to initialize m.seed since
+			// m map has been allocated on the stack already.
+			// m.seed = uintptr(rand())
+			rand := mkcall("rand", types.Types[types.TUINT64], init)
+			seedSym := mapType.Field(1).Sym // m.seed see reflectdata/map_swiss.go
+			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, m, seedSym), typecheck.Conv(rand, types.Types[types.TUINTPTR])))
+			return typecheck.ConvNop(m, t)
+		}
+		// Call runtime.makemap_small to allocate a
+		// map on the heap and initialize the map's seed field.
+		fn := typecheck.LookupRuntime("makemap_small", t.Key(), t.Elem())
+		return mkcall1(fn, n.Type(), init)
+	}
+
+	if n.Esc() != ir.EscNone {
+		m = typecheck.NodNil()
+	}
+
+	// Map initialization with a variable or large hint is
+	// more complicated. We therefore generate a call to
+	// runtime.makemap to initialize hmap and allocate the
+	// map buckets.
+
+	// When hint fits into int, use makemap instead of
+	// makemap64, which is faster and shorter on 32 bit platforms.
+	fnname := "makemap64"
+	argtype := types.Types[types.TINT64]
+
+	// Type checking guarantees that TIDEAL hint is positive and fits in an int.
+	// See checkmake call in TMAP case of OMAKE case in OpSwitch in typecheck1 function.
+	// The case of hint overflow when converting TUINT or TUINTPTR to TINT
+	// will be handled by the negative range checks in makemap during runtime.
+	if hint.Type().IsKind(types.TIDEAL) || hint.Type().Size() <= types.Types[types.TUINT].Size() {
+		fnname = "makemap"
+		argtype = types.Types[types.TINT]
+	}
+
+	fn := typecheck.LookupRuntime(fnname, mapType, t.Key(), t.Elem())
+	return mkcall1(fn, n.Type(), init, reflectdata.MakeMapRType(base.Pos, n), typecheck.Conv(hint, argtype), m)
+}
+
+func walkMakeOldMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+	t := n.Type()
+	hmapType := reflectdata.OldMapType()
 	hint := n.Len
 
 	// var h *hmap
@@ -321,7 +448,7 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		// Maximum key and elem size is 128 bytes, larger objects
 		// are stored with an indirection. So max bucket size is 2048+eps.
 		if !ir.IsConst(hint, constant.Int) ||
-			constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(reflectdata.BUCKETSIZE)) {
+			constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.OldMapBucketCount)) {
 
 			// In case hint is larger than BUCKETSIZE runtime.makemap
 			// will allocate the buckets on the heap, see #20184
@@ -332,12 +459,12 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 			//     h.buckets = b
 			// }
 
-			nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLE, hint, ir.NewInt(base.Pos, reflectdata.BUCKETSIZE)), nil, nil)
+			nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLE, hint, ir.NewInt(base.Pos, abi.OldMapBucketCount)), nil, nil)
 			nif.Likely = true
 
 			// var bv bmap
 			// b = &bv
-			b := stackTempAddr(&nif.Body, reflectdata.MapBucketType(t))
+			b := stackTempAddr(&nif.Body, reflectdata.OldMapBucketType(t))
 
 			// h.buckets = b
 			bsym := hmapType.Field(5).Sym // hmap.buckets see reflect.go:hmap
@@ -347,7 +474,7 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		}
 	}
 
-	if ir.IsConst(hint, constant.Int) && constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(reflectdata.BUCKETSIZE)) {
+	if ir.IsConst(hint, constant.Int) && constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.OldMapBucketCount)) {
 		// Handling make(map[any]any) and
 		// make(map[any]any, hint) where hint <= BUCKETSIZE
 		// special allows for faster map initialization and
@@ -358,13 +485,13 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		if n.Esc() == ir.EscNone {
 			// Only need to initialize h.hash0 since
 			// hmap h has been allocated on the stack already.
-			// h.hash0 = fastrand()
-			rand := mkcall("fastrand", types.Types[types.TUINT32], init)
+			// h.hash0 = rand32()
+			rand := mkcall("rand32", types.Types[types.TUINT32], init)
 			hashsym := hmapType.Field(4).Sym // hmap.hash0 see reflect.go:hmap
 			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, h, hashsym), rand))
 			return typecheck.ConvNop(h, t)
 		}
-		// Call runtime.makehmap to allocate an
+		// Call runtime.makemap_small to allocate an
 		// hmap on the heap and initialize hmap's hash0 field.
 		fn := typecheck.LookupRuntime("makemap_small", t.Key(), t.Elem())
 		return mkcall1(fn, n.Type(), init)
@@ -398,54 +525,109 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 
 // walkMakeSlice walks an OMAKESLICE node.
 func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
-	l := n.Len
-	r := n.Cap
-	if r == nil {
-		r = safeExpr(l, init)
-		l = r
+	len := n.Len
+	cap := n.Cap
+	len = safeExpr(len, init)
+	if cap != nil {
+		cap = safeExpr(cap, init)
+	} else {
+		cap = len
 	}
 	t := n.Type()
 	if t.Elem().NotInHeap() {
 		base.Errorf("%v can't be allocated in Go; it is incomplete (or unallocatable)", t.Elem())
 	}
+
+	tryStack := false
 	if n.Esc() == ir.EscNone {
 		if why := escape.HeapAllocReason(n); why != "" {
 			base.Fatalf("%v has EscNone, but %v", n, why)
 		}
-		// var arr [r]T
-		// n = arr[:l]
-		i := typecheck.IndexConst(r)
-		if i < 0 {
-			base.Fatalf("walkExpr: invalid index %v", r)
+		if ir.IsSmallIntConst(cap) {
+			// Constant backing array - allocate it and slice it.
+			cap := typecheck.IndexConst(cap)
+			// Note that len might not be constant. If it isn't, check for panics.
+			// cap is constrained to [0,2^31) or [0,2^63) depending on whether
+			// we're in 32-bit or 64-bit systems. So it's safe to do:
+			//
+			// if uint64(len) > cap {
+			//     if len < 0 { panicmakeslicelen() }
+			//     panicmakeslicecap()
+			// }
+			nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OGT, typecheck.Conv(len, types.Types[types.TUINT64]), ir.NewInt(base.Pos, cap)), nil, nil)
+			niflen := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLT, len, ir.NewInt(base.Pos, 0)), nil, nil)
+			niflen.Body = []ir.Node{mkcall("panicmakeslicelen", nil, init)}
+			nif.Body.Append(niflen, mkcall("panicmakeslicecap", nil, init))
+			init.Append(typecheck.Stmt(nif))
+
+			// var arr [cap]E
+			// s = arr[:len]
+			t := types.NewArray(t.Elem(), cap) // [cap]E
+			arr := typecheck.TempAt(base.Pos, ir.CurFunc, t)
+			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, arr, nil))    // zero temp
+			s := ir.NewSliceExpr(base.Pos, ir.OSLICE, arr, nil, len, nil) // arr[:len]
+			// The conv is necessary in case n.Type is named.
+			return walkExpr(typecheck.Expr(typecheck.Conv(s, n.Type())), init)
 		}
-
-		// cap is constrained to [0,2^31) or [0,2^63) depending on whether
-		// we're in 32-bit or 64-bit systems. So it's safe to do:
-		//
-		// if uint64(len) > cap {
-		//     if len < 0 { panicmakeslicelen() }
-		//     panicmakeslicecap()
-		// }
-		nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OGT, typecheck.Conv(l, types.Types[types.TUINT64]), ir.NewInt(base.Pos, i)), nil, nil)
-		niflen := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLT, l, ir.NewInt(base.Pos, 0)), nil, nil)
-		niflen.Body = []ir.Node{mkcall("panicmakeslicelen", nil, init)}
-		nif.Body.Append(niflen, mkcall("panicmakeslicecap", nil, init))
-		init.Append(typecheck.Stmt(nif))
-
-		t = types.NewArray(t.Elem(), i) // [r]T
-		var_ := typecheck.TempAt(base.Pos, ir.CurFunc, t)
-		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, nil))  // zero temp
-		r := ir.NewSliceExpr(base.Pos, ir.OSLICE, var_, nil, l, nil) // arr[:l]
-		// The conv is necessary in case n.Type is named.
-		return walkExpr(typecheck.Expr(typecheck.Conv(r, n.Type())), init)
+		// Check that this optimization is enabled in general and for this node.
+		tryStack = base.Flag.N == 0 && base.VariableMakeHash.MatchPos(n.Pos(), nil)
 	}
 
-	// n escapes; set up a call to makeslice.
+	// The final result is assigned to this variable.
+	slice := typecheck.TempAt(base.Pos, ir.CurFunc, n.Type()) // []E result (possibly named)
+
+	if tryStack {
+		// K := maxStackSize/sizeof(E)
+		// if cap <= K {
+		//     var arr [K]E
+		//     slice = arr[:len:cap]
+		// } else {
+		//     slice = makeslice(elemType, len, cap)
+		// }
+		maxStackSize := int64(base.Debug.VariableMakeThreshold)
+		K := maxStackSize / t.Elem().Size() // rounds down
+		if K > 0 {                          // skip if elem size is too big.
+			nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLE, typecheck.Conv(cap, types.Types[types.TUINT64]), ir.NewInt(base.Pos, K)), nil, nil)
+
+			// cap is in bounds after the K check, but len might not be.
+			// (Note that the slicing below would generate a panic for
+			// the same bad cases, but we want makeslice panics, not
+			// regular slicing panics.)
+			lenCap := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OGT, typecheck.Conv(len, types.Types[types.TUINT64]), typecheck.Conv(cap, types.Types[types.TUINT64])), nil, nil)
+			lenZero := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLT, len, ir.NewInt(base.Pos, 0)), nil, nil)
+			lenZero.Body.Append(mkcall("panicmakeslicelen", nil, &lenZero.Body))
+			lenCap.Body.Append(lenZero)
+			lenCap.Body.Append(mkcall("panicmakeslicecap", nil, &lenCap.Body))
+			nif.Body.Append(lenCap)
+
+			t := types.NewArray(t.Elem(), K) // [K]E
+			// Wrap in a struct containing a [0]uintptr field to force
+			// pointer alignment. Some user code expects higher alignment
+			// than what is guaranteed by the element type, because that's
+			// the behavior they observed of mallocgc, and then relied upon.
+			// See issue 73199.
+			field := typecheck.Lookup("arr")
+			t = types.NewStruct([]*types.Field{
+				{Sym: types.BlankSym, Type: types.NewArray(types.Types[types.TUINTPTR], 0)},
+				{Sym: field, Type: t},
+			})
+			t.SetNoalg(true)
+			store := typecheck.TempAt(base.Pos, ir.CurFunc, t)            // var store struct{_ uintptr[0]; arr [K]E}
+			nif.Body.Append(ir.NewAssignStmt(base.Pos, store, nil))       // store = {} (zero it)
+			arr := ir.NewSelectorExpr(base.Pos, ir.ODOT, store, field)    // arr = store.arr
+			s := ir.NewSliceExpr(base.Pos, ir.OSLICE, arr, nil, len, cap) // store.arr[:len:cap]
+			nif.Body.Append(ir.NewAssignStmt(base.Pos, slice, s))         // slice = store.arr[:len:cap]
+
+			appendWalkStmt(init, typecheck.Stmt(nif))
+
+			// Put makeslice call below in the else branch.
+			init = &nif.Else
+		}
+	}
+
+	// Set up a call to makeslice.
 	// When len and cap can fit into int, use makeslice instead of
 	// makeslice64, which is faster and shorter on 32 bit platforms.
-
-	len, cap := l, r
-
 	fnname := "makeslice64"
 	argtype := types.Types[types.TINT64]
 
@@ -462,8 +644,10 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	ptr.MarkNonNil()
 	len = typecheck.Conv(len, types.Types[types.TINT])
 	cap = typecheck.Conv(cap, types.Types[types.TINT])
-	sh := ir.NewSliceHeaderExpr(base.Pos, t, ptr, len, cap)
-	return walkExpr(typecheck.Expr(sh), init)
+	s := ir.NewSliceHeaderExpr(base.Pos, t, ptr, len, cap)
+	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, slice, s))
+
+	return slice
 }
 
 // walkMakeSliceCopy walks an OMAKESLICECOPY node.
@@ -546,7 +730,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 	walkExprListCheap(nn.Args, init)
 
 	// For println, add " " between elements and "\n" at the end.
-	if nn.Op() == ir.OPRINTN {
+	if nn.Op() == ir.OPRINTLN {
 		s := nn.Args
 		t := make([]ir.Node, 0, len(s)*2)
 		for i, n := range s {
@@ -748,11 +932,23 @@ func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 			return walkExpr(typecheck.Expr(h), init)
 		}
 
-		// mem, overflow := runtime.mulUintptr(et.size, len)
+		// mem, overflow := math.mulUintptr(et.size, len)
 		mem := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUINTPTR])
 		overflow := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
-		fn := typecheck.LookupRuntime("mulUintptr")
-		call := mkcall1(fn, fn.Type().ResultsTuple(), init, ir.NewInt(base.Pos, sliceType.Elem().Size()), typecheck.Conv(typecheck.Conv(len, lenType), types.Types[types.TUINTPTR]))
+
+		decl := types.NewSignature(nil,
+			[]*types.Field{
+				types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+				types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+			},
+			[]*types.Field{
+				types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
+				types.NewField(base.Pos, nil, types.Types[types.TBOOL]),
+			})
+
+		fn := ir.NewFunc(n.Pos(), n.Pos(), math_MulUintptr, decl)
+
+		call := mkcall1(fn.Nname, fn.Type().ResultsTuple(), init, ir.NewInt(base.Pos, sliceType.Elem().Size()), typecheck.Conv(typecheck.Conv(len, lenType), types.Types[types.TUINTPTR]))
 		appendWalkStmt(init, ir.NewAssignListStmt(base.Pos, ir.OAS2, []ir.Node{mem, overflow}, []ir.Node{call}))
 
 		// if overflow || mem > -uintptr(ptr) {
@@ -777,6 +973,8 @@ func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		typecheck.Conv(len, types.Types[types.TINT]))
 	return walkExpr(typecheck.Expr(h), init)
 }
+
+var math_MulUintptr = &types.Sym{Pkg: types.NewPkg("internal/runtime/math", "math"), Name: "MulUintptr"}
 
 func walkUnsafeString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	ptr := safeExpr(n.X, init)
@@ -871,4 +1069,11 @@ func isRuneCount(n ir.Node) bool {
 func isByteCount(n ir.Node) bool {
 	return base.Flag.N == 0 && !base.Flag.Cfg.Instrumenting && n.Op() == ir.OLEN &&
 		(n.(*ir.UnaryExpr).X.Op() == ir.OBYTES2STR || n.(*ir.UnaryExpr).X.Op() == ir.OBYTES2STRTMP)
+}
+
+// isChanLenCap reports whether n is of the form len(c) or cap(c) for a channel c.
+// Note that this does not check for -n or instrumenting because this
+// is a correctness rewrite, not an optimization.
+func isChanLenCap(n ir.Node) bool {
+	return (n.Op() == ir.OLEN || n.Op() == ir.OCAP) && n.(*ir.UnaryExpr).X.Type().IsChan()
 }

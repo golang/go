@@ -48,7 +48,7 @@ func equalNaN[T comparable](v1, v2 T) bool {
 	return v1 == v2 || (isNaN(v1) && isNaN(v2))
 }
 
-// equalStr compares ints and strings.
+// equalIntStr compares ints and strings.
 func equalIntStr(v1 int, v2 string) bool {
 	return strconv.Itoa(v1) == v2
 }
@@ -179,6 +179,64 @@ func TestCloneWithMapAssign(t *testing.T) {
 	for i := 0; i < N; i++ {
 		if m2[i] != m[i] {
 			t.Errorf("m2[%d] = %d, want %d", i, m2[i], m[i])
+		}
+	}
+}
+
+func TestCloneLarge(t *testing.T) {
+	// See issue 64474.
+	type K [17]float64 // > 128 bytes
+	type V [17]float64
+
+	var zero float64
+	negZero := -zero
+
+	for tst := 0; tst < 3; tst++ {
+		// Initialize m with a key and value.
+		m := map[K]V{}
+		var k1 K
+		var v1 V
+		m[k1] = v1
+
+		switch tst {
+		case 0: // nothing, just a 1-entry map
+		case 1:
+			// Add more entries to make it 2 buckets
+			// 1 entry already
+			// 7 more fill up 1 bucket
+			// 1 more to grow to 2 buckets
+			for i := 0; i < 7+1; i++ {
+				m[K{float64(i) + 1}] = V{}
+			}
+		case 2:
+			// Capture the map mid-grow
+			// 1 entry already
+			// 7 more fill up 1 bucket
+			// 5 more (13 total) fill up 2 buckets
+			// 13 more (26 total) fill up 4 buckets
+			// 1 more to start the 4->8 bucket grow
+			for i := 0; i < 7+5+13+1; i++ {
+				m[K{float64(i) + 1}] = V{}
+			}
+		}
+
+		// Clone m, which should freeze the map's contents.
+		c := Clone(m)
+
+		// Update m with new key and value.
+		k2, v2 := k1, v1
+		k2[0] = negZero
+		v2[0] = 1.0
+		m[k2] = v2
+
+		// Make sure c still has its old key and value.
+		for k, v := range c {
+			if math.Signbit(k[0]) {
+				t.Errorf("tst%d: sign bit of key changed; got %v want %v", tst, k, k1)
+			}
+			if v != v1 {
+				t.Errorf("tst%d: value changed; got %v want %v", tst, v, v1)
+			}
 		}
 	}
 }

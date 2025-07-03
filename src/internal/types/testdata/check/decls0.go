@@ -43,7 +43,7 @@ type init /* ERROR "cannot declare init" */ struct{}
 var _, init /* ERROR "cannot declare init" */ int
 
 func init() {}
-func init /* ERROR "missing function body" */ ()
+func init /* ERROR "func init must have a body" */ ()
 
 func _() { const init = 0 }
 func _() { type init int }
@@ -137,7 +137,7 @@ type (
 	}
 	I3 interface {
 		m1()
-		m1 /* ERROR "duplicate method" */ ()
+		m1 /* ERROR "duplicate method m1" */ ()
 	}
 	I4 interface {
 		m1(x, y, x /* ERROR "redeclared" */ float32)

@@ -1,7 +1,6 @@
 // errorcheckdir -0 -m
 
 //go:build !goexperiment.newinliner
-// +build !goexperiment.newinliner
 
 // Copyright 2020 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

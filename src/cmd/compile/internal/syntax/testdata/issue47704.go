@@ -7,7 +7,7 @@ package p
 func _() {
 	_ = m[] // ERROR expected operand
 	_ = m[x,]
-	_ = m[x /* ERROR unexpected a */ a b c d]
+	_ = m[x /* ERROR unexpected name a */ a b c d]
 }
 
 // test case from the issue

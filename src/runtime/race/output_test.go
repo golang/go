@@ -208,8 +208,8 @@ func TestFail(t *testing.T) {
 `, []string{`
 ==================
 --- FAIL: TestFail \([0-9.]+s\)
-.*main_test.go:14: true
 .*testing.go:.*: race detected during execution of test
+.*main_test.go:14: true
 FAIL`}},
 
 	{"slicebytetostring_pc", "run", "", "atexit_sleep_ms=0", `
@@ -476,5 +476,59 @@ Previous write at 0x[0-9,a-f]+ by main goroutine:
   main\.main\(\)
       .*/main.go:10 \+0x[0-9,a-f]+
 
+`}},
+	{"non_inline_array_compare", "run", "", "atexit_sleep_ms=0", `
+package main
+
+import (
+	"math/rand/v2"
+)
+
+var x = [1024]byte{}
+
+var ch = make(chan bool)
+
+func main() {
+	started := make(chan struct{})
+	go func() {
+		close(started)
+		var y = [len(x)]byte{}
+		eq := x == y
+		ch <- eq
+	}()
+	<-started
+	x[rand.IntN(len(x))]++
+	println(<-ch)
+}
+`, []string{`==================
+WARNING: DATA RACE
+`}},
+	{"non_inline_struct_compare", "run", "", "atexit_sleep_ms=0", `
+package main
+
+import "math/rand/v2"
+
+type S struct {
+	a [1024]byte
+}
+
+var x = S{a: [1024]byte{}}
+
+var ch = make(chan bool)
+
+func main() {
+	started := make(chan struct{})
+	go func() {
+		close(started)
+		var y = S{a: [len(x.a)]byte{}}
+		eq := x == y
+		ch <- eq
+	}()
+	<-started
+	x.a[rand.IntN(len(x.a))]++
+	println(<-ch)
+}
+`, []string{`==================
+WARNING: DATA RACE
 `}},
 }

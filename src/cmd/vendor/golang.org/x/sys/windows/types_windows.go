@@ -176,6 +176,7 @@ const (
 	WAIT_FAILED    = 0xFFFFFFFF
 
 	// Access rights for process.
+	PROCESS_ALL_ACCESS                = 0xFFFF
 	PROCESS_CREATE_PROCESS            = 0x0080
 	PROCESS_CREATE_THREAD             = 0x0002
 	PROCESS_DUP_HANDLE                = 0x0040
@@ -247,6 +248,7 @@ const (
 	PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY = 0x00020007
 	PROC_THREAD_ATTRIBUTE_UMS_THREAD        = 0x00030006
 	PROC_THREAD_ATTRIBUTE_PROTECTION_LEVEL  = 0x0002000b
+	PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE     = 0x00020016
 )
 
 const (
@@ -1059,6 +1061,7 @@ const (
 	SIO_GET_EXTENSION_FUNCTION_POINTER = IOC_INOUT | IOC_WS2 | 6
 	SIO_KEEPALIVE_VALS                 = IOC_IN | IOC_VENDOR | 4
 	SIO_UDP_CONNRESET                  = IOC_IN | IOC_VENDOR | 12
+	SIO_UDP_NETRESET                   = IOC_IN | IOC_VENDOR | 15
 
 	// cf. http://support.microsoft.com/default.aspx?scid=kb;en-us;257460
 
@@ -1071,6 +1074,7 @@ const (
 	IP_ADD_MEMBERSHIP  = 0xc
 	IP_DROP_MEMBERSHIP = 0xd
 	IP_PKTINFO         = 0x13
+	IP_MTU_DISCOVER    = 0x47
 
 	IPV6_V6ONLY         = 0x1b
 	IPV6_UNICAST_HOPS   = 0x4
@@ -1080,6 +1084,7 @@ const (
 	IPV6_JOIN_GROUP     = 0xc
 	IPV6_LEAVE_GROUP    = 0xd
 	IPV6_PKTINFO        = 0x13
+	IPV6_MTU_DISCOVER   = 0x47
 
 	MSG_OOB       = 0x1
 	MSG_PEEK      = 0x2
@@ -1093,7 +1098,33 @@ const (
 
 	SOMAXCONN = 0x7fffffff
 
-	TCP_NODELAY = 1
+	TCP_NODELAY                    = 1
+	TCP_EXPEDITED_1122             = 2
+	TCP_KEEPALIVE                  = 3
+	TCP_MAXSEG                     = 4
+	TCP_MAXRT                      = 5
+	TCP_STDURG                     = 6
+	TCP_NOURG                      = 7
+	TCP_ATMARK                     = 8
+	TCP_NOSYNRETRIES               = 9
+	TCP_TIMESTAMPS                 = 10
+	TCP_OFFLOAD_PREFERENCE         = 11
+	TCP_CONGESTION_ALGORITHM       = 12
+	TCP_DELAY_FIN_ACK              = 13
+	TCP_MAXRTMS                    = 14
+	TCP_FASTOPEN                   = 15
+	TCP_KEEPCNT                    = 16
+	TCP_KEEPIDLE                   = TCP_KEEPALIVE
+	TCP_KEEPINTVL                  = 17
+	TCP_FAIL_CONNECT_ON_ICMP_ERROR = 18
+	TCP_ICMP_ERROR_INFO            = 19
+
+	UDP_NOCHECKSUM              = 1
+	UDP_SEND_MSG_SIZE           = 2
+	UDP_RECV_MAX_COALESCED_SIZE = 3
+	UDP_CHECKSUM_COVERAGE       = 20
+
+	UDP_COALESCED_INFO = 3
 
 	SHUT_RD   = 0
 	SHUT_WR   = 1
@@ -1101,6 +1132,15 @@ const (
 
 	WSADESCRIPTION_LEN = 256
 	WSASYS_STATUS_LEN  = 128
+)
+
+// enum PMTUD_STATE from ws2ipdef.h
+const (
+	IP_PMTUDISC_NOT_SET = 0
+	IP_PMTUDISC_DO      = 1
+	IP_PMTUDISC_DONT    = 2
+	IP_PMTUDISC_PROBE   = 3
+	IP_PMTUDISC_MAX     = 4
 )
 
 type WSABuf struct {
@@ -1115,6 +1155,22 @@ type WSAMsg struct {
 	BufferCount uint32
 	Control     WSABuf
 	Flags       uint32
+}
+
+type WSACMSGHDR struct {
+	Len   uintptr
+	Level int32
+	Type  int32
+}
+
+type IN_PKTINFO struct {
+	Addr    [4]byte
+	Ifindex uint32
+}
+
+type IN6_PKTINFO struct {
+	Addr    [16]byte
+	Ifindex uint32
 }
 
 // Flags for WSASocket
@@ -1976,7 +2032,21 @@ const (
 	MOVEFILE_FAIL_IF_NOT_TRACKABLE = 0x20
 )
 
-const GAA_FLAG_INCLUDE_PREFIX = 0x00000010
+// Flags for GetAdaptersAddresses, see
+// https://learn.microsoft.com/en-us/windows/win32/api/iphlpapi/nf-iphlpapi-getadaptersaddresses.
+const (
+	GAA_FLAG_SKIP_UNICAST                = 0x1
+	GAA_FLAG_SKIP_ANYCAST                = 0x2
+	GAA_FLAG_SKIP_MULTICAST              = 0x4
+	GAA_FLAG_SKIP_DNS_SERVER             = 0x8
+	GAA_FLAG_INCLUDE_PREFIX              = 0x10
+	GAA_FLAG_SKIP_FRIENDLY_NAME          = 0x20
+	GAA_FLAG_INCLUDE_WINS_INFO           = 0x40
+	GAA_FLAG_INCLUDE_GATEWAYS            = 0x80
+	GAA_FLAG_INCLUDE_ALL_INTERFACES      = 0x100
+	GAA_FLAG_INCLUDE_ALL_COMPARTMENTS    = 0x200
+	GAA_FLAG_INCLUDE_TUNNEL_BINDINGORDER = 0x400
+)
 
 const (
 	IF_TYPE_OTHER              = 1
@@ -1988,6 +2058,50 @@ const (
 	IF_TYPE_IEEE80211          = 71
 	IF_TYPE_TUNNEL             = 131
 	IF_TYPE_IEEE1394           = 144
+)
+
+// Enum NL_PREFIX_ORIGIN for [IpAdapterUnicastAddress], see
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_prefix_origin
+const (
+	IpPrefixOriginOther               = 0
+	IpPrefixOriginManual              = 1
+	IpPrefixOriginWellKnown           = 2
+	IpPrefixOriginDhcp                = 3
+	IpPrefixOriginRouterAdvertisement = 4
+	IpPrefixOriginUnchanged           = 1 << 4
+)
+
+// Enum NL_SUFFIX_ORIGIN for [IpAdapterUnicastAddress], see
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_suffix_origin
+const (
+	NlsoOther                      = 0
+	NlsoManual                     = 1
+	NlsoWellKnown                  = 2
+	NlsoDhcp                       = 3
+	NlsoLinkLayerAddress           = 4
+	NlsoRandom                     = 5
+	IpSuffixOriginOther            = 0
+	IpSuffixOriginManual           = 1
+	IpSuffixOriginWellKnown        = 2
+	IpSuffixOriginDhcp             = 3
+	IpSuffixOriginLinkLayerAddress = 4
+	IpSuffixOriginRandom           = 5
+	IpSuffixOriginUnchanged        = 1 << 4
+)
+
+// Enum NL_DAD_STATE for [IpAdapterUnicastAddress], see
+// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_dad_state
+const (
+	NldsInvalid          = 0
+	NldsTentative        = 1
+	NldsDuplicate        = 2
+	NldsDeprecated       = 3
+	NldsPreferred        = 4
+	IpDadStateInvalid    = 0
+	IpDadStateTentative  = 1
+	IpDadStateDuplicate  = 2
+	IpDadStateDeprecated = 3
+	IpDadStatePreferred  = 4
 )
 
 type SocketAddress struct {
@@ -2117,6 +2231,132 @@ const (
 	IfOperStatusLowerLayerDown = 7
 )
 
+const (
+	IF_MAX_PHYS_ADDRESS_LENGTH = 32
+	IF_MAX_STRING_SIZE         = 256
+)
+
+// MIB_IF_ENTRY_LEVEL enumeration from netioapi.h or
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/nf-netioapi-getifentry2ex.
+const (
+	MibIfEntryNormal                  = 0
+	MibIfEntryNormalWithoutStatistics = 2
+)
+
+// MIB_NOTIFICATION_TYPE enumeration from netioapi.h or
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ne-netioapi-mib_notification_type.
+const (
+	MibParameterNotification = 0
+	MibAddInstance           = 1
+	MibDeleteInstance        = 2
+	MibInitialNotification   = 3
+)
+
+// MibIfRow2 stores information about a particular interface. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_if_row2.
+type MibIfRow2 struct {
+	InterfaceLuid               uint64
+	InterfaceIndex              uint32
+	InterfaceGuid               GUID
+	Alias                       [IF_MAX_STRING_SIZE + 1]uint16
+	Description                 [IF_MAX_STRING_SIZE + 1]uint16
+	PhysicalAddressLength       uint32
+	PhysicalAddress             [IF_MAX_PHYS_ADDRESS_LENGTH]uint8
+	PermanentPhysicalAddress    [IF_MAX_PHYS_ADDRESS_LENGTH]uint8
+	Mtu                         uint32
+	Type                        uint32
+	TunnelType                  uint32
+	MediaType                   uint32
+	PhysicalMediumType          uint32
+	AccessType                  uint32
+	DirectionType               uint32
+	InterfaceAndOperStatusFlags uint8
+	OperStatus                  uint32
+	AdminStatus                 uint32
+	MediaConnectState           uint32
+	NetworkGuid                 GUID
+	ConnectionType              uint32
+	TransmitLinkSpeed           uint64
+	ReceiveLinkSpeed            uint64
+	InOctets                    uint64
+	InUcastPkts                 uint64
+	InNUcastPkts                uint64
+	InDiscards                  uint64
+	InErrors                    uint64
+	InUnknownProtos             uint64
+	InUcastOctets               uint64
+	InMulticastOctets           uint64
+	InBroadcastOctets           uint64
+	OutOctets                   uint64
+	OutUcastPkts                uint64
+	OutNUcastPkts               uint64
+	OutDiscards                 uint64
+	OutErrors                   uint64
+	OutUcastOctets              uint64
+	OutMulticastOctets          uint64
+	OutBroadcastOctets          uint64
+	OutQLen                     uint64
+}
+
+// MIB_UNICASTIPADDRESS_ROW stores information about a unicast IP address. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_unicastipaddress_row.
+type MibUnicastIpAddressRow struct {
+	Address            RawSockaddrInet6 // SOCKADDR_INET union
+	InterfaceLuid      uint64
+	InterfaceIndex     uint32
+	PrefixOrigin       uint32
+	SuffixOrigin       uint32
+	ValidLifetime      uint32
+	PreferredLifetime  uint32
+	OnLinkPrefixLength uint8
+	SkipAsSource       uint8
+	DadState           uint32
+	ScopeId            uint32
+	CreationTimeStamp  Filetime
+}
+
+const ScopeLevelCount = 16
+
+// MIB_IPINTERFACE_ROW stores interface management information for a particular IP address family on a network interface.
+// See https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_ipinterface_row.
+type MibIpInterfaceRow struct {
+	Family                               uint16
+	InterfaceLuid                        uint64
+	InterfaceIndex                       uint32
+	MaxReassemblySize                    uint32
+	InterfaceIdentifier                  uint64
+	MinRouterAdvertisementInterval       uint32
+	MaxRouterAdvertisementInterval       uint32
+	AdvertisingEnabled                   uint8
+	ForwardingEnabled                    uint8
+	WeakHostSend                         uint8
+	WeakHostReceive                      uint8
+	UseAutomaticMetric                   uint8
+	UseNeighborUnreachabilityDetection   uint8
+	ManagedAddressConfigurationSupported uint8
+	OtherStatefulConfigurationSupported  uint8
+	AdvertiseDefaultRoute                uint8
+	RouterDiscoveryBehavior              uint32
+	DadTransmits                         uint32
+	BaseReachableTime                    uint32
+	RetransmitTime                       uint32
+	PathMtuDiscoveryTimeout              uint32
+	LinkLocalAddressBehavior             uint32
+	LinkLocalAddressTimeout              uint32
+	ZoneIndices                          [ScopeLevelCount]uint32
+	SitePrefixLength                     uint32
+	Metric                               uint32
+	NlMtu                                uint32
+	Connected                            uint8
+	SupportsWakeUpPatterns               uint8
+	SupportsNeighborDiscovery            uint8
+	SupportsRouterDiscovery              uint8
+	ReachableTime                        uint32
+	TransmitOffload                      uint32
+	ReceiveOffload                       uint32
+	DisableDefaultRoutes                 uint8
+}
+
 // Console related constants used for the mode parameter to SetConsoleMode. See
 // https://docs.microsoft.com/en-us/windows/console/setconsolemode for details.
 
@@ -2137,6 +2377,12 @@ const (
 	ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x4
 	DISABLE_NEWLINE_AUTO_RETURN        = 0x8
 	ENABLE_LVB_GRID_WORLDWIDE          = 0x10
+)
+
+// Pseudo console related constants used for the flags parameter to
+// CreatePseudoConsole. See: https://learn.microsoft.com/en-us/windows/console/createpseudoconsole
+const (
+	PSEUDOCONSOLE_INHERIT_CURSOR = 0x1
 )
 
 type Coord struct {
@@ -2454,6 +2700,8 @@ type CommTimeouts struct {
 
 // NTUnicodeString is a UTF-16 string for NT native APIs, corresponding to UNICODE_STRING.
 type NTUnicodeString struct {
+	// Note: Length and MaximumLength are in *bytes*, not uint16s.
+	// They should always be even.
 	Length        uint16
 	MaximumLength uint16
 	Buffer        *uint16
@@ -3347,3 +3595,248 @@ type BLOB struct {
 	Size     uint32
 	BlobData *byte
 }
+
+type ComStat struct {
+	Flags    uint32
+	CBInQue  uint32
+	CBOutQue uint32
+}
+
+type DCB struct {
+	DCBlength  uint32
+	BaudRate   uint32
+	Flags      uint32
+	wReserved  uint16
+	XonLim     uint16
+	XoffLim    uint16
+	ByteSize   uint8
+	Parity     uint8
+	StopBits   uint8
+	XonChar    byte
+	XoffChar   byte
+	ErrorChar  byte
+	EofChar    byte
+	EvtChar    byte
+	wReserved1 uint16
+}
+
+// Keyboard Layout Flags.
+// See https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-loadkeyboardlayoutw
+const (
+	KLF_ACTIVATE      = 0x00000001
+	KLF_SUBSTITUTE_OK = 0x00000002
+	KLF_REORDER       = 0x00000008
+	KLF_REPLACELANG   = 0x00000010
+	KLF_NOTELLSHELL   = 0x00000080
+	KLF_SETFORPROCESS = 0x00000100
+)
+
+// Virtual Key codes
+// https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
+const (
+	VK_LBUTTON             = 0x01
+	VK_RBUTTON             = 0x02
+	VK_CANCEL              = 0x03
+	VK_MBUTTON             = 0x04
+	VK_XBUTTON1            = 0x05
+	VK_XBUTTON2            = 0x06
+	VK_BACK                = 0x08
+	VK_TAB                 = 0x09
+	VK_CLEAR               = 0x0C
+	VK_RETURN              = 0x0D
+	VK_SHIFT               = 0x10
+	VK_CONTROL             = 0x11
+	VK_MENU                = 0x12
+	VK_PAUSE               = 0x13
+	VK_CAPITAL             = 0x14
+	VK_KANA                = 0x15
+	VK_HANGEUL             = 0x15
+	VK_HANGUL              = 0x15
+	VK_IME_ON              = 0x16
+	VK_JUNJA               = 0x17
+	VK_FINAL               = 0x18
+	VK_HANJA               = 0x19
+	VK_KANJI               = 0x19
+	VK_IME_OFF             = 0x1A
+	VK_ESCAPE              = 0x1B
+	VK_CONVERT             = 0x1C
+	VK_NONCONVERT          = 0x1D
+	VK_ACCEPT              = 0x1E
+	VK_MODECHANGE          = 0x1F
+	VK_SPACE               = 0x20
+	VK_PRIOR               = 0x21
+	VK_NEXT                = 0x22
+	VK_END                 = 0x23
+	VK_HOME                = 0x24
+	VK_LEFT                = 0x25
+	VK_UP                  = 0x26
+	VK_RIGHT               = 0x27
+	VK_DOWN                = 0x28
+	VK_SELECT              = 0x29
+	VK_PRINT               = 0x2A
+	VK_EXECUTE             = 0x2B
+	VK_SNAPSHOT            = 0x2C
+	VK_INSERT              = 0x2D
+	VK_DELETE              = 0x2E
+	VK_HELP                = 0x2F
+	VK_LWIN                = 0x5B
+	VK_RWIN                = 0x5C
+	VK_APPS                = 0x5D
+	VK_SLEEP               = 0x5F
+	VK_NUMPAD0             = 0x60
+	VK_NUMPAD1             = 0x61
+	VK_NUMPAD2             = 0x62
+	VK_NUMPAD3             = 0x63
+	VK_NUMPAD4             = 0x64
+	VK_NUMPAD5             = 0x65
+	VK_NUMPAD6             = 0x66
+	VK_NUMPAD7             = 0x67
+	VK_NUMPAD8             = 0x68
+	VK_NUMPAD9             = 0x69
+	VK_MULTIPLY            = 0x6A
+	VK_ADD                 = 0x6B
+	VK_SEPARATOR           = 0x6C
+	VK_SUBTRACT            = 0x6D
+	VK_DECIMAL             = 0x6E
+	VK_DIVIDE              = 0x6F
+	VK_F1                  = 0x70
+	VK_F2                  = 0x71
+	VK_F3                  = 0x72
+	VK_F4                  = 0x73
+	VK_F5                  = 0x74
+	VK_F6                  = 0x75
+	VK_F7                  = 0x76
+	VK_F8                  = 0x77
+	VK_F9                  = 0x78
+	VK_F10                 = 0x79
+	VK_F11                 = 0x7A
+	VK_F12                 = 0x7B
+	VK_F13                 = 0x7C
+	VK_F14                 = 0x7D
+	VK_F15                 = 0x7E
+	VK_F16                 = 0x7F
+	VK_F17                 = 0x80
+	VK_F18                 = 0x81
+	VK_F19                 = 0x82
+	VK_F20                 = 0x83
+	VK_F21                 = 0x84
+	VK_F22                 = 0x85
+	VK_F23                 = 0x86
+	VK_F24                 = 0x87
+	VK_NUMLOCK             = 0x90
+	VK_SCROLL              = 0x91
+	VK_OEM_NEC_EQUAL       = 0x92
+	VK_OEM_FJ_JISHO        = 0x92
+	VK_OEM_FJ_MASSHOU      = 0x93
+	VK_OEM_FJ_TOUROKU      = 0x94
+	VK_OEM_FJ_LOYA         = 0x95
+	VK_OEM_FJ_ROYA         = 0x96
+	VK_LSHIFT              = 0xA0
+	VK_RSHIFT              = 0xA1
+	VK_LCONTROL            = 0xA2
+	VK_RCONTROL            = 0xA3
+	VK_LMENU               = 0xA4
+	VK_RMENU               = 0xA5
+	VK_BROWSER_BACK        = 0xA6
+	VK_BROWSER_FORWARD     = 0xA7
+	VK_BROWSER_REFRESH     = 0xA8
+	VK_BROWSER_STOP        = 0xA9
+	VK_BROWSER_SEARCH      = 0xAA
+	VK_BROWSER_FAVORITES   = 0xAB
+	VK_BROWSER_HOME        = 0xAC
+	VK_VOLUME_MUTE         = 0xAD
+	VK_VOLUME_DOWN         = 0xAE
+	VK_VOLUME_UP           = 0xAF
+	VK_MEDIA_NEXT_TRACK    = 0xB0
+	VK_MEDIA_PREV_TRACK    = 0xB1
+	VK_MEDIA_STOP          = 0xB2
+	VK_MEDIA_PLAY_PAUSE    = 0xB3
+	VK_LAUNCH_MAIL         = 0xB4
+	VK_LAUNCH_MEDIA_SELECT = 0xB5
+	VK_LAUNCH_APP1         = 0xB6
+	VK_LAUNCH_APP2         = 0xB7
+	VK_OEM_1               = 0xBA
+	VK_OEM_PLUS            = 0xBB
+	VK_OEM_COMMA           = 0xBC
+	VK_OEM_MINUS           = 0xBD
+	VK_OEM_PERIOD          = 0xBE
+	VK_OEM_2               = 0xBF
+	VK_OEM_3               = 0xC0
+	VK_OEM_4               = 0xDB
+	VK_OEM_5               = 0xDC
+	VK_OEM_6               = 0xDD
+	VK_OEM_7               = 0xDE
+	VK_OEM_8               = 0xDF
+	VK_OEM_AX              = 0xE1
+	VK_OEM_102             = 0xE2
+	VK_ICO_HELP            = 0xE3
+	VK_ICO_00              = 0xE4
+	VK_PROCESSKEY          = 0xE5
+	VK_ICO_CLEAR           = 0xE6
+	VK_OEM_RESET           = 0xE9
+	VK_OEM_JUMP            = 0xEA
+	VK_OEM_PA1             = 0xEB
+	VK_OEM_PA2             = 0xEC
+	VK_OEM_PA3             = 0xED
+	VK_OEM_WSCTRL          = 0xEE
+	VK_OEM_CUSEL           = 0xEF
+	VK_OEM_ATTN            = 0xF0
+	VK_OEM_FINISH          = 0xF1
+	VK_OEM_COPY            = 0xF2
+	VK_OEM_AUTO            = 0xF3
+	VK_OEM_ENLW            = 0xF4
+	VK_OEM_BACKTAB         = 0xF5
+	VK_ATTN                = 0xF6
+	VK_CRSEL               = 0xF7
+	VK_EXSEL               = 0xF8
+	VK_EREOF               = 0xF9
+	VK_PLAY                = 0xFA
+	VK_ZOOM                = 0xFB
+	VK_NONAME              = 0xFC
+	VK_PA1                 = 0xFD
+	VK_OEM_CLEAR           = 0xFE
+)
+
+// Mouse button constants.
+// https://docs.microsoft.com/en-us/windows/console/mouse-event-record-str
+const (
+	FROM_LEFT_1ST_BUTTON_PRESSED = 0x0001
+	RIGHTMOST_BUTTON_PRESSED     = 0x0002
+	FROM_LEFT_2ND_BUTTON_PRESSED = 0x0004
+	FROM_LEFT_3RD_BUTTON_PRESSED = 0x0008
+	FROM_LEFT_4TH_BUTTON_PRESSED = 0x0010
+)
+
+// Control key state constaints.
+// https://docs.microsoft.com/en-us/windows/console/key-event-record-str
+// https://docs.microsoft.com/en-us/windows/console/mouse-event-record-str
+const (
+	CAPSLOCK_ON        = 0x0080
+	ENHANCED_KEY       = 0x0100
+	LEFT_ALT_PRESSED   = 0x0002
+	LEFT_CTRL_PRESSED  = 0x0008
+	NUMLOCK_ON         = 0x0020
+	RIGHT_ALT_PRESSED  = 0x0001
+	RIGHT_CTRL_PRESSED = 0x0004
+	SCROLLLOCK_ON      = 0x0040
+	SHIFT_PRESSED      = 0x0010
+)
+
+// Mouse event record event flags.
+// https://docs.microsoft.com/en-us/windows/console/mouse-event-record-str
+const (
+	MOUSE_MOVED    = 0x0001
+	DOUBLE_CLICK   = 0x0002
+	MOUSE_WHEELED  = 0x0004
+	MOUSE_HWHEELED = 0x0008
+)
+
+// Input Record Event Types
+// https://learn.microsoft.com/en-us/windows/console/input-record-str
+const (
+	FOCUS_EVENT              = 0x0010
+	KEY_EVENT                = 0x0001
+	MENU_EVENT               = 0x0008
+	MOUSE_EVENT              = 0x0002
+	WINDOW_BUFFER_SIZE_EVENT = 0x0004
+)

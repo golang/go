@@ -10,14 +10,17 @@
 // representation includes a public key suffix to make multiple signing
 // operations with the same key more efficient. This package refers to the RFC
 // 8032 private key as the “seed”.
+//
+// Operations involving private keys are implemented using constant-time
+// algorithms.
 package ed25519
 
 import (
-	"bytes"
 	"crypto"
-	"crypto/internal/edwards25519"
+	"crypto/internal/fips140/ed25519"
+	"crypto/internal/fips140cache"
+	"crypto/internal/fips140only"
 	cryptorand "crypto/rand"
-	"crypto/sha512"
 	"crypto/subtle"
 	"errors"
 	"io"
@@ -73,8 +76,12 @@ func (priv PrivateKey) Equal(x crypto.PrivateKey) bool {
 // interoperability with RFC 8032. RFC 8032's private keys correspond to seeds
 // in this package.
 func (priv PrivateKey) Seed() []byte {
-	return bytes.Clone(priv[:SeedSize])
+	return append(make([]byte, 0, SeedSize), priv[:SeedSize]...)
 }
+
+// privateKeyCache uses a pointer to the first byte of underlying storage as a
+// key, because [PrivateKey] is a slice header passed around by value.
+var privateKeyCache fips140cache.Cache[byte, ed25519.PrivateKey]
 
 // Sign signs the given message with priv. rand is ignored and can be nil.
 //
@@ -86,6 +93,14 @@ func (priv PrivateKey) Seed() []byte {
 // A value of type [Options] can be used as opts, or crypto.Hash(0) or
 // crypto.SHA512 directly to select plain Ed25519 or Ed25519ph, respectively.
 func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
+	k, err := privateKeyCache.Get(&priv[0], func() (*ed25519.PrivateKey, error) {
+		return ed25519.NewPrivateKey(priv)
+	}, func(k *ed25519.PrivateKey) bool {
+		return subtle.ConstantTimeCompare(priv, k.Bytes()) == 1
+	})
+	if err != nil {
+		return nil, err
+	}
 	hash := opts.HashFunc()
 	context := ""
 	if opts, ok := opts.(*Options); ok {
@@ -93,24 +108,14 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 	}
 	switch {
 	case hash == crypto.SHA512: // Ed25519ph
-		if l := len(message); l != sha512.Size {
-			return nil, errors.New("ed25519: bad Ed25519ph message hash length: " + strconv.Itoa(l))
-		}
-		if l := len(context); l > 255 {
-			return nil, errors.New("ed25519: bad Ed25519ph context length: " + strconv.Itoa(l))
-		}
-		signature := make([]byte, SignatureSize)
-		sign(signature, priv, message, domPrefixPh, context)
-		return signature, nil
+		return ed25519.SignPH(k, message, context)
 	case hash == crypto.Hash(0) && context != "": // Ed25519ctx
-		if l := len(context); l > 255 {
-			return nil, errors.New("ed25519: bad Ed25519ctx context length: " + strconv.Itoa(l))
+		if fips140only.Enabled {
+			return nil, errors.New("crypto/ed25519: use of Ed25519ctx is not allowed in FIPS 140-only mode")
 		}
-		signature := make([]byte, SignatureSize)
-		sign(signature, priv, message, domPrefixCtx, context)
-		return signature, nil
+		return ed25519.SignCtx(k, message, context)
 	case hash == crypto.Hash(0): // Ed25519
-		return Sign(priv, message), nil
+		return ed25519.Sign(k, message), nil
 	default:
 		return nil, errors.New("ed25519: expected opts.HashFunc() zero (unhashed message, for standard Ed25519) or SHA-512 (for Ed25519ph)")
 	}
@@ -146,9 +151,7 @@ func GenerateKey(rand io.Reader) (PublicKey, PrivateKey, error) {
 	}
 
 	privateKey := NewKeyFromSeed(seed)
-	publicKey := make([]byte, PublicKeySize)
-	copy(publicKey, privateKey[32:])
-
+	publicKey := privateKey.Public().(PublicKey)
 	return publicKey, privateKey, nil
 }
 
@@ -164,21 +167,12 @@ func NewKeyFromSeed(seed []byte) PrivateKey {
 }
 
 func newKeyFromSeed(privateKey, seed []byte) {
-	if l := len(seed); l != SeedSize {
-		panic("ed25519: bad seed length: " + strconv.Itoa(l))
-	}
-
-	h := sha512.Sum512(seed)
-	s, err := edwards25519.NewScalar().SetBytesWithClamping(h[:32])
+	k, err := ed25519.NewPrivateKeyFromSeed(seed)
 	if err != nil {
-		panic("ed25519: internal error: setting scalar failed")
+		// NewPrivateKeyFromSeed only returns an error if the seed length is incorrect.
+		panic("ed25519: bad seed length: " + strconv.Itoa(len(seed)))
 	}
-	A := (&edwards25519.Point{}).ScalarBaseMult(s)
-
-	publicKey := A.Bytes()
-
-	copy(privateKey, seed)
-	copy(privateKey[32:], publicKey)
+	copy(privateKey, k.Bytes())
 }
 
 // Sign signs the message with privateKey and returns a signature. It will
@@ -187,79 +181,30 @@ func Sign(privateKey PrivateKey, message []byte) []byte {
 	// Outline the function body so that the returned signature can be
 	// stack-allocated.
 	signature := make([]byte, SignatureSize)
-	sign(signature, privateKey, message, domPrefixPure, "")
+	sign(signature, privateKey, message)
 	return signature
 }
 
-// Domain separation prefixes used to disambiguate Ed25519/Ed25519ph/Ed25519ctx.
-// See RFC 8032, Section 2 and Section 5.1.
-const (
-	// domPrefixPure is empty for pure Ed25519.
-	domPrefixPure = ""
-	// domPrefixPh is dom2(phflag=1) for Ed25519ph. It must be followed by the
-	// uint8-length prefixed context.
-	domPrefixPh = "SigEd25519 no Ed25519 collisions\x01"
-	// domPrefixCtx is dom2(phflag=0) for Ed25519ctx. It must be followed by the
-	// uint8-length prefixed context.
-	domPrefixCtx = "SigEd25519 no Ed25519 collisions\x00"
-)
-
-func sign(signature, privateKey, message []byte, domPrefix, context string) {
-	if l := len(privateKey); l != PrivateKeySize {
-		panic("ed25519: bad private key length: " + strconv.Itoa(l))
-	}
-	seed, publicKey := privateKey[:SeedSize], privateKey[SeedSize:]
-
-	h := sha512.Sum512(seed)
-	s, err := edwards25519.NewScalar().SetBytesWithClamping(h[:32])
+func sign(signature []byte, privateKey PrivateKey, message []byte) {
+	k, err := privateKeyCache.Get(&privateKey[0], func() (*ed25519.PrivateKey, error) {
+		return ed25519.NewPrivateKey(privateKey)
+	}, func(k *ed25519.PrivateKey) bool {
+		return subtle.ConstantTimeCompare(privateKey, k.Bytes()) == 1
+	})
 	if err != nil {
-		panic("ed25519: internal error: setting scalar failed")
+		panic("ed25519: bad private key: " + err.Error())
 	}
-	prefix := h[32:]
-
-	mh := sha512.New()
-	if domPrefix != domPrefixPure {
-		mh.Write([]byte(domPrefix))
-		mh.Write([]byte{byte(len(context))})
-		mh.Write([]byte(context))
-	}
-	mh.Write(prefix)
-	mh.Write(message)
-	messageDigest := make([]byte, 0, sha512.Size)
-	messageDigest = mh.Sum(messageDigest)
-	r, err := edwards25519.NewScalar().SetUniformBytes(messageDigest)
-	if err != nil {
-		panic("ed25519: internal error: setting scalar failed")
-	}
-
-	R := (&edwards25519.Point{}).ScalarBaseMult(r)
-
-	kh := sha512.New()
-	if domPrefix != domPrefixPure {
-		kh.Write([]byte(domPrefix))
-		kh.Write([]byte{byte(len(context))})
-		kh.Write([]byte(context))
-	}
-	kh.Write(R.Bytes())
-	kh.Write(publicKey)
-	kh.Write(message)
-	hramDigest := make([]byte, 0, sha512.Size)
-	hramDigest = kh.Sum(hramDigest)
-	k, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
-	if err != nil {
-		panic("ed25519: internal error: setting scalar failed")
-	}
-
-	S := edwards25519.NewScalar().MultiplyAdd(k, s, r)
-
-	copy(signature[:32], R.Bytes())
-	copy(signature[32:], S.Bytes())
+	sig := ed25519.Sign(k, message)
+	copy(signature, sig)
 }
 
 // Verify reports whether sig is a valid signature of message by publicKey. It
 // will panic if len(publicKey) is not [PublicKeySize].
+//
+// The inputs are not considered confidential, and may leak through timing side
+// channels, or if an attacker has control of part of the inputs.
 func Verify(publicKey PublicKey, message, sig []byte) bool {
-	return verify(publicKey, message, sig, domPrefixPure, "")
+	return VerifyWithOptions(publicKey, message, sig, &Options{Hash: crypto.Hash(0)}) == nil
 }
 
 // VerifyWithOptions reports whether sig is a valid signature of message by
@@ -270,75 +215,28 @@ func Verify(publicKey PublicKey, message, sig []byte) bool {
 // message is expected to be a SHA-512 hash, otherwise opts.Hash must be
 // [crypto.Hash](0) and the message must not be hashed, as Ed25519 performs two
 // passes over messages to be signed.
+//
+// The inputs are not considered confidential, and may leak through timing side
+// channels, or if an attacker has control of part of the inputs.
 func VerifyWithOptions(publicKey PublicKey, message, sig []byte, opts *Options) error {
-	switch {
-	case opts.Hash == crypto.SHA512: // Ed25519ph
-		if l := len(message); l != sha512.Size {
-			return errors.New("ed25519: bad Ed25519ph message hash length: " + strconv.Itoa(l))
-		}
-		if l := len(opts.Context); l > 255 {
-			return errors.New("ed25519: bad Ed25519ph context length: " + strconv.Itoa(l))
-		}
-		if !verify(publicKey, message, sig, domPrefixPh, opts.Context) {
-			return errors.New("ed25519: invalid signature")
-		}
-		return nil
-	case opts.Hash == crypto.Hash(0) && opts.Context != "": // Ed25519ctx
-		if l := len(opts.Context); l > 255 {
-			return errors.New("ed25519: bad Ed25519ctx context length: " + strconv.Itoa(l))
-		}
-		if !verify(publicKey, message, sig, domPrefixCtx, opts.Context) {
-			return errors.New("ed25519: invalid signature")
-		}
-		return nil
-	case opts.Hash == crypto.Hash(0): // Ed25519
-		if !verify(publicKey, message, sig, domPrefixPure, "") {
-			return errors.New("ed25519: invalid signature")
-		}
-		return nil
-	default:
-		return errors.New("ed25519: expected opts.Hash zero (unhashed message, for standard Ed25519) or SHA-512 (for Ed25519ph)")
-	}
-}
-
-func verify(publicKey PublicKey, message, sig []byte, domPrefix, context string) bool {
 	if l := len(publicKey); l != PublicKeySize {
 		panic("ed25519: bad public key length: " + strconv.Itoa(l))
 	}
-
-	if len(sig) != SignatureSize || sig[63]&224 != 0 {
-		return false
-	}
-
-	A, err := (&edwards25519.Point{}).SetBytes(publicKey)
+	k, err := ed25519.NewPublicKey(publicKey)
 	if err != nil {
-		return false
+		return err
 	}
-
-	kh := sha512.New()
-	if domPrefix != domPrefixPure {
-		kh.Write([]byte(domPrefix))
-		kh.Write([]byte{byte(len(context))})
-		kh.Write([]byte(context))
+	switch {
+	case opts.Hash == crypto.SHA512: // Ed25519ph
+		return ed25519.VerifyPH(k, message, sig, opts.Context)
+	case opts.Hash == crypto.Hash(0) && opts.Context != "": // Ed25519ctx
+		if fips140only.Enabled {
+			return errors.New("crypto/ed25519: use of Ed25519ctx is not allowed in FIPS 140-only mode")
+		}
+		return ed25519.VerifyCtx(k, message, sig, opts.Context)
+	case opts.Hash == crypto.Hash(0): // Ed25519
+		return ed25519.Verify(k, message, sig)
+	default:
+		return errors.New("ed25519: expected opts.Hash zero (unhashed message, for standard Ed25519) or SHA-512 (for Ed25519ph)")
 	}
-	kh.Write(sig[:32])
-	kh.Write(publicKey)
-	kh.Write(message)
-	hramDigest := make([]byte, 0, sha512.Size)
-	hramDigest = kh.Sum(hramDigest)
-	k, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
-	if err != nil {
-		panic("ed25519: internal error: setting scalar failed")
-	}
-
-	S, err := edwards25519.NewScalar().SetCanonicalBytes(sig[32:])
-	if err != nil {
-		return false
-	}
-
-	// [S]B = R + [k]A --> [k](-A) + [S]B = R
-	minusA := (&edwards25519.Point{}).Negate(A)
-	R := (&edwards25519.Point{}).VarTimeDoubleScalarBaseMult(k, minusA, S)
-
-	return bytes.Equal(sig[:32], R.Bytes())
 }

@@ -5,6 +5,7 @@
 package types_test
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -108,7 +109,7 @@ func TestNewMethodSet(t *testing.T) {
 			if got, want := sel.Obj().Name(), m.name; got != want {
 				t.Errorf("%s [method %d]: got name = %q at, want %q", src, i, got, want)
 			}
-			if got, want := sel.Index(), m.index; !sameSlice(got, want) {
+			if got, want := sel.Index(), m.index; !slices.Equal(got, want) {
 				t.Errorf("%s [method %d]: got index = %v, want %v", src, i, got, want)
 			}
 			if got, want := sel.Indirect(), m.indirect; got != want {

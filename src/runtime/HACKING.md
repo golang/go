@@ -173,7 +173,7 @@ In summary,
 Atomics
 =======
 
-The runtime uses its own atomics package at `runtime/internal/atomic`.
+The runtime uses its own atomics package at `internal/runtime/atomic`.
 This corresponds to `sync/atomic`, but functions have different names
 for historical reasons and there are a few additional functions needed
 by the runtime.
@@ -235,7 +235,7 @@ There are three mechanisms for allocating unmanaged memory:
   objects of the same type.
 
 In general, types that are allocated using any of these should be
-marked as not in heap by embedding `runtime/internal/sys.NotInHeap`.
+marked as not in heap by embedding `internal/runtime/sys.NotInHeap`.
 
 Objects that are allocated in unmanaged memory **must not** contain
 heap pointers unless the following rules are also obeyed:
@@ -330,3 +330,69 @@ transitive calls) to prevent stack growth.
 The conversion from pointer to uintptr must appear in the argument list of any
 call to this function. This directive is used for some low-level system call
 implementations.
+
+Execution tracer
+================
+
+The execution tracer is a way for users to see what their goroutines are doing,
+but they're also useful for runtime hacking.
+
+Using execution traces to debug runtime problems
+------------------------------------------------
+
+Execution traces contain a wealth of information about what the runtime is
+doing. They contain all goroutine scheduling actions, data about time spent in
+the scheduler (P running without a G), data about time spent in the garbage
+collector, and more. Use `go tool trace` or [gotraceui](https://gotraceui.dev)
+to inspect traces.
+
+Traces are especially useful for debugging latency issues, and especially if you
+can catch the problem in the act. Consider using the flight recorder to help
+with this.
+
+Turn on CPU profiling when you take a trace. This will put the CPU profiling
+samples as timestamped events into the trace, allowing you to see execution with
+greater detail. If you see CPU profiling sample events appear at a rate that does
+not match the sample rate, consider that the OS or platform might be taking away
+CPU time from the process, and that you might not be debugging a Go issue.
+
+If you're really stuck on a problem, adding new instrumentation with the tracer
+might help, especially if it's helpful to see events in relation to other
+scheduling events. See the next section on modifying the execution tracer.
+However, consider using `debuglog` for additional instrumentation first, as that
+is far easier to get started with.
+
+Notes on modifying the execution tracer
+---------------------------------------
+
+The execution tracer lives in the files whose names start with "trace."
+The parser for the execution trace format lives in the `internal/trace` package.
+
+If you plan on adding new trace events, consider starting with a [trace
+experiment](../internal/trace/tracev2/EXPERIMENTS.md).
+
+If you plan to add new trace instrumentation to the runtime, wrap whatever operation
+you're tracing in `traceAcquire` and `traceRelease` fully. These functions mark a
+critical section that appears atomic to the execution tracer (but nothing else).
+
+debuglog
+========
+
+`debuglog` is a powerful runtime-only debugging tool. Think of it as an
+ultra-low-overhead `println` that works just about anywhere in the runtime.
+These properties are invaluable when debugging subtle problems in tricky parts
+of the codebase. `println` can often perturb code enough to stop data races from
+happening, while `debuglog` perturbs execution far less.
+
+`debuglog` accumulates log messages in a ring buffer on each M, and dumps out
+the contents, ordering it by timestamp, on certain kinds of crashes. Some messages
+might be lost if the ring buffer gets full, in which case consider increasing the
+size, or just work with a partial log.
+
+1. Add `debuglog` instrumentation to the runtime. Don't forget to call `end`!
+   Example: `dlog().s("hello world").u32(5).end()`
+2. By default, `debuglog` only dumps its contents in certain kinds of crashes.
+   Consider adding more calls to `printDebugLog` if you're not getting any output.
+3. Build the program you wish to debug with the `debuglog` build tag.
+
+`debuglog` is lower level than execution traces, and much easier to set up.

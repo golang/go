@@ -9,7 +9,7 @@
 package runtime
 
 import (
-	"runtime/internal/sys"
+	"internal/runtime/sys"
 	"unsafe"
 )
 
@@ -27,7 +27,7 @@ import (
 // smashed by freeing and reallocating.
 //
 // Consider marking fixalloc'd types not in heap by embedding
-// runtime/internal/sys.NotInHeap.
+// internal/runtime/sys.NotInHeap.
 type fixalloc struct {
 	size   uintptr
 	first  func(arg, p unsafe.Pointer) // called first time p is returned
@@ -57,9 +57,7 @@ func (f *fixalloc) init(size uintptr, first func(arg, p unsafe.Pointer), arg uns
 	if size > _FixAllocChunk {
 		throw("runtime: fixalloc size too large")
 	}
-	if min := unsafe.Sizeof(mlink{}); size < min {
-		size = min
-	}
+	size = max(size, unsafe.Sizeof(mlink{}))
 
 	f.size = size
 	f.first = first

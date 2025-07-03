@@ -25,7 +25,7 @@ const (
 // which prevents us from allocating more stack.
 //
 //go:nosplit
-func sysAllocOS(n uintptr) unsafe.Pointer {
+func sysAllocOS(n uintptr, _ string) unsafe.Pointer {
 	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_COMMIT|_MEM_RESERVE, _PAGE_READWRITE))
 }
 
@@ -117,7 +117,7 @@ func sysFaultOS(v unsafe.Pointer, n uintptr) {
 	sysUnusedOS(v, n)
 }
 
-func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+func sysReserveOS(v unsafe.Pointer, n uintptr, _ string) unsafe.Pointer {
 	// v is just a hint.
 	// First try at v.
 	// This will fail if any of [v, v+n) is already reserved.
@@ -130,5 +130,5 @@ func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_RESERVE, _PAGE_READWRITE))
 }
 
-func sysMapOS(v unsafe.Pointer, n uintptr) {
+func sysMapOS(v unsafe.Pointer, n uintptr, _ string) {
 }

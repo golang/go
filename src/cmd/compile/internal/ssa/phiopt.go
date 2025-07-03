@@ -119,6 +119,33 @@ func phiopt(f *Func) {
 					continue
 				}
 			}
+			// Replaces
+			//   if a { x = value } else { x = a } with x = a && value.
+			// Requires that value dominates x.
+			if v.Args[1-reverse] == b0.Controls[0] {
+				if tmp := v.Args[reverse]; sdom.IsAncestorEq(tmp.Block, b) {
+					v.reset(OpAndB)
+					v.SetArgs2(b0.Controls[0], tmp)
+					if f.pass.debug > 0 {
+						f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
+					}
+					continue
+				}
+			}
+
+			// Replaces
+			//   if a { x = a } else { x = value } with x = a || value.
+			// Requires that value dominates x.
+			if v.Args[reverse] == b0.Controls[0] {
+				if tmp := v.Args[1-reverse]; sdom.IsAncestorEq(tmp.Block, b) {
+					v.reset(OpOrB)
+					v.SetArgs2(b0.Controls[0], tmp)
+					if f.pass.debug > 0 {
+						f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
+					}
+					continue
+				}
+			}
 		}
 	}
 	// strengthen phi optimization.

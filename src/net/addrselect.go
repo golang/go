@@ -8,7 +8,7 @@ package net
 
 import (
 	"net/netip"
-	"sort"
+	"slices"
 )
 
 func sortByRFC6724(addrs []IPAddr) {
@@ -22,19 +22,20 @@ func sortByRFC6724withSrcs(addrs []IPAddr, srcs []netip.Addr) {
 	if len(addrs) != len(srcs) {
 		panic("internal error")
 	}
-	addrAttr := make([]ipAttr, len(addrs))
-	srcAttr := make([]ipAttr, len(srcs))
+	addrInfos := make([]byRFC6724Info, len(addrs))
 	for i, v := range addrs {
 		addrAttrIP, _ := netip.AddrFromSlice(v.IP)
-		addrAttr[i] = ipAttrOf(addrAttrIP)
-		srcAttr[i] = ipAttrOf(srcs[i])
+		addrInfos[i] = byRFC6724Info{
+			addr:     addrs[i],
+			addrAttr: ipAttrOf(addrAttrIP),
+			src:      srcs[i],
+			srcAttr:  ipAttrOf(srcs[i]),
+		}
 	}
-	sort.Stable(&byRFC6724{
-		addrs:    addrs,
-		addrAttr: addrAttr,
-		srcs:     srcs,
-		srcAttr:  srcAttr,
-	})
+	slices.SortStableFunc(addrInfos, compareByRFC6724)
+	for i := range addrInfos {
+		addrs[i] = addrInfos[i].addr
+	}
 }
 
 // srcAddrs tries to UDP-connect to each address to see if it has a
@@ -42,7 +43,7 @@ func sortByRFC6724withSrcs(addrs []IPAddr, srcs []netip.Addr) {
 // number is irrelevant.
 func srcAddrs(addrs []IPAddr) []netip.Addr {
 	srcs := make([]netip.Addr, len(addrs))
-	dst := UDPAddr{Port: 9}
+	dst := UDPAddr{Port: 53}
 	for i := range addrs {
 		dst.IP = addrs[i].IP
 		dst.Zone = addrs[i].Zone
@@ -75,45 +76,36 @@ func ipAttrOf(ip netip.Addr) ipAttr {
 	}
 }
 
-type byRFC6724 struct {
-	addrs    []IPAddr // addrs to sort
-	addrAttr []ipAttr
-	srcs     []netip.Addr // or not valid addr if unreachable
-	srcAttr  []ipAttr
+type byRFC6724Info struct {
+	addr     IPAddr
+	addrAttr ipAttr
+	src      netip.Addr
+	srcAttr  ipAttr
 }
 
-func (s *byRFC6724) Len() int { return len(s.addrs) }
+// compareByRFC6724 compares two byRFC6724Info records and returns an integer
+// indicating the order. It follows the algorithm and variable names from
+// RFC 6724 section 6. Returns -1 if a is preferred, 1 if b is preferred,
+// and 0 if they are equal.
+func compareByRFC6724(a, b byRFC6724Info) int {
+	DA := a.addr.IP
+	DB := b.addr.IP
+	SourceDA := a.src
+	SourceDB := b.src
+	attrDA := &a.addrAttr
+	attrDB := &b.addrAttr
+	attrSourceDA := &a.srcAttr
+	attrSourceDB := &b.srcAttr
 
-func (s *byRFC6724) Swap(i, j int) {
-	s.addrs[i], s.addrs[j] = s.addrs[j], s.addrs[i]
-	s.srcs[i], s.srcs[j] = s.srcs[j], s.srcs[i]
-	s.addrAttr[i], s.addrAttr[j] = s.addrAttr[j], s.addrAttr[i]
-	s.srcAttr[i], s.srcAttr[j] = s.srcAttr[j], s.srcAttr[i]
-}
-
-// Less reports whether i is a better destination address for this
-// host than j.
-//
-// The algorithm and variable names comes from RFC 6724 section 6.
-func (s *byRFC6724) Less(i, j int) bool {
-	DA := s.addrs[i].IP
-	DB := s.addrs[j].IP
-	SourceDA := s.srcs[i]
-	SourceDB := s.srcs[j]
-	attrDA := &s.addrAttr[i]
-	attrDB := &s.addrAttr[j]
-	attrSourceDA := &s.srcAttr[i]
-	attrSourceDB := &s.srcAttr[j]
-
-	const preferDA = true
-	const preferDB = false
+	const preferDA = -1
+	const preferDB = 1
 
 	// Rule 1: Avoid unusable destinations.
 	// If DB is known to be unreachable or if Source(DB) is undefined, then
 	// prefer DA.  Similarly, if DA is known to be unreachable or if
 	// Source(DA) is undefined, then prefer DB.
 	if !SourceDA.IsValid() && !SourceDB.IsValid() {
-		return false // "equal"
+		return 0 // "equal"
 	}
 	if !SourceDB.IsValid() {
 		return preferDA
@@ -212,7 +204,7 @@ func (s *byRFC6724) Less(i, j int) bool {
 	// Rule 10: Otherwise, leave the order unchanged.
 	// If DA preceded DB in the original list, prefer DA.
 	// Otherwise, prefer DB.
-	return false // "equal"
+	return 0 // "equal"
 }
 
 type policyTableEntry struct {

@@ -32,6 +32,11 @@ func usleep(usec uint32) {
 //go:noescape
 func getRandomData(r []byte)
 
+func readRandom(r []byte) int {
+	getRandomData(r)
+	return len(r)
+}
+
 func goenvs() {
 	goenvs_unix()
 }

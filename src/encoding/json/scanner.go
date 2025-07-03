@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !goexperiment.jsonv2
+
 package json
 
 // JSON value parser state machine.
@@ -173,7 +175,7 @@ func (s *scanner) eof() int {
 	return scanError
 }
 
-// pushParseState pushes a new parse state p onto the parse stack.
+// pushParseState pushes a new parse state newParseState onto the parse stack.
 // an error state is returned if maxNestingDepth was exceeded, otherwise successState is returned.
 func (s *scanner) pushParseState(c byte, newParseState int, successState int) int {
 	s.parseState = append(s.parseState, newParseState)

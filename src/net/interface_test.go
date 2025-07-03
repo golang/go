@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !wasip1
-
 package net
 
 import (
@@ -70,12 +68,14 @@ func TestInterfaces(t *testing.T) {
 				t.Errorf("got %v; want %v", ifxi, ifi)
 			}
 		}
-		ifxn, err := InterfaceByName(ifi.Name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !reflect.DeepEqual(ifxn, &ifi) {
-			t.Errorf("got %v; want %v", ifxn, ifi)
+		if ifi.Name != "" {
+			ifxn, err := InterfaceByName(ifi.Name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(ifxn, &ifi) {
+				t.Errorf("got %v; want %v", ifxn, ifi)
+			}
 		}
 		t.Logf("%s: flags=%v index=%d mtu=%d hwaddr=%v", ifi.Name, ifi.Flags, ifi.Index, ifi.MTU, ifi.HardwareAddr)
 	}

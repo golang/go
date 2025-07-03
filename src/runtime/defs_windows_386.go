@@ -4,6 +4,11 @@
 
 package runtime
 
+import (
+	"internal/goarch"
+	"unsafe"
+)
+
 const _CONTEXT_CONTROL = 0x10001
 
 type floatingsavearea struct {
@@ -59,6 +64,13 @@ func (c *context) set_sp(x uintptr) { c.esp = uint32(x) }
 // 386 does not have frame pointer register.
 func (c *context) set_fp(x uintptr) {}
 
+func (c *context) pushCall(targetPC, resumePC uintptr) {
+	sp := c.sp() - goarch.StackAlign
+	*(*uintptr)(unsafe.Pointer(sp)) = resumePC
+	c.set_sp(sp)
+	c.set_ip(targetPC)
+}
+
 func prepareContextForSigResume(c *context) {
 	c.edx = c.esp
 	c.ecx = c.eip
@@ -78,4 +90,11 @@ func dumpregs(r *context) {
 	print("cs      ", hex(r.segcs), "\n")
 	print("fs      ", hex(r.segfs), "\n")
 	print("gs      ", hex(r.seggs), "\n")
+}
+
+// _DISPATCHER_CONTEXT is not defined on 386.
+type _DISPATCHER_CONTEXT struct{}
+
+func (c *_DISPATCHER_CONTEXT) ctx() *context {
+	return nil
 }

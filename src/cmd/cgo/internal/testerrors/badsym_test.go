@@ -136,7 +136,7 @@ func TestBadSymbol(t *testing.T) {
 	makeFile(godir, "go.mod", "module badsym")
 
 	// Try to build our little package.
-	cmd := exec.Command("go", "build", "-ldflags=-v")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-v")
 	cmd.Dir = godir
 	output, err := cmd.CombinedOutput()
 

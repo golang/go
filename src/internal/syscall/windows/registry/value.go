@@ -241,7 +241,7 @@ func (k Key) GetIntegerValue(name string) (val uint64, valtype uint32, err error
 		if len(data) != 8 {
 			return 0, typ, errors.New("QWORD value is not 8 bytes long")
 		}
-		return uint64(*(*uint64)(unsafe.Pointer(&data[0]))), QWORD, nil
+		return *(*uint64)(unsafe.Pointer(&data[0])), QWORD, nil
 	default:
 		return 0, typ, ErrUnexpectedType
 	}

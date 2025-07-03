@@ -257,7 +257,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 			hostTests: []nssHostTest{
 				{"x.com", "myhostname", hostLookupFilesDNS},
 				{"x", "myhostname", hostLookupFilesDNS},
-				{"x.local", "myhostname", hostLookupCgo},
+				{"x.local", "myhostname", hostLookupFilesDNS},
 			},
 		},
 		{
@@ -268,7 +268,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 			hostTests: []nssHostTest{
 				{"x.com", "myhostname", hostLookupDNSFiles},
 				{"x", "myhostname", hostLookupDNSFiles},
-				{"x.local", "myhostname", hostLookupCgo},
+				{"x.local", "myhostname", hostLookupDNSFiles},
 			},
 		},
 		{

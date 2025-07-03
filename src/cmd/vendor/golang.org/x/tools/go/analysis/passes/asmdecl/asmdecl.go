@@ -57,6 +57,8 @@ type asmArch struct {
 	// include the first integer register and first floating-point register. Accessing
 	// any of them counts as writing to result.
 	retRegs []string
+	// writeResult is a list of instructions that will change result register implicitly.
+	writeResult []string
 	// calculated during initialization
 	sizes    types.Sizes
 	intSize  int
@@ -85,17 +87,18 @@ type asmVar struct {
 var (
 	asmArch386      = asmArch{name: "386", bigEndian: false, stack: "SP", lr: false}
 	asmArchArm      = asmArch{name: "arm", bigEndian: false, stack: "R13", lr: true}
-	asmArchArm64    = asmArch{name: "arm64", bigEndian: false, stack: "RSP", lr: true, retRegs: []string{"R0", "F0"}}
-	asmArchAmd64    = asmArch{name: "amd64", bigEndian: false, stack: "SP", lr: false, retRegs: []string{"AX", "X0"}}
+	asmArchArm64    = asmArch{name: "arm64", bigEndian: false, stack: "RSP", lr: true, retRegs: []string{"R0", "F0"}, writeResult: []string{"SVC"}}
+	asmArchAmd64    = asmArch{name: "amd64", bigEndian: false, stack: "SP", lr: false, retRegs: []string{"AX", "X0"}, writeResult: []string{"SYSCALL"}}
 	asmArchMips     = asmArch{name: "mips", bigEndian: true, stack: "R29", lr: true}
 	asmArchMipsLE   = asmArch{name: "mipsle", bigEndian: false, stack: "R29", lr: true}
 	asmArchMips64   = asmArch{name: "mips64", bigEndian: true, stack: "R29", lr: true}
 	asmArchMips64LE = asmArch{name: "mips64le", bigEndian: false, stack: "R29", lr: true}
-	asmArchPpc64    = asmArch{name: "ppc64", bigEndian: true, stack: "R1", lr: true, retRegs: []string{"R3", "F1"}}
-	asmArchPpc64LE  = asmArch{name: "ppc64le", bigEndian: false, stack: "R1", lr: true, retRegs: []string{"R3", "F1"}}
-	asmArchRISCV64  = asmArch{name: "riscv64", bigEndian: false, stack: "SP", lr: true, retRegs: []string{"X10", "F10"}}
+	asmArchPpc64    = asmArch{name: "ppc64", bigEndian: true, stack: "R1", lr: true, retRegs: []string{"R3", "F1"}, writeResult: []string{"SYSCALL"}}
+	asmArchPpc64LE  = asmArch{name: "ppc64le", bigEndian: false, stack: "R1", lr: true, retRegs: []string{"R3", "F1"}, writeResult: []string{"SYSCALL"}}
+	asmArchRISCV64  = asmArch{name: "riscv64", bigEndian: false, stack: "SP", lr: true, retRegs: []string{"X10", "F10"}, writeResult: []string{"ECALL"}}
 	asmArchS390X    = asmArch{name: "s390x", bigEndian: true, stack: "R15", lr: true}
 	asmArchWasm     = asmArch{name: "wasm", bigEndian: false, stack: "SP", lr: false}
+	asmArchLoong64  = asmArch{name: "loong64", bigEndian: false, stack: "R3", lr: true, retRegs: []string{"R4", "F0"}, writeResult: []string{"SYSCALL"}}
 
 	arches = []*asmArch{
 		&asmArch386,
@@ -111,11 +114,11 @@ var (
 		&asmArchRISCV64,
 		&asmArchS390X,
 		&asmArchWasm,
+		&asmArchLoong64,
 	}
 )
 
 func init() {
-	arches = append(arches, additionalArches()...)
 	for _, arch := range arches {
 		arch.sizes = types.SizesFor("gc", arch.name)
 		if arch.sizes == nil {
@@ -147,7 +150,7 @@ var (
 	abiSuff      = re(`^(.+)<(ABI.+)>$`)
 )
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	// No work if no assembly files.
 	var sfiles []string
 	for _, fname := range pass.OtherFiles {
@@ -172,7 +175,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 Files:
 	for _, fname := range sfiles {
-		content, tf, err := analysisutil.ReadFile(pass.Fset, fname)
+		content, tf, err := analysisutil.ReadFile(pass, fname)
 		if err != nil {
 			return nil, err
 		}
@@ -223,7 +226,7 @@ Files:
 		for lineno, line := range lines {
 			lineno++
 
-			badf := func(format string, args ...interface{}) {
+			badf := func(format string, args ...any) {
 				pass.Reportf(analysisutil.LineStart(tf, lineno), "[%s] %s: %s", arch, fnName, fmt.Sprintf(format, args...))
 			}
 
@@ -350,6 +353,12 @@ Files:
 			}
 
 			if abi == "ABIInternal" && !haveRetArg {
+				for _, ins := range archDef.writeResult {
+					if strings.Contains(line, ins) {
+						haveRetArg = true
+						break
+					}
+				}
 				for _, reg := range archDef.retRegs {
 					if strings.Contains(line, reg) {
 						haveRetArg = true
@@ -533,8 +542,8 @@ func appendComponentsRecursive(arch *asmArch, t types.Type, cc []component, suff
 		elem := tu.Elem()
 		// Calculate offset of each element array.
 		fields := []*types.Var{
-			types.NewVar(token.NoPos, nil, "fake0", elem),
-			types.NewVar(token.NoPos, nil, "fake1", elem),
+			types.NewField(token.NoPos, nil, "fake0", elem, false),
+			types.NewField(token.NoPos, nil, "fake1", elem, false),
 		}
 		offsets := arch.sizes.Offsetsof(fields)
 		elemoff := int(offsets[1])
@@ -637,7 +646,7 @@ func asmParseDecl(pass *analysis.Pass, decl *ast.FuncDecl) map[string]*asmFunc {
 }
 
 // asmCheckVar checks a single variable reference.
-func asmCheckVar(badf func(string, ...interface{}), fn *asmFunc, line, expr string, off int, v *asmVar, archDef *asmArch) {
+func asmCheckVar(badf func(string, ...any), fn *asmFunc, line, expr string, off int, v *asmVar, archDef *asmArch) {
 	m := asmOpcode.FindStringSubmatch(line)
 	if m == nil {
 		if !strings.HasPrefix(strings.TrimSpace(line), "//") {

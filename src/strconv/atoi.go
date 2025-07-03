@@ -4,7 +4,10 @@
 
 package strconv
 
-import "errors"
+import (
+	"errors"
+	"internal/stringslite"
+)
 
 // lower(c) is a lower-case letter if and only if
 // c is either that lower-case letter or the equivalent upper-case letter.
@@ -33,8 +36,6 @@ func (e *NumError) Error() string {
 
 func (e *NumError) Unwrap() error { return e.Err }
 
-// cloneString returns a string copy of x.
-//
 // All ParseXXX functions allow the input string to escape to the error value.
 // This hurts strconv.ParseXXX(string(b)) calls where b is []byte since
 // the conversion from []byte must allocate a string on the heap.
@@ -42,27 +43,21 @@ func (e *NumError) Unwrap() error { return e.Err }
 // back to the output by copying it first. This allows the compiler to call
 // strconv.ParseXXX without a heap allocation for most []byte to string
 // conversions, since it can now prove that the string cannot escape Parse.
-//
-// TODO: Use strings.Clone instead? However, we cannot depend on "strings"
-// since it incurs a transitive dependency on "unicode".
-// Either move strings.Clone to an internal/bytealg or make the
-// "strings" to "unicode" dependency lighter (see https://go.dev/issue/54098).
-func cloneString(x string) string { return string([]byte(x)) }
 
 func syntaxError(fn, str string) *NumError {
-	return &NumError{fn, cloneString(str), ErrSyntax}
+	return &NumError{fn, stringslite.Clone(str), ErrSyntax}
 }
 
 func rangeError(fn, str string) *NumError {
-	return &NumError{fn, cloneString(str), ErrRange}
+	return &NumError{fn, stringslite.Clone(str), ErrRange}
 }
 
 func baseError(fn, str string, base int) *NumError {
-	return &NumError{fn, cloneString(str), errors.New("invalid base " + Itoa(base))}
+	return &NumError{fn, stringslite.Clone(str), errors.New("invalid base " + Itoa(base))}
 }
 
 func bitSizeError(fn, str string, bitSize int) *NumError {
-	return &NumError{fn, cloneString(str), errors.New("invalid bit size " + Itoa(bitSize))}
+	return &NumError{fn, stringslite.Clone(str), errors.New("invalid bit size " + Itoa(bitSize))}
 }
 
 const intSize = 32 << (^uint(0) >> 63)
@@ -72,7 +67,7 @@ const IntSize = intSize
 
 const maxUint64 = 1<<64 - 1
 
-// ParseUint is like ParseInt but for unsigned numbers.
+// ParseUint is like [ParseInt] but for unsigned numbers.
 //
 // A sign prefix is not permitted.
 func ParseUint(s string, base int, bitSize int) (uint64, error) {
@@ -190,11 +185,11 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 // correspond to int, int8, int16, int32, and int64.
 // If bitSize is below 0 or above 64, an error is returned.
 //
-// The errors that ParseInt returns have concrete type *NumError
+// The errors that ParseInt returns have concrete type [*NumError]
 // and include err.Num = s. If s is empty or contains invalid
-// digits, err.Err = ErrSyntax and the returned value is 0;
+// digits, err.Err = [ErrSyntax] and the returned value is 0;
 // if the value corresponding to s cannot be represented by a
-// signed integer of the given size, err.Err = ErrRange and the
+// signed integer of the given size, err.Err = [ErrRange] and the
 // returned value is the maximum magnitude integer of the
 // appropriate bitSize and sign.
 //
@@ -209,11 +204,12 @@ func ParseInt(s string, base int, bitSize int) (i int64, err error) {
 	// Pick off leading sign.
 	s0 := s
 	neg := false
-	if s[0] == '+' {
+	switch s[0] {
+	case '+':
 		s = s[1:]
-	} else if s[0] == '-' {
+	case '-':
+		s = s[1:]
 		neg = true
-		s = s[1:]
 	}
 
 	// Convert unsigned and check range.
@@ -221,7 +217,7 @@ func ParseInt(s string, base int, bitSize int) (i int64, err error) {
 	un, err = ParseUint(s, base, bitSize)
 	if err != nil && err.(*NumError).Err != ErrRange {
 		err.(*NumError).Func = fnParseInt
-		err.(*NumError).Num = cloneString(s0)
+		err.(*NumError).Num = stringslite.Clone(s0)
 		return 0, err
 	}
 

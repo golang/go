@@ -5,7 +5,7 @@
 package sort_test
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"slices"
 	. "sort"
 	"strconv"
@@ -18,10 +18,10 @@ import (
 // package).
 
 func makeRandomInts(n int) []int {
-	rand.Seed(42)
+	r := rand.New(rand.NewPCG(42, 0))
 	ints := make([]int, n)
 	for i := 0; i < n; i++ {
-		ints[i] = rand.Intn(n)
+		ints[i] = r.IntN(n)
 	}
 	return ints
 }
@@ -85,21 +85,21 @@ func BenchmarkSlicesIsSorted(b *testing.B) {
 		b.StopTimer()
 		ints := makeSortedInts(N)
 		b.StartTimer()
-		slices.IsSorted(ints)
+		_ = slices.IsSorted(ints)
 	}
 }
 
 // makeRandomStrings generates n random strings with alphabetic runes of
 // varying lengths.
 func makeRandomStrings(n int) []string {
-	rand.Seed(42)
+	r := rand.New(rand.NewPCG(42, 0))
 	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	ss := make([]string, n)
 	for i := 0; i < n; i++ {
 		var sb stringspkg.Builder
-		slen := 2 + rand.Intn(50)
+		slen := 2 + r.IntN(50)
 		for j := 0; j < slen; j++ {
-			sb.WriteRune(letters[rand.Intn(len(letters))])
+			sb.WriteRune(letters[r.IntN(len(letters))])
 		}
 		ss[i] = sb.String()
 	}
@@ -156,10 +156,10 @@ func (s myStructs) Less(i, j int) bool { return s[i].n < s[j].n }
 func (s myStructs) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func makeRandomStructs(n int) myStructs {
-	rand.Seed(42)
+	r := rand.New(rand.NewPCG(42, 0))
 	structs := make([]*myStruct, n)
 	for i := 0; i < n; i++ {
-		structs[i] = &myStruct{n: rand.Intn(n)}
+		structs[i] = &myStruct{n: r.IntN(n)}
 	}
 	return structs
 }

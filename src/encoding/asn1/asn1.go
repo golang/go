@@ -25,6 +25,7 @@ import (
 	"math"
 	"math/big"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -224,16 +225,7 @@ type ObjectIdentifier []int
 
 // Equal reports whether oi and other represent the same identifier.
 func (oi ObjectIdentifier) Equal(other ObjectIdentifier) bool {
-	if len(oi) != len(other) {
-		return false
-	}
-	for i := 0; i < len(oi); i++ {
-		if oi[i] != other[i] {
-			return false
-		}
-	}
-
-	return true
+	return slices.Equal(oi, other)
 }
 
 func (oi ObjectIdentifier) String() string {
@@ -471,7 +463,21 @@ func parseIA5String(bytes []byte) (ret string, err error) {
 // parseT61String parses an ASN.1 T61String (8-bit clean string) from the given
 // byte slice and returns it.
 func parseT61String(bytes []byte) (ret string, err error) {
-	return string(bytes), nil
+	// T.61 is a defunct ITU 8-bit character encoding which preceded Unicode.
+	// T.61 uses a code page layout that _almost_ exactly maps to the code
+	// page layout of the ISO 8859-1 (Latin-1) character encoding, with the
+	// exception that a number of characters in Latin-1 are not present
+	// in T.61.
+	//
+	// Instead of mapping which characters are present in Latin-1 but not T.61,
+	// we just treat these strings as being encoded using Latin-1. This matches
+	// what most of the world does, including BoringSSL.
+	buf := make([]byte, 0, len(bytes))
+	for _, v := range bytes {
+		// All the 1-byte UTF-8 runes map 1-1 with Latin-1.
+		buf = utf8.AppendRune(buf, rune(v))
+	}
+	return string(buf), nil
 }
 
 // UTF8String
@@ -490,8 +496,16 @@ func parseUTF8String(bytes []byte) (ret string, err error) {
 // parseBMPString parses an ASN.1 BMPString (Basic Multilingual Plane of
 // ISO/IEC/ITU 10646-1) from the given byte slice and returns it.
 func parseBMPString(bmpString []byte) (string, error) {
+	// BMPString uses the defunct UCS-2 16-bit character encoding, which
+	// covers the Basic Multilingual Plane (BMP). UTF-16 was an extension of
+	// UCS-2, containing all of the same code points, but also including
+	// multi-code point characters (by using surrogate code points). We can
+	// treat a UCS-2 encoded string as a UTF-16 encoded string, as long as
+	// we reject out the UTF-16 specific code points. This matches the
+	// BoringSSL behavior.
+
 	if len(bmpString)%2 != 0 {
-		return "", errors.New("pkcs12: odd-length BMP string")
+		return "", errors.New("invalid BMPString")
 	}
 
 	// Strip terminator if present.
@@ -501,7 +515,16 @@ func parseBMPString(bmpString []byte) (string, error) {
 
 	s := make([]uint16, 0, len(bmpString)/2)
 	for len(bmpString) > 0 {
-		s = append(s, uint16(bmpString[0])<<8+uint16(bmpString[1]))
+		point := uint16(bmpString[0])<<8 + uint16(bmpString[1])
+		// Reject UTF-16 code points that are permanently reserved
+		// noncharacters (0xfffe, 0xffff, and 0xfdd0-0xfdef) and surrogates
+		// (0xd800-0xdfff).
+		if point == 0xfffe || point == 0xffff ||
+			(point >= 0xfdd0 && point <= 0xfdef) ||
+			(point >= 0xd800 && point <= 0xdfff) {
+			return "", errors.New("invalid BMPString")
+		}
+		s = append(s, point)
 		bmpString = bmpString[2:]
 	}
 
@@ -702,6 +725,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		if !t.isCompound && t.class == ClassUniversal {
 			innerBytes := bytes[offset : offset+t.length]
 			switch t.tag {
+			case TagBoolean:
+				result, err = parseBool(innerBytes)
 			case TagPrintableString:
 				result, err = parsePrintableString(innerBytes)
 			case TagNumericString:
@@ -803,9 +828,18 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	}
 
 	// Special case for time: UTCTime and GeneralizedTime both map to the
-	// Go type time.Time.
-	if universalTag == TagUTCTime && t.tag == TagGeneralizedTime && t.class == ClassUniversal {
-		universalTag = TagGeneralizedTime
+	// Go type time.Time. getUniversalType returns the tag for UTCTime when
+	// it sees a time.Time, so if we see a different time type on the wire,
+	// or the field is tagged with a different type, we change the universal
+	// type to match.
+	if universalTag == TagUTCTime {
+		if t.class == ClassUniversal {
+			if t.tag == TagGeneralizedTime {
+				universalTag = t.tag
+			}
+		} else if params.timeType != 0 {
+			universalTag = params.timeType
+		}
 	}
 
 	if params.set {
@@ -1077,6 +1111,13 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //	ia5     causes strings to be unmarshaled as ASN.1 IA5String values
 //	numeric causes strings to be unmarshaled as ASN.1 NumericString values
 //	utf8    causes strings to be unmarshaled as ASN.1 UTF8String values
+//
+// When decoding an ASN.1 value with an IMPLICIT tag into a time.Time field,
+// Unmarshal will default to a UTCTime, which doesn't support time zones or
+// fractional seconds. To force usage of GeneralizedTime, use the following
+// tag:
+//
+//	generalized causes time.Times to be unmarshaled as ASN.1 GeneralizedTime values
 //
 // If the type of the first field of a structure is RawContent then the raw
 // ASN1 contents of the struct will be stored in it.

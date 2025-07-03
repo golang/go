@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"internal/lazyregexp"
 	"io"
 	"strings"
 	"time"
@@ -120,16 +119,14 @@ type Function struct {
 	filenameX   int64
 }
 
-// Parse parses a profile and checks for its validity. The input
-// may be a gzip-compressed encoded protobuf or one of many legacy
-// profile formats which may be unsupported in the future.
+// Parse parses a profile and checks for its validity. The input must be an
+// encoded pprof protobuf, which may optionally be gzip-compressed.
 func Parse(r io.Reader) (*Profile, error) {
 	orig, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
 
-	var p *Profile
 	if len(orig) >= 2 && orig[0] == 0x1f && orig[1] == 0x8b {
 		gz, err := gzip.NewReader(bytes.NewBuffer(orig))
 		if err != nil {
@@ -141,10 +138,10 @@ func Parse(r io.Reader) (*Profile, error) {
 		}
 		orig = data
 	}
-	if p, err = parseUncompressed(orig); err != nil {
-		if p, err = parseLegacy(orig); err != nil {
-			return nil, fmt.Errorf("parsing profile: %v", err)
-		}
+
+	p, err := parseUncompressed(orig)
+	if err != nil {
+		return nil, fmt.Errorf("parsing profile: %w", err)
 	}
 
 	if err := p.CheckValid(); err != nil {
@@ -153,33 +150,14 @@ func Parse(r io.Reader) (*Profile, error) {
 	return p, nil
 }
 
-var errUnrecognized = fmt.Errorf("unrecognized profile format")
 var errMalformed = fmt.Errorf("malformed profile format")
-
-func parseLegacy(data []byte) (*Profile, error) {
-	parsers := []func([]byte) (*Profile, error){
-		parseCPU,
-		parseHeap,
-		parseGoCount, // goroutine, threadcreate
-		parseThread,
-		parseContention,
-	}
-
-	for _, parser := range parsers {
-		p, err := parser(data)
-		if err == nil {
-			p.setMain()
-			p.addLegacyFrameInfo()
-			return p, nil
-		}
-		if err != errUnrecognized {
-			return nil, err
-		}
-	}
-	return nil, errUnrecognized
-}
+var ErrNoData = fmt.Errorf("empty input file")
 
 func parseUncompressed(data []byte) (*Profile, error) {
+	if len(data) == 0 {
+		return nil, ErrNoData
+	}
+
 	p := &Profile{}
 	if err := unmarshal(data, p); err != nil {
 		return nil, err
@@ -190,29 +168,6 @@ func parseUncompressed(data []byte) (*Profile, error) {
 	}
 
 	return p, nil
-}
-
-var libRx = lazyregexp.New(`([.]so$|[.]so[._][0-9]+)`)
-
-// setMain scans Mapping entries and guesses which entry is main
-// because legacy profiles don't obey the convention of putting main
-// first.
-func (p *Profile) setMain() {
-	for i := 0; i < len(p.Mapping); i++ {
-		file := strings.TrimSpace(strings.ReplaceAll(p.Mapping[i].File, "(deleted)", ""))
-		if len(file) == 0 {
-			continue
-		}
-		if len(libRx.FindStringSubmatch(file)) > 0 {
-			continue
-		}
-		if strings.HasPrefix(file, "[") {
-			continue
-		}
-		// Swap what we guess is main to position 0.
-		p.Mapping[i], p.Mapping[0] = p.Mapping[0], p.Mapping[i]
-		break
-	}
 }
 
 // Write writes the profile as a gzip-compressed marshaled protobuf.

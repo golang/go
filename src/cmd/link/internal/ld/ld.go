@@ -62,15 +62,13 @@ func (ctxt *Link) readImportCfg(file string) {
 			continue
 		}
 
-		var verb, args string
-		if i := strings.Index(line, " "); i < 0 {
-			verb = line
-		} else {
-			verb, args = line[:i], strings.TrimSpace(line[i+1:])
+		verb, args, found := strings.Cut(line, " ")
+		if found {
+			args = strings.TrimSpace(args)
 		}
-		var before, after string
-		if i := strings.Index(args, "="); i >= 0 {
-			before, after = args[:i], args[i+1:]
+		before, after, exist := strings.Cut(args, "=")
+		if !exist {
+			before = ""
 		}
 		switch verb {
 		default:
@@ -198,7 +196,7 @@ func addlibpath(ctxt *Link, srcref, objref, file, pkg, shlib string, fingerprint
 		if strings.HasSuffix(shlib, ".shlibname") {
 			data, err := os.ReadFile(shlib)
 			if err != nil {
-				Errorf(nil, "cannot read %s: %v", shlib, err)
+				Errorf("cannot read %s: %v", shlib, err)
 			}
 			shlib = strings.TrimSpace(string(data))
 		}
@@ -223,7 +221,7 @@ func PrepareAddmoduledata(ctxt *Link) (*loader.SymbolBuilder, loader.Sym) {
 		return nil, 0
 	}
 	amd := ctxt.loader.LookupOrCreateSym("runtime.addmoduledata", 0)
-	if ctxt.loader.SymType(amd) == sym.STEXT && ctxt.BuildMode != BuildModePlugin {
+	if ctxt.loader.SymType(amd).IsText() && ctxt.BuildMode != BuildModePlugin {
 		// we're linking a module containing the runtime -> no need for
 		// an init function
 		return nil, 0

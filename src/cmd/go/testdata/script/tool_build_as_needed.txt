@@ -1,0 +1,52 @@
+[short] skip 'builds and runs go programs'
+[!symlink] skip 'uses symlinks to construct a GOROOT'
+
+env NEWGOROOT=$WORK${/}goroot
+env TOOLDIR=$GOROOT/pkg/tool/${GOOS}_${GOARCH}
+# Use ${/} in paths we'll check for in stdout below, so they contain '\' on Windows
+env NEWTOOLDIR=$NEWGOROOT${/}pkg${/}tool${/}${GOOS}_${GOARCH}
+mkdir $NEWGOROOT $NEWGOROOT/bin $NEWTOOLDIR
+[symlink] symlink $NEWGOROOT/src -> $GOROOT/src
+[symlink] symlink $NEWGOROOT/pkg/include -> $GOROOT/pkg/include
+[symlink] symlink $NEWGOROOT/bin/go -> $GOROOT/bin/go
+[symlink] symlink $NEWTOOLDIR/compile$GOEXE -> $TOOLDIR/compile$GOEXE
+[symlink] symlink $NEWTOOLDIR/cgo$GOEXE -> $TOOLDIR/cgo$GOEXE
+[symlink] symlink $NEWTOOLDIR/link$GOEXE -> $TOOLDIR/link$GOEXE
+[symlink] symlink $NEWTOOLDIR/asm$GOEXE -> $TOOLDIR/asm$GOEXE
+[symlink] symlink $NEWTOOLDIR/pack$GOEXE -> $TOOLDIR/pack$GOEXE
+env GOROOT=$NEWGOROOT
+env TOOLDIR=$NEWTOOLDIR
+
+# GOROOT without test2json tool builds and runs it as needed
+go env GOROOT
+! exists $TOOLDIR/test2json
+go tool test2json
+stdout '{"Action":"start"}'
+! exists $TOOLDIR/test2json$GOEXE
+go tool -n test2json
+! stdout $NEWTOOLDIR${/}test2json$GOEXE
+
+# GOROOT with test2json uses the test2json in the GOROOT
+go install cmd/test2json
+exists $TOOLDIR/test2json$GOEXE
+go tool test2json
+stdout '{"Action":"start"}'
+go tool -n test2json
+stdout $NEWTOOLDIR${/}test2json$GOEXE
+
+# Tool still runs properly even with wrong GOOS/GOARCH
+# Remove test2json from tooldir
+rm $TOOLDIR/test2json$GOEXE
+go tool -n test2json
+! stdout $NEWTOOLDIR${/}test2json$GOEXE
+# Set GOOS/GOARCH to different values than host GOOS/GOARCH.
+env GOOS=windows
+[GOOS:windows] env GOOS=linux
+env GOARCH=arm64
+[GOARCH:arm64] env GOARCH=amd64
+# Control case: go run shouldn't work because it respects
+# GOOS/GOARCH, and we can't execute non-native binary.
+! go run cmd/test2json -exec=''
+# But go tool should because it doesn't respect GOOS/GOARCH.
+go tool test2json
+stdout '{"Action":"start"}'

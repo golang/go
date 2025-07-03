@@ -662,7 +662,7 @@ func (enc *Encoder) encode(b *encBuffer, value reflect.Value, ut *userTypeInfo) 
 	for i := 0; i < indir; i++ {
 		value = reflect.Indirect(value)
 	}
-	if ut.externalEnc == 0 && value.Type().Kind() == reflect.Struct {
+	if ut.externalEnc == 0 && value.Kind() == reflect.Struct {
 		enc.encodeStruct(b, engine, value)
 	} else {
 		enc.encodeSingle(b, engine, value)

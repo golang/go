@@ -7,20 +7,14 @@
 package analysisutil
 
 import (
-	"bytes"
 	"go/ast"
-	"go/printer"
 	"go/token"
 	"go/types"
-	"io/ioutil"
-)
+	"os"
 
-// Format returns a string representation of the expression.
-func Format(fset *token.FileSet, x ast.Expr) string {
-	var b bytes.Buffer
-	printer.Fprint(&b, fset, x)
-	return b.String()
-}
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/internal/analysisinternal"
+)
 
 // HasSideEffects reports whether evaluation of e has side effects.
 func HasSideEffects(info *types.Info, e ast.Expr) bool {
@@ -55,25 +49,18 @@ func HasSideEffects(info *types.Info, e ast.Expr) bool {
 	return !safe
 }
 
-// Unparen returns e with any enclosing parentheses stripped.
-func Unparen(e ast.Expr) ast.Expr {
-	for {
-		p, ok := e.(*ast.ParenExpr)
-		if !ok {
-			return e
-		}
-		e = p.X
-	}
-}
-
 // ReadFile reads a file and adds it to the FileSet
 // so that we can report errors against it using lineStart.
-func ReadFile(fset *token.FileSet, filename string) ([]byte, *token.File, error) {
-	content, err := ioutil.ReadFile(filename)
+func ReadFile(pass *analysis.Pass, filename string) ([]byte, *token.File, error) {
+	readFile := pass.ReadFile
+	if readFile == nil {
+		readFile = os.ReadFile
+	}
+	content, err := readFile(filename)
 	if err != nil {
 		return nil, nil, err
 	}
-	tf := fset.AddFile(filename, -1, len(content))
+	tf := pass.Fset.AddFile(filename, -1, len(content))
 	tf.SetLinesForContent(content)
 	return content, tf, nil
 }
@@ -109,12 +96,4 @@ func LineStart(f *token.File, line int) token.Pos {
 	}
 }
 
-// Imports returns true if path is imported by pkg.
-func Imports(pkg *types.Package, path string) bool {
-	for _, imp := range pkg.Imports() {
-		if imp.Path() == path {
-			return true
-		}
-	}
-	return false
-}
+var MustExtractDoc = analysisinternal.MustExtractDoc

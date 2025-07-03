@@ -181,7 +181,7 @@ func (f *File) ParseGo(abspath string, src []byte) {
 // Like ast.CommentGroup's Text method but preserves
 // leading blank lines, so that line numbers line up.
 func commentText(g *ast.CommentGroup) string {
-	var pieces []string
+	pieces := make([]string, 0, len(g.List))
 	for _, com := range g.List {
 		c := com.Text
 		// Remove comment markers.

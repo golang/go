@@ -12,6 +12,7 @@
 extern void G1(void);
 extern void G2(void);
 extern void TracebackContextPreemptionGoFunction(int);
+extern void TracebackContextProfileGoFunction(void);
 
 void C1() {
 	G1();
@@ -100,4 +101,8 @@ void tcSymbolizer(void *parg) {
 
 void TracebackContextPreemptionCallGo(int i) {
 	TracebackContextPreemptionGoFunction(i);
+}
+
+void TracebackContextProfileCallGo(void) {
+	TracebackContextProfileGoFunction();
 }
