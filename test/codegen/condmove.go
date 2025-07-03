@@ -473,3 +473,36 @@ func cmovmathsub(a uint, b bool) uint {
 	// wasm:"Sub", "-Select"
 	return a
 }
+
+func cmovmathdouble(a uint, b bool) uint {
+	if b {
+		a *= 2
+	}
+	// amd64:"SHL", -"CMOV"
+	// amd64/v3:"SHL", -"CMOV", -"MOV"
+	// arm64:"LSL", -"CSEL"
+	// wasm:"Shl", "-Select"
+	return a
+}
+
+func cmovmathhalvei(a int, b bool) int {
+	if b {
+		// For some reason on arm64 it attributes the ASR to inside this block rather than where the Phi node is.
+		// arm64:"ASR", -"CSEL"
+		a /= 2
+	}
+	// arm64:-"CSEL"
+	// wasm:"Shr", "-Select"
+	return a
+}
+
+func cmovmathhalveu(a uint, b bool) uint {
+	if b {
+		a /= 2
+	}
+	// amd64:"SHR", -"CMOV"
+	// amd64/v3:"SHR", -"CMOV", -"MOV"
+	// arm64:"LSR", -"CSEL"
+	// wasm:"Shr", "-Select"
+	return a
+}
