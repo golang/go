@@ -21,6 +21,7 @@ import (
 	"os"
 	pathpkg "path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"slices"
@@ -144,6 +145,8 @@ type PackagePublic struct {
 	XTestEmbedPatterns []string `json:",omitempty"` // //go:embed patterns
 	XTestEmbedFiles    []string `json:",omitempty"` // files matched by XTestEmbedPatterns
 }
+
+var FromDir = vcs.FromDir
 
 // AllFiles returns the names of all the files considered for the package.
 // This is used for sanity and security checks, so we include all files,
@@ -2425,13 +2428,10 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 		// since it can include system paths through various linker flags (notably
 		// -extar, -extld, and -extldflags).
 		//
-		// TODO: since we control cmd/link, in theory we can parse ldflags to
-		// determine whether they may refer to system paths. If we do that, we can
-		// redact only those paths from the recorded -ldflags setting and still
-		// record the system-independent parts of the flags.
-		if !cfg.BuildTrimpath {
-			appendSetting("-ldflags", ldflags)
+		if cfg.BuildTrimpath {
+			ldflags = trimPathsFromLdFlags(ldflags)
 		}
+		appendSetting("-ldflags", ldflags)
 	}
 	if cfg.BuildCover {
 		appendSetting("-cover", "true")
@@ -2516,7 +2516,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 			// (so the bootstrap toolchain packages don't even appear to be in GOROOT).
 			goto omitVCS
 		}
-		repoDir, vcsCmd, err = vcs.FromDir(base.Cwd(), "", allowNesting)
+		repoDir, vcsCmd, err = FromDir(base.Cwd(), "", allowNesting)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			setVCSError(err)
 			return
@@ -2542,7 +2542,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 		// repository. vcs.FromDir allows nested Git repositories, but nesting
 		// is not allowed for other VCS tools. The current directory may be outside
 		// p.Module.Dir when a workspace is used.
-		pkgRepoDir, _, err := vcs.FromDir(p.Dir, "", allowNesting)
+		pkgRepoDir, _, err := FromDir(p.Dir, "", allowNesting)
 		if err != nil {
 			setVCSError(err)
 			return
@@ -2554,7 +2554,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 			}
 			goto omitVCS
 		}
-		modRepoDir, _, err := vcs.FromDir(p.Module.Dir, "", allowNesting)
+		modRepoDir, _, err := FromDir(p.Module.Dir, "", allowNesting)
 		if err != nil {
 			setVCSError(err)
 			return
@@ -2615,6 +2615,16 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
 omitVCS:
 
 	p.Internal.BuildInfo = info
+}
+
+// trimLdFlags removes system paths from the ldflag.
+// since we control cmd/link, in theory we parse ldflags to
+// determine whether they refer to system paths. We then can
+// redact only those paths from the recorded -ldflags setting and still
+// record the system-independent parts of the flags.
+func trimPathsFromLdFlags(flags string) string {
+	re := regexp.MustCompile(`(?:(['"])|\s)(?:-[A-Z])?\/[aA-zZ0-9][^\s'"]+`)
+	return re.ReplaceAllString(flags, `$1`)
 }
 
 // SafeArg reports whether arg is a "safe" command-line argument,
