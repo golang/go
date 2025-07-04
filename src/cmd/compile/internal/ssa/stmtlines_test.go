@@ -120,6 +120,11 @@ func TestStmtLines(t *testing.T) {
 				break
 			}
 			must(err)
+			if le.EndSequence {
+				// When EndSequence is true only
+				// le.Address is meaningful, skip.
+				continue
+			}
 			fl := Line{le.File.Name, le.Line}
 			lines[fl] = lines[fl] || le.IsStmt
 		}
