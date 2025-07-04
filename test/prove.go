@@ -2041,6 +2041,69 @@ func cvtBoolToUint8BCE(b bool, a [2]int64) int64 {
 	return a[c] // ERROR "Proved IsInBounds$"
 }
 
+func transitiveProofsThroughNonOverflowingUnsignedAdd(x, y, z uint64) {
+	x &= 1<<63 - 1
+	y &= 1<<63 - 1
+
+	a := x + y
+	if a > z {
+		return
+	}
+
+	if x > z { // ERROR "Disproved Less64U$"
+		return
+	}
+	if y > z { // ERROR "Disproved Less64U$"
+		return
+	}
+	if a == x {
+		return
+	}
+	if a == y {
+		return
+	}
+
+	x |= 1
+	y |= 1
+	a = x + y
+	if a == x { // ERROR "Disproved Eq64$"
+		return
+	}
+	if a == y { // ERROR "Disproved Eq64$"
+		return
+	}
+}
+
+func transitiveProofsThroughOverflowingUnsignedAdd(x, y, z uint64) {
+	a := x + y
+	if a > z {
+		return
+	}
+
+	if x > z {
+		return
+	}
+	if y > z {
+		return
+	}
+	if a == x {
+		return
+	}
+	if a == y {
+		return
+	}
+
+	x |= 1
+	y |= 1
+	a = x + y
+	if a == x {
+		return
+	}
+	if a == y {
+		return
+	}
+}
+
 //go:noinline
 func useInt(a int) {
 }

@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
 	"math"
@@ -2132,6 +2133,21 @@ func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r rel
 	}
 }
 
+func unsignedAddOverflows(a, b uint64, t *types.Type) bool {
+	switch t.Size() {
+	case 8:
+		return a+b < a
+	case 4:
+		return a+b > math.MaxUint32
+	case 2:
+		return a+b > math.MaxUint16
+	case 1:
+		return a+b > math.MaxUint8
+	default:
+		panic("unreachable")
+	}
+}
+
 func addLocalFacts(ft *factsTable, b *Block) {
 	// Propagate constant ranges among values in this block.
 	// We do this before the second loop so that we have the
@@ -2151,6 +2167,21 @@ func addLocalFacts(ft *factsTable, b *Block) {
 		// FIXME(go.dev/issue/68857): this loop only set up limits properly when b.Values is in topological order.
 		// flowLimit can also depend on limits given by this loop which right now is not handled.
 		switch v.Op {
+		case OpAdd64, OpAdd32, OpAdd16, OpAdd8:
+			x := ft.limits[v.Args[0].ID]
+			y := ft.limits[v.Args[1].ID]
+			if !unsignedAddOverflows(x.umax, y.umax, v.Type) {
+				r := gt
+				if !x.nonzero() {
+					r |= eq
+				}
+				ft.update(b, v, v.Args[1], unsigned, r)
+				r = gt
+				if !y.nonzero() {
+					r |= eq
+				}
+				ft.update(b, v, v.Args[0], unsigned, r)
+			}
 		case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
 			ft.update(b, v, v.Args[0], unsigned, lt|eq)
 			ft.update(b, v, v.Args[1], unsigned, lt|eq)
