@@ -2148,6 +2148,22 @@ func unsignedAddOverflows(a, b uint64, t *types.Type) bool {
 	}
 }
 
+func signedAddOverflowsOrUnderflows(a, b int64, t *types.Type) bool {
+	r := a + b
+	switch t.Size() {
+	case 8:
+		return (a >= 0 && b >= 0 && r < 0) || (a < 0 && b < 0 && r >= 0)
+	case 4:
+		return r < math.MinInt32 || math.MaxInt32 < r
+	case 2:
+		return r < math.MinInt16 || math.MaxInt16 < r
+	case 1:
+		return r < math.MinInt8 || math.MaxInt8 < r
+	default:
+		panic("unreachable")
+	}
+}
+
 func addLocalFacts(ft *factsTable, b *Block) {
 	// Propagate constant ranges among values in this block.
 	// We do this before the second loop so that we have the
@@ -2181,6 +2197,20 @@ func addLocalFacts(ft *factsTable, b *Block) {
 					r |= eq
 				}
 				ft.update(b, v, v.Args[0], unsigned, r)
+			}
+			if x.min >= 0 && !signedAddOverflowsOrUnderflows(x.max, y.max, v.Type) {
+				r := gt
+				if !x.nonzero() {
+					r |= eq
+				}
+				ft.update(b, v, v.Args[1], signed, r)
+			}
+			if y.min >= 0 && !signedAddOverflowsOrUnderflows(x.max, y.max, v.Type) {
+				r := gt
+				if !y.nonzero() {
+					r |= eq
+				}
+				ft.update(b, v, v.Args[0], signed, r)
 			}
 		case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
 			ft.update(b, v, v.Args[0], unsigned, lt|eq)
