@@ -2212,6 +2212,20 @@ func addLocalFacts(ft *factsTable, b *Block) {
 				}
 				ft.update(b, v, v.Args[0], signed, r)
 			}
+			if x.max <= 0 && !signedAddOverflowsOrUnderflows(x.min, y.min, v.Type) {
+				r := lt
+				if !x.nonzero() {
+					r |= eq
+				}
+				ft.update(b, v, v.Args[1], signed, r)
+			}
+			if y.max <= 0 && !signedAddOverflowsOrUnderflows(x.min, y.min, v.Type) {
+				r := lt
+				if !y.nonzero() {
+					r |= eq
+				}
+				ft.update(b, v, v.Args[0], signed, r)
+			}
 		case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
 			ft.update(b, v, v.Args[0], unsigned, lt|eq)
 			ft.update(b, v, v.Args[1], unsigned, lt|eq)
