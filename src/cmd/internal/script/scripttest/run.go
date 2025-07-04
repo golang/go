@@ -75,10 +75,10 @@ func RunToolScriptTest(t *testing.T, repls []ToolReplacement, scriptsdir string,
 		found := false
 		for k := range env {
 			ev := env[k]
-			if !strings.HasPrefix(ev, "PATH=") {
+			oldpath, cut := strings.CutPrefix(ev, "PATH=")
+			if !cut {
 				continue
 			}
-			oldpath := ev[5:]
 			env[k] = "PATH=" + dir + string(filepath.ListSeparator) + oldpath
 			found = true
 			break
