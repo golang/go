@@ -965,12 +965,6 @@ func envProxyFunc() func(*url.URL) (*url.URL, error) {
 	return envProxyFuncValue
 }
 
-// resetProxyConfig is used by tests.
-func resetProxyConfig() {
-	envProxyOnce = sync.Once{}
-	envProxyFuncValue = nil
-}
-
 func (t *Transport) connectMethodForRequest(treq *transportRequest) (cm connectMethod, err error) {
 	cm.targetScheme = treq.URL.Scheme
 	cm.targetAddr = canonicalAddr(treq.URL)
