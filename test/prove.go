@@ -2319,6 +2319,17 @@ func resliceBytes(b []byte) byte {
 	return 0
 }
 
+func issue74473(s []uint) {
+	i := 0
+	for {
+		if i >= len(s) { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
+			break
+		}
+		_ = s[i] // ERROR "Proved IsInBounds$"
+		i++
+	}
+}
+
 //go:noinline
 func useInt(a int) {
 }
