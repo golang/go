@@ -2241,6 +2241,67 @@ func transitiveProofsThroughOverflowingSignedAddNegative(x, y, z int64) {
 	}
 }
 
+func transitiveProofsThroughNonOverflowingUnsignedSub(x, y, z uint64) {
+	x |= 0xfff
+	y &= 0xfff
+
+	a := x - y
+	if a < z {
+		return
+	}
+
+	if x < z { // ERROR "Disproved Less64U$"
+		return
+	}
+	if y < z {
+		return
+	}
+	if a == x {
+		return
+	}
+	if a == y {
+		return
+	}
+
+	y |= 1
+	a = x - y
+	if a == x { // ERROR "Disproved Eq64$"
+		return
+	}
+	if a == y {
+		return
+	}
+}
+
+func transitiveProofsThroughOverflowingUnsignedSub(x, y, z uint64) {
+	a := x - y
+	if a < z {
+		return
+	}
+
+	if x < z {
+		return
+	}
+	if y < z {
+		return
+	}
+	if a == x {
+		return
+	}
+	if a == y {
+		return
+	}
+
+	y |= 1
+	a = x - y
+	if a == x {
+		return
+	}
+	if a == y {
+		return
+	}
+}
+
 //go:noinline
 func useInt(a int) {
 }

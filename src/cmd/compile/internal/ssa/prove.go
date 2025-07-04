@@ -2164,6 +2164,10 @@ func signedAddOverflowsOrUnderflows(a, b int64, t *types.Type) bool {
 	}
 }
 
+func unsignedSubUnderflows(a, b uint64) bool {
+	return a < b
+}
+
 func addLocalFacts(ft *factsTable, b *Block) {
 	// Propagate constant ranges among values in this block.
 	// We do this before the second loop so that we have the
@@ -2226,6 +2230,17 @@ func addLocalFacts(ft *factsTable, b *Block) {
 				}
 				ft.update(b, v, v.Args[0], signed, r)
 			}
+		case OpSub64, OpSub32, OpSub16, OpSub8:
+			x := ft.limits[v.Args[0].ID]
+			y := ft.limits[v.Args[1].ID]
+			if !unsignedSubUnderflows(x.umin, y.umax) {
+				r := lt
+				if !y.nonzero() {
+					r |= eq
+				}
+				ft.update(b, v, v.Args[0], unsigned, r)
+			}
+			// FIXME: we could also do signed facts but the overflow checks are much trickier and I don't need it yet.
 		case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
 			ft.update(b, v, v.Args[0], unsigned, lt|eq)
 			ft.update(b, v, v.Args[1], unsigned, lt|eq)
