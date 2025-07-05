@@ -170,13 +170,11 @@ func findIndVar(f *Func) []indVar {
 		// as an induction variable.
 
 		// Identify which successor is the *loop entry* (where nxt is computed)
-		var entry, exit *Block
+		var entry *Block
 		if sdom.IsAncestorEq(b.Succs[0].b, nxt.Block) {
 			entry = b.Succs[0].b
-			exit = b.Succs[1].b
 		} else if sdom.IsAncestorEq(b.Succs[1].b, nxt.Block) {
 			entry = b.Succs[1].b
-			exit = b.Succs[0].b
 		} else {
 			// Neither successor dominates nxt; shape is not a simple for-loop header.
 			continue
