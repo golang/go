@@ -196,6 +196,12 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		},
 		sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.Loong64, sys.S390X)
 
+	addF("runtime", "memequal",
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			return s.newValue4(ssa.OpMemEq, s.f.Config.Types.Bool, args[0], args[1], args[2], s.mem())
+		},
+		sys.ARM64)
+
 	if cfg.goppc64 >= 10 {
 		// Use only on Power10 as the new byte reverse instructions that Power10 provide
 		// make it worthwhile as an intrinsic

@@ -660,6 +660,17 @@ func equalVarString8(a string) bool {
 	return a[:8] == b
 }
 
+func equalVarStringNoSpill(a,b string) bool {
+	s := string("ZZZZZZZZZ")
+	// arm64:".*memequal"
+	memeq1 := a[:9] == s
+	// arm64:-".*"
+	memeq2 := s == a[:9]
+	// arm64:-"MOVB\tR0,.*SP",".*memequal"
+	memeq3 := s == b[:9]
+	return memeq1 && memeq2 && memeq3
+}
+
 func cmpToCmn(a, b, c, d int) int {
 	var c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11 int
 	// arm64:`CMN`,-`CMP`

@@ -141,6 +141,7 @@ func InitConfig() {
 	}
 	ir.Syms.MallocGC = typecheck.LookupRuntimeFunc("mallocgc")
 	ir.Syms.Memmove = typecheck.LookupRuntimeFunc("memmove")
+	ir.Syms.Memequal = typecheck.LookupRuntimeFunc("memequal")
 	ir.Syms.Msanread = typecheck.LookupRuntimeFunc("msanread")
 	ir.Syms.Msanwrite = typecheck.LookupRuntimeFunc("msanwrite")
 	ir.Syms.Msanmove = typecheck.LookupRuntimeFunc("msanmove")

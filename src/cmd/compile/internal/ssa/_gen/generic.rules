@@ -1525,6 +1525,41 @@
   && isSamePtr(p, q)
   => (MakeResult (ConstBool <typ.Bool> [true]) mem)
 
+(MemEq sptr tptr (Const64 [1]) mem)
+  => (Eq8 (Load <typ.Int8> sptr mem) (Load <typ.Int8> tptr mem))
+
+(Load <typ.Int8> sptr:(Addr {scon} (SB)) mem)
+  && symIsRO(scon)
+  => (Const8 <typ.Int8> [int8(read8(scon,0))])
+
+(MemEq sptr tptr (Const64 [2]) mem)
+  && canLoadUnaligned(config)
+  => (Eq16 (Load <typ.Int16> sptr mem) (Load <typ.Int16> tptr mem))
+
+(Load <typ.Int16> sptr:(Addr {scon} (SB)) mem)
+  && symIsRO(scon)
+  => (Const16 <typ.Int16> [int16(read16(scon,0,config.ctxt.Arch.ByteOrder))])
+
+(MemEq sptr tptr (Const64 [4]) mem)
+  && canLoadUnaligned(config)
+  => (Eq32 (Load <typ.Int32> sptr mem) (Load <typ.Int32> tptr mem))
+
+(Load <typ.Int32> sptr:(Addr {scon} (SB)) mem)
+  && symIsRO(scon)
+  => (Const32 <typ.Int32> [int32(read32(scon,0,config.ctxt.Arch.ByteOrder))])
+
+(MemEq sptr tptr (Const64 [8]) mem)
+  && canLoadUnaligned(config) && config.PtrSize == 8
+  => (Eq64 (Load <typ.Int64> sptr mem) (Load <typ.Int64> tptr mem))
+
+(Load <typ.Int64> sptr:(Addr {scon} (SB)) mem)
+  && symIsRO(scon)
+  => (Const64 <typ.Int64> [int64(read64(scon,0,config.ctxt.Arch.ByteOrder))])
+
+(MemEq _ _ (Const64 [0]) _) => (ConstBool <typ.Bool> [true])
+
+(MemEq p q _ _) && isSamePtr(p, q) => (ConstBool <typ.Bool> [true])
+
 // Turn known-size calls to memclrNoHeapPointers into a Zero.
 // Note that we are using types.Types[types.TUINT8] instead of sptr.Type.Elem() - see issue 55122 and CL 431496 for more details.
 (SelectN [0] call:(StaticCall {sym} sptr (Const(64|32) [c]) mem))

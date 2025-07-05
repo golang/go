@@ -40,6 +40,7 @@ type symsStruct struct {
 	MallocGCSmallScanNoHeader [27]*obj.LSym
 	MallocGCTiny              [16]*obj.LSym
 	Memmove                   *obj.LSym
+	Memequal                  *obj.LSym
 	Msanread                  *obj.LSym
 	Msanwrite                 *obj.LSym
 	Msanmove                  *obj.LSym

@@ -679,6 +679,9 @@ var genericOps = []opData{
 	{name: "PrefetchCache", argLength: 2, hasSideEffects: true},         // Do prefetch arg0 to cache. arg0=addr, arg1=memory.
 	{name: "PrefetchCacheStreamed", argLength: 2, hasSideEffects: true}, // Do non-temporal or streamed prefetch arg0 to cache. arg0=addr, arg1=memory.
 
+	// Helper instruction which is semantically equivalent to calling runtime.memequal, but some targets may prefer to custom lower it later, e.g. for specific constant sizes.
+	{name: "MemEq", argLength: 4, commutative: true, typ: "Bool"}, // arg0=ptr0, arg1=ptr1, arg2=size, arg3=memory.
+
 	// SIMD
 	{name: "ZeroSIMD", argLength: 0}, // zero value of a vector
 
