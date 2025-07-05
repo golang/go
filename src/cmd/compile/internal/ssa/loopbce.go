@@ -169,18 +169,27 @@ func findIndVar(f *Func) []indVar {
 		// Two conditions must happen listed below to accept ind
 		// as an induction variable.
 
-		// First condition: loop entry has a single predecessor, which
-		// is the header block.  This implies that b.Succs[0] is
-		// reached iff ind < limit.
-		if len(b.Succs[0].b.Preds) != 1 {
-			// b.Succs[1] must exit the loop.
+		// Identify which successor is the *loop entry* (where nxt is computed)
+		var entry, exit *Block
+		if sdom.IsAncestorEq(b.Succs[0].b, nxt.Block) {
+			entry = b.Succs[0].b
+			exit = b.Succs[1].b
+		} else if sdom.IsAncestorEq(b.Succs[1].b, nxt.Block) {
+			entry = b.Succs[1].b
+			exit = b.Succs[0].b
+		} else {
+			// Neither successor dominates nxt; shape is not a simple for-loop header.
 			continue
 		}
 
-		// Second condition: b.Succs[0] dominates nxt so that
-		// nxt is computed when inc < limit.
-		if !sdom.IsAncestorEq(b.Succs[0].b, nxt.Block) {
-			// inc+ind can only be reached through the branch that enters the loop.
+		// First condition: loop entry has exactly one predecessor (the header).
+		if len(entry.Preds) != 1 {
+			continue
+		}
+
+		// Second condition: entry must dominate nxt so that nxt = ind+inc
+		// is only reachable when the loop is taken.
+		if !sdom.IsAncestorEq(entry, nxt.Block) {
 			continue
 		}
 
@@ -298,7 +307,7 @@ func findIndVar(f *Func) []indVar {
 				nxt:   nxt,
 				min:   min,
 				max:   max,
-				entry: b.Succs[0].b,
+				entry: entry,
 				flags: flags,
 			})
 			b.Logf("found induction variable %v (inc = %v, min = %v, max = %v)\n", ind, inc, min, max)
