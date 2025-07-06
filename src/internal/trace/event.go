@@ -625,7 +625,6 @@ func (e Event) StateTransition() StateTransition {
 		s = goStateTransition(GoID(e.base.args[0]), GoRunnable, GoRunning)
 	case tracev2.EvGoDestroy:
 		s = goStateTransition(e.ctx.G, GoRunning, GoNotExist)
-		s.Stack = e.Stack() // This event references the resource the event happened on.
 	case tracev2.EvGoDestroySyscall:
 		s = goStateTransition(e.ctx.G, GoSyscall, GoNotExist)
 	case tracev2.EvGoStop:
@@ -646,10 +645,8 @@ func (e Event) StateTransition() StateTransition {
 		s.Stack = e.Stack() // This event references the resource the event happened on.
 	case tracev2.EvGoSyscallEnd:
 		s = goStateTransition(e.ctx.G, GoSyscall, GoRunning)
-		s.Stack = e.Stack() // This event references the resource the event happened on.
 	case tracev2.EvGoSyscallEndBlocked:
 		s = goStateTransition(e.ctx.G, GoSyscall, GoRunnable)
-		s.Stack = e.Stack() // This event references the resource the event happened on.
 	case tracev2.EvGoStatus, tracev2.EvGoStatusStack:
 		packedStatus := e.base.args[2]
 		from, to := packedStatus>>32, packedStatus&((1<<32)-1)
