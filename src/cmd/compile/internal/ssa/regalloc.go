@@ -898,6 +898,14 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
 	if t.IsTuple() || t.IsFlags() {
 		return 0
 	}
+	if t.IsSIMD() {
+		if t.Size() > 8 {
+			return s.f.Config.fpRegMask & s.allocatable
+		} else {
+			// K mask
+			return s.f.Config.gpRegMask & s.allocatable
+		}
+	}
 	if t.IsFloat() || t == types.TypeInt128 {
 		if t.Kind() == types.TFLOAT32 && s.f.Config.fp32RegMask != 0 {
 			m = s.f.Config.fp32RegMask
