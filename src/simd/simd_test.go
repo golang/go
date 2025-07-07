@@ -9,6 +9,7 @@ package simd_test
 import (
 	"reflect"
 	"simd"
+	"slices"
 	"testing"
 )
 
@@ -135,22 +136,6 @@ func TestMaskConversion(t *testing.T) {
 	}
 }
 
-func TestAdd(t *testing.T) {
-	testInt32x4Binary(t, []int32{1, 2, 3, 4}, []int32{5, 6, 7, 8}, []int32{6, 8, 10, 12}, "Add")
-}
-
-func TestSub(t *testing.T) {
-	testInt32x4Binary(t, []int32{5, 5, 5, 3}, []int32{3, 3, 3, 3}, []int32{2, 2, 2, 0}, "Sub")
-}
-
-func TestMaskedAdd(t *testing.T) {
-	if !simd.HasAVX512GFNI() {
-		t.Skip("Test requires HasAVX512, not available on this hardware")
-		return
-	}
-	testInt32x4BinaryMasked(t, []int32{1, 2, 3, 4}, []int32{5, 6, 7, 8}, []int32{-1, -1, 0, 0}, []int32{6, 8, 0, 0}, "AddMasked")
-}
-
 func TestPermute(t *testing.T) {
 	if !simd.HasAVX512() {
 		t.Skip("Test requires HasAVX512, not available on this hardware")
@@ -191,15 +176,15 @@ func TestCompress(t *testing.T) {
 		t.Skip("Test requires HasAVX512, not available on this hardware")
 		return
 	}
-	testInt32x4Mask32x4Int32x4(t, []int32{1, 2, 3, 4},
-		[]int32{0, -1, 0, -1},
-		[]int32{2, 4, 0, 0}, "Compress")
-}
-
-func TestAndNot(t *testing.T) {
-	testInt32x4Binary(t, []int32{0b11, 0b00, 0b11, 0b00},
-		[]int32{0b01, 0b01, 0b01, 0b01},
-		[]int32{0b10, 0b00, 0b10, 0b00}, "AndNot")
+	v1234 := simd.LoadInt32x4Slice([]int32{1, 2, 3, 4})
+	v0101 := simd.LoadInt32x4Slice([]int32{0, -1, 0, -1})
+	v2400 := v1234.Compress(v0101.AsMask32x4())
+	got := make([]int32, 4)
+	v2400.StoreSlice(got)
+	want := []int32{2, 4, 0, 0}
+	if !slices.Equal(got, want) {
+		t.Errorf("want and got differ, want=%v, got=%v", want, got)
+	}
 }
 
 func TestPairDotProdAccumulate(t *testing.T) {
@@ -231,53 +216,13 @@ func checkInt8Slices(t *testing.T, a, b []int8) {
 	}
 }
 
-func checkUint8Slices(t *testing.T, a, b []uint8) {
-	for i := range b {
-		if a[i] != b[i] {
-			t.Errorf("a and b differ at index %d, a=%d, b=%d", i, a[i], b[i])
-		}
-	}
-}
-
-func checkInt16Slices(t *testing.T, a, b []int16) {
-	for i := range b {
-		if a[i] != b[i] {
-			t.Errorf("a and b differ at index %d, a=%d, b=%d", i, a[i], b[i])
-		}
-	}
-}
-
-func checkUint16Slices(t *testing.T, a, b []uint16) {
-	for i := range b {
-		if a[i] != b[i] {
-			t.Errorf("a and b differ at index %d, a=%d, b=%d", i, a[i], b[i])
-		}
-	}
-}
-
-func checkFloat32Slices(t *testing.T, a, b []float32) {
-	for i := range b {
-		if a[i] != b[i] {
-			t.Errorf("a and b differ at index %d, a=%3.0f, b=%3.0f", i, a[i], b[i])
-		}
-	}
-}
-
-func checkFloat64Slices(t *testing.T, a, b []float64) {
-	for i := range b {
-		if a[i] != b[i] {
-			t.Errorf("a and b differ at index %d, a=%3.0f, b=%3.0f", i, a[i], b[i])
-		}
-	}
-}
-
 func TestSlicesInt8(t *testing.T) {
 	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 	v := simd.LoadInt8x32Slice(a)
 	b := make([]int8, 32, 32)
 	v.StoreSlice(b)
-	checkInt8Slices(t, a, b)
+	checkSlices(t, a, b)
 }
 
 func TestSlicesInt8SetElem(t *testing.T) {
@@ -290,7 +235,7 @@ func TestSlicesInt8SetElem(t *testing.T) {
 
 	b := make([]int8, 16, 16)
 	v.StoreSlice(b)
-	checkInt8Slices(t, a, b)
+	checkSlices(t, a, b)
 }
 
 func TestSlicesInt8GetElem(t *testing.T) {
@@ -315,8 +260,8 @@ func TestSlicesInt8Set128(t *testing.T) {
 	b := make([]int8, 32, 32)
 	w.StoreSlice(b)
 
-	checkInt8Slices(t, a, b[:16])
-	checkInt8Slices(t, a, b[16:])
+	checkSlices(t, a, b[:16])
+	checkSlices(t, a, b[16:])
 }
 
 func TestSlicesInt8Get128(t *testing.T) {
@@ -330,7 +275,7 @@ func TestSlicesInt8Get128(t *testing.T) {
 	v.StoreSlice(b[:16])
 	w.StoreSlice(b[16:])
 
-	checkInt8Slices(t, a, b)
+	checkSlices(t, a, b)
 }
 
 func TestSlicesFloat32Set128(t *testing.T) {
@@ -344,8 +289,8 @@ func TestSlicesFloat32Set128(t *testing.T) {
 	b := make([]float32, 8, 8)
 	w.StoreSlice(b)
 
-	checkFloat32Slices(t, a, b[:4])
-	checkFloat32Slices(t, a, b[4:])
+	checkSlices(t, a, b[:4])
+	checkSlices(t, a, b[4:])
 }
 
 func TestSlicesFloat32Get128(t *testing.T) {
@@ -359,7 +304,7 @@ func TestSlicesFloat32Get128(t *testing.T) {
 	v.StoreSlice(b[:4])
 	w.StoreSlice(b[4:])
 
-	checkFloat32Slices(t, a, b)
+	checkSlices(t, a, b)
 }
 
 func TestSlicesFloat64Set128(t *testing.T) {
@@ -373,8 +318,8 @@ func TestSlicesFloat64Set128(t *testing.T) {
 	b := make([]float64, 4, 4)
 	w.StoreSlice(b)
 
-	checkFloat64Slices(t, a, b[:2])
-	checkFloat64Slices(t, a, b[2:])
+	checkSlices(t, a, b[:2])
+	checkSlices(t, a, b[2:])
 }
 
 func TestSlicesFloat64Get128(t *testing.T) {
@@ -388,7 +333,7 @@ func TestSlicesFloat64Get128(t *testing.T) {
 	v.StoreSlice(b[:2])
 	w.StoreSlice(b[2:])
 
-	checkFloat64Slices(t, a, b)
+	checkSlices(t, a, b)
 }
 
 func TestSlicesInt8TooShortLoad(t *testing.T) {
@@ -404,7 +349,7 @@ func TestSlicesInt8TooShortLoad(t *testing.T) {
 	v := simd.LoadInt8x32Slice(a)
 	b := make([]int8, 32, 32)
 	v.StoreSlice(b)
-	checkInt8Slices(t, a, b)
+	checkSlices(t, a, b)
 }
 
 func TestSlicesInt8TooShortStore(t *testing.T) {
@@ -420,7 +365,7 @@ func TestSlicesInt8TooShortStore(t *testing.T) {
 	v := simd.LoadInt8x32Slice(a)
 	b := make([]int8, 31) // TOO SHORT, should panic
 	v.StoreSlice(b)
-	checkInt8Slices(t, a, b)
+	checkSlices(t, a, b)
 }
 
 func TestSlicesFloat64(t *testing.T) {

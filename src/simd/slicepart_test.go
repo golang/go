@@ -12,17 +12,10 @@ import (
 )
 
 func TestSlicePartInt8x16(t *testing.T) {
-	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-	b := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-	for i := 16; i >= 0; i-- {
-		u := simd.LoadInt8x16SlicePart(a[:i])
-		c := make([]int8, 32, 32)
+	Do(t, 16, func(a, c []int8) {
+		u := simd.LoadInt8x16SlicePart(a)
 		u.StoreSlice(c)
-		checkInt8Slices(t, c, b)
-		if i > 0 {
-			b[i-1] = 0
-		}
-	}
+	})
 }
 
 func TestSlicePartInt8x32(t *testing.T) {
@@ -34,7 +27,7 @@ func TestSlicePartInt8x32(t *testing.T) {
 		u := simd.LoadInt8x32SlicePart(a[:i])
 		c := make([]int8, 32, 32)
 		u.StoreSlice(c)
-		checkInt8Slices(t, c, b)
+		checkSlices(t, c, b)
 		if i > 0 {
 			b[i-1] = 0
 		}
@@ -48,7 +41,7 @@ func TestSlicePartUint8x16(t *testing.T) {
 		u := simd.LoadUint8x16SlicePart(a[:i])
 		c := make([]uint8, 32, 32)
 		u.StoreSlice(c)
-		checkUint8Slices(t, c, b)
+		checkSlices(t, c, b)
 		if i > 0 {
 			b[i-1] = 0
 		}
@@ -64,7 +57,7 @@ func TestSlicePartUint8x32(t *testing.T) {
 		u := simd.LoadUint8x32SlicePart(a[:i])
 		c := make([]uint8, 32, 32)
 		u.StoreSlice(c)
-		checkUint8Slices(t, c, b)
+		checkSlices(t, c, b)
 		if i > 0 {
 			b[i-1] = 0
 		}
@@ -78,7 +71,7 @@ func TestSlicePartInt16x8(t *testing.T) {
 		u := simd.LoadInt16x8SlicePart(a[:i])
 		c := make([]int16, 16, 16)
 		u.StoreSlice(c)
-		checkInt16Slices(t, c, b)
+		checkSlices(t, c, b)
 		if i > 0 {
 			b[i-1] = 0
 		}
@@ -92,7 +85,7 @@ func TestSlicePartInt16x16(t *testing.T) {
 		u := simd.LoadInt16x16SlicePart(a[:i])
 		c := make([]int16, 16, 16)
 		u.StoreSlice(c)
-		checkInt16Slices(t, c, b)
+		checkSlices(t, c, b)
 		if i > 0 {
 			b[i-1] = 0
 		}
@@ -106,7 +99,7 @@ func TestSlicesPartStoreInt8x16(t *testing.T) {
 		v := simd.LoadInt8x16Slice(a)
 		c := make([]int8, 32, 32)
 		v.StoreSlicePart(c[:i])
-		checkInt8Slices(t, c, b)
+		checkSlices(t, c, b)
 		if i > 0 {
 			b[i-1] = 0
 		}
@@ -120,7 +113,7 @@ func TestSlicesPartStoreInt16x8(t *testing.T) {
 		v := simd.LoadInt16x8Slice(a)
 		c := make([]int16, 32, 32)
 		v.StoreSlicePart(c[:i])
-		checkInt16Slices(t, c, b)
+		checkSlices(t, c, b)
 		if i > 0 {
 			b[i-1] = 0
 		}
@@ -134,7 +127,7 @@ func TestSlicesPartStoreInt16x16(t *testing.T) {
 		v := simd.LoadInt16x16Slice(a)
 		c := make([]int16, 32, 32)
 		v.StoreSlicePart(c[:i])
-		checkInt16Slices(t, c, b)
+		checkSlices(t, c, b)
 		if i > 0 {
 			b[i-1] = 0
 		}
@@ -148,7 +141,7 @@ func TestSlicesPartStoreUint8x16(t *testing.T) {
 		v := simd.LoadUint8x16Slice(a)
 		c := make([]uint8, 32, 32)
 		v.StoreSlicePart(c[:i])
-		checkUint8Slices(t, c, b)
+		checkSlices(t, c, b)
 		if i > 0 {
 			b[i-1] = 0
 		}
@@ -162,7 +155,7 @@ func TestSlicesPartStoreUint16x16(t *testing.T) {
 		v := simd.LoadUint16x16Slice(a)
 		c := make([]uint16, 32, 32)
 		v.StoreSlicePart(c[:i])
-		checkUint16Slices(t, c, b)
+		checkSlices(t, c, b)
 		if i > 0 {
 			b[i-1] = 0
 		}
@@ -178,7 +171,7 @@ func TestSlicesPartStoreUint8x32(t *testing.T) {
 		v := simd.LoadUint8x32Slice(a)
 		c := make([]uint8, 32, 32)
 		v.StoreSlicePart(c[:i])
-		checkUint8Slices(t, c, b)
+		checkSlices(t, c, b)
 		if i > 0 {
 			b[i-1] = 0
 		}

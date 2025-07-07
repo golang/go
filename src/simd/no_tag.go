@@ -6,4 +6,4 @@ package simd
 
 // This file has no build tag, so that go generate can run without a build tag.
 
-//go:generate go run genslice.go -o slice_amd64.go
+//go:generate go run genfiles.go
