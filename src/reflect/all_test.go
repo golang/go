@@ -8719,6 +8719,11 @@ func TestTypeAssert(t *testing.T) {
 	testTypeAssert(t, any(int(1)), int(1), true)
 	testTypeAssert(t, any(int(1)), byte(0), false)
 	testTypeAssert(t, fmt.Stringer(vv), vv, true)
+
+	testTypeAssert(t, any(nil), any(nil), false)
+	testTypeAssert(t, any(nil), error(nil), false)
+	testTypeAssert(t, error(nil), any(nil), false)
+	testTypeAssert(t, error(nil), error(nil), false)
 }
 
 func testTypeAssert[T comparable, V any](t *testing.T, val V, wantVal T, wantOk bool) {

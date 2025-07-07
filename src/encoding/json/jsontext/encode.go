@@ -114,7 +114,7 @@ func (e *encoderState) reset(b []byte, w io.Writer, opts ...Options) {
 	e.state.reset()
 	e.encodeBuffer = encodeBuffer{Buf: b, wr: w, bufStats: e.bufStats}
 	if bb, ok := w.(*bytes.Buffer); ok && bb != nil {
-		e.Buf = bb.Bytes()[bb.Len():] // alias the unused buffer of bb
+		e.Buf = bb.AvailableBuffer() // alias the unused buffer of bb
 	}
 	opts2 := jsonopts.Struct{} // avoid mutating e.Struct in case it is part of opts
 	opts2.Join(opts...)

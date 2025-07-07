@@ -226,7 +226,7 @@ TEXT runtime·walltime(SB),NOSPLIT,$32-12
 	MOVD	R4, 24(R15)
 
 	MOVD	R14, R8 		// Backup return address
-	MOVD	$sec+0(FP), R4 	// return parameter caller
+	MOVD	$ret-8(FP), R4 	// caller's SP
 
 	MOVD	R8, m_vdsoPC(R6)
 	MOVD	R4, m_vdsoSP(R6)
@@ -312,7 +312,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$32-8
 	MOVD	R4, 24(R15)
 
 	MOVD	R14, R8			// Backup return address
-	MOVD	$ret+0(FP), R4	// caller's SP
+	MOVD	$ret-8(FP), R4	// caller's SP
 
 	MOVD	R8, m_vdsoPC(R6)
 	MOVD	R4, m_vdsoSP(R6)

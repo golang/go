@@ -11,6 +11,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"errors"
 	"fmt"
 	"hash"
 	"testing"
@@ -580,6 +581,18 @@ func TestHMAC(t *testing.T) {
 				h = New(func() hash.Hash { return justHash{tt.hash()} }, tt.key)
 			}
 		}
+	}
+}
+
+func TestNoClone(t *testing.T) {
+	h := New(func() hash.Hash { return justHash{sha256.New()} }, []byte("key"))
+	if _, ok := h.(hash.Cloner); !ok {
+		t.Skip("no Cloner support")
+	}
+	h.Write([]byte("test"))
+	_, err := h.(hash.Cloner).Clone()
+	if !errors.Is(err, errors.ErrUnsupported) {
+		t.Errorf("Clone() = %v, want ErrUnsupported", err)
 	}
 }
 

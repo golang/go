@@ -227,8 +227,16 @@ func doPkgsite(urlPath string) error {
 	fields := strings.Fields(vars)
 	if err == nil && len(fields) == 2 {
 		goproxy, gomodcache := fields[0], fields[1]
-		goproxy = "file://" + filepath.Join(gomodcache, "cache", "download") + "," + goproxy
-		env = append(env, "GOPROXY="+goproxy)
+		gomodcache = filepath.Join(gomodcache, "cache", "download")
+		// Convert absolute path to file URL. pkgsite will not accept
+		// Windows absolute paths because they look like a host:path remote.
+		// TODO(golang.org/issue/32456): use url.FromFilePath when implemented.
+		if strings.HasPrefix(gomodcache, "/") {
+			gomodcache = "file://" + gomodcache
+		} else {
+			gomodcache = "file:///" + filepath.ToSlash(gomodcache)
+		}
+		env = append(env, "GOPROXY="+gomodcache+","+goproxy)
 	}
 
 	const version = "v0.0.0-20250608123103-82c52f1754cd"
