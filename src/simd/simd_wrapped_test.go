@@ -20,10 +20,6 @@ func testFloat32x4Binary(t *testing.T, v0 []float32, v1 []float32, want []float3
 		gotv = vec0.Add(vec1)
 	case "AddSub":
 		gotv = vec0.AddSub(vec1)
-	case "And":
-		gotv = vec0.And(vec1)
-	case "AndNot":
-		gotv = vec0.AndNot(vec1)
 	case "Div":
 		gotv = vec0.Div(vec1)
 	case "Max":
@@ -34,16 +30,12 @@ func testFloat32x4Binary(t *testing.T, v0 []float32, v1 []float32, want []float3
 		gotv = vec0.Mul(vec1)
 	case "MulByPowOf2":
 		gotv = vec0.MulByPowOf2(vec1)
-	case "Or":
-		gotv = vec0.Or(vec1)
 	case "PairwiseAdd":
 		gotv = vec0.PairwiseAdd(vec1)
 	case "PairwiseSub":
 		gotv = vec0.PairwiseSub(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
-	case "Xor":
-		gotv = vec0.Xor(vec1)
 
 	default:
 		t.Errorf("Unknown method: Float32x4.%s", which)
@@ -66,10 +58,6 @@ func testFloat32x4BinaryMasked(t *testing.T, v0 []float32, v1 []float32, v2 []in
 	switch which {
 	case "MaskedAdd":
 		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x4())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask32x4())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask32x4())
 	case "MaskedDiv":
 		gotv = vec0.MaskedDiv(vec1, vec2.AsMask32x4())
 	case "MaskedMax":
@@ -80,12 +68,8 @@ func testFloat32x4BinaryMasked(t *testing.T, v0 []float32, v1 []float32, v2 []in
 		gotv = vec0.MaskedMul(vec1, vec2.AsMask32x4())
 	case "MaskedMulByPowOf2":
 		gotv = vec0.MaskedMulByPowOf2(vec1, vec2.AsMask32x4())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x4())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x4())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask32x4())
 
 	default:
 		t.Errorf("Unknown method: Float32x4.%s", which)
@@ -286,10 +270,6 @@ func testFloat32x8Binary(t *testing.T, v0 []float32, v1 []float32, want []float3
 		gotv = vec0.Add(vec1)
 	case "AddSub":
 		gotv = vec0.AddSub(vec1)
-	case "And":
-		gotv = vec0.And(vec1)
-	case "AndNot":
-		gotv = vec0.AndNot(vec1)
 	case "Div":
 		gotv = vec0.Div(vec1)
 	case "Max":
@@ -300,16 +280,12 @@ func testFloat32x8Binary(t *testing.T, v0 []float32, v1 []float32, want []float3
 		gotv = vec0.Mul(vec1)
 	case "MulByPowOf2":
 		gotv = vec0.MulByPowOf2(vec1)
-	case "Or":
-		gotv = vec0.Or(vec1)
 	case "PairwiseAdd":
 		gotv = vec0.PairwiseAdd(vec1)
 	case "PairwiseSub":
 		gotv = vec0.PairwiseSub(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
-	case "Xor":
-		gotv = vec0.Xor(vec1)
 
 	default:
 		t.Errorf("Unknown method: Float32x8.%s", which)
@@ -332,10 +308,6 @@ func testFloat32x8BinaryMasked(t *testing.T, v0 []float32, v1 []float32, v2 []in
 	switch which {
 	case "MaskedAdd":
 		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x8())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask32x8())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask32x8())
 	case "MaskedDiv":
 		gotv = vec0.MaskedDiv(vec1, vec2.AsMask32x8())
 	case "MaskedMax":
@@ -346,12 +318,8 @@ func testFloat32x8BinaryMasked(t *testing.T, v0 []float32, v1 []float32, v2 []in
 		gotv = vec0.MaskedMul(vec1, vec2.AsMask32x8())
 	case "MaskedMulByPowOf2":
 		gotv = vec0.MaskedMulByPowOf2(vec1, vec2.AsMask32x8())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x8())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x8())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask32x8())
 
 	default:
 		t.Errorf("Unknown method: Float32x8.%s", which)
@@ -550,10 +518,6 @@ func testFloat32x16Binary(t *testing.T, v0 []float32, v1 []float32, want []float
 	switch which {
 	case "Add":
 		gotv = vec0.Add(vec1)
-	case "And":
-		gotv = vec0.And(vec1)
-	case "AndNot":
-		gotv = vec0.AndNot(vec1)
 	case "Div":
 		gotv = vec0.Div(vec1)
 	case "Max":
@@ -564,12 +528,8 @@ func testFloat32x16Binary(t *testing.T, v0 []float32, v1 []float32, want []float
 		gotv = vec0.Mul(vec1)
 	case "MulByPowOf2":
 		gotv = vec0.MulByPowOf2(vec1)
-	case "Or":
-		gotv = vec0.Or(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
-	case "Xor":
-		gotv = vec0.Xor(vec1)
 
 	default:
 		t.Errorf("Unknown method: Float32x16.%s", which)
@@ -592,10 +552,6 @@ func testFloat32x16BinaryMasked(t *testing.T, v0 []float32, v1 []float32, v2 []i
 	switch which {
 	case "MaskedAdd":
 		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x16())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask32x16())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask32x16())
 	case "MaskedDiv":
 		gotv = vec0.MaskedDiv(vec1, vec2.AsMask32x16())
 	case "MaskedMax":
@@ -606,12 +562,8 @@ func testFloat32x16BinaryMasked(t *testing.T, v0 []float32, v1 []float32, v2 []i
 		gotv = vec0.MaskedMul(vec1, vec2.AsMask32x16())
 	case "MaskedMulByPowOf2":
 		gotv = vec0.MaskedMulByPowOf2(vec1, vec2.AsMask32x16())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x16())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x16())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask32x16())
 
 	default:
 		t.Errorf("Unknown method: Float32x16.%s", which)
@@ -804,10 +756,6 @@ func testFloat64x2Binary(t *testing.T, v0 []float64, v1 []float64, want []float6
 		gotv = vec0.Add(vec1)
 	case "AddSub":
 		gotv = vec0.AddSub(vec1)
-	case "And":
-		gotv = vec0.And(vec1)
-	case "AndNot":
-		gotv = vec0.AndNot(vec1)
 	case "Div":
 		gotv = vec0.Div(vec1)
 	case "DotProdBroadcast":
@@ -820,16 +768,12 @@ func testFloat64x2Binary(t *testing.T, v0 []float64, v1 []float64, want []float6
 		gotv = vec0.Mul(vec1)
 	case "MulByPowOf2":
 		gotv = vec0.MulByPowOf2(vec1)
-	case "Or":
-		gotv = vec0.Or(vec1)
 	case "PairwiseAdd":
 		gotv = vec0.PairwiseAdd(vec1)
 	case "PairwiseSub":
 		gotv = vec0.PairwiseSub(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
-	case "Xor":
-		gotv = vec0.Xor(vec1)
 
 	default:
 		t.Errorf("Unknown method: Float64x2.%s", which)
@@ -852,10 +796,6 @@ func testFloat64x2BinaryMasked(t *testing.T, v0 []float64, v1 []float64, v2 []in
 	switch which {
 	case "MaskedAdd":
 		gotv = vec0.MaskedAdd(vec1, vec2.AsMask64x2())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask64x2())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask64x2())
 	case "MaskedDiv":
 		gotv = vec0.MaskedDiv(vec1, vec2.AsMask64x2())
 	case "MaskedMax":
@@ -866,12 +806,8 @@ func testFloat64x2BinaryMasked(t *testing.T, v0 []float64, v1 []float64, v2 []in
 		gotv = vec0.MaskedMul(vec1, vec2.AsMask64x2())
 	case "MaskedMulByPowOf2":
 		gotv = vec0.MaskedMulByPowOf2(vec1, vec2.AsMask64x2())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x2())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x2())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask64x2())
 
 	default:
 		t.Errorf("Unknown method: Float64x2.%s", which)
@@ -1072,10 +1008,6 @@ func testFloat64x4Binary(t *testing.T, v0 []float64, v1 []float64, want []float6
 		gotv = vec0.Add(vec1)
 	case "AddSub":
 		gotv = vec0.AddSub(vec1)
-	case "And":
-		gotv = vec0.And(vec1)
-	case "AndNot":
-		gotv = vec0.AndNot(vec1)
 	case "Div":
 		gotv = vec0.Div(vec1)
 	case "Max":
@@ -1086,16 +1018,12 @@ func testFloat64x4Binary(t *testing.T, v0 []float64, v1 []float64, want []float6
 		gotv = vec0.Mul(vec1)
 	case "MulByPowOf2":
 		gotv = vec0.MulByPowOf2(vec1)
-	case "Or":
-		gotv = vec0.Or(vec1)
 	case "PairwiseAdd":
 		gotv = vec0.PairwiseAdd(vec1)
 	case "PairwiseSub":
 		gotv = vec0.PairwiseSub(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
-	case "Xor":
-		gotv = vec0.Xor(vec1)
 
 	default:
 		t.Errorf("Unknown method: Float64x4.%s", which)
@@ -1118,10 +1046,6 @@ func testFloat64x4BinaryMasked(t *testing.T, v0 []float64, v1 []float64, v2 []in
 	switch which {
 	case "MaskedAdd":
 		gotv = vec0.MaskedAdd(vec1, vec2.AsMask64x4())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask64x4())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask64x4())
 	case "MaskedDiv":
 		gotv = vec0.MaskedDiv(vec1, vec2.AsMask64x4())
 	case "MaskedMax":
@@ -1132,12 +1056,8 @@ func testFloat64x4BinaryMasked(t *testing.T, v0 []float64, v1 []float64, v2 []in
 		gotv = vec0.MaskedMul(vec1, vec2.AsMask64x4())
 	case "MaskedMulByPowOf2":
 		gotv = vec0.MaskedMulByPowOf2(vec1, vec2.AsMask64x4())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x4())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x4())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask64x4())
 
 	default:
 		t.Errorf("Unknown method: Float64x4.%s", which)
@@ -1336,10 +1256,6 @@ func testFloat64x8Binary(t *testing.T, v0 []float64, v1 []float64, want []float6
 	switch which {
 	case "Add":
 		gotv = vec0.Add(vec1)
-	case "And":
-		gotv = vec0.And(vec1)
-	case "AndNot":
-		gotv = vec0.AndNot(vec1)
 	case "Div":
 		gotv = vec0.Div(vec1)
 	case "Max":
@@ -1350,12 +1266,8 @@ func testFloat64x8Binary(t *testing.T, v0 []float64, v1 []float64, want []float6
 		gotv = vec0.Mul(vec1)
 	case "MulByPowOf2":
 		gotv = vec0.MulByPowOf2(vec1)
-	case "Or":
-		gotv = vec0.Or(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
-	case "Xor":
-		gotv = vec0.Xor(vec1)
 
 	default:
 		t.Errorf("Unknown method: Float64x8.%s", which)
@@ -1378,10 +1290,6 @@ func testFloat64x8BinaryMasked(t *testing.T, v0 []float64, v1 []float64, v2 []in
 	switch which {
 	case "MaskedAdd":
 		gotv = vec0.MaskedAdd(vec1, vec2.AsMask64x8())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask64x8())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask64x8())
 	case "MaskedDiv":
 		gotv = vec0.MaskedDiv(vec1, vec2.AsMask64x8())
 	case "MaskedMax":
@@ -1392,12 +1300,8 @@ func testFloat64x8BinaryMasked(t *testing.T, v0 []float64, v1 []float64, v2 []in
 		gotv = vec0.MaskedMul(vec1, vec2.AsMask64x8())
 	case "MaskedMulByPowOf2":
 		gotv = vec0.MaskedMulByPowOf2(vec1, vec2.AsMask64x8())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x8())
 	case "MaskedSub":
 		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x8())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask64x8())
 
 	default:
 		t.Errorf("Unknown method: Float64x8.%s", which)

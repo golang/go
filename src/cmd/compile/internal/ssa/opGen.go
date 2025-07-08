@@ -1197,8 +1197,6 @@ const (
 	OpAMD64Zero256
 	OpAMD64Zero512
 	OpAMD64VADDPS512
-	OpAMD64VANDPS512
-	OpAMD64VANDNPS512
 	OpAMD64VRCP14PS512
 	OpAMD64VRSQRT14PS512
 	OpAMD64VDIVPS512
@@ -1206,8 +1204,6 @@ const (
 	OpAMD64VFMADDSUB213PS512
 	OpAMD64VFMSUBADD213PS512
 	OpAMD64VADDPSMasked512
-	OpAMD64VANDPSMasked512
-	OpAMD64VANDNPSMasked512
 	OpAMD64VRCP14PSMasked512
 	OpAMD64VRSQRT14PSMasked512
 	OpAMD64VDIVPSMasked512
@@ -1218,22 +1214,16 @@ const (
 	OpAMD64VMINPSMasked512
 	OpAMD64VMULPSMasked512
 	OpAMD64VSCALEFPSMasked512
-	OpAMD64VORPSMasked512
 	OpAMD64VSQRTPSMasked512
 	OpAMD64VSUBPSMasked512
-	OpAMD64VXORPSMasked512
 	OpAMD64VMAXPS512
 	OpAMD64VMINPS512
 	OpAMD64VMULPS512
 	OpAMD64VSCALEFPS512
-	OpAMD64VORPS512
 	OpAMD64VSQRTPS512
 	OpAMD64VSUBPS512
-	OpAMD64VXORPS512
 	OpAMD64VADDPS128
 	OpAMD64VADDSUBPS128
-	OpAMD64VANDPS128
-	OpAMD64VANDNPS128
 	OpAMD64VRCP14PS128
 	OpAMD64VRSQRTPS128
 	OpAMD64VDIVPS128
@@ -1241,8 +1231,6 @@ const (
 	OpAMD64VFMADDSUB213PS128
 	OpAMD64VFMSUBADD213PS128
 	OpAMD64VADDPSMasked128
-	OpAMD64VANDPSMasked128
-	OpAMD64VANDNPSMasked128
 	OpAMD64VRCP14PSMasked128
 	OpAMD64VRSQRT14PSMasked128
 	OpAMD64VDIVPSMasked128
@@ -1253,24 +1241,18 @@ const (
 	OpAMD64VMINPSMasked128
 	OpAMD64VMULPSMasked128
 	OpAMD64VSCALEFPSMasked128
-	OpAMD64VORPSMasked128
 	OpAMD64VSQRTPSMasked128
 	OpAMD64VSUBPSMasked128
-	OpAMD64VXORPSMasked128
 	OpAMD64VMAXPS128
 	OpAMD64VMINPS128
 	OpAMD64VMULPS128
 	OpAMD64VSCALEFPS128
-	OpAMD64VORPS128
 	OpAMD64VHADDPS128
 	OpAMD64VHSUBPS128
 	OpAMD64VSQRTPS128
 	OpAMD64VSUBPS128
-	OpAMD64VXORPS128
 	OpAMD64VADDPS256
 	OpAMD64VADDSUBPS256
-	OpAMD64VANDPS256
-	OpAMD64VANDNPS256
 	OpAMD64VRCP14PS256
 	OpAMD64VRSQRTPS256
 	OpAMD64VDIVPS256
@@ -1278,8 +1260,6 @@ const (
 	OpAMD64VFMADDSUB213PS256
 	OpAMD64VFMSUBADD213PS256
 	OpAMD64VADDPSMasked256
-	OpAMD64VANDPSMasked256
-	OpAMD64VANDNPSMasked256
 	OpAMD64VRCP14PSMasked256
 	OpAMD64VRSQRT14PSMasked256
 	OpAMD64VDIVPSMasked256
@@ -1290,24 +1270,18 @@ const (
 	OpAMD64VMINPSMasked256
 	OpAMD64VMULPSMasked256
 	OpAMD64VSCALEFPSMasked256
-	OpAMD64VORPSMasked256
 	OpAMD64VSQRTPSMasked256
 	OpAMD64VSUBPSMasked256
-	OpAMD64VXORPSMasked256
 	OpAMD64VMAXPS256
 	OpAMD64VMINPS256
 	OpAMD64VMULPS256
 	OpAMD64VSCALEFPS256
-	OpAMD64VORPS256
 	OpAMD64VHADDPS256
 	OpAMD64VHSUBPS256
 	OpAMD64VSQRTPS256
 	OpAMD64VSUBPS256
-	OpAMD64VXORPS256
 	OpAMD64VADDPD128
 	OpAMD64VADDSUBPD128
-	OpAMD64VANDPD128
-	OpAMD64VANDNPD128
 	OpAMD64VRCP14PD128
 	OpAMD64VRSQRT14PD128
 	OpAMD64VDIVPD128
@@ -1315,8 +1289,6 @@ const (
 	OpAMD64VFMADDSUB213PD128
 	OpAMD64VFMSUBADD213PD128
 	OpAMD64VADDPDMasked128
-	OpAMD64VANDPDMasked128
-	OpAMD64VANDNPDMasked128
 	OpAMD64VRCP14PDMasked128
 	OpAMD64VRSQRT14PDMasked128
 	OpAMD64VDIVPDMasked128
@@ -1327,24 +1299,18 @@ const (
 	OpAMD64VMINPDMasked128
 	OpAMD64VMULPDMasked128
 	OpAMD64VSCALEFPDMasked128
-	OpAMD64VORPDMasked128
 	OpAMD64VSQRTPDMasked128
 	OpAMD64VSUBPDMasked128
-	OpAMD64VXORPDMasked128
 	OpAMD64VMAXPD128
 	OpAMD64VMINPD128
 	OpAMD64VMULPD128
 	OpAMD64VSCALEFPD128
-	OpAMD64VORPD128
 	OpAMD64VHADDPD128
 	OpAMD64VHSUBPD128
 	OpAMD64VSQRTPD128
 	OpAMD64VSUBPD128
-	OpAMD64VXORPD128
 	OpAMD64VADDPD256
 	OpAMD64VADDSUBPD256
-	OpAMD64VANDPD256
-	OpAMD64VANDNPD256
 	OpAMD64VRCP14PD256
 	OpAMD64VRSQRT14PD256
 	OpAMD64VDIVPD256
@@ -1352,8 +1318,6 @@ const (
 	OpAMD64VFMADDSUB213PD256
 	OpAMD64VFMSUBADD213PD256
 	OpAMD64VADDPDMasked256
-	OpAMD64VANDPDMasked256
-	OpAMD64VANDNPDMasked256
 	OpAMD64VRCP14PDMasked256
 	OpAMD64VRSQRT14PDMasked256
 	OpAMD64VDIVPDMasked256
@@ -1364,23 +1328,17 @@ const (
 	OpAMD64VMINPDMasked256
 	OpAMD64VMULPDMasked256
 	OpAMD64VSCALEFPDMasked256
-	OpAMD64VORPDMasked256
 	OpAMD64VSQRTPDMasked256
 	OpAMD64VSUBPDMasked256
-	OpAMD64VXORPDMasked256
 	OpAMD64VMAXPD256
 	OpAMD64VMINPD256
 	OpAMD64VMULPD256
 	OpAMD64VSCALEFPD256
-	OpAMD64VORPD256
 	OpAMD64VHADDPD256
 	OpAMD64VHSUBPD256
 	OpAMD64VSQRTPD256
 	OpAMD64VSUBPD256
-	OpAMD64VXORPD256
 	OpAMD64VADDPD512
-	OpAMD64VANDPD512
-	OpAMD64VANDNPD512
 	OpAMD64VRCP14PD512
 	OpAMD64VRSQRT14PD512
 	OpAMD64VDIVPD512
@@ -1388,8 +1346,6 @@ const (
 	OpAMD64VFMADDSUB213PD512
 	OpAMD64VFMSUBADD213PD512
 	OpAMD64VADDPDMasked512
-	OpAMD64VANDPDMasked512
-	OpAMD64VANDNPDMasked512
 	OpAMD64VRCP14PDMasked512
 	OpAMD64VRSQRT14PDMasked512
 	OpAMD64VDIVPDMasked512
@@ -1400,18 +1356,14 @@ const (
 	OpAMD64VMINPDMasked512
 	OpAMD64VMULPDMasked512
 	OpAMD64VSCALEFPDMasked512
-	OpAMD64VORPDMasked512
 	OpAMD64VSQRTPDMasked512
 	OpAMD64VSUBPDMasked512
-	OpAMD64VXORPDMasked512
 	OpAMD64VMAXPD512
 	OpAMD64VMINPD512
 	OpAMD64VMULPD512
 	OpAMD64VSCALEFPD512
-	OpAMD64VORPD512
 	OpAMD64VSQRTPD512
 	OpAMD64VSUBPD512
-	OpAMD64VXORPD512
 	OpAMD64VPABSW256
 	OpAMD64VPADDW256
 	OpAMD64VPCMPEQW256
@@ -4341,8 +4293,6 @@ const (
 	OpAdd32x4
 	OpZeroSIMD
 	OpAddFloat32x16
-	OpAndFloat32x16
-	OpAndNotFloat32x16
 	OpApproximateReciprocalFloat32x16
 	OpApproximateReciprocalOfSqrtFloat32x16
 	OpDivFloat32x16
@@ -4356,8 +4306,6 @@ const (
 	OpLessFloat32x16
 	OpLessEqualFloat32x16
 	OpMaskedAddFloat32x16
-	OpMaskedAndFloat32x16
-	OpMaskedAndNotFloat32x16
 	OpMaskedApproximateReciprocalFloat32x16
 	OpMaskedApproximateReciprocalOfSqrtFloat32x16
 	OpMaskedDivFloat32x16
@@ -4375,23 +4323,17 @@ const (
 	OpMaskedMulFloat32x16
 	OpMaskedMulByPowOf2Float32x16
 	OpMaskedNotEqualFloat32x16
-	OpMaskedOrFloat32x16
 	OpMaskedSqrtFloat32x16
 	OpMaskedSubFloat32x16
-	OpMaskedXorFloat32x16
 	OpMaxFloat32x16
 	OpMinFloat32x16
 	OpMulFloat32x16
 	OpMulByPowOf2Float32x16
 	OpNotEqualFloat32x16
-	OpOrFloat32x16
 	OpSqrtFloat32x16
 	OpSubFloat32x16
-	OpXorFloat32x16
 	OpAddFloat32x4
 	OpAddSubFloat32x4
-	OpAndFloat32x4
-	OpAndNotFloat32x4
 	OpApproximateReciprocalFloat32x4
 	OpApproximateReciprocalOfSqrtFloat32x4
 	OpCeilFloat32x4
@@ -4407,8 +4349,6 @@ const (
 	OpLessFloat32x4
 	OpLessEqualFloat32x4
 	OpMaskedAddFloat32x4
-	OpMaskedAndFloat32x4
-	OpMaskedAndNotFloat32x4
 	OpMaskedApproximateReciprocalFloat32x4
 	OpMaskedApproximateReciprocalOfSqrtFloat32x4
 	OpMaskedDivFloat32x4
@@ -4426,27 +4366,21 @@ const (
 	OpMaskedMulFloat32x4
 	OpMaskedMulByPowOf2Float32x4
 	OpMaskedNotEqualFloat32x4
-	OpMaskedOrFloat32x4
 	OpMaskedSqrtFloat32x4
 	OpMaskedSubFloat32x4
-	OpMaskedXorFloat32x4
 	OpMaxFloat32x4
 	OpMinFloat32x4
 	OpMulFloat32x4
 	OpMulByPowOf2Float32x4
 	OpNotEqualFloat32x4
-	OpOrFloat32x4
 	OpPairwiseAddFloat32x4
 	OpPairwiseSubFloat32x4
 	OpRoundFloat32x4
 	OpSqrtFloat32x4
 	OpSubFloat32x4
 	OpTruncFloat32x4
-	OpXorFloat32x4
 	OpAddFloat32x8
 	OpAddSubFloat32x8
-	OpAndFloat32x8
-	OpAndNotFloat32x8
 	OpApproximateReciprocalFloat32x8
 	OpApproximateReciprocalOfSqrtFloat32x8
 	OpCeilFloat32x8
@@ -4462,8 +4396,6 @@ const (
 	OpLessFloat32x8
 	OpLessEqualFloat32x8
 	OpMaskedAddFloat32x8
-	OpMaskedAndFloat32x8
-	OpMaskedAndNotFloat32x8
 	OpMaskedApproximateReciprocalFloat32x8
 	OpMaskedApproximateReciprocalOfSqrtFloat32x8
 	OpMaskedDivFloat32x8
@@ -4481,27 +4413,21 @@ const (
 	OpMaskedMulFloat32x8
 	OpMaskedMulByPowOf2Float32x8
 	OpMaskedNotEqualFloat32x8
-	OpMaskedOrFloat32x8
 	OpMaskedSqrtFloat32x8
 	OpMaskedSubFloat32x8
-	OpMaskedXorFloat32x8
 	OpMaxFloat32x8
 	OpMinFloat32x8
 	OpMulFloat32x8
 	OpMulByPowOf2Float32x8
 	OpNotEqualFloat32x8
-	OpOrFloat32x8
 	OpPairwiseAddFloat32x8
 	OpPairwiseSubFloat32x8
 	OpRoundFloat32x8
 	OpSqrtFloat32x8
 	OpSubFloat32x8
 	OpTruncFloat32x8
-	OpXorFloat32x8
 	OpAddFloat64x2
 	OpAddSubFloat64x2
-	OpAndFloat64x2
-	OpAndNotFloat64x2
 	OpApproximateReciprocalFloat64x2
 	OpApproximateReciprocalOfSqrtFloat64x2
 	OpCeilFloat64x2
@@ -4518,8 +4444,6 @@ const (
 	OpLessFloat64x2
 	OpLessEqualFloat64x2
 	OpMaskedAddFloat64x2
-	OpMaskedAndFloat64x2
-	OpMaskedAndNotFloat64x2
 	OpMaskedApproximateReciprocalFloat64x2
 	OpMaskedApproximateReciprocalOfSqrtFloat64x2
 	OpMaskedDivFloat64x2
@@ -4537,27 +4461,21 @@ const (
 	OpMaskedMulFloat64x2
 	OpMaskedMulByPowOf2Float64x2
 	OpMaskedNotEqualFloat64x2
-	OpMaskedOrFloat64x2
 	OpMaskedSqrtFloat64x2
 	OpMaskedSubFloat64x2
-	OpMaskedXorFloat64x2
 	OpMaxFloat64x2
 	OpMinFloat64x2
 	OpMulFloat64x2
 	OpMulByPowOf2Float64x2
 	OpNotEqualFloat64x2
-	OpOrFloat64x2
 	OpPairwiseAddFloat64x2
 	OpPairwiseSubFloat64x2
 	OpRoundFloat64x2
 	OpSqrtFloat64x2
 	OpSubFloat64x2
 	OpTruncFloat64x2
-	OpXorFloat64x2
 	OpAddFloat64x4
 	OpAddSubFloat64x4
-	OpAndFloat64x4
-	OpAndNotFloat64x4
 	OpApproximateReciprocalFloat64x4
 	OpApproximateReciprocalOfSqrtFloat64x4
 	OpCeilFloat64x4
@@ -4573,8 +4491,6 @@ const (
 	OpLessFloat64x4
 	OpLessEqualFloat64x4
 	OpMaskedAddFloat64x4
-	OpMaskedAndFloat64x4
-	OpMaskedAndNotFloat64x4
 	OpMaskedApproximateReciprocalFloat64x4
 	OpMaskedApproximateReciprocalOfSqrtFloat64x4
 	OpMaskedDivFloat64x4
@@ -4592,26 +4508,20 @@ const (
 	OpMaskedMulFloat64x4
 	OpMaskedMulByPowOf2Float64x4
 	OpMaskedNotEqualFloat64x4
-	OpMaskedOrFloat64x4
 	OpMaskedSqrtFloat64x4
 	OpMaskedSubFloat64x4
-	OpMaskedXorFloat64x4
 	OpMaxFloat64x4
 	OpMinFloat64x4
 	OpMulFloat64x4
 	OpMulByPowOf2Float64x4
 	OpNotEqualFloat64x4
-	OpOrFloat64x4
 	OpPairwiseAddFloat64x4
 	OpPairwiseSubFloat64x4
 	OpRoundFloat64x4
 	OpSqrtFloat64x4
 	OpSubFloat64x4
 	OpTruncFloat64x4
-	OpXorFloat64x4
 	OpAddFloat64x8
-	OpAndFloat64x8
-	OpAndNotFloat64x8
 	OpApproximateReciprocalFloat64x8
 	OpApproximateReciprocalOfSqrtFloat64x8
 	OpDivFloat64x8
@@ -4625,8 +4535,6 @@ const (
 	OpLessFloat64x8
 	OpLessEqualFloat64x8
 	OpMaskedAddFloat64x8
-	OpMaskedAndFloat64x8
-	OpMaskedAndNotFloat64x8
 	OpMaskedApproximateReciprocalFloat64x8
 	OpMaskedApproximateReciprocalOfSqrtFloat64x8
 	OpMaskedDivFloat64x8
@@ -4644,19 +4552,15 @@ const (
 	OpMaskedMulFloat64x8
 	OpMaskedMulByPowOf2Float64x8
 	OpMaskedNotEqualFloat64x8
-	OpMaskedOrFloat64x8
 	OpMaskedSqrtFloat64x8
 	OpMaskedSubFloat64x8
-	OpMaskedXorFloat64x8
 	OpMaxFloat64x8
 	OpMinFloat64x8
 	OpMulFloat64x8
 	OpMulByPowOf2Float64x8
 	OpNotEqualFloat64x8
-	OpOrFloat64x8
 	OpSqrtFloat64x8
 	OpSubFloat64x8
-	OpXorFloat64x8
 	OpAbsoluteInt16x16
 	OpAddInt16x16
 	OpAndInt16x16
@@ -18676,35 +18580,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VANDPS512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVANDPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VANDNPS512",
-		argLen: 2,
-		asm:    x86.AVANDNPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:   "VRCP14PS512",
 		argLen: 1,
 		asm:    x86.AVRCP14PS,
@@ -18797,37 +18672,6 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVADDPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VANDPSMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVANDPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VANDNPSMasked512",
-		argLen: 3,
-		asm:    x86.AVANDNPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -18997,22 +18841,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VORPSMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVORPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:   "VSQRTPSMasked512",
 		argLen: 2,
 		asm:    x86.AVSQRTPS,
@@ -19030,22 +18858,6 @@ var opcodeTable = [...]opInfo{
 		name:   "VSUBPSMasked512",
 		argLen: 3,
 		asm:    x86.AVSUBPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VXORPSMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVXORPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -19117,21 +18929,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VORPS512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVORPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:   "VSQRTPS512",
 		argLen: 1,
 		asm:    x86.AVSQRTPS,
@@ -19148,21 +18945,6 @@ var opcodeTable = [...]opInfo{
 		name:   "VSUBPS512",
 		argLen: 2,
 		asm:    x86.AVSUBPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VXORPS512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVXORPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -19192,35 +18974,6 @@ var opcodeTable = [...]opInfo{
 		name:   "VADDSUBPS128",
 		argLen: 2,
 		asm:    x86.AVADDSUBPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VANDPS128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVANDPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VANDNPS128",
-		argLen: 2,
-		asm:    x86.AVANDNPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -19324,37 +19077,6 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVADDPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VANDPSMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVANDPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VANDNPSMasked128",
-		argLen: 3,
-		asm:    x86.AVANDNPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -19524,22 +19246,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VORPSMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVORPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:   "VSQRTPSMasked128",
 		argLen: 2,
 		asm:    x86.AVSQRTPS,
@@ -19557,22 +19263,6 @@ var opcodeTable = [...]opInfo{
 		name:   "VSUBPSMasked128",
 		argLen: 3,
 		asm:    x86.AVSUBPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VXORPSMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVXORPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -19644,21 +19334,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VORPS128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVORPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:   "VHADDPS128",
 		argLen: 2,
 		asm:    x86.AVHADDPS,
@@ -19714,21 +19389,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VXORPS128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVXORPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VADDPS256",
 		argLen:      2,
 		commutative: true,
@@ -19747,35 +19407,6 @@ var opcodeTable = [...]opInfo{
 		name:   "VADDSUBPS256",
 		argLen: 2,
 		asm:    x86.AVADDSUBPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VANDPS256",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVANDPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VANDNPS256",
-		argLen: 2,
-		asm:    x86.AVANDNPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -19879,37 +19510,6 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVADDPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VANDPSMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVANDPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VANDNPSMasked256",
-		argLen: 3,
-		asm:    x86.AVANDNPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -20079,22 +19679,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VORPSMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVORPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:   "VSQRTPSMasked256",
 		argLen: 2,
 		asm:    x86.AVSQRTPS,
@@ -20112,22 +19696,6 @@ var opcodeTable = [...]opInfo{
 		name:   "VSUBPSMasked256",
 		argLen: 3,
 		asm:    x86.AVSUBPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VXORPSMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVXORPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -20199,21 +19767,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VORPS256",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVORPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:   "VHADDPS256",
 		argLen: 2,
 		asm:    x86.AVHADDPS,
@@ -20269,21 +19822,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VXORPS256",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVXORPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VADDPD128",
 		argLen:      2,
 		commutative: true,
@@ -20302,35 +19840,6 @@ var opcodeTable = [...]opInfo{
 		name:   "VADDSUBPD128",
 		argLen: 2,
 		asm:    x86.AVADDSUBPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VANDPD128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVANDPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VANDNPD128",
-		argLen: 2,
-		asm:    x86.AVANDNPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -20434,37 +19943,6 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVADDPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VANDPDMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVANDPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VANDNPDMasked128",
-		argLen: 3,
-		asm:    x86.AVANDNPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -20634,22 +20112,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VORPDMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVORPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:   "VSQRTPDMasked128",
 		argLen: 2,
 		asm:    x86.AVSQRTPD,
@@ -20667,22 +20129,6 @@ var opcodeTable = [...]opInfo{
 		name:   "VSUBPDMasked128",
 		argLen: 3,
 		asm:    x86.AVSUBPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VXORPDMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVXORPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -20754,21 +20200,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VORPD128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVORPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:   "VHADDPD128",
 		argLen: 2,
 		asm:    x86.AVHADDPD,
@@ -20824,21 +20255,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VXORPD128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVXORPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VADDPD256",
 		argLen:      2,
 		commutative: true,
@@ -20857,35 +20273,6 @@ var opcodeTable = [...]opInfo{
 		name:   "VADDSUBPD256",
 		argLen: 2,
 		asm:    x86.AVADDSUBPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VANDPD256",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVANDPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VANDNPD256",
-		argLen: 2,
-		asm:    x86.AVANDNPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -20989,37 +20376,6 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVADDPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VANDPDMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVANDPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VANDNPDMasked256",
-		argLen: 3,
-		asm:    x86.AVANDNPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -21189,22 +20545,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VORPDMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVORPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:   "VSQRTPDMasked256",
 		argLen: 2,
 		asm:    x86.AVSQRTPD,
@@ -21222,22 +20562,6 @@ var opcodeTable = [...]opInfo{
 		name:   "VSUBPDMasked256",
 		argLen: 3,
 		asm:    x86.AVSUBPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VXORPDMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVXORPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -21309,21 +20633,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VORPD256",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVORPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:   "VHADDPD256",
 		argLen: 2,
 		asm:    x86.AVHADDPD,
@@ -21379,54 +20688,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VXORPD256",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVXORPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VADDPD512",
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVADDPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VANDPD512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVANDPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VANDNPD512",
-		argLen: 2,
-		asm:    x86.AVANDNPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -21530,37 +20795,6 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVADDPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VANDPDMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVANDPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VANDNPDMasked512",
-		argLen: 3,
-		asm:    x86.AVANDNPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -21730,22 +20964,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VORPDMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVORPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:   "VSQRTPDMasked512",
 		argLen: 2,
 		asm:    x86.AVSQRTPD,
@@ -21763,22 +20981,6 @@ var opcodeTable = [...]opInfo{
 		name:   "VSUBPDMasked512",
 		argLen: 3,
 		asm:    x86.AVSUBPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},    // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VXORPDMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVXORPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
@@ -21850,21 +21052,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VORPD512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVORPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:   "VSQRTPD512",
 		argLen: 1,
 		asm:    x86.AVSQRTPD,
@@ -21881,21 +21068,6 @@ var opcodeTable = [...]opInfo{
 		name:   "VSUBPD512",
 		argLen: 2,
 		asm:    x86.AVSUBPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VXORPD512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVXORPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -59681,17 +58853,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "AndFloat32x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:    "AndNotFloat32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "ApproximateReciprocalFloat32x16",
 		argLen:  1,
 		generic: true,
@@ -59758,17 +58919,6 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		generic:     true,
-	},
-	{
-		name:        "MaskedAndFloat32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:    "MaskedAndNotFloat32x16",
-		argLen:  3,
-		generic: true,
 	},
 	{
 		name:    "MaskedApproximateReciprocalFloat32x16",
@@ -59862,12 +59012,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedOrFloat32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:    "MaskedSqrtFloat32x16",
 		argLen:  2,
 		generic: true,
@@ -59876,12 +59020,6 @@ var opcodeTable = [...]opInfo{
 		name:    "MaskedSubFloat32x16",
 		argLen:  3,
 		generic: true,
-	},
-	{
-		name:        "MaskedXorFloat32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
 	},
 	{
 		name:        "MaxFloat32x16",
@@ -59913,12 +59051,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "OrFloat32x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:    "SqrtFloat32x16",
 		argLen:  1,
 		generic: true,
@@ -59929,12 +59061,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:        "XorFloat32x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:        "AddFloat32x4",
 		argLen:      2,
 		commutative: true,
@@ -59942,17 +59068,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "AddSubFloat32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:        "AndFloat32x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:    "AndNotFloat32x4",
 		argLen:  2,
 		generic: true,
 	},
@@ -60033,17 +59148,6 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		generic:     true,
-	},
-	{
-		name:        "MaskedAndFloat32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:    "MaskedAndNotFloat32x4",
-		argLen:  3,
-		generic: true,
 	},
 	{
 		name:    "MaskedApproximateReciprocalFloat32x4",
@@ -60137,12 +59241,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedOrFloat32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:    "MaskedSqrtFloat32x4",
 		argLen:  2,
 		generic: true,
@@ -60151,12 +59249,6 @@ var opcodeTable = [...]opInfo{
 		name:    "MaskedSubFloat32x4",
 		argLen:  3,
 		generic: true,
-	},
-	{
-		name:        "MaskedXorFloat32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
 	},
 	{
 		name:        "MaxFloat32x4",
@@ -60183,12 +59275,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "NotEqualFloat32x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "OrFloat32x4",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
@@ -60224,12 +59310,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:        "XorFloat32x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:        "AddFloat32x8",
 		argLen:      2,
 		commutative: true,
@@ -60237,17 +59317,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "AddSubFloat32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:        "AndFloat32x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:    "AndNotFloat32x8",
 		argLen:  2,
 		generic: true,
 	},
@@ -60328,17 +59397,6 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		generic:     true,
-	},
-	{
-		name:        "MaskedAndFloat32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:    "MaskedAndNotFloat32x8",
-		argLen:  3,
-		generic: true,
 	},
 	{
 		name:    "MaskedApproximateReciprocalFloat32x8",
@@ -60432,12 +59490,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedOrFloat32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:    "MaskedSqrtFloat32x8",
 		argLen:  2,
 		generic: true,
@@ -60446,12 +59498,6 @@ var opcodeTable = [...]opInfo{
 		name:    "MaskedSubFloat32x8",
 		argLen:  3,
 		generic: true,
-	},
-	{
-		name:        "MaskedXorFloat32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
 	},
 	{
 		name:        "MaxFloat32x8",
@@ -60478,12 +59524,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "NotEqualFloat32x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "OrFloat32x8",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
@@ -60519,12 +59559,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:        "XorFloat32x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:        "AddFloat64x2",
 		argLen:      2,
 		commutative: true,
@@ -60532,17 +59566,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "AddSubFloat64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:        "AndFloat64x2",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:    "AndNotFloat64x2",
 		argLen:  2,
 		generic: true,
 	},
@@ -60629,17 +59652,6 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		generic:     true,
-	},
-	{
-		name:        "MaskedAndFloat64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:    "MaskedAndNotFloat64x2",
-		argLen:  3,
-		generic: true,
 	},
 	{
 		name:    "MaskedApproximateReciprocalFloat64x2",
@@ -60733,12 +59745,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedOrFloat64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:    "MaskedSqrtFloat64x2",
 		argLen:  2,
 		generic: true,
@@ -60747,12 +59753,6 @@ var opcodeTable = [...]opInfo{
 		name:    "MaskedSubFloat64x2",
 		argLen:  3,
 		generic: true,
-	},
-	{
-		name:        "MaskedXorFloat64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
 	},
 	{
 		name:        "MaxFloat64x2",
@@ -60779,12 +59779,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "NotEqualFloat64x2",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "OrFloat64x2",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
@@ -60820,12 +59814,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:        "XorFloat64x2",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:        "AddFloat64x4",
 		argLen:      2,
 		commutative: true,
@@ -60833,17 +59821,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "AddSubFloat64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:        "AndFloat64x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:    "AndNotFloat64x4",
 		argLen:  2,
 		generic: true,
 	},
@@ -60924,17 +59901,6 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		generic:     true,
-	},
-	{
-		name:        "MaskedAndFloat64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:    "MaskedAndNotFloat64x4",
-		argLen:  3,
-		generic: true,
 	},
 	{
 		name:    "MaskedApproximateReciprocalFloat64x4",
@@ -61028,12 +59994,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedOrFloat64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:    "MaskedSqrtFloat64x4",
 		argLen:  2,
 		generic: true,
@@ -61042,12 +60002,6 @@ var opcodeTable = [...]opInfo{
 		name:    "MaskedSubFloat64x4",
 		argLen:  3,
 		generic: true,
-	},
-	{
-		name:        "MaskedXorFloat64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
 	},
 	{
 		name:        "MaxFloat64x4",
@@ -61074,12 +60028,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "NotEqualFloat64x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "OrFloat64x4",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
@@ -61115,27 +60063,10 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:        "XorFloat64x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:        "AddFloat64x8",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
-	},
-	{
-		name:        "AndFloat64x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:    "AndNotFloat64x8",
-		argLen:  2,
-		generic: true,
 	},
 	{
 		name:    "ApproximateReciprocalFloat64x8",
@@ -61204,17 +60135,6 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		generic:     true,
-	},
-	{
-		name:        "MaskedAndFloat64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:    "MaskedAndNotFloat64x8",
-		argLen:  3,
-		generic: true,
 	},
 	{
 		name:    "MaskedApproximateReciprocalFloat64x8",
@@ -61308,12 +60228,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MaskedOrFloat64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:    "MaskedSqrtFloat64x8",
 		argLen:  2,
 		generic: true,
@@ -61322,12 +60236,6 @@ var opcodeTable = [...]opInfo{
 		name:    "MaskedSubFloat64x8",
 		argLen:  3,
 		generic: true,
-	},
-	{
-		name:        "MaskedXorFloat64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
 	},
 	{
 		name:        "MaxFloat64x8",
@@ -61359,12 +60267,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "OrFloat64x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:    "SqrtFloat64x8",
 		argLen:  1,
 		generic: true,
@@ -61373,12 +60275,6 @@ var opcodeTable = [...]opInfo{
 		name:    "SubFloat64x8",
 		argLen:  2,
 		generic: true,
-	},
-	{
-		name:        "XorFloat64x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
 	},
 	{
 		name:    "AbsoluteInt16x16",

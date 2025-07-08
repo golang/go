@@ -244,36 +244,6 @@ func (x Float64x4) AddSub(y Float64x4) Float64x4
 
 // And performs a bitwise AND operation between two vectors.
 //
-// Asm: VANDPS, CPU Feature: AVX
-func (x Float32x4) And(y Float32x4) Float32x4
-
-// And performs a bitwise AND operation between two vectors.
-//
-// Asm: VANDPS, CPU Feature: AVX
-func (x Float32x8) And(y Float32x8) Float32x8
-
-// And performs a masked bitwise AND operation between two vectors.
-//
-// Asm: VANDPS, CPU Feature: AVX512EVEX
-func (x Float32x16) And(y Float32x16) Float32x16
-
-// And performs a bitwise AND operation between two vectors.
-//
-// Asm: VANDPD, CPU Feature: AVX
-func (x Float64x2) And(y Float64x2) Float64x2
-
-// And performs a bitwise AND operation between two vectors.
-//
-// Asm: VANDPD, CPU Feature: AVX
-func (x Float64x4) And(y Float64x4) Float64x4
-
-// And performs a masked bitwise AND operation between two vectors.
-//
-// Asm: VANDPD, CPU Feature: AVX512EVEX
-func (x Float64x8) And(y Float64x8) Float64x8
-
-// And performs a bitwise AND operation between two vectors.
-//
 // Asm: VPAND, CPU Feature: AVX
 func (x Int8x16) And(y Int8x16) Int8x16
 
@@ -373,36 +343,6 @@ func (x Uint64x4) And(y Uint64x4) Uint64x4
 func (x Uint64x8) And(y Uint64x8) Uint64x8
 
 /* AndNot */
-
-// AndNot performs a bitwise AND NOT operation between two vectors.
-//
-// Asm: VANDNPS, CPU Feature: AVX
-func (x Float32x4) AndNot(y Float32x4) Float32x4
-
-// AndNot performs a bitwise AND NOT operation between two vectors.
-//
-// Asm: VANDNPS, CPU Feature: AVX
-func (x Float32x8) AndNot(y Float32x8) Float32x8
-
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
-//
-// Asm: VANDNPS, CPU Feature: AVX512EVEX
-func (x Float32x16) AndNot(y Float32x16) Float32x16
-
-// AndNot performs a bitwise AND NOT operation between two vectors.
-//
-// Asm: VANDNPD, CPU Feature: AVX
-func (x Float64x2) AndNot(y Float64x2) Float64x2
-
-// AndNot performs a bitwise AND NOT operation between two vectors.
-//
-// Asm: VANDNPD, CPU Feature: AVX
-func (x Float64x4) AndNot(y Float64x4) Float64x4
-
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
-//
-// Asm: VANDNPD, CPU Feature: AVX512EVEX
-func (x Float64x8) AndNot(y Float64x8) Float64x8
 
 // AndNot performs a bitwise AND NOT operation between two vectors.
 //
@@ -2150,36 +2090,6 @@ func (x Uint64x8) MaskedAdd(y Uint64x8, z Mask64x8) Uint64x8
 
 // And performs a masked bitwise AND operation between two vectors.
 //
-// Asm: VANDPS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedAnd(y Float32x4, z Mask32x4) Float32x4
-
-// And performs a masked bitwise AND operation between two vectors.
-//
-// Asm: VANDPS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedAnd(y Float32x8, z Mask32x8) Float32x8
-
-// And performs a masked bitwise AND operation between two vectors.
-//
-// Asm: VANDPS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedAnd(y Float32x16, z Mask32x16) Float32x16
-
-// And performs a masked bitwise AND operation between two vectors.
-//
-// Asm: VANDPD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedAnd(y Float64x2, z Mask64x2) Float64x2
-
-// And performs a masked bitwise AND operation between two vectors.
-//
-// Asm: VANDPD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedAnd(y Float64x4, z Mask64x4) Float64x4
-
-// And performs a masked bitwise AND operation between two vectors.
-//
-// Asm: VANDPD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedAnd(y Float64x8, z Mask64x8) Float64x8
-
-// And performs a masked bitwise AND operation between two vectors.
-//
 // Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedAnd(y Int32x4, z Mask32x4) Int32x4
 
@@ -2239,36 +2149,6 @@ func (x Uint64x4) MaskedAnd(y Uint64x4, z Mask64x4) Uint64x4
 func (x Uint64x8) MaskedAnd(y Uint64x8, z Mask64x8) Uint64x8
 
 /* MaskedAndNot */
-
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
-//
-// Asm: VANDNPS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedAndNot(y Float32x4, z Mask32x4) Float32x4
-
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
-//
-// Asm: VANDNPS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedAndNot(y Float32x8, z Mask32x8) Float32x8
-
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
-//
-// Asm: VANDNPS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedAndNot(y Float32x16, z Mask32x16) Float32x16
-
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
-//
-// Asm: VANDNPD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedAndNot(y Float64x2, z Mask64x2) Float64x2
-
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
-//
-// Asm: VANDNPD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedAndNot(y Float64x4, z Mask64x4) Float64x4
-
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
-//
-// Asm: VANDNPD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedAndNot(y Float64x8, z Mask64x8) Float64x8
 
 // AndNot performs a masked bitwise AND NOT operation between two vectors.
 //
@@ -4254,36 +4134,6 @@ func (x Uint64x8) MaskedNotEqual(y Uint64x8, z Mask64x8) Mask64x8
 
 // Or performs a masked bitwise OR operation between two vectors.
 //
-// Asm: VORPS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedOr(y Float32x4, z Mask32x4) Float32x4
-
-// Or performs a masked bitwise OR operation between two vectors.
-//
-// Asm: VORPS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedOr(y Float32x8, z Mask32x8) Float32x8
-
-// Or performs a masked bitwise OR operation between two vectors.
-//
-// Asm: VORPS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedOr(y Float32x16, z Mask32x16) Float32x16
-
-// Or performs a masked bitwise OR operation between two vectors.
-//
-// Asm: VORPD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedOr(y Float64x2, z Mask64x2) Float64x2
-
-// Or performs a masked bitwise OR operation between two vectors.
-//
-// Asm: VORPD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedOr(y Float64x4, z Mask64x4) Float64x4
-
-// Or performs a masked bitwise OR operation between two vectors.
-//
-// Asm: VORPD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedOr(y Float64x8, z Mask64x8) Float64x8
-
-// Or performs a masked bitwise OR operation between two vectors.
-//
 // Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedOr(y Int32x4, z Mask32x4) Int32x4
 
@@ -6023,36 +5873,6 @@ func (x Uint32x16) MaskedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int8x
 
 // Xor performs a masked bitwise XOR operation between two vectors.
 //
-// Asm: VXORPS, CPU Feature: AVX512EVEX
-func (x Float32x4) MaskedXor(y Float32x4, z Mask32x4) Float32x4
-
-// Xor performs a masked bitwise XOR operation between two vectors.
-//
-// Asm: VXORPS, CPU Feature: AVX512EVEX
-func (x Float32x8) MaskedXor(y Float32x8, z Mask32x8) Float32x8
-
-// Xor performs a masked bitwise XOR operation between two vectors.
-//
-// Asm: VXORPS, CPU Feature: AVX512EVEX
-func (x Float32x16) MaskedXor(y Float32x16, z Mask32x16) Float32x16
-
-// Xor performs a masked bitwise XOR operation between two vectors.
-//
-// Asm: VXORPD, CPU Feature: AVX512EVEX
-func (x Float64x2) MaskedXor(y Float64x2, z Mask64x2) Float64x2
-
-// Xor performs a masked bitwise XOR operation between two vectors.
-//
-// Asm: VXORPD, CPU Feature: AVX512EVEX
-func (x Float64x4) MaskedXor(y Float64x4, z Mask64x4) Float64x4
-
-// Xor performs a masked bitwise XOR operation between two vectors.
-//
-// Asm: VXORPD, CPU Feature: AVX512EVEX
-func (x Float64x8) MaskedXor(y Float64x8, z Mask64x8) Float64x8
-
-// Xor performs a masked bitwise XOR operation between two vectors.
-//
 // Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaskedXor(y Int32x4, z Mask32x4) Int32x4
 
@@ -6773,36 +6593,6 @@ func (x Uint64x4) NotEqual(y Uint64x4) Mask64x4
 func (x Uint64x8) NotEqual(y Uint64x8) Mask64x8
 
 /* Or */
-
-// Or performs a bitwise OR operation between two vectors.
-//
-// Asm: VORPS, CPU Feature: AVX
-func (x Float32x4) Or(y Float32x4) Float32x4
-
-// Or performs a bitwise OR operation between two vectors.
-//
-// Asm: VORPS, CPU Feature: AVX
-func (x Float32x8) Or(y Float32x8) Float32x8
-
-// Or performs a masked bitwise OR operation between two vectors.
-//
-// Asm: VORPS, CPU Feature: AVX512EVEX
-func (x Float32x16) Or(y Float32x16) Float32x16
-
-// Or performs a bitwise OR operation between two vectors.
-//
-// Asm: VORPD, CPU Feature: AVX
-func (x Float64x2) Or(y Float64x2) Float64x2
-
-// Or performs a bitwise OR operation between two vectors.
-//
-// Asm: VORPD, CPU Feature: AVX
-func (x Float64x4) Or(y Float64x4) Float64x4
-
-// Or performs a masked bitwise OR operation between two vectors.
-//
-// Asm: VORPD, CPU Feature: AVX512EVEX
-func (x Float64x8) Or(y Float64x8) Float64x8
 
 // Or performs a bitwise OR operation between two vectors.
 //
@@ -9034,36 +8824,6 @@ func (x Uint32x8) UnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int8x32) Uin
 func (x Uint32x16) UnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int8x64) Uint32x16
 
 /* Xor */
-
-// Xor performs a bitwise XOR operation between two vectors.
-//
-// Asm: VXORPS, CPU Feature: AVX
-func (x Float32x4) Xor(y Float32x4) Float32x4
-
-// Xor performs a bitwise XOR operation between two vectors.
-//
-// Asm: VXORPS, CPU Feature: AVX
-func (x Float32x8) Xor(y Float32x8) Float32x8
-
-// Xor performs a masked bitwise XOR operation between two vectors.
-//
-// Asm: VXORPS, CPU Feature: AVX512EVEX
-func (x Float32x16) Xor(y Float32x16) Float32x16
-
-// Xor performs a bitwise XOR operation between two vectors.
-//
-// Asm: VXORPD, CPU Feature: AVX
-func (x Float64x2) Xor(y Float64x2) Float64x2
-
-// Xor performs a bitwise XOR operation between two vectors.
-//
-// Asm: VXORPD, CPU Feature: AVX
-func (x Float64x4) Xor(y Float64x4) Float64x4
-
-// Xor performs a masked bitwise XOR operation between two vectors.
-//
-// Asm: VXORPD, CPU Feature: AVX512EVEX
-func (x Float64x8) Xor(y Float64x8) Float64x8
 
 // Xor performs a bitwise XOR operation between two vectors.
 //
