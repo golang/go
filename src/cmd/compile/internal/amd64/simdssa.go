@@ -54,7 +54,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VSQRTPD128,
 		ssa.OpAMD64VSQRTPD256,
 		ssa.OpAMD64VSQRTPD512:
-		p = simdFp11(s, v)
+		p = simdV11(s, v)
 
 	case ssa.OpAMD64VADDPS128,
 		ssa.OpAMD64VADDPS256,
@@ -318,7 +318,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VPXOR256,
 		ssa.OpAMD64VPXORD512,
 		ssa.OpAMD64VPXORQ512:
-		p = simdFp21(s, v)
+		p = simdV21(s, v)
 
 	case ssa.OpAMD64VADDPSMasked128,
 		ssa.OpAMD64VADDPSMasked256,
@@ -545,7 +545,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VPXORQMasked128,
 		ssa.OpAMD64VPXORQMasked256,
 		ssa.OpAMD64VPXORQMasked512:
-		p = simdFp2kfp(s, v)
+		p = simdV2kv(s, v)
 
 	case ssa.OpAMD64VPABSBMasked128,
 		ssa.OpAMD64VPABSBMasked256,
@@ -589,7 +589,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VSQRTPDMasked128,
 		ssa.OpAMD64VSQRTPDMasked256,
 		ssa.OpAMD64VSQRTPDMasked512:
-		p = simdFpkfp(s, v)
+		p = simdVkv(s, v)
 
 	case ssa.OpAMD64VROUNDPS128,
 		ssa.OpAMD64VROUNDPS256,
@@ -621,7 +621,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VPRORQ128,
 		ssa.OpAMD64VPRORQ256,
 		ssa.OpAMD64VPRORQ512:
-		p = simdFp11Imm8(s, v)
+		p = simdV11Imm8(s, v)
 
 	case ssa.OpAMD64VRNDSCALEPSMasked128,
 		ssa.OpAMD64VRNDSCALEPSMasked256,
@@ -647,7 +647,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VPRORQMasked128,
 		ssa.OpAMD64VPRORQMasked256,
 		ssa.OpAMD64VPRORQMasked512:
-		p = simdFpkfpImm8(s, v)
+		p = simdVkvImm8(s, v)
 
 	case ssa.OpAMD64VDPPD128,
 		ssa.OpAMD64VCMPPS128,
@@ -680,7 +680,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VPSHRDQ128,
 		ssa.OpAMD64VPSHRDQ256,
 		ssa.OpAMD64VPSHRDQ512:
-		p = simdFp21Imm8(s, v)
+		p = simdV21Imm8(s, v)
 
 	case ssa.OpAMD64VCMPPS512,
 		ssa.OpAMD64VCMPPD512,
@@ -708,7 +708,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VPCMPD128,
 		ssa.OpAMD64VPCMPD256,
 		ssa.OpAMD64VPCMPQ256:
-		p = simdFp2kImm8(s, v)
+		p = simdV2kImm8(s, v)
 
 	case ssa.OpAMD64VCMPPSMasked128,
 		ssa.OpAMD64VCMPPSMasked256,
@@ -740,7 +740,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VPCMPUQMasked128,
 		ssa.OpAMD64VPCMPUQMasked256,
 		ssa.OpAMD64VPCMPUQMasked512:
-		p = simdFp2kkImm8(s, v)
+		p = simdV2kkImm8(s, v)
 
 	case ssa.OpAMD64VFMADD213PS128,
 		ssa.OpAMD64VFMADD213PS256,
@@ -790,7 +790,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VPDPBUSD128,
 		ssa.OpAMD64VPDPBUSD256,
 		ssa.OpAMD64VPDPBUSD512:
-		p = simdFp31ResultInArg0(s, v)
+		p = simdV31ResultInArg0(s, v)
 
 	case ssa.OpAMD64VFMADD213PSMasked128,
 		ssa.OpAMD64VFMADD213PSMasked256,
@@ -840,7 +840,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VPDPBUSDMasked128,
 		ssa.OpAMD64VPDPBUSDMasked256,
 		ssa.OpAMD64VPDPBUSDMasked512:
-		p = simdFp3kfpResultInArg0(s, v)
+		p = simdV3kvResultInArg0(s, v)
 
 	case ssa.OpAMD64VPSLLW128,
 		ssa.OpAMD64VPSLLW256,
@@ -863,7 +863,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VPSRAQ128,
 		ssa.OpAMD64VPSRAQ256,
 		ssa.OpAMD64VPSRAQ512:
-		p = simdFpXfp(s, v)
+		p = simdVfpv(s, v)
 
 	case ssa.OpAMD64VPSLLQMasked128,
 		ssa.OpAMD64VPSLLQMasked256,
@@ -874,19 +874,19 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VPSRAQMasked128,
 		ssa.OpAMD64VPSRAQMasked256,
 		ssa.OpAMD64VPSRAQMasked512:
-		p = simdFpXkfp(s, v)
+		p = simdVfpkv(s, v)
 
 	case ssa.OpAMD64VPINSRB128,
 		ssa.OpAMD64VPINSRW128,
 		ssa.OpAMD64VPINSRD128,
 		ssa.OpAMD64VPINSRQ128:
-		p = simdFpgpfpImm8(s, v)
+		p = simdVgpvImm8(s, v)
 
 	case ssa.OpAMD64VPEXTRB128,
 		ssa.OpAMD64VPEXTRW128,
 		ssa.OpAMD64VPEXTRD128,
 		ssa.OpAMD64VPEXTRQ128:
-		p = simdFpgpImm8(s, v)
+		p = simdVgpImm8(s, v)
 
 	case ssa.OpAMD64VGF2P8AFFINEINVQBMasked128,
 		ssa.OpAMD64VGF2P8AFFINEINVQBMasked256,
@@ -912,7 +912,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VPSHRDQMasked128,
 		ssa.OpAMD64VPSHRDQMasked256,
 		ssa.OpAMD64VPSHRDQMasked512:
-		p = simdFp2kfpImm8(s, v)
+		p = simdV2kvImm8(s, v)
 
 	default:
 		// Unknown reg shape

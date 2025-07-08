@@ -1518,7 +1518,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 }
 
 // Example instruction: VRSQRTPS X1, X1
-func simdFp11(s *ssagen.State, v *ssa.Value) *obj.Prog {
+func simdV11(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = simdReg(v.Args[0])
@@ -1528,7 +1528,7 @@ func simdFp11(s *ssagen.State, v *ssa.Value) *obj.Prog {
 }
 
 // Example instruction: VPSUBD X1, X2, X3
-func simdFp21(s *ssagen.State, v *ssa.Value) *obj.Prog {
+func simdV21(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
 	// Vector registers operands follows a right-to-left order.
@@ -1543,7 +1543,7 @@ func simdFp21(s *ssagen.State, v *ssa.Value) *obj.Prog {
 // This function is to accustomize the shifts.
 // The 2nd arg is an XMM, and this function merely checks that.
 // Example instruction: VPSLLQ Z1, X1, Z2
-func simdFpXfp(s *ssagen.State, v *ssa.Value) *obj.Prog {
+func simdVfpv(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
 	// Vector registers operands follows a right-to-left order.
@@ -1556,13 +1556,18 @@ func simdFpXfp(s *ssagen.State, v *ssa.Value) *obj.Prog {
 }
 
 // Example instruction: VPCMPEQW Z26, Z30, K4
-func simdFp2k(s *ssagen.State, v *ssa.Value) *obj.Prog {
-	// simdReg handles mask and vector registers altogether
-	return simdFp21(s, v)
+func simdV2k(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[1])
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = maskReg(v)
+	return p
 }
 
 // Example instruction: VPMINUQ X21, X3, K3, X31
-func simdFp2kfp(s *ssagen.State, v *ssa.Value) *obj.Prog {
+func simdV2kv(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = simdReg(v.Args[1])
@@ -1572,7 +1577,7 @@ func simdFp2kfp(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	// or "predicate" for "predicated AVX512 instructions"
 	// sits right at the end of the operand list.
 	// TODO: verify this assumption.
-	p.AddRestSourceReg(simdReg(v.Args[2]))
+	p.AddRestSourceReg(maskReg(v.Args[2]))
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = simdReg(v)
 	return p
@@ -1581,35 +1586,42 @@ func simdFp2kfp(s *ssagen.State, v *ssa.Value) *obj.Prog {
 // This function is to accustomize the shifts.
 // The 2nd arg is an XMM, and this function merely checks that.
 // Example instruction: VPSLLQ Z1, X1, K1, Z2
-func simdFpXkfp(s *ssagen.State, v *ssa.Value) *obj.Prog {
+func simdVfpkv(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = v.Args[1].Reg()
 	p.AddRestSourceReg(simdReg(v.Args[0]))
-	p.AddRestSourceReg(simdReg(v.Args[2]))
+	p.AddRestSourceReg(maskReg(v.Args[2]))
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = simdReg(v)
 	return p
 }
 
 // Example instruction: VPCMPEQW Z26, Z30, K1, K4
-func simdFp2kk(s *ssagen.State, v *ssa.Value) *obj.Prog {
-	return simdFp2kfp(s, v)
+func simdV2kk(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdReg(v.Args[1])
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.AddRestSourceReg(maskReg(v.Args[2]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = maskReg(v)
+	return p
 }
 
 // Example instruction: VPOPCNTB X14, K4, X16
-func simdFpkfp(s *ssagen.State, v *ssa.Value) *obj.Prog {
+func simdVkv(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = simdReg(v.Args[0])
-	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.AddRestSourceReg(maskReg(v.Args[1]))
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = simdReg(v)
 	return p
 }
 
 // Example instruction: VROUNDPD $7, X2, X2
-func simdFp11Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+func simdV11Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	imm := v.AuxInt
 	if imm < 0 || imm > 255 {
@@ -1624,7 +1636,7 @@ func simdFp11Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 }
 
 // Example instruction: VREDUCEPD $126, X1, K3, X31
-func simdFpkfpImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+func simdVkvImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	imm := v.AuxInt
 	if imm < 0 || imm > 255 {
@@ -1633,14 +1645,14 @@ func simdFpkfpImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p.From.Offset = imm
 	p.From.Type = obj.TYPE_CONST
 	p.AddRestSourceReg(simdReg(v.Args[0]))
-	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.AddRestSourceReg(maskReg(v.Args[1]))
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = simdReg(v)
 	return p
 }
 
 // Example instruction: VCMPPS $7, X2, X9, X2
-func simdFp21Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+func simdV21Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	imm := v.AuxInt
 	if imm < 0 || imm > 255 {
@@ -1656,7 +1668,7 @@ func simdFp21Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 }
 
 // Example instruction: VPINSRB $3, DX, X0, X0
-func simdFpgpfpImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+func simdVgpvImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	imm := v.AuxInt
 	if imm < 0 || imm > 255 {
@@ -1672,12 +1684,7 @@ func simdFpgpfpImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 }
 
 // Example instruction: VPCMPD $1, Z1, Z2, K1
-func simdFp2kImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
-	return simdFp21Imm8(s, v)
-}
-
-// Example instruction: VPCMPD $1, Z1, Z2, K2, K1
-func simdFp2kkImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+func simdV2kImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	imm := v.AuxInt
 	if imm < 0 || imm > 255 {
@@ -1687,18 +1694,34 @@ func simdFp2kkImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p.From.Type = obj.TYPE_CONST
 	p.AddRestSourceReg(simdReg(v.Args[1]))
 	p.AddRestSourceReg(simdReg(v.Args[0]))
-	p.AddRestSourceReg(simdReg(v.Args[2]))
 	p.To.Type = obj.TYPE_REG
-	p.To.Reg = simdReg(v)
+	p.To.Reg = maskReg(v)
 	return p
 }
 
-func simdFp2kfpImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
-	return simdFp2kkImm8(s, v)
+// Example instruction: VPCMPD $1, Z1, Z2, K2, K1
+func simdV2kkImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	imm := v.AuxInt
+	if imm < 0 || imm > 255 {
+		v.Fatalf("Invalid source selection immediate")
+	}
+	p.From.Offset = imm
+	p.From.Type = obj.TYPE_CONST
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.AddRestSourceReg(maskReg(v.Args[2]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = maskReg(v)
+	return p
+}
+
+func simdV2kvImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	return simdV2kkImm8(s, v)
 }
 
 // Example instruction: VFMADD213PD Z2, Z1, Z0
-func simdFp31ResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
+func simdV31ResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = simdReg(v.Args[2])
@@ -1709,18 +1732,18 @@ func simdFp31ResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
 }
 
 // Example instruction: VFMADD213PD Z2, Z1, K1, Z0
-func simdFp3kfpResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
+func simdV3kvResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = simdReg(v.Args[2])
 	p.AddRestSourceReg(simdReg(v.Args[1]))
-	p.AddRestSourceReg(simdReg(v.Args[3]))
+	p.AddRestSourceReg(maskReg(v.Args[3]))
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = simdReg(v)
 	return p
 }
 
-func simdFpgpImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+func simdVgpImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	imm := v.AuxInt
 	if imm < 0 || imm > 255 {
@@ -1735,7 +1758,7 @@ func simdFpgpImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 }
 
 // Currently unused
-func simdFp31(s *ssagen.State, v *ssa.Value) *obj.Prog {
+func simdV31(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = simdReg(v.Args[2])
@@ -1747,13 +1770,13 @@ func simdFp31(s *ssagen.State, v *ssa.Value) *obj.Prog {
 }
 
 // Currently unused
-func simdFp3kfp(s *ssagen.State, v *ssa.Value) *obj.Prog {
+func simdV3kv(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = simdReg(v.Args[2])
 	p.AddRestSourceReg(simdReg(v.Args[1]))
 	p.AddRestSourceReg(simdReg(v.Args[0]))
-	p.AddRestSourceReg(simdReg(v.Args[3]))
+	p.AddRestSourceReg(maskReg(v.Args[3]))
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = simdReg(v)
 	return p
@@ -1869,14 +1892,25 @@ func simdReg(v *ssa.Value) int16 {
 		base.Fatalf("simdReg: not a simd type; v=%s, b=b%d, f=%s", v.LongString(), v.Block.ID, v.Block.Func.Name)
 	}
 	switch t.Size() {
-	case 8:
-		return v.Reg() // K registers
 	case 16:
 		return v.Reg()
 	case 32:
 		return v.Reg() + (x86.REG_Y0 - x86.REG_X0)
 	case 64:
 		return v.Reg() + (x86.REG_Z0 - x86.REG_X0)
+	}
+	panic("unreachable")
+}
+
+// XXX k mask
+func maskReg(v *ssa.Value) int16 {
+	t := v.Type
+	if !t.IsSIMD() {
+		base.Fatalf("simdReg: not a simd type; v=%s, b=b%d, f=%s", v.LongString(), v.Block.ID, v.Block.Func.Name)
+	}
+	switch t.Size() {
+	case 8:
+		return v.Reg()
 	}
 	panic("unreachable")
 }
