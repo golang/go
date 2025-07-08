@@ -43,7 +43,7 @@ func TestType(t *testing.T) {
 		return
 	}
 	v.z = maskT(simd.LoadInt32x4(&maskv).AsMask32x4())
-	*v.y = v.y.MaskedAdd(v.x, simd.Mask32x4(v.z))
+	*v.y = v.y.AddMasked(v.x, simd.Mask32x4(v.z))
 
 	got := [4]int32{}
 	v.y.Store(&got)
@@ -125,7 +125,7 @@ func TestMaskConversion(t *testing.T) {
 	mask := y.Sub(x).AsMask32x4()
 	v = [4]int32{5, 6, 7, 8}
 	y = simd.LoadInt32x4(&v)
-	y = y.MaskedAdd(x, mask)
+	y = y.AddMasked(x, mask)
 	got := [4]int32{6, 0, 8, 0}
 	y.Store(&v)
 	for i := range 4 {
@@ -148,7 +148,7 @@ func TestMaskedAdd(t *testing.T) {
 		t.Skip("Test requires HasAVX512, not available on this hardware")
 		return
 	}
-	testInt32x4BinaryMasked(t, []int32{1, 2, 3, 4}, []int32{5, 6, 7, 8}, []int32{-1, -1, 0, 0}, []int32{6, 8, 0, 0}, "MaskedAdd")
+	testInt32x4BinaryMasked(t, []int32{1, 2, 3, 4}, []int32{5, 6, 7, 8}, []int32{-1, -1, 0, 0}, []int32{6, 8, 0, 0}, "AddMasked")
 }
 
 // checkInt8Slices ensures that b and a are equal, to the end of b.

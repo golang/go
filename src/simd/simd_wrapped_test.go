@@ -56,20 +56,20 @@ func testFloat32x4BinaryMasked(t *testing.T, v0 []float32, v1 []float32, v2 []in
 	vec1 := simd.LoadFloat32x4Slice(v1)
 	vec2 := simd.LoadInt32x4Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x4())
-	case "MaskedDiv":
-		gotv = vec0.MaskedDiv(vec1, vec2.AsMask32x4())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask32x4())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x4())
-	case "MaskedMul":
-		gotv = vec0.MaskedMul(vec1, vec2.AsMask32x4())
-	case "MaskedMulByPowOf2":
-		gotv = vec0.MaskedMulByPowOf2(vec1, vec2.AsMask32x4())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x4())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask32x4())
+	case "DivMasked":
+		gotv = vec0.DivMasked(vec1, vec2.AsMask32x4())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask32x4())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask32x4())
+	case "MulByPowOf2Masked":
+		gotv = vec0.MulByPowOf2Masked(vec1, vec2.AsMask32x4())
+	case "MulMasked":
+		gotv = vec0.MulMasked(vec1, vec2.AsMask32x4())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask32x4())
 
 	default:
 		t.Errorf("Unknown method: Float32x4.%s", which)
@@ -123,20 +123,20 @@ func testFloat32x4MaskedCompare(t *testing.T, v0 []float32, v1 []float32, v2 []i
 	vec1 := simd.LoadFloat32x4Slice(v1)
 	vec2 := simd.LoadInt32x4Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedIsNan":
-		gotv = vec0.MaskedIsNan(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "IsNanMasked":
+		gotv = vec0.IsNanMasked(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask32x4()).AsInt32x4()
 
 	default:
 		t.Errorf("Unknown method: Float32x4.%s", which)
@@ -184,12 +184,12 @@ func testFloat32x4TernaryMasked(t *testing.T, v0 []float32, v1 []float32, v2 []f
 	vec2 := simd.LoadFloat32x4Slice(v2)
 	vec3 := simd.LoadInt32x4Slice(v3)
 	switch which {
-	case "MaskedFusedMultiplyAdd":
-		gotv = vec0.MaskedFusedMultiplyAdd(vec1, vec2, vec3.AsMask32x4())
-	case "MaskedFusedMultiplyAddSub":
-		gotv = vec0.MaskedFusedMultiplyAddSub(vec1, vec2, vec3.AsMask32x4())
-	case "MaskedFusedMultiplySubAdd":
-		gotv = vec0.MaskedFusedMultiplySubAdd(vec1, vec2, vec3.AsMask32x4())
+	case "FusedMultiplyAddMasked":
+		gotv = vec0.FusedMultiplyAddMasked(vec1, vec2, vec3.AsMask32x4())
+	case "FusedMultiplyAddSubMasked":
+		gotv = vec0.FusedMultiplyAddSubMasked(vec1, vec2, vec3.AsMask32x4())
+	case "FusedMultiplySubAddMasked":
+		gotv = vec0.FusedMultiplySubAddMasked(vec1, vec2, vec3.AsMask32x4())
 
 	default:
 		t.Errorf("Unknown method: Float32x4.%s", which)
@@ -241,12 +241,12 @@ func testFloat32x4UnaryMasked(t *testing.T, v0 []float32, v1 []int32, want []flo
 	vec0 := simd.LoadFloat32x4Slice(v0)
 	vec1 := simd.LoadInt32x4Slice(v1)
 	switch which {
-	case "MaskedApproximateReciprocal":
-		gotv = vec0.MaskedApproximateReciprocal(vec1.AsMask32x4())
-	case "MaskedApproximateReciprocalOfSqrt":
-		gotv = vec0.MaskedApproximateReciprocalOfSqrt(vec1.AsMask32x4())
-	case "MaskedSqrt":
-		gotv = vec0.MaskedSqrt(vec1.AsMask32x4())
+	case "ApproximateReciprocalMasked":
+		gotv = vec0.ApproximateReciprocalMasked(vec1.AsMask32x4())
+	case "ApproximateReciprocalOfSqrtMasked":
+		gotv = vec0.ApproximateReciprocalOfSqrtMasked(vec1.AsMask32x4())
+	case "SqrtMasked":
+		gotv = vec0.SqrtMasked(vec1.AsMask32x4())
 
 	default:
 		t.Errorf("Unknown method: Float32x4.%s", which)
@@ -306,20 +306,20 @@ func testFloat32x8BinaryMasked(t *testing.T, v0 []float32, v1 []float32, v2 []in
 	vec1 := simd.LoadFloat32x8Slice(v1)
 	vec2 := simd.LoadInt32x8Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x8())
-	case "MaskedDiv":
-		gotv = vec0.MaskedDiv(vec1, vec2.AsMask32x8())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask32x8())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x8())
-	case "MaskedMul":
-		gotv = vec0.MaskedMul(vec1, vec2.AsMask32x8())
-	case "MaskedMulByPowOf2":
-		gotv = vec0.MaskedMulByPowOf2(vec1, vec2.AsMask32x8())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x8())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask32x8())
+	case "DivMasked":
+		gotv = vec0.DivMasked(vec1, vec2.AsMask32x8())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask32x8())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask32x8())
+	case "MulByPowOf2Masked":
+		gotv = vec0.MulByPowOf2Masked(vec1, vec2.AsMask32x8())
+	case "MulMasked":
+		gotv = vec0.MulMasked(vec1, vec2.AsMask32x8())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask32x8())
 
 	default:
 		t.Errorf("Unknown method: Float32x8.%s", which)
@@ -373,20 +373,20 @@ func testFloat32x8MaskedCompare(t *testing.T, v0 []float32, v1 []float32, v2 []i
 	vec1 := simd.LoadFloat32x8Slice(v1)
 	vec2 := simd.LoadInt32x8Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedIsNan":
-		gotv = vec0.MaskedIsNan(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "IsNanMasked":
+		gotv = vec0.IsNanMasked(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask32x8()).AsInt32x8()
 
 	default:
 		t.Errorf("Unknown method: Float32x8.%s", which)
@@ -434,12 +434,12 @@ func testFloat32x8TernaryMasked(t *testing.T, v0 []float32, v1 []float32, v2 []f
 	vec2 := simd.LoadFloat32x8Slice(v2)
 	vec3 := simd.LoadInt32x8Slice(v3)
 	switch which {
-	case "MaskedFusedMultiplyAdd":
-		gotv = vec0.MaskedFusedMultiplyAdd(vec1, vec2, vec3.AsMask32x8())
-	case "MaskedFusedMultiplyAddSub":
-		gotv = vec0.MaskedFusedMultiplyAddSub(vec1, vec2, vec3.AsMask32x8())
-	case "MaskedFusedMultiplySubAdd":
-		gotv = vec0.MaskedFusedMultiplySubAdd(vec1, vec2, vec3.AsMask32x8())
+	case "FusedMultiplyAddMasked":
+		gotv = vec0.FusedMultiplyAddMasked(vec1, vec2, vec3.AsMask32x8())
+	case "FusedMultiplyAddSubMasked":
+		gotv = vec0.FusedMultiplyAddSubMasked(vec1, vec2, vec3.AsMask32x8())
+	case "FusedMultiplySubAddMasked":
+		gotv = vec0.FusedMultiplySubAddMasked(vec1, vec2, vec3.AsMask32x8())
 
 	default:
 		t.Errorf("Unknown method: Float32x8.%s", which)
@@ -491,12 +491,12 @@ func testFloat32x8UnaryMasked(t *testing.T, v0 []float32, v1 []int32, want []flo
 	vec0 := simd.LoadFloat32x8Slice(v0)
 	vec1 := simd.LoadInt32x8Slice(v1)
 	switch which {
-	case "MaskedApproximateReciprocal":
-		gotv = vec0.MaskedApproximateReciprocal(vec1.AsMask32x8())
-	case "MaskedApproximateReciprocalOfSqrt":
-		gotv = vec0.MaskedApproximateReciprocalOfSqrt(vec1.AsMask32x8())
-	case "MaskedSqrt":
-		gotv = vec0.MaskedSqrt(vec1.AsMask32x8())
+	case "ApproximateReciprocalMasked":
+		gotv = vec0.ApproximateReciprocalMasked(vec1.AsMask32x8())
+	case "ApproximateReciprocalOfSqrtMasked":
+		gotv = vec0.ApproximateReciprocalOfSqrtMasked(vec1.AsMask32x8())
+	case "SqrtMasked":
+		gotv = vec0.SqrtMasked(vec1.AsMask32x8())
 
 	default:
 		t.Errorf("Unknown method: Float32x8.%s", which)
@@ -550,20 +550,20 @@ func testFloat32x16BinaryMasked(t *testing.T, v0 []float32, v1 []float32, v2 []i
 	vec1 := simd.LoadFloat32x16Slice(v1)
 	vec2 := simd.LoadInt32x16Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x16())
-	case "MaskedDiv":
-		gotv = vec0.MaskedDiv(vec1, vec2.AsMask32x16())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask32x16())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x16())
-	case "MaskedMul":
-		gotv = vec0.MaskedMul(vec1, vec2.AsMask32x16())
-	case "MaskedMulByPowOf2":
-		gotv = vec0.MaskedMulByPowOf2(vec1, vec2.AsMask32x16())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x16())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask32x16())
+	case "DivMasked":
+		gotv = vec0.DivMasked(vec1, vec2.AsMask32x16())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask32x16())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask32x16())
+	case "MulByPowOf2Masked":
+		gotv = vec0.MulByPowOf2Masked(vec1, vec2.AsMask32x16())
+	case "MulMasked":
+		gotv = vec0.MulMasked(vec1, vec2.AsMask32x16())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask32x16())
 
 	default:
 		t.Errorf("Unknown method: Float32x16.%s", which)
@@ -617,20 +617,20 @@ func testFloat32x16MaskedCompare(t *testing.T, v0 []float32, v1 []float32, v2 []
 	vec1 := simd.LoadFloat32x16Slice(v1)
 	vec2 := simd.LoadInt32x16Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedIsNan":
-		gotv = vec0.MaskedIsNan(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "IsNanMasked":
+		gotv = vec0.IsNanMasked(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask32x16()).AsInt32x16()
 
 	default:
 		t.Errorf("Unknown method: Float32x16.%s", which)
@@ -678,12 +678,12 @@ func testFloat32x16TernaryMasked(t *testing.T, v0 []float32, v1 []float32, v2 []
 	vec2 := simd.LoadFloat32x16Slice(v2)
 	vec3 := simd.LoadInt32x16Slice(v3)
 	switch which {
-	case "MaskedFusedMultiplyAdd":
-		gotv = vec0.MaskedFusedMultiplyAdd(vec1, vec2, vec3.AsMask32x16())
-	case "MaskedFusedMultiplyAddSub":
-		gotv = vec0.MaskedFusedMultiplyAddSub(vec1, vec2, vec3.AsMask32x16())
-	case "MaskedFusedMultiplySubAdd":
-		gotv = vec0.MaskedFusedMultiplySubAdd(vec1, vec2, vec3.AsMask32x16())
+	case "FusedMultiplyAddMasked":
+		gotv = vec0.FusedMultiplyAddMasked(vec1, vec2, vec3.AsMask32x16())
+	case "FusedMultiplyAddSubMasked":
+		gotv = vec0.FusedMultiplyAddSubMasked(vec1, vec2, vec3.AsMask32x16())
+	case "FusedMultiplySubAddMasked":
+		gotv = vec0.FusedMultiplySubAddMasked(vec1, vec2, vec3.AsMask32x16())
 
 	default:
 		t.Errorf("Unknown method: Float32x16.%s", which)
@@ -727,12 +727,12 @@ func testFloat32x16UnaryMasked(t *testing.T, v0 []float32, v1 []int32, want []fl
 	vec0 := simd.LoadFloat32x16Slice(v0)
 	vec1 := simd.LoadInt32x16Slice(v1)
 	switch which {
-	case "MaskedApproximateReciprocal":
-		gotv = vec0.MaskedApproximateReciprocal(vec1.AsMask32x16())
-	case "MaskedApproximateReciprocalOfSqrt":
-		gotv = vec0.MaskedApproximateReciprocalOfSqrt(vec1.AsMask32x16())
-	case "MaskedSqrt":
-		gotv = vec0.MaskedSqrt(vec1.AsMask32x16())
+	case "ApproximateReciprocalMasked":
+		gotv = vec0.ApproximateReciprocalMasked(vec1.AsMask32x16())
+	case "ApproximateReciprocalOfSqrtMasked":
+		gotv = vec0.ApproximateReciprocalOfSqrtMasked(vec1.AsMask32x16())
+	case "SqrtMasked":
+		gotv = vec0.SqrtMasked(vec1.AsMask32x16())
 
 	default:
 		t.Errorf("Unknown method: Float32x16.%s", which)
@@ -794,20 +794,20 @@ func testFloat64x2BinaryMasked(t *testing.T, v0 []float64, v1 []float64, v2 []in
 	vec1 := simd.LoadFloat64x2Slice(v1)
 	vec2 := simd.LoadInt64x2Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask64x2())
-	case "MaskedDiv":
-		gotv = vec0.MaskedDiv(vec1, vec2.AsMask64x2())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask64x2())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask64x2())
-	case "MaskedMul":
-		gotv = vec0.MaskedMul(vec1, vec2.AsMask64x2())
-	case "MaskedMulByPowOf2":
-		gotv = vec0.MaskedMulByPowOf2(vec1, vec2.AsMask64x2())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x2())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask64x2())
+	case "DivMasked":
+		gotv = vec0.DivMasked(vec1, vec2.AsMask64x2())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask64x2())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask64x2())
+	case "MulByPowOf2Masked":
+		gotv = vec0.MulByPowOf2Masked(vec1, vec2.AsMask64x2())
+	case "MulMasked":
+		gotv = vec0.MulMasked(vec1, vec2.AsMask64x2())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask64x2())
 
 	default:
 		t.Errorf("Unknown method: Float64x2.%s", which)
@@ -861,20 +861,20 @@ func testFloat64x2MaskedCompare(t *testing.T, v0 []float64, v1 []float64, v2 []i
 	vec1 := simd.LoadFloat64x2Slice(v1)
 	vec2 := simd.LoadInt64x2Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedIsNan":
-		gotv = vec0.MaskedIsNan(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "IsNanMasked":
+		gotv = vec0.IsNanMasked(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask64x2()).AsInt64x2()
 
 	default:
 		t.Errorf("Unknown method: Float64x2.%s", which)
@@ -922,12 +922,12 @@ func testFloat64x2TernaryMasked(t *testing.T, v0 []float64, v1 []float64, v2 []f
 	vec2 := simd.LoadFloat64x2Slice(v2)
 	vec3 := simd.LoadInt64x2Slice(v3)
 	switch which {
-	case "MaskedFusedMultiplyAdd":
-		gotv = vec0.MaskedFusedMultiplyAdd(vec1, vec2, vec3.AsMask64x2())
-	case "MaskedFusedMultiplyAddSub":
-		gotv = vec0.MaskedFusedMultiplyAddSub(vec1, vec2, vec3.AsMask64x2())
-	case "MaskedFusedMultiplySubAdd":
-		gotv = vec0.MaskedFusedMultiplySubAdd(vec1, vec2, vec3.AsMask64x2())
+	case "FusedMultiplyAddMasked":
+		gotv = vec0.FusedMultiplyAddMasked(vec1, vec2, vec3.AsMask64x2())
+	case "FusedMultiplyAddSubMasked":
+		gotv = vec0.FusedMultiplyAddSubMasked(vec1, vec2, vec3.AsMask64x2())
+	case "FusedMultiplySubAddMasked":
+		gotv = vec0.FusedMultiplySubAddMasked(vec1, vec2, vec3.AsMask64x2())
 
 	default:
 		t.Errorf("Unknown method: Float64x2.%s", which)
@@ -979,12 +979,12 @@ func testFloat64x2UnaryMasked(t *testing.T, v0 []float64, v1 []int64, want []flo
 	vec0 := simd.LoadFloat64x2Slice(v0)
 	vec1 := simd.LoadInt64x2Slice(v1)
 	switch which {
-	case "MaskedApproximateReciprocal":
-		gotv = vec0.MaskedApproximateReciprocal(vec1.AsMask64x2())
-	case "MaskedApproximateReciprocalOfSqrt":
-		gotv = vec0.MaskedApproximateReciprocalOfSqrt(vec1.AsMask64x2())
-	case "MaskedSqrt":
-		gotv = vec0.MaskedSqrt(vec1.AsMask64x2())
+	case "ApproximateReciprocalMasked":
+		gotv = vec0.ApproximateReciprocalMasked(vec1.AsMask64x2())
+	case "ApproximateReciprocalOfSqrtMasked":
+		gotv = vec0.ApproximateReciprocalOfSqrtMasked(vec1.AsMask64x2())
+	case "SqrtMasked":
+		gotv = vec0.SqrtMasked(vec1.AsMask64x2())
 
 	default:
 		t.Errorf("Unknown method: Float64x2.%s", which)
@@ -1044,20 +1044,20 @@ func testFloat64x4BinaryMasked(t *testing.T, v0 []float64, v1 []float64, v2 []in
 	vec1 := simd.LoadFloat64x4Slice(v1)
 	vec2 := simd.LoadInt64x4Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask64x4())
-	case "MaskedDiv":
-		gotv = vec0.MaskedDiv(vec1, vec2.AsMask64x4())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask64x4())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask64x4())
-	case "MaskedMul":
-		gotv = vec0.MaskedMul(vec1, vec2.AsMask64x4())
-	case "MaskedMulByPowOf2":
-		gotv = vec0.MaskedMulByPowOf2(vec1, vec2.AsMask64x4())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x4())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask64x4())
+	case "DivMasked":
+		gotv = vec0.DivMasked(vec1, vec2.AsMask64x4())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask64x4())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask64x4())
+	case "MulByPowOf2Masked":
+		gotv = vec0.MulByPowOf2Masked(vec1, vec2.AsMask64x4())
+	case "MulMasked":
+		gotv = vec0.MulMasked(vec1, vec2.AsMask64x4())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask64x4())
 
 	default:
 		t.Errorf("Unknown method: Float64x4.%s", which)
@@ -1111,20 +1111,20 @@ func testFloat64x4MaskedCompare(t *testing.T, v0 []float64, v1 []float64, v2 []i
 	vec1 := simd.LoadFloat64x4Slice(v1)
 	vec2 := simd.LoadInt64x4Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedIsNan":
-		gotv = vec0.MaskedIsNan(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "IsNanMasked":
+		gotv = vec0.IsNanMasked(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask64x4()).AsInt64x4()
 
 	default:
 		t.Errorf("Unknown method: Float64x4.%s", which)
@@ -1172,12 +1172,12 @@ func testFloat64x4TernaryMasked(t *testing.T, v0 []float64, v1 []float64, v2 []f
 	vec2 := simd.LoadFloat64x4Slice(v2)
 	vec3 := simd.LoadInt64x4Slice(v3)
 	switch which {
-	case "MaskedFusedMultiplyAdd":
-		gotv = vec0.MaskedFusedMultiplyAdd(vec1, vec2, vec3.AsMask64x4())
-	case "MaskedFusedMultiplyAddSub":
-		gotv = vec0.MaskedFusedMultiplyAddSub(vec1, vec2, vec3.AsMask64x4())
-	case "MaskedFusedMultiplySubAdd":
-		gotv = vec0.MaskedFusedMultiplySubAdd(vec1, vec2, vec3.AsMask64x4())
+	case "FusedMultiplyAddMasked":
+		gotv = vec0.FusedMultiplyAddMasked(vec1, vec2, vec3.AsMask64x4())
+	case "FusedMultiplyAddSubMasked":
+		gotv = vec0.FusedMultiplyAddSubMasked(vec1, vec2, vec3.AsMask64x4())
+	case "FusedMultiplySubAddMasked":
+		gotv = vec0.FusedMultiplySubAddMasked(vec1, vec2, vec3.AsMask64x4())
 
 	default:
 		t.Errorf("Unknown method: Float64x4.%s", which)
@@ -1229,12 +1229,12 @@ func testFloat64x4UnaryMasked(t *testing.T, v0 []float64, v1 []int64, want []flo
 	vec0 := simd.LoadFloat64x4Slice(v0)
 	vec1 := simd.LoadInt64x4Slice(v1)
 	switch which {
-	case "MaskedApproximateReciprocal":
-		gotv = vec0.MaskedApproximateReciprocal(vec1.AsMask64x4())
-	case "MaskedApproximateReciprocalOfSqrt":
-		gotv = vec0.MaskedApproximateReciprocalOfSqrt(vec1.AsMask64x4())
-	case "MaskedSqrt":
-		gotv = vec0.MaskedSqrt(vec1.AsMask64x4())
+	case "ApproximateReciprocalMasked":
+		gotv = vec0.ApproximateReciprocalMasked(vec1.AsMask64x4())
+	case "ApproximateReciprocalOfSqrtMasked":
+		gotv = vec0.ApproximateReciprocalOfSqrtMasked(vec1.AsMask64x4())
+	case "SqrtMasked":
+		gotv = vec0.SqrtMasked(vec1.AsMask64x4())
 
 	default:
 		t.Errorf("Unknown method: Float64x4.%s", which)
@@ -1288,20 +1288,20 @@ func testFloat64x8BinaryMasked(t *testing.T, v0 []float64, v1 []float64, v2 []in
 	vec1 := simd.LoadFloat64x8Slice(v1)
 	vec2 := simd.LoadInt64x8Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask64x8())
-	case "MaskedDiv":
-		gotv = vec0.MaskedDiv(vec1, vec2.AsMask64x8())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask64x8())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask64x8())
-	case "MaskedMul":
-		gotv = vec0.MaskedMul(vec1, vec2.AsMask64x8())
-	case "MaskedMulByPowOf2":
-		gotv = vec0.MaskedMulByPowOf2(vec1, vec2.AsMask64x8())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x8())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask64x8())
+	case "DivMasked":
+		gotv = vec0.DivMasked(vec1, vec2.AsMask64x8())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask64x8())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask64x8())
+	case "MulByPowOf2Masked":
+		gotv = vec0.MulByPowOf2Masked(vec1, vec2.AsMask64x8())
+	case "MulMasked":
+		gotv = vec0.MulMasked(vec1, vec2.AsMask64x8())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask64x8())
 
 	default:
 		t.Errorf("Unknown method: Float64x8.%s", which)
@@ -1355,20 +1355,20 @@ func testFloat64x8MaskedCompare(t *testing.T, v0 []float64, v1 []float64, v2 []i
 	vec1 := simd.LoadFloat64x8Slice(v1)
 	vec2 := simd.LoadInt64x8Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedIsNan":
-		gotv = vec0.MaskedIsNan(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "IsNanMasked":
+		gotv = vec0.IsNanMasked(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask64x8()).AsInt64x8()
 
 	default:
 		t.Errorf("Unknown method: Float64x8.%s", which)
@@ -1416,12 +1416,12 @@ func testFloat64x8TernaryMasked(t *testing.T, v0 []float64, v1 []float64, v2 []f
 	vec2 := simd.LoadFloat64x8Slice(v2)
 	vec3 := simd.LoadInt64x8Slice(v3)
 	switch which {
-	case "MaskedFusedMultiplyAdd":
-		gotv = vec0.MaskedFusedMultiplyAdd(vec1, vec2, vec3.AsMask64x8())
-	case "MaskedFusedMultiplyAddSub":
-		gotv = vec0.MaskedFusedMultiplyAddSub(vec1, vec2, vec3.AsMask64x8())
-	case "MaskedFusedMultiplySubAdd":
-		gotv = vec0.MaskedFusedMultiplySubAdd(vec1, vec2, vec3.AsMask64x8())
+	case "FusedMultiplyAddMasked":
+		gotv = vec0.FusedMultiplyAddMasked(vec1, vec2, vec3.AsMask64x8())
+	case "FusedMultiplyAddSubMasked":
+		gotv = vec0.FusedMultiplyAddSubMasked(vec1, vec2, vec3.AsMask64x8())
+	case "FusedMultiplySubAddMasked":
+		gotv = vec0.FusedMultiplySubAddMasked(vec1, vec2, vec3.AsMask64x8())
 
 	default:
 		t.Errorf("Unknown method: Float64x8.%s", which)
@@ -1465,12 +1465,12 @@ func testFloat64x8UnaryMasked(t *testing.T, v0 []float64, v1 []int64, want []flo
 	vec0 := simd.LoadFloat64x8Slice(v0)
 	vec1 := simd.LoadInt64x8Slice(v1)
 	switch which {
-	case "MaskedApproximateReciprocal":
-		gotv = vec0.MaskedApproximateReciprocal(vec1.AsMask64x8())
-	case "MaskedApproximateReciprocalOfSqrt":
-		gotv = vec0.MaskedApproximateReciprocalOfSqrt(vec1.AsMask64x8())
-	case "MaskedSqrt":
-		gotv = vec0.MaskedSqrt(vec1.AsMask64x8())
+	case "ApproximateReciprocalMasked":
+		gotv = vec0.ApproximateReciprocalMasked(vec1.AsMask64x8())
+	case "ApproximateReciprocalOfSqrtMasked":
+		gotv = vec0.ApproximateReciprocalOfSqrtMasked(vec1.AsMask64x8())
+	case "SqrtMasked":
+		gotv = vec0.SqrtMasked(vec1.AsMask64x8())
 
 	default:
 		t.Errorf("Unknown method: Float64x8.%s", which)
@@ -1532,18 +1532,18 @@ func testInt8x16BinaryMasked(t *testing.T, v0 []int8, v1 []int8, v2 []int8, want
 	vec1 := simd.LoadInt8x16Slice(v1)
 	vec2 := simd.LoadInt8x16Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask8x16())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask8x16())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask8x16())
-	case "MaskedSaturatedAdd":
-		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask8x16())
-	case "MaskedSaturatedSub":
-		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask8x16())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask8x16())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask8x16())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask8x16())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask8x16())
+	case "SaturatedAddMasked":
+		gotv = vec0.SaturatedAddMasked(vec1, vec2.AsMask8x16())
+	case "SaturatedSubMasked":
+		gotv = vec0.SaturatedSubMasked(vec1, vec2.AsMask8x16())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask8x16())
 
 	default:
 		t.Errorf("Unknown method: Int8x16.%s", which)
@@ -1595,18 +1595,18 @@ func testInt8x16MaskedCompare(t *testing.T, v0 []int8, v1 []int8, v2 []int8, wan
 	vec1 := simd.LoadInt8x16Slice(v1)
 	vec2 := simd.LoadInt8x16Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask8x16()).AsInt8x16()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask8x16()).AsInt8x16()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask8x16()).AsInt8x16()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask8x16()).AsInt8x16()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask8x16()).AsInt8x16()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask8x16()).AsInt8x16()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask8x16()).AsInt8x16()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask8x16()).AsInt8x16()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask8x16()).AsInt8x16()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask8x16()).AsInt8x16()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask8x16()).AsInt8x16()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask8x16()).AsInt8x16()
 
 	default:
 		t.Errorf("Unknown method: Int8x16.%s", which)
@@ -1648,10 +1648,10 @@ func testInt8x16UnaryMasked(t *testing.T, v0 []int8, v1 []int8, want []int8, whi
 	vec0 := simd.LoadInt8x16Slice(v0)
 	vec1 := simd.LoadInt8x16Slice(v1)
 	switch which {
-	case "MaskedAbsolute":
-		gotv = vec0.MaskedAbsolute(vec1.AsMask8x16())
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask8x16())
+	case "AbsoluteMasked":
+		gotv = vec0.AbsoluteMasked(vec1.AsMask8x16())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask8x16())
 
 	default:
 		t.Errorf("Unknown method: Int8x16.%s", which)
@@ -1713,18 +1713,18 @@ func testInt8x32BinaryMasked(t *testing.T, v0 []int8, v1 []int8, v2 []int8, want
 	vec1 := simd.LoadInt8x32Slice(v1)
 	vec2 := simd.LoadInt8x32Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask8x32())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask8x32())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask8x32())
-	case "MaskedSaturatedAdd":
-		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask8x32())
-	case "MaskedSaturatedSub":
-		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask8x32())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask8x32())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask8x32())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask8x32())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask8x32())
+	case "SaturatedAddMasked":
+		gotv = vec0.SaturatedAddMasked(vec1, vec2.AsMask8x32())
+	case "SaturatedSubMasked":
+		gotv = vec0.SaturatedSubMasked(vec1, vec2.AsMask8x32())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask8x32())
 
 	default:
 		t.Errorf("Unknown method: Int8x32.%s", which)
@@ -1776,18 +1776,18 @@ func testInt8x32MaskedCompare(t *testing.T, v0 []int8, v1 []int8, v2 []int8, wan
 	vec1 := simd.LoadInt8x32Slice(v1)
 	vec2 := simd.LoadInt8x32Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask8x32()).AsInt8x32()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask8x32()).AsInt8x32()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask8x32()).AsInt8x32()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask8x32()).AsInt8x32()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask8x32()).AsInt8x32()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask8x32()).AsInt8x32()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask8x32()).AsInt8x32()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask8x32()).AsInt8x32()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask8x32()).AsInt8x32()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask8x32()).AsInt8x32()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask8x32()).AsInt8x32()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask8x32()).AsInt8x32()
 
 	default:
 		t.Errorf("Unknown method: Int8x32.%s", which)
@@ -1829,10 +1829,10 @@ func testInt8x32UnaryMasked(t *testing.T, v0 []int8, v1 []int8, want []int8, whi
 	vec0 := simd.LoadInt8x32Slice(v0)
 	vec1 := simd.LoadInt8x32Slice(v1)
 	switch which {
-	case "MaskedAbsolute":
-		gotv = vec0.MaskedAbsolute(vec1.AsMask8x32())
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask8x32())
+	case "AbsoluteMasked":
+		gotv = vec0.AbsoluteMasked(vec1.AsMask8x32())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask8x32())
 
 	default:
 		t.Errorf("Unknown method: Int8x32.%s", which)
@@ -1884,18 +1884,18 @@ func testInt8x64BinaryMasked(t *testing.T, v0 []int8, v1 []int8, v2 []int8, want
 	vec1 := simd.LoadInt8x64Slice(v1)
 	vec2 := simd.LoadInt8x64Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask8x64())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask8x64())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask8x64())
-	case "MaskedSaturatedAdd":
-		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask8x64())
-	case "MaskedSaturatedSub":
-		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask8x64())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask8x64())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask8x64())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask8x64())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask8x64())
+	case "SaturatedAddMasked":
+		gotv = vec0.SaturatedAddMasked(vec1, vec2.AsMask8x64())
+	case "SaturatedSubMasked":
+		gotv = vec0.SaturatedSubMasked(vec1, vec2.AsMask8x64())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask8x64())
 
 	default:
 		t.Errorf("Unknown method: Int8x64.%s", which)
@@ -1947,18 +1947,18 @@ func testInt8x64MaskedCompare(t *testing.T, v0 []int8, v1 []int8, v2 []int8, wan
 	vec1 := simd.LoadInt8x64Slice(v1)
 	vec2 := simd.LoadInt8x64Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask8x64()).AsInt8x64()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask8x64()).AsInt8x64()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask8x64()).AsInt8x64()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask8x64()).AsInt8x64()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask8x64()).AsInt8x64()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask8x64()).AsInt8x64()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask8x64()).AsInt8x64()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask8x64()).AsInt8x64()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask8x64()).AsInt8x64()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask8x64()).AsInt8x64()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask8x64()).AsInt8x64()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask8x64()).AsInt8x64()
 
 	default:
 		t.Errorf("Unknown method: Int8x64.%s", which)
@@ -2000,10 +2000,10 @@ func testInt8x64UnaryMasked(t *testing.T, v0 []int8, v1 []int8, want []int8, whi
 	vec0 := simd.LoadInt8x64Slice(v0)
 	vec1 := simd.LoadInt8x64Slice(v1)
 	switch which {
-	case "MaskedAbsolute":
-		gotv = vec0.MaskedAbsolute(vec1.AsMask8x64())
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask8x64())
+	case "AbsoluteMasked":
+		gotv = vec0.AbsoluteMasked(vec1.AsMask8x64())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask8x64())
 
 	default:
 		t.Errorf("Unknown method: Int8x64.%s", which)
@@ -2083,28 +2083,28 @@ func testInt16x8BinaryMasked(t *testing.T, v0 []int16, v1 []int16, v2 []int16, w
 	vec1 := simd.LoadInt16x8Slice(v1)
 	vec2 := simd.LoadInt16x8Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask16x8())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask16x8())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask16x8())
-	case "MaskedMulHigh":
-		gotv = vec0.MaskedMulHigh(vec1, vec2.AsMask16x8())
-	case "MaskedMulLow":
-		gotv = vec0.MaskedMulLow(vec1, vec2.AsMask16x8())
-	case "MaskedSaturatedAdd":
-		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x8())
-	case "MaskedSaturatedSub":
-		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x8())
-	case "MaskedShiftLeft":
-		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask16x8())
-	case "MaskedShiftRight":
-		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask16x8())
-	case "MaskedShiftRightSignExtended":
-		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask16x8())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x8())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask16x8())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask16x8())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask16x8())
+	case "MulHighMasked":
+		gotv = vec0.MulHighMasked(vec1, vec2.AsMask16x8())
+	case "MulLowMasked":
+		gotv = vec0.MulLowMasked(vec1, vec2.AsMask16x8())
+	case "SaturatedAddMasked":
+		gotv = vec0.SaturatedAddMasked(vec1, vec2.AsMask16x8())
+	case "SaturatedSubMasked":
+		gotv = vec0.SaturatedSubMasked(vec1, vec2.AsMask16x8())
+	case "ShiftLeftMasked":
+		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask16x8())
+	case "ShiftRightMasked":
+		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask16x8())
+	case "ShiftRightSignExtendedMasked":
+		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask16x8())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask16x8())
 
 	default:
 		t.Errorf("Unknown method: Int16x8.%s", which)
@@ -2125,8 +2125,8 @@ func testInt16x8BinaryMaskedWiden(t *testing.T, v0 []int16, v1 []int16, v2 []int
 	vec1 := simd.LoadInt16x8Slice(v1)
 	vec2 := simd.LoadInt16x8Slice(v2)
 	switch which {
-	case "MaskedPairDotProd":
-		gotv = vec0.MaskedPairDotProd(vec1, vec2.AsMask16x8())
+	case "PairDotProdMasked":
+		gotv = vec0.PairDotProdMasked(vec1, vec2.AsMask16x8())
 
 	default:
 		t.Errorf("Unknown method: Int16x8.%s", which)
@@ -2199,18 +2199,18 @@ func testInt16x8MaskedCompare(t *testing.T, v0 []int16, v1 []int16, v2 []int16, 
 	vec1 := simd.LoadInt16x8Slice(v1)
 	vec2 := simd.LoadInt16x8Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask16x8()).AsInt16x8()
 
 	default:
 		t.Errorf("Unknown method: Int16x8.%s", which)
@@ -2256,10 +2256,10 @@ func testInt16x8TernaryMasked(t *testing.T, v0 []int16, v1 []int16, v2 []int16, 
 	vec2 := simd.LoadInt16x8Slice(v2)
 	vec3 := simd.LoadInt16x8Slice(v3)
 	switch which {
-	case "MaskedShiftLeftAndFillUpperFrom":
-		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask16x8())
-	case "MaskedShiftRightAndFillUpperFrom":
-		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask16x8())
+	case "ShiftLeftAndFillUpperFromMasked":
+		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask16x8())
+	case "ShiftRightAndFillUpperFromMasked":
+		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask16x8())
 
 	default:
 		t.Errorf("Unknown method: Int16x8.%s", which)
@@ -2301,10 +2301,10 @@ func testInt16x8UnaryMasked(t *testing.T, v0 []int16, v1 []int16, want []int16, 
 	vec0 := simd.LoadInt16x8Slice(v0)
 	vec1 := simd.LoadInt16x8Slice(v1)
 	switch which {
-	case "MaskedAbsolute":
-		gotv = vec0.MaskedAbsolute(vec1.AsMask16x8())
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask16x8())
+	case "AbsoluteMasked":
+		gotv = vec0.AbsoluteMasked(vec1.AsMask16x8())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask16x8())
 
 	default:
 		t.Errorf("Unknown method: Int16x8.%s", which)
@@ -2384,28 +2384,28 @@ func testInt16x16BinaryMasked(t *testing.T, v0 []int16, v1 []int16, v2 []int16, 
 	vec1 := simd.LoadInt16x16Slice(v1)
 	vec2 := simd.LoadInt16x16Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask16x16())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask16x16())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask16x16())
-	case "MaskedMulHigh":
-		gotv = vec0.MaskedMulHigh(vec1, vec2.AsMask16x16())
-	case "MaskedMulLow":
-		gotv = vec0.MaskedMulLow(vec1, vec2.AsMask16x16())
-	case "MaskedSaturatedAdd":
-		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x16())
-	case "MaskedSaturatedSub":
-		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x16())
-	case "MaskedShiftLeft":
-		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask16x16())
-	case "MaskedShiftRight":
-		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask16x16())
-	case "MaskedShiftRightSignExtended":
-		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask16x16())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x16())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask16x16())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask16x16())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask16x16())
+	case "MulHighMasked":
+		gotv = vec0.MulHighMasked(vec1, vec2.AsMask16x16())
+	case "MulLowMasked":
+		gotv = vec0.MulLowMasked(vec1, vec2.AsMask16x16())
+	case "SaturatedAddMasked":
+		gotv = vec0.SaturatedAddMasked(vec1, vec2.AsMask16x16())
+	case "SaturatedSubMasked":
+		gotv = vec0.SaturatedSubMasked(vec1, vec2.AsMask16x16())
+	case "ShiftLeftMasked":
+		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask16x16())
+	case "ShiftRightMasked":
+		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask16x16())
+	case "ShiftRightSignExtendedMasked":
+		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask16x16())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask16x16())
 
 	default:
 		t.Errorf("Unknown method: Int16x16.%s", which)
@@ -2426,8 +2426,8 @@ func testInt16x16BinaryMaskedWiden(t *testing.T, v0 []int16, v1 []int16, v2 []in
 	vec1 := simd.LoadInt16x16Slice(v1)
 	vec2 := simd.LoadInt16x16Slice(v2)
 	switch which {
-	case "MaskedPairDotProd":
-		gotv = vec0.MaskedPairDotProd(vec1, vec2.AsMask16x16())
+	case "PairDotProdMasked":
+		gotv = vec0.PairDotProdMasked(vec1, vec2.AsMask16x16())
 
 	default:
 		t.Errorf("Unknown method: Int16x16.%s", which)
@@ -2500,18 +2500,18 @@ func testInt16x16MaskedCompare(t *testing.T, v0 []int16, v1 []int16, v2 []int16,
 	vec1 := simd.LoadInt16x16Slice(v1)
 	vec2 := simd.LoadInt16x16Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask16x16()).AsInt16x16()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask16x16()).AsInt16x16()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask16x16()).AsInt16x16()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask16x16()).AsInt16x16()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask16x16()).AsInt16x16()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask16x16()).AsInt16x16()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask16x16()).AsInt16x16()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask16x16()).AsInt16x16()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask16x16()).AsInt16x16()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask16x16()).AsInt16x16()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask16x16()).AsInt16x16()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask16x16()).AsInt16x16()
 
 	default:
 		t.Errorf("Unknown method: Int16x16.%s", which)
@@ -2557,10 +2557,10 @@ func testInt16x16TernaryMasked(t *testing.T, v0 []int16, v1 []int16, v2 []int16,
 	vec2 := simd.LoadInt16x16Slice(v2)
 	vec3 := simd.LoadInt16x16Slice(v3)
 	switch which {
-	case "MaskedShiftLeftAndFillUpperFrom":
-		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask16x16())
-	case "MaskedShiftRightAndFillUpperFrom":
-		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask16x16())
+	case "ShiftLeftAndFillUpperFromMasked":
+		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask16x16())
+	case "ShiftRightAndFillUpperFromMasked":
+		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask16x16())
 
 	default:
 		t.Errorf("Unknown method: Int16x16.%s", which)
@@ -2602,10 +2602,10 @@ func testInt16x16UnaryMasked(t *testing.T, v0 []int16, v1 []int16, want []int16,
 	vec0 := simd.LoadInt16x16Slice(v0)
 	vec1 := simd.LoadInt16x16Slice(v1)
 	switch which {
-	case "MaskedAbsolute":
-		gotv = vec0.MaskedAbsolute(vec1.AsMask16x16())
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask16x16())
+	case "AbsoluteMasked":
+		gotv = vec0.AbsoluteMasked(vec1.AsMask16x16())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask16x16())
 
 	default:
 		t.Errorf("Unknown method: Int16x16.%s", which)
@@ -2667,28 +2667,28 @@ func testInt16x32BinaryMasked(t *testing.T, v0 []int16, v1 []int16, v2 []int16, 
 	vec1 := simd.LoadInt16x32Slice(v1)
 	vec2 := simd.LoadInt16x32Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask16x32())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask16x32())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask16x32())
-	case "MaskedMulHigh":
-		gotv = vec0.MaskedMulHigh(vec1, vec2.AsMask16x32())
-	case "MaskedMulLow":
-		gotv = vec0.MaskedMulLow(vec1, vec2.AsMask16x32())
-	case "MaskedSaturatedAdd":
-		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x32())
-	case "MaskedSaturatedSub":
-		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x32())
-	case "MaskedShiftLeft":
-		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask16x32())
-	case "MaskedShiftRight":
-		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask16x32())
-	case "MaskedShiftRightSignExtended":
-		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask16x32())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x32())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask16x32())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask16x32())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask16x32())
+	case "MulHighMasked":
+		gotv = vec0.MulHighMasked(vec1, vec2.AsMask16x32())
+	case "MulLowMasked":
+		gotv = vec0.MulLowMasked(vec1, vec2.AsMask16x32())
+	case "SaturatedAddMasked":
+		gotv = vec0.SaturatedAddMasked(vec1, vec2.AsMask16x32())
+	case "SaturatedSubMasked":
+		gotv = vec0.SaturatedSubMasked(vec1, vec2.AsMask16x32())
+	case "ShiftLeftMasked":
+		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask16x32())
+	case "ShiftRightMasked":
+		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask16x32())
+	case "ShiftRightSignExtendedMasked":
+		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask16x32())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask16x32())
 
 	default:
 		t.Errorf("Unknown method: Int16x32.%s", which)
@@ -2709,8 +2709,8 @@ func testInt16x32BinaryMaskedWiden(t *testing.T, v0 []int16, v1 []int16, v2 []in
 	vec1 := simd.LoadInt16x32Slice(v1)
 	vec2 := simd.LoadInt16x32Slice(v2)
 	switch which {
-	case "MaskedPairDotProd":
-		gotv = vec0.MaskedPairDotProd(vec1, vec2.AsMask16x32())
+	case "PairDotProdMasked":
+		gotv = vec0.PairDotProdMasked(vec1, vec2.AsMask16x32())
 
 	default:
 		t.Errorf("Unknown method: Int16x32.%s", which)
@@ -2783,18 +2783,18 @@ func testInt16x32MaskedCompare(t *testing.T, v0 []int16, v1 []int16, v2 []int16,
 	vec1 := simd.LoadInt16x32Slice(v1)
 	vec2 := simd.LoadInt16x32Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask16x32()).AsInt16x32()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask16x32()).AsInt16x32()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask16x32()).AsInt16x32()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask16x32()).AsInt16x32()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask16x32()).AsInt16x32()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask16x32()).AsInt16x32()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask16x32()).AsInt16x32()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask16x32()).AsInt16x32()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask16x32()).AsInt16x32()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask16x32()).AsInt16x32()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask16x32()).AsInt16x32()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask16x32()).AsInt16x32()
 
 	default:
 		t.Errorf("Unknown method: Int16x32.%s", which)
@@ -2840,10 +2840,10 @@ func testInt16x32TernaryMasked(t *testing.T, v0 []int16, v1 []int16, v2 []int16,
 	vec2 := simd.LoadInt16x32Slice(v2)
 	vec3 := simd.LoadInt16x32Slice(v3)
 	switch which {
-	case "MaskedShiftLeftAndFillUpperFrom":
-		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask16x32())
-	case "MaskedShiftRightAndFillUpperFrom":
-		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask16x32())
+	case "ShiftLeftAndFillUpperFromMasked":
+		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask16x32())
+	case "ShiftRightAndFillUpperFromMasked":
+		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask16x32())
 
 	default:
 		t.Errorf("Unknown method: Int16x32.%s", which)
@@ -2885,10 +2885,10 @@ func testInt16x32UnaryMasked(t *testing.T, v0 []int16, v1 []int16, want []int16,
 	vec0 := simd.LoadInt16x32Slice(v0)
 	vec1 := simd.LoadInt16x32Slice(v1)
 	switch which {
-	case "MaskedAbsolute":
-		gotv = vec0.MaskedAbsolute(vec1.AsMask16x32())
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask16x32())
+	case "AbsoluteMasked":
+		gotv = vec0.AbsoluteMasked(vec1.AsMask16x32())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask16x32())
 
 	default:
 		t.Errorf("Unknown method: Int16x32.%s", which)
@@ -2962,34 +2962,34 @@ func testInt32x4BinaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32, w
 	vec1 := simd.LoadInt32x4Slice(v1)
 	vec2 := simd.LoadInt32x4Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x4())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask32x4())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask32x4())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask32x4())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x4())
-	case "MaskedMulLow":
-		gotv = vec0.MaskedMulLow(vec1, vec2.AsMask32x4())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x4())
-	case "MaskedRotateLeft":
-		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask32x4())
-	case "MaskedRotateRight":
-		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask32x4())
-	case "MaskedShiftLeft":
-		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask32x4())
-	case "MaskedShiftRight":
-		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask32x4())
-	case "MaskedShiftRightSignExtended":
-		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask32x4())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x4())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask32x4())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask32x4())
+	case "AndMasked":
+		gotv = vec0.AndMasked(vec1, vec2.AsMask32x4())
+	case "AndNotMasked":
+		gotv = vec0.AndNotMasked(vec1, vec2.AsMask32x4())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask32x4())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask32x4())
+	case "MulLowMasked":
+		gotv = vec0.MulLowMasked(vec1, vec2.AsMask32x4())
+	case "OrMasked":
+		gotv = vec0.OrMasked(vec1, vec2.AsMask32x4())
+	case "RotateLeftMasked":
+		gotv = vec0.RotateLeftMasked(vec1, vec2.AsMask32x4())
+	case "RotateRightMasked":
+		gotv = vec0.RotateRightMasked(vec1, vec2.AsMask32x4())
+	case "ShiftLeftMasked":
+		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask32x4())
+	case "ShiftRightMasked":
+		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask32x4())
+	case "ShiftRightSignExtendedMasked":
+		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask32x4())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask32x4())
+	case "XorMasked":
+		gotv = vec0.XorMasked(vec1, vec2.AsMask32x4())
 
 	default:
 		t.Errorf("Unknown method: Int32x4.%s", which)
@@ -3087,10 +3087,10 @@ func testInt32x4Int16x8Int16x8Mask32x4Int32x4(t *testing.T, v0 []int32, v1 []int
 	vec2 := simd.LoadInt16x8Slice(v2)
 	vec3 := simd.LoadInt32x4Slice(v3)
 	switch which {
-	case "MaskedPairDotProdAccumulate":
-		gotv = vec0.MaskedPairDotProdAccumulate(vec1, vec2, vec3.AsMask32x4())
-	case "MaskedSaturatedPairDotProdAccumulate":
-		gotv = vec0.MaskedSaturatedPairDotProdAccumulate(vec1, vec2, vec3.AsMask32x4())
+	case "PairDotProdAccumulateMasked":
+		gotv = vec0.PairDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x4())
+	case "SaturatedPairDotProdAccumulateMasked":
+		gotv = vec0.SaturatedPairDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x4())
 
 	default:
 		t.Errorf("Unknown method: Int32x4.%s", which)
@@ -3111,18 +3111,18 @@ func testInt32x4MaskedCompare(t *testing.T, v0 []int32, v1 []int32, v2 []int32, 
 	vec1 := simd.LoadInt32x4Slice(v1)
 	vec2 := simd.LoadInt32x4Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask32x4()).AsInt32x4()
 
 	default:
 		t.Errorf("Unknown method: Int32x4.%s", which)
@@ -3168,10 +3168,10 @@ func testInt32x4TernaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32, 
 	vec2 := simd.LoadInt32x4Slice(v2)
 	vec3 := simd.LoadInt32x4Slice(v3)
 	switch which {
-	case "MaskedShiftLeftAndFillUpperFrom":
-		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask32x4())
-	case "MaskedShiftRightAndFillUpperFrom":
-		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask32x4())
+	case "ShiftLeftAndFillUpperFromMasked":
+		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x4())
+	case "ShiftRightAndFillUpperFromMasked":
+		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x4())
 
 	default:
 		t.Errorf("Unknown method: Int32x4.%s", which)
@@ -3217,10 +3217,10 @@ func testInt32x4Uint8x16Int8x16Mask32x4Int32x4(t *testing.T, v0 []int32, v1 []ui
 	vec2 := simd.LoadInt8x16Slice(v2)
 	vec3 := simd.LoadInt32x4Slice(v3)
 	switch which {
-	case "MaskedSaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x4())
-	case "MaskedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x4())
+	case "SaturatedUnsignedSignedQuadDotProdAccumulateMasked":
+		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x4())
+	case "UnsignedSignedQuadDotProdAccumulateMasked":
+		gotv = vec0.UnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x4())
 
 	default:
 		t.Errorf("Unknown method: Int32x4.%s", which)
@@ -3262,10 +3262,10 @@ func testInt32x4UnaryMasked(t *testing.T, v0 []int32, v1 []int32, want []int32, 
 	vec0 := simd.LoadInt32x4Slice(v0)
 	vec1 := simd.LoadInt32x4Slice(v1)
 	switch which {
-	case "MaskedAbsolute":
-		gotv = vec0.MaskedAbsolute(vec1.AsMask32x4())
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask32x4())
+	case "AbsoluteMasked":
+		gotv = vec0.AbsoluteMasked(vec1.AsMask32x4())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask32x4())
 
 	default:
 		t.Errorf("Unknown method: Int32x4.%s", which)
@@ -3339,34 +3339,34 @@ func testInt32x8BinaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32, w
 	vec1 := simd.LoadInt32x8Slice(v1)
 	vec2 := simd.LoadInt32x8Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x8())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask32x8())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask32x8())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask32x8())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x8())
-	case "MaskedMulLow":
-		gotv = vec0.MaskedMulLow(vec1, vec2.AsMask32x8())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x8())
-	case "MaskedRotateLeft":
-		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask32x8())
-	case "MaskedRotateRight":
-		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask32x8())
-	case "MaskedShiftLeft":
-		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask32x8())
-	case "MaskedShiftRight":
-		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask32x8())
-	case "MaskedShiftRightSignExtended":
-		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask32x8())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x8())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask32x8())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask32x8())
+	case "AndMasked":
+		gotv = vec0.AndMasked(vec1, vec2.AsMask32x8())
+	case "AndNotMasked":
+		gotv = vec0.AndNotMasked(vec1, vec2.AsMask32x8())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask32x8())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask32x8())
+	case "MulLowMasked":
+		gotv = vec0.MulLowMasked(vec1, vec2.AsMask32x8())
+	case "OrMasked":
+		gotv = vec0.OrMasked(vec1, vec2.AsMask32x8())
+	case "RotateLeftMasked":
+		gotv = vec0.RotateLeftMasked(vec1, vec2.AsMask32x8())
+	case "RotateRightMasked":
+		gotv = vec0.RotateRightMasked(vec1, vec2.AsMask32x8())
+	case "ShiftLeftMasked":
+		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask32x8())
+	case "ShiftRightMasked":
+		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask32x8())
+	case "ShiftRightSignExtendedMasked":
+		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask32x8())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask32x8())
+	case "XorMasked":
+		gotv = vec0.XorMasked(vec1, vec2.AsMask32x8())
 
 	default:
 		t.Errorf("Unknown method: Int32x8.%s", which)
@@ -3464,10 +3464,10 @@ func testInt32x8Int16x16Int16x16Mask32x8Int32x8(t *testing.T, v0 []int32, v1 []i
 	vec2 := simd.LoadInt16x16Slice(v2)
 	vec3 := simd.LoadInt32x8Slice(v3)
 	switch which {
-	case "MaskedPairDotProdAccumulate":
-		gotv = vec0.MaskedPairDotProdAccumulate(vec1, vec2, vec3.AsMask32x8())
-	case "MaskedSaturatedPairDotProdAccumulate":
-		gotv = vec0.MaskedSaturatedPairDotProdAccumulate(vec1, vec2, vec3.AsMask32x8())
+	case "PairDotProdAccumulateMasked":
+		gotv = vec0.PairDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x8())
+	case "SaturatedPairDotProdAccumulateMasked":
+		gotv = vec0.SaturatedPairDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x8())
 
 	default:
 		t.Errorf("Unknown method: Int32x8.%s", which)
@@ -3488,18 +3488,18 @@ func testInt32x8MaskedCompare(t *testing.T, v0 []int32, v1 []int32, v2 []int32, 
 	vec1 := simd.LoadInt32x8Slice(v1)
 	vec2 := simd.LoadInt32x8Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask32x8()).AsInt32x8()
 
 	default:
 		t.Errorf("Unknown method: Int32x8.%s", which)
@@ -3545,10 +3545,10 @@ func testInt32x8TernaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32, 
 	vec2 := simd.LoadInt32x8Slice(v2)
 	vec3 := simd.LoadInt32x8Slice(v3)
 	switch which {
-	case "MaskedShiftLeftAndFillUpperFrom":
-		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask32x8())
-	case "MaskedShiftRightAndFillUpperFrom":
-		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask32x8())
+	case "ShiftLeftAndFillUpperFromMasked":
+		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x8())
+	case "ShiftRightAndFillUpperFromMasked":
+		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x8())
 
 	default:
 		t.Errorf("Unknown method: Int32x8.%s", which)
@@ -3594,10 +3594,10 @@ func testInt32x8Uint8x32Int8x32Mask32x8Int32x8(t *testing.T, v0 []int32, v1 []ui
 	vec2 := simd.LoadInt8x32Slice(v2)
 	vec3 := simd.LoadInt32x8Slice(v3)
 	switch which {
-	case "MaskedSaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x8())
-	case "MaskedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x8())
+	case "SaturatedUnsignedSignedQuadDotProdAccumulateMasked":
+		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x8())
+	case "UnsignedSignedQuadDotProdAccumulateMasked":
+		gotv = vec0.UnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x8())
 
 	default:
 		t.Errorf("Unknown method: Int32x8.%s", which)
@@ -3639,10 +3639,10 @@ func testInt32x8UnaryMasked(t *testing.T, v0 []int32, v1 []int32, want []int32, 
 	vec0 := simd.LoadInt32x8Slice(v0)
 	vec1 := simd.LoadInt32x8Slice(v1)
 	switch which {
-	case "MaskedAbsolute":
-		gotv = vec0.MaskedAbsolute(vec1.AsMask32x8())
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask32x8())
+	case "AbsoluteMasked":
+		gotv = vec0.AbsoluteMasked(vec1.AsMask32x8())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask32x8())
 
 	default:
 		t.Errorf("Unknown method: Int32x8.%s", which)
@@ -3710,34 +3710,34 @@ func testInt32x16BinaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32, 
 	vec1 := simd.LoadInt32x16Slice(v1)
 	vec2 := simd.LoadInt32x16Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x16())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask32x16())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask32x16())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask32x16())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x16())
-	case "MaskedMulLow":
-		gotv = vec0.MaskedMulLow(vec1, vec2.AsMask32x16())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x16())
-	case "MaskedRotateLeft":
-		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask32x16())
-	case "MaskedRotateRight":
-		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask32x16())
-	case "MaskedShiftLeft":
-		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask32x16())
-	case "MaskedShiftRight":
-		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask32x16())
-	case "MaskedShiftRightSignExtended":
-		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask32x16())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x16())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask32x16())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask32x16())
+	case "AndMasked":
+		gotv = vec0.AndMasked(vec1, vec2.AsMask32x16())
+	case "AndNotMasked":
+		gotv = vec0.AndNotMasked(vec1, vec2.AsMask32x16())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask32x16())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask32x16())
+	case "MulLowMasked":
+		gotv = vec0.MulLowMasked(vec1, vec2.AsMask32x16())
+	case "OrMasked":
+		gotv = vec0.OrMasked(vec1, vec2.AsMask32x16())
+	case "RotateLeftMasked":
+		gotv = vec0.RotateLeftMasked(vec1, vec2.AsMask32x16())
+	case "RotateRightMasked":
+		gotv = vec0.RotateRightMasked(vec1, vec2.AsMask32x16())
+	case "ShiftLeftMasked":
+		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask32x16())
+	case "ShiftRightMasked":
+		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask32x16())
+	case "ShiftRightSignExtendedMasked":
+		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask32x16())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask32x16())
+	case "XorMasked":
+		gotv = vec0.XorMasked(vec1, vec2.AsMask32x16())
 
 	default:
 		t.Errorf("Unknown method: Int32x16.%s", which)
@@ -3814,10 +3814,10 @@ func testInt32x16Int16x32Int16x32Mask32x16Int32x16(t *testing.T, v0 []int32, v1 
 	vec2 := simd.LoadInt16x32Slice(v2)
 	vec3 := simd.LoadInt32x16Slice(v3)
 	switch which {
-	case "MaskedPairDotProdAccumulate":
-		gotv = vec0.MaskedPairDotProdAccumulate(vec1, vec2, vec3.AsMask32x16())
-	case "MaskedSaturatedPairDotProdAccumulate":
-		gotv = vec0.MaskedSaturatedPairDotProdAccumulate(vec1, vec2, vec3.AsMask32x16())
+	case "PairDotProdAccumulateMasked":
+		gotv = vec0.PairDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x16())
+	case "SaturatedPairDotProdAccumulateMasked":
+		gotv = vec0.SaturatedPairDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x16())
 
 	default:
 		t.Errorf("Unknown method: Int32x16.%s", which)
@@ -3838,18 +3838,18 @@ func testInt32x16MaskedCompare(t *testing.T, v0 []int32, v1 []int32, v2 []int32,
 	vec1 := simd.LoadInt32x16Slice(v1)
 	vec2 := simd.LoadInt32x16Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask32x16()).AsInt32x16()
 
 	default:
 		t.Errorf("Unknown method: Int32x16.%s", which)
@@ -3895,10 +3895,10 @@ func testInt32x16TernaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32,
 	vec2 := simd.LoadInt32x16Slice(v2)
 	vec3 := simd.LoadInt32x16Slice(v3)
 	switch which {
-	case "MaskedShiftLeftAndFillUpperFrom":
-		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask32x16())
-	case "MaskedShiftRightAndFillUpperFrom":
-		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask32x16())
+	case "ShiftLeftAndFillUpperFromMasked":
+		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x16())
+	case "ShiftRightAndFillUpperFromMasked":
+		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x16())
 
 	default:
 		t.Errorf("Unknown method: Int32x16.%s", which)
@@ -3944,10 +3944,10 @@ func testInt32x16Uint8x64Int8x64Mask32x16Int32x16(t *testing.T, v0 []int32, v1 [
 	vec2 := simd.LoadInt8x64Slice(v2)
 	vec3 := simd.LoadInt32x16Slice(v3)
 	switch which {
-	case "MaskedSaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x16())
-	case "MaskedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x16())
+	case "SaturatedUnsignedSignedQuadDotProdAccumulateMasked":
+		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x16())
+	case "UnsignedSignedQuadDotProdAccumulateMasked":
+		gotv = vec0.UnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x16())
 
 	default:
 		t.Errorf("Unknown method: Int32x16.%s", which)
@@ -3989,10 +3989,10 @@ func testInt32x16UnaryMasked(t *testing.T, v0 []int32, v1 []int32, want []int32,
 	vec0 := simd.LoadInt32x16Slice(v0)
 	vec1 := simd.LoadInt32x16Slice(v1)
 	switch which {
-	case "MaskedAbsolute":
-		gotv = vec0.MaskedAbsolute(vec1.AsMask32x16())
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask32x16())
+	case "AbsoluteMasked":
+		gotv = vec0.AbsoluteMasked(vec1.AsMask32x16())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask32x16())
 
 	default:
 		t.Errorf("Unknown method: Int32x16.%s", which)
@@ -4062,36 +4062,36 @@ func testInt64x2BinaryMasked(t *testing.T, v0 []int64, v1 []int64, v2 []int64, w
 	vec1 := simd.LoadInt64x2Slice(v1)
 	vec2 := simd.LoadInt64x2Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask64x2())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask64x2())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask64x2())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask64x2())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask64x2())
-	case "MaskedMulEvenWiden":
-		gotv = vec0.MaskedMulEvenWiden(vec1, vec2.AsMask64x2())
-	case "MaskedMulLow":
-		gotv = vec0.MaskedMulLow(vec1, vec2.AsMask64x2())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x2())
-	case "MaskedRotateLeft":
-		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask64x2())
-	case "MaskedRotateRight":
-		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask64x2())
-	case "MaskedShiftLeft":
-		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask64x2())
-	case "MaskedShiftRight":
-		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask64x2())
-	case "MaskedShiftRightSignExtended":
-		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask64x2())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x2())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask64x2())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask64x2())
+	case "AndMasked":
+		gotv = vec0.AndMasked(vec1, vec2.AsMask64x2())
+	case "AndNotMasked":
+		gotv = vec0.AndNotMasked(vec1, vec2.AsMask64x2())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask64x2())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask64x2())
+	case "MulEvenWidenMasked":
+		gotv = vec0.MulEvenWidenMasked(vec1, vec2.AsMask64x2())
+	case "MulLowMasked":
+		gotv = vec0.MulLowMasked(vec1, vec2.AsMask64x2())
+	case "OrMasked":
+		gotv = vec0.OrMasked(vec1, vec2.AsMask64x2())
+	case "RotateLeftMasked":
+		gotv = vec0.RotateLeftMasked(vec1, vec2.AsMask64x2())
+	case "RotateRightMasked":
+		gotv = vec0.RotateRightMasked(vec1, vec2.AsMask64x2())
+	case "ShiftLeftMasked":
+		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask64x2())
+	case "ShiftRightMasked":
+		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask64x2())
+	case "ShiftRightSignExtendedMasked":
+		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask64x2())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask64x2())
+	case "XorMasked":
+		gotv = vec0.XorMasked(vec1, vec2.AsMask64x2())
 
 	default:
 		t.Errorf("Unknown method: Int64x2.%s", which)
@@ -4143,18 +4143,18 @@ func testInt64x2MaskedCompare(t *testing.T, v0 []int64, v1 []int64, v2 []int64, 
 	vec1 := simd.LoadInt64x2Slice(v1)
 	vec2 := simd.LoadInt64x2Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask64x2()).AsInt64x2()
 
 	default:
 		t.Errorf("Unknown method: Int64x2.%s", which)
@@ -4200,10 +4200,10 @@ func testInt64x2TernaryMasked(t *testing.T, v0 []int64, v1 []int64, v2 []int64, 
 	vec2 := simd.LoadInt64x2Slice(v2)
 	vec3 := simd.LoadInt64x2Slice(v3)
 	switch which {
-	case "MaskedShiftLeftAndFillUpperFrom":
-		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask64x2())
-	case "MaskedShiftRightAndFillUpperFrom":
-		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask64x2())
+	case "ShiftLeftAndFillUpperFromMasked":
+		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask64x2())
+	case "ShiftRightAndFillUpperFromMasked":
+		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask64x2())
 
 	default:
 		t.Errorf("Unknown method: Int64x2.%s", which)
@@ -4245,10 +4245,10 @@ func testInt64x2UnaryMasked(t *testing.T, v0 []int64, v1 []int64, want []int64, 
 	vec0 := simd.LoadInt64x2Slice(v0)
 	vec1 := simd.LoadInt64x2Slice(v1)
 	switch which {
-	case "MaskedAbsolute":
-		gotv = vec0.MaskedAbsolute(vec1.AsMask64x2())
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask64x2())
+	case "AbsoluteMasked":
+		gotv = vec0.AbsoluteMasked(vec1.AsMask64x2())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask64x2())
 
 	default:
 		t.Errorf("Unknown method: Int64x2.%s", which)
@@ -4318,36 +4318,36 @@ func testInt64x4BinaryMasked(t *testing.T, v0 []int64, v1 []int64, v2 []int64, w
 	vec1 := simd.LoadInt64x4Slice(v1)
 	vec2 := simd.LoadInt64x4Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask64x4())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask64x4())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask64x4())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask64x4())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask64x4())
-	case "MaskedMulEvenWiden":
-		gotv = vec0.MaskedMulEvenWiden(vec1, vec2.AsMask64x4())
-	case "MaskedMulLow":
-		gotv = vec0.MaskedMulLow(vec1, vec2.AsMask64x4())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x4())
-	case "MaskedRotateLeft":
-		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask64x4())
-	case "MaskedRotateRight":
-		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask64x4())
-	case "MaskedShiftLeft":
-		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask64x4())
-	case "MaskedShiftRight":
-		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask64x4())
-	case "MaskedShiftRightSignExtended":
-		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask64x4())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x4())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask64x4())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask64x4())
+	case "AndMasked":
+		gotv = vec0.AndMasked(vec1, vec2.AsMask64x4())
+	case "AndNotMasked":
+		gotv = vec0.AndNotMasked(vec1, vec2.AsMask64x4())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask64x4())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask64x4())
+	case "MulEvenWidenMasked":
+		gotv = vec0.MulEvenWidenMasked(vec1, vec2.AsMask64x4())
+	case "MulLowMasked":
+		gotv = vec0.MulLowMasked(vec1, vec2.AsMask64x4())
+	case "OrMasked":
+		gotv = vec0.OrMasked(vec1, vec2.AsMask64x4())
+	case "RotateLeftMasked":
+		gotv = vec0.RotateLeftMasked(vec1, vec2.AsMask64x4())
+	case "RotateRightMasked":
+		gotv = vec0.RotateRightMasked(vec1, vec2.AsMask64x4())
+	case "ShiftLeftMasked":
+		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask64x4())
+	case "ShiftRightMasked":
+		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask64x4())
+	case "ShiftRightSignExtendedMasked":
+		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask64x4())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask64x4())
+	case "XorMasked":
+		gotv = vec0.XorMasked(vec1, vec2.AsMask64x4())
 
 	default:
 		t.Errorf("Unknown method: Int64x4.%s", which)
@@ -4399,18 +4399,18 @@ func testInt64x4MaskedCompare(t *testing.T, v0 []int64, v1 []int64, v2 []int64, 
 	vec1 := simd.LoadInt64x4Slice(v1)
 	vec2 := simd.LoadInt64x4Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask64x4()).AsInt64x4()
 
 	default:
 		t.Errorf("Unknown method: Int64x4.%s", which)
@@ -4456,10 +4456,10 @@ func testInt64x4TernaryMasked(t *testing.T, v0 []int64, v1 []int64, v2 []int64, 
 	vec2 := simd.LoadInt64x4Slice(v2)
 	vec3 := simd.LoadInt64x4Slice(v3)
 	switch which {
-	case "MaskedShiftLeftAndFillUpperFrom":
-		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask64x4())
-	case "MaskedShiftRightAndFillUpperFrom":
-		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask64x4())
+	case "ShiftLeftAndFillUpperFromMasked":
+		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask64x4())
+	case "ShiftRightAndFillUpperFromMasked":
+		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask64x4())
 
 	default:
 		t.Errorf("Unknown method: Int64x4.%s", which)
@@ -4501,10 +4501,10 @@ func testInt64x4UnaryMasked(t *testing.T, v0 []int64, v1 []int64, want []int64, 
 	vec0 := simd.LoadInt64x4Slice(v0)
 	vec1 := simd.LoadInt64x4Slice(v1)
 	switch which {
-	case "MaskedAbsolute":
-		gotv = vec0.MaskedAbsolute(vec1.AsMask64x4())
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask64x4())
+	case "AbsoluteMasked":
+		gotv = vec0.AbsoluteMasked(vec1.AsMask64x4())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask64x4())
 
 	default:
 		t.Errorf("Unknown method: Int64x4.%s", which)
@@ -4574,36 +4574,36 @@ func testInt64x8BinaryMasked(t *testing.T, v0 []int64, v1 []int64, v2 []int64, w
 	vec1 := simd.LoadInt64x8Slice(v1)
 	vec2 := simd.LoadInt64x8Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask64x8())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask64x8())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask64x8())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask64x8())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask64x8())
-	case "MaskedMulEvenWiden":
-		gotv = vec0.MaskedMulEvenWiden(vec1, vec2.AsMask64x8())
-	case "MaskedMulLow":
-		gotv = vec0.MaskedMulLow(vec1, vec2.AsMask64x8())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x8())
-	case "MaskedRotateLeft":
-		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask64x8())
-	case "MaskedRotateRight":
-		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask64x8())
-	case "MaskedShiftLeft":
-		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask64x8())
-	case "MaskedShiftRight":
-		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask64x8())
-	case "MaskedShiftRightSignExtended":
-		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask64x8())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x8())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask64x8())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask64x8())
+	case "AndMasked":
+		gotv = vec0.AndMasked(vec1, vec2.AsMask64x8())
+	case "AndNotMasked":
+		gotv = vec0.AndNotMasked(vec1, vec2.AsMask64x8())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask64x8())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask64x8())
+	case "MulEvenWidenMasked":
+		gotv = vec0.MulEvenWidenMasked(vec1, vec2.AsMask64x8())
+	case "MulLowMasked":
+		gotv = vec0.MulLowMasked(vec1, vec2.AsMask64x8())
+	case "OrMasked":
+		gotv = vec0.OrMasked(vec1, vec2.AsMask64x8())
+	case "RotateLeftMasked":
+		gotv = vec0.RotateLeftMasked(vec1, vec2.AsMask64x8())
+	case "RotateRightMasked":
+		gotv = vec0.RotateRightMasked(vec1, vec2.AsMask64x8())
+	case "ShiftLeftMasked":
+		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask64x8())
+	case "ShiftRightMasked":
+		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask64x8())
+	case "ShiftRightSignExtendedMasked":
+		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask64x8())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask64x8())
+	case "XorMasked":
+		gotv = vec0.XorMasked(vec1, vec2.AsMask64x8())
 
 	default:
 		t.Errorf("Unknown method: Int64x8.%s", which)
@@ -4655,18 +4655,18 @@ func testInt64x8MaskedCompare(t *testing.T, v0 []int64, v1 []int64, v2 []int64, 
 	vec1 := simd.LoadInt64x8Slice(v1)
 	vec2 := simd.LoadInt64x8Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask64x8()).AsInt64x8()
 
 	default:
 		t.Errorf("Unknown method: Int64x8.%s", which)
@@ -4712,10 +4712,10 @@ func testInt64x8TernaryMasked(t *testing.T, v0 []int64, v1 []int64, v2 []int64, 
 	vec2 := simd.LoadInt64x8Slice(v2)
 	vec3 := simd.LoadInt64x8Slice(v3)
 	switch which {
-	case "MaskedShiftLeftAndFillUpperFrom":
-		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask64x8())
-	case "MaskedShiftRightAndFillUpperFrom":
-		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask64x8())
+	case "ShiftLeftAndFillUpperFromMasked":
+		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask64x8())
+	case "ShiftRightAndFillUpperFromMasked":
+		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask64x8())
 
 	default:
 		t.Errorf("Unknown method: Int64x8.%s", which)
@@ -4757,10 +4757,10 @@ func testInt64x8UnaryMasked(t *testing.T, v0 []int64, v1 []int64, want []int64, 
 	vec0 := simd.LoadInt64x8Slice(v0)
 	vec1 := simd.LoadInt64x8Slice(v1)
 	switch which {
-	case "MaskedAbsolute":
-		gotv = vec0.MaskedAbsolute(vec1.AsMask64x8())
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask64x8())
+	case "AbsoluteMasked":
+		gotv = vec0.AbsoluteMasked(vec1.AsMask64x8())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask64x8())
 
 	default:
 		t.Errorf("Unknown method: Int64x8.%s", which)
@@ -4824,22 +4824,22 @@ func testUint8x16BinaryMasked(t *testing.T, v0 []uint8, v1 []uint8, v2 []int8, w
 	vec1 := simd.LoadUint8x16Slice(v1)
 	vec2 := simd.LoadInt8x16Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask8x16())
-	case "MaskedAverage":
-		gotv = vec0.MaskedAverage(vec1, vec2.AsMask8x16())
-	case "MaskedGaloisFieldMul":
-		gotv = vec0.MaskedGaloisFieldMul(vec1, vec2.AsMask8x16())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask8x16())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask8x16())
-	case "MaskedSaturatedAdd":
-		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask8x16())
-	case "MaskedSaturatedSub":
-		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask8x16())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask8x16())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask8x16())
+	case "AverageMasked":
+		gotv = vec0.AverageMasked(vec1, vec2.AsMask8x16())
+	case "GaloisFieldMulMasked":
+		gotv = vec0.GaloisFieldMulMasked(vec1, vec2.AsMask8x16())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask8x16())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask8x16())
+	case "SaturatedAddMasked":
+		gotv = vec0.SaturatedAddMasked(vec1, vec2.AsMask8x16())
+	case "SaturatedSubMasked":
+		gotv = vec0.SaturatedSubMasked(vec1, vec2.AsMask8x16())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask8x16())
 
 	default:
 		t.Errorf("Unknown method: Uint8x16.%s", which)
@@ -4912,8 +4912,8 @@ func testUint8x16Int8x16Mask16x8Int16x8(t *testing.T, v0 []uint8, v1 []int8, v2 
 	vec1 := simd.LoadInt8x16Slice(v1)
 	vec2 := simd.LoadInt16x8Slice(v2)
 	switch which {
-	case "MaskedSaturatedUnsignedSignedPairDotProd":
-		gotv = vec0.MaskedSaturatedUnsignedSignedPairDotProd(vec1, vec2.AsMask16x8())
+	case "SaturatedUnsignedSignedPairDotProdMasked":
+		gotv = vec0.SaturatedUnsignedSignedPairDotProdMasked(vec1, vec2.AsMask16x8())
 
 	default:
 		t.Errorf("Unknown method: Uint8x16.%s", which)
@@ -4934,18 +4934,18 @@ func testUint8x16MaskedCompare(t *testing.T, v0 []uint8, v1 []uint8, v2 []int8, 
 	vec1 := simd.LoadUint8x16Slice(v1)
 	vec2 := simd.LoadInt8x16Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask8x16()).AsInt8x16()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask8x16()).AsInt8x16()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask8x16()).AsInt8x16()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask8x16()).AsInt8x16()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask8x16()).AsInt8x16()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask8x16()).AsInt8x16()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask8x16()).AsInt8x16()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask8x16()).AsInt8x16()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask8x16()).AsInt8x16()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask8x16()).AsInt8x16()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask8x16()).AsInt8x16()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask8x16()).AsInt8x16()
 
 	default:
 		t.Errorf("Unknown method: Uint8x16.%s", which)
@@ -4985,8 +4985,8 @@ func testUint8x16UnaryMasked(t *testing.T, v0 []uint8, v1 []int8, want []uint8, 
 	vec0 := simd.LoadUint8x16Slice(v0)
 	vec1 := simd.LoadInt8x16Slice(v1)
 	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask8x16())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask8x16())
 
 	default:
 		t.Errorf("Unknown method: Uint8x16.%s", which)
@@ -5050,22 +5050,22 @@ func testUint8x32BinaryMasked(t *testing.T, v0 []uint8, v1 []uint8, v2 []int8, w
 	vec1 := simd.LoadUint8x32Slice(v1)
 	vec2 := simd.LoadInt8x32Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask8x32())
-	case "MaskedAverage":
-		gotv = vec0.MaskedAverage(vec1, vec2.AsMask8x32())
-	case "MaskedGaloisFieldMul":
-		gotv = vec0.MaskedGaloisFieldMul(vec1, vec2.AsMask8x32())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask8x32())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask8x32())
-	case "MaskedSaturatedAdd":
-		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask8x32())
-	case "MaskedSaturatedSub":
-		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask8x32())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask8x32())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask8x32())
+	case "AverageMasked":
+		gotv = vec0.AverageMasked(vec1, vec2.AsMask8x32())
+	case "GaloisFieldMulMasked":
+		gotv = vec0.GaloisFieldMulMasked(vec1, vec2.AsMask8x32())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask8x32())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask8x32())
+	case "SaturatedAddMasked":
+		gotv = vec0.SaturatedAddMasked(vec1, vec2.AsMask8x32())
+	case "SaturatedSubMasked":
+		gotv = vec0.SaturatedSubMasked(vec1, vec2.AsMask8x32())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask8x32())
 
 	default:
 		t.Errorf("Unknown method: Uint8x32.%s", which)
@@ -5138,8 +5138,8 @@ func testUint8x32Int8x32Mask16x16Int16x16(t *testing.T, v0 []uint8, v1 []int8, v
 	vec1 := simd.LoadInt8x32Slice(v1)
 	vec2 := simd.LoadInt16x16Slice(v2)
 	switch which {
-	case "MaskedSaturatedUnsignedSignedPairDotProd":
-		gotv = vec0.MaskedSaturatedUnsignedSignedPairDotProd(vec1, vec2.AsMask16x16())
+	case "SaturatedUnsignedSignedPairDotProdMasked":
+		gotv = vec0.SaturatedUnsignedSignedPairDotProdMasked(vec1, vec2.AsMask16x16())
 
 	default:
 		t.Errorf("Unknown method: Uint8x32.%s", which)
@@ -5160,18 +5160,18 @@ func testUint8x32MaskedCompare(t *testing.T, v0 []uint8, v1 []uint8, v2 []int8, 
 	vec1 := simd.LoadUint8x32Slice(v1)
 	vec2 := simd.LoadInt8x32Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask8x32()).AsInt8x32()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask8x32()).AsInt8x32()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask8x32()).AsInt8x32()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask8x32()).AsInt8x32()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask8x32()).AsInt8x32()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask8x32()).AsInt8x32()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask8x32()).AsInt8x32()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask8x32()).AsInt8x32()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask8x32()).AsInt8x32()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask8x32()).AsInt8x32()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask8x32()).AsInt8x32()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask8x32()).AsInt8x32()
 
 	default:
 		t.Errorf("Unknown method: Uint8x32.%s", which)
@@ -5211,8 +5211,8 @@ func testUint8x32UnaryMasked(t *testing.T, v0 []uint8, v1 []int8, want []uint8, 
 	vec0 := simd.LoadUint8x32Slice(v0)
 	vec1 := simd.LoadInt8x32Slice(v1)
 	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask8x32())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask8x32())
 
 	default:
 		t.Errorf("Unknown method: Uint8x32.%s", which)
@@ -5268,22 +5268,22 @@ func testUint8x64BinaryMasked(t *testing.T, v0 []uint8, v1 []uint8, v2 []int8, w
 	vec1 := simd.LoadUint8x64Slice(v1)
 	vec2 := simd.LoadInt8x64Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask8x64())
-	case "MaskedAverage":
-		gotv = vec0.MaskedAverage(vec1, vec2.AsMask8x64())
-	case "MaskedGaloisFieldMul":
-		gotv = vec0.MaskedGaloisFieldMul(vec1, vec2.AsMask8x64())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask8x64())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask8x64())
-	case "MaskedSaturatedAdd":
-		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask8x64())
-	case "MaskedSaturatedSub":
-		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask8x64())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask8x64())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask8x64())
+	case "AverageMasked":
+		gotv = vec0.AverageMasked(vec1, vec2.AsMask8x64())
+	case "GaloisFieldMulMasked":
+		gotv = vec0.GaloisFieldMulMasked(vec1, vec2.AsMask8x64())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask8x64())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask8x64())
+	case "SaturatedAddMasked":
+		gotv = vec0.SaturatedAddMasked(vec1, vec2.AsMask8x64())
+	case "SaturatedSubMasked":
+		gotv = vec0.SaturatedSubMasked(vec1, vec2.AsMask8x64())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask8x64())
 
 	default:
 		t.Errorf("Unknown method: Uint8x64.%s", which)
@@ -5356,8 +5356,8 @@ func testUint8x64Int8x64Mask16x32Int16x32(t *testing.T, v0 []uint8, v1 []int8, v
 	vec1 := simd.LoadInt8x64Slice(v1)
 	vec2 := simd.LoadInt16x32Slice(v2)
 	switch which {
-	case "MaskedSaturatedUnsignedSignedPairDotProd":
-		gotv = vec0.MaskedSaturatedUnsignedSignedPairDotProd(vec1, vec2.AsMask16x32())
+	case "SaturatedUnsignedSignedPairDotProdMasked":
+		gotv = vec0.SaturatedUnsignedSignedPairDotProdMasked(vec1, vec2.AsMask16x32())
 
 	default:
 		t.Errorf("Unknown method: Uint8x64.%s", which)
@@ -5378,18 +5378,18 @@ func testUint8x64MaskedCompare(t *testing.T, v0 []uint8, v1 []uint8, v2 []int8, 
 	vec1 := simd.LoadUint8x64Slice(v1)
 	vec2 := simd.LoadInt8x64Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask8x64()).AsInt8x64()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask8x64()).AsInt8x64()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask8x64()).AsInt8x64()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask8x64()).AsInt8x64()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask8x64()).AsInt8x64()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask8x64()).AsInt8x64()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask8x64()).AsInt8x64()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask8x64()).AsInt8x64()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask8x64()).AsInt8x64()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask8x64()).AsInt8x64()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask8x64()).AsInt8x64()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask8x64()).AsInt8x64()
 
 	default:
 		t.Errorf("Unknown method: Uint8x64.%s", which)
@@ -5429,8 +5429,8 @@ func testUint8x64UnaryMasked(t *testing.T, v0 []uint8, v1 []int8, want []uint8, 
 	vec0 := simd.LoadUint8x64Slice(v0)
 	vec1 := simd.LoadInt8x64Slice(v1)
 	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask8x64())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask8x64())
 
 	default:
 		t.Errorf("Unknown method: Uint8x64.%s", which)
@@ -5504,28 +5504,28 @@ func testUint16x8BinaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []int16
 	vec1 := simd.LoadUint16x8Slice(v1)
 	vec2 := simd.LoadInt16x8Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask16x8())
-	case "MaskedAverage":
-		gotv = vec0.MaskedAverage(vec1, vec2.AsMask16x8())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask16x8())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask16x8())
-	case "MaskedMulHigh":
-		gotv = vec0.MaskedMulHigh(vec1, vec2.AsMask16x8())
-	case "MaskedSaturatedAdd":
-		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x8())
-	case "MaskedSaturatedSub":
-		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x8())
-	case "MaskedShiftLeft":
-		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask16x8())
-	case "MaskedShiftRight":
-		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask16x8())
-	case "MaskedShiftRightSignExtended":
-		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask16x8())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x8())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask16x8())
+	case "AverageMasked":
+		gotv = vec0.AverageMasked(vec1, vec2.AsMask16x8())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask16x8())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask16x8())
+	case "MulHighMasked":
+		gotv = vec0.MulHighMasked(vec1, vec2.AsMask16x8())
+	case "SaturatedAddMasked":
+		gotv = vec0.SaturatedAddMasked(vec1, vec2.AsMask16x8())
+	case "SaturatedSubMasked":
+		gotv = vec0.SaturatedSubMasked(vec1, vec2.AsMask16x8())
+	case "ShiftLeftMasked":
+		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask16x8())
+	case "ShiftRightMasked":
+		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask16x8())
+	case "ShiftRightSignExtendedMasked":
+		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask16x8())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask16x8())
 
 	default:
 		t.Errorf("Unknown method: Uint16x8.%s", which)
@@ -5577,18 +5577,18 @@ func testUint16x8MaskedCompare(t *testing.T, v0 []uint16, v1 []uint16, v2 []int1
 	vec1 := simd.LoadUint16x8Slice(v1)
 	vec2 := simd.LoadInt16x8Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask16x8()).AsInt16x8()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask16x8()).AsInt16x8()
 
 	default:
 		t.Errorf("Unknown method: Uint16x8.%s", which)
@@ -5634,10 +5634,10 @@ func testUint16x8TernaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []uint
 	vec2 := simd.LoadUint16x8Slice(v2)
 	vec3 := simd.LoadInt16x8Slice(v3)
 	switch which {
-	case "MaskedShiftLeftAndFillUpperFrom":
-		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask16x8())
-	case "MaskedShiftRightAndFillUpperFrom":
-		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask16x8())
+	case "ShiftLeftAndFillUpperFromMasked":
+		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask16x8())
+	case "ShiftRightAndFillUpperFromMasked":
+		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask16x8())
 
 	default:
 		t.Errorf("Unknown method: Uint16x8.%s", which)
@@ -5677,8 +5677,8 @@ func testUint16x8UnaryMasked(t *testing.T, v0 []uint16, v1 []int16, want []uint1
 	vec0 := simd.LoadUint16x8Slice(v0)
 	vec1 := simd.LoadInt16x8Slice(v1)
 	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask16x8())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask16x8())
 
 	default:
 		t.Errorf("Unknown method: Uint16x8.%s", which)
@@ -5752,28 +5752,28 @@ func testUint16x16BinaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []int1
 	vec1 := simd.LoadUint16x16Slice(v1)
 	vec2 := simd.LoadInt16x16Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask16x16())
-	case "MaskedAverage":
-		gotv = vec0.MaskedAverage(vec1, vec2.AsMask16x16())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask16x16())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask16x16())
-	case "MaskedMulHigh":
-		gotv = vec0.MaskedMulHigh(vec1, vec2.AsMask16x16())
-	case "MaskedSaturatedAdd":
-		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x16())
-	case "MaskedSaturatedSub":
-		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x16())
-	case "MaskedShiftLeft":
-		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask16x16())
-	case "MaskedShiftRight":
-		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask16x16())
-	case "MaskedShiftRightSignExtended":
-		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask16x16())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x16())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask16x16())
+	case "AverageMasked":
+		gotv = vec0.AverageMasked(vec1, vec2.AsMask16x16())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask16x16())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask16x16())
+	case "MulHighMasked":
+		gotv = vec0.MulHighMasked(vec1, vec2.AsMask16x16())
+	case "SaturatedAddMasked":
+		gotv = vec0.SaturatedAddMasked(vec1, vec2.AsMask16x16())
+	case "SaturatedSubMasked":
+		gotv = vec0.SaturatedSubMasked(vec1, vec2.AsMask16x16())
+	case "ShiftLeftMasked":
+		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask16x16())
+	case "ShiftRightMasked":
+		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask16x16())
+	case "ShiftRightSignExtendedMasked":
+		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask16x16())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask16x16())
 
 	default:
 		t.Errorf("Unknown method: Uint16x16.%s", which)
@@ -5825,18 +5825,18 @@ func testUint16x16MaskedCompare(t *testing.T, v0 []uint16, v1 []uint16, v2 []int
 	vec1 := simd.LoadUint16x16Slice(v1)
 	vec2 := simd.LoadInt16x16Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask16x16()).AsInt16x16()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask16x16()).AsInt16x16()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask16x16()).AsInt16x16()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask16x16()).AsInt16x16()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask16x16()).AsInt16x16()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask16x16()).AsInt16x16()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask16x16()).AsInt16x16()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask16x16()).AsInt16x16()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask16x16()).AsInt16x16()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask16x16()).AsInt16x16()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask16x16()).AsInt16x16()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask16x16()).AsInt16x16()
 
 	default:
 		t.Errorf("Unknown method: Uint16x16.%s", which)
@@ -5882,10 +5882,10 @@ func testUint16x16TernaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []uin
 	vec2 := simd.LoadUint16x16Slice(v2)
 	vec3 := simd.LoadInt16x16Slice(v3)
 	switch which {
-	case "MaskedShiftLeftAndFillUpperFrom":
-		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask16x16())
-	case "MaskedShiftRightAndFillUpperFrom":
-		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask16x16())
+	case "ShiftLeftAndFillUpperFromMasked":
+		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask16x16())
+	case "ShiftRightAndFillUpperFromMasked":
+		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask16x16())
 
 	default:
 		t.Errorf("Unknown method: Uint16x16.%s", which)
@@ -5925,8 +5925,8 @@ func testUint16x16UnaryMasked(t *testing.T, v0 []uint16, v1 []int16, want []uint
 	vec0 := simd.LoadUint16x16Slice(v0)
 	vec1 := simd.LoadInt16x16Slice(v1)
 	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask16x16())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask16x16())
 
 	default:
 		t.Errorf("Unknown method: Uint16x16.%s", which)
@@ -5988,28 +5988,28 @@ func testUint16x32BinaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []int1
 	vec1 := simd.LoadUint16x32Slice(v1)
 	vec2 := simd.LoadInt16x32Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask16x32())
-	case "MaskedAverage":
-		gotv = vec0.MaskedAverage(vec1, vec2.AsMask16x32())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask16x32())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask16x32())
-	case "MaskedMulHigh":
-		gotv = vec0.MaskedMulHigh(vec1, vec2.AsMask16x32())
-	case "MaskedSaturatedAdd":
-		gotv = vec0.MaskedSaturatedAdd(vec1, vec2.AsMask16x32())
-	case "MaskedSaturatedSub":
-		gotv = vec0.MaskedSaturatedSub(vec1, vec2.AsMask16x32())
-	case "MaskedShiftLeft":
-		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask16x32())
-	case "MaskedShiftRight":
-		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask16x32())
-	case "MaskedShiftRightSignExtended":
-		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask16x32())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask16x32())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask16x32())
+	case "AverageMasked":
+		gotv = vec0.AverageMasked(vec1, vec2.AsMask16x32())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask16x32())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask16x32())
+	case "MulHighMasked":
+		gotv = vec0.MulHighMasked(vec1, vec2.AsMask16x32())
+	case "SaturatedAddMasked":
+		gotv = vec0.SaturatedAddMasked(vec1, vec2.AsMask16x32())
+	case "SaturatedSubMasked":
+		gotv = vec0.SaturatedSubMasked(vec1, vec2.AsMask16x32())
+	case "ShiftLeftMasked":
+		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask16x32())
+	case "ShiftRightMasked":
+		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask16x32())
+	case "ShiftRightSignExtendedMasked":
+		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask16x32())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask16x32())
 
 	default:
 		t.Errorf("Unknown method: Uint16x32.%s", which)
@@ -6061,18 +6061,18 @@ func testUint16x32MaskedCompare(t *testing.T, v0 []uint16, v1 []uint16, v2 []int
 	vec1 := simd.LoadUint16x32Slice(v1)
 	vec2 := simd.LoadInt16x32Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask16x32()).AsInt16x32()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask16x32()).AsInt16x32()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask16x32()).AsInt16x32()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask16x32()).AsInt16x32()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask16x32()).AsInt16x32()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask16x32()).AsInt16x32()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask16x32()).AsInt16x32()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask16x32()).AsInt16x32()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask16x32()).AsInt16x32()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask16x32()).AsInt16x32()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask16x32()).AsInt16x32()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask16x32()).AsInt16x32()
 
 	default:
 		t.Errorf("Unknown method: Uint16x32.%s", which)
@@ -6118,10 +6118,10 @@ func testUint16x32TernaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []uin
 	vec2 := simd.LoadUint16x32Slice(v2)
 	vec3 := simd.LoadInt16x32Slice(v3)
 	switch which {
-	case "MaskedShiftLeftAndFillUpperFrom":
-		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask16x32())
-	case "MaskedShiftRightAndFillUpperFrom":
-		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask16x32())
+	case "ShiftLeftAndFillUpperFromMasked":
+		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask16x32())
+	case "ShiftRightAndFillUpperFromMasked":
+		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask16x32())
 
 	default:
 		t.Errorf("Unknown method: Uint16x32.%s", which)
@@ -6161,8 +6161,8 @@ func testUint16x32UnaryMasked(t *testing.T, v0 []uint16, v1 []int16, want []uint
 	vec0 := simd.LoadUint16x32Slice(v0)
 	vec1 := simd.LoadInt16x32Slice(v1)
 	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask16x32())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask16x32())
 
 	default:
 		t.Errorf("Unknown method: Uint16x32.%s", which)
@@ -6232,32 +6232,32 @@ func testUint32x4BinaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []int32
 	vec1 := simd.LoadUint32x4Slice(v1)
 	vec2 := simd.LoadInt32x4Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x4())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask32x4())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask32x4())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask32x4())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x4())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x4())
-	case "MaskedRotateLeft":
-		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask32x4())
-	case "MaskedRotateRight":
-		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask32x4())
-	case "MaskedShiftLeft":
-		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask32x4())
-	case "MaskedShiftRight":
-		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask32x4())
-	case "MaskedShiftRightSignExtended":
-		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask32x4())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x4())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask32x4())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask32x4())
+	case "AndMasked":
+		gotv = vec0.AndMasked(vec1, vec2.AsMask32x4())
+	case "AndNotMasked":
+		gotv = vec0.AndNotMasked(vec1, vec2.AsMask32x4())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask32x4())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask32x4())
+	case "OrMasked":
+		gotv = vec0.OrMasked(vec1, vec2.AsMask32x4())
+	case "RotateLeftMasked":
+		gotv = vec0.RotateLeftMasked(vec1, vec2.AsMask32x4())
+	case "RotateRightMasked":
+		gotv = vec0.RotateRightMasked(vec1, vec2.AsMask32x4())
+	case "ShiftLeftMasked":
+		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask32x4())
+	case "ShiftRightMasked":
+		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask32x4())
+	case "ShiftRightSignExtendedMasked":
+		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask32x4())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask32x4())
+	case "XorMasked":
+		gotv = vec0.XorMasked(vec1, vec2.AsMask32x4())
 
 	default:
 		t.Errorf("Unknown method: Uint32x4.%s", which)
@@ -6330,18 +6330,18 @@ func testUint32x4MaskedCompare(t *testing.T, v0 []uint32, v1 []uint32, v2 []int3
 	vec1 := simd.LoadUint32x4Slice(v1)
 	vec2 := simd.LoadInt32x4Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask32x4()).AsInt32x4()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask32x4()).AsInt32x4()
 
 	default:
 		t.Errorf("Unknown method: Uint32x4.%s", which)
@@ -6387,10 +6387,10 @@ func testUint32x4TernaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []uint
 	vec2 := simd.LoadUint32x4Slice(v2)
 	vec3 := simd.LoadInt32x4Slice(v3)
 	switch which {
-	case "MaskedShiftLeftAndFillUpperFrom":
-		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask32x4())
-	case "MaskedShiftRightAndFillUpperFrom":
-		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask32x4())
+	case "ShiftLeftAndFillUpperFromMasked":
+		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x4())
+	case "ShiftRightAndFillUpperFromMasked":
+		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x4())
 
 	default:
 		t.Errorf("Unknown method: Uint32x4.%s", which)
@@ -6412,10 +6412,10 @@ func testUint32x4Uint8x16Int8x16Mask32x4Uint32x4(t *testing.T, v0 []uint32, v1 [
 	vec2 := simd.LoadInt8x16Slice(v2)
 	vec3 := simd.LoadInt32x4Slice(v3)
 	switch which {
-	case "MaskedSaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x4())
-	case "MaskedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x4())
+	case "SaturatedUnsignedSignedQuadDotProdAccumulateMasked":
+		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x4())
+	case "UnsignedSignedQuadDotProdAccumulateMasked":
+		gotv = vec0.UnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x4())
 
 	default:
 		t.Errorf("Unknown method: Uint32x4.%s", which)
@@ -6479,8 +6479,8 @@ func testUint32x4UnaryMasked(t *testing.T, v0 []uint32, v1 []int32, want []uint3
 	vec0 := simd.LoadUint32x4Slice(v0)
 	vec1 := simd.LoadInt32x4Slice(v1)
 	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask32x4())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask32x4())
 
 	default:
 		t.Errorf("Unknown method: Uint32x4.%s", which)
@@ -6550,32 +6550,32 @@ func testUint32x8BinaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []int32
 	vec1 := simd.LoadUint32x8Slice(v1)
 	vec2 := simd.LoadInt32x8Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x8())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask32x8())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask32x8())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask32x8())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x8())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x8())
-	case "MaskedRotateLeft":
-		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask32x8())
-	case "MaskedRotateRight":
-		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask32x8())
-	case "MaskedShiftLeft":
-		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask32x8())
-	case "MaskedShiftRight":
-		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask32x8())
-	case "MaskedShiftRightSignExtended":
-		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask32x8())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x8())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask32x8())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask32x8())
+	case "AndMasked":
+		gotv = vec0.AndMasked(vec1, vec2.AsMask32x8())
+	case "AndNotMasked":
+		gotv = vec0.AndNotMasked(vec1, vec2.AsMask32x8())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask32x8())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask32x8())
+	case "OrMasked":
+		gotv = vec0.OrMasked(vec1, vec2.AsMask32x8())
+	case "RotateLeftMasked":
+		gotv = vec0.RotateLeftMasked(vec1, vec2.AsMask32x8())
+	case "RotateRightMasked":
+		gotv = vec0.RotateRightMasked(vec1, vec2.AsMask32x8())
+	case "ShiftLeftMasked":
+		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask32x8())
+	case "ShiftRightMasked":
+		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask32x8())
+	case "ShiftRightSignExtendedMasked":
+		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask32x8())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask32x8())
+	case "XorMasked":
+		gotv = vec0.XorMasked(vec1, vec2.AsMask32x8())
 
 	default:
 		t.Errorf("Unknown method: Uint32x8.%s", which)
@@ -6648,18 +6648,18 @@ func testUint32x8MaskedCompare(t *testing.T, v0 []uint32, v1 []uint32, v2 []int3
 	vec1 := simd.LoadUint32x8Slice(v1)
 	vec2 := simd.LoadInt32x8Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask32x8()).AsInt32x8()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask32x8()).AsInt32x8()
 
 	default:
 		t.Errorf("Unknown method: Uint32x8.%s", which)
@@ -6705,10 +6705,10 @@ func testUint32x8TernaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []uint
 	vec2 := simd.LoadUint32x8Slice(v2)
 	vec3 := simd.LoadInt32x8Slice(v3)
 	switch which {
-	case "MaskedShiftLeftAndFillUpperFrom":
-		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask32x8())
-	case "MaskedShiftRightAndFillUpperFrom":
-		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask32x8())
+	case "ShiftLeftAndFillUpperFromMasked":
+		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x8())
+	case "ShiftRightAndFillUpperFromMasked":
+		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x8())
 
 	default:
 		t.Errorf("Unknown method: Uint32x8.%s", which)
@@ -6730,10 +6730,10 @@ func testUint32x8Uint8x32Int8x32Mask32x8Uint32x8(t *testing.T, v0 []uint32, v1 [
 	vec2 := simd.LoadInt8x32Slice(v2)
 	vec3 := simd.LoadInt32x8Slice(v3)
 	switch which {
-	case "MaskedSaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x8())
-	case "MaskedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x8())
+	case "SaturatedUnsignedSignedQuadDotProdAccumulateMasked":
+		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x8())
+	case "UnsignedSignedQuadDotProdAccumulateMasked":
+		gotv = vec0.UnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x8())
 
 	default:
 		t.Errorf("Unknown method: Uint32x8.%s", which)
@@ -6797,8 +6797,8 @@ func testUint32x8UnaryMasked(t *testing.T, v0 []uint32, v1 []int32, want []uint3
 	vec0 := simd.LoadUint32x8Slice(v0)
 	vec1 := simd.LoadInt32x8Slice(v1)
 	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask32x8())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask32x8())
 
 	default:
 		t.Errorf("Unknown method: Uint32x8.%s", which)
@@ -6864,32 +6864,32 @@ func testUint32x16BinaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []int3
 	vec1 := simd.LoadUint32x16Slice(v1)
 	vec2 := simd.LoadInt32x16Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask32x16())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask32x16())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask32x16())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask32x16())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask32x16())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask32x16())
-	case "MaskedRotateLeft":
-		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask32x16())
-	case "MaskedRotateRight":
-		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask32x16())
-	case "MaskedShiftLeft":
-		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask32x16())
-	case "MaskedShiftRight":
-		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask32x16())
-	case "MaskedShiftRightSignExtended":
-		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask32x16())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask32x16())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask32x16())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask32x16())
+	case "AndMasked":
+		gotv = vec0.AndMasked(vec1, vec2.AsMask32x16())
+	case "AndNotMasked":
+		gotv = vec0.AndNotMasked(vec1, vec2.AsMask32x16())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask32x16())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask32x16())
+	case "OrMasked":
+		gotv = vec0.OrMasked(vec1, vec2.AsMask32x16())
+	case "RotateLeftMasked":
+		gotv = vec0.RotateLeftMasked(vec1, vec2.AsMask32x16())
+	case "RotateRightMasked":
+		gotv = vec0.RotateRightMasked(vec1, vec2.AsMask32x16())
+	case "ShiftLeftMasked":
+		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask32x16())
+	case "ShiftRightMasked":
+		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask32x16())
+	case "ShiftRightSignExtendedMasked":
+		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask32x16())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask32x16())
+	case "XorMasked":
+		gotv = vec0.XorMasked(vec1, vec2.AsMask32x16())
 
 	default:
 		t.Errorf("Unknown method: Uint32x16.%s", which)
@@ -6941,18 +6941,18 @@ func testUint32x16MaskedCompare(t *testing.T, v0 []uint32, v1 []uint32, v2 []int
 	vec1 := simd.LoadUint32x16Slice(v1)
 	vec2 := simd.LoadInt32x16Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask32x16()).AsInt32x16()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask32x16()).AsInt32x16()
 
 	default:
 		t.Errorf("Unknown method: Uint32x16.%s", which)
@@ -6998,10 +6998,10 @@ func testUint32x16TernaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []uin
 	vec2 := simd.LoadUint32x16Slice(v2)
 	vec3 := simd.LoadInt32x16Slice(v3)
 	switch which {
-	case "MaskedShiftLeftAndFillUpperFrom":
-		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask32x16())
-	case "MaskedShiftRightAndFillUpperFrom":
-		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask32x16())
+	case "ShiftLeftAndFillUpperFromMasked":
+		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x16())
+	case "ShiftRightAndFillUpperFromMasked":
+		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x16())
 
 	default:
 		t.Errorf("Unknown method: Uint32x16.%s", which)
@@ -7023,10 +7023,10 @@ func testUint32x16Uint8x64Int8x64Mask32x16Uint32x16(t *testing.T, v0 []uint32, v
 	vec2 := simd.LoadInt8x64Slice(v2)
 	vec3 := simd.LoadInt32x16Slice(v3)
 	switch which {
-	case "MaskedSaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedSaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x16())
-	case "MaskedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.MaskedUnsignedSignedQuadDotProdAccumulate(vec1, vec2, vec3.AsMask32x16())
+	case "SaturatedUnsignedSignedQuadDotProdAccumulateMasked":
+		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x16())
+	case "UnsignedSignedQuadDotProdAccumulateMasked":
+		gotv = vec0.UnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x16())
 
 	default:
 		t.Errorf("Unknown method: Uint32x16.%s", which)
@@ -7090,8 +7090,8 @@ func testUint32x16UnaryMasked(t *testing.T, v0 []uint32, v1 []int32, want []uint
 	vec0 := simd.LoadUint32x16Slice(v0)
 	vec1 := simd.LoadInt32x16Slice(v1)
 	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask32x16())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask32x16())
 
 	default:
 		t.Errorf("Unknown method: Uint32x16.%s", which)
@@ -7159,34 +7159,34 @@ func testUint64x2BinaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64
 	vec1 := simd.LoadUint64x2Slice(v1)
 	vec2 := simd.LoadInt64x2Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask64x2())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask64x2())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask64x2())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask64x2())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask64x2())
-	case "MaskedMulEvenWiden":
-		gotv = vec0.MaskedMulEvenWiden(vec1, vec2.AsMask64x2())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x2())
-	case "MaskedRotateLeft":
-		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask64x2())
-	case "MaskedRotateRight":
-		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask64x2())
-	case "MaskedShiftLeft":
-		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask64x2())
-	case "MaskedShiftRight":
-		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask64x2())
-	case "MaskedShiftRightSignExtended":
-		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask64x2())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x2())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask64x2())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask64x2())
+	case "AndMasked":
+		gotv = vec0.AndMasked(vec1, vec2.AsMask64x2())
+	case "AndNotMasked":
+		gotv = vec0.AndNotMasked(vec1, vec2.AsMask64x2())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask64x2())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask64x2())
+	case "MulEvenWidenMasked":
+		gotv = vec0.MulEvenWidenMasked(vec1, vec2.AsMask64x2())
+	case "OrMasked":
+		gotv = vec0.OrMasked(vec1, vec2.AsMask64x2())
+	case "RotateLeftMasked":
+		gotv = vec0.RotateLeftMasked(vec1, vec2.AsMask64x2())
+	case "RotateRightMasked":
+		gotv = vec0.RotateRightMasked(vec1, vec2.AsMask64x2())
+	case "ShiftLeftMasked":
+		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask64x2())
+	case "ShiftRightMasked":
+		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask64x2())
+	case "ShiftRightSignExtendedMasked":
+		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask64x2())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask64x2())
+	case "XorMasked":
+		gotv = vec0.XorMasked(vec1, vec2.AsMask64x2())
 
 	default:
 		t.Errorf("Unknown method: Uint64x2.%s", which)
@@ -7238,18 +7238,18 @@ func testUint64x2MaskedCompare(t *testing.T, v0 []uint64, v1 []uint64, v2 []int6
 	vec1 := simd.LoadUint64x2Slice(v1)
 	vec2 := simd.LoadInt64x2Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask64x2()).AsInt64x2()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask64x2()).AsInt64x2()
 
 	default:
 		t.Errorf("Unknown method: Uint64x2.%s", which)
@@ -7295,10 +7295,10 @@ func testUint64x2TernaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []uint
 	vec2 := simd.LoadUint64x2Slice(v2)
 	vec3 := simd.LoadInt64x2Slice(v3)
 	switch which {
-	case "MaskedShiftLeftAndFillUpperFrom":
-		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask64x2())
-	case "MaskedShiftRightAndFillUpperFrom":
-		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask64x2())
+	case "ShiftLeftAndFillUpperFromMasked":
+		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask64x2())
+	case "ShiftRightAndFillUpperFromMasked":
+		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask64x2())
 
 	default:
 		t.Errorf("Unknown method: Uint64x2.%s", which)
@@ -7338,8 +7338,8 @@ func testUint64x2UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint6
 	vec0 := simd.LoadUint64x2Slice(v0)
 	vec1 := simd.LoadInt64x2Slice(v1)
 	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask64x2())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask64x2())
 
 	default:
 		t.Errorf("Unknown method: Uint64x2.%s", which)
@@ -7407,34 +7407,34 @@ func testUint64x4BinaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64
 	vec1 := simd.LoadUint64x4Slice(v1)
 	vec2 := simd.LoadInt64x4Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask64x4())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask64x4())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask64x4())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask64x4())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask64x4())
-	case "MaskedMulEvenWiden":
-		gotv = vec0.MaskedMulEvenWiden(vec1, vec2.AsMask64x4())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x4())
-	case "MaskedRotateLeft":
-		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask64x4())
-	case "MaskedRotateRight":
-		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask64x4())
-	case "MaskedShiftLeft":
-		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask64x4())
-	case "MaskedShiftRight":
-		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask64x4())
-	case "MaskedShiftRightSignExtended":
-		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask64x4())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x4())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask64x4())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask64x4())
+	case "AndMasked":
+		gotv = vec0.AndMasked(vec1, vec2.AsMask64x4())
+	case "AndNotMasked":
+		gotv = vec0.AndNotMasked(vec1, vec2.AsMask64x4())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask64x4())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask64x4())
+	case "MulEvenWidenMasked":
+		gotv = vec0.MulEvenWidenMasked(vec1, vec2.AsMask64x4())
+	case "OrMasked":
+		gotv = vec0.OrMasked(vec1, vec2.AsMask64x4())
+	case "RotateLeftMasked":
+		gotv = vec0.RotateLeftMasked(vec1, vec2.AsMask64x4())
+	case "RotateRightMasked":
+		gotv = vec0.RotateRightMasked(vec1, vec2.AsMask64x4())
+	case "ShiftLeftMasked":
+		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask64x4())
+	case "ShiftRightMasked":
+		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask64x4())
+	case "ShiftRightSignExtendedMasked":
+		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask64x4())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask64x4())
+	case "XorMasked":
+		gotv = vec0.XorMasked(vec1, vec2.AsMask64x4())
 
 	default:
 		t.Errorf("Unknown method: Uint64x4.%s", which)
@@ -7486,18 +7486,18 @@ func testUint64x4MaskedCompare(t *testing.T, v0 []uint64, v1 []uint64, v2 []int6
 	vec1 := simd.LoadUint64x4Slice(v1)
 	vec2 := simd.LoadInt64x4Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask64x4()).AsInt64x4()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask64x4()).AsInt64x4()
 
 	default:
 		t.Errorf("Unknown method: Uint64x4.%s", which)
@@ -7543,10 +7543,10 @@ func testUint64x4TernaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []uint
 	vec2 := simd.LoadUint64x4Slice(v2)
 	vec3 := simd.LoadInt64x4Slice(v3)
 	switch which {
-	case "MaskedShiftLeftAndFillUpperFrom":
-		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask64x4())
-	case "MaskedShiftRightAndFillUpperFrom":
-		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask64x4())
+	case "ShiftLeftAndFillUpperFromMasked":
+		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask64x4())
+	case "ShiftRightAndFillUpperFromMasked":
+		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask64x4())
 
 	default:
 		t.Errorf("Unknown method: Uint64x4.%s", which)
@@ -7586,8 +7586,8 @@ func testUint64x4UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint6
 	vec0 := simd.LoadUint64x4Slice(v0)
 	vec1 := simd.LoadInt64x4Slice(v1)
 	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask64x4())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask64x4())
 
 	default:
 		t.Errorf("Unknown method: Uint64x4.%s", which)
@@ -7655,34 +7655,34 @@ func testUint64x8BinaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64
 	vec1 := simd.LoadUint64x8Slice(v1)
 	vec2 := simd.LoadInt64x8Slice(v2)
 	switch which {
-	case "MaskedAdd":
-		gotv = vec0.MaskedAdd(vec1, vec2.AsMask64x8())
-	case "MaskedAnd":
-		gotv = vec0.MaskedAnd(vec1, vec2.AsMask64x8())
-	case "MaskedAndNot":
-		gotv = vec0.MaskedAndNot(vec1, vec2.AsMask64x8())
-	case "MaskedMax":
-		gotv = vec0.MaskedMax(vec1, vec2.AsMask64x8())
-	case "MaskedMin":
-		gotv = vec0.MaskedMin(vec1, vec2.AsMask64x8())
-	case "MaskedMulEvenWiden":
-		gotv = vec0.MaskedMulEvenWiden(vec1, vec2.AsMask64x8())
-	case "MaskedOr":
-		gotv = vec0.MaskedOr(vec1, vec2.AsMask64x8())
-	case "MaskedRotateLeft":
-		gotv = vec0.MaskedRotateLeft(vec1, vec2.AsMask64x8())
-	case "MaskedRotateRight":
-		gotv = vec0.MaskedRotateRight(vec1, vec2.AsMask64x8())
-	case "MaskedShiftLeft":
-		gotv = vec0.MaskedShiftLeft(vec1, vec2.AsMask64x8())
-	case "MaskedShiftRight":
-		gotv = vec0.MaskedShiftRight(vec1, vec2.AsMask64x8())
-	case "MaskedShiftRightSignExtended":
-		gotv = vec0.MaskedShiftRightSignExtended(vec1, vec2.AsMask64x8())
-	case "MaskedSub":
-		gotv = vec0.MaskedSub(vec1, vec2.AsMask64x8())
-	case "MaskedXor":
-		gotv = vec0.MaskedXor(vec1, vec2.AsMask64x8())
+	case "AddMasked":
+		gotv = vec0.AddMasked(vec1, vec2.AsMask64x8())
+	case "AndMasked":
+		gotv = vec0.AndMasked(vec1, vec2.AsMask64x8())
+	case "AndNotMasked":
+		gotv = vec0.AndNotMasked(vec1, vec2.AsMask64x8())
+	case "MaxMasked":
+		gotv = vec0.MaxMasked(vec1, vec2.AsMask64x8())
+	case "MinMasked":
+		gotv = vec0.MinMasked(vec1, vec2.AsMask64x8())
+	case "MulEvenWidenMasked":
+		gotv = vec0.MulEvenWidenMasked(vec1, vec2.AsMask64x8())
+	case "OrMasked":
+		gotv = vec0.OrMasked(vec1, vec2.AsMask64x8())
+	case "RotateLeftMasked":
+		gotv = vec0.RotateLeftMasked(vec1, vec2.AsMask64x8())
+	case "RotateRightMasked":
+		gotv = vec0.RotateRightMasked(vec1, vec2.AsMask64x8())
+	case "ShiftLeftMasked":
+		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask64x8())
+	case "ShiftRightMasked":
+		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask64x8())
+	case "ShiftRightSignExtendedMasked":
+		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask64x8())
+	case "SubMasked":
+		gotv = vec0.SubMasked(vec1, vec2.AsMask64x8())
+	case "XorMasked":
+		gotv = vec0.XorMasked(vec1, vec2.AsMask64x8())
 
 	default:
 		t.Errorf("Unknown method: Uint64x8.%s", which)
@@ -7734,18 +7734,18 @@ func testUint64x8MaskedCompare(t *testing.T, v0 []uint64, v1 []uint64, v2 []int6
 	vec1 := simd.LoadUint64x8Slice(v1)
 	vec2 := simd.LoadInt64x8Slice(v2)
 	switch which {
-	case "MaskedEqual":
-		gotv = vec0.MaskedEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedGreater":
-		gotv = vec0.MaskedGreater(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedGreaterEqual":
-		gotv = vec0.MaskedGreaterEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedLess":
-		gotv = vec0.MaskedLess(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedLessEqual":
-		gotv = vec0.MaskedLessEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
-	case "MaskedNotEqual":
-		gotv = vec0.MaskedNotEqual(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "EqualMasked":
+		gotv = vec0.EqualMasked(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "GreaterEqualMasked":
+		gotv = vec0.GreaterEqualMasked(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "GreaterMasked":
+		gotv = vec0.GreaterMasked(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "LessEqualMasked":
+		gotv = vec0.LessEqualMasked(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "LessMasked":
+		gotv = vec0.LessMasked(vec1, vec2.AsMask64x8()).AsInt64x8()
+	case "NotEqualMasked":
+		gotv = vec0.NotEqualMasked(vec1, vec2.AsMask64x8()).AsInt64x8()
 
 	default:
 		t.Errorf("Unknown method: Uint64x8.%s", which)
@@ -7791,10 +7791,10 @@ func testUint64x8TernaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []uint
 	vec2 := simd.LoadUint64x8Slice(v2)
 	vec3 := simd.LoadInt64x8Slice(v3)
 	switch which {
-	case "MaskedShiftLeftAndFillUpperFrom":
-		gotv = vec0.MaskedShiftLeftAndFillUpperFrom(vec1, vec2, vec3.AsMask64x8())
-	case "MaskedShiftRightAndFillUpperFrom":
-		gotv = vec0.MaskedShiftRightAndFillUpperFrom(vec1, vec2, vec3.AsMask64x8())
+	case "ShiftLeftAndFillUpperFromMasked":
+		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask64x8())
+	case "ShiftRightAndFillUpperFromMasked":
+		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask64x8())
 
 	default:
 		t.Errorf("Unknown method: Uint64x8.%s", which)
@@ -7834,8 +7834,8 @@ func testUint64x8UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint6
 	vec0 := simd.LoadUint64x8Slice(v0)
 	vec1 := simd.LoadInt64x8Slice(v1)
 	switch which {
-	case "MaskedPopCount":
-		gotv = vec0.MaskedPopCount(vec1.AsMask64x8())
+	case "PopCountMasked":
+		gotv = vec0.PopCountMasked(vec1.AsMask64x8())
 
 	default:
 		t.Errorf("Unknown method: Uint64x8.%s", which)
@@ -7851,40 +7851,40 @@ func testUint64x8UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint6
 /* The operations below cannot be tested via wrappers, please test them directly */
 
 // CeilWithPrecision
+// CeilWithPrecisionMasked
 // DiffWithCeilWithPrecision
+// DiffWithCeilWithPrecisionMasked
 // DiffWithFloorWithPrecision
+// DiffWithFloorWithPrecisionMasked
 // DiffWithRoundWithPrecision
+// DiffWithRoundWithPrecisionMasked
 // DiffWithTruncWithPrecision
+// DiffWithTruncWithPrecisionMasked
 // FloorWithPrecision
+// FloorWithPrecisionMasked
 // GaloisFieldAffineTransform
 // GaloisFieldAffineTransformInversed
+// GaloisFieldAffineTransformInversedMasked
+// GaloisFieldAffineTransformMasked
 // Get128
 // GetElem
-// MaskedCeilWithPrecision
-// MaskedDiffWithCeilWithPrecision
-// MaskedDiffWithFloorWithPrecision
-// MaskedDiffWithRoundWithPrecision
-// MaskedDiffWithTruncWithPrecision
-// MaskedFloorWithPrecision
-// MaskedGaloisFieldAffineTransform
-// MaskedGaloisFieldAffineTransformInversed
-// MaskedRotateAllLeft
-// MaskedRotateAllRight
-// MaskedRoundWithPrecision
-// MaskedShiftAllLeft
-// MaskedShiftAllLeftAndFillUpperFrom
-// MaskedShiftAllRight
-// MaskedShiftAllRightAndFillUpperFrom
-// MaskedShiftAllRightSignExtended
-// MaskedTruncWithPrecision
 // RotateAllLeft
+// RotateAllLeftMasked
 // RotateAllRight
+// RotateAllRightMasked
 // RoundWithPrecision
+// RoundWithPrecisionMasked
 // Set128
 // SetElem
 // ShiftAllLeft
 // ShiftAllLeftAndFillUpperFrom
+// ShiftAllLeftAndFillUpperFromMasked
+// ShiftAllLeftMasked
 // ShiftAllRight
 // ShiftAllRightAndFillUpperFrom
+// ShiftAllRightAndFillUpperFromMasked
+// ShiftAllRightMasked
 // ShiftAllRightSignExtended
+// ShiftAllRightSignExtendedMasked
 // TruncWithPrecision
+// TruncWithPrecisionMasked
