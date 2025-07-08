@@ -62,6 +62,22 @@ var regNamesAMD64 = []string{
 	"X13",
 	"X14",
 	"X15", // constant 0 in ABIInternal
+	"X16",
+	"X17",
+	"X18",
+	"X19",
+	"X20",
+	"X21",
+	"X22",
+	"X23",
+	"X24",
+	"X25",
+	"X26",
+	"X27",
+	"X28",
+	"X29",
+	"X30",
+	"X31",
 
 	// TODO: update asyncPreempt for K registers.
 	// asyncPreempt also needs to store Z0-Z15 properly.
@@ -110,6 +126,7 @@ func init() {
 		g          = buildReg("g")
 		fp         = buildReg("X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14")
 		v          = buildReg("X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14")
+		w          = buildReg("X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31")
 		x15        = buildReg("X15")
 		mask       = buildReg("K1 K2 K3 K4 K5 K6 K7")
 		gpsp       = gp | buildReg("SP")
@@ -122,6 +139,7 @@ func init() {
 		gponly   = []regMask{gp}
 		fponly   = []regMask{fp}
 		vonly    = []regMask{v}
+		wonly    = []regMask{w}
 		maskonly = []regMask{mask}
 	)
 
@@ -184,6 +202,7 @@ func init() {
 		fpstore    = regInfo{inputs: []regMask{gpspsb, fp, 0}}
 		fpstoreidx = regInfo{inputs: []regMask{gpspsb, gpsp, fp, 0}}
 
+		v01   = regInfo{inputs: nil, outputs: vonly}
 		v11   = regInfo{inputs: vonly, outputs: vonly}
 		v21   = regInfo{inputs: []regMask{v, v}, outputs: vonly}
 		vk    = regInfo{inputs: vonly, outputs: maskonly}
@@ -198,6 +217,22 @@ func init() {
 		vgp   = regInfo{inputs: vonly, outputs: gponly}
 		vfpv  = regInfo{inputs: []regMask{v, fp}, outputs: vonly}
 		vfpkv = regInfo{inputs: []regMask{v, fp, mask}, outputs: vonly}
+
+		w01   = regInfo{inputs: nil, outputs: wonly}
+		w11   = regInfo{inputs: wonly, outputs: wonly}
+		w21   = regInfo{inputs: []regMask{w, w}, outputs: wonly}
+		wk    = regInfo{inputs: wonly, outputs: maskonly}
+		kw    = regInfo{inputs: maskonly, outputs: wonly}
+		w2k   = regInfo{inputs: []regMask{fp, fp}, outputs: maskonly}
+		wkw   = regInfo{inputs: []regMask{fp, mask}, outputs: fponly}
+		w2kw  = regInfo{inputs: []regMask{fp, fp, mask}, outputs: fponly}
+		w2kk  = regInfo{inputs: []regMask{fp, fp, mask}, outputs: maskonly}
+		w31   = regInfo{inputs: []regMask{fp, fp, fp}, outputs: fponly}
+		w3kw  = regInfo{inputs: []regMask{fp, fp, fp, mask}, outputs: fponly}
+		wgpw  = regInfo{inputs: []regMask{fp, gp}, outputs: fponly}
+		wgp   = regInfo{inputs: wonly, outputs: gponly}
+		wfpw  = regInfo{inputs: []regMask{w, fp}, outputs: wonly}
+		wfpkw = regInfo{inputs: []regMask{w, fp, mask}, outputs: wonly}
 
 		prefreg = regInfo{inputs: []regMask{gpspsbg}}
 	)
@@ -1243,39 +1278,39 @@ func init() {
 
 		{name: "VPMOVMToVec8x16", argLength: 1, reg: kv, asm: "VPMOVM2B"},
 		{name: "VPMOVMToVec8x32", argLength: 1, reg: kv, asm: "VPMOVM2B"},
-		{name: "VPMOVMToVec8x64", argLength: 1, reg: kv, asm: "VPMOVM2B"},
+		{name: "VPMOVMToVec8x64", argLength: 1, reg: kw, asm: "VPMOVM2B"},
 
 		{name: "VPMOVMToVec16x8", argLength: 1, reg: kv, asm: "VPMOVM2W"},
 		{name: "VPMOVMToVec16x16", argLength: 1, reg: kv, asm: "VPMOVM2W"},
-		{name: "VPMOVMToVec16x32", argLength: 1, reg: kv, asm: "VPMOVM2W"},
+		{name: "VPMOVMToVec16x32", argLength: 1, reg: kw, asm: "VPMOVM2W"},
 
 		{name: "VPMOVMToVec32x4", argLength: 1, reg: kv, asm: "VPMOVM2D"},
 		{name: "VPMOVMToVec32x8", argLength: 1, reg: kv, asm: "VPMOVM2D"},
-		{name: "VPMOVMToVec32x16", argLength: 1, reg: kv, asm: "VPMOVM2D"},
+		{name: "VPMOVMToVec32x16", argLength: 1, reg: kw, asm: "VPMOVM2D"},
 
 		{name: "VPMOVMToVec64x2", argLength: 1, reg: kv, asm: "VPMOVM2Q"},
 		{name: "VPMOVMToVec64x4", argLength: 1, reg: kv, asm: "VPMOVM2Q"},
-		{name: "VPMOVMToVec64x8", argLength: 1, reg: kv, asm: "VPMOVM2Q"},
+		{name: "VPMOVMToVec64x8", argLength: 1, reg: kw, asm: "VPMOVM2Q"},
 
 		{name: "VPMOVVec8x16ToM", argLength: 1, reg: vk, asm: "VPMOVB2M"},
 		{name: "VPMOVVec8x32ToM", argLength: 1, reg: vk, asm: "VPMOVB2M"},
-		{name: "VPMOVVec8x64ToM", argLength: 1, reg: vk, asm: "VPMOVB2M"},
+		{name: "VPMOVVec8x64ToM", argLength: 1, reg: wk, asm: "VPMOVB2M"},
 
 		{name: "VPMOVVec16x8ToM", argLength: 1, reg: vk, asm: "VPMOVW2M"},
 		{name: "VPMOVVec16x16ToM", argLength: 1, reg: vk, asm: "VPMOVW2M"},
-		{name: "VPMOVVec16x32ToM", argLength: 1, reg: vk, asm: "VPMOVW2M"},
+		{name: "VPMOVVec16x32ToM", argLength: 1, reg: wk, asm: "VPMOVW2M"},
 
 		{name: "VPMOVVec32x4ToM", argLength: 1, reg: vk, asm: "VPMOVD2M"},
 		{name: "VPMOVVec32x8ToM", argLength: 1, reg: vk, asm: "VPMOVD2M"},
-		{name: "VPMOVVec32x16ToM", argLength: 1, reg: vk, asm: "VPMOVD2M"},
+		{name: "VPMOVVec32x16ToM", argLength: 1, reg: wk, asm: "VPMOVD2M"},
 
 		{name: "VPMOVVec64x2ToM", argLength: 1, reg: vk, asm: "VPMOVQ2M"},
 		{name: "VPMOVVec64x4ToM", argLength: 1, reg: vk, asm: "VPMOVQ2M"},
-		{name: "VPMOVVec64x8ToM", argLength: 1, reg: vk, asm: "VPMOVQ2M"},
+		{name: "VPMOVVec64x8ToM", argLength: 1, reg: wk, asm: "VPMOVQ2M"},
 
-		{name: "Zero128", argLength: 0, reg: fp01, asm: "VPXOR"},
-		{name: "Zero256", argLength: 0, reg: fp01, asm: "VPXOR"},
-		{name: "Zero512", argLength: 0, reg: fp01, asm: "VPXORQ"},
+		{name: "Zero128", argLength: 0, reg: v01, asm: "VPXOR"},
+		{name: "Zero256", argLength: 0, reg: v01, asm: "VPXOR"},
+		{name: "Zero512", argLength: 0, reg: w01, asm: "VPXORQ"},
 	}
 
 	var AMD64blocks = []blockData{
@@ -1308,7 +1343,7 @@ func init() {
 		pkg:                "cmd/internal/obj/x86",
 		genfile:            "../../amd64/ssa.go",
 		genSIMDfile:        "../../amd64/simdssa.go",
-		ops:                append(AMD64ops, simdAMD64Ops(v11, v21, v2k, vkv, v2kv, v2kk, v31, v3kv, vgpv, vgp, vfpv, vfpkv)...), // AMD64ops,
+		ops:                append(AMD64ops, simdAMD64Ops(v11, v21, v2k, vkv, v2kv, v2kk, v31, v3kv, vgpv, vgp, vfpv, vfpkv, w11, w21, w2k, wkw, w2kw, w2kk, w31, w3kw, wgpw, wgp, wfpw, wfpkw)...), // AMD64ops,
 		blocks:             AMD64blocks,
 		regnames:           regNamesAMD64,
 		ParamIntRegNames:   "AX BX CX DI SI R8 R9 R10 R11",
