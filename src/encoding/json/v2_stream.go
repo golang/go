@@ -68,7 +68,7 @@ func (dec *Decoder) Decode(v any) error {
 	b, err := dec.dec.ReadValue()
 	if err != nil {
 		dec.err = transformSyntacticError(err)
-		if dec.err == errUnexpectedEnd {
+		if dec.err.Error() == errUnexpectedEnd.Error() {
 			// NOTE: Decode has always been inconsistent with Unmarshal
 			// with regard to the exact error value for truncated input.
 			dec.err = io.ErrUnexpectedEOF
