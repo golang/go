@@ -1311,6 +1311,9 @@ func init() {
 		{name: "Zero128", argLength: 0, reg: v01, asm: "VPXOR"},
 		{name: "Zero256", argLength: 0, reg: v01, asm: "VPXOR"},
 		{name: "Zero512", argLength: 0, reg: w01, asm: "VPXORQ"},
+
+		{name: "VZEROUPPER", argLength: 0, asm: "VZEROUPPER"},
+		{name: "VZEROALL", argLength: 0, asm: "VZEROALL"},
 	}
 
 	var AMD64blocks = []blockData{

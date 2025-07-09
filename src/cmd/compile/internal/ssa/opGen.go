@@ -1196,6 +1196,8 @@ const (
 	OpAMD64Zero128
 	OpAMD64Zero256
 	OpAMD64Zero512
+	OpAMD64VZEROUPPER
+	OpAMD64VZEROALL
 	OpAMD64VADDPS512
 	OpAMD64VADDPSMasked512
 	OpAMD64VRCP14PS512
@@ -18564,6 +18566,18 @@ var opcodeTable = [...]opInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
+	},
+	{
+		name:   "VZEROUPPER",
+		argLen: 0,
+		asm:    x86.AVZEROUPPER,
+		reg:    regInfo{},
+	},
+	{
+		name:   "VZEROALL",
+		argLen: 0,
+		asm:    x86.AVZEROALL,
+		reg:    regInfo{},
 	},
 	{
 		name:        "VADDPS512",
