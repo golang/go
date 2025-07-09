@@ -2248,7 +2248,7 @@ func (x Int32x8) Greater(y Int32x8) Mask32x8
 // Greater compares for greater than.
 //
 // Asm: VPCMPGTQ, CPU Feature: AVX
-func (x Int64x2) Greater(y Int64x2) Int64x2
+func (x Int64x2) Greater(y Int64x2) Mask64x2
 
 // Greater compares for greater than.
 //
