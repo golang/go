@@ -4018,6 +4018,8 @@ func testInt64x2Binary(t *testing.T, v0 []int64, v1 []int64, want []int64, which
 		gotv = vec0.And(vec1)
 	case "AndNot":
 		gotv = vec0.AndNot(vec1)
+	case "Greater":
+		gotv = vec0.Greater(vec1)
 	case "Max":
 		gotv = vec0.Max(vec1)
 	case "Min":
@@ -4113,8 +4115,6 @@ func testInt64x2Compare(t *testing.T, v0 []int64, v1 []int64, want []int64, whic
 	switch which {
 	case "Equal":
 		gotv = vec0.Equal(vec1).AsInt64x2()
-	case "Greater":
-		gotv = vec0.Greater(vec1).AsInt64x2()
 	case "GreaterEqual":
 		gotv = vec0.GreaterEqual(vec1).AsInt64x2()
 	case "Less":

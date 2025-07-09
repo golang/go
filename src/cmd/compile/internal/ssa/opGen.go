@@ -1629,6 +1629,7 @@ const (
 	OpAMD64VPANDQMasked128
 	OpAMD64VPANDNQMasked128
 	OpAMD64VPCMPEQQ128
+	OpAMD64VPCMPGTQ128
 	OpAMD64VPMAXSQ128
 	OpAMD64VPMAXSQMasked128
 	OpAMD64VPMINSQ128
@@ -2030,36 +2031,36 @@ const (
 	OpAMD64VINSERTI128256
 	OpAMD64VPCMPB512
 	OpAMD64VPCMPBMasked512
-	OpAMD64VPCMPUW256
 	OpAMD64VPCMPUWMasked256
+	OpAMD64VPCMPUW256
 	OpAMD64VPCMPUW512
 	OpAMD64VPCMPUWMasked512
-	OpAMD64VPCMPUW128
 	OpAMD64VPCMPUWMasked128
+	OpAMD64VPCMPUW128
 	OpAMD64VPCMPUD512
 	OpAMD64VPCMPUDMasked512
-	OpAMD64VPCMPUD128
 	OpAMD64VPCMPUDMasked128
-	OpAMD64VPCMPUD256
+	OpAMD64VPCMPUD128
 	OpAMD64VPCMPUDMasked256
-	OpAMD64VPCMPUQ128
+	OpAMD64VPCMPUD256
 	OpAMD64VPCMPUQMasked128
-	OpAMD64VPCMPUQ256
+	OpAMD64VPCMPUQ128
 	OpAMD64VPCMPUQMasked256
+	OpAMD64VPCMPUQ256
 	OpAMD64VPCMPUQ512
 	OpAMD64VPCMPUQMasked512
-	OpAMD64VPCMPUB128
 	OpAMD64VPCMPUBMasked128
 	OpAMD64VGF2P8AFFINEQB128
 	OpAMD64VGF2P8AFFINEINVQB128
 	OpAMD64VGF2P8AFFINEINVQBMasked128
 	OpAMD64VGF2P8AFFINEQBMasked128
-	OpAMD64VPCMPUB256
+	OpAMD64VPCMPUB128
 	OpAMD64VPCMPUBMasked256
 	OpAMD64VGF2P8AFFINEQB256
 	OpAMD64VGF2P8AFFINEINVQB256
 	OpAMD64VGF2P8AFFINEINVQBMasked256
 	OpAMD64VGF2P8AFFINEQBMasked256
+	OpAMD64VPCMPUB256
 	OpAMD64VPCMPUB512
 	OpAMD64VPCMPUBMasked512
 	OpAMD64VGF2P8AFFINEQB512
@@ -25059,6 +25060,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPCMPGTQ128",
+		argLen: 2,
+		asm:    x86.AVPCMPGTQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPMAXSQ128",
 		argLen:      2,
 		commutative: true,
@@ -31113,22 +31128,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUW256",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPUW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
 		name:        "VPCMPUWMasked256",
 		auxType:     auxInt8,
 		argLen:      3,
@@ -31139,6 +31138,21 @@ var opcodeTable = [...]opInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VPCMPUW256",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPUW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -31179,22 +31193,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUW128",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPUW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
 		name:        "VPCMPUWMasked128",
 		auxType:     auxInt8,
 		argLen:      3,
@@ -31205,6 +31203,21 @@ var opcodeTable = [...]opInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VPCMPUW128",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPUW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -31245,22 +31258,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUD128",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPUD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
 		name:        "VPCMPUDMasked128",
 		auxType:     auxInt8,
 		argLen:      3,
@@ -31278,11 +31275,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUD256",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPUD,
+		name:    "VPCMPUD128",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPUD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -31311,11 +31307,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUQ128",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPUQ,
+		name:    "VPCMPUD256",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPUD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -31344,11 +31339,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUQ256",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPUQ,
+		name:    "VPCMPUQ128",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPUQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -31370,6 +31364,21 @@ var opcodeTable = [...]opInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VPCMPUQ256",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPUQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -31403,22 +31412,6 @@ var opcodeTable = [...]opInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:        "VPCMPUB128",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPUB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -31505,11 +31498,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUB256",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPUB,
+		name:    "VPCMPUB128",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPUB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -31596,6 +31588,21 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VPCMPUB256",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 			},
 		},
 	},

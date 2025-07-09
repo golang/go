@@ -1530,27 +1530,35 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpEqualMaskedUint8x64:
 		return rewriteValueAMD64_OpEqualMaskedUint8x64(v)
 	case OpEqualUint16x16:
-		return rewriteValueAMD64_OpEqualUint16x16(v)
+		v.Op = OpAMD64VPCMPEQW256
+		return true
 	case OpEqualUint16x32:
 		return rewriteValueAMD64_OpEqualUint16x32(v)
 	case OpEqualUint16x8:
-		return rewriteValueAMD64_OpEqualUint16x8(v)
+		v.Op = OpAMD64VPCMPEQW128
+		return true
 	case OpEqualUint32x16:
 		return rewriteValueAMD64_OpEqualUint32x16(v)
 	case OpEqualUint32x4:
-		return rewriteValueAMD64_OpEqualUint32x4(v)
+		v.Op = OpAMD64VPCMPEQD128
+		return true
 	case OpEqualUint32x8:
-		return rewriteValueAMD64_OpEqualUint32x8(v)
+		v.Op = OpAMD64VPCMPEQD256
+		return true
 	case OpEqualUint64x2:
-		return rewriteValueAMD64_OpEqualUint64x2(v)
+		v.Op = OpAMD64VPCMPEQQ128
+		return true
 	case OpEqualUint64x4:
-		return rewriteValueAMD64_OpEqualUint64x4(v)
+		v.Op = OpAMD64VPCMPEQQ256
+		return true
 	case OpEqualUint64x8:
 		return rewriteValueAMD64_OpEqualUint64x8(v)
 	case OpEqualUint8x16:
-		return rewriteValueAMD64_OpEqualUint8x16(v)
+		v.Op = OpAMD64VPCMPEQB128
+		return true
 	case OpEqualUint8x32:
-		return rewriteValueAMD64_OpEqualUint8x32(v)
+		v.Op = OpAMD64VPCMPEQB256
+		return true
 	case OpEqualUint8x64:
 		return rewriteValueAMD64_OpEqualUint8x64(v)
 	case OpFMA:
@@ -1914,7 +1922,8 @@ func rewriteValueAMD64(v *Value) bool {
 		v.Op = OpAMD64VPCMPGTD256
 		return true
 	case OpGreaterInt64x2:
-		return rewriteValueAMD64_OpGreaterInt64x2(v)
+		v.Op = OpAMD64VPCMPGTQ128
+		return true
 	case OpGreaterInt64x4:
 		v.Op = OpAMD64VPCMPGTQ256
 		return true
@@ -33212,24 +33221,6 @@ func rewriteValueAMD64_OpEqualMaskedUint8x64(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpEqualUint16x16(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (EqualUint16x16 x y)
-	// result: (VPMOVMToVec16x16 (VPCMPUW256 [0] x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64VPMOVMToVec16x16)
-		v0 := b.NewValue0(v.Pos, OpAMD64VPCMPUW256, typ.Mask)
-		v0.AuxInt = int8ToAuxInt(0)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
 func rewriteValueAMD64_OpEqualUint16x32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -33242,24 +33233,6 @@ func rewriteValueAMD64_OpEqualUint16x32(v *Value) bool {
 		y := v_1
 		v.reset(OpAMD64VPMOVMToVec16x32)
 		v0 := b.NewValue0(v.Pos, OpAMD64VPCMPUW512, typ.Mask)
-		v0.AuxInt = int8ToAuxInt(0)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpEqualUint16x8(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (EqualUint16x8 x y)
-	// result: (VPMOVMToVec16x8 (VPCMPUW128 [0] x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64VPMOVMToVec16x8)
-		v0 := b.NewValue0(v.Pos, OpAMD64VPCMPUW128, typ.Mask)
 		v0.AuxInt = int8ToAuxInt(0)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
@@ -33284,78 +33257,6 @@ func rewriteValueAMD64_OpEqualUint32x16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpEqualUint32x4(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (EqualUint32x4 x y)
-	// result: (VPMOVMToVec32x4 (VPCMPUD128 [0] x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64VPMOVMToVec32x4)
-		v0 := b.NewValue0(v.Pos, OpAMD64VPCMPUD128, typ.Mask)
-		v0.AuxInt = int8ToAuxInt(0)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpEqualUint32x8(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (EqualUint32x8 x y)
-	// result: (VPMOVMToVec32x8 (VPCMPUD256 [0] x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64VPMOVMToVec32x8)
-		v0 := b.NewValue0(v.Pos, OpAMD64VPCMPUD256, typ.Mask)
-		v0.AuxInt = int8ToAuxInt(0)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpEqualUint64x2(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (EqualUint64x2 x y)
-	// result: (VPMOVMToVec64x2 (VPCMPUQ128 [0] x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64VPMOVMToVec64x2)
-		v0 := b.NewValue0(v.Pos, OpAMD64VPCMPUQ128, typ.Mask)
-		v0.AuxInt = int8ToAuxInt(0)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpEqualUint64x4(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (EqualUint64x4 x y)
-	// result: (VPMOVMToVec64x4 (VPCMPUQ256 [0] x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64VPMOVMToVec64x4)
-		v0 := b.NewValue0(v.Pos, OpAMD64VPCMPUQ256, typ.Mask)
-		v0.AuxInt = int8ToAuxInt(0)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
 func rewriteValueAMD64_OpEqualUint64x8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -33368,42 +33269,6 @@ func rewriteValueAMD64_OpEqualUint64x8(v *Value) bool {
 		y := v_1
 		v.reset(OpAMD64VPMOVMToVec64x8)
 		v0 := b.NewValue0(v.Pos, OpAMD64VPCMPUQ512, typ.Mask)
-		v0.AuxInt = int8ToAuxInt(0)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpEqualUint8x16(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (EqualUint8x16 x y)
-	// result: (VPMOVMToVec8x16 (VPCMPUB128 [0] x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64VPMOVMToVec8x16)
-		v0 := b.NewValue0(v.Pos, OpAMD64VPCMPUB128, typ.Mask)
-		v0.AuxInt = int8ToAuxInt(0)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpEqualUint8x32(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (EqualUint8x32 x y)
-	// result: (VPMOVMToVec8x32 (VPCMPUB256 [0] x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64VPMOVMToVec8x32)
-		v0 := b.NewValue0(v.Pos, OpAMD64VPCMPUB256, typ.Mask)
 		v0.AuxInt = int8ToAuxInt(0)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
@@ -35869,24 +35734,6 @@ func rewriteValueAMD64_OpGreaterInt32x16(v *Value) bool {
 		y := v_1
 		v.reset(OpAMD64VPMOVMToVec32x16)
 		v0 := b.NewValue0(v.Pos, OpAMD64VPCMPD512, typ.Mask)
-		v0.AuxInt = int8ToAuxInt(14)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpGreaterInt64x2(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (GreaterInt64x2 x y)
-	// result: (VPMOVMToVec64x2 (VPCMPQ128 [14] x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64VPMOVMToVec64x2)
-		v0 := b.NewValue0(v.Pos, OpAMD64VPCMPQ128, typ.Mask)
 		v0.AuxInt = int8ToAuxInt(14)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)

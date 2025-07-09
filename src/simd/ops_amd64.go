@@ -1431,6 +1431,46 @@ func (x Int64x4) Equal(y Int64x4) Mask64x4
 
 // Equal compares for equality.
 //
+// Asm: VPCMPEQB, CPU Feature: AVX
+func (x Uint8x16) Equal(y Uint8x16) Mask8x16
+
+// Equal compares for equality.
+//
+// Asm: VPCMPEQB, CPU Feature: AVX2
+func (x Uint8x32) Equal(y Uint8x32) Mask8x32
+
+// Equal compares for equality.
+//
+// Asm: VPCMPEQW, CPU Feature: AVX
+func (x Uint16x8) Equal(y Uint16x8) Mask16x8
+
+// Equal compares for equality.
+//
+// Asm: VPCMPEQW, CPU Feature: AVX2
+func (x Uint16x16) Equal(y Uint16x16) Mask16x16
+
+// Equal compares for equality.
+//
+// Asm: VPCMPEQD, CPU Feature: AVX
+func (x Uint32x4) Equal(y Uint32x4) Mask32x4
+
+// Equal compares for equality.
+//
+// Asm: VPCMPEQD, CPU Feature: AVX2
+func (x Uint32x8) Equal(y Uint32x8) Mask32x8
+
+// Equal compares for equality.
+//
+// Asm: VPCMPEQQ, CPU Feature: AVX
+func (x Uint64x2) Equal(y Uint64x2) Mask64x2
+
+// Equal compares for equality.
+//
+// Asm: VPCMPEQQ, CPU Feature: AVX2
+func (x Uint64x4) Equal(y Uint64x4) Mask64x4
+
+// Equal compares for equality.
+//
 // Asm: VCMPPS, CPU Feature: AVX
 func (x Float32x4) Equal(y Float32x4) Mask32x4
 
@@ -1482,27 +1522,7 @@ func (x Int64x8) Equal(y Int64x8) Mask64x8
 // Equal compares for equality, masked.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
-func (x Uint8x16) Equal(y Uint8x16) Mask8x16
-
-// Equal compares for equality, masked.
-//
-// Asm: VPCMPUB, CPU Feature: AVX512EVEX
-func (x Uint8x32) Equal(y Uint8x32) Mask8x32
-
-// Equal compares for equality, masked.
-//
-// Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) Equal(y Uint8x64) Mask8x64
-
-// Equal compares for equality, masked.
-//
-// Asm: VPCMPUW, CPU Feature: AVX512EVEX
-func (x Uint16x8) Equal(y Uint16x8) Mask16x8
-
-// Equal compares for equality, masked.
-//
-// Asm: VPCMPUW, CPU Feature: AVX512EVEX
-func (x Uint16x16) Equal(y Uint16x16) Mask16x16
 
 // Equal compares for equality, masked.
 //
@@ -1512,27 +1532,7 @@ func (x Uint16x32) Equal(y Uint16x32) Mask16x32
 // Equal compares for equality, masked.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
-func (x Uint32x4) Equal(y Uint32x4) Mask32x4
-
-// Equal compares for equality, masked.
-//
-// Asm: VPCMPUD, CPU Feature: AVX512EVEX
-func (x Uint32x8) Equal(y Uint32x8) Mask32x8
-
-// Equal compares for equality, masked.
-//
-// Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) Equal(y Uint32x16) Mask32x16
-
-// Equal compares for equality, masked.
-//
-// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
-func (x Uint64x2) Equal(y Uint64x2) Mask64x2
-
-// Equal compares for equality, masked.
-//
-// Asm: VPCMPUQ, CPU Feature: AVX512EVEX
-func (x Uint64x4) Equal(y Uint64x4) Mask64x4
 
 // Equal compares for equality, masked.
 //
@@ -2247,6 +2247,11 @@ func (x Int32x8) Greater(y Int32x8) Mask32x8
 
 // Greater compares for greater than.
 //
+// Asm: VPCMPGTQ, CPU Feature: AVX
+func (x Int64x2) Greater(y Int64x2) Int64x2
+
+// Greater compares for greater than.
+//
 // Asm: VPCMPGTQ, CPU Feature: AVX2
 func (x Int64x4) Greater(y Int64x4) Mask64x4
 
@@ -2294,11 +2299,6 @@ func (x Int16x32) Greater(y Int16x32) Mask16x32
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) Greater(y Int32x16) Mask32x16
-
-// Greater compares for greater than.
-//
-// Asm: VPCMPQ, CPU Feature: AVX512EVEX
-func (x Int64x2) Greater(y Int64x2) Mask64x2
 
 // Greater compares for greater than.
 //
