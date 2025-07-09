@@ -1043,8 +1043,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		x := v.Args[0].Reg()
 		y := v.Reg()
 		if v.Type.IsSIMD() {
-			x = simdReg(v.Args[0])
-			y = simdReg(v)
+			x = simdOrMaskReg(v.Args[0])
+			y = simdOrMaskReg(v)
 		}
 		if x != y {
 			opregreg(s, moveByType(v.Type), y, x)
@@ -1059,7 +1059,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		r := v.Reg()
 		if v.Type.IsSIMD() {
-			r = simdReg(v)
+			r = simdOrMaskReg(v)
 		}
 		p.To.Reg = r
 
@@ -1070,7 +1070,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 		r := v.Args[0].Reg()
 		if v.Type.IsSIMD() {
-			r = simdReg(v.Args[0])
+			r = simdOrMaskReg(v.Args[0])
 		}
 		p := s.Prog(storeByType(v.Type))
 		p.From.Type = obj.TYPE_REG
@@ -1906,13 +1906,22 @@ func simdReg(v *ssa.Value) int16 {
 func maskReg(v *ssa.Value) int16 {
 	t := v.Type
 	if !t.IsSIMD() {
-		base.Fatalf("simdReg: not a simd type; v=%s, b=b%d, f=%s", v.LongString(), v.Block.ID, v.Block.Func.Name)
+		base.Fatalf("maskReg: not a simd type; v=%s, b=b%d, f=%s", v.LongString(), v.Block.ID, v.Block.Func.Name)
 	}
 	switch t.Size() {
 	case 8:
 		return v.Reg()
 	}
 	panic("unreachable")
+}
+
+// XXX k mask + vec
+func simdOrMaskReg(v *ssa.Value) int16 {
+	t := v.Type
+	if t.Size() <= 8 {
+		return maskReg(v)
+	}
+	return simdReg(v)
 }
 
 // XXX this is used for shift operations only.
