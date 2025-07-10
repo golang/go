@@ -364,3 +364,29 @@ func TestSlicesFloat64(t *testing.T) {
 		}
 	}
 }
+
+// TODO: try to reduce this test to be smaller.
+func TestMergeLocals(t *testing.T) {
+	testMergeLocalswrapper(t, simd.Int64x4.Add)
+}
+
+//go:noinline
+func forceSpill() {}
+
+func testMergeLocalswrapper(t *testing.T, op func(simd.Int64x4, simd.Int64x4) simd.Int64x4) {
+	t.Helper()
+	s0 := []int64{0, 1, 2, 3}
+	s1 := []int64{-1, 0, -1, 0}
+	want := []int64{-1, 1, 1, 3}
+	v := simd.LoadInt64x4Slice(s0)
+	m := simd.LoadInt64x4Slice(s1)
+	forceSpill()
+	got := make([]int64, 4)
+	gotv := op(v, m)
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if !(got[i] == want[i]) {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}

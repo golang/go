@@ -850,6 +850,13 @@ func (f *Func) NewLocal(pos src.XPos, typ *types.Type) *ir.Name {
 // items larger than what CanSSA would allow (approximateky, we disallow things
 // marked as open defer slots so as to avoid complicating liveness
 // analysis.
+//
+// TODO: make SIMD variables mergible.
+//
+//		Right now this check excludes SIMD vars because sometimes two live SIMD
+//		vectors will be put into the same partition by mergelocals, we need to figure
+//		out why because these vectors are big and should be merged when possible.
+//	 Details in CL 687375.
 func IsMergeCandidate(n *ir.Name) bool {
 	if base.Debug.MergeLocals == 0 ||
 		base.Flag.N != 0 ||
@@ -857,6 +864,7 @@ func IsMergeCandidate(n *ir.Name) bool {
 		n.Type().Size() <= int64(3*types.PtrSize) ||
 		n.Addrtaken() ||
 		n.NonMergeable() ||
+		n.Type().IsSIMD() ||
 		n.OpenDeferSlot() {
 		return false
 	}
