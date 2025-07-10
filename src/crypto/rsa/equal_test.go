@@ -49,4 +49,10 @@ func TestEqual(t *testing.T) {
 	if private.Equal(other) {
 		t.Errorf("different private keys are Equal")
 	}
+
+	noPrecomp := *private
+	noPrecomp.Precomputed = rsa.PrecomputedValues{}
+	if !private.Equal(&noPrecomp) {
+		t.Errorf("private key with no precomputation is not equal to itself: %v", private)
+	}
 }

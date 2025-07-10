@@ -23,6 +23,7 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -226,8 +227,9 @@ func TestEverything(t *testing.T) {
 }
 
 func testEverything(t *testing.T, priv *PrivateKey) {
-	if err := priv.Validate(); err != nil {
-		t.Errorf("Validate() failed: %s", err)
+	validateErr := priv.Validate()
+	if validateErr != nil && len(priv.Primes) >= 2 {
+		t.Errorf("Validate() failed: %s", validateErr)
 	}
 
 	msg := []byte("test")
@@ -373,19 +375,21 @@ func testEverything(t *testing.T, priv *PrivateKey) {
 		t.Errorf("DecryptPKCS1v15 accepted a long ciphertext")
 	}
 
-	der, err := x509.MarshalPKCS8PrivateKey(priv)
-	if err != nil {
-		t.Errorf("MarshalPKCS8PrivateKey: %v", err)
-	}
-	key, err := x509.ParsePKCS8PrivateKey(der)
-	if err != nil {
-		t.Errorf("ParsePKCS8PrivateKey: %v", err)
-	}
-	if !key.(*PrivateKey).Equal(priv) {
-		t.Errorf("private key mismatch")
+	if validateErr == nil {
+		der, err := x509.MarshalPKCS8PrivateKey(priv)
+		if err != nil {
+			t.Errorf("MarshalPKCS8PrivateKey: %v", err)
+		}
+		key, err := x509.ParsePKCS8PrivateKey(der)
+		if err != nil {
+			t.Errorf("ParsePKCS8PrivateKey: %v", err)
+		}
+		if !key.(*PrivateKey).Equal(priv) {
+			t.Errorf("private key mismatch")
+		}
 	}
 
-	der, err = x509.MarshalPKIXPublicKey(&priv.PublicKey)
+	der, err := x509.MarshalPKIXPublicKey(&priv.PublicKey)
 	if err != nil {
 		t.Errorf("MarshalPKIXPublicKey: %v", err)
 	}
@@ -516,6 +520,30 @@ fLVGuFoTVIu2bF0cWAjNNMg=
 -----END TESTING KEY-----`)
 
 var test2048Key = parseKey(test2048KeyPEM)
+
+var test2048KeyOnlyD = &PrivateKey{
+	PublicKey: test2048Key.PublicKey,
+	D:         test2048Key.D,
+}
+
+var test2048KeyWithoutPrecomputed = &PrivateKey{
+	PublicKey: test2048Key.PublicKey,
+	D:         test2048Key.D,
+	Primes:    test2048Key.Primes,
+}
+
+// test2048KeyWithPrecomputed is different from test2048Key because it includes
+// only the public precomputed values, and not the fips140/rsa.PrivateKey.
+var test2048KeyWithPrecomputed = &PrivateKey{
+	PublicKey: test2048Key.PublicKey,
+	D:         test2048Key.D,
+	Primes:    test2048Key.Primes,
+	Precomputed: PrecomputedValues{
+		Dp:   test2048Key.Precomputed.Dp,
+		Dq:   test2048Key.Precomputed.Dq,
+		Qinv: test2048Key.Precomputed.Qinv,
+	},
+}
 
 var test3072Key = parseKey(testingKey(`-----BEGIN TESTING KEY-----
 MIIG/gIBADANBgkqhkiG9w0BAQEFAASCBugwggbkAgEAAoIBgQDJrvevql7G07LM
@@ -700,31 +728,15 @@ func BenchmarkEncryptOAEP(b *testing.B) {
 func BenchmarkSignPKCS1v15(b *testing.B) {
 	b.Run("2048", func(b *testing.B) { benchmarkSignPKCS1v15(b, test2048Key) })
 	b.Run("2048/noprecomp/OnlyD", func(b *testing.B) {
-		benchmarkSignPKCS1v15(b, &PrivateKey{
-			PublicKey: test2048Key.PublicKey,
-			D:         test2048Key.D,
-		})
+		benchmarkSignPKCS1v15(b, test2048KeyOnlyD)
 	})
 	b.Run("2048/noprecomp/Primes", func(b *testing.B) {
-		benchmarkSignPKCS1v15(b, &PrivateKey{
-			PublicKey: test2048Key.PublicKey,
-			D:         test2048Key.D,
-			Primes:    test2048Key.Primes,
-		})
+		benchmarkSignPKCS1v15(b, test2048KeyWithoutPrecomputed)
 	})
 	// This is different from "2048" because it's only the public precomputed
 	// values, and not the crypto/internal/fips140/rsa.PrivateKey.
 	b.Run("2048/noprecomp/AllValues", func(b *testing.B) {
-		benchmarkSignPKCS1v15(b, &PrivateKey{
-			PublicKey: test2048Key.PublicKey,
-			D:         test2048Key.D,
-			Primes:    test2048Key.Primes,
-			Precomputed: PrecomputedValues{
-				Dp:   test2048Key.Precomputed.Dp,
-				Dq:   test2048Key.Precomputed.Dq,
-				Qinv: test2048Key.Precomputed.Qinv,
-			},
-		})
+		benchmarkSignPKCS1v15(b, test2048KeyWithPrecomputed)
 	})
 }
 
@@ -1187,4 +1199,121 @@ cHPGX1uUDRAU1xxtpVQ0OqXyEgqwz6y6hYRw
 	}
 	testEverything(t, k1)
 	testEverything(t, k2)
+}
+
+func TestNotPrecomputed(t *testing.T) {
+	t.Run("OnlyD", func(t *testing.T) {
+		testEverything(t, test2048KeyOnlyD)
+		k := *test2048KeyOnlyD
+		k.Precompute()
+		testEverything(t, &k)
+	})
+	t.Run("Primes", func(t *testing.T) {
+		testEverything(t, test2048KeyWithoutPrecomputed)
+		k := *test2048KeyWithoutPrecomputed
+		k.Precompute()
+		if k.Precomputed.Dp == nil || k.Precomputed.Dq == nil || k.Precomputed.Qinv == nil {
+			t.Error("Precomputed values should not be nil after Precompute()")
+		}
+		testEverything(t, &k)
+	})
+	t.Run("AllValues", func(t *testing.T) {
+		testEverything(t, test2048KeyWithPrecomputed)
+		k := *test2048KeyWithoutPrecomputed
+		k.Precompute()
+		if k.Precomputed.Dp == nil || k.Precomputed.Dq == nil || k.Precomputed.Qinv == nil {
+			t.Error("Precomputed values should not be nil after Precompute()")
+		}
+		testEverything(t, &k)
+	})
+}
+
+func TestModifiedPrivateKey(t *testing.T) {
+	if test512Key.Validate() != nil {
+		t.Fatal("test512Key should be valid")
+	}
+
+	t.Run("PublicKey mismatch", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.PublicKey = test512KeyTwo.PublicKey
+		})
+	})
+	t.Run("Precomputed mismatch", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.Precomputed = test512KeyTwo.Precomputed
+		})
+	})
+
+	t.Run("N+2", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.N = new(big.Int).Add(k.N, big.NewInt(2))
+		})
+	})
+	t.Run("N=0", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.N = new(big.Int)
+		})
+	})
+	t.Run("N is nil", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.N = nil
+		})
+	})
+
+	t.Run("P+2", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.Primes[0] = new(big.Int).Add(k.Primes[0], big.NewInt(2))
+		})
+	})
+	t.Run("P=0", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.Primes[0] = new(big.Int)
+		})
+	})
+	t.Run("P is nil", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.Primes[0] = nil
+		})
+	})
+
+	t.Run("Q+2", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.Primes[1] = new(big.Int).Add(k.Primes[1], big.NewInt(2))
+		})
+	})
+	t.Run("Q=0", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.Primes[1] = new(big.Int)
+		})
+	})
+	t.Run("Q is nil", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.Primes[1] = nil
+		})
+	})
+
+	t.Run("E+2", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.E += 2
+		})
+	})
+	t.Run("E=0", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.E = 0
+		})
+	})
+}
+
+func testModifiedPrivateKey(t *testing.T, f func(*PrivateKey)) {
+	k := new(PrivateKey)
+	*k = *test512Key
+	k.Primes = slices.Clone(k.Primes)
+	f(k)
+	if err := k.Validate(); err == nil {
+		t.Error("Validate should have failed")
+	}
+	k.Precompute()
+	if err := k.Validate(); err == nil {
+		t.Error("Validate should have failed after Precompute()")
+	}
 }
