@@ -63,9 +63,8 @@ var bigOne = big.NewInt(1)
 
 // A PublicKey represents the public part of an RSA key.
 //
-// The value of the modulus N is considered secret by this library and protected
-// from leaking through timing side-channels. However, neither the value of the
-// exponent E nor the precise bit size of N are similarly protected.
+// The values of N and E are not considered confidential, and may leak through
+// side channels, or could be mathematically derived from other public values.
 type PublicKey struct {
 	N *big.Int // modulus
 	E int      // public exponent
