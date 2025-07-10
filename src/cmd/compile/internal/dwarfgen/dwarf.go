@@ -275,7 +275,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		}
 		if n.Esc() == ir.EscHeap {
 			if n.Heapaddr == nil {
-				panic("invalid heap allocated var without Heapaddr")
+				base.Fatalf("invalid heap allocated var without Heapaddr")
 			}
 			debug := fn.DebugInfo.(*ssa.FuncDebug)
 			list := createHeapDerefLocationList(n, fnsym, debug.EntryID, ssa.FuncEnd.ID)
