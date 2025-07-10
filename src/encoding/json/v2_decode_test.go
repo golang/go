@@ -1249,12 +1249,12 @@ func TestMarshalInvalidUTF8(t *testing.T) {
 		in   string
 		want string
 	}{
-		{Name(""), "hello\xffworld", `"hello\ufffdworld"`},
+		{Name(""), "hello\xffworld", "\"hello\ufffdworld\""},
 		{Name(""), "", `""`},
-		{Name(""), "\xff", `"\ufffd"`},
-		{Name(""), "\xff\xff", `"\ufffd\ufffd"`},
-		{Name(""), "a\xffb", `"a\ufffdb"`},
-		{Name(""), "\xe6\x97\xa5\xe6\x9c\xac\xff\xaa\x9e", `"日本\ufffd\ufffd\ufffd"`},
+		{Name(""), "\xff", "\"\ufffd\""},
+		{Name(""), "\xff\xff", "\"\ufffd\ufffd\""},
+		{Name(""), "a\xffb", "\"a\ufffdb\""},
+		{Name(""), "\xe6\x97\xa5\xe6\x9c\xac\xff\xaa\x9e", "\"日本\ufffd\ufffd\ufffd\""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {

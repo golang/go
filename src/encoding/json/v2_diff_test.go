@@ -786,8 +786,8 @@ func TestInvalidUTF8(t *testing.T) {
 			switch {
 			case json.Version == "v1" && err != nil:
 				t.Fatalf("json.Marshal error: %v", err)
-			case json.Version == "v1" && string(got) != `"\ufffd"`:
-				t.Fatalf(`json.Marshal = %s, want "\ufffd"`, got)
+			case json.Version == "v1" && string(got) != "\"\ufffd\"":
+				t.Fatalf(`json.Marshal = %s, want %q`, got, "\ufffd")
 			case json.Version == "v2" && err == nil:
 				t.Fatal("json.Marshal error is nil, want non-nil")
 			}

@@ -204,7 +204,6 @@ type Options = jsonopts.Options
 // It is equivalent to the following boolean options being set to true:
 //
 //   - [CallMethodsWithLegacySemantics]
-//   - [EscapeInvalidUTF8]
 //   - [FormatBytesWithLegacySemantics]
 //   - [FormatTimeWithLegacySemantics]
 //   - [MatchCaseSensitiveDelimiter]
@@ -276,23 +275,6 @@ func CallMethodsWithLegacySemantics(v bool) Options {
 		return jsonflags.CallMethodsWithLegacySemantics | 1
 	} else {
 		return jsonflags.CallMethodsWithLegacySemantics | 0
-	}
-}
-
-// EscapeInvalidUTF8 specifies that when encoding a [jsontext.String]
-// with bytes of invalid UTF-8, such bytes are escaped as
-// a hexadecimal Unicode codepoint (i.e., \ufffd).
-// In contrast, the v2 default is to use the minimal representation,
-// which is to encode invalid UTF-8 as the Unicode replacement rune itself
-// (without any form of escaping).
-//
-// This only affects encoding and is ignored when decoding.
-// The v1 default is true.
-func EscapeInvalidUTF8(v bool) Options {
-	if v {
-		return jsonflags.EscapeInvalidUTF8 | 1
-	} else {
-		return jsonflags.EscapeInvalidUTF8 | 0
 	}
 }
 
