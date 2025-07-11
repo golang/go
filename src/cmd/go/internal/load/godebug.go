@@ -132,10 +132,11 @@ func godebugForGoVersion(v string) map[string]string {
 		v = v[:j]
 	}
 
-	if !strings.HasPrefix(v, "1.") {
+	nv, cut := strings.CutPrefix(v, "1.")
+	if !cut {
 		return nil
 	}
-	n, err := strconv.Atoi(v[len("1."):])
+	n, err := strconv.Atoi(nv)
 	if err != nil {
 		return nil
 	}
