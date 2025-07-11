@@ -1687,19 +1687,19 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpFusedMultiplySubAddMaskedFloat64x4(v)
 	case OpFusedMultiplySubAddMaskedFloat64x8:
 		return rewriteValueAMD64_OpFusedMultiplySubAddMaskedFloat64x8(v)
-	case OpGaloisFieldAffineTransformInversedMaskedUint8x16:
-		return rewriteValueAMD64_OpGaloisFieldAffineTransformInversedMaskedUint8x16(v)
-	case OpGaloisFieldAffineTransformInversedMaskedUint8x32:
-		return rewriteValueAMD64_OpGaloisFieldAffineTransformInversedMaskedUint8x32(v)
-	case OpGaloisFieldAffineTransformInversedMaskedUint8x64:
-		return rewriteValueAMD64_OpGaloisFieldAffineTransformInversedMaskedUint8x64(v)
-	case OpGaloisFieldAffineTransformInversedUint8x16:
+	case OpGaloisFieldAffineTransformInverseMaskedUint8x16:
+		return rewriteValueAMD64_OpGaloisFieldAffineTransformInverseMaskedUint8x16(v)
+	case OpGaloisFieldAffineTransformInverseMaskedUint8x32:
+		return rewriteValueAMD64_OpGaloisFieldAffineTransformInverseMaskedUint8x32(v)
+	case OpGaloisFieldAffineTransformInverseMaskedUint8x64:
+		return rewriteValueAMD64_OpGaloisFieldAffineTransformInverseMaskedUint8x64(v)
+	case OpGaloisFieldAffineTransformInverseUint8x16:
 		v.Op = OpAMD64VGF2P8AFFINEINVQB128
 		return true
-	case OpGaloisFieldAffineTransformInversedUint8x32:
+	case OpGaloisFieldAffineTransformInverseUint8x32:
 		v.Op = OpAMD64VGF2P8AFFINEINVQB256
 		return true
-	case OpGaloisFieldAffineTransformInversedUint8x64:
+	case OpGaloisFieldAffineTransformInverseUint8x64:
 		v.Op = OpAMD64VGF2P8AFFINEINVQB512
 		return true
 	case OpGaloisFieldAffineTransformMaskedUint8x16:
@@ -34016,12 +34016,12 @@ func rewriteValueAMD64_OpFusedMultiplySubAddMaskedFloat64x8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpGaloisFieldAffineTransformInversedMaskedUint8x16(v *Value) bool {
+func rewriteValueAMD64_OpGaloisFieldAffineTransformInverseMaskedUint8x16(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (GaloisFieldAffineTransformInversedMaskedUint8x16 [a] x y mask)
+	// match: (GaloisFieldAffineTransformInverseMaskedUint8x16 [a] x y mask)
 	// result: (VGF2P8AFFINEINVQBMasked128 [a] x y (VPMOVVec8x16ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -34036,12 +34036,12 @@ func rewriteValueAMD64_OpGaloisFieldAffineTransformInversedMaskedUint8x16(v *Val
 		return true
 	}
 }
-func rewriteValueAMD64_OpGaloisFieldAffineTransformInversedMaskedUint8x32(v *Value) bool {
+func rewriteValueAMD64_OpGaloisFieldAffineTransformInverseMaskedUint8x32(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (GaloisFieldAffineTransformInversedMaskedUint8x32 [a] x y mask)
+	// match: (GaloisFieldAffineTransformInverseMaskedUint8x32 [a] x y mask)
 	// result: (VGF2P8AFFINEINVQBMasked256 [a] x y (VPMOVVec8x32ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -34056,12 +34056,12 @@ func rewriteValueAMD64_OpGaloisFieldAffineTransformInversedMaskedUint8x32(v *Val
 		return true
 	}
 }
-func rewriteValueAMD64_OpGaloisFieldAffineTransformInversedMaskedUint8x64(v *Value) bool {
+func rewriteValueAMD64_OpGaloisFieldAffineTransformInverseMaskedUint8x64(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (GaloisFieldAffineTransformInversedMaskedUint8x64 [a] x y mask)
+	// match: (GaloisFieldAffineTransformInverseMaskedUint8x64 [a] x y mask)
 	// result: (VGF2P8AFFINEINVQBMasked512 [a] x y (VPMOVVec8x64ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)

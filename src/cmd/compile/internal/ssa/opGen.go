@@ -5957,20 +5957,20 @@ const (
 	OpShiftAllRightAndFillUpperFromUint64x8
 	OpShiftAllRightAndFillUpperFromMaskedUint64x8
 	OpGaloisFieldAffineTransformUint8x16
-	OpGaloisFieldAffineTransformInversedUint8x16
-	OpGaloisFieldAffineTransformInversedMaskedUint8x16
+	OpGaloisFieldAffineTransformInverseUint8x16
+	OpGaloisFieldAffineTransformInverseMaskedUint8x16
 	OpGaloisFieldAffineTransformMaskedUint8x16
 	OpGetElemUint8x16
 	OpSetElemUint8x16
 	OpGaloisFieldAffineTransformUint8x32
-	OpGaloisFieldAffineTransformInversedUint8x32
-	OpGaloisFieldAffineTransformInversedMaskedUint8x32
+	OpGaloisFieldAffineTransformInverseUint8x32
+	OpGaloisFieldAffineTransformInverseMaskedUint8x32
 	OpGaloisFieldAffineTransformMaskedUint8x32
 	OpGet128Uint8x32
 	OpSet128Uint8x32
 	OpGaloisFieldAffineTransformUint8x64
-	OpGaloisFieldAffineTransformInversedUint8x64
-	OpGaloisFieldAffineTransformInversedMaskedUint8x64
+	OpGaloisFieldAffineTransformInverseUint8x64
+	OpGaloisFieldAffineTransformInverseMaskedUint8x64
 	OpGaloisFieldAffineTransformMaskedUint8x64
 )
 
@@ -67930,13 +67930,13 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "GaloisFieldAffineTransformInversedUint8x16",
+		name:    "GaloisFieldAffineTransformInverseUint8x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "GaloisFieldAffineTransformInversedMaskedUint8x16",
+		name:    "GaloisFieldAffineTransformInverseMaskedUint8x16",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
@@ -67966,13 +67966,13 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "GaloisFieldAffineTransformInversedUint8x32",
+		name:    "GaloisFieldAffineTransformInverseUint8x32",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "GaloisFieldAffineTransformInversedMaskedUint8x32",
+		name:    "GaloisFieldAffineTransformInverseMaskedUint8x32",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
@@ -68002,13 +68002,13 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "GaloisFieldAffineTransformInversedUint8x64",
+		name:    "GaloisFieldAffineTransformInverseUint8x64",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "GaloisFieldAffineTransformInversedMaskedUint8x64",
+		name:    "GaloisFieldAffineTransformInverseMaskedUint8x64",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,

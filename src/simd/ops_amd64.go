@@ -68,62 +68,62 @@ func (x Int64x8) Absolute() Int64x8
 
 /* AbsoluteMasked */
 
-// Absolute computes the absolute value of each element.
+// AbsoluteMasked computes the absolute value of each element.
 //
 // Asm: VPABSB, CPU Feature: AVX512EVEX
 func (x Int8x16) AbsoluteMasked(y Mask8x16) Int8x16
 
-// Absolute computes the absolute value of each element.
+// AbsoluteMasked computes the absolute value of each element.
 //
 // Asm: VPABSB, CPU Feature: AVX512EVEX
 func (x Int8x32) AbsoluteMasked(y Mask8x32) Int8x32
 
-// Absolute computes the absolute value of each element.
+// AbsoluteMasked computes the absolute value of each element.
 //
 // Asm: VPABSB, CPU Feature: AVX512EVEX
 func (x Int8x64) AbsoluteMasked(y Mask8x64) Int8x64
 
-// Absolute computes the absolute value of each element.
+// AbsoluteMasked computes the absolute value of each element.
 //
 // Asm: VPABSW, CPU Feature: AVX512EVEX
 func (x Int16x8) AbsoluteMasked(y Mask16x8) Int16x8
 
-// Absolute computes the absolute value of each element.
+// AbsoluteMasked computes the absolute value of each element.
 //
 // Asm: VPABSW, CPU Feature: AVX512EVEX
 func (x Int16x16) AbsoluteMasked(y Mask16x16) Int16x16
 
-// Absolute computes the absolute value of each element.
+// AbsoluteMasked computes the absolute value of each element.
 //
 // Asm: VPABSW, CPU Feature: AVX512EVEX
 func (x Int16x32) AbsoluteMasked(y Mask16x32) Int16x32
 
-// Absolute computes the absolute value of each element.
+// AbsoluteMasked computes the absolute value of each element.
 //
 // Asm: VPABSD, CPU Feature: AVX512EVEX
 func (x Int32x4) AbsoluteMasked(y Mask32x4) Int32x4
 
-// Absolute computes the absolute value of each element.
+// AbsoluteMasked computes the absolute value of each element.
 //
 // Asm: VPABSD, CPU Feature: AVX512EVEX
 func (x Int32x8) AbsoluteMasked(y Mask32x8) Int32x8
 
-// Absolute computes the absolute value of each element.
+// AbsoluteMasked computes the absolute value of each element.
 //
 // Asm: VPABSD, CPU Feature: AVX512EVEX
 func (x Int32x16) AbsoluteMasked(y Mask32x16) Int32x16
 
-// Absolute computes the absolute value of each element.
+// AbsoluteMasked computes the absolute value of each element.
 //
 // Asm: VPABSQ, CPU Feature: AVX512EVEX
 func (x Int64x2) AbsoluteMasked(y Mask64x2) Int64x2
 
-// Absolute computes the absolute value of each element.
+// AbsoluteMasked computes the absolute value of each element.
 //
 // Asm: VPABSQ, CPU Feature: AVX512EVEX
 func (x Int64x4) AbsoluteMasked(y Mask64x4) Int64x4
 
-// Absolute computes the absolute value of each element.
+// AbsoluteMasked computes the absolute value of each element.
 //
 // Asm: VPABSQ, CPU Feature: AVX512EVEX
 func (x Int64x8) AbsoluteMasked(y Mask64x8) Int64x8
@@ -282,152 +282,152 @@ func (x Uint64x8) Add(y Uint64x8) Uint64x8
 
 /* AddMasked */
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VADDPS, CPU Feature: AVX512EVEX
 func (x Float32x4) AddMasked(y Float32x4, z Mask32x4) Float32x4
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VADDPS, CPU Feature: AVX512EVEX
 func (x Float32x8) AddMasked(y Float32x8, z Mask32x8) Float32x8
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VADDPS, CPU Feature: AVX512EVEX
 func (x Float32x16) AddMasked(y Float32x16, z Mask32x16) Float32x16
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VADDPD, CPU Feature: AVX512EVEX
 func (x Float64x2) AddMasked(y Float64x2, z Mask64x2) Float64x2
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VADDPD, CPU Feature: AVX512EVEX
 func (x Float64x4) AddMasked(y Float64x4, z Mask64x4) Float64x4
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VADDPD, CPU Feature: AVX512EVEX
 func (x Float64x8) AddMasked(y Float64x8, z Mask64x8) Float64x8
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Int8x16) AddMasked(y Int8x16, z Mask8x16) Int8x16
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Int8x32) AddMasked(y Int8x32, z Mask8x32) Int8x32
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Int8x64) AddMasked(y Int8x64, z Mask8x64) Int8x64
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Int16x8) AddMasked(y Int16x8, z Mask16x8) Int16x8
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Int16x16) AddMasked(y Int16x16, z Mask16x16) Int16x16
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Int16x32) AddMasked(y Int16x32, z Mask16x32) Int16x32
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Int32x4) AddMasked(y Int32x4, z Mask32x4) Int32x4
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Int32x8) AddMasked(y Int32x8, z Mask32x8) Int32x8
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Int32x16) AddMasked(y Int32x16, z Mask32x16) Int32x16
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Int64x2) AddMasked(y Int64x2, z Mask64x2) Int64x2
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Int64x4) AddMasked(y Int64x4, z Mask64x4) Int64x4
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Int64x8) AddMasked(y Int64x8, z Mask64x8) Int64x8
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Uint8x16) AddMasked(y Uint8x16, z Mask8x16) Uint8x16
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Uint8x32) AddMasked(y Uint8x32, z Mask8x32) Uint8x32
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDB, CPU Feature: AVX512EVEX
 func (x Uint8x64) AddMasked(y Uint8x64, z Mask8x64) Uint8x64
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Uint16x8) AddMasked(y Uint16x8, z Mask16x8) Uint16x8
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Uint16x16) AddMasked(y Uint16x16, z Mask16x16) Uint16x16
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDW, CPU Feature: AVX512EVEX
 func (x Uint16x32) AddMasked(y Uint16x32, z Mask16x32) Uint16x32
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Uint32x4) AddMasked(y Uint32x4, z Mask32x4) Uint32x4
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Uint32x8) AddMasked(y Uint32x8, z Mask32x8) Uint32x8
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDD, CPU Feature: AVX512EVEX
 func (x Uint32x16) AddMasked(y Uint32x16, z Mask32x16) Uint32x16
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) AddMasked(y Uint64x2, z Mask64x2) Uint64x2
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) AddMasked(y Uint64x4, z Mask64x4) Uint64x4
 
-// Add adds corresponding elements of two vectors.
+// AddMasked adds corresponding elements of two vectors.
 //
 // Asm: VPADDQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) AddMasked(y Uint64x8, z Mask64x8) Uint64x8
@@ -558,62 +558,62 @@ func (x Uint64x8) And(y Uint64x8) Uint64x8
 
 /* AndMasked */
 
-// And performs a masked bitwise AND operation between two vectors.
+// AndMasked performs a masked bitwise AND operation between two vectors.
 //
 // Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Int32x4) AndMasked(y Int32x4, z Mask32x4) Int32x4
 
-// And performs a masked bitwise AND operation between two vectors.
+// AndMasked performs a masked bitwise AND operation between two vectors.
 //
 // Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Int32x8) AndMasked(y Int32x8, z Mask32x8) Int32x8
 
-// And performs a masked bitwise AND operation between two vectors.
+// AndMasked performs a masked bitwise AND operation between two vectors.
 //
 // Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Int32x16) AndMasked(y Int32x16, z Mask32x16) Int32x16
 
-// And performs a masked bitwise AND operation between two vectors.
+// AndMasked performs a masked bitwise AND operation between two vectors.
 //
 // Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Int64x2) AndMasked(y Int64x2, z Mask64x2) Int64x2
 
-// And performs a masked bitwise AND operation between two vectors.
+// AndMasked performs a masked bitwise AND operation between two vectors.
 //
 // Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Int64x4) AndMasked(y Int64x4, z Mask64x4) Int64x4
 
-// And performs a masked bitwise AND operation between two vectors.
+// AndMasked performs a masked bitwise AND operation between two vectors.
 //
 // Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Int64x8) AndMasked(y Int64x8, z Mask64x8) Int64x8
 
-// And performs a masked bitwise AND operation between two vectors.
+// AndMasked performs a masked bitwise AND operation between two vectors.
 //
 // Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Uint32x4) AndMasked(y Uint32x4, z Mask32x4) Uint32x4
 
-// And performs a masked bitwise AND operation between two vectors.
+// AndMasked performs a masked bitwise AND operation between two vectors.
 //
 // Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Uint32x8) AndMasked(y Uint32x8, z Mask32x8) Uint32x8
 
-// And performs a masked bitwise AND operation between two vectors.
+// AndMasked performs a masked bitwise AND operation between two vectors.
 //
 // Asm: VPANDD, CPU Feature: AVX512EVEX
 func (x Uint32x16) AndMasked(y Uint32x16, z Mask32x16) Uint32x16
 
-// And performs a masked bitwise AND operation between two vectors.
+// AndMasked performs a masked bitwise AND operation between two vectors.
 //
 // Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) AndMasked(y Uint64x2, z Mask64x2) Uint64x2
 
-// And performs a masked bitwise AND operation between two vectors.
+// AndMasked performs a masked bitwise AND operation between two vectors.
 //
 // Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) AndMasked(y Uint64x4, z Mask64x4) Uint64x4
 
-// And performs a masked bitwise AND operation between two vectors.
+// AndMasked performs a masked bitwise AND operation between two vectors.
 //
 // Asm: VPANDQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) AndMasked(y Uint64x8, z Mask64x8) Uint64x8
@@ -722,62 +722,62 @@ func (x Uint64x8) AndNot(y Uint64x8) Uint64x8
 
 /* AndNotMasked */
 
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
 //
 // Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Int32x4) AndNotMasked(y Int32x4, z Mask32x4) Int32x4
 
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
 //
 // Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Int32x8) AndNotMasked(y Int32x8, z Mask32x8) Int32x8
 
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
 //
 // Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Int32x16) AndNotMasked(y Int32x16, z Mask32x16) Int32x16
 
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
 //
 // Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Int64x2) AndNotMasked(y Int64x2, z Mask64x2) Int64x2
 
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
 //
 // Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Int64x4) AndNotMasked(y Int64x4, z Mask64x4) Int64x4
 
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
 //
 // Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Int64x8) AndNotMasked(y Int64x8, z Mask64x8) Int64x8
 
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
 //
 // Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Uint32x4) AndNotMasked(y Uint32x4, z Mask32x4) Uint32x4
 
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
 //
 // Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Uint32x8) AndNotMasked(y Uint32x8, z Mask32x8) Uint32x8
 
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
 //
 // Asm: VPANDND, CPU Feature: AVX512EVEX
 func (x Uint32x16) AndNotMasked(y Uint32x16, z Mask32x16) Uint32x16
 
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
 //
 // Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) AndNotMasked(y Uint64x2, z Mask64x2) Uint64x2
 
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
 //
 // Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) AndNotMasked(y Uint64x4, z Mask64x4) Uint64x4
 
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
 //
 // Asm: VPANDNQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) AndNotMasked(y Uint64x8, z Mask64x8) Uint64x8
@@ -816,32 +816,32 @@ func (x Float64x8) ApproximateReciprocal() Float64x8
 
 /* ApproximateReciprocalMasked */
 
-// ApproximateReciprocal computes an approximate reciprocal of each element.
+// ApproximateReciprocalMasked computes an approximate reciprocal of each element.
 //
 // Asm: VRCP14PS, CPU Feature: AVX512EVEX
 func (x Float32x4) ApproximateReciprocalMasked(y Mask32x4) Float32x4
 
-// ApproximateReciprocal computes an approximate reciprocal of each element.
+// ApproximateReciprocalMasked computes an approximate reciprocal of each element.
 //
 // Asm: VRCP14PS, CPU Feature: AVX512EVEX
 func (x Float32x8) ApproximateReciprocalMasked(y Mask32x8) Float32x8
 
-// ApproximateReciprocal computes an approximate reciprocal of each element.
+// ApproximateReciprocalMasked computes an approximate reciprocal of each element.
 //
 // Asm: VRCP14PS, CPU Feature: AVX512EVEX
 func (x Float32x16) ApproximateReciprocalMasked(y Mask32x16) Float32x16
 
-// ApproximateReciprocal computes an approximate reciprocal of each element.
+// ApproximateReciprocalMasked computes an approximate reciprocal of each element.
 //
 // Asm: VRCP14PD, CPU Feature: AVX512EVEX
 func (x Float64x2) ApproximateReciprocalMasked(y Mask64x2) Float64x2
 
-// ApproximateReciprocal computes an approximate reciprocal of each element.
+// ApproximateReciprocalMasked computes an approximate reciprocal of each element.
 //
 // Asm: VRCP14PD, CPU Feature: AVX512EVEX
 func (x Float64x4) ApproximateReciprocalMasked(y Mask64x4) Float64x4
 
-// ApproximateReciprocal computes an approximate reciprocal of each element.
+// ApproximateReciprocalMasked computes an approximate reciprocal of each element.
 //
 // Asm: VRCP14PD, CPU Feature: AVX512EVEX
 func (x Float64x8) ApproximateReciprocalMasked(y Mask64x8) Float64x8
@@ -880,32 +880,32 @@ func (x Float64x8) ApproximateReciprocalOfSqrt() Float64x8
 
 /* ApproximateReciprocalOfSqrtMasked */
 
-// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
+// ApproximateReciprocalOfSqrtMasked computes an approximate reciprocal of the square root of each element.
 //
 // Asm: VRSQRT14PS, CPU Feature: AVX512EVEX
 func (x Float32x4) ApproximateReciprocalOfSqrtMasked(y Mask32x4) Float32x4
 
-// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
+// ApproximateReciprocalOfSqrtMasked computes an approximate reciprocal of the square root of each element.
 //
 // Asm: VRSQRT14PS, CPU Feature: AVX512EVEX
 func (x Float32x8) ApproximateReciprocalOfSqrtMasked(y Mask32x8) Float32x8
 
-// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
+// ApproximateReciprocalOfSqrtMasked computes an approximate reciprocal of the square root of each element.
 //
 // Asm: VRSQRT14PS, CPU Feature: AVX512EVEX
 func (x Float32x16) ApproximateReciprocalOfSqrtMasked(y Mask32x16) Float32x16
 
-// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
+// ApproximateReciprocalOfSqrtMasked computes an approximate reciprocal of the square root of each element.
 //
 // Asm: VRSQRT14PD, CPU Feature: AVX512EVEX
 func (x Float64x2) ApproximateReciprocalOfSqrtMasked(y Mask64x2) Float64x2
 
-// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
+// ApproximateReciprocalOfSqrtMasked computes an approximate reciprocal of the square root of each element.
 //
 // Asm: VRSQRT14PD, CPU Feature: AVX512EVEX
 func (x Float64x4) ApproximateReciprocalOfSqrtMasked(y Mask64x4) Float64x4
 
-// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
+// ApproximateReciprocalOfSqrtMasked computes an approximate reciprocal of the square root of each element.
 //
 // Asm: VRSQRT14PD, CPU Feature: AVX512EVEX
 func (x Float64x8) ApproximateReciprocalOfSqrtMasked(y Mask64x8) Float64x8
@@ -944,32 +944,32 @@ func (x Uint16x32) Average(y Uint16x32) Uint16x32
 
 /* AverageMasked */
 
-// Average computes the rounded average of corresponding elements.
+// AverageMasked computes the rounded average of corresponding elements.
 //
 // Asm: VPAVGB, CPU Feature: AVX512EVEX
 func (x Uint8x16) AverageMasked(y Uint8x16, z Mask8x16) Uint8x16
 
-// Average computes the rounded average of corresponding elements.
+// AverageMasked computes the rounded average of corresponding elements.
 //
 // Asm: VPAVGB, CPU Feature: AVX512EVEX
 func (x Uint8x32) AverageMasked(y Uint8x32, z Mask8x32) Uint8x32
 
-// Average computes the rounded average of corresponding elements.
+// AverageMasked computes the rounded average of corresponding elements.
 //
 // Asm: VPAVGB, CPU Feature: AVX512EVEX
 func (x Uint8x64) AverageMasked(y Uint8x64, z Mask8x64) Uint8x64
 
-// Average computes the rounded average of corresponding elements.
+// AverageMasked computes the rounded average of corresponding elements.
 //
 // Asm: VPAVGW, CPU Feature: AVX512EVEX
 func (x Uint16x8) AverageMasked(y Uint16x8, z Mask16x8) Uint16x8
 
-// Average computes the rounded average of corresponding elements.
+// AverageMasked computes the rounded average of corresponding elements.
 //
 // Asm: VPAVGW, CPU Feature: AVX512EVEX
 func (x Uint16x16) AverageMasked(y Uint16x16, z Mask16x16) Uint16x16
 
-// Average computes the rounded average of corresponding elements.
+// AverageMasked computes the rounded average of corresponding elements.
 //
 // Asm: VPAVGW, CPU Feature: AVX512EVEX
 func (x Uint16x32) AverageMasked(y Uint16x32, z Mask16x32) Uint16x32
@@ -1030,32 +1030,32 @@ func (x Float64x8) CeilWithPrecision(imm uint8) Float64x8
 
 /* CeilWithPrecisionMasked */
 
-// CeilWithPrecision rounds elements up with specified precision, masked.
+// CeilWithPrecisionMasked rounds elements up with specified precision, masked.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) CeilWithPrecisionMasked(imm uint8, y Mask32x4) Float32x4
 
-// CeilWithPrecision rounds elements up with specified precision, masked.
+// CeilWithPrecisionMasked rounds elements up with specified precision, masked.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) CeilWithPrecisionMasked(imm uint8, y Mask32x8) Float32x8
 
-// CeilWithPrecision rounds elements up with specified precision, masked.
+// CeilWithPrecisionMasked rounds elements up with specified precision, masked.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) CeilWithPrecisionMasked(imm uint8, y Mask32x16) Float32x16
 
-// CeilWithPrecision rounds elements up with specified precision, masked.
+// CeilWithPrecisionMasked rounds elements up with specified precision, masked.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) CeilWithPrecisionMasked(imm uint8, y Mask64x2) Float64x2
 
-// CeilWithPrecision rounds elements up with specified precision, masked.
+// CeilWithPrecisionMasked rounds elements up with specified precision, masked.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) CeilWithPrecisionMasked(imm uint8, y Mask64x4) Float64x4
 
-// CeilWithPrecision rounds elements up with specified precision, masked.
+// CeilWithPrecisionMasked rounds elements up with specified precision, masked.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) CeilWithPrecisionMasked(imm uint8, y Mask64x8) Float64x8
@@ -1094,32 +1094,32 @@ func (x Float64x8) DiffWithCeilWithPrecision(imm uint8) Float64x8
 
 /* DiffWithCeilWithPrecisionMasked */
 
-// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+// DiffWithCeilWithPrecisionMasked computes the difference after ceiling with specified precision.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) DiffWithCeilWithPrecisionMasked(imm uint8, y Mask32x4) Float32x4
 
-// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+// DiffWithCeilWithPrecisionMasked computes the difference after ceiling with specified precision.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) DiffWithCeilWithPrecisionMasked(imm uint8, y Mask32x8) Float32x8
 
-// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+// DiffWithCeilWithPrecisionMasked computes the difference after ceiling with specified precision.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) DiffWithCeilWithPrecisionMasked(imm uint8, y Mask32x16) Float32x16
 
-// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+// DiffWithCeilWithPrecisionMasked computes the difference after ceiling with specified precision.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) DiffWithCeilWithPrecisionMasked(imm uint8, y Mask64x2) Float64x2
 
-// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+// DiffWithCeilWithPrecisionMasked computes the difference after ceiling with specified precision.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) DiffWithCeilWithPrecisionMasked(imm uint8, y Mask64x4) Float64x4
 
-// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+// DiffWithCeilWithPrecisionMasked computes the difference after ceiling with specified precision.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) DiffWithCeilWithPrecisionMasked(imm uint8, y Mask64x8) Float64x8
@@ -1158,32 +1158,32 @@ func (x Float64x8) DiffWithFloorWithPrecision(imm uint8) Float64x8
 
 /* DiffWithFloorWithPrecisionMasked */
 
-// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+// DiffWithFloorWithPrecisionMasked computes the difference after flooring with specified precision.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) DiffWithFloorWithPrecisionMasked(imm uint8, y Mask32x4) Float32x4
 
-// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+// DiffWithFloorWithPrecisionMasked computes the difference after flooring with specified precision.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) DiffWithFloorWithPrecisionMasked(imm uint8, y Mask32x8) Float32x8
 
-// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+// DiffWithFloorWithPrecisionMasked computes the difference after flooring with specified precision.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) DiffWithFloorWithPrecisionMasked(imm uint8, y Mask32x16) Float32x16
 
-// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+// DiffWithFloorWithPrecisionMasked computes the difference after flooring with specified precision.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) DiffWithFloorWithPrecisionMasked(imm uint8, y Mask64x2) Float64x2
 
-// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+// DiffWithFloorWithPrecisionMasked computes the difference after flooring with specified precision.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) DiffWithFloorWithPrecisionMasked(imm uint8, y Mask64x4) Float64x4
 
-// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+// DiffWithFloorWithPrecisionMasked computes the difference after flooring with specified precision.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) DiffWithFloorWithPrecisionMasked(imm uint8, y Mask64x8) Float64x8
@@ -1222,32 +1222,32 @@ func (x Float64x8) DiffWithRoundWithPrecision(imm uint8) Float64x8
 
 /* DiffWithRoundWithPrecisionMasked */
 
-// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+// DiffWithRoundWithPrecisionMasked computes the difference after rounding with specified precision.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) DiffWithRoundWithPrecisionMasked(imm uint8, y Mask32x4) Float32x4
 
-// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+// DiffWithRoundWithPrecisionMasked computes the difference after rounding with specified precision.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) DiffWithRoundWithPrecisionMasked(imm uint8, y Mask32x8) Float32x8
 
-// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+// DiffWithRoundWithPrecisionMasked computes the difference after rounding with specified precision.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) DiffWithRoundWithPrecisionMasked(imm uint8, y Mask32x16) Float32x16
 
-// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+// DiffWithRoundWithPrecisionMasked computes the difference after rounding with specified precision.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) DiffWithRoundWithPrecisionMasked(imm uint8, y Mask64x2) Float64x2
 
-// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+// DiffWithRoundWithPrecisionMasked computes the difference after rounding with specified precision.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) DiffWithRoundWithPrecisionMasked(imm uint8, y Mask64x4) Float64x4
 
-// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+// DiffWithRoundWithPrecisionMasked computes the difference after rounding with specified precision.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) DiffWithRoundWithPrecisionMasked(imm uint8, y Mask64x8) Float64x8
@@ -1286,32 +1286,32 @@ func (x Float64x8) DiffWithTruncWithPrecision(imm uint8) Float64x8
 
 /* DiffWithTruncWithPrecisionMasked */
 
-// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+// DiffWithTruncWithPrecisionMasked computes the difference after truncating with specified precision.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) DiffWithTruncWithPrecisionMasked(imm uint8, y Mask32x4) Float32x4
 
-// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+// DiffWithTruncWithPrecisionMasked computes the difference after truncating with specified precision.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) DiffWithTruncWithPrecisionMasked(imm uint8, y Mask32x8) Float32x8
 
-// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+// DiffWithTruncWithPrecisionMasked computes the difference after truncating with specified precision.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) DiffWithTruncWithPrecisionMasked(imm uint8, y Mask32x16) Float32x16
 
-// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+// DiffWithTruncWithPrecisionMasked computes the difference after truncating with specified precision.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) DiffWithTruncWithPrecisionMasked(imm uint8, y Mask64x2) Float64x2
 
-// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+// DiffWithTruncWithPrecisionMasked computes the difference after truncating with specified precision.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) DiffWithTruncWithPrecisionMasked(imm uint8, y Mask64x4) Float64x4
 
-// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+// DiffWithTruncWithPrecisionMasked computes the difference after truncating with specified precision.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) DiffWithTruncWithPrecisionMasked(imm uint8, y Mask64x8) Float64x8
@@ -1350,32 +1350,32 @@ func (x Float64x8) Div(y Float64x8) Float64x8
 
 /* DivMasked */
 
-// Div divides elements of two vectors.
+// DivMasked divides elements of two vectors.
 //
 // Asm: VDIVPS, CPU Feature: AVX512EVEX
 func (x Float32x4) DivMasked(y Float32x4, z Mask32x4) Float32x4
 
-// Div divides elements of two vectors.
+// DivMasked divides elements of two vectors.
 //
 // Asm: VDIVPS, CPU Feature: AVX512EVEX
 func (x Float32x8) DivMasked(y Float32x8, z Mask32x8) Float32x8
 
-// Div divides elements of two vectors.
+// DivMasked divides elements of two vectors.
 //
 // Asm: VDIVPS, CPU Feature: AVX512EVEX
 func (x Float32x16) DivMasked(y Float32x16, z Mask32x16) Float32x16
 
-// Div divides elements of two vectors.
+// DivMasked divides elements of two vectors.
 //
 // Asm: VDIVPD, CPU Feature: AVX512EVEX
 func (x Float64x2) DivMasked(y Float64x2, z Mask64x2) Float64x2
 
-// Div divides elements of two vectors.
+// DivMasked divides elements of two vectors.
 //
 // Asm: VDIVPD, CPU Feature: AVX512EVEX
 func (x Float64x4) DivMasked(y Float64x4, z Mask64x4) Float64x4
 
-// Div divides elements of two vectors.
+// DivMasked divides elements of two vectors.
 //
 // Asm: VDIVPD, CPU Feature: AVX512EVEX
 func (x Float64x8) DivMasked(y Float64x8, z Mask64x8) Float64x8
@@ -1541,152 +1541,152 @@ func (x Uint64x8) Equal(y Uint64x8) Mask64x8
 
 /* EqualMasked */
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) EqualMasked(y Float32x4, z Mask32x4) Mask32x4
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) EqualMasked(y Float32x8, z Mask32x8) Mask32x8
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) EqualMasked(y Float32x16, z Mask32x16) Mask32x16
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) EqualMasked(y Float64x2, z Mask64x2) Mask64x2
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) EqualMasked(y Float64x4, z Mask64x4) Mask64x4
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) EqualMasked(y Float64x8, z Mask64x8) Mask64x8
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) EqualMasked(y Int8x16, z Mask8x16) Mask8x16
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) EqualMasked(y Int8x32, z Mask8x32) Mask8x32
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) EqualMasked(y Int8x64, z Mask8x64) Mask8x64
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) EqualMasked(y Int16x8, z Mask16x8) Mask16x8
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) EqualMasked(y Int16x16, z Mask16x16) Mask16x16
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) EqualMasked(y Int16x32, z Mask16x32) Mask16x32
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) EqualMasked(y Int32x4, z Mask32x4) Mask32x4
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) EqualMasked(y Int32x8, z Mask32x8) Mask32x8
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) EqualMasked(y Int32x16, z Mask32x16) Mask32x16
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) EqualMasked(y Int64x2, z Mask64x2) Mask64x2
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) EqualMasked(y Int64x4, z Mask64x4) Mask64x4
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) EqualMasked(y Int64x8, z Mask64x8) Mask64x8
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) EqualMasked(y Uint8x16, z Mask8x16) Mask8x16
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) EqualMasked(y Uint8x32, z Mask8x32) Mask8x32
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) EqualMasked(y Uint8x64, z Mask8x64) Mask8x64
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) EqualMasked(y Uint16x8, z Mask16x8) Mask16x8
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) EqualMasked(y Uint16x16, z Mask16x16) Mask16x16
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) EqualMasked(y Uint16x32, z Mask16x32) Mask16x32
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) EqualMasked(y Uint32x4, z Mask32x4) Mask32x4
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) EqualMasked(y Uint32x8, z Mask32x8) Mask32x8
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) EqualMasked(y Uint32x16, z Mask32x16) Mask32x16
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) EqualMasked(y Uint64x2, z Mask64x2) Mask64x2
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) EqualMasked(y Uint64x4, z Mask64x4) Mask64x4
 
-// Equal compares for equality, masked.
+// EqualMasked compares for equality, masked.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) EqualMasked(y Uint64x8, z Mask64x8) Mask64x8
@@ -1747,32 +1747,32 @@ func (x Float64x8) FloorWithPrecision(imm uint8) Float64x8
 
 /* FloorWithPrecisionMasked */
 
-// FloorWithPrecision rounds elements down with specified precision, masked.
+// FloorWithPrecisionMasked rounds elements down with specified precision, masked.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) FloorWithPrecisionMasked(imm uint8, y Mask32x4) Float32x4
 
-// FloorWithPrecision rounds elements down with specified precision, masked.
+// FloorWithPrecisionMasked rounds elements down with specified precision, masked.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) FloorWithPrecisionMasked(imm uint8, y Mask32x8) Float32x8
 
-// FloorWithPrecision rounds elements down with specified precision, masked.
+// FloorWithPrecisionMasked rounds elements down with specified precision, masked.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) FloorWithPrecisionMasked(imm uint8, y Mask32x16) Float32x16
 
-// FloorWithPrecision rounds elements down with specified precision, masked.
+// FloorWithPrecisionMasked rounds elements down with specified precision, masked.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) FloorWithPrecisionMasked(imm uint8, y Mask64x2) Float64x2
 
-// FloorWithPrecision rounds elements down with specified precision, masked.
+// FloorWithPrecisionMasked rounds elements down with specified precision, masked.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) FloorWithPrecisionMasked(imm uint8, y Mask64x4) Float64x4
 
-// FloorWithPrecision rounds elements down with specified precision, masked.
+// FloorWithPrecisionMasked rounds elements down with specified precision, masked.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) FloorWithPrecisionMasked(imm uint8, y Mask64x8) Float64x8
@@ -1811,32 +1811,32 @@ func (x Float64x8) FusedMultiplyAdd(y Float64x8, z Float64x8) Float64x8
 
 /* FusedMultiplyAddMasked */
 
-// FusedMultiplyAdd performs `(v1 * v2) + v3`.
+// FusedMultiplyAddMasked performs `(v1 * v2) + v3`.
 //
 // Asm: VFMADD213PS, CPU Feature: AVX512EVEX
 func (x Float32x4) FusedMultiplyAddMasked(y Float32x4, z Float32x4, u Mask32x4) Float32x4
 
-// FusedMultiplyAdd performs `(v1 * v2) + v3`.
+// FusedMultiplyAddMasked performs `(v1 * v2) + v3`.
 //
 // Asm: VFMADD213PS, CPU Feature: AVX512EVEX
 func (x Float32x8) FusedMultiplyAddMasked(y Float32x8, z Float32x8, u Mask32x8) Float32x8
 
-// FusedMultiplyAdd performs `(v1 * v2) + v3`.
+// FusedMultiplyAddMasked performs `(v1 * v2) + v3`.
 //
 // Asm: VFMADD213PS, CPU Feature: AVX512EVEX
 func (x Float32x16) FusedMultiplyAddMasked(y Float32x16, z Float32x16, u Mask32x16) Float32x16
 
-// FusedMultiplyAdd performs `(v1 * v2) + v3`.
+// FusedMultiplyAddMasked performs `(v1 * v2) + v3`.
 //
 // Asm: VFMADD213PD, CPU Feature: AVX512EVEX
 func (x Float64x2) FusedMultiplyAddMasked(y Float64x2, z Float64x2, u Mask64x2) Float64x2
 
-// FusedMultiplyAdd performs `(v1 * v2) + v3`.
+// FusedMultiplyAddMasked performs `(v1 * v2) + v3`.
 //
 // Asm: VFMADD213PD, CPU Feature: AVX512EVEX
 func (x Float64x4) FusedMultiplyAddMasked(y Float64x4, z Float64x4, u Mask64x4) Float64x4
 
-// FusedMultiplyAdd performs `(v1 * v2) + v3`.
+// FusedMultiplyAddMasked performs `(v1 * v2) + v3`.
 //
 // Asm: VFMADD213PD, CPU Feature: AVX512EVEX
 func (x Float64x8) FusedMultiplyAddMasked(y Float64x8, z Float64x8, u Mask64x8) Float64x8
@@ -1875,32 +1875,32 @@ func (x Float64x8) FusedMultiplyAddSub(y Float64x8, z Float64x8) Float64x8
 
 /* FusedMultiplyAddSubMasked */
 
-// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
+// FusedMultiplyAddSubMasked performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
 //
 // Asm: VFMADDSUB213PS, CPU Feature: AVX512EVEX
 func (x Float32x4) FusedMultiplyAddSubMasked(y Float32x4, z Float32x4, u Mask32x4) Float32x4
 
-// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
+// FusedMultiplyAddSubMasked performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
 //
 // Asm: VFMADDSUB213PS, CPU Feature: AVX512EVEX
 func (x Float32x8) FusedMultiplyAddSubMasked(y Float32x8, z Float32x8, u Mask32x8) Float32x8
 
-// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
+// FusedMultiplyAddSubMasked performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
 //
 // Asm: VFMADDSUB213PS, CPU Feature: AVX512EVEX
 func (x Float32x16) FusedMultiplyAddSubMasked(y Float32x16, z Float32x16, u Mask32x16) Float32x16
 
-// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
+// FusedMultiplyAddSubMasked performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
 //
 // Asm: VFMADDSUB213PD, CPU Feature: AVX512EVEX
 func (x Float64x2) FusedMultiplyAddSubMasked(y Float64x2, z Float64x2, u Mask64x2) Float64x2
 
-// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
+// FusedMultiplyAddSubMasked performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
 //
 // Asm: VFMADDSUB213PD, CPU Feature: AVX512EVEX
 func (x Float64x4) FusedMultiplyAddSubMasked(y Float64x4, z Float64x4, u Mask64x4) Float64x4
 
-// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
+// FusedMultiplyAddSubMasked performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
 //
 // Asm: VFMADDSUB213PD, CPU Feature: AVX512EVEX
 func (x Float64x8) FusedMultiplyAddSubMasked(y Float64x8, z Float64x8, u Mask64x8) Float64x8
@@ -1939,32 +1939,32 @@ func (x Float64x8) FusedMultiplySubAdd(y Float64x8, z Float64x8) Float64x8
 
 /* FusedMultiplySubAddMasked */
 
-// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
+// FusedMultiplySubAddMasked performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
 //
 // Asm: VFMSUBADD213PS, CPU Feature: AVX512EVEX
 func (x Float32x4) FusedMultiplySubAddMasked(y Float32x4, z Float32x4, u Mask32x4) Float32x4
 
-// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
+// FusedMultiplySubAddMasked performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
 //
 // Asm: VFMSUBADD213PS, CPU Feature: AVX512EVEX
 func (x Float32x8) FusedMultiplySubAddMasked(y Float32x8, z Float32x8, u Mask32x8) Float32x8
 
-// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
+// FusedMultiplySubAddMasked performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
 //
 // Asm: VFMSUBADD213PS, CPU Feature: AVX512EVEX
 func (x Float32x16) FusedMultiplySubAddMasked(y Float32x16, z Float32x16, u Mask32x16) Float32x16
 
-// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
+// FusedMultiplySubAddMasked performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
 //
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512EVEX
 func (x Float64x2) FusedMultiplySubAddMasked(y Float64x2, z Float64x2, u Mask64x2) Float64x2
 
-// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
+// FusedMultiplySubAddMasked performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
 //
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512EVEX
 func (x Float64x4) FusedMultiplySubAddMasked(y Float64x4, z Float64x4, u Mask64x4) Float64x4
 
-// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
+// FusedMultiplySubAddMasked performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
 //
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512EVEX
 func (x Float64x8) FusedMultiplySubAddMasked(y Float64x8, z Float64x8, u Mask64x8) Float64x8
@@ -1995,67 +1995,67 @@ func (x Uint8x32) GaloisFieldAffineTransform(y Uint64x4, b uint8) Uint8x32
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
 func (x Uint8x64) GaloisFieldAffineTransform(y Uint64x8, b uint8) Uint8x64
 
-/* GaloisFieldAffineTransformInversed */
+/* GaloisFieldAffineTransformInverse */
 
-// GaloisFieldAffineTransformMasked computes an affine transformation in GF(2^8),
-// with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
+// GaloisFieldAffineTransformInverse computes an affine transformation in GF(2^8),
+// with x inverted with respect to reduction polynomial x^8 + x^4 + x^3 + x + 1:
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
-func (x Uint8x16) GaloisFieldAffineTransformInversed(y Uint64x2, b uint8) Uint8x16
+func (x Uint8x16) GaloisFieldAffineTransformInverse(y Uint64x2, b uint8) Uint8x16
 
-// GaloisFieldAffineTransformMasked computes an affine transformation in GF(2^8),
-// with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
+// GaloisFieldAffineTransformInverse computes an affine transformation in GF(2^8),
+// with x inverted with respect to reduction polynomial x^8 + x^4 + x^3 + x + 1:
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
-func (x Uint8x32) GaloisFieldAffineTransformInversed(y Uint64x4, b uint8) Uint8x32
+func (x Uint8x32) GaloisFieldAffineTransformInverse(y Uint64x4, b uint8) Uint8x32
 
-// GaloisFieldAffineTransformMasked computes an affine transformation in GF(2^8),
-// with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
+// GaloisFieldAffineTransformInverse computes an affine transformation in GF(2^8),
+// with x inverted with respect to reduction polynomial x^8 + x^4 + x^3 + x + 1:
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
-func (x Uint8x64) GaloisFieldAffineTransformInversed(y Uint64x8, b uint8) Uint8x64
+func (x Uint8x64) GaloisFieldAffineTransformInverse(y Uint64x8, b uint8) Uint8x64
 
-/* GaloisFieldAffineTransformInversedMasked */
+/* GaloisFieldAffineTransformInverseMasked */
 
-// GaloisFieldAffineTransformMasked computes an affine transformation in GF(2^8),
-// with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
+// GaloisFieldAffineTransformInverseMasked computes an affine transformation in GF(2^8),
+// with x inverted with respect to reduction polynomial x^8 + x^4 + x^3 + x + 1:
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
-func (x Uint8x16) GaloisFieldAffineTransformInversedMasked(y Uint64x2, b uint8, m Mask8x16) Uint8x16
+func (x Uint8x16) GaloisFieldAffineTransformInverseMasked(y Uint64x2, b uint8, m Mask8x16) Uint8x16
 
-// GaloisFieldAffineTransformMasked computes an affine transformation in GF(2^8),
-// with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
+// GaloisFieldAffineTransformInverseMasked computes an affine transformation in GF(2^8),
+// with x inverted with respect to reduction polynomial x^8 + x^4 + x^3 + x + 1:
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
-func (x Uint8x32) GaloisFieldAffineTransformInversedMasked(y Uint64x4, b uint8, m Mask8x32) Uint8x32
+func (x Uint8x32) GaloisFieldAffineTransformInverseMasked(y Uint64x4, b uint8, m Mask8x32) Uint8x32
 
-// GaloisFieldAffineTransformMasked computes an affine transformation in GF(2^8),
-// with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
+// GaloisFieldAffineTransformInverseMasked computes an affine transformation in GF(2^8),
+// with x inverted with respect to reduction polynomial x^8 + x^4 + x^3 + x + 1:
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
-func (x Uint8x64) GaloisFieldAffineTransformInversedMasked(y Uint64x8, b uint8, m Mask8x64) Uint8x64
+func (x Uint8x64) GaloisFieldAffineTransformInverseMasked(y Uint64x8, b uint8, m Mask8x64) Uint8x64
 
 /* GaloisFieldAffineTransformMasked */
 
-// GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
+// GaloisFieldAffineTransformMasked computes an affine transformation in GF(2^8):
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
@@ -2063,7 +2063,7 @@ func (x Uint8x64) GaloisFieldAffineTransformInversedMasked(y Uint64x8, b uint8, 
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
 func (x Uint8x16) GaloisFieldAffineTransformMasked(y Uint64x2, b uint8, m Mask8x16) Uint8x16
 
-// GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
+// GaloisFieldAffineTransformMasked computes an affine transformation in GF(2^8):
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
@@ -2071,7 +2071,7 @@ func (x Uint8x16) GaloisFieldAffineTransformMasked(y Uint64x2, b uint8, m Mask8x
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
 func (x Uint8x32) GaloisFieldAffineTransformMasked(y Uint64x4, b uint8, m Mask8x32) Uint8x32
 
-// GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
+// GaloisFieldAffineTransformMasked computes an affine transformation in GF(2^8):
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
@@ -2101,19 +2101,19 @@ func (x Uint8x64) GaloisFieldMul(y Uint8x64) Uint8x64
 
 /* GaloisFieldMulMasked */
 
-// GaloisFieldMul computes element-wise GF(2^8) multiplication with
+// GaloisFieldMulMasked computes element-wise GF(2^8) multiplication with
 // reduction polynomial x^8 + x^4 + x^3 + x + 1.
 //
 // Asm: VGF2P8MULB, CPU Feature: AVX512EVEX
 func (x Uint8x16) GaloisFieldMulMasked(y Uint8x16, z Mask8x16) Uint8x16
 
-// GaloisFieldMul computes element-wise GF(2^8) multiplication with
+// GaloisFieldMulMasked computes element-wise GF(2^8) multiplication with
 // reduction polynomial x^8 + x^4 + x^3 + x + 1.
 //
 // Asm: VGF2P8MULB, CPU Feature: AVX512EVEX
 func (x Uint8x32) GaloisFieldMulMasked(y Uint8x32, z Mask8x32) Uint8x32
 
-// GaloisFieldMul computes element-wise GF(2^8) multiplication with
+// GaloisFieldMulMasked computes element-wise GF(2^8) multiplication with
 // reduction polynomial x^8 + x^4 + x^3 + x + 1.
 //
 // Asm: VGF2P8MULB, CPU Feature: AVX512EVEX
@@ -2519,304 +2519,304 @@ func (x Uint64x8) GreaterEqual(y Uint64x8) Mask64x8
 
 /* GreaterEqualMasked */
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) GreaterEqualMasked(y Float32x4, z Mask32x4) Mask32x4
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) GreaterEqualMasked(y Float32x8, z Mask32x8) Mask32x8
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) GreaterEqualMasked(y Float32x16, z Mask32x16) Mask32x16
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) GreaterEqualMasked(y Float64x2, z Mask64x2) Mask64x2
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) GreaterEqualMasked(y Float64x4, z Mask64x4) Mask64x4
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) GreaterEqualMasked(y Float64x8, z Mask64x8) Mask64x8
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) GreaterEqualMasked(y Int8x16, z Mask8x16) Mask8x16
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) GreaterEqualMasked(y Int8x32, z Mask8x32) Mask8x32
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) GreaterEqualMasked(y Int8x64, z Mask8x64) Mask8x64
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) GreaterEqualMasked(y Int16x8, z Mask16x8) Mask16x8
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) GreaterEqualMasked(y Int16x16, z Mask16x16) Mask16x16
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) GreaterEqualMasked(y Int16x32, z Mask16x32) Mask16x32
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) GreaterEqualMasked(y Int32x4, z Mask32x4) Mask32x4
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) GreaterEqualMasked(y Int32x8, z Mask32x8) Mask32x8
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) GreaterEqualMasked(y Int32x16, z Mask32x16) Mask32x16
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) GreaterEqualMasked(y Int64x2, z Mask64x2) Mask64x2
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) GreaterEqualMasked(y Int64x4, z Mask64x4) Mask64x4
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) GreaterEqualMasked(y Int64x8, z Mask64x8) Mask64x8
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) GreaterEqualMasked(y Uint8x16, z Mask8x16) Mask8x16
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) GreaterEqualMasked(y Uint8x32, z Mask8x32) Mask8x32
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) GreaterEqualMasked(y Uint8x64, z Mask8x64) Mask8x64
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) GreaterEqualMasked(y Uint16x8, z Mask16x8) Mask16x8
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) GreaterEqualMasked(y Uint16x16, z Mask16x16) Mask16x16
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) GreaterEqualMasked(y Uint16x32, z Mask16x32) Mask16x32
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) GreaterEqualMasked(y Uint32x4, z Mask32x4) Mask32x4
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) GreaterEqualMasked(y Uint32x8, z Mask32x8) Mask32x8
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) GreaterEqualMasked(y Uint32x16, z Mask32x16) Mask32x16
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) GreaterEqualMasked(y Uint64x2, z Mask64x2) Mask64x2
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) GreaterEqualMasked(y Uint64x4, z Mask64x4) Mask64x4
 
-// GreaterEqual compares for greater than or equal.
+// GreaterEqualMasked compares for greater than or equal.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) GreaterEqualMasked(y Uint64x8, z Mask64x8) Mask64x8
 
 /* GreaterMasked */
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) GreaterMasked(y Float32x4, z Mask32x4) Mask32x4
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) GreaterMasked(y Float32x8, z Mask32x8) Mask32x8
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) GreaterMasked(y Float32x16, z Mask32x16) Mask32x16
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) GreaterMasked(y Float64x2, z Mask64x2) Mask64x2
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) GreaterMasked(y Float64x4, z Mask64x4) Mask64x4
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) GreaterMasked(y Float64x8, z Mask64x8) Mask64x8
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) GreaterMasked(y Int8x16, z Mask8x16) Mask8x16
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) GreaterMasked(y Int8x32, z Mask8x32) Mask8x32
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) GreaterMasked(y Int8x64, z Mask8x64) Mask8x64
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) GreaterMasked(y Int16x8, z Mask16x8) Mask16x8
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) GreaterMasked(y Int16x16, z Mask16x16) Mask16x16
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) GreaterMasked(y Int16x32, z Mask16x32) Mask16x32
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) GreaterMasked(y Int32x4, z Mask32x4) Mask32x4
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) GreaterMasked(y Int32x8, z Mask32x8) Mask32x8
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) GreaterMasked(y Int32x16, z Mask32x16) Mask32x16
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) GreaterMasked(y Int64x2, z Mask64x2) Mask64x2
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) GreaterMasked(y Int64x4, z Mask64x4) Mask64x4
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) GreaterMasked(y Int64x8, z Mask64x8) Mask64x8
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) GreaterMasked(y Uint8x16, z Mask8x16) Mask8x16
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) GreaterMasked(y Uint8x32, z Mask8x32) Mask8x32
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) GreaterMasked(y Uint8x64, z Mask8x64) Mask8x64
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) GreaterMasked(y Uint16x8, z Mask16x8) Mask16x8
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) GreaterMasked(y Uint16x16, z Mask16x16) Mask16x16
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) GreaterMasked(y Uint16x32, z Mask16x32) Mask16x32
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) GreaterMasked(y Uint32x4, z Mask32x4) Mask32x4
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) GreaterMasked(y Uint32x8, z Mask32x8) Mask32x8
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) GreaterMasked(y Uint32x16, z Mask32x16) Mask32x16
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) GreaterMasked(y Uint64x2, z Mask64x2) Mask64x2
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) GreaterMasked(y Uint64x4, z Mask64x4) Mask64x4
 
-// Greater compares for greater than.
+// GreaterMasked compares for greater than.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) GreaterMasked(y Uint64x8, z Mask64x8) Mask64x8
@@ -2855,32 +2855,32 @@ func (x Float64x8) IsNan(y Float64x8) Mask64x8
 
 /* IsNanMasked */
 
-// IsNan checks if elements are NaN. Use as x.IsNan(x).
+// IsNanMasked checks if elements are NaN. Use as x.IsNan(x).
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) IsNanMasked(y Float32x4, z Mask32x4) Mask32x4
 
-// IsNan checks if elements are NaN. Use as x.IsNan(x).
+// IsNanMasked checks if elements are NaN. Use as x.IsNan(x).
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) IsNanMasked(y Float32x8, z Mask32x8) Mask32x8
 
-// IsNan checks if elements are NaN. Use as x.IsNan(x).
+// IsNanMasked checks if elements are NaN. Use as x.IsNan(x).
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) IsNanMasked(y Float32x16, z Mask32x16) Mask32x16
 
-// IsNan checks if elements are NaN. Use as x.IsNan(x).
+// IsNanMasked checks if elements are NaN. Use as x.IsNan(x).
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) IsNanMasked(y Float64x2, z Mask64x2) Mask64x2
 
-// IsNan checks if elements are NaN. Use as x.IsNan(x).
+// IsNanMasked checks if elements are NaN. Use as x.IsNan(x).
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) IsNanMasked(y Float64x4, z Mask64x4) Mask64x4
 
-// IsNan checks if elements are NaN. Use as x.IsNan(x).
+// IsNanMasked checks if elements are NaN. Use as x.IsNan(x).
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) IsNanMasked(y Float64x8, z Mask64x8) Mask64x8
@@ -3191,304 +3191,304 @@ func (x Uint64x8) LessEqual(y Uint64x8) Mask64x8
 
 /* LessEqualMasked */
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) LessEqualMasked(y Float32x4, z Mask32x4) Mask32x4
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) LessEqualMasked(y Float32x8, z Mask32x8) Mask32x8
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) LessEqualMasked(y Float32x16, z Mask32x16) Mask32x16
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) LessEqualMasked(y Float64x2, z Mask64x2) Mask64x2
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) LessEqualMasked(y Float64x4, z Mask64x4) Mask64x4
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) LessEqualMasked(y Float64x8, z Mask64x8) Mask64x8
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) LessEqualMasked(y Int8x16, z Mask8x16) Mask8x16
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) LessEqualMasked(y Int8x32, z Mask8x32) Mask8x32
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) LessEqualMasked(y Int8x64, z Mask8x64) Mask8x64
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) LessEqualMasked(y Int16x8, z Mask16x8) Mask16x8
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) LessEqualMasked(y Int16x16, z Mask16x16) Mask16x16
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) LessEqualMasked(y Int16x32, z Mask16x32) Mask16x32
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) LessEqualMasked(y Int32x4, z Mask32x4) Mask32x4
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) LessEqualMasked(y Int32x8, z Mask32x8) Mask32x8
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) LessEqualMasked(y Int32x16, z Mask32x16) Mask32x16
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) LessEqualMasked(y Int64x2, z Mask64x2) Mask64x2
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) LessEqualMasked(y Int64x4, z Mask64x4) Mask64x4
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) LessEqualMasked(y Int64x8, z Mask64x8) Mask64x8
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) LessEqualMasked(y Uint8x16, z Mask8x16) Mask8x16
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) LessEqualMasked(y Uint8x32, z Mask8x32) Mask8x32
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) LessEqualMasked(y Uint8x64, z Mask8x64) Mask8x64
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) LessEqualMasked(y Uint16x8, z Mask16x8) Mask16x8
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) LessEqualMasked(y Uint16x16, z Mask16x16) Mask16x16
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) LessEqualMasked(y Uint16x32, z Mask16x32) Mask16x32
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) LessEqualMasked(y Uint32x4, z Mask32x4) Mask32x4
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) LessEqualMasked(y Uint32x8, z Mask32x8) Mask32x8
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) LessEqualMasked(y Uint32x16, z Mask32x16) Mask32x16
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) LessEqualMasked(y Uint64x2, z Mask64x2) Mask64x2
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) LessEqualMasked(y Uint64x4, z Mask64x4) Mask64x4
 
-// LessEqual compares for less than or equal.
+// LessEqualMasked compares for less than or equal.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) LessEqualMasked(y Uint64x8, z Mask64x8) Mask64x8
 
 /* LessMasked */
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) LessMasked(y Float32x4, z Mask32x4) Mask32x4
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) LessMasked(y Float32x8, z Mask32x8) Mask32x8
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) LessMasked(y Float32x16, z Mask32x16) Mask32x16
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) LessMasked(y Float64x2, z Mask64x2) Mask64x2
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) LessMasked(y Float64x4, z Mask64x4) Mask64x4
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) LessMasked(y Float64x8, z Mask64x8) Mask64x8
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) LessMasked(y Int8x16, z Mask8x16) Mask8x16
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) LessMasked(y Int8x32, z Mask8x32) Mask8x32
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) LessMasked(y Int8x64, z Mask8x64) Mask8x64
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) LessMasked(y Int16x8, z Mask16x8) Mask16x8
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) LessMasked(y Int16x16, z Mask16x16) Mask16x16
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) LessMasked(y Int16x32, z Mask16x32) Mask16x32
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) LessMasked(y Int32x4, z Mask32x4) Mask32x4
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) LessMasked(y Int32x8, z Mask32x8) Mask32x8
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) LessMasked(y Int32x16, z Mask32x16) Mask32x16
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) LessMasked(y Int64x2, z Mask64x2) Mask64x2
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) LessMasked(y Int64x4, z Mask64x4) Mask64x4
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) LessMasked(y Int64x8, z Mask64x8) Mask64x8
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) LessMasked(y Uint8x16, z Mask8x16) Mask8x16
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) LessMasked(y Uint8x32, z Mask8x32) Mask8x32
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) LessMasked(y Uint8x64, z Mask8x64) Mask8x64
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) LessMasked(y Uint16x8, z Mask16x8) Mask16x8
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) LessMasked(y Uint16x16, z Mask16x16) Mask16x16
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) LessMasked(y Uint16x32, z Mask16x32) Mask16x32
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) LessMasked(y Uint32x4, z Mask32x4) Mask32x4
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) LessMasked(y Uint32x8, z Mask32x8) Mask32x8
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) LessMasked(y Uint32x16, z Mask32x16) Mask32x16
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) LessMasked(y Uint64x2, z Mask64x2) Mask64x2
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) LessMasked(y Uint64x4, z Mask64x4) Mask64x4
 
-// Less compares for less than.
+// LessMasked compares for less than.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) LessMasked(y Uint64x8, z Mask64x8) Mask64x8
@@ -3647,152 +3647,152 @@ func (x Uint64x8) Max(y Uint64x8) Uint64x8
 
 /* MaxMasked */
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VMAXPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MaxMasked(y Float32x4, z Mask32x4) Float32x4
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VMAXPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MaxMasked(y Float32x8, z Mask32x8) Float32x8
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VMAXPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MaxMasked(y Float32x16, z Mask32x16) Float32x16
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VMAXPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MaxMasked(y Float64x2, z Mask64x2) Float64x2
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VMAXPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MaxMasked(y Float64x4, z Mask64x4) Float64x4
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VMAXPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MaxMasked(y Float64x8, z Mask64x8) Float64x8
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXSB, CPU Feature: AVX512EVEX
 func (x Int8x16) MaxMasked(y Int8x16, z Mask8x16) Int8x16
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXSB, CPU Feature: AVX512EVEX
 func (x Int8x32) MaxMasked(y Int8x32, z Mask8x32) Int8x32
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXSB, CPU Feature: AVX512EVEX
 func (x Int8x64) MaxMasked(y Int8x64, z Mask8x64) Int8x64
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXSW, CPU Feature: AVX512EVEX
 func (x Int16x8) MaxMasked(y Int16x8, z Mask16x8) Int16x8
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXSW, CPU Feature: AVX512EVEX
 func (x Int16x16) MaxMasked(y Int16x16, z Mask16x16) Int16x16
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXSW, CPU Feature: AVX512EVEX
 func (x Int16x32) MaxMasked(y Int16x32, z Mask16x32) Int16x32
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXSD, CPU Feature: AVX512EVEX
 func (x Int32x4) MaxMasked(y Int32x4, z Mask32x4) Int32x4
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXSD, CPU Feature: AVX512EVEX
 func (x Int32x8) MaxMasked(y Int32x8, z Mask32x8) Int32x8
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXSD, CPU Feature: AVX512EVEX
 func (x Int32x16) MaxMasked(y Int32x16, z Mask32x16) Int32x16
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXSQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MaxMasked(y Int64x2, z Mask64x2) Int64x2
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXSQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MaxMasked(y Int64x4, z Mask64x4) Int64x4
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXSQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MaxMasked(y Int64x8, z Mask64x8) Int64x8
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MaxMasked(y Uint8x16, z Mask8x16) Uint8x16
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MaxMasked(y Uint8x32, z Mask8x32) Uint8x32
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MaxMasked(y Uint8x64, z Mask8x64) Uint8x64
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MaxMasked(y Uint16x8, z Mask16x8) Uint16x8
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MaxMasked(y Uint16x16, z Mask16x16) Uint16x16
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MaxMasked(y Uint16x32, z Mask16x32) Uint16x32
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MaxMasked(y Uint32x4, z Mask32x4) Uint32x4
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MaxMasked(y Uint32x8, z Mask32x8) Uint32x8
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MaxMasked(y Uint32x16, z Mask32x16) Uint32x16
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MaxMasked(y Uint64x2, z Mask64x2) Uint64x2
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MaxMasked(y Uint64x4, z Mask64x4) Uint64x4
 
-// Max computes the maximum of corresponding elements.
+// MaxMasked computes the maximum of corresponding elements.
 //
 // Asm: VPMAXUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MaxMasked(y Uint64x8, z Mask64x8) Uint64x8
@@ -3951,152 +3951,152 @@ func (x Uint64x8) Min(y Uint64x8) Uint64x8
 
 /* MinMasked */
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VMINPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MinMasked(y Float32x4, z Mask32x4) Float32x4
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VMINPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MinMasked(y Float32x8, z Mask32x8) Float32x8
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VMINPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MinMasked(y Float32x16, z Mask32x16) Float32x16
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VMINPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MinMasked(y Float64x2, z Mask64x2) Float64x2
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VMINPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MinMasked(y Float64x4, z Mask64x4) Float64x4
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VMINPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MinMasked(y Float64x8, z Mask64x8) Float64x8
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINSB, CPU Feature: AVX512EVEX
 func (x Int8x16) MinMasked(y Int8x16, z Mask8x16) Int8x16
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINSB, CPU Feature: AVX512EVEX
 func (x Int8x32) MinMasked(y Int8x32, z Mask8x32) Int8x32
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINSB, CPU Feature: AVX512EVEX
 func (x Int8x64) MinMasked(y Int8x64, z Mask8x64) Int8x64
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINSW, CPU Feature: AVX512EVEX
 func (x Int16x8) MinMasked(y Int16x8, z Mask16x8) Int16x8
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINSW, CPU Feature: AVX512EVEX
 func (x Int16x16) MinMasked(y Int16x16, z Mask16x16) Int16x16
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINSW, CPU Feature: AVX512EVEX
 func (x Int16x32) MinMasked(y Int16x32, z Mask16x32) Int16x32
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINSD, CPU Feature: AVX512EVEX
 func (x Int32x4) MinMasked(y Int32x4, z Mask32x4) Int32x4
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINSD, CPU Feature: AVX512EVEX
 func (x Int32x8) MinMasked(y Int32x8, z Mask32x8) Int32x8
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINSD, CPU Feature: AVX512EVEX
 func (x Int32x16) MinMasked(y Int32x16, z Mask32x16) Int32x16
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINSQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MinMasked(y Int64x2, z Mask64x2) Int64x2
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINSQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MinMasked(y Int64x4, z Mask64x4) Int64x4
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINSQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MinMasked(y Int64x8, z Mask64x8) Int64x8
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) MinMasked(y Uint8x16, z Mask8x16) Uint8x16
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) MinMasked(y Uint8x32, z Mask8x32) Uint8x32
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) MinMasked(y Uint8x64, z Mask8x64) Uint8x64
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MinMasked(y Uint16x8, z Mask16x8) Uint16x8
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MinMasked(y Uint16x16, z Mask16x16) Uint16x16
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MinMasked(y Uint16x32, z Mask16x32) Uint16x32
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) MinMasked(y Uint32x4, z Mask32x4) Uint32x4
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) MinMasked(y Uint32x8, z Mask32x8) Uint32x8
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) MinMasked(y Uint32x16, z Mask32x16) Uint32x16
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MinMasked(y Uint64x2, z Mask64x2) Uint64x2
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MinMasked(y Uint64x4, z Mask64x4) Uint64x4
 
-// Min computes the minimum of corresponding elements.
+// MinMasked computes the minimum of corresponding elements.
 //
 // Asm: VPMINUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) MinMasked(y Uint64x8, z Mask64x8) Uint64x8
@@ -4167,32 +4167,32 @@ func (x Float64x8) MulByPowOf2(y Float64x8) Float64x8
 
 /* MulByPowOf2Masked */
 
-// MulByPowOf2 multiplies elements by a power of 2.
+// MulByPowOf2Masked multiplies elements by a power of 2.
 //
 // Asm: VSCALEFPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MulByPowOf2Masked(y Float32x4, z Mask32x4) Float32x4
 
-// MulByPowOf2 multiplies elements by a power of 2.
+// MulByPowOf2Masked multiplies elements by a power of 2.
 //
 // Asm: VSCALEFPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MulByPowOf2Masked(y Float32x8, z Mask32x8) Float32x8
 
-// MulByPowOf2 multiplies elements by a power of 2.
+// MulByPowOf2Masked multiplies elements by a power of 2.
 //
 // Asm: VSCALEFPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MulByPowOf2Masked(y Float32x16, z Mask32x16) Float32x16
 
-// MulByPowOf2 multiplies elements by a power of 2.
+// MulByPowOf2Masked multiplies elements by a power of 2.
 //
 // Asm: VSCALEFPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MulByPowOf2Masked(y Float64x2, z Mask64x2) Float64x2
 
-// MulByPowOf2 multiplies elements by a power of 2.
+// MulByPowOf2Masked multiplies elements by a power of 2.
 //
 // Asm: VSCALEFPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MulByPowOf2Masked(y Float64x4, z Mask64x4) Float64x4
 
-// MulByPowOf2 multiplies elements by a power of 2.
+// MulByPowOf2Masked multiplies elements by a power of 2.
 //
 // Asm: VSCALEFPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MulByPowOf2Masked(y Float64x8, z Mask64x8) Float64x8
@@ -4261,37 +4261,37 @@ func (x Uint64x8) MulEvenWiden(y Uint64x8) Uint64x8
 
 /* MulEvenWidenMasked */
 
-// MulEvenWiden multiplies even-indexed elements, widening the result, masked.
+// MulEvenWidenMasked multiplies even-indexed elements, widening the result, masked.
 // Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULDQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MulEvenWidenMasked(y Int64x2, z Mask64x2) Int64x2
 
-// MulEvenWiden multiplies even-indexed elements, widening the result, masked.
+// MulEvenWidenMasked multiplies even-indexed elements, widening the result, masked.
 // Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULDQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MulEvenWidenMasked(y Int64x4, z Mask64x4) Int64x4
 
-// MulEvenWiden multiplies even-indexed elements, widening the result, masked.
+// MulEvenWidenMasked multiplies even-indexed elements, widening the result, masked.
 // Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULDQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MulEvenWidenMasked(y Int64x8, z Mask64x8) Int64x8
 
-// MulEvenWiden multiplies even-indexed elements, widening the result, masked.
+// MulEvenWidenMasked multiplies even-indexed elements, widening the result, masked.
 // Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULUDQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) MulEvenWidenMasked(y Uint64x2, z Mask64x2) Uint64x2
 
-// MulEvenWiden multiplies even-indexed elements, widening the result, masked.
+// MulEvenWidenMasked multiplies even-indexed elements, widening the result, masked.
 // Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULUDQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) MulEvenWidenMasked(y Uint64x4, z Mask64x4) Uint64x4
 
-// MulEvenWiden multiplies even-indexed elements, widening the result, masked.
+// MulEvenWidenMasked multiplies even-indexed elements, widening the result, masked.
 // Result[i] = v1.Even[i] * v2.Even[i].
 //
 // Asm: VPMULUDQ, CPU Feature: AVX512EVEX
@@ -4331,32 +4331,32 @@ func (x Uint16x32) MulHigh(y Uint16x32) Uint16x32
 
 /* MulHighMasked */
 
-// MulHigh multiplies elements and stores the high part of the result, masked.
+// MulHighMasked multiplies elements and stores the high part of the result, masked.
 //
 // Asm: VPMULHW, CPU Feature: AVX512EVEX
 func (x Int16x8) MulHighMasked(y Int16x8, z Mask16x8) Int16x8
 
-// MulHigh multiplies elements and stores the high part of the result, masked.
+// MulHighMasked multiplies elements and stores the high part of the result, masked.
 //
 // Asm: VPMULHW, CPU Feature: AVX512EVEX
 func (x Int16x16) MulHighMasked(y Int16x16, z Mask16x16) Int16x16
 
-// MulHigh multiplies elements and stores the high part of the result, masked.
+// MulHighMasked multiplies elements and stores the high part of the result, masked.
 //
 // Asm: VPMULHW, CPU Feature: AVX512EVEX
 func (x Int16x32) MulHighMasked(y Int16x32, z Mask16x32) Int16x32
 
-// MulHigh multiplies elements and stores the high part of the result, masked.
+// MulHighMasked multiplies elements and stores the high part of the result, masked.
 //
 // Asm: VPMULHUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) MulHighMasked(y Uint16x8, z Mask16x8) Uint16x8
 
-// MulHigh multiplies elements and stores the high part of the result, masked.
+// MulHighMasked multiplies elements and stores the high part of the result, masked.
 //
 // Asm: VPMULHUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) MulHighMasked(y Uint16x16, z Mask16x16) Uint16x16
 
-// MulHigh multiplies elements and stores the high part of the result, masked.
+// MulHighMasked multiplies elements and stores the high part of the result, masked.
 //
 // Asm: VPMULHUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) MulHighMasked(y Uint16x32, z Mask16x32) Uint16x32
@@ -4410,79 +4410,79 @@ func (x Int64x8) MulLow(y Int64x8) Int64x8
 
 /* MulLowMasked */
 
-// MulLow multiplies elements and stores the low part of the result, masked.
+// MulLowMasked multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLW, CPU Feature: AVX512EVEX
 func (x Int16x8) MulLowMasked(y Int16x8, z Mask16x8) Int16x8
 
-// MulLow multiplies elements and stores the low part of the result, masked.
+// MulLowMasked multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLW, CPU Feature: AVX512EVEX
 func (x Int16x16) MulLowMasked(y Int16x16, z Mask16x16) Int16x16
 
-// MulLow multiplies elements and stores the low part of the result, masked.
+// MulLowMasked multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLW, CPU Feature: AVX512EVEX
 func (x Int16x32) MulLowMasked(y Int16x32, z Mask16x32) Int16x32
 
-// MulLow multiplies elements and stores the low part of the result, masked.
+// MulLowMasked multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLD, CPU Feature: AVX512EVEX
 func (x Int32x4) MulLowMasked(y Int32x4, z Mask32x4) Int32x4
 
-// MulLow multiplies elements and stores the low part of the result, masked.
+// MulLowMasked multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLD, CPU Feature: AVX512EVEX
 func (x Int32x8) MulLowMasked(y Int32x8, z Mask32x8) Int32x8
 
-// MulLow multiplies elements and stores the low part of the result, masked.
+// MulLowMasked multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLD, CPU Feature: AVX512EVEX
 func (x Int32x16) MulLowMasked(y Int32x16, z Mask32x16) Int32x16
 
-// MulLow multiplies elements and stores the low part of the result, masked.
+// MulLowMasked multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLQ, CPU Feature: AVX512EVEX
 func (x Int64x2) MulLowMasked(y Int64x2, z Mask64x2) Int64x2
 
-// MulLow multiplies elements and stores the low part of the result, masked.
+// MulLowMasked multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLQ, CPU Feature: AVX512EVEX
 func (x Int64x4) MulLowMasked(y Int64x4, z Mask64x4) Int64x4
 
-// MulLow multiplies elements and stores the low part of the result, masked.
+// MulLowMasked multiplies elements and stores the low part of the result, masked.
 //
 // Asm: VPMULLQ, CPU Feature: AVX512EVEX
 func (x Int64x8) MulLowMasked(y Int64x8, z Mask64x8) Int64x8
 
 /* MulMasked */
 
-// Mul multiplies corresponding elements of two vectors, masked.
+// MulMasked multiplies corresponding elements of two vectors, masked.
 //
 // Asm: VMULPS, CPU Feature: AVX512EVEX
 func (x Float32x4) MulMasked(y Float32x4, z Mask32x4) Float32x4
 
-// Mul multiplies corresponding elements of two vectors, masked.
+// MulMasked multiplies corresponding elements of two vectors, masked.
 //
 // Asm: VMULPS, CPU Feature: AVX512EVEX
 func (x Float32x8) MulMasked(y Float32x8, z Mask32x8) Float32x8
 
-// Mul multiplies corresponding elements of two vectors, masked.
+// MulMasked multiplies corresponding elements of two vectors, masked.
 //
 // Asm: VMULPS, CPU Feature: AVX512EVEX
 func (x Float32x16) MulMasked(y Float32x16, z Mask32x16) Float32x16
 
-// Mul multiplies corresponding elements of two vectors, masked.
+// MulMasked multiplies corresponding elements of two vectors, masked.
 //
 // Asm: VMULPD, CPU Feature: AVX512EVEX
 func (x Float64x2) MulMasked(y Float64x2, z Mask64x2) Float64x2
 
-// Mul multiplies corresponding elements of two vectors, masked.
+// MulMasked multiplies corresponding elements of two vectors, masked.
 //
 // Asm: VMULPD, CPU Feature: AVX512EVEX
 func (x Float64x4) MulMasked(y Float64x4, z Mask64x4) Float64x4
 
-// Mul multiplies corresponding elements of two vectors, masked.
+// MulMasked multiplies corresponding elements of two vectors, masked.
 //
 // Asm: VMULPD, CPU Feature: AVX512EVEX
 func (x Float64x8) MulMasked(y Float64x8, z Mask64x8) Float64x8
@@ -4641,152 +4641,152 @@ func (x Uint64x8) NotEqual(y Uint64x8) Mask64x8
 
 /* NotEqualMasked */
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x4) NotEqualMasked(y Float32x4, z Mask32x4) Mask32x4
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x8) NotEqualMasked(y Float32x8, z Mask32x8) Mask32x8
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VCMPPS, CPU Feature: AVX512EVEX
 func (x Float32x16) NotEqualMasked(y Float32x16, z Mask32x16) Mask32x16
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x2) NotEqualMasked(y Float64x2, z Mask64x2) Mask64x2
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x4) NotEqualMasked(y Float64x4, z Mask64x4) Mask64x4
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VCMPPD, CPU Feature: AVX512EVEX
 func (x Float64x8) NotEqualMasked(y Float64x8, z Mask64x8) Mask64x8
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x16) NotEqualMasked(y Int8x16, z Mask8x16) Mask8x16
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x32) NotEqualMasked(y Int8x32, z Mask8x32) Mask8x32
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPB, CPU Feature: AVX512EVEX
 func (x Int8x64) NotEqualMasked(y Int8x64, z Mask8x64) Mask8x64
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x8) NotEqualMasked(y Int16x8, z Mask16x8) Mask16x8
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x16) NotEqualMasked(y Int16x16, z Mask16x16) Mask16x16
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPW, CPU Feature: AVX512EVEX
 func (x Int16x32) NotEqualMasked(y Int16x32, z Mask16x32) Mask16x32
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x4) NotEqualMasked(y Int32x4, z Mask32x4) Mask32x4
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x8) NotEqualMasked(y Int32x8, z Mask32x8) Mask32x8
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPD, CPU Feature: AVX512EVEX
 func (x Int32x16) NotEqualMasked(y Int32x16, z Mask32x16) Mask32x16
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x2) NotEqualMasked(y Int64x2, z Mask64x2) Mask64x2
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x4) NotEqualMasked(y Int64x4, z Mask64x4) Mask64x4
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPQ, CPU Feature: AVX512EVEX
 func (x Int64x8) NotEqualMasked(y Int64x8, z Mask64x8) Mask64x8
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x16) NotEqualMasked(y Uint8x16, z Mask8x16) Mask8x16
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x32) NotEqualMasked(y Uint8x32, z Mask8x32) Mask8x32
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512EVEX
 func (x Uint8x64) NotEqualMasked(y Uint8x64, z Mask8x64) Mask8x64
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x8) NotEqualMasked(y Uint16x8, z Mask16x8) Mask16x8
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x16) NotEqualMasked(y Uint16x16, z Mask16x16) Mask16x16
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPUW, CPU Feature: AVX512EVEX
 func (x Uint16x32) NotEqualMasked(y Uint16x32, z Mask16x32) Mask16x32
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x4) NotEqualMasked(y Uint32x4, z Mask32x4) Mask32x4
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x8) NotEqualMasked(y Uint32x8, z Mask32x8) Mask32x8
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512EVEX
 func (x Uint32x16) NotEqualMasked(y Uint32x16, z Mask32x16) Mask32x16
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) NotEqualMasked(y Uint64x2, z Mask64x2) Mask64x2
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) NotEqualMasked(y Uint64x4, z Mask64x4) Mask64x4
 
-// NotEqual compares for inequality.
+// NotEqualMasked compares for inequality.
 //
 // Asm: VPCMPUQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) NotEqualMasked(y Uint64x8, z Mask64x8) Mask64x8
@@ -4895,62 +4895,62 @@ func (x Uint64x8) Or(y Uint64x8) Uint64x8
 
 /* OrMasked */
 
-// Or performs a masked bitwise OR operation between two vectors.
+// OrMasked performs a masked bitwise OR operation between two vectors.
 //
 // Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Int32x4) OrMasked(y Int32x4, z Mask32x4) Int32x4
 
-// Or performs a masked bitwise OR operation between two vectors.
+// OrMasked performs a masked bitwise OR operation between two vectors.
 //
 // Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Int32x8) OrMasked(y Int32x8, z Mask32x8) Int32x8
 
-// Or performs a masked bitwise OR operation between two vectors.
+// OrMasked performs a masked bitwise OR operation between two vectors.
 //
 // Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Int32x16) OrMasked(y Int32x16, z Mask32x16) Int32x16
 
-// Or performs a masked bitwise OR operation between two vectors.
+// OrMasked performs a masked bitwise OR operation between two vectors.
 //
 // Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Int64x2) OrMasked(y Int64x2, z Mask64x2) Int64x2
 
-// Or performs a masked bitwise OR operation between two vectors.
+// OrMasked performs a masked bitwise OR operation between two vectors.
 //
 // Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Int64x4) OrMasked(y Int64x4, z Mask64x4) Int64x4
 
-// Or performs a masked bitwise OR operation between two vectors.
+// OrMasked performs a masked bitwise OR operation between two vectors.
 //
 // Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Int64x8) OrMasked(y Int64x8, z Mask64x8) Int64x8
 
-// Or performs a masked bitwise OR operation between two vectors.
+// OrMasked performs a masked bitwise OR operation between two vectors.
 //
 // Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Uint32x4) OrMasked(y Uint32x4, z Mask32x4) Uint32x4
 
-// Or performs a masked bitwise OR operation between two vectors.
+// OrMasked performs a masked bitwise OR operation between two vectors.
 //
 // Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Uint32x8) OrMasked(y Uint32x8, z Mask32x8) Uint32x8
 
-// Or performs a masked bitwise OR operation between two vectors.
+// OrMasked performs a masked bitwise OR operation between two vectors.
 //
 // Asm: VPORD, CPU Feature: AVX512EVEX
 func (x Uint32x16) OrMasked(y Uint32x16, z Mask32x16) Uint32x16
 
-// Or performs a masked bitwise OR operation between two vectors.
+// OrMasked performs a masked bitwise OR operation between two vectors.
 //
 // Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) OrMasked(y Uint64x2, z Mask64x2) Uint64x2
 
-// Or performs a masked bitwise OR operation between two vectors.
+// OrMasked performs a masked bitwise OR operation between two vectors.
 //
 // Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) OrMasked(y Uint64x4, z Mask64x4) Uint64x4
 
-// Or performs a masked bitwise OR operation between two vectors.
+// OrMasked performs a masked bitwise OR operation between two vectors.
 //
 // Asm: VPORQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) OrMasked(y Uint64x8, z Mask64x8) Uint64x8
@@ -4994,36 +4994,36 @@ func (x Int32x16) PairDotProdAccumulate(y Int16x32, z Int16x32) Int32x16
 
 /* PairDotProdAccumulateMasked */
 
-// PairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
+// PairDotProdAccumulateMasked performs dot products on pairs of elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPWSSD, CPU Feature: AVX512EVEX
 func (x Int32x4) PairDotProdAccumulateMasked(y Int16x8, z Int16x8, u Mask32x4) Int32x4
 
-// PairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
+// PairDotProdAccumulateMasked performs dot products on pairs of elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPWSSD, CPU Feature: AVX512EVEX
 func (x Int32x8) PairDotProdAccumulateMasked(y Int16x16, z Int16x16, u Mask32x8) Int32x8
 
-// PairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
+// PairDotProdAccumulateMasked performs dot products on pairs of elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPWSSD, CPU Feature: AVX512EVEX
 func (x Int32x16) PairDotProdAccumulateMasked(y Int16x32, z Int16x32, u Mask32x16) Int32x16
 
 /* PairDotProdMasked */
 
-// PairDotProd multiplies the elements and add the pairs together,
+// PairDotProdMasked multiplies the elements and add the pairs together,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDWD, CPU Feature: AVX512EVEX
 func (x Int16x8) PairDotProdMasked(y Int16x8, z Mask16x8) Int32x4
 
-// PairDotProd multiplies the elements and add the pairs together,
+// PairDotProdMasked multiplies the elements and add the pairs together,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDWD, CPU Feature: AVX512EVEX
 func (x Int16x16) PairDotProdMasked(y Int16x16, z Mask16x16) Int32x8
 
-// PairDotProd multiplies the elements and add the pairs together,
+// PairDotProdMasked multiplies the elements and add the pairs together,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDWD, CPU Feature: AVX512EVEX
@@ -5301,122 +5301,122 @@ func (x Uint64x8) PopCount() Uint64x8
 
 /* PopCountMasked */
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Int8x16) PopCountMasked(y Mask8x16) Int8x16
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Int8x32) PopCountMasked(y Mask8x32) Int8x32
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Int8x64) PopCountMasked(y Mask8x64) Int8x64
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Int16x8) PopCountMasked(y Mask16x8) Int16x8
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Int16x16) PopCountMasked(y Mask16x16) Int16x16
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Int16x32) PopCountMasked(y Mask16x32) Int16x32
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Int32x4) PopCountMasked(y Mask32x4) Int32x4
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Int32x8) PopCountMasked(y Mask32x8) Int32x8
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Int32x16) PopCountMasked(y Mask32x16) Int32x16
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Int64x2) PopCountMasked(y Mask64x2) Int64x2
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Int64x4) PopCountMasked(y Mask64x4) Int64x4
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Int64x8) PopCountMasked(y Mask64x8) Int64x8
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Uint8x16) PopCountMasked(y Mask8x16) Uint8x16
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Uint8x32) PopCountMasked(y Mask8x32) Uint8x32
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTB, CPU Feature: AVX512EVEX
 func (x Uint8x64) PopCountMasked(y Mask8x64) Uint8x64
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Uint16x8) PopCountMasked(y Mask16x8) Uint16x8
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Uint16x16) PopCountMasked(y Mask16x16) Uint16x16
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTW, CPU Feature: AVX512EVEX
 func (x Uint16x32) PopCountMasked(y Mask16x32) Uint16x32
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Uint32x4) PopCountMasked(y Mask32x4) Uint32x4
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Uint32x8) PopCountMasked(y Mask32x8) Uint32x8
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTD, CPU Feature: AVX512EVEX
 func (x Uint32x16) PopCountMasked(y Mask32x16) Uint32x16
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) PopCountMasked(y Mask64x2) Uint64x2
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) PopCountMasked(y Mask64x4) Uint64x4
 
-// PopCount counts the number of set bits in each element.
+// PopCountMasked counts the number of set bits in each element.
 //
 // Asm: VPOPCNTQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) PopCountMasked(y Mask64x8) Uint64x8
@@ -5485,62 +5485,62 @@ func (x Uint64x8) RotateAllLeft(imm uint8) Uint64x8
 
 /* RotateAllLeftMasked */
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
 func (x Int32x4) RotateAllLeftMasked(imm uint8, y Mask32x4) Int32x4
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
 func (x Int32x8) RotateAllLeftMasked(imm uint8, y Mask32x8) Int32x8
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
 func (x Int32x16) RotateAllLeftMasked(imm uint8, y Mask32x16) Int32x16
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLQ, CPU Feature: AVX512EVEX
 func (x Int64x2) RotateAllLeftMasked(imm uint8, y Mask64x2) Int64x2
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLQ, CPU Feature: AVX512EVEX
 func (x Int64x4) RotateAllLeftMasked(imm uint8, y Mask64x4) Int64x4
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLQ, CPU Feature: AVX512EVEX
 func (x Int64x8) RotateAllLeftMasked(imm uint8, y Mask64x8) Int64x8
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
 func (x Uint32x4) RotateAllLeftMasked(imm uint8, y Mask32x4) Uint32x4
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
 func (x Uint32x8) RotateAllLeftMasked(imm uint8, y Mask32x8) Uint32x8
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
 func (x Uint32x16) RotateAllLeftMasked(imm uint8, y Mask32x16) Uint32x16
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) RotateAllLeftMasked(imm uint8, y Mask64x2) Uint64x2
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) RotateAllLeftMasked(imm uint8, y Mask64x4) Uint64x4
 
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
 //
 // Asm: VPROLQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) RotateAllLeftMasked(imm uint8, y Mask64x8) Uint64x8
@@ -5609,62 +5609,62 @@ func (x Uint64x8) RotateAllRight(imm uint8) Uint64x8
 
 /* RotateAllRightMasked */
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
 func (x Int32x4) RotateAllRightMasked(imm uint8, y Mask32x4) Int32x4
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
 func (x Int32x8) RotateAllRightMasked(imm uint8, y Mask32x8) Int32x8
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
 func (x Int32x16) RotateAllRightMasked(imm uint8, y Mask32x16) Int32x16
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORQ, CPU Feature: AVX512EVEX
 func (x Int64x2) RotateAllRightMasked(imm uint8, y Mask64x2) Int64x2
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORQ, CPU Feature: AVX512EVEX
 func (x Int64x4) RotateAllRightMasked(imm uint8, y Mask64x4) Int64x4
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORQ, CPU Feature: AVX512EVEX
 func (x Int64x8) RotateAllRightMasked(imm uint8, y Mask64x8) Int64x8
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
 func (x Uint32x4) RotateAllRightMasked(imm uint8, y Mask32x4) Uint32x4
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
 func (x Uint32x8) RotateAllRightMasked(imm uint8, y Mask32x8) Uint32x8
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
 func (x Uint32x16) RotateAllRightMasked(imm uint8, y Mask32x16) Uint32x16
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) RotateAllRightMasked(imm uint8, y Mask64x2) Uint64x2
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) RotateAllRightMasked(imm uint8, y Mask64x4) Uint64x4
 
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
 //
 // Asm: VPRORQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) RotateAllRightMasked(imm uint8, y Mask64x8) Uint64x8
@@ -5733,62 +5733,62 @@ func (x Uint64x8) RotateLeft(y Uint64x8) Uint64x8
 
 /* RotateLeftMasked */
 
-// RotateLeft rotates each element in x to the left by the number of bits specified by y's corresponding elements.
+// RotateLeftMasked rotates each element in x to the left by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPROLVD, CPU Feature: AVX512EVEX
 func (x Int32x4) RotateLeftMasked(y Int32x4, z Mask32x4) Int32x4
 
-// RotateLeft rotates each element in x to the left by the number of bits specified by y's corresponding elements.
+// RotateLeftMasked rotates each element in x to the left by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPROLVD, CPU Feature: AVX512EVEX
 func (x Int32x8) RotateLeftMasked(y Int32x8, z Mask32x8) Int32x8
 
-// RotateLeft rotates each element in x to the left by the number of bits specified by y's corresponding elements.
+// RotateLeftMasked rotates each element in x to the left by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPROLVD, CPU Feature: AVX512EVEX
 func (x Int32x16) RotateLeftMasked(y Int32x16, z Mask32x16) Int32x16
 
-// RotateLeft rotates each element in x to the left by the number of bits specified by y's corresponding elements.
+// RotateLeftMasked rotates each element in x to the left by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPROLVQ, CPU Feature: AVX512EVEX
 func (x Int64x2) RotateLeftMasked(y Int64x2, z Mask64x2) Int64x2
 
-// RotateLeft rotates each element in x to the left by the number of bits specified by y's corresponding elements.
+// RotateLeftMasked rotates each element in x to the left by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPROLVQ, CPU Feature: AVX512EVEX
 func (x Int64x4) RotateLeftMasked(y Int64x4, z Mask64x4) Int64x4
 
-// RotateLeft rotates each element in x to the left by the number of bits specified by y's corresponding elements.
+// RotateLeftMasked rotates each element in x to the left by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPROLVQ, CPU Feature: AVX512EVEX
 func (x Int64x8) RotateLeftMasked(y Int64x8, z Mask64x8) Int64x8
 
-// RotateLeft rotates each element in x to the left by the number of bits specified by y's corresponding elements.
+// RotateLeftMasked rotates each element in x to the left by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPROLVD, CPU Feature: AVX512EVEX
 func (x Uint32x4) RotateLeftMasked(y Uint32x4, z Mask32x4) Uint32x4
 
-// RotateLeft rotates each element in x to the left by the number of bits specified by y's corresponding elements.
+// RotateLeftMasked rotates each element in x to the left by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPROLVD, CPU Feature: AVX512EVEX
 func (x Uint32x8) RotateLeftMasked(y Uint32x8, z Mask32x8) Uint32x8
 
-// RotateLeft rotates each element in x to the left by the number of bits specified by y's corresponding elements.
+// RotateLeftMasked rotates each element in x to the left by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPROLVD, CPU Feature: AVX512EVEX
 func (x Uint32x16) RotateLeftMasked(y Uint32x16, z Mask32x16) Uint32x16
 
-// RotateLeft rotates each element in x to the left by the number of bits specified by y's corresponding elements.
+// RotateLeftMasked rotates each element in x to the left by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPROLVQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) RotateLeftMasked(y Uint64x2, z Mask64x2) Uint64x2
 
-// RotateLeft rotates each element in x to the left by the number of bits specified by y's corresponding elements.
+// RotateLeftMasked rotates each element in x to the left by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPROLVQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) RotateLeftMasked(y Uint64x4, z Mask64x4) Uint64x4
 
-// RotateLeft rotates each element in x to the left by the number of bits specified by y's corresponding elements.
+// RotateLeftMasked rotates each element in x to the left by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPROLVQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) RotateLeftMasked(y Uint64x8, z Mask64x8) Uint64x8
@@ -5857,62 +5857,62 @@ func (x Uint64x8) RotateRight(y Uint64x8) Uint64x8
 
 /* RotateRightMasked */
 
-// RotateRight rotates each element in x to the right by the number of bits specified by y's corresponding elements.
+// RotateRightMasked rotates each element in x to the right by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPRORVD, CPU Feature: AVX512EVEX
 func (x Int32x4) RotateRightMasked(y Int32x4, z Mask32x4) Int32x4
 
-// RotateRight rotates each element in x to the right by the number of bits specified by y's corresponding elements.
+// RotateRightMasked rotates each element in x to the right by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPRORVD, CPU Feature: AVX512EVEX
 func (x Int32x8) RotateRightMasked(y Int32x8, z Mask32x8) Int32x8
 
-// RotateRight rotates each element in x to the right by the number of bits specified by y's corresponding elements.
+// RotateRightMasked rotates each element in x to the right by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPRORVD, CPU Feature: AVX512EVEX
 func (x Int32x16) RotateRightMasked(y Int32x16, z Mask32x16) Int32x16
 
-// RotateRight rotates each element in x to the right by the number of bits specified by y's corresponding elements.
+// RotateRightMasked rotates each element in x to the right by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPRORVQ, CPU Feature: AVX512EVEX
 func (x Int64x2) RotateRightMasked(y Int64x2, z Mask64x2) Int64x2
 
-// RotateRight rotates each element in x to the right by the number of bits specified by y's corresponding elements.
+// RotateRightMasked rotates each element in x to the right by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPRORVQ, CPU Feature: AVX512EVEX
 func (x Int64x4) RotateRightMasked(y Int64x4, z Mask64x4) Int64x4
 
-// RotateRight rotates each element in x to the right by the number of bits specified by y's corresponding elements.
+// RotateRightMasked rotates each element in x to the right by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPRORVQ, CPU Feature: AVX512EVEX
 func (x Int64x8) RotateRightMasked(y Int64x8, z Mask64x8) Int64x8
 
-// RotateRight rotates each element in x to the right by the number of bits specified by y's corresponding elements.
+// RotateRightMasked rotates each element in x to the right by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPRORVD, CPU Feature: AVX512EVEX
 func (x Uint32x4) RotateRightMasked(y Uint32x4, z Mask32x4) Uint32x4
 
-// RotateRight rotates each element in x to the right by the number of bits specified by y's corresponding elements.
+// RotateRightMasked rotates each element in x to the right by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPRORVD, CPU Feature: AVX512EVEX
 func (x Uint32x8) RotateRightMasked(y Uint32x8, z Mask32x8) Uint32x8
 
-// RotateRight rotates each element in x to the right by the number of bits specified by y's corresponding elements.
+// RotateRightMasked rotates each element in x to the right by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPRORVD, CPU Feature: AVX512EVEX
 func (x Uint32x16) RotateRightMasked(y Uint32x16, z Mask32x16) Uint32x16
 
-// RotateRight rotates each element in x to the right by the number of bits specified by y's corresponding elements.
+// RotateRightMasked rotates each element in x to the right by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPRORVQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) RotateRightMasked(y Uint64x2, z Mask64x2) Uint64x2
 
-// RotateRight rotates each element in x to the right by the number of bits specified by y's corresponding elements.
+// RotateRightMasked rotates each element in x to the right by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPRORVQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) RotateRightMasked(y Uint64x4, z Mask64x4) Uint64x4
 
-// RotateRight rotates each element in x to the right by the number of bits specified by y's corresponding elements.
+// RotateRightMasked rotates each element in x to the right by the number of bits specified by y's corresponding elements.
 //
 // Asm: VPRORVQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) RotateRightMasked(y Uint64x8, z Mask64x8) Uint64x8
@@ -5973,32 +5973,32 @@ func (x Float64x8) RoundWithPrecision(imm uint8) Float64x8
 
 /* RoundWithPrecisionMasked */
 
-// RoundWithPrecision rounds elements with specified precision.
+// RoundWithPrecisionMasked rounds elements with specified precision.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) RoundWithPrecisionMasked(imm uint8, y Mask32x4) Float32x4
 
-// RoundWithPrecision rounds elements with specified precision.
+// RoundWithPrecisionMasked rounds elements with specified precision.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) RoundWithPrecisionMasked(imm uint8, y Mask32x8) Float32x8
 
-// RoundWithPrecision rounds elements with specified precision.
+// RoundWithPrecisionMasked rounds elements with specified precision.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) RoundWithPrecisionMasked(imm uint8, y Mask32x16) Float32x16
 
-// RoundWithPrecision rounds elements with specified precision.
+// RoundWithPrecisionMasked rounds elements with specified precision.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) RoundWithPrecisionMasked(imm uint8, y Mask64x2) Float64x2
 
-// RoundWithPrecision rounds elements with specified precision.
+// RoundWithPrecisionMasked rounds elements with specified precision.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) RoundWithPrecisionMasked(imm uint8, y Mask64x4) Float64x4
 
-// RoundWithPrecision rounds elements with specified precision.
+// RoundWithPrecisionMasked rounds elements with specified precision.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) RoundWithPrecisionMasked(imm uint8, y Mask64x8) Float64x8
@@ -6067,62 +6067,62 @@ func (x Uint16x32) SaturatedAdd(y Uint16x32) Uint16x32
 
 /* SaturatedAddMasked */
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Int8x16) SaturatedAddMasked(y Int8x16, z Mask8x16) Int8x16
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Int8x32) SaturatedAddMasked(y Int8x32, z Mask8x32) Int8x32
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Int8x64) SaturatedAddMasked(y Int8x64, z Mask8x64) Int8x64
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Int16x8) SaturatedAddMasked(y Int16x8, z Mask16x8) Int16x8
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Int16x16) SaturatedAddMasked(y Int16x16, z Mask16x16) Int16x16
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Int16x32) SaturatedAddMasked(y Int16x32, z Mask16x32) Int16x32
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Uint8x16) SaturatedAddMasked(y Uint8x16, z Mask8x16) Uint8x16
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Uint8x32) SaturatedAddMasked(y Uint8x32, z Mask8x32) Uint8x32
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDSB, CPU Feature: AVX512EVEX
 func (x Uint8x64) SaturatedAddMasked(y Uint8x64, z Mask8x64) Uint8x64
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Uint16x8) SaturatedAddMasked(y Uint16x8, z Mask16x8) Uint16x8
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Uint16x16) SaturatedAddMasked(y Uint16x16, z Mask16x16) Uint16x16
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
 //
 // Asm: VPADDSW, CPU Feature: AVX512EVEX
 func (x Uint16x32) SaturatedAddMasked(y Uint16x32, z Mask16x32) Uint16x32
@@ -6146,17 +6146,17 @@ func (x Int32x16) SaturatedPairDotProdAccumulate(y Int16x32, z Int16x32) Int32x1
 
 /* SaturatedPairDotProdAccumulateMasked */
 
-// SaturatedPairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
+// SaturatedPairDotProdAccumulateMasked performs dot products on pairs of elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPWSSDS, CPU Feature: AVX512EVEX
 func (x Int32x4) SaturatedPairDotProdAccumulateMasked(y Int16x8, z Int16x8, u Mask32x4) Int32x4
 
-// SaturatedPairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
+// SaturatedPairDotProdAccumulateMasked performs dot products on pairs of elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPWSSDS, CPU Feature: AVX512EVEX
 func (x Int32x8) SaturatedPairDotProdAccumulateMasked(y Int16x16, z Int16x16, u Mask32x8) Int32x8
 
-// SaturatedPairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
+// SaturatedPairDotProdAccumulateMasked performs dot products on pairs of elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPWSSDS, CPU Feature: AVX512EVEX
 func (x Int32x16) SaturatedPairDotProdAccumulateMasked(y Int16x32, z Int16x32, u Mask32x16) Int32x16
@@ -6253,81 +6253,81 @@ func (x Uint16x32) SaturatedSub(y Uint16x32) Uint16x32
 
 /* SaturatedSubMasked */
 
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Int8x16) SaturatedSubMasked(y Int8x16, z Mask8x16) Int8x16
 
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Int8x32) SaturatedSubMasked(y Int8x32, z Mask8x32) Int8x32
 
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Int8x64) SaturatedSubMasked(y Int8x64, z Mask8x64) Int8x64
 
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Int16x8) SaturatedSubMasked(y Int16x8, z Mask16x8) Int16x8
 
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Int16x16) SaturatedSubMasked(y Int16x16, z Mask16x16) Int16x16
 
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Int16x32) SaturatedSubMasked(y Int16x32, z Mask16x32) Int16x32
 
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Uint8x16) SaturatedSubMasked(y Uint8x16, z Mask8x16) Uint8x16
 
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Uint8x32) SaturatedSubMasked(y Uint8x32, z Mask8x32) Uint8x32
 
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBSB, CPU Feature: AVX512EVEX
 func (x Uint8x64) SaturatedSubMasked(y Uint8x64, z Mask8x64) Uint8x64
 
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x8) SaturatedSubMasked(y Uint16x8, z Mask16x8) Uint16x8
 
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x16) SaturatedSubMasked(y Uint16x16, z Mask16x16) Uint16x16
 
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
+// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
 //
 // Asm: VPSUBSW, CPU Feature: AVX512EVEX
 func (x Uint16x32) SaturatedSubMasked(y Uint16x32, z Mask16x32) Uint16x32
 
 /* SaturatedUnsignedSignedPairDotProd */
 
-// SaturatedPairDotProd multiplies the elements and add the pairs together with saturation,
+// SaturatedUnsignedSignedPairDotProd multiplies the elements and add the pairs together with saturation,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX
 func (x Uint8x16) SaturatedUnsignedSignedPairDotProd(y Int8x16) Int16x8
 
-// SaturatedPairDotProd multiplies the elements and add the pairs together with saturation,
+// SaturatedUnsignedSignedPairDotProd multiplies the elements and add the pairs together with saturation,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX2
 func (x Uint8x32) SaturatedUnsignedSignedPairDotProd(y Int8x32) Int16x16
 
-// SaturatedPairDotProdMasked multiplies the elements and add the pairs together with saturation,
+// SaturatedUnsignedSignedPairDotProd multiplies the elements and add the pairs together with saturation,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
@@ -6335,19 +6335,19 @@ func (x Uint8x64) SaturatedUnsignedSignedPairDotProd(y Int8x64) Int16x32
 
 /* SaturatedUnsignedSignedPairDotProdMasked */
 
-// SaturatedPairDotProdMasked multiplies the elements and add the pairs together with saturation,
+// SaturatedUnsignedSignedPairDotProdMasked multiplies the elements and add the pairs together with saturation,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
 func (x Uint8x16) SaturatedUnsignedSignedPairDotProdMasked(y Int8x16, z Mask16x8) Int16x8
 
-// SaturatedPairDotProdMasked multiplies the elements and add the pairs together with saturation,
+// SaturatedUnsignedSignedPairDotProdMasked multiplies the elements and add the pairs together with saturation,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
 func (x Uint8x32) SaturatedUnsignedSignedPairDotProdMasked(y Int8x32, z Mask16x16) Int16x16
 
-// SaturatedPairDotProdMasked multiplies the elements and add the pairs together with saturation,
+// SaturatedUnsignedSignedPairDotProdMasked multiplies the elements and add the pairs together with saturation,
 // yielding a vector of half as many elements with twice the input element size.
 //
 // Asm: VPMADDUBSW, CPU Feature: AVX512EVEX
@@ -6387,32 +6387,32 @@ func (x Uint32x16) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z In
 
 /* SaturatedUnsignedSignedQuadDotProdAccumulateMasked */
 
-// SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// SaturatedUnsignedSignedQuadDotProdAccumulateMasked multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512EVEX
 func (x Int32x4) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x16, z Int8x16, u Mask32x4) Int32x4
 
-// SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// SaturatedUnsignedSignedQuadDotProdAccumulateMasked multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512EVEX
 func (x Int32x8) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x32, z Int8x32, u Mask32x8) Int32x8
 
-// SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// SaturatedUnsignedSignedQuadDotProdAccumulateMasked multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512EVEX
 func (x Int32x16) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x64, z Int8x64, u Mask32x16) Int32x16
 
-// SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// SaturatedUnsignedSignedQuadDotProdAccumulateMasked multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512EVEX
 func (x Uint32x4) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x16, z Int8x16, u Mask32x4) Uint32x4
 
-// SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// SaturatedUnsignedSignedQuadDotProdAccumulateMasked multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512EVEX
 func (x Uint32x8) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x32, z Int8x32, u Mask32x8) Uint32x8
 
-// SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// SaturatedUnsignedSignedQuadDotProdAccumulateMasked multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512EVEX
 func (x Uint32x16) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x64, z Int8x64, u Mask32x16) Uint32x16
@@ -6695,109 +6695,109 @@ func (x Uint64x8) ShiftAllLeftAndFillUpperFrom(imm uint8, y Uint64x8) Uint64x8
 
 /* ShiftAllLeftAndFillUpperFromMasked */
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512EVEX
 func (x Int16x8) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Int16x8, z Mask16x8) Int16x8
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512EVEX
 func (x Int16x16) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Int16x16, z Mask16x16) Int16x16
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512EVEX
 func (x Int16x32) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Int16x32, z Mask16x32) Int16x32
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512EVEX
 func (x Int32x4) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Int32x4, z Mask32x4) Int32x4
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512EVEX
 func (x Int32x8) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Int32x8, z Mask32x8) Int32x8
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512EVEX
 func (x Int32x16) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Int32x16, z Mask32x16) Int32x16
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512EVEX
 func (x Int64x2) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Int64x2, z Mask64x2) Int64x2
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512EVEX
 func (x Int64x4) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Int64x4, z Mask64x4) Int64x4
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512EVEX
 func (x Int64x8) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Int64x8, z Mask64x8) Int64x8
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512EVEX
 func (x Uint16x8) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Uint16x8, z Mask16x8) Uint16x8
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512EVEX
 func (x Uint16x16) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Uint16x16, z Mask16x16) Uint16x16
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512EVEX
 func (x Uint16x32) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Uint16x32, z Mask16x32) Uint16x32
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512EVEX
 func (x Uint32x4) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Uint32x4, z Mask32x4) Uint32x4
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512EVEX
 func (x Uint32x8) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Uint32x8, z Mask32x8) Uint32x8
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512EVEX
 func (x Uint32x16) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Uint32x16, z Mask32x16) Uint32x16
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Uint64x2, z Mask64x2) Uint64x2
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Uint64x4, z Mask64x4) Uint64x4
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512EVEX
@@ -6805,32 +6805,32 @@ func (x Uint64x8) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Uint64x8, z Ma
 
 /* ShiftAllLeftMasked */
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLQ, CPU Feature: AVX512EVEX
 func (x Int64x2) ShiftAllLeftMasked(y uint64, z Mask64x2) Int64x2
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLQ, CPU Feature: AVX512EVEX
 func (x Int64x4) ShiftAllLeftMasked(y uint64, z Mask64x4) Int64x4
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLQ, CPU Feature: AVX512EVEX
 func (x Int64x8) ShiftAllLeftMasked(y uint64, z Mask64x8) Int64x8
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) ShiftAllLeftMasked(y uint64, z Mask64x2) Uint64x2
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) ShiftAllLeftMasked(y uint64, z Mask64x4) Uint64x4
 
-// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+// ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) ShiftAllLeftMasked(y uint64, z Mask64x8) Uint64x8
@@ -7019,109 +7019,109 @@ func (x Uint64x8) ShiftAllRightAndFillUpperFrom(imm uint8, y Uint64x8) Uint64x8
 
 /* ShiftAllRightAndFillUpperFromMasked */
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512EVEX
 func (x Int16x8) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Int16x8, z Mask16x8) Int16x8
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512EVEX
 func (x Int16x16) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Int16x16, z Mask16x16) Int16x16
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512EVEX
 func (x Int16x32) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Int16x32, z Mask16x32) Int16x32
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512EVEX
 func (x Int32x4) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Int32x4, z Mask32x4) Int32x4
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512EVEX
 func (x Int32x8) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Int32x8, z Mask32x8) Int32x8
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512EVEX
 func (x Int32x16) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Int32x16, z Mask32x16) Int32x16
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512EVEX
 func (x Int64x2) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Int64x2, z Mask64x2) Int64x2
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512EVEX
 func (x Int64x4) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Int64x4, z Mask64x4) Int64x4
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512EVEX
 func (x Int64x8) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Int64x8, z Mask64x8) Int64x8
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512EVEX
 func (x Uint16x8) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Uint16x8, z Mask16x8) Uint16x8
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512EVEX
 func (x Uint16x16) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Uint16x16, z Mask16x16) Uint16x16
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512EVEX
 func (x Uint16x32) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Uint16x32, z Mask16x32) Uint16x32
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512EVEX
 func (x Uint32x4) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Uint32x4, z Mask32x4) Uint32x4
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512EVEX
 func (x Uint32x8) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Uint32x8, z Mask32x8) Uint32x8
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512EVEX
 func (x Uint32x16) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Uint32x16, z Mask32x16) Uint32x16
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Uint64x2, z Mask64x2) Uint64x2
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Uint64x4, z Mask64x4) Uint64x4
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512EVEX
@@ -7129,32 +7129,32 @@ func (x Uint64x8) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Uint64x8, z M
 
 /* ShiftAllRightMasked */
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLQ, CPU Feature: AVX512EVEX
 func (x Int64x2) ShiftAllRightMasked(y uint64, z Mask64x2) Int64x2
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLQ, CPU Feature: AVX512EVEX
 func (x Int64x4) ShiftAllRightMasked(y uint64, z Mask64x4) Int64x4
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLQ, CPU Feature: AVX512EVEX
 func (x Int64x8) ShiftAllRightMasked(y uint64, z Mask64x8) Int64x8
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) ShiftAllRightMasked(y uint64, z Mask64x2) Uint64x2
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) ShiftAllRightMasked(y uint64, z Mask64x4) Uint64x4
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) ShiftAllRightMasked(y uint64, z Mask64x8) Uint64x8
@@ -7198,17 +7198,17 @@ func (x Int64x8) ShiftAllRightSignExtended(y uint64) Int64x8
 
 /* ShiftAllRightSignExtendedMasked */
 
-// ShiftAllRightSignExtended shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+// ShiftAllRightSignExtendedMasked shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAQ, CPU Feature: AVX512EVEX
 func (x Int64x2) ShiftAllRightSignExtendedMasked(y uint64, z Mask64x2) Int64x2
 
-// ShiftAllRightSignExtended shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+// ShiftAllRightSignExtendedMasked shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAQ, CPU Feature: AVX512EVEX
 func (x Int64x4) ShiftAllRightSignExtendedMasked(y uint64, z Mask64x4) Int64x4
 
-// ShiftAllRightSignExtended shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+// ShiftAllRightSignExtendedMasked shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAQ, CPU Feature: AVX512EVEX
 func (x Int64x8) ShiftAllRightSignExtendedMasked(y uint64, z Mask64x8) Int64x8
@@ -7417,109 +7417,109 @@ func (x Uint64x8) ShiftLeftAndFillUpperFrom(y Uint64x8, z Uint64x8) Uint64x8
 
 /* ShiftLeftAndFillUpperFromMasked */
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512EVEX
 func (x Int16x8) ShiftLeftAndFillUpperFromMasked(y Int16x8, z Int16x8, u Mask16x8) Int16x8
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512EVEX
 func (x Int16x16) ShiftLeftAndFillUpperFromMasked(y Int16x16, z Int16x16, u Mask16x16) Int16x16
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512EVEX
 func (x Int16x32) ShiftLeftAndFillUpperFromMasked(y Int16x32, z Int16x32, u Mask16x32) Int16x32
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512EVEX
 func (x Int32x4) ShiftLeftAndFillUpperFromMasked(y Int32x4, z Int32x4, u Mask32x4) Int32x4
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512EVEX
 func (x Int32x8) ShiftLeftAndFillUpperFromMasked(y Int32x8, z Int32x8, u Mask32x8) Int32x8
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512EVEX
 func (x Int32x16) ShiftLeftAndFillUpperFromMasked(y Int32x16, z Int32x16, u Mask32x16) Int32x16
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512EVEX
 func (x Int64x2) ShiftLeftAndFillUpperFromMasked(y Int64x2, z Int64x2, u Mask64x2) Int64x2
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512EVEX
 func (x Int64x4) ShiftLeftAndFillUpperFromMasked(y Int64x4, z Int64x4, u Mask64x4) Int64x4
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512EVEX
 func (x Int64x8) ShiftLeftAndFillUpperFromMasked(y Int64x8, z Int64x8, u Mask64x8) Int64x8
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512EVEX
 func (x Uint16x8) ShiftLeftAndFillUpperFromMasked(y Uint16x8, z Uint16x8, u Mask16x8) Uint16x8
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512EVEX
 func (x Uint16x16) ShiftLeftAndFillUpperFromMasked(y Uint16x16, z Uint16x16, u Mask16x16) Uint16x16
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512EVEX
 func (x Uint16x32) ShiftLeftAndFillUpperFromMasked(y Uint16x32, z Uint16x32, u Mask16x32) Uint16x32
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512EVEX
 func (x Uint32x4) ShiftLeftAndFillUpperFromMasked(y Uint32x4, z Uint32x4, u Mask32x4) Uint32x4
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512EVEX
 func (x Uint32x8) ShiftLeftAndFillUpperFromMasked(y Uint32x8, z Uint32x8, u Mask32x8) Uint32x8
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512EVEX
 func (x Uint32x16) ShiftLeftAndFillUpperFromMasked(y Uint32x16, z Uint32x16, u Mask32x16) Uint32x16
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) ShiftLeftAndFillUpperFromMasked(y Uint64x2, z Uint64x2, u Mask64x2) Uint64x2
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) ShiftLeftAndFillUpperFromMasked(y Uint64x4, z Uint64x4, u Mask64x4) Uint64x4
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512EVEX
@@ -7527,92 +7527,92 @@ func (x Uint64x8) ShiftLeftAndFillUpperFromMasked(y Uint64x8, z Uint64x8, u Mask
 
 /* ShiftLeftMasked */
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeftMasked shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512EVEX
 func (x Int16x8) ShiftLeftMasked(y Int16x8, z Mask16x8) Int16x8
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeftMasked shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512EVEX
 func (x Int16x16) ShiftLeftMasked(y Int16x16, z Mask16x16) Int16x16
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeftMasked shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512EVEX
 func (x Int16x32) ShiftLeftMasked(y Int16x32, z Mask16x32) Int16x32
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeftMasked shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLVD, CPU Feature: AVX512EVEX
 func (x Int32x4) ShiftLeftMasked(y Int32x4, z Mask32x4) Int32x4
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeftMasked shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLVD, CPU Feature: AVX512EVEX
 func (x Int32x8) ShiftLeftMasked(y Int32x8, z Mask32x8) Int32x8
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeftMasked shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLVD, CPU Feature: AVX512EVEX
 func (x Int32x16) ShiftLeftMasked(y Int32x16, z Mask32x16) Int32x16
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeftMasked shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX512EVEX
 func (x Int64x2) ShiftLeftMasked(y Int64x2, z Mask64x2) Int64x2
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeftMasked shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX512EVEX
 func (x Int64x4) ShiftLeftMasked(y Int64x4, z Mask64x4) Int64x4
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeftMasked shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX512EVEX
 func (x Int64x8) ShiftLeftMasked(y Int64x8, z Mask64x8) Int64x8
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeftMasked shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512EVEX
 func (x Uint16x8) ShiftLeftMasked(y Uint16x8, z Mask16x8) Uint16x8
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeftMasked shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512EVEX
 func (x Uint16x16) ShiftLeftMasked(y Uint16x16, z Mask16x16) Uint16x16
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeftMasked shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512EVEX
 func (x Uint16x32) ShiftLeftMasked(y Uint16x32, z Mask16x32) Uint16x32
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeftMasked shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLVD, CPU Feature: AVX512EVEX
 func (x Uint32x4) ShiftLeftMasked(y Uint32x4, z Mask32x4) Uint32x4
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeftMasked shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLVD, CPU Feature: AVX512EVEX
 func (x Uint32x8) ShiftLeftMasked(y Uint32x8, z Mask32x8) Uint32x8
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeftMasked shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLVD, CPU Feature: AVX512EVEX
 func (x Uint32x16) ShiftLeftMasked(y Uint32x16, z Mask32x16) Uint32x16
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeftMasked shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) ShiftLeftMasked(y Uint64x2, z Mask64x2) Uint64x2
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeftMasked shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) ShiftLeftMasked(y Uint64x4, z Mask64x4) Uint64x4
 
-// ShiftLeft shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
+// ShiftLeftMasked shifts each element in x to the left by the number of bits specified in y's corresponding elements. Emptied lower bits are zeroed.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) ShiftLeftMasked(y Uint64x8, z Mask64x8) Uint64x8
@@ -7821,109 +7821,109 @@ func (x Uint64x8) ShiftRightAndFillUpperFrom(y Uint64x8, z Uint64x8) Uint64x8
 
 /* ShiftRightAndFillUpperFromMasked */
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512EVEX
 func (x Int16x8) ShiftRightAndFillUpperFromMasked(y Int16x8, z Int16x8, u Mask16x8) Int16x8
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512EVEX
 func (x Int16x16) ShiftRightAndFillUpperFromMasked(y Int16x16, z Int16x16, u Mask16x16) Int16x16
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512EVEX
 func (x Int16x32) ShiftRightAndFillUpperFromMasked(y Int16x32, z Int16x32, u Mask16x32) Int16x32
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512EVEX
 func (x Int32x4) ShiftRightAndFillUpperFromMasked(y Int32x4, z Int32x4, u Mask32x4) Int32x4
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512EVEX
 func (x Int32x8) ShiftRightAndFillUpperFromMasked(y Int32x8, z Int32x8, u Mask32x8) Int32x8
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512EVEX
 func (x Int32x16) ShiftRightAndFillUpperFromMasked(y Int32x16, z Int32x16, u Mask32x16) Int32x16
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512EVEX
 func (x Int64x2) ShiftRightAndFillUpperFromMasked(y Int64x2, z Int64x2, u Mask64x2) Int64x2
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512EVEX
 func (x Int64x4) ShiftRightAndFillUpperFromMasked(y Int64x4, z Int64x4, u Mask64x4) Int64x4
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512EVEX
 func (x Int64x8) ShiftRightAndFillUpperFromMasked(y Int64x8, z Int64x8, u Mask64x8) Int64x8
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512EVEX
 func (x Uint16x8) ShiftRightAndFillUpperFromMasked(y Uint16x8, z Uint16x8, u Mask16x8) Uint16x8
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512EVEX
 func (x Uint16x16) ShiftRightAndFillUpperFromMasked(y Uint16x16, z Uint16x16, u Mask16x16) Uint16x16
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512EVEX
 func (x Uint16x32) ShiftRightAndFillUpperFromMasked(y Uint16x32, z Uint16x32, u Mask16x32) Uint16x32
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512EVEX
 func (x Uint32x4) ShiftRightAndFillUpperFromMasked(y Uint32x4, z Uint32x4, u Mask32x4) Uint32x4
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512EVEX
 func (x Uint32x8) ShiftRightAndFillUpperFromMasked(y Uint32x8, z Uint32x8, u Mask32x8) Uint32x8
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512EVEX
 func (x Uint32x16) ShiftRightAndFillUpperFromMasked(y Uint32x16, z Uint32x16, u Mask32x16) Uint32x16
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) ShiftRightAndFillUpperFromMasked(y Uint64x2, z Uint64x2, u Mask64x2) Uint64x2
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) ShiftRightAndFillUpperFromMasked(y Uint64x4, z Uint64x4, u Mask64x4) Uint64x4
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512EVEX
@@ -7931,92 +7931,92 @@ func (x Uint64x8) ShiftRightAndFillUpperFromMasked(y Uint64x8, z Uint64x8, u Mas
 
 /* ShiftRightMasked */
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLVW, CPU Feature: AVX512EVEX
 func (x Int16x8) ShiftRightMasked(y Int16x8, z Mask16x8) Int16x8
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLVW, CPU Feature: AVX512EVEX
 func (x Int16x16) ShiftRightMasked(y Int16x16, z Mask16x16) Int16x16
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLVW, CPU Feature: AVX512EVEX
 func (x Int16x32) ShiftRightMasked(y Int16x32, z Mask16x32) Int16x32
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLVD, CPU Feature: AVX512EVEX
 func (x Int32x4) ShiftRightMasked(y Int32x4, z Mask32x4) Int32x4
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLVD, CPU Feature: AVX512EVEX
 func (x Int32x8) ShiftRightMasked(y Int32x8, z Mask32x8) Int32x8
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLVD, CPU Feature: AVX512EVEX
 func (x Int32x16) ShiftRightMasked(y Int32x16, z Mask32x16) Int32x16
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLVQ, CPU Feature: AVX512EVEX
 func (x Int64x2) ShiftRightMasked(y Int64x2, z Mask64x2) Int64x2
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLVQ, CPU Feature: AVX512EVEX
 func (x Int64x4) ShiftRightMasked(y Int64x4, z Mask64x4) Int64x4
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLVQ, CPU Feature: AVX512EVEX
 func (x Int64x8) ShiftRightMasked(y Int64x8, z Mask64x8) Int64x8
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLVW, CPU Feature: AVX512EVEX
 func (x Uint16x8) ShiftRightMasked(y Uint16x8, z Mask16x8) Uint16x8
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLVW, CPU Feature: AVX512EVEX
 func (x Uint16x16) ShiftRightMasked(y Uint16x16, z Mask16x16) Uint16x16
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLVW, CPU Feature: AVX512EVEX
 func (x Uint16x32) ShiftRightMasked(y Uint16x32, z Mask16x32) Uint16x32
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLVD, CPU Feature: AVX512EVEX
 func (x Uint32x4) ShiftRightMasked(y Uint32x4, z Mask32x4) Uint32x4
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLVD, CPU Feature: AVX512EVEX
 func (x Uint32x8) ShiftRightMasked(y Uint32x8, z Mask32x8) Uint32x8
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLVD, CPU Feature: AVX512EVEX
 func (x Uint32x16) ShiftRightMasked(y Uint32x16, z Mask32x16) Uint32x16
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLVQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) ShiftRightMasked(y Uint64x2, z Mask64x2) Uint64x2
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLVQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) ShiftRightMasked(y Uint64x4, z Mask64x4) Uint64x4
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
 //
 // Asm: VPSRLVQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) ShiftRightMasked(y Uint64x8, z Mask64x8) Uint64x8
@@ -8115,92 +8115,92 @@ func (x Uint64x8) ShiftRightSignExtended(y Uint64x8) Uint64x8
 
 /* ShiftRightSignExtendedMasked */
 
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAVW, CPU Feature: AVX512EVEX
 func (x Int16x8) ShiftRightSignExtendedMasked(y Int16x8, z Mask16x8) Int16x8
 
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAVW, CPU Feature: AVX512EVEX
 func (x Int16x16) ShiftRightSignExtendedMasked(y Int16x16, z Mask16x16) Int16x16
 
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAVW, CPU Feature: AVX512EVEX
 func (x Int16x32) ShiftRightSignExtendedMasked(y Int16x32, z Mask16x32) Int16x32
 
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAVD, CPU Feature: AVX512EVEX
 func (x Int32x4) ShiftRightSignExtendedMasked(y Int32x4, z Mask32x4) Int32x4
 
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAVD, CPU Feature: AVX512EVEX
 func (x Int32x8) ShiftRightSignExtendedMasked(y Int32x8, z Mask32x8) Int32x8
 
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAVD, CPU Feature: AVX512EVEX
 func (x Int32x16) ShiftRightSignExtendedMasked(y Int32x16, z Mask32x16) Int32x16
 
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAVQ, CPU Feature: AVX512EVEX
 func (x Int64x2) ShiftRightSignExtendedMasked(y Int64x2, z Mask64x2) Int64x2
 
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAVQ, CPU Feature: AVX512EVEX
 func (x Int64x4) ShiftRightSignExtendedMasked(y Int64x4, z Mask64x4) Int64x4
 
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAVQ, CPU Feature: AVX512EVEX
 func (x Int64x8) ShiftRightSignExtendedMasked(y Int64x8, z Mask64x8) Int64x8
 
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAVW, CPU Feature: AVX512EVEX
 func (x Uint16x8) ShiftRightSignExtendedMasked(y Uint16x8, z Mask16x8) Uint16x8
 
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAVW, CPU Feature: AVX512EVEX
 func (x Uint16x16) ShiftRightSignExtendedMasked(y Uint16x16, z Mask16x16) Uint16x16
 
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAVW, CPU Feature: AVX512EVEX
 func (x Uint16x32) ShiftRightSignExtendedMasked(y Uint16x32, z Mask16x32) Uint16x32
 
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAVD, CPU Feature: AVX512EVEX
 func (x Uint32x4) ShiftRightSignExtendedMasked(y Uint32x4, z Mask32x4) Uint32x4
 
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAVD, CPU Feature: AVX512EVEX
 func (x Uint32x8) ShiftRightSignExtendedMasked(y Uint32x8, z Mask32x8) Uint32x8
 
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAVD, CPU Feature: AVX512EVEX
 func (x Uint32x16) ShiftRightSignExtendedMasked(y Uint32x16, z Mask32x16) Uint32x16
 
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAVQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) ShiftRightSignExtendedMasked(y Uint64x2, z Mask64x2) Uint64x2
 
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAVQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) ShiftRightSignExtendedMasked(y Uint64x4, z Mask64x4) Uint64x4
 
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
+// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
 // Asm: VPSRAVQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) ShiftRightSignExtendedMasked(y Uint64x8, z Mask64x8) Uint64x8
@@ -8277,32 +8277,32 @@ func (x Float64x8) Sqrt() Float64x8
 
 /* SqrtMasked */
 
-// Sqrt computes the square root of each element.
+// SqrtMasked computes the square root of each element.
 //
 // Asm: VSQRTPS, CPU Feature: AVX512EVEX
 func (x Float32x4) SqrtMasked(y Mask32x4) Float32x4
 
-// Sqrt computes the square root of each element.
+// SqrtMasked computes the square root of each element.
 //
 // Asm: VSQRTPS, CPU Feature: AVX512EVEX
 func (x Float32x8) SqrtMasked(y Mask32x8) Float32x8
 
-// Sqrt computes the square root of each element.
+// SqrtMasked computes the square root of each element.
 //
 // Asm: VSQRTPS, CPU Feature: AVX512EVEX
 func (x Float32x16) SqrtMasked(y Mask32x16) Float32x16
 
-// Sqrt computes the square root of each element.
+// SqrtMasked computes the square root of each element.
 //
 // Asm: VSQRTPD, CPU Feature: AVX512EVEX
 func (x Float64x2) SqrtMasked(y Mask64x2) Float64x2
 
-// Sqrt computes the square root of each element.
+// SqrtMasked computes the square root of each element.
 //
 // Asm: VSQRTPD, CPU Feature: AVX512EVEX
 func (x Float64x4) SqrtMasked(y Mask64x4) Float64x4
 
-// Sqrt computes the square root of each element.
+// SqrtMasked computes the square root of each element.
 //
 // Asm: VSQRTPD, CPU Feature: AVX512EVEX
 func (x Float64x8) SqrtMasked(y Mask64x8) Float64x8
@@ -8461,152 +8461,152 @@ func (x Uint64x8) Sub(y Uint64x8) Uint64x8
 
 /* SubMasked */
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VSUBPS, CPU Feature: AVX512EVEX
 func (x Float32x4) SubMasked(y Float32x4, z Mask32x4) Float32x4
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VSUBPS, CPU Feature: AVX512EVEX
 func (x Float32x8) SubMasked(y Float32x8, z Mask32x8) Float32x8
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VSUBPS, CPU Feature: AVX512EVEX
 func (x Float32x16) SubMasked(y Float32x16, z Mask32x16) Float32x16
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VSUBPD, CPU Feature: AVX512EVEX
 func (x Float64x2) SubMasked(y Float64x2, z Mask64x2) Float64x2
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VSUBPD, CPU Feature: AVX512EVEX
 func (x Float64x4) SubMasked(y Float64x4, z Mask64x4) Float64x4
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VSUBPD, CPU Feature: AVX512EVEX
 func (x Float64x8) SubMasked(y Float64x8, z Mask64x8) Float64x8
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Int8x16) SubMasked(y Int8x16, z Mask8x16) Int8x16
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Int8x32) SubMasked(y Int8x32, z Mask8x32) Int8x32
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Int8x64) SubMasked(y Int8x64, z Mask8x64) Int8x64
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Int16x8) SubMasked(y Int16x8, z Mask16x8) Int16x8
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Int16x16) SubMasked(y Int16x16, z Mask16x16) Int16x16
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Int16x32) SubMasked(y Int16x32, z Mask16x32) Int16x32
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Int32x4) SubMasked(y Int32x4, z Mask32x4) Int32x4
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Int32x8) SubMasked(y Int32x8, z Mask32x8) Int32x8
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Int32x16) SubMasked(y Int32x16, z Mask32x16) Int32x16
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Int64x2) SubMasked(y Int64x2, z Mask64x2) Int64x2
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Int64x4) SubMasked(y Int64x4, z Mask64x4) Int64x4
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Int64x8) SubMasked(y Int64x8, z Mask64x8) Int64x8
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Uint8x16) SubMasked(y Uint8x16, z Mask8x16) Uint8x16
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Uint8x32) SubMasked(y Uint8x32, z Mask8x32) Uint8x32
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBB, CPU Feature: AVX512EVEX
 func (x Uint8x64) SubMasked(y Uint8x64, z Mask8x64) Uint8x64
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Uint16x8) SubMasked(y Uint16x8, z Mask16x8) Uint16x8
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Uint16x16) SubMasked(y Uint16x16, z Mask16x16) Uint16x16
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBW, CPU Feature: AVX512EVEX
 func (x Uint16x32) SubMasked(y Uint16x32, z Mask16x32) Uint16x32
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Uint32x4) SubMasked(y Uint32x4, z Mask32x4) Uint32x4
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Uint32x8) SubMasked(y Uint32x8, z Mask32x8) Uint32x8
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBD, CPU Feature: AVX512EVEX
 func (x Uint32x16) SubMasked(y Uint32x16, z Mask32x16) Uint32x16
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) SubMasked(y Uint64x2, z Mask64x2) Uint64x2
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) SubMasked(y Uint64x4, z Mask64x4) Uint64x4
 
-// Sub subtracts corresponding elements of two vectors.
+// SubMasked subtracts corresponding elements of two vectors.
 //
 // Asm: VPSUBQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) SubMasked(y Uint64x8, z Mask64x8) Uint64x8
@@ -8667,32 +8667,32 @@ func (x Float64x8) TruncWithPrecision(imm uint8) Float64x8
 
 /* TruncWithPrecisionMasked */
 
-// TruncWithPrecision truncates elements with specified precision.
+// TruncWithPrecisionMasked truncates elements with specified precision.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x4) TruncWithPrecisionMasked(imm uint8, y Mask32x4) Float32x4
 
-// TruncWithPrecision truncates elements with specified precision.
+// TruncWithPrecisionMasked truncates elements with specified precision.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x8) TruncWithPrecisionMasked(imm uint8, y Mask32x8) Float32x8
 
-// TruncWithPrecision truncates elements with specified precision.
+// TruncWithPrecisionMasked truncates elements with specified precision.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
 func (x Float32x16) TruncWithPrecisionMasked(imm uint8, y Mask32x16) Float32x16
 
-// TruncWithPrecision truncates elements with specified precision.
+// TruncWithPrecisionMasked truncates elements with specified precision.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x2) TruncWithPrecisionMasked(imm uint8, y Mask64x2) Float64x2
 
-// TruncWithPrecision truncates elements with specified precision.
+// TruncWithPrecisionMasked truncates elements with specified precision.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x4) TruncWithPrecisionMasked(imm uint8, y Mask64x4) Float64x4
 
-// TruncWithPrecision truncates elements with specified precision.
+// TruncWithPrecisionMasked truncates elements with specified precision.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
 func (x Float64x8) TruncWithPrecisionMasked(imm uint8, y Mask64x8) Float64x8
@@ -8731,32 +8731,32 @@ func (x Uint32x16) UnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int8x64) Ui
 
 /* UnsignedSignedQuadDotProdAccumulateMasked */
 
-// UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// UnsignedSignedQuadDotProdAccumulateMasked performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX512EVEX
 func (x Int32x4) UnsignedSignedQuadDotProdAccumulateMasked(y Uint8x16, z Int8x16, u Mask32x4) Int32x4
 
-// UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// UnsignedSignedQuadDotProdAccumulateMasked performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX512EVEX
 func (x Int32x8) UnsignedSignedQuadDotProdAccumulateMasked(y Uint8x32, z Int8x32, u Mask32x8) Int32x8
 
-// UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// UnsignedSignedQuadDotProdAccumulateMasked performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX512EVEX
 func (x Int32x16) UnsignedSignedQuadDotProdAccumulateMasked(y Uint8x64, z Int8x64, u Mask32x16) Int32x16
 
-// UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// UnsignedSignedQuadDotProdAccumulateMasked performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX512EVEX
 func (x Uint32x4) UnsignedSignedQuadDotProdAccumulateMasked(y Uint8x16, z Int8x16, u Mask32x4) Uint32x4
 
-// UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// UnsignedSignedQuadDotProdAccumulateMasked performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX512EVEX
 func (x Uint32x8) UnsignedSignedQuadDotProdAccumulateMasked(y Uint8x32, z Int8x32, u Mask32x8) Uint32x8
 
-// UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// UnsignedSignedQuadDotProdAccumulateMasked performs dot products on groups of 4 elements of y and z and accumulates the results to x.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX512EVEX
 func (x Uint32x16) UnsignedSignedQuadDotProdAccumulateMasked(y Uint8x64, z Int8x64, u Mask32x16) Uint32x16
@@ -8865,62 +8865,62 @@ func (x Uint64x8) Xor(y Uint64x8) Uint64x8
 
 /* XorMasked */
 
-// Xor performs a masked bitwise XOR operation between two vectors.
+// XorMasked performs a masked bitwise XOR operation between two vectors.
 //
 // Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Int32x4) XorMasked(y Int32x4, z Mask32x4) Int32x4
 
-// Xor performs a masked bitwise XOR operation between two vectors.
+// XorMasked performs a masked bitwise XOR operation between two vectors.
 //
 // Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Int32x8) XorMasked(y Int32x8, z Mask32x8) Int32x8
 
-// Xor performs a masked bitwise XOR operation between two vectors.
+// XorMasked performs a masked bitwise XOR operation between two vectors.
 //
 // Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Int32x16) XorMasked(y Int32x16, z Mask32x16) Int32x16
 
-// Xor performs a masked bitwise XOR operation between two vectors.
+// XorMasked performs a masked bitwise XOR operation between two vectors.
 //
 // Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Int64x2) XorMasked(y Int64x2, z Mask64x2) Int64x2
 
-// Xor performs a masked bitwise XOR operation between two vectors.
+// XorMasked performs a masked bitwise XOR operation between two vectors.
 //
 // Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Int64x4) XorMasked(y Int64x4, z Mask64x4) Int64x4
 
-// Xor performs a masked bitwise XOR operation between two vectors.
+// XorMasked performs a masked bitwise XOR operation between two vectors.
 //
 // Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Int64x8) XorMasked(y Int64x8, z Mask64x8) Int64x8
 
-// Xor performs a masked bitwise XOR operation between two vectors.
+// XorMasked performs a masked bitwise XOR operation between two vectors.
 //
 // Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Uint32x4) XorMasked(y Uint32x4, z Mask32x4) Uint32x4
 
-// Xor performs a masked bitwise XOR operation between two vectors.
+// XorMasked performs a masked bitwise XOR operation between two vectors.
 //
 // Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Uint32x8) XorMasked(y Uint32x8, z Mask32x8) Uint32x8
 
-// Xor performs a masked bitwise XOR operation between two vectors.
+// XorMasked performs a masked bitwise XOR operation between two vectors.
 //
 // Asm: VPXORD, CPU Feature: AVX512EVEX
 func (x Uint32x16) XorMasked(y Uint32x16, z Mask32x16) Uint32x16
 
-// Xor performs a masked bitwise XOR operation between two vectors.
+// XorMasked performs a masked bitwise XOR operation between two vectors.
 //
 // Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Uint64x2) XorMasked(y Uint64x2, z Mask64x2) Uint64x2
 
-// Xor performs a masked bitwise XOR operation between two vectors.
+// XorMasked performs a masked bitwise XOR operation between two vectors.
 //
 // Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Uint64x4) XorMasked(y Uint64x4, z Mask64x4) Uint64x4
 
-// Xor performs a masked bitwise XOR operation between two vectors.
+// XorMasked performs a masked bitwise XOR operation between two vectors.
 //
 // Asm: VPXORQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) XorMasked(y Uint64x8, z Mask64x8) Uint64x8
