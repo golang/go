@@ -1393,17 +1393,16 @@ const (
 	OpAMD64VPSUBSW256
 	OpAMD64VPSUBSWMasked256
 	OpAMD64VPSLLW256
-	OpAMD64VPSRLW256
+	OpAMD64VPSLLWMasked256
 	OpAMD64VPSRAW256
+	OpAMD64VPSRAWMasked256
 	OpAMD64VPSLLVW256
 	OpAMD64VPSHLDVW256
 	OpAMD64VPSHLDVWMasked256
 	OpAMD64VPSLLVWMasked256
-	OpAMD64VPSRLVW256
+	OpAMD64VPSRAVW256
 	OpAMD64VPSHRDVW256
 	OpAMD64VPSHRDVWMasked256
-	OpAMD64VPSRLVWMasked256
-	OpAMD64VPSRAVW256
 	OpAMD64VPSRAVWMasked256
 	OpAMD64VPSIGNW256
 	OpAMD64VPSUBW256
@@ -1428,15 +1427,17 @@ const (
 	OpAMD64VPADDSWMasked512
 	OpAMD64VPSUBSW512
 	OpAMD64VPSUBSWMasked512
+	OpAMD64VPSLLW512
+	OpAMD64VPSLLWMasked512
+	OpAMD64VPSRAW512
+	OpAMD64VPSRAWMasked512
 	OpAMD64VPSLLVW512
 	OpAMD64VPSHLDVW512
 	OpAMD64VPSHLDVWMasked512
 	OpAMD64VPSLLVWMasked512
-	OpAMD64VPSRLVW512
+	OpAMD64VPSRAVW512
 	OpAMD64VPSHRDVW512
 	OpAMD64VPSHRDVWMasked512
-	OpAMD64VPSRLVWMasked512
-	OpAMD64VPSRAVW512
 	OpAMD64VPSRAVWMasked512
 	OpAMD64VPSUBW512
 	OpAMD64VPSUBWMasked512
@@ -1467,17 +1468,16 @@ const (
 	OpAMD64VPSUBSW128
 	OpAMD64VPSUBSWMasked128
 	OpAMD64VPSLLW128
-	OpAMD64VPSRLW128
+	OpAMD64VPSLLWMasked128
 	OpAMD64VPSRAW128
+	OpAMD64VPSRAWMasked128
 	OpAMD64VPSLLVW128
 	OpAMD64VPSHLDVW128
 	OpAMD64VPSHLDVWMasked128
 	OpAMD64VPSLLVWMasked128
-	OpAMD64VPSRLVW128
+	OpAMD64VPSRAVW128
 	OpAMD64VPSHRDVW128
 	OpAMD64VPSHRDVWMasked128
-	OpAMD64VPSRLVWMasked128
-	OpAMD64VPSRAVW128
 	OpAMD64VPSRAVWMasked128
 	OpAMD64VPSIGNW128
 	OpAMD64VPSUBW128
@@ -1510,15 +1510,17 @@ const (
 	OpAMD64VPDPWSSDSMasked512
 	OpAMD64VPDPBUSDS512
 	OpAMD64VPDPBUSDSMasked512
+	OpAMD64VPSLLD512
+	OpAMD64VPSLLDMasked512
+	OpAMD64VPSRAD512
+	OpAMD64VPSRADMasked512
 	OpAMD64VPSLLVD512
 	OpAMD64VPSHLDVD512
 	OpAMD64VPSHLDVDMasked512
 	OpAMD64VPSLLVDMasked512
-	OpAMD64VPSRLVD512
+	OpAMD64VPSRAVD512
 	OpAMD64VPSHRDVD512
 	OpAMD64VPSHRDVDMasked512
-	OpAMD64VPSRLVDMasked512
-	OpAMD64VPSRAVD512
 	OpAMD64VPSRAVDMasked512
 	OpAMD64VPSUBD512
 	OpAMD64VPSUBDMasked512
@@ -1557,17 +1559,16 @@ const (
 	OpAMD64VPDPBUSDS128
 	OpAMD64VPDPBUSDSMasked128
 	OpAMD64VPSLLD128
-	OpAMD64VPSRLD128
+	OpAMD64VPSLLDMasked128
 	OpAMD64VPSRAD128
+	OpAMD64VPSRADMasked128
 	OpAMD64VPSLLVD128
 	OpAMD64VPSHLDVD128
 	OpAMD64VPSHLDVDMasked128
 	OpAMD64VPSLLVDMasked128
-	OpAMD64VPSRLVD128
+	OpAMD64VPSRAVD128
 	OpAMD64VPSHRDVD128
 	OpAMD64VPSHRDVDMasked128
-	OpAMD64VPSRLVDMasked128
-	OpAMD64VPSRAVD128
 	OpAMD64VPSRAVDMasked128
 	OpAMD64VPSIGND128
 	OpAMD64VPSUBD128
@@ -1606,17 +1607,16 @@ const (
 	OpAMD64VPDPBUSDS256
 	OpAMD64VPDPBUSDSMasked256
 	OpAMD64VPSLLD256
-	OpAMD64VPSRLD256
+	OpAMD64VPSLLDMasked256
 	OpAMD64VPSRAD256
+	OpAMD64VPSRADMasked256
 	OpAMD64VPSLLVD256
 	OpAMD64VPSHLDVD256
 	OpAMD64VPSHLDVDMasked256
 	OpAMD64VPSLLVDMasked256
-	OpAMD64VPSRLVD256
+	OpAMD64VPSRAVD256
 	OpAMD64VPSHRDVD256
 	OpAMD64VPSHRDVDMasked256
-	OpAMD64VPSRLVDMasked256
-	OpAMD64VPSRAVD256
 	OpAMD64VPSRAVDMasked256
 	OpAMD64VPSIGND256
 	OpAMD64VPSUBD256
@@ -1648,19 +1648,15 @@ const (
 	OpAMD64VPRORVQMasked128
 	OpAMD64VPSLLQ128
 	OpAMD64VPSLLQMasked128
-	OpAMD64VPSRLQ128
-	OpAMD64VPSRLQMasked128
 	OpAMD64VPSRAQ128
 	OpAMD64VPSRAQMasked128
 	OpAMD64VPSLLVQ128
 	OpAMD64VPSHLDVQ128
 	OpAMD64VPSHLDVQMasked128
 	OpAMD64VPSLLVQMasked128
-	OpAMD64VPSRLVQ128
+	OpAMD64VPSRAVQ128
 	OpAMD64VPSHRDVQ128
 	OpAMD64VPSHRDVQMasked128
-	OpAMD64VPSRLVQMasked128
-	OpAMD64VPSRAVQ128
 	OpAMD64VPSRAVQMasked128
 	OpAMD64VPSUBQ128
 	OpAMD64VPSUBQMasked128
@@ -1689,19 +1685,15 @@ const (
 	OpAMD64VPRORVQMasked256
 	OpAMD64VPSLLQ256
 	OpAMD64VPSLLQMasked256
-	OpAMD64VPSRLQ256
-	OpAMD64VPSRLQMasked256
 	OpAMD64VPSRAQ256
 	OpAMD64VPSRAQMasked256
 	OpAMD64VPSLLVQ256
 	OpAMD64VPSHLDVQ256
 	OpAMD64VPSHLDVQMasked256
 	OpAMD64VPSLLVQMasked256
-	OpAMD64VPSRLVQ256
+	OpAMD64VPSRAVQ256
 	OpAMD64VPSHRDVQ256
 	OpAMD64VPSHRDVQMasked256
-	OpAMD64VPSRLVQMasked256
-	OpAMD64VPSRAVQ256
 	OpAMD64VPSRAVQMasked256
 	OpAMD64VPSUBQ256
 	OpAMD64VPSUBQMasked256
@@ -1732,19 +1724,15 @@ const (
 	OpAMD64VPRORVQMasked512
 	OpAMD64VPSLLQ512
 	OpAMD64VPSLLQMasked512
-	OpAMD64VPSRLQ512
-	OpAMD64VPSRLQMasked512
 	OpAMD64VPSRAQ512
 	OpAMD64VPSRAQMasked512
 	OpAMD64VPSLLVQ512
 	OpAMD64VPSHLDVQ512
 	OpAMD64VPSHLDVQMasked512
 	OpAMD64VPSLLVQMasked512
-	OpAMD64VPSRLVQ512
+	OpAMD64VPSRAVQ512
 	OpAMD64VPSHRDVQ512
 	OpAMD64VPSHRDVQMasked512
-	OpAMD64VPSRLVQMasked512
-	OpAMD64VPSRAVQ512
 	OpAMD64VPSRAVQMasked512
 	OpAMD64VPSUBQ512
 	OpAMD64VPSUBQMasked512
@@ -1820,6 +1808,10 @@ const (
 	OpAMD64VPMINUWMasked256
 	OpAMD64VPMULHUW256
 	OpAMD64VPMULHUWMasked256
+	OpAMD64VPSRLW256
+	OpAMD64VPSRLWMasked256
+	OpAMD64VPSRLVW256
+	OpAMD64VPSRLVWMasked256
 	OpAMD64VPAVGW512
 	OpAMD64VPAVGWMasked512
 	OpAMD64VPMAXUW512
@@ -1828,6 +1820,10 @@ const (
 	OpAMD64VPMINUWMasked512
 	OpAMD64VPMULHUW512
 	OpAMD64VPMULHUWMasked512
+	OpAMD64VPSRLW512
+	OpAMD64VPSRLWMasked512
+	OpAMD64VPSRLVW512
+	OpAMD64VPSRLVWMasked512
 	OpAMD64VPAVGW128
 	OpAMD64VPAVGWMasked128
 	OpAMD64VPMAXUW128
@@ -1836,36 +1832,64 @@ const (
 	OpAMD64VPMINUWMasked128
 	OpAMD64VPMULHUW128
 	OpAMD64VPMULHUWMasked128
+	OpAMD64VPSRLW128
+	OpAMD64VPSRLWMasked128
+	OpAMD64VPSRLVW128
+	OpAMD64VPSRLVWMasked128
 	OpAMD64VPMAXUD512
 	OpAMD64VPMAXUDMasked512
 	OpAMD64VPMINUD512
 	OpAMD64VPMINUDMasked512
+	OpAMD64VPSRLD512
+	OpAMD64VPSRLDMasked512
+	OpAMD64VPSRLVD512
+	OpAMD64VPSRLVDMasked512
 	OpAMD64VPMAXUD128
 	OpAMD64VPMAXUDMasked128
 	OpAMD64VPMINUD128
 	OpAMD64VPMINUDMasked128
 	OpAMD64VPMULUDQ128
+	OpAMD64VPSRLD128
+	OpAMD64VPSRLDMasked128
+	OpAMD64VPSRLVD128
+	OpAMD64VPSRLVDMasked128
 	OpAMD64VPMAXUD256
 	OpAMD64VPMAXUDMasked256
 	OpAMD64VPMINUD256
 	OpAMD64VPMINUDMasked256
 	OpAMD64VPMULUDQ256
+	OpAMD64VPSRLD256
+	OpAMD64VPSRLDMasked256
+	OpAMD64VPSRLVD256
+	OpAMD64VPSRLVDMasked256
 	OpAMD64VPMAXUQ128
 	OpAMD64VPMAXUQMasked128
 	OpAMD64VPMINUQ128
 	OpAMD64VPMINUQMasked128
 	OpAMD64VPMULUDQMasked128
+	OpAMD64VPSRLQ128
+	OpAMD64VPSRLQMasked128
+	OpAMD64VPSRLVQ128
+	OpAMD64VPSRLVQMasked128
 	OpAMD64VPMAXUQ256
 	OpAMD64VPMAXUQMasked256
 	OpAMD64VPMINUQ256
 	OpAMD64VPMINUQMasked256
 	OpAMD64VPMULUDQMasked256
+	OpAMD64VPSRLQ256
+	OpAMD64VPSRLQMasked256
+	OpAMD64VPSRLVQ256
+	OpAMD64VPSRLVQMasked256
 	OpAMD64VPMAXUQ512
 	OpAMD64VPMAXUQMasked512
 	OpAMD64VPMINUQ512
 	OpAMD64VPMINUQMasked512
 	OpAMD64VPMULUDQ512
 	OpAMD64VPMULUDQMasked512
+	OpAMD64VPSRLQ512
+	OpAMD64VPSRLQMasked512
+	OpAMD64VPSRLVQ512
+	OpAMD64VPSRLVQMasked512
 	OpAMD64VPAVGB128
 	OpAMD64VPAVGBMasked128
 	OpAMD64VGF2P8MULB128
@@ -4604,8 +4628,9 @@ const (
 	OpSaturatedSubInt16x16
 	OpSaturatedSubMaskedInt16x16
 	OpShiftAllLeftInt16x16
+	OpShiftAllLeftMaskedInt16x16
 	OpShiftAllRightInt16x16
-	OpShiftAllRightSignExtendedInt16x16
+	OpShiftAllRightMaskedInt16x16
 	OpShiftLeftInt16x16
 	OpShiftLeftAndFillUpperFromInt16x16
 	OpShiftLeftAndFillUpperFromMaskedInt16x16
@@ -4614,8 +4639,6 @@ const (
 	OpShiftRightAndFillUpperFromInt16x16
 	OpShiftRightAndFillUpperFromMaskedInt16x16
 	OpShiftRightMaskedInt16x16
-	OpShiftRightSignExtendedInt16x16
-	OpShiftRightSignExtendedMaskedInt16x16
 	OpSignInt16x16
 	OpSubInt16x16
 	OpSubMaskedInt16x16
@@ -4652,6 +4675,10 @@ const (
 	OpSaturatedAddMaskedInt16x32
 	OpSaturatedSubInt16x32
 	OpSaturatedSubMaskedInt16x32
+	OpShiftAllLeftInt16x32
+	OpShiftAllLeftMaskedInt16x32
+	OpShiftAllRightInt16x32
+	OpShiftAllRightMaskedInt16x32
 	OpShiftLeftInt16x32
 	OpShiftLeftAndFillUpperFromInt16x32
 	OpShiftLeftAndFillUpperFromMaskedInt16x32
@@ -4660,8 +4687,6 @@ const (
 	OpShiftRightAndFillUpperFromInt16x32
 	OpShiftRightAndFillUpperFromMaskedInt16x32
 	OpShiftRightMaskedInt16x32
-	OpShiftRightSignExtendedInt16x32
-	OpShiftRightSignExtendedMaskedInt16x32
 	OpSubInt16x32
 	OpSubMaskedInt16x32
 	OpAbsoluteInt16x8
@@ -4704,8 +4729,9 @@ const (
 	OpSaturatedSubInt16x8
 	OpSaturatedSubMaskedInt16x8
 	OpShiftAllLeftInt16x8
+	OpShiftAllLeftMaskedInt16x8
 	OpShiftAllRightInt16x8
-	OpShiftAllRightSignExtendedInt16x8
+	OpShiftAllRightMaskedInt16x8
 	OpShiftLeftInt16x8
 	OpShiftLeftAndFillUpperFromInt16x8
 	OpShiftLeftAndFillUpperFromMaskedInt16x8
@@ -4714,8 +4740,6 @@ const (
 	OpShiftRightAndFillUpperFromInt16x8
 	OpShiftRightAndFillUpperFromMaskedInt16x8
 	OpShiftRightMaskedInt16x8
-	OpShiftRightSignExtendedInt16x8
-	OpShiftRightSignExtendedMaskedInt16x8
 	OpSignInt16x8
 	OpSubInt16x8
 	OpSubMaskedInt16x8
@@ -4760,6 +4784,10 @@ const (
 	OpSaturatedPairDotProdAccumulateMaskedInt32x16
 	OpSaturatedUnsignedSignedQuadDotProdAccumulateInt32x16
 	OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedInt32x16
+	OpShiftAllLeftInt32x16
+	OpShiftAllLeftMaskedInt32x16
+	OpShiftAllRightInt32x16
+	OpShiftAllRightMaskedInt32x16
 	OpShiftLeftInt32x16
 	OpShiftLeftAndFillUpperFromInt32x16
 	OpShiftLeftAndFillUpperFromMaskedInt32x16
@@ -4768,8 +4796,6 @@ const (
 	OpShiftRightAndFillUpperFromInt32x16
 	OpShiftRightAndFillUpperFromMaskedInt32x16
 	OpShiftRightMaskedInt32x16
-	OpShiftRightSignExtendedInt32x16
-	OpShiftRightSignExtendedMaskedInt32x16
 	OpSubInt32x16
 	OpSubMaskedInt32x16
 	OpUnsignedSignedQuadDotProdAccumulateInt32x16
@@ -4820,8 +4846,9 @@ const (
 	OpSaturatedUnsignedSignedQuadDotProdAccumulateInt32x4
 	OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedInt32x4
 	OpShiftAllLeftInt32x4
+	OpShiftAllLeftMaskedInt32x4
 	OpShiftAllRightInt32x4
-	OpShiftAllRightSignExtendedInt32x4
+	OpShiftAllRightMaskedInt32x4
 	OpShiftLeftInt32x4
 	OpShiftLeftAndFillUpperFromInt32x4
 	OpShiftLeftAndFillUpperFromMaskedInt32x4
@@ -4830,8 +4857,6 @@ const (
 	OpShiftRightAndFillUpperFromInt32x4
 	OpShiftRightAndFillUpperFromMaskedInt32x4
 	OpShiftRightMaskedInt32x4
-	OpShiftRightSignExtendedInt32x4
-	OpShiftRightSignExtendedMaskedInt32x4
 	OpSignInt32x4
 	OpSubInt32x4
 	OpSubMaskedInt32x4
@@ -4883,8 +4908,9 @@ const (
 	OpSaturatedUnsignedSignedQuadDotProdAccumulateInt32x8
 	OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedInt32x8
 	OpShiftAllLeftInt32x8
+	OpShiftAllLeftMaskedInt32x8
 	OpShiftAllRightInt32x8
-	OpShiftAllRightSignExtendedInt32x8
+	OpShiftAllRightMaskedInt32x8
 	OpShiftLeftInt32x8
 	OpShiftLeftAndFillUpperFromInt32x8
 	OpShiftLeftAndFillUpperFromMaskedInt32x8
@@ -4893,8 +4919,6 @@ const (
 	OpShiftRightAndFillUpperFromInt32x8
 	OpShiftRightAndFillUpperFromMaskedInt32x8
 	OpShiftRightMaskedInt32x8
-	OpShiftRightSignExtendedInt32x8
-	OpShiftRightSignExtendedMaskedInt32x8
 	OpSignInt32x8
 	OpSubInt32x8
 	OpSubMaskedInt32x8
@@ -4942,8 +4966,6 @@ const (
 	OpShiftAllLeftMaskedInt64x2
 	OpShiftAllRightInt64x2
 	OpShiftAllRightMaskedInt64x2
-	OpShiftAllRightSignExtendedInt64x2
-	OpShiftAllRightSignExtendedMaskedInt64x2
 	OpShiftLeftInt64x2
 	OpShiftLeftAndFillUpperFromInt64x2
 	OpShiftLeftAndFillUpperFromMaskedInt64x2
@@ -4952,8 +4974,6 @@ const (
 	OpShiftRightAndFillUpperFromInt64x2
 	OpShiftRightAndFillUpperFromMaskedInt64x2
 	OpShiftRightMaskedInt64x2
-	OpShiftRightSignExtendedInt64x2
-	OpShiftRightSignExtendedMaskedInt64x2
 	OpSubInt64x2
 	OpSubMaskedInt64x2
 	OpXorInt64x2
@@ -4998,8 +5018,6 @@ const (
 	OpShiftAllLeftMaskedInt64x4
 	OpShiftAllRightInt64x4
 	OpShiftAllRightMaskedInt64x4
-	OpShiftAllRightSignExtendedInt64x4
-	OpShiftAllRightSignExtendedMaskedInt64x4
 	OpShiftLeftInt64x4
 	OpShiftLeftAndFillUpperFromInt64x4
 	OpShiftLeftAndFillUpperFromMaskedInt64x4
@@ -5008,8 +5026,6 @@ const (
 	OpShiftRightAndFillUpperFromInt64x4
 	OpShiftRightAndFillUpperFromMaskedInt64x4
 	OpShiftRightMaskedInt64x4
-	OpShiftRightSignExtendedInt64x4
-	OpShiftRightSignExtendedMaskedInt64x4
 	OpSubInt64x4
 	OpSubMaskedInt64x4
 	OpXorInt64x4
@@ -5054,8 +5070,6 @@ const (
 	OpShiftAllLeftMaskedInt64x8
 	OpShiftAllRightInt64x8
 	OpShiftAllRightMaskedInt64x8
-	OpShiftAllRightSignExtendedInt64x8
-	OpShiftAllRightSignExtendedMaskedInt64x8
 	OpShiftLeftInt64x8
 	OpShiftLeftAndFillUpperFromInt64x8
 	OpShiftLeftAndFillUpperFromMaskedInt64x8
@@ -5064,8 +5078,6 @@ const (
 	OpShiftRightAndFillUpperFromInt64x8
 	OpShiftRightAndFillUpperFromMaskedInt64x8
 	OpShiftRightMaskedInt64x8
-	OpShiftRightSignExtendedInt64x8
-	OpShiftRightSignExtendedMaskedInt64x8
 	OpSubInt64x8
 	OpSubMaskedInt64x8
 	OpXorInt64x8
@@ -5198,7 +5210,9 @@ const (
 	OpSaturatedSubUint16x16
 	OpSaturatedSubMaskedUint16x16
 	OpShiftAllLeftUint16x16
+	OpShiftAllLeftMaskedUint16x16
 	OpShiftAllRightUint16x16
+	OpShiftAllRightMaskedUint16x16
 	OpShiftLeftUint16x16
 	OpShiftLeftAndFillUpperFromUint16x16
 	OpShiftLeftAndFillUpperFromMaskedUint16x16
@@ -5207,8 +5221,6 @@ const (
 	OpShiftRightAndFillUpperFromUint16x16
 	OpShiftRightAndFillUpperFromMaskedUint16x16
 	OpShiftRightMaskedUint16x16
-	OpShiftRightSignExtendedUint16x16
-	OpShiftRightSignExtendedMaskedUint16x16
 	OpSubUint16x16
 	OpSubMaskedUint16x16
 	OpXorUint16x16
@@ -5240,6 +5252,10 @@ const (
 	OpSaturatedAddMaskedUint16x32
 	OpSaturatedSubUint16x32
 	OpSaturatedSubMaskedUint16x32
+	OpShiftAllLeftUint16x32
+	OpShiftAllLeftMaskedUint16x32
+	OpShiftAllRightUint16x32
+	OpShiftAllRightMaskedUint16x32
 	OpShiftLeftUint16x32
 	OpShiftLeftAndFillUpperFromUint16x32
 	OpShiftLeftAndFillUpperFromMaskedUint16x32
@@ -5248,8 +5264,6 @@ const (
 	OpShiftRightAndFillUpperFromUint16x32
 	OpShiftRightAndFillUpperFromMaskedUint16x32
 	OpShiftRightMaskedUint16x32
-	OpShiftRightSignExtendedUint16x32
-	OpShiftRightSignExtendedMaskedUint16x32
 	OpSubUint16x32
 	OpSubMaskedUint16x32
 	OpAddUint16x8
@@ -5286,7 +5300,9 @@ const (
 	OpSaturatedSubUint16x8
 	OpSaturatedSubMaskedUint16x8
 	OpShiftAllLeftUint16x8
+	OpShiftAllLeftMaskedUint16x8
 	OpShiftAllRightUint16x8
+	OpShiftAllRightMaskedUint16x8
 	OpShiftLeftUint16x8
 	OpShiftLeftAndFillUpperFromUint16x8
 	OpShiftLeftAndFillUpperFromMaskedUint16x8
@@ -5295,8 +5311,6 @@ const (
 	OpShiftRightAndFillUpperFromUint16x8
 	OpShiftRightAndFillUpperFromMaskedUint16x8
 	OpShiftRightMaskedUint16x8
-	OpShiftRightSignExtendedUint16x8
-	OpShiftRightSignExtendedMaskedUint16x8
 	OpSubUint16x8
 	OpSubMaskedUint16x8
 	OpXorUint16x8
@@ -5332,6 +5346,10 @@ const (
 	OpRotateRightMaskedUint32x16
 	OpSaturatedUnsignedSignedQuadDotProdAccumulateUint32x16
 	OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x16
+	OpShiftAllLeftUint32x16
+	OpShiftAllLeftMaskedUint32x16
+	OpShiftAllRightUint32x16
+	OpShiftAllRightMaskedUint32x16
 	OpShiftLeftUint32x16
 	OpShiftLeftAndFillUpperFromUint32x16
 	OpShiftLeftAndFillUpperFromMaskedUint32x16
@@ -5340,8 +5358,6 @@ const (
 	OpShiftRightAndFillUpperFromUint32x16
 	OpShiftRightAndFillUpperFromMaskedUint32x16
 	OpShiftRightMaskedUint32x16
-	OpShiftRightSignExtendedUint32x16
-	OpShiftRightSignExtendedMaskedUint32x16
 	OpSubUint32x16
 	OpSubMaskedUint32x16
 	OpUnsignedSignedQuadDotProdAccumulateUint32x16
@@ -5384,7 +5400,9 @@ const (
 	OpSaturatedUnsignedSignedQuadDotProdAccumulateUint32x4
 	OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x4
 	OpShiftAllLeftUint32x4
+	OpShiftAllLeftMaskedUint32x4
 	OpShiftAllRightUint32x4
+	OpShiftAllRightMaskedUint32x4
 	OpShiftLeftUint32x4
 	OpShiftLeftAndFillUpperFromUint32x4
 	OpShiftLeftAndFillUpperFromMaskedUint32x4
@@ -5393,8 +5411,6 @@ const (
 	OpShiftRightAndFillUpperFromUint32x4
 	OpShiftRightAndFillUpperFromMaskedUint32x4
 	OpShiftRightMaskedUint32x4
-	OpShiftRightSignExtendedUint32x4
-	OpShiftRightSignExtendedMaskedUint32x4
 	OpSubUint32x4
 	OpSubMaskedUint32x4
 	OpUnsignedSignedQuadDotProdAccumulateUint32x4
@@ -5437,7 +5453,9 @@ const (
 	OpSaturatedUnsignedSignedQuadDotProdAccumulateUint32x8
 	OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x8
 	OpShiftAllLeftUint32x8
+	OpShiftAllLeftMaskedUint32x8
 	OpShiftAllRightUint32x8
+	OpShiftAllRightMaskedUint32x8
 	OpShiftLeftUint32x8
 	OpShiftLeftAndFillUpperFromUint32x8
 	OpShiftLeftAndFillUpperFromMaskedUint32x8
@@ -5446,8 +5464,6 @@ const (
 	OpShiftRightAndFillUpperFromUint32x8
 	OpShiftRightAndFillUpperFromMaskedUint32x8
 	OpShiftRightMaskedUint32x8
-	OpShiftRightSignExtendedUint32x8
-	OpShiftRightSignExtendedMaskedUint32x8
 	OpSubUint32x8
 	OpSubMaskedUint32x8
 	OpUnsignedSignedQuadDotProdAccumulateUint32x8
@@ -5498,8 +5514,6 @@ const (
 	OpShiftRightAndFillUpperFromUint64x2
 	OpShiftRightAndFillUpperFromMaskedUint64x2
 	OpShiftRightMaskedUint64x2
-	OpShiftRightSignExtendedUint64x2
-	OpShiftRightSignExtendedMaskedUint64x2
 	OpSubUint64x2
 	OpSubMaskedUint64x2
 	OpXorUint64x2
@@ -5548,8 +5562,6 @@ const (
 	OpShiftRightAndFillUpperFromUint64x4
 	OpShiftRightAndFillUpperFromMaskedUint64x4
 	OpShiftRightMaskedUint64x4
-	OpShiftRightSignExtendedUint64x4
-	OpShiftRightSignExtendedMaskedUint64x4
 	OpSubUint64x4
 	OpSubMaskedUint64x4
 	OpXorUint64x4
@@ -5598,8 +5610,6 @@ const (
 	OpShiftRightAndFillUpperFromUint64x8
 	OpShiftRightAndFillUpperFromMaskedUint64x8
 	OpShiftRightMaskedUint64x8
-	OpShiftRightSignExtendedUint64x8
-	OpShiftRightSignExtendedMaskedUint64x8
 	OpSubUint64x8
 	OpSubMaskedUint64x8
 	OpXorUint64x8
@@ -21491,16 +21501,17 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPSRLW256",
-		argLen: 2,
-		asm:    x86.AVPSRLW,
+		name:   "VPSLLWMasked256",
+		argLen: 3,
+		asm:    x86.AVPSLLW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -21515,6 +21526,21 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSRAWMasked256",
+		argLen: 3,
+		asm:    x86.AVPSRAW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -21581,9 +21607,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPSRLVW256",
+		name:   "VPSRAVW256",
 		argLen: 2,
-		asm:    x86.AVPSRLVW,
+		asm:    x86.AVPSRAVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
@@ -21624,35 +21650,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRLVWMasked256",
-		argLen: 3,
-		asm:    x86.AVPSRLVW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRAVW256",
-		argLen: 2,
-		asm:    x86.AVPSRAVW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -22013,6 +22010,64 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPSLLW512",
+		argLen: 2,
+		asm:    x86.AVPSLLW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 2147418112},      // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSLLWMasked512",
+		argLen: 3,
+		asm:    x86.AVPSLLW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRAW512",
+		argLen: 2,
+		asm:    x86.AVPSRAW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 2147418112},      // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRAWMasked512",
+		argLen: 3,
+		asm:    x86.AVPSRAW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
 		name:   "VPSLLVW512",
 		argLen: 2,
 		asm:    x86.AVPSLLVW,
@@ -22075,9 +22130,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPSRLVW512",
+		name:   "VPSRAVW512",
 		argLen: 2,
-		asm:    x86.AVPSRLVW,
+		asm:    x86.AVPSRAVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
@@ -22118,35 +22173,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRLVWMasked512",
-		argLen: 3,
-		asm:    x86.AVPSRLVW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRAVW512",
-		argLen: 2,
-		asm:    x86.AVPSRAVW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -22592,16 +22618,17 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPSRLW128",
-		argLen: 2,
-		asm:    x86.AVPSRLW,
+		name:   "VPSLLWMasked128",
+		argLen: 3,
+		asm:    x86.AVPSLLW,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -22616,6 +22643,21 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSRAWMasked128",
+		argLen: 3,
+		asm:    x86.AVPSRAW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -22682,9 +22724,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPSRLVW128",
+		name:   "VPSRAVW128",
 		argLen: 2,
-		asm:    x86.AVPSRLVW,
+		asm:    x86.AVPSRAVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
@@ -22725,35 +22767,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRLVWMasked128",
-		argLen: 3,
-		asm:    x86.AVPSRLVW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRAVW128",
-		argLen: 2,
-		asm:    x86.AVPSRAVW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -23242,6 +23255,64 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPSLLD512",
+		argLen: 2,
+		asm:    x86.AVPSLLD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 2147418112},      // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSLLDMasked512",
+		argLen: 3,
+		asm:    x86.AVPSLLD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRAD512",
+		argLen: 2,
+		asm:    x86.AVPSRAD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 2147418112},      // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRADMasked512",
+		argLen: 3,
+		asm:    x86.AVPSRAD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
 		name:   "VPSLLVD512",
 		argLen: 2,
 		asm:    x86.AVPSLLVD,
@@ -23304,9 +23375,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPSRLVD512",
+		name:   "VPSRAVD512",
 		argLen: 2,
-		asm:    x86.AVPSRLVD,
+		asm:    x86.AVPSRAVD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
@@ -23347,35 +23418,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRLVDMasked512",
-		argLen: 3,
-		asm:    x86.AVPSRLVD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRAVD512",
-		argLen: 2,
-		asm:    x86.AVPSRAVD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -23956,16 +23998,17 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPSRLD128",
-		argLen: 2,
-		asm:    x86.AVPSRLD,
+		name:   "VPSLLDMasked128",
+		argLen: 3,
+		asm:    x86.AVPSLLD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -23980,6 +24023,21 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSRADMasked128",
+		argLen: 3,
+		asm:    x86.AVPSRAD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -24046,9 +24104,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPSRLVD128",
+		name:   "VPSRAVD128",
 		argLen: 2,
-		asm:    x86.AVPSRLVD,
+		asm:    x86.AVPSRAVD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -24086,35 +24144,6 @@ var opcodeTable = [...]opInfo{
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{2, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRLVDMasked128",
-		argLen: 3,
-		asm:    x86.AVPSRLVD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRAVD128",
-		argLen: 2,
-		asm:    x86.AVPSRAVD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -24697,16 +24726,17 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPSRLD256",
-		argLen: 2,
-		asm:    x86.AVPSRLD,
+		name:   "VPSLLDMasked256",
+		argLen: 3,
+		asm:    x86.AVPSLLD,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -24721,6 +24751,21 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSRADMasked256",
+		argLen: 3,
+		asm:    x86.AVPSRAD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -24787,9 +24832,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPSRLVD256",
+		name:   "VPSRAVD256",
 		argLen: 2,
-		asm:    x86.AVPSRLVD,
+		asm:    x86.AVPSRAVD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -24827,35 +24872,6 @@ var opcodeTable = [...]opInfo{
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{2, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRLVDMasked256",
-		argLen: 3,
-		asm:    x86.AVPSRLVD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRAVD256",
-		argLen: 2,
-		asm:    x86.AVPSRAVD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -25327,35 +25343,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPSRLQ128",
-		argLen: 2,
-		asm:    x86.AVPSRLQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRLQMasked128",
-		argLen: 3,
-		asm:    x86.AVPSRLQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
 		name:   "VPSRAQ128",
 		argLen: 2,
 		asm:    x86.AVPSRAQ,
@@ -25447,16 +25434,16 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPSRLVQ128",
+		name:   "VPSRAVQ128",
 		argLen: 2,
-		asm:    x86.AVPSRLVQ,
+		asm:    x86.AVPSRAVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -25490,35 +25477,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRLVQMasked128",
-		argLen: 3,
-		asm:    x86.AVPSRLVQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRAVQ128",
-		argLen: 2,
-		asm:    x86.AVPSRAVQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -25940,35 +25898,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPSRLQ256",
-		argLen: 2,
-		asm:    x86.AVPSRLQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRLQMasked256",
-		argLen: 3,
-		asm:    x86.AVPSRLQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
 		name:   "VPSRAQ256",
 		argLen: 2,
 		asm:    x86.AVPSRAQ,
@@ -26060,16 +25989,16 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPSRLVQ256",
+		name:   "VPSRAVQ256",
 		argLen: 2,
-		asm:    x86.AVPSRLVQ,
+		asm:    x86.AVPSRAVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -26103,35 +26032,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRLVQMasked256",
-		argLen: 3,
-		asm:    x86.AVPSRLVQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRAVQ256",
-		argLen: 2,
-		asm:    x86.AVPSRAVQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -26583,35 +26483,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPSRLQ512",
-		argLen: 2,
-		asm:    x86.AVPSRLQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 2147418112},      // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:   "VPSRLQMasked512",
-		argLen: 3,
-		asm:    x86.AVPSRLQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
 		name:   "VPSRAQ512",
 		argLen: 2,
 		asm:    x86.AVPSRAQ,
@@ -26703,9 +26574,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPSRLVQ512",
+		name:   "VPSRAVQ512",
 		argLen: 2,
-		asm:    x86.AVPSRLVQ,
+		asm:    x86.AVPSRAVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
@@ -26746,35 +26617,6 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRLVQMasked512",
-		argLen: 3,
-		asm:    x86.AVPSRLVQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "VPSRAVQ512",
-		argLen: 2,
-		asm:    x86.AVPSRAVQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
 			},
 		},
 	},
@@ -27890,6 +27732,64 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPSRLW256",
+		argLen: 2,
+		asm:    x86.AVPSRLW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSRLWMasked256",
+		argLen: 3,
+		asm:    x86.AVPSRLW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRLVW256",
+		argLen: 2,
+		asm:    x86.AVPSRLVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRLVWMasked256",
+		argLen: 3,
+		asm:    x86.AVPSRLVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPAVGW512",
 		argLen:      2,
 		commutative: true,
@@ -28002,6 +27902,64 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPMULHUW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSRLW512",
+		argLen: 2,
+		asm:    x86.AVPSRLW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 2147418112},      // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRLWMasked512",
+		argLen: 3,
+		asm:    x86.AVPSRLW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRLVW512",
+		argLen: 2,
+		asm:    x86.AVPSRLVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRLVWMasked512",
+		argLen: 3,
+		asm:    x86.AVPSRLVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -28138,6 +28096,64 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPSRLW128",
+		argLen: 2,
+		asm:    x86.AVPSRLW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSRLWMasked128",
+		argLen: 3,
+		asm:    x86.AVPSRLW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRLVW128",
+		argLen: 2,
+		asm:    x86.AVPSRLVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRLVWMasked128",
+		argLen: 3,
+		asm:    x86.AVPSRLVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPMAXUD512",
 		argLen:      2,
 		commutative: true,
@@ -28188,6 +28204,64 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPMINUD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSRLD512",
+		argLen: 2,
+		asm:    x86.AVPSRLD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 2147418112},      // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRLDMasked512",
+		argLen: 3,
+		asm:    x86.AVPSRLD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRLVD512",
+		argLen: 2,
+		asm:    x86.AVPSRLVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRLVDMasked512",
+		argLen: 3,
+		asm:    x86.AVPSRLVD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -28277,6 +28351,64 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPSRLD128",
+		argLen: 2,
+		asm:    x86.AVPSRLD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSRLDMasked128",
+		argLen: 3,
+		asm:    x86.AVPSRLD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRLVD128",
+		argLen: 2,
+		asm:    x86.AVPSRLVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSRLVDMasked128",
+		argLen: 3,
+		asm:    x86.AVPSRLVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPMAXUD256",
 		argLen:      2,
 		commutative: true,
@@ -28347,6 +28479,64 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSRLD256",
+		argLen: 2,
+		asm:    x86.AVPSRLD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSRLDMasked256",
+		argLen: 3,
+		asm:    x86.AVPSRLD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRLVD256",
+		argLen: 2,
+		asm:    x86.AVPSRLVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSRLVDMasked256",
+		argLen: 3,
+		asm:    x86.AVPSRLVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -28432,6 +28622,64 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPSRLQ128",
+		argLen: 2,
+		asm:    x86.AVPSRLQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSRLQMasked128",
+		argLen: 3,
+		asm:    x86.AVPSRLQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRLVQ128",
+		argLen: 2,
+		asm:    x86.AVPSRLVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSRLVQMasked128",
+		argLen: 3,
+		asm:    x86.AVPSRLVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPMAXUQ256",
 		argLen:      2,
 		commutative: true,
@@ -28498,6 +28746,64 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPMULUDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSRLQ256",
+		argLen: 2,
+		asm:    x86.AVPSRLQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSRLQMasked256",
+		argLen: 3,
+		asm:    x86.AVPSRLQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRLVQ256",
+		argLen: 2,
+		asm:    x86.AVPSRLVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSRLVQMasked256",
+		argLen: 3,
+		asm:    x86.AVPSRLVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -28591,6 +28897,64 @@ var opcodeTable = [...]opInfo{
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPMULUDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSRLQ512",
+		argLen: 2,
+		asm:    x86.AVPSRLQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 2147418112},      // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRLQMasked512",
+		argLen: 3,
+		asm:    x86.AVPSRLQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 281472829161472},   // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRLVQ512",
+		argLen: 2,
+		asm:    x86.AVPSRLVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSRLVQMasked512",
+		argLen: 3,
+		asm:    x86.AVPSRLVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -60516,13 +60880,18 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ShiftAllLeftMaskedInt16x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "ShiftAllRightInt16x16",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightSignExtendedInt16x16",
-		argLen:  2,
+		name:    "ShiftAllRightMaskedInt16x16",
+		argLen:  3,
 		generic: true,
 	},
 	{
@@ -60562,16 +60931,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ShiftRightMaskedInt16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedInt16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedMaskedInt16x16",
 		argLen:  3,
 		generic: true,
 	},
@@ -60773,6 +61132,26 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ShiftAllLeftInt16x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ShiftAllLeftMaskedInt16x32",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "ShiftAllRightInt16x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ShiftAllRightMaskedInt16x32",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "ShiftLeftInt16x32",
 		argLen:  2,
 		generic: true,
@@ -60809,16 +61188,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ShiftRightMaskedInt16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedInt16x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedMaskedInt16x32",
 		argLen:  3,
 		generic: true,
 	},
@@ -61051,13 +61420,18 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ShiftAllLeftMaskedInt16x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "ShiftAllRightInt16x8",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightSignExtendedInt16x8",
-		argLen:  2,
+		name:    "ShiftAllRightMaskedInt16x8",
+		argLen:  3,
 		generic: true,
 	},
 	{
@@ -61097,16 +61471,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ShiftRightMaskedInt16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedMaskedInt16x8",
 		argLen:  3,
 		generic: true,
 	},
@@ -61348,6 +61712,26 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ShiftAllLeftInt32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ShiftAllLeftMaskedInt32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "ShiftAllRightInt32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ShiftAllRightMaskedInt32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "ShiftLeftInt32x16",
 		argLen:  2,
 		generic: true,
@@ -61384,16 +61768,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ShiftRightMaskedInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedInt32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedMaskedInt32x16",
 		argLen:  3,
 		generic: true,
 	},
@@ -61667,13 +62041,18 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ShiftAllLeftMaskedInt32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "ShiftAllRightInt32x4",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightSignExtendedInt32x4",
-		argLen:  2,
+		name:    "ShiftAllRightMaskedInt32x4",
+		argLen:  3,
 		generic: true,
 	},
 	{
@@ -61713,16 +62092,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ShiftRightMaskedInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedInt32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedMaskedInt32x4",
 		argLen:  3,
 		generic: true,
 	},
@@ -62001,13 +62370,18 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ShiftAllLeftMaskedInt32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "ShiftAllRightInt32x8",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightSignExtendedInt32x8",
-		argLen:  2,
+		name:    "ShiftAllRightMaskedInt32x8",
+		argLen:  3,
 		generic: true,
 	},
 	{
@@ -62047,16 +62421,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ShiftRightMaskedInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedInt32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedMaskedInt32x8",
 		argLen:  3,
 		generic: true,
 	},
@@ -62316,16 +62680,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightSignExtendedInt64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightSignExtendedMaskedInt64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
 		name:    "ShiftLeftInt64x2",
 		argLen:  2,
 		generic: true,
@@ -62362,16 +62716,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ShiftRightMaskedInt64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedInt64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedMaskedInt64x2",
 		argLen:  3,
 		generic: true,
 	},
@@ -62616,16 +62960,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightSignExtendedInt64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightSignExtendedMaskedInt64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
 		name:    "ShiftLeftInt64x4",
 		argLen:  2,
 		generic: true,
@@ -62662,16 +62996,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ShiftRightMaskedInt64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedInt64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedMaskedInt64x4",
 		argLen:  3,
 		generic: true,
 	},
@@ -62916,16 +63240,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightSignExtendedInt64x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftAllRightSignExtendedMaskedInt64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
 		name:    "ShiftLeftInt64x8",
 		argLen:  2,
 		generic: true,
@@ -62962,16 +63276,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ShiftRightMaskedInt64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedInt64x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedMaskedInt64x8",
 		argLen:  3,
 		generic: true,
 	},
@@ -63698,8 +64002,18 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ShiftAllLeftMaskedUint16x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "ShiftAllRightUint16x16",
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ShiftAllRightMaskedUint16x16",
+		argLen:  3,
 		generic: true,
 	},
 	{
@@ -63739,16 +64053,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ShiftRightMaskedUint16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedUint16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedMaskedUint16x16",
 		argLen:  3,
 		generic: true,
 	},
@@ -63925,6 +64229,26 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ShiftAllLeftUint16x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ShiftAllLeftMaskedUint16x32",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "ShiftAllRightUint16x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ShiftAllRightMaskedUint16x32",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "ShiftLeftUint16x32",
 		argLen:  2,
 		generic: true,
@@ -63961,16 +64285,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ShiftRightMaskedUint16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedUint16x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedMaskedUint16x32",
 		argLen:  3,
 		generic: true,
 	},
@@ -64173,8 +64487,18 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ShiftAllLeftMaskedUint16x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "ShiftAllRightUint16x8",
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ShiftAllRightMaskedUint16x8",
+		argLen:  3,
 		generic: true,
 	},
 	{
@@ -64214,16 +64538,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ShiftRightMaskedUint16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedUint16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedMaskedUint16x8",
 		argLen:  3,
 		generic: true,
 	},
@@ -64418,6 +64732,26 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ShiftAllLeftUint32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ShiftAllLeftMaskedUint32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "ShiftAllRightUint32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ShiftAllRightMaskedUint32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "ShiftLeftUint32x16",
 		argLen:  2,
 		generic: true,
@@ -64454,16 +64788,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ShiftRightMaskedUint32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedUint32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedMaskedUint32x16",
 		argLen:  3,
 		generic: true,
 	},
@@ -64695,8 +65019,18 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ShiftAllLeftMaskedUint32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "ShiftAllRightUint32x4",
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ShiftAllRightMaskedUint32x4",
+		argLen:  3,
 		generic: true,
 	},
 	{
@@ -64736,16 +65070,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ShiftRightMaskedUint32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedUint32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedMaskedUint32x4",
 		argLen:  3,
 		generic: true,
 	},
@@ -64977,8 +65301,18 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ShiftAllLeftMaskedUint32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "ShiftAllRightUint32x8",
 		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ShiftAllRightMaskedUint32x8",
+		argLen:  3,
 		generic: true,
 	},
 	{
@@ -65018,16 +65352,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ShiftRightMaskedUint32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedUint32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedMaskedUint32x8",
 		argLen:  3,
 		generic: true,
 	},
@@ -65300,16 +65624,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ShiftRightSignExtendedUint64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedMaskedUint64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
 		name:    "SubUint64x2",
 		argLen:  2,
 		generic: true,
@@ -65568,16 +65882,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ShiftRightSignExtendedUint64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedMaskedUint64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
 		name:    "SubUint64x4",
 		argLen:  2,
 		generic: true,
@@ -65832,16 +66136,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ShiftRightMaskedUint64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedUint64x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ShiftRightSignExtendedMaskedUint64x8",
 		argLen:  3,
 		generic: true,
 	},

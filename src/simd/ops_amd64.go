@@ -6885,6 +6885,11 @@ func (x Int16x16) ShiftAllLeft(y uint64) Int16x16
 
 // ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
 //
+// Asm: VPSLLW, CPU Feature: AVX512EVEX
+func (x Int16x32) ShiftAllLeft(y uint64) Int16x32
+
+// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+//
 // Asm: VPSLLD, CPU Feature: AVX
 func (x Int32x4) ShiftAllLeft(y uint64) Int32x4
 
@@ -6892,6 +6897,11 @@ func (x Int32x4) ShiftAllLeft(y uint64) Int32x4
 //
 // Asm: VPSLLD, CPU Feature: AVX2
 func (x Int32x8) ShiftAllLeft(y uint64) Int32x8
+
+// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+//
+// Asm: VPSLLD, CPU Feature: AVX512EVEX
+func (x Int32x16) ShiftAllLeft(y uint64) Int32x16
 
 // ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
 //
@@ -6920,6 +6930,11 @@ func (x Uint16x16) ShiftAllLeft(y uint64) Uint16x16
 
 // ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
 //
+// Asm: VPSLLW, CPU Feature: AVX512EVEX
+func (x Uint16x32) ShiftAllLeft(y uint64) Uint16x32
+
+// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+//
 // Asm: VPSLLD, CPU Feature: AVX
 func (x Uint32x4) ShiftAllLeft(y uint64) Uint32x4
 
@@ -6927,6 +6942,11 @@ func (x Uint32x4) ShiftAllLeft(y uint64) Uint32x4
 //
 // Asm: VPSLLD, CPU Feature: AVX2
 func (x Uint32x8) ShiftAllLeft(y uint64) Uint32x8
+
+// ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+//
+// Asm: VPSLLD, CPU Feature: AVX512EVEX
+func (x Uint32x16) ShiftAllLeft(y uint64) Uint32x16
 
 // ShiftAllLeft shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
 //
@@ -7239,6 +7259,36 @@ func (x Uint64x8) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint64x8, z 
 
 // ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
 //
+// Asm: VPSLLW, CPU Feature: AVX512EVEX
+func (x Int16x8) ShiftAllLeftMasked(y uint64, z Mask16x8) Int16x8
+
+// ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+//
+// Asm: VPSLLW, CPU Feature: AVX512EVEX
+func (x Int16x16) ShiftAllLeftMasked(y uint64, z Mask16x16) Int16x16
+
+// ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+//
+// Asm: VPSLLW, CPU Feature: AVX512EVEX
+func (x Int16x32) ShiftAllLeftMasked(y uint64, z Mask16x32) Int16x32
+
+// ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+//
+// Asm: VPSLLD, CPU Feature: AVX512EVEX
+func (x Int32x4) ShiftAllLeftMasked(y uint64, z Mask32x4) Int32x4
+
+// ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+//
+// Asm: VPSLLD, CPU Feature: AVX512EVEX
+func (x Int32x8) ShiftAllLeftMasked(y uint64, z Mask32x8) Int32x8
+
+// ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+//
+// Asm: VPSLLD, CPU Feature: AVX512EVEX
+func (x Int32x16) ShiftAllLeftMasked(y uint64, z Mask32x16) Int32x16
+
+// ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+//
 // Asm: VPSLLQ, CPU Feature: AVX512EVEX
 func (x Int64x2) ShiftAllLeftMasked(y uint64, z Mask64x2) Int64x2
 
@@ -7251,6 +7301,36 @@ func (x Int64x4) ShiftAllLeftMasked(y uint64, z Mask64x4) Int64x4
 //
 // Asm: VPSLLQ, CPU Feature: AVX512EVEX
 func (x Int64x8) ShiftAllLeftMasked(y uint64, z Mask64x8) Int64x8
+
+// ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+//
+// Asm: VPSLLW, CPU Feature: AVX512EVEX
+func (x Uint16x8) ShiftAllLeftMasked(y uint64, z Mask16x8) Uint16x8
+
+// ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+//
+// Asm: VPSLLW, CPU Feature: AVX512EVEX
+func (x Uint16x16) ShiftAllLeftMasked(y uint64, z Mask16x16) Uint16x16
+
+// ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+//
+// Asm: VPSLLW, CPU Feature: AVX512EVEX
+func (x Uint16x32) ShiftAllLeftMasked(y uint64, z Mask16x32) Uint16x32
+
+// ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+//
+// Asm: VPSLLD, CPU Feature: AVX512EVEX
+func (x Uint32x4) ShiftAllLeftMasked(y uint64, z Mask32x4) Uint32x4
+
+// ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+//
+// Asm: VPSLLD, CPU Feature: AVX512EVEX
+func (x Uint32x8) ShiftAllLeftMasked(y uint64, z Mask32x8) Uint32x8
+
+// ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
+//
+// Asm: VPSLLD, CPU Feature: AVX512EVEX
+func (x Uint32x16) ShiftAllLeftMasked(y uint64, z Mask32x16) Uint32x16
 
 // ShiftAllLeftMasked shifts each element to the left by the specified number of bits. Emptied lower bits are zeroed.
 //
@@ -7269,39 +7349,49 @@ func (x Uint64x8) ShiftAllLeftMasked(y uint64, z Mask64x8) Uint64x8
 
 /* ShiftAllRight */
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLW, CPU Feature: AVX
+// Asm: VPSRAW, CPU Feature: AVX
 func (x Int16x8) ShiftAllRight(y uint64) Int16x8
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLW, CPU Feature: AVX2
+// Asm: VPSRAW, CPU Feature: AVX2
 func (x Int16x16) ShiftAllRight(y uint64) Int16x16
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLD, CPU Feature: AVX
+// Asm: VPSRAW, CPU Feature: AVX512EVEX
+func (x Int16x32) ShiftAllRight(y uint64) Int16x32
+
+// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+//
+// Asm: VPSRAD, CPU Feature: AVX
 func (x Int32x4) ShiftAllRight(y uint64) Int32x4
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLD, CPU Feature: AVX2
+// Asm: VPSRAD, CPU Feature: AVX2
 func (x Int32x8) ShiftAllRight(y uint64) Int32x8
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLQ, CPU Feature: AVX
+// Asm: VPSRAD, CPU Feature: AVX512EVEX
+func (x Int32x16) ShiftAllRight(y uint64) Int32x16
+
+// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+//
+// Asm: VPSRAQ, CPU Feature: AVX512EVEX
 func (x Int64x2) ShiftAllRight(y uint64) Int64x2
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLQ, CPU Feature: AVX2
+// Asm: VPSRAQ, CPU Feature: AVX512EVEX
 func (x Int64x4) ShiftAllRight(y uint64) Int64x4
 
-// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLQ, CPU Feature: AVX512EVEX
+// Asm: VPSRAQ, CPU Feature: AVX512EVEX
 func (x Int64x8) ShiftAllRight(y uint64) Int64x8
 
 // ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
@@ -7316,6 +7406,11 @@ func (x Uint16x16) ShiftAllRight(y uint64) Uint16x16
 
 // ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
 //
+// Asm: VPSRLW, CPU Feature: AVX512EVEX
+func (x Uint16x32) ShiftAllRight(y uint64) Uint16x32
+
+// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+//
 // Asm: VPSRLD, CPU Feature: AVX
 func (x Uint32x4) ShiftAllRight(y uint64) Uint32x4
 
@@ -7323,6 +7418,11 @@ func (x Uint32x4) ShiftAllRight(y uint64) Uint32x4
 //
 // Asm: VPSRLD, CPU Feature: AVX2
 func (x Uint32x8) ShiftAllRight(y uint64) Uint32x8
+
+// ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+//
+// Asm: VPSRLD, CPU Feature: AVX512EVEX
+func (x Uint32x16) ShiftAllRight(y uint64) Uint32x16
 
 // ShiftAllRight shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
 //
@@ -7633,20 +7733,80 @@ func (x Uint64x8) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint64x8, z
 
 /* ShiftAllRightMasked */
 
-// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLQ, CPU Feature: AVX512EVEX
+// Asm: VPSRAW, CPU Feature: AVX512EVEX
+func (x Int16x8) ShiftAllRightMasked(y uint64, z Mask16x8) Int16x8
+
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+//
+// Asm: VPSRAW, CPU Feature: AVX512EVEX
+func (x Int16x16) ShiftAllRightMasked(y uint64, z Mask16x16) Int16x16
+
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+//
+// Asm: VPSRAW, CPU Feature: AVX512EVEX
+func (x Int16x32) ShiftAllRightMasked(y uint64, z Mask16x32) Int16x32
+
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+//
+// Asm: VPSRAD, CPU Feature: AVX512EVEX
+func (x Int32x4) ShiftAllRightMasked(y uint64, z Mask32x4) Int32x4
+
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+//
+// Asm: VPSRAD, CPU Feature: AVX512EVEX
+func (x Int32x8) ShiftAllRightMasked(y uint64, z Mask32x8) Int32x8
+
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+//
+// Asm: VPSRAD, CPU Feature: AVX512EVEX
+func (x Int32x16) ShiftAllRightMasked(y uint64, z Mask32x16) Int32x16
+
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+//
+// Asm: VPSRAQ, CPU Feature: AVX512EVEX
 func (x Int64x2) ShiftAllRightMasked(y uint64, z Mask64x2) Int64x2
 
-// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLQ, CPU Feature: AVX512EVEX
+// Asm: VPSRAQ, CPU Feature: AVX512EVEX
 func (x Int64x4) ShiftAllRightMasked(y uint64, z Mask64x4) Int64x4
+
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
+//
+// Asm: VPSRAQ, CPU Feature: AVX512EVEX
+func (x Int64x8) ShiftAllRightMasked(y uint64, z Mask64x8) Int64x8
 
 // ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
 //
-// Asm: VPSRLQ, CPU Feature: AVX512EVEX
-func (x Int64x8) ShiftAllRightMasked(y uint64, z Mask64x8) Int64x8
+// Asm: VPSRLW, CPU Feature: AVX512EVEX
+func (x Uint16x8) ShiftAllRightMasked(y uint64, z Mask16x8) Uint16x8
+
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+//
+// Asm: VPSRLW, CPU Feature: AVX512EVEX
+func (x Uint16x16) ShiftAllRightMasked(y uint64, z Mask16x16) Uint16x16
+
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+//
+// Asm: VPSRLW, CPU Feature: AVX512EVEX
+func (x Uint16x32) ShiftAllRightMasked(y uint64, z Mask16x32) Uint16x32
+
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+//
+// Asm: VPSRLD, CPU Feature: AVX512EVEX
+func (x Uint32x4) ShiftAllRightMasked(y uint64, z Mask32x4) Uint32x4
+
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+//
+// Asm: VPSRLD, CPU Feature: AVX512EVEX
+func (x Uint32x8) ShiftAllRightMasked(y uint64, z Mask32x8) Uint32x8
+
+// ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
+//
+// Asm: VPSRLD, CPU Feature: AVX512EVEX
+func (x Uint32x16) ShiftAllRightMasked(y uint64, z Mask32x16) Uint32x16
 
 // ShiftAllRightMasked shifts each element to the right by the specified number of bits. Emptied upper bits are zeroed.
 //
@@ -7662,60 +7822,6 @@ func (x Uint64x4) ShiftAllRightMasked(y uint64, z Mask64x4) Uint64x4
 //
 // Asm: VPSRLQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) ShiftAllRightMasked(y uint64, z Mask64x8) Uint64x8
-
-/* ShiftAllRightSignExtended */
-
-// ShiftAllRightSignExtended shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAW, CPU Feature: AVX
-func (x Int16x8) ShiftAllRightSignExtended(y uint64) Int16x8
-
-// ShiftAllRightSignExtended shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAW, CPU Feature: AVX2
-func (x Int16x16) ShiftAllRightSignExtended(y uint64) Int16x16
-
-// ShiftAllRightSignExtended shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAD, CPU Feature: AVX
-func (x Int32x4) ShiftAllRightSignExtended(y uint64) Int32x4
-
-// ShiftAllRightSignExtended shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAD, CPU Feature: AVX2
-func (x Int32x8) ShiftAllRightSignExtended(y uint64) Int32x8
-
-// ShiftAllRightSignExtended shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAQ, CPU Feature: AVX512EVEX
-func (x Int64x2) ShiftAllRightSignExtended(y uint64) Int64x2
-
-// ShiftAllRightSignExtended shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAQ, CPU Feature: AVX512EVEX
-func (x Int64x4) ShiftAllRightSignExtended(y uint64) Int64x4
-
-// ShiftAllRightSignExtended shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAQ, CPU Feature: AVX512EVEX
-func (x Int64x8) ShiftAllRightSignExtended(y uint64) Int64x8
-
-/* ShiftAllRightSignExtendedMasked */
-
-// ShiftAllRightSignExtendedMasked shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAQ, CPU Feature: AVX512EVEX
-func (x Int64x2) ShiftAllRightSignExtendedMasked(y uint64, z Mask64x2) Int64x2
-
-// ShiftAllRightSignExtendedMasked shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAQ, CPU Feature: AVX512EVEX
-func (x Int64x4) ShiftAllRightSignExtendedMasked(y uint64, z Mask64x4) Int64x4
-
-// ShiftAllRightSignExtendedMasked shifts each element to the right by the specified number of bits. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAQ, CPU Feature: AVX512EVEX
-func (x Int64x8) ShiftAllRightSignExtendedMasked(y uint64, z Mask64x8) Int64x8
 
 /* ShiftLeft */
 
@@ -8123,49 +8229,49 @@ func (x Uint64x8) ShiftLeftMasked(y Uint64x8, z Mask64x8) Uint64x8
 
 /* ShiftRight */
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLVW, CPU Feature: AVX512EVEX
+// Asm: VPSRAVW, CPU Feature: AVX512EVEX
 func (x Int16x8) ShiftRight(y Int16x8) Int16x8
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLVW, CPU Feature: AVX512EVEX
+// Asm: VPSRAVW, CPU Feature: AVX512EVEX
 func (x Int16x16) ShiftRight(y Int16x16) Int16x16
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLVW, CPU Feature: AVX512EVEX
+// Asm: VPSRAVW, CPU Feature: AVX512EVEX
 func (x Int16x32) ShiftRight(y Int16x32) Int16x32
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLVD, CPU Feature: AVX2
+// Asm: VPSRAVD, CPU Feature: AVX2
 func (x Int32x4) ShiftRight(y Int32x4) Int32x4
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLVD, CPU Feature: AVX2
+// Asm: VPSRAVD, CPU Feature: AVX2
 func (x Int32x8) ShiftRight(y Int32x8) Int32x8
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLVD, CPU Feature: AVX512EVEX
+// Asm: VPSRAVD, CPU Feature: AVX512EVEX
 func (x Int32x16) ShiftRight(y Int32x16) Int32x16
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLVQ, CPU Feature: AVX2
+// Asm: VPSRAVQ, CPU Feature: AVX512EVEX
 func (x Int64x2) ShiftRight(y Int64x2) Int64x2
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLVQ, CPU Feature: AVX2
+// Asm: VPSRAVQ, CPU Feature: AVX512EVEX
 func (x Int64x4) ShiftRight(y Int64x4) Int64x4
 
-// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLVQ, CPU Feature: AVX512EVEX
+// Asm: VPSRAVQ, CPU Feature: AVX512EVEX
 func (x Int64x8) ShiftRight(y Int64x8) Int64x8
 
 // ShiftRight shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
@@ -8435,49 +8541,49 @@ func (x Uint64x8) ShiftRightAndFillUpperFromMasked(y Uint64x8, z Uint64x8, u Mas
 
 /* ShiftRightMasked */
 
-// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLVW, CPU Feature: AVX512EVEX
+// Asm: VPSRAVW, CPU Feature: AVX512EVEX
 func (x Int16x8) ShiftRightMasked(y Int16x8, z Mask16x8) Int16x8
 
-// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLVW, CPU Feature: AVX512EVEX
+// Asm: VPSRAVW, CPU Feature: AVX512EVEX
 func (x Int16x16) ShiftRightMasked(y Int16x16, z Mask16x16) Int16x16
 
-// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLVW, CPU Feature: AVX512EVEX
+// Asm: VPSRAVW, CPU Feature: AVX512EVEX
 func (x Int16x32) ShiftRightMasked(y Int16x32, z Mask16x32) Int16x32
 
-// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLVD, CPU Feature: AVX512EVEX
+// Asm: VPSRAVD, CPU Feature: AVX512EVEX
 func (x Int32x4) ShiftRightMasked(y Int32x4, z Mask32x4) Int32x4
 
-// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLVD, CPU Feature: AVX512EVEX
+// Asm: VPSRAVD, CPU Feature: AVX512EVEX
 func (x Int32x8) ShiftRightMasked(y Int32x8, z Mask32x8) Int32x8
 
-// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLVD, CPU Feature: AVX512EVEX
+// Asm: VPSRAVD, CPU Feature: AVX512EVEX
 func (x Int32x16) ShiftRightMasked(y Int32x16, z Mask32x16) Int32x16
 
-// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLVQ, CPU Feature: AVX512EVEX
+// Asm: VPSRAVQ, CPU Feature: AVX512EVEX
 func (x Int64x2) ShiftRightMasked(y Int64x2, z Mask64x2) Int64x2
 
-// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLVQ, CPU Feature: AVX512EVEX
+// Asm: VPSRAVQ, CPU Feature: AVX512EVEX
 func (x Int64x4) ShiftRightMasked(y Int64x4, z Mask64x4) Int64x4
 
-// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
+// ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
 //
-// Asm: VPSRLVQ, CPU Feature: AVX512EVEX
+// Asm: VPSRAVQ, CPU Feature: AVX512EVEX
 func (x Int64x8) ShiftRightMasked(y Int64x8, z Mask64x8) Int64x8
 
 // ShiftRightMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are zeroed.
@@ -8524,190 +8630,6 @@ func (x Uint64x4) ShiftRightMasked(y Uint64x4, z Mask64x4) Uint64x4
 //
 // Asm: VPSRLVQ, CPU Feature: AVX512EVEX
 func (x Uint64x8) ShiftRightMasked(y Uint64x8, z Mask64x8) Uint64x8
-
-/* ShiftRightSignExtended */
-
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVW, CPU Feature: AVX512EVEX
-func (x Int16x8) ShiftRightSignExtended(y Int16x8) Int16x8
-
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVW, CPU Feature: AVX512EVEX
-func (x Int16x16) ShiftRightSignExtended(y Int16x16) Int16x16
-
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVW, CPU Feature: AVX512EVEX
-func (x Int16x32) ShiftRightSignExtended(y Int16x32) Int16x32
-
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVD, CPU Feature: AVX2
-func (x Int32x4) ShiftRightSignExtended(y Int32x4) Int32x4
-
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVD, CPU Feature: AVX2
-func (x Int32x8) ShiftRightSignExtended(y Int32x8) Int32x8
-
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVD, CPU Feature: AVX512EVEX
-func (x Int32x16) ShiftRightSignExtended(y Int32x16) Int32x16
-
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVQ, CPU Feature: AVX512EVEX
-func (x Int64x2) ShiftRightSignExtended(y Int64x2) Int64x2
-
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVQ, CPU Feature: AVX512EVEX
-func (x Int64x4) ShiftRightSignExtended(y Int64x4) Int64x4
-
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVQ, CPU Feature: AVX512EVEX
-func (x Int64x8) ShiftRightSignExtended(y Int64x8) Int64x8
-
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVW, CPU Feature: AVX512EVEX
-func (x Uint16x8) ShiftRightSignExtended(y Uint16x8) Uint16x8
-
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVW, CPU Feature: AVX512EVEX
-func (x Uint16x16) ShiftRightSignExtended(y Uint16x16) Uint16x16
-
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVW, CPU Feature: AVX512EVEX
-func (x Uint16x32) ShiftRightSignExtended(y Uint16x32) Uint16x32
-
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVD, CPU Feature: AVX2
-func (x Uint32x4) ShiftRightSignExtended(y Uint32x4) Uint32x4
-
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVD, CPU Feature: AVX2
-func (x Uint32x8) ShiftRightSignExtended(y Uint32x8) Uint32x8
-
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVD, CPU Feature: AVX512EVEX
-func (x Uint32x16) ShiftRightSignExtended(y Uint32x16) Uint32x16
-
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVQ, CPU Feature: AVX512EVEX
-func (x Uint64x2) ShiftRightSignExtended(y Uint64x2) Uint64x2
-
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVQ, CPU Feature: AVX512EVEX
-func (x Uint64x4) ShiftRightSignExtended(y Uint64x4) Uint64x4
-
-// ShiftRightSignExtended shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVQ, CPU Feature: AVX512EVEX
-func (x Uint64x8) ShiftRightSignExtended(y Uint64x8) Uint64x8
-
-/* ShiftRightSignExtendedMasked */
-
-// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVW, CPU Feature: AVX512EVEX
-func (x Int16x8) ShiftRightSignExtendedMasked(y Int16x8, z Mask16x8) Int16x8
-
-// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVW, CPU Feature: AVX512EVEX
-func (x Int16x16) ShiftRightSignExtendedMasked(y Int16x16, z Mask16x16) Int16x16
-
-// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVW, CPU Feature: AVX512EVEX
-func (x Int16x32) ShiftRightSignExtendedMasked(y Int16x32, z Mask16x32) Int16x32
-
-// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVD, CPU Feature: AVX512EVEX
-func (x Int32x4) ShiftRightSignExtendedMasked(y Int32x4, z Mask32x4) Int32x4
-
-// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVD, CPU Feature: AVX512EVEX
-func (x Int32x8) ShiftRightSignExtendedMasked(y Int32x8, z Mask32x8) Int32x8
-
-// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVD, CPU Feature: AVX512EVEX
-func (x Int32x16) ShiftRightSignExtendedMasked(y Int32x16, z Mask32x16) Int32x16
-
-// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVQ, CPU Feature: AVX512EVEX
-func (x Int64x2) ShiftRightSignExtendedMasked(y Int64x2, z Mask64x2) Int64x2
-
-// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVQ, CPU Feature: AVX512EVEX
-func (x Int64x4) ShiftRightSignExtendedMasked(y Int64x4, z Mask64x4) Int64x4
-
-// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVQ, CPU Feature: AVX512EVEX
-func (x Int64x8) ShiftRightSignExtendedMasked(y Int64x8, z Mask64x8) Int64x8
-
-// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVW, CPU Feature: AVX512EVEX
-func (x Uint16x8) ShiftRightSignExtendedMasked(y Uint16x8, z Mask16x8) Uint16x8
-
-// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVW, CPU Feature: AVX512EVEX
-func (x Uint16x16) ShiftRightSignExtendedMasked(y Uint16x16, z Mask16x16) Uint16x16
-
-// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVW, CPU Feature: AVX512EVEX
-func (x Uint16x32) ShiftRightSignExtendedMasked(y Uint16x32, z Mask16x32) Uint16x32
-
-// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVD, CPU Feature: AVX512EVEX
-func (x Uint32x4) ShiftRightSignExtendedMasked(y Uint32x4, z Mask32x4) Uint32x4
-
-// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVD, CPU Feature: AVX512EVEX
-func (x Uint32x8) ShiftRightSignExtendedMasked(y Uint32x8, z Mask32x8) Uint32x8
-
-// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVD, CPU Feature: AVX512EVEX
-func (x Uint32x16) ShiftRightSignExtendedMasked(y Uint32x16, z Mask32x16) Uint32x16
-
-// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVQ, CPU Feature: AVX512EVEX
-func (x Uint64x2) ShiftRightSignExtendedMasked(y Uint64x2, z Mask64x2) Uint64x2
-
-// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVQ, CPU Feature: AVX512EVEX
-func (x Uint64x4) ShiftRightSignExtendedMasked(y Uint64x4, z Mask64x4) Uint64x4
-
-// ShiftRightSignExtendedMasked shifts each element in x to the right by the number of bits specified in y's corresponding elements. Emptied upper bits are filled with the sign bit.
-//
-// Asm: VPSRAVQ, CPU Feature: AVX512EVEX
-func (x Uint64x8) ShiftRightSignExtendedMasked(y Uint64x8, z Mask64x8) Uint64x8
 
 /* Sign */
 

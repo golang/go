@@ -2055,8 +2055,6 @@ func testInt16x8Binary(t *testing.T, v0 []int16, v1 []int16, want []int16, which
 		gotv = vec0.ShiftLeft(vec1)
 	case "ShiftRight":
 		gotv = vec0.ShiftRight(vec1)
-	case "ShiftRightSignExtended":
-		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sign":
 		gotv = vec0.Sign(vec1)
 	case "Sub":
@@ -2101,8 +2099,6 @@ func testInt16x8BinaryMasked(t *testing.T, v0 []int16, v1 []int16, v2 []int16, w
 		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask16x8())
 	case "ShiftRightMasked":
 		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask16x8())
-	case "ShiftRightSignExtendedMasked":
-		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask16x8())
 	case "SubMasked":
 		gotv = vec0.SubMasked(vec1, vec2.AsMask16x8())
 
@@ -2356,8 +2352,6 @@ func testInt16x16Binary(t *testing.T, v0 []int16, v1 []int16, want []int16, whic
 		gotv = vec0.ShiftLeft(vec1)
 	case "ShiftRight":
 		gotv = vec0.ShiftRight(vec1)
-	case "ShiftRightSignExtended":
-		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sign":
 		gotv = vec0.Sign(vec1)
 	case "Sub":
@@ -2402,8 +2396,6 @@ func testInt16x16BinaryMasked(t *testing.T, v0 []int16, v1 []int16, v2 []int16, 
 		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask16x16())
 	case "ShiftRightMasked":
 		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask16x16())
-	case "ShiftRightSignExtendedMasked":
-		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask16x16())
 	case "SubMasked":
 		gotv = vec0.SubMasked(vec1, vec2.AsMask16x16())
 
@@ -2643,8 +2635,6 @@ func testInt16x32Binary(t *testing.T, v0 []int16, v1 []int16, want []int16, whic
 		gotv = vec0.ShiftLeft(vec1)
 	case "ShiftRight":
 		gotv = vec0.ShiftRight(vec1)
-	case "ShiftRightSignExtended":
-		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 
@@ -2685,8 +2675,6 @@ func testInt16x32BinaryMasked(t *testing.T, v0 []int16, v1 []int16, v2 []int16, 
 		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask16x32())
 	case "ShiftRightMasked":
 		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask16x32())
-	case "ShiftRightSignExtendedMasked":
-		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask16x32())
 	case "SubMasked":
 		gotv = vec0.SubMasked(vec1, vec2.AsMask16x32())
 
@@ -2934,8 +2922,6 @@ func testInt32x4Binary(t *testing.T, v0 []int32, v1 []int32, want []int32, which
 		gotv = vec0.ShiftLeft(vec1)
 	case "ShiftRight":
 		gotv = vec0.ShiftRight(vec1)
-	case "ShiftRightSignExtended":
-		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sign":
 		gotv = vec0.Sign(vec1)
 	case "Sub":
@@ -2984,8 +2970,6 @@ func testInt32x4BinaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32, w
 		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask32x4())
 	case "ShiftRightMasked":
 		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask32x4())
-	case "ShiftRightSignExtendedMasked":
-		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask32x4())
 	case "SubMasked":
 		gotv = vec0.SubMasked(vec1, vec2.AsMask32x4())
 	case "XorMasked":
@@ -3311,8 +3295,6 @@ func testInt32x8Binary(t *testing.T, v0 []int32, v1 []int32, want []int32, which
 		gotv = vec0.ShiftLeft(vec1)
 	case "ShiftRight":
 		gotv = vec0.ShiftRight(vec1)
-	case "ShiftRightSignExtended":
-		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sign":
 		gotv = vec0.Sign(vec1)
 	case "Sub":
@@ -3361,8 +3343,6 @@ func testInt32x8BinaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32, w
 		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask32x8())
 	case "ShiftRightMasked":
 		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask32x8())
-	case "ShiftRightSignExtendedMasked":
-		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask32x8())
 	case "SubMasked":
 		gotv = vec0.SubMasked(vec1, vec2.AsMask32x8())
 	case "XorMasked":
@@ -3684,8 +3664,6 @@ func testInt32x16Binary(t *testing.T, v0 []int32, v1 []int32, want []int32, whic
 		gotv = vec0.ShiftLeft(vec1)
 	case "ShiftRight":
 		gotv = vec0.ShiftRight(vec1)
-	case "ShiftRightSignExtended":
-		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -3732,8 +3710,6 @@ func testInt32x16BinaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32, 
 		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask32x16())
 	case "ShiftRightMasked":
 		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask32x16())
-	case "ShiftRightSignExtendedMasked":
-		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask32x16())
 	case "SubMasked":
 		gotv = vec0.SubMasked(vec1, vec2.AsMask32x16())
 	case "XorMasked":
@@ -4036,8 +4012,6 @@ func testInt64x2Binary(t *testing.T, v0 []int64, v1 []int64, want []int64, which
 		gotv = vec0.ShiftLeft(vec1)
 	case "ShiftRight":
 		gotv = vec0.ShiftRight(vec1)
-	case "ShiftRightSignExtended":
-		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -4086,8 +4060,6 @@ func testInt64x2BinaryMasked(t *testing.T, v0 []int64, v1 []int64, v2 []int64, w
 		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask64x2())
 	case "ShiftRightMasked":
 		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask64x2())
-	case "ShiftRightSignExtendedMasked":
-		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask64x2())
 	case "SubMasked":
 		gotv = vec0.SubMasked(vec1, vec2.AsMask64x2())
 	case "XorMasked":
@@ -4292,8 +4264,6 @@ func testInt64x4Binary(t *testing.T, v0 []int64, v1 []int64, want []int64, which
 		gotv = vec0.ShiftLeft(vec1)
 	case "ShiftRight":
 		gotv = vec0.ShiftRight(vec1)
-	case "ShiftRightSignExtended":
-		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -4342,8 +4312,6 @@ func testInt64x4BinaryMasked(t *testing.T, v0 []int64, v1 []int64, v2 []int64, w
 		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask64x4())
 	case "ShiftRightMasked":
 		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask64x4())
-	case "ShiftRightSignExtendedMasked":
-		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask64x4())
 	case "SubMasked":
 		gotv = vec0.SubMasked(vec1, vec2.AsMask64x4())
 	case "XorMasked":
@@ -4548,8 +4516,6 @@ func testInt64x8Binary(t *testing.T, v0 []int64, v1 []int64, want []int64, which
 		gotv = vec0.ShiftLeft(vec1)
 	case "ShiftRight":
 		gotv = vec0.ShiftRight(vec1)
-	case "ShiftRightSignExtended":
-		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -4598,8 +4564,6 @@ func testInt64x8BinaryMasked(t *testing.T, v0 []int64, v1 []int64, v2 []int64, w
 		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask64x8())
 	case "ShiftRightMasked":
 		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask64x8())
-	case "ShiftRightSignExtendedMasked":
-		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask64x8())
 	case "SubMasked":
 		gotv = vec0.SubMasked(vec1, vec2.AsMask64x8())
 	case "XorMasked":
@@ -5478,8 +5442,6 @@ func testUint16x8Binary(t *testing.T, v0 []uint16, v1 []uint16, want []uint16, w
 		gotv = vec0.ShiftLeft(vec1)
 	case "ShiftRight":
 		gotv = vec0.ShiftRight(vec1)
-	case "ShiftRightSignExtended":
-		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -5522,8 +5484,6 @@ func testUint16x8BinaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []int16
 		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask16x8())
 	case "ShiftRightMasked":
 		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask16x8())
-	case "ShiftRightSignExtendedMasked":
-		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask16x8())
 	case "SubMasked":
 		gotv = vec0.SubMasked(vec1, vec2.AsMask16x8())
 
@@ -5726,8 +5686,6 @@ func testUint16x16Binary(t *testing.T, v0 []uint16, v1 []uint16, want []uint16, 
 		gotv = vec0.ShiftLeft(vec1)
 	case "ShiftRight":
 		gotv = vec0.ShiftRight(vec1)
-	case "ShiftRightSignExtended":
-		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -5770,8 +5728,6 @@ func testUint16x16BinaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []int1
 		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask16x16())
 	case "ShiftRightMasked":
 		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask16x16())
-	case "ShiftRightSignExtendedMasked":
-		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask16x16())
 	case "SubMasked":
 		gotv = vec0.SubMasked(vec1, vec2.AsMask16x16())
 
@@ -5964,8 +5920,6 @@ func testUint16x32Binary(t *testing.T, v0 []uint16, v1 []uint16, want []uint16, 
 		gotv = vec0.ShiftLeft(vec1)
 	case "ShiftRight":
 		gotv = vec0.ShiftRight(vec1)
-	case "ShiftRightSignExtended":
-		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 
@@ -6006,8 +5960,6 @@ func testUint16x32BinaryMasked(t *testing.T, v0 []uint16, v1 []uint16, v2 []int1
 		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask16x32())
 	case "ShiftRightMasked":
 		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask16x32())
-	case "ShiftRightSignExtendedMasked":
-		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask16x32())
 	case "SubMasked":
 		gotv = vec0.SubMasked(vec1, vec2.AsMask16x32())
 
@@ -6206,8 +6158,6 @@ func testUint32x4Binary(t *testing.T, v0 []uint32, v1 []uint32, want []uint32, w
 		gotv = vec0.ShiftLeft(vec1)
 	case "ShiftRight":
 		gotv = vec0.ShiftRight(vec1)
-	case "ShiftRightSignExtended":
-		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -6252,8 +6202,6 @@ func testUint32x4BinaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []int32
 		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask32x4())
 	case "ShiftRightMasked":
 		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask32x4())
-	case "ShiftRightSignExtendedMasked":
-		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask32x4())
 	case "SubMasked":
 		gotv = vec0.SubMasked(vec1, vec2.AsMask32x4())
 	case "XorMasked":
@@ -6524,8 +6472,6 @@ func testUint32x8Binary(t *testing.T, v0 []uint32, v1 []uint32, want []uint32, w
 		gotv = vec0.ShiftLeft(vec1)
 	case "ShiftRight":
 		gotv = vec0.ShiftRight(vec1)
-	case "ShiftRightSignExtended":
-		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -6570,8 +6516,6 @@ func testUint32x8BinaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []int32
 		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask32x8())
 	case "ShiftRightMasked":
 		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask32x8())
-	case "ShiftRightSignExtendedMasked":
-		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask32x8())
 	case "SubMasked":
 		gotv = vec0.SubMasked(vec1, vec2.AsMask32x8())
 	case "XorMasked":
@@ -6838,8 +6782,6 @@ func testUint32x16Binary(t *testing.T, v0 []uint32, v1 []uint32, want []uint32, 
 		gotv = vec0.ShiftLeft(vec1)
 	case "ShiftRight":
 		gotv = vec0.ShiftRight(vec1)
-	case "ShiftRightSignExtended":
-		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -6884,8 +6826,6 @@ func testUint32x16BinaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []int3
 		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask32x16())
 	case "ShiftRightMasked":
 		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask32x16())
-	case "ShiftRightSignExtendedMasked":
-		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask32x16())
 	case "SubMasked":
 		gotv = vec0.SubMasked(vec1, vec2.AsMask32x16())
 	case "XorMasked":
@@ -7133,8 +7073,6 @@ func testUint64x2Binary(t *testing.T, v0 []uint64, v1 []uint64, want []uint64, w
 		gotv = vec0.ShiftLeft(vec1)
 	case "ShiftRight":
 		gotv = vec0.ShiftRight(vec1)
-	case "ShiftRightSignExtended":
-		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -7181,8 +7119,6 @@ func testUint64x2BinaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64
 		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask64x2())
 	case "ShiftRightMasked":
 		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask64x2())
-	case "ShiftRightSignExtendedMasked":
-		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask64x2())
 	case "SubMasked":
 		gotv = vec0.SubMasked(vec1, vec2.AsMask64x2())
 	case "XorMasked":
@@ -7381,8 +7317,6 @@ func testUint64x4Binary(t *testing.T, v0 []uint64, v1 []uint64, want []uint64, w
 		gotv = vec0.ShiftLeft(vec1)
 	case "ShiftRight":
 		gotv = vec0.ShiftRight(vec1)
-	case "ShiftRightSignExtended":
-		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -7429,8 +7363,6 @@ func testUint64x4BinaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64
 		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask64x4())
 	case "ShiftRightMasked":
 		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask64x4())
-	case "ShiftRightSignExtendedMasked":
-		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask64x4())
 	case "SubMasked":
 		gotv = vec0.SubMasked(vec1, vec2.AsMask64x4())
 	case "XorMasked":
@@ -7629,8 +7561,6 @@ func testUint64x8Binary(t *testing.T, v0 []uint64, v1 []uint64, want []uint64, w
 		gotv = vec0.ShiftLeft(vec1)
 	case "ShiftRight":
 		gotv = vec0.ShiftRight(vec1)
-	case "ShiftRightSignExtended":
-		gotv = vec0.ShiftRightSignExtended(vec1)
 	case "Sub":
 		gotv = vec0.Sub(vec1)
 	case "Xor":
@@ -7677,8 +7607,6 @@ func testUint64x8BinaryMasked(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64
 		gotv = vec0.ShiftLeftMasked(vec1, vec2.AsMask64x8())
 	case "ShiftRightMasked":
 		gotv = vec0.ShiftRightMasked(vec1, vec2.AsMask64x8())
-	case "ShiftRightSignExtendedMasked":
-		gotv = vec0.ShiftRightSignExtendedMasked(vec1, vec2.AsMask64x8())
 	case "SubMasked":
 		gotv = vec0.SubMasked(vec1, vec2.AsMask64x8())
 	case "XorMasked":
@@ -7884,7 +7812,5 @@ func testUint64x8UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint6
 // ShiftAllRightAndFillUpperFrom
 // ShiftAllRightAndFillUpperFromMasked
 // ShiftAllRightMasked
-// ShiftAllRightSignExtended
-// ShiftAllRightSignExtendedMasked
 // TruncWithPrecision
 // TruncWithPrecisionMasked
