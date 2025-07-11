@@ -11,6 +11,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"flag"
 	"fmt"
 	"html/template"
@@ -541,6 +542,7 @@ func orderlyShutdown(tlsConn *Conn) {
 }
 
 func TestBogoSuite(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
@@ -559,6 +561,7 @@ func TestBogoSuite(t *testing.T) {
 
 	var bogoDir string
 	if *bogoLocalDir != "" {
+		ensureLocalBogo(t, *bogoLocalDir)
 		bogoDir = *bogoLocalDir
 	} else {
 		bogoDir = cryptotest.FetchModule(t, "boringssl.googlesource.com/boringssl.git", boringsslModVer)
@@ -662,6 +665,49 @@ func TestBogoSuite(t *testing.T) {
 			})
 		}
 	}
+}
+
+// ensureLocalBogo fetches BoringSSL to localBogoDir at the correct revision
+// (from boringsslModVer) if localBogoDir doesn't already exist.
+//
+// If localBogoDir does exist, ensureLocalBogo fails the test if it isn't
+// a directory.
+func ensureLocalBogo(t *testing.T, localBogoDir string) {
+	t.Helper()
+
+	if stat, err := os.Stat(localBogoDir); err == nil {
+		if !stat.IsDir() {
+			t.Fatalf("local bogo dir (%q) exists but is not a directory", localBogoDir)
+		}
+
+		t.Logf("using local bogo checkout from %q", localBogoDir)
+		return
+	} else if !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("failed to stat local bogo dir (%q): %v", localBogoDir, err)
+	}
+
+	testenv.MustHaveExecPath(t, "git")
+
+	idx := strings.LastIndex(boringsslModVer, "-")
+	if idx == -1 || idx == len(boringsslModVer)-1 {
+		t.Fatalf("invalid boringsslModVer format: %q", boringsslModVer)
+	}
+	commitSHA := boringsslModVer[idx+1:]
+
+	t.Logf("cloning boringssl@%s to %q", commitSHA, localBogoDir)
+	cloneCmd := testenv.Command(t, "git", "clone", "--no-checkout", "https://boringssl.googlesource.com/boringssl", localBogoDir)
+	if err := cloneCmd.Run(); err != nil {
+		t.Fatalf("git clone failed: %v", err)
+	}
+
+	checkoutCmd := testenv.Command(t, "git", "checkout", commitSHA)
+	checkoutCmd.Dir = localBogoDir
+	if err := checkoutCmd.Run(); err != nil {
+		t.Fatalf("git checkout failed: %v", err)
+	}
+
+	t.Logf("using fresh local bogo checkout from %q", localBogoDir)
+	return
 }
 
 func generateReport(results bogoResults, outPath string) error {
