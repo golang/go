@@ -1000,321 +1000,441 @@ func (x Float64x4) Ceil() Float64x4
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
 //
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) CeilWithPrecision(imm uint8) Float32x4
-
-// CeilWithPrecision rounds elements up with specified precision, masked.
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) CeilWithPrecision(imm uint8) Float32x8
+func (x Float32x4) CeilWithPrecision(prec uint8) Float32x4
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) CeilWithPrecision(imm uint8) Float32x16
+func (x Float32x8) CeilWithPrecision(prec uint8) Float32x8
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
 //
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) CeilWithPrecision(imm uint8) Float64x2
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) CeilWithPrecision(prec uint8) Float32x16
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) CeilWithPrecision(imm uint8) Float64x4
+func (x Float64x2) CeilWithPrecision(prec uint8) Float64x2
 
 // CeilWithPrecision rounds elements up with specified precision, masked.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) CeilWithPrecision(imm uint8) Float64x8
+func (x Float64x4) CeilWithPrecision(prec uint8) Float64x4
+
+// CeilWithPrecision rounds elements up with specified precision, masked.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) CeilWithPrecision(prec uint8) Float64x8
 
 /* CeilWithPrecisionMasked */
 
 // CeilWithPrecisionMasked rounds elements up with specified precision, masked.
 //
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) CeilWithPrecisionMasked(imm uint8, y Mask32x4) Float32x4
-
-// CeilWithPrecisionMasked rounds elements up with specified precision, masked.
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) CeilWithPrecisionMasked(imm uint8, y Mask32x8) Float32x8
+func (x Float32x4) CeilWithPrecisionMasked(prec uint8, y Mask32x4) Float32x4
 
 // CeilWithPrecisionMasked rounds elements up with specified precision, masked.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) CeilWithPrecisionMasked(imm uint8, y Mask32x16) Float32x16
+func (x Float32x8) CeilWithPrecisionMasked(prec uint8, y Mask32x8) Float32x8
 
 // CeilWithPrecisionMasked rounds elements up with specified precision, masked.
 //
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) CeilWithPrecisionMasked(imm uint8, y Mask64x2) Float64x2
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) CeilWithPrecisionMasked(prec uint8, y Mask32x16) Float32x16
 
 // CeilWithPrecisionMasked rounds elements up with specified precision, masked.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) CeilWithPrecisionMasked(imm uint8, y Mask64x4) Float64x4
+func (x Float64x2) CeilWithPrecisionMasked(prec uint8, y Mask64x2) Float64x2
 
 // CeilWithPrecisionMasked rounds elements up with specified precision, masked.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) CeilWithPrecisionMasked(imm uint8, y Mask64x8) Float64x8
+func (x Float64x4) CeilWithPrecisionMasked(prec uint8, y Mask64x4) Float64x4
+
+// CeilWithPrecisionMasked rounds elements up with specified precision, masked.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) CeilWithPrecisionMasked(prec uint8, y Mask64x8) Float64x8
 
 /* DiffWithCeilWithPrecision */
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
 //
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithCeilWithPrecision(imm uint8) Float32x4
-
-// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithCeilWithPrecision(imm uint8) Float32x8
+func (x Float32x4) DiffWithCeilWithPrecision(prec uint8) Float32x4
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithCeilWithPrecision(imm uint8) Float32x16
+func (x Float32x8) DiffWithCeilWithPrecision(prec uint8) Float32x8
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
 //
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithCeilWithPrecision(imm uint8) Float64x2
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) DiffWithCeilWithPrecision(prec uint8) Float32x16
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithCeilWithPrecision(imm uint8) Float64x4
+func (x Float64x2) DiffWithCeilWithPrecision(prec uint8) Float64x2
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithCeilWithPrecision(imm uint8) Float64x8
+func (x Float64x4) DiffWithCeilWithPrecision(prec uint8) Float64x4
+
+// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) DiffWithCeilWithPrecision(prec uint8) Float64x8
 
 /* DiffWithCeilWithPrecisionMasked */
 
 // DiffWithCeilWithPrecisionMasked computes the difference after ceiling with specified precision.
 //
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithCeilWithPrecisionMasked(imm uint8, y Mask32x4) Float32x4
-
-// DiffWithCeilWithPrecisionMasked computes the difference after ceiling with specified precision.
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithCeilWithPrecisionMasked(imm uint8, y Mask32x8) Float32x8
+func (x Float32x4) DiffWithCeilWithPrecisionMasked(prec uint8, y Mask32x4) Float32x4
 
 // DiffWithCeilWithPrecisionMasked computes the difference after ceiling with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithCeilWithPrecisionMasked(imm uint8, y Mask32x16) Float32x16
+func (x Float32x8) DiffWithCeilWithPrecisionMasked(prec uint8, y Mask32x8) Float32x8
 
 // DiffWithCeilWithPrecisionMasked computes the difference after ceiling with specified precision.
 //
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithCeilWithPrecisionMasked(imm uint8, y Mask64x2) Float64x2
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) DiffWithCeilWithPrecisionMasked(prec uint8, y Mask32x16) Float32x16
 
 // DiffWithCeilWithPrecisionMasked computes the difference after ceiling with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithCeilWithPrecisionMasked(imm uint8, y Mask64x4) Float64x4
+func (x Float64x2) DiffWithCeilWithPrecisionMasked(prec uint8, y Mask64x2) Float64x2
 
 // DiffWithCeilWithPrecisionMasked computes the difference after ceiling with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithCeilWithPrecisionMasked(imm uint8, y Mask64x8) Float64x8
+func (x Float64x4) DiffWithCeilWithPrecisionMasked(prec uint8, y Mask64x4) Float64x4
+
+// DiffWithCeilWithPrecisionMasked computes the difference after ceiling with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) DiffWithCeilWithPrecisionMasked(prec uint8, y Mask64x8) Float64x8
 
 /* DiffWithFloorWithPrecision */
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
 //
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithFloorWithPrecision(imm uint8) Float32x4
-
-// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithFloorWithPrecision(imm uint8) Float32x8
+func (x Float32x4) DiffWithFloorWithPrecision(prec uint8) Float32x4
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithFloorWithPrecision(imm uint8) Float32x16
+func (x Float32x8) DiffWithFloorWithPrecision(prec uint8) Float32x8
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
 //
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithFloorWithPrecision(imm uint8) Float64x2
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) DiffWithFloorWithPrecision(prec uint8) Float32x16
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithFloorWithPrecision(imm uint8) Float64x4
+func (x Float64x2) DiffWithFloorWithPrecision(prec uint8) Float64x2
 
 // DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithFloorWithPrecision(imm uint8) Float64x8
+func (x Float64x4) DiffWithFloorWithPrecision(prec uint8) Float64x4
+
+// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) DiffWithFloorWithPrecision(prec uint8) Float64x8
 
 /* DiffWithFloorWithPrecisionMasked */
 
 // DiffWithFloorWithPrecisionMasked computes the difference after flooring with specified precision.
 //
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithFloorWithPrecisionMasked(imm uint8, y Mask32x4) Float32x4
-
-// DiffWithFloorWithPrecisionMasked computes the difference after flooring with specified precision.
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithFloorWithPrecisionMasked(imm uint8, y Mask32x8) Float32x8
+func (x Float32x4) DiffWithFloorWithPrecisionMasked(prec uint8, y Mask32x4) Float32x4
 
 // DiffWithFloorWithPrecisionMasked computes the difference after flooring with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithFloorWithPrecisionMasked(imm uint8, y Mask32x16) Float32x16
+func (x Float32x8) DiffWithFloorWithPrecisionMasked(prec uint8, y Mask32x8) Float32x8
 
 // DiffWithFloorWithPrecisionMasked computes the difference after flooring with specified precision.
 //
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithFloorWithPrecisionMasked(imm uint8, y Mask64x2) Float64x2
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) DiffWithFloorWithPrecisionMasked(prec uint8, y Mask32x16) Float32x16
 
 // DiffWithFloorWithPrecisionMasked computes the difference after flooring with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithFloorWithPrecisionMasked(imm uint8, y Mask64x4) Float64x4
+func (x Float64x2) DiffWithFloorWithPrecisionMasked(prec uint8, y Mask64x2) Float64x2
 
 // DiffWithFloorWithPrecisionMasked computes the difference after flooring with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithFloorWithPrecisionMasked(imm uint8, y Mask64x8) Float64x8
+func (x Float64x4) DiffWithFloorWithPrecisionMasked(prec uint8, y Mask64x4) Float64x4
+
+// DiffWithFloorWithPrecisionMasked computes the difference after flooring with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) DiffWithFloorWithPrecisionMasked(prec uint8, y Mask64x8) Float64x8
 
 /* DiffWithRoundWithPrecision */
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
 //
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithRoundWithPrecision(imm uint8) Float32x4
-
-// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithRoundWithPrecision(imm uint8) Float32x8
+func (x Float32x4) DiffWithRoundWithPrecision(prec uint8) Float32x4
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithRoundWithPrecision(imm uint8) Float32x16
+func (x Float32x8) DiffWithRoundWithPrecision(prec uint8) Float32x8
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
 //
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithRoundWithPrecision(imm uint8) Float64x2
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) DiffWithRoundWithPrecision(prec uint8) Float32x16
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithRoundWithPrecision(imm uint8) Float64x4
+func (x Float64x2) DiffWithRoundWithPrecision(prec uint8) Float64x2
 
 // DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithRoundWithPrecision(imm uint8) Float64x8
+func (x Float64x4) DiffWithRoundWithPrecision(prec uint8) Float64x4
+
+// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) DiffWithRoundWithPrecision(prec uint8) Float64x8
 
 /* DiffWithRoundWithPrecisionMasked */
 
 // DiffWithRoundWithPrecisionMasked computes the difference after rounding with specified precision.
 //
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithRoundWithPrecisionMasked(imm uint8, y Mask32x4) Float32x4
-
-// DiffWithRoundWithPrecisionMasked computes the difference after rounding with specified precision.
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithRoundWithPrecisionMasked(imm uint8, y Mask32x8) Float32x8
+func (x Float32x4) DiffWithRoundWithPrecisionMasked(prec uint8, y Mask32x4) Float32x4
 
 // DiffWithRoundWithPrecisionMasked computes the difference after rounding with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithRoundWithPrecisionMasked(imm uint8, y Mask32x16) Float32x16
+func (x Float32x8) DiffWithRoundWithPrecisionMasked(prec uint8, y Mask32x8) Float32x8
 
 // DiffWithRoundWithPrecisionMasked computes the difference after rounding with specified precision.
 //
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithRoundWithPrecisionMasked(imm uint8, y Mask64x2) Float64x2
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) DiffWithRoundWithPrecisionMasked(prec uint8, y Mask32x16) Float32x16
 
 // DiffWithRoundWithPrecisionMasked computes the difference after rounding with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithRoundWithPrecisionMasked(imm uint8, y Mask64x4) Float64x4
+func (x Float64x2) DiffWithRoundWithPrecisionMasked(prec uint8, y Mask64x2) Float64x2
 
 // DiffWithRoundWithPrecisionMasked computes the difference after rounding with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithRoundWithPrecisionMasked(imm uint8, y Mask64x8) Float64x8
+func (x Float64x4) DiffWithRoundWithPrecisionMasked(prec uint8, y Mask64x4) Float64x4
+
+// DiffWithRoundWithPrecisionMasked computes the difference after rounding with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) DiffWithRoundWithPrecisionMasked(prec uint8, y Mask64x8) Float64x8
 
 /* DiffWithTruncWithPrecision */
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
 //
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithTruncWithPrecision(imm uint8) Float32x4
-
-// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithTruncWithPrecision(imm uint8) Float32x8
+func (x Float32x4) DiffWithTruncWithPrecision(prec uint8) Float32x4
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithTruncWithPrecision(imm uint8) Float32x16
+func (x Float32x8) DiffWithTruncWithPrecision(prec uint8) Float32x8
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
 //
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithTruncWithPrecision(imm uint8) Float64x2
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) DiffWithTruncWithPrecision(prec uint8) Float32x16
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithTruncWithPrecision(imm uint8) Float64x4
+func (x Float64x2) DiffWithTruncWithPrecision(prec uint8) Float64x2
 
 // DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithTruncWithPrecision(imm uint8) Float64x8
+func (x Float64x4) DiffWithTruncWithPrecision(prec uint8) Float64x4
+
+// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) DiffWithTruncWithPrecision(prec uint8) Float64x8
 
 /* DiffWithTruncWithPrecisionMasked */
 
 // DiffWithTruncWithPrecisionMasked computes the difference after truncating with specified precision.
 //
-// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) DiffWithTruncWithPrecisionMasked(imm uint8, y Mask32x4) Float32x4
-
-// DiffWithTruncWithPrecisionMasked computes the difference after truncating with specified precision.
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) DiffWithTruncWithPrecisionMasked(imm uint8, y Mask32x8) Float32x8
+func (x Float32x4) DiffWithTruncWithPrecisionMasked(prec uint8, y Mask32x4) Float32x4
 
 // DiffWithTruncWithPrecisionMasked computes the difference after truncating with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) DiffWithTruncWithPrecisionMasked(imm uint8, y Mask32x16) Float32x16
+func (x Float32x8) DiffWithTruncWithPrecisionMasked(prec uint8, y Mask32x8) Float32x8
 
 // DiffWithTruncWithPrecisionMasked computes the difference after truncating with specified precision.
 //
-// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) DiffWithTruncWithPrecisionMasked(imm uint8, y Mask64x2) Float64x2
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) DiffWithTruncWithPrecisionMasked(prec uint8, y Mask32x16) Float32x16
 
 // DiffWithTruncWithPrecisionMasked computes the difference after truncating with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) DiffWithTruncWithPrecisionMasked(imm uint8, y Mask64x4) Float64x4
+func (x Float64x2) DiffWithTruncWithPrecisionMasked(prec uint8, y Mask64x2) Float64x2
 
 // DiffWithTruncWithPrecisionMasked computes the difference after truncating with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VREDUCEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) DiffWithTruncWithPrecisionMasked(imm uint8, y Mask64x8) Float64x8
+func (x Float64x4) DiffWithTruncWithPrecisionMasked(prec uint8, y Mask64x4) Float64x4
+
+// DiffWithTruncWithPrecisionMasked computes the difference after truncating with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) DiffWithTruncWithPrecisionMasked(prec uint8, y Mask64x8) Float64x8
 
 /* Div */
 
@@ -1717,65 +1837,89 @@ func (x Float64x4) Floor() Float64x4
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
 //
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) FloorWithPrecision(imm uint8) Float32x4
-
-// FloorWithPrecision rounds elements down with specified precision, masked.
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) FloorWithPrecision(imm uint8) Float32x8
+func (x Float32x4) FloorWithPrecision(prec uint8) Float32x4
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) FloorWithPrecision(imm uint8) Float32x16
+func (x Float32x8) FloorWithPrecision(prec uint8) Float32x8
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
 //
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) FloorWithPrecision(imm uint8) Float64x2
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) FloorWithPrecision(prec uint8) Float32x16
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) FloorWithPrecision(imm uint8) Float64x4
+func (x Float64x2) FloorWithPrecision(prec uint8) Float64x2
 
 // FloorWithPrecision rounds elements down with specified precision, masked.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) FloorWithPrecision(imm uint8) Float64x8
+func (x Float64x4) FloorWithPrecision(prec uint8) Float64x4
+
+// FloorWithPrecision rounds elements down with specified precision, masked.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) FloorWithPrecision(prec uint8) Float64x8
 
 /* FloorWithPrecisionMasked */
 
 // FloorWithPrecisionMasked rounds elements down with specified precision, masked.
 //
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) FloorWithPrecisionMasked(imm uint8, y Mask32x4) Float32x4
-
-// FloorWithPrecisionMasked rounds elements down with specified precision, masked.
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) FloorWithPrecisionMasked(imm uint8, y Mask32x8) Float32x8
+func (x Float32x4) FloorWithPrecisionMasked(prec uint8, y Mask32x4) Float32x4
 
 // FloorWithPrecisionMasked rounds elements down with specified precision, masked.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) FloorWithPrecisionMasked(imm uint8, y Mask32x16) Float32x16
+func (x Float32x8) FloorWithPrecisionMasked(prec uint8, y Mask32x8) Float32x8
 
 // FloorWithPrecisionMasked rounds elements down with specified precision, masked.
 //
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) FloorWithPrecisionMasked(imm uint8, y Mask64x2) Float64x2
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) FloorWithPrecisionMasked(prec uint8, y Mask32x16) Float32x16
 
 // FloorWithPrecisionMasked rounds elements down with specified precision, masked.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) FloorWithPrecisionMasked(imm uint8, y Mask64x4) Float64x4
+func (x Float64x2) FloorWithPrecisionMasked(prec uint8, y Mask64x2) Float64x2
 
 // FloorWithPrecisionMasked rounds elements down with specified precision, masked.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) FloorWithPrecisionMasked(imm uint8, y Mask64x8) Float64x8
+func (x Float64x4) FloorWithPrecisionMasked(prec uint8, y Mask64x4) Float64x4
+
+// FloorWithPrecisionMasked rounds elements down with specified precision, masked.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) FloorWithPrecisionMasked(prec uint8, y Mask64x8) Float64x8
 
 /* FusedMultiplyAdd */
 
@@ -1976,6 +2120,8 @@ func (x Float64x8) FusedMultiplySubAddMasked(y Float64x8, z Float64x8, u Mask64x
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
+// b is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
 func (x Uint8x16) GaloisFieldAffineTransform(y Uint64x2, b uint8) Uint8x16
 
@@ -1984,6 +2130,8 @@ func (x Uint8x16) GaloisFieldAffineTransform(y Uint64x2, b uint8) Uint8x16
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
+// b is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
 func (x Uint8x32) GaloisFieldAffineTransform(y Uint64x4, b uint8) Uint8x32
 
@@ -1991,6 +2139,8 @@ func (x Uint8x32) GaloisFieldAffineTransform(y Uint64x4, b uint8) Uint8x32
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
+//
+// b is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
 func (x Uint8x64) GaloisFieldAffineTransform(y Uint64x8, b uint8) Uint8x64
@@ -2003,6 +2153,8 @@ func (x Uint8x64) GaloisFieldAffineTransform(y Uint64x8, b uint8) Uint8x64
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
+// b is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
 func (x Uint8x16) GaloisFieldAffineTransformInverse(y Uint64x2, b uint8) Uint8x16
 
@@ -2012,6 +2164,8 @@ func (x Uint8x16) GaloisFieldAffineTransformInverse(y Uint64x2, b uint8) Uint8x1
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
+// b is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
 func (x Uint8x32) GaloisFieldAffineTransformInverse(y Uint64x4, b uint8) Uint8x32
 
@@ -2020,6 +2174,8 @@ func (x Uint8x32) GaloisFieldAffineTransformInverse(y Uint64x4, b uint8) Uint8x3
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
+//
+// b is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
 func (x Uint8x64) GaloisFieldAffineTransformInverse(y Uint64x8, b uint8) Uint8x64
@@ -2032,6 +2188,8 @@ func (x Uint8x64) GaloisFieldAffineTransformInverse(y Uint64x8, b uint8) Uint8x6
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
+// b is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
 func (x Uint8x16) GaloisFieldAffineTransformInverseMasked(y Uint64x2, b uint8, m Mask8x16) Uint8x16
 
@@ -2041,6 +2199,8 @@ func (x Uint8x16) GaloisFieldAffineTransformInverseMasked(y Uint64x2, b uint8, m
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
+// b is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
 func (x Uint8x32) GaloisFieldAffineTransformInverseMasked(y Uint64x4, b uint8, m Mask8x32) Uint8x32
 
@@ -2049,6 +2209,8 @@ func (x Uint8x32) GaloisFieldAffineTransformInverseMasked(y Uint64x4, b uint8, m
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
+//
+// b is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
 func (x Uint8x64) GaloisFieldAffineTransformInverseMasked(y Uint64x8, b uint8, m Mask8x64) Uint8x64
@@ -2060,6 +2222,8 @@ func (x Uint8x64) GaloisFieldAffineTransformInverseMasked(y Uint64x8, b uint8, m
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
+// b is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
 func (x Uint8x16) GaloisFieldAffineTransformMasked(y Uint64x2, b uint8, m Mask8x16) Uint8x16
 
@@ -2068,6 +2232,8 @@ func (x Uint8x16) GaloisFieldAffineTransformMasked(y Uint64x2, b uint8, m Mask8x
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
+// b is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
 func (x Uint8x32) GaloisFieldAffineTransformMasked(y Uint64x4, b uint8, m Mask8x32) Uint8x32
 
@@ -2075,6 +2241,8 @@ func (x Uint8x32) GaloisFieldAffineTransformMasked(y Uint64x4, b uint8, m Mask8x
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
+//
+// b is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
 func (x Uint8x64) GaloisFieldAffineTransformMasked(y Uint64x8, b uint8, m Mask8x64) Uint8x64
@@ -2123,95 +2291,131 @@ func (x Uint8x64) GaloisFieldMulMasked(y Uint8x64, z Mask8x64) Uint8x64
 
 // Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
 //
-// Asm: VEXTRACTF128, CPU Feature: AVX
-func (x Float32x8) Get128(imm uint8) Float32x4
-
-// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VEXTRACTF128, CPU Feature: AVX
-func (x Float64x4) Get128(imm uint8) Float64x2
+func (x Float32x8) Get128(index uint8) Float32x4
 
 // Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
 //
-// Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Int8x32) Get128(imm uint8) Int8x16
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VEXTRACTF128, CPU Feature: AVX
+func (x Float64x4) Get128(index uint8) Float64x2
 
 // Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
 //
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Int16x16) Get128(imm uint8) Int16x8
+func (x Int8x32) Get128(index uint8) Int8x16
 
 // Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
 //
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Int32x8) Get128(imm uint8) Int32x4
+func (x Int16x16) Get128(index uint8) Int16x8
 
 // Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
 //
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Int64x4) Get128(imm uint8) Int64x2
+func (x Int32x8) Get128(index uint8) Int32x4
 
 // Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
 //
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Uint8x32) Get128(imm uint8) Uint8x16
+func (x Int64x4) Get128(index uint8) Int64x2
 
 // Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
 //
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Uint16x16) Get128(imm uint8) Uint16x8
+func (x Uint8x32) Get128(index uint8) Uint8x16
 
 // Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
 //
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Uint32x8) Get128(imm uint8) Uint32x4
+func (x Uint16x16) Get128(index uint8) Uint16x8
 
 // Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
 //
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Uint64x4) Get128(imm uint8) Uint64x2
+func (x Uint32x8) Get128(index uint8) Uint32x4
+
+// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
+//
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Uint64x4) Get128(index uint8) Uint64x2
 
 /* GetElem */
 
 // GetElem retrieves a single constant-indexed element's value.
 //
-// Asm: VPEXTRB, CPU Feature: AVX512EVEX
-func (x Int8x16) GetElem(imm uint8) int8
-
-// GetElem retrieves a single constant-indexed element's value.
-//
-// Asm: VPEXTRW, CPU Feature: AVX512EVEX
-func (x Int16x8) GetElem(imm uint8) int16
-
-// GetElem retrieves a single constant-indexed element's value.
-//
-// Asm: VPEXTRD, CPU Feature: AVX
-func (x Int32x4) GetElem(imm uint8) int32
-
-// GetElem retrieves a single constant-indexed element's value.
-//
-// Asm: VPEXTRQ, CPU Feature: AVX
-func (x Int64x2) GetElem(imm uint8) int64
-
-// GetElem retrieves a single constant-indexed element's value.
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPEXTRB, CPU Feature: AVX512EVEX
-func (x Uint8x16) GetElem(imm uint8) uint8
+func (x Int8x16) GetElem(index uint8) int8
 
 // GetElem retrieves a single constant-indexed element's value.
+//
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPEXTRW, CPU Feature: AVX512EVEX
-func (x Uint16x8) GetElem(imm uint8) uint16
+func (x Int16x8) GetElem(index uint8) int16
 
 // GetElem retrieves a single constant-indexed element's value.
+//
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPEXTRD, CPU Feature: AVX
-func (x Uint32x4) GetElem(imm uint8) uint32
+func (x Int32x4) GetElem(index uint8) int32
 
 // GetElem retrieves a single constant-indexed element's value.
 //
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPEXTRQ, CPU Feature: AVX
-func (x Uint64x2) GetElem(imm uint8) uint64
+func (x Int64x2) GetElem(index uint8) int64
+
+// GetElem retrieves a single constant-indexed element's value.
+//
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPEXTRB, CPU Feature: AVX512EVEX
+func (x Uint8x16) GetElem(index uint8) uint8
+
+// GetElem retrieves a single constant-indexed element's value.
+//
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPEXTRW, CPU Feature: AVX512EVEX
+func (x Uint16x8) GetElem(index uint8) uint16
+
+// GetElem retrieves a single constant-indexed element's value.
+//
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPEXTRD, CPU Feature: AVX
+func (x Uint32x4) GetElem(index uint8) uint32
+
+// GetElem retrieves a single constant-indexed element's value.
+//
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPEXTRQ, CPU Feature: AVX
+func (x Uint64x2) GetElem(index uint8) uint64
 
 /* Greater */
 
@@ -5425,249 +5629,345 @@ func (x Uint64x8) PopCountMasked(y Mask64x8) Uint64x8
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
-// Asm: VPROLD, CPU Feature: AVX512EVEX
-func (x Int32x4) RotateAllLeft(imm uint8) Int32x4
-
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
-func (x Int32x8) RotateAllLeft(imm uint8) Int32x8
+func (x Int32x4) RotateAllLeft(shift uint8) Int32x4
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
-func (x Int32x16) RotateAllLeft(imm uint8) Int32x16
+func (x Int32x8) RotateAllLeft(shift uint8) Int32x8
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
-// Asm: VPROLQ, CPU Feature: AVX512EVEX
-func (x Int64x2) RotateAllLeft(imm uint8) Int64x2
-
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
-//
-// Asm: VPROLQ, CPU Feature: AVX512EVEX
-func (x Int64x4) RotateAllLeft(imm uint8) Int64x4
-
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
-//
-// Asm: VPROLQ, CPU Feature: AVX512EVEX
-func (x Int64x8) RotateAllLeft(imm uint8) Int64x8
-
-// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
-func (x Uint32x4) RotateAllLeft(imm uint8) Uint32x4
+func (x Int32x16) RotateAllLeft(shift uint8) Int32x16
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPROLQ, CPU Feature: AVX512EVEX
+func (x Int64x2) RotateAllLeft(shift uint8) Int64x2
+
+// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPROLQ, CPU Feature: AVX512EVEX
+func (x Int64x4) RotateAllLeft(shift uint8) Int64x4
+
+// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPROLQ, CPU Feature: AVX512EVEX
+func (x Int64x8) RotateAllLeft(shift uint8) Int64x8
+
+// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
-func (x Uint32x8) RotateAllLeft(imm uint8) Uint32x8
+func (x Uint32x4) RotateAllLeft(shift uint8) Uint32x4
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
-func (x Uint32x16) RotateAllLeft(imm uint8) Uint32x16
+func (x Uint32x8) RotateAllLeft(shift uint8) Uint32x8
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
-// Asm: VPROLQ, CPU Feature: AVX512EVEX
-func (x Uint64x2) RotateAllLeft(imm uint8) Uint64x2
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPROLD, CPU Feature: AVX512EVEX
+func (x Uint32x16) RotateAllLeft(shift uint8) Uint32x16
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPROLQ, CPU Feature: AVX512EVEX
-func (x Uint64x4) RotateAllLeft(imm uint8) Uint64x4
+func (x Uint64x2) RotateAllLeft(shift uint8) Uint64x2
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPROLQ, CPU Feature: AVX512EVEX
-func (x Uint64x8) RotateAllLeft(imm uint8) Uint64x8
+func (x Uint64x4) RotateAllLeft(shift uint8) Uint64x4
+
+// RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPROLQ, CPU Feature: AVX512EVEX
+func (x Uint64x8) RotateAllLeft(shift uint8) Uint64x8
 
 /* RotateAllLeftMasked */
 
 // RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
 //
-// Asm: VPROLD, CPU Feature: AVX512EVEX
-func (x Int32x4) RotateAllLeftMasked(imm uint8, y Mask32x4) Int32x4
-
-// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
-func (x Int32x8) RotateAllLeftMasked(imm uint8, y Mask32x8) Int32x8
+func (x Int32x4) RotateAllLeftMasked(shift uint8, y Mask32x4) Int32x4
 
 // RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
-func (x Int32x16) RotateAllLeftMasked(imm uint8, y Mask32x16) Int32x16
+func (x Int32x8) RotateAllLeftMasked(shift uint8, y Mask32x8) Int32x8
 
 // RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
 //
-// Asm: VPROLQ, CPU Feature: AVX512EVEX
-func (x Int64x2) RotateAllLeftMasked(imm uint8, y Mask64x2) Int64x2
-
-// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
-//
-// Asm: VPROLQ, CPU Feature: AVX512EVEX
-func (x Int64x4) RotateAllLeftMasked(imm uint8, y Mask64x4) Int64x4
-
-// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
-//
-// Asm: VPROLQ, CPU Feature: AVX512EVEX
-func (x Int64x8) RotateAllLeftMasked(imm uint8, y Mask64x8) Int64x8
-
-// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
-func (x Uint32x4) RotateAllLeftMasked(imm uint8, y Mask32x4) Uint32x4
+func (x Int32x16) RotateAllLeftMasked(shift uint8, y Mask32x16) Int32x16
 
 // RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPROLQ, CPU Feature: AVX512EVEX
+func (x Int64x2) RotateAllLeftMasked(shift uint8, y Mask64x2) Int64x2
+
+// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPROLQ, CPU Feature: AVX512EVEX
+func (x Int64x4) RotateAllLeftMasked(shift uint8, y Mask64x4) Int64x4
+
+// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPROLQ, CPU Feature: AVX512EVEX
+func (x Int64x8) RotateAllLeftMasked(shift uint8, y Mask64x8) Int64x8
+
+// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
-func (x Uint32x8) RotateAllLeftMasked(imm uint8, y Mask32x8) Uint32x8
+func (x Uint32x4) RotateAllLeftMasked(shift uint8, y Mask32x4) Uint32x4
 
 // RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPROLD, CPU Feature: AVX512EVEX
-func (x Uint32x16) RotateAllLeftMasked(imm uint8, y Mask32x16) Uint32x16
+func (x Uint32x8) RotateAllLeftMasked(shift uint8, y Mask32x8) Uint32x8
 
 // RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
 //
-// Asm: VPROLQ, CPU Feature: AVX512EVEX
-func (x Uint64x2) RotateAllLeftMasked(imm uint8, y Mask64x2) Uint64x2
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPROLD, CPU Feature: AVX512EVEX
+func (x Uint32x16) RotateAllLeftMasked(shift uint8, y Mask32x16) Uint32x16
 
 // RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPROLQ, CPU Feature: AVX512EVEX
-func (x Uint64x4) RotateAllLeftMasked(imm uint8, y Mask64x4) Uint64x4
+func (x Uint64x2) RotateAllLeftMasked(shift uint8, y Mask64x2) Uint64x2
 
 // RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPROLQ, CPU Feature: AVX512EVEX
-func (x Uint64x8) RotateAllLeftMasked(imm uint8, y Mask64x8) Uint64x8
+func (x Uint64x4) RotateAllLeftMasked(shift uint8, y Mask64x4) Uint64x4
+
+// RotateAllLeftMasked rotates each element to the left by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPROLQ, CPU Feature: AVX512EVEX
+func (x Uint64x8) RotateAllLeftMasked(shift uint8, y Mask64x8) Uint64x8
 
 /* RotateAllRight */
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
-// Asm: VPRORD, CPU Feature: AVX512EVEX
-func (x Int32x4) RotateAllRight(imm uint8) Int32x4
-
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
-func (x Int32x8) RotateAllRight(imm uint8) Int32x8
+func (x Int32x4) RotateAllRight(shift uint8) Int32x4
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
-func (x Int32x16) RotateAllRight(imm uint8) Int32x16
+func (x Int32x8) RotateAllRight(shift uint8) Int32x8
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
-// Asm: VPRORQ, CPU Feature: AVX512EVEX
-func (x Int64x2) RotateAllRight(imm uint8) Int64x2
-
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
-//
-// Asm: VPRORQ, CPU Feature: AVX512EVEX
-func (x Int64x4) RotateAllRight(imm uint8) Int64x4
-
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
-//
-// Asm: VPRORQ, CPU Feature: AVX512EVEX
-func (x Int64x8) RotateAllRight(imm uint8) Int64x8
-
-// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
-func (x Uint32x4) RotateAllRight(imm uint8) Uint32x4
+func (x Int32x16) RotateAllRight(shift uint8) Int32x16
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPRORQ, CPU Feature: AVX512EVEX
+func (x Int64x2) RotateAllRight(shift uint8) Int64x2
+
+// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPRORQ, CPU Feature: AVX512EVEX
+func (x Int64x4) RotateAllRight(shift uint8) Int64x4
+
+// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPRORQ, CPU Feature: AVX512EVEX
+func (x Int64x8) RotateAllRight(shift uint8) Int64x8
+
+// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
-func (x Uint32x8) RotateAllRight(imm uint8) Uint32x8
+func (x Uint32x4) RotateAllRight(shift uint8) Uint32x4
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
-func (x Uint32x16) RotateAllRight(imm uint8) Uint32x16
+func (x Uint32x8) RotateAllRight(shift uint8) Uint32x8
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
-// Asm: VPRORQ, CPU Feature: AVX512EVEX
-func (x Uint64x2) RotateAllRight(imm uint8) Uint64x2
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPRORD, CPU Feature: AVX512EVEX
+func (x Uint32x16) RotateAllRight(shift uint8) Uint32x16
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPRORQ, CPU Feature: AVX512EVEX
-func (x Uint64x4) RotateAllRight(imm uint8) Uint64x4
+func (x Uint64x2) RotateAllRight(shift uint8) Uint64x2
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPRORQ, CPU Feature: AVX512EVEX
-func (x Uint64x8) RotateAllRight(imm uint8) Uint64x8
+func (x Uint64x4) RotateAllRight(shift uint8) Uint64x4
+
+// RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPRORQ, CPU Feature: AVX512EVEX
+func (x Uint64x8) RotateAllRight(shift uint8) Uint64x8
 
 /* RotateAllRightMasked */
 
 // RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
 //
-// Asm: VPRORD, CPU Feature: AVX512EVEX
-func (x Int32x4) RotateAllRightMasked(imm uint8, y Mask32x4) Int32x4
-
-// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
-func (x Int32x8) RotateAllRightMasked(imm uint8, y Mask32x8) Int32x8
+func (x Int32x4) RotateAllRightMasked(shift uint8, y Mask32x4) Int32x4
 
 // RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
-func (x Int32x16) RotateAllRightMasked(imm uint8, y Mask32x16) Int32x16
+func (x Int32x8) RotateAllRightMasked(shift uint8, y Mask32x8) Int32x8
 
 // RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
 //
-// Asm: VPRORQ, CPU Feature: AVX512EVEX
-func (x Int64x2) RotateAllRightMasked(imm uint8, y Mask64x2) Int64x2
-
-// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
-//
-// Asm: VPRORQ, CPU Feature: AVX512EVEX
-func (x Int64x4) RotateAllRightMasked(imm uint8, y Mask64x4) Int64x4
-
-// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
-//
-// Asm: VPRORQ, CPU Feature: AVX512EVEX
-func (x Int64x8) RotateAllRightMasked(imm uint8, y Mask64x8) Int64x8
-
-// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
-func (x Uint32x4) RotateAllRightMasked(imm uint8, y Mask32x4) Uint32x4
+func (x Int32x16) RotateAllRightMasked(shift uint8, y Mask32x16) Int32x16
 
 // RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPRORQ, CPU Feature: AVX512EVEX
+func (x Int64x2) RotateAllRightMasked(shift uint8, y Mask64x2) Int64x2
+
+// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPRORQ, CPU Feature: AVX512EVEX
+func (x Int64x4) RotateAllRightMasked(shift uint8, y Mask64x4) Int64x4
+
+// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPRORQ, CPU Feature: AVX512EVEX
+func (x Int64x8) RotateAllRightMasked(shift uint8, y Mask64x8) Int64x8
+
+// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
-func (x Uint32x8) RotateAllRightMasked(imm uint8, y Mask32x8) Uint32x8
+func (x Uint32x4) RotateAllRightMasked(shift uint8, y Mask32x4) Uint32x4
 
 // RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPRORD, CPU Feature: AVX512EVEX
-func (x Uint32x16) RotateAllRightMasked(imm uint8, y Mask32x16) Uint32x16
+func (x Uint32x8) RotateAllRightMasked(shift uint8, y Mask32x8) Uint32x8
 
 // RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
 //
-// Asm: VPRORQ, CPU Feature: AVX512EVEX
-func (x Uint64x2) RotateAllRightMasked(imm uint8, y Mask64x2) Uint64x2
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPRORD, CPU Feature: AVX512EVEX
+func (x Uint32x16) RotateAllRightMasked(shift uint8, y Mask32x16) Uint32x16
 
 // RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPRORQ, CPU Feature: AVX512EVEX
-func (x Uint64x4) RotateAllRightMasked(imm uint8, y Mask64x4) Uint64x4
+func (x Uint64x2) RotateAllRightMasked(shift uint8, y Mask64x2) Uint64x2
 
 // RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPRORQ, CPU Feature: AVX512EVEX
-func (x Uint64x8) RotateAllRightMasked(imm uint8, y Mask64x8) Uint64x8
+func (x Uint64x4) RotateAllRightMasked(shift uint8, y Mask64x4) Uint64x4
+
+// RotateAllRightMasked rotates each element to the right by the number of bits specified by the immediate.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPRORQ, CPU Feature: AVX512EVEX
+func (x Uint64x8) RotateAllRightMasked(shift uint8, y Mask64x8) Uint64x8
 
 /* RotateLeft */
 
@@ -5943,65 +6243,89 @@ func (x Float64x4) Round() Float64x4
 
 // RoundWithPrecision rounds elements with specified precision.
 //
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) RoundWithPrecision(imm uint8) Float32x4
-
-// RoundWithPrecision rounds elements with specified precision.
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) RoundWithPrecision(imm uint8) Float32x8
+func (x Float32x4) RoundWithPrecision(prec uint8) Float32x4
 
 // RoundWithPrecision rounds elements with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) RoundWithPrecision(imm uint8) Float32x16
+func (x Float32x8) RoundWithPrecision(prec uint8) Float32x8
 
 // RoundWithPrecision rounds elements with specified precision.
 //
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) RoundWithPrecision(imm uint8) Float64x2
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) RoundWithPrecision(prec uint8) Float32x16
 
 // RoundWithPrecision rounds elements with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) RoundWithPrecision(imm uint8) Float64x4
+func (x Float64x2) RoundWithPrecision(prec uint8) Float64x2
 
 // RoundWithPrecision rounds elements with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) RoundWithPrecision(imm uint8) Float64x8
+func (x Float64x4) RoundWithPrecision(prec uint8) Float64x4
+
+// RoundWithPrecision rounds elements with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) RoundWithPrecision(prec uint8) Float64x8
 
 /* RoundWithPrecisionMasked */
 
 // RoundWithPrecisionMasked rounds elements with specified precision.
 //
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) RoundWithPrecisionMasked(imm uint8, y Mask32x4) Float32x4
-
-// RoundWithPrecisionMasked rounds elements with specified precision.
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) RoundWithPrecisionMasked(imm uint8, y Mask32x8) Float32x8
+func (x Float32x4) RoundWithPrecisionMasked(prec uint8, y Mask32x4) Float32x4
 
 // RoundWithPrecisionMasked rounds elements with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) RoundWithPrecisionMasked(imm uint8, y Mask32x16) Float32x16
+func (x Float32x8) RoundWithPrecisionMasked(prec uint8, y Mask32x8) Float32x8
 
 // RoundWithPrecisionMasked rounds elements with specified precision.
 //
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) RoundWithPrecisionMasked(imm uint8, y Mask64x2) Float64x2
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) RoundWithPrecisionMasked(prec uint8, y Mask32x16) Float32x16
 
 // RoundWithPrecisionMasked rounds elements with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) RoundWithPrecisionMasked(imm uint8, y Mask64x4) Float64x4
+func (x Float64x2) RoundWithPrecisionMasked(prec uint8, y Mask64x2) Float64x2
 
 // RoundWithPrecisionMasked rounds elements with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) RoundWithPrecisionMasked(imm uint8, y Mask64x8) Float64x8
+func (x Float64x4) RoundWithPrecisionMasked(prec uint8, y Mask64x4) Float64x4
+
+// RoundWithPrecisionMasked rounds elements with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) RoundWithPrecisionMasked(prec uint8, y Mask64x8) Float64x8
 
 /* SaturatedAdd */
 
@@ -6421,95 +6745,131 @@ func (x Uint32x16) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x64
 
 // Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
 //
-// Asm: VINSERTF128, CPU Feature: AVX
-func (x Float32x8) Set128(imm uint8, y Float32x4) Float32x8
-
-// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VINSERTF128, CPU Feature: AVX
-func (x Float64x4) Set128(imm uint8, y Float64x2) Float64x4
+func (x Float32x8) Set128(index uint8, y Float32x4) Float32x8
 
 // Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
 //
-// Asm: VINSERTI128, CPU Feature: AVX2
-func (x Int8x32) Set128(imm uint8, y Int8x16) Int8x32
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VINSERTF128, CPU Feature: AVX
+func (x Float64x4) Set128(index uint8, y Float64x2) Float64x4
 
 // Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
 //
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Int16x16) Set128(imm uint8, y Int16x8) Int16x16
+func (x Int8x32) Set128(index uint8, y Int8x16) Int8x32
 
 // Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
 //
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Int32x8) Set128(imm uint8, y Int32x4) Int32x8
+func (x Int16x16) Set128(index uint8, y Int16x8) Int16x16
 
 // Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
 //
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Int64x4) Set128(imm uint8, y Int64x2) Int64x4
+func (x Int32x8) Set128(index uint8, y Int32x4) Int32x8
 
 // Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
 //
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Uint8x32) Set128(imm uint8, y Uint8x16) Uint8x32
+func (x Int64x4) Set128(index uint8, y Int64x2) Int64x4
 
 // Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
 //
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Uint16x16) Set128(imm uint8, y Uint16x8) Uint16x16
+func (x Uint8x32) Set128(index uint8, y Uint8x16) Uint8x32
 
 // Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
 //
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Uint32x8) Set128(imm uint8, y Uint32x4) Uint32x8
+func (x Uint16x16) Set128(index uint8, y Uint16x8) Uint16x16
 
 // Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
 //
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Uint64x4) Set128(imm uint8, y Uint64x2) Uint64x4
+func (x Uint32x8) Set128(index uint8, y Uint32x4) Uint32x8
+
+// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
+//
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Uint64x4) Set128(index uint8, y Uint64x2) Uint64x4
 
 /* SetElem */
 
 // SetElem sets a single constant-indexed element's value.
 //
-// Asm: VPINSRB, CPU Feature: AVX
-func (x Int8x16) SetElem(imm uint8, y int8) Int8x16
-
-// SetElem sets a single constant-indexed element's value.
-//
-// Asm: VPINSRW, CPU Feature: AVX
-func (x Int16x8) SetElem(imm uint8, y int16) Int16x8
-
-// SetElem sets a single constant-indexed element's value.
-//
-// Asm: VPINSRD, CPU Feature: AVX
-func (x Int32x4) SetElem(imm uint8, y int32) Int32x4
-
-// SetElem sets a single constant-indexed element's value.
-//
-// Asm: VPINSRQ, CPU Feature: AVX
-func (x Int64x2) SetElem(imm uint8, y int64) Int64x2
-
-// SetElem sets a single constant-indexed element's value.
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPINSRB, CPU Feature: AVX
-func (x Uint8x16) SetElem(imm uint8, y uint8) Uint8x16
+func (x Int8x16) SetElem(index uint8, y int8) Int8x16
 
 // SetElem sets a single constant-indexed element's value.
+//
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPINSRW, CPU Feature: AVX
-func (x Uint16x8) SetElem(imm uint8, y uint16) Uint16x8
+func (x Int16x8) SetElem(index uint8, y int16) Int16x8
 
 // SetElem sets a single constant-indexed element's value.
+//
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPINSRD, CPU Feature: AVX
-func (x Uint32x4) SetElem(imm uint8, y uint32) Uint32x4
+func (x Int32x4) SetElem(index uint8, y int32) Int32x4
 
 // SetElem sets a single constant-indexed element's value.
 //
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPINSRQ, CPU Feature: AVX
-func (x Uint64x2) SetElem(imm uint8, y uint64) Uint64x2
+func (x Int64x2) SetElem(index uint8, y int64) Int64x2
+
+// SetElem sets a single constant-indexed element's value.
+//
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPINSRB, CPU Feature: AVX
+func (x Uint8x16) SetElem(index uint8, y uint8) Uint8x16
+
+// SetElem sets a single constant-indexed element's value.
+//
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPINSRW, CPU Feature: AVX
+func (x Uint16x8) SetElem(index uint8, y uint16) Uint16x8
+
+// SetElem sets a single constant-indexed element's value.
+//
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPINSRD, CPU Feature: AVX
+func (x Uint32x4) SetElem(index uint8, y uint32) Uint32x4
+
+// SetElem sets a single constant-indexed element's value.
+//
+// index is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPINSRQ, CPU Feature: AVX
+func (x Uint64x2) SetElem(index uint8, y uint64) Uint64x2
 
 /* ShiftAllLeft */
 
@@ -6588,220 +6948,292 @@ func (x Uint64x8) ShiftAllLeft(y uint64) Uint64x8
 // ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// Asm: VPSHLDW, CPU Feature: AVX512EVEX
-func (x Int16x8) ShiftAllLeftAndFillUpperFrom(imm uint8, y Int16x8) Int16x8
-
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512EVEX
-func (x Int16x16) ShiftAllLeftAndFillUpperFrom(imm uint8, y Int16x16) Int16x16
+func (x Int16x8) ShiftAllLeftAndFillUpperFrom(shift uint8, y Int16x8) Int16x8
 
 // ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512EVEX
-func (x Int16x32) ShiftAllLeftAndFillUpperFrom(imm uint8, y Int16x32) Int16x32
+func (x Int16x16) ShiftAllLeftAndFillUpperFrom(shift uint8, y Int16x16) Int16x16
 
 // ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// Asm: VPSHLDD, CPU Feature: AVX512EVEX
-func (x Int32x4) ShiftAllLeftAndFillUpperFrom(imm uint8, y Int32x4) Int32x4
-
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
-//
-// Asm: VPSHLDD, CPU Feature: AVX512EVEX
-func (x Int32x8) ShiftAllLeftAndFillUpperFrom(imm uint8, y Int32x8) Int32x8
-
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
-//
-// Asm: VPSHLDD, CPU Feature: AVX512EVEX
-func (x Int32x16) ShiftAllLeftAndFillUpperFrom(imm uint8, y Int32x16) Int32x16
-
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
-//
-// Asm: VPSHLDQ, CPU Feature: AVX512EVEX
-func (x Int64x2) ShiftAllLeftAndFillUpperFrom(imm uint8, y Int64x2) Int64x2
-
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
-//
-// Asm: VPSHLDQ, CPU Feature: AVX512EVEX
-func (x Int64x4) ShiftAllLeftAndFillUpperFrom(imm uint8, y Int64x4) Int64x4
-
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
-//
-// Asm: VPSHLDQ, CPU Feature: AVX512EVEX
-func (x Int64x8) ShiftAllLeftAndFillUpperFrom(imm uint8, y Int64x8) Int64x8
-
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512EVEX
-func (x Uint16x8) ShiftAllLeftAndFillUpperFrom(imm uint8, y Uint16x8) Uint16x8
+func (x Int16x32) ShiftAllLeftAndFillUpperFrom(shift uint8, y Int16x32) Int16x32
 
 // ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDD, CPU Feature: AVX512EVEX
+func (x Int32x4) ShiftAllLeftAndFillUpperFrom(shift uint8, y Int32x4) Int32x4
+
+// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDD, CPU Feature: AVX512EVEX
+func (x Int32x8) ShiftAllLeftAndFillUpperFrom(shift uint8, y Int32x8) Int32x8
+
+// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDD, CPU Feature: AVX512EVEX
+func (x Int32x16) ShiftAllLeftAndFillUpperFrom(shift uint8, y Int32x16) Int32x16
+
+// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDQ, CPU Feature: AVX512EVEX
+func (x Int64x2) ShiftAllLeftAndFillUpperFrom(shift uint8, y Int64x2) Int64x2
+
+// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDQ, CPU Feature: AVX512EVEX
+func (x Int64x4) ShiftAllLeftAndFillUpperFrom(shift uint8, y Int64x4) Int64x4
+
+// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDQ, CPU Feature: AVX512EVEX
+func (x Int64x8) ShiftAllLeftAndFillUpperFrom(shift uint8, y Int64x8) Int64x8
+
+// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512EVEX
-func (x Uint16x16) ShiftAllLeftAndFillUpperFrom(imm uint8, y Uint16x16) Uint16x16
+func (x Uint16x8) ShiftAllLeftAndFillUpperFrom(shift uint8, y Uint16x8) Uint16x8
 
 // ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512EVEX
-func (x Uint16x32) ShiftAllLeftAndFillUpperFrom(imm uint8, y Uint16x32) Uint16x32
+func (x Uint16x16) ShiftAllLeftAndFillUpperFrom(shift uint8, y Uint16x16) Uint16x16
 
 // ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDW, CPU Feature: AVX512EVEX
+func (x Uint16x32) ShiftAllLeftAndFillUpperFrom(shift uint8, y Uint16x32) Uint16x32
+
+// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512EVEX
-func (x Uint32x4) ShiftAllLeftAndFillUpperFrom(imm uint8, y Uint32x4) Uint32x4
+func (x Uint32x4) ShiftAllLeftAndFillUpperFrom(shift uint8, y Uint32x4) Uint32x4
 
 // ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512EVEX
-func (x Uint32x8) ShiftAllLeftAndFillUpperFrom(imm uint8, y Uint32x8) Uint32x8
+func (x Uint32x8) ShiftAllLeftAndFillUpperFrom(shift uint8, y Uint32x8) Uint32x8
 
 // ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512EVEX
-func (x Uint32x16) ShiftAllLeftAndFillUpperFrom(imm uint8, y Uint32x16) Uint32x16
+func (x Uint32x16) ShiftAllLeftAndFillUpperFrom(shift uint8, y Uint32x16) Uint32x16
 
 // ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPSHLDQ, CPU Feature: AVX512EVEX
-func (x Uint64x2) ShiftAllLeftAndFillUpperFrom(imm uint8, y Uint64x2) Uint64x2
+func (x Uint64x2) ShiftAllLeftAndFillUpperFrom(shift uint8, y Uint64x2) Uint64x2
 
 // ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPSHLDQ, CPU Feature: AVX512EVEX
-func (x Uint64x4) ShiftAllLeftAndFillUpperFrom(imm uint8, y Uint64x4) Uint64x4
+func (x Uint64x4) ShiftAllLeftAndFillUpperFrom(shift uint8, y Uint64x4) Uint64x4
 
 // ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPSHLDQ, CPU Feature: AVX512EVEX
-func (x Uint64x8) ShiftAllLeftAndFillUpperFrom(imm uint8, y Uint64x8) Uint64x8
+func (x Uint64x8) ShiftAllLeftAndFillUpperFrom(shift uint8, y Uint64x8) Uint64x8
 
 /* ShiftAllLeftAndFillUpperFromMasked */
 
 // ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// Asm: VPSHLDW, CPU Feature: AVX512EVEX
-func (x Int16x8) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Int16x8, z Mask16x8) Int16x8
-
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512EVEX
-func (x Int16x16) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Int16x16, z Mask16x16) Int16x16
+func (x Int16x8) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int16x8, z Mask16x8) Int16x8
 
 // ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512EVEX
-func (x Int16x32) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Int16x32, z Mask16x32) Int16x32
+func (x Int16x16) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int16x16, z Mask16x16) Int16x16
 
 // ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// Asm: VPSHLDD, CPU Feature: AVX512EVEX
-func (x Int32x4) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Int32x4, z Mask32x4) Int32x4
-
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
-//
-// Asm: VPSHLDD, CPU Feature: AVX512EVEX
-func (x Int32x8) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Int32x8, z Mask32x8) Int32x8
-
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
-//
-// Asm: VPSHLDD, CPU Feature: AVX512EVEX
-func (x Int32x16) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Int32x16, z Mask32x16) Int32x16
-
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
-//
-// Asm: VPSHLDQ, CPU Feature: AVX512EVEX
-func (x Int64x2) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Int64x2, z Mask64x2) Int64x2
-
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
-//
-// Asm: VPSHLDQ, CPU Feature: AVX512EVEX
-func (x Int64x4) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Int64x4, z Mask64x4) Int64x4
-
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
-//
-// Asm: VPSHLDQ, CPU Feature: AVX512EVEX
-func (x Int64x8) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Int64x8, z Mask64x8) Int64x8
-
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512EVEX
-func (x Uint16x8) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Uint16x8, z Mask16x8) Uint16x8
+func (x Int16x32) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int16x32, z Mask16x32) Int16x32
 
 // ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDD, CPU Feature: AVX512EVEX
+func (x Int32x4) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int32x4, z Mask32x4) Int32x4
+
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDD, CPU Feature: AVX512EVEX
+func (x Int32x8) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int32x8, z Mask32x8) Int32x8
+
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDD, CPU Feature: AVX512EVEX
+func (x Int32x16) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int32x16, z Mask32x16) Int32x16
+
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDQ, CPU Feature: AVX512EVEX
+func (x Int64x2) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int64x2, z Mask64x2) Int64x2
+
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDQ, CPU Feature: AVX512EVEX
+func (x Int64x4) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int64x4, z Mask64x4) Int64x4
+
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDQ, CPU Feature: AVX512EVEX
+func (x Int64x8) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int64x8, z Mask64x8) Int64x8
+
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512EVEX
-func (x Uint16x16) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Uint16x16, z Mask16x16) Uint16x16
+func (x Uint16x8) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint16x8, z Mask16x8) Uint16x8
 
 // ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512EVEX
-func (x Uint16x32) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Uint16x32, z Mask16x32) Uint16x32
+func (x Uint16x16) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint16x16, z Mask16x16) Uint16x16
 
 // ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDW, CPU Feature: AVX512EVEX
+func (x Uint16x32) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint16x32, z Mask16x32) Uint16x32
+
+// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512EVEX
-func (x Uint32x4) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Uint32x4, z Mask32x4) Uint32x4
+func (x Uint32x4) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint32x4, z Mask32x4) Uint32x4
 
 // ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512EVEX
-func (x Uint32x8) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Uint32x8, z Mask32x8) Uint32x8
+func (x Uint32x8) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint32x8, z Mask32x8) Uint32x8
 
 // ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512EVEX
-func (x Uint32x16) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Uint32x16, z Mask32x16) Uint32x16
+func (x Uint32x16) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint32x16, z Mask32x16) Uint32x16
 
 // ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPSHLDQ, CPU Feature: AVX512EVEX
-func (x Uint64x2) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Uint64x2, z Mask64x2) Uint64x2
+func (x Uint64x2) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint64x2, z Mask64x2) Uint64x2
 
 // ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPSHLDQ, CPU Feature: AVX512EVEX
-func (x Uint64x4) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Uint64x4, z Mask64x4) Uint64x4
+func (x Uint64x4) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint64x4, z Mask64x4) Uint64x4
 
 // ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPSHLDQ, CPU Feature: AVX512EVEX
-func (x Uint64x8) ShiftAllLeftAndFillUpperFromMasked(imm uint8, y Uint64x8, z Mask64x8) Uint64x8
+func (x Uint64x8) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint64x8, z Mask64x8) Uint64x8
 
 /* ShiftAllLeftMasked */
 
@@ -6912,220 +7344,292 @@ func (x Uint64x8) ShiftAllRight(y uint64) Uint64x8
 // ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// Asm: VPSHRDW, CPU Feature: AVX512EVEX
-func (x Int16x8) ShiftAllRightAndFillUpperFrom(imm uint8, y Int16x8) Int16x8
-
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512EVEX
-func (x Int16x16) ShiftAllRightAndFillUpperFrom(imm uint8, y Int16x16) Int16x16
+func (x Int16x8) ShiftAllRightAndFillUpperFrom(shift uint8, y Int16x8) Int16x8
 
 // ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512EVEX
-func (x Int16x32) ShiftAllRightAndFillUpperFrom(imm uint8, y Int16x32) Int16x32
+func (x Int16x16) ShiftAllRightAndFillUpperFrom(shift uint8, y Int16x16) Int16x16
 
 // ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// Asm: VPSHRDD, CPU Feature: AVX512EVEX
-func (x Int32x4) ShiftAllRightAndFillUpperFrom(imm uint8, y Int32x4) Int32x4
-
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
-//
-// Asm: VPSHRDD, CPU Feature: AVX512EVEX
-func (x Int32x8) ShiftAllRightAndFillUpperFrom(imm uint8, y Int32x8) Int32x8
-
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
-//
-// Asm: VPSHRDD, CPU Feature: AVX512EVEX
-func (x Int32x16) ShiftAllRightAndFillUpperFrom(imm uint8, y Int32x16) Int32x16
-
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
-//
-// Asm: VPSHRDQ, CPU Feature: AVX512EVEX
-func (x Int64x2) ShiftAllRightAndFillUpperFrom(imm uint8, y Int64x2) Int64x2
-
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
-//
-// Asm: VPSHRDQ, CPU Feature: AVX512EVEX
-func (x Int64x4) ShiftAllRightAndFillUpperFrom(imm uint8, y Int64x4) Int64x4
-
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
-//
-// Asm: VPSHRDQ, CPU Feature: AVX512EVEX
-func (x Int64x8) ShiftAllRightAndFillUpperFrom(imm uint8, y Int64x8) Int64x8
-
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512EVEX
-func (x Uint16x8) ShiftAllRightAndFillUpperFrom(imm uint8, y Uint16x8) Uint16x8
+func (x Int16x32) ShiftAllRightAndFillUpperFrom(shift uint8, y Int16x32) Int16x32
 
 // ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDD, CPU Feature: AVX512EVEX
+func (x Int32x4) ShiftAllRightAndFillUpperFrom(shift uint8, y Int32x4) Int32x4
+
+// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDD, CPU Feature: AVX512EVEX
+func (x Int32x8) ShiftAllRightAndFillUpperFrom(shift uint8, y Int32x8) Int32x8
+
+// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDD, CPU Feature: AVX512EVEX
+func (x Int32x16) ShiftAllRightAndFillUpperFrom(shift uint8, y Int32x16) Int32x16
+
+// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDQ, CPU Feature: AVX512EVEX
+func (x Int64x2) ShiftAllRightAndFillUpperFrom(shift uint8, y Int64x2) Int64x2
+
+// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDQ, CPU Feature: AVX512EVEX
+func (x Int64x4) ShiftAllRightAndFillUpperFrom(shift uint8, y Int64x4) Int64x4
+
+// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDQ, CPU Feature: AVX512EVEX
+func (x Int64x8) ShiftAllRightAndFillUpperFrom(shift uint8, y Int64x8) Int64x8
+
+// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512EVEX
-func (x Uint16x16) ShiftAllRightAndFillUpperFrom(imm uint8, y Uint16x16) Uint16x16
+func (x Uint16x8) ShiftAllRightAndFillUpperFrom(shift uint8, y Uint16x8) Uint16x8
 
 // ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512EVEX
-func (x Uint16x32) ShiftAllRightAndFillUpperFrom(imm uint8, y Uint16x32) Uint16x32
+func (x Uint16x16) ShiftAllRightAndFillUpperFrom(shift uint8, y Uint16x16) Uint16x16
 
 // ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDW, CPU Feature: AVX512EVEX
+func (x Uint16x32) ShiftAllRightAndFillUpperFrom(shift uint8, y Uint16x32) Uint16x32
+
+// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512EVEX
-func (x Uint32x4) ShiftAllRightAndFillUpperFrom(imm uint8, y Uint32x4) Uint32x4
+func (x Uint32x4) ShiftAllRightAndFillUpperFrom(shift uint8, y Uint32x4) Uint32x4
 
 // ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512EVEX
-func (x Uint32x8) ShiftAllRightAndFillUpperFrom(imm uint8, y Uint32x8) Uint32x8
+func (x Uint32x8) ShiftAllRightAndFillUpperFrom(shift uint8, y Uint32x8) Uint32x8
 
 // ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512EVEX
-func (x Uint32x16) ShiftAllRightAndFillUpperFrom(imm uint8, y Uint32x16) Uint32x16
+func (x Uint32x16) ShiftAllRightAndFillUpperFrom(shift uint8, y Uint32x16) Uint32x16
 
 // ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPSHRDQ, CPU Feature: AVX512EVEX
-func (x Uint64x2) ShiftAllRightAndFillUpperFrom(imm uint8, y Uint64x2) Uint64x2
+func (x Uint64x2) ShiftAllRightAndFillUpperFrom(shift uint8, y Uint64x2) Uint64x2
 
 // ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPSHRDQ, CPU Feature: AVX512EVEX
-func (x Uint64x4) ShiftAllRightAndFillUpperFrom(imm uint8, y Uint64x4) Uint64x4
+func (x Uint64x4) ShiftAllRightAndFillUpperFrom(shift uint8, y Uint64x4) Uint64x4
 
 // ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPSHRDQ, CPU Feature: AVX512EVEX
-func (x Uint64x8) ShiftAllRightAndFillUpperFrom(imm uint8, y Uint64x8) Uint64x8
+func (x Uint64x8) ShiftAllRightAndFillUpperFrom(shift uint8, y Uint64x8) Uint64x8
 
 /* ShiftAllRightAndFillUpperFromMasked */
 
 // ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// Asm: VPSHRDW, CPU Feature: AVX512EVEX
-func (x Int16x8) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Int16x8, z Mask16x8) Int16x8
-
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512EVEX
-func (x Int16x16) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Int16x16, z Mask16x16) Int16x16
+func (x Int16x8) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int16x8, z Mask16x8) Int16x8
 
 // ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512EVEX
-func (x Int16x32) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Int16x32, z Mask16x32) Int16x32
+func (x Int16x16) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int16x16, z Mask16x16) Int16x16
 
 // ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// Asm: VPSHRDD, CPU Feature: AVX512EVEX
-func (x Int32x4) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Int32x4, z Mask32x4) Int32x4
-
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
-//
-// Asm: VPSHRDD, CPU Feature: AVX512EVEX
-func (x Int32x8) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Int32x8, z Mask32x8) Int32x8
-
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
-//
-// Asm: VPSHRDD, CPU Feature: AVX512EVEX
-func (x Int32x16) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Int32x16, z Mask32x16) Int32x16
-
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
-//
-// Asm: VPSHRDQ, CPU Feature: AVX512EVEX
-func (x Int64x2) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Int64x2, z Mask64x2) Int64x2
-
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
-//
-// Asm: VPSHRDQ, CPU Feature: AVX512EVEX
-func (x Int64x4) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Int64x4, z Mask64x4) Int64x4
-
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
-//
-// Asm: VPSHRDQ, CPU Feature: AVX512EVEX
-func (x Int64x8) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Int64x8, z Mask64x8) Int64x8
-
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512EVEX
-func (x Uint16x8) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Uint16x8, z Mask16x8) Uint16x8
+func (x Int16x32) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int16x32, z Mask16x32) Int16x32
 
 // ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDD, CPU Feature: AVX512EVEX
+func (x Int32x4) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int32x4, z Mask32x4) Int32x4
+
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDD, CPU Feature: AVX512EVEX
+func (x Int32x8) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int32x8, z Mask32x8) Int32x8
+
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDD, CPU Feature: AVX512EVEX
+func (x Int32x16) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int32x16, z Mask32x16) Int32x16
+
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDQ, CPU Feature: AVX512EVEX
+func (x Int64x2) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int64x2, z Mask64x2) Int64x2
+
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDQ, CPU Feature: AVX512EVEX
+func (x Int64x4) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int64x4, z Mask64x4) Int64x4
+
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDQ, CPU Feature: AVX512EVEX
+func (x Int64x8) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int64x8, z Mask64x8) Int64x8
+
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512EVEX
-func (x Uint16x16) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Uint16x16, z Mask16x16) Uint16x16
+func (x Uint16x8) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint16x8, z Mask16x8) Uint16x8
 
 // ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512EVEX
-func (x Uint16x32) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Uint16x32, z Mask16x32) Uint16x32
+func (x Uint16x16) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint16x16, z Mask16x16) Uint16x16
 
 // ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDW, CPU Feature: AVX512EVEX
+func (x Uint16x32) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint16x32, z Mask16x32) Uint16x32
+
+// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512EVEX
-func (x Uint32x4) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Uint32x4, z Mask32x4) Uint32x4
+func (x Uint32x4) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint32x4, z Mask32x4) Uint32x4
 
 // ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512EVEX
-func (x Uint32x8) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Uint32x8, z Mask32x8) Uint32x8
+func (x Uint32x8) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint32x8, z Mask32x8) Uint32x8
 
 // ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512EVEX
-func (x Uint32x16) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Uint32x16, z Mask32x16) Uint32x16
+func (x Uint32x16) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint32x16, z Mask32x16) Uint32x16
 
 // ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPSHRDQ, CPU Feature: AVX512EVEX
-func (x Uint64x2) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Uint64x2, z Mask64x2) Uint64x2
+func (x Uint64x2) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint64x2, z Mask64x2) Uint64x2
 
 // ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPSHRDQ, CPU Feature: AVX512EVEX
-func (x Uint64x4) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Uint64x4, z Mask64x4) Uint64x4
+func (x Uint64x4) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint64x4, z Mask64x4) Uint64x4
 
 // ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VPSHRDQ, CPU Feature: AVX512EVEX
-func (x Uint64x8) ShiftAllRightAndFillUpperFromMasked(imm uint8, y Uint64x8, z Mask64x8) Uint64x8
+func (x Uint64x8) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint64x8, z Mask64x8) Uint64x8
 
 /* ShiftAllRightMasked */
 
@@ -8637,65 +9141,89 @@ func (x Float64x4) Trunc() Float64x4
 
 // TruncWithPrecision truncates elements with specified precision.
 //
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) TruncWithPrecision(imm uint8) Float32x4
-
-// TruncWithPrecision truncates elements with specified precision.
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) TruncWithPrecision(imm uint8) Float32x8
+func (x Float32x4) TruncWithPrecision(prec uint8) Float32x4
 
 // TruncWithPrecision truncates elements with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) TruncWithPrecision(imm uint8) Float32x16
+func (x Float32x8) TruncWithPrecision(prec uint8) Float32x8
 
 // TruncWithPrecision truncates elements with specified precision.
 //
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) TruncWithPrecision(imm uint8) Float64x2
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) TruncWithPrecision(prec uint8) Float32x16
 
 // TruncWithPrecision truncates elements with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) TruncWithPrecision(imm uint8) Float64x4
+func (x Float64x2) TruncWithPrecision(prec uint8) Float64x2
 
 // TruncWithPrecision truncates elements with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) TruncWithPrecision(imm uint8) Float64x8
+func (x Float64x4) TruncWithPrecision(prec uint8) Float64x4
+
+// TruncWithPrecision truncates elements with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) TruncWithPrecision(prec uint8) Float64x8
 
 /* TruncWithPrecisionMasked */
 
 // TruncWithPrecisionMasked truncates elements with specified precision.
 //
-// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x4) TruncWithPrecisionMasked(imm uint8, y Mask32x4) Float32x4
-
-// TruncWithPrecisionMasked truncates elements with specified precision.
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x8) TruncWithPrecisionMasked(imm uint8, y Mask32x8) Float32x8
+func (x Float32x4) TruncWithPrecisionMasked(prec uint8, y Mask32x4) Float32x4
 
 // TruncWithPrecisionMasked truncates elements with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
-func (x Float32x16) TruncWithPrecisionMasked(imm uint8, y Mask32x16) Float32x16
+func (x Float32x8) TruncWithPrecisionMasked(prec uint8, y Mask32x8) Float32x8
 
 // TruncWithPrecisionMasked truncates elements with specified precision.
 //
-// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x2) TruncWithPrecisionMasked(imm uint8, y Mask64x2) Float64x2
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VRNDSCALEPS, CPU Feature: AVX512EVEX
+func (x Float32x16) TruncWithPrecisionMasked(prec uint8, y Mask32x16) Float32x16
 
 // TruncWithPrecisionMasked truncates elements with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x4) TruncWithPrecisionMasked(imm uint8, y Mask64x4) Float64x4
+func (x Float64x2) TruncWithPrecisionMasked(prec uint8, y Mask64x2) Float64x2
 
 // TruncWithPrecisionMasked truncates elements with specified precision.
 //
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
 // Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
-func (x Float64x8) TruncWithPrecisionMasked(imm uint8, y Mask64x8) Float64x8
+func (x Float64x4) TruncWithPrecisionMasked(prec uint8, y Mask64x4) Float64x4
+
+// TruncWithPrecisionMasked truncates elements with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VRNDSCALEPD, CPU Feature: AVX512EVEX
+func (x Float64x8) TruncWithPrecisionMasked(prec uint8, y Mask64x8) Float64x8
 
 /* UnsignedSignedQuadDotProdAccumulate */
 
