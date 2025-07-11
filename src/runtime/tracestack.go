@@ -28,10 +28,8 @@ const (
 // skip controls the number of leaf frames to omit in order to hide tracer internals
 // from stack traces, see CL 5523.
 //
-// Avoid calling this function directly. gen needs to be the current generation
-// that this stack trace is being written out for, which needs to be synchronized with
-// generations moving forward. Prefer traceEventWriter.stack.
-func traceStack(skip int, gp *g, gen uintptr) uint64 {
+// Avoid calling this function directly. Prefer traceEventWriter.stack.
+func traceStack(skip int, gp *g, tab *traceStackTable) uint64 {
 	var pcBuf [tracev2.MaxFramesPerStack]uintptr
 
 	// Figure out gp and mp for the backtrace.
@@ -134,7 +132,7 @@ func traceStack(skip int, gp *g, gen uintptr) uint64 {
 	if nstk > 0 && gp.goid == 1 {
 		nstk-- // skip runtime.main
 	}
-	id := trace.stackTab[gen%2].put(pcBuf[:nstk])
+	id := tab.put(pcBuf[:nstk])
 	return id
 }
 

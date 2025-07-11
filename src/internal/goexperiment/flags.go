@@ -14,32 +14,32 @@
 //
 // Experiments are exposed to the build in the following ways:
 //
-// - Build tag goexperiment.x is set if experiment x (lower case) is
-// enabled.
+//   - Build tag goexperiment.x is set if experiment x (lower case) is
+//     enabled.
 //
-// - For each experiment x (in camel case), this package contains a
-// boolean constant x and an integer constant xInt.
+//   - For each experiment x (in camel case), this package contains a
+//     boolean constant x and an integer constant xInt.
 //
-// - In runtime assembly, the macro GOEXPERIMENT_x is defined if
-// experiment x (lower case) is enabled.
+//   - In runtime assembly, the macro GOEXPERIMENT_x is defined if
+//     experiment x (lower case) is enabled.
 //
 // In the toolchain, the set of experiments enabled for the current
 // build should be accessed via objabi.Experiment.
 //
-// The set of experiments is included in the output of runtime.Version()
+// The set of experiments is included in the output of [runtime.Version]()
 // and "go version <binary>" if it differs from the default experiments.
 //
 // For the set of experiments supported by the current toolchain, see
 // "go doc goexperiment.Flags".
 //
-// Note that this package defines the set of experiments (in Flags)
+// Note that this package defines the set of experiments (in [Flags])
 // and records the experiments that were enabled when the package
 // was compiled (as boolean and integer constants).
 //
 // Note especially that this package does not itself change behavior
 // at run time based on the GOEXPERIMENT variable.
 // The code used in builds to interpret the GOEXPERIMENT variable
-// is in the separate package internal/buildcfg.
+// is in the separate package [internal/buildcfg].
 package goexperiment
 
 //go:generate go run mkconsts.go
@@ -51,7 +51,7 @@ package goexperiment
 // tags, experiments use the strings.ToLower of their field name.
 //
 // For the baseline experimental configuration, see
-// [internal/buildcfg.ParseGOEXPERIMENT].
+// [internal/buildcfg.Experiment].
 //
 // If you change this struct definition, run "go generate".
 type Flags struct {

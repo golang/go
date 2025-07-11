@@ -616,7 +616,7 @@ func UserHomeDir() (string, error) {
 	if v := Getenv(env); v != "" {
 		return v, nil
 	}
-	// On some geese the home directory is not always defined.
+	// On some operating systems the home directory is not always defined.
 	switch runtime.GOOS {
 	case "android":
 		return "/sdcard", nil

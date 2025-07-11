@@ -40,6 +40,7 @@ type DebugFlags struct {
 	InlFuncsWithClosures  int    `help:"allow functions with closures to be inlined" concurrent:"ok"`
 	InlStaticInit         int    `help:"allow static initialization of inlined calls" concurrent:"ok"`
 	Libfuzzer             int    `help:"enable coverage instrumentation for libfuzzer"`
+	LiteralAllocHash      string `help:"hash value for use in debugging literal allocation optimizations" concurrent:"ok"`
 	LoopVar               int    `help:"shared (0, default), 1 (private loop variables), 2, private + log"`
 	LoopVarHash           string `help:"for debugging changes in loop behavior. Overrides experiment and loopvar flag."`
 	LocationLists         int    `help:"print information about DWARF location list creation"`

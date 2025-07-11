@@ -25,7 +25,7 @@ type ExperimentFlags struct {
 // (This is not necessarily the set of experiments the compiler itself
 // was built with.)
 //
-// experimentBaseline specifies the experiment flags that are enabled by
+// Experiment.baseline specifies the experiment flags that are enabled by
 // default in the current toolchain. This is, in effect, the "control"
 // configuration and any variation from this is an experiment.
 var Experiment ExperimentFlags = func() ExperimentFlags {
@@ -54,7 +54,7 @@ var FramePointerEnabled = GOARCH == "amd64" || GOARCH == "arm64"
 // configuration tuple and returns the enabled and baseline experiment
 // flag sets.
 //
-// TODO(mdempsky): Move to internal/goexperiment.
+// TODO(mdempsky): Move to [internal/goexperiment].
 func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	// regabiSupported is set to true on platforms where register ABI is
 	// supported and enabled by default.
