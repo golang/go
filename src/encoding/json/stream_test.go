@@ -446,18 +446,18 @@ func TestDecodeInStream(t *testing.T) {
 		{CaseName: Name(""), json: ` [{"a": 1} {"a": 2}] `, expTokens: []any{
 			Delim('['),
 			decodeThis{map[string]any{"a": float64(1)}},
-			decodeThis{&SyntaxError{"expected comma after array element", 11}},
+			decodeThis{&SyntaxError{"expected comma after array element", 11, "", 0}},
 		}},
 		{CaseName: Name(""), json: `{ "` + strings.Repeat("a", 513) + `" 1 }`, expTokens: []any{
 			Delim('{'), strings.Repeat("a", 513),
-			decodeThis{&SyntaxError{"expected colon after object key", 518}},
+			decodeThis{&SyntaxError{"expected colon after object key", 518, "", 0}},
 		}},
 		{CaseName: Name(""), json: `{ "\a" }`, expTokens: []any{
 			Delim('{'),
-			&SyntaxError{"invalid character 'a' in string escape code", 3},
+			&SyntaxError{invalidChar: 'a', invalidCharContext: "in string escape code", Offset: 3},
 		}},
 		{CaseName: Name(""), json: ` \a`, expTokens: []any{
-			&SyntaxError{"invalid character '\\\\' looking for beginning of value", 1},
+			&SyntaxError{invalidChar: '\\', invalidCharContext: "looking for beginning of value", Offset: 1},
 		}},
 	}
 	for _, tt := range tests {
