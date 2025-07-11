@@ -1244,6 +1244,22 @@ func TestModifiedPrivateKey(t *testing.T) {
 		})
 	})
 
+	t.Run("D+2", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.D = new(big.Int).Add(k.D, big.NewInt(2))
+		})
+	})
+	t.Run("D=0", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.D = new(big.Int)
+		})
+	})
+	t.Run("D is nil", func(t *testing.T) {
+		testModifiedPrivateKey(t, func(k *PrivateKey) {
+			k.D = nil
+		})
+	})
+
 	t.Run("N+2", func(t *testing.T) {
 		testModifiedPrivateKey(t, func(k *PrivateKey) {
 			k.N = new(big.Int).Add(k.N, big.NewInt(2))

@@ -233,8 +233,7 @@ func checkPrivateKey(priv *PrivateKey) error {
 	// It also implies that a^de ≡ a mod p as a^(p-1) ≡ 1 mod p. Thus a^de ≡ a
 	// mod n for all a coprime to n, as required.
 	//
-	// This checks dP, dQ, and e. We don't check d because it is not actually
-	// used in the RSA private key operation.
+	// This checks dP, dQ, and e.
 	pMinus1, err := bigmod.NewModulus(p.Nat().SubOne(p).Bytes(p))
 	if err != nil {
 		return errors.New("crypto/rsa: invalid prime")
@@ -272,6 +271,17 @@ func checkPrivateKey(priv *PrivateKey) error {
 	}
 	if qP.Mul(priv.qInv, p).IsOne() != 1 {
 		return errors.New("crypto/rsa: invalid CRT coefficient")
+	}
+
+	// Check d against dP and dQ, even though we never actually use d,
+	// to make sure the key is consistent.
+	dP1 := bigmod.NewNat().Mod(priv.d, pMinus1)
+	if dP1.Equal(dP) != 1 {
+		return errors.New("crypto/rsa: d does not match dP")
+	}
+	dQ1 := bigmod.NewNat().Mod(priv.d, qMinus1)
+	if dQ1.Equal(dQ) != 1 {
+		return errors.New("crypto/rsa: d does not match dQ")
 	}
 
 	// Check that |p - q| > 2^(nlen/2 - 100).
