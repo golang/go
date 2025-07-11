@@ -65,14 +65,20 @@ type context struct {
 	lastexceptionfromrip uint64
 }
 
+//go:nosplit
 func (c *context) ip() uintptr { return uintptr(c.rip) }
+//go:nosplit
 func (c *context) sp() uintptr { return uintptr(c.rsp) }
 
 // AMD64 does not have link register, so this returns 0.
+//go:nosplit
 func (c *context) lr() uintptr      { return 0 }
+//go:nosplit
 func (c *context) set_lr(x uintptr) {}
 
+//go:nosplit
 func (c *context) set_ip(x uintptr) { c.rip = uint64(x) }
+//go:nosplit
 func (c *context) set_sp(x uintptr) { c.rsp = uint64(x) }
 func (c *context) set_fp(x uintptr) { c.rbp = uint64(x) }
 

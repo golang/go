@@ -55,12 +55,18 @@ type context struct {
 	padding2 [2]uint32
 }
 
+//go:nosplit
 func (c *context) ip() uintptr { return uintptr(c.pc) }
+//go:nosplit
 func (c *context) sp() uintptr { return uintptr(c.spr) }
+//go:nosplit
 func (c *context) lr() uintptr { return uintptr(c.lrr) }
 
+//go:nosplit
 func (c *context) set_ip(x uintptr) { c.pc = uint32(x) }
+//go:nosplit
 func (c *context) set_sp(x uintptr) { c.spr = uint32(x) }
+//go:nosplit
 func (c *context) set_lr(x uintptr) { c.lrr = uint32(x) }
 
 // arm does not have frame pointer register.
