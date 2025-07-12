@@ -539,9 +539,8 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 		return
 	}
 
-	assignTemp := func(n ir.Node, init *ir.Nodes) {
+	assignTemp := func(pos src.XPos, n ir.Node, init *ir.Nodes) {
 		// Preserve any side effects of n by assigning it to an otherwise unused temp.
-		pos := n.Pos()
 		tmp := typecheck.TempAt(pos, fn, n.Type())
 		init.Append(typecheck.Stmt(ir.NewDecl(pos, ir.ODCL, tmp)))
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(pos, tmp, n)))
@@ -575,8 +574,8 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 						return
 					}
 					// Preserve any side effects of the original expression, then replace it.
-					assignTemp(*r, n.PtrInit())
-					*r = lit
+					assignTemp(n.Pos(), *r, n.PtrInit())
+					*r = ir.NewBasicLit(n.Pos(), (*r).Type(), lit.Val())
 				}
 			}
 		}
@@ -601,9 +600,9 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 					base.WarnfAt(n.Pos(), "rewriting OCONVIFACE value from %v (%v) to %v (%v)", conv.X, conv.X.Type(), v, v.Type())
 				}
 				// Preserve any side effects of the original expression, then replace it.
-				assignTemp(conv.X, conv.PtrInit())
+				assignTemp(conv.Pos(), conv.X, conv.PtrInit())
 				v := v.(*ir.BasicLit)
-				conv.X = ir.NewBasicLit(conv.X.Pos(), conv.X.Type(), v.Val())
+				conv.X = ir.NewBasicLit(conv.Pos(), conv.X.Type(), v.Val())
 				typecheck.Expr(conv)
 			}
 		}
