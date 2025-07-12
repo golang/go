@@ -1534,6 +1534,9 @@ func isfat(t *types.Type) bool {
 			}
 			return true
 		case types.TSTRUCT:
+			if t.IsSIMD() {
+				return false
+			}
 			// Struct with 1 field, check if field is fat
 			if t.NumFields() == 1 {
 				return isfat(t.Field(0).Type)
