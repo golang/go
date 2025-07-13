@@ -1560,6 +1560,43 @@
 
 (MemEq p q _ _) && isSamePtr(p, q) => (ConstBool <typ.Bool> [true])
 
+// 3-32 bytes memeq (enabled only with support of unaligned loads and 8-byte max word size)
+
+(MemEq p q (Const64 [c]) mem)
+  && (c == 3 || c == 5 || c == 9 || c == 17)
+  && canLoadUnaligned(config)
+  && config.RegSize == 8
+  => (AndB (MemEq p q (Const64 <typ.Int64> [c-1]) mem)
+           (Eq8 (Load <typ.Int8> (OffPtr <p.Type> p [c-1]) mem) (Load <typ.Int8> (OffPtr <q.Type> q [c-1]) mem)))
+
+(MemEq p q (Const64 [c]) mem)
+  && (c == 6 || c == 10 || c == 18)
+  && canLoadUnaligned(config)
+  && config.RegSize == 8
+  => (AndB (MemEq p q (Const64 <typ.Int64> [c-2]) mem)
+           (Eq16 (Load <typ.Int16> (OffPtr <p.Type> p [c-2]) mem) (Load <typ.Int16> (OffPtr <q.Type> q [c-2]) mem)))
+
+(MemEq p q (Const64 [c]) mem)
+  && (c == 7 || c == 11 || c == 19 || c == 20)
+  && canLoadUnaligned(config)
+  && config.RegSize == 8
+  => (AndB (MemEq p q (Const64 <typ.Int64> [min(c-3,16)]) mem)
+           (Eq32 (Load <typ.Int32> (OffPtr <p.Type> p [c-4]) mem) (Load <typ.Int32> (OffPtr <q.Type> q [c-4]) mem)))
+
+(MemEq p q (Const64 [c]) mem)
+  && ((c >= 12 && c <= 16) || (c >= 21 && c <= 24))
+  && canLoadUnaligned(config)
+  && config.RegSize == 8
+  => (AndB (MemEq p q (Const64 <typ.Int64> [8 + int64(bool2int(c>16))*8]) mem)
+           (Eq64 (Load <typ.Int64> (OffPtr <p.Type> p [c-8]) mem) (Load <typ.Int64> (OffPtr <q.Type> q [c-8]) mem)))
+
+(MemEq p q (Const64 [c]) mem)
+  && c >= 25 && c <= 32
+  && canLoadUnaligned(config)
+  && config.RegSize == 8
+  => (AndB (MemEq p q (Const64 <typ.Int64> [16]) mem)
+           (MemEq (OffPtr <p.Type> p [16]) (OffPtr <q.Type> q [16]) (Const64 <typ.Int64> [c-16]) mem))
+
 // Turn known-size calls to memclrNoHeapPointers into a Zero.
 // Note that we are using types.Types[types.TUINT8] instead of sptr.Type.Elem() - see issue 55122 and CL 431496 for more details.
 (SelectN [0] call:(StaticCall {sym} sptr (Const(64|32) [c]) mem))

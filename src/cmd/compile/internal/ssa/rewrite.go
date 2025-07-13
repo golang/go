@@ -2786,3 +2786,12 @@ func imakeOfStructMake(v *Value) *Value {
 	}
 	return v.Block.NewValue2(v.Pos, OpIMake, v.Type, v.Args[0], arg)
 }
+
+// bool2int converts bool to int: true to 1, false to 0
+func bool2int(x bool) int {
+	var b int
+	if x {
+		b = 1
+	}
+	return b
+}

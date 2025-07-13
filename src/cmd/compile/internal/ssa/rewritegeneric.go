@@ -14983,6 +14983,174 @@ func rewriteValuegeneric_OpMemEq(v *Value) bool {
 		}
 		break
 	}
+	// match: (MemEq p q (Const64 [c]) mem)
+	// cond: (c == 3 || c == 5 || c == 9 || c == 17) && canLoadUnaligned(config) && config.RegSize == 8
+	// result: (AndB (MemEq p q (Const64 <typ.Int64> [c-1]) mem) (Eq8 (Load <typ.Int8> (OffPtr <p.Type> p [c-1]) mem) (Load <typ.Int8> (OffPtr <q.Type> q [c-1]) mem)))
+	for {
+		p := v_0
+		q := v_1
+		if v_2.Op != OpConst64 {
+			break
+		}
+		c := auxIntToInt64(v_2.AuxInt)
+		mem := v_3
+		if !((c == 3 || c == 5 || c == 9 || c == 17) && canLoadUnaligned(config) && config.RegSize == 8) {
+			break
+		}
+		v.reset(OpAndB)
+		v0 := b.NewValue0(v.Pos, OpMemEq, typ.Bool)
+		v1 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
+		v1.AuxInt = int64ToAuxInt(c - 1)
+		v0.AddArg4(p, q, v1, mem)
+		v2 := b.NewValue0(v.Pos, OpEq8, typ.Bool)
+		v3 := b.NewValue0(v.Pos, OpLoad, typ.Int8)
+		v4 := b.NewValue0(v.Pos, OpOffPtr, p.Type)
+		v4.AuxInt = int64ToAuxInt(c - 1)
+		v4.AddArg(p)
+		v3.AddArg2(v4, mem)
+		v5 := b.NewValue0(v.Pos, OpLoad, typ.Int8)
+		v6 := b.NewValue0(v.Pos, OpOffPtr, q.Type)
+		v6.AuxInt = int64ToAuxInt(c - 1)
+		v6.AddArg(q)
+		v5.AddArg2(v6, mem)
+		v2.AddArg2(v3, v5)
+		v.AddArg2(v0, v2)
+		return true
+	}
+	// match: (MemEq p q (Const64 [c]) mem)
+	// cond: (c == 6 || c == 10 || c == 18) && canLoadUnaligned(config) && config.RegSize == 8
+	// result: (AndB (MemEq p q (Const64 <typ.Int64> [c-2]) mem) (Eq16 (Load <typ.Int16> (OffPtr <p.Type> p [c-2]) mem) (Load <typ.Int16> (OffPtr <q.Type> q [c-2]) mem)))
+	for {
+		p := v_0
+		q := v_1
+		if v_2.Op != OpConst64 {
+			break
+		}
+		c := auxIntToInt64(v_2.AuxInt)
+		mem := v_3
+		if !((c == 6 || c == 10 || c == 18) && canLoadUnaligned(config) && config.RegSize == 8) {
+			break
+		}
+		v.reset(OpAndB)
+		v0 := b.NewValue0(v.Pos, OpMemEq, typ.Bool)
+		v1 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
+		v1.AuxInt = int64ToAuxInt(c - 2)
+		v0.AddArg4(p, q, v1, mem)
+		v2 := b.NewValue0(v.Pos, OpEq16, typ.Bool)
+		v3 := b.NewValue0(v.Pos, OpLoad, typ.Int16)
+		v4 := b.NewValue0(v.Pos, OpOffPtr, p.Type)
+		v4.AuxInt = int64ToAuxInt(c - 2)
+		v4.AddArg(p)
+		v3.AddArg2(v4, mem)
+		v5 := b.NewValue0(v.Pos, OpLoad, typ.Int16)
+		v6 := b.NewValue0(v.Pos, OpOffPtr, q.Type)
+		v6.AuxInt = int64ToAuxInt(c - 2)
+		v6.AddArg(q)
+		v5.AddArg2(v6, mem)
+		v2.AddArg2(v3, v5)
+		v.AddArg2(v0, v2)
+		return true
+	}
+	// match: (MemEq p q (Const64 [c]) mem)
+	// cond: (c == 7 || c == 11 || c == 19 || c == 20) && canLoadUnaligned(config) && config.RegSize == 8
+	// result: (AndB (MemEq p q (Const64 <typ.Int64> [min(c-3,16)]) mem) (Eq32 (Load <typ.Int32> (OffPtr <p.Type> p [c-4]) mem) (Load <typ.Int32> (OffPtr <q.Type> q [c-4]) mem)))
+	for {
+		p := v_0
+		q := v_1
+		if v_2.Op != OpConst64 {
+			break
+		}
+		c := auxIntToInt64(v_2.AuxInt)
+		mem := v_3
+		if !((c == 7 || c == 11 || c == 19 || c == 20) && canLoadUnaligned(config) && config.RegSize == 8) {
+			break
+		}
+		v.reset(OpAndB)
+		v0 := b.NewValue0(v.Pos, OpMemEq, typ.Bool)
+		v1 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
+		v1.AuxInt = int64ToAuxInt(min(c-3, 16))
+		v0.AddArg4(p, q, v1, mem)
+		v2 := b.NewValue0(v.Pos, OpEq32, typ.Bool)
+		v3 := b.NewValue0(v.Pos, OpLoad, typ.Int32)
+		v4 := b.NewValue0(v.Pos, OpOffPtr, p.Type)
+		v4.AuxInt = int64ToAuxInt(c - 4)
+		v4.AddArg(p)
+		v3.AddArg2(v4, mem)
+		v5 := b.NewValue0(v.Pos, OpLoad, typ.Int32)
+		v6 := b.NewValue0(v.Pos, OpOffPtr, q.Type)
+		v6.AuxInt = int64ToAuxInt(c - 4)
+		v6.AddArg(q)
+		v5.AddArg2(v6, mem)
+		v2.AddArg2(v3, v5)
+		v.AddArg2(v0, v2)
+		return true
+	}
+	// match: (MemEq p q (Const64 [c]) mem)
+	// cond: ((c >= 12 && c <= 16) || (c >= 21 && c <= 24)) && canLoadUnaligned(config) && config.RegSize == 8
+	// result: (AndB (MemEq p q (Const64 <typ.Int64> [8 + int64(bool2int(c>16))*8]) mem) (Eq64 (Load <typ.Int64> (OffPtr <p.Type> p [c-8]) mem) (Load <typ.Int64> (OffPtr <q.Type> q [c-8]) mem)))
+	for {
+		p := v_0
+		q := v_1
+		if v_2.Op != OpConst64 {
+			break
+		}
+		c := auxIntToInt64(v_2.AuxInt)
+		mem := v_3
+		if !(((c >= 12 && c <= 16) || (c >= 21 && c <= 24)) && canLoadUnaligned(config) && config.RegSize == 8) {
+			break
+		}
+		v.reset(OpAndB)
+		v0 := b.NewValue0(v.Pos, OpMemEq, typ.Bool)
+		v1 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
+		v1.AuxInt = int64ToAuxInt(8 + int64(bool2int(c > 16))*8)
+		v0.AddArg4(p, q, v1, mem)
+		v2 := b.NewValue0(v.Pos, OpEq64, typ.Bool)
+		v3 := b.NewValue0(v.Pos, OpLoad, typ.Int64)
+		v4 := b.NewValue0(v.Pos, OpOffPtr, p.Type)
+		v4.AuxInt = int64ToAuxInt(c - 8)
+		v4.AddArg(p)
+		v3.AddArg2(v4, mem)
+		v5 := b.NewValue0(v.Pos, OpLoad, typ.Int64)
+		v6 := b.NewValue0(v.Pos, OpOffPtr, q.Type)
+		v6.AuxInt = int64ToAuxInt(c - 8)
+		v6.AddArg(q)
+		v5.AddArg2(v6, mem)
+		v2.AddArg2(v3, v5)
+		v.AddArg2(v0, v2)
+		return true
+	}
+	// match: (MemEq p q (Const64 [c]) mem)
+	// cond: c >= 25 && c <= 32 && canLoadUnaligned(config) && config.RegSize == 8
+	// result: (AndB (MemEq p q (Const64 <typ.Int64> [16]) mem) (MemEq (OffPtr <p.Type> p [16]) (OffPtr <q.Type> q [16]) (Const64 <typ.Int64> [c-16]) mem))
+	for {
+		p := v_0
+		q := v_1
+		if v_2.Op != OpConst64 {
+			break
+		}
+		c := auxIntToInt64(v_2.AuxInt)
+		mem := v_3
+		if !(c >= 25 && c <= 32 && canLoadUnaligned(config) && config.RegSize == 8) {
+			break
+		}
+		v.reset(OpAndB)
+		v0 := b.NewValue0(v.Pos, OpMemEq, typ.Bool)
+		v1 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
+		v1.AuxInt = int64ToAuxInt(16)
+		v0.AddArg4(p, q, v1, mem)
+		v2 := b.NewValue0(v.Pos, OpMemEq, typ.Bool)
+		v3 := b.NewValue0(v.Pos, OpOffPtr, p.Type)
+		v3.AuxInt = int64ToAuxInt(16)
+		v3.AddArg(p)
+		v4 := b.NewValue0(v.Pos, OpOffPtr, q.Type)
+		v4.AuxInt = int64ToAuxInt(16)
+		v4.AddArg(q)
+		v5 := b.NewValue0(v.Pos, OpConst64, typ.Int64)
+		v5.AuxInt = int64ToAuxInt(c - 16)
+		v2.AddArg4(v3, v4, v5, mem)
+		v.AddArg2(v0, v2)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpMod16(v *Value) bool {
