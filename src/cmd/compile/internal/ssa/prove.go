@@ -1917,15 +1917,22 @@ func (ft *factsTable) flowLimit(v *Value) bool {
 
 // See if we can get any facts because v is the result of signed mod by a constant.
 // The mod operation has already been rewritten, so we have to try and reconstruct it.
-//   x % d
+//
+//	x % d
+//
 // is rewritten as
-//   x - (x / d) * d
+//
+//	x - (x / d) * d
+//
 // furthermore, the divide itself gets rewritten. If d is a power of 2 (d == 1<<k), we do
-//   (x / d) * d = ((x + adj) >> k) << k
-//               = (x + adj) & (-1<<k)
+//
+//	(x / d) * d = ((x + adj) >> k) << k
+//	            = (x + adj) & (-1<<k)
+//
 // with adj being an adjustment in case x is negative (see below).
 // if d is not a power of 2, we do
-//   x / d = ... TODO ...
+//
+//	x / d = ... TODO ...
 func (ft *factsTable) detectSignedMod(v *Value) bool {
 	if ft.detectSignedModByPowerOfTwo(v) {
 		return true

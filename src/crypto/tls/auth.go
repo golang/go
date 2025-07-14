@@ -163,73 +163,64 @@ var rsaSignatureSchemes = []struct {
 	{PKCS1WithSHA1, 15 + crypto.SHA1.Size() + 11},
 }
 
-// signatureSchemesForCertificate returns the list of supported SignatureSchemes
-// for a given certificate, based on the public key and the protocol version,
-// and optionally filtered by its explicit SupportedSignatureAlgorithms.
-func signatureSchemesForCertificate(version uint16, cert *Certificate) []SignatureScheme {
-	priv, ok := cert.PrivateKey.(crypto.Signer)
-	if !ok {
-		return nil
-	}
-
-	var sigAlgs []SignatureScheme
-	switch pub := priv.Public().(type) {
+func signatureSchemesForPublicKey(version uint16, pub crypto.PublicKey) []SignatureScheme {
+	switch pub := pub.(type) {
 	case *ecdsa.PublicKey:
-		if version != VersionTLS13 {
+		if version < VersionTLS13 {
 			// In TLS 1.2 and earlier, ECDSA algorithms are not
 			// constrained to a single curve.
-			sigAlgs = []SignatureScheme{
+			return []SignatureScheme{
 				ECDSAWithP256AndSHA256,
 				ECDSAWithP384AndSHA384,
 				ECDSAWithP521AndSHA512,
 				ECDSAWithSHA1,
 			}
-			break
 		}
 		switch pub.Curve {
 		case elliptic.P256():
-			sigAlgs = []SignatureScheme{ECDSAWithP256AndSHA256}
+			return []SignatureScheme{ECDSAWithP256AndSHA256}
 		case elliptic.P384():
-			sigAlgs = []SignatureScheme{ECDSAWithP384AndSHA384}
+			return []SignatureScheme{ECDSAWithP384AndSHA384}
 		case elliptic.P521():
-			sigAlgs = []SignatureScheme{ECDSAWithP521AndSHA512}
+			return []SignatureScheme{ECDSAWithP521AndSHA512}
 		default:
 			return nil
 		}
 	case *rsa.PublicKey:
 		size := pub.Size()
-		sigAlgs = make([]SignatureScheme, 0, len(rsaSignatureSchemes))
+		sigAlgs := make([]SignatureScheme, 0, len(rsaSignatureSchemes))
 		for _, candidate := range rsaSignatureSchemes {
 			if size >= candidate.minModulusBytes {
 				sigAlgs = append(sigAlgs, candidate.scheme)
 			}
 		}
+		return sigAlgs
 	case ed25519.PublicKey:
-		sigAlgs = []SignatureScheme{Ed25519}
+		return []SignatureScheme{Ed25519}
 	default:
 		return nil
 	}
-
-	if cert.SupportedSignatureAlgorithms != nil {
-		sigAlgs = slices.DeleteFunc(sigAlgs, func(sigAlg SignatureScheme) bool {
-			return !isSupportedSignatureAlgorithm(sigAlg, cert.SupportedSignatureAlgorithms)
-		})
-	}
-
-	// Filter out any unsupported signature algorithms, for example due to
-	// FIPS 140-3 policy, tlssha1=0, or protocol version.
-	sigAlgs = slices.DeleteFunc(sigAlgs, func(sigAlg SignatureScheme) bool {
-		return isDisabledSignatureAlgorithm(version, sigAlg, false)
-	})
-
-	return sigAlgs
 }
 
 // selectSignatureScheme picks a SignatureScheme from the peer's preference list
 // that works with the selected certificate. It's only called for protocol
 // versions that support signature algorithms, so TLS 1.2 and 1.3.
 func selectSignatureScheme(vers uint16, c *Certificate, peerAlgs []SignatureScheme) (SignatureScheme, error) {
-	supportedAlgs := signatureSchemesForCertificate(vers, c)
+	priv, ok := c.PrivateKey.(crypto.Signer)
+	if !ok {
+		return 0, unsupportedCertificateError(c)
+	}
+	supportedAlgs := signatureSchemesForPublicKey(vers, priv.Public())
+	if c.SupportedSignatureAlgorithms != nil {
+		supportedAlgs = slices.DeleteFunc(supportedAlgs, func(sigAlg SignatureScheme) bool {
+			return !isSupportedSignatureAlgorithm(sigAlg, c.SupportedSignatureAlgorithms)
+		})
+	}
+	// Filter out any unsupported signature algorithms, for example due to
+	// FIPS 140-3 policy, tlssha1=0, or protocol version.
+	supportedAlgs = slices.DeleteFunc(supportedAlgs, func(sigAlg SignatureScheme) bool {
+		return isDisabledSignatureAlgorithm(vers, sigAlg, false)
+	})
 	if len(supportedAlgs) == 0 {
 		return 0, unsupportedCertificateError(c)
 	}

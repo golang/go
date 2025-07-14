@@ -56,6 +56,7 @@ var hashDebug *HashDebug
 var FmaHash *HashDebug          // for debugging fused-multiply-add floating point changes
 var LoopVarHash *HashDebug      // for debugging shared/private loop variable changes
 var PGOHash *HashDebug          // for debugging PGO optimization decisions
+var LiteralAllocHash *HashDebug // for debugging literal allocation optimizations
 var MergeLocalsHash *HashDebug  // for debugging local stack slot merging changes
 var VariableMakeHash *HashDebug // for debugging variable-sized make optimizations
 

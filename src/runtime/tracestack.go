@@ -28,10 +28,8 @@ const (
 // skip controls the number of leaf frames to omit in order to hide tracer internals
 // from stack traces, see CL 5523.
 //
-// Avoid calling this function directly. gen needs to be the current generation
-// that this stack trace is being written out for, which needs to be synchronized with
-// generations moving forward. Prefer traceEventWriter.stack.
-func traceStack(skip int, gp *g, gen uintptr) uint64 {
+// Avoid calling this function directly. Prefer traceEventWriter.stack.
+func traceStack(skip int, gp *g, tab *traceStackTable) uint64 {
 	var pcBuf [tracev2.MaxFramesPerStack]uintptr
 
 	// Figure out gp and mp for the backtrace.
@@ -109,7 +107,22 @@ func traceStack(skip int, gp *g, gen uintptr) uint64 {
 				nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.syscallbp), pcBuf[2:])
 			} else {
 				pcBuf[1] = gp.sched.pc
-				nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.sched.bp), pcBuf[2:])
+				if gp.syncSafePoint {
+					// We're stopped in morestack, which is an odd state because gp.sched.bp
+					// refers to our parent frame, since we haven't had the chance to push our
+					// frame pointer to the stack yet. If we just start walking from gp.sched.bp,
+					// we'll skip a frame as a result. Luckily, we can find the PC we want right
+					// at gp.sched.sp on non-LR platforms, and we have it directly on LR platforms.
+					// See issue go.dev/issue/68090.
+					if usesLR {
+						pcBuf[2] = gp.sched.lr
+					} else {
+						pcBuf[2] = *(*uintptr)(unsafe.Pointer(gp.sched.sp))
+					}
+					nstk += 2 + fpTracebackPCs(unsafe.Pointer(gp.sched.bp), pcBuf[3:])
+				} else {
+					nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.sched.bp), pcBuf[2:])
+				}
 			}
 		}
 	}
@@ -119,7 +132,7 @@ func traceStack(skip int, gp *g, gen uintptr) uint64 {
 	if nstk > 0 && gp.goid == 1 {
 		nstk-- // skip runtime.main
 	}
-	id := trace.stackTab[gen%2].put(pcBuf[:nstk])
+	id := tab.put(pcBuf[:nstk])
 	return id
 }
 

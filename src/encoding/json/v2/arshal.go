@@ -438,7 +438,8 @@ func unmarshalFull(in *jsontext.Decoder, out any, uo *jsonopts.Struct) error {
 	case nil:
 		return export.Decoder(in).CheckEOF()
 	case io.EOF:
-		return io.ErrUnexpectedEOF
+		offset := in.InputOffset() + int64(len(in.UnreadBuffer()))
+		return &jsontext.SyntacticError{ByteOffset: offset, Err: io.ErrUnexpectedEOF}
 	default:
 		return err
 	}

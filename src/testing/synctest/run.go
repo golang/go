@@ -10,7 +10,7 @@ import "internal/synctest"
 
 // Run is deprecated.
 //
-// Deprecated: Use Test instead.
+// Deprecated: Use Test instead. Run will be removed in Go 1.26.
 func Run(f func()) {
 	synctest.Run(f)
 }

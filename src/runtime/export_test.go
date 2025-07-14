@@ -1917,3 +1917,13 @@ const (
 	BubbleAssocCurrentBubble = bubbleAssocCurrentBubble
 	BubbleAssocOtherBubble   = bubbleAssocOtherBubble
 )
+
+type TraceStackTable traceStackTable
+
+func (t *TraceStackTable) Reset() {
+	t.tab.reset()
+}
+
+func TraceStack(gp *G, tab *TraceStackTable) {
+	traceStack(0, gp, (*traceStackTable)(tab))
+}

@@ -15,6 +15,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -214,7 +215,10 @@ func doPkgsite(urlPath string) error {
 		return fmt.Errorf("failed to find port for documentation server: %v", err)
 	}
 	addr := fmt.Sprintf("localhost:%d", port)
-	path := path.Join("http://"+addr, urlPath)
+	path, err := url.JoinPath("http://"+addr, urlPath)
+	if err != nil {
+		return fmt.Errorf("internal error: failed to construct url: %v", err)
+	}
 
 	// Turn off the default signal handler for SIGINT (and SIGQUIT on Unix)
 	// and instead wait for the child process to handle the signal and
@@ -223,16 +227,24 @@ func doPkgsite(urlPath string) error {
 
 	// Prepend the local download cache to GOPROXY to get around deprecation checks.
 	env := os.Environ()
-	vars, err := runCmd(nil, "go", "env", "GOPROXY", "GOMODCACHE")
+	vars, err := runCmd(env, goCmd(), "env", "GOPROXY", "GOMODCACHE")
 	fields := strings.Fields(vars)
 	if err == nil && len(fields) == 2 {
 		goproxy, gomodcache := fields[0], fields[1]
-		goproxy = "file://" + filepath.Join(gomodcache, "cache", "download") + "," + goproxy
-		env = append(env, "GOPROXY="+goproxy)
+		gomodcache = filepath.Join(gomodcache, "cache", "download")
+		// Convert absolute path to file URL. pkgsite will not accept
+		// Windows absolute paths because they look like a host:path remote.
+		// TODO(golang.org/issue/32456): use url.FromFilePath when implemented.
+		if strings.HasPrefix(gomodcache, "/") {
+			gomodcache = "file://" + gomodcache
+		} else {
+			gomodcache = "file:///" + filepath.ToSlash(gomodcache)
+		}
+		env = append(env, "GOPROXY="+gomodcache+","+goproxy)
 	}
 
 	const version = "v0.0.0-20250608123103-82c52f1754cd"
-	cmd := exec.Command("go", "run", "golang.org/x/pkgsite/cmd/internal/doc@"+version,
+	cmd := exec.Command(goCmd(), "run", "golang.org/x/pkgsite/cmd/internal/doc@"+version,
 		"-gorepo", buildCtx.GOROOT,
 		"-http", addr,
 		"-open", path)

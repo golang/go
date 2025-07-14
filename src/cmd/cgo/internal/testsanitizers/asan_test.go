@@ -8,6 +8,7 @@ package sanitizers_test
 
 import (
 	"bytes"
+	"crypto/fips140"
 	"fmt"
 	"internal/platform"
 	"internal/testenv"
@@ -155,6 +156,10 @@ func mustHaveASAN(t *testing.T) *config {
 	}
 	if !platform.ASanSupported(goos, goarch) {
 		t.Skipf("skipping on %s/%s; -asan option is not supported.", goos, goarch)
+	}
+
+	if fips140.Enabled() {
+		t.Skipf("skipping with FIPS 140 mode; -asan option is not supported.")
 	}
 
 	// The current implementation is only compatible with the ASan library from version

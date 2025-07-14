@@ -981,6 +981,9 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, strict bool) (int32, uint
 	// matches the cached contents.
 	const debugCheckCache = false
 
+	// If true, skip checking the cache entirely.
+	const skipCache = false
+
 	if off == 0 {
 		return -1, 0
 	}
@@ -991,7 +994,7 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, strict bool) (int32, uint
 	var checkVal int32
 	var checkPC uintptr
 	ck := pcvalueCacheKey(targetpc)
-	{
+	if !skipCache {
 		mp := acquirem()
 		cache := &mp.pcvalueCache
 		// The cache can be used by the signal handler on this M. Avoid

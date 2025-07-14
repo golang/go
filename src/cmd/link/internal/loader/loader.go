@@ -2298,16 +2298,16 @@ func (l *Loader) LoadSyms(arch *sys.Arch) {
 		st.preloadSyms(r, hashedDef)
 		st.preloadSyms(r, nonPkgDef)
 	}
-	for _, sf := range l.sizeFixups {
-		pp := l.cloneToExternal(sf.sym)
-		pp.size = int64(sf.size)
-	}
 	for _, vr := range st.linknameVarRefs {
 		l.checkLinkname(vr.pkg, vr.name, vr.sym)
 	}
 	l.nhashedsyms = len(st.hashed64Syms) + len(st.hashedSyms)
 	for _, r := range l.objs[goObjStart:] {
 		loadObjRefs(l, r, arch)
+	}
+	for _, sf := range l.sizeFixups {
+		pp := l.cloneToExternal(sf.sym)
+		pp.size = int64(sf.size)
 	}
 	l.values = make([]int64, l.NSym(), l.NSym()+1000) // +1000 make some room for external symbols
 	l.outer = make([]Sym, l.NSym(), l.NSym()+1000)

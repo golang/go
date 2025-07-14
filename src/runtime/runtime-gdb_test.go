@@ -78,6 +78,9 @@ func checkGdbVersion(t *testing.T) {
 	if major < 10 {
 		t.Skipf("skipping: gdb version %d.%d too old", major, minor)
 	}
+	if major < 12 || (major == 12 && minor < 1) {
+		t.Logf("gdb version <12.1 is known to crash due to a SIGWINCH recieved in non-interactive mode; if you see a crash, some test may be sending SIGWINCH to the whole process group. See go.dev/issue/58932.")
+	}
 	t.Logf("gdb version %d.%d", major, minor)
 }
 
@@ -528,11 +531,12 @@ func TestGdbBacktrace(t *testing.T) {
 	got, err := cmd.CombinedOutput()
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {
+		noProcessRE := regexp.MustCompile(`Couldn't get [a-zA-Z_ -]* ?registers: No such process\.`)
 		switch {
 		case bytes.Contains(got, []byte("internal-error: wait returned unexpected status 0x0")):
 			// GDB bug: https://sourceware.org/bugzilla/show_bug.cgi?id=28551
 			testenv.SkipFlaky(t, 43068)
-		case bytes.Contains(got, []byte("Couldn't get registers: No such process.")),
+		case noProcessRE.Match(got),
 			bytes.Contains(got, []byte("Unable to fetch general registers.: No such process.")),
 			bytes.Contains(got, []byte("reading register pc (#64): No such process.")):
 			// GDB bug: https://sourceware.org/bugzilla/show_bug.cgi?id=9086

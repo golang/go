@@ -23,7 +23,7 @@ import (
 )
 
 func TestTraceAnnotations(t *testing.T) {
-	testTraceProg(t, "annotations.go", func(t *testing.T, tb, _ []byte, _ bool) {
+	testTraceProg(t, "annotations.go", func(t *testing.T, tb, _ []byte, _ string) {
 		type evDesc struct {
 			kind trace.EventKind
 			task trace.TaskID
@@ -98,7 +98,7 @@ func TestTraceCgoCallback(t *testing.T) {
 }
 
 func TestTraceCPUProfile(t *testing.T) {
-	testTraceProg(t, "cpu-profile.go", func(t *testing.T, tb, stderr []byte, _ bool) {
+	testTraceProg(t, "cpu-profile.go", func(t *testing.T, tb, stderr []byte, _ string) {
 		// Parse stderr which has a CPU profile summary, if everything went well.
 		// (If it didn't, we shouldn't even make it here.)
 		scanner := bufio.NewScanner(bytes.NewReader(stderr))
@@ -211,7 +211,7 @@ func TestTraceCPUProfile(t *testing.T) {
 }
 
 func TestTraceFutileWakeup(t *testing.T) {
-	testTraceProg(t, "futile-wakeup.go", func(t *testing.T, tb, _ []byte, _ bool) {
+	testTraceProg(t, "futile-wakeup.go", func(t *testing.T, tb, _ []byte, _ string) {
 		// Check to make sure that no goroutine in the "special" trace region
 		// ends up blocking, unblocking, then immediately blocking again.
 		//
@@ -312,7 +312,7 @@ func TestTraceGOMAXPROCS(t *testing.T) {
 }
 
 func TestTraceStacks(t *testing.T) {
-	testTraceProg(t, "stacks.go", func(t *testing.T, tb, _ []byte, stress bool) {
+	testTraceProg(t, "stacks.go", func(t *testing.T, tb, _ []byte, godebug string) {
 		type frame struct {
 			fn   string
 			line int
@@ -326,7 +326,8 @@ func TestTraceStacks(t *testing.T) {
 		const mainLine = 21
 		want := []evDesc{
 			{trace.EventStateTransition, "Goroutine Running->Runnable", []frame{
-				{"main.main", mainLine + 82},
+				{"runtime.Gosched", 0},
+				{"main.main", mainLine + 87},
 			}},
 			{trace.EventStateTransition, "Goroutine NotExist->Runnable", []frame{
 				{"main.main", mainLine + 11},
@@ -349,7 +350,7 @@ func TestTraceStacks(t *testing.T) {
 			}},
 			{trace.EventStateTransition, "Goroutine Waiting->Runnable", []frame{
 				{"runtime.chansend1", 0},
-				{"main.main", mainLine + 84},
+				{"main.main", mainLine + 89},
 			}},
 			{trace.EventStateTransition, "Goroutine Running->Waiting", []frame{
 				{"runtime.chansend1", 0},
@@ -357,7 +358,7 @@ func TestTraceStacks(t *testing.T) {
 			}},
 			{trace.EventStateTransition, "Goroutine Waiting->Runnable", []frame{
 				{"runtime.chanrecv1", 0},
-				{"main.main", mainLine + 85},
+				{"main.main", mainLine + 90},
 			}},
 			{trace.EventStateTransition, "Goroutine Running->Waiting", []frame{
 				{"runtime.selectgo", 0},
@@ -365,7 +366,7 @@ func TestTraceStacks(t *testing.T) {
 			}},
 			{trace.EventStateTransition, "Goroutine Waiting->Runnable", []frame{
 				{"runtime.selectgo", 0},
-				{"main.main", mainLine + 86},
+				{"main.main", mainLine + 91},
 			}},
 			{trace.EventStateTransition, "Goroutine Running->Waiting", []frame{
 				{"sync.(*Mutex).Lock", 0},
@@ -382,7 +383,7 @@ func TestTraceStacks(t *testing.T) {
 			{trace.EventStateTransition, "Goroutine Waiting->Runnable", []frame{
 				{"sync.(*WaitGroup).Add", 0},
 				{"sync.(*WaitGroup).Done", 0},
-				{"main.main", mainLine + 91},
+				{"main.main", mainLine + 96},
 			}},
 			{trace.EventStateTransition, "Goroutine Running->Waiting", []frame{
 				{"sync.(*Cond).Wait", 0},
@@ -403,6 +404,18 @@ func TestTraceStacks(t *testing.T) {
 				{"main.main", 0},
 			}},
 		}
+		asyncPreemptOff := strings.Contains(godebug, "asyncpreemptoff=1")
+		if asyncPreemptOff {
+			// Only check for syncPreemptPoint if asynchronous preemption is disabled.
+			// Otherwise, the syncPreemptPoint goroutine might be exclusively async
+			// preempted, causing this test to flake.
+			syncPreemptEv := evDesc{trace.EventStateTransition, "Goroutine Running->Runnable", []frame{
+				{"main.syncPreemptPoint", 0},
+				{"main.main.func12", 0},
+			}}
+			want = append(want, syncPreemptEv)
+		}
+		stress := strings.Contains(godebug, "traceadvanceperiod=0")
 		if !stress {
 			// Only check for this stack if !stress because traceAdvance alone could
 			// allocate enough memory to trigger a GC if called frequently enough.
@@ -530,7 +543,7 @@ func TestTraceIterPull(t *testing.T) {
 	testTraceProg(t, "iter-pull.go", nil)
 }
 
-func checkReaderDeterminism(t *testing.T, tb, _ []byte, _ bool) {
+func checkReaderDeterminism(t *testing.T, tb, _ []byte, _ string) {
 	events := func() []trace.Event {
 		var evs []trace.Event
 
@@ -567,7 +580,7 @@ func checkReaderDeterminism(t *testing.T, tb, _ []byte, _ bool) {
 	}
 }
 
-func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace, stderr []byte, stress bool)) {
+func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace, stderr []byte, godebug string)) {
 	testenv.MustHaveGoRun(t)
 
 	// Check if we're on a builder.
@@ -652,7 +665,7 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 
 		// Run some extra validation.
 		if !t.Failed() && extra != nil {
-			extra(t, tb, errBuf.Bytes(), stress)
+			extra(t, tb, errBuf.Bytes(), godebug)
 		}
 
 		// Dump some more information on failure.
@@ -680,6 +693,9 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 	}
 	t.Run("Default", func(t *testing.T) {
 		runTest(t, false, "")
+	})
+	t.Run("AsyncPreemptOff", func(t *testing.T) {
+		runTest(t, false, "asyncpreemptoff=1")
 	})
 	t.Run("Stress", func(t *testing.T) {
 		if testing.Short() {

@@ -52,7 +52,6 @@ const (
 		AllowInvalidUTF8 |
 		EscapeForHTML |
 		EscapeForJS |
-		EscapeInvalidUTF8 |
 		PreserveRawStrings |
 		Deterministic |
 		FormatNilMapAsNull |
@@ -77,7 +76,7 @@ const (
 	WhitespaceFlags = AnyWhitespace | Indent | IndentPrefix
 
 	// AnyEscape is the set of flags related to escaping in a JSON string.
-	AnyEscape = EscapeForHTML | EscapeForJS | EscapeInvalidUTF8
+	AnyEscape = EscapeForHTML | EscapeForJS
 
 	// CanonicalizeNumbers is the set of flags related to raw number canonicalization.
 	CanonicalizeNumbers = CanonicalizeRawInts | CanonicalizeRawFloats
@@ -97,7 +96,6 @@ const (
 	ReorderRawObjects     // encode only
 	EscapeForHTML         // encode only
 	EscapeForJS           // encode only
-	EscapeInvalidUTF8     // encode only; only exposed in v1
 	Multiline             // encode only
 	SpaceAfterColon       // encode only
 	SpaceAfterComma       // encode only

@@ -1454,6 +1454,8 @@ func TestRepeatPanics(t *testing.T) {
 	}
 }
 
+var leak *int
+
 func TestIssue68488(t *testing.T) {
 	s := make([]int, 3)
 	clone := Clone(s[1:1])
@@ -1461,6 +1463,7 @@ func TestIssue68488(t *testing.T) {
 	case &s[0], &s[1], &s[2]:
 		t.Error("clone keeps alive s due to array overlap")
 	}
+	leak = &s[1] // see go.dev/issue/74387
 }
 
 // This test asserts the behavior when the primary slice operand is nil.
