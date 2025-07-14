@@ -132,7 +132,11 @@ func (imb *spanInlineMarkBits) init(class spanClass, needzero bool) {
 		throw("runtime: span inline mark bits nil?")
 	}
 	if needzero {
-		*imb = spanInlineMarkBits{}
+		// Use memclrNoHeapPointers to avoid having the compiler make a worse
+		// decision. We know that imb is both aligned and a nice power-of-two
+		// size that works well for wider SIMD instructions. The compiler likely
+		// has no idea that imb is aligned to 128 bytes.
+		memclrNoHeapPointers(unsafe.Pointer(imb), unsafe.Sizeof(spanInlineMarkBits{}))
 	}
 	imb.class = class
 }
