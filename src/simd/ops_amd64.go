@@ -5391,6 +5391,830 @@ func (x Uint32x4) PairwiseSub(y Uint32x4) Uint32x4
 // Asm: VPHSUBD, CPU Feature: AVX2
 func (x Uint32x8) PairwiseSub(y Uint32x8) Uint32x8
 
+/* Permute */
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMB, CPU Feature: AVX512VBMI
+func (x Int8x16) Permute(indices Uint8x16) Int8x16
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMB, CPU Feature: AVX512VBMI
+func (x Uint8x16) Permute(indices Uint8x16) Uint8x16
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMB, CPU Feature: AVX512VBMI
+func (x Int8x32) Permute(indices Uint8x32) Int8x32
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMB, CPU Feature: AVX512VBMI
+func (x Uint8x32) Permute(indices Uint8x32) Uint8x32
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMB, CPU Feature: AVX512VBMI
+func (x Int8x64) Permute(indices Uint8x64) Int8x64
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMB, CPU Feature: AVX512VBMI
+func (x Uint8x64) Permute(indices Uint8x64) Uint8x64
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMW, CPU Feature: AVX512BW
+func (x Int16x8) Permute(indices Uint16x8) Int16x8
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMW, CPU Feature: AVX512BW
+func (x Uint16x8) Permute(indices Uint16x8) Uint16x8
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMW, CPU Feature: AVX512BW
+func (x Int16x16) Permute(indices Uint16x16) Int16x16
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMW, CPU Feature: AVX512BW
+func (x Uint16x16) Permute(indices Uint16x16) Uint16x16
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMW, CPU Feature: AVX512BW
+func (x Int16x32) Permute(indices Uint16x32) Int16x32
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMW, CPU Feature: AVX512BW
+func (x Uint16x32) Permute(indices Uint16x32) Uint16x32
+
+// Permute performs a full permutation of vector x using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMPS, CPU Feature: AVX2
+func (x Float32x8) Permute(indices Uint32x8) Float32x8
+
+// Permute performs a full permutation of vector x using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMD, CPU Feature: AVX2
+func (x Int32x8) Permute(indices Uint32x8) Int32x8
+
+// Permute performs a full permutation of vector x using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMD, CPU Feature: AVX2
+func (x Uint32x8) Permute(indices Uint32x8) Uint32x8
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMPS, CPU Feature: AVX512F
+func (x Float32x16) Permute(indices Uint32x16) Float32x16
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMD, CPU Feature: AVX512F
+func (x Int32x16) Permute(indices Uint32x16) Int32x16
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMD, CPU Feature: AVX512F
+func (x Uint32x16) Permute(indices Uint32x16) Uint32x16
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMPD, CPU Feature: AVX512F
+func (x Float64x4) Permute(indices Uint64x4) Float64x4
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMQ, CPU Feature: AVX512F
+func (x Int64x4) Permute(indices Uint64x4) Int64x4
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMQ, CPU Feature: AVX512F
+func (x Uint64x4) Permute(indices Uint64x4) Uint64x4
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMPD, CPU Feature: AVX512F
+func (x Float64x8) Permute(indices Uint64x8) Float64x8
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMQ, CPU Feature: AVX512F
+func (x Int64x8) Permute(indices Uint64x8) Int64x8
+
+// Permute performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMQ, CPU Feature: AVX512F
+func (x Uint64x8) Permute(indices Uint64x8) Uint64x8
+
+/* Permute2 */
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2B, CPU Feature: AVX512VBMI
+func (x Int8x16) Permute2(y Int8x16, indices Uint8x16) Int8x16
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2B, CPU Feature: AVX512VBMI
+func (x Uint8x16) Permute2(y Uint8x16, indices Uint8x16) Uint8x16
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2B, CPU Feature: AVX512VBMI
+func (x Int8x32) Permute2(y Int8x32, indices Uint8x32) Int8x32
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2B, CPU Feature: AVX512VBMI
+func (x Uint8x32) Permute2(y Uint8x32, indices Uint8x32) Uint8x32
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2B, CPU Feature: AVX512VBMI
+func (x Int8x64) Permute2(y Int8x64, indices Uint8x64) Int8x64
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2B, CPU Feature: AVX512VBMI
+func (x Uint8x64) Permute2(y Uint8x64, indices Uint8x64) Uint8x64
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2W, CPU Feature: AVX512BW
+func (x Int16x8) Permute2(y Int16x8, indices Uint16x8) Int16x8
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2W, CPU Feature: AVX512BW
+func (x Uint16x8) Permute2(y Uint16x8, indices Uint16x8) Uint16x8
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2W, CPU Feature: AVX512BW
+func (x Int16x16) Permute2(y Int16x16, indices Uint16x16) Int16x16
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2W, CPU Feature: AVX512BW
+func (x Uint16x16) Permute2(y Uint16x16, indices Uint16x16) Uint16x16
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2W, CPU Feature: AVX512BW
+func (x Int16x32) Permute2(y Int16x32, indices Uint16x32) Int16x32
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2W, CPU Feature: AVX512BW
+func (x Uint16x32) Permute2(y Uint16x32, indices Uint16x32) Uint16x32
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2PS, CPU Feature: AVX512F
+func (x Float32x4) Permute2(y Float32x4, indices Uint32x4) Float32x4
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2D, CPU Feature: AVX512F
+func (x Int32x4) Permute2(y Int32x4, indices Uint32x4) Int32x4
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2D, CPU Feature: AVX512F
+func (x Uint32x4) Permute2(y Uint32x4, indices Uint32x4) Uint32x4
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2PS, CPU Feature: AVX512F
+func (x Float32x8) Permute2(y Float32x8, indices Uint32x8) Float32x8
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2D, CPU Feature: AVX512F
+func (x Int32x8) Permute2(y Int32x8, indices Uint32x8) Int32x8
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2D, CPU Feature: AVX512F
+func (x Uint32x8) Permute2(y Uint32x8, indices Uint32x8) Uint32x8
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2PS, CPU Feature: AVX512F
+func (x Float32x16) Permute2(y Float32x16, indices Uint32x16) Float32x16
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2D, CPU Feature: AVX512F
+func (x Int32x16) Permute2(y Int32x16, indices Uint32x16) Int32x16
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2D, CPU Feature: AVX512F
+func (x Uint32x16) Permute2(y Uint32x16, indices Uint32x16) Uint32x16
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2PD, CPU Feature: AVX512F
+func (x Float64x2) Permute2(y Float64x2, indices Uint64x2) Float64x2
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2Q, CPU Feature: AVX512F
+func (x Int64x2) Permute2(y Int64x2, indices Uint64x2) Int64x2
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2Q, CPU Feature: AVX512F
+func (x Uint64x2) Permute2(y Uint64x2, indices Uint64x2) Uint64x2
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2PD, CPU Feature: AVX512F
+func (x Float64x4) Permute2(y Float64x4, indices Uint64x4) Float64x4
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2Q, CPU Feature: AVX512F
+func (x Int64x4) Permute2(y Int64x4, indices Uint64x4) Int64x4
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2Q, CPU Feature: AVX512F
+func (x Uint64x4) Permute2(y Uint64x4, indices Uint64x4) Uint64x4
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2PD, CPU Feature: AVX512F
+func (x Float64x8) Permute2(y Float64x8, indices Uint64x8) Float64x8
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2Q, CPU Feature: AVX512F
+func (x Int64x8) Permute2(y Int64x8, indices Uint64x8) Int64x8
+
+// Permute2 performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2Q, CPU Feature: AVX512F
+func (x Uint64x8) Permute2(y Uint64x8, indices Uint64x8) Uint64x8
+
+/* Permute2Masked */
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2B, CPU Feature: AVX512VBMI
+func (x Int8x16) Permute2Masked(y Int8x16, indices Uint8x16, u Mask8x16) Int8x16
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2B, CPU Feature: AVX512VBMI
+func (x Uint8x16) Permute2Masked(y Uint8x16, indices Uint8x16, u Mask8x16) Uint8x16
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2B, CPU Feature: AVX512VBMI
+func (x Int8x32) Permute2Masked(y Int8x32, indices Uint8x32, u Mask8x32) Int8x32
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2B, CPU Feature: AVX512VBMI
+func (x Uint8x32) Permute2Masked(y Uint8x32, indices Uint8x32, u Mask8x32) Uint8x32
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2B, CPU Feature: AVX512VBMI
+func (x Int8x64) Permute2Masked(y Int8x64, indices Uint8x64, u Mask8x64) Int8x64
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2B, CPU Feature: AVX512VBMI
+func (x Uint8x64) Permute2Masked(y Uint8x64, indices Uint8x64, u Mask8x64) Uint8x64
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2W, CPU Feature: AVX512BW
+func (x Int16x8) Permute2Masked(y Int16x8, indices Uint16x8, u Mask16x8) Int16x8
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2W, CPU Feature: AVX512BW
+func (x Uint16x8) Permute2Masked(y Uint16x8, indices Uint16x8, u Mask16x8) Uint16x8
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2W, CPU Feature: AVX512BW
+func (x Int16x16) Permute2Masked(y Int16x16, indices Uint16x16, u Mask16x16) Int16x16
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2W, CPU Feature: AVX512BW
+func (x Uint16x16) Permute2Masked(y Uint16x16, indices Uint16x16, u Mask16x16) Uint16x16
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2W, CPU Feature: AVX512BW
+func (x Int16x32) Permute2Masked(y Int16x32, indices Uint16x32, u Mask16x32) Int16x32
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2W, CPU Feature: AVX512BW
+func (x Uint16x32) Permute2Masked(y Uint16x32, indices Uint16x32, u Mask16x32) Uint16x32
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2PS, CPU Feature: AVX512F
+func (x Float32x4) Permute2Masked(y Float32x4, indices Uint32x4, u Mask32x4) Float32x4
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2D, CPU Feature: AVX512F
+func (x Int32x4) Permute2Masked(y Int32x4, indices Uint32x4, u Mask32x4) Int32x4
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2D, CPU Feature: AVX512F
+func (x Uint32x4) Permute2Masked(y Uint32x4, indices Uint32x4, u Mask32x4) Uint32x4
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2PS, CPU Feature: AVX512F
+func (x Float32x8) Permute2Masked(y Float32x8, indices Uint32x8, u Mask32x8) Float32x8
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2D, CPU Feature: AVX512F
+func (x Int32x8) Permute2Masked(y Int32x8, indices Uint32x8, u Mask32x8) Int32x8
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2D, CPU Feature: AVX512F
+func (x Uint32x8) Permute2Masked(y Uint32x8, indices Uint32x8, u Mask32x8) Uint32x8
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2PS, CPU Feature: AVX512F
+func (x Float32x16) Permute2Masked(y Float32x16, indices Uint32x16, u Mask32x16) Float32x16
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2D, CPU Feature: AVX512F
+func (x Int32x16) Permute2Masked(y Int32x16, indices Uint32x16, u Mask32x16) Int32x16
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2D, CPU Feature: AVX512F
+func (x Uint32x16) Permute2Masked(y Uint32x16, indices Uint32x16, u Mask32x16) Uint32x16
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2PD, CPU Feature: AVX512F
+func (x Float64x2) Permute2Masked(y Float64x2, indices Uint64x2, u Mask64x2) Float64x2
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2Q, CPU Feature: AVX512F
+func (x Int64x2) Permute2Masked(y Int64x2, indices Uint64x2, u Mask64x2) Int64x2
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2Q, CPU Feature: AVX512F
+func (x Uint64x2) Permute2Masked(y Uint64x2, indices Uint64x2, u Mask64x2) Uint64x2
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2PD, CPU Feature: AVX512F
+func (x Float64x4) Permute2Masked(y Float64x4, indices Uint64x4, u Mask64x4) Float64x4
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2Q, CPU Feature: AVX512F
+func (x Int64x4) Permute2Masked(y Int64x4, indices Uint64x4, u Mask64x4) Int64x4
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2Q, CPU Feature: AVX512F
+func (x Uint64x4) Permute2Masked(y Uint64x4, indices Uint64x4, u Mask64x4) Uint64x4
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2PD, CPU Feature: AVX512F
+func (x Float64x8) Permute2Masked(y Float64x8, indices Uint64x8, u Mask64x8) Float64x8
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2Q, CPU Feature: AVX512F
+func (x Int64x8) Permute2Masked(y Int64x8, indices Uint64x8, u Mask64x8) Int64x8
+
+// Permute2Masked performs a full permutation of vector x, y using indices:
+// result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+// where xy is x appending y.
+// Only the needed bits to represent xy's index are used in indices' elements.
+//
+// Asm: VPERMI2Q, CPU Feature: AVX512F
+func (x Uint64x8) Permute2Masked(y Uint64x8, indices Uint64x8, u Mask64x8) Uint64x8
+
+/* PermuteMasked */
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMB, CPU Feature: AVX512VBMI
+func (x Int8x16) PermuteMasked(indices Uint8x16, z Mask8x16) Int8x16
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMB, CPU Feature: AVX512VBMI
+func (x Uint8x16) PermuteMasked(indices Uint8x16, z Mask8x16) Uint8x16
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMB, CPU Feature: AVX512VBMI
+func (x Int8x32) PermuteMasked(indices Uint8x32, z Mask8x32) Int8x32
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMB, CPU Feature: AVX512VBMI
+func (x Uint8x32) PermuteMasked(indices Uint8x32, z Mask8x32) Uint8x32
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMB, CPU Feature: AVX512VBMI
+func (x Int8x64) PermuteMasked(indices Uint8x64, z Mask8x64) Int8x64
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMB, CPU Feature: AVX512VBMI
+func (x Uint8x64) PermuteMasked(indices Uint8x64, z Mask8x64) Uint8x64
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMW, CPU Feature: AVX512BW
+func (x Int16x8) PermuteMasked(indices Uint16x8, z Mask16x8) Int16x8
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMW, CPU Feature: AVX512BW
+func (x Uint16x8) PermuteMasked(indices Uint16x8, z Mask16x8) Uint16x8
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMW, CPU Feature: AVX512BW
+func (x Int16x16) PermuteMasked(indices Uint16x16, z Mask16x16) Int16x16
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMW, CPU Feature: AVX512BW
+func (x Uint16x16) PermuteMasked(indices Uint16x16, z Mask16x16) Uint16x16
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMW, CPU Feature: AVX512BW
+func (x Int16x32) PermuteMasked(indices Uint16x32, z Mask16x32) Int16x32
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMW, CPU Feature: AVX512BW
+func (x Uint16x32) PermuteMasked(indices Uint16x32, z Mask16x32) Uint16x32
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMPS, CPU Feature: AVX512F
+func (x Float32x8) PermuteMasked(indices Uint32x8, z Mask32x8) Float32x8
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMD, CPU Feature: AVX512F
+func (x Int32x8) PermuteMasked(indices Uint32x8, z Mask32x8) Int32x8
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMD, CPU Feature: AVX512F
+func (x Uint32x8) PermuteMasked(indices Uint32x8, z Mask32x8) Uint32x8
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMPS, CPU Feature: AVX512F
+func (x Float32x16) PermuteMasked(indices Uint32x16, z Mask32x16) Float32x16
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMD, CPU Feature: AVX512F
+func (x Int32x16) PermuteMasked(indices Uint32x16, z Mask32x16) Int32x16
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMD, CPU Feature: AVX512F
+func (x Uint32x16) PermuteMasked(indices Uint32x16, z Mask32x16) Uint32x16
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMPD, CPU Feature: AVX512F
+func (x Float64x4) PermuteMasked(indices Uint64x4, z Mask64x4) Float64x4
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMQ, CPU Feature: AVX512F
+func (x Int64x4) PermuteMasked(indices Uint64x4, z Mask64x4) Int64x4
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMQ, CPU Feature: AVX512F
+func (x Uint64x4) PermuteMasked(indices Uint64x4, z Mask64x4) Uint64x4
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMPD, CPU Feature: AVX512F
+func (x Float64x8) PermuteMasked(indices Uint64x8, z Mask64x8) Float64x8
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMQ, CPU Feature: AVX512F
+func (x Int64x8) PermuteMasked(indices Uint64x8, z Mask64x8) Int64x8
+
+// PermuteMasked performs a full permutation of vector y using indices:
+// result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+// Only the needed bits to represent x's index are used in indices' elements.
+//
+// Asm: VPERMQ, CPU Feature: AVX512F
+func (x Uint64x8) PermuteMasked(indices Uint64x8, z Mask64x8) Uint64x8
+
 /* PopCount */
 
 // PopCount counts the number of set bits in each element.

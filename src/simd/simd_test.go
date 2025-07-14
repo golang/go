@@ -151,6 +151,41 @@ func TestMaskedAdd(t *testing.T) {
 	testInt32x4BinaryMasked(t, []int32{1, 2, 3, 4}, []int32{5, 6, 7, 8}, []int32{-1, -1, 0, 0}, []int32{6, 8, 0, 0}, "AddMasked")
 }
 
+func TestPermute(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
+		return
+	}
+	x := []int64{1, 2, 3, 4, 5, 6, 7, 8}
+	indices := []uint64{7, 6, 5, 4, 3, 2, 1, 0}
+	want := []int64{8, 7, 6, 5, 4, 3, 2, 1}
+	got := make([]int64, 8)
+	simd.LoadInt64x8Slice(x).Permute(simd.LoadUint64x8Slice(indices)).StoreSlice(got)
+	for i := range 8 {
+		if want[i] != got[i] {
+			t.Errorf("want and got differ at index %d, want=%d, got=%d", i, want[i], got[i])
+		}
+	}
+}
+
+func TestPermute2(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
+		return
+	}
+	x := []int64{1, 2, 3, 4, 5, 6, 7, 8}
+	y := []int64{-1, -2, -3, -4, -5, -6, -7, -8}
+	indices := []uint64{7 + 8, 6, 5 + 8, 4, 3 + 8, 2, 1 + 8, 0}
+	want := []int64{-8, 7, -6, 5, -4, 3, -2, 1}
+	got := make([]int64, 8)
+	simd.LoadInt64x8Slice(x).Permute2(simd.LoadInt64x8Slice(y), simd.LoadUint64x8Slice(indices)).StoreSlice(got)
+	for i := range 8 {
+		if want[i] != got[i] {
+			t.Errorf("want and got differ at index %d, want=%d, got=%d", i, want[i], got[i])
+		}
+	}
+}
+
 // checkInt8Slices ensures that b and a are equal, to the end of b.
 // also serves to use the slices, to prevent accidental optimization.
 func checkInt8Slices(t *testing.T, a, b []int8) {
