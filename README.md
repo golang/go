@@ -1,5 +1,7 @@
 ## Go-Panikint
 
+[![Go-panikint self-compile and test](https://github.com/kevin-valerio/go-panikint/actions/workflows/go.yml/badge.svg)](https://github.com/kevin-valerio/go-panikint/actions/workflows/go.yml)
+
 ### Overview
 
 `Go-Panikint` is a modified version of the Go compiler that adds **automatic overflow/underflow detection** for integer arithmetic operations and **type truncation detection** for integer conversions. When overflow or truncation is detected, a **panic** with a detailed error message is triggered, including the specific operation type and integer types involved.
