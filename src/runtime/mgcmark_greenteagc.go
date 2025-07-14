@@ -192,9 +192,13 @@ func (s *mspan) mergeInlineMarks(dst *gcBits) {
 	}
 	bytes := divRoundUp(uintptr(s.nelems), 8)
 	imb := s.inlineMarkBits()
-	_ = imb.marks[bytes-1]
-	for i := uintptr(0); i < bytes; i++ {
-		*dst.bytep(i) |= imb.marks[i]
+	imbMarks := (*gc.ObjMask)(unsafe.Pointer(&imb.marks))
+	for i := uintptr(0); i < bytes; i += goarch.PtrSize {
+		marks := bswapIfBigEndian(imbMarks[i/goarch.PtrSize])
+		if i/goarch.PtrSize == uintptr(len(imb.marks)+1)/goarch.PtrSize-1 {
+			marks &^= 0xff << ((goarch.PtrSize - 1) * 8) // mask out class
+		}
+		*(*uintptr)(unsafe.Pointer(dst.bytep(i))) |= bswapIfBigEndian(marks)
 	}
 	if doubleCheckGreenTea && !s.spanclass.noscan() && imb.marks != imb.scans {
 		throw("marks don't match scans for span with pointer")
@@ -652,7 +656,7 @@ func spanSetScans(spanBase uintptr, nelems uint16, imb *spanInlineMarkBits, toSc
 		marks := imbMarks[i/goarch.PtrSize]
 		scans = bswapIfBigEndian(scans)
 		marks = bswapIfBigEndian(marks)
-		if i/goarch.PtrSize == 64/goarch.PtrSize-1 {
+		if i/goarch.PtrSize == uintptr(len(imb.marks)+1)/goarch.PtrSize-1 {
 			scans &^= 0xff << ((goarch.PtrSize - 1) * 8) // mask out owned
 			marks &^= 0xff << ((goarch.PtrSize - 1) * 8) // mask out class
 		}
