@@ -110,7 +110,7 @@ func (o *spanScanOwnership) or(v spanScanOwnership) spanScanOwnership {
 	return spanScanOwnership(atomic.Or32(o32, uint32(v)<<off) >> off)
 }
 
-func (imb *spanInlineMarkBits) init(class spanClass) {
+func (imb *spanInlineMarkBits) init(class spanClass, needzero bool) {
 	if imb == nil {
 		// This nil check and throw is almost pointless. Normally we would
 		// expect imb to never be nil. However, this is called on potentially
@@ -131,7 +131,9 @@ func (imb *spanInlineMarkBits) init(class spanClass) {
 		// See go.dev/issue/74375 for details.
 		throw("runtime: span inline mark bits nil?")
 	}
-	*imb = spanInlineMarkBits{}
+	if needzero {
+		*imb = spanInlineMarkBits{}
+	}
 	imb.class = class
 }
 
@@ -180,7 +182,8 @@ func (s *mspan) initInlineMarkBits() {
 	if doubleCheckGreenTea && !gcUsesSpanInlineMarkBits(s.elemsize) {
 		throw("expected span with inline mark bits")
 	}
-	s.inlineMarkBits().init(s.spanclass)
+	// Zeroing is only necessary if this span wasn't just freshly allocated from the OS.
+	s.inlineMarkBits().init(s.spanclass, s.needzero != 0)
 }
 
 // moveInlineMarks merges the span's inline mark bits into dst and clears them.
@@ -205,7 +208,7 @@ func (s *mspan) moveInlineMarks(dst *gcBits) {
 	}
 
 	// Reset the inline mark bits.
-	imb.init(s.spanclass)
+	imb.init(s.spanclass, true /* We know these bits are always dirty now. */)
 }
 
 // inlineMarkBits returns the inline mark bits for the span.
