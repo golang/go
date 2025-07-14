@@ -63,12 +63,12 @@ func TestExitHooks(t *testing.T) {
 		outs = strings.TrimSpace(outs)
 		if s.expected != "" && s.expected != outs {
 			t.Fatalf("failed %s: wanted %q\noutput:\n%s",
-			s.mode, s.expected, outs)
+				s.mode, s.expected, outs)
 		}
 		for _, need := range s.musthave {
 			if !strings.Contains(outs, need) {
 				t.Fatalf("failed mode %s: output does not contain %q\noutput:\n%s",
-				s.mode, need, outs)
+					s.mode, need, outs)
 			}
 		}
 		if s.expected == "" && s.musthave == nil && outs != "" {

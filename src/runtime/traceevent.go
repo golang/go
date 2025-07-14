@@ -56,7 +56,7 @@ func (e traceEventWriter) event(ev tracev2.EventType, args ...traceArg) {
 // It then returns a traceArg representing that stack which may be
 // passed to write.
 func (tl traceLocker) stack(skip int) traceArg {
-	return traceArg(traceStack(skip, nil, tl.gen))
+	return traceArg(traceStack(skip, nil, &trace.stackTab[tl.gen%2]))
 }
 
 // startPC takes a start PC for a goroutine and produces a unique

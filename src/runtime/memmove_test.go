@@ -8,6 +8,8 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
+	"internal/asan"
+	"internal/msan"
 	"internal/race"
 	"internal/testenv"
 	. "runtime"
@@ -102,8 +104,8 @@ func TestMemmoveLarge0x180000(t *testing.T) {
 	}
 
 	t.Parallel()
-	if race.Enabled {
-		t.Skip("skipping large memmove test under race detector")
+	if race.Enabled || asan.Enabled || msan.Enabled {
+		t.Skip("skipping large memmove test under sanitizers")
 	}
 	testSize(t, 0x180000)
 }
@@ -114,8 +116,8 @@ func TestMemmoveOverlapLarge0x120000(t *testing.T) {
 	}
 
 	t.Parallel()
-	if race.Enabled {
-		t.Skip("skipping large memmove test under race detector")
+	if race.Enabled || asan.Enabled || msan.Enabled {
+		t.Skip("skipping large memmove test under sanitizers")
 	}
 	testOverlap(t, 0x120000)
 }

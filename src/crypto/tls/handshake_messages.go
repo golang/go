@@ -1005,6 +1005,7 @@ type encryptedExtensionsMsg struct {
 	quicTransportParameters []byte
 	earlyData               bool
 	echRetryConfigs         []byte
+	serverNameAck           bool
 }
 
 func (m *encryptedExtensionsMsg) marshal() ([]byte, error) {
@@ -1039,6 +1040,10 @@ func (m *encryptedExtensionsMsg) marshal() ([]byte, error) {
 				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
 					b.AddBytes(m.echRetryConfigs)
 				})
+			}
+			if m.serverNameAck {
+				b.AddUint16(extensionServerName)
+				b.AddUint16(0) // empty extension_data
 			}
 		})
 	})
@@ -1095,6 +1100,11 @@ func (m *encryptedExtensionsMsg) unmarshal(data []byte) bool {
 			if !extData.CopyBytes(m.echRetryConfigs) {
 				return false
 			}
+		case extensionServerName:
+			if len(extData) != 0 {
+				return false
+			}
+			m.serverNameAck = true
 		default:
 			// Ignore unknown extensions.
 			continue

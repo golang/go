@@ -189,6 +189,11 @@ crypto/x509.CreateCertificate. The setting `x509sha256skid=0` reverts to SHA-1.
 Go 1.25 corrected the semantics of contention reports for runtime-internal locks,
 and so removed the [`runtimecontentionstacks` setting](/pkg/runtime#hdr-Environment_Variables).
 
+Go 1.25 (starting with Go 1.25 RC 2) disabled build information stamping when
+multiple VCS are detected due to concerns around VCS injection attacks. This
+behavior and setting was backported to Go 1.24.5 and Go 1.23.11. This behavior
+can be renabled with the setting `allowmultiplevcs=1`.
+
 ### Go 1.24
 
 Go 1.24 added a new `fips140` setting that controls whether the Go
