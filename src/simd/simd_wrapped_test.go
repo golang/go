@@ -117,6 +117,27 @@ func testFloat32x4Compare(t *testing.T, v0 []float32, v1 []float32, want []int32
 	}
 }
 
+func testFloat32x4Mask32x4Float32x4(t *testing.T, v0 []float32, v1 []int32, want []float32, which string) {
+	t.Helper()
+	var gotv simd.Float32x4
+	got := make([]float32, len(want))
+	vec0 := simd.LoadFloat32x4Slice(v0)
+	vec1 := simd.LoadInt32x4Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask32x4())
+
+	default:
+		t.Errorf("Unknown method: Float32x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testFloat32x4MaskedCompare(t *testing.T, v0 []float32, v1 []float32, v2 []int32, want []int32, which string) {
 	t.Helper()
 	var gotv simd.Int32x4
@@ -357,6 +378,27 @@ func testFloat32x8Compare(t *testing.T, v0 []float32, v1 []float32, want []int32
 		gotv = vec0.LessEqual(vec1).AsInt32x8()
 	case "NotEqual":
 		gotv = vec0.NotEqual(vec1).AsInt32x8()
+
+	default:
+		t.Errorf("Unknown method: Float32x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testFloat32x8Mask32x8Float32x8(t *testing.T, v0 []float32, v1 []int32, want []float32, which string) {
+	t.Helper()
+	var gotv simd.Float32x8
+	got := make([]float32, len(want))
+	vec0 := simd.LoadFloat32x8Slice(v0)
+	vec1 := simd.LoadInt32x8Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask32x8())
 
 	default:
 		t.Errorf("Unknown method: Float32x8.%s", which)
@@ -613,6 +655,27 @@ func testFloat32x16Compare(t *testing.T, v0 []float32, v1 []float32, want []int3
 	}
 }
 
+func testFloat32x16Mask32x16Float32x16(t *testing.T, v0 []float32, v1 []int32, want []float32, which string) {
+	t.Helper()
+	var gotv simd.Float32x16
+	got := make([]float32, len(want))
+	vec0 := simd.LoadFloat32x16Slice(v0)
+	vec1 := simd.LoadInt32x16Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask32x16())
+
+	default:
+		t.Errorf("Unknown method: Float32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testFloat32x16MaskedCompare(t *testing.T, v0 []float32, v1 []float32, v2 []int32, want []int32, which string) {
 	t.Helper()
 	var gotv simd.Int32x16
@@ -845,6 +908,27 @@ func testFloat64x2Compare(t *testing.T, v0 []float64, v1 []float64, want []int64
 		gotv = vec0.LessEqual(vec1).AsInt64x2()
 	case "NotEqual":
 		gotv = vec0.NotEqual(vec1).AsInt64x2()
+
+	default:
+		t.Errorf("Unknown method: Float64x2.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testFloat64x2Mask64x2Float64x2(t *testing.T, v0 []float64, v1 []int64, want []float64, which string) {
+	t.Helper()
+	var gotv simd.Float64x2
+	got := make([]float64, len(want))
+	vec0 := simd.LoadFloat64x2Slice(v0)
+	vec1 := simd.LoadInt64x2Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask64x2())
 
 	default:
 		t.Errorf("Unknown method: Float64x2.%s", which)
@@ -1107,6 +1191,27 @@ func testFloat64x4Compare(t *testing.T, v0 []float64, v1 []float64, want []int64
 	}
 }
 
+func testFloat64x4Mask64x4Float64x4(t *testing.T, v0 []float64, v1 []int64, want []float64, which string) {
+	t.Helper()
+	var gotv simd.Float64x4
+	got := make([]float64, len(want))
+	vec0 := simd.LoadFloat64x4Slice(v0)
+	vec1 := simd.LoadInt64x4Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask64x4())
+
+	default:
+		t.Errorf("Unknown method: Float64x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testFloat64x4MaskedCompare(t *testing.T, v0 []float64, v1 []float64, v2 []int64, want []int64, which string) {
 	t.Helper()
 	var gotv simd.Int64x4
@@ -1339,6 +1444,27 @@ func testFloat64x8Compare(t *testing.T, v0 []float64, v1 []float64, want []int64
 		gotv = vec0.LessEqual(vec1).AsInt64x8()
 	case "NotEqual":
 		gotv = vec0.NotEqual(vec1).AsInt64x8()
+
+	default:
+		t.Errorf("Unknown method: Float64x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testFloat64x8Mask64x8Float64x8(t *testing.T, v0 []float64, v1 []int64, want []float64, which string) {
+	t.Helper()
+	var gotv simd.Float64x8
+	got := make([]float64, len(want))
+	vec0 := simd.LoadFloat64x8Slice(v0)
+	vec1 := simd.LoadInt64x8Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask64x8())
 
 	default:
 		t.Errorf("Unknown method: Float64x8.%s", which)
@@ -1591,6 +1717,27 @@ func testInt8x16Compare(t *testing.T, v0 []int8, v1 []int8, want []int8, which s
 	}
 }
 
+func testInt8x16Mask8x16Int8x16(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x16
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x16Slice(v0)
+	vec1 := simd.LoadInt8x16Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask8x16())
+
+	default:
+		t.Errorf("Unknown method: Int8x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testInt8x16MaskedCompare(t *testing.T, v0 []int8, v1 []int8, v2 []int8, want []int8, which string) {
 	t.Helper()
 	var gotv simd.Int8x16
@@ -1772,6 +1919,27 @@ func testInt8x32Compare(t *testing.T, v0 []int8, v1 []int8, want []int8, which s
 	}
 }
 
+func testInt8x32Mask8x32Int8x32(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x32
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x32Slice(v0)
+	vec1 := simd.LoadInt8x32Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask8x32())
+
+	default:
+		t.Errorf("Unknown method: Int8x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testInt8x32MaskedCompare(t *testing.T, v0 []int8, v1 []int8, v2 []int8, want []int8, which string) {
 	t.Helper()
 	var gotv simd.Int8x32
@@ -1931,6 +2099,27 @@ func testInt8x64Compare(t *testing.T, v0 []int8, v1 []int8, want []int8, which s
 		gotv = vec0.LessEqual(vec1).AsInt8x64()
 	case "NotEqual":
 		gotv = vec0.NotEqual(vec1).AsInt8x64()
+
+	default:
+		t.Errorf("Unknown method: Int8x64.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt8x64Mask8x64Int8x64(t *testing.T, v0 []int8, v1 []int8, want []int8, which string) {
+	t.Helper()
+	var gotv simd.Int8x64
+	got := make([]int8, len(want))
+	vec0 := simd.LoadInt8x64Slice(v0)
+	vec1 := simd.LoadInt8x64Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask8x64())
 
 	default:
 		t.Errorf("Unknown method: Int8x64.%s", which)
@@ -2179,6 +2368,27 @@ func testInt16x8Compare(t *testing.T, v0 []int16, v1 []int16, want []int16, whic
 		gotv = vec0.LessEqual(vec1).AsInt16x8()
 	case "NotEqual":
 		gotv = vec0.NotEqual(vec1).AsInt16x8()
+
+	default:
+		t.Errorf("Unknown method: Int16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt16x8Mask16x8Int16x8(t *testing.T, v0 []int16, v1 []int16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x8
+	got := make([]int16, len(want))
+	vec0 := simd.LoadInt16x8Slice(v0)
+	vec1 := simd.LoadInt16x8Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask16x8())
 
 	default:
 		t.Errorf("Unknown method: Int16x8.%s", which)
@@ -2488,6 +2698,27 @@ func testInt16x16Compare(t *testing.T, v0 []int16, v1 []int16, want []int16, whi
 	}
 }
 
+func testInt16x16Mask16x16Int16x16(t *testing.T, v0 []int16, v1 []int16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x16
+	got := make([]int16, len(want))
+	vec0 := simd.LoadInt16x16Slice(v0)
+	vec1 := simd.LoadInt16x16Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask16x16())
+
+	default:
+		t.Errorf("Unknown method: Int16x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testInt16x16MaskedCompare(t *testing.T, v0 []int16, v1 []int16, v2 []int16, want []int16, which string) {
 	t.Helper()
 	var gotv simd.Int16x16
@@ -2755,6 +2986,27 @@ func testInt16x32Compare(t *testing.T, v0 []int16, v1 []int16, want []int16, whi
 		gotv = vec0.LessEqual(vec1).AsInt16x32()
 	case "NotEqual":
 		gotv = vec0.NotEqual(vec1).AsInt16x32()
+
+	default:
+		t.Errorf("Unknown method: Int16x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt16x32Mask16x32Int16x32(t *testing.T, v0 []int16, v1 []int16, want []int16, which string) {
+	t.Helper()
+	var gotv simd.Int16x32
+	got := make([]int16, len(want))
+	vec0 := simd.LoadInt16x32Slice(v0)
+	vec1 := simd.LoadInt16x32Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask16x32())
 
 	default:
 		t.Errorf("Unknown method: Int16x32.%s", which)
@@ -3079,6 +3331,27 @@ func testInt32x4Int16x8Int16x8Mask32x4Int32x4(t *testing.T, v0 []int32, v1 []int
 		gotv = vec0.PairDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x4())
 	case "SaturatedPairDotProdAccumulateMasked":
 		gotv = vec0.SaturatedPairDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x4())
+
+	default:
+		t.Errorf("Unknown method: Int32x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt32x4Mask32x4Int32x4(t *testing.T, v0 []int32, v1 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x4
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt32x4Slice(v0)
+	vec1 := simd.LoadInt32x4Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask32x4())
 
 	default:
 		t.Errorf("Unknown method: Int32x4.%s", which)
@@ -3464,6 +3737,27 @@ func testInt32x8Int16x16Int16x16Mask32x8Int32x8(t *testing.T, v0 []int32, v1 []i
 	}
 }
 
+func testInt32x8Mask32x8Int32x8(t *testing.T, v0 []int32, v1 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x8
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt32x8Slice(v0)
+	vec1 := simd.LoadInt32x8Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask32x8())
+
+	default:
+		t.Errorf("Unknown method: Int32x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testInt32x8MaskedCompare(t *testing.T, v0 []int32, v1 []int32, v2 []int32, want []int32, which string) {
 	t.Helper()
 	var gotv simd.Int32x8
@@ -3810,6 +4104,27 @@ func testInt32x16Int16x32Int16x32Mask32x16Int32x16(t *testing.T, v0 []int32, v1 
 	}
 }
 
+func testInt32x16Mask32x16Int32x16(t *testing.T, v0 []int32, v1 []int32, want []int32, which string) {
+	t.Helper()
+	var gotv simd.Int32x16
+	got := make([]int32, len(want))
+	vec0 := simd.LoadInt32x16Slice(v0)
+	vec1 := simd.LoadInt32x16Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask32x16())
+
+	default:
+		t.Errorf("Unknown method: Int32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testInt32x16MaskedCompare(t *testing.T, v0 []int32, v1 []int32, v2 []int32, want []int32, which string) {
 	t.Helper()
 	var gotv simd.Int32x16
@@ -4111,6 +4426,27 @@ func testInt64x2Compare(t *testing.T, v0 []int64, v1 []int64, want []int64, whic
 	}
 }
 
+func testInt64x2Mask64x2Int64x2(t *testing.T, v0 []int64, v1 []int64, want []int64, which string) {
+	t.Helper()
+	var gotv simd.Int64x2
+	got := make([]int64, len(want))
+	vec0 := simd.LoadInt64x2Slice(v0)
+	vec1 := simd.LoadInt64x2Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask64x2())
+
+	default:
+		t.Errorf("Unknown method: Int64x2.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testInt64x2MaskedCompare(t *testing.T, v0 []int64, v1 []int64, v2 []int64, want []int64, which string) {
 	t.Helper()
 	var gotv simd.Int64x2
@@ -4363,6 +4699,27 @@ func testInt64x4Compare(t *testing.T, v0 []int64, v1 []int64, want []int64, whic
 	}
 }
 
+func testInt64x4Mask64x4Int64x4(t *testing.T, v0 []int64, v1 []int64, want []int64, which string) {
+	t.Helper()
+	var gotv simd.Int64x4
+	got := make([]int64, len(want))
+	vec0 := simd.LoadInt64x4Slice(v0)
+	vec1 := simd.LoadInt64x4Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask64x4())
+
+	default:
+		t.Errorf("Unknown method: Int64x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testInt64x4MaskedCompare(t *testing.T, v0 []int64, v1 []int64, v2 []int64, want []int64, which string) {
 	t.Helper()
 	var gotv simd.Int64x4
@@ -4603,6 +4960,27 @@ func testInt64x8Compare(t *testing.T, v0 []int64, v1 []int64, want []int64, whic
 		gotv = vec0.LessEqual(vec1).AsInt64x8()
 	case "NotEqual":
 		gotv = vec0.NotEqual(vec1).AsInt64x8()
+
+	default:
+		t.Errorf("Unknown method: Int64x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testInt64x8Mask64x8Int64x8(t *testing.T, v0 []int64, v1 []int64, want []int64, which string) {
+	t.Helper()
+	var gotv simd.Int64x8
+	got := make([]int64, len(want))
+	vec0 := simd.LoadInt64x8Slice(v0)
+	vec1 := simd.LoadInt64x8Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask64x8())
 
 	default:
 		t.Errorf("Unknown method: Int64x8.%s", which)
@@ -4894,6 +5272,27 @@ func testUint8x16Int8x16Mask16x8Int16x8(t *testing.T, v0 []uint8, v1 []int8, v2 
 	}
 }
 
+func testUint8x16Mask8x16Uint8x16(t *testing.T, v0 []uint8, v1 []int8, want []uint8, which string) {
+	t.Helper()
+	var gotv simd.Uint8x16
+	got := make([]uint8, len(want))
+	vec0 := simd.LoadUint8x16Slice(v0)
+	vec1 := simd.LoadInt8x16Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask8x16())
+
+	default:
+		t.Errorf("Unknown method: Uint8x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testUint8x16MaskedCompare(t *testing.T, v0 []uint8, v1 []uint8, v2 []int8, want []int8, which string) {
 	t.Helper()
 	var gotv simd.Int8x16
@@ -5108,6 +5507,27 @@ func testUint8x32Int8x32Mask16x16Int16x16(t *testing.T, v0 []uint8, v1 []int8, v
 	switch which {
 	case "SaturatedUnsignedSignedPairDotProdMasked":
 		gotv = vec0.SaturatedUnsignedSignedPairDotProdMasked(vec1, vec2.AsMask16x16())
+
+	default:
+		t.Errorf("Unknown method: Uint8x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint8x32Mask8x32Uint8x32(t *testing.T, v0 []uint8, v1 []int8, want []uint8, which string) {
+	t.Helper()
+	var gotv simd.Uint8x32
+	got := make([]uint8, len(want))
+	vec0 := simd.LoadUint8x32Slice(v0)
+	vec1 := simd.LoadInt8x32Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask8x32())
 
 	default:
 		t.Errorf("Unknown method: Uint8x32.%s", which)
@@ -5338,6 +5758,27 @@ func testUint8x64Int8x64Mask16x32Int16x32(t *testing.T, v0 []uint8, v1 []int8, v
 	}
 }
 
+func testUint8x64Mask8x64Uint8x64(t *testing.T, v0 []uint8, v1 []int8, want []uint8, which string) {
+	t.Helper()
+	var gotv simd.Uint8x64
+	got := make([]uint8, len(want))
+	vec0 := simd.LoadUint8x64Slice(v0)
+	vec1 := simd.LoadInt8x64Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask8x64())
+
+	default:
+		t.Errorf("Unknown method: Uint8x64.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testUint8x64MaskedCompare(t *testing.T, v0 []uint8, v1 []uint8, v2 []int8, want []int8, which string) {
 	t.Helper()
 	var gotv simd.Int8x64
@@ -5521,6 +5962,27 @@ func testUint16x8Compare(t *testing.T, v0 []uint16, v1 []uint16, want []int16, w
 		gotv = vec0.LessEqual(vec1).AsInt16x8()
 	case "NotEqual":
 		gotv = vec0.NotEqual(vec1).AsInt16x8()
+
+	default:
+		t.Errorf("Unknown method: Uint16x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x8Mask16x8Uint16x8(t *testing.T, v0 []uint16, v1 []int16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x8
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x8Slice(v0)
+	vec1 := simd.LoadInt16x8Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask16x8())
 
 	default:
 		t.Errorf("Unknown method: Uint16x8.%s", which)
@@ -5777,6 +6239,27 @@ func testUint16x16Compare(t *testing.T, v0 []uint16, v1 []uint16, want []int16, 
 	}
 }
 
+func testUint16x16Mask16x16Uint16x16(t *testing.T, v0 []uint16, v1 []int16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x16
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x16Slice(v0)
+	vec1 := simd.LoadInt16x16Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask16x16())
+
+	default:
+		t.Errorf("Unknown method: Uint16x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testUint16x16MaskedCompare(t *testing.T, v0 []uint16, v1 []uint16, v2 []int16, want []int16, which string) {
 	t.Helper()
 	var gotv simd.Int16x16
@@ -5997,6 +6480,27 @@ func testUint16x32Compare(t *testing.T, v0 []uint16, v1 []uint16, want []int16, 
 		gotv = vec0.LessEqual(vec1).AsInt16x32()
 	case "NotEqual":
 		gotv = vec0.NotEqual(vec1).AsInt16x32()
+
+	default:
+		t.Errorf("Unknown method: Uint16x32.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint16x32Mask16x32Uint16x32(t *testing.T, v0 []uint16, v1 []int16, want []uint16, which string) {
+	t.Helper()
+	var gotv simd.Uint16x32
+	got := make([]uint16, len(want))
+	vec0 := simd.LoadUint16x32Slice(v0)
+	vec1 := simd.LoadInt16x32Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask16x32())
 
 	default:
 		t.Errorf("Unknown method: Uint16x32.%s", which)
@@ -6262,6 +6766,27 @@ func testUint32x4Compare(t *testing.T, v0 []uint32, v1 []uint32, want []int32, w
 		gotv = vec0.LessEqual(vec1).AsInt32x4()
 	case "NotEqual":
 		gotv = vec0.NotEqual(vec1).AsInt32x4()
+
+	default:
+		t.Errorf("Unknown method: Uint32x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x4Mask32x4Uint32x4(t *testing.T, v0 []uint32, v1 []int32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x4
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x4Slice(v0)
+	vec1 := simd.LoadInt32x4Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask32x4())
 
 	default:
 		t.Errorf("Unknown method: Uint32x4.%s", which)
@@ -6588,6 +7113,27 @@ func testUint32x8Compare(t *testing.T, v0 []uint32, v1 []uint32, want []int32, w
 	}
 }
 
+func testUint32x8Mask32x8Uint32x8(t *testing.T, v0 []uint32, v1 []int32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x8
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x8Slice(v0)
+	vec1 := simd.LoadInt32x8Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask32x8())
+
+	default:
+		t.Errorf("Unknown method: Uint32x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testUint32x8MaskedCompare(t *testing.T, v0 []uint32, v1 []uint32, v2 []int32, want []int32, which string) {
 	t.Helper()
 	var gotv simd.Int32x8
@@ -6865,6 +7411,27 @@ func testUint32x16Compare(t *testing.T, v0 []uint32, v1 []uint32, want []int32, 
 		gotv = vec0.LessEqual(vec1).AsInt32x16()
 	case "NotEqual":
 		gotv = vec0.NotEqual(vec1).AsInt32x16()
+
+	default:
+		t.Errorf("Unknown method: Uint32x16.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint32x16Mask32x16Uint32x16(t *testing.T, v0 []uint32, v1 []int32, want []uint32, which string) {
+	t.Helper()
+	var gotv simd.Uint32x16
+	got := make([]uint32, len(want))
+	vec0 := simd.LoadUint32x16Slice(v0)
+	vec1 := simd.LoadInt32x16Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask32x16())
 
 	default:
 		t.Errorf("Unknown method: Uint32x16.%s", which)
@@ -7170,6 +7737,27 @@ func testUint64x2Compare(t *testing.T, v0 []uint64, v1 []uint64, want []int64, w
 	}
 }
 
+func testUint64x2Mask64x2Uint64x2(t *testing.T, v0 []uint64, v1 []int64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x2
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x2Slice(v0)
+	vec1 := simd.LoadInt64x2Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask64x2())
+
+	default:
+		t.Errorf("Unknown method: Uint64x2.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testUint64x2MaskedCompare(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64, want []int64, which string) {
 	t.Helper()
 	var gotv simd.Int64x2
@@ -7414,6 +8002,27 @@ func testUint64x4Compare(t *testing.T, v0 []uint64, v1 []uint64, want []int64, w
 	}
 }
 
+func testUint64x4Mask64x4Uint64x4(t *testing.T, v0 []uint64, v1 []int64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x4
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x4Slice(v0)
+	vec1 := simd.LoadInt64x4Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask64x4())
+
+	default:
+		t.Errorf("Unknown method: Uint64x4.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
 func testUint64x4MaskedCompare(t *testing.T, v0 []uint64, v1 []uint64, v2 []int64, want []int64, which string) {
 	t.Helper()
 	var gotv simd.Int64x4
@@ -7646,6 +8255,27 @@ func testUint64x8Compare(t *testing.T, v0 []uint64, v1 []uint64, want []int64, w
 		gotv = vec0.LessEqual(vec1).AsInt64x8()
 	case "NotEqual":
 		gotv = vec0.NotEqual(vec1).AsInt64x8()
+
+	default:
+		t.Errorf("Unknown method: Uint64x8.%s", which)
+	}
+	gotv.StoreSlice(got)
+	for i := range len(want) {
+		if got[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
+		}
+	}
+}
+
+func testUint64x8Mask64x8Uint64x8(t *testing.T, v0 []uint64, v1 []int64, want []uint64, which string) {
+	t.Helper()
+	var gotv simd.Uint64x8
+	got := make([]uint64, len(want))
+	vec0 := simd.LoadUint64x8Slice(v0)
+	vec1 := simd.LoadInt64x8Slice(v1)
+	switch which {
+	case "Compress":
+		gotv = vec0.Compress(vec1.AsMask64x8())
 
 	default:
 		t.Errorf("Unknown method: Uint64x8.%s", which)

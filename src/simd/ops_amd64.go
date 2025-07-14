@@ -1084,6 +1084,188 @@ func (x Float64x4) CeilWithPrecisionMasked(prec uint8, mask Mask64x4) Float64x4
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x8) CeilWithPrecisionMasked(prec uint8, mask Mask64x8) Float64x8
 
+/* Compress */
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VCOMPRESSPS, CPU Feature: AVX512F
+func (x Float32x4) Compress(mask Mask32x4) Float32x4
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VCOMPRESSPS, CPU Feature: AVX512F
+func (x Float32x8) Compress(mask Mask32x8) Float32x8
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VCOMPRESSPS, CPU Feature: AVX512F
+func (x Float32x16) Compress(mask Mask32x16) Float32x16
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VCOMPRESSPD, CPU Feature: AVX512F
+func (x Float64x2) Compress(mask Mask64x2) Float64x2
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VCOMPRESSPD, CPU Feature: AVX512F
+func (x Float64x4) Compress(mask Mask64x4) Float64x4
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VCOMPRESSPD, CPU Feature: AVX512F
+func (x Float64x8) Compress(mask Mask64x8) Float64x8
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSB, CPU Feature: AVX512VBMI2
+func (x Int8x16) Compress(mask Mask8x16) Int8x16
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSB, CPU Feature: AVX512VBMI2
+func (x Int8x32) Compress(mask Mask8x32) Int8x32
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSB, CPU Feature: AVX512VBMI2
+func (x Int8x64) Compress(mask Mask8x64) Int8x64
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSW, CPU Feature: AVX512VBMI2
+func (x Int16x8) Compress(mask Mask16x8) Int16x8
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSW, CPU Feature: AVX512VBMI2
+func (x Int16x16) Compress(mask Mask16x16) Int16x16
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSW, CPU Feature: AVX512VBMI2
+func (x Int16x32) Compress(mask Mask16x32) Int16x32
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSD, CPU Feature: AVX512F
+func (x Int32x4) Compress(mask Mask32x4) Int32x4
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSD, CPU Feature: AVX512F
+func (x Int32x8) Compress(mask Mask32x8) Int32x8
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSD, CPU Feature: AVX512F
+func (x Int32x16) Compress(mask Mask32x16) Int32x16
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSQ, CPU Feature: AVX512F
+func (x Int64x2) Compress(mask Mask64x2) Int64x2
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSQ, CPU Feature: AVX512F
+func (x Int64x4) Compress(mask Mask64x4) Int64x4
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSQ, CPU Feature: AVX512F
+func (x Int64x8) Compress(mask Mask64x8) Int64x8
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSB, CPU Feature: AVX512VBMI2
+func (x Uint8x16) Compress(mask Mask8x16) Uint8x16
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSB, CPU Feature: AVX512VBMI2
+func (x Uint8x32) Compress(mask Mask8x32) Uint8x32
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSB, CPU Feature: AVX512VBMI2
+func (x Uint8x64) Compress(mask Mask8x64) Uint8x64
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSW, CPU Feature: AVX512VBMI2
+func (x Uint16x8) Compress(mask Mask16x8) Uint16x8
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSW, CPU Feature: AVX512VBMI2
+func (x Uint16x16) Compress(mask Mask16x16) Uint16x16
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSW, CPU Feature: AVX512VBMI2
+func (x Uint16x32) Compress(mask Mask16x32) Uint16x32
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSD, CPU Feature: AVX512F
+func (x Uint32x4) Compress(mask Mask32x4) Uint32x4
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSD, CPU Feature: AVX512F
+func (x Uint32x8) Compress(mask Mask32x8) Uint32x8
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSD, CPU Feature: AVX512F
+func (x Uint32x16) Compress(mask Mask32x16) Uint32x16
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSQ, CPU Feature: AVX512F
+func (x Uint64x2) Compress(mask Mask64x2) Uint64x2
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSQ, CPU Feature: AVX512F
+func (x Uint64x4) Compress(mask Mask64x4) Uint64x4
+
+// Compress performs a compression on vector x using mask by
+// selecting elements as indicated by mask, and pack them to lower indexed elements.
+//
+// Asm: VPCOMPRESSQ, CPU Feature: AVX512F
+func (x Uint64x8) Compress(mask Mask64x8) Uint64x8
+
 /* DiffWithCeilWithPrecision */
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.

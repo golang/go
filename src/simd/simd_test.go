@@ -186,6 +186,16 @@ func TestPermute2(t *testing.T) {
 	}
 }
 
+func TestCompress(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
+		return
+	}
+	testInt32x4Mask32x4Int32x4(t, []int32{1, 2, 3, 4},
+		[]int32{0, -1, 0, -1},
+		[]int32{2, 4, 0, 0}, "Compress")
+}
+
 // checkInt8Slices ensures that b and a are equal, to the end of b.
 // also serves to use the slices, to prevent accidental optimization.
 func checkInt8Slices(t *testing.T, a, b []int8) {
