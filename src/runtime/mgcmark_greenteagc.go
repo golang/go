@@ -183,10 +183,10 @@ func (s *mspan) initInlineMarkBits() {
 	s.inlineMarkBits().init(s.spanclass)
 }
 
-// mergeInlineMarks merges the span's inline mark bits into dst.
+// moveInlineMarks merges the span's inline mark bits into dst and clears them.
 //
 // gcUsesSpanInlineMarkBits(s.elemsize) must be true.
-func (s *mspan) mergeInlineMarks(dst *gcBits) {
+func (s *mspan) moveInlineMarks(dst *gcBits) {
 	if doubleCheckGreenTea && !gcUsesSpanInlineMarkBits(s.elemsize) {
 		throw("expected span with inline mark bits")
 	}
@@ -203,6 +203,9 @@ func (s *mspan) mergeInlineMarks(dst *gcBits) {
 	if doubleCheckGreenTea && !s.spanclass.noscan() && imb.marks != imb.scans {
 		throw("marks don't match scans for span with pointer")
 	}
+
+	// Reset the inline mark bits.
+	imb.init(s.spanclass)
 }
 
 // inlineMarkBits returns the inline mark bits for the span.
