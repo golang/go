@@ -196,6 +196,12 @@ func TestCompress(t *testing.T) {
 		[]int32{2, 4, 0, 0}, "Compress")
 }
 
+func TestAndNot(t *testing.T) {
+	testInt32x4Binary(t, []int32{0b11, 0b00, 0b11, 0b00},
+		[]int32{0b01, 0b01, 0b01, 0b01},
+		[]int32{0b10, 0b00, 0b10, 0b00}, "AndNot")
+}
+
 // checkInt8Slices ensures that b and a are equal, to the end of b.
 // also serves to use the slices, to prevent accidental optimization.
 func checkInt8Slices(t *testing.T, a, b []int8) {

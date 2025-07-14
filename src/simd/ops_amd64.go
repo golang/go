@@ -620,164 +620,164 @@ func (x Uint64x8) AndMasked(y Uint64x8, mask Mask64x8) Uint64x8
 
 /* AndNot */
 
-// AndNot performs a bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDN, CPU Feature: AVX
 func (x Int8x16) AndNot(y Int8x16) Int8x16
 
-// AndNot performs a bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDN, CPU Feature: AVX2
 func (x Int8x32) AndNot(y Int8x32) Int8x32
 
-// AndNot performs a bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDN, CPU Feature: AVX
 func (x Int16x8) AndNot(y Int16x8) Int16x8
 
-// AndNot performs a bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDN, CPU Feature: AVX2
 func (x Int16x16) AndNot(y Int16x16) Int16x16
 
-// AndNot performs a bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDN, CPU Feature: AVX
 func (x Int32x4) AndNot(y Int32x4) Int32x4
 
-// AndNot performs a bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDN, CPU Feature: AVX2
 func (x Int32x8) AndNot(y Int32x8) Int32x8
 
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDND, CPU Feature: AVX512F
 func (x Int32x16) AndNot(y Int32x16) Int32x16
 
-// AndNot performs a bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDN, CPU Feature: AVX
 func (x Int64x2) AndNot(y Int64x2) Int64x2
 
-// AndNot performs a bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDN, CPU Feature: AVX2
 func (x Int64x4) AndNot(y Int64x4) Int64x4
 
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDNQ, CPU Feature: AVX512F
 func (x Int64x8) AndNot(y Int64x8) Int64x8
 
-// AndNot performs a bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDN, CPU Feature: AVX
 func (x Uint8x16) AndNot(y Uint8x16) Uint8x16
 
-// AndNot performs a bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDN, CPU Feature: AVX2
 func (x Uint8x32) AndNot(y Uint8x32) Uint8x32
 
-// AndNot performs a bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDN, CPU Feature: AVX
 func (x Uint16x8) AndNot(y Uint16x8) Uint16x8
 
-// AndNot performs a bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDN, CPU Feature: AVX2
 func (x Uint16x16) AndNot(y Uint16x16) Uint16x16
 
-// AndNot performs a bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDN, CPU Feature: AVX
 func (x Uint32x4) AndNot(y Uint32x4) Uint32x4
 
-// AndNot performs a bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDN, CPU Feature: AVX2
 func (x Uint32x8) AndNot(y Uint32x8) Uint32x8
 
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDND, CPU Feature: AVX512F
 func (x Uint32x16) AndNot(y Uint32x16) Uint32x16
 
-// AndNot performs a bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDN, CPU Feature: AVX
 func (x Uint64x2) AndNot(y Uint64x2) Uint64x2
 
-// AndNot performs a bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDN, CPU Feature: AVX2
 func (x Uint64x4) AndNot(y Uint64x4) Uint64x4
 
-// AndNot performs a masked bitwise AND NOT operation between two vectors.
+// AndNot performs a bitwise x &^ y.
 //
 // Asm: VPANDNQ, CPU Feature: AVX512F
 func (x Uint64x8) AndNot(y Uint64x8) Uint64x8
 
 /* AndNotMasked */
 
-// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a bitwise x &^ y.
 //
 // Asm: VPANDND, CPU Feature: AVX512F
 func (x Int32x4) AndNotMasked(y Int32x4, mask Mask32x4) Int32x4
 
-// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a bitwise x &^ y.
 //
 // Asm: VPANDND, CPU Feature: AVX512F
 func (x Int32x8) AndNotMasked(y Int32x8, mask Mask32x8) Int32x8
 
-// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a bitwise x &^ y.
 //
 // Asm: VPANDND, CPU Feature: AVX512F
 func (x Int32x16) AndNotMasked(y Int32x16, mask Mask32x16) Int32x16
 
-// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a bitwise x &^ y.
 //
 // Asm: VPANDNQ, CPU Feature: AVX512F
 func (x Int64x2) AndNotMasked(y Int64x2, mask Mask64x2) Int64x2
 
-// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a bitwise x &^ y.
 //
 // Asm: VPANDNQ, CPU Feature: AVX512F
 func (x Int64x4) AndNotMasked(y Int64x4, mask Mask64x4) Int64x4
 
-// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a bitwise x &^ y.
 //
 // Asm: VPANDNQ, CPU Feature: AVX512F
 func (x Int64x8) AndNotMasked(y Int64x8, mask Mask64x8) Int64x8
 
-// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a bitwise x &^ y.
 //
 // Asm: VPANDND, CPU Feature: AVX512F
 func (x Uint32x4) AndNotMasked(y Uint32x4, mask Mask32x4) Uint32x4
 
-// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a bitwise x &^ y.
 //
 // Asm: VPANDND, CPU Feature: AVX512F
 func (x Uint32x8) AndNotMasked(y Uint32x8, mask Mask32x8) Uint32x8
 
-// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a bitwise x &^ y.
 //
 // Asm: VPANDND, CPU Feature: AVX512F
 func (x Uint32x16) AndNotMasked(y Uint32x16, mask Mask32x16) Uint32x16
 
-// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a bitwise x &^ y.
 //
 // Asm: VPANDNQ, CPU Feature: AVX512F
 func (x Uint64x2) AndNotMasked(y Uint64x2, mask Mask64x2) Uint64x2
 
-// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a bitwise x &^ y.
 //
 // Asm: VPANDNQ, CPU Feature: AVX512F
 func (x Uint64x4) AndNotMasked(y Uint64x4, mask Mask64x4) Uint64x4
 
-// AndNotMasked performs a masked bitwise AND NOT operation between two vectors.
+// AndNotMasked performs a bitwise x &^ y.
 //
 // Asm: VPANDNQ, CPU Feature: AVX512F
 func (x Uint64x8) AndNotMasked(y Uint64x8, mask Mask64x8) Uint64x8
