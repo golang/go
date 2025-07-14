@@ -5416,9 +5416,11 @@ func isStandardLibraryFile(filename string) bool {
 	}
 
 	// Check if file is from GOROOT (standard library)
-	// TODO: This shouldn't be static as this relies on the compiler name
-	if strings.Contains(filename, "/go-panikint/src/") {
-		return true
+	if buildcfg.GOROOT != "" {
+		gorootSrc := filepath.Join(buildcfg.GOROOT, "src")
+		if strings.HasPrefix(filename, gorootSrc) {
+			return true
+		}
 	}
 
 	// Check if file is from module cache (third-party dependencies)
