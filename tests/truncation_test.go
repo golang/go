@@ -263,6 +263,124 @@ func TestSecurityBoundaryTruncation(t *testing.T) {
 	_ = checkedLimit
 }
 
+// Platform-dependent truncation edge cases
+func TestPlatformDependentIntTruncation(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("Expected panic for platform-dependent int truncation")
+		}
+	}()
+	var a int = 0x80000000
+	_ = int32(a)
+}
+
+func TestBoundaryTruncationInt32MaxPlusOne(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("Expected panic for int32 max+1 boundary truncation")
+		}
+	}()
+	var c int64 = 0x80000000
+	_ = int32(c)
+}
+
+func TestBoundaryTruncationInt32MinMinusOne(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("Expected panic for int32 min-1 boundary truncation")
+		}
+	}()
+	var e int64 = -0x80000001
+	_ = int32(e)
+}
+
+func TestBoundaryTruncationInt16MaxPlusOne(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("Expected panic for int16 max+1 boundary truncation")
+		}
+	}()
+	var g int32 = 0x8000
+	_ = int16(g)
+}
+
+func TestBoundaryTruncationInt8MaxPlusOne(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("Expected panic for int8 max+1 boundary truncation")
+		}
+	}()
+	var i int16 = 0x80
+	_ = int8(i)
+}
+
+func TestBoundaryTruncationUint32MaxPlusOne(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("Expected panic for uint32 max+1 boundary truncation")
+		}
+	}()
+	var k uint64 = 0x100000000
+	_ = uint32(k)
+}
+
+func TestBoundaryTruncationUint16MaxPlusOne(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("Expected panic for uint16 max+1 boundary truncation")
+		}
+	}()
+	var m uint32 = 0x10000
+	_ = uint16(m)
+}
+
+func TestBoundaryTruncationUint8MaxPlusOne(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("Expected panic for uint8 max+1 boundary truncation")
+		}
+	}()
+	var o uint16 = 0x100
+	_ = uint8(o)
+}
+
+// Additional edge case truncation tests
+func TestBitOperationTruncation(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("Expected panic for bit operation truncation")
+		}
+	}()
+	var value int64 = 0x123456789ABCDEF0
+	var truncated int32 = int32(value)
+	_ = truncated
+}
+
+func TestChainedTruncationWithBitOps(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("Expected panic for chained truncation with bit ops")
+		}
+	}()
+	var value int64 = 0x7FFFFFFFFFFFFFFF
+	var step1 int32 = int32(value >> 16)
+	_ = step1
+}
+
+func TestUintToIntLargeValue(t *testing.T) {
+	// This test may not trigger panic depending on implementation
+	var large uint64 = 0x8000000000000000
+	result := int64(large)
+	_ = result
+}
+
+func TestIntToUintNegativeEdgeCase(t *testing.T) {
+	// This test may not trigger panic depending on implementation
+	var negative int64 = -1
+	result := uint64(negative)
+	_ = result
+}
+
 func TestSafeTruncation(t *testing.T) {
 	// These conversions should not panic
 	var small int64 = 100
