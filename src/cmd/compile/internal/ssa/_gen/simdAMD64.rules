@@ -264,6 +264,8 @@
 (DivMaskedFloat64x2 x y mask) => (VDIVPDMasked128 x y (VPMOVVec64x2ToM <types.TypeMask> mask))
 (DivMaskedFloat64x4 x y mask) => (VDIVPDMasked256 x y (VPMOVVec64x4ToM <types.TypeMask> mask))
 (DivMaskedFloat64x8 x y mask) => (VDIVPDMasked512 x y (VPMOVVec64x8ToM <types.TypeMask> mask))
+(DotProdBroadcastFloat32x4 x y) => (VDPPS128 [127] x y)
+(DotProdBroadcastFloat32x8 x y) => (VDPPS256 [127] x y)
 (DotProdBroadcastFloat64x2 x y) => (VDPPD128 [127] x y)
 (EqualFloat32x4 x y) => (VCMPPS128 [0] x y)
 (EqualFloat32x8 x y) => (VCMPPS256 [0] x y)

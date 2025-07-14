@@ -275,6 +275,8 @@ func simdIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies .
 	addF(simdPackage, "Float64x2.DivMasked", opLen3(ssa.OpDivMaskedFloat64x2, types.TypeVec128), sys.AMD64)
 	addF(simdPackage, "Float64x4.DivMasked", opLen3(ssa.OpDivMaskedFloat64x4, types.TypeVec256), sys.AMD64)
 	addF(simdPackage, "Float64x8.DivMasked", opLen3(ssa.OpDivMaskedFloat64x8, types.TypeVec512), sys.AMD64)
+	addF(simdPackage, "Float32x4.DotProdBroadcast", opLen2(ssa.OpDotProdBroadcastFloat32x4, types.TypeVec128), sys.AMD64)
+	addF(simdPackage, "Float32x8.DotProdBroadcast", opLen2(ssa.OpDotProdBroadcastFloat32x8, types.TypeVec256), sys.AMD64)
 	addF(simdPackage, "Float64x2.DotProdBroadcast", opLen2(ssa.OpDotProdBroadcastFloat64x2, types.TypeVec128), sys.AMD64)
 	addF(simdPackage, "Int8x16.Equal", opLen2(ssa.OpEqualInt8x16, types.TypeVec128), sys.AMD64)
 	addF(simdPackage, "Int8x32.Equal", opLen2(ssa.OpEqualInt8x32, types.TypeVec256), sys.AMD64)

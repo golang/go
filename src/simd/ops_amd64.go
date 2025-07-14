@@ -1504,6 +1504,16 @@ func (x Float64x8) DivMasked(y Float64x8, z Mask64x8) Float64x8
 
 // DotProdBroadcast multiplies all elements and broadcasts the sum.
 //
+// Asm: VDPPS, CPU Feature: AVX
+func (x Float32x4) DotProdBroadcast(y Float32x4) Float32x4
+
+// DotProdBroadcast multiplies all elements and broadcasts the sum.
+//
+// Asm: VDPPS, CPU Feature: AVX
+func (x Float32x8) DotProdBroadcast(y Float32x8) Float32x8
+
+// DotProdBroadcast multiplies all elements and broadcasts the sum.
+//
 // Asm: VDPPD, CPU Feature: AVX
 func (x Float64x2) DotProdBroadcast(y Float64x2) Float64x2
 

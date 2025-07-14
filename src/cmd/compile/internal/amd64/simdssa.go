@@ -650,7 +650,9 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VPRORQMasked512:
 		p = simdVkvImm8(s, v)
 
-	case ssa.OpAMD64VDPPD128,
+	case ssa.OpAMD64VDPPS128,
+		ssa.OpAMD64VDPPS256,
+		ssa.OpAMD64VDPPD128,
 		ssa.OpAMD64VCMPPS128,
 		ssa.OpAMD64VCMPPS256,
 		ssa.OpAMD64VCMPPD128,

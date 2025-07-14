@@ -1407,6 +1407,10 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpDivMaskedFloat64x4(v)
 	case OpDivMaskedFloat64x8:
 		return rewriteValueAMD64_OpDivMaskedFloat64x8(v)
+	case OpDotProdBroadcastFloat32x4:
+		return rewriteValueAMD64_OpDotProdBroadcastFloat32x4(v)
+	case OpDotProdBroadcastFloat32x8:
+		return rewriteValueAMD64_OpDotProdBroadcastFloat32x8(v)
 	case OpDotProdBroadcastFloat64x2:
 		return rewriteValueAMD64_OpDotProdBroadcastFloat64x2(v)
 	case OpEq16:
@@ -32309,6 +32313,34 @@ func rewriteValueAMD64_OpDivMaskedFloat64x8(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x8ToM, types.TypeMask)
 		v0.AddArg(mask)
 		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpDotProdBroadcastFloat32x4(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (DotProdBroadcastFloat32x4 x y)
+	// result: (VDPPS128 [127] x y)
+	for {
+		x := v_0
+		y := v_1
+		v.reset(OpAMD64VDPPS128)
+		v.AuxInt = int8ToAuxInt(127)
+		v.AddArg2(x, y)
+		return true
+	}
+}
+func rewriteValueAMD64_OpDotProdBroadcastFloat32x8(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (DotProdBroadcastFloat32x8 x y)
+	// result: (VDPPS256 [127] x y)
+	for {
+		x := v_0
+		y := v_1
+		v.reset(OpAMD64VDPPS256)
+		v.AuxInt = int8ToAuxInt(127)
+		v.AddArg2(x, y)
 		return true
 	}
 }

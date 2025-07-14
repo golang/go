@@ -22,6 +22,8 @@ func testFloat32x4Binary(t *testing.T, v0 []float32, v1 []float32, want []float3
 		gotv = vec0.AddSub(vec1)
 	case "Div":
 		gotv = vec0.Div(vec1)
+	case "DotProdBroadcast":
+		gotv = vec0.DotProdBroadcast(vec1)
 	case "Max":
 		gotv = vec0.Max(vec1)
 	case "Min":
@@ -272,6 +274,8 @@ func testFloat32x8Binary(t *testing.T, v0 []float32, v1 []float32, want []float3
 		gotv = vec0.AddSub(vec1)
 	case "Div":
 		gotv = vec0.Div(vec1)
+	case "DotProdBroadcast":
+		gotv = vec0.DotProdBroadcast(vec1)
 	case "Max":
 		gotv = vec0.Max(vec1)
 	case "Min":

@@ -1931,6 +1931,7 @@ const (
 	OpAMD64VRNDSCALEPSMasked128
 	OpAMD64VREDUCEPS128
 	OpAMD64VREDUCEPSMasked128
+	OpAMD64VDPPS128
 	OpAMD64VCMPPS128
 	OpAMD64VCMPPSMasked128
 	OpAMD64VROUNDPS256
@@ -1938,6 +1939,7 @@ const (
 	OpAMD64VRNDSCALEPSMasked256
 	OpAMD64VREDUCEPS256
 	OpAMD64VREDUCEPSMasked256
+	OpAMD64VDPPS256
 	OpAMD64VCMPPS256
 	OpAMD64VCMPPSMasked256
 	OpAMD64VEXTRACTF128128
@@ -4369,6 +4371,7 @@ const (
 	OpCeilFloat32x4
 	OpDivFloat32x4
 	OpDivMaskedFloat32x4
+	OpDotProdBroadcastFloat32x4
 	OpEqualFloat32x4
 	OpEqualMaskedFloat32x4
 	OpFloorFloat32x4
@@ -4416,6 +4419,7 @@ const (
 	OpCeilFloat32x8
 	OpDivFloat32x8
 	OpDivMaskedFloat32x8
+	OpDotProdBroadcastFloat32x8
 	OpEqualFloat32x8
 	OpEqualMaskedFloat32x8
 	OpFloorFloat32x8
@@ -29583,6 +29587,22 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VDPPS128",
+		auxType:     auxInt8,
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVDPPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VCMPPS128",
 		auxType:     auxInt8,
 		argLen:      2,
@@ -29681,6 +29701,22 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VDPPS256",
+		auxType:     auxInt8,
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVDPPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -59498,6 +59534,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:        "DotProdBroadcastFloat32x4",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
 		name:        "EqualFloat32x4",
 		argLen:      2,
 		commutative: true,
@@ -59745,6 +59787,12 @@ var opcodeTable = [...]opInfo{
 		name:    "DivMaskedFloat32x8",
 		argLen:  3,
 		generic: true,
+	},
+	{
+		name:        "DotProdBroadcastFloat32x8",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
 	},
 	{
 		name:        "EqualFloat32x8",
