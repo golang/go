@@ -118,4 +118,7 @@ type Flags struct {
 
 	// SizeSpecializedMalloc enables malloc implementations that are specialized per size class.
 	SizeSpecializedMalloc bool
+
+	// DeadlockGC enables the Deadlock GC implementation.
+	DeadlockGC bool
 }
