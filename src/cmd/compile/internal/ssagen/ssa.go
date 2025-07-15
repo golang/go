@@ -5827,8 +5827,8 @@ func (s *state) intDiv(n ir.Node, a, b *ssa.Value) *ssa.Value {
 				}
 			}
 			if needcheck {
-				// cmp := s.newValue2(s.ssaOp(ir.ONE, n.Type()), types.Types[types.TBOOL], b, s.zeroVal(n.Type()))
-				// s.check(cmp, ir.Syms.Panicdivide) // temporarily commented out
+				cmp := s.newValue2(s.ssaOp(ir.ONE, n.Type()), types.Types[types.TBOOL], b, s.zeroVal(n.Type()))
+				s.check(cmp, ir.Syms.Panicdivide)
 			}
 			return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
 		}
@@ -5844,8 +5844,8 @@ func (s *state) intDiv(n ir.Node, a, b *ssa.Value) *ssa.Value {
 	}
 	if needcheck {
 		// do a size-appropriate check for zero
-		// cmp := s.newValue2(s.ssaOp(ir.ONE, n.Type()), types.Types[types.TBOOL], b, s.zeroVal(n.Type()))
-		// s.check(cmp, ir.Syms.Panicdivide) // temporarily commented out
+		cmp := s.newValue2(s.ssaOp(ir.ONE, n.Type()), types.Types[types.TBOOL], b, s.zeroVal(n.Type()))
+		s.check(cmp, ir.Syms.Panicdivide)
 	}
 
 	// If overflow detection is disabled, just perform the division
