@@ -2115,192 +2115,192 @@ func (x Float64x8) FloorWithPrecisionMasked(prec uint8, mask Mask64x8) Float64x8
 
 /* FusedMultiplyAdd */
 
-// FusedMultiplyAdd performs `(v1 * v2) + v3`.
+// FusedMultiplyAdd performs (x * y) + z.
 //
 // Asm: VFMADD213PS, CPU Feature: AVX512F
 func (x Float32x4) FusedMultiplyAdd(y Float32x4, z Float32x4) Float32x4
 
-// FusedMultiplyAdd performs `(v1 * v2) + v3`.
+// FusedMultiplyAdd performs (x * y) + z.
 //
 // Asm: VFMADD213PS, CPU Feature: AVX512F
 func (x Float32x8) FusedMultiplyAdd(y Float32x8, z Float32x8) Float32x8
 
-// FusedMultiplyAdd performs `(v1 * v2) + v3`.
+// FusedMultiplyAdd performs (x * y) + z.
 //
 // Asm: VFMADD213PS, CPU Feature: AVX512F
 func (x Float32x16) FusedMultiplyAdd(y Float32x16, z Float32x16) Float32x16
 
-// FusedMultiplyAdd performs `(v1 * v2) + v3`.
+// FusedMultiplyAdd performs (x * y) + z.
 //
 // Asm: VFMADD213PD, CPU Feature: AVX512F
 func (x Float64x2) FusedMultiplyAdd(y Float64x2, z Float64x2) Float64x2
 
-// FusedMultiplyAdd performs `(v1 * v2) + v3`.
+// FusedMultiplyAdd performs (x * y) + z.
 //
 // Asm: VFMADD213PD, CPU Feature: AVX512F
 func (x Float64x4) FusedMultiplyAdd(y Float64x4, z Float64x4) Float64x4
 
-// FusedMultiplyAdd performs `(v1 * v2) + v3`.
+// FusedMultiplyAdd performs (x * y) + z.
 //
 // Asm: VFMADD213PD, CPU Feature: AVX512F
 func (x Float64x8) FusedMultiplyAdd(y Float64x8, z Float64x8) Float64x8
 
 /* FusedMultiplyAddMasked */
 
-// FusedMultiplyAddMasked performs `(v1 * v2) + v3`.
+// FusedMultiplyAddMasked performs (x * y) + z.
 //
 // Asm: VFMADD213PS, CPU Feature: AVX512F
 func (x Float32x4) FusedMultiplyAddMasked(y Float32x4, z Float32x4, mask Mask32x4) Float32x4
 
-// FusedMultiplyAddMasked performs `(v1 * v2) + v3`.
+// FusedMultiplyAddMasked performs (x * y) + z.
 //
 // Asm: VFMADD213PS, CPU Feature: AVX512F
 func (x Float32x8) FusedMultiplyAddMasked(y Float32x8, z Float32x8, mask Mask32x8) Float32x8
 
-// FusedMultiplyAddMasked performs `(v1 * v2) + v3`.
+// FusedMultiplyAddMasked performs (x * y) + z.
 //
 // Asm: VFMADD213PS, CPU Feature: AVX512F
 func (x Float32x16) FusedMultiplyAddMasked(y Float32x16, z Float32x16, mask Mask32x16) Float32x16
 
-// FusedMultiplyAddMasked performs `(v1 * v2) + v3`.
+// FusedMultiplyAddMasked performs (x * y) + z.
 //
 // Asm: VFMADD213PD, CPU Feature: AVX512F
 func (x Float64x2) FusedMultiplyAddMasked(y Float64x2, z Float64x2, mask Mask64x2) Float64x2
 
-// FusedMultiplyAddMasked performs `(v1 * v2) + v3`.
+// FusedMultiplyAddMasked performs (x * y) + z.
 //
 // Asm: VFMADD213PD, CPU Feature: AVX512F
 func (x Float64x4) FusedMultiplyAddMasked(y Float64x4, z Float64x4, mask Mask64x4) Float64x4
 
-// FusedMultiplyAddMasked performs `(v1 * v2) + v3`.
+// FusedMultiplyAddMasked performs (x * y) + z.
 //
 // Asm: VFMADD213PD, CPU Feature: AVX512F
 func (x Float64x8) FusedMultiplyAddMasked(y Float64x8, z Float64x8, mask Mask64x8) Float64x8
 
 /* FusedMultiplyAddSub */
 
-// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
+// FusedMultiplyAddSub performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
 // Asm: VFMADDSUB213PS, CPU Feature: AVX512F
 func (x Float32x4) FusedMultiplyAddSub(y Float32x4, z Float32x4) Float32x4
 
-// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
+// FusedMultiplyAddSub performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
 // Asm: VFMADDSUB213PS, CPU Feature: AVX512F
 func (x Float32x8) FusedMultiplyAddSub(y Float32x8, z Float32x8) Float32x8
 
-// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
+// FusedMultiplyAddSub performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
 // Asm: VFMADDSUB213PS, CPU Feature: AVX512F
 func (x Float32x16) FusedMultiplyAddSub(y Float32x16, z Float32x16) Float32x16
 
-// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
+// FusedMultiplyAddSub performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
 // Asm: VFMADDSUB213PD, CPU Feature: AVX512F
 func (x Float64x2) FusedMultiplyAddSub(y Float64x2, z Float64x2) Float64x2
 
-// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
+// FusedMultiplyAddSub performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
 // Asm: VFMADDSUB213PD, CPU Feature: AVX512F
 func (x Float64x4) FusedMultiplyAddSub(y Float64x4, z Float64x4) Float64x4
 
-// FusedMultiplyAddSub performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
+// FusedMultiplyAddSub performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
 // Asm: VFMADDSUB213PD, CPU Feature: AVX512F
 func (x Float64x8) FusedMultiplyAddSub(y Float64x8, z Float64x8) Float64x8
 
 /* FusedMultiplyAddSubMasked */
 
-// FusedMultiplyAddSubMasked performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
+// FusedMultiplyAddSubMasked performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
 // Asm: VFMADDSUB213PS, CPU Feature: AVX512F
 func (x Float32x4) FusedMultiplyAddSubMasked(y Float32x4, z Float32x4, mask Mask32x4) Float32x4
 
-// FusedMultiplyAddSubMasked performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
+// FusedMultiplyAddSubMasked performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
 // Asm: VFMADDSUB213PS, CPU Feature: AVX512F
 func (x Float32x8) FusedMultiplyAddSubMasked(y Float32x8, z Float32x8, mask Mask32x8) Float32x8
 
-// FusedMultiplyAddSubMasked performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
+// FusedMultiplyAddSubMasked performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
 // Asm: VFMADDSUB213PS, CPU Feature: AVX512F
 func (x Float32x16) FusedMultiplyAddSubMasked(y Float32x16, z Float32x16, mask Mask32x16) Float32x16
 
-// FusedMultiplyAddSubMasked performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
+// FusedMultiplyAddSubMasked performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
 // Asm: VFMADDSUB213PD, CPU Feature: AVX512F
 func (x Float64x2) FusedMultiplyAddSubMasked(y Float64x2, z Float64x2, mask Mask64x2) Float64x2
 
-// FusedMultiplyAddSubMasked performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
+// FusedMultiplyAddSubMasked performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
 // Asm: VFMADDSUB213PD, CPU Feature: AVX512F
 func (x Float64x4) FusedMultiplyAddSubMasked(y Float64x4, z Float64x4, mask Mask64x4) Float64x4
 
-// FusedMultiplyAddSubMasked performs `(v1 * v2) - v3` for odd-indexed elements, and `(v1 * v2) + v3` for even-indexed elements.
+// FusedMultiplyAddSubMasked performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
 //
 // Asm: VFMADDSUB213PD, CPU Feature: AVX512F
 func (x Float64x8) FusedMultiplyAddSubMasked(y Float64x8, z Float64x8, mask Mask64x8) Float64x8
 
 /* FusedMultiplySubAdd */
 
-// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
+// FusedMultiplySubAdd performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
 // Asm: VFMSUBADD213PS, CPU Feature: AVX512F
 func (x Float32x4) FusedMultiplySubAdd(y Float32x4, z Float32x4) Float32x4
 
-// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
+// FusedMultiplySubAdd performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
 // Asm: VFMSUBADD213PS, CPU Feature: AVX512F
 func (x Float32x8) FusedMultiplySubAdd(y Float32x8, z Float32x8) Float32x8
 
-// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
+// FusedMultiplySubAdd performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
 // Asm: VFMSUBADD213PS, CPU Feature: AVX512F
 func (x Float32x16) FusedMultiplySubAdd(y Float32x16, z Float32x16) Float32x16
 
-// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
+// FusedMultiplySubAdd performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512F
 func (x Float64x2) FusedMultiplySubAdd(y Float64x2, z Float64x2) Float64x2
 
-// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
+// FusedMultiplySubAdd performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512F
 func (x Float64x4) FusedMultiplySubAdd(y Float64x4, z Float64x4) Float64x4
 
-// FusedMultiplySubAdd performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
+// FusedMultiplySubAdd performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512F
 func (x Float64x8) FusedMultiplySubAdd(y Float64x8, z Float64x8) Float64x8
 
 /* FusedMultiplySubAddMasked */
 
-// FusedMultiplySubAddMasked performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
+// FusedMultiplySubAddMasked performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
 // Asm: VFMSUBADD213PS, CPU Feature: AVX512F
 func (x Float32x4) FusedMultiplySubAddMasked(y Float32x4, z Float32x4, mask Mask32x4) Float32x4
 
-// FusedMultiplySubAddMasked performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
+// FusedMultiplySubAddMasked performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
 // Asm: VFMSUBADD213PS, CPU Feature: AVX512F
 func (x Float32x8) FusedMultiplySubAddMasked(y Float32x8, z Float32x8, mask Mask32x8) Float32x8
 
-// FusedMultiplySubAddMasked performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
+// FusedMultiplySubAddMasked performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
 // Asm: VFMSUBADD213PS, CPU Feature: AVX512F
 func (x Float32x16) FusedMultiplySubAddMasked(y Float32x16, z Float32x16, mask Mask32x16) Float32x16
 
-// FusedMultiplySubAddMasked performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
+// FusedMultiplySubAddMasked performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512F
 func (x Float64x2) FusedMultiplySubAddMasked(y Float64x2, z Float64x2, mask Mask64x2) Float64x2
 
-// FusedMultiplySubAddMasked performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
+// FusedMultiplySubAddMasked performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512F
 func (x Float64x4) FusedMultiplySubAddMasked(y Float64x4, z Float64x4, mask Mask64x4) Float64x4
 
-// FusedMultiplySubAddMasked performs `(v1 * v2) + v3` for odd-indexed elements, and `(v1 * v2) - v3` for even-indexed elements.
+// FusedMultiplySubAddMasked performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
 //
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512F
 func (x Float64x8) FusedMultiplySubAddMasked(y Float64x8, z Float64x8, mask Mask64x8) Float64x8
@@ -5373,37 +5373,37 @@ func (x Int16x32) PairDotProd(y Int16x32) Int32x16
 
 /* PairDotProdAccumulate */
 
-// PairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
+// PairDotProdAccumulate performs dot products on pairs of elements of x and y and then adds z.
 //
 // Asm: VPDPWSSD, CPU Feature: AVXVNNI
-func (x Int32x4) PairDotProdAccumulate(y Int16x8, z Int16x8) Int32x4
+func (x Int16x8) PairDotProdAccumulate(y Int16x8, z Int32x4) Int32x4
 
-// PairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
+// PairDotProdAccumulate performs dot products on pairs of elements of x and y and then adds z.
 //
 // Asm: VPDPWSSD, CPU Feature: AVXVNNI
-func (x Int32x8) PairDotProdAccumulate(y Int16x16, z Int16x16) Int32x8
+func (x Int16x16) PairDotProdAccumulate(y Int16x16, z Int32x8) Int32x8
 
-// PairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
+// PairDotProdAccumulate performs dot products on pairs of elements of x and y and then adds z.
 //
 // Asm: VPDPWSSD, CPU Feature: AVX512VNNI
-func (x Int32x16) PairDotProdAccumulate(y Int16x32, z Int16x32) Int32x16
+func (x Int16x32) PairDotProdAccumulate(y Int16x32, z Int32x16) Int32x16
 
 /* PairDotProdAccumulateMasked */
 
-// PairDotProdAccumulateMasked performs dot products on pairs of elements of y and z and accumulates the results to x.
+// PairDotProdAccumulateMasked performs dot products on pairs of elements of x and y and then adds z.
 //
 // Asm: VPDPWSSD, CPU Feature: AVX512VNNI
-func (x Int32x4) PairDotProdAccumulateMasked(y Int16x8, z Int16x8, mask Mask32x4) Int32x4
+func (x Int16x8) PairDotProdAccumulateMasked(y Int16x8, z Int32x4, mask Mask32x4) Int32x4
 
-// PairDotProdAccumulateMasked performs dot products on pairs of elements of y and z and accumulates the results to x.
+// PairDotProdAccumulateMasked performs dot products on pairs of elements of x and y and then adds z.
 //
 // Asm: VPDPWSSD, CPU Feature: AVX512VNNI
-func (x Int32x8) PairDotProdAccumulateMasked(y Int16x16, z Int16x16, mask Mask32x8) Int32x8
+func (x Int16x16) PairDotProdAccumulateMasked(y Int16x16, z Int32x8, mask Mask32x8) Int32x8
 
-// PairDotProdAccumulateMasked performs dot products on pairs of elements of y and z and accumulates the results to x.
+// PairDotProdAccumulateMasked performs dot products on pairs of elements of x and y and then adds z.
 //
 // Asm: VPDPWSSD, CPU Feature: AVX512VNNI
-func (x Int32x16) PairDotProdAccumulateMasked(y Int16x32, z Int16x32, mask Mask32x16) Int32x16
+func (x Int16x32) PairDotProdAccumulateMasked(y Int16x32, z Int32x16, mask Mask32x16) Int32x16
 
 /* PairDotProdMasked */
 
@@ -7469,37 +7469,37 @@ func (x Uint16x32) SaturatedAddMasked(y Uint16x32, mask Mask16x32) Uint16x32
 
 /* SaturatedPairDotProdAccumulate */
 
-// SaturatedPairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
+// SaturatedPairDotProdAccumulate performs dot products on pairs of elements of x and y and then adds z.
 //
 // Asm: VPDPWSSDS, CPU Feature: AVXVNNI
-func (x Int32x4) SaturatedPairDotProdAccumulate(y Int16x8, z Int16x8) Int32x4
+func (x Int16x8) SaturatedPairDotProdAccumulate(y Int16x8, z Int32x4) Int32x4
 
-// SaturatedPairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
+// SaturatedPairDotProdAccumulate performs dot products on pairs of elements of x and y and then adds z.
 //
 // Asm: VPDPWSSDS, CPU Feature: AVXVNNI
-func (x Int32x8) SaturatedPairDotProdAccumulate(y Int16x16, z Int16x16) Int32x8
+func (x Int16x16) SaturatedPairDotProdAccumulate(y Int16x16, z Int32x8) Int32x8
 
-// SaturatedPairDotProdAccumulate performs dot products on pairs of elements of y and z and accumulates the results to x.
+// SaturatedPairDotProdAccumulate performs dot products on pairs of elements of x and y and then adds z.
 //
 // Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
-func (x Int32x16) SaturatedPairDotProdAccumulate(y Int16x32, z Int16x32) Int32x16
+func (x Int16x32) SaturatedPairDotProdAccumulate(y Int16x32, z Int32x16) Int32x16
 
 /* SaturatedPairDotProdAccumulateMasked */
 
-// SaturatedPairDotProdAccumulateMasked performs dot products on pairs of elements of y and z and accumulates the results to x.
+// SaturatedPairDotProdAccumulateMasked performs dot products on pairs of elements of x and y and then adds z.
 //
 // Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
-func (x Int32x4) SaturatedPairDotProdAccumulateMasked(y Int16x8, z Int16x8, mask Mask32x4) Int32x4
+func (x Int16x8) SaturatedPairDotProdAccumulateMasked(y Int16x8, z Int32x4, mask Mask32x4) Int32x4
 
-// SaturatedPairDotProdAccumulateMasked performs dot products on pairs of elements of y and z and accumulates the results to x.
+// SaturatedPairDotProdAccumulateMasked performs dot products on pairs of elements of x and y and then adds z.
 //
 // Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
-func (x Int32x8) SaturatedPairDotProdAccumulateMasked(y Int16x16, z Int16x16, mask Mask32x8) Int32x8
+func (x Int16x16) SaturatedPairDotProdAccumulateMasked(y Int16x16, z Int32x8, mask Mask32x8) Int32x8
 
-// SaturatedPairDotProdAccumulateMasked performs dot products on pairs of elements of y and z and accumulates the results to x.
+// SaturatedPairDotProdAccumulateMasked performs dot products on pairs of elements of x and y and then adds z.
 //
 // Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
-func (x Int32x16) SaturatedPairDotProdAccumulateMasked(y Int16x32, z Int16x32, mask Mask32x16) Int32x16
+func (x Int16x32) SaturatedPairDotProdAccumulateMasked(y Int16x32, z Int32x16, mask Mask32x16) Int32x16
 
 /* SaturatedPairwiseAdd */
 
@@ -7695,67 +7695,37 @@ func (x Uint8x64) SaturatedUnsignedSignedPairDotProdMasked(y Int8x64, mask Mask1
 
 /* SaturatedUnsignedSignedQuadDotProdAccumulate */
 
-// SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of x and y and then adds z.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVXVNNI
-func (x Int32x4) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int8x16) Int32x4
+func (x Int8x16) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int32x4) Int32x4
 
-// SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of x and y and then adds z.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVXVNNI
-func (x Int32x8) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int8x32) Int32x8
+func (x Int8x32) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int32x8) Int32x8
 
-// SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of x and y and then adds z.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
-func (x Int32x16) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int8x64) Int32x16
-
-// SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
-//
-// Asm: VPDPBUSDS, CPU Feature: AVXVNNI
-func (x Uint32x4) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int8x16) Uint32x4
-
-// SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
-//
-// Asm: VPDPBUSDS, CPU Feature: AVXVNNI
-func (x Uint32x8) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int8x32) Uint32x8
-
-// SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
-//
-// Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
-func (x Uint32x16) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int8x64) Uint32x16
+func (x Int8x64) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int32x16) Int32x16
 
 /* SaturatedUnsignedSignedQuadDotProdAccumulateMasked */
 
-// SaturatedUnsignedSignedQuadDotProdAccumulateMasked multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// SaturatedUnsignedSignedQuadDotProdAccumulateMasked multiplies performs dot products on groups of 4 elements of x and y and then adds z.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
-func (x Int32x4) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x16, z Int8x16, mask Mask32x4) Int32x4
+func (x Int8x16) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x16, z Int32x4, mask Mask32x4) Int32x4
 
-// SaturatedUnsignedSignedQuadDotProdAccumulateMasked multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// SaturatedUnsignedSignedQuadDotProdAccumulateMasked multiplies performs dot products on groups of 4 elements of x and y and then adds z.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
-func (x Int32x8) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x32, z Int8x32, mask Mask32x8) Int32x8
+func (x Int8x32) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x32, z Int32x8, mask Mask32x8) Int32x8
 
-// SaturatedUnsignedSignedQuadDotProdAccumulateMasked multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// SaturatedUnsignedSignedQuadDotProdAccumulateMasked multiplies performs dot products on groups of 4 elements of x and y and then adds z.
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
-func (x Int32x16) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x64, z Int8x64, mask Mask32x16) Int32x16
-
-// SaturatedUnsignedSignedQuadDotProdAccumulateMasked multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
-//
-// Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
-func (x Uint32x4) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x16, z Int8x16, mask Mask32x4) Uint32x4
-
-// SaturatedUnsignedSignedQuadDotProdAccumulateMasked multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
-//
-// Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
-func (x Uint32x8) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x32, z Int8x32, mask Mask32x8) Uint32x8
-
-// SaturatedUnsignedSignedQuadDotProdAccumulateMasked multiplies performs dot products on groups of 4 elements of y and z and accumulates the results to x.
-//
-// Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
-func (x Uint32x16) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x64, z Int8x64, mask Mask32x16) Uint32x16
+func (x Int8x64) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x64, z Int32x16, mask Mask32x16) Int32x16
 
 /* Set128 */
 
@@ -10165,67 +10135,37 @@ func (x Float64x8) TruncWithPrecisionMasked(prec uint8, mask Mask64x8) Float64x8
 
 /* UnsignedSignedQuadDotProdAccumulate */
 
-// UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of x and y and then adds z.
 //
 // Asm: VPDPBUSD, CPU Feature: AVXVNNI
-func (x Int32x4) UnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int8x16) Int32x4
+func (x Int8x16) UnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int32x4) Int32x4
 
-// UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of x and y and then adds z.
 //
 // Asm: VPDPBUSD, CPU Feature: AVXVNNI
-func (x Int32x8) UnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int8x32) Int32x8
+func (x Int8x32) UnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int32x8) Int32x8
 
-// UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of x and y and then adds z.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX512VNNI
-func (x Int32x16) UnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int8x64) Int32x16
-
-// UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
-//
-// Asm: VPDPBUSD, CPU Feature: AVXVNNI
-func (x Uint32x4) UnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int8x16) Uint32x4
-
-// UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
-//
-// Asm: VPDPBUSD, CPU Feature: AVXVNNI
-func (x Uint32x8) UnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int8x32) Uint32x8
-
-// UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of y and z and accumulates the results to x.
-//
-// Asm: VPDPBUSD, CPU Feature: AVX512VNNI
-func (x Uint32x16) UnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int8x64) Uint32x16
+func (x Int8x64) UnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int32x16) Int32x16
 
 /* UnsignedSignedQuadDotProdAccumulateMasked */
 
-// UnsignedSignedQuadDotProdAccumulateMasked performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// UnsignedSignedQuadDotProdAccumulateMasked performs dot products on groups of 4 elements of x and y and then adds z.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX512VNNI
-func (x Int32x4) UnsignedSignedQuadDotProdAccumulateMasked(y Uint8x16, z Int8x16, mask Mask32x4) Int32x4
+func (x Int8x16) UnsignedSignedQuadDotProdAccumulateMasked(y Uint8x16, z Int32x4, mask Mask32x4) Int32x4
 
-// UnsignedSignedQuadDotProdAccumulateMasked performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// UnsignedSignedQuadDotProdAccumulateMasked performs dot products on groups of 4 elements of x and y and then adds z.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX512VNNI
-func (x Int32x8) UnsignedSignedQuadDotProdAccumulateMasked(y Uint8x32, z Int8x32, mask Mask32x8) Int32x8
+func (x Int8x32) UnsignedSignedQuadDotProdAccumulateMasked(y Uint8x32, z Int32x8, mask Mask32x8) Int32x8
 
-// UnsignedSignedQuadDotProdAccumulateMasked performs dot products on groups of 4 elements of y and z and accumulates the results to x.
+// UnsignedSignedQuadDotProdAccumulateMasked performs dot products on groups of 4 elements of x and y and then adds z.
 //
 // Asm: VPDPBUSD, CPU Feature: AVX512VNNI
-func (x Int32x16) UnsignedSignedQuadDotProdAccumulateMasked(y Uint8x64, z Int8x64, mask Mask32x16) Int32x16
-
-// UnsignedSignedQuadDotProdAccumulateMasked performs dot products on groups of 4 elements of y and z and accumulates the results to x.
-//
-// Asm: VPDPBUSD, CPU Feature: AVX512VNNI
-func (x Uint32x4) UnsignedSignedQuadDotProdAccumulateMasked(y Uint8x16, z Int8x16, mask Mask32x4) Uint32x4
-
-// UnsignedSignedQuadDotProdAccumulateMasked performs dot products on groups of 4 elements of y and z and accumulates the results to x.
-//
-// Asm: VPDPBUSD, CPU Feature: AVX512VNNI
-func (x Uint32x8) UnsignedSignedQuadDotProdAccumulateMasked(y Uint8x32, z Int8x32, mask Mask32x8) Uint32x8
-
-// UnsignedSignedQuadDotProdAccumulateMasked performs dot products on groups of 4 elements of y and z and accumulates the results to x.
-//
-// Asm: VPDPBUSD, CPU Feature: AVX512VNNI
-func (x Uint32x16) UnsignedSignedQuadDotProdAccumulateMasked(y Uint8x64, z Int8x64, mask Mask32x16) Uint32x16
+func (x Int8x64) UnsignedSignedQuadDotProdAccumulateMasked(y Uint8x64, z Int32x16, mask Mask32x16) Int32x16
 
 /* Xor */
 

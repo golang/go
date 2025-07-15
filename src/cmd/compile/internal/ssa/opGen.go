@@ -5314,8 +5314,8 @@ const (
 	OpPermute2Int16x16
 	OpPermute2MaskedInt16x16
 	OpPermute2MaskedUint16x16
-	OpPermuteMaskedInt16x16
 	OpPermuteMaskedUint16x16
+	OpPermuteMaskedInt16x16
 	OpPopCountUint16x16
 	OpPopCountMaskedUint16x16
 	OpSaturatedAddUint16x16
@@ -5360,12 +5360,12 @@ const (
 	OpMulHighMaskedUint16x32
 	OpNotEqualUint16x32
 	OpNotEqualMaskedUint16x32
-	OpPermuteInt16x32
 	OpPermuteUint16x32
-	OpPermute2Int16x32
+	OpPermuteInt16x32
 	OpPermute2Uint16x32
-	OpPermute2MaskedInt16x32
+	OpPermute2Int16x32
 	OpPermute2MaskedUint16x32
+	OpPermute2MaskedInt16x32
 	OpPermuteMaskedUint16x32
 	OpPermuteMaskedInt16x32
 	OpPopCountUint16x32
@@ -5416,14 +5416,14 @@ const (
 	OpOrUint16x8
 	OpPairwiseAddUint16x8
 	OpPairwiseSubUint16x8
-	OpPermuteUint16x8
 	OpPermuteInt16x8
+	OpPermuteUint16x8
 	OpPermute2Int16x8
 	OpPermute2Uint16x8
-	OpPermute2MaskedUint16x8
 	OpPermute2MaskedInt16x8
-	OpPermuteMaskedInt16x8
+	OpPermute2MaskedUint16x8
 	OpPermuteMaskedUint16x8
+	OpPermuteMaskedInt16x8
 	OpPopCountUint16x8
 	OpPopCountMaskedUint16x8
 	OpSaturatedAddUint16x8
@@ -5470,26 +5470,24 @@ const (
 	OpNotEqualMaskedUint32x16
 	OpOrUint32x16
 	OpOrMaskedUint32x16
-	OpPermuteInt32x16
 	OpPermuteFloat32x16
+	OpPermuteInt32x16
 	OpPermuteUint32x16
 	OpPermute2Uint32x16
 	OpPermute2Float32x16
 	OpPermute2Int32x16
-	OpPermute2MaskedUint32x16
 	OpPermute2MaskedInt32x16
 	OpPermute2MaskedFloat32x16
+	OpPermute2MaskedUint32x16
+	OpPermuteMaskedInt32x16
 	OpPermuteMaskedFloat32x16
 	OpPermuteMaskedUint32x16
-	OpPermuteMaskedInt32x16
 	OpPopCountUint32x16
 	OpPopCountMaskedUint32x16
 	OpRotateLeftUint32x16
 	OpRotateLeftMaskedUint32x16
 	OpRotateRightUint32x16
 	OpRotateRightMaskedUint32x16
-	OpSaturatedUnsignedSignedQuadDotProdAccumulateUint32x16
-	OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x16
 	OpShiftAllLeftUint32x16
 	OpShiftAllLeftMaskedUint32x16
 	OpShiftAllRightUint32x16
@@ -5504,8 +5502,6 @@ const (
 	OpShiftRightMaskedUint32x16
 	OpSubUint32x16
 	OpSubMaskedUint32x16
-	OpUnsignedSignedQuadDotProdAccumulateUint32x16
-	OpUnsignedSignedQuadDotProdAccumulateMaskedUint32x16
 	OpXorUint32x16
 	OpXorMaskedUint32x16
 	OpAddUint32x4
@@ -5536,20 +5532,18 @@ const (
 	OpOrMaskedUint32x4
 	OpPairwiseAddUint32x4
 	OpPairwiseSubUint32x4
+	OpPermute2Float32x4
 	OpPermute2Uint32x4
 	OpPermute2Int32x4
-	OpPermute2Float32x4
-	OpPermute2MaskedFloat32x4
 	OpPermute2MaskedInt32x4
 	OpPermute2MaskedUint32x4
+	OpPermute2MaskedFloat32x4
 	OpPopCountUint32x4
 	OpPopCountMaskedUint32x4
 	OpRotateLeftUint32x4
 	OpRotateLeftMaskedUint32x4
 	OpRotateRightUint32x4
 	OpRotateRightMaskedUint32x4
-	OpSaturatedUnsignedSignedQuadDotProdAccumulateUint32x4
-	OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x4
 	OpShiftAllLeftUint32x4
 	OpShiftAllLeftMaskedUint32x4
 	OpShiftAllRightUint32x4
@@ -5564,8 +5558,6 @@ const (
 	OpShiftRightMaskedUint32x4
 	OpSubUint32x4
 	OpSubMaskedUint32x4
-	OpUnsignedSignedQuadDotProdAccumulateUint32x4
-	OpUnsignedSignedQuadDotProdAccumulateMaskedUint32x4
 	OpXorUint32x4
 	OpXorMaskedUint32x4
 	OpAddUint32x8
@@ -5597,14 +5589,14 @@ const (
 	OpPairwiseAddUint32x8
 	OpPairwiseSubUint32x8
 	OpPermuteUint32x8
-	OpPermuteInt32x8
 	OpPermuteFloat32x8
-	OpPermute2Uint32x8
-	OpPermute2Float32x8
+	OpPermuteInt32x8
 	OpPermute2Int32x8
+	OpPermute2Float32x8
+	OpPermute2Uint32x8
 	OpPermute2MaskedFloat32x8
-	OpPermute2MaskedInt32x8
 	OpPermute2MaskedUint32x8
+	OpPermute2MaskedInt32x8
 	OpPermuteMaskedInt32x8
 	OpPermuteMaskedUint32x8
 	OpPermuteMaskedFloat32x8
@@ -5614,8 +5606,6 @@ const (
 	OpRotateLeftMaskedUint32x8
 	OpRotateRightUint32x8
 	OpRotateRightMaskedUint32x8
-	OpSaturatedUnsignedSignedQuadDotProdAccumulateUint32x8
-	OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x8
 	OpShiftAllLeftUint32x8
 	OpShiftAllLeftMaskedUint32x8
 	OpShiftAllRightUint32x8
@@ -5630,8 +5620,6 @@ const (
 	OpShiftRightMaskedUint32x8
 	OpSubUint32x8
 	OpSubMaskedUint32x8
-	OpUnsignedSignedQuadDotProdAccumulateUint32x8
-	OpUnsignedSignedQuadDotProdAccumulateMaskedUint32x8
 	OpXorUint32x8
 	OpXorMaskedUint32x8
 	OpAddUint64x2
@@ -5665,8 +5653,8 @@ const (
 	OpPermute2Uint64x2
 	OpPermute2Int64x2
 	OpPermute2MaskedInt64x2
-	OpPermute2MaskedUint64x2
 	OpPermute2MaskedFloat64x2
+	OpPermute2MaskedUint64x2
 	OpPopCountUint64x2
 	OpPopCountMaskedUint64x2
 	OpRotateLeftUint64x2
@@ -5716,18 +5704,18 @@ const (
 	OpNotEqualMaskedUint64x4
 	OpOrUint64x4
 	OpOrMaskedUint64x4
-	OpPermuteFloat64x4
 	OpPermuteUint64x4
 	OpPermuteInt64x4
+	OpPermuteFloat64x4
+	OpPermute2Float64x4
 	OpPermute2Int64x4
 	OpPermute2Uint64x4
-	OpPermute2Float64x4
 	OpPermute2MaskedFloat64x4
 	OpPermute2MaskedUint64x4
 	OpPermute2MaskedInt64x4
 	OpPermuteMaskedFloat64x4
-	OpPermuteMaskedUint64x4
 	OpPermuteMaskedInt64x4
+	OpPermuteMaskedUint64x4
 	OpPopCountUint64x4
 	OpPopCountMaskedUint64x4
 	OpRotateLeftUint64x4
@@ -5777,18 +5765,18 @@ const (
 	OpNotEqualMaskedUint64x8
 	OpOrUint64x8
 	OpOrMaskedUint64x8
+	OpPermuteFloat64x8
 	OpPermuteInt64x8
 	OpPermuteUint64x8
-	OpPermuteFloat64x8
-	OpPermute2Uint64x8
-	OpPermute2Float64x8
 	OpPermute2Int64x8
+	OpPermute2Float64x8
+	OpPermute2Uint64x8
 	OpPermute2MaskedUint64x8
-	OpPermute2MaskedFloat64x8
 	OpPermute2MaskedInt64x8
+	OpPermute2MaskedFloat64x8
 	OpPermuteMaskedUint64x8
-	OpPermuteMaskedInt64x8
 	OpPermuteMaskedFloat64x8
+	OpPermuteMaskedInt64x8
 	OpPopCountUint64x8
 	OpPopCountMaskedUint64x8
 	OpRotateLeftUint64x8
@@ -5839,8 +5827,8 @@ const (
 	OpOrUint8x16
 	OpPermuteUint8x16
 	OpPermuteInt8x16
-	OpPermute2Int8x16
 	OpPermute2Uint8x16
+	OpPermute2Int8x16
 	OpPermute2MaskedInt8x16
 	OpPermute2MaskedUint8x16
 	OpPermuteMaskedUint8x16
@@ -5886,10 +5874,10 @@ const (
 	OpPermuteInt8x32
 	OpPermute2Int8x32
 	OpPermute2Uint8x32
-	OpPermute2MaskedInt8x32
 	OpPermute2MaskedUint8x32
-	OpPermuteMaskedInt8x32
+	OpPermute2MaskedInt8x32
 	OpPermuteMaskedUint8x32
+	OpPermuteMaskedInt8x32
 	OpPopCountUint8x32
 	OpPopCountMaskedUint8x32
 	OpSaturatedAddUint8x32
@@ -65610,12 +65598,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "PermuteMaskedInt16x16",
+		name:    "PermuteMaskedUint16x16",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "PermuteMaskedUint16x16",
+		name:    "PermuteMaskedInt16x16",
 		argLen:  3,
 		generic: true,
 	},
@@ -65857,18 +65845,13 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:    "PermuteInt16x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "PermuteUint16x32",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "Permute2Int16x32",
-		argLen:  3,
+		name:    "PermuteInt16x32",
+		argLen:  2,
 		generic: true,
 	},
 	{
@@ -65877,12 +65860,17 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Permute2MaskedInt16x32",
-		argLen:  4,
+		name:    "Permute2Int16x32",
+		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "Permute2MaskedUint16x32",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "Permute2MaskedInt16x32",
 		argLen:  4,
 		generic: true,
 	},
@@ -66155,12 +66143,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "PermuteUint16x8",
+		name:    "PermuteInt16x8",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "PermuteInt16x8",
+		name:    "PermuteUint16x8",
 		argLen:  2,
 		generic: true,
 	},
@@ -66175,22 +66163,22 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Permute2MaskedUint16x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
 		name:    "Permute2MaskedInt16x8",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "PermuteMaskedInt16x8",
-		argLen:  3,
+		name:    "Permute2MaskedUint16x8",
+		argLen:  4,
 		generic: true,
 	},
 	{
 		name:    "PermuteMaskedUint16x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "PermuteMaskedInt16x8",
 		argLen:  3,
 		generic: true,
 	},
@@ -66442,12 +66430,12 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:    "PermuteInt32x16",
+		name:    "PermuteFloat32x16",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "PermuteFloat32x16",
+		name:    "PermuteInt32x16",
 		argLen:  2,
 		generic: true,
 	},
@@ -66472,11 +66460,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Permute2MaskedUint32x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
 		name:    "Permute2MaskedInt32x16",
 		argLen:  4,
 		generic: true,
@@ -66487,17 +66470,22 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "Permute2MaskedUint32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "PermuteMaskedInt32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "PermuteMaskedFloat32x16",
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "PermuteMaskedUint32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedInt32x16",
 		argLen:  3,
 		generic: true,
 	},
@@ -66529,16 +66517,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "RotateRightMaskedUint32x16",
 		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedUnsignedSignedQuadDotProdAccumulateUint32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x16",
-		argLen:  4,
 		generic: true,
 	},
 	{
@@ -66609,16 +66587,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SubMaskedUint32x16",
 		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "UnsignedSignedQuadDotProdAccumulateUint32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "UnsignedSignedQuadDotProdAccumulateMaskedUint32x16",
-		argLen:  4,
 		generic: true,
 	},
 	{
@@ -66789,6 +66757,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "Permute2Float32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "Permute2Uint32x4",
 		argLen:  3,
 		generic: true,
@@ -66799,22 +66772,17 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Permute2Float32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "Permute2MaskedFloat32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
 		name:    "Permute2MaskedInt32x4",
 		argLen:  4,
 		generic: true,
 	},
 	{
 		name:    "Permute2MaskedUint32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "Permute2MaskedFloat32x4",
 		argLen:  4,
 		generic: true,
 	},
@@ -66846,16 +66814,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "RotateRightMaskedUint32x4",
 		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedUnsignedSignedQuadDotProdAccumulateUint32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x4",
-		argLen:  4,
 		generic: true,
 	},
 	{
@@ -66926,16 +66884,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SubMaskedUint32x4",
 		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "UnsignedSignedQuadDotProdAccumulateUint32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "UnsignedSignedQuadDotProdAccumulateMaskedUint32x4",
-		argLen:  4,
 		generic: true,
 	},
 	{
@@ -67111,17 +67059,17 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "PermuteInt32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "PermuteFloat32x8",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "Permute2Uint32x8",
+		name:    "PermuteInt32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Permute2Int32x8",
 		argLen:  3,
 		generic: true,
 	},
@@ -67131,7 +67079,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Permute2Int32x8",
+		name:    "Permute2Uint32x8",
 		argLen:  3,
 		generic: true,
 	},
@@ -67141,12 +67089,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Permute2MaskedInt32x8",
+		name:    "Permute2MaskedUint32x8",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "Permute2MaskedUint32x8",
+		name:    "Permute2MaskedInt32x8",
 		argLen:  4,
 		generic: true,
 	},
@@ -67193,16 +67141,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "RotateRightMaskedUint32x8",
 		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedUnsignedSignedQuadDotProdAccumulateUint32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x8",
-		argLen:  4,
 		generic: true,
 	},
 	{
@@ -67273,16 +67211,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SubMaskedUint32x8",
 		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "UnsignedSignedQuadDotProdAccumulateUint32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "UnsignedSignedQuadDotProdAccumulateMaskedUint32x8",
-		argLen:  4,
 		generic: true,
 	},
 	{
@@ -67469,12 +67397,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Permute2MaskedUint64x2",
+		name:    "Permute2MaskedFloat64x2",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "Permute2MaskedFloat64x2",
+		name:    "Permute2MaskedUint64x2",
 		argLen:  4,
 		generic: true,
 	},
@@ -67742,11 +67670,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:    "PermuteFloat64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "PermuteUint64x4",
 		argLen:  2,
 		generic: true,
@@ -67757,17 +67680,22 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "PermuteFloat64x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Permute2Float64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "Permute2Int64x4",
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "Permute2Uint64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "Permute2Float64x4",
 		argLen:  3,
 		generic: true,
 	},
@@ -67792,12 +67720,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "PermuteMaskedUint64x4",
+		name:    "PermuteMaskedInt64x4",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "PermuteMaskedInt64x4",
+		name:    "PermuteMaskedUint64x4",
 		argLen:  3,
 		generic: true,
 	},
@@ -68065,6 +67993,11 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:    "PermuteFloat64x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:    "PermuteInt64x8",
 		argLen:  2,
 		generic: true,
@@ -68075,12 +68008,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "PermuteFloat64x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Permute2Uint64x8",
+		name:    "Permute2Int64x8",
 		argLen:  3,
 		generic: true,
 	},
@@ -68090,7 +68018,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Permute2Int64x8",
+		name:    "Permute2Uint64x8",
 		argLen:  3,
 		generic: true,
 	},
@@ -68100,12 +68028,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Permute2MaskedFloat64x8",
+		name:    "Permute2MaskedInt64x8",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "Permute2MaskedInt64x8",
+		name:    "Permute2MaskedFloat64x8",
 		argLen:  4,
 		generic: true,
 	},
@@ -68115,12 +68043,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "PermuteMaskedInt64x8",
+		name:    "PermuteMaskedFloat64x8",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "PermuteMaskedFloat64x8",
+		name:    "PermuteMaskedInt64x8",
 		argLen:  3,
 		generic: true,
 	},
@@ -68391,12 +68319,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Permute2Int8x16",
+		name:    "Permute2Uint8x16",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "Permute2Uint8x16",
+		name:    "Permute2Int8x16",
 		argLen:  3,
 		generic: true,
 	},
@@ -68643,22 +68571,22 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Permute2MaskedInt8x32",
-		argLen:  4,
-		generic: true,
-	},
-	{
 		name:    "Permute2MaskedUint8x32",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "PermuteMaskedInt8x32",
-		argLen:  3,
+		name:    "Permute2MaskedInt8x32",
+		argLen:  4,
 		generic: true,
 	},
 	{
 		name:    "PermuteMaskedUint8x32",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "PermuteMaskedInt8x32",
 		argLen:  3,
 		generic: true,
 	},

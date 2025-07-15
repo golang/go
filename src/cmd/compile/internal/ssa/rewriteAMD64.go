@@ -4297,21 +4297,6 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedInt32x4(v)
 	case OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedInt32x8:
 		return rewriteValueAMD64_OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedInt32x8(v)
-	case OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x16:
-		return rewriteValueAMD64_OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x16(v)
-	case OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x4:
-		return rewriteValueAMD64_OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x4(v)
-	case OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x8:
-		return rewriteValueAMD64_OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x8(v)
-	case OpSaturatedUnsignedSignedQuadDotProdAccumulateUint32x16:
-		v.Op = OpAMD64VPDPBUSDS512
-		return true
-	case OpSaturatedUnsignedSignedQuadDotProdAccumulateUint32x4:
-		v.Op = OpAMD64VPDPBUSDS128
-		return true
-	case OpSaturatedUnsignedSignedQuadDotProdAccumulateUint32x8:
-		v.Op = OpAMD64VPDPBUSDS256
-		return true
 	case OpSelect0:
 		return rewriteValueAMD64_OpSelect0(v)
 	case OpSelect1:
@@ -5416,21 +5401,6 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpUnsignedSignedQuadDotProdAccumulateMaskedInt32x4(v)
 	case OpUnsignedSignedQuadDotProdAccumulateMaskedInt32x8:
 		return rewriteValueAMD64_OpUnsignedSignedQuadDotProdAccumulateMaskedInt32x8(v)
-	case OpUnsignedSignedQuadDotProdAccumulateMaskedUint32x16:
-		return rewriteValueAMD64_OpUnsignedSignedQuadDotProdAccumulateMaskedUint32x16(v)
-	case OpUnsignedSignedQuadDotProdAccumulateMaskedUint32x4:
-		return rewriteValueAMD64_OpUnsignedSignedQuadDotProdAccumulateMaskedUint32x4(v)
-	case OpUnsignedSignedQuadDotProdAccumulateMaskedUint32x8:
-		return rewriteValueAMD64_OpUnsignedSignedQuadDotProdAccumulateMaskedUint32x8(v)
-	case OpUnsignedSignedQuadDotProdAccumulateUint32x16:
-		v.Op = OpAMD64VPDPBUSD512
-		return true
-	case OpUnsignedSignedQuadDotProdAccumulateUint32x4:
-		v.Op = OpAMD64VPDPBUSD128
-		return true
-	case OpUnsignedSignedQuadDotProdAccumulateUint32x8:
-		v.Op = OpAMD64VPDPBUSD256
-		return true
 	case OpWB:
 		v.Op = OpAMD64LoweredWB
 		return true
@@ -49615,66 +49585,6 @@ func rewriteValueAMD64_OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedInt32
 		return true
 	}
 }
-func rewriteValueAMD64_OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x16(v *Value) bool {
-	v_3 := v.Args[3]
-	v_2 := v.Args[2]
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (SaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x16 x y z mask)
-	// result: (VPDPBUSDSMasked512 x y z (VPMOVVec32x16ToM <types.TypeMask> mask))
-	for {
-		x := v_0
-		y := v_1
-		z := v_2
-		mask := v_3
-		v.reset(OpAMD64VPDPBUSDSMasked512)
-		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x16ToM, types.TypeMask)
-		v0.AddArg(mask)
-		v.AddArg4(x, y, z, v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x4(v *Value) bool {
-	v_3 := v.Args[3]
-	v_2 := v.Args[2]
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (SaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x4 x y z mask)
-	// result: (VPDPBUSDSMasked128 x y z (VPMOVVec32x4ToM <types.TypeMask> mask))
-	for {
-		x := v_0
-		y := v_1
-		z := v_2
-		mask := v_3
-		v.reset(OpAMD64VPDPBUSDSMasked128)
-		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
-		v0.AddArg(mask)
-		v.AddArg4(x, y, z, v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x8(v *Value) bool {
-	v_3 := v.Args[3]
-	v_2 := v.Args[2]
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (SaturatedUnsignedSignedQuadDotProdAccumulateMaskedUint32x8 x y z mask)
-	// result: (VPDPBUSDSMasked256 x y z (VPMOVVec32x8ToM <types.TypeMask> mask))
-	for {
-		x := v_0
-		y := v_1
-		z := v_2
-		mask := v_3
-		v.reset(OpAMD64VPDPBUSDSMasked256)
-		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
-		v0.AddArg(mask)
-		v.AddArg4(x, y, z, v0)
-		return true
-	}
-}
 func rewriteValueAMD64_OpSelect0(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
@@ -53960,66 +53870,6 @@ func rewriteValueAMD64_OpUnsignedSignedQuadDotProdAccumulateMaskedInt32x8(v *Val
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (UnsignedSignedQuadDotProdAccumulateMaskedInt32x8 x y z mask)
-	// result: (VPDPBUSDMasked256 x y z (VPMOVVec32x8ToM <types.TypeMask> mask))
-	for {
-		x := v_0
-		y := v_1
-		z := v_2
-		mask := v_3
-		v.reset(OpAMD64VPDPBUSDMasked256)
-		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x8ToM, types.TypeMask)
-		v0.AddArg(mask)
-		v.AddArg4(x, y, z, v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpUnsignedSignedQuadDotProdAccumulateMaskedUint32x16(v *Value) bool {
-	v_3 := v.Args[3]
-	v_2 := v.Args[2]
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (UnsignedSignedQuadDotProdAccumulateMaskedUint32x16 x y z mask)
-	// result: (VPDPBUSDMasked512 x y z (VPMOVVec32x16ToM <types.TypeMask> mask))
-	for {
-		x := v_0
-		y := v_1
-		z := v_2
-		mask := v_3
-		v.reset(OpAMD64VPDPBUSDMasked512)
-		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x16ToM, types.TypeMask)
-		v0.AddArg(mask)
-		v.AddArg4(x, y, z, v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpUnsignedSignedQuadDotProdAccumulateMaskedUint32x4(v *Value) bool {
-	v_3 := v.Args[3]
-	v_2 := v.Args[2]
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (UnsignedSignedQuadDotProdAccumulateMaskedUint32x4 x y z mask)
-	// result: (VPDPBUSDMasked128 x y z (VPMOVVec32x4ToM <types.TypeMask> mask))
-	for {
-		x := v_0
-		y := v_1
-		z := v_2
-		mask := v_3
-		v.reset(OpAMD64VPDPBUSDMasked128)
-		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
-		v0.AddArg(mask)
-		v.AddArg4(x, y, z, v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpUnsignedSignedQuadDotProdAccumulateMaskedUint32x8(v *Value) bool {
-	v_3 := v.Args[3]
-	v_2 := v.Args[2]
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (UnsignedSignedQuadDotProdAccumulateMaskedUint32x8 x y z mask)
 	// result: (VPDPBUSDMasked256 x y z (VPMOVVec32x8ToM <types.TypeMask> mask))
 	for {
 		x := v_0

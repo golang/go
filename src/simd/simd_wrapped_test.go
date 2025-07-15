@@ -3294,55 +3294,6 @@ func testInt32x4Compare(t *testing.T, v0 []int32, v1 []int32, want []int32, whic
 	}
 }
 
-func testInt32x4Int16x8Int16x8Int32x4(t *testing.T, v0 []int32, v1 []int16, v2 []int16, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x4
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x4Slice(v0)
-	vec1 := simd.LoadInt16x8Slice(v1)
-	vec2 := simd.LoadInt16x8Slice(v2)
-	switch which {
-	case "PairDotProdAccumulate":
-		gotv = vec0.PairDotProdAccumulate(vec1, vec2)
-	case "SaturatedPairDotProdAccumulate":
-		gotv = vec0.SaturatedPairDotProdAccumulate(vec1, vec2)
-
-	default:
-		t.Errorf("Unknown method: Int32x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt32x4Int16x8Int16x8Mask32x4Int32x4(t *testing.T, v0 []int32, v1 []int16, v2 []int16, v3 []int32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x4
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x4Slice(v0)
-	vec1 := simd.LoadInt16x8Slice(v1)
-	vec2 := simd.LoadInt16x8Slice(v2)
-	vec3 := simd.LoadInt32x4Slice(v3)
-	switch which {
-	case "PairDotProdAccumulateMasked":
-		gotv = vec0.PairDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x4())
-	case "SaturatedPairDotProdAccumulateMasked":
-		gotv = vec0.SaturatedPairDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x4())
-
-	default:
-		t.Errorf("Unknown method: Int32x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
 func testInt32x4Mask32x4Int32x4(t *testing.T, v0 []int32, v1 []int32, want []int32, which string) {
 	t.Helper()
 	var gotv simd.Int32x4
@@ -3433,55 +3384,6 @@ func testInt32x4TernaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32, 
 		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x4())
 	case "ShiftRightAndFillUpperFromMasked":
 		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x4())
-
-	default:
-		t.Errorf("Unknown method: Int32x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt32x4Uint8x16Int8x16Int32x4(t *testing.T, v0 []int32, v1 []uint8, v2 []int8, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x4
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x4Slice(v0)
-	vec1 := simd.LoadUint8x16Slice(v1)
-	vec2 := simd.LoadInt8x16Slice(v2)
-	switch which {
-	case "SaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2)
-	case "UnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.UnsignedSignedQuadDotProdAccumulate(vec1, vec2)
-
-	default:
-		t.Errorf("Unknown method: Int32x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt32x4Uint8x16Int8x16Mask32x4Int32x4(t *testing.T, v0 []int32, v1 []uint8, v2 []int8, v3 []int32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x4
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x4Slice(v0)
-	vec1 := simd.LoadUint8x16Slice(v1)
-	vec2 := simd.LoadInt8x16Slice(v2)
-	vec3 := simd.LoadInt32x4Slice(v3)
-	switch which {
-	case "SaturatedUnsignedSignedQuadDotProdAccumulateMasked":
-		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x4())
-	case "UnsignedSignedQuadDotProdAccumulateMasked":
-		gotv = vec0.UnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x4())
 
 	default:
 		t.Errorf("Unknown method: Int32x4.%s", which)
@@ -3688,55 +3590,6 @@ func testInt32x8Compare(t *testing.T, v0 []int32, v1 []int32, want []int32, whic
 	}
 }
 
-func testInt32x8Int16x16Int16x16Int32x8(t *testing.T, v0 []int32, v1 []int16, v2 []int16, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x8
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x8Slice(v0)
-	vec1 := simd.LoadInt16x16Slice(v1)
-	vec2 := simd.LoadInt16x16Slice(v2)
-	switch which {
-	case "PairDotProdAccumulate":
-		gotv = vec0.PairDotProdAccumulate(vec1, vec2)
-	case "SaturatedPairDotProdAccumulate":
-		gotv = vec0.SaturatedPairDotProdAccumulate(vec1, vec2)
-
-	default:
-		t.Errorf("Unknown method: Int32x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt32x8Int16x16Int16x16Mask32x8Int32x8(t *testing.T, v0 []int32, v1 []int16, v2 []int16, v3 []int32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x8
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x8Slice(v0)
-	vec1 := simd.LoadInt16x16Slice(v1)
-	vec2 := simd.LoadInt16x16Slice(v2)
-	vec3 := simd.LoadInt32x8Slice(v3)
-	switch which {
-	case "PairDotProdAccumulateMasked":
-		gotv = vec0.PairDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x8())
-	case "SaturatedPairDotProdAccumulateMasked":
-		gotv = vec0.SaturatedPairDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x8())
-
-	default:
-		t.Errorf("Unknown method: Int32x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
 func testInt32x8Mask32x8Int32x8(t *testing.T, v0 []int32, v1 []int32, want []int32, which string) {
 	t.Helper()
 	var gotv simd.Int32x8
@@ -3827,55 +3680,6 @@ func testInt32x8TernaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32, 
 		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x8())
 	case "ShiftRightAndFillUpperFromMasked":
 		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x8())
-
-	default:
-		t.Errorf("Unknown method: Int32x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt32x8Uint8x32Int8x32Int32x8(t *testing.T, v0 []int32, v1 []uint8, v2 []int8, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x8
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x8Slice(v0)
-	vec1 := simd.LoadUint8x32Slice(v1)
-	vec2 := simd.LoadInt8x32Slice(v2)
-	switch which {
-	case "SaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2)
-	case "UnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.UnsignedSignedQuadDotProdAccumulate(vec1, vec2)
-
-	default:
-		t.Errorf("Unknown method: Int32x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt32x8Uint8x32Int8x32Mask32x8Int32x8(t *testing.T, v0 []int32, v1 []uint8, v2 []int8, v3 []int32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x8
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x8Slice(v0)
-	vec1 := simd.LoadUint8x32Slice(v1)
-	vec2 := simd.LoadInt8x32Slice(v2)
-	vec3 := simd.LoadInt32x8Slice(v3)
-	switch which {
-	case "SaturatedUnsignedSignedQuadDotProdAccumulateMasked":
-		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x8())
-	case "UnsignedSignedQuadDotProdAccumulateMasked":
-		gotv = vec0.UnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x8())
 
 	default:
 		t.Errorf("Unknown method: Int32x8.%s", which)
@@ -4055,55 +3859,6 @@ func testInt32x16Compare(t *testing.T, v0 []int32, v1 []int32, want []int32, whi
 	}
 }
 
-func testInt32x16Int16x32Int16x32Int32x16(t *testing.T, v0 []int32, v1 []int16, v2 []int16, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x16
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x16Slice(v0)
-	vec1 := simd.LoadInt16x32Slice(v1)
-	vec2 := simd.LoadInt16x32Slice(v2)
-	switch which {
-	case "PairDotProdAccumulate":
-		gotv = vec0.PairDotProdAccumulate(vec1, vec2)
-	case "SaturatedPairDotProdAccumulate":
-		gotv = vec0.SaturatedPairDotProdAccumulate(vec1, vec2)
-
-	default:
-		t.Errorf("Unknown method: Int32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt32x16Int16x32Int16x32Mask32x16Int32x16(t *testing.T, v0 []int32, v1 []int16, v2 []int16, v3 []int32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x16
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x16Slice(v0)
-	vec1 := simd.LoadInt16x32Slice(v1)
-	vec2 := simd.LoadInt16x32Slice(v2)
-	vec3 := simd.LoadInt32x16Slice(v3)
-	switch which {
-	case "PairDotProdAccumulateMasked":
-		gotv = vec0.PairDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x16())
-	case "SaturatedPairDotProdAccumulateMasked":
-		gotv = vec0.SaturatedPairDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x16())
-
-	default:
-		t.Errorf("Unknown method: Int32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
 func testInt32x16Mask32x16Int32x16(t *testing.T, v0 []int32, v1 []int32, want []int32, which string) {
 	t.Helper()
 	var gotv simd.Int32x16
@@ -4194,55 +3949,6 @@ func testInt32x16TernaryMasked(t *testing.T, v0 []int32, v1 []int32, v2 []int32,
 		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x16())
 	case "ShiftRightAndFillUpperFromMasked":
 		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x16())
-
-	default:
-		t.Errorf("Unknown method: Int32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt32x16Uint8x64Int8x64Int32x16(t *testing.T, v0 []int32, v1 []uint8, v2 []int8, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x16
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x16Slice(v0)
-	vec1 := simd.LoadUint8x64Slice(v1)
-	vec2 := simd.LoadInt8x64Slice(v2)
-	switch which {
-	case "SaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2)
-	case "UnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.UnsignedSignedQuadDotProdAccumulate(vec1, vec2)
-
-	default:
-		t.Errorf("Unknown method: Int32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testInt32x16Uint8x64Int8x64Mask32x16Int32x16(t *testing.T, v0 []int32, v1 []uint8, v2 []int8, v3 []int32, want []int32, which string) {
-	t.Helper()
-	var gotv simd.Int32x16
-	got := make([]int32, len(want))
-	vec0 := simd.LoadInt32x16Slice(v0)
-	vec1 := simd.LoadUint8x64Slice(v1)
-	vec2 := simd.LoadInt8x64Slice(v2)
-	vec3 := simd.LoadInt32x16Slice(v3)
-	switch which {
-	case "SaturatedUnsignedSignedQuadDotProdAccumulateMasked":
-		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x16())
-	case "UnsignedSignedQuadDotProdAccumulateMasked":
-		gotv = vec0.UnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x16())
 
 	default:
 		t.Errorf("Unknown method: Int32x16.%s", which)
@@ -6880,55 +6586,6 @@ func testUint32x4TernaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []uint
 	}
 }
 
-func testUint32x4Uint8x16Int8x16Mask32x4Uint32x4(t *testing.T, v0 []uint32, v1 []uint8, v2 []int8, v3 []int32, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x4
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x4Slice(v0)
-	vec1 := simd.LoadUint8x16Slice(v1)
-	vec2 := simd.LoadInt8x16Slice(v2)
-	vec3 := simd.LoadInt32x4Slice(v3)
-	switch which {
-	case "SaturatedUnsignedSignedQuadDotProdAccumulateMasked":
-		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x4())
-	case "UnsignedSignedQuadDotProdAccumulateMasked":
-		gotv = vec0.UnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x4())
-
-	default:
-		t.Errorf("Unknown method: Uint32x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x4Uint8x16Int8x16Uint32x4(t *testing.T, v0 []uint32, v1 []uint8, v2 []int8, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x4
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x4Slice(v0)
-	vec1 := simd.LoadUint8x16Slice(v1)
-	vec2 := simd.LoadInt8x16Slice(v2)
-	switch which {
-	case "SaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2)
-	case "UnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.UnsignedSignedQuadDotProdAccumulate(vec1, vec2)
-
-	default:
-		t.Errorf("Unknown method: Uint32x4.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
 func testUint32x4Unary(t *testing.T, v0 []uint32, want []uint32, which string) {
 	t.Helper()
 	var gotv simd.Uint32x4
@@ -7215,55 +6872,6 @@ func testUint32x8TernaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []uint
 	}
 }
 
-func testUint32x8Uint8x32Int8x32Mask32x8Uint32x8(t *testing.T, v0 []uint32, v1 []uint8, v2 []int8, v3 []int32, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x8
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x8Slice(v0)
-	vec1 := simd.LoadUint8x32Slice(v1)
-	vec2 := simd.LoadInt8x32Slice(v2)
-	vec3 := simd.LoadInt32x8Slice(v3)
-	switch which {
-	case "SaturatedUnsignedSignedQuadDotProdAccumulateMasked":
-		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x8())
-	case "UnsignedSignedQuadDotProdAccumulateMasked":
-		gotv = vec0.UnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x8())
-
-	default:
-		t.Errorf("Unknown method: Uint32x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x8Uint8x32Int8x32Uint32x8(t *testing.T, v0 []uint32, v1 []uint8, v2 []int8, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x8
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x8Slice(v0)
-	vec1 := simd.LoadUint8x32Slice(v1)
-	vec2 := simd.LoadInt8x32Slice(v2)
-	switch which {
-	case "SaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2)
-	case "UnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.UnsignedSignedQuadDotProdAccumulate(vec1, vec2)
-
-	default:
-		t.Errorf("Unknown method: Uint32x8.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
 func testUint32x8Unary(t *testing.T, v0 []uint32, want []uint32, which string) {
 	t.Helper()
 	var gotv simd.Uint32x8
@@ -7513,55 +7121,6 @@ func testUint32x16TernaryMasked(t *testing.T, v0 []uint32, v1 []uint32, v2 []uin
 		gotv = vec0.ShiftLeftAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x16())
 	case "ShiftRightAndFillUpperFromMasked":
 		gotv = vec0.ShiftRightAndFillUpperFromMasked(vec1, vec2, vec3.AsMask32x16())
-
-	default:
-		t.Errorf("Unknown method: Uint32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x16Uint8x64Int8x64Mask32x16Uint32x16(t *testing.T, v0 []uint32, v1 []uint8, v2 []int8, v3 []int32, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x16
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x16Slice(v0)
-	vec1 := simd.LoadUint8x64Slice(v1)
-	vec2 := simd.LoadInt8x64Slice(v2)
-	vec3 := simd.LoadInt32x16Slice(v3)
-	switch which {
-	case "SaturatedUnsignedSignedQuadDotProdAccumulateMasked":
-		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x16())
-	case "UnsignedSignedQuadDotProdAccumulateMasked":
-		gotv = vec0.UnsignedSignedQuadDotProdAccumulateMasked(vec1, vec2, vec3.AsMask32x16())
-
-	default:
-		t.Errorf("Unknown method: Uint32x16.%s", which)
-	}
-	gotv.StoreSlice(got)
-	for i := range len(want) {
-		if got[i] != want[i] {
-			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], got[i])
-		}
-	}
-}
-
-func testUint32x16Uint8x64Int8x64Uint32x16(t *testing.T, v0 []uint32, v1 []uint8, v2 []int8, want []uint32, which string) {
-	t.Helper()
-	var gotv simd.Uint32x16
-	got := make([]uint32, len(want))
-	vec0 := simd.LoadUint32x16Slice(v0)
-	vec1 := simd.LoadUint8x64Slice(v1)
-	vec2 := simd.LoadInt8x64Slice(v2)
-	switch which {
-	case "SaturatedUnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.SaturatedUnsignedSignedQuadDotProdAccumulate(vec1, vec2)
-	case "UnsignedSignedQuadDotProdAccumulate":
-		gotv = vec0.UnsignedSignedQuadDotProdAccumulate(vec1, vec2)
 
 	default:
 		t.Errorf("Unknown method: Uint32x16.%s", which)
@@ -8430,6 +7989,8 @@ func testUint64x8UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint6
 // GaloisFieldAffineTransformMasked
 // Get128
 // GetElem
+// PairDotProdAccumulate
+// PairDotProdAccumulateMasked
 // Permute
 // Permute2
 // Permute2Masked
@@ -8440,6 +8001,10 @@ func testUint64x8UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint6
 // RotateAllRightMasked
 // RoundWithPrecision
 // RoundWithPrecisionMasked
+// SaturatedPairDotProdAccumulate
+// SaturatedPairDotProdAccumulateMasked
+// SaturatedUnsignedSignedQuadDotProdAccumulate
+// SaturatedUnsignedSignedQuadDotProdAccumulateMasked
 // Set128
 // SetElem
 // ShiftAllLeft
@@ -8452,3 +8017,5 @@ func testUint64x8UnaryMasked(t *testing.T, v0 []uint64, v1 []int64, want []uint6
 // ShiftAllRightMasked
 // TruncWithPrecision
 // TruncWithPrecisionMasked
+// UnsignedSignedQuadDotProdAccumulate
+// UnsignedSignedQuadDotProdAccumulateMasked
