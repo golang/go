@@ -1199,14 +1199,15 @@ func elideWrapperCalling(id abi.FuncID) bool {
 }
 
 var gStatusStrings = [...]string{
-	_Gidle:      "idle",
-	_Grunnable:  "runnable",
-	_Grunning:   "running",
-	_Gsyscall:   "syscall",
-	_Gwaiting:   "waiting",
-	_Gdead:      "dead",
-	_Gcopystack: "copystack",
-	_Gpreempted: "preempted",
+	_Gidle:       "idle",
+	_Grunnable:   "runnable",
+	_Grunning:    "running",
+	_Gsyscall:    "syscall",
+	_Gwaiting:    "waiting",
+	_Gdead:       "dead",
+	_Gcopystack:  "copystack",
+	_Gdeadlocked: "deadlocked",
+	_Gpreempted:  "preempted",
 }
 
 func goroutineheader(gp *g) {

@@ -373,17 +373,32 @@ type workType struct {
 
 	// Number of roots of various root types. Set by gcPrepareMarkRoots.
 	//
-	// nStackRoots == len(stackRoots), but we have nStackRoots for
-	// consistency.
-	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int
+	// During normal GC cycle, nStackRoots == nLiveStackRoots == len(stackRoots)
+	// during deadlock detection GC, nLiveStackRoots is the number of stackRoots
+	// to examine, and nStackRoots == len(stackRoots), which include goroutines that are
+	// unmarked / not runnable
+	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots, nLiveStackRoots int
+
+	// The GC has performed deadlock detection during this GC cycle.
+	detectedDeadlocks bool
+
+	// Is set to true by DetectDeadlocks(), instructing the next GC cycle to perform deadlock detection.
+	pendingDeadlockDetection bool
+
+	// When set, the GC is running in deadlock detection mode.
+	// This can be triggered with a runtime flag.
+	deadlockDetectionMode bool
 
 	// Base indexes of each root type. Set by gcPrepareMarkRoots.
 	baseData, baseBSS, baseSpans, baseStacks, baseEnd uint32
 
-	// stackRoots is a snapshot of all of the Gs that existed
-	// before the beginning of concurrent marking. The backing
-	// store of this must not be modified because it might be
-	// shared with allgs.
+	// stackRoots is a snapshot of all of the Gs that existed before the
+	// beginning of concurrent marking.  During deadlock detection GC, stackRoots
+	// is partitioned into two sets; to the left of nLiveStackRoots are stackRoots
+	// of running / runnable goroutines and to the right of nLiveStackRoots are
+	// stackRoots of unmarked / not runnable goroutines
+	// gcDiscoverMoreStackRoots modifies the stackRoots array to redo the partition
+	// after each marking phase
 	stackRoots []*g
 
 	// Each type of GC state transition is protected by a lock.
@@ -550,6 +565,29 @@ func GC() {
 	releasem(mp)
 }
 
+// DetectDeadlocks instructs the Go garbage collector to attempt
+// partial deadlock detection.
+//
+// Only operates if deadlockgc is enabled in GOEXPERIMENT.
+// Otherwise, it just runs runtime.GC().
+func DetectDeadlocks() {
+	if !goexperiment.DeadlockGC {
+		GC()
+		return
+	}
+
+	// This write should be thread-safe, as the overwritten value is true.
+	// pendingDeadlockDetection is only set to false under STW at the start
+	// of the GC cycle that picks it up.
+	work.pendingDeadlockDetection = true
+
+	// This read should be thread-safe for the same reason as the write above above.
+	// At most, we trigger the GC an additional time.
+	for work.pendingDeadlockDetection {
+		GC()
+	}
+}
+
 // gcWaitOnMark blocks until GC finishes the Nth mark phase. If GC has
 // already completed this mark phase, it returns immediately.
 func gcWaitOnMark(n uint32) {
@@ -695,6 +733,11 @@ func gcStart(trigger gcTrigger) {
 		mode = gcForceMode
 	} else if debug.gcstoptheworld == 2 {
 		mode = gcForceBlockMode
+	} else if goexperiment.DeadlockGC {
+		if work.pendingDeadlockDetection {
+			// Fully stop the world if running deadlock detection.
+			mode = gcForceBlockMode
+		}
 	}
 
 	// Ok, we're doing it! Stop everybody else
@@ -757,6 +800,7 @@ func gcStart(trigger gcTrigger) {
 	clearpools()
 
 	work.cycles.Add(1)
+	work.detectedDeadlocks = false
 
 	// Assists and workers can start the moment we start
 	// the world.
@@ -787,6 +831,14 @@ func gcStart(trigger gcTrigger) {
 	// happen, we want to enable assists as early as
 	// possible.
 	setGCPhase(_GCmark)
+
+	if goexperiment.DeadlockGC {
+		if work.pendingDeadlockDetection {
+			// Write is thread-safe because the world is stopped
+			work.deadlockDetectionMode = true
+			work.pendingDeadlockDetection = false
+		}
+	}
 
 	gcBgMarkPrepare() // Must happen before assists are enabled.
 	gcPrepareMarkRoots()
@@ -888,6 +940,11 @@ func gcMarkDone() {
 	// Ensure only one thread is running the ragged barrier at a
 	// time.
 	semacquire(&work.markDoneSema)
+	if goexperiment.DeadlockGC {
+		if work.deadlockDetectionMode {
+			gcDiscoverMoreStackRoots()
+		}
+	}
 
 top:
 	// Re-check transition condition under transition lock.
@@ -947,8 +1004,7 @@ top:
 	// communicated work since we took markDoneSema. Therefore
 	// there are no grey objects and no more objects can be
 	// shaded. Transition to mark termination.
-	now := nanotime()
-	work.tMarkTerm = now
+	var now int64
 	getg().m.preemptoff = "gcing"
 	var stw worldStop
 	systemstack(func() {
@@ -994,6 +1050,54 @@ top:
 		})
 		semrelease(&worldsema)
 		goto top
+	} else if goexperiment.DeadlockGC {
+		// Otherwise, do a deadlock detection round.
+		// Only do one deadlock detection round per GC cycle.
+		if work.deadlockDetectionMode && !work.detectedDeadlocks {
+			work.detectedDeadlocks = detectDeadlocks()
+
+			getg().m.preemptoff = ""
+			systemstack(func() {
+				// Accumulate the time we were stopped before we had to start again.
+				work.cpuStats.accumulateGCPauseTime(nanotime()-stw.finishedStopping, work.maxprocs)
+
+				now := startTheWorldWithSema(0, stw)
+				work.pauseNS += now - stw.startedStopping
+			})
+			semrelease(&worldsema)
+			goto top
+		}
+
+		now = nanotime()
+		work.tMarkTerm = now
+		// Check again whether any P needs to flush its write barrier
+		// to the GC work queue.
+		systemstack(func() {
+			for _, p := range allp {
+				wbBufFlush1(p)
+				if !p.gcw.empty() {
+					restart = true
+					break
+				}
+			}
+		})
+
+		// If that is the case, restart again. Once restarts are no longer needed,
+		// run this without deadlock detection.
+		if restart {
+			gcDebugMarkDone.restartedDueTo27993 = true
+
+			getg().m.preemptoff = ""
+			systemstack(func() {
+				// Accumulate the time we were stopped before we had to start again.
+				work.cpuStats.accumulateGCPauseTime(nanotime()-stw.finishedStopping, work.maxprocs)
+
+				now := startTheWorldWithSema(0, stw)
+				work.pauseNS += now - stw.startedStopping
+			})
+			semrelease(&worldsema)
+			goto top
+		}
 	}
 
 	gcComputeStartingStackSize()
@@ -1030,6 +1134,171 @@ top:
 
 	// Perform mark termination. This will restart the world.
 	gcMarkTermination(stw)
+}
+
+// Check if an object is marked in the heap.
+func checkIfMarked(p unsafe.Pointer) bool {
+	obj, span, objIndex := findObject(uintptr(p), 0, 0)
+	if obj != 0 {
+		mbits := span.markBitsForIndex(objIndex)
+		return mbits.isMarked()
+	}
+	// if we fall through to get here, we are within the stack ranges of reachable goroutines
+	return true
+}
+
+// maybeLive checks whether a goroutine may still be semantically runnable.
+// This returns true if the goroutine is waiting on at least one concurrency primitive
+// which is reachable in memory, i.e., has been by the GC.
+//
+// For goroutines which are semantically runnable, this will eventually return true
+// as the GC marking phase progresses.
+func (gp *g) maybeLive() bool {
+	// Unmask the goroutine address to ensure we are not
+	// dereferencing a masked address.
+	gp = gp.unmask()
+
+	switch gp.waitreason {
+	case waitReasonSelectNoCases,
+		waitReasonChanSendNilChan,
+		waitReasonChanReceiveNilChan:
+		// Select with no cases or communicating on nil channels
+		// make goroutines unrunnable by definition.
+		return false
+	case waitReasonChanReceive,
+		waitReasonSelect,
+		waitReasonChanSend:
+		// Cycle all through all *sudog to check whether
+		// the goroutine is waiting on a marked channel.
+		for sg := gp.waiting; sg != nil; sg = sg.waitlink {
+			if checkIfMarked(unsafe.Pointer(sg.c)) {
+				return true
+			}
+		}
+		return false
+	case waitReasonSyncCondWait,
+		waitReasonSyncWaitGroupWait,
+		waitReasonSyncMutexLock,
+		waitReasonSyncRWMutexLock,
+		waitReasonSyncRWMutexRLock:
+		// If waiting on mutexes, wait groups, or condition variables,
+		// check if the synchronization primitive attached to the sudog is marked.
+		if gp.waiting != nil {
+			// Unmask the sema address and check if it's marked.
+			return checkIfMarked(gcUnmask(gp.waiting.elem))
+		}
+	}
+	return true
+}
+
+// unmask returns a *g object with an unmasked address.
+//
+//go:nosplit
+func (gp *g) unmask() *g {
+	return (*g)(gcUnmask(unsafe.Pointer(gp)))
+}
+
+// mask returns a *g object with a masked address.
+//
+//go:nosplit
+func (gp *g) mask() *g {
+	return (*g)(gcMask(unsafe.Pointer(gp)))
+}
+
+// Check to see if more blocked but marked goroutines exist;
+// if so add them into root set and increment work.markrootJobs accordingly
+// return true if we need to run another phase of markroots; return false otherwise
+func gcDiscoverMoreStackRoots() {
+	// to begin with we have a set of unchecked stackRoots between
+	// vIndex and ivIndex.  During the loop, anything < vIndex should be
+	// valid stackRoots and anything >= ivIndex should be invalid stackRoots
+	// and the loop terminates when the two indices meet
+	var vIndex, ivIndex int = work.nLiveStackRoots, work.nStackRoots
+
+	// Reorder goroutine list
+	for vIndex < ivIndex {
+		gp := work.stackRoots[vIndex]
+		if gp.maybeLive() {
+			work.stackRoots[vIndex] = gp
+			vIndex = vIndex + 1
+			continue
+		}
+		for ivIndex = ivIndex - 1; ivIndex != vIndex; ivIndex = ivIndex - 1 {
+			if swapGp := work.stackRoots[ivIndex]; swapGp.maybeLive() {
+				work.stackRoots[ivIndex] = gp
+				work.stackRoots[vIndex] = swapGp.unmask()
+				vIndex = vIndex + 1
+				break
+			}
+		}
+	}
+
+	var oldRootJobs int32 = int32(atomic.Load(&work.markrootJobs))
+	var newRootJobs int32 = int32(work.baseStacks) + int32(vIndex)
+
+	if newRootJobs > oldRootJobs {
+		// reset markrootNext as it could have been incremented past markrootJobs
+		work.nLiveStackRoots = vIndex
+		atomic.Store(&work.markrootJobs, uint32(newRootJobs))
+	}
+}
+
+// detectDeadlocks scans the remaining stackRoots and marks any which are
+// blocked over exclusively unreachable concurrency primitives as leaked (deadlocked).
+// Returns true if goroutine leak was performed (or unnecessary).
+// Returns false if the GC cycle has not yet reached a fix point for reachable goroutines.
+func detectDeadlocks() bool {
+	// Report deadlocks and mark them unreachable, and resume marking
+	// we still need to mark these unreachable *g structs as they
+	// get reused, but their stack won't get scanned
+	if work.nLiveStackRoots == work.nStackRoots {
+		// nStackRoots == nLiveStackRoots means that all goroutines are marked.
+		return true
+	}
+
+	// Try to reach another fix point here. Keep scouting for runnable goroutines until
+	// none are left.
+	// Valid goroutines may be found after all GC work is drained.
+	// Make sure these are pushed to the runnable set and ready to be marked.
+	var foundMoreWork bool
+	for i := work.nLiveStackRoots; i < work.nStackRoots; i++ {
+		gp := work.stackRoots[i].unmask()
+		if readgstatus(gp) == _Gwaiting && !gp.maybeLive() {
+			// Blocking unrunnable goroutines will be skipped.
+			continue
+		}
+		work.stackRoots[i] = work.stackRoots[work.nLiveStackRoots]
+		work.stackRoots[work.nLiveStackRoots] = gp
+		work.nLiveStackRoots += 1
+		// We now have one more markroot job.
+		work.markrootJobs += 1
+		// We might still have some work to do.
+		// Make sure in the next iteration we will check re-check for new runnable goroutines.
+		foundMoreWork = true
+	}
+	if foundMoreWork {
+		// We found more work, so we need to resume the marking phase.
+		return false
+	}
+
+	// For the remaining goroutines, mark them as unreachable and deadlocking.
+	for i := work.nLiveStackRoots; i < work.nStackRoots; i++ {
+		gp := work.stackRoots[i].unmask()
+		casgstatus(gp, _Gwaiting, _Gdeadlocked)
+		fn := findfunc(gp.startpc)
+		if fn.valid() {
+			print("goroutine leak! goroutine ", gp.goid, ": ", funcname(fn), " Stack size: ", gp.stack.hi-gp.stack.lo, " bytes\n")
+		} else {
+			print("goroutine leak! goroutine ", gp.goid, ": !unnamed goroutine!", " Stack size: ", gp.stack.hi-gp.stack.lo, " bytes\n")
+		}
+		traceback(gp.sched.pc, gp.sched.sp, gp.sched.lr, gp)
+		println()
+		work.stackRoots[i] = gp
+	}
+	// Put the remaining roots as ready for marking and drain them.
+	work.markrootJobs += uint32(work.nStackRoots - work.nLiveStackRoots)
+	work.nLiveStackRoots = work.nStackRoots
+	return true
 }
 
 // World must be stopped and mark assists and background workers must be
@@ -1185,6 +1454,13 @@ func gcMarkTermination(stw worldStop) {
 	}
 
 	systemstack(func() {
+		if goexperiment.DeadlockGC {
+			// Pull the GC out of deadlock detection mode.
+			// Write is thread-safe because the world is stopped, and only one
+			// GC cycle can run at a time.
+			work.deadlockDetectionMode = false
+		}
+
 		// The memstats updated above must be updated with the world
 		// stopped to ensure consistency of some values, such as
 		// sched.idleTime and sched.totaltime. memstats also include
@@ -1612,10 +1888,12 @@ func gcMarkWorkAvailable(p *p) bool {
 	if !work.full.empty() || !work.spanq.empty() {
 		return true // global work available
 	}
-	if work.markrootNext < work.markrootJobs {
-		return true // root scan work available
+	if !work.deadlockDetectionMode {
+		return work.markrootNext < work.markrootJobs
 	}
-	return false
+	rootNext := atomic.Load(&work.markrootNext)
+	rootJobs := atomic.Load(&work.markrootJobs)
+	return rootNext < rootJobs
 }
 
 // gcMark runs the mark (or, for concurrent GC, mark termination)
@@ -1628,8 +1906,10 @@ func gcMark(startTime int64) {
 	work.tstart = startTime
 
 	// Check that there's no marking work remaining.
-	if work.full != 0 || work.markrootNext < work.markrootJobs || !work.spanq.empty() {
-		print("runtime: full=", hex(work.full), " next=", work.markrootNext, " jobs=", work.markrootJobs, " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, " spanq.n=", work.spanq.size(), "\n")
+	rootNext := atomic.Load(&work.markrootNext)
+	rootJobs := atomic.Load(&work.markrootJobs)
+	if work.full != 0 || rootNext < rootJobs {
+		print("runtime: full=", hex(work.full), " next=", rootNext, " jobs=", rootJobs, " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, "\n")
 		panic("non-empty mark queue after concurrent mark")
 	}
 

@@ -87,6 +87,9 @@ const (
 	// ready()ing this G.
 	_Gpreempted // 9
 
+	// _Gdeadlocked represents a deadlocked goroutine caught by the GC.
+	_Gdeadlocked // 10
+
 	// _Gscan combined with one of the above states other than
 	// _Grunning indicates that GC is scanning the stack. The
 	// goroutine is not executing user code and the stack is owned
@@ -104,6 +107,8 @@ const (
 	_Gscansyscall   = _Gscan + _Gsyscall   // 0x1003
 	_Gscanwaiting   = _Gscan + _Gwaiting   // 0x1004
 	_Gscanpreempted = _Gscan + _Gpreempted // 0x1009
+
+	_Gscandeadlocked = _Gscan + _Gdeadlocked // 0x100a
 )
 
 const (
@@ -1158,10 +1163,24 @@ func (w waitReason) String() string {
 	return waitReasonStrings[w]
 }
 
+// isMutexWait returns true if the goroutine is blocked because of
+// sync.Mutex.Lock or sync.RWMutex.[R]Lock.
+//
+//go:nosplit
 func (w waitReason) isMutexWait() bool {
 	return w == waitReasonSyncMutexLock ||
 		w == waitReasonSyncRWMutexRLock ||
 		w == waitReasonSyncRWMutexLock
+}
+
+// isSyncWait returns true if the goroutine is blocked because of
+// sync library primitive operations.
+//
+//go:nosplit
+func (w waitReason) isSyncWait() bool {
+	return w == waitReasonSyncWaitGroupWait ||
+		w == waitReasonSyncCondWait ||
+		w.isMutexWait()
 }
 
 func (w waitReason) isWaitingForSuspendG() bool {
