@@ -133,4 +133,7 @@ type Flags struct {
 	// RandomizedHeapBase enables heap base address randomization on 64-bit
 	// platforms.
 	RandomizedHeapBase64 bool
+
+	// DeadlockGC enables the Deadlock GC implementation.
+	DeadlockGC bool
 }

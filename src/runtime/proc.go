@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/cpu"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/exithook"
@@ -689,7 +690,7 @@ func allgadd(gp *g) {
 	}
 
 	lock(&allglock)
-	allgs = append(allgs, gp)
+	allgs = append(allgs, gp.mask())
 	if &allgs[0] != allgptr {
 		atomicstorep(unsafe.Pointer(&allgptr), unsafe.Pointer(&allgs[0]))
 	}
@@ -708,6 +709,11 @@ func allGsSnapshot() []*g {
 	// monotonically and existing entries never change, so we can
 	// simply return a copy of the slice header. For added safety,
 	// we trim everything past len because that can still change.
+	if goexperiment.DeadlockGC {
+		for i, gp := range allgs {
+			allgs[i] = gp.unmask()
+		}
+	}
 	return allgs[:len(allgs):len(allgs)]
 }
 
@@ -729,7 +735,7 @@ func atomicAllGIndex(ptr **g, i uintptr) *g {
 func forEachG(fn func(gp *g)) {
 	lock(&allglock)
 	for _, gp := range allgs {
-		fn(gp)
+		fn(gp.unmask())
 	}
 	unlock(&allglock)
 }
@@ -742,7 +748,7 @@ func forEachGRace(fn func(gp *g)) {
 	ptr, length := atomicAllG()
 	for i := uintptr(0); i < length; i++ {
 		gp := atomicAllGIndex(ptr, i)
-		fn(gp)
+		fn(gp.unmask())
 	}
 	return
 }
@@ -1208,6 +1214,7 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
 		_Gscanwaiting,
 		_Gscanrunning,
 		_Gscansyscall,
+		_Gscandeadlocked,
 		_Gscanpreempted:
 		if newval == oldval&^_Gscan {
 			success = gp.atomicstatus.CompareAndSwap(oldval, newval)
@@ -1228,6 +1235,7 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
 	case _Grunnable,
 		_Grunning,
 		_Gwaiting,
+		_Gdeadlocked,
 		_Gsyscall:
 		if newval == oldval|_Gscan {
 			r := gp.atomicstatus.CompareAndSwap(oldval, newval)
