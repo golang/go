@@ -157,7 +157,7 @@ func (g ctrlGroup) matchH2(h uintptr) bitset {
 // Portable implementation of matchH2.
 //
 // Note: On AMD64, this is an intrinsic implemented with SIMD instructions. See
-// note on bitset about the packed instrinsified return value.
+// note on bitset about the packed intrinsified return value.
 func ctrlGroupMatchH2(g ctrlGroup, h uintptr) bitset {
 	// NB: This generic matching routine produces false positive matches when
 	// h is 2^N and the control bytes have a seq of 2^N followed by 2^N+1. For
@@ -179,7 +179,7 @@ func (g ctrlGroup) matchEmpty() bitset {
 // Portable implementation of matchEmpty.
 //
 // Note: On AMD64, this is an intrinsic implemented with SIMD instructions. See
-// note on bitset about the packed instrinsified return value.
+// note on bitset about the packed intrinsified return value.
 func ctrlGroupMatchEmpty(g ctrlGroup) bitset {
 	// An empty slot is   1000 0000
 	// A deleted slot is  1111 1110
@@ -200,7 +200,7 @@ func (g ctrlGroup) matchEmptyOrDeleted() bitset {
 // Portable implementation of matchEmptyOrDeleted.
 //
 // Note: On AMD64, this is an intrinsic implemented with SIMD instructions. See
-// note on bitset about the packed instrinsified return value.
+// note on bitset about the packed intrinsified return value.
 func ctrlGroupMatchEmptyOrDeleted(g ctrlGroup) bitset {
 	// An empty slot is  1000 0000
 	// A deleted slot is 1111 1110
@@ -219,7 +219,7 @@ func (g ctrlGroup) matchFull() bitset {
 // Portable implementation of matchFull.
 //
 // Note: On AMD64, this is an intrinsic implemented with SIMD instructions. See
-// note on bitset about the packed instrinsified return value.
+// note on bitset about the packed intrinsified return value.
 func ctrlGroupMatchFull(g ctrlGroup) bitset {
 	// An empty slot is  1000 0000
 	// A deleted slot is 1111 1110
