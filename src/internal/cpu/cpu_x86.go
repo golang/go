@@ -18,18 +18,26 @@ func xgetbv() (eax, edx uint32)
 func getGOAMD64level() int32
 
 const (
+	// eax bits
+	cpuid_AVXVNNI = 1 << 4
+
 	// ecx bits
-	cpuid_SSE3      = 1 << 0
-	cpuid_PCLMULQDQ = 1 << 1
-	cpuid_SSSE3     = 1 << 9
-	cpuid_GFNI      = 1 << 8
-	cpuid_FMA       = 1 << 12
-	cpuid_SSE41     = 1 << 19
-	cpuid_SSE42     = 1 << 20
-	cpuid_POPCNT    = 1 << 23
-	cpuid_AES       = 1 << 25
-	cpuid_OSXSAVE   = 1 << 27
-	cpuid_AVX       = 1 << 28
+	cpuid_SSE3            = 1 << 0
+	cpuid_PCLMULQDQ       = 1 << 1
+	cpuid_AVX512VBMI      = 1 << 1
+	cpuid_AVX512VBMI2     = 1 << 6
+	cpuid_SSSE3           = 1 << 9
+	cpuid_AVX512GFNI      = 1 << 8
+	cpuid_AVX512VNNI      = 1 << 11
+	cpuid_AVX512BITALG    = 1 << 12
+	cpuid_FMA             = 1 << 12
+	cpuid_AVX512VPOPCNTDQ = 1 << 14
+	cpuid_SSE41           = 1 << 19
+	cpuid_SSE42           = 1 << 20
+	cpuid_POPCNT          = 1 << 23
+	cpuid_AES             = 1 << 25
+	cpuid_OSXSAVE         = 1 << 27
+	cpuid_AVX             = 1 << 28
 
 	// ebx bits
 	cpuid_BMI1     = 1 << 3
@@ -144,7 +152,7 @@ func doinit() {
 		return
 	}
 
-	_, ebx7, ecx7, edx7 := cpuid(7, 0)
+	eax7, ebx7, ecx7, edx7 := cpuid(7, 0)
 	X86.HasBMI1 = isSet(ebx7, cpuid_BMI1)
 	X86.HasAVX2 = isSet(ebx7, cpuid_AVX2) && osSupportsAVX
 	X86.HasBMI2 = isSet(ebx7, cpuid_BMI2)
@@ -158,10 +166,15 @@ func doinit() {
 		X86.HasAVX512BW = isSet(ebx7, cpuid_AVX512BW)
 		X86.HasAVX512DQ = isSet(ebx7, cpuid_AVX512DQ)
 		X86.HasAVX512VL = isSet(ebx7, cpuid_AVX512VL)
+		X86.HasAVX512GFNI = isSet(ecx7, cpuid_AVX512GFNI)
+		X86.HasAVX512BITALG = isSet(ecx7, cpuid_AVX512BITALG)
+		X86.HasAVX512VPOPCNTDQ = isSet(ecx7, cpuid_AVX512VPOPCNTDQ)
+		X86.HasAVX512VBMI = isSet(ecx7, cpuid_AVX512VBMI)
+		X86.HasAVX512VBMI2 = isSet(ecx7, cpuid_AVX512VBMI2)
+		X86.HasAVX512VNNI = isSet(ecx7, cpuid_AVX512VNNI)
 	}
 
 	X86.HasFSRM = isSet(edx7, cpuid_FSRM)
-	X86.HasGFNI = isSet(ecx7, cpuid_GFNI)
 
 	var maxExtendedInformation uint32
 	maxExtendedInformation, _, _, _ = cpuid(0x80000000, 0)
@@ -182,7 +195,12 @@ func doinit() {
 		// it. GOAMD64=v4 also implies exactly this set, and these are all
 		// included in AVX10.1.
 		X86.HasAVX512 = X86.HasAVX512F && X86.HasAVX512CD && X86.HasAVX512BW && X86.HasAVX512DQ && X86.HasAVX512VL
-		X86.HasAVX512GFNI = X86.HasAVX512 && X86.HasGFNI
+	}
+	if eax7 >= 1 {
+		eax71, _, _, _ := cpuid(7, 1)
+		if X86.HasAVX {
+			X86.HasAVXVNNI = isSet(4, eax71)
+		}
 	}
 }
 
