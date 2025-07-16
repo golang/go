@@ -54,7 +54,7 @@ func rename(oldname, newname string) error {
 
 // file is the real representation of *File.
 // The extra level of indirection ensures that no clients of os
-// can overwrite this data, which could cause the cleanup
+// can overwrite this data, which could cause the finalizer
 // to close the wrong file descriptor.
 type file struct {
 	pfd         poll.FD
@@ -63,7 +63,6 @@ type file struct {
 	nonblock    bool                    // whether we set nonblocking mode
 	stdoutOrErr bool                    // whether this is stdout or stderr
 	appendMode  bool                    // whether file is opened for appending
-	cleanup     runtime.Cleanup         // cleanup closes the file when no longer referenced
 }
 
 // fd is the Unix implementation of Fd.
@@ -222,8 +221,7 @@ func newFile(fd int, name string, kind newFileKind, nonBlocking bool) *File {
 		}
 	}
 
-	// Close the file when the File is not live.
-	f.cleanup = runtime.AddCleanup(f, func(f *file) { f.close() }, f.file)
+	runtime.SetFinalizer(f.file, (*file).close)
 	return f
 }
 
@@ -320,9 +318,8 @@ func (file *file) close() error {
 		err = &PathError{Op: "close", Path: file.name, Err: e}
 	}
 
-	// There is no need for a cleanup at this point. File must be alive at the point
-	// where cleanup.stop is called.
-	file.cleanup.Stop()
+	// no need for a finalizer anymore
+	runtime.SetFinalizer(file, nil)
 	return err
 }
 
