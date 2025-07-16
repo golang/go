@@ -631,6 +631,19 @@ func (b *Block) NewValue4(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2, 
 	return v
 }
 
+// NewValue4A returns a new value in the block with four arguments and zero aux values.
+func (b *Block) NewValue4A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, arg1, arg2, arg3 *Value) *Value {
+	v := b.Func.newValue(op, t, b, pos)
+	v.AuxInt = 0
+	v.Aux = aux
+	v.Args = []*Value{arg0, arg1, arg2, arg3}
+	arg0.Uses++
+	arg1.Uses++
+	arg2.Uses++
+	arg3.Uses++
+	return v
+}
+
 // NewValue4I returns a new value in the block with four arguments and auxint value.
 func (b *Block) NewValue4I(pos src.XPos, op Op, t *types.Type, auxint int64, arg0, arg1, arg2, arg3 *Value) *Value {
 	v := b.Func.newValue(op, t, b, pos)

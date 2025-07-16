@@ -1169,6 +1169,14 @@ const (
 	OpAMD64VMOVDQUstore256
 	OpAMD64VMOVDQUload512
 	OpAMD64VMOVDQUstore512
+	OpAMD64VPMASK32load128
+	OpAMD64VPMASK32store128
+	OpAMD64VPMASK64load128
+	OpAMD64VPMASK64store128
+	OpAMD64VPMASK32load256
+	OpAMD64VPMASK32store256
+	OpAMD64VPMASK64load256
+	OpAMD64VPMASK64store256
 	OpAMD64VPMOVMToVec8x16
 	OpAMD64VPMOVMToVec8x32
 	OpAMD64VPMOVMToVec8x64
@@ -4246,6 +4254,10 @@ const (
 	OpLoad
 	OpDereference
 	OpStore
+	OpLoadMasked32
+	OpLoadMasked64
+	OpStoreMasked32
+	OpStoreMasked64
 	OpMove
 	OpZero
 	OpStoreWB
@@ -18477,6 +18489,134 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+		},
+	},
+	{
+		name:           "VPMASK32load128",
+		auxType:        auxSymOff,
+		argLen:         3,
+		faultOnNilArg0: true,
+		symEffect:      SymRead,
+		asm:            x86.AVPMASKMOVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:           "VPMASK32store128",
+		auxType:        auxSymOff,
+		argLen:         4,
+		faultOnNilArg0: true,
+		symEffect:      SymWrite,
+		asm:            x86.AVPMASKMOVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+		},
+	},
+	{
+		name:           "VPMASK64load128",
+		auxType:        auxSymOff,
+		argLen:         3,
+		faultOnNilArg0: true,
+		symEffect:      SymRead,
+		asm:            x86.AVPMASKMOVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:           "VPMASK64store128",
+		auxType:        auxSymOff,
+		argLen:         4,
+		faultOnNilArg0: true,
+		symEffect:      SymWrite,
+		asm:            x86.AVPMASKMOVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+		},
+	},
+	{
+		name:           "VPMASK32load256",
+		auxType:        auxSymOff,
+		argLen:         3,
+		faultOnNilArg0: true,
+		symEffect:      SymRead,
+		asm:            x86.AVPMASKMOVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:           "VPMASK32store256",
+		auxType:        auxSymOff,
+		argLen:         4,
+		faultOnNilArg0: true,
+		symEffect:      SymWrite,
+		asm:            x86.AVPMASKMOVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+		},
+	},
+	{
+		name:           "VPMASK64load256",
+		auxType:        auxSymOff,
+		argLen:         3,
+		faultOnNilArg0: true,
+		symEffect:      SymRead,
+		asm:            x86.AVPMASKMOVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:           "VPMASK64store256",
+		auxType:        auxSymOff,
+		argLen:         4,
+		faultOnNilArg0: true,
+		symEffect:      SymWrite,
+		asm:            x86.AVPMASKMOVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
 			},
 		},
@@ -59967,6 +60107,28 @@ var opcodeTable = [...]opInfo{
 		name:    "Store",
 		auxType: auxTyp,
 		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "LoadMasked32",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "LoadMasked64",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "StoreMasked32",
+		auxType: auxTyp,
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "StoreMasked64",
+		auxType: auxTyp,
+		argLen:  4,
 		generic: true,
 	},
 	{

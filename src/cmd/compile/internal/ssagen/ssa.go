@@ -1270,6 +1270,11 @@ func (s *state) newValue4(op ssa.Op, t *types.Type, arg0, arg1, arg2, arg3 *ssa.
 	return s.curBlock.NewValue4(s.peekPos(), op, t, arg0, arg1, arg2, arg3)
 }
 
+// newValue4A adds a new value with four arguments and an aux value to the current block.
+func (s *state) newValue4A(op ssa.Op, t *types.Type, aux ssa.Aux, arg0, arg1, arg2, arg3 *ssa.Value) *ssa.Value {
+	return s.curBlock.NewValue4A(s.peekPos(), op, t, aux, arg0, arg1, arg2, arg3)
+}
+
 // newValue4I adds a new value with four arguments and an auxint value to the current block.
 func (s *state) newValue4I(op ssa.Op, t *types.Type, aux int64, arg0, arg1, arg2, arg3 *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue4I(s.peekPos(), op, t, aux, arg0, arg1, arg2, arg3)

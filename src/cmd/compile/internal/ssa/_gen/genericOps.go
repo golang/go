@@ -372,6 +372,14 @@ var genericOps = []opData{
 	{name: "Load", argLength: 2},                          // Load from arg0.  arg1=memory
 	{name: "Dereference", argLength: 2},                   // Load from arg0.  arg1=memory.  Helper op for arg/result passing, result is an otherwise not-SSA-able "value".
 	{name: "Store", argLength: 3, typ: "Mem", aux: "Typ"}, // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+
+	// masked memory operations.
+	// TODO add 16 and 8
+	{name: "LoadMasked32", argLength: 3},                          // Load from arg0, arg1 = mask of 32-bits, arg2 = memory
+	{name: "LoadMasked64", argLength: 3},                          // Load from arg0, arg1 = mask of 64-bits, arg2 = memory
+	{name: "StoreMasked32", argLength: 4, typ: "Mem", aux: "Typ"}, // Store arg2 to arg0, arg1=mask of 32-bits, arg3 = memory
+	{name: "StoreMasked64", argLength: 4, typ: "Mem", aux: "Typ"}, // Store arg2 to arg0, arg1=mask of 64-bits, arg3 = memory
+
 	// Normally we require that the source and destination of Move do not overlap.
 	// There is an exception when we know all the loads will happen before all
 	// the stores. In that case, overlap is ok. See

@@ -1715,16 +1715,23 @@
 (StoreMask64x8 {t} ptr val mem) => (KMOVQstore ptr (VPMOVVec64x8ToM <t> val) mem)
 
 (Load <t> ptr mem) && t.Size() == 16 => (VMOVDQUload128 ptr mem)
-
 (Store {t} ptr val mem) && t.Size() == 16 => (VMOVDQUstore128 ptr val mem)
 
 (Load <t> ptr mem) && t.Size() == 32 => (VMOVDQUload256 ptr mem)
-
 (Store {t} ptr val mem) && t.Size() == 32 => (VMOVDQUstore256 ptr val mem)
 
 (Load <t> ptr mem) && t.Size() == 64 => (VMOVDQUload512 ptr mem)
-
 (Store {t} ptr val mem) && t.Size() == 64 => (VMOVDQUstore512 ptr val mem)
+
+(LoadMasked32 <t> ptr mask mem) && t.Size() == 16 => (VPMASK32load128 ptr mask mem)
+(LoadMasked32 <t> ptr mask mem) && t.Size() == 32 => (VPMASK32load256 ptr mask mem)
+(LoadMasked64 <t> ptr mask mem) && t.Size() == 16 => (VPMASK64load128 ptr mask mem)
+(LoadMasked64 <t> ptr mask mem) && t.Size() == 32 => (VPMASK64load256 ptr mask mem)
+
+(StoreMasked32 {t} ptr mask val mem) && t.Size() == 16 => (VPMASK32store128 ptr mask val mem)
+(StoreMasked32 {t} ptr mask val mem) && t.Size() == 32 => (VPMASK32store256 ptr mask val mem)
+(StoreMasked64 {t} ptr mask val mem) && t.Size() == 16 => (VPMASK64store128 ptr mask val mem)
+(StoreMasked64 {t} ptr mask val mem) && t.Size() == 32 => (VPMASK64store256 ptr mask val mem)
 
 (ZeroSIMD <t>) && t.Size() == 16 => (Zero128 <t>)
 (ZeroSIMD <t>) && t.Size() == 32 => (Zero256 <t>)

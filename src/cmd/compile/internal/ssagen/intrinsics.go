@@ -1808,6 +1808,19 @@ func simdStoreMask(elemBits, lanes int) func(s *state, n *ir.CallExpr, args []*s
 	}
 }
 
+func simdMaskedLoad(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return s.newValue3(op, n.Type(), args[0], args[1], s.mem())
+	}
+}
+
+func simdMaskedStore(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		s.vars[memVar] = s.newValue4A(op, types.TypeMem, args[0].Type, args[1], args[2], args[0], s.mem())
+		return nil
+	}
+}
+
 // findIntrinsic returns a function which builds the SSA equivalent of the
 // function identified by the symbol sym.  If sym is not an intrinsic call, returns nil.
 func findIntrinsic(sym *types.Sym) intrinsicBuilder {
