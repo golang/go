@@ -321,7 +321,13 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool, syncSema bool) {
 	var last *sudog
 	pt := &root.treap
 	for t := *pt; t != nil; t = *pt {
-		if t.elem == pAddr {
+		var cmp bool
+		if goexperiment.DeadlockGC {
+			cmp = uintptr(gcUnmask(pAddr)) == uintptr(gcUnmask(t.elem))
+		} else {
+			cmp = uintptr(pAddr) == uintptr(t.elem)
+		}
+		if cmp {
 			// Already have addr in list.
 			if lifo {
 				// Substitute s in t's place in treap.
@@ -367,7 +373,12 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool, syncSema bool) {
 			return
 		}
 		last = t
-		if uintptr(pAddr) < uintptr(t.elem) {
+		if goexperiment.DeadlockGC {
+			cmp = uintptr(gcUnmask(pAddr)) < uintptr(gcUnmask(t.elem))
+		} else {
+			cmp = uintptr(pAddr) < uintptr(t.elem)
+		}
+		if cmp {
 			pt = &t.prev
 		} else {
 			pt = &t.next
@@ -413,29 +424,23 @@ func (root *semaRoot) dequeue(addr *uint32) (found *sudog, now, tailtime int64) 
 	ps := &root.treap
 	s := *ps
 
-	if goexperiment.DeadlockGC {
-		// First try to find a masked address.
-		var pAddr unsafe.Pointer = gcMask(unsafe.Pointer(addr))
-		for ; s != nil; s = *ps {
-			if s.elem == pAddr {
-				goto Found
-			}
-			if uintptr(pAddr) < uintptr(s.elem) {
-				ps = &s.prev
-			} else {
-				ps = &s.next
-			}
-		}
-		// Otherwise, try to find an unmasked address.
-		ps = &root.treap
-		s = *ps
-	}
-
 	for ; s != nil; s = *ps {
-		if s.elem == unsafe.Pointer(addr) {
+		var cmp bool
+		if goexperiment.DeadlockGC {
+			cmp = gcUnmask(unsafe.Pointer(addr)) == gcUnmask(s.elem)
+		} else {
+			cmp = unsafe.Pointer(addr) == s.elem
+		}
+		if cmp {
 			goto Found
 		}
-		if uintptr(unsafe.Pointer(addr)) < uintptr(s.elem) {
+
+		if goexperiment.DeadlockGC {
+			cmp = uintptr(gcUnmask(unsafe.Pointer(addr))) < uintptr(gcUnmask(s.elem))
+		} else {
+			cmp = uintptr(unsafe.Pointer(addr)) < uintptr(s.elem)
+		}
+		if cmp {
 			ps = &s.prev
 		} else {
 			ps = &s.next
