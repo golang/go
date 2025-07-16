@@ -1062,24 +1062,24 @@ const (
 	waitReasonZero                  waitReason = iota // ""
 	waitReasonGCAssistMarking                         // "GC assist marking"
 	waitReasonIOWait                                  // "IO wait"
-	waitReasonChanReceiveNilChan                      // "chan receive (nil chan)"
-	waitReasonChanSendNilChan                         // "chan send (nil chan)"
 	waitReasonDumpingHeap                             // "dumping heap"
 	waitReasonGarbageCollection                       // "garbage collection"
 	waitReasonGarbageCollectionScan                   // "garbage collection scan"
 	waitReasonPanicWait                               // "panicwait"
-	waitReasonSelect                                  // "select"
-	waitReasonSelectNoCases                           // "select (no cases)"
 	waitReasonGCAssistWait                            // "GC assist wait"
 	waitReasonGCSweepWait                             // "GC sweep wait"
 	waitReasonGCScavengeWait                          // "GC scavenge wait"
-	waitReasonChanReceive                             // "chan receive"
-	waitReasonChanSend                                // "chan send"
 	waitReasonFinalizerWait                           // "finalizer wait"
 	waitReasonForceGCIdle                             // "force gc (idle)"
 	waitReasonUpdateGOMAXPROCSIdle                    // "GOMAXPROCS updater (idle)"
 	waitReasonSemacquire                              // "semacquire"
 	waitReasonSleep                                   // "sleep"
+	waitReasonChanReceiveNilChan                      // "chan receive (nil chan)"
+	waitReasonChanSendNilChan                         // "chan send (nil chan)"
+	waitReasonSelect                                  // "select"
+	waitReasonSelectNoCases                           // "select (no cases)"
+	waitReasonChanReceive                             // "chan receive"
+	waitReasonChanSend                                // "chan send"
 	waitReasonSyncCondWait                            // "sync.Cond.Wait"
 	waitReasonSyncMutexLock                           // "sync.Mutex.Lock"
 	waitReasonSyncRWMutexRLock                        // "sync.RWMutex.RLock"
@@ -1180,9 +1180,7 @@ func (w waitReason) isMutexWait() bool {
 //
 //go:nosplit
 func (w waitReason) isSyncWait() bool {
-	return w == waitReasonSyncWaitGroupWait ||
-		w == waitReasonSyncCondWait ||
-		w.isMutexWait()
+	return waitReasonSyncCondWait <= w && w <= waitReasonSyncWaitGroupWait
 }
 
 func (w waitReason) isWaitingForSuspendG() bool {

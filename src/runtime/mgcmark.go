@@ -83,17 +83,7 @@ func gcUnmask(p unsafe.Pointer) unsafe.Pointer {
 //go:nosplit
 func (gp *g) internalBlocked() bool {
 	reason := gp.waitreason
-	return reason != waitReasonChanReceive &&
-		reason != waitReasonSyncWaitGroupWait &&
-		reason != waitReasonChanSend &&
-		reason != waitReasonChanReceiveNilChan &&
-		reason != waitReasonChanSendNilChan &&
-		reason != waitReasonSelect &&
-		reason != waitReasonSelectNoCases &&
-		reason != waitReasonSyncMutexLock &&
-		reason != waitReasonSyncRWMutexRLock &&
-		reason != waitReasonSyncRWMutexLock &&
-		reason != waitReasonSyncCondWait
+	return reason < waitReasonChanReceiveNilChan || waitReasonSyncWaitGroupWait < reason
 }
 
 // The world must be stopped or allglock must be held.
