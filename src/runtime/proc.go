@@ -709,7 +709,7 @@ func allGsSnapshot() []*g {
 	// monotonically and existing entries never change, so we can
 	// simply return a copy of the slice header. For added safety,
 	// we trim everything past len because that can still change.
-	if goexperiment.DeadlockGC {
+	if goexperiment.GolfGC {
 		for i, gp := range allgs {
 			allgs[i] = gp.unmask()
 		}

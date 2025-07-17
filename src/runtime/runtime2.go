@@ -87,8 +87,8 @@ const (
 	// ready()ing this G.
 	_Gpreempted // 9
 
-	// _Gdeadlocked represents a deadlocked goroutine caught by the GC.
-	_Gdeadlocked // 10
+	// _Gleaked represents a deadlocked goroutine caught by the GC.
+	_Gleaked // 10
 
 	// _Gscan combined with one of the above states other than
 	// _Grunning indicates that GC is scanning the stack. The
@@ -108,7 +108,7 @@ const (
 	_Gscanwaiting   = _Gscan + _Gwaiting   // 0x1004
 	_Gscanpreempted = _Gscan + _Gpreempted // 0x1009
 
-	_Gscandeadlocked = _Gscan + _Gdeadlocked // 0x100a
+	_Gscandeadlocked = _Gscan + _Gleaked // 0x100a
 )
 
 const (

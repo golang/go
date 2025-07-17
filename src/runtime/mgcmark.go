@@ -60,7 +60,7 @@ const (
 //
 //go:nosplit
 func gcMask(p unsafe.Pointer) unsafe.Pointer {
-	if goexperiment.DeadlockGC {
+	if goexperiment.GolfGC {
 		return unsafe.Pointer(uintptr(p) | gcBitMask)
 	}
 	return p
@@ -70,15 +70,15 @@ func gcMask(p unsafe.Pointer) unsafe.Pointer {
 //
 //go:nosplit
 func gcUnmask(p unsafe.Pointer) unsafe.Pointer {
-	if goexperiment.DeadlockGC {
+	if goexperiment.GolfGC {
 		return unsafe.Pointer(uintptr(p) & gcUndoBitMask)
 	}
 	return p
 }
 
-// internalBlocked returns true if the goroutine is blocked due to a
-// non-deadlocking waitReason, e.g. waiting for the netpoller or garbage collector.
-// Such goroutines should never be considered for deadlock detection.
+// internalBlocked returns true if the goroutine is blocked due to an
+// internal (non-leaking) waitReason, e.g. waiting for the netpoller or garbage collector.
+// Such goroutines are never leak detection candidates according to the GC.
 //
 //go:nosplit
 func (gp *g) internalBlocked() bool {
@@ -170,8 +170,8 @@ func gcPrepareMarkRoots() {
 	// ignore them because they begin life without any roots, so
 	// there's nothing to scan, and any roots they create during
 	// the concurrent phase will be caught by the write barrier.
-	if goexperiment.DeadlockGC {
-		if work.deadlockDetectionMode {
+	if goexperiment.GolfGC {
+		if work.detectingGoleaks {
 			work.stackRoots, work.nLiveStackRoots = allGsSnapshotSortedForGC()
 		} else {
 			// regular GC --- scan every go routine
@@ -950,7 +950,7 @@ func scanstack(gp *g, gcw *gcWork) int64 {
 	case _Grunning:
 		print("runtime: gp=", gp, ", goid=", gp.goid, ", gp->atomicstatus=", readgstatus(gp), "\n")
 		throw("scanstack: goroutine not stopped")
-	case _Grunnable, _Gsyscall, _Gwaiting, _Gdeadlocked:
+	case _Grunnable, _Gsyscall, _Gwaiting, _Gleaked:
 		// ok
 	}
 
@@ -1307,8 +1307,6 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 	if rootNext < rootJobs {
 		// Stop if we're preemptible, if someone wants to STW, or if
 		// someone is calling forEachP.
-		//
-		// Continue unconditionally if we're draining partial deadlocks.
 		for !(gp.preempt && (preemptible || sched.gcwaiting.Load() || pp.runSafePointFn != 0)) {
 			job, success := gcUpdateMarkrootNext()
 			if !success {
@@ -1623,9 +1621,9 @@ func scanobject(b uintptr, gcw *gcWork) {
 
 		// At this point we have extracted the next potential pointer.
 		// Quickly filter out nil and pointers back to the current object.
-		// The GC will skip masked addresses if DeadlockGC is enabled.
+		// The GC will skip masked addresses if GolfGC is enabled.
 		if obj != 0 && obj-b >= n &&
-			(!goexperiment.DeadlockGC || obj <= gcUndoBitMask) {
+			(!goexperiment.GolfGC || obj <= gcUndoBitMask) {
 			// Test if obj points into the Go heap and, if so,
 			// mark the object.
 			//
