@@ -1623,15 +1623,9 @@ func scanobject(b uintptr, gcw *gcWork) {
 
 		// At this point we have extracted the next potential pointer.
 		// Quickly filter out nil and pointers back to the current object.
-		if obj != 0 && obj-b >= n {
-			if goexperiment.DeadlockGC {
-				// The GC will skip masked addresses if DeadlockGC is enabled.
-				if (uintptr(unsafe.Pointer(obj)) & gcBitMask) == gcBitMask {
-					// Skip masked pointers.
-					continue
-				}
-			}
-
+		// The GC will skip masked addresses if DeadlockGC is enabled.
+		if obj != 0 && obj-b >= n &&
+			(!goexperiment.DeadlockGC || obj <= gcUndoBitMask) {
 			// Test if obj points into the Go heap and, if so,
 			// mark the object.
 			//
