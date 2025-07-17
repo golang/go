@@ -1924,12 +1924,12 @@ func TestMarshal(t *testing.T) {
 }`,
 	}, {
 		name: jsontest.Name("Structs/OmitEmpty/Legacy/Zero"),
-		opts: []Options{jsonflags.OmitEmptyWithLegacyDefinition | 1},
+		opts: []Options{jsonflags.OmitEmptyWithLegacySemantics | 1},
 		in:   structOmitEmptyAll{},
 		want: `{}`,
 	}, {
 		name: jsontest.Name("Structs/OmitEmpty/Legacy/NonEmpty"),
-		opts: []Options{jsontext.Multiline(true), jsonflags.OmitEmptyWithLegacyDefinition | 1},
+		opts: []Options{jsontext.Multiline(true), jsonflags.OmitEmptyWithLegacySemantics | 1},
 		in: structOmitEmptyAll{
 			Bool:                  true,
 			PointerBool:           addr(true),
@@ -2144,7 +2144,7 @@ func TestMarshal(t *testing.T) {
 	"Default": "AQIDBA=="
 }`}, {
 		name: jsontest.Name("Structs/Format/ArrayBytes/Legacy"),
-		opts: []Options{jsontext.Multiline(true), jsonflags.FormatBytesWithLegacySemantics | 1},
+		opts: []Options{jsontext.Multiline(true), jsonflags.FormatByteArrayAsArray | jsonflags.FormatBytesWithLegacySemantics | 1},
 		in: structFormatArrayBytes{
 			Base16:    [4]byte{1, 2, 3, 4},
 			Base32:    [4]byte{1, 2, 3, 4},
@@ -4394,7 +4394,7 @@ func TestMarshal(t *testing.T) {
 	}, {
 		/* TODO(https://go.dev/issue/71631): Re-enable this test case.
 		name: jsontest.Name("Duration/Format/Legacy"),
-		opts: []Options{jsonflags.FormatTimeWithLegacySemantics | 1},
+		opts: []Options{jsonflags.FormatDurationAsNano | 1},
 		in: structDurationFormat{
 			D1: 12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
 			D2: 12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
@@ -4407,7 +4407,7 @@ func TestMarshal(t *testing.T) {
 		want: `{"1s":""}`,
 		}, { */
 		name: jsontest.Name("Duration/MapKey/Legacy"),
-		opts: []Options{jsonflags.FormatTimeWithLegacySemantics | 1},
+		opts: []Options{jsonflags.FormatDurationAsNano | 1},
 		in:   map[time.Duration]string{time.Second: ""},
 		want: `{"1000000000":""}`,
 	}, {
@@ -6399,7 +6399,7 @@ func TestUnmarshal(t *testing.T) {
 		wantErr: EU(errors.New("illegal character '\\r' at offset 3")).withPos(`{"Base64": `, "/Base64").withType('"', T[[]byte]()),
 	}, {
 		name:  jsontest.Name("Structs/Format/Bytes/Base64/NonAlphabet/Ignored"),
-		opts:  []Options{jsonflags.FormatBytesWithLegacySemantics | 1},
+		opts:  []Options{jsonflags.ParseBytesWithLooseRFC4648 | 1},
 		inBuf: `{"Base64": "aa=\r\n="}`,
 		inVal: new(structFormatBytes),
 		want:  &structFormatBytes{Base64: []byte{105}},
@@ -8885,7 +8885,7 @@ func TestUnmarshal(t *testing.T) {
 		/* TODO(https://go.dev/issue/71631): Re-enable this test case.
 		name:  jsontest.Name("Duration/Format/Legacy"),
 		inBuf: `{"D1":45296078090012,"D2":"12h34m56.078090012s"}`,
-		opts:  []Options{jsonflags.FormatTimeWithLegacySemantics | 1},
+		opts:  []Options{jsonflags.FormatDurationAsNano | 1},
 		inVal: new(structDurationFormat),
 		want: addr(structDurationFormat{
 			D1: 12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
@@ -8899,7 +8899,7 @@ func TestUnmarshal(t *testing.T) {
 		want:  addr(map[time.Duration]string{time.Second: ""}),
 		}, { */
 		name:  jsontest.Name("Duration/MapKey/Legacy"),
-		opts:  []Options{jsonflags.FormatTimeWithLegacySemantics | 1},
+		opts:  []Options{jsonflags.FormatDurationAsNano | 1},
 		inBuf: `{"1000000000":""}`,
 		inVal: new(map[time.Duration]string),
 		want:  addr(map[time.Duration]string{time.Second: ""}),
