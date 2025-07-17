@@ -305,7 +305,7 @@ func cansemacquire(addr *uint32) bool {
 func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool, syncSema bool) {
 	s.g = getg()
 	pAddr := unsafe.Pointer(addr)
-	if goexperiment.DeadlockGC {
+	if goexperiment.GolfGC {
 		if syncSema {
 			// Mask the addr so it doesn't get marked during GC
 			// through marking of the treap or marking of the blocked goroutine
@@ -322,7 +322,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool, syncSema bool) {
 	pt := &root.treap
 	for t := *pt; t != nil; t = *pt {
 		var cmp bool
-		if goexperiment.DeadlockGC {
+		if goexperiment.GolfGC {
 			cmp = uintptr(gcUnmask(pAddr)) == uintptr(gcUnmask(t.elem))
 		} else {
 			cmp = uintptr(pAddr) == uintptr(t.elem)
@@ -373,7 +373,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool, syncSema bool) {
 			return
 		}
 		last = t
-		if goexperiment.DeadlockGC {
+		if goexperiment.GolfGC {
 			cmp = uintptr(gcUnmask(pAddr)) < uintptr(gcUnmask(t.elem))
 		} else {
 			cmp = uintptr(pAddr) < uintptr(t.elem)
@@ -426,7 +426,7 @@ func (root *semaRoot) dequeue(addr *uint32) (found *sudog, now, tailtime int64) 
 
 	for ; s != nil; s = *ps {
 		var cmp bool
-		if goexperiment.DeadlockGC {
+		if goexperiment.GolfGC {
 			cmp = gcUnmask(unsafe.Pointer(addr)) == gcUnmask(s.elem)
 		} else {
 			cmp = unsafe.Pointer(addr) == s.elem
@@ -435,7 +435,7 @@ func (root *semaRoot) dequeue(addr *uint32) (found *sudog, now, tailtime int64) 
 			goto Found
 		}
 
-		if goexperiment.DeadlockGC {
+		if goexperiment.GolfGC {
 			cmp = uintptr(gcUnmask(unsafe.Pointer(addr))) < uintptr(gcUnmask(s.elem))
 		} else {
 			cmp = uintptr(unsafe.Pointer(addr)) < uintptr(s.elem)
@@ -504,7 +504,7 @@ Found:
 		}
 		tailtime = s.acquiretime
 	}
-	if goexperiment.DeadlockGC {
+	if goexperiment.GolfGC {
 		s.g.waiting = nil
 	}
 	s.parent = nil
@@ -627,7 +627,8 @@ func notifyListWait(l *notifyList, t uint32) {
 	// Enqueue itself.
 	s := acquireSudog()
 	s.g = getg()
-	if goexperiment.DeadlockGC {
+	if goexperiment.GolfGC {
+		// Storing this pointer is
 		s.elem = gcMask(unsafe.Pointer(l))
 		s.g.waiting = s
 	}
@@ -648,7 +649,7 @@ func notifyListWait(l *notifyList, t uint32) {
 	if t0 != 0 {
 		blockevent(s.releasetime-t0, 2)
 	}
-	if goexperiment.DeadlockGC {
+	if goexperiment.GolfGC {
 		s.g.waiting = nil
 		s.elem = nil
 	}
