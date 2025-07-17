@@ -1722,7 +1722,7 @@ func opLen3Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallE
 
 func opLen2Imm8_2I(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-		if args[1].Op == ssa.OpConst8 {
+		if args[2].Op == ssa.OpConst8 {
 			return s.newValue2I(op, t, args[2].AuxInt<<int64(offset), args[0], args[1])
 		}
 		plainPanicSimdImm(s)
@@ -1736,7 +1736,7 @@ func opLen2Imm8_2I(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.Ca
 
 func opLen3Imm8_2I(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-		if args[1].Op == ssa.OpConst8 {
+		if args[2].Op == ssa.OpConst8 {
 			return s.newValue3I(op, t, args[2].AuxInt<<int64(offset), args[0], args[1], args[3])
 		}
 		plainPanicSimdImm(s)
