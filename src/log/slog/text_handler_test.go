@@ -168,9 +168,14 @@ func TestNeedsQuoting(t *testing.T) {
 		{"a b", true},
 		{"badutf8\xF6", true},
 	} {
-		got := needsQuoting(test.in)
+		got := needsQuotingString(test.in)
 		if got != test.want {
-			t.Errorf("%q: got %t, want %t", test.in, got, test.want)
+			t.Errorf("needsQuotingString: %q: got %t, want %t", test.in, got, test.want)
+		}
+
+		got = needsQuotingBytes([]byte(test.in))
+		if got != test.want {
+			t.Errorf("needsQuotingBytes: %q: got %t, want %t", test.in, got, test.want)
 		}
 	}
 }
