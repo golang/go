@@ -1931,6 +1931,28 @@ func rewriteValueLOONG64_OpLOONG64ADDV(v *Value) bool {
 		}
 		break
 	}
+	// match: (ADDV x0 x1:(SLLVconst [c] y))
+	// cond: x1.Uses == 1 && c > 0 && c <= 4
+	// result: (ADDshiftLLV x0 y [c])
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x0 := v_0
+			x1 := v_1
+			if x1.Op != OpLOONG64SLLVconst {
+				continue
+			}
+			c := auxIntToInt64(x1.AuxInt)
+			y := x1.Args[0]
+			if !(x1.Uses == 1 && c > 0 && c <= 4) {
+				continue
+			}
+			v.reset(OpLOONG64ADDshiftLLV)
+			v.AuxInt = int64ToAuxInt(c)
+			v.AddArg2(x0, y)
+			return true
+		}
+		break
+	}
 	// match: (ADDV x (NEGV y))
 	// result: (SUBV x y)
 	for {
