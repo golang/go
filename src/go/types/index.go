@@ -218,7 +218,8 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 	// determine common underlying type cu
 	var ct, cu Type // type and respective common underlying type
 	var hasString bool
-	typeset(x.typ, func(t, u Type) bool {
+	// TODO(adonovan): use go1.23 "range typeset()".
+	typeset(x.typ)(func(t, u Type) bool {
 		if u == nil {
 			check.errorf(x, NonSliceableOperand, "cannot slice %s: no specific type in %s", x, x.typ)
 			cu = nil
