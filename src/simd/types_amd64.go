@@ -205,11 +205,23 @@ type Mask8x16 struct {
 	vals    [16]int8
 }
 
+// Mask8x16FromBits constructs a Mask8x16 from an a bitmap, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 16 bits of y are used.
+//
+//go:noescape
+func LoadMask8x16FromBits(y *uint64) Mask8x16
+
 // Mask16x8 is a 128-bit SIMD vector of 8 int16
 type Mask16x8 struct {
 	int16x8 v128
 	vals    [8]int16
 }
+
+// Mask16x8FromBits constructs a Mask16x8 from an a bitmap, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 8 bits of y are used.
+//
+//go:noescape
+func LoadMask16x8FromBits(y *uint64) Mask16x8
 
 // Mask32x4 is a 128-bit SIMD vector of 4 int32
 type Mask32x4 struct {
@@ -217,11 +229,23 @@ type Mask32x4 struct {
 	vals    [4]int32
 }
 
+// Mask32x4FromBits constructs a Mask32x4 from an a bitmap, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 4 bits of y are used.
+//
+//go:noescape
+func LoadMask32x4FromBits(y *uint64) Mask32x4
+
 // Mask64x2 is a 128-bit SIMD vector of 2 int64
 type Mask64x2 struct {
 	int64x2 v128
 	vals    [2]int64
 }
+
+// Mask64x2FromBits constructs a Mask64x2 from an a bitmap, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 2 bits of y are used.
+//
+//go:noescape
+func LoadMask64x2FromBits(y *uint64) Mask64x2
 
 // v256 is a tag type that tells the compiler that this is really 256-bit SIMD
 type v256 struct {
@@ -424,11 +448,23 @@ type Mask8x32 struct {
 	vals    [32]int8
 }
 
+// Mask8x32FromBits constructs a Mask8x32 from an a bitmap, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 32 bits of y are used.
+//
+//go:noescape
+func LoadMask8x32FromBits(y *uint64) Mask8x32
+
 // Mask16x16 is a 256-bit SIMD vector of 16 int16
 type Mask16x16 struct {
 	int16x16 v256
 	vals     [16]int16
 }
+
+// Mask16x16FromBits constructs a Mask16x16 from an a bitmap, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 16 bits of y are used.
+//
+//go:noescape
+func LoadMask16x16FromBits(y *uint64) Mask16x16
 
 // Mask32x8 is a 256-bit SIMD vector of 8 int32
 type Mask32x8 struct {
@@ -436,11 +472,23 @@ type Mask32x8 struct {
 	vals    [8]int32
 }
 
+// Mask32x8FromBits constructs a Mask32x8 from an a bitmap, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 8 bits of y are used.
+//
+//go:noescape
+func LoadMask32x8FromBits(y *uint64) Mask32x8
+
 // Mask64x4 is a 256-bit SIMD vector of 4 int64
 type Mask64x4 struct {
 	int64x4 v256
 	vals    [4]int64
 }
+
+// Mask64x4FromBits constructs a Mask64x4 from an a bitmap, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 4 bits of y are used.
+//
+//go:noescape
+func LoadMask64x4FromBits(y *uint64) Mask64x4
 
 // v512 is a tag type that tells the compiler that this is really 512-bit SIMD
 type v512 struct {
@@ -643,11 +691,23 @@ type Mask8x64 struct {
 	vals    [64]int8
 }
 
+// Mask8x64FromBits constructs a Mask8x64 from an a bitmap, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 64 bits of y are used.
+//
+//go:noescape
+func LoadMask8x64FromBits(y *uint64) Mask8x64
+
 // Mask16x32 is a 512-bit SIMD vector of 32 int16
 type Mask16x32 struct {
 	int16x32 v512
 	vals     [32]int16
 }
+
+// Mask16x32FromBits constructs a Mask16x32 from an a bitmap, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 32 bits of y are used.
+//
+//go:noescape
+func LoadMask16x32FromBits(y *uint64) Mask16x32
 
 // Mask32x16 is a 512-bit SIMD vector of 16 int32
 type Mask32x16 struct {
@@ -655,8 +715,20 @@ type Mask32x16 struct {
 	vals     [16]int32
 }
 
+// Mask32x16FromBits constructs a Mask32x16 from an a bitmap, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 16 bits of y are used.
+//
+//go:noescape
+func LoadMask32x16FromBits(y *uint64) Mask32x16
+
 // Mask64x8 is a 512-bit SIMD vector of 8 int64
 type Mask64x8 struct {
 	int64x8 v512
 	vals    [8]int64
 }
+
+// Mask64x8FromBits constructs a Mask64x8 from an a bitmap, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 8 bits of y are used.
+//
+//go:noescape
+func LoadMask64x8FromBits(y *uint64) Mask64x8

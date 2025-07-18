@@ -460,3 +460,20 @@ func testMergeLocalswrapper(t *testing.T, op func(simd.Int64x4, simd.Int64x4) si
 		}
 	}
 }
+
+func TestBitMask(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
+		return
+	}
+	var bits uint64 = 0b10
+	results := [2]int64{}
+	want := [2]int64{0, 6}
+	m := simd.LoadMask64x2FromBits(&bits)
+	simd.LoadInt64x2Slice([]int64{1, 2}).AddMasked(simd.LoadInt64x2Slice([]int64{3, 4}), m).Store(&results)
+	for i := range 2 {
+		if results[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], results[i])
+		}
+	}
+}

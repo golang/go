@@ -234,6 +234,8 @@ func init() {
 		wfpw  = regInfo{inputs: []regMask{w, fp}, outputs: wonly}
 		wfpkw = regInfo{inputs: []regMask{w, fp, mask}, outputs: wonly}
 
+		kload = regInfo{inputs: []regMask{gpspsb, 0}, outputs: maskonly}
+
 		prefreg = regInfo{inputs: []regMask{gpspsbg}}
 	)
 
@@ -1314,6 +1316,8 @@ func init() {
 
 		{name: "VZEROUPPER", argLength: 0, asm: "VZEROUPPER"},
 		{name: "VZEROALL", argLength: 0, asm: "VZEROALL"},
+
+		{name: "KMOVQload", argLength: 2, reg: kload, asm: "KMOVQ", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},
 	}
 
 	var AMD64blocks = []blockData{

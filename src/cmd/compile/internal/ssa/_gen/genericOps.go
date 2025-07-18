@@ -666,6 +666,18 @@ var genericOps = []opData{
 	// XXX SIMD
 	{name: "Add32x4", argLength: 2}, // arg0 + arg1
 	{name: "ZeroSIMD", argLength: 0},
+	{name: "LoadMask8x16", argLength: 2},  // arg0 = ptr, arg1 = mem
+	{name: "LoadMask8x32", argLength: 2},  // arg0 = ptr, arg1 = mem
+	{name: "LoadMask8x64", argLength: 2},  // arg0 = ptr, arg1 = mem
+	{name: "LoadMask16x8", argLength: 2},  // arg0 = ptr, arg1 = mem
+	{name: "LoadMask16x16", argLength: 2}, // arg0 = ptr, arg1 = mem
+	{name: "LoadMask16x32", argLength: 2}, // arg0 = ptr, arg1 = mem
+	{name: "LoadMask32x4", argLength: 2},  // arg0 = ptr, arg1 = mem
+	{name: "LoadMask32x8", argLength: 2},  // arg0 = ptr, arg1 = mem
+	{name: "LoadMask32x16", argLength: 2}, // arg0 = ptr, arg1 = mem
+	{name: "LoadMask64x2", argLength: 2},  // arg0 = ptr, arg1 = mem
+	{name: "LoadMask64x4", argLength: 2},  // arg0 = ptr, arg1 = mem
+	{name: "LoadMask64x8", argLength: 2},  // arg0 = ptr, arg1 = mem
 }
 
 //     kind          controls          successors   implicit exit

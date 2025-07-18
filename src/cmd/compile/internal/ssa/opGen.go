@@ -1198,6 +1198,7 @@ const (
 	OpAMD64Zero512
 	OpAMD64VZEROUPPER
 	OpAMD64VZEROALL
+	OpAMD64KMOVQload
 	OpAMD64VADDPS512
 	OpAMD64VADDPSMasked512
 	OpAMD64VRCP14PS512
@@ -4403,6 +4404,18 @@ const (
 	OpPrefetchCacheStreamed
 	OpAdd32x4
 	OpZeroSIMD
+	OpLoadMask8x16
+	OpLoadMask8x32
+	OpLoadMask8x64
+	OpLoadMask16x8
+	OpLoadMask16x16
+	OpLoadMask16x32
+	OpLoadMask32x4
+	OpLoadMask32x8
+	OpLoadMask32x16
+	OpLoadMask64x2
+	OpLoadMask64x4
+	OpLoadMask64x8
 	OpAddFloat32x16
 	OpAddMaskedFloat32x16
 	OpApproximateReciprocalFloat32x16
@@ -18800,6 +18813,22 @@ var opcodeTable = [...]opInfo{
 		argLen: 0,
 		asm:    x86.AVZEROALL,
 		reg:    regInfo{},
+	},
+	{
+		name:           "KMOVQload",
+		auxType:        auxSymOff,
+		argLen:         2,
+		faultOnNilArg0: true,
+		symEffect:      SymRead,
+		asm:            x86.AKMOVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
 	},
 	{
 		name:        "VADDPS512",
@@ -60725,6 +60754,66 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ZeroSIMD",
 		argLen:  0,
+		generic: true,
+	},
+	{
+		name:    "LoadMask8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "LoadMask8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "LoadMask8x64",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "LoadMask16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "LoadMask16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "LoadMask16x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "LoadMask32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "LoadMask32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "LoadMask32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "LoadMask64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "LoadMask64x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "LoadMask64x8",
+		argLen:  2,
 		generic: true,
 	},
 	{

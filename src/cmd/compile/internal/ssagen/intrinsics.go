@@ -1775,6 +1775,22 @@ func simdStore() func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 	}
 }
 
+func simdLoadMask(elemBits, lanes int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		opCodes := map[int]map[int]ssa.Op{
+			8:  {16: ssa.OpLoadMask8x16, 32: ssa.OpLoadMask8x32, 64: ssa.OpLoadMask8x64},
+			16: {8: ssa.OpLoadMask16x8, 16: ssa.OpLoadMask16x16, 32: ssa.OpLoadMask16x32},
+			32: {4: ssa.OpLoadMask32x4, 8: ssa.OpLoadMask32x8, 16: ssa.OpLoadMask32x16},
+			64: {2: ssa.OpLoadMask64x2, 4: ssa.OpLoadMask64x4, 8: ssa.OpLoadMask64x8},
+		}
+		op := opCodes[elemBits][lanes]
+		if op == 0 {
+			panic(fmt.Sprintf("Unknown mask shape: Mask%dx%d", elemBits, lanes))
+		}
+		return s.newValue2(op, types.TypeMask, args[0], s.mem())
+	}
+}
+
 // findIntrinsic returns a function which builds the SSA equivalent of the
 // function identified by the symbol sym.  If sym is not an intrinsic call, returns nil.
 func findIntrinsic(sym *types.Sym) intrinsicBuilder {
