@@ -18,6 +18,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"unicode"
@@ -261,9 +262,21 @@ func TestGroupIdsTestUser(t *testing.T) {
 	}
 }
 
+var isSystemDefaultLCIDEnglish = sync.OnceValue(func() bool {
+	// GetSystemDefaultLCID()
+	// https://learn.microsoft.com/en-us/windows/win32/api/winnls/nf-winnls-getsystemdefaultlcid
+	r, _, _ := syscall.MustLoadDLL("kernel32.dll").MustFindProc("GetSystemDefaultLCID").Call()
+	lcid := uint32(r)
+
+	lcidLow := lcid & 0xFF
+	// 0x0409 is en-US
+	// 0x1000 is "Locale without assigned LCID"
+	return lcidLow == 0x00 || lcidLow == 0x09
+})
+
 var serviceAccounts = []struct {
 	sid  string
-	name string
+	name string // name on english Windows
 }{
 	{"S-1-5-18", "NT AUTHORITY\\SYSTEM"},
 	{"S-1-5-19", "NT AUTHORITY\\LOCAL SERVICE"},
@@ -273,14 +286,21 @@ var serviceAccounts = []struct {
 func TestLookupServiceAccount(t *testing.T) {
 	t.Parallel()
 	for _, tt := range serviceAccounts {
-		u, err := Lookup(tt.name)
-		if err != nil {
-			t.Errorf("Lookup(%q): %v", tt.name, err)
-			continue
-		}
-		if u.Uid != tt.sid {
-			t.Errorf("unexpected uid for %q; got %q, want %q", u.Name, u.Uid, tt.sid)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			u, err := Lookup(tt.name)
+			if err != nil {
+				t.Logf("Lookup(%q): %v", tt.name, err)
+				if !isSystemDefaultLCIDEnglish() {
+					t.Skipf("test not supported on non-English Windows")
+				}
+				t.Fail()
+				return
+			}
+			if u.Uid != tt.sid {
+				t.Errorf("unexpected uid for %q; got %q, want %q", u.Name, u.Uid, tt.sid)
+			}
+			t.Logf("Lookup(%q): %q", tt.name, u.Username)
+		})
 	}
 }
 
@@ -296,7 +316,11 @@ func TestLookupIdServiceAccount(t *testing.T) {
 			t.Errorf("unexpected gid for %q; got %q, want %q", u.Name, u.Gid, tt.sid)
 		}
 		if u.Username != tt.name {
-			t.Errorf("unexpected user name for %q; got %q, want %q", u.Gid, u.Username, tt.name)
+			if isSystemDefaultLCIDEnglish() {
+				t.Errorf("unexpected user name for %q; got %q, want %q", u.Gid, u.Username, tt.name)
+			} else {
+				t.Logf("user name for %q: %q", u.Gid, u.Username)
+			}
 		}
 	}
 }
@@ -304,14 +328,20 @@ func TestLookupIdServiceAccount(t *testing.T) {
 func TestLookupGroupServiceAccount(t *testing.T) {
 	t.Parallel()
 	for _, tt := range serviceAccounts {
-		u, err := LookupGroup(tt.name)
-		if err != nil {
-			t.Errorf("LookupGroup(%q): %v", tt.name, err)
-			continue
-		}
-		if u.Gid != tt.sid {
-			t.Errorf("unexpected gid for %q; got %q, want %q", u.Name, u.Gid, tt.sid)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			g, err := LookupGroup(tt.name)
+			if err != nil {
+				t.Logf("LookupGroup(%q): %v", tt.name, err)
+				if !isSystemDefaultLCIDEnglish() {
+					t.Skipf("test not supported on non-English Windows")
+				}
+				t.Fail()
+				return
+			}
+			if g.Gid != tt.sid {
+				t.Errorf("unexpected gid for %q; got %q, want %q", g.Name, g.Gid, tt.sid)
+			}
+		})
 	}
 }
 
