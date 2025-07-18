@@ -277,6 +277,29 @@ func loadModTool(ctx context.Context, name string) string {
 	return ""
 }
 
+func builtTool(runAction *work.Action) string {
+	linkAction := runAction.Deps[0]
+	if toolN {
+		// #72824: If -n is set, use the cached path if we can.
+		// This is only necessary if the binary wasn't cached
+		// before this invocation of the go command: if the binary
+		// was cached, BuiltTarget() will be the cached executable.
+		// It's only in the "first run", where we actually do the build
+		// and save the result to the cache that BuiltTarget is not
+		// the cached binary. Ideally, we would set BuiltTarget
+		// to the cached path even in the first run, but if we
+		// copy the binary to the cached path, and try to run it
+		// in the same process, we'll run into the dreaded #22315
+		// resulting in occasional ETXTBSYs. Instead of getting the
+		// ETXTBSY and then retrying just don't use the cached path
+		// on the first run if we're going to actually run the binary.
+		if cached := linkAction.CachedExecutable(); cached != "" {
+			return cached
+		}
+	}
+	return linkAction.BuiltTarget()
+}
+
 func buildAndRunBuiltinTool(ctx context.Context, toolName, tool string, args []string) {
 	// Override GOOS and GOARCH for the build to build the tool using
 	// the same GOOS and GOARCH as this go command.
@@ -288,7 +311,7 @@ func buildAndRunBuiltinTool(ctx context.Context, toolName, tool string, args []s
 	modload.RootMode = modload.NoRoot
 
 	runFunc := func(b *work.Builder, ctx context.Context, a *work.Action) error {
-		cmdline := str.StringList(a.Deps[0].BuiltTarget(), a.Args)
+		cmdline := str.StringList(builtTool(a), a.Args)
 		return runBuiltTool(toolName, nil, cmdline)
 	}
 
@@ -300,7 +323,7 @@ func buildAndRunModtool(ctx context.Context, toolName, tool string, args []strin
 		// Use the ExecCmd to run the binary, as go run does. ExecCmd allows users
 		// to provide a runner to run the binary, for example a simulator for binaries
 		// that are cross-compiled to a different platform.
-		cmdline := str.StringList(work.FindExecCmd(), a.Deps[0].BuiltTarget(), a.Args)
+		cmdline := str.StringList(work.FindExecCmd(), builtTool(a), a.Args)
 		// Use same environment go run uses to start the executable:
 		// the original environment with cfg.GOROOTbin added to the path.
 		env := slices.Clip(cfg.OrigEnv)

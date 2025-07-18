@@ -745,8 +745,9 @@ func (b *Builder) updateBuildID(a *Action, target string) error {
 			}
 			outputID, _, err := c.PutExecutable(a.actionID, name+cfg.ExeSuffix, r)
 			r.Close()
+			a.cachedExecutable = c.OutputFile(outputID)
 			if err == nil && cfg.BuildX {
-				sh.ShowCmd("", "%s # internal", joinUnambiguously(str.StringList("cp", target, c.OutputFile(outputID))))
+				sh.ShowCmd("", "%s # internal", joinUnambiguously(str.StringList("cp", target, a.cachedExecutable)))
 			}
 		}
 	}
