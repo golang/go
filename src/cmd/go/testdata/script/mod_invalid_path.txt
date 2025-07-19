@@ -12,7 +12,7 @@ stderr '^go: error reading go.mod: missing module declaration. To specify the mo
 # but are a valid Windows file name.
 cd $WORK/'gopath/src/m''d'
 ! go mod init
-stderr 'cannot determine module path'
+stderr '(?s)^go: invalid module path "m''d" inferred from directory in GOPATH: malformed module path "m''d": invalid char ''\\''''(.*)'
 
 # Test that a go.mod file is rejected when its module declaration has a path that can't
 # possibly be a module path, because it isn't even a valid import path
