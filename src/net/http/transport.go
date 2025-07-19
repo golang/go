@@ -1727,6 +1727,11 @@ func (pconn *persistConn) addTLS(ctx context.Context, name string, trace *httptr
 	return nil
 }
 
+type tlsConn interface {
+	HandshakeContext(ctx context.Context) error
+	ConnectionState() tls.ConnectionState
+}
+
 type erringRoundTripper interface {
 	RoundTripErr() error
 }
@@ -1757,7 +1762,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		if err != nil {
 			return nil, wrapErr(err)
 		}
-		if tc, ok := pconn.conn.(*tls.Conn); ok {
+		if tc, ok := pconn.conn.(tlsConn); ok {
 			// Handshake here, in case DialTLS didn't. TLSNextProto below
 			// depends on it for knowing the connection state.
 			if trace != nil && trace.TLSHandshakeStart != nil {
@@ -1928,13 +1933,17 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 	}
 
 	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
-		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok {
-			alt := next(cm.targetAddr, pconn.conn.(*tls.Conn))
-			if e, ok := alt.(erringRoundTripper); ok {
-				// pconn.conn was closed by next (http2configureTransports.upgradeFn).
-				return nil, e.RoundTripErr()
+		// New HTTP/2 Handler at https://go-review.googlesource.com/c/go/+/616097/2/src/net/http/transport.go
+
+		if tc, ok := pconn.conn.(*tls.Conn); ok {
+			if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok {
+				alt := next(cm.targetAddr, tc)
+				if e, ok := alt.(erringRoundTripper); ok {
+					// pconn.conn was closed by next (http2configureTransports.upgradeFn).
+					return nil, e.RoundTripErr()
+				}
+				return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: alt}, nil
 			}
-			return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: alt}, nil
 		}
 	}
 

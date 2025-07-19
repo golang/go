@@ -1957,7 +1957,7 @@ func (c *conn) serve(ctx context.Context) {
 		}
 	}()
 
-	if tlsConn, ok := c.rwc.(*tls.Conn); ok {
+	if tlsConn, ok := c.rwc.(tlsConn); ok {
 		tlsTO := c.server.tlsHandshakeTimeout()
 		if tlsTO > 0 {
 			dl := time.Now().Add(tlsTO)
@@ -1987,13 +1987,20 @@ func (c *conn) serve(ctx context.Context) {
 		c.tlsState = new(tls.ConnectionState)
 		*c.tlsState = tlsConn.ConnectionState()
 		if proto := c.tlsState.NegotiatedProtocol; validNextProto(proto) {
+			// New HTTP/2 Handler at https://go-review.googlesource.com/c/go/+/616097/2/src/net/http/server.go
+
+			tc, ok := tlsConn.(*tls.Conn)
+			if !ok {
+				return
+			}
+
 			if fn := c.server.TLSNextProto[proto]; fn != nil {
-				h := initALPNRequest{ctx, tlsConn, serverHandler{c.server}}
+				h := initALPNRequest{ctx, tc, serverHandler{c.server}}
 				// Mark freshly created HTTP/2 as active and prevent any server state hooks
 				// from being run on these connections. This prevents closeIdleConns from
 				// closing such connections. See issue https://golang.org/issue/39776.
 				c.setState(c.rwc, StateActive, skipHooks)
-				fn(c.server, tlsConn, h)
+				fn(c.server, tc, h)
 			}
 			return
 		}
