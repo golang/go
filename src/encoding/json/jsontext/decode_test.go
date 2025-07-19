@@ -1265,3 +1265,86 @@ func TestPeekableDecoder(t *testing.T) {
 		}
 	}
 }
+
+// TestDecoderReset tests that the decoder preserves its internal
+// buffer between Reset calls to avoid frequent allocations when reusing the decoder.
+// It ensures that the buffer capacity is maintained while avoiding aliasing
+// issues with bytes.Buffer.
+func TestDecoderReset(t *testing.T) {
+	// Create a decoder with a reasonably large JSON input to ensure buffer growth
+	largeJSON := `{"key1":"value1","key2":"value2","key3":"value3","key4":"value4","key5":"value5"}`
+	dec := NewDecoder(strings.NewReader(largeJSON))
+
+	t.Run("Test capacity preservation", func(t *testing.T) {
+		// Read the first JSON value to grow the internal buffer
+		val1, err := dec.ReadValue()
+		if err != nil {
+			t.Fatalf("first ReadValue failed: %v", err)
+		}
+		if string(val1) != largeJSON {
+			t.Fatalf("first ReadValue = %q, want %q", val1, largeJSON)
+		}
+
+		// Get the buffer capacity after first use
+		initialCapacity := cap(dec.s.buf)
+		if initialCapacity == 0 {
+			t.Fatalf("expected non-zero buffer capacity after first use")
+		}
+
+		// Reset with a new reader - this should preserve the buffer capacity
+		dec.Reset(strings.NewReader(largeJSON))
+
+		// Verify the buffer capacity is preserved (or at least not smaller)
+		preservedCapacity := cap(dec.s.buf)
+		if preservedCapacity < initialCapacity {
+			t.Fatalf("buffer capacity reduced after Reset: got %d, want at least %d", preservedCapacity, initialCapacity)
+		}
+
+		// Read the second JSON value to ensure the decoder still works correctly
+		val2, err := dec.ReadValue()
+		if err != nil {
+			t.Fatalf("second ReadValue failed: %v", err)
+		}
+		if string(val2) != largeJSON {
+			t.Fatalf("second ReadValue = %q, want %q", val2, largeJSON)
+		}
+	})
+
+	var bbBuf []byte
+	t.Run("Test aliasing with bytes.Buffer", func(t *testing.T) {
+		// Test with bytes.Buffer to verify proper aliasing behavior.
+		bb := bytes.NewBufferString(largeJSON)
+		dec.Reset(bb)
+		bbBuf = bb.Bytes()
+
+		// Read the third JSON value to ensure functionality with bytes.Buffer
+		val3, err := dec.ReadValue()
+		if err != nil {
+			t.Fatalf("fourth ReadValue failed: %v", err)
+		}
+		if string(val3) != largeJSON {
+			t.Fatalf("fourth ReadValue = %q, want %q", val3, largeJSON)
+		}
+		// The decoder buffer should alias bytes.Buffer's internal buffer.
+		if len(dec.s.buf) == 0 || len(bbBuf) == 0 || &dec.s.buf[0] != &bbBuf[0] {
+			t.Fatalf("decoder buffer does not alias bytes.Buffer")
+		}
+	})
+
+	t.Run("Test aliasing removed after Reset", func(t *testing.T) {
+		// Reset with a new reader and verify the buffer is not aliased.
+		dec.Reset(strings.NewReader(largeJSON))
+		val4, err := dec.ReadValue()
+		if err != nil {
+			t.Fatalf("fifth ReadValue failed: %v", err)
+		}
+		if string(val4) != largeJSON {
+			t.Fatalf("fourth ReadValue = %q, want %q", val4, largeJSON)
+		}
+
+		// The decoder buffer should not alias the bytes.Buffer's internal buffer.
+		if len(dec.s.buf) == 0 || len(bbBuf) == 0 || &dec.s.buf[0] == &bbBuf[0] {
+			t.Fatalf("decoder buffer aliases bytes.Buffer")
+		}
+	})
+}
