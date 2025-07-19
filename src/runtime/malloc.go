@@ -1059,8 +1059,10 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 				x, elemsize = mallocgcSmallNoscan(size, typ, needzero)
 			}
 		} else {
-			if !needzero {
-				throw("objects with pointers must be zeroed")
+			if doubleCheckMalloc {
+				if !needzero {
+					throw("objects with pointers must be zeroed")
+				}
 			}
 			if heapBitsInSpan(size) {
 				x, elemsize = mallocgcSmallScanNoHeader(size, typ)
