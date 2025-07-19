@@ -85,7 +85,7 @@ func BenchmarkAttrs(b *testing.B) {
 							slog.Int("status", testInt),
 							slog.Duration("duration", testDuration),
 							slog.Time("time", testTime),
-							slog.Any("error", testError),
+							slog.Any("event", testEvent),
 						)
 					},
 				},
@@ -133,7 +133,7 @@ func BenchmarkAttrs(b *testing.B) {
 							slog.Int("status", testInt),
 							slog.Duration("duration", testDuration),
 							slog.Time("time", testTime),
-							slog.Any("error", testError),
+							slog.Any("event", testEvent),
 						)
 					},
 				},
