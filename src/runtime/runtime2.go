@@ -87,6 +87,9 @@ const (
 	// ready()ing this G.
 	_Gpreempted // 9
 
+	// _Gleaked represents a leaked goroutine caught by the GC.
+	_Gleaked // 10
+
 	// _Gscan combined with one of the above states other than
 	// _Grunning indicates that GC is scanning the stack. The
 	// goroutine is not executing user code and the stack is owned
@@ -104,6 +107,8 @@ const (
 	_Gscansyscall   = _Gscan + _Gsyscall   // 0x1003
 	_Gscanwaiting   = _Gscan + _Gwaiting   // 0x1004
 	_Gscanpreempted = _Gscan + _Gpreempted // 0x1009
+
+	_Gscanleaked = _Gscan + _Gleaked // 0x100a
 )
 
 const (
@@ -1056,24 +1061,24 @@ const (
 	waitReasonZero                  waitReason = iota // ""
 	waitReasonGCAssistMarking                         // "GC assist marking"
 	waitReasonIOWait                                  // "IO wait"
-	waitReasonChanReceiveNilChan                      // "chan receive (nil chan)"
-	waitReasonChanSendNilChan                         // "chan send (nil chan)"
 	waitReasonDumpingHeap                             // "dumping heap"
 	waitReasonGarbageCollection                       // "garbage collection"
 	waitReasonGarbageCollectionScan                   // "garbage collection scan"
 	waitReasonPanicWait                               // "panicwait"
-	waitReasonSelect                                  // "select"
-	waitReasonSelectNoCases                           // "select (no cases)"
 	waitReasonGCAssistWait                            // "GC assist wait"
 	waitReasonGCSweepWait                             // "GC sweep wait"
 	waitReasonGCScavengeWait                          // "GC scavenge wait"
-	waitReasonChanReceive                             // "chan receive"
-	waitReasonChanSend                                // "chan send"
 	waitReasonFinalizerWait                           // "finalizer wait"
 	waitReasonForceGCIdle                             // "force gc (idle)"
 	waitReasonUpdateGOMAXPROCSIdle                    // "GOMAXPROCS updater (idle)"
 	waitReasonSemacquire                              // "semacquire"
 	waitReasonSleep                                   // "sleep"
+	waitReasonChanReceiveNilChan                      // "chan receive (nil chan)"
+	waitReasonChanSendNilChan                         // "chan send (nil chan)"
+	waitReasonSelect                                  // "select"
+	waitReasonSelectNoCases                           // "select (no cases)"
+	waitReasonChanReceive                             // "chan receive"
+	waitReasonChanSend                                // "chan send"
 	waitReasonSyncCondWait                            // "sync.Cond.Wait"
 	waitReasonSyncMutexLock                           // "sync.Mutex.Lock"
 	waitReasonSyncRWMutexRLock                        // "sync.RWMutex.RLock"
@@ -1159,10 +1164,22 @@ func (w waitReason) String() string {
 	return waitReasonStrings[w]
 }
 
+// isMutexWait returns true if the goroutine is blocked because of
+// sync.Mutex.Lock or sync.RWMutex.[R]Lock.
+//
+//go:nosplit
 func (w waitReason) isMutexWait() bool {
 	return w == waitReasonSyncMutexLock ||
 		w == waitReasonSyncRWMutexRLock ||
 		w == waitReasonSyncRWMutexLock
+}
+
+// isSyncWait returns true if the goroutine is blocked because of
+// sync library primitive operations.
+//
+//go:nosplit
+func (w waitReason) isSyncWait() bool {
+	return waitReasonSyncCondWait <= w && w <= waitReasonSyncWaitGroupWait
 }
 
 func (w waitReason) isWaitingForSuspendG() bool {
