@@ -219,6 +219,7 @@ func (p *pp) WriteString(s string) (ret int, err error) {
 
 // Fprintf formats according to a format specifier and writes to w.
 // It returns the number of bytes written and any write error encountered.
+// See also Appendf for similar functionality that appends to a byte slice.
 func Fprintf(w io.Writer, format string, a ...any) (n int, err error) {
 	p := newPrinter()
 	p.doPrintf(format, a)
@@ -229,11 +230,13 @@ func Fprintf(w io.Writer, format string, a ...any) (n int, err error) {
 
 // Printf formats according to a format specifier and writes to standard output.
 // It returns the number of bytes written and any write error encountered.
+// See also Appendf for similar functionality that appends to a byte slice.
 func Printf(format string, a ...any) (n int, err error) {
 	return Fprintf(os.Stdout, format, a...)
 }
 
 // Sprintf formats according to a format specifier and returns the resulting string.
+// See also Appendf for similar functionality that appends to a byte slice.
 func Sprintf(format string, a ...any) string {
 	p := newPrinter()
 	p.doPrintf(format, a)
@@ -257,6 +260,7 @@ func Appendf(b []byte, format string, a ...any) []byte {
 // Fprint formats using the default formats for its operands and writes to w.
 // Spaces are added between operands when neither is a string.
 // It returns the number of bytes written and any write error encountered.
+// See also Append for similar functionality that appends to a byte slice.
 func Fprint(w io.Writer, a ...any) (n int, err error) {
 	p := newPrinter()
 	p.doPrint(a)
@@ -268,12 +272,14 @@ func Fprint(w io.Writer, a ...any) (n int, err error) {
 // Print formats using the default formats for its operands and writes to standard output.
 // Spaces are added between operands when neither is a string.
 // It returns the number of bytes written and any write error encountered.
+// See also Append for similar functionality that appends to a byte slice.
 func Print(a ...any) (n int, err error) {
 	return Fprint(os.Stdout, a...)
 }
 
 // Sprint formats using the default formats for its operands and returns the resulting string.
 // Spaces are added between operands when neither is a string.
+// See also Append for similar functionality that appends to a byte slice.
 func Sprint(a ...any) string {
 	p := newPrinter()
 	p.doPrint(a)
@@ -283,7 +289,8 @@ func Sprint(a ...any) string {
 }
 
 // Append formats using the default formats for its operands, appends the result to
-// the byte slice, and returns the updated slice.
+// the byte slice, and returns the updated slice. Spaces are added between operands
+// when neither is a string.
 func Append(b []byte, a ...any) []byte {
 	p := newPrinter()
 	p.doPrint(a)
@@ -299,6 +306,7 @@ func Append(b []byte, a ...any) []byte {
 // Fprintln formats using the default formats for its operands and writes to w.
 // Spaces are always added between operands and a newline is appended.
 // It returns the number of bytes written and any write error encountered.
+// See also Appendln for similar functionality that appends to a byte slice.
 func Fprintln(w io.Writer, a ...any) (n int, err error) {
 	p := newPrinter()
 	p.doPrintln(a)
@@ -310,12 +318,14 @@ func Fprintln(w io.Writer, a ...any) (n int, err error) {
 // Println formats using the default formats for its operands and writes to standard output.
 // Spaces are always added between operands and a newline is appended.
 // It returns the number of bytes written and any write error encountered.
+// See also Appendln for similar functionality that appends to a byte slice.
 func Println(a ...any) (n int, err error) {
 	return Fprintln(os.Stdout, a...)
 }
 
 // Sprintln formats using the default formats for its operands and returns the resulting string.
 // Spaces are always added between operands and a newline is appended.
+// See also Appendln for similar functionality that appends to a byte slice.
 func Sprintln(a ...any) string {
 	p := newPrinter()
 	p.doPrintln(a)
