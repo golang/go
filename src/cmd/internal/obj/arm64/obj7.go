@@ -907,18 +907,49 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.To.Reg = REGFP
 				p.To.Offset = REGLINK
 
-				// ADD $aoffset, RSP, RSP
-				q = newprog()
-				q.As = AADD
-				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = int64(aoffset)
-				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REGSP
-				q.Spadj = -aoffset
-				q.Pos = p.Pos
-				q.Link = p.Link
-				p.Link = q
-				p = q
+				if aoffset < 1<<12 {
+					// ADD $aoffset, RSP, RSP
+					q = newprog()
+					q.As = AADD
+					q.From.Type = obj.TYPE_CONST
+					q.From.Offset = int64(aoffset)
+					q.To.Type = obj.TYPE_REG
+					q.To.Reg = REGSP
+					q.Spadj = -aoffset
+					q.Pos = p.Pos
+					q.Link = p.Link
+					p.Link = q
+					p = q
+				} else {
+					// Put frame size in a separate register and
+					// add it in with a single instruction,
+					// so we never have a partial frame during
+					// the epilog. See issue 73259.
+
+					// MOVD $aoffset, REGTMP
+					q = newprog()
+					q.As = AMOVD
+					q.From.Type = obj.TYPE_CONST
+					q.From.Offset = int64(aoffset)
+					q.To.Type = obj.TYPE_REG
+					q.To.Reg = REGTMP
+					q.Pos = p.Pos
+					q.Link = p.Link
+					p.Link = q
+					p = q
+					// ADD REGTMP, RSP, RSP
+					q = newprog()
+					q.As = AADD
+					q.From.Type = obj.TYPE_REG
+					q.From.Reg = REGTMP
+					q.To.Type = obj.TYPE_REG
+					q.To.Reg = REGSP
+					q.Spadj = -aoffset
+					q.Pos = p.Pos
+					q.Link = p.Link
+					p.Link = q
+					p = q
+				}
 			}
 
 			// If enabled, this code emits 'MOV PC, R27' before every 'MOV LR, PC',
