@@ -107,8 +107,7 @@ const (
 	_Gscansyscall   = _Gscan + _Gsyscall   // 0x1003
 	_Gscanwaiting   = _Gscan + _Gwaiting   // 0x1004
 	_Gscanpreempted = _Gscan + _Gpreempted // 0x1009
-
-	_Gscanleaked = _Gscan + _Gleaked // 0x100a
+	_Gscanleaked    = _Gscan + _Gleaked    // 0x100a
 )
 
 const (

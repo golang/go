@@ -121,6 +121,6 @@ type Flags struct {
 	// platforms.
 	RandomizedHeapBase64 bool
 
-	// GolfGC enables the Deadlock GC implementation.
-	GolfGC bool
+	// GoroutineLeakFinderGC enables the Deadlock GC implementation.
+	GoroutineLeakFinderGC bool
 }

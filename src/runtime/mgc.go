@@ -381,16 +381,18 @@ type workType struct {
 
 	// The following fields monitor the GC phase of the current cycle during
 	// goroutine leak detection.
-	//
-	// - pendingGoleakDetection: The GC has been instructed to perform goroutine leak
-	// 	 detection during the next GC cycle; it is set by DetectGoroutineLeaks()
-	// 	 and unset during gcStart().
-	// - detectingGoleaks: The GC is running in goroutine leak detection mode; it is set
-	// 	 during gcStart() and unset during gcMarkTermination().
-	// - detectedGoleaks: The GC has performed goroutine leak detection during the current
-	//   GC cycle; it is set during gcMarkDone(), right after goroutine leak detection has concluded,
-	//   and unset during gcStart().
-	pendingGoleakDetection, detectingGoleaks, detectedGoleaks bool
+	goroutineLeakFinder struct {
+		// The GC has been instructed to perform goroutine leak detection during the next GC cycle;
+		// it is set by DetectGoroutineLeaks() and unset during gcStart().
+		pending atomic.Bool
+		// The GC is running in goroutine leak detection mode; it is set during gcStart()
+		// and unset during gcMarkTermination(). Is protected by STW.
+		enabled bool
+		// The GC has performed goroutine leak detection during the current GC cycle; it is set
+		// during gcMarkDone(), right after goroutine leak detection has concluded, and unset during
+		// gcStart(). Is protected by STW.
+		done bool
+	}
 
 	// Base indexes of each root type. Set by gcPrepareMarkRoots.
 	baseData, baseBSS, baseSpans, baseStacks, baseEnd uint32
@@ -571,22 +573,17 @@ func GC() {
 // FindGoleaks instructs the Go garbage collector to attempt
 // goroutine leak detection during the next GC cycle.
 //
-// Only operates if golfgc is enabled in GOEXPERIMENT.
+// Only operates if goroutineleakfindergc is enabled in GOEXPERIMENT.
 // Otherwise, it just runs runtime.GC().
 func FindGoLeaks() {
-	if !goexperiment.GolfGC {
+	if !goexperiment.GoroutineLeakFinderGC {
 		GC()
 		return
 	}
 
-	// This write should be thread-safe, as the overwritten value is true.
-	// pendingGoleakDetection is only set to false under STW at the start
-	// of the GC cycle that picks it up.
-	work.pendingGoleakDetection = true
+	work.goroutineLeakFinder.pending.Store(true)
 
-	// This read should be thread-safe for the same reason as the write above above.
-	// At most, we trigger the GC an additional time.
-	for work.pendingGoleakDetection {
+	for work.goroutineLeakFinder.pending.Load() {
 		GC()
 	}
 }
@@ -736,8 +733,8 @@ func gcStart(trigger gcTrigger) {
 		mode = gcForceMode
 	} else if debug.gcstoptheworld == 2 {
 		mode = gcForceBlockMode
-	} else if goexperiment.GolfGC {
-		if work.pendingGoleakDetection {
+	} else if goexperiment.GoroutineLeakFinderGC {
+		if work.goroutineLeakFinder.pending.Load() {
 			// Fully stop the world if running deadlock detection.
 			mode = gcForceBlockMode
 		}
@@ -803,7 +800,7 @@ func gcStart(trigger gcTrigger) {
 	clearpools()
 
 	work.cycles.Add(1)
-	work.detectedGoleaks = false
+	work.goroutineLeakFinder.done = false
 
 	// Assists and workers can start the moment we start
 	// the world.
@@ -835,12 +832,9 @@ func gcStart(trigger gcTrigger) {
 	// possible.
 	setGCPhase(_GCmark)
 
-	if goexperiment.GolfGC {
-		if work.pendingGoleakDetection {
-			// Write is thread-safe because the world is stopped
-			work.detectingGoleaks = true
-			work.pendingGoleakDetection = false
-		}
+	if work.goroutineLeakFinder.pending.Load() {
+		work.goroutineLeakFinder.enabled = true
+		work.goroutineLeakFinder.pending.Store(false)
 	}
 
 	gcBgMarkPrepare() // Must happen before assists are enabled.
@@ -943,10 +937,8 @@ func gcMarkDone() {
 	// Ensure only one thread is running the ragged barrier at a
 	// time.
 	semacquire(&work.markDoneSema)
-	if goexperiment.GolfGC {
-		if work.detectingGoleaks {
-			gcDiscoverMoreStackRoots()
-		}
+	if work.goroutineLeakFinder.enabled {
+		gcDiscoverMoreStackRoots()
 	}
 
 top:
@@ -1007,7 +999,8 @@ top:
 	// communicated work since we took markDoneSema. Therefore
 	// there are no grey objects and no more objects can be
 	// shaded. Transition to mark termination.
-	var now int64
+	now := nanotime()
+	work.tMarkTerm = now
 	getg().m.preemptoff = "gcing"
 	var stw worldStop
 	systemstack(func() {
@@ -1053,44 +1046,13 @@ top:
 		})
 		semrelease(&worldsema)
 		goto top
-	} else if goexperiment.GolfGC {
+	} else if goexperiment.GoroutineLeakFinderGC {
 		// If we are detecting goroutine leaks, do so now.
-		if work.detectingGoleaks && !work.detectedGoleaks {
+		if work.goroutineLeakFinder.enabled && !work.goroutineLeakFinder.done {
 			// Detect goroutine leaks. If the returned value is true, then
 			// detection was performed during this cycle. Otherwise, more mark work is needed,
 			// or live goroutines were found.
-			work.detectedGoleaks = findGoleaks()
-
-			getg().m.preemptoff = ""
-			systemstack(func() {
-				// Accumulate the time we were stopped before we had to start again.
-				work.cpuStats.accumulateGCPauseTime(nanotime()-stw.finishedStopping, work.maxprocs)
-
-				now := startTheWorldWithSema(0, stw)
-				work.pauseNS += now - stw.startedStopping
-			})
-			semrelease(&worldsema)
-			goto top
-		}
-
-		now = nanotime()
-		work.tMarkTerm = now
-		// Check again whether any P needs to flush its write barrier
-		// to the GC work queue.
-		systemstack(func() {
-			for _, p := range allp {
-				wbBufFlush1(p)
-				if !p.gcw.empty() {
-					restart = true
-					break
-				}
-			}
-		})
-
-		// If that is the case, restart again. Once restarts are no longer needed,
-		// run this without deadlock detection.
-		if restart {
-			gcDebugMarkDone.restartedDueTo27993 = true
+			work.goroutineLeakFinder.done = findGoleaks()
 
 			getg().m.preemptoff = ""
 			systemstack(func() {
@@ -1141,24 +1103,11 @@ top:
 	gcMarkTermination(stw)
 }
 
-// Check if an object is marked in the heap.
-func checkIfMarked(p unsafe.Pointer) bool {
-	obj, span, objIndex := findObject(uintptr(p), 0, 0)
-	if obj != 0 {
-		mbits := span.markBitsForIndex(objIndex)
-		return mbits.isMarked()
-	}
-	// if we fall through to get here, we are within the stack ranges of reachable goroutines
-	return true
-}
-
-// maybeLive checks whether a goroutine may still be semantically runnable.
-// This returns true if the goroutine is waiting on at least one concurrency primitive
-// which is reachable in memory, i.e., has been by the GC.
-//
+// checkIfMaybeRunnable checks whether a goroutine may still be semantically runnable.
 // For goroutines which are semantically runnable, this will eventually return true
-// as the GC marking phase progresses.
-func (gp *g) maybeLive() bool {
+// as the GC marking phase progresses. It returns false for leaked goroutines, or for
+// goroutines which are not yet computed as possibly runnable by the GC.
+func (gp *g) checkIfMaybeRunnable() bool {
 	// Unmask the goroutine address to ensure we are not
 	// dereferencing a masked address.
 	gp = gp.unmask()
@@ -1176,7 +1125,7 @@ func (gp *g) maybeLive() bool {
 		// Cycle all through all *sudog to check whether
 		// the goroutine is waiting on a marked channel.
 		for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-			if checkIfMarked(unsafe.Pointer(sg.c)) {
+			if isMarkedOrNotInHeap(unsafe.Pointer(sg.c)) {
 				return true
 			}
 		}
@@ -1190,7 +1139,7 @@ func (gp *g) maybeLive() bool {
 		// check if the synchronization primitive attached to the sudog is marked.
 		if gp.waiting != nil {
 			// Unmask the sema address and check if it's marked.
-			return checkIfMarked(gcUnmask(gp.waiting.elem))
+			return isMarkedOrNotInHeap(gcUnmask(gp.waiting.elem))
 		}
 	}
 	return true
@@ -1223,13 +1172,13 @@ func gcDiscoverMoreStackRoots() {
 	// Reorder goroutine list
 	for vIndex < ivIndex {
 		gp := work.stackRoots[vIndex]
-		if gp.maybeLive() {
+		if gp.checkIfMaybeRunnable() {
 			work.stackRoots[vIndex] = gp
 			vIndex = vIndex + 1
 			continue
 		}
 		for ivIndex = ivIndex - 1; ivIndex != vIndex; ivIndex = ivIndex - 1 {
-			if swapGp := work.stackRoots[ivIndex]; swapGp.maybeLive() {
+			if swapGp := work.stackRoots[ivIndex]; swapGp.checkIfMaybeRunnable() {
 				work.stackRoots[ivIndex] = gp
 				work.stackRoots[vIndex] = swapGp.unmask()
 				vIndex = vIndex + 1
@@ -1268,7 +1217,7 @@ func findGoleaks() bool {
 	var foundMoreWork bool
 	for i := work.nLiveStackRoots; i < work.nStackRoots; i++ {
 		gp := work.stackRoots[i].unmask()
-		if readgstatus(gp) == _Gwaiting && !gp.maybeLive() {
+		if readgstatus(gp) == _Gwaiting && !gp.checkIfMaybeRunnable() {
 			// Blocking unrunnable goroutines will be skipped.
 			continue
 		}
@@ -1459,12 +1408,8 @@ func gcMarkTermination(stw worldStop) {
 	}
 
 	systemstack(func() {
-		if goexperiment.GolfGC {
-			// Pull the GC out of goroutine leak detection mode.
-			// Write is thread-safe because the world is stopped, and only one
-			// GC cycle can run at a time.
-			work.detectingGoleaks = false
-		}
+		// Pull the GC out of goroutine leak detection mode.
+		work.goroutineLeakFinder.enabled = false
 
 		// The memstats updated above must be updated with the world
 		// stopped to ensure consistency of some values, such as
@@ -1893,12 +1838,12 @@ func gcMarkWorkAvailable(p *p) bool {
 	if !work.full.empty() || !work.spanq.empty() {
 		return true // global work available
 	}
-	if !work.detectingGoleaks {
-		return work.markrootNext < work.markrootJobs
-	}
 	rootNext := atomic.Load(&work.markrootNext)
 	rootJobs := atomic.Load(&work.markrootJobs)
-	return rootNext < rootJobs
+	if rootNext < rootJobs {
+		return true // root scan work available
+	}
+	return false
 }
 
 // gcMark runs the mark (or, for concurrent GC, mark termination)
