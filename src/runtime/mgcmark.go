@@ -60,7 +60,7 @@ const (
 //
 //go:nosplit
 func gcMask(p unsafe.Pointer) unsafe.Pointer {
-	if goexperiment.GolfGC {
+	if goexperiment.GoroutineLeakFinderGC {
 		return unsafe.Pointer(uintptr(p) | gcBitMask)
 	}
 	return p
@@ -70,7 +70,7 @@ func gcMask(p unsafe.Pointer) unsafe.Pointer {
 //
 //go:nosplit
 func gcUnmask(p unsafe.Pointer) unsafe.Pointer {
-	if goexperiment.GolfGC {
+	if goexperiment.GoroutineLeakFinderGC {
 		return unsafe.Pointer(uintptr(p) & gcUndoBitMask)
 	}
 	return p
@@ -170,19 +170,14 @@ func gcPrepareMarkRoots() {
 	// ignore them because they begin life without any roots, so
 	// there's nothing to scan, and any roots they create during
 	// the concurrent phase will be caught by the write barrier.
-	if goexperiment.GolfGC {
-		if work.detectingGoleaks {
-			work.stackRoots, work.nLiveStackRoots = allGsSnapshotSortedForGC()
-		} else {
-			// regular GC --- scan every go routine
-			work.stackRoots = allGsSnapshot()
-			work.nLiveStackRoots = len(work.stackRoots)
-		}
+	if work.goroutineLeakFinder.enabled {
+		work.stackRoots, work.nLiveStackRoots = allGsSnapshotSortedForGC()
 	} else {
 		// regular GC --- scan every go routine
 		work.stackRoots = allGsSnapshot()
 		work.nLiveStackRoots = len(work.stackRoots)
 	}
+
 	work.nStackRoots = len(work.stackRoots)
 
 	work.markrootNext = 0
