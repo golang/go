@@ -5,6 +5,7 @@ package ssa
 import "internal/buildcfg"
 import "math"
 import "cmd/internal/obj"
+import "cmd/compile/internal/base"
 import "cmd/compile/internal/types"
 
 func rewriteValueAMD64(v *Value) bool {
@@ -694,11 +695,9 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpCtz8NonZero:
 		return rewriteValueAMD64_OpCtz8NonZero(v)
 	case OpCvt32Fto32:
-		v.Op = OpAMD64CVTTSS2SL
-		return true
+		return rewriteValueAMD64_OpCvt32Fto32(v)
 	case OpCvt32Fto64:
-		v.Op = OpAMD64CVTTSS2SQ
-		return true
+		return rewriteValueAMD64_OpCvt32Fto64(v)
 	case OpCvt32Fto64F:
 		v.Op = OpAMD64CVTSS2SD
 		return true
@@ -709,14 +708,12 @@ func rewriteValueAMD64(v *Value) bool {
 		v.Op = OpAMD64CVTSL2SD
 		return true
 	case OpCvt64Fto32:
-		v.Op = OpAMD64CVTTSD2SL
-		return true
+		return rewriteValueAMD64_OpCvt64Fto32(v)
 	case OpCvt64Fto32F:
 		v.Op = OpAMD64CVTSD2SS
 		return true
 	case OpCvt64Fto64:
-		v.Op = OpAMD64CVTTSD2SQ
-		return true
+		return rewriteValueAMD64_OpCvt64Fto64(v)
 	case OpCvt64to32F:
 		v.Op = OpAMD64CVTSQ2SS
 		return true
@@ -25506,6 +25503,190 @@ func rewriteValueAMD64_OpCtz8NonZero(v *Value) bool {
 			break
 		}
 		v.reset(OpAMD64BSFL)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpCvt32Fto32(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Cvt32Fto32 <t> x)
+	// cond: base.ConvertHash.MatchPos(v.Pos, nil)
+	// result: (XORL <t> y (SARLconst <t> [31] (ANDL <t> y:(CVTTSS2SL <t> x) (NOTL <typ.Int32> (MOVLf2i x)))))
+	for {
+		t := v.Type
+		x := v_0
+		if !(base.ConvertHash.MatchPos(v.Pos, nil)) {
+			break
+		}
+		v.reset(OpAMD64XORL)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpAMD64SARLconst, t)
+		v0.AuxInt = int8ToAuxInt(31)
+		v1 := b.NewValue0(v.Pos, OpAMD64ANDL, t)
+		y := b.NewValue0(v.Pos, OpAMD64CVTTSS2SL, t)
+		y.AddArg(x)
+		v3 := b.NewValue0(v.Pos, OpAMD64NOTL, typ.Int32)
+		v4 := b.NewValue0(v.Pos, OpAMD64MOVLf2i, typ.UInt32)
+		v4.AddArg(x)
+		v3.AddArg(v4)
+		v1.AddArg2(y, v3)
+		v0.AddArg(v1)
+		v.AddArg2(y, v0)
+		return true
+	}
+	// match: (Cvt32Fto32 <t> x)
+	// cond: !base.ConvertHash.MatchPos(v.Pos, nil)
+	// result: (CVTTSS2SL <t> x)
+	for {
+		t := v.Type
+		x := v_0
+		if !(!base.ConvertHash.MatchPos(v.Pos, nil)) {
+			break
+		}
+		v.reset(OpAMD64CVTTSS2SL)
+		v.Type = t
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpCvt32Fto64(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Cvt32Fto64 <t> x)
+	// cond: base.ConvertHash.MatchPos(v.Pos, nil)
+	// result: (XORQ <t> y (SARQconst <t> [63] (ANDQ <t> y:(CVTTSS2SQ <t> x) (NOTQ <typ.Int64> (MOVQf2i (CVTSS2SD <typ.Float64> x))) )))
+	for {
+		t := v.Type
+		x := v_0
+		if !(base.ConvertHash.MatchPos(v.Pos, nil)) {
+			break
+		}
+		v.reset(OpAMD64XORQ)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpAMD64SARQconst, t)
+		v0.AuxInt = int8ToAuxInt(63)
+		v1 := b.NewValue0(v.Pos, OpAMD64ANDQ, t)
+		y := b.NewValue0(v.Pos, OpAMD64CVTTSS2SQ, t)
+		y.AddArg(x)
+		v3 := b.NewValue0(v.Pos, OpAMD64NOTQ, typ.Int64)
+		v4 := b.NewValue0(v.Pos, OpAMD64MOVQf2i, typ.UInt64)
+		v5 := b.NewValue0(v.Pos, OpAMD64CVTSS2SD, typ.Float64)
+		v5.AddArg(x)
+		v4.AddArg(v5)
+		v3.AddArg(v4)
+		v1.AddArg2(y, v3)
+		v0.AddArg(v1)
+		v.AddArg2(y, v0)
+		return true
+	}
+	// match: (Cvt32Fto64 <t> x)
+	// cond: !base.ConvertHash.MatchPos(v.Pos, nil)
+	// result: (CVTTSS2SQ <t> x)
+	for {
+		t := v.Type
+		x := v_0
+		if !(!base.ConvertHash.MatchPos(v.Pos, nil)) {
+			break
+		}
+		v.reset(OpAMD64CVTTSS2SQ)
+		v.Type = t
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpCvt64Fto32(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Cvt64Fto32 <t> x)
+	// cond: base.ConvertHash.MatchPos(v.Pos, nil)
+	// result: (XORL <t> y (SARLconst <t> [31] (ANDL <t> y:(CVTTSD2SL <t> x) (NOTL <typ.Int32> (MOVLf2i (CVTSD2SS <typ.Float32> x))))))
+	for {
+		t := v.Type
+		x := v_0
+		if !(base.ConvertHash.MatchPos(v.Pos, nil)) {
+			break
+		}
+		v.reset(OpAMD64XORL)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpAMD64SARLconst, t)
+		v0.AuxInt = int8ToAuxInt(31)
+		v1 := b.NewValue0(v.Pos, OpAMD64ANDL, t)
+		y := b.NewValue0(v.Pos, OpAMD64CVTTSD2SL, t)
+		y.AddArg(x)
+		v3 := b.NewValue0(v.Pos, OpAMD64NOTL, typ.Int32)
+		v4 := b.NewValue0(v.Pos, OpAMD64MOVLf2i, typ.UInt32)
+		v5 := b.NewValue0(v.Pos, OpAMD64CVTSD2SS, typ.Float32)
+		v5.AddArg(x)
+		v4.AddArg(v5)
+		v3.AddArg(v4)
+		v1.AddArg2(y, v3)
+		v0.AddArg(v1)
+		v.AddArg2(y, v0)
+		return true
+	}
+	// match: (Cvt64Fto32 <t> x)
+	// cond: !base.ConvertHash.MatchPos(v.Pos, nil)
+	// result: (CVTTSD2SL <t> x)
+	for {
+		t := v.Type
+		x := v_0
+		if !(!base.ConvertHash.MatchPos(v.Pos, nil)) {
+			break
+		}
+		v.reset(OpAMD64CVTTSD2SL)
+		v.Type = t
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpCvt64Fto64(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Cvt64Fto64 <t> x)
+	// cond: base.ConvertHash.MatchPos(v.Pos, nil)
+	// result: (XORQ <t> y (SARQconst <t> [63] (ANDQ <t> y:(CVTTSD2SQ <t> x) (NOTQ <typ.Int64> (MOVQf2i x)))))
+	for {
+		t := v.Type
+		x := v_0
+		if !(base.ConvertHash.MatchPos(v.Pos, nil)) {
+			break
+		}
+		v.reset(OpAMD64XORQ)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpAMD64SARQconst, t)
+		v0.AuxInt = int8ToAuxInt(63)
+		v1 := b.NewValue0(v.Pos, OpAMD64ANDQ, t)
+		y := b.NewValue0(v.Pos, OpAMD64CVTTSD2SQ, t)
+		y.AddArg(x)
+		v3 := b.NewValue0(v.Pos, OpAMD64NOTQ, typ.Int64)
+		v4 := b.NewValue0(v.Pos, OpAMD64MOVQf2i, typ.UInt64)
+		v4.AddArg(x)
+		v3.AddArg(v4)
+		v1.AddArg2(y, v3)
+		v0.AddArg(v1)
+		v.AddArg2(y, v0)
+		return true
+	}
+	// match: (Cvt64Fto64 <t> x)
+	// cond: !base.ConvertHash.MatchPos(v.Pos, nil)
+	// result: (CVTTSD2SQ <t> x)
+	for {
+		t := v.Type
+		x := v_0
+		if !(!base.ConvertHash.MatchPos(v.Pos, nil)) {
+			break
+		}
+		v.reset(OpAMD64CVTTSD2SQ)
+		v.Type = t
 		v.AddArg(x)
 		return true
 	}

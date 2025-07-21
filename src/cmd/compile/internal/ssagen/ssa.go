@@ -2574,13 +2574,13 @@ var fpConvOpToSSA = map[twoTypes]twoOpsAndType{
 
 	{types.TFLOAT32, types.TUINT8}:  {ssa.OpCvt32Fto32, ssa.OpTrunc32to8, types.TINT32},
 	{types.TFLOAT32, types.TUINT16}: {ssa.OpCvt32Fto32, ssa.OpTrunc32to16, types.TINT32},
-	{types.TFLOAT32, types.TUINT32}: {ssa.OpCvt32Fto64, ssa.OpTrunc64to32, types.TINT64}, // go wide to dodge unsigned
-	{types.TFLOAT32, types.TUINT64}: {ssa.OpInvalid, ssa.OpCopy, types.TUINT64},          // Cvt32Fto64U, branchy code expansion instead
+	{types.TFLOAT32, types.TUINT32}: {ssa.OpInvalid, ssa.OpCopy, types.TINT64},  // Cvt64Fto32U, branchy code expansion instead
+	{types.TFLOAT32, types.TUINT64}: {ssa.OpInvalid, ssa.OpCopy, types.TUINT64}, // Cvt32Fto64U, branchy code expansion instead
 
 	{types.TFLOAT64, types.TUINT8}:  {ssa.OpCvt64Fto32, ssa.OpTrunc32to8, types.TINT32},
 	{types.TFLOAT64, types.TUINT16}: {ssa.OpCvt64Fto32, ssa.OpTrunc32to16, types.TINT32},
-	{types.TFLOAT64, types.TUINT32}: {ssa.OpCvt64Fto64, ssa.OpTrunc64to32, types.TINT64}, // go wide to dodge unsigned
-	{types.TFLOAT64, types.TUINT64}: {ssa.OpInvalid, ssa.OpCopy, types.TUINT64},          // Cvt64Fto64U, branchy code expansion instead
+	{types.TFLOAT64, types.TUINT32}: {ssa.OpInvalid, ssa.OpCopy, types.TINT64},  // Cvt64Fto32U, branchy code expansion instead
+	{types.TFLOAT64, types.TUINT64}: {ssa.OpInvalid, ssa.OpCopy, types.TUINT64}, // Cvt64Fto64U, branchy code expansion instead
 
 	// float
 	{types.TFLOAT64, types.TFLOAT32}: {ssa.OpCvt64Fto32F, ssa.OpCopy, types.TFLOAT32},
@@ -2860,10 +2860,23 @@ func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
 		}
 		// ft is float32 or float64, and tt is unsigned integer
 		if ft.Size() == 4 {
-			return s.float32ToUint64(n, v, ft, tt)
+			switch tt.Size() {
+			case 8:
+				return s.float32ToUint64(n, v, ft, tt)
+			case 4, 2, 1:
+				// TODO should 2 and 1 saturate or truncate?
+				return s.float32ToUint32(n, v, ft, tt)
+			}
 		}
 		if ft.Size() == 8 {
-			return s.float64ToUint64(n, v, ft, tt)
+			switch tt.Size() {
+			case 8:
+				return s.float64ToUint64(n, v, ft, tt)
+			case 4, 2, 1:
+				// TODO should 2 and 1 saturate or truncate?
+				return s.float64ToUint32(n, v, ft, tt)
+			}
+
 		}
 		s.Fatalf("weird float to unsigned integer conversion %v -> %v", ft, tt)
 		return nil
@@ -5553,7 +5566,9 @@ func (s *state) uint64Tofloat(cvttab *u642fcvtTab, n ir.Node, x *ssa.Value, ft, 
 	// equal to 10000000001; that rounds up, and the 1 cannot
 	// be lost else it would round down if the LSB of the
 	// candidate mantissa is 0.
+
 	cmp := s.newValue2(cvttab.leq, types.Types[types.TBOOL], s.zeroVal(ft), x)
+
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.SetControl(cmp)
@@ -5779,34 +5794,61 @@ func (s *state) float64ToUint32(n ir.Node, x *ssa.Value, ft, tt *types.Type) *ss
 func (s *state) floatToUint(cvttab *f2uCvtTab, n ir.Node, x *ssa.Value, ft, tt *types.Type) *ssa.Value {
 	// cutoff:=1<<(intY_Size-1)
 	// if x < floatX(cutoff) {
-	// 	result = uintY(x)
+	// 	result = uintY(x) // bThen
+	// 	if x < 0 { // unlikely
+	// 		result = 0 // bZero
+	// 	}
 	// } else {
-	// 	y = x - floatX(cutoff)
+	// 	y = x - floatX(cutoff) // bElse
 	// 	z = uintY(y)
 	// 	result = z | -(cutoff)
 	// }
+
 	cutoff := cvttab.floatValue(s, ft, float64(cvttab.cutoff))
-	cmp := s.newValue2(cvttab.ltf, types.Types[types.TBOOL], x, cutoff)
+	cmp := s.newValueOrSfCall2(cvttab.ltf, types.Types[types.TBOOL], x, cutoff)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.SetControl(cmp)
 	b.Likely = ssa.BranchLikely
 
-	bThen := s.f.NewBlock(ssa.BlockPlain)
+	var bThen, bZero *ssa.Block
+	newConversion := base.ConvertHash.MatchPos(n.Pos(), nil)
+	if newConversion {
+		bZero = s.f.NewBlock(ssa.BlockPlain)
+		bThen = s.f.NewBlock(ssa.BlockIf)
+	} else {
+		bThen = s.f.NewBlock(ssa.BlockPlain)
+	}
+
 	bElse := s.f.NewBlock(ssa.BlockPlain)
 	bAfter := s.f.NewBlock(ssa.BlockPlain)
 
 	b.AddEdgeTo(bThen)
 	s.startBlock(bThen)
-	a0 := s.newValue1(cvttab.cvt2U, tt, x)
+	a0 := s.newValueOrSfCall1(cvttab.cvt2U, tt, x)
 	s.vars[n] = a0
-	s.endBlock()
-	bThen.AddEdgeTo(bAfter)
+
+	if newConversion {
+		cmpz := s.newValueOrSfCall2(cvttab.ltf, types.Types[types.TBOOL], x, cvttab.floatValue(s, ft, 0.0))
+		s.endBlock()
+		bThen.SetControl(cmpz)
+		bThen.AddEdgeTo(bZero)
+		bThen.Likely = ssa.BranchUnlikely
+		bThen.AddEdgeTo(bAfter)
+
+		s.startBlock(bZero)
+		s.vars[n] = cvttab.intValue(s, tt, 0)
+		s.endBlock()
+		bZero.AddEdgeTo(bAfter)
+	} else {
+		s.endBlock()
+		bThen.AddEdgeTo(bAfter)
+	}
 
 	b.AddEdgeTo(bElse)
 	s.startBlock(bElse)
-	y := s.newValue2(cvttab.subf, ft, x, cutoff)
-	y = s.newValue1(cvttab.cvt2U, tt, y)
+	y := s.newValueOrSfCall2(cvttab.subf, ft, x, cutoff)
+	y = s.newValueOrSfCall1(cvttab.cvt2U, tt, y)
 	z := cvttab.intValue(s, tt, int64(-cvttab.cutoff))
 	a1 := s.newValue2(cvttab.or, tt, y, z)
 	s.vars[n] = a1
