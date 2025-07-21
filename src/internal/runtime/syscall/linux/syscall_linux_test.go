@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package syscall_test
+package linux_test
 
 import (
-	"internal/runtime/syscall"
+	"internal/runtime/syscall/linux"
 	"testing"
 )
 
 func TestEpollctlErrorSign(t *testing.T) {
-	v := syscall.EpollCtl(-1, 1, -1, &syscall.EpollEvent{})
+	v := linux.EpollCtl(-1, 1, -1, &linux.EpollEvent{})
 
 	const EBADF = 0x09
 	if v != EBADF {
