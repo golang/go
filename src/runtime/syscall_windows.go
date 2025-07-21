@@ -7,6 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/runtime/syscall/windows"
 	"unsafe"
 )
 
@@ -487,13 +488,6 @@ func syscall_Syscall18(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, 
 	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18)
 }
 
-// maxArgs should be divisible by 2, as Windows stack
-// must be kept 16-byte aligned on syscall entry.
-//
-// Although it only permits maximum 42 parameters, it
-// is arguably large enough.
-const maxArgs = 42
-
 //go:linkname syscall_SyscallN syscall.SyscallN
 //go:nosplit
 func syscall_SyscallN(fn uintptr, args ...uintptr) (r1, r2, err uintptr) {
@@ -505,7 +499,7 @@ func syscall_syscalln(fn, n uintptr, args ...uintptr) (r1, r2, err uintptr) {
 	if n > uintptr(len(args)) {
 		panic("syscall: n > len(args)") // should not be reachable from user code
 	}
-	if n > maxArgs {
+	if n > windows.MaxArgs {
 		panic("runtime: SyscallN has too many arguments")
 	}
 
@@ -513,15 +507,15 @@ func syscall_syscalln(fn, n uintptr, args ...uintptr) (r1, r2, err uintptr) {
 	// the stack because the stack can move during fn if it
 	// calls back into Go.
 	c := &getg().m.winsyscall
-	c.fn = fn
-	c.n = n
-	if c.n != 0 {
-		c.args = uintptr(noescape(unsafe.Pointer(&args[0])))
+	c.Fn = fn
+	c.N = n
+	if c.N != 0 {
+		c.Args = uintptr(noescape(unsafe.Pointer(&args[0])))
 	}
 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
 	// cgocall may reschedule us on to a different M,
 	// but it copies the return values into the new M's
 	// so we can read them from there.
 	c = &getg().m.winsyscall
-	return c.r1, c.r2, c.err
+	return c.R1, c.R2, c.Err
 }

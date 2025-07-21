@@ -593,9 +593,7 @@ type m struct {
 	freelink    *m // on sched.freem
 	trace       mTraceState
 
-	// these are here because they are too large to be on the stack
-	// of low-level NOSPLIT functions.
-	libcall    libcall
+	// These are here to avoid using the G stack so the stack can move during the call.
 	libcallpc  uintptr // for cpu profiler
 	libcallsp  uintptr
 	libcallg   guintptr

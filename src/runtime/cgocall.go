@@ -191,8 +191,8 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 
 	osPreemptExtExit(mp)
 
-	// Save current syscall parameters, so m.winsyscall can be
-	// used again if callback decide to make syscall.
+	// After exitsyscall we can be rescheduled on a different M,
+	// so we need to restore the original M's winsyscall.
 	winsyscall := mp.winsyscall
 
 	exitsyscall()
