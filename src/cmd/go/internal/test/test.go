@@ -186,8 +186,8 @@ and flags that apply to the resulting test binary.
 
 Several of the flags control profiling and write an execution profile
 suitable for "go tool pprof"; run "go tool pprof -h" for more
-information. The --alloc_space, --alloc_objects, and --show_bytes
-options of pprof control how the information is presented.
+information. The -sample_index=alloc_space, -sample_index=alloc_objects,
+and -show_bytes options of pprof control how the information is presented.
 
 The following flags are recognized by the 'go test' command and
 control the execution of any test:
