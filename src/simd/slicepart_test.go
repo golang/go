@@ -177,3 +177,43 @@ func TestSlicesPartStoreUint8x32(t *testing.T) {
 		}
 	}
 }
+
+func TestSlicePartInt32(t *testing.T) {
+	L := 4
+	c := []int32{1, 2, 3, 4, 5, -1, -1, -1, -1}
+	a := c[:L+1]
+	for i := range a {
+		// Test the load first
+		// e is a partial slice.
+		e := a[i:]
+		v := simd.LoadInt32x4SlicePart(e)
+		// d contains what a ought to contain
+		d := make([]int32, L)
+		for j := 0; j < len(e) && j < len(d); j++ {
+			d[j] = e[j]
+		}
+
+		b := make([]int32, L)
+		v.StoreSlice(b)
+		// test the load
+		checkSlices(t, d, b)
+
+		// Test the store
+		f := make([]int32, L+1)
+		for i := range f {
+			f[i] = 99
+		}
+
+		v.StoreSlicePart(f[:len(e)])
+		if len(e) < len(b) {
+			checkSlices(t, f, b[:len(e)])
+		} else {
+			checkSlices(t, f, b)
+		}
+		for i := len(e); i < len(f); i++ {
+			if f[i] != 99 {
+				t.Errorf("StoreSlicePart altered f[%d], expected 99, saw %d", i, f[i])
+			}
+		}
+	}
+}

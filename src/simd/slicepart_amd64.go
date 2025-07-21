@@ -37,6 +37,10 @@ func int64atP32(p *int32) *int64 {
 	return (*int64)(unsafe.Pointer(p))
 }
 
+func int32atP64(p *int64) *int32 {
+	return (*int32)(unsafe.Pointer(p))
+}
+
 /* unsigned versions of integer slice part loads */
 
 // LoadUint8x16SlicePart loads a Uint8x16 from the slice s.
@@ -385,3 +389,70 @@ func (x Int16x8) StoreSlicePart(s []int16) {
 	}
 	return
 }
+
+var vecMask64 = [16]int64{
+	-1, -1, -1, -1,
+	-1, -1, -1, -1,
+	0, 0, 0, 0,
+	0, 0, 0, 0,
+}
+
+// paInt32x4 is an unchecked cast from a slice to an
+// pointer-to-array type, for used in a masked
+// load/store.  In practice, the slice will be too
+// short, so this has to be unsafe, and its only
+// use must be with an instruction with masked
+// load/store effect (including faults).
+func paInt32x4(s []int32) *[4]int32 {
+	return (*[4]int32)(unsafe.Pointer(&s[0]))
+}
+
+/* 32 and 64-bit slice-part loads for AVX2 (128 and 256 bit) */
+
+func LoadInt32x4SlicePart(s []int32) Int32x4 {
+	l := len(s)
+	if l >= 4 {
+		return LoadInt32x4Slice(s)
+	}
+	if l == 0 {
+		var x Int32x4
+		return x
+	}
+	p := int32atP64(&vecMask64[0])
+	mask := unsafe.Slice(p, 32)[16-l:]
+	return LoadMaskedInt32x4(paInt32x4(s), LoadInt32x4Slice(mask).AsMask32x4())
+}
+
+func (x Int32x4) StoreSlicePart(s []int32) {
+	l := len(s)
+	if l >= 4 {
+		x.StoreSlice(s)
+		return
+	}
+	if l == 0 {
+		return
+	}
+	p := int32atP64(&vecMask64[0])
+	mask := unsafe.Slice(p, 32)[16-l:]
+	x.StoreMasked(paInt32x4(s), LoadInt32x4Slice(mask).AsMask32x4())
+}
+
+// func LoadInt32x8SlicePart(s []int32) Int32x8 {
+// }
+
+// func LoadInt64x2SlicePart(s []int64) Int64x2 {
+// }
+
+// func LoadInt64x4SlicePart(s []int64) Int64x4 {
+// }
+
+// func (x Int32x8) StoreSlicePart(s []int32) {
+// }
+
+// func (x Int64x4) StoreSlicePart(s []int64) {
+// }
+
+// func (x Int64x8) StoreSlicePart(s []int64) {
+// }
+
+// Handle float32, float64, uint32, and uint64 with ugly casts.

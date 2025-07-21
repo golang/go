@@ -206,16 +206,6 @@ func TestPairDotProdAccumulate(t *testing.T) {
 	}
 }
 
-// checkInt8Slices ensures that b and a are equal, to the end of b.
-// also serves to use the slices, to prevent accidental optimization.
-func checkInt8Slices(t *testing.T, a, b []int8) {
-	for i := range b {
-		if a[i] != b[i] {
-			t.Errorf("a and b differ at index %d, a=%d, b=%d", i, a[i], b[i])
-		}
-	}
-}
-
 func TestSlicesInt8(t *testing.T) {
 	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
