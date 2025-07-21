@@ -407,8 +407,23 @@ func paInt32x4(s []int32) *[4]int32 {
 	return (*[4]int32)(unsafe.Pointer(&s[0]))
 }
 
+func paInt32x8(s []int32) *[8]int32 {
+	return (*[8]int32)(unsafe.Pointer(&s[0]))
+}
+
+func paInt64x2(s []int64) *[2]int64 {
+	return (*[2]int64)(unsafe.Pointer(&s[0]))
+}
+
+func paInt64x4(s []int64) *[4]int64 {
+	return (*[4]int64)(unsafe.Pointer(&s[0]))
+}
+
 /* 32 and 64-bit slice-part loads for AVX2 (128 and 256 bit) */
 
+// LoadInt32x4SlicePart loads a Int32x4 from the slice s.
+// If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
+// If s has 4 or more elements, the function is equivalent to LoadInt32x4Slice.
 func LoadInt32x4SlicePart(s []int32) Int32x4 {
 	l := len(s)
 	if l >= 4 {
@@ -423,6 +438,9 @@ func LoadInt32x4SlicePart(s []int32) Int32x4 {
 	return LoadMaskedInt32x4(paInt32x4(s), LoadInt32x4Slice(mask).AsMask32x4())
 }
 
+// StoreSlicePart stores the elements of x into the slice s.
+// It stores as many elements as will fit in s.
+// If s has 4 or more elements, the method is equivalent to x.StoreSlice.
 func (x Int32x4) StoreSlicePart(s []int32) {
 	l := len(s)
 	if l >= 4 {
@@ -437,22 +455,290 @@ func (x Int32x4) StoreSlicePart(s []int32) {
 	x.StoreMasked(paInt32x4(s), LoadInt32x4Slice(mask).AsMask32x4())
 }
 
-// func LoadInt32x8SlicePart(s []int32) Int32x8 {
-// }
+// LoadInt32x8SlicePart loads a Int32x8 from the slice s.
+// If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
+// If s has 8 or more elements, the function is equivalent to LoadInt32x8Slice.
+func LoadInt32x8SlicePart(s []int32) Int32x8 {
+	l := len(s)
+	if l >= 8 {
+		return LoadInt32x8Slice(s)
+	}
+	if l == 0 {
+		var x Int32x8
+		return x
+	}
+	p := int32atP64(&vecMask64[0])
+	mask := unsafe.Slice(p, 32)[16-l:]
+	return LoadMaskedInt32x8(paInt32x8(s), LoadInt32x8Slice(mask).AsMask32x8())
+}
 
-// func LoadInt64x2SlicePart(s []int64) Int64x2 {
-// }
+// LoadInt64x2SlicePart loads a Int64x2 from the slice s.
+// If s has fewer than 2 elements, the remaining elements of the vector are filled with zeroes.
+// If s has 2 or more elements, the function is equivalent to LoadInt64x2Slice.
+func LoadInt64x2SlicePart(s []int64) Int64x2 {
+	l := len(s)
+	if l >= 2 {
+		return LoadInt64x2Slice(s)
+	}
+	if l == 0 {
+		var x Int64x2
+		return x
+	}
 
-// func LoadInt64x4SlicePart(s []int64) Int64x4 {
-// }
+	mask := vecMask64[8-l:]
+	return LoadMaskedInt64x2(paInt64x2(s), LoadInt64x2Slice(mask).AsMask64x2())
+}
 
-// func (x Int32x8) StoreSlicePart(s []int32) {
-// }
+// LoadInt64x4SlicePart loads a Int64x4 from the slice s.
+// If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
+// If s has 4 or more elements, the function is equivalent to LoadInt64x4Slice.
+func LoadInt64x4SlicePart(s []int64) Int64x4 {
+	l := len(s)
+	if l >= 4 {
+		return LoadInt64x4Slice(s)
+	}
+	if l == 0 {
+		var x Int64x4
+		return x
+	}
 
-// func (x Int64x4) StoreSlicePart(s []int64) {
-// }
+	mask := vecMask64[8-l:]
+	return LoadMaskedInt64x4(paInt64x4(s), LoadInt64x4Slice(mask).AsMask64x4())
+}
 
-// func (x Int64x8) StoreSlicePart(s []int64) {
-// }
+// StoreSlicePart stores the elements of x into the slice s.
+// It stores as many elements as will fit in s.
+// If s has 8 or more elements, the method is equivalent to x.StoreSlice.
+func (x Int32x8) StoreSlicePart(s []int32) {
+	l := len(s)
+	if l >= 8 {
+		x.StoreSlice(s)
+		return
+	}
+	if l == 0 {
+		return
+	}
+	p := int32atP64(&vecMask64[0])
+	mask := unsafe.Slice(p, 32)[16-l:]
+	x.StoreMasked(paInt32x8(s), LoadInt32x8Slice(mask).AsMask32x8())
+}
+
+// StoreSlicePart stores the elements of x into the slice s.
+// It stores as many elements as will fit in s.
+// If s has 2 or more elements, the method is equivalent to x.StoreSlice.
+func (x Int64x2) StoreSlicePart(s []int64) {
+	l := len(s)
+	if l >= 2 {
+		x.StoreSlice(s)
+		return
+	}
+	if l == 0 {
+		return
+	}
+	mask := vecMask64[8-l:]
+	x.StoreMasked(paInt64x2(s), LoadInt64x2Slice(mask).AsMask64x2())
+}
+
+// StoreSlicePart stores the elements of x into the slice s.
+// It stores as many elements as will fit in s.
+// If s has 4 or more elements, the method is equivalent to x.StoreSlice.
+func (x Int64x4) StoreSlicePart(s []int64) {
+	l := len(s)
+	if l >= 4 {
+		x.StoreSlice(s)
+		return
+	}
+	if l == 0 {
+		return
+	}
+	mask := vecMask64[8-l:]
+	x.StoreMasked(paInt64x4(s), LoadInt64x4Slice(mask).AsMask64x4())
+}
 
 // Handle float32, float64, uint32, and uint64 with ugly casts.
+
+// LoadUint32x4SlicePart loads a Uint32x4 from the slice s.
+// If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
+// If s has 4 or more elements, the function is equivalent to LoadUint32x4Slice.
+func LoadUint32x4SlicePart(s []uint32) Uint32x4 {
+	if len(s) == 0 {
+		var zero Uint32x4
+		return zero
+	}
+	t := unsafe.Slice((*int32)(unsafe.Pointer(&s[0])), len(s))
+	return LoadInt32x4SlicePart(t).AsUint32x4()
+}
+
+// StoreSlicePart stores the elements of x into the slice s.
+// It stores as many elements as will fit in s.
+// If s has 4 or more elements, the method is equivalent to x.StoreSlice.
+func (x Uint32x4) StoreSlicePart(s []uint32) {
+	if len(s) == 0 {
+		return
+	}
+	t := unsafe.Slice((*int32)(unsafe.Pointer(&s[0])), len(s))
+	x.AsInt32x4().StoreSlicePart(t)
+}
+
+// LoadUint32x8SlicePart loads a Uint32x8 from the slice s.
+// If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
+// If s has 8 or more elements, the function is equivalent to LoadUint32x8Slice.
+func LoadUint32x8SlicePart(s []uint32) Uint32x8 {
+	if len(s) == 0 {
+		var zero Uint32x8
+		return zero
+	}
+	t := unsafe.Slice((*int32)(unsafe.Pointer(&s[0])), len(s))
+	return LoadInt32x8SlicePart(t).AsUint32x8()
+}
+
+// StoreSlicePart stores the elements of x into the slice s.
+// It stores as many elements as will fit in s.
+// If s has 8 or more elements, the method is equivalent to x.StoreSlice.
+func (x Uint32x8) StoreSlicePart(s []uint32) {
+	if len(s) == 0 {
+		return
+	}
+	t := unsafe.Slice((*int32)(unsafe.Pointer(&s[0])), len(s))
+	x.AsInt32x8().StoreSlicePart(t)
+}
+
+// LoadUint64x2SlicePart loads a Uint64x2 from the slice s.
+// If s has fewer than 2 elements, the remaining elements of the vector are filled with zeroes.
+// If s has 2 or more elements, the function is equivalent to LoadUint64x2Slice.
+func LoadUint64x2SlicePart(s []uint64) Uint64x2 {
+	if len(s) == 0 {
+		var zero Uint64x2
+		return zero
+	}
+	t := unsafe.Slice((*int64)(unsafe.Pointer(&s[0])), len(s))
+	return LoadInt64x2SlicePart(t).AsUint64x2()
+}
+
+// StoreSlicePart stores the elements of x into the slice s.
+// It stores as many elements as will fit in s.
+// If s has 2 or more elements, the method is equivalent to x.StoreSlice.
+func (x Uint64x2) StoreSlicePart(s []uint64) {
+	if len(s) == 0 {
+		return
+	}
+	t := unsafe.Slice((*int64)(unsafe.Pointer(&s[0])), len(s))
+	x.AsInt64x2().StoreSlicePart(t)
+}
+
+// LoadUint64x4SlicePart loads a Uint64x4 from the slice s.
+// If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
+// If s has 4 or more elements, the function is equivalent to LoadUint64x4Slice.
+func LoadUint64x4SlicePart(s []uint64) Uint64x4 {
+	if len(s) == 0 {
+		var zero Uint64x4
+		return zero
+	}
+	t := unsafe.Slice((*int64)(unsafe.Pointer(&s[0])), len(s))
+	return LoadInt64x4SlicePart(t).AsUint64x4()
+}
+
+// StoreSlicePart stores the elements of x into the slice s.
+// It stores as many elements as will fit in s.
+// If s has 4 or more elements, the method is equivalent to x.StoreSlice.
+func (x Uint64x4) StoreSlicePart(s []uint64) {
+	if len(s) == 0 {
+		return
+	}
+	t := unsafe.Slice((*int64)(unsafe.Pointer(&s[0])), len(s))
+	x.AsInt64x4().StoreSlicePart(t)
+}
+
+// Float32xK and Float64xK
+
+// LoadFloat32x4SlicePart loads a Float32x4 from the slice s.
+// If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
+// If s has 4 or more elements, the function is equivalent to LoadFloat32x4Slice.
+func LoadFloat32x4SlicePart(s []float32) Float32x4 {
+	if len(s) == 0 {
+		var zero Float32x4
+		return zero
+	}
+	t := unsafe.Slice((*int32)(unsafe.Pointer(&s[0])), len(s))
+	return LoadInt32x4SlicePart(t).AsFloat32x4()
+}
+
+// StoreSlicePart stores the elements of x into the slice s.
+// It stores as many elements as will fit in s.
+// If s has 4 or more elements, the method is equivalent to x.StoreSlice.
+func (x Float32x4) StoreSlicePart(s []float32) {
+	if len(s) == 0 {
+		return
+	}
+	t := unsafe.Slice((*int32)(unsafe.Pointer(&s[0])), len(s))
+	x.AsInt32x4().StoreSlicePart(t)
+}
+
+// LoadFloat32x8SlicePart loads a Float32x8 from the slice s.
+// If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
+// If s has 8 or more elements, the function is equivalent to LoadFloat32x8Slice.
+func LoadFloat32x8SlicePart(s []float32) Float32x8 {
+	if len(s) == 0 {
+		var zero Float32x8
+		return zero
+	}
+	t := unsafe.Slice((*int32)(unsafe.Pointer(&s[0])), len(s))
+	return LoadInt32x8SlicePart(t).AsFloat32x8()
+}
+
+// StoreSlicePart stores the elements of x into the slice s.
+// It stores as many elements as will fit in s.
+// If s has 8 or more elements, the method is equivalent to x.StoreSlice.
+func (x Float32x8) StoreSlicePart(s []float32) {
+	if len(s) == 0 {
+		return
+	}
+	t := unsafe.Slice((*int32)(unsafe.Pointer(&s[0])), len(s))
+	x.AsInt32x8().StoreSlicePart(t)
+}
+
+// LoadFloat64x2SlicePart loads a Float64x2 from the slice s.
+// If s has fewer than 2 elements, the remaining elements of the vector are filled with zeroes.
+// If s has 2 or more elements, the function is equivalent to LoadFloat64x2Slice.
+func LoadFloat64x2SlicePart(s []float64) Float64x2 {
+	if len(s) == 0 {
+		var zero Float64x2
+		return zero
+	}
+	t := unsafe.Slice((*int64)(unsafe.Pointer(&s[0])), len(s))
+	return LoadInt64x2SlicePart(t).AsFloat64x2()
+}
+
+// StoreSlicePart stores the elements of x into the slice s.
+// It stores as many elements as will fit in s.
+// If s has 2 or more elements, the method is equivalent to x.StoreSlice.
+func (x Float64x2) StoreSlicePart(s []float64) {
+	if len(s) == 0 {
+		return
+	}
+	t := unsafe.Slice((*int64)(unsafe.Pointer(&s[0])), len(s))
+	x.AsInt64x2().StoreSlicePart(t)
+}
+
+// LoadFloat64x4SlicePart loads a Float64x4 from the slice s.
+// If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
+// If s has 4 or more elements, the function is equivalent to LoadFloat64x4Slice.
+func LoadFloat64x4SlicePart(s []float64) Float64x4 {
+	if len(s) == 0 {
+		var zero Float64x4
+		return zero
+	}
+	t := unsafe.Slice((*int64)(unsafe.Pointer(&s[0])), len(s))
+	return LoadInt64x4SlicePart(t).AsFloat64x4()
+}
+
+// StoreSlicePart stores the elements of x into the slice s.
+// It stores as many elements as will fit in s.
+// If s has 4 or more elements, the method is equivalent to x.StoreSlice.
+func (x Float64x4) StoreSlicePart(s []float64) {
+	if len(s) == 0 {
+		return
+	}
+	t := unsafe.Slice((*int64)(unsafe.Pointer(&s[0])), len(s))
+	x.AsInt64x4().StoreSlicePart(t)
+}
