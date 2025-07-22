@@ -580,6 +580,16 @@ func mallocinit() {
 			randHeapBasePrefix = byte(randHeapBase >> (randHeapAddrBits - 8))
 		}
 
+		var vmaSize int
+		if GOARCH == "riscv64" {
+			// Identify which memory layout is in use based on the system
+			// stack address, knowing that the bottom half of virtual memory
+			// is user space. This should result in 39, 48 or 57. It may be
+			// possible to use RISCV_HWPROBE_KEY_HIGHEST_VIRT_ADDRESS at some
+			// point in the future - for now use the system stack address.
+			vmaSize = sys.Len64(uint64(getg().m.g0.stack.hi)) + 1
+		}
+
 		for i := 0x7f; i >= 0; i-- {
 			var p uintptr
 			switch {
@@ -598,6 +608,8 @@ func mallocinit() {
 				p = uintptr(i)<<40 | uintptrMask&(0x0013<<28)
 			case GOARCH == "arm64":
 				p = uintptr(i)<<40 | uintptrMask&(0x0040<<32)
+			case GOARCH == "riscv64" && vmaSize == 39:
+				p = uintptr(i)<<32 | uintptrMask&(0x0013<<28)
 			case GOOS == "aix":
 				if i == 0 {
 					// We don't use addresses directly after 0x0A00000000000000
