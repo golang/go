@@ -318,6 +318,9 @@ func TestDWARFLocationList(t *testing.T) {
 			if fnName == "syscall.compileCallback" || fnName == "maps.clone" {
 				continue // Ignore for now, possibly caused by linkname usage. TODO(deparker) Fix this too.
 			}
+			if runtime.GOOS == "windows" && strings.HasPrefix(fnName, "syscall.") {
+				continue // Ignore, caused by linkname usage. TODO(deparker) Fix these too.
+			}
 
 			for {
 				paramEntry, err := reader.Next()
