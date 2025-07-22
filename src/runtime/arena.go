@@ -745,7 +745,9 @@ func newUserArenaChunk() (unsafe.Pointer, *mspan) {
 	// does represent additional work for the GC, but we also have no idea
 	// what that looks like until we actually allocate things into the
 	// arena).
-	deductAssistCredit(userArenaChunkBytes)
+	if gcBlackenEnabled != 0 {
+		deductAssistCredit(userArenaChunkBytes)
+	}
 
 	// Set mp.mallocing to keep from being preempted by GC.
 	mp := acquirem()
