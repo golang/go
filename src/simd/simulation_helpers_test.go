@@ -106,6 +106,26 @@ func fma[T float](x, y, z T) T {
 	return T(math.FMA(float64(x), float64(y), float64(z)))
 }
 
+func toInt32[T number](x T) int32 {
+	return int32(x)
+}
+
+func toUint32[T number](x T) uint32 {
+	switch y := (any(x)).(type) {
+	case float32:
+		if y < 0 || y > float32(math.MaxUint32) || y != y {
+			return math.MaxUint32
+		}
+	case float64:
+		if y < 0 || y > float64(math.MaxUint32) || y != y {
+			return math.MaxUint32
+		}
+	}
+	return uint32(x)
+}
+
+// Slice versions of all these elementwise operations
+
 func addSlice[T number](x, y []T) []T {
 	return map2[T](add)(x, y)
 }
@@ -201,4 +221,12 @@ func imaSlice[T integer](x, y, z []T) []T {
 
 func fmaSlice[T float](x, y, z []T) []T {
 	return map3[T](fma)(x, y, z)
+}
+
+func toInt32Slice[T number](x []T) []int32 {
+	return map1[T](toInt32)(x)
+}
+
+func toUint32Slice[T number](x []T) []uint32 {
+	return map1[T](toUint32)(x)
 }

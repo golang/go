@@ -82,3 +82,17 @@ func TestAbsolute(t *testing.T) {
 		testInt64x8Unary(t, simd.Int64x8.Absolute, map1[int64](abs))
 	}
 }
+
+func TestToInt32(t *testing.T) {
+	testFloat32x4UnaryToInt32(t, simd.Float32x4.ConvertToInt32, toInt32Slice[float32])
+	testFloat32x8UnaryToInt32(t, simd.Float32x8.ConvertToInt32, toInt32Slice[float32])
+}
+
+func TestToUint32(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Needs AVX512")
+	}
+	testFloat32x4UnaryToUint32(t, simd.Float32x4.ConvertToUint32, toUint32Slice[float32])
+	testFloat32x8UnaryToUint32(t, simd.Float32x8.ConvertToUint32, toUint32Slice[float32])
+	testFloat32x16UnaryToUint32(t, simd.Float32x16.ConvertToUint32, toUint32Slice[float32])
+}
