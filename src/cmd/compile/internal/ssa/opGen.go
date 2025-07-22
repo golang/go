@@ -1230,6 +1230,18 @@ const (
 	OpAMD64VCOMPRESSPSMasked128
 	OpAMD64VCOMPRESSPSMasked256
 	OpAMD64VCOMPRESSPSMasked512
+	OpAMD64VCVTPS2UDQ128
+	OpAMD64VCVTPS2UDQ256
+	OpAMD64VCVTPS2UDQ512
+	OpAMD64VCVTPS2UDQMasked128
+	OpAMD64VCVTPS2UDQMasked256
+	OpAMD64VCVTPS2UDQMasked512
+	OpAMD64VCVTTPS2DQ128
+	OpAMD64VCVTTPS2DQ256
+	OpAMD64VCVTTPS2DQ512
+	OpAMD64VCVTTPS2DQMasked128
+	OpAMD64VCVTTPS2DQMasked256
+	OpAMD64VCVTTPS2DQMasked512
 	OpAMD64VDIVPD128
 	OpAMD64VDIVPD256
 	OpAMD64VDIVPD512
@@ -4671,6 +4683,18 @@ const (
 	OpCompressUint64x2
 	OpCompressUint64x4
 	OpCompressUint64x8
+	OpConvertToInt32Float32x4
+	OpConvertToInt32Float32x8
+	OpConvertToInt32Float32x16
+	OpConvertToInt32MaskedFloat32x4
+	OpConvertToInt32MaskedFloat32x8
+	OpConvertToInt32MaskedFloat32x16
+	OpConvertToUint32Float32x4
+	OpConvertToUint32Float32x8
+	OpConvertToUint32Float32x16
+	OpConvertToUint32MaskedFloat32x4
+	OpConvertToUint32MaskedFloat32x8
+	OpConvertToUint32MaskedFloat32x16
 	OpDivFloat32x4
 	OpDivFloat32x8
 	OpDivFloat32x16
@@ -19321,6 +19345,168 @@ var opcodeTable = [...]opInfo{
 		name:   "VCOMPRESSPSMasked512",
 		argLen: 2,
 		asm:    x86.AVCOMPRESSPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VCVTPS2UDQ128",
+		argLen: 1,
+		asm:    x86.AVCVTPS2UDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VCVTPS2UDQ256",
+		argLen: 1,
+		asm:    x86.AVCVTPS2UDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VCVTPS2UDQ512",
+		argLen: 1,
+		asm:    x86.AVCVTPS2UDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VCVTPS2UDQMasked128",
+		argLen: 2,
+		asm:    x86.AVCVTPS2UDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VCVTPS2UDQMasked256",
+		argLen: 2,
+		asm:    x86.AVCVTPS2UDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VCVTPS2UDQMasked512",
+		argLen: 2,
+		asm:    x86.AVCVTPS2UDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VCVTTPS2DQ128",
+		argLen: 1,
+		asm:    x86.AVCVTTPS2DQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VCVTTPS2DQ256",
+		argLen: 1,
+		asm:    x86.AVCVTTPS2DQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VCVTTPS2DQ512",
+		argLen: 1,
+		asm:    x86.AVCVTTPS2DQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VCVTTPS2DQMasked128",
+		argLen: 2,
+		asm:    x86.AVCVTTPS2DQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VCVTTPS2DQMasked256",
+		argLen: 2,
+		asm:    x86.AVCVTTPS2DQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VCVTTPS2DQMasked512",
+		argLen: 2,
+		asm:    x86.AVCVTTPS2DQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -62404,6 +62590,66 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "CompressUint64x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt32Float32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt32Float32x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt32Float32x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt32MaskedFloat32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt32MaskedFloat32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConvertToInt32MaskedFloat32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint32Float32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint32Float32x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint32Float32x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint32MaskedFloat32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint32MaskedFloat32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConvertToUint32MaskedFloat32x16",
 		argLen:  2,
 		generic: true,
 	},

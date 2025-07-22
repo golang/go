@@ -1446,6 +1446,86 @@ func (x Uint64x4) Compress(mask Mask64x4) Uint64x4
 // Asm: VPCOMPRESSQ, CPU Feature: AVX512F
 func (x Uint64x8) Compress(mask Mask64x8) Uint64x8
 
+/* ConvertToInt32 */
+
+// ConvertToInt32 converts element values to int32.
+//
+// Asm: VCVTTPS2DQ, CPU Feature: AVX
+func (x Float32x4) ConvertToInt32() Int32x4
+
+// ConvertToInt32 converts element values to int32.
+//
+// Asm: VCVTTPS2DQ, CPU Feature: AVX
+func (x Float32x8) ConvertToInt32() Int32x8
+
+// ConvertToInt32 converts element values to int32.
+//
+// Asm: VCVTTPS2DQ, CPU Feature: AVX512F
+func (x Float32x16) ConvertToInt32() Int32x16
+
+/* ConvertToInt32Masked */
+
+// ConvertToInt32 converts element values to int32.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VCVTTPS2DQ, CPU Feature: AVX512F
+func (x Float32x4) ConvertToInt32Masked(mask Mask32x4) Int32x4
+
+// ConvertToInt32 converts element values to int32.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VCVTTPS2DQ, CPU Feature: AVX512F
+func (x Float32x8) ConvertToInt32Masked(mask Mask32x8) Int32x8
+
+// ConvertToInt32 converts element values to int32.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VCVTTPS2DQ, CPU Feature: AVX512F
+func (x Float32x16) ConvertToInt32Masked(mask Mask32x16) Int32x16
+
+/* ConvertToUint32 */
+
+// ConvertToUint32Masked converts element values to uint32.
+//
+// Asm: VCVTPS2UDQ, CPU Feature: AVX512F
+func (x Float32x4) ConvertToUint32() Uint32x4
+
+// ConvertToUint32Masked converts element values to uint32.
+//
+// Asm: VCVTPS2UDQ, CPU Feature: AVX512F
+func (x Float32x8) ConvertToUint32() Uint32x8
+
+// ConvertToUint32Masked converts element values to uint32.
+//
+// Asm: VCVTPS2UDQ, CPU Feature: AVX512F
+func (x Float32x16) ConvertToUint32() Uint32x16
+
+/* ConvertToUint32Masked */
+
+// ConvertToUint32Masked converts element values to uint32.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VCVTPS2UDQ, CPU Feature: AVX512F
+func (x Float32x4) ConvertToUint32Masked(mask Mask32x4) Uint32x4
+
+// ConvertToUint32Masked converts element values to uint32.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VCVTPS2UDQ, CPU Feature: AVX512F
+func (x Float32x8) ConvertToUint32Masked(mask Mask32x8) Uint32x8
+
+// ConvertToUint32Masked converts element values to uint32.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VCVTPS2UDQ, CPU Feature: AVX512F
+func (x Float32x16) ConvertToUint32Masked(mask Mask32x16) Uint32x16
+
 /* DiffWithCeilWithPrecision */
 
 // DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
