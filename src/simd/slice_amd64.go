@@ -14,16 +14,6 @@ func (x Int8x16) StoreSlice(s []int8) {
 	x.Store((*[16]int8)(s))
 }
 
-// LoadUint8x16Slice loads an Uint8x16 from a slice of at least 16 uint8s
-func LoadUint8x16Slice(s []uint8) Uint8x16 {
-	return LoadUint8x16((*[16]uint8)(s))
-}
-
-// StoreSlice stores x into a slice of at least 16 uint8s
-func (x Uint8x16) StoreSlice(s []uint8) {
-	x.Store((*[16]uint8)(s))
-}
-
 // LoadInt16x8Slice loads an Int16x8 from a slice of at least 8 int16s
 func LoadInt16x8Slice(s []int16) Int16x8 {
 	return LoadInt16x8((*[8]int16)(s))
@@ -32,16 +22,6 @@ func LoadInt16x8Slice(s []int16) Int16x8 {
 // StoreSlice stores x into a slice of at least 8 int16s
 func (x Int16x8) StoreSlice(s []int16) {
 	x.Store((*[8]int16)(s))
-}
-
-// LoadUint16x8Slice loads an Uint16x8 from a slice of at least 8 uint16s
-func LoadUint16x8Slice(s []uint16) Uint16x8 {
-	return LoadUint16x8((*[8]uint16)(s))
-}
-
-// StoreSlice stores x into a slice of at least 8 uint16s
-func (x Uint16x8) StoreSlice(s []uint16) {
-	x.Store((*[8]uint16)(s))
 }
 
 // LoadInt32x4Slice loads an Int32x4 from a slice of at least 4 int32s
@@ -54,16 +34,6 @@ func (x Int32x4) StoreSlice(s []int32) {
 	x.Store((*[4]int32)(s))
 }
 
-// LoadUint32x4Slice loads an Uint32x4 from a slice of at least 4 uint32s
-func LoadUint32x4Slice(s []uint32) Uint32x4 {
-	return LoadUint32x4((*[4]uint32)(s))
-}
-
-// StoreSlice stores x into a slice of at least 4 uint32s
-func (x Uint32x4) StoreSlice(s []uint32) {
-	x.Store((*[4]uint32)(s))
-}
-
 // LoadInt64x2Slice loads an Int64x2 from a slice of at least 2 int64s
 func LoadInt64x2Slice(s []int64) Int64x2 {
 	return LoadInt64x2((*[2]int64)(s))
@@ -72,6 +42,36 @@ func LoadInt64x2Slice(s []int64) Int64x2 {
 // StoreSlice stores x into a slice of at least 2 int64s
 func (x Int64x2) StoreSlice(s []int64) {
 	x.Store((*[2]int64)(s))
+}
+
+// LoadUint8x16Slice loads an Uint8x16 from a slice of at least 16 uint8s
+func LoadUint8x16Slice(s []uint8) Uint8x16 {
+	return LoadUint8x16((*[16]uint8)(s))
+}
+
+// StoreSlice stores x into a slice of at least 16 uint8s
+func (x Uint8x16) StoreSlice(s []uint8) {
+	x.Store((*[16]uint8)(s))
+}
+
+// LoadUint16x8Slice loads an Uint16x8 from a slice of at least 8 uint16s
+func LoadUint16x8Slice(s []uint16) Uint16x8 {
+	return LoadUint16x8((*[8]uint16)(s))
+}
+
+// StoreSlice stores x into a slice of at least 8 uint16s
+func (x Uint16x8) StoreSlice(s []uint16) {
+	x.Store((*[8]uint16)(s))
+}
+
+// LoadUint32x4Slice loads an Uint32x4 from a slice of at least 4 uint32s
+func LoadUint32x4Slice(s []uint32) Uint32x4 {
+	return LoadUint32x4((*[4]uint32)(s))
+}
+
+// StoreSlice stores x into a slice of at least 4 uint32s
+func (x Uint32x4) StoreSlice(s []uint32) {
+	x.Store((*[4]uint32)(s))
 }
 
 // LoadUint64x2Slice loads an Uint64x2 from a slice of at least 2 uint64s
@@ -114,16 +114,6 @@ func (x Int8x32) StoreSlice(s []int8) {
 	x.Store((*[32]int8)(s))
 }
 
-// LoadUint8x32Slice loads an Uint8x32 from a slice of at least 32 uint8s
-func LoadUint8x32Slice(s []uint8) Uint8x32 {
-	return LoadUint8x32((*[32]uint8)(s))
-}
-
-// StoreSlice stores x into a slice of at least 32 uint8s
-func (x Uint8x32) StoreSlice(s []uint8) {
-	x.Store((*[32]uint8)(s))
-}
-
 // LoadInt16x16Slice loads an Int16x16 from a slice of at least 16 int16s
 func LoadInt16x16Slice(s []int16) Int16x16 {
 	return LoadInt16x16((*[16]int16)(s))
@@ -132,16 +122,6 @@ func LoadInt16x16Slice(s []int16) Int16x16 {
 // StoreSlice stores x into a slice of at least 16 int16s
 func (x Int16x16) StoreSlice(s []int16) {
 	x.Store((*[16]int16)(s))
-}
-
-// LoadUint16x16Slice loads an Uint16x16 from a slice of at least 16 uint16s
-func LoadUint16x16Slice(s []uint16) Uint16x16 {
-	return LoadUint16x16((*[16]uint16)(s))
-}
-
-// StoreSlice stores x into a slice of at least 16 uint16s
-func (x Uint16x16) StoreSlice(s []uint16) {
-	x.Store((*[16]uint16)(s))
 }
 
 // LoadInt32x8Slice loads an Int32x8 from a slice of at least 8 int32s
@@ -154,16 +134,6 @@ func (x Int32x8) StoreSlice(s []int32) {
 	x.Store((*[8]int32)(s))
 }
 
-// LoadUint32x8Slice loads an Uint32x8 from a slice of at least 8 uint32s
-func LoadUint32x8Slice(s []uint32) Uint32x8 {
-	return LoadUint32x8((*[8]uint32)(s))
-}
-
-// StoreSlice stores x into a slice of at least 8 uint32s
-func (x Uint32x8) StoreSlice(s []uint32) {
-	x.Store((*[8]uint32)(s))
-}
-
 // LoadInt64x4Slice loads an Int64x4 from a slice of at least 4 int64s
 func LoadInt64x4Slice(s []int64) Int64x4 {
 	return LoadInt64x4((*[4]int64)(s))
@@ -172,6 +142,36 @@ func LoadInt64x4Slice(s []int64) Int64x4 {
 // StoreSlice stores x into a slice of at least 4 int64s
 func (x Int64x4) StoreSlice(s []int64) {
 	x.Store((*[4]int64)(s))
+}
+
+// LoadUint8x32Slice loads an Uint8x32 from a slice of at least 32 uint8s
+func LoadUint8x32Slice(s []uint8) Uint8x32 {
+	return LoadUint8x32((*[32]uint8)(s))
+}
+
+// StoreSlice stores x into a slice of at least 32 uint8s
+func (x Uint8x32) StoreSlice(s []uint8) {
+	x.Store((*[32]uint8)(s))
+}
+
+// LoadUint16x16Slice loads an Uint16x16 from a slice of at least 16 uint16s
+func LoadUint16x16Slice(s []uint16) Uint16x16 {
+	return LoadUint16x16((*[16]uint16)(s))
+}
+
+// StoreSlice stores x into a slice of at least 16 uint16s
+func (x Uint16x16) StoreSlice(s []uint16) {
+	x.Store((*[16]uint16)(s))
+}
+
+// LoadUint32x8Slice loads an Uint32x8 from a slice of at least 8 uint32s
+func LoadUint32x8Slice(s []uint32) Uint32x8 {
+	return LoadUint32x8((*[8]uint32)(s))
+}
+
+// StoreSlice stores x into a slice of at least 8 uint32s
+func (x Uint32x8) StoreSlice(s []uint32) {
+	x.Store((*[8]uint32)(s))
 }
 
 // LoadUint64x4Slice loads an Uint64x4 from a slice of at least 4 uint64s
@@ -214,16 +214,6 @@ func (x Int8x64) StoreSlice(s []int8) {
 	x.Store((*[64]int8)(s))
 }
 
-// LoadUint8x64Slice loads an Uint8x64 from a slice of at least 64 uint8s
-func LoadUint8x64Slice(s []uint8) Uint8x64 {
-	return LoadUint8x64((*[64]uint8)(s))
-}
-
-// StoreSlice stores x into a slice of at least 64 uint8s
-func (x Uint8x64) StoreSlice(s []uint8) {
-	x.Store((*[64]uint8)(s))
-}
-
 // LoadInt16x32Slice loads an Int16x32 from a slice of at least 32 int16s
 func LoadInt16x32Slice(s []int16) Int16x32 {
 	return LoadInt16x32((*[32]int16)(s))
@@ -232,16 +222,6 @@ func LoadInt16x32Slice(s []int16) Int16x32 {
 // StoreSlice stores x into a slice of at least 32 int16s
 func (x Int16x32) StoreSlice(s []int16) {
 	x.Store((*[32]int16)(s))
-}
-
-// LoadUint16x32Slice loads an Uint16x32 from a slice of at least 32 uint16s
-func LoadUint16x32Slice(s []uint16) Uint16x32 {
-	return LoadUint16x32((*[32]uint16)(s))
-}
-
-// StoreSlice stores x into a slice of at least 32 uint16s
-func (x Uint16x32) StoreSlice(s []uint16) {
-	x.Store((*[32]uint16)(s))
 }
 
 // LoadInt32x16Slice loads an Int32x16 from a slice of at least 16 int32s
@@ -254,16 +234,6 @@ func (x Int32x16) StoreSlice(s []int32) {
 	x.Store((*[16]int32)(s))
 }
 
-// LoadUint32x16Slice loads an Uint32x16 from a slice of at least 16 uint32s
-func LoadUint32x16Slice(s []uint32) Uint32x16 {
-	return LoadUint32x16((*[16]uint32)(s))
-}
-
-// StoreSlice stores x into a slice of at least 16 uint32s
-func (x Uint32x16) StoreSlice(s []uint32) {
-	x.Store((*[16]uint32)(s))
-}
-
 // LoadInt64x8Slice loads an Int64x8 from a slice of at least 8 int64s
 func LoadInt64x8Slice(s []int64) Int64x8 {
 	return LoadInt64x8((*[8]int64)(s))
@@ -272,6 +242,36 @@ func LoadInt64x8Slice(s []int64) Int64x8 {
 // StoreSlice stores x into a slice of at least 8 int64s
 func (x Int64x8) StoreSlice(s []int64) {
 	x.Store((*[8]int64)(s))
+}
+
+// LoadUint8x64Slice loads an Uint8x64 from a slice of at least 64 uint8s
+func LoadUint8x64Slice(s []uint8) Uint8x64 {
+	return LoadUint8x64((*[64]uint8)(s))
+}
+
+// StoreSlice stores x into a slice of at least 64 uint8s
+func (x Uint8x64) StoreSlice(s []uint8) {
+	x.Store((*[64]uint8)(s))
+}
+
+// LoadUint16x32Slice loads an Uint16x32 from a slice of at least 32 uint16s
+func LoadUint16x32Slice(s []uint16) Uint16x32 {
+	return LoadUint16x32((*[32]uint16)(s))
+}
+
+// StoreSlice stores x into a slice of at least 32 uint16s
+func (x Uint16x32) StoreSlice(s []uint16) {
+	x.Store((*[32]uint16)(s))
+}
+
+// LoadUint32x16Slice loads an Uint32x16 from a slice of at least 16 uint32s
+func LoadUint32x16Slice(s []uint32) Uint32x16 {
+	return LoadUint32x16((*[16]uint32)(s))
+}
+
+// StoreSlice stores x into a slice of at least 16 uint32s
+func (x Uint32x16) StoreSlice(s []uint32) {
+	x.Store((*[16]uint32)(s))
 }
 
 // LoadUint64x8Slice loads an Uint64x8 from a slice of at least 8 uint64s
