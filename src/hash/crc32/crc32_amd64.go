@@ -38,6 +38,12 @@ func castagnoliSSE42Triple(
 //go:noescape
 func ieeeCLMUL(crc uint32, p []byte) uint32
 
+// ieeeCLMULAvx512 is defined in crc_amd64.s and uses the VPCLMULQDQ
+// instruction as well as AVX512 & SSE 4.1.
+//
+//go:noescape
+func ieeeCLMULAvx512(crc uint32, p []byte) uint32
+
 const castagnoliK1 = 168
 const castagnoliK2 = 1344
 
@@ -215,7 +221,11 @@ func archUpdateIEEE(crc uint32, p []byte) uint32 {
 	if len(p) >= 64 {
 		left := len(p) & 15
 		do := len(p) - left
-		crc = ^ieeeCLMUL(^crc, p[:do])
+		if len(p) >= 1024 && cpu.X86.HasAVX512VL && cpu.X86.HasAVX512VPCLMULQDQ {
+			crc = ^ieeeCLMULAvx512(^crc, p[:do])
+		} else {
+			crc = ^ieeeCLMUL(^crc, p[:do])
+		}
 		p = p[do:]
 	}
 	if len(p) == 0 {
