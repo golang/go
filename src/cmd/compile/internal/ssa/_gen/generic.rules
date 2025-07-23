@@ -1014,11 +1014,10 @@
 // See ../magic.go for a detailed description of these algorithms.
 
 // Unsigned divide by power of 2.  Strength reduce to a shift.
-(Div8u  n (Const8  [c])) && isPowerOfTwo(c) => (Rsh8Ux64  n (Const64 <typ.UInt64> [log8(c)]))
-(Div16u n (Const16 [c])) && isPowerOfTwo(c) => (Rsh16Ux64 n (Const64 <typ.UInt64> [log16(c)]))
-(Div32u n (Const32 [c])) && isPowerOfTwo(c) => (Rsh32Ux64 n (Const64 <typ.UInt64> [log32(c)]))
-(Div64u n (Const64 [c])) && isPowerOfTwo(c) => (Rsh64Ux64 n (Const64 <typ.UInt64> [log64(c)]))
-(Div64u n (Const64 [-1<<63]))                 => (Rsh64Ux64 n (Const64 <typ.UInt64> [63]))
+(Div8u  n (Const8  [c])) && isUnsignedPowerOfTwo(uint8(c)) => (Rsh8Ux64  n (Const64 <typ.UInt64> [log8u(uint8(c))]))
+(Div16u n (Const16 [c])) && isUnsignedPowerOfTwo(uint16(c)) => (Rsh16Ux64 n (Const64 <typ.UInt64> [log16u(uint16(c))]))
+(Div32u n (Const32 [c])) && isUnsignedPowerOfTwo(uint32(c)) => (Rsh32Ux64 n (Const64 <typ.UInt64> [log32u(uint32(c))]))
+(Div64u n (Const64 [c])) && isUnsignedPowerOfTwo(uint64(c)) => (Rsh64Ux64 n (Const64 <typ.UInt64> [log64u(uint64(c))]))
 
 // Signed non-negative divide by power of 2.
 (Div8  n (Const8  [c])) && isNonNegative(n) && isPowerOfTwo(c) => (Rsh8Ux64  n (Const64 <typ.UInt64> [log8(c)]))
