@@ -1530,6 +1530,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
+	case ssa.OpAMD64KMOVQ, ssa.OpAMD64KMOVD, ssa.OpAMD64KMOVW, ssa.OpAMD64KMOVB:
+		// See also ssa.OpAMD64KMOVQload
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
 	default:
 		if !ssaGenSIMDValue(s, v) {
 			v.Fatalf("genValue not implemented: %s", v.LongString())

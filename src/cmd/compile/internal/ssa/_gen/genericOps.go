@@ -699,6 +699,20 @@ var genericOps = []opData{
 	{name: "StoreMask64x2", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
 	{name: "StoreMask64x4", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
 	{name: "StoreMask64x8", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+
+	// Convert integers to masks
+	{name: "Cvt16toMask8x16", argLength: 1},  // arg0 = integer mask value
+	{name: "Cvt32toMask8x32", argLength: 1},  // arg0 = integer mask value
+	{name: "Cvt64toMask8x64", argLength: 1},  // arg0 = integer mask value
+	{name: "Cvt8toMask16x8", argLength: 1},   // arg0 = integer mask value
+	{name: "Cvt16toMask16x16", argLength: 1}, // arg0 = integer mask value
+	{name: "Cvt32toMask16x32", argLength: 1}, // arg0 = integer mask value
+	{name: "Cvt8toMask32x4", argLength: 1},   // arg0 = integer mask value
+	{name: "Cvt8toMask32x8", argLength: 1},   // arg0 = integer mask value
+	{name: "Cvt16toMask32x16", argLength: 1}, // arg0 = integer mask value
+	{name: "Cvt8toMask64x2", argLength: 1},   // arg0 = integer mask value
+	{name: "Cvt8toMask64x4", argLength: 1},   // arg0 = integer mask value
+	{name: "Cvt8toMask64x8", argLength: 1},   // arg0 = integer mask value
 }
 
 //     kind          controls          successors   implicit exit

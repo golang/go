@@ -1208,6 +1208,10 @@ const (
 	OpAMD64VZEROALL
 	OpAMD64KMOVQload
 	OpAMD64KMOVQstore
+	OpAMD64KMOVQ
+	OpAMD64KMOVD
+	OpAMD64KMOVW
+	OpAMD64KMOVB
 	OpAMD64VADDPD128
 	OpAMD64VADDPD256
 	OpAMD64VADDPD512
@@ -4461,6 +4465,18 @@ const (
 	OpStoreMask64x2
 	OpStoreMask64x4
 	OpStoreMask64x8
+	OpCvt16toMask8x16
+	OpCvt32toMask8x32
+	OpCvt64toMask8x64
+	OpCvt8toMask16x8
+	OpCvt16toMask16x16
+	OpCvt32toMask16x32
+	OpCvt8toMask32x4
+	OpCvt8toMask32x8
+	OpCvt16toMask32x16
+	OpCvt8toMask64x2
+	OpCvt8toMask64x4
+	OpCvt8toMask64x8
 	OpAbsoluteInt8x16
 	OpAbsoluteInt8x32
 	OpAbsoluteInt8x64
@@ -19026,6 +19042,58 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+		},
+	},
+	{
+		name:   "KMOVQ",
+		argLen: 1,
+		asm:    x86.AKMOVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "KMOVD",
+		argLen: 1,
+		asm:    x86.AKMOVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "KMOVW",
+		argLen: 1,
+		asm:    x86.AKMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "KMOVB",
+		argLen: 1,
+		asm:    x86.AKMOVB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 			},
 		},
 	},
@@ -61377,6 +61445,66 @@ var opcodeTable = [...]opInfo{
 		name:    "StoreMask64x8",
 		auxType: auxTyp,
 		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "Cvt16toMask8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Cvt32toMask8x32",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Cvt64toMask8x64",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Cvt8toMask16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Cvt16toMask16x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Cvt32toMask16x32",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Cvt8toMask32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Cvt8toMask32x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Cvt16toMask32x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Cvt8toMask64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Cvt8toMask64x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Cvt8toMask64x8",
+		argLen:  1,
 		generic: true,
 	},
 	{

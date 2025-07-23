@@ -242,6 +242,7 @@ func init() {
 
 		kload  = regInfo{inputs: []regMask{gpspsb, 0}, outputs: maskonly}
 		kstore = regInfo{inputs: []regMask{gpspsb, mask, 0}}
+		gpk    = regInfo{inputs: gponly, outputs: maskonly}
 
 		prefreg = regInfo{inputs: []regMask{gpspsbg}}
 	)
@@ -1337,6 +1338,12 @@ func init() {
 
 		{name: "KMOVQload", argLength: 2, reg: kload, asm: "KMOVQ", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},
 		{name: "KMOVQstore", argLength: 3, reg: kstore, asm: "KMOVQ", aux: "SymOff", faultOnNilArg0: true, symEffect: "Write"},
+
+		// Move GP directly to mask register
+		{name: "KMOVQ", argLength: 1, reg: gpk, asm: "KMOVQ"},
+		{name: "KMOVD", argLength: 1, reg: gpk, asm: "KMOVD"},
+		{name: "KMOVW", argLength: 1, reg: gpk, asm: "KMOVW"},
+		{name: "KMOVB", argLength: 1, reg: gpk, asm: "KMOVB"},
 	}
 
 	var AMD64blocks = []blockData{
