@@ -115,9 +115,6 @@ type Flags struct {
 	// SwissMap enables the SwissTable-based map implementation.
 	SwissMap bool
 
-	// SyncHashTrieMap enables the HashTrieMap sync.Map implementation.
-	SyncHashTrieMap bool
-
 	// Synctest enables the testing/synctest package.
 	Synctest bool
 
