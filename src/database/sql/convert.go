@@ -335,7 +335,6 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 			if rows == nil {
 				return errors.New("invalid context to convert cursor rows, missing parent *Rows")
 			}
-			rows.closemu.Lock()
 			*d = Rows{
 				dc:          rows.dc,
 				releaseConn: func(error) {},
@@ -351,7 +350,6 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 					parentCancel()
 				}
 			}
-			rows.closemu.Unlock()
 			return nil
 		}
 	}
