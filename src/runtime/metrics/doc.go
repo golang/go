@@ -509,6 +509,9 @@ Below is the full list of supported metrics, ordered lexicographically.
 		operating system threads that can execute user-level Go code
 		simultaneously.
 
+	/sched/goroutines-created:goroutines
+		Count of goroutines created since program start.
+
 	/sched/goroutines/not-in-go:goroutines
 		Approximate count of goroutines running or blocked in
 		a system call or cgo call. Not guaranteed to add up to

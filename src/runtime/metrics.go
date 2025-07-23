@@ -500,6 +500,13 @@ func initMetrics() {
 				out.scalar = uint64(in.schedStats.gWaiting)
 			},
 		},
+		"/sched/goroutines-created:goroutines": {
+			deps: makeStatDepSet(schedStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(in.schedStats.gCreated)
+			},
+		},
 		"/sched/latencies:seconds": {
 			compute: func(_ *statAggregate, out *metricValue) {
 				sched.timeToRun.write(out)
@@ -779,6 +786,7 @@ type schedStatsAggregate struct {
 	gRunnable uint64
 	gNonGo    uint64
 	gWaiting  uint64
+	gCreated  uint64
 }
 
 // compute populates the schedStatsAggregate with values from the runtime.
@@ -790,10 +798,12 @@ func (a *schedStatsAggregate) compute() {
 	lock(&sched.lock)
 
 	// Collect running/runnable from per-P run queues.
+	a.gCreated += sched.goroutinesCreated.Load()
 	for _, p := range allp {
 		if p == nil || p.status == _Pdead {
 			break
 		}
+		a.gCreated += p.goroutinesCreated
 		switch p.status {
 		case _Prunning:
 			a.gRunning++

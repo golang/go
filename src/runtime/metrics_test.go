@@ -1583,12 +1583,14 @@ func TestReadMetricsSched(t *testing.T) {
 		runnable
 		running
 		waiting
+		created
 	)
-	var s [4]metrics.Sample
-	s[0].Name = "/sched/goroutines/not-in-go:goroutines"
-	s[1].Name = "/sched/goroutines/runnable:goroutines"
-	s[2].Name = "/sched/goroutines/running:goroutines"
-	s[3].Name = "/sched/goroutines/waiting:goroutines"
+	var s [5]metrics.Sample
+	s[notInGo].Name = "/sched/goroutines/not-in-go:goroutines"
+	s[runnable].Name = "/sched/goroutines/runnable:goroutines"
+	s[running].Name = "/sched/goroutines/running:goroutines"
+	s[waiting].Name = "/sched/goroutines/waiting:goroutines"
+	s[created].Name = "/sched/goroutines-created:goroutines"
 
 	logMetrics := func(t *testing.T, s []metrics.Sample) {
 		for i := range s {
@@ -1645,6 +1647,9 @@ func TestReadMetricsSched(t *testing.T) {
 		check(t, &s[waiting], 0, waitingSlack)
 	})
 
+	metrics.Read(s[:])
+	createdAfterBase := s[created].Value.Uint64()
+
 	// Force Running count to be high. We'll use these goroutines
 	// for Runnable, too.
 	const count = 10
@@ -1673,6 +1678,11 @@ func TestReadMetricsSched(t *testing.T) {
 	// of runnable goroutines all spinning. We cannot write anything
 	// out.
 	if testenv.HasParallelism() {
+		t.Run("created", func(t *testing.T) {
+			metrics.Read(s[:])
+			logMetrics(t, s[:])
+			checkEq(t, &s[created], createdAfterBase+count)
+		})
 		t.Run("running", func(t *testing.T) {
 			defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(count + 4))
 			// It can take a little bit for the scheduler to
@@ -1706,6 +1716,11 @@ func TestReadMetricsSched(t *testing.T) {
 		exit.Store(1)
 
 		// Now we can check our invariants.
+		t.Run("created", func(t *testing.T) {
+			// Look for count-1 goroutines because we read metrics
+			// *before* t.Run goroutine was created for this sub-test.
+			checkEq(t, &s[created], createdAfterBase+count-1)
+		})
 		t.Run("running", func(t *testing.T) {
 			logMetrics(t, s[:])
 			checkEq(t, &s[running], 1)

@@ -5262,6 +5262,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 			racereleasemergeg(newg, unsafe.Pointer(&labelSync))
 		}
 	}
+	pp.goroutinesCreated++
 	releasem(mp)
 
 	return newg
@@ -5841,6 +5842,8 @@ func (pp *p) destroy() {
 	pp.gcAssistTime = 0
 	gcCleanups.queued += pp.cleanupsQueued
 	pp.cleanupsQueued = 0
+	sched.goroutinesCreated.Add(int64(pp.goroutinesCreated))
+	pp.goroutinesCreated = 0
 	pp.xRegs.free()
 	pp.status = _Pdead
 }

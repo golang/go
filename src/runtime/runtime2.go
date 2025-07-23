@@ -764,6 +764,9 @@ type p struct {
 	// gcStopTime is the nanotime timestamp that this P last entered _Pgcstop.
 	gcStopTime int64
 
+	// goroutinesCreated is the total count of goroutines created by this P.
+	goroutinesCreated uint64
+
 	// xRegs is the per-P extended register state used by asynchronous
 	// preemption. This is an empty struct on platforms that don't use extended
 	// register state.
@@ -892,6 +895,10 @@ type schedt struct {
 	// M, but waiting for locks within the runtime. This field stores the value
 	// for Ms that have exited.
 	totalRuntimeLockWaitTime atomic.Int64
+
+	// goroutinesCreated (plus the value of goroutinesCreated on each P in allp)
+	// is the sum of all goroutines created by the program.
+	goroutinesCreated atomic.Uint64
 }
 
 // Values for the flags field of a sigTabT.

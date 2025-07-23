@@ -438,6 +438,12 @@ var allDesc = []Description{
 		Kind:        KindUint64,
 	},
 	{
+		Name:        "/sched/goroutines-created:goroutines",
+		Description: "Count of goroutines created since program start.",
+		Cumulative:  true,
+		Kind:        KindUint64,
+	},
+	{
 		Name:        "/sched/goroutines/not-in-go:goroutines",
 		Description: "Approximate count of goroutines running or blocked in a system call or cgo call. Not guaranteed to add up to /sched/goroutines:goroutines with other goroutine metrics.",
 		Kind:        KindUint64,
