@@ -428,3 +428,19 @@ func TestBitMaskStore(t *testing.T) {
 		t.Errorf("Result incorrect: want %b, got %b", want, got)
 	}
 }
+
+func TestBitMaskFromBits(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
+		return
+	}
+	results := [2]int64{}
+	want := [2]int64{0, 6}
+	m := simd.Mask64x2FromBits(0b10)
+	simd.LoadInt64x2Slice([]int64{1, 2}).AddMasked(simd.LoadInt64x2Slice([]int64{3, 4}), m).Store(&results)
+	for i := range 2 {
+		if results[i] != want[i] {
+			t.Errorf("Result at %d incorrect: want %v, got %v", i, want[i], results[i])
+		}
+	}
+}
