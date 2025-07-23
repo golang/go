@@ -13,6 +13,11 @@ import (
 	"unsafe"
 )
 
+// Offset into internal/cpu records for use in assembly.
+const (
+	offsetX86HasAVX512VPCLMULQDQL = unsafe.Offsetof(cpu.X86.HasAVX512VPCLMULQDQ)
+)
+
 // This file contains the code to call the SSE 4.2 version of the Castagnoli
 // and IEEE CRC.
 
