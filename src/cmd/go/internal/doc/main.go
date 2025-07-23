@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package doc provides the implementation of the "go doc" subcommand and cmd/doc.
+//go:build !cmd_go_bootstrap
+
 package doc
 
 import (
@@ -51,18 +52,6 @@ func usage(flagSet *flag.FlagSet) {
 	fmt.Fprintf(os.Stderr, "Flags:\n")
 	flagSet.PrintDefaults()
 	os.Exit(2)
-}
-
-// Main is the entry point, invoked both by go doc and cmd/doc.
-func Main(args []string) {
-	log.SetFlags(0)
-	log.SetPrefix("doc: ")
-	dirsInit()
-	var flagSet flag.FlagSet
-	err := do(os.Stdout, &flagSet, args)
-	if err != nil {
-		log.Fatal(err)
-	}
 }
 
 // do is the workhorse, broken out of main to make testing easier.

@@ -8,9 +8,12 @@
 package doc
 
 import (
-	"cmd/go/internal/base"
-	"cmd/internal/doc"
 	"context"
+	"flag"
+	"log"
+	"os"
+
+	"cmd/go/internal/base"
 )
 
 var CmdDoc = &base.Command{
@@ -136,5 +139,12 @@ Flags:
 }
 
 func runDoc(ctx context.Context, cmd *base.Command, args []string) {
-	doc.Main(args)
+	log.SetFlags(0)
+	log.SetPrefix("doc: ")
+	dirsInit()
+	var flagSet flag.FlagSet
+	err := do(os.Stdout, &flagSet, args)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
