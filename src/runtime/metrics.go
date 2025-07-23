@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"internal/godebugs"
+	"internal/runtime/atomic"
 	"internal/runtime/gc"
 	"unsafe"
 )
@@ -465,9 +466,38 @@ func initMetrics() {
 			},
 		},
 		"/sched/goroutines:goroutines": {
-			compute: func(_ *statAggregate, out *metricValue) {
+			deps: makeStatDepSet(schedStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
-				out.scalar = uint64(gcount())
+				out.scalar = uint64(in.schedStats.gTotal)
+			},
+		},
+		"/sched/goroutines/not-in-go:goroutines": {
+			deps: makeStatDepSet(schedStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(in.schedStats.gNonGo)
+			},
+		},
+		"/sched/goroutines/running:goroutines": {
+			deps: makeStatDepSet(schedStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(in.schedStats.gRunning)
+			},
+		},
+		"/sched/goroutines/runnable:goroutines": {
+			deps: makeStatDepSet(schedStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(in.schedStats.gRunnable)
+			},
+		},
+		"/sched/goroutines/waiting:goroutines": {
+			deps: makeStatDepSet(schedStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(in.schedStats.gWaiting)
 			},
 		},
 		"/sched/latencies:seconds": {
@@ -547,6 +577,7 @@ const (
 	cpuStatsDep                  // corresponds to cpuStatsAggregate
 	gcStatsDep                   // corresponds to gcStatsAggregate
 	finalStatsDep                // corresponds to finalStatsAggregate
+	schedStatsDep                // corresponds to schedStatsAggregate
 	numStatsDeps
 )
 
@@ -740,6 +771,80 @@ func (a *finalStatsAggregate) compute() {
 	a.cleanupsQueued, a.cleanupsExecuted = gcCleanups.readQueueStats()
 }
 
+// schedStatsAggregate contains stats about the scheduler, including
+// an approximate count of goroutines in each state.
+type schedStatsAggregate struct {
+	gTotal    uint64
+	gRunning  uint64
+	gRunnable uint64
+	gNonGo    uint64
+	gWaiting  uint64
+}
+
+// compute populates the schedStatsAggregate with values from the runtime.
+func (a *schedStatsAggregate) compute() {
+	// Lock the scheduler so the global run queue can't change and
+	// the number of Ps can't change. This doesn't prevent the
+	// local run queues from changing, so the results are still
+	// approximate.
+	lock(&sched.lock)
+
+	// Collect running/runnable from per-P run queues.
+	for _, p := range allp {
+		if p == nil || p.status == _Pdead {
+			break
+		}
+		switch p.status {
+		case _Prunning:
+			a.gRunning++
+		case _Psyscall:
+			a.gNonGo++
+		case _Pgcstop:
+			// The world is stopping or stopped.
+			// This is fine. The results will be
+			// slightly odd since nothing else
+			// is running, but it will be accurate.
+		}
+
+		for {
+			h := atomic.Load(&p.runqhead)
+			t := atomic.Load(&p.runqtail)
+			next := atomic.Loaduintptr((*uintptr)(&p.runnext))
+			runnable := int32(t - h)
+			if atomic.Load(&p.runqhead) != h || runnable < 0 {
+				continue
+			}
+			if next != 0 {
+				runnable++
+			}
+			a.gRunnable += uint64(runnable)
+			break
+		}
+	}
+
+	// Global run queue.
+	a.gRunnable += uint64(sched.runq.size)
+
+	// Account for Gs that are in _Gsyscall without a P in _Psyscall.
+	nGsyscallNoP := sched.nGsyscallNoP.Load()
+
+	// nGsyscallNoP can go negative during temporary races.
+	if nGsyscallNoP >= 0 {
+		a.gNonGo += uint64(nGsyscallNoP)
+	}
+
+	// Compute the number of blocked goroutines. We have to
+	// include system goroutines in this count because we included
+	// them above.
+	a.gTotal = uint64(gcount(true))
+	a.gWaiting = a.gTotal - (a.gRunning + a.gRunnable + a.gNonGo)
+	if a.gWaiting < 0 {
+		a.gWaiting = 0
+	}
+
+	unlock(&sched.lock)
+}
+
 // nsToSec takes a duration in nanoseconds and converts it to seconds as
 // a float64.
 func nsToSec(ns int64) float64 {
@@ -758,6 +863,7 @@ type statAggregate struct {
 	cpuStats   cpuStatsAggregate
 	gcStats    gcStatsAggregate
 	finalStats finalStatsAggregate
+	schedStats schedStatsAggregate
 }
 
 // ensure populates statistics aggregates determined by deps if they
@@ -782,6 +888,8 @@ func (a *statAggregate) ensure(deps *statDepSet) {
 			a.gcStats.compute()
 		case finalStatsDep:
 			a.finalStats.compute()
+		case schedStatsDep:
+			a.schedStats.compute()
 		}
 	}
 	a.ensured = a.ensured.union(missing)

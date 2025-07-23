@@ -509,6 +509,26 @@ Below is the full list of supported metrics, ordered lexicographically.
 		operating system threads that can execute user-level Go code
 		simultaneously.
 
+	/sched/goroutines/not-in-go:goroutines
+		Approximate count of goroutines running or blocked in
+		a system call or cgo call. Not guaranteed to add up to
+		/sched/goroutines:goroutines with other goroutine metrics.
+
+	/sched/goroutines/runnable:goroutines
+		Approximate count of goroutines ready to execute,
+		but not executing. Not guaranteed to add up to
+		/sched/goroutines:goroutines with other goroutine metrics.
+
+	/sched/goroutines/running:goroutines
+		Approximate count of goroutines executing. Always less than or
+		equal to /sched/gomaxprocs:threads. Not guaranteed to add up to
+		/sched/goroutines:goroutines with other goroutine metrics.
+
+	/sched/goroutines/waiting:goroutines
+		Approximate count of goroutines waiting on a resource
+		(I/O or sync primitives). Not guaranteed to add up to
+		/sched/goroutines:goroutines with other goroutine metrics.
+
 	/sched/goroutines:goroutines
 		Count of live goroutines.
 

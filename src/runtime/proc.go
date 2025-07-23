@@ -1648,6 +1648,7 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
 			if trace.ok() {
 				trace.ProcSteal(pp, false)
 			}
+			sched.nGsyscallNoP.Add(1)
 			pp.syscalltick++
 			pp.gcStopTime = nanotime()
 			sched.stopwait--
@@ -2174,6 +2175,7 @@ func forEachPInternal(fn func(*p)) {
 				trace.ProcSteal(p2, false)
 				traceRelease(trace)
 			}
+			sched.nGsyscallNoP.Add(1)
 			p2.syscalltick++
 			handoffp(p2)
 		} else if trace.ok() {
@@ -2447,6 +2449,7 @@ func needm(signal bool) {
 	// mp.curg is now a real goroutine.
 	casgstatus(mp.curg, _Gdead, _Gsyscall)
 	sched.ngsys.Add(-1)
+	sched.nGsyscallNoP.Add(1)
 
 	if !signal {
 		if trace.ok() {
@@ -2582,6 +2585,7 @@ func dropm() {
 	casgstatus(mp.curg, _Gsyscall, _Gdead)
 	mp.curg.preemptStop = false
 	sched.ngsys.Add(1)
+	sched.nGsyscallNoP.Add(-1)
 
 	if !mp.isExtraInSig {
 		if trace.ok() {
@@ -4675,6 +4679,7 @@ func entersyscall_gcwait() {
 			trace.ProcSteal(pp, true)
 			traceRelease(trace)
 		}
+		sched.nGsyscallNoP.Add(1)
 		pp.gcStopTime = nanotime()
 		pp.syscalltick++
 		if sched.stopwait--; sched.stopwait == 0 {
@@ -4706,6 +4711,8 @@ func entersyscallblock() {
 	gp.stackguard0 = stackPreempt // see comment in entersyscall
 	gp.m.syscalltick = gp.m.p.ptr().syscalltick
 	gp.m.p.ptr().syscalltick++
+
+	sched.nGsyscallNoP.Add(1)
 
 	// Leave SP around for GC and traceback.
 	pc := sys.GetCallerPC()
@@ -4927,6 +4934,7 @@ func exitsyscallfast_pidle() bool {
 	}
 	unlock(&sched.lock)
 	if pp != nil {
+		sched.nGsyscallNoP.Add(-1)
 		acquirep(pp)
 		return true
 	}
@@ -4953,6 +4961,7 @@ func exitsyscall0(gp *g) {
 		trace.GoSysExit(true)
 		traceRelease(trace)
 	}
+	sched.nGsyscallNoP.Add(-1)
 	dropg()
 	lock(&sched.lock)
 	var pp *p
@@ -5528,8 +5537,11 @@ func badunlockosthread() {
 	throw("runtime: internal error: misuse of lockOSThread/unlockOSThread")
 }
 
-func gcount() int32 {
-	n := int32(atomic.Loaduintptr(&allglen)) - sched.gFree.stack.size - sched.gFree.noStack.size - sched.ngsys.Load()
+func gcount(includeSys bool) int32 {
+	n := int32(atomic.Loaduintptr(&allglen)) - sched.gFree.stack.size - sched.gFree.noStack.size
+	if !includeSys {
+		n -= sched.ngsys.Load()
+	}
 	for _, pp := range allp {
 		n -= pp.gFree.size
 	}
@@ -6404,6 +6416,7 @@ func retake(now int64) uint32 {
 					trace.ProcSteal(pp, false)
 					traceRelease(trace)
 				}
+				sched.nGsyscallNoP.Add(1)
 				n++
 				pp.syscalltick++
 				handoffp(pp)

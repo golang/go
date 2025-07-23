@@ -792,7 +792,8 @@ type schedt struct {
 	nmsys        int32    // number of system m's not counted for deadlock
 	nmfreed      int64    // cumulative number of freed m's
 
-	ngsys atomic.Int32 // number of system goroutines
+	ngsys        atomic.Int32 // number of system goroutines
+	nGsyscallNoP atomic.Int32 // number of goroutines in syscalls without a P
 
 	pidle        puintptr // idle p's
 	npidle       atomic.Int32
