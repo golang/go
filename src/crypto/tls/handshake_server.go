@@ -594,6 +594,10 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		hs.hello.ocspStapling = true
 	}
 
+	if hs.clientHello.serverName != "" {
+		hs.hello.serverNameAck = true
+	}
+
 	hs.hello.ticketSupported = hs.clientHello.ticketSupported && !c.config.SessionTicketsDisabled
 	hs.hello.cipherSuite = hs.suite.id
 

@@ -15,6 +15,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -214,7 +215,10 @@ func doPkgsite(urlPath string) error {
 		return fmt.Errorf("failed to find port for documentation server: %v", err)
 	}
 	addr := fmt.Sprintf("localhost:%d", port)
-	path := path.Join("http://"+addr, urlPath)
+	path, err := url.JoinPath("http://"+addr, urlPath)
+	if err != nil {
+		return fmt.Errorf("internal error: failed to construct url: %v", err)
+	}
 
 	// Turn off the default signal handler for SIGINT (and SIGQUIT on Unix)
 	// and instead wait for the child process to handle the signal and
@@ -223,7 +227,7 @@ func doPkgsite(urlPath string) error {
 
 	// Prepend the local download cache to GOPROXY to get around deprecation checks.
 	env := os.Environ()
-	vars, err := runCmd(nil, "go", "env", "GOPROXY", "GOMODCACHE")
+	vars, err := runCmd(env, goCmd(), "env", "GOPROXY", "GOMODCACHE")
 	fields := strings.Fields(vars)
 	if err == nil && len(fields) == 2 {
 		goproxy, gomodcache := fields[0], fields[1]
@@ -239,8 +243,8 @@ func doPkgsite(urlPath string) error {
 		env = append(env, "GOPROXY="+gomodcache+","+goproxy)
 	}
 
-	const version = "v0.0.0-20250608123103-82c52f1754cd"
-	cmd := exec.Command("go", "run", "golang.org/x/pkgsite/cmd/internal/doc@"+version,
+	const version = "v0.0.0-20250714212547-01b046e81fe7"
+	cmd := exec.Command(goCmd(), "run", "golang.org/x/pkgsite/cmd/internal/doc@"+version,
 		"-gorepo", buildCtx.GOROOT,
 		"-http", addr,
 		"-open", path)

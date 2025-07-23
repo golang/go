@@ -122,17 +122,24 @@ type escape struct {
 }
 
 func Funcs(all []*ir.Func) {
-	ir.VisitFuncsBottomUp(all, Batch)
+	// Make a cache of ir.ReassignOracles. The cache is lazily populated.
+	// TODO(thepudds): consider adding a field on ir.Func instead. We might also be able
+	// to use that field elsewhere, like in walk. See discussion in https://go.dev/cl/688075.
+	reassignOracles := make(map[*ir.Func]*ir.ReassignOracle)
+
+	ir.VisitFuncsBottomUp(all, func(list []*ir.Func, recursive bool) {
+		Batch(list, reassignOracles)
+	})
 }
 
 // Batch performs escape analysis on a minimal batch of
 // functions.
-func Batch(fns []*ir.Func, recursive bool) {
+func Batch(fns []*ir.Func, reassignOracles map[*ir.Func]*ir.ReassignOracle) {
 	var b batch
 	b.heapLoc.attrs = attrEscapes | attrPersists | attrMutates | attrCalls
 	b.mutatorLoc.attrs = attrMutates
 	b.calleeLoc.attrs = attrCalls
-	b.reassignOracles = make(map[*ir.Func]*ir.ReassignOracle)
+	b.reassignOracles = reassignOracles
 
 	// Construct data-flow graph from syntax trees.
 	for _, fn := range fns {
@@ -531,19 +538,9 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 	if n == nil || fn == nil {
 		return
 	}
-	if n.Op() != ir.OMAKESLICE && n.Op() != ir.OCONVIFACE {
-		return
-	}
 
-	// Look up a cached ReassignOracle for the function, lazily computing one if needed.
-	ro := b.reassignOracle(fn)
-	if ro == nil {
-		base.Fatalf("no ReassignOracle for function %v with closure parent %v", fn, fn.ClosureParent)
-	}
-
-	assignTemp := func(n ir.Node, init *ir.Nodes) {
+	assignTemp := func(pos src.XPos, n ir.Node, init *ir.Nodes) {
 		// Preserve any side effects of n by assigning it to an otherwise unused temp.
-		pos := n.Pos()
 		tmp := typecheck.TempAt(pos, fn, n.Type())
 		init.Append(typecheck.Stmt(ir.NewDecl(pos, ir.ODCL, tmp)))
 		init.Append(typecheck.Stmt(ir.NewAssignStmt(pos, tmp, n)))
@@ -561,6 +558,11 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 		}
 
 		if (*r).Op() != ir.OLITERAL {
+			// Look up a cached ReassignOracle for the function, lazily computing one if needed.
+			ro := b.reassignOracle(fn)
+			if ro == nil {
+				base.Fatalf("no ReassignOracle for function %v with closure parent %v", fn, fn.ClosureParent)
+			}
 			if s := ro.StaticValue(*r); s.Op() == ir.OLITERAL {
 				lit, ok := s.(*ir.BasicLit)
 				if !ok || lit.Val().Kind() != constant.Int {
@@ -572,8 +574,8 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 						return
 					}
 					// Preserve any side effects of the original expression, then replace it.
-					assignTemp(*r, n.PtrInit())
-					*r = lit
+					assignTemp(n.Pos(), *r, n.PtrInit())
+					*r = ir.NewBasicLit(n.Pos(), (*r).Type(), lit.Val())
 				}
 			}
 		}
@@ -582,6 +584,12 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 		// a literal to avoid heap allocating the underlying interface value.
 		conv := n.(*ir.ConvExpr)
 		if conv.X.Op() != ir.OLITERAL && !conv.X.Type().IsInterface() {
+			// TODO(thepudds): likely could avoid some work by tightening the check of conv.X's type.
+			// Look up a cached ReassignOracle for the function, lazily computing one if needed.
+			ro := b.reassignOracle(fn)
+			if ro == nil {
+				base.Fatalf("no ReassignOracle for function %v with closure parent %v", fn, fn.ClosureParent)
+			}
 			v := ro.StaticValue(conv.X)
 			if v != nil && v.Op() == ir.OLITERAL && ir.ValidTypeForConst(conv.X.Type(), v.Val()) {
 				if !base.LiteralAllocHash.MatchPos(n.Pos(), nil) {
@@ -592,9 +600,9 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
 					base.WarnfAt(n.Pos(), "rewriting OCONVIFACE value from %v (%v) to %v (%v)", conv.X, conv.X.Type(), v, v.Type())
 				}
 				// Preserve any side effects of the original expression, then replace it.
-				assignTemp(conv.X, conv.PtrInit())
+				assignTemp(conv.Pos(), conv.X, conv.PtrInit())
 				v := v.(*ir.BasicLit)
-				conv.X = ir.NewBasicLit(conv.X.Pos(), conv.X.Type(), v.Val())
+				conv.X = ir.NewBasicLit(conv.Pos(), conv.X.Type(), v.Val())
 				typecheck.Expr(conv)
 			}
 		}

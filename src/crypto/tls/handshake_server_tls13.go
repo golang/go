@@ -802,6 +802,10 @@ func (hs *serverHandshakeStateTLS13) sendServerParameters() error {
 		encryptedExtensions.earlyData = hs.earlyData
 	}
 
+	if !hs.c.didResume && hs.clientHello.serverName != "" {
+		encryptedExtensions.serverNameAck = true
+	}
+
 	// If client sent ECH extension, but we didn't accept it,
 	// send retry configs, if available.
 	echKeys := hs.c.config.EncryptedClientHelloKeys

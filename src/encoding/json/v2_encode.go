@@ -10,6 +10,14 @@
 //
 // See "JSON and Go" for an introduction to this package:
 // https://golang.org/doc/articles/json_and_go.html
+//
+// # Security Considerations
+//
+// See the "Security Considerations" section in [encoding/json/v2].
+//
+// For historical reasons, the default behavior of v1 [encoding/json]
+// unfortunately operates with less secure defaults.
+// New usages of JSON in Go are encouraged to use [encoding/json/v2] instead.
 package json
 
 import (

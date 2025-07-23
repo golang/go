@@ -3176,3 +3176,39 @@ func (recv T) f(param int) (result int) {
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
 }
+
+func TestIssue73871(t *testing.T) {
+	const src = `package p
+
+func f[T ~[]byte](y T) []byte { return append([]byte(nil), y...) }
+
+// for illustration only:
+type B []byte
+var _ = f[B]
+`
+	fset := token.NewFileSet()
+	f, _ := parser.ParseFile(fset, "p.go", src, 0)
+
+	pkg := NewPackage("p", "p")
+	info := &Info{Types: make(map[ast.Expr]TypeAndValue)}
+	check := NewChecker(&Config{}, fset, pkg, info)
+	if err := check.Files([]*ast.File{f}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Check type inferred for 'append'.
+	//
+	// Before the fix, the inferred type of append's y parameter
+	// was T. When a client such as x/tools/go/ssa instantiated T=B,
+	// it would result in the Signature "func([]byte, B)" with the
+	// variadic flag set, an invalid combination that caused
+	// NewSignatureType to panic.
+	append := f.Decls[0].(*ast.FuncDecl).Body.List[0].(*ast.ReturnStmt).Results[0].(*ast.CallExpr).Fun
+	tAppend := info.TypeOf(append).(*Signature)
+	want := "func([]byte, ...byte) []byte"
+	if got := fmt.Sprint(tAppend); got != want {
+		// Before the fix, tAppend was func([]byte, T) []byte,
+		// where T prints as "<expected string type>".
+		t.Errorf("for append, inferred type %s, want %s", tAppend, want)
+	}
+}

@@ -650,9 +650,9 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		}
 	}
 
-	// Copy over the inline mark bits if necessary.
+	// Copy over and clear the inline mark bits if necessary.
 	if gcUsesSpanInlineMarkBits(s.elemsize) {
-		s.mergeInlineMarks(s.gcmarkBits)
+		s.moveInlineMarks(s.gcmarkBits)
 	}
 
 	// Check for zombie objects.
@@ -703,11 +703,6 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 
 	// Initialize alloc bits cache.
 	s.refillAllocCache(0)
-
-	// Reset the object queue, if we have one.
-	if gcUsesSpanInlineMarkBits(s.elemsize) {
-		s.initInlineMarkBits()
-	}
 
 	// The span must be in our exclusive ownership until we update sweepgen,
 	// check for potential races.

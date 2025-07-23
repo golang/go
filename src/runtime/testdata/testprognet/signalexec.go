@@ -13,9 +13,11 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -23,10 +25,51 @@ import (
 
 func init() {
 	register("SignalDuringExec", SignalDuringExec)
+	register("SignalDuringExecPgrp", SignalDuringExecPgrp)
 	register("Nop", Nop)
 }
 
 func SignalDuringExec() {
+	// Re-launch ourselves in a new process group.
+	cmd := exec.Command(os.Args[0], "SignalDuringExecPgrp")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
+
+	// Start the new process with an extra pipe. It will
+	// exit if the pipe is closed.
+	rp, wp, err := os.Pipe()
+	if err != nil {
+		fmt.Printf("Failed to create pipe: %v", err)
+		return
+	}
+	cmd.ExtraFiles = []*os.File{rp}
+
+	// Run the command.
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("Run failed: %v", err)
+	}
+
+	// We don't actually need to write to the pipe, it just
+	// needs to get closed, which will happen on process
+	// exit.
+	runtime.KeepAlive(wp)
+}
+
+func SignalDuringExecPgrp() {
+	// Grab fd 3 which is a pipe we need to read on.
+	f := os.NewFile(3, "pipe")
+	go func() {
+		// Nothing will ever get written to the pipe, so we'll
+		// just block on it. If it closes, ReadAll will return
+		// one way or another, at which point we'll exit.
+		io.ReadAll(f)
+		os.Exit(1)
+	}()
+
+	// This is just for SignalDuringExec.
 	pgrp := syscall.Getpgrp()
 
 	const tries = 10

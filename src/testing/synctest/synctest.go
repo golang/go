@@ -22,7 +22,7 @@
 //
 //	func TestTime(t *testing.T) {
 //		synctest.Test(t, func(t *testing.T) {
-//			start := time.Now() // always midnight UTC 2001-01-01
+//			start := time.Now() // always midnight UTC 2000-01-01
 //			go func() {
 //				time.Sleep(1 * time.Second)
 //				t.Log(time.Since(start)) // always logs "1s"

@@ -110,7 +110,7 @@ func (o *spanScanOwnership) or(v spanScanOwnership) spanScanOwnership {
 	return spanScanOwnership(atomic.Or32(o32, uint32(v)<<off) >> off)
 }
 
-func (imb *spanInlineMarkBits) init(class spanClass) {
+func (imb *spanInlineMarkBits) init(class spanClass, needzero bool) {
 	if imb == nil {
 		// This nil check and throw is almost pointless. Normally we would
 		// expect imb to never be nil. However, this is called on potentially
@@ -131,7 +131,13 @@ func (imb *spanInlineMarkBits) init(class spanClass) {
 		// See go.dev/issue/74375 for details.
 		throw("runtime: span inline mark bits nil?")
 	}
-	*imb = spanInlineMarkBits{}
+	if needzero {
+		// Use memclrNoHeapPointers to avoid having the compiler make a worse
+		// decision. We know that imb is both aligned and a nice power-of-two
+		// size that works well for wider SIMD instructions. The compiler likely
+		// has no idea that imb is aligned to 128 bytes.
+		memclrNoHeapPointers(unsafe.Pointer(imb), unsafe.Sizeof(spanInlineMarkBits{}))
+	}
 	imb.class = class
 }
 
@@ -180,25 +186,33 @@ func (s *mspan) initInlineMarkBits() {
 	if doubleCheckGreenTea && !gcUsesSpanInlineMarkBits(s.elemsize) {
 		throw("expected span with inline mark bits")
 	}
-	s.inlineMarkBits().init(s.spanclass)
+	// Zeroing is only necessary if this span wasn't just freshly allocated from the OS.
+	s.inlineMarkBits().init(s.spanclass, s.needzero != 0)
 }
 
-// mergeInlineMarks merges the span's inline mark bits into dst.
+// moveInlineMarks merges the span's inline mark bits into dst and clears them.
 //
 // gcUsesSpanInlineMarkBits(s.elemsize) must be true.
-func (s *mspan) mergeInlineMarks(dst *gcBits) {
+func (s *mspan) moveInlineMarks(dst *gcBits) {
 	if doubleCheckGreenTea && !gcUsesSpanInlineMarkBits(s.elemsize) {
 		throw("expected span with inline mark bits")
 	}
 	bytes := divRoundUp(uintptr(s.nelems), 8)
 	imb := s.inlineMarkBits()
-	_ = imb.marks[bytes-1]
-	for i := uintptr(0); i < bytes; i++ {
-		*dst.bytep(i) |= imb.marks[i]
+	imbMarks := (*gc.ObjMask)(unsafe.Pointer(&imb.marks))
+	for i := uintptr(0); i < bytes; i += goarch.PtrSize {
+		marks := bswapIfBigEndian(imbMarks[i/goarch.PtrSize])
+		if i/goarch.PtrSize == uintptr(len(imb.marks)+1)/goarch.PtrSize-1 {
+			marks &^= 0xff << ((goarch.PtrSize - 1) * 8) // mask out class
+		}
+		*(*uintptr)(unsafe.Pointer(dst.bytep(i))) |= bswapIfBigEndian(marks)
 	}
 	if doubleCheckGreenTea && !s.spanclass.noscan() && imb.marks != imb.scans {
 		throw("marks don't match scans for span with pointer")
 	}
+
+	// Reset the inline mark bits.
+	imb.init(s.spanclass, true /* We know these bits are always dirty now. */)
 }
 
 // inlineMarkBits returns the inline mark bits for the span.
@@ -652,7 +666,7 @@ func spanSetScans(spanBase uintptr, nelems uint16, imb *spanInlineMarkBits, toSc
 		marks := imbMarks[i/goarch.PtrSize]
 		scans = bswapIfBigEndian(scans)
 		marks = bswapIfBigEndian(marks)
-		if i/goarch.PtrSize == 64/goarch.PtrSize-1 {
+		if i/goarch.PtrSize == uintptr(len(imb.marks)+1)/goarch.PtrSize-1 {
 			scans &^= 0xff << ((goarch.PtrSize - 1) * 8) // mask out owned
 			marks &^= 0xff << ((goarch.PtrSize - 1) * 8) // mask out class
 		}
