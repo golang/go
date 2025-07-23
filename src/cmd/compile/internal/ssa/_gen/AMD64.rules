@@ -1698,6 +1698,22 @@
 (LoadMask64x4 <t> ptr mem) => (VPMOVMToVec64x4 <types.TypeVec256> (KMOVQload <t> ptr mem))
 (LoadMask64x8 <t> ptr mem) => (VPMOVMToVec64x8 <types.TypeVec512> (KMOVQload <t> ptr mem))
 
+(StoreMask8x16 {t} ptr val mem) => (KMOVQstore ptr (VPMOVVec8x16ToM <t> val) mem)
+(StoreMask8x32 {t} ptr val mem) => (KMOVQstore ptr (VPMOVVec8x32ToM <t> val) mem)
+(StoreMask8x64 {t} ptr val mem) => (KMOVQstore ptr (VPMOVVec8x64ToM <t> val) mem)
+
+(StoreMask16x8 {t} ptr val mem) => (KMOVQstore ptr (VPMOVVec16x8ToM <t> val) mem)
+(StoreMask16x16 {t} ptr val mem) => (KMOVQstore ptr (VPMOVVec16x16ToM <t> val) mem)
+(StoreMask16x32 {t} ptr val mem) => (KMOVQstore ptr (VPMOVVec16x32ToM <t> val) mem)
+
+(StoreMask32x4 {t} ptr val mem) => (KMOVQstore ptr (VPMOVVec32x4ToM <t> val) mem)
+(StoreMask32x8 {t} ptr val mem) => (KMOVQstore ptr (VPMOVVec32x8ToM <t> val) mem)
+(StoreMask32x16 {t} ptr val mem) => (KMOVQstore ptr (VPMOVVec32x16ToM <t> val) mem)
+
+(StoreMask64x2 {t} ptr val mem) => (KMOVQstore ptr (VPMOVVec64x2ToM <t> val) mem)
+(StoreMask64x4 {t} ptr val mem) => (KMOVQstore ptr (VPMOVVec64x4ToM <t> val) mem)
+(StoreMask64x8 {t} ptr val mem) => (KMOVQstore ptr (VPMOVVec64x8ToM <t> val) mem)
+
 (Load <t> ptr mem) && t.Size() == 16 => (VMOVDQUload128 ptr mem)
 
 (Store {t} ptr val mem) && t.Size() == 16 => (VMOVDQUstore128 ptr val mem)

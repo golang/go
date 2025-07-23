@@ -1199,6 +1199,7 @@ const (
 	OpAMD64VZEROUPPER
 	OpAMD64VZEROALL
 	OpAMD64KMOVQload
+	OpAMD64KMOVQstore
 	OpAMD64VADDPS512
 	OpAMD64VADDPSMasked512
 	OpAMD64VRCP14PS512
@@ -1229,7 +1230,7 @@ const (
 	OpAMD64VADDPS128
 	OpAMD64VADDPSMasked128
 	OpAMD64VADDSUBPS128
-	OpAMD64VRCP14PS128
+	OpAMD64VRCPPS128
 	OpAMD64VRCP14PSMasked128
 	OpAMD64VRSQRTPS128
 	OpAMD64VRSQRT14PSMasked128
@@ -1259,7 +1260,7 @@ const (
 	OpAMD64VADDPS256
 	OpAMD64VADDPSMasked256
 	OpAMD64VADDSUBPS256
-	OpAMD64VRCP14PS256
+	OpAMD64VRCPPS256
 	OpAMD64VRCP14PSMasked256
 	OpAMD64VRSQRTPS256
 	OpAMD64VRSQRT14PSMasked256
@@ -1420,6 +1421,8 @@ const (
 	OpAMD64VPADDW512
 	OpAMD64VPADDWMasked512
 	OpAMD64VPCOMPRESSWMasked512
+	OpAMD64VPCMPEQW512
+	OpAMD64VPCMPGTW512
 	OpAMD64VPMAXSW512
 	OpAMD64VPMAXSWMasked512
 	OpAMD64VPMINSW512
@@ -1501,6 +1504,8 @@ const (
 	OpAMD64VPANDND512
 	OpAMD64VPANDNDMasked512
 	OpAMD64VPCOMPRESSDMasked512
+	OpAMD64VPCMPEQD512
+	OpAMD64VPCMPGTD512
 	OpAMD64VPMAXSD512
 	OpAMD64VPMAXSDMasked512
 	OpAMD64VPMINSD512
@@ -1722,6 +1727,8 @@ const (
 	OpAMD64VPANDNQ512
 	OpAMD64VPANDNQMasked512
 	OpAMD64VPCOMPRESSQMasked512
+	OpAMD64VPCMPEQQ512
+	OpAMD64VPCMPGTQ512
 	OpAMD64VPMAXSQ512
 	OpAMD64VPMAXSQMasked512
 	OpAMD64VPMINSQ512
@@ -1807,6 +1814,8 @@ const (
 	OpAMD64VPADDB512
 	OpAMD64VPADDBMasked512
 	OpAMD64VPCOMPRESSBMasked512
+	OpAMD64VPCMPEQB512
+	OpAMD64VPCMPGTB512
 	OpAMD64VPMAXSB512
 	OpAMD64VPMAXSBMasked512
 	OpAMD64VPMINSB512
@@ -1888,10 +1897,10 @@ const (
 	OpAMD64VPMINUD128
 	OpAMD64VPMINUDMasked128
 	OpAMD64VPMULUDQ128
-	OpAMD64VPERMI2D128
 	OpAMD64VPERMI2PS128
-	OpAMD64VPERMI2PSMasked128
+	OpAMD64VPERMI2D128
 	OpAMD64VPERMI2DMasked128
+	OpAMD64VPERMI2PSMasked128
 	OpAMD64VPSRLD128
 	OpAMD64VPSRLDMasked128
 	OpAMD64VPSRLVD128
@@ -1901,12 +1910,12 @@ const (
 	OpAMD64VPMINUD256
 	OpAMD64VPMINUDMasked256
 	OpAMD64VPMULUDQ256
-	OpAMD64VPERMPS256
 	OpAMD64VPERMD256
-	OpAMD64VPERMI2D256
+	OpAMD64VPERMPS256
 	OpAMD64VPERMI2PS256
-	OpAMD64VPERMI2DMasked256
+	OpAMD64VPERMI2D256
 	OpAMD64VPERMI2PSMasked256
+	OpAMD64VPERMI2DMasked256
 	OpAMD64VPERMPSMasked256
 	OpAMD64VPERMDMasked256
 	OpAMD64VPSRLD256
@@ -1931,10 +1940,10 @@ const (
 	OpAMD64VPMINUQ256
 	OpAMD64VPMINUQMasked256
 	OpAMD64VPMULUDQMasked256
-	OpAMD64VPERMQ256
 	OpAMD64VPERMPD256
-	OpAMD64VPERMI2Q256
+	OpAMD64VPERMQ256
 	OpAMD64VPERMI2PD256
+	OpAMD64VPERMI2Q256
 	OpAMD64VPERMI2PDMasked256
 	OpAMD64VPERMI2QMasked256
 	OpAMD64VPERMQMasked256
@@ -1955,8 +1964,8 @@ const (
 	OpAMD64VPERMI2PD512
 	OpAMD64VPERMI2QMasked512
 	OpAMD64VPERMI2PDMasked512
-	OpAMD64VPERMQMasked512
 	OpAMD64VPERMPDMasked512
+	OpAMD64VPERMQMasked512
 	OpAMD64VPSRLQ512
 	OpAMD64VPSRLQMasked512
 	OpAMD64VPSRLVQ512
@@ -2054,8 +2063,8 @@ const (
 	OpAMD64VPSHLDWMasked256
 	OpAMD64VPSHRDW256
 	OpAMD64VPSHRDWMasked256
-	OpAMD64VPCMPW512
 	OpAMD64VPCMPWMasked512
+	OpAMD64VPCMPW512
 	OpAMD64VPSHLDW512
 	OpAMD64VPSHLDWMasked512
 	OpAMD64VPSHRDW512
@@ -2068,8 +2077,8 @@ const (
 	OpAMD64VPSHLDWMasked128
 	OpAMD64VPSHRDW128
 	OpAMD64VPSHRDWMasked128
-	OpAMD64VPCMPD512
 	OpAMD64VPCMPDMasked512
+	OpAMD64VPCMPD512
 	OpAMD64VPROLD512
 	OpAMD64VPROLDMasked512
 	OpAMD64VPRORD512
@@ -2122,8 +2131,8 @@ const (
 	OpAMD64VPSHLDQMasked256
 	OpAMD64VPSHRDQ256
 	OpAMD64VPSHRDQMasked256
-	OpAMD64VPCMPQ512
 	OpAMD64VPCMPQMasked512
+	OpAMD64VPCMPQ512
 	OpAMD64VPROLQ512
 	OpAMD64VPROLQMasked512
 	OpAMD64VPRORQ512
@@ -2140,16 +2149,16 @@ const (
 	OpAMD64VEXTRACTI128128
 	OpAMD64VPCMPB256
 	OpAMD64VINSERTI128256
-	OpAMD64VPCMPB512
 	OpAMD64VPCMPBMasked512
+	OpAMD64VPCMPB512
 	OpAMD64VPCMPUWMasked256
 	OpAMD64VPCMPUW256
-	OpAMD64VPCMPUW512
 	OpAMD64VPCMPUWMasked512
+	OpAMD64VPCMPUW512
 	OpAMD64VPCMPUWMasked128
 	OpAMD64VPCMPUW128
-	OpAMD64VPCMPUD512
 	OpAMD64VPCMPUDMasked512
+	OpAMD64VPCMPUD512
 	OpAMD64VPCMPUDMasked128
 	OpAMD64VPCMPUD128
 	OpAMD64VPCMPUDMasked256
@@ -2158,8 +2167,8 @@ const (
 	OpAMD64VPCMPUQ128
 	OpAMD64VPCMPUQMasked256
 	OpAMD64VPCMPUQ256
-	OpAMD64VPCMPUQ512
 	OpAMD64VPCMPUQMasked512
+	OpAMD64VPCMPUQ512
 	OpAMD64VPCMPUBMasked128
 	OpAMD64VGF2P8AFFINEQB128
 	OpAMD64VGF2P8AFFINEINVQB128
@@ -2172,12 +2181,12 @@ const (
 	OpAMD64VGF2P8AFFINEINVQBMasked256
 	OpAMD64VGF2P8AFFINEQBMasked256
 	OpAMD64VPCMPUB256
-	OpAMD64VPCMPUB512
 	OpAMD64VPCMPUBMasked512
 	OpAMD64VGF2P8AFFINEQB512
 	OpAMD64VGF2P8AFFINEINVQB512
 	OpAMD64VGF2P8AFFINEINVQBMasked512
 	OpAMD64VGF2P8AFFINEQBMasked512
+	OpAMD64VPCMPUB512
 
 	OpARMADD
 	OpARMADDconst
@@ -4416,6 +4425,18 @@ const (
 	OpLoadMask64x2
 	OpLoadMask64x4
 	OpLoadMask64x8
+	OpStoreMask8x16
+	OpStoreMask8x32
+	OpStoreMask8x64
+	OpStoreMask16x8
+	OpStoreMask16x16
+	OpStoreMask16x32
+	OpStoreMask32x4
+	OpStoreMask32x8
+	OpStoreMask32x16
+	OpStoreMask64x2
+	OpStoreMask64x4
+	OpStoreMask64x8
 	OpAddFloat32x16
 	OpAddMaskedFloat32x16
 	OpApproximateReciprocalFloat32x16
@@ -5325,10 +5346,10 @@ const (
 	OpPermuteUint16x16
 	OpPermute2Uint16x16
 	OpPermute2Int16x16
-	OpPermute2MaskedInt16x16
 	OpPermute2MaskedUint16x16
-	OpPermuteMaskedUint16x16
+	OpPermute2MaskedInt16x16
 	OpPermuteMaskedInt16x16
+	OpPermuteMaskedUint16x16
 	OpPopCountUint16x16
 	OpPopCountMaskedUint16x16
 	OpSaturatedAddUint16x16
@@ -5379,8 +5400,8 @@ const (
 	OpPermute2Int16x32
 	OpPermute2MaskedUint16x32
 	OpPermute2MaskedInt16x32
-	OpPermuteMaskedUint16x32
 	OpPermuteMaskedInt16x32
+	OpPermuteMaskedUint16x32
 	OpPopCountUint16x32
 	OpPopCountMaskedUint16x32
 	OpSaturatedAddUint16x32
@@ -5431,12 +5452,12 @@ const (
 	OpPairwiseSubUint16x8
 	OpPermuteInt16x8
 	OpPermuteUint16x8
-	OpPermute2Int16x8
 	OpPermute2Uint16x8
+	OpPermute2Int16x8
 	OpPermute2MaskedInt16x8
 	OpPermute2MaskedUint16x8
-	OpPermuteMaskedUint16x8
 	OpPermuteMaskedInt16x8
+	OpPermuteMaskedUint16x8
 	OpPopCountUint16x8
 	OpPopCountMaskedUint16x8
 	OpSaturatedAddUint16x8
@@ -5483,17 +5504,17 @@ const (
 	OpNotEqualMaskedUint32x16
 	OpOrUint32x16
 	OpOrMaskedUint32x16
-	OpPermuteFloat32x16
 	OpPermuteInt32x16
+	OpPermuteFloat32x16
 	OpPermuteUint32x16
 	OpPermute2Uint32x16
 	OpPermute2Float32x16
 	OpPermute2Int32x16
+	OpPermute2MaskedUint32x16
 	OpPermute2MaskedInt32x16
 	OpPermute2MaskedFloat32x16
-	OpPermute2MaskedUint32x16
-	OpPermuteMaskedInt32x16
 	OpPermuteMaskedFloat32x16
+	OpPermuteMaskedInt32x16
 	OpPermuteMaskedUint32x16
 	OpPopCountUint32x16
 	OpPopCountMaskedUint32x16
@@ -5720,15 +5741,15 @@ const (
 	OpPermuteUint64x4
 	OpPermuteInt64x4
 	OpPermuteFloat64x4
-	OpPermute2Float64x4
-	OpPermute2Int64x4
 	OpPermute2Uint64x4
-	OpPermute2MaskedFloat64x4
+	OpPermute2Int64x4
+	OpPermute2Float64x4
 	OpPermute2MaskedUint64x4
+	OpPermute2MaskedFloat64x4
 	OpPermute2MaskedInt64x4
+	OpPermuteMaskedUint64x4
 	OpPermuteMaskedFloat64x4
 	OpPermuteMaskedInt64x4
-	OpPermuteMaskedUint64x4
 	OpPopCountUint64x4
 	OpPopCountMaskedUint64x4
 	OpRotateLeftUint64x4
@@ -5778,18 +5799,18 @@ const (
 	OpNotEqualMaskedUint64x8
 	OpOrUint64x8
 	OpOrMaskedUint64x8
+	OpPermuteUint64x8
 	OpPermuteFloat64x8
 	OpPermuteInt64x8
-	OpPermuteUint64x8
-	OpPermute2Int64x8
 	OpPermute2Float64x8
 	OpPermute2Uint64x8
+	OpPermute2Int64x8
+	OpPermute2MaskedFloat64x8
 	OpPermute2MaskedUint64x8
 	OpPermute2MaskedInt64x8
-	OpPermute2MaskedFloat64x8
-	OpPermuteMaskedUint64x8
-	OpPermuteMaskedFloat64x8
 	OpPermuteMaskedInt64x8
+	OpPermuteMaskedFloat64x8
+	OpPermuteMaskedUint64x8
 	OpPopCountUint64x8
 	OpPopCountMaskedUint64x8
 	OpRotateLeftUint64x8
@@ -18831,6 +18852,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:           "KMOVQstore",
+		auxType:        auxSymOff,
+		argLen:         3,
+		faultOnNilArg0: true,
+		symEffect:      SymWrite,
+		asm:            x86.AKMOVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 72057594037977087}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+			},
+		},
+	},
+	{
 		name:        "VADDPS512",
 		argLen:      2,
 		commutative: true,
@@ -19281,15 +19316,15 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VRCP14PS128",
+		name:   "VRCPPS128",
 		argLen: 1,
-		asm:    x86.AVRCP14PS,
+		asm:    x86.AVRCPPS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -19728,15 +19763,15 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VRCP14PS256",
+		name:   "VRCPPS256",
 		argLen: 1,
-		asm:    x86.AVRCP14PS,
+		asm:    x86.AVRCPPS,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -22123,6 +22158,35 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPCMPEQW512",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPCMPEQW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "VPCMPGTW512",
+		argLen: 2,
+		asm:    x86.AVPCMPGTW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
 		name:        "VPMAXSW512",
 		argLen:      2,
 		commutative: true,
@@ -23324,6 +23388,35 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPCMPEQD512",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPCMPEQD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "VPCMPGTD512",
+		argLen: 2,
+		asm:    x86.AVPCMPGTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 			},
 		},
 	},
@@ -26665,6 +26758,35 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPCMPEQQ512",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPCMPEQQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "VPCMPGTQ512",
+		argLen: 2,
+		asm:    x86.AVPCMPGTQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
 		name:        "VPMAXSQ512",
 		argLen:      2,
 		commutative: true,
@@ -27923,6 +28045,35 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPCMPEQB512",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPCMPEQB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "VPCMPGTB512",
+		argLen: 2,
+		asm:    x86.AVPCMPGTB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
 		name:        "VPMAXSB512",
 		argLen:      2,
 		commutative: true,
@@ -29154,22 +29305,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "VPERMI2D128",
-		argLen:       3,
-		resultInArg0: true,
-		asm:          x86.AVPERMI2D,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:         "VPERMI2PS128",
 		argLen:       3,
 		resultInArg0: true,
@@ -29186,10 +29321,26 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "VPERMI2PSMasked128",
+		name:         "VPERMI2D128",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          x86.AVPERMI2D,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VPERMI2DMasked128",
 		argLen:       4,
 		resultInArg0: true,
-		asm:          x86.AVPERMI2PS,
+		asm:          x86.AVPERMI2D,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{3, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -29203,10 +29354,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "VPERMI2DMasked128",
+		name:         "VPERMI2PSMasked128",
 		argLen:       4,
 		resultInArg0: true,
-		asm:          x86.AVPERMI2D,
+		asm:          x86.AVPERMI2PS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{3, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -29355,20 +29506,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPERMPS256",
-		argLen: 2,
-		asm:    x86.AVPERMPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:   "VPERMD256",
 		argLen: 2,
 		asm:    x86.AVPERMD,
@@ -29383,15 +29520,13 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "VPERMI2D256",
-		argLen:       3,
-		resultInArg0: true,
-		asm:          x86.AVPERMI2D,
+		name:   "VPERMPS256",
+		argLen: 2,
+		asm:    x86.AVPERMPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -29415,10 +29550,26 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "VPERMI2DMasked256",
-		argLen:       4,
+		name:         "VPERMI2D256",
+		argLen:       3,
 		resultInArg0: true,
 		asm:          x86.AVPERMI2D,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "VPERMI2PSMasked256",
+		argLen:       4,
+		resultInArg0: true,
+		asm:          x86.AVPERMI2PS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{3, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -29432,10 +29583,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "VPERMI2PSMasked256",
+		name:         "VPERMI2DMasked256",
 		argLen:       4,
 		resultInArg0: true,
-		asm:          x86.AVPERMI2PS,
+		asm:          x86.AVPERMI2D,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{3, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -29817,20 +29968,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPERMQ256",
-		argLen: 2,
-		asm:    x86.AVPERMQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
 		name:   "VPERMPD256",
 		argLen: 2,
 		asm:    x86.AVPERMPD,
@@ -29845,10 +29982,24 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "VPERMI2Q256",
+		name:   "VPERMQ256",
+		argLen: 2,
+		asm:    x86.AVPERMQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:         "VPERMI2PD256",
 		argLen:       3,
 		resultInArg0: true,
-		asm:          x86.AVPERMI2Q,
+		asm:          x86.AVPERMI2PD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -29861,10 +30012,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "VPERMI2PD256",
+		name:         "VPERMI2Q256",
 		argLen:       3,
 		resultInArg0: true,
-		asm:          x86.AVPERMI2PD,
+		asm:          x86.AVPERMI2Q,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -30186,9 +30337,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPERMQMasked512",
+		name:   "VPERMPDMasked512",
 		argLen: 3,
-		asm:    x86.AVPERMQ,
+		asm:    x86.AVPERMPD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -30201,9 +30352,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "VPERMPDMasked512",
+		name:   "VPERMQMasked512",
 		argLen: 3,
-		asm:    x86.AVPERMPD,
+		asm:    x86.AVPERMQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -31686,22 +31837,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPW512",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
 		name:        "VPCMPWMasked512",
 		auxType:     auxInt8,
 		argLen:      3,
@@ -31712,6 +31847,21 @@ var opcodeTable = [...]opInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VPCMPW512",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -31904,22 +32054,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPD512",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
 		name:        "VPCMPDMasked512",
 		auxType:     auxInt8,
 		argLen:      3,
@@ -31930,6 +32064,21 @@ var opcodeTable = [...]opInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VPCMPD512",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -32723,22 +32872,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPQ512",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
 		name:        "VPCMPQMasked512",
 		auxType:     auxInt8,
 		argLen:      3,
@@ -32749,6 +32882,21 @@ var opcodeTable = [...]opInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VPCMPQ512",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -32998,22 +33146,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPB512",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
 		name:        "VPCMPBMasked512",
 		auxType:     auxInt8,
 		argLen:      3,
@@ -33024,6 +33156,21 @@ var opcodeTable = [...]opInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VPCMPB512",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -33063,22 +33210,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUW512",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPUW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
 		name:        "VPCMPUWMasked512",
 		auxType:     auxInt8,
 		argLen:      3,
@@ -33089,6 +33220,21 @@ var opcodeTable = [...]opInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VPCMPUW512",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPUW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -33128,22 +33274,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUD512",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPUD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
 		name:        "VPCMPUDMasked512",
 		auxType:     auxInt8,
 		argLen:      3,
@@ -33154,6 +33284,21 @@ var opcodeTable = [...]opInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VPCMPUD512",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPUD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -33289,22 +33434,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUQ512",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPUQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
 		name:        "VPCMPUQMasked512",
 		auxType:     auxInt8,
 		argLen:      3,
@@ -33315,6 +33444,21 @@ var opcodeTable = [...]opInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:    "VPCMPUQ512",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPUQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
@@ -33510,22 +33654,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPCMPUB512",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPCMPUB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
 		name:        "VPCMPUBMasked512",
 		auxType:     auxInt8,
 		argLen:      3,
@@ -33601,6 +33729,21 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VPCMPUB512",
+		auxType: auxInt8,
+		argLen:  2,
+		asm:     x86.AVPCMPUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 			},
 		},
 	},
@@ -60817,6 +60960,78 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "StoreMask8x16",
+		auxType: auxTyp,
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "StoreMask8x32",
+		auxType: auxTyp,
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "StoreMask8x64",
+		auxType: auxTyp,
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "StoreMask16x8",
+		auxType: auxTyp,
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "StoreMask16x16",
+		auxType: auxTyp,
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "StoreMask16x32",
+		auxType: auxTyp,
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "StoreMask32x4",
+		auxType: auxTyp,
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "StoreMask32x8",
+		auxType: auxTyp,
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "StoreMask32x16",
+		auxType: auxTyp,
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "StoreMask64x2",
+		auxType: auxTyp,
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "StoreMask64x4",
+		auxType: auxTyp,
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "StoreMask64x8",
+		auxType: auxTyp,
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:        "AddFloat32x16",
 		argLen:      2,
 		commutative: true,
@@ -65677,22 +65892,22 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Permute2MaskedInt16x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
 		name:    "Permute2MaskedUint16x16",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "PermuteMaskedUint16x16",
-		argLen:  3,
+		name:    "Permute2MaskedInt16x16",
+		argLen:  4,
 		generic: true,
 	},
 	{
 		name:    "PermuteMaskedInt16x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "PermuteMaskedUint16x16",
 		argLen:  3,
 		generic: true,
 	},
@@ -65964,12 +66179,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "PermuteMaskedUint16x32",
+		name:    "PermuteMaskedInt16x32",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "PermuteMaskedInt16x32",
+		name:    "PermuteMaskedUint16x32",
 		argLen:  3,
 		generic: true,
 	},
@@ -66242,12 +66457,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Permute2Int16x8",
+		name:    "Permute2Uint16x8",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "Permute2Uint16x8",
+		name:    "Permute2Int16x8",
 		argLen:  3,
 		generic: true,
 	},
@@ -66262,12 +66477,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "PermuteMaskedUint16x8",
+		name:    "PermuteMaskedInt16x8",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "PermuteMaskedInt16x8",
+		name:    "PermuteMaskedUint16x8",
 		argLen:  3,
 		generic: true,
 	},
@@ -66519,12 +66734,12 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:    "PermuteFloat32x16",
+		name:    "PermuteInt32x16",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "PermuteInt32x16",
+		name:    "PermuteFloat32x16",
 		argLen:  2,
 		generic: true,
 	},
@@ -66549,6 +66764,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "Permute2MaskedUint32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
 		name:    "Permute2MaskedInt32x16",
 		argLen:  4,
 		generic: true,
@@ -66559,17 +66779,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Permute2MaskedUint32x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedInt32x16",
+		name:    "PermuteMaskedFloat32x16",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "PermuteMaskedFloat32x16",
+		name:    "PermuteMaskedInt32x16",
 		argLen:  3,
 		generic: true,
 	},
@@ -67774,7 +67989,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Permute2Float64x4",
+		name:    "Permute2Uint64x4",
 		argLen:  3,
 		generic: true,
 	},
@@ -67784,17 +67999,17 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Permute2Uint64x4",
+		name:    "Permute2Float64x4",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "Permute2MaskedFloat64x4",
+		name:    "Permute2MaskedUint64x4",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "Permute2MaskedUint64x4",
+		name:    "Permute2MaskedFloat64x4",
 		argLen:  4,
 		generic: true,
 	},
@@ -67804,17 +68019,17 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "PermuteMaskedUint64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "PermuteMaskedFloat64x4",
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "PermuteMaskedInt64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedUint64x4",
 		argLen:  3,
 		generic: true,
 	},
@@ -68082,6 +68297,11 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:    "PermuteUint64x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:    "PermuteFloat64x8",
 		argLen:  2,
 		generic: true,
@@ -68089,16 +68309,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "PermuteInt64x8",
 		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PermuteUint64x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Permute2Int64x8",
-		argLen:  3,
 		generic: true,
 	},
 	{
@@ -68112,6 +68322,16 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "Permute2Int64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "Permute2MaskedFloat64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
 		name:    "Permute2MaskedUint64x8",
 		argLen:  4,
 		generic: true,
@@ -68122,12 +68342,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Permute2MaskedFloat64x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "PermuteMaskedUint64x8",
+		name:    "PermuteMaskedInt64x8",
 		argLen:  3,
 		generic: true,
 	},
@@ -68137,7 +68352,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "PermuteMaskedInt64x8",
+		name:    "PermuteMaskedUint64x8",
 		argLen:  3,
 		generic: true,
 	},

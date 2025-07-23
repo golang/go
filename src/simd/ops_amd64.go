@@ -918,12 +918,12 @@ func (x Uint64x8) AndNotMasked(y Uint64x8, mask Mask64x8) Uint64x8
 
 // ApproximateReciprocal computes an approximate reciprocal of each element.
 //
-// Asm: VRCP14PS, CPU Feature: AVX512F
+// Asm: VRCPPS, CPU Feature: AVX
 func (x Float32x4) ApproximateReciprocal() Float32x4
 
 // ApproximateReciprocal computes an approximate reciprocal of each element.
 //
-// Asm: VRCP14PS, CPU Feature: AVX512F
+// Asm: VRCPPS, CPU Feature: AVX
 func (x Float32x8) ApproximateReciprocal() Float32x8
 
 // ApproximateReciprocal computes an approximate reciprocal of each element.
@@ -1953,6 +1953,11 @@ func (x Int8x32) Equal(y Int8x32) Mask8x32
 
 // Equal compares for equality.
 //
+// Asm: VPCMPEQB, CPU Feature: AVX512BW
+func (x Int8x64) Equal(y Int8x64) Mask8x64
+
+// Equal compares for equality.
+//
 // Asm: VPCMPEQW, CPU Feature: AVX
 func (x Int16x8) Equal(y Int16x8) Mask16x8
 
@@ -1960,6 +1965,11 @@ func (x Int16x8) Equal(y Int16x8) Mask16x8
 //
 // Asm: VPCMPEQW, CPU Feature: AVX2
 func (x Int16x16) Equal(y Int16x16) Mask16x16
+
+// Equal compares for equality.
+//
+// Asm: VPCMPEQW, CPU Feature: AVX512BW
+func (x Int16x32) Equal(y Int16x32) Mask16x32
 
 // Equal compares for equality.
 //
@@ -1973,6 +1983,11 @@ func (x Int32x8) Equal(y Int32x8) Mask32x8
 
 // Equal compares for equality.
 //
+// Asm: VPCMPEQD, CPU Feature: AVX512F
+func (x Int32x16) Equal(y Int32x16) Mask32x16
+
+// Equal compares for equality.
+//
 // Asm: VPCMPEQQ, CPU Feature: AVX
 func (x Int64x2) Equal(y Int64x2) Mask64x2
 
@@ -1980,6 +1995,11 @@ func (x Int64x2) Equal(y Int64x2) Mask64x2
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX2
 func (x Int64x4) Equal(y Int64x4) Mask64x4
+
+// Equal compares for equality.
+//
+// Asm: VPCMPEQQ, CPU Feature: AVX512F
+func (x Int64x8) Equal(y Int64x8) Mask64x8
 
 // Equal compares for equality.
 //
@@ -1993,6 +2013,11 @@ func (x Uint8x32) Equal(y Uint8x32) Mask8x32
 
 // Equal compares for equality.
 //
+// Asm: VPCMPEQB, CPU Feature: AVX512BW
+func (x Uint8x64) Equal(y Uint8x64) Mask8x64
+
+// Equal compares for equality.
+//
 // Asm: VPCMPEQW, CPU Feature: AVX
 func (x Uint16x8) Equal(y Uint16x8) Mask16x8
 
@@ -2000,6 +2025,11 @@ func (x Uint16x8) Equal(y Uint16x8) Mask16x8
 //
 // Asm: VPCMPEQW, CPU Feature: AVX2
 func (x Uint16x16) Equal(y Uint16x16) Mask16x16
+
+// Equal compares for equality.
+//
+// Asm: VPCMPEQW, CPU Feature: AVX512BW
+func (x Uint16x32) Equal(y Uint16x32) Mask16x32
 
 // Equal compares for equality.
 //
@@ -2013,6 +2043,11 @@ func (x Uint32x8) Equal(y Uint32x8) Mask32x8
 
 // Equal compares for equality.
 //
+// Asm: VPCMPEQD, CPU Feature: AVX512F
+func (x Uint32x16) Equal(y Uint32x16) Mask32x16
+
+// Equal compares for equality.
+//
 // Asm: VPCMPEQQ, CPU Feature: AVX
 func (x Uint64x2) Equal(y Uint64x2) Mask64x2
 
@@ -2020,6 +2055,11 @@ func (x Uint64x2) Equal(y Uint64x2) Mask64x2
 //
 // Asm: VPCMPEQQ, CPU Feature: AVX2
 func (x Uint64x4) Equal(y Uint64x4) Mask64x4
+
+// Equal compares for equality.
+//
+// Asm: VPCMPEQQ, CPU Feature: AVX512F
+func (x Uint64x8) Equal(y Uint64x8) Mask64x8
 
 // Equal compares for equality.
 //
@@ -2050,46 +2090,6 @@ func (x Float64x4) Equal(y Float64x4) Mask64x4
 //
 // Asm: VCMPPD, CPU Feature: AVX512F
 func (x Float64x8) Equal(y Float64x8) Mask64x8
-
-// Equal compares for equality.
-//
-// Asm: VPCMPB, CPU Feature: AVX512BW
-func (x Int8x64) Equal(y Int8x64) Mask8x64
-
-// Equal compares for equality.
-//
-// Asm: VPCMPW, CPU Feature: AVX512BW
-func (x Int16x32) Equal(y Int16x32) Mask16x32
-
-// Equal compares for equality.
-//
-// Asm: VPCMPD, CPU Feature: AVX512F
-func (x Int32x16) Equal(y Int32x16) Mask32x16
-
-// Equal compares for equality.
-//
-// Asm: VPCMPQ, CPU Feature: AVX512F
-func (x Int64x8) Equal(y Int64x8) Mask64x8
-
-// Equal compares for equality.
-//
-// Asm: VPCMPUB, CPU Feature: AVX512BW
-func (x Uint8x64) Equal(y Uint8x64) Mask8x64
-
-// Equal compares for equality.
-//
-// Asm: VPCMPUW, CPU Feature: AVX512BW
-func (x Uint16x32) Equal(y Uint16x32) Mask16x32
-
-// Equal compares for equality.
-//
-// Asm: VPCMPUD, CPU Feature: AVX512F
-func (x Uint32x16) Equal(y Uint32x16) Mask32x16
-
-// Equal compares for equality.
-//
-// Asm: VPCMPUQ, CPU Feature: AVX512F
-func (x Uint64x8) Equal(y Uint64x8) Mask64x8
 
 /* EqualMasked */
 
@@ -2733,7 +2733,7 @@ func (x Uint8x64) GaloisFieldAffineTransformInverse(y Uint64x8, b uint8) Uint8x6
 // b is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512GFNI
-func (x Uint8x16) GaloisFieldAffineTransformInverseMasked(y Uint64x2, b uint8, m Mask8x16) Uint8x16
+func (x Uint8x16) GaloisFieldAffineTransformInverseMasked(y Uint64x2, b uint8, mask Mask8x16) Uint8x16
 
 // GaloisFieldAffineTransformInverseMasked computes an affine transformation in GF(2^8),
 // with x inverted with respect to reduction polynomial x^8 + x^4 + x^3 + x + 1:
@@ -2746,7 +2746,7 @@ func (x Uint8x16) GaloisFieldAffineTransformInverseMasked(y Uint64x2, b uint8, m
 // b is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512GFNI
-func (x Uint8x32) GaloisFieldAffineTransformInverseMasked(y Uint64x4, b uint8, m Mask8x32) Uint8x32
+func (x Uint8x32) GaloisFieldAffineTransformInverseMasked(y Uint64x4, b uint8, mask Mask8x32) Uint8x32
 
 // GaloisFieldAffineTransformInverseMasked computes an affine transformation in GF(2^8),
 // with x inverted with respect to reduction polynomial x^8 + x^4 + x^3 + x + 1:
@@ -2759,7 +2759,7 @@ func (x Uint8x32) GaloisFieldAffineTransformInverseMasked(y Uint64x4, b uint8, m
 // b is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512GFNI
-func (x Uint8x64) GaloisFieldAffineTransformInverseMasked(y Uint64x8, b uint8, m Mask8x64) Uint8x64
+func (x Uint8x64) GaloisFieldAffineTransformInverseMasked(y Uint64x8, b uint8, mask Mask8x64) Uint8x64
 
 /* GaloisFieldAffineTransformMasked */
 
@@ -2773,7 +2773,7 @@ func (x Uint8x64) GaloisFieldAffineTransformInverseMasked(y Uint64x8, b uint8, m
 // b is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512GFNI
-func (x Uint8x16) GaloisFieldAffineTransformMasked(y Uint64x2, b uint8, m Mask8x16) Uint8x16
+func (x Uint8x16) GaloisFieldAffineTransformMasked(y Uint64x2, b uint8, mask Mask8x16) Uint8x16
 
 // GaloisFieldAffineTransformMasked computes an affine transformation in GF(2^8):
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
@@ -2785,7 +2785,7 @@ func (x Uint8x16) GaloisFieldAffineTransformMasked(y Uint64x2, b uint8, m Mask8x
 // b is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512GFNI
-func (x Uint8x32) GaloisFieldAffineTransformMasked(y Uint64x4, b uint8, m Mask8x32) Uint8x32
+func (x Uint8x32) GaloisFieldAffineTransformMasked(y Uint64x4, b uint8, mask Mask8x32) Uint8x32
 
 // GaloisFieldAffineTransformMasked computes an affine transformation in GF(2^8):
 // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
@@ -2797,7 +2797,7 @@ func (x Uint8x32) GaloisFieldAffineTransformMasked(y Uint64x4, b uint8, m Mask8x
 // b is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512GFNI
-func (x Uint8x64) GaloisFieldAffineTransformMasked(y Uint64x8, b uint8, m Mask8x64) Uint8x64
+func (x Uint8x64) GaloisFieldAffineTransformMasked(y Uint64x8, b uint8, mask Mask8x64) Uint8x64
 
 /* GaloisFieldMul */
 
@@ -2989,6 +2989,11 @@ func (x Int8x32) Greater(y Int8x32) Mask8x32
 
 // Greater compares for greater than.
 //
+// Asm: VPCMPGTB, CPU Feature: AVX512BW
+func (x Int8x64) Greater(y Int8x64) Mask8x64
+
+// Greater compares for greater than.
+//
 // Asm: VPCMPGTW, CPU Feature: AVX
 func (x Int16x8) Greater(y Int16x8) Mask16x8
 
@@ -2996,6 +3001,11 @@ func (x Int16x8) Greater(y Int16x8) Mask16x8
 //
 // Asm: VPCMPGTW, CPU Feature: AVX2
 func (x Int16x16) Greater(y Int16x16) Mask16x16
+
+// Greater compares for greater than.
+//
+// Asm: VPCMPGTW, CPU Feature: AVX512BW
+func (x Int16x32) Greater(y Int16x32) Mask16x32
 
 // Greater compares for greater than.
 //
@@ -3009,6 +3019,11 @@ func (x Int32x8) Greater(y Int32x8) Mask32x8
 
 // Greater compares for greater than.
 //
+// Asm: VPCMPGTD, CPU Feature: AVX512F
+func (x Int32x16) Greater(y Int32x16) Mask32x16
+
+// Greater compares for greater than.
+//
 // Asm: VPCMPGTQ, CPU Feature: AVX
 func (x Int64x2) Greater(y Int64x2) Mask64x2
 
@@ -3016,6 +3031,11 @@ func (x Int64x2) Greater(y Int64x2) Mask64x2
 //
 // Asm: VPCMPGTQ, CPU Feature: AVX2
 func (x Int64x4) Greater(y Int64x4) Mask64x4
+
+// Greater compares for greater than.
+//
+// Asm: VPCMPGTQ, CPU Feature: AVX512F
+func (x Int64x8) Greater(y Int64x8) Mask64x8
 
 // Greater compares for greater than.
 //
@@ -3046,26 +3066,6 @@ func (x Float64x4) Greater(y Float64x4) Mask64x4
 //
 // Asm: VCMPPD, CPU Feature: AVX512F
 func (x Float64x8) Greater(y Float64x8) Mask64x8
-
-// Greater compares for greater than.
-//
-// Asm: VPCMPB, CPU Feature: AVX512BW
-func (x Int8x64) Greater(y Int8x64) Mask8x64
-
-// Greater compares for greater than.
-//
-// Asm: VPCMPW, CPU Feature: AVX512BW
-func (x Int16x32) Greater(y Int16x32) Mask16x32
-
-// Greater compares for greater than.
-//
-// Asm: VPCMPD, CPU Feature: AVX512F
-func (x Int32x16) Greater(y Int32x16) Mask32x16
-
-// Greater compares for greater than.
-//
-// Asm: VPCMPQ, CPU Feature: AVX512F
-func (x Int64x8) Greater(y Int64x8) Mask64x8
 
 // Greater compares for greater than.
 //
@@ -6475,84 +6475,84 @@ func (x Uint32x8) PairwiseSub(y Uint32x8) Uint32x8
 
 /* Permute */
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Int8x16) Permute(indices Uint8x16) Int8x16
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Uint8x16) Permute(indices Uint8x16) Uint8x16
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Int8x32) Permute(indices Uint8x32) Int8x32
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Uint8x32) Permute(indices Uint8x32) Uint8x32
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Int8x64) Permute(indices Uint8x64) Int8x64
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Uint8x64) Permute(indices Uint8x64) Uint8x64
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
 // Asm: VPERMW, CPU Feature: AVX512BW
 func (x Int16x8) Permute(indices Uint16x8) Int16x8
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
 // Asm: VPERMW, CPU Feature: AVX512BW
 func (x Uint16x8) Permute(indices Uint16x8) Uint16x8
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
 // Asm: VPERMW, CPU Feature: AVX512BW
 func (x Int16x16) Permute(indices Uint16x16) Int16x16
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
 // Asm: VPERMW, CPU Feature: AVX512BW
 func (x Uint16x16) Permute(indices Uint16x16) Uint16x16
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
 // Asm: VPERMW, CPU Feature: AVX512BW
 func (x Int16x32) Permute(indices Uint16x32) Int16x32
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -6580,63 +6580,63 @@ func (x Int32x8) Permute(indices Uint32x8) Int32x8
 // Asm: VPERMD, CPU Feature: AVX2
 func (x Uint32x8) Permute(indices Uint32x8) Uint32x8
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
 // Asm: VPERMPS, CPU Feature: AVX512F
 func (x Float32x16) Permute(indices Uint32x16) Float32x16
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
 // Asm: VPERMD, CPU Feature: AVX512F
 func (x Int32x16) Permute(indices Uint32x16) Int32x16
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
 // Asm: VPERMD, CPU Feature: AVX512F
 func (x Uint32x16) Permute(indices Uint32x16) Uint32x16
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
 // Asm: VPERMPD, CPU Feature: AVX512F
 func (x Float64x4) Permute(indices Uint64x4) Float64x4
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
 // Asm: VPERMQ, CPU Feature: AVX512F
 func (x Int64x4) Permute(indices Uint64x4) Int64x4
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
 // Asm: VPERMQ, CPU Feature: AVX512F
 func (x Uint64x4) Permute(indices Uint64x4) Uint64x4
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
 // Asm: VPERMPD, CPU Feature: AVX512F
 func (x Float64x8) Permute(indices Uint64x8) Float64x8
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
 // Asm: VPERMQ, CPU Feature: AVX512F
 func (x Int64x8) Permute(indices Uint64x8) Int64x8
 
-// Permute performs a full permutation of vector y using indices:
+// Permute performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7189,7 +7189,7 @@ func (x Uint64x8) Permute2Masked(y Uint64x8, indices Uint64x8, mask Mask64x8) Ui
 
 /* PermuteMasked */
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7198,7 +7198,7 @@ func (x Uint64x8) Permute2Masked(y Uint64x8, indices Uint64x8, mask Mask64x8) Ui
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Int8x16) PermuteMasked(indices Uint8x16, mask Mask8x16) Int8x16
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7207,7 +7207,7 @@ func (x Int8x16) PermuteMasked(indices Uint8x16, mask Mask8x16) Int8x16
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Uint8x16) PermuteMasked(indices Uint8x16, mask Mask8x16) Uint8x16
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7216,7 +7216,7 @@ func (x Uint8x16) PermuteMasked(indices Uint8x16, mask Mask8x16) Uint8x16
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Int8x32) PermuteMasked(indices Uint8x32, mask Mask8x32) Int8x32
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7225,7 +7225,7 @@ func (x Int8x32) PermuteMasked(indices Uint8x32, mask Mask8x32) Int8x32
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Uint8x32) PermuteMasked(indices Uint8x32, mask Mask8x32) Uint8x32
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7234,7 +7234,7 @@ func (x Uint8x32) PermuteMasked(indices Uint8x32, mask Mask8x32) Uint8x32
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Int8x64) PermuteMasked(indices Uint8x64, mask Mask8x64) Int8x64
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7243,7 +7243,7 @@ func (x Int8x64) PermuteMasked(indices Uint8x64, mask Mask8x64) Int8x64
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Uint8x64) PermuteMasked(indices Uint8x64, mask Mask8x64) Uint8x64
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7252,7 +7252,7 @@ func (x Uint8x64) PermuteMasked(indices Uint8x64, mask Mask8x64) Uint8x64
 // Asm: VPERMW, CPU Feature: AVX512BW
 func (x Int16x8) PermuteMasked(indices Uint16x8, mask Mask16x8) Int16x8
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7261,7 +7261,7 @@ func (x Int16x8) PermuteMasked(indices Uint16x8, mask Mask16x8) Int16x8
 // Asm: VPERMW, CPU Feature: AVX512BW
 func (x Uint16x8) PermuteMasked(indices Uint16x8, mask Mask16x8) Uint16x8
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7270,7 +7270,7 @@ func (x Uint16x8) PermuteMasked(indices Uint16x8, mask Mask16x8) Uint16x8
 // Asm: VPERMW, CPU Feature: AVX512BW
 func (x Int16x16) PermuteMasked(indices Uint16x16, mask Mask16x16) Int16x16
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7279,7 +7279,7 @@ func (x Int16x16) PermuteMasked(indices Uint16x16, mask Mask16x16) Int16x16
 // Asm: VPERMW, CPU Feature: AVX512BW
 func (x Uint16x16) PermuteMasked(indices Uint16x16, mask Mask16x16) Uint16x16
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7288,7 +7288,7 @@ func (x Uint16x16) PermuteMasked(indices Uint16x16, mask Mask16x16) Uint16x16
 // Asm: VPERMW, CPU Feature: AVX512BW
 func (x Int16x32) PermuteMasked(indices Uint16x32, mask Mask16x32) Int16x32
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7297,7 +7297,7 @@ func (x Int16x32) PermuteMasked(indices Uint16x32, mask Mask16x32) Int16x32
 // Asm: VPERMW, CPU Feature: AVX512BW
 func (x Uint16x32) PermuteMasked(indices Uint16x32, mask Mask16x32) Uint16x32
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7306,7 +7306,7 @@ func (x Uint16x32) PermuteMasked(indices Uint16x32, mask Mask16x32) Uint16x32
 // Asm: VPERMPS, CPU Feature: AVX512F
 func (x Float32x8) PermuteMasked(indices Uint32x8, mask Mask32x8) Float32x8
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7315,7 +7315,7 @@ func (x Float32x8) PermuteMasked(indices Uint32x8, mask Mask32x8) Float32x8
 // Asm: VPERMD, CPU Feature: AVX512F
 func (x Int32x8) PermuteMasked(indices Uint32x8, mask Mask32x8) Int32x8
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7324,7 +7324,7 @@ func (x Int32x8) PermuteMasked(indices Uint32x8, mask Mask32x8) Int32x8
 // Asm: VPERMD, CPU Feature: AVX512F
 func (x Uint32x8) PermuteMasked(indices Uint32x8, mask Mask32x8) Uint32x8
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7333,7 +7333,7 @@ func (x Uint32x8) PermuteMasked(indices Uint32x8, mask Mask32x8) Uint32x8
 // Asm: VPERMPS, CPU Feature: AVX512F
 func (x Float32x16) PermuteMasked(indices Uint32x16, mask Mask32x16) Float32x16
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7342,7 +7342,7 @@ func (x Float32x16) PermuteMasked(indices Uint32x16, mask Mask32x16) Float32x16
 // Asm: VPERMD, CPU Feature: AVX512F
 func (x Int32x16) PermuteMasked(indices Uint32x16, mask Mask32x16) Int32x16
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7351,7 +7351,7 @@ func (x Int32x16) PermuteMasked(indices Uint32x16, mask Mask32x16) Int32x16
 // Asm: VPERMD, CPU Feature: AVX512F
 func (x Uint32x16) PermuteMasked(indices Uint32x16, mask Mask32x16) Uint32x16
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7360,7 +7360,7 @@ func (x Uint32x16) PermuteMasked(indices Uint32x16, mask Mask32x16) Uint32x16
 // Asm: VPERMPD, CPU Feature: AVX512F
 func (x Float64x4) PermuteMasked(indices Uint64x4, mask Mask64x4) Float64x4
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7369,7 +7369,7 @@ func (x Float64x4) PermuteMasked(indices Uint64x4, mask Mask64x4) Float64x4
 // Asm: VPERMQ, CPU Feature: AVX512F
 func (x Int64x4) PermuteMasked(indices Uint64x4, mask Mask64x4) Int64x4
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7378,7 +7378,7 @@ func (x Int64x4) PermuteMasked(indices Uint64x4, mask Mask64x4) Int64x4
 // Asm: VPERMQ, CPU Feature: AVX512F
 func (x Uint64x4) PermuteMasked(indices Uint64x4, mask Mask64x4) Uint64x4
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7387,7 +7387,7 @@ func (x Uint64x4) PermuteMasked(indices Uint64x4, mask Mask64x4) Uint64x4
 // Asm: VPERMPD, CPU Feature: AVX512F
 func (x Float64x8) PermuteMasked(indices Uint64x8, mask Mask64x8) Float64x8
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //
@@ -7396,7 +7396,7 @@ func (x Float64x8) PermuteMasked(indices Uint64x8, mask Mask64x8) Float64x8
 // Asm: VPERMQ, CPU Feature: AVX512F
 func (x Int64x8) PermuteMasked(indices Uint64x8, mask Mask64x8) Int64x8
 
-// PermuteMasked performs a full permutation of vector y using indices:
+// PermuteMasked performs a full permutation of vector x using indices:
 // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
 // Only the needed bits to represent x's index are used in indices' elements.
 //

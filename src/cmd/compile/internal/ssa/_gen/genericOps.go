@@ -678,6 +678,19 @@ var genericOps = []opData{
 	{name: "LoadMask64x2", argLength: 2},  // arg0 = ptr, arg1 = mem
 	{name: "LoadMask64x4", argLength: 2},  // arg0 = ptr, arg1 = mem
 	{name: "LoadMask64x8", argLength: 2},  // arg0 = ptr, arg1 = mem
+
+	{name: "StoreMask8x16", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+	{name: "StoreMask8x32", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+	{name: "StoreMask8x64", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+	{name: "StoreMask16x8", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+	{name: "StoreMask16x16", argLength: 3, typ: "Mem", aux: "Typ"}, // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+	{name: "StoreMask16x32", argLength: 3, typ: "Mem", aux: "Typ"}, // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+	{name: "StoreMask32x4", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+	{name: "StoreMask32x8", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+	{name: "StoreMask32x16", argLength: 3, typ: "Mem", aux: "Typ"}, // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+	{name: "StoreMask64x2", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+	{name: "StoreMask64x4", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
+	{name: "StoreMask64x8", argLength: 3, typ: "Mem", aux: "Typ"},  // Store arg1 to arg0.  arg2=memory, aux=type.  Returns memory.
 }
 
 //     kind          controls          successors   implicit exit
