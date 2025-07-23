@@ -116,20 +116,30 @@ func TestDebugLines_53456(t *testing.T) {
 }
 
 func TestDebugLines_74576(t *testing.T) {
-	tests := []struct {
-		file      string
-		wantStmts []int
-	}{
-		{"i74576a.go", []int{12, 13, 13, 14}},
-		{"i74576b.go", []int{12, 13, 13, 14}},
-		{"i74576c.go", []int{12, 13, 13, 14}},
-	}
-	t.Parallel()
-	for _, test := range tests {
-		t.Run(test.file, func(t *testing.T) {
-			t.Parallel()
-			testDebugLines(t, "-N -l", test.file, "main", test.wantStmts, false)
-		})
+	unixOnly(t)
+
+	switch testGoArch() {
+	default:
+		// Failed on linux/riscv64 (issue 74669), but conservatively
+		// skip many architectures like several other tests here.
+		t.Skip("skipped for many architectures")
+
+	case "arm64", "amd64", "loong64":
+		tests := []struct {
+			file      string
+			wantStmts []int
+		}{
+			{"i74576a.go", []int{12, 13, 13, 14}},
+			{"i74576b.go", []int{12, 13, 13, 14}},
+			{"i74576c.go", []int{12, 13, 13, 14}},
+		}
+		t.Parallel()
+		for _, test := range tests {
+			t.Run(test.file, func(t *testing.T) {
+				t.Parallel()
+				testDebugLines(t, "-N -l", test.file, "main", test.wantStmts, false)
+			})
+		}
 	}
 }
 

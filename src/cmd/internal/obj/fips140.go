@@ -384,6 +384,7 @@ func (s *LSym) checkFIPSReloc(ctxt *Link, rel Reloc) {
 		objabi.R_RISCV_TLS_IE,
 		objabi.R_RISCV_TLS_LE,
 		objabi.R_RISCV_GOT_HI20,
+		objabi.R_RISCV_GOT_PCREL_ITYPE,
 		objabi.R_RISCV_PCREL_HI20,
 		objabi.R_RISCV_PCREL_LO12_I,
 		objabi.R_RISCV_PCREL_LO12_S,

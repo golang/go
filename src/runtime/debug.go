@@ -19,10 +19,10 @@ import (
 // GOMAXPROCS defaults to that value.
 //
 // Otherwise, the Go runtime selects an appropriate default value from a combination of
-//  - the number of logical CPUs on the machine,
-//  - the process’s CPU affinity mask,
-//  - and, on Linux, the process’s average CPU throughput limit based on cgroup CPU
-//    quota, if any.
+//   - the number of logical CPUs on the machine,
+//   - the process’s CPU affinity mask,
+//   - and, on Linux, the process’s average CPU throughput limit based on cgroup CPU
+//     quota, if any.
 //
 // If GODEBUG=containermaxprocs=0 is set and GOMAXPROCS is not set by the
 // environment variable, then GOMAXPROCS instead defaults to the value of
