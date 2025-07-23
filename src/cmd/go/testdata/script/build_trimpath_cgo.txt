@@ -10,6 +10,7 @@
 # Check that the source path appears when -trimpath is not used.
 go build -o hello.exe .
 grep -q gopath[/\\]src hello.exe
+[GOOS:darwin] [GOARCH:arm64] stop 'on darwin/arm64, the rest of this test can''t work without a Go 1.24+ fix for a debug/macho problem; see go.dev/issue/73922'
 go run ./list-dwarf hello.exe
 stdout gopath[/\\]src
 
