@@ -62,7 +62,7 @@ func TestUsingVDSO(t *testing.T) {
 		t.Logf("%s", out)
 	}
 	if err != nil {
-		if err := err.(*exec.ExitError); err != nil && err.Sys().(syscall.WaitStatus).Signaled() {
+		if err, ok := err.(*exec.ExitError); ok && err.Sys().(syscall.WaitStatus).Signaled() {
 			if !bytes.Contains(out, []byte("+++ killed by")) {
 				// strace itself occasionally crashes.
 				// Here, it exited with a signal, but
