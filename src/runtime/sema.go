@@ -304,16 +304,14 @@ func cansemacquire(addr *uint32) bool {
 // queue adds s to the blocked goroutines in semaRoot.
 func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool, syncSema bool) {
 	s.g = getg()
-	pAddr := unsafe.Pointer(addr)
-	if goexperiment.GoroutineLeakFinderGC {
-		if syncSema {
-			// Mask the addr so it doesn't get marked during GC
-			// through marking of the treap or marking of the blocked goroutine
-			pAddr = gcMask(unsafe.Pointer(addr))
-			s.g.waiting = s
-		}
+	s.elem.set(unsafe.Pointer(addr))
+	if goexperiment.GoroutineLeakFinderGC && syncSema {
+		s.g.waiting = s
+		// When dealing with sync semaphores, hide the elem field from the GC
+		// to prevent it from prematurely marking the semaphore when running
+		// goroutine leak detection.
+		s.elem.untrack()
 	}
-	s.elem = pAddr
 	s.next = nil
 	s.prev = nil
 	s.waiters = 0
@@ -321,13 +319,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool, syncSema bool) {
 	var last *sudog
 	pt := &root.treap
 	for t := *pt; t != nil; t = *pt {
-		var cmp bool
-		if goexperiment.GoroutineLeakFinderGC {
-			cmp = uintptr(gcUnmask(pAddr)) == uintptr(gcUnmask(t.elem))
-		} else {
-			cmp = uintptr(pAddr) == uintptr(t.elem)
-		}
-		if cmp {
+		if uintptr(unsafe.Pointer(addr)) == t.elem.uintptr() {
 			// Already have addr in list.
 			if lifo {
 				// Substitute s in t's place in treap.
@@ -373,12 +365,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool, syncSema bool) {
 			return
 		}
 		last = t
-		if goexperiment.GoroutineLeakFinderGC {
-			cmp = uintptr(gcUnmask(pAddr)) < uintptr(gcUnmask(t.elem))
-		} else {
-			cmp = uintptr(pAddr) < uintptr(t.elem)
-		}
-		if cmp {
+		if uintptr(unsafe.Pointer(addr)) < t.elem.uintptr() {
 			pt = &t.prev
 		} else {
 			pt = &t.next
@@ -425,22 +412,11 @@ func (root *semaRoot) dequeue(addr *uint32) (found *sudog, now, tailtime int64) 
 	s := *ps
 
 	for ; s != nil; s = *ps {
-		var cmp bool
-		if goexperiment.GoroutineLeakFinderGC {
-			cmp = gcUnmask(unsafe.Pointer(addr)) == gcUnmask(s.elem)
-		} else {
-			cmp = unsafe.Pointer(addr) == s.elem
-		}
-		if cmp {
+		if uintptr(unsafe.Pointer(addr)) == s.elem.uintptr() {
 			goto Found
 		}
 
-		if goexperiment.GoroutineLeakFinderGC {
-			cmp = uintptr(gcUnmask(unsafe.Pointer(addr))) < uintptr(gcUnmask(s.elem))
-		} else {
-			cmp = uintptr(unsafe.Pointer(addr)) < uintptr(s.elem)
-		}
-		if cmp {
+		if uintptr(unsafe.Pointer(addr)) < s.elem.uintptr() {
 			ps = &s.prev
 		} else {
 			ps = &s.next
@@ -509,7 +485,7 @@ Found:
 		s.g.waiting = nil
 	}
 	s.parent = nil
-	s.elem = nil
+	s.elem.set(nil)
 	s.next = nil
 	s.prev = nil
 	s.ticket = 0
@@ -629,10 +605,11 @@ func notifyListWait(l *notifyList, t uint32) {
 	s := acquireSudog()
 	s.g = getg()
 	if goexperiment.GoroutineLeakFinderGC {
-		// Storing this pointer (masked) so that we can trace
+		// Storing this pointer (invisible to GC) so that we can trace
 		// the condvar address from the blocked goroutine when
 		// checking for goroutine leaks.
-		s.elem = gcMask(unsafe.Pointer(l))
+		s.elem.set(unsafe.Pointer(l))
+		s.elem.untrack()
 		s.g.waiting = s
 	}
 	s.ticket = t
@@ -656,7 +633,7 @@ func notifyListWait(l *notifyList, t uint32) {
 		// Goroutine is no longer blocked. Clear up its waiting pointer,
 		// and clean up the sudog before releasing it.
 		s.g.waiting = nil
-		s.elem = nil
+		s.elem.set(nil)
 	}
 	releaseSudog(s)
 }

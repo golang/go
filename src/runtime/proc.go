@@ -8,7 +8,6 @@ import (
 	"internal/abi"
 	"internal/cpu"
 	"internal/goarch"
-	"internal/goexperiment"
 	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/exithook"
@@ -514,7 +513,7 @@ func acquireSudog() *sudog {
 	s := pp.sudogcache[n-1]
 	pp.sudogcache[n-1] = nil
 	pp.sudogcache = pp.sudogcache[:n-1]
-	if s.elem != nil {
+	if s.elem.get() != nil {
 		throw("acquireSudog: found s.elem != nil in cache")
 	}
 	releasem(mp)
@@ -523,7 +522,7 @@ func acquireSudog() *sudog {
 
 //go:nosplit
 func releaseSudog(s *sudog) {
-	if s.elem != nil {
+	if s.elem.get() != nil {
 		throw("runtime: sudog with non-nil elem")
 	}
 	if s.isSelect {
@@ -538,7 +537,7 @@ func releaseSudog(s *sudog) {
 	if s.waitlink != nil {
 		throw("runtime: sudog with non-nil waitlink")
 	}
-	if s.c != nil {
+	if s.c.get() != nil {
 		throw("runtime: sudog with non-nil c")
 	}
 	gp := getg()
@@ -690,7 +689,7 @@ func allgadd(gp *g) {
 	}
 
 	lock(&allglock)
-	allgs = append(allgs, gp.mask())
+	allgs = append(allgs, gp)
 	if &allgs[0] != allgptr {
 		atomicstorep(unsafe.Pointer(&allgptr), unsafe.Pointer(&allgs[0]))
 	}
@@ -709,11 +708,6 @@ func allGsSnapshot() []*g {
 	// monotonically and existing entries never change, so we can
 	// simply return a copy of the slice header. For added safety,
 	// we trim everything past len because that can still change.
-	if goexperiment.GoroutineLeakFinderGC {
-		for i, gp := range allgs {
-			allgs[i] = gp.unmask()
-		}
-	}
 	return allgs[:len(allgs):len(allgs)]
 }
 
@@ -735,7 +729,7 @@ func atomicAllGIndex(ptr **g, i uintptr) *g {
 func forEachG(fn func(gp *g)) {
 	lock(&allglock)
 	for _, gp := range allgs {
-		fn(gp.unmask())
+		fn(gp)
 	}
 	unlock(&allglock)
 }
@@ -748,7 +742,7 @@ func forEachGRace(fn func(gp *g)) {
 	ptr, length := atomicAllG()
 	for i := uintptr(0); i < length; i++ {
 		gp := atomicAllGIndex(ptr, i)
-		fn(gp.unmask())
+		fn(gp)
 	}
 	return
 }

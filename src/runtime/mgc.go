@@ -816,6 +816,12 @@ func gcStart(trigger gcTrigger) {
 		schedEnableUser(false)
 	}
 
+	if work.goroutineLeakFinder.pending.Load() {
+		work.goroutineLeakFinder.enabled = true
+		work.goroutineLeakFinder.pending.Store(false)
+		gcUntrackSyncObjects()
+	}
+
 	// Enter concurrent mark phase and enable
 	// write barriers.
 	//
@@ -831,11 +837,6 @@ func gcStart(trigger gcTrigger) {
 	// happen, we want to enable assists as early as
 	// possible.
 	setGCPhase(_GCmark)
-
-	if work.goroutineLeakFinder.pending.Load() {
-		work.goroutineLeakFinder.enabled = true
-		work.goroutineLeakFinder.pending.Store(false)
-	}
 
 	gcBgMarkPrepare() // Must happen before assists are enabled.
 	gcPrepareMarkRoots()
@@ -1110,8 +1111,6 @@ top:
 func (gp *g) checkIfMaybeRunnable() bool {
 	// Unmask the goroutine address to ensure we are not
 	// dereferencing a masked address.
-	gp = gp.unmask()
-
 	switch gp.waitreason {
 	case waitReasonSelectNoCases,
 		waitReasonChanSendNilChan,
@@ -1125,7 +1124,7 @@ func (gp *g) checkIfMaybeRunnable() bool {
 		// Cycle all through all *sudog to check whether
 		// the goroutine is waiting on a marked channel.
 		for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-			if isMarkedOrNotInHeap(unsafe.Pointer(sg.c)) {
+			if isMarkedOrNotInHeap(unsafe.Pointer(sg.c.get())) {
 				return true
 			}
 		}
@@ -1139,24 +1138,10 @@ func (gp *g) checkIfMaybeRunnable() bool {
 		// check if the synchronization primitive attached to the sudog is marked.
 		if gp.waiting != nil {
 			// Unmask the sema address and check if it's marked.
-			return isMarkedOrNotInHeap(gcUnmask(gp.waiting.elem))
+			return isMarkedOrNotInHeap(gp.waiting.elem.get())
 		}
 	}
 	return true
-}
-
-// unmask returns a *g object with an unmasked address.
-//
-//go:nosplit
-func (gp *g) unmask() *g {
-	return (*g)(gcUnmask(unsafe.Pointer(gp)))
-}
-
-// mask returns a *g object with a masked address.
-//
-//go:nosplit
-func (gp *g) mask() *g {
-	return (*g)(gcMask(unsafe.Pointer(gp)))
 }
 
 // Check to see if more blocked but marked goroutines exist;
@@ -1171,16 +1156,14 @@ func gcDiscoverMoreStackRoots() {
 
 	// Reorder goroutine list
 	for vIndex < ivIndex {
-		gp := work.stackRoots[vIndex]
-		if gp.checkIfMaybeRunnable() {
-			work.stackRoots[vIndex] = gp
+		if work.stackRoots[vIndex].checkIfMaybeRunnable() {
 			vIndex = vIndex + 1
 			continue
 		}
 		for ivIndex = ivIndex - 1; ivIndex != vIndex; ivIndex = ivIndex - 1 {
-			if swapGp := work.stackRoots[ivIndex]; swapGp.checkIfMaybeRunnable() {
-				work.stackRoots[ivIndex] = gp
-				work.stackRoots[vIndex] = swapGp.unmask()
+			if gp := work.stackRoots[ivIndex]; gp.checkIfMaybeRunnable() {
+				work.stackRoots[ivIndex] = work.stackRoots[vIndex]
+				work.stackRoots[vIndex] = gp
 				vIndex = vIndex + 1
 				break
 			}
@@ -1195,6 +1178,35 @@ func gcDiscoverMoreStackRoots() {
 		work.nLiveStackRoots = vIndex
 		atomic.Store(&work.markrootJobs, uint32(newRootJobs))
 	}
+}
+
+// getSyncObjectsUnreachable scans allgs and sets the elem and c fields of all sudogs to
+// an untrackable pointer. This prevents the GC from marking these objects as live in memory
+// by following these pointers when runnning deadlock detection.
+func gcUntrackSyncObjects() {
+	assertWorldStopped()
+
+	forEachGRace(func(gp *g) {
+		for sg := gp.waiting; sg != nil; sg = sg.waitlink {
+			sg.elem.untrack()
+			sg.c.untrack()
+		}
+	})
+}
+
+// gcRestoreSyncObjects restores the elem and c fields of all sudogs to their original values.
+// Should be invoked after the goroutine leak detection phase.
+//
+//go:nosplit
+func gcRestoreSyncObjects() {
+	assertWorldStopped()
+
+	forEachGRace(func(gp *g) {
+		for sg := gp.waiting; sg != nil; sg = sg.waitlink {
+			sg.elem.track()
+			sg.c.track()
+		}
+	})
 }
 
 // findGoleaks scans the remaining stackRoots and marks any which are
@@ -1216,7 +1228,7 @@ func findGoleaks() bool {
 	// Make sure these are pushed to the runnable set and ready to be marked.
 	var foundMoreWork bool
 	for i := work.nLiveStackRoots; i < work.nStackRoots; i++ {
-		gp := work.stackRoots[i].unmask()
+		gp := work.stackRoots[i]
 		if readgstatus(gp) == _Gwaiting && !gp.checkIfMaybeRunnable() {
 			// Blocking unrunnable goroutines will be skipped.
 			continue
@@ -1237,7 +1249,7 @@ func findGoleaks() bool {
 
 	// For the remaining goroutines, mark them as unreachable and leaked.
 	for i := work.nLiveStackRoots; i < work.nStackRoots; i++ {
-		gp := work.stackRoots[i].unmask()
+		gp := work.stackRoots[i]
 		casgstatus(gp, _Gwaiting, _Gleaked)
 		fn := findfunc(gp.startpc)
 		if fn.valid() {
@@ -1247,7 +1259,6 @@ func findGoleaks() bool {
 		}
 		traceback(gp.sched.pc, gp.sched.sp, gp.sched.lr, gp)
 		println()
-		work.stackRoots[i] = gp
 	}
 	// Put the remaining roots as ready for marking and drain them.
 	work.markrootJobs += uint32(work.nStackRoots - work.nLiveStackRoots)
@@ -1405,6 +1416,11 @@ func gcMarkTermination(stw worldStop) {
 		throw("failed to set sweep barrier")
 	} else if stwSwept && sl.valid {
 		throw("non-concurrent sweep failed to drain all sweep queues")
+	}
+
+	if work.goroutineLeakFinder.enabled {
+		// Restore the elem and c fields of all sudogs to their original values.
+		gcRestoreSyncObjects()
 	}
 
 	systemstack(func() {

@@ -51,30 +51,7 @@ const (
 	// Must be a multiple of the pageInUse bitmap element size and
 	// must also evenly divide pagesPerArena.
 	pagesPerSpanRoot = 512
-
-	gcUndoBitMask = uintptr(uintptrMask >> 2) // This constant reserves some bits of the address space for the GC to use in order to mask addresses.
-	gcBitMask     = ^gcUndoBitMask            // This flips every bit in gcUndoBitMask of uinptr width
 )
-
-// gcMask masks addresses that should not be automatically marked during the GC.
-//
-//go:nosplit
-func gcMask(p unsafe.Pointer) unsafe.Pointer {
-	if goexperiment.GoroutineLeakFinderGC {
-		return unsafe.Pointer(uintptr(p) | gcBitMask)
-	}
-	return p
-}
-
-// gcUnmask undoes the bit-mask applied to a pointer.
-//
-//go:nosplit
-func gcUnmask(p unsafe.Pointer) unsafe.Pointer {
-	if goexperiment.GoroutineLeakFinderGC {
-		return unsafe.Pointer(uintptr(p) & gcUndoBitMask)
-	}
-	return p
-}
 
 // internalBlocked returns true if the goroutine is blocked due to an
 // internal (non-leaking) waitReason, e.g. waiting for the netpoller or garbage collector.
@@ -96,19 +73,24 @@ func (gp *g) internalBlocked() bool {
 func allGsSnapshotSortedForGC() ([]*g, int) {
 	assertWorldStoppedOrLockHeld(&allglock)
 
+	// Reset the status of leaked goroutines in order to improve
+	// the precision of goroutine leak detection.
+	for _, gp := range allgs {
+		gp.atomicstatus.CompareAndSwap(_Gleaked, _Gwaiting)
+	}
+
 	allgsSorted := make([]*g, len(allgs))
 
 	// Indices cutting off runnable and blocked Gs.
 	var currIndex, blockedIndex = 0, len(allgsSorted) - 1
 	for _, gp := range allgs {
-		gp = gp.unmask()
 		// not sure if we need atomic load because we are stopping the world,
 		// but do it just to be safe for now
 		if status := readgstatus(gp); status != _Gwaiting || gp.internalBlocked() {
 			allgsSorted[currIndex] = gp
 			currIndex++
 		} else {
-			allgsSorted[blockedIndex] = gp.mask()
+			allgsSorted[blockedIndex] = gp
 			blockedIndex--
 		}
 	}
