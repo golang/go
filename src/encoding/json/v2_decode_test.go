@@ -420,6 +420,8 @@ type DoublePtr struct {
 	J **int
 }
 
+type NestedUnamed struct{ F struct{ V int } }
+
 var unmarshalTests = []struct {
 	CaseName
 	in                    string
@@ -1219,6 +1221,28 @@ var unmarshalTests = []struct {
 			F string `json:"-,omitempty"`
 		}{"hello"},
 	},
+
+	{
+		CaseName: Name("ErrorForNestedUnamed"),
+		in:       `{"F":{"V":"s"}}`,
+		ptr:      new(NestedUnamed),
+		out:      NestedUnamed{},
+		err:      &UnmarshalTypeError{Value: "string", Type: reflect.TypeFor[int](), Offset: 10, Struct: "NestedUnamed", Field: "F.V"},
+	},
+	{
+		CaseName: Name("ErrorInterface"),
+		in:       `1`,
+		ptr:      new(error),
+		out:      error(nil),
+		err:      &UnmarshalTypeError{Value: "number", Type: reflect.TypeFor[error]()},
+	},
+	{
+		CaseName: Name("ErrorChan"),
+		in:       `1`,
+		ptr:      new(chan int),
+		out:      (chan int)(nil),
+		err:      &UnmarshalTypeError{Value: "number", Type: reflect.TypeFor[chan int]()},
+	},
 }
 
 func TestMarshal(t *testing.T) {
@@ -1552,12 +1576,12 @@ func TestErrorMessageFromMisusedString(t *testing.T) {
 		CaseName
 		in, err string
 	}{
-		{Name(""), `{"result":"x"}`, `json: cannot unmarshal JSON string into WrongString.result of Go type string: invalid character 'x' looking for beginning of object key string`},
-		{Name(""), `{"result":"foo"}`, `json: cannot unmarshal JSON string into WrongString.result of Go type string: invalid character 'f' looking for beginning of object key string`},
-		{Name(""), `{"result":"123"}`, `json: cannot unmarshal JSON string into WrongString.result of Go type string: invalid character '1' looking for beginning of object key string`},
-		{Name(""), `{"result":123}`, `json: cannot unmarshal JSON number into WrongString.result of Go type string`},
-		{Name(""), `{"result":"\""}`, `json: cannot unmarshal JSON string into WrongString.result of Go type string: unexpected end of JSON input`},
-		{Name(""), `{"result":"\"foo"}`, `json: cannot unmarshal JSON string into WrongString.result of Go type string: unexpected end of JSON input`},
+		{Name(""), `{"result":"x"}`, `json: cannot unmarshal string into Go struct field WrongString.result of type string: invalid character 'x' looking for beginning of object key string`},
+		{Name(""), `{"result":"foo"}`, `json: cannot unmarshal string into Go struct field WrongString.result of type string: invalid character 'f' looking for beginning of object key string`},
+		{Name(""), `{"result":"123"}`, `json: cannot unmarshal string into Go struct field WrongString.result of type string: invalid character '1' looking for beginning of object key string`},
+		{Name(""), `{"result":123}`, `json: cannot unmarshal number into Go struct field WrongString.result of type string`},
+		{Name(""), `{"result":"\""}`, `json: cannot unmarshal string into Go struct field WrongString.result of type string: unexpected end of JSON input`},
+		{Name(""), `{"result":"\"foo"}`, `json: cannot unmarshal string into Go struct field WrongString.result of type string: unexpected end of JSON input`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -2545,6 +2569,7 @@ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
 		ptr:      new(S1),
 		out:      &S1{R: 2},
 		err: &UnmarshalTypeError{
+			Value:  "number",
 			Type:   reflect.TypeFor[S1](),
 			Offset: len64(`{"R":2,"Q":`),
 			Struct: "S1",
@@ -2577,6 +2602,7 @@ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
 		ptr:      new(S5),
 		out:      &S5{R: 2},
 		err: &UnmarshalTypeError{
+			Value:  "number",
 			Type:   reflect.TypeFor[S5](),
 			Offset: len64(`{"R":2,"Q":`),
 			Struct: "S5",
