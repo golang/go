@@ -274,7 +274,7 @@ released version, subject to issues such as security fixes. See the Go compatibi
 document for background: https://golang.org/doc/go1compat
 
 See "Gobs of data" for a design discussion of the gob wire format:
-https://blog.golang.org/gobs-of-data
+https://go.dev/blog/gob
 
 # Security
 
