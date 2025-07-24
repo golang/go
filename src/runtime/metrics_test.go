@@ -1584,13 +1584,16 @@ func TestReadMetricsSched(t *testing.T) {
 		running
 		waiting
 		created
+		threads
+		numSamples
 	)
-	var s [5]metrics.Sample
+	var s [numSamples]metrics.Sample
 	s[notInGo].Name = "/sched/goroutines/not-in-go:goroutines"
 	s[runnable].Name = "/sched/goroutines/runnable:goroutines"
 	s[running].Name = "/sched/goroutines/running:goroutines"
 	s[waiting].Name = "/sched/goroutines/waiting:goroutines"
 	s[created].Name = "/sched/goroutines-created:goroutines"
+	s[threads].Name = "/sched/threads/total:threads"
 
 	logMetrics := func(t *testing.T, s []metrics.Sample) {
 		for i := range s {
@@ -1607,6 +1610,10 @@ func TestReadMetricsSched(t *testing.T) {
 	// from other tests, the testing package, or system
 	// goroutines.
 	const waitingSlack = 100
+
+	// threadsSlack is the maximum number of threads left over
+	// from other tests and the runtime (sysmon, the template thread, etc.)
+	const threadsSlack = 20
 
 	// Make sure GC isn't running, since GC workers interfere with
 	// expected counts.
@@ -1694,6 +1701,7 @@ func TestReadMetricsSched(t *testing.T) {
 			}, time.Second)
 			logMetrics(t, s[:])
 			check(t, &s[running], count, count+4)
+			check(t, &s[threads], count, count+4+threadsSlack)
 		})
 
 		// Force runnable count to be high.
@@ -1724,6 +1732,7 @@ func TestReadMetricsSched(t *testing.T) {
 		t.Run("running", func(t *testing.T) {
 			logMetrics(t, s[:])
 			checkEq(t, &s[running], 1)
+			checkEq(t, &s[threads], 1)
 		})
 		t.Run("runnable", func(t *testing.T) {
 			logMetrics(t, s[:])

@@ -572,6 +572,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 		/sched/pauses/stopping/other:seconds). Bucket counts increase
 		monotonically.
 
+	/sched/threads/total:threads
+		The current count of live threads that are owned by the Go
+		runtime.
+
 	/sync/mutex/wait/total:seconds
 		Approximate cumulative time goroutines have spent blocked on a
 		sync.Mutex, sync.RWMutex, or runtime-internal lock. This metric

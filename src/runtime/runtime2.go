@@ -1225,7 +1225,9 @@ var isIdleInSynctest = [len(waitReasonStrings)]bool{
 }
 
 var (
-	allm          *m
+	// Linked-list of all Ms. Written under sched.lock, read atomically.
+	allm *m
+
 	gomaxprocs    int32
 	numCPUStartup int32
 	forcegc       forcegcstate

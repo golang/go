@@ -532,6 +532,13 @@ func initMetrics() {
 				sched.stwTotalTimeOther.write(out)
 			},
 		},
+		"/sched/threads/total:threads": {
+			deps: makeStatDepSet(schedStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = uint64(in.schedStats.threads)
+			},
+		},
 		"/sync/mutex/wait/total:seconds": {
 			compute: func(_ *statAggregate, out *metricValue) {
 				out.kind = metricKindFloat64
@@ -787,6 +794,7 @@ type schedStatsAggregate struct {
 	gNonGo    uint64
 	gWaiting  uint64
 	gCreated  uint64
+	threads   uint64
 }
 
 // compute populates the schedStatsAggregate with values from the runtime.
@@ -796,6 +804,10 @@ func (a *schedStatsAggregate) compute() {
 	// local run queues from changing, so the results are still
 	// approximate.
 	lock(&sched.lock)
+
+	// The total count of threads owned by Go is the number of Ms
+	// minus extra Ms on the list or in use.
+	a.threads = uint64(mcount()) - uint64(extraMInUse.Load()) - uint64(extraMLength.Load())
 
 	// Collect running/runnable from per-P run queues.
 	a.gCreated += sched.goroutinesCreated.Load()
