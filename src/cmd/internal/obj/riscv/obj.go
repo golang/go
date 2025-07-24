@@ -2176,6 +2176,12 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AVSOXEI32V & obj.AMask: {enc: sVIVEncoding},
 	AVSOXEI64V & obj.AMask: {enc: sVIVEncoding},
 
+	// 31.7.7: Unit-stride Fault-Only-First Loads
+	AVLE8FFV & obj.AMask:  {enc: iVEncoding},
+	AVLE16FFV & obj.AMask: {enc: iVEncoding},
+	AVLE32FFV & obj.AMask: {enc: iVEncoding},
+	AVLE64FFV & obj.AMask: {enc: iVEncoding},
+
 	// 31.7.8: Vector Load/Store Segment Instructions
 	AVLSEG2E8V & obj.AMask:     {enc: iVEncoding},
 	AVLSEG3E8V & obj.AMask:     {enc: iVEncoding},
@@ -3839,7 +3845,7 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 			ins.rs1 = uint32(p.From.Offset)
 		}
 
-	case AVLE8V, AVLE16V, AVLE32V, AVLE64V, AVSE8V, AVSE16V, AVSE32V, AVSE64V, AVLMV, AVSMV,
+	case AVLE8V, AVLE16V, AVLE32V, AVLE64V, AVSE8V, AVSE16V, AVSE32V, AVSE64V, AVLE8FFV, AVLE16FFV, AVLE32FFV, AVLE64FFV, AVLMV, AVSMV,
 		AVLSEG2E8V, AVLSEG3E8V, AVLSEG4E8V, AVLSEG5E8V, AVLSEG6E8V, AVLSEG7E8V, AVLSEG8E8V,
 		AVLSEG2E16V, AVLSEG3E16V, AVLSEG4E16V, AVLSEG5E16V, AVLSEG6E16V, AVLSEG7E16V, AVLSEG8E16V,
 		AVLSEG2E32V, AVLSEG3E32V, AVLSEG4E32V, AVLSEG5E32V, AVLSEG6E32V, AVLSEG7E32V, AVLSEG8E32V,

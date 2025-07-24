@@ -549,6 +549,16 @@ start:
 	VSOXEI64V	V3, V2, (X10)			// a771250e
 	VSOXEI64V	V3, V2, V0, (X10)		// a771250c
 
+	// 31.7.7: Unit-stride Fault-Only-First Loads
+	VLE8FFV		(X10), V8			// 07040503
+	VLE16FFV	(X10), V8			// 07540503
+	VLE32FFV	(X10), V8			// 07640503
+	VLE64FFV	(X10), V8			// 07740503
+	VLE8FFV		(X10), V0, V8			// 07040501
+	VLE16FFV	(X10), V0, V8			// 07540501
+	VLE32FFV	(X10), V0, V8			// 07640501
+	VLE64FFV	(X10), V0, V8			// 07740501
+
 	// 31.7.8: Vector Load/Store Segment Instructions
 
 	// 31.7.8.1: Vector Unit-Stride Segment Loads and Stores
