@@ -364,8 +364,8 @@ type workType struct {
 	// (and thus 8-byte alignment even on 32-bit architectures).
 	bytesMarked uint64
 
-	markrootNext uint32 // next markroot job
-	markrootJobs uint32 // number of markroot jobs
+	markrootNext atomic.Uint32 // next markroot job
+	markrootJobs atomic.Uint32 // number of markroot jobs
 
 	nproc  uint32
 	tstart int64
@@ -734,7 +734,8 @@ func gcStart(trigger gcTrigger) {
 	} else if debug.gcstoptheworld == 2 {
 		mode = gcForceBlockMode
 	} else if goexperiment.GoroutineLeakFinderGC {
-		if work.goroutineLeakFinder.pending.Load() {
+		if work.goroutineLeakFinder.pending.Load() ||
+			debug.gcgoroutineleaks > 0 {
 			// Fully stop the world if running deadlock detection.
 			mode = gcForceBlockMode
 		}
@@ -816,7 +817,8 @@ func gcStart(trigger gcTrigger) {
 		schedEnableUser(false)
 	}
 
-	if work.goroutineLeakFinder.pending.Load() {
+	if work.goroutineLeakFinder.pending.Load() ||
+		debug.gcgoroutineleaks > 0 {
 		work.goroutineLeakFinder.enabled = true
 		work.goroutineLeakFinder.pending.Store(false)
 		gcUntrackSyncObjects()
@@ -1170,13 +1172,11 @@ func gcDiscoverMoreStackRoots() {
 		}
 	}
 
-	var oldRootJobs int32 = int32(atomic.Load(&work.markrootJobs))
 	var newRootJobs int32 = int32(work.baseStacks) + int32(vIndex)
-
-	if newRootJobs > oldRootJobs {
+	if newRootJobs > int32(work.markrootJobs.Load()) {
 		// reset markrootNext as it could have been incremented past markrootJobs
 		work.nLiveStackRoots = vIndex
-		atomic.Store(&work.markrootJobs, uint32(newRootJobs))
+		work.markrootJobs.Store(uint32(newRootJobs))
 	}
 }
 
@@ -1237,7 +1237,7 @@ func findGoleaks() bool {
 		work.stackRoots[work.nLiveStackRoots] = gp
 		work.nLiveStackRoots += 1
 		// We now have one more markroot job.
-		work.markrootJobs += 1
+		work.markrootJobs.Add(1)
 		// We might still have some work to do.
 		// Make sure in the next iteration we will check re-check for new runnable goroutines.
 		foundMoreWork = true
@@ -1261,7 +1261,7 @@ func findGoleaks() bool {
 		println()
 	}
 	// Put the remaining roots as ready for marking and drain them.
-	work.markrootJobs += uint32(work.nStackRoots - work.nLiveStackRoots)
+	work.markrootJobs.Add(int32(work.nStackRoots - work.nLiveStackRoots))
 	work.nLiveStackRoots = work.nStackRoots
 	return true
 }
@@ -1854,9 +1854,7 @@ func gcMarkWorkAvailable(p *p) bool {
 	if !work.full.empty() || !work.spanq.empty() {
 		return true // global work available
 	}
-	rootNext := atomic.Load(&work.markrootNext)
-	rootJobs := atomic.Load(&work.markrootJobs)
-	if rootNext < rootJobs {
+	if work.markrootNext.Load() < work.markrootJobs.Load() {
 		return true // root scan work available
 	}
 	return false
@@ -1872,10 +1870,8 @@ func gcMark(startTime int64) {
 	work.tstart = startTime
 
 	// Check that there's no marking work remaining.
-	rootNext := atomic.Load(&work.markrootNext)
-	rootJobs := atomic.Load(&work.markrootJobs)
-	if work.full != 0 || rootNext < rootJobs {
-		print("runtime: full=", hex(work.full), " next=", rootNext, " jobs=", rootJobs, " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, "\n")
+	if work.full != 0 || work.markrootNext.Load() < work.markrootJobs.Load() {
+		print("runtime: full=", hex(work.full), " next=", work.markrootNext.Load(), " jobs=", work.markrootJobs.Load(), " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, "\n")
 		panic("non-empty mark queue after concurrent mark")
 	}
 

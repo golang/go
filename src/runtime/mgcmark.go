@@ -162,8 +162,8 @@ func gcPrepareMarkRoots() {
 
 	work.nStackRoots = len(work.stackRoots)
 
-	work.markrootNext = 0
-	work.markrootJobs = uint32(fixedRootCount + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nLiveStackRoots)
+	work.markrootNext.Store(0)
+	work.markrootJobs.Store(uint32(fixedRootCount + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nLiveStackRoots))
 
 	// Calculate base indexes of each root type
 	work.baseData = uint32(fixedRootCount)
@@ -176,10 +176,8 @@ func gcPrepareMarkRoots() {
 // gcMarkRootCheck checks that all roots have been scanned. It is
 // purely for debugging.
 func gcMarkRootCheck() {
-	rootNext := atomic.Load(&work.markrootNext)
-	rootJobs := atomic.Load(&work.markrootJobs)
-	if rootNext < rootJobs {
-		print(rootNext, " of ", rootJobs, " markroot jobs done\n")
+	if work.markrootNext.Load() < work.markrootJobs.Load() {
+		print(work.markrootNext.Load(), " of ", work.markrootJobs.Load(), " markroot jobs done\n")
 		throw("left over markroot jobs")
 	}
 
@@ -1197,21 +1195,19 @@ func gcDrainMarkWorkerFractional(gcw *gcWork) {
 
 func gcUpdateMarkrootNext() (uint32, bool) {
 	var success bool
-	var next uint32 = atomic.Load(&work.markrootNext)
-	var jobs uint32 = atomic.Load(&work.markrootJobs)
+	next, jobs := work.markrootNext.Load(), work.markrootJobs.Load()
 
 	if next < jobs {
 		// still work available at the moment
 		for !success {
-			success = atomic.Cas(&work.markrootNext, next, next+1)
+			success = work.markrootNext.CompareAndSwap(next, next+1)
 			// We manage to snatch a root job. Return the root index.
 			if success {
 				return next, true
 			}
 
 			// Get the latest value of markrootNext.
-			next = atomic.Load(&work.markrootNext)
-			jobs := atomic.Load(&work.markrootJobs)
+			next = work.markrootNext.Load()
 			// We are out of markroot jobs.
 			if next >= jobs {
 				break
@@ -1279,9 +1275,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 		}
 	}
 
-	rootNext := atomic.Load(&work.markrootNext)
-	rootJobs := atomic.Load(&work.markrootJobs)
-	if rootNext < rootJobs {
+	if work.markrootNext.Load() < work.markrootJobs.Load() {
 		// Stop if we're preemptible, if someone wants to STW, or if
 		// someone is calling forEachP.
 		for !(gp.preempt && (preemptible || sched.gcwaiting.Load() || pp.runSafePointFn != 0)) {
@@ -1432,7 +1426,7 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 					wbBufFlush()
 					if b = gcw.tryGetObj(); b == 0 {
 						// Try to do a root job.
-						if atomic.Load(&work.markrootNext) < atomic.Load(&work.markrootJobs) {
+						if work.markrootNext.Load() < work.markrootJobs.Load() {
 							job, success := gcUpdateMarkrootNext()
 							if success {
 								workFlushed += markroot(gcw, job, false)
