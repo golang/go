@@ -53,7 +53,7 @@ type table struct {
 
 	// Index of this table in the Map directory. This is the index of the
 	// _first_ location in the directory. The table may occur in multiple
-	// sequential indicies.
+	// sequential indices.
 	//
 	// index is -1 if the table is stale (no longer installed in the
 	// directory).

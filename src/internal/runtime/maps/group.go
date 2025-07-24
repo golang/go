@@ -39,7 +39,7 @@ const (
 // On other architectures, bitset uses one byte per slot, where each byte is
 // either 0x80 if the slot is part of the set or 0x00 otherwise. This makes it
 // convenient to calculate for an entire group at once using standard
-// arithemetic instructions.
+// arithmetic instructions.
 type bitset uint64
 
 // first returns the relative index of the first control byte in the group that
