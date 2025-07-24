@@ -188,7 +188,7 @@ func unmarshalInlinedFallbackNext(dec *jsontext.Decoder, va addressableValue, uo
 					*b = append(*b, ',')
 				}
 			} else {
-				return newUnmarshalErrorAfterWithSkipping(dec, uo, v.Type(), errRawInlinedNotObject)
+				return newUnmarshalErrorAfterWithSkipping(dec, v.Type(), errRawInlinedNotObject)
 			}
 		}
 		*b = append(*b, quotedName...)

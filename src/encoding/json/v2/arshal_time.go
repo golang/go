@@ -48,7 +48,7 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			var m durationArshaler
 			if mo.Format != "" && mo.FormatDepth == xe.Tokens.Depth() {
 				if !m.initFormat(mo.Format) {
-					return newInvalidFormatError(enc, t, mo)
+					return newInvalidFormatError(enc, t)
 				}
 			} else if mo.Flags.Get(jsonflags.FormatDurationAsNano) {
 				return marshalNano(enc, va, mo)
@@ -74,13 +74,13 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			var u durationArshaler
 			if uo.Format != "" && uo.FormatDepth == xd.Tokens.Depth() {
 				if !u.initFormat(uo.Format) {
-					return newInvalidFormatError(dec, t, uo)
+					return newInvalidFormatError(dec, t)
 				}
 			} else if uo.Flags.Get(jsonflags.FormatDurationAsNano) {
 				return unmarshalNano(dec, va, uo)
 			} else {
 				// TODO(https://go.dev/issue/71631): Decide on default duration representation.
-				return newUnmarshalErrorBeforeWithSkipping(dec, uo, t, errors.New("no default representation (see https://go.dev/issue/71631); specify an explicit format"))
+				return newUnmarshalErrorBeforeWithSkipping(dec, t, errors.New("no default representation (see https://go.dev/issue/71631); specify an explicit format"))
 			}
 
 			stringify := !u.isNumeric() || xd.Tokens.Last.NeedObjectName() || uo.Flags.Get(jsonflags.StringifyNumbers)
@@ -125,7 +125,7 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			var m timeArshaler
 			if mo.Format != "" && mo.FormatDepth == xe.Tokens.Depth() {
 				if !m.initFormat(mo.Format) {
-					return newInvalidFormatError(enc, t, mo)
+					return newInvalidFormatError(enc, t)
 				}
 			}
 
@@ -148,7 +148,7 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			var u timeArshaler
 			if uo.Format != "" && uo.FormatDepth == xd.Tokens.Depth() {
 				if !u.initFormat(uo.Format) {
-					return newInvalidFormatError(dec, t, uo)
+					return newInvalidFormatError(dec, t)
 				}
 			} else if uo.Flags.Get(jsonflags.ParseTimeWithLooseRFC3339) {
 				u.looseRFC3339 = true
