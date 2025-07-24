@@ -776,7 +776,8 @@ func (d *decoderState) ReadValue(flags *jsonwire.ValueFlags) (Value, error) {
 
 // CheckNextValue checks whether the next value is syntactically valid,
 // but does not advance the read offset.
-func (d *decoderState) CheckNextValue() error {
+// If last, it verifies that the stream cleanly terminates with [io.EOF].
+func (d *decoderState) CheckNextValue(last bool) error {
 	d.PeekKind() // populates d.peekPos and d.peekErr
 	pos, err := d.peekPos, d.peekErr
 	d.peekPos, d.peekErr = 0, nil
@@ -787,13 +788,18 @@ func (d *decoderState) CheckNextValue() error {
 	var flags jsonwire.ValueFlags
 	if pos, err := d.consumeValue(&flags, pos, d.Tokens.Depth()); err != nil {
 		return wrapSyntacticError(d, err, pos, +1)
+	} else if last {
+		return d.checkEOF(pos)
 	}
 	return nil
 }
 
 // CheckEOF verifies that the input has no more data.
 func (d *decoderState) CheckEOF() error {
-	switch pos, err := d.consumeWhitespace(d.prevEnd); err {
+	return d.checkEOF(d.prevEnd)
+}
+func (d *decoderState) checkEOF(pos int) error {
+	switch pos, err := d.consumeWhitespace(pos); err {
 	case nil:
 		err := jsonwire.NewInvalidCharacterError(d.buf[pos:], "after top-level value")
 		return wrapSyntacticError(d, err, pos, 0)
