@@ -1494,6 +1494,25 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssagen.AddAux(&p.To, v)
 		p.AddRestSourceReg(simdReg(v.Args[1])) // masking simd reg
 
+	case ssa.OpAMD64VPMASK64load512, ssa.OpAMD64VPMASK32load512, ssa.OpAMD64VPMASK16load512, ssa.OpAMD64VPMASK8load512:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		ssagen.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = simdReg(v)
+		p.AddRestSourceReg(v.Args[1].Reg()) // simd mask reg
+		x86.ParseSuffix(p, "Z")             // must be zero if not in mask
+
+	case ssa.OpAMD64VPMASK64store512, ssa.OpAMD64VPMASK32store512, ssa.OpAMD64VPMASK16store512, ssa.OpAMD64VPMASK8store512:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = simdReg(v.Args[2])
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		ssagen.AddAux(&p.To, v)
+		p.AddRestSourceReg(v.Args[1].Reg()) // simd mask reg
+
 	case ssa.OpAMD64VPMOVMToVec8x16,
 		ssa.OpAMD64VPMOVMToVec8x32,
 		ssa.OpAMD64VPMOVMToVec8x64,

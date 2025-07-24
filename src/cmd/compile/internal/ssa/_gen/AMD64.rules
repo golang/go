@@ -1756,6 +1756,18 @@
 (StoreMasked64 {t} ptr mask val mem) && t.Size() == 16 => (VPMASK64store128 ptr mask val mem)
 (StoreMasked64 {t} ptr mask val mem) && t.Size() == 32 => (VPMASK64store256 ptr mask val mem)
 
+// SIMD vector K-masked loads and stores
+
+(LoadMasked64 <t> ptr mask mem) && t.Size() == 64 => (VPMASK64load512 ptr (VPMOVVec64x8ToM  <types.TypeMask> mask) mem)
+(LoadMasked32 <t> ptr mask mem) && t.Size() == 64 => (VPMASK32load512 ptr (VPMOVVec32x16ToM <types.TypeMask> mask) mem)
+(LoadMasked16 <t> ptr mask mem) && t.Size() == 64 => (VPMASK16load512 ptr (VPMOVVec16x32ToM <types.TypeMask> mask) mem)
+(LoadMasked8  <t> ptr mask mem) && t.Size() == 64 => (VPMASK8load512  ptr (VPMOVVec8x64ToM  <types.TypeMask> mask) mem)
+
+(StoreMasked64 {t} ptr mask val mem) && t.Size() == 64 => (VPMASK64store512 ptr (VPMOVVec64x8ToM  <types.TypeMask> mask) val mem)
+(StoreMasked32 {t} ptr mask val mem) && t.Size() == 64 => (VPMASK32store512 ptr (VPMOVVec32x16ToM <types.TypeMask> mask) val mem)
+(StoreMasked16 {t} ptr mask val mem) && t.Size() == 64 => (VPMASK16store512 ptr (VPMOVVec16x32ToM <types.TypeMask> mask) val mem)
+(StoreMasked8  {t} ptr mask val mem) && t.Size() == 64 => (VPMASK8store512  ptr (VPMOVVec8x64ToM  <types.TypeMask> mask) val mem)
+
 (ZeroSIMD <t>) && t.Size() == 16 => (Zero128 <t>)
 (ZeroSIMD <t>) && t.Size() == 32 => (Zero256 <t>)
 (ZeroSIMD <t>) && t.Size() == 64 => (Zero512 <t>)

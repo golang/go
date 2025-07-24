@@ -2516,10 +2516,14 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpLoadMask8x32(v)
 	case OpLoadMask8x64:
 		return rewriteValueAMD64_OpLoadMask8x64(v)
+	case OpLoadMasked16:
+		return rewriteValueAMD64_OpLoadMasked16(v)
 	case OpLoadMasked32:
 		return rewriteValueAMD64_OpLoadMasked32(v)
 	case OpLoadMasked64:
 		return rewriteValueAMD64_OpLoadMasked64(v)
+	case OpLoadMasked8:
+		return rewriteValueAMD64_OpLoadMasked8(v)
 	case OpLocalAddr:
 		return rewriteValueAMD64_OpLocalAddr(v)
 	case OpLsh16x16:
@@ -5266,10 +5270,14 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpStoreMask8x32(v)
 	case OpStoreMask8x64:
 		return rewriteValueAMD64_OpStoreMask8x64(v)
+	case OpStoreMasked16:
+		return rewriteValueAMD64_OpStoreMasked16(v)
 	case OpStoreMasked32:
 		return rewriteValueAMD64_OpStoreMasked32(v)
 	case OpStoreMasked64:
 		return rewriteValueAMD64_OpStoreMasked64(v)
+	case OpStoreMasked8:
+		return rewriteValueAMD64_OpStoreMasked8(v)
 	case OpSub16:
 		v.Op = OpAMD64SUBL
 		return true
@@ -40881,10 +40889,35 @@ func rewriteValueAMD64_OpLoadMask8x64(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueAMD64_OpLoadMasked16(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (LoadMasked16 <t> ptr mask mem)
+	// cond: t.Size() == 64
+	// result: (VPMASK16load512 ptr (VPMOVVec16x32ToM <types.TypeMask> mask) mem)
+	for {
+		t := v.Type
+		ptr := v_0
+		mask := v_1
+		mem := v_2
+		if !(t.Size() == 64) {
+			break
+		}
+		v.reset(OpAMD64VPMASK16load512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(ptr, v0, mem)
+		return true
+	}
+	return false
+}
 func rewriteValueAMD64_OpLoadMasked32(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
 	// match: (LoadMasked32 <t> ptr mask mem)
 	// cond: t.Size() == 16
 	// result: (VPMASK32load128 ptr mask mem)
@@ -40915,12 +40948,30 @@ func rewriteValueAMD64_OpLoadMasked32(v *Value) bool {
 		v.AddArg3(ptr, mask, mem)
 		return true
 	}
+	// match: (LoadMasked32 <t> ptr mask mem)
+	// cond: t.Size() == 64
+	// result: (VPMASK32load512 ptr (VPMOVVec32x16ToM <types.TypeMask> mask) mem)
+	for {
+		t := v.Type
+		ptr := v_0
+		mask := v_1
+		mem := v_2
+		if !(t.Size() == 64) {
+			break
+		}
+		v.reset(OpAMD64VPMASK32load512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(ptr, v0, mem)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpLoadMasked64(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
 	// match: (LoadMasked64 <t> ptr mask mem)
 	// cond: t.Size() == 16
 	// result: (VPMASK64load128 ptr mask mem)
@@ -40949,6 +41000,47 @@ func rewriteValueAMD64_OpLoadMasked64(v *Value) bool {
 		}
 		v.reset(OpAMD64VPMASK64load256)
 		v.AddArg3(ptr, mask, mem)
+		return true
+	}
+	// match: (LoadMasked64 <t> ptr mask mem)
+	// cond: t.Size() == 64
+	// result: (VPMASK64load512 ptr (VPMOVVec64x8ToM <types.TypeMask> mask) mem)
+	for {
+		t := v.Type
+		ptr := v_0
+		mask := v_1
+		mem := v_2
+		if !(t.Size() == 64) {
+			break
+		}
+		v.reset(OpAMD64VPMASK64load512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(ptr, v0, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpLoadMasked8(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (LoadMasked8 <t> ptr mask mem)
+	// cond: t.Size() == 64
+	// result: (VPMASK8load512 ptr (VPMOVVec8x64ToM <types.TypeMask> mask) mem)
+	for {
+		t := v.Type
+		ptr := v_0
+		mask := v_1
+		mem := v_2
+		if !(t.Size() == 64) {
+			break
+		}
+		v.reset(OpAMD64VPMASK8load512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x64ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(ptr, v0, mem)
 		return true
 	}
 	return false
@@ -53915,11 +54007,38 @@ func rewriteValueAMD64_OpStoreMask8x64(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueAMD64_OpStoreMasked16(v *Value) bool {
+	v_3 := v.Args[3]
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (StoreMasked16 {t} ptr mask val mem)
+	// cond: t.Size() == 64
+	// result: (VPMASK16store512 ptr (VPMOVVec16x32ToM <types.TypeMask> mask) val mem)
+	for {
+		t := auxToType(v.Aux)
+		ptr := v_0
+		mask := v_1
+		val := v_2
+		mem := v_3
+		if !(t.Size() == 64) {
+			break
+		}
+		v.reset(OpAMD64VPMASK16store512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(ptr, v0, val, mem)
+		return true
+	}
+	return false
+}
 func rewriteValueAMD64_OpStoreMasked32(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
 	// match: (StoreMasked32 {t} ptr mask val mem)
 	// cond: t.Size() == 16
 	// result: (VPMASK32store128 ptr mask val mem)
@@ -53952,6 +54071,24 @@ func rewriteValueAMD64_OpStoreMasked32(v *Value) bool {
 		v.AddArg4(ptr, mask, val, mem)
 		return true
 	}
+	// match: (StoreMasked32 {t} ptr mask val mem)
+	// cond: t.Size() == 64
+	// result: (VPMASK32store512 ptr (VPMOVVec32x16ToM <types.TypeMask> mask) val mem)
+	for {
+		t := auxToType(v.Aux)
+		ptr := v_0
+		mask := v_1
+		val := v_2
+		mem := v_3
+		if !(t.Size() == 64) {
+			break
+		}
+		v.reset(OpAMD64VPMASK32store512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(ptr, v0, val, mem)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpStoreMasked64(v *Value) bool {
@@ -53959,6 +54096,7 @@ func rewriteValueAMD64_OpStoreMasked64(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
 	// match: (StoreMasked64 {t} ptr mask val mem)
 	// cond: t.Size() == 16
 	// result: (VPMASK64store128 ptr mask val mem)
@@ -53989,6 +54127,50 @@ func rewriteValueAMD64_OpStoreMasked64(v *Value) bool {
 		}
 		v.reset(OpAMD64VPMASK64store256)
 		v.AddArg4(ptr, mask, val, mem)
+		return true
+	}
+	// match: (StoreMasked64 {t} ptr mask val mem)
+	// cond: t.Size() == 64
+	// result: (VPMASK64store512 ptr (VPMOVVec64x8ToM <types.TypeMask> mask) val mem)
+	for {
+		t := auxToType(v.Aux)
+		ptr := v_0
+		mask := v_1
+		val := v_2
+		mem := v_3
+		if !(t.Size() == 64) {
+			break
+		}
+		v.reset(OpAMD64VPMASK64store512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(ptr, v0, val, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpStoreMasked8(v *Value) bool {
+	v_3 := v.Args[3]
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (StoreMasked8 {t} ptr mask val mem)
+	// cond: t.Size() == 64
+	// result: (VPMASK8store512 ptr (VPMOVVec8x64ToM <types.TypeMask> mask) val mem)
+	for {
+		t := auxToType(v.Aux)
+		ptr := v_0
+		mask := v_1
+		val := v_2
+		mem := v_3
+		if !(t.Size() == 64) {
+			break
+		}
+		v.reset(OpAMD64VPMASK8store512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x64ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg4(ptr, v0, val, mem)
 		return true
 	}
 	return false

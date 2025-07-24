@@ -375,8 +375,12 @@ var genericOps = []opData{
 
 	// masked memory operations.
 	// TODO add 16 and 8
+	{name: "LoadMasked8", argLength: 3},                           // Load from arg0, arg1 = mask of 8-bits, arg2 = memory
+	{name: "LoadMasked16", argLength: 3},                          // Load from arg0, arg1 = mask of 16-bits, arg2 = memory
 	{name: "LoadMasked32", argLength: 3},                          // Load from arg0, arg1 = mask of 32-bits, arg2 = memory
 	{name: "LoadMasked64", argLength: 3},                          // Load from arg0, arg1 = mask of 64-bits, arg2 = memory
+	{name: "StoreMasked8", argLength: 4, typ: "Mem", aux: "Typ"},  // Store arg2 to arg0, arg1=mask of 8-bits, arg3 = memory
+	{name: "StoreMasked16", argLength: 4, typ: "Mem", aux: "Typ"}, // Store arg2 to arg0, arg1=mask of 16-bits, arg3 = memory
 	{name: "StoreMasked32", argLength: 4, typ: "Mem", aux: "Typ"}, // Store arg2 to arg0, arg1=mask of 32-bits, arg3 = memory
 	{name: "StoreMasked64", argLength: 4, typ: "Mem", aux: "Typ"}, // Store arg2 to arg0, arg1=mask of 64-bits, arg3 = memory
 
