@@ -341,3 +341,50 @@ func TestSlicePartFloat32(t *testing.T) {
 		}
 	}
 }
+
+// 512-bit load
+
+func TestSlicePartInt64(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
+		return
+	}
+
+	L := 8
+	c := []int64{1, 2, 3, 4, 5, 6, 7, 8, 86, 86, 86, 86}
+	a := c[:L+1]
+	for i := range a {
+		// Test the load first
+		// e is a partial slice.
+		e := a[i:]
+		v := simd.LoadInt64x8SlicePart(e)
+		// d contains what a ought to contain
+		d := make([]int64, L)
+		for j := 0; j < len(e) && j < len(d); j++ {
+			d[j] = e[j]
+		}
+
+		b := make([]int64, L)
+		v.StoreSlice(b)
+		// test the load
+		checkSlicesLogInput(t, b, d, func() { t.Helper(); t.Logf("Len(e)=%d", len(e)) })
+
+		// Test the store
+		f := make([]int64, L+1)
+		for i := range f {
+			f[i] = 99
+		}
+
+		v.StoreSlicePart(f[:len(e)])
+		if len(e) < len(b) {
+			checkSlices(t, f, b[:len(e)])
+		} else {
+			checkSlices(t, f, b)
+		}
+		for i := len(e); i < len(f); i++ {
+			if f[i] != 99 {
+				t.Errorf("StoreSlicePart altered f[%d], expected 99, saw %v", i, f[i])
+			}
+		}
+	}
+}

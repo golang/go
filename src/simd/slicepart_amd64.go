@@ -419,6 +419,24 @@ func paInt64x4(s []int64) *[4]int64 {
 	return (*[4]int64)(unsafe.Pointer(&s[0]))
 }
 
+// For 512-bit masked loads/stores
+
+func paInt64x8(s []int64) *[8]int64 {
+	return (*[8]int64)(unsafe.Pointer(&s[0]))
+}
+
+func paInt32x16(s []int32) *[16]int32 {
+	return (*[16]int32)(unsafe.Pointer(&s[0]))
+}
+
+func paInt16x32(s []int16) *[32]int16 {
+	return (*[32]int16)(unsafe.Pointer(&s[0]))
+}
+
+func paInt8x64(s []int8) *[64]int8 {
+	return (*[64]int8)(unsafe.Pointer(&s[0]))
+}
+
 /* 32 and 64-bit slice-part loads for AVX2 (128 and 256 bit) */
 
 // LoadInt32x4SlicePart loads a Int32x4 from the slice s.
@@ -741,4 +759,31 @@ func (x Float64x4) StoreSlicePart(s []float64) {
 	}
 	t := unsafe.Slice((*int64)(unsafe.Pointer(&s[0])), len(s))
 	x.AsInt64x4().StoreSlicePart(t)
+}
+
+func LoadInt64x8SlicePart(s []int64) Int64x8 {
+	l := len(s)
+	if l >= 8 {
+		return LoadInt64x8Slice(s)
+	}
+	if l == 0 {
+		var x Int64x8
+		return x
+	}
+
+	mask := Mask64x8FromBits(0xff >> (8 - l))
+	return LoadMaskedInt64x8(paInt64x8(s), mask)
+}
+
+func (x Int64x8) StoreSlicePart(s []int64) {
+	l := len(s)
+	if l >= 8 {
+		x.StoreSlice(s)
+		return
+	}
+	if l == 0 {
+		return
+	}
+	mask := Mask64x8FromBits(0xff >> (8 - l))
+	x.StoreMasked(paInt64x8(s), mask)
 }

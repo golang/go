@@ -31,11 +31,15 @@ func (x Float32x4) Store(y *[4]float32)
 // LoadMaskedFloat32x4 loads a Float32x4 from an array,
 // at those elements enabled by mask
 //
+// Asm: VMASKMOVD, CPU Feature: AVX2
+//
 //go:noescape
 func LoadMaskedFloat32x4(y *[4]float32, mask Mask32x4) Float32x4
 
 // StoreMasked stores a Float32x4 to an array,
 // at those elements enabled by mask
+//
+// Asm: VMASKMOVD, CPU Feature: AVX2
 //
 //go:noescape
 func (x Float32x4) StoreMasked(y *[4]float32, mask Mask32x4)
@@ -62,11 +66,15 @@ func (x Float64x2) Store(y *[2]float64)
 // LoadMaskedFloat64x2 loads a Float64x2 from an array,
 // at those elements enabled by mask
 //
+// Asm: VMASKMOVQ, CPU Feature: AVX2
+//
 //go:noescape
 func LoadMaskedFloat64x2(y *[2]float64, mask Mask64x2) Float64x2
 
 // StoreMasked stores a Float64x2 to an array,
 // at those elements enabled by mask
+//
+// Asm: VMASKMOVQ, CPU Feature: AVX2
 //
 //go:noescape
 func (x Float64x2) StoreMasked(y *[2]float64, mask Mask64x2)
@@ -131,11 +139,15 @@ func (x Int32x4) Store(y *[4]int32)
 // LoadMaskedInt32x4 loads a Int32x4 from an array,
 // at those elements enabled by mask
 //
+// Asm: VMASKMOVD, CPU Feature: AVX2
+//
 //go:noescape
 func LoadMaskedInt32x4(y *[4]int32, mask Mask32x4) Int32x4
 
 // StoreMasked stores a Int32x4 to an array,
 // at those elements enabled by mask
+//
+// Asm: VMASKMOVD, CPU Feature: AVX2
 //
 //go:noescape
 func (x Int32x4) StoreMasked(y *[4]int32, mask Mask32x4)
@@ -162,11 +174,15 @@ func (x Int64x2) Store(y *[2]int64)
 // LoadMaskedInt64x2 loads a Int64x2 from an array,
 // at those elements enabled by mask
 //
+// Asm: VMASKMOVQ, CPU Feature: AVX2
+//
 //go:noescape
 func LoadMaskedInt64x2(y *[2]int64, mask Mask64x2) Int64x2
 
 // StoreMasked stores a Int64x2 to an array,
 // at those elements enabled by mask
+//
+// Asm: VMASKMOVQ, CPU Feature: AVX2
 //
 //go:noescape
 func (x Int64x2) StoreMasked(y *[2]int64, mask Mask64x2)
@@ -231,11 +247,15 @@ func (x Uint32x4) Store(y *[4]uint32)
 // LoadMaskedUint32x4 loads a Uint32x4 from an array,
 // at those elements enabled by mask
 //
+// Asm: VMASKMOVD, CPU Feature: AVX2
+//
 //go:noescape
 func LoadMaskedUint32x4(y *[4]uint32, mask Mask32x4) Uint32x4
 
 // StoreMasked stores a Uint32x4 to an array,
 // at those elements enabled by mask
+//
+// Asm: VMASKMOVD, CPU Feature: AVX2
 //
 //go:noescape
 func (x Uint32x4) StoreMasked(y *[4]uint32, mask Mask32x4)
@@ -262,11 +282,15 @@ func (x Uint64x2) Store(y *[2]uint64)
 // LoadMaskedUint64x2 loads a Uint64x2 from an array,
 // at those elements enabled by mask
 //
+// Asm: VMASKMOVQ, CPU Feature: AVX2
+//
 //go:noescape
 func LoadMaskedUint64x2(y *[2]uint64, mask Mask64x2) Uint64x2
 
 // StoreMasked stores a Uint64x2 to an array,
 // at those elements enabled by mask
+//
+// Asm: VMASKMOVQ, CPU Feature: AVX2
 //
 //go:noescape
 func (x Uint64x2) StoreMasked(y *[2]uint64, mask Mask64x2)
@@ -295,6 +319,8 @@ func (x Mask8x16) StoreToBits(y *uint64)
 
 // Mask8x16FromBits constructs a Mask8x16 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 16 bits of y are used.
+//
+// Asm: KMOVB, CPU Feature: AVX512"
 func Mask8x16FromBits(y uint16) Mask8x16
 
 // Mask16x8 is a 128-bit SIMD vector of 8 int16
@@ -321,6 +347,8 @@ func (x Mask16x8) StoreToBits(y *uint64)
 
 // Mask16x8FromBits constructs a Mask16x8 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 8 bits of y are used.
+//
+// Asm: KMOVW, CPU Feature: AVX512"
 func Mask16x8FromBits(y uint8) Mask16x8
 
 // Mask32x4 is a 128-bit SIMD vector of 4 int32
@@ -347,6 +375,8 @@ func (x Mask32x4) StoreToBits(y *uint64)
 
 // Mask32x4FromBits constructs a Mask32x4 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 4 bits of y are used.
+//
+// Asm: KMOVD, CPU Feature: AVX512"
 func Mask32x4FromBits(y uint8) Mask32x4
 
 // Mask64x2 is a 128-bit SIMD vector of 2 int64
@@ -373,6 +403,8 @@ func (x Mask64x2) StoreToBits(y *uint64)
 
 // Mask64x2FromBits constructs a Mask64x2 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 2 bits of y are used.
+//
+// Asm: KMOVQ, CPU Feature: AVX512"
 func Mask64x2FromBits(y uint8) Mask64x2
 
 // v256 is a tag type that tells the compiler that this is really 256-bit SIMD
@@ -402,11 +434,15 @@ func (x Float32x8) Store(y *[8]float32)
 // LoadMaskedFloat32x8 loads a Float32x8 from an array,
 // at those elements enabled by mask
 //
+// Asm: VMASKMOVD, CPU Feature: AVX2
+//
 //go:noescape
 func LoadMaskedFloat32x8(y *[8]float32, mask Mask32x8) Float32x8
 
 // StoreMasked stores a Float32x8 to an array,
 // at those elements enabled by mask
+//
+// Asm: VMASKMOVD, CPU Feature: AVX2
 //
 //go:noescape
 func (x Float32x8) StoreMasked(y *[8]float32, mask Mask32x8)
@@ -433,11 +469,15 @@ func (x Float64x4) Store(y *[4]float64)
 // LoadMaskedFloat64x4 loads a Float64x4 from an array,
 // at those elements enabled by mask
 //
+// Asm: VMASKMOVQ, CPU Feature: AVX2
+//
 //go:noescape
 func LoadMaskedFloat64x4(y *[4]float64, mask Mask64x4) Float64x4
 
 // StoreMasked stores a Float64x4 to an array,
 // at those elements enabled by mask
+//
+// Asm: VMASKMOVQ, CPU Feature: AVX2
 //
 //go:noescape
 func (x Float64x4) StoreMasked(y *[4]float64, mask Mask64x4)
@@ -502,11 +542,15 @@ func (x Int32x8) Store(y *[8]int32)
 // LoadMaskedInt32x8 loads a Int32x8 from an array,
 // at those elements enabled by mask
 //
+// Asm: VMASKMOVD, CPU Feature: AVX2
+//
 //go:noescape
 func LoadMaskedInt32x8(y *[8]int32, mask Mask32x8) Int32x8
 
 // StoreMasked stores a Int32x8 to an array,
 // at those elements enabled by mask
+//
+// Asm: VMASKMOVD, CPU Feature: AVX2
 //
 //go:noescape
 func (x Int32x8) StoreMasked(y *[8]int32, mask Mask32x8)
@@ -533,11 +577,15 @@ func (x Int64x4) Store(y *[4]int64)
 // LoadMaskedInt64x4 loads a Int64x4 from an array,
 // at those elements enabled by mask
 //
+// Asm: VMASKMOVQ, CPU Feature: AVX2
+//
 //go:noescape
 func LoadMaskedInt64x4(y *[4]int64, mask Mask64x4) Int64x4
 
 // StoreMasked stores a Int64x4 to an array,
 // at those elements enabled by mask
+//
+// Asm: VMASKMOVQ, CPU Feature: AVX2
 //
 //go:noescape
 func (x Int64x4) StoreMasked(y *[4]int64, mask Mask64x4)
@@ -602,11 +650,15 @@ func (x Uint32x8) Store(y *[8]uint32)
 // LoadMaskedUint32x8 loads a Uint32x8 from an array,
 // at those elements enabled by mask
 //
+// Asm: VMASKMOVD, CPU Feature: AVX2
+//
 //go:noescape
 func LoadMaskedUint32x8(y *[8]uint32, mask Mask32x8) Uint32x8
 
 // StoreMasked stores a Uint32x8 to an array,
 // at those elements enabled by mask
+//
+// Asm: VMASKMOVD, CPU Feature: AVX2
 //
 //go:noescape
 func (x Uint32x8) StoreMasked(y *[8]uint32, mask Mask32x8)
@@ -633,11 +685,15 @@ func (x Uint64x4) Store(y *[4]uint64)
 // LoadMaskedUint64x4 loads a Uint64x4 from an array,
 // at those elements enabled by mask
 //
+// Asm: VMASKMOVQ, CPU Feature: AVX2
+//
 //go:noescape
 func LoadMaskedUint64x4(y *[4]uint64, mask Mask64x4) Uint64x4
 
 // StoreMasked stores a Uint64x4 to an array,
 // at those elements enabled by mask
+//
+// Asm: VMASKMOVQ, CPU Feature: AVX2
 //
 //go:noescape
 func (x Uint64x4) StoreMasked(y *[4]uint64, mask Mask64x4)
@@ -666,6 +722,8 @@ func (x Mask8x32) StoreToBits(y *uint64)
 
 // Mask8x32FromBits constructs a Mask8x32 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 32 bits of y are used.
+//
+// Asm: KMOVB, CPU Feature: AVX512"
 func Mask8x32FromBits(y uint32) Mask8x32
 
 // Mask16x16 is a 256-bit SIMD vector of 16 int16
@@ -692,6 +750,8 @@ func (x Mask16x16) StoreToBits(y *uint64)
 
 // Mask16x16FromBits constructs a Mask16x16 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 16 bits of y are used.
+//
+// Asm: KMOVW, CPU Feature: AVX512"
 func Mask16x16FromBits(y uint16) Mask16x16
 
 // Mask32x8 is a 256-bit SIMD vector of 8 int32
@@ -718,6 +778,8 @@ func (x Mask32x8) StoreToBits(y *uint64)
 
 // Mask32x8FromBits constructs a Mask32x8 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 8 bits of y are used.
+//
+// Asm: KMOVD, CPU Feature: AVX512"
 func Mask32x8FromBits(y uint8) Mask32x8
 
 // Mask64x4 is a 256-bit SIMD vector of 4 int64
@@ -744,6 +806,8 @@ func (x Mask64x4) StoreToBits(y *uint64)
 
 // Mask64x4FromBits constructs a Mask64x4 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 4 bits of y are used.
+//
+// Asm: KMOVQ, CPU Feature: AVX512"
 func Mask64x4FromBits(y uint8) Mask64x4
 
 // v512 is a tag type that tells the compiler that this is really 512-bit SIMD
@@ -770,6 +834,22 @@ func LoadFloat32x16(y *[16]float32) Float32x16
 //go:noescape
 func (x Float32x16) Store(y *[16]float32)
 
+// LoadMaskedFloat32x16 loads a Float32x16 from an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU32.Z, CPU Feature: AVX512
+//
+//go:noescape
+func LoadMaskedFloat32x16(y *[16]float32, mask Mask32x16) Float32x16
+
+// StoreMasked stores a Float32x16 to an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU32, CPU Feature: AVX512
+//
+//go:noescape
+func (x Float32x16) StoreMasked(y *[16]float32, mask Mask32x16)
+
 // Float64x8 is a 512-bit SIMD vector of 8 float64
 type Float64x8 struct {
 	float64x8 v512
@@ -788,6 +868,22 @@ func LoadFloat64x8(y *[8]float64) Float64x8
 //
 //go:noescape
 func (x Float64x8) Store(y *[8]float64)
+
+// LoadMaskedFloat64x8 loads a Float64x8 from an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU64.Z, CPU Feature: AVX512
+//
+//go:noescape
+func LoadMaskedFloat64x8(y *[8]float64, mask Mask64x8) Float64x8
+
+// StoreMasked stores a Float64x8 to an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU64, CPU Feature: AVX512
+//
+//go:noescape
+func (x Float64x8) StoreMasked(y *[8]float64, mask Mask64x8)
 
 // Int8x64 is a 512-bit SIMD vector of 64 int8
 type Int8x64 struct {
@@ -808,6 +904,22 @@ func LoadInt8x64(y *[64]int8) Int8x64
 //go:noescape
 func (x Int8x64) Store(y *[64]int8)
 
+// LoadMaskedInt8x64 loads a Int8x64 from an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU8.Z, CPU Feature: AVX512
+//
+//go:noescape
+func LoadMaskedInt8x64(y *[64]int8, mask Mask8x64) Int8x64
+
+// StoreMasked stores a Int8x64 to an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU8, CPU Feature: AVX512
+//
+//go:noescape
+func (x Int8x64) StoreMasked(y *[64]int8, mask Mask8x64)
+
 // Int16x32 is a 512-bit SIMD vector of 32 int16
 type Int16x32 struct {
 	int16x32 v512
@@ -826,6 +938,22 @@ func LoadInt16x32(y *[32]int16) Int16x32
 //
 //go:noescape
 func (x Int16x32) Store(y *[32]int16)
+
+// LoadMaskedInt16x32 loads a Int16x32 from an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU16.Z, CPU Feature: AVX512
+//
+//go:noescape
+func LoadMaskedInt16x32(y *[32]int16, mask Mask16x32) Int16x32
+
+// StoreMasked stores a Int16x32 to an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU16, CPU Feature: AVX512
+//
+//go:noescape
+func (x Int16x32) StoreMasked(y *[32]int16, mask Mask16x32)
 
 // Int32x16 is a 512-bit SIMD vector of 16 int32
 type Int32x16 struct {
@@ -846,6 +974,22 @@ func LoadInt32x16(y *[16]int32) Int32x16
 //go:noescape
 func (x Int32x16) Store(y *[16]int32)
 
+// LoadMaskedInt32x16 loads a Int32x16 from an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU32.Z, CPU Feature: AVX512
+//
+//go:noescape
+func LoadMaskedInt32x16(y *[16]int32, mask Mask32x16) Int32x16
+
+// StoreMasked stores a Int32x16 to an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU32, CPU Feature: AVX512
+//
+//go:noescape
+func (x Int32x16) StoreMasked(y *[16]int32, mask Mask32x16)
+
 // Int64x8 is a 512-bit SIMD vector of 8 int64
 type Int64x8 struct {
 	int64x8 v512
@@ -864,6 +1008,22 @@ func LoadInt64x8(y *[8]int64) Int64x8
 //
 //go:noescape
 func (x Int64x8) Store(y *[8]int64)
+
+// LoadMaskedInt64x8 loads a Int64x8 from an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU64.Z, CPU Feature: AVX512
+//
+//go:noescape
+func LoadMaskedInt64x8(y *[8]int64, mask Mask64x8) Int64x8
+
+// StoreMasked stores a Int64x8 to an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU64, CPU Feature: AVX512
+//
+//go:noescape
+func (x Int64x8) StoreMasked(y *[8]int64, mask Mask64x8)
 
 // Uint8x64 is a 512-bit SIMD vector of 64 uint8
 type Uint8x64 struct {
@@ -884,6 +1044,22 @@ func LoadUint8x64(y *[64]uint8) Uint8x64
 //go:noescape
 func (x Uint8x64) Store(y *[64]uint8)
 
+// LoadMaskedUint8x64 loads a Uint8x64 from an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU8.Z, CPU Feature: AVX512
+//
+//go:noescape
+func LoadMaskedUint8x64(y *[64]uint8, mask Mask8x64) Uint8x64
+
+// StoreMasked stores a Uint8x64 to an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU8, CPU Feature: AVX512
+//
+//go:noescape
+func (x Uint8x64) StoreMasked(y *[64]uint8, mask Mask8x64)
+
 // Uint16x32 is a 512-bit SIMD vector of 32 uint16
 type Uint16x32 struct {
 	uint16x32 v512
@@ -902,6 +1078,22 @@ func LoadUint16x32(y *[32]uint16) Uint16x32
 //
 //go:noescape
 func (x Uint16x32) Store(y *[32]uint16)
+
+// LoadMaskedUint16x32 loads a Uint16x32 from an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU16.Z, CPU Feature: AVX512
+//
+//go:noescape
+func LoadMaskedUint16x32(y *[32]uint16, mask Mask16x32) Uint16x32
+
+// StoreMasked stores a Uint16x32 to an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU16, CPU Feature: AVX512
+//
+//go:noescape
+func (x Uint16x32) StoreMasked(y *[32]uint16, mask Mask16x32)
 
 // Uint32x16 is a 512-bit SIMD vector of 16 uint32
 type Uint32x16 struct {
@@ -922,6 +1114,22 @@ func LoadUint32x16(y *[16]uint32) Uint32x16
 //go:noescape
 func (x Uint32x16) Store(y *[16]uint32)
 
+// LoadMaskedUint32x16 loads a Uint32x16 from an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU32.Z, CPU Feature: AVX512
+//
+//go:noescape
+func LoadMaskedUint32x16(y *[16]uint32, mask Mask32x16) Uint32x16
+
+// StoreMasked stores a Uint32x16 to an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU32, CPU Feature: AVX512
+//
+//go:noescape
+func (x Uint32x16) StoreMasked(y *[16]uint32, mask Mask32x16)
+
 // Uint64x8 is a 512-bit SIMD vector of 8 uint64
 type Uint64x8 struct {
 	uint64x8 v512
@@ -940,6 +1148,22 @@ func LoadUint64x8(y *[8]uint64) Uint64x8
 //
 //go:noescape
 func (x Uint64x8) Store(y *[8]uint64)
+
+// LoadMaskedUint64x8 loads a Uint64x8 from an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU64.Z, CPU Feature: AVX512
+//
+//go:noescape
+func LoadMaskedUint64x8(y *[8]uint64, mask Mask64x8) Uint64x8
+
+// StoreMasked stores a Uint64x8 to an array,
+// at those elements enabled by mask
+//
+// Asm: VMOVDQU64, CPU Feature: AVX512
+//
+//go:noescape
+func (x Uint64x8) StoreMasked(y *[8]uint64, mask Mask64x8)
 
 // Mask8x64 is a 512-bit SIMD vector of 64 int8
 type Mask8x64 struct {
@@ -965,6 +1189,8 @@ func (x Mask8x64) StoreToBits(y *uint64)
 
 // Mask8x64FromBits constructs a Mask8x64 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 64 bits of y are used.
+//
+// Asm: KMOVB, CPU Feature: AVX512"
 func Mask8x64FromBits(y uint64) Mask8x64
 
 // Mask16x32 is a 512-bit SIMD vector of 32 int16
@@ -991,6 +1217,8 @@ func (x Mask16x32) StoreToBits(y *uint64)
 
 // Mask16x32FromBits constructs a Mask16x32 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 32 bits of y are used.
+//
+// Asm: KMOVW, CPU Feature: AVX512"
 func Mask16x32FromBits(y uint32) Mask16x32
 
 // Mask32x16 is a 512-bit SIMD vector of 16 int32
@@ -1017,6 +1245,8 @@ func (x Mask32x16) StoreToBits(y *uint64)
 
 // Mask32x16FromBits constructs a Mask32x16 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 16 bits of y are used.
+//
+// Asm: KMOVD, CPU Feature: AVX512"
 func Mask32x16FromBits(y uint16) Mask32x16
 
 // Mask64x8 is a 512-bit SIMD vector of 8 int64
@@ -1043,4 +1273,6 @@ func (x Mask64x8) StoreToBits(y *uint64)
 
 // Mask64x8FromBits constructs a Mask64x8 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 8 bits of y are used.
+//
+// Asm: KMOVQ, CPU Feature: AVX512"
 func Mask64x8FromBits(y uint8) Mask64x8
