@@ -508,7 +508,7 @@ func (v *Value) moveTo(dst *Block, i int) {
 	}
 	src := v.Block
 	if src.Values[i] != v {
-		v.Fatalf("moveTo bad index %d", v, i)
+		v.Fatalf("moveTo bad index %d, src.Values[i] = %v, expected %v", i, src.Values[i], v)
 	}
 	if src == dst {
 		return
