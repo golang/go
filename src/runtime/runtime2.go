@@ -319,6 +319,78 @@ type gobuf struct {
 	bp   uintptr // for framepointer-enabled architectures
 }
 
+// maybeLivePtr is a special pointer that is conditionally trackable
+// by the GC. It consists of an address as a uintptr (vu) and a pointer
+// to a data element (vp).
+//
+// maybeLivePtr values can be in one of three states:
+// 1. Unset: vu == 0 && vp == nil
+// 2. Untracked: vu != 0 && vp == nil
+// 3. Tracked: vu != 0 && vp != nil
+//
+// Do not set fields manually. Use methods instead.
+// Extend this type with additional methods if needed.
+type maybeLivePtr struct {
+	vp unsafe.Pointer // For liveness only.
+	vu uintptr        // Source of truth.
+}
+
+// untrack unsets the pointer but preserves the address.
+// This is used to hide the pointer from the GC.
+//
+//go:nosplit
+func (p *maybeLivePtr) untrack() {
+	p.vp = nil
+}
+
+// track resets the pointer to the stored address.
+// This is used to make the pointer visible to the GC.
+//
+//go:nosplit
+func (p *maybeLivePtr) track() {
+	p.vp = unsafe.Pointer(p.vu)
+}
+
+// set sets the pointer to the data element and updates the address.
+//
+//go:nosplit
+func (p *maybeLivePtr) set(v unsafe.Pointer) {
+	p.vp = v
+	p.vu = uintptr(v)
+}
+
+// get retrieves the pointer to the data element.
+//
+//go:nosplit
+func (p *maybeLivePtr) get() unsafe.Pointer {
+	return unsafe.Pointer(p.vu)
+}
+
+// uintptr returns the uintptr address of the pointer.
+//
+//go:nosplit
+func (p *maybeLivePtr) uintptr() uintptr {
+	return p.vu
+}
+
+// maybeLiveChan extends conditionally trackable pointers (maybeLivePtr)
+// to track hchan pointers.
+//
+// Do not set fields manually. Use methods instead.
+type maybeLiveChan struct {
+	maybeLivePtr
+}
+
+//go:nosplit
+func (p *maybeLiveChan) set(c *hchan) {
+	p.maybeLivePtr.set(unsafe.Pointer(c))
+}
+
+//go:nosplit
+func (p *maybeLiveChan) get() *hchan {
+	return (*hchan)(p.maybeLivePtr.get())
+}
+
 // sudog (pseudo-g) represents a g in a wait list, such as for sending/receiving
 // on a channel.
 //
@@ -338,7 +410,8 @@ type sudog struct {
 
 	next *sudog
 	prev *sudog
-	elem unsafe.Pointer // data element (may point to stack)
+
+	elem maybeLivePtr // data element (may point to stack)
 
 	// The following fields are never accessed concurrently.
 	// For channels, waitlink is only accessed by g.
@@ -366,10 +439,10 @@ type sudog struct {
 	// in the second entry in the list.)
 	waiters uint16
 
-	parent   *sudog // semaRoot binary tree
-	waitlink *sudog // g.waiting list or semaRoot
-	waittail *sudog // semaRoot
-	c        *hchan // channel
+	parent   *sudog        // semaRoot binary tree
+	waitlink *sudog        // g.waiting list or semaRoot
+	waittail *sudog        // semaRoot
+	c        maybeLiveChan // channel
 }
 
 type libcall struct {

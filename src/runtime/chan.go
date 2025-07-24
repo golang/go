@@ -263,11 +263,11 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	}
 	// No stack splits between assigning elem and enqueuing mysg
 	// on gp.waiting where copystack can find it.
-	mysg.elem = ep
+	mysg.elem.set(ep)
 	mysg.waitlink = nil
 	mysg.g = gp
 	mysg.isSelect = false
-	mysg.c = c
+	mysg.c.set(c)
 	gp.waiting = mysg
 	gp.param = nil
 	c.sendq.enqueue(mysg)
@@ -298,7 +298,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	if mysg.releasetime > 0 {
 		blockevent(mysg.releasetime-t0, 2)
 	}
-	mysg.c = nil
+	mysg.c.set(nil)
 	releaseSudog(mysg)
 	if closed {
 		if c.closed == 0 {
@@ -336,9 +336,9 @@ func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 			c.sendx = c.recvx // c.sendx = (c.sendx+1) % c.dataqsiz
 		}
 	}
-	if sg.elem != nil {
+	if sg.elem.get() != nil {
 		sendDirect(c.elemtype, sg, ep)
-		sg.elem = nil
+		sg.elem.set(nil)
 	}
 	gp := sg.g
 	unlockf()
@@ -395,7 +395,7 @@ func sendDirect(t *_type, sg *sudog, src unsafe.Pointer) {
 	// Once we read sg.elem out of sg, it will no longer
 	// be updated if the destination's stack gets copied (shrunk).
 	// So make sure that no preemption points can happen between read & use.
-	dst := sg.elem
+	dst := sg.elem.get()
 	typeBitsBulkBarrier(t, uintptr(dst), uintptr(src), t.Size_)
 	// No need for cgo write barrier checks because dst is always
 	// Go memory.
@@ -406,7 +406,7 @@ func recvDirect(t *_type, sg *sudog, dst unsafe.Pointer) {
 	// dst is on our stack or the heap, src is on another stack.
 	// The channel is locked, so src will not move during this
 	// operation.
-	src := sg.elem
+	src := sg.elem.get()
 	typeBitsBulkBarrier(t, uintptr(dst), uintptr(src), t.Size_)
 	memmove(dst, src, t.Size_)
 }
@@ -441,9 +441,9 @@ func closechan(c *hchan) {
 		if sg == nil {
 			break
 		}
-		if sg.elem != nil {
-			typedmemclr(c.elemtype, sg.elem)
-			sg.elem = nil
+		if sg.elem.get() != nil {
+			typedmemclr(c.elemtype, sg.elem.get())
+			sg.elem.set(nil)
 		}
 		if sg.releasetime != 0 {
 			sg.releasetime = cputicks()
@@ -463,7 +463,7 @@ func closechan(c *hchan) {
 		if sg == nil {
 			break
 		}
-		sg.elem = nil
+		sg.elem.set(nil)
 		if sg.releasetime != 0 {
 			sg.releasetime = cputicks()
 		}
@@ -642,13 +642,13 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 	}
 	// No stack splits between assigning elem and enqueuing mysg
 	// on gp.waiting where copystack can find it.
-	mysg.elem = ep
+	mysg.elem.set(ep)
 	mysg.waitlink = nil
 	gp.waiting = mysg
 
 	mysg.g = gp
 	mysg.isSelect = false
-	mysg.c = c
+	mysg.c.set(c)
 	gp.param = nil
 	c.recvq.enqueue(mysg)
 	if c.timer != nil {
@@ -680,7 +680,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 	}
 	success := mysg.success
 	gp.param = nil
-	mysg.c = nil
+	mysg.c.set(nil)
 	releaseSudog(mysg)
 	return true, success
 }
@@ -727,14 +727,14 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 			typedmemmove(c.elemtype, ep, qp)
 		}
 		// copy data from sender to queue
-		typedmemmove(c.elemtype, qp, sg.elem)
+		typedmemmove(c.elemtype, qp, sg.elem.get())
 		c.recvx++
 		if c.recvx == c.dataqsiz {
 			c.recvx = 0
 		}
 		c.sendx = c.recvx // c.sendx = (c.sendx+1) % c.dataqsiz
 	}
-	sg.elem = nil
+	sg.elem.set(nil)
 	gp := sg.g
 	unlockf()
 	gp.param = unsafe.Pointer(sg)
