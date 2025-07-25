@@ -416,7 +416,7 @@ const _LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
 
 //go:linkname syscall_loadsystemlibrary syscall.loadsystemlibrary
 func syscall_loadsystemlibrary(filename *uint16) (handle, err uintptr) {
-	handle, _, err = syscall_SyscallN(uintptr(unsafe.Pointer(_LoadLibraryExW)), uintptr(unsafe.Pointer(filename)), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
+	handle, _, err = syscall_syscalln(uintptr(unsafe.Pointer(_LoadLibraryExW)), 3, uintptr(unsafe.Pointer(filename)), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
 	KeepAlive(filename)
 	if handle != 0 {
 		err = 0
@@ -430,7 +430,7 @@ func syscall_loadsystemlibrary(filename *uint16) (handle, err uintptr) {
 //
 //go:linkname syscall_loadlibrary syscall.loadlibrary
 func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
-	handle, _, err = syscall_SyscallN(uintptr(unsafe.Pointer(_LoadLibraryW)), uintptr(unsafe.Pointer(filename)))
+	handle, _, err = syscall_syscalln(uintptr(unsafe.Pointer(_LoadLibraryW)), 1, uintptr(unsafe.Pointer(filename)))
 	KeepAlive(filename)
 	if handle != 0 {
 		err = 0
@@ -444,7 +444,7 @@ func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
 //
 //go:linkname syscall_getprocaddress syscall.getprocaddress
 func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uintptr) {
-	outhandle, _, err = syscall_SyscallN(uintptr(unsafe.Pointer(_GetProcAddress)), handle, uintptr(unsafe.Pointer(procname)))
+	outhandle, _, err = syscall_syscalln(uintptr(unsafe.Pointer(_GetProcAddress)), 2, handle, uintptr(unsafe.Pointer(procname)))
 	KeepAlive(procname)
 	if outhandle != 0 {
 		err = 0
@@ -452,48 +452,7 @@ func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uint
 	return
 }
 
-//go:linkname syscall_Syscall syscall.Syscall
-//go:nosplit
-func syscall_Syscall(fn, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
-	return syscall_syscalln(fn, nargs, a1, a2, a3)
-}
-
-//go:linkname syscall_Syscall6 syscall.Syscall6
-//go:nosplit
-func syscall_Syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
-	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6)
-}
-
-//go:linkname syscall_Syscall9 syscall.Syscall9
-//go:nosplit
-func syscall_Syscall9(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
-	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9)
-}
-
-//go:linkname syscall_Syscall12 syscall.Syscall12
-//go:nosplit
-func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2, err uintptr) {
-	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)
-}
-
-//go:linkname syscall_Syscall15 syscall.Syscall15
-//go:nosplit
-func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2, err uintptr) {
-	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15)
-}
-
-//go:linkname syscall_Syscall18 syscall.Syscall18
-//go:nosplit
-func syscall_Syscall18(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2, err uintptr) {
-	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18)
-}
-
-//go:linkname syscall_SyscallN syscall.SyscallN
-//go:nosplit
-func syscall_SyscallN(fn uintptr, args ...uintptr) (r1, r2, err uintptr) {
-	return syscall_syscalln(fn, uintptr(len(args)), args...)
-}
-
+//go:linkname syscall_syscalln syscall.syscalln
 //go:nosplit
 func syscall_syscalln(fn, n uintptr, args ...uintptr) (r1, r2, err uintptr) {
 	if n > uintptr(len(args)) {

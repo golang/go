@@ -22,28 +22,78 @@ func (e *DLLError) Error() string { return e.Msg }
 
 func (e *DLLError) Unwrap() error { return e.Err }
 
-// Implemented in ../runtime/syscall_windows.go.
+// N.B. For the Syscall functions below:
+//
+// //go:uintptrkeepalive because the uintptr argument may be converted pointers
+// that need to be kept alive in the caller.
+//
+// //go:nosplit because stack copying does not account for uintptrkeepalive, so
+// the stack must not grow. Stack copying cannot blindly assume that all
+// uintptr arguments are pointers, because some values may look like pointers,
+// but not really be pointers, and adjusting their value would break the call.
 
 // Deprecated: Use [SyscallN] instead.
-func Syscall(trap, nargs, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+//
+//go:nosplit
+//go:uintptrkeepalive
+func Syscall(trap, nargs, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
+	return syscalln(trap, nargs, a1, a2, a3)
+}
 
 // Deprecated: Use [SyscallN] instead.
-func Syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+//
+//go:nosplit
+//go:uintptrkeepalive
+func Syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno) {
+	return syscalln(trap, nargs, a1, a2, a3, a4, a5, a6)
+}
 
 // Deprecated: Use [SyscallN] instead.
-func Syscall9(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
+//
+//go:nosplit
+//go:uintptrkeepalive
+func Syscall9(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno) {
+	return syscalln(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9)
+}
 
 // Deprecated: Use [SyscallN] instead.
-func Syscall12(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2 uintptr, err Errno)
+//
+//go:nosplit
+//go:uintptrkeepalive
+func Syscall12(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2 uintptr, err Errno) {
+	return syscalln(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)
+}
 
 // Deprecated: Use [SyscallN] instead.
-func Syscall15(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2 uintptr, err Errno)
+//
+//go:nosplit
+//go:uintptrkeepalive
+func Syscall15(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2 uintptr, err Errno) {
+	return syscalln(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15)
+}
 
 // Deprecated: Use [SyscallN] instead.
-func Syscall18(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2 uintptr, err Errno)
+//
+//go:nosplit
+//go:uintptrkeepalive
+func Syscall18(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2 uintptr, err Errno) {
+	return syscalln(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18)
+}
 
+// SyscallN executes procedure p with arguments args.
+//
+// See [Proc.Call] for more information.
+//
+//go:nosplit
+//go:uintptrkeepalive
+func SyscallN(p uintptr, args ...uintptr) (r1, r2 uintptr, err Errno) {
+	return syscalln(p, uintptr(len(args)), args...)
+}
+
+// syscalln is implemented in runtime/syscall_windows.go.
+//
 //go:noescape
-func SyscallN(trap uintptr, args ...uintptr) (r1, r2 uintptr, err Errno)
+func syscalln(fn, n uintptr, args ...uintptr) (r1, r2 uintptr, err Errno)
 func loadlibrary(filename *uint16) (handle uintptr, err Errno)
 func loadsystemlibrary(filename *uint16) (handle uintptr, err Errno)
 func getprocaddress(handle uintptr, procname *uint8) (proc uintptr, err Errno)
