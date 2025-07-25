@@ -14,6 +14,7 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"slices"
@@ -1093,5 +1094,142 @@ func TestDetectFinalizerAndCleanupLeaks(t *testing.T) {
 	}
 	if strings.Count(sp[0], "main.DetectFinalizerAndCleanupLeaks()") != wantSymbolizedLocations {
 		t.Fatalf("expected %d symbolized locations, got:\n%s", wantSymbolizedLocations, got)
+	}
+}
+
+func TestGoroutineLeakGC(t *testing.T) {
+	type testCase struct {
+		tname         string
+		funcName      string
+		expectedLeaks map[*regexp.Regexp]int
+	}
+
+	testCases := []testCase{{
+		tname:    "ChanReceiveNil",
+		funcName: "GoroutineLeakNilRecv",
+		expectedLeaks: map[*regexp.Regexp]int{
+			regexp.MustCompile(`\[chan receive \(nil chan\)\]`): 0,
+		},
+	}, {
+		tname:    "ChanSendNil",
+		funcName: "GoroutineLeakNilSend",
+		expectedLeaks: map[*regexp.Regexp]int{
+			regexp.MustCompile(`\[chan send \(nil chan\)\]`): 0,
+		},
+	}, {
+		tname:    "SelectNoCases",
+		funcName: "GoroutineLeakSelectNoCases",
+		expectedLeaks: map[*regexp.Regexp]int{
+			regexp.MustCompile(`\[select \(no cases\)\]`): 0,
+		},
+	}, {
+		tname:    "ChanRecv",
+		funcName: "GoroutineLeakChanRecv",
+		expectedLeaks: map[*regexp.Regexp]int{
+			regexp.MustCompile(`\[chan receive\]`): 0,
+		},
+	}, {
+		tname:    "ChanSend",
+		funcName: "GoroutineLeakChanSend",
+		expectedLeaks: map[*regexp.Regexp]int{
+			regexp.MustCompile(`\[chan send\]`): 0,
+		},
+	}, {
+		tname:    "Select",
+		funcName: "GoroutineLeakSelect",
+		expectedLeaks: map[*regexp.Regexp]int{
+			regexp.MustCompile(`\[select\]`): 0,
+		},
+	}, {
+		tname:    "WaitGroup",
+		funcName: "GoroutineLeakWaitGroup",
+		expectedLeaks: map[*regexp.Regexp]int{
+			regexp.MustCompile(`\[sync\.WaitGroup\.Wait\]`): 0,
+		},
+	}, {
+		tname:    "MutexStack",
+		funcName: "GoroutineLeakMutexStack",
+		expectedLeaks: map[*regexp.Regexp]int{
+			regexp.MustCompile(`\[sync\.Mutex\.Lock\]`): 0,
+		},
+	}, {
+		tname:    "MutexHeap",
+		funcName: "GoroutineLeakMutexHeap",
+		expectedLeaks: map[*regexp.Regexp]int{
+			regexp.MustCompile(`\[sync\.Mutex\.Lock\]`): 0,
+		},
+	}, {
+		tname:    "Cond",
+		funcName: "GoroutineLeakCond",
+		expectedLeaks: map[*regexp.Regexp]int{
+			regexp.MustCompile(`\[sync\.Cond\.Wait\]`): 0,
+		},
+	}, {
+		tname:    "RWMutexRLock",
+		funcName: "GoroutineLeakRWMutexRLock",
+		expectedLeaks: map[*regexp.Regexp]int{
+			regexp.MustCompile(`\[sync\.RWMutex\.RLock\]`): 0,
+		},
+	}, {
+		tname:    "RWMutexLock",
+		funcName: "GoroutineLeakRWMutexLock",
+		expectedLeaks: map[*regexp.Regexp]int{
+			// Invoking Lock on a RWMutex may either put a goroutine a waiting state
+			// of either sync.RWMutex.Lock or sync.Mutex.Lock.
+			regexp.MustCompile(`\[sync\.(RW)?Mutex\.Lock\]`): 0,
+		},
+	}, {
+		tname:    "Mixed",
+		funcName: "GoroutineLeakMixed",
+		expectedLeaks: map[*regexp.Regexp]int{
+			regexp.MustCompile(`\[sync\.WaitGroup\.Wait\]`): 0,
+			regexp.MustCompile(`\[chan send\]`):             0,
+		},
+	}, {
+		tname:    "NoLeakGlobal",
+		funcName: "NoGoroutineLeakGlobal",
+	}}
+
+	failStates := regexp.MustCompile(`fatal|panic`)
+
+	for _, tcase := range testCases {
+		t.Run(tcase.tname, func(t *testing.T) {
+			exe, err := buildTestProg(t, "testprog")
+			if err != nil {
+				t.Fatal(fmt.Sprintf("building testprog failed: %v", err))
+			}
+			output := runBuiltTestProg(t, exe, tcase.funcName, "GODEBUG=gctrace=1,gcgoroutineleaks=1")
+
+			if len(tcase.expectedLeaks) == 0 && strings.Contains(output, "goroutine leak!") {
+				t.Fatalf("output:\n%s\n\nunexpected goroutines leaks detected", output)
+				return
+			}
+
+			if failStates.MatchString(output) {
+				t.Fatalf("output:\n%s\n\nunexpected fatal exception or panic", output)
+				return
+			}
+
+			for _, line := range strings.Split(output, "\n") {
+				if strings.Contains(line, "goroutine leak!") {
+					for expectedLeak, count := range tcase.expectedLeaks {
+						if expectedLeak.MatchString(line) {
+							tcase.expectedLeaks[expectedLeak] = count + 1
+						}
+					}
+				}
+			}
+
+			missingLeakStrs := make([]string, 0, len(tcase.expectedLeaks))
+			for expectedLeak, count := range tcase.expectedLeaks {
+				if count == 0 {
+					missingLeakStrs = append(missingLeakStrs, expectedLeak.String())
+				}
+			}
+
+			if len(missingLeakStrs) > 0 {
+				t.Fatalf("output:\n%s\n\nnot enough goroutines leaks detected. Missing:\n%s", output, strings.Join(missingLeakStrs, ", "))
+			}
+		})
 	}
 }
