@@ -852,16 +852,16 @@ func (w *gcWork) flushScanStats(dst *[gc.NumSizeClasses]sizeClassScanStats) {
 	clear(w.stats[:])
 }
 
-// scanobject scans the object starting at b, adding pointers to gcw.
+// scanObject scans the object starting at b, adding pointers to gcw.
 // b must point to the beginning of a heap object or an oblet.
-// scanobject consults the GC bitmap for the pointer mask and the
+// scanObject consults the GC bitmap for the pointer mask and the
 // spans for the size of the object.
 //
 // Used only for !gcUsesSpanInlineMarkBits spans, but supports all
 // object sizes and is safe to be called on all heap objects.
 //
 //go:nowritebarrier
-func scanobject(b uintptr, gcw *gcWork) {
+func scanObject(b uintptr, gcw *gcWork) {
 	// Prefetch object before we scan it.
 	//
 	// This will overlap fetching the beginning of the object with initial
@@ -876,12 +876,12 @@ func scanobject(b uintptr, gcw *gcWork) {
 	s := spanOfUnchecked(b)
 	n := s.elemsize
 	if n == 0 {
-		throw("scanobject n == 0")
+		throw("scanObject n == 0")
 	}
 	if s.spanclass.noscan() {
 		// Correctness-wise this is ok, but it's inefficient
 		// if noscan objects reach here.
-		throw("scanobject of a noscan object")
+		throw("scanObject of a noscan object")
 	}
 
 	var tp typePointers

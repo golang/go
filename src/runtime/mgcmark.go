@@ -421,7 +421,7 @@ func gcScanFinalizer(spf *specialfinalizer, s *mspan, gcw *gcWork) {
 	// the object (but *not* the object itself or
 	// we'll never collect it).
 	if !s.spanclass.noscan() {
-		scanobject(p, gcw)
+		scanObject(p, gcw)
 	}
 
 	// The special itself is also a root.
@@ -1255,7 +1255,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 			}
 		}
 		if b != 0 {
-			scanobject(b, gcw)
+			scanObject(b, gcw)
 		} else if s != 0 {
 			scanSpan(s, gcw)
 		} else {
@@ -1359,7 +1359,7 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 			}
 		}
 		if b != 0 {
-			scanobject(b, gcw)
+			scanObject(b, gcw)
 		} else if s != 0 {
 			scanSpan(s, gcw)
 		} else {
@@ -1390,7 +1390,7 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 	return workFlushed + gcw.heapScanWork
 }
 
-// scanblock scans b as scanobject would, but using an explicit
+// scanblock scans b as scanObject would, but using an explicit
 // pointer bitmap instead of the heap bitmap.
 //
 // This is used to scan non-heap roots, so it does not update
@@ -1415,7 +1415,7 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork, stk *stackScanState)
 		}
 		for j := 0; j < 8 && i < n; j++ {
 			if bits&1 != 0 {
-				// Same work as in scanobject; see comments there.
+				// Same work as in scanObject; see comments there.
 				p := *(*uintptr)(unsafe.Pointer(b + i))
 				if p != 0 {
 					if stk != nil && p >= stk.stack.lo && p < stk.stack.hi {
