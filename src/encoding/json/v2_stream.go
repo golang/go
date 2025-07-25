@@ -8,6 +8,7 @@ package json
 
 import (
 	"bytes"
+	"errors"
 	"io"
 
 	"encoding/json/jsontext"
@@ -193,6 +194,16 @@ func (d Delim) String() string {
 func (dec *Decoder) Token() (Token, error) {
 	tok, err := dec.dec.ReadToken()
 	if err != nil {
+		// Historically, v1 would report just [io.EOF] if
+		// the stream is a prefix of a valid JSON value.
+		// It reports an unwrapped [io.ErrUnexpectedEOF] if
+		// truncated within a JSON token such as a literal, number, or string.
+		if errors.Is(err, io.ErrUnexpectedEOF) {
+			if len(bytes.Trim(dec.dec.UnreadBuffer(), " \r\n\t,:")) == 0 {
+				return nil, io.EOF
+			}
+			return nil, io.ErrUnexpectedEOF
+		}
 		return nil, transformSyntacticError(err)
 	}
 	switch k := tok.Kind(); k {
