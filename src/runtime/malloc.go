@@ -588,11 +588,20 @@ func mallocinit() {
 			// possible to use RISCV_HWPROBE_KEY_HIGHEST_VIRT_ADDRESS at some
 			// point in the future - for now use the system stack address.
 			vmaSize = sys.Len64(uint64(getg().m.g0.stack.hi)) + 1
+			if raceenabled && vmaSize != 39 && vmaSize != 48 {
+				println("vma size = ", vmaSize)
+				throw("riscv64 vma size is unknown and race mode is enabled")
+			}
 		}
 
 		for i := 0x7f; i >= 0; i-- {
 			var p uintptr
 			switch {
+			case raceenabled && GOARCH == "riscv64" && vmaSize == 39:
+				p = uintptr(i)<<28 | uintptrMask&(0x0013<<28)
+				if p >= uintptrMask&0x000f00000000 {
+					continue
+				}
 			case raceenabled:
 				// The TSAN runtime requires the heap
 				// to be in the range [0x00c000000000,
