@@ -1188,8 +1188,8 @@ func gcUntrackSyncObjects() {
 
 	forEachGRace(func(gp *g) {
 		for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-			sg.elem.untrack()
-			sg.c.untrack()
+			sg.elem.setUntraceable()
+			sg.c.setUntraceable()
 		}
 	})
 }
@@ -1203,8 +1203,8 @@ func gcRestoreSyncObjects() {
 
 	forEachGRace(func(gp *g) {
 		for sg := gp.waiting; sg != nil; sg = sg.waitlink {
-			sg.elem.track()
-			sg.c.track()
+			sg.elem.setTraceable()
+			sg.c.setTraceable()
 		}
 	})
 }
