@@ -24,7 +24,7 @@ func testInt8x16Compare(t *testing.T, f func(_, _ simd.Int8x16) simd.Mask8x16, w
 		g := make([]int8, n)
 		f(a, b).AsInt8x16().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -39,7 +39,7 @@ func testInt16x8Compare(t *testing.T, f func(_, _ simd.Int16x8) simd.Mask16x8, w
 		g := make([]int16, n)
 		f(a, b).AsInt16x8().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -54,7 +54,7 @@ func testInt32x4Compare(t *testing.T, f func(_, _ simd.Int32x4) simd.Mask32x4, w
 		g := make([]int32, n)
 		f(a, b).AsInt32x4().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -69,7 +69,7 @@ func testInt64x2Compare(t *testing.T, f func(_, _ simd.Int64x2) simd.Mask64x2, w
 		g := make([]int64, n)
 		f(a, b).AsInt64x2().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -84,7 +84,7 @@ func testUint8x16Compare(t *testing.T, f func(_, _ simd.Uint8x16) simd.Mask8x16,
 		g := make([]int8, n)
 		f(a, b).AsInt8x16().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -99,7 +99,7 @@ func testUint16x8Compare(t *testing.T, f func(_, _ simd.Uint16x8) simd.Mask16x8,
 		g := make([]int16, n)
 		f(a, b).AsInt16x8().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -114,7 +114,7 @@ func testUint32x4Compare(t *testing.T, f func(_, _ simd.Uint32x4) simd.Mask32x4,
 		g := make([]int32, n)
 		f(a, b).AsInt32x4().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -129,7 +129,7 @@ func testUint64x2Compare(t *testing.T, f func(_, _ simd.Uint64x2) simd.Mask64x2,
 		g := make([]int64, n)
 		f(a, b).AsInt64x2().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -144,7 +144,7 @@ func testFloat32x4Compare(t *testing.T, f func(_, _ simd.Float32x4) simd.Mask32x
 		g := make([]int32, n)
 		f(a, b).AsInt32x4().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -159,7 +159,7 @@ func testFloat64x2Compare(t *testing.T, f func(_, _ simd.Float64x2) simd.Mask64x
 		g := make([]int64, n)
 		f(a, b).AsInt64x2().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -174,7 +174,7 @@ func testInt8x32Compare(t *testing.T, f func(_, _ simd.Int8x32) simd.Mask8x32, w
 		g := make([]int8, n)
 		f(a, b).AsInt8x32().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -189,7 +189,7 @@ func testInt16x16Compare(t *testing.T, f func(_, _ simd.Int16x16) simd.Mask16x16
 		g := make([]int16, n)
 		f(a, b).AsInt16x16().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -204,7 +204,7 @@ func testInt32x8Compare(t *testing.T, f func(_, _ simd.Int32x8) simd.Mask32x8, w
 		g := make([]int32, n)
 		f(a, b).AsInt32x8().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -219,7 +219,7 @@ func testInt64x4Compare(t *testing.T, f func(_, _ simd.Int64x4) simd.Mask64x4, w
 		g := make([]int64, n)
 		f(a, b).AsInt64x4().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -234,7 +234,7 @@ func testUint8x32Compare(t *testing.T, f func(_, _ simd.Uint8x32) simd.Mask8x32,
 		g := make([]int8, n)
 		f(a, b).AsInt8x32().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -249,7 +249,7 @@ func testUint16x16Compare(t *testing.T, f func(_, _ simd.Uint16x16) simd.Mask16x
 		g := make([]int16, n)
 		f(a, b).AsInt16x16().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -264,7 +264,7 @@ func testUint32x8Compare(t *testing.T, f func(_, _ simd.Uint32x8) simd.Mask32x8,
 		g := make([]int32, n)
 		f(a, b).AsInt32x8().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -279,7 +279,7 @@ func testUint64x4Compare(t *testing.T, f func(_, _ simd.Uint64x4) simd.Mask64x4,
 		g := make([]int64, n)
 		f(a, b).AsInt64x4().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -294,7 +294,7 @@ func testFloat32x8Compare(t *testing.T, f func(_, _ simd.Float32x8) simd.Mask32x
 		g := make([]int32, n)
 		f(a, b).AsInt32x8().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -309,7 +309,7 @@ func testFloat64x4Compare(t *testing.T, f func(_, _ simd.Float64x4) simd.Mask64x
 		g := make([]int64, n)
 		f(a, b).AsInt64x4().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -324,7 +324,7 @@ func testInt8x64Compare(t *testing.T, f func(_, _ simd.Int8x64) simd.Mask8x64, w
 		g := make([]int8, n)
 		f(a, b).AsInt8x64().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -339,7 +339,7 @@ func testInt16x32Compare(t *testing.T, f func(_, _ simd.Int16x32) simd.Mask16x32
 		g := make([]int16, n)
 		f(a, b).AsInt16x32().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -354,7 +354,7 @@ func testInt32x16Compare(t *testing.T, f func(_, _ simd.Int32x16) simd.Mask32x16
 		g := make([]int32, n)
 		f(a, b).AsInt32x16().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -369,7 +369,7 @@ func testInt64x8Compare(t *testing.T, f func(_, _ simd.Int64x8) simd.Mask64x8, w
 		g := make([]int64, n)
 		f(a, b).AsInt64x8().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -384,7 +384,7 @@ func testUint8x64Compare(t *testing.T, f func(_, _ simd.Uint8x64) simd.Mask8x64,
 		g := make([]int8, n)
 		f(a, b).AsInt8x64().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -399,7 +399,7 @@ func testUint16x32Compare(t *testing.T, f func(_, _ simd.Uint16x32) simd.Mask16x
 		g := make([]int16, n)
 		f(a, b).AsInt16x32().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -414,7 +414,7 @@ func testUint32x16Compare(t *testing.T, f func(_, _ simd.Uint32x16) simd.Mask32x
 		g := make([]int32, n)
 		f(a, b).AsInt32x16().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -429,7 +429,7 @@ func testUint64x8Compare(t *testing.T, f func(_, _ simd.Uint64x8) simd.Mask64x8,
 		g := make([]int64, n)
 		f(a, b).AsInt64x8().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -444,7 +444,7 @@ func testFloat32x16Compare(t *testing.T, f func(_, _ simd.Float32x16) simd.Mask3
 		g := make([]int32, n)
 		f(a, b).AsInt32x16().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }
 
@@ -459,6 +459,6 @@ func testFloat64x8Compare(t *testing.T, f func(_, _ simd.Float64x8) simd.Mask64x
 		g := make([]int64, n)
 		f(a, b).AsInt64x8().StoreSlice(g)
 		w := want(x, y)
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y) })
 	})
 }

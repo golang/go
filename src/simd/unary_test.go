@@ -7,6 +7,7 @@
 package simd_test
 
 import (
+	"math"
 	"simd"
 	"testing"
 )
@@ -86,6 +87,23 @@ func TestAbsolute(t *testing.T) {
 func TestToInt32(t *testing.T) {
 	testFloat32x4UnaryToInt32(t, simd.Float32x4.ConvertToInt32, toInt32Slice[float32])
 	testFloat32x8UnaryToInt32(t, simd.Float32x8.ConvertToInt32, toInt32Slice[float32])
+}
+
+func TestDiffWithCeilWithPrecision(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Needs AVX512")
+	}
+	testFloat64x8UnaryFlaky(t,
+		func(x simd.Float64x8) simd.Float64x8 { return x.DiffWithCeilWithPrecision(0) },
+		map1(ceilResidueForPrecision[float64](0)),
+		0.001)
+	testFloat64x8UnaryFlaky(t,
+		func(x simd.Float64x8) simd.Float64x8 { return x.DiffWithCeilWithPrecision(1) },
+		map1(ceilResidueForPrecision[float64](1)),
+		0.001)
+	testFloat64x8Unary(t,
+		func(x simd.Float64x8) simd.Float64x8 { return x.Sub(x.CeilWithPrecision(0)) },
+		map1[float64](func(x float64) float64 { return x - math.Ceil(x) }))
 }
 
 func TestToUint32(t *testing.T) {

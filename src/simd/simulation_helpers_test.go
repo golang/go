@@ -6,7 +6,9 @@
 
 package simd_test
 
-import "math"
+import (
+	"math"
+)
 
 func less[T number](x, y T) bool {
 	return x < y
@@ -122,6 +124,22 @@ func toUint32[T number](x T) uint32 {
 		}
 	}
 	return uint32(x)
+}
+
+func ceilResidueForPrecision[T float](i int) func(T) T {
+	f := 1.0
+	for i > 0 {
+		f *= 2
+		i--
+	}
+	return func(x T) T {
+		y := float64(x)
+		if math.IsInf(float64(x*T(f)), 0) {
+			return 0
+		}
+		// TODO sort out the rounding issues when T === float32
+		return T(y - math.Ceil(y*f)/f)
+	}
 }
 
 // Slice versions of all these elementwise operations

@@ -33,7 +33,7 @@ func testInt8x16CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -57,7 +57,7 @@ func testInt16x8CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -81,7 +81,7 @@ func testInt32x4CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -105,7 +105,7 @@ func testInt64x2CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -129,7 +129,7 @@ func testUint8x16CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -153,7 +153,7 @@ func testUint16x8CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -177,7 +177,7 @@ func testUint32x4CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -201,7 +201,7 @@ func testUint64x2CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -225,7 +225,7 @@ func testFloat32x4CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -249,7 +249,7 @@ func testFloat64x2CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -273,7 +273,7 @@ func testInt8x32CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -297,7 +297,7 @@ func testInt16x16CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -321,7 +321,7 @@ func testInt32x8CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -345,7 +345,7 @@ func testInt64x4CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -369,7 +369,7 @@ func testUint8x32CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -393,7 +393,7 @@ func testUint16x16CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -417,7 +417,7 @@ func testUint32x8CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -441,7 +441,7 @@ func testUint64x4CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -465,7 +465,7 @@ func testFloat32x8CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -489,7 +489,7 @@ func testFloat64x4CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -513,7 +513,7 @@ func testInt8x64CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -537,7 +537,7 @@ func testInt16x32CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -561,7 +561,7 @@ func testInt32x16CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -585,7 +585,7 @@ func testInt64x8CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -609,7 +609,7 @@ func testUint8x64CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -633,7 +633,7 @@ func testUint16x32CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -657,7 +657,7 @@ func testUint32x16CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -681,7 +681,7 @@ func testUint64x8CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -705,7 +705,7 @@ func testFloat32x16CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }
 
@@ -729,6 +729,6 @@ func testFloat64x8CompareMasked(t *testing.T,
 				w[i] = 0
 			}
 		}
-		return checkSlicesLogInput(t, s64(g), w, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
+		return checkSlicesLogInput(t, s64(g), w, 0.0, func() { t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("m=%v", m) })
 	})
 }

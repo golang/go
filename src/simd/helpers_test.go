@@ -29,14 +29,14 @@ type number interface {
 
 func checkSlices[T number](t *testing.T, got, want []T) bool {
 	t.Helper()
-	return checkSlicesLogInput[T](t, got, want, nil)
+	return checkSlicesLogInput[T](t, got, want, 0.0, nil)
 }
 
 // checkSlices compares two slices for equality,
 // reporting a test error if there is a problem,
 // and also consumes the two slices so that a
 // test/benchmark won't be dead-code eliminated.
-func checkSlicesLogInput[T number](t *testing.T, got, want []T, logInput func()) bool {
+func checkSlicesLogInput[T number](t *testing.T, got, want []T, flakiness float64, logInput func()) bool {
 	t.Helper()
 	var z T
 	for i := range want {
@@ -49,11 +49,32 @@ func checkSlicesLogInput[T number](t *testing.T, got, want []T, logInput func())
 				if math.IsNaN(float64(x)) && math.IsNaN(float64(y)) {
 					continue
 				}
+				if flakiness > 0 {
+					if y == 0 {
+						if math.Abs(float64(x)) < flakiness {
+							continue
+						}
+					} else {
+						if math.Abs(float64((x-y)/y)) < flakiness {
+							continue
+						}
+					}
+				}
 			case float64:
 				y := ib.(float64)
 				if math.IsNaN(x) && math.IsNaN(y) {
 					continue
 				}
+				if flakiness > 0 {
+					if y == 0 {
+						if math.Abs(x) < flakiness {
+							continue
+						}
+					} else if math.Abs((x-y)/y) < flakiness {
+						continue
+					}
+				}
+
 			default:
 			}
 
@@ -227,13 +248,16 @@ const (
 )
 
 var zero = 0.0
+var nzero = -zero
+var inf = 1 / zero
+var ninf = -1 / zero
 var nan = math.NaN()
 
 // N controls how large the test vectors are
 const N = 144
 
-var float32s = nOf(N, []float32{1, float32(nan), float32(zero), 2, float32(nan), float32(zero), 3, float32(-zero), float32(1 / zero), float32(-1 / zero), 1 / 2, 1 / 4, 1 / 8, 1 / 1000, 1 / 1000000, 1, -1, 0, 2, -2, 3, -3, math.MaxFloat32, 1 / math.MaxFloat32, 10, -10, 100, 20, -20, 300, -300, -4000, -80, -160, -3200, -64, -4, -8, -16, -32, -64})
-var float64s = nOf(N, []float64{nan, zero, -zero, 1 / zero, -1 / zero, 1 / 1000, 1 / 1000000, 1, -1, 0, 2, -2, 3, -3, math.MaxFloat64, 1 / math.MaxFloat64, 10, -10, 100, 20, -20, 300, -300, -4000, -80, -16, -32, -64})
+var float32s = nOf(N, []float32{float32(inf), float32(ninf), 1, float32(nan), float32(zero), 2, float32(nan), float32(zero), 3, float32(-zero), float32(1.0 / zero), float32(-1.0 / zero), 1.0 / 2, 1.0 / 4, 1.0 / 8, 1.0 / 1000, 1.0 / 1000000, 1, -1, 0, 2, -2, 3, -3, math.MaxFloat32, 1 / math.MaxFloat32, 10, -10, 100, 20, -20, 300, -300, -4000, -80, -160, -3200, -64, -4, -8, -16, -32, -64})
+var float64s = nOf(N, []float64{inf, ninf, nan, zero, -zero, 1 / zero, -1 / zero, 0.0001, 0.0000001, 1, -1, 0, 2, -2, 3, -3, math.MaxFloat64, 1.0 / math.MaxFloat64, 10, -10, 100, 20, -20, 300, -300, -4000, -80, -16, -32, -64})
 
 var int32s = nOf(N, []int32{1, -1, 0, 2, 4, 8, 1024, 0xffffff, -0xffffff, 0x55555, 0x77777, 0xccccc, -0x55555, -0x77777, -0xccccc, -4, -8, -16, -32, -64})
 var uint32s = nOf(N, []uint32{1, 0, 2, 4, 8, 1024, 0xffffff, ^uint32(0xffffff), 0x55555, 0x77777, 0xccccc, ^uint32(0x55555), ^uint32(0x77777), ^uint32(0xccccc)})

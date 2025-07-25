@@ -23,7 +23,7 @@ func testInt8x16Unary(t *testing.T, f func(_ simd.Int8x16) simd.Int8x16, want fu
 		g := make([]int8, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -37,7 +37,7 @@ func testInt16x8Unary(t *testing.T, f func(_ simd.Int16x8) simd.Int16x8, want fu
 		g := make([]int16, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -51,7 +51,7 @@ func testInt32x4Unary(t *testing.T, f func(_ simd.Int32x4) simd.Int32x4, want fu
 		g := make([]int32, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -65,7 +65,7 @@ func testInt64x2Unary(t *testing.T, f func(_ simd.Int64x2) simd.Int64x2, want fu
 		g := make([]int64, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -79,7 +79,7 @@ func testUint8x16Unary(t *testing.T, f func(_ simd.Uint8x16) simd.Uint8x16, want
 		g := make([]uint8, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -93,7 +93,7 @@ func testUint16x8Unary(t *testing.T, f func(_ simd.Uint16x8) simd.Uint16x8, want
 		g := make([]uint16, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -107,7 +107,7 @@ func testUint32x4Unary(t *testing.T, f func(_ simd.Uint32x4) simd.Uint32x4, want
 		g := make([]uint32, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -121,7 +121,7 @@ func testUint64x2Unary(t *testing.T, f func(_ simd.Uint64x2) simd.Uint64x2, want
 		g := make([]uint64, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -135,7 +135,7 @@ func testFloat32x4Unary(t *testing.T, f func(_ simd.Float32x4) simd.Float32x4, w
 		g := make([]float32, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -149,7 +149,7 @@ func testFloat64x2Unary(t *testing.T, f func(_ simd.Float64x2) simd.Float64x2, w
 		g := make([]float64, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -163,7 +163,7 @@ func testInt8x32Unary(t *testing.T, f func(_ simd.Int8x32) simd.Int8x32, want fu
 		g := make([]int8, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -177,7 +177,7 @@ func testInt16x16Unary(t *testing.T, f func(_ simd.Int16x16) simd.Int16x16, want
 		g := make([]int16, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -191,7 +191,7 @@ func testInt32x8Unary(t *testing.T, f func(_ simd.Int32x8) simd.Int32x8, want fu
 		g := make([]int32, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -205,7 +205,7 @@ func testInt64x4Unary(t *testing.T, f func(_ simd.Int64x4) simd.Int64x4, want fu
 		g := make([]int64, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -219,7 +219,7 @@ func testUint8x32Unary(t *testing.T, f func(_ simd.Uint8x32) simd.Uint8x32, want
 		g := make([]uint8, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -233,7 +233,7 @@ func testUint16x16Unary(t *testing.T, f func(_ simd.Uint16x16) simd.Uint16x16, w
 		g := make([]uint16, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -247,7 +247,7 @@ func testUint32x8Unary(t *testing.T, f func(_ simd.Uint32x8) simd.Uint32x8, want
 		g := make([]uint32, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -261,7 +261,7 @@ func testUint64x4Unary(t *testing.T, f func(_ simd.Uint64x4) simd.Uint64x4, want
 		g := make([]uint64, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -275,7 +275,7 @@ func testFloat32x8Unary(t *testing.T, f func(_ simd.Float32x8) simd.Float32x8, w
 		g := make([]float32, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -289,7 +289,7 @@ func testFloat64x4Unary(t *testing.T, f func(_ simd.Float64x4) simd.Float64x4, w
 		g := make([]float64, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -303,7 +303,7 @@ func testInt8x64Unary(t *testing.T, f func(_ simd.Int8x64) simd.Int8x64, want fu
 		g := make([]int8, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -317,7 +317,7 @@ func testInt16x32Unary(t *testing.T, f func(_ simd.Int16x32) simd.Int16x32, want
 		g := make([]int16, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -331,7 +331,7 @@ func testInt32x16Unary(t *testing.T, f func(_ simd.Int32x16) simd.Int32x16, want
 		g := make([]int32, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -345,7 +345,7 @@ func testInt64x8Unary(t *testing.T, f func(_ simd.Int64x8) simd.Int64x8, want fu
 		g := make([]int64, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -359,7 +359,7 @@ func testUint8x64Unary(t *testing.T, f func(_ simd.Uint8x64) simd.Uint8x64, want
 		g := make([]uint8, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -373,7 +373,7 @@ func testUint16x32Unary(t *testing.T, f func(_ simd.Uint16x32) simd.Uint16x32, w
 		g := make([]uint16, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -387,7 +387,7 @@ func testUint32x16Unary(t *testing.T, f func(_ simd.Uint32x16) simd.Uint32x16, w
 		g := make([]uint32, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -401,7 +401,7 @@ func testUint64x8Unary(t *testing.T, f func(_ simd.Uint64x8) simd.Uint64x8, want
 		g := make([]uint64, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -415,7 +415,7 @@ func testFloat32x16Unary(t *testing.T, f func(_ simd.Float32x16) simd.Float32x16
 		g := make([]float32, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -429,7 +429,7 @@ func testFloat64x8Unary(t *testing.T, f func(_ simd.Float64x8) simd.Float64x8, w
 		g := make([]float64, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -443,7 +443,7 @@ func testFloat32x4UnaryToInt32(t *testing.T, f func(x simd.Float32x4) simd.Int32
 		g := make([]int32, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -457,7 +457,7 @@ func testFloat32x8UnaryToInt32(t *testing.T, f func(x simd.Float32x8) simd.Int32
 		g := make([]int32, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -471,7 +471,7 @@ func testFloat32x16UnaryToInt32(t *testing.T, f func(x simd.Float32x16) simd.Int
 		g := make([]int32, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -485,7 +485,7 @@ func testFloat32x4UnaryToUint32(t *testing.T, f func(x simd.Float32x4) simd.Uint
 		g := make([]uint32, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -499,7 +499,7 @@ func testFloat32x8UnaryToUint32(t *testing.T, f func(x simd.Float32x8) simd.Uint
 		g := make([]uint32, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }
 
@@ -513,6 +513,96 @@ func testFloat32x16UnaryToUint32(t *testing.T, f func(x simd.Float32x16) simd.Ui
 		g := make([]uint32, n)
 		f(a).StoreSlice(g)
 		w := want(x)
-		return checkSlicesLogInput(t, g, w, func() { t.Helper(); t.Logf("x=%v", x) })
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v", x) })
+	})
+}
+
+// testFloat32x4UnaryFlaky tests the simd unary method f against the expected behavior generated by want,
+// but using a flakiness parameter because we haven't exactly figured out how simd floating point works
+func testFloat32x4UnaryFlaky(t *testing.T, f func(x simd.Float32x4) simd.Float32x4, want func(x []float32) []float32, flakiness float64) {
+	n := 4
+	t.Helper()
+	forSlice(t, float32s, n, func(x []float32) bool {
+		t.Helper()
+		a := simd.LoadFloat32x4Slice(x)
+		g := make([]float32, n)
+		f(a).StoreSlice(g)
+		w := want(x)
+		return checkSlicesLogInput(t, g, w, flakiness, func() { t.Helper(); t.Logf("x=%v", x) })
+	})
+}
+
+// testFloat64x2UnaryFlaky tests the simd unary method f against the expected behavior generated by want,
+// but using a flakiness parameter because we haven't exactly figured out how simd floating point works
+func testFloat64x2UnaryFlaky(t *testing.T, f func(x simd.Float64x2) simd.Float64x2, want func(x []float64) []float64, flakiness float64) {
+	n := 2
+	t.Helper()
+	forSlice(t, float64s, n, func(x []float64) bool {
+		t.Helper()
+		a := simd.LoadFloat64x2Slice(x)
+		g := make([]float64, n)
+		f(a).StoreSlice(g)
+		w := want(x)
+		return checkSlicesLogInput(t, g, w, flakiness, func() { t.Helper(); t.Logf("x=%v", x) })
+	})
+}
+
+// testFloat32x8UnaryFlaky tests the simd unary method f against the expected behavior generated by want,
+// but using a flakiness parameter because we haven't exactly figured out how simd floating point works
+func testFloat32x8UnaryFlaky(t *testing.T, f func(x simd.Float32x8) simd.Float32x8, want func(x []float32) []float32, flakiness float64) {
+	n := 8
+	t.Helper()
+	forSlice(t, float32s, n, func(x []float32) bool {
+		t.Helper()
+		a := simd.LoadFloat32x8Slice(x)
+		g := make([]float32, n)
+		f(a).StoreSlice(g)
+		w := want(x)
+		return checkSlicesLogInput(t, g, w, flakiness, func() { t.Helper(); t.Logf("x=%v", x) })
+	})
+}
+
+// testFloat64x4UnaryFlaky tests the simd unary method f against the expected behavior generated by want,
+// but using a flakiness parameter because we haven't exactly figured out how simd floating point works
+func testFloat64x4UnaryFlaky(t *testing.T, f func(x simd.Float64x4) simd.Float64x4, want func(x []float64) []float64, flakiness float64) {
+	n := 4
+	t.Helper()
+	forSlice(t, float64s, n, func(x []float64) bool {
+		t.Helper()
+		a := simd.LoadFloat64x4Slice(x)
+		g := make([]float64, n)
+		f(a).StoreSlice(g)
+		w := want(x)
+		return checkSlicesLogInput(t, g, w, flakiness, func() { t.Helper(); t.Logf("x=%v", x) })
+	})
+}
+
+// testFloat32x16UnaryFlaky tests the simd unary method f against the expected behavior generated by want,
+// but using a flakiness parameter because we haven't exactly figured out how simd floating point works
+func testFloat32x16UnaryFlaky(t *testing.T, f func(x simd.Float32x16) simd.Float32x16, want func(x []float32) []float32, flakiness float64) {
+	n := 16
+	t.Helper()
+	forSlice(t, float32s, n, func(x []float32) bool {
+		t.Helper()
+		a := simd.LoadFloat32x16Slice(x)
+		g := make([]float32, n)
+		f(a).StoreSlice(g)
+		w := want(x)
+		return checkSlicesLogInput(t, g, w, flakiness, func() { t.Helper(); t.Logf("x=%v", x) })
+	})
+}
+
+// testFloat64x8UnaryFlaky tests the simd unary method f against the expected behavior generated by want,
+// but using a flakiness parameter because we haven't exactly figured out how simd floating point works
+func testFloat64x8UnaryFlaky(t *testing.T, f func(x simd.Float64x8) simd.Float64x8, want func(x []float64) []float64, flakiness float64) {
+	n := 8
+	t.Helper()
+	forSlice(t, float64s, n, func(x []float64) bool {
+		t.Helper()
+		a := simd.LoadFloat64x8Slice(x)
+		g := make([]float64, n)
+		f(a).StoreSlice(g)
+		w := want(x)
+		return checkSlicesLogInput(t, g, w, flakiness, func() { t.Helper(); t.Logf("x=%v", x) })
 	})
 }

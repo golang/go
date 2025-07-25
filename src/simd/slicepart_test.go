@@ -367,7 +367,7 @@ func TestSlicePartInt64(t *testing.T) {
 		b := make([]int64, L)
 		v.StoreSlice(b)
 		// test the load
-		checkSlicesLogInput(t, b, d, func() { t.Helper(); t.Logf("Len(e)=%d", len(e)) })
+		checkSlicesLogInput(t, b, d, 0.0, func() { t.Helper(); t.Logf("Len(e)=%d", len(e)) })
 
 		// Test the store
 		f := make([]int64, L+1)
