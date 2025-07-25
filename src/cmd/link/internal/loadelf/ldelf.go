@@ -1178,6 +1178,7 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
 		RISCV64 | uint32(elf.R_RISCV_SET32)<<16,
 		RISCV64 | uint32(elf.R_RISCV_SUB32)<<16,
 		RISCV64 | uint32(elf.R_RISCV_32_PCREL)<<16,
+		RISCV64 | uint32(elf.R_RISCV_JAL)<<16,
 		RISCV64 | uint32(elf.R_RISCV_RELAX)<<16:
 		return 4, 4, nil
 
