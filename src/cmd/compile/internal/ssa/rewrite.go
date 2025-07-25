@@ -199,16 +199,18 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 				f.freeValue(v)
 				continue
 			}
-			if v.Pos.IsStmt() != src.PosNotStmt && !notStmtBoundary(v.Op) && pendingLines.get(vl) == int32(b.ID) {
-				pendingLines.remove(vl)
-				v.Pos = v.Pos.WithIsStmt()
+			if v.Pos.IsStmt() != src.PosNotStmt && !notStmtBoundary(v.Op) {
+				if pl, ok := pendingLines.get(vl); ok && pl == int32(b.ID) {
+					pendingLines.remove(vl)
+					v.Pos = v.Pos.WithIsStmt()
+				}
 			}
 			if i != j {
 				b.Values[j] = v
 			}
 			j++
 		}
-		if pendingLines.get(b.Pos) == int32(b.ID) {
+		if pl, ok := pendingLines.get(b.Pos); ok && pl == int32(b.ID) {
 			b.Pos = b.Pos.WithIsStmt()
 			pendingLines.remove(b.Pos)
 		}
@@ -2670,4 +2672,33 @@ func flagify(v *Value) bool {
 	v.reset(OpSelect0)
 	v.AddArg(inner)
 	return true
+}
+
+// PanicBoundsC contains a constant for a bounds failure.
+type PanicBoundsC struct {
+	C int64
+}
+
+// PanicBoundsCC contains 2 constants for a bounds failure.
+type PanicBoundsCC struct {
+	Cx int64
+	Cy int64
+}
+
+func (p PanicBoundsC) CanBeAnSSAAux() {
+}
+func (p PanicBoundsCC) CanBeAnSSAAux() {
+}
+
+func auxToPanicBoundsC(i Aux) PanicBoundsC {
+	return i.(PanicBoundsC)
+}
+func auxToPanicBoundsCC(i Aux) PanicBoundsCC {
+	return i.(PanicBoundsCC)
+}
+func panicBoundsCToAux(p PanicBoundsC) Aux {
+	return p
+}
+func panicBoundsCCToAux(p PanicBoundsCC) Aux {
+	return p
 }

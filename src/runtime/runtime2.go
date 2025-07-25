@@ -1000,14 +1000,13 @@ type _defer struct {
 //
 // A _panic value must only ever live on the stack.
 //
-// The argp and link fields are stack pointers, but don't need special
+// The gopanicFP and link fields are stack pointers, but don't need special
 // handling during stack growth: because they are pointer-typed and
 // _panic values only live on the stack, regular stack pointer
 // adjustment takes care of them.
 type _panic struct {
-	argp unsafe.Pointer // pointer to arguments of deferred call run during panic; cannot move - known to liblink
-	arg  any            // argument to panic
-	link *_panic        // link to earlier panic
+	arg  any     // argument to panic
+	link *_panic // link to earlier panic
 
 	// startPC and startSP track where _panic.start was called.
 	startPC uintptr
@@ -1030,6 +1029,8 @@ type _panic struct {
 	repanicked  bool // whether this panic repanicked
 	goexit      bool
 	deferreturn bool
+
+	gopanicFP unsafe.Pointer // frame pointer of the gopanic frame
 }
 
 // savedOpenDeferState tracks the extra state from _panic that's

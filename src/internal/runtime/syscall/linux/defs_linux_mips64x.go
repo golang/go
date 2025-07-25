@@ -4,7 +4,7 @@
 
 //go:build linux && (mips64 || mips64le)
 
-package syscall
+package linux
 
 const (
 	SYS_CLOSE         = 5003

@@ -887,6 +887,10 @@ func (check *Checker) matchTypes(x, y *operand) {
 		if isTyped(x.typ) && isTyped(y.typ) {
 			return false
 		}
+		// A numeric type can only convert to another numeric type.
+		if allNumeric(x.typ) != allNumeric(y.typ) {
+			return false
+		}
 		// An untyped operand may convert to its default type when paired with an empty interface
 		// TODO(gri) This should only matter for comparisons (the only binary operation that is
 		//           valid with interfaces), but in that case the assignability check should take

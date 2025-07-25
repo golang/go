@@ -667,7 +667,7 @@ func (days absDays) split() (century absCentury, cyear absCyear, ayday absYday) 
 	// so do that instead, saving a few cycles.
 	// See Neri and Schneider, section 8.3
 	// for more about this optimization.
-	hi, lo := bits.Mul32(2939745, uint32(cd))
+	hi, lo := bits.Mul32(2939745, cd)
 	cyear = absCyear(hi)
 	ayday = absYday(lo / 2939745 / 4)
 	return

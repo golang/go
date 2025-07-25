@@ -4,7 +4,7 @@
 
 //go:build linux && (mips || mipsle)
 
-package syscall
+package linux
 
 const (
 	SYS_CLOSE         = 4006

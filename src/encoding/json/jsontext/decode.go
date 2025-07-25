@@ -138,7 +138,14 @@ func (d *Decoder) Reset(r io.Reader, opts ...Options) {
 	case d.s.Flags.Get(jsonflags.WithinArshalCall):
 		panic("jsontext: cannot reset Decoder passed to json.UnmarshalerFrom")
 	}
-	d.s.reset(nil, r, opts...)
+	// If the decoder was previously aliasing a bytes.Buffer,
+	// invalidate the alias to avoid writing into the bytes.Buffer's
+	// internal buffer.
+	b := d.s.buf[:0]
+	if _, ok := d.s.rd.(*bytes.Buffer); ok {
+		b = nil // avoid reusing b since it aliases the previous bytes.Buffer.
+	}
+	d.s.reset(b, r, opts...)
 }
 
 func (d *decoderState) reset(b []byte, r io.Reader, opts ...Options) {
@@ -769,7 +776,8 @@ func (d *decoderState) ReadValue(flags *jsonwire.ValueFlags) (Value, error) {
 
 // CheckNextValue checks whether the next value is syntactically valid,
 // but does not advance the read offset.
-func (d *decoderState) CheckNextValue() error {
+// If last, it verifies that the stream cleanly terminates with [io.EOF].
+func (d *decoderState) CheckNextValue(last bool) error {
 	d.PeekKind() // populates d.peekPos and d.peekErr
 	pos, err := d.peekPos, d.peekErr
 	d.peekPos, d.peekErr = 0, nil
@@ -780,13 +788,18 @@ func (d *decoderState) CheckNextValue() error {
 	var flags jsonwire.ValueFlags
 	if pos, err := d.consumeValue(&flags, pos, d.Tokens.Depth()); err != nil {
 		return wrapSyntacticError(d, err, pos, +1)
+	} else if last {
+		return d.checkEOF(pos)
 	}
 	return nil
 }
 
 // CheckEOF verifies that the input has no more data.
 func (d *decoderState) CheckEOF() error {
-	switch pos, err := d.consumeWhitespace(d.prevEnd); err {
+	return d.checkEOF(d.prevEnd)
+}
+func (d *decoderState) checkEOF(pos int) error {
+	switch pos, err := d.consumeWhitespace(pos); err {
 	case nil:
 		err := jsonwire.NewInvalidCharacterError(d.buf[pos:], "after top-level value")
 		return wrapSyntacticError(d, err, pos, 0)

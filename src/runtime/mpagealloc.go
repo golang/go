@@ -972,6 +972,45 @@ func (p *pageAlloc) free(base, npages uintptr) {
 	p.update(base, npages, true, false)
 }
 
+// markRandomPaddingPages marks the range of memory [base, base+npages*pageSize]
+// as both allocated and scavenged. This is used for randomizing the base heap
+// address. Both the alloc and scav bits are set so that the pages are not used
+// and so the memory accounting stats are correctly calculated.
+//
+// Similar to allocRange, it also updates the summaries to reflect the
+// newly-updated bitmap.
+//
+// p.mheapLock must be held.
+func (p *pageAlloc) markRandomPaddingPages(base uintptr, npages uintptr) {
+	assertLockHeld(p.mheapLock)
+
+	limit := base + npages*pageSize - 1
+	sc, ec := chunkIndex(base), chunkIndex(limit)
+	si, ei := chunkPageIndex(base), chunkPageIndex(limit)
+	if sc == ec {
+		chunk := p.chunkOf(sc)
+		chunk.allocRange(si, ei+1-si)
+		p.scav.index.alloc(sc, ei+1-si)
+		chunk.scavenged.setRange(si, ei+1-si)
+	} else {
+		chunk := p.chunkOf(sc)
+		chunk.allocRange(si, pallocChunkPages-si)
+		p.scav.index.alloc(sc, pallocChunkPages-si)
+		chunk.scavenged.setRange(si, pallocChunkPages-si)
+		for c := sc + 1; c < ec; c++ {
+			chunk := p.chunkOf(c)
+			chunk.allocAll()
+			p.scav.index.alloc(c, pallocChunkPages)
+			chunk.scavenged.setAll()
+		}
+		chunk = p.chunkOf(ec)
+		chunk.allocRange(0, ei+1)
+		p.scav.index.alloc(ec, ei+1)
+		chunk.scavenged.setRange(0, ei+1)
+	}
+	p.update(base, npages, true, true)
+}
+
 const (
 	pallocSumBytes = unsafe.Sizeof(pallocSum(0))
 

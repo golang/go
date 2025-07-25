@@ -2,23 +2,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build linux && (ppc64 || ppc64le)
-
-package syscall
+package linux
 
 const (
-	SYS_CLOSE         = 6
-	SYS_FCNTL         = 55
-	SYS_MPROTECT      = 125
-	SYS_PRCTL         = 171
-	SYS_EPOLL_CTL     = 237
-	SYS_EPOLL_PWAIT   = 303
-	SYS_EPOLL_CREATE1 = 315
+	SYS_CLOSE         = 57
+	SYS_EPOLL_CREATE1 = 20
+	SYS_EPOLL_CTL     = 21
+	SYS_EPOLL_PWAIT   = 22
+	SYS_FCNTL         = 25
+	SYS_PRCTL         = 167
+	SYS_MPROTECT      = 226
 	SYS_EPOLL_PWAIT2  = 441
-	SYS_EVENTFD2      = 314
-	SYS_OPENAT        = 286
-	SYS_PREAD64       = 179
-	SYS_READ          = 3
+	SYS_EVENTFD2      = 19
+	SYS_OPENAT        = 56
+	SYS_PREAD64       = 67
+	SYS_READ          = 63
 
 	EFD_NONBLOCK = 0x800
 

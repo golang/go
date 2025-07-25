@@ -31,7 +31,7 @@ package coverage
 //    slot: 6 path='internal/runtime/math'  hard-coded id: 6
 //    slot: 7 path='internal/bytealg'  hard-coded id: 7
 //    slot: 8 path='internal/goexperiment'
-//    slot: 9 path='internal/runtime/syscall'  hard-coded id: 8
+//    slot: 9 path='internal/runtime/syscall/linux'  hard-coded id: 8
 //    slot: 10 path='runtime'  hard-coded id: 9
 //    fatal error: runtime.addCovMeta
 //
@@ -66,7 +66,7 @@ var rtPkgs = [...]string{
 	"internal/runtime/strconv",
 	"internal/runtime/sys",
 	"internal/runtime/maps",
-	"internal/runtime/syscall",
+	"internal/runtime/syscall/linux",
 	"internal/runtime/cgroup",
 	"internal/stringslite",
 	"runtime",

@@ -98,5 +98,7 @@ func (b *IntArgRegBitmap) Set(i int) {
 //
 //go:nosplit
 func (b *IntArgRegBitmap) Get(i int) bool {
-	return b[i/8]&(uint8(1)<<(i%8)) != 0
+	// Compute p=&b[i/8], but without a bounds check. We don't have the stack for it.
+	p := (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(b)) + uintptr(i/8)))
+	return *p&(uint8(1)<<(i%8)) != 0
 }

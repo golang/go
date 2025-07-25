@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 	buildCtx.GOROOT = testenv.GOROOT(nil)
 	build.Default.GOROOT = testenv.GOROOT(nil)
 
-	// Add $GOROOT/src/cmd/doc/testdata explicitly so we can access its contents in the test.
+	// Add $GOROOT/src/cmd/go/internal/doc/testdata explicitly so we can access its contents in the test.
 	// Normally testdata directories are ignored, but sending it to dirs.scan directly is
 	// a hack that works around the check.
 	testdataDir, err := filepath.Abs("testdata")
@@ -90,7 +90,7 @@ type test struct {
 	no   []string // Regular expressions that should not match.
 }
 
-const p = "cmd/internal/doc/testdata"
+const p = "cmd/go/internal/doc/testdata"
 
 var tests = []test{
 	// Sanity check.
@@ -105,7 +105,7 @@ var tests = []test{
 	{
 		"package clause",
 		[]string{p},
-		[]string{`package pkg.*cmd/internal/doc/testdata`},
+		[]string{`package pkg.*cmd/go/internal/doc/testdata`},
 		nil,
 	},
 

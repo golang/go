@@ -201,7 +201,7 @@ func interfaces() {
 	var s11 S11
 	var s2 S2
 
-	_ = i == 0 /* ERROR "cannot convert" */
+	_ = i == 0 /* ERROR "invalid operation: i == 0 (mismatched types interface{m() int} and untyped int)" */
 	_ = i == s1 /* ERROR "mismatched types" */
 	_ = i == &s1
 	_ = i == &s11
