@@ -323,8 +323,7 @@ func (g *aesGCM) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
 
 	// Make room in dst to append plaintext+overhead.
 	n := len(dst)
-	ciphertextLen := len(plaintext) + gcmTagSize
-	dst = append(dst, make([]byte, ciphertextLen)...)
+	dst = append(dst, make([]byte, len(plaintext) + gcmTagSize)...)
 
 	// Check delayed until now to make sure len(dst) is accurate.
 	if inexactOverlap(dst[n:], plaintext) {
@@ -360,8 +359,7 @@ func (g *aesGCM) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, er
 
 	// Make room in dst to append ciphertext without tag.
 	n := len(dst)
-	plaintextLen := len(ciphertext) - gcmTagSize
-	dst = append(dst, make([]byte, plaintextLen)...)
+	dst = append(dst, make([]byte, len(ciphertext) - gcmTagSize)...)
 
 	// Check delayed until now to make sure len(dst) is accurate.
 	if inexactOverlap(dst[n:], ciphertext) {
