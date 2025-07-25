@@ -319,18 +319,18 @@ type gobuf struct {
 	bp   uintptr // for framepointer-enabled architectures
 }
 
-// maybeLivePtr is a special pointer that is conditionally trackable
+// maybeTraceablePtr is a special pointer that is conditionally trackable
 // by the GC. It consists of an address as a uintptr (vu) and a pointer
 // to a data element (vp).
 //
-// maybeLivePtr values can be in one of three states:
+// maybeTraceablePtr values can be in one of three states:
 // 1. Unset: vu == 0 && vp == nil
 // 2. Untracked: vu != 0 && vp == nil
 // 3. Tracked: vu != 0 && vp != nil
 //
 // Do not set fields manually. Use methods instead.
 // Extend this type with additional methods if needed.
-type maybeLivePtr struct {
+type maybeTraceablePtr struct {
 	vp unsafe.Pointer // For liveness only.
 	vu uintptr        // Source of truth.
 }
@@ -339,22 +339,22 @@ type maybeLivePtr struct {
 // This is used to hide the pointer from the GC.
 //
 //go:nosplit
-func (p *maybeLivePtr) untrack() {
+func (p *maybeTraceablePtr) setUntraceable() {
 	p.vp = nil
 }
 
-// track resets the pointer to the stored address.
+// setTraceable resets the pointer to the stored address.
 // This is used to make the pointer visible to the GC.
 //
 //go:nosplit
-func (p *maybeLivePtr) track() {
+func (p *maybeTraceablePtr) setTraceable() {
 	p.vp = unsafe.Pointer(p.vu)
 }
 
 // set sets the pointer to the data element and updates the address.
 //
 //go:nosplit
-func (p *maybeLivePtr) set(v unsafe.Pointer) {
+func (p *maybeTraceablePtr) set(v unsafe.Pointer) {
 	p.vp = v
 	p.vu = uintptr(v)
 }
@@ -362,33 +362,33 @@ func (p *maybeLivePtr) set(v unsafe.Pointer) {
 // get retrieves the pointer to the data element.
 //
 //go:nosplit
-func (p *maybeLivePtr) get() unsafe.Pointer {
+func (p *maybeTraceablePtr) get() unsafe.Pointer {
 	return unsafe.Pointer(p.vu)
 }
 
 // uintptr returns the uintptr address of the pointer.
 //
 //go:nosplit
-func (p *maybeLivePtr) uintptr() uintptr {
+func (p *maybeTraceablePtr) uintptr() uintptr {
 	return p.vu
 }
 
-// maybeLiveChan extends conditionally trackable pointers (maybeLivePtr)
+// maybeTraceableChan extends conditionally trackable pointers (maybeTraceablePtr)
 // to track hchan pointers.
 //
 // Do not set fields manually. Use methods instead.
-type maybeLiveChan struct {
-	maybeLivePtr
+type maybeTraceableChan struct {
+	maybeTraceablePtr
 }
 
 //go:nosplit
-func (p *maybeLiveChan) set(c *hchan) {
-	p.maybeLivePtr.set(unsafe.Pointer(c))
+func (p *maybeTraceableChan) set(c *hchan) {
+	p.maybeTraceablePtr.set(unsafe.Pointer(c))
 }
 
 //go:nosplit
-func (p *maybeLiveChan) get() *hchan {
-	return (*hchan)(p.maybeLivePtr.get())
+func (p *maybeTraceableChan) get() *hchan {
+	return (*hchan)(p.maybeTraceablePtr.get())
 }
 
 // sudog (pseudo-g) represents a g in a wait list, such as for sending/receiving
@@ -411,7 +411,7 @@ type sudog struct {
 	next *sudog
 	prev *sudog
 
-	elem maybeLivePtr // data element (may point to stack)
+	elem maybeTraceablePtr // data element (may point to stack)
 
 	// The following fields are never accessed concurrently.
 	// For channels, waitlink is only accessed by g.
@@ -439,10 +439,10 @@ type sudog struct {
 	// in the second entry in the list.)
 	waiters uint16
 
-	parent   *sudog        // semaRoot binary tree
-	waitlink *sudog        // g.waiting list or semaRoot
-	waittail *sudog        // semaRoot
-	c        maybeLiveChan // channel
+	parent   *sudog             // semaRoot binary tree
+	waitlink *sudog             // g.waiting list or semaRoot
+	waittail *sudog             // semaRoot
+	c        maybeTraceableChan // channel
 }
 
 type libcall struct {

@@ -310,7 +310,7 @@ func (root *semaRoot) queue(addr *uint32, s *sudog, lifo bool, syncSema bool) {
 		// When dealing with sync semaphores, hide the elem field from the GC
 		// to prevent it from prematurely marking the semaphore when running
 		// goroutine leak detection.
-		s.elem.untrack()
+		s.elem.setUntraceable()
 	}
 	s.next = nil
 	s.prev = nil
@@ -609,7 +609,7 @@ func notifyListWait(l *notifyList, t uint32) {
 		// the condvar address from the blocked goroutine when
 		// checking for goroutine leaks.
 		s.elem.set(unsafe.Pointer(l))
-		s.elem.untrack()
+		s.elem.setUntraceable()
 		s.g.waiting = s
 	}
 	s.ticket = t
