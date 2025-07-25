@@ -1253,9 +1253,11 @@ func findGoleaks() bool {
 		casgstatus(gp, _Gwaiting, _Gleaked)
 		fn := findfunc(gp.startpc)
 		if fn.valid() {
-			print("goroutine leak! goroutine ", gp.goid, ": ", funcname(fn), " Stack size: ", gp.stack.hi-gp.stack.lo, " bytes\n")
+			print("goroutine leak! goroutine ", gp.goid, ": ", funcname(fn), " Stack size: ", gp.stack.hi-gp.stack.lo, " bytes ",
+				"[", waitReasonStrings[gp.waitreason], "]\n")
 		} else {
-			print("goroutine leak! goroutine ", gp.goid, ": !unnamed goroutine!", " Stack size: ", gp.stack.hi-gp.stack.lo, " bytes\n")
+			print("goroutine leak! goroutine ", gp.goid, ": !unnamed goroutine!", " Stack size: ", gp.stack.hi-gp.stack.lo, " bytes ",
+				"[", waitReasonStrings[gp.waitreason], "]\n")
 		}
 		traceback(gp.sched.pc, gp.sched.sp, gp.sched.lr, gp)
 		println()
@@ -1500,7 +1502,11 @@ func gcMarkTermination(stw worldStop) {
 		printlock()
 		print("gc ", memstats.numgc,
 			" @", string(itoaDiv(sbuf[:], uint64(work.tSweepTerm-runtimeInitTime)/1e6, 3)), "s ",
-			util, "%: ")
+			util, "%")
+		if work.goroutineLeakFinder.done {
+			print(" (goroutine leak finder GC)")
+		}
+		print(": ")
 		prev := work.tSweepTerm
 		for i, ns := range []int64{work.tMark, work.tMarkTerm, work.tEnd} {
 			if i != 0 {

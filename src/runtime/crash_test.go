@@ -186,6 +186,23 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 		t.Logf("running %v", cmd)
 		cmd.Dir = "testdata/" + binary
 		cmd = testenv.CleanCmdEnv(cmd)
+
+		// Add the goroutineleakfindergc GOEXPERIMENT unconditionally since some tests depend on it.
+		// TODO(61405): Remove this once it's enabled by default.
+		//
+		// FIXME: Remove this once profiling is enabled and goroutineleakfindergc experiment is phased out.
+		edited := false
+		for i := range cmd.Env {
+			e := cmd.Env[i]
+			if _, vars, ok := strings.Cut(e, "GOEXPERIMENT="); ok {
+				cmd.Env[i] = "GOEXPERIMENT=" + vars + ",goroutineleakfindergc"
+				edited = true
+			}
+		}
+		if !edited {
+			cmd.Env = append(cmd.Env, "GOEXPERIMENT=goroutineleakfindergc")
+		}
+
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			target.err = fmt.Errorf("building %s %v: %v\n%s", binary, flags, err, out)
