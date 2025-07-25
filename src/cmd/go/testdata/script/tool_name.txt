@@ -1,0 +1,22 @@
+[short] skip 'runs go build'
+
+# Tool name can't be empty. Issue #74757.
+! go tool ''
+stderr 'go: no such tool ""'
+
+! go tool -n ''
+stderr 'go: no such tool ""'
+
+# Invalid tool name
+! go tool @
+stderr 'go: no such tool "@"'
+
+! go tool -n @
+stderr 'go: no such tool "@"'
+
+-- go.mod --
+module example.com/foo
+
+go 1.24
+-- main.go --
+package main
