@@ -187,18 +187,18 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 		cmd.Dir = "testdata/" + binary
 		cmd = testenv.CleanCmdEnv(cmd)
 
-		// Add the rangefunc GOEXPERIMENT unconditionally since some tests depend on it.
+		// Add the rangefunc and goroutineleakfindergc GOEXPERIMENT unconditionally since some tests depend on it.
 		// TODO(61405): Remove this once it's enabled by default.
 		edited := false
 		for i := range cmd.Env {
 			e := cmd.Env[i]
 			if _, vars, ok := strings.Cut(e, "GOEXPERIMENT="); ok {
-				cmd.Env[i] = "GOEXPERIMENT=" + vars + ",rangefunc"
+				cmd.Env[i] = "GOEXPERIMENT=" + vars + ",rangefunc,goroutineleakfindergc"
 				edited = true
 			}
 		}
 		if !edited {
-			cmd.Env = append(cmd.Env, "GOEXPERIMENT=rangefunc")
+			cmd.Env = append(cmd.Env, "GOEXPERIMENT=rangefunc,goroutineleakfindergc")
 		}
 
 		out, err := cmd.CombinedOutput()
