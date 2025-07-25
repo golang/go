@@ -82,7 +82,6 @@ func loopRotate(f *Func) {
 
 	// Order loops to rotate any child loop before adding its top block
 	// to the parent loop's 'after' list.
-	loopnest.calculateDepths()
 	loopOrder := f.Cache.allocIntSlice(len(loopnest.loops))
 	for i := range loopOrder {
 		loopOrder[i] = i

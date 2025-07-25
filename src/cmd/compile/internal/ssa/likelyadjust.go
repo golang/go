@@ -15,7 +15,7 @@ type loop struct {
 	// Next three fields used by regalloc and/or
 	// aid in computation of inner-ness and list of blocks.
 	nBlocks int32 // Number of blocks in this loop but not within inner loops
-	depth   int16 // Nesting depth of the loop; 1 is outermost. Initialized by calculateDepths().
+	depth   int16 // Nesting depth of the loop; 1 is outermost.
 	isInner bool  // True if never discovered to contain a loop
 
 	// True if all paths through the loop have a call.
