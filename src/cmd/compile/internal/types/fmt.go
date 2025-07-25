@@ -471,11 +471,9 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 	case TSTRUCT:
 		if m := t.StructType().Map; m != nil {
 			mt := m.MapType()
-			// Format the bucket struct for map[x]y as map.bucket[x]y.
+			// Format the bucket struct for map[x]y as map.group[x]y.
 			// This avoids a recursive print that generates very long names.
 			switch t {
-			case mt.OldBucket:
-				b.WriteString("map.bucket[")
 			case mt.SwissGroup:
 				b.WriteString("map.group[")
 			default:

@@ -59,9 +59,6 @@ const CrashStackImplemented = crashStackImplemented
 const TracebackInnerFrames = tracebackInnerFrames
 const TracebackOuterFrames = tracebackOuterFrames
 
-var MapKeys = keys
-var MapValues = values
-
 var LockPartialOrder = lockPartialOrder
 
 type TimeTimer = timeTimer

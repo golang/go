@@ -63,6 +63,7 @@ func TestRuntimeTypesPresent(t *testing.T) {
 		"internal/abi.PtrType":       true,
 		"internal/abi.SliceType":     true,
 		"internal/abi.StructType":    true,
+		"internal/abi.SwissMapType":  true,
 		"internal/abi.InterfaceType": true,
 		"internal/abi.ITab":          true,
 	}
@@ -70,16 +71,6 @@ func TestRuntimeTypesPresent(t *testing.T) {
 	found := findTypes(t, dwarf, want)
 	if len(found) != len(want) {
 		t.Errorf("found %v, want %v", found, want)
-	}
-
-	// Must have one of OldMapType or SwissMapType.
-	want = map[string]bool{
-		"internal/abi.OldMapType":   true,
-		"internal/abi.SwissMapType": true,
-	}
-	found = findTypes(t, dwarf, want)
-	if len(found) != 1 {
-		t.Errorf("map type want one of %v found %v", want, found)
 	}
 }
 

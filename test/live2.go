@@ -27,14 +27,14 @@ func newT40() *T40 {
 }
 
 func bad40() {
-	t := newT40() // ERROR "stack object ret T40$" "stack object .autotmp_[0-9]+ (runtime.hmap|internal/runtime/maps.Map)$"
+	t := newT40() // ERROR "stack object ret T40$" "stack object .autotmp_[0-9]+ internal/runtime/maps.Map$"
 	printnl()     // ERROR "live at call to printnl: ret$"
 	useT40(t)
 }
 
 func good40() {
 	ret := T40{}                  // ERROR "stack object ret T40$"
-	ret.m = make(map[int]int, 42) // ERROR "stack object .autotmp_[0-9]+ (runtime.hmap|internal/runtime/maps.Map)$"
+	ret.m = make(map[int]int, 42) // ERROR "stack object .autotmp_[0-9]+ internal/runtime/maps.Map$"
 	t := &ret
 	printnl() // ERROR "live at call to printnl: ret$"
 	useT40(t)

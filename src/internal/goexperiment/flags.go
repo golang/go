@@ -105,9 +105,6 @@ type Flags struct {
 	// This flag will be removed with Go 1.25.
 	AliasTypeParams bool
 
-	// SwissMap enables the SwissTable-based map implementation.
-	SwissMap bool
-
 	// Synctest enables the testing/synctest package.
 	Synctest bool
 

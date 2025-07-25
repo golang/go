@@ -8,7 +8,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"internal/abi"
-	"internal/buildcfg"
 	"slices"
 	"sort"
 	"strings"
@@ -773,11 +772,7 @@ func writeType(t *types.Type) *obj.LSym {
 		rt = rttype.InterfaceType
 		dataAdd = len(imethods(t)) * int(rttype.IMethod.Size())
 	case types.TMAP:
-		if buildcfg.Experiment.SwissMap {
-			rt = rttype.SwissMapType
-		} else {
-			rt = rttype.OldMapType
-		}
+		rt = rttype.MapType
 	case types.TPTR:
 		rt = rttype.PtrType
 		// TODO: use rttype.Type for Elem() is ANY?
@@ -877,11 +872,7 @@ func writeType(t *types.Type) *obj.LSym {
 		}
 
 	case types.TMAP:
-		if buildcfg.Experiment.SwissMap {
-			writeSwissMapType(t, lsym, c)
-		} else {
-			writeOldMapType(t, lsym, c)
-		}
+		writeSwissMapType(t, lsym, c)
 
 	case types.TPTR:
 		// internal/abi.PtrType

@@ -191,7 +191,7 @@ func h2(h uintptr) uintptr {
 	return h & 0x7f
 }
 
-// Note: changes here must be reflected in cmd/compile/internal/reflectdata/map_swiss.go:SwissMapType.
+// Note: changes here must be reflected in cmd/compile/internal/reflectdata/map.go:SwissMapType.
 type Map struct {
 	// The number of filled slots (i.e. the number of elements in all
 	// tables). Excludes deleted slots.
@@ -812,13 +812,6 @@ func (m *Map) Clone(typ *abi.SwissMapType) *Map {
 	}
 
 	return m
-}
-
-func OldMapKeyError(t *abi.OldMapType, p unsafe.Pointer) error {
-	if !t.HashMightPanic() {
-		return nil
-	}
-	return mapKeyError2(t.Key, p)
 }
 
 func mapKeyError(t *abi.SwissMapType, p unsafe.Pointer) error {

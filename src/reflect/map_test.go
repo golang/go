@@ -2,19 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.swissmap
-
 package reflect_test
 
 import (
 	"reflect"
 	"testing"
 )
-
-func testGCBitsMap(t *testing.T) {
-	// Unlike old maps, we don't manually construct GC data for swiss maps,
-	// instead using the public reflect API in groupAndSlotOf.
-}
 
 // See also runtime_test.TestGroupSizeZero.
 func TestGroupSizeZero(t *testing.T) {

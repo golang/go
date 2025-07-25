@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.swissmap
-
 package runtime
 
 import (
@@ -18,8 +16,6 @@ const (
 	loadFactorNum = 7
 	loadFactorDen = 8
 )
-
-type maptype = abi.SwissMapType
 
 //go:linkname maps_errNilAssign internal/runtime/maps.errNilAssign
 var maps_errNilAssign error = plainError("assignment to entry in nil map")
@@ -330,20 +326,4 @@ func mapclone(m any) any {
 	map_ = map_.Clone(typ)
 	e.data = (unsafe.Pointer)(map_)
 	return m
-}
-
-// keys for implementing maps.keys
-//
-//go:linkname keys maps.keys
-func keys(m any, p unsafe.Pointer) {
-	// Currently unused in the maps package.
-	panic("unimplemented")
-}
-
-// values for implementing maps.values
-//
-//go:linkname values maps.values
-func values(m any, p unsafe.Pointer) {
-	// Currently unused in the maps package.
-	panic("unimplemented")
 }

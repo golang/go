@@ -22,6 +22,13 @@ const MaxAvgGroupLoad = maxAvgGroupLoad
 // we can't properly test hint alloc overflows with this.
 const maxAllocTest = 1 << 30
 
+func newTestMapType[K comparable, V any]() *abi.SwissMapType {
+	var m map[K]V
+	mTyp := abi.TypeOf(m)
+	mt := (*abi.SwissMapType)(unsafe.Pointer(mTyp))
+	return mt
+}
+
 func NewTestMap[K comparable, V any](hint uintptr) (*Map, *abi.SwissMapType) {
 	mt := newTestMapType[K, V]()
 	return NewMap(mt, hint, nil, maxAllocTest), mt

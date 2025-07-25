@@ -9,7 +9,6 @@ package maphash
 import (
 	"internal/abi"
 	"internal/goarch"
-	"internal/goexperiment"
 	"unsafe"
 )
 
@@ -51,12 +50,7 @@ func comparableHash[T comparable](v T, seed Seed) uint64 {
 	s := seed.s
 	var m map[T]struct{}
 	mTyp := abi.TypeOf(m)
-	var hasher func(unsafe.Pointer, uintptr) uintptr
-	if goexperiment.SwissMap {
-		hasher = (*abi.SwissMapType)(unsafe.Pointer(mTyp)).Hasher
-	} else {
-		hasher = (*abi.OldMapType)(unsafe.Pointer(mTyp)).Hasher
-	}
+	hasher := (*abi.SwissMapType)(unsafe.Pointer(mTyp)).Hasher
 	if goarch.PtrSize == 8 {
 		return uint64(hasher(abi.NoEscape(unsafe.Pointer(&v)), uintptr(s)))
 	}

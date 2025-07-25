@@ -160,13 +160,6 @@ class MapTypePrinter:
 		return str(self.val.type)
 
 	def children(self):
-		fields = [f.name for f in self.val.type.strip_typedefs().target().fields()]
-		if 'buckets' in fields:
-			yield from self.old_map_children()
-		else:
-			yield from self.swiss_map_children()
-
-	def swiss_map_children(self):
 		SwissMapGroupSlots = 8 # see internal/abi:SwissMapGroupSlots
 
 		cnt = 0
@@ -268,40 +261,6 @@ class MapTypePrinter:
 			for i in xrange(length):
 				group = groups[i]
 				yield from group_slots(group)
-
-
-	def old_map_children(self):
-		MapBucketCount = 8 # see internal/abi:OldMapBucketCount
-		B = self.val['B']
-		buckets = self.val['buckets']
-		oldbuckets = self.val['oldbuckets']
-		flags = self.val['flags']
-		inttype = self.val['hash0'].type
-		cnt = 0
-		for bucket in xrange(2 ** int(B)):
-			bp = buckets + bucket
-			if oldbuckets:
-				oldbucket = bucket & (2 ** (B - 1) - 1)
-				oldbp = oldbuckets + oldbucket
-				oldb = oldbp.dereference()
-				if (oldb['overflow'].cast(inttype) & 1) == 0:  # old bucket not evacuated yet
-					if bucket >= 2 ** (B - 1):
-						continue    # already did old bucket
-					bp = oldbp
-			while bp:
-				b = bp.dereference()
-				for i in xrange(MapBucketCount):
-					if b['tophash'][i] != 0:
-						k = b['keys'][i]
-						v = b['values'][i]
-						if flags & 1:
-							k = k.dereference()
-						if flags & 2:
-							v = v.dereference()
-						yield str(cnt), k
-						yield str(cnt + 1), v
-						cnt += 2
-				bp = b['overflow']
 
 
 class ChanTypePrinter:
