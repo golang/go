@@ -153,9 +153,11 @@ func gcPrepareMarkRoots() {
 	// there's nothing to scan, and any roots they create during
 	// the concurrent phase will be caught by the write barrier.
 	if work.goroutineLeakFinder.enabled {
+		// goroutine leak finder GC --- only prepare runnable
+		// goroutines for marking.
 		work.stackRoots, work.nLiveStackRoots = allGsSnapshotSortedForGC()
 	} else {
-		// regular GC --- scan every go routine
+		// regular GC --- scan every goroutine
 		work.stackRoots = allGsSnapshot()
 		work.nLiveStackRoots = len(work.stackRoots)
 	}

@@ -733,12 +733,10 @@ func gcStart(trigger gcTrigger) {
 		mode = gcForceMode
 	} else if debug.gcstoptheworld == 2 {
 		mode = gcForceBlockMode
-	} else if goexperiment.GoroutineLeakFinderGC {
-		if work.goroutineLeakFinder.pending.Load() ||
-			debug.gcgoroutineleaks > 0 {
-			// Fully stop the world if running deadlock detection.
-			mode = gcForceBlockMode
-		}
+	} else if work.goroutineLeakFinder.pending.Load() || debug.gcgoroutineleaks > 0 {
+		// If goroutine leak detection has been enabled (via GODEBUG=gcgoroutineleaks=1),
+		// or via profiling, fully stop the world.
+		mode = gcForceBlockMode
 	}
 
 	// Ok, we're doing it! Stop everybody else
@@ -1035,7 +1033,8 @@ top:
 			}
 		}
 	})
-	if restart {
+	switch {
+	case restart:
 		gcDebugMarkDone.restartedDueTo27993 = true
 
 		getg().m.preemptoff = ""
@@ -1049,25 +1048,22 @@ top:
 		})
 		semrelease(&worldsema)
 		goto top
-	} else if goexperiment.GoroutineLeakFinderGC {
-		// If we are detecting goroutine leaks, do so now.
-		if work.goroutineLeakFinder.enabled && !work.goroutineLeakFinder.done {
-			// Detect goroutine leaks. If the returned value is true, then
-			// detection was performed during this cycle. Otherwise, more mark work is needed,
-			// or live goroutines were found.
-			work.goroutineLeakFinder.done = findGoleaks()
+	case work.goroutineLeakFinder.enabled && !work.goroutineLeakFinder.done:
+		// Detect goroutine leaks. If the returned value is true, then detection was
+		// performed during this cycle. Otherwise, more runnable goroutines were discovered,
+		// requiring additional mark work.
+		work.goroutineLeakFinder.done = findGoleaks()
 
-			getg().m.preemptoff = ""
-			systemstack(func() {
-				// Accumulate the time we were stopped before we had to start again.
-				work.cpuStats.accumulateGCPauseTime(nanotime()-stw.finishedStopping, work.maxprocs)
+		getg().m.preemptoff = ""
+		systemstack(func() {
+			// Accumulate the time we were stopped before we had to start again.
+			work.cpuStats.accumulateGCPauseTime(nanotime()-stw.finishedStopping, work.maxprocs)
 
-				now := startTheWorldWithSema(0, stw)
-				work.pauseNS += now - stw.startedStopping
-			})
-			semrelease(&worldsema)
-			goto top
-		}
+			now := startTheWorldWithSema(0, stw)
+			work.pauseNS += now - stw.startedStopping
+		})
+		semrelease(&worldsema)
+		goto top
 	}
 
 	gcComputeStartingStackSize()
