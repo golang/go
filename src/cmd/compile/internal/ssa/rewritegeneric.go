@@ -5722,6 +5722,16 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		v.copyOf(y)
 		return true
 	}
+	// match: (CondSelect x x _)
+	// result: x
+	for {
+		x := v_0
+		if x != v_1 {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
 	// match: (CondSelect (Add8 <t> x (Const8 [1])) x bool)
 	// cond: config.arch != "arm64"
 	// result: (Add8 x (CvtBoolToUint8 <t> bool))
