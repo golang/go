@@ -60,6 +60,13 @@ const (
 //     if the field value is empty. The empty values are false, 0, any
 //     nil pointer or interface value, and any array, slice, map, or
 //     string of length zero.
+//   - a field with a tag including the "omitzero" option is omitted
+//     if the field has a zero value, according to rules:
+//     1) If the field type has an "IsZero() bool" method, that will be used to
+//     determine whether the value is zero.
+//     2) Otherwise, the value is zero if it is the zero value for its type.
+//     If both "omitempty" and "omitzero" are specified, the field will be omitted
+//     if the value is either empty or zero (or both).
 //   - an anonymous struct field is handled as if the fields of its
 //     value were part of the outer struct.
 //   - an anonymous struct field of interface type is treated the same as having
@@ -436,6 +443,11 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		return nil
 	}
 
+	if finfo != nil && finfo.flags&fOmitZero != 0 &&
+		(finfo.isZero == nil && val.IsZero() || (finfo.isZero != nil && finfo.isZero(val))) {
+		return nil
+	}
+
 	// Drill into interfaces and pointers.
 	// This can turn into an infinite loop given a cyclic chain,
 	// but it matches the Go 1 behavior.
@@ -532,6 +544,11 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		fv := finfo.value(val, dontInitNilPointers)
 
 		if finfo.flags&fOmitEmpty != 0 && (!fv.IsValid() || isEmptyValue(fv)) {
+			continue
+		}
+
+		if finfo.flags&fOmitZero != 0 && (!fv.IsValid() ||
+			(finfo.isZero == nil && fv.IsZero() || (finfo.isZero != nil && finfo.isZero(fv)))) {
 			continue
 		}
 
