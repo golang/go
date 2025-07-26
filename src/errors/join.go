@@ -28,12 +28,10 @@ func Join(errs ...error) error {
 	}
 	if n == 1 {
 		for _, err := range errs {
-			if err != nil {
-				if _, ok := err.(interface {
-					Unwrap() []error
-				}); ok {
-					return err
-				}
+			if _, ok := err.(interface {
+				Unwrap() []error
+			}); ok {
+				return err
 			}
 		}
 	}
