@@ -580,6 +580,15 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 
 // marshalAttr marshals an attribute with the given name and value, adding to start.Attr.
 func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value) error {
+	// Dereference or skip nil pointer, interface values.
+	switch val.Kind() {
+	case reflect.Pointer, reflect.Interface:
+		if val.IsNil() {
+			return nil
+		}
+		val = val.Elem()
+	}
+
 	if val.CanInterface() && val.Type().Implements(marshalerAttrType) {
 		attr, err := val.Interface().(MarshalerAttr).MarshalXMLAttr(name)
 		if err != nil {
@@ -624,15 +633,6 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
 			start.Attr = append(start.Attr, Attr{name, string(text)})
 			return nil
 		}
-	}
-
-	// Dereference or skip nil pointer, interface values.
-	switch val.Kind() {
-	case reflect.Pointer, reflect.Interface:
-		if val.IsNil() {
-			return nil
-		}
-		val = val.Elem()
 	}
 
 	// Walk slices.
