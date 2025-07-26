@@ -2057,9 +2057,7 @@
 (Select1 (MakeTuple x y)) => y
 
 // for rewriting results of some late-expanded rewrites (below)
-(SelectN [0] (MakeResult x ___)) => x
-(SelectN [1] (MakeResult x y ___)) => y
-(SelectN [2] (MakeResult x y z ___)) => z
+(SelectN [n] m:(MakeResult ___)) => m.Args[n]
 
 // for late-expanded calls, recognize newobject and remove zeroing and nilchecks
 (Zero (SelectN [0] call:(StaticLECall _ _)) mem:(SelectN [1] call))
