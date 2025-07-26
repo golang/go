@@ -113,7 +113,7 @@ import (
 // Note that each table has its own load factor and grows independently. If the
 // 1st bucket grows, it will split. We'll need 2 bits to select tables, though
 // we'll have 3 tables total rather than 4. We support this by allowing
-// multiple indicies to point to the same table. This example:
+// multiple indices to point to the same table. This example:
 //
 //	directory (globalDepth=2)
 //	+----+
@@ -365,7 +365,7 @@ func (m *Map) installTableSplit(old, left, right *table) {
 			t := m.directoryAt(uintptr(i))
 			newDir[2*i] = t
 			newDir[2*i+1] = t
-			// t may already exist in multiple indicies. We should
+			// t may already exist in multiple indices. We should
 			// only update t.index once. Since the index must
 			// increase, seeing the original index means this must
 			// be the first time we've encountered this table.
@@ -380,7 +380,7 @@ func (m *Map) installTableSplit(old, left, right *table) {
 		m.dirLen = len(newDir)
 	}
 
-	// N.B. left and right may still consume multiple indicies if the
+	// N.B. left and right may still consume multiple indices if the
 	// directory has grown multiple times since old was last split.
 	left.index = old.index
 	m.replaceTable(left)
