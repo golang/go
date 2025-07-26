@@ -9,7 +9,6 @@ import (
 	"internal/trace"
 	"internal/trace/traceviewer"
 	"slices"
-	"time"
 )
 
 // viewerFrames returns the frames of the stack of ev. The given frame slice is
@@ -39,8 +38,4 @@ func viewerGState(state trace.GoState, inMarkAssist bool) traceviewer.GState {
 	default:
 		panic(fmt.Sprintf("unknown GoState: %s", state.String()))
 	}
-}
-
-func viewerTime(t time.Duration) float64 {
-	return float64(t) / float64(time.Microsecond)
 }

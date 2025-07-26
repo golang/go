@@ -244,35 +244,6 @@ func decodetypeGcmask(ctxt *Link, s loader.Sym) []byte {
 	return ctxt.loader.Data(mask)
 }
 
-// Type.commonType.gc
-func decodetypeGcprog(ctxt *Link, s loader.Sym) []byte {
-	if ctxt.loader.SymType(s) == sym.SDYNIMPORT {
-		symData := ctxt.loader.Data(s)
-		addr := decodetypeGcprogShlib(ctxt, symData)
-		sect := findShlibSection(ctxt, ctxt.loader.SymPkg(s), addr)
-		if sect != nil {
-			// A gcprog is a 4-byte uint32 indicating length, followed by
-			// the actual program.
-			progsize := make([]byte, 4)
-			_, err := sect.ReadAt(progsize, int64(addr-sect.Addr))
-			if err != nil {
-				log.Fatal(err)
-			}
-			progbytes := make([]byte, ctxt.Arch.ByteOrder.Uint32(progsize))
-			_, err = sect.ReadAt(progbytes, int64(addr-sect.Addr+4))
-			if err != nil {
-				log.Fatal(err)
-			}
-			return append(progsize, progbytes...)
-		}
-		Exitf("cannot find gcprog for %s", ctxt.loader.SymName(s))
-		return nil
-	}
-	relocs := ctxt.loader.Relocs(s)
-	rs := decodeRelocSym(ctxt.loader, s, &relocs, 2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize))
-	return ctxt.loader.Data(rs)
-}
-
 // Find the elf.Section of a given shared library that contains a given address.
 func findShlibSection(ctxt *Link, path string, addr uint64) *elf.Section {
 	for _, shlib := range ctxt.Shlibs {

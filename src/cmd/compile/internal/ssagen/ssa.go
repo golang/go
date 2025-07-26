@@ -1322,9 +1322,6 @@ func (s *state) constInt(t *types.Type, c int64) *ssa.Value {
 	}
 	return s.constInt32(t, int32(c))
 }
-func (s *state) constOffPtrSP(t *types.Type, c int64) *ssa.Value {
-	return s.f.ConstOffPtrSP(t, c, s.sp)
-}
 
 // newValueOrSfCall* are wrappers around newValue*, which may create a call to a
 // soft-float runtime function instead (when emitting soft-float code).
@@ -5380,26 +5377,6 @@ func (s *state) putArg(n ir.Node, t *types.Type) *ssa.Value {
 		a = s.expr(n)
 	}
 	return a
-}
-
-func (s *state) storeArgWithBase(n ir.Node, t *types.Type, base *ssa.Value, off int64) {
-	pt := types.NewPtr(t)
-	var addr *ssa.Value
-	if base == s.sp {
-		// Use special routine that avoids allocation on duplicate offsets.
-		addr = s.constOffPtrSP(pt, off)
-	} else {
-		addr = s.newValue1I(ssa.OpOffPtr, pt, off, base)
-	}
-
-	if !ssa.CanSSA(t) {
-		a := s.addr(n)
-		s.move(t, addr, a)
-		return
-	}
-
-	a := s.expr(n)
-	s.storeType(t, addr, a, 0, false)
 }
 
 // slice computes the slice v[i:j:k] and returns ptr, len, and cap of result.

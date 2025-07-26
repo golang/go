@@ -729,10 +729,6 @@ func isint32(v int64) bool {
 	return int64(int32(v)) == v
 }
 
-func isuint32(v uint64) bool {
-	return uint64(uint32(v)) == v
-}
-
 func (c *ctxt0) aclass(a *obj.Addr) int {
 	switch a.Type {
 	case obj.TYPE_NONE:

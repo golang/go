@@ -145,10 +145,7 @@ func (l limit) signedMin(m int64) limit {
 	l.min = max(l.min, m)
 	return l
 }
-func (l limit) signedMax(m int64) limit {
-	l.max = min(l.max, m)
-	return l
-}
+
 func (l limit) signedMinMax(minimum, maximum int64) limit {
 	l.min = max(l.min, minimum)
 	l.max = min(l.max, maximum)

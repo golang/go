@@ -40,10 +40,6 @@ import (
 	"log"
 )
 
-func PADDR(x uint32) uint32 {
-	return x &^ 0x80000000
-}
-
 func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
 	if initfunc == nil {

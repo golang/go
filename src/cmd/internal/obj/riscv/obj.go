@@ -1072,24 +1072,6 @@ func regV(r uint32) uint32 {
 	return regVal(r, REG_V0, REG_V31)
 }
 
-// regAddr extracts a register from an Addr.
-func regAddr(a obj.Addr, min, max uint32) uint32 {
-	if a.Type != obj.TYPE_REG {
-		panic(fmt.Sprintf("ill typed: %+v", a))
-	}
-	return regVal(uint32(a.Reg), min, max)
-}
-
-// regIAddr extracts the integer register from an Addr.
-func regIAddr(a obj.Addr) uint32 {
-	return regAddr(a, REG_X0, REG_X31)
-}
-
-// regFAddr extracts the float register from an Addr.
-func regFAddr(a obj.Addr) uint32 {
-	return regAddr(a, REG_F0, REG_F31)
-}
-
 // immEven checks that the immediate is a multiple of two. If it
 // is not, an error is returned.
 func immEven(x int64) error {

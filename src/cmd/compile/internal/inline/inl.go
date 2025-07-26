@@ -1211,17 +1211,6 @@ func pruneUnusedAutos(ll []*ir.Name, vis *hairyVisitor) []*ir.Name {
 	return s
 }
 
-// numNonClosures returns the number of functions in list which are not closures.
-func numNonClosures(list []*ir.Func) int {
-	count := 0
-	for _, fn := range list {
-		if fn.OClosure == nil {
-			count++
-		}
-	}
-	return count
-}
-
 func doList(list []ir.Node, do func(ir.Node) bool) bool {
 	for _, x := range list {
 		if x != nil {
