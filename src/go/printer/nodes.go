@@ -1156,6 +1156,14 @@ func (p *printer) possibleSelectorExpr(expr ast.Expr, prec1, depth int) bool {
 // multiple lines.
 func (p *printer) selectorExpr(x *ast.SelectorExpr, depth int, isMethod bool) bool {
 	p.expr1(x.X, token.HighestPrec, depth)
+
+	// We don't have the position of the dot, so we have to predict it,
+	// to avoid issues with comment handling.
+	// See https://go.dev/issue/70978 and TestIssue70978 for more details.
+	if x.Sel.Pos().IsValid() && p.pos.Offset > p.posFor(x.Sel.Pos()).Offset {
+		p.setPos(x.Sel.Pos())
+	}
+
 	p.print(token.PERIOD)
 	if line := p.lineFor(x.Sel.Pos()); p.pos.IsValid() && p.pos.Line < line {
 		p.print(indent, newline)
