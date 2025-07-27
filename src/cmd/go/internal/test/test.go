@@ -1986,6 +1986,29 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
 			fmt.Fprintf(h, "open %s %x\n", name, fh)
 		}
 	}
+
+	// When using -coverpkg, include source files from coverage packages in cache calculation.
+	// This ensures cache is invalidated when any covered source file changes.
+	if len(testCoverPkgs) > 0 {
+		for _, pkg := range testCoverPkgs {
+			// Include all Go source files from coverage packages
+			for _, file := range pkg.GoFiles {
+				name := filepath.Join(pkg.Dir, file)
+				if a.Package.Root == "" || search.InDir(name, a.Package.Root) == "" {
+					continue
+				}
+				fmt.Fprintf(h, "coverstat %s %x\n", name, hashStat(name))
+			}
+			for _, file := range pkg.CgoFiles {
+				name := filepath.Join(pkg.Dir, file)
+				if a.Package.Root == "" || search.InDir(name, a.Package.Root) == "" {
+					continue
+				}
+				fmt.Fprintf(h, "coverstat %s %x\n", name, hashStat(name))
+			}
+		}
+	}
+
 	sum := h.Sum()
 	return sum, nil
 }
