@@ -173,11 +173,11 @@ TEXT ·ieeeCLMUL(SB),NOSPLIT,$0
 	CMPQ CX, $1024
 	JL   useSSE42
 
-	// Use AVX512
-	VPXORQ    Z0, Z0, Z0
-	VMOVQ     AX, X0
+	// Use AVX512. Zero upper and Z10 and load initial CRC into lower part of Z10.
+	VPXORQ    Z10, Z10, Z10
+	VMOVAPS   X0, X10
 	VMOVDQU64 (SI), Z1
-	VPXORQ    Z0, Z1, Z1 // Merge initial CRC value into Z1
+	VPXORQ    Z10, Z1, Z1 // Merge initial CRC value into Z1
 	ADDQ      $64, SI    // buf+=64
 	SUBQ      $64, CX    // len-=64
 
