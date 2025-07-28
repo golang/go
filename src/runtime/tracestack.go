@@ -190,7 +190,7 @@ func dumpStacksRec(node *traceMapNode, w traceWriter, stackBuf []uintptr) traceW
 
 	// Emit stack event.
 	w.byte(byte(tracev2.EvStack))
-	w.varint(uint64(node.id))
+	w.varint(node.id)
 	w.varint(uint64(len(frames)))
 	for _, frame := range frames {
 		w.varint(uint64(frame.PC))
