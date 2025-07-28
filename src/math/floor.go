@@ -66,11 +66,18 @@ func Trunc(x float64) float64 {
 }
 
 func trunc(x float64) float64 {
-	if x == 0 || IsNaN(x) || IsInf(x, 0) {
-		return x
+	if Abs(x) < 1 {
+		return Copysign(0, x)
 	}
-	d, _ := Modf(x)
-	return d
+
+	b := Float64bits(x)
+	e := uint(b>>shift)&mask - bias
+
+	// Keep the top 12+e bits, the integer part; clear the rest.
+	if e < 64-12 {
+		b &^= 1<<(64-12-e) - 1
+	}
+	return Float64frombits(b)
 }
 
 // Round returns the nearest integer, rounding half away from zero.
