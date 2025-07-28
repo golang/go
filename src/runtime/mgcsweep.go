@@ -553,7 +553,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 	siter := newSpecialsIter(s)
 	for siter.valid() {
 		// A finalizer can be set for an inner byte of an object, find object beginning.
-		objIndex := uintptr(siter.s.offset) / size
+		objIndex := siter.s.offset / size
 		p := s.base() + objIndex*size
 		mbits := s.markBitsForIndex(objIndex)
 		if !mbits.isMarked() {
@@ -561,7 +561,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 			// Pass 1: see if it has a finalizer.
 			hasFinAndRevived := false
 			endOffset := p - s.base() + size
-			for tmp := siter.s; tmp != nil && uintptr(tmp.offset) < endOffset; tmp = tmp.next {
+			for tmp := siter.s; tmp != nil && tmp.offset < endOffset; tmp = tmp.next {
 				if tmp.kind == _KindSpecialFinalizer {
 					// Stop freeing of object if it has a finalizer.
 					mbits.setMarkedNonAtomic()
@@ -573,11 +573,11 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 				// Pass 2: queue all finalizers and clear any weak handles. Weak handles are cleared
 				// before finalization as specified by the weak package. See the documentation
 				// for that package for more details.
-				for siter.valid() && uintptr(siter.s.offset) < endOffset {
+				for siter.valid() && siter.s.offset < endOffset {
 					// Find the exact byte for which the special was setup
 					// (as opposed to object beginning).
 					special := siter.s
-					p := s.base() + uintptr(special.offset)
+					p := s.base() + special.offset
 					if special.kind == _KindSpecialFinalizer || special.kind == _KindSpecialWeakHandle {
 						siter.unlinkAndNext()
 						freeSpecial(special, unsafe.Pointer(p), size)
@@ -589,11 +589,11 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 				}
 			} else {
 				// Pass 2: the object is truly dead, free (and handle) all specials.
-				for siter.valid() && uintptr(siter.s.offset) < endOffset {
+				for siter.valid() && siter.s.offset < endOffset {
 					// Find the exact byte for which the special was setup
 					// (as opposed to object beginning).
 					special := siter.s
-					p := s.base() + uintptr(special.offset)
+					p := s.base() + special.offset
 					siter.unlinkAndNext()
 					freeSpecial(special, unsafe.Pointer(p), size)
 				}

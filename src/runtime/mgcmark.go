@@ -415,7 +415,7 @@ func gcScanFinalizer(spf *specialfinalizer, s *mspan, gcw *gcWork) {
 	// Don't mark finalized object, but scan it so we retain everything it points to.
 
 	// A finalizer can be set for an inner byte of an object, find object beginning.
-	p := s.base() + uintptr(spf.special.offset)/s.elemsize*s.elemsize
+	p := s.base() + spf.special.offset/s.elemsize*s.elemsize
 
 	// Mark everything that can be reached from
 	// the object (but *not* the object itself or

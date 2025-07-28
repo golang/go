@@ -42,7 +42,7 @@ func (tl traceLocker) eventWriter(goStatus tracev2.GoStatus, procStatus tracev2.
 		tl.writer().writeProcStatus(uint64(pp.id), procStatus, pp.trace.inSweep).end()
 	}
 	if gp := tl.mp.curg; gp != nil && !gp.trace.statusWasTraced(tl.gen) && gp.trace.acquireStatus(tl.gen) {
-		tl.writer().writeGoStatus(uint64(gp.goid), int64(tl.mp.procid), goStatus, gp.inMarkAssist, 0 /* no stack */).end()
+		tl.writer().writeGoStatus(gp.goid, int64(tl.mp.procid), goStatus, gp.inMarkAssist, 0 /* no stack */).end()
 	}
 	return traceEventWriter{tl}
 }

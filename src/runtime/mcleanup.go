@@ -173,14 +173,14 @@ func (c Cleanup) Stop() {
 				// Reached the end of the linked list. Stop searching at this point.
 				break
 			}
-			if offset == uintptr(s.offset) && _KindSpecialCleanup == s.kind &&
+			if offset == s.offset && _KindSpecialCleanup == s.kind &&
 				(*specialCleanup)(unsafe.Pointer(s)).id == c.id {
 				// The special is a cleanup and contains a matching cleanup id.
 				*iter = s.next
 				found = s
 				break
 			}
-			if offset < uintptr(s.offset) || (offset == uintptr(s.offset) && _KindSpecialCleanup < s.kind) {
+			if offset < s.offset || (offset == s.offset && _KindSpecialCleanup < s.kind) {
 				// The special is outside the region specified for that kind of
 				// special. The specials are sorted by kind.
 				break
