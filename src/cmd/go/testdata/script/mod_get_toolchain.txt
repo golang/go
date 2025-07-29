@@ -89,12 +89,14 @@ stderr '^go: added toolchain go1.24rc1$'
 grep 'go 1.22.9' go.mod  # no longer implied
 grep 'toolchain go1.24rc1' go.mod
 
-# go get toolchain@latest finds go1.999testmod.
+# go get toolchain@latest finds go1.23.9.
 cp go.mod.orig go.mod
 go get toolchain@latest
-stderr '^go: added toolchain go1.999testmod$'
+stderr '^go: added toolchain go1.23.9$'
 grep 'go 1.21' go.mod
-grep 'toolchain go1.999testmod' go.mod
+grep 'toolchain go1.23.9' go.mod
+
+
 
 # Bug fixes.
 
@@ -110,7 +112,7 @@ stderr '^go: upgraded go 1.19 => 1.21.0'
 
 # go get toolchain@1.24rc1 is OK too.
 go get toolchain@1.24rc1
-stderr '^go: downgraded toolchain go1.999testmod => go1.24rc1$'
+stderr '^go: downgraded toolchain go1.99rc1 => go1.24rc1$'
 
 # go get go@1.21 should work if we are the Go 1.21 language version,
 # even though there's no toolchain for it.
