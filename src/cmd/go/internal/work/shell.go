@@ -132,47 +132,11 @@ func (sh *Shell) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) e
 		return sh.CopyFile(dst, src, perm, force)
 	}
 
-	// On Windows, always copy the file, so that we respect the NTFS
-	// permissions of the parent folder. https://golang.org/issue/22343.
-	// What matters here is not cfg.Goos (the system we are building
-	// for) but runtime.GOOS (the system we are building on).
-	if runtime.GOOS == "windows" {
-		return sh.CopyFile(dst, src, perm, force)
-	}
-
-	// If the destination directory has the group sticky bit set,
-	// we have to copy the file to retain the correct permissions.
-	// https://golang.org/issue/18878
-	if fi, err := os.Stat(filepath.Dir(dst)); err == nil {
-		if fi.IsDir() && (fi.Mode()&fs.ModeSetgid) != 0 {
-			return sh.CopyFile(dst, src, perm, force)
+	if err := sh.move(src, dst, perm); err == nil {
+		if cfg.BuildX {
+			sh.ShowCmd("", "mv %s %s", src, dst)
 		}
-	}
-
-	// The perm argument is meant to be adjusted according to umask,
-	// but we don't know what the umask is.
-	// Create a dummy file to find out.
-	// This avoids build tags and works even on systems like Plan 9
-	// where the file mask computation incorporates other information.
-	mode := perm
-	f, err := os.OpenFile(filepath.Clean(dst)+"-go-tmp-umask", os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
-	if err == nil {
-		fi, err := f.Stat()
-		if err == nil {
-			mode = fi.Mode() & 0777
-		}
-		name := f.Name()
-		f.Close()
-		os.Remove(name)
-	}
-
-	if err := os.Chmod(src, mode); err == nil {
-		if err := os.Rename(src, dst); err == nil {
-			if cfg.BuildX {
-				sh.ShowCmd("", "mv %s %s", src, dst)
-			}
-			return nil
-		}
+		return nil
 	}
 
 	return sh.CopyFile(dst, src, perm, force)

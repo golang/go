@@ -262,3 +262,6 @@ func GetSidSubAuthorityCount(sid *syscall.SID) uint8 {
 	defer runtime.KeepAlive(sid)
 	return *(*uint8)(unsafe.Pointer(getSidSubAuthorityCount(sid)))
 }
+
+//sys	InitializeAcl(acl *ACL, length uint32, revision uint32) (err error) = advapi32.InitializeAcl
+//sys	SetNamedSecurityInfo(objectName string, objectType SE_OBJECT_TYPE, securityInformation SECURITY_INFORMATION, owner *syscall.SID, group *syscall.SID, dacl *ACL, sacl *ACL) (ret error) = advapi32.SetNamedSecurityInfoW
