@@ -69,7 +69,7 @@ func MapOf(key, elem Type) Type {
 	var imap any = (map[unsafe.Pointer]unsafe.Pointer)(nil)
 	mt := **(**mapType)(unsafe.Pointer(&imap))
 	mt.Str = resolveReflectName(newName(s, "", false, false))
-	mt.TFlag = 0
+	mt.TFlag = abi.TFlagDirectIface
 	mt.Hash = fnv1(etyp.Hash, 'm', byte(ktyp.Hash>>24), byte(ktyp.Hash>>16), byte(ktyp.Hash>>8), byte(ktyp.Hash))
 	mt.Key = ktyp
 	mt.Elem = etyp
