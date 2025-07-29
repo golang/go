@@ -872,7 +872,7 @@ func writeType(t *types.Type) *obj.LSym {
 		}
 
 	case types.TMAP:
-		writeSwissMapType(t, lsym, c)
+		writeMapType(t, lsym, c)
 
 	case types.TPTR:
 		// internal/abi.PtrType

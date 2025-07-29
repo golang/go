@@ -560,7 +560,7 @@ func (d *deadcodePass) decodetypeMethods(ldr *loader.Loader, arch *sys.Arch, sym
 	case abi.Chan: // reflect.chanType
 		off += 2 * arch.PtrSize
 	case abi.Map:
-		off += 7*arch.PtrSize + 4 // internal/abi.SwissMapType
+		off += 7*arch.PtrSize + 4 // internal/abi.MapType
 		if arch.PtrSize == 8 {
 			off += 4 // padding for final uint32 field (Flags).
 		}

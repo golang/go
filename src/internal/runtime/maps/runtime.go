@@ -53,7 +53,7 @@ var zeroVal [abi.ZeroValSize]byte
 // hold onto it for very long.
 //
 //go:linkname runtime_mapaccess1 runtime.mapaccess1
-func runtime_mapaccess1(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsafe.Pointer {
+func runtime_mapaccess1(typ *abi.MapType, m *Map, key unsafe.Pointer) unsafe.Pointer {
 	if race.Enabled && m != nil {
 		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
@@ -127,7 +127,7 @@ func runtime_mapaccess1(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsaf
 }
 
 //go:linkname runtime_mapaccess2 runtime.mapaccess2
-func runtime_mapaccess2(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) (unsafe.Pointer, bool) {
+func runtime_mapaccess2(typ *abi.MapType, m *Map, key unsafe.Pointer) (unsafe.Pointer, bool) {
 	if race.Enabled && m != nil {
 		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
@@ -201,7 +201,7 @@ func runtime_mapaccess2(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) (unsa
 }
 
 //go:linkname runtime_mapassign runtime.mapassign
-func runtime_mapassign(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsafe.Pointer {
+func runtime_mapassign(typ *abi.MapType, m *Map, key unsafe.Pointer) unsafe.Pointer {
 	if m == nil {
 		panic(errNilAssign)
 	}
@@ -232,7 +232,7 @@ func runtime_mapassign(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsafe
 	}
 
 	if m.dirLen == 0 {
-		if m.used < abi.SwissMapGroupSlots {
+		if m.used < abi.MapGroupSlots {
 			elem := m.putSlotSmall(typ, hash, key)
 
 			if m.writing == 0 {

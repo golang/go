@@ -313,7 +313,7 @@ func walkMakeChan(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 // walkMakeMap walks an OMAKEMAP node.
 func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 	t := n.Type()
-	mapType := reflectdata.SwissMapType()
+	mapType := reflectdata.MapType()
 	hint := n.Len
 
 	// var m *Map
@@ -326,28 +326,28 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		m = stackTempAddr(init, mapType)
 
 		// Allocate one group pointed to by m.dirPtr on stack if hint
-		// is not larger than SwissMapGroupSlots. In case hint is
+		// is not larger than MapGroupSlots. In case hint is
 		// larger, runtime.makemap will allocate on the heap.
 		// Maximum key and elem size is 128 bytes, larger objects
 		// are stored with an indirection. So max bucket size is 2048+eps.
 		if !ir.IsConst(hint, constant.Int) ||
-			constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.SwissMapGroupSlots)) {
+			constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.MapGroupSlots)) {
 
-			// In case hint is larger than SwissMapGroupSlots
+			// In case hint is larger than MapGroupSlots
 			// runtime.makemap will allocate on the heap, see
 			// #20184
 			//
-			// if hint <= abi.SwissMapGroupSlots {
+			// if hint <= abi.MapGroupSlots {
 			//     var gv group
 			//     g = &gv
-			//     g.ctrl = abi.SwissMapCtrlEmpty
+			//     g.ctrl = abi.MapCtrlEmpty
 			//     m.dirPtr = g
 			// }
 
-			nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLE, hint, ir.NewInt(base.Pos, abi.SwissMapGroupSlots)), nil, nil)
+			nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLE, hint, ir.NewInt(base.Pos, abi.MapGroupSlots)), nil, nil)
 			nif.Likely = true
 
-			groupType := reflectdata.SwissMapGroupType(t)
+			groupType := reflectdata.MapGroupType(t)
 
 			// var gv group
 			// g = &gv
@@ -355,9 +355,9 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 
 			// Can't use ir.NewInt because bit 63 is set, which
 			// makes conversion to uint64 upset.
-			empty := ir.NewBasicLit(base.Pos, types.UntypedInt, constant.MakeUint64(abi.SwissMapCtrlEmpty))
+			empty := ir.NewBasicLit(base.Pos, types.UntypedInt, constant.MakeUint64(abi.MapCtrlEmpty))
 
-			// g.ctrl = abi.SwissMapCtrlEmpty
+			// g.ctrl = abi.MapCtrlEmpty
 			csym := groupType.Field(0).Sym // g.ctrl see reflectdata/map.go
 			ca := ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, g, csym), empty)
 			nif.Body.Append(ca)
@@ -370,12 +370,12 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		}
 	}
 
-	if ir.IsConst(hint, constant.Int) && constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.SwissMapGroupSlots)) {
+	if ir.IsConst(hint, constant.Int) && constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.MapGroupSlots)) {
 		// Handling make(map[any]any) and
-		// make(map[any]any, hint) where hint <= abi.SwissMapGroupSlots
+		// make(map[any]any, hint) where hint <= abi.MapGroupSlots
 		// specially allows for faster map initialization and
 		// improves binary size by using calls with fewer arguments.
-		// For hint <= abi.SwissMapGroupSlots no groups will be
+		// For hint <= abi.MapGroupSlots no groups will be
 		// allocated by makemap. Therefore, no groups need to be
 		// allocated in this code path.
 		if n.Esc() == ir.EscNone {

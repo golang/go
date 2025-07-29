@@ -94,7 +94,7 @@ func InitConfig() {
 	_ = types.NewPtr(types.Types[types.TINT16])                             // *int16
 	_ = types.NewPtr(types.Types[types.TINT64])                             // *int64
 	_ = types.NewPtr(types.ErrorType)                                       // *error
-	_ = types.NewPtr(reflectdata.SwissMapType())                            // *internal/runtime/maps.Map
+	_ = types.NewPtr(reflectdata.MapType())                                 // *internal/runtime/maps.Map
 	_ = types.NewPtr(deferstruct())                                         // *runtime._defer
 	types.NewPtrCacheEnabled = false
 	ssaConfig = ssa.NewConfig(base.Ctxt.Arch.Name, *types_, base.Ctxt, base.Flag.N == 0, Arch.SoftFloat)
@@ -3080,7 +3080,7 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		}
 
 		// map <--> *internal/runtime/maps.Map
-		mt := types.NewPtr(reflectdata.SwissMapType())
+		mt := types.NewPtr(reflectdata.MapType())
 		if to.Kind() == types.TMAP && from == mt {
 			return v
 		}
@@ -5752,7 +5752,7 @@ func (s *state) referenceTypeBuiltin(n *ir.UnaryExpr, x *ssa.Value) *ssa.Value {
 	case ir.OLEN:
 		if n.X.Type().IsMap() {
 			// length is stored in the first word, but needs conversion to int.
-			loadType := reflectdata.SwissMapType().Field(0).Type // uint64
+			loadType := reflectdata.MapType().Field(0).Type // uint64
 			load := s.load(loadType, x)
 			s.vars[n] = s.conv(nil, load, loadType, lenType) // integer conversion doesn't need Node
 		} else {

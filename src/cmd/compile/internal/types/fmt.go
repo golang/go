@@ -474,7 +474,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			// Format the bucket struct for map[x]y as map.group[x]y.
 			// This avoids a recursive print that generates very long names.
 			switch t {
-			case mt.SwissGroup:
+			case mt.Group:
 				b.WriteString("map.group[")
 			default:
 				base.Fatalf("unknown internal map type")

@@ -280,7 +280,7 @@ type Map struct {
 	Key  *Type // Key type
 	Elem *Type // Val (elem) type
 
-	SwissGroup *Type // internal struct type representing a slot group
+	Group *Type // internal struct type representing a slot group
 }
 
 // MapType returns t's extra map-specific fields.

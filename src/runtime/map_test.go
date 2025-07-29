@@ -1157,7 +1157,7 @@ func TestHmapSize(t *testing.T) {
 func TestGroupSizeZero(t *testing.T) {
 	var m map[struct{}]struct{}
 	mTyp := abi.TypeOf(m)
-	mt := (*abi.SwissMapType)(unsafe.Pointer(mTyp))
+	mt := (*abi.MapType)(unsafe.Pointer(mTyp))
 
 	// internal/runtime/maps when create pointers to slots, even if slots
 	// are size 0. The compiler should have reserved an extra word to

@@ -12,24 +12,24 @@ import (
 // runtime/runtime-gdb.py:MapTypePrinter contains its own copy
 const (
 	// Number of bits in the group.slot count.
-	SwissMapGroupSlotsBits = 3
+	MapGroupSlotsBits = 3
 
 	// Number of slots in a group.
-	SwissMapGroupSlots = 1 << SwissMapGroupSlotsBits // 8
+	MapGroupSlots = 1 << MapGroupSlotsBits // 8
 
 	// Maximum key or elem size to keep inline (instead of mallocing per element).
 	// Must fit in a uint8.
-	SwissMapMaxKeyBytes  = 128
-	SwissMapMaxElemBytes = 128
+	MapMaxKeyBytes  = 128
+	MapMaxElemBytes = 128
 
 	ctrlEmpty = 0b10000000
 	bitsetLSB = 0x0101010101010101
 
 	// Value of control word with all empty slots.
-	SwissMapCtrlEmpty = bitsetLSB * uint64(ctrlEmpty)
+	MapCtrlEmpty = bitsetLSB * uint64(ctrlEmpty)
 )
 
-type SwissMapType struct {
+type MapType struct {
 	Type
 	Key   *Type
 	Elem  *Type
@@ -44,21 +44,21 @@ type SwissMapType struct {
 
 // Flag values
 const (
-	SwissMapNeedKeyUpdate = 1 << iota
-	SwissMapHashMightPanic
-	SwissMapIndirectKey
-	SwissMapIndirectElem
+	MapNeedKeyUpdate = 1 << iota
+	MapHashMightPanic
+	MapIndirectKey
+	MapIndirectElem
 )
 
-func (mt *SwissMapType) NeedKeyUpdate() bool { // true if we need to update key on an overwrite
-	return mt.Flags&SwissMapNeedKeyUpdate != 0
+func (mt *MapType) NeedKeyUpdate() bool { // true if we need to update key on an overwrite
+	return mt.Flags&MapNeedKeyUpdate != 0
 }
-func (mt *SwissMapType) HashMightPanic() bool { // true if hash function might panic
-	return mt.Flags&SwissMapHashMightPanic != 0
+func (mt *MapType) HashMightPanic() bool { // true if hash function might panic
+	return mt.Flags&MapHashMightPanic != 0
 }
-func (mt *SwissMapType) IndirectKey() bool { // store ptr to key instead of key itself
-	return mt.Flags&SwissMapIndirectKey != 0
+func (mt *MapType) IndirectKey() bool { // store ptr to key instead of key itself
+	return mt.Flags&MapIndirectKey != 0
 }
-func (mt *SwissMapType) IndirectElem() bool { // store ptr to elem instead of elem itself
-	return mt.Flags&SwissMapIndirectElem != 0
+func (mt *MapType) IndirectElem() bool { // store ptr to elem instead of elem itself
+	return mt.Flags&MapIndirectElem != 0
 }

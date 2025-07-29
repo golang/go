@@ -20,7 +20,7 @@ const (
 //go:linkname maps_errNilAssign internal/runtime/maps.errNilAssign
 var maps_errNilAssign error = plainError("assignment to entry in nil map")
 
-func makemap64(t *abi.SwissMapType, hint int64, m *maps.Map) *maps.Map {
+func makemap64(t *abi.MapType, hint int64, m *maps.Map) *maps.Map {
 	if int64(int(hint)) != hint {
 		hint = 0
 	}
@@ -28,7 +28,7 @@ func makemap64(t *abi.SwissMapType, hint int64, m *maps.Map) *maps.Map {
 }
 
 // makemap_small implements Go map creation for make(map[k]v) and
-// make(map[k]v, hint) when hint is known to be at most abi.SwissMapGroupSlots
+// make(map[k]v, hint) when hint is known to be at most abi.MapGroupSlots
 // at compile time and the map needs to be allocated on the heap.
 //
 // makemap_small should be an internal detail,
@@ -59,7 +59,7 @@ func makemap_small() *maps.Map {
 // See go.dev/issue/67401.
 //
 //go:linkname makemap
-func makemap(t *abi.SwissMapType, hint int, m *maps.Map) *maps.Map {
+func makemap(t *abi.MapType, hint int, m *maps.Map) *maps.Map {
 	if hint < 0 {
 		hint = 0
 	}
@@ -77,7 +77,7 @@ func makemap(t *abi.SwissMapType, hint int, m *maps.Map) *maps.Map {
 // we want to avoid one layer of call.
 //
 //go:linkname mapaccess1
-func mapaccess1(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer
+func mapaccess1(t *abi.MapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer
 
 // mapaccess2 should be an internal detail,
 // but widely used packages access it using linkname.
@@ -88,9 +88,9 @@ func mapaccess1(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Poi
 // See go.dev/issue/67401.
 //
 //go:linkname mapaccess2
-func mapaccess2(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) (unsafe.Pointer, bool)
+func mapaccess2(t *abi.MapType, m *maps.Map, key unsafe.Pointer) (unsafe.Pointer, bool)
 
-func mapaccess1_fat(t *abi.SwissMapType, m *maps.Map, key, zero unsafe.Pointer) unsafe.Pointer {
+func mapaccess1_fat(t *abi.MapType, m *maps.Map, key, zero unsafe.Pointer) unsafe.Pointer {
 	e := mapaccess1(t, m, key)
 	if e == unsafe.Pointer(&zeroVal[0]) {
 		return zero
@@ -98,7 +98,7 @@ func mapaccess1_fat(t *abi.SwissMapType, m *maps.Map, key, zero unsafe.Pointer) 
 	return e
 }
 
-func mapaccess2_fat(t *abi.SwissMapType, m *maps.Map, key, zero unsafe.Pointer) (unsafe.Pointer, bool) {
+func mapaccess2_fat(t *abi.MapType, m *maps.Map, key, zero unsafe.Pointer) (unsafe.Pointer, bool) {
 	e := mapaccess1(t, m, key)
 	if e == unsafe.Pointer(&zeroVal[0]) {
 		return zero, false
@@ -121,7 +121,7 @@ func mapaccess2_fat(t *abi.SwissMapType, m *maps.Map, key, zero unsafe.Pointer) 
 // See go.dev/issue/67401.
 //
 //go:linkname mapassign
-func mapassign(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer
+func mapassign(t *abi.MapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer
 
 // mapdelete should be an internal detail,
 // but widely used packages access it using linkname.
@@ -132,7 +132,7 @@ func mapassign(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Poin
 // See go.dev/issue/67401.
 //
 //go:linkname mapdelete
-func mapdelete(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) {
+func mapdelete(t *abi.MapType, m *maps.Map, key unsafe.Pointer) {
 	if raceenabled && m != nil {
 		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(mapdelete)
@@ -153,7 +153,7 @@ func mapdelete(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) {
 // performs the first step of iteration. The Iter struct pointed to by 'it' is
 // allocated on the stack by the compilers order pass or on the heap by
 // reflect. Both need to have zeroed it since the struct contains pointers.
-func mapIterStart(t *abi.SwissMapType, m *maps.Map, it *maps.Iter) {
+func mapIterStart(t *abi.MapType, m *maps.Map, it *maps.Iter) {
 	if raceenabled && m != nil {
 		callerpc := sys.GetCallerPC()
 		racereadpc(unsafe.Pointer(m), callerpc, abi.FuncPCABIInternal(mapIterStart))
@@ -175,7 +175,7 @@ func mapIterNext(it *maps.Iter) {
 }
 
 // mapclear deletes all keys from a map.
-func mapclear(t *abi.SwissMapType, m *maps.Map) {
+func mapclear(t *abi.MapType, m *maps.Map) {
 	if raceenabled && m != nil {
 		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(mapclear)
@@ -201,7 +201,7 @@ func mapclear(t *abi.SwissMapType, m *maps.Map) {
 // See go.dev/issue/67401.
 //
 //go:linkname reflect_makemap reflect.makemap
-func reflect_makemap(t *abi.SwissMapType, cap int) *maps.Map {
+func reflect_makemap(t *abi.MapType, cap int) *maps.Map {
 	// Check invariants and reflects math.
 	if t.Key.Equal == nil {
 		throw("runtime.reflect_makemap: unsupported map key type")
@@ -222,7 +222,7 @@ func reflect_makemap(t *abi.SwissMapType, cap int) *maps.Map {
 // See go.dev/issue/67401.
 //
 //go:linkname reflect_mapaccess reflect.mapaccess
-func reflect_mapaccess(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer {
+func reflect_mapaccess(t *abi.MapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer {
 	elem, ok := mapaccess2(t, m, key)
 	if !ok {
 		// reflect wants nil for a missing element
@@ -232,7 +232,7 @@ func reflect_mapaccess(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) uns
 }
 
 //go:linkname reflect_mapaccess_faststr reflect.mapaccess_faststr
-func reflect_mapaccess_faststr(t *abi.SwissMapType, m *maps.Map, key string) unsafe.Pointer {
+func reflect_mapaccess_faststr(t *abi.MapType, m *maps.Map, key string) unsafe.Pointer {
 	elem, ok := mapaccess2_faststr(t, m, key)
 	if !ok {
 		// reflect wants nil for a missing element
@@ -250,24 +250,24 @@ func reflect_mapaccess_faststr(t *abi.SwissMapType, m *maps.Map, key string) uns
 // Do not remove or change the type signature.
 //
 //go:linkname reflect_mapassign reflect.mapassign0
-func reflect_mapassign(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer, elem unsafe.Pointer) {
+func reflect_mapassign(t *abi.MapType, m *maps.Map, key unsafe.Pointer, elem unsafe.Pointer) {
 	p := mapassign(t, m, key)
 	typedmemmove(t.Elem, p, elem)
 }
 
 //go:linkname reflect_mapassign_faststr reflect.mapassign_faststr0
-func reflect_mapassign_faststr(t *abi.SwissMapType, m *maps.Map, key string, elem unsafe.Pointer) {
+func reflect_mapassign_faststr(t *abi.MapType, m *maps.Map, key string, elem unsafe.Pointer) {
 	p := mapassign_faststr(t, m, key)
 	typedmemmove(t.Elem, p, elem)
 }
 
 //go:linkname reflect_mapdelete reflect.mapdelete
-func reflect_mapdelete(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) {
+func reflect_mapdelete(t *abi.MapType, m *maps.Map, key unsafe.Pointer) {
 	mapdelete(t, m, key)
 }
 
 //go:linkname reflect_mapdelete_faststr reflect.mapdelete_faststr
-func reflect_mapdelete_faststr(t *abi.SwissMapType, m *maps.Map, key string) {
+func reflect_mapdelete_faststr(t *abi.MapType, m *maps.Map, key string) {
 	mapdelete_faststr(t, m, key)
 }
 
@@ -293,7 +293,7 @@ func reflect_maplen(m *maps.Map) int {
 }
 
 //go:linkname reflect_mapclear reflect.mapclear
-func reflect_mapclear(t *abi.SwissMapType, m *maps.Map) {
+func reflect_mapclear(t *abi.MapType, m *maps.Map) {
 	mapclear(t, m)
 }
 
@@ -321,7 +321,7 @@ func mapinitnoop()
 //go:linkname mapclone maps.clone
 func mapclone(m any) any {
 	e := efaceOf(&m)
-	typ := (*abi.SwissMapType)(unsafe.Pointer(e._type))
+	typ := (*abi.MapType)(unsafe.Pointer(e._type))
 	map_ := (*maps.Map)(e.data)
 	map_ = map_.Clone(typ)
 	e.data = (unsafe.Pointer)(map_)

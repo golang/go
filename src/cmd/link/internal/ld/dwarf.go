@@ -884,7 +884,7 @@ func (d *dwctxt) synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
 
 		keyType := decodetypeMapKey(d.ldr, d.arch, gotype)
 		valType := decodetypeMapValue(d.ldr, d.arch, gotype)
-		groupType := decodetypeMapSwissGroup(d.ldr, d.arch, gotype)
+		groupType := decodetypeMapGroup(d.ldr, d.arch, gotype)
 
 		keyType = d.walksymtypedef(d.defgotype(keyType))
 		valType = d.walksymtypedef(d.defgotype(valType))
@@ -1922,10 +1922,10 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		"type:internal/abi.ArrayType",
 		"type:internal/abi.ChanType",
 		"type:internal/abi.FuncType",
+		"type:internal/abi.MapType",
 		"type:internal/abi.PtrType",
 		"type:internal/abi.SliceType",
 		"type:internal/abi.StructType",
-		"type:internal/abi.SwissMapType",
 		"type:internal/abi.InterfaceType",
 		"type:internal/abi.ITab",
 		"type:internal/abi.Imethod"} {

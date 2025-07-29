@@ -12,7 +12,7 @@ import (
 )
 
 //go:linkname runtime_mapaccess1_fast64 runtime.mapaccess1_fast64
-func runtime_mapaccess1_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe.Pointer {
+func runtime_mapaccess1_fast64(typ *abi.MapType, m *Map, key uint64) unsafe.Pointer {
 	if race.Enabled && m != nil {
 		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(runtime_mapaccess1_fast64)
@@ -81,7 +81,7 @@ func runtime_mapaccess1_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe
 }
 
 //go:linkname runtime_mapaccess2_fast64 runtime.mapaccess2_fast64
-func runtime_mapaccess2_fast64(typ *abi.SwissMapType, m *Map, key uint64) (unsafe.Pointer, bool) {
+func runtime_mapaccess2_fast64(typ *abi.MapType, m *Map, key uint64) (unsafe.Pointer, bool) {
 	if race.Enabled && m != nil {
 		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(runtime_mapaccess2_fast64)
@@ -149,7 +149,7 @@ func runtime_mapaccess2_fast64(typ *abi.SwissMapType, m *Map, key uint64) (unsaf
 	}
 }
 
-func (m *Map) putSlotSmallFast64(typ *abi.SwissMapType, hash uintptr, key uint64) unsafe.Pointer {
+func (m *Map) putSlotSmallFast64(typ *abi.MapType, hash uintptr, key uint64) unsafe.Pointer {
 	g := groupReference{
 		data: m.dirPtr,
 	}
@@ -190,7 +190,7 @@ func (m *Map) putSlotSmallFast64(typ *abi.SwissMapType, hash uintptr, key uint64
 }
 
 //go:linkname runtime_mapassign_fast64 runtime.mapassign_fast64
-func runtime_mapassign_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe.Pointer {
+func runtime_mapassign_fast64(typ *abi.MapType, m *Map, key uint64) unsafe.Pointer {
 	if m == nil {
 		panic(errNilAssign)
 	}
@@ -215,7 +215,7 @@ func runtime_mapassign_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe.
 	}
 
 	if m.dirLen == 0 {
-		if m.used < abi.SwissMapGroupSlots {
+		if m.used < abi.MapGroupSlots {
 			elem := m.putSlotSmallFast64(typ, hash, key)
 
 			if m.writing == 0 {
@@ -324,7 +324,7 @@ outer:
 	return slotElem
 }
 
-func (m *Map) putSlotSmallFastPtr(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointer) unsafe.Pointer {
+func (m *Map) putSlotSmallFastPtr(typ *abi.MapType, hash uintptr, key unsafe.Pointer) unsafe.Pointer {
 	g := groupReference{
 		data: m.dirPtr,
 	}
@@ -367,7 +367,7 @@ func (m *Map) putSlotSmallFastPtr(typ *abi.SwissMapType, hash uintptr, key unsaf
 // Key is a 64-bit pointer (only called on 64-bit GOARCH).
 //
 //go:linkname runtime_mapassign_fast64ptr runtime.mapassign_fast64ptr
-func runtime_mapassign_fast64ptr(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsafe.Pointer {
+func runtime_mapassign_fast64ptr(typ *abi.MapType, m *Map, key unsafe.Pointer) unsafe.Pointer {
 	if m == nil {
 		panic(errNilAssign)
 	}
@@ -392,7 +392,7 @@ func runtime_mapassign_fast64ptr(typ *abi.SwissMapType, m *Map, key unsafe.Point
 	}
 
 	if m.dirLen == 0 {
-		if m.used < abi.SwissMapGroupSlots {
+		if m.used < abi.MapGroupSlots {
 			elem := m.putSlotSmallFastPtr(typ, hash, key)
 
 			if m.writing == 0 {
@@ -497,7 +497,7 @@ outer:
 }
 
 //go:linkname runtime_mapdelete_fast64 runtime.mapdelete_fast64
-func runtime_mapdelete_fast64(typ *abi.SwissMapType, m *Map, key uint64) {
+func runtime_mapdelete_fast64(typ *abi.MapType, m *Map, key uint64) {
 	if race.Enabled {
 		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(runtime_mapdelete_fast64)

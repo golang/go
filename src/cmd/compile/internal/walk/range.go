@@ -246,7 +246,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		hit := nrange.Prealloc
 		th := hit.Type()
 		// depends on layout of iterator struct.
-		// See cmd/compile/internal/reflectdata/map.go:SwissMapIterType
+		// See cmd/compile/internal/reflectdata/map.go:MapIterType
 		keysym := th.Field(0).Sym
 		elemsym := th.Field(1).Sym // ditto
 		iterInit := "mapIterStart"

@@ -61,7 +61,7 @@ type linknameIter struct {
 	// Fields from hiter.
 	key  unsafe.Pointer
 	elem unsafe.Pointer
-	typ  *abi.SwissMapType
+	typ  *abi.MapType
 
 	// The real iterator.
 	it *maps.Iter
@@ -85,7 +85,7 @@ type linknameIter struct {
 // See go.dev/issue/67401.
 //
 //go:linkname mapiterinit
-func mapiterinit(t *abi.SwissMapType, m *maps.Map, it *linknameIter) {
+func mapiterinit(t *abi.MapType, m *maps.Map, it *linknameIter) {
 	if raceenabled && m != nil {
 		callerpc := sys.GetCallerPC()
 		racereadpc(unsafe.Pointer(m), callerpc, abi.FuncPCABIInternal(mapiterinit))
@@ -117,7 +117,7 @@ func mapiterinit(t *abi.SwissMapType, m *maps.Map, it *linknameIter) {
 // See go.dev/issue/67401.
 //
 //go:linkname reflect_mapiterinit reflect.mapiterinit
-func reflect_mapiterinit(t *abi.SwissMapType, m *maps.Map, it *linknameIter) {
+func reflect_mapiterinit(t *abi.MapType, m *maps.Map, it *linknameIter) {
 	mapiterinit(t, m, it)
 }
 

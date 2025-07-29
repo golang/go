@@ -13,7 +13,7 @@ import (
 // Functions below pushed from internal/runtime/maps.
 
 //go:linkname mapaccess1_faststr
-func mapaccess1_faststr(t *abi.SwissMapType, m *maps.Map, ky string) unsafe.Pointer
+func mapaccess1_faststr(t *abi.MapType, m *maps.Map, ky string) unsafe.Pointer
 
 // mapaccess2_faststr should be an internal detail,
 // but widely used packages access it using linkname.
@@ -24,7 +24,7 @@ func mapaccess1_faststr(t *abi.SwissMapType, m *maps.Map, ky string) unsafe.Poin
 // See go.dev/issue/67401.
 //
 //go:linkname mapaccess2_faststr
-func mapaccess2_faststr(t *abi.SwissMapType, m *maps.Map, ky string) (unsafe.Pointer, bool)
+func mapaccess2_faststr(t *abi.MapType, m *maps.Map, ky string) (unsafe.Pointer, bool)
 
 // mapassign_faststr should be an internal detail,
 // but widely used packages access it using linkname.
@@ -36,7 +36,7 @@ func mapaccess2_faststr(t *abi.SwissMapType, m *maps.Map, ky string) (unsafe.Poi
 // See go.dev/issue/67401.
 //
 //go:linkname mapassign_faststr
-func mapassign_faststr(t *abi.SwissMapType, m *maps.Map, s string) unsafe.Pointer
+func mapassign_faststr(t *abi.MapType, m *maps.Map, s string) unsafe.Pointer
 
 //go:linkname mapdelete_faststr
-func mapdelete_faststr(t *abi.SwissMapType, m *maps.Map, ky string)
+func mapdelete_faststr(t *abi.MapType, m *maps.Map, ky string)

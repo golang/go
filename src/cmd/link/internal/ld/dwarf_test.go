@@ -60,10 +60,10 @@ func TestRuntimeTypesPresent(t *testing.T) {
 		"internal/abi.ArrayType":     true,
 		"internal/abi.ChanType":      true,
 		"internal/abi.FuncType":      true,
+		"internal/abi.MapType":       true,
 		"internal/abi.PtrType":       true,
 		"internal/abi.SliceType":     true,
 		"internal/abi.StructType":    true,
-		"internal/abi.SwissMapType":  true,
 		"internal/abi.InterfaceType": true,
 		"internal/abi.ITab":          true,
 	}

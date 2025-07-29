@@ -12,7 +12,7 @@ import (
 	"unsafe"
 )
 
-func (m *Map) getWithoutKeySmallFastStr(typ *abi.SwissMapType, key string) unsafe.Pointer {
+func (m *Map) getWithoutKeySmallFastStr(typ *abi.MapType, key string) unsafe.Pointer {
 	g := groupReference{
 		data: m.dirPtr,
 	}
@@ -27,10 +27,10 @@ func (m *Map) getWithoutKeySmallFastStr(typ *abi.SwissMapType, key string) unsaf
 	// for strings that are long enough that hashing is expensive.
 	if len(key) > 64 {
 		// String hashing and equality might be expensive. Do a quick check first.
-		j := abi.SwissMapGroupSlots
-		for i := range abi.SwissMapGroupSlots {
+		j := abi.MapGroupSlots
+		for i := range abi.MapGroupSlots {
 			if ctrls&(1<<7) == 0 && longStringQuickEqualityTest(key, *(*string)(slotKey)) {
-				if j < abi.SwissMapGroupSlots {
+				if j < abi.MapGroupSlots {
 					// 2 strings both passed the quick equality test.
 					// Break out of this loop and do it the slow way.
 					goto dohash
@@ -40,7 +40,7 @@ func (m *Map) getWithoutKeySmallFastStr(typ *abi.SwissMapType, key string) unsaf
 			slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
 			ctrls >>= 8
 		}
-		if j == abi.SwissMapGroupSlots {
+		if j == abi.MapGroupSlots {
 			// No slot passed the quick test.
 			return nil
 		}
@@ -59,7 +59,7 @@ dohash:
 	ctrls = *g.ctrls()
 	slotKey = g.key(typ, 0)
 
-	for range abi.SwissMapGroupSlots {
+	for range abi.MapGroupSlots {
 		if uint8(ctrls) == h2 && key == *(*string)(slotKey) {
 			return unsafe.Pointer(uintptr(slotKey) + 2*goarch.PtrSize)
 		}
@@ -98,7 +98,7 @@ func stringPtr(s string) unsafe.Pointer {
 }
 
 //go:linkname runtime_mapaccess1_faststr runtime.mapaccess1_faststr
-func runtime_mapaccess1_faststr(typ *abi.SwissMapType, m *Map, key string) unsafe.Pointer {
+func runtime_mapaccess1_faststr(typ *abi.MapType, m *Map, key string) unsafe.Pointer {
 	if race.Enabled && m != nil {
 		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(runtime_mapaccess1_faststr)
@@ -157,7 +157,7 @@ func runtime_mapaccess1_faststr(typ *abi.SwissMapType, m *Map, key string) unsaf
 }
 
 //go:linkname runtime_mapaccess2_faststr runtime.mapaccess2_faststr
-func runtime_mapaccess2_faststr(typ *abi.SwissMapType, m *Map, key string) (unsafe.Pointer, bool) {
+func runtime_mapaccess2_faststr(typ *abi.MapType, m *Map, key string) (unsafe.Pointer, bool) {
 	if race.Enabled && m != nil {
 		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(runtime_mapaccess2_faststr)
@@ -215,7 +215,7 @@ func runtime_mapaccess2_faststr(typ *abi.SwissMapType, m *Map, key string) (unsa
 	}
 }
 
-func (m *Map) putSlotSmallFastStr(typ *abi.SwissMapType, hash uintptr, key string) unsafe.Pointer {
+func (m *Map) putSlotSmallFastStr(typ *abi.MapType, hash uintptr, key string) unsafe.Pointer {
 	g := groupReference{
 		data: m.dirPtr,
 	}
@@ -258,7 +258,7 @@ func (m *Map) putSlotSmallFastStr(typ *abi.SwissMapType, hash uintptr, key strin
 }
 
 //go:linkname runtime_mapassign_faststr runtime.mapassign_faststr
-func runtime_mapassign_faststr(typ *abi.SwissMapType, m *Map, key string) unsafe.Pointer {
+func runtime_mapassign_faststr(typ *abi.MapType, m *Map, key string) unsafe.Pointer {
 	if m == nil {
 		panic(errNilAssign)
 	}
@@ -283,7 +283,7 @@ func runtime_mapassign_faststr(typ *abi.SwissMapType, m *Map, key string) unsafe
 	}
 
 	if m.dirLen == 0 {
-		if m.used < abi.SwissMapGroupSlots {
+		if m.used < abi.MapGroupSlots {
 			elem := m.putSlotSmallFastStr(typ, hash, key)
 
 			if m.writing == 0 {
@@ -396,7 +396,7 @@ outer:
 }
 
 //go:linkname runtime_mapdelete_faststr runtime.mapdelete_faststr
-func runtime_mapdelete_faststr(typ *abi.SwissMapType, m *Map, key string) {
+func runtime_mapdelete_faststr(typ *abi.MapType, m *Map, key string) {
 	if race.Enabled {
 		callerpc := sys.GetCallerPC()
 		pc := abi.FuncPCABIInternal(runtime_mapdelete_faststr)

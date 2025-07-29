@@ -50,7 +50,7 @@ func comparableHash[T comparable](v T, seed Seed) uint64 {
 	s := seed.s
 	var m map[T]struct{}
 	mTyp := abi.TypeOf(m)
-	hasher := (*abi.SwissMapType)(unsafe.Pointer(mTyp)).Hasher
+	hasher := (*abi.MapType)(unsafe.Pointer(mTyp)).Hasher
 	if goarch.PtrSize == 8 {
 		return uint64(hasher(abi.NoEscape(unsafe.Pointer(&v)), uintptr(s)))
 	}

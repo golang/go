@@ -15,8 +15,8 @@ import (
 
 func TestCtrlSize(t *testing.T) {
 	cs := unsafe.Sizeof(maps.CtrlGroup(0))
-	if cs != abi.SwissMapGroupSlots {
-		t.Errorf("ctrlGroup size got %d want abi.SwissMapGroupSlots %d", cs, abi.SwissMapGroupSlots)
+	if cs != abi.MapGroupSlots {
+		t.Errorf("ctrlGroup size got %d want abi.MapGroupSlots %d", cs, abi.MapGroupSlots)
 	}
 }
 
@@ -630,7 +630,7 @@ func TestMapZeroSizeSlot(t *testing.T) {
 }
 
 func TestMapIndirect(t *testing.T) {
-	type big [abi.SwissMapMaxKeyBytes + abi.SwissMapMaxElemBytes]byte
+	type big [abi.MapMaxKeyBytes + abi.MapMaxElemBytes]byte
 
 	m, typ := maps.NewTestMap[big, big](8)
 
@@ -711,8 +711,8 @@ func escape[T any](x T) T {
 }
 
 const (
-	belowMax = abi.SwissMapGroupSlots * 3 / 2                                               // 1.5 * group max = 2 groups @ 75%
-	atMax    = (2 * abi.SwissMapGroupSlots * maps.MaxAvgGroupLoad) / abi.SwissMapGroupSlots // 2 groups at 7/8 full.
+	belowMax = abi.MapGroupSlots * 3 / 2                                          // 1.5 * group max = 2 groups @ 75%
+	atMax    = (2 * abi.MapGroupSlots * maps.MaxAvgGroupLoad) / abi.MapGroupSlots // 2 groups at 7/8 full.
 )
 
 func TestTableGroupCount(t *testing.T) {
@@ -767,7 +767,7 @@ func TestTableGroupCount(t *testing.T) {
 			},
 		},
 		{
-			n: abi.SwissMapGroupSlots,
+			n: abi.MapGroupSlots,
 			escape: mapCase{
 				initialLit:  mapCount{0, 0},
 				initialHint: mapCount{0, 0},
@@ -775,7 +775,7 @@ func TestTableGroupCount(t *testing.T) {
 			},
 		},
 		{
-			n: abi.SwissMapGroupSlots + 1,
+			n: abi.MapGroupSlots + 1,
 			escape: mapCase{
 				initialLit:  mapCount{0, 0},
 				initialHint: mapCount{1, 2},
