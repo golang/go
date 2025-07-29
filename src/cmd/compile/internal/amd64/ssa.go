@@ -144,6 +144,15 @@ func memIdx(a *obj.Addr, v *ssa.Value) {
 
 // DUFFZERO consists of repeated blocks of 4 MOVUPSs + LEAQ,
 // See runtime/mkduff.go.
+const (
+	dzBlocks    = 16 // number of MOV/ADD blocks
+	dzBlockLen  = 4  // number of clears per block
+	dzBlockSize = 23 // size of instructions in a single block
+	dzMovSize   = 5  // size of single MOV instruction w/ offset
+	dzLeaqSize  = 4  // size of single LEAQ instruction
+	dzClearStep = 16 // number of bytes cleared by each MOV instruction
+)
+
 func duffStart(size int64) int64 {
 	x, _ := duff(size)
 	return x

@@ -182,8 +182,8 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.UnaryExpr)
 		return mkcall("gopanic", nil, init, n.X)
 
-	case ir.ORECOVERFP:
-		return walkRecoverFP(n.(*ir.CallExpr), init)
+	case ir.ORECOVER:
+		return walkRecover(n.(*ir.CallExpr), init)
 
 	case ir.OCFUNC:
 		return n

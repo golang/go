@@ -138,12 +138,10 @@ func (d *Decoder) Reset(r io.Reader, opts ...Options) {
 	case d.s.Flags.Get(jsonflags.WithinArshalCall):
 		panic("jsontext: cannot reset Decoder passed to json.UnmarshalerFrom")
 	}
-	// If the decoder was previously aliasing a bytes.Buffer,
-	// invalidate the alias to avoid writing into the bytes.Buffer's
-	// internal buffer.
+	// Reuse the buffer if it does not alias a previous [bytes.Buffer].
 	b := d.s.buf[:0]
 	if _, ok := d.s.rd.(*bytes.Buffer); ok {
-		b = nil // avoid reusing b since it aliases the previous bytes.Buffer.
+		b = nil
 	}
 	d.s.reset(b, r, opts...)
 }

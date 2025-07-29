@@ -234,7 +234,6 @@ const (
 	OSLICEHEADER      // sliceheader{Ptr, Len, Cap} (Ptr is unsafe.Pointer, Len is length, Cap is capacity)
 	OSTRINGHEADER     // stringheader{Ptr, Len} (Ptr is unsafe.Pointer, Len is length)
 	ORECOVER          // recover()
-	ORECOVERFP        // recover(Args) w/ explicit FP argument
 	ORECV             // <-X
 	ORUNESTR          // Type(X) (Type is string, X is rune)
 	OSELRECV2         // like OAS2: Lhs = Rhs where len(Lhs)=2, len(Rhs)=1, Rhs[0].Op = ORECV (appears as .Var of OCASE)

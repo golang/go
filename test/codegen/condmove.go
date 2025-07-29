@@ -459,7 +459,7 @@ func cmovmathadd(a uint, b bool) uint {
 	// amd64:"ADDQ", -"CMOV"
 	// arm64:"CSINC", -"CSEL"
 	// ppc64x:"ADD", -"ISEL"
-	// wasm:"Add", "-Select"
+	// wasm:"I64Add", -"Select"
 	return a
 }
 
@@ -470,7 +470,7 @@ func cmovmathsub(a uint, b bool) uint {
 	// amd64:"SUBQ", -"CMOV"
 	// arm64:"SUB", -"CSEL"
 	// ppc64x:"SUB", -"ISEL"
-	// wasm:"Sub", "-Select"
+	// wasm:"I64Sub", -"Select"
 	return a
 }
 
@@ -481,18 +481,19 @@ func cmovmathdouble(a uint, b bool) uint {
 	// amd64:"SHL", -"CMOV"
 	// amd64/v3:"SHL", -"CMOV", -"MOV"
 	// arm64:"LSL", -"CSEL"
-	// wasm:"Shl", "-Select"
+	// wasm:"I64Shl", -"Select"
 	return a
 }
 
 func cmovmathhalvei(a int, b bool) int {
 	if b {
-		// For some reason on arm64 it attributes the ASR to inside this block rather than where the Phi node is.
+		// For some reason the compiler attributes the shift to inside this block rather than where the Phi node is.
 		// arm64:"ASR", -"CSEL"
+		// wasm:"I64ShrS", -"Select"
 		a /= 2
 	}
 	// arm64:-"CSEL"
-	// wasm:"Shr", "-Select"
+	// wasm:-"Select"
 	return a
 }
 
@@ -503,6 +504,6 @@ func cmovmathhalveu(a uint, b bool) uint {
 	// amd64:"SHR", -"CMOV"
 	// amd64/v3:"SHR", -"CMOV", -"MOV"
 	// arm64:"LSR", -"CSEL"
-	// wasm:"Shr", "-Select"
+	// wasm:"I64ShrU", -"Select"
 	return a
 }

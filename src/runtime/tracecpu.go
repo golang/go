@@ -258,7 +258,7 @@ func traceCPUSample(gp *g, mp *m, pp *p, stk []uintptr) {
 	if gp != nil {
 		hdr[1] = gp.goid
 	}
-	hdr[2] = uint64(mp.procid)
+	hdr[2] = mp.procid
 
 	// Allow only one writer at a time
 	for !trace.signalLock.CompareAndSwap(0, 1) {

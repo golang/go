@@ -1083,7 +1083,7 @@ func (p *_panic) initOpenCodedDefers(fn funcInfo, varp unsafe.Pointer) bool {
 }
 
 // The implementation of the predeclared function recover.
-func gorecover(_ uintptr) any {
+func gorecover() any {
 	gp := getg()
 	p := gp._panic
 	if p == nil || p.goexit || p.recovered {
@@ -1142,18 +1142,21 @@ func gorecover(_ uintptr) any {
 		nonWrapperFrames := 0
 	loop:
 		for ; u.valid(); u.next() {
-			switch u.frame.fn.funcID {
-			case abi.FuncIDWrapper:
-				continue
-			case abi.FuncID_gopanic:
-				if u.frame.fp == uintptr(p.gopanicFP) && nonWrapperFrames > 0 {
-					canRecover = true
-				}
-				break loop
-			default:
-				nonWrapperFrames++
-				if nonWrapperFrames > 1 {
+			for iu, f := newInlineUnwinder(u.frame.fn, u.symPC()); f.valid(); f = iu.next(f) {
+				sf := iu.srcFunc(f)
+				switch sf.funcID {
+				case abi.FuncIDWrapper:
+					continue
+				case abi.FuncID_gopanic:
+					if u.frame.fp == uintptr(p.gopanicFP) && nonWrapperFrames > 0 {
+						canRecover = true
+					}
 					break loop
+				default:
+					nonWrapperFrames++
+					if nonWrapperFrames > 1 {
+						break loop
+					}
 				}
 			}
 		}

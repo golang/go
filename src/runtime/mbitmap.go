@@ -692,7 +692,7 @@ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize
 // malloc does not call heapSetType* when there are no pointers.
 //
 // There can be read-write races between heapSetType* and things
-// that read the heap metadata like scanobject. However, since
+// that read the heap metadata like scanObject. However, since
 // heapSetType* is only used for objects that have not yet been
 // made reachable, readers will ignore bits being modified by this
 // function. This does mean this function cannot transiently modify

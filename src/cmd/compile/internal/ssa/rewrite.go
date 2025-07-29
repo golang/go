@@ -303,7 +303,6 @@ func canMergeLoadClobber(target, load, x *Value) bool {
 		return false
 	}
 	loopnest := x.Block.Func.loopnest()
-	loopnest.calculateDepths()
 	if loopnest.depth(target.Block.ID) > loopnest.depth(x.Block.ID) {
 		return false
 	}

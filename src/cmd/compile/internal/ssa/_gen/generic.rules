@@ -297,6 +297,7 @@
 
 (CondSelect x _ (ConstBool [true ])) => x
 (CondSelect _ y (ConstBool [false])) => y
+(CondSelect x x _) => x
 
 // signed integer range: ( c <= x && x (<|<=) d ) -> ( unsigned(x-c) (<|<=) unsigned(d-c) )
 (AndB (Leq64 (Const64 [c]) x) ((Less|Leq)64 x (Const64 [d]))) && d >= c => ((Less|Leq)64U (Sub64 <x.Type> x (Const64 <x.Type> [c])) (Const64 <x.Type> [d-c]))
@@ -2056,9 +2057,7 @@
 (Select1 (MakeTuple x y)) => y
 
 // for rewriting results of some late-expanded rewrites (below)
-(SelectN [0] (MakeResult x ___)) => x
-(SelectN [1] (MakeResult x y ___)) => y
-(SelectN [2] (MakeResult x y z ___)) => z
+(SelectN [n] m:(MakeResult ___)) => m.Args[n]
 
 // for late-expanded calls, recognize newobject and remove zeroing and nilchecks
 (Zero (SelectN [0] call:(StaticLECall _ _)) mem:(SelectN [1] call))

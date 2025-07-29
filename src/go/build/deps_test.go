@@ -92,6 +92,7 @@ var depsRules = `
 	< internal/asan
 	< internal/runtime/sys
 	< internal/runtime/syscall/linux
+	< internal/runtime/syscall/windows
 	< internal/runtime/atomic
 	< internal/runtime/exithook
 	< internal/runtime/gc

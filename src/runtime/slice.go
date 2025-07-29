@@ -397,5 +397,5 @@ func bytealg_MakeNoZero(len int) []byte {
 		panicmakeslicelen()
 	}
 	cap := roundupsize(uintptr(len), true)
-	return unsafe.Slice((*byte)(mallocgc(uintptr(cap), nil, false)), cap)[:len]
+	return unsafe.Slice((*byte)(mallocgc(cap, nil, false)), cap)[:len]
 }

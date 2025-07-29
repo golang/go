@@ -1269,14 +1269,14 @@ func TestPeekableDecoder(t *testing.T) {
 // TestDecoderReset tests that the decoder preserves its internal
 // buffer between Reset calls to avoid frequent allocations when reusing the decoder.
 // It ensures that the buffer capacity is maintained while avoiding aliasing
-// issues with bytes.Buffer.
+// issues with [bytes.Buffer].
 func TestDecoderReset(t *testing.T) {
-	// Create a decoder with a reasonably large JSON input to ensure buffer growth
+	// Create a decoder with a reasonably large JSON input to ensure buffer growth.
 	largeJSON := `{"key1":"value1","key2":"value2","key3":"value3","key4":"value4","key5":"value5"}`
 	dec := NewDecoder(strings.NewReader(largeJSON))
 
 	t.Run("Test capacity preservation", func(t *testing.T) {
-		// Read the first JSON value to grow the internal buffer
+		// Read the first JSON value to grow the internal buffer.
 		val1, err := dec.ReadValue()
 		if err != nil {
 			t.Fatalf("first ReadValue failed: %v", err)
@@ -1285,22 +1285,22 @@ func TestDecoderReset(t *testing.T) {
 			t.Fatalf("first ReadValue = %q, want %q", val1, largeJSON)
 		}
 
-		// Get the buffer capacity after first use
+		// Get the buffer capacity after first use.
 		initialCapacity := cap(dec.s.buf)
 		if initialCapacity == 0 {
 			t.Fatalf("expected non-zero buffer capacity after first use")
 		}
 
-		// Reset with a new reader - this should preserve the buffer capacity
+		// Reset with a new reader - this should preserve the buffer capacity.
 		dec.Reset(strings.NewReader(largeJSON))
 
-		// Verify the buffer capacity is preserved (or at least not smaller)
+		// Verify the buffer capacity is preserved (or at least not smaller).
 		preservedCapacity := cap(dec.s.buf)
 		if preservedCapacity < initialCapacity {
 			t.Fatalf("buffer capacity reduced after Reset: got %d, want at least %d", preservedCapacity, initialCapacity)
 		}
 
-		// Read the second JSON value to ensure the decoder still works correctly
+		// Read the second JSON value to ensure the decoder still works correctly.
 		val2, err := dec.ReadValue()
 		if err != nil {
 			t.Fatalf("second ReadValue failed: %v", err)
@@ -1317,7 +1317,7 @@ func TestDecoderReset(t *testing.T) {
 		dec.Reset(bb)
 		bbBuf = bb.Bytes()
 
-		// Read the third JSON value to ensure functionality with bytes.Buffer
+		// Read the third JSON value to ensure functionality with bytes.Buffer.
 		val3, err := dec.ReadValue()
 		if err != nil {
 			t.Fatalf("fourth ReadValue failed: %v", err)

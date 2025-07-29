@@ -57,6 +57,7 @@ var runtimePkgs = []string{
 	"internal/runtime/strconv",
 	"internal/runtime/sys",
 	"internal/runtime/syscall/linux",
+	"internal/runtime/syscall/windows",
 
 	"internal/abi",
 	"internal/bytealg",
@@ -95,6 +96,7 @@ var allowAsmABIPkgs = []string{
 	"internal/bytealg",
 	"internal/chacha8rand",
 	"internal/runtime/syscall/linux",
+	"internal/runtime/syscall/windows",
 	"internal/runtime/startlinetest",
 }
 
