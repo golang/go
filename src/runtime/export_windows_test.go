@@ -18,7 +18,7 @@ var (
 
 func NumberOfProcessors() int32 {
 	var info systeminfo
-	stdcall1(_GetSystemInfo, uintptr(unsafe.Pointer(&info)))
+	stdcall(_GetSystemInfo, uintptr(unsafe.Pointer(&info)))
 	return int32(info.dwnumberofprocessors)
 }
 

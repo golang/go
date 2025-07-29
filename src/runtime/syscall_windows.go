@@ -412,6 +412,11 @@ func callbackWrap(a *callbackArgs) {
 	}
 }
 
+// syscall_syscalln calls fn with args[:n].
+// It is used to implement [syscall.SyscallN].
+// It shouldn't be used in the runtime package,
+// use [stdcall] instead.
+//
 //go:linkname syscall_syscalln syscall.syscalln
 //go:nosplit
 //go:uintptrkeepalive
