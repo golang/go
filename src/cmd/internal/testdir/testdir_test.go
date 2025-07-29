@@ -1462,9 +1462,10 @@ func (t test) wantedErrors(file, short string) (errs []wantedError) {
 
 const (
 	// Regexp to match a single opcode check: optionally begin with "-" (to indicate
-	// a negative check), followed by a string literal enclosed in "" or ``. For "",
+	// a negative check) or a positive number (to specify the expected number of
+	// matches), followed by a string literal enclosed in "" or ``. For "",
 	// backslashes must be handled.
-	reMatchCheck = `-?(?:\x60[^\x60]*\x60|"(?:[^"\\]|\\.)*")`
+	reMatchCheck = `(-|[1-9]\d*)?(?:\x60[^\x60]*\x60|"(?:[^"\\]|\\.)*")`
 )
 
 var (
@@ -1516,6 +1517,8 @@ type wantedAsmOpcode struct {
 	fileline string         // original source file/line (eg: "/path/foo.go:45")
 	line     int            // original source line
 	opcode   *regexp.Regexp // opcode check to be performed on assembly output
+	expected int            // expected number of matches
+	actual   int            // actual number that matched
 	negative bool           // true if the check is supposed to fail rather than pass
 	found    bool           // true if the opcode check matched at least one in the output
 }
@@ -1622,9 +1625,16 @@ func (t test) wantedAsmOpcodes(fn string) asmChecks {
 
 			for _, m := range rxAsmCheck.FindAllString(allchecks, -1) {
 				negative := false
+				expected := 0
 				if m[0] == '-' {
 					negative = true
 					m = m[1:]
+				} else if '1' <= m[0] && m[0] <= '9' {
+					for '0' <= m[0] && m[0] <= '9' {
+						expected *= 10
+						expected += int(m[0] - '0')
+						m = m[1:]
+					}
 				}
 
 				rxsrc, err := strconv.Unquote(m)
@@ -1650,6 +1660,7 @@ func (t test) wantedAsmOpcodes(fn string) asmChecks {
 						ops[env] = make(map[string][]wantedAsmOpcode)
 					}
 					ops[env][lnum] = append(ops[env][lnum], wantedAsmOpcode{
+						expected: expected,
 						negative: negative,
 						fileline: lnum,
 						line:     i + 1,
@@ -1698,7 +1709,8 @@ func (t test) asmCheck(outStr string, fn string, env buildEnv, fullops map[strin
 		// run the checks.
 		if ops, found := fullops[srcFileLine]; found {
 			for i := range ops {
-				if !ops[i].found && ops[i].opcode.FindString(asm) != "" {
+				if (!ops[i].found || ops[i].expected > 0) && ops[i].opcode.FindString(asm) != "" {
+					ops[i].actual++
 					ops[i].found = true
 				}
 			}
@@ -1712,6 +1724,9 @@ func (t test) asmCheck(outStr string, fn string, env buildEnv, fullops map[strin
 			// There's a failure if a negative match was found,
 			// or a positive match was not found.
 			if o.negative == o.found {
+				failed = append(failed, o)
+			}
+			if o.expected > 0 && o.expected != o.actual {
 				failed = append(failed, o)
 			}
 		}
@@ -1737,6 +1752,8 @@ func (t test) asmCheck(outStr string, fn string, env buildEnv, fullops map[strin
 
 		if o.negative {
 			fmt.Fprintf(&errbuf, "%s:%d: %s: wrong opcode found: %q\n", t.goFileName(), o.line, env, o.opcode.String())
+		} else if o.expected > 0 {
+			fmt.Fprintf(&errbuf, "%s:%d: %s: wrong number of opcodes: %q\n", t.goFileName(), o.line, env, o.opcode.String())
 		} else {
 			fmt.Fprintf(&errbuf, "%s:%d: %s: opcode not found: %q\n", t.goFileName(), o.line, env, o.opcode.String())
 		}
