@@ -4058,8 +4058,8 @@ func rewriteValueMIPS_OpMIPSMUL(v *Value) bool {
 		break
 	}
 	// match: (MUL (MOVWconst [c]) x )
-	// cond: isPowerOfTwo(int64(uint32(c)))
-	// result: (SLLconst [int32(log2uint32(int64(c)))] x)
+	// cond: isUnsignedPowerOfTwo(uint32(c))
+	// result: (SLLconst [int32(log32u(uint32(c)))] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpMIPSMOVWconst {
@@ -4067,11 +4067,11 @@ func rewriteValueMIPS_OpMIPSMUL(v *Value) bool {
 			}
 			c := auxIntToInt32(v_0.AuxInt)
 			x := v_1
-			if !(isPowerOfTwo(int64(uint32(c)))) {
+			if !(isUnsignedPowerOfTwo(uint32(c))) {
 				continue
 			}
 			v.reset(OpMIPSSLLconst)
-			v.AuxInt = int32ToAuxInt(int32(log2uint32(int64(c))))
+			v.AuxInt = int32ToAuxInt(int32(log32u(uint32(c))))
 			v.AddArg(x)
 			return true
 		}
@@ -6611,8 +6611,8 @@ func rewriteValueMIPS_OpSelect0(v *Value) bool {
 		break
 	}
 	// match: (Select0 (MULTU (MOVWconst [c]) x ))
-	// cond: isPowerOfTwo(int64(uint32(c)))
-	// result: (SRLconst [int32(32-log2uint32(int64(c)))] x)
+	// cond: isUnsignedPowerOfTwo(uint32(c))
+	// result: (SRLconst [int32(32-log32u(uint32(c)))] x)
 	for {
 		if v_0.Op != OpMIPSMULTU {
 			break
@@ -6626,11 +6626,11 @@ func rewriteValueMIPS_OpSelect0(v *Value) bool {
 			}
 			c := auxIntToInt32(v_0_0.AuxInt)
 			x := v_0_1
-			if !(isPowerOfTwo(int64(uint32(c)))) {
+			if !(isUnsignedPowerOfTwo(uint32(c))) {
 				continue
 			}
 			v.reset(OpMIPSSRLconst)
-			v.AuxInt = int32ToAuxInt(int32(32 - log2uint32(int64(c))))
+			v.AuxInt = int32ToAuxInt(int32(32 - log32u(uint32(c))))
 			v.AddArg(x)
 			return true
 		}
@@ -6807,8 +6807,8 @@ func rewriteValueMIPS_OpSelect1(v *Value) bool {
 		break
 	}
 	// match: (Select1 (MULTU (MOVWconst [c]) x ))
-	// cond: isPowerOfTwo(int64(uint32(c)))
-	// result: (SLLconst [int32(log2uint32(int64(c)))] x)
+	// cond: isUnsignedPowerOfTwo(uint32(c))
+	// result: (SLLconst [int32(log32u(uint32(c)))] x)
 	for {
 		if v_0.Op != OpMIPSMULTU {
 			break
@@ -6822,11 +6822,11 @@ func rewriteValueMIPS_OpSelect1(v *Value) bool {
 			}
 			c := auxIntToInt32(v_0_0.AuxInt)
 			x := v_0_1
-			if !(isPowerOfTwo(int64(uint32(c)))) {
+			if !(isUnsignedPowerOfTwo(uint32(c))) {
 				continue
 			}
 			v.reset(OpMIPSSLLconst)
-			v.AuxInt = int32ToAuxInt(int32(log2uint32(int64(c))))
+			v.AuxInt = int32ToAuxInt(int32(log32u(uint32(c))))
 			v.AddArg(x)
 			return true
 		}

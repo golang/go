@@ -492,12 +492,6 @@ func log16u(n uint16) int64 { return int64(bits.Len16(n)) - 1 }
 func log32u(n uint32) int64 { return int64(bits.Len32(n)) - 1 }
 func log64u(n uint64) int64 { return int64(bits.Len64(n)) - 1 }
 
-// log2uint32 returns logarithm in base 2 of uint32(n), with log2(0) = -1.
-// Rounds down.
-func log2uint32(n int64) int64 {
-	return int64(bits.Len32(uint32(n))) - 1
-}
-
 // isPowerOfTwoX functions report whether n is a power of 2.
 func isPowerOfTwo[T int8 | int16 | int32 | int64](n T) bool {
 	return n > 0 && n&(n-1) == 0
