@@ -480,18 +480,10 @@ func nto(x int64) int64 {
 
 // logX returns logarithm of n base 2.
 // n must be a positive power of 2 (isPowerOfTwoX returns true).
-func log8(n int8) int64 {
-	return int64(bits.Len8(uint8(n))) - 1
-}
-func log16(n int16) int64 {
-	return int64(bits.Len16(uint16(n))) - 1
-}
-func log32(n int32) int64 {
-	return int64(bits.Len32(uint32(n))) - 1
-}
-func log64(n int64) int64 {
-	return int64(bits.Len64(uint64(n))) - 1
-}
+func log8(n int8) int64   { return log8u(uint8(n)) }
+func log16(n int16) int64 { return log16u(uint16(n)) }
+func log32(n int32) int64 { return log32u(uint32(n)) }
+func log64(n int64) int64 { return log64u(uint64(n)) }
 
 // logXu returns the logarithm of n base 2.
 // n must be a power of 2 (isUnsignedPowerOfTwo returns true)
