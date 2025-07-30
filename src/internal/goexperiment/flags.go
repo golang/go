@@ -100,11 +100,6 @@ type Flags struct {
 	// inlining phase within the Go compiler.
 	NewInliner bool
 
-	// AliasTypeParams enables type parameters for alias types.
-	// Requires that gotypesalias=1 is set with GODEBUG.
-	// This flag will be removed with Go 1.25.
-	AliasTypeParams bool
-
 	// Synctest enables the testing/synctest package.
 	Synctest bool
 
