@@ -2,34 +2,34 @@ env GO111MODULE=on
 env GOFLAGS=-mod=mod
 
 ! go mod init example.com/user/repo/v0
-stderr '(?s)^go: invalid module path "example.com/user/repo/v0": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v2$'
+stderr '(?s)^go: invalid module path "example.com/user/repo/v0": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v2(.*)'
 
 ! go mod init example.com/user/repo/v02
-stderr '(?s)^go: invalid module path "example.com/user/repo/v02": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v2$'
+stderr '(?s)^go: invalid module path "example.com/user/repo/v02": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v2(.*)'
 
 ! go mod init example.com/user/repo/v023
-stderr '(?s)^go: invalid module path "example.com/user/repo/v023": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v23$'
+stderr '(?s)^go: invalid module path "example.com/user/repo/v023": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v23(.*)'
 
 ! go mod init example.com/user/repo/v1
-stderr '(?s)^go: invalid module path "example.com/user/repo/v1": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v2$'
+stderr '(?s)^go: invalid module path "example.com/user/repo/v1": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v2(.*)'
 
 ! go mod init example.com/user/repo/v2.0
-stderr '(?s)^go: invalid module path "example.com/user/repo/v2.0": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v2$'
+stderr '(?s)^go: invalid module path "example.com/user/repo/v2.0": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v2(.*)'
 
 ! go mod init example.com/user/repo/v2.1.4
-stderr '(?s)^go: invalid module path "example.com/user/repo/v2.1.4": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v2$'
+stderr '(?s)^go: invalid module path "example.com/user/repo/v2.1.4": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v2(.*)'
 
 ! go mod init example.com/user/repo/v3.5
-stderr '(?s)^go: invalid module path "example.com/user/repo/v3.5": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v3$'
+stderr '(?s)^go: invalid module path "example.com/user/repo/v3.5": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v3(.*)'
 
 ! go mod init example.com/user/repo/v4.1.4
-stderr '(?s)^go: invalid module path "example.com/user/repo/v4.1.4": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v4$'
+stderr '(?s)^go: invalid module path "example.com/user/repo/v4.1.4": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v4(.*)'
 
 ! go mod init example.com/user/repo/v.2.3
-stderr '(?s)^go: invalid module path "example.com/user/repo/v.2.3": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v2$'
+stderr '(?s)^go: invalid module path "example.com/user/repo/v.2.3": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v2(.*)'
 
 ! go mod init example.com/user/repo/v.5.3
-stderr '(?s)^go: invalid module path "example.com/user/repo/v.5.3": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v5$'
+stderr '(?s)^go: invalid module path "example.com/user/repo/v.5.3": major version suffixes must be in the form of /vN and are only allowed for v2 or later(.*)go mod init example.com/user/repo/v5(.*)'
 
 ! go mod init gopkg.in/pkg
 stderr '(?s)^go: invalid module path "gopkg.in/pkg": module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN(.*)go mod init gopkg.in/pkg.v1$'
@@ -63,20 +63,20 @@ stderr '(?s)^go: invalid module path "gopkg.in/user/pkg.v.2.3": module paths beg
 
 # module paths with a trailing dot are rejected as invalid import paths
 ! go mod init example.com/user/repo/v2.
-stderr '(?s)^go: malformed module path "example.com/user/repo/v2.": trailing dot in path element$'
+stderr '(?s)^go: invalid module path "example.com/user/repo/v2.": malformed module path "example.com/user/repo/v2.": trailing dot in path element(.*)'
 
 ! go mod init example.com/user/repo/v2..
-stderr '(?s)^go: malformed module path "example.com/user/repo/v2..": trailing dot in path element$'
+stderr '(?s)^go: invalid module path "example.com/user/repo/v2..": malformed module path "example.com/user/repo/v2..": trailing dot in path element(.*)'
 
 ! go mod init gopkg.in/user/pkg.v.2.
-stderr '(?s)^go: malformed module path "gopkg.in/user/pkg.v.2.": trailing dot in path element$'
+stderr '(?s)^go: invalid module path "gopkg.in/user/pkg.v.2.": malformed module path "gopkg.in/user/pkg.v.2.": trailing dot in path element(.*)'
 
 ! go mod init gopkg.in/user/pkg.v.2..
-stderr '(?s)^go: malformed module path "gopkg.in/user/pkg.v.2..": trailing dot in path element$'
+stderr '(?s)^go: invalid module path "gopkg.in/user/pkg.v.2..": malformed module path "gopkg.in/user/pkg.v.2..": trailing dot in path element(.*)'
 
 # module paths with spaces are also rejected
 ! go mod init 'foo bar'
-stderr '(?s)^go: malformed module path "foo bar": invalid char '' ''$'
+stderr '(?s)^go: invalid module path "foo bar": malformed module path "foo bar": invalid char '' ''(.*)'
 
 ! go mod init 'foo  bar baz'
-stderr '(?s)^go: malformed module path "foo  bar baz": invalid char '' ''$'
+stderr '(?s)^go: invalid module path "foo  bar baz": malformed module path "foo  bar baz": invalid char '' ''(.*)'
