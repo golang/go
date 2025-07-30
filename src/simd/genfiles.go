@@ -50,8 +50,15 @@ var convert32Shapes = &shapes{
 	floats: []int{32},
 }
 
-var avx512MaskedLoadShapes = &shapes{
+var avx512Shapes = &shapes{
 	vecs:   []int{512},
+	ints:   []int{8, 16, 32, 64},
+	uints:  []int{8, 16, 32, 64},
+	floats: []int{32, 64},
+}
+
+var avx2Shapes = &shapes{
+	vecs:   []int{128, 256},
 	ints:   []int{8, 16, 32, 64},
 	uints:  []int{8, 16, 32, 64},
 	floats: []int{32, 64},
@@ -70,12 +77,12 @@ var avx2SmallLoadPunShapes = &shapes{
 	uints: []int{8, 16},
 }
 
-var unaryFlaky = &shapes{
+var unaryFlaky = &shapes{ // for tests that support flaky equality
 	vecs:   []int{128, 256, 512},
 	floats: []int{32, 64},
 }
 
-var ternaryFlaky = &shapes{
+var ternaryFlaky = &shapes{ // for tests that support flaky equality
 	vecs:   []int{128, 256, 512},
 	floats: []int{32},
 }
@@ -88,6 +95,7 @@ func oneTemplate(t *template.Template, baseType string, width, count int, out io
 	BaseType := strings.ToUpper(baseType[:1]) + baseType[1:]
 	eType := fmt.Sprintf("%s%d", baseType, width)
 	wxc := fmt.Sprintf("%dx%d", width, count)
+	bxc := fmt.Sprintf("%dx%d", 8, count*(width/8))
 	vType := fmt.Sprintf("%s%s", BaseType, wxc)
 	aOrAn := "a"
 	if strings.Contains("aeiou", baseType[:1]) {
@@ -100,6 +108,8 @@ func oneTemplate(t *template.Template, baseType string, width, count int, out io
 		Width int    // the bit width of the element type, e.g. 32
 		Count int    // the number of elements, e.g. 4
 		WxC   string // the width-by-type string, e.g., "32x4"
+		BxC   string // as if bytes, in the proper count, e.g., "8x16" (W==8)
+		Base  string // the capitalized Base Type of the vector, e.g., "Float"
 		Type  string // the element type, e.g. "float32"
 		OxFF  string // a mask for the lowest 'count' bits
 	}{
@@ -108,6 +118,8 @@ func oneTemplate(t *template.Template, baseType string, width, count int, out io
 		Width: width,
 		Count: count,
 		WxC:   wxc,
+		BxC:   bxc,
+		Base:  BaseType,
 		Type:  eType,
 		OxFF:  oxFF,
 	})
@@ -373,7 +385,7 @@ func test{{.Vec}}CompareMasked(t *testing.T,
 }
 `)
 
-var avx512MaskedLoadSlicePartTemplate = shapedTemplateOf(avx512MaskedLoadShapes, "avx 512 load slice part", `
+var avx512MaskedLoadSlicePartTemplate = shapedTemplateOf(avx512Shapes, "avx 512 load slice part", `
 // Load{{.Vec}}SlicePart loads a {{.Vec}} from the slice s.
 // If s has fewer than {{.Count}} elements, the remaining elements of the vector are filled with zeroes.
 // If s has {{.Count}} or more elements, the function is equivalent to Load{{.Vec}}Slice.
@@ -386,7 +398,6 @@ func Load{{.Vec}}SlicePart(s []{{.Type}}) {{.Vec}} {
 		var x {{.Vec}}
 		return x
 	}
-
 	mask := Mask{{.WxC}}FromBits({{.OxFF}} >> ({{.Count}} - l))
 	return LoadMasked{{.Vec}}(pa{{.Vec}}(s), mask)
 }
@@ -476,6 +487,58 @@ func pa{{.Vec}}(s []{{.Type}}) *[{{.Count}}]{{.Type}} {
 }
 `)
 
+var avx2MaskedTemplate = shapedTemplateOf(avx2Shapes, "avx2 .Masked methods", `
+// Masked returns x but with elements zeroed where mask is false.
+func (x {{.Vec}}) Masked(mask Mask{{.WxC}}) {{.Vec}} {
+	im := mask.AsInt{{.WxC}}()
+{{- if eq .Base "Int" }}
+	return im.And(x)
+{{- else}}
+    return x.AsInt{{.WxC}}().And(im).As{{.Vec}}()
+{{- end -}}
+}
+
+// Merge returns x but with elements set to y where mask is false.
+func (x {{.Vec}}) Merge(y {{.Vec}}, mask Mask{{.WxC}}) {{.Vec}} {
+{{- if eq .BxC .WxC }}
+	im := mask.AsInt{{.BxC}}()
+{{- else}}
+    im := mask.AsInt{{.WxC}}().AsInt{{.BxC}}()
+{{- end -}}
+{{- if and (eq .Base "Int") (eq .BxC .WxC) }}
+	return y.blend(x, im)
+{{- else}}
+	ix := x.AsInt{{.BxC}}()
+	iy := y.AsInt{{.BxC}}()
+	return iy.blend(ix, im).As{{.Vec}}()
+{{- end -}}
+}
+`)
+
+// TODO perhaps write these in ways that work better on AVX512
+var avx512MaskedTemplate = shapedTemplateOf(avx512Shapes, "avx512 .Masked methods", `
+// Masked returns x but with elements zeroed where mask is false.
+func (x {{.Vec}}) Masked(mask Mask{{.WxC}}) {{.Vec}} {
+	im := mask.AsInt{{.WxC}}()
+{{- if eq .Base "Int" }}
+	return im.And(x)
+{{- else}}
+    return x.AsInt{{.WxC}}().And(im).As{{.Vec}}()
+{{- end -}}
+}
+
+// Merge returns x but with elements set to y where m is false.
+func (x {{.Vec}}) Merge(y {{.Vec}}, mask Mask{{.WxC}}) {{.Vec}} {
+{{- if eq .Base "Int" }}
+	return y.blendMasked(x, mask)
+{{- else}}
+	ix := x.AsInt{{.WxC}}()
+	iy := y.AsInt{{.WxC}}()
+	return iy.blendMasked(ix, mask).As{{.Vec}}()
+{{- end -}}
+}
+`)
+
 func main() {
 	sl := flag.String("sl", "slice_amd64.go", "file name for slice operations")
 	ush := flag.String("ush", "unsafe_helpers.go", "file name for unsafe helpers")
@@ -487,7 +550,14 @@ func main() {
 	flag.Parse()
 
 	if *sl != "" {
-		one(*sl, prologue, sliceTemplate, avx512MaskedLoadSlicePartTemplate, avx2MaskedLoadSlicePartTemplate, avx2SmallLoadSlicePartTemplate)
+		one(*sl, prologue,
+			sliceTemplate,
+			avx512MaskedLoadSlicePartTemplate,
+			avx2MaskedLoadSlicePartTemplate,
+			avx2SmallLoadSlicePartTemplate,
+			avx2MaskedTemplate,
+			avx512MaskedTemplate,
+		)
 	}
 	if *ush != "" {
 		one(*ush, unsafePrologue, unsafePATemplate)

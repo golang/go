@@ -382,3 +382,17 @@ func TestBitMaskToBits(t *testing.T) {
 		t.Errorf("Want 0b101, got %b", v)
 	}
 }
+
+func TestMergeFloat(t *testing.T) {
+	a := simd.LoadFloat64x4Slice([]float64{1, 2, 3, 4})
+	b := simd.LoadFloat64x4Slice([]float64{4, 2, 3, 1})
+	g := a.Greater(b)
+	k := make([]int64, 4, 4)
+	g.AsInt64x4().StoreSlice(k)
+	checkSlices[int64](t, k, []int64{0, 0, 0, -1})
+	c := a.Merge(b, g)
+
+	s := make([]float64, 4, 4)
+	c.StoreSlice(s)
+	checkSlices[float64](t, s, []float64{4, 2, 3, 4})
+}
