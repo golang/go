@@ -74,7 +74,7 @@ var distInfo = map[OSArch]osArchInfo{
 	{"freebsd", "amd64"}:   {CgoSupported: true},
 	{"freebsd", "arm"}:     {CgoSupported: true},
 	{"freebsd", "arm64"}:   {CgoSupported: true},
-	{"freebsd", "riscv64"}: {CgoSupported: true},
+	{"freebsd", "riscv64"}: {CgoSupported: true, Broken: true},
 	{"illumos", "amd64"}:   {CgoSupported: true},
 	{"ios", "amd64"}:       {CgoSupported: true},
 	{"ios", "arm64"}:       {CgoSupported: true},
