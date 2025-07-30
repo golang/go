@@ -288,13 +288,6 @@ func main() {
 	fn := main_main // make an indirect call, as the linker doesn't know the address of the main package when laying down the runtime
 	fn()
 
-	exitHooksRun := false
-	if raceenabled {
-		runExitHooks(0) // run hooks now, since racefini does not return
-		exitHooksRun = true
-		racefini()
-	}
-
 	// Check for C memory leaks if using ASAN and we've made cgo calls,
 	// or if we are running as a library in a C program.
 	// We always make one cgo call, above, to notify_runtime_init_done,
@@ -302,6 +295,7 @@ func main() {
 	// No point in leak checking if no cgo calls, since leak checking
 	// just looks for objects allocated using malloc and friends.
 	// Just checking iscgo doesn't help because asan implies iscgo.
+	exitHooksRun := false
 	if asanenabled && (isarchive || islibrary || NumCgoCall() > 1) {
 		runExitHooks(0) // lsandoleakcheck may not return
 		exitHooksRun = true
@@ -326,6 +320,9 @@ func main() {
 	}
 	if !exitHooksRun {
 		runExitHooks(0)
+	}
+	if raceenabled {
+		racefini() // does not return
 	}
 
 	exit(0)
