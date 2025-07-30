@@ -155,17 +155,17 @@ func gcPrepareMarkRoots() {
 	if work.goroutineLeakFinder.enabled {
 		// goroutine leak finder GC --- only prepare runnable
 		// goroutines for marking.
-		work.stackRoots, work.nLiveStackRoots = allGsSnapshotSortedForGC()
+		work.stackRoots, work.nMaybeRunnableStackRoots = allGsSnapshotSortedForGC()
 	} else {
 		// regular GC --- scan every goroutine
 		work.stackRoots = allGsSnapshot()
-		work.nLiveStackRoots = len(work.stackRoots)
+		work.nMaybeRunnableStackRoots = len(work.stackRoots)
 	}
 
 	work.nStackRoots = len(work.stackRoots)
 
 	work.markrootNext.Store(0)
-	work.markrootJobs.Store(uint32(fixedRootCount + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nLiveStackRoots))
+	work.markrootJobs.Store(uint32(fixedRootCount + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nMaybeRunnableStackRoots))
 
 	// Calculate base indexes of each root type
 	work.baseData = uint32(fixedRootCount)
