@@ -2559,6 +2559,17 @@ func rewriteValueLOONG64_OpLOONG64MOVBUreg(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVBUreg x:(MOVBUloadidx _ _ _))
+	// result: (MOVVreg x)
+	for {
+		x := v_0
+		if x.Op != OpLOONG64MOVBUloadidx {
+			break
+		}
+		v.reset(OpLOONG64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVBUreg x:(MOVBUreg _))
 	// result: (MOVVreg x)
 	for {
@@ -2744,6 +2755,17 @@ func rewriteValueLOONG64_OpLOONG64MOVBreg(v *Value) bool {
 	for {
 		x := v_0
 		if x.Op != OpLOONG64MOVBload {
+			break
+		}
+		v.reset(OpLOONG64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBreg x:(MOVBloadidx _ _ _))
+	// result: (MOVVreg x)
+	for {
+		x := v_0
+		if x.Op != OpLOONG64MOVBloadidx {
 			break
 		}
 		v.reset(OpLOONG64MOVVreg)
@@ -3827,6 +3849,28 @@ func rewriteValueLOONG64_OpLOONG64MOVHUreg(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVHUreg x:(MOVBUloadidx _ _ _))
+	// result: (MOVVreg x)
+	for {
+		x := v_0
+		if x.Op != OpLOONG64MOVBUloadidx {
+			break
+		}
+		v.reset(OpLOONG64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVHUreg x:(MOVHUloadidx _ _ _))
+	// result: (MOVVreg x)
+	for {
+		x := v_0
+		if x.Op != OpLOONG64MOVHUloadidx {
+			break
+		}
+		v.reset(OpLOONG64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVHUreg x:(MOVBUreg _))
 	// result: (MOVVreg x)
 	for {
@@ -4032,6 +4076,39 @@ func rewriteValueLOONG64_OpLOONG64MOVHreg(v *Value) bool {
 	for {
 		x := v_0
 		if x.Op != OpLOONG64MOVHload {
+			break
+		}
+		v.reset(OpLOONG64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVHreg x:(MOVBloadidx _ _ _))
+	// result: (MOVVreg x)
+	for {
+		x := v_0
+		if x.Op != OpLOONG64MOVBloadidx {
+			break
+		}
+		v.reset(OpLOONG64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVHreg x:(MOVBUloadidx _ _ _))
+	// result: (MOVVreg x)
+	for {
+		x := v_0
+		if x.Op != OpLOONG64MOVBUloadidx {
+			break
+		}
+		v.reset(OpLOONG64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVHreg x:(MOVHloadidx _ _ _))
+	// result: (MOVVreg x)
+	for {
+		x := v_0
+		if x.Op != OpLOONG64MOVHloadidx {
 			break
 		}
 		v.reset(OpLOONG64MOVVreg)
@@ -5053,6 +5130,39 @@ func rewriteValueLOONG64_OpLOONG64MOVWUreg(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVWUreg x:(MOVBUloadidx _ _ _))
+	// result: (MOVVreg x)
+	for {
+		x := v_0
+		if x.Op != OpLOONG64MOVBUloadidx {
+			break
+		}
+		v.reset(OpLOONG64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWUreg x:(MOVHUloadidx _ _ _))
+	// result: (MOVVreg x)
+	for {
+		x := v_0
+		if x.Op != OpLOONG64MOVHUloadidx {
+			break
+		}
+		v.reset(OpLOONG64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWUreg x:(MOVWUloadidx _ _ _))
+	// result: (MOVVreg x)
+	for {
+		x := v_0
+		if x.Op != OpLOONG64MOVWUloadidx {
+			break
+		}
+		v.reset(OpLOONG64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVWUreg x:(MOVBUreg _))
 	// result: (MOVVreg x)
 	for {
@@ -5291,6 +5401,61 @@ func rewriteValueLOONG64_OpLOONG64MOVWreg(v *Value) bool {
 	for {
 		x := v_0
 		if x.Op != OpLOONG64MOVWload {
+			break
+		}
+		v.reset(OpLOONG64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(MOVBloadidx _ _ _))
+	// result: (MOVVreg x)
+	for {
+		x := v_0
+		if x.Op != OpLOONG64MOVBloadidx {
+			break
+		}
+		v.reset(OpLOONG64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(MOVBUloadidx _ _ _))
+	// result: (MOVVreg x)
+	for {
+		x := v_0
+		if x.Op != OpLOONG64MOVBUloadidx {
+			break
+		}
+		v.reset(OpLOONG64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(MOVHloadidx _ _ _))
+	// result: (MOVVreg x)
+	for {
+		x := v_0
+		if x.Op != OpLOONG64MOVHloadidx {
+			break
+		}
+		v.reset(OpLOONG64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(MOVHUloadidx _ _ _))
+	// result: (MOVVreg x)
+	for {
+		x := v_0
+		if x.Op != OpLOONG64MOVHUloadidx {
+			break
+		}
+		v.reset(OpLOONG64MOVVreg)
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg x:(MOVWloadidx _ _ _))
+	// result: (MOVVreg x)
+	for {
+		x := v_0
+		if x.Op != OpLOONG64MOVWloadidx {
 			break
 		}
 		v.reset(OpLOONG64MOVVreg)
