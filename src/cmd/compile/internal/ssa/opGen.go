@@ -5764,42 +5764,42 @@ const (
 	OpShiftAllRightUint64x2
 	OpShiftAllRightUint64x4
 	OpShiftAllRightUint64x8
-	OpShiftLeftAndFillUpperFromInt16x8
-	OpShiftLeftAndFillUpperFromInt16x16
-	OpShiftLeftAndFillUpperFromInt16x32
-	OpShiftLeftAndFillUpperFromInt32x4
-	OpShiftLeftAndFillUpperFromInt32x8
-	OpShiftLeftAndFillUpperFromInt32x16
-	OpShiftLeftAndFillUpperFromInt64x2
-	OpShiftLeftAndFillUpperFromInt64x4
-	OpShiftLeftAndFillUpperFromInt64x8
-	OpShiftLeftAndFillUpperFromMaskedInt16x8
-	OpShiftLeftAndFillUpperFromMaskedInt16x16
-	OpShiftLeftAndFillUpperFromMaskedInt16x32
-	OpShiftLeftAndFillUpperFromMaskedInt32x4
-	OpShiftLeftAndFillUpperFromMaskedInt32x8
-	OpShiftLeftAndFillUpperFromMaskedInt32x16
-	OpShiftLeftAndFillUpperFromMaskedInt64x2
-	OpShiftLeftAndFillUpperFromMaskedInt64x4
-	OpShiftLeftAndFillUpperFromMaskedInt64x8
-	OpShiftLeftAndFillUpperFromMaskedUint16x8
-	OpShiftLeftAndFillUpperFromMaskedUint16x16
-	OpShiftLeftAndFillUpperFromMaskedUint16x32
-	OpShiftLeftAndFillUpperFromMaskedUint32x4
-	OpShiftLeftAndFillUpperFromMaskedUint32x8
-	OpShiftLeftAndFillUpperFromMaskedUint32x16
-	OpShiftLeftAndFillUpperFromMaskedUint64x2
-	OpShiftLeftAndFillUpperFromMaskedUint64x4
-	OpShiftLeftAndFillUpperFromMaskedUint64x8
-	OpShiftLeftAndFillUpperFromUint16x8
-	OpShiftLeftAndFillUpperFromUint16x16
-	OpShiftLeftAndFillUpperFromUint16x32
-	OpShiftLeftAndFillUpperFromUint32x4
-	OpShiftLeftAndFillUpperFromUint32x8
-	OpShiftLeftAndFillUpperFromUint32x16
-	OpShiftLeftAndFillUpperFromUint64x2
-	OpShiftLeftAndFillUpperFromUint64x4
-	OpShiftLeftAndFillUpperFromUint64x8
+	OpShiftLeftConcatInt16x8
+	OpShiftLeftConcatInt16x16
+	OpShiftLeftConcatInt16x32
+	OpShiftLeftConcatInt32x4
+	OpShiftLeftConcatInt32x8
+	OpShiftLeftConcatInt32x16
+	OpShiftLeftConcatInt64x2
+	OpShiftLeftConcatInt64x4
+	OpShiftLeftConcatInt64x8
+	OpShiftLeftConcatMaskedInt16x8
+	OpShiftLeftConcatMaskedInt16x16
+	OpShiftLeftConcatMaskedInt16x32
+	OpShiftLeftConcatMaskedInt32x4
+	OpShiftLeftConcatMaskedInt32x8
+	OpShiftLeftConcatMaskedInt32x16
+	OpShiftLeftConcatMaskedInt64x2
+	OpShiftLeftConcatMaskedInt64x4
+	OpShiftLeftConcatMaskedInt64x8
+	OpShiftLeftConcatMaskedUint16x8
+	OpShiftLeftConcatMaskedUint16x16
+	OpShiftLeftConcatMaskedUint16x32
+	OpShiftLeftConcatMaskedUint32x4
+	OpShiftLeftConcatMaskedUint32x8
+	OpShiftLeftConcatMaskedUint32x16
+	OpShiftLeftConcatMaskedUint64x2
+	OpShiftLeftConcatMaskedUint64x4
+	OpShiftLeftConcatMaskedUint64x8
+	OpShiftLeftConcatUint16x8
+	OpShiftLeftConcatUint16x16
+	OpShiftLeftConcatUint16x32
+	OpShiftLeftConcatUint32x4
+	OpShiftLeftConcatUint32x8
+	OpShiftLeftConcatUint32x16
+	OpShiftLeftConcatUint64x2
+	OpShiftLeftConcatUint64x4
+	OpShiftLeftConcatUint64x8
 	OpShiftLeftInt16x8
 	OpShiftLeftInt16x16
 	OpShiftLeftInt16x32
@@ -5836,42 +5836,42 @@ const (
 	OpShiftLeftUint64x2
 	OpShiftLeftUint64x4
 	OpShiftLeftUint64x8
-	OpShiftRightAndFillUpperFromInt16x8
-	OpShiftRightAndFillUpperFromInt16x16
-	OpShiftRightAndFillUpperFromInt16x32
-	OpShiftRightAndFillUpperFromInt32x4
-	OpShiftRightAndFillUpperFromInt32x8
-	OpShiftRightAndFillUpperFromInt32x16
-	OpShiftRightAndFillUpperFromInt64x2
-	OpShiftRightAndFillUpperFromInt64x4
-	OpShiftRightAndFillUpperFromInt64x8
-	OpShiftRightAndFillUpperFromMaskedInt16x8
-	OpShiftRightAndFillUpperFromMaskedInt16x16
-	OpShiftRightAndFillUpperFromMaskedInt16x32
-	OpShiftRightAndFillUpperFromMaskedInt32x4
-	OpShiftRightAndFillUpperFromMaskedInt32x8
-	OpShiftRightAndFillUpperFromMaskedInt32x16
-	OpShiftRightAndFillUpperFromMaskedInt64x2
-	OpShiftRightAndFillUpperFromMaskedInt64x4
-	OpShiftRightAndFillUpperFromMaskedInt64x8
-	OpShiftRightAndFillUpperFromMaskedUint16x8
-	OpShiftRightAndFillUpperFromMaskedUint16x16
-	OpShiftRightAndFillUpperFromMaskedUint16x32
-	OpShiftRightAndFillUpperFromMaskedUint32x4
-	OpShiftRightAndFillUpperFromMaskedUint32x8
-	OpShiftRightAndFillUpperFromMaskedUint32x16
-	OpShiftRightAndFillUpperFromMaskedUint64x2
-	OpShiftRightAndFillUpperFromMaskedUint64x4
-	OpShiftRightAndFillUpperFromMaskedUint64x8
-	OpShiftRightAndFillUpperFromUint16x8
-	OpShiftRightAndFillUpperFromUint16x16
-	OpShiftRightAndFillUpperFromUint16x32
-	OpShiftRightAndFillUpperFromUint32x4
-	OpShiftRightAndFillUpperFromUint32x8
-	OpShiftRightAndFillUpperFromUint32x16
-	OpShiftRightAndFillUpperFromUint64x2
-	OpShiftRightAndFillUpperFromUint64x4
-	OpShiftRightAndFillUpperFromUint64x8
+	OpShiftRightConcatInt16x8
+	OpShiftRightConcatInt16x16
+	OpShiftRightConcatInt16x32
+	OpShiftRightConcatInt32x4
+	OpShiftRightConcatInt32x8
+	OpShiftRightConcatInt32x16
+	OpShiftRightConcatInt64x2
+	OpShiftRightConcatInt64x4
+	OpShiftRightConcatInt64x8
+	OpShiftRightConcatMaskedInt16x8
+	OpShiftRightConcatMaskedInt16x16
+	OpShiftRightConcatMaskedInt16x32
+	OpShiftRightConcatMaskedInt32x4
+	OpShiftRightConcatMaskedInt32x8
+	OpShiftRightConcatMaskedInt32x16
+	OpShiftRightConcatMaskedInt64x2
+	OpShiftRightConcatMaskedInt64x4
+	OpShiftRightConcatMaskedInt64x8
+	OpShiftRightConcatMaskedUint16x8
+	OpShiftRightConcatMaskedUint16x16
+	OpShiftRightConcatMaskedUint16x32
+	OpShiftRightConcatMaskedUint32x4
+	OpShiftRightConcatMaskedUint32x8
+	OpShiftRightConcatMaskedUint32x16
+	OpShiftRightConcatMaskedUint64x2
+	OpShiftRightConcatMaskedUint64x4
+	OpShiftRightConcatMaskedUint64x8
+	OpShiftRightConcatUint16x8
+	OpShiftRightConcatUint16x16
+	OpShiftRightConcatUint16x32
+	OpShiftRightConcatUint32x4
+	OpShiftRightConcatUint32x8
+	OpShiftRightConcatUint32x16
+	OpShiftRightConcatUint64x2
+	OpShiftRightConcatUint64x4
+	OpShiftRightConcatUint64x8
 	OpShiftRightInt16x8
 	OpShiftRightInt16x16
 	OpShiftRightInt16x32
@@ -6208,78 +6208,78 @@ const (
 	OpSetElemUint16x8
 	OpSetElemUint32x4
 	OpSetElemUint64x2
-	OpShiftAllLeftAndFillUpperFromInt16x8
-	OpShiftAllLeftAndFillUpperFromInt16x16
-	OpShiftAllLeftAndFillUpperFromInt16x32
-	OpShiftAllLeftAndFillUpperFromInt32x4
-	OpShiftAllLeftAndFillUpperFromInt32x8
-	OpShiftAllLeftAndFillUpperFromInt32x16
-	OpShiftAllLeftAndFillUpperFromInt64x2
-	OpShiftAllLeftAndFillUpperFromInt64x4
-	OpShiftAllLeftAndFillUpperFromInt64x8
-	OpShiftAllLeftAndFillUpperFromMaskedInt16x8
-	OpShiftAllLeftAndFillUpperFromMaskedInt16x16
-	OpShiftAllLeftAndFillUpperFromMaskedInt16x32
-	OpShiftAllLeftAndFillUpperFromMaskedInt32x4
-	OpShiftAllLeftAndFillUpperFromMaskedInt32x8
-	OpShiftAllLeftAndFillUpperFromMaskedInt32x16
-	OpShiftAllLeftAndFillUpperFromMaskedInt64x2
-	OpShiftAllLeftAndFillUpperFromMaskedInt64x4
-	OpShiftAllLeftAndFillUpperFromMaskedInt64x8
-	OpShiftAllLeftAndFillUpperFromMaskedUint16x8
-	OpShiftAllLeftAndFillUpperFromMaskedUint16x16
-	OpShiftAllLeftAndFillUpperFromMaskedUint16x32
-	OpShiftAllLeftAndFillUpperFromMaskedUint32x4
-	OpShiftAllLeftAndFillUpperFromMaskedUint32x8
-	OpShiftAllLeftAndFillUpperFromMaskedUint32x16
-	OpShiftAllLeftAndFillUpperFromMaskedUint64x2
-	OpShiftAllLeftAndFillUpperFromMaskedUint64x4
-	OpShiftAllLeftAndFillUpperFromMaskedUint64x8
-	OpShiftAllLeftAndFillUpperFromUint16x8
-	OpShiftAllLeftAndFillUpperFromUint16x16
-	OpShiftAllLeftAndFillUpperFromUint16x32
-	OpShiftAllLeftAndFillUpperFromUint32x4
-	OpShiftAllLeftAndFillUpperFromUint32x8
-	OpShiftAllLeftAndFillUpperFromUint32x16
-	OpShiftAllLeftAndFillUpperFromUint64x2
-	OpShiftAllLeftAndFillUpperFromUint64x4
-	OpShiftAllLeftAndFillUpperFromUint64x8
-	OpShiftAllRightAndFillUpperFromInt16x8
-	OpShiftAllRightAndFillUpperFromInt16x16
-	OpShiftAllRightAndFillUpperFromInt16x32
-	OpShiftAllRightAndFillUpperFromInt32x4
-	OpShiftAllRightAndFillUpperFromInt32x8
-	OpShiftAllRightAndFillUpperFromInt32x16
-	OpShiftAllRightAndFillUpperFromInt64x2
-	OpShiftAllRightAndFillUpperFromInt64x4
-	OpShiftAllRightAndFillUpperFromInt64x8
-	OpShiftAllRightAndFillUpperFromMaskedInt16x8
-	OpShiftAllRightAndFillUpperFromMaskedInt16x16
-	OpShiftAllRightAndFillUpperFromMaskedInt16x32
-	OpShiftAllRightAndFillUpperFromMaskedInt32x4
-	OpShiftAllRightAndFillUpperFromMaskedInt32x8
-	OpShiftAllRightAndFillUpperFromMaskedInt32x16
-	OpShiftAllRightAndFillUpperFromMaskedInt64x2
-	OpShiftAllRightAndFillUpperFromMaskedInt64x4
-	OpShiftAllRightAndFillUpperFromMaskedInt64x8
-	OpShiftAllRightAndFillUpperFromMaskedUint16x8
-	OpShiftAllRightAndFillUpperFromMaskedUint16x16
-	OpShiftAllRightAndFillUpperFromMaskedUint16x32
-	OpShiftAllRightAndFillUpperFromMaskedUint32x4
-	OpShiftAllRightAndFillUpperFromMaskedUint32x8
-	OpShiftAllRightAndFillUpperFromMaskedUint32x16
-	OpShiftAllRightAndFillUpperFromMaskedUint64x2
-	OpShiftAllRightAndFillUpperFromMaskedUint64x4
-	OpShiftAllRightAndFillUpperFromMaskedUint64x8
-	OpShiftAllRightAndFillUpperFromUint16x8
-	OpShiftAllRightAndFillUpperFromUint16x16
-	OpShiftAllRightAndFillUpperFromUint16x32
-	OpShiftAllRightAndFillUpperFromUint32x4
-	OpShiftAllRightAndFillUpperFromUint32x8
-	OpShiftAllRightAndFillUpperFromUint32x16
-	OpShiftAllRightAndFillUpperFromUint64x2
-	OpShiftAllRightAndFillUpperFromUint64x4
-	OpShiftAllRightAndFillUpperFromUint64x8
+	OpShiftAllLeftConcatInt16x8
+	OpShiftAllLeftConcatInt16x16
+	OpShiftAllLeftConcatInt16x32
+	OpShiftAllLeftConcatInt32x4
+	OpShiftAllLeftConcatInt32x8
+	OpShiftAllLeftConcatInt32x16
+	OpShiftAllLeftConcatInt64x2
+	OpShiftAllLeftConcatInt64x4
+	OpShiftAllLeftConcatInt64x8
+	OpShiftAllLeftConcatMaskedInt16x8
+	OpShiftAllLeftConcatMaskedInt16x16
+	OpShiftAllLeftConcatMaskedInt16x32
+	OpShiftAllLeftConcatMaskedInt32x4
+	OpShiftAllLeftConcatMaskedInt32x8
+	OpShiftAllLeftConcatMaskedInt32x16
+	OpShiftAllLeftConcatMaskedInt64x2
+	OpShiftAllLeftConcatMaskedInt64x4
+	OpShiftAllLeftConcatMaskedInt64x8
+	OpShiftAllLeftConcatMaskedUint16x8
+	OpShiftAllLeftConcatMaskedUint16x16
+	OpShiftAllLeftConcatMaskedUint16x32
+	OpShiftAllLeftConcatMaskedUint32x4
+	OpShiftAllLeftConcatMaskedUint32x8
+	OpShiftAllLeftConcatMaskedUint32x16
+	OpShiftAllLeftConcatMaskedUint64x2
+	OpShiftAllLeftConcatMaskedUint64x4
+	OpShiftAllLeftConcatMaskedUint64x8
+	OpShiftAllLeftConcatUint16x8
+	OpShiftAllLeftConcatUint16x16
+	OpShiftAllLeftConcatUint16x32
+	OpShiftAllLeftConcatUint32x4
+	OpShiftAllLeftConcatUint32x8
+	OpShiftAllLeftConcatUint32x16
+	OpShiftAllLeftConcatUint64x2
+	OpShiftAllLeftConcatUint64x4
+	OpShiftAllLeftConcatUint64x8
+	OpShiftAllRightConcatInt16x8
+	OpShiftAllRightConcatInt16x16
+	OpShiftAllRightConcatInt16x32
+	OpShiftAllRightConcatInt32x4
+	OpShiftAllRightConcatInt32x8
+	OpShiftAllRightConcatInt32x16
+	OpShiftAllRightConcatInt64x2
+	OpShiftAllRightConcatInt64x4
+	OpShiftAllRightConcatInt64x8
+	OpShiftAllRightConcatMaskedInt16x8
+	OpShiftAllRightConcatMaskedInt16x16
+	OpShiftAllRightConcatMaskedInt16x32
+	OpShiftAllRightConcatMaskedInt32x4
+	OpShiftAllRightConcatMaskedInt32x8
+	OpShiftAllRightConcatMaskedInt32x16
+	OpShiftAllRightConcatMaskedInt64x2
+	OpShiftAllRightConcatMaskedInt64x4
+	OpShiftAllRightConcatMaskedInt64x8
+	OpShiftAllRightConcatMaskedUint16x8
+	OpShiftAllRightConcatMaskedUint16x16
+	OpShiftAllRightConcatMaskedUint16x32
+	OpShiftAllRightConcatMaskedUint32x4
+	OpShiftAllRightConcatMaskedUint32x8
+	OpShiftAllRightConcatMaskedUint32x16
+	OpShiftAllRightConcatMaskedUint64x2
+	OpShiftAllRightConcatMaskedUint64x4
+	OpShiftAllRightConcatMaskedUint64x8
+	OpShiftAllRightConcatUint16x8
+	OpShiftAllRightConcatUint16x16
+	OpShiftAllRightConcatUint16x32
+	OpShiftAllRightConcatUint32x4
+	OpShiftAllRightConcatUint32x8
+	OpShiftAllRightConcatUint32x16
+	OpShiftAllRightConcatUint64x2
+	OpShiftAllRightConcatUint64x4
+	OpShiftAllRightConcatUint64x8
 	OpTruncWithPrecisionFloat32x4
 	OpTruncWithPrecisionFloat32x8
 	OpTruncWithPrecisionFloat32x16
@@ -68518,182 +68518,182 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromInt16x8",
+		name:    "ShiftLeftConcatInt16x8",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromInt16x16",
+		name:    "ShiftLeftConcatInt16x16",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromInt16x32",
+		name:    "ShiftLeftConcatInt16x32",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromInt32x4",
+		name:    "ShiftLeftConcatInt32x4",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromInt32x8",
+		name:    "ShiftLeftConcatInt32x8",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromInt32x16",
+		name:    "ShiftLeftConcatInt32x16",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromInt64x2",
+		name:    "ShiftLeftConcatInt64x2",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromInt64x4",
+		name:    "ShiftLeftConcatInt64x4",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromInt64x8",
+		name:    "ShiftLeftConcatInt64x8",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromMaskedInt16x8",
+		name:    "ShiftLeftConcatMaskedInt16x8",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromMaskedInt16x16",
+		name:    "ShiftLeftConcatMaskedInt16x16",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromMaskedInt16x32",
+		name:    "ShiftLeftConcatMaskedInt16x32",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromMaskedInt32x4",
+		name:    "ShiftLeftConcatMaskedInt32x4",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromMaskedInt32x8",
+		name:    "ShiftLeftConcatMaskedInt32x8",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromMaskedInt32x16",
+		name:    "ShiftLeftConcatMaskedInt32x16",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromMaskedInt64x2",
+		name:    "ShiftLeftConcatMaskedInt64x2",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromMaskedInt64x4",
+		name:    "ShiftLeftConcatMaskedInt64x4",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromMaskedInt64x8",
+		name:    "ShiftLeftConcatMaskedInt64x8",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromMaskedUint16x8",
+		name:    "ShiftLeftConcatMaskedUint16x8",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromMaskedUint16x16",
+		name:    "ShiftLeftConcatMaskedUint16x16",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromMaskedUint16x32",
+		name:    "ShiftLeftConcatMaskedUint16x32",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromMaskedUint32x4",
+		name:    "ShiftLeftConcatMaskedUint32x4",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromMaskedUint32x8",
+		name:    "ShiftLeftConcatMaskedUint32x8",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromMaskedUint32x16",
+		name:    "ShiftLeftConcatMaskedUint32x16",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromMaskedUint64x2",
+		name:    "ShiftLeftConcatMaskedUint64x2",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromMaskedUint64x4",
+		name:    "ShiftLeftConcatMaskedUint64x4",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromMaskedUint64x8",
+		name:    "ShiftLeftConcatMaskedUint64x8",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromUint16x8",
+		name:    "ShiftLeftConcatUint16x8",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromUint16x16",
+		name:    "ShiftLeftConcatUint16x16",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromUint16x32",
+		name:    "ShiftLeftConcatUint16x32",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromUint32x4",
+		name:    "ShiftLeftConcatUint32x4",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromUint32x8",
+		name:    "ShiftLeftConcatUint32x8",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromUint32x16",
+		name:    "ShiftLeftConcatUint32x16",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromUint64x2",
+		name:    "ShiftLeftConcatUint64x2",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromUint64x4",
+		name:    "ShiftLeftConcatUint64x4",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftAndFillUpperFromUint64x8",
+		name:    "ShiftLeftConcatUint64x8",
 		argLen:  3,
 		generic: true,
 	},
@@ -68878,182 +68878,182 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromInt16x8",
+		name:    "ShiftRightConcatInt16x8",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromInt16x16",
+		name:    "ShiftRightConcatInt16x16",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromInt16x32",
+		name:    "ShiftRightConcatInt16x32",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromInt32x4",
+		name:    "ShiftRightConcatInt32x4",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromInt32x8",
+		name:    "ShiftRightConcatInt32x8",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromInt32x16",
+		name:    "ShiftRightConcatInt32x16",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromInt64x2",
+		name:    "ShiftRightConcatInt64x2",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromInt64x4",
+		name:    "ShiftRightConcatInt64x4",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromInt64x8",
+		name:    "ShiftRightConcatInt64x8",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromMaskedInt16x8",
+		name:    "ShiftRightConcatMaskedInt16x8",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromMaskedInt16x16",
+		name:    "ShiftRightConcatMaskedInt16x16",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromMaskedInt16x32",
+		name:    "ShiftRightConcatMaskedInt16x32",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromMaskedInt32x4",
+		name:    "ShiftRightConcatMaskedInt32x4",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromMaskedInt32x8",
+		name:    "ShiftRightConcatMaskedInt32x8",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromMaskedInt32x16",
+		name:    "ShiftRightConcatMaskedInt32x16",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromMaskedInt64x2",
+		name:    "ShiftRightConcatMaskedInt64x2",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromMaskedInt64x4",
+		name:    "ShiftRightConcatMaskedInt64x4",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromMaskedInt64x8",
+		name:    "ShiftRightConcatMaskedInt64x8",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromMaskedUint16x8",
+		name:    "ShiftRightConcatMaskedUint16x8",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromMaskedUint16x16",
+		name:    "ShiftRightConcatMaskedUint16x16",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromMaskedUint16x32",
+		name:    "ShiftRightConcatMaskedUint16x32",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromMaskedUint32x4",
+		name:    "ShiftRightConcatMaskedUint32x4",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromMaskedUint32x8",
+		name:    "ShiftRightConcatMaskedUint32x8",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromMaskedUint32x16",
+		name:    "ShiftRightConcatMaskedUint32x16",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromMaskedUint64x2",
+		name:    "ShiftRightConcatMaskedUint64x2",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromMaskedUint64x4",
+		name:    "ShiftRightConcatMaskedUint64x4",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromMaskedUint64x8",
+		name:    "ShiftRightConcatMaskedUint64x8",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromUint16x8",
+		name:    "ShiftRightConcatUint16x8",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromUint16x16",
+		name:    "ShiftRightConcatUint16x16",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromUint16x32",
+		name:    "ShiftRightConcatUint16x32",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromUint32x4",
+		name:    "ShiftRightConcatUint32x4",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromUint32x8",
+		name:    "ShiftRightConcatUint32x8",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromUint32x16",
+		name:    "ShiftRightConcatUint32x16",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromUint64x2",
+		name:    "ShiftRightConcatUint64x2",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromUint64x4",
+		name:    "ShiftRightConcatUint64x4",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftRightAndFillUpperFromUint64x8",
+		name:    "ShiftRightConcatUint64x8",
 		argLen:  3,
 		generic: true,
 	},
@@ -70950,433 +70950,433 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromInt16x8",
+		name:    "ShiftAllLeftConcatInt16x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromInt16x16",
+		name:    "ShiftAllLeftConcatInt16x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromInt16x32",
+		name:    "ShiftAllLeftConcatInt16x32",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromInt32x4",
+		name:    "ShiftAllLeftConcatInt32x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromInt32x8",
+		name:    "ShiftAllLeftConcatInt32x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromInt32x16",
+		name:    "ShiftAllLeftConcatInt32x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromInt64x2",
+		name:    "ShiftAllLeftConcatInt64x2",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromInt64x4",
+		name:    "ShiftAllLeftConcatInt64x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromInt64x8",
+		name:    "ShiftAllLeftConcatInt64x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromMaskedInt16x8",
+		name:    "ShiftAllLeftConcatMaskedInt16x8",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromMaskedInt16x16",
+		name:    "ShiftAllLeftConcatMaskedInt16x16",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromMaskedInt16x32",
+		name:    "ShiftAllLeftConcatMaskedInt16x32",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromMaskedInt32x4",
+		name:    "ShiftAllLeftConcatMaskedInt32x4",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromMaskedInt32x8",
+		name:    "ShiftAllLeftConcatMaskedInt32x8",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromMaskedInt32x16",
+		name:    "ShiftAllLeftConcatMaskedInt32x16",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromMaskedInt64x2",
+		name:    "ShiftAllLeftConcatMaskedInt64x2",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromMaskedInt64x4",
+		name:    "ShiftAllLeftConcatMaskedInt64x4",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromMaskedInt64x8",
+		name:    "ShiftAllLeftConcatMaskedInt64x8",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromMaskedUint16x8",
+		name:    "ShiftAllLeftConcatMaskedUint16x8",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromMaskedUint16x16",
+		name:    "ShiftAllLeftConcatMaskedUint16x16",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromMaskedUint16x32",
+		name:    "ShiftAllLeftConcatMaskedUint16x32",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromMaskedUint32x4",
+		name:    "ShiftAllLeftConcatMaskedUint32x4",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromMaskedUint32x8",
+		name:    "ShiftAllLeftConcatMaskedUint32x8",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromMaskedUint32x16",
+		name:    "ShiftAllLeftConcatMaskedUint32x16",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromMaskedUint64x2",
+		name:    "ShiftAllLeftConcatMaskedUint64x2",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromMaskedUint64x4",
+		name:    "ShiftAllLeftConcatMaskedUint64x4",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromMaskedUint64x8",
+		name:    "ShiftAllLeftConcatMaskedUint64x8",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromUint16x8",
+		name:    "ShiftAllLeftConcatUint16x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromUint16x16",
+		name:    "ShiftAllLeftConcatUint16x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromUint16x32",
+		name:    "ShiftAllLeftConcatUint16x32",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromUint32x4",
+		name:    "ShiftAllLeftConcatUint32x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromUint32x8",
+		name:    "ShiftAllLeftConcatUint32x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromUint32x16",
+		name:    "ShiftAllLeftConcatUint32x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromUint64x2",
+		name:    "ShiftAllLeftConcatUint64x2",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromUint64x4",
+		name:    "ShiftAllLeftConcatUint64x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllLeftAndFillUpperFromUint64x8",
+		name:    "ShiftAllLeftConcatUint64x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromInt16x8",
+		name:    "ShiftAllRightConcatInt16x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromInt16x16",
+		name:    "ShiftAllRightConcatInt16x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromInt16x32",
+		name:    "ShiftAllRightConcatInt16x32",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromInt32x4",
+		name:    "ShiftAllRightConcatInt32x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromInt32x8",
+		name:    "ShiftAllRightConcatInt32x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromInt32x16",
+		name:    "ShiftAllRightConcatInt32x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromInt64x2",
+		name:    "ShiftAllRightConcatInt64x2",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromInt64x4",
+		name:    "ShiftAllRightConcatInt64x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromInt64x8",
+		name:    "ShiftAllRightConcatInt64x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromMaskedInt16x8",
+		name:    "ShiftAllRightConcatMaskedInt16x8",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromMaskedInt16x16",
+		name:    "ShiftAllRightConcatMaskedInt16x16",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromMaskedInt16x32",
+		name:    "ShiftAllRightConcatMaskedInt16x32",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromMaskedInt32x4",
+		name:    "ShiftAllRightConcatMaskedInt32x4",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromMaskedInt32x8",
+		name:    "ShiftAllRightConcatMaskedInt32x8",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromMaskedInt32x16",
+		name:    "ShiftAllRightConcatMaskedInt32x16",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromMaskedInt64x2",
+		name:    "ShiftAllRightConcatMaskedInt64x2",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromMaskedInt64x4",
+		name:    "ShiftAllRightConcatMaskedInt64x4",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromMaskedInt64x8",
+		name:    "ShiftAllRightConcatMaskedInt64x8",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromMaskedUint16x8",
+		name:    "ShiftAllRightConcatMaskedUint16x8",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromMaskedUint16x16",
+		name:    "ShiftAllRightConcatMaskedUint16x16",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromMaskedUint16x32",
+		name:    "ShiftAllRightConcatMaskedUint16x32",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromMaskedUint32x4",
+		name:    "ShiftAllRightConcatMaskedUint32x4",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromMaskedUint32x8",
+		name:    "ShiftAllRightConcatMaskedUint32x8",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromMaskedUint32x16",
+		name:    "ShiftAllRightConcatMaskedUint32x16",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromMaskedUint64x2",
+		name:    "ShiftAllRightConcatMaskedUint64x2",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromMaskedUint64x4",
+		name:    "ShiftAllRightConcatMaskedUint64x4",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromMaskedUint64x8",
+		name:    "ShiftAllRightConcatMaskedUint64x8",
 		auxType: auxInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromUint16x8",
+		name:    "ShiftAllRightConcatUint16x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromUint16x16",
+		name:    "ShiftAllRightConcatUint16x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromUint16x32",
+		name:    "ShiftAllRightConcatUint16x32",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromUint32x4",
+		name:    "ShiftAllRightConcatUint32x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromUint32x8",
+		name:    "ShiftAllRightConcatUint32x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromUint32x16",
+		name:    "ShiftAllRightConcatUint32x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromUint64x2",
+		name:    "ShiftAllRightConcatUint64x2",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromUint64x4",
+		name:    "ShiftAllRightConcatUint64x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "ShiftAllRightAndFillUpperFromUint64x8",
+		name:    "ShiftAllRightConcatUint64x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,

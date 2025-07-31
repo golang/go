@@ -9259,165 +9259,155 @@ func (x Uint64x4) ShiftAllLeft(y uint64) Uint64x4
 // Asm: VPSLLQ, CPU Feature: AVX512F
 func (x Uint64x8) ShiftAllLeft(y uint64) Uint64x8
 
-/* ShiftAllLeftAndFillUpperFrom */
+/* ShiftAllLeftConcat */
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Int16x8) ShiftAllLeftAndFillUpperFrom(shift uint8, y Int16x8) Int16x8
+func (x Int16x8) ShiftAllLeftConcat(shift uint8, y Int16x8) Int16x8
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Int16x16) ShiftAllLeftAndFillUpperFrom(shift uint8, y Int16x16) Int16x16
+func (x Int16x16) ShiftAllLeftConcat(shift uint8, y Int16x16) Int16x16
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Int16x32) ShiftAllLeftAndFillUpperFrom(shift uint8, y Int16x32) Int16x32
+func (x Int16x32) ShiftAllLeftConcat(shift uint8, y Int16x32) Int16x32
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Int32x4) ShiftAllLeftAndFillUpperFrom(shift uint8, y Int32x4) Int32x4
+func (x Int32x4) ShiftAllLeftConcat(shift uint8, y Int32x4) Int32x4
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Int32x8) ShiftAllLeftAndFillUpperFrom(shift uint8, y Int32x8) Int32x8
+func (x Int32x8) ShiftAllLeftConcat(shift uint8, y Int32x8) Int32x8
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Int32x16) ShiftAllLeftAndFillUpperFrom(shift uint8, y Int32x16) Int32x16
+func (x Int32x16) ShiftAllLeftConcat(shift uint8, y Int32x16) Int32x16
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Int64x2) ShiftAllLeftAndFillUpperFrom(shift uint8, y Int64x2) Int64x2
+func (x Int64x2) ShiftAllLeftConcat(shift uint8, y Int64x2) Int64x2
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Int64x4) ShiftAllLeftAndFillUpperFrom(shift uint8, y Int64x4) Int64x4
+func (x Int64x4) ShiftAllLeftConcat(shift uint8, y Int64x4) Int64x4
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Int64x8) ShiftAllLeftAndFillUpperFrom(shift uint8, y Int64x8) Int64x8
+func (x Int64x8) ShiftAllLeftConcat(shift uint8, y Int64x8) Int64x8
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Uint16x8) ShiftAllLeftAndFillUpperFrom(shift uint8, y Uint16x8) Uint16x8
+func (x Uint16x8) ShiftAllLeftConcat(shift uint8, y Uint16x8) Uint16x8
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Uint16x16) ShiftAllLeftAndFillUpperFrom(shift uint8, y Uint16x16) Uint16x16
+func (x Uint16x16) ShiftAllLeftConcat(shift uint8, y Uint16x16) Uint16x16
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Uint16x32) ShiftAllLeftAndFillUpperFrom(shift uint8, y Uint16x32) Uint16x32
+func (x Uint16x32) ShiftAllLeftConcat(shift uint8, y Uint16x32) Uint16x32
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Uint32x4) ShiftAllLeftAndFillUpperFrom(shift uint8, y Uint32x4) Uint32x4
+func (x Uint32x4) ShiftAllLeftConcat(shift uint8, y Uint32x4) Uint32x4
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Uint32x8) ShiftAllLeftAndFillUpperFrom(shift uint8, y Uint32x8) Uint32x8
+func (x Uint32x8) ShiftAllLeftConcat(shift uint8, y Uint32x8) Uint32x8
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Uint32x16) ShiftAllLeftAndFillUpperFrom(shift uint8, y Uint32x16) Uint32x16
+func (x Uint32x16) ShiftAllLeftConcat(shift uint8, y Uint32x16) Uint32x16
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x2) ShiftAllLeftAndFillUpperFrom(shift uint8, y Uint64x2) Uint64x2
+func (x Uint64x2) ShiftAllLeftConcat(shift uint8, y Uint64x2) Uint64x2
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x4) ShiftAllLeftAndFillUpperFrom(shift uint8, y Uint64x4) Uint64x4
+func (x Uint64x4) ShiftAllLeftConcat(shift uint8, y Uint64x4) Uint64x4
 
-// ShiftAllLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x8) ShiftAllLeftAndFillUpperFrom(shift uint8, y Uint64x8) Uint64x8
+func (x Uint64x8) ShiftAllLeftConcat(shift uint8, y Uint64x8) Uint64x8
 
-/* ShiftAllLeftAndFillUpperFromMasked */
+/* ShiftAllLeftConcatMasked */
 
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// shift is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Int16x8) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int16x8, mask Mask16x8) Int16x8
-
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -9425,9 +9415,9 @@ func (x Int16x8) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int16x8, mask
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Int16x16) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int16x16, mask Mask16x16) Int16x16
+func (x Int16x8) ShiftAllLeftConcatMasked(shift uint8, y Int16x8, mask Mask16x8) Int16x8
 
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -9435,69 +9425,9 @@ func (x Int16x16) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int16x16, ma
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Int16x32) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int16x32, mask Mask16x32) Int16x32
+func (x Int16x16) ShiftAllLeftConcatMasked(shift uint8, y Int16x16, mask Mask16x16) Int16x16
 
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// shift is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Int32x4) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int32x4, mask Mask32x4) Int32x4
-
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// shift is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Int32x8) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int32x8, mask Mask32x8) Int32x8
-
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// shift is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Int32x16) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int32x16, mask Mask32x16) Int32x16
-
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// shift is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Int64x2) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int64x2, mask Mask64x2) Int64x2
-
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// shift is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Int64x4) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int64x4, mask Mask64x4) Int64x4
-
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// shift is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Int64x8) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int64x8, mask Mask64x8) Int64x8
-
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -9505,9 +9435,69 @@ func (x Int64x8) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Int64x8, mask
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Uint16x8) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint16x8, mask Mask16x8) Uint16x8
+func (x Int16x32) ShiftAllLeftConcatMasked(shift uint8, y Int16x32, mask Mask16x32) Int16x32
 
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDD, CPU Feature: AVX512VBMI2
+func (x Int32x4) ShiftAllLeftConcatMasked(shift uint8, y Int32x4, mask Mask32x4) Int32x4
+
+// ShiftAllLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDD, CPU Feature: AVX512VBMI2
+func (x Int32x8) ShiftAllLeftConcatMasked(shift uint8, y Int32x8, mask Mask32x8) Int32x8
+
+// ShiftAllLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDD, CPU Feature: AVX512VBMI2
+func (x Int32x16) ShiftAllLeftConcatMasked(shift uint8, y Int32x16, mask Mask32x16) Int32x16
+
+// ShiftAllLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
+func (x Int64x2) ShiftAllLeftConcatMasked(shift uint8, y Int64x2, mask Mask64x2) Int64x2
+
+// ShiftAllLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
+func (x Int64x4) ShiftAllLeftConcatMasked(shift uint8, y Int64x4, mask Mask64x4) Int64x4
+
+// ShiftAllLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
+func (x Int64x8) ShiftAllLeftConcatMasked(shift uint8, y Int64x8, mask Mask64x8) Int64x8
+
+// ShiftAllLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -9515,9 +9505,9 @@ func (x Uint16x8) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint16x8, ma
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Uint16x16) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint16x16, mask Mask16x16) Uint16x16
+func (x Uint16x8) ShiftAllLeftConcatMasked(shift uint8, y Uint16x8, mask Mask16x8) Uint16x8
 
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -9525,9 +9515,19 @@ func (x Uint16x16) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint16x16, 
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Uint16x32) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint16x32, mask Mask16x32) Uint16x32
+func (x Uint16x16) ShiftAllLeftConcatMasked(shift uint8, y Uint16x16, mask Mask16x16) Uint16x16
 
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHLDW, CPU Feature: AVX512VBMI2
+func (x Uint16x32) ShiftAllLeftConcatMasked(shift uint8, y Uint16x32, mask Mask16x32) Uint16x32
+
+// ShiftAllLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -9535,9 +9535,9 @@ func (x Uint16x32) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint16x32, 
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Uint32x4) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint32x4, mask Mask32x4) Uint32x4
+func (x Uint32x4) ShiftAllLeftConcatMasked(shift uint8, y Uint32x4, mask Mask32x4) Uint32x4
 
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -9545,9 +9545,9 @@ func (x Uint32x4) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint32x4, ma
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Uint32x8) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint32x8, mask Mask32x8) Uint32x8
+func (x Uint32x8) ShiftAllLeftConcatMasked(shift uint8, y Uint32x8, mask Mask32x8) Uint32x8
 
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -9555,9 +9555,9 @@ func (x Uint32x8) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint32x8, ma
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Uint32x16) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint32x16, mask Mask32x16) Uint32x16
+func (x Uint32x16) ShiftAllLeftConcatMasked(shift uint8, y Uint32x16, mask Mask32x16) Uint32x16
 
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -9565,9 +9565,9 @@ func (x Uint32x16) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint32x16, 
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x2) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint64x2, mask Mask64x2) Uint64x2
+func (x Uint64x2) ShiftAllLeftConcatMasked(shift uint8, y Uint64x2, mask Mask64x2) Uint64x2
 
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -9575,9 +9575,9 @@ func (x Uint64x2) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint64x2, ma
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x4) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint64x4, mask Mask64x4) Uint64x4
+func (x Uint64x4) ShiftAllLeftConcatMasked(shift uint8, y Uint64x4, mask Mask64x4) Uint64x4
 
-// ShiftAllLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftAllLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -9585,7 +9585,7 @@ func (x Uint64x4) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint64x4, ma
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x8) ShiftAllLeftAndFillUpperFromMasked(shift uint8, y Uint64x8, mask Mask64x8) Uint64x8
+func (x Uint64x8) ShiftAllLeftConcatMasked(shift uint8, y Uint64x8, mask Mask64x8) Uint64x8
 
 /* ShiftAllLeftMasked */
 
@@ -9807,165 +9807,155 @@ func (x Uint64x4) ShiftAllRight(y uint64) Uint64x4
 // Asm: VPSRLQ, CPU Feature: AVX512F
 func (x Uint64x8) ShiftAllRight(y uint64) Uint64x8
 
-/* ShiftAllRightAndFillUpperFrom */
+/* ShiftAllRightConcat */
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Int16x8) ShiftAllRightAndFillUpperFrom(shift uint8, y Int16x8) Int16x8
+func (x Int16x8) ShiftAllRightConcat(shift uint8, y Int16x8) Int16x8
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Int16x16) ShiftAllRightAndFillUpperFrom(shift uint8, y Int16x16) Int16x16
+func (x Int16x16) ShiftAllRightConcat(shift uint8, y Int16x16) Int16x16
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Int16x32) ShiftAllRightAndFillUpperFrom(shift uint8, y Int16x32) Int16x32
+func (x Int16x32) ShiftAllRightConcat(shift uint8, y Int16x32) Int16x32
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Int32x4) ShiftAllRightAndFillUpperFrom(shift uint8, y Int32x4) Int32x4
+func (x Int32x4) ShiftAllRightConcat(shift uint8, y Int32x4) Int32x4
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Int32x8) ShiftAllRightAndFillUpperFrom(shift uint8, y Int32x8) Int32x8
+func (x Int32x8) ShiftAllRightConcat(shift uint8, y Int32x8) Int32x8
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Int32x16) ShiftAllRightAndFillUpperFrom(shift uint8, y Int32x16) Int32x16
+func (x Int32x16) ShiftAllRightConcat(shift uint8, y Int32x16) Int32x16
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Int64x2) ShiftAllRightAndFillUpperFrom(shift uint8, y Int64x2) Int64x2
+func (x Int64x2) ShiftAllRightConcat(shift uint8, y Int64x2) Int64x2
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Int64x4) ShiftAllRightAndFillUpperFrom(shift uint8, y Int64x4) Int64x4
+func (x Int64x4) ShiftAllRightConcat(shift uint8, y Int64x4) Int64x4
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Int64x8) ShiftAllRightAndFillUpperFrom(shift uint8, y Int64x8) Int64x8
+func (x Int64x8) ShiftAllRightConcat(shift uint8, y Int64x8) Int64x8
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Uint16x8) ShiftAllRightAndFillUpperFrom(shift uint8, y Uint16x8) Uint16x8
+func (x Uint16x8) ShiftAllRightConcat(shift uint8, y Uint16x8) Uint16x8
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Uint16x16) ShiftAllRightAndFillUpperFrom(shift uint8, y Uint16x16) Uint16x16
+func (x Uint16x16) ShiftAllRightConcat(shift uint8, y Uint16x16) Uint16x16
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Uint16x32) ShiftAllRightAndFillUpperFrom(shift uint8, y Uint16x32) Uint16x32
+func (x Uint16x32) ShiftAllRightConcat(shift uint8, y Uint16x32) Uint16x32
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Uint32x4) ShiftAllRightAndFillUpperFrom(shift uint8, y Uint32x4) Uint32x4
+func (x Uint32x4) ShiftAllRightConcat(shift uint8, y Uint32x4) Uint32x4
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Uint32x8) ShiftAllRightAndFillUpperFrom(shift uint8, y Uint32x8) Uint32x8
+func (x Uint32x8) ShiftAllRightConcat(shift uint8, y Uint32x8) Uint32x8
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Uint32x16) ShiftAllRightAndFillUpperFrom(shift uint8, y Uint32x16) Uint32x16
+func (x Uint32x16) ShiftAllRightConcat(shift uint8, y Uint32x16) Uint32x16
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x2) ShiftAllRightAndFillUpperFrom(shift uint8, y Uint64x2) Uint64x2
+func (x Uint64x2) ShiftAllRightConcat(shift uint8, y Uint64x2) Uint64x2
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x4) ShiftAllRightAndFillUpperFrom(shift uint8, y Uint64x4) Uint64x4
+func (x Uint64x4) ShiftAllRightConcat(shift uint8, y Uint64x4) Uint64x4
 
-// ShiftAllRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x8) ShiftAllRightAndFillUpperFrom(shift uint8, y Uint64x8) Uint64x8
+func (x Uint64x8) ShiftAllRightConcat(shift uint8, y Uint64x8) Uint64x8
 
-/* ShiftAllRightAndFillUpperFromMasked */
+/* ShiftAllRightConcatMasked */
 
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// shift is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Int16x8) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int16x8, mask Mask16x8) Int16x8
-
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -9973,9 +9963,9 @@ func (x Int16x8) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int16x8, mas
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Int16x16) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int16x16, mask Mask16x16) Int16x16
+func (x Int16x8) ShiftAllRightConcatMasked(shift uint8, y Int16x8, mask Mask16x8) Int16x8
 
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -9983,69 +9973,9 @@ func (x Int16x16) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int16x16, m
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Int16x32) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int16x32, mask Mask16x32) Int16x32
+func (x Int16x16) ShiftAllRightConcatMasked(shift uint8, y Int16x16, mask Mask16x16) Int16x16
 
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// shift is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Int32x4) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int32x4, mask Mask32x4) Int32x4
-
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// shift is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Int32x8) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int32x8, mask Mask32x8) Int32x8
-
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// shift is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Int32x16) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int32x16, mask Mask32x16) Int32x16
-
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// shift is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Int64x2) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int64x2, mask Mask64x2) Int64x2
-
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// shift is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Int64x4) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int64x4, mask Mask64x4) Int64x4
-
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// shift is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Int64x8) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int64x8, mask Mask64x8) Int64x8
-
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -10053,9 +9983,69 @@ func (x Int64x8) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Int64x8, mas
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Uint16x8) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint16x8, mask Mask16x8) Uint16x8
+func (x Int16x32) ShiftAllRightConcatMasked(shift uint8, y Int16x32, mask Mask16x32) Int16x32
 
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcatMasked shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDD, CPU Feature: AVX512VBMI2
+func (x Int32x4) ShiftAllRightConcatMasked(shift uint8, y Int32x4, mask Mask32x4) Int32x4
+
+// ShiftAllRightConcatMasked shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDD, CPU Feature: AVX512VBMI2
+func (x Int32x8) ShiftAllRightConcatMasked(shift uint8, y Int32x8, mask Mask32x8) Int32x8
+
+// ShiftAllRightConcatMasked shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDD, CPU Feature: AVX512VBMI2
+func (x Int32x16) ShiftAllRightConcatMasked(shift uint8, y Int32x16, mask Mask32x16) Int32x16
+
+// ShiftAllRightConcatMasked shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
+func (x Int64x2) ShiftAllRightConcatMasked(shift uint8, y Int64x2, mask Mask64x2) Int64x2
+
+// ShiftAllRightConcatMasked shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
+func (x Int64x4) ShiftAllRightConcatMasked(shift uint8, y Int64x4, mask Mask64x4) Int64x4
+
+// ShiftAllRightConcatMasked shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
+func (x Int64x8) ShiftAllRightConcatMasked(shift uint8, y Int64x8, mask Mask64x8) Int64x8
+
+// ShiftAllRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -10063,9 +10053,9 @@ func (x Uint16x8) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint16x8, m
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Uint16x16) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint16x16, mask Mask16x16) Uint16x16
+func (x Uint16x8) ShiftAllRightConcatMasked(shift uint8, y Uint16x8, mask Mask16x8) Uint16x8
 
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -10073,9 +10063,19 @@ func (x Uint16x16) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint16x16,
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Uint16x32) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint16x32, mask Mask16x32) Uint16x32
+func (x Uint16x16) ShiftAllRightConcatMasked(shift uint8, y Uint16x16, mask Mask16x16) Uint16x16
 
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcatMasked shifts each element of x to the right by the number of bits specified by the
+// immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// shift is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VPSHRDW, CPU Feature: AVX512VBMI2
+func (x Uint16x32) ShiftAllRightConcatMasked(shift uint8, y Uint16x32, mask Mask16x32) Uint16x32
+
+// ShiftAllRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -10083,9 +10083,9 @@ func (x Uint16x32) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint16x32,
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Uint32x4) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint32x4, mask Mask32x4) Uint32x4
+func (x Uint32x4) ShiftAllRightConcatMasked(shift uint8, y Uint32x4, mask Mask32x4) Uint32x4
 
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -10093,9 +10093,9 @@ func (x Uint32x4) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint32x4, m
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Uint32x8) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint32x8, mask Mask32x8) Uint32x8
+func (x Uint32x8) ShiftAllRightConcatMasked(shift uint8, y Uint32x8, mask Mask32x8) Uint32x8
 
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -10103,9 +10103,9 @@ func (x Uint32x8) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint32x8, m
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Uint32x16) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint32x16, mask Mask32x16) Uint32x16
+func (x Uint32x16) ShiftAllRightConcatMasked(shift uint8, y Uint32x16, mask Mask32x16) Uint32x16
 
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -10113,9 +10113,9 @@ func (x Uint32x16) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint32x16,
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x2) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint64x2, mask Mask64x2) Uint64x2
+func (x Uint64x2) ShiftAllRightConcatMasked(shift uint8, y Uint64x2, mask Mask64x2) Uint64x2
 
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -10123,9 +10123,9 @@ func (x Uint64x2) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint64x2, m
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x4) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint64x4, mask Mask64x4) Uint64x4
+func (x Uint64x4) ShiftAllRightConcatMasked(shift uint8, y Uint64x4, mask Mask64x4) Uint64x4
 
-// ShiftAllRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftAllRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
@@ -10133,7 +10133,7 @@ func (x Uint64x4) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint64x4, m
 // shift is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x8) ShiftAllRightAndFillUpperFromMasked(shift uint8, y Uint64x8, mask Mask64x8) Uint64x8
+func (x Uint64x8) ShiftAllRightConcatMasked(shift uint8, y Uint64x8, mask Mask64x8) Uint64x8
 
 /* ShiftAllRightMasked */
 
@@ -10355,261 +10355,261 @@ func (x Uint64x4) ShiftLeft(y Uint64x4) Uint64x4
 // Asm: VPSLLVQ, CPU Feature: AVX512F
 func (x Uint64x8) ShiftLeft(y Uint64x8) Uint64x8
 
-/* ShiftLeftAndFillUpperFrom */
+/* ShiftLeftConcat */
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
-func (x Int16x8) ShiftLeftAndFillUpperFrom(y Int16x8, z Int16x8) Int16x8
+func (x Int16x8) ShiftLeftConcat(y Int16x8, z Int16x8) Int16x8
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
-func (x Int16x16) ShiftLeftAndFillUpperFrom(y Int16x16, z Int16x16) Int16x16
+func (x Int16x16) ShiftLeftConcat(y Int16x16, z Int16x16) Int16x16
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
-func (x Int16x32) ShiftLeftAndFillUpperFrom(y Int16x32, z Int16x32) Int16x32
+func (x Int16x32) ShiftLeftConcat(y Int16x32, z Int16x32) Int16x32
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
-func (x Int32x4) ShiftLeftAndFillUpperFrom(y Int32x4, z Int32x4) Int32x4
+func (x Int32x4) ShiftLeftConcat(y Int32x4, z Int32x4) Int32x4
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
-func (x Int32x8) ShiftLeftAndFillUpperFrom(y Int32x8, z Int32x8) Int32x8
+func (x Int32x8) ShiftLeftConcat(y Int32x8, z Int32x8) Int32x8
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
-func (x Int32x16) ShiftLeftAndFillUpperFrom(y Int32x16, z Int32x16) Int32x16
+func (x Int32x16) ShiftLeftConcat(y Int32x16, z Int32x16) Int32x16
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
-func (x Int64x2) ShiftLeftAndFillUpperFrom(y Int64x2, z Int64x2) Int64x2
+func (x Int64x2) ShiftLeftConcat(y Int64x2, z Int64x2) Int64x2
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
-func (x Int64x4) ShiftLeftAndFillUpperFrom(y Int64x4, z Int64x4) Int64x4
+func (x Int64x4) ShiftLeftConcat(y Int64x4, z Int64x4) Int64x4
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
-func (x Int64x8) ShiftLeftAndFillUpperFrom(y Int64x8, z Int64x8) Int64x8
+func (x Int64x8) ShiftLeftConcat(y Int64x8, z Int64x8) Int64x8
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
-func (x Uint16x8) ShiftLeftAndFillUpperFrom(y Uint16x8, z Uint16x8) Uint16x8
+func (x Uint16x8) ShiftLeftConcat(y Uint16x8, z Uint16x8) Uint16x8
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
-func (x Uint16x16) ShiftLeftAndFillUpperFrom(y Uint16x16, z Uint16x16) Uint16x16
+func (x Uint16x16) ShiftLeftConcat(y Uint16x16, z Uint16x16) Uint16x16
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
-func (x Uint16x32) ShiftLeftAndFillUpperFrom(y Uint16x32, z Uint16x32) Uint16x32
+func (x Uint16x32) ShiftLeftConcat(y Uint16x32, z Uint16x32) Uint16x32
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
-func (x Uint32x4) ShiftLeftAndFillUpperFrom(y Uint32x4, z Uint32x4) Uint32x4
+func (x Uint32x4) ShiftLeftConcat(y Uint32x4, z Uint32x4) Uint32x4
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
-func (x Uint32x8) ShiftLeftAndFillUpperFrom(y Uint32x8, z Uint32x8) Uint32x8
+func (x Uint32x8) ShiftLeftConcat(y Uint32x8, z Uint32x8) Uint32x8
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
-func (x Uint32x16) ShiftLeftAndFillUpperFrom(y Uint32x16, z Uint32x16) Uint32x16
+func (x Uint32x16) ShiftLeftConcat(y Uint32x16, z Uint32x16) Uint32x16
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
-func (x Uint64x2) ShiftLeftAndFillUpperFrom(y Uint64x2, z Uint64x2) Uint64x2
+func (x Uint64x2) ShiftLeftConcat(y Uint64x2, z Uint64x2) Uint64x2
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
-func (x Uint64x4) ShiftLeftAndFillUpperFrom(y Uint64x4, z Uint64x4) Uint64x4
+func (x Uint64x4) ShiftLeftConcat(y Uint64x4, z Uint64x4) Uint64x4
 
-// ShiftLeftAndFillUpperFrom shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcat shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
-func (x Uint64x8) ShiftLeftAndFillUpperFrom(y Uint64x8, z Uint64x8) Uint64x8
+func (x Uint64x8) ShiftLeftConcat(y Uint64x8, z Uint64x8) Uint64x8
 
-/* ShiftLeftAndFillUpperFromMasked */
+/* ShiftLeftConcatMasked */
 
-// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
-func (x Int16x8) ShiftLeftAndFillUpperFromMasked(y Int16x8, z Int16x8, mask Mask16x8) Int16x8
-
-// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
-func (x Int16x16) ShiftLeftAndFillUpperFromMasked(y Int16x16, z Int16x16, mask Mask16x16) Int16x16
+func (x Int16x8) ShiftLeftConcatMasked(y Int16x8, z Int16x8, mask Mask16x8) Int16x8
 
-// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
-func (x Int16x32) ShiftLeftAndFillUpperFromMasked(y Int16x32, z Int16x32, mask Mask16x32) Int16x32
+func (x Int16x16) ShiftLeftConcatMasked(y Int16x16, z Int16x16, mask Mask16x16) Int16x16
 
-// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
-func (x Int32x4) ShiftLeftAndFillUpperFromMasked(y Int32x4, z Int32x4, mask Mask32x4) Int32x4
-
-// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
-func (x Int32x8) ShiftLeftAndFillUpperFromMasked(y Int32x8, z Int32x8, mask Mask32x8) Int32x8
-
-// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
-func (x Int32x16) ShiftLeftAndFillUpperFromMasked(y Int32x16, z Int32x16, mask Mask32x16) Int32x16
-
-// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
-func (x Int64x2) ShiftLeftAndFillUpperFromMasked(y Int64x2, z Int64x2, mask Mask64x2) Int64x2
-
-// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
-func (x Int64x4) ShiftLeftAndFillUpperFromMasked(y Int64x4, z Int64x4, mask Mask64x4) Int64x4
-
-// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
-func (x Int64x8) ShiftLeftAndFillUpperFromMasked(y Int64x8, z Int64x8, mask Mask64x8) Int64x8
-
-// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
-func (x Uint16x8) ShiftLeftAndFillUpperFromMasked(y Uint16x8, z Uint16x8, mask Mask16x8) Uint16x8
+func (x Int16x32) ShiftLeftConcatMasked(y Int16x32, z Int16x32, mask Mask16x32) Int16x32
 
-// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
+// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
+func (x Int32x4) ShiftLeftConcatMasked(y Int32x4, z Int32x4, mask Mask32x4) Int32x4
+
+// ShiftLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
+// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
+func (x Int32x8) ShiftLeftConcatMasked(y Int32x8, z Int32x8, mask Mask32x8) Int32x8
+
+// ShiftLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
+// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
+func (x Int32x16) ShiftLeftConcatMasked(y Int32x16, z Int32x16, mask Mask32x16) Int32x16
+
+// ShiftLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
+// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
+func (x Int64x2) ShiftLeftConcatMasked(y Int64x2, z Int64x2, mask Mask64x2) Int64x2
+
+// ShiftLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
+// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
+func (x Int64x4) ShiftLeftConcatMasked(y Int64x4, z Int64x4, mask Mask64x4) Int64x4
+
+// ShiftLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
+// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
+func (x Int64x8) ShiftLeftConcatMasked(y Int64x8, z Int64x8, mask Mask64x8) Int64x8
+
+// ShiftLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
-func (x Uint16x16) ShiftLeftAndFillUpperFromMasked(y Uint16x16, z Uint16x16, mask Mask16x16) Uint16x16
+func (x Uint16x8) ShiftLeftConcatMasked(y Uint16x8, z Uint16x8, mask Mask16x8) Uint16x8
 
-// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
-func (x Uint16x32) ShiftLeftAndFillUpperFromMasked(y Uint16x32, z Uint16x32, mask Mask16x32) Uint16x32
+func (x Uint16x16) ShiftLeftConcatMasked(y Uint16x16, z Uint16x16, mask Mask16x16) Uint16x16
 
-// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
+// corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
+func (x Uint16x32) ShiftLeftConcatMasked(y Uint16x32, z Uint16x32, mask Mask16x32) Uint16x32
+
+// ShiftLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
-func (x Uint32x4) ShiftLeftAndFillUpperFromMasked(y Uint32x4, z Uint32x4, mask Mask32x4) Uint32x4
+func (x Uint32x4) ShiftLeftConcatMasked(y Uint32x4, z Uint32x4, mask Mask32x4) Uint32x4
 
-// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
-func (x Uint32x8) ShiftLeftAndFillUpperFromMasked(y Uint32x8, z Uint32x8, mask Mask32x8) Uint32x8
+func (x Uint32x8) ShiftLeftConcatMasked(y Uint32x8, z Uint32x8, mask Mask32x8) Uint32x8
 
-// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
-func (x Uint32x16) ShiftLeftAndFillUpperFromMasked(y Uint32x16, z Uint32x16, mask Mask32x16) Uint32x16
+func (x Uint32x16) ShiftLeftConcatMasked(y Uint32x16, z Uint32x16, mask Mask32x16) Uint32x16
 
-// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
-func (x Uint64x2) ShiftLeftAndFillUpperFromMasked(y Uint64x2, z Uint64x2, mask Mask64x2) Uint64x2
+func (x Uint64x2) ShiftLeftConcatMasked(y Uint64x2, z Uint64x2, mask Mask64x2) Uint64x2
 
-// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
-func (x Uint64x4) ShiftLeftAndFillUpperFromMasked(y Uint64x4, z Uint64x4, mask Mask64x4) Uint64x4
+func (x Uint64x4) ShiftLeftConcatMasked(y Uint64x4, z Uint64x4, mask Mask64x4) Uint64x4
 
-// ShiftLeftAndFillUpperFromMasked shifts each element of x to the left by the number of bits specified by the
+// ShiftLeftConcatMasked shifts each element of x to the left by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
-func (x Uint64x8) ShiftLeftAndFillUpperFromMasked(y Uint64x8, z Uint64x8, mask Mask64x8) Uint64x8
+func (x Uint64x8) ShiftLeftConcatMasked(y Uint64x8, z Uint64x8, mask Mask64x8) Uint64x8
 
 /* ShiftLeftMasked */
 
@@ -10831,261 +10831,261 @@ func (x Uint64x4) ShiftRight(y Uint64x4) Uint64x4
 // Asm: VPSRLVQ, CPU Feature: AVX512F
 func (x Uint64x8) ShiftRight(y Uint64x8) Uint64x8
 
-/* ShiftRightAndFillUpperFrom */
+/* ShiftRightConcat */
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
-func (x Int16x8) ShiftRightAndFillUpperFrom(y Int16x8, z Int16x8) Int16x8
+func (x Int16x8) ShiftRightConcat(y Int16x8, z Int16x8) Int16x8
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
-func (x Int16x16) ShiftRightAndFillUpperFrom(y Int16x16, z Int16x16) Int16x16
+func (x Int16x16) ShiftRightConcat(y Int16x16, z Int16x16) Int16x16
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
-func (x Int16x32) ShiftRightAndFillUpperFrom(y Int16x32, z Int16x32) Int16x32
+func (x Int16x32) ShiftRightConcat(y Int16x32, z Int16x32) Int16x32
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
-func (x Int32x4) ShiftRightAndFillUpperFrom(y Int32x4, z Int32x4) Int32x4
+func (x Int32x4) ShiftRightConcat(y Int32x4, z Int32x4) Int32x4
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
-func (x Int32x8) ShiftRightAndFillUpperFrom(y Int32x8, z Int32x8) Int32x8
+func (x Int32x8) ShiftRightConcat(y Int32x8, z Int32x8) Int32x8
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
-func (x Int32x16) ShiftRightAndFillUpperFrom(y Int32x16, z Int32x16) Int32x16
+func (x Int32x16) ShiftRightConcat(y Int32x16, z Int32x16) Int32x16
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
-func (x Int64x2) ShiftRightAndFillUpperFrom(y Int64x2, z Int64x2) Int64x2
+func (x Int64x2) ShiftRightConcat(y Int64x2, z Int64x2) Int64x2
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
-func (x Int64x4) ShiftRightAndFillUpperFrom(y Int64x4, z Int64x4) Int64x4
+func (x Int64x4) ShiftRightConcat(y Int64x4, z Int64x4) Int64x4
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
-func (x Int64x8) ShiftRightAndFillUpperFrom(y Int64x8, z Int64x8) Int64x8
+func (x Int64x8) ShiftRightConcat(y Int64x8, z Int64x8) Int64x8
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
-func (x Uint16x8) ShiftRightAndFillUpperFrom(y Uint16x8, z Uint16x8) Uint16x8
+func (x Uint16x8) ShiftRightConcat(y Uint16x8, z Uint16x8) Uint16x8
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
-func (x Uint16x16) ShiftRightAndFillUpperFrom(y Uint16x16, z Uint16x16) Uint16x16
+func (x Uint16x16) ShiftRightConcat(y Uint16x16, z Uint16x16) Uint16x16
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
-func (x Uint16x32) ShiftRightAndFillUpperFrom(y Uint16x32, z Uint16x32) Uint16x32
+func (x Uint16x32) ShiftRightConcat(y Uint16x32, z Uint16x32) Uint16x32
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
-func (x Uint32x4) ShiftRightAndFillUpperFrom(y Uint32x4, z Uint32x4) Uint32x4
+func (x Uint32x4) ShiftRightConcat(y Uint32x4, z Uint32x4) Uint32x4
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
-func (x Uint32x8) ShiftRightAndFillUpperFrom(y Uint32x8, z Uint32x8) Uint32x8
+func (x Uint32x8) ShiftRightConcat(y Uint32x8, z Uint32x8) Uint32x8
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
-func (x Uint32x16) ShiftRightAndFillUpperFrom(y Uint32x16, z Uint32x16) Uint32x16
+func (x Uint32x16) ShiftRightConcat(y Uint32x16, z Uint32x16) Uint32x16
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
-func (x Uint64x2) ShiftRightAndFillUpperFrom(y Uint64x2, z Uint64x2) Uint64x2
+func (x Uint64x2) ShiftRightConcat(y Uint64x2, z Uint64x2) Uint64x2
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
-func (x Uint64x4) ShiftRightAndFillUpperFrom(y Uint64x4, z Uint64x4) Uint64x4
+func (x Uint64x4) ShiftRightConcat(y Uint64x4, z Uint64x4) Uint64x4
 
-// ShiftRightAndFillUpperFrom shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcat shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
-func (x Uint64x8) ShiftRightAndFillUpperFrom(y Uint64x8, z Uint64x8) Uint64x8
+func (x Uint64x8) ShiftRightConcat(y Uint64x8, z Uint64x8) Uint64x8
 
-/* ShiftRightAndFillUpperFromMasked */
+/* ShiftRightConcatMasked */
 
-// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
-func (x Int16x8) ShiftRightAndFillUpperFromMasked(y Int16x8, z Int16x8, mask Mask16x8) Int16x8
-
-// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
-func (x Int16x16) ShiftRightAndFillUpperFromMasked(y Int16x16, z Int16x16, mask Mask16x16) Int16x16
+func (x Int16x8) ShiftRightConcatMasked(y Int16x8, z Int16x8, mask Mask16x8) Int16x8
 
-// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
-func (x Int16x32) ShiftRightAndFillUpperFromMasked(y Int16x32, z Int16x32, mask Mask16x32) Int16x32
+func (x Int16x16) ShiftRightConcatMasked(y Int16x16, z Int16x16, mask Mask16x16) Int16x16
 
-// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
-func (x Int32x4) ShiftRightAndFillUpperFromMasked(y Int32x4, z Int32x4, mask Mask32x4) Int32x4
-
-// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
-func (x Int32x8) ShiftRightAndFillUpperFromMasked(y Int32x8, z Int32x8, mask Mask32x8) Int32x8
-
-// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
-func (x Int32x16) ShiftRightAndFillUpperFromMasked(y Int32x16, z Int32x16, mask Mask32x16) Int32x16
-
-// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
-func (x Int64x2) ShiftRightAndFillUpperFromMasked(y Int64x2, z Int64x2, mask Mask64x2) Int64x2
-
-// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
-func (x Int64x4) ShiftRightAndFillUpperFromMasked(y Int64x4, z Int64x4, mask Mask64x4) Int64x4
-
-// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
-// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
-func (x Int64x8) ShiftRightAndFillUpperFromMasked(y Int64x8, z Int64x8, mask Mask64x8) Int64x8
-
-// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
-func (x Uint16x8) ShiftRightAndFillUpperFromMasked(y Uint16x8, z Uint16x8, mask Mask16x8) Uint16x8
+func (x Int16x32) ShiftRightConcatMasked(y Int16x32, z Int16x32, mask Mask16x32) Int16x32
 
-// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcatMasked shifts each element of x to the right by the number of bits specified by the
+// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
+func (x Int32x4) ShiftRightConcatMasked(y Int32x4, z Int32x4, mask Mask32x4) Int32x4
+
+// ShiftRightConcatMasked shifts each element of x to the right by the number of bits specified by the
+// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
+func (x Int32x8) ShiftRightConcatMasked(y Int32x8, z Int32x8, mask Mask32x8) Int32x8
+
+// ShiftRightConcatMasked shifts each element of x to the right by the number of bits specified by the
+// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
+func (x Int32x16) ShiftRightConcatMasked(y Int32x16, z Int32x16, mask Mask32x16) Int32x16
+
+// ShiftRightConcatMasked shifts each element of x to the right by the number of bits specified by the
+// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
+func (x Int64x2) ShiftRightConcatMasked(y Int64x2, z Int64x2, mask Mask64x2) Int64x2
+
+// ShiftRightConcatMasked shifts each element of x to the right by the number of bits specified by the
+// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
+func (x Int64x4) ShiftRightConcatMasked(y Int64x4, z Int64x4, mask Mask64x4) Int64x4
+
+// ShiftRightConcatMasked shifts each element of x to the right by the number of bits specified by the
+// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
+func (x Int64x8) ShiftRightConcatMasked(y Int64x8, z Int64x8, mask Mask64x8) Int64x8
+
+// ShiftRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
-func (x Uint16x16) ShiftRightAndFillUpperFromMasked(y Uint16x16, z Uint16x16, mask Mask16x16) Uint16x16
+func (x Uint16x8) ShiftRightConcatMasked(y Uint16x8, z Uint16x8, mask Mask16x8) Uint16x8
 
-// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
-func (x Uint16x32) ShiftRightAndFillUpperFromMasked(y Uint16x32, z Uint16x32, mask Mask16x32) Uint16x32
+func (x Uint16x16) ShiftRightConcatMasked(y Uint16x16, z Uint16x16, mask Mask16x16) Uint16x16
 
-// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcatMasked shifts each element of x to the right by the number of bits specified by the
+// corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
+func (x Uint16x32) ShiftRightConcatMasked(y Uint16x32, z Uint16x32, mask Mask16x32) Uint16x32
+
+// ShiftRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
-func (x Uint32x4) ShiftRightAndFillUpperFromMasked(y Uint32x4, z Uint32x4, mask Mask32x4) Uint32x4
+func (x Uint32x4) ShiftRightConcatMasked(y Uint32x4, z Uint32x4, mask Mask32x4) Uint32x4
 
-// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
-func (x Uint32x8) ShiftRightAndFillUpperFromMasked(y Uint32x8, z Uint32x8, mask Mask32x8) Uint32x8
+func (x Uint32x8) ShiftRightConcatMasked(y Uint32x8, z Uint32x8, mask Mask32x8) Uint32x8
 
-// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
-func (x Uint32x16) ShiftRightAndFillUpperFromMasked(y Uint32x16, z Uint32x16, mask Mask32x16) Uint32x16
+func (x Uint32x16) ShiftRightConcatMasked(y Uint32x16, z Uint32x16, mask Mask32x16) Uint32x16
 
-// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
-func (x Uint64x2) ShiftRightAndFillUpperFromMasked(y Uint64x2, z Uint64x2, mask Mask64x2) Uint64x2
+func (x Uint64x2) ShiftRightConcatMasked(y Uint64x2, z Uint64x2, mask Mask64x2) Uint64x2
 
-// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
-func (x Uint64x4) ShiftRightAndFillUpperFromMasked(y Uint64x4, z Uint64x4, mask Mask64x4) Uint64x4
+func (x Uint64x4) ShiftRightConcatMasked(y Uint64x4, z Uint64x4, mask Mask64x4) Uint64x4
 
-// ShiftRightAndFillUpperFromMasked shifts each element of x to the right by the number of bits specified by the
+// ShiftRightConcatMasked shifts each element of x to the right by the number of bits specified by the
 // corresponding elements in y(only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
-func (x Uint64x8) ShiftRightAndFillUpperFromMasked(y Uint64x8, z Uint64x8, mask Mask64x8) Uint64x8
+func (x Uint64x8) ShiftRightConcatMasked(y Uint64x8, z Uint64x8, mask Mask64x8) Uint64x8
 
 /* ShiftRightMasked */
 

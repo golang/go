@@ -4443,94 +4443,94 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpSetElemUint8x16:
 		v.Op = OpAMD64VPINSRB128
 		return true
-	case OpShiftAllLeftAndFillUpperFromInt16x16:
+	case OpShiftAllLeftConcatInt16x16:
 		v.Op = OpAMD64VPSHLDW256
 		return true
-	case OpShiftAllLeftAndFillUpperFromInt16x32:
+	case OpShiftAllLeftConcatInt16x32:
 		v.Op = OpAMD64VPSHLDW512
 		return true
-	case OpShiftAllLeftAndFillUpperFromInt16x8:
+	case OpShiftAllLeftConcatInt16x8:
 		v.Op = OpAMD64VPSHLDW128
 		return true
-	case OpShiftAllLeftAndFillUpperFromInt32x16:
+	case OpShiftAllLeftConcatInt32x16:
 		v.Op = OpAMD64VPSHLDD512
 		return true
-	case OpShiftAllLeftAndFillUpperFromInt32x4:
+	case OpShiftAllLeftConcatInt32x4:
 		v.Op = OpAMD64VPSHLDD128
 		return true
-	case OpShiftAllLeftAndFillUpperFromInt32x8:
+	case OpShiftAllLeftConcatInt32x8:
 		v.Op = OpAMD64VPSHLDD256
 		return true
-	case OpShiftAllLeftAndFillUpperFromInt64x2:
+	case OpShiftAllLeftConcatInt64x2:
 		v.Op = OpAMD64VPSHLDQ128
 		return true
-	case OpShiftAllLeftAndFillUpperFromInt64x4:
+	case OpShiftAllLeftConcatInt64x4:
 		v.Op = OpAMD64VPSHLDQ256
 		return true
-	case OpShiftAllLeftAndFillUpperFromInt64x8:
+	case OpShiftAllLeftConcatInt64x8:
 		v.Op = OpAMD64VPSHLDQ512
 		return true
-	case OpShiftAllLeftAndFillUpperFromMaskedInt16x16:
-		return rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt16x16(v)
-	case OpShiftAllLeftAndFillUpperFromMaskedInt16x32:
-		return rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt16x32(v)
-	case OpShiftAllLeftAndFillUpperFromMaskedInt16x8:
-		return rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt16x8(v)
-	case OpShiftAllLeftAndFillUpperFromMaskedInt32x16:
-		return rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt32x16(v)
-	case OpShiftAllLeftAndFillUpperFromMaskedInt32x4:
-		return rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt32x4(v)
-	case OpShiftAllLeftAndFillUpperFromMaskedInt32x8:
-		return rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt32x8(v)
-	case OpShiftAllLeftAndFillUpperFromMaskedInt64x2:
-		return rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt64x2(v)
-	case OpShiftAllLeftAndFillUpperFromMaskedInt64x4:
-		return rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt64x4(v)
-	case OpShiftAllLeftAndFillUpperFromMaskedInt64x8:
-		return rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt64x8(v)
-	case OpShiftAllLeftAndFillUpperFromMaskedUint16x16:
-		return rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint16x16(v)
-	case OpShiftAllLeftAndFillUpperFromMaskedUint16x32:
-		return rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint16x32(v)
-	case OpShiftAllLeftAndFillUpperFromMaskedUint16x8:
-		return rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint16x8(v)
-	case OpShiftAllLeftAndFillUpperFromMaskedUint32x16:
-		return rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint32x16(v)
-	case OpShiftAllLeftAndFillUpperFromMaskedUint32x4:
-		return rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint32x4(v)
-	case OpShiftAllLeftAndFillUpperFromMaskedUint32x8:
-		return rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint32x8(v)
-	case OpShiftAllLeftAndFillUpperFromMaskedUint64x2:
-		return rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint64x2(v)
-	case OpShiftAllLeftAndFillUpperFromMaskedUint64x4:
-		return rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint64x4(v)
-	case OpShiftAllLeftAndFillUpperFromMaskedUint64x8:
-		return rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint64x8(v)
-	case OpShiftAllLeftAndFillUpperFromUint16x16:
+	case OpShiftAllLeftConcatMaskedInt16x16:
+		return rewriteValueAMD64_OpShiftAllLeftConcatMaskedInt16x16(v)
+	case OpShiftAllLeftConcatMaskedInt16x32:
+		return rewriteValueAMD64_OpShiftAllLeftConcatMaskedInt16x32(v)
+	case OpShiftAllLeftConcatMaskedInt16x8:
+		return rewriteValueAMD64_OpShiftAllLeftConcatMaskedInt16x8(v)
+	case OpShiftAllLeftConcatMaskedInt32x16:
+		return rewriteValueAMD64_OpShiftAllLeftConcatMaskedInt32x16(v)
+	case OpShiftAllLeftConcatMaskedInt32x4:
+		return rewriteValueAMD64_OpShiftAllLeftConcatMaskedInt32x4(v)
+	case OpShiftAllLeftConcatMaskedInt32x8:
+		return rewriteValueAMD64_OpShiftAllLeftConcatMaskedInt32x8(v)
+	case OpShiftAllLeftConcatMaskedInt64x2:
+		return rewriteValueAMD64_OpShiftAllLeftConcatMaskedInt64x2(v)
+	case OpShiftAllLeftConcatMaskedInt64x4:
+		return rewriteValueAMD64_OpShiftAllLeftConcatMaskedInt64x4(v)
+	case OpShiftAllLeftConcatMaskedInt64x8:
+		return rewriteValueAMD64_OpShiftAllLeftConcatMaskedInt64x8(v)
+	case OpShiftAllLeftConcatMaskedUint16x16:
+		return rewriteValueAMD64_OpShiftAllLeftConcatMaskedUint16x16(v)
+	case OpShiftAllLeftConcatMaskedUint16x32:
+		return rewriteValueAMD64_OpShiftAllLeftConcatMaskedUint16x32(v)
+	case OpShiftAllLeftConcatMaskedUint16x8:
+		return rewriteValueAMD64_OpShiftAllLeftConcatMaskedUint16x8(v)
+	case OpShiftAllLeftConcatMaskedUint32x16:
+		return rewriteValueAMD64_OpShiftAllLeftConcatMaskedUint32x16(v)
+	case OpShiftAllLeftConcatMaskedUint32x4:
+		return rewriteValueAMD64_OpShiftAllLeftConcatMaskedUint32x4(v)
+	case OpShiftAllLeftConcatMaskedUint32x8:
+		return rewriteValueAMD64_OpShiftAllLeftConcatMaskedUint32x8(v)
+	case OpShiftAllLeftConcatMaskedUint64x2:
+		return rewriteValueAMD64_OpShiftAllLeftConcatMaskedUint64x2(v)
+	case OpShiftAllLeftConcatMaskedUint64x4:
+		return rewriteValueAMD64_OpShiftAllLeftConcatMaskedUint64x4(v)
+	case OpShiftAllLeftConcatMaskedUint64x8:
+		return rewriteValueAMD64_OpShiftAllLeftConcatMaskedUint64x8(v)
+	case OpShiftAllLeftConcatUint16x16:
 		v.Op = OpAMD64VPSHLDW256
 		return true
-	case OpShiftAllLeftAndFillUpperFromUint16x32:
+	case OpShiftAllLeftConcatUint16x32:
 		v.Op = OpAMD64VPSHLDW512
 		return true
-	case OpShiftAllLeftAndFillUpperFromUint16x8:
+	case OpShiftAllLeftConcatUint16x8:
 		v.Op = OpAMD64VPSHLDW128
 		return true
-	case OpShiftAllLeftAndFillUpperFromUint32x16:
+	case OpShiftAllLeftConcatUint32x16:
 		v.Op = OpAMD64VPSHLDD512
 		return true
-	case OpShiftAllLeftAndFillUpperFromUint32x4:
+	case OpShiftAllLeftConcatUint32x4:
 		v.Op = OpAMD64VPSHLDD128
 		return true
-	case OpShiftAllLeftAndFillUpperFromUint32x8:
+	case OpShiftAllLeftConcatUint32x8:
 		v.Op = OpAMD64VPSHLDD256
 		return true
-	case OpShiftAllLeftAndFillUpperFromUint64x2:
+	case OpShiftAllLeftConcatUint64x2:
 		v.Op = OpAMD64VPSHLDQ128
 		return true
-	case OpShiftAllLeftAndFillUpperFromUint64x4:
+	case OpShiftAllLeftConcatUint64x4:
 		v.Op = OpAMD64VPSHLDQ256
 		return true
-	case OpShiftAllLeftAndFillUpperFromUint64x8:
+	case OpShiftAllLeftConcatUint64x8:
 		v.Op = OpAMD64VPSHLDQ512
 		return true
 	case OpShiftAllLeftInt16x16:
@@ -4623,94 +4623,94 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpShiftAllLeftUint64x8:
 		v.Op = OpAMD64VPSLLQ512
 		return true
-	case OpShiftAllRightAndFillUpperFromInt16x16:
+	case OpShiftAllRightConcatInt16x16:
 		v.Op = OpAMD64VPSHRDW256
 		return true
-	case OpShiftAllRightAndFillUpperFromInt16x32:
+	case OpShiftAllRightConcatInt16x32:
 		v.Op = OpAMD64VPSHRDW512
 		return true
-	case OpShiftAllRightAndFillUpperFromInt16x8:
+	case OpShiftAllRightConcatInt16x8:
 		v.Op = OpAMD64VPSHRDW128
 		return true
-	case OpShiftAllRightAndFillUpperFromInt32x16:
+	case OpShiftAllRightConcatInt32x16:
 		v.Op = OpAMD64VPSHRDD512
 		return true
-	case OpShiftAllRightAndFillUpperFromInt32x4:
+	case OpShiftAllRightConcatInt32x4:
 		v.Op = OpAMD64VPSHRDD128
 		return true
-	case OpShiftAllRightAndFillUpperFromInt32x8:
+	case OpShiftAllRightConcatInt32x8:
 		v.Op = OpAMD64VPSHRDD256
 		return true
-	case OpShiftAllRightAndFillUpperFromInt64x2:
+	case OpShiftAllRightConcatInt64x2:
 		v.Op = OpAMD64VPSHRDQ128
 		return true
-	case OpShiftAllRightAndFillUpperFromInt64x4:
+	case OpShiftAllRightConcatInt64x4:
 		v.Op = OpAMD64VPSHRDQ256
 		return true
-	case OpShiftAllRightAndFillUpperFromInt64x8:
+	case OpShiftAllRightConcatInt64x8:
 		v.Op = OpAMD64VPSHRDQ512
 		return true
-	case OpShiftAllRightAndFillUpperFromMaskedInt16x16:
-		return rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt16x16(v)
-	case OpShiftAllRightAndFillUpperFromMaskedInt16x32:
-		return rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt16x32(v)
-	case OpShiftAllRightAndFillUpperFromMaskedInt16x8:
-		return rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt16x8(v)
-	case OpShiftAllRightAndFillUpperFromMaskedInt32x16:
-		return rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt32x16(v)
-	case OpShiftAllRightAndFillUpperFromMaskedInt32x4:
-		return rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt32x4(v)
-	case OpShiftAllRightAndFillUpperFromMaskedInt32x8:
-		return rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt32x8(v)
-	case OpShiftAllRightAndFillUpperFromMaskedInt64x2:
-		return rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt64x2(v)
-	case OpShiftAllRightAndFillUpperFromMaskedInt64x4:
-		return rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt64x4(v)
-	case OpShiftAllRightAndFillUpperFromMaskedInt64x8:
-		return rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt64x8(v)
-	case OpShiftAllRightAndFillUpperFromMaskedUint16x16:
-		return rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint16x16(v)
-	case OpShiftAllRightAndFillUpperFromMaskedUint16x32:
-		return rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint16x32(v)
-	case OpShiftAllRightAndFillUpperFromMaskedUint16x8:
-		return rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint16x8(v)
-	case OpShiftAllRightAndFillUpperFromMaskedUint32x16:
-		return rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint32x16(v)
-	case OpShiftAllRightAndFillUpperFromMaskedUint32x4:
-		return rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint32x4(v)
-	case OpShiftAllRightAndFillUpperFromMaskedUint32x8:
-		return rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint32x8(v)
-	case OpShiftAllRightAndFillUpperFromMaskedUint64x2:
-		return rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint64x2(v)
-	case OpShiftAllRightAndFillUpperFromMaskedUint64x4:
-		return rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint64x4(v)
-	case OpShiftAllRightAndFillUpperFromMaskedUint64x8:
-		return rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint64x8(v)
-	case OpShiftAllRightAndFillUpperFromUint16x16:
+	case OpShiftAllRightConcatMaskedInt16x16:
+		return rewriteValueAMD64_OpShiftAllRightConcatMaskedInt16x16(v)
+	case OpShiftAllRightConcatMaskedInt16x32:
+		return rewriteValueAMD64_OpShiftAllRightConcatMaskedInt16x32(v)
+	case OpShiftAllRightConcatMaskedInt16x8:
+		return rewriteValueAMD64_OpShiftAllRightConcatMaskedInt16x8(v)
+	case OpShiftAllRightConcatMaskedInt32x16:
+		return rewriteValueAMD64_OpShiftAllRightConcatMaskedInt32x16(v)
+	case OpShiftAllRightConcatMaskedInt32x4:
+		return rewriteValueAMD64_OpShiftAllRightConcatMaskedInt32x4(v)
+	case OpShiftAllRightConcatMaskedInt32x8:
+		return rewriteValueAMD64_OpShiftAllRightConcatMaskedInt32x8(v)
+	case OpShiftAllRightConcatMaskedInt64x2:
+		return rewriteValueAMD64_OpShiftAllRightConcatMaskedInt64x2(v)
+	case OpShiftAllRightConcatMaskedInt64x4:
+		return rewriteValueAMD64_OpShiftAllRightConcatMaskedInt64x4(v)
+	case OpShiftAllRightConcatMaskedInt64x8:
+		return rewriteValueAMD64_OpShiftAllRightConcatMaskedInt64x8(v)
+	case OpShiftAllRightConcatMaskedUint16x16:
+		return rewriteValueAMD64_OpShiftAllRightConcatMaskedUint16x16(v)
+	case OpShiftAllRightConcatMaskedUint16x32:
+		return rewriteValueAMD64_OpShiftAllRightConcatMaskedUint16x32(v)
+	case OpShiftAllRightConcatMaskedUint16x8:
+		return rewriteValueAMD64_OpShiftAllRightConcatMaskedUint16x8(v)
+	case OpShiftAllRightConcatMaskedUint32x16:
+		return rewriteValueAMD64_OpShiftAllRightConcatMaskedUint32x16(v)
+	case OpShiftAllRightConcatMaskedUint32x4:
+		return rewriteValueAMD64_OpShiftAllRightConcatMaskedUint32x4(v)
+	case OpShiftAllRightConcatMaskedUint32x8:
+		return rewriteValueAMD64_OpShiftAllRightConcatMaskedUint32x8(v)
+	case OpShiftAllRightConcatMaskedUint64x2:
+		return rewriteValueAMD64_OpShiftAllRightConcatMaskedUint64x2(v)
+	case OpShiftAllRightConcatMaskedUint64x4:
+		return rewriteValueAMD64_OpShiftAllRightConcatMaskedUint64x4(v)
+	case OpShiftAllRightConcatMaskedUint64x8:
+		return rewriteValueAMD64_OpShiftAllRightConcatMaskedUint64x8(v)
+	case OpShiftAllRightConcatUint16x16:
 		v.Op = OpAMD64VPSHRDW256
 		return true
-	case OpShiftAllRightAndFillUpperFromUint16x32:
+	case OpShiftAllRightConcatUint16x32:
 		v.Op = OpAMD64VPSHRDW512
 		return true
-	case OpShiftAllRightAndFillUpperFromUint16x8:
+	case OpShiftAllRightConcatUint16x8:
 		v.Op = OpAMD64VPSHRDW128
 		return true
-	case OpShiftAllRightAndFillUpperFromUint32x16:
+	case OpShiftAllRightConcatUint32x16:
 		v.Op = OpAMD64VPSHRDD512
 		return true
-	case OpShiftAllRightAndFillUpperFromUint32x4:
+	case OpShiftAllRightConcatUint32x4:
 		v.Op = OpAMD64VPSHRDD128
 		return true
-	case OpShiftAllRightAndFillUpperFromUint32x8:
+	case OpShiftAllRightConcatUint32x8:
 		v.Op = OpAMD64VPSHRDD256
 		return true
-	case OpShiftAllRightAndFillUpperFromUint64x2:
+	case OpShiftAllRightConcatUint64x2:
 		v.Op = OpAMD64VPSHRDQ128
 		return true
-	case OpShiftAllRightAndFillUpperFromUint64x4:
+	case OpShiftAllRightConcatUint64x4:
 		v.Op = OpAMD64VPSHRDQ256
 		return true
-	case OpShiftAllRightAndFillUpperFromUint64x8:
+	case OpShiftAllRightConcatUint64x8:
 		v.Op = OpAMD64VPSHRDQ512
 		return true
 	case OpShiftAllRightInt16x16:
@@ -4803,94 +4803,94 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpShiftAllRightUint64x8:
 		v.Op = OpAMD64VPSRLQ512
 		return true
-	case OpShiftLeftAndFillUpperFromInt16x16:
+	case OpShiftLeftConcatInt16x16:
 		v.Op = OpAMD64VPSHLDVW256
 		return true
-	case OpShiftLeftAndFillUpperFromInt16x32:
+	case OpShiftLeftConcatInt16x32:
 		v.Op = OpAMD64VPSHLDVW512
 		return true
-	case OpShiftLeftAndFillUpperFromInt16x8:
+	case OpShiftLeftConcatInt16x8:
 		v.Op = OpAMD64VPSHLDVW128
 		return true
-	case OpShiftLeftAndFillUpperFromInt32x16:
+	case OpShiftLeftConcatInt32x16:
 		v.Op = OpAMD64VPSHLDVD512
 		return true
-	case OpShiftLeftAndFillUpperFromInt32x4:
+	case OpShiftLeftConcatInt32x4:
 		v.Op = OpAMD64VPSHLDVD128
 		return true
-	case OpShiftLeftAndFillUpperFromInt32x8:
+	case OpShiftLeftConcatInt32x8:
 		v.Op = OpAMD64VPSHLDVD256
 		return true
-	case OpShiftLeftAndFillUpperFromInt64x2:
+	case OpShiftLeftConcatInt64x2:
 		v.Op = OpAMD64VPSHLDVQ128
 		return true
-	case OpShiftLeftAndFillUpperFromInt64x4:
+	case OpShiftLeftConcatInt64x4:
 		v.Op = OpAMD64VPSHLDVQ256
 		return true
-	case OpShiftLeftAndFillUpperFromInt64x8:
+	case OpShiftLeftConcatInt64x8:
 		v.Op = OpAMD64VPSHLDVQ512
 		return true
-	case OpShiftLeftAndFillUpperFromMaskedInt16x16:
-		return rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt16x16(v)
-	case OpShiftLeftAndFillUpperFromMaskedInt16x32:
-		return rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt16x32(v)
-	case OpShiftLeftAndFillUpperFromMaskedInt16x8:
-		return rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt16x8(v)
-	case OpShiftLeftAndFillUpperFromMaskedInt32x16:
-		return rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt32x16(v)
-	case OpShiftLeftAndFillUpperFromMaskedInt32x4:
-		return rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt32x4(v)
-	case OpShiftLeftAndFillUpperFromMaskedInt32x8:
-		return rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt32x8(v)
-	case OpShiftLeftAndFillUpperFromMaskedInt64x2:
-		return rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt64x2(v)
-	case OpShiftLeftAndFillUpperFromMaskedInt64x4:
-		return rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt64x4(v)
-	case OpShiftLeftAndFillUpperFromMaskedInt64x8:
-		return rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt64x8(v)
-	case OpShiftLeftAndFillUpperFromMaskedUint16x16:
-		return rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint16x16(v)
-	case OpShiftLeftAndFillUpperFromMaskedUint16x32:
-		return rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint16x32(v)
-	case OpShiftLeftAndFillUpperFromMaskedUint16x8:
-		return rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint16x8(v)
-	case OpShiftLeftAndFillUpperFromMaskedUint32x16:
-		return rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint32x16(v)
-	case OpShiftLeftAndFillUpperFromMaskedUint32x4:
-		return rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint32x4(v)
-	case OpShiftLeftAndFillUpperFromMaskedUint32x8:
-		return rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint32x8(v)
-	case OpShiftLeftAndFillUpperFromMaskedUint64x2:
-		return rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint64x2(v)
-	case OpShiftLeftAndFillUpperFromMaskedUint64x4:
-		return rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint64x4(v)
-	case OpShiftLeftAndFillUpperFromMaskedUint64x8:
-		return rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint64x8(v)
-	case OpShiftLeftAndFillUpperFromUint16x16:
+	case OpShiftLeftConcatMaskedInt16x16:
+		return rewriteValueAMD64_OpShiftLeftConcatMaskedInt16x16(v)
+	case OpShiftLeftConcatMaskedInt16x32:
+		return rewriteValueAMD64_OpShiftLeftConcatMaskedInt16x32(v)
+	case OpShiftLeftConcatMaskedInt16x8:
+		return rewriteValueAMD64_OpShiftLeftConcatMaskedInt16x8(v)
+	case OpShiftLeftConcatMaskedInt32x16:
+		return rewriteValueAMD64_OpShiftLeftConcatMaskedInt32x16(v)
+	case OpShiftLeftConcatMaskedInt32x4:
+		return rewriteValueAMD64_OpShiftLeftConcatMaskedInt32x4(v)
+	case OpShiftLeftConcatMaskedInt32x8:
+		return rewriteValueAMD64_OpShiftLeftConcatMaskedInt32x8(v)
+	case OpShiftLeftConcatMaskedInt64x2:
+		return rewriteValueAMD64_OpShiftLeftConcatMaskedInt64x2(v)
+	case OpShiftLeftConcatMaskedInt64x4:
+		return rewriteValueAMD64_OpShiftLeftConcatMaskedInt64x4(v)
+	case OpShiftLeftConcatMaskedInt64x8:
+		return rewriteValueAMD64_OpShiftLeftConcatMaskedInt64x8(v)
+	case OpShiftLeftConcatMaskedUint16x16:
+		return rewriteValueAMD64_OpShiftLeftConcatMaskedUint16x16(v)
+	case OpShiftLeftConcatMaskedUint16x32:
+		return rewriteValueAMD64_OpShiftLeftConcatMaskedUint16x32(v)
+	case OpShiftLeftConcatMaskedUint16x8:
+		return rewriteValueAMD64_OpShiftLeftConcatMaskedUint16x8(v)
+	case OpShiftLeftConcatMaskedUint32x16:
+		return rewriteValueAMD64_OpShiftLeftConcatMaskedUint32x16(v)
+	case OpShiftLeftConcatMaskedUint32x4:
+		return rewriteValueAMD64_OpShiftLeftConcatMaskedUint32x4(v)
+	case OpShiftLeftConcatMaskedUint32x8:
+		return rewriteValueAMD64_OpShiftLeftConcatMaskedUint32x8(v)
+	case OpShiftLeftConcatMaskedUint64x2:
+		return rewriteValueAMD64_OpShiftLeftConcatMaskedUint64x2(v)
+	case OpShiftLeftConcatMaskedUint64x4:
+		return rewriteValueAMD64_OpShiftLeftConcatMaskedUint64x4(v)
+	case OpShiftLeftConcatMaskedUint64x8:
+		return rewriteValueAMD64_OpShiftLeftConcatMaskedUint64x8(v)
+	case OpShiftLeftConcatUint16x16:
 		v.Op = OpAMD64VPSHLDVW256
 		return true
-	case OpShiftLeftAndFillUpperFromUint16x32:
+	case OpShiftLeftConcatUint16x32:
 		v.Op = OpAMD64VPSHLDVW512
 		return true
-	case OpShiftLeftAndFillUpperFromUint16x8:
+	case OpShiftLeftConcatUint16x8:
 		v.Op = OpAMD64VPSHLDVW128
 		return true
-	case OpShiftLeftAndFillUpperFromUint32x16:
+	case OpShiftLeftConcatUint32x16:
 		v.Op = OpAMD64VPSHLDVD512
 		return true
-	case OpShiftLeftAndFillUpperFromUint32x4:
+	case OpShiftLeftConcatUint32x4:
 		v.Op = OpAMD64VPSHLDVD128
 		return true
-	case OpShiftLeftAndFillUpperFromUint32x8:
+	case OpShiftLeftConcatUint32x8:
 		v.Op = OpAMD64VPSHLDVD256
 		return true
-	case OpShiftLeftAndFillUpperFromUint64x2:
+	case OpShiftLeftConcatUint64x2:
 		v.Op = OpAMD64VPSHLDVQ128
 		return true
-	case OpShiftLeftAndFillUpperFromUint64x4:
+	case OpShiftLeftConcatUint64x4:
 		v.Op = OpAMD64VPSHLDVQ256
 		return true
-	case OpShiftLeftAndFillUpperFromUint64x8:
+	case OpShiftLeftConcatUint64x8:
 		v.Op = OpAMD64VPSHLDVQ512
 		return true
 	case OpShiftLeftInt16x16:
@@ -4983,94 +4983,94 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpShiftLeftUint64x8:
 		v.Op = OpAMD64VPSLLVQ512
 		return true
-	case OpShiftRightAndFillUpperFromInt16x16:
+	case OpShiftRightConcatInt16x16:
 		v.Op = OpAMD64VPSHRDVW256
 		return true
-	case OpShiftRightAndFillUpperFromInt16x32:
+	case OpShiftRightConcatInt16x32:
 		v.Op = OpAMD64VPSHRDVW512
 		return true
-	case OpShiftRightAndFillUpperFromInt16x8:
+	case OpShiftRightConcatInt16x8:
 		v.Op = OpAMD64VPSHRDVW128
 		return true
-	case OpShiftRightAndFillUpperFromInt32x16:
+	case OpShiftRightConcatInt32x16:
 		v.Op = OpAMD64VPSHRDVD512
 		return true
-	case OpShiftRightAndFillUpperFromInt32x4:
+	case OpShiftRightConcatInt32x4:
 		v.Op = OpAMD64VPSHRDVD128
 		return true
-	case OpShiftRightAndFillUpperFromInt32x8:
+	case OpShiftRightConcatInt32x8:
 		v.Op = OpAMD64VPSHRDVD256
 		return true
-	case OpShiftRightAndFillUpperFromInt64x2:
+	case OpShiftRightConcatInt64x2:
 		v.Op = OpAMD64VPSHRDVQ128
 		return true
-	case OpShiftRightAndFillUpperFromInt64x4:
+	case OpShiftRightConcatInt64x4:
 		v.Op = OpAMD64VPSHRDVQ256
 		return true
-	case OpShiftRightAndFillUpperFromInt64x8:
+	case OpShiftRightConcatInt64x8:
 		v.Op = OpAMD64VPSHRDVQ512
 		return true
-	case OpShiftRightAndFillUpperFromMaskedInt16x16:
-		return rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt16x16(v)
-	case OpShiftRightAndFillUpperFromMaskedInt16x32:
-		return rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt16x32(v)
-	case OpShiftRightAndFillUpperFromMaskedInt16x8:
-		return rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt16x8(v)
-	case OpShiftRightAndFillUpperFromMaskedInt32x16:
-		return rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt32x16(v)
-	case OpShiftRightAndFillUpperFromMaskedInt32x4:
-		return rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt32x4(v)
-	case OpShiftRightAndFillUpperFromMaskedInt32x8:
-		return rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt32x8(v)
-	case OpShiftRightAndFillUpperFromMaskedInt64x2:
-		return rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt64x2(v)
-	case OpShiftRightAndFillUpperFromMaskedInt64x4:
-		return rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt64x4(v)
-	case OpShiftRightAndFillUpperFromMaskedInt64x8:
-		return rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt64x8(v)
-	case OpShiftRightAndFillUpperFromMaskedUint16x16:
-		return rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint16x16(v)
-	case OpShiftRightAndFillUpperFromMaskedUint16x32:
-		return rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint16x32(v)
-	case OpShiftRightAndFillUpperFromMaskedUint16x8:
-		return rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint16x8(v)
-	case OpShiftRightAndFillUpperFromMaskedUint32x16:
-		return rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint32x16(v)
-	case OpShiftRightAndFillUpperFromMaskedUint32x4:
-		return rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint32x4(v)
-	case OpShiftRightAndFillUpperFromMaskedUint32x8:
-		return rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint32x8(v)
-	case OpShiftRightAndFillUpperFromMaskedUint64x2:
-		return rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint64x2(v)
-	case OpShiftRightAndFillUpperFromMaskedUint64x4:
-		return rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint64x4(v)
-	case OpShiftRightAndFillUpperFromMaskedUint64x8:
-		return rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint64x8(v)
-	case OpShiftRightAndFillUpperFromUint16x16:
+	case OpShiftRightConcatMaskedInt16x16:
+		return rewriteValueAMD64_OpShiftRightConcatMaskedInt16x16(v)
+	case OpShiftRightConcatMaskedInt16x32:
+		return rewriteValueAMD64_OpShiftRightConcatMaskedInt16x32(v)
+	case OpShiftRightConcatMaskedInt16x8:
+		return rewriteValueAMD64_OpShiftRightConcatMaskedInt16x8(v)
+	case OpShiftRightConcatMaskedInt32x16:
+		return rewriteValueAMD64_OpShiftRightConcatMaskedInt32x16(v)
+	case OpShiftRightConcatMaskedInt32x4:
+		return rewriteValueAMD64_OpShiftRightConcatMaskedInt32x4(v)
+	case OpShiftRightConcatMaskedInt32x8:
+		return rewriteValueAMD64_OpShiftRightConcatMaskedInt32x8(v)
+	case OpShiftRightConcatMaskedInt64x2:
+		return rewriteValueAMD64_OpShiftRightConcatMaskedInt64x2(v)
+	case OpShiftRightConcatMaskedInt64x4:
+		return rewriteValueAMD64_OpShiftRightConcatMaskedInt64x4(v)
+	case OpShiftRightConcatMaskedInt64x8:
+		return rewriteValueAMD64_OpShiftRightConcatMaskedInt64x8(v)
+	case OpShiftRightConcatMaskedUint16x16:
+		return rewriteValueAMD64_OpShiftRightConcatMaskedUint16x16(v)
+	case OpShiftRightConcatMaskedUint16x32:
+		return rewriteValueAMD64_OpShiftRightConcatMaskedUint16x32(v)
+	case OpShiftRightConcatMaskedUint16x8:
+		return rewriteValueAMD64_OpShiftRightConcatMaskedUint16x8(v)
+	case OpShiftRightConcatMaskedUint32x16:
+		return rewriteValueAMD64_OpShiftRightConcatMaskedUint32x16(v)
+	case OpShiftRightConcatMaskedUint32x4:
+		return rewriteValueAMD64_OpShiftRightConcatMaskedUint32x4(v)
+	case OpShiftRightConcatMaskedUint32x8:
+		return rewriteValueAMD64_OpShiftRightConcatMaskedUint32x8(v)
+	case OpShiftRightConcatMaskedUint64x2:
+		return rewriteValueAMD64_OpShiftRightConcatMaskedUint64x2(v)
+	case OpShiftRightConcatMaskedUint64x4:
+		return rewriteValueAMD64_OpShiftRightConcatMaskedUint64x4(v)
+	case OpShiftRightConcatMaskedUint64x8:
+		return rewriteValueAMD64_OpShiftRightConcatMaskedUint64x8(v)
+	case OpShiftRightConcatUint16x16:
 		v.Op = OpAMD64VPSHRDVW256
 		return true
-	case OpShiftRightAndFillUpperFromUint16x32:
+	case OpShiftRightConcatUint16x32:
 		v.Op = OpAMD64VPSHRDVW512
 		return true
-	case OpShiftRightAndFillUpperFromUint16x8:
+	case OpShiftRightConcatUint16x8:
 		v.Op = OpAMD64VPSHRDVW128
 		return true
-	case OpShiftRightAndFillUpperFromUint32x16:
+	case OpShiftRightConcatUint32x16:
 		v.Op = OpAMD64VPSHRDVD512
 		return true
-	case OpShiftRightAndFillUpperFromUint32x4:
+	case OpShiftRightConcatUint32x4:
 		v.Op = OpAMD64VPSHRDVD128
 		return true
-	case OpShiftRightAndFillUpperFromUint32x8:
+	case OpShiftRightConcatUint32x8:
 		v.Op = OpAMD64VPSHRDVD256
 		return true
-	case OpShiftRightAndFillUpperFromUint64x2:
+	case OpShiftRightConcatUint64x2:
 		v.Op = OpAMD64VPSHRDVQ128
 		return true
-	case OpShiftRightAndFillUpperFromUint64x4:
+	case OpShiftRightConcatUint64x4:
 		v.Op = OpAMD64VPSHRDVQ256
 		return true
-	case OpShiftRightAndFillUpperFromUint64x8:
+	case OpShiftRightConcatUint64x8:
 		v.Op = OpAMD64VPSHRDVQ512
 		return true
 	case OpShiftRightInt16x16:
@@ -50752,12 +50752,12 @@ func rewriteValueAMD64_OpSelectN(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt16x16(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllLeftConcatMaskedInt16x16(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllLeftAndFillUpperFromMaskedInt16x16 [a] x y mask)
+	// match: (ShiftAllLeftConcatMaskedInt16x16 [a] x y mask)
 	// result: (VPSHLDWMasked256 [a] x y (VPMOVVec16x16ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -50772,12 +50772,12 @@ func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt16x16(v *Value) bo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt16x32(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllLeftConcatMaskedInt16x32(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllLeftAndFillUpperFromMaskedInt16x32 [a] x y mask)
+	// match: (ShiftAllLeftConcatMaskedInt16x32 [a] x y mask)
 	// result: (VPSHLDWMasked512 [a] x y (VPMOVVec16x32ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -50792,12 +50792,12 @@ func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt16x32(v *Value) bo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt16x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllLeftConcatMaskedInt16x8(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllLeftAndFillUpperFromMaskedInt16x8 [a] x y mask)
+	// match: (ShiftAllLeftConcatMaskedInt16x8 [a] x y mask)
 	// result: (VPSHLDWMasked128 [a] x y (VPMOVVec16x8ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -50812,12 +50812,12 @@ func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt16x8(v *Value) boo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt32x16(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllLeftConcatMaskedInt32x16(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllLeftAndFillUpperFromMaskedInt32x16 [a] x y mask)
+	// match: (ShiftAllLeftConcatMaskedInt32x16 [a] x y mask)
 	// result: (VPSHLDDMasked512 [a] x y (VPMOVVec32x16ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -50832,12 +50832,12 @@ func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt32x16(v *Value) bo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt32x4(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllLeftConcatMaskedInt32x4(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllLeftAndFillUpperFromMaskedInt32x4 [a] x y mask)
+	// match: (ShiftAllLeftConcatMaskedInt32x4 [a] x y mask)
 	// result: (VPSHLDDMasked128 [a] x y (VPMOVVec32x4ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -50852,12 +50852,12 @@ func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt32x4(v *Value) boo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt32x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllLeftConcatMaskedInt32x8(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllLeftAndFillUpperFromMaskedInt32x8 [a] x y mask)
+	// match: (ShiftAllLeftConcatMaskedInt32x8 [a] x y mask)
 	// result: (VPSHLDDMasked256 [a] x y (VPMOVVec32x8ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -50872,12 +50872,12 @@ func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt32x8(v *Value) boo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt64x2(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllLeftConcatMaskedInt64x2(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllLeftAndFillUpperFromMaskedInt64x2 [a] x y mask)
+	// match: (ShiftAllLeftConcatMaskedInt64x2 [a] x y mask)
 	// result: (VPSHLDQMasked128 [a] x y (VPMOVVec64x2ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -50892,12 +50892,12 @@ func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt64x2(v *Value) boo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt64x4(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllLeftConcatMaskedInt64x4(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllLeftAndFillUpperFromMaskedInt64x4 [a] x y mask)
+	// match: (ShiftAllLeftConcatMaskedInt64x4 [a] x y mask)
 	// result: (VPSHLDQMasked256 [a] x y (VPMOVVec64x4ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -50912,12 +50912,12 @@ func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt64x4(v *Value) boo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt64x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllLeftConcatMaskedInt64x8(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllLeftAndFillUpperFromMaskedInt64x8 [a] x y mask)
+	// match: (ShiftAllLeftConcatMaskedInt64x8 [a] x y mask)
 	// result: (VPSHLDQMasked512 [a] x y (VPMOVVec64x8ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -50932,12 +50932,12 @@ func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedInt64x8(v *Value) boo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint16x16(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllLeftConcatMaskedUint16x16(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllLeftAndFillUpperFromMaskedUint16x16 [a] x y mask)
+	// match: (ShiftAllLeftConcatMaskedUint16x16 [a] x y mask)
 	// result: (VPSHLDWMasked256 [a] x y (VPMOVVec16x16ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -50952,12 +50952,12 @@ func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint16x16(v *Value) b
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint16x32(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllLeftConcatMaskedUint16x32(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllLeftAndFillUpperFromMaskedUint16x32 [a] x y mask)
+	// match: (ShiftAllLeftConcatMaskedUint16x32 [a] x y mask)
 	// result: (VPSHLDWMasked512 [a] x y (VPMOVVec16x32ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -50972,12 +50972,12 @@ func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint16x32(v *Value) b
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint16x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllLeftConcatMaskedUint16x8(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllLeftAndFillUpperFromMaskedUint16x8 [a] x y mask)
+	// match: (ShiftAllLeftConcatMaskedUint16x8 [a] x y mask)
 	// result: (VPSHLDWMasked128 [a] x y (VPMOVVec16x8ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -50992,12 +50992,12 @@ func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint16x8(v *Value) bo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint32x16(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllLeftConcatMaskedUint32x16(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllLeftAndFillUpperFromMaskedUint32x16 [a] x y mask)
+	// match: (ShiftAllLeftConcatMaskedUint32x16 [a] x y mask)
 	// result: (VPSHLDDMasked512 [a] x y (VPMOVVec32x16ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51012,12 +51012,12 @@ func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint32x16(v *Value) b
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint32x4(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllLeftConcatMaskedUint32x4(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllLeftAndFillUpperFromMaskedUint32x4 [a] x y mask)
+	// match: (ShiftAllLeftConcatMaskedUint32x4 [a] x y mask)
 	// result: (VPSHLDDMasked128 [a] x y (VPMOVVec32x4ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51032,12 +51032,12 @@ func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint32x4(v *Value) bo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint32x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllLeftConcatMaskedUint32x8(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllLeftAndFillUpperFromMaskedUint32x8 [a] x y mask)
+	// match: (ShiftAllLeftConcatMaskedUint32x8 [a] x y mask)
 	// result: (VPSHLDDMasked256 [a] x y (VPMOVVec32x8ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51052,12 +51052,12 @@ func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint32x8(v *Value) bo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint64x2(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllLeftConcatMaskedUint64x2(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllLeftAndFillUpperFromMaskedUint64x2 [a] x y mask)
+	// match: (ShiftAllLeftConcatMaskedUint64x2 [a] x y mask)
 	// result: (VPSHLDQMasked128 [a] x y (VPMOVVec64x2ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51072,12 +51072,12 @@ func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint64x2(v *Value) bo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint64x4(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllLeftConcatMaskedUint64x4(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllLeftAndFillUpperFromMaskedUint64x4 [a] x y mask)
+	// match: (ShiftAllLeftConcatMaskedUint64x4 [a] x y mask)
 	// result: (VPSHLDQMasked256 [a] x y (VPMOVVec64x4ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51092,12 +51092,12 @@ func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint64x4(v *Value) bo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllLeftAndFillUpperFromMaskedUint64x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllLeftConcatMaskedUint64x8(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllLeftAndFillUpperFromMaskedUint64x8 [a] x y mask)
+	// match: (ShiftAllLeftConcatMaskedUint64x8 [a] x y mask)
 	// result: (VPSHLDQMasked512 [a] x y (VPMOVVec64x8ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51436,12 +51436,12 @@ func rewriteValueAMD64_OpShiftAllLeftMaskedUint64x8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt16x16(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllRightConcatMaskedInt16x16(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllRightAndFillUpperFromMaskedInt16x16 [a] x y mask)
+	// match: (ShiftAllRightConcatMaskedInt16x16 [a] x y mask)
 	// result: (VPSHRDWMasked256 [a] x y (VPMOVVec16x16ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51456,12 +51456,12 @@ func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt16x16(v *Value) b
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt16x32(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllRightConcatMaskedInt16x32(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllRightAndFillUpperFromMaskedInt16x32 [a] x y mask)
+	// match: (ShiftAllRightConcatMaskedInt16x32 [a] x y mask)
 	// result: (VPSHRDWMasked512 [a] x y (VPMOVVec16x32ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51476,12 +51476,12 @@ func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt16x32(v *Value) b
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt16x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllRightConcatMaskedInt16x8(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllRightAndFillUpperFromMaskedInt16x8 [a] x y mask)
+	// match: (ShiftAllRightConcatMaskedInt16x8 [a] x y mask)
 	// result: (VPSHRDWMasked128 [a] x y (VPMOVVec16x8ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51496,12 +51496,12 @@ func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt16x8(v *Value) bo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt32x16(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllRightConcatMaskedInt32x16(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllRightAndFillUpperFromMaskedInt32x16 [a] x y mask)
+	// match: (ShiftAllRightConcatMaskedInt32x16 [a] x y mask)
 	// result: (VPSHRDDMasked512 [a] x y (VPMOVVec32x16ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51516,12 +51516,12 @@ func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt32x16(v *Value) b
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt32x4(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllRightConcatMaskedInt32x4(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllRightAndFillUpperFromMaskedInt32x4 [a] x y mask)
+	// match: (ShiftAllRightConcatMaskedInt32x4 [a] x y mask)
 	// result: (VPSHRDDMasked128 [a] x y (VPMOVVec32x4ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51536,12 +51536,12 @@ func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt32x4(v *Value) bo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt32x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllRightConcatMaskedInt32x8(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllRightAndFillUpperFromMaskedInt32x8 [a] x y mask)
+	// match: (ShiftAllRightConcatMaskedInt32x8 [a] x y mask)
 	// result: (VPSHRDDMasked256 [a] x y (VPMOVVec32x8ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51556,12 +51556,12 @@ func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt32x8(v *Value) bo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt64x2(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllRightConcatMaskedInt64x2(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllRightAndFillUpperFromMaskedInt64x2 [a] x y mask)
+	// match: (ShiftAllRightConcatMaskedInt64x2 [a] x y mask)
 	// result: (VPSHRDQMasked128 [a] x y (VPMOVVec64x2ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51576,12 +51576,12 @@ func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt64x2(v *Value) bo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt64x4(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllRightConcatMaskedInt64x4(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllRightAndFillUpperFromMaskedInt64x4 [a] x y mask)
+	// match: (ShiftAllRightConcatMaskedInt64x4 [a] x y mask)
 	// result: (VPSHRDQMasked256 [a] x y (VPMOVVec64x4ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51596,12 +51596,12 @@ func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt64x4(v *Value) bo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt64x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllRightConcatMaskedInt64x8(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllRightAndFillUpperFromMaskedInt64x8 [a] x y mask)
+	// match: (ShiftAllRightConcatMaskedInt64x8 [a] x y mask)
 	// result: (VPSHRDQMasked512 [a] x y (VPMOVVec64x8ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51616,12 +51616,12 @@ func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedInt64x8(v *Value) bo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint16x16(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllRightConcatMaskedUint16x16(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllRightAndFillUpperFromMaskedUint16x16 [a] x y mask)
+	// match: (ShiftAllRightConcatMaskedUint16x16 [a] x y mask)
 	// result: (VPSHRDWMasked256 [a] x y (VPMOVVec16x16ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51636,12 +51636,12 @@ func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint16x16(v *Value) 
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint16x32(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllRightConcatMaskedUint16x32(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllRightAndFillUpperFromMaskedUint16x32 [a] x y mask)
+	// match: (ShiftAllRightConcatMaskedUint16x32 [a] x y mask)
 	// result: (VPSHRDWMasked512 [a] x y (VPMOVVec16x32ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51656,12 +51656,12 @@ func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint16x32(v *Value) 
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint16x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllRightConcatMaskedUint16x8(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllRightAndFillUpperFromMaskedUint16x8 [a] x y mask)
+	// match: (ShiftAllRightConcatMaskedUint16x8 [a] x y mask)
 	// result: (VPSHRDWMasked128 [a] x y (VPMOVVec16x8ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51676,12 +51676,12 @@ func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint16x8(v *Value) b
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint32x16(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllRightConcatMaskedUint32x16(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllRightAndFillUpperFromMaskedUint32x16 [a] x y mask)
+	// match: (ShiftAllRightConcatMaskedUint32x16 [a] x y mask)
 	// result: (VPSHRDDMasked512 [a] x y (VPMOVVec32x16ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51696,12 +51696,12 @@ func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint32x16(v *Value) 
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint32x4(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllRightConcatMaskedUint32x4(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllRightAndFillUpperFromMaskedUint32x4 [a] x y mask)
+	// match: (ShiftAllRightConcatMaskedUint32x4 [a] x y mask)
 	// result: (VPSHRDDMasked128 [a] x y (VPMOVVec32x4ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51716,12 +51716,12 @@ func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint32x4(v *Value) b
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint32x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllRightConcatMaskedUint32x8(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllRightAndFillUpperFromMaskedUint32x8 [a] x y mask)
+	// match: (ShiftAllRightConcatMaskedUint32x8 [a] x y mask)
 	// result: (VPSHRDDMasked256 [a] x y (VPMOVVec32x8ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51736,12 +51736,12 @@ func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint32x8(v *Value) b
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint64x2(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllRightConcatMaskedUint64x2(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllRightAndFillUpperFromMaskedUint64x2 [a] x y mask)
+	// match: (ShiftAllRightConcatMaskedUint64x2 [a] x y mask)
 	// result: (VPSHRDQMasked128 [a] x y (VPMOVVec64x2ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51756,12 +51756,12 @@ func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint64x2(v *Value) b
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint64x4(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllRightConcatMaskedUint64x4(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllRightAndFillUpperFromMaskedUint64x4 [a] x y mask)
+	// match: (ShiftAllRightConcatMaskedUint64x4 [a] x y mask)
 	// result: (VPSHRDQMasked256 [a] x y (VPMOVVec64x4ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -51776,12 +51776,12 @@ func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint64x4(v *Value) b
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftAllRightAndFillUpperFromMaskedUint64x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftAllRightConcatMaskedUint64x8(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftAllRightAndFillUpperFromMaskedUint64x8 [a] x y mask)
+	// match: (ShiftAllRightConcatMaskedUint64x8 [a] x y mask)
 	// result: (VPSHRDQMasked512 [a] x y (VPMOVVec64x8ToM <types.TypeMask> mask))
 	for {
 		a := auxIntToInt8(v.AuxInt)
@@ -52120,13 +52120,13 @@ func rewriteValueAMD64_OpShiftAllRightMaskedUint64x8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt16x16(v *Value) bool {
+func rewriteValueAMD64_OpShiftLeftConcatMaskedInt16x16(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftLeftAndFillUpperFromMaskedInt16x16 x y z mask)
+	// match: (ShiftLeftConcatMaskedInt16x16 x y z mask)
 	// result: (VPSHLDVWMasked256 x y z (VPMOVVec16x16ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52140,13 +52140,13 @@ func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt16x16(v *Value) bool 
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt16x32(v *Value) bool {
+func rewriteValueAMD64_OpShiftLeftConcatMaskedInt16x32(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftLeftAndFillUpperFromMaskedInt16x32 x y z mask)
+	// match: (ShiftLeftConcatMaskedInt16x32 x y z mask)
 	// result: (VPSHLDVWMasked512 x y z (VPMOVVec16x32ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52160,13 +52160,13 @@ func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt16x32(v *Value) bool 
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt16x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftLeftConcatMaskedInt16x8(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftLeftAndFillUpperFromMaskedInt16x8 x y z mask)
+	// match: (ShiftLeftConcatMaskedInt16x8 x y z mask)
 	// result: (VPSHLDVWMasked128 x y z (VPMOVVec16x8ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52180,13 +52180,13 @@ func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt16x8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt32x16(v *Value) bool {
+func rewriteValueAMD64_OpShiftLeftConcatMaskedInt32x16(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftLeftAndFillUpperFromMaskedInt32x16 x y z mask)
+	// match: (ShiftLeftConcatMaskedInt32x16 x y z mask)
 	// result: (VPSHLDVDMasked512 x y z (VPMOVVec32x16ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52200,13 +52200,13 @@ func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt32x16(v *Value) bool 
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt32x4(v *Value) bool {
+func rewriteValueAMD64_OpShiftLeftConcatMaskedInt32x4(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftLeftAndFillUpperFromMaskedInt32x4 x y z mask)
+	// match: (ShiftLeftConcatMaskedInt32x4 x y z mask)
 	// result: (VPSHLDVDMasked128 x y z (VPMOVVec32x4ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52220,13 +52220,13 @@ func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt32x4(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt32x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftLeftConcatMaskedInt32x8(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftLeftAndFillUpperFromMaskedInt32x8 x y z mask)
+	// match: (ShiftLeftConcatMaskedInt32x8 x y z mask)
 	// result: (VPSHLDVDMasked256 x y z (VPMOVVec32x8ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52240,13 +52240,13 @@ func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt32x8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt64x2(v *Value) bool {
+func rewriteValueAMD64_OpShiftLeftConcatMaskedInt64x2(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftLeftAndFillUpperFromMaskedInt64x2 x y z mask)
+	// match: (ShiftLeftConcatMaskedInt64x2 x y z mask)
 	// result: (VPSHLDVQMasked128 x y z (VPMOVVec64x2ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52260,13 +52260,13 @@ func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt64x2(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt64x4(v *Value) bool {
+func rewriteValueAMD64_OpShiftLeftConcatMaskedInt64x4(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftLeftAndFillUpperFromMaskedInt64x4 x y z mask)
+	// match: (ShiftLeftConcatMaskedInt64x4 x y z mask)
 	// result: (VPSHLDVQMasked256 x y z (VPMOVVec64x4ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52280,13 +52280,13 @@ func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt64x4(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt64x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftLeftConcatMaskedInt64x8(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftLeftAndFillUpperFromMaskedInt64x8 x y z mask)
+	// match: (ShiftLeftConcatMaskedInt64x8 x y z mask)
 	// result: (VPSHLDVQMasked512 x y z (VPMOVVec64x8ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52300,13 +52300,13 @@ func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedInt64x8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint16x16(v *Value) bool {
+func rewriteValueAMD64_OpShiftLeftConcatMaskedUint16x16(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftLeftAndFillUpperFromMaskedUint16x16 x y z mask)
+	// match: (ShiftLeftConcatMaskedUint16x16 x y z mask)
 	// result: (VPSHLDVWMasked256 x y z (VPMOVVec16x16ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52320,13 +52320,13 @@ func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint16x16(v *Value) bool
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint16x32(v *Value) bool {
+func rewriteValueAMD64_OpShiftLeftConcatMaskedUint16x32(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftLeftAndFillUpperFromMaskedUint16x32 x y z mask)
+	// match: (ShiftLeftConcatMaskedUint16x32 x y z mask)
 	// result: (VPSHLDVWMasked512 x y z (VPMOVVec16x32ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52340,13 +52340,13 @@ func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint16x32(v *Value) bool
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint16x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftLeftConcatMaskedUint16x8(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftLeftAndFillUpperFromMaskedUint16x8 x y z mask)
+	// match: (ShiftLeftConcatMaskedUint16x8 x y z mask)
 	// result: (VPSHLDVWMasked128 x y z (VPMOVVec16x8ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52360,13 +52360,13 @@ func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint16x8(v *Value) bool 
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint32x16(v *Value) bool {
+func rewriteValueAMD64_OpShiftLeftConcatMaskedUint32x16(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftLeftAndFillUpperFromMaskedUint32x16 x y z mask)
+	// match: (ShiftLeftConcatMaskedUint32x16 x y z mask)
 	// result: (VPSHLDVDMasked512 x y z (VPMOVVec32x16ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52380,13 +52380,13 @@ func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint32x16(v *Value) bool
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint32x4(v *Value) bool {
+func rewriteValueAMD64_OpShiftLeftConcatMaskedUint32x4(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftLeftAndFillUpperFromMaskedUint32x4 x y z mask)
+	// match: (ShiftLeftConcatMaskedUint32x4 x y z mask)
 	// result: (VPSHLDVDMasked128 x y z (VPMOVVec32x4ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52400,13 +52400,13 @@ func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint32x4(v *Value) bool 
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint32x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftLeftConcatMaskedUint32x8(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftLeftAndFillUpperFromMaskedUint32x8 x y z mask)
+	// match: (ShiftLeftConcatMaskedUint32x8 x y z mask)
 	// result: (VPSHLDVDMasked256 x y z (VPMOVVec32x8ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52420,13 +52420,13 @@ func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint32x8(v *Value) bool 
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint64x2(v *Value) bool {
+func rewriteValueAMD64_OpShiftLeftConcatMaskedUint64x2(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftLeftAndFillUpperFromMaskedUint64x2 x y z mask)
+	// match: (ShiftLeftConcatMaskedUint64x2 x y z mask)
 	// result: (VPSHLDVQMasked128 x y z (VPMOVVec64x2ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52440,13 +52440,13 @@ func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint64x2(v *Value) bool 
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint64x4(v *Value) bool {
+func rewriteValueAMD64_OpShiftLeftConcatMaskedUint64x4(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftLeftAndFillUpperFromMaskedUint64x4 x y z mask)
+	// match: (ShiftLeftConcatMaskedUint64x4 x y z mask)
 	// result: (VPSHLDVQMasked256 x y z (VPMOVVec64x4ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52460,13 +52460,13 @@ func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint64x4(v *Value) bool 
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftLeftAndFillUpperFromMaskedUint64x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftLeftConcatMaskedUint64x8(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftLeftAndFillUpperFromMaskedUint64x8 x y z mask)
+	// match: (ShiftLeftConcatMaskedUint64x8 x y z mask)
 	// result: (VPSHLDVQMasked512 x y z (VPMOVVec64x8ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52804,13 +52804,13 @@ func rewriteValueAMD64_OpShiftLeftMaskedUint64x8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt16x16(v *Value) bool {
+func rewriteValueAMD64_OpShiftRightConcatMaskedInt16x16(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftRightAndFillUpperFromMaskedInt16x16 x y z mask)
+	// match: (ShiftRightConcatMaskedInt16x16 x y z mask)
 	// result: (VPSHRDVWMasked256 x y z (VPMOVVec16x16ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52824,13 +52824,13 @@ func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt16x16(v *Value) bool
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt16x32(v *Value) bool {
+func rewriteValueAMD64_OpShiftRightConcatMaskedInt16x32(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftRightAndFillUpperFromMaskedInt16x32 x y z mask)
+	// match: (ShiftRightConcatMaskedInt16x32 x y z mask)
 	// result: (VPSHRDVWMasked512 x y z (VPMOVVec16x32ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52844,13 +52844,13 @@ func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt16x32(v *Value) bool
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt16x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftRightConcatMaskedInt16x8(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftRightAndFillUpperFromMaskedInt16x8 x y z mask)
+	// match: (ShiftRightConcatMaskedInt16x8 x y z mask)
 	// result: (VPSHRDVWMasked128 x y z (VPMOVVec16x8ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52864,13 +52864,13 @@ func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt16x8(v *Value) bool 
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt32x16(v *Value) bool {
+func rewriteValueAMD64_OpShiftRightConcatMaskedInt32x16(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftRightAndFillUpperFromMaskedInt32x16 x y z mask)
+	// match: (ShiftRightConcatMaskedInt32x16 x y z mask)
 	// result: (VPSHRDVDMasked512 x y z (VPMOVVec32x16ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52884,13 +52884,13 @@ func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt32x16(v *Value) bool
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt32x4(v *Value) bool {
+func rewriteValueAMD64_OpShiftRightConcatMaskedInt32x4(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftRightAndFillUpperFromMaskedInt32x4 x y z mask)
+	// match: (ShiftRightConcatMaskedInt32x4 x y z mask)
 	// result: (VPSHRDVDMasked128 x y z (VPMOVVec32x4ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52904,13 +52904,13 @@ func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt32x4(v *Value) bool 
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt32x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftRightConcatMaskedInt32x8(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftRightAndFillUpperFromMaskedInt32x8 x y z mask)
+	// match: (ShiftRightConcatMaskedInt32x8 x y z mask)
 	// result: (VPSHRDVDMasked256 x y z (VPMOVVec32x8ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52924,13 +52924,13 @@ func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt32x8(v *Value) bool 
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt64x2(v *Value) bool {
+func rewriteValueAMD64_OpShiftRightConcatMaskedInt64x2(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftRightAndFillUpperFromMaskedInt64x2 x y z mask)
+	// match: (ShiftRightConcatMaskedInt64x2 x y z mask)
 	// result: (VPSHRDVQMasked128 x y z (VPMOVVec64x2ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52944,13 +52944,13 @@ func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt64x2(v *Value) bool 
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt64x4(v *Value) bool {
+func rewriteValueAMD64_OpShiftRightConcatMaskedInt64x4(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftRightAndFillUpperFromMaskedInt64x4 x y z mask)
+	// match: (ShiftRightConcatMaskedInt64x4 x y z mask)
 	// result: (VPSHRDVQMasked256 x y z (VPMOVVec64x4ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52964,13 +52964,13 @@ func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt64x4(v *Value) bool 
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt64x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftRightConcatMaskedInt64x8(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftRightAndFillUpperFromMaskedInt64x8 x y z mask)
+	// match: (ShiftRightConcatMaskedInt64x8 x y z mask)
 	// result: (VPSHRDVQMasked512 x y z (VPMOVVec64x8ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -52984,13 +52984,13 @@ func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedInt64x8(v *Value) bool 
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint16x16(v *Value) bool {
+func rewriteValueAMD64_OpShiftRightConcatMaskedUint16x16(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftRightAndFillUpperFromMaskedUint16x16 x y z mask)
+	// match: (ShiftRightConcatMaskedUint16x16 x y z mask)
 	// result: (VPSHRDVWMasked256 x y z (VPMOVVec16x16ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -53004,13 +53004,13 @@ func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint16x16(v *Value) boo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint16x32(v *Value) bool {
+func rewriteValueAMD64_OpShiftRightConcatMaskedUint16x32(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftRightAndFillUpperFromMaskedUint16x32 x y z mask)
+	// match: (ShiftRightConcatMaskedUint16x32 x y z mask)
 	// result: (VPSHRDVWMasked512 x y z (VPMOVVec16x32ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -53024,13 +53024,13 @@ func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint16x32(v *Value) boo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint16x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftRightConcatMaskedUint16x8(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftRightAndFillUpperFromMaskedUint16x8 x y z mask)
+	// match: (ShiftRightConcatMaskedUint16x8 x y z mask)
 	// result: (VPSHRDVWMasked128 x y z (VPMOVVec16x8ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -53044,13 +53044,13 @@ func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint16x8(v *Value) bool
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint32x16(v *Value) bool {
+func rewriteValueAMD64_OpShiftRightConcatMaskedUint32x16(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftRightAndFillUpperFromMaskedUint32x16 x y z mask)
+	// match: (ShiftRightConcatMaskedUint32x16 x y z mask)
 	// result: (VPSHRDVDMasked512 x y z (VPMOVVec32x16ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -53064,13 +53064,13 @@ func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint32x16(v *Value) boo
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint32x4(v *Value) bool {
+func rewriteValueAMD64_OpShiftRightConcatMaskedUint32x4(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftRightAndFillUpperFromMaskedUint32x4 x y z mask)
+	// match: (ShiftRightConcatMaskedUint32x4 x y z mask)
 	// result: (VPSHRDVDMasked128 x y z (VPMOVVec32x4ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -53084,13 +53084,13 @@ func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint32x4(v *Value) bool
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint32x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftRightConcatMaskedUint32x8(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftRightAndFillUpperFromMaskedUint32x8 x y z mask)
+	// match: (ShiftRightConcatMaskedUint32x8 x y z mask)
 	// result: (VPSHRDVDMasked256 x y z (VPMOVVec32x8ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -53104,13 +53104,13 @@ func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint32x8(v *Value) bool
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint64x2(v *Value) bool {
+func rewriteValueAMD64_OpShiftRightConcatMaskedUint64x2(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftRightAndFillUpperFromMaskedUint64x2 x y z mask)
+	// match: (ShiftRightConcatMaskedUint64x2 x y z mask)
 	// result: (VPSHRDVQMasked128 x y z (VPMOVVec64x2ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -53124,13 +53124,13 @@ func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint64x2(v *Value) bool
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint64x4(v *Value) bool {
+func rewriteValueAMD64_OpShiftRightConcatMaskedUint64x4(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftRightAndFillUpperFromMaskedUint64x4 x y z mask)
+	// match: (ShiftRightConcatMaskedUint64x4 x y z mask)
 	// result: (VPSHRDVQMasked256 x y z (VPMOVVec64x4ToM <types.TypeMask> mask))
 	for {
 		x := v_0
@@ -53144,13 +53144,13 @@ func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint64x4(v *Value) bool
 		return true
 	}
 }
-func rewriteValueAMD64_OpShiftRightAndFillUpperFromMaskedUint64x8(v *Value) bool {
+func rewriteValueAMD64_OpShiftRightConcatMaskedUint64x8(v *Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ShiftRightAndFillUpperFromMaskedUint64x8 x y z mask)
+	// match: (ShiftRightConcatMaskedUint64x8 x y z mask)
 	// result: (VPSHRDVQMasked512 x y z (VPMOVVec64x8ToM <types.TypeMask> mask))
 	for {
 		x := v_0
