@@ -304,6 +304,46 @@ func (x Uint64x4) Add(y Uint64x4) Uint64x4
 // Asm: VPADDQ, CPU Feature: AVX512F
 func (x Uint64x8) Add(y Uint64x8) Uint64x8
 
+/* AddDotProd */
+
+// AddDotProd performs dot products on pairs of elements of y and z and then adds x.
+//
+// Asm: VPDPWSSD, CPU Feature: AVXVNNI
+func (x Int32x4) AddDotProd(y Int16x8, z Int16x8) Int32x4
+
+// AddDotProd performs dot products on pairs of elements of y and z and then adds x.
+//
+// Asm: VPDPWSSD, CPU Feature: AVXVNNI
+func (x Int32x8) AddDotProd(y Int16x16, z Int16x16) Int32x8
+
+// AddDotProd performs dot products on pairs of elements of y and z and then adds x.
+//
+// Asm: VPDPWSSD, CPU Feature: AVX512VNNI
+func (x Int32x16) AddDotProd(y Int16x32, z Int16x32) Int32x16
+
+/* AddDotProdMasked */
+
+// AddDotProdMasked performs dot products on pairs of elements of y and z and then adds x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPDPWSSD, CPU Feature: AVX512VNNI
+func (x Int32x4) AddDotProdMasked(y Int16x8, z Int16x8, mask Mask32x4) Int32x4
+
+// AddDotProdMasked performs dot products on pairs of elements of y and z and then adds x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPDPWSSD, CPU Feature: AVX512VNNI
+func (x Int32x8) AddDotProdMasked(y Int16x16, z Int16x16, mask Mask32x8) Int32x8
+
+// AddDotProdMasked performs dot products on pairs of elements of y and z and then adds x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPDPWSSD, CPU Feature: AVX512VNNI
+func (x Int32x16) AddDotProdMasked(y Int16x32, z Int16x32, mask Mask32x16) Int32x16
+
 /* AddMasked */
 
 // AddMasked adds corresponding elements of two vectors.
@@ -6339,46 +6379,6 @@ func (x Int16x16) PairDotProd(y Int16x16) Int32x8
 // Asm: VPMADDWD, CPU Feature: AVX512BW
 func (x Int16x32) PairDotProd(y Int16x32) Int32x16
 
-/* PairDotProdAccumulate */
-
-// PairDotProdAccumulate performs dot products on pairs of elements of x and y and then adds z.
-//
-// Asm: VPDPWSSD, CPU Feature: AVXVNNI
-func (x Int16x8) PairDotProdAccumulate(y Int16x8, z Int32x4) Int32x4
-
-// PairDotProdAccumulate performs dot products on pairs of elements of x and y and then adds z.
-//
-// Asm: VPDPWSSD, CPU Feature: AVXVNNI
-func (x Int16x16) PairDotProdAccumulate(y Int16x16, z Int32x8) Int32x8
-
-// PairDotProdAccumulate performs dot products on pairs of elements of x and y and then adds z.
-//
-// Asm: VPDPWSSD, CPU Feature: AVX512VNNI
-func (x Int16x32) PairDotProdAccumulate(y Int16x32, z Int32x16) Int32x16
-
-/* PairDotProdAccumulateMasked */
-
-// PairDotProdAccumulateMasked performs dot products on pairs of elements of x and y and then adds z.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPDPWSSD, CPU Feature: AVX512VNNI
-func (x Int16x8) PairDotProdAccumulateMasked(y Int16x8, z Int32x4, mask Mask32x4) Int32x4
-
-// PairDotProdAccumulateMasked performs dot products on pairs of elements of x and y and then adds z.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPDPWSSD, CPU Feature: AVX512VNNI
-func (x Int16x16) PairDotProdAccumulateMasked(y Int16x16, z Int32x8, mask Mask32x8) Int32x8
-
-// PairDotProdAccumulateMasked performs dot products on pairs of elements of x and y and then adds z.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPDPWSSD, CPU Feature: AVX512VNNI
-func (x Int16x32) PairDotProdAccumulateMasked(y Int16x32, z Int32x16, mask Mask32x16) Int32x16
-
 /* PairDotProdMasked */
 
 // PairDotProdMasked multiplies the elements and add the pairs together,
@@ -8649,6 +8649,46 @@ func (x Uint16x16) SaturatedAdd(y Uint16x16) Uint16x16
 // Asm: VPADDSW, CPU Feature: AVX512BW
 func (x Uint16x32) SaturatedAdd(y Uint16x32) Uint16x32
 
+/* SaturatedAddDotProd */
+
+// SaturatedAddDotProd performs dot products on pairs of elements of y and z and then adds x.
+//
+// Asm: VPDPWSSDS, CPU Feature: AVXVNNI
+func (x Int32x4) SaturatedAddDotProd(y Int16x8, z Int16x8) Int32x4
+
+// SaturatedAddDotProd performs dot products on pairs of elements of y and z and then adds x.
+//
+// Asm: VPDPWSSDS, CPU Feature: AVXVNNI
+func (x Int32x8) SaturatedAddDotProd(y Int16x16, z Int16x16) Int32x8
+
+// SaturatedAddDotProd performs dot products on pairs of elements of y and z and then adds x.
+//
+// Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
+func (x Int32x16) SaturatedAddDotProd(y Int16x32, z Int16x32) Int32x16
+
+/* SaturatedAddDotProdMasked */
+
+// SaturatedAddDotProdMasked performs dot products on pairs of elements of y and z and then adds x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
+func (x Int32x4) SaturatedAddDotProdMasked(y Int16x8, z Int16x8, mask Mask32x4) Int32x4
+
+// SaturatedAddDotProdMasked performs dot products on pairs of elements of y and z and then adds x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
+func (x Int32x8) SaturatedAddDotProdMasked(y Int16x16, z Int16x16, mask Mask32x8) Int32x8
+
+// SaturatedAddDotProdMasked performs dot products on pairs of elements of y and z and then adds x.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
+func (x Int32x16) SaturatedAddDotProdMasked(y Int16x32, z Int16x32, mask Mask32x16) Int32x16
+
 /* SaturatedAddMasked */
 
 // SaturatedAddMasked adds corresponding elements of two vectors with saturation.
@@ -8734,46 +8774,6 @@ func (x Uint16x16) SaturatedAddMasked(y Uint16x16, mask Mask16x16) Uint16x16
 //
 // Asm: VPADDSW, CPU Feature: AVX512BW
 func (x Uint16x32) SaturatedAddMasked(y Uint16x32, mask Mask16x32) Uint16x32
-
-/* SaturatedPairDotProdAccumulate */
-
-// SaturatedPairDotProdAccumulate performs dot products on pairs of elements of x and y and then adds z.
-//
-// Asm: VPDPWSSDS, CPU Feature: AVXVNNI
-func (x Int16x8) SaturatedPairDotProdAccumulate(y Int16x8, z Int32x4) Int32x4
-
-// SaturatedPairDotProdAccumulate performs dot products on pairs of elements of x and y and then adds z.
-//
-// Asm: VPDPWSSDS, CPU Feature: AVXVNNI
-func (x Int16x16) SaturatedPairDotProdAccumulate(y Int16x16, z Int32x8) Int32x8
-
-// SaturatedPairDotProdAccumulate performs dot products on pairs of elements of x and y and then adds z.
-//
-// Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
-func (x Int16x32) SaturatedPairDotProdAccumulate(y Int16x32, z Int32x16) Int32x16
-
-/* SaturatedPairDotProdAccumulateMasked */
-
-// SaturatedPairDotProdAccumulateMasked performs dot products on pairs of elements of x and y and then adds z.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
-func (x Int16x8) SaturatedPairDotProdAccumulateMasked(y Int16x8, z Int32x4, mask Mask32x4) Int32x4
-
-// SaturatedPairDotProdAccumulateMasked performs dot products on pairs of elements of x and y and then adds z.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
-func (x Int16x16) SaturatedPairDotProdAccumulateMasked(y Int16x16, z Int32x8, mask Mask32x8) Int32x8
-
-// SaturatedPairDotProdAccumulateMasked performs dot products on pairs of elements of x and y and then adds z.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
-func (x Int16x32) SaturatedPairDotProdAccumulateMasked(y Int16x32, z Int32x16, mask Mask32x16) Int32x16
 
 /* SaturatedPairwiseAdd */
 

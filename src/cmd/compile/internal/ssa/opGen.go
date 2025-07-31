@@ -4513,6 +4513,12 @@ const (
 	OpAbsoluteMaskedInt64x2
 	OpAbsoluteMaskedInt64x4
 	OpAbsoluteMaskedInt64x8
+	OpAddDotProdInt32x4
+	OpAddDotProdInt32x8
+	OpAddDotProdInt32x16
+	OpAddDotProdMaskedInt32x4
+	OpAddDotProdMaskedInt32x8
+	OpAddDotProdMaskedInt32x16
 	OpAddFloat32x4
 	OpAddFloat32x8
 	OpAddFloat32x16
@@ -5378,12 +5384,6 @@ const (
 	OpOrUint64x2
 	OpOrUint64x4
 	OpOrUint64x8
-	OpPairDotProdAccumulateInt32x4
-	OpPairDotProdAccumulateInt32x8
-	OpPairDotProdAccumulateInt32x16
-	OpPairDotProdAccumulateMaskedInt32x4
-	OpPairDotProdAccumulateMaskedInt32x8
-	OpPairDotProdAccumulateMaskedInt32x16
 	OpPairDotProdInt16x8
 	OpPairDotProdInt16x16
 	OpPairDotProdInt16x32
@@ -5622,6 +5622,12 @@ const (
 	OpRoundFloat32x8
 	OpRoundFloat64x2
 	OpRoundFloat64x4
+	OpSaturatedAddDotProdInt32x4
+	OpSaturatedAddDotProdInt32x8
+	OpSaturatedAddDotProdInt32x16
+	OpSaturatedAddDotProdMaskedInt32x4
+	OpSaturatedAddDotProdMaskedInt32x8
+	OpSaturatedAddDotProdMaskedInt32x16
 	OpSaturatedAddInt8x16
 	OpSaturatedAddInt8x32
 	OpSaturatedAddInt8x64
@@ -5646,12 +5652,6 @@ const (
 	OpSaturatedAddUint16x8
 	OpSaturatedAddUint16x16
 	OpSaturatedAddUint16x32
-	OpSaturatedPairDotProdAccumulateInt32x4
-	OpSaturatedPairDotProdAccumulateInt32x8
-	OpSaturatedPairDotProdAccumulateInt32x16
-	OpSaturatedPairDotProdAccumulateMaskedInt32x4
-	OpSaturatedPairDotProdAccumulateMaskedInt32x8
-	OpSaturatedPairDotProdAccumulateMaskedInt32x16
 	OpSaturatedPairwiseAddInt16x8
 	OpSaturatedPairwiseAddInt16x16
 	OpSaturatedPairwiseSubInt16x8
@@ -61790,6 +61790,36 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "AddDotProdInt32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "AddDotProdInt32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "AddDotProdInt32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "AddDotProdMaskedInt32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "AddDotProdMaskedInt32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "AddDotProdMaskedInt32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
 		name:        "AddFloat32x4",
 		argLen:      2,
 		commutative: true,
@@ -66564,36 +66594,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:    "PairDotProdAccumulateInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PairDotProdAccumulateInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PairDotProdAccumulateInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PairDotProdAccumulateMaskedInt32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "PairDotProdAccumulateMaskedInt32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "PairDotProdAccumulateMaskedInt32x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
 		name:    "PairDotProdInt16x8",
 		argLen:  2,
 		generic: true,
@@ -67784,6 +67784,36 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "SaturatedAddDotProdInt32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "SaturatedAddDotProdInt32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "SaturatedAddDotProdInt32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "SaturatedAddDotProdMaskedInt32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "SaturatedAddDotProdMaskedInt32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "SaturatedAddDotProdMaskedInt32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
 		name:        "SaturatedAddInt8x16",
 		argLen:      2,
 		commutative: true,
@@ -67926,36 +67956,6 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		generic:     true,
-	},
-	{
-		name:    "SaturatedPairDotProdAccumulateInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedPairDotProdAccumulateInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedPairDotProdAccumulateInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedPairDotProdAccumulateMaskedInt32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "SaturatedPairDotProdAccumulateMaskedInt32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "SaturatedPairDotProdAccumulateMaskedInt32x16",
-		argLen:  4,
-		generic: true,
 	},
 	{
 		name:    "SaturatedPairwiseAddInt16x8",

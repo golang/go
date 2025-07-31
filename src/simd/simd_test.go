@@ -197,7 +197,7 @@ func TestPairDotProdAccumulate(t *testing.T) {
 	z := simd.LoadInt32x4Slice([]int32{3, 3, 3, 3})
 	want := []int32{11, 11, 11, 11}
 	got := make([]int32, 4)
-	z = x.PairDotProdAccumulate(x, z)
+	z = z.AddDotProd(x, x)
 	z.StoreSlice(got)
 	for i := range 4 {
 		if got[i] != want[i] {
