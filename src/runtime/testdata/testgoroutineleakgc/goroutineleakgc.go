@@ -6,24 +6,27 @@ import (
 	"time"
 )
 
+// This is a set of micro-tests with obvious goroutine leaks that
+// ensures goroutine leak detection works.
+
 func init() {
-	register("GoroutineLeakNilRecv", GoroutineLeakNilRecv)
-	register("GoroutineLeakNilSend", GoroutineLeakNilSend)
-	register("GoroutineLeakSelectNoCases", GoroutineLeakSelectNoCases)
-	register("GoroutineLeakChanRecv", GoroutineLeakChanRecv)
-	register("GoroutineLeakChanSend", GoroutineLeakChanSend)
-	register("GoroutineLeakSelect", GoroutineLeakSelect)
-	register("GoroutineLeakWaitGroup", GoroutineLeakWaitGroup)
-	register("GoroutineLeakMutexStack", GoroutineLeakMutexStack)
-	register("GoroutineLeakMutexHeap", GoroutineLeakMutexHeap)
-	register("GoroutineLeakRWMutexRLock", GoroutineLeakRWMutexRLock)
-	register("GoroutineLeakRWMutexLock", GoroutineLeakRWMutexLock)
-	register("GoroutineLeakCond", GoroutineLeakCond)
-	register("GoroutineLeakMixed", GoroutineLeakMixed)
-	register("NoGoroutineLeakGlobal", NoGoroutineLeakGlobal)
+	register("NilRecv", NilRecv)
+	register("NilSend", NilSend)
+	register("SelectNoCases", SelectNoCases)
+	register("ChanRecv", ChanRecv)
+	register("ChanSend", ChanSend)
+	register("Select", Select)
+	register("WaitGroup", WaitGroup)
+	register("MutexStack", MutexStack)
+	register("MutexHeap", MutexHeap)
+	register("RWMutexRLock", RWMutexRLock)
+	register("RWMutexLock", RWMutexLock)
+	register("Cond", Cond)
+	register("Mixed", Mixed)
+	register("NoLeakGlobal", NoLeakGlobal)
 }
 
-func GoroutineLeakNilRecv() {
+func NilRecv() {
 	go func() {
 		var c chan int
 		<-c
@@ -33,7 +36,7 @@ func GoroutineLeakNilRecv() {
 	runtime.GC()
 }
 
-func GoroutineLeakNilSend() {
+func NilSend() {
 	go func() {
 		var c chan int
 		c <- 0
@@ -43,7 +46,7 @@ func GoroutineLeakNilSend() {
 	runtime.GC()
 }
 
-func GoroutineLeakChanRecv() {
+func ChanRecv() {
 	go func() {
 		<-make(chan int)
 		panic("should not be reached")
@@ -52,7 +55,7 @@ func GoroutineLeakChanRecv() {
 	runtime.GC()
 }
 
-func GoroutineLeakSelectNoCases() {
+func SelectNoCases() {
 	go func() {
 		select {}
 		panic("should not be reached")
@@ -61,7 +64,7 @@ func GoroutineLeakSelectNoCases() {
 	runtime.GC()
 }
 
-func GoroutineLeakChanSend() {
+func ChanSend() {
 	go func() {
 		make(chan int) <- 0
 		panic("should not be reached")
@@ -70,7 +73,7 @@ func GoroutineLeakChanSend() {
 	runtime.GC()
 }
 
-func GoroutineLeakSelect() {
+func Select() {
 	go func() {
 		select {
 		case make(chan int) <- 0:
@@ -82,7 +85,7 @@ func GoroutineLeakSelect() {
 	runtime.GC()
 }
 
-func GoroutineLeakWaitGroup() {
+func WaitGroup() {
 	go func() {
 		var wg sync.WaitGroup
 		wg.Add(1)
@@ -93,7 +96,7 @@ func GoroutineLeakWaitGroup() {
 	runtime.GC()
 }
 
-func GoroutineLeakMutexStack() {
+func MutexStack() {
 	for i := 0; i < 1000; i++ {
 		go func() {
 			var mu sync.Mutex
@@ -107,7 +110,7 @@ func GoroutineLeakMutexStack() {
 	time.Sleep(10 * time.Millisecond)
 }
 
-func GoroutineLeakMutexHeap() {
+func MutexHeap() {
 	for i := 0; i < 1000; i++ {
 		go func() {
 			mu := &sync.Mutex{}
@@ -123,7 +126,7 @@ func GoroutineLeakMutexHeap() {
 	time.Sleep(10 * time.Millisecond)
 }
 
-func GoroutineLeakRWMutexRLock() {
+func RWMutexRLock() {
 	go func() {
 		mu := &sync.RWMutex{}
 		mu.Lock()
@@ -134,7 +137,7 @@ func GoroutineLeakRWMutexRLock() {
 	runtime.GC()
 }
 
-func GoroutineLeakRWMutexLock() {
+func RWMutexLock() {
 	go func() {
 		mu := &sync.RWMutex{}
 		mu.Lock()
@@ -145,7 +148,7 @@ func GoroutineLeakRWMutexLock() {
 	runtime.GC()
 }
 
-func GoroutineLeakCond() {
+func Cond() {
 	go func() {
 		cond := sync.NewCond(&sync.Mutex{})
 		cond.L.Lock()
@@ -156,7 +159,7 @@ func GoroutineLeakCond() {
 	runtime.GC()
 }
 
-func GoroutineLeakMixed() {
+func Mixed() {
 	go func() {
 		ch := make(chan int)
 		wg := sync.WaitGroup{}
@@ -177,7 +180,7 @@ func GoroutineLeakMixed() {
 var ch = make(chan int)
 
 // No leak should be reported by this test
-func NoGoroutineLeakGlobal() {
+func NoLeakGlobal() {
 	go func() {
 		<-ch
 	}()

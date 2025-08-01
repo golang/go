@@ -18,6 +18,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1097,132 +1098,412 @@ func TestDetectFinalizerAndCleanupLeaks(t *testing.T) {
 	}
 }
 
+// This tests the goroutine leak garbage collector.
 func TestGoroutineLeakGC(t *testing.T) {
+	// Goroutine leak test case.
+	//
+	// Test cases can be configured with test name, the name of the entry point function,
+	// a set of expected leaks identified by regular expressions, and the number of times
+	// the test should be repeated.
+	//
+	// Repetitions are used to amortize flakiness in some tests.
 	type testCase struct {
-		tname         string
-		funcName      string
-		expectedLeaks map[*regexp.Regexp]int
+		name          string
+		repetitions   int
+		expectedLeaks map[*regexp.Regexp]bool
+
+		// flakyLeaks are goroutine leaks that are too flaky to be reliably detected.
+		// Still, they might pop up every once in a while.
+		// If these occur, do not fail the test due to unexpected leaks.
+		flakyLeaks map[*regexp.Regexp]struct{}
 	}
 
-	testCases := []testCase{{
-		tname:    "ChanReceiveNil",
-		funcName: "GoroutineLeakNilRecv",
-		expectedLeaks: map[*regexp.Regexp]int{
-			regexp.MustCompile(`\[chan receive \(nil chan\)\]`): 0,
-		},
-	}, {
-		tname:    "ChanSendNil",
-		funcName: "GoroutineLeakNilSend",
-		expectedLeaks: map[*regexp.Regexp]int{
-			regexp.MustCompile(`\[chan send \(nil chan\)\]`): 0,
-		},
-	}, {
-		tname:    "SelectNoCases",
-		funcName: "GoroutineLeakSelectNoCases",
-		expectedLeaks: map[*regexp.Regexp]int{
-			regexp.MustCompile(`\[select \(no cases\)\]`): 0,
-		},
-	}, {
-		tname:    "ChanRecv",
-		funcName: "GoroutineLeakChanRecv",
-		expectedLeaks: map[*regexp.Regexp]int{
-			regexp.MustCompile(`\[chan receive\]`): 0,
-		},
-	}, {
-		tname:    "ChanSend",
-		funcName: "GoroutineLeakChanSend",
-		expectedLeaks: map[*regexp.Regexp]int{
-			regexp.MustCompile(`\[chan send\]`): 0,
-		},
-	}, {
-		tname:    "Select",
-		funcName: "GoroutineLeakSelect",
-		expectedLeaks: map[*regexp.Regexp]int{
-			regexp.MustCompile(`\[select\]`): 0,
-		},
-	}, {
-		tname:    "WaitGroup",
-		funcName: "GoroutineLeakWaitGroup",
-		expectedLeaks: map[*regexp.Regexp]int{
-			regexp.MustCompile(`\[sync\.WaitGroup\.Wait\]`): 0,
-		},
-	}, {
-		tname:    "MutexStack",
-		funcName: "GoroutineLeakMutexStack",
-		expectedLeaks: map[*regexp.Regexp]int{
-			regexp.MustCompile(`\[sync\.Mutex\.Lock\]`): 0,
-		},
-	}, {
-		tname:    "MutexHeap",
-		funcName: "GoroutineLeakMutexHeap",
-		expectedLeaks: map[*regexp.Regexp]int{
-			regexp.MustCompile(`\[sync\.Mutex\.Lock\]`): 0,
-		},
-	}, {
-		tname:    "Cond",
-		funcName: "GoroutineLeakCond",
-		expectedLeaks: map[*regexp.Regexp]int{
-			regexp.MustCompile(`\[sync\.Cond\.Wait\]`): 0,
-		},
-	}, {
-		tname:    "RWMutexRLock",
-		funcName: "GoroutineLeakRWMutexRLock",
-		expectedLeaks: map[*regexp.Regexp]int{
-			regexp.MustCompile(`\[sync\.RWMutex\.RLock\]`): 0,
-		},
-	}, {
-		tname:    "RWMutexLock",
-		funcName: "GoroutineLeakRWMutexLock",
-		expectedLeaks: map[*regexp.Regexp]int{
-			// Invoking Lock on a RWMutex may either put a goroutine a waiting state
-			// of either sync.RWMutex.Lock or sync.Mutex.Lock.
-			regexp.MustCompile(`\[sync\.(RW)?Mutex\.Lock\]`): 0,
-		},
-	}, {
-		tname:    "Mixed",
-		funcName: "GoroutineLeakMixed",
-		expectedLeaks: map[*regexp.Regexp]int{
-			regexp.MustCompile(`\[sync\.WaitGroup\.Wait\]`): 0,
-			regexp.MustCompile(`\[chan send\]`):             0,
-		},
-	}, {
-		tname:    "NoLeakGlobal",
-		funcName: "NoGoroutineLeakGlobal",
-	}}
+	// makeTest is a short-hand for creating test cases.
+	// Each of the leaks in the list is identified by a regular expression.
+	//
+	// If a leak is the string "FLAKY", it notifies makeTest that any remaining
+	// leak patterns should be added to the flakyLeaks map.
+	makeTest := func(
+		cfg testCase,
+		leaks ...string) testCase {
+		tc := testCase{
+			name:          cfg.name,
+			expectedLeaks: make(map[*regexp.Regexp]bool, len(leaks)),
+			flakyLeaks:    make(map[*regexp.Regexp]struct{}, len(leaks)),
+		}
+		// Default to 1 repetition if not specified.
+		// One extra rep for configured tests is irrelevant.
+		tc.repetitions = cfg.repetitions | 1
 
+		const (
+			EXPECTED int = iota
+			FLAKY
+		)
+
+		mode := EXPECTED
+		for _, leak := range leaks {
+			if leak == "FLAKY" {
+				mode = FLAKY
+				continue
+			}
+
+			switch mode {
+			case EXPECTED:
+				tc.expectedLeaks[regexp.MustCompile(leak)] = false
+			case FLAKY:
+				tc.flakyLeaks[regexp.MustCompile(leak)] = struct{}{}
+			}
+		}
+		return tc
+	}
+
+	// Micro tests involve very simple leaks for each type of concurrency primitive operation.
+	microTests := []testCase{
+		makeTest(testCase{name: "NilRecv"}, `\[chan receive \(nil chan\)\]`),
+		makeTest(testCase{name: "NilSend"}, `\[chan send \(nil chan\)\]`),
+		makeTest(testCase{name: "SelectNoCases"}, `\[select \(no cases\)\]`),
+		makeTest(testCase{name: "ChanRecv"}, `\[chan receive\]`),
+		makeTest(testCase{name: "ChanSend"}, `\[chan send\]`),
+		makeTest(testCase{name: "Select"}, `\[select\]`),
+		makeTest(testCase{name: "WaitGroup"}, `\[sync\.WaitGroup\.Wait\]`),
+		makeTest(testCase{name: "MutexStack"}, `\[sync\.Mutex\.Lock\]`),
+		makeTest(testCase{name: "MutexHeap"}, `\[sync\.Mutex\.Lock\]`),
+		makeTest(testCase{name: "Cond"}, `\[sync\.Cond\.Wait\]`),
+		makeTest(testCase{name: "RWMutexRLock"}, `\[sync\.RWMutex\.RLock\]`),
+		makeTest(testCase{name: "RWMutexLock"}, `\[sync\.(RW)?Mutex\.Lock\]`),
+		makeTest(testCase{name: "Mixed"}, `\[sync\.WaitGroup\.Wait\]`, `\[chan send\]`),
+		makeTest(testCase{name: "NoLeakGlobal"}),
+	}
+
+	// Common goroutine leak patterns.
+	// Extracted from "Unveiling and Vanquishing Goroutine Leaks in Enterprise Microservices: A Dynamic Analysis Approach"
+	// doi:10.1109/CGO57630.2024.10444835
+	patternTestCases := []testCase{
+		makeTest(testCase{name: "NoCloseRange"},
+			`main\.NoCloseRange\.gowrap1 .* \[chan send\]`,
+			`main\.noCloseRange\.func1 .* \[chan receive\]`),
+		makeTest(testCase{name: "MethodContractViolation"},
+			`main\.worker\.Start\.func1 .* \[select\]`),
+		makeTest(testCase{name: "DoubleSend"},
+			`main\.DoubleSend\.func3 .* \[chan send\]`),
+		makeTest(testCase{name: "EarlyReturn"},
+			`main\.earlyReturn\.func1 .* \[chan send\]`),
+		makeTest(testCase{name: "NCastLeak"},
+			`main\.nCastLeak\.func1 .* \[chan send\]`,
+			`main\.NCastLeak\.func2 .* \[chan receive\]`),
+		makeTest(testCase{name: "Timeout"},
+			`main\.timeout\.func1 .* \[chan send\]`),
+	}
+
+	// GoKer tests from "GoBench: A Benchmark Suite of Real-World Go Concurrency Bugs".
+	// White paper found at https://lujie.ac.cn/files/papers/GoBench.pdf
+	// doi:10.1109/CGO51591.2021.9370317.
+	//
+	// This list is curated for tests that are not excessively flaky.
+	gokerTestCases := []testCase{
+		makeTest(testCase{name: "Cockroach584"},
+			`main\.Cockroach584\.func2\.1 .* \[sync\.Mutex\.Lock\]`),
+		makeTest(testCase{name: "Cockroach1055"},
+			`main\.Cockroach1055\.func2 .* \[chan receive\]`,
+			`main\.Cockroach1055\.func2\.1 .* \[chan receive\]`,
+			`main\.Cockroach1055\.func2\.2 .* \[sync\.WaitGroup\.Wait\]`),
+		makeTest(testCase{name: "Cockroach1462"},
+			`main\.\(\*Stopper_cockroach1462\)\.RunWorker\.func1 .* \[chan send\]`,
+			`main\.Cockroach1462\.func2 .* \[sync\.WaitGroup\.Wait\]`),
+		makeTest(testCase{name: "Cockroach2448"},
+			`main\.Cockroach2448\.func2\.gowrap1 .* \[select\]`,
+			`main\.Cockroach2448\.func2\.gowrap2 .* \[select\]`),
+		makeTest(testCase{name: "Cockroach3710"},
+			`main\.Cockroach3710\.func2\.gowrap1 .* \[sync\.RWMutex\.RLock\]`,
+			`main\.\(\*Store_cockroach3710\)\.processRaft\.func1 .* \[sync\.RWMutex\.Lock\]`),
+		makeTest(testCase{name: "Cockroach6181", repetitions: 50},
+			`main\.testRangeCacheCoalescedRequests_cockroach6181 .* \[sync\.WaitGroup\.Wait\]`,
+			`main\.testRangeCacheCoalescedRequests_cockroach6181\.func1\.1 .* \[sync\.Mutex\.Lock\]`,
+			`main\.testRangeCacheCoalescedRequests_cockroach6181\.func1\.1 .* \[sync\.RWMutex\.Lock\]`,
+			`main\.testRangeCacheCoalescedRequests_cockroach6181\.func1\.1 .* \[sync\.RWMutex\.RLock\]`),
+		makeTest(testCase{name: "Cockroach7504", repetitions: 100},
+			`main\.Cockroach7504\.func2\.1 .* \[sync\.Mutex\.Lock\]`,
+			`main\.Cockroach7504\.func2\.2 .* \[sync\.Mutex\.Lock\]`),
+		makeTest(testCase{name: "Cockroach9935"},
+			`main\.Cockroach9935\.func2\.gowrap1 .* \[sync\.Mutex\.Lock\]`),
+		makeTest(testCase{name: "Cockroach10214"},
+			`main\.Cockroach10214\.func2\.1 .* \[sync\.Mutex\.Lock\]`,
+			`main\.Cockroach10214\.func2\.2 .* \[sync\.Mutex\.Lock\]`),
+		makeTest(testCase{name: "Cockroach10790"},
+			`main\.\(\*Replica_cockroach10790\)\.beginCmds\.func1 .* \[chan receive\]`),
+		makeTest(testCase{name: "Cockroach13197"},
+			`main\.\(\*DB_cockroach13197\)\.begin\.gowrap1 .* \[chan receive\]`),
+		makeTest(testCase{name: "Cockroach13755"},
+			`main\.\(\*Rows_cockroach13755\)\.initContextClose\.gowrap1 .* \[chan receive\]`),
+		makeTest(testCase{name: "Cockroach16167"},
+			`main\.Cockroach16167\.func2 .* \[sync\.RWMutex\.RLock\]`,
+			`main\.Cockroach16167\.func2\.gowrap1 .* \[sync\.RWMutex\.Lock\]`),
+		makeTest(testCase{name: "Cockroach10790"},
+			`main\.\(\*Replica_cockroach10790\)\.beginCmds\.func1 .* \[chan receive\]`),
+		makeTest(testCase{name: "Cockroach13197"},
+			`main\.\(\*DB_cockroach13197\)\.begin\.gowrap1 .* \[chan receive\]`),
+		makeTest(testCase{name: "Cockroach13755"},
+			`main\.\(\*Rows_cockroach13755\)\.initContextClose\.gowrap1 .* \[chan receive\]`),
+		makeTest(testCase{name: "Cockroach16167"},
+			`main\.Cockroach16167\.func2 .* \[sync\.RWMutex\.RLock\]`,
+			`main\.Cockroach16167\.func2\.gowrap1 .* \[sync\.RWMutex\.Lock\]`),
+		makeTest(testCase{name: "Cockroach18101"},
+			`main\.restore_cockroach18101\.func1 .* \[chan send\]`),
+		makeTest(testCase{name: "Cockroach24808"},
+			`main\.Cockroach24808\.func2 .* \[chan send\]`),
+		makeTest(testCase{name: "Cockroach25456"},
+			`main\.Cockroach25456\.func2 .* \[chan receive\]`),
+		makeTest(testCase{name: "Cockroach35073"},
+			`main\.Cockroach35073\.func2.1 .* \[chan send\]`,
+			`main\.Cockroach35073\.func2 .* \[chan send\]`),
+		makeTest(testCase{name: "Cockroach35931"},
+			`main\.Cockroach35931\.func2 .* \[chan send\]`),
+		makeTest(testCase{name: "Etcd5509"},
+			`main\.Etcd5509\.func2 .* \[sync\.RWMutex\.Lock\]`),
+		makeTest(testCase{name: "Etcd6857"},
+			`main\.Etcd6857\.func2\.gowrap2 .* \[chan send\]`),
+		makeTest(testCase{name: "Etcd6873"},
+			`main\.Etcd6873\.func2\.gowrap1 .* \[chan receive\]`,
+			`main\.newWatchBroadcasts_etcd6873\.func1 .* \[sync\.Mutex\.Lock\]`),
+		makeTest(testCase{name: "Etcd7492"},
+			`main\.Etcd7492\.func2 .* \[sync\.WaitGroup\.Wait\]`,
+			`main\.Etcd7492\.func2\.1 .* \[chan send\]`,
+			`main\.NewSimpleTokenTTLKeeper_etcd7492\.gowrap1 .* \[sync\.Mutex\.Lock\]`),
+		makeTest(testCase{name: "Etcd7902"},
+			`main\.doRounds_etcd7902\.gowrap1 .* \[chan receive\]`,
+			`main\.doRounds_etcd7902\.gowrap1 .* \[sync\.Mutex\.Lock\]`,
+			`main\.runElectionFunc_etcd7902 .* \[sync\.WaitGroup\.Wait\]`),
+		makeTest(testCase{name: "Etcd10492"},
+			`main\.Etcd10492\.func2 .* \[sync\.Mutex\.Lock\]`),
+		makeTest(testCase{name: "Grpc660"},
+			`main\.\(\*benchmarkClient_grpc660\)\.doCloseLoopUnary\.func1 .* \[chan send\]`),
+		makeTest(testCase{name: "Grpc795"},
+			`main\.\(\*test_grpc795\)\.startServer\.gowrap1 .* \[sync\.Mutex\.Lock\]`,
+			`main\.testServerGracefulStopIdempotent_grpc795 .* \[sync\.Mutex\.Lock\]`),
+		makeTest(testCase{name: "Grpc862"},
+			`main\.DialContext_grpc862\.func2 .* \[chan receive\]`),
+		makeTest(testCase{name: "Grpc1275"},
+			`main\.testInflightStreamClosing_grpc1275\.func1 .* \[chan receive\]`),
+		makeTest(testCase{name: "Grpc1424"},
+			`main\.DialContext_grpc1424\.func1 .* \[chan receive\]`),
+		makeTest(testCase{name: "Grpc1460"},
+			`main\.Grpc1460\.func2\.gowrap1 .* \[chan receive\]`,
+			`main\.Grpc1460\.func2\.gowrap2 .* \[sync\.Mutex\.Lock\]`),
+		makeTest(testCase{name: "Grpc3017", repetitions: 50},
+			// grpc/3017 involves a goroutine leak that also simultaneously engages many GC assists.
+			// Testing runtime behaviour when pivoting between regular and goroutine leak detection modes.
+			`main\.Grpc3017\.func2 .* \[chan receive\]`,
+			`main\.Grpc3017\.func2\.1 .* \[sync\.Mutex\.Lock\]`,
+			`main\.\(\*lbCacheClientConn_grpc3017\)\.RemoveSubConn\.func1 .* \[sync\.Mutex\.Lock\]`),
+		makeTest(testCase{name: "Hugo3251", repetitions: 20},
+			`main\.Hugo3251\.func2 .* \[sync\.WaitGroup\.Wait\]`,
+			`main\.Hugo3251\.func2\.gowrap1 .* \[sync\.Mutex\.Lock\]`,
+			`main\.Hugo3251\.func2\.gowrap1 .* \[sync\.RWMutex\.RLock\]`),
+		makeTest(testCase{name: "Hugo5379"},
+			`main\.\(\*Page_hugo5379\)\.initContent\.func1\.1 .* \[sync\.Mutex\.Lock\]`,
+			`main\.\(\*Site_hugo5379\)\.renderPages\.gowrap1 .* \[sync\.Mutex\.Lock\]`,
+			`main\.Hugo5379\.func2 .* \[sync\.WaitGroup\.Wait\]`),
+		makeTest(testCase{name: "Istio16224"},
+			`main\.Istio16224\.func2 .* \[sync\.Mutex\.Lock\]`,
+			`main\.Istio16224\.func2\.gowrap1 .* \[chan send\]`,
+			// This is also a leak, but it is too flaky to be reliably detected.
+			`FLAKY`,
+			`main\.Istio16224\.func2\.gowrap1 .* \[chan receive\]`),
+		makeTest(testCase{name: "Istio17860"},
+			`main\.\(\*agent_istio17860\)\.Restart\.gowrap2 .* \[chan send\]`),
+		makeTest(testCase{name: "Istio18454"},
+			`main\.\(\*Worker_istio18454\)\.Start\.func1 .* \[chan receive\]`,
+			`main\.\(\*Worker_istio18454\)\.Start\.func1 .* \[chan send\]`),
+		makeTest(testCase{name: "Kubernetes1321"},
+			`main\.NewMux_kubernetes1321\.gowrap1 .* \[chan send\]`,
+			`main\.testMuxWatcherClose_kubernetes1321 .* \[sync\.Mutex\.Lock\]`),
+		makeTest(testCase{name: "Kubernetes5316"},
+			`main\.finishRequest_kubernetes5316\.func1 .* \[chan send\]`),
+		makeTest(testCase{name: "Kubernetes6632"},
+			`main\.Kubernetes6632\.func2\.gowrap1 .* \[sync\.Mutex\.Lock\]`,
+			`main\.Kubernetes6632\.func2\.gowrap2 .* \[chan send\]`),
+		makeTest(testCase{name: "Kubernetes10182"},
+			`main\.\(\*statusManager_kubernetes10182\)\.Start\.func1 .* \[sync\.Mutex\.Lock\]`,
+			`main\.Kubernetes10182\.func2\.gowrap2 .* \[chan send\]`,
+			`main\.Kubernetes10182\.func2\.gowrap3 .* \[chan send\]`),
+		makeTest(testCase{name: "Kubernetes11298"},
+			`main\.After_kubernetes11298\.func1 .* \[chan receive\]`,
+			`main\.After_kubernetes11298\.func1 .* \[sync\.Cond\.Wait\]`,
+			`main\.Kubernetes11298\.func2 .* \[chan receive\]`),
+		makeTest(testCase{name: "Kubernetes13135"},
+			`main\.Kubernetes13135\.func2 .* \[sync\.WaitGroup\.Wait\]`),
+		makeTest(testCase{name: "Kubernetes25331"},
+			`main\.Kubernetes25331\.func2\.gowrap1 .* \[chan send\]`),
+		makeTest(testCase{name: "Kubernetes26980"},
+			`main\.Kubernetes26980\.func2 .* \[chan receive\]`,
+			`main\.Kubernetes26980\.func2\.1 .* \[sync\.Mutex\.Lock\]`,
+			`main\.Kubernetes26980\.func2\.gowrap2 .* \[chan receive\]`),
+		makeTest(testCase{name: "Kubernetes30872"},
+			`main\.\(\*DelayingDeliverer_kubernetes30872\)\.StartWithHandler\.func1 .* \[sync\.Mutex\.Lock\]`,
+			`main\.\(\*federatedInformerImpl_kubernetes30872\)\.Start\.gowrap2 .* \[sync\.Mutex\.Lock\]`,
+			`main\.\(\*NamespaceController_kubernetes30872\)\.Run\.func1 .* \[sync\.Mutex\.Lock\]`),
+		makeTest(testCase{name: "Kubernetes38669"},
+			`main\.newCacheWatcher_kubernetes38669\.gowrap1 .* \[chan send\]`),
+		makeTest(testCase{name: "Kubernetes58107"},
+			`main\.\(\*ResourceQuotaController_kubernetes58107\)\.Run\.gowrap1 .* \[sync\.Cond\.Wait\]`,
+			`main\.\(\*ResourceQuotaController_kubernetes58107\)\.Run\.gowrap1 .* \[sync\.RWMutex\.RLock\]`,
+			`main\.\(\*ResourceQuotaController_kubernetes58107\)\.Run\.gowrap2 .* \[sync\.Cond\.Wait\]`,
+			`main\.\(\*ResourceQuotaController_kubernetes58107\)\.Run\.gowrap2 .* \[sync\.RWMutex\.RLock\]`,
+			`main\.startResourceQuotaController_kubernetes58107\.gowrap2 .* \[sync\.RWMutex\.Lock\]`),
+		makeTest(testCase{name: "Kubernetes62464"},
+			`main\.Kubernetes62464\.func2\.gowrap1 .* \[sync\.RWMutex\.RLock\]`,
+			`main\.Kubernetes62464\.func2\.gowrap2 .* \[sync\.RWMutex\.Lock\]`),
+		makeTest(testCase{name: "Kubernetes70277"},
+			`main\.Kubernetes70277\.func2 .* \[chan receive\]`),
+		makeTest(testCase{name: "Moby4395"},
+			`main\.Go_moby4395\.func1 .* \[chan send\]`),
+		makeTest(testCase{name: "Moby4951"},
+			`main\.Moby4951\.func2\.gowrap1 .* \[sync\.Mutex\.Lock\]`,
+			`main\.Moby4951\.func2\.gowrap2 .* \[sync\.Mutex\.Lock\]`),
+		makeTest(testCase{name: "Moby7559"},
+			`main\.Moby7559\.func2\.gowrap1 .* \[sync\.Mutex\.Lock\]`),
+		makeTest(testCase{name: "Moby17176"},
+			`main\.testDevmapperLockReleasedDeviceDeletion_moby17176\.func1 .* \[sync\.Mutex\.Lock\]`),
+		makeTest(testCase{name: "Moby21233"},
+			`main\.\(\*Transfer_moby21233\)\.Watch\.func1 .* \[chan send\]`,
+			`main\.\(\*Transfer_moby21233\)\.Watch\.func1 .* \[select\]`,
+			`main\.testTransfer_moby21233 .* \[chan receive\]`),
+		makeTest(testCase{name: "Moby25348"},
+			`main\.Moby25348\.func2\.gowrap1 .* \[sync\.WaitGroup\.Wait\]`),
+		makeTest(testCase{name: "Moby27782"},
+			`main\.\(\*JSONFileLogger_moby27782\)\.ReadLogs\.gowrap1 .* \[sync\.Cond\.Wait\]`,
+			`main\.NewWatcher_moby27782\.gowrap1 .* \[select\]`),
+		makeTest(testCase{name: "Moby28462"},
+			`main\.Moby28462\.func2\.gowrap1 .* \[sync\.Mutex\.Lock\]`,
+			`main\.Moby28462\.func2\.gowrap2 .* \[chan send\]`),
+		makeTest(testCase{name: "Moby29733"},
+			`main\.Moby29733\.func2 .* \[chan receive\]`,
+			`main\.testActive_moby29733\.func1 .* \[sync\.Cond\.Wait\]`),
+		makeTest(testCase{name: "Moby30408"},
+			`main\.Moby30408\.func2 .* \[chan receive\]`,
+			`main\.testActive_moby30408\.func1 .* \[sync\.Cond\.Wait\]`),
+		makeTest(testCase{name: "Moby33781"},
+			`main\.monitor_moby33781\.func1 .* \[chan send\]`),
+		makeTest(testCase{name: "Moby36114"},
+			`main\.Moby36114\.func2\.gowrap1 .* \[sync\.Mutex\.Lock\]`),
+		makeTest(testCase{name: "Serving2137"},
+			`main\.\(\*Breaker_serving2137\)\.concurrentRequest\.func1 .* \[chan send\]`,
+			`main\.\(\*Breaker_serving2137\)\.concurrentRequest\.func1 .* \[sync\.Mutex\.Lock\]`,
+			`main\.Serving2137\.func2 .* \[chan receive\]`),
+		makeTest(testCase{name: "Syncthing4829"},
+			`main\.Syncthing4829\.func2 .* \[sync\.RWMutex\.RLock\]`),
+		makeTest(testCase{name: "Syncthing5795"},
+			`main\.\(\*rawConnection_syncthing5795\)\.Start\.func1 .* \[chan receive\]`,
+			`main\.Syncthing5795\.func2 .* \[chan receive\]`),
+	}
+
+	// Combine all test cases into a single list.
+	testCases := append(microTests, patternTestCases...)
+	testCases = append(testCases, gokerTestCases...)
+
+	// Test cases must not panic or cause fatal exceptions.
 	failStates := regexp.MustCompile(`fatal|panic`)
 
+	// Build the test program once.
+	exe, err := buildTestProg(t, "testgoroutineleakgc")
+	if err != nil {
+		t.Fatal(fmt.Sprintf("building testgoroutineleakgc failed: %v", err))
+	}
+
 	for _, tcase := range testCases {
-		t.Run(tcase.tname, func(t *testing.T) {
-			exe, err := buildTestProg(t, "testprog")
-			if err != nil {
-				t.Fatal(fmt.Sprintf("building testprog failed: %v", err))
-			}
-			output := runBuiltTestProg(t, exe, tcase.funcName, "GODEBUG=gctrace=1,gcgoroutineleaks=1")
+		t.Run(tcase.name, func(t *testing.T) {
+			// Run tests in parallel.
+			t.Parallel()
 
-			if len(tcase.expectedLeaks) == 0 && strings.Contains(output, "goroutine leak!") {
-				t.Fatalf("output:\n%s\n\nunexpected goroutines leaks detected", output)
-				return
-			}
+			// Default to 1 repetition if not specified.
+			// One extra rep for tests with a specified number of repetitions
+			// is irrelevant.
+			repetitions := tcase.repetitions | 1
 
-			if failStates.MatchString(output) {
-				t.Fatalf("output:\n%s\n\nunexpected fatal exception or panic", output)
-				return
-			}
+			// Output trace. Aggregated across all repetitions.
+			var output string
+			// Output and trace are protected by separate mutexes to reduce contention.
+			var outputMu sync.Mutex
+			var traceMu sync.RWMutex
+			// Wait group coordinates across all repetitions.
+			var wg sync.WaitGroup
 
-			for _, line := range strings.Split(output, "\n") {
-				if strings.Contains(line, "goroutine leak!") {
-					for expectedLeak, count := range tcase.expectedLeaks {
-						if expectedLeak.MatchString(line) {
-							tcase.expectedLeaks[expectedLeak] = count + 1
+			wg.Add(repetitions)
+			for i := 0; i < repetitions; i++ {
+				go func() {
+					defer wg.Done()
+
+					// FIXME: Use GODEBUG flag only temporarily until we can use pprof/goroutineleaks.
+					repOutput := runBuiltTestProg(t, exe, tcase.name, "GODEBUG=gctrace=1,gcgoroutineleaks=1")
+
+					// If the test case was not expected to produce leaks, but some were reported,
+					// stop the test immediately. Zero tolerance policy for false positives.
+					if len(tcase.expectedLeaks)+len(tcase.flakyLeaks) == 0 && strings.Contains(repOutput, "goroutine leak!") {
+						t.Errorf("output:\n%s\n\ngoroutines leaks detected in case with no leaks", repOutput)
+					}
+
+					// Zero tolerance policy for fatal exceptions or panics.
+					if failStates.MatchString(repOutput) {
+						t.Errorf("output:\n%s\n\nunexpected fatal exception or panic", repOutput)
+					}
+
+					// Parse the output line by line and look for the `goroutine leak!` message.
+				LINES:
+					for _, line := range strings.Split(repOutput, "\n") {
+						// We are not interested in anything else.
+						if !strings.Contains(line, "goroutine leak!") {
+							continue
+						}
+
+						// Check if the leak is expected.
+						// If it is, check whether it has been encountered before.
+						var foundNew bool
+						var leakPattern *regexp.Regexp
+						traceMu.RLock()
+						for expectedLeak, ok := range tcase.expectedLeaks {
+							if expectedLeak.MatchString(line) {
+								if !ok {
+									foundNew = true
+								}
+
+								leakPattern = expectedLeak
+								break
+							}
+						}
+						traceMu.RUnlock()
+
+						if foundNew {
+							// Only bother writing if we found a new leak.
+							traceMu.Lock()
+							tcase.expectedLeaks[leakPattern] = true
+							traceMu.Unlock()
+						}
+
+						if leakPattern == nil {
+							// We are dealing with a leak not marked as expected.
+							// Check if it is a flaky leak.
+							for flakyLeak := range tcase.flakyLeaks {
+								if flakyLeak.MatchString(line) {
+									// The leak is flaky. Carry on to the next line.
+									continue LINES
+								}
+							}
+
+							t.Errorf("output:\n%s\n\nunexpected goroutine leak: %s", repOutput, line)
 						}
 					}
-				}
+
+					outputMu.Lock()
+					output += "\nRepetition " + strconv.Itoa(i) + ":\n" + repOutput + "\n--------------------------\n"
+					outputMu.Unlock()
+				}()
 			}
 
+			// Coordinate across all repetitions.
+			wg.Wait()
 			missingLeakStrs := make([]string, 0, len(tcase.expectedLeaks))
-			for expectedLeak, count := range tcase.expectedLeaks {
-				if count == 0 {
+			for expectedLeak, found := range tcase.expectedLeaks {
+				if !found {
 					missingLeakStrs = append(missingLeakStrs, expectedLeak.String())
 				}
 			}
