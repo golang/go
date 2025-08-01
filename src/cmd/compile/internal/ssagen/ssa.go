@@ -5474,6 +5474,10 @@ func (s *state) shouldCheckOverflow(typ *types.Type) bool {
 // shouldCheckTruncation returns true if truncation detection should be applied for this conversion.
 // It checks if the package should be excluded from truncation detection and if the conversion is potentially lossy.
 func (s *state) shouldCheckTruncation(n ir.Node, fromType, toType *types.Type) bool {
+	// Check if truncation detection is enabled via flag
+	if !base.Flag.TruncationDetect {
+		return false
+	}
 
 	// Apply truncation detection based on source location, not compilation context
 	// The key insight is that when user code calls library functions, those functions

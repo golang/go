@@ -10,6 +10,7 @@
 
 **Type truncation detection**: Detects when integer type conversions would result in data loss due to the target type having a smaller range than the source type. Covers all integer types: `int8`, `int16`, `int32`, `int64`, `uint8`, `uint16`, `uint32`, `uint64`. Excludes `uintptr` due to platform-dependent usage.
 
+
 ### Usage and installation :
 ```bash
 # Clone, change dir and compile the compiler
@@ -23,6 +24,11 @@ export GOROOT=/path/to/go-panikint
 
 # Compile only
 ./bin/go build test_simple_overflow.go
+
+# Disable truncation detection
+./bin/go run -gcflags="-truncationdetect=false" program.go
+./bin/go build -gcflags="-truncationdetect=false" program.go
+ 
 
 # Fuzz only
 ./bin/go test -fuzz=FuzzIntegerOverflow -v
