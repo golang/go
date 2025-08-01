@@ -1583,6 +1583,12 @@ func (s *regAllocState) regalloc(f *Func) {
 						mask &^= desired.avoid
 					}
 				}
+				if mask&s.values[v.Args[i.idx].ID].regs&(1<<s.SPReg) != 0 {
+					// Prefer SP register. This ensures that local variables
+					// use SP as their base register (instead of a copy of the
+					// stack pointer living in another register). See issue 74836.
+					mask = 1 << s.SPReg
+				}
 				args[i.idx] = s.allocValToReg(v.Args[i.idx], mask, true, v.Pos)
 			}
 
