@@ -118,7 +118,8 @@ func dse(f *Func) {
 					ptr = la
 				}
 			}
-			sr := shadowRange(shadowed.get(ptr.ID))
+			srNum, _ := shadowed.get(ptr.ID)
+			sr := shadowRange(srNum)
 			if sr.contains(off, off+sz) {
 				// Modify the store/zero into a copy of the memory state,
 				// effectively eliding the store operation.
@@ -156,9 +157,7 @@ func dse(f *Func) {
 
 // A shadowRange encodes a set of byte offsets [lo():hi()] from
 // a given pointer that will be written to later in the block.
-// A zero shadowRange encodes an empty shadowed range (and so
-// does a -1 shadowRange, which is what sparsemap.get returns
-// on a failed lookup).
+// A zero shadowRange encodes an empty shadowed range.
 type shadowRange int32
 
 func (sr shadowRange) lo() int64 {

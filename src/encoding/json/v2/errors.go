@@ -120,10 +120,17 @@ func newMarshalErrorBefore(e *jsontext.Encoder, t reflect.Type, err error) error
 // is positioned right before the next token or value, which causes an error.
 // It does not record the next JSON kind as this error is used to indicate
 // the receiving Go value is invalid to unmarshal into (and not a JSON error).
+// However, if [jsonflags.ReportErrorsWithLegacySemantics] is specified,
+// then it does record the next JSON kind for historical reporting reasons.
 func newUnmarshalErrorBefore(d *jsontext.Decoder, t reflect.Type, err error) error {
+	var k jsontext.Kind
+	if export.Decoder(d).Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+		k = d.PeekKind()
+	}
 	return &SemanticError{action: "unmarshal", GoType: t, Err: err,
 		ByteOffset:  d.InputOffset() + int64(export.Decoder(d).CountNextDelimWhitespace()),
-		JSONPointer: jsontext.Pointer(export.Decoder(d).AppendStackPointer(nil, +1))}
+		JSONPointer: jsontext.Pointer(export.Decoder(d).AppendStackPointer(nil, +1)),
+		JSONKind:    k}
 }
 
 // newUnmarshalErrorBeforeWithSkipping is like [newUnmarshalErrorBefore],

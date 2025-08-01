@@ -183,7 +183,7 @@ func (e *escape) stmt(n ir.Node) {
 			dsts[i] = res.Nname.(*ir.Name)
 		}
 		e.assignList(dsts, n.Results, "return", n)
-	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER, ir.OINLCALL, ir.OCLEAR, ir.OCLOSE, ir.OCOPY, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTLN, ir.ORECOVERFP:
+	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER, ir.OINLCALL, ir.OCLEAR, ir.OCLOSE, ir.OCOPY, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTLN, ir.ORECOVER:
 		e.call(nil, n)
 	case ir.OGO, ir.ODEFER:
 		n := n.(*ir.GoDeferStmt)

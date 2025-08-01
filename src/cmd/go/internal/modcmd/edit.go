@@ -234,7 +234,11 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if *editModule != "" {
-		if err := module.CheckImportPath(*editModule); err != nil {
+		err := module.CheckImportPath(*editModule)
+		if err == nil {
+			err = modload.CheckReservedModulePath(*editModule)
+		}
+		if err != nil {
 			base.Fatalf("go: invalid -module: %v", err)
 		}
 	}

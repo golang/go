@@ -17,6 +17,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/x86"
+	"internal/abi"
 )
 
 // ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
@@ -143,6 +144,15 @@ func memIdx(a *obj.Addr, v *ssa.Value) {
 
 // DUFFZERO consists of repeated blocks of 4 MOVUPSs + LEAQ,
 // See runtime/mkduff.go.
+const (
+	dzBlocks    = 16 // number of MOV/ADD blocks
+	dzBlockLen  = 4  // number of clears per block
+	dzBlockSize = 23 // size of instructions in a single block
+	dzMovSize   = 5  // size of single MOV instruction w/ offset
+	dzLeaqSize  = 4  // size of single LEAQ instruction
+	dzClearStep = 16 // number of bytes cleared by each MOV instruction
+)
+
 func duffStart(size int64) int64 {
 	x, _ := duff(size)
 	return x
@@ -997,26 +1007,103 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssagen.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpAMD64DUFFZERO:
+
+	case ssa.OpAMD64LoweredZero:
 		if s.ABI != obj.ABIInternal {
 			// zero X15 manually
 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
 		}
-		off := duffStart(v.AuxInt)
-		adj := duffAdj(v.AuxInt)
-		var p *obj.Prog
-		if adj != 0 {
-			p = s.Prog(x86.ALEAQ)
-			p.From.Type = obj.TYPE_MEM
-			p.From.Offset = adj
-			p.From.Reg = x86.REG_DI
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = x86.REG_DI
+		ptrReg := v.Args[0].Reg()
+		n := v.AuxInt
+		if n < 16 {
+			v.Fatalf("Zero too small %d", n)
 		}
-		p = s.Prog(obj.ADUFFZERO)
-		p.To.Type = obj.TYPE_ADDR
-		p.To.Sym = ir.Syms.Duffzero
-		p.To.Offset = off
+		zero16 := func(off int64) {
+			zero16(s, ptrReg, off)
+		}
+
+		// Generate zeroing instructions.
+		var off int64
+		for n >= 16 {
+			zero16(off)
+			off += 16
+			n -= 16
+		}
+		if n != 0 {
+			// use partially overlapped write.
+			// TODO: n <= 8, use smaller write?
+			zero16(off + n - 16)
+		}
+
+	case ssa.OpAMD64LoweredZeroLoop:
+		if s.ABI != obj.ABIInternal {
+			// zero X15 manually
+			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+		}
+		ptrReg := v.Args[0].Reg()
+		countReg := v.RegTmp()
+		n := v.AuxInt
+		loopSize := int64(64)
+		if n < 3*loopSize {
+			// - a loop count of 0 won't work.
+			// - a loop count of 1 is useless.
+			// - a loop count of 2 is a code size ~tie
+			//     4 instructions to implement the loop
+			//     4 instructions in the loop body
+			//   vs
+			//     8 instructions in the straightline code
+			//   Might as well use straightline code.
+			v.Fatalf("ZeroLoop size too small %d", n)
+		}
+		zero16 := func(off int64) {
+			zero16(s, ptrReg, off)
+		}
+
+		// Put iteration count in a register.
+		//   MOVL    $n, countReg
+		p := s.Prog(x86.AMOVL)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = n / loopSize
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = countReg
+		cntInit := p
+
+		// Zero loopSize bytes starting at ptrReg.
+		for i := range loopSize / 16 {
+			zero16(i * 16)
+		}
+		//   ADDQ    $loopSize, ptrReg
+		p = s.Prog(x86.AADDQ)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = loopSize
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = ptrReg
+		//   DECL    countReg
+		p = s.Prog(x86.ADECL)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = countReg
+		// Jump to first instruction in loop if we're not done yet.
+		//   JNE     head
+		p = s.Prog(x86.AJNE)
+		p.To.Type = obj.TYPE_BRANCH
+		p.To.SetTarget(cntInit.Link)
+
+		// Multiples of the loop size are now done.
+		n %= loopSize
+
+		// Write any fractional portion.
+		var off int64
+		for n >= 16 {
+			zero16(off)
+			off += 16
+			n -= 16
+		}
+		if n != 0 {
+			// Use partially-overlapping write.
+			// TODO: n <= 8, use smaller write?
+			zero16(off + n - 16)
+		}
+
 	case ssa.OpAMD64DUFFCOPY:
 		p := s.Prog(obj.ADUFFCOPY)
 		p.To.Type = obj.TYPE_ADDR
@@ -1135,12 +1222,91 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// AuxInt encodes how many buffer entries we need.
 		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
 
-	case ssa.OpAMD64LoweredPanicBoundsA, ssa.OpAMD64LoweredPanicBoundsB, ssa.OpAMD64LoweredPanicBoundsC:
-		p := s.Prog(obj.ACALL)
+	case ssa.OpAMD64LoweredPanicBoundsRR, ssa.OpAMD64LoweredPanicBoundsRC, ssa.OpAMD64LoweredPanicBoundsCR, ssa.OpAMD64LoweredPanicBoundsCC:
+		// Compute the constant we put in the PCData entry for this call.
+		code, signed := ssa.BoundsKind(v.AuxInt).Code()
+		xIsReg := false
+		yIsReg := false
+		xVal := 0
+		yVal := 0
+		switch v.Op {
+		case ssa.OpAMD64LoweredPanicBoundsRR:
+			xIsReg = true
+			xVal = int(v.Args[0].Reg() - x86.REG_AX)
+			yIsReg = true
+			yVal = int(v.Args[1].Reg() - x86.REG_AX)
+		case ssa.OpAMD64LoweredPanicBoundsRC:
+			xIsReg = true
+			xVal = int(v.Args[0].Reg() - x86.REG_AX)
+			c := v.Aux.(ssa.PanicBoundsC).C
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				yVal = int(c)
+			} else {
+				// Move constant to a register
+				yIsReg = true
+				if yVal == xVal {
+					yVal = 1
+				}
+				p := s.Prog(x86.AMOVQ)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = x86.REG_AX + int16(yVal)
+			}
+		case ssa.OpAMD64LoweredPanicBoundsCR:
+			yIsReg = true
+			yVal := int(v.Args[0].Reg() - x86.REG_AX)
+			c := v.Aux.(ssa.PanicBoundsC).C
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				xVal = int(c)
+			} else {
+				// Move constant to a register
+				xIsReg = true
+				if xVal == yVal {
+					xVal = 1
+				}
+				p := s.Prog(x86.AMOVQ)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = x86.REG_AX + int16(xVal)
+			}
+		case ssa.OpAMD64LoweredPanicBoundsCC:
+			c := v.Aux.(ssa.PanicBoundsCC).Cx
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				xVal = int(c)
+			} else {
+				// Move constant to a register
+				xIsReg = true
+				p := s.Prog(x86.AMOVQ)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = x86.REG_AX + int16(xVal)
+			}
+			c = v.Aux.(ssa.PanicBoundsCC).Cy
+			if c >= 0 && c <= abi.BoundsMaxConst {
+				yVal = int(c)
+			} else {
+				// Move constant to a register
+				yIsReg = true
+				yVal = 1
+				p := s.Prog(x86.AMOVQ)
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = c
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = x86.REG_AX + int16(yVal)
+			}
+		}
+		c := abi.BoundsEncode(code, signed, xIsReg, yIsReg, xVal, yVal)
+
+		p := s.Prog(obj.APCDATA)
+		p.From.SetConst(abi.PCDATA_PanicBounds)
+		p.To.SetConst(int64(c))
+		p = s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = ssagen.BoundsCheckFunc[v.AuxInt]
-		s.UseArgs(int64(2 * types.PtrSize)) // space used in callee args area by assembly stubs
+		p.To.Sym = ir.Syms.PanicBounds
 
 	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL,
 		ssa.OpAMD64BSWAPQ, ssa.OpAMD64BSWAPL,
@@ -1531,4 +1697,15 @@ func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg in
 	p.To.Sym = n.Linksym()
 	p.Pos = p.Pos.WithNotStmt()
 	return p
+}
+
+// zero 16 bytes at reg+off.
+func zero16(s *ssagen.State, reg int16, off int64) {
+	//   MOVUPS  X15, off(ptrReg)
+	p := s.Prog(x86.AMOVUPS)
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = x86.REG_X15
+	p.To.Type = obj.TYPE_MEM
+	p.To.Reg = reg
+	p.To.Offset = off
 }

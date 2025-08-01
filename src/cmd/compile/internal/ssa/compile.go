@@ -473,11 +473,11 @@ var passes = [...]pass{
 	{name: "expand calls", fn: expandCalls, required: true},
 	{name: "decompose builtin", fn: postExpandCallsDecompose, required: true},
 	{name: "softfloat", fn: softfloat, required: true},
+	{name: "branchelim", fn: branchelim},
 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
 	{name: "dead auto elim", fn: elimDeadAutosGeneric},
 	{name: "sccp", fn: sccp},
 	{name: "generic deadcode", fn: deadcode, required: true}, // remove dead stores, which otherwise mess up store chain
-	{name: "branchelim", fn: branchelim},
 	{name: "late fuse", fn: fuseLate},
 	{name: "check bce", fn: checkbce},
 	{name: "dse", fn: dse},
@@ -583,6 +583,10 @@ var passOrder = [...]constraint{
 	{"late fuse", "memcombine"},
 	// memcombine is a arch-independent pass.
 	{"memcombine", "lower"},
+	// late opt transform some CondSelects into math.
+	{"branchelim", "late opt"},
+	// ranchelim is an arch-independent pass.
+	{"branchelim", "lower"},
 }
 
 func init() {

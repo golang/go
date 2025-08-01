@@ -11,8 +11,6 @@ import (
 	"unsafe"
 )
 
-const MaxArgs = maxArgs
-
 var (
 	OsYield                 = osyield
 	TimeBeginPeriodRetValue = &timeBeginPeriodRetValue

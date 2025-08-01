@@ -1,8 +1,7 @@
-pkg p2, func F() string
 pkg p2, func F //deprecated
+pkg p2, func F() string
 pkg p2, func G() Twoer
 pkg p2, func NewError(string) error
 pkg p2, type Twoer interface { PackageTwoMeth }
-pkg p2, type Twoer interface, PackageTwoMeth()
 pkg p2, type Twoer interface, PackageTwoMeth //deprecated
-
+pkg p2, type Twoer interface, PackageTwoMeth()

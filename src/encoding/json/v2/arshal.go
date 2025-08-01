@@ -409,7 +409,7 @@ func Unmarshal(in []byte, out any, opts ...Options) (err error) {
 	dec := export.GetBufferedDecoder(in, opts...)
 	defer export.PutBufferedDecoder(dec)
 	xd := export.Decoder(dec)
-	err = unmarshalFull(dec, out, &xd.Struct)
+	err = unmarshalDecode(dec, out, &xd.Struct, true)
 	if err != nil && xd.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 		return internal.TransformUnmarshalError(out, err)
 	}
@@ -426,23 +426,11 @@ func UnmarshalRead(in io.Reader, out any, opts ...Options) (err error) {
 	dec := export.GetStreamingDecoder(in, opts...)
 	defer export.PutStreamingDecoder(dec)
 	xd := export.Decoder(dec)
-	err = unmarshalFull(dec, out, &xd.Struct)
+	err = unmarshalDecode(dec, out, &xd.Struct, true)
 	if err != nil && xd.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 		return internal.TransformUnmarshalError(out, err)
 	}
 	return err
-}
-
-func unmarshalFull(in *jsontext.Decoder, out any, uo *jsonopts.Struct) error {
-	switch err := unmarshalDecode(in, out, uo); err {
-	case nil:
-		return export.Decoder(in).CheckEOF()
-	case io.EOF:
-		offset := in.InputOffset() + int64(len(in.UnreadBuffer()))
-		return &jsontext.SyntacticError{ByteOffset: offset, Err: io.ErrUnexpectedEOF}
-	default:
-		return err
-	}
 }
 
 // UnmarshalDecode deserializes a Go value from a [jsontext.Decoder] according to
@@ -463,14 +451,14 @@ func UnmarshalDecode(in *jsontext.Decoder, out any, opts ...Options) (err error)
 		defer func() { xd.Struct = optsOriginal }()
 		xd.Struct.JoinWithoutCoderOptions(opts...)
 	}
-	err = unmarshalDecode(in, out, &xd.Struct)
+	err = unmarshalDecode(in, out, &xd.Struct, false)
 	if err != nil && xd.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 		return internal.TransformUnmarshalError(out, err)
 	}
 	return err
 }
 
-func unmarshalDecode(in *jsontext.Decoder, out any, uo *jsonopts.Struct) (err error) {
+func unmarshalDecode(in *jsontext.Decoder, out any, uo *jsonopts.Struct, last bool) (err error) {
 	v := reflect.ValueOf(out)
 	if v.Kind() != reflect.Pointer || v.IsNil() {
 		return &SemanticError{action: "unmarshal", GoType: reflect.TypeOf(out), Err: internal.ErrNonNilReference}
@@ -481,7 +469,11 @@ func unmarshalDecode(in *jsontext.Decoder, out any, uo *jsonopts.Struct) (err er
 	// In legacy semantics, the entirety of the next JSON value
 	// was validated before attempting to unmarshal it.
 	if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-		if err := export.Decoder(in).CheckNextValue(); err != nil {
+		if err := export.Decoder(in).CheckNextValue(last); err != nil {
+			if err == io.EOF {
+				offset := in.InputOffset() + int64(len(in.UnreadBuffer()))
+				return &jsontext.SyntacticError{ByteOffset: offset, Err: io.ErrUnexpectedEOF}
+			}
 			return err
 		}
 	}
@@ -495,7 +487,14 @@ func unmarshalDecode(in *jsontext.Decoder, out any, uo *jsonopts.Struct) (err er
 		if !uo.Flags.Get(jsonflags.AllowDuplicateNames) {
 			export.Decoder(in).Tokens.InvalidateDisabledNamespaces()
 		}
+		if err == io.EOF {
+			offset := in.InputOffset() + int64(len(in.UnreadBuffer()))
+			return &jsontext.SyntacticError{ByteOffset: offset, Err: io.ErrUnexpectedEOF}
+		}
 		return err
+	}
+	if last {
+		return export.Decoder(in).CheckEOF()
 	}
 	return nil
 }

@@ -1812,7 +1812,7 @@ void _cgoPREFIX_Cfunc__Cmalloc(void *v) {
 	void *ret;
 	_cgo_tsan_acquire();
 	ret = malloc(a->p0);
-	if (ret == 0 && a->p0 == 0) {
+	if (ret == NULL && a->p0 == 0) {
 		ret = malloc(1);
 	}
 	a->r1 = ret;

@@ -1686,8 +1686,38 @@ func (s *regAllocState) regalloc(f *Func) {
 					}
 				}
 			}
-
 		ok:
+			for i := 0; i < 2; i++ {
+				if !(i == 0 && regspec.clobbersArg0 || i == 1 && regspec.clobbersArg1) {
+					continue
+				}
+				if !s.liveAfterCurrentInstruction(v.Args[i]) {
+					// arg is dead.  We can clobber its register.
+					continue
+				}
+				if s.values[v.Args[i].ID].rematerializeable {
+					// We can rematerialize the input, don't worry about clobbering it.
+					continue
+				}
+				if countRegs(s.values[v.Args[i].ID].regs) >= 2 {
+					// We have at least 2 copies of arg.  We can afford to clobber one.
+					continue
+				}
+				// Possible new registers to copy into.
+				m := s.compatRegs(v.Args[i].Type) &^ s.used
+				if m == 0 {
+					// No free registers.  In this case we'll just clobber the
+					// input and future uses of that input must use a restore.
+					// TODO(khr): We should really do this like allocReg does it,
+					// spilling the value with the most distant next use.
+					continue
+				}
+				// Copy input to a new clobberable register.
+				c := s.allocValToReg(v.Args[i], m, true, v.Pos)
+				s.copies[c] = false
+				args[i] = c
+			}
+
 			// Pick a temporary register if needed.
 			// It should be distinct from all the input registers, so we
 			// allocate it after all the input registers, but before
@@ -1707,6 +1737,13 @@ func (s *regAllocState) regalloc(f *Func) {
 				tmpReg = s.allocReg(m, &tmpVal)
 				s.nospill |= regMask(1) << tmpReg
 				s.tmpused |= regMask(1) << tmpReg
+			}
+
+			if regspec.clobbersArg0 {
+				s.freeReg(register(s.f.getHome(args[0].ID).(*Register).num))
+			}
+			if regspec.clobbersArg1 {
+				s.freeReg(register(s.f.getHome(args[1].ID).(*Register).num))
 			}
 
 			// Now that all args are in regs, we're ready to issue the value itself.
@@ -2735,7 +2772,7 @@ func (s *regAllocState) computeLive() {
 	// out to all of them.
 	po := f.postorder()
 	s.loopnest = f.loopnest()
-	s.loopnest.calculateDepths()
+	s.loopnest.computeUnavoidableCalls()
 	for {
 		changed := false
 
@@ -3041,4 +3078,73 @@ func (d *desiredState) merge(x *desiredState) {
 	for _, e := range x.entries {
 		d.addList(e.ID, e.regs)
 	}
+}
+
+// computeUnavoidableCalls computes the containsUnavoidableCall fields in the loop nest.
+func (loopnest *loopnest) computeUnavoidableCalls() {
+	f := loopnest.f
+
+	hasCall := f.Cache.allocBoolSlice(f.NumBlocks())
+	defer f.Cache.freeBoolSlice(hasCall)
+	for _, b := range f.Blocks {
+		if b.containsCall() {
+			hasCall[b.ID] = true
+		}
+	}
+	found := f.Cache.allocSparseSet(f.NumBlocks())
+	defer f.Cache.freeSparseSet(found)
+	// Run dfs to find path through the loop that avoids all calls.
+	// Such path either escapes the loop or returns back to the header.
+	// It isn't enough to have exit not dominated by any call, for example:
+	// ... some loop
+	// call1    call2
+	//   \       /
+	//     block
+	// ...
+	// block is not dominated by any single call, but we don't have call-free path to it.
+loopLoop:
+	for _, l := range loopnest.loops {
+		found.clear()
+		tovisit := make([]*Block, 0, 8)
+		tovisit = append(tovisit, l.header)
+		for len(tovisit) > 0 {
+			cur := tovisit[len(tovisit)-1]
+			tovisit = tovisit[:len(tovisit)-1]
+			if hasCall[cur.ID] {
+				continue
+			}
+			for _, s := range cur.Succs {
+				nb := s.Block()
+				if nb == l.header {
+					// Found a call-free path around the loop.
+					continue loopLoop
+				}
+				if found.contains(nb.ID) {
+					// Already found via another path.
+					continue
+				}
+				nl := loopnest.b2l[nb.ID]
+				if nl == nil || (nl.depth <= l.depth && nl != l) {
+					// Left the loop.
+					continue
+				}
+				tovisit = append(tovisit, nb)
+				found.add(nb.ID)
+			}
+		}
+		// No call-free path was found.
+		l.containsUnavoidableCall = true
+	}
+}
+
+func (b *Block) containsCall() bool {
+	if b.Kind == BlockDefer {
+		return true
+	}
+	for _, v := range b.Values {
+		if opcodeTable[v.Op].call {
+			return true
+		}
+	}
+	return false
 }

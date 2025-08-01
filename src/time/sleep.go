@@ -142,7 +142,7 @@ func (t *Timer) Stop() bool {
 // in Go 1.27 or later.
 func NewTimer(d Duration) *Timer {
 	c := make(chan Time, 1)
-	t := (*Timer)(newTimer(when(d), 0, sendTime, c, syncTimer(c)))
+	t := newTimer(when(d), 0, sendTime, c, syncTimer(c))
 	t.C = c
 	return t
 }
@@ -208,7 +208,7 @@ func After(d Duration) <-chan Time {
 // be used to cancel the call using its Stop method.
 // The returned Timer's C field is not used and will be nil.
 func AfterFunc(d Duration, f func()) *Timer {
-	return (*Timer)(newTimer(when(d), 0, goFunc, f, nil))
+	return newTimer(when(d), 0, goFunc, f, nil)
 }
 
 func goFunc(arg any, seq uintptr, delta int64) {

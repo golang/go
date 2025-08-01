@@ -416,6 +416,8 @@ type DoublePtr struct {
 	J **int
 }
 
+type NestedUnamed struct{ F struct{ V int } }
+
 var unmarshalTests = []struct {
 	CaseName
 	in                    string
@@ -1212,6 +1214,28 @@ var unmarshalTests = []struct {
 		out: struct {
 			F string `json:"-,omitempty"`
 		}{"hello"},
+	},
+
+	{
+		CaseName: Name("ErrorForNestedUnamed"),
+		in:       `{"F":{"V":"s"}}`,
+		ptr:      new(NestedUnamed),
+		out:      NestedUnamed{},
+		err:      &UnmarshalTypeError{Value: "string", Type: reflect.TypeFor[int](), Offset: 13, Field: "F.V"},
+	},
+	{
+		CaseName: Name("ErrorInterface"),
+		in:       `1`,
+		ptr:      new(error),
+		out:      error(nil),
+		err:      &UnmarshalTypeError{Value: "number", Type: reflect.TypeFor[error](), Offset: 1},
+	},
+	{
+		CaseName: Name("ErrorChan"),
+		in:       `1`,
+		ptr:      new(chan int),
+		out:      (chan int)(nil),
+		err:      &UnmarshalTypeError{Value: "number", Type: reflect.TypeFor[chan int](), Offset: 1},
 	},
 }
 

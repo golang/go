@@ -54,6 +54,10 @@ func LookPath(file string) (string, error) {
 	// (only bypass the path if file begins with / or ./ or ../)
 	// but that would not match all the Unix shells.
 
+	if err := validateLookPath(file); err != nil {
+		return "", &Error{file, err}
+	}
+
 	if strings.Contains(file, "/") {
 		err := findExecutable(file)
 		if err == nil {

@@ -25,7 +25,7 @@ func throwinit()
 func panicwrap()
 
 func gopanic(interface{})
-func gorecover(*int32) interface{}
+func gorecover() interface{}
 func goschedguarded()
 
 // Note: these declarations are just for wasm port.
@@ -152,14 +152,12 @@ func mapassign_fast32ptr(mapType *byte, hmap map[any]any, key unsafe.Pointer) (v
 func mapassign_fast64(mapType *byte, hmap map[any]any, key uint64) (val *any)
 func mapassign_fast64ptr(mapType *byte, hmap map[any]any, key unsafe.Pointer) (val *any)
 func mapassign_faststr(mapType *byte, hmap map[any]any, key string) (val *any)
-func mapiterinit(mapType *byte, hmap map[any]any, hiter *any)  // old maps
-func mapIterStart(mapType *byte, hmap map[any]any, hiter *any) // swiss maps
+func mapIterStart(mapType *byte, hmap map[any]any, hiter *any)
 func mapdelete(mapType *byte, hmap map[any]any, key *any)
 func mapdelete_fast32(mapType *byte, hmap map[any]any, key uint32)
 func mapdelete_fast64(mapType *byte, hmap map[any]any, key uint64)
 func mapdelete_faststr(mapType *byte, hmap map[any]any, key string)
-func mapiternext(hiter *any) // old maps
-func mapIterNext(hiter *any) // swiss maps
+func mapIterNext(hiter *any)
 func mapclear(mapType *byte, hmap map[any]any)
 
 // *byte is really *runtime.Type

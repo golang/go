@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/types"
+	"fmt"
 	"testing"
 )
 
@@ -218,10 +219,37 @@ func TestSpillMove2(t *testing.T) {
 
 }
 
+func TestClobbersArg0(t *testing.T) {
+	c := testConfig(t)
+	f := c.Fun("entry",
+		Bloc("entry",
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("ptr", OpArg, c.config.Types.Int64.PtrTo(), 0, c.Temp(c.config.Types.Int64.PtrTo())),
+			Valu("dst", OpArg, c.config.Types.Int64.PtrTo().PtrTo(), 0, c.Temp(c.config.Types.Int64.PtrTo().PtrTo())),
+			Valu("zero", OpAMD64LoweredZeroLoop, types.TypeMem, 256, nil, "ptr", "mem"),
+			Valu("store", OpAMD64MOVQstore, types.TypeMem, 0, nil, "dst", "ptr", "zero"),
+			Exit("store")))
+	flagalloc(f.f)
+	regalloc(f.f)
+	checkFunc(f.f)
+	// LoweredZeroLoop clobbers its argument, so there must be a copy of "ptr" somewhere
+	// so we still have that value available at "store".
+	if n := numCopies(f.blocks["entry"]); n != 1 {
+		fmt.Printf("%s\n", f.f.String())
+		t.Errorf("got %d copies, want 1", n)
+	}
+}
+
 func numSpills(b *Block) int {
+	return numOps(b, OpStoreReg)
+}
+func numCopies(b *Block) int {
+	return numOps(b, OpCopy)
+}
+func numOps(b *Block, op Op) int {
 	n := 0
 	for _, v := range b.Values {
-		if v.Op == OpStoreReg {
+		if v.Op == op {
 			n++
 		}
 	}

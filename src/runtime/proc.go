@@ -862,10 +862,10 @@ func schedinit() {
 	ticks.init() // run as early as possible
 	moduledataverify()
 	stackinit()
+	randinit() // must run before mallocinit, alginit, mcommoninit
 	mallocinit()
 	godebug := getGodebugEarly()
 	cpuinit(godebug) // must run before alginit
-	randinit()       // must run before alginit, mcommoninit
 	alginit()        // maps, hash, rand must not be used before this call
 	mcommoninit(gp.m, -1)
 	modulesinit()   // provides activeModules
@@ -6199,10 +6199,6 @@ func checkdead() {
 // This is a variable for testing purposes. It normally doesn't change.
 var forcegcperiod int64 = 2 * 60 * 1e9
 
-// needSysmonWorkaround is true if the workaround for
-// golang.org/issue/42515 is needed on NetBSD.
-var needSysmonWorkaround bool = false
-
 // haveSysmon indicates whether there is sysmon thread support.
 //
 // No threads on wasm yet, so no sysmon.
@@ -6309,26 +6305,6 @@ func sysmon() {
 				injectglist(&list)
 				incidlelocked(1)
 				netpollAdjustWaiters(delta)
-			}
-		}
-		if GOOS == "netbsd" && needSysmonWorkaround {
-			// netpoll is responsible for waiting for timer
-			// expiration, so we typically don't have to worry
-			// about starting an M to service timers. (Note that
-			// sleep for timeSleepUntil above simply ensures sysmon
-			// starts running again when that timer expiration may
-			// cause Go code to run again).
-			//
-			// However, netbsd has a kernel bug that sometimes
-			// misses netpollBreak wake-ups, which can lead to
-			// unbounded delays servicing timers. If we detect this
-			// overrun, then startm to get something to handle the
-			// timer.
-			//
-			// See issue 42515 and
-			// https://gnats.netbsd.org/cgi-bin/query-pr-single.pl?number=50094.
-			if next := timeSleepUntil(); next < now {
-				startm(nil, false, false)
 			}
 		}
 		// Check if we need to update GOMAXPROCS at most once per second.

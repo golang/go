@@ -9,7 +9,6 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
-	"internal/goexperiment"
 	"internal/runtime/atomic"
 	"unsafe"
 )
@@ -69,7 +68,7 @@ func (t rtype) pkgpath() string {
 	if u := t.uncommon(); u != nil {
 		return t.nameOff(u.PkgPath).Name()
 	}
-	switch t.Kind_ & abi.KindMask {
+	switch t.Kind() {
 	case abi.Struct:
 		st := (*structtype)(unsafe.Pointer(t.Type))
 		return st.PkgPath.Name()
@@ -522,8 +521,8 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
 	if t == v {
 		return true
 	}
-	kind := t.Kind_ & abi.KindMask
-	if kind != v.Kind_&abi.KindMask {
+	kind := t.Kind()
+	if kind != v.Kind() {
 		return false
 	}
 	rt, rv := toRType(t), toRType(v)
@@ -605,13 +604,8 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
 		}
 		return true
 	case abi.Map:
-		if goexperiment.SwissMap {
-			mt := (*abi.SwissMapType)(unsafe.Pointer(t))
-			mv := (*abi.SwissMapType)(unsafe.Pointer(v))
-			return typesEqual(mt.Key, mv.Key, seen) && typesEqual(mt.Elem, mv.Elem, seen)
-		}
-		mt := (*abi.OldMapType)(unsafe.Pointer(t))
-		mv := (*abi.OldMapType)(unsafe.Pointer(v))
+		mt := (*abi.MapType)(unsafe.Pointer(t))
+		mv := (*abi.MapType)(unsafe.Pointer(v))
 		return typesEqual(mt.Key, mv.Key, seen) && typesEqual(mt.Elem, mv.Elem, seen)
 	case abi.Pointer:
 		pt := (*ptrtype)(unsafe.Pointer(t))

@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/runtime/atomic"
 	"internal/runtime/sys"
+	"internal/runtime/syscall/windows"
 	"unsafe"
 )
 
@@ -160,6 +161,9 @@ func tstart_stdcall(newm *m)
 func wintls()
 
 type mOS struct {
+	// This is here to avoid using the G stack so the stack can move during the call.
+	stdCallInfo windows.StdCallInfo
+
 	threadLock mutex   // protects "thread" and prevents closing
 	thread     uintptr // thread handle
 
@@ -210,13 +214,9 @@ func read(fd int32, p unsafe.Pointer, n int32) int32 {
 
 type sigset struct{}
 
-// Call a Windows function with stdcall conventions,
-// and switch to os stack during the call.
-func asmstdcall(fn unsafe.Pointer)
-
 var asmstdcallAddr unsafe.Pointer
 
-type winlibcall libcall
+type winlibcall windows.StdCallInfo
 
 func windowsFindfunc(lib uintptr, name []byte) stdFunction {
 	if name[len(name)-1] != 0 {
@@ -472,7 +472,7 @@ func initLongPathSupport() {
 }
 
 func osinit() {
-	asmstdcallAddr = unsafe.Pointer(abi.FuncPCABI0(asmstdcall))
+	asmstdcallAddr = unsafe.Pointer(windows.AsmStdCallAddr())
 
 	loadOptionalSyscalls()
 
@@ -935,20 +935,17 @@ func mdestroy(mp *m) {
 	}
 }
 
-// asmstdcall_trampoline calls asmstdcall converting from Go to C calling convention.
-func asmstdcall_trampoline(args unsafe.Pointer)
-
 // stdcall_no_g calls asmstdcall on os stack without using g.
 //
 //go:nosplit
 func stdcall_no_g(fn stdFunction, n int, args uintptr) uintptr {
-	libcall := libcall{
-		fn:   uintptr(unsafe.Pointer(fn)),
-		n:    uintptr(n),
-		args: args,
+	call := windows.StdCallInfo{
+		Fn:   uintptr(unsafe.Pointer(fn)),
+		N:    uintptr(n),
+		Args: args,
 	}
-	asmstdcall_trampoline(noescape(unsafe.Pointer(&libcall)))
-	return libcall.r1
+	windows.StdCall(&call)
+	return call.R1
 }
 
 // Calling stdcall on os stack.
@@ -959,7 +956,7 @@ func stdcall_no_g(fn stdFunction, n int, args uintptr) uintptr {
 func stdcall(fn stdFunction) uintptr {
 	gp := getg()
 	mp := gp.m
-	mp.libcall.fn = uintptr(unsafe.Pointer(fn))
+	mp.stdCallInfo.Fn = uintptr(unsafe.Pointer(fn))
 	resetLibcall := false
 	if mp.profilehz != 0 && mp.libcallsp == 0 {
 		// leave pc/sp for cpu profiler
@@ -970,18 +967,18 @@ func stdcall(fn stdFunction) uintptr {
 		mp.libcallsp = sys.GetCallerSP()
 		resetLibcall = true // See comment in sys_darwin.go:libcCall
 	}
-	asmcgocall(asmstdcallAddr, unsafe.Pointer(&mp.libcall))
+	asmcgocall(asmstdcallAddr, unsafe.Pointer(&mp.stdCallInfo))
 	if resetLibcall {
 		mp.libcallsp = 0
 	}
-	return mp.libcall.r1
+	return mp.stdCallInfo.R1
 }
 
 //go:nosplit
 func stdcall0(fn stdFunction) uintptr {
 	mp := getg().m
-	mp.libcall.n = 0
-	mp.libcall.args = 0
+	mp.stdCallInfo.N = 0
+	mp.stdCallInfo.Args = 0
 	return stdcall(fn)
 }
 
@@ -989,8 +986,8 @@ func stdcall0(fn stdFunction) uintptr {
 //go:cgo_unsafe_args
 func stdcall1(fn stdFunction, a0 uintptr) uintptr {
 	mp := getg().m
-	mp.libcall.n = 1
-	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
+	mp.stdCallInfo.N = 1
+	mp.stdCallInfo.Args = uintptr(noescape(unsafe.Pointer(&a0)))
 	return stdcall(fn)
 }
 
@@ -998,8 +995,8 @@ func stdcall1(fn stdFunction, a0 uintptr) uintptr {
 //go:cgo_unsafe_args
 func stdcall2(fn stdFunction, a0, a1 uintptr) uintptr {
 	mp := getg().m
-	mp.libcall.n = 2
-	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
+	mp.stdCallInfo.N = 2
+	mp.stdCallInfo.Args = uintptr(noescape(unsafe.Pointer(&a0)))
 	return stdcall(fn)
 }
 
@@ -1007,8 +1004,8 @@ func stdcall2(fn stdFunction, a0, a1 uintptr) uintptr {
 //go:cgo_unsafe_args
 func stdcall3(fn stdFunction, a0, a1, a2 uintptr) uintptr {
 	mp := getg().m
-	mp.libcall.n = 3
-	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
+	mp.stdCallInfo.N = 3
+	mp.stdCallInfo.Args = uintptr(noescape(unsafe.Pointer(&a0)))
 	return stdcall(fn)
 }
 
@@ -1016,8 +1013,8 @@ func stdcall3(fn stdFunction, a0, a1, a2 uintptr) uintptr {
 //go:cgo_unsafe_args
 func stdcall4(fn stdFunction, a0, a1, a2, a3 uintptr) uintptr {
 	mp := getg().m
-	mp.libcall.n = 4
-	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
+	mp.stdCallInfo.N = 4
+	mp.stdCallInfo.Args = uintptr(noescape(unsafe.Pointer(&a0)))
 	return stdcall(fn)
 }
 
@@ -1025,8 +1022,8 @@ func stdcall4(fn stdFunction, a0, a1, a2, a3 uintptr) uintptr {
 //go:cgo_unsafe_args
 func stdcall5(fn stdFunction, a0, a1, a2, a3, a4 uintptr) uintptr {
 	mp := getg().m
-	mp.libcall.n = 5
-	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
+	mp.stdCallInfo.N = 5
+	mp.stdCallInfo.Args = uintptr(noescape(unsafe.Pointer(&a0)))
 	return stdcall(fn)
 }
 
@@ -1034,8 +1031,8 @@ func stdcall5(fn stdFunction, a0, a1, a2, a3, a4 uintptr) uintptr {
 //go:cgo_unsafe_args
 func stdcall6(fn stdFunction, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
 	mp := getg().m
-	mp.libcall.n = 6
-	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
+	mp.stdCallInfo.N = 6
+	mp.stdCallInfo.Args = uintptr(noescape(unsafe.Pointer(&a0)))
 	return stdcall(fn)
 }
 
@@ -1043,8 +1040,8 @@ func stdcall6(fn stdFunction, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
 //go:cgo_unsafe_args
 func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
 	mp := getg().m
-	mp.libcall.n = 7
-	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
+	mp.stdCallInfo.N = 7
+	mp.stdCallInfo.Args = uintptr(noescape(unsafe.Pointer(&a0)))
 	return stdcall(fn)
 }
 
@@ -1052,8 +1049,8 @@ func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
 //go:cgo_unsafe_args
 func stdcall8(fn stdFunction, a0, a1, a2, a3, a4, a5, a6, a7 uintptr) uintptr {
 	mp := getg().m
-	mp.libcall.n = 8
-	mp.libcall.args = uintptr(noescape(unsafe.Pointer(&a0)))
+	mp.stdCallInfo.N = 8
+	mp.stdCallInfo.Args = uintptr(noescape(unsafe.Pointer(&a0)))
 	return stdcall(fn)
 }
 

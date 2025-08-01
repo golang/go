@@ -281,6 +281,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpS390XCPSDR:
 		p := opregreg(s, v.Op.Asm(), v.Reg(), v.Args[1].Reg())
 		p.Reg = v.Args[0].Reg()
+	case ssa.OpS390XWFMAXDB, ssa.OpS390XWFMAXSB,
+		ssa.OpS390XWFMINDB, ssa.OpS390XWFMINSB:
+		p := opregregimm(s, v.Op.Asm(), v.Reg(), v.Args[0].Reg(), 1 /* Java Math.Max() */)
+		p.AddRestSource(obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[1].Reg()})
 	case ssa.OpS390XDIVD, ssa.OpS390XDIVW,
 		ssa.OpS390XDIVDU, ssa.OpS390XDIVWU,
 		ssa.OpS390XMODD, ssa.OpS390XMODW,

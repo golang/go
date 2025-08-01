@@ -222,6 +222,12 @@ func init() {
 		{name: "LNDFR", argLength: 1, reg: fp11, asm: "LNDFR"},                                                                       // fp64/fp32 clear sign bit
 		{name: "CPSDR", argLength: 2, reg: fp21, asm: "CPSDR"},                                                                       // fp64/fp32 copy arg1 sign bit to arg0
 
+		// Single element vector floating point min / max instructions
+		{name: "WFMAXDB", argLength: 2, reg: fp21, asm: "WFMAXDB", typ: "Float64"}, // max[float64](arg0, arg1)
+		{name: "WFMAXSB", argLength: 2, reg: fp21, asm: "WFMAXSB", typ: "Float32"}, // max[float32](arg0, arg1)
+		{name: "WFMINDB", argLength: 2, reg: fp21, asm: "WFMINDB", typ: "Float64"}, // min[float64](arg0, arg1)
+		{name: "WFMINSB", argLength: 2, reg: fp21, asm: "WFMINSB", typ: "Float32"}, // min[float32](arg0, arg1)
+
 		// Round to integer, float64 only.
 		//
 		// aux | rounding mode

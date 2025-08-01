@@ -7496,7 +7496,7 @@ func TestUnmarshal(t *testing.T) {
 		inBuf:   `"hello"`,
 		inVal:   new(io.Reader),
 		want:    new(io.Reader),
-		wantErr: EU(errNilInterface).withType(0, T[io.Reader]()),
+		wantErr: EU(internal.ErrNilInterface).withType(0, T[io.Reader]()),
 	}, {
 		name:  jsontest.Name("Interfaces/Empty/False"),
 		inBuf: `false`,
@@ -8344,7 +8344,7 @@ func TestUnmarshal(t *testing.T) {
 		inBuf:   `{"X":"hello"}`,
 		inVal:   addr(struct{ X fmt.Stringer }{nil}),
 		want:    addr(struct{ X fmt.Stringer }{nil}),
-		wantErr: EU(errNilInterface).withPos(`{"X":`, "/X").withType(0, T[fmt.Stringer]()),
+		wantErr: EU(internal.ErrNilInterface).withPos(`{"X":`, "/X").withType(0, T[fmt.Stringer]()),
 	}, {
 		name: jsontest.Name("Functions/Interface/NetIP"),
 		opts: []Options{
