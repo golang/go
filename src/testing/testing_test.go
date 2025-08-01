@@ -154,15 +154,7 @@ func TestTempDirGOTMPDIR(t *testing.T) {
 	}
 	defer os.RemoveAll(customTmpDir)
 
-	oldValue, hadOld := os.LookupEnv("GOTMPDIR")
-	if err := os.Setenv("GOTMPDIR", customTmpDir); err != nil {
-		t.Fatal(err)
-	}
-	if hadOld {
-		defer os.Setenv("GOTMPDIR", oldValue)
-	} else {
-		defer os.Unsetenv("GOTMPDIR")
-	}
+	t.Setenv("GOTMPDIR", customTmpDir)
 
 	dir := t.TempDir()
 	if dir == "" {
