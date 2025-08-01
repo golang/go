@@ -1,0 +1,112 @@
+/*
+ * Project: grpc-go
+ * Issue or PR  : https://github.com/grpc/grpc-go/pull/1424
+ * Buggy version: 39c8c3866d926d95e11c03508bf83d00f2963f91
+ * fix commit-id: 64bd0b04a7bb1982078bae6a2ab34c226125fbc1
+ * Flaky: 100/100
+ * Description:
+ *   The parent function could return without draining the done channel.
+ */
+package main
+
+import (
+	"runtime"
+	"sync"
+	"time"
+)
+
+func init() {
+	register("Grpc1424", Grpc1424)
+}
+
+type Balancer_grpc1424 interface {
+	Notify() <-chan bool
+}
+
+type roundRobin_grpc1424 struct {
+	mu     sync.Mutex
+	addrCh chan bool
+}
+
+func (rr *roundRobin_grpc1424) Notify() <-chan bool {
+	return rr.addrCh
+}
+
+type addrConn_grpc1424 struct {
+	mu sync.Mutex
+}
+
+func (ac *addrConn_grpc1424) tearDown() {
+	ac.mu.Lock()
+	defer ac.mu.Unlock()
+}
+
+type dialOption_grpc1424 struct {
+	balancer Balancer_grpc1424
+}
+
+type ClientConn_grpc1424 struct {
+	dopts dialOption_grpc1424
+	conns []*addrConn_grpc1424
+}
+
+func (cc *ClientConn_grpc1424) lbWatcher(doneChan chan bool) {
+	for addr := range cc.dopts.balancer.Notify() {
+		if addr {
+			// nop, make compiler happy
+		}
+		var (
+			del []*addrConn_grpc1424
+		)
+		for _, a := range cc.conns {
+			del = append(del, a)
+		}
+		for _, c := range del {
+			c.tearDown()
+		}
+	}
+}
+
+func NewClientConn_grpc1424() *ClientConn_grpc1424 {
+	cc := &ClientConn_grpc1424{
+		dopts: dialOption_grpc1424{
+			&roundRobin_grpc1424{addrCh: make(chan bool)},
+		},
+	}
+	return cc
+}
+
+func DialContext_grpc1424() {
+	cc := NewClientConn_grpc1424()
+	waitC := make(chan error, 1)
+	go func() { // G2
+		defer close(waitC)
+		// deadlocks: 1
+		ch := cc.dopts.balancer.Notify()
+		if ch != nil {
+			doneChan := make(chan bool)
+			go cc.lbWatcher(doneChan) // G3
+			<-doneChan
+		}
+	}()
+	/// close addrCh
+	close(cc.dopts.balancer.(*roundRobin_grpc1424).addrCh)
+}
+
+///
+/// G1                      G2                          G3
+/// DialContext()
+///                         cc.dopts.balancer.Notify()
+///                                                     cc.lbWatcher()
+///                         <-doneChan
+/// close()
+/// -----------------------G2 leak------------------------------------
+///
+
+func Grpc1424() {
+	defer func() {
+		time.Sleep(100 * time.Millisecond)
+		runtime.GC()
+	}()
+	go DialContext_grpc1424() // G1
+}

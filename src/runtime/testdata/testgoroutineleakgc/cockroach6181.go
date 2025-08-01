@@ -1,0 +1,100 @@
+/*
+ * Project: cockroach
+ * Issue or PR  : https://github.com/cockroachdb/cockroach/pull/6181
+ * Buggy version: c0a232b5521565904b851699853bdbd0c670cf1e
+ * fix commit-id: d5814e4886a776bf7789b3c51b31f5206480d184
+ * Flaky: 57/100
+ */
+package main
+
+import (
+	"fmt"
+	"runtime"
+	"sync"
+	"time"
+)
+
+func init() {
+	register("Cockroach6181", Cockroach6181)
+}
+
+type testDescriptorDB_cockroach6181 struct {
+	cache *rangeDescriptorCache_cockroach6181
+}
+
+func initTestDescriptorDB_cockroach6181() *testDescriptorDB_cockroach6181 {
+	return &testDescriptorDB_cockroach6181{&rangeDescriptorCache_cockroach6181{}}
+}
+
+type rangeDescriptorCache_cockroach6181 struct {
+	rangeCacheMu sync.RWMutex
+}
+
+func (rdc *rangeDescriptorCache_cockroach6181) LookupRangeDescriptor() {
+	rdc.rangeCacheMu.RLock()
+	runtime.Gosched()
+	fmt.Println("lookup range descriptor:", rdc)
+	rdc.rangeCacheMu.RUnlock()
+	rdc.rangeCacheMu.Lock()
+	rdc.rangeCacheMu.Unlock()
+}
+
+func (rdc *rangeDescriptorCache_cockroach6181) String() string {
+	rdc.rangeCacheMu.RLock()
+	defer rdc.rangeCacheMu.RUnlock()
+	return rdc.stringLocked()
+}
+
+func (rdc *rangeDescriptorCache_cockroach6181) stringLocked() string {
+	return "something here"
+}
+
+func doLookupWithToken_cockroach6181(rc *rangeDescriptorCache_cockroach6181) {
+	rc.LookupRangeDescriptor()
+}
+
+func testRangeCacheCoalescedRequests_cockroach6181() {
+	// deadlocks: x > 0
+	db := initTestDescriptorDB_cockroach6181()
+	pauseLookupResumeAndAssert := func() {
+		var wg sync.WaitGroup
+		for i := 0; i < 3; i++ {
+			wg.Add(1)
+			go func() { // G2,G3,...
+				// deadlocks: x > 0
+				doLookupWithToken_cockroach6181(db.cache)
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+	}
+	pauseLookupResumeAndAssert()
+}
+
+/// G1 									G2							G3					...
+/// testRangeCacheCoalescedRquests()
+/// initTestDescriptorDB()
+/// pauseLookupResumeAndAssert()
+/// return
+/// 									doLookupWithToken()
+///																 	doLookupWithToken()
+///										rc.LookupRangeDescriptor()
+///																	rc.LookupRangeDescriptor()
+///										rdc.rangeCacheMu.RLock()
+///										rdc.String()
+///																	rdc.rangeCacheMu.RLock()
+///																	fmt.Printf()
+///																	rdc.rangeCacheMu.RUnlock()
+///																	rdc.rangeCacheMu.Lock()
+///										rdc.rangeCacheMu.RLock()
+/// -------------------------------------G2,G3,... deadlock--------------------------------------
+
+func Cockroach6181() {
+	defer func() {
+		time.Sleep(100 * time.Millisecond)
+		runtime.GC()
+	}()
+	for i := 0; i < 100; i++ {
+		go testRangeCacheCoalescedRequests_cockroach6181() // G1
+	}
+}
