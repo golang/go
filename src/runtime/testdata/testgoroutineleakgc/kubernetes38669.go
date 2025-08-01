@@ -1,0 +1,75 @@
+package main
+
+import (
+	"runtime"
+	"sync"
+	"time"
+)
+
+func init() {
+	register("Kubernetes38669", Kubernetes38669)
+}
+
+type Event_kubernetes38669 int
+type watchCacheEvent_kubernetes38669 int
+
+type cacheWatcher_kubernetes38669 struct {
+	sync.Mutex
+	input   chan watchCacheEvent_kubernetes38669
+	result  chan Event_kubernetes38669
+	stopped bool
+}
+
+func (c *cacheWatcher_kubernetes38669) process(initEvents []watchCacheEvent_kubernetes38669) {
+	for _, event := range initEvents {
+		c.sendWatchCacheEvent(&event)
+	}
+	defer close(c.result)
+	defer c.Stop()
+	for {
+		_, ok := <-c.input
+		if !ok {
+			return
+		}
+	}
+}
+
+func (c *cacheWatcher_kubernetes38669) sendWatchCacheEvent(event *watchCacheEvent_kubernetes38669) {
+	c.result <- Event_kubernetes38669(*event)
+}
+
+func (c *cacheWatcher_kubernetes38669) Stop() {
+	c.stop()
+}
+
+func (c *cacheWatcher_kubernetes38669) stop() {
+	c.Lock()
+	defer c.Unlock()
+	if !c.stopped {
+		c.stopped = true
+		close(c.input)
+	}
+}
+
+func newCacheWatcher_kubernetes38669(chanSize int, initEvents []watchCacheEvent_kubernetes38669) *cacheWatcher_kubernetes38669 {
+	watcher := &cacheWatcher_kubernetes38669{
+		input:   make(chan watchCacheEvent_kubernetes38669, chanSize),
+		result:  make(chan Event_kubernetes38669, chanSize),
+		stopped: false,
+	}
+	// deadlocks: 1
+	go watcher.process(initEvents)
+	return watcher
+}
+
+func Kubernetes38669() {
+	defer func() {
+		time.Sleep(1 * time.Second)
+		runtime.GC()
+	}()
+	go func() {
+		initEvents := []watchCacheEvent_kubernetes38669{1, 2}
+		w := newCacheWatcher_kubernetes38669(0, initEvents)
+		w.Stop()
+	}()
+}
