@@ -25,9 +25,8 @@ export GOROOT=/path/to/go-panikint
 # Compile only
 ./bin/go build test_simple_overflow.go
 
-# Disable truncation detection
-./bin/go run -gcflags="-truncationdetect=false" program.go
-./bin/go build -gcflags="-truncationdetect=false" program.go
+# Build compiler with truncation detection disabled
+cd src && GOFLAGS="-gcflags=-truncationdetect=false" ./make.bash
  
 
 # Fuzz only
