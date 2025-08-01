@@ -831,6 +831,9 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpAndInt16x16:
 		v.Op = OpAMD64VPAND256
 		return true
+	case OpAndInt16x32:
+		v.Op = OpAMD64VPANDD512
+		return true
 	case OpAndInt16x8:
 		v.Op = OpAMD64VPAND128
 		return true
@@ -857,6 +860,9 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpAndInt8x32:
 		v.Op = OpAMD64VPAND256
+		return true
+	case OpAndInt8x64:
+		v.Op = OpAMD64VPANDD512
 		return true
 	case OpAndMaskedInt32x16:
 		return rewriteValueAMD64_OpAndMaskedInt32x16(v)
@@ -885,6 +891,9 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpAndNotInt16x16:
 		v.Op = OpAMD64VPANDN256
 		return true
+	case OpAndNotInt16x32:
+		v.Op = OpAMD64VPANDND512
+		return true
 	case OpAndNotInt16x8:
 		v.Op = OpAMD64VPANDN128
 		return true
@@ -911,6 +920,9 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpAndNotInt8x32:
 		v.Op = OpAMD64VPANDN256
+		return true
+	case OpAndNotInt8x64:
+		v.Op = OpAMD64VPANDND512
 		return true
 	case OpAndNotMaskedInt32x16:
 		return rewriteValueAMD64_OpAndNotMaskedInt32x16(v)
@@ -939,6 +951,9 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpAndNotUint16x16:
 		v.Op = OpAMD64VPANDN256
 		return true
+	case OpAndNotUint16x32:
+		v.Op = OpAMD64VPANDND512
+		return true
 	case OpAndNotUint16x8:
 		v.Op = OpAMD64VPANDN128
 		return true
@@ -966,8 +981,14 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpAndNotUint8x32:
 		v.Op = OpAMD64VPANDN256
 		return true
+	case OpAndNotUint8x64:
+		v.Op = OpAMD64VPANDND512
+		return true
 	case OpAndUint16x16:
 		v.Op = OpAMD64VPAND256
+		return true
+	case OpAndUint16x32:
+		v.Op = OpAMD64VPANDD512
 		return true
 	case OpAndUint16x8:
 		v.Op = OpAMD64VPAND128
@@ -995,6 +1016,9 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpAndUint8x32:
 		v.Op = OpAMD64VPAND256
+		return true
+	case OpAndUint8x64:
+		v.Op = OpAMD64VPANDD512
 		return true
 	case OpApproximateReciprocalFloat32x16:
 		v.Op = OpAMD64VRCP14PS512
@@ -3274,6 +3298,9 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpOrInt16x16:
 		v.Op = OpAMD64VPOR256
 		return true
+	case OpOrInt16x32:
+		v.Op = OpAMD64VPORD512
+		return true
 	case OpOrInt16x8:
 		v.Op = OpAMD64VPOR128
 		return true
@@ -3300,6 +3327,9 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpOrInt8x32:
 		v.Op = OpAMD64VPOR256
+		return true
+	case OpOrInt8x64:
+		v.Op = OpAMD64VPORD512
 		return true
 	case OpOrMaskedInt32x16:
 		return rewriteValueAMD64_OpOrMaskedInt32x16(v)
@@ -3328,6 +3358,9 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpOrUint16x16:
 		v.Op = OpAMD64VPOR256
 		return true
+	case OpOrUint16x32:
+		v.Op = OpAMD64VPORD512
+		return true
 	case OpOrUint16x8:
 		v.Op = OpAMD64VPOR128
 		return true
@@ -3354,6 +3387,9 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpOrUint8x32:
 		v.Op = OpAMD64VPOR256
+		return true
+	case OpOrUint8x64:
+		v.Op = OpAMD64VPORD512
 		return true
 	case OpPairDotProdInt16x16:
 		v.Op = OpAMD64VPMADDWD256
@@ -5537,6 +5573,9 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpXorInt16x16:
 		v.Op = OpAMD64VPXOR256
 		return true
+	case OpXorInt16x32:
+		v.Op = OpAMD64VPXORD512
+		return true
 	case OpXorInt16x8:
 		v.Op = OpAMD64VPXOR128
 		return true
@@ -5563,6 +5602,9 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpXorInt8x32:
 		v.Op = OpAMD64VPXOR256
+		return true
+	case OpXorInt8x64:
+		v.Op = OpAMD64VPXORD512
 		return true
 	case OpXorMaskedInt32x16:
 		return rewriteValueAMD64_OpXorMaskedInt32x16(v)
@@ -5591,6 +5633,9 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpXorUint16x16:
 		v.Op = OpAMD64VPXOR256
 		return true
+	case OpXorUint16x32:
+		v.Op = OpAMD64VPXORD512
+		return true
 	case OpXorUint16x8:
 		v.Op = OpAMD64VPXOR128
 		return true
@@ -5617,6 +5662,9 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpXorUint8x32:
 		v.Op = OpAMD64VPXOR256
+		return true
+	case OpXorUint8x64:
+		v.Op = OpAMD64VPXORD512
 		return true
 	case OpZero:
 		return rewriteValueAMD64_OpZero(v)

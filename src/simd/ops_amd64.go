@@ -592,6 +592,11 @@ func (x Int8x32) And(y Int8x32) Int8x32
 
 // And performs a bitwise AND operation between two vectors.
 //
+// Asm: VPANDD, CPU Feature: AVX512F
+func (x Int8x64) And(y Int8x64) Int8x64
+
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VPAND, CPU Feature: AVX
 func (x Int16x8) And(y Int16x8) Int16x8
 
@@ -599,6 +604,11 @@ func (x Int16x8) And(y Int16x8) Int16x8
 //
 // Asm: VPAND, CPU Feature: AVX2
 func (x Int16x16) And(y Int16x16) Int16x16
+
+// And performs a bitwise AND operation between two vectors.
+//
+// Asm: VPANDD, CPU Feature: AVX512F
+func (x Int16x32) And(y Int16x32) Int16x32
 
 // And performs a bitwise AND operation between two vectors.
 //
@@ -642,6 +652,11 @@ func (x Uint8x32) And(y Uint8x32) Uint8x32
 
 // And performs a bitwise AND operation between two vectors.
 //
+// Asm: VPANDD, CPU Feature: AVX512F
+func (x Uint8x64) And(y Uint8x64) Uint8x64
+
+// And performs a bitwise AND operation between two vectors.
+//
 // Asm: VPAND, CPU Feature: AVX
 func (x Uint16x8) And(y Uint16x8) Uint16x8
 
@@ -649,6 +664,11 @@ func (x Uint16x8) And(y Uint16x8) Uint16x8
 //
 // Asm: VPAND, CPU Feature: AVX2
 func (x Uint16x16) And(y Uint16x16) Uint16x16
+
+// And performs a bitwise AND operation between two vectors.
+//
+// Asm: VPANDD, CPU Feature: AVX512F
+func (x Uint16x32) And(y Uint16x32) Uint16x32
 
 // And performs a bitwise AND operation between two vectors.
 //
@@ -780,6 +800,11 @@ func (x Int8x32) AndNot(y Int8x32) Int8x32
 
 // AndNot performs a bitwise x &^ y.
 //
+// Asm: VPANDND, CPU Feature: AVX512F
+func (x Int8x64) AndNot(y Int8x64) Int8x64
+
+// AndNot performs a bitwise x &^ y.
+//
 // Asm: VPANDN, CPU Feature: AVX
 func (x Int16x8) AndNot(y Int16x8) Int16x8
 
@@ -787,6 +812,11 @@ func (x Int16x8) AndNot(y Int16x8) Int16x8
 //
 // Asm: VPANDN, CPU Feature: AVX2
 func (x Int16x16) AndNot(y Int16x16) Int16x16
+
+// AndNot performs a bitwise x &^ y.
+//
+// Asm: VPANDND, CPU Feature: AVX512F
+func (x Int16x32) AndNot(y Int16x32) Int16x32
 
 // AndNot performs a bitwise x &^ y.
 //
@@ -830,6 +860,11 @@ func (x Uint8x32) AndNot(y Uint8x32) Uint8x32
 
 // AndNot performs a bitwise x &^ y.
 //
+// Asm: VPANDND, CPU Feature: AVX512F
+func (x Uint8x64) AndNot(y Uint8x64) Uint8x64
+
+// AndNot performs a bitwise x &^ y.
+//
 // Asm: VPANDN, CPU Feature: AVX
 func (x Uint16x8) AndNot(y Uint16x8) Uint16x8
 
@@ -837,6 +872,11 @@ func (x Uint16x8) AndNot(y Uint16x8) Uint16x8
 //
 // Asm: VPANDN, CPU Feature: AVX2
 func (x Uint16x16) AndNot(y Uint16x16) Uint16x16
+
+// AndNot performs a bitwise x &^ y.
+//
+// Asm: VPANDND, CPU Feature: AVX512F
+func (x Uint16x32) AndNot(y Uint16x32) Uint16x32
 
 // AndNot performs a bitwise x &^ y.
 //
@@ -6185,6 +6225,11 @@ func (x Int8x32) Or(y Int8x32) Int8x32
 
 // Or performs a bitwise OR operation between two vectors.
 //
+// Asm: VPORD, CPU Feature: AVX512F
+func (x Int8x64) Or(y Int8x64) Int8x64
+
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VPOR, CPU Feature: AVX
 func (x Int16x8) Or(y Int16x8) Int16x8
 
@@ -6192,6 +6237,11 @@ func (x Int16x8) Or(y Int16x8) Int16x8
 //
 // Asm: VPOR, CPU Feature: AVX2
 func (x Int16x16) Or(y Int16x16) Int16x16
+
+// Or performs a bitwise OR operation between two vectors.
+//
+// Asm: VPORD, CPU Feature: AVX512F
+func (x Int16x32) Or(y Int16x32) Int16x32
 
 // Or performs a bitwise OR operation between two vectors.
 //
@@ -6235,6 +6285,11 @@ func (x Uint8x32) Or(y Uint8x32) Uint8x32
 
 // Or performs a bitwise OR operation between two vectors.
 //
+// Asm: VPORD, CPU Feature: AVX512F
+func (x Uint8x64) Or(y Uint8x64) Uint8x64
+
+// Or performs a bitwise OR operation between two vectors.
+//
 // Asm: VPOR, CPU Feature: AVX
 func (x Uint16x8) Or(y Uint16x8) Uint16x8
 
@@ -6242,6 +6297,11 @@ func (x Uint16x8) Or(y Uint16x8) Uint16x8
 //
 // Asm: VPOR, CPU Feature: AVX2
 func (x Uint16x16) Or(y Uint16x16) Uint16x16
+
+// Or performs a bitwise OR operation between two vectors.
+//
+// Asm: VPORD, CPU Feature: AVX512F
+func (x Uint16x32) Or(y Uint16x32) Uint16x32
 
 // Or performs a bitwise OR operation between two vectors.
 //
@@ -11869,6 +11929,11 @@ func (x Int8x32) Xor(y Int8x32) Int8x32
 
 // Xor performs a bitwise XOR operation between two vectors.
 //
+// Asm: VPXORD, CPU Feature: AVX512F
+func (x Int8x64) Xor(y Int8x64) Int8x64
+
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VPXOR, CPU Feature: AVX
 func (x Int16x8) Xor(y Int16x8) Int16x8
 
@@ -11876,6 +11941,11 @@ func (x Int16x8) Xor(y Int16x8) Int16x8
 //
 // Asm: VPXOR, CPU Feature: AVX2
 func (x Int16x16) Xor(y Int16x16) Int16x16
+
+// Xor performs a bitwise XOR operation between two vectors.
+//
+// Asm: VPXORD, CPU Feature: AVX512F
+func (x Int16x32) Xor(y Int16x32) Int16x32
 
 // Xor performs a bitwise XOR operation between two vectors.
 //
@@ -11919,6 +11989,11 @@ func (x Uint8x32) Xor(y Uint8x32) Uint8x32
 
 // Xor performs a bitwise XOR operation between two vectors.
 //
+// Asm: VPXORD, CPU Feature: AVX512F
+func (x Uint8x64) Xor(y Uint8x64) Uint8x64
+
+// Xor performs a bitwise XOR operation between two vectors.
+//
 // Asm: VPXOR, CPU Feature: AVX
 func (x Uint16x8) Xor(y Uint16x8) Uint16x8
 
@@ -11926,6 +12001,11 @@ func (x Uint16x8) Xor(y Uint16x8) Uint16x8
 //
 // Asm: VPXOR, CPU Feature: AVX2
 func (x Uint16x16) Xor(y Uint16x16) Uint16x16
+
+// Xor performs a bitwise XOR operation between two vectors.
+//
+// Asm: VPXORD, CPU Feature: AVX512F
+func (x Uint16x32) Xor(y Uint16x32) Uint16x32
 
 // Xor performs a bitwise XOR operation between two vectors.
 //

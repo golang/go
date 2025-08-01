@@ -230,12 +230,12 @@ func TestAndNot(t *testing.T) {
 	testUint8x32Binary(t, simd.Uint8x32.AndNot, andNotSlice[uint8])
 
 	if simd.HasAVX512() {
-		//	testInt8x64Binary(t, simd.Int8x64.AndNot, andNotSlice[int8]) // missing
-		//	testInt16x32Binary(t, simd.Int16x32.AndNot, andNotSlice[int16]) // missing
+		testInt8x64Binary(t, simd.Int8x64.AndNot, andNotSlice[int8])
+		testInt16x32Binary(t, simd.Int16x32.AndNot, andNotSlice[int16])
 		testInt32x16Binary(t, simd.Int32x16.AndNot, andNotSlice[int32])
 		testInt64x8Binary(t, simd.Int64x8.AndNot, andNotSlice[int64])
-		//	testUint8x64Binary(t, simd.Uint8x64.AndNot, andNotSlice[uint8]) // missing
-		//	testUint16x32Binary(t, simd.Uint16x32.AndNot, andNotSlice[uint16]) // missing
+		testUint8x64Binary(t, simd.Uint8x64.AndNot, andNotSlice[uint8])
+		testUint16x32Binary(t, simd.Uint16x32.AndNot, andNotSlice[uint16])
 		testUint32x16Binary(t, simd.Uint32x16.AndNot, andNotSlice[uint32])
 		testUint64x8Binary(t, simd.Uint64x8.AndNot, andNotSlice[uint64])
 	}

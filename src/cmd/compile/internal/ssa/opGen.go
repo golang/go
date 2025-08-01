@@ -4585,8 +4585,10 @@ const (
 	OpAddUint64x8
 	OpAndInt8x16
 	OpAndInt8x32
+	OpAndInt8x64
 	OpAndInt16x8
 	OpAndInt16x16
+	OpAndInt16x32
 	OpAndInt32x4
 	OpAndInt32x8
 	OpAndInt32x16
@@ -4607,8 +4609,10 @@ const (
 	OpAndMaskedUint64x8
 	OpAndNotInt8x16
 	OpAndNotInt8x32
+	OpAndNotInt8x64
 	OpAndNotInt16x8
 	OpAndNotInt16x16
+	OpAndNotInt16x32
 	OpAndNotInt32x4
 	OpAndNotInt32x8
 	OpAndNotInt32x16
@@ -4629,8 +4633,10 @@ const (
 	OpAndNotMaskedUint64x8
 	OpAndNotUint8x16
 	OpAndNotUint8x32
+	OpAndNotUint8x64
 	OpAndNotUint16x8
 	OpAndNotUint16x16
+	OpAndNotUint16x32
 	OpAndNotUint32x4
 	OpAndNotUint32x8
 	OpAndNotUint32x16
@@ -4639,8 +4645,10 @@ const (
 	OpAndNotUint64x8
 	OpAndUint8x16
 	OpAndUint8x32
+	OpAndUint8x64
 	OpAndUint16x8
 	OpAndUint16x16
+	OpAndUint16x32
 	OpAndUint32x4
 	OpAndUint32x8
 	OpAndUint32x16
@@ -5354,8 +5362,10 @@ const (
 	OpNotEqualUint64x8
 	OpOrInt8x16
 	OpOrInt8x32
+	OpOrInt8x64
 	OpOrInt16x8
 	OpOrInt16x16
+	OpOrInt16x32
 	OpOrInt32x4
 	OpOrInt32x8
 	OpOrInt32x16
@@ -5376,8 +5386,10 @@ const (
 	OpOrMaskedUint64x8
 	OpOrUint8x16
 	OpOrUint8x32
+	OpOrUint8x64
 	OpOrUint16x8
 	OpOrUint16x16
+	OpOrUint16x32
 	OpOrUint32x4
 	OpOrUint32x8
 	OpOrUint32x16
@@ -5998,8 +6010,10 @@ const (
 	OpUnsignedSignedQuadDotProdAccumulateMaskedInt32x16
 	OpXorInt8x16
 	OpXorInt8x32
+	OpXorInt8x64
 	OpXorInt16x8
 	OpXorInt16x16
+	OpXorInt16x32
 	OpXorInt32x4
 	OpXorInt32x8
 	OpXorInt32x16
@@ -6020,8 +6034,10 @@ const (
 	OpXorMaskedUint64x8
 	OpXorUint8x16
 	OpXorUint8x32
+	OpXorUint8x64
 	OpXorUint16x8
 	OpXorUint16x16
+	OpXorUint16x32
 	OpXorUint32x4
 	OpXorUint32x8
 	OpXorUint32x16
@@ -62212,6 +62228,12 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:        "AndInt8x64",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
 		name:        "AndInt16x8",
 		argLen:      2,
 		commutative: true,
@@ -62219,6 +62241,12 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "AndInt16x16",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AndInt16x32",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
@@ -62342,12 +62370,22 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "AndNotInt8x64",
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:    "AndNotInt16x8",
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "AndNotInt16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AndNotInt16x32",
 		argLen:  2,
 		generic: true,
 	},
@@ -62452,12 +62490,22 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "AndNotUint8x64",
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:    "AndNotUint16x8",
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "AndNotUint16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AndNotUint16x32",
 		argLen:  2,
 		generic: true,
 	},
@@ -62504,6 +62552,12 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:        "AndUint8x64",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
 		name:        "AndUint16x8",
 		argLen:      2,
 		commutative: true,
@@ -62511,6 +62565,12 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "AndUint16x16",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AndUint16x32",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
@@ -66414,6 +66474,12 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:        "OrInt8x64",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
 		name:        "OrInt16x8",
 		argLen:      2,
 		commutative: true,
@@ -66421,6 +66487,12 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "OrInt16x16",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "OrInt16x32",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
@@ -66546,6 +66618,12 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:        "OrUint8x64",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
 		name:        "OrUint16x8",
 		argLen:      2,
 		commutative: true,
@@ -66553,6 +66631,12 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "OrUint16x16",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "OrUint16x32",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
@@ -69690,6 +69774,12 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:        "XorInt8x64",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
 		name:        "XorInt16x8",
 		argLen:      2,
 		commutative: true,
@@ -69697,6 +69787,12 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "XorInt16x16",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "XorInt16x32",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
@@ -69822,6 +69918,12 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:        "XorUint8x64",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
 		name:        "XorUint16x8",
 		argLen:      2,
 		commutative: true,
@@ -69829,6 +69931,12 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "XorUint16x16",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "XorUint16x32",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
