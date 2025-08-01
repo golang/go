@@ -82,8 +82,6 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		RegabiWrappers:  regabiSupported,
 		RegabiArgs:      regabiSupported,
 		AliasTypeParams: true,
-		SwissMap:        true,
-		SyncHashTrieMap: true,
 		Dwarf5:          dwarf5Supported,
 	}
 

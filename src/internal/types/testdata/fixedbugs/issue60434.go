@@ -13,5 +13,5 @@ var s struct{ x int }
 
 func _() {
 	f(s.y /* ERROR "s.y undefined" */)
-	f(1 /* ERROR "cannot convert 1" */ / s)
+	f(1 /* ERROR "invalid operation: 1 / s (mismatched types untyped int and struct{x int})" */ / s)
 }

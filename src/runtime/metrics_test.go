@@ -499,6 +499,10 @@ func TestReadMetricsCumulative(t *testing.T) {
 		defer wg.Done()
 		for {
 			// Add more things here that could influence metrics.
+			for i := 0; i < 10; i++ {
+				runtime.AddCleanup(new(*int), func(_ struct{}) {}, struct{}{})
+				runtime.SetFinalizer(new(*int), func(_ **int) {})
+			}
 			for i := 0; i < len(readMetricsSink); i++ {
 				readMetricsSink[i] = make([]byte, 1024)
 				select {
@@ -1511,4 +1515,63 @@ func TestMetricHeapUnusedLargeObjectOverflow(t *testing.T) {
 	}
 	done <- struct{}{}
 	wg.Wait()
+}
+
+func TestReadMetricsCleanups(t *testing.T) {
+	runtime.GC()                                                // End any in-progress GC.
+	runtime.BlockUntilEmptyCleanupQueue(int64(1 * time.Second)) // Flush any queued cleanups.
+
+	var before [2]metrics.Sample
+	before[0].Name = "/gc/cleanups/queued:cleanups"
+	before[1].Name = "/gc/cleanups/executed:cleanups"
+	after := before
+
+	metrics.Read(before[:])
+
+	const N = 10
+	for i := 0; i < N; i++ {
+		runtime.AddCleanup(new(*int), func(_ struct{}) {}, struct{}{})
+	}
+
+	runtime.GC()
+	runtime.BlockUntilEmptyCleanupQueue(int64(1 * time.Second))
+
+	metrics.Read(after[:])
+
+	if v0, v1 := before[0].Value.Uint64(), after[0].Value.Uint64(); v0+N != v1 {
+		t.Errorf("expected %s difference to be exactly %d, got %d -> %d", before[0].Name, N, v0, v1)
+	}
+	if v0, v1 := before[1].Value.Uint64(), after[1].Value.Uint64(); v0+N != v1 {
+		t.Errorf("expected %s difference to be exactly %d, got %d -> %d", before[1].Name, N, v0, v1)
+	}
+}
+
+func TestReadMetricsFinalizers(t *testing.T) {
+	runtime.GC()                                                  // End any in-progress GC.
+	runtime.BlockUntilEmptyFinalizerQueue(int64(1 * time.Second)) // Flush any queued finalizers.
+
+	var before [2]metrics.Sample
+	before[0].Name = "/gc/finalizers/queued:finalizers"
+	before[1].Name = "/gc/finalizers/executed:finalizers"
+	after := before
+
+	metrics.Read(before[:])
+
+	const N = 10
+	for i := 0; i < N; i++ {
+		runtime.SetFinalizer(new(*int), func(_ **int) {})
+	}
+
+	runtime.GC()
+	runtime.GC()
+	runtime.BlockUntilEmptyFinalizerQueue(int64(1 * time.Second))
+
+	metrics.Read(after[:])
+
+	if v0, v1 := before[0].Value.Uint64(), after[0].Value.Uint64(); v0+N != v1 {
+		t.Errorf("expected %s difference to be exactly %d, got %d -> %d", before[0].Name, N, v0, v1)
+	}
+	if v0, v1 := before[1].Value.Uint64(), after[1].Value.Uint64(); v0+N != v1 {
+		t.Errorf("expected %s difference to be exactly %d, got %d -> %d", before[1].Name, N, v0, v1)
+	}
 }

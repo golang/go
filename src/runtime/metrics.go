@@ -169,6 +169,20 @@ func initMetrics() {
 				out.scalar = float64bits(nsToSec(in.cpuStats.UserTime))
 			},
 		},
+		"/gc/cleanups/executed:cleanups": {
+			deps: makeStatDepSet(finalStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.finalStats.cleanupsExecuted
+			},
+		},
+		"/gc/cleanups/queued:cleanups": {
+			deps: makeStatDepSet(finalStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.finalStats.cleanupsQueued
+			},
+		},
 		"/gc/cycles/automatic:gc-cycles": {
 			deps: makeStatDepSet(sysStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
@@ -188,6 +202,20 @@ func initMetrics() {
 			compute: func(in *statAggregate, out *metricValue) {
 				out.kind = metricKindUint64
 				out.scalar = in.sysStats.gcCyclesDone
+			},
+		},
+		"/gc/finalizers/executed:finalizers": {
+			deps: makeStatDepSet(finalStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.finalStats.finalizersExecuted
+			},
+		},
+		"/gc/finalizers/queued:finalizers": {
+			deps: makeStatDepSet(finalStatsDep),
+			compute: func(in *statAggregate, out *metricValue) {
+				out.kind = metricKindUint64
+				out.scalar = in.finalStats.finalizersQueued
 			},
 		},
 		"/gc/scan/globals:bytes": {
@@ -514,10 +542,11 @@ func godebug_registerMetric(name string, read func() uint64) {
 type statDep uint
 
 const (
-	heapStatsDep statDep = iota // corresponds to heapStatsAggregate
-	sysStatsDep                 // corresponds to sysStatsAggregate
-	cpuStatsDep                 // corresponds to cpuStatsAggregate
-	gcStatsDep                  // corresponds to gcStatsAggregate
+	heapStatsDep  statDep = iota // corresponds to heapStatsAggregate
+	sysStatsDep                  // corresponds to sysStatsAggregate
+	cpuStatsDep                  // corresponds to cpuStatsAggregate
+	gcStatsDep                   // corresponds to gcStatsAggregate
+	finalStatsDep                // corresponds to finalStatsAggregate
 	numStatsDeps
 )
 
@@ -696,6 +725,21 @@ func (a *gcStatsAggregate) compute() {
 	a.totalScan = a.heapScan + a.stackScan + a.globalsScan
 }
 
+// finalStatsAggregate represents various finalizer/cleanup stats obtained
+// from the runtime acquired together to avoid skew and inconsistencies.
+type finalStatsAggregate struct {
+	finalizersQueued   uint64
+	finalizersExecuted uint64
+	cleanupsQueued     uint64
+	cleanupsExecuted   uint64
+}
+
+// compute populates the finalStatsAggregate with values from the runtime.
+func (a *finalStatsAggregate) compute() {
+	a.finalizersQueued, a.finalizersExecuted = finReadQueueStats()
+	a.cleanupsQueued, a.cleanupsExecuted = gcCleanups.readQueueStats()
+}
+
 // nsToSec takes a duration in nanoseconds and converts it to seconds as
 // a float64.
 func nsToSec(ns int64) float64 {
@@ -708,11 +752,12 @@ func nsToSec(ns int64) float64 {
 // as a set of these aggregates that it has populated. The aggregates
 // are populated lazily by its ensure method.
 type statAggregate struct {
-	ensured   statDepSet
-	heapStats heapStatsAggregate
-	sysStats  sysStatsAggregate
-	cpuStats  cpuStatsAggregate
-	gcStats   gcStatsAggregate
+	ensured    statDepSet
+	heapStats  heapStatsAggregate
+	sysStats   sysStatsAggregate
+	cpuStats   cpuStatsAggregate
+	gcStats    gcStatsAggregate
+	finalStats finalStatsAggregate
 }
 
 // ensure populates statistics aggregates determined by deps if they
@@ -735,6 +780,8 @@ func (a *statAggregate) ensure(deps *statDepSet) {
 			a.cpuStats.compute()
 		case gcStatsDep:
 			a.gcStats.compute()
+		case finalStatsDep:
+			a.finalStats.compute()
 		}
 	}
 	a.ensured = a.ensured.union(missing)

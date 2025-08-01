@@ -94,11 +94,11 @@ func init() {
 		gpspsbg    = gpspg | buildReg("SB")
 		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15")
 		callerSave = gp | fp | buildReg("g") // runtime.setg (and anything calling it) may clobber g
+		lr         = buildReg("R14")
 		r0         = buildReg("R0")
 		r1         = buildReg("R1")
 		r2         = buildReg("R2")
 		r3         = buildReg("R3")
-		r4         = buildReg("R4")
 	)
 	// Common regInfo
 	var (
@@ -540,16 +540,19 @@ func init() {
 		// See runtime/stubs.go for a more detailed discussion.
 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
 
-		// There are three of these functions so that they can have three different register inputs.
-		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
-		// default registers to match so we don't need to copy registers around unnecessarily.
-		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
-		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
-		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
-		// Extend ops are the same as Bounds ops except the indexes are 64-bit.
-		{name: "LoweredPanicExtendA", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r2, r3}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
-		{name: "LoweredPanicExtendB", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r1, r2}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
-		{name: "LoweredPanicExtendC", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r0, r1}}, typ: "Mem", call: true}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
+		// LoweredPanicBoundsRR takes x and y, two values that caused a bounds check to fail.
+		// the RC and CR versions are used when one of the arguments is a constant. CC is used
+		// when both are constant (normally both 0, as prove derives the fact that a [0] bounds
+		// failure means the length must have also been 0).
+		// AuxInt contains a report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsRR", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{gp &^ lr, gp &^ lr}}, typ: "Mem", call: true}, // arg0=x, arg1=y, arg2=mem, returns memory.
+		{name: "LoweredPanicBoundsRC", argLength: 2, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{gp &^ lr}}, typ: "Mem", call: true},    // arg0=x, arg1=mem, returns memory.
+		{name: "LoweredPanicBoundsCR", argLength: 2, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{gp &^ lr}}, typ: "Mem", call: true},    // arg0=y, arg1=mem, returns memory.
+		{name: "LoweredPanicBoundsCC", argLength: 1, aux: "PanicBoundsCC", reg: regInfo{}, typ: "Mem", call: true},                              // arg0=mem, returns memory.
+
+		// Same as above, but the x value is 64 bits.
+		{name: "LoweredPanicExtendRR", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r0 | r1 | r2 | r3, r0 | r1 | r2 | r3, gp}}, typ: "Mem", call: true},    // arg0=x_hi, arg1=x_lo, arg2=y, arg3=mem, returns memory.
+		{name: "LoweredPanicExtendRC", argLength: 3, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{r0 | r1 | r2 | r3, r0 | r1 | r2 | r3}}, typ: "Mem", call: true}, // arg0=x_hi, arg1=x_lo, arg2=mem, returns memory.
 
 		// Constant flag value.
 		// Note: there's an "unordered" outcome for floating-point

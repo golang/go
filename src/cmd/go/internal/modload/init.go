@@ -1122,6 +1122,16 @@ func errWorkTooOld(gomod string, wf *modfile.WorkFile, goVers string) error {
 		base.ShortPath(filepath.Dir(gomod)), goVers, verb, gover.FromGoWork(wf))
 }
 
+// CheckReservedModulePath checks whether the module path is a reserved module path
+// that can't be used for a user's module.
+func CheckReservedModulePath(path string) error {
+	if gover.IsToolchain(path) {
+		return errors.New("module path is reserved")
+	}
+
+	return nil
+}
+
 // CreateModFile initializes a new module by creating a go.mod file.
 //
 // If modPath is empty, CreateModFile will attempt to infer the path from the
@@ -1156,6 +1166,8 @@ func CreateModFile(ctx context.Context, modPath string) {
 			}
 		}
 		base.Fatal(err)
+	} else if err := CheckReservedModulePath(modPath); err != nil {
+		base.Fatalf(`go: invalid module path %q: `, modPath)
 	} else if _, _, ok := module.SplitPathVersion(modPath); !ok {
 		if strings.HasPrefix(modPath, "gopkg.in/") {
 			invalidMajorVersionMsg := fmt.Errorf("module paths beginning with gopkg.in/ must always have a major version suffix in the form of .vN:\n\tgo mod init %s", suggestGopkgIn(modPath))

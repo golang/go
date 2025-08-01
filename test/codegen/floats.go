@@ -172,6 +172,7 @@ func Float64Min(a, b float64) float64 {
 	// riscv64:"FMIN"
 	// ppc64/power9:"XSMINJDP"
 	// ppc64/power10:"XSMINJDP"
+	// s390x: "WFMINDB"
 	return min(a, b)
 }
 
@@ -182,6 +183,7 @@ func Float64Max(a, b float64) float64 {
 	// riscv64:"FMAX"
 	// ppc64/power9:"XSMAXJDP"
 	// ppc64/power10:"XSMAXJDP"
+	// s390x: "WFMAXDB"
 	return max(a, b)
 }
 
@@ -192,6 +194,7 @@ func Float32Min(a, b float32) float32 {
 	// riscv64:"FMINS"
 	// ppc64/power9:"XSMINJDP"
 	// ppc64/power10:"XSMINJDP"
+	// s390x: "WFMINSB"
 	return min(a, b)
 }
 
@@ -202,6 +205,7 @@ func Float32Max(a, b float32) float32 {
 	// riscv64:"FMAXS"
 	// ppc64/power9:"XSMAXJDP"
 	// ppc64/power10:"XSMAXJDP"
+	// s390x: "WFMAXSB"
 	return max(a, b)
 }
 

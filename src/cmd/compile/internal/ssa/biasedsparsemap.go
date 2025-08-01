@@ -56,19 +56,23 @@ func (s *biasedSparseMap) contains(x uint) bool {
 	return s.s.contains(ID(int(x) - s.first))
 }
 
-// get returns the value s maps for key x, or -1 if
-// x is not mapped or is out of range for s.
-func (s *biasedSparseMap) get(x uint) int32 {
+// get returns the value s maps for key x and true, or
+// 0/false if x is not mapped or is out of range for s.
+func (s *biasedSparseMap) get(x uint) (int32, bool) {
 	if s == nil || s.s == nil {
-		return -1
+		return 0, false
 	}
 	if int(x) < s.first {
-		return -1
+		return 0, false
 	}
 	if int(x) >= s.cap() {
-		return -1
+		return 0, false
 	}
-	return s.s.get(ID(int(x) - s.first))
+	k := ID(int(x) - s.first)
+	if !s.s.contains(k) {
+		return 0, false
+	}
+	return s.s.get(k)
 }
 
 // getEntry returns the i'th key and value stored in s,

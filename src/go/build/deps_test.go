@@ -91,7 +91,8 @@ var depsRules = `
 	< internal/msan
 	< internal/asan
 	< internal/runtime/sys
-	< internal/runtime/syscall
+	< internal/runtime/syscall/linux
+	< internal/runtime/syscall/windows
 	< internal/runtime/atomic
 	< internal/runtime/exithook
 	< internal/runtime/gc
@@ -795,6 +796,7 @@ var depsRules = `
 	FMT < math/big/internal/asmgen;
 
 	FMT, testing < internal/cgrouptest;
+	C, CGO < internal/runtime/cgobench;
 `
 
 // listStdPkgs returns the same list of packages as "go list std".

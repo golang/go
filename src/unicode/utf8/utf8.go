@@ -430,99 +430,111 @@ func RuneCountInString(s string) (n int) {
 // bits set to 10.
 func RuneStart(b byte) bool { return b&0xC0 != 0x80 }
 
+const ptrSize = 4 << (^uintptr(0) >> 63)
+const hiBits = 0x8080808080808080 >> (64 - 8*ptrSize)
+
+func word[T string | []byte](s T) uintptr {
+	if ptrSize == 4 {
+		return uintptr(s[0]) | uintptr(s[1])<<8 | uintptr(s[2])<<16 | uintptr(s[3])<<24
+	}
+	return uintptr(uint64(s[0]) | uint64(s[1])<<8 | uint64(s[2])<<16 | uint64(s[3])<<24 | uint64(s[4])<<32 | uint64(s[5])<<40 | uint64(s[6])<<48 | uint64(s[7])<<56)
+}
+
 // Valid reports whether p consists entirely of valid UTF-8-encoded runes.
 func Valid(p []byte) bool {
 	// This optimization avoids the need to recompute the capacity
-	// when generating code for p[8:], bringing it to parity with
+	// when generating code for slicing p, bringing it to parity with
 	// ValidString, which was 20% faster on long ASCII strings.
 	p = p[:len(p):len(p)]
 
-	// Fast path. Check for and skip 8 bytes of ASCII characters per iteration.
-	for len(p) >= 8 {
-		// Combining two 32 bit loads allows the same code to be used
-		// for 32 and 64 bit platforms.
-		// The compiler can generate a 32bit load for first32 and second32
-		// on many platforms. See test/codegen/memcombine.go.
-		first32 := uint32(p[0]) | uint32(p[1])<<8 | uint32(p[2])<<16 | uint32(p[3])<<24
-		second32 := uint32(p[4]) | uint32(p[5])<<8 | uint32(p[6])<<16 | uint32(p[7])<<24
-		if (first32|second32)&0x80808080 != 0 {
-			// Found a non ASCII byte (>= RuneSelf).
-			break
-		}
-		p = p[8:]
-	}
-	n := len(p)
-	for i := 0; i < n; {
-		pi := p[i]
-		if pi < RuneSelf {
-			i++
+	for len(p) > 0 {
+		p0 := p[0]
+		if p0 < RuneSelf {
+			p = p[1:]
+			// If there's one ASCII byte, there are probably more.
+			// Advance quickly through ASCII-only data.
+			// Note: using > instead of >= here is intentional. That avoids
+			// needing pointing-past-the-end fixup on the slice operations.
+			if len(p) > ptrSize && word(p)&hiBits == 0 {
+				p = p[ptrSize:]
+				if len(p) > 2*ptrSize && (word(p)|word(p[ptrSize:]))&hiBits == 0 {
+					p = p[2*ptrSize:]
+					for len(p) > 4*ptrSize && ((word(p)|word(p[ptrSize:]))|(word(p[2*ptrSize:])|word(p[3*ptrSize:])))&hiBits == 0 {
+						p = p[4*ptrSize:]
+					}
+				}
+			}
 			continue
 		}
-		x := first[pi]
-		if x == xx {
-			return false // Illegal starter byte.
-		}
+		x := first[p0]
 		size := int(x & 7)
-		if i+size > n {
-			return false // Short or invalid.
-		}
 		accept := acceptRanges[x>>4]
-		if c := p[i+1]; c < accept.lo || accept.hi < c {
-			return false
-		} else if size == 2 {
-		} else if c := p[i+2]; c < locb || hicb < c {
-			return false
-		} else if size == 3 {
-		} else if c := p[i+3]; c < locb || hicb < c {
-			return false
+		switch size {
+		case 2:
+			if len(p) < 2 || p[1] < accept.lo || accept.hi < p[1] {
+				return false
+			}
+			p = p[2:]
+		case 3:
+			if len(p) < 3 || p[1] < accept.lo || accept.hi < p[1] || p[2] < locb || hicb < p[2] {
+				return false
+			}
+			p = p[3:]
+		case 4:
+			if len(p) < 4 || p[1] < accept.lo || accept.hi < p[1] || p[2] < locb || hicb < p[2] || p[3] < locb || hicb < p[3] {
+				return false
+			}
+			p = p[4:]
+		default:
+			return false // illegal starter byte
 		}
-		i += size
 	}
 	return true
 }
 
 // ValidString reports whether s consists entirely of valid UTF-8-encoded runes.
 func ValidString(s string) bool {
-	// Fast path. Check for and skip 8 bytes of ASCII characters per iteration.
-	for len(s) >= 8 {
-		// Combining two 32 bit loads allows the same code to be used
-		// for 32 and 64 bit platforms.
-		// The compiler can generate a 32bit load for first32 and second32
-		// on many platforms. See test/codegen/memcombine.go.
-		first32 := uint32(s[0]) | uint32(s[1])<<8 | uint32(s[2])<<16 | uint32(s[3])<<24
-		second32 := uint32(s[4]) | uint32(s[5])<<8 | uint32(s[6])<<16 | uint32(s[7])<<24
-		if (first32|second32)&0x80808080 != 0 {
-			// Found a non ASCII byte (>= RuneSelf).
-			break
-		}
-		s = s[8:]
-	}
-	n := len(s)
-	for i := 0; i < n; {
-		si := s[i]
-		if si < RuneSelf {
-			i++
+	for len(s) > 0 {
+		s0 := s[0]
+		if s0 < RuneSelf {
+			s = s[1:]
+			// If there's one ASCII byte, there are probably more.
+			// Advance quickly through ASCII-only data.
+			// Note: using > instead of >= here is intentional. That avoids
+			// needing pointing-past-the-end fixup on the slice operations.
+			if len(s) > ptrSize && word(s)&hiBits == 0 {
+				s = s[ptrSize:]
+				if len(s) > 2*ptrSize && (word(s)|word(s[ptrSize:]))&hiBits == 0 {
+					s = s[2*ptrSize:]
+					for len(s) > 4*ptrSize && ((word(s)|word(s[ptrSize:]))|(word(s[2*ptrSize:])|word(s[3*ptrSize:])))&hiBits == 0 {
+						s = s[4*ptrSize:]
+					}
+				}
+			}
 			continue
 		}
-		x := first[si]
-		if x == xx {
-			return false // Illegal starter byte.
-		}
+		x := first[s0]
 		size := int(x & 7)
-		if i+size > n {
-			return false // Short or invalid.
-		}
 		accept := acceptRanges[x>>4]
-		if c := s[i+1]; c < accept.lo || accept.hi < c {
-			return false
-		} else if size == 2 {
-		} else if c := s[i+2]; c < locb || hicb < c {
-			return false
-		} else if size == 3 {
-		} else if c := s[i+3]; c < locb || hicb < c {
-			return false
+		switch size {
+		case 2:
+			if len(s) < 2 || s[1] < accept.lo || accept.hi < s[1] {
+				return false
+			}
+			s = s[2:]
+		case 3:
+			if len(s) < 3 || s[1] < accept.lo || accept.hi < s[1] || s[2] < locb || hicb < s[2] {
+				return false
+			}
+			s = s[3:]
+		case 4:
+			if len(s) < 4 || s[1] < accept.lo || accept.hi < s[1] || s[2] < locb || hicb < s[2] || s[3] < locb || hicb < s[3] {
+				return false
+			}
+			s = s[4:]
+		default:
+			return false // illegal starter byte
 		}
-		i += size
 	}
 	return true
 }

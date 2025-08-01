@@ -327,7 +327,7 @@ func (l *dloggerImpl) p(x any) *dloggerImpl {
 		l.w.uvarint(0)
 	} else {
 		v := efaceOf(&x)
-		switch v._type.Kind_ & abi.KindMask {
+		switch v._type.Kind() {
 		case abi.Chan, abi.Func, abi.Map, abi.Pointer, abi.UnsafePointer:
 			l.w.uvarint(uint64(uintptr(v.data)))
 		default:

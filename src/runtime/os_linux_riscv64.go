@@ -5,7 +5,7 @@
 package runtime
 
 import (
-	"internal/runtime/syscall"
+	"internal/runtime/syscall/linux"
 	"unsafe"
 )
 
@@ -32,6 +32,6 @@ func internal_cpu_riscvHWProbe(pairs []riscvHWProbePairs, flags uint) bool {
 	}
 	// Passing in a cpuCount of 0 and a cpu of nil ensures that only extensions supported by all the
 	// cores are returned, which is the behaviour we want in internal/cpu.
-	_, _, e1 := syscall.Syscall6(sys_RISCV_HWPROBE, uintptr(unsafe.Pointer(&pairs[0])), uintptr(len(pairs)), uintptr(0), uintptr(unsafe.Pointer(nil)), uintptr(flags), 0)
+	_, _, e1 := linux.Syscall6(sys_RISCV_HWPROBE, uintptr(unsafe.Pointer(&pairs[0])), uintptr(len(pairs)), uintptr(0), uintptr(unsafe.Pointer(nil)), uintptr(flags), 0)
 	return e1 == 0
 }

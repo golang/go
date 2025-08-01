@@ -144,7 +144,7 @@ func interhash(p unsafe.Pointer, h uintptr) uintptr {
 		// we want to report the struct, not the slice).
 		panic(errorString("hash of unhashable type " + toRType(t).string()))
 	}
-	if isDirectIface(t) {
+	if t.IsDirectIface() {
 		return c1 * typehash(t, unsafe.Pointer(&a.data), h^c0)
 	} else {
 		return c1 * typehash(t, a.data, h^c0)
@@ -171,7 +171,7 @@ func nilinterhash(p unsafe.Pointer, h uintptr) uintptr {
 		// See comment in interhash above.
 		panic(errorString("hash of unhashable type " + toRType(t).string()))
 	}
-	if isDirectIface(t) {
+	if t.IsDirectIface() {
 		return c1 * typehash(t, unsafe.Pointer(&a.data), h^c0)
 	} else {
 		return c1 * typehash(t, a.data, h^c0)
@@ -211,7 +211,7 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
 			return memhash(p, h, t.Size_)
 		}
 	}
-	switch t.Kind_ & abi.KindMask {
+	switch t.Kind() {
 	case abi.Float32:
 		return f32hash(p, h)
 	case abi.Float64:
@@ -306,7 +306,7 @@ func efaceeq(t *_type, x, y unsafe.Pointer) bool {
 	if eq == nil {
 		panic(errorString("comparing uncomparable type " + toRType(t).string()))
 	}
-	if isDirectIface(t) {
+	if t.IsDirectIface() {
 		// Direct interface types are ptr, chan, map, func, and single-element structs/arrays thereof.
 		// Maps and funcs are not comparable, so they can't reach here.
 		// Ptrs, chans, and single-element items can be compared directly using ==.
@@ -323,7 +323,7 @@ func ifaceeq(tab *itab, x, y unsafe.Pointer) bool {
 	if eq == nil {
 		panic(errorString("comparing uncomparable type " + toRType(t).string()))
 	}
-	if isDirectIface(t) {
+	if t.IsDirectIface() {
 		// See comment in efaceeq.
 		return x == y
 	}

@@ -40,6 +40,10 @@ const (
 	cpuid_SHA      = 1 << 29
 	cpuid_AVX512BW = 1 << 30
 	cpuid_AVX512VL = 1 << 31
+
+	// ecx bits
+	cpuid_AVX512VPCLMULQDQ = 1 << 10
+
 	// edx bits
 	cpuid_FSRM = 1 << 4
 	// edx bits for CPUID 0x80000001
@@ -57,6 +61,7 @@ func doinit() {
 		{Name: "pclmulqdq", Feature: &X86.HasPCLMULQDQ},
 		{Name: "rdtscp", Feature: &X86.HasRDTSCP},
 		{Name: "sha", Feature: &X86.HasSHA},
+		{Name: "vpclmulqdq", Feature: &X86.HasAVX512VPCLMULQDQ},
 	}
 	level := getGOAMD64level()
 	if level < 2 {
@@ -139,7 +144,7 @@ func doinit() {
 		return
 	}
 
-	_, ebx7, _, edx7 := cpuid(7, 0)
+	_, ebx7, ecx7, edx7 := cpuid(7, 0)
 	X86.HasBMI1 = isSet(ebx7, cpuid_BMI1)
 	X86.HasAVX2 = isSet(ebx7, cpuid_AVX2) && osSupportsAVX
 	X86.HasBMI2 = isSet(ebx7, cpuid_BMI2)
@@ -151,6 +156,7 @@ func doinit() {
 	if X86.HasAVX512F {
 		X86.HasAVX512BW = isSet(ebx7, cpuid_AVX512BW)
 		X86.HasAVX512VL = isSet(ebx7, cpuid_AVX512VL)
+		X86.HasAVX512VPCLMULQDQ = isSet(ecx7, cpuid_AVX512VPCLMULQDQ)
 	}
 
 	X86.HasFSRM = isSet(edx7, cpuid_FSRM)

@@ -375,34 +375,17 @@
 	(MOVQstoreconst [makeValAndOff(0,int32(s-8))] destptr
 		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
 
-// Adjust zeros to be a multiple of 16 bytes.
-(Zero [s] destptr mem) && s%16 != 0 && s > 16 =>
-	(Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16])
-		(MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
+// Zeroing up to 192 bytes uses straightline code.
+(Zero [s] destptr mem)	&& s >= 16 && s < 192 => (LoweredZero [s] destptr mem)
 
-(Zero [16] destptr mem) =>
-	(MOVOstoreconst [makeValAndOff(0,0)] destptr mem)
-(Zero [32] destptr mem) =>
-	(MOVOstoreconst [makeValAndOff(0,16)] destptr
-		(MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
-(Zero [48] destptr mem) =>
-	(MOVOstoreconst [makeValAndOff(0,32)] destptr
-		(MOVOstoreconst [makeValAndOff(0,16)] destptr
-			(MOVOstoreconst [makeValAndOff(0,0)] destptr mem)))
-(Zero [64] destptr mem) =>
-	(MOVOstoreconst [makeValAndOff(0,48)] destptr
-		(MOVOstoreconst [makeValAndOff(0,32)] destptr
-			(MOVOstoreconst [makeValAndOff(0,16)] destptr
-				(MOVOstoreconst [makeValAndOff(0,0)] destptr mem))))
-
-// Medium zeroing uses a duff device.
-(Zero [s] destptr mem)
-	&& s > 64 && s <= 1024 && s%16 == 0 =>
-	(DUFFZERO [s] destptr mem)
+// Zeroing up to ~1KB uses a small loop.
+(Zero [s] destptr mem)	&& s >= 192 && s <= repZeroThreshold => (LoweredZeroLoop [s] destptr mem)
 
 // Large zeroing uses REP STOSQ.
-(Zero [s] destptr mem)
-	&& s > 1024 && s%8 == 0 =>
+(Zero [s] destptr mem) && s > repZeroThreshold && s%8 != 0 =>
+       (Zero [s-s%8] (OffPtr <destptr.Type> destptr [s%8])
+               (MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
+(Zero [s] destptr mem) && s > repZeroThreshold && s%8 == 0 =>
 	(REPSTOSQ destptr (MOVQconst [s/8]) (MOVQconst [0]) mem)
 
 // Lowering constants
@@ -558,9 +541,11 @@
 // Write barrier.
 (WB ...) => (LoweredWB ...)
 
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
+(PanicBounds ...) => (LoweredPanicBoundsRR ...)
+(LoweredPanicBoundsRR [kind] x (MOVQconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:c}} mem)
+(LoweredPanicBoundsRR [kind] (MOVQconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:c}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVQconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:c, Cy:p.C}} mem)
+(LoweredPanicBoundsCR [kind] {p} (MOVQconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:p.C, Cy:c}} mem)
 
 // lowering rotates
 (RotateLeft8  ...) => (ROLB ...)

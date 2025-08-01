@@ -88,7 +88,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]any, initTasks []*ini
 		(*valp)[0] = unsafe.Pointer(t)
 
 		name := symName.Name()
-		if t.Kind_&abi.KindMask == abi.Func {
+		if t.Kind() == abi.Func {
 			name = "." + name
 		}
 		syms[name] = val

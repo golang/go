@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "textflag.h"
+#include "go_asm.h"
 
 // castagnoliSSE42 updates the (non-inverted) crc with the given buffer.
 //
@@ -136,15 +137,23 @@ loop:
 // Linux kernel, since they avoid the costly
 // PSHUFB 16 byte reversal proposed in the
 // original Intel paper.
+// Splatted so it can be loaded with a single VMOVDQU64
 DATA r2r1<>+0(SB)/8, $0x154442bd4
 DATA r2r1<>+8(SB)/8, $0x1c6e41596
+DATA r2r1<>+16(SB)/8, $0x154442bd4
+DATA r2r1<>+24(SB)/8, $0x1c6e41596
+DATA r2r1<>+32(SB)/8, $0x154442bd4
+DATA r2r1<>+40(SB)/8, $0x1c6e41596
+DATA r2r1<>+48(SB)/8, $0x154442bd4
+DATA r2r1<>+56(SB)/8, $0x1c6e41596
+
 DATA r4r3<>+0(SB)/8, $0x1751997d0
 DATA r4r3<>+8(SB)/8, $0x0ccaa009e
 DATA rupoly<>+0(SB)/8, $0x1db710641
 DATA rupoly<>+8(SB)/8, $0x1f7011641
 DATA r5<>+0(SB)/8, $0x163cd6124
 
-GLOBL r2r1<>(SB),RODATA,$16
+GLOBL r2r1<>(SB), RODATA, $64
 GLOBL r4r3<>(SB),RODATA,$16
 GLOBL rupoly<>(SB),RODATA,$16
 GLOBL r5<>(SB),RODATA,$8
@@ -158,6 +167,43 @@ TEXT ·ieeeCLMUL(SB),NOSPLIT,$0
 	MOVQ   p+8(FP), SI  	         // data pointer
 	MOVQ   p_len+16(FP), CX          // len(p)
 
+	// Check feature support and length to be >= 1024 bytes.
+	CMPB internal∕cpu·X86+const_offsetX86HasAVX512VPCLMULQDQL(SB), $1
+	JNE  useSSE42
+	CMPQ CX, $1024
+	JL   useSSE42
+
+	// Use AVX512. Zero upper and Z10 and load initial CRC into lower part of Z10.
+	VPXORQ    Z10, Z10, Z10
+	VMOVAPS   X0, X10
+	VMOVDQU64 (SI), Z1
+	VPXORQ    Z10, Z1, Z1 // Merge initial CRC value into Z1
+	ADDQ      $64, SI    // buf+=64
+	SUBQ      $64, CX    // len-=64
+
+	VMOVDQU64 r2r1<>+0(SB), Z0
+
+loopback64Avx512:
+	VMOVDQU64  (SI), Z11          // Load next
+	VPCLMULQDQ $0x11, Z0, Z1, Z5
+	VPCLMULQDQ $0, Z0, Z1, Z1
+	VPTERNLOGD $0x96, Z11, Z5, Z1 // Combine results with xor into Z1
+
+	ADDQ $0x40, DI
+	ADDQ $64, SI    // buf+=64
+	SUBQ $64, CX    // len-=64
+	CMPQ CX, $64    // Less than 64 bytes left?
+	JGE  loopback64Avx512
+
+	// Unfold result into XMM1-XMM4 to match SSE4 code.
+	VEXTRACTF32X4 $1, Z1, X2 // X2: Second 128-bit lane
+	VEXTRACTF32X4 $2, Z1, X3 // X3: Third 128-bit lane
+	VEXTRACTF32X4 $3, Z1, X4 // X4: Fourth 128-bit lane
+	VZEROUPPER
+	JMP remain64
+
+	PCALIGN $16
+useSSE42:
 	MOVOU  (SI), X1
 	MOVOU  16(SI), X2
 	MOVOU  32(SI), X3
@@ -207,6 +253,7 @@ loopback64:
 	CMPQ    CX, $64      // Less than 64 bytes left?
 	JGE     loopback64
 
+	PCALIGN $16
 	/* Fold result into a single register (X1) */
 remain64:
 	MOVOA       r4r3<>+0(SB), X0

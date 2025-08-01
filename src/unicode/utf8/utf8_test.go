@@ -489,6 +489,16 @@ var validTests = []ValidTest{
 	{string("\xed\xbf\xbf"), false},         // U+DFFF low surrogate (sic)
 }
 
+func init() {
+	for i := range 100 {
+		validTests = append(validTests, ValidTest{in: strings.Repeat("a", i), out: true})
+		validTests = append(validTests, ValidTest{in: strings.Repeat("a", i) + "Ж", out: true})
+		validTests = append(validTests, ValidTest{in: strings.Repeat("a", i) + "\xe2", out: false})
+		validTests = append(validTests, ValidTest{in: strings.Repeat("a", i) + "Ж" + strings.Repeat("b", i), out: true})
+		validTests = append(validTests, ValidTest{in: strings.Repeat("a", i) + "\xe2" + strings.Repeat("b", i), out: false})
+	}
+}
+
 func TestValid(t *testing.T) {
 	for _, tt := range validTests {
 		if Valid([]byte(tt.in)) != tt.out {

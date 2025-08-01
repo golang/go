@@ -215,6 +215,12 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAMD64LEAQ4(v)
 	case OpAMD64LEAQ8:
 		return rewriteValueAMD64_OpAMD64LEAQ8(v)
+	case OpAMD64LoweredPanicBoundsCR:
+		return rewriteValueAMD64_OpAMD64LoweredPanicBoundsCR(v)
+	case OpAMD64LoweredPanicBoundsRC:
+		return rewriteValueAMD64_OpAMD64LoweredPanicBoundsRC(v)
+	case OpAMD64LoweredPanicBoundsRR:
+		return rewriteValueAMD64_OpAMD64LoweredPanicBoundsRR(v)
 	case OpAMD64MOVBELstore:
 		return rewriteValueAMD64_OpAMD64MOVBELstore(v)
 	case OpAMD64MOVBEQstore:
@@ -977,7 +983,8 @@ func rewriteValueAMD64(v *Value) bool {
 		v.Op = OpAMD64ORL
 		return true
 	case OpPanicBounds:
-		return rewriteValueAMD64_OpPanicBounds(v)
+		v.Op = OpAMD64LoweredPanicBoundsRR
+		return true
 	case OpPopCount16:
 		return rewriteValueAMD64_OpPopCount16(v)
 	case OpPopCount32:
@@ -9633,6 +9640,86 @@ func rewriteValueAMD64_OpAMD64LEAQ8(v *Value) bool {
 		v.AuxInt = int32ToAuxInt(off + int32(scale)*8)
 		v.Aux = symToAux(sym)
 		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64LoweredPanicBoundsCR(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (LoweredPanicBoundsCR [kind] {p} (MOVQconst [c]) mem)
+	// result: (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:p.C, Cy:c}} mem)
+	for {
+		kind := auxIntToInt64(v.AuxInt)
+		p := auxToPanicBoundsC(v.Aux)
+		if v_0.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		mem := v_1
+		v.reset(OpAMD64LoweredPanicBoundsCC)
+		v.AuxInt = int64ToAuxInt(kind)
+		v.Aux = panicBoundsCCToAux(PanicBoundsCC{Cx: p.C, Cy: c})
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64LoweredPanicBoundsRC(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (LoweredPanicBoundsRC [kind] {p} (MOVQconst [c]) mem)
+	// result: (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:c, Cy:p.C}} mem)
+	for {
+		kind := auxIntToInt64(v.AuxInt)
+		p := auxToPanicBoundsC(v.Aux)
+		if v_0.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		mem := v_1
+		v.reset(OpAMD64LoweredPanicBoundsCC)
+		v.AuxInt = int64ToAuxInt(kind)
+		v.Aux = panicBoundsCCToAux(PanicBoundsCC{Cx: c, Cy: p.C})
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64LoweredPanicBoundsRR(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (LoweredPanicBoundsRR [kind] x (MOVQconst [c]) mem)
+	// result: (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:c}} mem)
+	for {
+		kind := auxIntToInt64(v.AuxInt)
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mem := v_2
+		v.reset(OpAMD64LoweredPanicBoundsRC)
+		v.AuxInt = int64ToAuxInt(kind)
+		v.Aux = panicBoundsCToAux(PanicBoundsC{C: c})
+		v.AddArg2(x, mem)
+		return true
+	}
+	// match: (LoweredPanicBoundsRR [kind] (MOVQconst [c]) y mem)
+	// result: (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:c}} y mem)
+	for {
+		kind := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		y := v_1
+		mem := v_2
+		v.reset(OpAMD64LoweredPanicBoundsCR)
+		v.AuxInt = int64ToAuxInt(kind)
+		v.Aux = panicBoundsCToAux(PanicBoundsC{C: c})
+		v.AddArg2(y, mem)
 		return true
 	}
 	return false
@@ -27767,60 +27854,6 @@ func rewriteValueAMD64_OpOffPtr(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpPanicBounds(v *Value) bool {
-	v_2 := v.Args[2]
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (PanicBounds [kind] x y mem)
-	// cond: boundsABI(kind) == 0
-	// result: (LoweredPanicBoundsA [kind] x y mem)
-	for {
-		kind := auxIntToInt64(v.AuxInt)
-		x := v_0
-		y := v_1
-		mem := v_2
-		if !(boundsABI(kind) == 0) {
-			break
-		}
-		v.reset(OpAMD64LoweredPanicBoundsA)
-		v.AuxInt = int64ToAuxInt(kind)
-		v.AddArg3(x, y, mem)
-		return true
-	}
-	// match: (PanicBounds [kind] x y mem)
-	// cond: boundsABI(kind) == 1
-	// result: (LoweredPanicBoundsB [kind] x y mem)
-	for {
-		kind := auxIntToInt64(v.AuxInt)
-		x := v_0
-		y := v_1
-		mem := v_2
-		if !(boundsABI(kind) == 1) {
-			break
-		}
-		v.reset(OpAMD64LoweredPanicBoundsB)
-		v.AuxInt = int64ToAuxInt(kind)
-		v.AddArg3(x, y, mem)
-		return true
-	}
-	// match: (PanicBounds [kind] x y mem)
-	// cond: boundsABI(kind) == 2
-	// result: (LoweredPanicBoundsC [kind] x y mem)
-	for {
-		kind := auxIntToInt64(v.AuxInt)
-		x := v_0
-		y := v_1
-		mem := v_2
-		if !(boundsABI(kind) == 2) {
-			break
-		}
-		v.reset(OpAMD64LoweredPanicBoundsC)
-		v.AuxInt = int64ToAuxInt(kind)
-		v.AddArg3(x, y, mem)
-		return true
-	}
-	return false
-}
 func rewriteValueAMD64_OpPopCount16(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
@@ -29992,19 +30025,49 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
 		return true
 	}
 	// match: (Zero [s] destptr mem)
-	// cond: s%16 != 0 && s > 16
-	// result: (Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16]) (MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
+	// cond: s >= 16 && s < 192
+	// result: (LoweredZero [s] destptr mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		destptr := v_0
 		mem := v_1
-		if !(s%16 != 0 && s > 16) {
+		if !(s >= 16 && s < 192) {
+			break
+		}
+		v.reset(OpAMD64LoweredZero)
+		v.AuxInt = int64ToAuxInt(s)
+		v.AddArg2(destptr, mem)
+		return true
+	}
+	// match: (Zero [s] destptr mem)
+	// cond: s >= 192 && s <= repZeroThreshold
+	// result: (LoweredZeroLoop [s] destptr mem)
+	for {
+		s := auxIntToInt64(v.AuxInt)
+		destptr := v_0
+		mem := v_1
+		if !(s >= 192 && s <= repZeroThreshold) {
+			break
+		}
+		v.reset(OpAMD64LoweredZeroLoop)
+		v.AuxInt = int64ToAuxInt(s)
+		v.AddArg2(destptr, mem)
+		return true
+	}
+	// match: (Zero [s] destptr mem)
+	// cond: s > repZeroThreshold && s%8 != 0
+	// result: (Zero [s-s%8] (OffPtr <destptr.Type> destptr [s%8]) (MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
+	for {
+		s := auxIntToInt64(v.AuxInt)
+		destptr := v_0
+		mem := v_1
+		if !(s > repZeroThreshold && s%8 != 0) {
 			break
 		}
 		v.reset(OpZero)
-		v.AuxInt = int64ToAuxInt(s - s%16)
+		v.AuxInt = int64ToAuxInt(s - s%8)
 		v0 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
-		v0.AuxInt = int64ToAuxInt(s % 16)
+		v0.AuxInt = int64ToAuxInt(s % 8)
 		v0.AddArg(destptr)
 		v1 := b.NewValue0(v.Pos, OpAMD64MOVOstoreconst, types.TypeMem)
 		v1.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 0))
@@ -30012,99 +30075,14 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
-	// match: (Zero [16] destptr mem)
-	// result: (MOVOstoreconst [makeValAndOff(0,0)] destptr mem)
-	for {
-		if auxIntToInt64(v.AuxInt) != 16 {
-			break
-		}
-		destptr := v_0
-		mem := v_1
-		v.reset(OpAMD64MOVOstoreconst)
-		v.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 0))
-		v.AddArg2(destptr, mem)
-		return true
-	}
-	// match: (Zero [32] destptr mem)
-	// result: (MOVOstoreconst [makeValAndOff(0,16)] destptr (MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
-	for {
-		if auxIntToInt64(v.AuxInt) != 32 {
-			break
-		}
-		destptr := v_0
-		mem := v_1
-		v.reset(OpAMD64MOVOstoreconst)
-		v.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 16))
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVOstoreconst, types.TypeMem)
-		v0.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 0))
-		v0.AddArg2(destptr, mem)
-		v.AddArg2(destptr, v0)
-		return true
-	}
-	// match: (Zero [48] destptr mem)
-	// result: (MOVOstoreconst [makeValAndOff(0,32)] destptr (MOVOstoreconst [makeValAndOff(0,16)] destptr (MOVOstoreconst [makeValAndOff(0,0)] destptr mem)))
-	for {
-		if auxIntToInt64(v.AuxInt) != 48 {
-			break
-		}
-		destptr := v_0
-		mem := v_1
-		v.reset(OpAMD64MOVOstoreconst)
-		v.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 32))
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVOstoreconst, types.TypeMem)
-		v0.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 16))
-		v1 := b.NewValue0(v.Pos, OpAMD64MOVOstoreconst, types.TypeMem)
-		v1.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 0))
-		v1.AddArg2(destptr, mem)
-		v0.AddArg2(destptr, v1)
-		v.AddArg2(destptr, v0)
-		return true
-	}
-	// match: (Zero [64] destptr mem)
-	// result: (MOVOstoreconst [makeValAndOff(0,48)] destptr (MOVOstoreconst [makeValAndOff(0,32)] destptr (MOVOstoreconst [makeValAndOff(0,16)] destptr (MOVOstoreconst [makeValAndOff(0,0)] destptr mem))))
-	for {
-		if auxIntToInt64(v.AuxInt) != 64 {
-			break
-		}
-		destptr := v_0
-		mem := v_1
-		v.reset(OpAMD64MOVOstoreconst)
-		v.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 48))
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVOstoreconst, types.TypeMem)
-		v0.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 32))
-		v1 := b.NewValue0(v.Pos, OpAMD64MOVOstoreconst, types.TypeMem)
-		v1.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 16))
-		v2 := b.NewValue0(v.Pos, OpAMD64MOVOstoreconst, types.TypeMem)
-		v2.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 0))
-		v2.AddArg2(destptr, mem)
-		v1.AddArg2(destptr, v2)
-		v0.AddArg2(destptr, v1)
-		v.AddArg2(destptr, v0)
-		return true
-	}
 	// match: (Zero [s] destptr mem)
-	// cond: s > 64 && s <= 1024 && s%16 == 0
-	// result: (DUFFZERO [s] destptr mem)
-	for {
-		s := auxIntToInt64(v.AuxInt)
-		destptr := v_0
-		mem := v_1
-		if !(s > 64 && s <= 1024 && s%16 == 0) {
-			break
-		}
-		v.reset(OpAMD64DUFFZERO)
-		v.AuxInt = int64ToAuxInt(s)
-		v.AddArg2(destptr, mem)
-		return true
-	}
-	// match: (Zero [s] destptr mem)
-	// cond: s > 1024 && s%8 == 0
+	// cond: s > repZeroThreshold && s%8 == 0
 	// result: (REPSTOSQ destptr (MOVQconst [s/8]) (MOVQconst [0]) mem)
 	for {
 		s := auxIntToInt64(v.AuxInt)
 		destptr := v_0
 		mem := v_1
-		if !(s > 1024 && s%8 == 0) {
+		if !(s > repZeroThreshold && s%8 == 0) {
 			break
 		}
 		v.reset(OpAMD64REPSTOSQ)

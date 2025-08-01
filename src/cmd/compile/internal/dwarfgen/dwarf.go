@@ -203,7 +203,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 				continue
 			}
 			if n.Class != ir.PPARAMOUT || !n.IsOutputParamInRegisters() {
-				panic("invalid ir.Name on debugInfo.RegOutputParams list")
+				base.Fatalf("invalid ir.Name on debugInfo.RegOutputParams list")
 			}
 			dcl = append(dcl, n)
 		}
@@ -278,7 +278,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 				base.Fatalf("invalid heap allocated var without Heapaddr")
 			}
 			debug := fn.DebugInfo.(*ssa.FuncDebug)
-			list := createHeapDerefLocationList(n, fnsym, debug.EntryID, ssa.FuncEnd.ID)
+			list := createHeapDerefLocationList(n, debug.EntryID)
 			dvar.PutLocationList = func(listSym, startPC dwarf.Sym) {
 				debug.PutLocationList(list, base.Ctxt, listSym.(*obj.LSym), startPC.(*obj.LSym))
 			}
@@ -558,7 +558,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID, closureVars
 
 // createHeapDerefLocationList creates a location list for a heap-escaped variable
 // that describes "dereference pointer at stack offset"
-func createHeapDerefLocationList(n *ir.Name, fnsym *obj.LSym, entryID, prologEndID ssa.ID) []byte {
+func createHeapDerefLocationList(n *ir.Name, entryID ssa.ID) []byte {
 	// Get the stack offset where the heap pointer is stored
 	heapPtrOffset := n.Heapaddr.FrameOffset()
 	if base.Ctxt.Arch.FixedFrameSize == 0 {
@@ -583,7 +583,7 @@ func createHeapDerefLocationList(n *ir.Name, fnsym *obj.LSym, entryID, prologEnd
 // in the DWARF info.
 func RecordFlags(flags ...string) {
 	if base.Ctxt.Pkgpath == "" {
-		panic("missing pkgpath")
+		base.Fatalf("missing pkgpath")
 	}
 
 	type BoolFlag interface {

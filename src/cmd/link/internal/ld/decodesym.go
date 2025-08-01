@@ -38,7 +38,7 @@ func uncommonSize(arch *sys.Arch) int    { return int(abi.UncommonSize()) }     
 
 // Type.commonType.kind
 func decodetypeKind(arch *sys.Arch, p []byte) abi.Kind {
-	return abi.Kind(p[2*arch.PtrSize+7]) & abi.KindMask //  0x13 / 0x1f
+	return abi.Kind(p[2*arch.PtrSize+7]) //  0x13
 }
 
 // Type.commonType.size
@@ -158,7 +158,7 @@ func decodetypeMapValue(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) l
 	return decodeRelocSym(ldr, symIdx, &relocs, int32(commonsize(arch))+int32(arch.PtrSize)) // 0x20 / 0x38
 }
 
-func decodetypeMapSwissGroup(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) loader.Sym {
+func decodetypeMapGroup(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) loader.Sym {
 	relocs := ldr.Relocs(symIdx)
 	return decodeRelocSym(ldr, symIdx, &relocs, int32(commonsize(arch))+2*int32(arch.PtrSize)) // 0x24 / 0x40
 }

@@ -7,7 +7,7 @@ package cgroup
 import (
 	"internal/bytealg"
 	"internal/runtime/strconv"
-	"internal/runtime/syscall"
+	"internal/runtime/syscall/linux"
 )
 
 var (
@@ -77,10 +77,10 @@ type CPU struct {
 func (c CPU) Close() {
 	switch c.version {
 	case V1:
-		syscall.Close(c.quotaFD)
-		syscall.Close(c.periodFD)
+		linux.Close(c.quotaFD)
+		linux.Close(c.periodFD)
 	case V2:
-		syscall.Close(c.quotaFD)
+		linux.Close(c.quotaFD)
 	default:
 		throw("impossible cgroup version")
 	}
@@ -112,7 +112,7 @@ func OpenCPU(scratch []byte) (CPU, error) {
 	case 1:
 		n2 := copy(base[n:], v1QuotaFile)
 		path := base[:n+n2]
-		quotaFD, errno := syscall.Open(&path[0], syscall.O_RDONLY|syscall.O_CLOEXEC, 0)
+		quotaFD, errno := linux.Open(&path[0], linux.O_RDONLY|linux.O_CLOEXEC, 0)
 		if errno != 0 {
 			// This may fail if this process was migrated out of
 			// the cgroup found by FindCPU and that cgroup has been
@@ -122,7 +122,7 @@ func OpenCPU(scratch []byte) (CPU, error) {
 
 		n2 = copy(base[n:], v1PeriodFile)
 		path = base[:n+n2]
-		periodFD, errno := syscall.Open(&path[0], syscall.O_RDONLY|syscall.O_CLOEXEC, 0)
+		periodFD, errno := linux.Open(&path[0], linux.O_RDONLY|linux.O_CLOEXEC, 0)
 		if errno != 0 {
 			// This may fail if this process was migrated out of
 			// the cgroup found by FindCPU and that cgroup has been
@@ -139,7 +139,7 @@ func OpenCPU(scratch []byte) (CPU, error) {
 	case 2:
 		n2 := copy(base[n:], v2MaxFile)
 		path := base[:n+n2]
-		maxFD, errno := syscall.Open(&path[0], syscall.O_RDONLY|syscall.O_CLOEXEC, 0)
+		maxFD, errno := linux.Open(&path[0], linux.O_RDONLY|linux.O_CLOEXEC, 0)
 		if errno != 0 {
 			// This may fail if this process was migrated out of
 			// the cgroup found by FindCPU and that cgroup has been
@@ -200,7 +200,7 @@ func readV1Number(fd int) (int64, error) {
 	//
 	// Always read from the beginning of the file to get a fresh value.
 	var b [64]byte
-	n, errno := syscall.Pread(fd, b[:], 0)
+	n, errno := linux.Pread(fd, b[:], 0)
 	if errno != 0 {
 		return 0, errSyscallFailed
 	}
@@ -248,7 +248,7 @@ func readV2Limit(fd int) (float64, bool, error) {
 	//
 	// Always read from the beginning of the file to get a fresh value.
 	var b [64]byte
-	n, errno := syscall.Pread(fd, b[:], 0)
+	n, errno := linux.Pread(fd, b[:], 0)
 	if errno != 0 {
 		return 0, false, errSyscallFailed
 	}
@@ -345,8 +345,8 @@ func FindCPU(out []byte, scratch []byte) (int, Version, error) {
 // Returns ErrNoCgroup if the process is not in a CPU cgroup.
 func FindCPURelativePath(out []byte, scratch []byte) (int, Version, error) {
 	path := []byte("/proc/self/cgroup\x00")
-	fd, errno := syscall.Open(&path[0], syscall.O_RDONLY|syscall.O_CLOEXEC, 0)
-	if errno == syscall.ENOENT {
+	fd, errno := linux.Open(&path[0], linux.O_RDONLY|linux.O_CLOEXEC, 0)
+	if errno == linux.ENOENT {
 		return 0, 0, ErrNoCgroup
 	} else if errno != 0 {
 		return 0, 0, errSyscallFailed
@@ -354,13 +354,13 @@ func FindCPURelativePath(out []byte, scratch []byte) (int, Version, error) {
 
 	// The relative path always starts with /, so we can directly append it
 	// to the mount point.
-	n, version, err := parseCPURelativePath(fd, syscall.Read, out[:], scratch)
+	n, version, err := parseCPURelativePath(fd, linux.Read, out[:], scratch)
 	if err != nil {
-		syscall.Close(fd)
+		linux.Close(fd)
 		return 0, 0, err
 	}
 
-	syscall.Close(fd)
+	linux.Close(fd)
 	return n, version, nil
 }
 
@@ -489,19 +489,19 @@ func FindCPUMountPoint(out []byte, scratch []byte) (int, error) {
 	checkBufferSize(scratch, ParseSize)
 
 	path := []byte("/proc/self/mountinfo\x00")
-	fd, errno := syscall.Open(&path[0], syscall.O_RDONLY|syscall.O_CLOEXEC, 0)
-	if errno == syscall.ENOENT {
+	fd, errno := linux.Open(&path[0], linux.O_RDONLY|linux.O_CLOEXEC, 0)
+	if errno == linux.ENOENT {
 		return 0, ErrNoCgroup
 	} else if errno != 0 {
 		return 0, errSyscallFailed
 	}
 
-	n, err := parseCPUMount(fd, syscall.Read, out, scratch)
+	n, err := parseCPUMount(fd, linux.Read, out, scratch)
 	if err != nil {
-		syscall.Close(fd)
+		linux.Close(fd)
 		return 0, err
 	}
-	syscall.Close(fd)
+	linux.Close(fd)
 
 	return n, nil
 }

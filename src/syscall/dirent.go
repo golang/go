@@ -33,7 +33,7 @@ func readIntBE(b []byte, size uintptr) uint64 {
 	case 4:
 		return uint64(byteorder.BEUint32(b))
 	case 8:
-		return uint64(byteorder.BEUint64(b))
+		return byteorder.BEUint64(b)
 	default:
 		panic("syscall: readInt with unsupported size")
 	}
@@ -48,7 +48,7 @@ func readIntLE(b []byte, size uintptr) uint64 {
 	case 4:
 		return uint64(byteorder.LEUint32(b))
 	case 8:
-		return uint64(byteorder.LEUint64(b))
+		return byteorder.LEUint64(b)
 	default:
 		panic("syscall: readInt with unsupported size")
 	}

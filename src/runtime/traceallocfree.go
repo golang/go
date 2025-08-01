@@ -37,7 +37,7 @@ func traceSnapshotMemory(gen uintptr) {
 	}
 
 	// Emit info.
-	w.varint(uint64(trace.minPageHeapAddr))
+	w.varint(trace.minPageHeapAddr)
 	w.varint(uint64(pageSize))
 	w.varint(uint64(gc.MinHeapAlign))
 	w.varint(uint64(fixedStack))

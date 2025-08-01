@@ -191,8 +191,8 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 
 	osPreemptExtExit(mp)
 
-	// Save current syscall parameters, so m.winsyscall can be
-	// used again if callback decide to make syscall.
+	// After exitsyscall we can be rescheduled on a different M,
+	// so we need to restore the original M's winsyscall.
 	winsyscall := mp.winsyscall
 
 	exitsyscall()
@@ -543,18 +543,18 @@ func cgoCheckPointer(ptr any, arg any) {
 	t := ep._type
 
 	top := true
-	if arg != nil && (t.Kind_&abi.KindMask == abi.Pointer || t.Kind_&abi.KindMask == abi.UnsafePointer) {
+	if arg != nil && (t.Kind() == abi.Pointer || t.Kind() == abi.UnsafePointer) {
 		p := ep.data
-		if t.Kind_&abi.KindDirectIface == 0 {
+		if !t.IsDirectIface() {
 			p = *(*unsafe.Pointer)(p)
 		}
 		if p == nil || !cgoIsGoPointer(p) {
 			return
 		}
 		aep := efaceOf(&arg)
-		switch aep._type.Kind_ & abi.KindMask {
+		switch aep._type.Kind() {
 		case abi.Bool:
-			if t.Kind_&abi.KindMask == abi.UnsafePointer {
+			if t.Kind() == abi.UnsafePointer {
 				// We don't know the type of the element.
 				break
 			}
@@ -578,7 +578,7 @@ func cgoCheckPointer(ptr any, arg any) {
 			// Check the array rather than the pointer.
 			pt := (*abi.PtrType)(unsafe.Pointer(aep._type))
 			t = pt.Elem
-			if t.Kind_&abi.KindMask != abi.Array {
+			if t.Kind() != abi.Array {
 				throw("can't happen")
 			}
 			ep = aep
@@ -588,7 +588,7 @@ func cgoCheckPointer(ptr any, arg any) {
 		}
 	}
 
-	cgoCheckArg(t, ep.data, t.Kind_&abi.KindDirectIface == 0, top, cgoCheckPointerFail)
+	cgoCheckArg(t, ep.data, !t.IsDirectIface(), top, cgoCheckPointerFail)
 }
 
 const cgoCheckPointerFail = "cgo argument has Go pointer to unpinned Go pointer"
@@ -605,7 +605,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 		return
 	}
 
-	switch t.Kind_ & abi.KindMask {
+	switch t.Kind() {
 	default:
 		throw("can't happen")
 	case abi.Array:
@@ -614,7 +614,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 			if at.Len != 1 {
 				throw("can't happen")
 			}
-			cgoCheckArg(at.Elem, p, at.Elem.Kind_&abi.KindDirectIface == 0, top, msg)
+			cgoCheckArg(at.Elem, p, !at.Elem.IsDirectIface(), top, msg)
 			return
 		}
 		for i := uintptr(0); i < at.Len; i++ {
@@ -652,7 +652,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 		if !top && !isPinned(p) {
 			panic(errorString(msg))
 		}
-		cgoCheckArg(it, p, it.Kind_&abi.KindDirectIface == 0, false, msg)
+		cgoCheckArg(it, p, !it.IsDirectIface(), false, msg)
 	case abi.Slice:
 		st := (*slicetype)(unsafe.Pointer(t))
 		s := (*slice)(p)
@@ -684,7 +684,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 			if len(st.Fields) != 1 {
 				throw("can't happen")
 			}
-			cgoCheckArg(st.Fields[0].Typ, p, st.Fields[0].Typ.Kind_&abi.KindDirectIface == 0, top, msg)
+			cgoCheckArg(st.Fields[0].Typ, p, !st.Fields[0].Typ.IsDirectIface(), top, msg)
 			return
 		}
 		for _, f := range st.Fields {
@@ -792,5 +792,5 @@ func cgoCheckResult(val any) {
 
 	ep := efaceOf(&val)
 	t := ep._type
-	cgoCheckArg(t, ep.data, t.Kind_&abi.KindDirectIface == 0, false, cgoResultFail)
+	cgoCheckArg(t, ep.data, !t.IsDirectIface(), false, cgoResultFail)
 }

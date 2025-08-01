@@ -1690,8 +1690,6 @@ func makePointerArshaler(t reflect.Type) *arshaler {
 	return &fncs
 }
 
-var errNilInterface = errors.New("cannot derive concrete type for nil interface with finite type set")
-
 func makeInterfaceArshaler(t reflect.Type) *arshaler {
 	// NOTE: Values retrieved from an interface are not addressable,
 	// so we shallow copy the values to make them addressable and
@@ -1797,7 +1795,7 @@ func makeInterfaceArshaler(t reflect.Type) *arshaler {
 
 			k := dec.PeekKind()
 			if !isAnyType(t) {
-				return newUnmarshalErrorBeforeWithSkipping(dec, uo, t, errNilInterface)
+				return newUnmarshalErrorBeforeWithSkipping(dec, uo, t, internal.ErrNilInterface)
 			}
 			switch k {
 			case 'f', 't':

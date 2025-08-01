@@ -12,7 +12,7 @@ import (
 
 const debugLog = false
 
-func (t *table) checkInvariants(typ *abi.SwissMapType, m *Map) {
+func (t *table) checkInvariants(typ *abi.MapType, m *Map) {
 	if !debugLog {
 		return
 	}
@@ -24,7 +24,7 @@ func (t *table) checkInvariants(typ *abi.SwissMapType, m *Map) {
 	var empty uint16
 	for i := uint64(0); i <= t.groups.lengthMask; i++ {
 		g := t.groups.group(typ, i)
-		for j := uintptr(0); j < abi.SwissMapGroupSlots; j++ {
+		for j := uintptr(0); j < abi.MapGroupSlots; j++ {
 			c := g.ctrls().get(j)
 			switch {
 			case c == ctrlDeleted:
@@ -63,7 +63,7 @@ func (t *table) checkInvariants(typ *abi.SwissMapType, m *Map) {
 		panic("invariant failed: found mismatched used slot count")
 	}
 
-	growthLeft := (t.capacity*maxAvgGroupLoad)/abi.SwissMapGroupSlots - t.used - deleted
+	growthLeft := (t.capacity*maxAvgGroupLoad)/abi.MapGroupSlots - t.used - deleted
 	if growthLeft != t.growthLeft {
 		print("invariant failed: found ", t.growthLeft, " growthLeft, but expected ", growthLeft, "\n")
 		t.Print(typ, m)
@@ -81,7 +81,7 @@ func (t *table) checkInvariants(typ *abi.SwissMapType, m *Map) {
 		panic("invariant failed: found no empty slots (violates probe invariant)")
 	}
 }
-func (t *table) Print(typ *abi.SwissMapType, m *Map) {
+func (t *table) Print(typ *abi.MapType, m *Map) {
 	print(`table{
 	index: `, t.index, `
 	localDepth: `, t.localDepth, `
@@ -96,7 +96,7 @@ func (t *table) Print(typ *abi.SwissMapType, m *Map) {
 
 		g := t.groups.group(typ, i)
 		ctrls := g.ctrls()
-		for j := uintptr(0); j < abi.SwissMapGroupSlots; j++ {
+		for j := uintptr(0); j < abi.MapGroupSlots; j++ {
 			print("\t\t\tslot ", j, "\n")
 
 			c := ctrls.get(j)

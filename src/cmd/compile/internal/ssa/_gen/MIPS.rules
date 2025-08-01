@@ -423,13 +423,17 @@
 // Publication barrier as intrinsic
 (PubBarrier ...) => (LoweredPubBarrier ...)
 
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
 
-(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 0 => (LoweredPanicExtendA [kind] hi lo y mem)
-(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 1 => (LoweredPanicExtendB [kind] hi lo y mem)
-(PanicExtend [kind] hi lo y mem) && boundsABI(kind) == 2 => (LoweredPanicExtendC [kind] hi lo y mem)
+(PanicBounds ...) => (LoweredPanicBoundsRR ...)
+(PanicExtend ...) => (LoweredPanicExtendRR ...)
+
+(LoweredPanicBoundsRR [kind] x (MOVWconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:int64(c)}} mem)
+(LoweredPanicBoundsRR [kind] (MOVWconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:int64(c)}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVWconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:int64(c), Cy:p.C}} mem)
+
+(LoweredPanicExtendRR [kind] hi lo (MOVWconst [c]) mem) => (LoweredPanicExtendRC [kind] hi lo {PanicBoundsC{C:int64(c)}} mem)
+(LoweredPanicExtendRR [kind] (MOVWconst [hi]) (MOVWconst [lo]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:int64(hi)<<32 + int64(uint32(lo))}} y mem)
+(LoweredPanicExtendRC [kind] {p} (MOVWconst [hi]) (MOVWconst [lo]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:int64(hi)<<32+int64(uint32(lo)), Cy:p.C}} mem)
 
 // Optimizations
 
@@ -607,13 +611,13 @@
 (Select0 (MULTU (MOVWconst [1])  _ )) => (MOVWconst [0])
 (Select1 (MULTU (MOVWconst [-1]) x )) => (NEG <x.Type> x)
 (Select0 (MULTU (MOVWconst [-1]) x )) => (CMOVZ (ADDconst <x.Type> [-1] x) (MOVWconst [0]) x)
-(Select1 (MULTU (MOVWconst [c])  x )) && isPowerOfTwo(int64(uint32(c))) => (SLLconst [int32(log2uint32(int64(c)))] x)
-(Select0 (MULTU (MOVWconst [c])  x )) && isPowerOfTwo(int64(uint32(c))) => (SRLconst [int32(32-log2uint32(int64(c)))] x)
+(Select1 (MULTU (MOVWconst [c])  x )) && isUnsignedPowerOfTwo(uint32(c)) => (SLLconst [int32(log32u(uint32(c)))] x)
+(Select0 (MULTU (MOVWconst [c])  x )) && isUnsignedPowerOfTwo(uint32(c)) => (SRLconst [int32(32-log32u(uint32(c)))] x)
 
 (MUL (MOVWconst [0])  _ ) => (MOVWconst [0])
 (MUL (MOVWconst [1])  x ) => x
 (MUL (MOVWconst [-1]) x ) => (NEG x)
-(MUL (MOVWconst [c]) x ) && isPowerOfTwo(int64(uint32(c))) => (SLLconst [int32(log2uint32(int64(c)))] x)
+(MUL (MOVWconst [c]) x ) && isUnsignedPowerOfTwo(uint32(c)) => (SLLconst [int32(log32u(uint32(c)))] x)
 
 // generic simplifications
 (ADD x (NEG y)) => (SUB x y)

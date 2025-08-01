@@ -441,6 +441,11 @@ var optab = []Optab{
 	{i: 119, as: AVERLLVG, a1: C_VREG, a2: C_VREG, a6: C_VREG},
 	{i: 119, as: AVERLLVG, a1: C_VREG, a6: C_VREG},
 
+	// VRR-c floating point min/max
+	{i: 128, as: AVFMAXDB, a1: C_SCON, a2: C_VREG, a3: C_VREG, a6: C_VREG},
+	{i: 128, as: AWFMAXDB, a1: C_SCON, a2: C_VREG, a3: C_VREG, a6: C_VREG},
+	{i: 128, as: AWFMAXDB, a1: C_SCON, a2: C_FREG, a3: C_FREG, a6: C_FREG},
+
 	// VRR-d
 	{i: 120, as: AVACQ, a1: C_VREG, a2: C_VREG, a3: C_VREG, a6: C_VREG},
 
@@ -449,6 +454,10 @@ var optab = []Optab{
 
 	// VRR-f
 	{i: 122, as: AVLVGP, a1: C_REG, a2: C_REG, a6: C_VREG},
+
+	// MVC storage and storage
+	{i: 127, as: AMVCLE, a1: C_LOREG, a2: C_REG, a6: C_REG},
+	{i: 127, as: AMVCLE, a1: C_SCON, a2: C_REG, a6: C_REG},
 }
 
 var oprange [ALAST & obj.AMask][]Optab
@@ -1476,6 +1485,14 @@ func buildop(ctxt *obj.Link) {
 			opset(AVFMSDB, r)
 			opset(AWFMSDB, r)
 			opset(AVPERM, r)
+		case AVFMAXDB:
+			opset(AVFMAXSB, r)
+			opset(AVFMINDB, r)
+			opset(AVFMINSB, r)
+		case AWFMAXDB:
+			opset(AWFMAXSB, r)
+			opset(AWFMINDB, r)
+			opset(AWFMINSB, r)
 		case AKM:
 			opset(AKMC, r)
 			opset(AKLMD, r)
@@ -2632,6 +2649,8 @@ const (
 	op_VUPLL  uint32 = 0xE7D4 // 	VRR-a	VECTOR UNPACK LOGICAL LOW
 	op_VUPL   uint32 = 0xE7D6 // 	VRR-a	VECTOR UNPACK LOW
 	op_VMSL   uint32 = 0xE7B8 // 	VRR-d	VECTOR MULTIPLY SUM LOGICAL
+	op_VFMAX  uint32 = 0xE7EF // 	VRR-c	VECTOR FP MAXIMUM
+	op_VFMIN  uint32 = 0xE7EE // 	VRR-c	VECTOR FP MINIMUM
 
 	// added in z15
 	op_KDSA uint32 = 0xB93A // FORMAT_RRE        COMPUTE DIGITAL SIGNATURE AUTHENTICATION (KDSA)
@@ -4453,6 +4472,30 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 			}
 		}
 		zRRF(opcode, uint32(p.Reg), 0, uint32(p.From.Reg), uint32(p.To.Reg), asm)
+
+	case 127:
+		// NOTE: Mapping MVCLE operands is as follows:
+		// Instruction Format: MVCLE R1,R3,D2(B2)
+		// R1 - prog.To (for Destination)
+		// R3 - prog.Reg (for Source)
+		// B2 - prog.From (for Padding Byte)
+		d2 := c.regoff(&p.From)
+		if p.To.Reg&1 != 0 {
+			c.ctxt.Diag("output argument must be even register in %v", p)
+		}
+		if p.Reg&1 != 0 {
+			c.ctxt.Diag("input argument must be an even register in %v", p)
+		}
+		if (p.From.Reg == p.To.Reg) || (p.From.Reg == p.Reg) {
+			c.ctxt.Diag("padding byte register cannot be same as input or output register %v", p)
+		}
+		zRS(op_MVCLE, uint32(p.To.Reg), uint32(p.Reg), uint32(p.From.Reg), uint32(d2), asm)
+
+	case 128: // VRR-c floating point max/min
+		op, m4, _ := vop(p.As)
+		m5 := singleElementMask(p.As)
+		m6 := uint32(c.vregoff(&p.From))
+		zVRRc(op, uint32(p.To.Reg), uint32(p.Reg), uint32(p.GetFrom3().Reg), m6, m5, m4, asm)
 	}
 }
 
