@@ -1,0 +1,1 @@
+pkg log/slog, func MultiHandler(...Handler) Handler #65954
