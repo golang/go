@@ -4567,6 +4567,44 @@ const (
 	OpAddMaskedUint64x2
 	OpAddMaskedUint64x4
 	OpAddMaskedUint64x8
+	OpAddPairsFloat32x4
+	OpAddPairsFloat32x8
+	OpAddPairsFloat64x2
+	OpAddPairsFloat64x4
+	OpAddPairsInt16x8
+	OpAddPairsInt16x16
+	OpAddPairsInt32x4
+	OpAddPairsInt32x8
+	OpAddPairsSaturatedInt16x8
+	OpAddPairsSaturatedInt16x16
+	OpAddPairsUint16x8
+	OpAddPairsUint16x16
+	OpAddPairsUint32x4
+	OpAddPairsUint32x8
+	OpAddSaturatedInt8x16
+	OpAddSaturatedInt8x32
+	OpAddSaturatedInt8x64
+	OpAddSaturatedInt16x8
+	OpAddSaturatedInt16x16
+	OpAddSaturatedInt16x32
+	OpAddSaturatedMaskedInt8x16
+	OpAddSaturatedMaskedInt8x32
+	OpAddSaturatedMaskedInt8x64
+	OpAddSaturatedMaskedInt16x8
+	OpAddSaturatedMaskedInt16x16
+	OpAddSaturatedMaskedInt16x32
+	OpAddSaturatedMaskedUint8x16
+	OpAddSaturatedMaskedUint8x32
+	OpAddSaturatedMaskedUint8x64
+	OpAddSaturatedMaskedUint16x8
+	OpAddSaturatedMaskedUint16x16
+	OpAddSaturatedMaskedUint16x32
+	OpAddSaturatedUint8x16
+	OpAddSaturatedUint8x32
+	OpAddSaturatedUint8x64
+	OpAddSaturatedUint16x8
+	OpAddSaturatedUint16x16
+	OpAddSaturatedUint16x32
 	OpAddSubFloat32x4
 	OpAddSubFloat32x8
 	OpAddSubFloat64x2
@@ -5230,18 +5268,6 @@ const (
 	OpMinUint64x2
 	OpMinUint64x4
 	OpMinUint64x8
-	OpMulByPowOf2Float32x4
-	OpMulByPowOf2Float32x8
-	OpMulByPowOf2Float32x16
-	OpMulByPowOf2Float64x2
-	OpMulByPowOf2Float64x4
-	OpMulByPowOf2Float64x8
-	OpMulByPowOf2MaskedFloat32x4
-	OpMulByPowOf2MaskedFloat32x8
-	OpMulByPowOf2MaskedFloat32x16
-	OpMulByPowOf2MaskedFloat64x2
-	OpMulByPowOf2MaskedFloat64x4
-	OpMulByPowOf2MaskedFloat64x8
 	OpMulEvenWidenInt32x4
 	OpMulEvenWidenInt32x8
 	OpMulEvenWidenInt64x2
@@ -5276,30 +5302,30 @@ const (
 	OpMulHighUint16x8
 	OpMulHighUint16x16
 	OpMulHighUint16x32
-	OpMulLowInt16x8
-	OpMulLowInt16x16
-	OpMulLowInt16x32
-	OpMulLowInt32x4
-	OpMulLowInt32x8
-	OpMulLowInt32x16
-	OpMulLowInt64x2
-	OpMulLowInt64x4
-	OpMulLowInt64x8
-	OpMulLowMaskedInt16x8
-	OpMulLowMaskedInt16x16
-	OpMulLowMaskedInt16x32
-	OpMulLowMaskedInt32x4
-	OpMulLowMaskedInt32x8
-	OpMulLowMaskedInt32x16
-	OpMulLowMaskedInt64x2
-	OpMulLowMaskedInt64x4
-	OpMulLowMaskedInt64x8
+	OpMulInt16x8
+	OpMulInt16x16
+	OpMulInt16x32
+	OpMulInt32x4
+	OpMulInt32x8
+	OpMulInt32x16
+	OpMulInt64x2
+	OpMulInt64x4
+	OpMulInt64x8
 	OpMulMaskedFloat32x4
 	OpMulMaskedFloat32x8
 	OpMulMaskedFloat32x16
 	OpMulMaskedFloat64x2
 	OpMulMaskedFloat64x4
 	OpMulMaskedFloat64x8
+	OpMulMaskedInt16x8
+	OpMulMaskedInt16x16
+	OpMulMaskedInt16x32
+	OpMulMaskedInt32x4
+	OpMulMaskedInt32x8
+	OpMulMaskedInt32x16
+	OpMulMaskedInt64x2
+	OpMulMaskedInt64x4
+	OpMulMaskedInt64x8
 	OpNotEqualFloat32x4
 	OpNotEqualFloat32x8
 	OpNotEqualFloat32x16
@@ -5402,30 +5428,6 @@ const (
 	OpPairDotProdMaskedInt16x8
 	OpPairDotProdMaskedInt16x16
 	OpPairDotProdMaskedInt16x32
-	OpPairwiseAddFloat32x4
-	OpPairwiseAddFloat32x8
-	OpPairwiseAddFloat64x2
-	OpPairwiseAddFloat64x4
-	OpPairwiseAddInt16x8
-	OpPairwiseAddInt16x16
-	OpPairwiseAddInt32x4
-	OpPairwiseAddInt32x8
-	OpPairwiseAddUint16x8
-	OpPairwiseAddUint16x16
-	OpPairwiseAddUint32x4
-	OpPairwiseAddUint32x8
-	OpPairwiseSubFloat32x4
-	OpPairwiseSubFloat32x8
-	OpPairwiseSubFloat64x2
-	OpPairwiseSubFloat64x4
-	OpPairwiseSubInt16x8
-	OpPairwiseSubInt16x16
-	OpPairwiseSubInt32x4
-	OpPairwiseSubInt32x8
-	OpPairwiseSubUint16x8
-	OpPairwiseSubUint16x16
-	OpPairwiseSubUint32x4
-	OpPairwiseSubUint32x8
 	OpPermute2Float32x4
 	OpPermute2Float32x8
 	OpPermute2Float32x16
@@ -5640,58 +5642,6 @@ const (
 	OpSaturatedAddDotProdMaskedInt32x4
 	OpSaturatedAddDotProdMaskedInt32x8
 	OpSaturatedAddDotProdMaskedInt32x16
-	OpSaturatedAddInt8x16
-	OpSaturatedAddInt8x32
-	OpSaturatedAddInt8x64
-	OpSaturatedAddInt16x8
-	OpSaturatedAddInt16x16
-	OpSaturatedAddInt16x32
-	OpSaturatedAddMaskedInt8x16
-	OpSaturatedAddMaskedInt8x32
-	OpSaturatedAddMaskedInt8x64
-	OpSaturatedAddMaskedInt16x8
-	OpSaturatedAddMaskedInt16x16
-	OpSaturatedAddMaskedInt16x32
-	OpSaturatedAddMaskedUint8x16
-	OpSaturatedAddMaskedUint8x32
-	OpSaturatedAddMaskedUint8x64
-	OpSaturatedAddMaskedUint16x8
-	OpSaturatedAddMaskedUint16x16
-	OpSaturatedAddMaskedUint16x32
-	OpSaturatedAddUint8x16
-	OpSaturatedAddUint8x32
-	OpSaturatedAddUint8x64
-	OpSaturatedAddUint16x8
-	OpSaturatedAddUint16x16
-	OpSaturatedAddUint16x32
-	OpSaturatedPairwiseAddInt16x8
-	OpSaturatedPairwiseAddInt16x16
-	OpSaturatedPairwiseSubInt16x8
-	OpSaturatedPairwiseSubInt16x16
-	OpSaturatedSubInt8x16
-	OpSaturatedSubInt8x32
-	OpSaturatedSubInt8x64
-	OpSaturatedSubInt16x8
-	OpSaturatedSubInt16x16
-	OpSaturatedSubInt16x32
-	OpSaturatedSubMaskedInt8x16
-	OpSaturatedSubMaskedInt8x32
-	OpSaturatedSubMaskedInt8x64
-	OpSaturatedSubMaskedInt16x8
-	OpSaturatedSubMaskedInt16x16
-	OpSaturatedSubMaskedInt16x32
-	OpSaturatedSubMaskedUint8x16
-	OpSaturatedSubMaskedUint8x32
-	OpSaturatedSubMaskedUint8x64
-	OpSaturatedSubMaskedUint16x8
-	OpSaturatedSubMaskedUint16x16
-	OpSaturatedSubMaskedUint16x32
-	OpSaturatedSubUint8x16
-	OpSaturatedSubUint8x32
-	OpSaturatedSubUint8x64
-	OpSaturatedSubUint16x8
-	OpSaturatedSubUint16x16
-	OpSaturatedSubUint16x32
 	OpSaturatedUnsignedSignedPairDotProdMaskedUint8x16
 	OpSaturatedUnsignedSignedPairDotProdMaskedUint8x32
 	OpSaturatedUnsignedSignedPairDotProdMaskedUint8x64
@@ -5704,6 +5654,18 @@ const (
 	OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedInt32x4
 	OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedInt32x8
 	OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedInt32x16
+	OpScaleFloat32x4
+	OpScaleFloat32x8
+	OpScaleFloat32x16
+	OpScaleFloat64x2
+	OpScaleFloat64x4
+	OpScaleFloat64x8
+	OpScaleMaskedFloat32x4
+	OpScaleMaskedFloat32x8
+	OpScaleMaskedFloat32x16
+	OpScaleMaskedFloat64x2
+	OpScaleMaskedFloat64x4
+	OpScaleMaskedFloat64x8
 	OpShiftAllLeftInt16x8
 	OpShiftAllLeftInt16x16
 	OpShiftAllLeftInt16x32
@@ -5986,6 +5948,44 @@ const (
 	OpSubMaskedUint64x2
 	OpSubMaskedUint64x4
 	OpSubMaskedUint64x8
+	OpSubPairsFloat32x4
+	OpSubPairsFloat32x8
+	OpSubPairsFloat64x2
+	OpSubPairsFloat64x4
+	OpSubPairsInt16x8
+	OpSubPairsInt16x16
+	OpSubPairsInt32x4
+	OpSubPairsInt32x8
+	OpSubPairsSaturatedInt16x8
+	OpSubPairsSaturatedInt16x16
+	OpSubPairsUint16x8
+	OpSubPairsUint16x16
+	OpSubPairsUint32x4
+	OpSubPairsUint32x8
+	OpSubSaturatedInt8x16
+	OpSubSaturatedInt8x32
+	OpSubSaturatedInt8x64
+	OpSubSaturatedInt16x8
+	OpSubSaturatedInt16x16
+	OpSubSaturatedInt16x32
+	OpSubSaturatedMaskedInt8x16
+	OpSubSaturatedMaskedInt8x32
+	OpSubSaturatedMaskedInt8x64
+	OpSubSaturatedMaskedInt16x8
+	OpSubSaturatedMaskedInt16x16
+	OpSubSaturatedMaskedInt16x32
+	OpSubSaturatedMaskedUint8x16
+	OpSubSaturatedMaskedUint8x32
+	OpSubSaturatedMaskedUint8x64
+	OpSubSaturatedMaskedUint16x8
+	OpSubSaturatedMaskedUint16x16
+	OpSubSaturatedMaskedUint16x32
+	OpSubSaturatedUint8x16
+	OpSubSaturatedUint8x32
+	OpSubSaturatedUint8x64
+	OpSubSaturatedUint16x8
+	OpSubSaturatedUint16x16
+	OpSubSaturatedUint16x32
 	OpSubUint8x16
 	OpSubUint8x32
 	OpSubUint8x64
@@ -6044,78 +6044,54 @@ const (
 	OpXorUint64x2
 	OpXorUint64x4
 	OpXorUint64x8
-	OpCeilWithPrecisionFloat32x4
-	OpCeilWithPrecisionFloat32x8
-	OpCeilWithPrecisionFloat32x16
-	OpCeilWithPrecisionFloat64x2
-	OpCeilWithPrecisionFloat64x4
-	OpCeilWithPrecisionFloat64x8
-	OpCeilWithPrecisionMaskedFloat32x4
-	OpCeilWithPrecisionMaskedFloat32x8
-	OpCeilWithPrecisionMaskedFloat32x16
-	OpCeilWithPrecisionMaskedFloat64x2
-	OpCeilWithPrecisionMaskedFloat64x4
-	OpCeilWithPrecisionMaskedFloat64x8
-	OpDiffWithCeilWithPrecisionFloat32x4
-	OpDiffWithCeilWithPrecisionFloat32x8
-	OpDiffWithCeilWithPrecisionFloat32x16
-	OpDiffWithCeilWithPrecisionFloat64x2
-	OpDiffWithCeilWithPrecisionFloat64x4
-	OpDiffWithCeilWithPrecisionFloat64x8
-	OpDiffWithCeilWithPrecisionMaskedFloat32x4
-	OpDiffWithCeilWithPrecisionMaskedFloat32x8
-	OpDiffWithCeilWithPrecisionMaskedFloat32x16
-	OpDiffWithCeilWithPrecisionMaskedFloat64x2
-	OpDiffWithCeilWithPrecisionMaskedFloat64x4
-	OpDiffWithCeilWithPrecisionMaskedFloat64x8
-	OpDiffWithFloorWithPrecisionFloat32x4
-	OpDiffWithFloorWithPrecisionFloat32x8
-	OpDiffWithFloorWithPrecisionFloat32x16
-	OpDiffWithFloorWithPrecisionFloat64x2
-	OpDiffWithFloorWithPrecisionFloat64x4
-	OpDiffWithFloorWithPrecisionFloat64x8
-	OpDiffWithFloorWithPrecisionMaskedFloat32x4
-	OpDiffWithFloorWithPrecisionMaskedFloat32x8
-	OpDiffWithFloorWithPrecisionMaskedFloat32x16
-	OpDiffWithFloorWithPrecisionMaskedFloat64x2
-	OpDiffWithFloorWithPrecisionMaskedFloat64x4
-	OpDiffWithFloorWithPrecisionMaskedFloat64x8
-	OpDiffWithRoundWithPrecisionFloat32x4
-	OpDiffWithRoundWithPrecisionFloat32x8
-	OpDiffWithRoundWithPrecisionFloat32x16
-	OpDiffWithRoundWithPrecisionFloat64x2
-	OpDiffWithRoundWithPrecisionFloat64x4
-	OpDiffWithRoundWithPrecisionFloat64x8
-	OpDiffWithRoundWithPrecisionMaskedFloat32x4
-	OpDiffWithRoundWithPrecisionMaskedFloat32x8
-	OpDiffWithRoundWithPrecisionMaskedFloat32x16
-	OpDiffWithRoundWithPrecisionMaskedFloat64x2
-	OpDiffWithRoundWithPrecisionMaskedFloat64x4
-	OpDiffWithRoundWithPrecisionMaskedFloat64x8
-	OpDiffWithTruncWithPrecisionFloat32x4
-	OpDiffWithTruncWithPrecisionFloat32x8
-	OpDiffWithTruncWithPrecisionFloat32x16
-	OpDiffWithTruncWithPrecisionFloat64x2
-	OpDiffWithTruncWithPrecisionFloat64x4
-	OpDiffWithTruncWithPrecisionFloat64x8
-	OpDiffWithTruncWithPrecisionMaskedFloat32x4
-	OpDiffWithTruncWithPrecisionMaskedFloat32x8
-	OpDiffWithTruncWithPrecisionMaskedFloat32x16
-	OpDiffWithTruncWithPrecisionMaskedFloat64x2
-	OpDiffWithTruncWithPrecisionMaskedFloat64x4
-	OpDiffWithTruncWithPrecisionMaskedFloat64x8
-	OpFloorWithPrecisionFloat32x4
-	OpFloorWithPrecisionFloat32x8
-	OpFloorWithPrecisionFloat32x16
-	OpFloorWithPrecisionFloat64x2
-	OpFloorWithPrecisionFloat64x4
-	OpFloorWithPrecisionFloat64x8
-	OpFloorWithPrecisionMaskedFloat32x4
-	OpFloorWithPrecisionMaskedFloat32x8
-	OpFloorWithPrecisionMaskedFloat32x16
-	OpFloorWithPrecisionMaskedFloat64x2
-	OpFloorWithPrecisionMaskedFloat64x4
-	OpFloorWithPrecisionMaskedFloat64x8
+	OpCeilScaledFloat32x4
+	OpCeilScaledFloat32x8
+	OpCeilScaledFloat32x16
+	OpCeilScaledFloat64x2
+	OpCeilScaledFloat64x4
+	OpCeilScaledFloat64x8
+	OpCeilScaledMaskedFloat32x4
+	OpCeilScaledMaskedFloat32x8
+	OpCeilScaledMaskedFloat32x16
+	OpCeilScaledMaskedFloat64x2
+	OpCeilScaledMaskedFloat64x4
+	OpCeilScaledMaskedFloat64x8
+	OpCeilScaledResidueFloat32x4
+	OpCeilScaledResidueFloat32x8
+	OpCeilScaledResidueFloat32x16
+	OpCeilScaledResidueFloat64x2
+	OpCeilScaledResidueFloat64x4
+	OpCeilScaledResidueFloat64x8
+	OpCeilScaledResidueMaskedFloat32x4
+	OpCeilScaledResidueMaskedFloat32x8
+	OpCeilScaledResidueMaskedFloat32x16
+	OpCeilScaledResidueMaskedFloat64x2
+	OpCeilScaledResidueMaskedFloat64x4
+	OpCeilScaledResidueMaskedFloat64x8
+	OpFloorScaledFloat32x4
+	OpFloorScaledFloat32x8
+	OpFloorScaledFloat32x16
+	OpFloorScaledFloat64x2
+	OpFloorScaledFloat64x4
+	OpFloorScaledFloat64x8
+	OpFloorScaledMaskedFloat32x4
+	OpFloorScaledMaskedFloat32x8
+	OpFloorScaledMaskedFloat32x16
+	OpFloorScaledMaskedFloat64x2
+	OpFloorScaledMaskedFloat64x4
+	OpFloorScaledMaskedFloat64x8
+	OpFloorScaledResidueFloat32x4
+	OpFloorScaledResidueFloat32x8
+	OpFloorScaledResidueFloat32x16
+	OpFloorScaledResidueFloat64x2
+	OpFloorScaledResidueFloat64x4
+	OpFloorScaledResidueFloat64x8
+	OpFloorScaledResidueMaskedFloat32x4
+	OpFloorScaledResidueMaskedFloat32x8
+	OpFloorScaledResidueMaskedFloat32x16
+	OpFloorScaledResidueMaskedFloat64x2
+	OpFloorScaledResidueMaskedFloat64x4
+	OpFloorScaledResidueMaskedFloat64x8
 	OpGaloisFieldAffineTransformInverseMaskedUint8x16
 	OpGaloisFieldAffineTransformInverseMaskedUint8x32
 	OpGaloisFieldAffineTransformInverseMaskedUint8x64
@@ -6194,18 +6170,30 @@ const (
 	OpRotateAllRightUint64x2
 	OpRotateAllRightUint64x4
 	OpRotateAllRightUint64x8
-	OpRoundWithPrecisionFloat32x4
-	OpRoundWithPrecisionFloat32x8
-	OpRoundWithPrecisionFloat32x16
-	OpRoundWithPrecisionFloat64x2
-	OpRoundWithPrecisionFloat64x4
-	OpRoundWithPrecisionFloat64x8
-	OpRoundWithPrecisionMaskedFloat32x4
-	OpRoundWithPrecisionMaskedFloat32x8
-	OpRoundWithPrecisionMaskedFloat32x16
-	OpRoundWithPrecisionMaskedFloat64x2
-	OpRoundWithPrecisionMaskedFloat64x4
-	OpRoundWithPrecisionMaskedFloat64x8
+	OpRoundScaledFloat32x4
+	OpRoundScaledFloat32x8
+	OpRoundScaledFloat32x16
+	OpRoundScaledFloat64x2
+	OpRoundScaledFloat64x4
+	OpRoundScaledFloat64x8
+	OpRoundScaledMaskedFloat32x4
+	OpRoundScaledMaskedFloat32x8
+	OpRoundScaledMaskedFloat32x16
+	OpRoundScaledMaskedFloat64x2
+	OpRoundScaledMaskedFloat64x4
+	OpRoundScaledMaskedFloat64x8
+	OpRoundScaledResidueFloat32x4
+	OpRoundScaledResidueFloat32x8
+	OpRoundScaledResidueFloat32x16
+	OpRoundScaledResidueFloat64x2
+	OpRoundScaledResidueFloat64x4
+	OpRoundScaledResidueFloat64x8
+	OpRoundScaledResidueMaskedFloat32x4
+	OpRoundScaledResidueMaskedFloat32x8
+	OpRoundScaledResidueMaskedFloat32x16
+	OpRoundScaledResidueMaskedFloat64x2
+	OpRoundScaledResidueMaskedFloat64x4
+	OpRoundScaledResidueMaskedFloat64x8
 	OpSet128Float32x8
 	OpSet128Float64x4
 	OpSet128Int8x32
@@ -6296,18 +6284,30 @@ const (
 	OpShiftAllRightConcatUint64x2
 	OpShiftAllRightConcatUint64x4
 	OpShiftAllRightConcatUint64x8
-	OpTruncWithPrecisionFloat32x4
-	OpTruncWithPrecisionFloat32x8
-	OpTruncWithPrecisionFloat32x16
-	OpTruncWithPrecisionFloat64x2
-	OpTruncWithPrecisionFloat64x4
-	OpTruncWithPrecisionFloat64x8
-	OpTruncWithPrecisionMaskedFloat32x4
-	OpTruncWithPrecisionMaskedFloat32x8
-	OpTruncWithPrecisionMaskedFloat32x16
-	OpTruncWithPrecisionMaskedFloat64x2
-	OpTruncWithPrecisionMaskedFloat64x4
-	OpTruncWithPrecisionMaskedFloat64x8
+	OpTruncScaledFloat32x4
+	OpTruncScaledFloat32x8
+	OpTruncScaledFloat32x16
+	OpTruncScaledFloat64x2
+	OpTruncScaledFloat64x4
+	OpTruncScaledFloat64x8
+	OpTruncScaledMaskedFloat32x4
+	OpTruncScaledMaskedFloat32x8
+	OpTruncScaledMaskedFloat32x16
+	OpTruncScaledMaskedFloat64x2
+	OpTruncScaledMaskedFloat64x4
+	OpTruncScaledMaskedFloat64x8
+	OpTruncScaledResidueFloat32x4
+	OpTruncScaledResidueFloat32x8
+	OpTruncScaledResidueFloat32x16
+	OpTruncScaledResidueFloat64x2
+	OpTruncScaledResidueFloat64x4
+	OpTruncScaledResidueFloat64x8
+	OpTruncScaledResidueMaskedFloat32x4
+	OpTruncScaledResidueMaskedFloat32x8
+	OpTruncScaledResidueMaskedFloat32x16
+	OpTruncScaledResidueMaskedFloat64x2
+	OpTruncScaledResidueMaskedFloat64x4
+	OpTruncScaledResidueMaskedFloat64x8
 )
 
 var opcodeTable = [...]opInfo{
@@ -62124,6 +62124,220 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:    "AddPairsFloat32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AddPairsFloat32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AddPairsFloat64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AddPairsFloat64x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AddPairsInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AddPairsInt16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AddPairsInt32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AddPairsInt32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AddPairsSaturatedInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AddPairsSaturatedInt16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AddPairsUint16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AddPairsUint16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AddPairsUint32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AddPairsUint32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:        "AddSaturatedInt8x16",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedInt8x32",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedInt8x64",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedInt16x8",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedInt16x16",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedInt16x32",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedMaskedInt8x16",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedMaskedInt8x32",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedMaskedInt8x64",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedMaskedInt16x8",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedMaskedInt16x16",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedMaskedInt16x32",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedMaskedUint8x16",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedMaskedUint8x32",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedMaskedUint8x64",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedMaskedUint16x8",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedMaskedUint16x16",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedMaskedUint16x32",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedUint8x16",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedUint8x32",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedUint8x64",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedUint16x8",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedUint16x16",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "AddSaturatedUint16x32",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
 		name:    "AddSubFloat32x4",
 		argLen:  2,
 		generic: true,
@@ -65694,66 +65908,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:    "MulByPowOf2Float32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MulByPowOf2Float32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MulByPowOf2Float32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MulByPowOf2Float64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MulByPowOf2Float64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MulByPowOf2Float64x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MulByPowOf2MaskedFloat32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "MulByPowOf2MaskedFloat32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "MulByPowOf2MaskedFloat32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "MulByPowOf2MaskedFloat64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "MulByPowOf2MaskedFloat64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "MulByPowOf2MaskedFloat64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
 		name:        "MulEvenWidenInt32x4",
 		argLen:      2,
 		commutative: true,
@@ -65958,110 +66112,56 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MulLowInt16x8",
+		name:        "MulInt16x8",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
-		name:        "MulLowInt16x16",
+		name:        "MulInt16x16",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
-		name:        "MulLowInt16x32",
+		name:        "MulInt16x32",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
-		name:        "MulLowInt32x4",
+		name:        "MulInt32x4",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
-		name:        "MulLowInt32x8",
+		name:        "MulInt32x8",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
-		name:        "MulLowInt32x16",
+		name:        "MulInt32x16",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
-		name:        "MulLowInt64x2",
+		name:        "MulInt64x2",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
-		name:        "MulLowInt64x4",
+		name:        "MulInt64x4",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
-		name:        "MulLowInt64x8",
+		name:        "MulInt64x8",
 		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulLowMaskedInt16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulLowMaskedInt16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulLowMaskedInt16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulLowMaskedInt32x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulLowMaskedInt32x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulLowMaskedInt32x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulLowMaskedInt64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulLowMaskedInt64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulLowMaskedInt64x8",
-		argLen:      3,
 		commutative: true,
 		generic:     true,
 	},
@@ -66097,6 +66197,60 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "MulMaskedFloat64x8",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulMaskedInt16x8",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulMaskedInt16x16",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulMaskedInt16x32",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulMaskedInt32x4",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulMaskedInt32x8",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulMaskedInt32x16",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulMaskedInt64x2",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulMaskedInt64x4",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulMaskedInt64x8",
 		argLen:      3,
 		commutative: true,
 		generic:     true,
@@ -66705,126 +66859,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "PairDotProdMaskedInt16x32",
 		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PairwiseAddFloat32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseAddFloat32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseAddFloat64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseAddFloat64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseAddInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseAddInt16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseAddInt32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseAddInt32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseAddUint16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseAddUint16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseAddUint32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseAddUint32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseSubFloat32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseSubFloat32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseSubFloat64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseSubFloat64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseSubInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseSubInt16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseSubInt32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseSubInt32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseSubUint16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseSubUint16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseSubUint32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairwiseSubUint32x8",
-		argLen:  2,
 		generic: true,
 	},
 	{
@@ -67898,290 +67932,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:        "SaturatedAddInt8x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddInt8x32",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddInt8x64",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddInt16x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddInt16x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddInt16x32",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddMaskedInt8x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddMaskedInt8x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddMaskedInt8x64",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddMaskedInt16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddMaskedInt16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddMaskedInt16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddMaskedUint8x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddMaskedUint8x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddMaskedUint8x64",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddMaskedUint16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddMaskedUint16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddMaskedUint16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddUint8x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddUint8x32",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddUint8x64",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddUint16x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddUint16x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "SaturatedAddUint16x32",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:    "SaturatedPairwiseAddInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturatedPairwiseAddInt16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturatedPairwiseSubInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturatedPairwiseSubInt16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubInt8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubInt8x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubInt8x64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubInt16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubInt16x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubMaskedInt8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubMaskedInt8x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubMaskedInt8x64",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubMaskedInt16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubMaskedInt16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubMaskedInt16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubMaskedUint8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubMaskedUint8x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubMaskedUint8x64",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubMaskedUint16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubMaskedUint16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubMaskedUint16x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubUint8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubUint8x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubUint8x64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubUint16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubUint16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturatedSubUint16x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "SaturatedUnsignedSignedPairDotProdMaskedUint8x16",
 		argLen:  3,
 		generic: true,
@@ -68239,6 +67989,66 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SaturatedUnsignedSignedQuadDotProdAccumulateMaskedInt32x16",
 		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "ScaleFloat32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ScaleFloat32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ScaleFloat32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ScaleFloat64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ScaleFloat64x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ScaleFloat64x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ScaleMaskedFloat32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "ScaleMaskedFloat32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "ScaleMaskedFloat32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "ScaleMaskedFloat64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "ScaleMaskedFloat64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "ScaleMaskedFloat64x8",
+		argLen:  3,
 		generic: true,
 	},
 	{
@@ -69652,6 +69462,196 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "SubPairsFloat32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubPairsFloat32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubPairsFloat64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubPairsFloat64x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubPairsInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubPairsInt16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubPairsInt32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubPairsInt32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubPairsSaturatedInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubPairsSaturatedInt16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubPairsUint16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubPairsUint16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubPairsUint32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubPairsUint32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedInt8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedInt8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedInt8x64",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedInt16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedInt16x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedMaskedInt8x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedMaskedInt8x32",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedMaskedInt8x64",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedMaskedInt16x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedMaskedInt16x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedMaskedInt16x32",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedMaskedUint8x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedMaskedUint8x32",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedMaskedUint8x64",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedMaskedUint16x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedMaskedUint16x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedMaskedUint16x32",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedUint8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedUint8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedUint8x64",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedUint16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedUint16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SubSaturatedUint16x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:    "SubUint8x16",
 		argLen:  2,
 		generic: true,
@@ -69978,433 +69978,289 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:    "CeilWithPrecisionFloat32x4",
+		name:    "CeilScaledFloat32x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "CeilWithPrecisionFloat32x8",
+		name:    "CeilScaledFloat32x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "CeilWithPrecisionFloat32x16",
+		name:    "CeilScaledFloat32x16",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "CeilWithPrecisionFloat64x2",
+		name:    "CeilScaledFloat64x2",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "CeilWithPrecisionFloat64x4",
+		name:    "CeilScaledFloat64x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "CeilWithPrecisionFloat64x8",
+		name:    "CeilScaledFloat64x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "CeilWithPrecisionMaskedFloat32x4",
+		name:    "CeilScaledMaskedFloat32x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "CeilWithPrecisionMaskedFloat32x8",
+		name:    "CeilScaledMaskedFloat32x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "CeilWithPrecisionMaskedFloat32x16",
+		name:    "CeilScaledMaskedFloat32x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "CeilWithPrecisionMaskedFloat64x2",
+		name:    "CeilScaledMaskedFloat64x2",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "CeilWithPrecisionMaskedFloat64x4",
+		name:    "CeilScaledMaskedFloat64x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "CeilWithPrecisionMaskedFloat64x8",
+		name:    "CeilScaledMaskedFloat64x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DiffWithCeilWithPrecisionFloat32x4",
+		name:    "CeilScaledResidueFloat32x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "DiffWithCeilWithPrecisionFloat32x8",
+		name:    "CeilScaledResidueFloat32x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "DiffWithCeilWithPrecisionFloat32x16",
+		name:    "CeilScaledResidueFloat32x16",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "DiffWithCeilWithPrecisionFloat64x2",
+		name:    "CeilScaledResidueFloat64x2",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "DiffWithCeilWithPrecisionFloat64x4",
+		name:    "CeilScaledResidueFloat64x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "DiffWithCeilWithPrecisionFloat64x8",
+		name:    "CeilScaledResidueFloat64x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "DiffWithCeilWithPrecisionMaskedFloat32x4",
+		name:    "CeilScaledResidueMaskedFloat32x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DiffWithCeilWithPrecisionMaskedFloat32x8",
+		name:    "CeilScaledResidueMaskedFloat32x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DiffWithCeilWithPrecisionMaskedFloat32x16",
+		name:    "CeilScaledResidueMaskedFloat32x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DiffWithCeilWithPrecisionMaskedFloat64x2",
+		name:    "CeilScaledResidueMaskedFloat64x2",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DiffWithCeilWithPrecisionMaskedFloat64x4",
+		name:    "CeilScaledResidueMaskedFloat64x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DiffWithCeilWithPrecisionMaskedFloat64x8",
+		name:    "CeilScaledResidueMaskedFloat64x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DiffWithFloorWithPrecisionFloat32x4",
+		name:    "FloorScaledFloat32x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "DiffWithFloorWithPrecisionFloat32x8",
+		name:    "FloorScaledFloat32x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "DiffWithFloorWithPrecisionFloat32x16",
+		name:    "FloorScaledFloat32x16",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "DiffWithFloorWithPrecisionFloat64x2",
+		name:    "FloorScaledFloat64x2",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "DiffWithFloorWithPrecisionFloat64x4",
+		name:    "FloorScaledFloat64x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "DiffWithFloorWithPrecisionFloat64x8",
+		name:    "FloorScaledFloat64x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "DiffWithFloorWithPrecisionMaskedFloat32x4",
+		name:    "FloorScaledMaskedFloat32x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DiffWithFloorWithPrecisionMaskedFloat32x8",
+		name:    "FloorScaledMaskedFloat32x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DiffWithFloorWithPrecisionMaskedFloat32x16",
+		name:    "FloorScaledMaskedFloat32x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DiffWithFloorWithPrecisionMaskedFloat64x2",
+		name:    "FloorScaledMaskedFloat64x2",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DiffWithFloorWithPrecisionMaskedFloat64x4",
+		name:    "FloorScaledMaskedFloat64x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DiffWithFloorWithPrecisionMaskedFloat64x8",
+		name:    "FloorScaledMaskedFloat64x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DiffWithRoundWithPrecisionFloat32x4",
+		name:    "FloorScaledResidueFloat32x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "DiffWithRoundWithPrecisionFloat32x8",
+		name:    "FloorScaledResidueFloat32x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "DiffWithRoundWithPrecisionFloat32x16",
+		name:    "FloorScaledResidueFloat32x16",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "DiffWithRoundWithPrecisionFloat64x2",
+		name:    "FloorScaledResidueFloat64x2",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "DiffWithRoundWithPrecisionFloat64x4",
+		name:    "FloorScaledResidueFloat64x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "DiffWithRoundWithPrecisionFloat64x8",
+		name:    "FloorScaledResidueFloat64x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "DiffWithRoundWithPrecisionMaskedFloat32x4",
+		name:    "FloorScaledResidueMaskedFloat32x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DiffWithRoundWithPrecisionMaskedFloat32x8",
+		name:    "FloorScaledResidueMaskedFloat32x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DiffWithRoundWithPrecisionMaskedFloat32x16",
+		name:    "FloorScaledResidueMaskedFloat32x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DiffWithRoundWithPrecisionMaskedFloat64x2",
+		name:    "FloorScaledResidueMaskedFloat64x2",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DiffWithRoundWithPrecisionMaskedFloat64x4",
+		name:    "FloorScaledResidueMaskedFloat64x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "DiffWithRoundWithPrecisionMaskedFloat64x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "DiffWithTruncWithPrecisionFloat32x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "DiffWithTruncWithPrecisionFloat32x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "DiffWithTruncWithPrecisionFloat32x16",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "DiffWithTruncWithPrecisionFloat64x2",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "DiffWithTruncWithPrecisionFloat64x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "DiffWithTruncWithPrecisionFloat64x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "DiffWithTruncWithPrecisionMaskedFloat32x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "DiffWithTruncWithPrecisionMaskedFloat32x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "DiffWithTruncWithPrecisionMaskedFloat32x16",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "DiffWithTruncWithPrecisionMaskedFloat64x2",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "DiffWithTruncWithPrecisionMaskedFloat64x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "DiffWithTruncWithPrecisionMaskedFloat64x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "FloorWithPrecisionFloat32x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "FloorWithPrecisionFloat32x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "FloorWithPrecisionFloat32x16",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "FloorWithPrecisionFloat64x2",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "FloorWithPrecisionFloat64x4",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "FloorWithPrecisionFloat64x8",
-		auxType: auxInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "FloorWithPrecisionMaskedFloat32x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "FloorWithPrecisionMaskedFloat32x8",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "FloorWithPrecisionMaskedFloat32x16",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "FloorWithPrecisionMaskedFloat64x2",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "FloorWithPrecisionMaskedFloat64x4",
-		auxType: auxInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "FloorWithPrecisionMaskedFloat64x8",
+		name:    "FloorScaledResidueMaskedFloat64x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -70878,73 +70734,145 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "RoundWithPrecisionFloat32x4",
+		name:    "RoundScaledFloat32x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundWithPrecisionFloat32x8",
+		name:    "RoundScaledFloat32x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundWithPrecisionFloat32x16",
+		name:    "RoundScaledFloat32x16",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundWithPrecisionFloat64x2",
+		name:    "RoundScaledFloat64x2",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundWithPrecisionFloat64x4",
+		name:    "RoundScaledFloat64x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundWithPrecisionFloat64x8",
+		name:    "RoundScaledFloat64x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundWithPrecisionMaskedFloat32x4",
+		name:    "RoundScaledMaskedFloat32x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "RoundWithPrecisionMaskedFloat32x8",
+		name:    "RoundScaledMaskedFloat32x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "RoundWithPrecisionMaskedFloat32x16",
+		name:    "RoundScaledMaskedFloat32x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "RoundWithPrecisionMaskedFloat64x2",
+		name:    "RoundScaledMaskedFloat64x2",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "RoundWithPrecisionMaskedFloat64x4",
+		name:    "RoundScaledMaskedFloat64x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "RoundWithPrecisionMaskedFloat64x8",
+		name:    "RoundScaledMaskedFloat64x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "RoundScaledResidueFloat32x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "RoundScaledResidueFloat32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "RoundScaledResidueFloat32x16",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "RoundScaledResidueFloat64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "RoundScaledResidueFloat64x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "RoundScaledResidueFloat64x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "RoundScaledResidueMaskedFloat32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "RoundScaledResidueMaskedFloat32x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "RoundScaledResidueMaskedFloat32x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "RoundScaledResidueMaskedFloat64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "RoundScaledResidueMaskedFloat64x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "RoundScaledResidueMaskedFloat64x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
@@ -71490,73 +71418,145 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "TruncWithPrecisionFloat32x4",
+		name:    "TruncScaledFloat32x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncWithPrecisionFloat32x8",
+		name:    "TruncScaledFloat32x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncWithPrecisionFloat32x16",
+		name:    "TruncScaledFloat32x16",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncWithPrecisionFloat64x2",
+		name:    "TruncScaledFloat64x2",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncWithPrecisionFloat64x4",
+		name:    "TruncScaledFloat64x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncWithPrecisionFloat64x8",
+		name:    "TruncScaledFloat64x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncWithPrecisionMaskedFloat32x4",
+		name:    "TruncScaledMaskedFloat32x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "TruncWithPrecisionMaskedFloat32x8",
+		name:    "TruncScaledMaskedFloat32x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "TruncWithPrecisionMaskedFloat32x16",
+		name:    "TruncScaledMaskedFloat32x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "TruncWithPrecisionMaskedFloat64x2",
+		name:    "TruncScaledMaskedFloat64x2",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "TruncWithPrecisionMaskedFloat64x4",
+		name:    "TruncScaledMaskedFloat64x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "TruncWithPrecisionMaskedFloat64x8",
+		name:    "TruncScaledMaskedFloat64x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "TruncScaledResidueFloat32x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "TruncScaledResidueFloat32x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "TruncScaledResidueFloat32x16",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "TruncScaledResidueFloat64x2",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "TruncScaledResidueFloat64x4",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "TruncScaledResidueFloat64x8",
+		auxType: auxInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "TruncScaledResidueMaskedFloat32x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "TruncScaledResidueMaskedFloat32x8",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "TruncScaledResidueMaskedFloat32x16",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "TruncScaledResidueMaskedFloat64x2",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "TruncScaledResidueMaskedFloat64x4",
+		auxType: auxInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "TruncScaledResidueMaskedFloat64x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,

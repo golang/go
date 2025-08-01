@@ -309,42 +309,42 @@ func TestMul(t *testing.T) {
 	testFloat64x2Binary(t, simd.Float64x2.Mul, mulSlice[float64])
 	testFloat64x4Binary(t, simd.Float64x4.Mul, mulSlice[float64])
 
-	testInt16x16Binary(t, simd.Int16x16.MulLow, mulSlice[int16])
-	testInt16x8Binary(t, simd.Int16x8.MulLow, mulSlice[int16])
-	testInt32x4Binary(t, simd.Int32x4.MulLow, mulSlice[int32])
-	testInt32x8Binary(t, simd.Int32x8.MulLow, mulSlice[int32])
+	testInt16x16Binary(t, simd.Int16x16.Mul, mulSlice[int16])
+	testInt16x8Binary(t, simd.Int16x8.Mul, mulSlice[int16])
+	testInt32x4Binary(t, simd.Int32x4.Mul, mulSlice[int32])
+	testInt32x8Binary(t, simd.Int32x8.Mul, mulSlice[int32])
 
-	// testInt8x16Binary(t, simd.Int8x16.MulLow, mulSlice[int8]) // nope
-	// testInt8x32Binary(t, simd.Int8x32.MulLow, mulSlice[int8])
+	// testInt8x16Binary(t, simd.Int8x16.Mul, mulSlice[int8]) // nope
+	// testInt8x32Binary(t, simd.Int8x32.Mul, mulSlice[int8])
 
-	// TODO we should be able to do these, there's no difference between signed/unsigned mulLow
-	// testUint16x16Binary(t, simd.Uint16x16.MulLow, mulSlice[uint16])
-	// testUint16x8Binary(t, simd.Uint16x8.MulLow, mulSlice[uint16])
-	// testUint32x4Binary(t, simd.Uint32x4.MulLow, mulSlice[uint32])
-	// testUint32x8Binary(t, simd.Uint32x8.MulLow, mulSlice[uint32])
-	// testUint64x2Binary(t, simd.Uint64x2.MulLow, mulSlice[uint64])
-	// testUint64x4Binary(t, simd.Uint64x4.MulLow, mulSlice[uint64])
+	// TODO we should be able to do these, there's no difference between signed/unsigned Mul
+	// testUint16x16Binary(t, simd.Uint16x16.Mul, mulSlice[uint16])
+	// testUint16x8Binary(t, simd.Uint16x8.Mul, mulSlice[uint16])
+	// testUint32x4Binary(t, simd.Uint32x4.Mul, mulSlice[uint32])
+	// testUint32x8Binary(t, simd.Uint32x8.Mul, mulSlice[uint32])
+	// testUint64x2Binary(t, simd.Uint64x2.Mul, mulSlice[uint64])
+	// testUint64x4Binary(t, simd.Uint64x4.Mul, mulSlice[uint64])
 
-	// testUint8x16Binary(t, simd.Uint8x16.MulLow, mulSlice[uint8]) // nope
-	// testUint8x32Binary(t, simd.Uint8x32.MulLow, mulSlice[uint8])
+	// testUint8x16Binary(t, simd.Uint8x16.Mul, mulSlice[uint8]) // nope
+	// testUint8x32Binary(t, simd.Uint8x32.Mul, mulSlice[uint8])
 
 	if simd.HasAVX512() {
-		testInt64x2Binary(t, simd.Int64x2.MulLow, mulSlice[int64]) // avx512 only
-		testInt64x4Binary(t, simd.Int64x4.MulLow, mulSlice[int64])
+		testInt64x2Binary(t, simd.Int64x2.Mul, mulSlice[int64]) // avx512 only
+		testInt64x4Binary(t, simd.Int64x4.Mul, mulSlice[int64])
 
 		testFloat32x16Binary(t, simd.Float32x16.Mul, mulSlice[float32])
 		testFloat64x8Binary(t, simd.Float64x8.Mul, mulSlice[float64])
 
-		// testInt8x64Binary(t, simd.Int8x64.MulLow, mulSlice[int8]) // nope
-		testInt16x32Binary(t, simd.Int16x32.MulLow, mulSlice[int16])
-		testInt32x16Binary(t, simd.Int32x16.MulLow, mulSlice[int32])
-		testInt64x8Binary(t, simd.Int64x8.MulLow, mulSlice[int64])
-		// testUint8x64Binary(t, simd.Uint8x64.MulLow, mulSlice[uint8]) // nope
+		// testInt8x64Binary(t, simd.Int8x64.Mul, mulSlice[int8]) // nope
+		testInt16x32Binary(t, simd.Int16x32.Mul, mulSlice[int16])
+		testInt32x16Binary(t, simd.Int32x16.Mul, mulSlice[int32])
+		testInt64x8Binary(t, simd.Int64x8.Mul, mulSlice[int64])
+		// testUint8x64Binary(t, simd.Uint8x64.Mul, mulSlice[uint8]) // nope
 
 		// TODO signed should do the job
-		// testUint16x32Binary(t, simd.Uint16x32.MulLow, mulSlice[uint16])
-		// testUint32x16Binary(t, simd.Uint32x16.MulLow, mulSlice[uint32])
-		// testUint64x8Binary(t, simd.Uint64x8.MulLow, mulSlice[uint64])
+		// testUint16x32Binary(t, simd.Uint16x32.Mul, mulSlice[uint16])
+		// testUint32x16Binary(t, simd.Uint32x16.Mul, mulSlice[uint32])
+		// testUint64x8Binary(t, simd.Uint64x8.Mul, mulSlice[uint64])
 	}
 }
 

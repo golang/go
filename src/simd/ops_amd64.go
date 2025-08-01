@@ -556,6 +556,242 @@ func (x Uint64x4) AddMasked(y Uint64x4, mask Mask64x4) Uint64x4
 // Asm: VPADDQ, CPU Feature: AVX512F
 func (x Uint64x8) AddMasked(y Uint64x8, mask Mask64x8) Uint64x8
 
+/* AddPairs */
+
+// AddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+//
+// Asm: VHADDPS, CPU Feature: AVX
+func (x Float32x4) AddPairs(y Float32x4) Float32x4
+
+// AddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+//
+// Asm: VHADDPS, CPU Feature: AVX
+func (x Float32x8) AddPairs(y Float32x8) Float32x8
+
+// AddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+//
+// Asm: VHADDPD, CPU Feature: AVX
+func (x Float64x2) AddPairs(y Float64x2) Float64x2
+
+// AddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+//
+// Asm: VHADDPD, CPU Feature: AVX
+func (x Float64x4) AddPairs(y Float64x4) Float64x4
+
+// AddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+//
+// Asm: VPHADDW, CPU Feature: AVX
+func (x Int16x8) AddPairs(y Int16x8) Int16x8
+
+// AddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+//
+// Asm: VPHADDW, CPU Feature: AVX2
+func (x Int16x16) AddPairs(y Int16x16) Int16x16
+
+// AddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+//
+// Asm: VPHADDD, CPU Feature: AVX
+func (x Int32x4) AddPairs(y Int32x4) Int32x4
+
+// AddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+//
+// Asm: VPHADDD, CPU Feature: AVX2
+func (x Int32x8) AddPairs(y Int32x8) Int32x8
+
+// AddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+//
+// Asm: VPHADDW, CPU Feature: AVX
+func (x Uint16x8) AddPairs(y Uint16x8) Uint16x8
+
+// AddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+//
+// Asm: VPHADDW, CPU Feature: AVX2
+func (x Uint16x16) AddPairs(y Uint16x16) Uint16x16
+
+// AddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+//
+// Asm: VPHADDD, CPU Feature: AVX
+func (x Uint32x4) AddPairs(y Uint32x4) Uint32x4
+
+// AddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+//
+// Asm: VPHADDD, CPU Feature: AVX2
+func (x Uint32x8) AddPairs(y Uint32x8) Uint32x8
+
+/* AddPairsSaturated */
+
+// AddPairsSaturated horizontally adds adjacent pairs of elements with saturation.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+//
+// Asm: VPHADDSW, CPU Feature: AVX
+func (x Int16x8) AddPairsSaturated(y Int16x8) Int16x8
+
+// AddPairsSaturated horizontally adds adjacent pairs of elements with saturation.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
+//
+// Asm: VPHADDSW, CPU Feature: AVX2
+func (x Int16x16) AddPairsSaturated(y Int16x16) Int16x16
+
+/* AddSaturated */
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VPADDSB, CPU Feature: AVX
+func (x Int8x16) AddSaturated(y Int8x16) Int8x16
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VPADDSB, CPU Feature: AVX2
+func (x Int8x32) AddSaturated(y Int8x32) Int8x32
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VPADDSB, CPU Feature: AVX512BW
+func (x Int8x64) AddSaturated(y Int8x64) Int8x64
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VPADDSW, CPU Feature: AVX
+func (x Int16x8) AddSaturated(y Int16x8) Int16x8
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VPADDSW, CPU Feature: AVX2
+func (x Int16x16) AddSaturated(y Int16x16) Int16x16
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VPADDSW, CPU Feature: AVX512BW
+func (x Int16x32) AddSaturated(y Int16x32) Int16x32
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VPADDSB, CPU Feature: AVX
+func (x Uint8x16) AddSaturated(y Uint8x16) Uint8x16
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VPADDSB, CPU Feature: AVX2
+func (x Uint8x32) AddSaturated(y Uint8x32) Uint8x32
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VPADDSB, CPU Feature: AVX512BW
+func (x Uint8x64) AddSaturated(y Uint8x64) Uint8x64
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VPADDSW, CPU Feature: AVX
+func (x Uint16x8) AddSaturated(y Uint16x8) Uint16x8
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VPADDSW, CPU Feature: AVX2
+func (x Uint16x16) AddSaturated(y Uint16x16) Uint16x16
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VPADDSW, CPU Feature: AVX512BW
+func (x Uint16x32) AddSaturated(y Uint16x32) Uint16x32
+
+/* AddSaturatedMasked */
+
+// AddSaturatedMasked adds corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPADDSB, CPU Feature: AVX512BW
+func (x Int8x16) AddSaturatedMasked(y Int8x16, mask Mask8x16) Int8x16
+
+// AddSaturatedMasked adds corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPADDSB, CPU Feature: AVX512BW
+func (x Int8x32) AddSaturatedMasked(y Int8x32, mask Mask8x32) Int8x32
+
+// AddSaturatedMasked adds corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPADDSB, CPU Feature: AVX512BW
+func (x Int8x64) AddSaturatedMasked(y Int8x64, mask Mask8x64) Int8x64
+
+// AddSaturatedMasked adds corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPADDSW, CPU Feature: AVX512BW
+func (x Int16x8) AddSaturatedMasked(y Int16x8, mask Mask16x8) Int16x8
+
+// AddSaturatedMasked adds corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPADDSW, CPU Feature: AVX512BW
+func (x Int16x16) AddSaturatedMasked(y Int16x16, mask Mask16x16) Int16x16
+
+// AddSaturatedMasked adds corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPADDSW, CPU Feature: AVX512BW
+func (x Int16x32) AddSaturatedMasked(y Int16x32, mask Mask16x32) Int16x32
+
+// AddSaturatedMasked adds corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPADDSB, CPU Feature: AVX512BW
+func (x Uint8x16) AddSaturatedMasked(y Uint8x16, mask Mask8x16) Uint8x16
+
+// AddSaturatedMasked adds corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPADDSB, CPU Feature: AVX512BW
+func (x Uint8x32) AddSaturatedMasked(y Uint8x32, mask Mask8x32) Uint8x32
+
+// AddSaturatedMasked adds corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPADDSB, CPU Feature: AVX512BW
+func (x Uint8x64) AddSaturatedMasked(y Uint8x64, mask Mask8x64) Uint8x64
+
+// AddSaturatedMasked adds corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPADDSW, CPU Feature: AVX512BW
+func (x Uint16x8) AddSaturatedMasked(y Uint16x8, mask Mask16x8) Uint16x8
+
+// AddSaturatedMasked adds corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPADDSW, CPU Feature: AVX512BW
+func (x Uint16x16) AddSaturatedMasked(y Uint16x16, mask Mask16x16) Uint16x16
+
+// AddSaturatedMasked adds corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPADDSW, CPU Feature: AVX512BW
+func (x Uint16x32) AddSaturatedMasked(y Uint16x32, mask Mask16x32) Uint16x32
+
 /* AddSub */
 
 // AddSub subtracts even elements and adds odd elements of two vectors.
@@ -1244,105 +1480,205 @@ func (x Float64x2) Ceil() Float64x2
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x4) Ceil() Float64x4
 
-/* CeilWithPrecision */
+/* CeilScaled */
 
-// CeilWithPrecision rounds elements up with specified precision.
+// CeilScaled rounds elements up with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x4) CeilWithPrecision(prec uint8) Float32x4
+func (x Float32x4) CeilScaled(prec uint8) Float32x4
 
-// CeilWithPrecision rounds elements up with specified precision.
+// CeilScaled rounds elements up with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x8) CeilWithPrecision(prec uint8) Float32x8
+func (x Float32x8) CeilScaled(prec uint8) Float32x8
 
-// CeilWithPrecision rounds elements up with specified precision.
+// CeilScaled rounds elements up with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x16) CeilWithPrecision(prec uint8) Float32x16
+func (x Float32x16) CeilScaled(prec uint8) Float32x16
 
-// CeilWithPrecision rounds elements up with specified precision.
+// CeilScaled rounds elements up with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x2) CeilWithPrecision(prec uint8) Float64x2
+func (x Float64x2) CeilScaled(prec uint8) Float64x2
 
-// CeilWithPrecision rounds elements up with specified precision.
+// CeilScaled rounds elements up with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x4) CeilWithPrecision(prec uint8) Float64x4
+func (x Float64x4) CeilScaled(prec uint8) Float64x4
 
-// CeilWithPrecision rounds elements up with specified precision.
+// CeilScaled rounds elements up with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x8) CeilWithPrecision(prec uint8) Float64x8
+func (x Float64x8) CeilScaled(prec uint8) Float64x8
 
-/* CeilWithPrecisionMasked */
+/* CeilScaledMasked */
 
-// CeilWithPrecisionMasked rounds elements up with specified precision.
+// CeilScaledMasked rounds elements up with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x4) CeilWithPrecisionMasked(prec uint8, mask Mask32x4) Float32x4
+func (x Float32x4) CeilScaledMasked(prec uint8, mask Mask32x4) Float32x4
 
-// CeilWithPrecisionMasked rounds elements up with specified precision.
+// CeilScaledMasked rounds elements up with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x8) CeilWithPrecisionMasked(prec uint8, mask Mask32x8) Float32x8
+func (x Float32x8) CeilScaledMasked(prec uint8, mask Mask32x8) Float32x8
 
-// CeilWithPrecisionMasked rounds elements up with specified precision.
+// CeilScaledMasked rounds elements up with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x16) CeilWithPrecisionMasked(prec uint8, mask Mask32x16) Float32x16
+func (x Float32x16) CeilScaledMasked(prec uint8, mask Mask32x16) Float32x16
 
-// CeilWithPrecisionMasked rounds elements up with specified precision.
+// CeilScaledMasked rounds elements up with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x2) CeilWithPrecisionMasked(prec uint8, mask Mask64x2) Float64x2
+func (x Float64x2) CeilScaledMasked(prec uint8, mask Mask64x2) Float64x2
 
-// CeilWithPrecisionMasked rounds elements up with specified precision.
+// CeilScaledMasked rounds elements up with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x4) CeilWithPrecisionMasked(prec uint8, mask Mask64x4) Float64x4
+func (x Float64x4) CeilScaledMasked(prec uint8, mask Mask64x4) Float64x4
 
-// CeilWithPrecisionMasked rounds elements up with specified precision.
+// CeilScaledMasked rounds elements up with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x8) CeilWithPrecisionMasked(prec uint8, mask Mask64x8) Float64x8
+func (x Float64x8) CeilScaledMasked(prec uint8, mask Mask64x8) Float64x8
+
+/* CeilScaledResidue */
+
+// CeilScaledResidue computes the difference after ceiling with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x4) CeilScaledResidue(prec uint8) Float32x4
+
+// CeilScaledResidue computes the difference after ceiling with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x8) CeilScaledResidue(prec uint8) Float32x8
+
+// CeilScaledResidue computes the difference after ceiling with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x16) CeilScaledResidue(prec uint8) Float32x16
+
+// CeilScaledResidue computes the difference after ceiling with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x2) CeilScaledResidue(prec uint8) Float64x2
+
+// CeilScaledResidue computes the difference after ceiling with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x4) CeilScaledResidue(prec uint8) Float64x4
+
+// CeilScaledResidue computes the difference after ceiling with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x8) CeilScaledResidue(prec uint8) Float64x8
+
+/* CeilScaledResidueMasked */
+
+// CeilScaledResidueMasked computes the difference after ceiling with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x4) CeilScaledResidueMasked(prec uint8, mask Mask32x4) Float32x4
+
+// CeilScaledResidueMasked computes the difference after ceiling with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x8) CeilScaledResidueMasked(prec uint8, mask Mask32x8) Float32x8
+
+// CeilScaledResidueMasked computes the difference after ceiling with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x16) CeilScaledResidueMasked(prec uint8, mask Mask32x16) Float32x16
+
+// CeilScaledResidueMasked computes the difference after ceiling with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x2) CeilScaledResidueMasked(prec uint8, mask Mask64x2) Float64x2
+
+// CeilScaledResidueMasked computes the difference after ceiling with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x4) CeilScaledResidueMasked(prec uint8, mask Mask64x4) Float64x4
+
+// CeilScaledResidueMasked computes the difference after ceiling with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x8) CeilScaledResidueMasked(prec uint8, mask Mask64x8) Float64x8
 
 /* Compress */
 
@@ -1605,406 +1941,6 @@ func (x Float32x8) ConvertToUint32Masked(mask Mask32x8) Uint32x8
 //
 // Asm: VCVTPS2UDQ, CPU Feature: AVX512F
 func (x Float32x16) ConvertToUint32Masked(mask Mask32x16) Uint32x16
-
-/* DiffWithCeilWithPrecision */
-
-// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x4) DiffWithCeilWithPrecision(prec uint8) Float32x4
-
-// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x8) DiffWithCeilWithPrecision(prec uint8) Float32x8
-
-// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x16) DiffWithCeilWithPrecision(prec uint8) Float32x16
-
-// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x2) DiffWithCeilWithPrecision(prec uint8) Float64x2
-
-// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x4) DiffWithCeilWithPrecision(prec uint8) Float64x4
-
-// DiffWithCeilWithPrecision computes the difference after ceiling with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x8) DiffWithCeilWithPrecision(prec uint8) Float64x8
-
-/* DiffWithCeilWithPrecisionMasked */
-
-// DiffWithCeilWithPrecisionMasked computes the difference after ceiling with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x4) DiffWithCeilWithPrecisionMasked(prec uint8, mask Mask32x4) Float32x4
-
-// DiffWithCeilWithPrecisionMasked computes the difference after ceiling with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x8) DiffWithCeilWithPrecisionMasked(prec uint8, mask Mask32x8) Float32x8
-
-// DiffWithCeilWithPrecisionMasked computes the difference after ceiling with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x16) DiffWithCeilWithPrecisionMasked(prec uint8, mask Mask32x16) Float32x16
-
-// DiffWithCeilWithPrecisionMasked computes the difference after ceiling with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x2) DiffWithCeilWithPrecisionMasked(prec uint8, mask Mask64x2) Float64x2
-
-// DiffWithCeilWithPrecisionMasked computes the difference after ceiling with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x4) DiffWithCeilWithPrecisionMasked(prec uint8, mask Mask64x4) Float64x4
-
-// DiffWithCeilWithPrecisionMasked computes the difference after ceiling with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x8) DiffWithCeilWithPrecisionMasked(prec uint8, mask Mask64x8) Float64x8
-
-/* DiffWithFloorWithPrecision */
-
-// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x4) DiffWithFloorWithPrecision(prec uint8) Float32x4
-
-// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x8) DiffWithFloorWithPrecision(prec uint8) Float32x8
-
-// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x16) DiffWithFloorWithPrecision(prec uint8) Float32x16
-
-// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x2) DiffWithFloorWithPrecision(prec uint8) Float64x2
-
-// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x4) DiffWithFloorWithPrecision(prec uint8) Float64x4
-
-// DiffWithFloorWithPrecision computes the difference after flooring with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x8) DiffWithFloorWithPrecision(prec uint8) Float64x8
-
-/* DiffWithFloorWithPrecisionMasked */
-
-// DiffWithFloorWithPrecisionMasked computes the difference after flooring with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x4) DiffWithFloorWithPrecisionMasked(prec uint8, mask Mask32x4) Float32x4
-
-// DiffWithFloorWithPrecisionMasked computes the difference after flooring with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x8) DiffWithFloorWithPrecisionMasked(prec uint8, mask Mask32x8) Float32x8
-
-// DiffWithFloorWithPrecisionMasked computes the difference after flooring with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x16) DiffWithFloorWithPrecisionMasked(prec uint8, mask Mask32x16) Float32x16
-
-// DiffWithFloorWithPrecisionMasked computes the difference after flooring with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x2) DiffWithFloorWithPrecisionMasked(prec uint8, mask Mask64x2) Float64x2
-
-// DiffWithFloorWithPrecisionMasked computes the difference after flooring with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x4) DiffWithFloorWithPrecisionMasked(prec uint8, mask Mask64x4) Float64x4
-
-// DiffWithFloorWithPrecisionMasked computes the difference after flooring with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x8) DiffWithFloorWithPrecisionMasked(prec uint8, mask Mask64x8) Float64x8
-
-/* DiffWithRoundWithPrecision */
-
-// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x4) DiffWithRoundWithPrecision(prec uint8) Float32x4
-
-// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x8) DiffWithRoundWithPrecision(prec uint8) Float32x8
-
-// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x16) DiffWithRoundWithPrecision(prec uint8) Float32x16
-
-// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x2) DiffWithRoundWithPrecision(prec uint8) Float64x2
-
-// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x4) DiffWithRoundWithPrecision(prec uint8) Float64x4
-
-// DiffWithRoundWithPrecision computes the difference after rounding with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x8) DiffWithRoundWithPrecision(prec uint8) Float64x8
-
-/* DiffWithRoundWithPrecisionMasked */
-
-// DiffWithRoundWithPrecisionMasked computes the difference after rounding with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x4) DiffWithRoundWithPrecisionMasked(prec uint8, mask Mask32x4) Float32x4
-
-// DiffWithRoundWithPrecisionMasked computes the difference after rounding with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x8) DiffWithRoundWithPrecisionMasked(prec uint8, mask Mask32x8) Float32x8
-
-// DiffWithRoundWithPrecisionMasked computes the difference after rounding with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x16) DiffWithRoundWithPrecisionMasked(prec uint8, mask Mask32x16) Float32x16
-
-// DiffWithRoundWithPrecisionMasked computes the difference after rounding with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x2) DiffWithRoundWithPrecisionMasked(prec uint8, mask Mask64x2) Float64x2
-
-// DiffWithRoundWithPrecisionMasked computes the difference after rounding with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x4) DiffWithRoundWithPrecisionMasked(prec uint8, mask Mask64x4) Float64x4
-
-// DiffWithRoundWithPrecisionMasked computes the difference after rounding with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x8) DiffWithRoundWithPrecisionMasked(prec uint8, mask Mask64x8) Float64x8
-
-/* DiffWithTruncWithPrecision */
-
-// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x4) DiffWithTruncWithPrecision(prec uint8) Float32x4
-
-// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x8) DiffWithTruncWithPrecision(prec uint8) Float32x8
-
-// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x16) DiffWithTruncWithPrecision(prec uint8) Float32x16
-
-// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x2) DiffWithTruncWithPrecision(prec uint8) Float64x2
-
-// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x4) DiffWithTruncWithPrecision(prec uint8) Float64x4
-
-// DiffWithTruncWithPrecision computes the difference after truncating with specified precision.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x8) DiffWithTruncWithPrecision(prec uint8) Float64x8
-
-/* DiffWithTruncWithPrecisionMasked */
-
-// DiffWithTruncWithPrecisionMasked computes the difference after truncating with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x4) DiffWithTruncWithPrecisionMasked(prec uint8, mask Mask32x4) Float32x4
-
-// DiffWithTruncWithPrecisionMasked computes the difference after truncating with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x8) DiffWithTruncWithPrecisionMasked(prec uint8, mask Mask32x8) Float32x8
-
-// DiffWithTruncWithPrecisionMasked computes the difference after truncating with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x16) DiffWithTruncWithPrecisionMasked(prec uint8, mask Mask32x16) Float32x16
-
-// DiffWithTruncWithPrecisionMasked computes the difference after truncating with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x2) DiffWithTruncWithPrecisionMasked(prec uint8, mask Mask64x2) Float64x2
-
-// DiffWithTruncWithPrecisionMasked computes the difference after truncating with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x4) DiffWithTruncWithPrecisionMasked(prec uint8, mask Mask64x4) Float64x4
-
-// DiffWithTruncWithPrecisionMasked computes the difference after truncating with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x8) DiffWithTruncWithPrecisionMasked(prec uint8, mask Mask64x8) Float64x8
 
 /* Div */
 
@@ -2485,105 +2421,205 @@ func (x Float64x2) Floor() Float64x2
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x4) Floor() Float64x4
 
-/* FloorWithPrecision */
+/* FloorScaled */
 
-// FloorWithPrecision rounds elements down with specified precision.
+// FloorScaled rounds elements down with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x4) FloorWithPrecision(prec uint8) Float32x4
+func (x Float32x4) FloorScaled(prec uint8) Float32x4
 
-// FloorWithPrecision rounds elements down with specified precision.
+// FloorScaled rounds elements down with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x8) FloorWithPrecision(prec uint8) Float32x8
+func (x Float32x8) FloorScaled(prec uint8) Float32x8
 
-// FloorWithPrecision rounds elements down with specified precision.
+// FloorScaled rounds elements down with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x16) FloorWithPrecision(prec uint8) Float32x16
+func (x Float32x16) FloorScaled(prec uint8) Float32x16
 
-// FloorWithPrecision rounds elements down with specified precision.
+// FloorScaled rounds elements down with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x2) FloorWithPrecision(prec uint8) Float64x2
+func (x Float64x2) FloorScaled(prec uint8) Float64x2
 
-// FloorWithPrecision rounds elements down with specified precision.
+// FloorScaled rounds elements down with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x4) FloorWithPrecision(prec uint8) Float64x4
+func (x Float64x4) FloorScaled(prec uint8) Float64x4
 
-// FloorWithPrecision rounds elements down with specified precision.
+// FloorScaled rounds elements down with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x8) FloorWithPrecision(prec uint8) Float64x8
+func (x Float64x8) FloorScaled(prec uint8) Float64x8
 
-/* FloorWithPrecisionMasked */
+/* FloorScaledMasked */
 
-// FloorWithPrecisionMasked rounds elements down with specified precision.
+// FloorScaledMasked rounds elements down with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x4) FloorWithPrecisionMasked(prec uint8, mask Mask32x4) Float32x4
+func (x Float32x4) FloorScaledMasked(prec uint8, mask Mask32x4) Float32x4
 
-// FloorWithPrecisionMasked rounds elements down with specified precision.
+// FloorScaledMasked rounds elements down with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x8) FloorWithPrecisionMasked(prec uint8, mask Mask32x8) Float32x8
+func (x Float32x8) FloorScaledMasked(prec uint8, mask Mask32x8) Float32x8
 
-// FloorWithPrecisionMasked rounds elements down with specified precision.
+// FloorScaledMasked rounds elements down with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x16) FloorWithPrecisionMasked(prec uint8, mask Mask32x16) Float32x16
+func (x Float32x16) FloorScaledMasked(prec uint8, mask Mask32x16) Float32x16
 
-// FloorWithPrecisionMasked rounds elements down with specified precision.
+// FloorScaledMasked rounds elements down with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x2) FloorWithPrecisionMasked(prec uint8, mask Mask64x2) Float64x2
+func (x Float64x2) FloorScaledMasked(prec uint8, mask Mask64x2) Float64x2
 
-// FloorWithPrecisionMasked rounds elements down with specified precision.
+// FloorScaledMasked rounds elements down with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x4) FloorWithPrecisionMasked(prec uint8, mask Mask64x4) Float64x4
+func (x Float64x4) FloorScaledMasked(prec uint8, mask Mask64x4) Float64x4
 
-// FloorWithPrecisionMasked rounds elements down with specified precision.
+// FloorScaledMasked rounds elements down with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x8) FloorWithPrecisionMasked(prec uint8, mask Mask64x8) Float64x8
+func (x Float64x8) FloorScaledMasked(prec uint8, mask Mask64x8) Float64x8
+
+/* FloorScaledResidue */
+
+// FloorScaledResidue computes the difference after flooring with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x4) FloorScaledResidue(prec uint8) Float32x4
+
+// FloorScaledResidue computes the difference after flooring with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x8) FloorScaledResidue(prec uint8) Float32x8
+
+// FloorScaledResidue computes the difference after flooring with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x16) FloorScaledResidue(prec uint8) Float32x16
+
+// FloorScaledResidue computes the difference after flooring with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x2) FloorScaledResidue(prec uint8) Float64x2
+
+// FloorScaledResidue computes the difference after flooring with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x4) FloorScaledResidue(prec uint8) Float64x4
+
+// FloorScaledResidue computes the difference after flooring with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x8) FloorScaledResidue(prec uint8) Float64x8
+
+/* FloorScaledResidueMasked */
+
+// FloorScaledResidueMasked computes the difference after flooring with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x4) FloorScaledResidueMasked(prec uint8, mask Mask32x4) Float32x4
+
+// FloorScaledResidueMasked computes the difference after flooring with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x8) FloorScaledResidueMasked(prec uint8, mask Mask32x8) Float32x8
+
+// FloorScaledResidueMasked computes the difference after flooring with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x16) FloorScaledResidueMasked(prec uint8, mask Mask32x16) Float32x16
+
+// FloorScaledResidueMasked computes the difference after flooring with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x2) FloorScaledResidueMasked(prec uint8, mask Mask64x2) Float64x2
+
+// FloorScaledResidueMasked computes the difference after flooring with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x4) FloorScaledResidueMasked(prec uint8, mask Mask64x4) Float64x4
+
+// FloorScaledResidueMasked computes the difference after flooring with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x8) FloorScaledResidueMasked(prec uint8, mask Mask64x8) Float64x8
 
 /* FusedMultiplyAdd */
 
@@ -5427,81 +5463,50 @@ func (x Float64x4) Mul(y Float64x4) Float64x4
 // Asm: VMULPD, CPU Feature: AVX512F
 func (x Float64x8) Mul(y Float64x8) Float64x8
 
-/* MulByPowOf2 */
+// Mul multiplies corresponding elements of two vectors.
+//
+// Asm: VPMULLW, CPU Feature: AVX
+func (x Int16x8) Mul(y Int16x8) Int16x8
 
-// MulByPowOf2 multiplies elements by a power of 2.
+// Mul multiplies corresponding elements of two vectors.
 //
-// Asm: VSCALEFPS, CPU Feature: AVX512F
-func (x Float32x4) MulByPowOf2(y Float32x4) Float32x4
+// Asm: VPMULLW, CPU Feature: AVX2
+func (x Int16x16) Mul(y Int16x16) Int16x16
 
-// MulByPowOf2 multiplies elements by a power of 2.
+// Mul multiplies corresponding elements of two vectors.
 //
-// Asm: VSCALEFPS, CPU Feature: AVX512F
-func (x Float32x8) MulByPowOf2(y Float32x8) Float32x8
+// Asm: VPMULLW, CPU Feature: AVX512BW
+func (x Int16x32) Mul(y Int16x32) Int16x32
 
-// MulByPowOf2 multiplies elements by a power of 2.
+// Mul multiplies corresponding elements of two vectors.
 //
-// Asm: VSCALEFPS, CPU Feature: AVX512F
-func (x Float32x16) MulByPowOf2(y Float32x16) Float32x16
+// Asm: VPMULLD, CPU Feature: AVX
+func (x Int32x4) Mul(y Int32x4) Int32x4
 
-// MulByPowOf2 multiplies elements by a power of 2.
+// Mul multiplies corresponding elements of two vectors.
 //
-// Asm: VSCALEFPD, CPU Feature: AVX512F
-func (x Float64x2) MulByPowOf2(y Float64x2) Float64x2
+// Asm: VPMULLD, CPU Feature: AVX2
+func (x Int32x8) Mul(y Int32x8) Int32x8
 
-// MulByPowOf2 multiplies elements by a power of 2.
+// Mul multiplies corresponding elements of two vectors.
 //
-// Asm: VSCALEFPD, CPU Feature: AVX512F
-func (x Float64x4) MulByPowOf2(y Float64x4) Float64x4
+// Asm: VPMULLD, CPU Feature: AVX512F
+func (x Int32x16) Mul(y Int32x16) Int32x16
 
-// MulByPowOf2 multiplies elements by a power of 2.
+// Mul multiplies corresponding elements of two vectors.
 //
-// Asm: VSCALEFPD, CPU Feature: AVX512F
-func (x Float64x8) MulByPowOf2(y Float64x8) Float64x8
+// Asm: VPMULLQ, CPU Feature: AVX512DQ
+func (x Int64x2) Mul(y Int64x2) Int64x2
 
-/* MulByPowOf2Masked */
+// Mul multiplies corresponding elements of two vectors.
+//
+// Asm: VPMULLQ, CPU Feature: AVX512DQ
+func (x Int64x4) Mul(y Int64x4) Int64x4
 
-// MulByPowOf2Masked multiplies elements by a power of 2.
+// Mul multiplies corresponding elements of two vectors.
 //
-// This operation is applied selectively under a write mask.
-//
-// Asm: VSCALEFPS, CPU Feature: AVX512F
-func (x Float32x4) MulByPowOf2Masked(y Float32x4, mask Mask32x4) Float32x4
-
-// MulByPowOf2Masked multiplies elements by a power of 2.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VSCALEFPS, CPU Feature: AVX512F
-func (x Float32x8) MulByPowOf2Masked(y Float32x8, mask Mask32x8) Float32x8
-
-// MulByPowOf2Masked multiplies elements by a power of 2.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VSCALEFPS, CPU Feature: AVX512F
-func (x Float32x16) MulByPowOf2Masked(y Float32x16, mask Mask32x16) Float32x16
-
-// MulByPowOf2Masked multiplies elements by a power of 2.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VSCALEFPD, CPU Feature: AVX512F
-func (x Float64x2) MulByPowOf2Masked(y Float64x2, mask Mask64x2) Float64x2
-
-// MulByPowOf2Masked multiplies elements by a power of 2.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VSCALEFPD, CPU Feature: AVX512F
-func (x Float64x4) MulByPowOf2Masked(y Float64x4, mask Mask64x4) Float64x4
-
-// MulByPowOf2Masked multiplies elements by a power of 2.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VSCALEFPD, CPU Feature: AVX512F
-func (x Float64x8) MulByPowOf2Masked(y Float64x8, mask Mask64x8) Float64x8
+// Asm: VPMULLQ, CPU Feature: AVX512DQ
+func (x Int64x8) Mul(y Int64x8) Int64x8
 
 /* MulEvenWiden */
 
@@ -5691,118 +5696,6 @@ func (x Uint16x16) MulHighMasked(y Uint16x16, mask Mask16x16) Uint16x16
 // Asm: VPMULHUW, CPU Feature: AVX512BW
 func (x Uint16x32) MulHighMasked(y Uint16x32, mask Mask16x32) Uint16x32
 
-/* MulLow */
-
-// MulLow multiplies elements and stores the low part of the result.
-//
-// Asm: VPMULLW, CPU Feature: AVX
-func (x Int16x8) MulLow(y Int16x8) Int16x8
-
-// MulLow multiplies elements and stores the low part of the result.
-//
-// Asm: VPMULLW, CPU Feature: AVX2
-func (x Int16x16) MulLow(y Int16x16) Int16x16
-
-// MulLow multiplies elements and stores the low part of the result.
-//
-// Asm: VPMULLW, CPU Feature: AVX512BW
-func (x Int16x32) MulLow(y Int16x32) Int16x32
-
-// MulLow multiplies elements and stores the low part of the result.
-//
-// Asm: VPMULLD, CPU Feature: AVX
-func (x Int32x4) MulLow(y Int32x4) Int32x4
-
-// MulLow multiplies elements and stores the low part of the result.
-//
-// Asm: VPMULLD, CPU Feature: AVX2
-func (x Int32x8) MulLow(y Int32x8) Int32x8
-
-// MulLow multiplies elements and stores the low part of the result.
-//
-// Asm: VPMULLD, CPU Feature: AVX512F
-func (x Int32x16) MulLow(y Int32x16) Int32x16
-
-// MulLow multiplies elements and stores the low part of the result.
-//
-// Asm: VPMULLQ, CPU Feature: AVX512DQ
-func (x Int64x2) MulLow(y Int64x2) Int64x2
-
-// MulLow multiplies elements and stores the low part of the result.
-//
-// Asm: VPMULLQ, CPU Feature: AVX512DQ
-func (x Int64x4) MulLow(y Int64x4) Int64x4
-
-// MulLow multiplies elements and stores the low part of the result.
-//
-// Asm: VPMULLQ, CPU Feature: AVX512DQ
-func (x Int64x8) MulLow(y Int64x8) Int64x8
-
-/* MulLowMasked */
-
-// MulLowMasked multiplies elements and stores the low part of the result.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMULLW, CPU Feature: AVX512BW
-func (x Int16x8) MulLowMasked(y Int16x8, mask Mask16x8) Int16x8
-
-// MulLowMasked multiplies elements and stores the low part of the result.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMULLW, CPU Feature: AVX512BW
-func (x Int16x16) MulLowMasked(y Int16x16, mask Mask16x16) Int16x16
-
-// MulLowMasked multiplies elements and stores the low part of the result.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMULLW, CPU Feature: AVX512BW
-func (x Int16x32) MulLowMasked(y Int16x32, mask Mask16x32) Int16x32
-
-// MulLowMasked multiplies elements and stores the low part of the result.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMULLD, CPU Feature: AVX512F
-func (x Int32x4) MulLowMasked(y Int32x4, mask Mask32x4) Int32x4
-
-// MulLowMasked multiplies elements and stores the low part of the result.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMULLD, CPU Feature: AVX512F
-func (x Int32x8) MulLowMasked(y Int32x8, mask Mask32x8) Int32x8
-
-// MulLowMasked multiplies elements and stores the low part of the result.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMULLD, CPU Feature: AVX512F
-func (x Int32x16) MulLowMasked(y Int32x16, mask Mask32x16) Int32x16
-
-// MulLowMasked multiplies elements and stores the low part of the result.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMULLQ, CPU Feature: AVX512DQ
-func (x Int64x2) MulLowMasked(y Int64x2, mask Mask64x2) Int64x2
-
-// MulLowMasked multiplies elements and stores the low part of the result.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMULLQ, CPU Feature: AVX512DQ
-func (x Int64x4) MulLowMasked(y Int64x4, mask Mask64x4) Int64x4
-
-// MulLowMasked multiplies elements and stores the low part of the result.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMULLQ, CPU Feature: AVX512DQ
-func (x Int64x8) MulLowMasked(y Int64x8, mask Mask64x8) Int64x8
-
 /* MulMasked */
 
 // MulMasked multiplies corresponding elements of two vectors.
@@ -5846,6 +5739,69 @@ func (x Float64x4) MulMasked(y Float64x4, mask Mask64x4) Float64x4
 //
 // Asm: VMULPD, CPU Feature: AVX512F
 func (x Float64x8) MulMasked(y Float64x8, mask Mask64x8) Float64x8
+
+// MulMasked multiplies corresponding elements of two vectors.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULLW, CPU Feature: AVX512BW
+func (x Int16x8) MulMasked(y Int16x8, mask Mask16x8) Int16x8
+
+// MulMasked multiplies corresponding elements of two vectors.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULLW, CPU Feature: AVX512BW
+func (x Int16x16) MulMasked(y Int16x16, mask Mask16x16) Int16x16
+
+// MulMasked multiplies corresponding elements of two vectors.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULLW, CPU Feature: AVX512BW
+func (x Int16x32) MulMasked(y Int16x32, mask Mask16x32) Int16x32
+
+// MulMasked multiplies corresponding elements of two vectors.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULLD, CPU Feature: AVX512F
+func (x Int32x4) MulMasked(y Int32x4, mask Mask32x4) Int32x4
+
+// MulMasked multiplies corresponding elements of two vectors.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULLD, CPU Feature: AVX512F
+func (x Int32x8) MulMasked(y Int32x8, mask Mask32x8) Int32x8
+
+// MulMasked multiplies corresponding elements of two vectors.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULLD, CPU Feature: AVX512F
+func (x Int32x16) MulMasked(y Int32x16, mask Mask32x16) Int32x16
+
+// MulMasked multiplies corresponding elements of two vectors.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULLQ, CPU Feature: AVX512DQ
+func (x Int64x2) MulMasked(y Int64x2, mask Mask64x2) Int64x2
+
+// MulMasked multiplies corresponding elements of two vectors.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULLQ, CPU Feature: AVX512DQ
+func (x Int64x4) MulMasked(y Int64x4, mask Mask64x4) Int64x4
+
+// MulMasked multiplies corresponding elements of two vectors.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULLQ, CPU Feature: AVX512DQ
+func (x Int64x8) MulMasked(y Int64x8, mask Mask64x8) Int64x8
 
 /* NotEqual */
 
@@ -6464,154 +6420,6 @@ func (x Int16x16) PairDotProdMasked(y Int16x16, mask Mask16x16) Int32x8
 //
 // Asm: VPMADDWD, CPU Feature: AVX512BW
 func (x Int16x32) PairDotProdMasked(y Int16x32, mask Mask16x32) Int32x16
-
-/* PairwiseAdd */
-
-// PairwiseAdd horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
-//
-// Asm: VHADDPS, CPU Feature: AVX
-func (x Float32x4) PairwiseAdd(y Float32x4) Float32x4
-
-// PairwiseAdd horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
-//
-// Asm: VHADDPS, CPU Feature: AVX
-func (x Float32x8) PairwiseAdd(y Float32x8) Float32x8
-
-// PairwiseAdd horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
-//
-// Asm: VHADDPD, CPU Feature: AVX
-func (x Float64x2) PairwiseAdd(y Float64x2) Float64x2
-
-// PairwiseAdd horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
-//
-// Asm: VHADDPD, CPU Feature: AVX
-func (x Float64x4) PairwiseAdd(y Float64x4) Float64x4
-
-// PairwiseAdd horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
-//
-// Asm: VPHADDW, CPU Feature: AVX
-func (x Int16x8) PairwiseAdd(y Int16x8) Int16x8
-
-// PairwiseAdd horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
-//
-// Asm: VPHADDW, CPU Feature: AVX2
-func (x Int16x16) PairwiseAdd(y Int16x16) Int16x16
-
-// PairwiseAdd horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
-//
-// Asm: VPHADDD, CPU Feature: AVX
-func (x Int32x4) PairwiseAdd(y Int32x4) Int32x4
-
-// PairwiseAdd horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
-//
-// Asm: VPHADDD, CPU Feature: AVX2
-func (x Int32x8) PairwiseAdd(y Int32x8) Int32x8
-
-// PairwiseAdd horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
-//
-// Asm: VPHADDW, CPU Feature: AVX
-func (x Uint16x8) PairwiseAdd(y Uint16x8) Uint16x8
-
-// PairwiseAdd horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
-//
-// Asm: VPHADDW, CPU Feature: AVX2
-func (x Uint16x16) PairwiseAdd(y Uint16x16) Uint16x16
-
-// PairwiseAdd horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
-//
-// Asm: VPHADDD, CPU Feature: AVX
-func (x Uint32x4) PairwiseAdd(y Uint32x4) Uint32x4
-
-// PairwiseAdd horizontally adds adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
-//
-// Asm: VPHADDD, CPU Feature: AVX2
-func (x Uint32x8) PairwiseAdd(y Uint32x8) Uint32x8
-
-/* PairwiseSub */
-
-// PairwiseSub horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
-//
-// Asm: VHSUBPS, CPU Feature: AVX
-func (x Float32x4) PairwiseSub(y Float32x4) Float32x4
-
-// PairwiseSub horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
-//
-// Asm: VHSUBPS, CPU Feature: AVX
-func (x Float32x8) PairwiseSub(y Float32x8) Float32x8
-
-// PairwiseSub horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
-//
-// Asm: VHSUBPD, CPU Feature: AVX
-func (x Float64x2) PairwiseSub(y Float64x2) Float64x2
-
-// PairwiseSub horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
-//
-// Asm: VHSUBPD, CPU Feature: AVX
-func (x Float64x4) PairwiseSub(y Float64x4) Float64x4
-
-// PairwiseSub horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
-//
-// Asm: VPHSUBW, CPU Feature: AVX
-func (x Int16x8) PairwiseSub(y Int16x8) Int16x8
-
-// PairwiseSub horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
-//
-// Asm: VPHSUBW, CPU Feature: AVX2
-func (x Int16x16) PairwiseSub(y Int16x16) Int16x16
-
-// PairwiseSub horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
-//
-// Asm: VPHSUBD, CPU Feature: AVX
-func (x Int32x4) PairwiseSub(y Int32x4) Int32x4
-
-// PairwiseSub horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
-//
-// Asm: VPHSUBD, CPU Feature: AVX2
-func (x Int32x8) PairwiseSub(y Int32x8) Int32x8
-
-// PairwiseSub horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
-//
-// Asm: VPHSUBW, CPU Feature: AVX
-func (x Uint16x8) PairwiseSub(y Uint16x8) Uint16x8
-
-// PairwiseSub horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
-//
-// Asm: VPHSUBW, CPU Feature: AVX2
-func (x Uint16x16) PairwiseSub(y Uint16x16) Uint16x16
-
-// PairwiseSub horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
-//
-// Asm: VPHSUBD, CPU Feature: AVX
-func (x Uint32x4) PairwiseSub(y Uint32x4) Uint32x4
-
-// PairwiseSub horizontally subtracts adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
-//
-// Asm: VPHSUBD, CPU Feature: AVX2
-func (x Uint32x8) PairwiseSub(y Uint32x8) Uint32x8
 
 /* Permute */
 
@@ -8547,167 +8355,205 @@ func (x Float64x2) Round() Float64x2
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x4) Round() Float64x4
 
-/* RoundWithPrecision */
+/* RoundScaled */
 
-// RoundWithPrecision rounds elements with specified precision.
+// RoundScaled rounds elements with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x4) RoundWithPrecision(prec uint8) Float32x4
+func (x Float32x4) RoundScaled(prec uint8) Float32x4
 
-// RoundWithPrecision rounds elements with specified precision.
+// RoundScaled rounds elements with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x8) RoundWithPrecision(prec uint8) Float32x8
+func (x Float32x8) RoundScaled(prec uint8) Float32x8
 
-// RoundWithPrecision rounds elements with specified precision.
+// RoundScaled rounds elements with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x16) RoundWithPrecision(prec uint8) Float32x16
+func (x Float32x16) RoundScaled(prec uint8) Float32x16
 
-// RoundWithPrecision rounds elements with specified precision.
+// RoundScaled rounds elements with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x2) RoundWithPrecision(prec uint8) Float64x2
+func (x Float64x2) RoundScaled(prec uint8) Float64x2
 
-// RoundWithPrecision rounds elements with specified precision.
+// RoundScaled rounds elements with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x4) RoundWithPrecision(prec uint8) Float64x4
+func (x Float64x4) RoundScaled(prec uint8) Float64x4
 
-// RoundWithPrecision rounds elements with specified precision.
+// RoundScaled rounds elements with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x8) RoundWithPrecision(prec uint8) Float64x8
+func (x Float64x8) RoundScaled(prec uint8) Float64x8
 
-/* RoundWithPrecisionMasked */
+/* RoundScaledMasked */
 
-// RoundWithPrecisionMasked rounds elements with specified precision.
+// RoundScaledMasked rounds elements with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x4) RoundWithPrecisionMasked(prec uint8, mask Mask32x4) Float32x4
+func (x Float32x4) RoundScaledMasked(prec uint8, mask Mask32x4) Float32x4
 
-// RoundWithPrecisionMasked rounds elements with specified precision.
+// RoundScaledMasked rounds elements with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x8) RoundWithPrecisionMasked(prec uint8, mask Mask32x8) Float32x8
+func (x Float32x8) RoundScaledMasked(prec uint8, mask Mask32x8) Float32x8
 
-// RoundWithPrecisionMasked rounds elements with specified precision.
+// RoundScaledMasked rounds elements with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x16) RoundWithPrecisionMasked(prec uint8, mask Mask32x16) Float32x16
+func (x Float32x16) RoundScaledMasked(prec uint8, mask Mask32x16) Float32x16
 
-// RoundWithPrecisionMasked rounds elements with specified precision.
+// RoundScaledMasked rounds elements with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x2) RoundWithPrecisionMasked(prec uint8, mask Mask64x2) Float64x2
+func (x Float64x2) RoundScaledMasked(prec uint8, mask Mask64x2) Float64x2
 
-// RoundWithPrecisionMasked rounds elements with specified precision.
+// RoundScaledMasked rounds elements with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x4) RoundWithPrecisionMasked(prec uint8, mask Mask64x4) Float64x4
+func (x Float64x4) RoundScaledMasked(prec uint8, mask Mask64x4) Float64x4
 
-// RoundWithPrecisionMasked rounds elements with specified precision.
+// RoundScaledMasked rounds elements with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x8) RoundWithPrecisionMasked(prec uint8, mask Mask64x8) Float64x8
+func (x Float64x8) RoundScaledMasked(prec uint8, mask Mask64x8) Float64x8
 
-/* SaturatedAdd */
+/* RoundScaledResidue */
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// RoundScaledResidue computes the difference after rounding with specified precision.
 //
-// Asm: VPADDSB, CPU Feature: AVX
-func (x Int8x16) SaturatedAdd(y Int8x16) Int8x16
-
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
-// Asm: VPADDSB, CPU Feature: AVX2
-func (x Int8x32) SaturatedAdd(y Int8x32) Int8x32
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x4) RoundScaledResidue(prec uint8) Float32x4
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// RoundScaledResidue computes the difference after rounding with specified precision.
 //
-// Asm: VPADDSB, CPU Feature: AVX512BW
-func (x Int8x64) SaturatedAdd(y Int8x64) Int8x64
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x8) RoundScaledResidue(prec uint8) Float32x8
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// RoundScaledResidue computes the difference after rounding with specified precision.
 //
-// Asm: VPADDSW, CPU Feature: AVX
-func (x Int16x8) SaturatedAdd(y Int16x8) Int16x8
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x16) RoundScaledResidue(prec uint8) Float32x16
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// RoundScaledResidue computes the difference after rounding with specified precision.
 //
-// Asm: VPADDSW, CPU Feature: AVX2
-func (x Int16x16) SaturatedAdd(y Int16x16) Int16x16
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x2) RoundScaledResidue(prec uint8) Float64x2
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// RoundScaledResidue computes the difference after rounding with specified precision.
 //
-// Asm: VPADDSW, CPU Feature: AVX512BW
-func (x Int16x32) SaturatedAdd(y Int16x32) Int16x32
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x4) RoundScaledResidue(prec uint8) Float64x4
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// RoundScaledResidue computes the difference after rounding with specified precision.
 //
-// Asm: VPADDSB, CPU Feature: AVX
-func (x Uint8x16) SaturatedAdd(y Uint8x16) Uint8x16
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x8) RoundScaledResidue(prec uint8) Float64x8
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
-//
-// Asm: VPADDSB, CPU Feature: AVX2
-func (x Uint8x32) SaturatedAdd(y Uint8x32) Uint8x32
+/* RoundScaledResidueMasked */
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// RoundScaledResidueMasked computes the difference after rounding with specified precision.
 //
-// Asm: VPADDSB, CPU Feature: AVX512BW
-func (x Uint8x64) SaturatedAdd(y Uint8x64) Uint8x64
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x4) RoundScaledResidueMasked(prec uint8, mask Mask32x4) Float32x4
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// RoundScaledResidueMasked computes the difference after rounding with specified precision.
 //
-// Asm: VPADDSW, CPU Feature: AVX
-func (x Uint16x8) SaturatedAdd(y Uint16x8) Uint16x8
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x8) RoundScaledResidueMasked(prec uint8, mask Mask32x8) Float32x8
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// RoundScaledResidueMasked computes the difference after rounding with specified precision.
 //
-// Asm: VPADDSW, CPU Feature: AVX2
-func (x Uint16x16) SaturatedAdd(y Uint16x16) Uint16x16
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x16) RoundScaledResidueMasked(prec uint8, mask Mask32x16) Float32x16
 
-// SaturatedAdd adds corresponding elements of two vectors with saturation.
+// RoundScaledResidueMasked computes the difference after rounding with specified precision.
 //
-// Asm: VPADDSW, CPU Feature: AVX512BW
-func (x Uint16x32) SaturatedAdd(y Uint16x32) Uint16x32
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x2) RoundScaledResidueMasked(prec uint8, mask Mask64x2) Float64x2
+
+// RoundScaledResidueMasked computes the difference after rounding with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x4) RoundScaledResidueMasked(prec uint8, mask Mask64x4) Float64x4
+
+// RoundScaledResidueMasked computes the difference after rounding with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x8) RoundScaledResidueMasked(prec uint8, mask Mask64x8) Float64x8
 
 /* SaturatedAddDotProd */
 
@@ -8748,268 +8594,6 @@ func (x Int32x8) SaturatedAddDotProdMasked(y Int16x16, z Int16x16, mask Mask32x8
 //
 // Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
 func (x Int32x16) SaturatedAddDotProdMasked(y Int16x32, z Int16x32, mask Mask32x16) Int32x16
-
-/* SaturatedAddMasked */
-
-// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPADDSB, CPU Feature: AVX512BW
-func (x Int8x16) SaturatedAddMasked(y Int8x16, mask Mask8x16) Int8x16
-
-// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPADDSB, CPU Feature: AVX512BW
-func (x Int8x32) SaturatedAddMasked(y Int8x32, mask Mask8x32) Int8x32
-
-// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPADDSB, CPU Feature: AVX512BW
-func (x Int8x64) SaturatedAddMasked(y Int8x64, mask Mask8x64) Int8x64
-
-// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPADDSW, CPU Feature: AVX512BW
-func (x Int16x8) SaturatedAddMasked(y Int16x8, mask Mask16x8) Int16x8
-
-// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPADDSW, CPU Feature: AVX512BW
-func (x Int16x16) SaturatedAddMasked(y Int16x16, mask Mask16x16) Int16x16
-
-// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPADDSW, CPU Feature: AVX512BW
-func (x Int16x32) SaturatedAddMasked(y Int16x32, mask Mask16x32) Int16x32
-
-// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPADDSB, CPU Feature: AVX512BW
-func (x Uint8x16) SaturatedAddMasked(y Uint8x16, mask Mask8x16) Uint8x16
-
-// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPADDSB, CPU Feature: AVX512BW
-func (x Uint8x32) SaturatedAddMasked(y Uint8x32, mask Mask8x32) Uint8x32
-
-// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPADDSB, CPU Feature: AVX512BW
-func (x Uint8x64) SaturatedAddMasked(y Uint8x64, mask Mask8x64) Uint8x64
-
-// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPADDSW, CPU Feature: AVX512BW
-func (x Uint16x8) SaturatedAddMasked(y Uint16x8, mask Mask16x8) Uint16x8
-
-// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPADDSW, CPU Feature: AVX512BW
-func (x Uint16x16) SaturatedAddMasked(y Uint16x16, mask Mask16x16) Uint16x16
-
-// SaturatedAddMasked adds corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPADDSW, CPU Feature: AVX512BW
-func (x Uint16x32) SaturatedAddMasked(y Uint16x32, mask Mask16x32) Uint16x32
-
-/* SaturatedPairwiseAdd */
-
-// SaturatedPairwiseAdd horizontally adds adjacent pairs of elements with saturation.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
-//
-// Asm: VPHADDSW, CPU Feature: AVX
-func (x Int16x8) SaturatedPairwiseAdd(y Int16x8) Int16x8
-
-// SaturatedPairwiseAdd horizontally adds adjacent pairs of elements with saturation.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0+y1, y2+y3, ..., x0+x1, x2+x3, ...].
-//
-// Asm: VPHADDSW, CPU Feature: AVX2
-func (x Int16x16) SaturatedPairwiseAdd(y Int16x16) Int16x16
-
-/* SaturatedPairwiseSub */
-
-// SaturatedPairwiseSub horizontally subtracts adjacent pairs of elements with saturation.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
-//
-// Asm: VPHSUBSW, CPU Feature: AVX
-func (x Int16x8) SaturatedPairwiseSub(y Int16x8) Int16x8
-
-// SaturatedPairwiseSub horizontally subtracts adjacent pairs of elements with saturation.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
-//
-// Asm: VPHSUBSW, CPU Feature: AVX2
-func (x Int16x16) SaturatedPairwiseSub(y Int16x16) Int16x16
-
-/* SaturatedSub */
-
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
-//
-// Asm: VPSUBSB, CPU Feature: AVX
-func (x Int8x16) SaturatedSub(y Int8x16) Int8x16
-
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
-//
-// Asm: VPSUBSB, CPU Feature: AVX2
-func (x Int8x32) SaturatedSub(y Int8x32) Int8x32
-
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
-//
-// Asm: VPSUBSB, CPU Feature: AVX512BW
-func (x Int8x64) SaturatedSub(y Int8x64) Int8x64
-
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
-//
-// Asm: VPSUBSW, CPU Feature: AVX
-func (x Int16x8) SaturatedSub(y Int16x8) Int16x8
-
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
-//
-// Asm: VPSUBSW, CPU Feature: AVX2
-func (x Int16x16) SaturatedSub(y Int16x16) Int16x16
-
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
-//
-// Asm: VPSUBSW, CPU Feature: AVX512BW
-func (x Int16x32) SaturatedSub(y Int16x32) Int16x32
-
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
-//
-// Asm: VPSUBSB, CPU Feature: AVX
-func (x Uint8x16) SaturatedSub(y Uint8x16) Uint8x16
-
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
-//
-// Asm: VPSUBSB, CPU Feature: AVX2
-func (x Uint8x32) SaturatedSub(y Uint8x32) Uint8x32
-
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
-//
-// Asm: VPSUBSB, CPU Feature: AVX512BW
-func (x Uint8x64) SaturatedSub(y Uint8x64) Uint8x64
-
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
-//
-// Asm: VPSUBSW, CPU Feature: AVX
-func (x Uint16x8) SaturatedSub(y Uint16x8) Uint16x8
-
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
-//
-// Asm: VPSUBSW, CPU Feature: AVX2
-func (x Uint16x16) SaturatedSub(y Uint16x16) Uint16x16
-
-// SaturatedSub subtracts corresponding elements of two vectors with saturation.
-//
-// Asm: VPSUBSW, CPU Feature: AVX512BW
-func (x Uint16x32) SaturatedSub(y Uint16x32) Uint16x32
-
-/* SaturatedSubMasked */
-
-// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSUBSB, CPU Feature: AVX512BW
-func (x Int8x16) SaturatedSubMasked(y Int8x16, mask Mask8x16) Int8x16
-
-// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSUBSB, CPU Feature: AVX512BW
-func (x Int8x32) SaturatedSubMasked(y Int8x32, mask Mask8x32) Int8x32
-
-// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSUBSB, CPU Feature: AVX512BW
-func (x Int8x64) SaturatedSubMasked(y Int8x64, mask Mask8x64) Int8x64
-
-// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSUBSW, CPU Feature: AVX512BW
-func (x Int16x8) SaturatedSubMasked(y Int16x8, mask Mask16x8) Int16x8
-
-// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSUBSW, CPU Feature: AVX512BW
-func (x Int16x16) SaturatedSubMasked(y Int16x16, mask Mask16x16) Int16x16
-
-// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSUBSW, CPU Feature: AVX512BW
-func (x Int16x32) SaturatedSubMasked(y Int16x32, mask Mask16x32) Int16x32
-
-// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSUBSB, CPU Feature: AVX512BW
-func (x Uint8x16) SaturatedSubMasked(y Uint8x16, mask Mask8x16) Uint8x16
-
-// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSUBSB, CPU Feature: AVX512BW
-func (x Uint8x32) SaturatedSubMasked(y Uint8x32, mask Mask8x32) Uint8x32
-
-// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSUBSB, CPU Feature: AVX512BW
-func (x Uint8x64) SaturatedSubMasked(y Uint8x64, mask Mask8x64) Uint8x64
-
-// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSUBSW, CPU Feature: AVX512BW
-func (x Uint16x8) SaturatedSubMasked(y Uint16x8, mask Mask16x8) Uint16x8
-
-// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSUBSW, CPU Feature: AVX512BW
-func (x Uint16x16) SaturatedSubMasked(y Uint16x16, mask Mask16x16) Uint16x16
-
-// SaturatedSubMasked subtracts corresponding elements of two vectors with saturation.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPSUBSW, CPU Feature: AVX512BW
-func (x Uint16x32) SaturatedSubMasked(y Uint16x32, mask Mask16x32) Uint16x32
 
 /* SaturatedUnsignedSignedPairDotProd */
 
@@ -9096,6 +8680,82 @@ func (x Int8x32) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x32, 
 //
 // Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
 func (x Int8x64) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x64, z Int32x16, mask Mask32x16) Int32x16
+
+/* Scale */
+
+// Scale multiplies elements by a power of 2.
+//
+// Asm: VSCALEFPS, CPU Feature: AVX512F
+func (x Float32x4) Scale(y Float32x4) Float32x4
+
+// Scale multiplies elements by a power of 2.
+//
+// Asm: VSCALEFPS, CPU Feature: AVX512F
+func (x Float32x8) Scale(y Float32x8) Float32x8
+
+// Scale multiplies elements by a power of 2.
+//
+// Asm: VSCALEFPS, CPU Feature: AVX512F
+func (x Float32x16) Scale(y Float32x16) Float32x16
+
+// Scale multiplies elements by a power of 2.
+//
+// Asm: VSCALEFPD, CPU Feature: AVX512F
+func (x Float64x2) Scale(y Float64x2) Float64x2
+
+// Scale multiplies elements by a power of 2.
+//
+// Asm: VSCALEFPD, CPU Feature: AVX512F
+func (x Float64x4) Scale(y Float64x4) Float64x4
+
+// Scale multiplies elements by a power of 2.
+//
+// Asm: VSCALEFPD, CPU Feature: AVX512F
+func (x Float64x8) Scale(y Float64x8) Float64x8
+
+/* ScaleMasked */
+
+// ScaleMasked multiplies elements by a power of 2.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VSCALEFPS, CPU Feature: AVX512F
+func (x Float32x4) ScaleMasked(y Float32x4, mask Mask32x4) Float32x4
+
+// ScaleMasked multiplies elements by a power of 2.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VSCALEFPS, CPU Feature: AVX512F
+func (x Float32x8) ScaleMasked(y Float32x8, mask Mask32x8) Float32x8
+
+// ScaleMasked multiplies elements by a power of 2.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VSCALEFPS, CPU Feature: AVX512F
+func (x Float32x16) ScaleMasked(y Float32x16, mask Mask32x16) Float32x16
+
+// ScaleMasked multiplies elements by a power of 2.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VSCALEFPD, CPU Feature: AVX512F
+func (x Float64x2) ScaleMasked(y Float64x2, mask Mask64x2) Float64x2
+
+// ScaleMasked multiplies elements by a power of 2.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VSCALEFPD, CPU Feature: AVX512F
+func (x Float64x4) ScaleMasked(y Float64x4, mask Mask64x4) Float64x4
+
+// ScaleMasked multiplies elements by a power of 2.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VSCALEFPD, CPU Feature: AVX512F
+func (x Float64x8) ScaleMasked(y Float64x8, mask Mask64x8) Float64x8
 
 /* Set128 */
 
@@ -11753,6 +11413,242 @@ func (x Uint64x4) SubMasked(y Uint64x4, mask Mask64x4) Uint64x4
 // Asm: VPSUBQ, CPU Feature: AVX512F
 func (x Uint64x8) SubMasked(y Uint64x8, mask Mask64x8) Uint64x8
 
+/* SubPairs */
+
+// SubPairs horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+//
+// Asm: VHSUBPS, CPU Feature: AVX
+func (x Float32x4) SubPairs(y Float32x4) Float32x4
+
+// SubPairs horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+//
+// Asm: VHSUBPS, CPU Feature: AVX
+func (x Float32x8) SubPairs(y Float32x8) Float32x8
+
+// SubPairs horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+//
+// Asm: VHSUBPD, CPU Feature: AVX
+func (x Float64x2) SubPairs(y Float64x2) Float64x2
+
+// SubPairs horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+//
+// Asm: VHSUBPD, CPU Feature: AVX
+func (x Float64x4) SubPairs(y Float64x4) Float64x4
+
+// SubPairs horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+//
+// Asm: VPHSUBW, CPU Feature: AVX
+func (x Int16x8) SubPairs(y Int16x8) Int16x8
+
+// SubPairs horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+//
+// Asm: VPHSUBW, CPU Feature: AVX2
+func (x Int16x16) SubPairs(y Int16x16) Int16x16
+
+// SubPairs horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+//
+// Asm: VPHSUBD, CPU Feature: AVX
+func (x Int32x4) SubPairs(y Int32x4) Int32x4
+
+// SubPairs horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+//
+// Asm: VPHSUBD, CPU Feature: AVX2
+func (x Int32x8) SubPairs(y Int32x8) Int32x8
+
+// SubPairs horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+//
+// Asm: VPHSUBW, CPU Feature: AVX
+func (x Uint16x8) SubPairs(y Uint16x8) Uint16x8
+
+// SubPairs horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+//
+// Asm: VPHSUBW, CPU Feature: AVX2
+func (x Uint16x16) SubPairs(y Uint16x16) Uint16x16
+
+// SubPairs horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+//
+// Asm: VPHSUBD, CPU Feature: AVX
+func (x Uint32x4) SubPairs(y Uint32x4) Uint32x4
+
+// SubPairs horizontally subtracts adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+//
+// Asm: VPHSUBD, CPU Feature: AVX2
+func (x Uint32x8) SubPairs(y Uint32x8) Uint32x8
+
+/* SubPairsSaturated */
+
+// SubPairsSaturated horizontally subtracts adjacent pairs of elements with saturation.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+//
+// Asm: VPHSUBSW, CPU Feature: AVX
+func (x Int16x8) SubPairsSaturated(y Int16x8) Int16x8
+
+// SubPairsSaturated horizontally subtracts adjacent pairs of elements with saturation.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [y0-y1, y2-y3, ..., x0-x1, x2-x3, ...].
+//
+// Asm: VPHSUBSW, CPU Feature: AVX2
+func (x Int16x16) SubPairsSaturated(y Int16x16) Int16x16
+
+/* SubSaturated */
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VPSUBSB, CPU Feature: AVX
+func (x Int8x16) SubSaturated(y Int8x16) Int8x16
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VPSUBSB, CPU Feature: AVX2
+func (x Int8x32) SubSaturated(y Int8x32) Int8x32
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VPSUBSB, CPU Feature: AVX512BW
+func (x Int8x64) SubSaturated(y Int8x64) Int8x64
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VPSUBSW, CPU Feature: AVX
+func (x Int16x8) SubSaturated(y Int16x8) Int16x8
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VPSUBSW, CPU Feature: AVX2
+func (x Int16x16) SubSaturated(y Int16x16) Int16x16
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VPSUBSW, CPU Feature: AVX512BW
+func (x Int16x32) SubSaturated(y Int16x32) Int16x32
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VPSUBSB, CPU Feature: AVX
+func (x Uint8x16) SubSaturated(y Uint8x16) Uint8x16
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VPSUBSB, CPU Feature: AVX2
+func (x Uint8x32) SubSaturated(y Uint8x32) Uint8x32
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VPSUBSB, CPU Feature: AVX512BW
+func (x Uint8x64) SubSaturated(y Uint8x64) Uint8x64
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VPSUBSW, CPU Feature: AVX
+func (x Uint16x8) SubSaturated(y Uint16x8) Uint16x8
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VPSUBSW, CPU Feature: AVX2
+func (x Uint16x16) SubSaturated(y Uint16x16) Uint16x16
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VPSUBSW, CPU Feature: AVX512BW
+func (x Uint16x32) SubSaturated(y Uint16x32) Uint16x32
+
+/* SubSaturatedMasked */
+
+// SubSaturatedMasked subtracts corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSUBSB, CPU Feature: AVX512BW
+func (x Int8x16) SubSaturatedMasked(y Int8x16, mask Mask8x16) Int8x16
+
+// SubSaturatedMasked subtracts corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSUBSB, CPU Feature: AVX512BW
+func (x Int8x32) SubSaturatedMasked(y Int8x32, mask Mask8x32) Int8x32
+
+// SubSaturatedMasked subtracts corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSUBSB, CPU Feature: AVX512BW
+func (x Int8x64) SubSaturatedMasked(y Int8x64, mask Mask8x64) Int8x64
+
+// SubSaturatedMasked subtracts corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSUBSW, CPU Feature: AVX512BW
+func (x Int16x8) SubSaturatedMasked(y Int16x8, mask Mask16x8) Int16x8
+
+// SubSaturatedMasked subtracts corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSUBSW, CPU Feature: AVX512BW
+func (x Int16x16) SubSaturatedMasked(y Int16x16, mask Mask16x16) Int16x16
+
+// SubSaturatedMasked subtracts corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSUBSW, CPU Feature: AVX512BW
+func (x Int16x32) SubSaturatedMasked(y Int16x32, mask Mask16x32) Int16x32
+
+// SubSaturatedMasked subtracts corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSUBSB, CPU Feature: AVX512BW
+func (x Uint8x16) SubSaturatedMasked(y Uint8x16, mask Mask8x16) Uint8x16
+
+// SubSaturatedMasked subtracts corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSUBSB, CPU Feature: AVX512BW
+func (x Uint8x32) SubSaturatedMasked(y Uint8x32, mask Mask8x32) Uint8x32
+
+// SubSaturatedMasked subtracts corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSUBSB, CPU Feature: AVX512BW
+func (x Uint8x64) SubSaturatedMasked(y Uint8x64, mask Mask8x64) Uint8x64
+
+// SubSaturatedMasked subtracts corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSUBSW, CPU Feature: AVX512BW
+func (x Uint16x8) SubSaturatedMasked(y Uint16x8, mask Mask16x8) Uint16x8
+
+// SubSaturatedMasked subtracts corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSUBSW, CPU Feature: AVX512BW
+func (x Uint16x16) SubSaturatedMasked(y Uint16x16, mask Mask16x16) Uint16x16
+
+// SubSaturatedMasked subtracts corresponding elements of two vectors with saturation.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPSUBSW, CPU Feature: AVX512BW
+func (x Uint16x32) SubSaturatedMasked(y Uint16x32, mask Mask16x32) Uint16x32
+
 /* Trunc */
 
 // Trunc truncates elements towards zero.
@@ -11775,105 +11671,205 @@ func (x Float64x2) Trunc() Float64x2
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x4) Trunc() Float64x4
 
-/* TruncWithPrecision */
+/* TruncScaled */
 
-// TruncWithPrecision truncates elements with specified precision.
+// TruncScaled truncates elements with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x4) TruncWithPrecision(prec uint8) Float32x4
+func (x Float32x4) TruncScaled(prec uint8) Float32x4
 
-// TruncWithPrecision truncates elements with specified precision.
+// TruncScaled truncates elements with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x8) TruncWithPrecision(prec uint8) Float32x8
+func (x Float32x8) TruncScaled(prec uint8) Float32x8
 
-// TruncWithPrecision truncates elements with specified precision.
+// TruncScaled truncates elements with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x16) TruncWithPrecision(prec uint8) Float32x16
+func (x Float32x16) TruncScaled(prec uint8) Float32x16
 
-// TruncWithPrecision truncates elements with specified precision.
+// TruncScaled truncates elements with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x2) TruncWithPrecision(prec uint8) Float64x2
+func (x Float64x2) TruncScaled(prec uint8) Float64x2
 
-// TruncWithPrecision truncates elements with specified precision.
+// TruncScaled truncates elements with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x4) TruncWithPrecision(prec uint8) Float64x4
+func (x Float64x4) TruncScaled(prec uint8) Float64x4
 
-// TruncWithPrecision truncates elements with specified precision.
+// TruncScaled truncates elements with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x8) TruncWithPrecision(prec uint8) Float64x8
+func (x Float64x8) TruncScaled(prec uint8) Float64x8
 
-/* TruncWithPrecisionMasked */
+/* TruncScaledMasked */
 
-// TruncWithPrecisionMasked truncates elements with specified precision.
+// TruncScaledMasked truncates elements with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x4) TruncWithPrecisionMasked(prec uint8, mask Mask32x4) Float32x4
+func (x Float32x4) TruncScaledMasked(prec uint8, mask Mask32x4) Float32x4
 
-// TruncWithPrecisionMasked truncates elements with specified precision.
+// TruncScaledMasked truncates elements with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x8) TruncWithPrecisionMasked(prec uint8, mask Mask32x8) Float32x8
+func (x Float32x8) TruncScaledMasked(prec uint8, mask Mask32x8) Float32x8
 
-// TruncWithPrecisionMasked truncates elements with specified precision.
+// TruncScaledMasked truncates elements with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x16) TruncWithPrecisionMasked(prec uint8, mask Mask32x16) Float32x16
+func (x Float32x16) TruncScaledMasked(prec uint8, mask Mask32x16) Float32x16
 
-// TruncWithPrecisionMasked truncates elements with specified precision.
+// TruncScaledMasked truncates elements with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x2) TruncWithPrecisionMasked(prec uint8, mask Mask64x2) Float64x2
+func (x Float64x2) TruncScaledMasked(prec uint8, mask Mask64x2) Float64x2
 
-// TruncWithPrecisionMasked truncates elements with specified precision.
+// TruncScaledMasked truncates elements with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x4) TruncWithPrecisionMasked(prec uint8, mask Mask64x4) Float64x4
+func (x Float64x4) TruncScaledMasked(prec uint8, mask Mask64x4) Float64x4
 
-// TruncWithPrecisionMasked truncates elements with specified precision.
+// TruncScaledMasked truncates elements with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x8) TruncWithPrecisionMasked(prec uint8, mask Mask64x8) Float64x8
+func (x Float64x8) TruncScaledMasked(prec uint8, mask Mask64x8) Float64x8
+
+/* TruncScaledResidue */
+
+// TruncScaledResidue computes the difference after truncating with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x4) TruncScaledResidue(prec uint8) Float32x4
+
+// TruncScaledResidue computes the difference after truncating with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x8) TruncScaledResidue(prec uint8) Float32x8
+
+// TruncScaledResidue computes the difference after truncating with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x16) TruncScaledResidue(prec uint8) Float32x16
+
+// TruncScaledResidue computes the difference after truncating with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x2) TruncScaledResidue(prec uint8) Float64x2
+
+// TruncScaledResidue computes the difference after truncating with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x4) TruncScaledResidue(prec uint8) Float64x4
+
+// TruncScaledResidue computes the difference after truncating with specified precision.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x8) TruncScaledResidue(prec uint8) Float64x8
+
+/* TruncScaledResidueMasked */
+
+// TruncScaledResidueMasked computes the difference after truncating with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x4) TruncScaledResidueMasked(prec uint8, mask Mask32x4) Float32x4
+
+// TruncScaledResidueMasked computes the difference after truncating with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x8) TruncScaledResidueMasked(prec uint8, mask Mask32x8) Float32x8
+
+// TruncScaledResidueMasked computes the difference after truncating with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x16) TruncScaledResidueMasked(prec uint8, mask Mask32x16) Float32x16
+
+// TruncScaledResidueMasked computes the difference after truncating with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x2) TruncScaledResidueMasked(prec uint8, mask Mask64x2) Float64x2
+
+// TruncScaledResidueMasked computes the difference after truncating with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x4) TruncScaledResidueMasked(prec uint8, mask Mask64x4) Float64x4
+
+// TruncScaledResidueMasked computes the difference after truncating with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPD, CPU Feature: AVX512DQ
+func (x Float64x8) TruncScaledResidueMasked(prec uint8, mask Mask64x8) Float64x8
 
 /* UnsignedSignedQuadDotProdAccumulate */
 
