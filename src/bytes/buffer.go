@@ -77,6 +77,16 @@ func (b *Buffer) String() string {
 	return string(b.buf[b.off:])
 }
 
+// Peek returns the next n bytes without advancing the buffer.
+// If there are fewer than n bytes in the buffer, it returns error [io.EOF].
+// The slice is only valid until the next buffer modification.
+func (b *Buffer) Peek(n int) ([]byte, error) {
+	if b.Len() < n {
+		return b.buf[b.off:], io.EOF
+	}
+	return b.buf[b.off:n], nil
+}
+
 // empty reports whether the unread portion of the buffer is empty.
 func (b *Buffer) empty() bool { return len(b.buf) <= b.off }
 
