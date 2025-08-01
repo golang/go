@@ -6,6 +6,7 @@ package slog
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog/internal/buffer"
@@ -642,3 +643,49 @@ func (dh discardHandler) Enabled(context.Context, Level) bool  { return false }
 func (dh discardHandler) Handle(context.Context, Record) error { return nil }
 func (dh discardHandler) WithAttrs(attrs []Attr) Handler       { return dh }
 func (dh discardHandler) WithGroup(name string) Handler        { return dh }
+
+// MultiHandler returns a handler that invokes all the given Handlers.
+// Its Enable method reports whether any of the handlers' Enabled methods return true.
+// Its Handle, WithAttr and WithGroup methods call the corresponding method on each of the enabled handlers.
+func MultiHandler(handlers ...Handler) Handler {
+	return multiHandler(handlers)
+}
+
+type multiHandler []Handler
+
+func (h multiHandler) Enabled(ctx context.Context, l Level) bool {
+	for i := range h {
+		if h[i].Enabled(ctx, l) {
+			return true
+		}
+	}
+	return false
+}
+
+func (h multiHandler) Handle(ctx context.Context, r Record) error {
+	var errs []error
+	for i := range h {
+		if h[i].Enabled(ctx, r.Level) {
+			if err := h[i].Handle(ctx, r.Clone()); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func (h multiHandler) WithAttrs(attrs []Attr) Handler {
+	handlers := make([]Handler, 0, len(h))
+	for i := range h {
+		handlers = append(handlers, h[i].WithAttrs(attrs))
+	}
+	return multiHandler(handlers)
+}
+
+func (h multiHandler) WithGroup(name string) Handler {
+	handlers := make([]Handler, 0, len(h))
+	for i := range h {
+		handlers = append(handlers, h[i].WithGroup(name))
+	}
+	return multiHandler(handlers)
+}
