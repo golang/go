@@ -147,6 +147,41 @@ func testTempDir(t *testing.T) {
 	}
 }
 
+func TestTempDirGOTMPDIR(t *testing.T) {
+	customTmpDir := filepath.Join(os.TempDir(), "custom-gotmpdir-test")
+	if err := os.MkdirAll(customTmpDir, 0777); err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(customTmpDir)
+
+	oldValue, hadOld := os.LookupEnv("GOTMPDIR")
+	if err := os.Setenv("GOTMPDIR", customTmpDir); err != nil {
+		t.Fatal(err)
+	}
+	if hadOld {
+		defer os.Setenv("GOTMPDIR", oldValue)
+	} else {
+		defer os.Unsetenv("GOTMPDIR")
+	}
+
+	dir := t.TempDir()
+	if dir == "" {
+		t.Fatal("expected dir")
+	}
+
+	if !strings.HasPrefix(dir, customTmpDir) {
+		t.Errorf("TempDir did not use GOTMPDIR: got %q, want prefix %q", dir, customTmpDir)
+	}
+
+	fi, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fi.IsDir() {
+		t.Errorf("dir %q is not a dir", dir)
+	}
+}
+
 func TestSetenv(t *testing.T) {
 	tests := []struct {
 		name               string

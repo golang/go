@@ -1362,7 +1362,7 @@ func (c *common) TempDir() string {
 			return -1
 		}
 		pattern = strings.Map(mapper, pattern)
-		c.tempDir, c.tempDirErr = os.MkdirTemp("", pattern)
+		c.tempDir, c.tempDirErr = os.MkdirTemp(os.Getenv("GOTMPDIR"), pattern)
 		if c.tempDirErr == nil {
 			c.Cleanup(func() {
 				if err := removeAll(c.tempDir); err != nil {
