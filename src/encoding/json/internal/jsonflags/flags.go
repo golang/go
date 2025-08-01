@@ -58,11 +58,14 @@ const (
 		FormatNilSliceAsNull |
 		MatchCaseInsensitiveNames |
 		CallMethodsWithLegacySemantics |
+		FormatByteArrayAsArray |
 		FormatBytesWithLegacySemantics |
-		FormatTimeWithLegacySemantics |
+		FormatDurationAsNano |
 		MatchCaseSensitiveDelimiter |
 		MergeWithLegacySemantics |
-		OmitEmptyWithLegacyDefinition |
+		OmitEmptyWithLegacySemantics |
+		ParseBytesWithLooseRFC4648 |
+		ParseTimeWithLooseRFC3339 |
 		ReportErrorsWithLegacySemantics |
 		StringifyWithLegacySemantics |
 		UnmarshalArrayFromAnyLength
@@ -130,11 +133,14 @@ const (
 	_ Bools = (maxArshalV2Flag >> 1) << iota
 
 	CallMethodsWithLegacySemantics  // marshal or unmarshal
+	FormatByteArrayAsArray          // marshal or unmarshal
 	FormatBytesWithLegacySemantics  // marshal or unmarshal
-	FormatTimeWithLegacySemantics   // marshal or unmarshal
+	FormatDurationAsNano            // marshal or unmarshal
 	MatchCaseSensitiveDelimiter     // marshal or unmarshal
 	MergeWithLegacySemantics        // unmarshal
-	OmitEmptyWithLegacyDefinition   // marshal
+	OmitEmptyWithLegacySemantics    // marshal
+	ParseBytesWithLooseRFC4648      // unmarshal
+	ParseTimeWithLooseRFC3339       // unmarshal
 	ReportErrorsWithLegacySemantics // marshal or unmarshal
 	StringifyWithLegacySemantics    // marshal or unmarshal
 	StringifyBoolsAndStrings        // marshal or unmarshal; for internal use by jsonv2.makeStructArshaler
@@ -143,6 +149,12 @@ const (
 
 	maxArshalV1Flag
 )
+
+// bitsUsed is the number of bits used in the 64-bit boolean flags
+const bitsUsed = 42
+
+// Static compile check that bitsUsed and maxArshalV1Flag are in sync.
+const _ = uint64((1<<bitsUsed)-maxArshalV1Flag) + uint64(maxArshalV1Flag-(1<<bitsUsed))
 
 // Flags is a set of boolean flags.
 // If the presence bit is zero, then the value bit must also be zero.

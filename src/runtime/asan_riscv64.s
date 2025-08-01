@@ -81,13 +81,13 @@ TEXT	asancall<>(SB), NOSPLIT, $0-0
 	MOV	g_m(g), X21
 
 	// Switch to g0 stack if we aren't already on g0 or gsignal.
-	MOV	m_gsignal(X21), X21
-	BEQ	X21, g, call
+	MOV	m_gsignal(X21), X22
+	BEQ	X22, g, call
 
-	MOV	m_g0(X21), X21
-	BEQ	X21, g, call
+	MOV	m_g0(X21), X22
+	BEQ	X22, g, call
 
-	MOV	(g_sched+gobuf_sp)(X21), X2
+	MOV	(g_sched+gobuf_sp)(X22), X2
 
 call:
 	JALR	RA, X14

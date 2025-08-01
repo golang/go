@@ -114,7 +114,7 @@ func findCurrent(t *testing.T) (string, string) {
 	if ver != cgroup.V2 {
 		t.Skipf("cgroup: running on cgroup v%d want v2", ver)
 	}
-	rel := string(buf[1:n]) // The returned path always starts with /, skip it.
+	rel := string(buf[1:n])       // The returned path always starts with /, skip it.
 	rel = filepath.Join(".", rel) // Make sure this isn't empty string at root.
 	return mount, rel
 }

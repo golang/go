@@ -91,22 +91,25 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// to type []byte with a second argument of string type followed by ... .
 		// This form appends the bytes of the string."
 
-		// get special case out of the way
+		// Handle append(bytes, y...) special case, where
+		// the type set of y is {string} or {string, []byte}.
 		var sig *Signature
 		if nargs == 2 && hasDots(call) {
 			if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
 				y := args[1]
+				hasString := false
 				typeset(y.typ, func(_, u Type) bool {
 					if s, _ := u.(*Slice); s != nil && Identical(s.elem, universeByte) {
 						return true
 					}
 					if isString(u) {
+						hasString = true
 						return true
 					}
 					y = nil
 					return false
 				})
-				if y != nil {
+				if y != nil && hasString {
 					// setting the signature also signals that we're done
 					sig = makeSig(x.typ, x.typ, y.typ)
 					sig.variadic = true

@@ -466,7 +466,7 @@ func (r RelocType) IsDwTxtAddr() bool {
 // FuncCountToDwTxtAddrFlavor returns the correct DWARF .debug_addr
 // section relocation to use when compiling a package with a total of
 // fncount functions, along with the size of the ULEB128-encoded blob
-// needed to store the the eventual .debug_addr index.
+// needed to store the eventual .debug_addr index.
 func FuncCountToDwTxtAddrFlavor(fncount int) (RelocType, int) {
 	switch {
 	case fncount <= 127:

@@ -24,7 +24,7 @@ func tryDeferToSpanScan(p uintptr, gcw *gcWork) bool {
 func (s *mspan) initInlineMarkBits() {
 }
 
-func (s *mspan) mergeInlineMarks(to *gcBits) {
+func (s *mspan) moveInlineMarks(to *gcBits) {
 	throw("unimplemented")
 }
 
