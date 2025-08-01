@@ -3825,27 +3825,7 @@ func (x Float64x8) Greater(y Float64x8) Mask64x8
 // Greater compares for greater than.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512
-func (x Uint8x16) Greater(y Uint8x16) Mask8x16
-
-// Greater compares for greater than.
-//
-// Asm: VPCMPUB, CPU Feature: AVX512
-func (x Uint8x32) Greater(y Uint8x32) Mask8x32
-
-// Greater compares for greater than.
-//
-// Asm: VPCMPUB, CPU Feature: AVX512
 func (x Uint8x64) Greater(y Uint8x64) Mask8x64
-
-// Greater compares for greater than.
-//
-// Asm: VPCMPUW, CPU Feature: AVX512
-func (x Uint16x8) Greater(y Uint16x8) Mask16x8
-
-// Greater compares for greater than.
-//
-// Asm: VPCMPUW, CPU Feature: AVX512
-func (x Uint16x16) Greater(y Uint16x16) Mask16x16
 
 // Greater compares for greater than.
 //
@@ -3855,27 +3835,7 @@ func (x Uint16x32) Greater(y Uint16x32) Mask16x32
 // Greater compares for greater than.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512
-func (x Uint32x4) Greater(y Uint32x4) Mask32x4
-
-// Greater compares for greater than.
-//
-// Asm: VPCMPUD, CPU Feature: AVX512
-func (x Uint32x8) Greater(y Uint32x8) Mask32x8
-
-// Greater compares for greater than.
-//
-// Asm: VPCMPUD, CPU Feature: AVX512
 func (x Uint32x16) Greater(y Uint32x16) Mask32x16
-
-// Greater compares for greater than.
-//
-// Asm: VPCMPUQ, CPU Feature: AVX512
-func (x Uint64x2) Greater(y Uint64x2) Mask64x2
-
-// Greater compares for greater than.
-//
-// Asm: VPCMPUQ, CPU Feature: AVX512
-func (x Uint64x4) Greater(y Uint64x4) Mask64x4
 
 // Greater compares for greater than.
 //
@@ -3917,27 +3877,7 @@ func (x Float64x8) GreaterEqual(y Float64x8) Mask64x8
 // GreaterEqual compares for greater than or equal.
 //
 // Asm: VPCMPB, CPU Feature: AVX512
-func (x Int8x16) GreaterEqual(y Int8x16) Mask8x16
-
-// GreaterEqual compares for greater than or equal.
-//
-// Asm: VPCMPB, CPU Feature: AVX512
-func (x Int8x32) GreaterEqual(y Int8x32) Mask8x32
-
-// GreaterEqual compares for greater than or equal.
-//
-// Asm: VPCMPB, CPU Feature: AVX512
 func (x Int8x64) GreaterEqual(y Int8x64) Mask8x64
-
-// GreaterEqual compares for greater than or equal.
-//
-// Asm: VPCMPW, CPU Feature: AVX512
-func (x Int16x8) GreaterEqual(y Int16x8) Mask16x8
-
-// GreaterEqual compares for greater than or equal.
-//
-// Asm: VPCMPW, CPU Feature: AVX512
-func (x Int16x16) GreaterEqual(y Int16x16) Mask16x16
 
 // GreaterEqual compares for greater than or equal.
 //
@@ -3947,27 +3887,7 @@ func (x Int16x32) GreaterEqual(y Int16x32) Mask16x32
 // GreaterEqual compares for greater than or equal.
 //
 // Asm: VPCMPD, CPU Feature: AVX512
-func (x Int32x4) GreaterEqual(y Int32x4) Mask32x4
-
-// GreaterEqual compares for greater than or equal.
-//
-// Asm: VPCMPD, CPU Feature: AVX512
-func (x Int32x8) GreaterEqual(y Int32x8) Mask32x8
-
-// GreaterEqual compares for greater than or equal.
-//
-// Asm: VPCMPD, CPU Feature: AVX512
 func (x Int32x16) GreaterEqual(y Int32x16) Mask32x16
-
-// GreaterEqual compares for greater than or equal.
-//
-// Asm: VPCMPQ, CPU Feature: AVX512
-func (x Int64x2) GreaterEqual(y Int64x2) Mask64x2
-
-// GreaterEqual compares for greater than or equal.
-//
-// Asm: VPCMPQ, CPU Feature: AVX512
-func (x Int64x4) GreaterEqual(y Int64x4) Mask64x4
 
 // GreaterEqual compares for greater than or equal.
 //
@@ -3977,27 +3897,7 @@ func (x Int64x8) GreaterEqual(y Int64x8) Mask64x8
 // GreaterEqual compares for greater than or equal.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512
-func (x Uint8x16) GreaterEqual(y Uint8x16) Mask8x16
-
-// GreaterEqual compares for greater than or equal.
-//
-// Asm: VPCMPUB, CPU Feature: AVX512
-func (x Uint8x32) GreaterEqual(y Uint8x32) Mask8x32
-
-// GreaterEqual compares for greater than or equal.
-//
-// Asm: VPCMPUB, CPU Feature: AVX512
 func (x Uint8x64) GreaterEqual(y Uint8x64) Mask8x64
-
-// GreaterEqual compares for greater than or equal.
-//
-// Asm: VPCMPUW, CPU Feature: AVX512
-func (x Uint16x8) GreaterEqual(y Uint16x8) Mask16x8
-
-// GreaterEqual compares for greater than or equal.
-//
-// Asm: VPCMPUW, CPU Feature: AVX512
-func (x Uint16x16) GreaterEqual(y Uint16x16) Mask16x16
 
 // GreaterEqual compares for greater than or equal.
 //
@@ -4007,27 +3907,7 @@ func (x Uint16x32) GreaterEqual(y Uint16x32) Mask16x32
 // GreaterEqual compares for greater than or equal.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512
-func (x Uint32x4) GreaterEqual(y Uint32x4) Mask32x4
-
-// GreaterEqual compares for greater than or equal.
-//
-// Asm: VPCMPUD, CPU Feature: AVX512
-func (x Uint32x8) GreaterEqual(y Uint32x8) Mask32x8
-
-// GreaterEqual compares for greater than or equal.
-//
-// Asm: VPCMPUD, CPU Feature: AVX512
 func (x Uint32x16) GreaterEqual(y Uint32x16) Mask32x16
-
-// GreaterEqual compares for greater than or equal.
-//
-// Asm: VPCMPUQ, CPU Feature: AVX512
-func (x Uint64x2) GreaterEqual(y Uint64x2) Mask64x2
-
-// GreaterEqual compares for greater than or equal.
-//
-// Asm: VPCMPUQ, CPU Feature: AVX512
-func (x Uint64x4) GreaterEqual(y Uint64x4) Mask64x4
 
 // GreaterEqual compares for greater than or equal.
 //
@@ -4569,27 +4449,7 @@ func (x Float64x8) Less(y Float64x8) Mask64x8
 // Less compares for less than.
 //
 // Asm: VPCMPB, CPU Feature: AVX512
-func (x Int8x16) Less(y Int8x16) Mask8x16
-
-// Less compares for less than.
-//
-// Asm: VPCMPB, CPU Feature: AVX512
-func (x Int8x32) Less(y Int8x32) Mask8x32
-
-// Less compares for less than.
-//
-// Asm: VPCMPB, CPU Feature: AVX512
 func (x Int8x64) Less(y Int8x64) Mask8x64
-
-// Less compares for less than.
-//
-// Asm: VPCMPW, CPU Feature: AVX512
-func (x Int16x8) Less(y Int16x8) Mask16x8
-
-// Less compares for less than.
-//
-// Asm: VPCMPW, CPU Feature: AVX512
-func (x Int16x16) Less(y Int16x16) Mask16x16
 
 // Less compares for less than.
 //
@@ -4599,27 +4459,7 @@ func (x Int16x32) Less(y Int16x32) Mask16x32
 // Less compares for less than.
 //
 // Asm: VPCMPD, CPU Feature: AVX512
-func (x Int32x4) Less(y Int32x4) Mask32x4
-
-// Less compares for less than.
-//
-// Asm: VPCMPD, CPU Feature: AVX512
-func (x Int32x8) Less(y Int32x8) Mask32x8
-
-// Less compares for less than.
-//
-// Asm: VPCMPD, CPU Feature: AVX512
 func (x Int32x16) Less(y Int32x16) Mask32x16
-
-// Less compares for less than.
-//
-// Asm: VPCMPQ, CPU Feature: AVX512
-func (x Int64x2) Less(y Int64x2) Mask64x2
-
-// Less compares for less than.
-//
-// Asm: VPCMPQ, CPU Feature: AVX512
-func (x Int64x4) Less(y Int64x4) Mask64x4
 
 // Less compares for less than.
 //
@@ -4629,27 +4469,7 @@ func (x Int64x8) Less(y Int64x8) Mask64x8
 // Less compares for less than.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512
-func (x Uint8x16) Less(y Uint8x16) Mask8x16
-
-// Less compares for less than.
-//
-// Asm: VPCMPUB, CPU Feature: AVX512
-func (x Uint8x32) Less(y Uint8x32) Mask8x32
-
-// Less compares for less than.
-//
-// Asm: VPCMPUB, CPU Feature: AVX512
 func (x Uint8x64) Less(y Uint8x64) Mask8x64
-
-// Less compares for less than.
-//
-// Asm: VPCMPUW, CPU Feature: AVX512
-func (x Uint16x8) Less(y Uint16x8) Mask16x8
-
-// Less compares for less than.
-//
-// Asm: VPCMPUW, CPU Feature: AVX512
-func (x Uint16x16) Less(y Uint16x16) Mask16x16
 
 // Less compares for less than.
 //
@@ -4659,27 +4479,7 @@ func (x Uint16x32) Less(y Uint16x32) Mask16x32
 // Less compares for less than.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512
-func (x Uint32x4) Less(y Uint32x4) Mask32x4
-
-// Less compares for less than.
-//
-// Asm: VPCMPUD, CPU Feature: AVX512
-func (x Uint32x8) Less(y Uint32x8) Mask32x8
-
-// Less compares for less than.
-//
-// Asm: VPCMPUD, CPU Feature: AVX512
 func (x Uint32x16) Less(y Uint32x16) Mask32x16
-
-// Less compares for less than.
-//
-// Asm: VPCMPUQ, CPU Feature: AVX512
-func (x Uint64x2) Less(y Uint64x2) Mask64x2
-
-// Less compares for less than.
-//
-// Asm: VPCMPUQ, CPU Feature: AVX512
-func (x Uint64x4) Less(y Uint64x4) Mask64x4
 
 // Less compares for less than.
 //
@@ -4721,27 +4521,7 @@ func (x Float64x8) LessEqual(y Float64x8) Mask64x8
 // LessEqual compares for less than or equal.
 //
 // Asm: VPCMPB, CPU Feature: AVX512
-func (x Int8x16) LessEqual(y Int8x16) Mask8x16
-
-// LessEqual compares for less than or equal.
-//
-// Asm: VPCMPB, CPU Feature: AVX512
-func (x Int8x32) LessEqual(y Int8x32) Mask8x32
-
-// LessEqual compares for less than or equal.
-//
-// Asm: VPCMPB, CPU Feature: AVX512
 func (x Int8x64) LessEqual(y Int8x64) Mask8x64
-
-// LessEqual compares for less than or equal.
-//
-// Asm: VPCMPW, CPU Feature: AVX512
-func (x Int16x8) LessEqual(y Int16x8) Mask16x8
-
-// LessEqual compares for less than or equal.
-//
-// Asm: VPCMPW, CPU Feature: AVX512
-func (x Int16x16) LessEqual(y Int16x16) Mask16x16
 
 // LessEqual compares for less than or equal.
 //
@@ -4751,27 +4531,7 @@ func (x Int16x32) LessEqual(y Int16x32) Mask16x32
 // LessEqual compares for less than or equal.
 //
 // Asm: VPCMPD, CPU Feature: AVX512
-func (x Int32x4) LessEqual(y Int32x4) Mask32x4
-
-// LessEqual compares for less than or equal.
-//
-// Asm: VPCMPD, CPU Feature: AVX512
-func (x Int32x8) LessEqual(y Int32x8) Mask32x8
-
-// LessEqual compares for less than or equal.
-//
-// Asm: VPCMPD, CPU Feature: AVX512
 func (x Int32x16) LessEqual(y Int32x16) Mask32x16
-
-// LessEqual compares for less than or equal.
-//
-// Asm: VPCMPQ, CPU Feature: AVX512
-func (x Int64x2) LessEqual(y Int64x2) Mask64x2
-
-// LessEqual compares for less than or equal.
-//
-// Asm: VPCMPQ, CPU Feature: AVX512
-func (x Int64x4) LessEqual(y Int64x4) Mask64x4
 
 // LessEqual compares for less than or equal.
 //
@@ -4781,27 +4541,7 @@ func (x Int64x8) LessEqual(y Int64x8) Mask64x8
 // LessEqual compares for less than or equal.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512
-func (x Uint8x16) LessEqual(y Uint8x16) Mask8x16
-
-// LessEqual compares for less than or equal.
-//
-// Asm: VPCMPUB, CPU Feature: AVX512
-func (x Uint8x32) LessEqual(y Uint8x32) Mask8x32
-
-// LessEqual compares for less than or equal.
-//
-// Asm: VPCMPUB, CPU Feature: AVX512
 func (x Uint8x64) LessEqual(y Uint8x64) Mask8x64
-
-// LessEqual compares for less than or equal.
-//
-// Asm: VPCMPUW, CPU Feature: AVX512
-func (x Uint16x8) LessEqual(y Uint16x8) Mask16x8
-
-// LessEqual compares for less than or equal.
-//
-// Asm: VPCMPUW, CPU Feature: AVX512
-func (x Uint16x16) LessEqual(y Uint16x16) Mask16x16
 
 // LessEqual compares for less than or equal.
 //
@@ -4811,27 +4551,7 @@ func (x Uint16x32) LessEqual(y Uint16x32) Mask16x32
 // LessEqual compares for less than or equal.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512
-func (x Uint32x4) LessEqual(y Uint32x4) Mask32x4
-
-// LessEqual compares for less than or equal.
-//
-// Asm: VPCMPUD, CPU Feature: AVX512
-func (x Uint32x8) LessEqual(y Uint32x8) Mask32x8
-
-// LessEqual compares for less than or equal.
-//
-// Asm: VPCMPUD, CPU Feature: AVX512
 func (x Uint32x16) LessEqual(y Uint32x16) Mask32x16
-
-// LessEqual compares for less than or equal.
-//
-// Asm: VPCMPUQ, CPU Feature: AVX512
-func (x Uint64x2) LessEqual(y Uint64x2) Mask64x2
-
-// LessEqual compares for less than or equal.
-//
-// Asm: VPCMPUQ, CPU Feature: AVX512
-func (x Uint64x4) LessEqual(y Uint64x4) Mask64x4
 
 // LessEqual compares for less than or equal.
 //
@@ -6647,27 +6367,7 @@ func (x Float64x8) NotEqual(y Float64x8) Mask64x8
 // NotEqual compares for inequality.
 //
 // Asm: VPCMPB, CPU Feature: AVX512
-func (x Int8x16) NotEqual(y Int8x16) Mask8x16
-
-// NotEqual compares for inequality.
-//
-// Asm: VPCMPB, CPU Feature: AVX512
-func (x Int8x32) NotEqual(y Int8x32) Mask8x32
-
-// NotEqual compares for inequality.
-//
-// Asm: VPCMPB, CPU Feature: AVX512
 func (x Int8x64) NotEqual(y Int8x64) Mask8x64
-
-// NotEqual compares for inequality.
-//
-// Asm: VPCMPW, CPU Feature: AVX512
-func (x Int16x8) NotEqual(y Int16x8) Mask16x8
-
-// NotEqual compares for inequality.
-//
-// Asm: VPCMPW, CPU Feature: AVX512
-func (x Int16x16) NotEqual(y Int16x16) Mask16x16
 
 // NotEqual compares for inequality.
 //
@@ -6677,27 +6377,7 @@ func (x Int16x32) NotEqual(y Int16x32) Mask16x32
 // NotEqual compares for inequality.
 //
 // Asm: VPCMPD, CPU Feature: AVX512
-func (x Int32x4) NotEqual(y Int32x4) Mask32x4
-
-// NotEqual compares for inequality.
-//
-// Asm: VPCMPD, CPU Feature: AVX512
-func (x Int32x8) NotEqual(y Int32x8) Mask32x8
-
-// NotEqual compares for inequality.
-//
-// Asm: VPCMPD, CPU Feature: AVX512
 func (x Int32x16) NotEqual(y Int32x16) Mask32x16
-
-// NotEqual compares for inequality.
-//
-// Asm: VPCMPQ, CPU Feature: AVX512
-func (x Int64x2) NotEqual(y Int64x2) Mask64x2
-
-// NotEqual compares for inequality.
-//
-// Asm: VPCMPQ, CPU Feature: AVX512
-func (x Int64x4) NotEqual(y Int64x4) Mask64x4
 
 // NotEqual compares for inequality.
 //
@@ -6707,27 +6387,7 @@ func (x Int64x8) NotEqual(y Int64x8) Mask64x8
 // NotEqual compares for inequality.
 //
 // Asm: VPCMPUB, CPU Feature: AVX512
-func (x Uint8x16) NotEqual(y Uint8x16) Mask8x16
-
-// NotEqual compares for inequality.
-//
-// Asm: VPCMPUB, CPU Feature: AVX512
-func (x Uint8x32) NotEqual(y Uint8x32) Mask8x32
-
-// NotEqual compares for inequality.
-//
-// Asm: VPCMPUB, CPU Feature: AVX512
 func (x Uint8x64) NotEqual(y Uint8x64) Mask8x64
-
-// NotEqual compares for inequality.
-//
-// Asm: VPCMPUW, CPU Feature: AVX512
-func (x Uint16x8) NotEqual(y Uint16x8) Mask16x8
-
-// NotEqual compares for inequality.
-//
-// Asm: VPCMPUW, CPU Feature: AVX512
-func (x Uint16x16) NotEqual(y Uint16x16) Mask16x16
 
 // NotEqual compares for inequality.
 //
@@ -6737,27 +6397,7 @@ func (x Uint16x32) NotEqual(y Uint16x32) Mask16x32
 // NotEqual compares for inequality.
 //
 // Asm: VPCMPUD, CPU Feature: AVX512
-func (x Uint32x4) NotEqual(y Uint32x4) Mask32x4
-
-// NotEqual compares for inequality.
-//
-// Asm: VPCMPUD, CPU Feature: AVX512
-func (x Uint32x8) NotEqual(y Uint32x8) Mask32x8
-
-// NotEqual compares for inequality.
-//
-// Asm: VPCMPUD, CPU Feature: AVX512
 func (x Uint32x16) NotEqual(y Uint32x16) Mask32x16
-
-// NotEqual compares for inequality.
-//
-// Asm: VPCMPUQ, CPU Feature: AVX512
-func (x Uint64x2) NotEqual(y Uint64x2) Mask64x2
-
-// NotEqual compares for inequality.
-//
-// Asm: VPCMPUQ, CPU Feature: AVX512
-func (x Uint64x4) NotEqual(y Uint64x4) Mask64x4
 
 // NotEqual compares for inequality.
 //

@@ -87,6 +87,16 @@ var ternaryFlaky = &shapes{ // for tests that support flaky equality
 	floats: []int{32},
 }
 
+var avx2SignedComparisons = &shapes{
+	vecs: []int{128, 256},
+	ints: []int{8, 16, 32, 64},
+}
+
+var avx2UnsignedComparisons = &shapes{
+	vecs:  []int{128, 256},
+	uints: []int{8, 16, 32, 64},
+}
+
 type templateData struct {
 	Vec    string // the type of the vector, e.g. Float32x4
 	AOrAn  string // for documentation, the article "a" or "an"
@@ -486,6 +496,130 @@ func (x {{.Vec}}) StoreSlicePart(s []{{.Type}}) {
 }
 `)
 
+func (t templateData) CPUfeature() string {
+	switch t.Vwidth {
+	case 128:
+		return "AVX"
+	case 256:
+		return "AVX2"
+	case 512:
+		return "AVX512"
+	}
+	panic(fmt.Errorf("unexpected vector width %d", t.Vwidth))
+}
+
+var avx2SignedComparisonsTemplate = shapedTemplateOf(avx2SignedComparisons, "avx2 signed comparisons", `
+// Less returns a mask whose elements indicate whether x < y
+//
+// Emulated, CPU Feature {{.CPUfeature}}
+func (x {{.Vec}}) Less(y {{.Vec}}) Mask{{.WxC}} {
+	return y.Greater(x)
+}
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y
+//
+// Emulated, CPU Feature {{.CPUfeature}}
+func (x {{.Vec}}) GreaterEqual(y {{.Vec}}) Mask{{.WxC}} {
+	ones := x.Equal(x).AsInt{{.WxC}}()
+	return y.Greater(x).AsInt{{.WxC}}().Xor(ones).AsMask{{.WxC}}()
+}
+
+// LessEqual returns a mask whose elements indicate whether x <= y
+//
+// Emulated, CPU Feature {{.CPUfeature}}
+func (x {{.Vec}}) LessEqual(y {{.Vec}}) Mask{{.WxC}} {
+	ones := x.Equal(x).AsInt{{.WxC}}()
+	return x.Greater(y).AsInt{{.WxC}}().Xor(ones).AsMask{{.WxC}}()
+}
+
+// NotEqual returns a mask whose elements indicate whether x != y
+//
+// Emulated, CPU Feature {{.CPUfeature}}
+func (x {{.Vec}}) NotEqual(y {{.Vec}}) Mask{{.WxC}} {
+	ones := x.Equal(x).AsInt{{.WxC}}()
+	return x.Equal(y).AsInt{{.WxC}}().Xor(ones).AsMask{{.WxC}}()	
+}
+`)
+
+// CPUfeatureAVX2if8 return AVX2 if the element width is 8,
+// otherwise, it returns CPUfeature.  This is for the cpufeature
+// of unsigned comparison emulation, which uses shifts for all
+// the sizes > 8 (shifts are AVX) but must use broadcast (AVX2)
+// for bytes.
+func (t templateData) CPUfeatureAVX2if8() string {
+	if t.Width == 8 {
+		return "AVX2"
+	}
+	return t.CPUfeature()
+}
+
+var avx2UnsignedComparisonsTemplate = shapedTemplateOf(avx2UnsignedComparisons, "avx2 unsigned comparisons", `
+// Greater returns a mask whose elements indicate whether x > y
+//
+// Emulated, CPU Feature {{.CPUfeatureAVX2if8}}
+func (x {{.Vec}}) Greater(y {{.Vec}}) Mask{{.WxC}} {
+	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
+{{- if eq .Width 8}}
+	signs := BroadcastInt{{.WxC}}(-1 << ({{.Width}}-1))
+{{- else}}
+	ones := x.Equal(x).AsInt{{.WxC}}()
+	signs := ones.ShiftAllLeft({{.Width}}-1)
+{{- end }}
+	return a.Xor(signs).Greater(b.Xor(signs))
+}
+
+// Less returns a mask whose elements indicate whether x < y
+//
+// Emulated, CPU Feature {{.CPUfeatureAVX2if8}}
+func (x {{.Vec}}) Less(y {{.Vec}}) Mask{{.WxC}} {
+	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
+{{- if eq .Width 8}}
+	signs := BroadcastInt{{.WxC}}(-1 << ({{.Width}}-1))
+{{- else}}
+	ones := x.Equal(x).AsInt{{.WxC}}()
+	signs := ones.ShiftAllLeft({{.Width}}-1)
+{{- end }}
+	return b.Xor(signs).Greater(a.Xor(signs))
+}
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y
+//
+// Emulated, CPU Feature {{.CPUfeatureAVX2if8}}
+func (x {{.Vec}}) GreaterEqual(y {{.Vec}}) Mask{{.WxC}} {
+	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
+	ones := x.Equal(x).AsInt{{.WxC}}()
+{{- if eq .Width 8}}
+	signs := BroadcastInt{{.WxC}}(-1 << ({{.Width}}-1))
+{{- else}}
+	signs := ones.ShiftAllLeft({{.Width}}-1)
+{{- end }}
+	return b.Xor(signs).Greater(a.Xor(signs)).AsInt{{.WxC}}().Xor(ones).AsMask{{.WxC}}()
+}
+
+// LessEqual returns a mask whose elements indicate whether x <= y
+//
+// Emulated, CPU Feature {{.CPUfeatureAVX2if8}}
+func (x {{.Vec}}) LessEqual(y {{.Vec}}) Mask{{.WxC}} {
+	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
+	ones := x.Equal(x).AsInt{{.WxC}}()
+{{- if eq .Width 8}}
+	signs := BroadcastInt{{.WxC}}(-1 << ({{.Width}}-1))
+{{- else}}
+	signs := ones.ShiftAllLeft({{.Width}}-1)
+{{- end }}
+	return a.Xor(signs).Greater(b.Xor(signs)).AsInt{{.WxC}}().Xor(ones).AsMask{{.WxC}}()
+}
+
+// NotEqual returns a mask whose elements indicate whether x != y
+//
+// Emulated, CPU Feature {{.CPUfeature}}
+func (x {{.Vec}}) NotEqual(y {{.Vec}}) Mask{{.WxC}} {
+	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
+	ones := x.Equal(x).AsInt{{.WxC}}()
+	return a.Equal(b).AsInt{{.WxC}}().Xor(ones).AsMask{{.WxC}}()
+}
+`)
+
 var unsafePATemplate = templateOf("unsafe PA helper", `
 // pa{{.Vec}} returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
@@ -591,6 +725,8 @@ func main() {
 			avx2SmallLoadSlicePartTemplate,
 			avx2MaskedTemplate,
 			avx512MaskedTemplate,
+			avx2SignedComparisonsTemplate,
+			avx2UnsignedComparisonsTemplate,
 			broadcastTemplate,
 		)
 	}

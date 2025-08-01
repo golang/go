@@ -2208,29 +2208,13 @@ const (
 	OpAMD64VEXTRACTF64X4256
 	OpAMD64VEXTRACTI128128
 	OpAMD64VEXTRACTI64X4256
-	OpAMD64VPCMPUB128
-	OpAMD64VPCMPUB256
 	OpAMD64VPCMPUB512
-	OpAMD64VPCMPUW128
-	OpAMD64VPCMPUW256
 	OpAMD64VPCMPUW512
-	OpAMD64VPCMPUD128
-	OpAMD64VPCMPUD256
 	OpAMD64VPCMPUD512
-	OpAMD64VPCMPUQ128
-	OpAMD64VPCMPUQ256
 	OpAMD64VPCMPUQ512
-	OpAMD64VPCMPB128
-	OpAMD64VPCMPB256
 	OpAMD64VPCMPB512
-	OpAMD64VPCMPW128
-	OpAMD64VPCMPW256
 	OpAMD64VPCMPW512
-	OpAMD64VPCMPD128
-	OpAMD64VPCMPD256
 	OpAMD64VPCMPD512
-	OpAMD64VPCMPQ128
-	OpAMD64VPCMPQ256
 	OpAMD64VPCMPQ512
 	OpAMD64VPROLD128
 	OpAMD64VPROLD256
@@ -5155,17 +5139,9 @@ const (
 	OpGreaterEqualFloat64x2
 	OpGreaterEqualFloat64x4
 	OpGreaterEqualFloat64x8
-	OpGreaterEqualInt8x16
-	OpGreaterEqualInt8x32
 	OpGreaterEqualInt8x64
-	OpGreaterEqualInt16x8
-	OpGreaterEqualInt16x16
 	OpGreaterEqualInt16x32
-	OpGreaterEqualInt32x4
-	OpGreaterEqualInt32x8
 	OpGreaterEqualInt32x16
-	OpGreaterEqualInt64x2
-	OpGreaterEqualInt64x4
 	OpGreaterEqualInt64x8
 	OpGreaterEqualMaskedFloat32x4
 	OpGreaterEqualMaskedFloat32x8
@@ -5197,17 +5173,9 @@ const (
 	OpGreaterEqualMaskedUint64x2
 	OpGreaterEqualMaskedUint64x4
 	OpGreaterEqualMaskedUint64x8
-	OpGreaterEqualUint8x16
-	OpGreaterEqualUint8x32
 	OpGreaterEqualUint8x64
-	OpGreaterEqualUint16x8
-	OpGreaterEqualUint16x16
 	OpGreaterEqualUint16x32
-	OpGreaterEqualUint32x4
-	OpGreaterEqualUint32x8
 	OpGreaterEqualUint32x16
-	OpGreaterEqualUint64x2
-	OpGreaterEqualUint64x4
 	OpGreaterEqualUint64x8
 	OpGreaterFloat32x4
 	OpGreaterFloat32x8
@@ -5257,17 +5225,9 @@ const (
 	OpGreaterMaskedUint64x2
 	OpGreaterMaskedUint64x4
 	OpGreaterMaskedUint64x8
-	OpGreaterUint8x16
-	OpGreaterUint8x32
 	OpGreaterUint8x64
-	OpGreaterUint16x8
-	OpGreaterUint16x16
 	OpGreaterUint16x32
-	OpGreaterUint32x4
-	OpGreaterUint32x8
 	OpGreaterUint32x16
-	OpGreaterUint64x2
-	OpGreaterUint64x4
 	OpGreaterUint64x8
 	OpIsNanFloat32x4
 	OpIsNanFloat32x8
@@ -5287,17 +5247,9 @@ const (
 	OpLessEqualFloat64x2
 	OpLessEqualFloat64x4
 	OpLessEqualFloat64x8
-	OpLessEqualInt8x16
-	OpLessEqualInt8x32
 	OpLessEqualInt8x64
-	OpLessEqualInt16x8
-	OpLessEqualInt16x16
 	OpLessEqualInt16x32
-	OpLessEqualInt32x4
-	OpLessEqualInt32x8
 	OpLessEqualInt32x16
-	OpLessEqualInt64x2
-	OpLessEqualInt64x4
 	OpLessEqualInt64x8
 	OpLessEqualMaskedFloat32x4
 	OpLessEqualMaskedFloat32x8
@@ -5329,17 +5281,9 @@ const (
 	OpLessEqualMaskedUint64x2
 	OpLessEqualMaskedUint64x4
 	OpLessEqualMaskedUint64x8
-	OpLessEqualUint8x16
-	OpLessEqualUint8x32
 	OpLessEqualUint8x64
-	OpLessEqualUint16x8
-	OpLessEqualUint16x16
 	OpLessEqualUint16x32
-	OpLessEqualUint32x4
-	OpLessEqualUint32x8
 	OpLessEqualUint32x16
-	OpLessEqualUint64x2
-	OpLessEqualUint64x4
 	OpLessEqualUint64x8
 	OpLessFloat32x4
 	OpLessFloat32x8
@@ -5347,17 +5291,9 @@ const (
 	OpLessFloat64x2
 	OpLessFloat64x4
 	OpLessFloat64x8
-	OpLessInt8x16
-	OpLessInt8x32
 	OpLessInt8x64
-	OpLessInt16x8
-	OpLessInt16x16
 	OpLessInt16x32
-	OpLessInt32x4
-	OpLessInt32x8
 	OpLessInt32x16
-	OpLessInt64x2
-	OpLessInt64x4
 	OpLessInt64x8
 	OpLessMaskedFloat32x4
 	OpLessMaskedFloat32x8
@@ -5389,17 +5325,9 @@ const (
 	OpLessMaskedUint64x2
 	OpLessMaskedUint64x4
 	OpLessMaskedUint64x8
-	OpLessUint8x16
-	OpLessUint8x32
 	OpLessUint8x64
-	OpLessUint16x8
-	OpLessUint16x16
 	OpLessUint16x32
-	OpLessUint32x4
-	OpLessUint32x8
 	OpLessUint32x16
-	OpLessUint64x2
-	OpLessUint64x4
 	OpLessUint64x8
 	OpMaxFloat32x4
 	OpMaxFloat32x8
@@ -5627,17 +5555,9 @@ const (
 	OpNotEqualFloat64x2
 	OpNotEqualFloat64x4
 	OpNotEqualFloat64x8
-	OpNotEqualInt8x16
-	OpNotEqualInt8x32
 	OpNotEqualInt8x64
-	OpNotEqualInt16x8
-	OpNotEqualInt16x16
 	OpNotEqualInt16x32
-	OpNotEqualInt32x4
-	OpNotEqualInt32x8
 	OpNotEqualInt32x16
-	OpNotEqualInt64x2
-	OpNotEqualInt64x4
 	OpNotEqualInt64x8
 	OpNotEqualMaskedFloat32x4
 	OpNotEqualMaskedFloat32x8
@@ -5669,17 +5589,9 @@ const (
 	OpNotEqualMaskedUint64x2
 	OpNotEqualMaskedUint64x4
 	OpNotEqualMaskedUint64x8
-	OpNotEqualUint8x16
-	OpNotEqualUint8x32
 	OpNotEqualUint8x64
-	OpNotEqualUint16x8
-	OpNotEqualUint16x16
 	OpNotEqualUint16x32
-	OpNotEqualUint32x4
-	OpNotEqualUint32x8
 	OpNotEqualUint32x16
-	OpNotEqualUint64x2
-	OpNotEqualUint64x4
 	OpNotEqualUint64x8
 	OpOnesCountInt8x16
 	OpOnesCountInt8x32
@@ -34329,70 +34241,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPUB128",
-		auxType: auxUInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPUB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:    "VPCMPUB256",
-		auxType: auxUInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPUB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
 		name:    "VPCMPUB512",
 		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPUB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:    "VPCMPUW128",
-		auxType: auxUInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPUW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:    "VPCMPUW256",
-		auxType: auxUInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPUW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -34419,70 +34271,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPUD128",
-		auxType: auxUInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPUD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:    "VPCMPUD256",
-		auxType: auxUInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPUD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
 		name:    "VPCMPUD512",
 		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPUD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:    "VPCMPUQ128",
-		auxType: auxUInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPUQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:    "VPCMPUQ256",
-		auxType: auxUInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPUQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -34509,70 +34301,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPB128",
-		auxType: auxUInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:    "VPCMPB256",
-		auxType: auxUInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
 		name:    "VPCMPB512",
 		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:    "VPCMPW128",
-		auxType: auxUInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:    "VPCMPW256",
-		auxType: auxUInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -34599,70 +34331,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPCMPD128",
-		auxType: auxUInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:    "VPCMPD256",
-		auxType: auxUInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
 		name:    "VPCMPD512",
 		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:    "VPCMPQ128",
-		auxType: auxUInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-			},
-		},
-	},
-	{
-		name:    "VPCMPQ256",
-		auxType: auxUInt8,
-		argLen:  2,
-		asm:     x86.AVPCMPQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -66751,27 +66423,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "GreaterEqualInt8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualInt8x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "GreaterEqualInt8x64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualInt16x16",
 		argLen:  2,
 		generic: true,
 	},
@@ -66781,27 +66433,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "GreaterEqualInt32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualInt32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "GreaterEqualInt32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualInt64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualInt64x4",
 		argLen:  2,
 		generic: true,
 	},
@@ -66961,27 +66593,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "GreaterEqualUint8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualUint8x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "GreaterEqualUint8x64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualUint16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualUint16x16",
 		argLen:  2,
 		generic: true,
 	},
@@ -66991,27 +66603,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "GreaterEqualUint32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualUint32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "GreaterEqualUint32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualUint64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GreaterEqualUint64x4",
 		argLen:  2,
 		generic: true,
 	},
@@ -67261,27 +66853,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "GreaterUint8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GreaterUint8x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "GreaterUint8x64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GreaterUint16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GreaterUint16x16",
 		argLen:  2,
 		generic: true,
 	},
@@ -67291,27 +66863,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "GreaterUint32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GreaterUint32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "GreaterUint32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GreaterUint64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "GreaterUint64x4",
 		argLen:  2,
 		generic: true,
 	},
@@ -67423,27 +66975,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "LessEqualInt8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessEqualInt8x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "LessEqualInt8x64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessEqualInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessEqualInt16x16",
 		argLen:  2,
 		generic: true,
 	},
@@ -67453,27 +66985,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "LessEqualInt32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessEqualInt32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "LessEqualInt32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessEqualInt64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessEqualInt64x4",
 		argLen:  2,
 		generic: true,
 	},
@@ -67633,27 +67145,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "LessEqualUint8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessEqualUint8x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "LessEqualUint8x64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessEqualUint16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessEqualUint16x16",
 		argLen:  2,
 		generic: true,
 	},
@@ -67663,27 +67155,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "LessEqualUint32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessEqualUint32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "LessEqualUint32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessEqualUint64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessEqualUint64x4",
 		argLen:  2,
 		generic: true,
 	},
@@ -67723,27 +67195,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "LessInt8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessInt8x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "LessInt8x64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessInt16x16",
 		argLen:  2,
 		generic: true,
 	},
@@ -67753,27 +67205,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "LessInt32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessInt32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "LessInt32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessInt64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessInt64x4",
 		argLen:  2,
 		generic: true,
 	},
@@ -67933,27 +67365,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "LessUint8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessUint8x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "LessUint8x64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessUint16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessUint16x16",
 		argLen:  2,
 		generic: true,
 	},
@@ -67963,27 +67375,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "LessUint32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessUint32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "LessUint32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessUint64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LessUint64x4",
 		argLen:  2,
 		generic: true,
 	},
@@ -69313,31 +68705,7 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "NotEqualInt8x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualInt8x32",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:        "NotEqualInt8x64",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualInt16x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualInt16x16",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
@@ -69349,31 +68717,7 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "NotEqualInt32x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualInt32x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:        "NotEqualInt32x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualInt64x2",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualInt64x4",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
@@ -69565,31 +68909,7 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "NotEqualUint8x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualUint8x32",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:        "NotEqualUint8x64",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualUint16x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualUint16x16",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
@@ -69601,31 +68921,7 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "NotEqualUint32x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualUint32x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:        "NotEqualUint32x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualUint64x2",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "NotEqualUint64x4",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
