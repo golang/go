@@ -510,7 +510,7 @@ func (r *Request) multipartReader(allowMixed bool) (*multipart.Reader, error) {
 	if v == "" {
 		return nil, ErrNotMultipart
 	}
-	if r.Body == nil {
+	if r.Body == nil || r.Body == NoBody {
 		return nil, errors.New("missing form body")
 	}
 	d, params, err := mime.ParseMediaType(v)
@@ -1261,7 +1261,7 @@ func copyValues(dst, src url.Values) {
 }
 
 func parsePostForm(r *Request) (vs url.Values, err error) {
-	if r.Body == nil {
+	if r.Body == nil || r.Body == NoBody {
 		err = errors.New("missing form body")
 		return
 	}
