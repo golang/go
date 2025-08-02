@@ -233,19 +233,23 @@ var stdlibImportcfgFile = sync.OnceValue(func() string {
 	return filename
 })
 
-func linkFile(runcmd runCmd, goname string, importcfg string, ldflags []string) (err error) {
+// linkFile links infile with the given importcfg and ldflags, writes to outfile.
+// infile can be the name of an object file or a go source file.
+func linkFile(runcmd runCmd, outfile, infile string, importcfg string, ldflags []string) (err error) {
 	if importcfg == "" {
 		importcfg = stdlibImportcfgFile()
 	}
-	pfile := strings.ReplaceAll(goname, ".go", ".o")
-	cmd := []string{goTool, "tool", "link", "-w", "-o", "a.exe", "-importcfg=" + importcfg}
+	if strings.HasSuffix(infile, ".go") {
+		infile = infile[:len(infile)-3] + ".o"
+	}
+	cmd := []string{goTool, "tool", "link", "-s", "-w", "-o", outfile, "-importcfg=" + importcfg}
 	if *linkshared {
 		cmd = append(cmd, "-linkshared", "-installsuffix=dynlink")
 	}
 	if ldflags != nil {
 		cmd = append(cmd, ldflags...)
 	}
-	cmd = append(cmd, pfile)
+	cmd = append(cmd, infile)
 	_, err = runcmd(cmd...)
 	return
 }
@@ -853,7 +857,7 @@ func (t test) run() error {
 			}
 
 			if i == len(pkgs)-1 {
-				err = linkFile(runcmd, pkg.files[0], importcfgfile, ldflags)
+				err = linkFile(runcmd, "a.exe", pkg.files[0], importcfgfile, ldflags)
 				if err != nil {
 					return err
 				}
@@ -974,8 +978,7 @@ func (t test) run() error {
 		if err != nil {
 			return err
 		}
-		cmd = []string{goTool, "tool", "link", "-importcfg=" + stdlibImportcfgFile(), "-o", "a.exe", "all.a"}
-		_, err = runcmd(cmd...)
+		err = linkFile(runcmd, "a.exe", "all.a", stdlibImportcfgFile(), nil)
 		if err != nil {
 			return err
 		}
@@ -1033,9 +1036,7 @@ func (t test) run() error {
 				return err
 			}
 			exe := filepath.Join(tempDir, "test.exe")
-			cmd := []string{goTool, "tool", "link", "-s", "-w", "-importcfg=" + stdlibImportcfgFile()}
-			cmd = append(cmd, "-o", exe, pkg)
-			if _, err := runcmd(cmd...); err != nil {
+			if err := linkFile(runcmd, exe, pkg, stdlibImportcfgFile(), nil); err != nil {
 				return err
 			}
 			out, err = runcmd(append([]string{exe}, args...)...)
