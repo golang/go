@@ -1214,15 +1214,18 @@ func isShrinkStackSafe(gp *g) bool {
 	if gp.parkingOnChan.Load() {
 		return false
 	}
-	// We also can't copy the stack while tracing is enabled, and
-	// gp is in _Gwaiting solely to make itself available to suspendG.
+	// We also can't copy the stack while a gp is in _Gwaiting solely
+	// to make itself available to suspendG.
+	//
 	// In these cases, the G is actually executing on the system
-	// stack, and the execution tracer may want to take a stack trace
-	// of the G's stack. Note: it's safe to access gp.waitreason here.
-	// We're only checking if this is true if we took ownership of the
+	// stack, and the execution tracer, mutex profiler, etc. may want
+	// to take a stack trace of the G's stack.
+	//
+	// Note: it's safe to access gp.waitreason here.
+	// We're only calling isShrinkStackSafe if we took ownership of the
 	// G with the _Gscan bit. This prevents the goroutine from transitioning,
 	// which prevents gp.waitreason from changing.
-	if traceEnabled() && readgstatus(gp)&^_Gscan == _Gwaiting && gp.waitreason.isWaitingForSuspendG() {
+	if readgstatus(gp)&^_Gscan == _Gwaiting && gp.waitreason.isWaitingForSuspendG() {
 		return false
 	}
 	return true
@@ -1256,12 +1259,6 @@ func shrinkstack(gp *g) {
 	}
 
 	if debug.gcshrinkstackoff > 0 {
-		return
-	}
-	f := findfunc(gp.startpc)
-	if f.valid() && f.funcID == abi.FuncID_gcBgMarkWorker {
-		// We're not allowed to shrink the gcBgMarkWorker
-		// stack (see gcBgMarkWorker for explanation).
 		return
 	}
 

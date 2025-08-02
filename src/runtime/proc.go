@@ -1372,6 +1372,9 @@ func casGToWaiting(gp *g, old uint32, reason waitReason) {
 // casGToWaitingForSuspendG transitions gp from old to _Gwaiting, and sets the wait reason.
 // The wait reason must be a valid isWaitingForSuspendG wait reason.
 //
+// While a goroutine is in this state, it's stack is effectively pinned.
+// The garbage collector must not shrink or otherwise mutate the goroutine's stack.
+//
 // Use this over casgstatus when possible to ensure that a waitreason is set.
 func casGToWaitingForSuspendG(gp *g, old uint32, reason waitReason) {
 	if !reason.isWaitingForSuspendG() {
@@ -1608,18 +1611,11 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
 	// stack while we try to stop the world since otherwise we could get
 	// in a mutual preemption deadlock.
 	//
-	// We must not modify anything on the G stack because a stack shrink
-	// may occur, now that we switched to _Gwaiting, specifically if we're
-	// doing this during the mark phase (mark termination excepted, since
-	// we know that stack scanning is done by that point). A stack shrink
-	// is otherwise OK though because in order to return from this function
-	// (and to leave the system stack) we must have preempted all
-	// goroutines, including any attempting to scan our stack, in which
-	// case, any stack shrinking will have already completed by the time we
-	// exit.
+	// casGToWaitingForSuspendG marks the goroutine as ineligible for a
+	// stack shrink, effectively pinning the stack in memory for the duration.
 	//
 	// N.B. The execution tracer is not aware of this status transition and
-	// andles it specially based on the wait reason.
+	// handles it specially based on the wait reason.
 	casGToWaitingForSuspendG(getg().m.curg, _Grunning, waitReasonStoppingTheWorld)
 
 	trace := traceAcquire()
@@ -2106,16 +2102,11 @@ func forEachP(reason waitReason, fn func(*p)) {
 		// deadlock as we attempt to preempt a goroutine that's trying
 		// to preempt us (e.g. for a stack scan).
 		//
-		// We must not modify anything on the G stack because a stack shrink
-		// may occur. A stack shrink is otherwise OK though because in order
-		// to return from this function (and to leave the system stack) we
-		// must have preempted all goroutines, including any attempting
-		// to scan our stack, in which case, any stack shrinking will
-		// have already completed by the time we exit.
+		// casGToWaitingForSuspendG marks the goroutine as ineligible for a
+		// stack shrink, effectively pinning the stack in memory for the duration.
 		//
-		// N.B. The execution tracer is not aware of this status
-		// transition and handles it specially based on the
-		// wait reason.
+		// N.B. The execution tracer is not aware of this status transition and
+		// handles it specially based on the wait reason.
 		casGToWaitingForSuspendG(gp, _Grunning, reason)
 		forEachPInternal(fn)
 		casgstatus(gp, _Gwaiting, _Grunning)
