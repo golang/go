@@ -242,7 +242,7 @@ func linkFile(runcmd runCmd, outfile, infile string, importcfg string, ldflags [
 	if strings.HasSuffix(infile, ".go") {
 		infile = infile[:len(infile)-3] + ".o"
 	}
-	cmd := []string{goTool, "tool", "link", "-s", "-w", "-o", outfile, "-importcfg=" + importcfg}
+	cmd := []string{goTool, "tool", "link", "-s", "-w", "-buildid=test", "-o", outfile, "-importcfg=" + importcfg}
 	if *linkshared {
 		cmd = append(cmd, "-linkshared", "-installsuffix=dynlink")
 	}
