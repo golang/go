@@ -24,6 +24,12 @@ import (
 // BUG(mikio): On JS and Plan 9, methods and functions related
 // to IPConn are not implemented.
 
+// BUG: On Windows, raw IP sockets are restricted by the operating system.
+// Sending TCP data, sending UDP data with invalid source addresses,
+// and calling bind with TCP protocol don't work.
+//
+// See Winsock reference for details.
+
 // IPAddr represents the address of an IP end point.
 type IPAddr struct {
 	IP   IP
