@@ -516,7 +516,7 @@ type RowsColumnTypePrecisionScale interface {
 }
 
 // RowsColumnScanner may be implemented by [Rows]. It allows the driver to completely
-// take responsibility for how values are scanned and replace the normal [database/sql].
+// take responsibility for how values are scanned and replace the normal [database/sql]
 // scanning path. This allows drivers to directly support types that do not implement
 // [database/sql.Scanner].
 type RowsColumnScanner interface {
