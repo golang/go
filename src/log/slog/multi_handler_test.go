@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"strings"
 	"testing"
 	"time"
 )
@@ -27,8 +26,6 @@ func (h *mockFailingHandler) Handle(ctx context.Context, r Record) error {
 }
 
 func TestMultiHandler(t *testing.T) {
-	ctx := context.Background()
-
 	t.Run("Handle sends log to all handlers", func(t *testing.T) {
 		var buf1, buf2 bytes.Buffer
 		h1 := NewTextHandler(&buf1, nil)
@@ -39,21 +36,8 @@ func TestMultiHandler(t *testing.T) {
 
 		logger.Info("hello world", "user", "test")
 
-		// Check the output of the Text handler.
-		output1 := buf1.String()
-		if !strings.Contains(output1, `level=INFO`) ||
-			!strings.Contains(output1, `msg="hello world"`) ||
-			!strings.Contains(output1, `user=test`) {
-			t.Errorf("Text handler did not receive the correct log message. Got: %s", output1)
-		}
-
-		// Check the output of the JSON handle.
-		output2 := buf2.String()
-		if !strings.Contains(output2, `"level":"INFO"`) ||
-			!strings.Contains(output2, `"msg":"hello world"`) ||
-			!strings.Contains(output2, `"user":"test"`) {
-			t.Errorf("JSON handler did not receive the correct log message. Got: %s", output2)
-		}
+		checkLogOutput(t, buf1.String(), "time="+textTimeRE+` level=INFO msg="hello world" user=test`)
+		checkLogOutput(t, buf2.String(), `{"time":"`+jsonTimeRE+`","level":"INFO","msg":"hello world","user":"test"}`)
 	})
 
 	t.Run("Enabled returns true if any handler is enabled", func(t *testing.T) {
@@ -62,10 +46,10 @@ func TestMultiHandler(t *testing.T) {
 
 		multi := MultiHandler(h1, h2)
 
-		if !multi.Enabled(ctx, LevelInfo) {
+		if !multi.Enabled(context.Background(), LevelInfo) {
 			t.Error("Enabled should be true for INFO level, but got false")
 		}
-		if !multi.Enabled(ctx, LevelError) {
+		if !multi.Enabled(context.Background(), LevelError) {
 			t.Error("Enabled should be true for ERROR level, but got false")
 		}
 	})
@@ -76,7 +60,7 @@ func TestMultiHandler(t *testing.T) {
 
 		multi := MultiHandler(h1, h2)
 
-		if multi.Enabled(ctx, LevelDebug) {
+		if multi.Enabled(context.Background(), LevelDebug) {
 			t.Error("Enabled should be false for DEBUG level, but got true")
 		}
 	})
@@ -91,15 +75,8 @@ func TestMultiHandler(t *testing.T) {
 
 		logger.Info("request processed")
 
-		// Check if the Text handler contains the attribute.
-		if !strings.Contains(buf1.String(), "request_id=123") {
-			t.Errorf("Text handler output missing attribute. Got: %s", buf1.String())
-		}
-
-		// Check if the JSON handler contains the attribute.
-		if !strings.Contains(buf2.String(), `"request_id":"123"`) {
-			t.Errorf("JSON handler output missing attribute. Got: %s", buf2.String())
-		}
+		checkLogOutput(t, buf1.String(), "time="+textTimeRE+` level=INFO msg="request processed" request_id=123`)
+		checkLogOutput(t, buf2.String(), `{"time":"`+jsonTimeRE+`","level":"INFO","msg":"request processed","request_id":"123"}`)
 	})
 
 	t.Run("WithGroup propagates group to all handlers", func(t *testing.T) {
@@ -112,24 +89,14 @@ func TestMultiHandler(t *testing.T) {
 
 		logger.Info("user login", "user_id", 42)
 
-		// Check if the Text handler contains the group.
-		expectedText := "req.user_id=42"
-		if !strings.Contains(buf1.String(), expectedText) {
-			t.Errorf("Text handler output missing group. Expected to contain %q, Got: %s", expectedText, buf1.String())
-		}
-
-		// Check if the JSON handler contains the group.
-		expectedJSON := `"req":{"user_id":42}`
-		if !strings.Contains(buf2.String(), expectedJSON) {
-			t.Errorf("JSON handler output missing group. Expected to contain %q, Got: %s", expectedJSON, buf2.String())
-		}
+		checkLogOutput(t, buf1.String(), "time="+textTimeRE+` level=INFO msg="user login" req.user_id=42`)
+		checkLogOutput(t, buf2.String(), `{"time":"`+jsonTimeRE+`","level":"INFO","msg":"user login","req":{"user_id":42}}`)
 	})
 
 	t.Run("Handle propagates errors from handlers", func(t *testing.T) {
 		var buf bytes.Buffer
 		h1 := NewTextHandler(&buf, nil)
 
-		// Simulate a handler that will fail.
 		errFail := errors.New("fake fail")
 		h2 := &mockFailingHandler{
 			Handler: NewTextHandler(&bytes.Buffer{}, nil),
@@ -138,32 +105,21 @@ func TestMultiHandler(t *testing.T) {
 
 		multi := MultiHandler(h1, h2)
 
-		err := multi.Handle(ctx, NewRecord(time.Now(), LevelInfo, "test message", 0))
-
-		// Check if the error was returned correctly.
-		if err == nil {
-			t.Fatal("Expected an error from Handle, but got nil")
-		}
+		err := multi.Handle(context.Background(), NewRecord(time.Now(), LevelInfo, "test message", 0))
 		if !errors.Is(err, errFail) {
 			t.Errorf("Expected error: %v, but got: %v", errFail, err)
 		}
 
-		// Also, check that the successful handler still output the log.
-		if !strings.Contains(buf.String(), "test message") {
-			t.Error("The successful handler should still have processed the log")
-		}
+		checkLogOutput(t, buf.String(), "time="+textTimeRE+` level=INFO msg="test message"`)
 	})
 
 	t.Run("Handle with no handlers", func(t *testing.T) {
-		// Create an empty multi-handler.
 		multi := MultiHandler()
 		logger := New(multi)
 
-		// This should be safe to call and do nothing.
-		logger.Info("this is nothing")
+		logger.Info("nothing")
 
-		// Calling Handle directly should also be safe.
-		err := multi.Handle(ctx, NewRecord(time.Now(), LevelInfo, "test", 0))
+		err := multi.Handle(context.Background(), NewRecord(time.Now(), LevelInfo, "test", 0))
 		if err != nil {
 			t.Errorf("Handle with no sub-handlers should return nil, but got: %v", err)
 		}
