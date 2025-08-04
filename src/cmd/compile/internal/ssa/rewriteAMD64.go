@@ -3108,8 +3108,8 @@ func rewriteValueAMD64_OpAMD64ANDQ(v *Value) bool {
 		break
 	}
 	// match: (ANDQ (MOVQconst [c]) x)
-	// cond: isUint64PowerOfTwo(^c) && uint64(^c) >= 1<<31
-	// result: (BTRQconst [int8(log64(^c))] x)
+	// cond: isUnsignedPowerOfTwo(uint64(^c)) && uint64(^c) >= 1<<31
+	// result: (BTRQconst [int8(log64u(uint64(^c)))] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpAMD64MOVQconst {
@@ -3117,11 +3117,11 @@ func rewriteValueAMD64_OpAMD64ANDQ(v *Value) bool {
 			}
 			c := auxIntToInt64(v_0.AuxInt)
 			x := v_1
-			if !(isUint64PowerOfTwo(^c) && uint64(^c) >= 1<<31) {
+			if !(isUnsignedPowerOfTwo(uint64(^c)) && uint64(^c) >= 1<<31) {
 				continue
 			}
 			v.reset(OpAMD64BTRQconst)
-			v.AuxInt = int8ToAuxInt(int8(log64(^c)))
+			v.AuxInt = int8ToAuxInt(int8(log64u(uint64(^c))))
 			v.AddArg(x)
 			return true
 		}
@@ -14431,8 +14431,8 @@ func rewriteValueAMD64_OpAMD64ORQ(v *Value) bool {
 		break
 	}
 	// match: (ORQ (MOVQconst [c]) x)
-	// cond: isUint64PowerOfTwo(c) && uint64(c) >= 1<<31
-	// result: (BTSQconst [int8(log64(c))] x)
+	// cond: isUnsignedPowerOfTwo(uint64(c)) && uint64(c) >= 1<<31
+	// result: (BTSQconst [int8(log64u(uint64(c)))] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpAMD64MOVQconst {
@@ -14440,11 +14440,11 @@ func rewriteValueAMD64_OpAMD64ORQ(v *Value) bool {
 			}
 			c := auxIntToInt64(v_0.AuxInt)
 			x := v_1
-			if !(isUint64PowerOfTwo(c) && uint64(c) >= 1<<31) {
+			if !(isUnsignedPowerOfTwo(uint64(c)) && uint64(c) >= 1<<31) {
 				continue
 			}
 			v.reset(OpAMD64BTSQconst)
-			v.AuxInt = int8ToAuxInt(int8(log64(c)))
+			v.AuxInt = int8ToAuxInt(int8(log64u(uint64(c))))
 			v.AddArg(x)
 			return true
 		}
@@ -17398,46 +17398,46 @@ func rewriteValueAMD64_OpAMD64SETEQ(v *Value) bool {
 		break
 	}
 	// match: (SETEQ (TESTLconst [c] x))
-	// cond: isUint32PowerOfTwo(int64(c))
-	// result: (SETAE (BTLconst [int8(log32(c))] x))
+	// cond: isUnsignedPowerOfTwo(uint32(c))
+	// result: (SETAE (BTLconst [int8(log32u(uint32(c)))] x))
 	for {
 		if v_0.Op != OpAMD64TESTLconst {
 			break
 		}
 		c := auxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
-		if !(isUint32PowerOfTwo(int64(c))) {
+		if !(isUnsignedPowerOfTwo(uint32(c))) {
 			break
 		}
 		v.reset(OpAMD64SETAE)
 		v0 := b.NewValue0(v.Pos, OpAMD64BTLconst, types.TypeFlags)
-		v0.AuxInt = int8ToAuxInt(int8(log32(c)))
+		v0.AuxInt = int8ToAuxInt(int8(log32u(uint32(c))))
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (SETEQ (TESTQconst [c] x))
-	// cond: isUint64PowerOfTwo(int64(c))
-	// result: (SETAE (BTQconst [int8(log32(c))] x))
+	// cond: isUnsignedPowerOfTwo(uint64(c))
+	// result: (SETAE (BTQconst [int8(log32u(uint32(c)))] x))
 	for {
 		if v_0.Op != OpAMD64TESTQconst {
 			break
 		}
 		c := auxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
-		if !(isUint64PowerOfTwo(int64(c))) {
+		if !(isUnsignedPowerOfTwo(uint64(c))) {
 			break
 		}
 		v.reset(OpAMD64SETAE)
 		v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
-		v0.AuxInt = int8ToAuxInt(int8(log32(c)))
+		v0.AuxInt = int8ToAuxInt(int8(log32u(uint32(c))))
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (SETEQ (TESTQ (MOVQconst [c]) x))
-	// cond: isUint64PowerOfTwo(c)
-	// result: (SETAE (BTQconst [int8(log64(c))] x))
+	// cond: isUnsignedPowerOfTwo(uint64(c))
+	// result: (SETAE (BTQconst [int8(log64u(uint64(c)))] x))
 	for {
 		if v_0.Op != OpAMD64TESTQ {
 			break
@@ -17451,12 +17451,12 @@ func rewriteValueAMD64_OpAMD64SETEQ(v *Value) bool {
 			}
 			c := auxIntToInt64(v_0_0.AuxInt)
 			x := v_0_1
-			if !(isUint64PowerOfTwo(c)) {
+			if !(isUnsignedPowerOfTwo(uint64(c))) {
 				continue
 			}
 			v.reset(OpAMD64SETAE)
 			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
-			v0.AuxInt = int8ToAuxInt(int8(log64(c)))
+			v0.AuxInt = int8ToAuxInt(int8(log64u(uint64(c))))
 			v0.AddArg(x)
 			v.AddArg(v0)
 			return true
@@ -17875,8 +17875,8 @@ func rewriteValueAMD64_OpAMD64SETEQstore(v *Value) bool {
 		break
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTLconst [c] x) mem)
-	// cond: isUint32PowerOfTwo(int64(c))
-	// result: (SETAEstore [off] {sym} ptr (BTLconst [int8(log32(c))] x) mem)
+	// cond: isUnsignedPowerOfTwo(uint32(c))
+	// result: (SETAEstore [off] {sym} ptr (BTLconst [int8(log32u(uint32(c)))] x) mem)
 	for {
 		off := auxIntToInt32(v.AuxInt)
 		sym := auxToSym(v.Aux)
@@ -17887,21 +17887,21 @@ func rewriteValueAMD64_OpAMD64SETEQstore(v *Value) bool {
 		c := auxIntToInt32(v_1.AuxInt)
 		x := v_1.Args[0]
 		mem := v_2
-		if !(isUint32PowerOfTwo(int64(c))) {
+		if !(isUnsignedPowerOfTwo(uint32(c))) {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
 		v.AuxInt = int32ToAuxInt(off)
 		v.Aux = symToAux(sym)
 		v0 := b.NewValue0(v.Pos, OpAMD64BTLconst, types.TypeFlags)
-		v0.AuxInt = int8ToAuxInt(int8(log32(c)))
+		v0.AuxInt = int8ToAuxInt(int8(log32u(uint32(c))))
 		v0.AddArg(x)
 		v.AddArg3(ptr, v0, mem)
 		return true
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTQconst [c] x) mem)
-	// cond: isUint64PowerOfTwo(int64(c))
-	// result: (SETAEstore [off] {sym} ptr (BTQconst [int8(log32(c))] x) mem)
+	// cond: isUnsignedPowerOfTwo(uint64(c))
+	// result: (SETAEstore [off] {sym} ptr (BTQconst [int8(log32u(uint32(c)))] x) mem)
 	for {
 		off := auxIntToInt32(v.AuxInt)
 		sym := auxToSym(v.Aux)
@@ -17912,21 +17912,21 @@ func rewriteValueAMD64_OpAMD64SETEQstore(v *Value) bool {
 		c := auxIntToInt32(v_1.AuxInt)
 		x := v_1.Args[0]
 		mem := v_2
-		if !(isUint64PowerOfTwo(int64(c))) {
+		if !(isUnsignedPowerOfTwo(uint64(c))) {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
 		v.AuxInt = int32ToAuxInt(off)
 		v.Aux = symToAux(sym)
 		v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
-		v0.AuxInt = int8ToAuxInt(int8(log32(c)))
+		v0.AuxInt = int8ToAuxInt(int8(log32u(uint32(c))))
 		v0.AddArg(x)
 		v.AddArg3(ptr, v0, mem)
 		return true
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTQ (MOVQconst [c]) x) mem)
-	// cond: isUint64PowerOfTwo(c)
-	// result: (SETAEstore [off] {sym} ptr (BTQconst [int8(log64(c))] x) mem)
+	// cond: isUnsignedPowerOfTwo(uint64(c))
+	// result: (SETAEstore [off] {sym} ptr (BTQconst [int8(log64u(uint64(c)))] x) mem)
 	for {
 		off := auxIntToInt32(v.AuxInt)
 		sym := auxToSym(v.Aux)
@@ -17944,14 +17944,14 @@ func rewriteValueAMD64_OpAMD64SETEQstore(v *Value) bool {
 			c := auxIntToInt64(v_1_0.AuxInt)
 			x := v_1_1
 			mem := v_2
-			if !(isUint64PowerOfTwo(c)) {
+			if !(isUnsignedPowerOfTwo(uint64(c))) {
 				continue
 			}
 			v.reset(OpAMD64SETAEstore)
 			v.AuxInt = int32ToAuxInt(off)
 			v.Aux = symToAux(sym)
 			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
-			v0.AuxInt = int8ToAuxInt(int8(log64(c)))
+			v0.AuxInt = int8ToAuxInt(int8(log64u(uint64(c))))
 			v0.AddArg(x)
 			v.AddArg3(ptr, v0, mem)
 			return true
@@ -19444,46 +19444,46 @@ func rewriteValueAMD64_OpAMD64SETNE(v *Value) bool {
 		break
 	}
 	// match: (SETNE (TESTLconst [c] x))
-	// cond: isUint32PowerOfTwo(int64(c))
-	// result: (SETB (BTLconst [int8(log32(c))] x))
+	// cond: isUnsignedPowerOfTwo(uint32(c))
+	// result: (SETB (BTLconst [int8(log32u(uint32(c)))] x))
 	for {
 		if v_0.Op != OpAMD64TESTLconst {
 			break
 		}
 		c := auxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
-		if !(isUint32PowerOfTwo(int64(c))) {
+		if !(isUnsignedPowerOfTwo(uint32(c))) {
 			break
 		}
 		v.reset(OpAMD64SETB)
 		v0 := b.NewValue0(v.Pos, OpAMD64BTLconst, types.TypeFlags)
-		v0.AuxInt = int8ToAuxInt(int8(log32(c)))
+		v0.AuxInt = int8ToAuxInt(int8(log32u(uint32(c))))
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (SETNE (TESTQconst [c] x))
-	// cond: isUint64PowerOfTwo(int64(c))
-	// result: (SETB (BTQconst [int8(log32(c))] x))
+	// cond: isUnsignedPowerOfTwo(uint64(c))
+	// result: (SETB (BTQconst [int8(log32u(uint32(c)))] x))
 	for {
 		if v_0.Op != OpAMD64TESTQconst {
 			break
 		}
 		c := auxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
-		if !(isUint64PowerOfTwo(int64(c))) {
+		if !(isUnsignedPowerOfTwo(uint64(c))) {
 			break
 		}
 		v.reset(OpAMD64SETB)
 		v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
-		v0.AuxInt = int8ToAuxInt(int8(log32(c)))
+		v0.AuxInt = int8ToAuxInt(int8(log32u(uint32(c))))
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (SETNE (TESTQ (MOVQconst [c]) x))
-	// cond: isUint64PowerOfTwo(c)
-	// result: (SETB (BTQconst [int8(log64(c))] x))
+	// cond: isUnsignedPowerOfTwo(uint64(c))
+	// result: (SETB (BTQconst [int8(log64u(uint64(c)))] x))
 	for {
 		if v_0.Op != OpAMD64TESTQ {
 			break
@@ -19497,12 +19497,12 @@ func rewriteValueAMD64_OpAMD64SETNE(v *Value) bool {
 			}
 			c := auxIntToInt64(v_0_0.AuxInt)
 			x := v_0_1
-			if !(isUint64PowerOfTwo(c)) {
+			if !(isUnsignedPowerOfTwo(uint64(c))) {
 				continue
 			}
 			v.reset(OpAMD64SETB)
 			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
-			v0.AuxInt = int8ToAuxInt(int8(log64(c)))
+			v0.AuxInt = int8ToAuxInt(int8(log64u(uint64(c))))
 			v0.AddArg(x)
 			v.AddArg(v0)
 			return true
@@ -19921,8 +19921,8 @@ func rewriteValueAMD64_OpAMD64SETNEstore(v *Value) bool {
 		break
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTLconst [c] x) mem)
-	// cond: isUint32PowerOfTwo(int64(c))
-	// result: (SETBstore [off] {sym} ptr (BTLconst [int8(log32(c))] x) mem)
+	// cond: isUnsignedPowerOfTwo(uint32(c))
+	// result: (SETBstore [off] {sym} ptr (BTLconst [int8(log32u(uint32(c)))] x) mem)
 	for {
 		off := auxIntToInt32(v.AuxInt)
 		sym := auxToSym(v.Aux)
@@ -19933,21 +19933,21 @@ func rewriteValueAMD64_OpAMD64SETNEstore(v *Value) bool {
 		c := auxIntToInt32(v_1.AuxInt)
 		x := v_1.Args[0]
 		mem := v_2
-		if !(isUint32PowerOfTwo(int64(c))) {
+		if !(isUnsignedPowerOfTwo(uint32(c))) {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
 		v.AuxInt = int32ToAuxInt(off)
 		v.Aux = symToAux(sym)
 		v0 := b.NewValue0(v.Pos, OpAMD64BTLconst, types.TypeFlags)
-		v0.AuxInt = int8ToAuxInt(int8(log32(c)))
+		v0.AuxInt = int8ToAuxInt(int8(log32u(uint32(c))))
 		v0.AddArg(x)
 		v.AddArg3(ptr, v0, mem)
 		return true
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTQconst [c] x) mem)
-	// cond: isUint64PowerOfTwo(int64(c))
-	// result: (SETBstore [off] {sym} ptr (BTQconst [int8(log32(c))] x) mem)
+	// cond: isUnsignedPowerOfTwo(uint64(c))
+	// result: (SETBstore [off] {sym} ptr (BTQconst [int8(log32u(uint32(c)))] x) mem)
 	for {
 		off := auxIntToInt32(v.AuxInt)
 		sym := auxToSym(v.Aux)
@@ -19958,21 +19958,21 @@ func rewriteValueAMD64_OpAMD64SETNEstore(v *Value) bool {
 		c := auxIntToInt32(v_1.AuxInt)
 		x := v_1.Args[0]
 		mem := v_2
-		if !(isUint64PowerOfTwo(int64(c))) {
+		if !(isUnsignedPowerOfTwo(uint64(c))) {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
 		v.AuxInt = int32ToAuxInt(off)
 		v.Aux = symToAux(sym)
 		v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
-		v0.AuxInt = int8ToAuxInt(int8(log32(c)))
+		v0.AuxInt = int8ToAuxInt(int8(log32u(uint32(c))))
 		v0.AddArg(x)
 		v.AddArg3(ptr, v0, mem)
 		return true
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTQ (MOVQconst [c]) x) mem)
-	// cond: isUint64PowerOfTwo(c)
-	// result: (SETBstore [off] {sym} ptr (BTQconst [int8(log64(c))] x) mem)
+	// cond: isUnsignedPowerOfTwo(uint64(c))
+	// result: (SETBstore [off] {sym} ptr (BTQconst [int8(log64u(uint64(c)))] x) mem)
 	for {
 		off := auxIntToInt32(v.AuxInt)
 		sym := auxToSym(v.Aux)
@@ -19990,14 +19990,14 @@ func rewriteValueAMD64_OpAMD64SETNEstore(v *Value) bool {
 			c := auxIntToInt64(v_1_0.AuxInt)
 			x := v_1_1
 			mem := v_2
-			if !(isUint64PowerOfTwo(c)) {
+			if !(isUnsignedPowerOfTwo(uint64(c))) {
 				continue
 			}
 			v.reset(OpAMD64SETBstore)
 			v.AuxInt = int32ToAuxInt(off)
 			v.Aux = symToAux(sym)
 			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
-			v0.AuxInt = int8ToAuxInt(int8(log64(c)))
+			v0.AuxInt = int8ToAuxInt(int8(log64u(uint64(c))))
 			v0.AddArg(x)
 			v.AddArg3(ptr, v0, mem)
 			return true
@@ -23495,8 +23495,8 @@ func rewriteValueAMD64_OpAMD64XORQ(v *Value) bool {
 		break
 	}
 	// match: (XORQ (MOVQconst [c]) x)
-	// cond: isUint64PowerOfTwo(c) && uint64(c) >= 1<<31
-	// result: (BTCQconst [int8(log64(c))] x)
+	// cond: isUnsignedPowerOfTwo(uint64(c)) && uint64(c) >= 1<<31
+	// result: (BTCQconst [int8(log64u(uint64(c)))] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpAMD64MOVQconst {
@@ -23504,11 +23504,11 @@ func rewriteValueAMD64_OpAMD64XORQ(v *Value) bool {
 			}
 			c := auxIntToInt64(v_0.AuxInt)
 			x := v_1
-			if !(isUint64PowerOfTwo(c) && uint64(c) >= 1<<31) {
+			if !(isUnsignedPowerOfTwo(uint64(c)) && uint64(c) >= 1<<31) {
 				continue
 			}
 			v.reset(OpAMD64BTCQconst)
-			v.AuxInt = int8ToAuxInt(int8(log64(c)))
+			v.AuxInt = int8ToAuxInt(int8(log64u(uint64(c))))
 			v.AddArg(x)
 			return true
 		}
@@ -30148,40 +30148,40 @@ func rewriteBlockAMD64(b *Block) bool {
 			break
 		}
 		// match: (EQ (TESTLconst [c] x))
-		// cond: isUint32PowerOfTwo(int64(c))
-		// result: (UGE (BTLconst [int8(log32(c))] x))
+		// cond: isUnsignedPowerOfTwo(uint32(c))
+		// result: (UGE (BTLconst [int8(log32u(uint32(c)))] x))
 		for b.Controls[0].Op == OpAMD64TESTLconst {
 			v_0 := b.Controls[0]
 			c := auxIntToInt32(v_0.AuxInt)
 			x := v_0.Args[0]
-			if !(isUint32PowerOfTwo(int64(c))) {
+			if !(isUnsignedPowerOfTwo(uint32(c))) {
 				break
 			}
 			v0 := b.NewValue0(v_0.Pos, OpAMD64BTLconst, types.TypeFlags)
-			v0.AuxInt = int8ToAuxInt(int8(log32(c)))
+			v0.AuxInt = int8ToAuxInt(int8(log32u(uint32(c))))
 			v0.AddArg(x)
 			b.resetWithControl(BlockAMD64UGE, v0)
 			return true
 		}
 		// match: (EQ (TESTQconst [c] x))
-		// cond: isUint64PowerOfTwo(int64(c))
-		// result: (UGE (BTQconst [int8(log32(c))] x))
+		// cond: isUnsignedPowerOfTwo(uint64(c))
+		// result: (UGE (BTQconst [int8(log32u(uint32(c)))] x))
 		for b.Controls[0].Op == OpAMD64TESTQconst {
 			v_0 := b.Controls[0]
 			c := auxIntToInt32(v_0.AuxInt)
 			x := v_0.Args[0]
-			if !(isUint64PowerOfTwo(int64(c))) {
+			if !(isUnsignedPowerOfTwo(uint64(c))) {
 				break
 			}
 			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
-			v0.AuxInt = int8ToAuxInt(int8(log32(c)))
+			v0.AuxInt = int8ToAuxInt(int8(log32u(uint32(c))))
 			v0.AddArg(x)
 			b.resetWithControl(BlockAMD64UGE, v0)
 			return true
 		}
 		// match: (EQ (TESTQ (MOVQconst [c]) x))
-		// cond: isUint64PowerOfTwo(c)
-		// result: (UGE (BTQconst [int8(log64(c))] x))
+		// cond: isUnsignedPowerOfTwo(uint64(c))
+		// result: (UGE (BTQconst [int8(log64u(uint64(c)))] x))
 		for b.Controls[0].Op == OpAMD64TESTQ {
 			v_0 := b.Controls[0]
 			_ = v_0.Args[1]
@@ -30193,11 +30193,11 @@ func rewriteBlockAMD64(b *Block) bool {
 				}
 				c := auxIntToInt64(v_0_0.AuxInt)
 				x := v_0_1
-				if !(isUint64PowerOfTwo(c)) {
+				if !(isUnsignedPowerOfTwo(uint64(c))) {
 					continue
 				}
 				v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
-				v0.AuxInt = int8ToAuxInt(int8(log64(c)))
+				v0.AuxInt = int8ToAuxInt(int8(log64u(uint64(c))))
 				v0.AddArg(x)
 				b.resetWithControl(BlockAMD64UGE, v0)
 				return true
@@ -31128,40 +31128,40 @@ func rewriteBlockAMD64(b *Block) bool {
 			break
 		}
 		// match: (NE (TESTLconst [c] x))
-		// cond: isUint32PowerOfTwo(int64(c))
-		// result: (ULT (BTLconst [int8(log32(c))] x))
+		// cond: isUnsignedPowerOfTwo(uint32(c))
+		// result: (ULT (BTLconst [int8(log32u(uint32(c)))] x))
 		for b.Controls[0].Op == OpAMD64TESTLconst {
 			v_0 := b.Controls[0]
 			c := auxIntToInt32(v_0.AuxInt)
 			x := v_0.Args[0]
-			if !(isUint32PowerOfTwo(int64(c))) {
+			if !(isUnsignedPowerOfTwo(uint32(c))) {
 				break
 			}
 			v0 := b.NewValue0(v_0.Pos, OpAMD64BTLconst, types.TypeFlags)
-			v0.AuxInt = int8ToAuxInt(int8(log32(c)))
+			v0.AuxInt = int8ToAuxInt(int8(log32u(uint32(c))))
 			v0.AddArg(x)
 			b.resetWithControl(BlockAMD64ULT, v0)
 			return true
 		}
 		// match: (NE (TESTQconst [c] x))
-		// cond: isUint64PowerOfTwo(int64(c))
-		// result: (ULT (BTQconst [int8(log32(c))] x))
+		// cond: isUnsignedPowerOfTwo(uint64(c))
+		// result: (ULT (BTQconst [int8(log32u(uint32(c)))] x))
 		for b.Controls[0].Op == OpAMD64TESTQconst {
 			v_0 := b.Controls[0]
 			c := auxIntToInt32(v_0.AuxInt)
 			x := v_0.Args[0]
-			if !(isUint64PowerOfTwo(int64(c))) {
+			if !(isUnsignedPowerOfTwo(uint64(c))) {
 				break
 			}
 			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
-			v0.AuxInt = int8ToAuxInt(int8(log32(c)))
+			v0.AuxInt = int8ToAuxInt(int8(log32u(uint32(c))))
 			v0.AddArg(x)
 			b.resetWithControl(BlockAMD64ULT, v0)
 			return true
 		}
 		// match: (NE (TESTQ (MOVQconst [c]) x))
-		// cond: isUint64PowerOfTwo(c)
-		// result: (ULT (BTQconst [int8(log64(c))] x))
+		// cond: isUnsignedPowerOfTwo(uint64(c))
+		// result: (ULT (BTQconst [int8(log64u(uint64(c)))] x))
 		for b.Controls[0].Op == OpAMD64TESTQ {
 			v_0 := b.Controls[0]
 			_ = v_0.Args[1]
@@ -31173,11 +31173,11 @@ func rewriteBlockAMD64(b *Block) bool {
 				}
 				c := auxIntToInt64(v_0_0.AuxInt)
 				x := v_0_1
-				if !(isUint64PowerOfTwo(c)) {
+				if !(isUnsignedPowerOfTwo(uint64(c))) {
 					continue
 				}
 				v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
-				v0.AuxInt = int8ToAuxInt(int8(log64(c)))
+				v0.AuxInt = int8ToAuxInt(int8(log64u(uint64(c))))
 				v0.AddArg(x)
 				b.resetWithControl(BlockAMD64ULT, v0)
 				return true

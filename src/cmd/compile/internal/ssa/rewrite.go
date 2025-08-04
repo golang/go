@@ -504,12 +504,6 @@ func isUnsignedPowerOfTwo[T uint8 | uint16 | uint32 | uint64](n T) bool {
 	return n != 0 && n&(n-1) == 0
 }
 
-// isUint64PowerOfTwo reports whether uint64(n) is a power of 2.
-func isUint64PowerOfTwo(in int64) bool { return isUnsignedPowerOfTwo(uint64(in)) }
-
-// isUint32PowerOfTwo reports whether uint32(n) is a power of 2.
-func isUint32PowerOfTwo(in int64) bool { return isUnsignedPowerOfTwo(uint32(in)) }
-
 // is32Bit reports whether n can be represented as a signed 32 bit integer.
 func is32Bit(n int64) bool {
 	return n == int64(int32(n))
