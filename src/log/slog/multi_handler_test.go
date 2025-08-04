@@ -12,16 +12,15 @@ import (
 	"time"
 )
 
-// mockFailingHandler is a handler that always returns an error from its Handle method.
+// mockFailingHandler is a handler that always returns an error
+// from its Handle method.
 type mockFailingHandler struct {
 	Handler
 	err error
 }
 
 func (h *mockFailingHandler) Handle(ctx context.Context, r Record) error {
-	// It still calls the underlying handler's Handle method to ensure the log can be processed.
 	_ = h.Handler.Handle(ctx, r)
-	// But it always returns a predefined error.
 	return h.err
 }
 
@@ -94,23 +93,21 @@ func TestMultiHandler(t *testing.T) {
 	})
 
 	t.Run("Handle propagates errors from handlers", func(t *testing.T) {
-		var buf bytes.Buffer
-		h1 := NewTextHandler(&buf, nil)
+		errFail := errors.New("mock failing")
 
-		errFail := errors.New("fake fail")
-		h2 := &mockFailingHandler{
-			Handler: NewTextHandler(&bytes.Buffer{}, nil),
-			err:     errFail,
-		}
+		var buf1, buf2 bytes.Buffer
+		h1 := NewTextHandler(&buf1, nil)
+		h2 := &mockFailingHandler{Handler: NewJSONHandler(&buf2, nil), err: errFail}
 
-		multi := MultiHandler(h1, h2)
+		multi := MultiHandler(h2, h1)
 
 		err := multi.Handle(context.Background(), NewRecord(time.Now(), LevelInfo, "test message", 0))
 		if !errors.Is(err, errFail) {
 			t.Errorf("Expected error: %v, but got: %v", errFail, err)
 		}
 
-		checkLogOutput(t, buf.String(), "time="+textTimeRE+` level=INFO msg="test message"`)
+		checkLogOutput(t, buf1.String(), "time="+textTimeRE+` level=INFO msg="test message"`)
+		checkLogOutput(t, buf2.String(), `{"time":"`+jsonTimeRE+`","level":"INFO","msg":"test message"}`)
 	})
 
 	t.Run("Handle with no handlers", func(t *testing.T) {
