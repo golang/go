@@ -569,24 +569,6 @@ func GC() {
 	releasem(mp)
 }
 
-// FindGoleaks instructs the Go garbage collector to attempt
-// goroutine leak detection during the next GC cycle.
-//
-// Only operates if goroutineleakfindergc is enabled in GOEXPERIMENT.
-// Otherwise, it just runs runtime.GC().
-func FindGoLeaks() {
-	if !goexperiment.GoroutineLeakFinderGC {
-		GC()
-		return
-	}
-
-	work.goroutineLeakFinder.pending.Store(true)
-
-	for work.goroutineLeakFinder.pending.Load() {
-		GC()
-	}
-}
-
 // gcWaitOnMark blocks until GC finishes the Nth mark phase. If GC has
 // already completed this mark phase, it returns immediately.
 func gcWaitOnMark(n uint32) {
@@ -1095,13 +1077,11 @@ top:
 	gcMarkTermination(stw)
 }
 
-// checkIfMaybeRunnable checks whether a goroutine may still be semantically runnable.
+// isMaybeRunnable checks whether a goroutine may still be semantically runnable.
 // For goroutines which are semantically runnable, this will eventually return true
 // as the GC marking phase progresses. It returns false for leaked goroutines, or for
 // goroutines which are not yet computed as possibly runnable by the GC.
-func (gp *g) checkIfMaybeRunnable() bool {
-	// Unmask the goroutine address to ensure we are not
-	// dereferencing a masked address.
+func (gp *g) isMaybeRunnable() bool {
 	switch gp.waitreason {
 	case waitReasonSelectNoCases,
 		waitReasonChanSendNilChan,
@@ -1128,7 +1108,6 @@ func (gp *g) checkIfMaybeRunnable() bool {
 		// If waiting on mutexes, wait groups, or condition variables,
 		// check if the synchronization primitive attached to the sudog is marked.
 		if gp.waiting != nil {
-			// Unmask the sema address and check if it's marked.
 			return isMarkedOrNotInHeap(gp.waiting.elem.get())
 		}
 	}
@@ -1148,12 +1127,12 @@ func findMaybeRunnableGoroutines() (moreWork bool) {
 	var vIndex, ivIndex int = work.nMaybeRunnableStackRoots, work.nStackRoots
 	// Reorder goroutine list
 	for vIndex < ivIndex {
-		if work.stackRoots[vIndex].checkIfMaybeRunnable() {
+		if work.stackRoots[vIndex].isMaybeRunnable() {
 			vIndex = vIndex + 1
 			continue
 		}
 		for ivIndex = ivIndex - 1; ivIndex != vIndex; ivIndex = ivIndex - 1 {
-			if gp := work.stackRoots[ivIndex]; gp.checkIfMaybeRunnable() {
+			if gp := work.stackRoots[ivIndex]; gp.isMaybeRunnable() {
 				work.stackRoots[ivIndex] = work.stackRoots[vIndex]
 				work.stackRoots[vIndex] = gp
 				vIndex = vIndex + 1
@@ -1186,8 +1165,6 @@ func gcUntrackSyncObjects() {
 
 // gcRestoreSyncObjects restores the elem and c fields of all sudogs to their original values.
 // Should be invoked after the goroutine leak detection phase.
-//
-//go:nosplit
 func gcRestoreSyncObjects() {
 	assertWorldStopped()
 
