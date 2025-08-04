@@ -1206,6 +1206,7 @@ func TestGoroutineLeakGC(t *testing.T) {
 		makeTest(testCase{name: "Cockroach1055"},
 			`main\.Cockroach1055\.func2 .* \[chan receive\]`,
 			`main\.Cockroach1055\.func2\.1 .* \[chan receive\]`,
+			`main\.Cockroach1055\.func2\.1 .* \[sync\.Mutex\.Lock\]`,
 			`main\.Cockroach1055\.func2\.2 .* \[sync\.WaitGroup\.Wait\]`),
 		makeTest(testCase{name: "Cockroach1462"},
 			`main\.\(\*Stopper_cockroach1462\)\.RunWorker\.func1 .* \[chan send\]`,
