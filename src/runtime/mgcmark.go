@@ -63,13 +63,12 @@ func (gp *g) internalBlocked() bool {
 	return reason < waitReasonChanReceiveNilChan || waitReasonSyncWaitGroupWait < reason
 }
 
+// allGsSnapshotSortedForGC takes a snapshot of allgs and returns a sorted
+// array of Gs. The array is sorted by the G's status, with running Gs
+// first, followed by blocked Gs. The returned index indicates the cutoff
+// between runnable and blocked Gs.
+//
 // The world must be stopped or allglock must be held.
-// go through the snapshot of allgs, putting them into an arrays,
-// separated by index, where [0:blockedIndex] contains only running Gs
-// allGs[blockedIndex:] contain only blocking Gs
-// To avoid GC from marking and scanning the blocked Gs by scanning
-// the returned array (which is heap allocated), we mask the highest
-// bit of the pointers to Gs with gcBitMask.
 func allGsSnapshotSortedForGC() ([]*g, int) {
 	assertWorldStoppedOrLockHeld(&allglock)
 
@@ -1195,7 +1194,11 @@ func gcDrainMarkWorkerFractional(gcw *gcWork) {
 	gcDrain(gcw, gcDrainFractional|gcDrainUntilPreempt|gcDrainFlushBgCredit)
 }
 
-func gcUpdateMarkrootNext() (uint32, bool) {
+// gcNextMarkRoot safely increments work.markrootNext and returns the
+// index of the next root job. The returned boolean is true if the root job
+// is valid, and false if there are no more root jobs to be claimed,
+// i.e. work.markrootNext >= work.markrootJobs.
+func gcNextMarkRoot() (uint32, bool) {
 	var success bool
 	next, jobs := work.markrootNext.Load(), work.markrootJobs.Load()
 
@@ -1281,8 +1284,8 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 		// Stop if we're preemptible, if someone wants to STW, or if
 		// someone is calling forEachP.
 		for !(gp.preempt && (preemptible || sched.gcwaiting.Load() || pp.runSafePointFn != 0)) {
-			job, success := gcUpdateMarkrootNext()
-			if !success {
+			job, ok := gcNextMarkRoot()
+			if !ok {
 				break
 			}
 			markroot(gcw, job, flushBgCredit)
@@ -1429,8 +1432,8 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 					if b = gcw.tryGetObj(); b == 0 {
 						// Try to do a root job.
 						if work.markrootNext.Load() < work.markrootJobs.Load() {
-							job, success := gcUpdateMarkrootNext()
-							if success {
+							job, ok := gcNextMarkRoot()
+							if ok {
 								workFlushed += markroot(gcw, job, false)
 								continue
 							}
