@@ -6,10 +6,12 @@ package ssa
 
 import (
 	"cmd/compile/internal/abi"
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"fmt"
+	rtabi "internal/abi"
 	"strings"
 )
 
@@ -68,6 +70,10 @@ type regInfo struct {
 	// clobbers encodes the set of registers that are overwritten by
 	// the instruction (other than the output registers).
 	clobbers regMask
+	// Instruction clobbers the register containing input 0.
+	clobbersArg0 bool
+	// Instruction clobbers the register containing input 1.
+	clobbersArg1 bool
 	// outputs is the same as inputs, but for the outputs of the instruction.
 	outputs []outputInfo
 }
@@ -365,6 +371,9 @@ const (
 	auxCall                   // aux is a *ssa.AuxCall
 	auxCallOff                // aux is a *ssa.AuxCall, AuxInt is int64 param (in+out) size
 
+	auxPanicBoundsC  // constant for a bounds failure
+	auxPanicBoundsCC // two constants for a bounds failure
+
 	// architecture specific aux types
 	auxARM64BitField     // aux is an arm64 bitfield lsb and width packed into auxInt
 	auxS390XRotateParams // aux is a s390x rotate parameters object encoding start bit, end bit and rotate amount
@@ -520,6 +529,50 @@ func boundsABI(b int64) int {
 		return 2
 	default:
 		panic("bad BoundsKind")
+	}
+}
+
+// Returns the bounds error code needed by the runtime, and
+// whether the x field is signed.
+func (b BoundsKind) Code() (rtabi.BoundsErrorCode, bool) {
+	switch b {
+	case BoundsIndex:
+		return rtabi.BoundsIndex, true
+	case BoundsIndexU:
+		return rtabi.BoundsIndex, false
+	case BoundsSliceAlen:
+		return rtabi.BoundsSliceAlen, true
+	case BoundsSliceAlenU:
+		return rtabi.BoundsSliceAlen, false
+	case BoundsSliceAcap:
+		return rtabi.BoundsSliceAcap, true
+	case BoundsSliceAcapU:
+		return rtabi.BoundsSliceAcap, false
+	case BoundsSliceB:
+		return rtabi.BoundsSliceB, true
+	case BoundsSliceBU:
+		return rtabi.BoundsSliceB, false
+	case BoundsSlice3Alen:
+		return rtabi.BoundsSlice3Alen, true
+	case BoundsSlice3AlenU:
+		return rtabi.BoundsSlice3Alen, false
+	case BoundsSlice3Acap:
+		return rtabi.BoundsSlice3Acap, true
+	case BoundsSlice3AcapU:
+		return rtabi.BoundsSlice3Acap, false
+	case BoundsSlice3B:
+		return rtabi.BoundsSlice3B, true
+	case BoundsSlice3BU:
+		return rtabi.BoundsSlice3B, false
+	case BoundsSlice3C:
+		return rtabi.BoundsSlice3C, true
+	case BoundsSlice3CU:
+		return rtabi.BoundsSlice3C, false
+	case BoundsConvert:
+		return rtabi.BoundsConvert, false
+	default:
+		base.Fatalf("bad bounds kind %d", b)
+		return 0, false
 	}
 }
 

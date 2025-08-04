@@ -1490,7 +1490,7 @@ func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base,
 		s.allocBits = newAllocBits(uintptr(s.nelems))
 
 		// Adjust s.limit down to the object-containing part of the span.
-		s.limit = s.base() + uintptr(s.elemsize)*uintptr(s.nelems)
+		s.limit = s.base() + s.elemsize*uintptr(s.nelems)
 
 		// It's safe to access h.sweepgen without the heap lock because it's
 		// only ever updated with the world stopped and we run on the
@@ -1549,6 +1549,8 @@ func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base,
 func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 	assertLockHeld(&h.lock)
 
+	firstGrow := h.curArena.base == 0
+
 	// We must grow the heap in whole palloc chunks.
 	// We call sysMap below but note that because we
 	// round up to pallocChunkPages which is on the order
@@ -1597,6 +1599,16 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 			// Switch to the new space.
 			h.curArena.base = uintptr(av)
 			h.curArena.end = uintptr(av) + asize
+
+			if firstGrow && randomizeHeapBase {
+				// The top heapAddrBits-logHeapArenaBytes are randomized, we now
+				// want to randomize the next
+				// logHeapArenaBytes-log2(pallocChunkBytes) bits, making sure
+				// h.curArena.base is aligned to pallocChunkBytes.
+				bits := logHeapArenaBytes - logPallocChunkBytes
+				offset := nextHeapRandBits(bits)
+				h.curArena.base = alignDown(h.curArena.base|(offset<<logPallocChunkBytes), pallocChunkBytes)
+			}
 		}
 
 		// Recalculate nBase.
@@ -1627,6 +1639,22 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
 	// space ready for allocation.
 	h.pages.grow(v, nBase-v)
 	totalGrowth += nBase - v
+
+	if firstGrow && randomizeHeapBase {
+		// The top heapAddrBits-log2(pallocChunkBytes) bits are now randomized,
+		// we finally want to randomize the next
+		// log2(pallocChunkBytes)-log2(pageSize) bits, while maintaining
+		// alignment to pageSize. We do this by calculating a random number of
+		// pages into the current arena, and marking them as allocated. The
+		// address of the next available page becomes our fully randomized base
+		// heap address.
+		randOffset := nextHeapRandBits(logPallocChunkBytes)
+		randNumPages := alignDown(randOffset, pageSize) / pageSize
+		if randNumPages != 0 {
+			h.pages.markRandomPaddingPages(v, randNumPages)
+		}
+	}
+
 	return totalGrowth, true
 }
 
@@ -2126,11 +2154,11 @@ func (span *mspan) specialFindSplicePoint(offset uintptr, kind byte) (**special,
 		if s == nil {
 			break
 		}
-		if offset == uintptr(s.offset) && kind == s.kind {
+		if offset == s.offset && kind == s.kind {
 			found = true
 			break
 		}
-		if offset < uintptr(s.offset) || (offset == uintptr(s.offset) && kind < s.kind) {
+		if offset < s.offset || (offset == s.offset && kind < s.kind) {
 			break
 		}
 		iter = &s.next
@@ -2173,7 +2201,7 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
 			// Mark everything reachable from the object
 			// so it's retained for the finalizer.
 			if !span.spanclass.noscan() {
-				scanobject(base, gcw)
+				scanObject(base, gcw)
 			}
 			// Mark the finalizer itself, since the
 			// special isn't part of the GC'd heap.
@@ -2297,14 +2325,14 @@ func getCleanupContext(ptr uintptr, cleanupID uint64) *specialCheckFinalizer {
 				// Reached the end of the linked list. Stop searching at this point.
 				break
 			}
-			if offset == uintptr(s.offset) && _KindSpecialCheckFinalizer == s.kind &&
+			if offset == s.offset && _KindSpecialCheckFinalizer == s.kind &&
 				(*specialCheckFinalizer)(unsafe.Pointer(s)).cleanupID == cleanupID {
 				// The special is a cleanup and contains a matching cleanup id.
 				*iter = s.next
 				found = (*specialCheckFinalizer)(unsafe.Pointer(s))
 				break
 			}
-			if offset < uintptr(s.offset) || (offset == uintptr(s.offset) && _KindSpecialCheckFinalizer < s.kind) {
+			if offset < s.offset || (offset == s.offset && _KindSpecialCheckFinalizer < s.kind) {
 				// The special is outside the region specified for that kind of
 				// special. The specials are sorted by kind.
 				break
@@ -2347,14 +2375,14 @@ func clearCleanupContext(ptr uintptr, cleanupID uint64) {
 				// Reached the end of the linked list. Stop searching at this point.
 				break
 			}
-			if offset == uintptr(s.offset) && _KindSpecialCheckFinalizer == s.kind &&
+			if offset == s.offset && _KindSpecialCheckFinalizer == s.kind &&
 				(*specialCheckFinalizer)(unsafe.Pointer(s)).cleanupID == cleanupID {
 				// The special is a cleanup and contains a matching cleanup id.
 				*iter = s.next
 				found = s
 				break
 			}
-			if offset < uintptr(s.offset) || (offset == uintptr(s.offset) && _KindSpecialCheckFinalizer < s.kind) {
+			if offset < s.offset || (offset == s.offset && _KindSpecialCheckFinalizer < s.kind) {
 				// The special is outside the region specified for that kind of
 				// special. The specials are sorted by kind.
 				break
@@ -2450,7 +2478,7 @@ type specialWeakHandle struct {
 
 //go:linkname internal_weak_runtime_registerWeakPointer weak.runtime_registerWeakPointer
 func internal_weak_runtime_registerWeakPointer(p unsafe.Pointer) unsafe.Pointer {
-	return unsafe.Pointer(getOrAddWeakHandle(unsafe.Pointer(p)))
+	return unsafe.Pointer(getOrAddWeakHandle(p))
 }
 
 //go:linkname internal_weak_runtime_makeStrongFromWeak weak.runtime_makeStrongFromWeak

@@ -329,8 +329,9 @@ func makeBytesArshaler(t reflect.Type, fncs *arshaler) *arshaler {
 			default:
 				return newInvalidFormatError(enc, t, mo)
 			}
-		} else if mo.Flags.Get(jsonflags.FormatBytesWithLegacySemantics) &&
-			(va.Kind() == reflect.Array || hasMarshaler) {
+		} else if mo.Flags.Get(jsonflags.FormatByteArrayAsArray) && va.Kind() == reflect.Array {
+			return marshalArray(enc, va, mo)
+		} else if mo.Flags.Get(jsonflags.FormatBytesWithLegacySemantics) && hasMarshaler {
 			return marshalArray(enc, va, mo)
 		}
 		if mo.Flags.Get(jsonflags.FormatNilSliceAsNull) && va.Kind() == reflect.Slice && va.IsNil() {
@@ -366,8 +367,9 @@ func makeBytesArshaler(t reflect.Type, fncs *arshaler) *arshaler {
 			default:
 				return newInvalidFormatError(dec, t, uo)
 			}
-		} else if uo.Flags.Get(jsonflags.FormatBytesWithLegacySemantics) &&
-			(va.Kind() == reflect.Array || dec.PeekKind() == '[') {
+		} else if uo.Flags.Get(jsonflags.FormatByteArrayAsArray) && va.Kind() == reflect.Array {
+			return unmarshalArray(dec, va, uo)
+		} else if uo.Flags.Get(jsonflags.FormatBytesWithLegacySemantics) && dec.PeekKind() == '[' {
 			return unmarshalArray(dec, va, uo)
 		}
 		var flags jsonwire.ValueFlags
@@ -395,7 +397,7 @@ func makeBytesArshaler(t reflect.Type, fncs *arshaler) *arshaler {
 			if err != nil {
 				return newUnmarshalErrorAfter(dec, t, err)
 			}
-			if len(val) != encodedLen(len(b)) && !uo.Flags.Get(jsonflags.FormatBytesWithLegacySemantics) {
+			if len(val) != encodedLen(len(b)) && !uo.Flags.Get(jsonflags.ParseBytesWithLooseRFC4648) {
 				// TODO(https://go.dev/issue/53845): RFC 4648, section 3.3,
 				// specifies that non-alphabet characters must be rejected.
 				// Unfortunately, the "base32" and "base64" packages allow
@@ -1065,7 +1067,7 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 			}
 
 			// Check for the legacy definition of omitempty.
-			if f.omitempty && mo.Flags.Get(jsonflags.OmitEmptyWithLegacyDefinition) && isLegacyEmpty(v) {
+			if f.omitempty && mo.Flags.Get(jsonflags.OmitEmptyWithLegacySemantics) && isLegacyEmpty(v) {
 				continue
 			}
 
@@ -1080,7 +1082,7 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 			// OmitEmpty skips the field if the marshaled JSON value is empty,
 			// which we can know up front if there are no custom marshalers,
 			// otherwise we must marshal the value and unwrite it if empty.
-			if f.omitempty && !mo.Flags.Get(jsonflags.OmitEmptyWithLegacyDefinition) &&
+			if f.omitempty && !mo.Flags.Get(jsonflags.OmitEmptyWithLegacySemantics) &&
 				!nonDefault && f.isEmpty != nil && f.isEmpty(v) {
 				continue // fast path for omitempty
 			}
@@ -1145,7 +1147,7 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 			}
 
 			// Try unwriting the member if empty (slow path for omitempty).
-			if f.omitempty && !mo.Flags.Get(jsonflags.OmitEmptyWithLegacyDefinition) {
+			if f.omitempty && !mo.Flags.Get(jsonflags.OmitEmptyWithLegacySemantics) {
 				var prevName *string
 				if prevIdx >= 0 {
 					prevName = &fields.flattened[prevIdx].name
@@ -1688,8 +1690,6 @@ func makePointerArshaler(t reflect.Type) *arshaler {
 	return &fncs
 }
 
-var errNilInterface = errors.New("cannot derive concrete type for nil interface with finite type set")
-
 func makeInterfaceArshaler(t reflect.Type) *arshaler {
 	// NOTE: Values retrieved from an interface are not addressable,
 	// so we shallow copy the values to make them addressable and
@@ -1795,7 +1795,7 @@ func makeInterfaceArshaler(t reflect.Type) *arshaler {
 
 			k := dec.PeekKind()
 			if !isAnyType(t) {
-				return newUnmarshalErrorBeforeWithSkipping(dec, uo, t, errNilInterface)
+				return newUnmarshalErrorBeforeWithSkipping(dec, uo, t, internal.ErrNilInterface)
 			}
 			switch k {
 			case 'f', 't':

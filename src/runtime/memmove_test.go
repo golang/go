@@ -8,6 +8,8 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
+	"internal/asan"
+	"internal/msan"
 	"internal/race"
 	"internal/testenv"
 	. "runtime"
@@ -102,8 +104,8 @@ func TestMemmoveLarge0x180000(t *testing.T) {
 	}
 
 	t.Parallel()
-	if race.Enabled {
-		t.Skip("skipping large memmove test under race detector")
+	if race.Enabled || asan.Enabled || msan.Enabled {
+		t.Skip("skipping large memmove test under sanitizers")
 	}
 	testSize(t, 0x180000)
 }
@@ -114,8 +116,8 @@ func TestMemmoveOverlapLarge0x120000(t *testing.T) {
 	}
 
 	t.Parallel()
-	if race.Enabled {
-		t.Skip("skipping large memmove test under race detector")
+	if race.Enabled || asan.Enabled || msan.Enabled {
+		t.Skip("skipping large memmove test under sanitizers")
 	}
 	testOverlap(t, 0x120000)
 }
@@ -518,6 +520,42 @@ func BenchmarkMemclrRange(b *testing.B) {
 	}
 }
 
+func BenchmarkClearFat3(b *testing.B) {
+	p := new([3]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = [3]byte{}
+	}
+}
+
+func BenchmarkClearFat4(b *testing.B) {
+	p := new([4 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = [4 / 4]uint32{}
+	}
+}
+
+func BenchmarkClearFat5(b *testing.B) {
+	p := new([5]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = [5]byte{}
+	}
+}
+
+func BenchmarkClearFat6(b *testing.B) {
+	p := new([6]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = [6]byte{}
+	}
+}
+
 func BenchmarkClearFat7(b *testing.B) {
 	p := new([7]byte)
 	Escape(p)
@@ -533,6 +571,24 @@ func BenchmarkClearFat8(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		*p = [8 / 4]uint32{}
+	}
+}
+
+func BenchmarkClearFat9(b *testing.B) {
+	p := new([9]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = [9]byte{}
+	}
+}
+
+func BenchmarkClearFat10(b *testing.B) {
+	p := new([10]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = [10]byte{}
 	}
 }
 
@@ -587,6 +643,24 @@ func BenchmarkClearFat16(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		*p = [16 / 4]uint32{}
+	}
+}
+
+func BenchmarkClearFat18(b *testing.B) {
+	p := new([18]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = [18]byte{}
+	}
+}
+
+func BenchmarkClearFat20(b *testing.B) {
+	p := new([20 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = [20 / 4]uint32{}
 	}
 }
 
@@ -707,6 +781,46 @@ func BenchmarkClearFat1040(b *testing.B) {
 	}
 }
 
+func BenchmarkCopyFat3(b *testing.B) {
+	var x [3]byte
+	p := new([3]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = x
+	}
+}
+
+func BenchmarkCopyFat4(b *testing.B) {
+	var x [4 / 4]uint32
+	p := new([4 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = x
+	}
+}
+
+func BenchmarkCopyFat5(b *testing.B) {
+	var x [5]byte
+	p := new([5]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = x
+	}
+}
+
+func BenchmarkCopyFat6(b *testing.B) {
+	var x [6]byte
+	p := new([6]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = x
+	}
+}
+
 func BenchmarkCopyFat7(b *testing.B) {
 	var x [7]byte
 	p := new([7]byte)
@@ -720,6 +834,26 @@ func BenchmarkCopyFat7(b *testing.B) {
 func BenchmarkCopyFat8(b *testing.B) {
 	var x [8 / 4]uint32
 	p := new([8 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = x
+	}
+}
+
+func BenchmarkCopyFat9(b *testing.B) {
+	var x [9]byte
+	p := new([9]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = x
+	}
+}
+
+func BenchmarkCopyFat10(b *testing.B) {
+	var x [10]byte
+	p := new([10]byte)
 	Escape(p)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -780,6 +914,26 @@ func BenchmarkCopyFat15(b *testing.B) {
 func BenchmarkCopyFat16(b *testing.B) {
 	var x [16 / 4]uint32
 	p := new([16 / 4]uint32)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = x
+	}
+}
+
+func BenchmarkCopyFat18(b *testing.B) {
+	var x [18]byte
+	p := new([18]byte)
+	Escape(p)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		*p = x
+	}
+}
+
+func BenchmarkCopyFat20(b *testing.B) {
+	var x [20 / 4]uint32
+	p := new([20 / 4]uint32)
 	Escape(p)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

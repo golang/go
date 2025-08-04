@@ -291,6 +291,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.RegSize = 8
 		c.lowerBlock = rewriteBlockLOONG64
 		c.lowerValue = rewriteValueLOONG64
+		c.lateLowerBlock = rewriteBlockLOONG64latelower
+		c.lateLowerValue = rewriteValueLOONG64latelower
 		c.registers = registersLOONG64[:]
 		c.gpRegMask = gpRegMaskLOONG64
 		c.fpRegMask = fpRegMaskLOONG64
@@ -570,6 +572,43 @@ func (c *Config) buildRecipes(arch string) {
 					return m.Block.NewValue2I(m.Pos, OpARM64SUBshiftLL, m.Type, int64(i), x, y)
 				})
 		}
+	case "loong64":
+		// - multiply is 4 cycles.
+		// - add/sub/shift are 1 cycle.
+		// On loong64, using a multiply also needs to load the constant into a register.
+		// TODO: figure out a happy medium.
+		mulCost = 45
+
+		// add
+		r(1, 1, 10,
+			func(m, x, y *Value) *Value {
+				return m.Block.NewValue2(m.Pos, OpLOONG64ADDV, m.Type, x, y)
+			})
+		// neg
+		r(-1, 0, 10,
+			func(m, x, y *Value) *Value {
+				return m.Block.NewValue1(m.Pos, OpLOONG64NEGV, m.Type, x)
+			})
+		// sub
+		r(1, -1, 10,
+			func(m, x, y *Value) *Value {
+				return m.Block.NewValue2(m.Pos, OpLOONG64SUBV, m.Type, x, y)
+			})
+
+		// regular shifts
+		for i := 1; i < 64; i++ {
+			c := 10
+			if i == 1 {
+				// Prefer x<<1 over x+x.
+				// Note that we eventually reverse this decision in LOONG64latelower.rules,
+				// but this makes shift combining rules in LOONG64.rules simpler.
+				c--
+			}
+			r(1<<i, 0, c,
+				func(m, x, y *Value) *Value {
+					return m.Block.NewValue1I(m.Pos, OpLOONG64SLLVconst, m.Type, int64(i), x)
+				})
+		}
 	}
 
 	c.mulRecipes = map[int64]mulRecipe{}
@@ -636,17 +675,58 @@ func (c *Config) buildRecipes(arch string) {
 		}
 	}
 
+	// Currently we only process 3 linear combination instructions for loong64.
+	if arch == "loong64" {
+		// Three-instruction recipes.
+		// D: The first and the second are all single-instruction recipes, and they are also the third's inputs.
+		// E: The first single-instruction is the second's input, and the second is the third's input.
+
+		// D
+		for _, first := range linearCombos {
+			for _, second := range linearCombos {
+				for _, third := range linearCombos {
+					x := third.a*(first.a+first.b) + third.b*(second.a+second.b)
+					cost := first.cost + second.cost + third.cost
+					old := c.mulRecipes[x]
+					if (old.build == nil || cost < old.cost) && cost < mulCost {
+						c.mulRecipes[x] = mulRecipe{cost: cost, build: func(m, v *Value) *Value {
+							v1 := first.build(m, v, v)
+							v2 := second.build(m, v, v)
+							return third.build(m, v1, v2)
+						}}
+					}
+				}
+			}
+		}
+
+		// E
+		for _, first := range linearCombos {
+			for _, second := range linearCombos {
+				for _, third := range linearCombos {
+					x := third.a*(second.a*(first.a+first.b)+second.b) + third.b
+					cost := first.cost + second.cost + third.cost
+					old := c.mulRecipes[x]
+					if (old.build == nil || cost < old.cost) && cost < mulCost {
+						c.mulRecipes[x] = mulRecipe{cost: cost, build: func(m, v *Value) *Value {
+							v1 := first.build(m, v, v)
+							v2 := second.build(m, v1, v)
+							return third.build(m, v2, v)
+						}}
+					}
+				}
+			}
+		}
+	}
+
 	// These cases should be handled specially by rewrite rules.
 	// (Otherwise v * 1 == (neg (neg v)))
 	delete(c.mulRecipes, 0)
 	delete(c.mulRecipes, 1)
 
-	// Currently we assume that it doesn't help to do 3 linear
-	// combination instructions.
-
 	// Currently:
 	// len(c.mulRecipes) == 5984 on arm64
 	//                       680 on amd64
+	//                      5984 on loong64
 	// This function takes ~2.5ms on arm64.
 	//println(len(c.mulRecipes))
 }

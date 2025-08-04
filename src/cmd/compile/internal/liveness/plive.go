@@ -769,7 +769,7 @@ func (lv *Liveness) epilogue() {
 					// its stack copy is not live.
 					continue
 				}
-				// Note: zeroing is handled by zeroResults in walk.go.
+				// Note: zeroing is handled by zeroResults in ../ssagen/ssa.go.
 				livedefer.Set(int32(i))
 			}
 			if n.IsOutputParamHeapAddr() {

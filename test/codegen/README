@@ -98,6 +98,13 @@ For example:
 verifies that NO memmove call is present in the assembly generated for
 the copy() line.
 
+The expected number of matches for the regexp can be specified using a
+positive number:
+
+  func fb(a [4]int) (r [4]int) {
+  	   // amd64:2`MOVUPS[^,]+, X0$`,2`MOVUPS\sX0,[^\n]+$`
+  	   return a
+  }
 
 - Architecture specifiers
 

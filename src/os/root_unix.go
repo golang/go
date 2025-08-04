@@ -56,7 +56,7 @@ func newRoot(fd int, name string) (*Root, error) {
 		fd:   fd,
 		name: name,
 	}}
-	r.root.cleanup = runtime.AddCleanup(r, func(f *root) { f.Close() }, r.root)
+	runtime.SetFinalizer(r.root, (*root).Close)
 	return r, nil
 }
 

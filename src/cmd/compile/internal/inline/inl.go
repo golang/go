@@ -605,10 +605,7 @@ opSwitch:
 		v.budget -= inlineExtraPanicCost
 
 	case ir.ORECOVER:
-		base.FatalfAt(n.Pos(), "ORECOVER missed typecheck")
-	case ir.ORECOVERFP:
-		// recover matches the argument frame pointer to find
-		// the right panic value, so it needs an argument frame.
+		// TODO: maybe we could allow inlining of recover() now?
 		v.reason = "call to recover"
 		return true
 

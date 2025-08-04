@@ -55,7 +55,7 @@ type lineReader struct {
 // remainder of the line skipped. See next for more details.
 //
 // read is the function used to read more bytes from fd. This is usually
-// internal/runtime/syscall.Read. Note that this follows syscall semantics (not
+// internal/runtime/syscall/linux.Read. Note that this follows syscall semantics (not
 // io.Reader), so EOF is indicated with n=0, errno=0.
 func newLineReader(fd int, scratch []byte, read func(fd int, b []byte) (n int, errno uintptr)) *lineReader {
 	return &lineReader{

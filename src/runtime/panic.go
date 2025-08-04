@@ -112,13 +112,13 @@ func panicCheck2(err string) {
 //go:yeswritebarrierrec
 func goPanicIndex(x int, y int) {
 	panicCheck1(sys.GetCallerPC(), "index out of range")
-	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsIndex})
+	panic(boundsError{x: int64(x), signed: true, y: y, code: abi.BoundsIndex})
 }
 
 //go:yeswritebarrierrec
 func goPanicIndexU(x uint, y int) {
 	panicCheck1(sys.GetCallerPC(), "index out of range")
-	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsIndex})
+	panic(boundsError{x: int64(x), signed: false, y: y, code: abi.BoundsIndex})
 }
 
 // failures in the comparisons for s[:x], 0 <= x <= y (y == len(s) or cap(s))
@@ -126,25 +126,25 @@ func goPanicIndexU(x uint, y int) {
 //go:yeswritebarrierrec
 func goPanicSliceAlen(x int, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSliceAlen})
+	panic(boundsError{x: int64(x), signed: true, y: y, code: abi.BoundsSliceAlen})
 }
 
 //go:yeswritebarrierrec
 func goPanicSliceAlenU(x uint, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSliceAlen})
+	panic(boundsError{x: int64(x), signed: false, y: y, code: abi.BoundsSliceAlen})
 }
 
 //go:yeswritebarrierrec
 func goPanicSliceAcap(x int, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSliceAcap})
+	panic(boundsError{x: int64(x), signed: true, y: y, code: abi.BoundsSliceAcap})
 }
 
 //go:yeswritebarrierrec
 func goPanicSliceAcapU(x uint, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSliceAcap})
+	panic(boundsError{x: int64(x), signed: false, y: y, code: abi.BoundsSliceAcap})
 }
 
 // failures in the comparisons for s[x:y], 0 <= x <= y
@@ -152,57 +152,57 @@ func goPanicSliceAcapU(x uint, y int) {
 //go:yeswritebarrierrec
 func goPanicSliceB(x int, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSliceB})
+	panic(boundsError{x: int64(x), signed: true, y: y, code: abi.BoundsSliceB})
 }
 
 //go:yeswritebarrierrec
 func goPanicSliceBU(x uint, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSliceB})
+	panic(boundsError{x: int64(x), signed: false, y: y, code: abi.BoundsSliceB})
 }
 
 // failures in the comparisons for s[::x], 0 <= x <= y (y == len(s) or cap(s))
 func goPanicSlice3Alen(x int, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSlice3Alen})
+	panic(boundsError{x: int64(x), signed: true, y: y, code: abi.BoundsSlice3Alen})
 }
 func goPanicSlice3AlenU(x uint, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSlice3Alen})
+	panic(boundsError{x: int64(x), signed: false, y: y, code: abi.BoundsSlice3Alen})
 }
 func goPanicSlice3Acap(x int, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSlice3Acap})
+	panic(boundsError{x: int64(x), signed: true, y: y, code: abi.BoundsSlice3Acap})
 }
 func goPanicSlice3AcapU(x uint, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSlice3Acap})
+	panic(boundsError{x: int64(x), signed: false, y: y, code: abi.BoundsSlice3Acap})
 }
 
 // failures in the comparisons for s[:x:y], 0 <= x <= y
 func goPanicSlice3B(x int, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSlice3B})
+	panic(boundsError{x: int64(x), signed: true, y: y, code: abi.BoundsSlice3B})
 }
 func goPanicSlice3BU(x uint, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSlice3B})
+	panic(boundsError{x: int64(x), signed: false, y: y, code: abi.BoundsSlice3B})
 }
 
 // failures in the comparisons for s[x:y:], 0 <= x <= y
 func goPanicSlice3C(x int, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsSlice3C})
+	panic(boundsError{x: int64(x), signed: true, y: y, code: abi.BoundsSlice3C})
 }
 func goPanicSlice3CU(x uint, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice bounds out of range")
-	panic(boundsError{x: int64(x), signed: false, y: y, code: boundsSlice3C})
+	panic(boundsError{x: int64(x), signed: false, y: y, code: abi.BoundsSlice3C})
 }
 
 // failures in the conversion ([x]T)(s) or (*[x]T)(s), 0 <= x <= y, y == len(s)
 func goPanicSliceConvert(x int, y int) {
 	panicCheck1(sys.GetCallerPC(), "slice length too short to convert to array or pointer to array")
-	panic(boundsError{x: int64(x), signed: true, y: y, code: boundsConvert})
+	panic(boundsError{x: int64(x), signed: true, y: y, code: abi.BoundsConvert})
 }
 
 // Implemented in assembly, as they take arguments in registers.
@@ -224,6 +224,99 @@ func panicSlice3BU(x uint, y int)
 func panicSlice3C(x int, y int)
 func panicSlice3CU(x uint, y int)
 func panicSliceConvert(x int, y int)
+
+func panicBounds() // in asm_GOARCH.s files, called from generated code
+func panicExtend() // in asm_GOARCH.s files, called from generated code (on 32-bit archs)
+func panicBounds64(pc uintptr, regs *[16]int64) { // called from panicBounds on 64-bit archs
+	f := findfunc(pc)
+	v := pcdatavalue(f, abi.PCDATA_PanicBounds, pc-1)
+
+	code, signed, xIsReg, yIsReg, xVal, yVal := abi.BoundsDecode(int(v))
+
+	if code == abi.BoundsIndex {
+		panicCheck1(pc, "index out of range")
+	} else {
+		panicCheck1(pc, "slice bounds out of range")
+	}
+
+	var e boundsError
+	e.code = code
+	e.signed = signed
+	if xIsReg {
+		e.x = regs[xVal]
+	} else {
+		e.x = int64(xVal)
+	}
+	if yIsReg {
+		e.y = int(regs[yVal])
+	} else {
+		e.y = yVal
+	}
+	panic(e)
+}
+
+func panicBounds32(pc uintptr, regs *[16]int32) { // called from panicBounds on 32-bit archs
+	f := findfunc(pc)
+	v := pcdatavalue(f, abi.PCDATA_PanicBounds, pc-1)
+
+	code, signed, xIsReg, yIsReg, xVal, yVal := abi.BoundsDecode(int(v))
+
+	if code == abi.BoundsIndex {
+		panicCheck1(pc, "index out of range")
+	} else {
+		panicCheck1(pc, "slice bounds out of range")
+	}
+
+	var e boundsError
+	e.code = code
+	e.signed = signed
+	if xIsReg {
+		if signed {
+			e.x = int64(regs[xVal])
+		} else {
+			e.x = int64(uint32(regs[xVal]))
+		}
+	} else {
+		e.x = int64(xVal)
+	}
+	if yIsReg {
+		e.y = int(regs[yVal])
+	} else {
+		e.y = yVal
+	}
+	panic(e)
+}
+
+func panicBounds32X(pc uintptr, regs *[16]int32) { // called from panicExtend on 32-bit archs
+	f := findfunc(pc)
+	v := pcdatavalue(f, abi.PCDATA_PanicBounds, pc-1)
+
+	code, signed, xIsReg, yIsReg, xVal, yVal := abi.BoundsDecode(int(v))
+
+	if code == abi.BoundsIndex {
+		panicCheck1(pc, "index out of range")
+	} else {
+		panicCheck1(pc, "slice bounds out of range")
+	}
+
+	var e boundsError
+	e.code = code
+	e.signed = signed
+	if xIsReg {
+		// Our 4-bit register numbers are actually 2 2-bit register numbers.
+		lo := xVal & 3
+		hi := xVal >> 2
+		e.x = int64(regs[hi])<<32 + int64(uint32(regs[lo]))
+	} else {
+		e.x = int64(xVal)
+	}
+	if yIsReg {
+		e.y = int(regs[yVal])
+	} else {
+		e.y = yVal
+	}
+	panic(e)
+}
 
 var shiftError = error(errorString("negative shift amount"))
 
@@ -771,6 +864,7 @@ func gopanic(e any) {
 
 	var p _panic
 	p.arg = e
+	p.gopanicFP = unsafe.Pointer(sys.GetCallerSP())
 
 	runningPanicDefers.Add(1)
 
@@ -864,10 +958,6 @@ func (p *_panic) nextDefer() (func(), bool) {
 			throw("recovery failed")
 		}
 	}
-
-	// The assembler adjusts p.argp in wrapper functions that shouldn't
-	// be visible to recover(), so we need to restore it each iteration.
-	p.argp = add(p.startSP, sys.MinFrameSize)
 
 	for {
 		for p.deferBitsPtr != nil {
@@ -993,27 +1083,89 @@ func (p *_panic) initOpenCodedDefers(fn funcInfo, varp unsafe.Pointer) bool {
 }
 
 // The implementation of the predeclared function recover.
-// Cannot split the stack because it needs to reliably
-// find the stack segment of its caller.
-//
-// TODO(rsc): Once we commit to CopyStackAlways,
-// this doesn't need to be nosplit.
-//
-//go:nosplit
-func gorecover(argp uintptr) any {
-	// Must be in a function running as part of a deferred call during the panic.
-	// Must be called from the topmost function of the call
-	// (the function used in the defer statement).
-	// p.argp is the argument pointer of that topmost deferred function call.
-	// Compare against argp reported by caller.
-	// If they match, the caller is the one who can recover.
+func gorecover() any {
 	gp := getg()
 	p := gp._panic
-	if p != nil && !p.goexit && !p.recovered && argp == uintptr(p.argp) {
-		p.recovered = true
-		return p.arg
+	if p == nil || p.goexit || p.recovered {
+		return nil
 	}
-	return nil
+
+	// Check to see if the function that called recover() was
+	// deferred directly from the panicking function.
+	// For code like:
+	//     func foo() {
+	//         defer bar()
+	//         panic("panic")
+	//     }
+	//     func bar() {
+	//         recover()
+	//     }
+	// Normally the stack would look like this:
+	//     foo
+	//     runtime.gopanic
+	//     bar
+	//     runtime.gorecover
+	//
+	// However, if the function we deferred requires a wrapper
+	// of some sort, we need to ignore the wrapper. In that case,
+	// the stack looks like:
+	//     foo
+	//     runtime.gopanic
+	//     wrapper
+	//     bar
+	//     runtime.gorecover
+	// And we should also successfully recover.
+	//
+	// Finally, in the weird case "defer recover()", the stack looks like:
+	//     foo
+	//     runtime.gopanic
+	//     wrapper
+	//     runtime.gorecover
+	// And we should not recover in that case.
+	//
+	// So our criteria is, there must be exactly one non-wrapper
+	// frame between gopanic and gorecover.
+	//
+	// We don't recover this:
+	//     defer func() { func() { recover() }() }
+	// because there are 2 non-wrapper frames.
+	//
+	// We don't recover this:
+	//     defer recover()
+	// because there are 0 non-wrapper frames.
+	canRecover := false
+	systemstack(func() {
+		var u unwinder
+		u.init(gp, 0)
+		u.next() // skip systemstack_switch
+		u.next() // skip gorecover
+		nonWrapperFrames := 0
+	loop:
+		for ; u.valid(); u.next() {
+			for iu, f := newInlineUnwinder(u.frame.fn, u.symPC()); f.valid(); f = iu.next(f) {
+				sf := iu.srcFunc(f)
+				switch sf.funcID {
+				case abi.FuncIDWrapper:
+					continue
+				case abi.FuncID_gopanic:
+					if u.frame.fp == uintptr(p.gopanicFP) && nonWrapperFrames > 0 {
+						canRecover = true
+					}
+					break loop
+				default:
+					nonWrapperFrames++
+					if nonWrapperFrames > 1 {
+						break loop
+					}
+				}
+			}
+		}
+	})
+	if !canRecover {
+		return nil
+	}
+	p.recovered = true
+	return p.arg
 }
 
 //go:linkname sync_throw sync.throw

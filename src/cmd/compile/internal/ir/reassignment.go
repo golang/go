@@ -178,12 +178,12 @@ FindRHS:
 				break FindRHS
 			}
 		}
-		base.Fatalf("%v missing from LHS of %v", n, defn)
+		base.FatalfAt(defn.Pos(), "%v missing from LHS of %v", n, defn)
 	default:
 		return nil
 	}
 	if rhs == nil {
-		base.Fatalf("RHS is nil: %v", defn)
+		base.FatalfAt(defn.Pos(), "RHS is nil: %v", defn)
 	}
 
 	if _, ok := ro.singleDef[n]; !ok {

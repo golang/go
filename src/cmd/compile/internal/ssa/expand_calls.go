@@ -243,11 +243,8 @@ func (x *expandState) rewriteFuncResults(v *Value, b *Block, aux *AuxCall) {
 		if len(aRegs) > 0 {
 			result = &allResults
 		} else {
-			if a.Op == OpLoad && a.Args[0].Op == OpLocalAddr {
-				addr := a.Args[0]
-				if addr.MemoryArg() == a.MemoryArg() && addr.Aux == aux.NameOfResult(i) {
-					continue // Self move to output parameter
-				}
+			if a.Op == OpLoad && a.Args[0].Op == OpLocalAddr && a.Args[0].Aux == aux.NameOfResult(i) {
+				continue // Self move to output parameter
 			}
 		}
 		rc.init(aRegs, aux.abiInfo, result, auxBase, auxOffset)

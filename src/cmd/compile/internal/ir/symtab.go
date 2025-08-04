@@ -37,6 +37,8 @@ type symsStruct struct {
 	Msanmove          *obj.LSym
 	Newobject         *obj.LSym
 	Newproc           *obj.LSym
+	PanicBounds       *obj.LSym
+	PanicExtend       *obj.LSym
 	Panicdivide       *obj.LSym
 	Panicshift        *obj.LSym
 	PanicdottypeE     *obj.LSym

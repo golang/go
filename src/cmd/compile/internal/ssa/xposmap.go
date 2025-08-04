@@ -69,10 +69,10 @@ func (m *xposmap) set(p src.XPos, v int32) {
 }
 
 // get returns the int32 associated with the file index and line of p.
-func (m *xposmap) get(p src.XPos) int32 {
+func (m *xposmap) get(p src.XPos) (int32, bool) {
 	s := m.mapFor(p.FileIndex())
 	if s == nil {
-		return -1
+		return 0, false
 	}
 	return s.get(p.Line())
 }

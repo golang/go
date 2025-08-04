@@ -8,7 +8,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"internal/abi"
-	"internal/buildcfg"
 	"slices"
 	"sort"
 	"strings"
@@ -491,6 +490,9 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 			exported = types.IsExported(t.Elem().Sym().Name)
 		}
 	}
+	if types.IsDirectIface(t) {
+		tflag |= abi.TFlagDirectIface
+	}
 
 	if tflag != abi.TFlag(uint8(tflag)) {
 		// this should optimize away completely
@@ -511,9 +513,6 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	c.Field("FieldAlign_").WriteUint8(uint8(t.Alignment()))
 
 	kind := kinds[t.Kind()]
-	if types.IsDirectIface(t) {
-		kind |= abi.KindDirectIface
-	}
 	c.Field("Kind_").WriteUint8(uint8(kind))
 
 	c.Field("Equal").WritePtr(eqfunc)
@@ -773,11 +772,7 @@ func writeType(t *types.Type) *obj.LSym {
 		rt = rttype.InterfaceType
 		dataAdd = len(imethods(t)) * int(rttype.IMethod.Size())
 	case types.TMAP:
-		if buildcfg.Experiment.SwissMap {
-			rt = rttype.SwissMapType
-		} else {
-			rt = rttype.OldMapType
-		}
+		rt = rttype.MapType
 	case types.TPTR:
 		rt = rttype.PtrType
 		// TODO: use rttype.Type for Elem() is ANY?
@@ -877,11 +872,7 @@ func writeType(t *types.Type) *obj.LSym {
 		}
 
 	case types.TMAP:
-		if buildcfg.Experiment.SwissMap {
-			writeSwissMapType(t, lsym, c)
-		} else {
-			writeOldMapType(t, lsym, c)
-		}
+		writeMapType(t, lsym, c)
 
 	case types.TPTR:
 		// internal/abi.PtrType

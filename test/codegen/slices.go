@@ -418,6 +418,15 @@ func SliceWithSubtractBound(a []int, b int) []int {
 }
 
 // --------------------------------------- //
+//   ARM64 folding for slice masks         //
+// --------------------------------------- //
+
+func SliceAndIndex(a []int, b int) int {
+	// arm64:"AND\tR[0-9]+->63","ADD\tR[0-9]+<<3"
+	return a[b:][b]
+}
+
+// --------------------------------------- //
 //   Code generation for unsafe.Slice      //
 // --------------------------------------- //
 
@@ -428,4 +437,22 @@ func Slice1(p *byte, i int) []byte {
 func Slice0(p *struct{}, i int) []struct{} {
 	// amd64:-"MULQ"
 	return unsafe.Slice(p, i)
+}
+
+// --------------------------------------- //
+//   Code generation for slice bounds      //
+//   checking comparison                   //
+// --------------------------------------- //
+
+func SlicePut(a []byte, c uint8) []byte {
+	// arm64:`CBZ\tR1`
+	a[0] = c
+	// arm64:`CMP\t\$1, R1`
+	a = a[1:]
+	a[0] = c
+	// arm64:`CMP\t\$2, R1`
+	a = a[1:]
+	a[0] = c
+	a = a[1:]
+	return a
 }

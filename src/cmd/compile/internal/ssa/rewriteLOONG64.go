@@ -330,6 +330,12 @@ func rewriteValueLOONG64(v *Value) bool {
 		return rewriteValueLOONG64_OpLOONG64DIVV(v)
 	case OpLOONG64DIVVU:
 		return rewriteValueLOONG64_OpLOONG64DIVVU(v)
+	case OpLOONG64LoweredPanicBoundsCR:
+		return rewriteValueLOONG64_OpLOONG64LoweredPanicBoundsCR(v)
+	case OpLOONG64LoweredPanicBoundsRC:
+		return rewriteValueLOONG64_OpLOONG64LoweredPanicBoundsRC(v)
+	case OpLOONG64LoweredPanicBoundsRR:
+		return rewriteValueLOONG64_OpLOONG64LoweredPanicBoundsRR(v)
 	case OpLOONG64MASKEQZ:
 		return rewriteValueLOONG64_OpLOONG64MASKEQZ(v)
 	case OpLOONG64MASKNEZ:
@@ -669,7 +675,8 @@ func rewriteValueLOONG64(v *Value) bool {
 		v.Op = OpLOONG64OR
 		return true
 	case OpPanicBounds:
-		return rewriteValueLOONG64_OpPanicBounds(v)
+		v.Op = OpLOONG64LoweredPanicBoundsRR
+		return true
 	case OpPopCount16:
 		return rewriteValueLOONG64_OpPopCount16(v)
 	case OpPopCount32:
@@ -2070,6 +2077,86 @@ func rewriteValueLOONG64_OpLOONG64DIVVU(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueLOONG64_OpLOONG64LoweredPanicBoundsCR(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (LoweredPanicBoundsCR [kind] {p} (MOVVconst [c]) mem)
+	// result: (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:p.C, Cy:c}} mem)
+	for {
+		kind := auxIntToInt64(v.AuxInt)
+		p := auxToPanicBoundsC(v.Aux)
+		if v_0.Op != OpLOONG64MOVVconst {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		mem := v_1
+		v.reset(OpLOONG64LoweredPanicBoundsCC)
+		v.AuxInt = int64ToAuxInt(kind)
+		v.Aux = panicBoundsCCToAux(PanicBoundsCC{Cx: p.C, Cy: c})
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueLOONG64_OpLOONG64LoweredPanicBoundsRC(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (LoweredPanicBoundsRC [kind] {p} (MOVVconst [c]) mem)
+	// result: (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:c, Cy:p.C}} mem)
+	for {
+		kind := auxIntToInt64(v.AuxInt)
+		p := auxToPanicBoundsC(v.Aux)
+		if v_0.Op != OpLOONG64MOVVconst {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		mem := v_1
+		v.reset(OpLOONG64LoweredPanicBoundsCC)
+		v.AuxInt = int64ToAuxInt(kind)
+		v.Aux = panicBoundsCCToAux(PanicBoundsCC{Cx: c, Cy: p.C})
+		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueLOONG64_OpLOONG64LoweredPanicBoundsRR(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (LoweredPanicBoundsRR [kind] x (MOVVconst [c]) mem)
+	// result: (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:c}} mem)
+	for {
+		kind := auxIntToInt64(v.AuxInt)
+		x := v_0
+		if v_1.Op != OpLOONG64MOVVconst {
+			break
+		}
+		c := auxIntToInt64(v_1.AuxInt)
+		mem := v_2
+		v.reset(OpLOONG64LoweredPanicBoundsRC)
+		v.AuxInt = int64ToAuxInt(kind)
+		v.Aux = panicBoundsCToAux(PanicBoundsC{C: c})
+		v.AddArg2(x, mem)
+		return true
+	}
+	// match: (LoweredPanicBoundsRR [kind] (MOVVconst [c]) y mem)
+	// result: (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:c}} y mem)
+	for {
+		kind := auxIntToInt64(v.AuxInt)
+		if v_0.Op != OpLOONG64MOVVconst {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		y := v_1
+		mem := v_2
+		v.reset(OpLOONG64LoweredPanicBoundsCR)
+		v.AuxInt = int64ToAuxInt(kind)
+		v.Aux = panicBoundsCToAux(PanicBoundsC{C: c})
+		v.AddArg2(y, mem)
+		return true
+	}
+	return false
+}
 func rewriteValueLOONG64_OpLOONG64MASKEQZ(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -2378,6 +2465,21 @@ func rewriteValueLOONG64_OpLOONG64MOVBUreg(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVBUreg x:(ANDconst [c] y))
+	// cond: c >= 0 && int64(uint8(c)) == c
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpLOONG64ANDconst {
+			break
+		}
+		c := auxIntToInt64(x.AuxInt)
+		if !(c >= 0 && int64(uint8(c)) == c) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
 	return false
 }
 func rewriteValueLOONG64_OpLOONG64MOVBload(v *Value) bool {
@@ -2524,6 +2626,21 @@ func rewriteValueLOONG64_OpLOONG64MOVBreg(v *Value) bool {
 		c := auxIntToInt64(v_0.AuxInt)
 		v.reset(OpLOONG64MOVVconst)
 		v.AuxInt = int64ToAuxInt(int64(int8(c)))
+		return true
+	}
+	// match: (MOVBreg x:(ANDconst [c] y))
+	// cond: c >= 0 && int64(int8(c)) == c
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpLOONG64ANDconst {
+			break
+		}
+		c := auxIntToInt64(x.AuxInt)
+		if !(c >= 0 && int64(int8(c)) == c) {
+			break
+		}
+		v.copyOf(x)
 		return true
 	}
 	return false
@@ -3614,6 +3731,21 @@ func rewriteValueLOONG64_OpLOONG64MOVHUreg(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(int64(uint16(c)))
 		return true
 	}
+	// match: (MOVHUreg x:(ANDconst [c] y))
+	// cond: c >= 0 && int64(uint16(c)) == c
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpLOONG64ANDconst {
+			break
+		}
+		c := auxIntToInt64(x.AuxInt)
+		if !(c >= 0 && int64(uint16(c)) == c) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
 	return false
 }
 func rewriteValueLOONG64_OpLOONG64MOVHload(v *Value) bool {
@@ -3804,6 +3936,21 @@ func rewriteValueLOONG64_OpLOONG64MOVHreg(v *Value) bool {
 		c := auxIntToInt64(v_0.AuxInt)
 		v.reset(OpLOONG64MOVVconst)
 		v.AuxInt = int64ToAuxInt(int64(int16(c)))
+		return true
+	}
+	// match: (MOVHreg x:(ANDconst [c] y))
+	// cond: c >= 0 && int64(int16(c)) == c
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpLOONG64ANDconst {
+			break
+		}
+		c := auxIntToInt64(x.AuxInt)
+		if !(c >= 0 && int64(int16(c)) == c) {
+			break
+		}
+		v.copyOf(x)
 		return true
 	}
 	return false
@@ -4821,6 +4968,21 @@ func rewriteValueLOONG64_OpLOONG64MOVWUreg(v *Value) bool {
 		v.AuxInt = int64ToAuxInt(int64(uint32(c)))
 		return true
 	}
+	// match: (MOVWUreg x:(ANDconst [c] y))
+	// cond: c >= 0 && int64(uint32(c)) == c
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpLOONG64ANDconst {
+			break
+		}
+		c := auxIntToInt64(x.AuxInt)
+		if !(c >= 0 && int64(uint32(c)) == c) {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
 	return false
 }
 func rewriteValueLOONG64_OpLOONG64MOVWload(v *Value) bool {
@@ -5044,6 +5206,21 @@ func rewriteValueLOONG64_OpLOONG64MOVWreg(v *Value) bool {
 		c := auxIntToInt64(v_0.AuxInt)
 		v.reset(OpLOONG64MOVVconst)
 		v.AuxInt = int64ToAuxInt(int64(int32(c)))
+		return true
+	}
+	// match: (MOVWreg x:(ANDconst [c] y))
+	// cond: c >= 0 && int64(int32(c)) == c
+	// result: x
+	for {
+		x := v_0
+		if x.Op != OpLOONG64ANDconst {
+			break
+		}
+		c := auxIntToInt64(x.AuxInt)
+		if !(c >= 0 && int64(int32(c)) == c) {
+			break
+		}
+		v.copyOf(x)
 		return true
 	}
 	return false
@@ -5360,20 +5537,8 @@ func rewriteValueLOONG64_OpLOONG64MOVWstorezeroidx(v *Value) bool {
 func rewriteValueLOONG64_OpLOONG64MULV(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (MULV x (MOVVconst [-1]))
-	// result: (NEGV x)
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			if v_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_1.AuxInt) != -1 {
-				continue
-			}
-			v.reset(OpLOONG64NEGV)
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
+	b := v.Block
+	config := b.Func.Config
 	// match: (MULV _ (MOVVconst [0]))
 	// result: (MOVVconst [0])
 	for {
@@ -5401,8 +5566,8 @@ func rewriteValueLOONG64_OpLOONG64MULV(v *Value) bool {
 		break
 	}
 	// match: (MULV x (MOVVconst [c]))
-	// cond: isPowerOfTwo(c)
-	// result: (SLLVconst [log64(c)] x)
+	// cond: canMulStrengthReduce(config, c)
+	// result: {mulStrengthReduce(v, x, c)}
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -5410,12 +5575,10 @@ func rewriteValueLOONG64_OpLOONG64MULV(v *Value) bool {
 				continue
 			}
 			c := auxIntToInt64(v_1.AuxInt)
-			if !(isPowerOfTwo(c)) {
+			if !(canMulStrengthReduce(config, c)) {
 				continue
 			}
-			v.reset(OpLOONG64SLLVconst)
-			v.AuxInt = int64ToAuxInt(log64(c))
-			v.AddArg(x)
+			v.copyOf(mulStrengthReduce(v, x, c))
 			return true
 		}
 		break
@@ -9015,60 +9178,6 @@ func rewriteValueLOONG64_OpOffPtr(v *Value) bool {
 		v.AddArg(ptr)
 		return true
 	}
-}
-func rewriteValueLOONG64_OpPanicBounds(v *Value) bool {
-	v_2 := v.Args[2]
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (PanicBounds [kind] x y mem)
-	// cond: boundsABI(kind) == 0
-	// result: (LoweredPanicBoundsA [kind] x y mem)
-	for {
-		kind := auxIntToInt64(v.AuxInt)
-		x := v_0
-		y := v_1
-		mem := v_2
-		if !(boundsABI(kind) == 0) {
-			break
-		}
-		v.reset(OpLOONG64LoweredPanicBoundsA)
-		v.AuxInt = int64ToAuxInt(kind)
-		v.AddArg3(x, y, mem)
-		return true
-	}
-	// match: (PanicBounds [kind] x y mem)
-	// cond: boundsABI(kind) == 1
-	// result: (LoweredPanicBoundsB [kind] x y mem)
-	for {
-		kind := auxIntToInt64(v.AuxInt)
-		x := v_0
-		y := v_1
-		mem := v_2
-		if !(boundsABI(kind) == 1) {
-			break
-		}
-		v.reset(OpLOONG64LoweredPanicBoundsB)
-		v.AuxInt = int64ToAuxInt(kind)
-		v.AddArg3(x, y, mem)
-		return true
-	}
-	// match: (PanicBounds [kind] x y mem)
-	// cond: boundsABI(kind) == 2
-	// result: (LoweredPanicBoundsC [kind] x y mem)
-	for {
-		kind := auxIntToInt64(v.AuxInt)
-		x := v_0
-		y := v_1
-		mem := v_2
-		if !(boundsABI(kind) == 2) {
-			break
-		}
-		v.reset(OpLOONG64LoweredPanicBoundsC)
-		v.AuxInt = int64ToAuxInt(kind)
-		v.AddArg3(x, y, mem)
-		return true
-	}
-	return false
 }
 func rewriteValueLOONG64_OpPopCount16(v *Value) bool {
 	v_0 := v.Args[0]

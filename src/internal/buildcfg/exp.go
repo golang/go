@@ -82,8 +82,6 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		RegabiWrappers:  regabiSupported,
 		RegabiArgs:      regabiSupported,
 		AliasTypeParams: true,
-		SwissMap:        true,
-		SyncHashTrieMap: true,
 		SIMD:            goarch == "amd64", // TODO remove this (default to false) when dev.simd is merged
 		Dwarf5:          dwarf5Supported,
 	}

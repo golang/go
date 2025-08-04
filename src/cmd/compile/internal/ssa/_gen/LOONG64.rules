@@ -527,9 +527,11 @@
 // Publication barrier as intrinsic
 (PubBarrier ...) => (LoweredPubBarrier ...)
 
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
-(PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
+(PanicBounds ...) => (LoweredPanicBoundsRR ...)
+(LoweredPanicBoundsRR [kind] x (MOVVconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:c}} mem)
+(LoweredPanicBoundsRR [kind] (MOVVconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:c}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVVconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:c, Cy:p.C}} mem)
+(LoweredPanicBoundsCR [kind] {p} (MOVVconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:p.C, Cy:c}} mem)
 
 (CondSelect <t> x y cond) => (OR (MASKEQZ <t> x cond) (MASKNEZ <t> y cond))
 
@@ -748,10 +750,10 @@
 (SRLVconst [rc] (MOVBUreg x)) && rc >= 8 => (MOVVconst [0])
 
 // mul by constant
-(MULV x (MOVVconst [-1])) => (NEGV x)
 (MULV _ (MOVVconst [0])) => (MOVVconst [0])
 (MULV x (MOVVconst [1])) => x
-(MULV x (MOVVconst [c])) && isPowerOfTwo(c) => (SLLVconst [log64(c)] x)
+
+(MULV  x (MOVVconst [c])) && canMulStrengthReduce(config, c) => {mulStrengthReduce(v, x, c)}
 
 // div by constant
 (DIVVU x (MOVVconst [1])) => x
@@ -842,6 +844,14 @@
 (MOVVreg  (MOVVconst [c])) => (MOVVconst [c])
 
 (MOVBUreg (ANDconst [c] x)) => (ANDconst [c&0xff] x)
+
+// Avoid extending when already sufficiently masked.
+(MOVBreg  x:(ANDconst [c] y)) && c >= 0 && int64(int8(c)) == c => x
+(MOVHreg  x:(ANDconst [c] y)) && c >= 0 && int64(int16(c)) == c => x
+(MOVWreg  x:(ANDconst [c] y)) && c >= 0 && int64(int32(c)) == c => x
+(MOVBUreg x:(ANDconst [c] y)) && c >= 0 && int64(uint8(c)) == c => x
+(MOVHUreg x:(ANDconst [c] y)) && c >= 0 && int64(uint16(c)) == c => x
+(MOVWUreg x:(ANDconst [c] y)) && c >= 0 && int64(uint32(c)) == c => x
 
 // Prefetch instructions (hint specified using aux field)
 // For PRELD{,X} A value of hint indicates:

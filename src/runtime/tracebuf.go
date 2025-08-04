@@ -183,7 +183,7 @@ func (w traceWriter) refill() traceWriter {
 	// Tolerate a nil mp.
 	mID := ^uint64(0)
 	if w.mp != nil {
-		mID = uint64(w.mp.procid)
+		mID = w.mp.procid
 	}
 
 	// Write the buffer's header.
@@ -194,7 +194,7 @@ func (w traceWriter) refill() traceWriter {
 		w.byte(byte(w.exp))
 	}
 	w.varint(uint64(w.gen))
-	w.varint(uint64(mID))
+	w.varint(mID)
 	w.varint(uint64(ts))
 	w.traceBuf.lenPos = w.varintReserve()
 	return w

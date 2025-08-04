@@ -22,7 +22,7 @@ func TestTCPConnKeepAliveConfigDialer(t *testing.T) {
 		oldCfg  KeepAliveConfig
 	)
 	testPreHookSetKeepAlive = func(nfd *netFD) {
-		oldCfg, errHook = getCurrentKeepAliveSettings(fdType(nfd.pfd.Sysfd))
+		oldCfg, errHook = getCurrentKeepAliveSettings(nfd.pfd.Sysfd)
 	}
 
 	handler := func(ls *localServer, ln Listener) {
@@ -80,7 +80,7 @@ func TestTCPConnKeepAliveConfigListener(t *testing.T) {
 		oldCfg  KeepAliveConfig
 	)
 	testPreHookSetKeepAlive = func(nfd *netFD) {
-		oldCfg, errHook = getCurrentKeepAliveSettings(fdType(nfd.pfd.Sysfd))
+		oldCfg, errHook = getCurrentKeepAliveSettings(nfd.pfd.Sysfd)
 	}
 
 	ch := make(chan Conn, 1)

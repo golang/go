@@ -27,6 +27,7 @@ type funcDescriptor struct {
 type mOS struct {
 	waitsema uintptr // semaphore for parking on locks
 	perrno   uintptr // pointer to tls errno
+	libcall  libcall
 }
 
 //go:nosplit
@@ -194,6 +195,7 @@ func unminit() {
 // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
 //
 // This always runs without a P, so //go:nowritebarrierrec is required.
+//
 //go:nowritebarrierrec
 func mdestroy(mp *m) {
 }

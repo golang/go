@@ -50,7 +50,7 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 				if !m.initFormat(mo.Format) {
 					return newInvalidFormatError(enc, t, mo)
 				}
-			} else if mo.Flags.Get(jsonflags.FormatTimeWithLegacySemantics) {
+			} else if mo.Flags.Get(jsonflags.FormatDurationAsNano) {
 				return marshalNano(enc, va, mo)
 			} else {
 				// TODO(https://go.dev/issue/71631): Decide on default duration representation.
@@ -76,7 +76,7 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 				if !u.initFormat(uo.Format) {
 					return newInvalidFormatError(dec, t, uo)
 				}
-			} else if uo.Flags.Get(jsonflags.FormatTimeWithLegacySemantics) {
+			} else if uo.Flags.Get(jsonflags.FormatDurationAsNano) {
 				return unmarshalNano(dec, va, uo)
 			} else {
 				// TODO(https://go.dev/issue/71631): Decide on default duration representation.
@@ -150,7 +150,7 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 				if !u.initFormat(uo.Format) {
 					return newInvalidFormatError(dec, t, uo)
 				}
-			} else if uo.Flags.Get(jsonflags.FormatTimeWithLegacySemantics) {
+			} else if uo.Flags.Get(jsonflags.ParseTimeWithLooseRFC3339) {
 				u.looseRFC3339 = true
 			}
 

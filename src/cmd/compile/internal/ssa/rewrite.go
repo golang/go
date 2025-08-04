@@ -29,6 +29,8 @@ type deadValueChoice bool
 const (
 	leaveDeadValues  deadValueChoice = false
 	removeDeadValues                 = true
+
+	repZeroThreshold = 1408 // size beyond which we use REP STOS for zeroing
 )
 
 // deadcode indicates whether rewrite should try to remove any values that become dead.
@@ -199,16 +201,18 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
 				f.freeValue(v)
 				continue
 			}
-			if v.Pos.IsStmt() != src.PosNotStmt && !notStmtBoundary(v.Op) && pendingLines.get(vl) == int32(b.ID) {
-				pendingLines.remove(vl)
-				v.Pos = v.Pos.WithIsStmt()
+			if v.Pos.IsStmt() != src.PosNotStmt && !notStmtBoundary(v.Op) {
+				if pl, ok := pendingLines.get(vl); ok && pl == int32(b.ID) {
+					pendingLines.remove(vl)
+					v.Pos = v.Pos.WithIsStmt()
+				}
 			}
 			if i != j {
 				b.Values[j] = v
 			}
 			j++
 		}
-		if pendingLines.get(b.Pos) == int32(b.ID) {
+		if pl, ok := pendingLines.get(b.Pos); ok && pl == int32(b.ID) {
 			b.Pos = b.Pos.WithIsStmt()
 			pendingLines.remove(b.Pos)
 		}
@@ -301,7 +305,6 @@ func canMergeLoadClobber(target, load, x *Value) bool {
 		return false
 	}
 	loopnest := x.Block.Func.loopnest()
-	loopnest.calculateDepths()
 	if loopnest.depth(target.Block.ID) > loopnest.depth(x.Block.ID) {
 		return false
 	}
@@ -479,28 +482,26 @@ func nto(x int64) int64 {
 
 // logX returns logarithm of n base 2.
 // n must be a positive power of 2 (isPowerOfTwoX returns true).
-func log8(n int8) int64 {
-	return int64(bits.Len8(uint8(n))) - 1
-}
-func log16(n int16) int64 {
-	return int64(bits.Len16(uint16(n))) - 1
-}
-func log32(n int32) int64 {
-	return int64(bits.Len32(uint32(n))) - 1
-}
-func log64(n int64) int64 {
-	return int64(bits.Len64(uint64(n))) - 1
-}
+func log8(n int8) int64   { return log8u(uint8(n)) }
+func log16(n int16) int64 { return log16u(uint16(n)) }
+func log32(n int32) int64 { return log32u(uint32(n)) }
+func log64(n int64) int64 { return log64u(uint64(n)) }
 
-// log2uint32 returns logarithm in base 2 of uint32(n), with log2(0) = -1.
-// Rounds down.
-func log2uint32(n int64) int64 {
-	return int64(bits.Len32(uint32(n))) - 1
-}
+// logXu returns the logarithm of n base 2.
+// n must be a power of 2 (isUnsignedPowerOfTwo returns true)
+func log8u(n uint8) int64   { return int64(bits.Len8(n)) - 1 }
+func log16u(n uint16) int64 { return int64(bits.Len16(n)) - 1 }
+func log32u(n uint32) int64 { return int64(bits.Len32(n)) - 1 }
+func log64u(n uint64) int64 { return int64(bits.Len64(n)) - 1 }
 
 // isPowerOfTwoX functions report whether n is a power of 2.
 func isPowerOfTwo[T int8 | int16 | int32 | int64](n T) bool {
 	return n > 0 && n&(n-1) == 0
+}
+
+// isUnsignedPowerOfTwo reports whether n is an unsigned power of 2.
+func isUnsignedPowerOfTwo[T uint8 | uint16 | uint32 | uint64](n T) bool {
+	return n != 0 && n&(n-1) == 0
 }
 
 // isUint64PowerOfTwo reports whether uint64(n) is a power of 2.
@@ -2670,4 +2671,33 @@ func flagify(v *Value) bool {
 	v.reset(OpSelect0)
 	v.AddArg(inner)
 	return true
+}
+
+// PanicBoundsC contains a constant for a bounds failure.
+type PanicBoundsC struct {
+	C int64
+}
+
+// PanicBoundsCC contains 2 constants for a bounds failure.
+type PanicBoundsCC struct {
+	Cx int64
+	Cy int64
+}
+
+func (p PanicBoundsC) CanBeAnSSAAux() {
+}
+func (p PanicBoundsCC) CanBeAnSSAAux() {
+}
+
+func auxToPanicBoundsC(i Aux) PanicBoundsC {
+	return i.(PanicBoundsC)
+}
+func auxToPanicBoundsCC(i Aux) PanicBoundsCC {
+	return i.(PanicBoundsCC)
+}
+func panicBoundsCToAux(p PanicBoundsC) Aux {
+	return p
+}
+func panicBoundsCCToAux(p PanicBoundsCC) Aux {
+	return p
 }

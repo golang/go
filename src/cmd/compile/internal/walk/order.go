@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"go/constant"
 	"internal/abi"
-	"internal/buildcfg"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -846,7 +845,7 @@ func (o *orderState) stmt(n ir.Node) {
 		o.out = append(o.out, n)
 		o.popTemp(t)
 
-	case ir.OPRINT, ir.OPRINTLN, ir.ORECOVERFP:
+	case ir.OPRINT, ir.OPRINTLN, ir.ORECOVER:
 		n := n.(*ir.CallExpr)
 		t := o.markTemp()
 		o.call(n)
@@ -968,11 +967,7 @@ func (o *orderState) stmt(n ir.Node) {
 
 			// n.Prealloc is the temp for the iterator.
 			// MapIterType contains pointers and needs to be zeroed.
-			if buildcfg.Experiment.SwissMap {
-				n.Prealloc = o.newTemp(reflectdata.SwissMapIterType(), true)
-			} else {
-				n.Prealloc = o.newTemp(reflectdata.OldMapIterType(), true)
-			}
+			n.Prealloc = o.newTemp(reflectdata.MapIterType(), true)
 		}
 		n.Key = o.exprInPlace(n.Key)
 		n.Value = o.exprInPlace(n.Value)
@@ -1355,7 +1350,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
 		ir.OMIN,
 		ir.ONEW,
 		ir.OREAL,
-		ir.ORECOVERFP,
+		ir.ORECOVER,
 		ir.OSTR2BYTES,
 		ir.OSTR2BYTESTMP,
 		ir.OSTR2RUNES:

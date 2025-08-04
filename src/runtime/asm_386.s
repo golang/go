@@ -1509,161 +1509,47 @@ TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
 	MOVL	$32, DI
 	JMP	gcWriteBarrier<>(SB)
 
-// Note: these functions use a special calling convention to save generated code space.
-// Arguments are passed in registers, but the space for those arguments are allocated
-// in the caller's stack frame. These stubs write the args into that stack space and
-// then tail call to the corresponding runtime handler.
-// The tail call makes these stubs disappear in backtraces.
-TEXT runtime·panicIndex(SB),NOSPLIT,$0-8
-	MOVL	AX, x+0(FP)
-	MOVL	CX, y+4(FP)
-	JMP	runtime·goPanicIndex(SB)
-TEXT runtime·panicIndexU(SB),NOSPLIT,$0-8
-	MOVL	AX, x+0(FP)
-	MOVL	CX, y+4(FP)
-	JMP	runtime·goPanicIndexU(SB)
-TEXT runtime·panicSliceAlen(SB),NOSPLIT,$0-8
-	MOVL	CX, x+0(FP)
-	MOVL	DX, y+4(FP)
-	JMP	runtime·goPanicSliceAlen(SB)
-TEXT runtime·panicSliceAlenU(SB),NOSPLIT,$0-8
-	MOVL	CX, x+0(FP)
-	MOVL	DX, y+4(FP)
-	JMP	runtime·goPanicSliceAlenU(SB)
-TEXT runtime·panicSliceAcap(SB),NOSPLIT,$0-8
-	MOVL	CX, x+0(FP)
-	MOVL	DX, y+4(FP)
-	JMP	runtime·goPanicSliceAcap(SB)
-TEXT runtime·panicSliceAcapU(SB),NOSPLIT,$0-8
-	MOVL	CX, x+0(FP)
-	MOVL	DX, y+4(FP)
-	JMP	runtime·goPanicSliceAcapU(SB)
-TEXT runtime·panicSliceB(SB),NOSPLIT,$0-8
-	MOVL	AX, x+0(FP)
-	MOVL	CX, y+4(FP)
-	JMP	runtime·goPanicSliceB(SB)
-TEXT runtime·panicSliceBU(SB),NOSPLIT,$0-8
-	MOVL	AX, x+0(FP)
-	MOVL	CX, y+4(FP)
-	JMP	runtime·goPanicSliceBU(SB)
-TEXT runtime·panicSlice3Alen(SB),NOSPLIT,$0-8
-	MOVL	DX, x+0(FP)
-	MOVL	BX, y+4(FP)
-	JMP	runtime·goPanicSlice3Alen(SB)
-TEXT runtime·panicSlice3AlenU(SB),NOSPLIT,$0-8
-	MOVL	DX, x+0(FP)
-	MOVL	BX, y+4(FP)
-	JMP	runtime·goPanicSlice3AlenU(SB)
-TEXT runtime·panicSlice3Acap(SB),NOSPLIT,$0-8
-	MOVL	DX, x+0(FP)
-	MOVL	BX, y+4(FP)
-	JMP	runtime·goPanicSlice3Acap(SB)
-TEXT runtime·panicSlice3AcapU(SB),NOSPLIT,$0-8
-	MOVL	DX, x+0(FP)
-	MOVL	BX, y+4(FP)
-	JMP	runtime·goPanicSlice3AcapU(SB)
-TEXT runtime·panicSlice3B(SB),NOSPLIT,$0-8
-	MOVL	CX, x+0(FP)
-	MOVL	DX, y+4(FP)
-	JMP	runtime·goPanicSlice3B(SB)
-TEXT runtime·panicSlice3BU(SB),NOSPLIT,$0-8
-	MOVL	CX, x+0(FP)
-	MOVL	DX, y+4(FP)
-	JMP	runtime·goPanicSlice3BU(SB)
-TEXT runtime·panicSlice3C(SB),NOSPLIT,$0-8
-	MOVL	AX, x+0(FP)
-	MOVL	CX, y+4(FP)
-	JMP	runtime·goPanicSlice3C(SB)
-TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-8
-	MOVL	AX, x+0(FP)
-	MOVL	CX, y+4(FP)
-	JMP	runtime·goPanicSlice3CU(SB)
-TEXT runtime·panicSliceConvert(SB),NOSPLIT,$0-8
-	MOVL	DX, x+0(FP)
-	MOVL	BX, y+4(FP)
-	JMP	runtime·goPanicSliceConvert(SB)
+TEXT runtime·panicBounds<ABIInternal>(SB),NOSPLIT,$40-0
+	NO_LOCAL_POINTERS
+	// Save all int registers that could have an index in them.
+	// They may be pointers, but if they are they are dead.
+	MOVL	AX, 8(SP)
+	MOVL	CX, 12(SP)
+	MOVL	DX, 16(SP)
+	MOVL	BX, 20(SP)
+	// skip SP @ 24(SP)
+	MOVL	BP, 28(SP)
+	MOVL	SI, 32(SP)
+	MOVL	DI, 36(SP)
 
-// Extended versions for 64-bit indexes.
-TEXT runtime·panicExtendIndex(SB),NOSPLIT,$0-12
-	MOVL	SI, hi+0(FP)
-	MOVL	AX, lo+4(FP)
-	MOVL	CX, y+8(FP)
-	JMP	runtime·goPanicExtendIndex(SB)
-TEXT runtime·panicExtendIndexU(SB),NOSPLIT,$0-12
-	MOVL	SI, hi+0(FP)
-	MOVL	AX, lo+4(FP)
-	MOVL	CX, y+8(FP)
-	JMP	runtime·goPanicExtendIndexU(SB)
-TEXT runtime·panicExtendSliceAlen(SB),NOSPLIT,$0-12
-	MOVL	SI, hi+0(FP)
-	MOVL	CX, lo+4(FP)
-	MOVL	DX, y+8(FP)
-	JMP	runtime·goPanicExtendSliceAlen(SB)
-TEXT runtime·panicExtendSliceAlenU(SB),NOSPLIT,$0-12
-	MOVL	SI, hi+0(FP)
-	MOVL	CX, lo+4(FP)
-	MOVL	DX, y+8(FP)
-	JMP	runtime·goPanicExtendSliceAlenU(SB)
-TEXT runtime·panicExtendSliceAcap(SB),NOSPLIT,$0-12
-	MOVL	SI, hi+0(FP)
-	MOVL	CX, lo+4(FP)
-	MOVL	DX, y+8(FP)
-	JMP	runtime·goPanicExtendSliceAcap(SB)
-TEXT runtime·panicExtendSliceAcapU(SB),NOSPLIT,$0-12
-	MOVL	SI, hi+0(FP)
-	MOVL	CX, lo+4(FP)
-	MOVL	DX, y+8(FP)
-	JMP	runtime·goPanicExtendSliceAcapU(SB)
-TEXT runtime·panicExtendSliceB(SB),NOSPLIT,$0-12
-	MOVL	SI, hi+0(FP)
-	MOVL	AX, lo+4(FP)
-	MOVL	CX, y+8(FP)
-	JMP	runtime·goPanicExtendSliceB(SB)
-TEXT runtime·panicExtendSliceBU(SB),NOSPLIT,$0-12
-	MOVL	SI, hi+0(FP)
-	MOVL	AX, lo+4(FP)
-	MOVL	CX, y+8(FP)
-	JMP	runtime·goPanicExtendSliceBU(SB)
-TEXT runtime·panicExtendSlice3Alen(SB),NOSPLIT,$0-12
-	MOVL	SI, hi+0(FP)
-	MOVL	DX, lo+4(FP)
-	MOVL	BX, y+8(FP)
-	JMP	runtime·goPanicExtendSlice3Alen(SB)
-TEXT runtime·panicExtendSlice3AlenU(SB),NOSPLIT,$0-12
-	MOVL	SI, hi+0(FP)
-	MOVL	DX, lo+4(FP)
-	MOVL	BX, y+8(FP)
-	JMP	runtime·goPanicExtendSlice3AlenU(SB)
-TEXT runtime·panicExtendSlice3Acap(SB),NOSPLIT,$0-12
-	MOVL	SI, hi+0(FP)
-	MOVL	DX, lo+4(FP)
-	MOVL	BX, y+8(FP)
-	JMP	runtime·goPanicExtendSlice3Acap(SB)
-TEXT runtime·panicExtendSlice3AcapU(SB),NOSPLIT,$0-12
-	MOVL	SI, hi+0(FP)
-	MOVL	DX, lo+4(FP)
-	MOVL	BX, y+8(FP)
-	JMP	runtime·goPanicExtendSlice3AcapU(SB)
-TEXT runtime·panicExtendSlice3B(SB),NOSPLIT,$0-12
-	MOVL	SI, hi+0(FP)
-	MOVL	CX, lo+4(FP)
-	MOVL	DX, y+8(FP)
-	JMP	runtime·goPanicExtendSlice3B(SB)
-TEXT runtime·panicExtendSlice3BU(SB),NOSPLIT,$0-12
-	MOVL	SI, hi+0(FP)
-	MOVL	CX, lo+4(FP)
-	MOVL	DX, y+8(FP)
-	JMP	runtime·goPanicExtendSlice3BU(SB)
-TEXT runtime·panicExtendSlice3C(SB),NOSPLIT,$0-12
-	MOVL	SI, hi+0(FP)
-	MOVL	AX, lo+4(FP)
-	MOVL	CX, y+8(FP)
-	JMP	runtime·goPanicExtendSlice3C(SB)
-TEXT runtime·panicExtendSlice3CU(SB),NOSPLIT,$0-12
-	MOVL	SI, hi+0(FP)
-	MOVL	AX, lo+4(FP)
-	MOVL	CX, y+8(FP)
-	JMP	runtime·goPanicExtendSlice3CU(SB)
+	MOVL	SP, AX		// hide SP read from vet
+	MOVL	40(AX), AX	// PC immediately after call to panicBounds
+	MOVL	AX, 0(SP)
+	LEAL	8(SP), AX
+	MOVL	AX, 4(SP)
+	CALL	runtime·panicBounds32<ABIInternal>(SB)
+	RET
+
+TEXT runtime·panicExtend<ABIInternal>(SB),NOSPLIT,$40-0
+	NO_LOCAL_POINTERS
+	// Save all int registers that could have an index in them.
+	// They may be pointers, but if they are they are dead.
+	MOVL	AX, 8(SP)
+	MOVL	CX, 12(SP)
+	MOVL	DX, 16(SP)
+	MOVL	BX, 20(SP)
+	// skip SP @ 24(SP)
+	MOVL	BP, 28(SP)
+	MOVL	SI, 32(SP)
+	MOVL	DI, 36(SP)
+
+	MOVL	SP, AX		// hide SP read from vet
+	MOVL	40(AX), AX	// PC immediately after call to panicExtend
+	MOVL	AX, 0(SP)
+	LEAL	8(SP), AX
+	MOVL	AX, 4(SP)
+	CALL	runtime·panicBounds32X<ABIInternal>(SB)
+	RET
 
 #ifdef GOOS_android
 // Use the free TLS_SLOT_APP slot #2 on Android Q.

@@ -70,7 +70,7 @@ func Zero(typ Type) Value {
 	}
 	t := typ.common()
 	fl := flag(t.Kind())
-	if t.IfaceIndir() {
+	if !t.IsDirectIface() {
 		return Value{t, unsafe_New(t), fl | flagIndir}
 	}
 	return Value{t, nil, fl}

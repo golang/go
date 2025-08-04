@@ -7,6 +7,7 @@ package user
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"internal/syscall/windows"
@@ -16,10 +17,92 @@ import (
 	"runtime"
 	"slices"
 	"strconv"
+	"strings"
+	"sync"
 	"syscall"
 	"testing"
+	"unicode"
+	"unicode/utf8"
 	"unsafe"
 )
+
+// addUserAccount creates a local user account.
+// It returns the name and password of the new account.
+// Multiple programs or goroutines calling addUserAccount simultaneously will not choose the same directory.
+func addUserAccount(t *testing.T) (name, password string) {
+	t.TempDir()
+	pattern := t.Name()
+	// Windows limits the user name to 20 characters,
+	// leave space for a 4 digits random suffix.
+	const maxNameLen, suffixLen = 20, 4
+	pattern = pattern[:min(len(pattern), maxNameLen-suffixLen)]
+	// Drop unusual characters from the account name.
+	mapper := func(r rune) rune {
+		if r < utf8.RuneSelf {
+			if '0' <= r && r <= '9' ||
+				'a' <= r && r <= 'z' ||
+				'A' <= r && r <= 'Z' {
+				return r
+			}
+		} else if unicode.IsLetter(r) || unicode.IsNumber(r) {
+			return r
+		}
+		return -1
+	}
+	pattern = strings.Map(mapper, pattern)
+
+	// Generate a long random password.
+	var pwd [33]byte
+	rand.Read(pwd[:])
+	// Add special chars to ensure it satisfies password requirements.
+	password = base64.StdEncoding.EncodeToString(pwd[:]) + "_-As@!%*(1)4#2"
+	password16, err := syscall.UTF16PtrFromString(password)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	try := 0
+	for {
+		// Calculate a random suffix to append to the user name.
+		var suffix [2]byte
+		rand.Read(suffix[:])
+		suffixStr := strconv.FormatUint(uint64(binary.LittleEndian.Uint16(suffix[:])), 10)
+		name := pattern + suffixStr[:min(len(suffixStr), suffixLen)]
+		name16, err := syscall.UTF16PtrFromString(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Create user.
+		userInfo := windows.UserInfo1{
+			Name:     name16,
+			Password: password16,
+			Priv:     windows.USER_PRIV_USER,
+		}
+		err = windows.NetUserAdd(nil, 1, (*byte)(unsafe.Pointer(&userInfo)), nil)
+		if errors.Is(err, syscall.ERROR_ACCESS_DENIED) {
+			t.Skip("skipping test; don't have permission to create user")
+		}
+		// If the user already exists, try again with a different name.
+		if errors.Is(err, windows.NERR_UserExists) {
+			if try++; try < 1000 {
+				t.Log("user already exists, trying again with a different name")
+				continue
+			}
+		}
+		if err != nil {
+			t.Fatalf("NetUserAdd failed: %v", err)
+		}
+		// Delete the user when the test is done.
+		t.Cleanup(func() {
+			if err := windows.NetUserDel(nil, name16); err != nil {
+				if !errors.Is(err, windows.NERR_UserNotFound) {
+					t.Fatal(err)
+				}
+			}
+		})
+		return name, password
+	}
+}
 
 // windowsTestAccount creates a test user and returns a token for that user.
 // If the user already exists, it will be deleted and recreated.
@@ -32,47 +115,15 @@ func windowsTestAccount(t *testing.T) (syscall.Token, *User) {
 		// See https://dev.go/issue/70396.
 		t.Skip("skipping non-hermetic test outside of Go builders")
 	}
-	const testUserName = "GoStdTestUser01"
-	var password [33]byte
-	rand.Read(password[:])
-	// Add special chars to ensure it satisfies password requirements.
-	pwd := base64.StdEncoding.EncodeToString(password[:]) + "_-As@!%*(1)4#2"
-	name, err := syscall.UTF16PtrFromString(testUserName)
+	name, password := addUserAccount(t)
+	name16, err := syscall.UTF16PtrFromString(name)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pwd16, err := syscall.UTF16PtrFromString(pwd)
+	pwd16, err := syscall.UTF16PtrFromString(password)
 	if err != nil {
 		t.Fatal(err)
 	}
-	userInfo := windows.UserInfo1{
-		Name:     name,
-		Password: pwd16,
-		Priv:     windows.USER_PRIV_USER,
-	}
-	// Create user.
-	err = windows.NetUserAdd(nil, 1, (*byte)(unsafe.Pointer(&userInfo)), nil)
-	if errors.Is(err, syscall.ERROR_ACCESS_DENIED) {
-		t.Skip("skipping test; don't have permission to create user")
-	}
-	if errors.Is(err, windows.NERR_UserExists) {
-		// User already exists, delete and recreate.
-		if err = windows.NetUserDel(nil, name); err != nil {
-			t.Fatal(err)
-		}
-		if err = windows.NetUserAdd(nil, 1, (*byte)(unsafe.Pointer(&userInfo)), nil); err != nil {
-			t.Fatal(err)
-		}
-	} else if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err = windows.NetUserDel(nil, name); err != nil {
-			if !errors.Is(err, windows.NERR_UserNotFound) {
-				t.Fatal(err)
-			}
-		}
-	})
 	domain, err := syscall.UTF16PtrFromString(".")
 	if err != nil {
 		t.Fatal(err)
@@ -80,13 +131,13 @@ func windowsTestAccount(t *testing.T) (syscall.Token, *User) {
 	const LOGON32_PROVIDER_DEFAULT = 0
 	const LOGON32_LOGON_INTERACTIVE = 2
 	var token syscall.Token
-	if err = windows.LogonUser(name, domain, pwd16, LOGON32_LOGON_INTERACTIVE, LOGON32_PROVIDER_DEFAULT, &token); err != nil {
+	if err = windows.LogonUser(name16, domain, pwd16, LOGON32_LOGON_INTERACTIVE, LOGON32_PROVIDER_DEFAULT, &token); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
 		token.Close()
 	})
-	usr, err := Lookup(testUserName)
+	usr, err := Lookup(name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,9 +262,21 @@ func TestGroupIdsTestUser(t *testing.T) {
 	}
 }
 
+var isSystemDefaultLCIDEnglish = sync.OnceValue(func() bool {
+	// GetSystemDefaultLCID()
+	// https://learn.microsoft.com/en-us/windows/win32/api/winnls/nf-winnls-getsystemdefaultlcid
+	r, _, _ := syscall.MustLoadDLL("kernel32.dll").MustFindProc("GetSystemDefaultLCID").Call()
+	lcid := uint32(r)
+
+	lcidLow := lcid & 0xFF
+	// 0x0409 is en-US
+	// 0x1000 is "Locale without assigned LCID"
+	return lcidLow == 0x00 || lcidLow == 0x09
+})
+
 var serviceAccounts = []struct {
 	sid  string
-	name string
+	name string // name on english Windows
 }{
 	{"S-1-5-18", "NT AUTHORITY\\SYSTEM"},
 	{"S-1-5-19", "NT AUTHORITY\\LOCAL SERVICE"},
@@ -223,14 +286,21 @@ var serviceAccounts = []struct {
 func TestLookupServiceAccount(t *testing.T) {
 	t.Parallel()
 	for _, tt := range serviceAccounts {
-		u, err := Lookup(tt.name)
-		if err != nil {
-			t.Errorf("Lookup(%q): %v", tt.name, err)
-			continue
-		}
-		if u.Uid != tt.sid {
-			t.Errorf("unexpected uid for %q; got %q, want %q", u.Name, u.Uid, tt.sid)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			u, err := Lookup(tt.name)
+			if err != nil {
+				t.Logf("Lookup(%q): %v", tt.name, err)
+				if !isSystemDefaultLCIDEnglish() {
+					t.Skipf("test not supported on non-English Windows")
+				}
+				t.Fail()
+				return
+			}
+			if u.Uid != tt.sid {
+				t.Errorf("unexpected uid for %q; got %q, want %q", u.Name, u.Uid, tt.sid)
+			}
+			t.Logf("Lookup(%q): %q", tt.name, u.Username)
+		})
 	}
 }
 
@@ -246,7 +316,11 @@ func TestLookupIdServiceAccount(t *testing.T) {
 			t.Errorf("unexpected gid for %q; got %q, want %q", u.Name, u.Gid, tt.sid)
 		}
 		if u.Username != tt.name {
-			t.Errorf("unexpected user name for %q; got %q, want %q", u.Gid, u.Username, tt.name)
+			if isSystemDefaultLCIDEnglish() {
+				t.Errorf("unexpected user name for %q; got %q, want %q", u.Gid, u.Username, tt.name)
+			} else {
+				t.Logf("user name for %q: %q", u.Gid, u.Username)
+			}
 		}
 	}
 }
@@ -254,14 +328,20 @@ func TestLookupIdServiceAccount(t *testing.T) {
 func TestLookupGroupServiceAccount(t *testing.T) {
 	t.Parallel()
 	for _, tt := range serviceAccounts {
-		u, err := LookupGroup(tt.name)
-		if err != nil {
-			t.Errorf("LookupGroup(%q): %v", tt.name, err)
-			continue
-		}
-		if u.Gid != tt.sid {
-			t.Errorf("unexpected gid for %q; got %q, want %q", u.Name, u.Gid, tt.sid)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			g, err := LookupGroup(tt.name)
+			if err != nil {
+				t.Logf("LookupGroup(%q): %v", tt.name, err)
+				if !isSystemDefaultLCIDEnglish() {
+					t.Skipf("test not supported on non-English Windows")
+				}
+				t.Fail()
+				return
+			}
+			if g.Gid != tt.sid {
+				t.Errorf("unexpected gid for %q; got %q, want %q", g.Name, g.Gid, tt.sid)
+			}
+		})
 	}
 }
 

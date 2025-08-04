@@ -10,7 +10,6 @@ import (
 	"cmd/internal/src"
 	"fmt"
 	"go/constant"
-	"internal/buildcfg"
 	"internal/types/errors"
 	"sync"
 )
@@ -282,17 +281,7 @@ type Map struct {
 	Key  *Type // Key type
 	Elem *Type // Val (elem) type
 
-	// Note: It would be cleaner to completely split Map into OldMap and
-	// SwissMap, but 99% of the types map code doesn't care about the
-	// implementation at all, so it is tons of churn to split the type.
-	// Only code that looks at the bucket field can care about the
-	// implementation.
-
-	// GOEXPERIMENT=noswissmap fields
-	OldBucket *Type // internal struct type representing a hash bucket
-
-	// GOEXPERIMENT=swissmap fields
-	SwissGroup *Type // internal struct type representing a slot group
+	Group *Type // internal struct type representing a slot group
 }
 
 // MapType returns t's extra map-specific fields.
@@ -1193,37 +1182,20 @@ func (t *Type) cmp(x *Type) Cmp {
 		// by the general code after the switch.
 
 	case TSTRUCT:
-		if buildcfg.Experiment.SwissMap {
-			// Is this a map group type?
-			if t.StructType().Map == nil {
-				if x.StructType().Map != nil {
-					return CMPlt // nil < non-nil
-				}
-				// to the fallthrough
-			} else if x.StructType().Map == nil {
-				return CMPgt // nil > non-nil
+		// Is this a map group type?
+		if t.StructType().Map == nil {
+			if x.StructType().Map != nil {
+				return CMPlt // nil < non-nil
 			}
-			// Both have non-nil Map, fallthrough to the general
-			// case. Note that the map type does not directly refer
-			// to the group type (it uses unsafe.Pointer). If it
-			// did, this would need special handling to avoid
-			// infinite recursion.
-		} else {
-			// Is this a map bucket type?
-			if t.StructType().Map == nil {
-				if x.StructType().Map != nil {
-					return CMPlt // nil < non-nil
-				}
-				// to the fallthrough
-			} else if x.StructType().Map == nil {
-				return CMPgt // nil > non-nil
-			}
-			// Both have non-nil Map, fallthrough to the general
-			// case. Note that the map type does not directly refer
-			// to the bucket type (it uses unsafe.Pointer). If it
-			// did, this would need special handling to avoid
-			// infinite recursion.
+			// to the general case
+		} else if x.StructType().Map == nil {
+			return CMPgt // nil > non-nil
 		}
+		// Both have non-nil Map, fallthrough to the general
+		// case. Note that the map type does not directly refer
+		// to the group type (it uses unsafe.Pointer). If it
+		// did, this would need special handling to avoid
+		// infinite recursion.
 
 		tfs := t.Fields()
 		xfs := x.Fields()

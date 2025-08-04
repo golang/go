@@ -707,9 +707,9 @@ func (f *File) SyscallConn() (syscall.RawConn, error) {
 
 // Fd returns the system file descriptor or handle referencing the open file.
 // If f is closed, the descriptor becomes invalid.
-// If f is garbage collected, a cleanup may close the descriptor,
-// making it invalid; see [runtime.AddCleanup] for more information on when
-// a cleanup might be run.
+// If f is garbage collected, a finalizer may close the descriptor,
+// making it invalid; see [runtime.SetFinalizer] for more information on when
+// a finalizer might be run.
 //
 // Do not close the returned descriptor; that could cause a later
 // close of f to close an unrelated descriptor.

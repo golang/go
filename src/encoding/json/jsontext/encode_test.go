@@ -735,3 +735,95 @@ func testEncoderErrors(t *testing.T, where jsontest.CasePos, opts []Options, cal
 		t.Fatalf("%s: Encoder.OutputOffset = %v, want %v", where, gotOffset, wantOffset)
 	}
 }
+
+// TestEncoderReset tests that the encoder preserves its internal
+// buffer between Reset calls to avoid frequent allocations when reusing the encoder.
+// It ensures that the buffer capacity is maintained while avoiding aliasing
+// issues with [bytes.Buffer].
+func TestEncoderReset(t *testing.T) {
+	// Create an encoder with a reasonably large JSON input to ensure buffer growth.
+	largeJSON := `{"key1":"value1","key2":"value2","key3":"value3","key4":"value4","key5":"value5"}` + "\n"
+	bb := new(bytes.Buffer)
+	enc := NewEncoder(struct{ io.Writer }{bb}) // mask out underlying [bytes.Buffer]
+
+	t.Run("Test capacity preservation", func(t *testing.T) {
+		// Write the first JSON value to grow the internal buffer.
+		err := enc.WriteValue(append(enc.AvailableBuffer(), largeJSON...))
+		if err != nil {
+			t.Fatalf("first WriteValue failed: %v", err)
+		}
+		if bb.String() != largeJSON {
+			t.Fatalf("first WriteValue = %q, want %q", bb.String(), largeJSON)
+		}
+
+		// Get the buffer capacity after first use.
+		initialCapacity := cap(enc.s.Buf)
+		initialCacheCapacity := cap(enc.s.availBuffer)
+		if initialCapacity == 0 {
+			t.Fatalf("expected non-zero buffer capacity after first use")
+		}
+		if initialCacheCapacity == 0 {
+			t.Fatalf("expected non-zero cache capacity after first use")
+		}
+
+		// Reset with a new writer - this should preserve the buffer capacity.
+		bb.Reset()
+		enc.Reset(struct{ io.Writer }{bb})
+
+		// Verify the buffer capacity is preserved (or at least not smaller).
+		preservedCapacity := cap(enc.s.Buf)
+		if preservedCapacity < initialCapacity {
+			t.Fatalf("buffer capacity reduced after Reset: got %d, want at least %d", preservedCapacity, initialCapacity)
+		}
+		preservedCacheCapacity := cap(enc.s.availBuffer)
+		if preservedCacheCapacity < initialCacheCapacity {
+			t.Fatalf("cache capacity reduced after Reset: got %d, want at least %d", preservedCapacity, initialCapacity)
+		}
+
+		// Write the second JSON value to ensure the encoder still works correctly.
+		err = enc.WriteValue(append(enc.AvailableBuffer(), largeJSON...))
+		if err != nil {
+			t.Fatalf("second WriteValue failed: %v", err)
+		}
+		if bb.String() != largeJSON {
+			t.Fatalf("second WriteValue = %q, want %q", bb.String(), largeJSON)
+		}
+	})
+
+	t.Run("Test aliasing with bytes.Buffer", func(t *testing.T) {
+		// Test with bytes.Buffer to verify proper aliasing behavior.
+		bb.Reset()
+		enc.Reset(bb)
+
+		// Write the third JSON value to ensure functionality with bytes.Buffer.
+		err := enc.WriteValue([]byte(largeJSON))
+		if err != nil {
+			t.Fatalf("fourth WriteValue failed: %v", err)
+		}
+		if bb.String() != largeJSON {
+			t.Fatalf("fourth WriteValue = %q, want %q", bb.String(), largeJSON)
+		}
+		// The encoder buffer should alias bytes.Buffer's internal buffer.
+		if cap(enc.s.Buf) == 0 || cap(bb.AvailableBuffer()) == 0 || &enc.s.Buf[:1][0] != &bb.AvailableBuffer()[:1][0] {
+			t.Fatalf("encoder buffer does not alias bytes.Buffer")
+		}
+	})
+
+	t.Run("Test aliasing removed after Reset", func(t *testing.T) {
+		// Reset with a new reader and verify the buffer is not aliased.
+		bb.Reset()
+		enc.Reset(struct{ io.Writer }{bb})
+		err := enc.WriteValue([]byte(largeJSON))
+		if err != nil {
+			t.Fatalf("fifth WriteValue failed: %v", err)
+		}
+		if bb.String() != largeJSON {
+			t.Fatalf("fourth WriteValue = %q, want %q", bb.String(), largeJSON)
+		}
+
+		// The encoder buffer should not alias the bytes.Buffer's internal buffer.
+		if cap(enc.s.Buf) == 0 || cap(bb.AvailableBuffer()) == 0 || &enc.s.Buf[:1][0] == &bb.AvailableBuffer()[:1][0] {
+			t.Fatalf("encoder buffer aliases bytes.Buffer")
+		}
+	})
+}

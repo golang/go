@@ -130,15 +130,15 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 
 	// Save m->libcall. We need to do this because we
 	// might get interrupted by a signal in runtime·asmcgocall.
-	MOVD	(m_libcall+libcall_fn)(R6), R7
+	MOVD	(m_mOS+mOS_libcall+libcall_fn)(R6), R7
 	MOVD	R7, 96(R1)
-	MOVD	(m_libcall+libcall_args)(R6), R7
+	MOVD	(m_mOS+mOS_libcall+libcall_args)(R6), R7
 	MOVD	R7, 104(R1)
-	MOVD	(m_libcall+libcall_n)(R6), R7
+	MOVD	(m_mOS+mOS_libcall+libcall_n)(R6), R7
 	MOVD	R7, 112(R1)
-	MOVD	(m_libcall+libcall_r1)(R6), R7
+	MOVD	(m_mOS+mOS_libcall+libcall_r1)(R6), R7
 	MOVD	R7, 120(R1)
-	MOVD	(m_libcall+libcall_r2)(R6), R7
+	MOVD	(m_mOS+mOS_libcall+libcall_r2)(R6), R7
 	MOVD	R7, 128(R1)
 
 	// save errno, it might be EINTR; stuff we do here might reset it.
@@ -162,15 +162,15 @@ sigtramp:
 
 	// restore libcall
 	MOVD	96(R1), R7
-	MOVD	R7, (m_libcall+libcall_fn)(R6)
+	MOVD	R7, (m_mOS+mOS_libcall+libcall_fn)(R6)
 	MOVD	104(R1), R7
-	MOVD	R7, (m_libcall+libcall_args)(R6)
+	MOVD	R7, (m_mOS+mOS_libcall+libcall_args)(R6)
 	MOVD	112(R1), R7
-	MOVD	R7, (m_libcall+libcall_n)(R6)
+	MOVD	R7, (m_mOS+mOS_libcall+libcall_n)(R6)
 	MOVD	120(R1), R7
-	MOVD	R7, (m_libcall+libcall_r1)(R6)
+	MOVD	R7, (m_mOS+mOS_libcall+libcall_r1)(R6)
 	MOVD	128(R1), R7
-	MOVD	R7, (m_libcall+libcall_r2)(R6)
+	MOVD	R7, (m_mOS+mOS_libcall+libcall_r2)(R6)
 
 	// restore errno
 	MOVD	(m_mOS+mOS_perrno)(R6), R7

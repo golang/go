@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"io"
 	"maps"
 	"math"
 	"math/big"
@@ -419,6 +420,8 @@ type DoublePtr struct {
 	J **int
 }
 
+type NestedUnamed struct{ F struct{ V int } }
+
 var unmarshalTests = []struct {
 	CaseName
 	in                    string
@@ -473,11 +476,13 @@ var unmarshalTests = []struct {
 	{CaseName: Name(""), in: `{"alphabet": "xyz"}`, ptr: new(U), err: fmt.Errorf("json: unknown field \"alphabet\""), disallowUnknownFields: true},
 
 	// syntax errors
+	{CaseName: Name(""), in: ``, ptr: new(any), err: &SyntaxError{errUnexpectedEnd.Error(), 0}},
+	{CaseName: Name(""), in: " \n\r\t", ptr: new(any), err: &SyntaxError{errUnexpectedEnd.Error(), len64(" \n\r\t")}},
+	{CaseName: Name(""), in: `[2, 3`, ptr: new(any), err: &SyntaxError{errUnexpectedEnd.Error(), len64(`[2, 3`)}},
 	{CaseName: Name(""), in: `{"X": "foo", "Y"}`, err: &SyntaxError{"invalid character '}' after object key", len64(`{"X": "foo", "Y"`)}},
 	{CaseName: Name(""), in: `[1, 2, 3+]`, err: &SyntaxError{"invalid character '+' after array element", len64(`[1, 2, 3`)}},
 	{CaseName: Name(""), in: `{"X":12x}`, err: &SyntaxError{"invalid character 'x' after object key:value pair", len64(`{"X":12`)}, useNumber: true},
-	{CaseName: Name(""), in: `[2, 3`, err: &SyntaxError{msg: "unexpected end of JSON input", Offset: len64(`[2, 3`)}},
-	{CaseName: Name(""), in: `{"F3": -}`, ptr: new(V), err: &SyntaxError{msg: "invalid character '}' in numeric literal", Offset: len64(`{"F3": -`)}},
+	{CaseName: Name(""), in: `{"F3": -}`, ptr: new(V), err: &SyntaxError{"invalid character '}' in numeric literal", len64(`{"F3": -`)}},
 
 	// raw value errors
 	{CaseName: Name(""), in: "\x01 42", err: &SyntaxError{"invalid character '\\x01' looking for beginning of value", len64(``)}},
@@ -1216,6 +1221,28 @@ var unmarshalTests = []struct {
 			F string `json:"-,omitempty"`
 		}{"hello"},
 	},
+
+	{
+		CaseName: Name("ErrorForNestedUnamed"),
+		in:       `{"F":{"V":"s"}}`,
+		ptr:      new(NestedUnamed),
+		out:      NestedUnamed{},
+		err:      &UnmarshalTypeError{Value: "string", Type: reflect.TypeFor[int](), Offset: 10, Struct: "NestedUnamed", Field: "F.V"},
+	},
+	{
+		CaseName: Name("ErrorInterface"),
+		in:       `1`,
+		ptr:      new(error),
+		out:      error(nil),
+		err:      &UnmarshalTypeError{Value: "number", Type: reflect.TypeFor[error]()},
+	},
+	{
+		CaseName: Name("ErrorChan"),
+		in:       `1`,
+		ptr:      new(chan int),
+		out:      (chan int)(nil),
+		err:      &UnmarshalTypeError{Value: "number", Type: reflect.TypeFor[chan int]()},
+	},
 }
 
 func TestMarshal(t *testing.T) {
@@ -1246,12 +1273,12 @@ func TestMarshalInvalidUTF8(t *testing.T) {
 		in   string
 		want string
 	}{
-		{Name(""), "hello\xffworld", `"hello\ufffdworld"`},
+		{Name(""), "hello\xffworld", "\"hello\ufffdworld\""},
 		{Name(""), "", `""`},
-		{Name(""), "\xff", `"\ufffd"`},
-		{Name(""), "\xff\xff", `"\ufffd\ufffd"`},
-		{Name(""), "a\xffb", `"a\ufffdb"`},
-		{Name(""), "\xe6\x97\xa5\xe6\x9c\xac\xff\xaa\x9e", `"日本\ufffd\ufffd\ufffd"`},
+		{Name(""), "\xff", "\"\ufffd\""},
+		{Name(""), "\xff\xff", "\"\ufffd\ufffd\""},
+		{Name(""), "a\xffb", "\"a\ufffdb\""},
+		{Name(""), "\xe6\x97\xa5\xe6\x9c\xac\xff\xaa\x9e", "\"日本\ufffd\ufffd\ufffd\""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -1381,6 +1408,14 @@ func TestUnmarshal(t *testing.T) {
 			}
 			if tt.disallowUnknownFields {
 				dec.DisallowUnknownFields()
+			}
+			if tt.err != nil && strings.Contains(tt.err.Error(), errUnexpectedEnd.Error()) {
+				// In streaming mode, we expect EOF or ErrUnexpectedEOF instead.
+				if strings.TrimSpace(tt.in) == "" {
+					tt.err = io.EOF
+				} else {
+					tt.err = io.ErrUnexpectedEOF
+				}
 			}
 			if err := dec.Decode(v.Interface()); !equalError(err, tt.err) {
 				t.Fatalf("%s: Decode error:\n\tgot:  %v\n\twant: %v\n\n\tgot:  %#v\n\twant: %#v", tt.Where, err, tt.err, err, tt.err)
@@ -1541,12 +1576,12 @@ func TestErrorMessageFromMisusedString(t *testing.T) {
 		CaseName
 		in, err string
 	}{
-		{Name(""), `{"result":"x"}`, `json: cannot unmarshal JSON string into WrongString.result of Go type string: invalid character 'x' looking for beginning of object key string`},
-		{Name(""), `{"result":"foo"}`, `json: cannot unmarshal JSON string into WrongString.result of Go type string: invalid character 'f' looking for beginning of object key string`},
-		{Name(""), `{"result":"123"}`, `json: cannot unmarshal JSON string into WrongString.result of Go type string: invalid character '1' looking for beginning of object key string`},
-		{Name(""), `{"result":123}`, `json: cannot unmarshal JSON number into WrongString.result of Go type string`},
-		{Name(""), `{"result":"\""}`, `json: cannot unmarshal JSON string into WrongString.result of Go type string: unexpected end of JSON input`},
-		{Name(""), `{"result":"\"foo"}`, `json: cannot unmarshal JSON string into WrongString.result of Go type string: unexpected end of JSON input`},
+		{Name(""), `{"result":"x"}`, `json: cannot unmarshal string into Go struct field WrongString.result of type string: invalid character 'x' looking for beginning of object key string`},
+		{Name(""), `{"result":"foo"}`, `json: cannot unmarshal string into Go struct field WrongString.result of type string: invalid character 'f' looking for beginning of object key string`},
+		{Name(""), `{"result":"123"}`, `json: cannot unmarshal string into Go struct field WrongString.result of type string: invalid character '1' looking for beginning of object key string`},
+		{Name(""), `{"result":123}`, `json: cannot unmarshal number into Go struct field WrongString.result of type string`},
+		{Name(""), `{"result":"\""}`, `json: cannot unmarshal string into Go struct field WrongString.result of type string: unexpected end of JSON input`},
+		{Name(""), `{"result":"\"foo"}`, `json: cannot unmarshal string into Go struct field WrongString.result of type string: unexpected end of JSON input`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -2534,6 +2569,7 @@ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
 		ptr:      new(S1),
 		out:      &S1{R: 2},
 		err: &UnmarshalTypeError{
+			Value:  "number",
 			Type:   reflect.TypeFor[S1](),
 			Offset: len64(`{"R":2,"Q":`),
 			Struct: "S1",
@@ -2566,6 +2602,7 @@ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
 		ptr:      new(S5),
 		out:      &S5{R: 2},
 		err: &UnmarshalTypeError{
+			Value:  "number",
 			Type:   reflect.TypeFor[S5](),
 			Offset: len64(`{"R":2,"Q":`),
 			Struct: "S5",

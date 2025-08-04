@@ -8,8 +8,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"internal/abi"
-	"internal/goexperiment"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -155,9 +153,6 @@ func checkPtraceScope(t *testing.T) {
 	}
 }
 
-// NOTE: the maps below are allocated larger than abi.MapBucketCount
-// to ensure that they are not "optimized out".
-
 var helloSource = `
 import "fmt"
 import "runtime"
@@ -166,19 +161,21 @@ var gslice []string
 var smallmapvar map[string]string
 func main() {
 	smallmapvar = make(map[string]string)
-	mapvar := make(map[string]string, ` + strconv.FormatInt(abi.OldMapBucketCount+9, 10) + `)
-	slicemap := make(map[string][]string,` + strconv.FormatInt(abi.OldMapBucketCount+3, 10) + `)
-    chanint := make(chan int, 10)
-    chanstr := make(chan string, 10)
-    chanint <- 99
+	// NOTE: the maps below are allocated large to ensure that they are not
+	// "optimized out".
+	mapvar := make(map[string]string, 10)
+	slicemap := make(map[string][]string, 10)
+	chanint := make(chan int, 10)
+	chanstr := make(chan string, 10)
+	chanint <- 99
 	chanint <- 11
-    chanstr <- "spongepants"
-    chanstr <- "squarebob"
+	chanstr <- "spongepants"
+	chanstr <- "squarebob"
 	smallmapvar["abc"] = "def"
 	mapvar["abc"] = "def"
 	mapvar["ghi"] = "jkl"
 	slicemap["a"] = []string{"b","c","d"}
-    slicemap["e"] = []string{"f","g","h"}
+	slicemap["e"] = []string{"f","g","h"}
 	strvar := "abc"
 	ptrvar := &strvar
 	slicevar := make([]string, 0, 16)
@@ -638,20 +635,10 @@ func TestGdbAutotmpTypes(t *testing.T) {
 	types := []string{
 		"[]main.astruct",
 		"main.astruct",
-	}
-	if goexperiment.SwissMap {
-		types = append(types, []string{
-			"groupReference<string,main.astruct>",
-			"table<string,main.astruct>",
-			"map<string,main.astruct>",
-			"map<string,main.astruct> * map[string]main.astruct",
-		}...)
-	} else {
-		types = append(types, []string{
-			"bucket<string,main.astruct>",
-			"hash<string,main.astruct>",
-			"hash<string,main.astruct> * map[string]main.astruct",
-		}...)
+		"groupReference<string,main.astruct>",
+		"table<string,main.astruct>",
+		"map<string,main.astruct>",
+		"map<string,main.astruct> * map[string]main.astruct",
 	}
 	for _, name := range types {
 		if !strings.Contains(sgot, name) {

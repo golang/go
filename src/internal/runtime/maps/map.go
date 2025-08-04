@@ -21,7 +21,7 @@ import (
 //
 // Terminology:
 // - Slot: A storage location of a single key/element pair.
-// - Group: A group of abi.SwissMapGroupSlots (8) slots, plus a control word.
+// - Group: A group of abi.MapGroupSlots (8) slots, plus a control word.
 // - Control word: An 8-byte word which denotes whether each slot is empty,
 //   deleted, or used. If a slot is used, its control byte also contains the
 //   lower 7 bits of the hash (H2).
@@ -113,7 +113,7 @@ import (
 // Note that each table has its own load factor and grows independently. If the
 // 1st bucket grows, it will split. We'll need 2 bits to select tables, though
 // we'll have 3 tables total rather than 4. We support this by allowing
-// multiple indicies to point to the same table. This example:
+// multiple indices to point to the same table. This example:
 //
 //	directory (globalDepth=2)
 //	+----+
@@ -191,7 +191,7 @@ func h2(h uintptr) uintptr {
 	return h & 0x7f
 }
 
-// Note: changes here must be reflected in cmd/compile/internal/reflectdata/map_swiss.go:SwissMapType.
+// Note: changes here must be reflected in cmd/compile/internal/reflectdata/map.go:MapType.
 type Map struct {
 	// The number of filled slots (i.e. the number of elements in all
 	// tables). Excludes deleted slots.
@@ -212,7 +212,7 @@ type Map struct {
 	// details.
 	//
 	// Small map optimization: if the map always contained
-	// abi.SwissMapGroupSlots or fewer entries, it fits entirely in a
+	// abi.MapGroupSlots or fewer entries, it fits entirely in a
 	// single group. In that case dirPtr points directly to a single group.
 	//
 	// dirPtr *group
@@ -257,14 +257,14 @@ func depthToShift(depth uint8) uint8 {
 // maxAlloc should be runtime.maxAlloc.
 //
 // TODO(prattmic): Put maxAlloc somewhere accessible.
-func NewMap(mt *abi.SwissMapType, hint uintptr, m *Map, maxAlloc uintptr) *Map {
+func NewMap(mt *abi.MapType, hint uintptr, m *Map, maxAlloc uintptr) *Map {
 	if m == nil {
 		m = new(Map)
 	}
 
 	m.seed = uintptr(rand())
 
-	if hint <= abi.SwissMapGroupSlots {
+	if hint <= abi.MapGroupSlots {
 		// A small map can fill all 8 slots, so no need to increase
 		// target capacity.
 		//
@@ -286,7 +286,7 @@ func NewMap(mt *abi.SwissMapType, hint uintptr, m *Map, maxAlloc uintptr) *Map {
 
 	// Set initial capacity to hold hint entries without growing in the
 	// average case.
-	targetCapacity := (hint * abi.SwissMapGroupSlots) / maxAvgGroupLoad
+	targetCapacity := (hint * abi.MapGroupSlots) / maxAvgGroupLoad
 	if targetCapacity < hint { // overflow
 		return m // return an empty map.
 	}
@@ -365,7 +365,7 @@ func (m *Map) installTableSplit(old, left, right *table) {
 			t := m.directoryAt(uintptr(i))
 			newDir[2*i] = t
 			newDir[2*i+1] = t
-			// t may already exist in multiple indicies. We should
+			// t may already exist in multiple indices. We should
 			// only update t.index once. Since the index must
 			// increase, seeing the original index means this must
 			// be the first time we've encountered this table.
@@ -380,7 +380,7 @@ func (m *Map) installTableSplit(old, left, right *table) {
 		m.dirLen = len(newDir)
 	}
 
-	// N.B. left and right may still consume multiple indicies if the
+	// N.B. left and right may still consume multiple indices if the
 	// directory has grown multiple times since old was last split.
 	left.index = old.index
 	m.replaceTable(left)
@@ -396,11 +396,11 @@ func (m *Map) Used() uint64 {
 
 // Get performs a lookup of the key that key points to. It returns a pointer to
 // the element, or false if the key doesn't exist.
-func (m *Map) Get(typ *abi.SwissMapType, key unsafe.Pointer) (unsafe.Pointer, bool) {
+func (m *Map) Get(typ *abi.MapType, key unsafe.Pointer) (unsafe.Pointer, bool) {
 	return m.getWithoutKey(typ, key)
 }
 
-func (m *Map) getWithKey(typ *abi.SwissMapType, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
+func (m *Map) getWithKey(typ *abi.MapType, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
 	if m.Used() == 0 {
 		return nil, nil, false
 	}
@@ -419,7 +419,7 @@ func (m *Map) getWithKey(typ *abi.SwissMapType, key unsafe.Pointer) (unsafe.Poin
 	return m.directoryAt(idx).getWithKey(typ, hash, key)
 }
 
-func (m *Map) getWithoutKey(typ *abi.SwissMapType, key unsafe.Pointer) (unsafe.Pointer, bool) {
+func (m *Map) getWithoutKey(typ *abi.MapType, key unsafe.Pointer) (unsafe.Pointer, bool) {
 	if m.Used() == 0 {
 		return nil, false
 	}
@@ -439,7 +439,7 @@ func (m *Map) getWithoutKey(typ *abi.SwissMapType, key unsafe.Pointer) (unsafe.P
 	return m.directoryAt(idx).getWithoutKey(typ, hash, key)
 }
 
-func (m *Map) getWithKeySmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
+func (m *Map) getWithKeySmall(typ *abi.MapType, hash uintptr, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
 	g := groupReference{
 		data: m.dirPtr,
 	}
@@ -470,7 +470,7 @@ func (m *Map) getWithKeySmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Po
 	return nil, nil, false
 }
 
-func (m *Map) Put(typ *abi.SwissMapType, key, elem unsafe.Pointer) {
+func (m *Map) Put(typ *abi.MapType, key, elem unsafe.Pointer) {
 	slotElem := m.PutSlot(typ, key)
 	typedmemmove(typ.Elem, slotElem, elem)
 }
@@ -479,7 +479,7 @@ func (m *Map) Put(typ *abi.SwissMapType, key, elem unsafe.Pointer) {
 // should be written.
 //
 // PutSlot never returns nil.
-func (m *Map) PutSlot(typ *abi.SwissMapType, key unsafe.Pointer) unsafe.Pointer {
+func (m *Map) PutSlot(typ *abi.MapType, key unsafe.Pointer) unsafe.Pointer {
 	if m.writing != 0 {
 		fatal("concurrent map writes")
 	}
@@ -495,7 +495,7 @@ func (m *Map) PutSlot(typ *abi.SwissMapType, key unsafe.Pointer) unsafe.Pointer 
 	}
 
 	if m.dirLen == 0 {
-		if m.used < abi.SwissMapGroupSlots {
+		if m.used < abi.MapGroupSlots {
 			elem := m.putSlotSmall(typ, hash, key)
 
 			if m.writing == 0 {
@@ -529,7 +529,7 @@ func (m *Map) PutSlot(typ *abi.SwissMapType, key unsafe.Pointer) unsafe.Pointer 
 	}
 }
 
-func (m *Map) putSlotSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointer) unsafe.Pointer {
+func (m *Map) putSlotSmall(typ *abi.MapType, hash uintptr, key unsafe.Pointer) unsafe.Pointer {
 	g := groupReference{
 		data: m.dirPtr,
 	}
@@ -591,7 +591,7 @@ func (m *Map) putSlotSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Point
 	return slotElem
 }
 
-func (m *Map) growToSmall(typ *abi.SwissMapType) {
+func (m *Map) growToSmall(typ *abi.MapType) {
 	grp := newGroups(typ, 1)
 	m.dirPtr = grp.data
 
@@ -601,14 +601,14 @@ func (m *Map) growToSmall(typ *abi.SwissMapType) {
 	g.ctrls().setEmpty()
 }
 
-func (m *Map) growToTable(typ *abi.SwissMapType) {
-	tab := newTable(typ, 2*abi.SwissMapGroupSlots, 0, 0)
+func (m *Map) growToTable(typ *abi.MapType) {
+	tab := newTable(typ, 2*abi.MapGroupSlots, 0, 0)
 
 	g := groupReference{
 		data: m.dirPtr,
 	}
 
-	for i := uintptr(0); i < abi.SwissMapGroupSlots; i++ {
+	for i := uintptr(0); i < abi.MapGroupSlots; i++ {
 		if (g.ctrls().get(i) & ctrlEmpty) == ctrlEmpty {
 			// Empty
 			continue
@@ -640,7 +640,7 @@ func (m *Map) growToTable(typ *abi.SwissMapType) {
 	m.globalShift = depthToShift(m.globalDepth)
 }
 
-func (m *Map) Delete(typ *abi.SwissMapType, key unsafe.Pointer) {
+func (m *Map) Delete(typ *abi.MapType, key unsafe.Pointer) {
 	if m == nil || m.Used() == 0 {
 		if err := mapKeyError(typ, key); err != nil {
 			panic(err) // see issue 23734
@@ -680,7 +680,7 @@ func (m *Map) Delete(typ *abi.SwissMapType, key unsafe.Pointer) {
 	m.writing ^= 1
 }
 
-func (m *Map) deleteSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointer) {
+func (m *Map) deleteSmall(typ *abi.MapType, hash uintptr, key unsafe.Pointer) {
 	g := groupReference{
 		data: m.dirPtr,
 	}
@@ -728,7 +728,7 @@ func (m *Map) deleteSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointe
 }
 
 // Clear deletes all entries from the map resulting in an empty map.
-func (m *Map) Clear(typ *abi.SwissMapType) {
+func (m *Map) Clear(typ *abi.MapType) {
 	if m == nil || m.Used() == 0 && !m.tombstonePossible {
 		return
 	}
@@ -766,7 +766,7 @@ func (m *Map) Clear(typ *abi.SwissMapType) {
 	m.writing ^= 1
 }
 
-func (m *Map) clearSmall(typ *abi.SwissMapType) {
+func (m *Map) clearSmall(typ *abi.MapType) {
 	g := groupReference{
 		data: m.dirPtr,
 	}
@@ -777,7 +777,7 @@ func (m *Map) clearSmall(typ *abi.SwissMapType) {
 	m.used = 0
 }
 
-func (m *Map) Clone(typ *abi.SwissMapType) *Map {
+func (m *Map) Clone(typ *abi.MapType) *Map {
 	// Note: this should never be called with a nil map.
 	if m.writing != 0 {
 		fatal("concurrent map clone and map write")
@@ -814,14 +814,7 @@ func (m *Map) Clone(typ *abi.SwissMapType) *Map {
 	return m
 }
 
-func OldMapKeyError(t *abi.OldMapType, p unsafe.Pointer) error {
-	if !t.HashMightPanic() {
-		return nil
-	}
-	return mapKeyError2(t.Key, p)
-}
-
-func mapKeyError(t *abi.SwissMapType, p unsafe.Pointer) error {
+func mapKeyError(t *abi.MapType, p unsafe.Pointer) error {
 	if !t.HashMightPanic() {
 		return nil
 	}
@@ -859,7 +852,7 @@ func mapKeyError2(t *abi.Type, p unsafe.Pointer) error {
 			return unhashableTypeError{t}
 		}
 
-		if t.Kind_&abi.KindDirectIface != 0 {
+		if t.IsDirectIface() {
 			return mapKeyError2(t, unsafe.Pointer(pdata))
 		} else {
 			return mapKeyError2(t, *pdata)

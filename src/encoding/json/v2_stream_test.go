@@ -502,3 +502,38 @@ func TestHTTPDecoding(t *testing.T) {
 		t.Errorf("Decode error:\n\tgot:  %v\n\twant: io.EOF", err)
 	}
 }
+
+func TestTokenTruncation(t *testing.T) {
+	tests := []struct {
+		in  string
+		err error
+	}{
+		{in: ``, err: io.EOF},
+		{in: `{`, err: io.EOF},
+		{in: `{"`, err: io.ErrUnexpectedEOF},
+		{in: `{"k"`, err: io.EOF},
+		{in: `{"k":`, err: io.EOF},
+		{in: `{"k",`, err: &SyntaxError{"invalid character ',' after object key", int64(len(`{"k"`))}},
+		{in: `{"k"}`, err: &SyntaxError{"invalid character '}' after object key", int64(len(`{"k"`))}},
+		{in: ` [0`, err: io.EOF},
+		{in: `[0.`, err: io.ErrUnexpectedEOF},
+		{in: `[0. `, err: &SyntaxError{"invalid character ' ' in numeric literal", int64(len(`[0.`))}},
+		{in: `[0,`, err: io.EOF},
+		{in: `[0:`, err: &SyntaxError{"invalid character ':' after array element", int64(len(`[0`))}},
+		{in: `n`, err: io.ErrUnexpectedEOF},
+		{in: `nul`, err: io.ErrUnexpectedEOF},
+		{in: `fal `, err: &SyntaxError{"invalid character ' ' in literal false (expecting 's')", int64(len(`fal`))}},
+		{in: `false`, err: io.EOF},
+	}
+	for _, tt := range tests {
+		d := NewDecoder(strings.NewReader(tt.in))
+		for i := 0; true; i++ {
+			if _, err := d.Token(); err != nil {
+				if !reflect.DeepEqual(err, tt.err) {
+					t.Errorf("`%s`: %d.Token error = %#v, want %v", tt.in, i, err, tt.err)
+				}
+				break
+			}
+		}
+	}
+}

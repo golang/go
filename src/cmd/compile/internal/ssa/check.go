@@ -215,6 +215,9 @@ func checkFunc(f *Func) {
 					f.Fatalf("bad FlagConstant AuxInt value for %v", v)
 				}
 				canHaveAuxInt = true
+			case auxPanicBoundsC, auxPanicBoundsCC:
+				canHaveAux = true
+				canHaveAuxInt = true
 			default:
 				f.Fatalf("unknown aux type for %s", v.Op)
 			}

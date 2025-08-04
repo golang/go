@@ -245,7 +245,7 @@ static void *thread(void *p) {
 	return NULL;
 }
 void testSendSIG() {
-	const int N = 20;
+	enum { N = 20 };
 	int i;
 	pthread_t tid[N];
 	for (i = 0; i < N; i++) {

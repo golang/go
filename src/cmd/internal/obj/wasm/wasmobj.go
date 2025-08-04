@@ -202,59 +202,6 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		framesize = 0
 	} else if s.Func().WasmExport != nil {
 		genWasmExportWrapper(s, appendp)
-	} else if s.Func().Text.From.Sym.Wrapper() {
-		// if g._panic != nil && g._panic.argp == FP {
-		//   g._panic.argp = bottom-of-frame
-		// }
-		//
-		// MOVD g_panic(g), R0
-		// Get R0
-		// I64Eqz
-		// Not
-		// If
-		//   Get SP
-		//   I64ExtendI32U
-		//   I64Const $framesize+8
-		//   I64Add
-		//   I64Load panic_argp(R0)
-		//   I64Eq
-		//   If
-		//     MOVD SP, panic_argp(R0)
-		//   End
-		// End
-
-		gpanic := obj.Addr{
-			Type:   obj.TYPE_MEM,
-			Reg:    REGG,
-			Offset: 4 * 8, // g_panic
-		}
-
-		panicargp := obj.Addr{
-			Type:   obj.TYPE_MEM,
-			Reg:    REG_R0,
-			Offset: 0, // panic.argp
-		}
-
-		p := s.Func().Text
-		p = appendp(p, AMOVD, gpanic, regAddr(REG_R0))
-
-		p = appendp(p, AGet, regAddr(REG_R0))
-		p = appendp(p, AI64Eqz)
-		p = appendp(p, ANot)
-		p = appendp(p, AIf)
-
-		p = appendp(p, AGet, regAddr(REG_SP))
-		p = appendp(p, AI64ExtendI32U)
-		p = appendp(p, AI64Const, constAddr(framesize+8))
-		p = appendp(p, AI64Add)
-		p = appendp(p, AI64Load, panicargp)
-
-		p = appendp(p, AI64Eq)
-		p = appendp(p, AIf)
-		p = appendp(p, AMOVD, regAddr(REG_SP), panicargp)
-		p = appendp(p, AEnd)
-
-		p = appendp(p, AEnd)
 	}
 
 	if framesize > 0 && s.Func().WasmExport == nil { // genWasmExportWrapper has its own prologue generation
@@ -372,6 +319,9 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	}
 	tableIdxs = append(tableIdxs, uint64(numResumePoints))
 	s.Size = pc + 1
+	if pc >= 1<<16 {
+		ctxt.Diag("function too big: %s exceeds 65536 blocks", s)
+	}
 
 	if needMoreStack {
 		p := pMorestack
@@ -465,9 +415,9 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 
 			case obj.TYPE_NONE:
 				// (target PC is on stack)
+				p = appendp(p, AI64Const, constAddr(16)) // only needs PC_F bits (16-63), PC_B bits (0-15) are zero
+				p = appendp(p, AI64ShrU)
 				p = appendp(p, AI32WrapI64)
-				p = appendp(p, AI32Const, constAddr(16)) // only needs PC_F bits (16-31), PC_B bits (0-15) are zero
-				p = appendp(p, AI32ShrU)
 
 				// Set PC_B parameter to function entry.
 				// We need to push this before pushing the target PC_F,
@@ -521,9 +471,9 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 
 			case obj.TYPE_NONE:
 				// (target PC is on stack)
+				p = appendp(p, AI64Const, constAddr(16)) // only needs PC_F bits (16-63), PC_B bits (0-15) are zero
+				p = appendp(p, AI64ShrU)
 				p = appendp(p, AI32WrapI64)
-				p = appendp(p, AI32Const, constAddr(16)) // only needs PC_F bits (16-31), PC_B bits (0-15) are zero
-				p = appendp(p, AI32ShrU)
 
 				// Set PC_B parameter to function entry.
 				// We need to push this before pushing the target PC_F,

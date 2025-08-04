@@ -9,7 +9,7 @@ import (
 	"internal/goarch"
 	"internal/runtime/atomic"
 	"internal/runtime/strconv"
-	"internal/runtime/syscall"
+	"internal/runtime/syscall/linux"
 	"unsafe"
 )
 
@@ -417,6 +417,7 @@ func unminit() {
 // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
 //
 // This always runs without a P, so //go:nowritebarrierrec is required.
+//
 //go:nowritebarrierrec
 func mdestroy(mp *m) {
 }
@@ -469,7 +470,7 @@ func pipe2(flags int32) (r, w int32, errno int32)
 
 //go:nosplit
 func fcntl(fd, cmd, arg int32) (ret int32, errno int32) {
-	r, _, err := syscall.Syscall6(syscall.SYS_FCNTL, uintptr(fd), uintptr(cmd), uintptr(arg), 0, 0, 0)
+	r, _, err := linux.Syscall6(linux.SYS_FCNTL, uintptr(fd), uintptr(cmd), uintptr(arg), 0, 0, 0)
 	return int32(r), int32(err)
 }
 
@@ -772,7 +773,7 @@ func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (
 	// ensuring all threads execute system calls from multiple calls in the
 	// same order.
 
-	r1, r2, errno := syscall.Syscall6(trap, a1, a2, a3, a4, a5, a6)
+	r1, r2, errno := linux.Syscall6(trap, a1, a2, a3, a4, a5, a6)
 	if GOARCH == "ppc64" || GOARCH == "ppc64le" {
 		// TODO(https://go.dev/issue/51192 ): ppc64 doesn't use r2.
 		r2 = 0
@@ -883,7 +884,7 @@ func runPerThreadSyscall() {
 	}
 
 	args := perThreadSyscall
-	r1, r2, errno := syscall.Syscall6(args.trap, args.a1, args.a2, args.a3, args.a4, args.a5, args.a6)
+	r1, r2, errno := linux.Syscall6(args.trap, args.a1, args.a2, args.a3, args.a4, args.a5, args.a6)
 	if GOARCH == "ppc64" || GOARCH == "ppc64le" {
 		// TODO(https://go.dev/issue/51192 ): ppc64 doesn't use r2.
 		r2 = 0
@@ -922,6 +923,6 @@ func (c *sigctxt) sigFromSeccomp() bool {
 
 //go:nosplit
 func mprotect(addr unsafe.Pointer, n uintptr, prot int32) (ret int32, errno int32) {
-	r, _, err := syscall.Syscall6(syscall.SYS_MPROTECT, uintptr(addr), n, uintptr(prot), 0, 0, 0)
+	r, _, err := linux.Syscall6(linux.SYS_MPROTECT, uintptr(addr), n, uintptr(prot), 0, 0, 0)
 	return int32(r), int32(err)
 }

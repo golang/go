@@ -26,11 +26,11 @@ const (
 //
 //go:nosplit
 func sysAllocOS(n uintptr, _ string) unsafe.Pointer {
-	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_COMMIT|_MEM_RESERVE, _PAGE_READWRITE))
+	return unsafe.Pointer(stdcall(_VirtualAlloc, 0, n, _MEM_COMMIT|_MEM_RESERVE, _PAGE_READWRITE))
 }
 
 func sysUnusedOS(v unsafe.Pointer, n uintptr) {
-	r := stdcall3(_VirtualFree, uintptr(v), n, _MEM_DECOMMIT)
+	r := stdcall(_VirtualFree, uintptr(v), n, _MEM_DECOMMIT)
 	if r != 0 {
 		return
 	}
@@ -46,7 +46,7 @@ func sysUnusedOS(v unsafe.Pointer, n uintptr) {
 	// in the worst case, but that's fast enough.
 	for n > 0 {
 		small := n
-		for small >= 4096 && stdcall3(_VirtualFree, uintptr(v), small, _MEM_DECOMMIT) == 0 {
+		for small >= 4096 && stdcall(_VirtualFree, uintptr(v), small, _MEM_DECOMMIT) == 0 {
 			small /= 2
 			small &^= 4096 - 1
 		}
@@ -60,7 +60,7 @@ func sysUnusedOS(v unsafe.Pointer, n uintptr) {
 }
 
 func sysUsedOS(v unsafe.Pointer, n uintptr) {
-	p := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
+	p := stdcall(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
 	if p == uintptr(v) {
 		return
 	}
@@ -71,7 +71,7 @@ func sysUsedOS(v unsafe.Pointer, n uintptr) {
 	k := n
 	for k > 0 {
 		small := k
-		for small >= 4096 && stdcall4(_VirtualAlloc, uintptr(v), small, _MEM_COMMIT, _PAGE_READWRITE) == 0 {
+		for small >= 4096 && stdcall(_VirtualAlloc, uintptr(v), small, _MEM_COMMIT, _PAGE_READWRITE) == 0 {
 			small /= 2
 			small &^= 4096 - 1
 		}
@@ -105,7 +105,7 @@ func sysHugePageCollapseOS(v unsafe.Pointer, n uintptr) {
 //
 //go:nosplit
 func sysFreeOS(v unsafe.Pointer, n uintptr) {
-	r := stdcall3(_VirtualFree, uintptr(v), 0, _MEM_RELEASE)
+	r := stdcall(_VirtualFree, uintptr(v), 0, _MEM_RELEASE)
 	if r == 0 {
 		print("runtime: VirtualFree of ", n, " bytes failed with errno=", getlasterror(), "\n")
 		throw("runtime: failed to release pages")
@@ -121,13 +121,13 @@ func sysReserveOS(v unsafe.Pointer, n uintptr, _ string) unsafe.Pointer {
 	// v is just a hint.
 	// First try at v.
 	// This will fail if any of [v, v+n) is already reserved.
-	v = unsafe.Pointer(stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_RESERVE, _PAGE_READWRITE))
+	v = unsafe.Pointer(stdcall(_VirtualAlloc, uintptr(v), n, _MEM_RESERVE, _PAGE_READWRITE))
 	if v != nil {
 		return v
 	}
 
 	// Next let the kernel choose the address.
-	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_RESERVE, _PAGE_READWRITE))
+	return unsafe.Pointer(stdcall(_VirtualAlloc, 0, n, _MEM_RESERVE, _PAGE_READWRITE))
 }
 
 func sysMapOS(v unsafe.Pointer, n uintptr, _ string) {

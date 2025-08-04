@@ -64,7 +64,7 @@ func dumpTypesRec(node *traceMapNode, w traceWriter) traceWriter {
 	}
 
 	// Emit type.
-	w.varint(uint64(node.id))
+	w.varint(node.id)
 	w.varint(uint64(uintptr(unsafe.Pointer(typ))))
 	w.varint(uint64(typ.Size()))
 	w.varint(uint64(typ.PtrBytes))
