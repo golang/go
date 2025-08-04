@@ -5659,6 +5659,20 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpZeroSIMD:
 		return rewriteValueAMD64_OpZeroSIMD(v)
+	case OpblendInt8x16:
+		v.Op = OpAMD64VPBLENDVB128
+		return true
+	case OpblendInt8x32:
+		v.Op = OpAMD64VPBLENDVB256
+		return true
+	case OpblendMaskedInt16x32:
+		return rewriteValueAMD64_OpblendMaskedInt16x32(v)
+	case OpblendMaskedInt32x16:
+		return rewriteValueAMD64_OpblendMaskedInt32x16(v)
+	case OpblendMaskedInt64x8:
+		return rewriteValueAMD64_OpblendMaskedInt64x8(v)
+	case OpblendMaskedInt8x64:
+		return rewriteValueAMD64_OpblendMaskedInt8x64(v)
 	}
 	return false
 }
@@ -57116,6 +57130,78 @@ func rewriteValueAMD64_OpZeroSIMD(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValueAMD64_OpblendMaskedInt16x32(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (blendMaskedInt16x32 x y mask)
+	// result: (VPBLENDMWMasked512 x y (VPMOVVec16x32ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		y := v_1
+		mask := v_2
+		v.reset(OpAMD64VPBLENDMWMasked512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpblendMaskedInt32x16(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (blendMaskedInt32x16 x y mask)
+	// result: (VPBLENDMDMasked512 x y (VPMOVVec32x16ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		y := v_1
+		mask := v_2
+		v.reset(OpAMD64VPBLENDMDMasked512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpblendMaskedInt64x8(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (blendMaskedInt64x8 x y mask)
+	// result: (VPBLENDMQMasked512 x y (VPMOVVec64x8ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		y := v_1
+		mask := v_2
+		v.reset(OpAMD64VPBLENDMQMasked512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpblendMaskedInt8x64(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (blendMaskedInt8x64 x y mask)
+	// result: (VPBLENDMBMasked512 x y (VPMOVVec8x64ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		y := v_1
+		mask := v_2
+		v.reset(OpAMD64VPBLENDMBMasked512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x64ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(x, y, v0)
+		return true
+	}
 }
 func rewriteBlockAMD64(b *Block) bool {
 	typ := &b.Func.Config.Types

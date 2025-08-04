@@ -12119,6 +12119,54 @@ func (x Uint64x4) XorMasked(y Uint64x4, mask Mask64x4) Uint64x4
 // Asm: VPXORQ, CPU Feature: AVX512F
 func (x Uint64x8) XorMasked(y Uint64x8, mask Mask64x8) Uint64x8
 
+/* blend */
+
+// blend blends two vectors based on mask values, choosing either
+// the first or the second based on whether the third is false or true
+//
+// Asm: VPBLENDVB, CPU Feature: AVX
+func (x Int8x16) blend(y Int8x16, mask Int8x16) Int8x16
+
+// blend blends two vectors based on mask values, choosing either
+// the first or the second based on whether the third is false or true
+//
+// Asm: VPBLENDVB, CPU Feature: AVX2
+func (x Int8x32) blend(y Int8x32, mask Int8x32) Int8x32
+
+/* blendMasked */
+
+// blendMasked blends two vectors based on mask values, choosing either
+// the first or the second based on whether the third is false or true
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBLENDMB, CPU Feature: AVX512BW
+func (x Int8x64) blendMasked(y Int8x64, mask Mask8x64) Int8x64
+
+// blendMasked blends two vectors based on mask values, choosing either
+// the first or the second based on whether the third is false or true
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBLENDMW, CPU Feature: AVX512BW
+func (x Int16x32) blendMasked(y Int16x32, mask Mask16x32) Int16x32
+
+// blendMasked blends two vectors based on mask values, choosing either
+// the first or the second based on whether the third is false or true
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBLENDMD, CPU Feature: AVX512F
+func (x Int32x16) blendMasked(y Int32x16, mask Mask32x16) Int32x16
+
+// blendMasked blends two vectors based on mask values, choosing either
+// the first or the second based on whether the third is false or true
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBLENDMQ, CPU Feature: AVX512F
+func (x Int64x8) blendMasked(y Int64x8, mask Mask64x8) Int64x8
+
 // Float64x2 converts from Float32x4 to Float64x2
 func (from Float32x4) AsFloat64x2() (to Float64x2)
 

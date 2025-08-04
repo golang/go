@@ -1446,6 +1446,12 @@ const (
 	OpAMD64VPAVGWMasked128
 	OpAMD64VPAVGWMasked256
 	OpAMD64VPAVGWMasked512
+	OpAMD64VPBLENDMBMasked512
+	OpAMD64VPBLENDMDMasked512
+	OpAMD64VPBLENDMQMasked512
+	OpAMD64VPBLENDMWMasked512
+	OpAMD64VPBLENDVB128
+	OpAMD64VPBLENDVB256
 	OpAMD64VPCMPEQB128
 	OpAMD64VPCMPEQB256
 	OpAMD64VPCMPEQB512
@@ -6109,6 +6115,12 @@ const (
 	OpXorUint64x2
 	OpXorUint64x4
 	OpXorUint64x8
+	OpblendInt8x16
+	OpblendInt8x32
+	OpblendMaskedInt8x64
+	OpblendMaskedInt16x32
+	OpblendMaskedInt32x16
+	OpblendMaskedInt64x8
 	OpCeilScaledFloat32x4
 	OpCeilScaledFloat32x8
 	OpCeilScaledFloat32x16
@@ -22704,6 +22716,96 @@ var opcodeTable = [...]opInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBLENDMBMasked512",
+		argLen: 3,
+		asm:    x86.AVPBLENDMB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBLENDMDMasked512",
+		argLen: 3,
+		asm:    x86.AVPBLENDMD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBLENDMQMasked512",
+		argLen: 3,
+		asm:    x86.AVPBLENDMQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBLENDMWMasked512",
+		argLen: 3,
+		asm:    x86.AVPBLENDMW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBLENDVB128",
+		argLen: 3,
+		asm:    x86.AVPBLENDVB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBLENDVB256",
+		argLen: 3,
+		asm:    x86.AVPBLENDVB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -70896,6 +70998,36 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "blendInt8x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "blendInt8x32",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "blendMaskedInt8x64",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "blendMaskedInt16x32",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "blendMaskedInt32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "blendMaskedInt64x8",
+		argLen:  3,
+		generic: true,
 	},
 	{
 		name:    "CeilScaledFloat32x4",
