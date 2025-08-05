@@ -1386,6 +1386,438 @@ func (x Uint16x16) AverageMasked(y Uint16x16, mask Mask16x16) Uint16x16
 // Asm: VPAVGW, CPU Feature: AVX512
 func (x Uint16x32) AverageMasked(y Uint16x32, mask Mask16x32) Uint16x32
 
+/* Broadcast128 */
+
+// Broadcast128 copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// Asm: VBROADCASTSS, CPU Feature: AVX2
+func (x Float32x4) Broadcast128() Float32x4
+
+// Broadcast128 copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX2
+func (x Float64x2) Broadcast128() Float64x2
+
+// Broadcast128 copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX2
+func (x Int8x16) Broadcast128() Int8x16
+
+// Broadcast128 copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX2
+func (x Int16x8) Broadcast128() Int16x8
+
+// Broadcast128 copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX2
+func (x Int32x4) Broadcast128() Int32x4
+
+// Broadcast128 copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX2
+func (x Int64x2) Broadcast128() Int64x2
+
+// Broadcast128 copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX2
+func (x Uint8x16) Broadcast128() Uint8x16
+
+// Broadcast128 copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX2
+func (x Uint16x8) Broadcast128() Uint16x8
+
+// Broadcast128 copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX2
+func (x Uint32x4) Broadcast128() Uint32x4
+
+// Broadcast128 copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX2
+func (x Uint64x2) Broadcast128() Uint64x2
+
+/* Broadcast128Masked */
+
+// Broadcast128Masked copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VBROADCASTSS, CPU Feature: AVX512
+func (x Float32x4) Broadcast128Masked(mask Mask32x4) Float32x4
+
+// Broadcast128Masked copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX512
+func (x Float64x2) Broadcast128Masked(mask Mask64x2) Float64x2
+
+// Broadcast128Masked copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX512
+func (x Int8x16) Broadcast128Masked(mask Mask8x16) Int8x16
+
+// Broadcast128Masked copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX512
+func (x Int16x8) Broadcast128Masked(mask Mask16x8) Int16x8
+
+// Broadcast128Masked copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX512
+func (x Int32x4) Broadcast128Masked(mask Mask32x4) Int32x4
+
+// Broadcast128Masked copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX512
+func (x Int64x2) Broadcast128Masked(mask Mask64x2) Int64x2
+
+// Broadcast128Masked copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX512
+func (x Uint8x16) Broadcast128Masked(mask Mask8x16) Uint8x16
+
+// Broadcast128Masked copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX512
+func (x Uint16x8) Broadcast128Masked(mask Mask16x8) Uint16x8
+
+// Broadcast128Masked copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX512
+func (x Uint32x4) Broadcast128Masked(mask Mask32x4) Uint32x4
+
+// Broadcast128Masked copies element zero of its (128-bit) input to all elements of
+// the 128-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX512
+func (x Uint64x2) Broadcast128Masked(mask Mask64x2) Uint64x2
+
+/* Broadcast256 */
+
+// Broadcast256 copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// Asm: VBROADCASTSS, CPU Feature: AVX2
+func (x Float32x4) Broadcast256() Float32x8
+
+// Broadcast256 copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// Asm: VBROADCASTSD, CPU Feature: AVX2
+func (x Float64x2) Broadcast256() Float64x4
+
+// Broadcast256 copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX2
+func (x Int8x16) Broadcast256() Int8x32
+
+// Broadcast256 copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX2
+func (x Int16x8) Broadcast256() Int16x16
+
+// Broadcast256 copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX2
+func (x Int32x4) Broadcast256() Int32x8
+
+// Broadcast256 copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX2
+func (x Int64x2) Broadcast256() Int64x4
+
+// Broadcast256 copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX2
+func (x Uint8x16) Broadcast256() Uint8x32
+
+// Broadcast256 copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX2
+func (x Uint16x8) Broadcast256() Uint16x16
+
+// Broadcast256 copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX2
+func (x Uint32x4) Broadcast256() Uint32x8
+
+// Broadcast256 copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX2
+func (x Uint64x2) Broadcast256() Uint64x4
+
+/* Broadcast256Masked */
+
+// Broadcast256Masked copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VBROADCASTSS, CPU Feature: AVX512
+func (x Float32x4) Broadcast256Masked(mask Mask32x4) Float32x8
+
+// Broadcast256Masked copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VBROADCASTSD, CPU Feature: AVX512
+func (x Float64x2) Broadcast256Masked(mask Mask64x2) Float64x4
+
+// Broadcast256Masked copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX512
+func (x Int8x16) Broadcast256Masked(mask Mask8x16) Int8x32
+
+// Broadcast256Masked copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX512
+func (x Int16x8) Broadcast256Masked(mask Mask16x8) Int16x16
+
+// Broadcast256Masked copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX512
+func (x Int32x4) Broadcast256Masked(mask Mask32x4) Int32x8
+
+// Broadcast256Masked copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX512
+func (x Int64x2) Broadcast256Masked(mask Mask64x2) Int64x4
+
+// Broadcast256Masked copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX512
+func (x Uint8x16) Broadcast256Masked(mask Mask8x16) Uint8x32
+
+// Broadcast256Masked copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX512
+func (x Uint16x8) Broadcast256Masked(mask Mask16x8) Uint16x16
+
+// Broadcast256Masked copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX512
+func (x Uint32x4) Broadcast256Masked(mask Mask32x4) Uint32x8
+
+// Broadcast256Masked copies element zero of its (128-bit) input to all elements of
+// the 256-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX512
+func (x Uint64x2) Broadcast256Masked(mask Mask64x2) Uint64x4
+
+/* Broadcast512 */
+
+// Broadcast512 copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// Asm: VBROADCASTSS, CPU Feature: AVX512
+func (x Float32x4) Broadcast512() Float32x16
+
+// Broadcast512 copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// Asm: VBROADCASTSD, CPU Feature: AVX512
+func (x Float64x2) Broadcast512() Float64x8
+
+// Broadcast512 copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX512
+func (x Int8x16) Broadcast512() Int8x64
+
+// Broadcast512 copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX512
+func (x Int16x8) Broadcast512() Int16x32
+
+// Broadcast512 copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX512
+func (x Int32x4) Broadcast512() Int32x16
+
+// Broadcast512 copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX512
+func (x Int64x2) Broadcast512() Int64x8
+
+// Broadcast512 copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX512
+func (x Uint8x16) Broadcast512() Uint8x64
+
+// Broadcast512 copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX512
+func (x Uint16x8) Broadcast512() Uint16x32
+
+// Broadcast512 copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX512
+func (x Uint32x4) Broadcast512() Uint32x16
+
+// Broadcast512 copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX512
+func (x Uint64x2) Broadcast512() Uint64x8
+
+/* Broadcast512Masked */
+
+// Broadcast512Masked copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VBROADCASTSS, CPU Feature: AVX512
+func (x Float32x4) Broadcast512Masked(mask Mask32x4) Float32x16
+
+// Broadcast512Masked copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VBROADCASTSD, CPU Feature: AVX512
+func (x Float64x2) Broadcast512Masked(mask Mask64x2) Float64x8
+
+// Broadcast512Masked copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX512
+func (x Int8x16) Broadcast512Masked(mask Mask8x16) Int8x64
+
+// Broadcast512Masked copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX512
+func (x Int16x8) Broadcast512Masked(mask Mask16x8) Int16x32
+
+// Broadcast512Masked copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX512
+func (x Int32x4) Broadcast512Masked(mask Mask32x4) Int32x16
+
+// Broadcast512Masked copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX512
+func (x Int64x2) Broadcast512Masked(mask Mask64x2) Int64x8
+
+// Broadcast512Masked copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX512
+func (x Uint8x16) Broadcast512Masked(mask Mask8x16) Uint8x64
+
+// Broadcast512Masked copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX512
+func (x Uint16x8) Broadcast512Masked(mask Mask16x8) Uint16x32
+
+// Broadcast512Masked copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX512
+func (x Uint32x4) Broadcast512Masked(mask Mask32x4) Uint32x16
+
+// Broadcast512Masked copies element zero of its (128-bit) input to all elements of
+// the 512-bit output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX512
+func (x Uint64x2) Broadcast512Masked(mask Mask64x2) Uint64x8
+
 /* Ceil */
 
 // Ceil rounds elements up to the nearest integer.
@@ -9115,6 +9547,20 @@ func (x Float64x4) ScaleMasked(y Float64x4, mask Mask64x4) Float64x4
 func (x Float64x8) ScaleMasked(y Float64x8, mask Mask64x8) Float64x8
 
 /* SetElem */
+
+// SetElem sets a single constant-indexed element's value.
+//
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPINSRD, CPU Feature: AVX
+func (x Float32x4) SetElem(index uint8, y float32) Float32x4
+
+// SetElem sets a single constant-indexed element's value.
+//
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//
+// Asm: VPINSRQ, CPU Feature: AVX
+func (x Float64x2) SetElem(index uint8, y float64) Float64x2
 
 // SetElem sets a single constant-indexed element's value.
 //

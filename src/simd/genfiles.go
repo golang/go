@@ -87,6 +87,23 @@ var ternaryFlaky = &shapes{ // for tests that support flaky equality
 	floats: []int{32},
 }
 
+type templateData struct {
+	Vec    string // the type of the vector, e.g. Float32x4
+	AOrAn  string // for documentation, the article "a" or "an"
+	Width  int    // the bit width of the element type, e.g. 32
+	Vwidth int    // the width of the vector type, e.g. 128
+	Count  int    // the number of elements, e.g. 4
+	WxC    string // the width-by-type string, e.g., "32x4"
+	BxC    string // as if bytes, in the proper count, e.g., "8x16" (W==8)
+	Base   string // the capitalized Base Type of the vector, e.g., "Float"
+	Type   string // the element type, e.g. "float32"
+	OxFF   string // a mask for the lowest 'count' bits
+}
+
+func (t templateData) As128BitVec() string {
+	return fmt.Sprintf("%s%dx%d", t.Base, t.Width, 128/t.Width)
+}
+
 func oneTemplate(t *template.Template, baseType string, width, count int, out io.Writer) {
 	b := width * count
 	if b < 128 || b > 512 {
@@ -102,26 +119,17 @@ func oneTemplate(t *template.Template, baseType string, width, count int, out io
 		aOrAn = "an"
 	}
 	oxFF := fmt.Sprintf("0x%x", uint64((1<<count)-1))
-	t.Execute(out, struct {
-		Vec   string // the type of the vector, e.g. Float32x4
-		AOrAn string // for documentation, the article "a" or "an"
-		Width int    // the bit width of the element type, e.g. 32
-		Count int    // the number of elements, e.g. 4
-		WxC   string // the width-by-type string, e.g., "32x4"
-		BxC   string // as if bytes, in the proper count, e.g., "8x16" (W==8)
-		Base  string // the capitalized Base Type of the vector, e.g., "Float"
-		Type  string // the element type, e.g. "float32"
-		OxFF  string // a mask for the lowest 'count' bits
-	}{
-		Vec:   vType,
-		AOrAn: aOrAn,
-		Width: width,
-		Count: count,
-		WxC:   wxc,
-		BxC:   bxc,
-		Base:  BaseType,
-		Type:  eType,
-		OxFF:  oxFF,
+	t.Execute(out, templateData{
+		Vec:    vType,
+		AOrAn:  aOrAn,
+		Width:  width,
+		Vwidth: b,
+		Count:  count,
+		WxC:    wxc,
+		BxC:    bxc,
+		Base:   BaseType,
+		Type:   eType,
+		OxFF:   oxFF,
 	})
 }
 
@@ -480,7 +488,7 @@ func (x {{.Vec}}) StoreSlicePart(s []{{.Type}}) {
 
 var unsafePATemplate = templateOf("unsafe PA helper", `
 // pa{{.Vec}} returns a type-unsafe pointer to array that can
-// only be used with partial load/store operations that only 
+// only be used with partial load/store operations that only
 // access the known-safe portions of the array.
 func pa{{.Vec}}(s []{{.Type}}) *[{{.Count}}]{{.Type}} {
 	return (*[{{.Count}}]{{.Type}})(unsafe.Pointer(&s[0]))
@@ -500,7 +508,7 @@ func (x {{.Vec}}) Masked(mask Mask{{.WxC}}) {{.Vec}} {
 
 // Merge returns x but with elements set to y where mask is false.
 func (x {{.Vec}}) Merge(y {{.Vec}}, mask Mask{{.WxC}}) {{.Vec}} {
-{{- if eq .BxC .WxC }}
+{{- if eq .BxC .WxC -}}
 	im := mask.AsInt{{.BxC}}()
 {{- else}}
     im := mask.AsInt{{.WxC}}().AsInt{{.BxC}}()
@@ -539,6 +547,32 @@ func (x {{.Vec}}) Merge(y {{.Vec}}, mask Mask{{.WxC}}) {{.Vec}} {
 }
 `)
 
+func (t templateData) CPUfeatureBC() string {
+	switch t.Vwidth {
+	case 128:
+		return "AVX2"
+	case 256:
+		return "AVX2"
+	case 512:
+		if t.Width <= 16 {
+			return "AVX512BW"
+		}
+		return "AVX512F"
+	}
+	panic(fmt.Errorf("unexpected vector width %d", t.Vwidth))
+}
+
+var broadcastTemplate = templateOf("Broadcast functions", `
+// Broadcast{{.Vec}} returns a vector with the input
+// x assigned to all elements of the output.
+//
+// Emulated, CPU Feature {{.CPUfeatureBC}}
+func Broadcast{{.Vec}}(x {{.Type}}) {{.Vec}} {
+	var z {{.As128BitVec }}
+	return z.SetElem(0, x).Broadcast{{.Vwidth}}()
+}
+`)
+
 func main() {
 	sl := flag.String("sl", "slice_amd64.go", "file name for slice operations")
 	ush := flag.String("ush", "unsafe_helpers.go", "file name for unsafe helpers")
@@ -557,6 +591,7 @@ func main() {
 			avx2SmallLoadSlicePartTemplate,
 			avx2MaskedTemplate,
 			avx512MaskedTemplate,
+			broadcastTemplate,
 		)
 	}
 	if *ush != "" {

@@ -1242,6 +1242,16 @@ const (
 	OpAMD64VADDSUBPD256
 	OpAMD64VADDSUBPS128
 	OpAMD64VADDSUBPS256
+	OpAMD64VBROADCASTSD256
+	OpAMD64VBROADCASTSD512
+	OpAMD64VBROADCASTSDMasked256
+	OpAMD64VBROADCASTSDMasked512
+	OpAMD64VBROADCASTSS128
+	OpAMD64VBROADCASTSS256
+	OpAMD64VBROADCASTSS512
+	OpAMD64VBROADCASTSSMasked128
+	OpAMD64VBROADCASTSSMasked256
+	OpAMD64VBROADCASTSSMasked512
 	OpAMD64VCOMPRESSPDMasked128
 	OpAMD64VCOMPRESSPDMasked256
 	OpAMD64VCOMPRESSPDMasked512
@@ -1474,6 +1484,30 @@ const (
 	OpAMD64VPBLENDMWMasked512
 	OpAMD64VPBLENDVB128
 	OpAMD64VPBLENDVB256
+	OpAMD64VPBROADCASTB128
+	OpAMD64VPBROADCASTB256
+	OpAMD64VPBROADCASTB512
+	OpAMD64VPBROADCASTBMasked128
+	OpAMD64VPBROADCASTBMasked256
+	OpAMD64VPBROADCASTBMasked512
+	OpAMD64VPBROADCASTD128
+	OpAMD64VPBROADCASTD256
+	OpAMD64VPBROADCASTD512
+	OpAMD64VPBROADCASTDMasked128
+	OpAMD64VPBROADCASTDMasked256
+	OpAMD64VPBROADCASTDMasked512
+	OpAMD64VPBROADCASTQ128
+	OpAMD64VPBROADCASTQ256
+	OpAMD64VPBROADCASTQ512
+	OpAMD64VPBROADCASTQMasked128
+	OpAMD64VPBROADCASTQMasked256
+	OpAMD64VPBROADCASTQMasked512
+	OpAMD64VPBROADCASTW128
+	OpAMD64VPBROADCASTW256
+	OpAMD64VPBROADCASTW512
+	OpAMD64VPBROADCASTWMasked128
+	OpAMD64VPBROADCASTWMasked256
+	OpAMD64VPBROADCASTWMasked512
 	OpAMD64VPCMPEQB128
 	OpAMD64VPCMPEQB256
 	OpAMD64VPCMPEQB512
@@ -2222,10 +2256,10 @@ const (
 	OpAMD64VPRORQMasked128
 	OpAMD64VPRORQMasked256
 	OpAMD64VPRORQMasked512
-	OpAMD64VPINSRB128
-	OpAMD64VPINSRW128
 	OpAMD64VPINSRD128
 	OpAMD64VPINSRQ128
+	OpAMD64VPINSRB128
+	OpAMD64VPINSRW128
 	OpAMD64VINSERTF128256
 	OpAMD64VINSERTF64X4512
 	OpAMD64VINSERTI128256
@@ -4839,6 +4873,66 @@ const (
 	OpAverageUint16x8
 	OpAverageUint16x16
 	OpAverageUint16x32
+	OpBroadcast128Float32x4
+	OpBroadcast128Float64x2
+	OpBroadcast128Int8x16
+	OpBroadcast128Int16x8
+	OpBroadcast128Int32x4
+	OpBroadcast128Int64x2
+	OpBroadcast128MaskedFloat32x4
+	OpBroadcast128MaskedFloat64x2
+	OpBroadcast128MaskedInt8x16
+	OpBroadcast128MaskedInt16x8
+	OpBroadcast128MaskedInt32x4
+	OpBroadcast128MaskedInt64x2
+	OpBroadcast128MaskedUint8x16
+	OpBroadcast128MaskedUint16x8
+	OpBroadcast128MaskedUint32x4
+	OpBroadcast128MaskedUint64x2
+	OpBroadcast128Uint8x16
+	OpBroadcast128Uint16x8
+	OpBroadcast128Uint32x4
+	OpBroadcast128Uint64x2
+	OpBroadcast256Float32x4
+	OpBroadcast256Float64x2
+	OpBroadcast256Int8x16
+	OpBroadcast256Int16x8
+	OpBroadcast256Int32x4
+	OpBroadcast256Int64x2
+	OpBroadcast256MaskedFloat32x4
+	OpBroadcast256MaskedFloat64x2
+	OpBroadcast256MaskedInt8x16
+	OpBroadcast256MaskedInt16x8
+	OpBroadcast256MaskedInt32x4
+	OpBroadcast256MaskedInt64x2
+	OpBroadcast256MaskedUint8x16
+	OpBroadcast256MaskedUint16x8
+	OpBroadcast256MaskedUint32x4
+	OpBroadcast256MaskedUint64x2
+	OpBroadcast256Uint8x16
+	OpBroadcast256Uint16x8
+	OpBroadcast256Uint32x4
+	OpBroadcast256Uint64x2
+	OpBroadcast512Float32x4
+	OpBroadcast512Float64x2
+	OpBroadcast512Int8x16
+	OpBroadcast512Int16x8
+	OpBroadcast512Int32x4
+	OpBroadcast512Int64x2
+	OpBroadcast512MaskedFloat32x4
+	OpBroadcast512MaskedFloat64x2
+	OpBroadcast512MaskedInt8x16
+	OpBroadcast512MaskedInt16x8
+	OpBroadcast512MaskedInt32x4
+	OpBroadcast512MaskedInt64x2
+	OpBroadcast512MaskedUint8x16
+	OpBroadcast512MaskedUint16x8
+	OpBroadcast512MaskedUint32x4
+	OpBroadcast512MaskedUint64x2
+	OpBroadcast512Uint8x16
+	OpBroadcast512Uint16x8
+	OpBroadcast512Uint32x4
+	OpBroadcast512Uint64x2
 	OpCeilFloat32x4
 	OpCeilFloat32x8
 	OpCeilFloat64x2
@@ -6419,6 +6513,8 @@ const (
 	OpRoundToEvenScaledResidueMaskedFloat64x2
 	OpRoundToEvenScaledResidueMaskedFloat64x4
 	OpRoundToEvenScaledResidueMaskedFloat64x8
+	OpSetElemFloat32x4
+	OpSetElemFloat64x2
 	OpSetElemInt8x16
 	OpSetElemInt16x8
 	OpSetElemInt32x4
@@ -19772,6 +19868,141 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VBROADCASTSD256",
+		argLen: 1,
+		asm:    x86.AVBROADCASTSD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VBROADCASTSD512",
+		argLen: 1,
+		asm:    x86.AVBROADCASTSD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VBROADCASTSDMasked256",
+		argLen: 2,
+		asm:    x86.AVBROADCASTSD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VBROADCASTSDMasked512",
+		argLen: 2,
+		asm:    x86.AVBROADCASTSD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VBROADCASTSS128",
+		argLen: 1,
+		asm:    x86.AVBROADCASTSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VBROADCASTSS256",
+		argLen: 1,
+		asm:    x86.AVBROADCASTSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VBROADCASTSS512",
+		argLen: 1,
+		asm:    x86.AVBROADCASTSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VBROADCASTSSMasked128",
+		argLen: 2,
+		asm:    x86.AVBROADCASTSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VBROADCASTSSMasked256",
+		argLen: 2,
+		asm:    x86.AVBROADCASTSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VBROADCASTSSMasked512",
+		argLen: 2,
+		asm:    x86.AVBROADCASTSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:   "VCOMPRESSPDMasked128",
 		argLen: 2,
 		asm:    x86.AVCOMPRESSPD,
@@ -23266,6 +23497,330 @@ var opcodeTable = [...]opInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{2, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTB128",
+		argLen: 1,
+		asm:    x86.AVPBROADCASTB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTB256",
+		argLen: 1,
+		asm:    x86.AVPBROADCASTB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTB512",
+		argLen: 1,
+		asm:    x86.AVPBROADCASTB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTBMasked128",
+		argLen: 2,
+		asm:    x86.AVPBROADCASTB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTBMasked256",
+		argLen: 2,
+		asm:    x86.AVPBROADCASTB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTBMasked512",
+		argLen: 2,
+		asm:    x86.AVPBROADCASTB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTD128",
+		argLen: 1,
+		asm:    x86.AVPBROADCASTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTD256",
+		argLen: 1,
+		asm:    x86.AVPBROADCASTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTD512",
+		argLen: 1,
+		asm:    x86.AVPBROADCASTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTDMasked128",
+		argLen: 2,
+		asm:    x86.AVPBROADCASTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTDMasked256",
+		argLen: 2,
+		asm:    x86.AVPBROADCASTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTDMasked512",
+		argLen: 2,
+		asm:    x86.AVPBROADCASTD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTQ128",
+		argLen: 1,
+		asm:    x86.AVPBROADCASTQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTQ256",
+		argLen: 1,
+		asm:    x86.AVPBROADCASTQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTQ512",
+		argLen: 1,
+		asm:    x86.AVPBROADCASTQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTQMasked128",
+		argLen: 2,
+		asm:    x86.AVPBROADCASTQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTQMasked256",
+		argLen: 2,
+		asm:    x86.AVPBROADCASTQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTQMasked512",
+		argLen: 2,
+		asm:    x86.AVPBROADCASTQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTW128",
+		argLen: 1,
+		asm:    x86.AVPBROADCASTW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTW256",
+		argLen: 1,
+		asm:    x86.AVPBROADCASTW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTW512",
+		argLen: 1,
+		asm:    x86.AVPBROADCASTW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTWMasked128",
+		argLen: 2,
+		asm:    x86.AVPBROADCASTW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTWMasked256",
+		argLen: 2,
+		asm:    x86.AVPBROADCASTW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPBROADCASTWMasked512",
+		argLen: 2,
+		asm:    x86.AVPBROADCASTW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -34482,36 +35037,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "VPINSRB128",
-		auxType: auxUInt8,
-		argLen:  2,
-		asm:     x86.AVPINSRB,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:    "VPINSRW128",
-		auxType: auxUInt8,
-		argLen:  2,
-		asm:     x86.AVPINSRW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:    "VPINSRD128",
 		auxType: auxUInt8,
 		argLen:  2,
@@ -34531,6 +35056,36 @@ var opcodeTable = [...]opInfo{
 		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPINSRQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VPINSRB128",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVPINSRB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "VPINSRW128",
+		auxType: auxUInt8,
+		argLen:  2,
+		asm:     x86.AVPINSRW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -64726,6 +65281,306 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:    "Broadcast128Float32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast128Float64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast128Int8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast128Int16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast128Int32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast128Int64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast128MaskedFloat32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast128MaskedFloat64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast128MaskedInt8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast128MaskedInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast128MaskedInt32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast128MaskedInt64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast128MaskedUint8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast128MaskedUint16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast128MaskedUint32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast128MaskedUint64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast128Uint8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast128Uint16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast128Uint32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast128Uint64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256Float32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256Float64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256Int8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256Int16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256Int32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256Int64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256MaskedFloat32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256MaskedFloat64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256MaskedInt8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256MaskedInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256MaskedInt32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256MaskedInt64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256MaskedUint8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256MaskedUint16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256MaskedUint32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256MaskedUint64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256Uint8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256Uint16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256Uint32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast256Uint64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512Float32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512Float64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512Int8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512Int16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512Int32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512Int64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512MaskedFloat32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512MaskedFloat64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512MaskedInt8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512MaskedInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512MaskedInt32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512MaskedInt64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512MaskedUint8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512MaskedUint16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512MaskedUint32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512MaskedUint64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512Uint8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512Uint16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512Uint32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Broadcast512Uint64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:    "CeilFloat32x4",
 		argLen:  1,
 		generic: true,
@@ -73149,6 +74004,18 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "RoundToEvenScaledResidueMaskedFloat64x8",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SetElemFloat32x4",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SetElemFloat64x2",
 		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,

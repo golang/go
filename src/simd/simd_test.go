@@ -412,3 +412,15 @@ func TestRotateAllVariable(t *testing.T) {
 		}
 	}
 }
+
+func TestBroadcastUint32x4(t *testing.T) {
+	s := make([]uint32, 4, 4)
+	simd.BroadcastUint32x4(123456789).StoreSlice(s)
+	checkSlices(t, s, []uint32{123456789, 123456789, 123456789, 123456789})
+}
+
+func TestBroadcastFloat32x8(t *testing.T) {
+	s := make([]float32, 8, 8)
+	simd.BroadcastFloat32x8(123456789).StoreSlice(s)
+	checkSlices(t, s, []float32{123456789, 123456789, 123456789, 123456789, 123456789, 123456789, 123456789, 123456789})
+}
