@@ -2399,6 +2399,188 @@ func (x Uint64x4) EqualMasked(y Uint64x4, mask Mask64x4) Mask64x4
 // Asm: VPCMPUQ, CPU Feature: AVX512F
 func (x Uint64x8) EqualMasked(y Uint64x8, mask Mask64x8) Mask64x8
 
+/* Expand */
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VEXPANDPS, CPU Feature: AVX512F
+func (x Float32x4) Expand(mask Mask32x4) Float32x4
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VEXPANDPS, CPU Feature: AVX512F
+func (x Float32x8) Expand(mask Mask32x8) Float32x8
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VEXPANDPS, CPU Feature: AVX512F
+func (x Float32x16) Expand(mask Mask32x16) Float32x16
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VEXPANDPD, CPU Feature: AVX512F
+func (x Float64x2) Expand(mask Mask64x2) Float64x2
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VEXPANDPD, CPU Feature: AVX512F
+func (x Float64x4) Expand(mask Mask64x4) Float64x4
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VEXPANDPD, CPU Feature: AVX512F
+func (x Float64x8) Expand(mask Mask64x8) Float64x8
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDB, CPU Feature: AVX512VBMI2
+func (x Int8x16) Expand(mask Mask8x16) Int8x16
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDB, CPU Feature: AVX512VBMI2
+func (x Int8x32) Expand(mask Mask8x32) Int8x32
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDB, CPU Feature: AVX512VBMI2
+func (x Int8x64) Expand(mask Mask8x64) Int8x64
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDW, CPU Feature: AVX512VBMI2
+func (x Int16x8) Expand(mask Mask16x8) Int16x8
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDW, CPU Feature: AVX512VBMI2
+func (x Int16x16) Expand(mask Mask16x16) Int16x16
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDW, CPU Feature: AVX512VBMI2
+func (x Int16x32) Expand(mask Mask16x32) Int16x32
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDD, CPU Feature: AVX512F
+func (x Int32x4) Expand(mask Mask32x4) Int32x4
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDD, CPU Feature: AVX512F
+func (x Int32x8) Expand(mask Mask32x8) Int32x8
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDD, CPU Feature: AVX512F
+func (x Int32x16) Expand(mask Mask32x16) Int32x16
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDQ, CPU Feature: AVX512F
+func (x Int64x2) Expand(mask Mask64x2) Int64x2
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDQ, CPU Feature: AVX512F
+func (x Int64x4) Expand(mask Mask64x4) Int64x4
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDQ, CPU Feature: AVX512F
+func (x Int64x8) Expand(mask Mask64x8) Int64x8
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDB, CPU Feature: AVX512VBMI2
+func (x Uint8x16) Expand(mask Mask8x16) Uint8x16
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDB, CPU Feature: AVX512VBMI2
+func (x Uint8x32) Expand(mask Mask8x32) Uint8x32
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDB, CPU Feature: AVX512VBMI2
+func (x Uint8x64) Expand(mask Mask8x64) Uint8x64
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDW, CPU Feature: AVX512VBMI2
+func (x Uint16x8) Expand(mask Mask16x8) Uint16x8
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDW, CPU Feature: AVX512VBMI2
+func (x Uint16x16) Expand(mask Mask16x16) Uint16x16
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDW, CPU Feature: AVX512VBMI2
+func (x Uint16x32) Expand(mask Mask16x32) Uint16x32
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDD, CPU Feature: AVX512F
+func (x Uint32x4) Expand(mask Mask32x4) Uint32x4
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDD, CPU Feature: AVX512F
+func (x Uint32x8) Expand(mask Mask32x8) Uint32x8
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDD, CPU Feature: AVX512F
+func (x Uint32x16) Expand(mask Mask32x16) Uint32x16
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDQ, CPU Feature: AVX512F
+func (x Uint64x2) Expand(mask Mask64x2) Uint64x2
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDQ, CPU Feature: AVX512F
+func (x Uint64x4) Expand(mask Mask64x4) Uint64x4
+
+// Expand performs an expansion on a vector x whose elements are packed to lower parts.
+// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+//
+// Asm: VPEXPANDQ, CPU Feature: AVX512F
+func (x Uint64x8) Expand(mask Mask64x8) Uint64x8
+
 /* Floor */
 
 // Floor rounds elements down to the nearest integer.

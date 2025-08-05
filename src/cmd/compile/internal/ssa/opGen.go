@@ -1268,6 +1268,12 @@ const (
 	OpAMD64VDIVPSMasked128
 	OpAMD64VDIVPSMasked256
 	OpAMD64VDIVPSMasked512
+	OpAMD64VEXPANDPDMasked128
+	OpAMD64VEXPANDPDMasked256
+	OpAMD64VEXPANDPDMasked512
+	OpAMD64VEXPANDPSMasked128
+	OpAMD64VEXPANDPSMasked256
+	OpAMD64VEXPANDPSMasked512
 	OpAMD64VFMADD213PD128
 	OpAMD64VFMADD213PD256
 	OpAMD64VFMADD213PD512
@@ -1576,6 +1582,18 @@ const (
 	OpAMD64VPERMWMasked128
 	OpAMD64VPERMWMasked256
 	OpAMD64VPERMWMasked512
+	OpAMD64VPEXPANDBMasked128
+	OpAMD64VPEXPANDBMasked256
+	OpAMD64VPEXPANDBMasked512
+	OpAMD64VPEXPANDDMasked128
+	OpAMD64VPEXPANDDMasked256
+	OpAMD64VPEXPANDDMasked512
+	OpAMD64VPEXPANDQMasked128
+	OpAMD64VPEXPANDQMasked256
+	OpAMD64VPEXPANDQMasked512
+	OpAMD64VPEXPANDWMasked128
+	OpAMD64VPEXPANDWMasked256
+	OpAMD64VPEXPANDWMasked512
 	OpAMD64VPHADDD128
 	OpAMD64VPHADDD256
 	OpAMD64VPHADDSW128
@@ -4925,6 +4943,36 @@ const (
 	OpEqualUint64x2
 	OpEqualUint64x4
 	OpEqualUint64x8
+	OpExpandFloat32x4
+	OpExpandFloat32x8
+	OpExpandFloat32x16
+	OpExpandFloat64x2
+	OpExpandFloat64x4
+	OpExpandFloat64x8
+	OpExpandInt8x16
+	OpExpandInt8x32
+	OpExpandInt8x64
+	OpExpandInt16x8
+	OpExpandInt16x16
+	OpExpandInt16x32
+	OpExpandInt32x4
+	OpExpandInt32x8
+	OpExpandInt32x16
+	OpExpandInt64x2
+	OpExpandInt64x4
+	OpExpandInt64x8
+	OpExpandUint8x16
+	OpExpandUint8x32
+	OpExpandUint8x64
+	OpExpandUint16x8
+	OpExpandUint16x16
+	OpExpandUint16x32
+	OpExpandUint32x4
+	OpExpandUint32x8
+	OpExpandUint32x16
+	OpExpandUint64x2
+	OpExpandUint64x4
+	OpExpandUint64x8
 	OpFloorFloat32x4
 	OpFloorFloat32x8
 	OpFloorFloat64x2
@@ -20066,6 +20114,90 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VEXPANDPDMasked128",
+		argLen: 2,
+		asm:    x86.AVEXPANDPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VEXPANDPDMasked256",
+		argLen: 2,
+		asm:    x86.AVEXPANDPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VEXPANDPDMasked512",
+		argLen: 2,
+		asm:    x86.AVEXPANDPD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VEXPANDPSMasked128",
+		argLen: 2,
+		asm:    x86.AVEXPANDPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VEXPANDPSMasked256",
+		argLen: 2,
+		asm:    x86.AVEXPANDPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VEXPANDPSMasked512",
+		argLen: 2,
+		asm:    x86.AVEXPANDPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:         "VFMADD213PD128",
 		argLen:       3,
 		resultInArg0: true,
@@ -24782,6 +24914,174 @@ var opcodeTable = [...]opInfo{
 				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPEXPANDBMasked128",
+		argLen: 2,
+		asm:    x86.AVPEXPANDB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPEXPANDBMasked256",
+		argLen: 2,
+		asm:    x86.AVPEXPANDB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPEXPANDBMasked512",
+		argLen: 2,
+		asm:    x86.AVPEXPANDB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPEXPANDDMasked128",
+		argLen: 2,
+		asm:    x86.AVPEXPANDD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPEXPANDDMasked256",
+		argLen: 2,
+		asm:    x86.AVPEXPANDD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPEXPANDDMasked512",
+		argLen: 2,
+		asm:    x86.AVPEXPANDD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPEXPANDQMasked128",
+		argLen: 2,
+		asm:    x86.AVPEXPANDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPEXPANDQMasked256",
+		argLen: 2,
+		asm:    x86.AVPEXPANDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPEXPANDQMasked512",
+		argLen: 2,
+		asm:    x86.AVPEXPANDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPEXPANDWMasked128",
+		argLen: 2,
+		asm:    x86.AVPEXPANDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPEXPANDWMasked256",
+		argLen: 2,
+		asm:    x86.AVPEXPANDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPEXPANDWMasked512",
+		argLen: 2,
+		asm:    x86.AVPEXPANDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -64828,6 +65128,156 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "ExpandFloat32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandFloat32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandFloat32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandFloat64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandFloat64x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandFloat64x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandInt8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandInt8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandInt8x64",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandInt16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandInt16x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandInt32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandInt32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandInt32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandInt64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandInt64x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandInt64x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandUint8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandUint8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandUint8x64",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandUint16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandUint16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandUint16x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandUint32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandUint32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandUint32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandUint64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandUint64x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ExpandUint64x8",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:    "FloorFloat32x4",

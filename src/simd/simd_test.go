@@ -187,6 +187,22 @@ func TestCompress(t *testing.T) {
 	}
 }
 
+func TestExpand(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
+		return
+	}
+	v3400 := simd.LoadInt32x4Slice([]int32{3, 4, 0, 0})
+	v0101 := simd.LoadInt32x4Slice([]int32{0, -1, 0, -1})
+	v2400 := v3400.Expand(v0101.AsMask32x4())
+	got := make([]int32, 4)
+	v2400.StoreSlice(got)
+	want := []int32{0, 3, 0, 4}
+	if !slices.Equal(got, want) {
+		t.Errorf("want and got differ, want=%v, got=%v", want, got)
+	}
+}
+
 func TestPairDotProdAccumulate(t *testing.T) {
 	if !simd.HasAVX512GFNI() {
 		// TODO: this function is actually VNNI, let's implement and call the right check.
