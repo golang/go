@@ -94,8 +94,8 @@ const (
 	BlockARM64GEnoov
 	BlockARM64JUMPTABLE
 
-	BlockLOONG64EQ
-	BlockLOONG64NE
+	BlockLOONG64EQZ
+	BlockLOONG64NEZ
 	BlockLOONG64LTZ
 	BlockLOONG64LEZ
 	BlockLOONG64GTZ
@@ -250,8 +250,8 @@ var blockString = [...]string{
 	BlockARM64GEnoov:    "GEnoov",
 	BlockARM64JUMPTABLE: "JUMPTABLE",
 
-	BlockLOONG64EQ:   "EQ",
-	BlockLOONG64NE:   "NE",
+	BlockLOONG64EQZ:  "EQZ",
+	BlockLOONG64NEZ:  "NEZ",
 	BlockLOONG64LTZ:  "LTZ",
 	BlockLOONG64LEZ:  "LEZ",
 	BlockLOONG64GTZ:  "GTZ",

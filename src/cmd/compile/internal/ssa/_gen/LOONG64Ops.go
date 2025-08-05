@@ -580,8 +580,8 @@ func init() {
 	}
 
 	blocks := []blockData{
-		{name: "EQ", controls: 1},
-		{name: "NE", controls: 1},
+		{name: "EQZ", controls: 1},  // = 0
+		{name: "NEZ", controls: 1},  // != 0
 		{name: "LTZ", controls: 1},  // < 0
 		{name: "LEZ", controls: 1},  // <= 0
 		{name: "GTZ", controls: 1},  // > 0
