@@ -322,6 +322,14 @@ func (g *Generation) writeEventsTo(tw *raw.TextWriter) {
 		}
 	}
 	b.writeEventsTo(tw)
+
+	// Write end-of-generation event if necessary.
+	if g.trace.ver >= version.Go126 {
+		tw.WriteEvent(raw.Event{
+			Version: g.trace.ver,
+			Ev:      tracev2.EvEndOfGeneration,
+		})
+	}
 }
 
 func (g *Generation) newStructuralBatch() *Batch {

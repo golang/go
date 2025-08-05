@@ -141,9 +141,9 @@ func (fr *FlightRecorder) WriteTo(w io.Writer) (n int64, err error) {
 
 	// Write all the data.
 	for _, gen := range gens {
-		for _, batch := range gen.batches {
+		for _, data := range gen.batches {
 			// Write batch data.
-			nw, err = w.Write(batch.data)
+			nw, err = w.Write(data)
 			n += int64(nw)
 			if err != nil {
 				return n, err
