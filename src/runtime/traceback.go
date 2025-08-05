@@ -1206,6 +1206,7 @@ var gStatusStrings = [...]string{
 	_Gwaiting:   "waiting",
 	_Gdead:      "dead",
 	_Gcopystack: "copystack",
+	_Gleaked:    "leaked",
 	_Gpreempted: "preempted",
 }
 
