@@ -206,6 +206,24 @@ func TestPairDotProdAccumulate(t *testing.T) {
 	}
 }
 
+var testShiftAllVal uint64 = 3
+
+func TestShiftAll(t *testing.T) {
+	got := make([]int32, 4)
+	simd.LoadInt32x4Slice([]int32{0b11, 0b11, 0b11, 0b11}).ShiftAllLeft(2).StoreSlice(got)
+	for _, v := range got {
+		if v != 0b1100 {
+			t.Errorf("expect 0b1100, got %b", v)
+		}
+	}
+	simd.LoadInt32x4Slice([]int32{0b11, 0b11, 0b11, 0b11}).ShiftAllLeft(testShiftAllVal).StoreSlice(got)
+	for _, v := range got {
+		if v != 0b11000 {
+			t.Errorf("expect 0b11000, got %b", v)
+		}
+	}
+}
+
 func TestSlicesInt8(t *testing.T) {
 	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
