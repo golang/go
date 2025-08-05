@@ -3041,78 +3041,6 @@ func (x Uint8x32) GaloisFieldMulMasked(y Uint8x32, mask Mask8x32) Uint8x32
 // Asm: VGF2P8MULB, CPU Feature: AVX512GFNI
 func (x Uint8x64) GaloisFieldMulMasked(y Uint8x64, mask Mask8x64) Uint8x64
 
-/* Get128 */
-
-// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VEXTRACTF128, CPU Feature: AVX
-func (x Float32x8) Get128(index uint8) Float32x4
-
-// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VEXTRACTF128, CPU Feature: AVX
-func (x Float64x4) Get128(index uint8) Float64x2
-
-// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Int8x32) Get128(index uint8) Int8x16
-
-// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Int16x16) Get128(index uint8) Int16x8
-
-// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Int32x8) Get128(index uint8) Int32x4
-
-// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Int64x4) Get128(index uint8) Int64x2
-
-// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Uint8x32) Get128(index uint8) Uint8x16
-
-// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Uint16x16) Get128(index uint8) Uint16x8
-
-// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Uint32x8) Get128(index uint8) Uint32x4
-
-// Get128 retrieves the upper (1) or lower (0) half of a 256-bit vector, depending on the constant operand.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Uint64x4) Get128(index uint8) Uint64x2
-
 /* GetElem */
 
 // GetElem retrieves a single constant-indexed element's value.
@@ -3170,6 +3098,210 @@ func (x Uint32x4) GetElem(index uint8) uint32
 //
 // Asm: VPEXTRQ, CPU Feature: AVX
 func (x Uint64x2) GetElem(index uint8) uint64
+
+/* GetHi */
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTF128, CPU Feature: AVX
+func (x Float32x8) GetHi() Float32x4
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTF64X4, CPU Feature: AVX512F
+func (x Float32x16) GetHi() Float32x8
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTF128, CPU Feature: AVX
+func (x Float64x4) GetHi() Float64x2
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTF64X4, CPU Feature: AVX512F
+func (x Float64x8) GetHi() Float64x4
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Int8x32) GetHi() Int8x16
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTI64X4, CPU Feature: AVX512F
+func (x Int8x64) GetHi() Int8x32
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Int16x16) GetHi() Int16x8
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTI64X4, CPU Feature: AVX512F
+func (x Int16x32) GetHi() Int16x16
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Int32x8) GetHi() Int32x4
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTI64X4, CPU Feature: AVX512F
+func (x Int32x16) GetHi() Int32x8
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Int64x4) GetHi() Int64x2
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTI64X4, CPU Feature: AVX512F
+func (x Int64x8) GetHi() Int64x4
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Uint8x32) GetHi() Uint8x16
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTI64X4, CPU Feature: AVX512F
+func (x Uint8x64) GetHi() Uint8x32
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Uint16x16) GetHi() Uint16x8
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTI64X4, CPU Feature: AVX512F
+func (x Uint16x32) GetHi() Uint16x16
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Uint32x8) GetHi() Uint32x4
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTI64X4, CPU Feature: AVX512F
+func (x Uint32x16) GetHi() Uint32x8
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Uint64x4) GetHi() Uint64x2
+
+// GetHi returns the upper half of x.
+//
+// Asm: VEXTRACTI64X4, CPU Feature: AVX512F
+func (x Uint64x8) GetHi() Uint64x4
+
+/* GetLo */
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTF128, CPU Feature: AVX
+func (x Float32x8) GetLo() Float32x4
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTF64X4, CPU Feature: AVX512F
+func (x Float32x16) GetLo() Float32x8
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTF128, CPU Feature: AVX
+func (x Float64x4) GetLo() Float64x2
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTF64X4, CPU Feature: AVX512F
+func (x Float64x8) GetLo() Float64x4
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Int8x32) GetLo() Int8x16
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTI64X4, CPU Feature: AVX512F
+func (x Int8x64) GetLo() Int8x32
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Int16x16) GetLo() Int16x8
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTI64X4, CPU Feature: AVX512F
+func (x Int16x32) GetLo() Int16x16
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Int32x8) GetLo() Int32x4
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTI64X4, CPU Feature: AVX512F
+func (x Int32x16) GetLo() Int32x8
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Int64x4) GetLo() Int64x2
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTI64X4, CPU Feature: AVX512F
+func (x Int64x8) GetLo() Int64x4
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Uint8x32) GetLo() Uint8x16
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTI64X4, CPU Feature: AVX512F
+func (x Uint8x64) GetLo() Uint8x32
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Uint16x16) GetLo() Uint16x8
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTI64X4, CPU Feature: AVX512F
+func (x Uint16x32) GetLo() Uint16x16
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Uint32x8) GetLo() Uint32x4
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTI64X4, CPU Feature: AVX512F
+func (x Uint32x16) GetLo() Uint32x8
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTI128, CPU Feature: AVX2
+func (x Uint64x4) GetLo() Uint64x2
+
+// GetLo returns the lower half of x.
+//
+// Asm: VEXTRACTI64X4, CPU Feature: AVX512F
+func (x Uint64x8) GetLo() Uint64x4
 
 /* Greater */
 
@@ -8757,78 +8889,6 @@ func (x Float64x4) ScaleMasked(y Float64x4, mask Mask64x4) Float64x4
 // Asm: VSCALEFPD, CPU Feature: AVX512F
 func (x Float64x8) ScaleMasked(y Float64x8, mask Mask64x8) Float64x8
 
-/* Set128 */
-
-// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VINSERTF128, CPU Feature: AVX
-func (x Float32x8) Set128(index uint8, y Float32x4) Float32x8
-
-// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VINSERTF128, CPU Feature: AVX
-func (x Float64x4) Set128(index uint8, y Float64x2) Float64x4
-
-// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VINSERTI128, CPU Feature: AVX2
-func (x Int8x32) Set128(index uint8, y Int8x16) Int8x32
-
-// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VINSERTI128, CPU Feature: AVX2
-func (x Int16x16) Set128(index uint8, y Int16x8) Int16x16
-
-// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VINSERTI128, CPU Feature: AVX2
-func (x Int32x8) Set128(index uint8, y Int32x4) Int32x8
-
-// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VINSERTI128, CPU Feature: AVX2
-func (x Int64x4) Set128(index uint8, y Int64x2) Int64x4
-
-// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VINSERTI128, CPU Feature: AVX2
-func (x Uint8x32) Set128(index uint8, y Uint8x16) Uint8x32
-
-// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VINSERTI128, CPU Feature: AVX2
-func (x Uint16x16) Set128(index uint8, y Uint16x8) Uint16x16
-
-// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VINSERTI128, CPU Feature: AVX2
-func (x Uint32x8) Set128(index uint8, y Uint32x4) Uint32x8
-
-// Set128 combines a 128-bit vector with a 256-bit vector, where the constant operand specifies whether the low (0) or high (1) half is receives the smaller vector.
-//
-// index is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VINSERTI128, CPU Feature: AVX2
-func (x Uint64x4) Set128(index uint8, y Uint64x2) Uint64x4
-
 /* SetElem */
 
 // SetElem sets a single constant-indexed element's value.
@@ -8886,6 +8946,210 @@ func (x Uint32x4) SetElem(index uint8, y uint32) Uint32x4
 //
 // Asm: VPINSRQ, CPU Feature: AVX
 func (x Uint64x2) SetElem(index uint8, y uint64) Uint64x2
+
+/* SetHi */
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTF128, CPU Feature: AVX
+func (x Float32x8) SetHi(y Float32x4) Float32x8
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTF64X4, CPU Feature: AVX512F
+func (x Float32x16) SetHi(y Float32x8) Float32x16
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTF128, CPU Feature: AVX
+func (x Float64x4) SetHi(y Float64x2) Float64x4
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTF64X4, CPU Feature: AVX512F
+func (x Float64x8) SetHi(y Float64x4) Float64x8
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Int8x32) SetHi(y Int8x16) Int8x32
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTI64X4, CPU Feature: AVX512F
+func (x Int8x64) SetHi(y Int8x32) Int8x64
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Int16x16) SetHi(y Int16x8) Int16x16
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTI64X4, CPU Feature: AVX512F
+func (x Int16x32) SetHi(y Int16x16) Int16x32
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Int32x8) SetHi(y Int32x4) Int32x8
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTI64X4, CPU Feature: AVX512F
+func (x Int32x16) SetHi(y Int32x8) Int32x16
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Int64x4) SetHi(y Int64x2) Int64x4
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTI64X4, CPU Feature: AVX512F
+func (x Int64x8) SetHi(y Int64x4) Int64x8
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Uint8x32) SetHi(y Uint8x16) Uint8x32
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTI64X4, CPU Feature: AVX512F
+func (x Uint8x64) SetHi(y Uint8x32) Uint8x64
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Uint16x16) SetHi(y Uint16x8) Uint16x16
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTI64X4, CPU Feature: AVX512F
+func (x Uint16x32) SetHi(y Uint16x16) Uint16x32
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Uint32x8) SetHi(y Uint32x4) Uint32x8
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTI64X4, CPU Feature: AVX512F
+func (x Uint32x16) SetHi(y Uint32x8) Uint32x16
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Uint64x4) SetHi(y Uint64x2) Uint64x4
+
+// SetHi returns x with its upper half set to y.
+//
+// Asm: VINSERTI64X4, CPU Feature: AVX512F
+func (x Uint64x8) SetHi(y Uint64x4) Uint64x8
+
+/* SetLo */
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTF128, CPU Feature: AVX
+func (x Float32x8) SetLo(y Float32x4) Float32x8
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTF64X4, CPU Feature: AVX512F
+func (x Float32x16) SetLo(y Float32x8) Float32x16
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTF128, CPU Feature: AVX
+func (x Float64x4) SetLo(y Float64x2) Float64x4
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTF64X4, CPU Feature: AVX512F
+func (x Float64x8) SetLo(y Float64x4) Float64x8
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Int8x32) SetLo(y Int8x16) Int8x32
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTI64X4, CPU Feature: AVX512F
+func (x Int8x64) SetLo(y Int8x32) Int8x64
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Int16x16) SetLo(y Int16x8) Int16x16
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTI64X4, CPU Feature: AVX512F
+func (x Int16x32) SetLo(y Int16x16) Int16x32
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Int32x8) SetLo(y Int32x4) Int32x8
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTI64X4, CPU Feature: AVX512F
+func (x Int32x16) SetLo(y Int32x8) Int32x16
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Int64x4) SetLo(y Int64x2) Int64x4
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTI64X4, CPU Feature: AVX512F
+func (x Int64x8) SetLo(y Int64x4) Int64x8
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Uint8x32) SetLo(y Uint8x16) Uint8x32
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTI64X4, CPU Feature: AVX512F
+func (x Uint8x64) SetLo(y Uint8x32) Uint8x64
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Uint16x16) SetLo(y Uint16x8) Uint16x16
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTI64X4, CPU Feature: AVX512F
+func (x Uint16x32) SetLo(y Uint16x16) Uint16x32
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Uint32x8) SetLo(y Uint32x4) Uint32x8
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTI64X4, CPU Feature: AVX512F
+func (x Uint32x16) SetLo(y Uint32x8) Uint32x16
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTI128, CPU Feature: AVX2
+func (x Uint64x4) SetLo(y Uint64x2) Uint64x4
+
+// SetLo returns x with its lower half set to y.
+//
+// Asm: VINSERTI64X4, CPU Feature: AVX512F
+func (x Uint64x8) SetLo(y Uint64x4) Uint64x8
 
 /* ShiftAllLeft */
 

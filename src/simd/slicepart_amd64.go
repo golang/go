@@ -76,9 +76,9 @@ func LoadInt8x32SlicePart(s []int8) Int8x32 {
 		return x
 	}
 	if l > 16 {
-		return x.Set128(0, LoadInt8x16Slice(s)).Set128(1, LoadInt8x16SlicePart(s[16:]))
+		return x.SetLo(LoadInt8x16Slice(s)).SetHi(LoadInt8x16SlicePart(s[16:]))
 	} else {
-		return x.Set128(0, LoadInt8x16SlicePart(s))
+		return x.SetLo(LoadInt8x16SlicePart(s))
 	}
 }
 
@@ -95,9 +95,9 @@ func LoadInt16x16SlicePart(s []int16) Int16x16 {
 		return x
 	}
 	if l > 8 {
-		return x.Set128(0, LoadInt16x8Slice(s)).Set128(1, LoadInt16x8SlicePart(s[8:]))
+		return x.SetLo(LoadInt16x8Slice(s)).SetHi(LoadInt16x8SlicePart(s[8:]))
 	} else {
-		return x.Set128(0, LoadInt16x8SlicePart(s))
+		return x.SetLo(LoadInt16x8SlicePart(s))
 	}
 }
 
@@ -114,10 +114,10 @@ func (x Int8x32) StoreSlicePart(s []int8) {
 		return
 	}
 	if l > 16 {
-		x.Get128(0).StoreSlice(s)
-		x.Get128(1).StoreSlicePart(s[16:])
+		x.GetLo().StoreSlice(s)
+		x.GetHi().StoreSlicePart(s[16:])
 	} else { // fits in one
-		x.Get128(0).StoreSlicePart(s)
+		x.GetLo().StoreSlicePart(s)
 	}
 }
 
@@ -134,10 +134,10 @@ func (x Int16x16) StoreSlicePart(s []int16) {
 		return
 	}
 	if l > 8 {
-		x.Get128(0).StoreSlice(s)
-		x.Get128(1).StoreSlicePart(s[8:])
+		x.GetLo().StoreSlice(s)
+		x.GetHi().StoreSlicePart(s[8:])
 	} else { // fits in one
-		x.Get128(0).StoreSlicePart(s)
+		x.GetLo().StoreSlicePart(s)
 	}
 }
 
