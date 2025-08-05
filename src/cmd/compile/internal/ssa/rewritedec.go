@@ -839,10 +839,10 @@ func rewriteValuedec_OpStructMake(v *Value) bool {
 func rewriteValuedec_OpStructSelect(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (StructSelect [0] (IData x))
+	// match: (StructSelect (IData x))
 	// result: (IData x)
 	for {
-		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpIData {
+		if v_0.Op != OpIData {
 			break
 		}
 		x := v_0.Args[0]
@@ -861,13 +861,10 @@ func rewriteValuedec_OpStructSelect(v *Value) bool {
 		v.copyOf(x.Args[i])
 		return true
 	}
-	// match: (StructSelect [0] x)
+	// match: (StructSelect x)
 	// cond: x.Type.IsPtrShaped()
 	// result: x
 	for {
-		if auxIntToInt64(v.AuxInt) != 0 {
-			break
-		}
 		x := v_0
 		if !(x.Type.IsPtrShaped()) {
 			break
