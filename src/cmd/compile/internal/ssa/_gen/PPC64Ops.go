@@ -171,7 +171,7 @@ func init() {
 		fpstore     = regInfo{inputs: []regMask{gp | sp | sb, fp}}
 		fpstoreidx  = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, fp}}
 		callerSave  = regMask(gp | fp | gr | xer)
-		first8      = buildReg("R3 R4 R5 R6 R7 R8 R9 R10")
+		first7      = buildReg("R3 R4 R5 R6 R7 R8 R9")
 	)
 	ops := []opData{
 		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},                              // arg0 + arg1
@@ -709,9 +709,9 @@ func init() {
 		// when both are constant (normally both 0, as prove derives the fact that a [0] bounds
 		// failure means the length must have also been 0).
 		// AuxInt contains a report code (see PanicBounds in genericOps.go).
-		{name: "LoweredPanicBoundsRR", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{first8, first8}}, typ: "Mem", call: true}, // arg0=x, arg1=y, arg2=mem, returns memory.
-		{name: "LoweredPanicBoundsRC", argLength: 2, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{first8}}, typ: "Mem", call: true},  // arg0=x, arg1=mem, returns memory.
-		{name: "LoweredPanicBoundsCR", argLength: 2, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{first8}}, typ: "Mem", call: true},  // arg0=y, arg1=mem, returns memory.
+		{name: "LoweredPanicBoundsRR", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{first7, first7}}, typ: "Mem", call: true}, // arg0=x, arg1=y, arg2=mem, returns memory.
+		{name: "LoweredPanicBoundsRC", argLength: 2, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{first7}}, typ: "Mem", call: true},  // arg0=x, arg1=mem, returns memory.
+		{name: "LoweredPanicBoundsCR", argLength: 2, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{first7}}, typ: "Mem", call: true},  // arg0=y, arg1=mem, returns memory.
 		{name: "LoweredPanicBoundsCC", argLength: 1, aux: "PanicBoundsCC", reg: regInfo{}, typ: "Mem", call: true},                          // arg0=mem, returns memory.
 
 		// (InvertFlags (CMP a b)) == (CMP b a)

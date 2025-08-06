@@ -1350,13 +1350,13 @@ TEXT runtime·debugCallPanicked(SB),NOSPLIT,$32-16
 	RET
 #endif
 
-TEXT runtime·panicBounds<ABIInternal>(SB),NOSPLIT,$104-0
+TEXT runtime·panicBounds<ABIInternal>(SB),NOSPLIT,$88-0
 	// Note: frame size is 16 bytes larger than necessary
 	// in order to pacify vet. Vet doesn't understand ppc64
 	// layout properly.
 	NO_LOCAL_POINTERS
-	// Save all 8 int registers that could have an index in them.
-	// They may be pointers, but if they are they are dead.
+	// Save all 7 int registers that could have an index in them.
+	// They may be pointers, but if so they are dead.
 	// Skip R0 aka ZERO, R1 aka SP, R2 aka SB
 	MOVD	R3, 48(R1)
 	MOVD	R4, 56(R1)
@@ -1365,8 +1365,7 @@ TEXT runtime·panicBounds<ABIInternal>(SB),NOSPLIT,$104-0
 	MOVD	R7, 80(R1)
 	MOVD	R8, 88(R1)
 	MOVD	R9, 96(R1)
-	MOVD	R10, 104(R1)
-	// Note: we only save 8 reigsters to keep under nosplit stack limit
+	// Note: we only save 7 registers to keep under nosplit stack limit
 	// Also, R11 is clobbered in dynamic linking situations
 
 	MOVD	LR, R3		// PC immediately after call to panicBounds
