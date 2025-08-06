@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build (freebsd || netbsd) && arm
+
 package unix
 
 import "syscall"
@@ -9,6 +11,7 @@ import "syscall"
 func PosixFallocate(fd int, off int64, size int64) error {
 	// If successful, posix_fallocate() returns zero. It returns an error on failure, without
 	// setting errno. See https://man.freebsd.org/cgi/man.cgi?query=posix_fallocate&sektion=2&n=1
+	// and https://man.netbsd.org/posix_fallocate.2#RETURN%20VALUES
 	//
 	// The padding 0 argument is needed because the ARM calling convention requires that if an
 	// argument (off in this case) needs double-word alignment (8-byte), the NCRN (next core
