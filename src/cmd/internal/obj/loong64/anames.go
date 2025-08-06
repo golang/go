@@ -264,6 +264,7 @@ var Anames = []string{
 	"FTINTRNEWD",
 	"FTINTRNEVF",
 	"FTINTRNEVD",
+	"FSEL",
 	"VMOVQ",
 	"XVMOVQ",
 	"VADDB",

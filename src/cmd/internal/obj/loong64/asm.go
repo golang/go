@@ -154,6 +154,9 @@ var optab = []Optab{
 	{AFMADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 37, 4, 0, 0},
 	{AFMADDF, C_FREG, C_FREG, C_FREG, C_FREG, C_NONE, 37, 4, 0, 0},
 
+	{AFSEL, C_FCCREG, C_FREG, C_FREG, C_FREG, C_NONE, 33, 4, 0, 0},
+	{AFSEL, C_FCCREG, C_FREG, C_NONE, C_FREG, C_NONE, 33, 4, 0, 0},
+
 	{AMOVW, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
 	{AMOVWU, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
 	{AMOVV, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
@@ -1517,6 +1520,7 @@ func buildop(ctxt *obj.Link) {
 			AWORD,
 			APRELD,
 			APRELDX,
+			AFSEL,
 			obj.ANOP,
 			obj.ATEXT,
 			obj.AFUNCDATA,
@@ -2386,6 +2390,16 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = int(p.To.Reg)
 		}
 		o1 = OP_6IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
+
+	case 33: // fsel ca, fk, [fj], fd
+		ca := uint32(p.From.Reg)
+		fk := uint32(p.Reg)
+		fd := uint32(p.To.Reg)
+		fj := fd
+		if len(p.RestArgs) > 0 {
+			fj = uint32(p.GetFrom3().Reg)
+		}
+		o1 = 0x340<<18 | (ca&0x7)<<15 | (fk&0x1F)<<10 | (fj&0x1F)<<5 | (fd & 0x1F)
 
 	case 34: // mov $con,fr
 		v := c.regoff(&p.From)

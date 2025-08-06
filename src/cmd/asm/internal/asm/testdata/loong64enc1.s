@@ -376,6 +376,10 @@ lable2:
 	FTINTRNEVF	F0, F2		// 02e41a01
 	FTINTRNEVD	F0, F2		// 02e81a01
 
+	// FSEL instruction
+	FSEL	FCC0, F1, F2, F3	// 4304000d
+	FSEL	FCC1, F1, F2		// 4284000d
+
 	// LDX.{B,BU,H,HU,W,WU,D} instructions
 	MOVB		(R14)(R13), R12	// cc350038
 	MOVBU		(R14)(R13), R12	// cc352038
