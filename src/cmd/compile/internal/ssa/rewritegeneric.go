@@ -11200,10 +11200,10 @@ func rewriteValuegeneric_OpFloor(v *Value) bool {
 func rewriteValuegeneric_OpIMake(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (IMake _typ (StructMake val))
+	// match: (IMake _typ (StructMake ___))
 	// result: imakeOfStructMake(v)
 	for {
-		if v_1.Op != OpStructMake || len(v_1.Args) != 1 {
+		if v_1.Op != OpStructMake {
 			break
 		}
 		v.copyOf(imakeOfStructMake(v))
