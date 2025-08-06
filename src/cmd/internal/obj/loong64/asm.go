@@ -425,7 +425,7 @@ var optab = []Optab{
 	{APRELD, C_SOREG, C_U5CON, C_NONE, C_NONE, C_NONE, 47, 4, 0, 0},
 	{APRELDX, C_SOREG, C_DCON, C_U5CON, C_NONE, C_NONE, 48, 20, 0, 0},
 
-	{AALSLV, C_U2CON, C_REG, C_REG, C_REG, C_NONE, 64, 4, 0, 0},
+	{AALSLV, C_U3CON, C_REG, C_REG, C_REG, C_NONE, 64, 4, 0, 0},
 
 	{obj.APCALIGN, C_U12CON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
 	{obj.APCDATA, C_32CON, C_NONE, C_NONE, C_32CON, C_NONE, 0, 0, 0, 0},
@@ -2742,8 +2742,12 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = OP_RR(c.oprr(p.As), uint32(p.To.Reg), uint32(p.RegTo2))
 
 	case 64: // alsl rd, rj, rk, sa2
+		sa := p.From.Offset - 1
+		if sa > 3 {
+			c.ctxt.Diag("The shift amount is too large.")
+		}
 		r := p.GetFrom3().Reg
-		o1 = OP_2IRRR(c.opirrr(p.As), uint32(p.From.Offset), uint32(r), uint32(p.Reg), uint32(p.To.Reg))
+		o1 = OP_2IRRR(c.opirrr(p.As), uint32(sa), uint32(r), uint32(p.Reg), uint32(p.To.Reg))
 
 	case 65: // mov sym@GOT, r ==> pcalau12i + ld.d
 		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(p.To.Reg))

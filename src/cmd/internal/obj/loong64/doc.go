@@ -268,6 +268,27 @@ Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate)
       bits[11:1]:  block size, the value range is [16, 1024], and it must be an integer multiple of 16
       bits[20:12]: block num, the value range is [1, 256]
       bits[36:21]: stride, the value range is [0, 0xffff]
+
+4. ShiftAdd instructions
+    Mapping between Go and platform assembly:
+                Go assembly            |    platform assembly
+     ALSL.W/WU/V $Imm, Rj, Rk, Rd      |    alsl.w/wu/d rd, rj, rk, $imm
+
+    Instruction encoding format is as follows:
+
+	| 31 ~ 17 | 16 ~ 15 | 14 ~ 10 | 9 ~ 5 | 4 ~ 0 |
+	|  opcode |   sa2   |   rk    |   rj  |   rd  |
+
+    The alsl.w/wu/v series of instructions shift the data in rj left by sa+1, add the value
+    in rk, and write the result to rd.
+
+    To allow programmers to directly write the desired shift amount in assembly code, we actually write
+    the value of sa2+1 in the assembly code and then include the value of sa2 in the instruction encoding.
+
+    For example:
+
+            Go assembly      | instruction Encoding
+        ALSLV $4, r4, r5, R6 |      002d9486
 */
 
 package loong64
