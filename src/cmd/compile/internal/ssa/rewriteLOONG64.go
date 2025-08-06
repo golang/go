@@ -11479,6 +11479,122 @@ func rewriteValueLOONG64_OpZero(v *Value) bool {
 func rewriteBlockLOONG64(b *Block) bool {
 	typ := &b.Func.Config.Types
 	switch b.Kind {
+	case BlockLOONG64BEQ:
+		// match: (BEQ (MOVVconst [0]) cond yes no)
+		// result: (EQZ cond yes no)
+		for b.Controls[0].Op == OpLOONG64MOVVconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 0 {
+				break
+			}
+			cond := b.Controls[1]
+			b.resetWithControl(BlockLOONG64EQZ, cond)
+			return true
+		}
+		// match: (BEQ cond (MOVVconst [0]) yes no)
+		// result: (EQZ cond yes no)
+		for b.Controls[1].Op == OpLOONG64MOVVconst {
+			cond := b.Controls[0]
+			v_1 := b.Controls[1]
+			if auxIntToInt64(v_1.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockLOONG64EQZ, cond)
+			return true
+		}
+	case BlockLOONG64BGE:
+		// match: (BGE (MOVVconst [0]) cond yes no)
+		// result: (LEZ cond yes no)
+		for b.Controls[0].Op == OpLOONG64MOVVconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 0 {
+				break
+			}
+			cond := b.Controls[1]
+			b.resetWithControl(BlockLOONG64LEZ, cond)
+			return true
+		}
+		// match: (BGE cond (MOVVconst [0]) yes no)
+		// result: (GEZ cond yes no)
+		for b.Controls[1].Op == OpLOONG64MOVVconst {
+			cond := b.Controls[0]
+			v_1 := b.Controls[1]
+			if auxIntToInt64(v_1.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockLOONG64GEZ, cond)
+			return true
+		}
+	case BlockLOONG64BGEU:
+		// match: (BGEU (MOVVconst [0]) cond yes no)
+		// result: (EQZ cond yes no)
+		for b.Controls[0].Op == OpLOONG64MOVVconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 0 {
+				break
+			}
+			cond := b.Controls[1]
+			b.resetWithControl(BlockLOONG64EQZ, cond)
+			return true
+		}
+	case BlockLOONG64BLT:
+		// match: (BLT (MOVVconst [0]) cond yes no)
+		// result: (GTZ cond yes no)
+		for b.Controls[0].Op == OpLOONG64MOVVconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 0 {
+				break
+			}
+			cond := b.Controls[1]
+			b.resetWithControl(BlockLOONG64GTZ, cond)
+			return true
+		}
+		// match: (BLT cond (MOVVconst [0]) yes no)
+		// result: (LTZ cond yes no)
+		for b.Controls[1].Op == OpLOONG64MOVVconst {
+			cond := b.Controls[0]
+			v_1 := b.Controls[1]
+			if auxIntToInt64(v_1.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockLOONG64LTZ, cond)
+			return true
+		}
+	case BlockLOONG64BLTU:
+		// match: (BLTU (MOVVconst [0]) cond yes no)
+		// result: (NEZ cond yes no)
+		for b.Controls[0].Op == OpLOONG64MOVVconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 0 {
+				break
+			}
+			cond := b.Controls[1]
+			b.resetWithControl(BlockLOONG64NEZ, cond)
+			return true
+		}
+	case BlockLOONG64BNE:
+		// match: (BNE (MOVVconst [0]) cond yes no)
+		// result: (NEZ cond yes no)
+		for b.Controls[0].Op == OpLOONG64MOVVconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 0 {
+				break
+			}
+			cond := b.Controls[1]
+			b.resetWithControl(BlockLOONG64NEZ, cond)
+			return true
+		}
+		// match: (BNE cond (MOVVconst [0]) yes no)
+		// result: (NEZ cond yes no)
+		for b.Controls[1].Op == OpLOONG64MOVVconst {
+			cond := b.Controls[0]
+			v_1 := b.Controls[1]
+			if auxIntToInt64(v_1.AuxInt) != 0 {
+				break
+			}
+			b.resetWithControl(BlockLOONG64NEZ, cond)
+			return true
+		}
 	case BlockLOONG64EQZ:
 		// match: (EQZ (FPFlagTrue cmp) yes no)
 		// result: (FPF cmp yes no)

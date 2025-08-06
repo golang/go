@@ -951,6 +951,18 @@
 (GEZ (MOVVconst [c]) yes no) && c >= 0 => (First yes no)
 (GEZ (MOVVconst [c]) yes no) && c <  0 => (First no yes)
 
+// Convert branch with zero to more optimal branch zero.
+(BEQ  (MOVVconst [0]) cond yes no) => (EQZ cond yes no)
+(BEQ  cond (MOVVconst [0]) yes no) => (EQZ cond yes no)
+(BNE  (MOVVconst [0]) cond yes no) => (NEZ cond yes no)
+(BNE  cond (MOVVconst [0]) yes no) => (NEZ cond yes no)
+(BLT  (MOVVconst [0]) cond yes no) => (GTZ cond yes no)
+(BLT  cond (MOVVconst [0]) yes no) => (LTZ cond yes no)
+(BLTU (MOVVconst [0]) cond yes no) => (NEZ cond yes no)
+(BGE  (MOVVconst [0]) cond yes no) => (LEZ cond yes no)
+(BGE  cond (MOVVconst [0]) yes no) => (GEZ cond yes no)
+(BGEU (MOVVconst [0]) cond yes no) => (EQZ cond yes no)
+
 // Arch-specific inlining for small or disjoint runtime.memmove
 // Match post-lowering calls, register version.
 (SelectN [0] call:(CALLstatic {sym} dst src (MOVVconst [sz]) mem))
