@@ -1782,11 +1782,18 @@ var loadMaskOpcodes = map[int]map[int]ssa.Op{
 	64: {2: ssa.OpLoadMask64x2, 4: ssa.OpLoadMask64x4, 8: ssa.OpLoadMask64x8},
 }
 
-var cvtMaskOpcodes = map[int]map[int]ssa.Op{
+var cvtVToMaskOpcodes = map[int]map[int]ssa.Op{
 	8:  {16: ssa.OpCvt16toMask8x16, 32: ssa.OpCvt32toMask8x32, 64: ssa.OpCvt64toMask8x64},
 	16: {8: ssa.OpCvt8toMask16x8, 16: ssa.OpCvt16toMask16x16, 32: ssa.OpCvt32toMask16x32},
 	32: {4: ssa.OpCvt8toMask32x4, 8: ssa.OpCvt8toMask32x8, 16: ssa.OpCvt16toMask32x16},
 	64: {2: ssa.OpCvt8toMask64x2, 4: ssa.OpCvt8toMask64x4, 8: ssa.OpCvt8toMask64x8},
+}
+
+var cvtMaskToVOpcodes = map[int]map[int]ssa.Op{
+	8:  {16: ssa.OpCvtMask8x16to16, 32: ssa.OpCvtMask8x32to32, 64: ssa.OpCvtMask8x64to64},
+	16: {8: ssa.OpCvtMask16x8to8, 16: ssa.OpCvtMask16x16to16, 32: ssa.OpCvtMask16x32to32},
+	32: {4: ssa.OpCvtMask32x4to8, 8: ssa.OpCvtMask32x8to8, 16: ssa.OpCvtMask32x16to16},
+	64: {2: ssa.OpCvtMask64x2to8, 4: ssa.OpCvtMask64x4to8, 8: ssa.OpCvtMask64x8to8},
 }
 
 func simdLoadMask(elemBits, lanes int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
@@ -1816,13 +1823,23 @@ func simdStoreMask(elemBits, lanes int) func(s *state, n *ir.CallExpr, args []*s
 	}
 }
 
-func simdCvtMask(elemBits, lanes int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+func simdCvtVToMask(elemBits, lanes int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-		op := cvtMaskOpcodes[elemBits][lanes]
+		op := cvtVToMaskOpcodes[elemBits][lanes]
 		if op == 0 {
 			panic(fmt.Sprintf("Unknown mask shape: Mask%dx%d", elemBits, lanes))
 		}
 		return s.newValue1(op, types.TypeMask, args[0])
+	}
+}
+
+func simdCvtMaskToV(elemBits, lanes int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		op := cvtMaskToVOpcodes[elemBits][lanes]
+		if op == 0 {
+			panic(fmt.Sprintf("Unknown mask shape: Mask%dx%d", elemBits, lanes))
+		}
+		return s.newValue1(op, n.Type(), args[0])
 	}
 }
 

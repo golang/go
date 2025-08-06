@@ -391,3 +391,13 @@ func TestBitMaskFromBits(t *testing.T) {
 		}
 	}
 }
+
+func TestBitMaskToBits(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
+		return
+	}
+	if v := simd.LoadInt16x8Slice([]int16{-1, 0, -1, 0, 0, 0, 0, 0}).AsMask16x8().ToBits(); v != 0b101 {
+		t.Errorf("Want 0b101, got %b", v)
+	}
+}

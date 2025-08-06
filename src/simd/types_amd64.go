@@ -320,8 +320,14 @@ func (x Mask8x16) StoreToBits(y *uint64)
 // Mask8x16FromBits constructs a Mask8x16 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 16 bits of y are used.
 //
-// Asm: KMOVB, CPU Feature: AVX512"
+// Asm: KMOVB, CPU Feature: AVX512
 func Mask8x16FromBits(y uint16) Mask8x16
+
+// ToBits constructs a bitmap from a Mask8x16, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 16 bits of y are used.
+//
+// Asm: KMOVB, CPU Features: AVX512
+func (x Mask8x16) ToBits() uint16
 
 // Mask16x8 is a 128-bit SIMD vector of 8 int16
 type Mask16x8 struct {
@@ -348,8 +354,14 @@ func (x Mask16x8) StoreToBits(y *uint64)
 // Mask16x8FromBits constructs a Mask16x8 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 8 bits of y are used.
 //
-// Asm: KMOVW, CPU Feature: AVX512"
+// Asm: KMOVW, CPU Feature: AVX512
 func Mask16x8FromBits(y uint8) Mask16x8
+
+// ToBits constructs a bitmap from a Mask16x8, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 8 bits of y are used.
+//
+// Asm: KMOVW, CPU Features: AVX512
+func (x Mask16x8) ToBits() uint8
 
 // Mask32x4 is a 128-bit SIMD vector of 4 int32
 type Mask32x4 struct {
@@ -376,8 +388,14 @@ func (x Mask32x4) StoreToBits(y *uint64)
 // Mask32x4FromBits constructs a Mask32x4 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 4 bits of y are used.
 //
-// Asm: KMOVD, CPU Feature: AVX512"
+// Asm: KMOVD, CPU Feature: AVX512
 func Mask32x4FromBits(y uint8) Mask32x4
+
+// ToBits constructs a bitmap from a Mask32x4, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 4 bits of y are used.
+//
+// Asm: KMOVD, CPU Features: AVX512
+func (x Mask32x4) ToBits() uint8
 
 // Mask64x2 is a 128-bit SIMD vector of 2 int64
 type Mask64x2 struct {
@@ -404,8 +422,14 @@ func (x Mask64x2) StoreToBits(y *uint64)
 // Mask64x2FromBits constructs a Mask64x2 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 2 bits of y are used.
 //
-// Asm: KMOVQ, CPU Feature: AVX512"
+// Asm: KMOVQ, CPU Feature: AVX512
 func Mask64x2FromBits(y uint8) Mask64x2
+
+// ToBits constructs a bitmap from a Mask64x2, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 2 bits of y are used.
+//
+// Asm: KMOVQ, CPU Features: AVX512
+func (x Mask64x2) ToBits() uint8
 
 // v256 is a tag type that tells the compiler that this is really 256-bit SIMD
 type v256 struct {
@@ -723,8 +747,14 @@ func (x Mask8x32) StoreToBits(y *uint64)
 // Mask8x32FromBits constructs a Mask8x32 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 32 bits of y are used.
 //
-// Asm: KMOVB, CPU Feature: AVX512"
+// Asm: KMOVB, CPU Feature: AVX512
 func Mask8x32FromBits(y uint32) Mask8x32
+
+// ToBits constructs a bitmap from a Mask8x32, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 32 bits of y are used.
+//
+// Asm: KMOVB, CPU Features: AVX512
+func (x Mask8x32) ToBits() uint32
 
 // Mask16x16 is a 256-bit SIMD vector of 16 int16
 type Mask16x16 struct {
@@ -751,8 +781,14 @@ func (x Mask16x16) StoreToBits(y *uint64)
 // Mask16x16FromBits constructs a Mask16x16 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 16 bits of y are used.
 //
-// Asm: KMOVW, CPU Feature: AVX512"
+// Asm: KMOVW, CPU Feature: AVX512
 func Mask16x16FromBits(y uint16) Mask16x16
+
+// ToBits constructs a bitmap from a Mask16x16, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 16 bits of y are used.
+//
+// Asm: KMOVW, CPU Features: AVX512
+func (x Mask16x16) ToBits() uint16
 
 // Mask32x8 is a 256-bit SIMD vector of 8 int32
 type Mask32x8 struct {
@@ -779,8 +815,14 @@ func (x Mask32x8) StoreToBits(y *uint64)
 // Mask32x8FromBits constructs a Mask32x8 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 8 bits of y are used.
 //
-// Asm: KMOVD, CPU Feature: AVX512"
+// Asm: KMOVD, CPU Feature: AVX512
 func Mask32x8FromBits(y uint8) Mask32x8
+
+// ToBits constructs a bitmap from a Mask32x8, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 8 bits of y are used.
+//
+// Asm: KMOVD, CPU Features: AVX512
+func (x Mask32x8) ToBits() uint8
 
 // Mask64x4 is a 256-bit SIMD vector of 4 int64
 type Mask64x4 struct {
@@ -807,8 +849,14 @@ func (x Mask64x4) StoreToBits(y *uint64)
 // Mask64x4FromBits constructs a Mask64x4 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 4 bits of y are used.
 //
-// Asm: KMOVQ, CPU Feature: AVX512"
+// Asm: KMOVQ, CPU Feature: AVX512
 func Mask64x4FromBits(y uint8) Mask64x4
+
+// ToBits constructs a bitmap from a Mask64x4, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 4 bits of y are used.
+//
+// Asm: KMOVQ, CPU Features: AVX512
+func (x Mask64x4) ToBits() uint8
 
 // v512 is a tag type that tells the compiler that this is really 512-bit SIMD
 type v512 struct {
@@ -1190,8 +1238,14 @@ func (x Mask8x64) StoreToBits(y *uint64)
 // Mask8x64FromBits constructs a Mask8x64 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 64 bits of y are used.
 //
-// Asm: KMOVB, CPU Feature: AVX512"
+// Asm: KMOVB, CPU Feature: AVX512
 func Mask8x64FromBits(y uint64) Mask8x64
+
+// ToBits constructs a bitmap from a Mask8x64, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 64 bits of y are used.
+//
+// Asm: KMOVB, CPU Features: AVX512
+func (x Mask8x64) ToBits() uint64
 
 // Mask16x32 is a 512-bit SIMD vector of 32 int16
 type Mask16x32 struct {
@@ -1218,8 +1272,14 @@ func (x Mask16x32) StoreToBits(y *uint64)
 // Mask16x32FromBits constructs a Mask16x32 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 32 bits of y are used.
 //
-// Asm: KMOVW, CPU Feature: AVX512"
+// Asm: KMOVW, CPU Feature: AVX512
 func Mask16x32FromBits(y uint32) Mask16x32
+
+// ToBits constructs a bitmap from a Mask16x32, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 32 bits of y are used.
+//
+// Asm: KMOVW, CPU Features: AVX512
+func (x Mask16x32) ToBits() uint32
 
 // Mask32x16 is a 512-bit SIMD vector of 16 int32
 type Mask32x16 struct {
@@ -1246,8 +1306,14 @@ func (x Mask32x16) StoreToBits(y *uint64)
 // Mask32x16FromBits constructs a Mask32x16 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 16 bits of y are used.
 //
-// Asm: KMOVD, CPU Feature: AVX512"
+// Asm: KMOVD, CPU Feature: AVX512
 func Mask32x16FromBits(y uint16) Mask32x16
+
+// ToBits constructs a bitmap from a Mask32x16, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 16 bits of y are used.
+//
+// Asm: KMOVD, CPU Features: AVX512
+func (x Mask32x16) ToBits() uint16
 
 // Mask64x8 is a 512-bit SIMD vector of 8 int64
 type Mask64x8 struct {
@@ -1274,5 +1340,11 @@ func (x Mask64x8) StoreToBits(y *uint64)
 // Mask64x8FromBits constructs a Mask64x8 from a bitmap value, where 1 means set for the indexed element, 0 means unset.
 // Only the lower 8 bits of y are used.
 //
-// Asm: KMOVQ, CPU Feature: AVX512"
+// Asm: KMOVQ, CPU Feature: AVX512
 func Mask64x8FromBits(y uint8) Mask64x8
+
+// ToBits constructs a bitmap from a Mask64x8, where 1 means set for the indexed element, 0 means unset.
+// Only the lower 8 bits of y are used.
+//
+// Asm: KMOVQ, CPU Features: AVX512
+func (x Mask64x8) ToBits() uint8

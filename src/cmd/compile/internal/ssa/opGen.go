@@ -1218,10 +1218,14 @@ const (
 	OpAMD64VZEROALL
 	OpAMD64KMOVQload
 	OpAMD64KMOVQstore
-	OpAMD64KMOVQ
-	OpAMD64KMOVD
-	OpAMD64KMOVW
-	OpAMD64KMOVB
+	OpAMD64KMOVQk
+	OpAMD64KMOVDk
+	OpAMD64KMOVWk
+	OpAMD64KMOVBk
+	OpAMD64KMOVQi
+	OpAMD64KMOVDi
+	OpAMD64KMOVWi
+	OpAMD64KMOVBi
 	OpAMD64VADDPD128
 	OpAMD64VADDPD256
 	OpAMD64VADDPD512
@@ -4582,6 +4586,18 @@ const (
 	OpCvt8toMask64x2
 	OpCvt8toMask64x4
 	OpCvt8toMask64x8
+	OpCvtMask8x16to16
+	OpCvtMask8x32to32
+	OpCvtMask8x64to64
+	OpCvtMask16x8to8
+	OpCvtMask16x16to16
+	OpCvtMask16x32to32
+	OpCvtMask32x4to8
+	OpCvtMask32x8to8
+	OpCvtMask32x16to16
+	OpCvtMask64x2to8
+	OpCvtMask64x4to8
+	OpCvtMask64x8to8
 	OpAbsoluteInt8x16
 	OpAbsoluteInt8x32
 	OpAbsoluteInt8x64
@@ -19400,7 +19416,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "KMOVQ",
+		name:   "KMOVQk",
 		argLen: 1,
 		asm:    x86.AKMOVQ,
 		reg: regInfo{
@@ -19413,7 +19429,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "KMOVD",
+		name:   "KMOVDk",
 		argLen: 1,
 		asm:    x86.AKMOVD,
 		reg: regInfo{
@@ -19426,7 +19442,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "KMOVW",
+		name:   "KMOVWk",
 		argLen: 1,
 		asm:    x86.AKMOVW,
 		reg: regInfo{
@@ -19439,7 +19455,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "KMOVB",
+		name:   "KMOVBk",
 		argLen: 1,
 		asm:    x86.AKMOVB,
 		reg: regInfo{
@@ -19448,6 +19464,58 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "KMOVQi",
+		argLen: 1,
+		asm:    x86.AKMOVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:   "KMOVDi",
+		argLen: 1,
+		asm:    x86.AKMOVD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:   "KMOVWi",
+		argLen: 1,
+		asm:    x86.AKMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:   "KMOVBi",
+		argLen: 1,
+		asm:    x86.AKMOVB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
@@ -63126,6 +63194,66 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Cvt8toMask64x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CvtMask8x16to16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CvtMask8x32to32",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CvtMask8x64to64",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CvtMask16x8to8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CvtMask16x16to16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CvtMask16x32to32",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CvtMask32x4to8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CvtMask32x8to8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CvtMask32x16to16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CvtMask64x2to8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CvtMask64x4to8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CvtMask64x8to8",
 		argLen:  1,
 		generic: true,
 	},

@@ -717,6 +717,20 @@ var genericOps = []opData{
 	{name: "Cvt8toMask64x2", argLength: 1},   // arg0 = integer mask value
 	{name: "Cvt8toMask64x4", argLength: 1},   // arg0 = integer mask value
 	{name: "Cvt8toMask64x8", argLength: 1},   // arg0 = integer mask value
+
+	// Convert masks to integers
+	{name: "CvtMask8x16to16", argLength: 1},  // arg0 = mask
+	{name: "CvtMask8x32to32", argLength: 1},  // arg0 = mask
+	{name: "CvtMask8x64to64", argLength: 1},  // arg0 = mask
+	{name: "CvtMask16x8to8", argLength: 1},   // arg0 = mask
+	{name: "CvtMask16x16to16", argLength: 1}, // arg0 = mask
+	{name: "CvtMask16x32to32", argLength: 1}, // arg0 = mask
+	{name: "CvtMask32x4to8", argLength: 1},   // arg0 = mask
+	{name: "CvtMask32x8to8", argLength: 1},   // arg0 = mask
+	{name: "CvtMask32x16to16", argLength: 1}, // arg0 = mask
+	{name: "CvtMask64x2to8", argLength: 1},   // arg0 = mask
+	{name: "CvtMask64x4to8", argLength: 1},   // arg0 = mask
+	{name: "CvtMask64x8to8", argLength: 1},   // arg0 = mask
 }
 
 //     kind          controls          successors   implicit exit

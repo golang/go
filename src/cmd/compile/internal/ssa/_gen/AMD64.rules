@@ -1669,21 +1669,21 @@
 // XXX SIMD
 
 // Mask loads
-(LoadMask8x16 <t> ptr mem) => (VPMOVMToVec8x16 <types.TypeVec128> (KMOVQload <types.TypeMask> ptr mem))
-(LoadMask8x32 <t> ptr mem) => (VPMOVMToVec8x32 <types.TypeVec256> (KMOVQload <types.TypeMask> ptr mem))
-(LoadMask8x64 <t> ptr mem) => (VPMOVMToVec8x64 <types.TypeVec512> (KMOVQload <types.TypeMask> ptr mem))
+(LoadMask8x16 <t> ptr mem) => (VPMOVMToVec8x16 <types.TypeVec128> (KMOVQload <t> ptr mem))
+(LoadMask8x32 <t> ptr mem) => (VPMOVMToVec8x32 <types.TypeVec256> (KMOVQload <t> ptr mem))
+(LoadMask8x64 <t> ptr mem) => (VPMOVMToVec8x64 <types.TypeVec512> (KMOVQload <t> ptr mem))
 
-(LoadMask16x8 <t> ptr mem) => (VPMOVMToVec16x8 <types.TypeVec128> (KMOVQload <types.TypeMask> ptr mem))
-(LoadMask16x16 <t> ptr mem) => (VPMOVMToVec16x16 <types.TypeVec256> (KMOVQload <types.TypeMask> ptr mem))
-(LoadMask16x32 <t> ptr mem) => (VPMOVMToVec16x32 <types.TypeVec512> (KMOVQload <types.TypeMask> ptr mem))
+(LoadMask16x8 <t> ptr mem) => (VPMOVMToVec16x8 <types.TypeVec128> (KMOVQload <t> ptr mem))
+(LoadMask16x16 <t> ptr mem) => (VPMOVMToVec16x16 <types.TypeVec256> (KMOVQload <t> ptr mem))
+(LoadMask16x32 <t> ptr mem) => (VPMOVMToVec16x32 <types.TypeVec512> (KMOVQload <t> ptr mem))
 
-(LoadMask32x4 <t> ptr mem) => (VPMOVMToVec32x4 <types.TypeVec128> (KMOVQload <types.TypeMask> ptr mem))
-(LoadMask32x8 <t> ptr mem) => (VPMOVMToVec32x8 <types.TypeVec256> (KMOVQload <types.TypeMask> ptr mem))
-(LoadMask32x16 <t> ptr mem) => (VPMOVMToVec32x16 <types.TypeVec512> (KMOVQload <types.TypeMask> ptr mem))
+(LoadMask32x4 <t> ptr mem) => (VPMOVMToVec32x4 <types.TypeVec128> (KMOVQload <t> ptr mem))
+(LoadMask32x8 <t> ptr mem) => (VPMOVMToVec32x8 <types.TypeVec256> (KMOVQload <t> ptr mem))
+(LoadMask32x16 <t> ptr mem) => (VPMOVMToVec32x16 <types.TypeVec512> (KMOVQload <t> ptr mem))
 
-(LoadMask64x2 <t> ptr mem) => (VPMOVMToVec64x2 <types.TypeVec128> (KMOVQload <types.TypeMask> ptr mem))
-(LoadMask64x4 <t> ptr mem) => (VPMOVMToVec64x4 <types.TypeVec256> (KMOVQload <types.TypeMask> ptr mem))
-(LoadMask64x8 <t> ptr mem) => (VPMOVMToVec64x8 <types.TypeVec512> (KMOVQload <types.TypeMask> ptr mem))
+(LoadMask64x2 <t> ptr mem) => (VPMOVMToVec64x2 <types.TypeVec128> (KMOVQload <t> ptr mem))
+(LoadMask64x4 <t> ptr mem) => (VPMOVMToVec64x4 <types.TypeVec256> (KMOVQload <t> ptr mem))
+(LoadMask64x8 <t> ptr mem) => (VPMOVMToVec64x8 <types.TypeVec512> (KMOVQload <t> ptr mem))
 
 (StoreMask8x16 {t} ptr val mem) => (KMOVQstore ptr (VPMOVVec8x16ToM <t> val) mem)
 (StoreMask8x32 {t} ptr val mem) => (KMOVQstore ptr (VPMOVVec8x32ToM <t> val) mem)
@@ -1703,22 +1703,40 @@
 
 // TODO is this correct?  Should we just do it all from 64-bits?
 
-// Mask conversions (from integers)
-(Cvt16toMask8x16 <t> x) => (VPMOVMToVec8x16 <types.TypeVec128> (KMOVW <types.TypeMask> x))
-(Cvt32toMask8x32 <t> x) => (VPMOVMToVec8x32 <types.TypeVec256> (KMOVD <types.TypeMask> x))
-(Cvt64toMask8x64 <t> x) => (VPMOVMToVec8x64 <types.TypeVec512> (KMOVQ <types.TypeMask> x))
+// Mask conversions
+// integers to masks
+(Cvt16toMask8x16 <t> x) => (VPMOVMToVec8x16 <types.TypeVec128> (KMOVWk <t> x))
+(Cvt32toMask8x32 <t> x) => (VPMOVMToVec8x32 <types.TypeVec256> (KMOVDk <t> x))
+(Cvt64toMask8x64 <t> x) => (VPMOVMToVec8x64 <types.TypeVec512> (KMOVQk <t> x))
 
-(Cvt8toMask16x8 <t> x) => (VPMOVMToVec16x8 <types.TypeVec128> (KMOVB <types.TypeMask> x))
-(Cvt16toMask16x16 <t> x) => (VPMOVMToVec16x16 <types.TypeVec256> (KMOVW <types.TypeMask> x))
-(Cvt32toMask16x32 <t> x) => (VPMOVMToVec16x32 <types.TypeVec512> (KMOVD <types.TypeMask> x))
+(Cvt8toMask16x8 <t> x) => (VPMOVMToVec16x8 <types.TypeVec128> (KMOVBk <t> x))
+(Cvt16toMask16x16 <t> x) => (VPMOVMToVec16x16 <types.TypeVec256> (KMOVWk <t> x))
+(Cvt32toMask16x32 <t> x) => (VPMOVMToVec16x32 <types.TypeVec512> (KMOVDk <t> x))
 
-(Cvt8toMask32x4 <t> x) => (VPMOVMToVec32x4 <types.TypeVec128> (KMOVB <types.TypeMask> x))
-(Cvt8toMask32x8 <t> x) => (VPMOVMToVec32x8 <types.TypeVec256> (KMOVB <types.TypeMask> x))
-(Cvt16toMask32x16 <t> x) => (VPMOVMToVec32x16 <types.TypeVec512> (KMOVW <types.TypeMask> x))
+(Cvt8toMask32x4 <t> x) => (VPMOVMToVec32x4 <types.TypeVec128> (KMOVBk <t> x))
+(Cvt8toMask32x8 <t> x) => (VPMOVMToVec32x8 <types.TypeVec256> (KMOVBk <t> x))
+(Cvt16toMask32x16 <t> x) => (VPMOVMToVec32x16 <types.TypeVec512> (KMOVWk <t> x))
 
-(Cvt8toMask64x2 <t> x) => (VPMOVMToVec64x2 <types.TypeVec128> (KMOVB <types.TypeMask> x))
-(Cvt8toMask64x4 <t> x) => (VPMOVMToVec64x4 <types.TypeVec256> (KMOVB <types.TypeMask> x))
-(Cvt8toMask64x8 <t> x) => (VPMOVMToVec64x8 <types.TypeVec512> (KMOVB <types.TypeMask> x))
+(Cvt8toMask64x2 <t> x) => (VPMOVMToVec64x2 <types.TypeVec128> (KMOVBk <t> x))
+(Cvt8toMask64x4 <t> x) => (VPMOVMToVec64x4 <types.TypeVec256> (KMOVBk <t> x))
+(Cvt8toMask64x8 <t> x) => (VPMOVMToVec64x8 <types.TypeVec512> (KMOVBk <t> x))
+
+// masks to integers
+(CvtMask8x16to16 <t> x) => (KMOVWi <t> (VPMOVVec8x16ToM <types.TypeMask> x))
+(CvtMask8x32to32 <t> x) => (KMOVDi <t> (VPMOVVec8x32ToM <types.TypeMask> x))
+(CvtMask8x64to64 <t> x) => (KMOVQi <t> (VPMOVVec8x64ToM <types.TypeMask> x))
+
+(CvtMask16x8to8 <t> x) => (KMOVBi <t> (VPMOVVec16x8ToM <types.TypeMask> x))
+(CvtMask16x16to16 <t> x) => (KMOVWi <t> (VPMOVVec16x16ToM <types.TypeMask> x))
+(CvtMask16x32to32 <t> x) => (KMOVDi <t> (VPMOVVec16x32ToM <types.TypeMask> x))
+
+(CvtMask32x4to8 <t> x) => (KMOVBi <t> (VPMOVVec32x4ToM <types.TypeMask> x))
+(CvtMask32x8to8 <t> x) => (KMOVBi <t> (VPMOVVec32x8ToM <types.TypeMask> x))
+(CvtMask32x16to16 <t> x) => (KMOVWi <t> (VPMOVVec32x16ToM <types.TypeMask> x))
+
+(CvtMask64x2to8 <t> x) => (KMOVBi <t> (VPMOVVec64x2ToM <types.TypeMask> x))
+(CvtMask64x4to8 <t> x) => (KMOVBi <t> (VPMOVVec64x4ToM <types.TypeMask> x))
+(CvtMask64x8to8 <t> x) => (KMOVBi <t> (VPMOVVec64x8ToM <types.TypeMask> x))
 
 // SIMD vector loads and stores
 (Load <t> ptr mem) && t.Size() == 16 => (VMOVDQUload128 ptr mem)
