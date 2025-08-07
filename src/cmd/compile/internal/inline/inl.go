@@ -202,6 +202,7 @@ func inlineBudget(fn *ir.Func, profile *pgoir.Profile, relaxed bool, verbose boo
 		// be very liberal here, if the closure is only called once, the budget is large
 		budget = max(budget, inlineClosureCalledOnceCost)
 	}
+
 	return budget
 }
 
@@ -263,6 +264,7 @@ func CanInline(fn *ir.Func, profile *pgoir.Profile) {
 
 	visitor := hairyVisitor{
 		curFunc:       fn,
+		debug:         isDebugFn(fn),
 		isBigFunc:     IsBigFunc(fn),
 		budget:        budget,
 		maxBudget:     budget,
@@ -407,6 +409,7 @@ type hairyVisitor struct {
 	// This is needed to access the current caller in the doNode function.
 	curFunc       *ir.Func
 	isBigFunc     bool
+	debug         bool
 	budget        int32
 	maxBudget     int32
 	reason        string
@@ -414,6 +417,16 @@ type hairyVisitor struct {
 	usedLocals    ir.NameSet
 	do            func(ir.Node) bool
 	profile       *pgoir.Profile
+}
+
+func isDebugFn(fn *ir.Func) bool {
+	// if n := fn.Nname; n != nil && n.Sym().Pkg.Path == "0" {
+	// 	if n.Sym().Name == "BroadcastInt64x4" {
+	// 		fmt.Printf("isDebugFn '%s' DOT '%s'\n", n.Sym().Pkg.Path, n.Sym().Name)
+	// 		return true
+	// 	}
+	// }
+	return false
 }
 
 func (v *hairyVisitor) tooHairy(fn *ir.Func) bool {
@@ -433,6 +446,9 @@ func (v *hairyVisitor) tooHairy(fn *ir.Func) bool {
 func (v *hairyVisitor) doNode(n ir.Node) bool {
 	if n == nil {
 		return false
+	}
+	if v.debug {
+		fmt.Printf("%v: doNode %v budget is %d\n", ir.Line(n), n.Op(), v.budget)
 	}
 opSwitch:
 	switch n.Op() {
@@ -551,12 +567,19 @@ opSwitch:
 		}
 
 		if cheap {
+			if v.debug {
+				if ir.IsIntrinsicCall(n) {
+					fmt.Printf("%v: cheap call is also intrinsic, %v\n", ir.Line(n), n)
+				}
+			}
 			break // treat like any other node, that is, cost of 1
 		}
 
 		if ir.IsIntrinsicCall(n) {
-			// Treat like any other node.
-			break
+			if v.debug {
+				fmt.Printf("%v: intrinsic call, %v\n", ir.Line(n), n)
+			}
+			break // Treat like any other node.
 		}
 
 		if callee := inlCallee(v.curFunc, n.Fun, v.profile, false); callee != nil && typecheck.HaveInlineBody(callee) {
@@ -583,6 +606,10 @@ opSwitch:
 			}
 		}
 
+		if v.debug {
+			fmt.Printf("%v: costly OCALLFUNC %v\n", ir.Line(n), n)
+		}
+
 		// Call cost for non-leaf inlining.
 		v.budget -= extraCost
 
@@ -592,6 +619,9 @@ opSwitch:
 	// Things that are too hairy, irrespective of the budget
 	case ir.OCALL, ir.OCALLINTER:
 		// Call cost for non-leaf inlining.
+		if v.debug {
+			fmt.Printf("%v: costly OCALL %v\n", ir.Line(n), n)
+		}
 		v.budget -= v.extraCallCost
 
 	case ir.OPANIC:
@@ -743,7 +773,7 @@ opSwitch:
 	v.budget--
 
 	// When debugging, don't stop early, to get full cost of inlining this function
-	if v.budget < 0 && base.Flag.LowerM < 2 && !logopt.Enabled() {
+	if v.budget < 0 && base.Flag.LowerM < 2 && !logopt.Enabled() && !v.debug {
 		v.reason = "too expensive"
 		return true
 	}

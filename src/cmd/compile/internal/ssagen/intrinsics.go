@@ -1913,6 +1913,13 @@ func IsIntrinsicCall(n *ir.CallExpr) bool {
 	}
 	name, ok := n.Fun.(*ir.Name)
 	if !ok {
+		if n.Fun.Op() == ir.OMETHEXPR {
+			if meth := ir.MethodExprName(n.Fun); meth != nil {
+				if fn := meth.Func; fn != nil {
+					return IsIntrinsicSym(fn.Sym())
+				}
+			}
+		}
 		return false
 	}
 	return IsIntrinsicSym(name.Sym())
