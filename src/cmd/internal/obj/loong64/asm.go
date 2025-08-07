@@ -2743,8 +2743,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 64: // alsl rd, rj, rk, sa2
 		sa := p.From.Offset - 1
-		if sa > 3 {
-			c.ctxt.Diag("The shift amount is too large.")
+		if sa < 0 || sa > 3 {
+			c.ctxt.Diag("%v: shift amount out of range[1, 4].\n", p)
 		}
 		r := p.GetFrom3().Reg
 		o1 = OP_2IRRR(c.opirrr(p.As), uint32(sa), uint32(r), uint32(p.Reg), uint32(p.To.Reg))

@@ -257,7 +257,7 @@ func Mul_96(n int) int {
 	// 386:`SHLL\t[$]5`,`LEAL\t\(.*\)\(.*\*2\),`,-`IMULL`
 	// arm64:`LSL\t[$]5`,`ADD\sR[0-9]+<<1,\sR[0-9]+`,-`MUL`
 	// arm:`SLL\t[$]5`,`ADD\sR[0-9]+<<1,\sR[0-9]+`,-`MUL`
-	// loong64:"ADDVU","SLLV\t[$]5",-"MULV"
+	// loong64:"SLLV\t[$]5","ALSLV\t[$]1,"
 	// s390x:`SLD\t[$]5`,`SLD\t[$]6`,-`MULLD`
 	return n * 96
 }
@@ -317,7 +317,7 @@ func MergeMuls5(a, n int) int {
 // Multiplications folded negation
 
 func FoldNegMul(a int) int {
-	// loong64:"MULV","MOVV\t[$]-11",-"SUBVU\tR[0-9], R0,"
+	// loong64:"SUBVU","ALSLV\t[$]2","ALSLV\t[$]1"
 	return (-a) * 11
 }
 

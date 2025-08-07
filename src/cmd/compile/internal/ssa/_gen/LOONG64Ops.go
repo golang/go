@@ -577,6 +577,8 @@ func init() {
 		//   is $hint and bit[41:5] is $n.
 		{name: "PRELD", argLength: 2, aux: "Int64", reg: preldreg, asm: "PRELD", hasSideEffects: true},
 		{name: "PRELDX", argLength: 2, aux: "Int64", reg: preldreg, asm: "PRELDX", hasSideEffects: true},
+
+		{name: "ADDshiftLLV", argLength: 2, aux: "Int64", reg: gp21, asm: "ALSLV"}, // arg0 + arg1<<auxInt, the value of auxInt should be in the range [1, 4].
 	}
 
 	blocks := []blockData{

@@ -1065,6 +1065,17 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			{Type: obj.TYPE_CONST, Offset: int64((v.AuxInt >> 0) & 0x1f)},
 		})
 
+	case ssa.OpLOONG64ADDshiftLLV:
+		// ADDshiftLLV Rarg0, Rarg1, $shift
+		// ALSLV $shift, Rarg1, Rarg0, Rtmp
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		p.Reg = v.Args[1].Reg()
+		p.AddRestSourceReg(v.Args[0].Reg())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
 	case ssa.OpClobber, ssa.OpClobberReg:
 		// TODO: implement for clobberdead experiment. Nop is ok for now.
 	default:
