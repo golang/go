@@ -1261,7 +1261,7 @@ func isMarkedOrNotInHeap(p unsafe.Pointer) bool {
 	// In this case, it is either a pointer to a stack object or a global resource.
 	// Treat it as reachable in memory by default, to be safe.
 	//
-	// (vsaioc) TODO: we could possibly be more precise by only checking against the stacks
+	// TODO(vsaioc): we could be more precise by checking against the stacks
 	// of runnable goroutines. I don't think this is necessary, based on what we've seen, but
 	// let's keep the option open in case the runtime evolves.
 	// This will (naively) lead to quadratic blow-up for goroutine leak detection,
