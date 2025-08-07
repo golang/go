@@ -17,7 +17,8 @@ package main
 
 import (
 	"math/rand"
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -140,9 +141,10 @@ func testTransfer_moby21233() { // G1
 }
 
 func Moby21233() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	for i := 0; i < 100; i++ {
 		go testTransfer_moby21233() // G1

@@ -19,7 +19,8 @@ package main
 
 import (
 	"io"
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"time"
 )
 
@@ -106,9 +107,10 @@ func testInflightStreamClosing_grpc1275() {
 ///
 
 func Grpc1275() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	go func() {
 		testInflightStreamClosing_grpc1275() // G1

@@ -12,7 +12,8 @@
 package main
 
 import (
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -37,9 +38,10 @@ func (svm *serviceVM_moby36114) hotRemoveVHDsAtStart() {
 }
 
 func Moby36114() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	for i := 0; i < 100; i++ {

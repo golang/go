@@ -9,7 +9,9 @@ package main
 
 import (
 	"errors"
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -226,9 +228,10 @@ func (l *JSONFileLogger_moby27782) Close() {
 }
 
 func Moby27782() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	for i := 0; i < 10000; i++ {

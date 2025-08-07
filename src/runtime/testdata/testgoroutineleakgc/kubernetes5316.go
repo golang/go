@@ -15,7 +15,8 @@ package main
 import (
 	"errors"
 	"math/rand"
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"time"
 )
 
@@ -52,9 +53,10 @@ func finishRequest_kubernetes5316(timeout time.Duration, fn func() error) {
 ///
 
 func Kubernetes5316() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	go func() {
 		fn := func() error {

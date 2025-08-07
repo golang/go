@@ -18,7 +18,9 @@
 package main
 
 import (
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -103,9 +105,10 @@ func NewExectorAndSession_cockroach16167() (*Executor_cockroach16167, *Session_c
 /// ----------------------G1,G2 deadlock--------------------
 
 func Cockroach16167() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	for i := 0; i < 100; i++ {

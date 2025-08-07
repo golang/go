@@ -11,7 +11,8 @@ package main
 
 import (
 	"context"
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"time"
 )
 
@@ -61,9 +62,10 @@ func (tx *Tx_cockroach13197) close() {
 /// -----------G2 leak-------------
 
 func Cockroach13197() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	db := &DB_cockroach13197{}

@@ -14,6 +14,8 @@ package main
 
 import (
 	"math/rand"
+	"os"
+	"runtime/pprof"
 	"runtime"
 	"sync"
 	"time"
@@ -102,9 +104,10 @@ func NewPolicyAndManager_kubernetes62464() (*staticPolicy_kubernetes62464, *mana
 ///
 
 func Kubernetes62464() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	for i := 0; i < 1000; i++ {

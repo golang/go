@@ -15,7 +15,9 @@
 package main
 
 import (
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -67,9 +69,10 @@ func (t *http2Client_grpc1460) NewStream() {
 ///
 
 func Grpc1460() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	for i := 0; i < 1000; i++ {

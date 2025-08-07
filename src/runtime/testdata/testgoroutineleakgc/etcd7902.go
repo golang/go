@@ -18,7 +18,8 @@
 package main
 
 import (
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -103,9 +104,10 @@ func doRounds_etcd7902(rcs []roundClient_etcd7902, rounds int) {
 ///
 
 func Etcd7902() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	for i := 0; i < 100; i++ {
 		go runElectionFunc_etcd7902() // G1

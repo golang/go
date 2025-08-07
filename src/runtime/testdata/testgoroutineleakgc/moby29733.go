@@ -1,7 +1,8 @@
 package main
 
 import (
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -52,23 +53,22 @@ func testActive_moby29733(p *Plugin_moby29733) {
 }
 
 func Moby29733() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
-	for i := 0; i < 1; i++ {
-		go func() {
-			// deadlocks: x > 0
-			storage := plugins_moby29733{plugins: make(map[int]*Plugin_moby29733)}
-			handlers := extpointHandlers_moby29733{extpointHandlers: make(map[int]struct{})}
+	go func() {
+		// deadlocks: x > 0
+		storage := plugins_moby29733{plugins: make(map[int]*Plugin_moby29733)}
+		handlers := extpointHandlers_moby29733{extpointHandlers: make(map[int]struct{})}
 
-			p := &Plugin_moby29733{activateWait: sync.NewCond(&sync.Mutex{})}
-			storage.plugins[0] = p
+		p := &Plugin_moby29733{activateWait: sync.NewCond(&sync.Mutex{})}
+		storage.plugins[0] = p
 
-			testActive_moby29733(p)
-			Handle_moby29733(storage, handlers)
-			testActive_moby29733(p)
-		}()
-	}
+		testActive_moby29733(p)
+		Handle_moby29733(storage, handlers)
+		testActive_moby29733(p)
+	}()
 }

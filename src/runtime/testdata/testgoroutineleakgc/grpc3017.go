@@ -1,7 +1,9 @@
 package main
 
 import (
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -88,8 +90,10 @@ func (ccc *lbCacheClientConn_grpc3017) RemoveSubConn(sc SubConn_grpc3017) {
 }
 
 func Grpc3017() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	for i := 0; i < 100; i++ {

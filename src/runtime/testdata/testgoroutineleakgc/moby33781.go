@@ -15,7 +15,8 @@ package main
 
 import (
 	"context"
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"time"
 )
 
@@ -67,9 +68,10 @@ func monitor_moby33781(stop chan bool) {
 ///
 
 func Moby33781() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	for i := 0; i < 100; i++ {
 		go func(i int) {

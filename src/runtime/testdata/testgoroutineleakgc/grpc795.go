@@ -1,7 +1,8 @@
 package main
 
 import (
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -60,9 +61,10 @@ func testServerGracefulStopIdempotent_grpc795() {
 }
 
 func Grpc795() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	for i := 0; i < 100; i++ {
 		go testServerGracefulStopIdempotent_grpc795()

@@ -8,8 +8,10 @@
 package main
 
 import (
-	"fmt"
+	"io"
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -33,7 +35,7 @@ type rangeDescriptorCache_cockroach6181 struct {
 func (rdc *rangeDescriptorCache_cockroach6181) LookupRangeDescriptor() {
 	rdc.rangeCacheMu.RLock()
 	runtime.Gosched()
-	fmt.Println("lookup range descriptor:", rdc)
+	io.Discard.Write([]byte(rdc.String()))
 	rdc.rangeCacheMu.RUnlock()
 	rdc.rangeCacheMu.Lock()
 	rdc.rangeCacheMu.Unlock()
@@ -90,9 +92,10 @@ func testRangeCacheCoalescedRequests_cockroach6181() {
 /// -------------------------------------G2,G3,... deadlock--------------------------------------
 
 func Cockroach6181() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	for i := 0; i < 100; i++ {
 		go testRangeCacheCoalescedRequests_cockroach6181() // G1

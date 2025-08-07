@@ -12,7 +12,9 @@
 package main
 
 import (
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 	"unsafe"
@@ -117,9 +119,10 @@ func NewStore_cockroach3710() *Store_cockroach3710 {
 /// ----------------------G1,G2 deadlock---------------------
 
 func Cockroach3710() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	for i := 0; i < 10000; i++ {
 		go func() {

@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"io"
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -89,9 +91,10 @@ func NewKV_etcd5509(c *Client_etcd5509) KV {
 }
 
 func Etcd5509() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	for i := 0; i < 10; i++ {
@@ -107,7 +110,7 @@ func Etcd5509() {
 				defer close(donec)
 				err := kv.Get(context.TODO())
 				if err != nil && err != ErrConnClosed_etcd5509 {
-					fmt.Println("Expect ErrConnClosed")
+					io.Discard.Write([]byte("Expect ErrConnClosed"))
 				}
 			}()
 

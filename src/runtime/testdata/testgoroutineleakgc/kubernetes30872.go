@@ -1,7 +1,9 @@
 package main
 
 import (
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -203,9 +205,10 @@ func NewNamespaceController_kubernetes30872() *NamespaceController_kubernetes308
 }
 
 func Kubernetes30872() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	for i := 0; i < 100; i++ {

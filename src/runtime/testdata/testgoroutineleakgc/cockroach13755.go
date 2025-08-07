@@ -13,7 +13,8 @@ package main
 
 import (
 	"context"
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"time"
 )
 
@@ -48,9 +49,10 @@ func (rs *Rows_cockroach13755) close(err error) {
 /// ---------------G2 leak-----------------
 
 func Cockroach13755() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	rs := &Rows_cockroach13755{}

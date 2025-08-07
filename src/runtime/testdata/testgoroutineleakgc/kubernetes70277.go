@@ -1,7 +1,8 @@
 package main
 
 import (
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"time"
 )
 
@@ -66,9 +67,10 @@ func poller_kubernetes70277(interval, timeout time.Duration) WaitFunc_kubernetes
 }
 
 func Kubernetes70277() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	for i := 0; i < 1000; i++ {
 		go func() {

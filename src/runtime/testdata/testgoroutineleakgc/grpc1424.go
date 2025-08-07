@@ -10,7 +10,8 @@
 package main
 
 import (
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -104,9 +105,10 @@ func DialContext_grpc1424() {
 ///
 
 func Grpc1424() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	go DialContext_grpc1424() // G1
 }

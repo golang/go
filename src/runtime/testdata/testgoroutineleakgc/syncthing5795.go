@@ -1,7 +1,8 @@
 package main
 
 import (
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -103,9 +104,10 @@ func NewConnection_syncthing5795(receiver Model_syncthing5795) Connection_syncth
 }
 
 func Syncthing5795() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	go func() {
 		// deadlocks: 1

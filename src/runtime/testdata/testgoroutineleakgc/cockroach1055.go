@@ -1,7 +1,8 @@
 package main
 
 import (
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -70,9 +71,10 @@ func NewStopper_cockroach1055() *Stopper_cockroach1055 {
 }
 
 func Cockroach1055() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(1 * time.Second)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	for i := 0; i <= 1000; i++ {

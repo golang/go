@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"runtime"
+	"os"
+	"runtime/pprof"
 
 	"sync"
 	"time"
@@ -113,9 +114,10 @@ func NewAgent_istio17860(proxy Proxy_istio17860) Agent_istio17860 {
 }
 
 func Istio17860() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	for i := 0; i < 100; i++ {

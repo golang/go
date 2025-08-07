@@ -13,7 +13,8 @@
 package main
 
 import (
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -40,19 +41,18 @@ func (pm *Manager_moby25348) init() {
 }
 
 func Moby25348() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
-	for i := 0; i < 100; i++ {
-		go func() {
-			p1 := &plugin_moby25348{}
-			p2 := &plugin_moby25348{}
-			pm := &Manager_moby25348{
-				plugins: []*plugin_moby25348{p1, p2},
-			}
-			// deadlocks: 100
-			go pm.init()
-		}()
-	}
+	go func() {
+		p1 := &plugin_moby25348{}
+		p2 := &plugin_moby25348{}
+		pm := &Manager_moby25348{
+			plugins: []*plugin_moby25348{p1, p2},
+		}
+		// deadlocks: 1
+		go pm.init()
+	}()
 }

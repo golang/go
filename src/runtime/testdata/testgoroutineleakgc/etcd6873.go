@@ -8,7 +8,8 @@
 package main
 
 import (
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -76,9 +77,10 @@ func (wbs *watchBroadcasts_etcd6873) update(wb *watchBroadcast_etcd6873) {
 ///
 
 func Etcd6873() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	for i := 0; i < 100; i++ {

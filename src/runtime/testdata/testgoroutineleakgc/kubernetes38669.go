@@ -1,7 +1,8 @@
 package main
 
 import (
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -63,9 +64,10 @@ func newCacheWatcher_kubernetes38669(chanSize int, initEvents []watchCacheEvent_
 }
 
 func Kubernetes38669() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(1 * time.Second)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	go func() {
 		initEvents := []watchCacheEvent_kubernetes38669{1, 2}

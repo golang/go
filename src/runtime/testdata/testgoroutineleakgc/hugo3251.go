@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -43,9 +45,10 @@ func resGetRemote_hugo3251(remoteURLLock *remoteLock_hugo3251, url string) error
 }
 
 func Hugo3251() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(time.Second)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	for i := 0; i < 10; i++ {

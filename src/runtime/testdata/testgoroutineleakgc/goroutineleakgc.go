@@ -1,7 +1,8 @@
 package main
 
 import (
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -27,53 +28,59 @@ func init() {
 }
 
 func NilRecv() {
+	prof := pprof.Lookup("goroutineleak")
 	go func() {
 		var c chan int
 		<-c
 		panic("should not be reached")
 	}()
 	time.Sleep(10 * time.Millisecond)
-	runtime.GC()
+	prof.WriteTo(os.Stdout, 2)
 }
 
 func NilSend() {
+	prof := pprof.Lookup("goroutineleak")
 	go func() {
 		var c chan int
 		c <- 0
 		panic("should not be reached")
 	}()
 	time.Sleep(10 * time.Millisecond)
-	runtime.GC()
+	prof.WriteTo(os.Stdout, 2)
 }
 
 func ChanRecv() {
+	prof := pprof.Lookup("goroutineleak")
 	go func() {
 		<-make(chan int)
 		panic("should not be reached")
 	}()
 	time.Sleep(10 * time.Millisecond)
-	runtime.GC()
+	prof.WriteTo(os.Stdout, 2)
 }
 
 func SelectNoCases() {
+	prof := pprof.Lookup("goroutineleak")
 	go func() {
 		select {}
 		panic("should not be reached")
 	}()
 	time.Sleep(10 * time.Millisecond)
-	runtime.GC()
+	prof.WriteTo(os.Stdout, 2)
 }
 
 func ChanSend() {
+	prof := pprof.Lookup("goroutineleak")
 	go func() {
 		make(chan int) <- 0
 		panic("should not be reached")
 	}()
 	time.Sleep(10 * time.Millisecond)
-	runtime.GC()
+	prof.WriteTo(os.Stdout, 2)
 }
 
 func Select() {
+	prof := pprof.Lookup("goroutineleak")
 	go func() {
 		select {
 		case make(chan int) <- 0:
@@ -82,10 +89,11 @@ func Select() {
 		panic("should not be reached")
 	}()
 	time.Sleep(10 * time.Millisecond)
-	runtime.GC()
+	prof.WriteTo(os.Stdout, 2)
 }
 
 func WaitGroup() {
+	prof := pprof.Lookup("goroutineleak")
 	go func() {
 		var wg sync.WaitGroup
 		wg.Add(1)
@@ -93,10 +101,11 @@ func WaitGroup() {
 		panic("should not be reached")
 	}()
 	time.Sleep(10 * time.Millisecond)
-	runtime.GC()
+	prof.WriteTo(os.Stdout, 2)
 }
 
 func MutexStack() {
+	prof := pprof.Lookup("goroutineleak")
 	for i := 0; i < 1000; i++ {
 		go func() {
 			var mu sync.Mutex
@@ -106,11 +115,11 @@ func MutexStack() {
 		}()
 	}
 	time.Sleep(10 * time.Millisecond)
-	runtime.GC()
-	time.Sleep(10 * time.Millisecond)
+	prof.WriteTo(os.Stdout, 2)
 }
 
 func MutexHeap() {
+	prof := pprof.Lookup("goroutineleak")
 	for i := 0; i < 1000; i++ {
 		go func() {
 			mu := &sync.Mutex{}
@@ -122,11 +131,11 @@ func MutexHeap() {
 		}()
 	}
 	time.Sleep(10 * time.Millisecond)
-	runtime.GC()
-	time.Sleep(10 * time.Millisecond)
+	prof.WriteTo(os.Stdout, 2)
 }
 
 func RWMutexRLock() {
+	prof := pprof.Lookup("goroutineleak")
 	go func() {
 		mu := &sync.RWMutex{}
 		mu.Lock()
@@ -134,10 +143,11 @@ func RWMutexRLock() {
 		panic("should not be reached")
 	}()
 	time.Sleep(10 * time.Millisecond)
-	runtime.GC()
+	prof.WriteTo(os.Stdout, 2)
 }
 
 func RWMutexLock() {
+	prof := pprof.Lookup("goroutineleak")
 	go func() {
 		mu := &sync.RWMutex{}
 		mu.Lock()
@@ -145,10 +155,11 @@ func RWMutexLock() {
 		panic("should not be reached")
 	}()
 	time.Sleep(10 * time.Millisecond)
-	runtime.GC()
+	prof.WriteTo(os.Stdout, 2)
 }
 
 func Cond() {
+	prof := pprof.Lookup("goroutineleak")
 	go func() {
 		cond := sync.NewCond(&sync.Mutex{})
 		cond.L.Lock()
@@ -156,10 +167,11 @@ func Cond() {
 		panic("should not be reached")
 	}()
 	time.Sleep(10 * time.Millisecond)
-	runtime.GC()
+	prof.WriteTo(os.Stdout, 2)
 }
 
 func Mixed() {
+	prof := pprof.Lookup("goroutineleak")
 	go func() {
 		ch := make(chan int)
 		wg := sync.WaitGroup{}
@@ -174,16 +186,17 @@ func Mixed() {
 		panic("should not be reached")
 	}()
 	time.Sleep(10 * time.Millisecond)
-	runtime.GC()
+	prof.WriteTo(os.Stdout, 2)
 }
 
 var ch = make(chan int)
 
 // No leak should be reported by this test
 func NoLeakGlobal() {
+	prof := pprof.Lookup("goroutineleak")
 	go func() {
 		<-ch
 	}()
 	time.Sleep(10 * time.Millisecond)
-	runtime.GC()
+	prof.WriteTo(os.Stdout, 2)
 }

@@ -19,7 +19,9 @@
 package main
 
 import (
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -111,9 +113,10 @@ func testMuxWatcherClose_kubernetes1321() {
 ///
 
 func Kubernetes1321() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	for i := 0; i < 1000; i++ {
 		go testMuxWatcherClose_kubernetes1321() // G1

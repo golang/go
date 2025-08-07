@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -64,9 +65,10 @@ func (c *Compactor_cockroach24808) Start(ctx context.Context, stopper *Stopper_c
 }
 
 func Cockroach24808() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	go func() {
 		// deadlocks: 1

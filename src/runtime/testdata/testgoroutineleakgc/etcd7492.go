@@ -8,7 +8,9 @@
 package main
 
 import (
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -154,9 +156,10 @@ func setupAuthStore_etcd7492() (store *authStore_etcd7492, teardownfunc func()) 
 ///
 
 func Etcd7492() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	for i := 0; i < 100; i++ {
 		go func() {
