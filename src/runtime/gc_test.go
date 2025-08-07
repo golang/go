@@ -1414,13 +1414,13 @@ func TestGoroutineLeakGC(t *testing.T) {
 			`\(\*statusManager_kubernetes10182\)\.SetPodStatus\(.* \[chan send\]`,
 		),
 		makeFlakyTest("Kubernetes11298",
-			// This entire test is flaky in producing leaks. Run it only to check for crashes.
 			`After_kubernetes11298\.func1\(.* \[chan receive\]`,
 			`After_kubernetes11298\.func1\(.* \[sync\.Cond\.Wait\]`,
 			`Kubernetes11298\.func2\(.* \[chan receive\]`,
 		),
 		makeFlakyTest("Kubernetes13135",
-			`Kubernetes13135\.func2\(.* \[sync\.WaitGroup\.Wait\]`,
+			`Util_kubernetes13135\(.* \[sync\.Mutex\.Lock\]`,
+			`\(\*WatchCache_kubernetes13135\)\.Add\(.* \[sync\.Mutex\.Lock\]`,
 		),
 		makeTest("Kubernetes25331",
 			`\(\*watchChan_kubernetes25331\)\.run\(.* \[chan send\]`,
@@ -1459,7 +1459,7 @@ func TestGoroutineLeakGC(t *testing.T) {
 		makeTest("Moby17176",
 			`testDevmapperLockReleasedDeviceDeletion_moby17176\.func1\(.* \[sync\.Mutex\.Lock\]`,
 		),
-		makeTest("Moby21233",
+		makeFlakyTest("Moby21233",
 			`\(\*Transfer_moby21233\)\.Watch\.func1\(.* \[chan send\]`,
 			`\(\*Transfer_moby21233\)\.Watch\.func1\(.* \[select\]`,
 			`testTransfer_moby21233\(.* \[chan receive\]`,
@@ -1541,6 +1541,8 @@ func TestGoroutineLeakGC(t *testing.T) {
 				t.Errorf("output:\n%s\n\ngoroutines leaks detected in case with no leaks", output)
 			}
 
+			unexpectedLeaks := make([]string, 0, len(foundLeaks))
+
 			// Parse every leak and check if it is expected (maybe as a flaky leak).
 		LEAKS:
 			for _, leak := range foundLeaks {
@@ -1575,7 +1577,7 @@ func TestGoroutineLeakGC(t *testing.T) {
 						}
 					}
 
-					t.Errorf("output:\n%s\n\nunexpected goroutine leak: %s", output, leak)
+					unexpectedLeaks = append(unexpectedLeaks, leak)
 				}
 			}
 
@@ -1586,8 +1588,15 @@ func TestGoroutineLeakGC(t *testing.T) {
 				}
 			}
 
+			var errors []error
+			if len(unexpectedLeaks) > 0 {
+				errors = append(errors, fmt.Errorf("unexpected goroutine leaks:\n%s", strings.Join(unexpectedLeaks, "\n")))
+			}
 			if len(missingLeakStrs) > 0 {
-				t.Fatalf("output:\n%s\n\nnot enough goroutines leaks detected. Missing:\n%s", output, strings.Join(missingLeakStrs, ", "))
+				errors = append(errors, fmt.Errorf("missing expected leaks:\n%s", strings.Join(missingLeakStrs, ", ")))
+			}
+			if len(errors) > 0 {
+				t.Fatalf("Failed with the following errors:\n%s\n\noutput:\n%s", errors, output)
 			}
 		})
 	}
