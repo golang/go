@@ -1418,6 +1418,18 @@ const (
 	OpAMD64VPADDSWMasked128
 	OpAMD64VPADDSWMasked256
 	OpAMD64VPADDSWMasked512
+	OpAMD64VPADDUSB128
+	OpAMD64VPADDUSB256
+	OpAMD64VPADDUSB512
+	OpAMD64VPADDUSBMasked128
+	OpAMD64VPADDUSBMasked256
+	OpAMD64VPADDUSBMasked512
+	OpAMD64VPADDUSW128
+	OpAMD64VPADDUSW256
+	OpAMD64VPADDUSW512
+	OpAMD64VPADDUSWMasked128
+	OpAMD64VPADDUSWMasked256
+	OpAMD64VPADDUSWMasked512
 	OpAMD64VPADDW128
 	OpAMD64VPADDW256
 	OpAMD64VPADDW512
@@ -1720,22 +1732,12 @@ const (
 	OpAMD64VPMINUWMasked512
 	OpAMD64VPMULDQ128
 	OpAMD64VPMULDQ256
-	OpAMD64VPMULDQ512
-	OpAMD64VPMULDQMasked128
-	OpAMD64VPMULDQMasked256
-	OpAMD64VPMULDQMasked512
 	OpAMD64VPMULHUW128
 	OpAMD64VPMULHUW256
-	OpAMD64VPMULHUW512
 	OpAMD64VPMULHUWMasked128
-	OpAMD64VPMULHUWMasked256
 	OpAMD64VPMULHUWMasked512
-	OpAMD64VPMULHW128
-	OpAMD64VPMULHW256
 	OpAMD64VPMULHW512
-	OpAMD64VPMULHWMasked128
 	OpAMD64VPMULHWMasked256
-	OpAMD64VPMULHWMasked512
 	OpAMD64VPMULLD128
 	OpAMD64VPMULLD256
 	OpAMD64VPMULLD512
@@ -1756,10 +1758,6 @@ const (
 	OpAMD64VPMULLWMasked512
 	OpAMD64VPMULUDQ128
 	OpAMD64VPMULUDQ256
-	OpAMD64VPMULUDQ512
-	OpAMD64VPMULUDQMasked128
-	OpAMD64VPMULUDQMasked256
-	OpAMD64VPMULUDQMasked512
 	OpAMD64VPOPCNTB128
 	OpAMD64VPOPCNTB256
 	OpAMD64VPOPCNTB512
@@ -1998,6 +1996,18 @@ const (
 	OpAMD64VPSUBSWMasked128
 	OpAMD64VPSUBSWMasked256
 	OpAMD64VPSUBSWMasked512
+	OpAMD64VPSUBUSB128
+	OpAMD64VPSUBUSB256
+	OpAMD64VPSUBUSB512
+	OpAMD64VPSUBUSBMasked128
+	OpAMD64VPSUBUSBMasked256
+	OpAMD64VPSUBUSBMasked512
+	OpAMD64VPSUBUSW128
+	OpAMD64VPSUBUSW256
+	OpAMD64VPSUBUSW512
+	OpAMD64VPSUBUSWMasked128
+	OpAMD64VPSUBUSWMasked256
+	OpAMD64VPSUBUSWMasked512
 	OpAMD64VPSUBW128
 	OpAMD64VPSUBW256
 	OpAMD64VPSUBW512
@@ -2102,9 +2112,6 @@ const (
 	OpAMD64VREDUCEPDMasked128
 	OpAMD64VREDUCEPDMasked256
 	OpAMD64VREDUCEPDMasked512
-	OpAMD64VDPPS128
-	OpAMD64VDPPS256
-	OpAMD64VDPPD128
 	OpAMD64VCMPPS128
 	OpAMD64VCMPPS256
 	OpAMD64VCMPPS512
@@ -4598,36 +4605,48 @@ const (
 	OpCvtMask64x2to8
 	OpCvtMask64x4to8
 	OpCvtMask64x8to8
-	OpAbsoluteInt8x16
-	OpAbsoluteInt8x32
-	OpAbsoluteInt8x64
-	OpAbsoluteInt16x8
-	OpAbsoluteInt16x16
-	OpAbsoluteInt16x32
-	OpAbsoluteInt32x4
-	OpAbsoluteInt32x8
-	OpAbsoluteInt32x16
-	OpAbsoluteInt64x2
-	OpAbsoluteInt64x4
-	OpAbsoluteInt64x8
-	OpAbsoluteMaskedInt8x16
-	OpAbsoluteMaskedInt8x32
-	OpAbsoluteMaskedInt8x64
-	OpAbsoluteMaskedInt16x8
-	OpAbsoluteMaskedInt16x16
-	OpAbsoluteMaskedInt16x32
-	OpAbsoluteMaskedInt32x4
-	OpAbsoluteMaskedInt32x8
-	OpAbsoluteMaskedInt32x16
-	OpAbsoluteMaskedInt64x2
-	OpAbsoluteMaskedInt64x4
-	OpAbsoluteMaskedInt64x8
-	OpAddDotProdInt32x4
-	OpAddDotProdInt32x8
-	OpAddDotProdInt32x16
-	OpAddDotProdMaskedInt32x4
-	OpAddDotProdMaskedInt32x8
-	OpAddDotProdMaskedInt32x16
+	OpAbsInt8x16
+	OpAbsInt8x32
+	OpAbsInt8x64
+	OpAbsInt16x8
+	OpAbsInt16x16
+	OpAbsInt16x32
+	OpAbsInt32x4
+	OpAbsInt32x8
+	OpAbsInt32x16
+	OpAbsInt64x2
+	OpAbsInt64x4
+	OpAbsInt64x8
+	OpAbsMaskedInt8x16
+	OpAbsMaskedInt8x32
+	OpAbsMaskedInt8x64
+	OpAbsMaskedInt16x8
+	OpAbsMaskedInt16x16
+	OpAbsMaskedInt16x32
+	OpAbsMaskedInt32x4
+	OpAbsMaskedInt32x8
+	OpAbsMaskedInt32x16
+	OpAbsMaskedInt64x2
+	OpAbsMaskedInt64x4
+	OpAbsMaskedInt64x8
+	OpAddDotProdPairsSaturatedInt32x4
+	OpAddDotProdPairsSaturatedInt32x8
+	OpAddDotProdPairsSaturatedInt32x16
+	OpAddDotProdPairsSaturatedMaskedInt32x4
+	OpAddDotProdPairsSaturatedMaskedInt32x8
+	OpAddDotProdPairsSaturatedMaskedInt32x16
+	OpAddDotProdQuadrupleInt32x4
+	OpAddDotProdQuadrupleInt32x8
+	OpAddDotProdQuadrupleInt32x16
+	OpAddDotProdQuadrupleMaskedInt32x4
+	OpAddDotProdQuadrupleMaskedInt32x8
+	OpAddDotProdQuadrupleMaskedInt32x16
+	OpAddDotProdQuadrupleSaturatedInt32x4
+	OpAddDotProdQuadrupleSaturatedInt32x8
+	OpAddDotProdQuadrupleSaturatedInt32x16
+	OpAddDotProdQuadrupleSaturatedMaskedInt32x4
+	OpAddDotProdQuadrupleSaturatedMaskedInt32x8
+	OpAddDotProdQuadrupleSaturatedMaskedInt32x16
 	OpAddFloat32x4
 	OpAddFloat32x8
 	OpAddFloat32x16
@@ -4802,30 +4821,6 @@ const (
 	OpAndUint64x2
 	OpAndUint64x4
 	OpAndUint64x8
-	OpApproximateReciprocalFloat32x4
-	OpApproximateReciprocalFloat32x8
-	OpApproximateReciprocalFloat32x16
-	OpApproximateReciprocalFloat64x2
-	OpApproximateReciprocalFloat64x4
-	OpApproximateReciprocalFloat64x8
-	OpApproximateReciprocalMaskedFloat32x4
-	OpApproximateReciprocalMaskedFloat32x8
-	OpApproximateReciprocalMaskedFloat32x16
-	OpApproximateReciprocalMaskedFloat64x2
-	OpApproximateReciprocalMaskedFloat64x4
-	OpApproximateReciprocalMaskedFloat64x8
-	OpApproximateReciprocalOfSqrtFloat32x4
-	OpApproximateReciprocalOfSqrtFloat32x8
-	OpApproximateReciprocalOfSqrtFloat32x16
-	OpApproximateReciprocalOfSqrtFloat64x2
-	OpApproximateReciprocalOfSqrtFloat64x4
-	OpApproximateReciprocalOfSqrtFloat64x8
-	OpApproximateReciprocalOfSqrtMaskedFloat32x4
-	OpApproximateReciprocalOfSqrtMaskedFloat32x8
-	OpApproximateReciprocalOfSqrtMaskedFloat32x16
-	OpApproximateReciprocalOfSqrtMaskedFloat64x2
-	OpApproximateReciprocalOfSqrtMaskedFloat64x4
-	OpApproximateReciprocalOfSqrtMaskedFloat64x8
 	OpAverageMaskedUint8x16
 	OpAverageMaskedUint8x32
 	OpAverageMaskedUint8x64
@@ -4884,6 +4879,12 @@ const (
 	OpConvertToUint32MaskedFloat32x4
 	OpConvertToUint32MaskedFloat32x8
 	OpConvertToUint32MaskedFloat32x16
+	OpCopySignInt8x16
+	OpCopySignInt8x32
+	OpCopySignInt16x8
+	OpCopySignInt16x16
+	OpCopySignInt32x4
+	OpCopySignInt32x8
 	OpDivFloat32x4
 	OpDivFloat32x8
 	OpDivFloat32x16
@@ -4896,9 +4897,18 @@ const (
 	OpDivMaskedFloat64x2
 	OpDivMaskedFloat64x4
 	OpDivMaskedFloat64x8
-	OpDotProdBroadcastFloat32x4
-	OpDotProdBroadcastFloat32x8
-	OpDotProdBroadcastFloat64x2
+	OpDotProdPairsInt16x8
+	OpDotProdPairsInt16x16
+	OpDotProdPairsInt16x32
+	OpDotProdPairsMaskedInt16x8
+	OpDotProdPairsMaskedInt16x16
+	OpDotProdPairsMaskedInt16x32
+	OpDotProdPairsSaturatedMaskedUint8x16
+	OpDotProdPairsSaturatedMaskedUint8x32
+	OpDotProdPairsSaturatedMaskedUint8x64
+	OpDotProdPairsSaturatedUint8x16
+	OpDotProdPairsSaturatedUint8x32
+	OpDotProdPairsSaturatedUint8x64
 	OpEqualFloat32x4
 	OpEqualFloat32x8
 	OpEqualFloat32x16
@@ -4993,42 +5003,6 @@ const (
 	OpFloorFloat32x8
 	OpFloorFloat64x2
 	OpFloorFloat64x4
-	OpFusedMultiplyAddFloat32x4
-	OpFusedMultiplyAddFloat32x8
-	OpFusedMultiplyAddFloat32x16
-	OpFusedMultiplyAddFloat64x2
-	OpFusedMultiplyAddFloat64x4
-	OpFusedMultiplyAddFloat64x8
-	OpFusedMultiplyAddMaskedFloat32x4
-	OpFusedMultiplyAddMaskedFloat32x8
-	OpFusedMultiplyAddMaskedFloat32x16
-	OpFusedMultiplyAddMaskedFloat64x2
-	OpFusedMultiplyAddMaskedFloat64x4
-	OpFusedMultiplyAddMaskedFloat64x8
-	OpFusedMultiplyAddSubFloat32x4
-	OpFusedMultiplyAddSubFloat32x8
-	OpFusedMultiplyAddSubFloat32x16
-	OpFusedMultiplyAddSubFloat64x2
-	OpFusedMultiplyAddSubFloat64x4
-	OpFusedMultiplyAddSubFloat64x8
-	OpFusedMultiplyAddSubMaskedFloat32x4
-	OpFusedMultiplyAddSubMaskedFloat32x8
-	OpFusedMultiplyAddSubMaskedFloat32x16
-	OpFusedMultiplyAddSubMaskedFloat64x2
-	OpFusedMultiplyAddSubMaskedFloat64x4
-	OpFusedMultiplyAddSubMaskedFloat64x8
-	OpFusedMultiplySubAddFloat32x4
-	OpFusedMultiplySubAddFloat32x8
-	OpFusedMultiplySubAddFloat32x16
-	OpFusedMultiplySubAddFloat64x2
-	OpFusedMultiplySubAddFloat64x4
-	OpFusedMultiplySubAddFloat64x8
-	OpFusedMultiplySubAddMaskedFloat32x4
-	OpFusedMultiplySubAddMaskedFloat32x8
-	OpFusedMultiplySubAddMaskedFloat32x16
-	OpFusedMultiplySubAddMaskedFloat64x2
-	OpFusedMultiplySubAddMaskedFloat64x4
-	OpFusedMultiplySubAddMaskedFloat64x8
 	OpGaloisFieldMulMaskedUint8x16
 	OpGaloisFieldMulMaskedUint8x32
 	OpGaloisFieldMulMaskedUint8x64
@@ -5447,22 +5421,34 @@ const (
 	OpMinUint64x2
 	OpMinUint64x4
 	OpMinUint64x8
+	OpMulAddFloat32x4
+	OpMulAddFloat32x8
+	OpMulAddFloat32x16
+	OpMulAddFloat64x2
+	OpMulAddFloat64x4
+	OpMulAddFloat64x8
+	OpMulAddMaskedFloat32x4
+	OpMulAddMaskedFloat32x8
+	OpMulAddMaskedFloat32x16
+	OpMulAddMaskedFloat64x2
+	OpMulAddMaskedFloat64x4
+	OpMulAddMaskedFloat64x8
+	OpMulAddSubFloat32x4
+	OpMulAddSubFloat32x8
+	OpMulAddSubFloat32x16
+	OpMulAddSubFloat64x2
+	OpMulAddSubFloat64x4
+	OpMulAddSubFloat64x8
+	OpMulAddSubMaskedFloat32x4
+	OpMulAddSubMaskedFloat32x8
+	OpMulAddSubMaskedFloat32x16
+	OpMulAddSubMaskedFloat64x2
+	OpMulAddSubMaskedFloat64x4
+	OpMulAddSubMaskedFloat64x8
 	OpMulEvenWidenInt32x4
 	OpMulEvenWidenInt32x8
-	OpMulEvenWidenInt64x2
-	OpMulEvenWidenInt64x4
-	OpMulEvenWidenInt64x8
-	OpMulEvenWidenMaskedInt64x2
-	OpMulEvenWidenMaskedInt64x4
-	OpMulEvenWidenMaskedInt64x8
-	OpMulEvenWidenMaskedUint64x2
-	OpMulEvenWidenMaskedUint64x4
-	OpMulEvenWidenMaskedUint64x8
 	OpMulEvenWidenUint32x4
 	OpMulEvenWidenUint32x8
-	OpMulEvenWidenUint64x2
-	OpMulEvenWidenUint64x4
-	OpMulEvenWidenUint64x8
 	OpMulFloat32x4
 	OpMulFloat32x8
 	OpMulFloat32x16
@@ -5475,12 +5461,6 @@ const (
 	OpMulHighMaskedInt16x8
 	OpMulHighMaskedInt16x16
 	OpMulHighMaskedInt16x32
-	OpMulHighMaskedUint16x8
-	OpMulHighMaskedUint16x16
-	OpMulHighMaskedUint16x32
-	OpMulHighUint16x8
-	OpMulHighUint16x16
-	OpMulHighUint16x32
 	OpMulInt16x8
 	OpMulInt16x16
 	OpMulInt16x32
@@ -5505,6 +5485,36 @@ const (
 	OpMulMaskedInt64x2
 	OpMulMaskedInt64x4
 	OpMulMaskedInt64x8
+	OpMulMaskedUint16x8
+	OpMulMaskedUint16x16
+	OpMulMaskedUint16x32
+	OpMulMaskedUint32x4
+	OpMulMaskedUint32x8
+	OpMulMaskedUint32x16
+	OpMulMaskedUint64x2
+	OpMulMaskedUint64x4
+	OpMulMaskedUint64x8
+	OpMulSubAddFloat32x4
+	OpMulSubAddFloat32x8
+	OpMulSubAddFloat32x16
+	OpMulSubAddFloat64x2
+	OpMulSubAddFloat64x4
+	OpMulSubAddFloat64x8
+	OpMulSubAddMaskedFloat32x4
+	OpMulSubAddMaskedFloat32x8
+	OpMulSubAddMaskedFloat32x16
+	OpMulSubAddMaskedFloat64x2
+	OpMulSubAddMaskedFloat64x4
+	OpMulSubAddMaskedFloat64x8
+	OpMulUint16x8
+	OpMulUint16x16
+	OpMulUint16x32
+	OpMulUint32x4
+	OpMulUint32x8
+	OpMulUint32x16
+	OpMulUint64x2
+	OpMulUint64x4
+	OpMulUint64x8
 	OpNotEqualFloat32x4
 	OpNotEqualFloat32x8
 	OpNotEqualFloat32x16
@@ -5565,6 +5575,54 @@ const (
 	OpNotEqualUint64x2
 	OpNotEqualUint64x4
 	OpNotEqualUint64x8
+	OpOnesCountInt8x16
+	OpOnesCountInt8x32
+	OpOnesCountInt8x64
+	OpOnesCountInt16x8
+	OpOnesCountInt16x16
+	OpOnesCountInt16x32
+	OpOnesCountInt32x4
+	OpOnesCountInt32x8
+	OpOnesCountInt32x16
+	OpOnesCountInt64x2
+	OpOnesCountInt64x4
+	OpOnesCountInt64x8
+	OpOnesCountMaskedInt8x16
+	OpOnesCountMaskedInt8x32
+	OpOnesCountMaskedInt8x64
+	OpOnesCountMaskedInt16x8
+	OpOnesCountMaskedInt16x16
+	OpOnesCountMaskedInt16x32
+	OpOnesCountMaskedInt32x4
+	OpOnesCountMaskedInt32x8
+	OpOnesCountMaskedInt32x16
+	OpOnesCountMaskedInt64x2
+	OpOnesCountMaskedInt64x4
+	OpOnesCountMaskedInt64x8
+	OpOnesCountMaskedUint8x16
+	OpOnesCountMaskedUint8x32
+	OpOnesCountMaskedUint8x64
+	OpOnesCountMaskedUint16x8
+	OpOnesCountMaskedUint16x16
+	OpOnesCountMaskedUint16x32
+	OpOnesCountMaskedUint32x4
+	OpOnesCountMaskedUint32x8
+	OpOnesCountMaskedUint32x16
+	OpOnesCountMaskedUint64x2
+	OpOnesCountMaskedUint64x4
+	OpOnesCountMaskedUint64x8
+	OpOnesCountUint8x16
+	OpOnesCountUint8x32
+	OpOnesCountUint8x64
+	OpOnesCountUint16x8
+	OpOnesCountUint16x16
+	OpOnesCountUint16x32
+	OpOnesCountUint32x4
+	OpOnesCountUint32x8
+	OpOnesCountUint32x16
+	OpOnesCountUint64x2
+	OpOnesCountUint64x4
+	OpOnesCountUint64x8
 	OpOrInt8x16
 	OpOrInt8x32
 	OpOrInt8x64
@@ -5601,12 +5659,6 @@ const (
 	OpOrUint64x2
 	OpOrUint64x4
 	OpOrUint64x8
-	OpPairDotProdInt16x8
-	OpPairDotProdInt16x16
-	OpPairDotProdInt16x32
-	OpPairDotProdMaskedInt16x8
-	OpPairDotProdMaskedInt16x16
-	OpPairDotProdMaskedInt16x32
 	OpPermute2Float32x4
 	OpPermute2Float32x8
 	OpPermute2Float32x16
@@ -5715,54 +5767,30 @@ const (
 	OpPermuteUint32x16
 	OpPermuteUint64x4
 	OpPermuteUint64x8
-	OpPopCountInt8x16
-	OpPopCountInt8x32
-	OpPopCountInt8x64
-	OpPopCountInt16x8
-	OpPopCountInt16x16
-	OpPopCountInt16x32
-	OpPopCountInt32x4
-	OpPopCountInt32x8
-	OpPopCountInt32x16
-	OpPopCountInt64x2
-	OpPopCountInt64x4
-	OpPopCountInt64x8
-	OpPopCountMaskedInt8x16
-	OpPopCountMaskedInt8x32
-	OpPopCountMaskedInt8x64
-	OpPopCountMaskedInt16x8
-	OpPopCountMaskedInt16x16
-	OpPopCountMaskedInt16x32
-	OpPopCountMaskedInt32x4
-	OpPopCountMaskedInt32x8
-	OpPopCountMaskedInt32x16
-	OpPopCountMaskedInt64x2
-	OpPopCountMaskedInt64x4
-	OpPopCountMaskedInt64x8
-	OpPopCountMaskedUint8x16
-	OpPopCountMaskedUint8x32
-	OpPopCountMaskedUint8x64
-	OpPopCountMaskedUint16x8
-	OpPopCountMaskedUint16x16
-	OpPopCountMaskedUint16x32
-	OpPopCountMaskedUint32x4
-	OpPopCountMaskedUint32x8
-	OpPopCountMaskedUint32x16
-	OpPopCountMaskedUint64x2
-	OpPopCountMaskedUint64x4
-	OpPopCountMaskedUint64x8
-	OpPopCountUint8x16
-	OpPopCountUint8x32
-	OpPopCountUint8x64
-	OpPopCountUint16x8
-	OpPopCountUint16x16
-	OpPopCountUint16x32
-	OpPopCountUint32x4
-	OpPopCountUint32x8
-	OpPopCountUint32x16
-	OpPopCountUint64x2
-	OpPopCountUint64x4
-	OpPopCountUint64x8
+	OpReciprocalFloat32x4
+	OpReciprocalFloat32x8
+	OpReciprocalFloat32x16
+	OpReciprocalFloat64x2
+	OpReciprocalFloat64x4
+	OpReciprocalFloat64x8
+	OpReciprocalMaskedFloat32x4
+	OpReciprocalMaskedFloat32x8
+	OpReciprocalMaskedFloat32x16
+	OpReciprocalMaskedFloat64x2
+	OpReciprocalMaskedFloat64x4
+	OpReciprocalMaskedFloat64x8
+	OpReciprocalSqrtFloat32x4
+	OpReciprocalSqrtFloat32x8
+	OpReciprocalSqrtFloat32x16
+	OpReciprocalSqrtFloat64x2
+	OpReciprocalSqrtFloat64x4
+	OpReciprocalSqrtFloat64x8
+	OpReciprocalSqrtMaskedFloat32x4
+	OpReciprocalSqrtMaskedFloat32x8
+	OpReciprocalSqrtMaskedFloat32x16
+	OpReciprocalSqrtMaskedFloat64x2
+	OpReciprocalSqrtMaskedFloat64x4
+	OpReciprocalSqrtMaskedFloat64x8
 	OpRotateLeftInt32x4
 	OpRotateLeftInt32x8
 	OpRotateLeftInt32x16
@@ -5811,28 +5839,10 @@ const (
 	OpRotateRightUint64x2
 	OpRotateRightUint64x4
 	OpRotateRightUint64x8
-	OpRoundFloat32x4
-	OpRoundFloat32x8
-	OpRoundFloat64x2
-	OpRoundFloat64x4
-	OpSaturatedAddDotProdInt32x4
-	OpSaturatedAddDotProdInt32x8
-	OpSaturatedAddDotProdInt32x16
-	OpSaturatedAddDotProdMaskedInt32x4
-	OpSaturatedAddDotProdMaskedInt32x8
-	OpSaturatedAddDotProdMaskedInt32x16
-	OpSaturatedUnsignedSignedPairDotProdMaskedUint8x16
-	OpSaturatedUnsignedSignedPairDotProdMaskedUint8x32
-	OpSaturatedUnsignedSignedPairDotProdMaskedUint8x64
-	OpSaturatedUnsignedSignedPairDotProdUint8x16
-	OpSaturatedUnsignedSignedPairDotProdUint8x32
-	OpSaturatedUnsignedSignedPairDotProdUint8x64
-	OpSaturatedUnsignedSignedQuadDotProdAccumulateInt32x4
-	OpSaturatedUnsignedSignedQuadDotProdAccumulateInt32x8
-	OpSaturatedUnsignedSignedQuadDotProdAccumulateInt32x16
-	OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedInt32x4
-	OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedInt32x8
-	OpSaturatedUnsignedSignedQuadDotProdAccumulateMaskedInt32x16
+	OpRoundToEvenFloat32x4
+	OpRoundToEvenFloat32x8
+	OpRoundToEvenFloat64x2
+	OpRoundToEvenFloat64x4
 	OpScaleFloat32x4
 	OpScaleFloat32x8
 	OpScaleFloat32x16
@@ -6101,12 +6111,6 @@ const (
 	OpShiftRightUint64x2
 	OpShiftRightUint64x4
 	OpShiftRightUint64x8
-	OpSignInt8x16
-	OpSignInt8x32
-	OpSignInt16x8
-	OpSignInt16x16
-	OpSignInt32x4
-	OpSignInt32x8
 	OpSqrtFloat32x4
 	OpSqrtFloat32x8
 	OpSqrtFloat32x16
@@ -6221,12 +6225,6 @@ const (
 	OpTruncFloat32x8
 	OpTruncFloat64x2
 	OpTruncFloat64x4
-	OpUnsignedSignedQuadDotProdAccumulateInt32x4
-	OpUnsignedSignedQuadDotProdAccumulateInt32x8
-	OpUnsignedSignedQuadDotProdAccumulateInt32x16
-	OpUnsignedSignedQuadDotProdAccumulateMaskedInt32x4
-	OpUnsignedSignedQuadDotProdAccumulateMaskedInt32x8
-	OpUnsignedSignedQuadDotProdAccumulateMaskedInt32x16
 	OpXorInt8x16
 	OpXorInt8x32
 	OpXorInt8x64
@@ -6385,30 +6383,30 @@ const (
 	OpRotateAllRightUint64x2
 	OpRotateAllRightUint64x4
 	OpRotateAllRightUint64x8
-	OpRoundScaledFloat32x4
-	OpRoundScaledFloat32x8
-	OpRoundScaledFloat32x16
-	OpRoundScaledFloat64x2
-	OpRoundScaledFloat64x4
-	OpRoundScaledFloat64x8
-	OpRoundScaledMaskedFloat32x4
-	OpRoundScaledMaskedFloat32x8
-	OpRoundScaledMaskedFloat32x16
-	OpRoundScaledMaskedFloat64x2
-	OpRoundScaledMaskedFloat64x4
-	OpRoundScaledMaskedFloat64x8
-	OpRoundScaledResidueFloat32x4
-	OpRoundScaledResidueFloat32x8
-	OpRoundScaledResidueFloat32x16
-	OpRoundScaledResidueFloat64x2
-	OpRoundScaledResidueFloat64x4
-	OpRoundScaledResidueFloat64x8
-	OpRoundScaledResidueMaskedFloat32x4
-	OpRoundScaledResidueMaskedFloat32x8
-	OpRoundScaledResidueMaskedFloat32x16
-	OpRoundScaledResidueMaskedFloat64x2
-	OpRoundScaledResidueMaskedFloat64x4
-	OpRoundScaledResidueMaskedFloat64x8
+	OpRoundToEvenScaledFloat32x4
+	OpRoundToEvenScaledFloat32x8
+	OpRoundToEvenScaledFloat32x16
+	OpRoundToEvenScaledFloat64x2
+	OpRoundToEvenScaledFloat64x4
+	OpRoundToEvenScaledFloat64x8
+	OpRoundToEvenScaledMaskedFloat32x4
+	OpRoundToEvenScaledMaskedFloat32x8
+	OpRoundToEvenScaledMaskedFloat32x16
+	OpRoundToEvenScaledMaskedFloat64x2
+	OpRoundToEvenScaledMaskedFloat64x4
+	OpRoundToEvenScaledMaskedFloat64x8
+	OpRoundToEvenScaledResidueFloat32x4
+	OpRoundToEvenScaledResidueFloat32x8
+	OpRoundToEvenScaledResidueFloat32x16
+	OpRoundToEvenScaledResidueFloat64x2
+	OpRoundToEvenScaledResidueFloat64x4
+	OpRoundToEvenScaledResidueFloat64x8
+	OpRoundToEvenScaledResidueMaskedFloat32x4
+	OpRoundToEvenScaledResidueMaskedFloat32x8
+	OpRoundToEvenScaledResidueMaskedFloat32x16
+	OpRoundToEvenScaledResidueMaskedFloat64x2
+	OpRoundToEvenScaledResidueMaskedFloat64x4
+	OpRoundToEvenScaledResidueMaskedFloat64x8
 	OpSetElemInt8x16
 	OpSetElemInt16x8
 	OpSetElemInt32x4
@@ -22406,6 +22404,192 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPADDUSB128",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPADDUSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDUSB256",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPADDUSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDUSB512",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPADDUSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:        "VPADDUSBMasked128",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPADDUSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDUSBMasked256",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPADDUSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDUSBMasked512",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPADDUSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDUSW128",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPADDUSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDUSW256",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPADDUSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDUSW512",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPADDUSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:        "VPADDUSWMasked128",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPADDUSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDUSWMasked256",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPADDUSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPADDUSWMasked512",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPADDUSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPADDW128",
 		argLen:      2,
 		commutative: true,
@@ -27017,69 +27201,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPMULDQ512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPMULDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:        "VPMULDQMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPMULDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPMULDQMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPMULDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPMULDQMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPMULDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPMULHUW128",
 		argLen:      2,
 		commutative: true,
@@ -27110,38 +27231,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPMULHUW512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPMULHUW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
 		name:        "VPMULHUWMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPMULHUW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPMULHUWMasked256",
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPMULHUW,
@@ -27173,36 +27263,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPMULHW128",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPMULHW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPMULHW256",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPMULHW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPMULHW512",
 		argLen:      2,
 		commutative: true,
@@ -27218,39 +27278,7 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:        "VPMULHWMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPMULHW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
 		name:        "VPMULHWMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPMULHW,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPMULHWMasked512",
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPMULHW,
@@ -27568,69 +27596,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPMULUDQ512",
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVPMULUDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-			outputs: []outputInfo{
-				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
-			},
-		},
-	},
-	{
-		name:        "VPMULUDQMasked128",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPMULUDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPMULUDQMasked256",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPMULUDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VPMULUDQMasked512",
-		argLen:      3,
-		commutative: true,
-		asm:         x86.AVPMULUDQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
-				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -31145,6 +31110,180 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VPSUBUSB128",
+		argLen: 2,
+		asm:    x86.AVPSUBUSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBUSB256",
+		argLen: 2,
+		asm:    x86.AVPSUBUSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBUSB512",
+		argLen: 2,
+		asm:    x86.AVPSUBUSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSUBUSBMasked128",
+		argLen: 3,
+		asm:    x86.AVPSUBUSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBUSBMasked256",
+		argLen: 3,
+		asm:    x86.AVPSUBUSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBUSBMasked512",
+		argLen: 3,
+		asm:    x86.AVPSUBUSB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBUSW128",
+		argLen: 2,
+		asm:    x86.AVPSUBUSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBUSW256",
+		argLen: 2,
+		asm:    x86.AVPSUBUSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBUSW512",
+		argLen: 2,
+		asm:    x86.AVPSUBUSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		name:   "VPSUBUSWMasked128",
+		argLen: 3,
+		asm:    x86.AVPSUBUSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBUSWMasked256",
+		argLen: 3,
+		asm:    x86.AVPSUBUSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:   "VPSUBUSWMasked512",
+		argLen: 3,
+		asm:    x86.AVPSUBUSW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:   "VPSUBW128",
 		argLen: 2,
 		asm:    x86.AVPSUBW,
@@ -32619,54 +32758,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VDPPS128",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVDPPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VDPPS256",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVDPPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:        "VDPPD128",
-		auxType:     auxInt8,
-		argLen:      2,
-		commutative: true,
-		asm:         x86.AVDPPD,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 			outputs: []outputInfo{
 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -63258,152 +63349,212 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "AbsoluteInt8x16",
+		name:    "AbsInt8x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteInt8x32",
+		name:    "AbsInt8x32",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteInt8x64",
+		name:    "AbsInt8x64",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteInt16x8",
+		name:    "AbsInt16x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteInt16x16",
+		name:    "AbsInt16x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteInt16x32",
+		name:    "AbsInt16x32",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteInt32x4",
+		name:    "AbsInt32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteInt32x8",
+		name:    "AbsInt32x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteInt32x16",
+		name:    "AbsInt32x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteInt64x2",
+		name:    "AbsInt64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteInt64x4",
+		name:    "AbsInt64x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteInt64x8",
+		name:    "AbsInt64x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteMaskedInt8x16",
+		name:    "AbsMaskedInt8x16",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteMaskedInt8x32",
+		name:    "AbsMaskedInt8x32",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteMaskedInt8x64",
+		name:    "AbsMaskedInt8x64",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteMaskedInt16x8",
+		name:    "AbsMaskedInt16x8",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteMaskedInt16x16",
+		name:    "AbsMaskedInt16x16",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteMaskedInt16x32",
+		name:    "AbsMaskedInt16x32",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteMaskedInt32x4",
+		name:    "AbsMaskedInt32x4",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteMaskedInt32x8",
+		name:    "AbsMaskedInt32x8",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteMaskedInt32x16",
+		name:    "AbsMaskedInt32x16",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteMaskedInt64x2",
+		name:    "AbsMaskedInt64x2",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteMaskedInt64x4",
+		name:    "AbsMaskedInt64x4",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "AbsoluteMaskedInt64x8",
+		name:    "AbsMaskedInt64x8",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "AddDotProdInt32x4",
+		name:    "AddDotProdPairsSaturatedInt32x4",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "AddDotProdInt32x8",
+		name:    "AddDotProdPairsSaturatedInt32x8",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "AddDotProdInt32x16",
+		name:    "AddDotProdPairsSaturatedInt32x16",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "AddDotProdMaskedInt32x4",
+		name:    "AddDotProdPairsSaturatedMaskedInt32x4",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "AddDotProdMaskedInt32x8",
+		name:    "AddDotProdPairsSaturatedMaskedInt32x8",
 		argLen:  4,
 		generic: true,
 	},
 	{
-		name:    "AddDotProdMaskedInt32x16",
+		name:    "AddDotProdPairsSaturatedMaskedInt32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "AddDotProdQuadrupleInt32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "AddDotProdQuadrupleInt32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "AddDotProdQuadrupleInt32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "AddDotProdQuadrupleMaskedInt32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "AddDotProdQuadrupleMaskedInt32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "AddDotProdQuadrupleMaskedInt32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "AddDotProdQuadrupleSaturatedInt32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "AddDotProdQuadrupleSaturatedInt32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "AddDotProdQuadrupleSaturatedInt32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "AddDotProdQuadrupleSaturatedMaskedInt32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "AddDotProdQuadrupleSaturatedMaskedInt32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "AddDotProdQuadrupleSaturatedMaskedInt32x16",
 		argLen:  4,
 		generic: true,
 	},
@@ -64398,126 +64549,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:    "ApproximateReciprocalFloat32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalFloat32x8",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalFloat32x16",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalFloat64x2",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalFloat64x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalFloat64x8",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalMaskedFloat32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalMaskedFloat32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalMaskedFloat32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalMaskedFloat64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalMaskedFloat64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalMaskedFloat64x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalOfSqrtFloat32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalOfSqrtFloat32x8",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalOfSqrtFloat32x16",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalOfSqrtFloat64x2",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalOfSqrtFloat64x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalOfSqrtFloat64x8",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalOfSqrtMaskedFloat32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalOfSqrtMaskedFloat32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalOfSqrtMaskedFloat32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalOfSqrtMaskedFloat64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalOfSqrtMaskedFloat64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "ApproximateReciprocalOfSqrtMaskedFloat64x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:        "AverageMaskedUint8x16",
 		argLen:      3,
 		commutative: true,
@@ -64820,6 +64851,36 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "CopySignInt8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "CopySignInt8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "CopySignInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "CopySignInt16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "CopySignInt32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "CopySignInt32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:    "DivFloat32x4",
 		argLen:  2,
 		generic: true,
@@ -64880,22 +64941,64 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:        "DotProdBroadcastFloat32x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "DotProdPairsInt16x8",
+		argLen:  2,
+		generic: true,
 	},
 	{
-		name:        "DotProdBroadcastFloat32x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "DotProdPairsInt16x16",
+		argLen:  2,
+		generic: true,
 	},
 	{
-		name:        "DotProdBroadcastFloat64x2",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
+		name:    "DotProdPairsInt16x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "DotProdPairsMaskedInt16x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "DotProdPairsMaskedInt16x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "DotProdPairsMaskedInt16x32",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "DotProdPairsSaturatedMaskedUint8x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "DotProdPairsSaturatedMaskedUint8x32",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "DotProdPairsSaturatedMaskedUint8x64",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "DotProdPairsSaturatedUint8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "DotProdPairsSaturatedUint8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "DotProdPairsSaturatedUint8x64",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:        "EqualFloat32x4",
@@ -65425,186 +65528,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "FloorFloat64x4",
 		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddFloat32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddFloat32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddFloat32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddFloat64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddFloat64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddFloat64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddMaskedFloat32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddMaskedFloat32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddMaskedFloat32x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddMaskedFloat64x2",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddMaskedFloat64x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddMaskedFloat64x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddSubFloat32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddSubFloat32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddSubFloat32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddSubFloat64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddSubFloat64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddSubFloat64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddSubMaskedFloat32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddSubMaskedFloat32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddSubMaskedFloat32x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddSubMaskedFloat64x2",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddSubMaskedFloat64x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplyAddSubMaskedFloat64x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplySubAddFloat32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplySubAddFloat32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplySubAddFloat32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplySubAddFloat64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplySubAddFloat64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplySubAddFloat64x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplySubAddMaskedFloat32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplySubAddMaskedFloat32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplySubAddMaskedFloat32x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplySubAddMaskedFloat64x2",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplySubAddMaskedFloat64x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "FusedMultiplySubAddMaskedFloat64x8",
-		argLen:  4,
 		generic: true,
 	},
 	{
@@ -67830,6 +67753,126 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:    "MulAddFloat32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulAddFloat32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulAddFloat32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulAddFloat64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulAddFloat64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulAddFloat64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulAddMaskedFloat32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MulAddMaskedFloat32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MulAddMaskedFloat32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MulAddMaskedFloat64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MulAddMaskedFloat64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MulAddMaskedFloat64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MulAddSubFloat32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulAddSubFloat32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulAddSubFloat32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulAddSubFloat64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulAddSubFloat64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulAddSubFloat64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulAddSubMaskedFloat32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MulAddSubMaskedFloat32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MulAddSubMaskedFloat32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MulAddSubMaskedFloat64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MulAddSubMaskedFloat64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MulAddSubMaskedFloat64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
 		name:        "MulEvenWidenInt32x4",
 		argLen:      2,
 		commutative: true,
@@ -67842,60 +67885,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MulEvenWidenInt64x2",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulEvenWidenInt64x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulEvenWidenInt64x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulEvenWidenMaskedInt64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulEvenWidenMaskedInt64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulEvenWidenMaskedInt64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulEvenWidenMaskedUint64x2",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulEvenWidenMaskedUint64x4",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulEvenWidenMaskedUint64x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:        "MulEvenWidenUint32x4",
 		argLen:      2,
 		commutative: true,
@@ -67903,24 +67892,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "MulEvenWidenUint32x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulEvenWidenUint64x2",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulEvenWidenUint64x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulEvenWidenUint64x8",
 		argLen:      2,
 		commutative: true,
 		generic:     true,
@@ -67994,42 +67965,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:        "MulHighMaskedInt16x32",
 		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulHighMaskedUint16x8",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulHighMaskedUint16x16",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulHighMaskedUint16x32",
-		argLen:      3,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulHighUint16x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulHighUint16x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulHighUint16x32",
-		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
@@ -68174,6 +68109,174 @@ var opcodeTable = [...]opInfo{
 	{
 		name:        "MulMaskedInt64x8",
 		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulMaskedUint16x8",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulMaskedUint16x16",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulMaskedUint16x32",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulMaskedUint32x4",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulMaskedUint32x8",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulMaskedUint32x16",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulMaskedUint64x2",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulMaskedUint64x4",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulMaskedUint64x8",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:    "MulSubAddFloat32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulSubAddFloat32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulSubAddFloat32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulSubAddFloat64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulSubAddFloat64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulSubAddFloat64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulSubAddMaskedFloat32x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MulSubAddMaskedFloat32x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MulSubAddMaskedFloat32x16",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MulSubAddMaskedFloat64x2",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MulSubAddMaskedFloat64x4",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:    "MulSubAddMaskedFloat64x8",
+		argLen:  4,
+		generic: true,
+	},
+	{
+		name:        "MulUint16x8",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulUint16x16",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulUint16x32",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulUint32x4",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulUint32x8",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulUint32x16",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulUint64x2",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulUint64x4",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulUint64x8",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
@@ -68538,6 +68641,246 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:    "OnesCountInt8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountInt8x32",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountInt8x64",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountInt16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountInt16x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountInt16x32",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountInt32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountInt32x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountInt32x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountInt64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountInt64x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountInt64x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedInt8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedInt8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedInt8x64",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedInt16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedInt16x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedInt32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedInt32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedInt32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedInt64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedInt64x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedInt64x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedUint8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedUint8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedUint8x64",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedUint16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedUint16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedUint16x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedUint32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedUint32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedUint32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedUint64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedUint64x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountMaskedUint64x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "OnesCountUint8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountUint8x32",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountUint8x64",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountUint16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountUint16x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountUint16x32",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountUint32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountUint32x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountUint32x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountUint64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountUint64x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "OnesCountUint64x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
 		name:        "OrInt8x16",
 		argLen:      2,
 		commutative: true,
@@ -68752,36 +69095,6 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		generic:     true,
-	},
-	{
-		name:    "PairDotProdInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairDotProdInt16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairDotProdInt16x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PairDotProdMaskedInt16x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PairDotProdMaskedInt16x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "PairDotProdMaskedInt16x32",
-		argLen:  3,
-		generic: true,
 	},
 	{
 		name:    "Permute2Float32x4",
@@ -69324,243 +69637,123 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "PopCountInt8x16",
+		name:    "ReciprocalFloat32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "PopCountInt8x32",
+		name:    "ReciprocalFloat32x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "PopCountInt8x64",
+		name:    "ReciprocalFloat32x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "PopCountInt16x8",
+		name:    "ReciprocalFloat64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "PopCountInt16x16",
+		name:    "ReciprocalFloat64x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "PopCountInt16x32",
+		name:    "ReciprocalFloat64x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "PopCountInt32x4",
+		name:    "ReciprocalMaskedFloat32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ReciprocalMaskedFloat32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ReciprocalMaskedFloat32x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ReciprocalMaskedFloat64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ReciprocalMaskedFloat64x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ReciprocalMaskedFloat64x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ReciprocalSqrtFloat32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "PopCountInt32x8",
+		name:    "ReciprocalSqrtFloat32x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "PopCountInt32x16",
+		name:    "ReciprocalSqrtFloat32x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "PopCountInt64x2",
+		name:    "ReciprocalSqrtFloat64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "PopCountInt64x4",
+		name:    "ReciprocalSqrtFloat64x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "PopCountInt64x8",
+		name:    "ReciprocalSqrtFloat64x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "PopCountMaskedInt8x16",
+		name:    "ReciprocalSqrtMaskedFloat32x4",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "PopCountMaskedInt8x32",
+		name:    "ReciprocalSqrtMaskedFloat32x8",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "PopCountMaskedInt8x64",
+		name:    "ReciprocalSqrtMaskedFloat32x16",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "PopCountMaskedInt16x8",
+		name:    "ReciprocalSqrtMaskedFloat64x2",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "PopCountMaskedInt16x16",
+		name:    "ReciprocalSqrtMaskedFloat64x4",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "PopCountMaskedInt16x32",
+		name:    "ReciprocalSqrtMaskedFloat64x8",
 		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PopCountMaskedInt32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PopCountMaskedInt32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PopCountMaskedInt32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PopCountMaskedInt64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PopCountMaskedInt64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PopCountMaskedInt64x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PopCountMaskedUint8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PopCountMaskedUint8x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PopCountMaskedUint8x64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PopCountMaskedUint16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PopCountMaskedUint16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PopCountMaskedUint16x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PopCountMaskedUint32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PopCountMaskedUint32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PopCountMaskedUint32x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PopCountMaskedUint64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PopCountMaskedUint64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PopCountMaskedUint64x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "PopCountUint8x16",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "PopCountUint8x32",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "PopCountUint8x64",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "PopCountUint16x8",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "PopCountUint16x16",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "PopCountUint16x32",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "PopCountUint32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "PopCountUint32x8",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "PopCountUint32x16",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "PopCountUint64x2",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "PopCountUint64x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "PopCountUint64x8",
-		argLen:  1,
 		generic: true,
 	},
 	{
@@ -69804,113 +69997,23 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "RoundFloat32x4",
+		name:    "RoundToEvenFloat32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundFloat32x8",
+		name:    "RoundToEvenFloat32x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundFloat64x2",
+		name:    "RoundToEvenFloat64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundFloat64x4",
+		name:    "RoundToEvenFloat64x4",
 		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "SaturatedAddDotProdInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedAddDotProdInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedAddDotProdInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedAddDotProdMaskedInt32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "SaturatedAddDotProdMaskedInt32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "SaturatedAddDotProdMaskedInt32x16",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "SaturatedUnsignedSignedPairDotProdMaskedUint8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedUnsignedSignedPairDotProdMaskedUint8x32",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedUnsignedSignedPairDotProdMaskedUint8x64",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedUnsignedSignedPairDotProdUint8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturatedUnsignedSignedPairDotProdUint8x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturatedUnsignedSignedPairDotProdUint8x64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SaturatedUnsignedSignedQuadDotProdAccumulateInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedUnsignedSignedQuadDotProdAccumulateInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedUnsignedSignedQuadDotProdAccumulateInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "SaturatedUnsignedSignedQuadDotProdAccumulateMaskedInt32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "SaturatedUnsignedSignedQuadDotProdAccumulateMaskedInt32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "SaturatedUnsignedSignedQuadDotProdAccumulateMaskedInt32x16",
-		argLen:  4,
 		generic: true,
 	},
 	{
@@ -71254,36 +71357,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "SignInt8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SignInt8x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SignInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SignInt16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SignInt32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SignInt32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "SqrtFloat32x4",
 		argLen:  1,
 		generic: true,
@@ -71851,36 +71924,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "TruncFloat64x4",
 		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "UnsignedSignedQuadDotProdAccumulateInt32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "UnsignedSignedQuadDotProdAccumulateInt32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "UnsignedSignedQuadDotProdAccumulateInt32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "UnsignedSignedQuadDotProdAccumulateMaskedInt32x4",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "UnsignedSignedQuadDotProdAccumulateMaskedInt32x8",
-		argLen:  4,
-		generic: true,
-	},
-	{
-		name:    "UnsignedSignedQuadDotProdAccumulateMaskedInt32x16",
-		argLen:  4,
 		generic: true,
 	},
 	{
@@ -72826,145 +72869,145 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "RoundScaledFloat32x4",
+		name:    "RoundToEvenScaledFloat32x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledFloat32x8",
+		name:    "RoundToEvenScaledFloat32x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledFloat32x16",
+		name:    "RoundToEvenScaledFloat32x16",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledFloat64x2",
+		name:    "RoundToEvenScaledFloat64x2",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledFloat64x4",
+		name:    "RoundToEvenScaledFloat64x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledFloat64x8",
+		name:    "RoundToEvenScaledFloat64x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledMaskedFloat32x4",
+		name:    "RoundToEvenScaledMaskedFloat32x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledMaskedFloat32x8",
+		name:    "RoundToEvenScaledMaskedFloat32x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledMaskedFloat32x16",
+		name:    "RoundToEvenScaledMaskedFloat32x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledMaskedFloat64x2",
+		name:    "RoundToEvenScaledMaskedFloat64x2",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledMaskedFloat64x4",
+		name:    "RoundToEvenScaledMaskedFloat64x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledMaskedFloat64x8",
+		name:    "RoundToEvenScaledMaskedFloat64x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledResidueFloat32x4",
+		name:    "RoundToEvenScaledResidueFloat32x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledResidueFloat32x8",
+		name:    "RoundToEvenScaledResidueFloat32x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledResidueFloat32x16",
+		name:    "RoundToEvenScaledResidueFloat32x16",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledResidueFloat64x2",
+		name:    "RoundToEvenScaledResidueFloat64x2",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledResidueFloat64x4",
+		name:    "RoundToEvenScaledResidueFloat64x4",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledResidueFloat64x8",
+		name:    "RoundToEvenScaledResidueFloat64x8",
 		auxType: auxInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledResidueMaskedFloat32x4",
+		name:    "RoundToEvenScaledResidueMaskedFloat32x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledResidueMaskedFloat32x8",
+		name:    "RoundToEvenScaledResidueMaskedFloat32x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledResidueMaskedFloat32x16",
+		name:    "RoundToEvenScaledResidueMaskedFloat32x16",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledResidueMaskedFloat64x2",
+		name:    "RoundToEvenScaledResidueMaskedFloat64x2",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledResidueMaskedFloat64x4",
+		name:    "RoundToEvenScaledResidueMaskedFloat64x4",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "RoundScaledResidueMaskedFloat64x8",
+		name:    "RoundToEvenScaledResidueMaskedFloat64x8",
 		auxType: auxInt8,
 		argLen:  2,
 		generic: true,

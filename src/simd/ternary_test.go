@@ -13,11 +13,11 @@ import (
 
 func TestFMA(t *testing.T) {
 	if simd.HasAVX512() {
-		testFloat32x4TernaryFlaky(t, simd.Float32x4.FusedMultiplyAdd, fmaSlice[float32], 0.001)
-		testFloat32x8TernaryFlaky(t, simd.Float32x8.FusedMultiplyAdd, fmaSlice[float32], 0.001)
-		testFloat32x16TernaryFlaky(t, simd.Float32x16.FusedMultiplyAdd, fmaSlice[float32], 0.001)
-		testFloat64x2Ternary(t, simd.Float64x2.FusedMultiplyAdd, fmaSlice[float64])
-		testFloat64x4Ternary(t, simd.Float64x4.FusedMultiplyAdd, fmaSlice[float64])
-		testFloat64x8Ternary(t, simd.Float64x8.FusedMultiplyAdd, fmaSlice[float64])
+		testFloat32x4TernaryFlaky(t, simd.Float32x4.MulAdd, fmaSlice[float32], 0.001)
+		testFloat32x8TernaryFlaky(t, simd.Float32x8.MulAdd, fmaSlice[float32], 0.001)
+		testFloat32x16TernaryFlaky(t, simd.Float32x16.MulAdd, fmaSlice[float32], 0.001)
+		testFloat64x2Ternary(t, simd.Float64x2.MulAdd, fmaSlice[float64])
+		testFloat64x4Ternary(t, simd.Float64x4.MulAdd, fmaSlice[float64])
+		testFloat64x8Ternary(t, simd.Float64x8.MulAdd, fmaSlice[float64])
 	}
 }

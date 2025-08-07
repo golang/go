@@ -203,25 +203,6 @@ func TestExpand(t *testing.T) {
 	}
 }
 
-func TestPairDotProdAccumulate(t *testing.T) {
-	if !simd.HasAVX512GFNI() {
-		// TODO: this function is actually VNNI, let's implement and call the right check.
-		t.Skip("Test requires HasAVX512GFNI, not available on this hardware")
-		return
-	}
-	x := simd.LoadInt16x8Slice([]int16{2, 2, 2, 2, 2, 2, 2, 2})
-	z := simd.LoadInt32x4Slice([]int32{3, 3, 3, 3})
-	want := []int32{11, 11, 11, 11}
-	got := make([]int32, 4)
-	z = z.AddDotProd(x, x)
-	z.StoreSlice(got)
-	for i := range 4 {
-		if got[i] != want[i] {
-			t.Errorf("a and b differ at index %d, got=%d, want=%d", i, got[i], want[i])
-		}
-	}
-}
-
 var testShiftAllVal uint64 = 3
 
 func TestShiftAll(t *testing.T) {

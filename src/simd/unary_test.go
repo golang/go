@@ -46,10 +46,10 @@ func TestTrunc(t *testing.T) {
 }
 
 func TestRound(t *testing.T) {
-	testFloat32x4Unary(t, simd.Float32x4.Round, roundSlice[float32])
-	testFloat32x8Unary(t, simd.Float32x8.Round, roundSlice[float32])
-	testFloat64x2Unary(t, simd.Float64x2.Round, roundSlice[float64])
-	testFloat64x4Unary(t, simd.Float64x4.Round, roundSlice[float64])
+	testFloat32x4Unary(t, simd.Float32x4.RoundToEven, roundSlice[float32])
+	testFloat32x8Unary(t, simd.Float32x8.RoundToEven, roundSlice[float32])
+	testFloat64x2Unary(t, simd.Float64x2.RoundToEven, roundSlice[float64])
+	testFloat64x4Unary(t, simd.Float64x4.RoundToEven, roundSlice[float64])
 	if simd.HasAVX512() {
 		// testFloat32x16Unary(t, simd.Float32x16.Round, roundSlice[float32]) // missing
 		// testFloat64x8Unary(t, simd.Float64x8.Round, roundSlice[float64])   // missing
@@ -68,19 +68,19 @@ func TestSqrt(t *testing.T) {
 }
 
 func TestAbsolute(t *testing.T) {
-	testInt8x16Unary(t, simd.Int8x16.Absolute, map1[int8](abs))
-	testInt8x32Unary(t, simd.Int8x32.Absolute, map1[int8](abs))
-	testInt16x8Unary(t, simd.Int16x8.Absolute, map1[int16](abs))
-	testInt16x16Unary(t, simd.Int16x16.Absolute, map1[int16](abs))
-	testInt32x4Unary(t, simd.Int32x4.Absolute, map1[int32](abs))
-	testInt32x8Unary(t, simd.Int32x8.Absolute, map1[int32](abs))
+	testInt8x16Unary(t, simd.Int8x16.Abs, map1[int8](abs))
+	testInt8x32Unary(t, simd.Int8x32.Abs, map1[int8](abs))
+	testInt16x8Unary(t, simd.Int16x8.Abs, map1[int16](abs))
+	testInt16x16Unary(t, simd.Int16x16.Abs, map1[int16](abs))
+	testInt32x4Unary(t, simd.Int32x4.Abs, map1[int32](abs))
+	testInt32x8Unary(t, simd.Int32x8.Abs, map1[int32](abs))
 	if simd.HasAVX512() {
-		testInt8x64Unary(t, simd.Int8x64.Absolute, map1[int8](abs))
-		testInt16x32Unary(t, simd.Int16x32.Absolute, map1[int16](abs))
-		testInt32x16Unary(t, simd.Int32x16.Absolute, map1[int32](abs))
-		testInt64x2Unary(t, simd.Int64x2.Absolute, map1[int64](abs))
-		testInt64x4Unary(t, simd.Int64x4.Absolute, map1[int64](abs))
-		testInt64x8Unary(t, simd.Int64x8.Absolute, map1[int64](abs))
+		testInt8x64Unary(t, simd.Int8x64.Abs, map1[int8](abs))
+		testInt16x32Unary(t, simd.Int16x32.Abs, map1[int16](abs))
+		testInt32x16Unary(t, simd.Int32x16.Abs, map1[int32](abs))
+		testInt64x2Unary(t, simd.Int64x2.Abs, map1[int64](abs))
+		testInt64x4Unary(t, simd.Int64x4.Abs, map1[int64](abs))
+		testInt64x8Unary(t, simd.Int64x8.Abs, map1[int64](abs))
 	}
 }
 

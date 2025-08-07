@@ -4,153 +4,153 @@
 
 package simd
 
-/* Absolute */
+/* Abs */
 
-// Absolute computes the absolute value of each element.
+// Abs computes the absolute value of each element.
 //
 // Asm: VPABSB, CPU Feature: AVX
-func (x Int8x16) Absolute() Int8x16
+func (x Int8x16) Abs() Int8x16
 
-// Absolute computes the absolute value of each element.
+// Abs computes the absolute value of each element.
 //
 // Asm: VPABSB, CPU Feature: AVX2
-func (x Int8x32) Absolute() Int8x32
+func (x Int8x32) Abs() Int8x32
 
-// Absolute computes the absolute value of each element.
+// Abs computes the absolute value of each element.
 //
 // Asm: VPABSB, CPU Feature: AVX512BW
-func (x Int8x64) Absolute() Int8x64
+func (x Int8x64) Abs() Int8x64
 
-// Absolute computes the absolute value of each element.
+// Abs computes the absolute value of each element.
 //
 // Asm: VPABSW, CPU Feature: AVX
-func (x Int16x8) Absolute() Int16x8
+func (x Int16x8) Abs() Int16x8
 
-// Absolute computes the absolute value of each element.
+// Abs computes the absolute value of each element.
 //
 // Asm: VPABSW, CPU Feature: AVX2
-func (x Int16x16) Absolute() Int16x16
+func (x Int16x16) Abs() Int16x16
 
-// Absolute computes the absolute value of each element.
+// Abs computes the absolute value of each element.
 //
 // Asm: VPABSW, CPU Feature: AVX512BW
-func (x Int16x32) Absolute() Int16x32
+func (x Int16x32) Abs() Int16x32
 
-// Absolute computes the absolute value of each element.
+// Abs computes the absolute value of each element.
 //
 // Asm: VPABSD, CPU Feature: AVX
-func (x Int32x4) Absolute() Int32x4
+func (x Int32x4) Abs() Int32x4
 
-// Absolute computes the absolute value of each element.
+// Abs computes the absolute value of each element.
 //
 // Asm: VPABSD, CPU Feature: AVX2
-func (x Int32x8) Absolute() Int32x8
+func (x Int32x8) Abs() Int32x8
 
-// Absolute computes the absolute value of each element.
+// Abs computes the absolute value of each element.
 //
 // Asm: VPABSD, CPU Feature: AVX512F
-func (x Int32x16) Absolute() Int32x16
+func (x Int32x16) Abs() Int32x16
 
-// Absolute computes the absolute value of each element.
+// Abs computes the absolute value of each element.
 //
 // Asm: VPABSQ, CPU Feature: AVX512F
-func (x Int64x2) Absolute() Int64x2
+func (x Int64x2) Abs() Int64x2
 
-// Absolute computes the absolute value of each element.
+// Abs computes the absolute value of each element.
 //
 // Asm: VPABSQ, CPU Feature: AVX512F
-func (x Int64x4) Absolute() Int64x4
+func (x Int64x4) Abs() Int64x4
 
-// Absolute computes the absolute value of each element.
+// Abs computes the absolute value of each element.
 //
 // Asm: VPABSQ, CPU Feature: AVX512F
-func (x Int64x8) Absolute() Int64x8
+func (x Int64x8) Abs() Int64x8
 
-/* AbsoluteMasked */
+/* AbsMasked */
 
-// AbsoluteMasked computes the absolute value of each element.
+// AbsMasked computes the absolute value of each element.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPABSB, CPU Feature: AVX512BW
-func (x Int8x16) AbsoluteMasked(mask Mask8x16) Int8x16
+func (x Int8x16) AbsMasked(mask Mask8x16) Int8x16
 
-// AbsoluteMasked computes the absolute value of each element.
+// AbsMasked computes the absolute value of each element.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPABSB, CPU Feature: AVX512BW
-func (x Int8x32) AbsoluteMasked(mask Mask8x32) Int8x32
+func (x Int8x32) AbsMasked(mask Mask8x32) Int8x32
 
-// AbsoluteMasked computes the absolute value of each element.
+// AbsMasked computes the absolute value of each element.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPABSB, CPU Feature: AVX512BW
-func (x Int8x64) AbsoluteMasked(mask Mask8x64) Int8x64
+func (x Int8x64) AbsMasked(mask Mask8x64) Int8x64
 
-// AbsoluteMasked computes the absolute value of each element.
+// AbsMasked computes the absolute value of each element.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPABSW, CPU Feature: AVX512BW
-func (x Int16x8) AbsoluteMasked(mask Mask16x8) Int16x8
+func (x Int16x8) AbsMasked(mask Mask16x8) Int16x8
 
-// AbsoluteMasked computes the absolute value of each element.
+// AbsMasked computes the absolute value of each element.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPABSW, CPU Feature: AVX512BW
-func (x Int16x16) AbsoluteMasked(mask Mask16x16) Int16x16
+func (x Int16x16) AbsMasked(mask Mask16x16) Int16x16
 
-// AbsoluteMasked computes the absolute value of each element.
+// AbsMasked computes the absolute value of each element.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPABSW, CPU Feature: AVX512BW
-func (x Int16x32) AbsoluteMasked(mask Mask16x32) Int16x32
+func (x Int16x32) AbsMasked(mask Mask16x32) Int16x32
 
-// AbsoluteMasked computes the absolute value of each element.
+// AbsMasked computes the absolute value of each element.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPABSD, CPU Feature: AVX512F
-func (x Int32x4) AbsoluteMasked(mask Mask32x4) Int32x4
+func (x Int32x4) AbsMasked(mask Mask32x4) Int32x4
 
-// AbsoluteMasked computes the absolute value of each element.
+// AbsMasked computes the absolute value of each element.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPABSD, CPU Feature: AVX512F
-func (x Int32x8) AbsoluteMasked(mask Mask32x8) Int32x8
+func (x Int32x8) AbsMasked(mask Mask32x8) Int32x8
 
-// AbsoluteMasked computes the absolute value of each element.
+// AbsMasked computes the absolute value of each element.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPABSD, CPU Feature: AVX512F
-func (x Int32x16) AbsoluteMasked(mask Mask32x16) Int32x16
+func (x Int32x16) AbsMasked(mask Mask32x16) Int32x16
 
-// AbsoluteMasked computes the absolute value of each element.
+// AbsMasked computes the absolute value of each element.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPABSQ, CPU Feature: AVX512F
-func (x Int64x2) AbsoluteMasked(mask Mask64x2) Int64x2
+func (x Int64x2) AbsMasked(mask Mask64x2) Int64x2
 
-// AbsoluteMasked computes the absolute value of each element.
+// AbsMasked computes the absolute value of each element.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPABSQ, CPU Feature: AVX512F
-func (x Int64x4) AbsoluteMasked(mask Mask64x4) Int64x4
+func (x Int64x4) AbsMasked(mask Mask64x4) Int64x4
 
-// AbsoluteMasked computes the absolute value of each element.
+// AbsMasked computes the absolute value of each element.
 //
 // This operation is applied selectively under a write mask.
 //
 // Asm: VPABSQ, CPU Feature: AVX512F
-func (x Int64x8) AbsoluteMasked(mask Mask64x8) Int64x8
+func (x Int64x8) AbsMasked(mask Mask64x8) Int64x8
 
 /* Add */
 
@@ -304,45 +304,125 @@ func (x Uint64x4) Add(y Uint64x4) Uint64x4
 // Asm: VPADDQ, CPU Feature: AVX512F
 func (x Uint64x8) Add(y Uint64x8) Uint64x8
 
-/* AddDotProd */
+/* AddDotProdPairsSaturated */
 
-// AddDotProd performs dot products on pairs of elements of y and z and then adds x.
+// AddDotProdPairsSaturated performs dot products on pairs of elements of y and z and then adds x.
 //
-// Asm: VPDPWSSD, CPU Feature: AVXVNNI
-func (x Int32x4) AddDotProd(y Int16x8, z Int16x8) Int32x4
+// Asm: VPDPWSSDS, CPU Feature: AVXVNNI
+func (x Int32x4) AddDotProdPairsSaturated(y Int16x8, z Int16x8) Int32x4
 
-// AddDotProd performs dot products on pairs of elements of y and z and then adds x.
+// AddDotProdPairsSaturated performs dot products on pairs of elements of y and z and then adds x.
 //
-// Asm: VPDPWSSD, CPU Feature: AVXVNNI
-func (x Int32x8) AddDotProd(y Int16x16, z Int16x16) Int32x8
+// Asm: VPDPWSSDS, CPU Feature: AVXVNNI
+func (x Int32x8) AddDotProdPairsSaturated(y Int16x16, z Int16x16) Int32x8
 
-// AddDotProd performs dot products on pairs of elements of y and z and then adds x.
+// AddDotProdPairsSaturated performs dot products on pairs of elements of y and z and then adds x.
 //
-// Asm: VPDPWSSD, CPU Feature: AVX512VNNI
-func (x Int32x16) AddDotProd(y Int16x32, z Int16x32) Int32x16
+// Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
+func (x Int32x16) AddDotProdPairsSaturated(y Int16x32, z Int16x32) Int32x16
 
-/* AddDotProdMasked */
+/* AddDotProdPairsSaturatedMasked */
 
-// AddDotProdMasked performs dot products on pairs of elements of y and z and then adds x.
+// AddDotProdPairsSaturatedMasked performs dot products on pairs of elements of y and z and then adds x.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPDPWSSD, CPU Feature: AVX512VNNI
-func (x Int32x4) AddDotProdMasked(y Int16x8, z Int16x8, mask Mask32x4) Int32x4
+// Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
+func (x Int32x4) AddDotProdPairsSaturatedMasked(y Int16x8, z Int16x8, mask Mask32x4) Int32x4
 
-// AddDotProdMasked performs dot products on pairs of elements of y and z and then adds x.
+// AddDotProdPairsSaturatedMasked performs dot products on pairs of elements of y and z and then adds x.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPDPWSSD, CPU Feature: AVX512VNNI
-func (x Int32x8) AddDotProdMasked(y Int16x16, z Int16x16, mask Mask32x8) Int32x8
+// Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
+func (x Int32x8) AddDotProdPairsSaturatedMasked(y Int16x16, z Int16x16, mask Mask32x8) Int32x8
 
-// AddDotProdMasked performs dot products on pairs of elements of y and z and then adds x.
+// AddDotProdPairsSaturatedMasked performs dot products on pairs of elements of y and z and then adds x.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPDPWSSD, CPU Feature: AVX512VNNI
-func (x Int32x16) AddDotProdMasked(y Int16x32, z Int16x32, mask Mask32x16) Int32x16
+// Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
+func (x Int32x16) AddDotProdPairsSaturatedMasked(y Int16x32, z Int16x32, mask Mask32x16) Int32x16
+
+/* AddDotProdQuadruple */
+
+// AddDotProdQuadruple performs dot products on groups of 4 elements of x and y and then adds z.
+//
+// Asm: VPDPBUSD, CPU Feature: AVXVNNI
+func (x Int8x16) AddDotProdQuadruple(y Uint8x16, z Int32x4) Int32x4
+
+// AddDotProdQuadruple performs dot products on groups of 4 elements of x and y and then adds z.
+//
+// Asm: VPDPBUSD, CPU Feature: AVXVNNI
+func (x Int8x32) AddDotProdQuadruple(y Uint8x32, z Int32x8) Int32x8
+
+// AddDotProdQuadruple performs dot products on groups of 4 elements of x and y and then adds z.
+//
+// Asm: VPDPBUSD, CPU Feature: AVX512VNNI
+func (x Int8x64) AddDotProdQuadruple(y Uint8x64, z Int32x16) Int32x16
+
+/* AddDotProdQuadrupleMasked */
+
+// AddDotProdQuadrupleMasked performs dot products on groups of 4 elements of x and y and then adds z.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPDPBUSD, CPU Feature: AVX512VNNI
+func (x Int8x16) AddDotProdQuadrupleMasked(y Uint8x16, z Int32x4, mask Mask32x4) Int32x4
+
+// AddDotProdQuadrupleMasked performs dot products on groups of 4 elements of x and y and then adds z.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPDPBUSD, CPU Feature: AVX512VNNI
+func (x Int8x32) AddDotProdQuadrupleMasked(y Uint8x32, z Int32x8, mask Mask32x8) Int32x8
+
+// AddDotProdQuadrupleMasked performs dot products on groups of 4 elements of x and y and then adds z.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPDPBUSD, CPU Feature: AVX512VNNI
+func (x Int8x64) AddDotProdQuadrupleMasked(y Uint8x64, z Int32x16, mask Mask32x16) Int32x16
+
+/* AddDotProdQuadrupleSaturated */
+
+// AddDotProdQuadrupleSaturated multiplies performs dot products on groups of 4 elements of x and y and then adds z.
+//
+// Asm: VPDPBUSDS, CPU Feature: AVXVNNI
+func (x Int8x16) AddDotProdQuadrupleSaturated(y Uint8x16, z Int32x4) Int32x4
+
+// AddDotProdQuadrupleSaturated multiplies performs dot products on groups of 4 elements of x and y and then adds z.
+//
+// Asm: VPDPBUSDS, CPU Feature: AVXVNNI
+func (x Int8x32) AddDotProdQuadrupleSaturated(y Uint8x32, z Int32x8) Int32x8
+
+// AddDotProdQuadrupleSaturated multiplies performs dot products on groups of 4 elements of x and y and then adds z.
+//
+// Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
+func (x Int8x64) AddDotProdQuadrupleSaturated(y Uint8x64, z Int32x16) Int32x16
+
+/* AddDotProdQuadrupleSaturatedMasked */
+
+// AddDotProdQuadrupleSaturatedMasked multiplies performs dot products on groups of 4 elements of x and y and then adds z.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
+func (x Int8x16) AddDotProdQuadrupleSaturatedMasked(y Uint8x16, z Int32x4, mask Mask32x4) Int32x4
+
+// AddDotProdQuadrupleSaturatedMasked multiplies performs dot products on groups of 4 elements of x and y and then adds z.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
+func (x Int8x32) AddDotProdQuadrupleSaturatedMasked(y Uint8x32, z Int32x8, mask Mask32x8) Int32x8
+
+// AddDotProdQuadrupleSaturatedMasked multiplies performs dot products on groups of 4 elements of x and y and then adds z.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
+func (x Int8x64) AddDotProdQuadrupleSaturatedMasked(y Uint8x64, z Int32x16, mask Mask32x16) Int32x16
 
 /* AddMasked */
 
@@ -678,32 +758,32 @@ func (x Int16x32) AddSaturated(y Int16x32) Int16x32
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
-// Asm: VPADDSB, CPU Feature: AVX
+// Asm: VPADDUSB, CPU Feature: AVX
 func (x Uint8x16) AddSaturated(y Uint8x16) Uint8x16
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
-// Asm: VPADDSB, CPU Feature: AVX2
+// Asm: VPADDUSB, CPU Feature: AVX2
 func (x Uint8x32) AddSaturated(y Uint8x32) Uint8x32
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
-// Asm: VPADDSB, CPU Feature: AVX512BW
+// Asm: VPADDUSB, CPU Feature: AVX512BW
 func (x Uint8x64) AddSaturated(y Uint8x64) Uint8x64
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
-// Asm: VPADDSW, CPU Feature: AVX
+// Asm: VPADDUSW, CPU Feature: AVX
 func (x Uint16x8) AddSaturated(y Uint16x8) Uint16x8
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
-// Asm: VPADDSW, CPU Feature: AVX2
+// Asm: VPADDUSW, CPU Feature: AVX2
 func (x Uint16x16) AddSaturated(y Uint16x16) Uint16x16
 
 // AddSaturated adds corresponding elements of two vectors with saturation.
 //
-// Asm: VPADDSW, CPU Feature: AVX512BW
+// Asm: VPADDUSW, CPU Feature: AVX512BW
 func (x Uint16x32) AddSaturated(y Uint16x32) Uint16x32
 
 /* AddSaturatedMasked */
@@ -754,42 +834,42 @@ func (x Int16x32) AddSaturatedMasked(y Int16x32, mask Mask16x32) Int16x32
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPADDSB, CPU Feature: AVX512BW
+// Asm: VPADDUSB, CPU Feature: AVX512BW
 func (x Uint8x16) AddSaturatedMasked(y Uint8x16, mask Mask8x16) Uint8x16
 
 // AddSaturatedMasked adds corresponding elements of two vectors with saturation.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPADDSB, CPU Feature: AVX512BW
+// Asm: VPADDUSB, CPU Feature: AVX512BW
 func (x Uint8x32) AddSaturatedMasked(y Uint8x32, mask Mask8x32) Uint8x32
 
 // AddSaturatedMasked adds corresponding elements of two vectors with saturation.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPADDSB, CPU Feature: AVX512BW
+// Asm: VPADDUSB, CPU Feature: AVX512BW
 func (x Uint8x64) AddSaturatedMasked(y Uint8x64, mask Mask8x64) Uint8x64
 
 // AddSaturatedMasked adds corresponding elements of two vectors with saturation.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPADDSW, CPU Feature: AVX512BW
+// Asm: VPADDUSW, CPU Feature: AVX512BW
 func (x Uint16x8) AddSaturatedMasked(y Uint16x8, mask Mask16x8) Uint16x8
 
 // AddSaturatedMasked adds corresponding elements of two vectors with saturation.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPADDSW, CPU Feature: AVX512BW
+// Asm: VPADDUSW, CPU Feature: AVX512BW
 func (x Uint16x16) AddSaturatedMasked(y Uint16x16, mask Mask16x16) Uint16x16
 
 // AddSaturatedMasked adds corresponding elements of two vectors with saturation.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPADDSW, CPU Feature: AVX512BW
+// Asm: VPADDUSW, CPU Feature: AVX512BW
 func (x Uint16x32) AddSaturatedMasked(y Uint16x32, mask Mask16x32) Uint16x32
 
 /* AddSub */
@@ -1229,158 +1309,6 @@ func (x Uint64x4) AndNotMasked(y Uint64x4, mask Mask64x4) Uint64x4
 //
 // Asm: VPANDNQ, CPU Feature: AVX512F
 func (x Uint64x8) AndNotMasked(y Uint64x8, mask Mask64x8) Uint64x8
-
-/* ApproximateReciprocal */
-
-// ApproximateReciprocal computes an approximate reciprocal of each element.
-//
-// Asm: VRCPPS, CPU Feature: AVX
-func (x Float32x4) ApproximateReciprocal() Float32x4
-
-// ApproximateReciprocal computes an approximate reciprocal of each element.
-//
-// Asm: VRCPPS, CPU Feature: AVX
-func (x Float32x8) ApproximateReciprocal() Float32x8
-
-// ApproximateReciprocal computes an approximate reciprocal of each element.
-//
-// Asm: VRCP14PS, CPU Feature: AVX512F
-func (x Float32x16) ApproximateReciprocal() Float32x16
-
-// ApproximateReciprocal computes an approximate reciprocal of each element.
-//
-// Asm: VRCP14PD, CPU Feature: AVX512F
-func (x Float64x2) ApproximateReciprocal() Float64x2
-
-// ApproximateReciprocal computes an approximate reciprocal of each element.
-//
-// Asm: VRCP14PD, CPU Feature: AVX512F
-func (x Float64x4) ApproximateReciprocal() Float64x4
-
-// ApproximateReciprocal computes an approximate reciprocal of each element.
-//
-// Asm: VRCP14PD, CPU Feature: AVX512F
-func (x Float64x8) ApproximateReciprocal() Float64x8
-
-/* ApproximateReciprocalMasked */
-
-// ApproximateReciprocalMasked computes an approximate reciprocal of each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VRCP14PS, CPU Feature: AVX512F
-func (x Float32x4) ApproximateReciprocalMasked(mask Mask32x4) Float32x4
-
-// ApproximateReciprocalMasked computes an approximate reciprocal of each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VRCP14PS, CPU Feature: AVX512F
-func (x Float32x8) ApproximateReciprocalMasked(mask Mask32x8) Float32x8
-
-// ApproximateReciprocalMasked computes an approximate reciprocal of each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VRCP14PS, CPU Feature: AVX512F
-func (x Float32x16) ApproximateReciprocalMasked(mask Mask32x16) Float32x16
-
-// ApproximateReciprocalMasked computes an approximate reciprocal of each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VRCP14PD, CPU Feature: AVX512F
-func (x Float64x2) ApproximateReciprocalMasked(mask Mask64x2) Float64x2
-
-// ApproximateReciprocalMasked computes an approximate reciprocal of each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VRCP14PD, CPU Feature: AVX512F
-func (x Float64x4) ApproximateReciprocalMasked(mask Mask64x4) Float64x4
-
-// ApproximateReciprocalMasked computes an approximate reciprocal of each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VRCP14PD, CPU Feature: AVX512F
-func (x Float64x8) ApproximateReciprocalMasked(mask Mask64x8) Float64x8
-
-/* ApproximateReciprocalOfSqrt */
-
-// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
-//
-// Asm: VRSQRTPS, CPU Feature: AVX
-func (x Float32x4) ApproximateReciprocalOfSqrt() Float32x4
-
-// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
-//
-// Asm: VRSQRTPS, CPU Feature: AVX
-func (x Float32x8) ApproximateReciprocalOfSqrt() Float32x8
-
-// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
-//
-// Asm: VRSQRT14PS, CPU Feature: AVX512F
-func (x Float32x16) ApproximateReciprocalOfSqrt() Float32x16
-
-// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
-//
-// Asm: VRSQRT14PD, CPU Feature: AVX512F
-func (x Float64x2) ApproximateReciprocalOfSqrt() Float64x2
-
-// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
-//
-// Asm: VRSQRT14PD, CPU Feature: AVX512F
-func (x Float64x4) ApproximateReciprocalOfSqrt() Float64x4
-
-// ApproximateReciprocalOfSqrt computes an approximate reciprocal of the square root of each element.
-//
-// Asm: VRSQRT14PD, CPU Feature: AVX512F
-func (x Float64x8) ApproximateReciprocalOfSqrt() Float64x8
-
-/* ApproximateReciprocalOfSqrtMasked */
-
-// ApproximateReciprocalOfSqrtMasked computes an approximate reciprocal of the square root of each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VRSQRT14PS, CPU Feature: AVX512F
-func (x Float32x4) ApproximateReciprocalOfSqrtMasked(mask Mask32x4) Float32x4
-
-// ApproximateReciprocalOfSqrtMasked computes an approximate reciprocal of the square root of each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VRSQRT14PS, CPU Feature: AVX512F
-func (x Float32x8) ApproximateReciprocalOfSqrtMasked(mask Mask32x8) Float32x8
-
-// ApproximateReciprocalOfSqrtMasked computes an approximate reciprocal of the square root of each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VRSQRT14PS, CPU Feature: AVX512F
-func (x Float32x16) ApproximateReciprocalOfSqrtMasked(mask Mask32x16) Float32x16
-
-// ApproximateReciprocalOfSqrtMasked computes an approximate reciprocal of the square root of each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VRSQRT14PD, CPU Feature: AVX512F
-func (x Float64x2) ApproximateReciprocalOfSqrtMasked(mask Mask64x2) Float64x2
-
-// ApproximateReciprocalOfSqrtMasked computes an approximate reciprocal of the square root of each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VRSQRT14PD, CPU Feature: AVX512F
-func (x Float64x4) ApproximateReciprocalOfSqrtMasked(mask Mask64x4) Float64x4
-
-// ApproximateReciprocalOfSqrtMasked computes an approximate reciprocal of the square root of each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VRSQRT14PD, CPU Feature: AVX512F
-func (x Float64x8) ApproximateReciprocalOfSqrtMasked(mask Mask64x8) Float64x8
 
 /* Average */
 
@@ -1942,6 +1870,44 @@ func (x Float32x8) ConvertToUint32Masked(mask Mask32x8) Uint32x8
 // Asm: VCVTPS2UDQ, CPU Feature: AVX512F
 func (x Float32x16) ConvertToUint32Masked(mask Mask32x16) Uint32x16
 
+/* CopySign */
+
+// CopySign returns the product of the first operand with -1, 0, or 1,
+// whichever constant is nearest to the value of the second operand.
+//
+// Asm: VPSIGNB, CPU Feature: AVX
+func (x Int8x16) CopySign(y Int8x16) Int8x16
+
+// CopySign returns the product of the first operand with -1, 0, or 1,
+// whichever constant is nearest to the value of the second operand.
+//
+// Asm: VPSIGNB, CPU Feature: AVX2
+func (x Int8x32) CopySign(y Int8x32) Int8x32
+
+// CopySign returns the product of the first operand with -1, 0, or 1,
+// whichever constant is nearest to the value of the second operand.
+//
+// Asm: VPSIGNW, CPU Feature: AVX
+func (x Int16x8) CopySign(y Int16x8) Int16x8
+
+// CopySign returns the product of the first operand with -1, 0, or 1,
+// whichever constant is nearest to the value of the second operand.
+//
+// Asm: VPSIGNW, CPU Feature: AVX2
+func (x Int16x16) CopySign(y Int16x16) Int16x16
+
+// CopySign returns the product of the first operand with -1, 0, or 1,
+// whichever constant is nearest to the value of the second operand.
+//
+// Asm: VPSIGND, CPU Feature: AVX
+func (x Int32x4) CopySign(y Int32x4) Int32x4
+
+// CopySign returns the product of the first operand with -1, 0, or 1,
+// whichever constant is nearest to the value of the second operand.
+//
+// Asm: VPSIGND, CPU Feature: AVX2
+func (x Int32x8) CopySign(y Int32x8) Int32x8
+
 /* Div */
 
 // Div divides elements of two vectors.
@@ -2018,22 +1984,97 @@ func (x Float64x4) DivMasked(y Float64x4, mask Mask64x4) Float64x4
 // Asm: VDIVPD, CPU Feature: AVX512F
 func (x Float64x8) DivMasked(y Float64x8, mask Mask64x8) Float64x8
 
-/* DotProdBroadcast */
+/* DotProdPairs */
 
-// DotProdBroadcast multiplies all elements and broadcasts the sum.
+// DotProdPairs multiplies the elements and add the pairs together,
+// yielding a vector of half as many elements with twice the input element size.
 //
-// Asm: VDPPS, CPU Feature: AVX
-func (x Float32x4) DotProdBroadcast(y Float32x4) Float32x4
+// Asm: VPMADDWD, CPU Feature: AVX
+func (x Int16x8) DotProdPairs(y Int16x8) Int32x4
 
-// DotProdBroadcast multiplies all elements and broadcasts the sum.
+// DotProdPairs multiplies the elements and add the pairs together,
+// yielding a vector of half as many elements with twice the input element size.
 //
-// Asm: VDPPS, CPU Feature: AVX
-func (x Float32x8) DotProdBroadcast(y Float32x8) Float32x8
+// Asm: VPMADDWD, CPU Feature: AVX2
+func (x Int16x16) DotProdPairs(y Int16x16) Int32x8
 
-// DotProdBroadcast multiplies all elements and broadcasts the sum.
+// DotProdPairs multiplies the elements and add the pairs together,
+// yielding a vector of half as many elements with twice the input element size.
 //
-// Asm: VDPPD, CPU Feature: AVX
-func (x Float64x2) DotProdBroadcast(y Float64x2) Float64x2
+// Asm: VPMADDWD, CPU Feature: AVX512BW
+func (x Int16x32) DotProdPairs(y Int16x32) Int32x16
+
+/* DotProdPairsMasked */
+
+// DotProdPairsMasked multiplies the elements and add the pairs together,
+// yielding a vector of half as many elements with twice the input element size.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMADDWD, CPU Feature: AVX512BW
+func (x Int16x8) DotProdPairsMasked(y Int16x8, mask Mask16x8) Int32x4
+
+// DotProdPairsMasked multiplies the elements and add the pairs together,
+// yielding a vector of half as many elements with twice the input element size.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMADDWD, CPU Feature: AVX512BW
+func (x Int16x16) DotProdPairsMasked(y Int16x16, mask Mask16x16) Int32x8
+
+// DotProdPairsMasked multiplies the elements and add the pairs together,
+// yielding a vector of half as many elements with twice the input element size.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMADDWD, CPU Feature: AVX512BW
+func (x Int16x32) DotProdPairsMasked(y Int16x32, mask Mask16x32) Int32x16
+
+/* DotProdPairsSaturated */
+
+// DotProdPairsSaturated multiplies the elements and add the pairs together with saturation,
+// yielding a vector of half as many elements with twice the input element size.
+//
+// Asm: VPMADDUBSW, CPU Feature: AVX
+func (x Uint8x16) DotProdPairsSaturated(y Int8x16) Int16x8
+
+// DotProdPairsSaturated multiplies the elements and add the pairs together with saturation,
+// yielding a vector of half as many elements with twice the input element size.
+//
+// Asm: VPMADDUBSW, CPU Feature: AVX2
+func (x Uint8x32) DotProdPairsSaturated(y Int8x32) Int16x16
+
+// DotProdPairsSaturated multiplies the elements and add the pairs together with saturation,
+// yielding a vector of half as many elements with twice the input element size.
+//
+// Asm: VPMADDUBSW, CPU Feature: AVX512BW
+func (x Uint8x64) DotProdPairsSaturated(y Int8x64) Int16x32
+
+/* DotProdPairsSaturatedMasked */
+
+// DotProdPairsSaturatedMasked multiplies the elements and add the pairs together with saturation,
+// yielding a vector of half as many elements with twice the input element size.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMADDUBSW, CPU Feature: AVX512BW
+func (x Uint8x16) DotProdPairsSaturatedMasked(y Int8x16, mask Mask16x8) Int16x8
+
+// DotProdPairsSaturatedMasked multiplies the elements and add the pairs together with saturation,
+// yielding a vector of half as many elements with twice the input element size.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMADDUBSW, CPU Feature: AVX512BW
+func (x Uint8x32) DotProdPairsSaturatedMasked(y Int8x32, mask Mask16x16) Int16x16
+
+// DotProdPairsSaturatedMasked multiplies the elements and add the pairs together with saturation,
+// yielding a vector of half as many elements with twice the input element size.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMADDUBSW, CPU Feature: AVX512BW
+func (x Uint8x64) DotProdPairsSaturatedMasked(y Int8x64, mask Mask16x32) Int16x32
 
 /* Equal */
 
@@ -2802,234 +2843,6 @@ func (x Float64x4) FloorScaledResidueMasked(prec uint8, mask Mask64x4) Float64x4
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x8) FloorScaledResidueMasked(prec uint8, mask Mask64x8) Float64x8
-
-/* FusedMultiplyAdd */
-
-// FusedMultiplyAdd performs (x * y) + z.
-//
-// Asm: VFMADD213PS, CPU Feature: AVX512F
-func (x Float32x4) FusedMultiplyAdd(y Float32x4, z Float32x4) Float32x4
-
-// FusedMultiplyAdd performs (x * y) + z.
-//
-// Asm: VFMADD213PS, CPU Feature: AVX512F
-func (x Float32x8) FusedMultiplyAdd(y Float32x8, z Float32x8) Float32x8
-
-// FusedMultiplyAdd performs (x * y) + z.
-//
-// Asm: VFMADD213PS, CPU Feature: AVX512F
-func (x Float32x16) FusedMultiplyAdd(y Float32x16, z Float32x16) Float32x16
-
-// FusedMultiplyAdd performs (x * y) + z.
-//
-// Asm: VFMADD213PD, CPU Feature: AVX512F
-func (x Float64x2) FusedMultiplyAdd(y Float64x2, z Float64x2) Float64x2
-
-// FusedMultiplyAdd performs (x * y) + z.
-//
-// Asm: VFMADD213PD, CPU Feature: AVX512F
-func (x Float64x4) FusedMultiplyAdd(y Float64x4, z Float64x4) Float64x4
-
-// FusedMultiplyAdd performs (x * y) + z.
-//
-// Asm: VFMADD213PD, CPU Feature: AVX512F
-func (x Float64x8) FusedMultiplyAdd(y Float64x8, z Float64x8) Float64x8
-
-/* FusedMultiplyAddMasked */
-
-// FusedMultiplyAddMasked performs (x * y) + z.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VFMADD213PS, CPU Feature: AVX512F
-func (x Float32x4) FusedMultiplyAddMasked(y Float32x4, z Float32x4, mask Mask32x4) Float32x4
-
-// FusedMultiplyAddMasked performs (x * y) + z.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VFMADD213PS, CPU Feature: AVX512F
-func (x Float32x8) FusedMultiplyAddMasked(y Float32x8, z Float32x8, mask Mask32x8) Float32x8
-
-// FusedMultiplyAddMasked performs (x * y) + z.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VFMADD213PS, CPU Feature: AVX512F
-func (x Float32x16) FusedMultiplyAddMasked(y Float32x16, z Float32x16, mask Mask32x16) Float32x16
-
-// FusedMultiplyAddMasked performs (x * y) + z.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VFMADD213PD, CPU Feature: AVX512F
-func (x Float64x2) FusedMultiplyAddMasked(y Float64x2, z Float64x2, mask Mask64x2) Float64x2
-
-// FusedMultiplyAddMasked performs (x * y) + z.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VFMADD213PD, CPU Feature: AVX512F
-func (x Float64x4) FusedMultiplyAddMasked(y Float64x4, z Float64x4, mask Mask64x4) Float64x4
-
-// FusedMultiplyAddMasked performs (x * y) + z.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VFMADD213PD, CPU Feature: AVX512F
-func (x Float64x8) FusedMultiplyAddMasked(y Float64x8, z Float64x8, mask Mask64x8) Float64x8
-
-/* FusedMultiplyAddSub */
-
-// FusedMultiplyAddSub performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
-//
-// Asm: VFMADDSUB213PS, CPU Feature: AVX512F
-func (x Float32x4) FusedMultiplyAddSub(y Float32x4, z Float32x4) Float32x4
-
-// FusedMultiplyAddSub performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
-//
-// Asm: VFMADDSUB213PS, CPU Feature: AVX512F
-func (x Float32x8) FusedMultiplyAddSub(y Float32x8, z Float32x8) Float32x8
-
-// FusedMultiplyAddSub performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
-//
-// Asm: VFMADDSUB213PS, CPU Feature: AVX512F
-func (x Float32x16) FusedMultiplyAddSub(y Float32x16, z Float32x16) Float32x16
-
-// FusedMultiplyAddSub performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
-//
-// Asm: VFMADDSUB213PD, CPU Feature: AVX512F
-func (x Float64x2) FusedMultiplyAddSub(y Float64x2, z Float64x2) Float64x2
-
-// FusedMultiplyAddSub performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
-//
-// Asm: VFMADDSUB213PD, CPU Feature: AVX512F
-func (x Float64x4) FusedMultiplyAddSub(y Float64x4, z Float64x4) Float64x4
-
-// FusedMultiplyAddSub performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
-//
-// Asm: VFMADDSUB213PD, CPU Feature: AVX512F
-func (x Float64x8) FusedMultiplyAddSub(y Float64x8, z Float64x8) Float64x8
-
-/* FusedMultiplyAddSubMasked */
-
-// FusedMultiplyAddSubMasked performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VFMADDSUB213PS, CPU Feature: AVX512F
-func (x Float32x4) FusedMultiplyAddSubMasked(y Float32x4, z Float32x4, mask Mask32x4) Float32x4
-
-// FusedMultiplyAddSubMasked performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VFMADDSUB213PS, CPU Feature: AVX512F
-func (x Float32x8) FusedMultiplyAddSubMasked(y Float32x8, z Float32x8, mask Mask32x8) Float32x8
-
-// FusedMultiplyAddSubMasked performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VFMADDSUB213PS, CPU Feature: AVX512F
-func (x Float32x16) FusedMultiplyAddSubMasked(y Float32x16, z Float32x16, mask Mask32x16) Float32x16
-
-// FusedMultiplyAddSubMasked performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VFMADDSUB213PD, CPU Feature: AVX512F
-func (x Float64x2) FusedMultiplyAddSubMasked(y Float64x2, z Float64x2, mask Mask64x2) Float64x2
-
-// FusedMultiplyAddSubMasked performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VFMADDSUB213PD, CPU Feature: AVX512F
-func (x Float64x4) FusedMultiplyAddSubMasked(y Float64x4, z Float64x4, mask Mask64x4) Float64x4
-
-// FusedMultiplyAddSubMasked performs (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VFMADDSUB213PD, CPU Feature: AVX512F
-func (x Float64x8) FusedMultiplyAddSubMasked(y Float64x8, z Float64x8, mask Mask64x8) Float64x8
-
-/* FusedMultiplySubAdd */
-
-// FusedMultiplySubAdd performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
-//
-// Asm: VFMSUBADD213PS, CPU Feature: AVX512F
-func (x Float32x4) FusedMultiplySubAdd(y Float32x4, z Float32x4) Float32x4
-
-// FusedMultiplySubAdd performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
-//
-// Asm: VFMSUBADD213PS, CPU Feature: AVX512F
-func (x Float32x8) FusedMultiplySubAdd(y Float32x8, z Float32x8) Float32x8
-
-// FusedMultiplySubAdd performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
-//
-// Asm: VFMSUBADD213PS, CPU Feature: AVX512F
-func (x Float32x16) FusedMultiplySubAdd(y Float32x16, z Float32x16) Float32x16
-
-// FusedMultiplySubAdd performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
-//
-// Asm: VFMSUBADD213PD, CPU Feature: AVX512F
-func (x Float64x2) FusedMultiplySubAdd(y Float64x2, z Float64x2) Float64x2
-
-// FusedMultiplySubAdd performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
-//
-// Asm: VFMSUBADD213PD, CPU Feature: AVX512F
-func (x Float64x4) FusedMultiplySubAdd(y Float64x4, z Float64x4) Float64x4
-
-// FusedMultiplySubAdd performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
-//
-// Asm: VFMSUBADD213PD, CPU Feature: AVX512F
-func (x Float64x8) FusedMultiplySubAdd(y Float64x8, z Float64x8) Float64x8
-
-/* FusedMultiplySubAddMasked */
-
-// FusedMultiplySubAddMasked performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VFMSUBADD213PS, CPU Feature: AVX512F
-func (x Float32x4) FusedMultiplySubAddMasked(y Float32x4, z Float32x4, mask Mask32x4) Float32x4
-
-// FusedMultiplySubAddMasked performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VFMSUBADD213PS, CPU Feature: AVX512F
-func (x Float32x8) FusedMultiplySubAddMasked(y Float32x8, z Float32x8, mask Mask32x8) Float32x8
-
-// FusedMultiplySubAddMasked performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VFMSUBADD213PS, CPU Feature: AVX512F
-func (x Float32x16) FusedMultiplySubAddMasked(y Float32x16, z Float32x16, mask Mask32x16) Float32x16
-
-// FusedMultiplySubAddMasked performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VFMSUBADD213PD, CPU Feature: AVX512F
-func (x Float64x2) FusedMultiplySubAddMasked(y Float64x2, z Float64x2, mask Mask64x2) Float64x2
-
-// FusedMultiplySubAddMasked performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VFMSUBADD213PD, CPU Feature: AVX512F
-func (x Float64x4) FusedMultiplySubAddMasked(y Float64x4, z Float64x4, mask Mask64x4) Float64x4
-
-// FusedMultiplySubAddMasked performs (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VFMSUBADD213PD, CPU Feature: AVX512F
-func (x Float64x8) FusedMultiplySubAddMasked(y Float64x8, z Float64x8, mask Mask64x8) Float64x8
 
 /* GaloisFieldAffineTransform */
 
@@ -5822,6 +5635,203 @@ func (x Int64x4) Mul(y Int64x4) Int64x4
 // Asm: VPMULLQ, CPU Feature: AVX512DQ
 func (x Int64x8) Mul(y Int64x8) Int64x8
 
+// Mul multiplies corresponding elements of two vectors.
+//
+// Asm: VPMULLW, CPU Feature: AVX
+func (x Uint16x8) Mul(y Uint16x8) Uint16x8
+
+// Mul multiplies corresponding elements of two vectors.
+//
+// Asm: VPMULLW, CPU Feature: AVX2
+func (x Uint16x16) Mul(y Uint16x16) Uint16x16
+
+// Mul multiplies corresponding elements of two vectors.
+//
+// Asm: VPMULLW, CPU Feature: AVX512BW
+func (x Uint16x32) Mul(y Uint16x32) Uint16x32
+
+// Mul multiplies corresponding elements of two vectors.
+//
+// Asm: VPMULLD, CPU Feature: AVX
+func (x Uint32x4) Mul(y Uint32x4) Uint32x4
+
+// Mul multiplies corresponding elements of two vectors.
+//
+// Asm: VPMULLD, CPU Feature: AVX2
+func (x Uint32x8) Mul(y Uint32x8) Uint32x8
+
+// Mul multiplies corresponding elements of two vectors.
+//
+// Asm: VPMULLD, CPU Feature: AVX512F
+func (x Uint32x16) Mul(y Uint32x16) Uint32x16
+
+// Mul multiplies corresponding elements of two vectors.
+//
+// Asm: VPMULLQ, CPU Feature: AVX512DQ
+func (x Uint64x2) Mul(y Uint64x2) Uint64x2
+
+// Mul multiplies corresponding elements of two vectors.
+//
+// Asm: VPMULLQ, CPU Feature: AVX512DQ
+func (x Uint64x4) Mul(y Uint64x4) Uint64x4
+
+// Mul multiplies corresponding elements of two vectors.
+//
+// Asm: VPMULLQ, CPU Feature: AVX512DQ
+func (x Uint64x8) Mul(y Uint64x8) Uint64x8
+
+/* MulAdd */
+
+// MulAdd performs a fused (x * y) + z.
+//
+// Asm: VFMADD213PS, CPU Feature: AVX512F
+func (x Float32x4) MulAdd(y Float32x4, z Float32x4) Float32x4
+
+// MulAdd performs a fused (x * y) + z.
+//
+// Asm: VFMADD213PS, CPU Feature: AVX512F
+func (x Float32x8) MulAdd(y Float32x8, z Float32x8) Float32x8
+
+// MulAdd performs a fused (x * y) + z.
+//
+// Asm: VFMADD213PS, CPU Feature: AVX512F
+func (x Float32x16) MulAdd(y Float32x16, z Float32x16) Float32x16
+
+// MulAdd performs a fused (x * y) + z.
+//
+// Asm: VFMADD213PD, CPU Feature: AVX512F
+func (x Float64x2) MulAdd(y Float64x2, z Float64x2) Float64x2
+
+// MulAdd performs a fused (x * y) + z.
+//
+// Asm: VFMADD213PD, CPU Feature: AVX512F
+func (x Float64x4) MulAdd(y Float64x4, z Float64x4) Float64x4
+
+// MulAdd performs a fused (x * y) + z.
+//
+// Asm: VFMADD213PD, CPU Feature: AVX512F
+func (x Float64x8) MulAdd(y Float64x8, z Float64x8) Float64x8
+
+/* MulAddMasked */
+
+// MulAddMasked performs a fused (x * y) + z.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VFMADD213PS, CPU Feature: AVX512F
+func (x Float32x4) MulAddMasked(y Float32x4, z Float32x4, mask Mask32x4) Float32x4
+
+// MulAddMasked performs a fused (x * y) + z.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VFMADD213PS, CPU Feature: AVX512F
+func (x Float32x8) MulAddMasked(y Float32x8, z Float32x8, mask Mask32x8) Float32x8
+
+// MulAddMasked performs a fused (x * y) + z.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VFMADD213PS, CPU Feature: AVX512F
+func (x Float32x16) MulAddMasked(y Float32x16, z Float32x16, mask Mask32x16) Float32x16
+
+// MulAddMasked performs a fused (x * y) + z.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VFMADD213PD, CPU Feature: AVX512F
+func (x Float64x2) MulAddMasked(y Float64x2, z Float64x2, mask Mask64x2) Float64x2
+
+// MulAddMasked performs a fused (x * y) + z.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VFMADD213PD, CPU Feature: AVX512F
+func (x Float64x4) MulAddMasked(y Float64x4, z Float64x4, mask Mask64x4) Float64x4
+
+// MulAddMasked performs a fused (x * y) + z.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VFMADD213PD, CPU Feature: AVX512F
+func (x Float64x8) MulAddMasked(y Float64x8, z Float64x8, mask Mask64x8) Float64x8
+
+/* MulAddSub */
+
+// MulAddSub performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+//
+// Asm: VFMADDSUB213PS, CPU Feature: AVX512F
+func (x Float32x4) MulAddSub(y Float32x4, z Float32x4) Float32x4
+
+// MulAddSub performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+//
+// Asm: VFMADDSUB213PS, CPU Feature: AVX512F
+func (x Float32x8) MulAddSub(y Float32x8, z Float32x8) Float32x8
+
+// MulAddSub performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+//
+// Asm: VFMADDSUB213PS, CPU Feature: AVX512F
+func (x Float32x16) MulAddSub(y Float32x16, z Float32x16) Float32x16
+
+// MulAddSub performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+//
+// Asm: VFMADDSUB213PD, CPU Feature: AVX512F
+func (x Float64x2) MulAddSub(y Float64x2, z Float64x2) Float64x2
+
+// MulAddSub performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+//
+// Asm: VFMADDSUB213PD, CPU Feature: AVX512F
+func (x Float64x4) MulAddSub(y Float64x4, z Float64x4) Float64x4
+
+// MulAddSub performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+//
+// Asm: VFMADDSUB213PD, CPU Feature: AVX512F
+func (x Float64x8) MulAddSub(y Float64x8, z Float64x8) Float64x8
+
+/* MulAddSubMasked */
+
+// MulAddSubMasked performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VFMADDSUB213PS, CPU Feature: AVX512F
+func (x Float32x4) MulAddSubMasked(y Float32x4, z Float32x4, mask Mask32x4) Float32x4
+
+// MulAddSubMasked performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VFMADDSUB213PS, CPU Feature: AVX512F
+func (x Float32x8) MulAddSubMasked(y Float32x8, z Float32x8, mask Mask32x8) Float32x8
+
+// MulAddSubMasked performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VFMADDSUB213PS, CPU Feature: AVX512F
+func (x Float32x16) MulAddSubMasked(y Float32x16, z Float32x16, mask Mask32x16) Float32x16
+
+// MulAddSubMasked performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VFMADDSUB213PD, CPU Feature: AVX512F
+func (x Float64x2) MulAddSubMasked(y Float64x2, z Float64x2, mask Mask64x2) Float64x2
+
+// MulAddSubMasked performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VFMADDSUB213PD, CPU Feature: AVX512F
+func (x Float64x4) MulAddSubMasked(y Float64x4, z Float64x4, mask Mask64x4) Float64x4
+
+// MulAddSubMasked performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VFMADDSUB213PD, CPU Feature: AVX512F
+func (x Float64x8) MulAddSubMasked(y Float64x8, z Float64x8, mask Mask64x8) Float64x8
+
 /* MulEvenWiden */
 
 // MulEvenWiden multiplies even-indexed elements, widening the result.
@@ -5839,24 +5849,6 @@ func (x Int32x8) MulEvenWiden(y Int32x8) Int64x4
 // MulEvenWiden multiplies even-indexed elements, widening the result.
 // Result[i] = v1.Even[i] * v2.Even[i].
 //
-// Asm: VPMULDQ, CPU Feature: AVX512F
-func (x Int64x2) MulEvenWiden(y Int64x2) Int64x2
-
-// MulEvenWiden multiplies even-indexed elements, widening the result.
-// Result[i] = v1.Even[i] * v2.Even[i].
-//
-// Asm: VPMULDQ, CPU Feature: AVX512F
-func (x Int64x4) MulEvenWiden(y Int64x4) Int64x4
-
-// MulEvenWiden multiplies even-indexed elements, widening the result.
-// Result[i] = v1.Even[i] * v2.Even[i].
-//
-// Asm: VPMULDQ, CPU Feature: AVX512F
-func (x Int64x8) MulEvenWiden(y Int64x8) Int64x8
-
-// MulEvenWiden multiplies even-indexed elements, widening the result.
-// Result[i] = v1.Even[i] * v2.Even[i].
-//
 // Asm: VPMULUDQ, CPU Feature: AVX
 func (x Uint32x4) MulEvenWiden(y Uint32x4) Uint64x2
 
@@ -5866,84 +5858,16 @@ func (x Uint32x4) MulEvenWiden(y Uint32x4) Uint64x2
 // Asm: VPMULUDQ, CPU Feature: AVX2
 func (x Uint32x8) MulEvenWiden(y Uint32x8) Uint64x4
 
-// MulEvenWiden multiplies even-indexed elements, widening the result.
-// Result[i] = v1.Even[i] * v2.Even[i].
-//
-// Asm: VPMULUDQ, CPU Feature: AVX512F
-func (x Uint64x2) MulEvenWiden(y Uint64x2) Uint64x2
-
-// MulEvenWiden multiplies even-indexed elements, widening the result.
-// Result[i] = v1.Even[i] * v2.Even[i].
-//
-// Asm: VPMULUDQ, CPU Feature: AVX512F
-func (x Uint64x4) MulEvenWiden(y Uint64x4) Uint64x4
-
-// MulEvenWiden multiplies even-indexed elements, widening the result.
-// Result[i] = v1.Even[i] * v2.Even[i].
-//
-// Asm: VPMULUDQ, CPU Feature: AVX512F
-func (x Uint64x8) MulEvenWiden(y Uint64x8) Uint64x8
-
-/* MulEvenWidenMasked */
-
-// MulEvenWidenMasked multiplies even-indexed elements, widening the result.
-// Result[i] = v1.Even[i] * v2.Even[i].
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMULDQ, CPU Feature: AVX512F
-func (x Int64x2) MulEvenWidenMasked(y Int64x2, mask Mask64x2) Int64x2
-
-// MulEvenWidenMasked multiplies even-indexed elements, widening the result.
-// Result[i] = v1.Even[i] * v2.Even[i].
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMULDQ, CPU Feature: AVX512F
-func (x Int64x4) MulEvenWidenMasked(y Int64x4, mask Mask64x4) Int64x4
-
-// MulEvenWidenMasked multiplies even-indexed elements, widening the result.
-// Result[i] = v1.Even[i] * v2.Even[i].
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMULDQ, CPU Feature: AVX512F
-func (x Int64x8) MulEvenWidenMasked(y Int64x8, mask Mask64x8) Int64x8
-
-// MulEvenWidenMasked multiplies even-indexed elements, widening the result.
-// Result[i] = v1.Even[i] * v2.Even[i].
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMULUDQ, CPU Feature: AVX512F
-func (x Uint64x2) MulEvenWidenMasked(y Uint64x2, mask Mask64x2) Uint64x2
-
-// MulEvenWidenMasked multiplies even-indexed elements, widening the result.
-// Result[i] = v1.Even[i] * v2.Even[i].
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMULUDQ, CPU Feature: AVX512F
-func (x Uint64x4) MulEvenWidenMasked(y Uint64x4, mask Mask64x4) Uint64x4
-
-// MulEvenWidenMasked multiplies even-indexed elements, widening the result.
-// Result[i] = v1.Even[i] * v2.Even[i].
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMULUDQ, CPU Feature: AVX512F
-func (x Uint64x8) MulEvenWidenMasked(y Uint64x8, mask Mask64x8) Uint64x8
-
 /* MulHigh */
 
 // MulHigh multiplies elements and stores the high part of the result.
 //
-// Asm: VPMULHW, CPU Feature: AVX
+// Asm: VPMULHUW, CPU Feature: AVX
 func (x Int16x8) MulHigh(y Int16x8) Int16x8
 
 // MulHigh multiplies elements and stores the high part of the result.
 //
-// Asm: VPMULHW, CPU Feature: AVX2
+// Asm: VPMULHUW, CPU Feature: AVX2
 func (x Int16x16) MulHigh(y Int16x16) Int16x16
 
 // MulHigh multiplies elements and stores the high part of the result.
@@ -5951,28 +5875,13 @@ func (x Int16x16) MulHigh(y Int16x16) Int16x16
 // Asm: VPMULHW, CPU Feature: AVX512BW
 func (x Int16x32) MulHigh(y Int16x32) Int16x32
 
-// MulHigh multiplies elements and stores the high part of the result.
-//
-// Asm: VPMULHUW, CPU Feature: AVX
-func (x Uint16x8) MulHigh(y Uint16x8) Uint16x8
-
-// MulHigh multiplies elements and stores the high part of the result.
-//
-// Asm: VPMULHUW, CPU Feature: AVX2
-func (x Uint16x16) MulHigh(y Uint16x16) Uint16x16
-
-// MulHigh multiplies elements and stores the high part of the result.
-//
-// Asm: VPMULHUW, CPU Feature: AVX512BW
-func (x Uint16x32) MulHigh(y Uint16x32) Uint16x32
-
 /* MulHighMasked */
 
 // MulHighMasked multiplies elements and stores the high part of the result.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPMULHW, CPU Feature: AVX512BW
+// Asm: VPMULHUW, CPU Feature: AVX512BW
 func (x Int16x8) MulHighMasked(y Int16x8, mask Mask16x8) Int16x8
 
 // MulHighMasked multiplies elements and stores the high part of the result.
@@ -5986,29 +5895,8 @@ func (x Int16x16) MulHighMasked(y Int16x16, mask Mask16x16) Int16x16
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPMULHW, CPU Feature: AVX512BW
+// Asm: VPMULHUW, CPU Feature: AVX512BW
 func (x Int16x32) MulHighMasked(y Int16x32, mask Mask16x32) Int16x32
-
-// MulHighMasked multiplies elements and stores the high part of the result.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMULHUW, CPU Feature: AVX512BW
-func (x Uint16x8) MulHighMasked(y Uint16x8, mask Mask16x8) Uint16x8
-
-// MulHighMasked multiplies elements and stores the high part of the result.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMULHUW, CPU Feature: AVX512BW
-func (x Uint16x16) MulHighMasked(y Uint16x16, mask Mask16x16) Uint16x16
-
-// MulHighMasked multiplies elements and stores the high part of the result.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMULHUW, CPU Feature: AVX512BW
-func (x Uint16x32) MulHighMasked(y Uint16x32, mask Mask16x32) Uint16x32
 
 /* MulMasked */
 
@@ -6116,6 +6004,145 @@ func (x Int64x4) MulMasked(y Int64x4, mask Mask64x4) Int64x4
 //
 // Asm: VPMULLQ, CPU Feature: AVX512DQ
 func (x Int64x8) MulMasked(y Int64x8, mask Mask64x8) Int64x8
+
+// MulMasked multiplies corresponding elements of two vectors.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULLW, CPU Feature: AVX512BW
+func (x Uint16x8) MulMasked(y Uint16x8, mask Mask16x8) Uint16x8
+
+// MulMasked multiplies corresponding elements of two vectors.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULLW, CPU Feature: AVX512BW
+func (x Uint16x16) MulMasked(y Uint16x16, mask Mask16x16) Uint16x16
+
+// MulMasked multiplies corresponding elements of two vectors.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULLW, CPU Feature: AVX512BW
+func (x Uint16x32) MulMasked(y Uint16x32, mask Mask16x32) Uint16x32
+
+// MulMasked multiplies corresponding elements of two vectors.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULLD, CPU Feature: AVX512F
+func (x Uint32x4) MulMasked(y Uint32x4, mask Mask32x4) Uint32x4
+
+// MulMasked multiplies corresponding elements of two vectors.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULLD, CPU Feature: AVX512F
+func (x Uint32x8) MulMasked(y Uint32x8, mask Mask32x8) Uint32x8
+
+// MulMasked multiplies corresponding elements of two vectors.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULLD, CPU Feature: AVX512F
+func (x Uint32x16) MulMasked(y Uint32x16, mask Mask32x16) Uint32x16
+
+// MulMasked multiplies corresponding elements of two vectors.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULLQ, CPU Feature: AVX512DQ
+func (x Uint64x2) MulMasked(y Uint64x2, mask Mask64x2) Uint64x2
+
+// MulMasked multiplies corresponding elements of two vectors.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULLQ, CPU Feature: AVX512DQ
+func (x Uint64x4) MulMasked(y Uint64x4, mask Mask64x4) Uint64x4
+
+// MulMasked multiplies corresponding elements of two vectors.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULLQ, CPU Feature: AVX512DQ
+func (x Uint64x8) MulMasked(y Uint64x8, mask Mask64x8) Uint64x8
+
+/* MulSubAdd */
+
+// MulSubAdd performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
+//
+// Asm: VFMSUBADD213PS, CPU Feature: AVX512F
+func (x Float32x4) MulSubAdd(y Float32x4, z Float32x4) Float32x4
+
+// MulSubAdd performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
+//
+// Asm: VFMSUBADD213PS, CPU Feature: AVX512F
+func (x Float32x8) MulSubAdd(y Float32x8, z Float32x8) Float32x8
+
+// MulSubAdd performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
+//
+// Asm: VFMSUBADD213PS, CPU Feature: AVX512F
+func (x Float32x16) MulSubAdd(y Float32x16, z Float32x16) Float32x16
+
+// MulSubAdd performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
+//
+// Asm: VFMSUBADD213PD, CPU Feature: AVX512F
+func (x Float64x2) MulSubAdd(y Float64x2, z Float64x2) Float64x2
+
+// MulSubAdd performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
+//
+// Asm: VFMSUBADD213PD, CPU Feature: AVX512F
+func (x Float64x4) MulSubAdd(y Float64x4, z Float64x4) Float64x4
+
+// MulSubAdd performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
+//
+// Asm: VFMSUBADD213PD, CPU Feature: AVX512F
+func (x Float64x8) MulSubAdd(y Float64x8, z Float64x8) Float64x8
+
+/* MulSubAddMasked */
+
+// MulSubAddMasked performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VFMSUBADD213PS, CPU Feature: AVX512F
+func (x Float32x4) MulSubAddMasked(y Float32x4, z Float32x4, mask Mask32x4) Float32x4
+
+// MulSubAddMasked performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VFMSUBADD213PS, CPU Feature: AVX512F
+func (x Float32x8) MulSubAddMasked(y Float32x8, z Float32x8, mask Mask32x8) Float32x8
+
+// MulSubAddMasked performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VFMSUBADD213PS, CPU Feature: AVX512F
+func (x Float32x16) MulSubAddMasked(y Float32x16, z Float32x16, mask Mask32x16) Float32x16
+
+// MulSubAddMasked performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VFMSUBADD213PD, CPU Feature: AVX512F
+func (x Float64x2) MulSubAddMasked(y Float64x2, z Float64x2, mask Mask64x2) Float64x2
+
+// MulSubAddMasked performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VFMSUBADD213PD, CPU Feature: AVX512F
+func (x Float64x4) MulSubAddMasked(y Float64x4, z Float64x4, mask Mask64x4) Float64x4
+
+// MulSubAddMasked performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VFMSUBADD213PD, CPU Feature: AVX512F
+func (x Float64x8) MulSubAddMasked(y Float64x8, z Float64x8, mask Mask64x8) Float64x8
 
 /* NotEqual */
 
@@ -6481,6 +6508,298 @@ func (x Uint64x4) NotEqualMasked(y Uint64x4, mask Mask64x4) Mask64x4
 // Asm: VPCMPUQ, CPU Feature: AVX512F
 func (x Uint64x8) NotEqualMasked(y Uint64x8, mask Mask64x8) Mask64x8
 
+/* OnesCount */
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Int8x16) OnesCount() Int8x16
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Int8x32) OnesCount() Int8x32
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Int8x64) OnesCount() Int8x64
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
+func (x Int16x8) OnesCount() Int16x8
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
+func (x Int16x16) OnesCount() Int16x16
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
+func (x Int16x32) OnesCount() Int16x32
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
+func (x Int32x4) OnesCount() Int32x4
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
+func (x Int32x8) OnesCount() Int32x8
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
+func (x Int32x16) OnesCount() Int32x16
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
+func (x Int64x2) OnesCount() Int64x2
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
+func (x Int64x4) OnesCount() Int64x4
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
+func (x Int64x8) OnesCount() Int64x8
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Uint8x16) OnesCount() Uint8x16
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Uint8x32) OnesCount() Uint8x32
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Uint8x64) OnesCount() Uint8x64
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
+func (x Uint16x8) OnesCount() Uint16x8
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
+func (x Uint16x16) OnesCount() Uint16x16
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
+func (x Uint16x32) OnesCount() Uint16x32
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
+func (x Uint32x4) OnesCount() Uint32x4
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
+func (x Uint32x8) OnesCount() Uint32x8
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
+func (x Uint32x16) OnesCount() Uint32x16
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
+func (x Uint64x2) OnesCount() Uint64x2
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
+func (x Uint64x4) OnesCount() Uint64x4
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
+func (x Uint64x8) OnesCount() Uint64x8
+
+/* OnesCountMasked */
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Int8x16) OnesCountMasked(mask Mask8x16) Int8x16
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Int8x32) OnesCountMasked(mask Mask8x32) Int8x32
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Int8x64) OnesCountMasked(mask Mask8x64) Int8x64
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
+func (x Int16x8) OnesCountMasked(mask Mask16x8) Int16x8
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
+func (x Int16x16) OnesCountMasked(mask Mask16x16) Int16x16
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
+func (x Int16x32) OnesCountMasked(mask Mask16x32) Int16x32
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
+func (x Int32x4) OnesCountMasked(mask Mask32x4) Int32x4
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
+func (x Int32x8) OnesCountMasked(mask Mask32x8) Int32x8
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
+func (x Int32x16) OnesCountMasked(mask Mask32x16) Int32x16
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
+func (x Int64x2) OnesCountMasked(mask Mask64x2) Int64x2
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
+func (x Int64x4) OnesCountMasked(mask Mask64x4) Int64x4
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
+func (x Int64x8) OnesCountMasked(mask Mask64x8) Int64x8
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Uint8x16) OnesCountMasked(mask Mask8x16) Uint8x16
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Uint8x32) OnesCountMasked(mask Mask8x32) Uint8x32
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
+func (x Uint8x64) OnesCountMasked(mask Mask8x64) Uint8x64
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
+func (x Uint16x8) OnesCountMasked(mask Mask16x8) Uint16x8
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
+func (x Uint16x16) OnesCountMasked(mask Mask16x16) Uint16x16
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
+func (x Uint16x32) OnesCountMasked(mask Mask16x32) Uint16x32
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
+func (x Uint32x4) OnesCountMasked(mask Mask32x4) Uint32x4
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
+func (x Uint32x8) OnesCountMasked(mask Mask32x8) Uint32x8
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
+func (x Uint32x16) OnesCountMasked(mask Mask32x16) Uint32x16
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
+func (x Uint64x2) OnesCountMasked(mask Mask64x2) Uint64x2
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
+func (x Uint64x4) OnesCountMasked(mask Mask64x4) Uint64x4
+
+// OnesCountMasked counts the number of set bits in each element.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
+func (x Uint64x8) OnesCountMasked(mask Mask64x8) Uint64x8
+
 /* Or */
 
 // Or performs a bitwise OR operation between two vectors.
@@ -6688,52 +7007,6 @@ func (x Uint64x4) OrMasked(y Uint64x4, mask Mask64x4) Uint64x4
 //
 // Asm: VPORQ, CPU Feature: AVX512F
 func (x Uint64x8) OrMasked(y Uint64x8, mask Mask64x8) Uint64x8
-
-/* PairDotProd */
-
-// PairDotProd multiplies the elements and add the pairs together,
-// yielding a vector of half as many elements with twice the input element size.
-//
-// Asm: VPMADDWD, CPU Feature: AVX
-func (x Int16x8) PairDotProd(y Int16x8) Int32x4
-
-// PairDotProd multiplies the elements and add the pairs together,
-// yielding a vector of half as many elements with twice the input element size.
-//
-// Asm: VPMADDWD, CPU Feature: AVX2
-func (x Int16x16) PairDotProd(y Int16x16) Int32x8
-
-// PairDotProd multiplies the elements and add the pairs together,
-// yielding a vector of half as many elements with twice the input element size.
-//
-// Asm: VPMADDWD, CPU Feature: AVX512BW
-func (x Int16x32) PairDotProd(y Int16x32) Int32x16
-
-/* PairDotProdMasked */
-
-// PairDotProdMasked multiplies the elements and add the pairs together,
-// yielding a vector of half as many elements with twice the input element size.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMADDWD, CPU Feature: AVX512BW
-func (x Int16x8) PairDotProdMasked(y Int16x8, mask Mask16x8) Int32x4
-
-// PairDotProdMasked multiplies the elements and add the pairs together,
-// yielding a vector of half as many elements with twice the input element size.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMADDWD, CPU Feature: AVX512BW
-func (x Int16x16) PairDotProdMasked(y Int16x16, mask Mask16x16) Int32x8
-
-// PairDotProdMasked multiplies the elements and add the pairs together,
-// yielding a vector of half as many elements with twice the input element size.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMADDWD, CPU Feature: AVX512BW
-func (x Int16x32) PairDotProdMasked(y Int16x32, mask Mask16x32) Int32x16
 
 /* Permute */
 
@@ -7667,297 +7940,157 @@ func (x Int64x8) PermuteMasked(indices Uint64x8, mask Mask64x8) Int64x8
 // Asm: VPERMQ, CPU Feature: AVX512F
 func (x Uint64x8) PermuteMasked(indices Uint64x8, mask Mask64x8) Uint64x8
 
-/* PopCount */
+/* Reciprocal */
 
-// PopCount counts the number of set bits in each element.
+// Reciprocal computes an approximate reciprocal of each element.
 //
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
-func (x Int8x16) PopCount() Int8x16
+// Asm: VRCPPS, CPU Feature: AVX
+func (x Float32x4) Reciprocal() Float32x4
 
-// PopCount counts the number of set bits in each element.
+// Reciprocal computes an approximate reciprocal of each element.
 //
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
-func (x Int8x32) PopCount() Int8x32
+// Asm: VRCPPS, CPU Feature: AVX
+func (x Float32x8) Reciprocal() Float32x8
 
-// PopCount counts the number of set bits in each element.
+// Reciprocal computes an approximate reciprocal of each element.
 //
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
-func (x Int8x64) PopCount() Int8x64
+// Asm: VRCP14PS, CPU Feature: AVX512F
+func (x Float32x16) Reciprocal() Float32x16
 
-// PopCount counts the number of set bits in each element.
+// Reciprocal computes an approximate reciprocal of each element.
 //
-// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
-func (x Int16x8) PopCount() Int16x8
+// Asm: VRCP14PD, CPU Feature: AVX512F
+func (x Float64x2) Reciprocal() Float64x2
 
-// PopCount counts the number of set bits in each element.
+// Reciprocal computes an approximate reciprocal of each element.
 //
-// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
-func (x Int16x16) PopCount() Int16x16
+// Asm: VRCP14PD, CPU Feature: AVX512F
+func (x Float64x4) Reciprocal() Float64x4
 
-// PopCount counts the number of set bits in each element.
+// Reciprocal computes an approximate reciprocal of each element.
 //
-// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
-func (x Int16x32) PopCount() Int16x32
+// Asm: VRCP14PD, CPU Feature: AVX512F
+func (x Float64x8) Reciprocal() Float64x8
 
-// PopCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
-func (x Int32x4) PopCount() Int32x4
+/* ReciprocalMasked */
 
-// PopCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
-func (x Int32x8) PopCount() Int32x8
-
-// PopCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
-func (x Int32x16) PopCount() Int32x16
-
-// PopCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
-func (x Int64x2) PopCount() Int64x2
-
-// PopCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
-func (x Int64x4) PopCount() Int64x4
-
-// PopCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
-func (x Int64x8) PopCount() Int64x8
-
-// PopCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
-func (x Uint8x16) PopCount() Uint8x16
-
-// PopCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
-func (x Uint8x32) PopCount() Uint8x32
-
-// PopCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
-func (x Uint8x64) PopCount() Uint8x64
-
-// PopCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
-func (x Uint16x8) PopCount() Uint16x8
-
-// PopCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
-func (x Uint16x16) PopCount() Uint16x16
-
-// PopCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
-func (x Uint16x32) PopCount() Uint16x32
-
-// PopCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
-func (x Uint32x4) PopCount() Uint32x4
-
-// PopCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
-func (x Uint32x8) PopCount() Uint32x8
-
-// PopCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
-func (x Uint32x16) PopCount() Uint32x16
-
-// PopCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
-func (x Uint64x2) PopCount() Uint64x2
-
-// PopCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
-func (x Uint64x4) PopCount() Uint64x4
-
-// PopCount counts the number of set bits in each element.
-//
-// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
-func (x Uint64x8) PopCount() Uint64x8
-
-/* PopCountMasked */
-
-// PopCountMasked counts the number of set bits in each element.
+// ReciprocalMasked computes an approximate reciprocal of each element.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
-func (x Int8x16) PopCountMasked(mask Mask8x16) Int8x16
+// Asm: VRCP14PS, CPU Feature: AVX512F
+func (x Float32x4) ReciprocalMasked(mask Mask32x4) Float32x4
 
-// PopCountMasked counts the number of set bits in each element.
+// ReciprocalMasked computes an approximate reciprocal of each element.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
-func (x Int8x32) PopCountMasked(mask Mask8x32) Int8x32
+// Asm: VRCP14PS, CPU Feature: AVX512F
+func (x Float32x8) ReciprocalMasked(mask Mask32x8) Float32x8
 
-// PopCountMasked counts the number of set bits in each element.
+// ReciprocalMasked computes an approximate reciprocal of each element.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
-func (x Int8x64) PopCountMasked(mask Mask8x64) Int8x64
+// Asm: VRCP14PS, CPU Feature: AVX512F
+func (x Float32x16) ReciprocalMasked(mask Mask32x16) Float32x16
 
-// PopCountMasked counts the number of set bits in each element.
+// ReciprocalMasked computes an approximate reciprocal of each element.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
-func (x Int16x8) PopCountMasked(mask Mask16x8) Int16x8
+// Asm: VRCP14PD, CPU Feature: AVX512F
+func (x Float64x2) ReciprocalMasked(mask Mask64x2) Float64x2
 
-// PopCountMasked counts the number of set bits in each element.
+// ReciprocalMasked computes an approximate reciprocal of each element.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
-func (x Int16x16) PopCountMasked(mask Mask16x16) Int16x16
+// Asm: VRCP14PD, CPU Feature: AVX512F
+func (x Float64x4) ReciprocalMasked(mask Mask64x4) Float64x4
 
-// PopCountMasked counts the number of set bits in each element.
+// ReciprocalMasked computes an approximate reciprocal of each element.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
-func (x Int16x32) PopCountMasked(mask Mask16x32) Int16x32
+// Asm: VRCP14PD, CPU Feature: AVX512F
+func (x Float64x8) ReciprocalMasked(mask Mask64x8) Float64x8
 
-// PopCountMasked counts the number of set bits in each element.
+/* ReciprocalSqrt */
+
+// ReciprocalSqrt computes an approximate reciprocal of the square root of each element.
+//
+// Asm: VRSQRTPS, CPU Feature: AVX
+func (x Float32x4) ReciprocalSqrt() Float32x4
+
+// ReciprocalSqrt computes an approximate reciprocal of the square root of each element.
+//
+// Asm: VRSQRTPS, CPU Feature: AVX
+func (x Float32x8) ReciprocalSqrt() Float32x8
+
+// ReciprocalSqrt computes an approximate reciprocal of the square root of each element.
+//
+// Asm: VRSQRT14PS, CPU Feature: AVX512F
+func (x Float32x16) ReciprocalSqrt() Float32x16
+
+// ReciprocalSqrt computes an approximate reciprocal of the square root of each element.
+//
+// Asm: VRSQRT14PD, CPU Feature: AVX512F
+func (x Float64x2) ReciprocalSqrt() Float64x2
+
+// ReciprocalSqrt computes an approximate reciprocal of the square root of each element.
+//
+// Asm: VRSQRT14PD, CPU Feature: AVX512F
+func (x Float64x4) ReciprocalSqrt() Float64x4
+
+// ReciprocalSqrt computes an approximate reciprocal of the square root of each element.
+//
+// Asm: VRSQRT14PD, CPU Feature: AVX512F
+func (x Float64x8) ReciprocalSqrt() Float64x8
+
+/* ReciprocalSqrtMasked */
+
+// ReciprocalSqrtMasked computes an approximate reciprocal of the square root of each element.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
-func (x Int32x4) PopCountMasked(mask Mask32x4) Int32x4
+// Asm: VRSQRT14PS, CPU Feature: AVX512F
+func (x Float32x4) ReciprocalSqrtMasked(mask Mask32x4) Float32x4
 
-// PopCountMasked counts the number of set bits in each element.
+// ReciprocalSqrtMasked computes an approximate reciprocal of the square root of each element.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
-func (x Int32x8) PopCountMasked(mask Mask32x8) Int32x8
+// Asm: VRSQRT14PS, CPU Feature: AVX512F
+func (x Float32x8) ReciprocalSqrtMasked(mask Mask32x8) Float32x8
 
-// PopCountMasked counts the number of set bits in each element.
+// ReciprocalSqrtMasked computes an approximate reciprocal of the square root of each element.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
-func (x Int32x16) PopCountMasked(mask Mask32x16) Int32x16
+// Asm: VRSQRT14PS, CPU Feature: AVX512F
+func (x Float32x16) ReciprocalSqrtMasked(mask Mask32x16) Float32x16
 
-// PopCountMasked counts the number of set bits in each element.
+// ReciprocalSqrtMasked computes an approximate reciprocal of the square root of each element.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
-func (x Int64x2) PopCountMasked(mask Mask64x2) Int64x2
+// Asm: VRSQRT14PD, CPU Feature: AVX512F
+func (x Float64x2) ReciprocalSqrtMasked(mask Mask64x2) Float64x2
 
-// PopCountMasked counts the number of set bits in each element.
+// ReciprocalSqrtMasked computes an approximate reciprocal of the square root of each element.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
-func (x Int64x4) PopCountMasked(mask Mask64x4) Int64x4
+// Asm: VRSQRT14PD, CPU Feature: AVX512F
+func (x Float64x4) ReciprocalSqrtMasked(mask Mask64x4) Float64x4
 
-// PopCountMasked counts the number of set bits in each element.
+// ReciprocalSqrtMasked computes an approximate reciprocal of the square root of each element.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
-func (x Int64x8) PopCountMasked(mask Mask64x8) Int64x8
-
-// PopCountMasked counts the number of set bits in each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
-func (x Uint8x16) PopCountMasked(mask Mask8x16) Uint8x16
-
-// PopCountMasked counts the number of set bits in each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
-func (x Uint8x32) PopCountMasked(mask Mask8x32) Uint8x32
-
-// PopCountMasked counts the number of set bits in each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPOPCNTB, CPU Feature: AVX512BITALG
-func (x Uint8x64) PopCountMasked(mask Mask8x64) Uint8x64
-
-// PopCountMasked counts the number of set bits in each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
-func (x Uint16x8) PopCountMasked(mask Mask16x8) Uint16x8
-
-// PopCountMasked counts the number of set bits in each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
-func (x Uint16x16) PopCountMasked(mask Mask16x16) Uint16x16
-
-// PopCountMasked counts the number of set bits in each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPOPCNTW, CPU Feature: AVX512BITALG
-func (x Uint16x32) PopCountMasked(mask Mask16x32) Uint16x32
-
-// PopCountMasked counts the number of set bits in each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
-func (x Uint32x4) PopCountMasked(mask Mask32x4) Uint32x4
-
-// PopCountMasked counts the number of set bits in each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
-func (x Uint32x8) PopCountMasked(mask Mask32x8) Uint32x8
-
-// PopCountMasked counts the number of set bits in each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPOPCNTD, CPU Feature: AVX512VPOPCNTDQ
-func (x Uint32x16) PopCountMasked(mask Mask32x16) Uint32x16
-
-// PopCountMasked counts the number of set bits in each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
-func (x Uint64x2) PopCountMasked(mask Mask64x2) Uint64x2
-
-// PopCountMasked counts the number of set bits in each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
-func (x Uint64x4) PopCountMasked(mask Mask64x4) Uint64x4
-
-// PopCountMasked counts the number of set bits in each element.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPOPCNTQ, CPU Feature: AVX512VPOPCNTDQ
-func (x Uint64x8) PopCountMasked(mask Mask64x8) Uint64x8
+// Asm: VRSQRT14PD, CPU Feature: AVX512F
+func (x Float64x8) ReciprocalSqrtMasked(mask Mask64x8) Float64x8
 
 /* RotateAllLeft */
 
@@ -8647,353 +8780,227 @@ func (x Uint64x4) RotateRightMasked(y Uint64x4, mask Mask64x4) Uint64x4
 // Asm: VPRORVQ, CPU Feature: AVX512F
 func (x Uint64x8) RotateRightMasked(y Uint64x8, mask Mask64x8) Uint64x8
 
-/* Round */
+/* RoundToEven */
 
-// Round rounds elements to the nearest integer.
+// RoundToEven rounds elements to the nearest integer.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
-func (x Float32x4) Round() Float32x4
+func (x Float32x4) RoundToEven() Float32x4
 
-// Round rounds elements to the nearest integer.
+// RoundToEven rounds elements to the nearest integer.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
-func (x Float32x8) Round() Float32x8
+func (x Float32x8) RoundToEven() Float32x8
 
-// Round rounds elements to the nearest integer.
+// RoundToEven rounds elements to the nearest integer.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
-func (x Float64x2) Round() Float64x2
+func (x Float64x2) RoundToEven() Float64x2
 
-// Round rounds elements to the nearest integer.
+// RoundToEven rounds elements to the nearest integer.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
-func (x Float64x4) Round() Float64x4
+func (x Float64x4) RoundToEven() Float64x4
 
-/* RoundScaled */
+/* RoundToEvenScaled */
 
-// RoundScaled rounds elements with specified precision.
+// RoundToEvenScaled rounds elements with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x4) RoundScaled(prec uint8) Float32x4
+func (x Float32x4) RoundToEvenScaled(prec uint8) Float32x4
 
-// RoundScaled rounds elements with specified precision.
+// RoundToEvenScaled rounds elements with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x8) RoundScaled(prec uint8) Float32x8
+func (x Float32x8) RoundToEvenScaled(prec uint8) Float32x8
 
-// RoundScaled rounds elements with specified precision.
+// RoundToEvenScaled rounds elements with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x16) RoundScaled(prec uint8) Float32x16
+func (x Float32x16) RoundToEvenScaled(prec uint8) Float32x16
 
-// RoundScaled rounds elements with specified precision.
+// RoundToEvenScaled rounds elements with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x2) RoundScaled(prec uint8) Float64x2
+func (x Float64x2) RoundToEvenScaled(prec uint8) Float64x2
 
-// RoundScaled rounds elements with specified precision.
+// RoundToEvenScaled rounds elements with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x4) RoundScaled(prec uint8) Float64x4
+func (x Float64x4) RoundToEvenScaled(prec uint8) Float64x4
 
-// RoundScaled rounds elements with specified precision.
+// RoundToEvenScaled rounds elements with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x8) RoundScaled(prec uint8) Float64x8
+func (x Float64x8) RoundToEvenScaled(prec uint8) Float64x8
 
-/* RoundScaledMasked */
+/* RoundToEvenScaledMasked */
 
-// RoundScaledMasked rounds elements with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x4) RoundScaledMasked(prec uint8, mask Mask32x4) Float32x4
-
-// RoundScaledMasked rounds elements with specified precision.
+// RoundToEvenScaledMasked rounds elements with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x8) RoundScaledMasked(prec uint8, mask Mask32x8) Float32x8
+func (x Float32x4) RoundToEvenScaledMasked(prec uint8, mask Mask32x4) Float32x4
 
-// RoundScaledMasked rounds elements with specified precision.
+// RoundToEvenScaledMasked rounds elements with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
-func (x Float32x16) RoundScaledMasked(prec uint8, mask Mask32x16) Float32x16
+func (x Float32x8) RoundToEvenScaledMasked(prec uint8, mask Mask32x8) Float32x8
 
-// RoundScaledMasked rounds elements with specified precision.
+// RoundToEvenScaledMasked rounds elements with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VRNDSCALEPS, CPU Feature: AVX512F
+func (x Float32x16) RoundToEvenScaledMasked(prec uint8, mask Mask32x16) Float32x16
+
+// RoundToEvenScaledMasked rounds elements with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x2) RoundScaledMasked(prec uint8, mask Mask64x2) Float64x2
+func (x Float64x2) RoundToEvenScaledMasked(prec uint8, mask Mask64x2) Float64x2
 
-// RoundScaledMasked rounds elements with specified precision.
+// RoundToEvenScaledMasked rounds elements with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x4) RoundScaledMasked(prec uint8, mask Mask64x4) Float64x4
+func (x Float64x4) RoundToEvenScaledMasked(prec uint8, mask Mask64x4) Float64x4
 
-// RoundScaledMasked rounds elements with specified precision.
+// RoundToEvenScaledMasked rounds elements with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
-func (x Float64x8) RoundScaledMasked(prec uint8, mask Mask64x8) Float64x8
+func (x Float64x8) RoundToEvenScaledMasked(prec uint8, mask Mask64x8) Float64x8
 
-/* RoundScaledResidue */
+/* RoundToEvenScaledResidue */
 
-// RoundScaledResidue computes the difference after rounding with specified precision.
+// RoundToEvenScaledResidue computes the difference after rounding with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x4) RoundScaledResidue(prec uint8) Float32x4
+func (x Float32x4) RoundToEvenScaledResidue(prec uint8) Float32x4
 
-// RoundScaledResidue computes the difference after rounding with specified precision.
+// RoundToEvenScaledResidue computes the difference after rounding with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x8) RoundScaledResidue(prec uint8) Float32x8
+func (x Float32x8) RoundToEvenScaledResidue(prec uint8) Float32x8
 
-// RoundScaledResidue computes the difference after rounding with specified precision.
+// RoundToEvenScaledResidue computes the difference after rounding with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x16) RoundScaledResidue(prec uint8) Float32x16
+func (x Float32x16) RoundToEvenScaledResidue(prec uint8) Float32x16
 
-// RoundScaledResidue computes the difference after rounding with specified precision.
+// RoundToEvenScaledResidue computes the difference after rounding with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x2) RoundScaledResidue(prec uint8) Float64x2
+func (x Float64x2) RoundToEvenScaledResidue(prec uint8) Float64x2
 
-// RoundScaledResidue computes the difference after rounding with specified precision.
+// RoundToEvenScaledResidue computes the difference after rounding with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x4) RoundScaledResidue(prec uint8) Float64x4
+func (x Float64x4) RoundToEvenScaledResidue(prec uint8) Float64x4
 
-// RoundScaledResidue computes the difference after rounding with specified precision.
+// RoundToEvenScaledResidue computes the difference after rounding with specified precision.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x8) RoundScaledResidue(prec uint8) Float64x8
+func (x Float64x8) RoundToEvenScaledResidue(prec uint8) Float64x8
 
-/* RoundScaledResidueMasked */
+/* RoundToEvenScaledResidueMasked */
 
-// RoundScaledResidueMasked computes the difference after rounding with specified precision.
-//
-// This operation is applied selectively under a write mask.
-//
-// prec is expected to be a constant, non-constant value will trigger a runtime panic.
-//
-// Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x4) RoundScaledResidueMasked(prec uint8, mask Mask32x4) Float32x4
-
-// RoundScaledResidueMasked computes the difference after rounding with specified precision.
+// RoundToEvenScaledResidueMasked computes the difference after rounding with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x8) RoundScaledResidueMasked(prec uint8, mask Mask32x8) Float32x8
+func (x Float32x4) RoundToEvenScaledResidueMasked(prec uint8, mask Mask32x4) Float32x4
 
-// RoundScaledResidueMasked computes the difference after rounding with specified precision.
+// RoundToEvenScaledResidueMasked computes the difference after rounding with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
-func (x Float32x16) RoundScaledResidueMasked(prec uint8, mask Mask32x16) Float32x16
+func (x Float32x8) RoundToEvenScaledResidueMasked(prec uint8, mask Mask32x8) Float32x8
 
-// RoundScaledResidueMasked computes the difference after rounding with specified precision.
+// RoundToEvenScaledResidueMasked computes the difference after rounding with specified precision.
+//
+// This operation is applied selectively under a write mask.
+//
+// prec is expected to be a constant, non-constant value will trigger a runtime panic.
+//
+// Asm: VREDUCEPS, CPU Feature: AVX512DQ
+func (x Float32x16) RoundToEvenScaledResidueMasked(prec uint8, mask Mask32x16) Float32x16
+
+// RoundToEvenScaledResidueMasked computes the difference after rounding with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x2) RoundScaledResidueMasked(prec uint8, mask Mask64x2) Float64x2
+func (x Float64x2) RoundToEvenScaledResidueMasked(prec uint8, mask Mask64x2) Float64x2
 
-// RoundScaledResidueMasked computes the difference after rounding with specified precision.
+// RoundToEvenScaledResidueMasked computes the difference after rounding with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x4) RoundScaledResidueMasked(prec uint8, mask Mask64x4) Float64x4
+func (x Float64x4) RoundToEvenScaledResidueMasked(prec uint8, mask Mask64x4) Float64x4
 
-// RoundScaledResidueMasked computes the difference after rounding with specified precision.
+// RoundToEvenScaledResidueMasked computes the difference after rounding with specified precision.
 //
 // This operation is applied selectively under a write mask.
 //
 // prec is expected to be a constant, non-constant value will trigger a runtime panic.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
-func (x Float64x8) RoundScaledResidueMasked(prec uint8, mask Mask64x8) Float64x8
-
-/* SaturatedAddDotProd */
-
-// SaturatedAddDotProd performs dot products on pairs of elements of y and z and then adds x.
-//
-// Asm: VPDPWSSDS, CPU Feature: AVXVNNI
-func (x Int32x4) SaturatedAddDotProd(y Int16x8, z Int16x8) Int32x4
-
-// SaturatedAddDotProd performs dot products on pairs of elements of y and z and then adds x.
-//
-// Asm: VPDPWSSDS, CPU Feature: AVXVNNI
-func (x Int32x8) SaturatedAddDotProd(y Int16x16, z Int16x16) Int32x8
-
-// SaturatedAddDotProd performs dot products on pairs of elements of y and z and then adds x.
-//
-// Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
-func (x Int32x16) SaturatedAddDotProd(y Int16x32, z Int16x32) Int32x16
-
-/* SaturatedAddDotProdMasked */
-
-// SaturatedAddDotProdMasked performs dot products on pairs of elements of y and z and then adds x.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
-func (x Int32x4) SaturatedAddDotProdMasked(y Int16x8, z Int16x8, mask Mask32x4) Int32x4
-
-// SaturatedAddDotProdMasked performs dot products on pairs of elements of y and z and then adds x.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
-func (x Int32x8) SaturatedAddDotProdMasked(y Int16x16, z Int16x16, mask Mask32x8) Int32x8
-
-// SaturatedAddDotProdMasked performs dot products on pairs of elements of y and z and then adds x.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPDPWSSDS, CPU Feature: AVX512VNNI
-func (x Int32x16) SaturatedAddDotProdMasked(y Int16x32, z Int16x32, mask Mask32x16) Int32x16
-
-/* SaturatedUnsignedSignedPairDotProd */
-
-// SaturatedUnsignedSignedPairDotProd multiplies the elements and add the pairs together with saturation,
-// yielding a vector of half as many elements with twice the input element size.
-//
-// Asm: VPMADDUBSW, CPU Feature: AVX
-func (x Uint8x16) SaturatedUnsignedSignedPairDotProd(y Int8x16) Int16x8
-
-// SaturatedUnsignedSignedPairDotProd multiplies the elements and add the pairs together with saturation,
-// yielding a vector of half as many elements with twice the input element size.
-//
-// Asm: VPMADDUBSW, CPU Feature: AVX2
-func (x Uint8x32) SaturatedUnsignedSignedPairDotProd(y Int8x32) Int16x16
-
-// SaturatedUnsignedSignedPairDotProd multiplies the elements and add the pairs together with saturation,
-// yielding a vector of half as many elements with twice the input element size.
-//
-// Asm: VPMADDUBSW, CPU Feature: AVX512BW
-func (x Uint8x64) SaturatedUnsignedSignedPairDotProd(y Int8x64) Int16x32
-
-/* SaturatedUnsignedSignedPairDotProdMasked */
-
-// SaturatedUnsignedSignedPairDotProdMasked multiplies the elements and add the pairs together with saturation,
-// yielding a vector of half as many elements with twice the input element size.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMADDUBSW, CPU Feature: AVX512BW
-func (x Uint8x16) SaturatedUnsignedSignedPairDotProdMasked(y Int8x16, mask Mask16x8) Int16x8
-
-// SaturatedUnsignedSignedPairDotProdMasked multiplies the elements and add the pairs together with saturation,
-// yielding a vector of half as many elements with twice the input element size.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMADDUBSW, CPU Feature: AVX512BW
-func (x Uint8x32) SaturatedUnsignedSignedPairDotProdMasked(y Int8x32, mask Mask16x16) Int16x16
-
-// SaturatedUnsignedSignedPairDotProdMasked multiplies the elements and add the pairs together with saturation,
-// yielding a vector of half as many elements with twice the input element size.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPMADDUBSW, CPU Feature: AVX512BW
-func (x Uint8x64) SaturatedUnsignedSignedPairDotProdMasked(y Int8x64, mask Mask16x32) Int16x32
-
-/* SaturatedUnsignedSignedQuadDotProdAccumulate */
-
-// SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of x and y and then adds z.
-//
-// Asm: VPDPBUSDS, CPU Feature: AVXVNNI
-func (x Int8x16) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int32x4) Int32x4
-
-// SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of x and y and then adds z.
-//
-// Asm: VPDPBUSDS, CPU Feature: AVXVNNI
-func (x Int8x32) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int32x8) Int32x8
-
-// SaturatedUnsignedSignedQuadDotProdAccumulate multiplies performs dot products on groups of 4 elements of x and y and then adds z.
-//
-// Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
-func (x Int8x64) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int32x16) Int32x16
-
-/* SaturatedUnsignedSignedQuadDotProdAccumulateMasked */
-
-// SaturatedUnsignedSignedQuadDotProdAccumulateMasked multiplies performs dot products on groups of 4 elements of x and y and then adds z.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
-func (x Int8x16) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x16, z Int32x4, mask Mask32x4) Int32x4
-
-// SaturatedUnsignedSignedQuadDotProdAccumulateMasked multiplies performs dot products on groups of 4 elements of x and y and then adds z.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
-func (x Int8x32) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x32, z Int32x8, mask Mask32x8) Int32x8
-
-// SaturatedUnsignedSignedQuadDotProdAccumulateMasked multiplies performs dot products on groups of 4 elements of x and y and then adds z.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPDPBUSDS, CPU Feature: AVX512VNNI
-func (x Int8x64) SaturatedUnsignedSignedQuadDotProdAccumulateMasked(y Uint8x64, z Int32x16, mask Mask32x16) Int32x16
+func (x Float64x8) RoundToEvenScaledResidueMasked(prec uint8, mask Mask64x8) Float64x8
 
 /* Scale */
 
@@ -11381,44 +11388,6 @@ func (x Uint64x4) ShiftRightMasked(y Uint64x4, mask Mask64x4) Uint64x4
 // Asm: VPSRLVQ, CPU Feature: AVX512F
 func (x Uint64x8) ShiftRightMasked(y Uint64x8, mask Mask64x8) Uint64x8
 
-/* Sign */
-
-// Sign returns the product of the first operand with -1, 0, or 1,
-// whichever constant is nearest to the value of the second operand.
-//
-// Asm: VPSIGNB, CPU Feature: AVX
-func (x Int8x16) Sign(y Int8x16) Int8x16
-
-// Sign returns the product of the first operand with -1, 0, or 1,
-// whichever constant is nearest to the value of the second operand.
-//
-// Asm: VPSIGNB, CPU Feature: AVX2
-func (x Int8x32) Sign(y Int8x32) Int8x32
-
-// Sign returns the product of the first operand with -1, 0, or 1,
-// whichever constant is nearest to the value of the second operand.
-//
-// Asm: VPSIGNW, CPU Feature: AVX
-func (x Int16x8) Sign(y Int16x8) Int16x8
-
-// Sign returns the product of the first operand with -1, 0, or 1,
-// whichever constant is nearest to the value of the second operand.
-//
-// Asm: VPSIGNW, CPU Feature: AVX2
-func (x Int16x16) Sign(y Int16x16) Int16x16
-
-// Sign returns the product of the first operand with -1, 0, or 1,
-// whichever constant is nearest to the value of the second operand.
-//
-// Asm: VPSIGND, CPU Feature: AVX
-func (x Int32x4) Sign(y Int32x4) Int32x4
-
-// Sign returns the product of the first operand with -1, 0, or 1,
-// whichever constant is nearest to the value of the second operand.
-//
-// Asm: VPSIGND, CPU Feature: AVX2
-func (x Int32x8) Sign(y Int32x8) Int32x8
-
 /* Sqrt */
 
 // Sqrt computes the square root of each element.
@@ -11981,32 +11950,32 @@ func (x Int16x32) SubSaturated(y Int16x32) Int16x32
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
-// Asm: VPSUBSB, CPU Feature: AVX
+// Asm: VPSUBUSB, CPU Feature: AVX
 func (x Uint8x16) SubSaturated(y Uint8x16) Uint8x16
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
-// Asm: VPSUBSB, CPU Feature: AVX2
+// Asm: VPSUBUSB, CPU Feature: AVX2
 func (x Uint8x32) SubSaturated(y Uint8x32) Uint8x32
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
-// Asm: VPSUBSB, CPU Feature: AVX512BW
+// Asm: VPSUBUSB, CPU Feature: AVX512BW
 func (x Uint8x64) SubSaturated(y Uint8x64) Uint8x64
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
-// Asm: VPSUBSW, CPU Feature: AVX
+// Asm: VPSUBUSW, CPU Feature: AVX
 func (x Uint16x8) SubSaturated(y Uint16x8) Uint16x8
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
-// Asm: VPSUBSW, CPU Feature: AVX2
+// Asm: VPSUBUSW, CPU Feature: AVX2
 func (x Uint16x16) SubSaturated(y Uint16x16) Uint16x16
 
 // SubSaturated subtracts corresponding elements of two vectors with saturation.
 //
-// Asm: VPSUBSW, CPU Feature: AVX512BW
+// Asm: VPSUBUSW, CPU Feature: AVX512BW
 func (x Uint16x32) SubSaturated(y Uint16x32) Uint16x32
 
 /* SubSaturatedMasked */
@@ -12057,42 +12026,42 @@ func (x Int16x32) SubSaturatedMasked(y Int16x32, mask Mask16x32) Int16x32
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPSUBSB, CPU Feature: AVX512BW
+// Asm: VPSUBUSB, CPU Feature: AVX512BW
 func (x Uint8x16) SubSaturatedMasked(y Uint8x16, mask Mask8x16) Uint8x16
 
 // SubSaturatedMasked subtracts corresponding elements of two vectors with saturation.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPSUBSB, CPU Feature: AVX512BW
+// Asm: VPSUBUSB, CPU Feature: AVX512BW
 func (x Uint8x32) SubSaturatedMasked(y Uint8x32, mask Mask8x32) Uint8x32
 
 // SubSaturatedMasked subtracts corresponding elements of two vectors with saturation.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPSUBSB, CPU Feature: AVX512BW
+// Asm: VPSUBUSB, CPU Feature: AVX512BW
 func (x Uint8x64) SubSaturatedMasked(y Uint8x64, mask Mask8x64) Uint8x64
 
 // SubSaturatedMasked subtracts corresponding elements of two vectors with saturation.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPSUBSW, CPU Feature: AVX512BW
+// Asm: VPSUBUSW, CPU Feature: AVX512BW
 func (x Uint16x8) SubSaturatedMasked(y Uint16x8, mask Mask16x8) Uint16x8
 
 // SubSaturatedMasked subtracts corresponding elements of two vectors with saturation.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPSUBSW, CPU Feature: AVX512BW
+// Asm: VPSUBUSW, CPU Feature: AVX512BW
 func (x Uint16x16) SubSaturatedMasked(y Uint16x16, mask Mask16x16) Uint16x16
 
 // SubSaturatedMasked subtracts corresponding elements of two vectors with saturation.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPSUBSW, CPU Feature: AVX512BW
+// Asm: VPSUBUSW, CPU Feature: AVX512BW
 func (x Uint16x32) SubSaturatedMasked(y Uint16x32, mask Mask16x32) Uint16x32
 
 /* Trunc */
@@ -12316,46 +12285,6 @@ func (x Float64x4) TruncScaledResidueMasked(prec uint8, mask Mask64x4) Float64x4
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x8) TruncScaledResidueMasked(prec uint8, mask Mask64x8) Float64x8
-
-/* UnsignedSignedQuadDotProdAccumulate */
-
-// UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of x and y and then adds z.
-//
-// Asm: VPDPBUSD, CPU Feature: AVXVNNI
-func (x Int8x16) UnsignedSignedQuadDotProdAccumulate(y Uint8x16, z Int32x4) Int32x4
-
-// UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of x and y and then adds z.
-//
-// Asm: VPDPBUSD, CPU Feature: AVXVNNI
-func (x Int8x32) UnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int32x8) Int32x8
-
-// UnsignedSignedQuadDotProdAccumulate performs dot products on groups of 4 elements of x and y and then adds z.
-//
-// Asm: VPDPBUSD, CPU Feature: AVX512VNNI
-func (x Int8x64) UnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int32x16) Int32x16
-
-/* UnsignedSignedQuadDotProdAccumulateMasked */
-
-// UnsignedSignedQuadDotProdAccumulateMasked performs dot products on groups of 4 elements of x and y and then adds z.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPDPBUSD, CPU Feature: AVX512VNNI
-func (x Int8x16) UnsignedSignedQuadDotProdAccumulateMasked(y Uint8x16, z Int32x4, mask Mask32x4) Int32x4
-
-// UnsignedSignedQuadDotProdAccumulateMasked performs dot products on groups of 4 elements of x and y and then adds z.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPDPBUSD, CPU Feature: AVX512VNNI
-func (x Int8x32) UnsignedSignedQuadDotProdAccumulateMasked(y Uint8x32, z Int32x8, mask Mask32x8) Int32x8
-
-// UnsignedSignedQuadDotProdAccumulateMasked performs dot products on groups of 4 elements of x and y and then adds z.
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPDPBUSD, CPU Feature: AVX512VNNI
-func (x Int8x64) UnsignedSignedQuadDotProdAccumulateMasked(y Uint8x64, z Int32x16, mask Mask32x16) Int32x16
 
 /* Xor */
 
