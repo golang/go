@@ -549,7 +549,8 @@ func (p *addrParser) consumeAddrSpec() (spec string, err error) {
 
 	// domain = dot-atom / domain-literal
 	var domain string
-	p.skipSpace()
+	// domain part does not allow whitespace characters, so skipSpace cannot be called here
+	// p.skipSpace()
 	if p.empty() {
 		return "", errors.New("mail: no domain in addr-spec")
 	}
