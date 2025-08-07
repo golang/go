@@ -105,12 +105,13 @@ import (
 //
 // Each Profile has a unique name. A few profiles are predefined:
 //
-//	goroutine    - stack traces of all current goroutines
-//	heap         - a sampling of memory allocations of live objects
-//	allocs       - a sampling of all past memory allocations
-//	threadcreate - stack traces that led to the creation of new OS threads
-//	block        - stack traces that led to blocking on synchronization primitives
-//	mutex        - stack traces of holders of contended mutexes
+//	goroutine      - stack traces of all current goroutines
+//	goroutineleak  - stack traces of all leaked goroutines
+//	allocs         - a sampling of all past memory allocations
+//	heap           - a sampling of memory allocations of live objects
+//	threadcreate   - stack traces that led to the creation of new OS threads
+//	block          - stack traces that led to blocking on synchronization primitives
+//	mutex          - stack traces of holders of contended mutexes
 //
 // These predefined profiles maintain themselves and panic on an explicit
 // [Profile.Add] or [Profile.Remove] method call.
@@ -169,6 +170,7 @@ import (
 // holds a lock for 1s while 5 other goroutines are waiting for the entire
 // second to acquire the lock, its unlock call stack will report 5s of
 // contention.
+
 type Profile struct {
 	name  string
 	mu    sync.Mutex
@@ -187,6 +189,12 @@ var goroutineProfile = &Profile{
 	name:  "goroutine",
 	count: countGoroutine,
 	write: writeGoroutine,
+}
+
+var goroutineLeakProfile = &Profile{
+	name:  "goroutineleak",
+	count: countGoroutineLeak,
+	write: writeGoroutineLeak,
 }
 
 var threadcreateProfile = &Profile{
@@ -224,12 +232,13 @@ func lockProfiles() {
 	if profiles.m == nil {
 		// Initial built-in profiles.
 		profiles.m = map[string]*Profile{
-			"goroutine":    goroutineProfile,
-			"threadcreate": threadcreateProfile,
-			"heap":         heapProfile,
-			"allocs":       allocsProfile,
-			"block":        blockProfile,
-			"mutex":        mutexProfile,
+			"goroutine":     goroutineProfile,
+			"goroutineleak": goroutineLeakProfile,
+			"threadcreate":  threadcreateProfile,
+			"heap":          heapProfile,
+			"allocs":        allocsProfile,
+			"block":         blockProfile,
+			"mutex":         mutexProfile,
 		}
 	}
 }
@@ -739,12 +748,34 @@ func countGoroutine() int {
 	return runtime.NumGoroutine()
 }
 
+// countGoroutineLeak returns the number of leaked goroutines.
+func countGoroutineLeak() int {
+	return int(runtime_gleakcount())
+}
+
 // writeGoroutine writes the current runtime GoroutineProfile to w.
 func writeGoroutine(w io.Writer, debug int) error {
 	if debug >= 2 {
 		return writeGoroutineStacks(w)
 	}
 	return writeRuntimeProfile(w, debug, "goroutine", pprof_goroutineProfileWithLabels)
+}
+
+// writeGoroutineLeak first invokes a GC cycle that performs goroutine leak detection.
+// It then writes the goroutine profile, filtering for leaked goroutines.
+func writeGoroutineLeak(w io.Writer, debug int) error {
+	// Run the GC with leak detection first so that leaked goroutines
+	// may transition to the leaked state.
+	runtime_goroutineLeakGC()
+
+	// If the debug flag is set sufficiently high, just defer to writing goroutine stacks
+	// like in a regular goroutine profile. Include non-leaked goroutines, too.
+	if debug >= 2 {
+		return writeGoroutineStacks(w)
+	}
+
+	// Otherwise, write the goroutine leak profile.
+	return writeRuntimeProfile(w, debug, "goroutineleak", pprof_goroutineLeakProfileWithLabels)
 }
 
 func writeGoroutineStacks(w io.Writer) error {
@@ -968,6 +999,9 @@ func writeProfileInternal(w io.Writer, debug int, name string, runtimeProfile fu
 
 //go:linkname pprof_goroutineProfileWithLabels runtime.pprof_goroutineProfileWithLabels
 func pprof_goroutineProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool)
+
+//go:linkname pprof_goroutineLeakProfileWithLabels runtime.pprof_goroutineLeakProfileWithLabels
+func pprof_goroutineLeakProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool)
 
 //go:linkname pprof_cyclesPerSecond runtime/pprof.runtime_cyclesPerSecond
 func pprof_cyclesPerSecond() int64

@@ -569,6 +569,25 @@ func GC() {
 	releasem(mp)
 }
 
+//go:linkname runtime_goroutineLeakGC runtime/pprof.runtime_goroutineLeakGC
+func runtime_goroutineLeakGC() {
+	goroutineLeakGC()
+}
+
+// goroutineLeakGC runs a GC cycle that performs goroutine leak detection.
+func goroutineLeakGC() {
+	// Set the pending flag to true, instructing the next GC cycle to
+	// perform goroutine leak detection.
+	work.goroutineLeakFinder.pending.Store(true)
+
+	// Spin GC cycles until the pending flag is unset.
+	// This ensures that goroutineLeakGC waits for a GC cycle that
+	// actually performs goroutine leak detection.
+	for work.goroutineLeakFinder.pending.Load() {
+		GC()
+	}
+}
+
 // gcWaitOnMark blocks until GC finishes the Nth mark phase. If GC has
 // already completed this mark phase, it returns immediately.
 func gcWaitOnMark(n uint32) {
@@ -714,9 +733,9 @@ func gcStart(trigger gcTrigger) {
 		mode = gcForceMode
 	} else if debug.gcstoptheworld == 2 {
 		mode = gcForceBlockMode
-	} else if work.goroutineLeakFinder.pending.Load() || debug.gcgoroutineleaks > 0 {
-		// If goroutine leak detection has been enabled (via GODEBUG=gcgoroutineleaks=1),
-		// or via profiling, stop the world during the marking phase.
+	} else if work.goroutineLeakFinder.pending.Load() {
+		// If goroutine leak detection has been enabled via profiling,
+		// stop the world during the marking phase.
 		mode = gcForceMode
 	}
 
@@ -795,8 +814,7 @@ func gcStart(trigger gcTrigger) {
 		schedEnableUser(false)
 	}
 
-	if work.goroutineLeakFinder.pending.Load() ||
-		debug.gcgoroutineleaks > 0 {
+	if work.goroutineLeakFinder.pending.Load() {
 		work.goroutineLeakFinder.enabled = true
 		work.goroutineLeakFinder.pending.Store(false)
 		gcUntrackSyncObjects()
@@ -1199,16 +1217,6 @@ func findGoleaks() bool {
 	for i := work.nMaybeRunnableStackRoots; i < work.nStackRoots; i++ {
 		gp := work.stackRoots[i]
 		casgstatus(gp, _Gwaiting, _Gleaked)
-		fn := findfunc(gp.startpc)
-		if fn.valid() {
-			print("goroutine leak! goroutine ", gp.goid, ": ", funcname(fn), " Stack size: ", gp.stack.hi-gp.stack.lo, " bytes ",
-				"[", waitReasonStrings[gp.waitreason], "]\n")
-		} else {
-			print("goroutine leak! goroutine ", gp.goid, ": !unnamed goroutine!", " Stack size: ", gp.stack.hi-gp.stack.lo, " bytes ",
-				"[", waitReasonStrings[gp.waitreason], "]\n")
-		}
-		traceback(gp.sched.pc, gp.sched.sp, gp.sched.lr, gp)
-		println()
 	}
 	// Put the remaining roots as ready for marking and drain them.
 	work.markrootJobs.Add(int32(work.nStackRoots - work.nMaybeRunnableStackRoots))

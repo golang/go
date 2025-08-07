@@ -1259,6 +1259,20 @@ func goroutineProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.P
 	return goroutineProfileWithLabelsConcurrent(p, labels)
 }
 
+//go:linkname pprof_goroutineLeakProfileWithLabels
+func pprof_goroutineLeakProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+	return goroutineLeakProfileWithLabelsConcurrent(p, labels)
+}
+
+// labels may be nil. If labels is non-nil, it must have the same length as p.
+func goroutineLeakProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+	if labels != nil && len(labels) != len(p) {
+		labels = nil
+	}
+
+	return goroutineLeakProfileWithLabelsConcurrent(p, labels)
+}
+
 var goroutineProfile = struct {
 	sema    uint32
 	active  bool
@@ -1300,6 +1314,89 @@ func (p *goroutineProfileStateHolder) Store(value goroutineProfileState) {
 
 func (p *goroutineProfileStateHolder) CompareAndSwap(old, new goroutineProfileState) bool {
 	return (*atomic.Uint32)(p).CompareAndSwap(uint32(old), uint32(new))
+}
+
+func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+	if len(p) == 0 {
+		// An empty slice is obviously too small. Return a rough
+		// allocation estimate without bothering to STW. As long as
+		// this is close, then we'll only need to STW once (on the next
+		// call).
+		return int(gleakcount()), false
+	}
+
+	// Use the same semaphore as goroutineProfileWithLabelsConcurrent,
+	// because ultimately we still use goroutine profiles.
+	semacquire(&goroutineProfile.sema)
+
+	// Unlike in goroutineProfileWithLabelsConcurrent, we don't save the current
+	// goroutine stack, because it is obviously not a leaked goroutine.
+
+	pcbuf := makeProfStack() // see saveg() for explanation
+	stw := stopTheWorld(stwGoroutineProfile)
+	// Using gleakcount while the world is stopped should give us a consistent view
+	// of the number of leaked goroutines.
+	n = int(gleakcount())
+
+	if n > len(p) {
+		// There's not enough space in p to store the whole profile, so (per the
+		// contract of runtime.GoroutineProfile) we're not allowed to write to p
+		// at all and must return n, false.
+		startTheWorld(stw)
+		semrelease(&goroutineProfile.sema)
+		return n, false
+	}
+
+	// Prepare for all other goroutines to enter the profile. Every goroutine struct in the allgs list
+	// has its goroutineProfiled field cleared. Any goroutine created from this point on (while
+	// goroutineProfile.active is set) will start with its goroutineProfiled
+	// field set to goroutineProfileSatisfied.
+	goroutineProfile.active = true
+	goroutineProfile.records = p
+	goroutineProfile.labels = labels
+	startTheWorld(stw)
+
+	// Visit each leaked goroutine that existed as of the startTheWorld call above.
+	forEachGRace(func(gp1 *g) {
+		if readgstatus(gp1) == _Gleaked {
+			tryRecordGoroutineProfile(gp1, pcbuf, Gosched)
+		}
+	})
+
+	stw = stopTheWorld(stwGoroutineProfileCleanup)
+	endOffset := goroutineProfile.offset.Swap(0)
+	goroutineProfile.active = false
+	goroutineProfile.records = nil
+	goroutineProfile.labels = nil
+	startTheWorld(stw)
+
+	// Restore the invariant that every goroutine struct in allgs has its
+	// goroutineProfiled field cleared.
+	forEachGRace(func(gp1 *g) {
+		gp1.goroutineProfiled.Store(goroutineProfileAbsent)
+	})
+
+	if raceenabled {
+		raceacquire(unsafe.Pointer(&labelSync))
+	}
+
+	if n != int(endOffset) {
+		// It's a big surprise that the number of goroutines changed while we
+		// were collecting the profile. But probably better to return a
+		// truncated profile than to crash the whole process.
+		//
+		// For instance, needm moves a goroutine out of the _Gdead state and so
+		// might be able to change the goroutine count without interacting with
+		// the scheduler. For code like that, the race windows are small and the
+		// combination of features is uncommon, so it's hard to be (and remain)
+		// sure we've caught them all.
+		//
+		// FIXME(vsaioc): I kept this in because goroutineProfileWithLabelsConcurrent
+		// also uses it, but... is this dead code?
+	}
+
+	semrelease(&goroutineProfile.sema)
+	return n, true
 }
 
 func goroutineProfileWithLabelsConcurrent(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
