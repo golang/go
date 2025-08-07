@@ -1277,6 +1277,17 @@ func (v Value) Field(i int) Value {
 			fl |= flagStickyRO
 		}
 	}
+	if fl&flagIndir == 0 && typ.Size() == 0 {
+		// Special case for picking a field out of a direct struct.
+		// A direct struct must have a pointer field and possibly a
+		// bunch of zero-sized fields. We must return the zero-sized
+		// fields indirectly, as only ptr-shaped things can be direct.
+		// See issue 74935.
+		// We use nil instead of v.ptr as it doesn't matter and
+		// we can avoid pinning a possibly now-unused object.
+		return Value{typ, nil, fl | flagIndir}
+	}
+
 	// Either flagIndir is set and v.ptr points at struct,
 	// or flagIndir is not set and v.ptr is the actual struct data.
 	// In the former case, we want v.ptr + offset.
