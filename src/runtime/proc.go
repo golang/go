@@ -5553,6 +5553,25 @@ func gcount() int32 {
 	return n
 }
 
+//go:linkname runtime_gleakcount runtime/pprof.runtime_gleakcount
+func runtime_gleakcount() int32 {
+	return gleakcount()
+}
+
+// gleakcount returns the number of leaked goroutines currently reported by
+// the runtime. Protected by allglock.
+func gleakcount() int32 {
+	n := int32(0)
+	lock(&allglock)
+	for _, g := range allgs {
+		if readgstatus(g) == _Gleaked {
+			n++
+		}
+	}
+	unlock(&allglock)
+	return n
+}
+
 func mcount() int32 {
 	return int32(sched.mnext - sched.nmfreed)
 }

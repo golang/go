@@ -316,7 +316,6 @@ var debug struct {
 	dontfreezetheworld       int32
 	efence                   int32
 	gccheckmark              int32
-	gcgoroutineleaks         int32
 	gcpacertrace             int32
 	gcshrinkstackoff         int32
 	gcstoptheworld           int32
@@ -382,7 +381,6 @@ var dbgvars = []*dbgVar{
 	{name: "efence", value: &debug.efence},
 	{name: "gccheckmark", value: &debug.gccheckmark},
 	{name: "gcpacertrace", value: &debug.gcpacertrace},
-	{name: "gcgoroutineleaks", value: &debug.gcgoroutineleaks},
 	{name: "gcshrinkstackoff", value: &debug.gcshrinkstackoff},
 	{name: "gcstoptheworld", value: &debug.gcstoptheworld},
 	{name: "gctrace", value: &debug.gctrace},
