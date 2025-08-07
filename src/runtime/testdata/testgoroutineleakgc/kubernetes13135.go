@@ -121,7 +121,7 @@ func (w *WatchCache_kubernetes13135) Replace(obj interface{}) {
 	}
 }
 
-func NewCacher_kubernetes13135() *Cacher_kubernetes13135 {
+func NewCacher_kubernetes13135(stopCh <-chan struct{}) *Cacher_kubernetes13135 {
 	watchCache := &WatchCache_kubernetes13135{}
 	cacher := &Cacher_kubernetes13135{
 		initialized: sync.WaitGroup{},
@@ -134,7 +134,6 @@ func NewCacher_kubernetes13135() *Cacher_kubernetes13135 {
 		cacher.Unlock()
 	})
 	watchCache.SetOnEvent(cacher.processEvent)
-	stopCh := StopChannel_kubernetes13135
 	go Util_kubernetes13135(func() { cacher.startCaching(stopCh) }, 0, stopCh) // G2
 	cacher.initialized.Wait()
 	return cacher
@@ -166,6 +165,19 @@ func NewCacher_kubernetes13135() *Cacher_kubernetes13135 {
 ///--------------------------------G2,G3 deadlock-------------------------------------
 ///
 
+///
+/// G1																			G2								G3
+/// NewCacher()
+/// watchCache.SetOnReplace()
+/// watchCache.SetOnEvent()
+/// watchCache.initialized.Wait()
+///                                         Util(...)
+///
+/// 																				cacher.startCaching()
+///																					c.Lock()
+/// 																				c.reflector.ListAndWatch()
+/// 																				r.syncWith()
+///--------------------------------G1 deadlocks-------------------------------------
 func Kubernetes13135() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
@@ -176,10 +188,15 @@ func Kubernetes13135() {
 	StopChannel_kubernetes13135 = make(chan struct{})
 	for i := 0; i < 50; i++ {
 		go func() {
+			// Should create a local channel. Using a single global channel
+			// concurrently will cause a deadlock which does not actually exist
+			// in the original microbenchmark.
+			StopChannel_kubernetes13135 := make(chan struct{})
+
 			// deadlocks: x > 0
-			c := NewCacher_kubernetes13135() // G1
+			c := NewCacher_kubernetes13135(StopChannel_kubernetes13135) // G1
 			go c.watchCache.Add(nil)         // G3
+			go close(StopChannel_kubernetes13135)
 		}()
 	}
-	go close(StopChannel_kubernetes13135)
 }
