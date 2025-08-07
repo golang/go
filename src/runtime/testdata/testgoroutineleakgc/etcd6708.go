@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -77,18 +78,17 @@ func NewMembersAPI_etcd6708(c Client_etcd6708) MembersAPI_etcd6708 {
 }
 
 func Etcd6708() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
-	for i := 0; i < 100; i++ {
-		go func() {
-			// deadlocks: x > 0
-			hc := &httpClusterClient_etcd6708{
-				selectionMode: EndpointSelectionPrioritizeLeader_etcd6708,
-			}
-			hc.Sync(context.Background())
-		}()
-	}
+	go func() {
+		// deadlocks: 1
+		hc := &httpClusterClient_etcd6708{
+			selectionMode: EndpointSelectionPrioritizeLeader_etcd6708,
+		}
+		hc.Sync(context.Background())
+	}()
 }

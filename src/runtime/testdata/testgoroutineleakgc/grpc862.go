@@ -13,7 +13,8 @@ package main
 
 import (
 	"context"
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"time"
 )
 
@@ -97,9 +98,10 @@ func DialContext_grpc862(ctx context.Context) (conn *ClientConn_grpc862) {
 ///
 
 func Grpc862() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	go func() {
 		ctx, cancel := context.WithCancel(context.Background())

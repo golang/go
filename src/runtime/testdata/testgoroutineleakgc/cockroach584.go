@@ -1,7 +1,8 @@
 package main
 
 import (
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -38,9 +39,10 @@ func (g *gossip_cockroach584) manage() {
 }
 
 func Cockroach584() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(10 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	for i := 0; i < 100; i++ {

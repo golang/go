@@ -13,7 +13,9 @@
 package main
 
 import (
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -35,6 +37,7 @@ func (devices *DeviceSet_moby4951) DeleteDevice(hash string) {
 	info := devices.lookupDevice(hash)
 
 	info.lock.Lock()
+	runtime.Gosched()
 	defer info.lock.Unlock()
 
 	devices.deleteDevice(info)
@@ -84,19 +87,18 @@ func NewDeviceSet_moby4951() *DeviceSet_moby4951 {
 }
 
 func Moby4951() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
-	for i := 0; i < 100; i++ {
-		go func() {
-			ds := NewDeviceSet_moby4951()
-			/// Delete devices by the same info
-			// deadlocks: x > 0
-			go ds.DeleteDevice("info1")
-			// deadlocks: x > 0
-			go ds.DeleteDevice("info1")
-		}()
-	}
+	go func() {
+		ds := NewDeviceSet_moby4951()
+		/// Delete devices by the same info
+		// deadlocks: x > 0
+		go ds.DeleteDevice("info1")
+		// deadlocks: x > 0
+		go ds.DeleteDevice("info1")
+	}()
 }

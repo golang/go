@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -20,7 +21,7 @@ type lessor_etcd10492 struct {
 }
 
 func (le *lessor_etcd10492) Checkpoint() {
-	le.mu.Lock()
+	le.mu.Lock() // Lock acquired twice here
 	defer le.mu.Unlock()
 }
 
@@ -40,26 +41,25 @@ func (le *lessor_etcd10492) Renew() {
 		le.cp(context.Background())
 	}
 }
+
 func Etcd10492() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(10 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
-	for i := 0; i < 100; i++ {
-		go func() {
-			// deadlocks: x > 0
-
-			le := &lessor_etcd10492{
-				checkpointInterval: 0,
-			}
-			fakerCheckerpointer_etcd10492 := func(ctx context.Context) {
-				le.Checkpoint()
-			}
-			le.SetCheckpointer(fakerCheckerpointer_etcd10492)
-			le.mu.Lock()
-			le.mu.Unlock()
-			le.Renew()
-		}()
-	}
+	go func() { // G1
+		// deadlocks: 1
+		le := &lessor_etcd10492{
+			checkpointInterval: 0,
+		}
+		fakerCheckerpointer_etcd10492 := func(ctx context.Context) {
+			le.Checkpoint()
+		}
+		le.SetCheckpointer(fakerCheckerpointer_etcd10492)
+		le.mu.Lock()
+		le.mu.Unlock()
+		le.Renew()
+	}()
 }

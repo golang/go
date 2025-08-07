@@ -11,7 +11,9 @@
 package main
 
 import (
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 	"unsafe"
@@ -98,9 +100,10 @@ func (r *Replica_cockroach10214) maybeCoalesceHeartbeat() bool {
 }
 
 func Cockroach10214() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	for i := 0; i < 1000; i++ {
 		go func() {

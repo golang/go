@@ -12,7 +12,8 @@ package main
 import (
 	"errors"
 	"math/rand"
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -43,9 +44,10 @@ func (l *loggingT_cockroach9935) exit(err error) {
 	defer l.mu.Unlock()
 }
 func Cockroach9935() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	for i := 0; i < 100; i++ {

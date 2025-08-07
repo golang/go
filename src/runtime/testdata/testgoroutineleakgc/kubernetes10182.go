@@ -12,7 +12,9 @@
 package main
 
 import (
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -77,9 +79,10 @@ func NewStatusManager_kubernetes10182() *statusManager_kubernetes10182 {
 //	-----------------------------------G1,G3 leak-------------------------------------
 
 func Kubernetes10182() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	for i := 0; i < 1000; i++ {

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -143,9 +145,10 @@ func processEventsUntil_cockroach1462(ch <-chan interceptMessage_cockroach1462, 
 }
 
 func Cockroach1462() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(2000 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	for i := 0; i <= 1000; i++ {
 		go func() { // G1

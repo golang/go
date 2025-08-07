@@ -10,7 +10,9 @@
 package main
 
 import (
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -139,9 +141,10 @@ func NewLeaseSet_cockroach7504(n int) *LeaseSet_cockroach7504 {
 }
 
 func Cockroach7504() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	for i := 0; i < 100; i++ {
 		go func() {

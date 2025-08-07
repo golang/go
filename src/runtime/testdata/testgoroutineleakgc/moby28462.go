@@ -14,7 +14,9 @@
 package main
 
 import (
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -122,9 +124,10 @@ func NewDaemonAndContainer_moby28462() (*Daemon_moby28462, *Container_moby28462)
 ///
 
 func Moby28462() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	for i := 0; i < 10000; i++ {

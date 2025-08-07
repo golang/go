@@ -8,7 +8,8 @@
 package main
 
 import (
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"time"
 )
 
@@ -75,9 +76,10 @@ func NewNode_etcd6857() *node_etcd6857 {
 ///
 
 func Etcd6857() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	for i := 0; i <= 100; i++ {
 		go func() {

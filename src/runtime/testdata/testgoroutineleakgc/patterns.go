@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"time"
 )
 
@@ -43,9 +45,10 @@ func noCloseRange(list []any, workers int) {
 }
 
 func NoCloseRange() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	go noCloseRange([]any{1, 2, 3}, 0)
@@ -110,9 +113,10 @@ func workerLifecycle(items []any) {
 }
 
 func MethodContractViolation() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(10 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	workerLifecycle(make([]any, 10))
@@ -132,10 +136,11 @@ func doubleSend(ch chan any, err error) {
 }
 
 func DoubleSend() {
+	prof := pprof.Lookup("goroutineleak")
 	ch := make(chan any)
 	defer func() {
 		time.Sleep(1000 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	go func() {
@@ -184,9 +189,10 @@ func earlyReturn(err error) {
 }
 
 func EarlyReturn() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(10 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	go earlyReturn(nil)
@@ -214,9 +220,10 @@ func nCastLeak(items []any) {
 }
 
 func NCastLeak() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	go func() {
@@ -238,7 +245,6 @@ func timeout(ctx context.Context) {
 		ch <- struct{}{}
 	}()
 
-	runtime.Gosched()
 	select {
 	case <-ch: // Receive message
 	// Sender is released
@@ -248,9 +254,10 @@ func timeout(ctx context.Context) {
 }
 
 func Timeout() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(10 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	ctx, cancel := context.WithCancel(context.Background())

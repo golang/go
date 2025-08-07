@@ -1,7 +1,8 @@
 package main
 
 import (
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"sync"
 	"time"
 )
@@ -94,9 +95,10 @@ func Notify_kubernetes11298(abort <-chan struct{}) {
 	Until_kubernetes11298(func() { n.serviceLoop(finished) }, 0, abort)
 }
 func Kubernetes11298() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 
 	for i := 0; i < 1000; i++ {

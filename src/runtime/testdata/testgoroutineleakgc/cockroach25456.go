@@ -1,7 +1,8 @@
 package main
 
 import (
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"time"
 )
 
@@ -74,9 +75,10 @@ func (tc *testContext_cockroach25456) StartWithStoreConfig(stopper *Stopper_cock
 }
 
 func Cockroach25456() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(100 * time.Millisecond)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	go func() {
 		// deadlocks: 1

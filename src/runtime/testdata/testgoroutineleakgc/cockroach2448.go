@@ -1,7 +1,9 @@
 package main
 
 import (
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"time"
 )
 
@@ -102,9 +104,10 @@ func NewStoreAndState_cockroach2448() (*Store_cockroach2448, *state_cockroach244
 }
 
 func Cockroach2448() {
+	prof := pprof.Lookup("goroutineleak")
 	defer func() {
 		time.Sleep(time.Second)
-		runtime.GC()
+		prof.WriteTo(os.Stdout, 2)
 	}()
 	for i := 0; i < 1000; i++ {
 		go func() {
