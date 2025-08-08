@@ -1199,24 +1199,18 @@ func gcDrainMarkWorkerFractional(gcw *gcWork) {
 // is valid, and false if there are no more root jobs to be claimed,
 // i.e. work.markrootNext >= work.markrootJobs.
 func gcNextMarkRoot() (uint32, bool) {
-	var success bool
-	next, jobs := work.markrootNext.Load(), work.markrootJobs.Load()
+	if !work.goroutineLeakFinder.enabled {
+		// If not running goroutine leak detection, behave as the GC previously did.
+		job := work.markrootNext.Add(1) - 1
+		return job, job < work.markrootJobs.Load()
+	}
 
-	if next < jobs {
-		// still work available at the moment
-		for !success {
-			success = work.markrootNext.CompareAndSwap(next, next+1)
+	// Otherwise, use a CAS loop to increment markrootNext.
+	for next, jobs := work.markrootNext.Load(), work.markrootJobs.Load(); next < jobs; next = work.markrootNext.Load() {
+		// There is still work available at the moment.
+		if work.markrootNext.CompareAndSwap(next, next+1) {
 			// We manage to snatch a root job. Return the root index.
-			if success {
-				return next, true
-			}
-
-			// Get the latest value of markrootNext.
-			next = work.markrootNext.Load()
-			// We are out of markroot jobs.
-			if next >= jobs {
-				break
-			}
+			return next, true
 		}
 	}
 	return 0, false

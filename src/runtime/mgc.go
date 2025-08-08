@@ -733,10 +733,6 @@ func gcStart(trigger gcTrigger) {
 		mode = gcForceMode
 	} else if debug.gcstoptheworld == 2 {
 		mode = gcForceBlockMode
-	} else if work.goroutineLeakFinder.pending.Load() {
-		// If goroutine leak detection has been enabled via profiling,
-		// stop the world during the marking phase.
-		mode = gcForceMode
 	}
 
 	// Ok, we're doing it! Stop everybody else
@@ -936,9 +932,6 @@ func gcMarkDone() {
 	// Ensure only one thread is running the ragged barrier at a
 	// time.
 	semacquire(&work.markDoneSema)
-	if work.goroutineLeakFinder.enabled {
-		findMaybeRunnableGoroutines()
-	}
 
 top:
 	// Re-check transition condition under transition lock.
@@ -1381,9 +1374,11 @@ func gcMarkTermination(stw worldStop) {
 		gcRestoreSyncObjects()
 	}
 
+	var goroutineLeakDetectionDone bool
 	systemstack(func() {
 		// Pull the GC out of goroutine leak detection mode.
 		work.goroutineLeakFinder.enabled = false
+		goroutineLeakDetectionDone = work.goroutineLeakFinder.done
 		work.goroutineLeakFinder.done = false
 
 		// The memstats updated above must be updated with the world
@@ -1460,8 +1455,8 @@ func gcMarkTermination(stw worldStop) {
 		print("gc ", memstats.numgc,
 			" @", string(itoaDiv(sbuf[:], uint64(work.tSweepTerm-runtimeInitTime)/1e6, 3)), "s ",
 			util, "%")
-		if work.goroutineLeakFinder.done {
-			print(" (goroutine leak finder GC)")
+		if goroutineLeakDetectionDone {
+			print(" (checking for goroutine leaks)")
 		}
 		print(": ")
 		prev := work.tSweepTerm
