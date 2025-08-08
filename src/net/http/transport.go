@@ -26,6 +26,7 @@ import (
 	"net/http/internal/ascii"
 	"net/textproto"
 	"net/url"
+	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -36,6 +37,59 @@ import (
 	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/http/httpproxy"
 )
+
+// HTTP/1 debug logging variables, similar to HTTP/2 implementation
+var (
+	http1VerboseLogs    bool
+	http1logRequests    bool
+	http1logResponses   bool
+	http1logConnections bool
+)
+
+func init() {
+	// Initialize HTTP/1 debug logging based on GODEBUG environment variable
+	// This matches the HTTP/2 implementation pattern exactly
+	e := os.Getenv("GODEBUG")
+	if strings.Contains(e, "http1debug=1") {
+		http1VerboseLogs = true
+	}
+	if strings.Contains(e, "http1debug=2") {
+		http1VerboseLogs = true
+		http1logRequests = true
+		http1logResponses = true
+	}
+	if strings.Contains(e, "http1xconnect=1") {
+		http1VerboseLogs = true
+		http1logRequests = true
+		http1logResponses = true
+		http1logConnections = true
+	}
+}
+
+// HTTP/1 debug logging functions, similar to HTTP/2 logf and vlogf
+func http1Logf(format string, args ...interface{}) {
+	if http1VerboseLogs {
+		log.Printf("http1: "+format, args...)
+	}
+}
+
+func http1LogRequest(format string, args ...interface{}) {
+	if http1logRequests {
+		log.Printf("http1: request: "+format, args...)
+	}
+}
+
+func http1LogResponse(format string, args ...interface{}) {
+	if http1logResponses {
+		log.Printf("http1: response: "+format, args...)
+	}
+}
+
+func http1LogConnection(format string, args ...interface{}) {
+	if http1logConnections {
+		log.Printf("http1: connection: "+format, args...)
+	}
+}
 
 // DefaultTransport is the default implementation of [Transport] and is
 // used by [DefaultClient]. It establishes network connections as needed
@@ -1063,7 +1117,7 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 
 	// HTTP/2 (pconn.alt != nil) connections do not come out of the idle list,
 	// because multiple goroutines can use them simultaneously.
-	// If this is an HTTP/2 connection being “returned,” we're done.
+	// If this is an HTTP/2 connection being "returned," we're done.
 	if pconn.alt != nil && t.idleLRU.m[pconn] != nil {
 		return nil
 	}
@@ -1734,6 +1788,8 @@ type erringRoundTripper interface {
 var testHookProxyConnectTimeout = context.WithTimeout
 
 func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *persistConn, err error) {
+	http1LogConnection("dialing connection to %s (scheme: %s)", cm.addr(), cm.scheme())
+
 	pconn = &persistConn{
 		t:             t,
 		cacheKey:      cm.key(),
@@ -1752,9 +1808,11 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		return err
 	}
 	if cm.scheme() == "https" && t.hasCustomTLSDialer() {
+		http1LogConnection("using custom TLS dialer for %s", cm.addr())
 		var err error
 		pconn.conn, err = t.customDialTLS(ctx, "tcp", cm.addr())
 		if err != nil {
+			http1LogConnection("custom TLS dial failed for %s: %v", cm.addr(), err)
 			return nil, wrapErr(err)
 		}
 		if tc, ok := pconn.conn.(*tls.Conn); ok {
@@ -1763,11 +1821,13 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			if trace != nil && trace.TLSHandshakeStart != nil {
 				trace.TLSHandshakeStart()
 			}
+			http1LogConnection("performing TLS handshake for %s", cm.addr())
 			if err := tc.HandshakeContext(ctx); err != nil {
 				go pconn.conn.Close()
 				if trace != nil && trace.TLSHandshakeDone != nil {
 					trace.TLSHandshakeDone(tls.ConnectionState{}, err)
 				}
+				http1LogConnection("TLS handshake failed for %s: %v", cm.addr(), err)
 				return nil, err
 			}
 			cs := tc.ConnectionState()
@@ -1775,21 +1835,28 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 				trace.TLSHandshakeDone(cs, nil)
 			}
 			pconn.tlsState = &cs
+			http1LogConnection("TLS handshake completed for %s (protocol: %s)", cm.addr(), cs.NegotiatedProtocol)
 		}
 	} else {
+		http1LogConnection("dialing TCP connection to %s", cm.addr())
 		conn, err := t.dial(ctx, "tcp", cm.addr())
 		if err != nil {
+			http1LogConnection("TCP dial failed for %s: %v", cm.addr(), err)
 			return nil, wrapErr(err)
 		}
 		pconn.conn = conn
+		http1LogConnection("TCP connection established to %s", cm.addr())
 		if cm.scheme() == "https" {
 			var firstTLSHost string
 			if firstTLSHost, _, err = net.SplitHostPort(cm.addr()); err != nil {
 				return nil, wrapErr(err)
 			}
+			http1LogConnection("adding TLS to connection for %s", firstTLSHost)
 			if err = pconn.addTLS(ctx, firstTLSHost, trace); err != nil {
+				http1LogConnection("TLS setup failed for %s: %v", firstTLSHost, err)
 				return nil, wrapErr(err)
 			}
+			http1LogConnection("TLS setup completed for %s", firstTLSHost)
 		}
 	}
 
@@ -1797,7 +1864,9 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 	switch {
 	case cm.proxyURL == nil:
 		// Do nothing. Not using a proxy.
+		http1LogConnection("direct connection to %s (no proxy)", cm.addr())
 	case cm.proxyURL.Scheme == "socks5" || cm.proxyURL.Scheme == "socks5h":
+		http1LogConnection("using SOCKS5 proxy %s for %s", cm.proxyURL.Host, cm.targetAddr)
 		conn := pconn.conn
 		d := socksNewDialer("tcp", conn.RemoteAddr().String())
 		if u := cm.proxyURL.User; u != nil {
@@ -2462,10 +2531,13 @@ func (pc *persistConn) readResponse(rc requestAndChan, trace *httptrace.ClientTr
 	for {
 		resp, err = ReadResponse(pc.br, rc.treq.Request)
 		if err != nil {
+			http1LogResponse("failed to read response from %s: %v", pc.safeRemoteAddr(), err)
 			return
 		}
 		resCode := resp.StatusCode
+		http1LogResponse("received response from %s: %d %s", pc.safeRemoteAddr(), resCode, resp.Status)
 		if continueCh != nil && resCode == StatusContinue {
+			http1LogResponse("received 100 Continue response from %s", pc.safeRemoteAddr())
 			if trace != nil && trace.Got100Continue != nil {
 				trace.Got100Continue()
 			}
@@ -2476,6 +2548,7 @@ func (pc *persistConn) readResponse(rc requestAndChan, trace *httptrace.ClientTr
 		// treat 101 as a terminal status, see issue 26161
 		is1xxNonTerminal := is1xx && resCode != StatusSwitchingProtocols
 		if is1xxNonTerminal {
+			http1LogResponse("received 1xx non-terminal response %d from %s", resCode, pc.safeRemoteAddr())
 			if trace != nil && trace.Got1xxResponse != nil {
 				if err := trace.Got1xxResponse(resCode, textproto.MIMEHeader(resp.Header)); err != nil {
 					return nil, err
@@ -2494,6 +2567,7 @@ func (pc *persistConn) readResponse(rc requestAndChan, trace *httptrace.ClientTr
 		break
 	}
 	if resp.isProtocolSwitch() {
+		http1LogResponse("protocol switch response from %s: %s", pc.safeRemoteAddr(), resp.Header.Get("Upgrade"))
 		resp.Body = newReadWriteCloserBody(pc.br, pc.conn)
 	}
 	if continueCh != nil {
@@ -2510,13 +2584,16 @@ func (pc *persistConn) readResponse(rc requestAndChan, trace *httptrace.ClientTr
 		// Given that we'll send the body if ExpectContinueTimeout expires,
 		// be consistent and always send it if we aren't closing the connection.
 		if resp.Close || rc.treq.Request.Close {
+			http1LogResponse("closing connection after response from %s (no 100-continue)", pc.safeRemoteAddr())
 			close(continueCh) // don't send the body; the connection will close
 		} else {
+			http1LogResponse("sending request body after response from %s (no 100-continue)", pc.safeRemoteAddr())
 			continueCh <- struct{}{} // send the body
 		}
 	}
 
 	resp.TLS = pc.tlsState
+	http1LogResponse("response processing completed for %s: %d %s", pc.safeRemoteAddr(), resp.StatusCode, resp.Status)
 	return
 }
 
@@ -2597,6 +2674,7 @@ func (pc *persistConn) writeLoop() {
 		select {
 		case wr := <-pc.writech:
 			startBytesWritten := pc.nwrite
+			http1LogRequest("writing request %s %s to %s", wr.req.Method, wr.req.URL.String(), pc.safeRemoteAddr())
 			err := wr.req.Request.write(pc.bw, pc.isProxy, wr.req.extra, pc.waitForContinue(wr.continueCh))
 			if bre, ok := err.(requestBodyReadError); ok {
 				err = bre.error
@@ -2616,6 +2694,10 @@ func (pc *persistConn) writeLoop() {
 				if pc.nwrite == startBytesWritten {
 					err = nothingWrittenError{err}
 				}
+				http1LogRequest("request write failed for %s %s: %v", wr.req.Method, wr.req.URL.String(), err)
+			} else {
+				bytesWritten := pc.nwrite - startBytesWritten
+				http1LogRequest("request written successfully for %s %s (%d bytes)", wr.req.Method, wr.req.URL.String(), bytesWritten)
 			}
 			pc.writeErrCh <- err // to the body reader, which might recycle us
 			wr.ch <- err         // to the roundTrip function
@@ -2624,6 +2706,7 @@ func (pc *persistConn) writeLoop() {
 				return
 			}
 		case <-pc.closech:
+			http1LogConnection("writeLoop exiting due to connection close")
 			return
 		}
 	}
@@ -2794,7 +2877,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 	gone := make(chan struct{})
 	defer close(gone)
 
-	const debugRoundTrip = false
+	debugRoundTrip := http1VerboseLogs
 
 	// Write the request concurrently with waiting for a response,
 	// in case the server decides to reply before reading our full
@@ -2817,7 +2900,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 			panic(fmt.Sprintf("internal error: exactly one of res or err should be set; nil=%v", re.res == nil))
 		}
 		if debugRoundTrip {
-			req.logf("resc recv: %p, %T/%#v", re.res, re.err, re.err)
+			http1Logf("resc recv: %p, %T/%#v", re.res, re.err, re.err)
 		}
 		if re.err != nil {
 			return nil, pc.mapRoundTripError(req, startBytesWritten, re.err)
@@ -2833,7 +2916,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 		select {
 		case err := <-writeErrCh:
 			if debugRoundTrip {
-				req.logf("writeErrCh recv: %T/%#v", err, err)
+				http1Logf("writeErrCh recv: %T/%#v", err, err)
 			}
 			if err != nil {
 				pc.close(fmt.Errorf("write error: %w", err))
@@ -2841,7 +2924,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 			}
 			if d := pc.t.ResponseHeaderTimeout; d > 0 {
 				if debugRoundTrip {
-					req.logf("starting timer for %v", d)
+					http1Logf("starting timer for %v", d)
 				}
 				timer := time.NewTimer(d)
 				defer timer.Stop() // prevent leaks
@@ -2857,12 +2940,12 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 			default:
 			}
 			if debugRoundTrip {
-				req.logf("closech recv: %T %#v", pc.closed, pc.closed)
+				http1Logf("closech recv: %T %#v", pc.closed, pc.closed)
 			}
 			return nil, pc.mapRoundTripError(req, startBytesWritten, pc.closed)
 		case <-respHeaderTimer:
 			if debugRoundTrip {
-				req.logf("timeout waiting for response headers.")
+				http1Logf("timeout waiting for response headers.")
 			}
 			pc.close(errTimeout)
 			return nil, errTimeout
@@ -3136,4 +3219,27 @@ func (cl *connLRU) remove(pc *persistConn) {
 // len returns the number of items in the cache.
 func (cl *connLRU) len() int {
 	return len(cl.m)
+}
+
+// Helper function to safely get remote address for logging
+func (pc *persistConn) safeRemoteAddr() string {
+	if pc.conn == nil {
+		return "unknown"
+	}
+
+	// Use a defer/recover to safely handle test connections that might panic
+	var result string
+	defer func() {
+		if recover() != nil {
+			// If RemoteAddr() panics (e.g., in test scenarios), just return unknown
+			result = "unknown"
+		}
+	}()
+
+	if addr := pc.conn.RemoteAddr(); addr != nil {
+		result = addr.String()
+	} else {
+		result = "unknown"
+	}
+	return result
 }
