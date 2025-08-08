@@ -825,6 +825,36 @@ func TestAddressParsing(t *testing.T) {
 				Address: "jdoe@[192.168.0.1]",
 			}},
 		},
+		// No whitespace allowed in domain
+		{
+			`jdoe@machine.example`, // should pass
+			// `jdoe@   machine.example`, // should fail
+			[]*Address{{
+				Address: "jdoe@machine.example",
+			}},
+		},
+		{
+			`John Doe <jdoe@machine.example>`, // should pass
+			// `John Doe <jdoe@             machine.example>`, // should fail
+			[]*Address{{
+				Name:    "John Doe",
+				Address: "jdoe@machine.example",
+			}},
+		},
+		{
+			` , joe@where.test,,John <jdoe@one.test>,,`, // should pass
+			// ` , joe@where.test,,John <jdoe@ one.test>,,`, // should fail
+			[]*Address{
+				{
+					Name:    "",
+					Address: "joe@where.test",
+				},
+				{
+					Name:    "John",
+					Address: "jdoe@one.test",
+				},
+			},
+		},
 	}
 	for _, test := range tests {
 		if len(test.exp) == 1 {
