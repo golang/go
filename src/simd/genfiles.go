@@ -175,8 +175,6 @@ func prologue(s string, out io.Writer) {
 
 package simd
 
-import "unsafe"
-
 `, s)
 }
 
@@ -708,7 +706,10 @@ func Broadcast{{.Vec}}(x {{.Type}}) {{.Vec}} {
 `)
 
 func main() {
-	sl := flag.String("sl", "slice_amd64.go", "file name for slice operations")
+	sl := flag.String("sl", "slice_gen_amd64.go", "file name for slice operations")
+	cm := flag.String("cm", "compare_gen_amd64.go", "file name for comparison operations")
+	mm := flag.String("mm", "maskmerge_gen_amd64.go", "file name for mask/merge operations")
+	op := flag.String("op", "other_gen_amd64.go", "file name for other operations")
 	ush := flag.String("ush", "unsafe_helpers.go", "file name for unsafe helpers")
 	bh := flag.String("bh", "binary_helpers_test.go", "file name for binary test helpers")
 	uh := flag.String("uh", "unary_helpers_test.go", "file name for unary test helpers")
@@ -718,15 +719,27 @@ func main() {
 	flag.Parse()
 
 	if *sl != "" {
-		one(*sl, prologue,
+		one(*sl, unsafePrologue,
 			sliceTemplate,
 			avx512MaskedLoadSlicePartTemplate,
 			avx2MaskedLoadSlicePartTemplate,
 			avx2SmallLoadSlicePartTemplate,
-			avx2MaskedTemplate,
-			avx512MaskedTemplate,
+		)
+	}
+	if *cm != "" {
+		one(*cm, prologue,
 			avx2SignedComparisonsTemplate,
 			avx2UnsignedComparisonsTemplate,
+		)
+	}
+	if *mm != "" {
+		one(*mm, prologue,
+			avx2MaskedTemplate,
+			avx512MaskedTemplate,
+		)
+	}
+	if *op != "" {
+		one(*op, prologue,
 			broadcastTemplate,
 		)
 	}
