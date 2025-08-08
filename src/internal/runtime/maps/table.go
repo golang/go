@@ -8,6 +8,7 @@ package maps
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/runtime/math"
 	"unsafe"
 )
 
@@ -127,8 +128,7 @@ func (t *table) maxGrowthLeft() uint16 {
 		// single-group tables, we could fill all slots.
 		return t.capacity - 1
 	} else {
-		if t.capacity*maxAvgGroupLoad < t.capacity {
-			// TODO(prattmic): Do something cleaner.
+		if t.capacity > math.MaxUint16/maxAvgGroupLoad {
 			panic("overflow")
 		}
 		return (t.capacity * maxAvgGroupLoad) / abi.MapGroupSlots
