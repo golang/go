@@ -1529,7 +1529,8 @@ func TestGoroutineLeakGC(t *testing.T) {
 
 			// Zero tolerance policy for fatal exceptions or panics.
 			if failStates.MatchString(output) {
-				t.Errorf("output:\n%s\n\nunexpected fatal exception or panic", output)
+				t.Errorf("unexpected fatal exception or panic!\noutput:\n%s\n\n", output)
+				return
 			}
 
 			// Extract all the goroutine leaks
