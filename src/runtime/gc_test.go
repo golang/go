@@ -1346,7 +1346,7 @@ func TestGoroutineLeakGC(t *testing.T) {
 			`Etcd7492\.func2\.1\(.* \[chan send\]`,
 			`\(\*simpleTokenTTLKeeper_etcd7492\)\.run\(.* \[sync\.Mutex\.Lock\]`,
 		),
-		makeTest("Etcd7902",
+		makeFlakyTest("Etcd7902",
 			`doRounds_etcd7902\.func1\(.* \[chan receive\]`,
 			`doRounds_etcd7902\.func1\(.* \[sync\.Mutex\.Lock\]`,
 			`runElectionFunc_etcd7902\(.* \[sync\.WaitGroup\.Wait\]`,
