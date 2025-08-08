@@ -196,8 +196,8 @@ func (ht *HashTrieMap[K, V]) expand(oldEntry, newEntry *entry[K, V], newHash uin
 }
 
 // Store sets the value for a key.
-func (ht *HashTrieMap[K, V]) Store(key K, old V) {
-	_, _ = ht.Swap(key, old)
+func (ht *HashTrieMap[K, V]) Store(key K, new V) {
+	_, _ = ht.Swap(key, new)
 }
 
 // Swap swaps the value for a key and returns the previous value if any.
