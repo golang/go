@@ -32362,7 +32362,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VROUNDPS128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVROUNDPS,
 		reg: regInfo{
@@ -32376,7 +32376,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VROUNDPS256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVROUNDPS,
 		reg: regInfo{
@@ -32390,7 +32390,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VROUNDPD128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVROUNDPD,
 		reg: regInfo{
@@ -32404,7 +32404,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VROUNDPD256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVROUNDPD,
 		reg: regInfo{
@@ -32418,7 +32418,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VRNDSCALEPS128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVRNDSCALEPS,
 		reg: regInfo{
@@ -32432,7 +32432,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VRNDSCALEPS256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVRNDSCALEPS,
 		reg: regInfo{
@@ -32446,7 +32446,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VRNDSCALEPS512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVRNDSCALEPS,
 		reg: regInfo{
@@ -32460,7 +32460,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VRNDSCALEPD128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVRNDSCALEPD,
 		reg: regInfo{
@@ -32474,7 +32474,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VRNDSCALEPD256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVRNDSCALEPD,
 		reg: regInfo{
@@ -32488,7 +32488,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VRNDSCALEPD512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVRNDSCALEPD,
 		reg: regInfo{
@@ -32502,7 +32502,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VRNDSCALEPSMasked128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVRNDSCALEPS,
 		reg: regInfo{
@@ -32517,7 +32517,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VRNDSCALEPSMasked256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVRNDSCALEPS,
 		reg: regInfo{
@@ -32532,7 +32532,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VRNDSCALEPSMasked512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVRNDSCALEPS,
 		reg: regInfo{
@@ -32547,7 +32547,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VRNDSCALEPDMasked128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVRNDSCALEPD,
 		reg: regInfo{
@@ -32562,7 +32562,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VRNDSCALEPDMasked256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVRNDSCALEPD,
 		reg: regInfo{
@@ -32577,7 +32577,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VRNDSCALEPDMasked512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVRNDSCALEPD,
 		reg: regInfo{
@@ -32592,7 +32592,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VREDUCEPS128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVREDUCEPS,
 		reg: regInfo{
@@ -32606,7 +32606,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VREDUCEPS256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVREDUCEPS,
 		reg: regInfo{
@@ -32620,7 +32620,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VREDUCEPS512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVREDUCEPS,
 		reg: regInfo{
@@ -32634,7 +32634,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VREDUCEPD128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVREDUCEPD,
 		reg: regInfo{
@@ -32648,7 +32648,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VREDUCEPD256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVREDUCEPD,
 		reg: regInfo{
@@ -32662,7 +32662,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VREDUCEPD512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVREDUCEPD,
 		reg: regInfo{
@@ -32676,7 +32676,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VREDUCEPSMasked128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVREDUCEPS,
 		reg: regInfo{
@@ -32691,7 +32691,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VREDUCEPSMasked256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVREDUCEPS,
 		reg: regInfo{
@@ -32706,7 +32706,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VREDUCEPSMasked512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVREDUCEPS,
 		reg: regInfo{
@@ -32721,7 +32721,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VREDUCEPDMasked128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVREDUCEPD,
 		reg: regInfo{
@@ -32736,7 +32736,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VREDUCEPDMasked256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVREDUCEPD,
 		reg: regInfo{
@@ -32751,7 +32751,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VREDUCEPDMasked512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVREDUCEPD,
 		reg: regInfo{
@@ -32766,7 +32766,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VCMPPS128",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVCMPPS,
@@ -32782,7 +32782,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VCMPPS256",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVCMPPS,
@@ -32798,7 +32798,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VCMPPS512",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVCMPPS,
@@ -32814,7 +32814,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VCMPPD128",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVCMPPD,
@@ -32830,7 +32830,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VCMPPD256",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVCMPPD,
@@ -32846,7 +32846,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VCMPPD512",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      2,
 		commutative: true,
 		asm:         x86.AVCMPPD,
@@ -32862,7 +32862,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VCMPPSMasked128",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVCMPPS,
@@ -32879,7 +32879,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VCMPPSMasked256",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVCMPPS,
@@ -32896,7 +32896,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VCMPPSMasked512",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVCMPPS,
@@ -32913,7 +32913,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VCMPPDMasked128",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVCMPPD,
@@ -32930,7 +32930,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VCMPPDMasked256",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVCMPPD,
@@ -32947,7 +32947,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VCMPPDMasked512",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVCMPPD,
@@ -32964,7 +32964,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPBMasked128",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPB,
@@ -32981,7 +32981,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPBMasked256",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPB,
@@ -32998,7 +32998,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPBMasked512",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPB,
@@ -33015,7 +33015,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPWMasked128",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPW,
@@ -33032,7 +33032,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPWMasked256",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPW,
@@ -33049,7 +33049,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPWMasked512",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPW,
@@ -33066,7 +33066,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPDMasked128",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPD,
@@ -33083,7 +33083,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPDMasked256",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPD,
@@ -33100,7 +33100,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPDMasked512",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPD,
@@ -33117,7 +33117,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPQMasked128",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPQ,
@@ -33134,7 +33134,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPQMasked256",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPQ,
@@ -33151,7 +33151,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPQMasked512",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPQ,
@@ -33168,7 +33168,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPUBMasked128",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPUB,
@@ -33185,7 +33185,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPUBMasked256",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPUB,
@@ -33202,7 +33202,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPUBMasked512",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPUB,
@@ -33219,7 +33219,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPUWMasked128",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPUW,
@@ -33236,7 +33236,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPUWMasked256",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPUW,
@@ -33253,7 +33253,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPUWMasked512",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPUW,
@@ -33270,7 +33270,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPUDMasked128",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPUD,
@@ -33287,7 +33287,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPUDMasked256",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPUD,
@@ -33304,7 +33304,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPUDMasked512",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPUD,
@@ -33321,7 +33321,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPUQMasked128",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPUQ,
@@ -33338,7 +33338,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPUQMasked256",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPUQ,
@@ -33355,7 +33355,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "VPCMPUQMasked512",
-		auxType:     auxInt8,
+		auxType:     auxUInt8,
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPCMPUQ,
@@ -33372,7 +33372,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VGF2P8AFFINEQB128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVGF2P8AFFINEQB,
 		reg: regInfo{
@@ -33387,7 +33387,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VGF2P8AFFINEQB256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVGF2P8AFFINEQB,
 		reg: regInfo{
@@ -33402,7 +33402,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VGF2P8AFFINEQB512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVGF2P8AFFINEQB,
 		reg: regInfo{
@@ -33417,7 +33417,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VGF2P8AFFINEINVQB128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVGF2P8AFFINEINVQB,
 		reg: regInfo{
@@ -33432,7 +33432,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VGF2P8AFFINEINVQB256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVGF2P8AFFINEINVQB,
 		reg: regInfo{
@@ -33447,7 +33447,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VGF2P8AFFINEINVQB512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVGF2P8AFFINEINVQB,
 		reg: regInfo{
@@ -33462,7 +33462,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VGF2P8AFFINEINVQBMasked128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVGF2P8AFFINEINVQB,
 		reg: regInfo{
@@ -33478,7 +33478,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VGF2P8AFFINEINVQBMasked256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVGF2P8AFFINEINVQB,
 		reg: regInfo{
@@ -33494,7 +33494,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VGF2P8AFFINEINVQBMasked512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVGF2P8AFFINEINVQB,
 		reg: regInfo{
@@ -33510,7 +33510,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VGF2P8AFFINEQBMasked128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVGF2P8AFFINEQB,
 		reg: regInfo{
@@ -33526,7 +33526,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VGF2P8AFFINEQBMasked256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVGF2P8AFFINEQB,
 		reg: regInfo{
@@ -33542,7 +33542,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VGF2P8AFFINEQBMasked512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVGF2P8AFFINEQB,
 		reg: regInfo{
@@ -33558,7 +33558,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPEXTRB128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPEXTRB,
 		reg: regInfo{
@@ -33572,7 +33572,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPEXTRW128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPEXTRW,
 		reg: regInfo{
@@ -33586,7 +33586,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPEXTRD128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPEXTRD,
 		reg: regInfo{
@@ -33600,7 +33600,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPEXTRQ128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPEXTRQ,
 		reg: regInfo{
@@ -33614,7 +33614,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VEXTRACTF128128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVEXTRACTF128,
 		reg: regInfo{
@@ -33628,7 +33628,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VEXTRACTF64X4256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVEXTRACTF64X4,
 		reg: regInfo{
@@ -33642,7 +33642,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VEXTRACTI128128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVEXTRACTI128,
 		reg: regInfo{
@@ -33656,7 +33656,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VEXTRACTI64X4256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVEXTRACTI64X4,
 		reg: regInfo{
@@ -33670,7 +33670,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPUB128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPUB,
 		reg: regInfo{
@@ -33685,7 +33685,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPUB256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPUB,
 		reg: regInfo{
@@ -33700,7 +33700,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPUB512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPUB,
 		reg: regInfo{
@@ -33715,7 +33715,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPUW128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPUW,
 		reg: regInfo{
@@ -33730,7 +33730,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPUW256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPUW,
 		reg: regInfo{
@@ -33745,7 +33745,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPUW512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPUW,
 		reg: regInfo{
@@ -33760,7 +33760,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPUD128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPUD,
 		reg: regInfo{
@@ -33775,7 +33775,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPUD256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPUD,
 		reg: regInfo{
@@ -33790,7 +33790,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPUD512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPUD,
 		reg: regInfo{
@@ -33805,7 +33805,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPUQ128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPUQ,
 		reg: regInfo{
@@ -33820,7 +33820,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPUQ256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPUQ,
 		reg: regInfo{
@@ -33835,7 +33835,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPUQ512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPUQ,
 		reg: regInfo{
@@ -33850,7 +33850,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPB128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPB,
 		reg: regInfo{
@@ -33865,7 +33865,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPB256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPB,
 		reg: regInfo{
@@ -33880,7 +33880,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPB512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPB,
 		reg: regInfo{
@@ -33895,7 +33895,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPW128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPW,
 		reg: regInfo{
@@ -33910,7 +33910,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPW256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPW,
 		reg: regInfo{
@@ -33925,7 +33925,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPW512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPW,
 		reg: regInfo{
@@ -33940,7 +33940,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPD128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPD,
 		reg: regInfo{
@@ -33955,7 +33955,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPD256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPD,
 		reg: regInfo{
@@ -33970,7 +33970,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPD512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPD,
 		reg: regInfo{
@@ -33985,7 +33985,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPQ128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPQ,
 		reg: regInfo{
@@ -34000,7 +34000,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPQ256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPQ,
 		reg: regInfo{
@@ -34015,7 +34015,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPCMPQ512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPCMPQ,
 		reg: regInfo{
@@ -34030,7 +34030,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPROLD128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPROLD,
 		reg: regInfo{
@@ -34044,7 +34044,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPROLD256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPROLD,
 		reg: regInfo{
@@ -34058,7 +34058,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPROLD512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPROLD,
 		reg: regInfo{
@@ -34072,7 +34072,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPROLQ128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPROLQ,
 		reg: regInfo{
@@ -34086,7 +34086,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPROLQ256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPROLQ,
 		reg: regInfo{
@@ -34100,7 +34100,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPROLQ512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPROLQ,
 		reg: regInfo{
@@ -34114,7 +34114,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPROLDMasked128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPROLD,
 		reg: regInfo{
@@ -34129,7 +34129,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPROLDMasked256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPROLD,
 		reg: regInfo{
@@ -34144,7 +34144,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPROLDMasked512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPROLD,
 		reg: regInfo{
@@ -34159,7 +34159,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPROLQMasked128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPROLQ,
 		reg: regInfo{
@@ -34174,7 +34174,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPROLQMasked256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPROLQ,
 		reg: regInfo{
@@ -34189,7 +34189,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPROLQMasked512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPROLQ,
 		reg: regInfo{
@@ -34204,7 +34204,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPRORD128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPRORD,
 		reg: regInfo{
@@ -34218,7 +34218,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPRORD256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPRORD,
 		reg: regInfo{
@@ -34232,7 +34232,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPRORD512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPRORD,
 		reg: regInfo{
@@ -34246,7 +34246,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPRORQ128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPRORQ,
 		reg: regInfo{
@@ -34260,7 +34260,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPRORQ256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPRORQ,
 		reg: regInfo{
@@ -34274,7 +34274,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPRORQ512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPRORQ,
 		reg: regInfo{
@@ -34288,7 +34288,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPRORDMasked128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPRORD,
 		reg: regInfo{
@@ -34303,7 +34303,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPRORDMasked256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPRORD,
 		reg: regInfo{
@@ -34318,7 +34318,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPRORDMasked512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPRORD,
 		reg: regInfo{
@@ -34333,7 +34333,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPRORQMasked128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPRORQ,
 		reg: regInfo{
@@ -34348,7 +34348,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPRORQMasked256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPRORQ,
 		reg: regInfo{
@@ -34363,7 +34363,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPRORQMasked512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPRORQ,
 		reg: regInfo{
@@ -34378,7 +34378,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPINSRB128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPINSRB,
 		reg: regInfo{
@@ -34393,7 +34393,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPINSRW128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPINSRW,
 		reg: regInfo{
@@ -34408,7 +34408,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPINSRD128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPINSRD,
 		reg: regInfo{
@@ -34423,7 +34423,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPINSRQ128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPINSRQ,
 		reg: regInfo{
@@ -34438,7 +34438,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VINSERTF128256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVINSERTF128,
 		reg: regInfo{
@@ -34453,7 +34453,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VINSERTF64X4512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVINSERTF64X4,
 		reg: regInfo{
@@ -34468,7 +34468,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VINSERTI128256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVINSERTI128,
 		reg: regInfo{
@@ -34483,7 +34483,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VINSERTI64X4512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVINSERTI64X4,
 		reg: regInfo{
@@ -34498,7 +34498,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHLDW128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSHLDW,
 		reg: regInfo{
@@ -34513,7 +34513,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHLDW256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSHLDW,
 		reg: regInfo{
@@ -34528,7 +34528,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHLDW512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSHLDW,
 		reg: regInfo{
@@ -34543,7 +34543,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHLDD128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSHLDD,
 		reg: regInfo{
@@ -34558,7 +34558,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHLDD256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSHLDD,
 		reg: regInfo{
@@ -34573,7 +34573,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHLDD512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSHLDD,
 		reg: regInfo{
@@ -34588,7 +34588,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHLDQ128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSHLDQ,
 		reg: regInfo{
@@ -34603,7 +34603,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHLDQ256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSHLDQ,
 		reg: regInfo{
@@ -34618,7 +34618,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHLDQ512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSHLDQ,
 		reg: regInfo{
@@ -34633,7 +34633,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHLDWMasked128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVPSHLDW,
 		reg: regInfo{
@@ -34649,7 +34649,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHLDWMasked256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVPSHLDW,
 		reg: regInfo{
@@ -34665,7 +34665,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHLDWMasked512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVPSHLDW,
 		reg: regInfo{
@@ -34681,7 +34681,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHLDDMasked128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVPSHLDD,
 		reg: regInfo{
@@ -34697,7 +34697,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHLDDMasked256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVPSHLDD,
 		reg: regInfo{
@@ -34713,7 +34713,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHLDDMasked512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVPSHLDD,
 		reg: regInfo{
@@ -34729,7 +34729,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHLDQMasked128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVPSHLDQ,
 		reg: regInfo{
@@ -34745,7 +34745,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHLDQMasked256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVPSHLDQ,
 		reg: regInfo{
@@ -34761,7 +34761,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHLDQMasked512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVPSHLDQ,
 		reg: regInfo{
@@ -34777,7 +34777,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHRDW128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSHRDW,
 		reg: regInfo{
@@ -34792,7 +34792,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHRDW256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSHRDW,
 		reg: regInfo{
@@ -34807,7 +34807,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHRDW512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSHRDW,
 		reg: regInfo{
@@ -34822,7 +34822,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHRDD128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSHRDD,
 		reg: regInfo{
@@ -34837,7 +34837,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHRDD256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSHRDD,
 		reg: regInfo{
@@ -34852,7 +34852,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHRDD512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSHRDD,
 		reg: regInfo{
@@ -34867,7 +34867,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHRDQ128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSHRDQ,
 		reg: regInfo{
@@ -34882,7 +34882,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHRDQ256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSHRDQ,
 		reg: regInfo{
@@ -34897,7 +34897,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHRDQ512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSHRDQ,
 		reg: regInfo{
@@ -34912,7 +34912,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHRDWMasked128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVPSHRDW,
 		reg: regInfo{
@@ -34928,7 +34928,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHRDWMasked256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVPSHRDW,
 		reg: regInfo{
@@ -34944,7 +34944,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHRDWMasked512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVPSHRDW,
 		reg: regInfo{
@@ -34960,7 +34960,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHRDDMasked128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVPSHRDD,
 		reg: regInfo{
@@ -34976,7 +34976,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHRDDMasked256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVPSHRDD,
 		reg: regInfo{
@@ -34992,7 +34992,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHRDDMasked512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVPSHRDD,
 		reg: regInfo{
@@ -35008,7 +35008,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHRDQMasked128",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVPSHRDQ,
 		reg: regInfo{
@@ -35024,7 +35024,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHRDQMasked256",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVPSHRDQ,
 		reg: regInfo{
@@ -35040,7 +35040,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSHRDQMasked512",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		asm:     x86.AVPSHRDQ,
 		reg: regInfo{
@@ -35056,7 +35056,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSLLW128const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSLLW,
 		reg: regInfo{
@@ -35070,7 +35070,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSLLW256const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSLLW,
 		reg: regInfo{
@@ -35084,7 +35084,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSLLW512const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSLLW,
 		reg: regInfo{
@@ -35098,7 +35098,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSLLD128const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSLLD,
 		reg: regInfo{
@@ -35112,7 +35112,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSLLD256const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSLLD,
 		reg: regInfo{
@@ -35126,7 +35126,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSLLD512const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSLLD,
 		reg: regInfo{
@@ -35140,7 +35140,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSLLQ128const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSLLQ,
 		reg: regInfo{
@@ -35154,7 +35154,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSLLQ256const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSLLQ,
 		reg: regInfo{
@@ -35168,7 +35168,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSLLQ512const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSLLQ,
 		reg: regInfo{
@@ -35182,7 +35182,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSLLWMasked128const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSLLW,
 		reg: regInfo{
@@ -35197,7 +35197,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSLLWMasked256const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSLLW,
 		reg: regInfo{
@@ -35212,7 +35212,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSLLWMasked512const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSLLW,
 		reg: regInfo{
@@ -35227,7 +35227,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSLLDMasked128const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSLLD,
 		reg: regInfo{
@@ -35242,7 +35242,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSLLDMasked256const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSLLD,
 		reg: regInfo{
@@ -35257,7 +35257,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSLLDMasked512const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSLLD,
 		reg: regInfo{
@@ -35272,7 +35272,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSLLQMasked128const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSLLQ,
 		reg: regInfo{
@@ -35287,7 +35287,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSLLQMasked256const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSLLQ,
 		reg: regInfo{
@@ -35302,7 +35302,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSLLQMasked512const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSLLQ,
 		reg: regInfo{
@@ -35317,7 +35317,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRLW128const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSRLW,
 		reg: regInfo{
@@ -35331,7 +35331,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRLW256const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSRLW,
 		reg: regInfo{
@@ -35345,7 +35345,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRLW512const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSRLW,
 		reg: regInfo{
@@ -35359,7 +35359,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRLD128const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSRLD,
 		reg: regInfo{
@@ -35373,7 +35373,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRLD256const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSRLD,
 		reg: regInfo{
@@ -35387,7 +35387,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRLD512const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSRLD,
 		reg: regInfo{
@@ -35401,7 +35401,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRLQ128const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSRLQ,
 		reg: regInfo{
@@ -35415,7 +35415,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRLQ256const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSRLQ,
 		reg: regInfo{
@@ -35429,7 +35429,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRLQ512const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSRLQ,
 		reg: regInfo{
@@ -35443,7 +35443,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRAW128const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSRAW,
 		reg: regInfo{
@@ -35457,7 +35457,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRAW256const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSRAW,
 		reg: regInfo{
@@ -35471,7 +35471,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRAW512const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSRAW,
 		reg: regInfo{
@@ -35485,7 +35485,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRAD128const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSRAD,
 		reg: regInfo{
@@ -35499,7 +35499,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRAD256const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSRAD,
 		reg: regInfo{
@@ -35513,7 +35513,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRAD512const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSRAD,
 		reg: regInfo{
@@ -35527,7 +35527,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRAQ128const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSRAQ,
 		reg: regInfo{
@@ -35541,7 +35541,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRAQ256const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSRAQ,
 		reg: regInfo{
@@ -35555,7 +35555,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRAQ512const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		asm:     x86.AVPSRAQ,
 		reg: regInfo{
@@ -35569,7 +35569,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRLWMasked128const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSRLW,
 		reg: regInfo{
@@ -35584,7 +35584,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRLWMasked256const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSRLW,
 		reg: regInfo{
@@ -35599,7 +35599,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRLWMasked512const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSRLW,
 		reg: regInfo{
@@ -35614,7 +35614,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRLDMasked128const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSRLD,
 		reg: regInfo{
@@ -35629,7 +35629,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRLDMasked256const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSRLD,
 		reg: regInfo{
@@ -35644,7 +35644,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRLDMasked512const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSRLD,
 		reg: regInfo{
@@ -35659,7 +35659,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRLQMasked128const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSRLQ,
 		reg: regInfo{
@@ -35674,7 +35674,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRLQMasked256const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSRLQ,
 		reg: regInfo{
@@ -35689,7 +35689,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRLQMasked512const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSRLQ,
 		reg: regInfo{
@@ -35704,7 +35704,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRAWMasked128const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSRAW,
 		reg: regInfo{
@@ -35719,7 +35719,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRAWMasked256const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSRAW,
 		reg: regInfo{
@@ -35734,7 +35734,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRAWMasked512const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSRAW,
 		reg: regInfo{
@@ -35749,7 +35749,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRADMasked128const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSRAD,
 		reg: regInfo{
@@ -35764,7 +35764,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRADMasked256const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSRAD,
 		reg: regInfo{
@@ -35779,7 +35779,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRADMasked512const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSRAD,
 		reg: regInfo{
@@ -35794,7 +35794,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRAQMasked128const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSRAQ,
 		reg: regInfo{
@@ -35809,7 +35809,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRAQMasked256const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSRAQ,
 		reg: regInfo{
@@ -35824,7 +35824,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VPSRAQMasked512const",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		asm:     x86.AVPSRAQ,
 		reg: regInfo{
@@ -72174,1465 +72174,1465 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "CeilScaledFloat32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledFloat32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledFloat32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledFloat64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledFloat64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledFloat64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledMaskedFloat32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledMaskedFloat32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledMaskedFloat32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledMaskedFloat64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledMaskedFloat64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledMaskedFloat64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledResidueFloat32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledResidueFloat32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledResidueFloat32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledResidueFloat64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledResidueFloat64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledResidueFloat64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledResidueMaskedFloat32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledResidueMaskedFloat32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledResidueMaskedFloat32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledResidueMaskedFloat64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledResidueMaskedFloat64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "CeilScaledResidueMaskedFloat64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledFloat32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledFloat32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledFloat32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledFloat64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledFloat64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledFloat64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledMaskedFloat32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledMaskedFloat32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledMaskedFloat32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledMaskedFloat64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledMaskedFloat64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledMaskedFloat64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledResidueFloat32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledResidueFloat32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledResidueFloat32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledResidueFloat64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledResidueFloat64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledResidueFloat64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledResidueMaskedFloat32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledResidueMaskedFloat32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledResidueMaskedFloat32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledResidueMaskedFloat64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledResidueMaskedFloat64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "FloorScaledResidueMaskedFloat64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "GaloisFieldAffineTransformInverseMaskedUint8x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "GaloisFieldAffineTransformInverseMaskedUint8x32",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "GaloisFieldAffineTransformInverseMaskedUint8x64",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "GaloisFieldAffineTransformInverseUint8x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "GaloisFieldAffineTransformInverseUint8x32",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "GaloisFieldAffineTransformInverseUint8x64",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "GaloisFieldAffineTransformMaskedUint8x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "GaloisFieldAffineTransformMaskedUint8x32",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "GaloisFieldAffineTransformMaskedUint8x64",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "GaloisFieldAffineTransformUint8x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "GaloisFieldAffineTransformUint8x32",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "GaloisFieldAffineTransformUint8x64",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "GetElemInt8x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "GetElemInt16x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "GetElemInt32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "GetElemInt64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "GetElemUint8x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "GetElemUint16x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "GetElemUint32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "GetElemUint64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftInt32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftInt32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftInt32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftInt64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftInt64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftInt64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftMaskedInt32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftMaskedInt32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftMaskedInt32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftMaskedInt64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftMaskedInt64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftMaskedInt64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftMaskedUint32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftMaskedUint32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftMaskedUint32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftMaskedUint64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftMaskedUint64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftMaskedUint64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftUint32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftUint32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftUint32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftUint64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftUint64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllLeftUint64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightInt32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightInt32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightInt32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightInt64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightInt64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightInt64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightMaskedInt32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightMaskedInt32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightMaskedInt32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightMaskedInt64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightMaskedInt64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightMaskedInt64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightMaskedUint32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightMaskedUint32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightMaskedUint32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightMaskedUint64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightMaskedUint64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightMaskedUint64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightUint32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightUint32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightUint32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightUint64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightUint64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RotateAllRightUint64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledFloat32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledFloat32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledFloat32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledFloat64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledFloat64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledFloat64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledMaskedFloat32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledMaskedFloat32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledMaskedFloat32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledMaskedFloat64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledMaskedFloat64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledMaskedFloat64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledResidueFloat32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledResidueFloat32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledResidueFloat32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledResidueFloat64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledResidueFloat64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledResidueFloat64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledResidueMaskedFloat32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledResidueMaskedFloat32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledResidueMaskedFloat32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledResidueMaskedFloat64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledResidueMaskedFloat64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "RoundToEvenScaledResidueMaskedFloat64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "SetElemInt8x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "SetElemInt16x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "SetElemInt32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "SetElemInt64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "SetElemUint8x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "SetElemUint16x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "SetElemUint32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "SetElemUint64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatInt16x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatInt16x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatInt16x32",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatInt32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatInt32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatInt32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatInt64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatInt64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatInt64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatMaskedInt16x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatMaskedInt16x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatMaskedInt16x32",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatMaskedInt32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatMaskedInt32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatMaskedInt32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatMaskedInt64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatMaskedInt64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatMaskedInt64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatMaskedUint16x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatMaskedUint16x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatMaskedUint16x32",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatMaskedUint32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatMaskedUint32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatMaskedUint32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatMaskedUint64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatMaskedUint64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatMaskedUint64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatUint16x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatUint16x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatUint16x32",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatUint32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatUint32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatUint32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatUint64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatUint64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllLeftConcatUint64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatInt16x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatInt16x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatInt16x32",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatInt32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatInt32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatInt32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatInt64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatInt64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatInt64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatMaskedInt16x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatMaskedInt16x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatMaskedInt16x32",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatMaskedInt32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatMaskedInt32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatMaskedInt32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatMaskedInt64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatMaskedInt64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatMaskedInt64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatMaskedUint16x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatMaskedUint16x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatMaskedUint16x32",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatMaskedUint32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatMaskedUint32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatMaskedUint32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatMaskedUint64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatMaskedUint64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatMaskedUint64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatUint16x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatUint16x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatUint16x32",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatUint32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatUint32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatUint32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatUint64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatUint64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ShiftAllRightConcatUint64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledFloat32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledFloat32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledFloat32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledFloat64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledFloat64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledFloat64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledMaskedFloat32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledMaskedFloat32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledMaskedFloat32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledMaskedFloat64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledMaskedFloat64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledMaskedFloat64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledResidueFloat32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledResidueFloat32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledResidueFloat32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledResidueFloat64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledResidueFloat64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledResidueFloat64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledResidueMaskedFloat32x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledResidueMaskedFloat32x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledResidueMaskedFloat32x16",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledResidueMaskedFloat64x2",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledResidueMaskedFloat64x4",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "TruncScaledResidueMaskedFloat64x8",
-		auxType: auxInt8,
+		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,
 	},

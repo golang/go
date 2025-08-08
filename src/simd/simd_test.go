@@ -396,3 +396,19 @@ func TestMergeFloat(t *testing.T) {
 	c.StoreSlice(s)
 	checkSlices[float64](t, s, []float64{4, 2, 3, 4})
 }
+
+var ro uint8 = 2
+
+func TestRotateAllVariable(t *testing.T) {
+	if !simd.HasAVX512() {
+		t.Skip("Test requires HasAVX512, not available on this hardware")
+		return
+	}
+	got := make([]int32, 4)
+	simd.LoadInt32x4Slice([]int32{0b11, 0b11, 0b11, 0b11}).RotateAllLeft(ro).StoreSlice(got)
+	for _, v := range got {
+		if v != 0b1100 {
+			t.Errorf("Want 0b1100, got %b", v)
+		}
+	}
+}

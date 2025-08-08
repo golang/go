@@ -1837,11 +1837,7 @@ func simdVkv(s *ssagen.State, v *ssa.Value) *obj.Prog {
 // Example instruction: VROUNDPD $7, X2, X2
 func simdV11Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
-	imm := v.AuxInt
-	if imm < 0 || imm > 255 {
-		v.Fatalf("Invalid source selection immediate")
-	}
-	p.From.Offset = imm
+	p.From.Offset = int64(v.AuxUInt8())
 	p.From.Type = obj.TYPE_CONST
 	p.AddRestSourceReg(simdReg(v.Args[0]))
 	p.To.Type = obj.TYPE_REG
@@ -1852,11 +1848,7 @@ func simdV11Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 // Example instruction: VREDUCEPD $126, X1, K3, X31
 func simdVkvImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
-	imm := v.AuxInt
-	if imm < 0 || imm > 255 {
-		v.Fatalf("Invalid source selection immediate")
-	}
-	p.From.Offset = imm
+	p.From.Offset = int64(v.AuxUInt8())
 	p.From.Type = obj.TYPE_CONST
 	p.AddRestSourceReg(simdReg(v.Args[0]))
 	p.AddRestSourceReg(maskReg(v.Args[1]))
@@ -1868,11 +1860,7 @@ func simdVkvImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 // Example instruction: VCMPPS $7, X2, X9, X2
 func simdV21Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
-	imm := v.AuxInt
-	if imm < 0 || imm > 255 {
-		v.Fatalf("Invalid source selection immediate")
-	}
-	p.From.Offset = imm
+	p.From.Offset = int64(v.AuxUInt8())
 	p.From.Type = obj.TYPE_CONST
 	p.AddRestSourceReg(simdReg(v.Args[1]))
 	p.AddRestSourceReg(simdReg(v.Args[0]))
@@ -1884,11 +1872,7 @@ func simdV21Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 // Example instruction: VPINSRB $3, DX, X0, X0
 func simdVgpvImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
-	imm := v.AuxInt
-	if imm < 0 || imm > 255 {
-		v.Fatalf("Invalid source selection immediate")
-	}
-	p.From.Offset = imm
+	p.From.Offset = int64(v.AuxUInt8())
 	p.From.Type = obj.TYPE_CONST
 	p.AddRestSourceReg(v.Args[1].Reg())
 	p.AddRestSourceReg(simdReg(v.Args[0]))
@@ -1900,11 +1884,7 @@ func simdVgpvImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 // Example instruction: VPCMPD $1, Z1, Z2, K1
 func simdV2kImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
-	imm := v.AuxInt
-	if imm < 0 || imm > 255 {
-		v.Fatalf("Invalid source selection immediate")
-	}
-	p.From.Offset = imm
+	p.From.Offset = int64(v.AuxUInt8())
 	p.From.Type = obj.TYPE_CONST
 	p.AddRestSourceReg(simdReg(v.Args[1]))
 	p.AddRestSourceReg(simdReg(v.Args[0]))
@@ -1916,11 +1896,7 @@ func simdV2kImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 // Example instruction: VPCMPD $1, Z1, Z2, K2, K1
 func simdV2kkImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
-	imm := v.AuxInt
-	if imm < 0 || imm > 255 {
-		v.Fatalf("Invalid source selection immediate")
-	}
-	p.From.Offset = imm
+	p.From.Offset = int64(v.AuxUInt8())
 	p.From.Type = obj.TYPE_CONST
 	p.AddRestSourceReg(simdReg(v.Args[1]))
 	p.AddRestSourceReg(simdReg(v.Args[0]))
@@ -1931,7 +1907,15 @@ func simdV2kkImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 }
 
 func simdV2kvImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
-	return simdV2kkImm8(s, v)
+	p := s.Prog(v.Op.Asm())
+	p.From.Offset = int64(v.AuxUInt8())
+	p.From.Type = obj.TYPE_CONST
+	p.AddRestSourceReg(simdReg(v.Args[1]))
+	p.AddRestSourceReg(simdReg(v.Args[0]))
+	p.AddRestSourceReg(maskReg(v.Args[2]))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdReg(v)
+	return p
 }
 
 // Example instruction: VFMADD213PD Z2, Z1, Z0
@@ -1959,11 +1943,7 @@ func simdV3kvResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
 
 func simdVgpImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
-	imm := v.AuxInt
-	if imm < 0 || imm > 255 {
-		v.Fatalf("Invalid source selection immediate")
-	}
-	p.From.Offset = imm
+	p.From.Offset = int64(v.AuxUInt8())
 	p.From.Type = obj.TYPE_CONST
 	p.AddRestSourceReg(simdReg(v.Args[0]))
 	p.To.Type = obj.TYPE_REG

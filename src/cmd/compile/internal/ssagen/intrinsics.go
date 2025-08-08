@@ -1670,12 +1670,42 @@ func opLen4_31(op ssa.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*
 	}
 }
 
-func plainPanicSimdImm(s *state) {
-	cmp := s.newValue0(ssa.OpConstBool, types.Types[types.TBOOL])
-	cmp.AuxInt = 0
-	// TODO: make this a standalone panic instead of reusing the overflow panic.
-	// Or maybe after we implement the switch table this will be obsolete anyway.
-	s.check(cmp, ir.Syms.Panicoverflow)
+func immJumpTable(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, genOp func(*state, int)) *ssa.Value {
+	// Make blocks we'll need.
+	bEnd := s.f.NewBlock(ssa.BlockPlain)
+
+	t := types.Types[types.TUINT8]
+	if !idx.Type.IsKind(types.TUINT8) {
+		panic("immJumpTable expects uint8 value")
+	}
+	// We will exhaust 0-255, so no need to check the bounds.
+
+	b := s.curBlock
+	b.Kind = ssa.BlockJumpTable
+	b.Pos = intrinsicCall.Pos()
+	if base.Flag.Cfg.SpectreIndex {
+		// Potential Spectre vulnerability hardening?
+		idx = s.newValue2(ssa.OpSpectreSliceIndex, t, idx, s.uintptrConstant(255))
+	}
+	b.SetControl(idx)
+	targets := [256]*ssa.Block{}
+	for i := range 256 {
+		t := s.f.NewBlock(ssa.BlockPlain)
+		targets[i] = t
+		b.AddEdgeTo(t)
+	}
+	s.endBlock()
+
+	for i, t := range targets {
+		s.startBlock(t)
+		genOp(s, i)
+		t.AddEdgeTo(bEnd)
+		s.endBlock()
+	}
+
+	s.startBlock(bEnd)
+	ret := s.variable(intrinsicCall, intrinsicCall.Type())
+	return ret
 }
 
 func opLen1Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
@@ -1683,12 +1713,10 @@ func opLen1Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallE
 		if args[1].Op == ssa.OpConst8 {
 			return s.newValue1I(op, t, args[1].AuxInt<<int64(offset), args[0])
 		}
-		plainPanicSimdImm(s)
-		// Even though this default call is unreachable semantically,
-		// it has to return something, otherwise the compiler will try to generate
-		// default codes which might lead to a FwdRef being put at the entry block
-		// triggering a compiler panic.
-		return s.newValue1I(op, t, 0, args[0])
+		return immJumpTable(s, args[1], n, func(sNew *state, idx int) {
+			// Encode as int8 due to requirement of AuxInt, check its comment for details.
+			s.vars[n] = sNew.newValue1I(op, t, int64(int8(idx<<offset)), args[0])
+		})
 	}
 }
 
@@ -1697,12 +1725,10 @@ func opLen2Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallE
 		if args[1].Op == ssa.OpConst8 {
 			return s.newValue2I(op, t, args[1].AuxInt<<int64(offset), args[0], args[2])
 		}
-		plainPanicSimdImm(s)
-		// Even though this default call is unreachable semantically,
-		// it has to return something, otherwise the compiler will try to generate
-		// default codes which might lead to a FwdRef being put at the entry block
-		// triggering a compiler panic.
-		return s.newValue2I(op, t, 0, args[0], args[2])
+		return immJumpTable(s, args[1], n, func(sNew *state, idx int) {
+			// Encode as int8 due to requirement of AuxInt, check its comment for details.
+			s.vars[n] = sNew.newValue2I(op, t, int64(int8(idx<<offset)), args[0], args[2])
+		})
 	}
 }
 
@@ -1711,12 +1737,10 @@ func opLen3Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallE
 		if args[1].Op == ssa.OpConst8 {
 			return s.newValue3I(op, t, args[1].AuxInt<<int64(offset), args[0], args[2], args[3])
 		}
-		plainPanicSimdImm(s)
-		// Even though this default call is unreachable semantically,
-		// it has to return something, otherwise the compiler will try to generate
-		// default codes which might lead to a FwdRef being put at the entry block
-		// triggering a compiler panic.
-		return s.newValue3I(op, t, 0, args[0], args[2], args[3])
+		return immJumpTable(s, args[1], n, func(sNew *state, idx int) {
+			// Encode as int8 due to requirement of AuxInt, check its comment for details.
+			s.vars[n] = sNew.newValue3I(op, t, int64(int8(idx<<offset)), args[0], args[2], args[3])
+		})
 	}
 }
 
@@ -1725,12 +1749,10 @@ func opLen2Imm8_2I(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.Ca
 		if args[2].Op == ssa.OpConst8 {
 			return s.newValue2I(op, t, args[2].AuxInt<<int64(offset), args[0], args[1])
 		}
-		plainPanicSimdImm(s)
-		// Even though this default call is unreachable semantically,
-		// it has to return something, otherwise the compiler will try to generate
-		// default codes which might lead to a FwdRef being put at the entry block
-		// triggering a compiler panic.
-		return s.newValue2I(op, t, 0, args[0], args[1])
+		return immJumpTable(s, args[2], n, func(sNew *state, idx int) {
+			// Encode as int8 due to requirement of AuxInt, check its comment for details.
+			s.vars[n] = sNew.newValue2I(op, t, int64(int8(idx<<offset)), args[0], args[1])
+		})
 	}
 }
 
@@ -1739,12 +1761,10 @@ func opLen3Imm8_2I(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.Ca
 		if args[2].Op == ssa.OpConst8 {
 			return s.newValue3I(op, t, args[2].AuxInt<<int64(offset), args[0], args[1], args[3])
 		}
-		plainPanicSimdImm(s)
-		// Even though this default call is unreachable semantically,
-		// it has to return something, otherwise the compiler will try to generate
-		// default codes which might lead to a FwdRef being put at the entry block
-		// triggering a compiler panic.
-		return s.newValue3I(op, t, 0, args[0], args[1], args[3])
+		return immJumpTable(s, args[2], n, func(sNew *state, idx int) {
+			// Encode as int8 due to requirement of AuxInt, check its comment for details.
+			s.vars[n] = sNew.newValue3I(op, t, int64(int8(idx<<offset)), args[0], args[1], args[3])
+		})
 	}
 }
 
@@ -1753,12 +1773,10 @@ func opLen4Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallE
 		if args[1].Op == ssa.OpConst8 {
 			return s.newValue4I(op, t, args[1].AuxInt<<int64(offset), args[0], args[2], args[3], args[4])
 		}
-		plainPanicSimdImm(s)
-		// Even though this default call is unreachable semantically,
-		// it has to return something, otherwise the compiler will try to generate
-		// default codes which might lead to a FwdRef being put at the entry block
-		// triggering a compiler panic.
-		return s.newValue4I(op, t, 0, args[0], args[2], args[3], args[4])
+		return immJumpTable(s, args[1], n, func(sNew *state, idx int) {
+			// Encode as int8 due to requirement of AuxInt, check its comment for details.
+			s.vars[n] = sNew.newValue4I(op, t, int64(int8(idx<<offset)), args[0], args[2], args[3], args[4])
+		})
 	}
 }
 
