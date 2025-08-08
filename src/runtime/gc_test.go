@@ -1108,6 +1108,7 @@ func TestGoroutineLeakGC(t *testing.T) {
 	// Repetitions are used to amortize flakiness in some tests.
 	type testCase struct {
 		name          string
+		simple        bool
 		expectedLeaks map[*regexp.Regexp]bool
 
 		// flakyLeaks are goroutine leaks that are too flaky to be reliably detected.
@@ -1235,6 +1236,13 @@ func TestGoroutineLeakGC(t *testing.T) {
 		makeTest("NoLeakGlobal"),
 	}
 
+	// Set all micro tests to simple so that they are executed serially.
+	// This reduces scheduling pressure on the test runner, and improves
+	// reliability.
+	for i := range microTests {
+		microTests[i].simple = true
+	}
+
 	// Common goroutine leak patterns.
 	// Extracted from "Unveiling and Vanquishing Goroutine Leaks in Enterprise Microservices: A Dynamic Analysis Approach"
 	// doi:10.1109/CGO57630.2024.10444835
@@ -1253,6 +1261,13 @@ func TestGoroutineLeakGC(t *testing.T) {
 			`NCastLeak\.func2.* \[chan receive\]`),
 		makeTest("Timeout",
 			`timeout\.func1.* \[chan send\]`),
+	}
+
+	// Set all pattern tests to simple so that they are executed serially.
+	// This reduces scheduling pressure on the test runner, and improves
+	// reliability.
+	for i := range patternTestCases {
+		patternTestCases[i].simple = true
 	}
 
 	// GoKer tests from "GoBench: A Benchmark Suite of Real-World Go Concurrency Bugs".
@@ -1518,8 +1533,11 @@ func TestGoroutineLeakGC(t *testing.T) {
 
 	for _, tcase := range testCases {
 		t.Run(tcase.name, func(t *testing.T) {
-			// Run tests in parallel.
-			t.Parallel()
+			if !tcase.simple {
+				// Run complex tests in parallel. Do this because such tests
+				// are flaky and we do not necessarily care about their output.
+				t.Parallel()
+			}
 
 			// Run program and get output trace.
 			output := runBuiltTestProg(t, exe, tcase.name, "GODEBUG=asyncpreemptoff=1")
