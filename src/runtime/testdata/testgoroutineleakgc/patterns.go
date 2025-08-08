@@ -195,7 +195,6 @@ func EarlyReturn() {
 		prof.WriteTo(os.Stdout, 2)
 	}()
 
-	go earlyReturn(nil)
 	go earlyReturn(fmt.Errorf("error"))
 }
 
