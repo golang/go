@@ -192,10 +192,11 @@ func (t *table) getWithKey(typ *abi.MapType, hash uintptr, key unsafe.Pointer) (
 	// load factors, k is less than 32, meaning that the number of false
 	// positive comparisons we must perform is less than 1/8 per find.
 	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+	h2Hash := h2(hash)
 	for ; ; seq = seq.next() {
 		g := t.groups.group(typ, seq.offset)
 
-		match := g.ctrls().matchH2(h2(hash))
+		match := g.ctrls().matchH2(h2Hash)
 
 		for match != 0 {
 			i := match.first()
@@ -225,10 +226,11 @@ func (t *table) getWithKey(typ *abi.MapType, hash uintptr, key unsafe.Pointer) (
 
 func (t *table) getWithoutKey(typ *abi.MapType, hash uintptr, key unsafe.Pointer) (unsafe.Pointer, bool) {
 	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+	h2Hash := h2(hash)
 	for ; ; seq = seq.next() {
 		g := t.groups.group(typ, seq.offset)
 
-		match := g.ctrls().matchH2(h2(hash))
+		match := g.ctrls().matchH2(h2Hash)
 
 		for match != 0 {
 			i := match.first()
@@ -271,9 +273,10 @@ func (t *table) PutSlot(typ *abi.MapType, m *Map, hash uintptr, key unsafe.Point
 	var firstDeletedGroup groupReference
 	var firstDeletedSlot uintptr
 
+	h2Hash := h2(hash)
 	for ; ; seq = seq.next() {
 		g := t.groups.group(typ, seq.offset)
-		match := g.ctrls().matchH2(h2(hash))
+		match := g.ctrls().matchH2(h2Hash)
 
 		// Look for an existing slot containing this key.
 		for match != 0 {
@@ -348,7 +351,7 @@ func (t *table) PutSlot(typ *abi.MapType, m *Map, hash uintptr, key unsafe.Point
 				slotElem = emem
 			}
 
-			g.ctrls().set(i, ctrl(h2(hash)))
+			g.ctrls().set(i, ctrl(h2Hash))
 			t.growthLeft--
 			t.used++
 			m.used++
@@ -420,9 +423,10 @@ func (t *table) uncheckedPutSlot(typ *abi.MapType, hash uintptr, key, elem unsaf
 // Delete returns true if it put a tombstone in t.
 func (t *table) Delete(typ *abi.MapType, m *Map, hash uintptr, key unsafe.Pointer) bool {
 	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+	h2Hash := h2(hash)
 	for ; ; seq = seq.next() {
 		g := t.groups.group(typ, seq.offset)
-		match := g.ctrls().matchH2(h2(hash))
+		match := g.ctrls().matchH2(h2Hash)
 
 		for match != 0 {
 			i := match.first()

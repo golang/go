@@ -131,10 +131,11 @@ func runtime_mapaccess1_faststr(typ *abi.MapType, m *Map, key string) unsafe.Poi
 
 	// Probe table.
 	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+	h2Hash := h2(hash)
 	for ; ; seq = seq.next() {
 		g := t.groups.group(typ, seq.offset)
 
-		match := g.ctrls().matchH2(h2(hash))
+		match := g.ctrls().matchH2(h2Hash)
 
 		for match != 0 {
 			i := match.first()
@@ -190,10 +191,11 @@ func runtime_mapaccess2_faststr(typ *abi.MapType, m *Map, key string) (unsafe.Po
 
 	// Probe table.
 	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+	h2Hash := h2(hash)
 	for ; ; seq = seq.next() {
 		g := t.groups.group(typ, seq.offset)
 
-		match := g.ctrls().matchH2(h2(hash))
+		match := g.ctrls().matchH2(h2Hash)
 
 		for match != 0 {
 			i := match.first()
@@ -313,9 +315,10 @@ outer:
 		var firstDeletedGroup groupReference
 		var firstDeletedSlot uintptr
 
+		h2Hash := h2(hash)
 		for ; ; seq = seq.next() {
 			g := t.groups.group(typ, seq.offset)
-			match := g.ctrls().matchH2(h2(hash))
+			match := g.ctrls().matchH2(h2Hash)
 
 			// Look for an existing slot containing this key.
 			for match != 0 {
@@ -373,7 +376,7 @@ outer:
 
 				slotElem = g.elem(typ, i)
 
-				g.ctrls().set(i, ctrl(h2(hash)))
+				g.ctrls().set(i, ctrl(h2Hash))
 				t.growthLeft--
 				t.used++
 				m.used++
