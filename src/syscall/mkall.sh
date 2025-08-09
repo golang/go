@@ -302,7 +302,7 @@ netbsd_arm64)
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 openbsd_386)
-	GOOSARCH_in="syscall_openbsd_libc.go syscall_openbsd_$GOARCH.go"
+	GOOSARCH_in="syscall_openbsd_$GOARCH.go"
 	mkerrors="$mkerrors -m32"
 	mksyscall="./mksyscall.pl -l32 -openbsd -libc"
 	mksysctl="./mksysctl_openbsd.pl"
@@ -312,7 +312,7 @@ openbsd_386)
 	mkasm="go run mkasm.go"
 	;;
 openbsd_amd64)
-	GOOSARCH_in="syscall_openbsd_libc.go syscall_openbsd_$GOARCH.go"
+	GOOSARCH_in="syscall_openbsd_$GOARCH.go"
 	mkerrors="$mkerrors -m64"
 	mksyscall="./mksyscall.pl -openbsd -libc"
 	mksysctl="./mksysctl_openbsd.pl"
@@ -322,7 +322,7 @@ openbsd_amd64)
 	mkasm="go run mkasm.go"
 	;;
 openbsd_arm)
-	GOOSARCH_in="syscall_openbsd_libc.go syscall_openbsd_$GOARCH.go"
+	GOOSARCH_in="syscall_openbsd_$GOARCH.go"
 	mkerrors="$mkerrors"
 	mksyscall="./mksyscall.pl -l32 -openbsd -arm -libc"
 	mksysctl="./mksysctl_openbsd.pl"
@@ -334,7 +334,7 @@ openbsd_arm)
 	mkasm="go run mkasm.go"
 	;;
 openbsd_arm64)
-	GOOSARCH_in="syscall_openbsd_libc.go syscall_openbsd_$GOARCH.go"
+	GOOSARCH_in="syscall_openbsd_$GOARCH.go"
 	mkerrors="$mkerrors -m64"
 	mksyscall="./mksyscall.pl -openbsd -libc"
 	mksysctl="./mksysctl_openbsd.pl"
@@ -346,7 +346,7 @@ openbsd_arm64)
 	mkasm="go run mkasm.go"
 	;;
 openbsd_mips64)
-	GOOSARCH_in="syscall_openbsd1.go syscall_openbsd_$GOARCH.go"
+	GOOSARCH_in="syscall_openbsd_$GOARCH.go"
 	mkerrors="$mkerrors -m64"
 	mksyscall="./mksyscall.pl -openbsd"
 	mksysctl="./mksysctl_openbsd.pl"
@@ -355,9 +355,10 @@ openbsd_mips64)
 	# Let the type of C char be signed to make the bare syscall
 	# API consistent between platforms.
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
+	mkasm="go run mkasm.go"
 	;;
 openbsd_ppc64)
-	GOOSARCH_in="syscall_openbsd_libc.go syscall_openbsd_$GOARCH.go"
+	GOOSARCH_in="syscall_openbsd_$GOARCH.go"
 	mkerrors="$mkerrors -m64"
 	mksyscall="./mksyscall.pl -openbsd -libc"
 	mksysctl="./mksysctl_openbsd.pl"
@@ -369,7 +370,7 @@ openbsd_ppc64)
 	mkasm="go run mkasm.go"
 	;;
 openbsd_riscv64)
-	GOOSARCH_in="syscall_openbsd_libc.go syscall_openbsd_$GOARCH.go"
+	GOOSARCH_in="syscall_openbsd_$GOARCH.go"
 	mkerrors="$mkerrors -m64"
 	mksyscall="./mksyscall.pl -openbsd -libc"
 	mksysctl="./mksysctl_openbsd.pl"
