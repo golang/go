@@ -435,6 +435,32 @@ func ExampleAppendSeq() {
 	// [1 2 0 2 4 6 8]
 }
 
+func ExampleAppendSeqFunc() {
+	type Person struct {
+		Name string
+		Age  int
+	}
+
+	type People []Person
+
+	people := People{
+		{"Bob", 5},
+		{"Vera", 24},
+		{"Zac", 15},
+	}
+
+	seq := slices.Values(people)
+
+	nameValFunc := func(person Person) string {
+		return person.Name
+	}
+
+	s := slices.AppendSeqFunc([]string{"Gopher", "Alice"}, seq, nameValFunc)
+	fmt.Println(s)
+	// Output:
+	// [Gopher Alice Bob Vera Zac]
+}
+
 func ExampleCollect() {
 	seq := func(yield func(int) bool) {
 		for i := 0; i < 10; i += 2 {
@@ -448,6 +474,34 @@ func ExampleCollect() {
 	fmt.Println(s)
 	// Output:
 	// [0 2 4 6 8]
+}
+
+func ExampleCollectFunc() {
+	type Person struct {
+		Name string
+		Age  int
+	}
+
+	type People []Person
+
+	people := People{
+		{"Gopher", 13},
+		{"Alice", 20},
+		{"Bob", 5},
+		{"Vera", 24},
+		{"Zac", 15},
+	}
+
+	seq := slices.Values(people)
+
+	nameValFunc := func(person Person) string {
+		return person.Name
+	}
+
+	s := slices.CollectFunc(seq, nameValFunc)
+	fmt.Println(s)
+	// Output:
+	// [Gopher Alice Bob Vera Zac]
 }
 
 func ExampleSorted() {

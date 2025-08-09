@@ -54,10 +54,26 @@ func AppendSeq[Slice ~[]E, E any](s Slice, seq iter.Seq[E]) Slice {
 	return s
 }
 
+// AppendSeq appends the values selected by valFunc from seq to the slice and
+// returns the extended slice.
+// If seq is empty, the result preserves the nilness of s.
+func AppendSeqFunc[Slice ~[]V, E any, V any](s Slice, seq iter.Seq[E], valFunc func(E) V) Slice {
+	for v := range seq {
+		s = append(s, valFunc(v))
+	}
+	return s
+}
+
 // Collect collects values from seq into a new slice and returns it.
 // If seq is empty, the result is nil.
 func Collect[E any](seq iter.Seq[E]) []E {
 	return AppendSeq([]E(nil), seq)
+}
+
+// Collect collects values from seq into a new slice using a valFunc for value selection and returns the final slice.
+// If seq is empty, the result is nil.
+func CollectFunc[E any, V any](seq iter.Seq[E], valFunc func(E) V) []V {
+	return AppendSeqFunc([]V(nil), seq, valFunc)
 }
 
 // Sorted collects values from seq into a new slice, sorts the slice,

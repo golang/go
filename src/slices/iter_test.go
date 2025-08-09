@@ -94,8 +94,39 @@ func TestAppendSeq(t *testing.T) {
 	}
 }
 
+func TestAppendSeqFunc(t *testing.T) {
+	testSeq := func(yield func(int) bool) {
+		for i := 0; i < 5; i++ {
+			if !yield(i) {
+				return
+			}
+		}
+	}
+
+	s := AppendSeqFunc([]int{1, 2}, testSeq, func(val int) int { return val * 2 })
+	want := append([]int{1, 2}, testSeqResult...)
+	if !Equal(s, want) {
+		t.Errorf("got %v, want %v", s, want)
+	}
+}
+
 func TestCollect(t *testing.T) {
 	s := Collect(testSeq)
+	want := testSeqResult
+	if !Equal(s, want) {
+		t.Errorf("got %v, want %v", s, want)
+	}
+}
+
+func TestCollectFunc(t *testing.T) {
+	testSeq := func(yield func(int) bool) {
+		for i := 0; i < 5; i++ {
+			if !yield(i) {
+				return
+			}
+		}
+	}
+	s := CollectFunc(testSeq, func(val int) int { return val * 2 })
 	want := testSeqResult
 	if !Equal(s, want) {
 		t.Errorf("got %v, want %v", s, want)
