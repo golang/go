@@ -13,7 +13,9 @@ import (
 // Its Enable method reports whether any of the handlers' Enabled methods return true.
 // Its Handle, WithAttr and WithGroup methods call the corresponding method on each of the enabled handlers.
 func MultiHandler(handlers ...Handler) Handler {
-	return &multiHandler{multi: handlers}
+	h := make([]Handler, len(handlers))
+	copy(h, handlers)
+	return &multiHandler{multi: h}
 }
 
 type multiHandler struct {

@@ -122,3 +122,18 @@ func TestMultiHandler(t *testing.T) {
 		}
 	})
 }
+
+// Test that MultiHandler copies the input slice and is insulated from future modification.
+func TestMultiHandlerCopy(t *testing.T) {
+	var buf1 bytes.Buffer
+	h1 := NewTextHandler(&buf1, nil)
+	slice := []Handler{h1}
+	multi := MultiHandler(slice...)
+	slice[0] = nil
+
+	err := multi.Handle(context.Background(), NewRecord(time.Now(), LevelInfo, "test message", 0))
+	if err != nil {
+		t.Errorf("Expected nil error, but got: %v", err)
+	}
+	checkLogOutput(t, buf1.String(), "time="+textTimeRE+` level=INFO msg="test message"`)
+}
