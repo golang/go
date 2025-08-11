@@ -1220,19 +1220,46 @@ func TestGoroutineLeakGC(t *testing.T) {
 
 	// Micro tests involve very simple leaks for each type of concurrency primitive operation.
 	microTests := []testCase{
-		makeTest("NilRecv", `\[chan receive \(nil chan\)\]`),
-		makeTest("NilSend", `\[chan send \(nil chan\)\]`),
-		makeTest("SelectNoCases", `\[select \(no cases\)\]`),
-		makeTest("ChanRecv", `\[chan receive\]`),
-		makeTest("ChanSend", `\[chan send\]`),
-		makeTest("Select", `\[select\]`),
-		makeTest("WaitGroup", `\[sync\.WaitGroup\.Wait\]`),
-		makeTest("MutexStack", `\[sync\.Mutex\.Lock\]`),
-		makeTest("MutexHeap", `\[sync\.Mutex\.Lock\]`),
-		makeTest("Cond", `\[sync\.Cond\.Wait\]`),
-		makeTest("RWMutexRLock", `\[sync\.RWMutex\.RLock\]`),
-		makeTest("RWMutexLock", `\[sync\.(RW)?Mutex\.Lock\]`),
-		makeTest("Mixed", `\[sync\.WaitGroup\.Wait\]`, `\[chan send\]`),
+		makeTest("NilRecv",
+			`NilRecv\.func1\(.* \[chan receive \(nil chan\)\]`,
+		),
+		makeTest("NilSend",
+			`NilSend\.func1\(.* \[chan send \(nil chan\)\]`,
+		),
+		makeTest("SelectNoCases",
+			`SelectNoCases\.func1\(.* \[select \(no cases\)\]`,
+		),
+		makeTest("ChanRecv",
+			`ChanRecv\.func1\(.* \[chan receive\]`,
+		),
+		makeTest("ChanSend",
+			`ChanSend\.func1\(.* \[chan send\]`,
+		),
+		makeTest("Select",
+			`Select\.func1\(.* \[select\]`,
+		),
+		makeTest("WaitGroup",
+			`WaitGroup\.func1\(.* \[sync\.WaitGroup\.Wait\]`,
+		),
+		makeTest("MutexStack",
+			`MutexStack\.func1\(.* \[sync\.Mutex\.Lock\]`,
+		),
+		makeTest("MutexHeap",
+			`MutexHeap\.func1.1\(.* \[sync\.Mutex\.Lock\]`,
+		),
+		makeTest("Cond",
+			`Cond\.func1\(.* \[sync\.Cond\.Wait\]`,
+		),
+		makeTest("RWMutexRLock",
+			`RWMutexRLock\.func1\(.* \[sync\.RWMutex\.RLock\]`,
+		),
+		makeTest("RWMutexLock",
+			`RWMutexLock\.func1\(.* \[sync\.(RW)?Mutex\.Lock\]`,
+		),
+		makeTest("Mixed",
+			`Mixed\.func1\(.* \[sync\.WaitGroup\.Wait\]`,
+			`Mixed\.func1.1\(.* \[chan send\]`,
+		),
 		makeTest("NoLeakGlobal"),
 	}
 
@@ -1243,27 +1270,42 @@ func TestGoroutineLeakGC(t *testing.T) {
 		microTests[i].simple = true
 	}
 
+	// Stress tests are flaky and we do not strictly care about their output.
+	// They are only intended to stress the goroutine leak detector and profiling
+	// infrastructure in interesting ways.
+	stressTestCases := []testCase{
+		makeFlakyTest("SpawnGC",
+			`spawnGC.func1\(.* \[chan receive\]`,
+		),
+	}
+
 	// Common goroutine leak patterns.
 	// Extracted from "Unveiling and Vanquishing Goroutine Leaks in Enterprise Microservices: A Dynamic Analysis Approach"
 	// doi:10.1109/CGO57630.2024.10444835
 	patternTestCases := []testCase{
 		makeTest("NoCloseRange",
 			`noCloseRange\(.* \[chan send\]`,
-			`noCloseRange\.func1\(.* \[chan receive\]`),
+			`noCloseRange\.func1\(.* \[chan receive\]`,
+		),
 		makeTest("MethodContractViolation",
-			`worker\.Start\.func1.* \[select\]`),
+			`worker\.Start\.func1\(.* \[select\]`,
+		),
 		makeTest("DoubleSend",
-			`DoubleSend\.func3.* \[chan send\]`),
+			`DoubleSend\.func3\(.* \[chan send\]`,
+		),
 		makeTest("EarlyReturn",
-			`earlyReturn\.func1.* \[chan send\]`),
+			`earlyReturn\.func1\(.* \[chan send\]`,
+		),
 		makeTest("NCastLeak",
-			`nCastLeak\.func1.* \[chan send\]`,
-			`NCastLeak\.func2.* \[chan receive\]`),
+			`nCastLeak\.func1\(.* \[chan send\]`,
+			`NCastLeak\.func2\(.* \[chan receive\]`,
+		),
 		makeTest("Timeout",
 			// (vsaioc): Timeout is *theoretically* flaky, but the
 			// pseudo-random choice for select case branches makes it
 			// practically impossible for it to fail.
-			`timeout\.func1.* \[chan send\]`),
+			`timeout\.func1\(.* \[chan send\]`,
+		),
 	}
 
 	// Set all pattern tests to simple so that they are executed serially.
@@ -1522,7 +1564,8 @@ func TestGoroutineLeakGC(t *testing.T) {
 	}
 
 	// Combine all test cases into a single list.
-	testCases := append(microTests, patternTestCases...)
+	testCases := append(microTests, stressTestCases...)
+	testCases = append(testCases, patternTestCases...)
 	testCases = append(testCases, gokerTestCases...)
 
 	// Test cases must not panic or cause fatal exceptions.
@@ -1537,9 +1580,10 @@ func TestGoroutineLeakGC(t *testing.T) {
 	for _, tcase := range testCases {
 		t.Run(tcase.name, func(t *testing.T) {
 			t.Parallel()
-			
+
 			cmdEnv := []string{
 				"GODEBUG=asyncpreemptoff=1",
+				"GOEXPERIMENT=greenteagc",
 			}
 
 			if tcase.simple {
