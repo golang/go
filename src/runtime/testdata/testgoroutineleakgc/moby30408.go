@@ -3,9 +3,9 @@ package main
 import (
 	"errors"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"sync"
-	"time"
 )
 
 func init() {
@@ -38,7 +38,7 @@ func (p *Plugin_moby30408) activated() bool {
 func testActive_moby30408(p *Plugin_moby30408) {
 	done := make(chan struct{})
 	go func() {
-		// deadlocks: 100
+		// deadlocks: 1
 		p.waitActive()
 		close(done)
 	}()
@@ -48,17 +48,15 @@ func testActive_moby30408(p *Plugin_moby30408) {
 func Moby30408() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		time.Sleep(100 * time.Millisecond)
+		runtime.Gosched()
 		prof.WriteTo(os.Stdout, 2)
 	}()
 
-	for i := 0; i < 100; i++ {
-		go func() {
-			// deadlocks: 100
-			p := &Plugin_moby30408{activateWait: sync.NewCond(&sync.Mutex{})}
-			p.activateErr = errors.New("some junk happened")
+	go func() {
+		// deadlocks: 1
+		p := &Plugin_moby30408{activateWait: sync.NewCond(&sync.Mutex{})}
+		p.activateErr = errors.New("some junk happened")
 
-			testActive_moby30408(p)
-		}()
-	}
+		testActive_moby30408(p)
+	}()
 }

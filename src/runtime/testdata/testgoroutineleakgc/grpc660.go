@@ -12,8 +12,8 @@ package main
 import (
 	"math/rand"
 	"os"
+	"runtime"
 	"runtime/pprof"
-	"time"
 )
 
 func init() {
@@ -56,7 +56,7 @@ func (bc *benchmarkClient_grpc660) doCloseLoopUnary() {
 func Grpc660() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		time.Sleep(1 * time.Second)
+		runtime.Gosched()
 		prof.WriteTo(os.Stdout, 2)
 	}()
 	go func() {

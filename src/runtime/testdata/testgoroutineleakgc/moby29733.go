@@ -2,9 +2,9 @@ package main
 
 import (
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"sync"
-	"time"
 )
 
 func init() {
@@ -55,7 +55,7 @@ func testActive_moby29733(p *Plugin_moby29733) {
 func Moby29733() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		time.Sleep(100 * time.Millisecond)
+		runtime.Gosched()
 		prof.WriteTo(os.Stdout, 2)
 	}()
 

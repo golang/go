@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"sync"
 	"time"
@@ -45,7 +46,7 @@ func (le *lessor_etcd10492) Renew() {
 func Etcd10492() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		time.Sleep(10 * time.Millisecond)
+		runtime.Gosched()
 		prof.WriteTo(os.Stdout, 2)
 	}()
 

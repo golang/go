@@ -2,9 +2,9 @@ package main
 
 import (
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"sync"
-	"time"
 )
 
 func init() {
@@ -93,7 +93,7 @@ func makeFlowRegistry_cockroach35931() *flowRegistry_cockroach35931 {
 func Cockroach35931() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		time.Sleep(100 * time.Millisecond)
+		runtime.Gosched()
 		prof.WriteTo(os.Stdout, 2)
 	}()
 	go func() {

@@ -2,10 +2,10 @@ package main
 
 import (
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"sync"
 	"sync/atomic"
-	"time"
 )
 
 func init() {
@@ -90,7 +90,7 @@ func (m *outbox_cockroach35073) run(wg *sync.WaitGroup) {
 func Cockroach35073() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		time.Sleep(100 * time.Millisecond)
+		runtime.Gosched()
 		prof.WriteTo(os.Stdout, 2)
 	}()
 	go func() {

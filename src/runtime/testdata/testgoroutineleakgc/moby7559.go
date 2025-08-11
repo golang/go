@@ -45,11 +45,7 @@ func Moby7559() {
 		prof.WriteTo(os.Stdout, 2)
 	}()
 
-	for i := 0; i < 100; i++ {
-		go func() {
-			proxy := &UDPProxy_moby7559{}
-			// deadlocks: x > 0
-			go proxy.Run()
-		}()
+	for i := 0; i < 20; i++ {
+		go (&UDPProxy_moby7559{}).Run()
 	}
 }

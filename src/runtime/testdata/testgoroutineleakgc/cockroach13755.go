@@ -14,8 +14,8 @@ package main
 import (
 	"context"
 	"os"
+	"runtime"
 	"runtime/pprof"
-	"time"
 )
 
 func init() {
@@ -51,7 +51,7 @@ func (rs *Rows_cockroach13755) close(err error) {
 func Cockroach13755() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		time.Sleep(100 * time.Millisecond)
+		runtime.Gosched()
 		prof.WriteTo(os.Stdout, 2)
 	}()
 

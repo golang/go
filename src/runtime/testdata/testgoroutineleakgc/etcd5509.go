@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"sync"
-	"time"
 )
 
 func init() {
@@ -93,31 +92,30 @@ func NewKV_etcd5509(c *Client_etcd5509) KV {
 func Etcd5509() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		time.Sleep(100 * time.Millisecond)
+		runtime.Gosched()
+		runtime.Gosched() // Yield twice.
 		prof.WriteTo(os.Stdout, 2)
 	}()
 
-	for i := 0; i < 10; i++ {
+	go func() {
+		// deadlocks: 1
+		ctx, _ := context.WithCancel(context.TODO())
+		cli := &Client_etcd5509{
+			ctx: ctx,
+		}
+		kv := NewKV_etcd5509(cli)
+		donec := make(chan struct{})
 		go func() {
-			// deadlocks: x > 0
-			ctx, _ := context.WithCancel(context.TODO())
-			cli := &Client_etcd5509{
-				ctx: ctx,
+			defer close(donec)
+			err := kv.Get(context.TODO())
+			if err != nil && err != ErrConnClosed_etcd5509 {
+				io.Discard.Write([]byte("Expect ErrConnClosed"))
 			}
-			kv := NewKV_etcd5509(cli)
-			donec := make(chan struct{})
-			go func() {
-				defer close(donec)
-				err := kv.Get(context.TODO())
-				if err != nil && err != ErrConnClosed_etcd5509 {
-					io.Discard.Write([]byte("Expect ErrConnClosed"))
-				}
-			}()
-
-			runtime.Gosched()
-			cli.Close()
-
-			<-donec
 		}()
-	}
+
+		runtime.Gosched()
+		cli.Close()
+
+		<-donec
+	}()
 }

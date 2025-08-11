@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"sync"
-	"time"
 )
 
 func init() {
@@ -67,7 +67,7 @@ func (c *Compactor_cockroach24808) Start(ctx context.Context, stopper *Stopper_c
 func Cockroach24808() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		time.Sleep(100 * time.Millisecond)
+		runtime.Gosched()
 		prof.WriteTo(os.Stdout, 2)
 	}()
 	go func() {

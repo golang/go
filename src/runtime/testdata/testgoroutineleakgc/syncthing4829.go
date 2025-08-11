@@ -2,9 +2,9 @@ package main
 
 import (
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"sync"
-	"time"
 )
 
 func init() {
@@ -70,18 +70,16 @@ func NewService_syncthing4829() *Service_syncthing4829 {
 func Syncthing4829() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		time.Sleep(100 * time.Millisecond)
+		runtime.Gosched()
 		prof.WriteTo(os.Stdout, 2)
 	}()
 
-	for i := 0; i < 100; i++ {
-		go func() {
-			// deadlocks: x > 0
-			natSvc := NewService_syncthing4829()
-			m := natSvc.NewMapping()
-			m.extAddresses["test"] = 0
+	go func() {
+		// deadlocks: 1
+		natSvc := NewService_syncthing4829()
+		m := natSvc.NewMapping()
+		m.extAddresses["test"] = 0
 
-			natSvc.RemoveMapping(m)
-		}()
-	}
+		natSvc.RemoveMapping(m)
+	}()
 }

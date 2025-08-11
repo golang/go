@@ -1143,7 +1143,9 @@ func TestGoroutineLeakGC(t *testing.T) {
 
 	// makeTest is a short-hand for creating non-flaky test cases.
 	makeTest := func(name string, leaks ...string) testCase {
-		return makeAnyTest(name, false, leaks...)
+		tcase := makeAnyTest(name, false, leaks...)
+		tcase.simple = true
+		return tcase
 	}
 
 	// makeFlakyTest is a short-hand for creating flaky test cases.
@@ -1263,13 +1265,6 @@ func TestGoroutineLeakGC(t *testing.T) {
 		makeTest("NoLeakGlobal"),
 	}
 
-	// Set all micro tests to simple so that they are executed serially.
-	// This reduces scheduling pressure on the test runner, and improves
-	// reliability.
-	for i := range microTests {
-		microTests[i].simple = true
-	}
-
 	// Stress tests are flaky and we do not strictly care about their output.
 	// They are only intended to stress the goroutine leak detector and profiling
 	// infrastructure in interesting ways.
@@ -1308,22 +1303,17 @@ func TestGoroutineLeakGC(t *testing.T) {
 		),
 	}
 
-	// Set all pattern tests to simple so that they are executed serially.
-	// This reduces scheduling pressure on the test runner, and improves
-	// reliability.
-	for i := range patternTestCases {
-		patternTestCases[i].simple = true
-	}
-
 	// GoKer tests from "GoBench: A Benchmark Suite of Real-World Go Concurrency Bugs".
 	// White paper found at https://lujie.ac.cn/files/papers/GoBench.pdf
 	// doi:10.1109/CGO51591.2021.9370317.
 	//
 	// This list is curated for tests that are not excessively flaky.
 	// Some tests are also excluded because they are redundant.
+	//
+	// TODO(vsaioc): Some of these might be removable (their patterns may overlap).
 	gokerTestCases := []testCase{
-		makeFlakyTest("Cockroach584",
-			`Cockroach584\.func2\.1\(.* \[sync\.Mutex\.Lock\]`,
+		makeTest("Cockroach584",
+			`Cockroach584\.func2\(.* \[sync\.Mutex\.Lock\]`,
 		),
 		makeFlakyTest("Cockroach1055",
 			`Cockroach1055\.func2\(.* \[chan receive\]`,
@@ -1388,10 +1378,10 @@ func TestGoroutineLeakGC(t *testing.T) {
 		makeTest("Cockroach35931",
 			`Cockroach35931\.func2\(.* \[chan send\]`,
 		),
-		makeFlakyTest("Etcd5509",
+		makeTest("Etcd5509",
 			`Etcd5509\.func2\(.* \[sync\.RWMutex\.Lock\]`,
 		),
-		makeFlakyTest("Etcd6708",
+		makeTest("Etcd6708",
 			`Etcd6708\.func2\(.* \[sync\.RWMutex\.RLock\]`,
 		),
 		makeFlakyTest("Etcd6857",
@@ -1421,7 +1411,7 @@ func TestGoroutineLeakGC(t *testing.T) {
 			`\(\*Server_grpc795\)\.Serve\(.* \[sync\.Mutex\.Lock\]`,
 			`testServerGracefulStopIdempotent_grpc795\(.* \[sync\.Mutex\.Lock\]`,
 		),
-		makeFlakyTest("Grpc862",
+		makeTest("Grpc862",
 			`DialContext_grpc862\.func2\(.* \[chan receive\]`),
 		makeTest("Grpc1275",
 			`testInflightStreamClosing_grpc1275\.func1\(.* \[chan receive\]`),
@@ -1462,7 +1452,7 @@ func TestGoroutineLeakGC(t *testing.T) {
 		// makeTest(testCase{name: "Kubernetes1321"},
 		// 	`NewMux_kubernetes1321\.gowrap1\(.* \[chan send\]`,
 		// 	`testMuxWatcherClose_kubernetes1321\(.* \[sync\.Mutex\.Lock\]`),
-		makeFlakyTest("Kubernetes5316",
+		makeTest("Kubernetes5316",
 			`finishRequest_kubernetes5316\.func1\(.* \[chan send\]`,
 		),
 		makeFlakyTest("Kubernetes6632",
@@ -1546,7 +1536,7 @@ func TestGoroutineLeakGC(t *testing.T) {
 		makeFlakyTest("Moby33781",
 			`monitor_moby33781\.func1\(.* \[chan send\]`,
 		),
-		makeTest("Moby36114",
+		makeFlakyTest("Moby36114",
 			`\(\*serviceVM_moby36114\)\.hotAddVHDsAtStart\(.* \[sync\.Mutex\.Lock\]`,
 		),
 		makeFlakyTest("Serving2137",
@@ -1554,7 +1544,7 @@ func TestGoroutineLeakGC(t *testing.T) {
 			`\(\*Breaker_serving2137\)\.concurrentRequest\.func1\(.* \[sync\.Mutex\.Lock\]`,
 			`Serving2137\.func2\(.* \[chan receive\]`,
 		),
-		makeFlakyTest("Syncthing4829",
+		makeTest("Syncthing4829",
 			`Syncthing4829\.func2\(.* \[sync\.RWMutex\.RLock\]`,
 		),
 		makeTest("Syncthing5795",
@@ -1662,10 +1652,10 @@ func TestGoroutineLeakGC(t *testing.T) {
 
 			var errors []error
 			if len(unexpectedLeaks) > 0 {
-				errors = append(errors, fmt.Errorf("unexpected goroutine leaks:\n%s", strings.Join(unexpectedLeaks, "\n")))
+				errors = append(errors, fmt.Errorf("unexpected goroutine leaks:\n%s\n", strings.Join(unexpectedLeaks, "\n")))
 			}
 			if len(missingLeakStrs) > 0 {
-				errors = append(errors, fmt.Errorf("missing expected leaks:\n%s", strings.Join(missingLeakStrs, ", ")))
+				errors = append(errors, fmt.Errorf("missing expected leaks:\n%s\n", strings.Join(missingLeakStrs, ", ")))
 			}
 			if len(errors) > 0 {
 				t.Fatalf("Failed with the following errors:\n%s\n\noutput:\n%s", errors, output)

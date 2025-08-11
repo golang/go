@@ -172,7 +172,6 @@ func NewCacher_kubernetes13135(stopCh <-chan struct{}) *Cacher_kubernetes13135 {
 /// watchCache.SetOnEvent()
 /// watchCache.initialized.Wait()
 ///                                         Util(...)
-///
 /// 																				cacher.startCaching()
 ///																					c.Lock()
 /// 																				c.reflector.ListAndWatch()
