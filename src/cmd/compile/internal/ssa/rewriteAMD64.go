@@ -3151,13 +3151,13 @@ func rewriteValueAMD64(v *Value) bool {
 		v.Op = OpAMD64VMULPD512
 		return true
 	case OpMulHighInt16x16:
-		v.Op = OpAMD64VPMULHUW256
+		v.Op = OpAMD64VPMULHW256
 		return true
 	case OpMulHighInt16x32:
 		v.Op = OpAMD64VPMULHW512
 		return true
 	case OpMulHighInt16x8:
-		v.Op = OpAMD64VPMULHUW128
+		v.Op = OpAMD64VPMULHW128
 		return true
 	case OpMulHighMaskedInt16x16:
 		return rewriteValueAMD64_OpMulHighMaskedInt16x16(v)
@@ -3165,6 +3165,21 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpMulHighMaskedInt16x32(v)
 	case OpMulHighMaskedInt16x8:
 		return rewriteValueAMD64_OpMulHighMaskedInt16x8(v)
+	case OpMulHighMaskedUint16x16:
+		return rewriteValueAMD64_OpMulHighMaskedUint16x16(v)
+	case OpMulHighMaskedUint16x32:
+		return rewriteValueAMD64_OpMulHighMaskedUint16x32(v)
+	case OpMulHighMaskedUint16x8:
+		return rewriteValueAMD64_OpMulHighMaskedUint16x8(v)
+	case OpMulHighUint16x16:
+		v.Op = OpAMD64VPMULHUW256
+		return true
+	case OpMulHighUint16x32:
+		v.Op = OpAMD64VPMULHUW512
+		return true
+	case OpMulHighUint16x8:
+		v.Op = OpAMD64VPMULHUW128
+		return true
 	case OpMulInt16x16:
 		v.Op = OpAMD64VPMULLW256
 		return true
@@ -44729,12 +44744,12 @@ func rewriteValueAMD64_OpMulHighMaskedInt16x32(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (MulHighMaskedInt16x32 x y mask)
-	// result: (VPMULHUWMasked512 x y (VPMOVVec16x32ToM <types.TypeMask> mask))
+	// result: (VPMULHWMasked512 x y (VPMOVVec16x32ToM <types.TypeMask> mask))
 	for {
 		x := v_0
 		y := v_1
 		mask := v_2
-		v.reset(OpAMD64VPMULHUWMasked512)
+		v.reset(OpAMD64VPMULHWMasked512)
 		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x32ToM, types.TypeMask)
 		v0.AddArg(mask)
 		v.AddArg3(x, y, v0)
@@ -44747,6 +44762,60 @@ func rewriteValueAMD64_OpMulHighMaskedInt16x8(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (MulHighMaskedInt16x8 x y mask)
+	// result: (VPMULHWMasked128 x y (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		y := v_1
+		mask := v_2
+		v.reset(OpAMD64VPMULHWMasked128)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpMulHighMaskedUint16x16(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (MulHighMaskedUint16x16 x y mask)
+	// result: (VPMULHUWMasked256 x y (VPMOVVec16x16ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		y := v_1
+		mask := v_2
+		v.reset(OpAMD64VPMULHUWMasked256)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpMulHighMaskedUint16x32(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (MulHighMaskedUint16x32 x y mask)
+	// result: (VPMULHUWMasked512 x y (VPMOVVec16x32ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		y := v_1
+		mask := v_2
+		v.reset(OpAMD64VPMULHUWMasked512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x32ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpMulHighMaskedUint16x8(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (MulHighMaskedUint16x8 x y mask)
 	// result: (VPMULHUWMasked128 x y (VPMOVVec16x8ToM <types.TypeMask> mask))
 	for {
 		x := v_0

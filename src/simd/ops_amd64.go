@@ -5862,12 +5862,12 @@ func (x Uint32x8) MulEvenWiden(y Uint32x8) Uint64x4
 
 // MulHigh multiplies elements and stores the high part of the result.
 //
-// Asm: VPMULHUW, CPU Feature: AVX
+// Asm: VPMULHW, CPU Feature: AVX
 func (x Int16x8) MulHigh(y Int16x8) Int16x8
 
 // MulHigh multiplies elements and stores the high part of the result.
 //
-// Asm: VPMULHUW, CPU Feature: AVX2
+// Asm: VPMULHW, CPU Feature: AVX2
 func (x Int16x16) MulHigh(y Int16x16) Int16x16
 
 // MulHigh multiplies elements and stores the high part of the result.
@@ -5875,13 +5875,28 @@ func (x Int16x16) MulHigh(y Int16x16) Int16x16
 // Asm: VPMULHW, CPU Feature: AVX512BW
 func (x Int16x32) MulHigh(y Int16x32) Int16x32
 
+// MulHigh multiplies elements and stores the high part of the result.
+//
+// Asm: VPMULHUW, CPU Feature: AVX
+func (x Uint16x8) MulHigh(y Uint16x8) Uint16x8
+
+// MulHigh multiplies elements and stores the high part of the result.
+//
+// Asm: VPMULHUW, CPU Feature: AVX2
+func (x Uint16x16) MulHigh(y Uint16x16) Uint16x16
+
+// MulHigh multiplies elements and stores the high part of the result.
+//
+// Asm: VPMULHUW, CPU Feature: AVX512BW
+func (x Uint16x32) MulHigh(y Uint16x32) Uint16x32
+
 /* MulHighMasked */
 
 // MulHighMasked multiplies elements and stores the high part of the result.
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPMULHUW, CPU Feature: AVX512BW
+// Asm: VPMULHW, CPU Feature: AVX512BW
 func (x Int16x8) MulHighMasked(y Int16x8, mask Mask16x8) Int16x8
 
 // MulHighMasked multiplies elements and stores the high part of the result.
@@ -5895,8 +5910,29 @@ func (x Int16x16) MulHighMasked(y Int16x16, mask Mask16x16) Int16x16
 //
 // This operation is applied selectively under a write mask.
 //
-// Asm: VPMULHUW, CPU Feature: AVX512BW
+// Asm: VPMULHW, CPU Feature: AVX512BW
 func (x Int16x32) MulHighMasked(y Int16x32, mask Mask16x32) Int16x32
+
+// MulHighMasked multiplies elements and stores the high part of the result.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULHUW, CPU Feature: AVX512BW
+func (x Uint16x8) MulHighMasked(y Uint16x8, mask Mask16x8) Uint16x8
+
+// MulHighMasked multiplies elements and stores the high part of the result.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULHUW, CPU Feature: AVX512BW
+func (x Uint16x16) MulHighMasked(y Uint16x16, mask Mask16x16) Uint16x16
+
+// MulHighMasked multiplies elements and stores the high part of the result.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPMULHUW, CPU Feature: AVX512BW
+func (x Uint16x32) MulHighMasked(y Uint16x32, mask Mask16x32) Uint16x32
 
 /* MulMasked */
 

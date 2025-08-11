@@ -1734,10 +1734,16 @@ const (
 	OpAMD64VPMULDQ256
 	OpAMD64VPMULHUW128
 	OpAMD64VPMULHUW256
+	OpAMD64VPMULHUW512
 	OpAMD64VPMULHUWMasked128
+	OpAMD64VPMULHUWMasked256
 	OpAMD64VPMULHUWMasked512
+	OpAMD64VPMULHW128
+	OpAMD64VPMULHW256
 	OpAMD64VPMULHW512
+	OpAMD64VPMULHWMasked128
 	OpAMD64VPMULHWMasked256
+	OpAMD64VPMULHWMasked512
 	OpAMD64VPMULLD128
 	OpAMD64VPMULLD256
 	OpAMD64VPMULLD512
@@ -5461,6 +5467,12 @@ const (
 	OpMulHighMaskedInt16x8
 	OpMulHighMaskedInt16x16
 	OpMulHighMaskedInt16x32
+	OpMulHighMaskedUint16x8
+	OpMulHighMaskedUint16x16
+	OpMulHighMaskedUint16x32
+	OpMulHighUint16x8
+	OpMulHighUint16x16
+	OpMulHighUint16x32
 	OpMulInt16x8
 	OpMulInt16x16
 	OpMulInt16x32
@@ -27231,7 +27243,38 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPMULHUW512",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPMULHUW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+				{1, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+			outputs: []outputInfo{
+				{0, 281472829161472}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
 		name:        "VPMULHUWMasked128",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPMULHUW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPMULHUWMasked256",
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPMULHUW,
@@ -27263,6 +27306,36 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPMULHW128",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPMULHW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPMULHW256",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AVPMULHW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPMULHW512",
 		argLen:      2,
 		commutative: true,
@@ -27278,7 +27351,39 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPMULHWMasked128",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPMULHW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
 		name:        "VPMULHWMasked256",
+		argLen:      3,
+		commutative: true,
+		asm:         x86.AVPMULHW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{2, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{0, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, 2147418112},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:        "VPMULHWMasked512",
 		argLen:      3,
 		commutative: true,
 		asm:         x86.AVPMULHW,
@@ -67965,6 +68070,42 @@ var opcodeTable = [...]opInfo{
 	{
 		name:        "MulHighMaskedInt16x32",
 		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulHighMaskedUint16x8",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulHighMaskedUint16x16",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulHighMaskedUint16x32",
+		argLen:      3,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulHighUint16x8",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulHighUint16x16",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulHighUint16x32",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
