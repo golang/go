@@ -1333,7 +1333,6 @@ func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, lab
 	// goroutine stack, because it is obviously not a leaked goroutine.
 
 	pcbuf := makeProfStack() // see saveg() for explanation
-	stw := stopTheWorld(stwGoroutineProfile)
 	// Using gleakcount while the world is stopped should give us a consistent view
 	// of the number of leaked goroutines.
 	n = int(gleakcount())
@@ -1342,7 +1341,6 @@ func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, lab
 		// There's not enough space in p to store the whole profile, so (per the
 		// contract of runtime.GoroutineProfile) we're not allowed to write to p
 		// at all and must return n, false.
-		startTheWorld(stw)
 		semrelease(&goroutineProfile.sema)
 		return n, false
 	}
@@ -1354,7 +1352,6 @@ func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, lab
 	goroutineProfile.active = true
 	goroutineProfile.records = p
 	goroutineProfile.labels = labels
-	startTheWorld(stw)
 
 	// Visit each leaked goroutine that existed as of the startTheWorld call above.
 	forEachGRace(func(gp1 *g) {
@@ -1363,12 +1360,10 @@ func goroutineLeakProfileWithLabelsConcurrent(p []profilerecord.StackRecord, lab
 		}
 	})
 
-	stw = stopTheWorld(stwGoroutineProfileCleanup)
 	endOffset := goroutineProfile.offset.Swap(0)
 	goroutineProfile.active = false
 	goroutineProfile.records = nil
 	goroutineProfile.labels = nil
-	startTheWorld(stw)
 
 	// Restore the invariant that every goroutine struct in allgs has its
 	// goroutineProfiled field cleared.
