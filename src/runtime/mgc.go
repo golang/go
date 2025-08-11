@@ -1093,6 +1093,12 @@ top:
 // as the GC marking phase progresses. It returns false for leaked goroutines, or for
 // goroutines which are not yet computed as possibly runnable by the GC.
 func (gp *g) isMaybeRunnable() bool {
+	// Check whether the goroutine is actually in a waiting state first.
+	if readgstatus(gp) != _Gwaiting {
+		// If the goroutine is not waiting, then clearly it is maybe runnable.
+		return true
+	}
+
 	switch gp.waitreason {
 	case waitReasonSelectNoCases,
 		waitReasonChanSendNilChan,
