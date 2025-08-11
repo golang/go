@@ -2,13 +2,18 @@ package main
 
 import (
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"sync"
-	"time"
 )
 
 // This is a set of micro-tests with obvious goroutine leaks that
 // ensures goroutine leak detection works.
+//
+// Tests in this file are not flaky iff. run with GOMAXPROCS=1.
+// The main goroutine forcefully yields via `runtime.Gosched()` before
+// running the profiler. This moves them to the back of the run queue,
+// allowing the leaky goroutines to be scheduled beforehand and get stuck.
 
 func init() {
 	register("NilRecv", NilRecv)
@@ -34,7 +39,7 @@ func NilRecv() {
 		<-c
 		panic("should not be reached")
 	}()
-	time.Sleep(10 * time.Millisecond)
+	runtime.Gosched()
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -45,7 +50,7 @@ func NilSend() {
 		c <- 0
 		panic("should not be reached")
 	}()
-	time.Sleep(10 * time.Millisecond)
+	runtime.Gosched()
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -55,7 +60,7 @@ func ChanRecv() {
 		<-make(chan int)
 		panic("should not be reached")
 	}()
-	time.Sleep(10 * time.Millisecond)
+	runtime.Gosched()
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -65,7 +70,7 @@ func SelectNoCases() {
 		select {}
 		panic("should not be reached")
 	}()
-	time.Sleep(10 * time.Millisecond)
+	runtime.Gosched()
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -75,7 +80,7 @@ func ChanSend() {
 		make(chan int) <- 0
 		panic("should not be reached")
 	}()
-	time.Sleep(10 * time.Millisecond)
+	runtime.Gosched()
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -88,7 +93,7 @@ func Select() {
 		}
 		panic("should not be reached")
 	}()
-	time.Sleep(10 * time.Millisecond)
+	runtime.Gosched()
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -100,7 +105,7 @@ func WaitGroup() {
 		wg.Wait()
 		panic("should not be reached")
 	}()
-	time.Sleep(10 * time.Millisecond)
+	runtime.Gosched()
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -114,7 +119,7 @@ func MutexStack() {
 			panic("should not be reached")
 		}()
 	}
-	time.Sleep(10 * time.Millisecond)
+	runtime.Gosched()
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -130,7 +135,7 @@ func MutexHeap() {
 			}()
 		}()
 	}
-	time.Sleep(10 * time.Millisecond)
+	runtime.Gosched()
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -142,7 +147,7 @@ func RWMutexRLock() {
 		mu.RLock()
 		panic("should not be reached")
 	}()
-	time.Sleep(10 * time.Millisecond)
+	runtime.Gosched()
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -154,7 +159,7 @@ func RWMutexLock() {
 		mu.Lock()
 		panic("should not be reached")
 	}()
-	time.Sleep(10 * time.Millisecond)
+	runtime.Gosched()
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -166,7 +171,7 @@ func Cond() {
 		cond.Wait()
 		panic("should not be reached")
 	}()
-	time.Sleep(10 * time.Millisecond)
+	runtime.Gosched()
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -185,7 +190,7 @@ func Mixed() {
 		<-ch
 		panic("should not be reached")
 	}()
-	time.Sleep(10 * time.Millisecond)
+	runtime.Gosched()
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -197,6 +202,6 @@ func NoLeakGlobal() {
 	go func() {
 		<-ch
 	}()
-	time.Sleep(10 * time.Millisecond)
+	runtime.Gosched()
 	prof.WriteTo(os.Stdout, 2)
 }

@@ -9,6 +9,15 @@ import (
 	"time"
 )
 
+// Common goroutine leak patterns. Extracted from:
+// "Unveiling and Vanquishing Goroutine Leaks in Enterprise Microservices: A Dynamic Analysis Approach"
+// doi:10.1109/CGO57630.2024.10444835
+//
+// Tests in this file are not flaky iff. the test is run with GOMAXPROCS=1.
+// The main goroutine forcefully yields via `runtime.Gosched()` before
+// running the profiler. This moves them to the back of the run queue,
+// allowing the leaky goroutines to be scheduled beforehand and get stuck.
+
 func init() {
 	register("NoCloseRange", NoCloseRange)
 	register("MethodContractViolation", MethodContractViolation)
@@ -115,7 +124,7 @@ func workerLifecycle(items []any) {
 func MethodContractViolation() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		time.Sleep(10 * time.Millisecond)
+		runtime.Gosched()
 		prof.WriteTo(os.Stdout, 2)
 	}()
 
@@ -139,7 +148,7 @@ func DoubleSend() {
 	prof := pprof.Lookup("goroutineleak")
 	ch := make(chan any)
 	defer func() {
-		time.Sleep(1000 * time.Millisecond)
+		runtime.Gosched()
 		prof.WriteTo(os.Stdout, 2)
 	}()
 
@@ -191,7 +200,7 @@ func earlyReturn(err error) {
 func EarlyReturn() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		time.Sleep(10 * time.Millisecond)
+		runtime.Gosched()
 		prof.WriteTo(os.Stdout, 2)
 	}()
 
@@ -206,7 +215,7 @@ func nCastLeak(items []any) {
 	// Iterate over every item
 	for range items {
 		go func() {
-			// deadlocks: 99
+			// deadlocks: 4
 
 			// Process item and send result to channel
 			ch <- struct{}{}
@@ -221,7 +230,11 @@ func nCastLeak(items []any) {
 func NCastLeak() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		time.Sleep(100 * time.Millisecond)
+		for i := 0; i < 10; i++ {
+			// Yield enough times  to allow all the leaky goroutines to
+			// reach the execution point.
+			runtime.Gosched()
+		}
 		prof.WriteTo(os.Stdout, 2)
 	}()
 
@@ -231,11 +244,12 @@ func NCastLeak() {
 	}()
 
 	go func() {
-		nCastLeak(make([]any, 100))
+		nCastLeak(make([]any, 5))
 	}()
 }
 
-// A context is provided to short-circuit evaluation.
+// A context is provided to short-circuit evaluation, leading
+// the sender goroutine to leak.
 func timeout(ctx context.Context) {
 	ch := make(chan any)
 
@@ -246,16 +260,16 @@ func timeout(ctx context.Context) {
 
 	select {
 	case <-ch: // Receive message
-	// Sender is released
+		// Sender is released
 	case <-ctx.Done(): // Context was cancelled or timed out
-		// Sender is stuck
+		// Sender is leaked
 	}
 }
 
 func Timeout() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		time.Sleep(10 * time.Millisecond)
+		runtime.Gosched()
 		prof.WriteTo(os.Stdout, 2)
 	}()
 

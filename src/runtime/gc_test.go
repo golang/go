@@ -1260,6 +1260,9 @@ func TestGoroutineLeakGC(t *testing.T) {
 			`nCastLeak\.func1.* \[chan send\]`,
 			`NCastLeak\.func2.* \[chan receive\]`),
 		makeTest("Timeout",
+			// (vsaioc): Timeout is *theoretically* flaky, but the
+			// pseudo-random choice for select case branches makes it
+			// practically impossible for it to fail.
 			`timeout\.func1.* \[chan send\]`),
 	}
 
@@ -1533,14 +1536,20 @@ func TestGoroutineLeakGC(t *testing.T) {
 
 	for _, tcase := range testCases {
 		t.Run(tcase.name, func(t *testing.T) {
-			if !tcase.simple {
-				// Run complex tests in parallel. Do this because such tests
-				// are flaky and we do not necessarily care about their output.
-				t.Parallel()
+			t.Parallel()
+			
+			cmdEnv := []string{
+				"GODEBUG=asyncpreemptoff=1",
+			}
+
+			if tcase.simple {
+				// If the test is simple, set GOMAXPROCS=1 in order to better
+				// control the behavior of the scheduler.
+				cmdEnv = append(cmdEnv, "GOMAXPROCS=1")
 			}
 
 			// Run program and get output trace.
-			output := runBuiltTestProg(t, exe, tcase.name, "GODEBUG=asyncpreemptoff=1")
+			output := runBuiltTestProg(t, exe, tcase.name, cmdEnv...)
 			if len(output) == 0 {
 				t.Fatalf("Test produced no output. Is the goroutine leak profile collected?")
 			}
