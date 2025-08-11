@@ -1412,42 +1412,42 @@ func (x Float64x4) Ceil() Float64x4
 
 // CeilScaled rounds elements up with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x4) CeilScaled(prec uint8) Float32x4
 
 // CeilScaled rounds elements up with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x8) CeilScaled(prec uint8) Float32x8
 
 // CeilScaled rounds elements up with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x16) CeilScaled(prec uint8) Float32x16
 
 // CeilScaled rounds elements up with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x2) CeilScaled(prec uint8) Float64x2
 
 // CeilScaled rounds elements up with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x4) CeilScaled(prec uint8) Float64x4
 
 // CeilScaled rounds elements up with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x8) CeilScaled(prec uint8) Float64x8
@@ -1458,7 +1458,7 @@ func (x Float64x8) CeilScaled(prec uint8) Float64x8
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x4) CeilScaledMasked(prec uint8, mask Mask32x4) Float32x4
@@ -1467,7 +1467,7 @@ func (x Float32x4) CeilScaledMasked(prec uint8, mask Mask32x4) Float32x4
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x8) CeilScaledMasked(prec uint8, mask Mask32x8) Float32x8
@@ -1476,7 +1476,7 @@ func (x Float32x8) CeilScaledMasked(prec uint8, mask Mask32x8) Float32x8
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x16) CeilScaledMasked(prec uint8, mask Mask32x16) Float32x16
@@ -1485,7 +1485,7 @@ func (x Float32x16) CeilScaledMasked(prec uint8, mask Mask32x16) Float32x16
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x2) CeilScaledMasked(prec uint8, mask Mask64x2) Float64x2
@@ -1494,7 +1494,7 @@ func (x Float64x2) CeilScaledMasked(prec uint8, mask Mask64x2) Float64x2
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x4) CeilScaledMasked(prec uint8, mask Mask64x4) Float64x4
@@ -1503,7 +1503,7 @@ func (x Float64x4) CeilScaledMasked(prec uint8, mask Mask64x4) Float64x4
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x8) CeilScaledMasked(prec uint8, mask Mask64x8) Float64x8
@@ -1512,42 +1512,42 @@ func (x Float64x8) CeilScaledMasked(prec uint8, mask Mask64x8) Float64x8
 
 // CeilScaledResidue computes the difference after ceiling with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x4) CeilScaledResidue(prec uint8) Float32x4
 
 // CeilScaledResidue computes the difference after ceiling with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x8) CeilScaledResidue(prec uint8) Float32x8
 
 // CeilScaledResidue computes the difference after ceiling with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x16) CeilScaledResidue(prec uint8) Float32x16
 
 // CeilScaledResidue computes the difference after ceiling with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x2) CeilScaledResidue(prec uint8) Float64x2
 
 // CeilScaledResidue computes the difference after ceiling with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x4) CeilScaledResidue(prec uint8) Float64x4
 
 // CeilScaledResidue computes the difference after ceiling with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x8) CeilScaledResidue(prec uint8) Float64x8
@@ -1558,7 +1558,7 @@ func (x Float64x8) CeilScaledResidue(prec uint8) Float64x8
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x4) CeilScaledResidueMasked(prec uint8, mask Mask32x4) Float32x4
@@ -1567,7 +1567,7 @@ func (x Float32x4) CeilScaledResidueMasked(prec uint8, mask Mask32x4) Float32x4
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x8) CeilScaledResidueMasked(prec uint8, mask Mask32x8) Float32x8
@@ -1576,7 +1576,7 @@ func (x Float32x8) CeilScaledResidueMasked(prec uint8, mask Mask32x8) Float32x8
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x16) CeilScaledResidueMasked(prec uint8, mask Mask32x16) Float32x16
@@ -1585,7 +1585,7 @@ func (x Float32x16) CeilScaledResidueMasked(prec uint8, mask Mask32x16) Float32x
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x2) CeilScaledResidueMasked(prec uint8, mask Mask64x2) Float64x2
@@ -1594,7 +1594,7 @@ func (x Float64x2) CeilScaledResidueMasked(prec uint8, mask Mask64x2) Float64x2
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x4) CeilScaledResidueMasked(prec uint8, mask Mask64x4) Float64x4
@@ -1603,7 +1603,7 @@ func (x Float64x4) CeilScaledResidueMasked(prec uint8, mask Mask64x4) Float64x4
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x8) CeilScaledResidueMasked(prec uint8, mask Mask64x8) Float64x8
@@ -2648,42 +2648,42 @@ func (x Float64x4) Floor() Float64x4
 
 // FloorScaled rounds elements down with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x4) FloorScaled(prec uint8) Float32x4
 
 // FloorScaled rounds elements down with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x8) FloorScaled(prec uint8) Float32x8
 
 // FloorScaled rounds elements down with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x16) FloorScaled(prec uint8) Float32x16
 
 // FloorScaled rounds elements down with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x2) FloorScaled(prec uint8) Float64x2
 
 // FloorScaled rounds elements down with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x4) FloorScaled(prec uint8) Float64x4
 
 // FloorScaled rounds elements down with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x8) FloorScaled(prec uint8) Float64x8
@@ -2694,7 +2694,7 @@ func (x Float64x8) FloorScaled(prec uint8) Float64x8
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x4) FloorScaledMasked(prec uint8, mask Mask32x4) Float32x4
@@ -2703,7 +2703,7 @@ func (x Float32x4) FloorScaledMasked(prec uint8, mask Mask32x4) Float32x4
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x8) FloorScaledMasked(prec uint8, mask Mask32x8) Float32x8
@@ -2712,7 +2712,7 @@ func (x Float32x8) FloorScaledMasked(prec uint8, mask Mask32x8) Float32x8
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x16) FloorScaledMasked(prec uint8, mask Mask32x16) Float32x16
@@ -2721,7 +2721,7 @@ func (x Float32x16) FloorScaledMasked(prec uint8, mask Mask32x16) Float32x16
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x2) FloorScaledMasked(prec uint8, mask Mask64x2) Float64x2
@@ -2730,7 +2730,7 @@ func (x Float64x2) FloorScaledMasked(prec uint8, mask Mask64x2) Float64x2
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x4) FloorScaledMasked(prec uint8, mask Mask64x4) Float64x4
@@ -2739,7 +2739,7 @@ func (x Float64x4) FloorScaledMasked(prec uint8, mask Mask64x4) Float64x4
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x8) FloorScaledMasked(prec uint8, mask Mask64x8) Float64x8
@@ -2748,42 +2748,42 @@ func (x Float64x8) FloorScaledMasked(prec uint8, mask Mask64x8) Float64x8
 
 // FloorScaledResidue computes the difference after flooring with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x4) FloorScaledResidue(prec uint8) Float32x4
 
 // FloorScaledResidue computes the difference after flooring with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x8) FloorScaledResidue(prec uint8) Float32x8
 
 // FloorScaledResidue computes the difference after flooring with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x16) FloorScaledResidue(prec uint8) Float32x16
 
 // FloorScaledResidue computes the difference after flooring with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x2) FloorScaledResidue(prec uint8) Float64x2
 
 // FloorScaledResidue computes the difference after flooring with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x4) FloorScaledResidue(prec uint8) Float64x4
 
 // FloorScaledResidue computes the difference after flooring with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x8) FloorScaledResidue(prec uint8) Float64x8
@@ -2794,7 +2794,7 @@ func (x Float64x8) FloorScaledResidue(prec uint8) Float64x8
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x4) FloorScaledResidueMasked(prec uint8, mask Mask32x4) Float32x4
@@ -2803,7 +2803,7 @@ func (x Float32x4) FloorScaledResidueMasked(prec uint8, mask Mask32x4) Float32x4
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x8) FloorScaledResidueMasked(prec uint8, mask Mask32x8) Float32x8
@@ -2812,7 +2812,7 @@ func (x Float32x8) FloorScaledResidueMasked(prec uint8, mask Mask32x8) Float32x8
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x16) FloorScaledResidueMasked(prec uint8, mask Mask32x16) Float32x16
@@ -2821,7 +2821,7 @@ func (x Float32x16) FloorScaledResidueMasked(prec uint8, mask Mask32x16) Float32
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x2) FloorScaledResidueMasked(prec uint8, mask Mask64x2) Float64x2
@@ -2830,7 +2830,7 @@ func (x Float64x2) FloorScaledResidueMasked(prec uint8, mask Mask64x2) Float64x2
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x4) FloorScaledResidueMasked(prec uint8, mask Mask64x4) Float64x4
@@ -2839,7 +2839,7 @@ func (x Float64x4) FloorScaledResidueMasked(prec uint8, mask Mask64x4) Float64x4
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x8) FloorScaledResidueMasked(prec uint8, mask Mask64x8) Float64x8
@@ -2851,7 +2851,7 @@ func (x Float64x8) FloorScaledResidueMasked(prec uint8, mask Mask64x8) Float64x8
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
-// b results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// b results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512GFNI
 func (x Uint8x16) GaloisFieldAffineTransform(y Uint64x2, b uint8) Uint8x16
@@ -2861,7 +2861,7 @@ func (x Uint8x16) GaloisFieldAffineTransform(y Uint64x2, b uint8) Uint8x16
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
-// b results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// b results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512GFNI
 func (x Uint8x32) GaloisFieldAffineTransform(y Uint64x4, b uint8) Uint8x32
@@ -2871,7 +2871,7 @@ func (x Uint8x32) GaloisFieldAffineTransform(y Uint64x4, b uint8) Uint8x32
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
-// b results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// b results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512GFNI
 func (x Uint8x64) GaloisFieldAffineTransform(y Uint64x8, b uint8) Uint8x64
@@ -2884,7 +2884,7 @@ func (x Uint8x64) GaloisFieldAffineTransform(y Uint64x8, b uint8) Uint8x64
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
-// b results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// b results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512GFNI
 func (x Uint8x16) GaloisFieldAffineTransformInverse(y Uint64x2, b uint8) Uint8x16
@@ -2895,7 +2895,7 @@ func (x Uint8x16) GaloisFieldAffineTransformInverse(y Uint64x2, b uint8) Uint8x1
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
-// b results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// b results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512GFNI
 func (x Uint8x32) GaloisFieldAffineTransformInverse(y Uint64x4, b uint8) Uint8x32
@@ -2906,7 +2906,7 @@ func (x Uint8x32) GaloisFieldAffineTransformInverse(y Uint64x4, b uint8) Uint8x3
 // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
 // corresponding to a group of 8 elements in x.
 //
-// b results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// b results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512GFNI
 func (x Uint8x64) GaloisFieldAffineTransformInverse(y Uint64x8, b uint8) Uint8x64
@@ -2921,7 +2921,7 @@ func (x Uint8x64) GaloisFieldAffineTransformInverse(y Uint64x8, b uint8) Uint8x6
 //
 // This operation is applied selectively under a write mask.
 //
-// b results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// b results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512GFNI
 func (x Uint8x16) GaloisFieldAffineTransformInverseMasked(y Uint64x2, b uint8, mask Mask8x16) Uint8x16
@@ -2934,7 +2934,7 @@ func (x Uint8x16) GaloisFieldAffineTransformInverseMasked(y Uint64x2, b uint8, m
 //
 // This operation is applied selectively under a write mask.
 //
-// b results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// b results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512GFNI
 func (x Uint8x32) GaloisFieldAffineTransformInverseMasked(y Uint64x4, b uint8, mask Mask8x32) Uint8x32
@@ -2947,7 +2947,7 @@ func (x Uint8x32) GaloisFieldAffineTransformInverseMasked(y Uint64x4, b uint8, m
 //
 // This operation is applied selectively under a write mask.
 //
-// b results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// b results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512GFNI
 func (x Uint8x64) GaloisFieldAffineTransformInverseMasked(y Uint64x8, b uint8, mask Mask8x64) Uint8x64
@@ -2961,7 +2961,7 @@ func (x Uint8x64) GaloisFieldAffineTransformInverseMasked(y Uint64x8, b uint8, m
 //
 // This operation is applied selectively under a write mask.
 //
-// b results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// b results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512GFNI
 func (x Uint8x16) GaloisFieldAffineTransformMasked(y Uint64x2, b uint8, mask Mask8x16) Uint8x16
@@ -2973,7 +2973,7 @@ func (x Uint8x16) GaloisFieldAffineTransformMasked(y Uint64x2, b uint8, mask Mas
 //
 // This operation is applied selectively under a write mask.
 //
-// b results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// b results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512GFNI
 func (x Uint8x32) GaloisFieldAffineTransformMasked(y Uint64x4, b uint8, mask Mask8x32) Uint8x32
@@ -2985,7 +2985,7 @@ func (x Uint8x32) GaloisFieldAffineTransformMasked(y Uint64x4, b uint8, mask Mas
 //
 // This operation is applied selectively under a write mask.
 //
-// b results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// b results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512GFNI
 func (x Uint8x64) GaloisFieldAffineTransformMasked(y Uint64x8, b uint8, mask Mask8x64) Uint8x64
@@ -3040,56 +3040,56 @@ func (x Uint8x64) GaloisFieldMulMasked(y Uint8x64, mask Mask8x64) Uint8x64
 
 // GetElem retrieves a single constant-indexed element's value.
 //
-// index results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPEXTRB, CPU Feature: AVX512BW
 func (x Int8x16) GetElem(index uint8) int8
 
 // GetElem retrieves a single constant-indexed element's value.
 //
-// index results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPEXTRW, CPU Feature: AVX512BW
 func (x Int16x8) GetElem(index uint8) int16
 
 // GetElem retrieves a single constant-indexed element's value.
 //
-// index results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPEXTRD, CPU Feature: AVX
 func (x Int32x4) GetElem(index uint8) int32
 
 // GetElem retrieves a single constant-indexed element's value.
 //
-// index results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPEXTRQ, CPU Feature: AVX
 func (x Int64x2) GetElem(index uint8) int64
 
 // GetElem retrieves a single constant-indexed element's value.
 //
-// index results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPEXTRB, CPU Feature: AVX512BW
 func (x Uint8x16) GetElem(index uint8) uint8
 
 // GetElem retrieves a single constant-indexed element's value.
 //
-// index results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPEXTRW, CPU Feature: AVX512BW
 func (x Uint16x8) GetElem(index uint8) uint16
 
 // GetElem retrieves a single constant-indexed element's value.
 //
-// index results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPEXTRD, CPU Feature: AVX
 func (x Uint32x4) GetElem(index uint8) uint32
 
 // GetElem retrieves a single constant-indexed element's value.
 //
-// index results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPEXTRQ, CPU Feature: AVX
 func (x Uint64x2) GetElem(index uint8) uint64
@@ -8096,84 +8096,84 @@ func (x Float64x8) ReciprocalSqrtMasked(mask Mask64x8) Float64x8
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLD, CPU Feature: AVX512F
 func (x Int32x4) RotateAllLeft(shift uint8) Int32x4
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLD, CPU Feature: AVX512F
 func (x Int32x8) RotateAllLeft(shift uint8) Int32x8
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLD, CPU Feature: AVX512F
 func (x Int32x16) RotateAllLeft(shift uint8) Int32x16
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLQ, CPU Feature: AVX512F
 func (x Int64x2) RotateAllLeft(shift uint8) Int64x2
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLQ, CPU Feature: AVX512F
 func (x Int64x4) RotateAllLeft(shift uint8) Int64x4
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLQ, CPU Feature: AVX512F
 func (x Int64x8) RotateAllLeft(shift uint8) Int64x8
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLD, CPU Feature: AVX512F
 func (x Uint32x4) RotateAllLeft(shift uint8) Uint32x4
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLD, CPU Feature: AVX512F
 func (x Uint32x8) RotateAllLeft(shift uint8) Uint32x8
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLD, CPU Feature: AVX512F
 func (x Uint32x16) RotateAllLeft(shift uint8) Uint32x16
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLQ, CPU Feature: AVX512F
 func (x Uint64x2) RotateAllLeft(shift uint8) Uint64x2
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLQ, CPU Feature: AVX512F
 func (x Uint64x4) RotateAllLeft(shift uint8) Uint64x4
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLQ, CPU Feature: AVX512F
 func (x Uint64x8) RotateAllLeft(shift uint8) Uint64x8
@@ -8184,7 +8184,7 @@ func (x Uint64x8) RotateAllLeft(shift uint8) Uint64x8
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLD, CPU Feature: AVX512F
 func (x Int32x4) RotateAllLeftMasked(shift uint8, mask Mask32x4) Int32x4
@@ -8193,7 +8193,7 @@ func (x Int32x4) RotateAllLeftMasked(shift uint8, mask Mask32x4) Int32x4
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLD, CPU Feature: AVX512F
 func (x Int32x8) RotateAllLeftMasked(shift uint8, mask Mask32x8) Int32x8
@@ -8202,7 +8202,7 @@ func (x Int32x8) RotateAllLeftMasked(shift uint8, mask Mask32x8) Int32x8
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLD, CPU Feature: AVX512F
 func (x Int32x16) RotateAllLeftMasked(shift uint8, mask Mask32x16) Int32x16
@@ -8211,7 +8211,7 @@ func (x Int32x16) RotateAllLeftMasked(shift uint8, mask Mask32x16) Int32x16
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLQ, CPU Feature: AVX512F
 func (x Int64x2) RotateAllLeftMasked(shift uint8, mask Mask64x2) Int64x2
@@ -8220,7 +8220,7 @@ func (x Int64x2) RotateAllLeftMasked(shift uint8, mask Mask64x2) Int64x2
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLQ, CPU Feature: AVX512F
 func (x Int64x4) RotateAllLeftMasked(shift uint8, mask Mask64x4) Int64x4
@@ -8229,7 +8229,7 @@ func (x Int64x4) RotateAllLeftMasked(shift uint8, mask Mask64x4) Int64x4
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLQ, CPU Feature: AVX512F
 func (x Int64x8) RotateAllLeftMasked(shift uint8, mask Mask64x8) Int64x8
@@ -8238,7 +8238,7 @@ func (x Int64x8) RotateAllLeftMasked(shift uint8, mask Mask64x8) Int64x8
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLD, CPU Feature: AVX512F
 func (x Uint32x4) RotateAllLeftMasked(shift uint8, mask Mask32x4) Uint32x4
@@ -8247,7 +8247,7 @@ func (x Uint32x4) RotateAllLeftMasked(shift uint8, mask Mask32x4) Uint32x4
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLD, CPU Feature: AVX512F
 func (x Uint32x8) RotateAllLeftMasked(shift uint8, mask Mask32x8) Uint32x8
@@ -8256,7 +8256,7 @@ func (x Uint32x8) RotateAllLeftMasked(shift uint8, mask Mask32x8) Uint32x8
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLD, CPU Feature: AVX512F
 func (x Uint32x16) RotateAllLeftMasked(shift uint8, mask Mask32x16) Uint32x16
@@ -8265,7 +8265,7 @@ func (x Uint32x16) RotateAllLeftMasked(shift uint8, mask Mask32x16) Uint32x16
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLQ, CPU Feature: AVX512F
 func (x Uint64x2) RotateAllLeftMasked(shift uint8, mask Mask64x2) Uint64x2
@@ -8274,7 +8274,7 @@ func (x Uint64x2) RotateAllLeftMasked(shift uint8, mask Mask64x2) Uint64x2
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLQ, CPU Feature: AVX512F
 func (x Uint64x4) RotateAllLeftMasked(shift uint8, mask Mask64x4) Uint64x4
@@ -8283,7 +8283,7 @@ func (x Uint64x4) RotateAllLeftMasked(shift uint8, mask Mask64x4) Uint64x4
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPROLQ, CPU Feature: AVX512F
 func (x Uint64x8) RotateAllLeftMasked(shift uint8, mask Mask64x8) Uint64x8
@@ -8292,84 +8292,84 @@ func (x Uint64x8) RotateAllLeftMasked(shift uint8, mask Mask64x8) Uint64x8
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORD, CPU Feature: AVX512F
 func (x Int32x4) RotateAllRight(shift uint8) Int32x4
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORD, CPU Feature: AVX512F
 func (x Int32x8) RotateAllRight(shift uint8) Int32x8
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORD, CPU Feature: AVX512F
 func (x Int32x16) RotateAllRight(shift uint8) Int32x16
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORQ, CPU Feature: AVX512F
 func (x Int64x2) RotateAllRight(shift uint8) Int64x2
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORQ, CPU Feature: AVX512F
 func (x Int64x4) RotateAllRight(shift uint8) Int64x4
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORQ, CPU Feature: AVX512F
 func (x Int64x8) RotateAllRight(shift uint8) Int64x8
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORD, CPU Feature: AVX512F
 func (x Uint32x4) RotateAllRight(shift uint8) Uint32x4
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORD, CPU Feature: AVX512F
 func (x Uint32x8) RotateAllRight(shift uint8) Uint32x8
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORD, CPU Feature: AVX512F
 func (x Uint32x16) RotateAllRight(shift uint8) Uint32x16
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORQ, CPU Feature: AVX512F
 func (x Uint64x2) RotateAllRight(shift uint8) Uint64x2
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORQ, CPU Feature: AVX512F
 func (x Uint64x4) RotateAllRight(shift uint8) Uint64x4
 
 // RotateAllRight rotates each element to the right by the number of bits specified by the immediate.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORQ, CPU Feature: AVX512F
 func (x Uint64x8) RotateAllRight(shift uint8) Uint64x8
@@ -8380,7 +8380,7 @@ func (x Uint64x8) RotateAllRight(shift uint8) Uint64x8
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORD, CPU Feature: AVX512F
 func (x Int32x4) RotateAllRightMasked(shift uint8, mask Mask32x4) Int32x4
@@ -8389,7 +8389,7 @@ func (x Int32x4) RotateAllRightMasked(shift uint8, mask Mask32x4) Int32x4
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORD, CPU Feature: AVX512F
 func (x Int32x8) RotateAllRightMasked(shift uint8, mask Mask32x8) Int32x8
@@ -8398,7 +8398,7 @@ func (x Int32x8) RotateAllRightMasked(shift uint8, mask Mask32x8) Int32x8
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORD, CPU Feature: AVX512F
 func (x Int32x16) RotateAllRightMasked(shift uint8, mask Mask32x16) Int32x16
@@ -8407,7 +8407,7 @@ func (x Int32x16) RotateAllRightMasked(shift uint8, mask Mask32x16) Int32x16
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORQ, CPU Feature: AVX512F
 func (x Int64x2) RotateAllRightMasked(shift uint8, mask Mask64x2) Int64x2
@@ -8416,7 +8416,7 @@ func (x Int64x2) RotateAllRightMasked(shift uint8, mask Mask64x2) Int64x2
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORQ, CPU Feature: AVX512F
 func (x Int64x4) RotateAllRightMasked(shift uint8, mask Mask64x4) Int64x4
@@ -8425,7 +8425,7 @@ func (x Int64x4) RotateAllRightMasked(shift uint8, mask Mask64x4) Int64x4
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORQ, CPU Feature: AVX512F
 func (x Int64x8) RotateAllRightMasked(shift uint8, mask Mask64x8) Int64x8
@@ -8434,7 +8434,7 @@ func (x Int64x8) RotateAllRightMasked(shift uint8, mask Mask64x8) Int64x8
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORD, CPU Feature: AVX512F
 func (x Uint32x4) RotateAllRightMasked(shift uint8, mask Mask32x4) Uint32x4
@@ -8443,7 +8443,7 @@ func (x Uint32x4) RotateAllRightMasked(shift uint8, mask Mask32x4) Uint32x4
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORD, CPU Feature: AVX512F
 func (x Uint32x8) RotateAllRightMasked(shift uint8, mask Mask32x8) Uint32x8
@@ -8452,7 +8452,7 @@ func (x Uint32x8) RotateAllRightMasked(shift uint8, mask Mask32x8) Uint32x8
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORD, CPU Feature: AVX512F
 func (x Uint32x16) RotateAllRightMasked(shift uint8, mask Mask32x16) Uint32x16
@@ -8461,7 +8461,7 @@ func (x Uint32x16) RotateAllRightMasked(shift uint8, mask Mask32x16) Uint32x16
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORQ, CPU Feature: AVX512F
 func (x Uint64x2) RotateAllRightMasked(shift uint8, mask Mask64x2) Uint64x2
@@ -8470,7 +8470,7 @@ func (x Uint64x2) RotateAllRightMasked(shift uint8, mask Mask64x2) Uint64x2
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORQ, CPU Feature: AVX512F
 func (x Uint64x4) RotateAllRightMasked(shift uint8, mask Mask64x4) Uint64x4
@@ -8479,7 +8479,7 @@ func (x Uint64x4) RotateAllRightMasked(shift uint8, mask Mask64x4) Uint64x4
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPRORQ, CPU Feature: AVX512F
 func (x Uint64x8) RotateAllRightMasked(shift uint8, mask Mask64x8) Uint64x8
@@ -8806,42 +8806,42 @@ func (x Float64x4) RoundToEven() Float64x4
 
 // RoundToEvenScaled rounds elements with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x4) RoundToEvenScaled(prec uint8) Float32x4
 
 // RoundToEvenScaled rounds elements with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x8) RoundToEvenScaled(prec uint8) Float32x8
 
 // RoundToEvenScaled rounds elements with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x16) RoundToEvenScaled(prec uint8) Float32x16
 
 // RoundToEvenScaled rounds elements with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x2) RoundToEvenScaled(prec uint8) Float64x2
 
 // RoundToEvenScaled rounds elements with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x4) RoundToEvenScaled(prec uint8) Float64x4
 
 // RoundToEvenScaled rounds elements with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x8) RoundToEvenScaled(prec uint8) Float64x8
@@ -8852,7 +8852,7 @@ func (x Float64x8) RoundToEvenScaled(prec uint8) Float64x8
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x4) RoundToEvenScaledMasked(prec uint8, mask Mask32x4) Float32x4
@@ -8861,7 +8861,7 @@ func (x Float32x4) RoundToEvenScaledMasked(prec uint8, mask Mask32x4) Float32x4
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x8) RoundToEvenScaledMasked(prec uint8, mask Mask32x8) Float32x8
@@ -8870,7 +8870,7 @@ func (x Float32x8) RoundToEvenScaledMasked(prec uint8, mask Mask32x8) Float32x8
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x16) RoundToEvenScaledMasked(prec uint8, mask Mask32x16) Float32x16
@@ -8879,7 +8879,7 @@ func (x Float32x16) RoundToEvenScaledMasked(prec uint8, mask Mask32x16) Float32x
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x2) RoundToEvenScaledMasked(prec uint8, mask Mask64x2) Float64x2
@@ -8888,7 +8888,7 @@ func (x Float64x2) RoundToEvenScaledMasked(prec uint8, mask Mask64x2) Float64x2
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x4) RoundToEvenScaledMasked(prec uint8, mask Mask64x4) Float64x4
@@ -8897,7 +8897,7 @@ func (x Float64x4) RoundToEvenScaledMasked(prec uint8, mask Mask64x4) Float64x4
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x8) RoundToEvenScaledMasked(prec uint8, mask Mask64x8) Float64x8
@@ -8906,42 +8906,42 @@ func (x Float64x8) RoundToEvenScaledMasked(prec uint8, mask Mask64x8) Float64x8
 
 // RoundToEvenScaledResidue computes the difference after rounding with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x4) RoundToEvenScaledResidue(prec uint8) Float32x4
 
 // RoundToEvenScaledResidue computes the difference after rounding with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x8) RoundToEvenScaledResidue(prec uint8) Float32x8
 
 // RoundToEvenScaledResidue computes the difference after rounding with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x16) RoundToEvenScaledResidue(prec uint8) Float32x16
 
 // RoundToEvenScaledResidue computes the difference after rounding with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x2) RoundToEvenScaledResidue(prec uint8) Float64x2
 
 // RoundToEvenScaledResidue computes the difference after rounding with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x4) RoundToEvenScaledResidue(prec uint8) Float64x4
 
 // RoundToEvenScaledResidue computes the difference after rounding with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x8) RoundToEvenScaledResidue(prec uint8) Float64x8
@@ -8952,7 +8952,7 @@ func (x Float64x8) RoundToEvenScaledResidue(prec uint8) Float64x8
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x4) RoundToEvenScaledResidueMasked(prec uint8, mask Mask32x4) Float32x4
@@ -8961,7 +8961,7 @@ func (x Float32x4) RoundToEvenScaledResidueMasked(prec uint8, mask Mask32x4) Flo
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x8) RoundToEvenScaledResidueMasked(prec uint8, mask Mask32x8) Float32x8
@@ -8970,7 +8970,7 @@ func (x Float32x8) RoundToEvenScaledResidueMasked(prec uint8, mask Mask32x8) Flo
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x16) RoundToEvenScaledResidueMasked(prec uint8, mask Mask32x16) Float32x16
@@ -8979,7 +8979,7 @@ func (x Float32x16) RoundToEvenScaledResidueMasked(prec uint8, mask Mask32x16) F
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x2) RoundToEvenScaledResidueMasked(prec uint8, mask Mask64x2) Float64x2
@@ -8988,7 +8988,7 @@ func (x Float64x2) RoundToEvenScaledResidueMasked(prec uint8, mask Mask64x2) Flo
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x4) RoundToEvenScaledResidueMasked(prec uint8, mask Mask64x4) Float64x4
@@ -8997,7 +8997,7 @@ func (x Float64x4) RoundToEvenScaledResidueMasked(prec uint8, mask Mask64x4) Flo
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x8) RoundToEvenScaledResidueMasked(prec uint8, mask Mask64x8) Float64x8
@@ -9082,56 +9082,56 @@ func (x Float64x8) ScaleMasked(y Float64x8, mask Mask64x8) Float64x8
 
 // SetElem sets a single constant-indexed element's value.
 //
-// index results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPINSRB, CPU Feature: AVX
 func (x Int8x16) SetElem(index uint8, y int8) Int8x16
 
 // SetElem sets a single constant-indexed element's value.
 //
-// index results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPINSRW, CPU Feature: AVX
 func (x Int16x8) SetElem(index uint8, y int16) Int16x8
 
 // SetElem sets a single constant-indexed element's value.
 //
-// index results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPINSRD, CPU Feature: AVX
 func (x Int32x4) SetElem(index uint8, y int32) Int32x4
 
 // SetElem sets a single constant-indexed element's value.
 //
-// index results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPINSRQ, CPU Feature: AVX
 func (x Int64x2) SetElem(index uint8, y int64) Int64x2
 
 // SetElem sets a single constant-indexed element's value.
 //
-// index results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPINSRB, CPU Feature: AVX
 func (x Uint8x16) SetElem(index uint8, y uint8) Uint8x16
 
 // SetElem sets a single constant-indexed element's value.
 //
-// index results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPINSRW, CPU Feature: AVX
 func (x Uint16x8) SetElem(index uint8, y uint16) Uint16x8
 
 // SetElem sets a single constant-indexed element's value.
 //
-// index results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPINSRD, CPU Feature: AVX
 func (x Uint32x4) SetElem(index uint8, y uint32) Uint32x4
 
 // SetElem sets a single constant-indexed element's value.
 //
-// index results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPINSRQ, CPU Feature: AVX
 func (x Uint64x2) SetElem(index uint8, y uint64) Uint64x2
@@ -9437,7 +9437,7 @@ func (x Uint64x8) ShiftAllLeft(y uint64) Uint64x8
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Int16x8) ShiftAllLeftConcat(shift uint8, y Int16x8) Int16x8
@@ -9445,7 +9445,7 @@ func (x Int16x8) ShiftAllLeftConcat(shift uint8, y Int16x8) Int16x8
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Int16x16) ShiftAllLeftConcat(shift uint8, y Int16x16) Int16x16
@@ -9453,7 +9453,7 @@ func (x Int16x16) ShiftAllLeftConcat(shift uint8, y Int16x16) Int16x16
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Int16x32) ShiftAllLeftConcat(shift uint8, y Int16x32) Int16x32
@@ -9461,7 +9461,7 @@ func (x Int16x32) ShiftAllLeftConcat(shift uint8, y Int16x32) Int16x32
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Int32x4) ShiftAllLeftConcat(shift uint8, y Int32x4) Int32x4
@@ -9469,7 +9469,7 @@ func (x Int32x4) ShiftAllLeftConcat(shift uint8, y Int32x4) Int32x4
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Int32x8) ShiftAllLeftConcat(shift uint8, y Int32x8) Int32x8
@@ -9477,7 +9477,7 @@ func (x Int32x8) ShiftAllLeftConcat(shift uint8, y Int32x8) Int32x8
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Int32x16) ShiftAllLeftConcat(shift uint8, y Int32x16) Int32x16
@@ -9485,7 +9485,7 @@ func (x Int32x16) ShiftAllLeftConcat(shift uint8, y Int32x16) Int32x16
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Int64x2) ShiftAllLeftConcat(shift uint8, y Int64x2) Int64x2
@@ -9493,7 +9493,7 @@ func (x Int64x2) ShiftAllLeftConcat(shift uint8, y Int64x2) Int64x2
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Int64x4) ShiftAllLeftConcat(shift uint8, y Int64x4) Int64x4
@@ -9501,7 +9501,7 @@ func (x Int64x4) ShiftAllLeftConcat(shift uint8, y Int64x4) Int64x4
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Int64x8) ShiftAllLeftConcat(shift uint8, y Int64x8) Int64x8
@@ -9509,7 +9509,7 @@ func (x Int64x8) ShiftAllLeftConcat(shift uint8, y Int64x8) Int64x8
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Uint16x8) ShiftAllLeftConcat(shift uint8, y Uint16x8) Uint16x8
@@ -9517,7 +9517,7 @@ func (x Uint16x8) ShiftAllLeftConcat(shift uint8, y Uint16x8) Uint16x8
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Uint16x16) ShiftAllLeftConcat(shift uint8, y Uint16x16) Uint16x16
@@ -9525,7 +9525,7 @@ func (x Uint16x16) ShiftAllLeftConcat(shift uint8, y Uint16x16) Uint16x16
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Uint16x32) ShiftAllLeftConcat(shift uint8, y Uint16x32) Uint16x32
@@ -9533,7 +9533,7 @@ func (x Uint16x32) ShiftAllLeftConcat(shift uint8, y Uint16x32) Uint16x32
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Uint32x4) ShiftAllLeftConcat(shift uint8, y Uint32x4) Uint32x4
@@ -9541,7 +9541,7 @@ func (x Uint32x4) ShiftAllLeftConcat(shift uint8, y Uint32x4) Uint32x4
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Uint32x8) ShiftAllLeftConcat(shift uint8, y Uint32x8) Uint32x8
@@ -9549,7 +9549,7 @@ func (x Uint32x8) ShiftAllLeftConcat(shift uint8, y Uint32x8) Uint32x8
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Uint32x16) ShiftAllLeftConcat(shift uint8, y Uint32x16) Uint32x16
@@ -9557,7 +9557,7 @@ func (x Uint32x16) ShiftAllLeftConcat(shift uint8, y Uint32x16) Uint32x16
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x2) ShiftAllLeftConcat(shift uint8, y Uint64x2) Uint64x2
@@ -9565,7 +9565,7 @@ func (x Uint64x2) ShiftAllLeftConcat(shift uint8, y Uint64x2) Uint64x2
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x4) ShiftAllLeftConcat(shift uint8, y Uint64x4) Uint64x4
@@ -9573,7 +9573,7 @@ func (x Uint64x4) ShiftAllLeftConcat(shift uint8, y Uint64x4) Uint64x4
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x8) ShiftAllLeftConcat(shift uint8, y Uint64x8) Uint64x8
@@ -9585,7 +9585,7 @@ func (x Uint64x8) ShiftAllLeftConcat(shift uint8, y Uint64x8) Uint64x8
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Int16x8) ShiftAllLeftConcatMasked(shift uint8, y Int16x8, mask Mask16x8) Int16x8
@@ -9595,7 +9595,7 @@ func (x Int16x8) ShiftAllLeftConcatMasked(shift uint8, y Int16x8, mask Mask16x8)
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Int16x16) ShiftAllLeftConcatMasked(shift uint8, y Int16x16, mask Mask16x16) Int16x16
@@ -9605,7 +9605,7 @@ func (x Int16x16) ShiftAllLeftConcatMasked(shift uint8, y Int16x16, mask Mask16x
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Int16x32) ShiftAllLeftConcatMasked(shift uint8, y Int16x32, mask Mask16x32) Int16x32
@@ -9615,7 +9615,7 @@ func (x Int16x32) ShiftAllLeftConcatMasked(shift uint8, y Int16x32, mask Mask16x
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Int32x4) ShiftAllLeftConcatMasked(shift uint8, y Int32x4, mask Mask32x4) Int32x4
@@ -9625,7 +9625,7 @@ func (x Int32x4) ShiftAllLeftConcatMasked(shift uint8, y Int32x4, mask Mask32x4)
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Int32x8) ShiftAllLeftConcatMasked(shift uint8, y Int32x8, mask Mask32x8) Int32x8
@@ -9635,7 +9635,7 @@ func (x Int32x8) ShiftAllLeftConcatMasked(shift uint8, y Int32x8, mask Mask32x8)
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Int32x16) ShiftAllLeftConcatMasked(shift uint8, y Int32x16, mask Mask32x16) Int32x16
@@ -9645,7 +9645,7 @@ func (x Int32x16) ShiftAllLeftConcatMasked(shift uint8, y Int32x16, mask Mask32x
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Int64x2) ShiftAllLeftConcatMasked(shift uint8, y Int64x2, mask Mask64x2) Int64x2
@@ -9655,7 +9655,7 @@ func (x Int64x2) ShiftAllLeftConcatMasked(shift uint8, y Int64x2, mask Mask64x2)
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Int64x4) ShiftAllLeftConcatMasked(shift uint8, y Int64x4, mask Mask64x4) Int64x4
@@ -9665,7 +9665,7 @@ func (x Int64x4) ShiftAllLeftConcatMasked(shift uint8, y Int64x4, mask Mask64x4)
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Int64x8) ShiftAllLeftConcatMasked(shift uint8, y Int64x8, mask Mask64x8) Int64x8
@@ -9675,7 +9675,7 @@ func (x Int64x8) ShiftAllLeftConcatMasked(shift uint8, y Int64x8, mask Mask64x8)
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Uint16x8) ShiftAllLeftConcatMasked(shift uint8, y Uint16x8, mask Mask16x8) Uint16x8
@@ -9685,7 +9685,7 @@ func (x Uint16x8) ShiftAllLeftConcatMasked(shift uint8, y Uint16x8, mask Mask16x
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Uint16x16) ShiftAllLeftConcatMasked(shift uint8, y Uint16x16, mask Mask16x16) Uint16x16
@@ -9695,7 +9695,7 @@ func (x Uint16x16) ShiftAllLeftConcatMasked(shift uint8, y Uint16x16, mask Mask1
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Uint16x32) ShiftAllLeftConcatMasked(shift uint8, y Uint16x32, mask Mask16x32) Uint16x32
@@ -9705,7 +9705,7 @@ func (x Uint16x32) ShiftAllLeftConcatMasked(shift uint8, y Uint16x32, mask Mask1
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Uint32x4) ShiftAllLeftConcatMasked(shift uint8, y Uint32x4, mask Mask32x4) Uint32x4
@@ -9715,7 +9715,7 @@ func (x Uint32x4) ShiftAllLeftConcatMasked(shift uint8, y Uint32x4, mask Mask32x
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Uint32x8) ShiftAllLeftConcatMasked(shift uint8, y Uint32x8, mask Mask32x8) Uint32x8
@@ -9725,7 +9725,7 @@ func (x Uint32x8) ShiftAllLeftConcatMasked(shift uint8, y Uint32x8, mask Mask32x
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Uint32x16) ShiftAllLeftConcatMasked(shift uint8, y Uint32x16, mask Mask32x16) Uint32x16
@@ -9735,7 +9735,7 @@ func (x Uint32x16) ShiftAllLeftConcatMasked(shift uint8, y Uint32x16, mask Mask3
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x2) ShiftAllLeftConcatMasked(shift uint8, y Uint64x2, mask Mask64x2) Uint64x2
@@ -9745,7 +9745,7 @@ func (x Uint64x2) ShiftAllLeftConcatMasked(shift uint8, y Uint64x2, mask Mask64x
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x4) ShiftAllLeftConcatMasked(shift uint8, y Uint64x4, mask Mask64x4) Uint64x4
@@ -9755,7 +9755,7 @@ func (x Uint64x4) ShiftAllLeftConcatMasked(shift uint8, y Uint64x4, mask Mask64x
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x8) ShiftAllLeftConcatMasked(shift uint8, y Uint64x8, mask Mask64x8) Uint64x8
@@ -9985,7 +9985,7 @@ func (x Uint64x8) ShiftAllRight(y uint64) Uint64x8
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Int16x8) ShiftAllRightConcat(shift uint8, y Int16x8) Int16x8
@@ -9993,7 +9993,7 @@ func (x Int16x8) ShiftAllRightConcat(shift uint8, y Int16x8) Int16x8
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Int16x16) ShiftAllRightConcat(shift uint8, y Int16x16) Int16x16
@@ -10001,7 +10001,7 @@ func (x Int16x16) ShiftAllRightConcat(shift uint8, y Int16x16) Int16x16
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Int16x32) ShiftAllRightConcat(shift uint8, y Int16x32) Int16x32
@@ -10009,7 +10009,7 @@ func (x Int16x32) ShiftAllRightConcat(shift uint8, y Int16x32) Int16x32
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Int32x4) ShiftAllRightConcat(shift uint8, y Int32x4) Int32x4
@@ -10017,7 +10017,7 @@ func (x Int32x4) ShiftAllRightConcat(shift uint8, y Int32x4) Int32x4
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Int32x8) ShiftAllRightConcat(shift uint8, y Int32x8) Int32x8
@@ -10025,7 +10025,7 @@ func (x Int32x8) ShiftAllRightConcat(shift uint8, y Int32x8) Int32x8
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Int32x16) ShiftAllRightConcat(shift uint8, y Int32x16) Int32x16
@@ -10033,7 +10033,7 @@ func (x Int32x16) ShiftAllRightConcat(shift uint8, y Int32x16) Int32x16
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Int64x2) ShiftAllRightConcat(shift uint8, y Int64x2) Int64x2
@@ -10041,7 +10041,7 @@ func (x Int64x2) ShiftAllRightConcat(shift uint8, y Int64x2) Int64x2
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Int64x4) ShiftAllRightConcat(shift uint8, y Int64x4) Int64x4
@@ -10049,7 +10049,7 @@ func (x Int64x4) ShiftAllRightConcat(shift uint8, y Int64x4) Int64x4
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Int64x8) ShiftAllRightConcat(shift uint8, y Int64x8) Int64x8
@@ -10057,7 +10057,7 @@ func (x Int64x8) ShiftAllRightConcat(shift uint8, y Int64x8) Int64x8
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Uint16x8) ShiftAllRightConcat(shift uint8, y Uint16x8) Uint16x8
@@ -10065,7 +10065,7 @@ func (x Uint16x8) ShiftAllRightConcat(shift uint8, y Uint16x8) Uint16x8
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Uint16x16) ShiftAllRightConcat(shift uint8, y Uint16x16) Uint16x16
@@ -10073,7 +10073,7 @@ func (x Uint16x16) ShiftAllRightConcat(shift uint8, y Uint16x16) Uint16x16
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Uint16x32) ShiftAllRightConcat(shift uint8, y Uint16x32) Uint16x32
@@ -10081,7 +10081,7 @@ func (x Uint16x32) ShiftAllRightConcat(shift uint8, y Uint16x32) Uint16x32
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Uint32x4) ShiftAllRightConcat(shift uint8, y Uint32x4) Uint32x4
@@ -10089,7 +10089,7 @@ func (x Uint32x4) ShiftAllRightConcat(shift uint8, y Uint32x4) Uint32x4
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Uint32x8) ShiftAllRightConcat(shift uint8, y Uint32x8) Uint32x8
@@ -10097,7 +10097,7 @@ func (x Uint32x8) ShiftAllRightConcat(shift uint8, y Uint32x8) Uint32x8
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Uint32x16) ShiftAllRightConcat(shift uint8, y Uint32x16) Uint32x16
@@ -10105,7 +10105,7 @@ func (x Uint32x16) ShiftAllRightConcat(shift uint8, y Uint32x16) Uint32x16
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x2) ShiftAllRightConcat(shift uint8, y Uint64x2) Uint64x2
@@ -10113,7 +10113,7 @@ func (x Uint64x2) ShiftAllRightConcat(shift uint8, y Uint64x2) Uint64x2
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x4) ShiftAllRightConcat(shift uint8, y Uint64x4) Uint64x4
@@ -10121,7 +10121,7 @@ func (x Uint64x4) ShiftAllRightConcat(shift uint8, y Uint64x4) Uint64x4
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by the
 // immediate(only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x8) ShiftAllRightConcat(shift uint8, y Uint64x8) Uint64x8
@@ -10133,7 +10133,7 @@ func (x Uint64x8) ShiftAllRightConcat(shift uint8, y Uint64x8) Uint64x8
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Int16x8) ShiftAllRightConcatMasked(shift uint8, y Int16x8, mask Mask16x8) Int16x8
@@ -10143,7 +10143,7 @@ func (x Int16x8) ShiftAllRightConcatMasked(shift uint8, y Int16x8, mask Mask16x8
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Int16x16) ShiftAllRightConcatMasked(shift uint8, y Int16x16, mask Mask16x16) Int16x16
@@ -10153,7 +10153,7 @@ func (x Int16x16) ShiftAllRightConcatMasked(shift uint8, y Int16x16, mask Mask16
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Int16x32) ShiftAllRightConcatMasked(shift uint8, y Int16x32, mask Mask16x32) Int16x32
@@ -10163,7 +10163,7 @@ func (x Int16x32) ShiftAllRightConcatMasked(shift uint8, y Int16x32, mask Mask16
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Int32x4) ShiftAllRightConcatMasked(shift uint8, y Int32x4, mask Mask32x4) Int32x4
@@ -10173,7 +10173,7 @@ func (x Int32x4) ShiftAllRightConcatMasked(shift uint8, y Int32x4, mask Mask32x4
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Int32x8) ShiftAllRightConcatMasked(shift uint8, y Int32x8, mask Mask32x8) Int32x8
@@ -10183,7 +10183,7 @@ func (x Int32x8) ShiftAllRightConcatMasked(shift uint8, y Int32x8, mask Mask32x8
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Int32x16) ShiftAllRightConcatMasked(shift uint8, y Int32x16, mask Mask32x16) Int32x16
@@ -10193,7 +10193,7 @@ func (x Int32x16) ShiftAllRightConcatMasked(shift uint8, y Int32x16, mask Mask32
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Int64x2) ShiftAllRightConcatMasked(shift uint8, y Int64x2, mask Mask64x2) Int64x2
@@ -10203,7 +10203,7 @@ func (x Int64x2) ShiftAllRightConcatMasked(shift uint8, y Int64x2, mask Mask64x2
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Int64x4) ShiftAllRightConcatMasked(shift uint8, y Int64x4, mask Mask64x4) Int64x4
@@ -10213,7 +10213,7 @@ func (x Int64x4) ShiftAllRightConcatMasked(shift uint8, y Int64x4, mask Mask64x4
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Int64x8) ShiftAllRightConcatMasked(shift uint8, y Int64x8, mask Mask64x8) Int64x8
@@ -10223,7 +10223,7 @@ func (x Int64x8) ShiftAllRightConcatMasked(shift uint8, y Int64x8, mask Mask64x8
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Uint16x8) ShiftAllRightConcatMasked(shift uint8, y Uint16x8, mask Mask16x8) Uint16x8
@@ -10233,7 +10233,7 @@ func (x Uint16x8) ShiftAllRightConcatMasked(shift uint8, y Uint16x8, mask Mask16
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Uint16x16) ShiftAllRightConcatMasked(shift uint8, y Uint16x16, mask Mask16x16) Uint16x16
@@ -10243,7 +10243,7 @@ func (x Uint16x16) ShiftAllRightConcatMasked(shift uint8, y Uint16x16, mask Mask
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Uint16x32) ShiftAllRightConcatMasked(shift uint8, y Uint16x32, mask Mask16x32) Uint16x32
@@ -10253,7 +10253,7 @@ func (x Uint16x32) ShiftAllRightConcatMasked(shift uint8, y Uint16x32, mask Mask
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Uint32x4) ShiftAllRightConcatMasked(shift uint8, y Uint32x4, mask Mask32x4) Uint32x4
@@ -10263,7 +10263,7 @@ func (x Uint32x4) ShiftAllRightConcatMasked(shift uint8, y Uint32x4, mask Mask32
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Uint32x8) ShiftAllRightConcatMasked(shift uint8, y Uint32x8, mask Mask32x8) Uint32x8
@@ -10273,7 +10273,7 @@ func (x Uint32x8) ShiftAllRightConcatMasked(shift uint8, y Uint32x8, mask Mask32
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Uint32x16) ShiftAllRightConcatMasked(shift uint8, y Uint32x16, mask Mask32x16) Uint32x16
@@ -10283,7 +10283,7 @@ func (x Uint32x16) ShiftAllRightConcatMasked(shift uint8, y Uint32x16, mask Mask
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x2) ShiftAllRightConcatMasked(shift uint8, y Uint64x2, mask Mask64x2) Uint64x2
@@ -10293,7 +10293,7 @@ func (x Uint64x2) ShiftAllRightConcatMasked(shift uint8, y Uint64x2, mask Mask64
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x4) ShiftAllRightConcatMasked(shift uint8, y Uint64x4, mask Mask64x4) Uint64x4
@@ -10303,7 +10303,7 @@ func (x Uint64x4) ShiftAllRightConcatMasked(shift uint8, y Uint64x4, mask Mask64
 //
 // This operation is applied selectively under a write mask.
 //
-// shift results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x8) ShiftAllRightConcatMasked(shift uint8, y Uint64x8, mask Mask64x8) Uint64x8
@@ -12090,42 +12090,42 @@ func (x Float64x4) Trunc() Float64x4
 
 // TruncScaled truncates elements with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x4) TruncScaled(prec uint8) Float32x4
 
 // TruncScaled truncates elements with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x8) TruncScaled(prec uint8) Float32x8
 
 // TruncScaled truncates elements with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x16) TruncScaled(prec uint8) Float32x16
 
 // TruncScaled truncates elements with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x2) TruncScaled(prec uint8) Float64x2
 
 // TruncScaled truncates elements with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x4) TruncScaled(prec uint8) Float64x4
 
 // TruncScaled truncates elements with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x8) TruncScaled(prec uint8) Float64x8
@@ -12136,7 +12136,7 @@ func (x Float64x8) TruncScaled(prec uint8) Float64x8
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x4) TruncScaledMasked(prec uint8, mask Mask32x4) Float32x4
@@ -12145,7 +12145,7 @@ func (x Float32x4) TruncScaledMasked(prec uint8, mask Mask32x4) Float32x4
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x8) TruncScaledMasked(prec uint8, mask Mask32x8) Float32x8
@@ -12154,7 +12154,7 @@ func (x Float32x8) TruncScaledMasked(prec uint8, mask Mask32x8) Float32x8
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512F
 func (x Float32x16) TruncScaledMasked(prec uint8, mask Mask32x16) Float32x16
@@ -12163,7 +12163,7 @@ func (x Float32x16) TruncScaledMasked(prec uint8, mask Mask32x16) Float32x16
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x2) TruncScaledMasked(prec uint8, mask Mask64x2) Float64x2
@@ -12172,7 +12172,7 @@ func (x Float64x2) TruncScaledMasked(prec uint8, mask Mask64x2) Float64x2
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x4) TruncScaledMasked(prec uint8, mask Mask64x4) Float64x4
@@ -12181,7 +12181,7 @@ func (x Float64x4) TruncScaledMasked(prec uint8, mask Mask64x4) Float64x4
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512F
 func (x Float64x8) TruncScaledMasked(prec uint8, mask Mask64x8) Float64x8
@@ -12190,42 +12190,42 @@ func (x Float64x8) TruncScaledMasked(prec uint8, mask Mask64x8) Float64x8
 
 // TruncScaledResidue computes the difference after truncating with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x4) TruncScaledResidue(prec uint8) Float32x4
 
 // TruncScaledResidue computes the difference after truncating with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x8) TruncScaledResidue(prec uint8) Float32x8
 
 // TruncScaledResidue computes the difference after truncating with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x16) TruncScaledResidue(prec uint8) Float32x16
 
 // TruncScaledResidue computes the difference after truncating with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x2) TruncScaledResidue(prec uint8) Float64x2
 
 // TruncScaledResidue computes the difference after truncating with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x4) TruncScaledResidue(prec uint8) Float64x4
 
 // TruncScaledResidue computes the difference after truncating with specified precision.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x8) TruncScaledResidue(prec uint8) Float64x8
@@ -12236,7 +12236,7 @@ func (x Float64x8) TruncScaledResidue(prec uint8) Float64x8
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x4) TruncScaledResidueMasked(prec uint8, mask Mask32x4) Float32x4
@@ -12245,7 +12245,7 @@ func (x Float32x4) TruncScaledResidueMasked(prec uint8, mask Mask32x4) Float32x4
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x8) TruncScaledResidueMasked(prec uint8, mask Mask32x8) Float32x8
@@ -12254,7 +12254,7 @@ func (x Float32x8) TruncScaledResidueMasked(prec uint8, mask Mask32x8) Float32x8
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512DQ
 func (x Float32x16) TruncScaledResidueMasked(prec uint8, mask Mask32x16) Float32x16
@@ -12263,7 +12263,7 @@ func (x Float32x16) TruncScaledResidueMasked(prec uint8, mask Mask32x16) Float32
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x2) TruncScaledResidueMasked(prec uint8, mask Mask64x2) Float64x2
@@ -12272,7 +12272,7 @@ func (x Float64x2) TruncScaledResidueMasked(prec uint8, mask Mask64x2) Float64x2
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x4) TruncScaledResidueMasked(prec uint8, mask Mask64x4) Float64x4
@@ -12281,7 +12281,7 @@ func (x Float64x4) TruncScaledResidueMasked(prec uint8, mask Mask64x4) Float64x4
 //
 // This operation is applied selectively under a write mask.
 //
-// prec results in better performance when it's a constant, non-constant value will trigger a jump table to be generated.
+// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512DQ
 func (x Float64x8) TruncScaledResidueMasked(prec uint8, mask Mask64x8) Float64x8
