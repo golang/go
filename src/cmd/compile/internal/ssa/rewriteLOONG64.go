@@ -11808,6 +11808,14 @@ func rewriteBlockLOONG64(b *Block) bool {
 			b.swapSuccessors()
 			return true
 		}
+		// match: (EQZ (NEGV x) yes no)
+		// result: (EQZ x yes no)
+		for b.Controls[0].Op == OpLOONG64NEGV {
+			v_0 := b.Controls[0]
+			x := v_0.Args[0]
+			b.resetWithControl(BlockLOONG64EQZ, x)
+			return true
+		}
 	case BlockLOONG64GEZ:
 		// match: (GEZ (MOVVconst [c]) yes no)
 		// cond: c >= 0
@@ -12133,6 +12141,14 @@ func rewriteBlockLOONG64(b *Block) bool {
 				break
 			}
 			b.Reset(BlockFirst)
+			return true
+		}
+		// match: (NEZ (NEGV x) yes no)
+		// result: (NEZ x yes no)
+		for b.Controls[0].Op == OpLOONG64NEGV {
+			v_0 := b.Controls[0]
+			x := v_0.Args[0]
+			b.resetWithControl(BlockLOONG64NEZ, x)
 			return true
 		}
 	}

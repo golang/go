@@ -951,6 +951,10 @@
 (GEZ (MOVVconst [c]) yes no) && c >= 0 => (First yes no)
 (GEZ (MOVVconst [c]) yes no) && c <  0 => (First no yes)
 
+// absorb NEGV into branches
+(EQZ (NEGV x) yes no) => (EQZ x yes no)
+(NEZ (NEGV x) yes no) => (NEZ x yes no)
+
 // Convert branch with zero to more optimal branch zero.
 (BEQ  (MOVVconst [0]) cond yes no) => (EQZ cond yes no)
 (BEQ  cond (MOVVconst [0]) yes no) => (EQZ cond yes no)
