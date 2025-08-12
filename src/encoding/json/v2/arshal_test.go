@@ -3278,7 +3278,7 @@ func TestMarshal(t *testing.T) {
 			return struct{ X any }{m}
 		}(),
 		want:    `{"X"` + strings.Repeat(`:{""`, startDetectingCyclesAfter),
-		wantErr: EM(internal.ErrCycle).withPos(`{"X":`+strings.Repeat(`{"":`, startDetectingCyclesAfter), "/X"+jsontext.Pointer(strings.Repeat("/", startDetectingCyclesAfter))).withType(0, T[any]()),
+		wantErr: EM(internal.ErrCycle).withPos(`{"X":`+strings.Repeat(`{"":`, startDetectingCyclesAfter), "/X"+jsontext.Pointer(strings.Repeat("/", startDetectingCyclesAfter))).withType(0, T[map[string]any]()),
 	}, {
 		name: jsontest.Name("Interfaces/Any/Slices/Nil"),
 		in:   struct{ X any }{[]any(nil)},

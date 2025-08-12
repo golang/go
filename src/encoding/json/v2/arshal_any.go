@@ -104,7 +104,7 @@ func marshalObjectAny(enc *jsontext.Encoder, obj map[string]any, mo *jsonopts.St
 	if xe.Tokens.Depth() > startDetectingCyclesAfter {
 		v := reflect.ValueOf(obj)
 		if err := visitPointer(&xe.SeenPointers, v); err != nil {
-			return newMarshalErrorBefore(enc, anyType, err)
+			return newMarshalErrorBefore(enc, mapStringAnyType, err)
 		}
 		defer leavePointer(&xe.SeenPointers, v)
 	}
