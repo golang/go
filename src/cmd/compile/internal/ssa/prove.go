@@ -1619,7 +1619,16 @@ func initLimit(v *Value) limit {
 		lim = lim.unsignedMax(1)
 
 	// length operations
-	case OpStringLen, OpSliceLen, OpSliceCap:
+	case OpSliceLen, OpSliceCap:
+		f := v.Block.Func
+		elemSize := uint64(v.Args[0].Type.Elem().Size())
+		if elemSize > 0 {
+			heapSize := uint64(1)<<(uint64(f.Config.PtrSize)*8) - 1
+			maximumElementsFittingInHeap := heapSize / elemSize
+			lim = lim.unsignedMax(maximumElementsFittingInHeap)
+		}
+		fallthrough
+	case OpStringLen:
 		lim = lim.signedMin(0)
 	}
 
