@@ -102,6 +102,7 @@ func (c *Config) NewFunc(fe Frontend, cache *Cache) *Func {
 		NamedValues:          make(map[LocalSlot][]*Value),
 		CanonicalLocalSlots:  make(map[LocalSlot]*LocalSlot),
 		CanonicalLocalSplits: make(map[LocalSlotSplitKey]*LocalSlot),
+		OwnAux:               &AuxCall{},
 	}
 }
 
