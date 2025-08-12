@@ -573,9 +573,10 @@ General-purpose environment variables:
 		The name of checksum database to use and optionally its public key and
 		URL. See https://golang.org/ref/mod#authenticating.
 	GOTMPDIR
-		The directory where the go command will write temporary source files,
-		packages, and binaries.
-		Also used to specify the prefix of TmpDir function in testing package.
+		Temporary directory used by the go command and testing package.
+		Overrides the platform-specific temporary directory such as "/tmp".
+		The go command and testing package will write temporary source files,
+		packages, and binaries here.
 	GOTOOLCHAIN
 		Controls which Go toolchain is used. See https://go.dev/doc/toolchain.
 	GOVCS

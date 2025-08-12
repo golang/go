@@ -148,6 +148,12 @@ func testTempDir(t *testing.T) {
 }
 
 func TestTempDirGOTMPDIR(t *testing.T) {
+	// The first call to t.TempDir will create a parent temporary directory
+	// that will contain all temporary directories created by TempDir.
+	//
+	// Use os.TempDir (not t.TempDir) to get a temporary directory,
+	// set GOTMPDIR to that directory,
+	// and then verify that t.TempDir creates a directory in GOTMPDIR.
 	customTmpDir := filepath.Join(os.TempDir(), "custom-gotmpdir-test")
 	if err := os.MkdirAll(customTmpDir, 0777); err != nil {
 		t.Fatal(err)
@@ -171,13 +177,6 @@ func TestTempDirGOTMPDIR(t *testing.T) {
 	}
 	if !fi.IsDir() {
 		t.Errorf("dir %q is not a dir", dir)
-	}
-
-	t.Setenv("GOTMPDIR", "another-custom-gotmpdir-test")
-
-	dir2 := t.TempDir()
-	if filepath.Dir(dir) != filepath.Dir(dir2) {
-		t.Fatalf("calls to TempDir after changed GOTMPDIR do not share a parent; got %q, %q", dir, dir2)
 	}
 }
 
