@@ -37,7 +37,6 @@ package race
 //go:cgo_import_dynamic dyld_shared_cache_iterate_text dyld_shared_cache_iterate_text ""
 //go:cgo_import_dynamic execve execve ""
 //go:cgo_import_dynamic exit exit ""
-//go:cgo_import_dynamic fcntl fcntl ""
 //go:cgo_import_dynamic fstat fstat ""
 //go:cgo_import_dynamic ftruncate ftruncate ""
 //go:cgo_import_dynamic getpid getpid ""
