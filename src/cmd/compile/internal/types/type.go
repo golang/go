@@ -1822,7 +1822,26 @@ func IsReflexive(t *Type) bool {
 // Can this type be stored directly in an interface word?
 // Yes, if the representation is a single pointer.
 func IsDirectIface(t *Type) bool {
-	return t.Size() == int64(PtrSize) && PtrDataSize(t) == int64(PtrSize)
+	switch t.Kind() {
+	case TPTR:
+		// Pointers to notinheap types must be stored indirectly. See issue 42076.
+		return !t.Elem().NotInHeap()
+	case TCHAN,
+		TMAP,
+		TFUNC,
+		TUNSAFEPTR:
+		return true
+
+	case TARRAY:
+		// Array of 1 direct iface type can be direct.
+		return t.NumElem() == 1 && IsDirectIface(t.Elem())
+
+	case TSTRUCT:
+		// Struct with 1 field of direct iface type can be direct.
+		return t.NumFields() == 1 && IsDirectIface(t.Field(0).Type)
+	}
+
+	return false
 }
 
 // IsInterfaceMethod reports whether (field) m is
