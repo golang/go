@@ -160,6 +160,7 @@ func fromFloat64(f64 float64) uint64 {
 	// loong64:"MOVV\tF.*, R.*"
 	// ppc64x:"MFVSRD"
 	// mips64/hardfloat:"MOVV\tF.*, R.*"
+	// riscv64:"FMVXD"
 	return math.Float64bits(f64+1) + 1
 }
 
@@ -168,6 +169,7 @@ func fromFloat32(f32 float32) uint32 {
 	// arm64:"FMOVS\tF.*, R.*"
 	// loong64:"MOVW\tF.*, R.*"
 	// mips64/hardfloat:"MOVW\tF.*, R.*"
+	// riscv64:"FMVXW"
 	return math.Float32bits(f32+1) + 1
 }
 
@@ -177,6 +179,7 @@ func toFloat64(u64 uint64) float64 {
 	// loong64:"MOVV\tR.*, F.*"
 	// ppc64x:"MTVSRD"
 	// mips64/hardfloat:"MOVV\tR.*, F.*"
+	// riscv64:"FMVDX"
 	return math.Float64frombits(u64+1) + 1
 }
 
@@ -185,6 +188,7 @@ func toFloat32(u32 uint32) float32 {
 	// arm64:"FMOVS\tR.*, F.*"
 	// loong64:"MOVW\tR.*, F.*"
 	// mips64/hardfloat:"MOVW\tR.*, F.*"
+	// riscv64:"FMVWX"
 	return math.Float32frombits(u32+1) + 1
 }
 

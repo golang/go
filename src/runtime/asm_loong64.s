@@ -70,8 +70,9 @@ nocgo:
 	// start this M
 	JAL	runtime·mstart(SB)
 
-	// Prevent dead-code elimination of debugCallV2, which is
+	// Prevent dead-code elimination of debugCallV2 and debugPinnerV1, which are
 	// intended to be called by debuggers.
+	MOVV	$runtime·debugPinnerV1<ABIInternal>(SB), R0
 	MOVV	$runtime·debugCallV2<ABIInternal>(SB), R0
 
 	MOVV	R0, 1(R0)

@@ -2980,11 +2980,6 @@ type desiredStateEntry struct {
 	regs [4]register
 }
 
-func (d *desiredState) clear() {
-	d.entries = d.entries[:0]
-	d.avoid = 0
-}
-
 // get returns a list of desired registers for value vid.
 func (d *desiredState) get(vid ID) [4]register {
 	for _, e := range d.entries {

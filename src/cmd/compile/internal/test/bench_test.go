@@ -122,3 +122,26 @@ func BenchmarkBitToggleConst(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkMulNeg(b *testing.B) {
+	x := make([]int64, 1024)
+	for i := 0; i < b.N; i++ {
+		var s int64
+		for i := range x {
+			s = (-x[i]) * 11
+		}
+		globl = s
+	}
+}
+
+func BenchmarkMul2Neg(b *testing.B) {
+	x := make([]int64, 1024)
+	y := make([]int64, 1024)
+	for i := 0; i < b.N; i++ {
+		var s int64
+		for i := range x {
+			s = (-x[i]) * (-y[i])
+		}
+		globl = s
+	}
+}

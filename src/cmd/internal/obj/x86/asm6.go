@@ -2037,23 +2037,6 @@ type nopPad struct {
 	n int32     // Size of the pad
 }
 
-// requireAlignment ensures that the function alignment is at
-// least as high as a, which should be a power of two
-// and between 8 and 2048, inclusive.
-//
-// the boolean result indicates whether the alignment meets those constraints
-func requireAlignment(a int64, ctxt *obj.Link, cursym *obj.LSym) bool {
-	if !((a&(a-1) == 0) && 8 <= a && a <= 2048) {
-		ctxt.Diag("alignment value of an instruction must be a power of two and in the range [8, 2048], got %d\n", a)
-		return false
-	}
-	// By default function alignment is 32 bytes for amd64
-	if cursym.Func().Align < int32(a) {
-		cursym.Func().Align = int32(a)
-	}
-	return true
-}
-
 func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	if ctxt.Retpoline && ctxt.Arch.Family == sys.I386 {
 		ctxt.Diag("-spectre=ret not supported on 386")

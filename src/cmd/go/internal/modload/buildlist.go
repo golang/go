@@ -658,11 +658,6 @@ func EditBuildList(ctx context.Context, add, mustSelect []module.Version) (chang
 	return changed, nil
 }
 
-// OverrideRoots edits the global requirement roots by replacing the specific module versions.
-func OverrideRoots(ctx context.Context, replace []module.Version) {
-	requirements = overrideRoots(ctx, requirements, replace)
-}
-
 func overrideRoots(ctx context.Context, rs *Requirements, replace []module.Version) *Requirements {
 	drop := make(map[string]bool)
 	for _, m := range replace {

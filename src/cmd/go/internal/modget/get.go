@@ -453,7 +453,7 @@ func updateTools(ctx context.Context, queries []*query, opts *modload.WriteOpts)
 		if queries[i].version == "none" {
 			opts.DropTools = append(opts.DropTools, m.Pkgs...)
 		} else {
-			opts.AddTools = append(opts.DropTools, m.Pkgs...)
+			opts.AddTools = append(opts.AddTools, m.Pkgs...)
 		}
 	}
 }

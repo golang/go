@@ -1054,15 +1054,6 @@ var sysInstFields = map[SpecialOperand]struct {
 // Used for padding NOOP instruction
 const OP_NOOP = 0xd503201f
 
-// pcAlignPadLength returns the number of bytes required to align pc to alignedValue,
-// reporting an error if alignedValue is not a power of two or is out of range.
-func pcAlignPadLength(ctxt *obj.Link, pc int64, alignedValue int64) int {
-	if !((alignedValue&(alignedValue-1) == 0) && 8 <= alignedValue && alignedValue <= 2048) {
-		ctxt.Diag("alignment value of an instruction must be a power of two and in the range [8, 2048], got %d\n", alignedValue)
-	}
-	return int(-pc & (alignedValue - 1))
-}
-
 // size returns the size of the sequence of machine instructions when p is encoded with o.
 // Usually it just returns o.size directly, in some cases it checks whether the optimization
 // conditions are met, and if so returns the size of the optimized instruction sequence.
@@ -1207,10 +1198,6 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 type codeBuffer struct {
 	data *[]byte
-}
-
-func (cb *codeBuffer) pc() int64 {
-	return int64(len(*cb.data))
 }
 
 // Write a sequence of opcodes into the code buffer.

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "asm_riscv64.h"
 #include "go_asm.h"
 #include "textflag.h"
 
@@ -35,6 +36,46 @@ TEXT compare<>(SB),NOSPLIT|NOFRAME,$0
 	MIN	X11, X13, X5
 	BEQZ	X5, cmp_len
 
+	MOV	$16, X6
+	BLT	X5, X6, check8_unaligned
+
+#ifndef hasV
+	MOVB	internal∕cpu·RISCV64+const_offsetRISCV64HasV(SB), X6
+	BEQZ	X6, compare_scalar
+#endif
+
+	// Use vector if not 8 byte aligned.
+	OR	X10, X12, X6
+	AND	$7, X6
+	BNEZ	X6, vector_loop
+
+	// Use scalar if 8 byte aligned and <= 128 bytes.
+	SUB	$128, X5, X6
+	BLEZ	X6, compare_scalar_aligned
+
+	PCALIGN	$16
+vector_loop:
+	VSETVLI	X5, E8, M8, TA, MA, X6
+	VLE8V	(X10), V8
+	VLE8V	(X12), V16
+	VMSNEVV	V8, V16, V0
+	VFIRSTM	V0, X7
+	BGEZ	X7, vector_not_eq
+	ADD	X6, X10
+	ADD	X6, X12
+	SUB	X6, X5
+	BNEZ	X5, vector_loop
+	JMP	cmp_len
+
+vector_not_eq:
+	// Load first differing bytes in X8/X9.
+	ADD	X7, X10
+	ADD	X7, X12
+	MOVBU	(X10), X8
+	MOVBU	(X12), X9
+	JMP	cmp
+
+compare_scalar:
 	MOV	$32, X6
 	BLT	X5, X6, check8_unaligned
 
@@ -57,9 +98,9 @@ align:
 	ADD	$1, X12
 	BNEZ	X7, align
 
-check32:
-	// X6 contains $32
-	BLT	X5, X6, compare16
+compare_scalar_aligned:
+	MOV	$32, X6
+	BLT	X5, X6, check16
 compare32:
 	MOV	0(X10), X15
 	MOV	0(X12), X16

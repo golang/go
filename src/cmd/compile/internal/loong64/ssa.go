@@ -1075,8 +1075,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 var blockJump = map[ssa.BlockKind]struct {
 	asm, invasm obj.As
 }{
-	ssa.BlockLOONG64EQ:   {loong64.ABEQ, loong64.ABNE},
-	ssa.BlockLOONG64NE:   {loong64.ABNE, loong64.ABEQ},
+	ssa.BlockLOONG64EQZ:  {loong64.ABEQ, loong64.ABNE},
+	ssa.BlockLOONG64NEZ:  {loong64.ABNE, loong64.ABEQ},
 	ssa.BlockLOONG64LTZ:  {loong64.ABLTZ, loong64.ABGEZ},
 	ssa.BlockLOONG64GEZ:  {loong64.ABGEZ, loong64.ABLTZ},
 	ssa.BlockLOONG64LEZ:  {loong64.ABLEZ, loong64.ABGTZ},
@@ -1102,7 +1102,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	case ssa.BlockExit, ssa.BlockRetJmp:
 	case ssa.BlockRet:
 		s.Prog(obj.ARET)
-	case ssa.BlockLOONG64EQ, ssa.BlockLOONG64NE,
+	case ssa.BlockLOONG64EQZ, ssa.BlockLOONG64NEZ,
 		ssa.BlockLOONG64LTZ, ssa.BlockLOONG64GEZ,
 		ssa.BlockLOONG64LEZ, ssa.BlockLOONG64GTZ,
 		ssa.BlockLOONG64BEQ, ssa.BlockLOONG64BNE,
@@ -1132,7 +1132,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = b.Controls[0].Reg()
 			p.Reg = b.Controls[1].Reg()
-		case ssa.BlockLOONG64EQ, ssa.BlockLOONG64NE,
+		case ssa.BlockLOONG64EQZ, ssa.BlockLOONG64NEZ,
 			ssa.BlockLOONG64LTZ, ssa.BlockLOONG64GEZ,
 			ssa.BlockLOONG64LEZ, ssa.BlockLOONG64GTZ,
 			ssa.BlockLOONG64FPT, ssa.BlockLOONG64FPF:

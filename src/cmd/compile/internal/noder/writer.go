@@ -2413,11 +2413,6 @@ func (p posVar) String() string {
 	return p.pos.String() + ":" + p.var_.String()
 }
 
-func (w *writer) exprList(expr syntax.Expr) {
-	w.Sync(pkgbits.SyncExprList)
-	w.exprs(syntax.UnpackListExpr(expr))
-}
-
 func (w *writer) exprs(exprs []syntax.Expr) {
 	w.Sync(pkgbits.SyncExprs)
 	w.Len(len(exprs))

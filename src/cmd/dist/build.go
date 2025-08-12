@@ -1819,7 +1819,6 @@ var cgoEnabled = map[string]bool{
 	"solaris/amd64":   true,
 	"windows/386":     true,
 	"windows/amd64":   true,
-	"windows/arm":     false,
 	"windows/arm64":   true,
 }
 
@@ -1828,9 +1827,9 @@ var cgoEnabled = map[string]bool{
 // get filtered out of cgoEnabled for 'dist list'.
 // See go.dev/issue/56679.
 var broken = map[string]bool{
-	"linux/sparc64":  true, // An incomplete port. See CL 132155.
-	"openbsd/mips64": true, // Broken: go.dev/issue/58110.
-	"windows/arm":    true, // Broken: go.dev/issue/68552.
+	"freebsd/riscv64": true, // Broken: go.dev/issue/73568.
+	"linux/sparc64":   true, // An incomplete port. See CL 132155.
+	"openbsd/mips64":  true, // Broken: go.dev/issue/58110.
 }
 
 // List of platforms which are first class ports. See go.dev/issue/38874.

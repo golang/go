@@ -974,14 +974,6 @@ func (p *Parser) getConstant(prog *obj.Prog, op obj.As, addr *obj.Addr) int64 {
 	return addr.Offset
 }
 
-// getImmediate checks that addr represents an immediate constant and returns its value.
-func (p *Parser) getImmediate(prog *obj.Prog, op obj.As, addr *obj.Addr) int64 {
-	if addr.Type != obj.TYPE_CONST || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
-		p.errorf("%s: expected immediate constant; found %s", op, obj.Dconv(prog, addr))
-	}
-	return addr.Offset
-}
-
 // getRegister checks that addr represents a register and returns its value.
 func (p *Parser) getRegister(prog *obj.Prog, op obj.As, addr *obj.Addr) int16 {
 	if addr.Type != obj.TYPE_REG || addr.Offset != 0 || addr.Name != 0 || addr.Index != 0 {

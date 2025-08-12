@@ -314,6 +314,18 @@ func MergeMuls5(a, n int) int {
 	return a*n - 19*n // (a-19)n
 }
 
+// Multiplications folded negation
+
+func FoldNegMul(a int) int {
+	// loong64:"MULV","MOVV\t[$]-11",-"SUBVU\tR[0-9], R0,"
+	return (-a) * 11
+}
+
+func Fold2NegMul(a, b int) int {
+	// loong64:"MULV",-"SUBVU\tR[0-9], R0,"
+	return (-a) * (-b)
+}
+
 // -------------- //
 //    Division    //
 // -------------- //

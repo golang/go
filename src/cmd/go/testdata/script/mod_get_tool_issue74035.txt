@@ -1,0 +1,25 @@
+# Regression test for https://go.dev/issue/74035.
+go get -tool example.com/foo/cmd/a example.com/foo/cmd/b
+cmp go.mod go.mod.want
+
+-- go.mod --
+module example.com/foo
+go 1.24
+-- go.mod.want --
+module example.com/foo
+
+go 1.24
+
+tool (
+	example.com/foo/cmd/a
+	example.com/foo/cmd/b
+)
+-- cmd/a/a.go --
+package a
+
+func main() {}
+
+-- cmd/b/b.go --
+package b
+
+func main() {}
