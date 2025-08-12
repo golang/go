@@ -100,6 +100,9 @@ func benchmarkCacheSizes(b *testing.B, fn func(b *testing.B, heapPages int)) {
 			fn(b, pages)
 		})
 	}
+	if len(cacheSizes) == 0 {
+		return
+	}
 	ramPages := int(cacheSizes[len(cacheSizes)-1]*3/2) / gc.PageSize
 	b.Run(fmt.Sprintf("cache=ram/pages=%d", ramPages), func(b *testing.B) {
 		fn(b, ramPages)
