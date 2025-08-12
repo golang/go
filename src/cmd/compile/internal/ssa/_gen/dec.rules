@@ -98,7 +98,7 @@
 // Some of these are copied from generic.rules
 
 (IMake _typ (StructMake val)) => (IMake _typ val)
-(StructSelect (IData x)) => (IData x)
+(StructSelect [0] (IData x)) => (IData x)
 
 (StructSelect [i] x:(StructMake ___)) => x.Args[i]
 
@@ -109,7 +109,7 @@
 // More annoying case: (ArraySelect[0] (StructSelect[0] isAPtr))
 // There, result of the StructSelect is an Array (not a pointer) and
 // the pre-rewrite input to the ArraySelect is a struct, not a pointer.
-(StructSelect    x) && x.Type.IsPtrShaped()  => x
+(StructSelect [0] x) && x.Type.IsPtrShaped()  => x
 (ArraySelect [0] x) && x.Type.IsPtrShaped()  => x
 
 // These, too.  Bits is bits.
