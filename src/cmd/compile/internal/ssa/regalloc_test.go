@@ -240,30 +240,6 @@ func TestClobbersArg0(t *testing.T) {
 	}
 }
 
-func TestClobbersArg1(t *testing.T) {
-	c := testConfig(t)
-	f := c.Fun("entry",
-		Bloc("entry",
-			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("src", OpArg, c.config.Types.Int64.PtrTo(), 0, c.Temp(c.config.Types.Int64.PtrTo())),
-			Valu("dst", OpArg, c.config.Types.Int64.PtrTo(), 0, c.Temp(c.config.Types.Int64.PtrTo())),
-			Valu("use1", OpArg, c.config.Types.Int64.PtrTo().PtrTo(), 0, c.Temp(c.config.Types.Int64.PtrTo().PtrTo())),
-			Valu("use2", OpArg, c.config.Types.Int64.PtrTo().PtrTo(), 0, c.Temp(c.config.Types.Int64.PtrTo().PtrTo())),
-			Valu("move", OpAMD64LoweredMoveLoop, types.TypeMem, 256, nil, "dst", "src", "mem"),
-			Valu("store1", OpAMD64MOVQstore, types.TypeMem, 0, nil, "use1", "src", "move"),
-			Valu("store2", OpAMD64MOVQstore, types.TypeMem, 0, nil, "use2", "dst", "store1"),
-			Exit("store2")))
-	flagalloc(f.f)
-	regalloc(f.f)
-	checkFunc(f.f)
-	// LoweredMoveLoop clobbers its arguments, so there must be a copy of "src" and "dst" somewhere
-	// so we still have that value available at the stores.
-	if n := numCopies(f.blocks["entry"]); n != 2 {
-		fmt.Printf("%s\n", f.f.String())
-		t.Errorf("got %d copies, want 2", n)
-	}
-}
-
 func numSpills(b *Block) int {
 	return numOps(b, OpStoreReg)
 }

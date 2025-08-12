@@ -1058,8 +1058,7 @@ const (
 	OpAMD64CALLtail
 	OpAMD64CALLclosure
 	OpAMD64CALLinter
-	OpAMD64LoweredMove
-	OpAMD64LoweredMoveLoop
+	OpAMD64DUFFCOPY
 	OpAMD64REPMOVSQ
 	OpAMD64InvertFlags
 	OpAMD64LoweredGetG
@@ -13966,35 +13965,17 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:           "LoweredMove",
-		auxType:        auxInt64,
-		argLen:         3,
-		faultOnNilArg0: true,
-		faultOnNilArg1: true,
+		name:         "DUFFCOPY",
+		auxType:      auxInt64,
+		argLen:       3,
+		clobberFlags: true,
+		unsafePoint:  true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, 128}, // DI
+				{1, 64},  // SI
 			},
-			clobbers: 1073741824, // X14
-		},
-	},
-	{
-		name:           "LoweredMoveLoop",
-		auxType:        auxInt64,
-		argLen:         3,
-		clobberFlags:   true,
-		needIntTemp:    true,
-		faultOnNilArg0: true,
-		faultOnNilArg1: true,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-				{1, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-			clobbers:     1073741824, // X14
-			clobbersArg0: true,
-			clobbersArg1: true,
+			clobbers: 65728, // SI DI X0
 		},
 	},
 	{

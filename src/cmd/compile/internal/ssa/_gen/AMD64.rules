@@ -264,6 +264,24 @@
 (Move [8] dst src mem) => (MOVQstore dst (MOVQload src mem) mem)
 (Move [16] dst src mem) => (MOVOstore dst (MOVOload src mem) mem)
 
+(Move [32] dst src mem) =>
+	(Move [16]
+		(OffPtr <dst.Type> dst [16])
+		(OffPtr <src.Type> src [16])
+		(Move [16] dst src mem))
+
+(Move [48] dst src mem) =>
+	(Move [32]
+		(OffPtr <dst.Type> dst [16])
+		(OffPtr <src.Type> src [16])
+		(Move [16] dst src mem))
+
+(Move [64] dst src mem) =>
+	(Move [32]
+		(OffPtr <dst.Type> dst [32])
+		(OffPtr <src.Type> src [32])
+		(Move [32] dst src mem))
+
 (Move [3] dst src mem) =>
 	(MOVBstore [2] dst (MOVBload [2] src mem)
 		(MOVWstore dst (MOVWload src mem) mem))
@@ -292,19 +310,28 @@
 	(MOVQstore [int32(s-8)] dst (MOVQload [int32(s-8)] src mem)
 		(MOVQstore dst (MOVQload src mem) mem))
 
-// Copying up to 192 bytes uses straightline code.
-(Move [s] dst src mem) && s > 16 && s < 192 && logLargeCopy(v, s) => (LoweredMove [s] dst src mem)
+// Adjust moves to be a multiple of 16 bytes.
+(Move [s] dst src mem)
+	&& s > 16 && s%16 != 0 && s%16 <= 8 =>
+	(Move [s-s%16]
+		(OffPtr <dst.Type> dst [s%16])
+		(OffPtr <src.Type> src [s%16])
+		(MOVQstore dst (MOVQload src mem) mem))
+(Move [s] dst src mem)
+	&& s > 16 && s%16 != 0 && s%16 > 8 =>
+	(Move [s-s%16]
+		(OffPtr <dst.Type> dst [s%16])
+		(OffPtr <src.Type> src [s%16])
+		(MOVOstore dst (MOVOload src mem) mem))
 
-// Copying up to ~1KB uses a small loop.
-(Move [s] dst src mem) && s >= 192 && s <= repMoveThreshold && logLargeCopy(v, s) => (LoweredMoveLoop [s] dst src mem)
+// Medium copying uses a duff device.
+(Move [s] dst src mem)
+	&& s > 64 && s <= 16*64 && s%16 == 0
+	&& logLargeCopy(v, s) =>
+	(DUFFCOPY [s] dst src mem)
 
 // Large copying uses REP MOVSQ.
-(Move [s] dst src mem) && s > repMoveThreshold && s%8 != 0 =>
-	(Move [s-s%8]
-		(OffPtr <dst.Type> dst [s%8])
-		(OffPtr <src.Type> src [s%8])
-		(MOVQstore dst (MOVQload src mem) mem))
-(Move [s] dst src mem) && s > repMoveThreshold && s%8 == 0 && logLargeCopy(v, s) =>
+(Move [s] dst src mem) && s > 16*64 && s%8 == 0 && logLargeCopy(v, s) =>
 	(REPMOVSQ dst src (MOVQconst [s/8]) mem)
 
 // Lowering Zero instructions

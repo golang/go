@@ -561,14 +561,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 	pos = pos.WithNotStmt()
 	// Check if v is already in a requested register.
 	if mask&vi.regs != 0 {
-		mask &= vi.regs
-		r := pickReg(mask)
-		if mask.contains(s.SPReg) {
-			// Prefer the stack pointer if it is allowed.
-			// (Needed because the op might have an Aux symbol
-			// that needs SP as its base.)
-			r = s.SPReg
-		}
+		r := pickReg(mask & vi.regs)
 		if !s.allocatable.contains(r) {
 			return v // v is in a fixed register
 		}

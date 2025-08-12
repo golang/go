@@ -939,38 +939,20 @@ func init() {
 		// arg0 = destination pointer
 		// arg1 = source pointer
 		// arg2 = mem
-		// auxint = # of bytes to copy
+		// auxint = # of bytes to copy, must be multiple of 16
 		// returns memory
 		{
-			name:      "LoweredMove",
+			name:      "DUFFCOPY",
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{gp, gp},
-				clobbers: buildReg("X14"), // uses X14 as a temporary
+				inputs:   []regMask{buildReg("DI"), buildReg("SI")},
+				clobbers: buildReg("DI SI X0"), // uses X0 as a temporary
 			},
-			faultOnNilArg0: true,
-			faultOnNilArg1: true,
-		},
-		// arg0 = destination pointer
-		// arg1 = source pointer
-		// arg2 = mem
-		// auxint = # of bytes to copy
-		// returns memory
-		{
-			name:      "LoweredMoveLoop",
-			aux:       "Int64",
-			argLength: 3,
-			reg: regInfo{
-				inputs:       []regMask{gp, gp},
-				clobbers:     buildReg("X14"), // uses X14 as a temporary
-				clobbersArg0: true,
-				clobbersArg1: true,
-			},
-			clobberFlags:   true,
-			faultOnNilArg0: true,
-			faultOnNilArg1: true,
-			needIntTemp:    true,
+			clobberFlags: true,
+			//faultOnNilArg0: true, // Note: removed for 73748. TODO: reenable at some point
+			//faultOnNilArg1: true,
+			unsafePoint: true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
 		},
 
 		// arg0 = destination pointer
