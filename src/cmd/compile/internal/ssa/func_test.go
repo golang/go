@@ -250,6 +250,11 @@ func Exit(arg string) ctrl {
 	return ctrl{BlockExit, arg, []string{}}
 }
 
+// Ret specifies a BlockRet.
+func Ret(arg string) ctrl {
+	return ctrl{BlockRet, arg, []string{}}
+}
+
 // Eq specifies a BlockAMD64EQ.
 func Eq(cond, sub, alt string) ctrl {
 	return ctrl{BlockAMD64EQ, cond, []string{sub, alt}}

@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/internal/obj/x86"
 	"fmt"
 	"testing"
 )
@@ -278,4 +279,28 @@ func numOps(b *Block, op Op) int {
 		}
 	}
 	return n
+}
+
+func TestRematerializeableRegCompatible(t *testing.T) {
+	c := testConfig(t)
+	f := c.Fun("entry",
+		Bloc("entry",
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("x", OpAMD64MOVLconst, c.config.Types.Int32, 1, nil),
+			Valu("a", OpAMD64POR, c.config.Types.Float32, 0, nil, "x", "x"),
+			Valu("res", OpMakeResult, types.NewResults([]*types.Type{c.config.Types.Float32, types.TypeMem}), 0, nil, "a", "mem"),
+			Ret("res"),
+		),
+	)
+	regalloc(f.f)
+	checkFunc(f.f)
+	moveFound := false
+	for _, v := range f.f.Blocks[0].Values {
+		if v.Op == OpCopy && x86.REG_X0 <= v.Reg() && v.Reg() <= x86.REG_X31 {
+			moveFound = true
+		}
+	}
+	if !moveFound {
+		t.Errorf("Expects an Copy to be issued, but got: %+v", f.f)
+	}
 }

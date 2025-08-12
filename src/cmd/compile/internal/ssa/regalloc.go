@@ -609,6 +609,29 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 	} else if v.rematerializeable() {
 		// Rematerialize instead of loading from the spill location.
 		c = v.copyIntoWithXPos(s.curBlock, pos)
+		// We need to consider its output mask and potentially issue a Copy
+		// if there are register mask conflicts.
+		// This currently happens for the SIMD package only between GP and FP
+		// register. Because Intel's vector extension can put integer value into
+		// FP, which is seen as a vector. Example instruction: VPSLL[BWDQ]
+		// Because GP and FP masks do not overlap, mask & outputMask == 0
+		// detects this situation thoroughly.
+		sourceMask := s.regspec(c).outputs[0].regs
+		if mask&sourceMask == 0 && !onWasmStack {
+			s.setOrig(c, v)
+			s.assignReg(s.allocReg(sourceMask, v), v, c)
+			// v.Type for the new OpCopy is likely wrong and it might delay the problem
+			// until ssa to asm lowering, which might need the types to generate the right
+			// assembly for OpCopy. For Intel's GP to FP move, it happens to be that
+			// MOV instruction has such a variant so it happens to be right.
+			// But it's unclear for other architectures or situations, and the problem
+			// might be exposed when the assembler sees illegal instructions.
+			// Right now make we still pick v.Type, because at least its size should be correct
+			// for the rematerialization case the amd64 SIMD package exposed.
+			// TODO: We might need to figure out a way to find the correct type or make
+			// the asm lowering use reg info only for OpCopy.
+			c = s.curBlock.NewValue1(pos, OpCopy, v.Type, c)
+		}
 	} else {
 		// Load v from its spill location.
 		spill := s.makeSpill(v, s.curBlock)
