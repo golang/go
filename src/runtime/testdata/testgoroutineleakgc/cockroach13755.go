@@ -51,7 +51,10 @@ func (rs *Rows_cockroach13755) close(err error) {
 func Cockroach13755() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		runtime.Gosched()
+		// Yield several times to allow the child goroutine to run.
+		for i := 0; i < yieldCount; i++ {
+			runtime.Gosched()
+		}
 		prof.WriteTo(os.Stdout, 2)
 	}()
 

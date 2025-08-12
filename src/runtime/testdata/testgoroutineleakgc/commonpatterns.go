@@ -230,7 +230,7 @@ func nCastLeak(items []any) {
 func NCastLeak() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		for i := 0; i < 10; i++ {
+		for i := 0; i < yieldCount; i++ {
 			// Yield enough times  to allow all the leaky goroutines to
 			// reach the execution point.
 			runtime.Gosched()

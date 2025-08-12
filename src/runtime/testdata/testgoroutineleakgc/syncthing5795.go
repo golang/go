@@ -106,7 +106,10 @@ func NewConnection_syncthing5795(receiver Model_syncthing5795) Connection_syncth
 func Syncthing5795() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		runtime.Gosched()
+		// Yield several times to allow the child goroutine to run.
+		for i := 0; i < yieldCount; i++ {
+			runtime.Gosched()
+		}
 		prof.WriteTo(os.Stdout, 2)
 	}()
 	go func() {

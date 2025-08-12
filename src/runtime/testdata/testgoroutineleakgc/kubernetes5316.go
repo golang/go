@@ -56,8 +56,13 @@ func finishRequest_kubernetes5316(timeout time.Duration, fn func() error) {
 func Kubernetes5316() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
+		// Wait a bit because the child goroutine relies on timed operations.
 		time.Sleep(100 * time.Millisecond)
-		runtime.Gosched()
+
+		// Yield several times to allow the child goroutine to run
+		for i := 0; i < yieldCount; i++ {
+			runtime.Gosched()
+		}
 		prof.WriteTo(os.Stdout, 2)
 	}()
 	go func() {

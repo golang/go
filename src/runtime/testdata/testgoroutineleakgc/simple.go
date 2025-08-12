@@ -39,7 +39,10 @@ func NilRecv() {
 		<-c
 		panic("should not be reached")
 	}()
-	runtime.Gosched()
+	// Yield several times to allow the child goroutine to run.
+	for i := 0; i < yieldCount; i++ {
+		runtime.Gosched()
+	}
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -50,7 +53,10 @@ func NilSend() {
 		c <- 0
 		panic("should not be reached")
 	}()
-	runtime.Gosched()
+	// Yield several times to allow the child goroutine to run.
+	for i := 0; i < yieldCount; i++ {
+		runtime.Gosched()
+	}
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -60,7 +66,10 @@ func ChanRecv() {
 		<-make(chan int)
 		panic("should not be reached")
 	}()
-	runtime.Gosched()
+	// Yield several times to allow the child goroutine to run.
+	for i := 0; i < yieldCount; i++ {
+		runtime.Gosched()
+	}
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -70,7 +79,10 @@ func SelectNoCases() {
 		select {}
 		panic("should not be reached")
 	}()
-	runtime.Gosched()
+	// Yield several times to allow the child goroutine to run.
+	for i := 0; i < yieldCount; i++ {
+		runtime.Gosched()
+	}
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -80,7 +92,10 @@ func ChanSend() {
 		make(chan int) <- 0
 		panic("should not be reached")
 	}()
-	runtime.Gosched()
+	// Yield several times to allow the child goroutine to run.
+	for i := 0; i < yieldCount; i++ {
+		runtime.Gosched()
+	}
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -93,7 +108,10 @@ func Select() {
 		}
 		panic("should not be reached")
 	}()
-	runtime.Gosched()
+	// Yield several times to allow the child goroutine to run.
+	for i := 0; i < yieldCount; i++ {
+		runtime.Gosched()
+	}
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -105,7 +123,10 @@ func WaitGroup() {
 		wg.Wait()
 		panic("should not be reached")
 	}()
-	runtime.Gosched()
+	// Yield several times to allow the child goroutine to run.
+	for i := 0; i < yieldCount; i++ {
+		runtime.Gosched()
+	}
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -119,7 +140,10 @@ func MutexStack() {
 			panic("should not be reached")
 		}()
 	}
-	runtime.Gosched()
+	// Yield several times to allow the child goroutine to run.
+	for i := 0; i < yieldCount; i++ {
+		runtime.Gosched()
+	}
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -135,7 +159,10 @@ func MutexHeap() {
 			}()
 		}()
 	}
-	runtime.Gosched()
+	// Yield several times to allow the child goroutine to run.
+	for i := 0; i < yieldCount; i++ {
+		runtime.Gosched()
+	}
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -147,7 +174,10 @@ func RWMutexRLock() {
 		mu.RLock()
 		panic("should not be reached")
 	}()
-	runtime.Gosched()
+	// Yield several times to allow the child goroutine to run.
+	for i := 0; i < yieldCount; i++ {
+		runtime.Gosched()
+	}
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -159,7 +189,10 @@ func RWMutexLock() {
 		mu.Lock()
 		panic("should not be reached")
 	}()
-	runtime.Gosched()
+	// Yield several times to allow the child goroutine to run.
+	for i := 0; i < yieldCount; i++ {
+		runtime.Gosched()
+	}
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -171,7 +204,10 @@ func Cond() {
 		cond.Wait()
 		panic("should not be reached")
 	}()
-	runtime.Gosched()
+	// Yield several times to allow the child goroutine to run.
+	for i := 0; i < yieldCount; i++ {
+		runtime.Gosched()
+	}
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -190,7 +226,10 @@ func Mixed() {
 		<-ch
 		panic("should not be reached")
 	}()
-	runtime.Gosched()
+	// Yield several times to allow the child goroutine to run.
+	for i := 0; i < yieldCount; i++ {
+		runtime.Gosched()
+	}
 	prof.WriteTo(os.Stdout, 2)
 }
 
@@ -202,6 +241,9 @@ func NoLeakGlobal() {
 	go func() {
 		<-ch
 	}()
-	runtime.Gosched()
+	// Yield several times to allow the child goroutine to run.
+	for i := 0; i < yieldCount; i++ {
+		runtime.Gosched()
+	}
 	prof.WriteTo(os.Stdout, 2)
 }

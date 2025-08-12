@@ -92,8 +92,10 @@ func NewKV_etcd5509(c *Client_etcd5509) KV {
 func Etcd5509() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		runtime.Gosched()
-		runtime.Gosched() // Yield twice.
+		// Yield several times to allow the child goroutine to run.
+		for i := 0; i < yieldCount; i++ {
+			runtime.Gosched()
+		}
 		prof.WriteTo(os.Stdout, 2)
 	}()
 

@@ -51,7 +51,7 @@ func Hugo3251() {
 		prof.WriteTo(os.Stdout, 2)
 	}()
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 11; i++ {
 		go func() { // G1
 			// deadlocks: x > 0
 			url := "http://Foo.Bar/foo_Bar-Foo"

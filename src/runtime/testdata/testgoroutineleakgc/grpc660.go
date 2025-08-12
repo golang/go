@@ -56,7 +56,10 @@ func (bc *benchmarkClient_grpc660) doCloseLoopUnary() {
 func Grpc660() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		runtime.Gosched()
+		// Yield several times to allow the child goroutine to run.
+		for i := 0; i < yieldCount; i++ {
+			runtime.Gosched()
+		}
 		prof.WriteTo(os.Stdout, 2)
 	}()
 	go func() {

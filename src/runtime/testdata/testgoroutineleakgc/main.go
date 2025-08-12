@@ -6,6 +6,10 @@ package main
 
 import "os"
 
+// The number of times the main (profiling) goroutine should yield
+// in order to allow the leaking goroutines to get stuck.
+const yieldCount = 10
+
 var cmds = map[string]func(){}
 
 func register(name string, f func()) {

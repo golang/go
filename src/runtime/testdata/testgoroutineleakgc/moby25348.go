@@ -43,7 +43,10 @@ func (pm *Manager_moby25348) init() {
 func Moby25348() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		runtime.Gosched()
+		// Yield several times to allow the child goroutine to run.
+		for i := 0; i < yieldCount; i++ {
+			runtime.Gosched()
+		}
 		prof.WriteTo(os.Stdout, 2)
 	}()
 	go func() {

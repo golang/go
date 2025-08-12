@@ -41,7 +41,10 @@ func (g *gossip_cockroach584) manage() {
 func Cockroach584() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		runtime.Gosched()
+		for i := 0; i < yieldCount; i++ {
+			// Yield several times to allow the child goroutine to run.
+			runtime.Gosched()
+		}
 		prof.WriteTo(os.Stdout, 2)
 	}()
 

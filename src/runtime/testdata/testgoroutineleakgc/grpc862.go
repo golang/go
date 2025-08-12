@@ -101,7 +101,10 @@ func DialContext_grpc862(ctx context.Context) (conn *ClientConn_grpc862) {
 func Grpc862() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		runtime.Gosched()
+		// Yield several times to allow the child goroutine to run.
+		for i := 0; i < yieldCount; i++ {
+			runtime.Gosched()
+		}
 		prof.WriteTo(os.Stdout, 2)
 	}()
 	go func() {

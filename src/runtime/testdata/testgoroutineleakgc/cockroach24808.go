@@ -67,7 +67,10 @@ func (c *Compactor_cockroach24808) Start(ctx context.Context, stopper *Stopper_c
 func Cockroach24808() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		runtime.Gosched()
+		// Yield several times to allow the child goroutine to run.
+		for i := 0; i < yieldCount; i++ {
+			runtime.Gosched()
+		}
 		prof.WriteTo(os.Stdout, 2)
 	}()
 	go func() {

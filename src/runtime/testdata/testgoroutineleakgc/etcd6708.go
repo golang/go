@@ -80,7 +80,10 @@ func NewMembersAPI_etcd6708(c Client_etcd6708) MembersAPI_etcd6708 {
 func Etcd6708() {
 	prof := pprof.Lookup("goroutineleak")
 	defer func() {
-		runtime.Gosched()
+		// Yield several times to allow the child goroutine to run.
+		for i := 0; i < yieldCount; i++ {
+			runtime.Gosched()
+		}
 		prof.WriteTo(os.Stdout, 2)
 	}()
 
