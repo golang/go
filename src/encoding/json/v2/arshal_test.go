@@ -3217,6 +3217,11 @@ func TestMarshal(t *testing.T) {
 		in:   struct{ X any }{[8]byte{}},
 		want: `{"X":"called"}`,
 	}, {
+		name:    jsontest.Name("Interfaces/Any/Float/NaN"),
+		in:      struct{ X any }{math.NaN()},
+		want:    `{"X"`,
+		wantErr: EM(fmt.Errorf("unsupported value: %v", math.NaN())).withType(0, reflect.TypeFor[float64]()).withPos(`{"X":`, "/X"),
+	}, {
 		name: jsontest.Name("Interfaces/Any/Maps/Nil"),
 		in:   struct{ X any }{map[string]any(nil)},
 		want: `{"X":{}}`,
