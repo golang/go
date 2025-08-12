@@ -705,3 +705,31 @@ func TestIPv6WriteMsgUDPAddrPortTargetAddrIPVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestWriteToUDPAddrPort(t *testing.T) {
+	dialer := Dialer{}
+	c, err := dialer.Dial("udp", "[::1]:12345")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	ra, err := ResolveUDPAddr("udp", "[::1]:12345")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b := []byte("CONNECTED-MODE SOCKET")
+
+	_, _, err = c.(*UDPConn).WriteMsgUDPAddrPort(b, nil, ra.AddrPort())
+	if err == nil {
+		t.Fatal("should fail")
+	}
+	if err != nil && err.(*OpError).Err != ErrWriteToConnected {
+		t.Fatalf("should fail as ErrWriteToConnected: %v", err)
+	}
+	_, _, err = c.(*UDPConn).WriteMsgUDPAddrPort(b, nil, netip.AddrPort{})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
