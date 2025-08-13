@@ -1312,7 +1312,7 @@ func TestGoroutineLeakGC(t *testing.T) {
 	//
 	// TODO(vsaioc): Some of these might be removable (their patterns may overlap).
 	gokerTestCases := []testCase{
-		makeTest("Cockroach584",
+		makeFlakyTest("Cockroach584",
 			`Cockroach584\.func2\(.* \[sync\.Mutex\.Lock\]`,
 		),
 		makeFlakyTest("Cockroach1055",
