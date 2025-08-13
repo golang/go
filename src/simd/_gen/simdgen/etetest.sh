@@ -1,33 +1,48 @@
-#!/bin/bash -x
+#!/bin/bash
 
-cat <<\\EOF
+# This is an end-to-end test of Go SIMD. It updates all generated
+# files in this repo and then runs several tests.
 
-This is an end-to-end test of Go SIMD. It checks out a fresh Go
-repository from the go.simd branch, then generates the SIMD input
-files and runs simdgen writing into the fresh repository.
+XEDDATA="${XEDDATA:-xeddata}"
+if [[ ! -d "$XEDDATA" ]]; then
+    echo >&2 "Must either set \$XEDDATA or symlink xeddata/ to the XED obj/dgen directory."
+    exit 1
+fi
 
-After that it generates the modified ssa pattern matching files, then
-builds the compiler.
+which go >/dev/null || exit 1
+goroot="$(go env GOROOT)"
+if [[ ! ../../../.. -ef "$goroot" ]]; then
+    # We might be able to make this work but it's SO CONFUSING.
+    echo >&2 "go command in path has GOROOT $goroot"
+    exit 1
+fi
 
-\EOF
+if [[ $(go env GOEXPERIMENT) != simd ]]; then
+    echo >&2 "GOEXPERIMENT=$(go env GOEXPERIMENT), expected simd"
+    exit 1
+fi
 
-rm -rf go-test
-git clone https://go.googlesource.com/go -b dev.simd go-test
-go run . -xedPath xeddata  -o godefs -goroot ./go-test  go.yaml types.yaml categories.yaml
-(cd go-test/src/cmd/compile/internal/ssa/_gen ; go run *.go )
-(cd go-test/src ; GOEXPERIMENT=simd  ./make.bash )
-(cd go-test/bin; b=`pwd` ; cd ../src/simd/testdata; GOARCH=amd64 $b/go run .)
-(cd go-test/bin; b=`pwd` ; cd ../src ;
-GOEXPERIMENT=simd GOARCH=amd64 $b/go test -v simd
-GOEXPERIMENT=simd $b/go test go/doc
-GOEXPERIMENT=simd $b/go test go/build
-GOEXPERIMENT=simd $b/go test cmd/api -v -check
-$b/go test go/doc
-$b/go test go/build
-$b/go test cmd/api -v -check
+set -ex
 
-$b/go test cmd/compile/internal/ssagen -simd=0
-GOEXPERIMENT=simd $b/go test cmd/compile/internal/ssagen -simd=0
-)
+# Regenerate SIMD files
+go run . -o godefs -goroot "$goroot" -xedPath "$XEDDATA" go.yaml types.yaml categories.yaml
+# Regenerate SSA files from SIMD rules
+go run -C "$goroot"/src/cmd/compile/internal/ssa/_gen .
 
-# next, add some tests of SIMD itself
+# Rebuild compiler
+cd "$goroot"/src
+go install cmd/compile
+
+# Tests
+GOARCH=amd64 go run -C simd/testdata .
+GOARCH=amd64 go test -v simd
+go test go/doc go/build
+go test cmd/api -v -check -run ^TestCheck$
+go test cmd/compile/internal/ssagen -simd=0
+
+# Check tests without the GOEXPERIMENT
+GOEXPERIMENT= go test go/doc go/build
+GOEXPERIMENT= go test cmd/api -v -check -run ^TestCheck$
+GOEXPERIMENT= go test cmd/compile/internal/ssagen -simd=0
+
+# TODO: Add some tests of SIMD itself
