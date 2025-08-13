@@ -47,8 +47,8 @@ func isFPReg(r int16) bool {
 	return x86.REG_X0 <= r && r <= x86.REG_Z31
 }
 
-// loadByType returns the load instruction of the given type.
-func loadByType(t *types.Type) obj.As {
+// loadByTypeAndReg returns the load instruction of the given type/register.
+func loadByTypeAndReg(t *types.Type, r int16) obj.As {
 	// Avoid partial register write
 	if !t.IsFloat() {
 		switch t.Size() {
@@ -59,7 +59,37 @@ func loadByType(t *types.Type) obj.As {
 		}
 	}
 	// Otherwise, there's no difference between load and store opcodes.
-	return storeByType(t)
+	return storeByTypeAndReg(t, r)
+}
+
+// storeByTypeAndReg returns the store instruction of the given type/register.
+func storeByTypeAndReg(t *types.Type, r int16) obj.As {
+	width := t.Size()
+	if t.IsSIMD() {
+		return simdMov(width)
+	}
+	if isFPReg(r) {
+		switch width {
+		case 4:
+			return x86.AMOVSS
+		case 8:
+			return x86.AMOVSD
+		}
+	} else {
+		switch width {
+		case 1:
+			return x86.AMOVB
+		case 2:
+			return x86.AMOVW
+		case 4:
+			return x86.AMOVL
+		case 8:
+			return x86.AMOVQ
+		case 16:
+			return x86.AMOVUPS
+		}
+	}
+	panic(fmt.Sprintf("bad store type %v", t))
 }
 
 // storeByType returns the store instruction of the given type.
@@ -1171,10 +1201,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			v.Fatalf("load flags not implemented: %v", v.LongString())
 			return
 		}
-		p := s.Prog(loadByType(v.Type))
+		r := v.Reg()
+		p := s.Prog(loadByTypeAndReg(v.Type, r))
 		ssagen.AddrAuto(&p.From, v.Args[0])
 		p.To.Type = obj.TYPE_REG
-		r := v.Reg()
 		if v.Type.IsSIMD() {
 			r = simdOrMaskReg(v)
 		}
@@ -1206,7 +1236,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			// Pass the spill/unspill information along to the assembler, offset by size of return PC pushed on stack.
 			addr := ssagen.SpillSlotAddr(ap, x86.REG_SP, v.Block.Func.Config.PtrSize)
 			s.FuncInfo().AddSpill(
-				obj.RegSpill{Reg: ap.Reg, Addr: addr, Unspill: loadByType(ap.Type), Spill: storeByType(ap.Type)})
+				obj.RegSpill{Reg: ap.Reg, Addr: addr, Unspill: loadByTypeAndReg(ap.Type, ap.Reg), Spill: storeByType(ap.Type)})
 		}
 		v.Block.Func.RegArgs = nil
 		ssagen.CheckArgReg(v)
@@ -2090,7 +2120,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 }
 
 func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
-	p := s.Prog(loadByType(t))
+	p := s.Prog(loadByTypeAndReg(t, reg))
 	p.From.Type = obj.TYPE_MEM
 	p.From.Name = obj.NAME_AUTO
 	p.From.Sym = n.Linksym()
