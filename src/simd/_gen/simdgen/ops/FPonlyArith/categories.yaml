@@ -1,0 +1,85 @@
+!sum
+- go: Div
+  commutative: false
+  documentation: !string |-
+    // NAME divides elements of two vectors.
+- go: Sqrt
+  commutative: false
+  documentation: !string |-
+    // NAME computes the square root of each element.
+- go: Reciprocal
+  commutative: false
+  documentation: !string |-
+    // NAME computes an approximate reciprocal of each element.
+- go: ReciprocalSqrt
+  commutative: false
+  documentation: !string |-
+    // NAME computes an approximate reciprocal of the square root of each element.
+- go: Scale
+  commutative: false
+  documentation: !string |-
+    // NAME multiplies elements by a power of 2.
+- go: RoundToEven
+  commutative: false
+  constImm: 0
+  documentation: !string |-
+    // NAME rounds elements to the nearest integer.
+- go: RoundToEvenScaled
+  commutative: false
+  constImm: 0
+  documentation: !string |-
+    // NAME rounds elements with specified precision.
+- go: RoundToEvenScaledResidue
+  commutative: false
+  constImm: 0
+  documentation: !string |-
+    // NAME computes the difference after rounding with specified precision.
+- go: Floor
+  commutative: false
+  constImm: 1
+  documentation: !string |-
+    // NAME rounds elements down to the nearest integer.
+- go: FloorScaled
+  commutative: false
+  constImm: 1
+  documentation: !string |-
+    // NAME rounds elements down with specified precision.
+- go: FloorScaledResidue
+  commutative: false
+  constImm: 1
+  documentation: !string |-
+    // NAME computes the difference after flooring with specified precision.
+- go: Ceil
+  commutative: false
+  constImm: 2
+  documentation: !string |-
+    // NAME rounds elements up to the nearest integer.
+- go: CeilScaled
+  commutative: false
+  constImm: 2
+  documentation: !string |-
+    // NAME rounds elements up with specified precision.
+- go: CeilScaledResidue
+  commutative: false
+  constImm: 2
+  documentation: !string |-
+    // NAME computes the difference after ceiling with specified precision.
+- go: Trunc
+  commutative: false
+  constImm: 3
+  documentation: !string |-
+    // NAME truncates elements towards zero.
+- go: TruncScaled
+  commutative: false
+  constImm: 3
+  documentation: !string |-
+    // NAME truncates elements with specified precision.
+- go: TruncScaledResidue
+  commutative: false
+  constImm: 3
+  documentation: !string |-
+    // NAME computes the difference after truncating with specified precision.
+- go: AddSub
+  commutative: false
+  documentation: !string |-
+    // NAME subtracts even elements and adds odd elements of two vectors.

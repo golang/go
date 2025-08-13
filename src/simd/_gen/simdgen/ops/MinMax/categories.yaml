@@ -1,0 +1,9 @@
+!sum
+- go: Max
+  commutative: true
+  documentation: !string |-
+    // NAME computes the maximum of corresponding elements.
+- go: Min
+  commutative: true
+  documentation: !string |-
+    // NAME computes the minimum of corresponding elements.

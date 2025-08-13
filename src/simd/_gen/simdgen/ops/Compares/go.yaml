@@ -1,0 +1,141 @@
+!sum
+# Ints
+- go: Equal
+  asm: "V?PCMPEQ[BWDQ]"
+  in:
+  - &any
+    go: $t
+  - *any
+  out:
+  - &anyvregToMask
+    go: $t
+    overwriteBase: int
+    overwriteClass: mask
+- go: Greater
+  asm: "V?PCMPGT[BWDQ]"
+  in:
+  - &int
+    go: $t
+    base: int
+  - *int
+  out:
+  - *anyvregToMask
+# 256-bit VCMPGTQ's output elemBits is marked 32-bit in the XED data, we
+# believe this is an error, so add this definition to overwrite.
+- go: Greater
+  asm: "VPCMPGTQ"
+  in:
+  - &int64
+    go: $t
+    base: int
+    elemBits: 64
+  - *int64
+  out:
+  - base: int
+    elemBits: 32
+    overwriteElementBits: 64
+    overwriteClass: mask
+    overwriteBase: int
+
+# TODO these are redundant with VPCMP operations.
+# AVX-512 compares produce masks.
+- go: Equal
+  asm: "V?PCMPEQ[BWDQ]"
+  in:
+  - *any
+  - *any
+  out:
+  - class: mask
+- go: Greater
+  asm: "V?PCMPGT[BWDQ]"
+  in:
+  - *int
+  - *int
+  out:
+  - class: mask
+
+# MASKED signed comparisons for X/Y registers
+# unmasked would clash with emulations on AVX2
+- go: (Equal|Greater|Less|LessEqual|GreaterEqual|NotEqual)
+  asm: "VPCMP[BWDQ]"
+  in:
+  - &int
+    bits: (128|256)
+    go: $t
+    base: int
+  - *int
+  - class: immediate
+    const: 0 # Just a placeholder, will be overwritten by const imm porting.
+  inVariant:
+  - class: mask
+  out:
+  - class: mask
+
+# MASKED unsigned comparisons for X/Y registers
+# unmasked would clash with emulations on AVX2
+- go: (Equal|Greater|Less|LessEqual|GreaterEqual|NotEqual)
+  asm: "VPCMPU[BWDQ]"
+  in:
+  - &uint
+    bits: (128|256)
+    go: $t
+    base: uint
+  - *uint
+  - class: immediate
+    const: 0
+  inVariant:
+  - class: mask
+  out:
+  - class: mask
+
+# masked/unmasked signed comparisons for Z registers
+- go: (Equal|Greater|Less|LessEqual|GreaterEqual|NotEqual)
+  asm: "VPCMP[BWDQ]"
+  in:
+  - &int
+    bits: 512
+    go: $t
+    base: int
+  - *int
+  - class: immediate
+    const: 0 # Just a placeholder, will be overwritten by const imm porting.
+  out:
+  - class: mask
+
+# masked/unmasked unsigned comparisons for Z registers
+- go: (Equal|Greater|Less|LessEqual|GreaterEqual|NotEqual)
+  asm: "VPCMPU[BWDQ]"
+  in:
+  - &uint
+    bits: 512
+    go: $t
+    base: uint
+  - *uint
+  - class: immediate
+    const: 0
+  out:
+  - class: mask
+
+# Floats
+- go: Equal|Greater|Less|LessEqual|GreaterEqual|NotEqual|IsNan
+  asm: "VCMPP[SD]"
+  in:
+  - &float
+    go: $t
+    base: float
+  - *float
+  - class: immediate
+    const: 0
+  out:
+  - go: $t
+    overwriteBase: int
+    overwriteClass: mask
+- go: (Equal|Greater|Less|LessEqual|GreaterEqual|NotEqual|IsNan)
+  asm: "VCMPP[SD]"
+  in:
+  - *float
+  - *float
+  - class: immediate
+    const: 0
+  out:
+  - class: mask

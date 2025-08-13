@@ -1,0 +1,77 @@
+!sum
+# Add
+- go: Add
+  asm: "VPADD[BWDQ]|VADDP[SD]"
+  in:
+  - &any
+    go: $t
+  - *any
+  out:
+  - *any
+# Add Saturated
+- go: AddSaturated
+  asm: "VPADDS[BWDQ]"
+  in:
+  - &int
+    go: $t
+    base: int
+  - *int
+  out:
+  - *int
+- go: AddSaturated
+  asm: "VPADDUS[BWDQ]"
+  in:
+  - &uint
+    go: $t
+    base: uint
+  - *uint
+  out:
+  - *uint
+
+# Sub
+- go: Sub
+  asm: "VPSUB[BWDQ]|VSUBP[SD]"
+  in: &2any
+  - *any
+  - *any
+  out: &1any
+  - *any
+# Sub Saturated
+- go: SubSaturated
+  asm: "VPSUBS[BWDQ]"
+  in: &2int
+  - *int
+  - *int
+  out: &1int
+  - *int
+- go: SubSaturated
+  asm: "VPSUBUS[BWDQ]"
+  in:
+  - *uint
+  - *uint
+  out:
+  - *uint
+- go: AddPairs
+  asm: "VPHADD[DW]"
+  in: *2any
+  out: *1any
+- go: SubPairs
+  asm: "VPHSUB[DW]"
+  in: *2any
+  out: *1any
+- go: AddPairs
+  asm: "VHADDP[SD]" # floats
+  in: *2any
+  out: *1any
+- go: SubPairs
+  asm: "VHSUBP[SD]"  # floats
+  in: *2any
+  out: *1any
+- go: AddPairsSaturated
+  asm: "VPHADDS[DW]"
+  in: *2int
+  out: *1int
+- go: SubPairsSaturated
+  asm: "VPHSUBS[DW]"
+  in: *2int
+  out: *1int

@@ -1,0 +1,372 @@
+!sum
+- go: SetElem
+  asm: "VPINSR[BWDQ]"
+  in:
+  - &t
+    class: vreg
+    base: $b
+  - class: greg
+    base: $b
+    lanes: 1 # Scalar, darn it!
+  - &imm
+    class: immediate
+    immOffset: 0
+    name: index
+  out:
+  - *t
+
+- go: SetElem
+  asm: "VPINSR[DQ]"
+  in:
+  - &t
+    class: vreg
+    base: int
+    OverwriteBase: float
+  - class: greg
+    base: int
+    OverwriteBase: float
+    lanes: 1 # Scalar, darn it!
+  - &imm
+    class: immediate
+    immOffset: 0
+    name: index
+  out:
+  - *t
+
+- go: GetElem
+  asm: "VPEXTR[BWDQ]"
+  in:
+  - class: vreg
+    base: $b
+    elemBits: $e
+  - *imm
+  out:
+  - class: greg
+    base: $b
+    bits: $e
+
+- go: "SetHi|SetLo"
+  asm: "VINSERTI128|VINSERTI64X4"
+  inVariant: []
+  in:
+  - &i8x2N
+    class: vreg
+    base: $t
+    OverwriteElementBits: 8
+  - &i8xN
+    class: vreg
+    base: $t
+    OverwriteElementBits: 8
+  - &imm01 # This immediate should be only 0 or 1
+    class: immediate
+    const: 0 # place holder
+    name: index
+  out:
+  - *i8x2N
+
+- go: "GetHi|GetLo"
+  asm: "VEXTRACTI128|VEXTRACTI64X4"
+  inVariant: []
+  in:
+  - *i8x2N
+  - *imm01
+  out:
+  - *i8xN
+
+- go: "SetHi|SetLo"
+  asm: "VINSERTI128|VINSERTI64X4"
+  inVariant: []
+  in:
+  - &i16x2N
+    class: vreg
+    base: $t
+    OverwriteElementBits: 16
+  - &i16xN
+    class: vreg
+    base: $t
+    OverwriteElementBits: 16
+  - *imm01
+  out:
+  - *i16x2N
+
+- go: "GetHi|GetLo"
+  asm: "VEXTRACTI128|VEXTRACTI64X4"
+  inVariant: []
+  in:
+  - *i16x2N
+  - *imm01
+  out:
+  - *i16xN
+
+- go: "SetHi|SetLo"
+  asm: "VINSERTI128|VINSERTI64X4"
+  inVariant: []
+  in:
+  - &i32x2N
+    class: vreg
+    base: $t
+    OverwriteElementBits: 32
+  - &i32xN
+    class: vreg
+    base: $t
+    OverwriteElementBits: 32
+  - *imm01
+  out:
+  - *i32x2N
+
+- go: "GetHi|GetLo"
+  asm: "VEXTRACTI128|VEXTRACTI64X4"
+  inVariant: []
+  in:
+  - *i32x2N
+  - *imm01
+  out:
+  - *i32xN
+
+- go: "SetHi|SetLo"
+  asm: "VINSERTI128|VINSERTI64X4"
+  inVariant: []
+  in:
+  - &i64x2N
+    class: vreg
+    base: $t
+    OverwriteElementBits: 64
+  - &i64xN
+    class: vreg
+    base: $t
+    OverwriteElementBits: 64
+  - *imm01
+  out:
+  - *i64x2N
+
+- go: "GetHi|GetLo"
+  asm: "VEXTRACTI128|VEXTRACTI64X4"
+  inVariant: []
+  in:
+  - *i64x2N
+  - *imm01
+  out:
+  - *i64xN
+
+- go: "SetHi|SetLo"
+  asm: "VINSERTF128|VINSERTF64X4"
+  inVariant: []
+  in:
+  - &f32x2N
+    class: vreg
+    base: $t
+    OverwriteElementBits: 32
+  - &f32xN
+    class: vreg
+    base: $t
+    OverwriteElementBits: 32
+  - *imm01
+  out:
+  - *f32x2N
+
+- go: "GetHi|GetLo"
+  asm: "VEXTRACTF128|VEXTRACTF64X4"
+  inVariant: []
+  in:
+  - *f32x2N
+  - *imm01
+  out:
+  - *f32xN
+
+- go: "SetHi|SetLo"
+  asm: "VINSERTF128|VINSERTF64X4"
+  inVariant: []
+  in:
+  - &f64x2N
+    class: vreg
+    base: $t
+    OverwriteElementBits: 64
+  - &f64xN
+    class: vreg
+    base: $t
+    OverwriteElementBits: 64
+  - *imm01
+  out:
+  - *f64x2N
+
+- go: "GetHi|GetLo"
+  asm: "VEXTRACTF128|VEXTRACTF64X4"
+  inVariant: []
+  in:
+  - *f64x2N
+  - *imm01
+  out:
+  - *f64xN
+
+- go: Permute
+  asm: "VPERM[BWDQ]|VPERMP[SD]"
+  operandOrder: "21Type1"
+  in:
+  - &anyindices
+    go: $t
+    name: indices
+    overwriteBase: uint
+  - &any
+    go: $t
+  out:
+  - *any
+
+- go: Permute2
+  asm: "VPERMI2[BWDQ]|VPERMI2P[SD]"
+  # Because we are overwriting the receiver's type, we
+  # have to move the receiver to be a parameter so that
+  # we can have no duplication.
+  operandOrder: "231Type1"
+  in:
+  - *anyindices # result in arg 0
+  - *any
+  - *any
+  out:
+  - *any
+
+- go: Compress
+  asm: "VPCOMPRESS[BWDQ]|VCOMPRESSP[SD]"
+  in:
+    # The mask in Compress is a control mask rather than a write mask, so it's not optional.
+  - class: mask
+  - *any
+  out:
+  - *any
+
+# For now a non-public method because
+# (1) [OverwriteClass] must be set together with [OverwriteBase]
+# (2) "simdgen does not support [OverwriteClass] in inputs".
+# That means the signature is wrong.
+- go: blend
+  asm: VPBLENDVB
+  in:
+  - &v
+    go: $t
+    class: vreg
+    base: int
+  - *v
+  -
+    class: vreg
+    base: int
+    name: mask
+  out:
+  - *v
+
+# For AVX512
+- go: blend
+  asm: VPBLENDM[BWDQ]
+  in:
+  - &v
+    go: $t
+    bits: 512
+    class: vreg
+    base: int
+  - *v
+  inVariant:
+  -
+    class: mask
+  out:
+  - *v
+
+- go: Expand
+  asm: "VPEXPAND[BWDQ]|VEXPANDP[SD]"
+  in:
+    # The mask in Expand is a control mask rather than a write mask, so it's not optional.
+  - class: mask
+  - *any
+  out:
+  - *any
+
+- go: Broadcast128
+  asm: VPBROADCAST[BWDQ]
+  in:
+  - class: vreg
+    bits: 128
+    elemBits: $e
+    base: $b
+  out:
+  - class: vreg
+    bits: 128
+    elemBits: $e
+    base: $b
+
+# weirdly, this one case on AVX2 is memory-operand-only
+- go: Broadcast128
+  asm: VPBROADCASTQ
+  in:
+  - class: vreg
+    bits: 128
+    elemBits: 64
+    base: int
+    OverwriteBase: float
+  out:
+  - class: vreg
+    bits: 128
+    elemBits: 64
+    base: int
+    OverwriteBase: float
+
+- go: Broadcast256
+  asm: VPBROADCAST[BWDQ]
+  in:
+  - class: vreg
+    bits: 128
+    elemBits: $e
+    base: $b
+  out:
+  - class: vreg
+    bits: 256
+    elemBits: $e
+    base: $b
+
+- go: Broadcast512
+  asm: VPBROADCAST[BWDQ]
+  in:
+  - class: vreg
+    bits: 128
+    elemBits: $e
+    base: $b
+  out:
+  - class: vreg
+    bits: 512
+    elemBits: $e
+    base: $b
+
+- go: Broadcast128
+  asm: VBROADCASTS[SD]
+  in:
+  - class: vreg
+    bits: 128
+    elemBits: $e
+    base: $b
+  out:
+  - class: vreg
+    bits: 128
+    elemBits: $e
+    base: $b
+
+- go: Broadcast256
+  asm: VBROADCASTS[SD]
+  in:
+  - class: vreg
+    bits: 128
+    elemBits: $e
+    base: $b
+  out:
+  - class: vreg
+    bits: 256
+    elemBits: $e
+    base: $b
+
+- go: Broadcast512
+  asm: VBROADCASTS[SD]
+  in:
+  - class: vreg
+    bits: 128
+    elemBits: $e
+    base: $b
+  out:
+  - class: vreg
+    bits: 512
+    elemBits: $e
+    base: $b

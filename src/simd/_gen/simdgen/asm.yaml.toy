@@ -1,0 +1,107 @@
+# Hand-written toy input like -xedPath would generate.
+# This input can be substituted for -xedPath.
+!sum
+- asm: ADDPS
+  goarch: amd64
+  feature: "SSE2"
+  in:
+    - asmPos: 0
+      class: vreg
+      base: float
+      elemBits: 32
+      bits: 128
+    - asmPos: 1
+      class: vreg
+      base: float
+      elemBits: 32
+      bits: 128
+  out:
+    - asmPos: 0
+      class: vreg
+      base: float
+      elemBits: 32
+      bits: 128
+
+- asm: ADDPD
+  goarch: amd64
+  feature: "SSE2"
+  in:
+    - asmPos: 0
+      class: vreg
+      base: float
+      elemBits: 64
+      bits: 128
+    - asmPos: 1
+      class: vreg
+      base: float
+      elemBits: 64
+      bits: 128
+  out:
+    - asmPos: 0
+      class: vreg
+      base: float
+      elemBits: 64
+      bits: 128
+
+- asm: PADDB
+  goarch: amd64
+  feature: "SSE2"
+  in:
+    - asmPos: 0
+      class: vreg
+      base: int|uint
+      elemBits: 32
+      bits: 128
+    - asmPos: 1
+      class: vreg
+      base: int|uint
+      elemBits: 32
+      bits: 128
+  out:
+    - asmPos: 0
+      class: vreg
+      base: int|uint
+      elemBits: 32
+      bits: 128
+
+- asm: VPADDB
+  goarch: amd64
+  feature: "AVX"
+  in:
+    - asmPos: 1
+      class: vreg
+      base: int|uint
+      elemBits: 8
+      bits: 128
+    - asmPos: 2
+      class: vreg
+      base: int|uint
+      elemBits: 8
+      bits: 128
+  out:
+    - asmPos: 0
+      class: vreg
+      base: int|uint
+      elemBits: 8
+      bits: 128
+
+- asm: VPADDB
+  goarch: amd64
+  feature: "AVX2"
+  in:
+    - asmPos: 1
+      class: vreg
+      base: int|uint
+      elemBits: 8
+      bits: 256
+    - asmPos: 2
+      class: vreg
+      base: int|uint
+      elemBits: 8
+      bits: 256
+  out:
+    - asmPos: 0
+      class: vreg
+      base: int|uint
+      elemBits: 8
+      bits: 256

@@ -1,0 +1,72 @@
+!sum
+- go: SetElem
+  commutative: false
+  documentation: !string |-
+    // NAME sets a single constant-indexed element's value.
+- go: GetElem
+  commutative: false
+  documentation: !string |-
+    // NAME retrieves a single constant-indexed element's value.
+- go: SetLo
+  commutative: false
+  constImm: 0
+  documentation: !string |-
+    // NAME returns x with its lower half set to y.
+- go: GetLo
+  commutative: false
+  constImm: 0
+  documentation: !string |-
+    // NAME returns the lower half of x.
+- go: SetHi
+  commutative: false
+  constImm: 1
+  documentation: !string |-
+    // NAME returns x with its upper half set to y.
+- go: GetHi
+  commutative: false
+  constImm: 1
+  documentation: !string |-
+    // NAME returns the upper half of x.
+- go: Permute
+  commutative: false
+  documentation: !string |-
+    // NAME performs a full permutation of vector x using indices:
+    // result := {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
+    // Only the needed bits to represent x's index are used in indices' elements.
+- go: Permute2 # Permute2 is only available on or after AVX512
+  commutative: false
+  documentation: !string |-
+    // NAME performs a full permutation of vector x, y using indices:
+    // result := {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
+    // where xy is x appending y.
+    // Only the needed bits to represent xy's index are used in indices' elements.
+- go: Compress
+  commutative: false
+  documentation: !string |-
+    // NAME performs a compression on vector x using mask by
+    // selecting elements as indicated by mask, and pack them to lower indexed elements.
+- go: blend
+  commutative: false
+  documentation: !string |-
+    // NAME blends two vectors based on mask values, choosing either
+    // the first or the second based on whether the third is false or true
+- go: Expand
+  commutative: false
+  documentation: !string |-
+    // NAME performs an expansion on a vector x whose elements are packed to lower parts.
+    // The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+- go: Broadcast128
+  commutative: false
+  documentation: !string |-
+    // NAME copies element zero of its (128-bit) input to all elements of
+    // the 128-bit output vector.
+- go: Broadcast256
+  commutative: false
+  documentation: !string |-
+    // NAME copies element zero of its (128-bit) input to all elements of
+    // the 256-bit output vector.
+- go: Broadcast512
+  commutative: false
+  documentation: !string |-
+    // NAME copies element zero of its (128-bit) input to all elements of
+    // the 512-bit output vector.

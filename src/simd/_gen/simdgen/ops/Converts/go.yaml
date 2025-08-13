@@ -1,0 +1,21 @@
+!sum
+- go: ConvertToInt32
+  asm: "VCVTTPS2DQ"
+  in:
+  - &fp
+    go: $t
+    base: float
+  out:
+  - &i32
+    go: $u
+    base: int
+    elemBits: 32
+- go: ConvertToUint32
+  asm: "VCVTPS2UDQ"
+  in:
+  - *fp
+  out:
+  - &u32
+    go: $u
+    base: uint
+    elemBits: 32

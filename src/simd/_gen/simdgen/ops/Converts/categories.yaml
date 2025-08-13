@@ -1,0 +1,10 @@
+!sum
+- go: ConvertToInt32
+  commutative: false
+  documentation: !string |-
+    // ConvertToInt32 converts element values to int32.
+
+- go: ConvertToUint32
+  commutative: false
+  documentation: !string |-
+    // ConvertToUint32Masked converts element values to uint32.
