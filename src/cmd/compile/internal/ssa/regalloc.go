@@ -2476,7 +2476,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 	}
 
 	// Check if we're allowed to clobber the destination location.
-	if len(e.cache[occupant.vid]) == 1 && !e.s.values[occupant.vid].rematerializeable {
+	if len(e.cache[occupant.vid]) == 1 && !e.s.values[occupant.vid].rematerializeable && !opcodeTable[e.s.orig[occupant.vid].Op].fixedReg {
 		// We can't overwrite the last copy
 		// of a value that needs to survive.
 		return false
