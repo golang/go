@@ -218,10 +218,12 @@ a {
 }
 #graph {
   overflow: hidden;
+  width: 100%;
+  height: 100%;
 }
 #graph svg {
   width: 100%;
-  height: auto;
+  height: 100%;
   padding: 10px;
 }
 #content.source .filename {

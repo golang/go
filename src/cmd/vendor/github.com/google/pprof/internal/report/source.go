@@ -25,6 +25,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -490,7 +491,7 @@ func (sp *sourcePrinter) addStack(addr uint64, frames []plugin.Frame) {
 		file.lines[f.Line] = append(file.lines[f.Line], sourceInst{addr, stack})
 
 		// Remember the first function name encountered per source line
-		// and assume that that line belongs to that function.
+		// and assume that line belongs to that function.
 		if _, ok := file.funcName[f.Line]; !ok {
 			file.funcName[f.Line] = f.Func
 		}
@@ -553,7 +554,7 @@ func (sp *sourcePrinter) splitIntoRanges(prof *profile.Profile, addrMap map[uint
 			unprocessed = append(unprocessed, addr)
 		}
 	}
-	sort.Slice(addrs, func(i, j int) bool { return addrs[i] < addrs[j] })
+	slices.Sort(addrs)
 
 	const expand = 500 // How much to expand range to pick up nearby addresses.
 	var result []addressRange
@@ -769,10 +770,7 @@ func (sp *sourcePrinter) functions(f *sourceFile) []sourceFunction {
 			}
 		} else {
 			// Find gap from predecessor and divide between predecessor and f.
-			halfGap := (f.begin - funcs[i-1].end) / 2
-			if halfGap > expand {
-				halfGap = expand
-			}
+			halfGap := min((f.begin-funcs[i-1].end)/2, expand)
 			funcs[i-1].end += halfGap
 			f.begin -= halfGap
 		}
