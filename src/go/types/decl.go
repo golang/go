@@ -607,7 +607,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *TypeName
 				check.collectTypeParams(&alias.tparams, tdecl.TypeParams)
 			}
 
-			rhs = check.definedType(tdecl.Type, obj)
+			rhs = check.declaredType(tdecl.Type, obj)
 			assert(rhs != nil)
 
 			alias.fromRHS = rhs
@@ -658,7 +658,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *TypeName
 		check.collectTypeParams(&named.tparams, tdecl.TypeParams)
 	}
 
-	rhs = check.definedType(tdecl.Type, obj)
+	rhs = check.declaredType(tdecl.Type, obj)
 	assert(rhs != nil)
 	named.fromRHS = rhs
 

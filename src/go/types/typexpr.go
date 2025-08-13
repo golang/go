@@ -16,7 +16,7 @@ import (
 
 // ident type-checks identifier e and initializes x with the value or type of e.
 // If an error occurred, x.mode is set to invalid.
-// For the meaning of def, see Checker.definedType, below.
+// For the meaning of def, see Checker.declaredType, below.
 // If wantType is set, the identifier e is expected to denote a type.
 func (check *Checker) ident(x *operand, e *ast.Ident, def *TypeName, wantType bool) {
 	x.mode = invalid
@@ -148,14 +148,14 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *TypeName, wantType bo
 // typ type-checks the type expression e and returns its type, or Typ[Invalid].
 // The type must not be an (uninstantiated) generic type.
 func (check *Checker) typ(e ast.Expr) Type {
-	return check.definedType(e, nil)
+	return check.declaredType(e, nil)
 }
 
 // varType type-checks the type expression e and returns its type, or Typ[Invalid].
 // The type must not be an (uninstantiated) generic type and it must not be a
 // constraint interface.
 func (check *Checker) varType(e ast.Expr) Type {
-	typ := check.definedType(e, nil)
+	typ := check.declaredType(e, nil)
 	check.validVarType(e, typ)
 	return typ
 }
@@ -185,11 +185,11 @@ func (check *Checker) validVarType(e ast.Expr, typ Type) {
 	}).describef(e, "check var type %s", typ)
 }
 
-// definedType is like typ but also accepts a type name def.
-// If def != nil, e is the type specification for the type named def, declared
-// in a type declaration, and def.typ.underlying will be set to the type of e
-// before any components of e are type-checked.
-func (check *Checker) definedType(e ast.Expr, def *TypeName) Type {
+// declaredType is like typ but also accepts a type name def.
+// If def != nil, e is the type specification for the [Alias] or [Named] type
+// named def, and def.typ.fromRHS will be set to the [Type] of e immediately
+// after its creation.
+func (check *Checker) declaredType(e ast.Expr, def *TypeName) Type {
 	typ := check.typInternal(e, def)
 	assert(isTyped(typ))
 	if isGeneric(typ) {
@@ -228,7 +228,7 @@ func goTypeName(typ Type) string {
 }
 
 // typInternal drives type checking of types.
-// Must only be called by definedType or genericType.
+// Must only be called by declaredType or genericType.
 func (check *Checker) typInternal(e0 ast.Expr, def *TypeName) (T Type) {
 	if check.conf._Trace {
 		check.trace(e0.Pos(), "-- type %s", e0)
@@ -295,7 +295,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *TypeName) (T Type) {
 	case *ast.ParenExpr:
 		// Generic types must be instantiated before they can be used in any form.
 		// Consequently, generic types cannot be parenthesized.
-		return check.definedType(e.X, def)
+		return check.declaredType(e.X, def)
 
 	case *ast.ArrayType:
 		if e.Len == nil {
